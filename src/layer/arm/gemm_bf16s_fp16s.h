@@ -1,8 +1,23 @@
 // Copyright 2022 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+void pack_A_tile_bf16_fp16_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
+void transpose_pack_A_tile_bf16_fp16_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
+void pack_B_tile_bf16_fp16_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk);
+void transpose_pack_B_tile_bf16_fp16_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk);
+#endif
+
 static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
+#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+    if (ncnn::cpu_support_arm_bf16())
+    {
+        pack_A_tile_bf16_fp16_bf16(A, AT, i, max_ii, k, max_kk);
+        return;
+    }
+#endif
+
     const int elempack = A.elempack;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
@@ -246,6 +261,14 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
 
 static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
+#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+    if (ncnn::cpu_support_arm_bf16())
+    {
+        transpose_pack_A_tile_bf16_fp16_bf16(A, AT, i, max_ii, k, max_kk);
+        return;
+    }
+#endif
+
     const int elempack = A.elempack;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
@@ -451,6 +474,14 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
 
 static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
+#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+    if (ncnn::cpu_support_arm_bf16())
+    {
+        pack_B_tile_bf16_fp16_bf16(B, BT, j, max_jj, k, max_kk);
+        return;
+    }
+#endif
+
     const int elempack = B.elempack;
     const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
@@ -901,6 +932,14 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
 
 static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
+#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+    if (ncnn::cpu_support_arm_bf16())
+    {
+        transpose_pack_B_tile_bf16_fp16_bf16(B, BT, j, max_jj, k, max_kk);
+        return;
+    }
+#endif
+
     const int elempack = B.elempack;
     const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
