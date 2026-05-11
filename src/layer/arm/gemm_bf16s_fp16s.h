@@ -406,7 +406,7 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
                 p0 += 2;
                 p1 += 2;
             }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 #if __ARM_NEON
             for (; kk + 7 < max_kk; kk += 8)
             {
@@ -1533,7 +1533,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
                 p0 += 2;
                 p1 += 2;
             }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 #if __ARM_NEON
             for (; kk + 7 < max_kk; kk += 8)
             {
