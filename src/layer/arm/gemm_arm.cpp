@@ -5014,7 +5014,6 @@ int Gemm_arm::create_pipeline_bf16s(const Option& opt)
         }
 #endif // __ARM_NEON
 
-
         if (opt.lightmode)
             C_data.release();
     }
@@ -5128,7 +5127,6 @@ int Gemm_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                 C = C_fp32;
             }
-
         }
     }
 
