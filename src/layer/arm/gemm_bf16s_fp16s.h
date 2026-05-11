@@ -1,7 +1,7 @@
 // Copyright 2022 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 void pack_A_tile_bf16_fp16_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
 void transpose_pack_A_tile_bf16_fp16_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
 void pack_B_tile_bf16_fp16_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk);
@@ -10,7 +10,7 @@ void transpose_pack_B_tile_bf16_fp16_bf16(const Mat& B, Mat& BT, int j, int max_
 
 static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
-#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
     if (ncnn::cpu_support_arm_bf16())
     {
         pack_A_tile_bf16_fp16_bf16(A, AT, i, max_ii, k, max_kk);
@@ -32,7 +32,46 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
         {
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 8;
 
-            for (int kk = 0; kk < max_kk; kk++)
+            int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _k0 = vld1q_u16(p0);
+                uint16x8_t _k1 = vld1q_u16(p0 + 8);
+                uint16x8_t _k2 = vld1q_u16(p0 + 16);
+                uint16x8_t _k3 = vld1q_u16(p0 + 24);
+
+                uint16x4_t _r0 = vget_low_u16(_k0);
+                uint16x4_t _r1 = vget_low_u16(_k1);
+                uint16x4_t _r2 = vget_low_u16(_k2);
+                uint16x4_t _r3 = vget_low_u16(_k3);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 8, vcombine_u16(_r2, _r3));
+
+                _r0 = vget_high_u16(_k0);
+                _r1 = vget_high_u16(_k1);
+                _r2 = vget_high_u16(_k2);
+                _r3 = vget_high_u16(_k3);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp + 16, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 24, vcombine_u16(_r2, _r3));
+
+                pp += 32;
+                p0 += 32;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x8_t _k0 = vld1q_u16(p0);
+                uint16x8_t _k1 = vld1q_u16(p0 + 8);
+                uint16x8x2_t _r01 = vzipq_u16(_k0, _k1);
+                vst1q_u16(pp, _r01.val[0]);
+                vst1q_u16(pp + 8, _r01.val[1]);
+                pp += 16;
+                p0 += 16;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk; kk++)
             {
                 vst1q_u16(pp, vld1q_u16(p0));
                 pp += 8;
@@ -44,7 +83,46 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 4;
             const unsigned short* p1 = (const unsigned short*)A + (i + ii + 4) * A_hstep + k * 4;
 
-            for (int kk = 0; kk < max_kk; kk++)
+            int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(p0);
+                uint16x4_t _r1 = vld1_u16(p0 + 4);
+                uint16x4_t _r2 = vld1_u16(p0 + 8);
+                uint16x4_t _r3 = vld1_u16(p0 + 12);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 8, vcombine_u16(_r2, _r3));
+
+                _r0 = vld1_u16(p1);
+                _r1 = vld1_u16(p1 + 4);
+                _r2 = vld1_u16(p1 + 8);
+                _r3 = vld1_u16(p1 + 12);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp + 16, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 24, vcombine_u16(_r2, _r3));
+
+                pp += 32;
+                p0 += 16;
+                p1 += 16;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _k0 = vld1_u16(p0);
+                uint16x4_t _k1 = vld1_u16(p0 + 4);
+                uint16x4x2_t _r01 = vzip_u16(_k0, _k1);
+                vst1q_u16(pp, vcombine_u16(_r01.val[0], _r01.val[1]));
+                _k0 = vld1_u16(p1);
+                _k1 = vld1_u16(p1 + 4);
+                _r01 = vzip_u16(_k0, _k1);
+                vst1q_u16(pp + 8, vcombine_u16(_r01.val[0], _r01.val[1]));
+                pp += 16;
+                p0 += 8;
+                p1 += 8;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk; kk++)
             {
                 uint16x8_t _r0 = vcombine_u16(vld1_u16(p0), vld1_u16(p1));
                 vst1q_u16(pp, _r0);
@@ -65,6 +143,60 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
             const unsigned short* p7 = (const unsigned short*)A + (i + ii + 7) * A_hstep + k;
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(p0);
+                uint16x4_t _r1 = vld1_u16(p1);
+                uint16x4_t _r2 = vld1_u16(p2);
+                uint16x4_t _r3 = vld1_u16(p3);
+                uint16x4_t _r4 = vld1_u16(p4);
+                uint16x4_t _r5 = vld1_u16(p5);
+                uint16x4_t _r6 = vld1_u16(p6);
+                uint16x4_t _r7 = vld1_u16(p7);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 8, vcombine_u16(_r2, _r3));
+                vst1q_u16(pp + 16, vcombine_u16(_r4, _r5));
+                vst1q_u16(pp + 24, vcombine_u16(_r6, _r7));
+                pp += 32;
+                p0 += 4;
+                p1 += 4;
+                p2 += 4;
+                p3 += 4;
+                p4 += 4;
+                p5 += 4;
+                p6 += 4;
+                p7 += 4;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint32x2_t _r0 = vdup_n_u32(0);
+                uint32x2_t _r1 = vdup_n_u32(0);
+                uint32x2_t _r2 = vdup_n_u32(0);
+                uint32x2_t _r3 = vdup_n_u32(0);
+                _r0 = vld1_lane_u32((const uint32_t*)p0, _r0, 0);
+                _r0 = vld1_lane_u32((const uint32_t*)p1, _r0, 1);
+                _r1 = vld1_lane_u32((const uint32_t*)p2, _r1, 0);
+                _r1 = vld1_lane_u32((const uint32_t*)p3, _r1, 1);
+                _r2 = vld1_lane_u32((const uint32_t*)p4, _r2, 0);
+                _r2 = vld1_lane_u32((const uint32_t*)p5, _r2, 1);
+                _r3 = vld1_lane_u32((const uint32_t*)p6, _r3, 0);
+                _r3 = vld1_lane_u32((const uint32_t*)p7, _r3, 1);
+                vst1_u16(pp, vreinterpret_u16_u32(_r0));
+                vst1_u16(pp + 4, vreinterpret_u16_u32(_r1));
+                vst1_u16(pp + 8, vreinterpret_u16_u32(_r2));
+                vst1_u16(pp + 12, vreinterpret_u16_u32(_r3));
+                pp += 16;
+                p0 += 2;
+                p1 += 2;
+                p2 += 2;
+                p3 += 2;
+                p4 += 2;
+                p5 += 2;
+                p6 += 2;
+                p7 += 2;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk + 7 < max_kk; kk += 8)
             {
                 uint16x8_t _r0 = vld1q_u16(p0);
@@ -94,6 +226,7 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
                 p6 += 8;
                 p7 += 8;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -124,12 +257,36 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 4;
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(p0);
+                uint16x4_t _r1 = vld1_u16(p0 + 4);
+                uint16x4_t _r2 = vld1_u16(p0 + 8);
+                uint16x4_t _r3 = vld1_u16(p0 + 12);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 8, vcombine_u16(_r2, _r3));
+                pp += 16;
+                p0 += 16;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _k0 = vld1_u16(p0);
+                uint16x4_t _k1 = vld1_u16(p0 + 4);
+                uint16x4x2_t _r01 = vzip_u16(_k0, _k1);
+                vst1q_u16(pp, vcombine_u16(_r01.val[0], _r01.val[1]));
+                pp += 8;
+                p0 += 8;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk + 1 < max_kk; kk += 2)
             {
                 vst1q_u16(pp, vld1q_u16(p0));
                 pp += 8;
                 p0 += 8;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk++)
             {
                 vst1_u16(pp, vld1_u16(p0));
@@ -145,6 +302,38 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
             const unsigned short* p3 = (const unsigned short*)A + (i + ii + 3) * A_hstep + k;
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(p0);
+                uint16x4_t _r1 = vld1_u16(p1);
+                uint16x4_t _r2 = vld1_u16(p2);
+                uint16x4_t _r3 = vld1_u16(p3);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 8, vcombine_u16(_r2, _r3));
+                pp += 16;
+                p0 += 4;
+                p1 += 4;
+                p2 += 4;
+                p3 += 4;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint32x2_t _r0 = vdup_n_u32(0);
+                uint32x2_t _r1 = vdup_n_u32(0);
+                _r0 = vld1_lane_u32((const uint32_t*)p0, _r0, 0);
+                _r0 = vld1_lane_u32((const uint32_t*)p1, _r0, 1);
+                _r1 = vld1_lane_u32((const uint32_t*)p2, _r1, 0);
+                _r1 = vld1_lane_u32((const uint32_t*)p3, _r1, 1);
+                vst1_u16(pp, vreinterpret_u16_u32(_r0));
+                vst1_u16(pp + 4, vreinterpret_u16_u32(_r1));
+                pp += 8;
+                p0 += 2;
+                p1 += 2;
+                p2 += 2;
+                p3 += 2;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk + 7 < max_kk; kk += 8)
             {
                 uint16x8x4_t _r0123;
@@ -173,6 +362,7 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
                 p2 += 4;
                 p3 += 4;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -196,6 +386,27 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
             const unsigned short* p1 = (const unsigned short*)A + (i + ii + 1) * A_hstep + k;
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(p0);
+                uint16x4_t _r1 = vld1_u16(p1);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                pp += 8;
+                p0 += 4;
+                p1 += 4;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint32x2_t _r0 = vdup_n_u32(0);
+                _r0 = vld1_lane_u32((const uint32_t*)p0, _r0, 0);
+                _r0 = vld1_lane_u32((const uint32_t*)p1, _r0, 1);
+                vst1_u16(pp, vreinterpret_u16_u32(_r0));
+                pp += 4;
+                p0 += 2;
+                p1 += 2;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 #if __ARM_NEON
             for (; kk + 7 < max_kk; kk += 8)
             {
@@ -218,6 +429,7 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
                 p1 += 4;
             }
 #endif // __ARM_NEON
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -261,7 +473,7 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
 
 static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
-#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
     if (ncnn::cpu_support_arm_bf16())
     {
         transpose_pack_A_tile_bf16_fp16_bf16(A, AT, i, max_ii, k, max_kk);
@@ -309,6 +521,17 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 4;
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                vst1q_u16(pp, vld1q_u16(p0));
+                vst1q_u16(pp + 8, vld1q_u16(p0 + 8));
+                vst1q_u16(pp + 16, vld1q_u16(p0 + 16));
+                vst1q_u16(pp + 24, vld1q_u16(p0 + 24));
+                pp += 32;
+                p0 += A_hstep * 4;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk + 3 < max_kk; kk += 4)
             {
                 uint16x8x4_t _r0123 = vld4q_u16(p0);
@@ -319,12 +542,51 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
                 pp += 32;
                 p0 += A_hstep * 4;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         }
         if (elempack == 1)
         {
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii);
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _k0 = vld1q_u16(p0);
+                uint16x8_t _k1 = vld1q_u16(p0 + A_hstep);
+                uint16x8_t _k2 = vld1q_u16(p0 + A_hstep * 2);
+                uint16x8_t _k3 = vld1q_u16(p0 + A_hstep * 3);
+
+                uint16x4_t _r0 = vget_low_u16(_k0);
+                uint16x4_t _r1 = vget_low_u16(_k1);
+                uint16x4_t _r2 = vget_low_u16(_k2);
+                uint16x4_t _r3 = vget_low_u16(_k3);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 8, vcombine_u16(_r2, _r3));
+
+                _r0 = vget_high_u16(_k0);
+                _r1 = vget_high_u16(_k1);
+                _r2 = vget_high_u16(_k2);
+                _r3 = vget_high_u16(_k3);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp + 16, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 24, vcombine_u16(_r2, _r3));
+
+                pp += 32;
+                p0 += A_hstep * 4;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x8_t _k0 = vld1q_u16(p0);
+                uint16x8_t _k1 = vld1q_u16(p0 + A_hstep);
+                uint16x8x2_t _r01 = vzipq_u16(_k0, _k1);
+                vst1q_u16(pp, _r01.val[0]);
+                vst1q_u16(pp + 8, _r01.val[1]);
+                pp += 16;
+                p0 += A_hstep * 2;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk++)
             {
                 vst1q_u16(pp, vld1q_u16(p0));
@@ -358,6 +620,15 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 4;
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                vst1q_u16(pp, vld1q_u16(p0));
+                vst1q_u16(pp + 8, vld1q_u16(p0 + 8));
+                pp += 16;
+                p0 += A_hstep * 4;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk + 3 < max_kk; kk += 4)
             {
                 uint16x4x4_t _r0123 = vld4_u16(p0);
@@ -366,12 +637,36 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
                 pp += 16;
                 p0 += A_hstep * 4;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         }
         if (elempack == 1)
         {
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii);
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(p0);
+                uint16x4_t _r1 = vld1_u16(p0 + A_hstep);
+                uint16x4_t _r2 = vld1_u16(p0 + A_hstep * 2);
+                uint16x4_t _r3 = vld1_u16(p0 + A_hstep * 3);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 8, vcombine_u16(_r2, _r3));
+                pp += 16;
+                p0 += A_hstep * 4;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _k0 = vld1_u16(p0);
+                uint16x4_t _k1 = vld1_u16(p0 + A_hstep);
+                uint16x4x2_t _r01 = vzip_u16(_k0, _k1);
+                vst1q_u16(pp, vcombine_u16(_r01.val[0], _r01.val[1]));
+                pp += 8;
+                p0 += A_hstep * 2;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk++)
             {
                 vst1_u16(pp, vld1_u16(p0));
@@ -404,6 +699,14 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 4;
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                vst1q_u16(pp, vcombine_u16(vld1_u16(p0), vld1_u16(p0 + 4)));
+                pp += 8;
+                p0 += A_hstep * 4;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk + 3 < max_kk; kk += 4)
             {
                 uint16x4x2_t _r01;
@@ -413,6 +716,7 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
                 pp += 8;
                 p0 += A_hstep * 4;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         }
 #endif // __ARM_NEON
         if (elempack == 1)
@@ -420,6 +724,28 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii);
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _r0 = vreinterpret_u16_u32(vld1_dup_u32((const uint32_t*)p0));
+                uint16x4_t _r1 = vreinterpret_u16_u32(vld1_dup_u32((const uint32_t*)(p0 + A_hstep)));
+                uint16x4_t _r2 = vreinterpret_u16_u32(vld1_dup_u32((const uint32_t*)(p0 + A_hstep * 2)));
+                uint16x4_t _r3 = vreinterpret_u16_u32(vld1_dup_u32((const uint32_t*)(p0 + A_hstep * 3)));
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                pp += 8;
+                p0 += A_hstep * 4;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _k0 = vreinterpret_u16_u32(vld1_dup_u32((const uint32_t*)p0));
+                uint16x4_t _k1 = vreinterpret_u16_u32(vld1_dup_u32((const uint32_t*)(p0 + A_hstep)));
+                uint16x4x2_t _r01 = vzip_u16(_k0, _k1);
+                vst1_u16(pp, _r01.val[0]);
+                pp += 4;
+                p0 += A_hstep * 2;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -474,7 +800,7 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
 
 static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
-#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
     if (ncnn::cpu_support_arm_bf16())
     {
         pack_B_tile_bf16_fp16_bf16(B, BT, j, max_jj, k, max_kk);
@@ -526,7 +852,60 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
             const unsigned short* p1 = (const unsigned short*)B + (j + jj + 4) * B_hstep + k * 4;
             const unsigned short* p2 = (const unsigned short*)B + (j + jj + 8) * B_hstep + k * 4;
 
-            for (int kk = 0; kk < max_kk; kk++)
+            int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(p0);
+                uint16x4_t _r1 = vld1_u16(p0 + 4);
+                uint16x4_t _r2 = vld1_u16(p0 + 8);
+                uint16x4_t _r3 = vld1_u16(p0 + 12);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 8, vcombine_u16(_r2, _r3));
+
+                _r0 = vld1_u16(p1);
+                _r1 = vld1_u16(p1 + 4);
+                _r2 = vld1_u16(p1 + 8);
+                _r3 = vld1_u16(p1 + 12);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp + 16, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 24, vcombine_u16(_r2, _r3));
+
+                _r0 = vld1_u16(p2);
+                _r1 = vld1_u16(p2 + 4);
+                _r2 = vld1_u16(p2 + 8);
+                _r3 = vld1_u16(p2 + 12);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp + 32, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 40, vcombine_u16(_r2, _r3));
+
+                pp += 48;
+                p0 += 16;
+                p1 += 16;
+                p2 += 16;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _k0 = vld1_u16(p0);
+                uint16x4_t _k1 = vld1_u16(p0 + 4);
+                uint16x4x2_t _r01 = vzip_u16(_k0, _k1);
+                vst1q_u16(pp, vcombine_u16(_r01.val[0], _r01.val[1]));
+                _k0 = vld1_u16(p1);
+                _k1 = vld1_u16(p1 + 4);
+                _r01 = vzip_u16(_k0, _k1);
+                vst1q_u16(pp + 8, vcombine_u16(_r01.val[0], _r01.val[1]));
+                _k0 = vld1_u16(p2);
+                _k1 = vld1_u16(p2 + 4);
+                _r01 = vzip_u16(_k0, _k1);
+                vst1q_u16(pp + 16, vcombine_u16(_r01.val[0], _r01.val[1]));
+                pp += 24;
+                p0 += 8;
+                p1 += 8;
+                p2 += 8;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk; kk++)
             {
                 vst1_u16(pp, vld1_u16(p0));
                 vst1_u16(pp + 4, vld1_u16(p1));
@@ -553,6 +932,82 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
             const unsigned short* pb = (const unsigned short*)B + (j + jj + 11) * B_hstep + k;
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(p0);
+                uint16x4_t _r1 = vld1_u16(p1);
+                uint16x4_t _r2 = vld1_u16(p2);
+                uint16x4_t _r3 = vld1_u16(p3);
+                uint16x4_t _r4 = vld1_u16(p4);
+                uint16x4_t _r5 = vld1_u16(p5);
+                uint16x4_t _r6 = vld1_u16(p6);
+                uint16x4_t _r7 = vld1_u16(p7);
+                uint16x4_t _r8 = vld1_u16(p8);
+                uint16x4_t _r9 = vld1_u16(p9);
+                uint16x4_t _ra = vld1_u16(pa);
+                uint16x4_t _rb = vld1_u16(pb);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 8, vcombine_u16(_r2, _r3));
+                vst1q_u16(pp + 16, vcombine_u16(_r4, _r5));
+                vst1q_u16(pp + 24, vcombine_u16(_r6, _r7));
+                vst1q_u16(pp + 32, vcombine_u16(_r8, _r9));
+                vst1q_u16(pp + 40, vcombine_u16(_ra, _rb));
+                pp += 48;
+                p0 += 4;
+                p1 += 4;
+                p2 += 4;
+                p3 += 4;
+                p4 += 4;
+                p5 += 4;
+                p6 += 4;
+                p7 += 4;
+                p8 += 4;
+                p9 += 4;
+                pa += 4;
+                pb += 4;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint32x2_t _r0 = vdup_n_u32(0);
+                uint32x2_t _r1 = vdup_n_u32(0);
+                uint32x2_t _r2 = vdup_n_u32(0);
+                uint32x2_t _r3 = vdup_n_u32(0);
+                uint32x2_t _r4 = vdup_n_u32(0);
+                uint32x2_t _r5 = vdup_n_u32(0);
+                _r0 = vld1_lane_u32((const uint32_t*)p0, _r0, 0);
+                _r0 = vld1_lane_u32((const uint32_t*)p1, _r0, 1);
+                _r1 = vld1_lane_u32((const uint32_t*)p2, _r1, 0);
+                _r1 = vld1_lane_u32((const uint32_t*)p3, _r1, 1);
+                _r2 = vld1_lane_u32((const uint32_t*)p4, _r2, 0);
+                _r2 = vld1_lane_u32((const uint32_t*)p5, _r2, 1);
+                _r3 = vld1_lane_u32((const uint32_t*)p6, _r3, 0);
+                _r3 = vld1_lane_u32((const uint32_t*)p7, _r3, 1);
+                _r4 = vld1_lane_u32((const uint32_t*)p8, _r4, 0);
+                _r4 = vld1_lane_u32((const uint32_t*)p9, _r4, 1);
+                _r5 = vld1_lane_u32((const uint32_t*)pa, _r5, 0);
+                _r5 = vld1_lane_u32((const uint32_t*)pb, _r5, 1);
+                vst1_u16(pp, vreinterpret_u16_u32(_r0));
+                vst1_u16(pp + 4, vreinterpret_u16_u32(_r1));
+                vst1_u16(pp + 8, vreinterpret_u16_u32(_r2));
+                vst1_u16(pp + 12, vreinterpret_u16_u32(_r3));
+                vst1_u16(pp + 16, vreinterpret_u16_u32(_r4));
+                vst1_u16(pp + 20, vreinterpret_u16_u32(_r5));
+                pp += 24;
+                p0 += 2;
+                p1 += 2;
+                p2 += 2;
+                p3 += 2;
+                p4 += 2;
+                p5 += 2;
+                p6 += 2;
+                p7 += 2;
+                p8 += 2;
+                p9 += 2;
+                pa += 2;
+                pb += 2;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk + 3 < max_kk; kk += 4)
             {
                 uint16x4_t _r0 = vld1_u16(p0);
@@ -598,6 +1053,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
                 pa += 4;
                 pb += 4;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -638,7 +1094,46 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
 
             if ((j + jj) % 8 == 0)
             {
-                for (int kk = 0; kk < max_kk; kk++)
+                int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    uint16x8_t _k0 = vld1q_u16(p0);
+                    uint16x8_t _k1 = vld1q_u16(p0 + 8);
+                    uint16x8_t _k2 = vld1q_u16(p0 + 16);
+                    uint16x8_t _k3 = vld1q_u16(p0 + 24);
+
+                    uint16x4_t _r0 = vget_low_u16(_k0);
+                    uint16x4_t _r1 = vget_low_u16(_k1);
+                    uint16x4_t _r2 = vget_low_u16(_k2);
+                    uint16x4_t _r3 = vget_low_u16(_k3);
+                    transpose4x4_u16(_r0, _r1, _r2, _r3);
+                    vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                    vst1q_u16(pp + 8, vcombine_u16(_r2, _r3));
+
+                    _r0 = vget_high_u16(_k0);
+                    _r1 = vget_high_u16(_k1);
+                    _r2 = vget_high_u16(_k2);
+                    _r3 = vget_high_u16(_k3);
+                    transpose4x4_u16(_r0, _r1, _r2, _r3);
+                    vst1q_u16(pp + 16, vcombine_u16(_r0, _r1));
+                    vst1q_u16(pp + 24, vcombine_u16(_r2, _r3));
+
+                    pp += 32;
+                    p0 += 32;
+                }
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    uint16x8_t _k0 = vld1q_u16(p0);
+                    uint16x8_t _k1 = vld1q_u16(p0 + 8);
+                    uint16x8x2_t _r01 = vzipq_u16(_k0, _k1);
+                    vst1q_u16(pp, _r01.val[0]);
+                    vst1q_u16(pp + 8, _r01.val[1]);
+                    pp += 16;
+                    p0 += 16;
+                }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                for (; kk < max_kk; kk++)
                 {
                     vst1q_u16(pp, vld1q_u16(p0));
                     pp += 8;
@@ -661,7 +1156,46 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
             const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * 4;
             const unsigned short* p1 = (const unsigned short*)B + (j + jj + 4) * B_hstep + k * 4;
 
-            for (int kk = 0; kk < max_kk; kk++)
+            int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(p0);
+                uint16x4_t _r1 = vld1_u16(p0 + 4);
+                uint16x4_t _r2 = vld1_u16(p0 + 8);
+                uint16x4_t _r3 = vld1_u16(p0 + 12);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 8, vcombine_u16(_r2, _r3));
+
+                _r0 = vld1_u16(p1);
+                _r1 = vld1_u16(p1 + 4);
+                _r2 = vld1_u16(p1 + 8);
+                _r3 = vld1_u16(p1 + 12);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp + 16, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 24, vcombine_u16(_r2, _r3));
+
+                pp += 32;
+                p0 += 16;
+                p1 += 16;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _k0 = vld1_u16(p0);
+                uint16x4_t _k1 = vld1_u16(p0 + 4);
+                uint16x4x2_t _r01 = vzip_u16(_k0, _k1);
+                vst1q_u16(pp, vcombine_u16(_r01.val[0], _r01.val[1]));
+                _k0 = vld1_u16(p1);
+                _k1 = vld1_u16(p1 + 4);
+                _r01 = vzip_u16(_k0, _k1);
+                vst1q_u16(pp + 8, vcombine_u16(_r01.val[0], _r01.val[1]));
+                pp += 16;
+                p0 += 8;
+                p1 += 8;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk; kk++)
             {
                 uint16x8_t _r0 = vcombine_u16(vld1_u16(p0), vld1_u16(p1));
                 vst1q_u16(pp, _r0);
@@ -682,6 +1216,60 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
             const unsigned short* p7 = (const unsigned short*)B + (j + jj + 7) * B_hstep + k;
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(p0);
+                uint16x4_t _r1 = vld1_u16(p1);
+                uint16x4_t _r2 = vld1_u16(p2);
+                uint16x4_t _r3 = vld1_u16(p3);
+                uint16x4_t _r4 = vld1_u16(p4);
+                uint16x4_t _r5 = vld1_u16(p5);
+                uint16x4_t _r6 = vld1_u16(p6);
+                uint16x4_t _r7 = vld1_u16(p7);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 8, vcombine_u16(_r2, _r3));
+                vst1q_u16(pp + 16, vcombine_u16(_r4, _r5));
+                vst1q_u16(pp + 24, vcombine_u16(_r6, _r7));
+                pp += 32;
+                p0 += 4;
+                p1 += 4;
+                p2 += 4;
+                p3 += 4;
+                p4 += 4;
+                p5 += 4;
+                p6 += 4;
+                p7 += 4;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint32x2_t _r0 = vdup_n_u32(0);
+                uint32x2_t _r1 = vdup_n_u32(0);
+                uint32x2_t _r2 = vdup_n_u32(0);
+                uint32x2_t _r3 = vdup_n_u32(0);
+                _r0 = vld1_lane_u32((const uint32_t*)p0, _r0, 0);
+                _r0 = vld1_lane_u32((const uint32_t*)p1, _r0, 1);
+                _r1 = vld1_lane_u32((const uint32_t*)p2, _r1, 0);
+                _r1 = vld1_lane_u32((const uint32_t*)p3, _r1, 1);
+                _r2 = vld1_lane_u32((const uint32_t*)p4, _r2, 0);
+                _r2 = vld1_lane_u32((const uint32_t*)p5, _r2, 1);
+                _r3 = vld1_lane_u32((const uint32_t*)p6, _r3, 0);
+                _r3 = vld1_lane_u32((const uint32_t*)p7, _r3, 1);
+                vst1_u16(pp, vreinterpret_u16_u32(_r0));
+                vst1_u16(pp + 4, vreinterpret_u16_u32(_r1));
+                vst1_u16(pp + 8, vreinterpret_u16_u32(_r2));
+                vst1_u16(pp + 12, vreinterpret_u16_u32(_r3));
+                pp += 16;
+                p0 += 2;
+                p1 += 2;
+                p2 += 2;
+                p3 += 2;
+                p4 += 2;
+                p5 += 2;
+                p6 += 2;
+                p7 += 2;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk + 7 < max_kk; kk += 8)
             {
                 uint16x8_t _r0 = vld1q_u16(p0);
@@ -743,6 +1331,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
                 p6 += 4;
                 p7 += 4;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -795,12 +1384,36 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
             const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * 4;
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(p0);
+                uint16x4_t _r1 = vld1_u16(p0 + 4);
+                uint16x4_t _r2 = vld1_u16(p0 + 8);
+                uint16x4_t _r3 = vld1_u16(p0 + 12);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 8, vcombine_u16(_r2, _r3));
+                pp += 16;
+                p0 += 16;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _k0 = vld1_u16(p0);
+                uint16x4_t _k1 = vld1_u16(p0 + 4);
+                uint16x4x2_t _r01 = vzip_u16(_k0, _k1);
+                vst1q_u16(pp, vcombine_u16(_r01.val[0], _r01.val[1]));
+                pp += 8;
+                p0 += 8;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk + 1 < max_kk; kk += 2)
             {
                 vst1q_u16(pp, vld1q_u16(p0));
                 pp += 8;
                 p0 += 8;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk++)
             {
                 vst1_u16(pp, vld1_u16(p0));
@@ -816,6 +1429,38 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
             const unsigned short* p3 = (const unsigned short*)B + (j + jj + 3) * B_hstep + k;
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(p0);
+                uint16x4_t _r1 = vld1_u16(p1);
+                uint16x4_t _r2 = vld1_u16(p2);
+                uint16x4_t _r3 = vld1_u16(p3);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 8, vcombine_u16(_r2, _r3));
+                pp += 16;
+                p0 += 4;
+                p1 += 4;
+                p2 += 4;
+                p3 += 4;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint32x2_t _r0 = vdup_n_u32(0);
+                uint32x2_t _r1 = vdup_n_u32(0);
+                _r0 = vld1_lane_u32((const uint32_t*)p0, _r0, 0);
+                _r0 = vld1_lane_u32((const uint32_t*)p1, _r0, 1);
+                _r1 = vld1_lane_u32((const uint32_t*)p2, _r1, 0);
+                _r1 = vld1_lane_u32((const uint32_t*)p3, _r1, 1);
+                vst1_u16(pp, vreinterpret_u16_u32(_r0));
+                vst1_u16(pp + 4, vreinterpret_u16_u32(_r1));
+                pp += 8;
+                p0 += 2;
+                p1 += 2;
+                p2 += 2;
+                p3 += 2;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk + 7 < max_kk; kk += 8)
             {
                 uint16x8x4_t _r0123;
@@ -844,6 +1489,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
                 p2 += 4;
                 p3 += 4;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -867,6 +1513,27 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
             const unsigned short* p1 = (const unsigned short*)B + (j + jj + 1) * B_hstep + k;
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(p0);
+                uint16x4_t _r1 = vld1_u16(p1);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                pp += 8;
+                p0 += 4;
+                p1 += 4;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint32x2_t _r0 = vdup_n_u32(0);
+                _r0 = vld1_lane_u32((const uint32_t*)p0, _r0, 0);
+                _r0 = vld1_lane_u32((const uint32_t*)p1, _r0, 1);
+                vst1_u16(pp, vreinterpret_u16_u32(_r0));
+                pp += 4;
+                p0 += 2;
+                p1 += 2;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 #if __ARM_NEON
             for (; kk + 7 < max_kk; kk += 8)
             {
@@ -889,6 +1556,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
                 p1 += 4;
             }
 #endif // __ARM_NEON
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -932,7 +1600,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
 
 static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
-#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
     if (ncnn::cpu_support_arm_bf16())
     {
         transpose_pack_B_tile_bf16_fp16_bf16(B, BT, j, max_jj, k, max_kk);
@@ -993,6 +1661,19 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 4;
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                vst1q_u16(pp, vld1q_u16(p0));
+                vst1q_u16(pp + 8, vld1q_u16(p0 + 8));
+                vst1q_u16(pp + 16, vld1q_u16(p0 + 16));
+                vst1q_u16(pp + 24, vld1q_u16(p0 + 24));
+                vst1q_u16(pp + 32, vld1q_u16(p0 + 32));
+                vst1q_u16(pp + 40, vld1q_u16(p0 + 40));
+                pp += 48;
+                p0 += B_hstep * 4;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk + 3 < max_kk; kk += 4)
             {
                 uint16x8x4_t _r0123 = vld4q_u16(p0);
@@ -1008,12 +1689,60 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
                 pp += 48;
                 p0 += B_hstep * 4;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         }
         if (elempack == 1)
         {
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj);
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(p0);
+                uint16x4_t _r1 = vld1_u16(p0 + 4);
+                uint16x4_t _r2 = vld1_u16(p0 + 8);
+                uint16x4_t _r3 = vld1_u16(p0 + B_hstep);
+                uint16x4_t _r4 = vld1_u16(p0 + B_hstep + 4);
+                uint16x4_t _r5 = vld1_u16(p0 + B_hstep + 8);
+                uint16x4_t _r6 = vld1_u16(p0 + B_hstep * 2);
+                uint16x4_t _r7 = vld1_u16(p0 + B_hstep * 2 + 4);
+                uint16x4_t _r8 = vld1_u16(p0 + B_hstep * 2 + 8);
+                uint16x4_t _r9 = vld1_u16(p0 + B_hstep * 3);
+                uint16x4_t _ra = vld1_u16(p0 + B_hstep * 3 + 4);
+                uint16x4_t _rb = vld1_u16(p0 + B_hstep * 3 + 8);
+
+                transpose4x4_u16(_r0, _r3, _r6, _r9);
+                transpose4x4_u16(_r1, _r4, _r7, _ra);
+                transpose4x4_u16(_r2, _r5, _r8, _rb);
+
+                vst1q_u16(pp, vcombine_u16(_r0, _r3));
+                vst1q_u16(pp + 8, vcombine_u16(_r6, _r9));
+                vst1q_u16(pp + 16, vcombine_u16(_r1, _r4));
+                vst1q_u16(pp + 24, vcombine_u16(_r7, _ra));
+                vst1q_u16(pp + 32, vcombine_u16(_r2, _r5));
+                vst1q_u16(pp + 40, vcombine_u16(_r8, _rb));
+                pp += 48;
+                p0 += B_hstep * 4;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _k0 = vld1_u16(p0);
+                uint16x4_t _k1 = vld1_u16(p0 + B_hstep);
+                uint16x4x2_t _r01 = vzip_u16(_k0, _k1);
+                vst1q_u16(pp, vcombine_u16(_r01.val[0], _r01.val[1]));
+                _k0 = vld1_u16(p0 + 4);
+                _k1 = vld1_u16(p0 + B_hstep + 4);
+                _r01 = vzip_u16(_k0, _k1);
+                vst1q_u16(pp + 8, vcombine_u16(_r01.val[0], _r01.val[1]));
+                _k0 = vld1_u16(p0 + 8);
+                _k1 = vld1_u16(p0 + B_hstep + 8);
+                _r01 = vzip_u16(_k0, _k1);
+                vst1q_u16(pp + 16, vcombine_u16(_r01.val[0], _r01.val[1]));
+                pp += 24;
+                p0 += B_hstep * 2;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk++)
             {
                 vst1q_u16(pp, vld1q_u16(p0));
@@ -1056,6 +1785,17 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 4;
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                vst1q_u16(pp, vld1q_u16(p0));
+                vst1q_u16(pp + 8, vld1q_u16(p0 + 8));
+                vst1q_u16(pp + 16, vld1q_u16(p0 + 16));
+                vst1q_u16(pp + 24, vld1q_u16(p0 + 24));
+                pp += 32;
+                p0 += B_hstep * 4;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk + 3 < max_kk; kk += 4)
             {
                 uint16x8x4_t _r0123 = vld4q_u16(p0);
@@ -1066,12 +1806,51 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
                 pp += 32;
                 p0 += B_hstep * 4;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         }
         if (elempack == 1)
         {
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj);
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _k0 = vld1q_u16(p0);
+                uint16x8_t _k1 = vld1q_u16(p0 + B_hstep);
+                uint16x8_t _k2 = vld1q_u16(p0 + B_hstep * 2);
+                uint16x8_t _k3 = vld1q_u16(p0 + B_hstep * 3);
+
+                uint16x4_t _r0 = vget_low_u16(_k0);
+                uint16x4_t _r1 = vget_low_u16(_k1);
+                uint16x4_t _r2 = vget_low_u16(_k2);
+                uint16x4_t _r3 = vget_low_u16(_k3);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 8, vcombine_u16(_r2, _r3));
+
+                _r0 = vget_high_u16(_k0);
+                _r1 = vget_high_u16(_k1);
+                _r2 = vget_high_u16(_k2);
+                _r3 = vget_high_u16(_k3);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp + 16, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 24, vcombine_u16(_r2, _r3));
+
+                pp += 32;
+                p0 += B_hstep * 4;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x8_t _k0 = vld1q_u16(p0);
+                uint16x8_t _k1 = vld1q_u16(p0 + B_hstep);
+                uint16x8x2_t _r01 = vzipq_u16(_k0, _k1);
+                vst1q_u16(pp, _r01.val[0]);
+                vst1q_u16(pp + 8, _r01.val[1]);
+                pp += 16;
+                p0 += B_hstep * 2;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk++)
             {
                 vst1q_u16(pp, vld1q_u16(p0));
@@ -1104,6 +1883,15 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 4;
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                vst1q_u16(pp, vld1q_u16(p0));
+                vst1q_u16(pp + 8, vld1q_u16(p0 + 8));
+                pp += 16;
+                p0 += B_hstep * 4;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk + 3 < max_kk; kk += 4)
             {
                 uint16x4x4_t _r0123 = vld4_u16(p0);
@@ -1112,12 +1900,36 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
                 pp += 16;
                 p0 += B_hstep * 4;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         }
         if (elempack == 1)
         {
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj);
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(p0);
+                uint16x4_t _r1 = vld1_u16(p0 + B_hstep);
+                uint16x4_t _r2 = vld1_u16(p0 + B_hstep * 2);
+                uint16x4_t _r3 = vld1_u16(p0 + B_hstep * 3);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp + 8, vcombine_u16(_r2, _r3));
+                pp += 16;
+                p0 += B_hstep * 4;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _k0 = vld1_u16(p0);
+                uint16x4_t _k1 = vld1_u16(p0 + B_hstep);
+                uint16x4x2_t _r01 = vzip_u16(_k0, _k1);
+                vst1q_u16(pp, vcombine_u16(_r01.val[0], _r01.val[1]));
+                pp += 8;
+                p0 += B_hstep * 2;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk++)
             {
                 vst1_u16(pp, vld1_u16(p0));
@@ -1150,6 +1962,14 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 4;
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                vst1q_u16(pp, vcombine_u16(vld1_u16(p0), vld1_u16(p0 + 4)));
+                pp += 8;
+                p0 += B_hstep * 4;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk + 3 < max_kk; kk += 4)
             {
                 uint16x4x2_t _r01;
@@ -1159,6 +1979,7 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
                 pp += 8;
                 p0 += B_hstep * 4;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         }
 #endif // __ARM_NEON
         if (elempack == 1)
@@ -1166,6 +1987,28 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj);
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _r0 = vreinterpret_u16_u32(vld1_dup_u32((const uint32_t*)p0));
+                uint16x4_t _r1 = vreinterpret_u16_u32(vld1_dup_u32((const uint32_t*)(p0 + B_hstep)));
+                uint16x4_t _r2 = vreinterpret_u16_u32(vld1_dup_u32((const uint32_t*)(p0 + B_hstep * 2)));
+                uint16x4_t _r3 = vreinterpret_u16_u32(vld1_dup_u32((const uint32_t*)(p0 + B_hstep * 3)));
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp, vcombine_u16(_r0, _r1));
+                pp += 8;
+                p0 += B_hstep * 4;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _k0 = vreinterpret_u16_u32(vld1_dup_u32((const uint32_t*)p0));
+                uint16x4_t _k1 = vreinterpret_u16_u32(vld1_dup_u32((const uint32_t*)(p0 + B_hstep)));
+                uint16x4x2_t _r01 = vzip_u16(_k0, _k1);
+                vst1_u16(pp, _r01.val[0]);
+                pp += 4;
+                p0 += B_hstep * 2;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
