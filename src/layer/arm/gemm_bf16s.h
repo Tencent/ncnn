@@ -35,12 +35,12 @@ static void pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, i
             transpose8x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
             vst1q_u16(pp, _r0);
             vst1q_u16(pp + 8, _r1);
-            vst1q_u16(pp + 8 * 2, _r2);
-            vst1q_u16(pp + 8 * 3, _r3);
-            vst1q_u16(pp + 8 * 4, _r4);
-            vst1q_u16(pp + 8 * 5, _r5);
-            vst1q_u16(pp + 8 * 6, _r6);
-            vst1q_u16(pp + 8 * 7, _r7);
+            vst1q_u16(pp + 16, _r2);
+            vst1q_u16(pp + 24, _r3);
+            vst1q_u16(pp + 32, _r4);
+            vst1q_u16(pp + 40, _r5);
+            vst1q_u16(pp + 48, _r6);
+            vst1q_u16(pp + 56, _r7);
             pp += 64;
             p0 += 8;
             p1 += 8;
@@ -300,16 +300,16 @@ static void pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, i
 
             vst1_u16(pp, _r0);
             vst1_u16(pp + 4, _r4);
-            vst1_u16(pp + 4 * 2, _r8);
-            vst1_u16(pp + 4 * 3, _r1);
-            vst1_u16(pp + 4 * 4, _r5);
-            vst1_u16(pp + 4 * 5, _r9);
-            vst1_u16(pp + 4 * 6, _r2);
-            vst1_u16(pp + 4 * 7, _r6);
-            vst1_u16(pp + 4 * 8, _ra);
-            vst1_u16(pp + 4 * 9, _r3);
-            vst1_u16(pp + 4 * 10, _r7);
-            vst1_u16(pp + 4 * 11, _rb);
+            vst1_u16(pp + 8, _r8);
+            vst1_u16(pp + 12, _r1);
+            vst1_u16(pp + 16, _r5);
+            vst1_u16(pp + 20, _r9);
+            vst1_u16(pp + 24, _r2);
+            vst1_u16(pp + 28, _r6);
+            vst1_u16(pp + 32, _ra);
+            vst1_u16(pp + 36, _r3);
+            vst1_u16(pp + 40, _r7);
+            vst1_u16(pp + 44, _rb);
             pp += 48;
             p0 += 4;
             p1 += 4;
@@ -379,12 +379,12 @@ static void pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, i
             transpose8x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
             vst1q_u16(pp, _r0);
             vst1q_u16(pp + 8, _r1);
-            vst1q_u16(pp + 8 * 2, _r2);
-            vst1q_u16(pp + 8 * 3, _r3);
-            vst1q_u16(pp + 8 * 4, _r4);
-            vst1q_u16(pp + 8 * 5, _r5);
-            vst1q_u16(pp + 8 * 6, _r6);
-            vst1q_u16(pp + 8 * 7, _r7);
+            vst1q_u16(pp + 16, _r2);
+            vst1q_u16(pp + 24, _r3);
+            vst1q_u16(pp + 32, _r4);
+            vst1q_u16(pp + 40, _r5);
+            vst1q_u16(pp + 48, _r6);
+            vst1q_u16(pp + 56, _r7);
             pp += 64;
             p0 += 8;
             p1 += 8;
@@ -411,12 +411,12 @@ static void pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, i
 
             vst1_u16(pp, _r0);
             vst1_u16(pp + 4, _r4);
-            vst1_u16(pp + 4 * 2, _r1);
-            vst1_u16(pp + 4 * 3, _r5);
-            vst1_u16(pp + 4 * 4, _r2);
-            vst1_u16(pp + 4 * 5, _r6);
-            vst1_u16(pp + 4 * 6, _r3);
-            vst1_u16(pp + 4 * 7, _r7);
+            vst1_u16(pp + 8, _r1);
+            vst1_u16(pp + 12, _r5);
+            vst1_u16(pp + 16, _r2);
+            vst1_u16(pp + 20, _r6);
+            vst1_u16(pp + 24, _r3);
+            vst1_u16(pp + 28, _r7);
             pp += 32;
             p0 += 4;
             p1 += 4;
@@ -643,153 +643,3304 @@ static void transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int
     }
 }
 
-static void transpose_unpack_output_tile_fp32_to_bf16(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj)
+static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_transpose)
 {
     const int out_elempack = top_blob.elempack;
     const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
+
+    const size_t c_hstep = C.dims == 3 ? C.cstep : (size_t)C.w;
+    const int c_elempack = C.elempack;
+    const float* pC = C;
 
     const float* pp = topT;
 
     int ii = 0;
 #if __ARM_NEON
-#if __aarch64__
     for (; ii + 7 < max_ii; ii += 8)
     {
-        if (out_elempack == 4)
-        {
-            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * 4;
+        unsigned short* p0;
+        if (output_transpose)
+            p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * out_elempack;
+        else
+            p0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
-            for (int jj = 0; jj + 3 < max_jj; jj += 4)
+        if (pC)
+        {
+            if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                pC = (const float*)C + i + ii;
+            if (broadcast_type_C == 3)
             {
-                uint16x8x4_t _r0;
-                _r0.val[0] = vcombine_u16(float2bfloat(vld1q_f32(pp)), float2bfloat(vld1q_f32(pp + 4)));
-                _r0.val[1] = vcombine_u16(float2bfloat(vld1q_f32(pp + 8)), float2bfloat(vld1q_f32(pp + 12)));
-                _r0.val[2] = vcombine_u16(float2bfloat(vld1q_f32(pp + 16)), float2bfloat(vld1q_f32(pp + 20)));
-                _r0.val[3] = vcombine_u16(float2bfloat(vld1q_f32(pp + 24)), float2bfloat(vld1q_f32(pp + 28)));
-                vst4q_u16(p0, _r0);
-                pp += 32;
+                // c_elempack == 1
+                pC = (const float*)C + (i + ii) * c_hstep + j;
+            }
+            if (broadcast_type_C == 4)
+                pC = (const float*)C + j;
+        }
+
+        int jj = 0;
+#if __aarch64__
+        for (; jj + 11 < max_jj; jj += 12)
+        {
+            float32x4_t _f00 = vld1q_f32(pp + 0);
+            float32x4_t _f01 = vld1q_f32(pp + 4);
+            float32x4_t _f10 = vld1q_f32(pp + 8);
+            float32x4_t _f11 = vld1q_f32(pp + 12);
+            float32x4_t _f20 = vld1q_f32(pp + 16);
+            float32x4_t _f21 = vld1q_f32(pp + 20);
+            float32x4_t _f30 = vld1q_f32(pp + 24);
+            float32x4_t _f31 = vld1q_f32(pp + 28);
+            float32x4_t _f40 = vld1q_f32(pp + 32);
+            float32x4_t _f41 = vld1q_f32(pp + 36);
+            float32x4_t _f50 = vld1q_f32(pp + 40);
+            float32x4_t _f51 = vld1q_f32(pp + 44);
+            float32x4_t _f60 = vld1q_f32(pp + 48);
+            float32x4_t _f61 = vld1q_f32(pp + 52);
+            float32x4_t _f70 = vld1q_f32(pp + 56);
+            float32x4_t _f71 = vld1q_f32(pp + 60);
+            float32x4_t _f80 = vld1q_f32(pp + 64);
+            float32x4_t _f81 = vld1q_f32(pp + 68);
+            float32x4_t _f90 = vld1q_f32(pp + 72);
+            float32x4_t _f91 = vld1q_f32(pp + 76);
+            float32x4_t _fa0 = vld1q_f32(pp + 80);
+            float32x4_t _fa1 = vld1q_f32(pp + 84);
+            float32x4_t _fb0 = vld1q_f32(pp + 88);
+            float32x4_t _fb1 = vld1q_f32(pp + 92);
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    float32x4_t _c = vdupq_n_f32(pC[0] * beta);
+                    _f00 = vaddq_f32(_f00, _c);
+                    _f01 = vaddq_f32(_f01, _c);
+                    _f10 = vaddq_f32(_f10, _c);
+                    _f11 = vaddq_f32(_f11, _c);
+                    _f20 = vaddq_f32(_f20, _c);
+                    _f21 = vaddq_f32(_f21, _c);
+                    _f30 = vaddq_f32(_f30, _c);
+                    _f31 = vaddq_f32(_f31, _c);
+                    _f40 = vaddq_f32(_f40, _c);
+                    _f41 = vaddq_f32(_f41, _c);
+                    _f50 = vaddq_f32(_f50, _c);
+                    _f51 = vaddq_f32(_f51, _c);
+                    _f60 = vaddq_f32(_f60, _c);
+                    _f61 = vaddq_f32(_f61, _c);
+                    _f70 = vaddq_f32(_f70, _c);
+                    _f71 = vaddq_f32(_f71, _c);
+                    _f80 = vaddq_f32(_f80, _c);
+                    _f81 = vaddq_f32(_f81, _c);
+                    _f90 = vaddq_f32(_f90, _c);
+                    _f91 = vaddq_f32(_f91, _c);
+                    _fa0 = vaddq_f32(_fa0, _c);
+                    _fa1 = vaddq_f32(_fa1, _c);
+                    _fb0 = vaddq_f32(_fb0, _c);
+                    _fb1 = vaddq_f32(_fb1, _c);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    float32x4_t _c1 = vld1q_f32(pC + 4);
+                    if (beta != 1.f)
+                    {
+                        _c0 = vmulq_n_f32(_c0, beta);
+                        _c1 = vmulq_n_f32(_c1, beta);
+                    }
+                    _f00 = vaddq_f32(_f00, _c0);
+                    _f01 = vaddq_f32(_f01, _c1);
+                    _f10 = vaddq_f32(_f10, _c0);
+                    _f11 = vaddq_f32(_f11, _c1);
+                    _f20 = vaddq_f32(_f20, _c0);
+                    _f21 = vaddq_f32(_f21, _c1);
+                    _f30 = vaddq_f32(_f30, _c0);
+                    _f31 = vaddq_f32(_f31, _c1);
+                    _f40 = vaddq_f32(_f40, _c0);
+                    _f41 = vaddq_f32(_f41, _c1);
+                    _f50 = vaddq_f32(_f50, _c0);
+                    _f51 = vaddq_f32(_f51, _c1);
+                    _f60 = vaddq_f32(_f60, _c0);
+                    _f61 = vaddq_f32(_f61, _c1);
+                    _f70 = vaddq_f32(_f70, _c0);
+                    _f71 = vaddq_f32(_f71, _c1);
+                    _f80 = vaddq_f32(_f80, _c0);
+                    _f81 = vaddq_f32(_f81, _c1);
+                    _f90 = vaddq_f32(_f90, _c0);
+                    _f91 = vaddq_f32(_f91, _c1);
+                    _fa0 = vaddq_f32(_fa0, _c0);
+                    _fa1 = vaddq_f32(_fa1, _c1);
+                    _fb0 = vaddq_f32(_fb0, _c0);
+                    _fb1 = vaddq_f32(_fb1, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    if (c_elempack == 4)
+                    {
+                        float32x4_t _c00 = vld1q_f32(pC);
+                        float32x4_t _c01 = vld1q_f32(pC + c_hstep * 4);
+                        float32x4_t _c10 = vld1q_f32(pC + 4);
+                        float32x4_t _c11 = vld1q_f32(pC + c_hstep * 4 + 4);
+                        float32x4_t _c20 = vld1q_f32(pC + 8);
+                        float32x4_t _c21 = vld1q_f32(pC + c_hstep * 4 + 8);
+                        float32x4_t _c30 = vld1q_f32(pC + 12);
+                        float32x4_t _c31 = vld1q_f32(pC + c_hstep * 4 + 12);
+                        float32x4_t _c40 = vld1q_f32(pC + 16);
+                        float32x4_t _c41 = vld1q_f32(pC + c_hstep * 4 + 16);
+                        float32x4_t _c50 = vld1q_f32(pC + 20);
+                        float32x4_t _c51 = vld1q_f32(pC + c_hstep * 4 + 20);
+                        float32x4_t _c60 = vld1q_f32(pC + 24);
+                        float32x4_t _c61 = vld1q_f32(pC + c_hstep * 4 + 24);
+                        float32x4_t _c70 = vld1q_f32(pC + 28);
+                        float32x4_t _c71 = vld1q_f32(pC + c_hstep * 4 + 28);
+                        float32x4_t _c80 = vld1q_f32(pC + 32);
+                        float32x4_t _c81 = vld1q_f32(pC + c_hstep * 4 + 32);
+                        float32x4_t _c90 = vld1q_f32(pC + 36);
+                        float32x4_t _c91 = vld1q_f32(pC + c_hstep * 4 + 36);
+                        float32x4_t _ca0 = vld1q_f32(pC + 40);
+                        float32x4_t _ca1 = vld1q_f32(pC + c_hstep * 4 + 40);
+                        float32x4_t _cb0 = vld1q_f32(pC + 44);
+                        float32x4_t _cb1 = vld1q_f32(pC + c_hstep * 4 + 44);
+                        if (beta == 1.f)
+                        {
+                            _f00 = vaddq_f32(_f00, _c00);
+                            _f01 = vaddq_f32(_f01, _c01);
+                            _f10 = vaddq_f32(_f10, _c10);
+                            _f11 = vaddq_f32(_f11, _c11);
+                            _f20 = vaddq_f32(_f20, _c20);
+                            _f21 = vaddq_f32(_f21, _c21);
+                            _f30 = vaddq_f32(_f30, _c30);
+                            _f31 = vaddq_f32(_f31, _c31);
+                            _f40 = vaddq_f32(_f40, _c40);
+                            _f41 = vaddq_f32(_f41, _c41);
+                            _f50 = vaddq_f32(_f50, _c50);
+                            _f51 = vaddq_f32(_f51, _c51);
+                            _f60 = vaddq_f32(_f60, _c60);
+                            _f61 = vaddq_f32(_f61, _c61);
+                            _f70 = vaddq_f32(_f70, _c70);
+                            _f71 = vaddq_f32(_f71, _c71);
+                            _f80 = vaddq_f32(_f80, _c80);
+                            _f81 = vaddq_f32(_f81, _c81);
+                            _f90 = vaddq_f32(_f90, _c90);
+                            _f91 = vaddq_f32(_f91, _c91);
+                            _fa0 = vaddq_f32(_fa0, _ca0);
+                            _fa1 = vaddq_f32(_fa1, _ca1);
+                            _fb0 = vaddq_f32(_fb0, _cb0);
+                            _fb1 = vaddq_f32(_fb1, _cb1);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f00 = vmlaq_f32(_f00, _c00, _beta);
+                            _f01 = vmlaq_f32(_f01, _c01, _beta);
+                            _f10 = vmlaq_f32(_f10, _c10, _beta);
+                            _f11 = vmlaq_f32(_f11, _c11, _beta);
+                            _f20 = vmlaq_f32(_f20, _c20, _beta);
+                            _f21 = vmlaq_f32(_f21, _c21, _beta);
+                            _f30 = vmlaq_f32(_f30, _c30, _beta);
+                            _f31 = vmlaq_f32(_f31, _c31, _beta);
+                            _f40 = vmlaq_f32(_f40, _c40, _beta);
+                            _f41 = vmlaq_f32(_f41, _c41, _beta);
+                            _f50 = vmlaq_f32(_f50, _c50, _beta);
+                            _f51 = vmlaq_f32(_f51, _c51, _beta);
+                            _f60 = vmlaq_f32(_f60, _c60, _beta);
+                            _f61 = vmlaq_f32(_f61, _c61, _beta);
+                            _f70 = vmlaq_f32(_f70, _c70, _beta);
+                            _f71 = vmlaq_f32(_f71, _c71, _beta);
+                            _f80 = vmlaq_f32(_f80, _c80, _beta);
+                            _f81 = vmlaq_f32(_f81, _c81, _beta);
+                            _f90 = vmlaq_f32(_f90, _c90, _beta);
+                            _f91 = vmlaq_f32(_f91, _c91, _beta);
+                            _fa0 = vmlaq_f32(_fa0, _ca0, _beta);
+                            _fa1 = vmlaq_f32(_fa1, _ca1, _beta);
+                            _fb0 = vmlaq_f32(_fb0, _cb0, _beta);
+                            _fb1 = vmlaq_f32(_fb1, _cb1, _beta);
+                        }
+                        pC += 12 * c_elempack;
+                    }
+                    if (c_elempack == 1)
+                    {
+                        float32x4_t _c000 = vld1q_f32(pC);
+                        float32x4_t _c001 = vld1q_f32(pC + c_hstep);
+                        float32x4_t _c002 = vld1q_f32(pC + c_hstep * 2);
+                        float32x4_t _c003 = vld1q_f32(pC + c_hstep * 3);
+                        transpose4x4_ps(_c000, _c001, _c002, _c003);
+                        if (beta == 1.f)
+                        {
+                            _f00 = vaddq_f32(_f00, _c000);
+                            _f10 = vaddq_f32(_f10, _c001);
+                            _f20 = vaddq_f32(_f20, _c002);
+                            _f30 = vaddq_f32(_f30, _c003);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f00 = vmlaq_f32(_f00, _c000, _beta);
+                            _f10 = vmlaq_f32(_f10, _c001, _beta);
+                            _f20 = vmlaq_f32(_f20, _c002, _beta);
+                            _f30 = vmlaq_f32(_f30, _c003, _beta);
+                        }
+                        float32x4_t _c010 = vld1q_f32(pC + c_hstep * 4);
+                        float32x4_t _c011 = vld1q_f32(pC + c_hstep * 5);
+                        float32x4_t _c012 = vld1q_f32(pC + c_hstep * 6);
+                        float32x4_t _c013 = vld1q_f32(pC + c_hstep * 7);
+                        transpose4x4_ps(_c010, _c011, _c012, _c013);
+                        if (beta == 1.f)
+                        {
+                            _f01 = vaddq_f32(_f01, _c010);
+                            _f11 = vaddq_f32(_f11, _c011);
+                            _f21 = vaddq_f32(_f21, _c012);
+                            _f31 = vaddq_f32(_f31, _c013);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f01 = vmlaq_f32(_f01, _c010, _beta);
+                            _f11 = vmlaq_f32(_f11, _c011, _beta);
+                            _f21 = vmlaq_f32(_f21, _c012, _beta);
+                            _f31 = vmlaq_f32(_f31, _c013, _beta);
+                        }
+                        float32x4_t _c400 = vld1q_f32(pC + 4);
+                        float32x4_t _c401 = vld1q_f32(pC + c_hstep + 4);
+                        float32x4_t _c402 = vld1q_f32(pC + c_hstep * 2 + 4);
+                        float32x4_t _c403 = vld1q_f32(pC + c_hstep * 3 + 4);
+                        transpose4x4_ps(_c400, _c401, _c402, _c403);
+                        if (beta == 1.f)
+                        {
+                            _f40 = vaddq_f32(_f40, _c400);
+                            _f50 = vaddq_f32(_f50, _c401);
+                            _f60 = vaddq_f32(_f60, _c402);
+                            _f70 = vaddq_f32(_f70, _c403);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f40 = vmlaq_f32(_f40, _c400, _beta);
+                            _f50 = vmlaq_f32(_f50, _c401, _beta);
+                            _f60 = vmlaq_f32(_f60, _c402, _beta);
+                            _f70 = vmlaq_f32(_f70, _c403, _beta);
+                        }
+                        float32x4_t _c410 = vld1q_f32(pC + c_hstep * 4 + 4);
+                        float32x4_t _c411 = vld1q_f32(pC + c_hstep * 5 + 4);
+                        float32x4_t _c412 = vld1q_f32(pC + c_hstep * 6 + 4);
+                        float32x4_t _c413 = vld1q_f32(pC + c_hstep * 7 + 4);
+                        transpose4x4_ps(_c410, _c411, _c412, _c413);
+                        if (beta == 1.f)
+                        {
+                            _f41 = vaddq_f32(_f41, _c410);
+                            _f51 = vaddq_f32(_f51, _c411);
+                            _f61 = vaddq_f32(_f61, _c412);
+                            _f71 = vaddq_f32(_f71, _c413);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f41 = vmlaq_f32(_f41, _c410, _beta);
+                            _f51 = vmlaq_f32(_f51, _c411, _beta);
+                            _f61 = vmlaq_f32(_f61, _c412, _beta);
+                            _f71 = vmlaq_f32(_f71, _c413, _beta);
+                        }
+                        float32x4_t _c800 = vld1q_f32(pC + 8);
+                        float32x4_t _c801 = vld1q_f32(pC + c_hstep + 8);
+                        float32x4_t _c802 = vld1q_f32(pC + c_hstep * 2 + 8);
+                        float32x4_t _c803 = vld1q_f32(pC + c_hstep * 3 + 8);
+                        transpose4x4_ps(_c800, _c801, _c802, _c803);
+                        if (beta == 1.f)
+                        {
+                            _f80 = vaddq_f32(_f80, _c800);
+                            _f90 = vaddq_f32(_f90, _c801);
+                            _fa0 = vaddq_f32(_fa0, _c802);
+                            _fb0 = vaddq_f32(_fb0, _c803);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f80 = vmlaq_f32(_f80, _c800, _beta);
+                            _f90 = vmlaq_f32(_f90, _c801, _beta);
+                            _fa0 = vmlaq_f32(_fa0, _c802, _beta);
+                            _fb0 = vmlaq_f32(_fb0, _c803, _beta);
+                        }
+                        float32x4_t _c810 = vld1q_f32(pC + c_hstep * 4 + 8);
+                        float32x4_t _c811 = vld1q_f32(pC + c_hstep * 5 + 8);
+                        float32x4_t _c812 = vld1q_f32(pC + c_hstep * 6 + 8);
+                        float32x4_t _c813 = vld1q_f32(pC + c_hstep * 7 + 8);
+                        transpose4x4_ps(_c810, _c811, _c812, _c813);
+                        if (beta == 1.f)
+                        {
+                            _f81 = vaddq_f32(_f81, _c810);
+                            _f91 = vaddq_f32(_f91, _c811);
+                            _fa1 = vaddq_f32(_fa1, _c812);
+                            _fb1 = vaddq_f32(_fb1, _c813);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f81 = vmlaq_f32(_f81, _c810, _beta);
+                            _f91 = vmlaq_f32(_f91, _c811, _beta);
+                            _fa1 = vmlaq_f32(_fa1, _c812, _beta);
+                            _fb1 = vmlaq_f32(_fb1, _c813, _beta);
+                        }
+                        pC += 12;
+                    }
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = vdupq_n_f32(pC[0] * beta);
+                    _f00 = vaddq_f32(_f00, _c0);
+                    _f01 = vaddq_f32(_f01, _c0);
+                    float32x4_t _c1 = vdupq_n_f32(pC[1] * beta);
+                    _f10 = vaddq_f32(_f10, _c1);
+                    _f11 = vaddq_f32(_f11, _c1);
+                    float32x4_t _c2 = vdupq_n_f32(pC[2] * beta);
+                    _f20 = vaddq_f32(_f20, _c2);
+                    _f21 = vaddq_f32(_f21, _c2);
+                    float32x4_t _c3 = vdupq_n_f32(pC[3] * beta);
+                    _f30 = vaddq_f32(_f30, _c3);
+                    _f31 = vaddq_f32(_f31, _c3);
+                    float32x4_t _c4 = vdupq_n_f32(pC[4] * beta);
+                    _f40 = vaddq_f32(_f40, _c4);
+                    _f41 = vaddq_f32(_f41, _c4);
+                    float32x4_t _c5 = vdupq_n_f32(pC[5] * beta);
+                    _f50 = vaddq_f32(_f50, _c5);
+                    _f51 = vaddq_f32(_f51, _c5);
+                    float32x4_t _c6 = vdupq_n_f32(pC[6] * beta);
+                    _f60 = vaddq_f32(_f60, _c6);
+                    _f61 = vaddq_f32(_f61, _c6);
+                    float32x4_t _c7 = vdupq_n_f32(pC[7] * beta);
+                    _f70 = vaddq_f32(_f70, _c7);
+                    _f71 = vaddq_f32(_f71, _c7);
+                    float32x4_t _c8 = vdupq_n_f32(pC[8] * beta);
+                    _f80 = vaddq_f32(_f80, _c8);
+                    _f81 = vaddq_f32(_f81, _c8);
+                    float32x4_t _c9 = vdupq_n_f32(pC[9] * beta);
+                    _f90 = vaddq_f32(_f90, _c9);
+                    _f91 = vaddq_f32(_f91, _c9);
+                    float32x4_t _ca = vdupq_n_f32(pC[10] * beta);
+                    _fa0 = vaddq_f32(_fa0, _ca);
+                    _fa1 = vaddq_f32(_fa1, _ca);
+                    float32x4_t _cb = vdupq_n_f32(pC[11] * beta);
+                    _fb0 = vaddq_f32(_fb0, _cb);
+                    _fb1 = vaddq_f32(_fb1, _cb);
+                    pC += 12;
+                }
+            }
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f00 = vmulq_f32(_f00, _alpha);
+                _f01 = vmulq_f32(_f01, _alpha);
+                _f10 = vmulq_f32(_f10, _alpha);
+                _f11 = vmulq_f32(_f11, _alpha);
+                _f20 = vmulq_f32(_f20, _alpha);
+                _f21 = vmulq_f32(_f21, _alpha);
+                _f30 = vmulq_f32(_f30, _alpha);
+                _f31 = vmulq_f32(_f31, _alpha);
+                _f40 = vmulq_f32(_f40, _alpha);
+                _f41 = vmulq_f32(_f41, _alpha);
+                _f50 = vmulq_f32(_f50, _alpha);
+                _f51 = vmulq_f32(_f51, _alpha);
+                _f60 = vmulq_f32(_f60, _alpha);
+                _f61 = vmulq_f32(_f61, _alpha);
+                _f70 = vmulq_f32(_f70, _alpha);
+                _f71 = vmulq_f32(_f71, _alpha);
+                _f80 = vmulq_f32(_f80, _alpha);
+                _f81 = vmulq_f32(_f81, _alpha);
+                _f90 = vmulq_f32(_f90, _alpha);
+                _f91 = vmulq_f32(_f91, _alpha);
+                _fa0 = vmulq_f32(_fa0, _alpha);
+                _fa1 = vmulq_f32(_fa1, _alpha);
+                _fb0 = vmulq_f32(_fb0, _alpha);
+                _fb1 = vmulq_f32(_fb1, _alpha);
+            }
+            uint16x4_t _bf00 = float2bfloat(_f00);
+            uint16x4_t _bf01 = float2bfloat(_f01);
+            uint16x4_t _bf10 = float2bfloat(_f10);
+            uint16x4_t _bf11 = float2bfloat(_f11);
+            uint16x4_t _bf20 = float2bfloat(_f20);
+            uint16x4_t _bf21 = float2bfloat(_f21);
+            uint16x4_t _bf30 = float2bfloat(_f30);
+            uint16x4_t _bf31 = float2bfloat(_f31);
+            uint16x4_t _bf40 = float2bfloat(_f40);
+            uint16x4_t _bf41 = float2bfloat(_f41);
+            uint16x4_t _bf50 = float2bfloat(_f50);
+            uint16x4_t _bf51 = float2bfloat(_f51);
+            uint16x4_t _bf60 = float2bfloat(_f60);
+            uint16x4_t _bf61 = float2bfloat(_f61);
+            uint16x4_t _bf70 = float2bfloat(_f70);
+            uint16x4_t _bf71 = float2bfloat(_f71);
+            uint16x4_t _bf80 = float2bfloat(_f80);
+            uint16x4_t _bf81 = float2bfloat(_f81);
+            uint16x4_t _bf90 = float2bfloat(_f90);
+            uint16x4_t _bf91 = float2bfloat(_f91);
+            uint16x4_t _bfa0 = float2bfloat(_fa0);
+            uint16x4_t _bfa1 = float2bfloat(_fa1);
+            uint16x4_t _bfb0 = float2bfloat(_fb0);
+            uint16x4_t _bfb1 = float2bfloat(_fb1);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    uint16x8x4_t _r0;
+                    _r0.val[0] = vcombine_u16(_bf00, _bf01);
+                    _r0.val[1] = vcombine_u16(_bf10, _bf11);
+                    _r0.val[2] = vcombine_u16(_bf20, _bf21);
+                    _r0.val[3] = vcombine_u16(_bf30, _bf31);
+                    vst4q_u16(p0, _r0);
+                    uint16x8x4_t _r1;
+                    _r1.val[0] = vcombine_u16(_bf40, _bf41);
+                    _r1.val[1] = vcombine_u16(_bf50, _bf51);
+                    _r1.val[2] = vcombine_u16(_bf60, _bf61);
+                    _r1.val[3] = vcombine_u16(_bf70, _bf71);
+                    vst4q_u16(p0 + out_hstep * 4, _r1);
+                    uint16x8x4_t _r2;
+                    _r2.val[0] = vcombine_u16(_bf80, _bf81);
+                    _r2.val[1] = vcombine_u16(_bf90, _bf91);
+                    _r2.val[2] = vcombine_u16(_bfa0, _bfa1);
+                    _r2.val[3] = vcombine_u16(_bfb0, _bfb1);
+                    vst4q_u16(p0 + out_hstep * 8, _r2);
+                }
+                if (out_elempack == 1)
+                {
+                    vst1q_u16(p0, vcombine_u16(_bf00, _bf01));
+                    vst1q_u16(p0 + out_hstep, vcombine_u16(_bf10, _bf11));
+                    vst1q_u16(p0 + out_hstep * 2, vcombine_u16(_bf20, _bf21));
+                    vst1q_u16(p0 + out_hstep * 3, vcombine_u16(_bf30, _bf31));
+                    vst1q_u16(p0 + out_hstep * 4, vcombine_u16(_bf40, _bf41));
+                    vst1q_u16(p0 + out_hstep * 5, vcombine_u16(_bf50, _bf51));
+                    vst1q_u16(p0 + out_hstep * 6, vcombine_u16(_bf60, _bf61));
+                    vst1q_u16(p0 + out_hstep * 7, vcombine_u16(_bf70, _bf71));
+                    vst1q_u16(p0 + out_hstep * 8, vcombine_u16(_bf80, _bf81));
+                    vst1q_u16(p0 + out_hstep * 9, vcombine_u16(_bf90, _bf91));
+                    vst1q_u16(p0 + out_hstep * 10, vcombine_u16(_bfa0, _bfa1));
+                    vst1q_u16(p0 + out_hstep * 11, vcombine_u16(_bfb0, _bfb1));
+                }
+                p0 += out_hstep * 12;
+            }
+            else
+            {
+                if (out_elempack == 4)
+                {
+                    vst1q_u16(p0, vcombine_u16(_bf00, _bf10));
+                    vst1q_u16(p0 + out_hstep * 4, vcombine_u16(_bf01, _bf11));
+                    vst1q_u16(p0 + 8, vcombine_u16(_bf20, _bf30));
+                    vst1q_u16(p0 + out_hstep * 4 + 8, vcombine_u16(_bf21, _bf31));
+                    vst1q_u16(p0 + 16, vcombine_u16(_bf40, _bf50));
+                    vst1q_u16(p0 + out_hstep * 4 + 16, vcombine_u16(_bf41, _bf51));
+                    vst1q_u16(p0 + 24, vcombine_u16(_bf60, _bf70));
+                    vst1q_u16(p0 + out_hstep * 4 + 24, vcombine_u16(_bf61, _bf71));
+                    vst1q_u16(p0 + 32, vcombine_u16(_bf80, _bf90));
+                    vst1q_u16(p0 + out_hstep * 4 + 32, vcombine_u16(_bf81, _bf91));
+                    vst1q_u16(p0 + 40, vcombine_u16(_bfa0, _bfb0));
+                    vst1q_u16(p0 + out_hstep * 4 + 40, vcombine_u16(_bfa1, _bfb1));
+                    p0 += 48;
+                }
+                if (out_elempack == 1)
+                {
+                    uint16x8_t _r0 = vcombine_u16(_bf00, _bf01);
+                    uint16x8_t _r1 = vcombine_u16(_bf10, _bf11);
+                    uint16x8_t _r2 = vcombine_u16(_bf20, _bf21);
+                    uint16x8_t _r3 = vcombine_u16(_bf30, _bf31);
+                    uint16x8_t _r4 = vcombine_u16(_bf40, _bf41);
+                    uint16x8_t _r5 = vcombine_u16(_bf50, _bf51);
+                    uint16x8_t _r6 = vcombine_u16(_bf60, _bf61);
+                    uint16x8_t _r7 = vcombine_u16(_bf70, _bf71);
+                    uint16x8_t _r8 = vcombine_u16(_bf80, _bf81);
+                    uint16x8_t _r9 = vcombine_u16(_bf90, _bf91);
+                    uint16x8_t _ra = vcombine_u16(_bfa0, _bfa1);
+                    uint16x8_t _rb = vcombine_u16(_bfb0, _bfb1);
+                    transpose8x12_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
+
+                    vst1_u16(p0, vget_low_u16(_r0));
+                    vst1_u16(p0 + 4, vget_high_u16(_r0));
+                    vst1_u16(p0 + 8, vget_low_u16(_r1));
+                    vst1_u16(p0 + out_hstep, vget_high_u16(_r1));
+                    vst1_u16(p0 + out_hstep + 4, vget_low_u16(_r2));
+                    vst1_u16(p0 + out_hstep + 8, vget_high_u16(_r2));
+                    vst1_u16(p0 + out_hstep * 2, vget_low_u16(_r3));
+                    vst1_u16(p0 + out_hstep * 2 + 4, vget_high_u16(_r3));
+                    vst1_u16(p0 + out_hstep * 2 + 8, vget_low_u16(_r4));
+                    vst1_u16(p0 + out_hstep * 3, vget_high_u16(_r4));
+                    vst1_u16(p0 + out_hstep * 3 + 4, vget_low_u16(_r5));
+                    vst1_u16(p0 + out_hstep * 3 + 8, vget_high_u16(_r5));
+                    vst1_u16(p0 + out_hstep * 4, vget_low_u16(_r6));
+                    vst1_u16(p0 + out_hstep * 4 + 4, vget_high_u16(_r6));
+                    vst1_u16(p0 + out_hstep * 4 + 8, vget_low_u16(_r7));
+                    vst1_u16(p0 + out_hstep * 5, vget_high_u16(_r7));
+                    vst1_u16(p0 + out_hstep * 5 + 4, vget_low_u16(_r8));
+                    vst1_u16(p0 + out_hstep * 5 + 8, vget_high_u16(_r8));
+                    vst1_u16(p0 + out_hstep * 6, vget_low_u16(_r9));
+                    vst1_u16(p0 + out_hstep * 6 + 4, vget_high_u16(_r9));
+                    vst1_u16(p0 + out_hstep * 6 + 8, vget_low_u16(_ra));
+                    vst1_u16(p0 + out_hstep * 7, vget_high_u16(_ra));
+                    vst1_u16(p0 + out_hstep * 7 + 4, vget_low_u16(_rb));
+                    vst1_u16(p0 + out_hstep * 7 + 8, vget_high_u16(_rb));
+                    p0 += 12;
+                }
+            }
+            pp += 96;
+        }
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            float32x4_t _f00 = vld1q_f32(pp + 0);
+            float32x4_t _f01 = vld1q_f32(pp + 4);
+            float32x4_t _f10 = vld1q_f32(pp + 8);
+            float32x4_t _f11 = vld1q_f32(pp + 12);
+            float32x4_t _f20 = vld1q_f32(pp + 16);
+            float32x4_t _f21 = vld1q_f32(pp + 20);
+            float32x4_t _f30 = vld1q_f32(pp + 24);
+            float32x4_t _f31 = vld1q_f32(pp + 28);
+            float32x4_t _f40 = vld1q_f32(pp + 32);
+            float32x4_t _f41 = vld1q_f32(pp + 36);
+            float32x4_t _f50 = vld1q_f32(pp + 40);
+            float32x4_t _f51 = vld1q_f32(pp + 44);
+            float32x4_t _f60 = vld1q_f32(pp + 48);
+            float32x4_t _f61 = vld1q_f32(pp + 52);
+            float32x4_t _f70 = vld1q_f32(pp + 56);
+            float32x4_t _f71 = vld1q_f32(pp + 60);
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    float32x4_t _c = vdupq_n_f32(pC[0] * beta);
+                    _f00 = vaddq_f32(_f00, _c);
+                    _f01 = vaddq_f32(_f01, _c);
+                    _f10 = vaddq_f32(_f10, _c);
+                    _f11 = vaddq_f32(_f11, _c);
+                    _f20 = vaddq_f32(_f20, _c);
+                    _f21 = vaddq_f32(_f21, _c);
+                    _f30 = vaddq_f32(_f30, _c);
+                    _f31 = vaddq_f32(_f31, _c);
+                    _f40 = vaddq_f32(_f40, _c);
+                    _f41 = vaddq_f32(_f41, _c);
+                    _f50 = vaddq_f32(_f50, _c);
+                    _f51 = vaddq_f32(_f51, _c);
+                    _f60 = vaddq_f32(_f60, _c);
+                    _f61 = vaddq_f32(_f61, _c);
+                    _f70 = vaddq_f32(_f70, _c);
+                    _f71 = vaddq_f32(_f71, _c);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    float32x4_t _c1 = vld1q_f32(pC + 4);
+                    if (beta != 1.f)
+                    {
+                        _c0 = vmulq_n_f32(_c0, beta);
+                        _c1 = vmulq_n_f32(_c1, beta);
+                    }
+                    _f00 = vaddq_f32(_f00, _c0);
+                    _f01 = vaddq_f32(_f01, _c1);
+                    _f10 = vaddq_f32(_f10, _c0);
+                    _f11 = vaddq_f32(_f11, _c1);
+                    _f20 = vaddq_f32(_f20, _c0);
+                    _f21 = vaddq_f32(_f21, _c1);
+                    _f30 = vaddq_f32(_f30, _c0);
+                    _f31 = vaddq_f32(_f31, _c1);
+                    _f40 = vaddq_f32(_f40, _c0);
+                    _f41 = vaddq_f32(_f41, _c1);
+                    _f50 = vaddq_f32(_f50, _c0);
+                    _f51 = vaddq_f32(_f51, _c1);
+                    _f60 = vaddq_f32(_f60, _c0);
+                    _f61 = vaddq_f32(_f61, _c1);
+                    _f70 = vaddq_f32(_f70, _c0);
+                    _f71 = vaddq_f32(_f71, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    if (c_elempack == 4)
+                    {
+                        float32x4_t _c00 = vld1q_f32(pC);
+                        float32x4_t _c01 = vld1q_f32(pC + c_hstep * 4);
+                        float32x4_t _c10 = vld1q_f32(pC + 4);
+                        float32x4_t _c11 = vld1q_f32(pC + c_hstep * 4 + 4);
+                        float32x4_t _c20 = vld1q_f32(pC + 8);
+                        float32x4_t _c21 = vld1q_f32(pC + c_hstep * 4 + 8);
+                        float32x4_t _c30 = vld1q_f32(pC + 12);
+                        float32x4_t _c31 = vld1q_f32(pC + c_hstep * 4 + 12);
+                        float32x4_t _c40 = vld1q_f32(pC + 16);
+                        float32x4_t _c41 = vld1q_f32(pC + c_hstep * 4 + 16);
+                        float32x4_t _c50 = vld1q_f32(pC + 20);
+                        float32x4_t _c51 = vld1q_f32(pC + c_hstep * 4 + 20);
+                        float32x4_t _c60 = vld1q_f32(pC + 24);
+                        float32x4_t _c61 = vld1q_f32(pC + c_hstep * 4 + 24);
+                        float32x4_t _c70 = vld1q_f32(pC + 28);
+                        float32x4_t _c71 = vld1q_f32(pC + c_hstep * 4 + 28);
+                        if (beta == 1.f)
+                        {
+                            _f00 = vaddq_f32(_f00, _c00);
+                            _f01 = vaddq_f32(_f01, _c01);
+                            _f10 = vaddq_f32(_f10, _c10);
+                            _f11 = vaddq_f32(_f11, _c11);
+                            _f20 = vaddq_f32(_f20, _c20);
+                            _f21 = vaddq_f32(_f21, _c21);
+                            _f30 = vaddq_f32(_f30, _c30);
+                            _f31 = vaddq_f32(_f31, _c31);
+                            _f40 = vaddq_f32(_f40, _c40);
+                            _f41 = vaddq_f32(_f41, _c41);
+                            _f50 = vaddq_f32(_f50, _c50);
+                            _f51 = vaddq_f32(_f51, _c51);
+                            _f60 = vaddq_f32(_f60, _c60);
+                            _f61 = vaddq_f32(_f61, _c61);
+                            _f70 = vaddq_f32(_f70, _c70);
+                            _f71 = vaddq_f32(_f71, _c71);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f00 = vmlaq_f32(_f00, _c00, _beta);
+                            _f01 = vmlaq_f32(_f01, _c01, _beta);
+                            _f10 = vmlaq_f32(_f10, _c10, _beta);
+                            _f11 = vmlaq_f32(_f11, _c11, _beta);
+                            _f20 = vmlaq_f32(_f20, _c20, _beta);
+                            _f21 = vmlaq_f32(_f21, _c21, _beta);
+                            _f30 = vmlaq_f32(_f30, _c30, _beta);
+                            _f31 = vmlaq_f32(_f31, _c31, _beta);
+                            _f40 = vmlaq_f32(_f40, _c40, _beta);
+                            _f41 = vmlaq_f32(_f41, _c41, _beta);
+                            _f50 = vmlaq_f32(_f50, _c50, _beta);
+                            _f51 = vmlaq_f32(_f51, _c51, _beta);
+                            _f60 = vmlaq_f32(_f60, _c60, _beta);
+                            _f61 = vmlaq_f32(_f61, _c61, _beta);
+                            _f70 = vmlaq_f32(_f70, _c70, _beta);
+                            _f71 = vmlaq_f32(_f71, _c71, _beta);
+                        }
+                        pC += 8 * c_elempack;
+                    }
+                    if (c_elempack == 1)
+                    {
+                        float32x4_t _c000 = vld1q_f32(pC);
+                        float32x4_t _c001 = vld1q_f32(pC + c_hstep);
+                        float32x4_t _c002 = vld1q_f32(pC + c_hstep * 2);
+                        float32x4_t _c003 = vld1q_f32(pC + c_hstep * 3);
+                        transpose4x4_ps(_c000, _c001, _c002, _c003);
+                        if (beta == 1.f)
+                        {
+                            _f00 = vaddq_f32(_f00, _c000);
+                            _f10 = vaddq_f32(_f10, _c001);
+                            _f20 = vaddq_f32(_f20, _c002);
+                            _f30 = vaddq_f32(_f30, _c003);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f00 = vmlaq_f32(_f00, _c000, _beta);
+                            _f10 = vmlaq_f32(_f10, _c001, _beta);
+                            _f20 = vmlaq_f32(_f20, _c002, _beta);
+                            _f30 = vmlaq_f32(_f30, _c003, _beta);
+                        }
+                        float32x4_t _c010 = vld1q_f32(pC + c_hstep * 4);
+                        float32x4_t _c011 = vld1q_f32(pC + c_hstep * 5);
+                        float32x4_t _c012 = vld1q_f32(pC + c_hstep * 6);
+                        float32x4_t _c013 = vld1q_f32(pC + c_hstep * 7);
+                        transpose4x4_ps(_c010, _c011, _c012, _c013);
+                        if (beta == 1.f)
+                        {
+                            _f01 = vaddq_f32(_f01, _c010);
+                            _f11 = vaddq_f32(_f11, _c011);
+                            _f21 = vaddq_f32(_f21, _c012);
+                            _f31 = vaddq_f32(_f31, _c013);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f01 = vmlaq_f32(_f01, _c010, _beta);
+                            _f11 = vmlaq_f32(_f11, _c011, _beta);
+                            _f21 = vmlaq_f32(_f21, _c012, _beta);
+                            _f31 = vmlaq_f32(_f31, _c013, _beta);
+                        }
+                        float32x4_t _c400 = vld1q_f32(pC + 4);
+                        float32x4_t _c401 = vld1q_f32(pC + c_hstep + 4);
+                        float32x4_t _c402 = vld1q_f32(pC + c_hstep * 2 + 4);
+                        float32x4_t _c403 = vld1q_f32(pC + c_hstep * 3 + 4);
+                        transpose4x4_ps(_c400, _c401, _c402, _c403);
+                        if (beta == 1.f)
+                        {
+                            _f40 = vaddq_f32(_f40, _c400);
+                            _f50 = vaddq_f32(_f50, _c401);
+                            _f60 = vaddq_f32(_f60, _c402);
+                            _f70 = vaddq_f32(_f70, _c403);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f40 = vmlaq_f32(_f40, _c400, _beta);
+                            _f50 = vmlaq_f32(_f50, _c401, _beta);
+                            _f60 = vmlaq_f32(_f60, _c402, _beta);
+                            _f70 = vmlaq_f32(_f70, _c403, _beta);
+                        }
+                        float32x4_t _c410 = vld1q_f32(pC + c_hstep * 4 + 4);
+                        float32x4_t _c411 = vld1q_f32(pC + c_hstep * 5 + 4);
+                        float32x4_t _c412 = vld1q_f32(pC + c_hstep * 6 + 4);
+                        float32x4_t _c413 = vld1q_f32(pC + c_hstep * 7 + 4);
+                        transpose4x4_ps(_c410, _c411, _c412, _c413);
+                        if (beta == 1.f)
+                        {
+                            _f41 = vaddq_f32(_f41, _c410);
+                            _f51 = vaddq_f32(_f51, _c411);
+                            _f61 = vaddq_f32(_f61, _c412);
+                            _f71 = vaddq_f32(_f71, _c413);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f41 = vmlaq_f32(_f41, _c410, _beta);
+                            _f51 = vmlaq_f32(_f51, _c411, _beta);
+                            _f61 = vmlaq_f32(_f61, _c412, _beta);
+                            _f71 = vmlaq_f32(_f71, _c413, _beta);
+                        }
+                        pC += 8;
+                    }
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = vdupq_n_f32(pC[0] * beta);
+                    _f00 = vaddq_f32(_f00, _c0);
+                    _f01 = vaddq_f32(_f01, _c0);
+                    float32x4_t _c1 = vdupq_n_f32(pC[1] * beta);
+                    _f10 = vaddq_f32(_f10, _c1);
+                    _f11 = vaddq_f32(_f11, _c1);
+                    float32x4_t _c2 = vdupq_n_f32(pC[2] * beta);
+                    _f20 = vaddq_f32(_f20, _c2);
+                    _f21 = vaddq_f32(_f21, _c2);
+                    float32x4_t _c3 = vdupq_n_f32(pC[3] * beta);
+                    _f30 = vaddq_f32(_f30, _c3);
+                    _f31 = vaddq_f32(_f31, _c3);
+                    float32x4_t _c4 = vdupq_n_f32(pC[4] * beta);
+                    _f40 = vaddq_f32(_f40, _c4);
+                    _f41 = vaddq_f32(_f41, _c4);
+                    float32x4_t _c5 = vdupq_n_f32(pC[5] * beta);
+                    _f50 = vaddq_f32(_f50, _c5);
+                    _f51 = vaddq_f32(_f51, _c5);
+                    float32x4_t _c6 = vdupq_n_f32(pC[6] * beta);
+                    _f60 = vaddq_f32(_f60, _c6);
+                    _f61 = vaddq_f32(_f61, _c6);
+                    float32x4_t _c7 = vdupq_n_f32(pC[7] * beta);
+                    _f70 = vaddq_f32(_f70, _c7);
+                    _f71 = vaddq_f32(_f71, _c7);
+                    pC += 8;
+                }
+            }
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f00 = vmulq_f32(_f00, _alpha);
+                _f01 = vmulq_f32(_f01, _alpha);
+                _f10 = vmulq_f32(_f10, _alpha);
+                _f11 = vmulq_f32(_f11, _alpha);
+                _f20 = vmulq_f32(_f20, _alpha);
+                _f21 = vmulq_f32(_f21, _alpha);
+                _f30 = vmulq_f32(_f30, _alpha);
+                _f31 = vmulq_f32(_f31, _alpha);
+                _f40 = vmulq_f32(_f40, _alpha);
+                _f41 = vmulq_f32(_f41, _alpha);
+                _f50 = vmulq_f32(_f50, _alpha);
+                _f51 = vmulq_f32(_f51, _alpha);
+                _f60 = vmulq_f32(_f60, _alpha);
+                _f61 = vmulq_f32(_f61, _alpha);
+                _f70 = vmulq_f32(_f70, _alpha);
+                _f71 = vmulq_f32(_f71, _alpha);
+            }
+            uint16x4_t _bf00 = float2bfloat(_f00);
+            uint16x4_t _bf01 = float2bfloat(_f01);
+            uint16x4_t _bf10 = float2bfloat(_f10);
+            uint16x4_t _bf11 = float2bfloat(_f11);
+            uint16x4_t _bf20 = float2bfloat(_f20);
+            uint16x4_t _bf21 = float2bfloat(_f21);
+            uint16x4_t _bf30 = float2bfloat(_f30);
+            uint16x4_t _bf31 = float2bfloat(_f31);
+            uint16x4_t _bf40 = float2bfloat(_f40);
+            uint16x4_t _bf41 = float2bfloat(_f41);
+            uint16x4_t _bf50 = float2bfloat(_f50);
+            uint16x4_t _bf51 = float2bfloat(_f51);
+            uint16x4_t _bf60 = float2bfloat(_f60);
+            uint16x4_t _bf61 = float2bfloat(_f61);
+            uint16x4_t _bf70 = float2bfloat(_f70);
+            uint16x4_t _bf71 = float2bfloat(_f71);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    uint16x8x4_t _r0;
+                    _r0.val[0] = vcombine_u16(_bf00, _bf01);
+                    _r0.val[1] = vcombine_u16(_bf10, _bf11);
+                    _r0.val[2] = vcombine_u16(_bf20, _bf21);
+                    _r0.val[3] = vcombine_u16(_bf30, _bf31);
+                    vst4q_u16(p0, _r0);
+                    uint16x8x4_t _r1;
+                    _r1.val[0] = vcombine_u16(_bf40, _bf41);
+                    _r1.val[1] = vcombine_u16(_bf50, _bf51);
+                    _r1.val[2] = vcombine_u16(_bf60, _bf61);
+                    _r1.val[3] = vcombine_u16(_bf70, _bf71);
+                    vst4q_u16(p0 + out_hstep * 4, _r1);
+                }
+                if (out_elempack == 1)
+                {
+                    vst1q_u16(p0, vcombine_u16(_bf00, _bf01));
+                    vst1q_u16(p0 + out_hstep, vcombine_u16(_bf10, _bf11));
+                    vst1q_u16(p0 + out_hstep * 2, vcombine_u16(_bf20, _bf21));
+                    vst1q_u16(p0 + out_hstep * 3, vcombine_u16(_bf30, _bf31));
+                    vst1q_u16(p0 + out_hstep * 4, vcombine_u16(_bf40, _bf41));
+                    vst1q_u16(p0 + out_hstep * 5, vcombine_u16(_bf50, _bf51));
+                    vst1q_u16(p0 + out_hstep * 6, vcombine_u16(_bf60, _bf61));
+                    vst1q_u16(p0 + out_hstep * 7, vcombine_u16(_bf70, _bf71));
+                }
+                p0 += out_hstep * 8;
+            }
+            else
+            {
+                if (out_elempack == 4)
+                {
+                    vst1q_u16(p0, vcombine_u16(_bf00, _bf10));
+                    vst1q_u16(p0 + out_hstep * 4, vcombine_u16(_bf01, _bf11));
+                    vst1q_u16(p0 + 8, vcombine_u16(_bf20, _bf30));
+                    vst1q_u16(p0 + out_hstep * 4 + 8, vcombine_u16(_bf21, _bf31));
+                    vst1q_u16(p0 + 16, vcombine_u16(_bf40, _bf50));
+                    vst1q_u16(p0 + out_hstep * 4 + 16, vcombine_u16(_bf41, _bf51));
+                    vst1q_u16(p0 + 24, vcombine_u16(_bf60, _bf70));
+                    vst1q_u16(p0 + out_hstep * 4 + 24, vcombine_u16(_bf61, _bf71));
+                    p0 += 32;
+                }
+                if (out_elempack == 1)
+                {
+                    uint16x8_t _r0 = vcombine_u16(_bf00, _bf01);
+                    uint16x8_t _r1 = vcombine_u16(_bf10, _bf11);
+                    uint16x8_t _r2 = vcombine_u16(_bf20, _bf21);
+                    uint16x8_t _r3 = vcombine_u16(_bf30, _bf31);
+                    uint16x8_t _r4 = vcombine_u16(_bf40, _bf41);
+                    uint16x8_t _r5 = vcombine_u16(_bf50, _bf51);
+                    uint16x8_t _r6 = vcombine_u16(_bf60, _bf61);
+                    uint16x8_t _r7 = vcombine_u16(_bf70, _bf71);
+                    transpose8x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    vst1q_u16(p0, _r0);
+                    vst1q_u16(p0 + out_hstep, _r1);
+                    vst1q_u16(p0 + out_hstep * 2, _r2);
+                    vst1q_u16(p0 + out_hstep * 3, _r3);
+                    vst1q_u16(p0 + out_hstep * 4, _r4);
+                    vst1q_u16(p0 + out_hstep * 5, _r5);
+                    vst1q_u16(p0 + out_hstep * 6, _r6);
+                    vst1q_u16(p0 + out_hstep * 7, _r7);
+                    p0 += 8;
+                }
+            }
+            pp += 64;
+        }
+#endif // __aarch64__
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            float32x4_t _f00 = vld1q_f32(pp + 0);
+            float32x4_t _f01 = vld1q_f32(pp + 4);
+            float32x4_t _f10 = vld1q_f32(pp + 8);
+            float32x4_t _f11 = vld1q_f32(pp + 12);
+            float32x4_t _f20 = vld1q_f32(pp + 16);
+            float32x4_t _f21 = vld1q_f32(pp + 20);
+            float32x4_t _f30 = vld1q_f32(pp + 24);
+            float32x4_t _f31 = vld1q_f32(pp + 28);
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    float32x4_t _c = vdupq_n_f32(pC[0] * beta);
+                    _f00 = vaddq_f32(_f00, _c);
+                    _f01 = vaddq_f32(_f01, _c);
+                    _f10 = vaddq_f32(_f10, _c);
+                    _f11 = vaddq_f32(_f11, _c);
+                    _f20 = vaddq_f32(_f20, _c);
+                    _f21 = vaddq_f32(_f21, _c);
+                    _f30 = vaddq_f32(_f30, _c);
+                    _f31 = vaddq_f32(_f31, _c);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    float32x4_t _c1 = vld1q_f32(pC + 4);
+                    if (beta != 1.f)
+                    {
+                        _c0 = vmulq_n_f32(_c0, beta);
+                        _c1 = vmulq_n_f32(_c1, beta);
+                    }
+                    _f00 = vaddq_f32(_f00, _c0);
+                    _f01 = vaddq_f32(_f01, _c1);
+                    _f10 = vaddq_f32(_f10, _c0);
+                    _f11 = vaddq_f32(_f11, _c1);
+                    _f20 = vaddq_f32(_f20, _c0);
+                    _f21 = vaddq_f32(_f21, _c1);
+                    _f30 = vaddq_f32(_f30, _c0);
+                    _f31 = vaddq_f32(_f31, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    if (c_elempack == 4)
+                    {
+                        float32x4_t _c00 = vld1q_f32(pC);
+                        float32x4_t _c01 = vld1q_f32(pC + c_hstep * 4);
+                        float32x4_t _c10 = vld1q_f32(pC + 4);
+                        float32x4_t _c11 = vld1q_f32(pC + c_hstep * 4 + 4);
+                        float32x4_t _c20 = vld1q_f32(pC + 8);
+                        float32x4_t _c21 = vld1q_f32(pC + c_hstep * 4 + 8);
+                        float32x4_t _c30 = vld1q_f32(pC + 12);
+                        float32x4_t _c31 = vld1q_f32(pC + c_hstep * 4 + 12);
+                        if (beta == 1.f)
+                        {
+                            _f00 = vaddq_f32(_f00, _c00);
+                            _f01 = vaddq_f32(_f01, _c01);
+                            _f10 = vaddq_f32(_f10, _c10);
+                            _f11 = vaddq_f32(_f11, _c11);
+                            _f20 = vaddq_f32(_f20, _c20);
+                            _f21 = vaddq_f32(_f21, _c21);
+                            _f30 = vaddq_f32(_f30, _c30);
+                            _f31 = vaddq_f32(_f31, _c31);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f00 = vmlaq_f32(_f00, _c00, _beta);
+                            _f01 = vmlaq_f32(_f01, _c01, _beta);
+                            _f10 = vmlaq_f32(_f10, _c10, _beta);
+                            _f11 = vmlaq_f32(_f11, _c11, _beta);
+                            _f20 = vmlaq_f32(_f20, _c20, _beta);
+                            _f21 = vmlaq_f32(_f21, _c21, _beta);
+                            _f30 = vmlaq_f32(_f30, _c30, _beta);
+                            _f31 = vmlaq_f32(_f31, _c31, _beta);
+                        }
+                        pC += 4 * c_elempack;
+                    }
+                    if (c_elempack == 1)
+                    {
+                        float32x4_t _c000 = vld1q_f32(pC);
+                        float32x4_t _c001 = vld1q_f32(pC + c_hstep);
+                        float32x4_t _c002 = vld1q_f32(pC + c_hstep * 2);
+                        float32x4_t _c003 = vld1q_f32(pC + c_hstep * 3);
+                        transpose4x4_ps(_c000, _c001, _c002, _c003);
+                        if (beta == 1.f)
+                        {
+                            _f00 = vaddq_f32(_f00, _c000);
+                            _f10 = vaddq_f32(_f10, _c001);
+                            _f20 = vaddq_f32(_f20, _c002);
+                            _f30 = vaddq_f32(_f30, _c003);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f00 = vmlaq_f32(_f00, _c000, _beta);
+                            _f10 = vmlaq_f32(_f10, _c001, _beta);
+                            _f20 = vmlaq_f32(_f20, _c002, _beta);
+                            _f30 = vmlaq_f32(_f30, _c003, _beta);
+                        }
+                        float32x4_t _c010 = vld1q_f32(pC + c_hstep * 4);
+                        float32x4_t _c011 = vld1q_f32(pC + c_hstep * 5);
+                        float32x4_t _c012 = vld1q_f32(pC + c_hstep * 6);
+                        float32x4_t _c013 = vld1q_f32(pC + c_hstep * 7);
+                        transpose4x4_ps(_c010, _c011, _c012, _c013);
+                        if (beta == 1.f)
+                        {
+                            _f01 = vaddq_f32(_f01, _c010);
+                            _f11 = vaddq_f32(_f11, _c011);
+                            _f21 = vaddq_f32(_f21, _c012);
+                            _f31 = vaddq_f32(_f31, _c013);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f01 = vmlaq_f32(_f01, _c010, _beta);
+                            _f11 = vmlaq_f32(_f11, _c011, _beta);
+                            _f21 = vmlaq_f32(_f21, _c012, _beta);
+                            _f31 = vmlaq_f32(_f31, _c013, _beta);
+                        }
+                        pC += 4;
+                    }
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = vdupq_n_f32(pC[0] * beta);
+                    _f00 = vaddq_f32(_f00, _c0);
+                    _f01 = vaddq_f32(_f01, _c0);
+                    float32x4_t _c1 = vdupq_n_f32(pC[1] * beta);
+                    _f10 = vaddq_f32(_f10, _c1);
+                    _f11 = vaddq_f32(_f11, _c1);
+                    float32x4_t _c2 = vdupq_n_f32(pC[2] * beta);
+                    _f20 = vaddq_f32(_f20, _c2);
+                    _f21 = vaddq_f32(_f21, _c2);
+                    float32x4_t _c3 = vdupq_n_f32(pC[3] * beta);
+                    _f30 = vaddq_f32(_f30, _c3);
+                    _f31 = vaddq_f32(_f31, _c3);
+                    pC += 4;
+                }
+            }
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f00 = vmulq_f32(_f00, _alpha);
+                _f01 = vmulq_f32(_f01, _alpha);
+                _f10 = vmulq_f32(_f10, _alpha);
+                _f11 = vmulq_f32(_f11, _alpha);
+                _f20 = vmulq_f32(_f20, _alpha);
+                _f21 = vmulq_f32(_f21, _alpha);
+                _f30 = vmulq_f32(_f30, _alpha);
+                _f31 = vmulq_f32(_f31, _alpha);
+            }
+            uint16x4_t _bf00 = float2bfloat(_f00);
+            uint16x4_t _bf01 = float2bfloat(_f01);
+            uint16x4_t _bf10 = float2bfloat(_f10);
+            uint16x4_t _bf11 = float2bfloat(_f11);
+            uint16x4_t _bf20 = float2bfloat(_f20);
+            uint16x4_t _bf21 = float2bfloat(_f21);
+            uint16x4_t _bf30 = float2bfloat(_f30);
+            uint16x4_t _bf31 = float2bfloat(_f31);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    uint16x8x4_t _r0;
+                    _r0.val[0] = vcombine_u16(_bf00, _bf01);
+                    _r0.val[1] = vcombine_u16(_bf10, _bf11);
+                    _r0.val[2] = vcombine_u16(_bf20, _bf21);
+                    _r0.val[3] = vcombine_u16(_bf30, _bf31);
+                    vst4q_u16(p0, _r0);
+                }
+                if (out_elempack == 1)
+                {
+                    vst1q_u16(p0, vcombine_u16(_bf00, _bf01));
+                    vst1q_u16(p0 + out_hstep, vcombine_u16(_bf10, _bf11));
+                    vst1q_u16(p0 + out_hstep * 2, vcombine_u16(_bf20, _bf21));
+                    vst1q_u16(p0 + out_hstep * 3, vcombine_u16(_bf30, _bf31));
+                }
                 p0 += out_hstep * 4;
             }
-        }
-        if (out_elempack == 1)
-        {
-            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii);
-
-            for (int jj = 0; jj < max_jj; jj += 1)
+            else
             {
-                uint16x8_t _r0 = vcombine_u16(float2bfloat(vld1q_f32(pp)), float2bfloat(vld1q_f32(pp + 4)));
-                vst1q_u16(p0, _r0);
-                pp += 8;
-                p0 += out_hstep;
+                if (out_elempack == 4)
+                {
+                    vst1q_u16(p0, vcombine_u16(_bf00, _bf10));
+                    vst1q_u16(p0 + out_hstep * 4, vcombine_u16(_bf01, _bf11));
+                    vst1q_u16(p0 + 8, vcombine_u16(_bf20, _bf30));
+                    vst1q_u16(p0 + out_hstep * 4 + 8, vcombine_u16(_bf21, _bf31));
+                    p0 += 16;
+                }
+                if (out_elempack == 1)
+                {
+                    uint16x8_t _r0 = vcombine_u16(_bf00, _bf01);
+                    uint16x8_t _r1 = vcombine_u16(_bf10, _bf11);
+                    uint16x8_t _r2 = vcombine_u16(_bf20, _bf21);
+                    uint16x8_t _r3 = vcombine_u16(_bf30, _bf31);
+                    transpose8x4_u16(_r0, _r1, _r2, _r3);
+
+                    vst1_u16(p0, vget_low_u16(_r0));
+                    vst1_u16(p0 + out_hstep, vget_high_u16(_r0));
+                    vst1_u16(p0 + out_hstep * 2, vget_low_u16(_r1));
+                    vst1_u16(p0 + out_hstep * 3, vget_high_u16(_r1));
+                    vst1_u16(p0 + out_hstep * 4, vget_low_u16(_r2));
+                    vst1_u16(p0 + out_hstep * 5, vget_high_u16(_r2));
+                    vst1_u16(p0 + out_hstep * 6, vget_low_u16(_r3));
+                    vst1_u16(p0 + out_hstep * 7, vget_high_u16(_r3));
+                    p0 += 4;
+                }
             }
+            pp += 32;
+        }
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            float32x4_t _f00 = vld1q_f32(pp + 0);
+            float32x4_t _f01 = vld1q_f32(pp + 4);
+            float32x4_t _f10 = vld1q_f32(pp + 8);
+            float32x4_t _f11 = vld1q_f32(pp + 12);
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    float32x4_t _c = vdupq_n_f32(pC[0] * beta);
+                    _f00 = vaddq_f32(_f00, _c);
+                    _f01 = vaddq_f32(_f01, _c);
+                    _f10 = vaddq_f32(_f10, _c);
+                    _f11 = vaddq_f32(_f11, _c);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    float32x4_t _c1 = vld1q_f32(pC + 4);
+                    if (beta != 1.f)
+                    {
+                        _c0 = vmulq_n_f32(_c0, beta);
+                        _c1 = vmulq_n_f32(_c1, beta);
+                    }
+                    _f00 = vaddq_f32(_f00, _c0);
+                    _f01 = vaddq_f32(_f01, _c1);
+                    _f10 = vaddq_f32(_f10, _c0);
+                    _f11 = vaddq_f32(_f11, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    if (c_elempack == 4)
+                    {
+                        float32x4_t _c00 = vld1q_f32(pC);
+                        float32x4_t _c01 = vld1q_f32(pC + c_hstep * 4);
+                        float32x4_t _c10 = vld1q_f32(pC + 4);
+                        float32x4_t _c11 = vld1q_f32(pC + c_hstep * 4 + 4);
+                        if (beta == 1.f)
+                        {
+                            _f00 = vaddq_f32(_f00, _c00);
+                            _f01 = vaddq_f32(_f01, _c01);
+                            _f10 = vaddq_f32(_f10, _c10);
+                            _f11 = vaddq_f32(_f11, _c11);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f00 = vmlaq_f32(_f00, _c00, _beta);
+                            _f01 = vmlaq_f32(_f01, _c01, _beta);
+                            _f10 = vmlaq_f32(_f10, _c10, _beta);
+                            _f11 = vmlaq_f32(_f11, _c11, _beta);
+                        }
+                        pC += 2 * c_elempack;
+                    }
+                    if (c_elempack == 1)
+                    {
+                        float32x2_t _c0 = vld1_f32(pC);
+                        float32x2_t _c1 = vld1_f32(pC + c_hstep);
+                        float32x2_t _c2 = vld1_f32(pC + c_hstep * 2);
+                        float32x2_t _c3 = vld1_f32(pC + c_hstep * 3);
+                        float32x2x2_t _c01x = vtrn_f32(_c0, _c1);
+                        float32x2x2_t _c23x = vtrn_f32(_c2, _c3);
+                        float32x4_t _c00 = vcombine_f32(_c01x.val[0], _c23x.val[0]);
+                        float32x4_t _c10 = vcombine_f32(_c01x.val[1], _c23x.val[1]);
+                        if (beta == 1.f)
+                        {
+                            _f00 = vaddq_f32(_f00, _c00);
+                            _f10 = vaddq_f32(_f10, _c10);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f00 = vmlaq_f32(_f00, _c00, _beta);
+                            _f10 = vmlaq_f32(_f10, _c10, _beta);
+                        }
+                        float32x2_t _c4 = vld1_f32(pC + c_hstep * 4);
+                        float32x2_t _c5 = vld1_f32(pC + c_hstep * 5);
+                        float32x2_t _c6 = vld1_f32(pC + c_hstep * 6);
+                        float32x2_t _c7 = vld1_f32(pC + c_hstep * 7);
+                        float32x2x2_t _c45 = vtrn_f32(_c4, _c5);
+                        float32x2x2_t _c67 = vtrn_f32(_c6, _c7);
+                        float32x4_t _c01 = vcombine_f32(_c45.val[0], _c67.val[0]);
+                        float32x4_t _c11 = vcombine_f32(_c45.val[1], _c67.val[1]);
+                        if (beta == 1.f)
+                        {
+                            _f01 = vaddq_f32(_f01, _c01);
+                            _f11 = vaddq_f32(_f11, _c11);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f01 = vmlaq_f32(_f01, _c01, _beta);
+                            _f11 = vmlaq_f32(_f11, _c11, _beta);
+                        }
+                        pC += 2;
+                    }
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = vdupq_n_f32(pC[0] * beta);
+                    _f00 = vaddq_f32(_f00, _c0);
+                    _f01 = vaddq_f32(_f01, _c0);
+                    float32x4_t _c1 = vdupq_n_f32(pC[1] * beta);
+                    _f10 = vaddq_f32(_f10, _c1);
+                    _f11 = vaddq_f32(_f11, _c1);
+                    pC += 2;
+                }
+            }
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f00 = vmulq_f32(_f00, _alpha);
+                _f01 = vmulq_f32(_f01, _alpha);
+                _f10 = vmulq_f32(_f10, _alpha);
+                _f11 = vmulq_f32(_f11, _alpha);
+            }
+            uint16x4_t _bf00 = float2bfloat(_f00);
+            uint16x4_t _bf01 = float2bfloat(_f01);
+            uint16x4_t _bf10 = float2bfloat(_f10);
+            uint16x4_t _bf11 = float2bfloat(_f11);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    uint16x4x2_t _r0;
+                    _r0.val[0] = _bf00;
+                    _r0.val[1] = _bf10;
+                    vst2_lane_u16(p0, _r0, 0);
+                    vst2_lane_u16(p0 + 4, _r0, 1);
+                    vst2_lane_u16(p0 + 8, _r0, 2);
+                    vst2_lane_u16(p0 + 12, _r0, 3);
+                    uint16x4x2_t _r1;
+                    _r1.val[0] = _bf01;
+                    _r1.val[1] = _bf11;
+                    vst2_lane_u16(p0 + 16, _r1, 0);
+                    vst2_lane_u16(p0 + 20, _r1, 1);
+                    vst2_lane_u16(p0 + 24, _r1, 2);
+                    vst2_lane_u16(p0 + 28, _r1, 3);
+                    p0 += 2;
+                }
+                if (out_elempack == 1)
+                {
+                    vst1_u16(p0, _bf00);
+                    vst1_u16(p0 + 4, _bf01);
+                    vst1_u16(p0 + out_hstep, _bf10);
+                    vst1_u16(p0 + out_hstep + 4, _bf11);
+                    p0 += out_hstep * 2;
+                }
+            }
+            else
+            {
+                if (out_elempack == 4)
+                {
+                    vst1q_u16(p0, vcombine_u16(_bf00, _bf10));
+                    vst1q_u16(p0 + out_hstep * 4, vcombine_u16(_bf01, _bf11));
+                    p0 += 8;
+                }
+                if (out_elempack == 1)
+                {
+                    p0[0] = vget_lane_u16(_bf00, 0);
+                    p0[out_hstep] = vget_lane_u16(_bf00, 1);
+                    p0[out_hstep * 2] = vget_lane_u16(_bf00, 2);
+                    p0[out_hstep * 3] = vget_lane_u16(_bf00, 3);
+                    p0[out_hstep * 4] = vget_lane_u16(_bf01, 0);
+                    p0[out_hstep * 5] = vget_lane_u16(_bf01, 1);
+                    p0[out_hstep * 6] = vget_lane_u16(_bf01, 2);
+                    p0[out_hstep * 7] = vget_lane_u16(_bf01, 3);
+                    p0[1] = vget_lane_u16(_bf10, 0);
+                    p0[out_hstep + 1] = vget_lane_u16(_bf10, 1);
+                    p0[out_hstep * 2 + 1] = vget_lane_u16(_bf10, 2);
+                    p0[out_hstep * 3 + 1] = vget_lane_u16(_bf10, 3);
+                    p0[out_hstep * 4 + 1] = vget_lane_u16(_bf11, 0);
+                    p0[out_hstep * 5 + 1] = vget_lane_u16(_bf11, 1);
+                    p0[out_hstep * 6 + 1] = vget_lane_u16(_bf11, 2);
+                    p0[out_hstep * 7 + 1] = vget_lane_u16(_bf11, 3);
+                    p0 += 2;
+                }
+            }
+            pp += 16;
+        }
+        for (; jj < max_jj; jj += 1)
+        {
+            float32x4_t _f00 = vld1q_f32(pp + 0);
+            float32x4_t _f01 = vld1q_f32(pp + 4);
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    float32x4_t _c = vdupq_n_f32(pC[0] * beta);
+                    _f00 = vaddq_f32(_f00, _c);
+                    _f01 = vaddq_f32(_f01, _c);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    float32x4_t _c1 = vld1q_f32(pC + 4);
+                    if (beta != 1.f)
+                    {
+                        _c0 = vmulq_n_f32(_c0, beta);
+                        _c1 = vmulq_n_f32(_c1, beta);
+                    }
+                    _f00 = vaddq_f32(_f00, _c0);
+                    _f01 = vaddq_f32(_f01, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    if (c_elempack == 4)
+                    {
+                        float32x4_t _c00 = vld1q_f32(pC);
+                        float32x4_t _c01 = vld1q_f32(pC + c_hstep * 4);
+                        if (beta == 1.f)
+                        {
+                            _f00 = vaddq_f32(_f00, _c00);
+                            _f01 = vaddq_f32(_f01, _c01);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f00 = vmlaq_f32(_f00, _c00, _beta);
+                            _f01 = vmlaq_f32(_f01, _c01, _beta);
+                        }
+                        pC += c_elempack;
+                    }
+                    if (c_elempack == 1)
+                    {
+                        float32x4_t _c00 = vdupq_n_f32(0.f);
+                        _c00 = vld1q_lane_f32(pC, _c00, 0);
+                        _c00 = vld1q_lane_f32(pC + c_hstep, _c00, 1);
+                        _c00 = vld1q_lane_f32(pC + c_hstep * 2, _c00, 2);
+                        _c00 = vld1q_lane_f32(pC + c_hstep * 3, _c00, 3);
+                        if (beta == 1.f)
+                        {
+                            _f00 = vaddq_f32(_f00, _c00);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f00 = vmlaq_f32(_f00, _c00, _beta);
+                        }
+                        float32x4_t _c01 = vdupq_n_f32(0.f);
+                        _c01 = vld1q_lane_f32(pC + c_hstep * 4, _c01, 0);
+                        _c01 = vld1q_lane_f32(pC + c_hstep * 5, _c01, 1);
+                        _c01 = vld1q_lane_f32(pC + c_hstep * 6, _c01, 2);
+                        _c01 = vld1q_lane_f32(pC + c_hstep * 7, _c01, 3);
+                        if (beta == 1.f)
+                        {
+                            _f01 = vaddq_f32(_f01, _c01);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f01 = vmlaq_f32(_f01, _c01, _beta);
+                        }
+                        pC += 1;
+                    }
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = vdupq_n_f32(pC[0] * beta);
+                    _f00 = vaddq_f32(_f00, _c0);
+                    _f01 = vaddq_f32(_f01, _c0);
+                    pC += 1;
+                }
+            }
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f00 = vmulq_f32(_f00, _alpha);
+                _f01 = vmulq_f32(_f01, _alpha);
+            }
+            uint16x4_t _bf00 = float2bfloat(_f00);
+            uint16x4_t _bf01 = float2bfloat(_f01);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    p0[0] = vget_lane_u16(_bf00, 0);
+                    p0[4] = vget_lane_u16(_bf00, 1);
+                    p0[8] = vget_lane_u16(_bf00, 2);
+                    p0[12] = vget_lane_u16(_bf00, 3);
+                    p0[16] = vget_lane_u16(_bf01, 0);
+                    p0[20] = vget_lane_u16(_bf01, 1);
+                    p0[24] = vget_lane_u16(_bf01, 2);
+                    p0[28] = vget_lane_u16(_bf01, 3);
+                    p0 += 1;
+                }
+                if (out_elempack == 1)
+                {
+                    vst1_u16(p0, _bf00);
+                    vst1_u16(p0 + 4, _bf01);
+                    p0 += out_hstep;
+                }
+            }
+            else
+            {
+                if (out_elempack == 4)
+                {
+                    vst1_u16(p0, _bf00);
+                    vst1_u16(p0 + out_hstep * 4, _bf01);
+                    p0 += 4;
+                }
+                if (out_elempack == 1)
+                {
+                    p0[0] = vget_lane_u16(_bf00, 0);
+                    p0[out_hstep] = vget_lane_u16(_bf00, 1);
+                    p0[out_hstep * 2] = vget_lane_u16(_bf00, 2);
+                    p0[out_hstep * 3] = vget_lane_u16(_bf00, 3);
+                    p0[out_hstep * 4] = vget_lane_u16(_bf01, 0);
+                    p0[out_hstep * 5] = vget_lane_u16(_bf01, 1);
+                    p0[out_hstep * 6] = vget_lane_u16(_bf01, 2);
+                    p0[out_hstep * 7] = vget_lane_u16(_bf01, 3);
+                    p0 += 1;
+                }
+            }
+            pp += 8;
         }
     }
-#endif // __aarch64__
     for (; ii + 3 < max_ii; ii += 4)
     {
-        if (out_elempack == 4)
-        {
-            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * 4;
+        unsigned short* p0;
+        if (output_transpose)
+            p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * out_elempack;
+        else
+            p0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
-            for (int jj = 0; jj + 3 < max_jj; jj += 4)
+        if (pC)
+        {
+            if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                pC = (const float*)C + i + ii;
+            if (broadcast_type_C == 3)
             {
-                uint16x4x4_t _r0123;
-                _r0123.val[0] = float2bfloat(vld1q_f32(pp));
-                _r0123.val[1] = float2bfloat(vld1q_f32(pp + 4));
-                _r0123.val[2] = float2bfloat(vld1q_f32(pp + 8));
-                _r0123.val[3] = float2bfloat(vld1q_f32(pp + 12));
-                vst4_u16(p0, _r0123);
-                pp += 16;
+                // c_elempack == 1
+                pC = (const float*)C + (i + ii) * c_hstep + j;
+            }
+            if (broadcast_type_C == 4)
+                pC = (const float*)C + j;
+        }
+
+        int jj = 0;
+#if __aarch64__
+        for (; jj + 11 < max_jj; jj += 12)
+        {
+            float32x4_t _f0 = vld1q_f32(pp + 0);
+            float32x4_t _f1 = vld1q_f32(pp + 4);
+            float32x4_t _f2 = vld1q_f32(pp + 8);
+            float32x4_t _f3 = vld1q_f32(pp + 12);
+            float32x4_t _f4 = vld1q_f32(pp + 16);
+            float32x4_t _f5 = vld1q_f32(pp + 20);
+            float32x4_t _f6 = vld1q_f32(pp + 24);
+            float32x4_t _f7 = vld1q_f32(pp + 28);
+            float32x4_t _f8 = vld1q_f32(pp + 32);
+            float32x4_t _f9 = vld1q_f32(pp + 36);
+            float32x4_t _fa = vld1q_f32(pp + 40);
+            float32x4_t _fb = vld1q_f32(pp + 44);
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    float32x4_t _c = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c);
+                    _f1 = vaddq_f32(_f1, _c);
+                    _f2 = vaddq_f32(_f2, _c);
+                    _f3 = vaddq_f32(_f3, _c);
+                    _f4 = vaddq_f32(_f4, _c);
+                    _f5 = vaddq_f32(_f5, _c);
+                    _f6 = vaddq_f32(_f6, _c);
+                    _f7 = vaddq_f32(_f7, _c);
+                    _f8 = vaddq_f32(_f8, _c);
+                    _f9 = vaddq_f32(_f9, _c);
+                    _fa = vaddq_f32(_fa, _c);
+                    _fb = vaddq_f32(_fb, _c);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    if (beta != 1.f)
+                        _c0 = vmulq_n_f32(_c0, beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                    _f4 = vaddq_f32(_f4, _c0);
+                    _f5 = vaddq_f32(_f5, _c0);
+                    _f6 = vaddq_f32(_f6, _c0);
+                    _f7 = vaddq_f32(_f7, _c0);
+                    _f8 = vaddq_f32(_f8, _c0);
+                    _f9 = vaddq_f32(_f9, _c0);
+                    _fa = vaddq_f32(_fa, _c0);
+                    _fb = vaddq_f32(_fb, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    if (c_elempack == 4)
+                    {
+                        float32x4_t _c0 = vld1q_f32(pC);
+                        float32x4_t _c1 = vld1q_f32(pC + 4);
+                        float32x4_t _c2 = vld1q_f32(pC + 8);
+                        float32x4_t _c3 = vld1q_f32(pC + 12);
+                        float32x4_t _c4 = vld1q_f32(pC + 16);
+                        float32x4_t _c5 = vld1q_f32(pC + 20);
+                        float32x4_t _c6 = vld1q_f32(pC + 24);
+                        float32x4_t _c7 = vld1q_f32(pC + 28);
+                        float32x4_t _c8 = vld1q_f32(pC + 32);
+                        float32x4_t _c9 = vld1q_f32(pC + 36);
+                        float32x4_t _ca = vld1q_f32(pC + 40);
+                        float32x4_t _cb = vld1q_f32(pC + 44);
+                        if (beta == 1.f)
+                        {
+                            _f0 = vaddq_f32(_f0, _c0);
+                            _f1 = vaddq_f32(_f1, _c1);
+                            _f2 = vaddq_f32(_f2, _c2);
+                            _f3 = vaddq_f32(_f3, _c3);
+                            _f4 = vaddq_f32(_f4, _c4);
+                            _f5 = vaddq_f32(_f5, _c5);
+                            _f6 = vaddq_f32(_f6, _c6);
+                            _f7 = vaddq_f32(_f7, _c7);
+                            _f8 = vaddq_f32(_f8, _c8);
+                            _f9 = vaddq_f32(_f9, _c9);
+                            _fa = vaddq_f32(_fa, _ca);
+                            _fb = vaddq_f32(_fb, _cb);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f0 = vmlaq_f32(_f0, _c0, _beta);
+                            _f1 = vmlaq_f32(_f1, _c1, _beta);
+                            _f2 = vmlaq_f32(_f2, _c2, _beta);
+                            _f3 = vmlaq_f32(_f3, _c3, _beta);
+                            _f4 = vmlaq_f32(_f4, _c4, _beta);
+                            _f5 = vmlaq_f32(_f5, _c5, _beta);
+                            _f6 = vmlaq_f32(_f6, _c6, _beta);
+                            _f7 = vmlaq_f32(_f7, _c7, _beta);
+                            _f8 = vmlaq_f32(_f8, _c8, _beta);
+                            _f9 = vmlaq_f32(_f9, _c9, _beta);
+                            _fa = vmlaq_f32(_fa, _ca, _beta);
+                            _fb = vmlaq_f32(_fb, _cb, _beta);
+                        }
+                        pC += 12 * c_elempack;
+                    }
+                    if (c_elempack == 1)
+                    {
+                        float32x4_t _c000 = vld1q_f32(pC);
+                        float32x4_t _c001 = vld1q_f32(pC + c_hstep);
+                        float32x4_t _c002 = vld1q_f32(pC + c_hstep * 2);
+                        float32x4_t _c003 = vld1q_f32(pC + c_hstep * 3);
+                        transpose4x4_ps(_c000, _c001, _c002, _c003);
+                        if (beta == 1.f)
+                        {
+                            _f0 = vaddq_f32(_f0, _c000);
+                            _f1 = vaddq_f32(_f1, _c001);
+                            _f2 = vaddq_f32(_f2, _c002);
+                            _f3 = vaddq_f32(_f3, _c003);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f0 = vmlaq_f32(_f0, _c000, _beta);
+                            _f1 = vmlaq_f32(_f1, _c001, _beta);
+                            _f2 = vmlaq_f32(_f2, _c002, _beta);
+                            _f3 = vmlaq_f32(_f3, _c003, _beta);
+                        }
+                        float32x4_t _c400 = vld1q_f32(pC + 4);
+                        float32x4_t _c401 = vld1q_f32(pC + c_hstep + 4);
+                        float32x4_t _c402 = vld1q_f32(pC + c_hstep * 2 + 4);
+                        float32x4_t _c403 = vld1q_f32(pC + c_hstep * 3 + 4);
+                        transpose4x4_ps(_c400, _c401, _c402, _c403);
+                        if (beta == 1.f)
+                        {
+                            _f4 = vaddq_f32(_f4, _c400);
+                            _f5 = vaddq_f32(_f5, _c401);
+                            _f6 = vaddq_f32(_f6, _c402);
+                            _f7 = vaddq_f32(_f7, _c403);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f4 = vmlaq_f32(_f4, _c400, _beta);
+                            _f5 = vmlaq_f32(_f5, _c401, _beta);
+                            _f6 = vmlaq_f32(_f6, _c402, _beta);
+                            _f7 = vmlaq_f32(_f7, _c403, _beta);
+                        }
+                        float32x4_t _c800 = vld1q_f32(pC + 8);
+                        float32x4_t _c801 = vld1q_f32(pC + c_hstep + 8);
+                        float32x4_t _c802 = vld1q_f32(pC + c_hstep * 2 + 8);
+                        float32x4_t _c803 = vld1q_f32(pC + c_hstep * 3 + 8);
+                        transpose4x4_ps(_c800, _c801, _c802, _c803);
+                        if (beta == 1.f)
+                        {
+                            _f8 = vaddq_f32(_f8, _c800);
+                            _f9 = vaddq_f32(_f9, _c801);
+                            _fa = vaddq_f32(_fa, _c802);
+                            _fb = vaddq_f32(_fb, _c803);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f8 = vmlaq_f32(_f8, _c800, _beta);
+                            _f9 = vmlaq_f32(_f9, _c801, _beta);
+                            _fa = vmlaq_f32(_fa, _c802, _beta);
+                            _fb = vmlaq_f32(_fb, _c803, _beta);
+                        }
+                        pC += 12;
+                    }
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    float32x4_t _c1 = vdupq_n_f32(pC[1] * beta);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    float32x4_t _c2 = vdupq_n_f32(pC[2] * beta);
+                    _f2 = vaddq_f32(_f2, _c2);
+                    float32x4_t _c3 = vdupq_n_f32(pC[3] * beta);
+                    _f3 = vaddq_f32(_f3, _c3);
+                    float32x4_t _c4 = vdupq_n_f32(pC[4] * beta);
+                    _f4 = vaddq_f32(_f4, _c4);
+                    float32x4_t _c5 = vdupq_n_f32(pC[5] * beta);
+                    _f5 = vaddq_f32(_f5, _c5);
+                    float32x4_t _c6 = vdupq_n_f32(pC[6] * beta);
+                    _f6 = vaddq_f32(_f6, _c6);
+                    float32x4_t _c7 = vdupq_n_f32(pC[7] * beta);
+                    _f7 = vaddq_f32(_f7, _c7);
+                    float32x4_t _c8 = vdupq_n_f32(pC[8] * beta);
+                    _f8 = vaddq_f32(_f8, _c8);
+                    float32x4_t _c9 = vdupq_n_f32(pC[9] * beta);
+                    _f9 = vaddq_f32(_f9, _c9);
+                    float32x4_t _ca = vdupq_n_f32(pC[10] * beta);
+                    _fa = vaddq_f32(_fa, _ca);
+                    float32x4_t _cb = vdupq_n_f32(pC[11] * beta);
+                    _fb = vaddq_f32(_fb, _cb);
+                    pC += 12;
+                }
+            }
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+                _f4 = vmulq_f32(_f4, _alpha);
+                _f5 = vmulq_f32(_f5, _alpha);
+                _f6 = vmulq_f32(_f6, _alpha);
+                _f7 = vmulq_f32(_f7, _alpha);
+                _f8 = vmulq_f32(_f8, _alpha);
+                _f9 = vmulq_f32(_f9, _alpha);
+                _fa = vmulq_f32(_fa, _alpha);
+                _fb = vmulq_f32(_fb, _alpha);
+            }
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+            uint16x4_t _bf2 = float2bfloat(_f2);
+            uint16x4_t _bf3 = float2bfloat(_f3);
+            uint16x4_t _bf4 = float2bfloat(_f4);
+            uint16x4_t _bf5 = float2bfloat(_f5);
+            uint16x4_t _bf6 = float2bfloat(_f6);
+            uint16x4_t _bf7 = float2bfloat(_f7);
+            uint16x4_t _bf8 = float2bfloat(_f8);
+            uint16x4_t _bf9 = float2bfloat(_f9);
+            uint16x4_t _bfa = float2bfloat(_fa);
+            uint16x4_t _bfb = float2bfloat(_fb);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    uint16x4x4_t _r0;
+                    _r0.val[0] = _bf0;
+                    _r0.val[1] = _bf1;
+                    _r0.val[2] = _bf2;
+                    _r0.val[3] = _bf3;
+                    vst4_u16(p0, _r0);
+                    uint16x4x4_t _r1;
+                    _r1.val[0] = _bf4;
+                    _r1.val[1] = _bf5;
+                    _r1.val[2] = _bf6;
+                    _r1.val[3] = _bf7;
+                    vst4_u16(p0 + out_hstep * 4, _r1);
+                    uint16x4x4_t _r2;
+                    _r2.val[0] = _bf8;
+                    _r2.val[1] = _bf9;
+                    _r2.val[2] = _bfa;
+                    _r2.val[3] = _bfb;
+                    vst4_u16(p0 + out_hstep * 8, _r2);
+                }
+                if (out_elempack == 1)
+                {
+                    vst1_u16(p0, _bf0);
+                    vst1_u16(p0 + out_hstep, _bf1);
+                    vst1_u16(p0 + out_hstep * 2, _bf2);
+                    vst1_u16(p0 + out_hstep * 3, _bf3);
+                    vst1_u16(p0 + out_hstep * 4, _bf4);
+                    vst1_u16(p0 + out_hstep * 5, _bf5);
+                    vst1_u16(p0 + out_hstep * 6, _bf6);
+                    vst1_u16(p0 + out_hstep * 7, _bf7);
+                    vst1_u16(p0 + out_hstep * 8, _bf8);
+                    vst1_u16(p0 + out_hstep * 9, _bf9);
+                    vst1_u16(p0 + out_hstep * 10, _bfa);
+                    vst1_u16(p0 + out_hstep * 11, _bfb);
+                }
+                p0 += out_hstep * 12;
+            }
+            else
+            {
+                if (out_elempack == 4)
+                {
+                    vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
+                    vst1q_u16(p0 + 8, vcombine_u16(_bf2, _bf3));
+                    vst1q_u16(p0 + 16, vcombine_u16(_bf4, _bf5));
+                    vst1q_u16(p0 + 24, vcombine_u16(_bf6, _bf7));
+                    vst1q_u16(p0 + 32, vcombine_u16(_bf8, _bf9));
+                    vst1q_u16(p0 + 40, vcombine_u16(_bfa, _bfb));
+                    p0 += 48;
+                }
+                if (out_elempack == 1)
+                {
+                    transpose4x12_u16(_bf0, _bf1, _bf2, _bf3, _bf4, _bf5, _bf6, _bf7, _bf8, _bf9, _bfa, _bfb);
+
+                    vst1_u16(p0, _bf0);
+                    vst1_u16(p0 + 4, _bf1);
+                    vst1_u16(p0 + 8, _bf2);
+                    vst1_u16(p0 + out_hstep, _bf3);
+                    vst1_u16(p0 + out_hstep + 4, _bf4);
+                    vst1_u16(p0 + out_hstep + 8, _bf5);
+                    vst1_u16(p0 + out_hstep * 2, _bf6);
+                    vst1_u16(p0 + out_hstep * 2 + 4, _bf7);
+                    vst1_u16(p0 + out_hstep * 2 + 8, _bf8);
+                    vst1_u16(p0 + out_hstep * 3, _bf9);
+                    vst1_u16(p0 + out_hstep * 3 + 4, _bfa);
+                    vst1_u16(p0 + out_hstep * 3 + 8, _bfb);
+                    p0 += 12;
+                }
+            }
+            pp += 48;
+        }
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            float32x4_t _f0 = vld1q_f32(pp + 0);
+            float32x4_t _f1 = vld1q_f32(pp + 4);
+            float32x4_t _f2 = vld1q_f32(pp + 8);
+            float32x4_t _f3 = vld1q_f32(pp + 12);
+            float32x4_t _f4 = vld1q_f32(pp + 16);
+            float32x4_t _f5 = vld1q_f32(pp + 20);
+            float32x4_t _f6 = vld1q_f32(pp + 24);
+            float32x4_t _f7 = vld1q_f32(pp + 28);
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    float32x4_t _c = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c);
+                    _f1 = vaddq_f32(_f1, _c);
+                    _f2 = vaddq_f32(_f2, _c);
+                    _f3 = vaddq_f32(_f3, _c);
+                    _f4 = vaddq_f32(_f4, _c);
+                    _f5 = vaddq_f32(_f5, _c);
+                    _f6 = vaddq_f32(_f6, _c);
+                    _f7 = vaddq_f32(_f7, _c);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    if (beta != 1.f)
+                        _c0 = vmulq_n_f32(_c0, beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                    _f4 = vaddq_f32(_f4, _c0);
+                    _f5 = vaddq_f32(_f5, _c0);
+                    _f6 = vaddq_f32(_f6, _c0);
+                    _f7 = vaddq_f32(_f7, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    if (c_elempack == 4)
+                    {
+                        float32x4_t _c0 = vld1q_f32(pC);
+                        float32x4_t _c1 = vld1q_f32(pC + 4);
+                        float32x4_t _c2 = vld1q_f32(pC + 8);
+                        float32x4_t _c3 = vld1q_f32(pC + 12);
+                        float32x4_t _c4 = vld1q_f32(pC + 16);
+                        float32x4_t _c5 = vld1q_f32(pC + 20);
+                        float32x4_t _c6 = vld1q_f32(pC + 24);
+                        float32x4_t _c7 = vld1q_f32(pC + 28);
+                        if (beta == 1.f)
+                        {
+                            _f0 = vaddq_f32(_f0, _c0);
+                            _f1 = vaddq_f32(_f1, _c1);
+                            _f2 = vaddq_f32(_f2, _c2);
+                            _f3 = vaddq_f32(_f3, _c3);
+                            _f4 = vaddq_f32(_f4, _c4);
+                            _f5 = vaddq_f32(_f5, _c5);
+                            _f6 = vaddq_f32(_f6, _c6);
+                            _f7 = vaddq_f32(_f7, _c7);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f0 = vmlaq_f32(_f0, _c0, _beta);
+                            _f1 = vmlaq_f32(_f1, _c1, _beta);
+                            _f2 = vmlaq_f32(_f2, _c2, _beta);
+                            _f3 = vmlaq_f32(_f3, _c3, _beta);
+                            _f4 = vmlaq_f32(_f4, _c4, _beta);
+                            _f5 = vmlaq_f32(_f5, _c5, _beta);
+                            _f6 = vmlaq_f32(_f6, _c6, _beta);
+                            _f7 = vmlaq_f32(_f7, _c7, _beta);
+                        }
+                        pC += 8 * c_elempack;
+                    }
+                    if (c_elempack == 1)
+                    {
+                        float32x4_t _c000 = vld1q_f32(pC);
+                        float32x4_t _c001 = vld1q_f32(pC + c_hstep);
+                        float32x4_t _c002 = vld1q_f32(pC + c_hstep * 2);
+                        float32x4_t _c003 = vld1q_f32(pC + c_hstep * 3);
+                        transpose4x4_ps(_c000, _c001, _c002, _c003);
+                        if (beta == 1.f)
+                        {
+                            _f0 = vaddq_f32(_f0, _c000);
+                            _f1 = vaddq_f32(_f1, _c001);
+                            _f2 = vaddq_f32(_f2, _c002);
+                            _f3 = vaddq_f32(_f3, _c003);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f0 = vmlaq_f32(_f0, _c000, _beta);
+                            _f1 = vmlaq_f32(_f1, _c001, _beta);
+                            _f2 = vmlaq_f32(_f2, _c002, _beta);
+                            _f3 = vmlaq_f32(_f3, _c003, _beta);
+                        }
+                        float32x4_t _c400 = vld1q_f32(pC + 4);
+                        float32x4_t _c401 = vld1q_f32(pC + c_hstep + 4);
+                        float32x4_t _c402 = vld1q_f32(pC + c_hstep * 2 + 4);
+                        float32x4_t _c403 = vld1q_f32(pC + c_hstep * 3 + 4);
+                        transpose4x4_ps(_c400, _c401, _c402, _c403);
+                        if (beta == 1.f)
+                        {
+                            _f4 = vaddq_f32(_f4, _c400);
+                            _f5 = vaddq_f32(_f5, _c401);
+                            _f6 = vaddq_f32(_f6, _c402);
+                            _f7 = vaddq_f32(_f7, _c403);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f4 = vmlaq_f32(_f4, _c400, _beta);
+                            _f5 = vmlaq_f32(_f5, _c401, _beta);
+                            _f6 = vmlaq_f32(_f6, _c402, _beta);
+                            _f7 = vmlaq_f32(_f7, _c403, _beta);
+                        }
+                        pC += 8;
+                    }
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    float32x4_t _c1 = vdupq_n_f32(pC[1] * beta);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    float32x4_t _c2 = vdupq_n_f32(pC[2] * beta);
+                    _f2 = vaddq_f32(_f2, _c2);
+                    float32x4_t _c3 = vdupq_n_f32(pC[3] * beta);
+                    _f3 = vaddq_f32(_f3, _c3);
+                    float32x4_t _c4 = vdupq_n_f32(pC[4] * beta);
+                    _f4 = vaddq_f32(_f4, _c4);
+                    float32x4_t _c5 = vdupq_n_f32(pC[5] * beta);
+                    _f5 = vaddq_f32(_f5, _c5);
+                    float32x4_t _c6 = vdupq_n_f32(pC[6] * beta);
+                    _f6 = vaddq_f32(_f6, _c6);
+                    float32x4_t _c7 = vdupq_n_f32(pC[7] * beta);
+                    _f7 = vaddq_f32(_f7, _c7);
+                    pC += 8;
+                }
+            }
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+                _f4 = vmulq_f32(_f4, _alpha);
+                _f5 = vmulq_f32(_f5, _alpha);
+                _f6 = vmulq_f32(_f6, _alpha);
+                _f7 = vmulq_f32(_f7, _alpha);
+            }
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+            uint16x4_t _bf2 = float2bfloat(_f2);
+            uint16x4_t _bf3 = float2bfloat(_f3);
+            uint16x4_t _bf4 = float2bfloat(_f4);
+            uint16x4_t _bf5 = float2bfloat(_f5);
+            uint16x4_t _bf6 = float2bfloat(_f6);
+            uint16x4_t _bf7 = float2bfloat(_f7);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    uint16x4x4_t _r0;
+                    _r0.val[0] = _bf0;
+                    _r0.val[1] = _bf1;
+                    _r0.val[2] = _bf2;
+                    _r0.val[3] = _bf3;
+                    vst4_u16(p0, _r0);
+                    uint16x4x4_t _r1;
+                    _r1.val[0] = _bf4;
+                    _r1.val[1] = _bf5;
+                    _r1.val[2] = _bf6;
+                    _r1.val[3] = _bf7;
+                    vst4_u16(p0 + out_hstep * 4, _r1);
+                }
+                if (out_elempack == 1)
+                {
+                    vst1_u16(p0, _bf0);
+                    vst1_u16(p0 + out_hstep, _bf1);
+                    vst1_u16(p0 + out_hstep * 2, _bf2);
+                    vst1_u16(p0 + out_hstep * 3, _bf3);
+                    vst1_u16(p0 + out_hstep * 4, _bf4);
+                    vst1_u16(p0 + out_hstep * 5, _bf5);
+                    vst1_u16(p0 + out_hstep * 6, _bf6);
+                    vst1_u16(p0 + out_hstep * 7, _bf7);
+                }
+                p0 += out_hstep * 8;
+            }
+            else
+            {
+                if (out_elempack == 4)
+                {
+                    vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
+                    vst1q_u16(p0 + 8, vcombine_u16(_bf2, _bf3));
+                    vst1q_u16(p0 + 16, vcombine_u16(_bf4, _bf5));
+                    vst1q_u16(p0 + 24, vcombine_u16(_bf6, _bf7));
+                    p0 += 32;
+                }
+                if (out_elempack == 1)
+                {
+                    transpose4x8_u16(_bf0, _bf1, _bf2, _bf3, _bf4, _bf5, _bf6, _bf7);
+
+                    vst1_u16(p0, _bf0);
+                    vst1_u16(p0 + 4, _bf1);
+                    vst1_u16(p0 + out_hstep, _bf2);
+                    vst1_u16(p0 + out_hstep + 4, _bf3);
+                    vst1_u16(p0 + out_hstep * 2, _bf4);
+                    vst1_u16(p0 + out_hstep * 2 + 4, _bf5);
+                    vst1_u16(p0 + out_hstep * 3, _bf6);
+                    vst1_u16(p0 + out_hstep * 3 + 4, _bf7);
+                    p0 += 8;
+                }
+            }
+            pp += 32;
+        }
+#endif // __aarch64__
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            float32x4_t _f0 = vld1q_f32(pp + 0);
+            float32x4_t _f1 = vld1q_f32(pp + 4);
+            float32x4_t _f2 = vld1q_f32(pp + 8);
+            float32x4_t _f3 = vld1q_f32(pp + 12);
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    float32x4_t _c = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c);
+                    _f1 = vaddq_f32(_f1, _c);
+                    _f2 = vaddq_f32(_f2, _c);
+                    _f3 = vaddq_f32(_f3, _c);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    if (beta != 1.f)
+                        _c0 = vmulq_n_f32(_c0, beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    if (c_elempack == 4)
+                    {
+                        float32x4_t _c0 = vld1q_f32(pC);
+                        float32x4_t _c1 = vld1q_f32(pC + 4);
+                        float32x4_t _c2 = vld1q_f32(pC + 8);
+                        float32x4_t _c3 = vld1q_f32(pC + 12);
+                        if (beta == 1.f)
+                        {
+                            _f0 = vaddq_f32(_f0, _c0);
+                            _f1 = vaddq_f32(_f1, _c1);
+                            _f2 = vaddq_f32(_f2, _c2);
+                            _f3 = vaddq_f32(_f3, _c3);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f0 = vmlaq_f32(_f0, _c0, _beta);
+                            _f1 = vmlaq_f32(_f1, _c1, _beta);
+                            _f2 = vmlaq_f32(_f2, _c2, _beta);
+                            _f3 = vmlaq_f32(_f3, _c3, _beta);
+                        }
+                        pC += 4 * c_elempack;
+                    }
+                    if (c_elempack == 1)
+                    {
+                        float32x4_t _c000 = vld1q_f32(pC);
+                        float32x4_t _c001 = vld1q_f32(pC + c_hstep);
+                        float32x4_t _c002 = vld1q_f32(pC + c_hstep * 2);
+                        float32x4_t _c003 = vld1q_f32(pC + c_hstep * 3);
+                        transpose4x4_ps(_c000, _c001, _c002, _c003);
+                        if (beta == 1.f)
+                        {
+                            _f0 = vaddq_f32(_f0, _c000);
+                            _f1 = vaddq_f32(_f1, _c001);
+                            _f2 = vaddq_f32(_f2, _c002);
+                            _f3 = vaddq_f32(_f3, _c003);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f0 = vmlaq_f32(_f0, _c000, _beta);
+                            _f1 = vmlaq_f32(_f1, _c001, _beta);
+                            _f2 = vmlaq_f32(_f2, _c002, _beta);
+                            _f3 = vmlaq_f32(_f3, _c003, _beta);
+                        }
+                        pC += 4;
+                    }
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    float32x4_t _c1 = vdupq_n_f32(pC[1] * beta);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    float32x4_t _c2 = vdupq_n_f32(pC[2] * beta);
+                    _f2 = vaddq_f32(_f2, _c2);
+                    float32x4_t _c3 = vdupq_n_f32(pC[3] * beta);
+                    _f3 = vaddq_f32(_f3, _c3);
+                    pC += 4;
+                }
+            }
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+            }
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+            uint16x4_t _bf2 = float2bfloat(_f2);
+            uint16x4_t _bf3 = float2bfloat(_f3);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    uint16x4x4_t _r0;
+                    _r0.val[0] = _bf0;
+                    _r0.val[1] = _bf1;
+                    _r0.val[2] = _bf2;
+                    _r0.val[3] = _bf3;
+                    vst4_u16(p0, _r0);
+                }
+                if (out_elempack == 1)
+                {
+                    vst1_u16(p0, _bf0);
+                    vst1_u16(p0 + out_hstep, _bf1);
+                    vst1_u16(p0 + out_hstep * 2, _bf2);
+                    vst1_u16(p0 + out_hstep * 3, _bf3);
+                }
                 p0 += out_hstep * 4;
             }
-        }
-        if (out_elempack == 1)
-        {
-            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii);
-
-            for (int jj = 0; jj < max_jj; jj += 1)
+            else
             {
-                uint16x4_t _r0 = float2bfloat(vld1q_f32(pp));
-                vst1_u16(p0, _r0);
-                pp += 4;
-                p0 += out_hstep;
+                if (out_elempack == 4)
+                {
+                    vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
+                    vst1q_u16(p0 + 8, vcombine_u16(_bf2, _bf3));
+                    p0 += 16;
+                }
+                if (out_elempack == 1)
+                {
+                    transpose4x4_u16(_bf0, _bf1, _bf2, _bf3);
+
+                    vst1_u16(p0, _bf0);
+                    vst1_u16(p0 + out_hstep, _bf1);
+                    vst1_u16(p0 + out_hstep * 2, _bf2);
+                    vst1_u16(p0 + out_hstep * 3, _bf3);
+                    p0 += 4;
+                }
             }
+            pp += 16;
+        }
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            float32x4_t _f0 = vld1q_f32(pp + 0);
+            float32x4_t _f1 = vld1q_f32(pp + 4);
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    float32x4_t _c = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c);
+                    _f1 = vaddq_f32(_f1, _c);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    if (beta != 1.f)
+                        _c0 = vmulq_n_f32(_c0, beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    if (c_elempack == 4)
+                    {
+                        float32x4_t _c0 = vld1q_f32(pC);
+                        float32x4_t _c1 = vld1q_f32(pC + 4);
+                        if (beta == 1.f)
+                        {
+                            _f0 = vaddq_f32(_f0, _c0);
+                            _f1 = vaddq_f32(_f1, _c1);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f0 = vmlaq_f32(_f0, _c0, _beta);
+                            _f1 = vmlaq_f32(_f1, _c1, _beta);
+                        }
+                        pC += 2 * c_elempack;
+                    }
+                    if (c_elempack == 1)
+                    {
+                        float32x2_t _c0 = vld1_f32(pC);
+                        float32x2_t _c1 = vld1_f32(pC + c_hstep);
+                        float32x2_t _c2 = vld1_f32(pC + c_hstep * 2);
+                        float32x2_t _c3 = vld1_f32(pC + c_hstep * 3);
+                        float32x2x2_t _c01 = vtrn_f32(_c0, _c1);
+                        float32x2x2_t _c23 = vtrn_f32(_c2, _c3);
+                        float32x4_t _c00 = vcombine_f32(_c01.val[0], _c23.val[0]);
+                        float32x4_t _c10 = vcombine_f32(_c01.val[1], _c23.val[1]);
+                        if (beta == 1.f)
+                        {
+                            _f0 = vaddq_f32(_f0, _c00);
+                            _f1 = vaddq_f32(_f1, _c10);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f0 = vmlaq_f32(_f0, _c00, _beta);
+                            _f1 = vmlaq_f32(_f1, _c10, _beta);
+                        }
+                        pC += 2;
+                    }
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    float32x4_t _c1 = vdupq_n_f32(pC[1] * beta);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    pC += 2;
+                }
+            }
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+            }
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    uint16x4x2_t _r0;
+                    _r0.val[0] = _bf0;
+                    _r0.val[1] = _bf1;
+                    vst2_lane_u16(p0, _r0, 0);
+                    vst2_lane_u16(p0 + 4, _r0, 1);
+                    vst2_lane_u16(p0 + 8, _r0, 2);
+                    vst2_lane_u16(p0 + 12, _r0, 3);
+                    p0 += 2;
+                }
+                if (out_elempack == 1)
+                {
+                    vst1_u16(p0, _bf0);
+                    vst1_u16(p0 + out_hstep, _bf1);
+                    p0 += out_hstep * 2;
+                }
+            }
+            else
+            {
+                if (out_elempack == 4)
+                {
+                    vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
+                    p0 += 8;
+                }
+                if (out_elempack == 1)
+                {
+                    p0[0] = vget_lane_u16(_bf0, 0);
+                    p0[out_hstep] = vget_lane_u16(_bf0, 1);
+                    p0[out_hstep * 2] = vget_lane_u16(_bf0, 2);
+                    p0[out_hstep * 3] = vget_lane_u16(_bf0, 3);
+                    p0[1] = vget_lane_u16(_bf1, 0);
+                    p0[out_hstep + 1] = vget_lane_u16(_bf1, 1);
+                    p0[out_hstep * 2 + 1] = vget_lane_u16(_bf1, 2);
+                    p0[out_hstep * 3 + 1] = vget_lane_u16(_bf1, 3);
+                    p0 += 2;
+                }
+            }
+            pp += 8;
+        }
+        for (; jj < max_jj; jj += 1)
+        {
+            float32x4_t _f0 = vld1q_f32(pp + 0);
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    float32x4_t _c = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    if (beta != 1.f)
+                        _c0 = vmulq_n_f32(_c0, beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    if (c_elempack == 4)
+                    {
+                        float32x4_t _c0 = vld1q_f32(pC);
+                        if (beta == 1.f)
+                        {
+                            _f0 = vaddq_f32(_f0, _c0);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        }
+                        pC += c_elempack;
+                    }
+                    if (c_elempack == 1)
+                    {
+                        float32x4_t _c00 = vdupq_n_f32(0.f);
+                        _c00 = vld1q_lane_f32(pC, _c00, 0);
+                        _c00 = vld1q_lane_f32(pC + c_hstep, _c00, 1);
+                        _c00 = vld1q_lane_f32(pC + c_hstep * 2, _c00, 2);
+                        _c00 = vld1q_lane_f32(pC + c_hstep * 3, _c00, 3);
+                        if (beta == 1.f)
+                        {
+                            _f0 = vaddq_f32(_f0, _c00);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f0 = vmlaq_f32(_f0, _c00, _beta);
+                        }
+                        pC += 1;
+                    }
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    pC += 1;
+                }
+            }
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+            }
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    p0[0] = vget_lane_u16(_bf0, 0);
+                    p0[4] = vget_lane_u16(_bf0, 1);
+                    p0[8] = vget_lane_u16(_bf0, 2);
+                    p0[12] = vget_lane_u16(_bf0, 3);
+                    p0 += 1;
+                }
+                if (out_elempack == 1)
+                {
+                    vst1_u16(p0, _bf0);
+                    p0 += out_hstep;
+                }
+            }
+            else
+            {
+                if (out_elempack == 4)
+                {
+                    vst1_u16(p0, _bf0);
+                    p0 += 4;
+                }
+                if (out_elempack == 1)
+                {
+                    p0[0] = vget_lane_u16(_bf0, 0);
+                    p0[out_hstep] = vget_lane_u16(_bf0, 1);
+                    p0[out_hstep * 2] = vget_lane_u16(_bf0, 2);
+                    p0[out_hstep * 3] = vget_lane_u16(_bf0, 3);
+                    p0 += 1;
+                }
+            }
+            pp += 4;
         }
     }
 #endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
-#if __ARM_NEON
-        if (out_elempack == 4)
-        {
-            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * 4;
+        unsigned short* p0;
+        if (output_transpose)
+            p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * out_elempack;
+        else
+            p0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j;
 
-            for (int jj = 0; jj + 3 < max_jj; jj += 4)
+        if (pC)
+        {
+            if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                pC = (const float*)C + i + ii;
+            if (broadcast_type_C == 3)
             {
-                p0[0] = float32_to_bfloat16(pp[0]);
-                p0[1] = float32_to_bfloat16(pp[2]);
-                p0[2] = float32_to_bfloat16(pp[4]);
-                p0[3] = float32_to_bfloat16(pp[6]);
-                p0[4] = float32_to_bfloat16(pp[1]);
-                p0[5] = float32_to_bfloat16(pp[3]);
-                p0[6] = float32_to_bfloat16(pp[5]);
-                p0[7] = float32_to_bfloat16(pp[7]);
-                pp += 8;
+                // c_elempack == 1
+                pC = (const float*)C + (i + ii) * c_hstep + j;
+            }
+            if (broadcast_type_C == 4)
+                pC = (const float*)C + j;
+        }
+
+        int jj = 0;
+#if __ARM_NEON
+#if __aarch64__
+        for (; jj + 11 < max_jj; jj += 12)
+        {
+            float32x4x2_t _f0x = vld2q_f32(pp + 0);
+            float32x4_t _f0 = _f0x.val[0];
+            float32x4_t _f1 = _f0x.val[1];
+            float32x4x2_t _f1x = vld2q_f32(pp + 8);
+            float32x4_t _f2 = _f1x.val[0];
+            float32x4_t _f3 = _f1x.val[1];
+            float32x4x2_t _f2x = vld2q_f32(pp + 16);
+            float32x4_t _f4 = _f2x.val[0];
+            float32x4_t _f5 = _f2x.val[1];
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    float32x4_t _c = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c);
+                    _f1 = vaddq_f32(_f1, _c);
+                    _f2 = vaddq_f32(_f2, _c);
+                    _f3 = vaddq_f32(_f3, _c);
+                    _f4 = vaddq_f32(_f4, _c);
+                    _f5 = vaddq_f32(_f5, _c);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float32x4_t _c0 = vdupq_n_f32(pC[0] * beta);
+                    float32x4_t _c1 = vdupq_n_f32(pC[1] * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c1);
+                    _f4 = vaddq_f32(_f4, _c0);
+                    _f5 = vaddq_f32(_f5, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    // c_elempack == 1
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    float32x4_t _c1 = vld1q_f32(pC + c_hstep);
+                    if (beta == 1.f)
+                    {
+                        _f0 = vaddq_f32(_f0, _c0);
+                        _f1 = vaddq_f32(_f1, _c1);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                    }
+                    float32x4_t _c2 = vld1q_f32(pC + 4);
+                    float32x4_t _c3 = vld1q_f32(pC + c_hstep + 4);
+                    if (beta == 1.f)
+                    {
+                        _f2 = vaddq_f32(_f2, _c2);
+                        _f3 = vaddq_f32(_f3, _c3);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f2 = vmlaq_f32(_f2, _c2, _beta);
+                        _f3 = vmlaq_f32(_f3, _c3, _beta);
+                    }
+                    float32x4_t _c4 = vld1q_f32(pC + 8);
+                    float32x4_t _c5 = vld1q_f32(pC + c_hstep + 8);
+                    if (beta == 1.f)
+                    {
+                        _f4 = vaddq_f32(_f4, _c4);
+                        _f5 = vaddq_f32(_f5, _c5);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f4 = vmlaq_f32(_f4, _c4, _beta);
+                        _f5 = vmlaq_f32(_f5, _c5, _beta);
+                    }
+                    pC += 12;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    float32x4_t _c1 = vld1q_f32(pC + 4);
+                    float32x4_t _c2 = vld1q_f32(pC + 8);
+                    if (beta == 1.f)
+                    {
+                        _f0 = vaddq_f32(_f0, _c0);
+                        _f1 = vaddq_f32(_f1, _c0);
+                        _f2 = vaddq_f32(_f2, _c1);
+                        _f3 = vaddq_f32(_f3, _c1);
+                        _f4 = vaddq_f32(_f4, _c2);
+                        _f5 = vaddq_f32(_f5, _c2);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c0, _beta);
+                        _f2 = vmlaq_f32(_f2, _c1, _beta);
+                        _f3 = vmlaq_f32(_f3, _c1, _beta);
+                        _f4 = vmlaq_f32(_f4, _c2, _beta);
+                        _f5 = vmlaq_f32(_f5, _c2, _beta);
+                    }
+                    pC += 12;
+                }
+            }
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+                _f4 = vmulq_f32(_f4, _alpha);
+                _f5 = vmulq_f32(_f5, _alpha);
+            }
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+            uint16x4_t _bf2 = float2bfloat(_f2);
+            uint16x4_t _bf3 = float2bfloat(_f3);
+            uint16x4_t _bf4 = float2bfloat(_f4);
+            uint16x4_t _bf5 = float2bfloat(_f5);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    vst1_u16(p0, _bf0);
+                    vst1_u16(p0 + 4, _bf1);
+                    vst1_u16(p0 + out_hstep * 4, _bf2);
+                    vst1_u16(p0 + out_hstep * 4 + 4, _bf3);
+                    vst1_u16(p0 + out_hstep * 8, _bf4);
+                    vst1_u16(p0 + out_hstep * 8 + 4, _bf5);
+                }
+                if (out_elempack == 1)
+                {
+                    uint16x4x2_t _r0;
+                    _r0.val[0] = _bf0;
+                    _r0.val[1] = _bf1;
+                    vst2_lane_u16(p0, _r0, 0);
+                    vst2_lane_u16(p0 + out_hstep, _r0, 1);
+                    vst2_lane_u16(p0 + out_hstep * 2, _r0, 2);
+                    vst2_lane_u16(p0 + out_hstep * 3, _r0, 3);
+                    uint16x4x2_t _r1;
+                    _r1.val[0] = _bf2;
+                    _r1.val[1] = _bf3;
+                    vst2_lane_u16(p0 + out_hstep * 4, _r1, 0);
+                    vst2_lane_u16(p0 + out_hstep * 5, _r1, 1);
+                    vst2_lane_u16(p0 + out_hstep * 6, _r1, 2);
+                    vst2_lane_u16(p0 + out_hstep * 7, _r1, 3);
+                    uint16x4x2_t _r2;
+                    _r2.val[0] = _bf4;
+                    _r2.val[1] = _bf5;
+                    vst2_lane_u16(p0 + out_hstep * 8, _r2, 0);
+                    vst2_lane_u16(p0 + out_hstep * 9, _r2, 1);
+                    vst2_lane_u16(p0 + out_hstep * 10, _r2, 2);
+                    vst2_lane_u16(p0 + out_hstep * 11, _r2, 3);
+                }
+                p0 += out_hstep * 12;
+            }
+            else
+            {
+                vst1q_u16(p0, vcombine_u16(_bf0, _bf2));
+                vst1_u16(p0 + 8, _bf4);
+                vst1q_u16(p0 + out_hstep, vcombine_u16(_bf1, _bf3));
+                vst1_u16(p0 + out_hstep + 8, _bf5);
+                p0 += 12;
+            }
+            pp += 24;
+        }
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            float32x4x2_t _f0x = vld2q_f32(pp + 0);
+            float32x4_t _f0 = _f0x.val[0];
+            float32x4_t _f1 = _f0x.val[1];
+            float32x4x2_t _f1x = vld2q_f32(pp + 8);
+            float32x4_t _f2 = _f1x.val[0];
+            float32x4_t _f3 = _f1x.val[1];
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    float32x4_t _c = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c);
+                    _f1 = vaddq_f32(_f1, _c);
+                    _f2 = vaddq_f32(_f2, _c);
+                    _f3 = vaddq_f32(_f3, _c);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float32x4_t _c0 = vdupq_n_f32(pC[0] * beta);
+                    float32x4_t _c1 = vdupq_n_f32(pC[1] * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    // c_elempack == 1
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    float32x4_t _c1 = vld1q_f32(pC + c_hstep);
+                    if (beta == 1.f)
+                    {
+                        _f0 = vaddq_f32(_f0, _c0);
+                        _f1 = vaddq_f32(_f1, _c1);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                    }
+                    float32x4_t _c2 = vld1q_f32(pC + 4);
+                    float32x4_t _c3 = vld1q_f32(pC + c_hstep + 4);
+                    if (beta == 1.f)
+                    {
+                        _f2 = vaddq_f32(_f2, _c2);
+                        _f3 = vaddq_f32(_f3, _c3);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f2 = vmlaq_f32(_f2, _c2, _beta);
+                        _f3 = vmlaq_f32(_f3, _c3, _beta);
+                    }
+                    pC += 8;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    float32x4_t _c1 = vld1q_f32(pC + 4);
+                    if (beta == 1.f)
+                    {
+                        _f0 = vaddq_f32(_f0, _c0);
+                        _f1 = vaddq_f32(_f1, _c0);
+                        _f2 = vaddq_f32(_f2, _c1);
+                        _f3 = vaddq_f32(_f3, _c1);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c0, _beta);
+                        _f2 = vmlaq_f32(_f2, _c1, _beta);
+                        _f3 = vmlaq_f32(_f3, _c1, _beta);
+                    }
+                    pC += 8;
+                }
+            }
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+            }
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+            uint16x4_t _bf2 = float2bfloat(_f2);
+            uint16x4_t _bf3 = float2bfloat(_f3);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    vst1_u16(p0, _bf0);
+                    vst1_u16(p0 + 4, _bf1);
+                    vst1_u16(p0 + out_hstep * 4, _bf2);
+                    vst1_u16(p0 + out_hstep * 4 + 4, _bf3);
+                }
+                if (out_elempack == 1)
+                {
+                    uint16x4x2_t _r0;
+                    _r0.val[0] = _bf0;
+                    _r0.val[1] = _bf1;
+                    vst2_lane_u16(p0, _r0, 0);
+                    vst2_lane_u16(p0 + out_hstep, _r0, 1);
+                    vst2_lane_u16(p0 + out_hstep * 2, _r0, 2);
+                    vst2_lane_u16(p0 + out_hstep * 3, _r0, 3);
+                    uint16x4x2_t _r1;
+                    _r1.val[0] = _bf2;
+                    _r1.val[1] = _bf3;
+                    vst2_lane_u16(p0 + out_hstep * 4, _r1, 0);
+                    vst2_lane_u16(p0 + out_hstep * 5, _r1, 1);
+                    vst2_lane_u16(p0 + out_hstep * 6, _r1, 2);
+                    vst2_lane_u16(p0 + out_hstep * 7, _r1, 3);
+                }
+                p0 += out_hstep * 8;
+            }
+            else
+            {
+                vst1q_u16(p0, vcombine_u16(_bf0, _bf2));
+                vst1q_u16(p0 + out_hstep, vcombine_u16(_bf1, _bf3));
+                p0 += 8;
+            }
+            pp += 16;
+        }
+#endif // __aarch64__
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            float32x4x2_t _f0x = vld2q_f32(pp + 0);
+            float32x4_t _f0 = _f0x.val[0];
+            float32x4_t _f1 = _f0x.val[1];
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    float32x4_t _c = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c);
+                    _f1 = vaddq_f32(_f1, _c);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float32x4_t _c0 = vdupq_n_f32(pC[0] * beta);
+                    float32x4_t _c1 = vdupq_n_f32(pC[1] * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    // c_elempack == 1
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    float32x4_t _c1 = vld1q_f32(pC + c_hstep);
+                    if (beta == 1.f)
+                    {
+                        _f0 = vaddq_f32(_f0, _c0);
+                        _f1 = vaddq_f32(_f1, _c1);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                    }
+                    pC += 4;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    if (beta == 1.f)
+                    {
+                        _f0 = vaddq_f32(_f0, _c0);
+                        _f1 = vaddq_f32(_f1, _c0);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c0, _beta);
+                    }
+                    pC += 4;
+                }
+            }
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+            }
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    vst1_u16(p0, _bf0);
+                    vst1_u16(p0 + 4, _bf1);
+                }
+                if (out_elempack == 1)
+                {
+                    uint16x4x2_t _r0;
+                    _r0.val[0] = _bf0;
+                    _r0.val[1] = _bf1;
+                    vst2_lane_u16(p0, _r0, 0);
+                    vst2_lane_u16(p0 + out_hstep, _r0, 1);
+                    vst2_lane_u16(p0 + out_hstep * 2, _r0, 2);
+                    vst2_lane_u16(p0 + out_hstep * 3, _r0, 3);
+                }
                 p0 += out_hstep * 4;
             }
+            else
+            {
+                vst1_u16(p0, _bf0);
+                vst1_u16(p0 + out_hstep, _bf1);
+                p0 += 4;
+            }
+            pp += 8;
         }
 #endif // __ARM_NEON
-        if (out_elempack == 1)
+        for (; jj + 1 < max_jj; jj += 2)
         {
-            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii);
+            float sum00 = pp[0];
+            float sum10 = pp[1];
+            float sum01 = pp[2];
+            float sum11 = pp[3];
 
-            for (int jj = 0; jj < max_jj; jj += 1)
+            if (pC)
             {
-                p0[0] = float32_to_bfloat16(pp[0]);
-                p0[1] = float32_to_bfloat16(pp[1]);
-                pp += 2;
-                p0 += out_hstep;
+                if (broadcast_type_C == 0)
+                {
+                    float c0 = pC[0] * beta;
+                    sum00 += c0;
+                    sum10 += c0;
+                    sum01 += c0;
+                    sum11 += c0;
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float c0 = pC[0] * beta;
+                    float c1 = pC[1] * beta;
+                    sum00 += c0;
+                    sum10 += c1;
+                    sum01 += c0;
+                    sum11 += c1;
+                }
+                if (broadcast_type_C == 3)
+                {
+                    // c_elempack == 1
+                    sum00 += pC[0] * beta;
+                    sum10 += pC[c_hstep] * beta;
+                    sum01 += pC[1] * beta;
+                    sum11 += pC[c_hstep + 1] * beta;
+                    pC += 2;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float c0 = pC[0] * beta;
+                    float c1 = pC[1] * beta;
+                    sum00 += c0;
+                    sum10 += c0;
+                    sum01 += c1;
+                    sum11 += c1;
+                    pC += 2;
+                }
             }
+
+            sum00 *= alpha;
+            sum10 *= alpha;
+            sum01 *= alpha;
+            sum11 *= alpha;
+
+            unsigned short bf00 = float32_to_bfloat16(sum00);
+            unsigned short bf10 = float32_to_bfloat16(sum10);
+            unsigned short bf01 = float32_to_bfloat16(sum01);
+            unsigned short bf11 = float32_to_bfloat16(sum11);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    p0[0] = bf00;
+                    p0[1] = bf01;
+                    p0[4] = bf10;
+                    p0[5] = bf11;
+                    p0 += 2;
+                }
+                if (out_elempack == 1)
+                {
+                    p0[0] = bf00;
+                    p0[1] = bf10;
+                    p0[out_hstep] = bf01;
+                    p0[out_hstep + 1] = bf11;
+                    p0 += out_hstep * 2;
+                }
+            }
+            else
+            {
+                p0[0] = bf00;
+                p0[1] = bf01;
+                p0[out_hstep] = bf10;
+                p0[out_hstep + 1] = bf11;
+                p0 += 2;
+            }
+            pp += 4;
+        }
+        for (; jj < max_jj; jj += 1)
+        {
+            float sum0 = pp[0];
+            float sum1 = pp[1];
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    sum0 += pC[0] * beta;
+                    sum1 += pC[0] * beta;
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    sum0 += pC[0] * beta;
+                    sum1 += pC[1] * beta;
+                }
+                if (broadcast_type_C == 3)
+                {
+                    // c_elempack == 1
+                    sum0 += pC[0] * beta;
+                    sum1 += pC[c_hstep] * beta;
+                    pC += 1;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    sum0 += pC[0] * beta;
+                    sum1 += pC[0] * beta;
+                    pC += 1;
+                }
+            }
+
+            sum0 *= alpha;
+            sum1 *= alpha;
+
+            unsigned short bf0 = float32_to_bfloat16(sum0);
+            unsigned short bf1 = float32_to_bfloat16(sum1);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    p0[0] = bf0;
+                    p0[4] = bf1;
+                    p0 += 1;
+                }
+                if (out_elempack == 1)
+                {
+                    p0[0] = bf0;
+                    p0[1] = bf1;
+                    p0 += out_hstep;
+                }
+            }
+            else
+            {
+                p0[0] = bf0;
+                p0[out_hstep] = bf1;
+                p0 += 1;
+            }
+            pp += 2;
         }
     }
     for (; ii < max_ii; ii += 1)
     {
-#if __ARM_NEON
-        if (out_elempack == 4)
-        {
-            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * 4;
+        unsigned short* p0;
+        if (output_transpose)
+            p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * out_elempack;
+        else
+            p0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j;
 
-            for (int jj = 0; jj + 3 < max_jj; jj += 4)
+        if (pC)
+        {
+            if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                pC = (const float*)C + i + ii;
+            if (broadcast_type_C == 3)
             {
-                uint16x4_t _r0 = float2bfloat(vld1q_f32(pp));
-                vst1_u16(p0, _r0);
-                pp += 4;
+                // c_elempack == 1
+                pC = (const float*)C + (i + ii) * c_hstep + j;
+            }
+            if (broadcast_type_C == 4)
+                pC = (const float*)C + j;
+        }
+
+        int jj = 0;
+#if __ARM_NEON
+#if __aarch64__
+        for (; jj + 11 < max_jj; jj += 12)
+        {
+            float32x4_t _f0 = vld1q_f32(pp + 0);
+            float32x4_t _f1 = vld1q_f32(pp + 4);
+            float32x4_t _f2 = vld1q_f32(pp + 8);
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    float32x4_t _c = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c);
+                    _f1 = vaddq_f32(_f1, _c);
+                    _f2 = vaddq_f32(_f2, _c);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float32x4_t _c0 = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    // c_elempack == 1
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    if (beta == 1.f)
+                    {
+                        _f0 = vaddq_f32(_f0, _c0);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                    }
+                    float32x4_t _c1 = vld1q_f32(pC + 4);
+                    if (beta == 1.f)
+                    {
+                        _f1 = vaddq_f32(_f1, _c1);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                    }
+                    float32x4_t _c2 = vld1q_f32(pC + 8);
+                    if (beta == 1.f)
+                    {
+                        _f2 = vaddq_f32(_f2, _c2);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f2 = vmlaq_f32(_f2, _c2, _beta);
+                    }
+                    pC += 12;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    float32x4_t _c1 = vld1q_f32(pC + 4);
+                    float32x4_t _c2 = vld1q_f32(pC + 8);
+                    if (beta == 1.f)
+                    {
+                        _f0 = vaddq_f32(_f0, _c0);
+                        _f1 = vaddq_f32(_f1, _c1);
+                        _f2 = vaddq_f32(_f2, _c2);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                        _f2 = vmlaq_f32(_f2, _c2, _beta);
+                    }
+                    pC += 12;
+                }
+            }
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+            }
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+            uint16x4_t _bf2 = float2bfloat(_f2);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    vst1_u16(p0, _bf0);
+                    vst1_u16(p0 + out_hstep * 4, _bf1);
+                    vst1_u16(p0 + out_hstep * 8, _bf2);
+                }
+                if (out_elempack == 1)
+                {
+                    p0[0] = vget_lane_u16(_bf0, 0);
+                    p0[out_hstep] = vget_lane_u16(_bf0, 1);
+                    p0[out_hstep * 2] = vget_lane_u16(_bf0, 2);
+                    p0[out_hstep * 3] = vget_lane_u16(_bf0, 3);
+                    p0[out_hstep * 4] = vget_lane_u16(_bf1, 0);
+                    p0[out_hstep * 5] = vget_lane_u16(_bf1, 1);
+                    p0[out_hstep * 6] = vget_lane_u16(_bf1, 2);
+                    p0[out_hstep * 7] = vget_lane_u16(_bf1, 3);
+                    p0[out_hstep * 8] = vget_lane_u16(_bf2, 0);
+                    p0[out_hstep * 9] = vget_lane_u16(_bf2, 1);
+                    p0[out_hstep * 10] = vget_lane_u16(_bf2, 2);
+                    p0[out_hstep * 11] = vget_lane_u16(_bf2, 3);
+                }
+                p0 += out_hstep * 12;
+            }
+            else
+            {
+                vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
+                vst1_u16(p0 + 8, _bf2);
+                p0 += 12;
+            }
+            pp += 12;
+        }
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            float32x4_t _f0 = vld1q_f32(pp + 0);
+            float32x4_t _f1 = vld1q_f32(pp + 4);
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    float32x4_t _c = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c);
+                    _f1 = vaddq_f32(_f1, _c);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float32x4_t _c0 = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    // c_elempack == 1
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    if (beta == 1.f)
+                    {
+                        _f0 = vaddq_f32(_f0, _c0);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                    }
+                    float32x4_t _c1 = vld1q_f32(pC + 4);
+                    if (beta == 1.f)
+                    {
+                        _f1 = vaddq_f32(_f1, _c1);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                    }
+                    pC += 8;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    float32x4_t _c1 = vld1q_f32(pC + 4);
+                    if (beta == 1.f)
+                    {
+                        _f0 = vaddq_f32(_f0, _c0);
+                        _f1 = vaddq_f32(_f1, _c1);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                    }
+                    pC += 8;
+                }
+            }
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+            }
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    vst1_u16(p0, _bf0);
+                    vst1_u16(p0 + out_hstep * 4, _bf1);
+                }
+                if (out_elempack == 1)
+                {
+                    p0[0] = vget_lane_u16(_bf0, 0);
+                    p0[out_hstep] = vget_lane_u16(_bf0, 1);
+                    p0[out_hstep * 2] = vget_lane_u16(_bf0, 2);
+                    p0[out_hstep * 3] = vget_lane_u16(_bf0, 3);
+                    p0[out_hstep * 4] = vget_lane_u16(_bf1, 0);
+                    p0[out_hstep * 5] = vget_lane_u16(_bf1, 1);
+                    p0[out_hstep * 6] = vget_lane_u16(_bf1, 2);
+                    p0[out_hstep * 7] = vget_lane_u16(_bf1, 3);
+                }
+                p0 += out_hstep * 8;
+            }
+            else
+            {
+                vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
+                p0 += 8;
+            }
+            pp += 8;
+        }
+#endif // __aarch64__
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            float32x4_t _f0 = vld1q_f32(pp + 0);
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    float32x4_t _c = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float32x4_t _c0 = vdupq_n_f32(pC[0] * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    // c_elempack == 1
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    if (beta == 1.f)
+                    {
+                        _f0 = vaddq_f32(_f0, _c0);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                    }
+                    pC += 4;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    if (beta == 1.f)
+                    {
+                        _f0 = vaddq_f32(_f0, _c0);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                    }
+                    pC += 4;
+                }
+            }
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+            }
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    vst1_u16(p0, _bf0);
+                }
+                if (out_elempack == 1)
+                {
+                    p0[0] = vget_lane_u16(_bf0, 0);
+                    p0[out_hstep] = vget_lane_u16(_bf0, 1);
+                    p0[out_hstep * 2] = vget_lane_u16(_bf0, 2);
+                    p0[out_hstep * 3] = vget_lane_u16(_bf0, 3);
+                }
                 p0 += out_hstep * 4;
             }
+            else
+            {
+                vst1_u16(p0, _bf0);
+                p0 += 4;
+            }
+            pp += 4;
         }
 #endif // __ARM_NEON
-        if (out_elempack == 1)
+        for (; jj + 1 < max_jj; jj += 2)
         {
-            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii);
+            float sum0 = pp[0];
+            float sum1 = pp[1];
 
-            for (int jj = 0; jj < max_jj; jj += 1)
+            if (pC)
             {
-                p0[0] = float32_to_bfloat16(pp[0]);
-                pp += 1;
-                p0 += out_hstep;
+                if (broadcast_type_C == 0)
+                {
+                    float c0 = pC[0] * beta;
+                    sum0 += c0;
+                    sum1 += c0;
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float c0 = pC[0] * beta;
+                    sum0 += c0;
+                    sum1 += c0;
+                }
+                if (broadcast_type_C == 3)
+                {
+                    // c_elempack == 1
+                    sum0 += pC[0] * beta;
+                    sum1 += pC[1] * beta;
+                    pC += 2;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    sum0 += pC[0] * beta;
+                    sum1 += pC[1] * beta;
+                    pC += 2;
+                }
             }
+
+            sum0 *= alpha;
+            sum1 *= alpha;
+
+            unsigned short bf0 = float32_to_bfloat16(sum0);
+            unsigned short bf1 = float32_to_bfloat16(sum1);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    p0[0] = bf0;
+                    p0[1] = bf1;
+                    p0 += 2;
+                }
+                if (out_elempack == 1)
+                {
+                    p0[0] = bf0;
+                    p0[out_hstep] = bf1;
+                    p0 += out_hstep * 2;
+                }
+            }
+            else
+            {
+                p0[0] = bf0;
+                p0[1] = bf1;
+                p0 += 2;
+            }
+            pp += 2;
+        }
+        for (; jj < max_jj; jj += 1)
+        {
+            float sum = pp[0];
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                    sum += pC[0] * beta;
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    sum += pC[0] * beta;
+                if (broadcast_type_C == 3)
+                {
+                    // c_elempack == 1
+                    sum += pC[0] * beta;
+                    pC += 1;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    sum += pC[0] * beta;
+                    pC += 1;
+                }
+            }
+
+            sum *= alpha;
+
+            unsigned short bf = float32_to_bfloat16(sum);
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    p0[0] = bf;
+                    p0 += 1;
+                }
+                if (out_elempack == 1)
+                {
+                    p0[0] = bf;
+                    p0 += out_hstep;
+                }
+            }
+            else
+            {
+                p0[0] = bf;
+                p0 += 1;
+            }
+            pp += 1;
         }
     }
 }
 
-static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int broadcast_type_C, float alpha, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end)
+static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int max_ii, int max_jj, int k, int max_kk)
 {
-    const int out_elempack = top_blob.elempack;
-    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
-
     const unsigned short* pAT = AT_tile;
     const unsigned short* pBT = BT_tile;
-    const float* pC = CT_tile;
 
     float* outptr = topT_tile;
 
@@ -798,21 +3949,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 #if __aarch64__
     for (; ii + 7 < max_ii; ii += 8)
     {
-        unsigned short* outptr0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
-
         const unsigned short* pB = pBT;
-
-        if (pC)
-        {
-            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-            {
-                pC = (const float*)CT_tile + i + ii;
-            }
-            if (broadcast_type_C == 4)
-            {
-                pC = (const float*)CT_tile + j;
-            }
-        }
 
         int jj = 0;
         for (; jj + 11 < max_jj; jj += 12)
@@ -868,147 +4005,33 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _suma1 = vdupq_n_f32(0.f);
                 _sumb0 = vdupq_n_f32(0.f);
                 _sumb1 = vdupq_n_f32(0.f);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _sum00 = vdupq_n_f32(pC[0]);
-                        _sum01 = _sum00;
-                        _sum10 = _sum00;
-                        _sum11 = _sum00;
-                        _sum20 = _sum00;
-                        _sum21 = _sum00;
-                        _sum30 = _sum00;
-                        _sum31 = _sum00;
-                        _sum40 = _sum00;
-                        _sum41 = _sum00;
-                        _sum50 = _sum00;
-                        _sum51 = _sum00;
-                        _sum60 = _sum00;
-                        _sum61 = _sum00;
-                        _sum70 = _sum00;
-                        _sum71 = _sum00;
-                        _sum80 = _sum00;
-                        _sum81 = _sum00;
-                        _sum90 = _sum00;
-                        _sum91 = _sum00;
-                        _suma0 = _sum00;
-                        _suma1 = _sum00;
-                        _sumb0 = _sum00;
-                        _sumb1 = _sum00;
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _sum00 = vld1q_f32(pC);
-                        _sum01 = vld1q_f32(pC + 4);
-                        _sum10 = _sum00;
-                        _sum11 = _sum01;
-                        _sum20 = _sum00;
-                        _sum21 = _sum01;
-                        _sum30 = _sum00;
-                        _sum31 = _sum01;
-                        _sum40 = _sum00;
-                        _sum41 = _sum01;
-                        _sum50 = _sum00;
-                        _sum51 = _sum01;
-                        _sum60 = _sum00;
-                        _sum61 = _sum01;
-                        _sum70 = _sum00;
-                        _sum71 = _sum01;
-                        _sum80 = _sum00;
-                        _sum81 = _sum01;
-                        _sum90 = _sum00;
-                        _sum91 = _sum01;
-                        _suma0 = _sum00;
-                        _suma1 = _sum01;
-                        _sumb0 = _sum00;
-                        _sumb1 = _sum01;
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        _sum00 = vld1q_f32(pC);
-                        _sum01 = vld1q_f32(pC + 4 * 1);
-                        _sum10 = vld1q_f32(pC + 4 * 2);
-                        _sum11 = vld1q_f32(pC + 4 * 3);
-                        _sum20 = vld1q_f32(pC + 4 * 4);
-                        _sum21 = vld1q_f32(pC + 4 * 5);
-                        _sum30 = vld1q_f32(pC + 4 * 6);
-                        _sum31 = vld1q_f32(pC + 4 * 7);
-                        _sum40 = vld1q_f32(pC + 4 * 8);
-                        _sum41 = vld1q_f32(pC + 4 * 9);
-                        _sum50 = vld1q_f32(pC + 4 * 10);
-                        _sum51 = vld1q_f32(pC + 4 * 11);
-                        _sum60 = vld1q_f32(pC + 4 * 12);
-                        _sum61 = vld1q_f32(pC + 4 * 13);
-                        _sum70 = vld1q_f32(pC + 4 * 14);
-                        _sum71 = vld1q_f32(pC + 4 * 15);
-                        _sum80 = vld1q_f32(pC + 4 * 16);
-                        _sum81 = vld1q_f32(pC + 4 * 17);
-                        _sum90 = vld1q_f32(pC + 4 * 18);
-                        _sum91 = vld1q_f32(pC + 4 * 19);
-                        _suma0 = vld1q_f32(pC + 4 * 20);
-                        _suma1 = vld1q_f32(pC + 4 * 21);
-                        _sumb0 = vld1q_f32(pC + 4 * 22);
-                        _sumb1 = vld1q_f32(pC + 4 * 23);
-                        pC += 96;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _sum00 = vdupq_n_f32(pC[0]);
-                        _sum10 = vdupq_n_f32(pC[1]);
-                        _sum20 = vdupq_n_f32(pC[2]);
-                        _sum30 = vdupq_n_f32(pC[3]);
-                        _sum40 = vdupq_n_f32(pC[4]);
-                        _sum50 = vdupq_n_f32(pC[5]);
-                        _sum60 = vdupq_n_f32(pC[6]);
-                        _sum70 = vdupq_n_f32(pC[7]);
-                        _sum80 = vdupq_n_f32(pC[8]);
-                        _sum90 = vdupq_n_f32(pC[9]);
-                        _suma0 = vdupq_n_f32(pC[10]);
-                        _sumb0 = vdupq_n_f32(pC[11]);
-                        _sum01 = _sum00;
-                        _sum11 = _sum10;
-                        _sum21 = _sum20;
-                        _sum31 = _sum30;
-                        _sum41 = _sum40;
-                        _sum51 = _sum50;
-                        _sum61 = _sum60;
-                        _sum71 = _sum70;
-                        _sum81 = _sum80;
-                        _sum91 = _sum90;
-                        _suma1 = _suma0;
-                        _sumb1 = _sumb0;
-                        pC += 12;
-                    }
-                }
             }
             else
             {
                 _sum00 = vld1q_f32(outptr);
-                _sum01 = vld1q_f32(outptr + 4 * 1);
-                _sum10 = vld1q_f32(outptr + 4 * 2);
-                _sum11 = vld1q_f32(outptr + 4 * 3);
-                _sum20 = vld1q_f32(outptr + 4 * 4);
-                _sum21 = vld1q_f32(outptr + 4 * 5);
-                _sum30 = vld1q_f32(outptr + 4 * 6);
-                _sum31 = vld1q_f32(outptr + 4 * 7);
-                _sum40 = vld1q_f32(outptr + 4 * 8);
-                _sum41 = vld1q_f32(outptr + 4 * 9);
-                _sum50 = vld1q_f32(outptr + 4 * 10);
-                _sum51 = vld1q_f32(outptr + 4 * 11);
-                _sum60 = vld1q_f32(outptr + 4 * 12);
-                _sum61 = vld1q_f32(outptr + 4 * 13);
-                _sum70 = vld1q_f32(outptr + 4 * 14);
-                _sum71 = vld1q_f32(outptr + 4 * 15);
-                _sum80 = vld1q_f32(outptr + 4 * 16);
-                _sum81 = vld1q_f32(outptr + 4 * 17);
-                _sum90 = vld1q_f32(outptr + 4 * 18);
-                _sum91 = vld1q_f32(outptr + 4 * 19);
-                _suma0 = vld1q_f32(outptr + 4 * 20);
-                _suma1 = vld1q_f32(outptr + 4 * 21);
-                _sumb0 = vld1q_f32(outptr + 4 * 22);
-                _sumb1 = vld1q_f32(outptr + 4 * 23);
+                _sum01 = vld1q_f32(outptr + 4);
+                _sum10 = vld1q_f32(outptr + 8);
+                _sum11 = vld1q_f32(outptr + 12);
+                _sum20 = vld1q_f32(outptr + 16);
+                _sum21 = vld1q_f32(outptr + 20);
+                _sum30 = vld1q_f32(outptr + 24);
+                _sum31 = vld1q_f32(outptr + 28);
+                _sum40 = vld1q_f32(outptr + 32);
+                _sum41 = vld1q_f32(outptr + 36);
+                _sum50 = vld1q_f32(outptr + 40);
+                _sum51 = vld1q_f32(outptr + 44);
+                _sum60 = vld1q_f32(outptr + 48);
+                _sum61 = vld1q_f32(outptr + 52);
+                _sum70 = vld1q_f32(outptr + 56);
+                _sum71 = vld1q_f32(outptr + 60);
+                _sum80 = vld1q_f32(outptr + 64);
+                _sum81 = vld1q_f32(outptr + 68);
+                _sum90 = vld1q_f32(outptr + 72);
+                _sum91 = vld1q_f32(outptr + 76);
+                _suma0 = vld1q_f32(outptr + 80);
+                _suma1 = vld1q_f32(outptr + 84);
+                _sumb0 = vld1q_f32(outptr + 88);
+                _sumb1 = vld1q_f32(outptr + 92);
             }
 
             const unsigned short* pA = pAT;
@@ -1052,126 +4075,30 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 12;
             }
 
-            if (alpha != 1.f)
-            {
-                float32x4_t _alpha = vdupq_n_f32(alpha);
-                _sum00 = vmulq_f32(_sum00, _alpha);
-                _sum01 = vmulq_f32(_sum01, _alpha);
-                _sum10 = vmulq_f32(_sum10, _alpha);
-                _sum11 = vmulq_f32(_sum11, _alpha);
-                _sum20 = vmulq_f32(_sum20, _alpha);
-                _sum21 = vmulq_f32(_sum21, _alpha);
-                _sum30 = vmulq_f32(_sum30, _alpha);
-                _sum31 = vmulq_f32(_sum31, _alpha);
-                _sum40 = vmulq_f32(_sum40, _alpha);
-                _sum41 = vmulq_f32(_sum41, _alpha);
-                _sum50 = vmulq_f32(_sum50, _alpha);
-                _sum51 = vmulq_f32(_sum51, _alpha);
-                _sum60 = vmulq_f32(_sum60, _alpha);
-                _sum61 = vmulq_f32(_sum61, _alpha);
-                _sum70 = vmulq_f32(_sum70, _alpha);
-                _sum71 = vmulq_f32(_sum71, _alpha);
-                _sum80 = vmulq_f32(_sum80, _alpha);
-                _sum81 = vmulq_f32(_sum81, _alpha);
-                _sum90 = vmulq_f32(_sum90, _alpha);
-                _sum91 = vmulq_f32(_sum91, _alpha);
-                _suma0 = vmulq_f32(_suma0, _alpha);
-                _suma1 = vmulq_f32(_suma1, _alpha);
-                _sumb0 = vmulq_f32(_sumb0, _alpha);
-                _sumb1 = vmulq_f32(_sumb1, _alpha);
-            }
-
-            if (k_end)
-            {
-                if (out_elempack == 4)
-                {
-                    vst1_u16(outptr0, float2bfloat(_sum00));
-                    vst1_u16(outptr0 + 4, float2bfloat(_sum10));
-                    vst1_u16(outptr0 + 4 * 2, float2bfloat(_sum20));
-                    vst1_u16(outptr0 + 4 * 3, float2bfloat(_sum30));
-                    vst1_u16(outptr0 + 4 * 4, float2bfloat(_sum40));
-                    vst1_u16(outptr0 + 4 * 5, float2bfloat(_sum50));
-                    vst1_u16(outptr0 + 4 * 6, float2bfloat(_sum60));
-                    vst1_u16(outptr0 + 4 * 7, float2bfloat(_sum70));
-                    vst1_u16(outptr0 + 4 * 8, float2bfloat(_sum80));
-                    vst1_u16(outptr0 + 4 * 9, float2bfloat(_sum90));
-                    vst1_u16(outptr0 + 4 * 10, float2bfloat(_suma0));
-                    vst1_u16(outptr0 + 4 * 11, float2bfloat(_sumb0));
-
-                    vst1_u16(outptr0 + out_hstep * 4, float2bfloat(_sum01));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4, float2bfloat(_sum11));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4 * 2, float2bfloat(_sum21));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4 * 3, float2bfloat(_sum31));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4 * 4, float2bfloat(_sum41));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4 * 5, float2bfloat(_sum51));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4 * 6, float2bfloat(_sum61));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4 * 7, float2bfloat(_sum71));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4 * 8, float2bfloat(_sum81));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4 * 9, float2bfloat(_sum91));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4 * 10, float2bfloat(_suma1));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4 * 11, float2bfloat(_sumb1));
-
-                    outptr0 += 48;
-                }
-                if (out_elempack == 1)
-                {
-                    transpose8x12_ps(_sum00, _sum01, _sum10, _sum11, _sum20, _sum21, _sum30, _sum31, _sum40, _sum41, _sum50, _sum51, _sum60, _sum61, _sum70, _sum71, _sum80, _sum81, _sum90, _sum91, _suma0, _suma1, _sumb0, _sumb1);
-
-                    vst1_u16(outptr0, float2bfloat(_sum00));
-                    vst1_u16(outptr0 + 4, float2bfloat(_sum01));
-                    vst1_u16(outptr0 + 8, float2bfloat(_sum10));
-                    vst1_u16(outptr0 + out_hstep, float2bfloat(_sum11));
-                    vst1_u16(outptr0 + out_hstep + 4, float2bfloat(_sum20));
-                    vst1_u16(outptr0 + out_hstep + 8, float2bfloat(_sum21));
-                    vst1_u16(outptr0 + out_hstep * 2, float2bfloat(_sum30));
-                    vst1_u16(outptr0 + out_hstep * 2 + 4, float2bfloat(_sum31));
-                    vst1_u16(outptr0 + out_hstep * 2 + 8, float2bfloat(_sum40));
-                    vst1_u16(outptr0 + out_hstep * 3, float2bfloat(_sum41));
-                    vst1_u16(outptr0 + out_hstep * 3 + 4, float2bfloat(_sum50));
-                    vst1_u16(outptr0 + out_hstep * 3 + 8, float2bfloat(_sum51));
-                    vst1_u16(outptr0 + out_hstep * 4, float2bfloat(_sum60));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4, float2bfloat(_sum61));
-                    vst1_u16(outptr0 + out_hstep * 4 + 8, float2bfloat(_sum70));
-                    vst1_u16(outptr0 + out_hstep * 5, float2bfloat(_sum71));
-                    vst1_u16(outptr0 + out_hstep * 5 + 4, float2bfloat(_sum80));
-                    vst1_u16(outptr0 + out_hstep * 5 + 8, float2bfloat(_sum81));
-                    vst1_u16(outptr0 + out_hstep * 6, float2bfloat(_sum90));
-                    vst1_u16(outptr0 + out_hstep * 6 + 4, float2bfloat(_sum91));
-                    vst1_u16(outptr0 + out_hstep * 6 + 8, float2bfloat(_suma0));
-                    vst1_u16(outptr0 + out_hstep * 7, float2bfloat(_suma1));
-                    vst1_u16(outptr0 + out_hstep * 7 + 4, float2bfloat(_sumb0));
-                    vst1_u16(outptr0 + out_hstep * 7 + 8, float2bfloat(_sumb1));
-
-                    outptr0 += 12;
-                }
-            }
-            else
-            {
                 vst1q_f32(outptr, _sum00);
                 vst1q_f32(outptr + 4, _sum01);
-                vst1q_f32(outptr + 4 * 2, _sum10);
-                vst1q_f32(outptr + 4 * 3, _sum11);
-                vst1q_f32(outptr + 4 * 4, _sum20);
-                vst1q_f32(outptr + 4 * 5, _sum21);
-                vst1q_f32(outptr + 4 * 6, _sum30);
-                vst1q_f32(outptr + 4 * 7, _sum31);
-                vst1q_f32(outptr + 4 * 8, _sum40);
-                vst1q_f32(outptr + 4 * 9, _sum41);
-                vst1q_f32(outptr + 4 * 10, _sum50);
-                vst1q_f32(outptr + 4 * 11, _sum51);
-                vst1q_f32(outptr + 4 * 12, _sum60);
-                vst1q_f32(outptr + 4 * 13, _sum61);
-                vst1q_f32(outptr + 4 * 14, _sum70);
-                vst1q_f32(outptr + 4 * 15, _sum71);
-                vst1q_f32(outptr + 4 * 16, _sum80);
-                vst1q_f32(outptr + 4 * 17, _sum81);
-                vst1q_f32(outptr + 4 * 18, _sum90);
-                vst1q_f32(outptr + 4 * 19, _sum91);
-                vst1q_f32(outptr + 4 * 20, _suma0);
-                vst1q_f32(outptr + 4 * 21, _suma1);
-                vst1q_f32(outptr + 4 * 22, _sumb0);
-                vst1q_f32(outptr + 4 * 23, _sumb1);
-            }
+                vst1q_f32(outptr + 8, _sum10);
+                vst1q_f32(outptr + 12, _sum11);
+                vst1q_f32(outptr + 16, _sum20);
+                vst1q_f32(outptr + 20, _sum21);
+                vst1q_f32(outptr + 24, _sum30);
+                vst1q_f32(outptr + 28, _sum31);
+                vst1q_f32(outptr + 32, _sum40);
+                vst1q_f32(outptr + 36, _sum41);
+                vst1q_f32(outptr + 40, _sum50);
+                vst1q_f32(outptr + 44, _sum51);
+                vst1q_f32(outptr + 48, _sum60);
+                vst1q_f32(outptr + 52, _sum61);
+                vst1q_f32(outptr + 56, _sum70);
+                vst1q_f32(outptr + 60, _sum71);
+                vst1q_f32(outptr + 64, _sum80);
+                vst1q_f32(outptr + 68, _sum81);
+                vst1q_f32(outptr + 72, _sum90);
+                vst1q_f32(outptr + 76, _sum91);
+                vst1q_f32(outptr + 80, _suma0);
+                vst1q_f32(outptr + 84, _suma1);
+                vst1q_f32(outptr + 88, _sumb0);
+                vst1q_f32(outptr + 92, _sumb1);
 
             outptr += 96;
         }
@@ -1212,107 +4139,25 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum61 = vdupq_n_f32(0.f);
                 _sum70 = vdupq_n_f32(0.f);
                 _sum71 = vdupq_n_f32(0.f);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _sum00 = vdupq_n_f32(pC[0]);
-                        _sum01 = _sum00;
-                        _sum10 = _sum00;
-                        _sum11 = _sum00;
-                        _sum20 = _sum00;
-                        _sum21 = _sum00;
-                        _sum30 = _sum00;
-                        _sum31 = _sum00;
-                        _sum40 = _sum00;
-                        _sum41 = _sum00;
-                        _sum50 = _sum00;
-                        _sum51 = _sum00;
-                        _sum60 = _sum00;
-                        _sum61 = _sum00;
-                        _sum70 = _sum00;
-                        _sum71 = _sum00;
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _sum00 = vld1q_f32(pC);
-                        _sum01 = vld1q_f32(pC + 4);
-                        _sum10 = _sum00;
-                        _sum11 = _sum01;
-                        _sum20 = _sum00;
-                        _sum21 = _sum01;
-                        _sum30 = _sum00;
-                        _sum31 = _sum01;
-                        _sum40 = _sum00;
-                        _sum41 = _sum01;
-                        _sum50 = _sum00;
-                        _sum51 = _sum01;
-                        _sum60 = _sum00;
-                        _sum61 = _sum01;
-                        _sum70 = _sum00;
-                        _sum71 = _sum01;
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        _sum00 = vld1q_f32(pC);
-                        _sum01 = vld1q_f32(pC + 4 * 1);
-                        _sum10 = vld1q_f32(pC + 4 * 2);
-                        _sum11 = vld1q_f32(pC + 4 * 3);
-                        _sum20 = vld1q_f32(pC + 4 * 4);
-                        _sum21 = vld1q_f32(pC + 4 * 5);
-                        _sum30 = vld1q_f32(pC + 4 * 6);
-                        _sum31 = vld1q_f32(pC + 4 * 7);
-                        _sum40 = vld1q_f32(pC + 4 * 8);
-                        _sum41 = vld1q_f32(pC + 4 * 9);
-                        _sum50 = vld1q_f32(pC + 4 * 10);
-                        _sum51 = vld1q_f32(pC + 4 * 11);
-                        _sum60 = vld1q_f32(pC + 4 * 12);
-                        _sum61 = vld1q_f32(pC + 4 * 13);
-                        _sum70 = vld1q_f32(pC + 4 * 14);
-                        _sum71 = vld1q_f32(pC + 4 * 15);
-                        pC += 64;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _sum00 = vdupq_n_f32(pC[0]);
-                        _sum10 = vdupq_n_f32(pC[1]);
-                        _sum20 = vdupq_n_f32(pC[2]);
-                        _sum30 = vdupq_n_f32(pC[3]);
-                        _sum40 = vdupq_n_f32(pC[4]);
-                        _sum50 = vdupq_n_f32(pC[5]);
-                        _sum60 = vdupq_n_f32(pC[6]);
-                        _sum70 = vdupq_n_f32(pC[7]);
-                        _sum01 = _sum00;
-                        _sum11 = _sum10;
-                        _sum21 = _sum20;
-                        _sum31 = _sum30;
-                        _sum41 = _sum40;
-                        _sum51 = _sum50;
-                        _sum61 = _sum60;
-                        _sum71 = _sum70;
-                        pC += 8;
-                    }
-                }
             }
             else
             {
                 _sum00 = vld1q_f32(outptr);
-                _sum01 = vld1q_f32(outptr + 4 * 1);
-                _sum10 = vld1q_f32(outptr + 4 * 2);
-                _sum11 = vld1q_f32(outptr + 4 * 3);
-                _sum20 = vld1q_f32(outptr + 4 * 4);
-                _sum21 = vld1q_f32(outptr + 4 * 5);
-                _sum30 = vld1q_f32(outptr + 4 * 6);
-                _sum31 = vld1q_f32(outptr + 4 * 7);
-                _sum40 = vld1q_f32(outptr + 4 * 8);
-                _sum41 = vld1q_f32(outptr + 4 * 9);
-                _sum50 = vld1q_f32(outptr + 4 * 10);
-                _sum51 = vld1q_f32(outptr + 4 * 11);
-                _sum60 = vld1q_f32(outptr + 4 * 12);
-                _sum61 = vld1q_f32(outptr + 4 * 13);
-                _sum70 = vld1q_f32(outptr + 4 * 14);
-                _sum71 = vld1q_f32(outptr + 4 * 15);
+                _sum01 = vld1q_f32(outptr + 4);
+                _sum10 = vld1q_f32(outptr + 8);
+                _sum11 = vld1q_f32(outptr + 12);
+                _sum20 = vld1q_f32(outptr + 16);
+                _sum21 = vld1q_f32(outptr + 20);
+                _sum30 = vld1q_f32(outptr + 24);
+                _sum31 = vld1q_f32(outptr + 28);
+                _sum40 = vld1q_f32(outptr + 32);
+                _sum41 = vld1q_f32(outptr + 36);
+                _sum50 = vld1q_f32(outptr + 40);
+                _sum51 = vld1q_f32(outptr + 44);
+                _sum60 = vld1q_f32(outptr + 48);
+                _sum61 = vld1q_f32(outptr + 52);
+                _sum70 = vld1q_f32(outptr + 56);
+                _sum71 = vld1q_f32(outptr + 60);
             }
 
             const unsigned short* pA = pAT;
@@ -1347,94 +4192,22 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 8;
             }
 
-            if (alpha != 1.f)
-            {
-                float32x4_t _alpha = vdupq_n_f32(alpha);
-                _sum00 = vmulq_f32(_sum00, _alpha);
-                _sum01 = vmulq_f32(_sum01, _alpha);
-                _sum10 = vmulq_f32(_sum10, _alpha);
-                _sum11 = vmulq_f32(_sum11, _alpha);
-                _sum20 = vmulq_f32(_sum20, _alpha);
-                _sum21 = vmulq_f32(_sum21, _alpha);
-                _sum30 = vmulq_f32(_sum30, _alpha);
-                _sum31 = vmulq_f32(_sum31, _alpha);
-                _sum40 = vmulq_f32(_sum40, _alpha);
-                _sum41 = vmulq_f32(_sum41, _alpha);
-                _sum50 = vmulq_f32(_sum50, _alpha);
-                _sum51 = vmulq_f32(_sum51, _alpha);
-                _sum60 = vmulq_f32(_sum60, _alpha);
-                _sum61 = vmulq_f32(_sum61, _alpha);
-                _sum70 = vmulq_f32(_sum70, _alpha);
-                _sum71 = vmulq_f32(_sum71, _alpha);
-            }
-
-            if (k_end)
-            {
-                if (out_elempack == 4)
-                {
-                    vst1_u16(outptr0, float2bfloat(_sum00));
-                    vst1_u16(outptr0 + 4, float2bfloat(_sum10));
-                    vst1_u16(outptr0 + 4 * 2, float2bfloat(_sum20));
-                    vst1_u16(outptr0 + 4 * 3, float2bfloat(_sum30));
-                    vst1_u16(outptr0 + 4 * 4, float2bfloat(_sum40));
-                    vst1_u16(outptr0 + 4 * 5, float2bfloat(_sum50));
-                    vst1_u16(outptr0 + 4 * 6, float2bfloat(_sum60));
-                    vst1_u16(outptr0 + 4 * 7, float2bfloat(_sum70));
-
-                    vst1_u16(outptr0 + out_hstep * 4, float2bfloat(_sum01));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4, float2bfloat(_sum11));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4 * 2, float2bfloat(_sum21));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4 * 3, float2bfloat(_sum31));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4 * 4, float2bfloat(_sum41));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4 * 5, float2bfloat(_sum51));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4 * 6, float2bfloat(_sum61));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4 * 7, float2bfloat(_sum71));
-
-                    outptr0 += 32;
-                }
-                if (out_elempack == 1)
-                {
-                    transpose8x8_ps(_sum00, _sum01, _sum10, _sum11, _sum20, _sum21, _sum30, _sum31, _sum40, _sum41, _sum50, _sum51, _sum60, _sum61, _sum70, _sum71);
-
-                    vst1_u16(outptr0, float2bfloat(_sum00));
-                    vst1_u16(outptr0 + 4, float2bfloat(_sum01));
-                    vst1_u16(outptr0 + out_hstep, float2bfloat(_sum10));
-                    vst1_u16(outptr0 + out_hstep + 4, float2bfloat(_sum11));
-                    vst1_u16(outptr0 + out_hstep * 2, float2bfloat(_sum20));
-                    vst1_u16(outptr0 + out_hstep * 2 + 4, float2bfloat(_sum21));
-                    vst1_u16(outptr0 + out_hstep * 3, float2bfloat(_sum30));
-                    vst1_u16(outptr0 + out_hstep * 3 + 4, float2bfloat(_sum31));
-                    vst1_u16(outptr0 + out_hstep * 4, float2bfloat(_sum40));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4, float2bfloat(_sum41));
-                    vst1_u16(outptr0 + out_hstep * 5, float2bfloat(_sum50));
-                    vst1_u16(outptr0 + out_hstep * 5 + 4, float2bfloat(_sum51));
-                    vst1_u16(outptr0 + out_hstep * 6, float2bfloat(_sum60));
-                    vst1_u16(outptr0 + out_hstep * 6 + 4, float2bfloat(_sum61));
-                    vst1_u16(outptr0 + out_hstep * 7, float2bfloat(_sum70));
-                    vst1_u16(outptr0 + out_hstep * 7 + 4, float2bfloat(_sum71));
-
-                    outptr0 += 8;
-                }
-            }
-            else
-            {
                 vst1q_f32(outptr, _sum00);
                 vst1q_f32(outptr + 4, _sum01);
-                vst1q_f32(outptr + 4 * 2, _sum10);
-                vst1q_f32(outptr + 4 * 3, _sum11);
-                vst1q_f32(outptr + 4 * 4, _sum20);
-                vst1q_f32(outptr + 4 * 5, _sum21);
-                vst1q_f32(outptr + 4 * 6, _sum30);
-                vst1q_f32(outptr + 4 * 7, _sum31);
-                vst1q_f32(outptr + 4 * 8, _sum40);
-                vst1q_f32(outptr + 4 * 9, _sum41);
-                vst1q_f32(outptr + 4 * 10, _sum50);
-                vst1q_f32(outptr + 4 * 11, _sum51);
-                vst1q_f32(outptr + 4 * 12, _sum60);
-                vst1q_f32(outptr + 4 * 13, _sum61);
-                vst1q_f32(outptr + 4 * 14, _sum70);
-                vst1q_f32(outptr + 4 * 15, _sum71);
-            }
+                vst1q_f32(outptr + 8, _sum10);
+                vst1q_f32(outptr + 12, _sum11);
+                vst1q_f32(outptr + 16, _sum20);
+                vst1q_f32(outptr + 20, _sum21);
+                vst1q_f32(outptr + 24, _sum30);
+                vst1q_f32(outptr + 28, _sum31);
+                vst1q_f32(outptr + 32, _sum40);
+                vst1q_f32(outptr + 36, _sum41);
+                vst1q_f32(outptr + 40, _sum50);
+                vst1q_f32(outptr + 44, _sum51);
+                vst1q_f32(outptr + 48, _sum60);
+                vst1q_f32(outptr + 52, _sum61);
+                vst1q_f32(outptr + 56, _sum70);
+                vst1q_f32(outptr + 60, _sum71);
 
             outptr += 64;
         }
@@ -1459,67 +4232,17 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum21 = vdupq_n_f32(0.f);
                 _sum30 = vdupq_n_f32(0.f);
                 _sum31 = vdupq_n_f32(0.f);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _sum00 = vdupq_n_f32(pC[0]);
-                        _sum01 = _sum00;
-                        _sum10 = _sum00;
-                        _sum11 = _sum00;
-                        _sum20 = _sum00;
-                        _sum21 = _sum00;
-                        _sum30 = _sum00;
-                        _sum31 = _sum00;
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _sum00 = vld1q_f32(pC);
-                        _sum01 = vld1q_f32(pC + 4);
-                        _sum10 = _sum00;
-                        _sum11 = _sum01;
-                        _sum20 = _sum00;
-                        _sum21 = _sum01;
-                        _sum30 = _sum00;
-                        _sum31 = _sum01;
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        _sum00 = vld1q_f32(pC);
-                        _sum01 = vld1q_f32(pC + 4 * 1);
-                        _sum10 = vld1q_f32(pC + 4 * 2);
-                        _sum11 = vld1q_f32(pC + 4 * 3);
-                        _sum20 = vld1q_f32(pC + 4 * 4);
-                        _sum21 = vld1q_f32(pC + 4 * 5);
-                        _sum30 = vld1q_f32(pC + 4 * 6);
-                        _sum31 = vld1q_f32(pC + 4 * 7);
-                        pC += 32;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _sum00 = vdupq_n_f32(pC[0]);
-                        _sum10 = vdupq_n_f32(pC[1]);
-                        _sum20 = vdupq_n_f32(pC[2]);
-                        _sum30 = vdupq_n_f32(pC[3]);
-                        _sum01 = _sum00;
-                        _sum11 = _sum10;
-                        _sum21 = _sum20;
-                        _sum31 = _sum30;
-                        pC += 4;
-                    }
-                }
             }
             else
             {
                 _sum00 = vld1q_f32(outptr);
-                _sum01 = vld1q_f32(outptr + 4 * 1);
-                _sum10 = vld1q_f32(outptr + 4 * 2);
-                _sum11 = vld1q_f32(outptr + 4 * 3);
-                _sum20 = vld1q_f32(outptr + 4 * 4);
-                _sum21 = vld1q_f32(outptr + 4 * 5);
-                _sum30 = vld1q_f32(outptr + 4 * 6);
-                _sum31 = vld1q_f32(outptr + 4 * 7);
+                _sum01 = vld1q_f32(outptr + 4);
+                _sum10 = vld1q_f32(outptr + 8);
+                _sum11 = vld1q_f32(outptr + 12);
+                _sum20 = vld1q_f32(outptr + 16);
+                _sum21 = vld1q_f32(outptr + 20);
+                _sum30 = vld1q_f32(outptr + 24);
+                _sum31 = vld1q_f32(outptr + 28);
             }
 
             const unsigned short* pA = pAT;
@@ -1545,62 +4268,14 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 4;
             }
 
-            if (alpha != 1.f)
-            {
-                float32x4_t _alpha = vdupq_n_f32(alpha);
-                _sum00 = vmulq_f32(_sum00, _alpha);
-                _sum01 = vmulq_f32(_sum01, _alpha);
-                _sum10 = vmulq_f32(_sum10, _alpha);
-                _sum11 = vmulq_f32(_sum11, _alpha);
-                _sum20 = vmulq_f32(_sum20, _alpha);
-                _sum21 = vmulq_f32(_sum21, _alpha);
-                _sum30 = vmulq_f32(_sum30, _alpha);
-                _sum31 = vmulq_f32(_sum31, _alpha);
-            }
-
-            if (k_end)
-            {
-                if (out_elempack == 4)
-                {
-                    vst1_u16(outptr0, float2bfloat(_sum00));
-                    vst1_u16(outptr0 + 4, float2bfloat(_sum10));
-                    vst1_u16(outptr0 + 4 * 2, float2bfloat(_sum20));
-                    vst1_u16(outptr0 + 4 * 3, float2bfloat(_sum30));
-
-                    vst1_u16(outptr0 + out_hstep * 4, float2bfloat(_sum01));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4, float2bfloat(_sum11));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4 * 2, float2bfloat(_sum21));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4 * 3, float2bfloat(_sum31));
-
-                    outptr0 += 16;
-                }
-                if (out_elempack == 1)
-                {
-                    transpose8x4_ps(_sum00, _sum01, _sum10, _sum11, _sum20, _sum21, _sum30, _sum31);
-
-                    vst1_u16(outptr0, float2bfloat(_sum00));
-                    vst1_u16(outptr0 + out_hstep * 1, float2bfloat(_sum01));
-                    vst1_u16(outptr0 + out_hstep * 2, float2bfloat(_sum10));
-                    vst1_u16(outptr0 + out_hstep * 3, float2bfloat(_sum11));
-                    vst1_u16(outptr0 + out_hstep * 4, float2bfloat(_sum20));
-                    vst1_u16(outptr0 + out_hstep * 5, float2bfloat(_sum21));
-                    vst1_u16(outptr0 + out_hstep * 6, float2bfloat(_sum30));
-                    vst1_u16(outptr0 + out_hstep * 7, float2bfloat(_sum31));
-
-                    outptr0 += 4;
-                }
-            }
-            else
-            {
                 vst1q_f32(outptr, _sum00);
                 vst1q_f32(outptr + 4, _sum01);
-                vst1q_f32(outptr + 4 * 2, _sum10);
-                vst1q_f32(outptr + 4 * 3, _sum11);
-                vst1q_f32(outptr + 4 * 4, _sum20);
-                vst1q_f32(outptr + 4 * 5, _sum21);
-                vst1q_f32(outptr + 4 * 6, _sum30);
-                vst1q_f32(outptr + 4 * 7, _sum31);
-            }
+                vst1q_f32(outptr + 8, _sum10);
+                vst1q_f32(outptr + 12, _sum11);
+                vst1q_f32(outptr + 16, _sum20);
+                vst1q_f32(outptr + 20, _sum21);
+                vst1q_f32(outptr + 24, _sum30);
+                vst1q_f32(outptr + 28, _sum31);
 
             outptr += 32;
         }
@@ -1617,47 +4292,13 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum01 = vdupq_n_f32(0.f);
                 _sum10 = vdupq_n_f32(0.f);
                 _sum11 = vdupq_n_f32(0.f);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _sum00 = vdupq_n_f32(pC[0]);
-                        _sum01 = _sum00;
-                        _sum10 = _sum00;
-                        _sum11 = _sum00;
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _sum00 = vld1q_f32(pC);
-                        _sum01 = vld1q_f32(pC + 4);
-                        _sum10 = _sum00;
-                        _sum11 = _sum01;
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        _sum00 = vld1q_f32(pC);
-                        _sum01 = vld1q_f32(pC + 4 * 1);
-                        _sum10 = vld1q_f32(pC + 4 * 2);
-                        _sum11 = vld1q_f32(pC + 4 * 3);
-                        pC += 16;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _sum00 = vdupq_n_f32(pC[0]);
-                        _sum10 = vdupq_n_f32(pC[1]);
-                        _sum01 = _sum00;
-                        _sum11 = _sum10;
-                        pC += 2;
-                    }
-                }
             }
             else
             {
                 _sum00 = vld1q_f32(outptr);
-                _sum01 = vld1q_f32(outptr + 4 * 1);
-                _sum10 = vld1q_f32(outptr + 4 * 2);
-                _sum11 = vld1q_f32(outptr + 4 * 3);
+                _sum01 = vld1q_f32(outptr + 4);
+                _sum10 = vld1q_f32(outptr + 8);
+                _sum11 = vld1q_f32(outptr + 12);
             }
 
             const unsigned short* pA = pAT;
@@ -1680,62 +4321,10 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 2;
             }
 
-            if (alpha != 1.f)
-            {
-                float32x4_t _alpha = vdupq_n_f32(alpha);
-                _sum00 = vmulq_f32(_sum00, _alpha);
-                _sum01 = vmulq_f32(_sum01, _alpha);
-                _sum10 = vmulq_f32(_sum10, _alpha);
-                _sum11 = vmulq_f32(_sum11, _alpha);
-            }
-
-            if (k_end)
-            {
-                if (out_elempack == 4)
-                {
-                    vst1_u16(outptr0, float2bfloat(_sum00));
-                    vst1_u16(outptr0 + 4, float2bfloat(_sum10));
-
-                    vst1_u16(outptr0 + out_hstep * 4, float2bfloat(_sum01));
-                    vst1_u16(outptr0 + out_hstep * 4 + 4, float2bfloat(_sum11));
-                    outptr0 += 8;
-                }
-                if (out_elempack == 1)
-                {
-                    unsigned short sum0[8];
-                    unsigned short sum1[8];
-                    vst1_u16(sum0, float2bfloat(_sum00));
-                    vst1_u16(sum0 + 4, float2bfloat(_sum01));
-                    vst1_u16(sum1, float2bfloat(_sum10));
-                    vst1_u16(sum1 + 4, float2bfloat(_sum11));
-
-                    outptr0[0] = sum0[0];
-                    outptr0[out_hstep] = sum0[1];
-                    outptr0[out_hstep * 2] = sum0[2];
-                    outptr0[out_hstep * 3] = sum0[3];
-                    outptr0[out_hstep * 4] = sum0[4];
-                    outptr0[out_hstep * 5] = sum0[5];
-                    outptr0[out_hstep * 6] = sum0[6];
-                    outptr0[out_hstep * 7] = sum0[7];
-
-                    outptr0[1] = sum1[0];
-                    outptr0[out_hstep + 1] = sum1[1];
-                    outptr0[out_hstep * 2 + 1] = sum1[2];
-                    outptr0[out_hstep * 3 + 1] = sum1[3];
-                    outptr0[out_hstep * 4 + 1] = sum1[4];
-                    outptr0[out_hstep * 5 + 1] = sum1[5];
-                    outptr0[out_hstep * 6 + 1] = sum1[6];
-                    outptr0[out_hstep * 7 + 1] = sum1[7];
-                    outptr0 += 2;
-                }
-            }
-            else
-            {
                 vst1q_f32(outptr, _sum00);
                 vst1q_f32(outptr + 4, _sum01);
-                vst1q_f32(outptr + 4 * 2, _sum10);
-                vst1q_f32(outptr + 4 * 3, _sum11);
-            }
+                vst1q_f32(outptr + 8, _sum10);
+                vst1q_f32(outptr + 12, _sum11);
 
             outptr += 16;
         }
@@ -1748,32 +4337,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 _sum00 = vdupq_n_f32(0.f);
                 _sum01 = vdupq_n_f32(0.f);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _sum00 = vdupq_n_f32(pC[0]);
-                        _sum01 = _sum00;
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _sum00 = vld1q_f32(pC);
-                        _sum01 = vld1q_f32(pC + 4);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        _sum00 = vld1q_f32(pC);
-                        _sum01 = vld1q_f32(pC + 4);
-                        pC += 8;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _sum00 = vdupq_n_f32(pC[0]);
-                        _sum01 = _sum00;
-                        pC += 1;
-                    }
-                }
             }
             else
             {
@@ -1798,43 +4361,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 1;
             }
 
-            if (alpha != 1.f)
-            {
-                float32x4_t _alpha = vdupq_n_f32(alpha);
-                _sum00 = vmulq_f32(_sum00, _alpha);
-                _sum01 = vmulq_f32(_sum01, _alpha);
-            }
-
-            if (k_end)
-            {
-                if (out_elempack == 4)
-                {
-                    vst1_u16(outptr0, float2bfloat(_sum00));
-                    vst1_u16(outptr0 + out_hstep * 4, float2bfloat(_sum01));
-                    outptr0 += 4;
-                }
-                if (out_elempack == 1)
-                {
-                    unsigned short sum0[8];
-                    vst1_u16(sum0, float2bfloat(_sum00));
-                    vst1_u16(sum0 + 4, float2bfloat(_sum01));
-
-                    outptr0[0] = sum0[0];
-                    outptr0[out_hstep * 1] = sum0[1];
-                    outptr0[out_hstep * 2] = sum0[2];
-                    outptr0[out_hstep * 3] = sum0[3];
-                    outptr0[out_hstep * 4] = sum0[4];
-                    outptr0[out_hstep * 5] = sum0[5];
-                    outptr0[out_hstep * 6] = sum0[6];
-                    outptr0[out_hstep * 7] = sum0[7];
-                    outptr0++;
-                }
-            }
-            else
-            {
                 vst1q_f32(outptr, _sum00);
                 vst1q_f32(outptr + 4, _sum01);
-            }
 
             outptr += 8;
         }
@@ -1844,21 +4372,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 #endif // __aarch64__
     for (; ii + 3 < max_ii; ii += 4)
     {
-        unsigned short* outptr0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
         const unsigned short* pB = pBT;
-
-        if (pC)
-        {
-            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-            {
-                pC = (const float*)CT_tile + i + ii;
-            }
-            if (broadcast_type_C == 4)
-            {
-                pC = (const float*)CT_tile + j;
-            }
-        }
 
         int jj = 0;
 #if __aarch64__
@@ -1891,87 +4406,21 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum9 = vdupq_n_f32(0.f);
                 _suma = vdupq_n_f32(0.f);
                 _sumb = vdupq_n_f32(0.f);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _sum0 = vdupq_n_f32(pC[0]);
-                        _sum1 = _sum0;
-                        _sum2 = _sum0;
-                        _sum3 = _sum0;
-                        _sum4 = _sum0;
-                        _sum5 = _sum0;
-                        _sum6 = _sum0;
-                        _sum7 = _sum0;
-                        _sum8 = _sum0;
-                        _sum9 = _sum0;
-                        _suma = _sum0;
-                        _sumb = _sum0;
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _sum0 = vld1q_f32(pC);
-                        _sum1 = _sum0;
-                        _sum2 = _sum0;
-                        _sum3 = _sum0;
-                        _sum4 = _sum0;
-                        _sum5 = _sum0;
-                        _sum6 = _sum0;
-                        _sum7 = _sum0;
-                        _sum8 = _sum0;
-                        _sum9 = _sum0;
-                        _suma = _sum0;
-                        _sumb = _sum0;
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        _sum0 = vld1q_f32(pC);
-                        _sum1 = vld1q_f32(pC + 4);
-                        _sum2 = vld1q_f32(pC + 8);
-                        _sum3 = vld1q_f32(pC + 12);
-                        _sum4 = vld1q_f32(pC + 16);
-                        _sum5 = vld1q_f32(pC + 20);
-                        _sum6 = vld1q_f32(pC + 24);
-                        _sum7 = vld1q_f32(pC + 28);
-                        _sum8 = vld1q_f32(pC + 32);
-                        _sum9 = vld1q_f32(pC + 36);
-                        _suma = vld1q_f32(pC + 40);
-                        _sumb = vld1q_f32(pC + 44);
-                        pC += 48;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _sum0 = vdupq_n_f32(pC[0]);
-                        _sum1 = vdupq_n_f32(pC[1]);
-                        _sum2 = vdupq_n_f32(pC[2]);
-                        _sum3 = vdupq_n_f32(pC[3]);
-                        _sum4 = vdupq_n_f32(pC[4]);
-                        _sum5 = vdupq_n_f32(pC[5]);
-                        _sum6 = vdupq_n_f32(pC[6]);
-                        _sum7 = vdupq_n_f32(pC[7]);
-                        _sum8 = vdupq_n_f32(pC[8]);
-                        _sum9 = vdupq_n_f32(pC[9]);
-                        _suma = vdupq_n_f32(pC[10]);
-                        _sumb = vdupq_n_f32(pC[11]);
-                        pC += 12;
-                    }
-                }
             }
             else
             {
                 _sum0 = vld1q_f32(outptr);
-                _sum1 = vld1q_f32(outptr + 4 * 1);
-                _sum2 = vld1q_f32(outptr + 4 * 2);
-                _sum3 = vld1q_f32(outptr + 4 * 3);
-                _sum4 = vld1q_f32(outptr + 4 * 4);
-                _sum5 = vld1q_f32(outptr + 4 * 5);
-                _sum6 = vld1q_f32(outptr + 4 * 6);
-                _sum7 = vld1q_f32(outptr + 4 * 7);
-                _sum8 = vld1q_f32(outptr + 4 * 8);
-                _sum9 = vld1q_f32(outptr + 4 * 9);
-                _suma = vld1q_f32(outptr + 4 * 10);
-                _sumb = vld1q_f32(outptr + 4 * 11);
+                _sum1 = vld1q_f32(outptr + 4);
+                _sum2 = vld1q_f32(outptr + 8);
+                _sum3 = vld1q_f32(outptr + 12);
+                _sum4 = vld1q_f32(outptr + 16);
+                _sum5 = vld1q_f32(outptr + 20);
+                _sum6 = vld1q_f32(outptr + 24);
+                _sum7 = vld1q_f32(outptr + 28);
+                _sum8 = vld1q_f32(outptr + 32);
+                _sum9 = vld1q_f32(outptr + 36);
+                _suma = vld1q_f32(outptr + 40);
+                _sumb = vld1q_f32(outptr + 44);
             }
 
             const unsigned short* pA = pAT;
@@ -2000,75 +4449,18 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 12;
             }
 
-            if (alpha != 1.f)
-            {
-                float32x4_t _alpha = vdupq_n_f32(alpha);
-                _sum0 = vmulq_f32(_sum0, _alpha);
-                _sum1 = vmulq_f32(_sum1, _alpha);
-                _sum2 = vmulq_f32(_sum2, _alpha);
-                _sum3 = vmulq_f32(_sum3, _alpha);
-                _sum4 = vmulq_f32(_sum4, _alpha);
-                _sum5 = vmulq_f32(_sum5, _alpha);
-                _sum6 = vmulq_f32(_sum6, _alpha);
-                _sum7 = vmulq_f32(_sum7, _alpha);
-                _sum8 = vmulq_f32(_sum8, _alpha);
-                _sum9 = vmulq_f32(_sum9, _alpha);
-                _suma = vmulq_f32(_suma, _alpha);
-                _sumb = vmulq_f32(_sumb, _alpha);
-            }
-
-            if (k_end)
-            {
-                if (out_elempack == 4)
-                {
-                    vst1_u16(outptr0, float2bfloat(_sum0));
-                    vst1_u16(outptr0 + 4, float2bfloat(_sum1));
-                    vst1_u16(outptr0 + 4 * 2, float2bfloat(_sum2));
-                    vst1_u16(outptr0 + 4 * 3, float2bfloat(_sum3));
-                    vst1_u16(outptr0 + 4 * 4, float2bfloat(_sum4));
-                    vst1_u16(outptr0 + 4 * 5, float2bfloat(_sum5));
-                    vst1_u16(outptr0 + 4 * 6, float2bfloat(_sum6));
-                    vst1_u16(outptr0 + 4 * 7, float2bfloat(_sum7));
-                    vst1_u16(outptr0 + 4 * 8, float2bfloat(_sum8));
-                    vst1_u16(outptr0 + 4 * 9, float2bfloat(_sum9));
-                    vst1_u16(outptr0 + 4 * 10, float2bfloat(_suma));
-                    vst1_u16(outptr0 + 4 * 11, float2bfloat(_sumb));
-                    outptr0 += 48;
-                }
-                if (out_elempack == 1)
-                {
-                    transpose4x12_ps(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7, _sum8, _sum9, _suma, _sumb);
-
-                    vst1_u16(outptr0, float2bfloat(_sum0));
-                    vst1_u16(outptr0 + 4, float2bfloat(_sum1));
-                    vst1_u16(outptr0 + 8, float2bfloat(_sum2));
-                    vst1_u16(outptr0 + out_hstep, float2bfloat(_sum3));
-                    vst1_u16(outptr0 + out_hstep + 4, float2bfloat(_sum4));
-                    vst1_u16(outptr0 + out_hstep + 8, float2bfloat(_sum5));
-                    vst1_u16(outptr0 + out_hstep * 2, float2bfloat(_sum6));
-                    vst1_u16(outptr0 + out_hstep * 2 + 4, float2bfloat(_sum7));
-                    vst1_u16(outptr0 + out_hstep * 2 + 8, float2bfloat(_sum8));
-                    vst1_u16(outptr0 + out_hstep * 3, float2bfloat(_sum9));
-                    vst1_u16(outptr0 + out_hstep * 3 + 4, float2bfloat(_suma));
-                    vst1_u16(outptr0 + out_hstep * 3 + 8, float2bfloat(_sumb));
-                    outptr0 += 12;
-                }
-            }
-            else
-            {
                 vst1q_f32(outptr, _sum0);
                 vst1q_f32(outptr + 4, _sum1);
-                vst1q_f32(outptr + 4 * 2, _sum2);
-                vst1q_f32(outptr + 4 * 3, _sum3);
-                vst1q_f32(outptr + 4 * 4, _sum4);
-                vst1q_f32(outptr + 4 * 5, _sum5);
-                vst1q_f32(outptr + 4 * 6, _sum6);
-                vst1q_f32(outptr + 4 * 7, _sum7);
-                vst1q_f32(outptr + 4 * 8, _sum8);
-                vst1q_f32(outptr + 4 * 9, _sum9);
-                vst1q_f32(outptr + 4 * 10, _suma);
-                vst1q_f32(outptr + 4 * 11, _sumb);
-            }
+                vst1q_f32(outptr + 8, _sum2);
+                vst1q_f32(outptr + 12, _sum3);
+                vst1q_f32(outptr + 16, _sum4);
+                vst1q_f32(outptr + 20, _sum5);
+                vst1q_f32(outptr + 24, _sum6);
+                vst1q_f32(outptr + 28, _sum7);
+                vst1q_f32(outptr + 32, _sum8);
+                vst1q_f32(outptr + 36, _sum9);
+                vst1q_f32(outptr + 40, _suma);
+                vst1q_f32(outptr + 44, _sumb);
 
             outptr += 48;
         }
@@ -2094,67 +4486,17 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum5 = vdupq_n_f32(0.f);
                 _sum6 = vdupq_n_f32(0.f);
                 _sum7 = vdupq_n_f32(0.f);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _sum0 = vdupq_n_f32(pC[0]);
-                        _sum1 = _sum0;
-                        _sum2 = _sum0;
-                        _sum3 = _sum0;
-                        _sum4 = _sum0;
-                        _sum5 = _sum0;
-                        _sum6 = _sum0;
-                        _sum7 = _sum0;
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _sum0 = vld1q_f32(pC);
-                        _sum1 = _sum0;
-                        _sum2 = _sum0;
-                        _sum3 = _sum0;
-                        _sum4 = _sum0;
-                        _sum5 = _sum0;
-                        _sum6 = _sum0;
-                        _sum7 = _sum0;
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        _sum0 = vld1q_f32(pC);
-                        _sum1 = vld1q_f32(pC + 4);
-                        _sum2 = vld1q_f32(pC + 8);
-                        _sum3 = vld1q_f32(pC + 12);
-                        _sum4 = vld1q_f32(pC + 16);
-                        _sum5 = vld1q_f32(pC + 20);
-                        _sum6 = vld1q_f32(pC + 24);
-                        _sum7 = vld1q_f32(pC + 28);
-                        pC += 32;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _sum0 = vdupq_n_f32(pC[0]);
-                        _sum1 = vdupq_n_f32(pC[1]);
-                        _sum2 = vdupq_n_f32(pC[2]);
-                        _sum3 = vdupq_n_f32(pC[3]);
-                        _sum4 = vdupq_n_f32(pC[4]);
-                        _sum5 = vdupq_n_f32(pC[5]);
-                        _sum6 = vdupq_n_f32(pC[6]);
-                        _sum7 = vdupq_n_f32(pC[7]);
-                        pC += 8;
-                    }
-                }
             }
             else
             {
                 _sum0 = vld1q_f32(outptr);
-                _sum1 = vld1q_f32(outptr + 4 * 1);
-                _sum2 = vld1q_f32(outptr + 4 * 2);
-                _sum3 = vld1q_f32(outptr + 4 * 3);
-                _sum4 = vld1q_f32(outptr + 4 * 4);
-                _sum5 = vld1q_f32(outptr + 4 * 5);
-                _sum6 = vld1q_f32(outptr + 4 * 6);
-                _sum7 = vld1q_f32(outptr + 4 * 7);
+                _sum1 = vld1q_f32(outptr + 4);
+                _sum2 = vld1q_f32(outptr + 8);
+                _sum3 = vld1q_f32(outptr + 12);
+                _sum4 = vld1q_f32(outptr + 16);
+                _sum5 = vld1q_f32(outptr + 20);
+                _sum6 = vld1q_f32(outptr + 24);
+                _sum7 = vld1q_f32(outptr + 28);
             }
 
             const unsigned short* pA = pAT;
@@ -2189,59 +4531,14 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 8;
             }
 
-            if (alpha != 1.f)
-            {
-                float32x4_t _alpha = vdupq_n_f32(alpha);
-                _sum0 = vmulq_f32(_sum0, _alpha);
-                _sum1 = vmulq_f32(_sum1, _alpha);
-                _sum2 = vmulq_f32(_sum2, _alpha);
-                _sum3 = vmulq_f32(_sum3, _alpha);
-                _sum4 = vmulq_f32(_sum4, _alpha);
-                _sum5 = vmulq_f32(_sum5, _alpha);
-                _sum6 = vmulq_f32(_sum6, _alpha);
-                _sum7 = vmulq_f32(_sum7, _alpha);
-            }
-
-            if (k_end)
-            {
-                if (out_elempack == 4)
-                {
-                    vst1_u16(outptr0, float2bfloat(_sum0));
-                    vst1_u16(outptr0 + 4, float2bfloat(_sum1));
-                    vst1_u16(outptr0 + 4 * 2, float2bfloat(_sum2));
-                    vst1_u16(outptr0 + 4 * 3, float2bfloat(_sum3));
-                    vst1_u16(outptr0 + 4 * 4, float2bfloat(_sum4));
-                    vst1_u16(outptr0 + 4 * 5, float2bfloat(_sum5));
-                    vst1_u16(outptr0 + 4 * 6, float2bfloat(_sum6));
-                    vst1_u16(outptr0 + 4 * 7, float2bfloat(_sum7));
-                    outptr0 += 32;
-                }
-                if (out_elempack == 1)
-                {
-                    transpose4x8_ps(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
-
-                    vst1_u16(outptr0, float2bfloat(_sum0));
-                    vst1_u16(outptr0 + 4, float2bfloat(_sum1));
-                    vst1_u16(outptr0 + out_hstep, float2bfloat(_sum2));
-                    vst1_u16(outptr0 + out_hstep + 4, float2bfloat(_sum3));
-                    vst1_u16(outptr0 + out_hstep * 2, float2bfloat(_sum4));
-                    vst1_u16(outptr0 + out_hstep * 2 + 4, float2bfloat(_sum5));
-                    vst1_u16(outptr0 + out_hstep * 3, float2bfloat(_sum6));
-                    vst1_u16(outptr0 + out_hstep * 3 + 4, float2bfloat(_sum7));
-                    outptr0 += 8;
-                }
-            }
-            else
-            {
                 vst1q_f32(outptr, _sum0);
                 vst1q_f32(outptr + 4, _sum1);
-                vst1q_f32(outptr + 4 * 2, _sum2);
-                vst1q_f32(outptr + 4 * 3, _sum3);
-                vst1q_f32(outptr + 4 * 4, _sum4);
-                vst1q_f32(outptr + 4 * 5, _sum5);
-                vst1q_f32(outptr + 4 * 6, _sum6);
-                vst1q_f32(outptr + 4 * 7, _sum7);
-            }
+                vst1q_f32(outptr + 8, _sum2);
+                vst1q_f32(outptr + 12, _sum3);
+                vst1q_f32(outptr + 16, _sum4);
+                vst1q_f32(outptr + 20, _sum5);
+                vst1q_f32(outptr + 24, _sum6);
+                vst1q_f32(outptr + 28, _sum7);
 
             outptr += 32;
         }
@@ -2258,47 +4555,13 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum1 = vdupq_n_f32(0.f);
                 _sum2 = vdupq_n_f32(0.f);
                 _sum3 = vdupq_n_f32(0.f);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _sum0 = vdupq_n_f32(pC[0]);
-                        _sum1 = _sum0;
-                        _sum2 = _sum0;
-                        _sum3 = _sum0;
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _sum0 = vld1q_f32(pC);
-                        _sum1 = _sum0;
-                        _sum2 = _sum0;
-                        _sum3 = _sum0;
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        _sum0 = vld1q_f32(pC);
-                        _sum1 = vld1q_f32(pC + 4);
-                        _sum2 = vld1q_f32(pC + 8);
-                        _sum3 = vld1q_f32(pC + 12);
-                        pC += 16;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _sum0 = vdupq_n_f32(pC[0]);
-                        _sum1 = vdupq_n_f32(pC[1]);
-                        _sum2 = vdupq_n_f32(pC[2]);
-                        _sum3 = vdupq_n_f32(pC[3]);
-                        pC += 4;
-                    }
-                }
             }
             else
             {
                 _sum0 = vld1q_f32(outptr);
-                _sum1 = vld1q_f32(outptr + 4 * 1);
-                _sum2 = vld1q_f32(outptr + 4 * 2);
-                _sum3 = vld1q_f32(outptr + 4 * 3);
+                _sum1 = vld1q_f32(outptr + 4);
+                _sum2 = vld1q_f32(outptr + 8);
+                _sum3 = vld1q_f32(outptr + 12);
             }
 
             const unsigned short* pA = pAT;
@@ -2324,43 +4587,10 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 4;
             }
 
-            if (alpha != 1.f)
-            {
-                float32x4_t _alpha = vdupq_n_f32(alpha);
-                _sum0 = vmulq_f32(_sum0, _alpha);
-                _sum1 = vmulq_f32(_sum1, _alpha);
-                _sum2 = vmulq_f32(_sum2, _alpha);
-                _sum3 = vmulq_f32(_sum3, _alpha);
-            }
-
-            if (k_end)
-            {
-                if (out_elempack == 4)
-                {
-                    vst1_u16(outptr0, float2bfloat(_sum0));
-                    vst1_u16(outptr0 + 4, float2bfloat(_sum1));
-                    vst1_u16(outptr0 + 4 * 2, float2bfloat(_sum2));
-                    vst1_u16(outptr0 + 4 * 3, float2bfloat(_sum3));
-                    outptr0 += 16;
-                }
-                if (out_elempack == 1)
-                {
-                    transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
-
-                    vst1_u16(outptr0, float2bfloat(_sum0));
-                    vst1_u16(outptr0 + out_hstep, float2bfloat(_sum1));
-                    vst1_u16(outptr0 + out_hstep * 2, float2bfloat(_sum2));
-                    vst1_u16(outptr0 + out_hstep * 3, float2bfloat(_sum3));
-                    outptr0 += 4;
-                }
-            }
-            else
-            {
                 vst1q_f32(outptr, _sum0);
                 vst1q_f32(outptr + 4, _sum1);
-                vst1q_f32(outptr + 4 * 2, _sum2);
-                vst1q_f32(outptr + 4 * 3, _sum3);
-            }
+                vst1q_f32(outptr + 8, _sum2);
+                vst1q_f32(outptr + 12, _sum3);
 
             outptr += 16;
         }
@@ -2373,32 +4603,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 _sum0 = vdupq_n_f32(0.f);
                 _sum1 = vdupq_n_f32(0.f);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _sum0 = vdupq_n_f32(pC[0]);
-                        _sum1 = _sum0;
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _sum0 = vld1q_f32(pC);
-                        _sum1 = _sum0;
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        _sum0 = vld1q_f32(pC);
-                        _sum1 = vld1q_f32(pC + 4);
-                        pC += 8;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _sum0 = vdupq_n_f32(pC[0]);
-                        _sum1 = vdupq_n_f32(pC[1]);
-                        pC += 2;
-                    }
-                }
             }
             else
             {
@@ -2426,44 +4630,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 2;
             }
 
-            if (alpha != 1.f)
-            {
-                float32x4_t _alpha = vdupq_n_f32(alpha);
-                _sum0 = vmulq_f32(_sum0, _alpha);
-                _sum1 = vmulq_f32(_sum1, _alpha);
-            }
-
-            if (k_end)
-            {
-                if (out_elempack == 4)
-                {
-                    vst1_u16(outptr0, float2bfloat(_sum0));
-                    vst1_u16(outptr0 + 4, float2bfloat(_sum1));
-                    outptr0 += 8;
-                }
-                if (out_elempack == 1)
-                {
-                    unsigned short sum0[4];
-                    unsigned short sum1[4];
-                    vst1_u16(sum0, float2bfloat(_sum0));
-                    vst1_u16(sum1, float2bfloat(_sum1));
-
-                    outptr0[0] = sum0[0];
-                    outptr0[out_hstep] = sum0[1];
-                    outptr0[out_hstep * 2] = sum0[2];
-                    outptr0[out_hstep * 3] = sum0[3];
-                    outptr0[1] = sum1[0];
-                    outptr0[out_hstep + 1] = sum1[1];
-                    outptr0[out_hstep * 2 + 1] = sum1[2];
-                    outptr0[out_hstep * 3 + 1] = sum1[3];
-                    outptr0 += 2;
-                }
-            }
-            else
-            {
                 vst1q_f32(outptr, _sum0);
                 vst1q_f32(outptr + 4, _sum1);
-            }
 
             outptr += 8;
         }
@@ -2474,28 +4642,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             if (k == 0)
             {
                 _sum0 = vdupq_n_f32(0.f);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _sum0 = vdupq_n_f32(pC[0]);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _sum0 = vld1q_f32(pC);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        _sum0 = vld1q_f32(pC);
-                        pC += 4;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _sum0 = vdupq_n_f32(pC[0]);
-                        pC += 1;
-                    }
-                }
             }
             else
             {
@@ -2519,35 +4665,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 1;
             }
 
-            if (alpha != 1.f)
-            {
-                float32x4_t _alpha = vdupq_n_f32(alpha);
-                _sum0 = vmulq_f32(_sum0, _alpha);
-            }
-
-            if (k_end)
-            {
-                if (out_elempack == 4)
-                {
-                    vst1_u16(outptr0, float2bfloat(_sum0));
-                    outptr0 += 4;
-                }
-                if (out_elempack == 1)
-                {
-                    unsigned short sum0[4];
-                    vst1_u16(sum0, float2bfloat(_sum0));
-
-                    outptr0[0] = sum0[0];
-                    outptr0[out_hstep] = sum0[1];
-                    outptr0[out_hstep * 2] = sum0[2];
-                    outptr0[out_hstep * 3] = sum0[3];
-                    outptr0++;
-                }
-            }
-            else
-            {
                 vst1q_f32(outptr, _sum0);
-            }
 
             outptr += 4;
         }
@@ -2557,21 +4675,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 #endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
-        unsigned short* outptr0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j;
 
         const unsigned short* pB = pBT;
-
-        if (pC)
-        {
-            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-            {
-                pC = (const float*)CT_tile + i + ii;
-            }
-            if (broadcast_type_C == 4)
-            {
-                pC = (const float*)CT_tile + j;
-            }
-        }
 
         int jj = 0;
 #if __ARM_NEON
@@ -2593,51 +4698,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum10 = vdupq_n_f32(0.f);
                 _sum11 = vdupq_n_f32(0.f);
                 _sum12 = vdupq_n_f32(0.f);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _sum00 = vdupq_n_f32(pC[0]);
-                        _sum01 = _sum00;
-                        _sum02 = _sum00;
-                        _sum10 = _sum00;
-                        _sum11 = _sum00;
-                        _sum12 = _sum00;
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _sum00 = vdupq_n_f32(pC[0]);
-                        _sum01 = _sum00;
-                        _sum02 = _sum00;
-                        _sum10 = vdupq_n_f32(pC[1]);
-                        _sum11 = _sum10;
-                        _sum12 = _sum10;
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        float32x4x2_t _tmp01 = vld2q_f32(pC);
-                        float32x4x2_t _tmp23 = vld2q_f32(pC + 8);
-                        float32x4x2_t _tmp45 = vld2q_f32(pC + 16);
-                        _sum00 = _tmp01.val[0];
-                        _sum01 = _tmp23.val[0];
-                        _sum02 = _tmp45.val[0];
-                        _sum10 = _tmp01.val[1];
-                        _sum11 = _tmp23.val[1];
-                        _sum12 = _tmp45.val[1];
-                        pC += 24;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _sum00 = vld1q_f32(pC);
-                        _sum01 = vld1q_f32(pC + 4);
-                        _sum02 = vld1q_f32(pC + 8);
-                        _sum10 = _sum00;
-                        _sum11 = _sum01;
-                        _sum12 = _sum02;
-                        pC += 12;
-                    }
-                }
             }
             else
             {
@@ -2675,32 +4735,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 12;
             }
 
-            if (alpha != 1.f)
-            {
-                float32x4_t _alpha = vdupq_n_f32(alpha);
-                _sum00 = vmulq_f32(_sum00, _alpha);
-                _sum01 = vmulq_f32(_sum01, _alpha);
-                _sum02 = vmulq_f32(_sum02, _alpha);
-                _sum10 = vmulq_f32(_sum10, _alpha);
-                _sum11 = vmulq_f32(_sum11, _alpha);
-                _sum12 = vmulq_f32(_sum12, _alpha);
-            }
-
-            if (k_end)
-            {
-                // if (out_elempack == 1)
-                {
-                    vst1_u16(outptr0, float2bfloat(_sum00));
-                    vst1_u16(outptr0 + 4, float2bfloat(_sum01));
-                    vst1_u16(outptr0 + 8, float2bfloat(_sum02));
-                    vst1_u16(outptr0 + out_hstep, float2bfloat(_sum10));
-                    vst1_u16(outptr0 + out_hstep + 4, float2bfloat(_sum11));
-                    vst1_u16(outptr0 + out_hstep + 8, float2bfloat(_sum12));
-                    outptr0 += 12;
-                }
-            }
-            else
-            {
                 float32x4x2_t _tmp01;
                 _tmp01.val[0] = _sum00;
                 _tmp01.val[1] = _sum10;
@@ -2713,7 +4747,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 vst2q_f32(outptr, _tmp01);
                 vst2q_f32(outptr + 8, _tmp23);
                 vst2q_f32(outptr + 16, _tmp45);
-            }
 
             outptr += 24;
         }
@@ -2731,42 +4764,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum01 = vdupq_n_f32(0.f);
                 _sum10 = vdupq_n_f32(0.f);
                 _sum11 = vdupq_n_f32(0.f);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _sum00 = vdupq_n_f32(pC[0]);
-                        _sum01 = _sum00;
-                        _sum10 = _sum00;
-                        _sum11 = _sum00;
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _sum00 = vdupq_n_f32(pC[0]);
-                        _sum01 = _sum00;
-                        _sum10 = vdupq_n_f32(pC[1]);
-                        _sum11 = _sum10;
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        float32x4x2_t _tmp01 = vld2q_f32(pC);
-                        float32x4x2_t _tmp23 = vld2q_f32(pC + 8);
-                        _sum00 = _tmp01.val[0];
-                        _sum01 = _tmp23.val[0];
-                        _sum10 = _tmp01.val[1];
-                        _sum11 = _tmp23.val[1];
-                        pC += 16;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _sum00 = vld1q_f32(pC);
-                        _sum01 = vld1q_f32(pC + 4);
-                        _sum10 = _sum00;
-                        _sum11 = _sum01;
-                        pC += 8;
-                    }
-                }
             }
             else
             {
@@ -2804,28 +4801,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 8;
             }
 
-            if (alpha != 1.f)
-            {
-                float32x4_t _alpha = vdupq_n_f32(alpha);
-                _sum00 = vmulq_f32(_sum00, _alpha);
-                _sum01 = vmulq_f32(_sum01, _alpha);
-                _sum10 = vmulq_f32(_sum10, _alpha);
-                _sum11 = vmulq_f32(_sum11, _alpha);
-            }
-
-            if (k_end)
-            {
-                // if (out_elempack == 1)
-                {
-                    vst1_u16(outptr0, float2bfloat(_sum00));
-                    vst1_u16(outptr0 + 4, float2bfloat(_sum01));
-                    vst1_u16(outptr0 + out_hstep, float2bfloat(_sum10));
-                    vst1_u16(outptr0 + out_hstep + 4, float2bfloat(_sum11));
-                    outptr0 += 8;
-                }
-            }
-            else
-            {
                 float32x4x2_t _tmp01;
                 _tmp01.val[0] = _sum00;
                 _tmp01.val[1] = _sum10;
@@ -2834,7 +4809,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _tmp23.val[1] = _sum11;
                 vst2q_f32(outptr, _tmp01);
                 vst2q_f32(outptr + 8, _tmp23);
-            }
 
             outptr += 16;
         }
@@ -2847,33 +4821,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 _sum0 = vdupq_n_f32(0.f);
                 _sum1 = vdupq_n_f32(0.f);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _sum0 = vdupq_n_f32(pC[0]);
-                        _sum1 = _sum0;
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _sum0 = vdupq_n_f32(pC[0]);
-                        _sum1 = vdupq_n_f32(pC[1]);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        float32x4x2_t _tmp01 = vld2q_f32(pC);
-                        _sum0 = _tmp01.val[0];
-                        _sum1 = _tmp01.val[1];
-                        pC += 8;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _sum0 = vld1q_f32(pC);
-                        _sum1 = _sum0;
-                        pC += 4;
-                    }
-                }
             }
             else
             {
@@ -2902,29 +4849,10 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 4;
             }
 
-            if (alpha != 1.f)
-            {
-                float32x4_t _alpha = vdupq_n_f32(alpha);
-                _sum0 = vmulq_f32(_sum0, _alpha);
-                _sum1 = vmulq_f32(_sum1, _alpha);
-            }
-
-            if (k_end)
-            {
-                // if (out_elempack == 1)
-                {
-                    vst1_u16(outptr0, float2bfloat(_sum0));
-                    vst1_u16(outptr0 + out_hstep, float2bfloat(_sum1));
-                    outptr0 += 4;
-                }
-            }
-            else
-            {
                 float32x4x2_t _tmp01;
                 _tmp01.val[0] = _sum0;
                 _tmp01.val[1] = _sum1;
                 vst2q_f32(outptr, _tmp01);
-            }
 
             outptr += 8;
         }
@@ -2942,40 +4870,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 sum01 = 0.f;
                 sum10 = 0.f;
                 sum11 = 0.f;
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        sum00 = pC[0];
-                        sum01 = pC[0];
-                        sum10 = pC[0];
-                        sum11 = pC[0];
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        sum00 = pC[0];
-                        sum01 = pC[1];
-                        sum10 = pC[0];
-                        sum11 = pC[1];
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        sum00 = pC[0];
-                        sum01 = pC[1];
-                        sum10 = pC[2];
-                        sum11 = pC[3];
-                        pC += 4;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        sum00 = pC[0];
-                        sum01 = pC[0];
-                        sum10 = pC[1];
-                        sum11 = pC[1];
-                        pC += 2;
-                    }
-                }
             }
             else
             {
@@ -3031,32 +4925,10 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 2;
             }
 
-            if (alpha != 1.f)
-            {
-                sum00 *= alpha;
-                sum01 *= alpha;
-                sum10 *= alpha;
-                sum11 *= alpha;
-            }
-
-            if (k_end)
-            {
-                // if (out_elempack == 1)
-                {
-                    outptr0[0] = float32_to_bfloat16(sum00);
-                    outptr0[1] = float32_to_bfloat16(sum10);
-                    outptr0[out_hstep] = float32_to_bfloat16(sum01);
-                    outptr0[out_hstep + 1] = float32_to_bfloat16(sum11);
-                    outptr0 += 2;
-                }
-            }
-            else
-            {
                 outptr[0] = sum00;
                 outptr[1] = sum01;
                 outptr[2] = sum10;
                 outptr[3] = sum11;
-            }
 
             outptr += 4;
         }
@@ -3069,32 +4941,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 sum0 = 0.f;
                 sum1 = 0.f;
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        sum0 = pC[0];
-                        sum1 = pC[0];
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        sum0 = pC[0];
-                        sum1 = pC[1];
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        sum0 = pC[0];
-                        sum1 = pC[1];
-                        pC += 2;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        sum0 = pC[0];
-                        sum1 = pC[0];
-                        pC += 1;
-                    }
-                }
             }
             else
             {
@@ -3116,26 +4962,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 1;
             }
 
-            if (alpha != 1.f)
-            {
-                sum0 *= alpha;
-                sum1 *= alpha;
-            }
-
-            if (k_end)
-            {
-                // if (out_elempack == 1)
-                {
-                    outptr0[0] = float32_to_bfloat16(sum0);
-                    outptr0[out_hstep] = float32_to_bfloat16(sum1);
-                    outptr0++;
-                }
-            }
-            else
-            {
                 outptr[0] = sum0;
                 outptr[1] = sum1;
-            }
 
             outptr += 2;
         }
@@ -3144,21 +4972,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
     }
     for (; ii < max_ii; ii += 1)
     {
-        unsigned short* outptr0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j;
 
         const unsigned short* pB = pBT;
-
-        if (pC)
-        {
-            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-            {
-                pC = (const float*)CT_tile + i + ii;
-            }
-            if (broadcast_type_C == 4)
-            {
-                pC = (const float*)CT_tile + j;
-            }
-        }
 
         int jj = 0;
 #if __ARM_NEON
@@ -3174,23 +4989,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum0 = vdupq_n_f32(0.f);
                 _sum1 = vdupq_n_f32(0.f);
                 _sum2 = vdupq_n_f32(0.f);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _sum0 = vdupq_n_f32(pC[0]);
-                        _sum1 = vdupq_n_f32(pC[0]);
-                        _sum2 = vdupq_n_f32(pC[0]);
-                    }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    {
-                        _sum0 = vld1q_f32(pC);
-                        _sum1 = vld1q_f32(pC + 4);
-                        _sum2 = vld1q_f32(pC + 8);
-                        pC += 12;
-                    }
-                }
             }
             else
             {
@@ -3218,30 +5016,9 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 12;
             }
 
-            if (alpha != 1.f)
-            {
-                float32x4_t _alpha = vdupq_n_f32(alpha);
-                _sum0 = vmulq_f32(_sum0, _alpha);
-                _sum1 = vmulq_f32(_sum1, _alpha);
-                _sum2 = vmulq_f32(_sum2, _alpha);
-            }
-
-            if (k_end)
-            {
-                // if (out_elempack == 1)
-                {
-                    vst1_u16(outptr0, float2bfloat(_sum0));
-                    vst1_u16(outptr0 + 4, float2bfloat(_sum1));
-                    vst1_u16(outptr0 + 8, float2bfloat(_sum2));
-                    outptr0 += 12;
-                }
-            }
-            else
-            {
                 vst1q_f32(outptr, _sum0);
                 vst1q_f32(outptr + 4, _sum1);
                 vst1q_f32(outptr + 8, _sum2);
-            }
 
             outptr += 12;
         }
@@ -3255,21 +5032,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 _sum0 = vdupq_n_f32(0.f);
                 _sum1 = vdupq_n_f32(0.f);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _sum0 = vdupq_n_f32(pC[0]);
-                        _sum1 = vdupq_n_f32(pC[0]);
-                    }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    {
-                        _sum0 = vld1q_f32(pC);
-                        _sum1 = vld1q_f32(pC + 4);
-                        pC += 8;
-                    }
-                }
             }
             else
             {
@@ -3298,27 +5060,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 8;
             }
 
-            if (alpha != 1.f)
-            {
-                float32x4_t _alpha = vdupq_n_f32(alpha);
-                _sum0 = vmulq_f32(_sum0, _alpha);
-                _sum1 = vmulq_f32(_sum1, _alpha);
-            }
-
-            if (k_end)
-            {
-                // if (out_elempack == 1)
-                {
-                    vst1_u16(outptr0, float2bfloat(_sum0));
-                    vst1_u16(outptr0 + 4, float2bfloat(_sum1));
-                    outptr0 += 8;
-                }
-            }
-            else
-            {
                 vst1q_f32(outptr, _sum0);
                 vst1q_f32(outptr + 4, _sum1);
-            }
 
             outptr += 8;
         }
@@ -3329,19 +5072,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             if (k == 0)
             {
                 _sum = vdupq_n_f32(0.f);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _sum = vdupq_n_f32(pC[0]);
-                    }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    {
-                        _sum = vld1q_f32(pC);
-                        pC += 4;
-                    }
-                }
             }
             else
             {
@@ -3364,24 +5094,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 4;
             }
 
-            if (alpha != 1.f)
-            {
-                float32x4_t _alpha = vdupq_n_f32(alpha);
-                _sum = vmulq_f32(_sum, _alpha);
-            }
-
-            if (k_end)
-            {
-                // if (out_elempack == 1)
-                {
-                    vst1_u16(outptr0, float2bfloat(_sum));
-                    outptr0 += 4;
-                }
-            }
-            else
-            {
                 vst1q_f32(outptr, _sum);
-            }
 
             outptr += 4;
         }
@@ -3395,21 +5108,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 sum0 = 0.f;
                 sum1 = 0.f;
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        sum0 = pC[0];
-                        sum1 = pC[0];
-                    }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    {
-                        sum0 = pC[0];
-                        sum1 = pC[1];
-                        pC += 2;
-                    }
-                }
             }
             else
             {
@@ -3432,26 +5130,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 2;
             }
 
-            if (alpha != 1.f)
-            {
-                sum0 *= alpha;
-                sum1 *= alpha;
-            }
-
-            if (k_end)
-            {
-                // if (out_elempack == 1)
-                {
-                    outptr0[0] = float32_to_bfloat16(sum0);
-                    outptr0[1] = float32_to_bfloat16(sum1);
-                    outptr0 += 2;
-                }
-            }
-            else
-            {
                 outptr[0] = sum0;
                 outptr[1] = sum1;
-            }
 
             outptr += 2;
         }
@@ -3462,19 +5142,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             if (k == 0)
             {
                 sum = 0.f;
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        sum = pC[0];
-                    }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    {
-                        sum = pC[0];
-                        pC += 1;
-                    }
-                }
             }
             else
             {
@@ -3493,23 +5160,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 1;
             }
 
-            if (alpha != 1.f)
-            {
-                sum *= alpha;
-            }
-
-            if (k_end)
-            {
-                // if (out_elempack == 1)
-                {
-                    outptr0[0] = float32_to_bfloat16(sum);
-                    outptr0++;
-                }
-            }
-            else
-            {
                 outptr[0] = sum;
-            }
 
             outptr += 1;
         }
