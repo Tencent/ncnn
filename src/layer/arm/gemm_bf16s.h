@@ -272,7 +272,7 @@ static void pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, i
             p0 += 2;
             p1 += 2;
         }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 #if __ARM_NEON
         for (; kk + 7 < max_kk; kk += 8)
         {
@@ -981,7 +981,7 @@ static void pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, i
             p0 += 2;
             p1 += 2;
         }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 #if __ARM_NEON
         for (; kk + 7 < max_kk; kk += 8)
         {
@@ -6158,7 +6158,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 4;
                 pB += 8;
             }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk += 1)
             {
                 float32x4_t _pA = bfloat2float(vld1_u16(pA));
@@ -6281,7 +6281,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 4;
                 pB += 4;
             }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk += 1)
             {
                 float32x4_t _pA = bfloat2float(vld1_u16(pA));
@@ -6376,7 +6376,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 4;
                 pB += 2;
             }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk += 1)
             {
                 float32x4_t _pA = bfloat2float(vld1_u16(pA));
@@ -6455,7 +6455,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 4;
                 pB += 1;
             }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk += 1)
             {
                 float32x4_t _pA = bfloat2float(vld1_u16(pA));
@@ -6719,7 +6719,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 2;
                 pB += 8;
             }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk += 1)
             {
                 uint16x4_t _pA01 = vld1_dup_u16(pA);
@@ -6819,7 +6819,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 2;
                 pB += 4;
             }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk += 1)
             {
                 uint16x4_t _pA01 = vld1_dup_u16(pA);
@@ -6900,9 +6900,9 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 2;
                 pB += 2;
             }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
-            // clang 15.0.1 on aarch64 auto vectorization produces wrong result on this loop
-            // we have to teach it a bit  :$   --- nihui
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC                                          \
+// clang 15.0.1 on aarch64 auto vectorization produces wrong result on this loop \
+// we have to teach it a bit  :$   --- nihui
             float32x4_t _sum0 = vdupq_n_f32(0.f);
             float32x4_t _sum1 = vdupq_n_f32(0.f);
             for (; kk + 1 < max_kk; kk += 2)
@@ -7279,7 +7279,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 1;
                 pB += 8;
             }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk += 1)
             {
                 uint16x8_t _pB = vld1q_u16(pB);
@@ -7364,7 +7364,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 1;
                 pB += 4;
             }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk += 1)
             {
                 float32x4_t _pB = bfloat2float(vld1_u16(pB));
