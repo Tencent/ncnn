@@ -6,10 +6,6 @@ void convolution_im2col_gemm_transform_kernel_bf16s_bf16(const Mat& kernel, Mat&
 int convolution_im2col_gemm_bf16s_bf16(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int nT, const Option& opt);
 #endif
 
-#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
-#include "gemm_bf16s.h"
-#endif
-
 static void convolution_im2col_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
     // A = (pa, maxk, inch/pa), outch
@@ -1846,7 +1842,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
         {
             const unsigned short* pA = pAT;
 
-#if NCNN_GNU_INLINE_ASM
+#if NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             if (use_a53_a55_optimized_kernel && cpu_support_arm_asimdhp())
             {
                 // a55
@@ -3112,7 +3108,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "r"(out_hstep)     // %13
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
-#else  // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             float32x4_t _sum00;
             float32x4_t _sum01;
             float32x4_t _sum10;
@@ -3142,6 +3138,36 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 if (pC)
                 {
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    float32x4_t _c1 = vld1q_f32(pC + 4);
+                    float32x4x2_t _cc0 = vzipq_f32(_c0, _c0);
+                    float32x4x2_t _cc1 = vzipq_f32(_c1, _c1);
+                    _sum00 = _cc0.val[0];
+                    _sum01 = _cc0.val[1];
+                    _sum10 = _cc1.val[0];
+                    _sum11 = _cc1.val[1];
+                    _sum20 = _sum00;
+                    _sum21 = _sum01;
+                    _sum30 = _sum10;
+                    _sum31 = _sum11;
+                    _sum40 = _sum00;
+                    _sum41 = _sum01;
+                    _sum50 = _sum10;
+                    _sum51 = _sum11;
+                    _sum60 = _sum00;
+                    _sum61 = _sum01;
+                    _sum70 = _sum10;
+                    _sum71 = _sum11;
+                    _sum80 = _sum00;
+                    _sum81 = _sum01;
+                    _sum90 = _sum10;
+                    _sum91 = _sum11;
+                    _suma0 = _sum00;
+                    _suma1 = _sum01;
+                    _sumb0 = _sum10;
+                    _sumb1 = _sum11;
+#else
                     _sum00 = vld1q_f32(pC);
                     _sum01 = vld1q_f32(pC + 4);
                     _sum10 = _sum00;
@@ -3166,6 +3192,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     _suma1 = _sum01;
                     _sumb0 = _sum00;
                     _sumb1 = _sum01;
+#endif
                 }
                 else
                 {
@@ -3224,10 +3251,159 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _pA0 = vld1q_u16(pA);
+                uint16x8_t _pA1 = vld1q_u16(pA + 8);
+                uint16x8_t _pA2 = vld1q_u16(pA + 16);
+                uint16x8_t _pA3 = vld1q_u16(pA + 24);
+                uint16x8_t _pB0 = vld1q_u16(pB);
+                uint16x8_t _pB1 = vld1q_u16(pB + 8);
+                uint16x8_t _pB2 = vld1q_u16(pB + 16);
+                uint16x8_t _pB3 = vld1q_u16(pB + 24);
+                uint16x8_t _pB4 = vld1q_u16(pB + 32);
+                uint16x8_t _pB5 = vld1q_u16(pB + 40);
+
+                _sum00 = vbfmmlaq_f32(_sum00, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB0);
+                _sum01 = vbfmmlaq_f32(_sum01, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB0);
+                _sum10 = vbfmmlaq_f32(_sum10, (bfloat16x8_t)_pA2, (bfloat16x8_t)_pB0);
+                _sum11 = vbfmmlaq_f32(_sum11, (bfloat16x8_t)_pA3, (bfloat16x8_t)_pB0);
+                _sum20 = vbfmmlaq_f32(_sum20, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB1);
+                _sum21 = vbfmmlaq_f32(_sum21, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB1);
+                _sum30 = vbfmmlaq_f32(_sum30, (bfloat16x8_t)_pA2, (bfloat16x8_t)_pB1);
+                _sum31 = vbfmmlaq_f32(_sum31, (bfloat16x8_t)_pA3, (bfloat16x8_t)_pB1);
+                _sum40 = vbfmmlaq_f32(_sum40, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB2);
+                _sum41 = vbfmmlaq_f32(_sum41, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB2);
+                _sum50 = vbfmmlaq_f32(_sum50, (bfloat16x8_t)_pA2, (bfloat16x8_t)_pB2);
+                _sum51 = vbfmmlaq_f32(_sum51, (bfloat16x8_t)_pA3, (bfloat16x8_t)_pB2);
+                _sum60 = vbfmmlaq_f32(_sum60, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB3);
+                _sum61 = vbfmmlaq_f32(_sum61, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB3);
+                _sum70 = vbfmmlaq_f32(_sum70, (bfloat16x8_t)_pA2, (bfloat16x8_t)_pB3);
+                _sum71 = vbfmmlaq_f32(_sum71, (bfloat16x8_t)_pA3, (bfloat16x8_t)_pB3);
+                _sum80 = vbfmmlaq_f32(_sum80, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB4);
+                _sum81 = vbfmmlaq_f32(_sum81, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB4);
+                _sum90 = vbfmmlaq_f32(_sum90, (bfloat16x8_t)_pA2, (bfloat16x8_t)_pB4);
+                _sum91 = vbfmmlaq_f32(_sum91, (bfloat16x8_t)_pA3, (bfloat16x8_t)_pB4);
+                _suma0 = vbfmmlaq_f32(_suma0, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB5);
+                _suma1 = vbfmmlaq_f32(_suma1, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB5);
+                _sumb0 = vbfmmlaq_f32(_sumb0, (bfloat16x8_t)_pA2, (bfloat16x8_t)_pB5);
+                _sumb1 = vbfmmlaq_f32(_sumb1, (bfloat16x8_t)_pA3, (bfloat16x8_t)_pB5);
+
+                pA += 32;
+                pB += 48;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _pA0 = vld1_u16(pA);
+                uint16x4_t _pA1 = vld1_u16(pA + 4);
+                uint16x4_t _pA2 = vld1_u16(pA + 8);
+                uint16x4_t _pA3 = vld1_u16(pA + 12);
+                uint32x2x2_t _pA0_32x2 = vzip_u32(vreinterpret_u32_u16(_pA0), vreinterpret_u32_u16(_pA0));
+                uint32x2x2_t _pA1_32x2 = vzip_u32(vreinterpret_u32_u16(_pA1), vreinterpret_u32_u16(_pA1));
+                uint32x2x2_t _pA2_32x2 = vzip_u32(vreinterpret_u32_u16(_pA2), vreinterpret_u32_u16(_pA2));
+                uint32x2x2_t _pA3_32x2 = vzip_u32(vreinterpret_u32_u16(_pA3), vreinterpret_u32_u16(_pA3));
+                uint16x8_t _pA00 = vreinterpretq_u16_u32(vcombine_u32(_pA0_32x2.val[0], _pA0_32x2.val[1]));
+                uint16x8_t _pA11 = vreinterpretq_u16_u32(vcombine_u32(_pA1_32x2.val[0], _pA1_32x2.val[1]));
+                uint16x8_t _pA22 = vreinterpretq_u16_u32(vcombine_u32(_pA2_32x2.val[0], _pA2_32x2.val[1]));
+                uint16x8_t _pA33 = vreinterpretq_u16_u32(vcombine_u32(_pA3_32x2.val[0], _pA3_32x2.val[1]));
+                uint16x4_t _pB0 = vld1_u16(pB);
+                uint16x4_t _pB1 = vld1_u16(pB + 4);
+                uint16x4_t _pB2 = vld1_u16(pB + 8);
+                uint16x4_t _pB3 = vld1_u16(pB + 12);
+                uint16x4_t _pB4 = vld1_u16(pB + 16);
+                uint16x4_t _pB5 = vld1_u16(pB + 20);
+                uint16x8_t _pB00 = vcombine_u16(_pB0, _pB0);
+                uint16x8_t _pB11 = vcombine_u16(_pB1, _pB1);
+                uint16x8_t _pB22 = vcombine_u16(_pB2, _pB2);
+                uint16x8_t _pB33 = vcombine_u16(_pB3, _pB3);
+                uint16x8_t _pB44 = vcombine_u16(_pB4, _pB4);
+                uint16x8_t _pB55 = vcombine_u16(_pB5, _pB5);
+
+                _sum00 = vbfdotq_f32(_sum00, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB00);
+                _sum01 = vbfdotq_f32(_sum01, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB00);
+                _sum10 = vbfdotq_f32(_sum10, (bfloat16x8_t)_pA22, (bfloat16x8_t)_pB00);
+                _sum11 = vbfdotq_f32(_sum11, (bfloat16x8_t)_pA33, (bfloat16x8_t)_pB00);
+                _sum20 = vbfdotq_f32(_sum20, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB11);
+                _sum21 = vbfdotq_f32(_sum21, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB11);
+                _sum30 = vbfdotq_f32(_sum30, (bfloat16x8_t)_pA22, (bfloat16x8_t)_pB11);
+                _sum31 = vbfdotq_f32(_sum31, (bfloat16x8_t)_pA33, (bfloat16x8_t)_pB11);
+                _sum40 = vbfdotq_f32(_sum40, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB22);
+                _sum41 = vbfdotq_f32(_sum41, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB22);
+                _sum50 = vbfdotq_f32(_sum50, (bfloat16x8_t)_pA22, (bfloat16x8_t)_pB22);
+                _sum51 = vbfdotq_f32(_sum51, (bfloat16x8_t)_pA33, (bfloat16x8_t)_pB22);
+                _sum60 = vbfdotq_f32(_sum60, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB33);
+                _sum61 = vbfdotq_f32(_sum61, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB33);
+                _sum70 = vbfdotq_f32(_sum70, (bfloat16x8_t)_pA22, (bfloat16x8_t)_pB33);
+                _sum71 = vbfdotq_f32(_sum71, (bfloat16x8_t)_pA33, (bfloat16x8_t)_pB33);
+                _sum80 = vbfdotq_f32(_sum80, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB44);
+                _sum81 = vbfdotq_f32(_sum81, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB44);
+                _sum90 = vbfdotq_f32(_sum90, (bfloat16x8_t)_pA22, (bfloat16x8_t)_pB44);
+                _sum91 = vbfdotq_f32(_sum91, (bfloat16x8_t)_pA33, (bfloat16x8_t)_pB44);
+                _suma0 = vbfdotq_f32(_suma0, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB55);
+                _suma1 = vbfdotq_f32(_suma1, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB55);
+                _sumb0 = vbfdotq_f32(_sumb0, (bfloat16x8_t)_pA22, (bfloat16x8_t)_pB55);
+                _sumb1 = vbfdotq_f32(_sumb1, (bfloat16x8_t)_pA33, (bfloat16x8_t)_pB55);
+
+                pA += 16;
+                pB += 24;
+            }
             for (; kk < max_kk; kk += 1)
             {
-                float32x4_t _pA0 = bfloat2float(vld1_u16(pA));
-                float32x4_t _pA1 = bfloat2float(vld1_u16(pA + 4));
+                uint16x8_t _pA = vld1q_u16(pA);
+                uint16x4x2_t _pA0123 = vzip_u16(vget_low_u16(_pA), vget_low_u16(_pA));
+                uint16x4x2_t _pA4567 = vzip_u16(vget_high_u16(_pA), vget_high_u16(_pA));
+                float32x4_t _pA00 = bfloat2float(_pA0123.val[0]);
+                float32x4_t _pA11 = bfloat2float(_pA0123.val[1]);
+                float32x4_t _pA22 = bfloat2float(_pA4567.val[0]);
+                float32x4_t _pA33 = bfloat2float(_pA4567.val[1]);
+                uint16x4_t _pB0123 = vld1_u16(pB);
+                uint16x4_t _pB4567 = vld1_u16(pB + 4);
+                uint16x4_t _pB89ab = vld1_u16(pB + 8);
+                uint32x2x2_t _pB0123_32x2 = vzip_u32(vreinterpret_u32_u16(_pB0123), vreinterpret_u32_u16(_pB0123));
+                uint32x2x2_t _pB4567_32x2 = vzip_u32(vreinterpret_u32_u16(_pB4567), vreinterpret_u32_u16(_pB4567));
+                uint32x2x2_t _pB89ab_32x2 = vzip_u32(vreinterpret_u32_u16(_pB89ab), vreinterpret_u32_u16(_pB89ab));
+                float32x4_t _pB0 = bfloat2float(vreinterpret_u16_u32(_pB0123_32x2.val[0]));
+                float32x4_t _pB1 = bfloat2float(vreinterpret_u16_u32(_pB0123_32x2.val[1]));
+                float32x4_t _pB2 = bfloat2float(vreinterpret_u16_u32(_pB4567_32x2.val[0]));
+                float32x4_t _pB3 = bfloat2float(vreinterpret_u16_u32(_pB4567_32x2.val[1]));
+                float32x4_t _pB4 = bfloat2float(vreinterpret_u16_u32(_pB89ab_32x2.val[0]));
+                float32x4_t _pB5 = bfloat2float(vreinterpret_u16_u32(_pB89ab_32x2.val[1]));
+
+                _sum00 = vfmaq_f32(_sum00, _pA00, _pB0);
+                _sum01 = vfmaq_f32(_sum01, _pA11, _pB0);
+                _sum10 = vfmaq_f32(_sum10, _pA22, _pB0);
+                _sum11 = vfmaq_f32(_sum11, _pA33, _pB0);
+                _sum20 = vfmaq_f32(_sum20, _pA00, _pB1);
+                _sum21 = vfmaq_f32(_sum21, _pA11, _pB1);
+                _sum30 = vfmaq_f32(_sum30, _pA22, _pB1);
+                _sum31 = vfmaq_f32(_sum31, _pA33, _pB1);
+                _sum40 = vfmaq_f32(_sum40, _pA00, _pB2);
+                _sum41 = vfmaq_f32(_sum41, _pA11, _pB2);
+                _sum50 = vfmaq_f32(_sum50, _pA22, _pB2);
+                _sum51 = vfmaq_f32(_sum51, _pA33, _pB2);
+                _sum60 = vfmaq_f32(_sum60, _pA00, _pB3);
+                _sum61 = vfmaq_f32(_sum61, _pA11, _pB3);
+                _sum70 = vfmaq_f32(_sum70, _pA22, _pB3);
+                _sum71 = vfmaq_f32(_sum71, _pA33, _pB3);
+                _sum80 = vfmaq_f32(_sum80, _pA00, _pB4);
+                _sum81 = vfmaq_f32(_sum81, _pA11, _pB4);
+                _sum90 = vfmaq_f32(_sum90, _pA22, _pB4);
+                _sum91 = vfmaq_f32(_sum91, _pA33, _pB4);
+                _suma0 = vfmaq_f32(_suma0, _pA00, _pB5);
+                _suma1 = vfmaq_f32(_suma1, _pA11, _pB5);
+                _sumb0 = vfmaq_f32(_sumb0, _pA22, _pB5);
+                _sumb1 = vfmaq_f32(_sumb1, _pA33, _pB5);
+
+                pA += 8;
+                pB += 12;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk; kk += 1)
+            {
+                uint16x8_t _pA = vld1q_u16(pA);
+                float32x4_t _pA0 = bfloat2float(vget_low_u16(_pA));
+                float32x4_t _pA1 = bfloat2float(vget_high_u16(_pA));
 
                 float32x4_t _pB0 = bfloat2float(vld1_u16(pB));
                 float32x4_t _pB1 = bfloat2float(vld1_u16(pB + 4));
@@ -3261,9 +3437,48 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 pA += 8;
                 pB += 12;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 
             if (k_end)
             {
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                float32x4x2_t _r0 = vuzpq_f32(_sum00, _sum01);
+                float32x4x2_t _r1 = vuzpq_f32(_sum10, _sum11);
+                _sum00 = _r0.val[0];
+                _sum10 = _r0.val[1];
+                _sum01 = _r1.val[0];
+                _sum11 = _r1.val[1];
+                _r0 = vuzpq_f32(_sum20, _sum21);
+                _r1 = vuzpq_f32(_sum30, _sum31);
+                _sum20 = _r0.val[0];
+                _sum30 = _r0.val[1];
+                _sum21 = _r1.val[0];
+                _sum31 = _r1.val[1];
+                _r0 = vuzpq_f32(_sum40, _sum41);
+                _r1 = vuzpq_f32(_sum50, _sum51);
+                _sum40 = _r0.val[0];
+                _sum50 = _r0.val[1];
+                _sum41 = _r1.val[0];
+                _sum51 = _r1.val[1];
+                _r0 = vuzpq_f32(_sum60, _sum61);
+                _r1 = vuzpq_f32(_sum70, _sum71);
+                _sum60 = _r0.val[0];
+                _sum70 = _r0.val[1];
+                _sum61 = _r1.val[0];
+                _sum71 = _r1.val[1];
+                _r0 = vuzpq_f32(_sum80, _sum81);
+                _r1 = vuzpq_f32(_sum90, _sum91);
+                _sum80 = _r0.val[0];
+                _sum90 = _r0.val[1];
+                _sum81 = _r1.val[0];
+                _sum91 = _r1.val[1];
+                _r0 = vuzpq_f32(_suma0, _suma1);
+                _r1 = vuzpq_f32(_sumb0, _sumb1);
+                _suma0 = _r0.val[0];
+                _sumb0 = _r0.val[1];
+                _suma1 = _r1.val[0];
+                _sumb1 = _r1.val[1];
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
                 if (out_elempack == 4)
                 {
                     vst1_u16(outptr0, float2bfloat(_sum00));
@@ -3367,13 +3582,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             outptr += 96;
-#endif // NCNN_GNU_INLINE_ASM
+#endif // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         }
         for (; jj + 7 < max_jj; jj += 8)
         {
             const unsigned short* pA = pAT;
 
-#if NCNN_GNU_INLINE_ASM
+#if NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             if (use_a53_a55_optimized_kernel && cpu_support_arm_asimdhp())
             {
                 // a55
@@ -3936,7 +4151,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "r"(out_hstep)     // %13
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
-#else  // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             float32x4_t _sum00;
             float32x4_t _sum01;
             float32x4_t _sum10;
@@ -3958,6 +4173,28 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 if (pC)
                 {
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    float32x4_t _c1 = vld1q_f32(pC + 4);
+                    float32x4x2_t _cc0 = vzipq_f32(_c0, _c0);
+                    float32x4x2_t _cc1 = vzipq_f32(_c1, _c1);
+                    _sum00 = _cc0.val[0];
+                    _sum01 = _cc0.val[1];
+                    _sum10 = _cc1.val[0];
+                    _sum11 = _cc1.val[1];
+                    _sum20 = _sum00;
+                    _sum21 = _sum01;
+                    _sum30 = _sum10;
+                    _sum31 = _sum11;
+                    _sum40 = _sum00;
+                    _sum41 = _sum01;
+                    _sum50 = _sum10;
+                    _sum51 = _sum11;
+                    _sum60 = _sum00;
+                    _sum61 = _sum01;
+                    _sum70 = _sum10;
+                    _sum71 = _sum11;
+#else
                     _sum00 = vld1q_f32(pC);
                     _sum01 = vld1q_f32(pC + 4);
                     _sum10 = _sum00;
@@ -3974,6 +4211,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     _sum61 = _sum01;
                     _sum70 = _sum00;
                     _sum71 = _sum01;
+#endif
                 }
                 else
                 {
@@ -4016,10 +4254,125 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _pA0 = vld1q_u16(pA);
+                uint16x8_t _pA1 = vld1q_u16(pA + 8);
+                uint16x8_t _pA2 = vld1q_u16(pA + 16);
+                uint16x8_t _pA3 = vld1q_u16(pA + 24);
+                uint16x8_t _pB0 = vld1q_u16(pB);
+                uint16x8_t _pB1 = vld1q_u16(pB + 8);
+                uint16x8_t _pB2 = vld1q_u16(pB + 16);
+                uint16x8_t _pB3 = vld1q_u16(pB + 24);
+
+                _sum00 = vbfmmlaq_f32(_sum00, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB0);
+                _sum01 = vbfmmlaq_f32(_sum01, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB0);
+                _sum10 = vbfmmlaq_f32(_sum10, (bfloat16x8_t)_pA2, (bfloat16x8_t)_pB0);
+                _sum11 = vbfmmlaq_f32(_sum11, (bfloat16x8_t)_pA3, (bfloat16x8_t)_pB0);
+                _sum20 = vbfmmlaq_f32(_sum20, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB1);
+                _sum21 = vbfmmlaq_f32(_sum21, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB1);
+                _sum30 = vbfmmlaq_f32(_sum30, (bfloat16x8_t)_pA2, (bfloat16x8_t)_pB1);
+                _sum31 = vbfmmlaq_f32(_sum31, (bfloat16x8_t)_pA3, (bfloat16x8_t)_pB1);
+                _sum40 = vbfmmlaq_f32(_sum40, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB2);
+                _sum41 = vbfmmlaq_f32(_sum41, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB2);
+                _sum50 = vbfmmlaq_f32(_sum50, (bfloat16x8_t)_pA2, (bfloat16x8_t)_pB2);
+                _sum51 = vbfmmlaq_f32(_sum51, (bfloat16x8_t)_pA3, (bfloat16x8_t)_pB2);
+                _sum60 = vbfmmlaq_f32(_sum60, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB3);
+                _sum61 = vbfmmlaq_f32(_sum61, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB3);
+                _sum70 = vbfmmlaq_f32(_sum70, (bfloat16x8_t)_pA2, (bfloat16x8_t)_pB3);
+                _sum71 = vbfmmlaq_f32(_sum71, (bfloat16x8_t)_pA3, (bfloat16x8_t)_pB3);
+
+                pA += 32;
+                pB += 32;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _pA0 = vld1_u16(pA);
+                uint16x4_t _pA1 = vld1_u16(pA + 4);
+                uint16x4_t _pA2 = vld1_u16(pA + 8);
+                uint16x4_t _pA3 = vld1_u16(pA + 12);
+                uint32x2x2_t _pA0_32x2 = vzip_u32(vreinterpret_u32_u16(_pA0), vreinterpret_u32_u16(_pA0));
+                uint32x2x2_t _pA1_32x2 = vzip_u32(vreinterpret_u32_u16(_pA1), vreinterpret_u32_u16(_pA1));
+                uint32x2x2_t _pA2_32x2 = vzip_u32(vreinterpret_u32_u16(_pA2), vreinterpret_u32_u16(_pA2));
+                uint32x2x2_t _pA3_32x2 = vzip_u32(vreinterpret_u32_u16(_pA3), vreinterpret_u32_u16(_pA3));
+                uint16x8_t _pA00 = vreinterpretq_u16_u32(vcombine_u32(_pA0_32x2.val[0], _pA0_32x2.val[1]));
+                uint16x8_t _pA11 = vreinterpretq_u16_u32(vcombine_u32(_pA1_32x2.val[0], _pA1_32x2.val[1]));
+                uint16x8_t _pA22 = vreinterpretq_u16_u32(vcombine_u32(_pA2_32x2.val[0], _pA2_32x2.val[1]));
+                uint16x8_t _pA33 = vreinterpretq_u16_u32(vcombine_u32(_pA3_32x2.val[0], _pA3_32x2.val[1]));
+                uint16x4_t _pB0 = vld1_u16(pB);
+                uint16x4_t _pB1 = vld1_u16(pB + 4);
+                uint16x4_t _pB2 = vld1_u16(pB + 8);
+                uint16x4_t _pB3 = vld1_u16(pB + 12);
+                uint16x8_t _pB00 = vcombine_u16(_pB0, _pB0);
+                uint16x8_t _pB11 = vcombine_u16(_pB1, _pB1);
+                uint16x8_t _pB22 = vcombine_u16(_pB2, _pB2);
+                uint16x8_t _pB33 = vcombine_u16(_pB3, _pB3);
+
+                _sum00 = vbfdotq_f32(_sum00, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB00);
+                _sum01 = vbfdotq_f32(_sum01, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB00);
+                _sum10 = vbfdotq_f32(_sum10, (bfloat16x8_t)_pA22, (bfloat16x8_t)_pB00);
+                _sum11 = vbfdotq_f32(_sum11, (bfloat16x8_t)_pA33, (bfloat16x8_t)_pB00);
+                _sum20 = vbfdotq_f32(_sum20, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB11);
+                _sum21 = vbfdotq_f32(_sum21, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB11);
+                _sum30 = vbfdotq_f32(_sum30, (bfloat16x8_t)_pA22, (bfloat16x8_t)_pB11);
+                _sum31 = vbfdotq_f32(_sum31, (bfloat16x8_t)_pA33, (bfloat16x8_t)_pB11);
+                _sum40 = vbfdotq_f32(_sum40, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB22);
+                _sum41 = vbfdotq_f32(_sum41, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB22);
+                _sum50 = vbfdotq_f32(_sum50, (bfloat16x8_t)_pA22, (bfloat16x8_t)_pB22);
+                _sum51 = vbfdotq_f32(_sum51, (bfloat16x8_t)_pA33, (bfloat16x8_t)_pB22);
+                _sum60 = vbfdotq_f32(_sum60, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB33);
+                _sum61 = vbfdotq_f32(_sum61, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB33);
+                _sum70 = vbfdotq_f32(_sum70, (bfloat16x8_t)_pA22, (bfloat16x8_t)_pB33);
+                _sum71 = vbfdotq_f32(_sum71, (bfloat16x8_t)_pA33, (bfloat16x8_t)_pB33);
+
+                pA += 16;
+                pB += 16;
+            }
             for (; kk < max_kk; kk += 1)
             {
-                float32x4_t _pA0 = bfloat2float(vld1_u16(pA));
-                float32x4_t _pA1 = bfloat2float(vld1_u16(pA + 4));
+                uint16x8_t _pA = vld1q_u16(pA);
+                uint16x4x2_t _pA0123 = vzip_u16(vget_low_u16(_pA), vget_low_u16(_pA));
+                uint16x4x2_t _pA4567 = vzip_u16(vget_high_u16(_pA), vget_high_u16(_pA));
+                float32x4_t _pA00 = bfloat2float(_pA0123.val[0]);
+                float32x4_t _pA11 = bfloat2float(_pA0123.val[1]);
+                float32x4_t _pA22 = bfloat2float(_pA4567.val[0]);
+                float32x4_t _pA33 = bfloat2float(_pA4567.val[1]);
+                uint16x4_t _pB0123 = vld1_u16(pB);
+                uint16x4_t _pB4567 = vld1_u16(pB + 4);
+                uint32x2x2_t _pB0123_32x2 = vzip_u32(vreinterpret_u32_u16(_pB0123), vreinterpret_u32_u16(_pB0123));
+                uint32x2x2_t _pB4567_32x2 = vzip_u32(vreinterpret_u32_u16(_pB4567), vreinterpret_u32_u16(_pB4567));
+                float32x4_t _pB0 = bfloat2float(vreinterpret_u16_u32(_pB0123_32x2.val[0]));
+                float32x4_t _pB1 = bfloat2float(vreinterpret_u16_u32(_pB0123_32x2.val[1]));
+                float32x4_t _pB2 = bfloat2float(vreinterpret_u16_u32(_pB4567_32x2.val[0]));
+                float32x4_t _pB3 = bfloat2float(vreinterpret_u16_u32(_pB4567_32x2.val[1]));
+
+                _sum00 = vfmaq_f32(_sum00, _pA00, _pB0);
+                _sum01 = vfmaq_f32(_sum01, _pA11, _pB0);
+                _sum10 = vfmaq_f32(_sum10, _pA22, _pB0);
+                _sum11 = vfmaq_f32(_sum11, _pA33, _pB0);
+                _sum20 = vfmaq_f32(_sum20, _pA00, _pB1);
+                _sum21 = vfmaq_f32(_sum21, _pA11, _pB1);
+                _sum30 = vfmaq_f32(_sum30, _pA22, _pB1);
+                _sum31 = vfmaq_f32(_sum31, _pA33, _pB1);
+                _sum40 = vfmaq_f32(_sum40, _pA00, _pB2);
+                _sum41 = vfmaq_f32(_sum41, _pA11, _pB2);
+                _sum50 = vfmaq_f32(_sum50, _pA22, _pB2);
+                _sum51 = vfmaq_f32(_sum51, _pA33, _pB2);
+                _sum60 = vfmaq_f32(_sum60, _pA00, _pB3);
+                _sum61 = vfmaq_f32(_sum61, _pA11, _pB3);
+                _sum70 = vfmaq_f32(_sum70, _pA22, _pB3);
+                _sum71 = vfmaq_f32(_sum71, _pA33, _pB3);
+
+                pA += 8;
+                pB += 8;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk; kk += 1)
+            {
+                uint16x8_t _pA = vld1q_u16(pA);
+                float32x4_t _pA0 = bfloat2float(vget_low_u16(_pA));
+                float32x4_t _pA1 = bfloat2float(vget_high_u16(_pA));
 
                 float32x4_t _pB0 = bfloat2float(vld1_u16(pB));
                 float32x4_t _pB1 = bfloat2float(vld1_u16(pB + 4));
@@ -4044,9 +4397,36 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 pA += 8;
                 pB += 8;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 
             if (k_end)
             {
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                float32x4x2_t _r0 = vuzpq_f32(_sum00, _sum01);
+                float32x4x2_t _r1 = vuzpq_f32(_sum10, _sum11);
+                _sum00 = _r0.val[0];
+                _sum10 = _r0.val[1];
+                _sum01 = _r1.val[0];
+                _sum11 = _r1.val[1];
+                _r0 = vuzpq_f32(_sum20, _sum21);
+                _r1 = vuzpq_f32(_sum30, _sum31);
+                _sum20 = _r0.val[0];
+                _sum30 = _r0.val[1];
+                _sum21 = _r1.val[0];
+                _sum31 = _r1.val[1];
+                _r0 = vuzpq_f32(_sum40, _sum41);
+                _r1 = vuzpq_f32(_sum50, _sum51);
+                _sum40 = _r0.val[0];
+                _sum50 = _r0.val[1];
+                _sum41 = _r1.val[0];
+                _sum51 = _r1.val[1];
+                _r0 = vuzpq_f32(_sum60, _sum61);
+                _r1 = vuzpq_f32(_sum70, _sum71);
+                _sum60 = _r0.val[0];
+                _sum70 = _r0.val[1];
+                _sum61 = _r1.val[0];
+                _sum71 = _r1.val[1];
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
                 if (out_elempack == 4)
                 {
                     vst1_u16(outptr0, float2bfloat(_sum00));
@@ -4114,13 +4494,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             outptr += 64;
-#endif // NCNN_GNU_INLINE_ASM
+#endif // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
             const unsigned short* pA = pAT;
 
-#if NCNN_GNU_INLINE_ASM
+#if NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             if (use_a53_a55_optimized_kernel && cpu_support_arm_asimdhp())
             {
                 // a55
@@ -4533,7 +4913,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "r"(out_hstep)     // %13
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
-#else  // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             float32x4_t _sum00;
             float32x4_t _sum01;
             float32x4_t _sum10;
@@ -4547,6 +4927,20 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 if (pC)
                 {
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    float32x4_t _c1 = vld1q_f32(pC + 4);
+                    float32x4x2_t _cc0 = vzipq_f32(_c0, _c0);
+                    float32x4x2_t _cc1 = vzipq_f32(_c1, _c1);
+                    _sum00 = _cc0.val[0];
+                    _sum01 = _cc0.val[1];
+                    _sum10 = _cc1.val[0];
+                    _sum11 = _cc1.val[1];
+                    _sum20 = _sum00;
+                    _sum21 = _sum01;
+                    _sum30 = _sum10;
+                    _sum31 = _sum11;
+#else
                     _sum00 = vld1q_f32(pC);
                     _sum01 = vld1q_f32(pC + 4);
                     _sum10 = _sum00;
@@ -4555,6 +4949,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     _sum21 = _sum01;
                     _sum30 = _sum00;
                     _sum31 = _sum01;
+#endif
                 }
                 else
                 {
@@ -4581,10 +4976,91 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _pA0 = vld1q_u16(pA);
+                uint16x8_t _pA1 = vld1q_u16(pA + 8);
+                uint16x8_t _pA2 = vld1q_u16(pA + 16);
+                uint16x8_t _pA3 = vld1q_u16(pA + 24);
+                uint16x8_t _pB0 = vld1q_u16(pB);
+                uint16x8_t _pB1 = vld1q_u16(pB + 8);
+
+                _sum00 = vbfmmlaq_f32(_sum00, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB0);
+                _sum01 = vbfmmlaq_f32(_sum01, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB0);
+                _sum10 = vbfmmlaq_f32(_sum10, (bfloat16x8_t)_pA2, (bfloat16x8_t)_pB0);
+                _sum11 = vbfmmlaq_f32(_sum11, (bfloat16x8_t)_pA3, (bfloat16x8_t)_pB0);
+                _sum20 = vbfmmlaq_f32(_sum20, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB1);
+                _sum21 = vbfmmlaq_f32(_sum21, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB1);
+                _sum30 = vbfmmlaq_f32(_sum30, (bfloat16x8_t)_pA2, (bfloat16x8_t)_pB1);
+                _sum31 = vbfmmlaq_f32(_sum31, (bfloat16x8_t)_pA3, (bfloat16x8_t)_pB1);
+
+                pA += 32;
+                pB += 16;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _pA0 = vld1_u16(pA);
+                uint16x4_t _pA1 = vld1_u16(pA + 4);
+                uint16x4_t _pA2 = vld1_u16(pA + 8);
+                uint16x4_t _pA3 = vld1_u16(pA + 12);
+                uint32x2x2_t _pA0_32x2 = vzip_u32(vreinterpret_u32_u16(_pA0), vreinterpret_u32_u16(_pA0));
+                uint32x2x2_t _pA1_32x2 = vzip_u32(vreinterpret_u32_u16(_pA1), vreinterpret_u32_u16(_pA1));
+                uint32x2x2_t _pA2_32x2 = vzip_u32(vreinterpret_u32_u16(_pA2), vreinterpret_u32_u16(_pA2));
+                uint32x2x2_t _pA3_32x2 = vzip_u32(vreinterpret_u32_u16(_pA3), vreinterpret_u32_u16(_pA3));
+                uint16x8_t _pA00 = vreinterpretq_u16_u32(vcombine_u32(_pA0_32x2.val[0], _pA0_32x2.val[1]));
+                uint16x8_t _pA11 = vreinterpretq_u16_u32(vcombine_u32(_pA1_32x2.val[0], _pA1_32x2.val[1]));
+                uint16x8_t _pA22 = vreinterpretq_u16_u32(vcombine_u32(_pA2_32x2.val[0], _pA2_32x2.val[1]));
+                uint16x8_t _pA33 = vreinterpretq_u16_u32(vcombine_u32(_pA3_32x2.val[0], _pA3_32x2.val[1]));
+                uint16x4_t _pB0 = vld1_u16(pB);
+                uint16x4_t _pB1 = vld1_u16(pB + 4);
+                uint16x8_t _pB00 = vcombine_u16(_pB0, _pB0);
+                uint16x8_t _pB11 = vcombine_u16(_pB1, _pB1);
+
+                _sum00 = vbfdotq_f32(_sum00, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB00);
+                _sum01 = vbfdotq_f32(_sum01, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB00);
+                _sum10 = vbfdotq_f32(_sum10, (bfloat16x8_t)_pA22, (bfloat16x8_t)_pB00);
+                _sum11 = vbfdotq_f32(_sum11, (bfloat16x8_t)_pA33, (bfloat16x8_t)_pB00);
+                _sum20 = vbfdotq_f32(_sum20, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB11);
+                _sum21 = vbfdotq_f32(_sum21, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB11);
+                _sum30 = vbfdotq_f32(_sum30, (bfloat16x8_t)_pA22, (bfloat16x8_t)_pB11);
+                _sum31 = vbfdotq_f32(_sum31, (bfloat16x8_t)_pA33, (bfloat16x8_t)_pB11);
+
+                pA += 16;
+                pB += 8;
+            }
             for (; kk < max_kk; kk += 1)
             {
-                float32x4_t _pA0 = bfloat2float(vld1_u16(pA));
-                float32x4_t _pA1 = bfloat2float(vld1_u16(pA + 4));
+                uint16x8_t _pA = vld1q_u16(pA);
+                uint16x4x2_t _pA0123 = vzip_u16(vget_low_u16(_pA), vget_low_u16(_pA));
+                uint16x4x2_t _pA4567 = vzip_u16(vget_high_u16(_pA), vget_high_u16(_pA));
+                float32x4_t _pA00 = bfloat2float(_pA0123.val[0]);
+                float32x4_t _pA11 = bfloat2float(_pA0123.val[1]);
+                float32x4_t _pA22 = bfloat2float(_pA4567.val[0]);
+                float32x4_t _pA33 = bfloat2float(_pA4567.val[1]);
+                uint16x4_t _pB0123 = vld1_u16(pB);
+                uint32x2x2_t _pB0123_32x2 = vzip_u32(vreinterpret_u32_u16(_pB0123), vreinterpret_u32_u16(_pB0123));
+                float32x4_t _pB0 = bfloat2float(vreinterpret_u16_u32(_pB0123_32x2.val[0]));
+                float32x4_t _pB1 = bfloat2float(vreinterpret_u16_u32(_pB0123_32x2.val[1]));
+
+                _sum00 = vfmaq_f32(_sum00, _pA00, _pB0);
+                _sum01 = vfmaq_f32(_sum01, _pA11, _pB0);
+                _sum10 = vfmaq_f32(_sum10, _pA22, _pB0);
+                _sum11 = vfmaq_f32(_sum11, _pA33, _pB0);
+                _sum20 = vfmaq_f32(_sum20, _pA00, _pB1);
+                _sum21 = vfmaq_f32(_sum21, _pA11, _pB1);
+                _sum30 = vfmaq_f32(_sum30, _pA22, _pB1);
+                _sum31 = vfmaq_f32(_sum31, _pA33, _pB1);
+
+                pA += 8;
+                pB += 4;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk; kk += 1)
+            {
+                uint16x8_t _pA = vld1q_u16(pA);
+                float32x4_t _pA0 = bfloat2float(vget_low_u16(_pA));
+                float32x4_t _pA1 = bfloat2float(vget_high_u16(_pA));
 
                 float32x4_t _pB0 = bfloat2float(vld1_u16(pB));
 
@@ -4600,9 +5076,24 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 pA += 8;
                 pB += 4;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 
             if (k_end)
             {
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                float32x4x2_t _r0 = vuzpq_f32(_sum00, _sum01);
+                float32x4x2_t _r1 = vuzpq_f32(_sum10, _sum11);
+                _sum00 = _r0.val[0];
+                _sum10 = _r0.val[1];
+                _sum01 = _r1.val[0];
+                _sum11 = _r1.val[1];
+                _r0 = vuzpq_f32(_sum20, _sum21);
+                _r1 = vuzpq_f32(_sum30, _sum31);
+                _sum20 = _r0.val[0];
+                _sum30 = _r0.val[1];
+                _sum21 = _r1.val[0];
+                _sum31 = _r1.val[1];
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
                 if (out_elempack == 4)
                 {
                     vst1_u16(outptr0, float2bfloat(_sum00));
@@ -4650,13 +5141,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             outptr += 32;
-#endif // NCNN_GNU_INLINE_ASM
+#endif // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
             const unsigned short* pA = pAT;
 
-#if NCNN_GNU_INLINE_ASM
+#if NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             asm volatile(
                 "cbz    %w10, 0f                    \n"
 
@@ -4804,7 +5295,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(out_elempack), // %12
                 "r"(out_hstep)     // %13
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v28", "v29", "v30", "v31");
-#else  // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             float32x4_t _sum00;
             float32x4_t _sum01;
             float32x4_t _sum10;
@@ -4814,10 +5305,21 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 if (pC)
                 {
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                    float32x4_t _c0 = vld1q_f32(pC);
+                    float32x4_t _c1 = vld1q_f32(pC + 4);
+                    float32x4x2_t _cc0 = vzipq_f32(_c0, _c0);
+                    float32x4x2_t _cc1 = vzipq_f32(_c1, _c1);
+                    _sum00 = _cc0.val[0];
+                    _sum01 = _cc0.val[1];
+                    _sum10 = _cc1.val[0];
+                    _sum11 = _cc1.val[1];
+#else
                     _sum00 = vld1q_f32(pC);
                     _sum01 = vld1q_f32(pC + 4);
                     _sum10 = _sum00;
                     _sum11 = _sum01;
+#endif
                 }
                 else
                 {
@@ -4836,24 +5338,100 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _pA0 = vld1q_u16(pA);
+                uint16x8_t _pA1 = vld1q_u16(pA + 8);
+                uint16x8_t _pA2 = vld1q_u16(pA + 16);
+                uint16x8_t _pA3 = vld1q_u16(pA + 24);
+                uint16x8_t _pB = vld1q_u16(pB);
+
+                _sum00 = vbfmmlaq_f32(_sum00, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB);
+                _sum01 = vbfmmlaq_f32(_sum01, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB);
+                _sum10 = vbfmmlaq_f32(_sum10, (bfloat16x8_t)_pA2, (bfloat16x8_t)_pB);
+                _sum11 = vbfmmlaq_f32(_sum11, (bfloat16x8_t)_pA3, (bfloat16x8_t)_pB);
+
+                pA += 32;
+                pB += 8;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _pA0 = vld1_u16(pA);
+                uint16x4_t _pA1 = vld1_u16(pA + 4);
+                uint16x4_t _pA2 = vld1_u16(pA + 8);
+                uint16x4_t _pA3 = vld1_u16(pA + 12);
+                uint32x2x2_t _pA0_32x2 = vzip_u32(vreinterpret_u32_u16(_pA0), vreinterpret_u32_u16(_pA0));
+                uint32x2x2_t _pA1_32x2 = vzip_u32(vreinterpret_u32_u16(_pA1), vreinterpret_u32_u16(_pA1));
+                uint32x2x2_t _pA2_32x2 = vzip_u32(vreinterpret_u32_u16(_pA2), vreinterpret_u32_u16(_pA2));
+                uint32x2x2_t _pA3_32x2 = vzip_u32(vreinterpret_u32_u16(_pA3), vreinterpret_u32_u16(_pA3));
+                uint16x8_t _pA00 = vreinterpretq_u16_u32(vcombine_u32(_pA0_32x2.val[0], _pA0_32x2.val[1]));
+                uint16x8_t _pA11 = vreinterpretq_u16_u32(vcombine_u32(_pA1_32x2.val[0], _pA1_32x2.val[1]));
+                uint16x8_t _pA22 = vreinterpretq_u16_u32(vcombine_u32(_pA2_32x2.val[0], _pA2_32x2.val[1]));
+                uint16x8_t _pA33 = vreinterpretq_u16_u32(vcombine_u32(_pA3_32x2.val[0], _pA3_32x2.val[1]));
+                uint16x4_t _pB = vld1_u16(pB);
+                uint16x8_t _pB01 = vcombine_u16(_pB, _pB);
+
+                _sum00 = vbfdotq_f32(_sum00, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB01);
+                _sum01 = vbfdotq_f32(_sum01, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB01);
+                _sum10 = vbfdotq_f32(_sum10, (bfloat16x8_t)_pA22, (bfloat16x8_t)_pB01);
+                _sum11 = vbfdotq_f32(_sum11, (bfloat16x8_t)_pA33, (bfloat16x8_t)_pB01);
+
+                pA += 16;
+                pB += 4;
+            }
             for (; kk < max_kk; kk += 1)
             {
-                float32x4_t _pA0 = bfloat2float(vld1_u16(pA));
-                float32x4_t _pA1 = bfloat2float(vld1_u16(pA + 4));
+                uint16x8_t _pA = vld1q_u16(pA);
+                uint16x4x2_t _pA0123 = vzip_u16(vget_low_u16(_pA), vget_low_u16(_pA));
+                uint16x4x2_t _pA4567 = vzip_u16(vget_high_u16(_pA), vget_high_u16(_pA));
+                float32x4_t _pA00 = bfloat2float(_pA0123.val[0]);
+                float32x4_t _pA11 = bfloat2float(_pA0123.val[1]);
+                float32x4_t _pA22 = bfloat2float(_pA4567.val[0]);
+                float32x4_t _pA33 = bfloat2float(_pA4567.val[1]);
+                uint16x4_t _pB01 = vld1_dup_u16(pB);
+                _pB01 = vld1_lane_u16(pB + 1, _pB01, 1);
+                _pB01 = vld1_lane_u16(pB + 1, _pB01, 3);
+                float32x4_t _pB = bfloat2float(_pB01);
 
-                float32x2_t _pB0 = vget_low_f32(bfloat2float(vld1_u16(pB)));
-
-                _sum00 = vfmaq_lane_f32(_sum00, _pA0, _pB0, 0);
-                _sum01 = vfmaq_lane_f32(_sum01, _pA1, _pB0, 0);
-                _sum10 = vfmaq_lane_f32(_sum10, _pA0, _pB0, 1);
-                _sum11 = vfmaq_lane_f32(_sum11, _pA1, _pB0, 1);
+                _sum00 = vfmaq_f32(_sum00, _pA00, _pB);
+                _sum01 = vfmaq_f32(_sum01, _pA11, _pB);
+                _sum10 = vfmaq_f32(_sum10, _pA22, _pB);
+                _sum11 = vfmaq_f32(_sum11, _pA33, _pB);
 
                 pA += 8;
                 pB += 2;
             }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk; kk += 1)
+            {
+                uint16x8_t _pA = vld1q_u16(pA);
+                float32x4_t _pA0 = bfloat2float(vget_low_u16(_pA));
+                float32x4_t _pA1 = bfloat2float(vget_high_u16(_pA));
+
+                float32x4_t _pB0 = bfloat2float(vdup_n_u16(pB[0]));
+                float32x4_t _pB1 = bfloat2float(vdup_n_u16(pB[1]));
+
+                _sum00 = vfmaq_f32(_sum00, _pA0, _pB0);
+                _sum01 = vfmaq_f32(_sum01, _pA1, _pB0);
+                _sum10 = vfmaq_f32(_sum10, _pA0, _pB1);
+                _sum11 = vfmaq_f32(_sum11, _pA1, _pB1);
+
+                pA += 8;
+                pB += 2;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 
             if (k_end)
             {
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                float32x4x2_t _r0 = vuzpq_f32(_sum00, _sum01);
+                float32x4x2_t _r1 = vuzpq_f32(_sum10, _sum11);
+                _sum00 = _r0.val[0];
+                _sum10 = _r0.val[1];
+                _sum01 = _r1.val[0];
+                _sum11 = _r1.val[1];
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
                 if (out_elempack == 4)
                 {
                     vst1_u16(outptr0, float2bfloat(_sum00));
@@ -4901,13 +5479,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             outptr += 16;
-#endif // NCNN_GNU_INLINE_ASM
+#endif // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         }
         for (; jj < max_jj; jj += 1)
         {
             const unsigned short* pA = pAT;
 
-#if NCNN_GNU_INLINE_ASM
+#if NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             asm volatile(
                 "cbz    %w10, 0f                    \n"
 
@@ -5034,7 +5612,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(out_elempack), // %12
                 "r"(out_hstep)     // %13
                 : "cc", "memory", "x4", "v0", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v28", "v29", "v30", "v31");
-#else  // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             float32x4_t _sum00;
             float32x4_t _sum01;
 
@@ -5058,10 +5636,60 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _pA01 = vld1q_u16(pA);
+                uint16x8_t _pA23 = vld1q_u16(pA + 8);
+                uint16x8_t _pA45 = vld1q_u16(pA + 16);
+                uint16x8_t _pA67 = vld1q_u16(pA + 24);
+                uint16x4_t _pB0 = vld1_u16(pB);
+                uint16x8_t _pB = vcombine_u16(_pB0, _pB0);
+
+                float32x4_t _s01 = vbfmmlaq_f32(vdupq_n_f32(0.f), (bfloat16x8_t)_pA01, (bfloat16x8_t)_pB);
+                float32x4_t _s23 = vbfmmlaq_f32(vdupq_n_f32(0.f), (bfloat16x8_t)_pA23, (bfloat16x8_t)_pB);
+                float32x4_t _s45 = vbfmmlaq_f32(vdupq_n_f32(0.f), (bfloat16x8_t)_pA45, (bfloat16x8_t)_pB);
+                float32x4_t _s67 = vbfmmlaq_f32(vdupq_n_f32(0.f), (bfloat16x8_t)_pA67, (bfloat16x8_t)_pB);
+
+                float32x4x2_t _r0 = vuzpq_f32(_s01, _s23);
+                float32x4x2_t _r1 = vuzpq_f32(_s45, _s67);
+                _sum00 = vaddq_f32(_sum00, _r0.val[0]);
+                _sum01 = vaddq_f32(_sum01, _r1.val[0]);
+
+                pA += 32;
+                pB += 4;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x8_t _pA0 = vld1q_u16(pA);
+                uint16x8_t _pA1 = vld1q_u16(pA + 8);
+                uint16x4_t _pB01 = vld1_dup_u16(pB);
+                _pB01 = vld1_lane_u16(pB + 1, _pB01, 1);
+                _pB01 = vld1_lane_u16(pB + 1, _pB01, 3);
+                uint16x8_t _pB = vcombine_u16(_pB01, _pB01);
+
+                _sum00 = vbfdotq_f32(_sum00, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB);
+                _sum01 = vbfdotq_f32(_sum01, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB);
+
+                pA += 16;
+                pB += 2;
+            }
             for (; kk < max_kk; kk += 1)
             {
-                float32x4_t _pA0 = bfloat2float(vld1_u16(pA));
-                float32x4_t _pA1 = bfloat2float(vld1_u16(pA + 4));
+                float32x4_t _pB = bfloat2float(vdup_n_u16(pB[0]));
+
+                _sum00 = vfmaq_f32(_sum00, bfloat2float(vld1_u16(pA)), _pB);
+                _sum01 = vfmaq_f32(_sum01, bfloat2float(vld1_u16(pA + 4)), _pB);
+
+                pA += 8;
+                pB += 1;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk; kk += 1)
+            {
+                uint16x8_t _pA = vld1q_u16(pA);
+                float32x4_t _pA0 = bfloat2float(vget_low_u16(_pA));
+                float32x4_t _pA1 = bfloat2float(vget_high_u16(_pA));
 
                 float32x4_t _pB = bfloat2float(vld1_dup_u16(pB));
 
@@ -5071,6 +5699,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 pA += 8;
                 pB += 1;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 
             if (k_end)
             {
@@ -5104,7 +5733,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             outptr += 8;
-#endif // NCNN_GNU_INLINE_ASM
+#endif // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         }
 
         pAT += max_kk * 8;
@@ -5127,7 +5756,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
         {
             const unsigned short* pA = pAT;
 
-#if NCNN_GNU_INLINE_ASM
+#if NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             asm volatile(
                 "cbz    %w10, 0f                    \n"
 
@@ -5349,7 +5978,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(out_elempack), // %12
                 "r"(out_hstep)     // %13
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
-#else  // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             float32x4_t _sum0;
             float32x4_t _sum1;
             float32x4_t _sum2;
@@ -5367,6 +5996,22 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 if (pC)
                 {
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                    float32x4_t _c = vld1q_f32(pC);
+                    float32x4x2_t _cc = vzipq_f32(_c, _c);
+                    _sum0 = _cc.val[0];
+                    _sum1 = _cc.val[1];
+                    _sum2 = _sum0;
+                    _sum3 = _sum1;
+                    _sum4 = _sum0;
+                    _sum5 = _sum1;
+                    _sum6 = _sum0;
+                    _sum7 = _sum1;
+                    _sum8 = _sum0;
+                    _sum9 = _sum1;
+                    _suma = _sum0;
+                    _sumb = _sum1;
+#else
                     _sum0 = vld1q_f32(pC);
                     _sum1 = _sum0;
                     _sum2 = _sum0;
@@ -5379,6 +6024,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     _sum9 = _sum0;
                     _suma = _sum0;
                     _sumb = _sum0;
+#endif
                 }
                 else
                 {
@@ -5413,6 +6059,107 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _pA0 = vld1q_u16(pA);
+                uint16x8_t _pA1 = vld1q_u16(pA + 8);
+                uint16x8_t _pB0 = vld1q_u16(pB);
+                uint16x8_t _pB1 = vld1q_u16(pB + 8);
+                uint16x8_t _pB2 = vld1q_u16(pB + 16);
+                uint16x8_t _pB3 = vld1q_u16(pB + 24);
+                uint16x8_t _pB4 = vld1q_u16(pB + 32);
+                uint16x8_t _pB5 = vld1q_u16(pB + 40);
+
+                _sum0 = vbfmmlaq_f32(_sum0, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB0);
+                _sum1 = vbfmmlaq_f32(_sum1, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB0);
+                _sum2 = vbfmmlaq_f32(_sum2, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB1);
+                _sum3 = vbfmmlaq_f32(_sum3, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB1);
+                _sum4 = vbfmmlaq_f32(_sum4, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB2);
+                _sum5 = vbfmmlaq_f32(_sum5, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB2);
+                _sum6 = vbfmmlaq_f32(_sum6, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB3);
+                _sum7 = vbfmmlaq_f32(_sum7, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB3);
+                _sum8 = vbfmmlaq_f32(_sum8, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB4);
+                _sum9 = vbfmmlaq_f32(_sum9, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB4);
+                _suma = vbfmmlaq_f32(_suma, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB5);
+                _sumb = vbfmmlaq_f32(_sumb, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB5);
+
+                pA += 16;
+                pB += 48;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _pA0 = vld1_u16(pA);
+                uint16x4_t _pA1 = vld1_u16(pA + 4);
+                uint32x2x2_t _pA0_32x2 = vzip_u32(vreinterpret_u32_u16(_pA0), vreinterpret_u32_u16(_pA0));
+                uint32x2x2_t _pA1_32x2 = vzip_u32(vreinterpret_u32_u16(_pA1), vreinterpret_u32_u16(_pA1));
+                uint16x8_t _pA00 = vreinterpretq_u16_u32(vcombine_u32(_pA0_32x2.val[0], _pA0_32x2.val[1]));
+                uint16x8_t _pA11 = vreinterpretq_u16_u32(vcombine_u32(_pA1_32x2.val[0], _pA1_32x2.val[1]));
+                uint16x4_t _pB0 = vld1_u16(pB);
+                uint16x4_t _pB1 = vld1_u16(pB + 4);
+                uint16x4_t _pB2 = vld1_u16(pB + 8);
+                uint16x4_t _pB3 = vld1_u16(pB + 12);
+                uint16x4_t _pB4 = vld1_u16(pB + 16);
+                uint16x4_t _pB5 = vld1_u16(pB + 20);
+                uint16x8_t _pB00 = vcombine_u16(_pB0, _pB0);
+                uint16x8_t _pB11 = vcombine_u16(_pB1, _pB1);
+                uint16x8_t _pB22 = vcombine_u16(_pB2, _pB2);
+                uint16x8_t _pB33 = vcombine_u16(_pB3, _pB3);
+                uint16x8_t _pB44 = vcombine_u16(_pB4, _pB4);
+                uint16x8_t _pB55 = vcombine_u16(_pB5, _pB5);
+
+                _sum0 = vbfdotq_f32(_sum0, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB00);
+                _sum1 = vbfdotq_f32(_sum1, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB00);
+                _sum2 = vbfdotq_f32(_sum2, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB11);
+                _sum3 = vbfdotq_f32(_sum3, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB11);
+                _sum4 = vbfdotq_f32(_sum4, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB22);
+                _sum5 = vbfdotq_f32(_sum5, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB22);
+                _sum6 = vbfdotq_f32(_sum6, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB33);
+                _sum7 = vbfdotq_f32(_sum7, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB33);
+                _sum8 = vbfdotq_f32(_sum8, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB44);
+                _sum9 = vbfdotq_f32(_sum9, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB44);
+                _suma = vbfdotq_f32(_suma, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB55);
+                _sumb = vbfdotq_f32(_sumb, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB55);
+
+                pA += 8;
+                pB += 24;
+            }
+            for (; kk < max_kk; kk += 1)
+            {
+                uint16x4_t _pA = vld1_u16(pA);
+                uint16x4x2_t _pA01 = vzip_u16(_pA, _pA);
+                float32x4_t _pA00 = bfloat2float(_pA01.val[0]);
+                float32x4_t _pA11 = bfloat2float(_pA01.val[1]);
+                uint16x4_t _pB0123 = vld1_u16(pB);
+                uint16x4_t _pB4567 = vld1_u16(pB + 4);
+                uint16x4_t _pB89ab = vld1_u16(pB + 8);
+                uint32x2x2_t _pB0123_32x2 = vzip_u32(vreinterpret_u32_u16(_pB0123), vreinterpret_u32_u16(_pB0123));
+                uint32x2x2_t _pB4567_32x2 = vzip_u32(vreinterpret_u32_u16(_pB4567), vreinterpret_u32_u16(_pB4567));
+                uint32x2x2_t _pB89ab_32x2 = vzip_u32(vreinterpret_u32_u16(_pB89ab), vreinterpret_u32_u16(_pB89ab));
+                float32x4_t _pB0 = bfloat2float(vreinterpret_u16_u32(_pB0123_32x2.val[0]));
+                float32x4_t _pB1 = bfloat2float(vreinterpret_u16_u32(_pB0123_32x2.val[1]));
+                float32x4_t _pB2 = bfloat2float(vreinterpret_u16_u32(_pB4567_32x2.val[0]));
+                float32x4_t _pB3 = bfloat2float(vreinterpret_u16_u32(_pB4567_32x2.val[1]));
+                float32x4_t _pB4 = bfloat2float(vreinterpret_u16_u32(_pB89ab_32x2.val[0]));
+                float32x4_t _pB5 = bfloat2float(vreinterpret_u16_u32(_pB89ab_32x2.val[1]));
+
+                _sum0 = vfmaq_f32(_sum0, _pA00, _pB0);
+                _sum1 = vfmaq_f32(_sum1, _pA11, _pB0);
+                _sum2 = vfmaq_f32(_sum2, _pA00, _pB1);
+                _sum3 = vfmaq_f32(_sum3, _pA11, _pB1);
+                _sum4 = vfmaq_f32(_sum4, _pA00, _pB2);
+                _sum5 = vfmaq_f32(_sum5, _pA11, _pB2);
+                _sum6 = vfmaq_f32(_sum6, _pA00, _pB3);
+                _sum7 = vfmaq_f32(_sum7, _pA11, _pB3);
+                _sum8 = vfmaq_f32(_sum8, _pA00, _pB4);
+                _sum9 = vfmaq_f32(_sum9, _pA11, _pB4);
+                _suma = vfmaq_f32(_suma, _pA00, _pB5);
+                _sumb = vfmaq_f32(_sumb, _pA11, _pB5);
+
+                pA += 4;
+                pB += 12;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk += 1)
             {
                 float32x4_t _pA = bfloat2float(vld1_u16(pA));
@@ -5436,9 +6183,30 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 pA += 4;
                 pB += 12;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 
             if (k_end)
             {
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                float32x4x2_t _r0 = vuzpq_f32(_sum0, _sum1);
+                _sum0 = _r0.val[0];
+                _sum1 = _r0.val[1];
+                _r0 = vuzpq_f32(_sum2, _sum3);
+                _sum2 = _r0.val[0];
+                _sum3 = _r0.val[1];
+                _r0 = vuzpq_f32(_sum4, _sum5);
+                _sum4 = _r0.val[0];
+                _sum5 = _r0.val[1];
+                _r0 = vuzpq_f32(_sum6, _sum7);
+                _sum6 = _r0.val[0];
+                _sum7 = _r0.val[1];
+                _r0 = vuzpq_f32(_sum8, _sum9);
+                _sum8 = _r0.val[0];
+                _sum9 = _r0.val[1];
+                _r0 = vuzpq_f32(_suma, _sumb);
+                _suma = _r0.val[0];
+                _sumb = _r0.val[1];
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
                 if (out_elempack == 4)
                 {
                     vst1_u16(outptr0, float2bfloat(_sum0));
@@ -5503,14 +6271,14 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             outptr += 48;
-#endif // NCNN_GNU_INLINE_ASM
+#endif // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         }
 #endif // __aarch64__
         for (; jj + 7 < max_jj; jj += 8)
         {
             const unsigned short* pA = pAT;
 
-#if NCNN_GNU_INLINE_ASM
+#if NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 #if __aarch64__
             asm volatile(
                 "cbz    %w10, 0f                    \n"
@@ -5857,7 +6625,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(out_hstep)     // %13
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
-#else  // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             float32x4_t _sum0;
             float32x4_t _sum1;
             float32x4_t _sum2;
@@ -5871,6 +6639,18 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 if (pC)
                 {
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                    float32x4_t _c = vld1q_f32(pC);
+                    float32x4x2_t _cc = vzipq_f32(_c, _c);
+                    _sum0 = _cc.val[0];
+                    _sum1 = _cc.val[1];
+                    _sum2 = _sum0;
+                    _sum3 = _sum1;
+                    _sum4 = _sum0;
+                    _sum5 = _sum1;
+                    _sum6 = _sum0;
+                    _sum7 = _sum1;
+#else
                     _sum0 = vld1q_f32(pC);
                     _sum1 = _sum0;
                     _sum2 = _sum0;
@@ -5879,6 +6659,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     _sum5 = _sum0;
                     _sum6 = _sum0;
                     _sum7 = _sum0;
+#endif
                 }
                 else
                 {
@@ -5905,6 +6686,85 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _pA0 = vld1q_u16(pA);
+                uint16x8_t _pA1 = vld1q_u16(pA + 8);
+                uint16x8_t _pB0 = vld1q_u16(pB);
+                uint16x8_t _pB1 = vld1q_u16(pB + 8);
+                uint16x8_t _pB2 = vld1q_u16(pB + 16);
+                uint16x8_t _pB3 = vld1q_u16(pB + 24);
+
+                _sum0 = vbfmmlaq_f32(_sum0, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB0);
+                _sum1 = vbfmmlaq_f32(_sum1, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB0);
+                _sum2 = vbfmmlaq_f32(_sum2, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB1);
+                _sum3 = vbfmmlaq_f32(_sum3, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB1);
+                _sum4 = vbfmmlaq_f32(_sum4, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB2);
+                _sum5 = vbfmmlaq_f32(_sum5, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB2);
+                _sum6 = vbfmmlaq_f32(_sum6, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB3);
+                _sum7 = vbfmmlaq_f32(_sum7, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB3);
+
+                pA += 16;
+                pB += 32;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _pA0 = vld1_u16(pA);
+                uint16x4_t _pA1 = vld1_u16(pA + 4);
+                uint32x2x2_t _pA0_32x2 = vzip_u32(vreinterpret_u32_u16(_pA0), vreinterpret_u32_u16(_pA0));
+                uint32x2x2_t _pA1_32x2 = vzip_u32(vreinterpret_u32_u16(_pA1), vreinterpret_u32_u16(_pA1));
+                uint16x8_t _pA00 = vreinterpretq_u16_u32(vcombine_u32(_pA0_32x2.val[0], _pA0_32x2.val[1]));
+                uint16x8_t _pA11 = vreinterpretq_u16_u32(vcombine_u32(_pA1_32x2.val[0], _pA1_32x2.val[1]));
+                uint16x4_t _pB0 = vld1_u16(pB);
+                uint16x4_t _pB1 = vld1_u16(pB + 4);
+                uint16x4_t _pB2 = vld1_u16(pB + 8);
+                uint16x4_t _pB3 = vld1_u16(pB + 12);
+                uint16x8_t _pB00 = vcombine_u16(_pB0, _pB0);
+                uint16x8_t _pB11 = vcombine_u16(_pB1, _pB1);
+                uint16x8_t _pB22 = vcombine_u16(_pB2, _pB2);
+                uint16x8_t _pB33 = vcombine_u16(_pB3, _pB3);
+
+                _sum0 = vbfdotq_f32(_sum0, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB00);
+                _sum1 = vbfdotq_f32(_sum1, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB00);
+                _sum2 = vbfdotq_f32(_sum2, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB11);
+                _sum3 = vbfdotq_f32(_sum3, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB11);
+                _sum4 = vbfdotq_f32(_sum4, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB22);
+                _sum5 = vbfdotq_f32(_sum5, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB22);
+                _sum6 = vbfdotq_f32(_sum6, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB33);
+                _sum7 = vbfdotq_f32(_sum7, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB33);
+
+                pA += 8;
+                pB += 16;
+            }
+            for (; kk < max_kk; kk += 1)
+            {
+                uint16x4_t _pA = vld1_u16(pA);
+                uint16x4x2_t _pA01 = vzip_u16(_pA, _pA);
+                float32x4_t _pA00 = bfloat2float(_pA01.val[0]);
+                float32x4_t _pA11 = bfloat2float(_pA01.val[1]);
+                uint16x4_t _pB0123 = vld1_u16(pB);
+                uint16x4_t _pB4567 = vld1_u16(pB + 4);
+                uint32x2x2_t _pB0123_32x2 = vzip_u32(vreinterpret_u32_u16(_pB0123), vreinterpret_u32_u16(_pB0123));
+                uint32x2x2_t _pB4567_32x2 = vzip_u32(vreinterpret_u32_u16(_pB4567), vreinterpret_u32_u16(_pB4567));
+                float32x4_t _pB0 = bfloat2float(vreinterpret_u16_u32(_pB0123_32x2.val[0]));
+                float32x4_t _pB1 = bfloat2float(vreinterpret_u16_u32(_pB0123_32x2.val[1]));
+                float32x4_t _pB2 = bfloat2float(vreinterpret_u16_u32(_pB4567_32x2.val[0]));
+                float32x4_t _pB3 = bfloat2float(vreinterpret_u16_u32(_pB4567_32x2.val[1]));
+
+                _sum0 = vfmaq_f32(_sum0, _pA00, _pB0);
+                _sum1 = vfmaq_f32(_sum1, _pA11, _pB0);
+                _sum2 = vfmaq_f32(_sum2, _pA00, _pB1);
+                _sum3 = vfmaq_f32(_sum3, _pA11, _pB1);
+                _sum4 = vfmaq_f32(_sum4, _pA00, _pB2);
+                _sum5 = vfmaq_f32(_sum5, _pA11, _pB2);
+                _sum6 = vfmaq_f32(_sum6, _pA00, _pB3);
+                _sum7 = vfmaq_f32(_sum7, _pA11, _pB3);
+
+                pA += 4;
+                pB += 8;
+            }
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk += 1)
             {
                 float32x4_t _pA = bfloat2float(vld1_u16(pA));
@@ -5934,9 +6794,24 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 pA += 4;
                 pB += 8;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 
             if (k_end)
             {
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                float32x4x2_t _r0 = vuzpq_f32(_sum0, _sum1);
+                _sum0 = _r0.val[0];
+                _sum1 = _r0.val[1];
+                _r0 = vuzpq_f32(_sum2, _sum3);
+                _sum2 = _r0.val[0];
+                _sum3 = _r0.val[1];
+                _r0 = vuzpq_f32(_sum4, _sum5);
+                _sum4 = _r0.val[0];
+                _sum5 = _r0.val[1];
+                _r0 = vuzpq_f32(_sum6, _sum7);
+                _sum6 = _r0.val[0];
+                _sum7 = _r0.val[1];
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
                 if (out_elempack == 4)
                 {
                     vst1_u16(outptr0, float2bfloat(_sum0));
@@ -5985,13 +6860,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             outptr += 32;
-#endif // NCNN_GNU_INLINE_ASM
+#endif // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
             const unsigned short* pA = pAT;
 
-#if NCNN_GNU_INLINE_ASM
+#if NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 #if __aarch64__
             asm volatile(
                 "cbz    %w10, 0f                    \n"
@@ -6258,7 +7133,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(out_hstep)     // %13
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
-#else  // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             float32x4_t _sum0;
             float32x4_t _sum1;
             float32x4_t _sum2;
@@ -6268,10 +7143,19 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 if (pC)
                 {
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                    float32x4_t _c = vld1q_f32(pC);
+                    float32x4x2_t _cc = vzipq_f32(_c, _c);
+                    _sum0 = _cc.val[0];
+                    _sum1 = _cc.val[1];
+                    _sum2 = _sum0;
+                    _sum3 = _sum1;
+#else
                     _sum0 = vld1q_f32(pC);
                     _sum1 = _sum0;
                     _sum2 = _sum0;
                     _sum3 = _sum0;
+#endif
                 }
                 else
                 {
@@ -6290,6 +7174,63 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _pA0 = vld1q_u16(pA);
+                uint16x8_t _pA1 = vld1q_u16(pA + 8);
+                uint16x8_t _pB0 = vld1q_u16(pB);
+                uint16x8_t _pB1 = vld1q_u16(pB + 8);
+
+                _sum0 = vbfmmlaq_f32(_sum0, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB0);
+                _sum1 = vbfmmlaq_f32(_sum1, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB0);
+                _sum2 = vbfmmlaq_f32(_sum2, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB1);
+                _sum3 = vbfmmlaq_f32(_sum3, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB1);
+
+                pA += 16;
+                pB += 16;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _pA0 = vld1_u16(pA);
+                uint16x4_t _pA1 = vld1_u16(pA + 4);
+                uint32x2x2_t _pA0_32x2 = vzip_u32(vreinterpret_u32_u16(_pA0), vreinterpret_u32_u16(_pA0));
+                uint32x2x2_t _pA1_32x2 = vzip_u32(vreinterpret_u32_u16(_pA1), vreinterpret_u32_u16(_pA1));
+                uint16x8_t _pA00 = vreinterpretq_u16_u32(vcombine_u32(_pA0_32x2.val[0], _pA0_32x2.val[1]));
+                uint16x8_t _pA11 = vreinterpretq_u16_u32(vcombine_u32(_pA1_32x2.val[0], _pA1_32x2.val[1]));
+                uint16x4_t _pB0 = vld1_u16(pB);
+                uint16x4_t _pB1 = vld1_u16(pB + 4);
+                uint16x8_t _pB00 = vcombine_u16(_pB0, _pB0);
+                uint16x8_t _pB11 = vcombine_u16(_pB1, _pB1);
+
+                _sum0 = vbfdotq_f32(_sum0, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB00);
+                _sum1 = vbfdotq_f32(_sum1, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB00);
+                _sum2 = vbfdotq_f32(_sum2, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB11);
+                _sum3 = vbfdotq_f32(_sum3, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB11);
+
+                pA += 8;
+                pB += 8;
+            }
+            for (; kk < max_kk; kk += 1)
+            {
+                uint16x4_t _pA = vld1_u16(pA);
+                uint16x4x2_t _pA01 = vzip_u16(_pA, _pA);
+                float32x4_t _pA00 = bfloat2float(_pA01.val[0]);
+                float32x4_t _pA11 = bfloat2float(_pA01.val[1]);
+                uint16x4_t _pB0123 = vld1_u16(pB);
+                uint32x2x2_t _pB0123_32x2 = vzip_u32(vreinterpret_u32_u16(_pB0123), vreinterpret_u32_u16(_pB0123));
+                float32x4_t _pB0 = bfloat2float(vreinterpret_u16_u32(_pB0123_32x2.val[0]));
+                float32x4_t _pB1 = bfloat2float(vreinterpret_u16_u32(_pB0123_32x2.val[1]));
+
+                _sum0 = vfmaq_f32(_sum0, _pA00, _pB0);
+                _sum1 = vfmaq_f32(_sum1, _pA11, _pB0);
+                _sum2 = vfmaq_f32(_sum2, _pA00, _pB1);
+                _sum3 = vfmaq_f32(_sum3, _pA11, _pB1);
+
+                pA += 4;
+                pB += 4;
+            }
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk += 1)
             {
                 float32x4_t _pA = bfloat2float(vld1_u16(pA));
@@ -6310,9 +7251,18 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 pA += 4;
                 pB += 4;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 
             if (k_end)
             {
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                float32x4x2_t _r0 = vuzpq_f32(_sum0, _sum1);
+                _sum0 = _r0.val[0];
+                _sum1 = _r0.val[1];
+                _r0 = vuzpq_f32(_sum2, _sum3);
+                _sum2 = _r0.val[0];
+                _sum3 = _r0.val[1];
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
                 if (out_elempack == 4)
                 {
                     vst1_u16(outptr0, float2bfloat(_sum0));
@@ -6345,13 +7295,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             outptr += 16;
-#endif // NCNN_GNU_INLINE_ASM
+#endif // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
             const unsigned short* pA = pAT;
 
-#if NCNN_GNU_INLINE_ASM
+#if NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 #if __aarch64__
             asm volatile(
                 "cbz    %w10, 0f                    \n"
@@ -6590,7 +7540,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(out_hstep)     // %13
                 : "cc", "memory", "r4", "q0", "q1", "q4", "q5", "q6", "q7", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
-#else  // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             float32x4_t _sum0;
             float32x4_t _sum1;
 
@@ -6598,8 +7548,15 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 if (pC)
                 {
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                    float32x4_t _c = vld1q_f32(pC);
+                    float32x4x2_t _cc = vzipq_f32(_c, _c);
+                    _sum0 = _cc.val[0];
+                    _sum1 = _cc.val[1];
+#else
                     _sum0 = vld1q_f32(pC);
                     _sum1 = _sum0;
+#endif
                 }
                 else
                 {
@@ -6614,25 +7571,80 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _pA0 = vld1q_u16(pA);
+                uint16x8_t _pA1 = vld1q_u16(pA + 8);
+                uint16x8_t _pB = vld1q_u16(pB);
+
+                _sum0 = vbfmmlaq_f32(_sum0, (bfloat16x8_t)_pA0, (bfloat16x8_t)_pB);
+                _sum1 = vbfmmlaq_f32(_sum1, (bfloat16x8_t)_pA1, (bfloat16x8_t)_pB);
+
+                pA += 16;
+                pB += 8;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _pA0 = vld1_u16(pA);
+                uint16x4_t _pA1 = vld1_u16(pA + 4);
+                uint32x2x2_t _pA0_32x2 = vzip_u32(vreinterpret_u32_u16(_pA0), vreinterpret_u32_u16(_pA0));
+                uint32x2x2_t _pA1_32x2 = vzip_u32(vreinterpret_u32_u16(_pA1), vreinterpret_u32_u16(_pA1));
+                uint16x8_t _pA00 = vreinterpretq_u16_u32(vcombine_u32(_pA0_32x2.val[0], _pA0_32x2.val[1]));
+                uint16x8_t _pA11 = vreinterpretq_u16_u32(vcombine_u32(_pA1_32x2.val[0], _pA1_32x2.val[1]));
+                uint16x4_t _pB = vld1_u16(pB);
+                uint16x8_t _pB01 = vcombine_u16(_pB, _pB);
+
+                _sum0 = vbfdotq_f32(_sum0, (bfloat16x8_t)_pA00, (bfloat16x8_t)_pB01);
+                _sum1 = vbfdotq_f32(_sum1, (bfloat16x8_t)_pA11, (bfloat16x8_t)_pB01);
+
+                pA += 8;
+                pB += 4;
+            }
+            for (; kk < max_kk; kk += 1)
+            {
+                uint16x4_t _pA = vld1_u16(pA);
+                uint16x4x2_t _pA01 = vzip_u16(_pA, _pA);
+                float32x4_t _pA00 = bfloat2float(_pA01.val[0]);
+                float32x4_t _pA11 = bfloat2float(_pA01.val[1]);
+                uint16x4_t _pB01 = vld1_dup_u16(pB);
+                _pB01 = vld1_lane_u16(pB + 1, _pB01, 1);
+                _pB01 = vld1_lane_u16(pB + 1, _pB01, 3);
+                float32x4_t _pB = bfloat2float(_pB01);
+
+                _sum0 = vfmaq_f32(_sum0, _pA00, _pB);
+                _sum1 = vfmaq_f32(_sum1, _pA11, _pB);
+
+                pA += 4;
+                pB += 2;
+            }
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk += 1)
             {
                 float32x4_t _pA = bfloat2float(vld1_u16(pA));
-                float32x2_t _pB = vget_low_f32(bfloat2float(vld1_u16(pB)));
+                float32x4_t _pB0 = bfloat2float(vdup_n_u16(pB[0]));
+                float32x4_t _pB1 = bfloat2float(vdup_n_u16(pB[1]));
 
 #if __aarch64__
-                _sum0 = vfmaq_lane_f32(_sum0, _pA, _pB, 0);
-                _sum1 = vfmaq_lane_f32(_sum1, _pA, _pB, 1);
+                _sum0 = vfmaq_f32(_sum0, _pA, _pB0);
+                _sum1 = vfmaq_f32(_sum1, _pA, _pB1);
 #else
-                _sum0 = vmlaq_lane_f32(_sum0, _pA, _pB, 0);
-                _sum1 = vmlaq_lane_f32(_sum1, _pA, _pB, 1);
+                _sum0 = vmlaq_f32(_sum0, _pA, _pB0);
+                _sum1 = vmlaq_f32(_sum1, _pA, _pB1);
 #endif
 
                 pA += 4;
                 pB += 2;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 
             if (k_end)
             {
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                float32x4x2_t _r0 = vuzpq_f32(_sum0, _sum1);
+                _sum0 = _r0.val[0];
+                _sum1 = _r0.val[1];
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
                 if (out_elempack == 4)
                 {
                     vst1_u16(outptr0, float2bfloat(_sum0));
@@ -6664,13 +7676,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             outptr += 8;
-#endif // NCNN_GNU_INLINE_ASM
+#endif // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         }
         for (; jj < max_jj; jj += 1)
         {
             const unsigned short* pA = pAT;
 
-#if NCNN_GNU_INLINE_ASM
+#if NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 #if __aarch64__
             asm volatile(
                 "cbz    %w10, 0f                    \n"
@@ -6887,7 +7899,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(out_hstep)     // %13
                 : "cc", "memory", "r4", "q0", "q4", "q5", "q6", "q7", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
-#else  // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             float32x4_t _sum0;
 
             if (k == 0)
@@ -6907,6 +7919,46 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _pA01 = vld1q_u16(pA);
+                uint16x8_t _pA23 = vld1q_u16(pA + 8);
+                uint16x4_t _pB0 = vld1_u16(pB);
+                uint16x8_t _pB = vcombine_u16(_pB0, _pB0);
+
+                float32x4_t _s01 = vbfmmlaq_f32(vdupq_n_f32(0.f), (bfloat16x8_t)_pA01, (bfloat16x8_t)_pB);
+                float32x4_t _s23 = vbfmmlaq_f32(vdupq_n_f32(0.f), (bfloat16x8_t)_pA23, (bfloat16x8_t)_pB);
+
+                float32x4x2_t _r0 = vuzpq_f32(_s01, _s23);
+                _sum0 = vaddq_f32(_sum0, _r0.val[0]);
+
+                pA += 16;
+                pB += 4;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x8_t _pA = vld1q_u16(pA);
+                uint16x4_t _pB01 = vld1_dup_u16(pB);
+                _pB01 = vld1_lane_u16(pB + 1, _pB01, 1);
+                _pB01 = vld1_lane_u16(pB + 1, _pB01, 3);
+                uint16x8_t _pB = vcombine_u16(_pB01, _pB01);
+
+                _sum0 = vbfdotq_f32(_sum0, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB);
+
+                pA += 8;
+                pB += 2;
+            }
+            for (; kk < max_kk; kk += 1)
+            {
+                float32x4_t _pB = bfloat2float(vdup_n_u16(pB[0]));
+
+                _sum0 = vfmaq_f32(_sum0, bfloat2float(vld1_u16(pA)), _pB);
+
+                pA += 4;
+                pB += 1;
+            }
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk += 1)
             {
                 float32x4_t _pA = bfloat2float(vld1_u16(pA));
@@ -6921,6 +7973,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 pA += 4;
                 pB += 1;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 
             if (k_end)
             {
@@ -6947,7 +8000,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             outptr += 4;
-#endif // NCNN_GNU_INLINE_ASM
+#endif // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         }
 
         pAT += max_kk * 4;
@@ -6969,95 +8022,178 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 #if __aarch64__
         for (; jj + 11 < max_jj; jj += 12)
         {
-            float32x4_t _sum00;
-            float32x4_t _sum01;
-            float32x4_t _sum02;
-            float32x4_t _sum10;
-            float32x4_t _sum11;
-            float32x4_t _sum12;
+            float32x4_t _sum0;
+            float32x4_t _sum1;
+            float32x4_t _sum2;
+            float32x4_t _sum3;
+            float32x4_t _sum4;
+            float32x4_t _sum5;
 
             if (k == 0)
             {
                 if (pC)
                 {
-                    _sum00 = vdupq_n_f32(pC[0]);
-                    _sum01 = vdupq_n_f32(pC[0]);
-                    _sum02 = vdupq_n_f32(pC[0]);
-                    _sum10 = vdupq_n_f32(pC[1]);
-                    _sum11 = vdupq_n_f32(pC[1]);
-                    _sum12 = vdupq_n_f32(pC[1]);
+                    float32x2_t _c = vld1_f32(pC);
+                    float32x2x2_t _cc = vzip_f32(_c, _c);
+                    float32x4_t _bias = vcombine_f32(_cc.val[0], _cc.val[1]);
+                    _sum0 = _bias;
+                    _sum1 = _bias;
+                    _sum2 = _bias;
+                    _sum3 = _bias;
+                    _sum4 = _bias;
+                    _sum5 = _bias;
                 }
                 else
                 {
-                    _sum00 = vdupq_n_f32(0.f);
-                    _sum01 = vdupq_n_f32(0.f);
-                    _sum02 = vdupq_n_f32(0.f);
-                    _sum10 = vdupq_n_f32(0.f);
-                    _sum11 = vdupq_n_f32(0.f);
-                    _sum12 = vdupq_n_f32(0.f);
+                    _sum0 = vdupq_n_f32(0.f);
+                    _sum1 = vdupq_n_f32(0.f);
+                    _sum2 = vdupq_n_f32(0.f);
+                    _sum3 = vdupq_n_f32(0.f);
+                    _sum4 = vdupq_n_f32(0.f);
+                    _sum5 = vdupq_n_f32(0.f);
                 }
             }
             else
             {
-                float32x4x2_t _tmp01 = vld2q_f32(outptr);
-                float32x4x2_t _tmp23 = vld2q_f32(outptr + 8);
-                float32x4x2_t _tmp45 = vld2q_f32(outptr + 16);
-                _sum00 = _tmp01.val[0];
-                _sum01 = _tmp23.val[0];
-                _sum02 = _tmp45.val[0];
-                _sum10 = _tmp01.val[1];
-                _sum11 = _tmp23.val[1];
-                _sum12 = _tmp45.val[1];
+                _sum0 = vld1q_f32(outptr);
+                _sum1 = vld1q_f32(outptr + 4);
+                _sum2 = vld1q_f32(outptr + 8);
+                _sum3 = vld1q_f32(outptr + 12);
+                _sum4 = vld1q_f32(outptr + 16);
+                _sum5 = vld1q_f32(outptr + 20);
             }
 
             const unsigned short* pA = pAT;
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _pA = vld1q_u16(pA);
+                uint16x8_t _pB0 = vld1q_u16(pB);
+                uint16x8_t _pB1 = vld1q_u16(pB + 8);
+                uint16x8_t _pB2 = vld1q_u16(pB + 16);
+                uint16x8_t _pB3 = vld1q_u16(pB + 24);
+                uint16x8_t _pB4 = vld1q_u16(pB + 32);
+                uint16x8_t _pB5 = vld1q_u16(pB + 40);
+
+                _sum0 = vbfmmlaq_f32(_sum0, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB0);
+                _sum1 = vbfmmlaq_f32(_sum1, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB1);
+                _sum2 = vbfmmlaq_f32(_sum2, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB2);
+                _sum3 = vbfmmlaq_f32(_sum3, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB3);
+                _sum4 = vbfmmlaq_f32(_sum4, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB4);
+                _sum5 = vbfmmlaq_f32(_sum5, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB5);
+
+                pA += 8;
+                pB += 48;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _pA01 = vld1_u16(pA);
+                uint32x2x2_t _pA01_32x2 = vzip_u32(vreinterpret_u32_u16(_pA01), vreinterpret_u32_u16(_pA01));
+                uint16x8_t _pA0011 = vreinterpretq_u16_u32(vcombine_u32(_pA01_32x2.val[0], _pA01_32x2.val[1]));
+
+                uint16x4_t _pB0 = vld1_u16(pB);
+                uint16x4_t _pB1 = vld1_u16(pB + 4);
+                uint16x4_t _pB2 = vld1_u16(pB + 8);
+                uint16x4_t _pB3 = vld1_u16(pB + 12);
+                uint16x4_t _pB4 = vld1_u16(pB + 16);
+                uint16x4_t _pB5 = vld1_u16(pB + 20);
+                uint16x8_t _pB00 = vcombine_u16(_pB0, _pB0);
+                uint16x8_t _pB11 = vcombine_u16(_pB1, _pB1);
+                uint16x8_t _pB22 = vcombine_u16(_pB2, _pB2);
+                uint16x8_t _pB33 = vcombine_u16(_pB3, _pB3);
+                uint16x8_t _pB44 = vcombine_u16(_pB4, _pB4);
+                uint16x8_t _pB55 = vcombine_u16(_pB5, _pB5);
+
+                _sum0 = vbfdotq_f32(_sum0, (bfloat16x8_t)_pA0011, (bfloat16x8_t)_pB00);
+                _sum1 = vbfdotq_f32(_sum1, (bfloat16x8_t)_pA0011, (bfloat16x8_t)_pB11);
+                _sum2 = vbfdotq_f32(_sum2, (bfloat16x8_t)_pA0011, (bfloat16x8_t)_pB22);
+                _sum3 = vbfdotq_f32(_sum3, (bfloat16x8_t)_pA0011, (bfloat16x8_t)_pB33);
+                _sum4 = vbfdotq_f32(_sum4, (bfloat16x8_t)_pA0011, (bfloat16x8_t)_pB44);
+                _sum5 = vbfdotq_f32(_sum5, (bfloat16x8_t)_pA0011, (bfloat16x8_t)_pB55);
+
+                pA += 4;
+                pB += 24;
+            }
             for (; kk < max_kk; kk += 1)
             {
-                float32x4_t _pB0 = bfloat2float(vld1_u16(pB));
-                float32x4_t _pB1 = bfloat2float(vld1_u16(pB + 4));
-                float32x4_t _pB2 = bfloat2float(vld1_u16(pB + 8));
+                uint16x4_t _pA01 = vld1_dup_u16(pA);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 2);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 3);
+                float32x4_t _pA = bfloat2float(_pA01);
 
-                float32x2_t _pA = vget_low_f32(bfloat2float(vld1_u16(pA)));
+                uint16x4_t _pB0123 = vld1_u16(pB);
+                uint16x4_t _pB4567 = vld1_u16(pB + 4);
+                uint16x4_t _pB89ab = vld1_u16(pB + 8);
+                uint32x2x2_t _pB0123_32x2 = vzip_u32(vreinterpret_u32_u16(_pB0123), vreinterpret_u32_u16(_pB0123));
+                uint32x2x2_t _pB4567_32x2 = vzip_u32(vreinterpret_u32_u16(_pB4567), vreinterpret_u32_u16(_pB4567));
+                uint32x2x2_t _pB89ab_32x2 = vzip_u32(vreinterpret_u32_u16(_pB89ab), vreinterpret_u32_u16(_pB89ab));
+                float32x4_t _pB0 = bfloat2float(vreinterpret_u16_u32(_pB0123_32x2.val[0]));
+                float32x4_t _pB1 = bfloat2float(vreinterpret_u16_u32(_pB0123_32x2.val[1]));
+                float32x4_t _pB2 = bfloat2float(vreinterpret_u16_u32(_pB4567_32x2.val[0]));
+                float32x4_t _pB3 = bfloat2float(vreinterpret_u16_u32(_pB4567_32x2.val[1]));
+                float32x4_t _pB4 = bfloat2float(vreinterpret_u16_u32(_pB89ab_32x2.val[0]));
+                float32x4_t _pB5 = bfloat2float(vreinterpret_u16_u32(_pB89ab_32x2.val[1]));
 
-                _sum00 = vfmaq_lane_f32(_sum00, _pB0, _pA, 0);
-                _sum01 = vfmaq_lane_f32(_sum01, _pB1, _pA, 0);
-                _sum02 = vfmaq_lane_f32(_sum02, _pB2, _pA, 0);
-                _sum10 = vfmaq_lane_f32(_sum10, _pB0, _pA, 1);
-                _sum11 = vfmaq_lane_f32(_sum11, _pB1, _pA, 1);
-                _sum12 = vfmaq_lane_f32(_sum12, _pB2, _pA, 1);
+                _sum0 = vfmaq_f32(_sum0, _pA, _pB0);
+                _sum1 = vfmaq_f32(_sum1, _pA, _pB1);
+                _sum2 = vfmaq_f32(_sum2, _pA, _pB2);
+                _sum3 = vfmaq_f32(_sum3, _pA, _pB3);
+                _sum4 = vfmaq_f32(_sum4, _pA, _pB4);
+                _sum5 = vfmaq_f32(_sum5, _pA, _pB5);
 
                 pA += 2;
                 pB += 12;
             }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk; kk += 1)
+            {
+                uint16x4_t _pA01 = vld1_dup_u16(pA);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 2);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 3);
+                float32x4_t _pA = bfloat2float(_pA01);
+
+                float32x4_t _pB0123 = bfloat2float(vld1_u16(pB));
+                float32x4_t _pB4567 = bfloat2float(vld1_u16(pB + 4));
+                float32x4_t _pB89ab = bfloat2float(vld1_u16(pB + 8));
+
+                _sum0 = vfmaq_f32(_sum0, _pA, vcombine_f32(vget_low_f32(_pB0123), vget_low_f32(_pB0123)));
+                _sum1 = vfmaq_f32(_sum1, _pA, vcombine_f32(vget_high_f32(_pB0123), vget_high_f32(_pB0123)));
+                _sum2 = vfmaq_f32(_sum2, _pA, vcombine_f32(vget_low_f32(_pB4567), vget_low_f32(_pB4567)));
+                _sum3 = vfmaq_f32(_sum3, _pA, vcombine_f32(vget_high_f32(_pB4567), vget_high_f32(_pB4567)));
+                _sum4 = vfmaq_f32(_sum4, _pA, vcombine_f32(vget_low_f32(_pB89ab), vget_low_f32(_pB89ab)));
+                _sum5 = vfmaq_f32(_sum5, _pA, vcombine_f32(vget_high_f32(_pB89ab), vget_high_f32(_pB89ab)));
+
+                pA += 2;
+                pB += 12;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 
             if (k_end)
             {
                 // if (out_elempack == 1)
                 {
-                    vst1_u16(outptr0, float2bfloat(_sum00));
-                    vst1_u16(outptr0 + 4, float2bfloat(_sum01));
-                    vst1_u16(outptr0 + 8, float2bfloat(_sum02));
-                    vst1_u16(outptr0 + out_hstep, float2bfloat(_sum10));
-                    vst1_u16(outptr0 + out_hstep + 4, float2bfloat(_sum11));
-                    vst1_u16(outptr0 + out_hstep + 8, float2bfloat(_sum12));
+                    uint16x4_t _bf0 = float2bfloat(vcombine_f32(vget_low_f32(_sum0), vget_low_f32(_sum1)));
+                    uint16x4_t _bf1 = float2bfloat(vcombine_f32(vget_high_f32(_sum0), vget_high_f32(_sum1)));
+                    uint16x4_t _bf2 = float2bfloat(vcombine_f32(vget_low_f32(_sum2), vget_low_f32(_sum3)));
+                    uint16x4_t _bf3 = float2bfloat(vcombine_f32(vget_high_f32(_sum2), vget_high_f32(_sum3)));
+                    uint16x4_t _bf4 = float2bfloat(vcombine_f32(vget_low_f32(_sum4), vget_low_f32(_sum5)));
+                    uint16x4_t _bf5 = float2bfloat(vcombine_f32(vget_high_f32(_sum4), vget_high_f32(_sum5)));
+                    vst1q_u16(outptr0, vcombine_u16(_bf0, _bf2));
+                    vst1_u16(outptr0 + 8, _bf4);
+                    vst1q_u16(outptr0 + out_hstep, vcombine_u16(_bf1, _bf3));
+                    vst1_u16(outptr0 + out_hstep + 8, _bf5);
                     outptr0 += 12;
                 }
             }
             else
             {
-                float32x4x2_t _tmp01;
-                _tmp01.val[0] = _sum00;
-                _tmp01.val[1] = _sum10;
-                float32x4x2_t _tmp23;
-                _tmp23.val[0] = _sum01;
-                _tmp23.val[1] = _sum11;
-                float32x4x2_t _tmp45;
-                _tmp45.val[0] = _sum02;
-                _tmp45.val[1] = _sum12;
-                vst2q_f32(outptr, _tmp01);
-                vst2q_f32(outptr + 8, _tmp23);
-                vst2q_f32(outptr + 16, _tmp45);
+                vst1q_f32(outptr, _sum0);
+                vst1q_f32(outptr + 4, _sum1);
+                vst1q_f32(outptr + 8, _sum2);
+                vst1q_f32(outptr + 12, _sum3);
+                vst1q_f32(outptr + 16, _sum4);
+                vst1q_f32(outptr + 20, _sum5);
             }
 
             outptr += 24;
@@ -7065,83 +8201,151 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 #endif // __aarch64__
         for (; jj + 7 < max_jj; jj += 8)
         {
-            float32x4_t _sum00;
-            float32x4_t _sum01;
-            float32x4_t _sum10;
-            float32x4_t _sum11;
+            float32x4_t _sum0;
+            float32x4_t _sum1;
+            float32x4_t _sum2;
+            float32x4_t _sum3;
 
             if (k == 0)
             {
                 if (pC)
                 {
-                    _sum00 = vdupq_n_f32(pC[0]);
-                    _sum01 = vdupq_n_f32(pC[0]);
-                    _sum10 = vdupq_n_f32(pC[1]);
-                    _sum11 = vdupq_n_f32(pC[1]);
+                    float32x2_t _c = vld1_f32(pC);
+                    float32x2x2_t _cc = vzip_f32(_c, _c);
+                    float32x4_t _bias = vcombine_f32(_cc.val[0], _cc.val[1]);
+                    _sum0 = _bias;
+                    _sum1 = _bias;
+                    _sum2 = _bias;
+                    _sum3 = _bias;
                 }
                 else
                 {
-                    _sum00 = vdupq_n_f32(0.f);
-                    _sum01 = vdupq_n_f32(0.f);
-                    _sum10 = vdupq_n_f32(0.f);
-                    _sum11 = vdupq_n_f32(0.f);
+                    _sum0 = vdupq_n_f32(0.f);
+                    _sum1 = vdupq_n_f32(0.f);
+                    _sum2 = vdupq_n_f32(0.f);
+                    _sum3 = vdupq_n_f32(0.f);
                 }
             }
             else
             {
-                float32x4x2_t _tmp01 = vld2q_f32(outptr);
-                float32x4x2_t _tmp23 = vld2q_f32(outptr + 8);
-                _sum00 = _tmp01.val[0];
-                _sum01 = _tmp23.val[0];
-                _sum10 = _tmp01.val[1];
-                _sum11 = _tmp23.val[1];
+                _sum0 = vld1q_f32(outptr);
+                _sum1 = vld1q_f32(outptr + 4);
+                _sum2 = vld1q_f32(outptr + 8);
+                _sum3 = vld1q_f32(outptr + 12);
             }
 
             const unsigned short* pA = pAT;
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _pA = vld1q_u16(pA);
+                uint16x8_t _pB0 = vld1q_u16(pB);
+                uint16x8_t _pB1 = vld1q_u16(pB + 8);
+                uint16x8_t _pB2 = vld1q_u16(pB + 16);
+                uint16x8_t _pB3 = vld1q_u16(pB + 24);
+
+                _sum0 = vbfmmlaq_f32(_sum0, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB0);
+                _sum1 = vbfmmlaq_f32(_sum1, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB1);
+                _sum2 = vbfmmlaq_f32(_sum2, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB2);
+                _sum3 = vbfmmlaq_f32(_sum3, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB3);
+
+                pA += 8;
+                pB += 32;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _pA01 = vld1_u16(pA);
+                uint32x2x2_t _pA01_32x2 = vzip_u32(vreinterpret_u32_u16(_pA01), vreinterpret_u32_u16(_pA01));
+                uint16x8_t _pA0011 = vreinterpretq_u16_u32(vcombine_u32(_pA01_32x2.val[0], _pA01_32x2.val[1]));
+
+                uint16x4_t _pB0 = vld1_u16(pB);
+                uint16x4_t _pB1 = vld1_u16(pB + 4);
+                uint16x4_t _pB2 = vld1_u16(pB + 8);
+                uint16x4_t _pB3 = vld1_u16(pB + 12);
+                uint16x8_t _pB00 = vcombine_u16(_pB0, _pB0);
+                uint16x8_t _pB11 = vcombine_u16(_pB1, _pB1);
+                uint16x8_t _pB22 = vcombine_u16(_pB2, _pB2);
+                uint16x8_t _pB33 = vcombine_u16(_pB3, _pB3);
+
+                _sum0 = vbfdotq_f32(_sum0, (bfloat16x8_t)_pA0011, (bfloat16x8_t)_pB00);
+                _sum1 = vbfdotq_f32(_sum1, (bfloat16x8_t)_pA0011, (bfloat16x8_t)_pB11);
+                _sum2 = vbfdotq_f32(_sum2, (bfloat16x8_t)_pA0011, (bfloat16x8_t)_pB22);
+                _sum3 = vbfdotq_f32(_sum3, (bfloat16x8_t)_pA0011, (bfloat16x8_t)_pB33);
+
+                pA += 4;
+                pB += 16;
+            }
             for (; kk < max_kk; kk += 1)
             {
-                float32x4_t _pB0 = bfloat2float(vld1_u16(pB));
-                float32x4_t _pB1 = bfloat2float(vld1_u16(pB + 4));
+                uint16x4_t _pA01 = vld1_dup_u16(pA);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 2);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 3);
+                float32x4_t _pA = bfloat2float(_pA01);
 
-                float32x2_t _pA = vget_low_f32(bfloat2float(vld1_u16(pA)));
+                uint16x4_t _pB0123 = vld1_u16(pB);
+                uint16x4_t _pB4567 = vld1_u16(pB + 4);
+                uint32x2x2_t _pB0123_32x2 = vzip_u32(vreinterpret_u32_u16(_pB0123), vreinterpret_u32_u16(_pB0123));
+                uint32x2x2_t _pB4567_32x2 = vzip_u32(vreinterpret_u32_u16(_pB4567), vreinterpret_u32_u16(_pB4567));
+                float32x4_t _pB0 = bfloat2float(vreinterpret_u16_u32(_pB0123_32x2.val[0]));
+                float32x4_t _pB1 = bfloat2float(vreinterpret_u16_u32(_pB0123_32x2.val[1]));
+                float32x4_t _pB2 = bfloat2float(vreinterpret_u16_u32(_pB4567_32x2.val[0]));
+                float32x4_t _pB3 = bfloat2float(vreinterpret_u16_u32(_pB4567_32x2.val[1]));
+
+                _sum0 = vfmaq_f32(_sum0, _pA, _pB0);
+                _sum1 = vfmaq_f32(_sum1, _pA, _pB1);
+                _sum2 = vfmaq_f32(_sum2, _pA, _pB2);
+                _sum3 = vfmaq_f32(_sum3, _pA, _pB3);
+
+                pA += 2;
+                pB += 8;
+            }
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk; kk += 1)
+            {
+                uint16x4_t _pA01 = vld1_dup_u16(pA);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 2);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 3);
+                float32x4_t _pA = bfloat2float(_pA01);
+
+                float32x4_t _pB0123 = bfloat2float(vld1_u16(pB));
+                float32x4_t _pB4567 = bfloat2float(vld1_u16(pB + 4));
 #if __aarch64__
-                _sum00 = vfmaq_lane_f32(_sum00, _pB0, _pA, 0);
-                _sum01 = vfmaq_lane_f32(_sum01, _pB1, _pA, 0);
-                _sum10 = vfmaq_lane_f32(_sum10, _pB0, _pA, 1);
-                _sum11 = vfmaq_lane_f32(_sum11, _pB1, _pA, 1);
+                _sum0 = vfmaq_f32(_sum0, _pA, vcombine_f32(vget_low_f32(_pB0123), vget_low_f32(_pB0123)));
+                _sum1 = vfmaq_f32(_sum1, _pA, vcombine_f32(vget_high_f32(_pB0123), vget_high_f32(_pB0123)));
+                _sum2 = vfmaq_f32(_sum2, _pA, vcombine_f32(vget_low_f32(_pB4567), vget_low_f32(_pB4567)));
+                _sum3 = vfmaq_f32(_sum3, _pA, vcombine_f32(vget_high_f32(_pB4567), vget_high_f32(_pB4567)));
 #else
-                _sum00 = vmlaq_lane_f32(_sum00, _pB0, _pA, 0);
-                _sum01 = vmlaq_lane_f32(_sum01, _pB1, _pA, 0);
-                _sum10 = vmlaq_lane_f32(_sum10, _pB0, _pA, 1);
-                _sum11 = vmlaq_lane_f32(_sum11, _pB1, _pA, 1);
+                _sum0 = vmlaq_f32(_sum0, _pA, vcombine_f32(vget_low_f32(_pB0123), vget_low_f32(_pB0123)));
+                _sum1 = vmlaq_f32(_sum1, _pA, vcombine_f32(vget_high_f32(_pB0123), vget_high_f32(_pB0123)));
+                _sum2 = vmlaq_f32(_sum2, _pA, vcombine_f32(vget_low_f32(_pB4567), vget_low_f32(_pB4567)));
+                _sum3 = vmlaq_f32(_sum3, _pA, vcombine_f32(vget_high_f32(_pB4567), vget_high_f32(_pB4567)));
 #endif
 
                 pA += 2;
                 pB += 8;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 
             if (k_end)
             {
                 // if (out_elempack == 1)
                 {
-                    vst1_u16(outptr0, float2bfloat(_sum00));
-                    vst1_u16(outptr0 + 4, float2bfloat(_sum01));
-                    vst1_u16(outptr0 + out_hstep, float2bfloat(_sum10));
-                    vst1_u16(outptr0 + out_hstep + 4, float2bfloat(_sum11));
+                    uint16x4_t _bf0 = float2bfloat(vcombine_f32(vget_low_f32(_sum0), vget_low_f32(_sum1)));
+                    uint16x4_t _bf1 = float2bfloat(vcombine_f32(vget_high_f32(_sum0), vget_high_f32(_sum1)));
+                    uint16x4_t _bf2 = float2bfloat(vcombine_f32(vget_low_f32(_sum2), vget_low_f32(_sum3)));
+                    uint16x4_t _bf3 = float2bfloat(vcombine_f32(vget_high_f32(_sum2), vget_high_f32(_sum3)));
+                    vst1q_u16(outptr0, vcombine_u16(_bf0, _bf2));
+                    vst1q_u16(outptr0 + out_hstep, vcombine_u16(_bf1, _bf3));
                     outptr0 += 8;
                 }
             }
             else
             {
-                float32x4x2_t _tmp01;
-                _tmp01.val[0] = _sum00;
-                _tmp01.val[1] = _sum10;
-                float32x4x2_t _tmp23;
-                _tmp23.val[0] = _sum01;
-                _tmp23.val[1] = _sum11;
-                vst2q_f32(outptr, _tmp01);
-                vst2q_f32(outptr + 8, _tmp23);
+                vst1q_f32(outptr, _sum0);
+                vst1q_f32(outptr + 4, _sum1);
+                vst1q_f32(outptr + 8, _sum2);
+                vst1q_f32(outptr + 12, _sum3);
             }
 
             outptr += 16;
@@ -7155,8 +8359,11 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 if (pC)
                 {
-                    _sum0 = vdupq_n_f32(pC[0]);
-                    _sum1 = vdupq_n_f32(pC[1]);
+                    float32x2_t _c = vld1_f32(pC);
+                    float32x2x2_t _cc = vzip_f32(_c, _c);
+                    float32x4_t _bias = vcombine_f32(_cc.val[0], _cc.val[1]);
+                    _sum0 = _bias;
+                    _sum1 = _bias;
                 }
                 else
                 {
@@ -7166,45 +8373,97 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
             else
             {
-                float32x4x2_t _tmp01 = vld2q_f32(outptr);
-                _sum0 = _tmp01.val[0];
-                _sum1 = _tmp01.val[1];
+                _sum0 = vld1q_f32(outptr);
+                _sum1 = vld1q_f32(outptr + 4);
             }
 
             const unsigned short* pA = pAT;
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _pA = vld1q_u16(pA);
+                uint16x8_t _pB0 = vld1q_u16(pB);
+                uint16x8_t _pB1 = vld1q_u16(pB + 8);
+
+                _sum0 = vbfmmlaq_f32(_sum0, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB0);
+                _sum1 = vbfmmlaq_f32(_sum1, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB1);
+
+                pA += 8;
+                pB += 16;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _pA01 = vld1_u16(pA);
+                uint32x2x2_t _pA01_32x2 = vzip_u32(vreinterpret_u32_u16(_pA01), vreinterpret_u32_u16(_pA01));
+                uint16x8_t _pA0011 = vreinterpretq_u16_u32(vcombine_u32(_pA01_32x2.val[0], _pA01_32x2.val[1]));
+
+                uint16x4_t _pB0 = vld1_u16(pB);
+                uint16x4_t _pB1 = vld1_u16(pB + 4);
+                uint16x8_t _pB00 = vcombine_u16(_pB0, _pB0);
+                uint16x8_t _pB11 = vcombine_u16(_pB1, _pB1);
+
+                _sum0 = vbfdotq_f32(_sum0, (bfloat16x8_t)_pA0011, (bfloat16x8_t)_pB00);
+                _sum1 = vbfdotq_f32(_sum1, (bfloat16x8_t)_pA0011, (bfloat16x8_t)_pB11);
+
+                pA += 4;
+                pB += 8;
+            }
             for (; kk < max_kk; kk += 1)
             {
-                float32x4_t _pB = bfloat2float(vld1_u16(pB));
+                uint16x4_t _pA01 = vld1_dup_u16(pA);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 2);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 3);
+                float32x4_t _pA = bfloat2float(_pA01);
 
-                float32x2_t _pA = vget_low_f32(bfloat2float(vld1_u16(pA)));
+                uint16x4_t _pB0123 = vld1_u16(pB);
+                uint32x2x2_t _pB0123_32x2 = vzip_u32(vreinterpret_u32_u16(_pB0123), vreinterpret_u32_u16(_pB0123));
+                float32x4_t _pB0 = bfloat2float(vreinterpret_u16_u32(_pB0123_32x2.val[0]));
+                float32x4_t _pB1 = bfloat2float(vreinterpret_u16_u32(_pB0123_32x2.val[1]));
+
+                _sum0 = vfmaq_f32(_sum0, _pA, _pB0);
+                _sum1 = vfmaq_f32(_sum1, _pA, _pB1);
+
+                pA += 2;
+                pB += 4;
+            }
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk; kk += 1)
+            {
+                uint16x4_t _pA01 = vld1_dup_u16(pA);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 2);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 3);
+                float32x4_t _pA = bfloat2float(_pA01);
+
+                float32x4_t _pB0123 = bfloat2float(vld1_u16(pB));
 #if __aarch64__
-                _sum0 = vfmaq_lane_f32(_sum0, _pB, _pA, 0);
-                _sum1 = vfmaq_lane_f32(_sum1, _pB, _pA, 1);
+                _sum0 = vfmaq_f32(_sum0, _pA, vcombine_f32(vget_low_f32(_pB0123), vget_low_f32(_pB0123)));
+                _sum1 = vfmaq_f32(_sum1, _pA, vcombine_f32(vget_high_f32(_pB0123), vget_high_f32(_pB0123)));
 #else
-                _sum0 = vmlaq_lane_f32(_sum0, _pB, _pA, 0);
-                _sum1 = vmlaq_lane_f32(_sum1, _pB, _pA, 1);
+                _sum0 = vmlaq_f32(_sum0, _pA, vcombine_f32(vget_low_f32(_pB0123), vget_low_f32(_pB0123)));
+                _sum1 = vmlaq_f32(_sum1, _pA, vcombine_f32(vget_high_f32(_pB0123), vget_high_f32(_pB0123)));
 #endif
 
                 pA += 2;
                 pB += 4;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 
             if (k_end)
             {
                 // if (out_elempack == 1)
                 {
-                    vst1_u16(outptr0, float2bfloat(_sum0));
-                    vst1_u16(outptr0 + out_hstep, float2bfloat(_sum1));
+                    uint16x4_t _bf0 = float2bfloat(vcombine_f32(vget_low_f32(_sum0), vget_low_f32(_sum1)));
+                    uint16x4_t _bf1 = float2bfloat(vcombine_f32(vget_high_f32(_sum0), vget_high_f32(_sum1)));
+                    vst1_u16(outptr0, _bf0);
+                    vst1_u16(outptr0 + out_hstep, _bf1);
                     outptr0 += 4;
                 }
             }
             else
             {
-                float32x4x2_t _tmp01;
-                _tmp01.val[0] = _sum0;
-                _tmp01.val[1] = _sum1;
-                vst2q_f32(outptr, _tmp01);
+                vst1q_f32(outptr, _sum0);
+                vst1q_f32(outptr + 4, _sum1);
             }
 
             outptr += 8;
@@ -7212,6 +8471,86 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 #endif // __ARM_NEON
         for (; jj + 1 < max_jj; jj += 2)
         {
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            float32x4_t _sum;
+
+            if (k == 0)
+            {
+                if (pC)
+                {
+                    float32x2_t _c = vld1_f32(pC);
+                    float32x2x2_t _cc = vzip_f32(_c, _c);
+                    _sum = vcombine_f32(_cc.val[0], _cc.val[1]);
+                }
+                else
+                {
+                    _sum = vdupq_n_f32(0.f);
+                }
+            }
+            else
+            {
+                _sum = vld1q_f32(outptr);
+            }
+
+            const unsigned short* pA = pAT;
+            int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _pA = vld1q_u16(pA);
+                uint16x8_t _pB = vld1q_u16(pB);
+
+                _sum = vbfmmlaq_f32(_sum, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB);
+
+                pA += 8;
+                pB += 8;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _pA01 = vld1_u16(pA);
+                uint32x2x2_t _pA01_32x2 = vzip_u32(vreinterpret_u32_u16(_pA01), vreinterpret_u32_u16(_pA01));
+                uint16x8_t _pA0011 = vreinterpretq_u16_u32(vcombine_u32(_pA01_32x2.val[0], _pA01_32x2.val[1]));
+                uint16x4_t _pB = vld1_u16(pB);
+                uint16x8_t _pB01 = vcombine_u16(_pB, _pB);
+
+                _sum = vbfdotq_f32(_sum, (bfloat16x8_t)_pA0011, (bfloat16x8_t)_pB01);
+
+                pA += 4;
+                pB += 4;
+            }
+            for (; kk < max_kk; kk += 1)
+            {
+                uint16x4_t _pA01 = vld1_dup_u16(pA);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 2);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 3);
+                float32x4_t _pA = bfloat2float(_pA01);
+
+                uint16x4_t _pB01 = vld1_dup_u16(pB);
+                _pB01 = vld1_lane_u16(pB + 1, _pB01, 1);
+                _pB01 = vld1_lane_u16(pB + 1, _pB01, 3);
+                float32x4_t _pB = bfloat2float(_pB01);
+
+                _sum = vfmaq_f32(_sum, _pA, _pB);
+
+                pA += 2;
+                pB += 2;
+            }
+
+            if (k_end)
+            {
+                // if (out_elempack == 1)
+                {
+                    uint16x4_t _bf0 = float2bfloat(_sum);
+                    uint32x2_t _bf0_32 = vreinterpret_u32_u16(_bf0);
+                    vst1_lane_u32((uint32_t*)outptr0, _bf0_32, 0);
+                    vst1_lane_u32((uint32_t*)(outptr0 + out_hstep), _bf0_32, 1);
+                    outptr0 += 2;
+                }
+            }
+            else
+            {
+                vst1q_f32(outptr, _sum);
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             float sum00;
             float sum01;
             float sum10;
@@ -7273,6 +8612,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 outptr[2] = sum10;
                 outptr[3] = sum11;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 
             outptr += 4;
         }
@@ -7302,10 +8642,46 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
             const unsigned short* pA = pAT;
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            float32x4_t _sum01 = vdupq_n_f32(0.f);
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _pA = vld1q_u16(pA);
+                uint16x4_t _pB0 = vld1_u16(pB);
+                uint16x8_t _pB = vcombine_u16(_pB0, _pB0);
+
+                _sum01 = vbfmmlaq_f32(_sum01, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB);
+
+                pA += 8;
+                pB += 4;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _pA01 = vld1_u16(pA);
+                uint32x2x2_t _pA01_32x2 = vzip_u32(vreinterpret_u32_u16(_pA01), vreinterpret_u32_u16(_pA01));
+                uint16x8_t _pA0011 = vreinterpretq_u16_u32(vcombine_u32(_pA01_32x2.val[0], _pA01_32x2.val[1]));
+                uint16x4_t _pB01 = vld1_dup_u16(pB);
+                _pB01 = vld1_lane_u16(pB + 1, _pB01, 1);
+                _pB01 = vld1_lane_u16(pB + 1, _pB01, 3);
+                uint16x8_t _pB = vcombine_u16(_pB01, _pB01);
+
+                _sum01 = vbfdotq_f32(_sum01, (bfloat16x8_t)_pA0011, (bfloat16x8_t)_pB);
+
+                pA += 4;
+                pB += 2;
+            }
+            sum0 += vgetq_lane_f32(_sum01, 0);
+            sum1 += vgetq_lane_f32(_sum01, 2);
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk += 1)
             {
-                sum0 += bfloat16_to_float32(pA[0]) * bfloat16_to_float32(pB[0]);
-                sum1 += bfloat16_to_float32(pA[1]) * bfloat16_to_float32(pB[0]);
+                float pA0 = bfloat16_to_float32(pA[0]);
+                float pA1 = bfloat16_to_float32(pA[1]);
+                float pB0 = bfloat16_to_float32(pB[0]);
+
+                sum0 += pA0 * pB0;
+                sum1 += pA1 * pB0;
+
                 pA += 2;
                 pB += 1;
             }
@@ -7374,10 +8750,86 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
             const unsigned short* pA = pAT;
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            float32x4_t _sum01 = vdupq_n_f32(0.f);
+            float32x4_t _sum23 = vdupq_n_f32(0.f);
+            float32x4_t _sum45 = vdupq_n_f32(0.f);
+            float32x4_t _sum67 = vdupq_n_f32(0.f);
+            float32x4_t _sum89 = vdupq_n_f32(0.f);
+            float32x4_t _sumab = vdupq_n_f32(0.f);
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _pA0 = vld1_u16(pA);
+                uint16x8_t _pA = vcombine_u16(_pA0, _pA0);
+                uint16x8_t _pB0 = vld1q_u16(pB);
+                uint16x8_t _pB1 = vld1q_u16(pB + 8);
+                uint16x8_t _pB2 = vld1q_u16(pB + 16);
+                uint16x8_t _pB3 = vld1q_u16(pB + 24);
+                uint16x8_t _pB4 = vld1q_u16(pB + 32);
+                uint16x8_t _pB5 = vld1q_u16(pB + 40);
+
+                _sum01 = vbfmmlaq_f32(_sum01, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB0);
+                _sum23 = vbfmmlaq_f32(_sum23, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB1);
+                _sum45 = vbfmmlaq_f32(_sum45, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB2);
+                _sum67 = vbfmmlaq_f32(_sum67, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB3);
+                _sum89 = vbfmmlaq_f32(_sum89, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB4);
+                _sumab = vbfmmlaq_f32(_sumab, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB5);
+
+                pA += 4;
+                pB += 48;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _pA01 = vld1_dup_u16(pA);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 1);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 3);
+                uint16x8_t _pA = vcombine_u16(_pA01, _pA01);
+                uint16x4_t _pB0 = vld1_u16(pB);
+                uint16x4_t _pB1 = vld1_u16(pB + 4);
+                uint16x4_t _pB2 = vld1_u16(pB + 8);
+                uint16x4_t _pB3 = vld1_u16(pB + 12);
+                uint16x4_t _pB4 = vld1_u16(pB + 16);
+                uint16x4_t _pB5 = vld1_u16(pB + 20);
+                uint16x8_t _pB00 = vcombine_u16(_pB0, _pB0);
+                uint16x8_t _pB11 = vcombine_u16(_pB1, _pB1);
+                uint16x8_t _pB22 = vcombine_u16(_pB2, _pB2);
+                uint16x8_t _pB33 = vcombine_u16(_pB3, _pB3);
+                uint16x8_t _pB44 = vcombine_u16(_pB4, _pB4);
+                uint16x8_t _pB55 = vcombine_u16(_pB5, _pB5);
+
+                _sum01 = vbfdotq_f32(_sum01, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB00);
+                _sum23 = vbfdotq_f32(_sum23, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB11);
+                _sum45 = vbfdotq_f32(_sum45, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB22);
+                _sum67 = vbfdotq_f32(_sum67, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB33);
+                _sum89 = vbfdotq_f32(_sum89, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB44);
+                _sumab = vbfdotq_f32(_sumab, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB55);
+
+                pA += 2;
+                pB += 24;
+            }
+            _sum0 = vaddq_f32(_sum0, vcombine_f32(vget_low_f32(_sum01), vget_low_f32(_sum23)));
+            _sum1 = vaddq_f32(_sum1, vcombine_f32(vget_low_f32(_sum45), vget_low_f32(_sum67)));
+            _sum2 = vaddq_f32(_sum2, vcombine_f32(vget_low_f32(_sum89), vget_low_f32(_sumab)));
             for (; kk < max_kk; kk += 1)
             {
+                float32x4_t _pA0 = bfloat2float(vdup_n_u16(pA[0]));
                 float32x4_t _pB0 = bfloat2float(vld1_u16(pB));
                 float32x4_t _pB1 = bfloat2float(vld1_u16(pB + 4));
+                float32x4_t _pB2 = bfloat2float(vld1_u16(pB + 8));
+
+                _sum0 = vfmaq_f32(_sum0, _pA0, _pB0);
+                _sum1 = vfmaq_f32(_sum1, _pA0, _pB1);
+                _sum2 = vfmaq_f32(_sum2, _pA0, _pB2);
+
+                pA += 1;
+                pB += 12;
+            }
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk; kk += 1)
+            {
+                uint16x8_t _pB = vld1q_u16(pB);
+                float32x4_t _pB0 = bfloat2float(vget_low_u16(_pB));
+                float32x4_t _pB1 = bfloat2float(vget_high_u16(_pB));
                 float32x4_t _pB2 = bfloat2float(vld1_u16(pB + 8));
 
                 float32x4_t _pA0 = bfloat2float(vdup_n_u16(pA[0]));
@@ -7389,6 +8841,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 pA += 1;
                 pB += 12;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 
             if (k_end)
             {
@@ -7436,10 +8889,71 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
             const unsigned short* pA = pAT;
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            float32x4_t _sum01 = vdupq_n_f32(0.f);
+            float32x4_t _sum23 = vdupq_n_f32(0.f);
+            float32x4_t _sum45 = vdupq_n_f32(0.f);
+            float32x4_t _sum67 = vdupq_n_f32(0.f);
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _pA0 = vld1_u16(pA);
+                uint16x8_t _pA = vcombine_u16(_pA0, _pA0);
+                uint16x8_t _pB0 = vld1q_u16(pB);
+                uint16x8_t _pB1 = vld1q_u16(pB + 8);
+                uint16x8_t _pB2 = vld1q_u16(pB + 16);
+                uint16x8_t _pB3 = vld1q_u16(pB + 24);
+
+                _sum01 = vbfmmlaq_f32(_sum01, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB0);
+                _sum23 = vbfmmlaq_f32(_sum23, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB1);
+                _sum45 = vbfmmlaq_f32(_sum45, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB2);
+                _sum67 = vbfmmlaq_f32(_sum67, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB3);
+
+                pA += 4;
+                pB += 32;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _pA01 = vld1_dup_u16(pA);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 1);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 3);
+                uint16x8_t _pA = vcombine_u16(_pA01, _pA01);
+                uint16x4_t _pB0 = vld1_u16(pB);
+                uint16x4_t _pB1 = vld1_u16(pB + 4);
+                uint16x4_t _pB2 = vld1_u16(pB + 8);
+                uint16x4_t _pB3 = vld1_u16(pB + 12);
+                uint16x8_t _pB00 = vcombine_u16(_pB0, _pB0);
+                uint16x8_t _pB11 = vcombine_u16(_pB1, _pB1);
+                uint16x8_t _pB22 = vcombine_u16(_pB2, _pB2);
+                uint16x8_t _pB33 = vcombine_u16(_pB3, _pB3);
+
+                _sum01 = vbfdotq_f32(_sum01, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB00);
+                _sum23 = vbfdotq_f32(_sum23, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB11);
+                _sum45 = vbfdotq_f32(_sum45, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB22);
+                _sum67 = vbfdotq_f32(_sum67, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB33);
+
+                pA += 2;
+                pB += 16;
+            }
+            _sum0 = vaddq_f32(_sum0, vcombine_f32(vget_low_f32(_sum01), vget_low_f32(_sum23)));
+            _sum1 = vaddq_f32(_sum1, vcombine_f32(vget_low_f32(_sum45), vget_low_f32(_sum67)));
             for (; kk < max_kk; kk += 1)
             {
+                float32x4_t _pA0 = bfloat2float(vdup_n_u16(pA[0]));
                 float32x4_t _pB0 = bfloat2float(vld1_u16(pB));
                 float32x4_t _pB1 = bfloat2float(vld1_u16(pB + 4));
+
+                _sum0 = vfmaq_f32(_sum0, _pA0, _pB0);
+                _sum1 = vfmaq_f32(_sum1, _pA0, _pB1);
+
+                pA += 1;
+                pB += 8;
+            }
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk; kk += 1)
+            {
+                uint16x8_t _pB = vld1q_u16(pB);
+                float32x4_t _pB0 = bfloat2float(vget_low_u16(_pB));
+                float32x4_t _pB1 = bfloat2float(vget_high_u16(_pB));
 
                 float32x4_t _pA0 = bfloat2float(vdup_n_u16(pA[0]));
 #if __aarch64__
@@ -7453,6 +8967,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 pA += 1;
                 pB += 8;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 
             if (k_end)
             {
@@ -7493,11 +9008,55 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
             const unsigned short* pA = pAT;
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            float32x4_t _sum01 = vdupq_n_f32(0.f);
+            float32x4_t _sum23 = vdupq_n_f32(0.f);
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _pA0 = vld1_u16(pA);
+                uint16x8_t _pA = vcombine_u16(_pA0, _pA0);
+                uint16x8_t _pB0 = vld1q_u16(pB);
+                uint16x8_t _pB1 = vld1q_u16(pB + 8);
+
+                _sum01 = vbfmmlaq_f32(_sum01, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB0);
+                _sum23 = vbfmmlaq_f32(_sum23, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB1);
+
+                pA += 4;
+                pB += 16;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _pA01 = vld1_dup_u16(pA);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 1);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 3);
+                uint16x8_t _pA = vcombine_u16(_pA01, _pA01);
+                uint16x4_t _pB0 = vld1_u16(pB);
+                uint16x4_t _pB1 = vld1_u16(pB + 4);
+                uint16x8_t _pB00 = vcombine_u16(_pB0, _pB0);
+                uint16x8_t _pB11 = vcombine_u16(_pB1, _pB1);
+
+                _sum01 = vbfdotq_f32(_sum01, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB00);
+                _sum23 = vbfdotq_f32(_sum23, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB11);
+
+                pA += 2;
+                pB += 8;
+            }
+            _sum = vaddq_f32(_sum, vcombine_f32(vget_low_f32(_sum01), vget_low_f32(_sum23)));
+            for (; kk < max_kk; kk += 1)
+            {
+                float32x4_t _pA0 = bfloat2float(vdup_n_u16(pA[0]));
+                float32x4_t _pB = bfloat2float(vld1_u16(pB));
+
+                _sum = vfmaq_f32(_sum, _pA0, _pB);
+
+                pA += 1;
+                pB += 4;
+            }
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk += 1)
             {
                 float32x4_t _pB = bfloat2float(vld1_u16(pB));
                 float32x4_t _pA = bfloat2float(vdup_n_u16(pA[0]));
-
 #if __aarch64__
                 _sum = vfmaq_f32(_sum, _pA, _pB);
 #else
@@ -7507,6 +9066,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 pA += 1;
                 pB += 4;
             }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 
             if (k_end)
             {
@@ -7550,10 +9110,44 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
             const unsigned short* pA = pAT;
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            float32x4_t _sum01 = vdupq_n_f32(0.f);
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _pA0 = vld1_u16(pA);
+                uint16x8_t _pA = vcombine_u16(_pA0, _pA0);
+                uint16x8_t _pB = vld1q_u16(pB);
+
+                _sum01 = vbfmmlaq_f32(_sum01, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB);
+
+                pA += 4;
+                pB += 8;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _pA01 = vld1_dup_u16(pA);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 1);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 3);
+                uint16x8_t _pA = vcombine_u16(_pA01, _pA01);
+                uint16x4_t _pB = vld1_u16(pB);
+                uint16x8_t _pB01 = vcombine_u16(_pB, _pB);
+
+                _sum01 = vbfdotq_f32(_sum01, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB01);
+
+                pA += 2;
+                pB += 4;
+            }
+            sum0 += vgetq_lane_f32(_sum01, 0);
+            sum1 += vgetq_lane_f32(_sum01, 1);
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk += 1)
             {
-                sum0 += bfloat16_to_float32(pA[0]) * bfloat16_to_float32(pB[0]);
-                sum1 += bfloat16_to_float32(pA[0]) * bfloat16_to_float32(pB[1]);
+                float pA0 = bfloat16_to_float32(pA[0]);
+                float pB0 = bfloat16_to_float32(pB[0]);
+                float pB1 = bfloat16_to_float32(pB[1]);
+
+                sum0 += pA0 * pB0;
+                sum1 += pA0 * pB1;
 
                 pA += 1;
                 pB += 2;
@@ -7598,10 +9192,44 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
             const unsigned short* pA = pAT;
             int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            float32x4_t _sum0 = vdupq_n_f32(0.f);
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _pA0 = vld1_u16(pA);
+                uint16x4_t _pB0 = vld1_u16(pB);
+                uint16x8_t _pA = vcombine_u16(_pA0, _pA0);
+                uint16x8_t _pB = vcombine_u16(_pB0, _pB0);
+
+                _sum0 = vbfmmlaq_f32(_sum0, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB);
+
+                pA += 4;
+                pB += 4;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x4_t _pA01 = vld1_dup_u16(pA);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 1);
+                _pA01 = vld1_lane_u16(pA + 1, _pA01, 3);
+                uint16x4_t _pB01 = vld1_dup_u16(pB);
+                _pB01 = vld1_lane_u16(pB + 1, _pB01, 1);
+                _pB01 = vld1_lane_u16(pB + 1, _pB01, 3);
+                uint16x8_t _pA = vcombine_u16(_pA01, _pA01);
+                uint16x8_t _pB = vcombine_u16(_pB01, _pB01);
+
+                _sum0 = vbfdotq_f32(_sum0, (bfloat16x8_t)_pA, (bfloat16x8_t)_pB);
+
+                pA += 2;
+                pB += 2;
+            }
+            sum += vgetq_lane_f32(_sum0, 0);
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk; kk += 1)
             {
-                sum += bfloat16_to_float32(pA[0]) * bfloat16_to_float32(pB[0]);
+                float pA0 = bfloat16_to_float32(pA[0]);
+                float pB0 = bfloat16_to_float32(pB[0]);
 
+                sum += pA0 * pB0;
                 pA += 1;
                 pB += 1;
             }
@@ -7867,18 +9495,12 @@ static int convolution_im2col_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, 
     }
 
     Mat topT_tileX;
-#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
-    topT_tileX.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
-    if (topT_tileX.empty())
-        return -100;
-#else
     if (K > TILE_K)
     {
         topT_tileX.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
         if (topT_tileX.empty())
             return -100;
     }
-#endif
 
     #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_M; ppj++)
@@ -7886,12 +9508,8 @@ static int convolution_im2col_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, 
         const int i = ppj * TILE_M;
 
         Mat topT_tile;
-#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
-        topT_tile = topT_tileX.channel(get_omp_thread_num());
-#else
         if (K > TILE_K)
             topT_tile = topT_tileX.channel(get_omp_thread_num());
-#endif
 
         const int max_ii = std::min((M - i), TILE_M);
 
@@ -7909,14 +9527,7 @@ static int convolution_im2col_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, 
 
                 bool k_end = k + TILE_K >= K;
 
-#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
-                gemm_transB_packed_tile_bf16s(AT_tile, BT_tile, topT_tile, max_ii, max_jj, k, max_kk);
-
-                if (k_end)
-                    unpack_output_tile_fp32_to_bf16(topT_tile, bias, top_blob, 1, i, max_ii, j, max_jj, 1.f, 1.f, 0);
-#else
                 convolution_gemm_transB_packed_tile_bf16s(AT_tile, BT_tile, bias, topT_tile, top_blob, i, max_ii, j, max_jj, k, max_kk, k_end, opt.use_a53_a55_optimized_kernel);
-#endif
             }
         }
     }
