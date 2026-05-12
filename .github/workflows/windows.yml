@@ -84,7 +84,7 @@ jobs:
         echo "INCLUDE=$($lines[1])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
         echo "LIB=$($lines[2])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2.4
+    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2.5
       with:
         sdk-version: ${{ matrix.windows-sdk-version }}
 
