@@ -45,6 +45,8 @@ int MultiHeadAttention_arm::create_pipeline(const Option& _opt)
 
     opt.use_fp16_storage &= support_fp16_storage;
     opt.use_bf16_storage &= support_bf16_storage;
+    if (opt.use_fp16_storage)
+        opt.use_bf16_storage = false;
 
     {
         qk_softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
@@ -271,6 +273,8 @@ int MultiHeadAttention_arm::destroy_pipeline(const Option& _opt)
 
     opt.use_fp16_storage &= support_fp16_storage;
     opt.use_bf16_storage &= support_bf16_storage;
+    if (opt.use_fp16_storage)
+        opt.use_bf16_storage = false;
 
     if (qk_softmax)
     {
@@ -349,6 +353,8 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
 
     opt.use_fp16_storage &= support_fp16_storage;
     opt.use_bf16_storage &= support_bf16_storage;
+    if (opt.use_fp16_storage)
+        opt.use_bf16_storage = false;
 
     Mat attn_mask_blob_unpacked;
     if (attn_mask && attn_mask_blob.elempack != 1)
