@@ -248,7 +248,6 @@ static void pack_A_tile_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
     }
 }
 
-
 static void transpose_pack_A_tile_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
     const int elempack = A.elempack;
@@ -453,7 +452,6 @@ static void transpose_pack_A_tile_fp16(const Mat& A, Mat& AT, int i, int max_ii,
         }
     }
 }
-
 
 static void pack_B_tile_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
@@ -905,7 +903,6 @@ static void pack_B_tile_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
     }
 }
 
-
 static void transpose_pack_B_tile_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
     const int elempack = B.elempack;
@@ -1185,7 +1182,6 @@ static void transpose_pack_B_tile_fp16(const Mat& B, Mat& BT, int j, int max_jj,
         }
     }
 }
-
 
 static void transpose_unpack_output_tile_fp16(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj)
 {
@@ -1515,7 +1511,6 @@ static void transpose_unpack_output_tile_fp16(const Mat& topT, Mat& top_blob, in
         }
     }
 }
-
 
 static void pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {

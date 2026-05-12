@@ -477,7 +477,6 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
     }
 }
 
-
 static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
@@ -804,7 +803,6 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
         }
     }
 }
-
 
 static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
@@ -1606,7 +1604,6 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
     }
 }
 
-
 static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
@@ -2069,7 +2066,6 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
         }
     }
 }
-
 
 static void pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
