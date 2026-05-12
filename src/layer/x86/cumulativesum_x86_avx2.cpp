@@ -11,7 +11,7 @@ namespace ncnn {
 
 int cumulative_sum_forward_inplace_avx2(Mat& bottom_top_blob, int axis, const Option& opt)
 {
-    return cumulative_sum_forward_inplace(bottom_top_blob, axis, opt);
+    return cumulative_sum_forward_inplace_avx2_impl(bottom_top_blob, axis, opt);
 }
 
 } // namespace ncnn
