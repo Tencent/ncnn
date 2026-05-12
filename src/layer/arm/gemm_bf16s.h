@@ -1322,8 +1322,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 pC = (const float*)C + i + ii;
             if (broadcast_type_C == 3)
             {
-                // c_elempack == 1
-                pC = (const float*)C + (i + ii) * c_hstep + j;
+                pC = (const float*)C + (i + ii) * c_hstep + j * c_elempack;
             }
             if (broadcast_type_C == 4)
                 pC = (const float*)C + j;
@@ -2793,8 +2792,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 pC = (const float*)C + i + ii;
             if (broadcast_type_C == 3)
             {
-                // c_elempack == 1
-                pC = (const float*)C + (i + ii) * c_hstep + j;
+                pC = (const float*)C + (i + ii) * c_hstep + j * c_elempack;
             }
             if (broadcast_type_C == 4)
                 pC = (const float*)C + j;
