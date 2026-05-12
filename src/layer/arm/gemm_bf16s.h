@@ -3112,6 +3112,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             }
             pp += 48;
         }
+#endif // __aarch64__
         for (; jj + 7 < max_jj; jj += 8)
         {
             float32x4_t _f0 = vld1q_f32(pp + 0);
@@ -3340,7 +3341,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             }
             pp += 32;
         }
-#endif // __aarch64__
         for (; jj + 3 < max_jj; jj += 4)
         {
             float32x4_t _f0 = vld1q_f32(pp + 0);
@@ -3913,6 +3913,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             }
             pp += 24;
         }
+#endif // __aarch64__
         for (; jj + 7 < max_jj; jj += 8)
         {
             float32x4_t _s0 = vld1q_f32(pp);
@@ -4043,7 +4044,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             }
             pp += 16;
         }
-#endif // __aarch64__
         for (; jj + 3 < max_jj; jj += 4)
         {
             float32x4_t _s0 = vld1q_f32(pp);
