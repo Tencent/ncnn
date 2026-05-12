@@ -7,33 +7,29 @@
 
 namespace ncnn {
 
-#include "gemm_bf16s_fp16s.h"
-
 #if NCNN_BF16
 #include "gemm_bf16s.h"
-#endif
 
-void pack_A_tile_bf16_fp16_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+void pack_A_tile_bf16_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
-    pack_A_tile_bf16_fp16(A, AT, i, max_ii, k, max_kk);
+    pack_A_tile_bf16(A, AT, i, max_ii, k, max_kk);
 }
 
-void transpose_pack_A_tile_bf16_fp16_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+void transpose_pack_A_tile_bf16_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
-    transpose_pack_A_tile_bf16_fp16(A, AT, i, max_ii, k, max_kk);
+    transpose_pack_A_tile_bf16(A, AT, i, max_ii, k, max_kk);
 }
 
-void pack_B_tile_bf16_fp16_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
+void pack_B_tile_bf16_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
-    pack_B_tile_bf16_fp16(B, BT, j, max_jj, k, max_kk);
+    pack_B_tile_bf16(B, BT, j, max_jj, k, max_kk);
 }
 
-void transpose_pack_B_tile_bf16_fp16_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
+void transpose_pack_B_tile_bf16_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
-    transpose_pack_B_tile_bf16_fp16(B, BT, j, max_jj, k, max_kk);
+    transpose_pack_B_tile_bf16(B, BT, j, max_jj, k, max_kk);
 }
 
-#if NCNN_BF16
 void pack_A_tile_fp32_to_bf16_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
     pack_A_tile_fp32_to_bf16(A, AT, i, max_ii, k, max_kk);
