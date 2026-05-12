@@ -100,6 +100,13 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
 
                 FA_UNROLL_WG_M = 2;
 
+                if (vkdev->info.vendor_id() == 0x5143)
+                {
+                    // unrolling caused an error due to insufficient shared memory on adreno
+                    FA_UNROLL_SG_M = 1;
+                    FA_UNROLL_WG_M = 1;
+                }
+
                 std::vector<vk_specialization_type> specializations(1 + 8);
                 specializations[0].i = attn_mask;
 
@@ -183,6 +190,16 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
 
         UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
         UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
+
+        if (vkdev->info.vendor_id() == 0x5143)
+        {
+            // unrolling caused an error due to insufficient shared memory on adreno
+            UNROLL_SG_M = 1;
+            UNROLL_SG_N = 1;
+            UNROLL_SG_K = 1;
+            UNROLL_WG_M = 1;
+            UNROLL_WG_N = 1;
+        }
 
         // qk cross
         {
