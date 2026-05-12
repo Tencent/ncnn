@@ -72,7 +72,7 @@ static void innerproduct_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             sptr += 2;
             kptr += 8;
         }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         for (; i + 3 < num_input; i += 4)
         {
             float32x4_t _val = bfloat2float(vld1_u16(sptr));

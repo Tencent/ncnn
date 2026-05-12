@@ -132,7 +132,7 @@ static void innerproduct_gemm_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     m += 8;
                     kptr += 8;
                 }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
                 for (; i < num_input; i++)
                 {
                     float32x4_t _val = bfloat2float(vld1_u16(m));
