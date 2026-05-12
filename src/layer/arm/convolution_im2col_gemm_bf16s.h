@@ -315,7 +315,6 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16(const Mat& bottom_blo
 #if __aarch64__
     for (; jj + 11 < max_jj; jj += 12)
     {
-
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 4) + (j + jj) * 4;
@@ -345,7 +344,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16(const Mat& bottom_blo
                 pp += 48;
                 p0 += bottom_blob.cstep * 4;
             }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk / 4; kk++)
             {
                 // transpose4x12
@@ -460,7 +459,6 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16(const Mat& bottom_blo
 #endif // __aarch64__
     for (; jj + 7 < max_jj; jj += 8)
     {
-
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 4) + (j + jj) * 4;
@@ -484,7 +482,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16(const Mat& bottom_blo
                 pp += 32;
                 p0 += bottom_blob.cstep * 4;
             }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk / 4; kk++)
             {
                 // transpose4x8
@@ -579,7 +577,6 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16(const Mat& bottom_blo
     }
     for (; jj + 3 < max_jj; jj += 4)
     {
-
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 4) + (j + jj) * 4;
@@ -597,7 +594,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16(const Mat& bottom_blo
                 pp += 16;
                 p0 += bottom_blob.cstep * 4;
             }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             for (; kk < max_kk / 4; kk++)
             {
                 // transpose4x4
@@ -1688,7 +1685,7 @@ static void convolution_im2col_input_tile_bf16(const Mat& bottom_blob, Mat& B, i
                 pp += 2;
             }
         }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         for (; kk < max_kk / elempack; kk++)
         {
             int p = (k / elempack + kk) / maxk;
@@ -1774,7 +1771,7 @@ static void convolution_im2col_input_tile_bf16(const Mat& bottom_blob, Mat& B, i
                 pp += 1;
             }
         }
-#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
         for (; kk < max_kk / elempack; kk++)
         {
             int p = (k / elempack + kk) / maxk;
@@ -1808,7 +1805,6 @@ static void convolution_im2col_input_tile_bf16(const Mat& bottom_blob, Mat& B, i
 #endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
     }
 }
-
 
 static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end, int use_a53_a55_optimized_kernel)
 {
@@ -3108,7 +3104,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "r"(out_hstep)     // %13
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
-#else  // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             float32x4_t _sum00;
             float32x4_t _sum01;
             float32x4_t _sum10;
@@ -4151,7 +4147,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "r"(out_hstep)     // %13
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
-#else  // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             float32x4_t _sum00;
             float32x4_t _sum01;
             float32x4_t _sum10;
@@ -4913,7 +4909,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "r"(out_hstep)     // %13
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
-#else  // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             float32x4_t _sum00;
             float32x4_t _sum01;
             float32x4_t _sum10;
@@ -5295,7 +5291,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(out_elempack), // %12
                 "r"(out_hstep)     // %13
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v28", "v29", "v30", "v31");
-#else  // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             float32x4_t _sum00;
             float32x4_t _sum01;
             float32x4_t _sum10;
@@ -5612,7 +5608,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(out_elempack), // %12
                 "r"(out_hstep)     // %13
                 : "cc", "memory", "x4", "v0", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v28", "v29", "v30", "v31");
-#else  // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             float32x4_t _sum00;
             float32x4_t _sum01;
 
@@ -5978,7 +5974,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(out_elempack), // %12
                 "r"(out_hstep)     // %13
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
-#else  // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else // NCNN_GNU_INLINE_ASM && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             float32x4_t _sum0;
             float32x4_t _sum1;
             float32x4_t _sum2;
