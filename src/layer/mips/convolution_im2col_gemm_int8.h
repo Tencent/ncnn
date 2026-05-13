@@ -1891,7 +1891,7 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
 }
 
 template<int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h>
-void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
+static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
 {
     convolution_im2col_input_tile_impl_int8(bottom_blob, B, j, max_jj, k, max_kk, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h);
 }
