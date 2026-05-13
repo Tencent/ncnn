@@ -1890,99 +1890,50 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             v4f32 _sum1 = (v4f32)__msa_fill_w(0);
             v4f32 _sum2 = (v4f32)__msa_fill_w(0);
             v4f32 _sum3 = (v4f32)__msa_fill_w(0);
-            v4f32 _sum4 = (v4f32)__msa_fill_w(0);
-            v4f32 _sum5 = (v4f32)__msa_fill_w(0);
-            v4f32 _sum6 = (v4f32)__msa_fill_w(0);
-            v4f32 _sum7 = (v4f32)__msa_fill_w(0);
             v4f32 _sum9 = (v4f32)__msa_fill_w(0);
             v4f32 _suma = (v4f32)__msa_fill_w(0);
             v4f32 _sumb = (v4f32)__msa_fill_w(0);
-            v4f32 _sumc = (v4f32)__msa_fill_w(0);
-            v4f32 _sumd = (v4f32)__msa_fill_w(0);
-            v4f32 _sume = (v4f32)__msa_fill_w(0);
-            v4f32 _sumf = (v4f32)__msa_fill_w(0);
-            for (; kk + 7 < max_kk; kk += 8)
+            for (; kk + 3 < max_kk; kk += 4)
             {
                 __builtin_prefetch(pA + 16);
                 __builtin_prefetch(pB + 64);
-
-                v8i16 _pA_bf16 = (v8i16)__msa_ld_h(pA, 0);
-                v4f32 _pA0123 = (v4f32)__msa_ilvr_h(_pA_bf16, _zero_bf16);
-                v4f32 _pA4567 = (v4f32)__msa_ilvl_h(_pA_bf16, _zero_bf16);
-
-                v4f32 _pA0 = (v4f32)__msa_splati_w((v4i32)_pA0123, 0);
+                v4f32 _pA = (v4f32)__msa_fill_w((int)((unsigned int)pA[0] << 16));
                 v8i16 _pB01_bf16 = (v8i16)__msa_ld_h(pB, 0);
                 v4f32 _pB0 = (v4f32)__msa_ilvr_h(_pB01_bf16, _zero_bf16);
                 v4f32 _pB1 = (v4f32)__msa_ilvl_h(_pB01_bf16, _zero_bf16);
-                _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA0, _pB0);
-                _sum8 = __ncnn_msa_fmadd_w(_sum8, _pA0, _pB1);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA, _pB0);
+                _sum8 = __ncnn_msa_fmadd_w(_sum8, _pA, _pB1);
 
-                v4f32 _pA1 = (v4f32)__msa_splati_w((v4i32)_pA0123, 1);
+                _pA = (v4f32)__msa_fill_w((int)((unsigned int)pA[1] << 16));
                 _pB01_bf16 = (v8i16)__msa_ld_h(pB + 8, 0);
                 _pB0 = (v4f32)__msa_ilvr_h(_pB01_bf16, _zero_bf16);
                 _pB1 = (v4f32)__msa_ilvl_h(_pB01_bf16, _zero_bf16);
-                _sum1 = __ncnn_msa_fmadd_w(_sum1, _pA1, _pB0);
-                _sum9 = __ncnn_msa_fmadd_w(_sum9, _pA1, _pB1);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _pA, _pB0);
+                _sum9 = __ncnn_msa_fmadd_w(_sum9, _pA, _pB1);
 
-                v4f32 _pA2 = (v4f32)__msa_splati_w((v4i32)_pA0123, 2);
+                _pA = (v4f32)__msa_fill_w((int)((unsigned int)pA[2] << 16));
                 _pB01_bf16 = (v8i16)__msa_ld_h(pB + 16, 0);
                 _pB0 = (v4f32)__msa_ilvr_h(_pB01_bf16, _zero_bf16);
                 _pB1 = (v4f32)__msa_ilvl_h(_pB01_bf16, _zero_bf16);
-                _sum2 = __ncnn_msa_fmadd_w(_sum2, _pA2, _pB0);
-                _suma = __ncnn_msa_fmadd_w(_suma, _pA2, _pB1);
+                _sum2 = __ncnn_msa_fmadd_w(_sum2, _pA, _pB0);
+                _suma = __ncnn_msa_fmadd_w(_suma, _pA, _pB1);
 
-                v4f32 _pA3 = (v4f32)__msa_splati_w((v4i32)_pA0123, 3);
+                _pA = (v4f32)__msa_fill_w((int)((unsigned int)pA[3] << 16));
                 _pB01_bf16 = (v8i16)__msa_ld_h(pB + 24, 0);
                 _pB0 = (v4f32)__msa_ilvr_h(_pB01_bf16, _zero_bf16);
                 _pB1 = (v4f32)__msa_ilvl_h(_pB01_bf16, _zero_bf16);
-                _sum3 = __ncnn_msa_fmadd_w(_sum3, _pA3, _pB0);
-                _sumb = __ncnn_msa_fmadd_w(_sumb, _pA3, _pB1);
+                _sum3 = __ncnn_msa_fmadd_w(_sum3, _pA, _pB0);
+                _sumb = __ncnn_msa_fmadd_w(_sumb, _pA, _pB1);
 
-                v4f32 _pA4 = (v4f32)__msa_splati_w((v4i32)_pA4567, 0);
-                _pB01_bf16 = (v8i16)__msa_ld_h(pB + 32, 0);
-                _pB0 = (v4f32)__msa_ilvr_h(_pB01_bf16, _zero_bf16);
-                _pB1 = (v4f32)__msa_ilvl_h(_pB01_bf16, _zero_bf16);
-                _sum4 = __ncnn_msa_fmadd_w(_sum4, _pA4, _pB0);
-                _sumc = __ncnn_msa_fmadd_w(_sumc, _pA4, _pB1);
-
-                v4f32 _pA5 = (v4f32)__msa_splati_w((v4i32)_pA4567, 1);
-                _pB01_bf16 = (v8i16)__msa_ld_h(pB + 40, 0);
-                _pB0 = (v4f32)__msa_ilvr_h(_pB01_bf16, _zero_bf16);
-                _pB1 = (v4f32)__msa_ilvl_h(_pB01_bf16, _zero_bf16);
-                _sum5 = __ncnn_msa_fmadd_w(_sum5, _pA5, _pB0);
-                _sumd = __ncnn_msa_fmadd_w(_sumd, _pA5, _pB1);
-
-                v4f32 _pA6 = (v4f32)__msa_splati_w((v4i32)_pA4567, 2);
-                _pB01_bf16 = (v8i16)__msa_ld_h(pB + 48, 0);
-                _pB0 = (v4f32)__msa_ilvr_h(_pB01_bf16, _zero_bf16);
-                _pB1 = (v4f32)__msa_ilvl_h(_pB01_bf16, _zero_bf16);
-                _sum6 = __ncnn_msa_fmadd_w(_sum6, _pA6, _pB0);
-                _sume = __ncnn_msa_fmadd_w(_sume, _pA6, _pB1);
-
-                v4f32 _pA7 = (v4f32)__msa_splati_w((v4i32)_pA4567, 3);
-                _pB01_bf16 = (v8i16)__msa_ld_h(pB + 56, 0);
-                _pB0 = (v4f32)__msa_ilvr_h(_pB01_bf16, _zero_bf16);
-                _pB1 = (v4f32)__msa_ilvl_h(_pB01_bf16, _zero_bf16);
-                _sum7 = __ncnn_msa_fmadd_w(_sum7, _pA7, _pB0);
-                _sumf = __ncnn_msa_fmadd_w(_sumf, _pA7, _pB1);
-
-                pA += 8;
-                pB += 64;
+                pA += 4;
+                pB += 32;
             }
             _sum0 = __msa_fadd_w(_sum0, _sum1);
             _sum2 = __msa_fadd_w(_sum2, _sum3);
-            _sum4 = __msa_fadd_w(_sum4, _sum5);
-            _sum6 = __msa_fadd_w(_sum6, _sum7);
             _sum0 = __msa_fadd_w(_sum0, _sum2);
-            _sum4 = __msa_fadd_w(_sum4, _sum6);
-            _sum0 = __msa_fadd_w(_sum0, _sum4);
             _sum8 = __msa_fadd_w(_sum8, _sum9);
             _suma = __msa_fadd_w(_suma, _sumb);
-            _sumc = __msa_fadd_w(_sumc, _sumd);
-            _sume = __msa_fadd_w(_sume, _sumf);
             _sum8 = __msa_fadd_w(_sum8, _suma);
-            _sumc = __msa_fadd_w(_sumc, _sume);
-            _sum8 = __msa_fadd_w(_sum8, _sumc);
             for (; kk < max_kk; kk++)
             {
                 __builtin_prefetch(pA + 16);
@@ -2018,68 +1969,37 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum0 = (v4f32)__msa_ld_w(outptr, 0);
             }
 
-            v8i16 _zero_bf16 = __msa_fill_h(0);
-
             const unsigned short* pA = pAT;
             int kk = 0;
             v4f32 _sum1 = (v4f32)__msa_fill_w(0);
             v4f32 _sum2 = (v4f32)__msa_fill_w(0);
             v4f32 _sum3 = (v4f32)__msa_fill_w(0);
-            v4f32 _sum4 = (v4f32)__msa_fill_w(0);
-            v4f32 _sum5 = (v4f32)__msa_fill_w(0);
-            v4f32 _sum6 = (v4f32)__msa_fill_w(0);
-            v4f32 _sum7 = (v4f32)__msa_fill_w(0);
-            for (; kk + 7 < max_kk; kk += 8)
+            for (; kk + 3 < max_kk; kk += 4)
             {
                 __builtin_prefetch(pA + 16);
                 __builtin_prefetch(pB + 32);
-
-                v8i16 _pA_bf16 = (v8i16)__msa_ld_h(pA, 0);
-                v4f32 _pA0123 = (v4f32)__msa_ilvr_h(_pA_bf16, _zero_bf16);
-                v4f32 _pA4567 = (v4f32)__msa_ilvl_h(_pA_bf16, _zero_bf16);
-
-                v4f32 _pA0 = (v4f32)__msa_splati_w((v4i32)_pA0123, 0);
+                v4f32 _pA = (v4f32)__msa_fill_w((int)((unsigned int)pA[0] << 16));
                 v4f32 _pB = bfloat2float_msa(pB);
-                _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA0, _pB);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA, _pB);
 
-                v4f32 _pA1 = (v4f32)__msa_splati_w((v4i32)_pA0123, 1);
+                _pA = (v4f32)__msa_fill_w((int)((unsigned int)pA[1] << 16));
                 _pB = bfloat2float_msa(pB + 4);
-                _sum1 = __ncnn_msa_fmadd_w(_sum1, _pA1, _pB);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _pA, _pB);
 
-                v4f32 _pA2 = (v4f32)__msa_splati_w((v4i32)_pA0123, 2);
+                _pA = (v4f32)__msa_fill_w((int)((unsigned int)pA[2] << 16));
                 _pB = bfloat2float_msa(pB + 8);
-                _sum2 = __ncnn_msa_fmadd_w(_sum2, _pA2, _pB);
+                _sum2 = __ncnn_msa_fmadd_w(_sum2, _pA, _pB);
 
-                v4f32 _pA3 = (v4f32)__msa_splati_w((v4i32)_pA0123, 3);
+                _pA = (v4f32)__msa_fill_w((int)((unsigned int)pA[3] << 16));
                 _pB = bfloat2float_msa(pB + 12);
-                _sum3 = __ncnn_msa_fmadd_w(_sum3, _pA3, _pB);
+                _sum3 = __ncnn_msa_fmadd_w(_sum3, _pA, _pB);
 
-                v4f32 _pA4 = (v4f32)__msa_splati_w((v4i32)_pA4567, 0);
-                _pB = bfloat2float_msa(pB + 16);
-                _sum4 = __ncnn_msa_fmadd_w(_sum4, _pA4, _pB);
-
-                v4f32 _pA5 = (v4f32)__msa_splati_w((v4i32)_pA4567, 1);
-                _pB = bfloat2float_msa(pB + 20);
-                _sum5 = __ncnn_msa_fmadd_w(_sum5, _pA5, _pB);
-
-                v4f32 _pA6 = (v4f32)__msa_splati_w((v4i32)_pA4567, 2);
-                _pB = bfloat2float_msa(pB + 24);
-                _sum6 = __ncnn_msa_fmadd_w(_sum6, _pA6, _pB);
-
-                v4f32 _pA7 = (v4f32)__msa_splati_w((v4i32)_pA4567, 3);
-                _pB = bfloat2float_msa(pB + 28);
-                _sum7 = __ncnn_msa_fmadd_w(_sum7, _pA7, _pB);
-
-                pA += 8;
-                pB += 32;
+                pA += 4;
+                pB += 16;
             }
             _sum0 = __msa_fadd_w(_sum0, _sum1);
             _sum2 = __msa_fadd_w(_sum2, _sum3);
-            _sum4 = __msa_fadd_w(_sum4, _sum5);
-            _sum6 = __msa_fadd_w(_sum6, _sum7);
             _sum0 = __msa_fadd_w(_sum0, _sum2);
-            _sum4 = __msa_fadd_w(_sum4, _sum6);
-            _sum0 = __msa_fadd_w(_sum0, _sum4);
             for (; kk < max_kk; kk++)
             {
                 __builtin_prefetch(pA + 16);
