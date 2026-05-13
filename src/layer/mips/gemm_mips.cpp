@@ -3685,7 +3685,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                __builtin_prefetch(pA + 16);
                 __builtin_prefetch(pB + 32);
                 v4f32 _pA = (v4f32)__msa_ld_w(pA, 0);
                 v4f32 _pA0 = (v4f32)__msa_ilvr_d((v2i64)_pA, (v2i64)_pA);
@@ -3768,7 +3767,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                __builtin_prefetch(pA + 16);
                 __builtin_prefetch(pB + 16);
                 v4f32 _pA = (v4f32)__msa_ld_w(pA, 0);
                 v4f32 _pA0 = (v4f32)__msa_ilvr_d((v2i64)_pA, (v2i64)_pA);
@@ -3979,7 +3977,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             v4f32 _sumb = (v4f32)__msa_fill_w(0);
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __builtin_prefetch(pA + 16);
                 __builtin_prefetch(pB + 64);
                 v4f32 _pA = __msa_fill_w_f32(pA[0]);
                 v4f32 _pB0 = (v4f32)__msa_ld_w(pB, 0);
@@ -4016,8 +4013,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             _sum8 = __msa_fadd_w(_sum8, _suma);
             for (; kk < max_kk; kk++)
             {
-                __builtin_prefetch(pA + 16);
-                __builtin_prefetch(pB + 16);
                 v4f32 _pA = __msa_fill_w_f32(pA[0]);
                 v4f32 _pB0 = (v4f32)__msa_ld_w(pB, 0);
                 v4f32 _pB1 = (v4f32)__msa_ld_w(pB + 4, 0);
@@ -4055,7 +4050,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             v4f32 _sum3 = (v4f32)__msa_fill_w(0);
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __builtin_prefetch(pA + 16);
                 __builtin_prefetch(pB + 32);
                 v4f32 _pA = __msa_fill_w_f32(pA[0]);
                 v4f32 _pB = (v4f32)__msa_ld_w(pB, 0);
@@ -4081,8 +4075,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             _sum0 = __msa_fadd_w(_sum0, _sum2);
             for (; kk < max_kk; kk++)
             {
-                __builtin_prefetch(pA + 16);
-                __builtin_prefetch(pB + 16);
                 v4f32 _pA = __msa_fill_w_f32(pA[0]);
                 v4f32 _pB = (v4f32)__msa_ld_w(pB, 0);
                 _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA, _pB);

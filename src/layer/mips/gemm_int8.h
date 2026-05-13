@@ -3062,7 +3062,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __builtin_prefetch(pA + 32);
                 __builtin_prefetch(pB + 64);
                 v16i8 _pA = (v16i8)__msa_fill_d_ptr(pA);
                 v16i8 _pB0 = __msa_ld_b(pB, 0);
@@ -3162,7 +3161,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __builtin_prefetch(pA + 32);
                 __builtin_prefetch(pB + 32);
                 v16i8 _pA = (v16i8)__msa_fill_d_ptr(pA);
                 v16i8 _pB0 = __msa_ld_b(pB, 0);
@@ -3257,7 +3255,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             for (; kk + 3 < max_kk; kk += 4)
             {
                 asm volatile(
-                    "ld         $0, 32(%0)      \n" // __builtin_prefetch(pA + 32);
                     "ld         $0, 32(%1)      \n" // __builtin_prefetch(pB + 32);
 
                     "ldc1       %6, 0(%0)       \n" // int8x8_t _pA = __mmi_pldb_s(pA);
@@ -3329,7 +3326,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             const int8x8_t _zero = __mmi_pzerob_s();
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __builtin_prefetch(pA + 32);
                 __builtin_prefetch(pB + 32);
 
                 int8x8_t _pA = __mmi_pldb_s(pA);
@@ -3429,7 +3425,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             for (; kk + 3 < max_kk; kk += 4)
             {
                 asm volatile(
-                    "ld         $0, 32(%0)      \n" // __builtin_prefetch(pA + 32);
                     "ld         $0, 16(%1)      \n" // __builtin_prefetch(pB + 16);
 
                     "ldc1       %4, 0(%0)       \n" // int8x8_t _pA = __mmi_pldb_s(pA);
@@ -3490,7 +3485,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             const int8x8_t _zero = __mmi_pzerob_s();
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __builtin_prefetch(pA + 32);
                 __builtin_prefetch(pB + 16);
 
                 int8x8_t _pA = __mmi_pldb_s(pA);
@@ -3573,7 +3567,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             v4i32 _sum3 = __msa_fill_w(0);
             for (; kk + 7 < max_kk; kk += 8)
             {
-                __builtin_prefetch(pA + 16);
                 __builtin_prefetch(pB + 64);
                 v16i8 _pA = (v16i8)__msa_fill_w(*(const int*)pA);
                 v16i8 _pB0 = __msa_ld_b(pB, 0);
@@ -3596,7 +3589,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             _sum1 = __msa_addv_w(_sum1, _sum3);
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __builtin_prefetch(pA + 16);
                 __builtin_prefetch(pB + 64);
                 v16i8 _pA = (v16i8)__msa_fill_w(*(const int*)pA);
                 v16i8 _pB0 = __msa_ld_b(pB, 0);
@@ -3663,7 +3655,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             v4i32 _sum1 = __msa_fill_w(0);
             for (; kk + 7 < max_kk; kk += 8)
             {
-                __builtin_prefetch(pA + 16);
                 __builtin_prefetch(pB + 32);
                 v16i8 _pA = (v16i8)__msa_fill_w(*(const int*)pA);
                 v16i8 _pB0 = __msa_ld_b(pB, 0);
@@ -3681,7 +3672,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             _sum0 = __msa_addv_w(_sum0, _sum1);
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __builtin_prefetch(pA + 16);
                 __builtin_prefetch(pB + 32);
                 v16i8 _pA = (v16i8)__msa_fill_w(*(const int*)pA);
                 v16i8 _pB0 = __msa_ld_b(pB, 0);
@@ -3752,7 +3742,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             for (; kk + 3 < max_kk; kk += 4)
             {
                 asm volatile(
-                    "ld         $0, 16(%0)      \n" // __builtin_prefetch(pA + 16);
                     "ld         $0, 32(%1)      \n" // __builtin_prefetch(pB + 32);
 
                     "lwc1       %4, 0(%0)       \n" // int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(*(const int*)pA);
@@ -3813,7 +3802,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             const int8x8_t _zero = __mmi_pzerob_s();
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __builtin_prefetch(pA + 16);
                 __builtin_prefetch(pB + 32);
 
                 int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(*(const int*)pA);
@@ -3894,7 +3882,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             for (; kk + 3 < max_kk; kk += 4)
             {
                 asm volatile(
-                    "ld         $0, 16(%0)      \n" // __builtin_prefetch(pA + 16);
                     "ld         $0, 16(%1)      \n" // __builtin_prefetch(pB + 16);
 
                     "lwc1       %3, 0(%0)       \n" // int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(*(const int*)pA);
@@ -3947,7 +3934,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             const int8x8_t _zero = __mmi_pzerob_s();
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __builtin_prefetch(pA + 16);
                 __builtin_prefetch(pB + 16);
 
                 int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(*(const int*)pA);
