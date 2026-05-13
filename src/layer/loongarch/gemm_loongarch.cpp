@@ -7338,6 +7338,355 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
     }
 }
 
+static int gemm_BT_loongarch_m1(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+{
+    (void)opt;
+
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk(0, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
+
+    const int nn_N = (N + TILE_N - 1) / TILE_N;
+    const int nn_K = (K + TILE_K - 1) / TILE_K;
+
+    const float* pA0 = A;
+    const float* pC = C;
+    float* outptr = top_blob;
+
+    #pragma omp parallel for num_threads(nT)
+    for (int ppj = 0; ppj < nn_N; ppj++)
+    {
+        const int j = ppj * TILE_N;
+        const int max_jj = std::min(N - j, TILE_N);
+
+        const Mat BT_tile = BT.channel(ppj);
+        float* outptr0 = outptr + j;
+        const float* pC0 = pC ? pC + (broadcast_type_C == 3 || broadcast_type_C == 4 ? j : 0) : 0;
+
+        int jj = 0;
+#if __loongarch_sx
+#if __loongarch_asx
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            __m256 _sum0 = (__m256)__lasx_xvreplgr2vr_w(0);
+            __m256 _sum8 = (__m256)__lasx_xvreplgr2vr_w(0);
+
+            for (int ppk = 0; ppk < nn_K; ppk++)
+            {
+                const int k = ppk * TILE_K;
+                const int max_kk = std::min(K - k, TILE_K);
+
+                const float* pA = pA0 + k;
+                const float* pB = BT_tile.row<const float>(ppk) + jj * max_kk;
+
+                int kk = 0;
+                __m256 _sum1 = (__m256)__lasx_xvreplgr2vr_w(0);
+                __m256 _sum2 = (__m256)__lasx_xvreplgr2vr_w(0);
+                __m256 _sum3 = (__m256)__lasx_xvreplgr2vr_w(0);
+                __m256 _sum9 = (__m256)__lasx_xvreplgr2vr_w(0);
+                __m256 _suma = (__m256)__lasx_xvreplgr2vr_w(0);
+                __m256 _sumb = (__m256)__lasx_xvreplgr2vr_w(0);
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    __builtin_prefetch(pA + 16);
+                    __builtin_prefetch(pB + 128);
+                    __m256 _pB0 = (__m256)__lasx_xvld(pB, 0);
+                    __m256 _pB1 = (__m256)__lasx_xvld(pB + 8, 0);
+                    __m256 _pA0 = __lasx_xvreplfr2vr_s(pA[0]);
+                    _sum0 = __lasx_xvfmadd_s(_pA0, _pB0, _sum0);
+                    _sum8 = __lasx_xvfmadd_s(_pA0, _pB1, _sum8);
+
+                    _pB0 = (__m256)__lasx_xvld(pB + 16, 0);
+                    _pB1 = (__m256)__lasx_xvld(pB + 24, 0);
+                    _pA0 = __lasx_xvreplfr2vr_s(pA[1]);
+                    _sum1 = __lasx_xvfmadd_s(_pA0, _pB0, _sum1);
+                    _sum9 = __lasx_xvfmadd_s(_pA0, _pB1, _sum9);
+
+                    _pB0 = (__m256)__lasx_xvld(pB + 32, 0);
+                    _pB1 = (__m256)__lasx_xvld(pB + 40, 0);
+                    _pA0 = __lasx_xvreplfr2vr_s(pA[2]);
+                    _sum2 = __lasx_xvfmadd_s(_pA0, _pB0, _sum2);
+                    _suma = __lasx_xvfmadd_s(_pA0, _pB1, _suma);
+
+                    _pB0 = (__m256)__lasx_xvld(pB + 48, 0);
+                    _pB1 = (__m256)__lasx_xvld(pB + 56, 0);
+                    _pA0 = __lasx_xvreplfr2vr_s(pA[3]);
+                    _sum3 = __lasx_xvfmadd_s(_pA0, _pB0, _sum3);
+                    _sumb = __lasx_xvfmadd_s(_pA0, _pB1, _sumb);
+
+                    pA += 4;
+                    pB += 64;
+                }
+                _sum0 = __lasx_xvfadd_s(_sum0, _sum1);
+                _sum2 = __lasx_xvfadd_s(_sum2, _sum3);
+                _sum0 = __lasx_xvfadd_s(_sum0, _sum2);
+                _sum8 = __lasx_xvfadd_s(_sum8, _sum9);
+                _suma = __lasx_xvfadd_s(_suma, _sumb);
+                _sum8 = __lasx_xvfadd_s(_sum8, _suma);
+                for (; kk < max_kk; kk++)
+                {
+                    __builtin_prefetch(pA + 16);
+                    __builtin_prefetch(pB + 32);
+                    __m256 _pB0 = (__m256)__lasx_xvld(pB, 0);
+                    __m256 _pB1 = (__m256)__lasx_xvld(pB + 8, 0);
+                    __m256 _pA0 = __lasx_xvreplfr2vr_s(pA[0]);
+                    _sum0 = __lasx_xvfmadd_s(_pA0, _pB0, _sum0);
+                    _sum8 = __lasx_xvfmadd_s(_pA0, _pB1, _sum8);
+                    pA += 1;
+                    pB += 16;
+                }
+            }
+
+            if (pC0)
+            {
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    __m256 _c = (__m256)__lasx_xvreplfr2vr_s(pC0[0]);
+                    _sum0 = __lasx_xvfadd_s(_sum0, _c);
+                    _sum8 = __lasx_xvfadd_s(_sum8, _c);
+                }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                {
+                    _sum0 = __lasx_xvfadd_s(_sum0, (__m256)__lasx_xvld(pC0 + jj, 0));
+                    _sum8 = __lasx_xvfadd_s(_sum8, (__m256)__lasx_xvld(pC0 + jj + 8, 0));
+                }
+            }
+
+            __lasx_xvst(_sum0, outptr0 + jj, 0);
+            __lasx_xvst(_sum8, outptr0 + jj + 8, 0);
+        }
+#endif // __loongarch_asx
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+            __m128 _sum8 = (__m128)__lsx_vreplgr2vr_w(0);
+
+            for (int ppk = 0; ppk < nn_K; ppk++)
+            {
+                const int k = ppk * TILE_K;
+                const int max_kk = std::min(K - k, TILE_K);
+
+                const float* pA = pA0 + k;
+                const float* pB = BT_tile.row<const float>(ppk) + jj * max_kk;
+
+                int kk = 0;
+                __m128 _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum2 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum3 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum9 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _suma = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sumb = (__m128)__lsx_vreplgr2vr_w(0);
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    __builtin_prefetch(pA + 16);
+                    __builtin_prefetch(pB + 64);
+                    __m128 _pB0 = (__m128)__lsx_vld(pB, 0);
+                    __m128 _pB1 = (__m128)__lsx_vld(pB + 4, 0);
+                    __m128 _pA0 = __lsx_vreplfr2vr_s(pA[0]);
+                    _sum0 = __lsx_vfmadd_s(_pA0, _pB0, _sum0);
+                    _sum8 = __lsx_vfmadd_s(_pA0, _pB1, _sum8);
+
+                    _pB0 = (__m128)__lsx_vld(pB + 8, 0);
+                    _pB1 = (__m128)__lsx_vld(pB + 12, 0);
+                    _pA0 = __lsx_vreplfr2vr_s(pA[1]);
+                    _sum1 = __lsx_vfmadd_s(_pA0, _pB0, _sum1);
+                    _sum9 = __lsx_vfmadd_s(_pA0, _pB1, _sum9);
+
+                    _pB0 = (__m128)__lsx_vld(pB + 16, 0);
+                    _pB1 = (__m128)__lsx_vld(pB + 20, 0);
+                    _pA0 = __lsx_vreplfr2vr_s(pA[2]);
+                    _sum2 = __lsx_vfmadd_s(_pA0, _pB0, _sum2);
+                    _suma = __lsx_vfmadd_s(_pA0, _pB1, _suma);
+
+                    _pB0 = (__m128)__lsx_vld(pB + 24, 0);
+                    _pB1 = (__m128)__lsx_vld(pB + 28, 0);
+                    _pA0 = __lsx_vreplfr2vr_s(pA[3]);
+                    _sum3 = __lsx_vfmadd_s(_pA0, _pB0, _sum3);
+                    _sumb = __lsx_vfmadd_s(_pA0, _pB1, _sumb);
+
+                    pA += 4;
+                    pB += 32;
+                }
+                _sum0 = __lsx_vfadd_s(_sum0, _sum1);
+                _sum2 = __lsx_vfadd_s(_sum2, _sum3);
+                _sum0 = __lsx_vfadd_s(_sum0, _sum2);
+                _sum8 = __lsx_vfadd_s(_sum8, _sum9);
+                _suma = __lsx_vfadd_s(_suma, _sumb);
+                _sum8 = __lsx_vfadd_s(_sum8, _suma);
+                for (; kk < max_kk; kk++)
+                {
+                    __builtin_prefetch(pA + 16);
+                    __builtin_prefetch(pB + 16);
+                    __m128 _pB0 = (__m128)__lsx_vld(pB, 0);
+                    __m128 _pB1 = (__m128)__lsx_vld(pB + 4, 0);
+                    __m128 _pA0 = __lsx_vreplfr2vr_s(pA[0]);
+                    _sum0 = __lsx_vfmadd_s(_pA0, _pB0, _sum0);
+                    _sum8 = __lsx_vfmadd_s(_pA0, _pB1, _sum8);
+                    pA += 1;
+                    pB += 8;
+                }
+            }
+
+            if (pC0)
+            {
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    __m128 _c = __lsx_vreplfr2vr_s(pC0[0]);
+                    _sum0 = __lsx_vfadd_s(_sum0, _c);
+                    _sum8 = __lsx_vfadd_s(_sum8, _c);
+                }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                {
+                    _sum0 = __lsx_vfadd_s(_sum0, (__m128)__lsx_vld(pC0 + jj, 0));
+                    _sum8 = __lsx_vfadd_s(_sum8, (__m128)__lsx_vld(pC0 + jj + 4, 0));
+                }
+            }
+
+            __lsx_vst((__m128i)_sum0, outptr0 + jj, 0);
+            __lsx_vst((__m128i)_sum8, outptr0 + jj + 4, 0);
+        }
+
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+
+            for (int ppk = 0; ppk < nn_K; ppk++)
+            {
+                const int k = ppk * TILE_K;
+                const int max_kk = std::min(K - k, TILE_K);
+
+                const float* pA = pA0 + k;
+                const float* pB = BT_tile.row<const float>(ppk) + jj * max_kk;
+
+                int kk = 0;
+                __m128 _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum2 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum3 = (__m128)__lsx_vreplgr2vr_w(0);
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    __builtin_prefetch(pA + 16);
+                    __builtin_prefetch(pB + 32);
+                    __m128 _pA = __lsx_vreplfr2vr_s(pA[0]);
+                    __m128 _pB = (__m128)__lsx_vld(pB, 0);
+                    _sum0 = __lsx_vfmadd_s(_pA, _pB, _sum0);
+
+                    _pA = __lsx_vreplfr2vr_s(pA[1]);
+                    _pB = (__m128)__lsx_vld(pB + 4, 0);
+                    _sum1 = __lsx_vfmadd_s(_pA, _pB, _sum1);
+
+                    _pA = __lsx_vreplfr2vr_s(pA[2]);
+                    _pB = (__m128)__lsx_vld(pB + 8, 0);
+                    _sum2 = __lsx_vfmadd_s(_pA, _pB, _sum2);
+
+                    _pA = __lsx_vreplfr2vr_s(pA[3]);
+                    _pB = (__m128)__lsx_vld(pB + 12, 0);
+                    _sum3 = __lsx_vfmadd_s(_pA, _pB, _sum3);
+
+                    pA += 4;
+                    pB += 16;
+                }
+                _sum0 = __lsx_vfadd_s(_sum0, _sum1);
+                _sum2 = __lsx_vfadd_s(_sum2, _sum3);
+                _sum0 = __lsx_vfadd_s(_sum0, _sum2);
+                for (; kk < max_kk; kk++)
+                {
+                    __builtin_prefetch(pA + 16);
+                    __builtin_prefetch(pB + 8);
+                    __m128 _pA = __lsx_vreplfr2vr_s(pA[0]);
+                    __m128 _pB = (__m128)__lsx_vld(pB, 0);
+                    _sum0 = __lsx_vfmadd_s(_pA, _pB, _sum0);
+                    pA += 1;
+                    pB += 4;
+                }
+            }
+
+            if (pC0)
+            {
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                    _sum0 = __lsx_vfadd_s(_sum0, __lsx_vreplfr2vr_s(pC0[0]));
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                    _sum0 = __lsx_vfadd_s(_sum0, (__m128)__lsx_vld(pC0 + jj, 0));
+            }
+
+            __lsx_vst((__m128i)_sum0, outptr0 + jj, 0);
+        }
+#endif // __loongarch_sx
+
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            float sum0 = 0.f;
+            float sum1 = 0.f;
+
+            for (int ppk = 0; ppk < nn_K; ppk++)
+            {
+                const int k = ppk * TILE_K;
+                const int max_kk = std::min(K - k, TILE_K);
+
+                const float* pA = pA0 + k;
+                const float* pB = BT_tile.row<const float>(ppk) + jj * max_kk;
+
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    const float a0 = pA[0];
+                    sum0 += a0 * pB[0];
+                    sum1 += a0 * pB[1];
+                    pA += 1;
+                    pB += 2;
+                }
+            }
+
+            if (pC0)
+            {
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    sum0 += pC0[0];
+                    sum1 += pC0[0];
+                }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                {
+                    sum0 += pC0[jj];
+                    sum1 += pC0[jj + 1];
+                }
+            }
+
+            outptr0[jj] = sum0;
+            outptr0[jj + 1] = sum1;
+        }
+
+        for (; jj < max_jj; jj++)
+        {
+            float sum = 0.f;
+
+            for (int ppk = 0; ppk < nn_K; ppk++)
+            {
+                const int k = ppk * TILE_K;
+                const int max_kk = std::min(K - k, TILE_K);
+
+                const float* pA = pA0 + k;
+                const float* pB = BT_tile.row<const float>(ppk) + jj * max_kk;
+
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    sum += pA[0] * pB[0];
+                    pA += 1;
+                    pB += 1;
+                }
+            }
+
+            if (pC0)
+            {
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                    sum += pC0[0];
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                    sum += pC0[jj];
+            }
+
+            outptr0[jj] = sum;
+        }
+    }
+
+    return 0;
+}
+
 static int gemm_loongarch(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
@@ -8160,7 +8509,10 @@ int Gemm_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     else if (constantB)
     {
         const Mat& A = bottom_blobs[0];
-        ret = gemm_BT_loongarch(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        if (M == 1 && !transA && !output_transpose)
+            ret = gemm_BT_loongarch_m1(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        else
+            ret = gemm_BT_loongarch(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
     else
     {
@@ -9162,7 +9514,10 @@ int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vec
     }
     else if (constantB)
     {
-        ret = gemm_BT_loongarch_bf16s(A_input, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
+        if (M == 1 && !transA && !output_transpose)
+            ret = gemm_BT_loongarch_m1_bf16s(A_input, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
+        else
+            ret = gemm_BT_loongarch_bf16s(A_input, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
     }
     else
     {

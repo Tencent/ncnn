@@ -4284,6 +4284,316 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
 #endif
 }
 
+static int gemm_BT_mips_m1(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+{
+    (void)opt;
+
+    int TILE_M;
+    int TILE_N;
+    int TILE_K;
+    get_optimal_tile_mnk(0, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
+
+    const int nn_N = (N + TILE_N - 1) / TILE_N;
+    const int nn_K = (K + TILE_K - 1) / TILE_K;
+
+    const float* pA0 = A;
+    const float* pC = C;
+    float* outptr = top_blob;
+
+    #pragma omp parallel for num_threads(nT)
+    for (int ppj = 0; ppj < nn_N; ppj++)
+    {
+        const int j = ppj * TILE_N;
+        const int max_jj = std::min(N - j, TILE_N);
+
+        const Mat BT_tile = BT.channel(ppj);
+        float* outptr0 = outptr + j;
+        const float* pC0 = pC ? pC + (broadcast_type_C == 3 || broadcast_type_C == 4 ? j : 0) : 0;
+
+        int jj = 0;
+#if __mips_msa
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            v4f32 _sum0 = (v4f32)__msa_fill_w(0);
+            v4f32 _sum8 = (v4f32)__msa_fill_w(0);
+
+            for (int ppk = 0; ppk < nn_K; ppk++)
+            {
+                const int k = ppk * TILE_K;
+                const int max_kk = std::min(K - k, TILE_K);
+
+                const float* pA = pA0 + k;
+                const float* pB = BT_tile.row<const float>(ppk) + jj * max_kk;
+
+                int kk = 0;
+                v4f32 _sum1 = (v4f32)__msa_fill_w(0);
+                v4f32 _sum2 = (v4f32)__msa_fill_w(0);
+                v4f32 _sum3 = (v4f32)__msa_fill_w(0);
+                v4f32 _sum9 = (v4f32)__msa_fill_w(0);
+                v4f32 _suma = (v4f32)__msa_fill_w(0);
+                v4f32 _sumb = (v4f32)__msa_fill_w(0);
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    __builtin_prefetch(pA + 16);
+                    __builtin_prefetch(pB + 64);
+                    v4f32 _pA = __msa_fill_w_f32(pA[0]);
+                    v4f32 _pB0 = (v4f32)__msa_ld_w(pB, 0);
+                    v4f32 _pB1 = (v4f32)__msa_ld_w(pB + 4, 0);
+                    _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA, _pB0);
+                    _sum8 = __ncnn_msa_fmadd_w(_sum8, _pA, _pB1);
+
+                    _pA = __msa_fill_w_f32(pA[1]);
+                    _pB0 = (v4f32)__msa_ld_w(pB + 8, 0);
+                    _pB1 = (v4f32)__msa_ld_w(pB + 12, 0);
+                    _sum1 = __ncnn_msa_fmadd_w(_sum1, _pA, _pB0);
+                    _sum9 = __ncnn_msa_fmadd_w(_sum9, _pA, _pB1);
+
+                    _pA = __msa_fill_w_f32(pA[2]);
+                    _pB0 = (v4f32)__msa_ld_w(pB + 16, 0);
+                    _pB1 = (v4f32)__msa_ld_w(pB + 20, 0);
+                    _sum2 = __ncnn_msa_fmadd_w(_sum2, _pA, _pB0);
+                    _suma = __ncnn_msa_fmadd_w(_suma, _pA, _pB1);
+
+                    _pA = __msa_fill_w_f32(pA[3]);
+                    _pB0 = (v4f32)__msa_ld_w(pB + 24, 0);
+                    _pB1 = (v4f32)__msa_ld_w(pB + 28, 0);
+                    _sum3 = __ncnn_msa_fmadd_w(_sum3, _pA, _pB0);
+                    _sumb = __ncnn_msa_fmadd_w(_sumb, _pA, _pB1);
+
+                    pA += 4;
+                    pB += 32;
+                }
+                _sum0 = __msa_fadd_w(_sum0, _sum1);
+                _sum2 = __msa_fadd_w(_sum2, _sum3);
+                _sum0 = __msa_fadd_w(_sum0, _sum2);
+                _sum8 = __msa_fadd_w(_sum8, _sum9);
+                _suma = __msa_fadd_w(_suma, _sumb);
+                _sum8 = __msa_fadd_w(_sum8, _suma);
+                for (; kk < max_kk; kk++)
+                {
+                    __builtin_prefetch(pA + 16);
+                    __builtin_prefetch(pB + 16);
+                    v4f32 _pA = __msa_fill_w_f32(pA[0]);
+                    v4f32 _pB0 = (v4f32)__msa_ld_w(pB, 0);
+                    v4f32 _pB1 = (v4f32)__msa_ld_w(pB + 4, 0);
+                    _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA, _pB0);
+                    _sum8 = __ncnn_msa_fmadd_w(_sum8, _pA, _pB1);
+                    pA += 1;
+                    pB += 8;
+                }
+            }
+
+            if (pC0)
+            {
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    v4f32 _c = __msa_fill_w_f32(pC0[0]);
+                    _sum0 = __msa_fadd_w(_sum0, _c);
+                    _sum8 = __msa_fadd_w(_sum8, _c);
+                }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                {
+                    _sum0 = __msa_fadd_w(_sum0, (v4f32)__msa_ld_w(pC0 + jj, 0));
+                    _sum8 = __msa_fadd_w(_sum8, (v4f32)__msa_ld_w(pC0 + jj + 4, 0));
+                }
+            }
+
+            __msa_st_w((v4i32)_sum0, outptr0 + jj, 0);
+            __msa_st_w((v4i32)_sum8, outptr0 + jj + 4, 0);
+        }
+#endif // __mips_msa
+
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+#if __mips_msa
+            v4f32 _sum0 = (v4f32)__msa_fill_w(0);
+
+            for (int ppk = 0; ppk < nn_K; ppk++)
+            {
+                const int k = ppk * TILE_K;
+                const int max_kk = std::min(K - k, TILE_K);
+
+                const float* pA = pA0 + k;
+                const float* pB = BT_tile.row<const float>(ppk) + jj * max_kk;
+
+                int kk = 0;
+                v4f32 _sum1 = (v4f32)__msa_fill_w(0);
+                v4f32 _sum2 = (v4f32)__msa_fill_w(0);
+                v4f32 _sum3 = (v4f32)__msa_fill_w(0);
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    __builtin_prefetch(pA + 16);
+                    __builtin_prefetch(pB + 32);
+                    v4f32 _pA = __msa_fill_w_f32(pA[0]);
+                    v4f32 _pB = (v4f32)__msa_ld_w(pB, 0);
+                    _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA, _pB);
+
+                    _pA = __msa_fill_w_f32(pA[1]);
+                    _pB = (v4f32)__msa_ld_w(pB + 4, 0);
+                    _sum1 = __ncnn_msa_fmadd_w(_sum1, _pA, _pB);
+
+                    _pA = __msa_fill_w_f32(pA[2]);
+                    _pB = (v4f32)__msa_ld_w(pB + 8, 0);
+                    _sum2 = __ncnn_msa_fmadd_w(_sum2, _pA, _pB);
+
+                    _pA = __msa_fill_w_f32(pA[3]);
+                    _pB = (v4f32)__msa_ld_w(pB + 12, 0);
+                    _sum3 = __ncnn_msa_fmadd_w(_sum3, _pA, _pB);
+
+                    pA += 4;
+                    pB += 16;
+                }
+                _sum0 = __msa_fadd_w(_sum0, _sum1);
+                _sum2 = __msa_fadd_w(_sum2, _sum3);
+                _sum0 = __msa_fadd_w(_sum0, _sum2);
+                for (; kk < max_kk; kk++)
+                {
+                    __builtin_prefetch(pA + 16);
+                    __builtin_prefetch(pB + 16);
+                    v4f32 _pA = __msa_fill_w_f32(pA[0]);
+                    v4f32 _pB = (v4f32)__msa_ld_w(pB, 0);
+                    _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA, _pB);
+                    pA += 1;
+                    pB += 4;
+                }
+            }
+
+            if (pC0)
+            {
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                    _sum0 = __msa_fadd_w(_sum0, __msa_fill_w_f32(pC0[0]));
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                    _sum0 = __msa_fadd_w(_sum0, (v4f32)__msa_ld_w(pC0 + jj, 0));
+            }
+
+            __msa_st_w((v4i32)_sum0, outptr0 + jj, 0);
+#else
+            float sum0 = 0.f;
+            float sum1 = 0.f;
+            float sum2 = 0.f;
+            float sum3 = 0.f;
+
+            for (int ppk = 0; ppk < nn_K; ppk++)
+            {
+                const int k = ppk * TILE_K;
+                const int max_kk = std::min(K - k, TILE_K);
+
+                const float* pA = pA0 + k;
+                const float* pB = BT_tile.row<const float>(ppk) + jj * max_kk;
+
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    const float a0 = pA[0];
+                    sum0 += a0 * pB[0];
+                    sum1 += a0 * pB[1];
+                    sum2 += a0 * pB[2];
+                    sum3 += a0 * pB[3];
+                    pA += 1;
+                    pB += 4;
+                }
+            }
+
+            if (pC0)
+            {
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    sum0 += pC0[0];
+                    sum1 += pC0[0];
+                    sum2 += pC0[0];
+                    sum3 += pC0[0];
+                }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                {
+                    sum0 += pC0[jj];
+                    sum1 += pC0[jj + 1];
+                    sum2 += pC0[jj + 2];
+                    sum3 += pC0[jj + 3];
+                }
+            }
+
+            outptr0[jj] = sum0;
+            outptr0[jj + 1] = sum1;
+            outptr0[jj + 2] = sum2;
+            outptr0[jj + 3] = sum3;
+#endif // __mips_msa
+        }
+
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            float sum0 = 0.f;
+            float sum1 = 0.f;
+
+            for (int ppk = 0; ppk < nn_K; ppk++)
+            {
+                const int k = ppk * TILE_K;
+                const int max_kk = std::min(K - k, TILE_K);
+
+                const float* pA = pA0 + k;
+                const float* pB = BT_tile.row<const float>(ppk) + jj * max_kk;
+
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    const float a0 = pA[0];
+                    sum0 += a0 * pB[0];
+                    sum1 += a0 * pB[1];
+                    pA += 1;
+                    pB += 2;
+                }
+            }
+
+            if (pC0)
+            {
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    sum0 += pC0[0];
+                    sum1 += pC0[0];
+                }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                {
+                    sum0 += pC0[jj];
+                    sum1 += pC0[jj + 1];
+                }
+            }
+
+            outptr0[jj] = sum0;
+            outptr0[jj + 1] = sum1;
+        }
+
+        for (; jj < max_jj; jj++)
+        {
+            float sum = 0.f;
+
+            for (int ppk = 0; ppk < nn_K; ppk++)
+            {
+                const int k = ppk * TILE_K;
+                const int max_kk = std::min(K - k, TILE_K);
+
+                const float* pA = pA0 + k;
+                const float* pB = BT_tile.row<const float>(ppk) + jj * max_kk;
+
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    sum += pA[0] * pB[0];
+                    pA += 1;
+                    pB += 1;
+                }
+            }
+
+            if (pC0)
+            {
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                    sum += pC0[0];
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                    sum += pC0[jj];
+            }
+
+            outptr0[jj] = sum;
+        }
+    }
+
+    return 0;
+}
+
 static int gemm_mips(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
@@ -5050,7 +5360,10 @@ int Gemm_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     else if (constantB)
     {
         const Mat& A = bottom_blobs[0];
-        ret = gemm_BT_mips(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        if (M == 1 && !transA && !output_transpose)
+            ret = gemm_BT_mips_m1(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        else
+            ret = gemm_BT_mips(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
     else
     {
@@ -6044,7 +6357,10 @@ int Gemm_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
     }
     else if (constantB)
     {
-        ret = gemm_BT_mips_bf16s(A_input, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
+        if (M == 1 && !transA && !output_transpose)
+            ret = gemm_BT_mips_m1_bf16s(A_input, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
+        else
+            ret = gemm_BT_mips_bf16s(A_input, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
     }
     else
     {
