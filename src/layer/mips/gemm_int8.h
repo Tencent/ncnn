@@ -3569,6 +3569,31 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
 
             int kk = 0;
+            v4i32 _sum2 = __msa_fill_w(0);
+            v4i32 _sum3 = __msa_fill_w(0);
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 64);
+                v16i8 _pA = (v16i8)__msa_fill_w(*(const int*)pA);
+                v16i8 _pB0 = __msa_ld_b(pB, 0);
+                v16i8 _pB1 = __msa_ld_b(pB + 16, 0);
+
+                _sum0 = __msa_dpadd_s_w(_sum0, __msa_dotp_s_h(_pA, _pB0), _one);
+                _sum1 = __msa_dpadd_s_w(_sum1, __msa_dotp_s_h(_pA, _pB1), _one);
+
+                _pA = (v16i8)__msa_fill_w(*(const int*)(pA + 4));
+                _pB0 = __msa_ld_b(pB + 32, 0);
+                _pB1 = __msa_ld_b(pB + 48, 0);
+
+                _sum2 = __msa_dpadd_s_w(_sum2, __msa_dotp_s_h(_pA, _pB0), _one);
+                _sum3 = __msa_dpadd_s_w(_sum3, __msa_dotp_s_h(_pA, _pB1), _one);
+
+                pA += 8;
+                pB += 64;
+            }
+            _sum0 = __msa_addv_w(_sum0, _sum2);
+            _sum1 = __msa_addv_w(_sum1, _sum3);
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __builtin_prefetch(pA + 16);
@@ -3635,6 +3660,25 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
 
             int kk = 0;
+            v4i32 _sum1 = __msa_fill_w(0);
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 32);
+                v16i8 _pA = (v16i8)__msa_fill_w(*(const int*)pA);
+                v16i8 _pB0 = __msa_ld_b(pB, 0);
+
+                _sum0 = __msa_dpadd_s_w(_sum0, __msa_dotp_s_h(_pA, _pB0), _one);
+
+                _pA = (v16i8)__msa_fill_w(*(const int*)(pA + 4));
+                _pB0 = __msa_ld_b(pB + 16, 0);
+
+                _sum1 = __msa_dpadd_s_w(_sum1, __msa_dotp_s_h(_pA, _pB0), _one);
+
+                pA += 8;
+                pB += 32;
+            }
+            _sum0 = __msa_addv_w(_sum0, _sum1);
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __builtin_prefetch(pA + 16);
