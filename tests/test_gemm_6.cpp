@@ -57,8 +57,8 @@ int main()
     SRAND(7767517);
 
     return 0
-           || test_gemm_fp16s(1, 15, 9, 0)
-           || test_gemm_fp16s(1, 8, 9, 0)
-           || test_gemm_fp16s(1, 4, 9, 0)
-           || test_gemm_fp16s(1, 15, 9, 1);
+           || test_gemm_fp16s(15, 15, 9, 0)
+           || test_gemm_fp16s(15, 8, 9, 0)
+           || test_gemm_fp16s(15, 4, 9, 0)
+           || test_gemm_fp16s(15, 15, 9, 1);
 }
