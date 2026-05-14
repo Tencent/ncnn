@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 #ifndef INFINITY
-#define INFINITY (1.0 / 0.0)
+#define INFINITY (1.0f / 0.0f)
 #endif
 
 /*
