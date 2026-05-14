@@ -4919,19 +4919,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        float32x4x2_t _r0;
-                        _r0.val[0] = _f00;
-                        _r0.val[1] = _f10;
-                        vst2q_f32(p0f, _r0);
-                        float32x4x2_t _r1;
-                        _r1.val[0] = _f01;
-                        _r1.val[1] = _f11;
-                        vst2q_f32(p0f + 8, _r1);
-                        p0f += 2;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         vst1q_f32(p0f, _f00);
                         vst1q_f32(p0f + 4, _f01);
@@ -4974,25 +4962,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 uint16x4_t _bf11 = float2bfloat(_f11);
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        uint16x4x2_t _r0;
-                        _r0.val[0] = _bf00;
-                        _r0.val[1] = _bf10;
-                        vst2_lane_u16(p0, _r0, 0);
-                        vst2_lane_u16(p0 + 4, _r0, 1);
-                        vst2_lane_u16(p0 + 8, _r0, 2);
-                        vst2_lane_u16(p0 + 12, _r0, 3);
-                        uint16x4x2_t _r1;
-                        _r1.val[0] = _bf01;
-                        _r1.val[1] = _bf11;
-                        vst2_lane_u16(p0 + 16, _r1, 0);
-                        vst2_lane_u16(p0 + 20, _r1, 1);
-                        vst2_lane_u16(p0 + 24, _r1, 2);
-                        vst2_lane_u16(p0 + 28, _r1, 3);
-                        p0 += 2;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         vst1_u16(p0, _bf00);
                         vst1_u16(p0 + 4, _bf01);
@@ -5125,13 +5095,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        vst1q_f32(p0f, _f00);
-                        vst1q_f32(p0f + 4, _f01);
-                        p0f += 1;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         vst1q_f32(p0f, _f00);
                         vst1q_f32(p0f + 4, _f01);
@@ -5166,19 +5130,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 uint16x4_t _bf01 = float2bfloat(_f01);
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        p0[0] = vget_lane_u16(_bf00, 0);
-                        p0[4] = vget_lane_u16(_bf00, 1);
-                        p0[8] = vget_lane_u16(_bf00, 2);
-                        p0[12] = vget_lane_u16(_bf00, 3);
-                        p0[16] = vget_lane_u16(_bf01, 0);
-                        p0[20] = vget_lane_u16(_bf01, 1);
-                        p0[24] = vget_lane_u16(_bf01, 2);
-                        p0[28] = vget_lane_u16(_bf01, 3);
-                        p0 += 1;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         vst1_u16(p0, _bf00);
                         vst1_u16(p0 + 4, _bf01);
@@ -6211,15 +6163,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        float32x4x2_t _r0;
-                        _r0.val[0] = _f0;
-                        _r0.val[1] = _f1;
-                        vst2q_f32(p0f, _r0);
-                        p0f += 2;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         vst1q_f32(p0f, _f0);
                         vst1q_f32(p0f + out_hstep, _f1);
@@ -6251,18 +6195,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 uint16x4_t _bf1 = float2bfloat(_f1);
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        uint16x4x2_t _r0;
-                        _r0.val[0] = _bf0;
-                        _r0.val[1] = _bf1;
-                        vst2_lane_u16(p0, _r0, 0);
-                        vst2_lane_u16(p0 + 4, _r0, 1);
-                        vst2_lane_u16(p0 + 8, _r0, 2);
-                        vst2_lane_u16(p0 + 12, _r0, 3);
-                        p0 += 2;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         vst1_u16(p0, _bf0);
                         vst1_u16(p0 + out_hstep, _bf1);
@@ -6359,12 +6292,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        vst1q_f32(p0f, _f0);
-                        p0f += 1;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         vst1q_f32(p0f, _f0);
                         p0f += out_hstep;
@@ -6392,15 +6320,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 uint16x4_t _bf0 = float2bfloat(_f0);
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        p0[0] = vget_lane_u16(_bf0, 0);
-                        p0[4] = vget_lane_u16(_bf0, 1);
-                        p0[8] = vget_lane_u16(_bf0, 2);
-                        p0[12] = vget_lane_u16(_bf0, 3);
-                        p0 += 1;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         vst1_u16(p0, _bf0);
                         p0 += out_hstep;
@@ -7035,13 +6955,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        vst1_f32(p0f, vget_low_f32(_f0));
-                        vst1_f32(p0f + 4, vget_high_f32(_f0));
-                        p0f += 2;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         float32x4x2_t _r0 = vuzpq_f32(_f0, _f0);
                         vst1_f32(p0f, vget_low_f32(_r0.val[0]));
@@ -7066,13 +6980,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
 
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        vst1_lane_u32((uint32_t*)p0, _bf0_32, 0);
-                        vst1_lane_u32((uint32_t*)(p0 + 4), _bf0_32, 1);
-                        p0 += 2;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         uint16x4x2_t _r0 = vuzp_u16(_bf0, _bf0);
                         vst1_lane_u32((uint32_t*)p0, vreinterpret_u32_u16(_r0.val[0]), 0);
@@ -7143,15 +7051,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        p0f[0] = sum00;
-                        p0f[1] = sum01;
-                        p0f[4] = sum10;
-                        p0f[5] = sum11;
-                        p0f += 2;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         p0f[0] = sum00;
                         p0f[1] = sum10;
@@ -7180,15 +7080,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 unsigned short bf11 = float32_to_bfloat16(sum11);
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        p0[0] = bf00;
-                        p0[1] = bf01;
-                        p0[4] = bf10;
-                        p0[5] = bf11;
-                        p0 += 2;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         p0[0] = bf00;
                         p0[1] = bf10;
@@ -7270,13 +7162,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        vst1_lane_f32(p0f, _f0, 0);
-                        vst1_lane_f32(p0f + 4, _f0, 1);
-                        p0f += 1;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         vst1_f32(p0f, _f0);
                         p0f += out_hstep;
@@ -7297,13 +7183,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 uint16x4_t _bf0 = float2bfloat(vcombine_f32(_f0, _f0));
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        vst1_lane_u16(p0, _bf0, 0);
-                        vst1_lane_u16(p0 + 4, _bf0, 1);
-                        p0 += 1;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         vst1_lane_u32((uint32_t*)p0, vreinterpret_u32_u16(_bf0), 0);
                         p0 += out_hstep;
@@ -7355,13 +7235,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        p0f[0] = sum0;
-                        p0f[4] = sum1;
-                        p0f += 1;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         p0f[0] = sum0;
                         p0f[1] = sum1;
@@ -7384,13 +7258,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 unsigned short bf1 = float32_to_bfloat16(sum1);
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        p0[0] = bf0;
-                        p0[4] = bf1;
-                        p0 += 1;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         p0[0] = bf0;
                         p0[1] = bf1;
@@ -7893,12 +7761,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        vst1_f32(p0f, vget_low_f32(_f0));
-                        p0f += 2;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         p0f[0] = vgetq_lane_f32(_f0, 0);
                         p0f[out_hstep] = vgetq_lane_f32(_f0, 1);
@@ -7921,12 +7784,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
 
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        vst1_lane_u32((uint32_t*)p0, _bf0_32, 0);
-                        p0 += 2;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         vst1_lane_u16(p0, _bf0, 0);
                         vst1_lane_u16(p0 + out_hstep, _bf0, 1);
@@ -7980,13 +7838,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        p0f[0] = sum0;
-                        p0f[1] = sum1;
-                        p0f += 2;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         p0f[0] = sum0;
                         p0f[out_hstep] = sum1;
@@ -8009,13 +7861,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 unsigned short bf1 = float32_to_bfloat16(sum1);
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        p0[0] = bf0;
-                        p0[1] = bf1;
-                        p0 += 2;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         p0[0] = bf0;
                         p0[out_hstep] = bf1;
@@ -8061,12 +7907,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        p0f[0] = sum;
-                        p0f += 1;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         p0f[0] = sum;
                         p0f += out_hstep;
@@ -8086,12 +7927,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 unsigned short bf = float32_to_bfloat16(sum);
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        p0[0] = bf;
-                        p0 += 1;
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         p0[0] = bf;
                         p0 += out_hstep;
