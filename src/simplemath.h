@@ -11,6 +11,11 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#ifndef INFINITY
+#define INFINITY (1.0 / 0.0)
+#endif
+
 /*
 * ====================================================
 * discrete functions
