@@ -15,6 +15,7 @@ on:
     - '!tools/pnnx/**'
     - 'examples/**'
     - 'benchmark/**'
+    - '!benchmark/README.md'
     - 'glslang'
   pull_request:
     branches: [master]
@@ -31,6 +32,7 @@ on:
     - '!tools/pnnx/**'
     - 'examples/**'
     - 'benchmark/**'
+    - '!benchmark/README.md'
     - 'glslang'
 concurrency:
   group: linux-x64-gpu-clang-${{ github.ref }}

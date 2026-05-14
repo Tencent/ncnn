@@ -15,6 +15,7 @@ on:
     - '!tools/pnnx/**'
     - 'examples/**'
     - 'benchmark/**'
+    - '!benchmark/README.md'
   pull_request:
     branches: [master]
     paths:
@@ -30,6 +31,7 @@ on:
     - '!tools/pnnx/**'
     - 'examples/**'
     - 'benchmark/**'
+    - '!benchmark/README.md'
 concurrency:
   group: linux-x64-cpu-gcc-${{ github.ref }}
   cancel-in-progress: true

@@ -20,6 +20,7 @@ on:
     - 'tests/**'
     - 'examples/**'
     - 'benchmark/**'
+    - '!benchmark/README.md'
   pull_request:
     branches: [master]
     paths:
@@ -40,6 +41,7 @@ on:
     - 'tests/**'
     - 'examples/**'
     - 'benchmark/**'
+    - '!benchmark/README.md'
 concurrency:
   group: linux-riscv64-${{ github.ref }}
   cancel-in-progress: true
