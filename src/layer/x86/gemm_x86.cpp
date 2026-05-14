@@ -3949,7 +3949,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 __m512 _pB5 = combine8x2_ps(_mm256_set1_ps(pB[10]), _mm256_set1_ps(pB[11]));
                 __m512 _pB6 = combine8x2_ps(_mm256_set1_ps(pB[12]), _mm256_set1_ps(pB[13]));
                 __m512 _pB7 = combine8x2_ps(_mm256_set1_ps(pB[14]), _mm256_set1_ps(pB[15]));
-
                 _sum0 = _mm512_fmadd_ps(_pAA, _pB0, _sum0);
                 _sum1 = _mm512_fmadd_ps(_pAA, _pB1, _sum1);
                 _sum2 = _mm512_fmadd_ps(_pAA, _pB2, _sum2);
@@ -4903,7 +4902,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 __m512 _pB1 = _mm512_permutexvar_ps(_mm512_setr_epi32(4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7), _pB);
                 __m512 _pB2 = _mm512_permutexvar_ps(_mm512_setr_epi32(8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10, 11, 11, 11, 11), _pB);
                 __m512 _pB3 = _mm512_permutexvar_ps(_mm512_setr_epi32(12, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 14, 15, 15, 15, 15), _pB);
-
                 _sum0 = _mm512_fmadd_ps(_pAAAA, _pB0, _sum0);
                 _sum1 = _mm512_fmadd_ps(_pAAAA, _pB1, _sum1);
                 _sum2 = _mm512_fmadd_ps(_pAAAA, _pB2, _sum2);
@@ -5658,7 +5656,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             for (; kk < max_kk; kk += 1)
             {
                 __m512 _pB = _mm512_loadu_ps(pB);
-
                 _sum0 = _mm512_fmadd_ps(_mm512_set1_ps(pA[0]), _pB, _sum0);
                 _sum1 = _mm512_fmadd_ps(_mm512_set1_ps(pA[1]), _pB, _sum1);
 
@@ -5978,7 +5975,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             for (; kk < max_kk; kk += 1)
             {
                 __m128 _pB = _mm_load_ps(pB);
-
                 _sum0 = _mm_comp_fmadd_ps(_mm_set1_ps(pA[0]), _pB, _sum0);
                 _sum1 = _mm_comp_fmadd_ps(_mm_set1_ps(pA[1]), _pB, _sum1);
 
@@ -6217,10 +6213,31 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             const float* pA = pAT;
             int kk = 0;
+            __m512 _sum00 = _mm512_setzero_ps();
+            __m512 _sum01 = _mm512_setzero_ps();
+            __m512 _sum02 = _mm512_setzero_ps();
+            __m512 _sum03 = _mm512_setzero_ps();
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                __m512 _pB0 = _mm512_loadu_ps(pB);
+                __m512 _pB1 = _mm512_loadu_ps(pB + 16);
+                __m512 _pB2 = _mm512_loadu_ps(pB + 32);
+                __m512 _pB3 = _mm512_loadu_ps(pB + 48);
+                _sum00 = _mm512_fmadd_ps(_mm512_set1_ps(pA[0]), _pB0, _sum00);
+                _sum01 = _mm512_fmadd_ps(_mm512_set1_ps(pA[1]), _pB1, _sum01);
+                _sum02 = _mm512_fmadd_ps(_mm512_set1_ps(pA[2]), _pB2, _sum02);
+                _sum03 = _mm512_fmadd_ps(_mm512_set1_ps(pA[3]), _pB3, _sum03);
+
+                pA += 4;
+                pB += 64;
+            }
+            _sum00 = _mm512_add_ps(_sum00, _sum01);
+            _sum02 = _mm512_add_ps(_sum02, _sum03);
+            _sum00 = _mm512_add_ps(_sum00, _sum02);
+            _sum0 = _mm512_add_ps(_sum0, _sum00);
             for (; kk < max_kk; kk += 1)
             {
                 __m512 _pB = _mm512_loadu_ps(pB);
-
                 _sum0 = _mm512_fmadd_ps(_mm512_set1_ps(pA[0]), _pB, _sum0);
 
                 pA += 1;
@@ -6281,6 +6298,68 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             const float* pA = pAT;
             int kk = 0;
+            __m128 _sum00 = _mm_setzero_ps();
+            __m128 _sum01 = _mm_setzero_ps();
+            __m128 _sum02 = _mm_setzero_ps();
+            __m128 _sum03 = _mm_setzero_ps();
+            __m128 _sum10 = _mm_setzero_ps();
+            __m128 _sum11 = _mm_setzero_ps();
+            __m128 _sum12 = _mm_setzero_ps();
+            __m128 _sum13 = _mm_setzero_ps();
+            __m128 _sum20 = _mm_setzero_ps();
+            __m128 _sum21 = _mm_setzero_ps();
+            __m128 _sum22 = _mm_setzero_ps();
+            __m128 _sum23 = _mm_setzero_ps();
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                __m128 _pB00 = _mm_load_ps(pB);
+                __m128 _pB10 = _mm_load_ps(pB + 4);
+                __m128 _pB20 = _mm_load_ps(pB + 8);
+                __m128 _pA0 = _mm_set1_ps(pA[0]);
+
+                __m128 _pB01 = _mm_load_ps(pB + 12);
+                __m128 _pB11 = _mm_load_ps(pB + 16);
+                __m128 _pB21 = _mm_load_ps(pB + 20);
+                __m128 _pA1 = _mm_set1_ps(pA[1]);
+
+                __m128 _pB02 = _mm_load_ps(pB + 24);
+                __m128 _pB12 = _mm_load_ps(pB + 28);
+                __m128 _pB22 = _mm_load_ps(pB + 32);
+                __m128 _pA2 = _mm_set1_ps(pA[2]);
+
+                __m128 _pB03 = _mm_load_ps(pB + 36);
+                __m128 _pB13 = _mm_load_ps(pB + 40);
+                __m128 _pB23 = _mm_load_ps(pB + 44);
+                __m128 _pA3 = _mm_set1_ps(pA[3]);
+
+                _sum00 = _mm_comp_fmadd_ps(_pA0, _pB00, _sum00);
+                _sum10 = _mm_comp_fmadd_ps(_pA0, _pB10, _sum10);
+                _sum20 = _mm_comp_fmadd_ps(_pA0, _pB20, _sum20);
+                _sum01 = _mm_comp_fmadd_ps(_pA1, _pB01, _sum01);
+                _sum11 = _mm_comp_fmadd_ps(_pA1, _pB11, _sum11);
+                _sum21 = _mm_comp_fmadd_ps(_pA1, _pB21, _sum21);
+                _sum02 = _mm_comp_fmadd_ps(_pA2, _pB02, _sum02);
+                _sum12 = _mm_comp_fmadd_ps(_pA2, _pB12, _sum12);
+                _sum22 = _mm_comp_fmadd_ps(_pA2, _pB22, _sum22);
+                _sum03 = _mm_comp_fmadd_ps(_pA3, _pB03, _sum03);
+                _sum13 = _mm_comp_fmadd_ps(_pA3, _pB13, _sum13);
+                _sum23 = _mm_comp_fmadd_ps(_pA3, _pB23, _sum23);
+
+                pA += 4;
+                pB += 48;
+            }
+            _sum00 = _mm_add_ps(_sum00, _sum01);
+            _sum02 = _mm_add_ps(_sum02, _sum03);
+            _sum10 = _mm_add_ps(_sum10, _sum11);
+            _sum12 = _mm_add_ps(_sum12, _sum13);
+            _sum20 = _mm_add_ps(_sum20, _sum21);
+            _sum22 = _mm_add_ps(_sum22, _sum23);
+            _sum00 = _mm_add_ps(_sum00, _sum02);
+            _sum10 = _mm_add_ps(_sum10, _sum12);
+            _sum20 = _mm_add_ps(_sum20, _sum22);
+            _sum0 = _mm_add_ps(_sum0, _sum00);
+            _sum1 = _mm_add_ps(_sum1, _sum10);
+            _sum2 = _mm_add_ps(_sum2, _sum20);
             for (; kk < max_kk; kk += 1)
             {
                 __m128 _pB0 = _mm_load_ps(pB);
@@ -6349,6 +6428,52 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             const float* pA = pAT;
             int kk = 0;
+            __m128 _sum00 = _mm_setzero_ps();
+            __m128 _sum01 = _mm_setzero_ps();
+            __m128 _sum02 = _mm_setzero_ps();
+            __m128 _sum03 = _mm_setzero_ps();
+            __m128 _sum10 = _mm_setzero_ps();
+            __m128 _sum11 = _mm_setzero_ps();
+            __m128 _sum12 = _mm_setzero_ps();
+            __m128 _sum13 = _mm_setzero_ps();
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                __m128 _pB00 = _mm_load_ps(pB);
+                __m128 _pB10 = _mm_load_ps(pB + 4);
+                __m128 _pA0 = _mm_set1_ps(pA[0]);
+
+                __m128 _pB01 = _mm_load_ps(pB + 8);
+                __m128 _pB11 = _mm_load_ps(pB + 12);
+                __m128 _pA1 = _mm_set1_ps(pA[1]);
+
+                __m128 _pB02 = _mm_load_ps(pB + 16);
+                __m128 _pB12 = _mm_load_ps(pB + 20);
+                __m128 _pA2 = _mm_set1_ps(pA[2]);
+
+                __m128 _pB03 = _mm_load_ps(pB + 24);
+                __m128 _pB13 = _mm_load_ps(pB + 28);
+                __m128 _pA3 = _mm_set1_ps(pA[3]);
+
+                _sum00 = _mm_comp_fmadd_ps(_pA0, _pB00, _sum00);
+                _sum10 = _mm_comp_fmadd_ps(_pA0, _pB10, _sum10);
+                _sum01 = _mm_comp_fmadd_ps(_pA1, _pB01, _sum01);
+                _sum11 = _mm_comp_fmadd_ps(_pA1, _pB11, _sum11);
+                _sum02 = _mm_comp_fmadd_ps(_pA2, _pB02, _sum02);
+                _sum12 = _mm_comp_fmadd_ps(_pA2, _pB12, _sum12);
+                _sum03 = _mm_comp_fmadd_ps(_pA3, _pB03, _sum03);
+                _sum13 = _mm_comp_fmadd_ps(_pA3, _pB13, _sum13);
+
+                pA += 4;
+                pB += 32;
+            }
+            _sum00 = _mm_add_ps(_sum00, _sum01);
+            _sum02 = _mm_add_ps(_sum02, _sum03);
+            _sum10 = _mm_add_ps(_sum10, _sum11);
+            _sum12 = _mm_add_ps(_sum12, _sum13);
+            _sum00 = _mm_add_ps(_sum00, _sum02);
+            _sum10 = _mm_add_ps(_sum10, _sum12);
+            _sum0 = _mm_add_ps(_sum0, _sum00);
+            _sum1 = _mm_add_ps(_sum1, _sum10);
             for (; kk < max_kk; kk += 1)
             {
                 __m128 _pB0 = _mm_load_ps(pB);
@@ -6407,10 +6532,31 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             const float* pA = pAT;
             int kk = 0;
+            __m128 _sum0 = _mm_setzero_ps();
+            __m128 _sum1 = _mm_setzero_ps();
+            __m128 _sum2 = _mm_setzero_ps();
+            __m128 _sum3 = _mm_setzero_ps();
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                __m128 _pB0 = _mm_load_ps(pB);
+                __m128 _pB1 = _mm_load_ps(pB + 4);
+                __m128 _pB2 = _mm_load_ps(pB + 8);
+                __m128 _pB3 = _mm_load_ps(pB + 12);
+                _sum0 = _mm_comp_fmadd_ps(_mm_set1_ps(pA[0]), _pB0, _sum0);
+                _sum1 = _mm_comp_fmadd_ps(_mm_set1_ps(pA[1]), _pB1, _sum1);
+                _sum2 = _mm_comp_fmadd_ps(_mm_set1_ps(pA[2]), _pB2, _sum2);
+                _sum3 = _mm_comp_fmadd_ps(_mm_set1_ps(pA[3]), _pB3, _sum3);
+
+                pA += 4;
+                pB += 16;
+            }
+            _sum0 = _mm_add_ps(_sum0, _sum1);
+            _sum2 = _mm_add_ps(_sum2, _sum3);
+            _sum0 = _mm_add_ps(_sum0, _sum2);
+            _sum = _mm_add_ps(_sum, _sum0);
             for (; kk < max_kk; kk += 1)
             {
                 __m128 _pB = _mm_load_ps(pB);
-
                 _sum = _mm_comp_fmadd_ps(_mm_set1_ps(pA[0]), _pB, _sum);
 
                 pA += 1;
@@ -6466,6 +6612,34 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             const float* pA = pAT;
             int kk = 0;
+            float sum00 = 0.f;
+            float sum01 = 0.f;
+            float sum02 = 0.f;
+            float sum03 = 0.f;
+            float sum10 = 0.f;
+            float sum11 = 0.f;
+            float sum12 = 0.f;
+            float sum13 = 0.f;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                sum00 += pA[0] * pB[0];
+                sum10 += pA[0] * pB[1];
+                sum01 += pA[1] * pB[2];
+                sum11 += pA[1] * pB[3];
+                sum02 += pA[2] * pB[4];
+                sum12 += pA[2] * pB[5];
+                sum03 += pA[3] * pB[6];
+                sum13 += pA[3] * pB[7];
+
+                pA += 4;
+                pB += 8;
+            }
+            sum00 += sum01;
+            sum02 += sum03;
+            sum10 += sum11;
+            sum12 += sum13;
+            sum0 += sum00 + sum02;
+            sum1 += sum10 + sum12;
             for (; kk < max_kk; kk += 1)
             {
                 sum0 += pA[0] * pB[0];
@@ -6520,6 +6694,23 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             const float* pA = pAT;
             int kk = 0;
+            float sum0 = 0.f;
+            float sum1 = 0.f;
+            float sum2 = 0.f;
+            float sum3 = 0.f;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                sum0 += pA[0] * pB[0];
+                sum1 += pA[1] * pB[1];
+                sum2 += pA[2] * pB[2];
+                sum3 += pA[3] * pB[3];
+
+                pA += 4;
+                pB += 4;
+            }
+            sum0 += sum1;
+            sum2 += sum3;
+            sum += sum0 + sum2;
             for (; kk < max_kk; kk += 1)
             {
                 sum += pA[0] * pB[0];

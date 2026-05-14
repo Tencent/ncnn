@@ -217,7 +217,6 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 float16x4_t _pB0 = vld1_f16(pB);
                 float16x4_t _pB1 = vld1_f16(pB + 4);
                 float16x4_t _pB2 = vld1_f16(pB + 8);
-
                 _sum0 = vfmaq_lane_f16(_sum0, _pA, _pB0, 0);
                 _sum1 = vfmaq_lane_f16(_sum1, _pA, _pB0, 1);
                 _sum2 = vfmaq_lane_f16(_sum2, _pA, _pB0, 2);
@@ -421,7 +420,6 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
 
                 float16x4_t _pB0 = vld1_f16(pB);
                 float16x4_t _pB1 = vld1_f16(pB + 4);
-
                 _sum0 = vfmaq_lane_f16(_sum0, _pA, _pB0, 0);
                 _sum1 = vfmaq_lane_f16(_sum1, _pA, _pB0, 1);
                 _sum2 = vfmaq_lane_f16(_sum2, _pA, _pB0, 2);
@@ -564,7 +562,6 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 float16x8_t _pA = vld1q_f16(pA);
 
                 float16x4_t _pB0 = vld1_f16(pB);
-
                 _sum0 = vfmaq_lane_f16(_sum0, _pA, _pB0, 0);
                 _sum1 = vfmaq_lane_f16(_sum1, _pA, _pB0, 1);
                 _sum2 = vfmaq_lane_f16(_sum2, _pA, _pB0, 2);
@@ -674,7 +671,6 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
 
                 float16x8_t _pB0 = vdupq_n_f16(pB[0]);
                 float16x8_t _pB1 = vdupq_n_f16(pB[1]);
-
                 _sum0 = vfmaq_f16(_sum0, _pA, _pB0);
                 _sum1 = vfmaq_f16(_sum1, _pA, _pB1);
 
@@ -776,7 +772,6 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 float16x8_t _pA = vld1q_f16(pA);
 
                 float16x8_t _pB = vdupq_n_f16(pB[0]);
-
                 _sum0 = vfmaq_f16(_sum0, _pA, _pB);
 
                 pA += 8;
@@ -961,7 +956,6 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 float16x4_t _pB0 = vld1_f16(pB);
                 float16x4_t _pB1 = vld1_f16(pB + 4);
                 float16x4_t _pB2 = vld1_f16(pB + 8);
-
                 _sum0 = vfma_lane_f16(_sum0, _pA, _pB0, 0);
                 _sum1 = vfma_lane_f16(_sum1, _pA, _pB0, 1);
                 _sum2 = vfma_lane_f16(_sum2, _pA, _pB0, 2);
@@ -1125,7 +1119,6 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 float16x4_t _pA = vld1_f16(pA);
                 float16x4_t _pB0 = vld1_f16(pB);
                 float16x4_t _pB1 = vld1_f16(pB + 4);
-
                 _sum0 = vfma_lane_f16(_sum0, _pA, _pB0, 0);
                 _sum1 = vfma_lane_f16(_sum1, _pA, _pB0, 1);
                 _sum2 = vfma_lane_f16(_sum2, _pA, _pB0, 2);
@@ -1244,7 +1237,6 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             {
                 float16x4_t _pA = vld1_f16(pA);
                 float16x4_t _pB = vld1_f16(pB);
-
                 _sum0 = vfma_lane_f16(_sum0, _pA, _pB, 0);
                 _sum1 = vfma_lane_f16(_sum1, _pA, _pB, 1);
                 _sum2 = vfma_lane_f16(_sum2, _pA, _pB, 2);
@@ -1334,7 +1326,6 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 float16x4_t _pA = vld1_f16(pA);
                 float16x4_t _pB0 = vdup_n_f16(pB[0]);
                 float16x4_t _pB1 = vdup_n_f16(pB[1]);
-
                 _sum0 = vfma_f16(_sum0, _pA, _pB0);
                 _sum1 = vfma_f16(_sum1, _pA, _pB1);
 
@@ -1417,7 +1408,6 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             {
                 float16x4_t _pA = vld1_f16(pA);
                 float16x4_t _pB = vdup_n_f16(pB[0]);
-
                 _sum0 = vfma_f16(_sum0, _pA, _pB);
 
                 pA += 4;
@@ -1967,53 +1957,143 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
         int jj = 0;
         for (; jj + 11 < max_jj; jj += 12)
         {
-            float16x4_t _sum0;
+            float16x8_t _sum0;
             float16x4_t _sum1;
-            float16x4_t _sum2;
 
             if (k == 0)
             {
-                _sum0 = vdup_n_f16(0.f);
+                _sum0 = vdupq_n_f16(0.f);
                 _sum1 = vdup_n_f16(0.f);
-                _sum2 = vdup_n_f16(0.f);
 
                 if (pC)
                 {
                     if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        _sum0 = vdup_n_f16(pC[0]);
+                        _sum0 = vdupq_n_f16(pC[0]);
                         _sum1 = vdup_n_f16(pC[0]);
-                        _sum2 = vdup_n_f16(pC[0]);
                     }
                     if (broadcast_type_C == 3 || broadcast_type_C == 4)
                     {
-                        _sum0 = vld1_f16(pC);
-                        _sum1 = vld1_f16(pC + 4);
-                        _sum2 = vld1_f16(pC + 8);
+                        _sum0 = vld1q_f16(pC);
+                        _sum1 = vld1_f16(pC + 8);
                         pC += 12;
                     }
                 }
             }
             else
             {
-                _sum0 = vld1_f16(outptr);
-                _sum1 = vld1_f16(outptr + 4);
-                _sum2 = vld1_f16(outptr + 8);
+                _sum0 = vld1q_f16(outptr);
+                _sum1 = vld1_f16(outptr + 8);
             }
 
             const __fp16* pA = pAT;
             int kk = 0;
+            float16x8_t _sum00 = vdupq_n_f16(0.f);
+            float16x8_t _sum01 = vdupq_n_f16(0.f);
+            float16x8_t _sum02 = vdupq_n_f16(0.f);
+            float16x8_t _sum03 = vdupq_n_f16(0.f);
+            float16x8_t _sum04 = vdupq_n_f16(0.f);
+            float16x8_t _sum05 = vdupq_n_f16(0.f);
+            float16x8_t _sum06 = vdupq_n_f16(0.f);
+            float16x8_t _sum07 = vdupq_n_f16(0.f);
+            float16x4_t _sum10 = vdup_n_f16(0.f);
+            float16x4_t _sum11 = vdup_n_f16(0.f);
+            float16x4_t _sum12 = vdup_n_f16(0.f);
+            float16x4_t _sum13 = vdup_n_f16(0.f);
+            float16x4_t _sum14 = vdup_n_f16(0.f);
+            float16x4_t _sum15 = vdup_n_f16(0.f);
+            float16x4_t _sum16 = vdup_n_f16(0.f);
+            float16x4_t _sum17 = vdup_n_f16(0.f);
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                float16x8_t _pA = vld1q_f16(pA);
+                float16x4_t _pA0123 = vget_low_f16(_pA);
+                float16x4_t _pA4567 = vget_high_f16(_pA);
+
+                float16x8_t _pB0 = vld1q_f16(pB);
+                float16x4_t _pB1 = vld1_f16(pB + 8);
+                _sum00 = vfmaq_laneq_f16(_sum00, _pB0, _pA, 0);
+                _sum10 = vfma_lane_f16(_sum10, _pB1, _pA0123, 0);
+                float16x8_t _pB2 = vld1q_f16(pB + 12);
+                float16x4_t _pB3 = vld1_f16(pB + 20);
+                _sum01 = vfmaq_laneq_f16(_sum01, _pB2, _pA, 1);
+                _sum11 = vfma_lane_f16(_sum11, _pB3, _pA0123, 1);
+                float16x8_t _pB4 = vld1q_f16(pB + 24);
+                float16x4_t _pB5 = vld1_f16(pB + 32);
+                _sum02 = vfmaq_laneq_f16(_sum02, _pB4, _pA, 2);
+                _sum12 = vfma_lane_f16(_sum12, _pB5, _pA0123, 2);
+                float16x8_t _pB6 = vld1q_f16(pB + 36);
+                float16x4_t _pB7 = vld1_f16(pB + 44);
+                _sum03 = vfmaq_laneq_f16(_sum03, _pB6, _pA, 3);
+                _sum13 = vfma_lane_f16(_sum13, _pB7, _pA0123, 3);
+                float16x8_t _pB8 = vld1q_f16(pB + 48);
+                float16x4_t _pB9 = vld1_f16(pB + 56);
+                _sum04 = vfmaq_laneq_f16(_sum04, _pB8, _pA, 4);
+                _sum14 = vfma_lane_f16(_sum14, _pB9, _pA4567, 0);
+                float16x8_t _pBa = vld1q_f16(pB + 60);
+                float16x4_t _pBb = vld1_f16(pB + 68);
+                _sum05 = vfmaq_laneq_f16(_sum05, _pBa, _pA, 5);
+                _sum15 = vfma_lane_f16(_sum15, _pBb, _pA4567, 1);
+                float16x8_t _pBc = vld1q_f16(pB + 72);
+                float16x4_t _pBd = vld1_f16(pB + 80);
+                _sum06 = vfmaq_laneq_f16(_sum06, _pBc, _pA, 6);
+                _sum16 = vfma_lane_f16(_sum16, _pBd, _pA4567, 2);
+                float16x8_t _pBe = vld1q_f16(pB + 84);
+                float16x4_t _pBf = vld1_f16(pB + 92);
+                _sum07 = vfmaq_laneq_f16(_sum07, _pBe, _pA, 7);
+                _sum17 = vfma_lane_f16(_sum17, _pBf, _pA4567, 3);
+
+                pA += 8;
+                pB += 96;
+            }
+            _sum00 = vaddq_f16(_sum00, _sum01);
+            _sum02 = vaddq_f16(_sum02, _sum03);
+            _sum04 = vaddq_f16(_sum04, _sum05);
+            _sum06 = vaddq_f16(_sum06, _sum07);
+            _sum10 = vadd_f16(_sum10, _sum11);
+            _sum12 = vadd_f16(_sum12, _sum13);
+            _sum14 = vadd_f16(_sum14, _sum15);
+            _sum16 = vadd_f16(_sum16, _sum17);
+            _sum00 = vaddq_f16(_sum00, _sum02);
+            _sum04 = vaddq_f16(_sum04, _sum06);
+            _sum10 = vadd_f16(_sum10, _sum12);
+            _sum14 = vadd_f16(_sum14, _sum16);
+            _sum0 = vaddq_f16(_sum0, _sum00);
+            _sum0 = vaddq_f16(_sum0, _sum04);
+            _sum1 = vadd_f16(_sum1, _sum10);
+            _sum1 = vadd_f16(_sum1, _sum14);
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                float16x4_t _pA = vld1_f16(pA);
+                float16x8_t _pB0 = vld1q_f16(pB);
+                float16x4_t _pB1 = vld1_f16(pB + 8);
+                _sum0 = vfmaq_lane_f16(_sum0, _pB0, _pA, 0);
+                _sum1 = vfma_lane_f16(_sum1, _pB1, _pA, 0);
+                float16x8_t _pB2 = vld1q_f16(pB + 12);
+                float16x4_t _pB3 = vld1_f16(pB + 20);
+                _sum0 = vfmaq_lane_f16(_sum0, _pB2, _pA, 1);
+                _sum1 = vfma_lane_f16(_sum1, _pB3, _pA, 1);
+                float16x8_t _pB4 = vld1q_f16(pB + 24);
+                float16x4_t _pB5 = vld1_f16(pB + 32);
+                _sum0 = vfmaq_lane_f16(_sum0, _pB4, _pA, 2);
+                _sum1 = vfma_lane_f16(_sum1, _pB5, _pA, 2);
+                float16x8_t _pB6 = vld1q_f16(pB + 36);
+                float16x4_t _pB7 = vld1_f16(pB + 44);
+                _sum0 = vfmaq_lane_f16(_sum0, _pB6, _pA, 3);
+                _sum1 = vfma_lane_f16(_sum1, _pB7, _pA, 3);
+
+                pA += 4;
+                pB += 48;
+            }
             for (; kk < max_kk; kk += 1)
             {
-                float16x4_t _pB0 = vld1_f16(pB);
-                float16x4_t _pB1 = vld1_f16(pB + 4);
-                float16x4_t _pB2 = vld1_f16(pB + 8);
+                float16x8_t _pB0 = vld1q_f16(pB);
+                float16x4_t _pB1 = vld1_f16(pB + 8);
 
-                float16x4_t _pA0 = vdup_n_f16(pA[0]);
+                float16x8_t _pA0 = vdupq_n_f16(pA[0]);
 
-                _sum0 = vfma_f16(_sum0, _pA0, _pB0);
-                _sum1 = vfma_f16(_sum1, _pA0, _pB1);
-                _sum2 = vfma_f16(_sum2, _pA0, _pB2);
+                _sum0 = vfmaq_f16(_sum0, _pA0, _pB0);
+                _sum1 = vfma_f16(_sum1, vget_low_f16(_pA0), _pB1);
 
                 pA += 1;
                 pB += 12;
@@ -2023,63 +2103,108 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             {
                 // if (out_elempack == 1)
                 {
-                    vst1_f16(outptr0, _sum0);
-                    vst1_f16(outptr0 + 4, _sum1);
-                    vst1_f16(outptr0 + 8, _sum2);
+                    vst1q_f16(outptr0, _sum0);
+                    vst1_f16(outptr0 + 8, _sum1);
                     outptr0 += 12;
                 }
             }
             else
             {
-                vst1_f16(outptr, _sum0);
-                vst1_f16(outptr + 4, _sum1);
-                vst1_f16(outptr + 8, _sum2);
+                vst1q_f16(outptr, _sum0);
+                vst1_f16(outptr + 8, _sum1);
             }
 
             outptr += 12;
         }
         for (; jj + 7 < max_jj; jj += 8)
         {
-            float16x4_t _sum0;
-            float16x4_t _sum1;
+            float16x8_t _sum;
 
             if (k == 0)
             {
-                _sum0 = vdup_n_f16(0.f);
-                _sum1 = vdup_n_f16(0.f);
+                _sum = vdupq_n_f16(0.f);
 
                 if (pC)
                 {
                     if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        _sum0 = vdup_n_f16(pC[0]);
-                        _sum1 = vdup_n_f16(pC[0]);
+                        _sum = vdupq_n_f16(pC[0]);
                     }
                     if (broadcast_type_C == 3 || broadcast_type_C == 4)
                     {
-                        _sum0 = vld1_f16(pC);
-                        _sum1 = vld1_f16(pC + 4);
+                        _sum = vld1q_f16(pC);
                         pC += 8;
                     }
                 }
             }
             else
             {
-                _sum0 = vld1_f16(outptr);
-                _sum1 = vld1_f16(outptr + 4);
+                _sum = vld1q_f16(outptr);
             }
 
             const __fp16* pA = pAT;
             int kk = 0;
+            float16x8_t _sum0 = vdupq_n_f16(0.f);
+            float16x8_t _sum1 = vdupq_n_f16(0.f);
+            float16x8_t _sum2 = vdupq_n_f16(0.f);
+            float16x8_t _sum3 = vdupq_n_f16(0.f);
+            float16x8_t _sum4 = vdupq_n_f16(0.f);
+            float16x8_t _sum5 = vdupq_n_f16(0.f);
+            float16x8_t _sum6 = vdupq_n_f16(0.f);
+            float16x8_t _sum7 = vdupq_n_f16(0.f);
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                float16x8_t _pA = vld1q_f16(pA);
+                float16x8_t _pB0 = vld1q_f16(pB);
+                _sum0 = vfmaq_laneq_f16(_sum0, _pB0, _pA, 0);
+                float16x8_t _pB1 = vld1q_f16(pB + 8);
+                _sum1 = vfmaq_laneq_f16(_sum1, _pB1, _pA, 1);
+                float16x8_t _pB2 = vld1q_f16(pB + 16);
+                _sum2 = vfmaq_laneq_f16(_sum2, _pB2, _pA, 2);
+                float16x8_t _pB3 = vld1q_f16(pB + 24);
+                _sum3 = vfmaq_laneq_f16(_sum3, _pB3, _pA, 3);
+                float16x8_t _pB4 = vld1q_f16(pB + 32);
+                _sum4 = vfmaq_laneq_f16(_sum4, _pB4, _pA, 4);
+                float16x8_t _pB5 = vld1q_f16(pB + 40);
+                _sum5 = vfmaq_laneq_f16(_sum5, _pB5, _pA, 5);
+                float16x8_t _pB6 = vld1q_f16(pB + 48);
+                _sum6 = vfmaq_laneq_f16(_sum6, _pB6, _pA, 6);
+                float16x8_t _pB7 = vld1q_f16(pB + 56);
+                _sum7 = vfmaq_laneq_f16(_sum7, _pB7, _pA, 7);
+
+                pA += 8;
+                pB += 64;
+            }
+            _sum0 = vaddq_f16(_sum0, _sum1);
+            _sum2 = vaddq_f16(_sum2, _sum3);
+            _sum4 = vaddq_f16(_sum4, _sum5);
+            _sum6 = vaddq_f16(_sum6, _sum7);
+            _sum0 = vaddq_f16(_sum0, _sum2);
+            _sum4 = vaddq_f16(_sum4, _sum6);
+            _sum = vaddq_f16(_sum, _sum0);
+            _sum = vaddq_f16(_sum, _sum4);
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                float16x4_t _pA = vld1_f16(pA);
+                float16x8_t _pB0 = vld1q_f16(pB);
+                _sum = vfmaq_lane_f16(_sum, _pB0, _pA, 0);
+                float16x8_t _pB1 = vld1q_f16(pB + 8);
+                _sum = vfmaq_lane_f16(_sum, _pB1, _pA, 1);
+                float16x8_t _pB2 = vld1q_f16(pB + 16);
+                _sum = vfmaq_lane_f16(_sum, _pB2, _pA, 2);
+                float16x8_t _pB3 = vld1q_f16(pB + 24);
+                _sum = vfmaq_lane_f16(_sum, _pB3, _pA, 3);
+
+                pA += 4;
+                pB += 32;
+            }
             for (; kk < max_kk; kk += 1)
             {
-                float16x4_t _pB0 = vld1_f16(pB);
-                float16x4_t _pB1 = vld1_f16(pB + 4);
+                float16x8_t _pB0 = vld1q_f16(pB);
 
-                float16x4_t _pA0 = vdup_n_f16(pA[0]);
+                float16x8_t _pA = vdupq_n_f16(pA[0]);
 
-                _sum0 = vfma_f16(_sum0, _pA0, _pB0);
-                _sum1 = vfma_f16(_sum1, _pA0, _pB1);
+                _sum = vfmaq_f16(_sum, _pA, _pB0);
 
                 pA += 1;
                 pB += 8;
@@ -2089,15 +2214,13 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             {
                 // if (out_elempack == 1)
                 {
-                    vst1_f16(outptr0, _sum0);
-                    vst1_f16(outptr0 + 4, _sum1);
+                    vst1q_f16(outptr0, _sum);
                     outptr0 += 8;
                 }
             }
             else
             {
-                vst1_f16(outptr, _sum0);
-                vst1_f16(outptr + 4, _sum1);
+                vst1q_f16(outptr, _sum);
             }
 
             outptr += 8;
@@ -2130,6 +2253,29 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
 
             const __fp16* pA = pAT;
             int kk = 0;
+            float16x4_t _sum0 = vdup_n_f16(0.f);
+            float16x4_t _sum1 = vdup_n_f16(0.f);
+            float16x4_t _sum2 = vdup_n_f16(0.f);
+            float16x4_t _sum3 = vdup_n_f16(0.f);
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                float16x4_t _pA = vld1_f16(pA);
+                float16x4_t _pB0 = vld1_f16(pB);
+                _sum0 = vfma_lane_f16(_sum0, _pB0, _pA, 0);
+                float16x4_t _pB1 = vld1_f16(pB + 4);
+                _sum1 = vfma_lane_f16(_sum1, _pB1, _pA, 1);
+                float16x4_t _pB2 = vld1_f16(pB + 8);
+                _sum2 = vfma_lane_f16(_sum2, _pB2, _pA, 2);
+                float16x4_t _pB3 = vld1_f16(pB + 12);
+                _sum3 = vfma_lane_f16(_sum3, _pB3, _pA, 3);
+
+                pA += 4;
+                pB += 16;
+            }
+            _sum0 = vadd_f16(_sum0, _sum1);
+            _sum2 = vadd_f16(_sum2, _sum3);
+            _sum0 = vadd_f16(_sum0, _sum2);
+            _sum = vadd_f16(_sum, _sum0);
             for (; kk < max_kk; kk += 1)
             {
                 float16x4_t _pB = vld1_f16(pB);
@@ -2189,6 +2335,34 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
 
             const __fp16* pA = pAT;
             int kk = 0;
+            __fp16 sum00 = 0.f;
+            __fp16 sum01 = 0.f;
+            __fp16 sum02 = 0.f;
+            __fp16 sum03 = 0.f;
+            __fp16 sum10 = 0.f;
+            __fp16 sum11 = 0.f;
+            __fp16 sum12 = 0.f;
+            __fp16 sum13 = 0.f;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                sum00 += pA[0] * pB[0];
+                sum10 += pA[0] * pB[1];
+                sum01 += pA[1] * pB[2];
+                sum11 += pA[1] * pB[3];
+                sum02 += pA[2] * pB[4];
+                sum12 += pA[2] * pB[5];
+                sum03 += pA[3] * pB[6];
+                sum13 += pA[3] * pB[7];
+
+                pA += 4;
+                pB += 8;
+            }
+            sum00 += sum01;
+            sum02 += sum03;
+            sum10 += sum11;
+            sum12 += sum13;
+            sum0 += sum00 + sum02;
+            sum1 += sum10 + sum12;
             for (; kk < max_kk; kk += 1)
             {
                 sum0 += pA[0] * pB[0];
@@ -2243,6 +2417,23 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
 
             const __fp16* pA = pAT;
             int kk = 0;
+            __fp16 sum0 = 0.f;
+            __fp16 sum1 = 0.f;
+            __fp16 sum2 = 0.f;
+            __fp16 sum3 = 0.f;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                sum0 += pA[0] * pB[0];
+                sum1 += pA[1] * pB[1];
+                sum2 += pA[2] * pB[2];
+                sum3 += pA[3] * pB[3];
+
+                pA += 4;
+                pB += 4;
+            }
+            sum0 += sum1;
+            sum2 += sum3;
+            sum += sum0 + sum2;
             for (; kk < max_kk; kk += 1)
             {
                 sum += pA[0] * pB[0];
@@ -2351,9 +2542,13 @@ static int gemm_arm_fp16sa(const Mat& A, const Mat& B, const Mat& C, Mat& top_bl
     int nn_N = (N + TILE_N - 1) / TILE_N;
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 2u, opt.workspace_allocator);
-    if (ATX.empty())
-        return -100;
+    Mat ATX;
+    if (nT <= nn_M)
+    {
+        ATX.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 2u, opt.workspace_allocator);
+        if (ATX.empty())
+            return -100;
+    }
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.workspace_allocator);
     if (BT.empty())
         return -100;
@@ -2393,24 +2588,57 @@ static int gemm_arm_fp16sa(const Mat& A, const Mat& B, const Mat& C, Mat& top_bl
             return -100;
     }
 
-    #pragma omp parallel for num_threads(nT)
-    for (int ppi = 0; ppi < nn_M; ppi++)
+    if (nT > nn_M)
     {
-        const int i = ppi * TILE_M;
+        Mat AT(TILE_K * TILE_M, nn_K, nn_M, 2u, opt.workspace_allocator);
+        if (AT.empty())
+            return -100;
 
-        // shadowed variable for less openmp task args
-        const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
-        const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
-
-        const int max_ii = std::min((M - i), TILE_M);
-
-        Mat topT_tile;
-        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-            topT_tile = topT.channel(get_omp_thread_num());
-
-        for (int j = 0; j < N; j += TILE_N)
+        const int nn_MK = nn_M * nn_K;
+        #pragma omp parallel for num_threads(nT)
+        for (int ppik = 0; ppik < nn_MK; ppik++)
         {
+            const int ppi = ppik / nn_K;
+            const int ppk = ppik % nn_K;
+
+            const int i = ppi * TILE_M;
+            const int k = ppk * TILE_K;
+
+            const int max_ii = std::min((M - i), TILE_M);
+            const int max_kk = std::min((K - k), TILE_K);
+
+            Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
+
+            if (transA)
+            {
+                transpose_pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
+            }
+            else
+            {
+                pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
+            }
+        }
+
+        const int nn_MN = nn_M * nn_N;
+        #pragma omp parallel for num_threads(nT)
+        for (int ppij = 0; ppij < nn_MN; ppij++)
+        {
+            const int ppi = ppij / nn_N;
+            const int ppj = ppij % nn_N;
+
+            const int i = ppi * TILE_M;
+            const int j = ppj * TILE_N;
+
+            // shadowed variable for less openmp task args
+            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
+            const int max_ii = std::min((M - i), TILE_M);
             const int max_jj = std::min((N - j), TILE_N);
+
+            Mat topT_tile;
+            if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+                topT_tile = topT.channel(get_omp_thread_num());
 
             if (broadcast_type_C == 3)
             {
@@ -2425,21 +2653,9 @@ static int gemm_arm_fp16sa(const Mat& A, const Mat& B, const Mat& C, Mat& top_bl
 
                 // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
 
-                Mat AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
+                Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
 
                 Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
-
-                if (j == 0)
-                {
-                    if (transA)
-                    {
-                        transpose_pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
-                    }
-                    else
-                    {
-                        pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
-                    }
-                }
 
                 bool k_end = !output_transpose && k + TILE_K >= K;
 
@@ -2449,6 +2665,68 @@ static int gemm_arm_fp16sa(const Mat& A, const Mat& B, const Mat& C, Mat& top_bl
             if (output_transpose)
             {
                 transpose_unpack_output_tile_fp16(topT_tile, top_blob, i, max_ii, j, max_jj);
+            }
+        }
+    }
+    else
+    {
+        #pragma omp parallel for num_threads(nT)
+        for (int ppi = 0; ppi < nn_M; ppi++)
+        {
+            const int i = ppi * TILE_M;
+
+            // shadowed variable for less openmp task args
+            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
+            const int max_ii = std::min((M - i), TILE_M);
+
+            Mat topT_tile;
+            if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+                topT_tile = topT.channel(get_omp_thread_num());
+
+            for (int j = 0; j < N; j += TILE_N)
+            {
+                const int max_jj = std::min((N - j), TILE_N);
+
+                if (broadcast_type_C == 3)
+                {
+                    pack_A_tile_fp16(C, topT_tile, i, max_ii, j, max_jj);
+                }
+
+                const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+
+                for (int k = 0; k < K; k += TILE_K)
+                {
+                    const int max_kk = std::min((K - k), TILE_K);
+
+                    // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
+
+                    Mat AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
+
+                    Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+                    if (j == 0)
+                    {
+                        if (transA)
+                        {
+                            transpose_pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
+                        }
+                        else
+                        {
+                            pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
+                        }
+                    }
+
+                    bool k_end = !output_transpose && k + TILE_K >= K;
+
+                    gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+                }
+
+                if (output_transpose)
+                {
+                    transpose_unpack_output_tile_fp16(topT_tile, top_blob, i, max_ii, j, max_jj);
+                }
             }
         }
     }
@@ -2510,47 +2788,48 @@ static int gemm_AT_arm_fp16sa(const Mat& AT, const Mat& B, const Mat& C, Mat& to
             return -100;
     }
 
+    const int nn_MN = nn_M * nn_N;
     #pragma omp parallel for num_threads(nT)
-    for (int ppi = 0; ppi < nn_M; ppi++)
+    for (int ppij = 0; ppij < nn_MN; ppij++)
     {
+        const int ppi = ppij / nn_N;
+        const int ppj = ppij % nn_N;
+
         const int i = ppi * TILE_M;
+        const int j = ppj * TILE_N;
 
         const int max_ii = std::min((M - i), TILE_M);
+        const int max_jj = std::min((N - j), TILE_N);
 
         Mat topT_tile;
         if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
             topT_tile = topT.channel(get_omp_thread_num());
 
-        for (int j = 0; j < N; j += TILE_N)
+        if (broadcast_type_C == 3)
         {
-            const int max_jj = std::min((N - j), TILE_N);
+            pack_A_tile_fp16(C, topT_tile, i, max_ii, j, max_jj);
+        }
 
-            if (broadcast_type_C == 3)
-            {
-                pack_A_tile_fp16(C, topT_tile, i, max_ii, j, max_jj);
-            }
+        const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
 
-            const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+        for (int k = 0; k < K; k += TILE_K)
+        {
+            const int max_kk = std::min((K - k), TILE_K);
 
-            for (int k = 0; k < K; k += TILE_K)
-            {
-                const int max_kk = std::min((K - k), TILE_K);
+            // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
 
-                // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
+            Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
 
-                Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
+            Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
 
-                Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+            bool k_end = !output_transpose && k + TILE_K >= K;
 
-                bool k_end = !output_transpose && k + TILE_K >= K;
+            gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+        }
 
-                gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
-            }
-
-            if (output_transpose)
-            {
-                transpose_unpack_output_tile_fp16(topT_tile, top_blob, i, max_ii, j, max_jj);
-            }
+        if (output_transpose)
+        {
+            transpose_unpack_output_tile_fp16(topT_tile, top_blob, i, max_ii, j, max_jj);
         }
     }
 
@@ -2569,11 +2848,16 @@ static int gemm_BT_arm_fp16sa(const Mat& A, const Mat& BT, const Mat& C, Mat& to
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
     int nn_M = (M + TILE_M - 1) / TILE_M;
-    // int nn_N = (N + TILE_N - 1) / TILE_N;
+    int nn_N = (N + TILE_N - 1) / TILE_N;
+    int nn_K = (K + TILE_K - 1) / TILE_K;
 
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 2u, opt.workspace_allocator);
-    if (ATX.empty())
-        return -100;
+    Mat ATX;
+    if (nT <= nn_M)
+    {
+        ATX.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 2u, opt.workspace_allocator);
+        if (ATX.empty())
+            return -100;
+    }
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
@@ -2583,103 +2867,57 @@ static int gemm_BT_arm_fp16sa(const Mat& A, const Mat& BT, const Mat& C, Mat& to
             return -100;
     }
 
-    #pragma omp parallel for num_threads(nT)
-    for (int ppi = 0; ppi < nn_M; ppi++)
+    if (nT > nn_M)
     {
-        const int i = ppi * TILE_M;
+        Mat AT(TILE_K * TILE_M, nn_K, nn_M, 2u, opt.workspace_allocator);
+        if (AT.empty())
+            return -100;
 
-        // shadowed variable for less openmp task args
-        const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
-        const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
-
-        const int max_ii = std::min((M - i), TILE_M);
-
-        Mat topT_tile;
-        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-            topT_tile = topT.channel(get_omp_thread_num());
-
-        for (int j = 0; j < N; j += TILE_N)
+        const int nn_MK = nn_M * nn_K;
+        #pragma omp parallel for num_threads(nT)
+        for (int ppik = 0; ppik < nn_MK; ppik++)
         {
-            const int max_jj = std::min((N - j), TILE_N);
+            const int ppi = ppik / nn_K;
+            const int ppk = ppik % nn_K;
 
-            if (broadcast_type_C == 3)
+            const int i = ppi * TILE_M;
+            const int k = ppk * TILE_K;
+
+            const int max_ii = std::min((M - i), TILE_M);
+            const int max_kk = std::min((K - k), TILE_K);
+
+            Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
+
+            if (transA)
             {
-                pack_A_tile_fp16(C, topT_tile, i, max_ii, j, max_jj);
+                transpose_pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
             }
-
-            const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
-
-            for (int k = 0; k < K; k += TILE_K)
+            else
             {
-                const int max_kk = std::min((K - k), TILE_K);
-
-                // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
-
-                Mat AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
-
-                Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
-
-                if (j == 0)
-                {
-                    if (transA)
-                    {
-                        transpose_pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
-                    }
-                    else
-                    {
-                        pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
-                    }
-                }
-
-                bool k_end = !output_transpose && k + TILE_K >= K;
-
-                gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
-            }
-
-            if (output_transpose)
-            {
-                transpose_unpack_output_tile_fp16(topT_tile, top_blob, i, max_ii, j, max_jj);
+                pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
             }
         }
-    }
 
-    return 0;
-}
-
-static int gemm_AT_BT_arm_fp16sa(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
-{
-    // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
-
-    int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk_fp16sa(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
-
-    // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
-
-    int nn_M = (M + TILE_M - 1) / TILE_M;
-    // int nn_N = (N + TILE_N - 1) / TILE_N;
-
-    Mat topT;
-    if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-    {
-        topT.create(TILE_N * TILE_M, 1, nT, 2u, opt.workspace_allocator);
-        if (topT.empty())
-            return -100;
-    }
-
-    #pragma omp parallel for num_threads(nT)
-    for (int ppi = 0; ppi < nn_M; ppi++)
-    {
-        const int i = ppi * TILE_M;
-
-        const int max_ii = std::min((M - i), TILE_M);
-
-        Mat topT_tile;
-        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-            topT_tile = topT.channel(get_omp_thread_num());
-
-        for (int j = 0; j < N; j += TILE_N)
+        const int nn_MN = nn_M * nn_N;
+        #pragma omp parallel for num_threads(nT)
+        for (int ppij = 0; ppij < nn_MN; ppij++)
         {
+            const int ppi = ppij / nn_N;
+            const int ppj = ppij % nn_N;
+
+            const int i = ppi * TILE_M;
+            const int j = ppj * TILE_N;
+
+            // shadowed variable for less openmp task args
+            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
+            const int max_ii = std::min((M - i), TILE_M);
             const int max_jj = std::min((N - j), TILE_N);
+
+            Mat topT_tile;
+            if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+                topT_tile = topT.channel(get_omp_thread_num());
 
             if (broadcast_type_C == 3)
             {
@@ -2707,6 +2945,136 @@ static int gemm_AT_BT_arm_fp16sa(const Mat& AT, const Mat& BT, const Mat& C, Mat
             {
                 transpose_unpack_output_tile_fp16(topT_tile, top_blob, i, max_ii, j, max_jj);
             }
+        }
+    }
+    else
+    {
+        #pragma omp parallel for num_threads(nT)
+        for (int ppi = 0; ppi < nn_M; ppi++)
+        {
+            const int i = ppi * TILE_M;
+
+            // shadowed variable for less openmp task args
+            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
+            const int max_ii = std::min((M - i), TILE_M);
+
+            Mat topT_tile;
+            if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+                topT_tile = topT.channel(get_omp_thread_num());
+
+            for (int j = 0; j < N; j += TILE_N)
+            {
+                const int max_jj = std::min((N - j), TILE_N);
+
+                if (broadcast_type_C == 3)
+                {
+                    pack_A_tile_fp16(C, topT_tile, i, max_ii, j, max_jj);
+                }
+
+                const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+
+                for (int k = 0; k < K; k += TILE_K)
+                {
+                    const int max_kk = std::min((K - k), TILE_K);
+
+                    // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
+
+                    Mat AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
+
+                    Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+                    if (j == 0)
+                    {
+                        if (transA)
+                        {
+                            transpose_pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
+                        }
+                        else
+                        {
+                            pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
+                        }
+                    }
+
+                    bool k_end = !output_transpose && k + TILE_K >= K;
+
+                    gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+                }
+
+                if (output_transpose)
+                {
+                    transpose_unpack_output_tile_fp16(topT_tile, top_blob, i, max_ii, j, max_jj);
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int gemm_AT_BT_arm_fp16sa(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+{
+    // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
+
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk_fp16sa(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
+
+    // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
+
+    int nn_M = (M + TILE_M - 1) / TILE_M;
+    int nn_N = (N + TILE_N - 1) / TILE_N;
+
+    Mat topT;
+    if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
+        topT.create(TILE_N * TILE_M, 1, nT, 2u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
+
+    const int nn_MN = nn_M * nn_N;
+    #pragma omp parallel for num_threads(nT)
+    for (int ppij = 0; ppij < nn_MN; ppij++)
+    {
+        const int ppi = ppij / nn_N;
+        const int ppj = ppij % nn_N;
+
+        const int i = ppi * TILE_M;
+        const int j = ppj * TILE_N;
+
+        const int max_ii = std::min((M - i), TILE_M);
+        const int max_jj = std::min((N - j), TILE_N);
+
+        Mat topT_tile;
+        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+            topT_tile = topT.channel(get_omp_thread_num());
+
+        if (broadcast_type_C == 3)
+        {
+            pack_A_tile_fp16(C, topT_tile, i, max_ii, j, max_jj);
+        }
+
+        const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+
+        for (int k = 0; k < K; k += TILE_K)
+        {
+            const int max_kk = std::min((K - k), TILE_K);
+
+            // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
+
+            Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
+
+            Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+            bool k_end = !output_transpose && k + TILE_K >= K;
+
+            gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+        }
+
+        if (output_transpose)
+        {
+            transpose_unpack_output_tile_fp16(topT_tile, top_blob, i, max_ii, j, max_jj);
         }
     }
 
