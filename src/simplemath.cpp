@@ -6,8 +6,8 @@
 #if NCNN_SIMPLEMATH
 
 #include "simplemath.h"
-#define __HI(X)       *(1 + (short*)&x)
-#define __LO(X)       *(short*)&x
+#define __HI(X)       *(1 + (short*)&(X))
+#define __LO(X)       *(short*)&(X)
 #define FE_TONEAREST  0
 #define FE_DOWNWARD   1024
 #define FE_UPWARD     2048
