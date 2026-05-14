@@ -1963,10 +1963,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     // pack fp16p fp16s fp16a bf16p/bf16s flag
     const int options[][6] = {
         {0, 0, 0, 0, 0, 0},
-#if NCNN_VULKAN
-        {0, 1, 0, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
-        {0, 1, 0, 1, 0, TEST_LAYER_DISABLE_CPU_TESTING},
-#endif // NCNN_VULKAN
         {0, 0, 1, 0, 0, 0},
         {0, 0, 1, 1, 0, 0},
         {0, 0, 0, 0, 1, 0},
@@ -2006,10 +2002,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     // pack fp16p fp16s fp16a bf16p/bf16s flag
     const int options[][6] = {
         {0, 0, 0, 0, 0, 0},
-#if NCNN_VULKAN
-        {0, 1, 0, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
-        {0, 1, 0, 1, 0, TEST_LAYER_DISABLE_CPU_TESTING},
-#endif // NCNN_VULKAN
         {0, 0, 1, 0, 0, 0},
         {0, 0, 1, 1, 0, 0},
         {0, 0, 0, 0, 1, 0},
