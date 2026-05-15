@@ -50,9 +50,9 @@ void transpose_pack_B_tile_fp32_to_bf16_bf16(const Mat& B, Mat& BT, int j, int m
     transpose_pack_B_tile_fp32_to_bf16(B, BT, j, max_jj, k, max_kk);
 }
 
-void unpack_output_tile_fp32_to_bf16_bf16(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_transpose)
+void unpack_output_tile_fp32_to_bf16_bf16(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_transpose, int output_elemtype)
 {
-    unpack_output_tile_fp32_to_bf16(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
+    unpack_output_tile_fp32_to_bf16(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose, output_elemtype);
 }
 
 void gemm_transB_packed_tile_bf16s_bf16(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int max_ii, int max_jj, int k, int max_kk)
