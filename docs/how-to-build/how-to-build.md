@@ -58,7 +58,7 @@ sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler lib
 ```
 On Redhat or Centos, you can install all required dependencies using:
 ```shell
-sudo yum install build-essential git cmake libprotobuf-dev protobuf-compiler libopencv-dev
+sudo dnf install gcc-c++ git cmake protobuf-devel protobuf-compiler opencv-devel
 ```
 
 To use Vulkan after building ncnn later, you will also need to have Vulkan driver for your GPU. For AMD and Intel GPUs these can be found in Mesa graphics driver, which usually is installed by default on all distros (i.e. `sudo apt install mesa-vulkan-drivers` on Debian/Ubuntu). For Nvidia GPUs the proprietary Nvidia driver must be downloaded and installed (some distros will allow easier installation in some way). After installing Vulkan driver, confirm Vulkan libraries and driver are working, by using `vulkaninfo` or `vulkaninfo | grep deviceType`, it should list GPU device type. If there are more than one GPU installed (including the case of integrated GPU and discrete GPU, commonly found in laptops), you might need to note the order of devices to use later on.
@@ -948,10 +948,8 @@ cd build
 export HM_SDK=/opt/ohos-sdk/linux
 
 # Choose HarmonyOS sdk cmake toolchain file.
-# If you want to enable vulkan, set -DNCNN_VULKAN=ON
-# The HarmonyOS sdk does not support openmp, use ncnn simpleomp instead.
 # Cross-compiling with CMake must use the one provided by the HarmonyOS SDK; otherwise, it won't recognize parameters like OHOS_PLATFORM, leading to compilation errors.
-${HM_SDK}/native/build-tools/cmake/bin/cmake -DOHOS_STL=c++_static -DOHOS_ARCH=arm64-v8a -DOHOS_PLATFORM=OHOS -DCMAKE_TOOLCHAIN_FILE=${HM_SDK}/native/build/cmake/ohos.toolchain.cmake -DNCNN_VULKAN=ON -DNCNN_SIMPLEOMP=ON ..
+${HM_SDK}/native/build-tools/cmake/bin/cmake -DOHOS_ARCH=arm64-v8a -DCMAKE_TOOLCHAIN_FILE=${HM_SDK}/native/build/cmake/ohos.toolchain.cmake -DNCNN_VULKAN=ON ..
 
 make -j$(nproc)
 make install
