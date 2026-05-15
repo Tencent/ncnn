@@ -757,6 +757,7 @@ endif()
 set(pnnx_SRCS
     main.cpp
     ir.cpp
+    model_stat.cpp
     storezip.cpp
     utils.cpp
 
