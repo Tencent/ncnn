@@ -667,7 +667,7 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a
 int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a, float b)
 {
     int p0 = ftell(bp);
-
+    if (!data.data || data.w * data.h * data.d * data.c == 0) return 0;
     ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.d * data.c);
     if (gen_random_weight)
         Randomize(data_flattened, a, b);
