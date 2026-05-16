@@ -1223,6 +1223,14 @@ void GpuInfoPrivate::query_extension_features()
             break;
         }
     }
+
+    if (physicalDeviceProperties.vendorID == 0x5143)
+    {
+        // adreno drivers break on the ncnn cm kernel tile unrolls, which exceed hardware limitations
+        // TODO special unroll strategy needs to be designed for adreno
+        queryCooperativeMatrixFeatures.cooperativeMatrix = VK_FALSE;
+        queryCooperativeMatrixFeaturesNV.cooperativeMatrix = VK_FALSE;
+    }
 }
 
 void GpuInfoPrivate::evaluate_rough_score()

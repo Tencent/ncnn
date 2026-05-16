@@ -119,7 +119,7 @@ https://github.com/Tencent/ncnn/releases/latest
 
 <tr>
 <td rowspan=3>
-  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/HMOS_Logo_Icon.svg/240px-HMOS_Logo_Icon.svg.png" width="120" height="auto">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/3/37/HMOS_Logo_Icon.svg" width="120" height="auto">
 </td>
 <td colspan=3>
 

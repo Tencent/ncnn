@@ -3,7 +3,87 @@
 
 #include "testutil.h"
 
-static int test_quantize(const ncnn::Mat& a, float scale_low, float scale_high)
+static bool near_round(float v)
+{
+    float vv = fabs(v - (int)v);
+
+    return vv > 0.45f && vv < 0.55f;
+}
+
+static float RandomQuantizeValue(float scale)
+{
+    float hscale = ncnn::float16_to_float32(ncnn::float32_to_float16(scale));
+    float bscale = ncnn::bfloat16_to_float32(ncnn::float32_to_bfloat16(scale));
+
+    float v = RandomFloat();
+
+    float hv = ncnn::float16_to_float32(ncnn::float32_to_float16(v));
+    float bv = ncnn::bfloat16_to_float32(ncnn::float32_to_bfloat16(v));
+
+    float v0 = v * scale;
+    float hv0 = hv * hscale;
+    float hhv0 = ncnn::float16_to_float32(ncnn::float32_to_float16(hv0));
+    float bv0 = bv * bscale;
+
+    while (near_round(v0) || near_round(hv0) || near_round(hhv0) || near_round(bv0))
+    {
+        v = RandomFloat();
+
+        hv = ncnn::float16_to_float32(ncnn::float32_to_float16(v));
+        bv = ncnn::bfloat16_to_float32(ncnn::float32_to_bfloat16(v));
+
+        v0 = v * scale;
+        hv0 = hv * hscale;
+        hhv0 = ncnn::float16_to_float32(ncnn::float32_to_float16(hv0));
+        bv0 = bv * bscale;
+    }
+
+    return v;
+}
+
+static void RandomizeQuantize(ncnn::Mat& m, const ncnn::Mat& scale_data)
+{
+    if (m.dims == 1)
+    {
+        float* p = m;
+        const float scale = scale_data[0];
+
+        for (int i = 0; i < m.w; i++)
+        {
+            p[i] = RandomQuantizeValue(scale);
+        }
+    }
+
+    if (m.dims == 2)
+    {
+        for (int i = 0; i < m.h; i++)
+        {
+            float* p = m.row(i);
+            const float scale = scale_data.w == 1 ? scale_data[0] : scale_data[i];
+
+            for (int j = 0; j < m.w; j++)
+            {
+                p[j] = RandomQuantizeValue(scale);
+            }
+        }
+    }
+
+    if (m.dims == 3)
+    {
+        for (int q = 0; q < m.c; q++)
+        {
+            float* p = m.channel(q);
+            const float scale = scale_data.w == 1 ? scale_data[0] : scale_data[q];
+
+            for (int i = 0; i < m.w * m.h; i++)
+            {
+                p[i] = RandomQuantizeValue(scale);
+            }
+        }
+    }
+}
+
+static int test_quantize(ncnn::Mat a, float scale_low, float scale_high)
 {
     ncnn::Mat scale_data;
     if (scale_low == scale_high)
@@ -18,6 +98,8 @@ static int test_quantize(const ncnn::Mat& a, float scale_low, float scale_high)
         if (a.dims == 3) scale_data.create(a.c);
         Randomize(scale_data, scale_low, scale_high);
     }
+
+    RandomizeQuantize(a, scale_data);
 
     ncnn::ParamDict pd;
     pd.set(0, scale_data.w);
