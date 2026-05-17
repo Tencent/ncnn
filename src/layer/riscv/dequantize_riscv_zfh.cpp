@@ -23,8 +23,8 @@ static void dequantize_fp16s(const int* intptr, __fp16* ptr, const Mat& scale_da
     vfloat32m8_t _scale = __riscv_vfmv_v_f_f32m8(scale, __riscv_vsetvlmax_e32m8());
     if (scale_data.w > 1 && elempack == vlm1)
     {
-            vfloat32m1_t _s = __riscv_vle32_v_f32m1(scale_data, vlm1);
-            _scale = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
+        vfloat32m1_t _s = __riscv_vle32_v_f32m1(scale_data, vlm1);
+        _scale = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
     }
 #endif // __riscv_vector
 
