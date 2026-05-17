@@ -19,7 +19,7 @@ Requantize_riscv::Requantize_riscv()
 #endif // __riscv_vector
 }
 
-static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat& scale_in_data, const Mat& bias_data, const Mat& scale_out_data, float slope, int elemcount, int elempack)
+static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scale_in_data, const Mat& bias_data, const Mat& scale_out_data, float slope, int elemcount, int elempack)
 {
     const int scale_in_data_size = scale_in_data.w;
     const int bias_data_size = bias_data.w;
@@ -205,7 +205,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
     if ((activation_type == 1) || (activation_type == 2))
     {
         const float slope = activation_params[0];
-        requantize_leakyrelu(intptr, ptr, scale_in_data, bias_data, scale_out_data, slope, elemcount, elempack);
+        requantize_relu(intptr, ptr, scale_in_data, bias_data, scale_out_data, slope, elemcount, elempack);
         return;
     }
 
