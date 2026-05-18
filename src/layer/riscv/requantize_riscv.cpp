@@ -19,11 +19,9 @@ Requantize_riscv::Requantize_riscv()
 #endif // __riscv_vector
 }
 
-static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scale_in_data, const Mat& bias_data, const Mat& scale_out_data, float slope, int elemcount, int elempack)
+static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scale_in_data, const Mat& bias_data, const Mat& scale_out_data, int elemcount, int elempack)
 {
-    const int scale_in_data_size = scale_in_data.w;
     const int bias_data_size = bias_data.w;
-    const int scale_out_data_size = scale_out_data.w;
     const int size = elemcount * elempack;
 
     // int8(relu(v * scale_in) * scale_out)
@@ -31,170 +29,209 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
     // int8(relu(v * scale_in + bias) * scale_out)
     // int8_relu(v * (scale_in * scale_out) + (bias * scale_out))
 
-    // int8(leakyrelu(v * scale_in, slope) * scale_out)
-    // int8_leakyrelu(v * (scale_in * scale_out), slope)
-    // int8(leakyrelu(v * scale_in + bias, slope) * scale_out)
-    // int8_leakyrelu(v * (scale_in * scale_out) + (bias * scale_out), slope)
-
 #if __riscv_vector
+    const int scale_in_data_size = scale_in_data.w;
+    const int scale_out_data_size = scale_out_data.w;
+
     const size_t vlm1 = __riscv_vsetvlmax_e32m1();
     const size_t vlmax = __riscv_vsetvlmax_e32m8();
 
     vfloat32m8_t _scale = __riscv_vfmv_v_f_f32m8(scale_in_data[0], vlmax);
     if (scale_in_data_size > 1)
     {
-        // if (elempack == vlm1)
-        {
-            vfloat32m1_t _s = __riscv_vle32_v_f32m1((const float*)scale_in_data, vlm1);
-            _scale = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
-        }
+        vfloat32m1_t _s = __riscv_vle32_v_f32m1((const float*)scale_in_data, vlm1);
+        _scale = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
     }
 
-    vfloat32m8_t _bias = __riscv_vfmv_v_f_f32m8(0.f, vlmax);
-    if (bias_data_size == 1)
-    {
-        _bias = __riscv_vfmv_v_f_f32m8(bias_data[0], vlmax);
-    }
-    else if (bias_data_size > 1)
-    {
-        // if (elempack == vlm1)
-        {
-            vfloat32m1_t _b = __riscv_vle32_v_f32m1((const float*)bias_data, vlm1);
-            _bias = __riscv_vcreate_v_f32m1_f32m8(_b, _b, _b, _b, _b, _b, _b, _b);
-        }
-    }
-
+    vfloat32m8_t _scale_out;
     if (scale_out_data_size > 1)
     {
-        // if (elempack == vlm1)
-        {
-            vfloat32m1_t _s = __riscv_vle32_v_f32m1((const float*)scale_out_data, vlm1);
-            vfloat32m8_t _s2 = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
-            _scale = __riscv_vfmul_vv_f32m8(_scale, _s2, vlmax);
-            _bias = __riscv_vfmul_vv_f32m8(_bias, _s2, vlmax);
-        }
+        vfloat32m1_t _s = __riscv_vle32_v_f32m1((const float*)scale_out_data, vlm1);
+        _scale_out = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
+        _scale = __riscv_vfmul_vv_f32m8(_scale, _scale_out, vlmax);
     }
     else
     {
         _scale = __riscv_vfmul_vf_f32m8(_scale, scale_out_data[0], vlmax);
-        _bias = __riscv_vfmul_vf_f32m8(_bias, scale_out_data[0], vlmax);
     }
 
     int n = size;
-    if (slope > 0.f) // Leaky ReLU
+    if (bias_data_size == 0)
     {
-        if (bias_data_size == 0)
+        while (n > 0)
         {
-            while (n > 0)
-            {
-                size_t vl = __riscv_vsetvl_e32m8(n);
-                vint32m8_t _vi = __riscv_vle32_v_i32m8(intptr, vl);
-                vfloat32m8_t _v = __riscv_vfcvt_f_x_v_f32m8(_vi, vl);
-                _v = __riscv_vfmul_vv_f32m8(_v, _scale, vl);
-                __riscv_vse8_v_i8m2(ptr, float2int8leakyrelu(_v, slope, vl), vl);
+            size_t vl = __riscv_vsetvl_e32m8(n);
+            vint32m8_t _vi = __riscv_vle32_v_i32m8(intptr, vl);
+            vfloat32m8_t _v = __riscv_vfcvt_f_x_v_f32m8(_vi, vl);
+            _v = __riscv_vfmul_vv_f32m8(_v, _scale, vl);
+            __riscv_vse8_v_i8m2(ptr, float2int8relu(_v, vl), vl);
 
-                intptr += vl;
-                ptr += vl;
-                n -= vl;
-            }
-        }
-        else
-        {
-            while (n > 0)
-            {
-                size_t vl = __riscv_vsetvl_e32m8(n);
-                vint32m8_t _vi = __riscv_vle32_v_i32m8(intptr, vl);
-                vfloat32m8_t _v = __riscv_vfcvt_f_x_v_f32m8(_vi, vl);
-                _v = __riscv_vfmadd_vv_f32m8(_v, _scale, _bias, vl);
-                __riscv_vse8_v_i8m2(ptr, float2int8leakyrelu(_v, slope, vl), vl);
-
-                intptr += vl;
-                ptr += vl;
-                n -= vl;
-            }
+            intptr += vl;
+            ptr += vl;
+            n -= vl;
         }
     }
     else
     {
-        if (bias_data_size == 0)
+        vfloat32m8_t _bias = __riscv_vfmv_v_f_f32m8(bias_data[0], vlmax);
+        if (bias_data_size > 1)
         {
-            while (n > 0)
-            {
-                size_t vl = __riscv_vsetvl_e32m8(n);
-                vint32m8_t _vi = __riscv_vle32_v_i32m8(intptr, vl);
-                vfloat32m8_t _v = __riscv_vfcvt_f_x_v_f32m8(_vi, vl);
-                _v = __riscv_vfmul_vv_f32m8(_v, _scale, vl);
-                __riscv_vse8_v_i8m2(ptr, float2int8relu(_v, vl), vl);
+            vfloat32m1_t _b = __riscv_vle32_v_f32m1((const float*)bias_data, vlm1);
+            _bias = __riscv_vcreate_v_f32m1_f32m8(_b, _b, _b, _b, _b, _b, _b, _b);
+        }
 
-                intptr += vl;
-                ptr += vl;
-                n -= vl;
-            }
+        if (scale_out_data_size > 1)
+        {
+            _bias = __riscv_vfmul_vv_f32m8(_bias, _scale_out, vlmax);
         }
         else
         {
-            while (n > 0)
-            {
-                size_t vl = __riscv_vsetvl_e32m8(n);
-                vint32m8_t _vi = __riscv_vle32_v_i32m8(intptr, vl);
-                vfloat32m8_t _v = __riscv_vfcvt_f_x_v_f32m8(_vi, vl);
-                _v = __riscv_vfmadd_vv_f32m8(_v, _scale, _bias, vl);
-                __riscv_vse8_v_i8m2(ptr, float2int8relu(_v, vl), vl);
+            _bias = __riscv_vfmul_vf_f32m8(_bias, scale_out_data[0], vlmax);
+        }
 
-                intptr += vl;
-                ptr += vl;
-                n -= vl;
-            }
+        while (n > 0)
+        {
+            size_t vl = __riscv_vsetvl_e32m8(n);
+            vint32m8_t _vi = __riscv_vle32_v_i32m8(intptr, vl);
+            vfloat32m8_t _v = __riscv_vfcvt_f_x_v_f32m8(_vi, vl);
+            _v = __riscv_vfmadd_vv_f32m8(_v, _scale, _bias, vl);
+            __riscv_vse8_v_i8m2(ptr, float2int8relu(_v, vl), vl);
+
+            intptr += vl;
+            ptr += vl;
+            n -= vl;
         }
     }
 #else  // __riscv_vector
     float scale = scale_in_data[0] * scale_out_data[0];
-    if (slope > 0.f)
+    if (bias_data_size == 0)
     {
-        if (bias_data_size == 0)
+        for (int i = 0; i < size; i++)
         {
-            for (int i = 0; i < size; i++)
-            {
-                float v = *intptr * scale;
-                *ptr = (v < 0) ? float2int8(v * slope) : float2int8(v);
-                intptr++;
-                ptr++;
-            }
-        }
-        else
-        {
-            float bias = bias_data[0] * scale_out_data[0];
-            for (int i = 0; i < size; i++)
-            {
-                float v = *intptr * scale + bias;
-                *ptr = (v < 0) ? float2int8(v * slope) : float2int8(v);
-                intptr++;
-                ptr++;
-            }
+            float v = *intptr * scale;
+            *ptr = (v < 0) ? 0 : float2int8(v);
+            intptr++;
+            ptr++;
         }
     }
     else
     {
-        if (bias_data_size == 0)
+        float bias = bias_data[0] * scale_out_data[0];
+        for (int i = 0; i < size; i++)
         {
-            for (int i = 0; i < size; i++)
-            {
-                float v = *intptr * scale;
-                *ptr = (v < 0) ? 0 : float2int8(v);
-                intptr++;
-                ptr++;
-            }
+            float v = *intptr * scale + bias;
+            *ptr = (v < 0) ? 0 : float2int8(v);
+            intptr++;
+            ptr++;
+        }
+    }
+#endif // __riscv_vector
+}
+
+static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat& scale_in_data, const Mat& bias_data, const Mat& scale_out_data, float slope, int elemcount, int elempack)
+{
+    const int bias_data_size = bias_data.w;
+    const int size = elemcount * elempack;
+
+    // int8(leakyrelu(v * scale_in, slope) * scale_out)
+    // int8_leakyrelu(v * (scale_in * scale_out), slope)
+    // int8(leakyrelu(v * scale_in + bias, slope) * scale_out)
+    // int8_leakyrelu(v * (scale_in * scale_out) + (bias * scale_out), slope)
+
+#if __riscv_vector
+    const int scale_in_data_size = scale_in_data.w;
+    const int scale_out_data_size = scale_out_data.w;
+
+    const size_t vlm1 = __riscv_vsetvlmax_e32m1();
+    const size_t vlmax = __riscv_vsetvlmax_e32m8();
+
+    vfloat32m8_t _scale = __riscv_vfmv_v_f_f32m8(scale_in_data[0], vlmax);
+    if (scale_in_data_size > 1)
+    {
+        vfloat32m1_t _s = __riscv_vle32_v_f32m1((const float*)scale_in_data, vlm1);
+        _scale = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
+    }
+
+    vfloat32m8_t _scale_out;
+    if (scale_out_data_size > 1)
+    {
+        vfloat32m1_t _s = __riscv_vle32_v_f32m1((const float*)scale_out_data, vlm1);
+        _scale_out = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
+        _scale = __riscv_vfmul_vv_f32m8(_scale, _scale_out, vlmax);
+    }
+    else
+    {
+        _scale = __riscv_vfmul_vf_f32m8(_scale, scale_out_data[0], vlmax);
+    }
+
+    int n = size;
+    if (bias_data_size == 0)
+    {
+        while (n > 0)
+        {
+            size_t vl = __riscv_vsetvl_e32m8(n);
+            vint32m8_t _vi = __riscv_vle32_v_i32m8(intptr, vl);
+            vfloat32m8_t _v = __riscv_vfcvt_f_x_v_f32m8(_vi, vl);
+            _v = __riscv_vfmul_vv_f32m8(_v, _scale, vl);
+            __riscv_vse8_v_i8m2(ptr, float2int8leakyrelu(_v, slope, vl), vl);
+
+            intptr += vl;
+            ptr += vl;
+            n -= vl;
+        }
+    }
+    else
+    {
+        vfloat32m8_t _bias = __riscv_vfmv_v_f_f32m8(bias_data[0], vlmax);
+        if (bias_data_size > 1)
+        {
+            vfloat32m1_t _b = __riscv_vle32_v_f32m1((const float*)bias_data, vlm1);
+            _bias = __riscv_vcreate_v_f32m1_f32m8(_b, _b, _b, _b, _b, _b, _b, _b);
+        }
+
+        if (scale_out_data_size > 1)
+        {
+            _bias = __riscv_vfmul_vv_f32m8(_bias, _scale_out, vlmax);
         }
         else
         {
-            float bias = bias_data[0] * scale_out_data[0];
-            for (int i = 0; i < size; i++)
-            {
-                float v = *intptr * scale + bias;
-                *ptr = (v < 0) ? 0 : float2int8(v);
-                intptr++;
-                ptr++;
-            }
+            _bias = __riscv_vfmul_vf_f32m8(_bias, scale_out_data[0], vlmax);
+        }
+
+        while (n > 0)
+        {
+            size_t vl = __riscv_vsetvl_e32m8(n);
+            vint32m8_t _vi = __riscv_vle32_v_i32m8(intptr, vl);
+            vfloat32m8_t _v = __riscv_vfcvt_f_x_v_f32m8(_vi, vl);
+            _v = __riscv_vfmadd_vv_f32m8(_v, _scale, _bias, vl);
+            __riscv_vse8_v_i8m2(ptr, float2int8leakyrelu(_v, slope, vl), vl);
+
+            intptr += vl;
+            ptr += vl;
+            n -= vl;
+        }
+    }
+#else  // __riscv_vector
+    float scale = scale_in_data[0] * scale_out_data[0];
+    if (bias_data_size == 0)
+    {
+        for (int i = 0; i < size; i++)
+        {
+            float v = *intptr * scale;
+            *ptr = (v < 0) ? float2int8(v * slope) : float2int8(v);
+            intptr++;
+            ptr++;
+        }
+    }
+    else
+    {
+        float bias = bias_data[0] * scale_out_data[0];
+        for (int i = 0; i < size; i++)
+        {
+            float v = *intptr * scale + bias;
+            *ptr = (v < 0) ? float2int8(v * slope) : float2int8(v);
+            intptr++;
+            ptr++;
         }
     }
 #endif // __riscv_vector
@@ -202,16 +239,20 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
 
 static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_data, const Mat& bias_data, const Mat& scale_out_data, int activation_type, const Mat& activation_params, int elemcount, int elempack)
 {
-    if ((activation_type == 1) || (activation_type == 2))
+    if (activation_type == 1)
     {
-        const float slope = activation_params[0];
-        requantize_relu(intptr, ptr, scale_in_data, bias_data, scale_out_data, slope, elemcount, elempack);
+        requantize_relu(intptr, ptr, scale_in_data, bias_data, scale_out_data, elemcount, elempack);
         return;
     }
 
-    const int scale_in_data_size = scale_in_data.w;
+    if (activation_type == 2 && activation_params[0] > 0.f)
+    {
+        const float slope = activation_params[0];
+        requantize_leakyrelu(intptr, ptr, scale_in_data, bias_data, scale_out_data, slope, elemcount, elempack);
+        return;
+    }
+
     const int bias_data_size = bias_data.w;
-    const int scale_out_data_size = scale_out_data.w;
     const int size = elemcount * elempack;
 
     const float scale_in = scale_in_data[0];
@@ -219,27 +260,24 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
     const float bias = bias_data_size == 0 ? 0.f : bias_data[0];
 
 #if __riscv_vector
+    const int scale_in_data_size = scale_in_data.w;
+    const int scale_out_data_size = scale_out_data.w;
+
     const size_t vlm1 = __riscv_vsetvlmax_e32m1();
     const size_t vlmax = __riscv_vsetvlmax_e32m8();
 
     vfloat32m8_t _scale_in = __riscv_vfmv_v_f_f32m8(scale_in, vlmax);
     if (scale_in_data_size > 1)
     {
-        // if (elempack == vlm1)
-        {
-            vfloat32m1_t _s = __riscv_vle32_v_f32m1((const float*)scale_in_data, vlm1);
-            _scale_in = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
-        }
+        vfloat32m1_t _s = __riscv_vle32_v_f32m1((const float*)scale_in_data, vlm1);
+        _scale_in = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
     }
 
     vfloat32m8_t _scale_out = __riscv_vfmv_v_f_f32m8(scale_out, vlmax);
     if (scale_out_data_size > 1)
     {
-        // if (elempack == vlm1)
-        {
-            vfloat32m1_t _s = __riscv_vle32_v_f32m1((const float*)scale_out_data, vlm1);
-            _scale_out = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
-        }
+        vfloat32m1_t _s = __riscv_vle32_v_f32m1((const float*)scale_out_data, vlm1);
+        _scale_out = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
     }
 
     int n = size;
@@ -265,11 +303,8 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         vfloat32m8_t _bias = __riscv_vfmv_v_f_f32m8(bias, vlmax);
         if (bias_data_size > 1)
         {
-            // if (elempack == vlm1)
-            {
-                vfloat32m1_t _b = __riscv_vle32_v_f32m1((const float*)bias_data, vlm1);
-                _bias = __riscv_vcreate_v_f32m1_f32m8(_b, _b, _b, _b, _b, _b, _b, _b);
-            }
+            vfloat32m1_t _b = __riscv_vle32_v_f32m1((const float*)bias_data, vlm1);
+            _bias = __riscv_vcreate_v_f32m1_f32m8(_b, _b, _b, _b, _b, _b, _b, _b);
         }
 
         while (n > 0)

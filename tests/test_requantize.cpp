@@ -25,7 +25,8 @@ static int test_requantize(const ncnn::Mat& a, int scale_in_data_size, int scale
     Randomize(weights[0], 0.0001, 0.001);
     Randomize(weights[1], 10, 100);
 
-    int ret = test_layer("Requantize", pd, weights, a, 1);
+    int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING;
+    int ret = test_layer("Requantize", pd, weights, a, 1, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_requantize failed a.dims=%d a=(%d %d %d) scale_in_data_size=%d scale_out_data_size=%d bias_data_size=%d act=%d actparams=[%f,%f]\n", a.dims, a.w, a.h, a.c, scale_in_data_size, scale_out_data_size, bias_data_size, activation_type, activation_params[0], activation_params[1]);
@@ -43,6 +44,31 @@ static int test_requantize(const ncnn::Mat& a, int scale_in_data_size, int scale
            || test_requantize(a, scale_in_data_size, scale_out_data_size, bias_data_size, 3, RandomFloat(-1, 0), RandomFloat(0, 1))
            || test_requantize(a, scale_in_data_size, scale_out_data_size, bias_data_size, 4, 0.f, 0.f)
            || test_requantize(a, scale_in_data_size, scale_out_data_size, bias_data_size, 5, 0.f, 0.f);
+}
+
+static int test_requantize_relu_empty_activation_params(const ncnn::Mat& a)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, 1);
+    pd.set(1, 1);
+    pd.set(2, 0);
+    pd.set(3, 1);
+
+    std::vector<ncnn::Mat> weights(2);
+    weights[0] = RandomMat(1);
+    weights[1] = RandomMat(1);
+
+    Randomize(weights[0], 0.0001, 0.001);
+    Randomize(weights[1], 10, 100);
+
+    int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING | TEST_LAYER_DISABLE_AUTO_INPUT_PACKING;
+    int ret = test_layer("Requantize", pd, weights, a, 1, flag);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_requantize_relu_empty_activation_params failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
+    }
+
+    return ret;
 }
 
 static int test_requantize_pack1(const ncnn::Mat& a, int scale_in_data_size, int scale_out_data_size, int bias_data_size, int activation_type, float alpha, float beta)
@@ -195,7 +221,10 @@ static int test_requantize_2()
            || test_requantize_pack1(RandomIntMat(124), 1, 1, 1)
            || test_requantize_pack1(RandomIntMat(124), 1, 1, 0)
            || test_requantize_pack1(RandomIntMat(127), 1, 1, 1)
-           || test_requantize_pack1(RandomIntMat(127), 1, 1, 0);
+           || test_requantize_pack1(RandomIntMat(127), 1, 1, 0)
+           || test_requantize_pack1(RandomIntMat(127), 1, 1, 0, 2, 0.f, 0.f)
+           || test_requantize_pack1(RandomIntMat(127), 1, 1, 0, 2, RandomFloat(-1, 0), 0.f)
+           || test_requantize_relu_empty_activation_params(RandomIntMat(127));
 }
 
 static int test_requantize_3()
@@ -254,7 +283,8 @@ static int test_requantize_3()
            || test_requantize(RandomIntMat(15, 24), 24, 1, 1)
            || test_requantize(RandomIntMat(15, 24), 24, 1, 0)
            || test_requantize(RandomIntMat(128), 1, 1, 1)
-           || test_requantize(RandomIntMat(128), 1, 1, 0);
+           || test_requantize(RandomIntMat(128), 1, 1, 0)
+           || test_requantize(RandomIntMat(127), 1, 1, 0, 2, RandomFloat(1, 2), 0.f);
 #endif // __riscv
 }
 
