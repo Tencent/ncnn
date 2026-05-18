@@ -8,7 +8,9 @@
 
 namespace pnnx {
 
-int load_tnn(const std::string& tnnpath, Graph& g);
+int load_tnn(const std::string& tnnpath, Graph& g,
+             const std::vector<std::vector<int64_t> >& input_shapes,
+             const std::vector<std::string>& input_types);
 
 } // namespace pnnx
 

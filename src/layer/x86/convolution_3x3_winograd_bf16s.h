@@ -731,10 +731,16 @@ static inline void conv3x3s1_winograd23_transform_output_tile_bf16s(const Mat& t
                 }
                 if (out_elempack == 1)
                 {
-                    float tmp0[16];
-                    float tmp1[16];
-                    _mm512_storeu_ps(tmp0, _tmp0);
-                    _mm512_storeu_ps(tmp1, _tmp1);
+#ifdef _MSC_VER
+                    __declspec(align(64))
+#else
+                    __attribute__((aligned(64)))
+#endif
+                    float tmpbuf[32];
+                    float* tmp0 = tmpbuf;
+                    float* tmp1 = tmpbuf + 16;
+                    _mm512_store_ps(tmp0, _tmp0);
+                    _mm512_store_ps(tmp1, _tmp1);
 
                     unsigned short* outptr1 = outptr0 + N;
                     unsigned short* outptr2 = outptr0 + N * 2;
@@ -888,10 +894,16 @@ static inline void conv3x3s1_winograd23_transform_output_tile_bf16s(const Mat& t
                 }
                 if (out_elempack == 1)
                 {
-                    float tmp0[8];
-                    float tmp1[8];
-                    _mm256_storeu_ps(tmp0, _tmp0);
-                    _mm256_storeu_ps(tmp1, _tmp1);
+#ifdef _MSC_VER
+                    __declspec(align(32))
+#else
+                    __attribute__((aligned(32)))
+#endif
+                    float tmpbuf[16];
+                    float* tmp0 = tmpbuf;
+                    float* tmp1 = tmpbuf + 8;
+                    _mm256_store_ps(tmp0, _tmp0);
+                    _mm256_store_ps(tmp1, _tmp1);
 
                     unsigned short* outptr1 = outptr0 + N;
                     unsigned short* outptr2 = outptr0 + N * 2;
@@ -1006,10 +1018,16 @@ static inline void conv3x3s1_winograd23_transform_output_tile_bf16s(const Mat& t
                 }
                 if (out_elempack == 1)
                 {
-                    float tmp0[4];
-                    float tmp1[4];
-                    _mm_storeu_ps(tmp0, _tmp0);
-                    _mm_storeu_ps(tmp1, _tmp1);
+#ifdef _MSC_VER
+                    __declspec(align(16))
+#else
+                    __attribute__((aligned(16)))
+#endif
+                    float tmpbuf[8];
+                    float* tmp0 = tmpbuf;
+                    float* tmp1 = tmpbuf + 4;
+                    _mm_store_ps(tmp0, _tmp0);
+                    _mm_store_ps(tmp1, _tmp1);
 
                     unsigned short* outptr1 = outptr0 + N;
                     unsigned short* outptr2 = outptr0 + N * 2;
@@ -2299,14 +2317,20 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
                 }
                 if (out_elempack == 1)
                 {
-                    float tmp0[16];
-                    float tmp1[16];
-                    float tmp2[16];
-                    float tmp3[16];
-                    _mm512_storeu_ps(tmp0, _tmp0);
-                    _mm512_storeu_ps(tmp1, _tmp1);
-                    _mm512_storeu_ps(tmp2, _tmp2);
-                    _mm512_storeu_ps(tmp3, _tmp3);
+#ifdef _MSC_VER
+                    __declspec(align(64))
+#else
+                    __attribute__((aligned(64)))
+#endif
+                    float tmpbuf[64];
+                    float* tmp0 = tmpbuf;
+                    float* tmp1 = tmpbuf + 16;
+                    float* tmp2 = tmpbuf + 32;
+                    float* tmp3 = tmpbuf + 48;
+                    _mm512_store_ps(tmp0, _tmp0);
+                    _mm512_store_ps(tmp1, _tmp1);
+                    _mm512_store_ps(tmp2, _tmp2);
+                    _mm512_store_ps(tmp3, _tmp3);
 
                     unsigned short* outptr1 = outptr0 + N;
                     unsigned short* outptr2 = outptr0 + N * 2;
@@ -2543,14 +2567,20 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
                 }
                 if (out_elempack == 1)
                 {
-                    float tmp0[8];
-                    float tmp1[8];
-                    float tmp2[8];
-                    float tmp3[8];
-                    _mm256_storeu_ps(tmp0, _tmp0);
-                    _mm256_storeu_ps(tmp1, _tmp1);
-                    _mm256_storeu_ps(tmp2, _tmp2);
-                    _mm256_storeu_ps(tmp3, _tmp3);
+#ifdef _MSC_VER
+                    __declspec(align(32))
+#else
+                    __attribute__((aligned(32)))
+#endif
+                    float tmpbuf[32];
+                    float* tmp0 = tmpbuf;
+                    float* tmp1 = tmpbuf + 8;
+                    float* tmp2 = tmpbuf + 16;
+                    float* tmp3 = tmpbuf + 24;
+                    _mm256_store_ps(tmp0, _tmp0);
+                    _mm256_store_ps(tmp1, _tmp1);
+                    _mm256_store_ps(tmp2, _tmp2);
+                    _mm256_store_ps(tmp3, _tmp3);
 
                     unsigned short* outptr1 = outptr0 + N;
                     unsigned short* outptr2 = outptr0 + N * 2;
@@ -2725,14 +2755,20 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
                 }
                 if (out_elempack == 1)
                 {
-                    float tmp0[4];
-                    float tmp1[4];
-                    float tmp2[4];
-                    float tmp3[4];
-                    _mm_storeu_ps(tmp0, _tmp0);
-                    _mm_storeu_ps(tmp1, _tmp1);
-                    _mm_storeu_ps(tmp2, _tmp2);
-                    _mm_storeu_ps(tmp3, _tmp3);
+#ifdef _MSC_VER
+                    __declspec(align(16))
+#else
+                    __attribute__((aligned(16)))
+#endif
+                    float tmpbuf[16];
+                    float* tmp0 = tmpbuf;
+                    float* tmp1 = tmpbuf + 4;
+                    float* tmp2 = tmpbuf + 8;
+                    float* tmp3 = tmpbuf + 12;
+                    _mm_store_ps(tmp0, _tmp0);
+                    _mm_store_ps(tmp1, _tmp1);
+                    _mm_store_ps(tmp2, _tmp2);
+                    _mm_store_ps(tmp3, _tmp3);
 
                     unsigned short* outptr1 = outptr0 + N;
                     unsigned short* outptr2 = outptr0 + N * 2;
@@ -4362,18 +4398,24 @@ static inline void conv3x3s1_winograd63_transform_output_tile_bf16s(const Mat& t
                 }
                 if (out_elempack == 1)
                 {
-                    float tmp0[16];
-                    float tmp1[16];
-                    float tmp2[16];
-                    float tmp3[16];
-                    float tmp4[16];
-                    float tmp5[16];
-                    _mm512_storeu_ps(tmp0, _tmp0);
-                    _mm512_storeu_ps(tmp1, _tmp1);
-                    _mm512_storeu_ps(tmp2, _tmp2);
-                    _mm512_storeu_ps(tmp3, _tmp3);
-                    _mm512_storeu_ps(tmp4, _tmp4);
-                    _mm512_storeu_ps(tmp5, _tmp5);
+#ifdef _MSC_VER
+                    __declspec(align(64))
+#else
+                    __attribute__((aligned(64)))
+#endif
+                    float tmpbuf[96];
+                    float* tmp0 = tmpbuf;
+                    float* tmp1 = tmpbuf + 16;
+                    float* tmp2 = tmpbuf + 32;
+                    float* tmp3 = tmpbuf + 48;
+                    float* tmp4 = tmpbuf + 64;
+                    float* tmp5 = tmpbuf + 80;
+                    _mm512_store_ps(tmp0, _tmp0);
+                    _mm512_store_ps(tmp1, _tmp1);
+                    _mm512_store_ps(tmp2, _tmp2);
+                    _mm512_store_ps(tmp3, _tmp3);
+                    _mm512_store_ps(tmp4, _tmp4);
+                    _mm512_store_ps(tmp5, _tmp5);
 
                     unsigned short* outptr1 = outptr0 + N;
                     unsigned short* outptr2 = outptr0 + N * 2;
@@ -4681,18 +4723,24 @@ static inline void conv3x3s1_winograd63_transform_output_tile_bf16s(const Mat& t
                 }
                 if (out_elempack == 1)
                 {
-                    float tmp0[8];
-                    float tmp1[8];
-                    float tmp2[8];
-                    float tmp3[8];
-                    float tmp4[8];
-                    float tmp5[8];
-                    _mm256_storeu_ps(tmp0, _tmp0);
-                    _mm256_storeu_ps(tmp1, _tmp1);
-                    _mm256_storeu_ps(tmp2, _tmp2);
-                    _mm256_storeu_ps(tmp3, _tmp3);
-                    _mm256_storeu_ps(tmp4, _tmp4);
-                    _mm256_storeu_ps(tmp5, _tmp5);
+#ifdef _MSC_VER
+                    __declspec(align(32))
+#else
+                    __attribute__((aligned(32)))
+#endif
+                    float tmpbuf[48];
+                    float* tmp0 = tmpbuf;
+                    float* tmp1 = tmpbuf + 8;
+                    float* tmp2 = tmpbuf + 16;
+                    float* tmp3 = tmpbuf + 24;
+                    float* tmp4 = tmpbuf + 32;
+                    float* tmp5 = tmpbuf + 40;
+                    _mm256_store_ps(tmp0, _tmp0);
+                    _mm256_store_ps(tmp1, _tmp1);
+                    _mm256_store_ps(tmp2, _tmp2);
+                    _mm256_store_ps(tmp3, _tmp3);
+                    _mm256_store_ps(tmp4, _tmp4);
+                    _mm256_store_ps(tmp5, _tmp5);
 
                     unsigned short* outptr1 = outptr0 + N;
                     unsigned short* outptr2 = outptr0 + N * 2;
@@ -4912,18 +4960,24 @@ static inline void conv3x3s1_winograd63_transform_output_tile_bf16s(const Mat& t
                 }
                 if (out_elempack == 1)
                 {
-                    float tmp0[4];
-                    float tmp1[4];
-                    float tmp2[4];
-                    float tmp3[4];
-                    float tmp4[4];
-                    float tmp5[4];
-                    _mm_storeu_ps(tmp0, _tmp0);
-                    _mm_storeu_ps(tmp1, _tmp1);
-                    _mm_storeu_ps(tmp2, _tmp2);
-                    _mm_storeu_ps(tmp3, _tmp3);
-                    _mm_storeu_ps(tmp4, _tmp4);
-                    _mm_storeu_ps(tmp5, _tmp5);
+#ifdef _MSC_VER
+                    __declspec(align(16))
+#else
+                    __attribute__((aligned(16)))
+#endif
+                    float tmpbuf[24];
+                    float* tmp0 = tmpbuf;
+                    float* tmp1 = tmpbuf + 4;
+                    float* tmp2 = tmpbuf + 8;
+                    float* tmp3 = tmpbuf + 12;
+                    float* tmp4 = tmpbuf + 16;
+                    float* tmp5 = tmpbuf + 20;
+                    _mm_store_ps(tmp0, _tmp0);
+                    _mm_store_ps(tmp1, _tmp1);
+                    _mm_store_ps(tmp2, _tmp2);
+                    _mm_store_ps(tmp3, _tmp3);
+                    _mm_store_ps(tmp4, _tmp4);
+                    _mm_store_ps(tmp5, _tmp5);
 
                     unsigned short* outptr1 = outptr0 + N;
                     unsigned short* outptr2 = outptr0 + N * 2;
