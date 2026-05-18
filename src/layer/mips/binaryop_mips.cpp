@@ -474,7 +474,6 @@ static void binary_op_vector_broadcast_pb_bf16s(const unsigned short* ptr, const
             ptr1 += 1;
             outptr += 8;
         }
-        return;
     }
 
     if (elempack == 4)
@@ -505,18 +504,8 @@ static void binary_op_vector_broadcast_pb_bf16s(const unsigned short* ptr, const
             ptr1 += 1;
             outptr += 4;
         }
-        return;
     }
 #endif // __mips_msa
-
-    for (int i = 0; i < w; i++)
-    {
-        float b = bfloat16_to_float32(*ptr1++);
-        for (int j = 0; j < elempack; j++)
-        {
-            *outptr++ = float32_to_bfloat16(op(bfloat16_to_float32(*ptr++), b));
-        }
-    }
 }
 
 template<typename Op>
@@ -529,34 +518,28 @@ static void binary_op_vector_broadcast_pb_b_bf16s(const unsigned short* ptr, con
 
     int i = 0;
 #if __mips_msa
+    v4f32 _b_128 = __msa_fill_w_f32(b);
+    v8i16 _zero = __msa_fill_h(0);
+    for (; i + 7 < size; i += 8)
     {
-        v4f32 _b_128 = __msa_fill_w_f32(b);
-        v8i16 _zero = __msa_fill_h(0);
-        for (; i + 7 < size; i += 8)
-        {
-            v8i16 _p01 = __msa_ld_h(ptr, 0);
-            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
-            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
-            v4f32 _outp0 = op(_p0, _b_128);
-            v4f32 _outp1 = op(_p1, _b_128);
-            __msa_st_w(float2bfloat_msa(_outp0, _outp1), outptr, 0);
-            ptr += 8;
-            outptr += 8;
-        }
-        for (; i + 3 < size; i += 4)
-        {
-            v4f32 _p = bfloat2float_msa(ptr);
-            v4f32 _outp = op(_p, _b_128);
-            *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_outp), 0);
-            ptr += 4;
-            outptr += 4;
-        }
+        v8i16 _p01 = __msa_ld_h(ptr, 0);
+        v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+        v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+        v4f32 _outp0 = op(_p0, _b_128);
+        v4f32 _outp1 = op(_p1, _b_128);
+        __msa_st_w(float2bfloat_msa(_outp0, _outp1), outptr, 0);
+        ptr += 8;
+        outptr += 8;
+    }
+    for (; i + 3 < size; i += 4)
+    {
+        v4f32 _p = bfloat2float_msa(ptr);
+        v4f32 _outp = op(_p, _b_128);
+        *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_outp), 0);
+        ptr += 4;
+        outptr += 4;
     }
 #endif // __mips_msa
-    for (; i < size; i++)
-    {
-        *outptr++ = float32_to_bfloat16(op(bfloat16_to_float32(*ptr++), b));
-    }
 }
 
 template<typename Op>
@@ -580,7 +563,6 @@ static void binary_op_vector_broadcast_pb_a_bf16s(const unsigned short* ptr, con
             ptr1 += 1;
             outptr += 8;
         }
-        return;
     }
 
     if (elempack == 4)
@@ -605,19 +587,8 @@ static void binary_op_vector_broadcast_pb_a_bf16s(const unsigned short* ptr, con
             ptr1 += 1;
             outptr += 4;
         }
-        return;
     }
 #endif // __mips_msa
-
-    for (int i = 0; i < w; i++)
-    {
-        float b = bfloat16_to_float32(*ptr1++);
-        for (int j = 0; j < elempack; j++)
-        {
-            outptr[j] = float32_to_bfloat16(op(bfloat16_to_float32(ptr[j]), b));
-        }
-        outptr += elempack;
-    }
 }
 
 template<typename Op>
