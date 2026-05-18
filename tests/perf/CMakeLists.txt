@@ -28,6 +28,7 @@ endmacro()
 
 ncnn_add_layer_perf(ReLU)
 ncnn_add_layer_perf(Convolution)
+ncnn_add_layer_perf(Convolution1D)
 ncnn_add_layer_perf(ConvolutionDepthWise)
 ncnn_add_layer_perf(Deconvolution)
 ncnn_add_layer_perf(Pooling)
