@@ -8,10 +8,15 @@
 #include "c_api.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "allocator.h"
 #include "blob.h"
 #include "datareader.h"
+#if NCNN_VULKAN
+#include "gpu.h"
+#include "pipelinecache.h"
+#endif
 #include "layer.h"
 #include "mat.h"
 #include "modelbin.h"
@@ -29,6 +34,9 @@ using ncnn::ModelBin;
 using ncnn::Net;
 using ncnn::Option;
 using ncnn::ParamDict;
+#if NCNN_VULKAN
+using ncnn::PipelineCache;
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -137,6 +145,103 @@ void ncnn_allocator_destroy(ncnn_allocator_t allocator)
         free(allocator);
     }
 }
+
+#if NCNN_VULKAN
+/* pipelinecache api */
+ncnn_pipelinecache_t ncnn_pipelinecache_create(int device_index)
+{
+    ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(device_index);
+    if (!vkdev)
+        return 0;
+
+    return (ncnn_pipelinecache_t)(new PipelineCache(vkdev));
+}
+
+void ncnn_pipelinecache_destroy(ncnn_pipelinecache_t pipelinecache)
+{
+    delete (PipelineCache*)pipelinecache;
+}
+
+void ncnn_pipelinecache_clear(ncnn_pipelinecache_t pipelinecache)
+{
+    if (pipelinecache)
+        ((PipelineCache*)pipelinecache)->clear();
+}
+
+size_t ncnn_pipelinecache_get_size(const ncnn_pipelinecache_t pipelinecache)
+{
+    if (!pipelinecache)
+        return 0;
+
+    return ((const PipelineCache*)pipelinecache)->size();
+}
+
+int ncnn_pipelinecache_load_memory(ncnn_pipelinecache_t pipelinecache, const unsigned char* data, size_t size)
+{
+    if (!pipelinecache)
+        return -1;
+
+    return ((PipelineCache*)pipelinecache)->load_cache(data, size);
+}
+
+int ncnn_pipelinecache_save_memory(const ncnn_pipelinecache_t pipelinecache, unsigned char* data, size_t* size)
+{
+    if (!pipelinecache || !size)
+        return -1;
+
+    std::vector<unsigned char> cache_data;
+    int ret = ((const PipelineCache*)pipelinecache)->save_cache(cache_data);
+    if (ret != 0)
+        return ret;
+
+    if (!data || *size < cache_data.size())
+    {
+        *size = cache_data.size();
+        return -1;
+    }
+
+    memcpy(data, cache_data.data(), cache_data.size());
+    *size = cache_data.size();
+
+    return 0;
+}
+
+#if NCNN_STDIO
+int ncnn_pipelinecache_load(ncnn_pipelinecache_t pipelinecache, const char* path)
+{
+    if (!pipelinecache)
+        return -1;
+
+    return ((PipelineCache*)pipelinecache)->load_cache(path);
+}
+
+int ncnn_pipelinecache_save(const ncnn_pipelinecache_t pipelinecache, const char* path)
+{
+    if (!pipelinecache)
+        return -1;
+
+    return ((const PipelineCache*)pipelinecache)->save_cache(path);
+}
+
+#if _WIN32
+int ncnn_pipelinecache_load_w(ncnn_pipelinecache_t pipelinecache, const wchar_t* path)
+{
+    if (!pipelinecache)
+        return -1;
+
+    return ((PipelineCache*)pipelinecache)->load_cache(path);
+}
+
+int ncnn_pipelinecache_save_w(const ncnn_pipelinecache_t pipelinecache, const wchar_t* path)
+{
+    if (!pipelinecache)
+        return -1;
+
+    return ((const PipelineCache*)pipelinecache)->save_cache(path);
+}
+#endif /* _WIN32 */
+#endif /* NCNN_STDIO */
+#endif /* NCNN_VULKAN */
 
 /* option api */
 ncnn_option_t ncnn_option_create()
@@ -348,6 +453,13 @@ void ncnn_option_set_use_cooperative_matrix(ncnn_option_t opt, int enable)
     (void)enable;
 #endif
 }
+
+#if NCNN_VULKAN
+void ncnn_option_set_pipeline_cache(ncnn_option_t opt, ncnn_pipelinecache_t pipelinecache)
+{
+    ((Option*)opt)->pipeline_cache = (PipelineCache*)pipelinecache;
+}
+#endif
 
 /* mat api */
 ncnn_mat_t ncnn_mat_create()

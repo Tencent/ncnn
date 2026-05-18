@@ -1,0 +1,759 @@
+7767517
+757 1061
+Input                    in0                      0 1 in0
+Split                    splitncnn_0              1 2 in0 1 2
+Input                    in1                      0 1 in1
+Split                    splitncnn_1              1 22 in1 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25
+Input                    in2                      0 1 in2
+Split                    splitncnn_2              1 44 in2 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70
+Input                    in3                      0 1 in3
+Split                    splitncnn_3              1 44 in3 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115
+Input                    kv_cache                 0 44 cache_k0 cache_v0 cache_k1 cache_v1 cache_k2 cache_v2 cache_k3 cache_v3 cache_k4 cache_v4 cache_k5 cache_v5 cache_k6 cache_v6 cache_k7 cache_v7 cache_k8 cache_v8 cache_k9 cache_v9 cache_k10 cache_v10 cache_k11 cache_v11 cache_k12 cache_v12 cache_k13 cache_v13 cache_k14 cache_v14 cache_k15 cache_v15 cache_k16 cache_v16 cache_k17 cache_v17 cache_k18 cache_v18 cache_k19 cache_v19 cache_k20 cache_v20 cache_k21 cache_v21
+RMSNorm                  rmsn_176                 1 1 2 116 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_4              1 3 116 117 118 119
+Gemm                     gemm_0                   1 1 119 120 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_265              1 1 120 121 0=64 1=32 2=-1
+Permute                  transpose_397            1 1 121 122 0=2
+Gemm                     gemm_1                   1 1 118 123 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_266              1 1 123 124 0=64 1=4 2=-1
+Permute                  transpose_398            1 1 124 125 0=2
+Gemm                     gemm_2                   1 1 117 126 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_267              1 1 126 127 0=64 1=4 2=-1
+Permute                  transpose_399            1 1 127 128 0=2
+RotaryEmbed              rope_0                   3 1 122 70 115 129 0=0
+RotaryEmbed              rope_1                   3 1 125 69 114 130 0=0
+ExpandDims               unsqueeze_485            1 1 130 131 -23303=1,1
+Tile                     expand_221               1 1 131 132 -23302=4,1,8,1,1
+Reshape                  reshape_268              1 1 132 133 0=64 1=-1 2=32
+ExpandDims               unsqueeze_486            1 1 128 134 -23303=1,1
+Tile                     expand_222               1 1 134 135 -23302=4,1,8,1,1
+Reshape                  reshape_269              1 1 135 136 0=64 1=-1 2=32
+SDPA                     sdpa_529                 6 3 129 133 136 25 cache_k0 cache_v0 137 out_cache_k0 out_cache_v0 5=1 6=0.125 7=1
+Permute                  transpose_400            1 1 137 138 0=2
+Reshape                  reshape_270              1 1 138 139 0=2048 1=-1
+Gemm                     gemm_3                   1 1 139 140 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_0                    2 1 1 140 141 0=0
+Split                    splitncnn_5              1 2 141 142 143
+RMSNorm                  rmsn_177                 1 1 143 144 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_6              1 2 144 145 146
+Gemm                     gemm_4                   1 1 146 147 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_154                 1 1 147 148
+Gemm                     gemm_5                   1 1 145 149 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_1                    2 1 148 149 150 0=2
+Gemm                     gemm_6                   1 1 150 151 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_2                    2 1 142 151 152 0=0
+Split                    splitncnn_7              1 2 152 153 154
+RMSNorm                  rmsn_178                 1 1 154 155 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_8              1 3 155 156 157 158
+Gemm                     gemm_7                   1 1 158 159 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_271              1 1 159 160 0=64 1=32 2=-1
+Permute                  transpose_401            1 1 160 161 0=2
+Gemm                     gemm_8                   1 1 157 162 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_272              1 1 162 163 0=64 1=4 2=-1
+Permute                  transpose_402            1 1 163 164 0=2
+Gemm                     gemm_9                   1 1 156 165 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_273              1 1 165 166 0=64 1=4 2=-1
+Permute                  transpose_403            1 1 166 167 0=2
+RotaryEmbed              rope_2                   3 1 161 68 113 168 0=0
+RotaryEmbed              rope_3                   3 1 164 67 112 169 0=0
+ExpandDims               unsqueeze_487            1 1 169 170 -23303=1,1
+Tile                     expand_223               1 1 170 171 -23302=4,1,8,1,1
+Reshape                  reshape_274              1 1 171 172 0=64 1=-1 2=32
+ExpandDims               unsqueeze_488            1 1 167 173 -23303=1,1
+Tile                     expand_224               1 1 173 174 -23302=4,1,8,1,1
+Reshape                  reshape_275              1 1 174 175 0=64 1=-1 2=32
+SDPA                     sdpa_530                 6 3 168 172 175 24 cache_k1 cache_v1 176 out_cache_k1 out_cache_v1 5=1 6=0.125 7=1
+Permute                  transpose_404            1 1 176 177 0=2
+Reshape                  reshape_276              1 1 177 178 0=2048 1=-1
+Gemm                     gemm_10                  1 1 178 179 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_3                    2 1 153 179 180 0=0
+Split                    splitncnn_9              1 2 180 181 182
+RMSNorm                  rmsn_179                 1 1 182 183 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_10             1 2 183 184 185
+Gemm                     gemm_11                  1 1 185 186 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_155                 1 1 186 187
+Gemm                     gemm_12                  1 1 184 188 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_4                    2 1 187 188 189 0=2
+Gemm                     gemm_13                  1 1 189 190 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_5                    2 1 181 190 191 0=0
+Split                    splitncnn_11             1 2 191 192 193
+RMSNorm                  rmsn_180                 1 1 193 194 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_12             1 3 194 195 196 197
+Gemm                     gemm_14                  1 1 197 198 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_277              1 1 198 199 0=64 1=32 2=-1
+Permute                  transpose_405            1 1 199 200 0=2
+Gemm                     gemm_15                  1 1 196 201 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_278              1 1 201 202 0=64 1=4 2=-1
+Permute                  transpose_406            1 1 202 203 0=2
+Gemm                     gemm_16                  1 1 195 204 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_279              1 1 204 205 0=64 1=4 2=-1
+Permute                  transpose_407            1 1 205 206 0=2
+RotaryEmbed              rope_4                   3 1 200 66 111 207 0=0
+RotaryEmbed              rope_5                   3 1 203 65 110 208 0=0
+ExpandDims               unsqueeze_489            1 1 208 209 -23303=1,1
+Tile                     expand_225               1 1 209 210 -23302=4,1,8,1,1
+Reshape                  reshape_280              1 1 210 211 0=64 1=-1 2=32
+ExpandDims               unsqueeze_490            1 1 206 212 -23303=1,1
+Tile                     expand_226               1 1 212 213 -23302=4,1,8,1,1
+Reshape                  reshape_281              1 1 213 214 0=64 1=-1 2=32
+SDPA                     sdpa_531                 6 3 207 211 214 23 cache_k2 cache_v2 215 out_cache_k2 out_cache_v2 5=1 6=0.125 7=1
+Permute                  transpose_408            1 1 215 216 0=2
+Reshape                  reshape_282              1 1 216 217 0=2048 1=-1
+Gemm                     gemm_17                  1 1 217 218 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_6                    2 1 192 218 219 0=0
+Split                    splitncnn_13             1 2 219 220 221
+RMSNorm                  rmsn_181                 1 1 221 222 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_14             1 2 222 223 224
+Gemm                     gemm_18                  1 1 224 225 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_156                 1 1 225 226
+Gemm                     gemm_19                  1 1 223 227 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_7                    2 1 226 227 228 0=2
+Gemm                     gemm_20                  1 1 228 229 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_8                    2 1 220 229 230 0=0
+Split                    splitncnn_15             1 2 230 231 232
+RMSNorm                  rmsn_182                 1 1 232 233 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_16             1 3 233 234 235 236
+Gemm                     gemm_21                  1 1 236 237 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_283              1 1 237 238 0=64 1=32 2=-1
+Permute                  transpose_409            1 1 238 239 0=2
+Gemm                     gemm_22                  1 1 235 240 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_284              1 1 240 241 0=64 1=4 2=-1
+Permute                  transpose_410            1 1 241 242 0=2
+Gemm                     gemm_23                  1 1 234 243 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_285              1 1 243 244 0=64 1=4 2=-1
+Permute                  transpose_411            1 1 244 245 0=2
+RotaryEmbed              rope_6                   3 1 239 64 109 246 0=0
+RotaryEmbed              rope_7                   3 1 242 63 108 247 0=0
+ExpandDims               unsqueeze_491            1 1 247 248 -23303=1,1
+Tile                     expand_227               1 1 248 249 -23302=4,1,8,1,1
+Reshape                  reshape_286              1 1 249 250 0=64 1=-1 2=32
+ExpandDims               unsqueeze_492            1 1 245 251 -23303=1,1
+Tile                     expand_228               1 1 251 252 -23302=4,1,8,1,1
+Reshape                  reshape_287              1 1 252 253 0=64 1=-1 2=32
+SDPA                     sdpa_532                 6 3 246 250 253 22 cache_k3 cache_v3 254 out_cache_k3 out_cache_v3 5=1 6=0.125 7=1
+Permute                  transpose_412            1 1 254 255 0=2
+Reshape                  reshape_288              1 1 255 256 0=2048 1=-1
+Gemm                     gemm_24                  1 1 256 257 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_9                    2 1 231 257 258 0=0
+Split                    splitncnn_17             1 2 258 259 260
+RMSNorm                  rmsn_183                 1 1 260 261 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_18             1 2 261 262 263
+Gemm                     gemm_25                  1 1 263 264 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_157                 1 1 264 265
+Gemm                     gemm_26                  1 1 262 266 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_10                   2 1 265 266 267 0=2
+Gemm                     gemm_27                  1 1 267 268 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_11                   2 1 259 268 269 0=0
+Split                    splitncnn_19             1 2 269 270 271
+RMSNorm                  rmsn_184                 1 1 271 272 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_20             1 3 272 273 274 275
+Gemm                     gemm_28                  1 1 275 276 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_289              1 1 276 277 0=64 1=32 2=-1
+Permute                  transpose_413            1 1 277 278 0=2
+Gemm                     gemm_29                  1 1 274 279 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_290              1 1 279 280 0=64 1=4 2=-1
+Permute                  transpose_414            1 1 280 281 0=2
+Gemm                     gemm_30                  1 1 273 282 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_291              1 1 282 283 0=64 1=4 2=-1
+Permute                  transpose_415            1 1 283 284 0=2
+RotaryEmbed              rope_8                   3 1 278 62 107 285 0=0
+RotaryEmbed              rope_9                   3 1 281 61 106 286 0=0
+ExpandDims               unsqueeze_493            1 1 286 287 -23303=1,1
+Tile                     expand_229               1 1 287 288 -23302=4,1,8,1,1
+Reshape                  reshape_292              1 1 288 289 0=64 1=-1 2=32
+ExpandDims               unsqueeze_494            1 1 284 290 -23303=1,1
+Tile                     expand_230               1 1 290 291 -23302=4,1,8,1,1
+Reshape                  reshape_293              1 1 291 292 0=64 1=-1 2=32
+SDPA                     sdpa_533                 6 3 285 289 292 21 cache_k4 cache_v4 293 out_cache_k4 out_cache_v4 5=1 6=0.125 7=1
+Permute                  transpose_416            1 1 293 294 0=2
+Reshape                  reshape_294              1 1 294 295 0=2048 1=-1
+Gemm                     gemm_31                  1 1 295 296 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_12                   2 1 270 296 297 0=0
+Split                    splitncnn_21             1 2 297 298 299
+RMSNorm                  rmsn_185                 1 1 299 300 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_22             1 2 300 301 302
+Gemm                     gemm_32                  1 1 302 303 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_158                 1 1 303 304
+Gemm                     gemm_33                  1 1 301 305 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_13                   2 1 304 305 306 0=2
+Gemm                     gemm_34                  1 1 306 307 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_14                   2 1 298 307 308 0=0
+Split                    splitncnn_23             1 2 308 309 310
+RMSNorm                  rmsn_186                 1 1 310 311 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_24             1 3 311 312 313 314
+Gemm                     gemm_35                  1 1 314 315 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_295              1 1 315 316 0=64 1=32 2=-1
+Permute                  transpose_417            1 1 316 317 0=2
+Gemm                     gemm_36                  1 1 313 318 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_296              1 1 318 319 0=64 1=4 2=-1
+Permute                  transpose_418            1 1 319 320 0=2
+Gemm                     gemm_37                  1 1 312 321 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_297              1 1 321 322 0=64 1=4 2=-1
+Permute                  transpose_419            1 1 322 323 0=2
+RotaryEmbed              rope_10                  3 1 317 60 105 324 0=0
+RotaryEmbed              rope_11                  3 1 320 59 104 325 0=0
+ExpandDims               unsqueeze_495            1 1 325 326 -23303=1,1
+Tile                     expand_231               1 1 326 327 -23302=4,1,8,1,1
+Reshape                  reshape_298              1 1 327 328 0=64 1=-1 2=32
+ExpandDims               unsqueeze_496            1 1 323 329 -23303=1,1
+Tile                     expand_232               1 1 329 330 -23302=4,1,8,1,1
+Reshape                  reshape_299              1 1 330 331 0=64 1=-1 2=32
+SDPA                     sdpa_534                 6 3 324 328 331 20 cache_k5 cache_v5 332 out_cache_k5 out_cache_v5 5=1 6=0.125 7=1
+Permute                  transpose_420            1 1 332 333 0=2
+Reshape                  reshape_300              1 1 333 334 0=2048 1=-1
+Gemm                     gemm_38                  1 1 334 335 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_15                   2 1 309 335 336 0=0
+Split                    splitncnn_25             1 2 336 337 338
+RMSNorm                  rmsn_187                 1 1 338 339 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_26             1 2 339 340 341
+Gemm                     gemm_39                  1 1 341 342 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_159                 1 1 342 343
+Gemm                     gemm_40                  1 1 340 344 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_16                   2 1 343 344 345 0=2
+Gemm                     gemm_41                  1 1 345 346 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_17                   2 1 337 346 347 0=0
+Split                    splitncnn_27             1 2 347 348 349
+RMSNorm                  rmsn_188                 1 1 349 350 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_28             1 3 350 351 352 353
+Gemm                     gemm_42                  1 1 353 354 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_301              1 1 354 355 0=64 1=32 2=-1
+Permute                  transpose_421            1 1 355 356 0=2
+Gemm                     gemm_43                  1 1 352 357 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_302              1 1 357 358 0=64 1=4 2=-1
+Permute                  transpose_422            1 1 358 359 0=2
+Gemm                     gemm_44                  1 1 351 360 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_303              1 1 360 361 0=64 1=4 2=-1
+Permute                  transpose_423            1 1 361 362 0=2
+RotaryEmbed              rope_12                  3 1 356 58 103 363 0=0
+RotaryEmbed              rope_13                  3 1 359 57 102 364 0=0
+ExpandDims               unsqueeze_497            1 1 364 365 -23303=1,1
+Tile                     expand_233               1 1 365 366 -23302=4,1,8,1,1
+Reshape                  reshape_304              1 1 366 367 0=64 1=-1 2=32
+ExpandDims               unsqueeze_498            1 1 362 368 -23303=1,1
+Tile                     expand_234               1 1 368 369 -23302=4,1,8,1,1
+Reshape                  reshape_305              1 1 369 370 0=64 1=-1 2=32
+SDPA                     sdpa_535                 6 3 363 367 370 19 cache_k6 cache_v6 371 out_cache_k6 out_cache_v6 5=1 6=0.125 7=1
+Permute                  transpose_424            1 1 371 372 0=2
+Reshape                  reshape_306              1 1 372 373 0=2048 1=-1
+Gemm                     gemm_45                  1 1 373 374 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_18                   2 1 348 374 375 0=0
+Split                    splitncnn_29             1 2 375 376 377
+RMSNorm                  rmsn_189                 1 1 377 378 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_30             1 2 378 379 380
+Gemm                     gemm_46                  1 1 380 381 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_160                 1 1 381 382
+Gemm                     gemm_47                  1 1 379 383 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_19                   2 1 382 383 384 0=2
+Gemm                     gemm_48                  1 1 384 385 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_20                   2 1 376 385 386 0=0
+Split                    splitncnn_31             1 2 386 387 388
+RMSNorm                  rmsn_190                 1 1 388 389 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_32             1 3 389 390 391 392
+Gemm                     gemm_49                  1 1 392 393 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_307              1 1 393 394 0=64 1=32 2=-1
+Permute                  transpose_425            1 1 394 395 0=2
+Gemm                     gemm_50                  1 1 391 396 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_308              1 1 396 397 0=64 1=4 2=-1
+Permute                  transpose_426            1 1 397 398 0=2
+Gemm                     gemm_51                  1 1 390 399 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_309              1 1 399 400 0=64 1=4 2=-1
+Permute                  transpose_427            1 1 400 401 0=2
+RotaryEmbed              rope_14                  3 1 395 56 101 402 0=0
+RotaryEmbed              rope_15                  3 1 398 55 100 403 0=0
+ExpandDims               unsqueeze_499            1 1 403 404 -23303=1,1
+Tile                     expand_235               1 1 404 405 -23302=4,1,8,1,1
+Reshape                  reshape_310              1 1 405 406 0=64 1=-1 2=32
+ExpandDims               unsqueeze_500            1 1 401 407 -23303=1,1
+Tile                     expand_236               1 1 407 408 -23302=4,1,8,1,1
+Reshape                  reshape_311              1 1 408 409 0=64 1=-1 2=32
+SDPA                     sdpa_536                 6 3 402 406 409 18 cache_k7 cache_v7 410 out_cache_k7 out_cache_v7 5=1 6=0.125 7=1
+Permute                  transpose_428            1 1 410 411 0=2
+Reshape                  reshape_312              1 1 411 412 0=2048 1=-1
+Gemm                     gemm_52                  1 1 412 413 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_21                   2 1 387 413 414 0=0
+Split                    splitncnn_33             1 2 414 415 416
+RMSNorm                  rmsn_191                 1 1 416 417 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_34             1 2 417 418 419
+Gemm                     gemm_53                  1 1 419 420 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_161                 1 1 420 421
+Gemm                     gemm_54                  1 1 418 422 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_22                   2 1 421 422 423 0=2
+Gemm                     gemm_55                  1 1 423 424 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_23                   2 1 415 424 425 0=0
+Split                    splitncnn_35             1 2 425 426 427
+RMSNorm                  rmsn_192                 1 1 427 428 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_36             1 3 428 429 430 431
+Gemm                     gemm_56                  1 1 431 432 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_313              1 1 432 433 0=64 1=32 2=-1
+Permute                  transpose_429            1 1 433 434 0=2
+Gemm                     gemm_57                  1 1 430 435 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_314              1 1 435 436 0=64 1=4 2=-1
+Permute                  transpose_430            1 1 436 437 0=2
+Gemm                     gemm_58                  1 1 429 438 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_315              1 1 438 439 0=64 1=4 2=-1
+Permute                  transpose_431            1 1 439 440 0=2
+RotaryEmbed              rope_16                  3 1 434 54 99 441 0=0
+RotaryEmbed              rope_17                  3 1 437 53 98 442 0=0
+ExpandDims               unsqueeze_501            1 1 442 443 -23303=1,1
+Tile                     expand_237               1 1 443 444 -23302=4,1,8,1,1
+Reshape                  reshape_316              1 1 444 445 0=64 1=-1 2=32
+ExpandDims               unsqueeze_502            1 1 440 446 -23303=1,1
+Tile                     expand_238               1 1 446 447 -23302=4,1,8,1,1
+Reshape                  reshape_317              1 1 447 448 0=64 1=-1 2=32
+SDPA                     sdpa_537                 6 3 441 445 448 17 cache_k8 cache_v8 449 out_cache_k8 out_cache_v8 5=1 6=0.125 7=1
+Permute                  transpose_432            1 1 449 450 0=2
+Reshape                  reshape_318              1 1 450 451 0=2048 1=-1
+Gemm                     gemm_59                  1 1 451 452 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_24                   2 1 426 452 453 0=0
+Split                    splitncnn_37             1 2 453 454 455
+RMSNorm                  rmsn_193                 1 1 455 456 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_38             1 2 456 457 458
+Gemm                     gemm_60                  1 1 458 459 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_162                 1 1 459 460
+Gemm                     gemm_61                  1 1 457 461 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_25                   2 1 460 461 462 0=2
+Gemm                     gemm_62                  1 1 462 463 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_26                   2 1 454 463 464 0=0
+Split                    splitncnn_39             1 2 464 465 466
+RMSNorm                  rmsn_194                 1 1 466 467 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_40             1 3 467 468 469 470
+Gemm                     gemm_63                  1 1 470 471 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_319              1 1 471 472 0=64 1=32 2=-1
+Permute                  transpose_433            1 1 472 473 0=2
+Gemm                     gemm_64                  1 1 469 474 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_320              1 1 474 475 0=64 1=4 2=-1
+Permute                  transpose_434            1 1 475 476 0=2
+Gemm                     gemm_65                  1 1 468 477 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_321              1 1 477 478 0=64 1=4 2=-1
+Permute                  transpose_435            1 1 478 479 0=2
+RotaryEmbed              rope_18                  3 1 473 52 97 480 0=0
+RotaryEmbed              rope_19                  3 1 476 51 96 481 0=0
+ExpandDims               unsqueeze_503            1 1 481 482 -23303=1,1
+Tile                     expand_239               1 1 482 483 -23302=4,1,8,1,1
+Reshape                  reshape_322              1 1 483 484 0=64 1=-1 2=32
+ExpandDims               unsqueeze_504            1 1 479 485 -23303=1,1
+Tile                     expand_240               1 1 485 486 -23302=4,1,8,1,1
+Reshape                  reshape_323              1 1 486 487 0=64 1=-1 2=32
+SDPA                     sdpa_538                 6 3 480 484 487 16 cache_k9 cache_v9 488 out_cache_k9 out_cache_v9 5=1 6=0.125 7=1
+Permute                  transpose_436            1 1 488 489 0=2
+Reshape                  reshape_324              1 1 489 490 0=2048 1=-1
+Gemm                     gemm_66                  1 1 490 491 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_27                   2 1 465 491 492 0=0
+Split                    splitncnn_41             1 2 492 493 494
+RMSNorm                  rmsn_195                 1 1 494 495 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_42             1 2 495 496 497
+Gemm                     gemm_67                  1 1 497 498 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_163                 1 1 498 499
+Gemm                     gemm_68                  1 1 496 500 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_28                   2 1 499 500 501 0=2
+Gemm                     gemm_69                  1 1 501 502 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_29                   2 1 493 502 503 0=0
+Split                    splitncnn_43             1 2 503 504 505
+RMSNorm                  rmsn_196                 1 1 505 506 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_44             1 3 506 507 508 509
+Gemm                     gemm_70                  1 1 509 510 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_325              1 1 510 511 0=64 1=32 2=-1
+Permute                  transpose_437            1 1 511 512 0=2
+Gemm                     gemm_71                  1 1 508 513 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_326              1 1 513 514 0=64 1=4 2=-1
+Permute                  transpose_438            1 1 514 515 0=2
+Gemm                     gemm_72                  1 1 507 516 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_327              1 1 516 517 0=64 1=4 2=-1
+Permute                  transpose_439            1 1 517 518 0=2
+RotaryEmbed              rope_20                  3 1 512 50 95 519 0=0
+RotaryEmbed              rope_21                  3 1 515 49 94 520 0=0
+ExpandDims               unsqueeze_505            1 1 520 521 -23303=1,1
+Tile                     expand_241               1 1 521 522 -23302=4,1,8,1,1
+Reshape                  reshape_328              1 1 522 523 0=64 1=-1 2=32
+ExpandDims               unsqueeze_506            1 1 518 524 -23303=1,1
+Tile                     expand_242               1 1 524 525 -23302=4,1,8,1,1
+Reshape                  reshape_329              1 1 525 526 0=64 1=-1 2=32
+SDPA                     sdpa_539                 6 3 519 523 526 15 cache_k10 cache_v10 527 out_cache_k10 out_cache_v10 5=1 6=0.125 7=1
+Permute                  transpose_440            1 1 527 528 0=2
+Reshape                  reshape_330              1 1 528 529 0=2048 1=-1
+Gemm                     gemm_73                  1 1 529 530 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_30                   2 1 504 530 531 0=0
+Split                    splitncnn_45             1 2 531 532 533
+RMSNorm                  rmsn_197                 1 1 533 534 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_46             1 2 534 535 536
+Gemm                     gemm_74                  1 1 536 537 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_164                 1 1 537 538
+Gemm                     gemm_75                  1 1 535 539 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_31                   2 1 538 539 540 0=2
+Gemm                     gemm_76                  1 1 540 541 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_32                   2 1 532 541 542 0=0
+Split                    splitncnn_47             1 2 542 543 544
+RMSNorm                  rmsn_198                 1 1 544 545 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_48             1 3 545 546 547 548
+Gemm                     gemm_77                  1 1 548 549 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_331              1 1 549 550 0=64 1=32 2=-1
+Permute                  transpose_441            1 1 550 551 0=2
+Gemm                     gemm_78                  1 1 547 552 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_332              1 1 552 553 0=64 1=4 2=-1
+Permute                  transpose_442            1 1 553 554 0=2
+Gemm                     gemm_79                  1 1 546 555 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_333              1 1 555 556 0=64 1=4 2=-1
+Permute                  transpose_443            1 1 556 557 0=2
+RotaryEmbed              rope_22                  3 1 551 48 93 558 0=0
+RotaryEmbed              rope_23                  3 1 554 47 92 559 0=0
+ExpandDims               unsqueeze_507            1 1 559 560 -23303=1,1
+Tile                     expand_243               1 1 560 561 -23302=4,1,8,1,1
+Reshape                  reshape_334              1 1 561 562 0=64 1=-1 2=32
+ExpandDims               unsqueeze_508            1 1 557 563 -23303=1,1
+Tile                     expand_244               1 1 563 564 -23302=4,1,8,1,1
+Reshape                  reshape_335              1 1 564 565 0=64 1=-1 2=32
+SDPA                     sdpa_540                 6 3 558 562 565 14 cache_k11 cache_v11 566 out_cache_k11 out_cache_v11 5=1 6=0.125 7=1
+Permute                  transpose_444            1 1 566 567 0=2
+Reshape                  reshape_336              1 1 567 568 0=2048 1=-1
+Gemm                     gemm_80                  1 1 568 569 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_33                   2 1 543 569 570 0=0
+Split                    splitncnn_49             1 2 570 571 572
+RMSNorm                  rmsn_199                 1 1 572 573 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_50             1 2 573 574 575
+Gemm                     gemm_81                  1 1 575 576 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_165                 1 1 576 577
+Gemm                     gemm_82                  1 1 574 578 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_34                   2 1 577 578 579 0=2
+Gemm                     gemm_83                  1 1 579 580 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_35                   2 1 571 580 581 0=0
+Split                    splitncnn_51             1 2 581 582 583
+RMSNorm                  rmsn_200                 1 1 583 584 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_52             1 3 584 585 586 587
+Gemm                     gemm_84                  1 1 587 588 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_337              1 1 588 589 0=64 1=32 2=-1
+Permute                  transpose_445            1 1 589 590 0=2
+Gemm                     gemm_85                  1 1 586 591 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_338              1 1 591 592 0=64 1=4 2=-1
+Permute                  transpose_446            1 1 592 593 0=2
+Gemm                     gemm_86                  1 1 585 594 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_339              1 1 594 595 0=64 1=4 2=-1
+Permute                  transpose_447            1 1 595 596 0=2
+RotaryEmbed              rope_24                  3 1 590 46 91 597 0=0
+RotaryEmbed              rope_25                  3 1 593 45 90 598 0=0
+ExpandDims               unsqueeze_509            1 1 598 599 -23303=1,1
+Tile                     expand_245               1 1 599 600 -23302=4,1,8,1,1
+Reshape                  reshape_340              1 1 600 601 0=64 1=-1 2=32
+ExpandDims               unsqueeze_510            1 1 596 602 -23303=1,1
+Tile                     expand_246               1 1 602 603 -23302=4,1,8,1,1
+Reshape                  reshape_341              1 1 603 604 0=64 1=-1 2=32
+SDPA                     sdpa_541                 6 3 597 601 604 13 cache_k12 cache_v12 605 out_cache_k12 out_cache_v12 5=1 6=0.125 7=1
+Permute                  transpose_448            1 1 605 606 0=2
+Reshape                  reshape_342              1 1 606 607 0=2048 1=-1
+Gemm                     gemm_87                  1 1 607 608 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_36                   2 1 582 608 609 0=0
+Split                    splitncnn_53             1 2 609 610 611
+RMSNorm                  rmsn_201                 1 1 611 612 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_54             1 2 612 613 614
+Gemm                     gemm_88                  1 1 614 615 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_166                 1 1 615 616
+Gemm                     gemm_89                  1 1 613 617 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_37                   2 1 616 617 618 0=2
+Gemm                     gemm_90                  1 1 618 619 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_38                   2 1 610 619 620 0=0
+Split                    splitncnn_55             1 2 620 621 622
+RMSNorm                  rmsn_202                 1 1 622 623 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_56             1 3 623 624 625 626
+Gemm                     gemm_91                  1 1 626 627 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_343              1 1 627 628 0=64 1=32 2=-1
+Permute                  transpose_449            1 1 628 629 0=2
+Gemm                     gemm_92                  1 1 625 630 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_344              1 1 630 631 0=64 1=4 2=-1
+Permute                  transpose_450            1 1 631 632 0=2
+Gemm                     gemm_93                  1 1 624 633 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_345              1 1 633 634 0=64 1=4 2=-1
+Permute                  transpose_451            1 1 634 635 0=2
+RotaryEmbed              rope_26                  3 1 629 44 89 636 0=0
+RotaryEmbed              rope_27                  3 1 632 43 88 637 0=0
+ExpandDims               unsqueeze_511            1 1 637 638 -23303=1,1
+Tile                     expand_247               1 1 638 639 -23302=4,1,8,1,1
+Reshape                  reshape_346              1 1 639 640 0=64 1=-1 2=32
+ExpandDims               unsqueeze_512            1 1 635 641 -23303=1,1
+Tile                     expand_248               1 1 641 642 -23302=4,1,8,1,1
+Reshape                  reshape_347              1 1 642 643 0=64 1=-1 2=32
+SDPA                     sdpa_542                 6 3 636 640 643 12 cache_k13 cache_v13 644 out_cache_k13 out_cache_v13 5=1 6=0.125 7=1
+Permute                  transpose_452            1 1 644 645 0=2
+Reshape                  reshape_348              1 1 645 646 0=2048 1=-1
+Gemm                     gemm_94                  1 1 646 647 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_39                   2 1 621 647 648 0=0
+Split                    splitncnn_57             1 2 648 649 650
+RMSNorm                  rmsn_203                 1 1 650 651 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_58             1 2 651 652 653
+Gemm                     gemm_95                  1 1 653 654 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_167                 1 1 654 655
+Gemm                     gemm_96                  1 1 652 656 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_40                   2 1 655 656 657 0=2
+Gemm                     gemm_97                  1 1 657 658 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_41                   2 1 649 658 659 0=0
+Split                    splitncnn_59             1 2 659 660 661
+RMSNorm                  rmsn_204                 1 1 661 662 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_60             1 3 662 663 664 665
+Gemm                     gemm_98                  1 1 665 666 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_349              1 1 666 667 0=64 1=32 2=-1
+Permute                  transpose_453            1 1 667 668 0=2
+Gemm                     gemm_99                  1 1 664 669 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_350              1 1 669 670 0=64 1=4 2=-1
+Permute                  transpose_454            1 1 670 671 0=2
+Gemm                     gemm_100                 1 1 663 672 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_351              1 1 672 673 0=64 1=4 2=-1
+Permute                  transpose_455            1 1 673 674 0=2
+RotaryEmbed              rope_28                  3 1 668 42 87 675 0=0
+RotaryEmbed              rope_29                  3 1 671 41 86 676 0=0
+ExpandDims               unsqueeze_513            1 1 676 677 -23303=1,1
+Tile                     expand_249               1 1 677 678 -23302=4,1,8,1,1
+Reshape                  reshape_352              1 1 678 679 0=64 1=-1 2=32
+ExpandDims               unsqueeze_514            1 1 674 680 -23303=1,1
+Tile                     expand_250               1 1 680 681 -23302=4,1,8,1,1
+Reshape                  reshape_353              1 1 681 682 0=64 1=-1 2=32
+SDPA                     sdpa_543                 6 3 675 679 682 11 cache_k14 cache_v14 683 out_cache_k14 out_cache_v14 5=1 6=0.125 7=1
+Permute                  transpose_456            1 1 683 684 0=2
+Reshape                  reshape_354              1 1 684 685 0=2048 1=-1
+Gemm                     gemm_101                 1 1 685 686 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_42                   2 1 660 686 687 0=0
+Split                    splitncnn_61             1 2 687 688 689
+RMSNorm                  rmsn_205                 1 1 689 690 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_62             1 2 690 691 692
+Gemm                     gemm_102                 1 1 692 693 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_168                 1 1 693 694
+Gemm                     gemm_103                 1 1 691 695 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_43                   2 1 694 695 696 0=2
+Gemm                     gemm_104                 1 1 696 697 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_44                   2 1 688 697 698 0=0
+Split                    splitncnn_63             1 2 698 699 700
+RMSNorm                  rmsn_206                 1 1 700 701 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_64             1 3 701 702 703 704
+Gemm                     gemm_105                 1 1 704 705 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_355              1 1 705 706 0=64 1=32 2=-1
+Permute                  transpose_457            1 1 706 707 0=2
+Gemm                     gemm_106                 1 1 703 708 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_356              1 1 708 709 0=64 1=4 2=-1
+Permute                  transpose_458            1 1 709 710 0=2
+Gemm                     gemm_107                 1 1 702 711 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_357              1 1 711 712 0=64 1=4 2=-1
+Permute                  transpose_459            1 1 712 713 0=2
+RotaryEmbed              rope_30                  3 1 707 40 85 714 0=0
+RotaryEmbed              rope_31                  3 1 710 39 84 715 0=0
+ExpandDims               unsqueeze_515            1 1 715 716 -23303=1,1
+Tile                     expand_251               1 1 716 717 -23302=4,1,8,1,1
+Reshape                  reshape_358              1 1 717 718 0=64 1=-1 2=32
+ExpandDims               unsqueeze_516            1 1 713 719 -23303=1,1
+Tile                     expand_252               1 1 719 720 -23302=4,1,8,1,1
+Reshape                  reshape_359              1 1 720 721 0=64 1=-1 2=32
+SDPA                     sdpa_544                 6 3 714 718 721 10 cache_k15 cache_v15 722 out_cache_k15 out_cache_v15 5=1 6=0.125 7=1
+Permute                  transpose_460            1 1 722 723 0=2
+Reshape                  reshape_360              1 1 723 724 0=2048 1=-1
+Gemm                     gemm_108                 1 1 724 725 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_45                   2 1 699 725 726 0=0
+Split                    splitncnn_65             1 2 726 727 728
+RMSNorm                  rmsn_207                 1 1 728 729 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_66             1 2 729 730 731
+Gemm                     gemm_109                 1 1 731 732 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_169                 1 1 732 733
+Gemm                     gemm_110                 1 1 730 734 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_46                   2 1 733 734 735 0=2
+Gemm                     gemm_111                 1 1 735 736 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_47                   2 1 727 736 737 0=0
+Split                    splitncnn_67             1 2 737 738 739
+RMSNorm                  rmsn_208                 1 1 739 740 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_68             1 3 740 741 742 743
+Gemm                     gemm_112                 1 1 743 744 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_361              1 1 744 745 0=64 1=32 2=-1
+Permute                  transpose_461            1 1 745 746 0=2
+Gemm                     gemm_113                 1 1 742 747 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_362              1 1 747 748 0=64 1=4 2=-1
+Permute                  transpose_462            1 1 748 749 0=2
+Gemm                     gemm_114                 1 1 741 750 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_363              1 1 750 751 0=64 1=4 2=-1
+Permute                  transpose_463            1 1 751 752 0=2
+RotaryEmbed              rope_32                  3 1 746 38 83 753 0=0
+RotaryEmbed              rope_33                  3 1 749 37 82 754 0=0
+ExpandDims               unsqueeze_517            1 1 754 755 -23303=1,1
+Tile                     expand_253               1 1 755 756 -23302=4,1,8,1,1
+Reshape                  reshape_364              1 1 756 757 0=64 1=-1 2=32
+ExpandDims               unsqueeze_518            1 1 752 758 -23303=1,1
+Tile                     expand_254               1 1 758 759 -23302=4,1,8,1,1
+Reshape                  reshape_365              1 1 759 760 0=64 1=-1 2=32
+SDPA                     sdpa_545                 6 3 753 757 760 9 cache_k16 cache_v16 761 out_cache_k16 out_cache_v16 5=1 6=0.125 7=1
+Permute                  transpose_464            1 1 761 762 0=2
+Reshape                  reshape_366              1 1 762 763 0=2048 1=-1
+Gemm                     gemm_115                 1 1 763 764 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_48                   2 1 738 764 765 0=0
+Split                    splitncnn_69             1 2 765 766 767
+RMSNorm                  rmsn_209                 1 1 767 768 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_70             1 2 768 769 770
+Gemm                     gemm_116                 1 1 770 771 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_170                 1 1 771 772
+Gemm                     gemm_117                 1 1 769 773 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_49                   2 1 772 773 774 0=2
+Gemm                     gemm_118                 1 1 774 775 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_50                   2 1 766 775 776 0=0
+Split                    splitncnn_71             1 2 776 777 778
+RMSNorm                  rmsn_210                 1 1 778 779 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_72             1 3 779 780 781 782
+Gemm                     gemm_119                 1 1 782 783 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_367              1 1 783 784 0=64 1=32 2=-1
+Permute                  transpose_465            1 1 784 785 0=2
+Gemm                     gemm_120                 1 1 781 786 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_368              1 1 786 787 0=64 1=4 2=-1
+Permute                  transpose_466            1 1 787 788 0=2
+Gemm                     gemm_121                 1 1 780 789 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_369              1 1 789 790 0=64 1=4 2=-1
+Permute                  transpose_467            1 1 790 791 0=2
+RotaryEmbed              rope_34                  3 1 785 36 81 792 0=0
+RotaryEmbed              rope_35                  3 1 788 35 80 793 0=0
+ExpandDims               unsqueeze_519            1 1 793 794 -23303=1,1
+Tile                     expand_255               1 1 794 795 -23302=4,1,8,1,1
+Reshape                  reshape_370              1 1 795 796 0=64 1=-1 2=32
+ExpandDims               unsqueeze_520            1 1 791 797 -23303=1,1
+Tile                     expand_256               1 1 797 798 -23302=4,1,8,1,1
+Reshape                  reshape_371              1 1 798 799 0=64 1=-1 2=32
+SDPA                     sdpa_546                 6 3 792 796 799 8 cache_k17 cache_v17 800 out_cache_k17 out_cache_v17 5=1 6=0.125 7=1
+Permute                  transpose_468            1 1 800 801 0=2
+Reshape                  reshape_372              1 1 801 802 0=2048 1=-1
+Gemm                     gemm_122                 1 1 802 803 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_51                   2 1 777 803 804 0=0
+Split                    splitncnn_73             1 2 804 805 806
+RMSNorm                  rmsn_211                 1 1 806 807 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_74             1 2 807 808 809
+Gemm                     gemm_123                 1 1 809 810 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_171                 1 1 810 811
+Gemm                     gemm_124                 1 1 808 812 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_52                   2 1 811 812 813 0=2
+Gemm                     gemm_125                 1 1 813 814 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_53                   2 1 805 814 815 0=0
+Split                    splitncnn_75             1 2 815 816 817
+RMSNorm                  rmsn_212                 1 1 817 818 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_76             1 3 818 819 820 821
+Gemm                     gemm_126                 1 1 821 822 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_373              1 1 822 823 0=64 1=32 2=-1
+Permute                  transpose_469            1 1 823 824 0=2
+Gemm                     gemm_127                 1 1 820 825 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_374              1 1 825 826 0=64 1=4 2=-1
+Permute                  transpose_470            1 1 826 827 0=2
+Gemm                     gemm_128                 1 1 819 828 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_375              1 1 828 829 0=64 1=4 2=-1
+Permute                  transpose_471            1 1 829 830 0=2
+RotaryEmbed              rope_36                  3 1 824 34 79 831 0=0
+RotaryEmbed              rope_37                  3 1 827 33 78 832 0=0
+ExpandDims               unsqueeze_521            1 1 832 833 -23303=1,1
+Tile                     expand_257               1 1 833 834 -23302=4,1,8,1,1
+Reshape                  reshape_376              1 1 834 835 0=64 1=-1 2=32
+ExpandDims               unsqueeze_522            1 1 830 836 -23303=1,1
+Tile                     expand_258               1 1 836 837 -23302=4,1,8,1,1
+Reshape                  reshape_377              1 1 837 838 0=64 1=-1 2=32
+SDPA                     sdpa_547                 6 3 831 835 838 7 cache_k18 cache_v18 839 out_cache_k18 out_cache_v18 5=1 6=0.125 7=1
+Permute                  transpose_472            1 1 839 840 0=2
+Reshape                  reshape_378              1 1 840 841 0=2048 1=-1
+Gemm                     gemm_129                 1 1 841 842 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_54                   2 1 816 842 843 0=0
+Split                    splitncnn_77             1 2 843 844 845
+RMSNorm                  rmsn_213                 1 1 845 846 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_78             1 2 846 847 848
+Gemm                     gemm_130                 1 1 848 849 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_172                 1 1 849 850
+Gemm                     gemm_131                 1 1 847 851 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_55                   2 1 850 851 852 0=2
+Gemm                     gemm_132                 1 1 852 853 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_56                   2 1 844 853 854 0=0
+Split                    splitncnn_79             1 2 854 855 856
+RMSNorm                  rmsn_214                 1 1 856 857 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_80             1 3 857 858 859 860
+Gemm                     gemm_133                 1 1 860 861 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_379              1 1 861 862 0=64 1=32 2=-1
+Permute                  transpose_473            1 1 862 863 0=2
+Gemm                     gemm_134                 1 1 859 864 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_380              1 1 864 865 0=64 1=4 2=-1
+Permute                  transpose_474            1 1 865 866 0=2
+Gemm                     gemm_135                 1 1 858 867 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_381              1 1 867 868 0=64 1=4 2=-1
+Permute                  transpose_475            1 1 868 869 0=2
+RotaryEmbed              rope_38                  3 1 863 32 77 870 0=0
+RotaryEmbed              rope_39                  3 1 866 31 76 871 0=0
+ExpandDims               unsqueeze_523            1 1 871 872 -23303=1,1
+Tile                     expand_259               1 1 872 873 -23302=4,1,8,1,1
+Reshape                  reshape_382              1 1 873 874 0=64 1=-1 2=32
+ExpandDims               unsqueeze_524            1 1 869 875 -23303=1,1
+Tile                     expand_260               1 1 875 876 -23302=4,1,8,1,1
+Reshape                  reshape_383              1 1 876 877 0=64 1=-1 2=32
+SDPA                     sdpa_548                 6 3 870 874 877 6 cache_k19 cache_v19 878 out_cache_k19 out_cache_v19 5=1 6=0.125 7=1
+Permute                  transpose_476            1 1 878 879 0=2
+Reshape                  reshape_384              1 1 879 880 0=2048 1=-1
+Gemm                     gemm_136                 1 1 880 881 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_57                   2 1 855 881 882 0=0
+Split                    splitncnn_81             1 2 882 883 884
+RMSNorm                  rmsn_215                 1 1 884 885 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_82             1 2 885 886 887
+Gemm                     gemm_137                 1 1 887 888 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_173                 1 1 888 889
+Gemm                     gemm_138                 1 1 886 890 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_58                   2 1 889 890 891 0=2
+Gemm                     gemm_139                 1 1 891 892 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_59                   2 1 883 892 893 0=0
+Split                    splitncnn_83             1 2 893 894 895
+RMSNorm                  rmsn_216                 1 1 895 896 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_84             1 3 896 897 898 899
+Gemm                     gemm_140                 1 1 899 900 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_385              1 1 900 901 0=64 1=32 2=-1
+Permute                  transpose_477            1 1 901 902 0=2
+Gemm                     gemm_141                 1 1 898 903 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_386              1 1 903 904 0=64 1=4 2=-1
+Permute                  transpose_478            1 1 904 905 0=2
+Gemm                     gemm_142                 1 1 897 906 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_387              1 1 906 907 0=64 1=4 2=-1
+Permute                  transpose_479            1 1 907 908 0=2
+RotaryEmbed              rope_40                  3 1 902 30 75 909 0=0
+RotaryEmbed              rope_41                  3 1 905 29 74 910 0=0
+ExpandDims               unsqueeze_525            1 1 910 911 -23303=1,1
+Tile                     expand_261               1 1 911 912 -23302=4,1,8,1,1
+Reshape                  reshape_388              1 1 912 913 0=64 1=-1 2=32
+ExpandDims               unsqueeze_526            1 1 908 914 -23303=1,1
+Tile                     expand_262               1 1 914 915 -23302=4,1,8,1,1
+Reshape                  reshape_389              1 1 915 916 0=64 1=-1 2=32
+SDPA                     sdpa_549                 6 3 909 913 916 5 cache_k20 cache_v20 917 out_cache_k20 out_cache_v20 5=1 6=0.125 7=1
+Permute                  transpose_480            1 1 917 918 0=2
+Reshape                  reshape_390              1 1 918 919 0=2048 1=-1
+Gemm                     gemm_143                 1 1 919 920 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_60                   2 1 894 920 921 0=0
+Split                    splitncnn_85             1 2 921 922 923
+RMSNorm                  rmsn_217                 1 1 923 924 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_86             1 2 924 925 926
+Gemm                     gemm_144                 1 1 926 927 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_174                 1 1 927 928
+Gemm                     gemm_145                 1 1 925 929 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_61                   2 1 928 929 930 0=2
+Gemm                     gemm_146                 1 1 930 931 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_62                   2 1 922 931 932 0=0
+Split                    splitncnn_87             1 2 932 933 934
+RMSNorm                  rmsn_218                 1 1 934 935 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_88             1 3 935 936 937 938
+Gemm                     gemm_147                 1 1 938 939 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+Reshape                  reshape_391              1 1 939 940 0=64 1=32 2=-1
+Permute                  transpose_481            1 1 940 941 0=2
+Gemm                     gemm_148                 1 1 937 942 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_392              1 1 942 943 0=64 1=4 2=-1
+Permute                  transpose_482            1 1 943 944 0=2
+Gemm                     gemm_149                 1 1 936 945 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=256 9=2048
+Reshape                  reshape_393              1 1 945 946 0=64 1=4 2=-1
+Permute                  transpose_483            1 1 946 947 0=2
+RotaryEmbed              rope_42                  3 1 941 28 73 948 0=0
+RotaryEmbed              rope_43                  3 1 944 27 72 949 0=0
+ExpandDims               unsqueeze_527            1 1 949 950 -23303=1,1
+Tile                     expand_263               1 1 950 951 -23302=4,1,8,1,1
+Reshape                  reshape_394              1 1 951 952 0=64 1=-1 2=32
+ExpandDims               unsqueeze_528            1 1 947 953 -23303=1,1
+Tile                     expand_264               1 1 953 954 -23302=4,1,8,1,1
+Reshape                  reshape_395              1 1 954 955 0=64 1=-1 2=32
+SDPA                     sdpa_550                 6 3 948 952 955 4 cache_k21 cache_v21 956 out_cache_k21 out_cache_v21 5=1 6=0.125 7=1
+Permute                  transpose_484            1 1 956 957 0=2
+Reshape                  reshape_396              1 1 957 958 0=2048 1=-1
+Gemm                     gemm_150                 1 1 958 959 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
+BinaryOp                 add_63                   2 1 933 959 960 0=0
+Split                    splitncnn_89             1 2 960 961 962
+RMSNorm                  rmsn_219                 1 1 962 963 0=2048 1=1.000000e-05 2=1
+Split                    splitncnn_90             1 2 963 964 965
+Gemm                     gemm_151                 1 1 965 966 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+Swish                    silu_175                 1 1 966 967
+Gemm                     gemm_152                 1 1 964 968 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=5632 9=2048
+BinaryOp                 mul_64                   2 1 967 968 969 0=2
+Gemm                     gemm_153                 1 1 969 970 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=5632
+BinaryOp                 add_65                   2 1 961 970 971 0=0
+RMSNorm                  rmsn_220                 1 1 971 out0 0=2048 1=1.000000e-05 2=1

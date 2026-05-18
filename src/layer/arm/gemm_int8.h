@@ -10722,7 +10722,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 int16x8_t _sd = vmull_s8(vget_high_s8(_pA), vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(vget_high_s8(_pB)), 1)));
                 int16x8_t _se = vmull_s8(vget_high_s8(_pA), vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(vget_high_s8(_pB)), 2)));
                 int16x8_t _sf = vmull_s8(vget_high_s8(_pA), vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(vget_high_s8(_pB)), 3)));
-
                 _sum0 = vpadalq_s16(_sum0, _s0);
                 _sum1 = vpadalq_s16(_sum1, _s1);
                 _sum2 = vpadalq_s16(_sum2, _s2);
@@ -10771,7 +10770,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 int16x8_t _sd = vmull_s8(vget_high_s8(_pA1), vget_high_s8(_pB1));
                 int16x8_t _se = vmull_s8(vget_high_s8(_pA1), vget_low_s8(_pB1));
                 int16x8_t _sf = vmull_s8(vget_low_s8(_pA1), vget_high_s8(_pB1));
-
                 _sum0 = vpadalq_s16(_sum0, _s0);
                 _sum1 = vpadalq_s16(_sum1, _s1);
                 _sum2 = vpadalq_s16(_sum2, _s2);
@@ -11486,7 +11484,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 int16x8_t _s5 = vmull_s8(vget_high_s8(_pA), vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(_pB), 1)));
                 int16x8_t _s6 = vmull_s8(vget_high_s8(_pA), vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(_pB), 2)));
                 int16x8_t _s7 = vmull_s8(vget_high_s8(_pA), vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(_pB), 3)));
-
                 _sum0 = vpadalq_s16(_sum0, _s0);
                 _sum1 = vpadalq_s16(_sum1, _s1);
                 _sum2 = vpadalq_s16(_sum2, _s2);
@@ -14490,6 +14487,34 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 pB += 4;
             }
 #endif // __ARM_NEON
+            int sum00 = 0;
+            int sum01 = 0;
+            int sum02 = 0;
+            int sum03 = 0;
+            int sum10 = 0;
+            int sum11 = 0;
+            int sum12 = 0;
+            int sum13 = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                sum00 += pA[0] * pB[0];
+                sum10 += pA[0] * pB[1];
+                sum01 += pA[1] * pB[2];
+                sum11 += pA[1] * pB[3];
+                sum02 += pA[2] * pB[4];
+                sum12 += pA[2] * pB[5];
+                sum03 += pA[3] * pB[6];
+                sum13 += pA[3] * pB[7];
+
+                pA += 4;
+                pB += 8;
+            }
+            sum00 += sum01;
+            sum02 += sum03;
+            sum10 += sum11;
+            sum12 += sum13;
+            sum0 += sum00 + sum02;
+            sum1 += sum10 + sum12;
             for (; kk < max_kk; kk += 1)
             {
                 sum0 += pA[0] * pB[0];
@@ -14579,6 +14604,23 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             sum += vget_lane_s32(_ss, 0);
 #endif
 #endif // __ARM_NEON
+            int sum0 = 0;
+            int sum1 = 0;
+            int sum2 = 0;
+            int sum3 = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                sum0 += pA[0] * pB[0];
+                sum1 += pA[1] * pB[1];
+                sum2 += pA[2] * pB[2];
+                sum3 += pA[3] * pB[3];
+
+                pA += 4;
+                pB += 4;
+            }
+            sum0 += sum1;
+            sum2 += sum3;
+            sum += sum0 + sum2;
             for (; kk < max_kk; kk += 1)
             {
                 sum += pA[0] * pB[0];
