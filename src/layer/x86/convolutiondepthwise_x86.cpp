@@ -966,12 +966,16 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                // TODO use _mm_cvtepi8_epi16 on sse4.1
+#if __SSE4_1__
+                                __m128i _val = _mm_cvtepi8_epi16(_mm_loadl_epi64((const __m128i*)(sptr + space_ofs[k] * 8)));
+                                __m128i _w = _mm_cvtepi8_epi16(_mm_loadl_epi64((const __m128i*)(kptr + k * 8)));
+#else
                                 __m128i _val = _mm_loadl_epi64((const __m128i*)(sptr + space_ofs[k] * 8));
                                 _val = _mm_unpacklo_epi8(_val, _mm_cmpgt_epi8(_mm_setzero_si128(), _val));
 
                                 __m128i _w = _mm_loadl_epi64((const __m128i*)(kptr + k * 8));
                                 _w = _mm_unpacklo_epi8(_w, _mm_cmpgt_epi8(_mm_setzero_si128(), _w));
+#endif
 
                                 __m128i _sl = _mm_mullo_epi16(_val, _w);
                                 __m128i _sh = _mm_mulhi_epi16(_val, _w);
