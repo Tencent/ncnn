@@ -684,6 +684,9 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
         }
         for (; kk < max_kk; kk++)
         {
+            // loongarch gcc may miscompile p0 induction across the lasx transpose loop, so recompute it here
+            p0 = (const signed char*)B + (size_t)(k + kk) * B_hstep + j + jj;
+
             pp[0] = p0[0];
             pp[1] = p0[1];
             pp[2] = p0[2];
@@ -701,7 +704,6 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
             pp[14] = p0[14];
             pp[15] = p0[15];
             pp += 16;
-            p0 += B_hstep;
         }
     }
 #endif // __loongarch_asx
