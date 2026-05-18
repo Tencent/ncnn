@@ -19,9 +19,8 @@ static void dequantize_fp16s(const int* intptr, __fp16* ptr, const Mat& scale_da
 
 #if __riscv_vector
     const size_t vlm1 = __riscv_vsetvlmax_e32m1();
-    const size_t vlm2 = __riscv_vsetvlmax_e32m2();
     vfloat32m8_t _scale = __riscv_vfmv_v_f_f32m8(scale, __riscv_vsetvlmax_e32m8());
-    if (scale_data.w > 1 && elempack == vlm1)
+    if (scale_data.w > 1 && (size_t)elempack == vlm1)
     {
         vfloat32m1_t _s = __riscv_vle32_v_f32m1(scale_data, vlm1);
         _scale = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
@@ -57,7 +56,7 @@ static void dequantize_fp16s(const int* intptr, __fp16* ptr, const Mat& scale_da
         float bias = bias_data[0];
 #if __riscv_vector
         vfloat32m8_t _bias = __riscv_vfmv_v_f_f32m8(bias, __riscv_vsetvlmax_e32m8());
-        if (bias_data.w > 1 && elempack == vlm1)
+        if (bias_data.w > 1 && (size_t)elempack == vlm1)
         {
             vfloat32m1_t _b = __riscv_vle32_v_f32m1(bias_data, vlm1);
             _bias = __riscv_vcreate_v_f32m1_f32m8(_b, _b, _b, _b, _b, _b, _b, _b);
