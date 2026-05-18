@@ -99,6 +99,7 @@ public:
     std::vector<int> type_to_pixels;
     int quantize_num_threads;
     int file_type;
+    bool use_calibration_dataset;
 
 public:
     int init();
@@ -135,6 +136,7 @@ QuantNet::QuantNet()
     : blobs(mutable_blobs()), layers(mutable_layers())
 {
     quantize_num_threads = ncnn::get_cpu_count();
+    use_calibration_dataset = false;
 }
 
 int QuantNet::init()
@@ -222,9 +224,9 @@ int QuantNet::save_table(const char* tablepath)
     const int lstm_layer_count = (int)lstm_layers.size();
     const int gru_layer_count = (int)gru_layers.size();
 
-    fprintf(stdout, "param:%d\n", conv_layer_count);
+    fprintf(stdout, "param:%d\n", use_calibration_dataset ? conv_layer_count : 0);
 
-    for (int i = 0; i < conv_layer_count; i++)
+    for (int i = 0; use_calibration_dataset && i < conv_layer_count; i++)
     {
         const ncnn::Mat& weight_scale = weight_scales[i];
 
@@ -236,7 +238,7 @@ int QuantNet::save_table(const char* tablepath)
         fprintf(fp, "\n");
     }
 
-    for (int i = 0; i < conv_bottom_blob_count; i++)
+    for (int i = 0; use_calibration_dataset && i < conv_bottom_blob_count; i++)
     {
         const ncnn::Mat& bottom_blob_scale = bottom_blob_scales[i];
 
@@ -361,6 +363,9 @@ int QuantNet::save_table(const char* tablepath)
 
 void QuantNet::print_quant_info() const
 {
+    if (!use_calibration_dataset)
+        return;
+
     for (int i = 0; i < (int)conv_bottom_blobs.size(); i++)
     {
         const QuantBlobStat& stat = quant_blob_stats[i];
@@ -677,107 +682,110 @@ int QuantNet::quantize_KL()
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
 
-    // initialize conv weight scales
-    #pragma omp parallel for num_threads(quantize_num_threads)
-    for (int i = 0; i < conv_layer_count; i++)
+    if (use_calibration_dataset)
     {
-        const ncnn::Layer* layer = layers[conv_layers[i]];
-
-        if (layer->type == "Convolution")
+        // initialize conv weight scales
+        #pragma omp parallel for num_threads(quantize_num_threads)
+        for (int i = 0; i < conv_layer_count; i++)
         {
-            const ncnn::Convolution* convolution = (const ncnn::Convolution*)layer;
+            const ncnn::Layer* layer = layers[conv_layers[i]];
 
-            const int num_output = convolution->num_output;
-            const int kernel_w = convolution->kernel_w;
-            const int kernel_h = convolution->kernel_h;
-            const int dilation_w = convolution->dilation_w;
-            const int dilation_h = convolution->dilation_h;
-            const int stride_w = convolution->stride_w;
-            const int stride_h = convolution->stride_h;
-
-            const int weight_data_size_output = convolution->weight_data_size / num_output;
-
-            // int8 winograd F43 needs weight data to use 6bit quantization
-            // TODO proper condition for winograd 3x3 int8
-            bool quant_6bit = false;
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-                quant_6bit = true;
-
-            weight_scales[i].create(num_output);
-
-            for (int n = 0; n < num_output; n++)
+            if (layer->type == "Convolution")
             {
-                const ncnn::Mat weight_data_n = convolution->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+                const ncnn::Convolution* convolution = (const ncnn::Convolution*)layer;
 
-                float absmax = 0.f;
-                for (int k = 0; k < weight_data_size_output; k++)
-                {
-                    absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
-                }
+                const int num_output = convolution->num_output;
+                const int kernel_w = convolution->kernel_w;
+                const int kernel_h = convolution->kernel_h;
+                const int dilation_w = convolution->dilation_w;
+                const int dilation_h = convolution->dilation_h;
+                const int stride_w = convolution->stride_w;
+                const int stride_h = convolution->stride_h;
 
-                if (quant_6bit)
+                const int weight_data_size_output = convolution->weight_data_size / num_output;
+
+                // int8 winograd F43 needs weight data to use 6bit quantization
+                // TODO proper condition for winograd 3x3 int8
+                bool quant_6bit = false;
+                if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+                    quant_6bit = true;
+
+                weight_scales[i].create(num_output);
+
+                for (int n = 0; n < num_output; n++)
                 {
-                    weight_scales[i][n] = 31 / absmax;
+                    const ncnn::Mat weight_data_n = convolution->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+
+                    float absmax = 0.f;
+                    for (int k = 0; k < weight_data_size_output; k++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
+                    }
+
+                    if (quant_6bit)
+                    {
+                        weight_scales[i][n] = 31 / absmax;
+                    }
+                    else
+                    {
+                        weight_scales[i][n] = 127 / absmax;
+                    }
                 }
-                else
+            }
+
+            if (layer->type == "ConvolutionDepthWise")
+            {
+                const ncnn::ConvolutionDepthWise* convolutiondepthwise = (const ncnn::ConvolutionDepthWise*)layer;
+
+                const int group = convolutiondepthwise->group;
+                const int weight_data_size_output = convolutiondepthwise->weight_data_size / group;
+
+                std::vector<float> scales;
+
+                weight_scales[i].create(group);
+
+                for (int n = 0; n < group; n++)
                 {
+                    const ncnn::Mat weight_data_n = convolutiondepthwise->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+
+                    float absmax = 0.f;
+                    for (int k = 0; k < weight_data_size_output; k++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
+                    }
+
                     weight_scales[i][n] = 127 / absmax;
                 }
             }
-        }
 
-        if (layer->type == "ConvolutionDepthWise")
-        {
-            const ncnn::ConvolutionDepthWise* convolutiondepthwise = (const ncnn::ConvolutionDepthWise*)layer;
-
-            const int group = convolutiondepthwise->group;
-            const int weight_data_size_output = convolutiondepthwise->weight_data_size / group;
-
-            std::vector<float> scales;
-
-            weight_scales[i].create(group);
-
-            for (int n = 0; n < group; n++)
+            if (layer->type == "InnerProduct")
             {
-                const ncnn::Mat weight_data_n = convolutiondepthwise->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+                const ncnn::InnerProduct* innerproduct = (const ncnn::InnerProduct*)layer;
 
-                float absmax = 0.f;
-                for (int k = 0; k < weight_data_size_output; k++)
+                const int num_output = innerproduct->num_output;
+                const int weight_data_size_output = innerproduct->weight_data_size / num_output;
+
+                weight_scales[i].create(num_output);
+
+                for (int n = 0; n < num_output; n++)
                 {
-                    absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
+                    const ncnn::Mat weight_data_n = innerproduct->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+
+                    float absmax = 0.f;
+                    for (int k = 0; k < weight_data_size_output; k++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
+                    }
+
+                    weight_scales[i][n] = 127 / absmax;
                 }
-
-                weight_scales[i][n] = 127 / absmax;
-            }
-        }
-
-        if (layer->type == "InnerProduct")
-        {
-            const ncnn::InnerProduct* innerproduct = (const ncnn::InnerProduct*)layer;
-
-            const int num_output = innerproduct->num_output;
-            const int weight_data_size_output = innerproduct->weight_data_size / num_output;
-
-            weight_scales[i].create(num_output);
-
-            for (int n = 0; n < num_output; n++)
-            {
-                const ncnn::Mat weight_data_n = innerproduct->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-
-                float absmax = 0.f;
-                for (int k = 0; k < weight_data_size_output; k++)
-                {
-                    absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
-                }
-
-                weight_scales[i][n] = 127 / absmax;
             }
         }
     }
 
     initialize_static_weight_scales();
 
-    if (conv_layer_count == 0)
+    if (conv_layer_count == 0 || !use_calibration_dataset)
         return 0;
 
     const int file_count = (int)listspaths[0].size();
@@ -1161,111 +1169,114 @@ int QuantNet::quantize_ACIQ()
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
 
-    // initialize conv weight scales
-    #pragma omp parallel for num_threads(quantize_num_threads)
-    for (int i = 0; i < conv_layer_count; i++)
+    if (use_calibration_dataset)
     {
-        const ncnn::Layer* layer = layers[conv_layers[i]];
-
-        if (layer->type == "Convolution")
+        // initialize conv weight scales
+        #pragma omp parallel for num_threads(quantize_num_threads)
+        for (int i = 0; i < conv_layer_count; i++)
         {
-            const ncnn::Convolution* convolution = (const ncnn::Convolution*)layer;
+            const ncnn::Layer* layer = layers[conv_layers[i]];
 
-            const int num_output = convolution->num_output;
-            const int kernel_w = convolution->kernel_w;
-            const int kernel_h = convolution->kernel_h;
-            const int dilation_w = convolution->dilation_w;
-            const int dilation_h = convolution->dilation_h;
-            const int stride_w = convolution->stride_w;
-            const int stride_h = convolution->stride_h;
-
-            const int weight_data_size_output = convolution->weight_data_size / num_output;
-
-            // int8 winograd F43 needs weight data to use 6bit quantization
-            // TODO proper condition for winograd 3x3 int8
-            bool quant_6bit = false;
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-                quant_6bit = true;
-
-            weight_scales[i].create(num_output);
-
-            for (int n = 0; n < num_output; n++)
+            if (layer->type == "Convolution")
             {
-                const ncnn::Mat weight_data_n = convolution->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+                const ncnn::Convolution* convolution = (const ncnn::Convolution*)layer;
 
-                float absmax = 0.f;
-                for (int k = 0; k < weight_data_size_output; k++)
-                {
-                    absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
-                }
+                const int num_output = convolution->num_output;
+                const int kernel_w = convolution->kernel_w;
+                const int kernel_h = convolution->kernel_h;
+                const int dilation_w = convolution->dilation_w;
+                const int dilation_h = convolution->dilation_h;
+                const int stride_w = convolution->stride_w;
+                const int stride_h = convolution->stride_h;
 
-                if (quant_6bit)
+                const int weight_data_size_output = convolution->weight_data_size / num_output;
+
+                // int8 winograd F43 needs weight data to use 6bit quantization
+                // TODO proper condition for winograd 3x3 int8
+                bool quant_6bit = false;
+                if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+                    quant_6bit = true;
+
+                weight_scales[i].create(num_output);
+
+                for (int n = 0; n < num_output; n++)
                 {
-                    const float threshold = compute_aciq_gaussian_clip(absmax, weight_data_size_output, 6);
-                    weight_scales[i][n] = 31 / threshold;
+                    const ncnn::Mat weight_data_n = convolution->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+
+                    float absmax = 0.f;
+                    for (int k = 0; k < weight_data_size_output; k++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
+                    }
+
+                    if (quant_6bit)
+                    {
+                        const float threshold = compute_aciq_gaussian_clip(absmax, weight_data_size_output, 6);
+                        weight_scales[i][n] = 31 / threshold;
+                    }
+                    else
+                    {
+                        const float threshold = compute_aciq_gaussian_clip(absmax, weight_data_size_output);
+                        weight_scales[i][n] = 127 / threshold;
+                    }
                 }
-                else
+            }
+
+            if (layer->type == "ConvolutionDepthWise")
+            {
+                const ncnn::ConvolutionDepthWise* convolutiondepthwise = (const ncnn::ConvolutionDepthWise*)layer;
+
+                const int group = convolutiondepthwise->group;
+                const int weight_data_size_output = convolutiondepthwise->weight_data_size / group;
+
+                std::vector<float> scales;
+
+                weight_scales[i].create(group);
+
+                for (int n = 0; n < group; n++)
                 {
+                    const ncnn::Mat weight_data_n = convolutiondepthwise->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+
+                    float absmax = 0.f;
+                    for (int k = 0; k < weight_data_size_output; k++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
+                    }
+
                     const float threshold = compute_aciq_gaussian_clip(absmax, weight_data_size_output);
                     weight_scales[i][n] = 127 / threshold;
                 }
             }
-        }
 
-        if (layer->type == "ConvolutionDepthWise")
-        {
-            const ncnn::ConvolutionDepthWise* convolutiondepthwise = (const ncnn::ConvolutionDepthWise*)layer;
-
-            const int group = convolutiondepthwise->group;
-            const int weight_data_size_output = convolutiondepthwise->weight_data_size / group;
-
-            std::vector<float> scales;
-
-            weight_scales[i].create(group);
-
-            for (int n = 0; n < group; n++)
+            if (layer->type == "InnerProduct")
             {
-                const ncnn::Mat weight_data_n = convolutiondepthwise->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+                const ncnn::InnerProduct* innerproduct = (const ncnn::InnerProduct*)layer;
 
-                float absmax = 0.f;
-                for (int k = 0; k < weight_data_size_output; k++)
+                const int num_output = innerproduct->num_output;
+                const int weight_data_size_output = innerproduct->weight_data_size / num_output;
+
+                weight_scales[i].create(num_output);
+
+                for (int n = 0; n < num_output; n++)
                 {
-                    absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
+                    const ncnn::Mat weight_data_n = innerproduct->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+
+                    float absmax = 0.f;
+                    for (int k = 0; k < weight_data_size_output; k++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
+                    }
+
+                    const float threshold = compute_aciq_gaussian_clip(absmax, weight_data_size_output);
+                    weight_scales[i][n] = 127 / threshold;
                 }
-
-                const float threshold = compute_aciq_gaussian_clip(absmax, weight_data_size_output);
-                weight_scales[i][n] = 127 / threshold;
-            }
-        }
-
-        if (layer->type == "InnerProduct")
-        {
-            const ncnn::InnerProduct* innerproduct = (const ncnn::InnerProduct*)layer;
-
-            const int num_output = innerproduct->num_output;
-            const int weight_data_size_output = innerproduct->weight_data_size / num_output;
-
-            weight_scales[i].create(num_output);
-
-            for (int n = 0; n < num_output; n++)
-            {
-                const ncnn::Mat weight_data_n = innerproduct->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-
-                float absmax = 0.f;
-                for (int k = 0; k < weight_data_size_output; k++)
-                {
-                    absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
-                }
-
-                const float threshold = compute_aciq_gaussian_clip(absmax, weight_data_size_output);
-                weight_scales[i][n] = 127 / threshold;
             }
         }
     }
 
     initialize_static_weight_scales();
 
-    if (conv_layer_count == 0)
+    if (conv_layer_count == 0 || !use_calibration_dataset)
         return 0;
 
     const int file_count = (int)listspaths[0].size();
@@ -1498,7 +1509,7 @@ int QuantNet::quantize_EQ()
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
 
-    if (conv_layer_count == 0)
+    if (conv_layer_count == 0 || !use_calibration_dataset)
         return 0;
 
     std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
@@ -2098,47 +2109,30 @@ int main(int argc, char** argv)
 
     net.init();
 
-    const bool need_calibration_dataset = !net.conv_layers.empty();
-
     const char* outtable = 0;
     int kv_start = 0;
 
-    if (need_calibration_dataset)
+    if (argc >= 5 && strchr(argv[4], '='))
     {
-        if (argc < 5)
-        {
-            show_usage();
-            return -1;
-        }
-        if (strchr(argv[4], '='))
-        {
-            fprintf(stderr, "calibration dataset is required for activation calibration\n");
-            show_usage();
-            return -1;
-        }
-
+        outtable = argv[3];
+        kv_start = 4;
+    }
+    else if (argc >= 5)
+    {
         net.listspaths = parse_comma_path_list(argv[3]);
+        net.use_calibration_dataset = true;
         outtable = argv[4];
         kv_start = 5;
     }
     else
     {
-        if (argc >= 5 && strchr(argv[4], '='))
-        {
-            outtable = argv[3];
-            kv_start = 4;
-        }
-        else if (argc >= 5)
-        {
-            net.listspaths = parse_comma_path_list(argv[3]);
-            outtable = argv[4];
-            kv_start = 5;
-        }
-        else
-        {
-            outtable = argv[3];
-            kv_start = 4;
-        }
+        outtable = argv[3];
+        kv_start = 4;
+    }
+
+    if (!net.conv_layers.empty() && !net.use_calibration_dataset)
+    {
+        fprintf(stderr, "warning: calibration dataset not provided, skip activation calibration and generate weight-only table\n");
     }
 
     std::string method = "kl";
@@ -2180,27 +2174,27 @@ int main(int argc, char** argv)
 
     // sanity check
     const size_t input_blob_count = net.input_blobs.size();
-    if (need_calibration_dataset && net.listspaths.size() != input_blob_count)
+    if (net.use_calibration_dataset && net.listspaths.size() != input_blob_count)
     {
         fprintf(stderr, "expect %d lists, but got %d\n", (int)input_blob_count, (int)net.listspaths.size());
         return -1;
     }
-    if (need_calibration_dataset && (0 == net.file_type) && (net.means.size() != input_blob_count))
+    if (net.use_calibration_dataset && (0 == net.file_type) && (net.means.size() != input_blob_count))
     {
         fprintf(stderr, "expect %d means, but got %d\n", (int)input_blob_count, (int)net.means.size());
         return -1;
     }
-    if (need_calibration_dataset && (0 == net.file_type) && (net.norms.size() != input_blob_count))
+    if (net.use_calibration_dataset && (0 == net.file_type) && (net.norms.size() != input_blob_count))
     {
         fprintf(stderr, "expect %d norms, but got %d\n", (int)input_blob_count, (int)net.norms.size());
         return -1;
     }
-    if (need_calibration_dataset && net.shapes.size() != input_blob_count)
+    if (net.use_calibration_dataset && net.shapes.size() != input_blob_count)
     {
         fprintf(stderr, "expect %d shapes, but got %d\n", (int)input_blob_count, (int)net.shapes.size());
         return -1;
     }
-    if (need_calibration_dataset && (0 == net.file_type) && (net.type_to_pixels.size() != input_blob_count))
+    if (net.use_calibration_dataset && (0 == net.file_type) && (net.type_to_pixels.size() != input_blob_count))
     {
         fprintf(stderr, "expect %d pixels, but got %d\n", (int)input_blob_count, (int)net.type_to_pixels.size());
         return -1;
