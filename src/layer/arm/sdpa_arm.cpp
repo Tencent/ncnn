@@ -10,9 +10,13 @@ namespace ncnn {
 
 SDPA_arm::SDPA_arm()
 {
+#if NCNN_ARM82
     support_fp16_storage = cpu_support_arm_asimdhp();
+#endif
 
-    support_bf16_storage = false; // TODO enable bf16 when gemm has proper out_elemtype support
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 
     qk_gemm = 0;
     qkv_gemm = 0;
@@ -22,14 +26,14 @@ SDPA_arm::SDPA_arm()
 int SDPA_arm::create_pipeline(const Option& _opt)
 {
     Option opt = _opt;
-    opt.use_fp16_storage &= support_fp16_storage;
-    opt.use_bf16_storage &= support_bf16_storage;
-
     if (int8_scale_term)
     {
         opt.use_packing_layout = false; // TODO enable packing
         support_bf16_storage = false;
     }
+
+    opt.use_fp16_storage &= support_fp16_storage;
+    opt.use_bf16_storage &= support_bf16_storage;
 
     {
         qk_softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
@@ -215,7 +219,17 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     const int num_heads_per_group = num_heads / num_group;
 
-    Mat qk_cross(dst_seqlen, src_seqlen, num_heads, elemsize, opt.workspace_allocator);
+#if NCNN_BF16
+    const bool use_bf16_storage = opt.use_bf16_storage && !opt.use_fp16_storage && query.elembits() == 16;
+#endif
+
+    size_t out_elemsize = elemsize;
+#if NCNN_BF16
+    if (use_bf16_storage)
+        out_elemsize = 4u;
+#endif
+
+    Mat qk_cross(dst_seqlen, src_seqlen, num_heads, out_elemsize, opt.workspace_allocator);
     if (qk_cross.empty())
         return -100;
 
@@ -305,8 +319,19 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (retqk != 0)
         return retqk;
 
+    Mat value_fp32 = value;
+#if NCNN_BF16
+    if (use_bf16_storage)
+    {
+        // qkv_gemm need fp32 inputs
+        cast_bfloat16_to_float32(value, value_fp32, opt);
+        if (value_fp32.empty())
+            return -100;
+    }
+#endif
+
     Mat& top_blob = top_blobs[0];
-    top_blob.create(out_embed_dim, src_seqlen, num_heads, elemsize, opt.blob_allocator);
+    top_blob.create(out_embed_dim, src_seqlen, num_heads, out_elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
@@ -317,8 +342,8 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     for (int i = 0; i < num_heads; i++)
     {
         std::vector<Mat> qkv_bottom_blobs(2);
-        qkv_bottom_blobs[0] = qk_cross.channel(i);                    // Attn: [DstSeq, Seq]
-        qkv_bottom_blobs[1] = value.channel(i / num_heads_per_group); // V: [DstSeq, OutEmbed]
+        qkv_bottom_blobs[0] = qk_cross.channel(i);                         // Attn: [DstSeq, Seq]
+        qkv_bottom_blobs[1] = value_fp32.channel(i / num_heads_per_group); // V: [DstSeq, OutEmbed]
 
         std::vector<Mat> qkv_top_blobs(1);
         qkv_top_blobs[0] = top_blob.channel(i); // Output
@@ -333,6 +358,8 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         if (retqkvs[i] != 0)
             return retqkvs[i];
     }
+
+    value_fp32.release();
 
     if (kv_cache)
     {
