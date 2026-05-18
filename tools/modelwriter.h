@@ -2057,6 +2057,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 4=%d", vdim)
             fprintf_param_value(" 5=%d", attn_mask)
             fprintf_param_value(" 6=%e", scale)
+            fprintf_param_value(" 7=%d", kv_cache)
             fprintf_param_value(" 18=%d", int8_scale_term)
 
             fwrite_weight_tag_data(op->q_weight_data, bp);

@@ -2495,10 +2495,10 @@ static void transpose_pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int
         }
         for (; kk + 1 < max_kk; kk += 2)
         {
-            uint16x4_t _k0 = float2bfloat(vcombine_f32(vld1_f32(p0), vdup_n_f32(0.f)));
-            uint16x4_t _k1 = float2bfloat(vcombine_f32(vld1_f32(p0 + A_hstep), vdup_n_f32(0.f)));
-            uint16x4x2_t _r01 = vzip_u16(_k0, _k1);
-            vst1_u16(pp, _r01.val[0]);
+            pp[0] = float32_to_bfloat16(p0[0]);
+            pp[1] = float32_to_bfloat16(p0[A_hstep]);
+            pp[2] = float32_to_bfloat16(p0[1]);
+            pp[3] = float32_to_bfloat16(p0[A_hstep + 1]);
             pp += 4;
             p0 += A_hstep * 2;
         }
@@ -3277,10 +3277,10 @@ static void transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int
         }
         for (; kk + 1 < max_kk; kk += 2)
         {
-            uint16x4_t _k0 = float2bfloat(vcombine_f32(vld1_f32(p0), vdup_n_f32(0.f)));
-            uint16x4_t _k1 = float2bfloat(vcombine_f32(vld1_f32(p0 + B_hstep), vdup_n_f32(0.f)));
-            uint16x4x2_t _r01 = vzip_u16(_k0, _k1);
-            vst1_u16(pp, _r01.val[0]);
+            pp[0] = float32_to_bfloat16(p0[0]);
+            pp[1] = float32_to_bfloat16(p0[B_hstep]);
+            pp[2] = float32_to_bfloat16(p0[1]);
+            pp[3] = float32_to_bfloat16(p0[B_hstep + 1]);
             pp += 4;
             p0 += B_hstep * 2;
         }
