@@ -128,11 +128,32 @@ public:
     int quantize_sdpa();
 
     int fuse_requantize();
+
+    int check_int8scale_table_requirement(const char* int8scale_table_path) const;
 };
 
 NetQuantize::NetQuantize()
     : ModelWriter()
 {
+}
+
+int NetQuantize::check_int8scale_table_requirement(const char* int8scale_table_path) const
+{
+    if (int8scale_table_path)
+        return 0;
+
+    for (size_t i = 0; i < layers.size(); i++)
+    {
+        const std::string& type = layers[i]->type;
+        if (type != "Embed" && type != "MultiHeadAttention" && type != "RNN" && type != "LSTM" && type != "GRU")
+            continue;
+
+        fprintf(stderr, "%s (%s): calibration table is required for static weight quantization\n", layers[i]->name.c_str(), type.c_str());
+        fprintf(stderr, "run ncnn2table to generate weight scales and pass the table to ncnn2int8\n");
+        return -1;
+    }
+
+    return 0;
 }
 
 int NetQuantize::quantize_convolution()
@@ -1061,6 +1082,9 @@ int main(int argc, char** argv)
     }
     else
         quantizer.load_model(inbin);
+
+    if (quantizer.check_int8scale_table_requirement(int8scale_table_path) != 0)
+        return -1;
 
     quantizer.quantize_convolution();
     quantizer.quantize_convolutiondepthwise();
