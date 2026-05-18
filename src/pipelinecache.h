@@ -9,6 +9,10 @@
 #include "mat.h"
 #include "gpu.h"
 
+#if NCNN_STDIO
+#include <stdio.h>
+#endif
+
 namespace ncnn {
 
 #if NCNN_VULKAN
@@ -23,6 +27,22 @@ public:
     virtual ~PipelineCache();
 
     void clear();
+    size_t size() const;
+
+    int save_cache(std::vector<unsigned char>& data) const;
+    int load_cache(const unsigned char* data, size_t size) const;
+    int load_cache(const std::vector<unsigned char>& data) const;
+
+#if NCNN_STDIO
+    int save_cache(FILE* fp) const;
+    int load_cache(FILE* fp) const;
+    int save_cache(const char* path) const;
+    int load_cache(const char* path) const;
+#if _WIN32
+    int save_cache(const wchar_t* path) const;
+    int load_cache(const wchar_t* path) const;
+#endif // _WIN32
+#endif // NCNN_STDIO
 
     int get_pipeline(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
                      uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t subgroup_size,
