@@ -627,9 +627,8 @@ static void binary_op_vector_broadcast_pb_bf16s(const unsigned short* ptr, const
             ptr1 += 1;
             outptr += 8;
         }
-        return;
     }
-#endif // __loongarch_asx
+#else  // __loongarch_asx
     if (elempack == 8)
     {
         __m128i _zero = __lsx_vreplgr2vr_w(0);
@@ -646,8 +645,8 @@ static void binary_op_vector_broadcast_pb_bf16s(const unsigned short* ptr, const
             ptr1 += 1;
             outptr += 8;
         }
-        return;
     }
+#endif // __loongarch_asx
 
     if (elempack == 4)
     {
@@ -677,18 +676,8 @@ static void binary_op_vector_broadcast_pb_bf16s(const unsigned short* ptr, const
             ptr1 += 1;
             outptr += 4;
         }
-        return;
     }
 #endif // __loongarch_sx
-
-    for (int i = 0; i < w; i++)
-    {
-        float b = bfloat16_to_float32(*ptr1++);
-        for (int j = 0; j < elempack; j++)
-        {
-            *outptr++ = float32_to_bfloat16(op(bfloat16_to_float32(*ptr++), b));
-        }
-    }
 }
 
 template<typename Op>
@@ -742,10 +731,6 @@ static void binary_op_vector_broadcast_pb_b_bf16s(const unsigned short* ptr, con
         }
     }
 #endif // __loongarch_sx
-    for (; i < size; i++)
-    {
-        *outptr++ = float32_to_bfloat16(op(bfloat16_to_float32(*ptr++), b));
-    }
 }
 
 template<typename Op>
@@ -766,9 +751,8 @@ static void binary_op_vector_broadcast_pb_a_bf16s(const unsigned short* ptr, con
             ptr1 += 1;
             outptr += 8;
         }
-        return;
     }
-#endif // __loongarch_asx
+#else  // __loongarch_asx
     if (elempack == 8)
     {
         __m128i _zero = __lsx_vreplgr2vr_w(0);
@@ -784,8 +768,8 @@ static void binary_op_vector_broadcast_pb_a_bf16s(const unsigned short* ptr, con
             ptr1 += 1;
             outptr += 8;
         }
-        return;
     }
+#endif // __loongarch_asx
 
     if (elempack == 4)
     {
@@ -809,19 +793,8 @@ static void binary_op_vector_broadcast_pb_a_bf16s(const unsigned short* ptr, con
             ptr1 += 1;
             outptr += 4;
         }
-        return;
     }
 #endif // __loongarch_sx
-
-    for (int i = 0; i < w; i++)
-    {
-        float b = bfloat16_to_float32(*ptr1++);
-        for (int j = 0; j < elempack; j++)
-        {
-            outptr[j] = float32_to_bfloat16(op(bfloat16_to_float32(ptr[j]), b));
-        }
-        outptr += elempack;
-    }
 }
 
 template<typename Op>
