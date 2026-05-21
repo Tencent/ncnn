@@ -50,44 +50,16 @@ int Erf_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h * d;
-    int elempack = bottom_top_blob.elempack;
-
-#if __ARM_NEON
-    if (elempack == 4)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-
-            for (int i = 0; i < size; i++)
-            {
-                float32x4_t _p = vld1q_f32(ptr);
-                _p = erf_ps(_p);
-                vst1q_f32(ptr, _p);
-                ptr += 4;
-            }
-        }
-
-        return 0;
-    }
-#endif // __ARM_NEON
+    int size = w * h * d * bottom_top_blob.elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
+        int i = 0;
 #if __ARM_NEON
-        int nn = size >> 2;
-        int remain = size - (nn << 2);
-#else
-        int remain = size;
-#endif // __ARM_NEON
-
-#if __ARM_NEON
-        for (; nn > 0; nn--)
+        for (; i + 3 < size; i += 4)
         {
             float32x4_t _p = vld1q_f32(ptr);
             _p = erf_ps(_p);
@@ -95,7 +67,7 @@ int Erf_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             ptr += 4;
         }
 #endif // __ARM_NEON
-        for (; remain > 0; remain--)
+        for (; i < size; i++)
         {
             *ptr = erff(*ptr);
             ptr++;
@@ -112,44 +84,16 @@ int Erf_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) cons
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h * d;
-    int elempack = bottom_top_blob.elempack;
-
-#if __ARM_NEON
-    if (elempack == 4)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            unsigned short* ptr = bottom_top_blob.channel(q);
-
-            for (int i = 0; i < size; i++)
-            {
-                float32x4_t _p = bfloat2float(vld1_u16(ptr));
-                _p = erf_ps(_p);
-                vst1_u16(ptr, float2bfloat(_p));
-                ptr += 4;
-            }
-        }
-
-        return 0;
-    }
-#endif // __ARM_NEON
+    int size = w * h * d * bottom_top_blob.elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         unsigned short* ptr = bottom_top_blob.channel(q);
 
+        int i = 0;
 #if __ARM_NEON
-        int nn = size >> 2;
-        int remain = size - (nn << 2);
-#else
-        int remain = size;
-#endif // __ARM_NEON
-
-#if __ARM_NEON
-        for (; nn > 0; nn--)
+        for (; i + 3 < size; i += 4)
         {
             float32x4_t _p = bfloat2float(vld1_u16(ptr));
             _p = erf_ps(_p);
@@ -157,7 +101,7 @@ int Erf_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) cons
             ptr += 4;
         }
 #endif // __ARM_NEON
-        for (; remain > 0; remain--)
+        for (; i < size; i++)
         {
             float v = bfloat16_to_float32(*ptr);
             v = erff(v);
