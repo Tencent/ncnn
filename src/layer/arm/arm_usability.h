@@ -17,7 +17,11 @@ static inline signed char float2int8(float v)
 
 static inline uint16x4_t float2bfloat(float32x4_t _v)
 {
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+    return (uint16x4_t)vcvt_bf16_f32(_v);
+#else
     return vshrn_n_u32(vreinterpretq_u32_f32(_v), 16);
+#endif
 }
 static inline float32x4_t bfloat2float(uint16x4_t _v)
 {

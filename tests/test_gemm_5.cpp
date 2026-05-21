@@ -265,6 +265,15 @@ int main()
     int bf16_min_elempack = fp32_min_elempack;
     int bf16_max_elempack = fp32_max_elempack;
 
+#if NCNN_MSA
+    if (ncnn::cpu_support_mips_msa())
+        bf16_max_elempack = 8;
+#endif
+#if NCNN_LSX
+    if (ncnn::cpu_support_loongarch_lsx())
+        bf16_max_elempack = 8;
+#endif
+
     for (int i = 0; i < 14; i++)
     {
         int ret = test_gemm_1(mnk_scalar[i][0], mnk_scalar[i][1], mnk_scalar[i][2], fp32_min_elempack, fp32_max_elempack, bf16_min_elempack, bf16_max_elempack);

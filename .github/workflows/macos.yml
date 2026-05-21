@@ -16,6 +16,8 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
+    - 'benchmark/**'
+    - '!benchmark/README.md'
     - 'glslang'
   pull_request:
     branches: [master]
@@ -33,6 +35,8 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
+    - 'benchmark/**'
+    - '!benchmark/README.md'
     - 'glslang'
 concurrency:
   group: macos-${{ github.ref }}

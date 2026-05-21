@@ -98,8 +98,8 @@ static void quantize_packnto1_fp16s(const __fp16* ptr, signed char* s8ptr, const
     vfloat32m8_t _scale = __riscv_vfmv_v_f_f32m8(scale, __riscv_vsetvlmax_e32m8());
     if (scale_data.w > 1)
     {
-        vfloat32m1_t _s = __riscv_vle32_v_f32m1(scale_data, __riscv_vsetvlmax_e32m1());
-        _scale = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
+        vfloat32m2_t _s = __riscv_vle32_v_f32m2(scale_data, vlm1);
+        _scale = __riscv_vcreate_v_f32m2_f32m8(_s, _s, _s, _s);
     }
 
     signed char tmp[vlm4];
@@ -398,8 +398,8 @@ static void quantize_packnto1_fp16sa(const __fp16* ptr, signed char* s8ptr, cons
     vfloat16m8_t _scale = __riscv_vfmv_v_f_f16m8(scale, __riscv_vsetvlmax_e16m8());
     if (scale_data.w > 1)
     {
-        vfloat32m1_t _s32 = __riscv_vle32_v_f32m1(scale_data, __riscv_vsetvlmax_e32m1());
-        vfloat16m1_t _s16 = __riscv_vfncvt_f_f_w_f16m1(__riscv_vcreate_v_f32m1_f32m2(_s32, _s32), vlm1);
+        vfloat32m2_t _s32 = __riscv_vle32_v_f32m2(scale_data, vlm1);
+        vfloat16m1_t _s16 = __riscv_vfncvt_f_f_w_f16m1(_s32, vlm1);
         _scale = __riscv_vcreate_v_f16m1_f16m8(_s16, _s16, _s16, _s16, _s16, _s16, _s16, _s16);
     }
 
