@@ -22,6 +22,9 @@ public:
 
 protected:
     int create_group_ops(const Option& opt);
+#if NCNN_BF16
+    int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
 #if NCNN_INT8
     int create_pipeline_int8_loongarch(const Option& opt);
     int forward_int8_loongarch(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
