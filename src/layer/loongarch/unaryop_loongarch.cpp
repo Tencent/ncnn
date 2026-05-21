@@ -509,11 +509,26 @@ struct unary_op_sign
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        for (int i = 0; i < 4; i++) tmp[i] = tmp[i] > 0.f ? 1.f : tmp[i] < 0.f ? -1.f : 0.f;
-        return (__m128)__lsx_vld(tmp, 0);
+        __m128 _zero = (__m128)__lsx_vreplgr2vr_w(0);
+        __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
+        __m128 _negone = (__m128)__lsx_vreplfr2vr_s(-1.f);
+        __m128i _posmask = __lsx_vfcmp_clt_s(_zero, x);
+        __m128i _negmask = __lsx_vfcmp_clt_s(x, _zero);
+        __m128 _sign = (__m128)__lsx_vbitsel_v((__m128i)_zero, (__m128i)_one, _posmask);
+        return (__m128)__lsx_vbitsel_v((__m128i)_sign, (__m128i)_negone, _negmask);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        __m256 _zero = (__m256)__lasx_xvreplgr2vr_w(0);
+        __m256 _one = (__m256)__lasx_xvreplfr2vr_s(1.f);
+        __m256 _negone = (__m256)__lasx_xvreplfr2vr_s(-1.f);
+        __m256i _posmask = __lasx_xvfcmp_clt_s(_zero, x);
+        __m256i _negmask = __lasx_xvfcmp_clt_s(x, _zero);
+        __m256 _sign = (__m256)__lasx_xvbitsel_v((__m256i)_zero, (__m256i)_one, _posmask);
+        return (__m256)__lasx_xvbitsel_v((__m256i)_sign, (__m256i)_negone, _negmask);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -534,6 +549,12 @@ struct unary_op_expm1
         tmp[3] = expm1f(tmp[3]);
         return (__m128)__lsx_vld(tmp, 0);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return __lasx_concat_128_s(func_pack4(__lasx_extract_128_lo_s(x)), func_pack4(__lasx_extract_128_hi_s(x)));
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -554,6 +575,12 @@ struct unary_op_sinh
         tmp[3] = sinhf(tmp[3]);
         return (__m128)__lsx_vld(tmp, 0);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return __lasx_concat_128_s(func_pack4(__lasx_extract_128_lo_s(x)), func_pack4(__lasx_extract_128_hi_s(x)));
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -574,6 +601,12 @@ struct unary_op_asinh
         tmp[3] = asinhf(tmp[3]);
         return (__m128)__lsx_vld(tmp, 0);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return __lasx_concat_128_s(func_pack4(__lasx_extract_128_lo_s(x)), func_pack4(__lasx_extract_128_hi_s(x)));
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -594,6 +627,12 @@ struct unary_op_cosh
         tmp[3] = coshf(tmp[3]);
         return (__m128)__lsx_vld(tmp, 0);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return __lasx_concat_128_s(func_pack4(__lasx_extract_128_lo_s(x)), func_pack4(__lasx_extract_128_hi_s(x)));
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -614,6 +653,12 @@ struct unary_op_acosh
         tmp[3] = acoshf(tmp[3]);
         return (__m128)__lsx_vld(tmp, 0);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return __lasx_concat_128_s(func_pack4(__lasx_extract_128_lo_s(x)), func_pack4(__lasx_extract_128_hi_s(x)));
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -634,6 +679,12 @@ struct unary_op_atanh
         tmp[3] = atanhf(tmp[3]);
         return (__m128)__lsx_vld(tmp, 0);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return __lasx_concat_128_s(func_pack4(__lasx_extract_128_lo_s(x)), func_pack4(__lasx_extract_128_hi_s(x)));
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -654,6 +705,12 @@ struct unary_op_log1p
         tmp[3] = log1pf(tmp[3]);
         return (__m128)__lsx_vld(tmp, 0);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return __lasx_concat_128_s(func_pack4(__lasx_extract_128_lo_s(x)), func_pack4(__lasx_extract_128_hi_s(x)));
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -883,6 +940,30 @@ int UnaryOp_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace_bf16s<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SIGN)
+        return unary_op_inplace_bf16s<unary_op_sign>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXPM1)
+        return unary_op_inplace_bf16s<unary_op_expm1>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SINH)
+        return unary_op_inplace_bf16s<unary_op_sinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASINH)
+        return unary_op_inplace_bf16s<unary_op_asinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COSH)
+        return unary_op_inplace_bf16s<unary_op_cosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOSH)
+        return unary_op_inplace_bf16s<unary_op_acosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATANH)
+        return unary_op_inplace_bf16s<unary_op_atanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG1P)
+        return unary_op_inplace_bf16s<unary_op_log1p>(bottom_top_blob, opt);
 
     return 0;
 }
