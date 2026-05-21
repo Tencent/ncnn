@@ -14,6 +14,7 @@ public:
     AbsVal();
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
+    virtual int forward_thread(void* workspace);
 };
 
 } // namespace ncnn
