@@ -1,17 +1,17 @@
-// Copyright 2017 Tencent
+// Copyright 2026 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
-#ifndef LAYER_SELU_ARM_H
-#define LAYER_SELU_ARM_H
+#ifndef LAYER_ERF_ARM_H
+#define LAYER_ERF_ARM_H
 
-#include "selu.h"
+#include "erf.h"
 
 namespace ncnn {
 
-class SELU_arm : public SELU
+class Erf_arm : public Erf
 {
 public:
-    SELU_arm();
+    Erf_arm();
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
@@ -27,4 +27,4 @@ protected:
 
 } // namespace ncnn
 
-#endif // LAYER_SELU_ARM_H
+#endif // LAYER_ERF_ARM_H

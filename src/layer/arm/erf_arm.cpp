@@ -1,20 +1,19 @@
-// Copyright 2017 Tencent
+// Copyright 2026 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "selu_arm.h"
+#include "erf_arm.h"
 
 #if __ARM_NEON
-#include "neon_mathfun.h"
-#include "arm_usability.h"
-
 #include <arm_neon.h>
+#include "neon_mathfun.h"
 #endif // __ARM_NEON
 
+#include "arm_usability.h"
 #include "cpu.h"
 
 namespace ncnn {
 
-SELU_arm::SELU_arm()
+Erf_arm::Erf_arm()
 {
 #if __ARM_NEON
     support_packing = true;
@@ -28,7 +27,7 @@ SELU_arm::SELU_arm()
 #endif
 }
 
-int SELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+int Erf_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int elembits = bottom_top_blob.elembits();
 
@@ -51,9 +50,7 @@ int SELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int elempack = bottom_top_blob.elempack;
-    int size = w * h * d * elempack;
-    float alphaxlambda = alpha * lambda;
+    int size = w * h * d * bottom_top_blob.elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -61,26 +58,30 @@ int SELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob.channel(q);
 
         int i = 0;
-
 #if __ARM_NEON
-        float32x4_t _alphaxlambda = vdupq_n_f32(alphaxlambda);
-        float32x4_t _lambda = vdupq_n_f32(lambda);
+#if __aarch64__
+        for (; i + 7 < size; i += 8)
+        {
+            float32x4_t _p0 = vld1q_f32(ptr);
+            float32x4_t _p1 = vld1q_f32(ptr + 4);
+            _p0 = erf_ps(_p0);
+            _p1 = erf_ps(_p1);
+            vst1q_f32(ptr, _p0);
+            vst1q_f32(ptr + 4, _p1);
+            ptr += 8;
+        }
+#endif // __aarch64__
         for (; i + 3 < size; i += 4)
         {
             float32x4_t _p = vld1q_f32(ptr);
-            _p = selu_ps(_p, _alphaxlambda, _lambda);
+            _p = erf_ps(_p);
             vst1q_f32(ptr, _p);
-
             ptr += 4;
         }
 #endif // __ARM_NEON
         for (; i < size; i++)
         {
-            if (*ptr < 0.f)
-                *ptr = (expf(*ptr) - 1.f) * alphaxlambda;
-            else
-                *ptr *= lambda;
-
+            *ptr = erff(*ptr);
             ptr++;
         }
     }
@@ -89,15 +90,13 @@ int SELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 }
 
 #if NCNN_BF16
-int SELU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+int Erf_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int elempack = bottom_top_blob.elempack;
-    int size = w * h * d * elempack;
-    float alphaxlambda = alpha * lambda;
+    int size = w * h * d * bottom_top_blob.elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -105,20 +104,16 @@ int SELU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
         unsigned short* ptr = bottom_top_blob.channel(q);
 
         int i = 0;
-
 #if __ARM_NEON
-        float32x4_t _alphaxlambda = vdupq_n_f32(alphaxlambda);
-        float32x4_t _lambda = vdupq_n_f32(lambda);
-
 #if __aarch64__
         for (; i + 15 < size; i += 16)
         {
             uint16x8_t _p = vld1q_u16(ptr);
             uint16x8_t _q = vld1q_u16(ptr + 8);
-            float32x4_t _p0 = selu_ps(bfloat2float(vget_low_u16(_p)), _alphaxlambda, _lambda);
-            float32x4_t _p1 = selu_ps(bfloat2float(vget_high_u16(_p)), _alphaxlambda, _lambda);
-            float32x4_t _p2 = selu_ps(bfloat2float(vget_low_u16(_q)), _alphaxlambda, _lambda);
-            float32x4_t _p3 = selu_ps(bfloat2float(vget_high_u16(_q)), _alphaxlambda, _lambda);
+            float32x4_t _p0 = erf_ps(bfloat2float(vget_low_u16(_p)));
+            float32x4_t _p1 = erf_ps(bfloat2float(vget_high_u16(_p)));
+            float32x4_t _p2 = erf_ps(bfloat2float(vget_low_u16(_q)));
+            float32x4_t _p3 = erf_ps(bfloat2float(vget_high_u16(_q)));
             _p = vcombine_u16(float2bfloat(_p0), float2bfloat(_p1));
             _q = vcombine_u16(float2bfloat(_p2), float2bfloat(_p3));
             vst1q_u16(ptr, _p);
@@ -128,8 +123,8 @@ int SELU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
         for (; i + 7 < size; i += 8)
         {
             uint16x8_t _p = vld1q_u16(ptr);
-            float32x4_t _p0 = selu_ps(bfloat2float(vget_low_u16(_p)), _alphaxlambda, _lambda);
-            float32x4_t _p1 = selu_ps(bfloat2float(vget_high_u16(_p)), _alphaxlambda, _lambda);
+            float32x4_t _p0 = erf_ps(bfloat2float(vget_low_u16(_p)));
+            float32x4_t _p1 = erf_ps(bfloat2float(vget_high_u16(_p)));
             _p = vcombine_u16(float2bfloat(_p0), float2bfloat(_p1));
             vst1q_u16(ptr, _p);
             ptr += 8;
@@ -137,19 +132,17 @@ int SELU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 #endif // __aarch64__
         for (; i + 3 < size; i += 4)
         {
-            float32x4_t _p = selu_ps(bfloat2float(vld1_u16(ptr)), _alphaxlambda, _lambda);
+            float32x4_t _p = bfloat2float(vld1_u16(ptr));
+            _p = erf_ps(_p);
             vst1_u16(ptr, float2bfloat(_p));
             ptr += 4;
         }
 #endif // __ARM_NEON
         for (; i < size; i++)
         {
-            float v = bfloat16_to_float32(ptr[0]);
-            if (v < 0.f)
-                v = (expf(v) - 1.f) * alphaxlambda;
-            else
-                v *= lambda;
-            ptr[0] = float32_to_bfloat16(v);
+            float v = bfloat16_to_float32(*ptr);
+            v = erff(v);
+            *ptr = float32_to_bfloat16(v);
             ptr++;
         }
     }
