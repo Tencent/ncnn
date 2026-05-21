@@ -469,9 +469,11 @@ static inline float32x4_t sqrt_ps(const float32x4_t& x)
 #if __aarch64__
     return vsqrtq_f32(x);
 #else
+    uint32x4_t zero_mask = vceqq_f32(x, vdupq_n_f32(0.f));
     float32x4_t _reciprocal = vrsqrteq_f32(x);
     _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(x, _reciprocal), _reciprocal), _reciprocal);
-    return vmulq_f32(x, _reciprocal);
+    float32x4_t y = vmulq_f32(x, _reciprocal);
+    return vbslq_f32(zero_mask, x, y);
 #endif
 }
 
