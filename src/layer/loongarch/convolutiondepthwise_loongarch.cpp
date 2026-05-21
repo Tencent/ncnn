@@ -7,6 +7,9 @@
 
 #if __loongarch_sx
 #include <lsxintrin.h>
+#if __loongarch_asx
+#include <lasxintrin.h>
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 
 #include "loongarch_activation.h"
@@ -19,6 +22,10 @@ namespace ncnn {
 #if __loongarch_sx
 #include "convolutiondepthwise_3x3_pack4.h"
 #include "convolutiondepthwise_5x5_pack4.h"
+#if __loongarch_asx
+#include "convolutiondepthwise_3x3_pack8.h"
+#include "convolutiondepthwise_5x5_pack8.h"
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 
 ConvolutionDepthWise_loongarch::ConvolutionDepthWise_loongarch()
@@ -26,6 +33,9 @@ ConvolutionDepthWise_loongarch::ConvolutionDepthWise_loongarch()
 #if __loongarch_sx
     support_packing = true;
 #endif // __loongarch_sx
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 
     activation = 0;
 }
@@ -54,11 +64,66 @@ int ConvolutionDepthWise_loongarch::create_pipeline(const Option& opt)
 #if __loongarch_sx
         if (opt.use_packing_layout)
         {
-            elempack = channels % 4 == 0 ? 4 : 1;
+#if __loongarch_asx
+            elempack = channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+#else
+#if NCNN_BF16
+            if (opt.use_bf16_storage)
+                elempack = channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+            else
+#endif
+                elempack = channels % 4 == 0 ? 4 : 1;
+#endif
         }
 #endif
 
+#if NCNN_BF16
+        if (opt.use_bf16_storage)
+        {
 #if __loongarch_sx
+            // pack8
+            if (elempack == 8)
+            {
+                Mat weight_data_r2 = weight_data.reshape(maxk, group);
+                Mat weight_data_r2_packed;
+                convert_packing(weight_data_r2, weight_data_r2_packed, 8, opt);
+
+                ncnn::cast_float32_to_bfloat16(weight_data_r2_packed, weight_data_tm, opt);
+            }
+
+            // pack4
+            if (elempack == 4)
+            {
+                Mat weight_data_r2 = weight_data.reshape(maxk, group);
+                Mat weight_data_r2_packed;
+                convert_packing(weight_data_r2, weight_data_r2_packed, 4, opt);
+
+                ncnn::cast_float32_to_bfloat16(weight_data_r2_packed, weight_data_tm, opt);
+            }
+#endif // __loongarch_sx
+
+            if (elempack == 1)
+            {
+                ncnn::cast_float32_to_bfloat16(weight_data, weight_data_tm, opt);
+            }
+
+            if (opt.lightmode)
+                weight_data.release();
+
+            return 0;
+        }
+#endif // NCNN_BF16
+
+#if __loongarch_sx
+#if __loongarch_asx
+        // pack8
+        if (elempack == 8)
+        {
+            Mat weight_data_r2 = weight_data.reshape(maxk, group);
+            convert_packing(weight_data_r2, weight_data_tm, 8, opt);
+        }
+#endif // __loongarch_asx
+
         // pack4
         if (elempack == 4)
         {
@@ -205,11 +270,18 @@ int ConvolutionDepthWise_loongarch::destroy_pipeline(const Option& opt)
 
 int ConvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+    int elembits = bottom_blob.elembits();
+
 #if NCNN_INT8
     if (opt.use_int8_inference && int8_scale_term)
     {
         return forward_int8_loongarch(bottom_blob, top_blob, opt);
     }
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_bf16s(bottom_blob, top_blob, opt);
 #endif
 
     int w = bottom_blob.w;
@@ -235,7 +307,11 @@ int ConvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_blo
 #if __loongarch_sx
     if (opt.use_packing_layout)
     {
+#if __loongarch_asx
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
+#endif
     }
 #endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -248,6 +324,107 @@ int ConvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_blo
     if (channels * elempack == group && group == num_output)
     {
 #if __loongarch_sx
+#if __loongarch_asx
+        if (elempack == 8)
+        {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                convdw3x3s1_pack8_lasx(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                convdw3x3s2_pack8_lasx(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                convdw5x5s1_pack8_lasx(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                convdw5x5s2_pack8_lasx(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else
+            {
+                const int maxk = kernel_w * kernel_h;
+
+                // kernel offsets
+                std::vector<int> _space_ofs(maxk);
+                int* space_ofs = &_space_ofs[0];
+                {
+                    int p1 = 0;
+                    int p2 = 0;
+                    int gap = w * dilation_h - kernel_w * dilation_w;
+                    for (int i = 0; i < kernel_h; i++)
+                    {
+                        for (int j = 0; j < kernel_w; j++)
+                        {
+                            space_ofs[p1] = p2;
+                            p1++;
+                            p2 += dilation_w;
+                        }
+                        p2 += gap;
+                    }
+                }
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int g = 0; g < channels; g++)
+                {
+                    float* outptr = top_blob.channel(g);
+                    const float* kptr = (const float*)weight_data_tm + maxk * g * 8;
+                    const Mat m = bottom_blob_bordered.channel(g);
+
+                    for (int i = 0; i < outh; i++)
+                    {
+                        for (int j = 0; j < outw; j++)
+                        {
+                            __m256 _sum = (__m256)__lasx_xvldi(0);
+
+                            if (bias_term)
+                            {
+                                _sum = (__m256)__lasx_xvld((const float*)bias_data + g * 8, 0);
+                            }
+
+                            const float* sptr = m.row(i * stride_h) + j * stride_w * 8;
+
+                            for (int k = 0; k < maxk; k++)
+                            {
+                                __m256 _val = (__m256)__lasx_xvld(sptr + space_ofs[k] * 8, 0);
+                                __m256 _w = (__m256)__lasx_xvld(kptr + k * 8, 0);
+                                _sum = __lasx_xvfmadd_s(_w, _val, _sum);
+                            }
+
+                            _sum = activation_lasx(_sum, activation_type, activation_params);
+
+                            __lasx_xvst((__m256i)_sum, outptr + j * 8, 0);
+                        }
+
+                        outptr += outw * 8;
+                    }
+                }
+            }
+        }
+#endif // __loongarch_asx
+
         if (elempack == 4)
         {
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
@@ -336,7 +513,7 @@ int ConvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_blo
                                 _sum = __lsx_vfmadd_s(_w, _val, _sum);
                             }
 
-                            _sum = activation_ps(_sum, activation_type, activation_params);
+                            _sum = activation_lsx(_sum, activation_type, activation_params);
 
                             __lsx_vst(_sum, outptr + j * 4, 0);
                         }
@@ -439,8 +616,13 @@ int ConvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_blo
 #if __loongarch_sx
     if (opt.use_packing_layout)
     {
+#if __loongarch_asx
+        g_elempack = channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+        out_g_elempack = num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
+#else
         g_elempack = channels_g % 4 == 0 ? 4 : 1;
         out_g_elempack = num_output_g % 4 == 0 ? 4 : 1;
+#endif
     }
 #endif
 
@@ -450,13 +632,16 @@ int ConvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_blo
     {
         Option opt_p = opt;
         opt_p.blob_allocator = opt.workspace_allocator;
-        convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, 1, opt_p);
+        convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, g_elempack, opt_p);
+        if (bottom_blob_bordered_unpacked.empty())
+            return -100;
     }
 
     Mat top_blob_unpacked = top_blob;
     if (out_g_elempack < out_elempack)
     {
-        top_blob_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_allocator);
+        size_t out_g_elemsize = elemsize / elempack * out_g_elempack;
+        top_blob_unpacked.create(outw, outh, num_output / out_g_elempack, out_g_elemsize, out_g_elempack, opt.workspace_allocator);
         if (top_blob_unpacked.empty())
             return -100;
     }
@@ -472,13 +657,17 @@ int ConvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_blo
         opt_g.blob_allocator = top_blob_unpacked.allocator;
 
         // forward
-        op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        int ret = op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        if (ret != 0)
+            return ret;
     }
 
     // packing
     if (out_g_elempack < out_elempack)
     {
         convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+        if (top_blob.empty())
+            return -100;
     }
     else
     {
@@ -503,6 +692,15 @@ int ConvolutionDepthWise_loongarch::forward(const std::vector<Mat>& bottom_blobs
     if (weight_data_flattened.empty())
         return -100;
 
+#if NCNN_BF16
+    if (opt.use_bf16_storage && weight_data_flattened.elembits() == 16)
+    {
+        Mat weight_data_flattened_fp32;
+        cast_bfloat16_to_float32(weight_data_flattened, weight_data_flattened_fp32, opt);
+        weight_data_flattened = weight_data_flattened_fp32;
+    }
+#endif
+
     // weight_data_flattened as pack1
     weight_data_flattened.w *= weight_data_flattened.elempack;
     weight_data_flattened.elemsize /= weight_data_flattened.elempack;
@@ -515,6 +713,15 @@ int ConvolutionDepthWise_loongarch::forward(const std::vector<Mat>& bottom_blobs
         flatten(_bias_data, bias_data_flattened, opt);
         if (bias_data_flattened.empty())
             return -100;
+
+#if NCNN_BF16
+        if (opt.use_bf16_storage && bias_data_flattened.elembits() == 16)
+        {
+            Mat bias_data_flattened_fp32;
+            cast_bfloat16_to_float32(bias_data_flattened, bias_data_flattened_fp32, opt);
+            bias_data_flattened = bias_data_flattened_fp32;
+        }
+#endif
 
         // bias_data_flattened as pack1
         bias_data_flattened.w *= bias_data_flattened.elempack;
@@ -562,6 +769,541 @@ int ConvolutionDepthWise_loongarch::forward(const std::vector<Mat>& bottom_blobs
 
     return 0;
 }
+
+#if NCNN_BF16
+int ConvolutionDepthWise_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    w = bottom_blob_bordered.w;
+    h = bottom_blob_bordered.h;
+
+    int outw = (w - kernel_extent_w) / stride_w + 1;
+    int outh = (h - kernel_extent_h) / stride_h + 1;
+    int out_elempack = 1;
+#if __loongarch_sx
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    }
+#endif
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    // depth-wise
+    if (channels * elempack == group && group == num_output)
+    {
+#if __loongarch_sx
+        if (elempack == 8)
+        {
+            const int maxk = kernel_w * kernel_h;
+
+            // kernel offsets
+            std::vector<int> _space_ofs(maxk);
+            int* space_ofs = &_space_ofs[0];
+            {
+                int p1 = 0;
+                int p2 = 0;
+                int gap = w * dilation_h - kernel_w * dilation_w;
+                for (int i = 0; i < kernel_h; i++)
+                {
+                    for (int j = 0; j < kernel_w; j++)
+                    {
+                        space_ofs[p1] = p2;
+                        p1++;
+                        p2 += dilation_w;
+                    }
+                    p2 += gap;
+                }
+            }
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int g = 0; g < channels; g++)
+            {
+                unsigned short* outptr = top_blob.channel(g);
+                const unsigned short* kptr = (const unsigned short*)weight_data_tm + maxk * g * 8;
+                const Mat m = bottom_blob_bordered.channel(g);
+
+                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+
+                __m128 _bias0 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _bias1 = (__m128)__lsx_vreplgr2vr_w(0);
+                if (bias_term)
+                {
+                    _bias0 = (__m128)__lsx_vld((const float*)bias_data + g * 8, 0);
+                    _bias1 = (__m128)__lsx_vld((const float*)bias_data + g * 8 + 4, 0);
+                }
+
+                const int stride_w_elempack = stride_w * 8;
+
+                int i = 0;
+                for (; i + 1 < outh; i += 2)
+                {
+                    unsigned short* outptr0 = outptr;
+                    unsigned short* outptr1 = outptr + outw * 8;
+
+                    const unsigned short* r0 = m.row<const unsigned short>(i * stride_h);
+                    const unsigned short* r1 = m.row<const unsigned short>((i + 1) * stride_h);
+
+                    int j = 0;
+                    for (; j + 3 < outw; j += 4)
+                    {
+                        __m128 _sum00_0 = _bias0;
+                        __m128 _sum00_1 = _bias1;
+                        __m128 _sum01_0 = _bias0;
+                        __m128 _sum01_1 = _bias1;
+                        __m128 _sum02_0 = _bias0;
+                        __m128 _sum02_1 = _bias1;
+                        __m128 _sum03_0 = _bias0;
+                        __m128 _sum03_1 = _bias1;
+                        __m128 _sum10_0 = _bias0;
+                        __m128 _sum10_1 = _bias1;
+                        __m128 _sum11_0 = _bias0;
+                        __m128 _sum11_1 = _bias1;
+                        __m128 _sum12_0 = _bias0;
+                        __m128 _sum12_1 = _bias1;
+                        __m128 _sum13_0 = _bias0;
+                        __m128 _sum13_1 = _bias1;
+
+                        const unsigned short* sptr0 = r0 + j * stride_w_elempack;
+                        const unsigned short* sptr1 = r1 + j * stride_w_elempack;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            __m128i _w01_bf16 = __lsx_vld(kptr + k * 8, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+
+                            const unsigned short* sptr = sptr0 + space_ofs[k] * 8;
+
+                            __m128i _val01_bf16 = __lsx_vld(sptr, 0);
+                            __m128 _val0 = (__m128)__lsx_vilvl_h(_val01_bf16, _zero_bf16);
+                            __m128 _val1 = (__m128)__lsx_vilvh_h(_val01_bf16, _zero_bf16);
+                            _sum00_0 = __lsx_vfmadd_s(_w0, _val0, _sum00_0);
+                            _sum00_1 = __lsx_vfmadd_s(_w1, _val1, _sum00_1);
+
+                            _val01_bf16 = __lsx_vld(sptr + stride_w_elempack, 0);
+                            _val0 = (__m128)__lsx_vilvl_h(_val01_bf16, _zero_bf16);
+                            _val1 = (__m128)__lsx_vilvh_h(_val01_bf16, _zero_bf16);
+                            _sum01_0 = __lsx_vfmadd_s(_w0, _val0, _sum01_0);
+                            _sum01_1 = __lsx_vfmadd_s(_w1, _val1, _sum01_1);
+
+                            _val01_bf16 = __lsx_vld(sptr + stride_w_elempack * 2, 0);
+                            _val0 = (__m128)__lsx_vilvl_h(_val01_bf16, _zero_bf16);
+                            _val1 = (__m128)__lsx_vilvh_h(_val01_bf16, _zero_bf16);
+                            _sum02_0 = __lsx_vfmadd_s(_w0, _val0, _sum02_0);
+                            _sum02_1 = __lsx_vfmadd_s(_w1, _val1, _sum02_1);
+
+                            _val01_bf16 = __lsx_vld(sptr + stride_w_elempack * 3, 0);
+                            _val0 = (__m128)__lsx_vilvl_h(_val01_bf16, _zero_bf16);
+                            _val1 = (__m128)__lsx_vilvh_h(_val01_bf16, _zero_bf16);
+                            _sum03_0 = __lsx_vfmadd_s(_w0, _val0, _sum03_0);
+                            _sum03_1 = __lsx_vfmadd_s(_w1, _val1, _sum03_1);
+
+                            sptr = sptr1 + space_ofs[k] * 8;
+
+                            _val01_bf16 = __lsx_vld(sptr, 0);
+                            _val0 = (__m128)__lsx_vilvl_h(_val01_bf16, _zero_bf16);
+                            _val1 = (__m128)__lsx_vilvh_h(_val01_bf16, _zero_bf16);
+                            _sum10_0 = __lsx_vfmadd_s(_w0, _val0, _sum10_0);
+                            _sum10_1 = __lsx_vfmadd_s(_w1, _val1, _sum10_1);
+
+                            _val01_bf16 = __lsx_vld(sptr + stride_w_elempack, 0);
+                            _val0 = (__m128)__lsx_vilvl_h(_val01_bf16, _zero_bf16);
+                            _val1 = (__m128)__lsx_vilvh_h(_val01_bf16, _zero_bf16);
+                            _sum11_0 = __lsx_vfmadd_s(_w0, _val0, _sum11_0);
+                            _sum11_1 = __lsx_vfmadd_s(_w1, _val1, _sum11_1);
+
+                            _val01_bf16 = __lsx_vld(sptr + stride_w_elempack * 2, 0);
+                            _val0 = (__m128)__lsx_vilvl_h(_val01_bf16, _zero_bf16);
+                            _val1 = (__m128)__lsx_vilvh_h(_val01_bf16, _zero_bf16);
+                            _sum12_0 = __lsx_vfmadd_s(_w0, _val0, _sum12_0);
+                            _sum12_1 = __lsx_vfmadd_s(_w1, _val1, _sum12_1);
+
+                            _val01_bf16 = __lsx_vld(sptr + stride_w_elempack * 3, 0);
+                            _val0 = (__m128)__lsx_vilvl_h(_val01_bf16, _zero_bf16);
+                            _val1 = (__m128)__lsx_vilvh_h(_val01_bf16, _zero_bf16);
+                            _sum13_0 = __lsx_vfmadd_s(_w0, _val0, _sum13_0);
+                            _sum13_1 = __lsx_vfmadd_s(_w1, _val1, _sum13_1);
+                        }
+
+                        _sum00_0 = activation_lsx(_sum00_0, activation_type, activation_params);
+                        _sum00_1 = activation_lsx(_sum00_1, activation_type, activation_params);
+                        _sum01_0 = activation_lsx(_sum01_0, activation_type, activation_params);
+                        _sum01_1 = activation_lsx(_sum01_1, activation_type, activation_params);
+                        _sum02_0 = activation_lsx(_sum02_0, activation_type, activation_params);
+                        _sum02_1 = activation_lsx(_sum02_1, activation_type, activation_params);
+                        _sum03_0 = activation_lsx(_sum03_0, activation_type, activation_params);
+                        _sum03_1 = activation_lsx(_sum03_1, activation_type, activation_params);
+                        _sum10_0 = activation_lsx(_sum10_0, activation_type, activation_params);
+                        _sum10_1 = activation_lsx(_sum10_1, activation_type, activation_params);
+                        _sum11_0 = activation_lsx(_sum11_0, activation_type, activation_params);
+                        _sum11_1 = activation_lsx(_sum11_1, activation_type, activation_params);
+                        _sum12_0 = activation_lsx(_sum12_0, activation_type, activation_params);
+                        _sum12_1 = activation_lsx(_sum12_1, activation_type, activation_params);
+                        _sum13_0 = activation_lsx(_sum13_0, activation_type, activation_params);
+                        _sum13_1 = activation_lsx(_sum13_1, activation_type, activation_params);
+
+                        __lsx_vst(float2bfloat_lsx(_sum00_0, _sum00_1), outptr0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum01_0, _sum01_1), outptr0 + 8, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum02_0, _sum02_1), outptr0 + 8 * 2, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum03_0, _sum03_1), outptr0 + 8 * 3, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum10_0, _sum10_1), outptr1, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum11_0, _sum11_1), outptr1 + 8, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum12_0, _sum12_1), outptr1 + 8 * 2, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum13_0, _sum13_1), outptr1 + 8 * 3, 0);
+
+                        outptr0 += 8 * 4;
+                        outptr1 += 8 * 4;
+                    }
+                    for (; j < outw; j++)
+                    {
+                        __m128 _sum0 = _bias0;
+                        __m128 _sum1 = _bias1;
+                        __m128 _sum2 = _bias0;
+                        __m128 _sum3 = _bias1;
+
+                        const unsigned short* sptr0 = r0 + j * stride_w_elempack;
+                        const unsigned short* sptr1 = r1 + j * stride_w_elempack;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            __m128i _val01_bf16 = __lsx_vld(sptr0 + space_ofs[k] * 8, 0);
+                            __m128 _val0 = (__m128)__lsx_vilvl_h(_val01_bf16, _zero_bf16);
+                            __m128 _val1 = (__m128)__lsx_vilvh_h(_val01_bf16, _zero_bf16);
+                            __m128i _w01_bf16 = __lsx_vld(kptr + k * 8, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            _sum0 = __lsx_vfmadd_s(_w0, _val0, _sum0);
+                            _sum1 = __lsx_vfmadd_s(_w1, _val1, _sum1);
+
+                            _val01_bf16 = __lsx_vld(sptr1 + space_ofs[k] * 8, 0);
+                            _val0 = (__m128)__lsx_vilvl_h(_val01_bf16, _zero_bf16);
+                            _val1 = (__m128)__lsx_vilvh_h(_val01_bf16, _zero_bf16);
+                            _sum2 = __lsx_vfmadd_s(_w0, _val0, _sum2);
+                            _sum3 = __lsx_vfmadd_s(_w1, _val1, _sum3);
+                        }
+
+                        _sum0 = activation_lsx(_sum0, activation_type, activation_params);
+                        _sum1 = activation_lsx(_sum1, activation_type, activation_params);
+                        _sum2 = activation_lsx(_sum2, activation_type, activation_params);
+                        _sum3 = activation_lsx(_sum3, activation_type, activation_params);
+
+                        __lsx_vst(float2bfloat_lsx(_sum0, _sum1), outptr0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum2, _sum3), outptr1, 0);
+
+                        outptr0 += 8;
+                        outptr1 += 8;
+                    }
+
+                    outptr += outw * 8 * 2;
+                }
+                for (; i < outh; i++)
+                {
+                    unsigned short* outptr0 = outptr;
+
+                    const unsigned short* r0 = m.row<const unsigned short>(i * stride_h);
+
+                    int j = 0;
+                    for (; j + 3 < outw; j += 4)
+                    {
+                        __m128 _sum00_0 = _bias0;
+                        __m128 _sum00_1 = _bias1;
+                        __m128 _sum01_0 = _bias0;
+                        __m128 _sum01_1 = _bias1;
+                        __m128 _sum02_0 = _bias0;
+                        __m128 _sum02_1 = _bias1;
+                        __m128 _sum03_0 = _bias0;
+                        __m128 _sum03_1 = _bias1;
+
+                        const unsigned short* sptr0 = r0 + j * stride_w_elempack;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            __m128i _w01_bf16 = __lsx_vld(kptr + k * 8, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+
+                            const unsigned short* sptr = sptr0 + space_ofs[k] * 8;
+
+                            __m128i _val01_bf16 = __lsx_vld(sptr, 0);
+                            __m128 _val0 = (__m128)__lsx_vilvl_h(_val01_bf16, _zero_bf16);
+                            __m128 _val1 = (__m128)__lsx_vilvh_h(_val01_bf16, _zero_bf16);
+                            _sum00_0 = __lsx_vfmadd_s(_w0, _val0, _sum00_0);
+                            _sum00_1 = __lsx_vfmadd_s(_w1, _val1, _sum00_1);
+
+                            _val01_bf16 = __lsx_vld(sptr + stride_w_elempack, 0);
+                            _val0 = (__m128)__lsx_vilvl_h(_val01_bf16, _zero_bf16);
+                            _val1 = (__m128)__lsx_vilvh_h(_val01_bf16, _zero_bf16);
+                            _sum01_0 = __lsx_vfmadd_s(_w0, _val0, _sum01_0);
+                            _sum01_1 = __lsx_vfmadd_s(_w1, _val1, _sum01_1);
+
+                            _val01_bf16 = __lsx_vld(sptr + stride_w_elempack * 2, 0);
+                            _val0 = (__m128)__lsx_vilvl_h(_val01_bf16, _zero_bf16);
+                            _val1 = (__m128)__lsx_vilvh_h(_val01_bf16, _zero_bf16);
+                            _sum02_0 = __lsx_vfmadd_s(_w0, _val0, _sum02_0);
+                            _sum02_1 = __lsx_vfmadd_s(_w1, _val1, _sum02_1);
+
+                            _val01_bf16 = __lsx_vld(sptr + stride_w_elempack * 3, 0);
+                            _val0 = (__m128)__lsx_vilvl_h(_val01_bf16, _zero_bf16);
+                            _val1 = (__m128)__lsx_vilvh_h(_val01_bf16, _zero_bf16);
+                            _sum03_0 = __lsx_vfmadd_s(_w0, _val0, _sum03_0);
+                            _sum03_1 = __lsx_vfmadd_s(_w1, _val1, _sum03_1);
+                        }
+
+                        _sum00_0 = activation_lsx(_sum00_0, activation_type, activation_params);
+                        _sum00_1 = activation_lsx(_sum00_1, activation_type, activation_params);
+                        _sum01_0 = activation_lsx(_sum01_0, activation_type, activation_params);
+                        _sum01_1 = activation_lsx(_sum01_1, activation_type, activation_params);
+                        _sum02_0 = activation_lsx(_sum02_0, activation_type, activation_params);
+                        _sum02_1 = activation_lsx(_sum02_1, activation_type, activation_params);
+                        _sum03_0 = activation_lsx(_sum03_0, activation_type, activation_params);
+                        _sum03_1 = activation_lsx(_sum03_1, activation_type, activation_params);
+
+                        __lsx_vst(float2bfloat_lsx(_sum00_0, _sum00_1), outptr0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum01_0, _sum01_1), outptr0 + 8, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum02_0, _sum02_1), outptr0 + 8 * 2, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum03_0, _sum03_1), outptr0 + 8 * 3, 0);
+
+                        outptr0 += 8 * 4;
+                    }
+                    for (; j < outw; j++)
+                    {
+                        __m128 _sum0 = _bias0;
+                        __m128 _sum1 = _bias1;
+
+                        const unsigned short* sptr0 = r0 + j * stride_w_elempack;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            __m128i _val01_bf16 = __lsx_vld(sptr0 + space_ofs[k] * 8, 0);
+                            __m128 _val0 = (__m128)__lsx_vilvl_h(_val01_bf16, _zero_bf16);
+                            __m128 _val1 = (__m128)__lsx_vilvh_h(_val01_bf16, _zero_bf16);
+                            __m128i _w01_bf16 = __lsx_vld(kptr + k * 8, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            _sum0 = __lsx_vfmadd_s(_w0, _val0, _sum0);
+                            _sum1 = __lsx_vfmadd_s(_w1, _val1, _sum1);
+                        }
+
+                        _sum0 = activation_lsx(_sum0, activation_type, activation_params);
+                        _sum1 = activation_lsx(_sum1, activation_type, activation_params);
+
+                        __lsx_vst(float2bfloat_lsx(_sum0, _sum1), outptr0, 0);
+
+                        outptr0 += 8;
+                    }
+
+                    outptr += outw * 8;
+                }
+            }
+
+            return 0;
+        }
+
+        if (elempack == 4)
+        {
+            const int maxk = kernel_w * kernel_h;
+
+            // kernel offsets
+            std::vector<int> _space_ofs(maxk);
+            int* space_ofs = &_space_ofs[0];
+            {
+                int p1 = 0;
+                int p2 = 0;
+                int gap = w * dilation_h - kernel_w * dilation_w;
+                for (int i = 0; i < kernel_h; i++)
+                {
+                    for (int j = 0; j < kernel_w; j++)
+                    {
+                        space_ofs[p1] = p2;
+                        p1++;
+                        p2 += dilation_w;
+                    }
+                    p2 += gap;
+                }
+            }
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int g = 0; g < channels; g++)
+            {
+                unsigned short* outptr = top_blob.channel(g);
+                const unsigned short* kptr = (const unsigned short*)weight_data_tm + maxk * g * 4;
+                const Mat m = bottom_blob_bordered.channel(g);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
+
+                        if (bias_term)
+                        {
+                            _sum = (__m128)__lsx_vld((const float*)bias_data + g * 4, 0);
+                        }
+
+                        const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w * 4;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            __m128 _val = bfloat2float_lsx(sptr + space_ofs[k] * 4);
+                            __m128 _w = bfloat2float_lsx(kptr + k * 4);
+                            _sum = __lsx_vfmadd_s(_w, _val, _sum);
+                        }
+
+                        _sum = activation_lsx(_sum, activation_type, activation_params);
+
+                        __lsx_vstelm_d(float2bfloat_lsx(_sum), outptr + j * 4, 0, 0);
+                    }
+
+                    outptr += outw * 4;
+                }
+            }
+
+            return 0;
+        }
+#endif // __loongarch_sx
+
+        if (elempack == 1)
+        {
+            const int maxk = kernel_w * kernel_h;
+
+            // kernel offsets
+            std::vector<int> _space_ofs(maxk);
+            int* space_ofs = &_space_ofs[0];
+            {
+                int p1 = 0;
+                int p2 = 0;
+                int gap = w * dilation_h - kernel_w * dilation_w;
+                for (int i = 0; i < kernel_h; i++)
+                {
+                    for (int j = 0; j < kernel_w; j++)
+                    {
+                        space_ofs[p1] = p2;
+                        p1++;
+                        p2 += dilation_w;
+                    }
+                    p2 += gap;
+                }
+            }
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int g = 0; g < group; g++)
+            {
+                unsigned short* outptr = top_blob.channel(g);
+                const unsigned short* kptr = (const unsigned short*)weight_data_tm + maxk * g;
+                const Mat m = bottom_blob_bordered.channel(g);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        float sum = 0.f;
+
+                        if (bias_term)
+                            sum = bias_data[g];
+
+                        const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            float val = bfloat16_to_float32(sptr[space_ofs[k]]);
+                            float w = bfloat16_to_float32(kptr[k]);
+                            sum += val * w;
+                        }
+
+                        sum = activation_ss(sum, activation_type, activation_params);
+
+                        outptr[j] = float32_to_bfloat16(sum);
+                    }
+
+                    outptr += outw;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    // group convolution
+    const int channels_g = channels * elempack / group;
+    const int num_output_g = num_output / group;
+
+    int g_elempack = 1;
+    int out_g_elempack = 1;
+#if __loongarch_sx
+    if (opt.use_packing_layout)
+    {
+        g_elempack = channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+        out_g_elempack = num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
+    }
+#endif
+
+    // unpacking
+    Mat bottom_blob_bordered_unpacked = bottom_blob_bordered;
+    if (elempack > g_elempack)
+    {
+        Option opt_p = opt;
+        opt_p.blob_allocator = opt.workspace_allocator;
+        convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, g_elempack, opt_p);
+        if (bottom_blob_bordered_unpacked.empty())
+            return -100;
+    }
+
+    Mat top_blob_unpacked = top_blob;
+    if (out_g_elempack < out_elempack)
+    {
+        top_blob_unpacked.create(outw, outh, num_output / out_g_elempack, out_elemsize / out_elempack * out_g_elempack, out_g_elempack, opt.workspace_allocator);
+        if (top_blob_unpacked.empty())
+            return -100;
+    }
+
+    for (int g = 0; g < group; g++)
+    {
+        const Mat bottom_blob_bordered_g = bottom_blob_bordered_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);
+        Mat top_blob_g = top_blob_unpacked.channel_range(num_output_g * g / out_g_elempack, num_output_g / out_g_elempack);
+
+        const ncnn::Layer* op = group_ops[g];
+
+        Option opt_g = opt;
+        opt_g.blob_allocator = top_blob_unpacked.allocator;
+
+        // forward
+        int ret = op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        if (ret != 0)
+            return ret;
+    }
+
+    // packing
+    if (out_g_elempack < out_elempack)
+    {
+        convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+        if (top_blob.empty())
+            return -100;
+    }
+    else
+    {
+        top_blob = top_blob_unpacked;
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 #if NCNN_INT8
 int ConvolutionDepthWise_loongarch::create_pipeline_int8_loongarch(const Option& opt)
@@ -666,6 +1408,10 @@ int ConvolutionDepthWise_loongarch::forward_int8_loongarch(const Mat& bottom_blo
 #endif // __loongarch_sx
         bool use_int8_requantize = int8_scale_term > 100;
         size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+#if NCNN_BF16
+        if (opt.use_bf16_storage)
+            out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
+#endif
 
         top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
@@ -700,6 +1446,7 @@ int ConvolutionDepthWise_loongarch::forward_int8_loongarch(const Mat& bottom_blo
                 for (int g = 0; g < channels; g++)
                 {
                     signed char* outptr_s8 = top_blob.channel(g);
+                    unsigned short* outptr_bf16 = top_blob.channel(g);
                     float* outptr_f32 = top_blob.channel(g);
                     const signed char* kptr = (const signed char*)weight_data_tm + maxk * g * 8;
                     const Mat m = bottom_blob_bordered.channel(g);
@@ -757,8 +1504,8 @@ int ConvolutionDepthWise_loongarch::forward_int8_loongarch(const Mat& bottom_blo
                                 _sumfp32_1 = __lsx_vfadd_s(_sumfp32_1, _bias1);
                             }
 
-                            _sumfp32_0 = activation_ps(_sumfp32_0, activation_type, activation_params);
-                            _sumfp32_1 = activation_ps(_sumfp32_1, activation_type, activation_params);
+                            _sumfp32_0 = activation_lsx(_sumfp32_0, activation_type, activation_params);
+                            _sumfp32_1 = activation_lsx(_sumfp32_1, activation_type, activation_params);
 
                             if (use_int8_requantize)
                             {
@@ -775,9 +1522,19 @@ int ConvolutionDepthWise_loongarch::forward_int8_loongarch(const Mat& bottom_blo
                             else
                             {
                                 // dequantize and relu
-                                __lsx_vst(_sumfp32_0, outptr_f32, 0);
-                                __lsx_vst(_sumfp32_1, outptr_f32 + 4, 0);
-                                outptr_f32 += 8;
+#if NCNN_BF16
+                                if (opt.use_bf16_storage)
+                                {
+                                    __lsx_vst(float2bfloat_lsx(_sumfp32_0, _sumfp32_1), outptr_bf16, 0);
+                                    outptr_bf16 += 8;
+                                }
+                                else
+#endif
+                                {
+                                    __lsx_vst(_sumfp32_0, outptr_f32, 0);
+                                    __lsx_vst(_sumfp32_1, outptr_f32 + 4, 0);
+                                    outptr_f32 += 8;
+                                }
                             }
                         }
                     }
@@ -814,6 +1571,7 @@ int ConvolutionDepthWise_loongarch::forward_int8_loongarch(const Mat& bottom_blo
                 for (int g = 0; g < group; g++)
                 {
                     signed char* outptr_s8 = top_blob.channel(g);
+                    unsigned short* outptr_bf16 = top_blob.channel(g);
                     float* outptr_f32 = top_blob.channel(g);
                     const signed char* kptr = (const signed char*)weight_data_tm + maxk * g;
                     const Mat m = bottom_blob_bordered.channel(g);
@@ -857,8 +1615,18 @@ int ConvolutionDepthWise_loongarch::forward_int8_loongarch(const Mat& bottom_blo
                             else
                             {
                                 // dequantize
-                                outptr_f32[0] = sumfp32;
-                                outptr_f32 += 1;
+#if NCNN_BF16
+                                if (opt.use_bf16_storage)
+                                {
+                                    outptr_bf16[0] = float32_to_bfloat16(sumfp32);
+                                    outptr_bf16 += 1;
+                                }
+                                else
+#endif
+                                {
+                                    outptr_f32[0] = sumfp32;
+                                    outptr_f32 += 1;
+                                }
                             }
                         }
                     }
@@ -881,6 +1649,10 @@ int ConvolutionDepthWise_loongarch::forward_int8_loongarch(const Mat& bottom_blo
     }
 #endif // __loongarch_sx
     size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+#if NCNN_BF16
+    if (opt.use_bf16_storage)
+        out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
+#endif
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())

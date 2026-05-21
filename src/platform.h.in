@@ -50,6 +50,7 @@
 #cmakedefine01 NCNN_ARM86SVEF32MM
 #cmakedefine01 NCNN_MSA
 #cmakedefine01 NCNN_LSX
+#cmakedefine01 NCNN_LASX
 #cmakedefine01 NCNN_MMI
 #cmakedefine01 NCNN_RVV
 #cmakedefine01 NCNN_ZFH
