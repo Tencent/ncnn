@@ -1229,10 +1229,9 @@ static NCNN_FORCEINLINE __m256 acosh256_ps(const __m256& x)
 
 static NCNN_FORCEINLINE __m256 atanh256_ps(const __m256& x)
 {
-    __m256 one = _mm256_set1_ps(1.f);
-    __m256 two_x = _mm256_add_ps(x, x);
-    __m256 y = _mm256_div_ps(two_x, _mm256_sub_ps(one, x));
-    return _mm256_mul_ps(log1p256_ps(y), _mm256_set1_ps(0.5f));
+    __m256 log_pos = log1p256_ps(x);
+    __m256 log_neg = log1p256_ps(_mm256_sub_ps(_mm256_setzero_ps(), x));
+    return _mm256_mul_ps(_mm256_sub_ps(log_pos, log_neg), _mm256_set1_ps(0.5f));
 }
 
 static NCNN_FORCEINLINE __m256 floor_divide256_ps(const __m256& x, const __m256& y)

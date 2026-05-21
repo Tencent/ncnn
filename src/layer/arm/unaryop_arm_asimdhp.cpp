@@ -529,20 +529,11 @@ struct unary_op_expm1_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        __fp16 tmp[4];
-        vst1_f16(tmp, x);
-        tmp[0] = (__fp16)expm1f(tmp[0]);
-        tmp[1] = (__fp16)expm1f(tmp[1]);
-        tmp[2] = (__fp16)expm1f(tmp[2]);
-        tmp[3] = (__fp16)expm1f(tmp[3]);
-        return vld1_f16(tmp);
+        return expm1_ps_f16(x);
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        __fp16 tmp[8];
-        vst1q_f16(tmp, x);
-        for (int i = 0; i < 8; i++) tmp[i] = (__fp16)expm1f(tmp[i]);
-        return vld1q_f16(tmp);
+        return expm1_ps_f16(x);
     }
 };
 
@@ -554,20 +545,11 @@ struct unary_op_sinh_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        __fp16 tmp[4];
-        vst1_f16(tmp, x);
-        tmp[0] = (__fp16)sinhf(tmp[0]);
-        tmp[1] = (__fp16)sinhf(tmp[1]);
-        tmp[2] = (__fp16)sinhf(tmp[2]);
-        tmp[3] = (__fp16)sinhf(tmp[3]);
-        return vld1_f16(tmp);
+        return sinh_ps_f16(x);
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        __fp16 tmp[8];
-        vst1q_f16(tmp, x);
-        for (int i = 0; i < 8; i++) tmp[i] = (__fp16)sinhf(tmp[i]);
-        return vld1q_f16(tmp);
+        return sinh_ps_f16(x);
     }
 };
 
@@ -579,20 +561,11 @@ struct unary_op_asinh_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        __fp16 tmp[4];
-        vst1_f16(tmp, x);
-        tmp[0] = (__fp16)asinhf(tmp[0]);
-        tmp[1] = (__fp16)asinhf(tmp[1]);
-        tmp[2] = (__fp16)asinhf(tmp[2]);
-        tmp[3] = (__fp16)asinhf(tmp[3]);
-        return vld1_f16(tmp);
+        return asinh_ps_f16(x);
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        __fp16 tmp[8];
-        vst1q_f16(tmp, x);
-        for (int i = 0; i < 8; i++) tmp[i] = (__fp16)asinhf(tmp[i]);
-        return vld1q_f16(tmp);
+        return asinh_ps_f16(x);
     }
 };
 
@@ -604,20 +577,11 @@ struct unary_op_cosh_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        __fp16 tmp[4];
-        vst1_f16(tmp, x);
-        tmp[0] = (__fp16)coshf(tmp[0]);
-        tmp[1] = (__fp16)coshf(tmp[1]);
-        tmp[2] = (__fp16)coshf(tmp[2]);
-        tmp[3] = (__fp16)coshf(tmp[3]);
-        return vld1_f16(tmp);
+        return cosh_ps_f16(x);
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        __fp16 tmp[8];
-        vst1q_f16(tmp, x);
-        for (int i = 0; i < 8; i++) tmp[i] = (__fp16)coshf(tmp[i]);
-        return vld1q_f16(tmp);
+        return cosh_ps_f16(x);
     }
 };
 
@@ -629,20 +593,11 @@ struct unary_op_acosh_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        __fp16 tmp[4];
-        vst1_f16(tmp, x);
-        tmp[0] = (__fp16)acoshf(tmp[0]);
-        tmp[1] = (__fp16)acoshf(tmp[1]);
-        tmp[2] = (__fp16)acoshf(tmp[2]);
-        tmp[3] = (__fp16)acoshf(tmp[3]);
-        return vld1_f16(tmp);
+        return acosh_ps_f16(x);
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        __fp16 tmp[8];
-        vst1q_f16(tmp, x);
-        for (int i = 0; i < 8; i++) tmp[i] = (__fp16)acoshf(tmp[i]);
-        return vld1q_f16(tmp);
+        return acosh_ps_f16(x);
     }
 };
 
@@ -654,20 +609,11 @@ struct unary_op_atanh_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        __fp16 tmp[4];
-        vst1_f16(tmp, x);
-        tmp[0] = (__fp16)atanhf(tmp[0]);
-        tmp[1] = (__fp16)atanhf(tmp[1]);
-        tmp[2] = (__fp16)atanhf(tmp[2]);
-        tmp[3] = (__fp16)atanhf(tmp[3]);
-        return vld1_f16(tmp);
+        return atanh_ps_f16(x);
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        __fp16 tmp[8];
-        vst1q_f16(tmp, x);
-        for (int i = 0; i < 8; i++) tmp[i] = (__fp16)atanhf(tmp[i]);
-        return vld1q_f16(tmp);
+        return atanh_ps_f16(x);
     }
 };
 
@@ -679,20 +625,11 @@ struct unary_op_log1p_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        __fp16 tmp[4];
-        vst1_f16(tmp, x);
-        tmp[0] = (__fp16)log1pf(tmp[0]);
-        tmp[1] = (__fp16)log1pf(tmp[1]);
-        tmp[2] = (__fp16)log1pf(tmp[2]);
-        tmp[3] = (__fp16)log1pf(tmp[3]);
-        return vld1_f16(tmp);
+        return log1p_ps_f16(x);
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        __fp16 tmp[8];
-        vst1q_f16(tmp, x);
-        for (int i = 0; i < 8; i++) tmp[i] = (__fp16)log1pf(tmp[i]);
-        return vld1q_f16(tmp);
+        return log1p_ps_f16(x);
     }
 };
 

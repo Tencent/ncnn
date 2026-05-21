@@ -781,10 +781,9 @@ _RVV_FLOAT32_ACOSH_OP(8, 4)
 #define _RVV_FLOAT32_ATANH_OP(LMUL, MLEN)                                                                        \
     static inline vfloat32m##LMUL##_t atanh_ps(vfloat32m##LMUL##_t x, size_t vl)                                 \
     {                                                                                                            \
-        vfloat32m##LMUL##_t one = __riscv_vfmv_v_f_f32m##LMUL(1.f, vl);                                          \
-        vfloat32m##LMUL##_t two_x = __riscv_vfadd_vv_f32m##LMUL(x, x, vl);                                       \
-        vfloat32m##LMUL##_t y = __riscv_vfdiv_vv_f32m##LMUL(two_x, __riscv_vfsub_vv_f32m##LMUL(one, x, vl), vl); \
-        return __riscv_vfmul_vf_f32m##LMUL(log1p_ps(y, vl), 0.5f, vl);                                           \
+        vfloat32m##LMUL##_t log_pos = log1p_ps(x, vl);                                                           \
+        vfloat32m##LMUL##_t log_neg = log1p_ps(__riscv_vfneg_v_f32m##LMUL(x, vl), vl);                           \
+        return __riscv_vfmul_vf_f32m##LMUL(__riscv_vfsub_vv_f32m##LMUL(log_pos, log_neg, vl), 0.5f, vl);         \
     }
 
 _RVV_FLOAT32_ATANH_OP(1, 32)

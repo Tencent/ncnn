@@ -1319,10 +1319,9 @@ static NCNN_FORCEINLINE __m128 acosh_ps(const __m128& x)
 
 static NCNN_FORCEINLINE __m128 atanh_ps(const __m128& x)
 {
-    __m128 one = _mm_set1_ps(1.f);
-    __m128 two_x = _mm_add_ps(x, x);
-    __m128 y = _mm_div_ps(two_x, _mm_sub_ps(one, x));
-    return _mm_mul_ps(log1p_ps(y), _mm_set1_ps(0.5f));
+    __m128 log_pos = log1p_ps(x);
+    __m128 log_neg = log1p_ps(_mm_sub_ps(_mm_setzero_ps(), x));
+    return _mm_mul_ps(_mm_sub_ps(log_pos, log_neg), _mm_set1_ps(0.5f));
 }
 
 static NCNN_FORCEINLINE __m128 floor_divide_ps(const __m128& x, const __m128& y)

@@ -987,10 +987,9 @@ static NCNN_FORCEINLINE __m512 acosh512_ps(const __m512& x)
 
 static NCNN_FORCEINLINE __m512 atanh512_ps(const __m512& x)
 {
-    __m512 one = _mm512_set1_ps(1.f);
-    __m512 two_x = _mm512_add_ps(x, x);
-    __m512 y = _mm512_div_ps(two_x, _mm512_sub_ps(one, x));
-    return _mm512_mul_ps(log1p512_ps(y), _mm512_set1_ps(0.5f));
+    __m512 log_pos = log1p512_ps(x);
+    __m512 log_neg = log1p512_ps(_mm512_sub_ps(_mm512_setzero_ps(), x));
+    return _mm512_mul_ps(_mm512_sub_ps(log_pos, log_neg), _mm512_set1_ps(0.5f));
 }
 
 static NCNN_FORCEINLINE __m512 floor_divide512_ps(const __m512& x, const __m512& y)

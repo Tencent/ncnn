@@ -447,10 +447,7 @@ struct unary_op_expm1_fp16s
 #if __riscv_zvfh
     vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
     {
-        std::vector<__fp16> tmp(vl);
-        __riscv_vse16_v_f16m8(tmp.data(), x, vl);
-        for (size_t i = 0; i < vl; i++) tmp[i] = (__fp16)expm1f((float)tmp[i]);
-        return __riscv_vle16_v_f16m8(tmp.data(), vl);
+        return expm1_ps(x, vl);
     }
 #else
     __fp16 operator()(const __fp16& x) const
@@ -465,10 +462,7 @@ struct unary_op_sinh_fp16s
 #if __riscv_zvfh
     vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
     {
-        std::vector<__fp16> tmp(vl);
-        __riscv_vse16_v_f16m8(tmp.data(), x, vl);
-        for (size_t i = 0; i < vl; i++) tmp[i] = (__fp16)sinhf((float)tmp[i]);
-        return __riscv_vle16_v_f16m8(tmp.data(), vl);
+        return sinh_ps(x, vl);
     }
 #else
     __fp16 operator()(const __fp16& x) const
@@ -483,10 +477,7 @@ struct unary_op_asinh_fp16s
 #if __riscv_zvfh
     vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
     {
-        std::vector<__fp16> tmp(vl);
-        __riscv_vse16_v_f16m8(tmp.data(), x, vl);
-        for (size_t i = 0; i < vl; i++) tmp[i] = (__fp16)asinhf((float)tmp[i]);
-        return __riscv_vle16_v_f16m8(tmp.data(), vl);
+        return asinh_ps(x, vl);
     }
 #else
     __fp16 operator()(const __fp16& x) const
@@ -501,10 +492,7 @@ struct unary_op_cosh_fp16s
 #if __riscv_zvfh
     vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
     {
-        std::vector<__fp16> tmp(vl);
-        __riscv_vse16_v_f16m8(tmp.data(), x, vl);
-        for (size_t i = 0; i < vl; i++) tmp[i] = (__fp16)coshf((float)tmp[i]);
-        return __riscv_vle16_v_f16m8(tmp.data(), vl);
+        return cosh_ps(x, vl);
     }
 #else
     __fp16 operator()(const __fp16& x) const
@@ -519,10 +507,7 @@ struct unary_op_acosh_fp16s
 #if __riscv_zvfh
     vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
     {
-        std::vector<__fp16> tmp(vl);
-        __riscv_vse16_v_f16m8(tmp.data(), x, vl);
-        for (size_t i = 0; i < vl; i++) tmp[i] = (__fp16)acoshf((float)tmp[i]);
-        return __riscv_vle16_v_f16m8(tmp.data(), vl);
+        return acosh_ps(x, vl);
     }
 #else
     __fp16 operator()(const __fp16& x) const
@@ -537,10 +522,7 @@ struct unary_op_atanh_fp16s
 #if __riscv_zvfh
     vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
     {
-        std::vector<__fp16> tmp(vl);
-        __riscv_vse16_v_f16m8(tmp.data(), x, vl);
-        for (size_t i = 0; i < vl; i++) tmp[i] = (__fp16)atanhf((float)tmp[i]);
-        return __riscv_vle16_v_f16m8(tmp.data(), vl);
+        return atanh_ps(x, vl);
     }
 #else
     __fp16 operator()(const __fp16& x) const
@@ -555,10 +537,7 @@ struct unary_op_log1p_fp16s
 #if __riscv_zvfh
     vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
     {
-        std::vector<__fp16> tmp(vl);
-        __riscv_vse16_v_f16m8(tmp.data(), x, vl);
-        for (size_t i = 0; i < vl; i++) tmp[i] = (__fp16)log1pf((float)tmp[i]);
-        return __riscv_vle16_v_f16m8(tmp.data(), vl);
+        return log1p_ps(x, vl);
     }
 #else
     __fp16 operator()(const __fp16& x) const

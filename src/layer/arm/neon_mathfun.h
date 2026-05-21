@@ -529,9 +529,9 @@ static inline float32x4_t acosh_ps(const float32x4_t& x)
 
 static inline float32x4_t atanh_ps(const float32x4_t& x)
 {
-    float32x4_t one = vdupq_n_f32(1.f);
-    float32x4_t y = div_ps(vaddq_f32(x, x), vsubq_f32(one, x));
-    return vmulq_f32(log1p_ps(y), vdupq_n_f32(0.5f));
+    float32x4_t log_pos = log1p_ps(x);
+    float32x4_t log_neg = log1p_ps(vnegq_f32(x));
+    return vmulq_f32(vsubq_f32(log_pos, log_neg), vdupq_n_f32(0.5f));
 }
 
 static inline float32x4_t floor_ps(const float32x4_t& x)
