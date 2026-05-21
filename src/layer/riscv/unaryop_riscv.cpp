@@ -305,10 +305,7 @@ struct unary_op_expm1
 {
     vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
     {
-        std::vector<float> tmp(vl);
-        __riscv_vse32_v_f32m8(tmp.data(), x, vl);
-        for (size_t i = 0; i < vl; i++) tmp[i] = expm1f(tmp[i]);
-        return __riscv_vle32_v_f32m8(tmp.data(), vl);
+        return expm1_ps(x, vl);
     }
 };
 
@@ -316,10 +313,7 @@ struct unary_op_sinh
 {
     vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
     {
-        std::vector<float> tmp(vl);
-        __riscv_vse32_v_f32m8(tmp.data(), x, vl);
-        for (size_t i = 0; i < vl; i++) tmp[i] = sinhf(tmp[i]);
-        return __riscv_vle32_v_f32m8(tmp.data(), vl);
+        return sinh_ps(x, vl);
     }
 };
 
@@ -327,10 +321,7 @@ struct unary_op_asinh
 {
     vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
     {
-        std::vector<float> tmp(vl);
-        __riscv_vse32_v_f32m8(tmp.data(), x, vl);
-        for (size_t i = 0; i < vl; i++) tmp[i] = asinhf(tmp[i]);
-        return __riscv_vle32_v_f32m8(tmp.data(), vl);
+        return asinh_ps(x, vl);
     }
 };
 
@@ -338,10 +329,7 @@ struct unary_op_cosh
 {
     vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
     {
-        std::vector<float> tmp(vl);
-        __riscv_vse32_v_f32m8(tmp.data(), x, vl);
-        for (size_t i = 0; i < vl; i++) tmp[i] = coshf(tmp[i]);
-        return __riscv_vle32_v_f32m8(tmp.data(), vl);
+        return cosh_ps(x, vl);
     }
 };
 
@@ -349,10 +337,7 @@ struct unary_op_acosh
 {
     vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
     {
-        std::vector<float> tmp(vl);
-        __riscv_vse32_v_f32m8(tmp.data(), x, vl);
-        for (size_t i = 0; i < vl; i++) tmp[i] = acoshf(tmp[i]);
-        return __riscv_vle32_v_f32m8(tmp.data(), vl);
+        return acosh_ps(x, vl);
     }
 };
 
@@ -360,10 +345,7 @@ struct unary_op_atanh
 {
     vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
     {
-        std::vector<float> tmp(vl);
-        __riscv_vse32_v_f32m8(tmp.data(), x, vl);
-        for (size_t i = 0; i < vl; i++) tmp[i] = atanhf(tmp[i]);
-        return __riscv_vle32_v_f32m8(tmp.data(), vl);
+        return atanh_ps(x, vl);
     }
 };
 
@@ -371,10 +353,7 @@ struct unary_op_log1p
 {
     vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
     {
-        std::vector<float> tmp(vl);
-        __riscv_vse32_v_f32m8(tmp.data(), x, vl);
-        for (size_t i = 0; i < vl; i++) tmp[i] = log1pf(tmp[i]);
-        return __riscv_vle32_v_f32m8(tmp.data(), vl);
+        return log1p_ps(x, vl);
     }
 };
 

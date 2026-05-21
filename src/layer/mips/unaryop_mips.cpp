@@ -73,7 +73,7 @@ struct unary_op_abs
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        return (v4f32)__msa_bclri_w((v4u32)x, 31);
+        return abs_ps(x);
     }
 #endif // __mips_msa
 };
@@ -415,13 +415,7 @@ struct unary_op_expm1
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = expm1f(tmp[0]);
-        tmp[1] = expm1f(tmp[1]);
-        tmp[2] = expm1f(tmp[2]);
-        tmp[3] = expm1f(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return expm1_ps(x);
     }
 #endif // __mips_msa
 };
@@ -435,13 +429,7 @@ struct unary_op_sinh
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = sinhf(tmp[0]);
-        tmp[1] = sinhf(tmp[1]);
-        tmp[2] = sinhf(tmp[2]);
-        tmp[3] = sinhf(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return sinh_ps(x);
     }
 #endif // __mips_msa
 };
@@ -455,13 +443,7 @@ struct unary_op_asinh
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = asinhf(tmp[0]);
-        tmp[1] = asinhf(tmp[1]);
-        tmp[2] = asinhf(tmp[2]);
-        tmp[3] = asinhf(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return asinh_ps(x);
     }
 #endif // __mips_msa
 };
@@ -475,13 +457,7 @@ struct unary_op_cosh
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = coshf(tmp[0]);
-        tmp[1] = coshf(tmp[1]);
-        tmp[2] = coshf(tmp[2]);
-        tmp[3] = coshf(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return cosh_ps(x);
     }
 #endif // __mips_msa
 };
@@ -495,13 +471,7 @@ struct unary_op_acosh
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = acoshf(tmp[0]);
-        tmp[1] = acoshf(tmp[1]);
-        tmp[2] = acoshf(tmp[2]);
-        tmp[3] = acoshf(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return acosh_ps(x);
     }
 #endif // __mips_msa
 };
@@ -515,13 +485,7 @@ struct unary_op_atanh
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = atanhf(tmp[0]);
-        tmp[1] = atanhf(tmp[1]);
-        tmp[2] = atanhf(tmp[2]);
-        tmp[3] = atanhf(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return atanh_ps(x);
     }
 #endif // __mips_msa
 };
@@ -535,13 +499,7 @@ struct unary_op_log1p
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = log1pf(tmp[0]);
-        tmp[1] = log1pf(tmp[1]);
-        tmp[2] = log1pf(tmp[2]);
-        tmp[3] = log1pf(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return log1p_ps(x);
     }
 #endif // __mips_msa
 };

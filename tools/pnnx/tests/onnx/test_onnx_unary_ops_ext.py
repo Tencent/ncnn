@@ -33,8 +33,7 @@ def test():
     a = tuple(torch.from_numpy(out) for out in sess.run(None, {"x": x.numpy()}))
 
     import os
-    LD_LIBRARY_PATH = "/tmp/onnxruntime-linux-x64-1.24.4/lib"
-    os.system("LD_LIBRARY_PATH=" + LD_LIBRARY_PATH + " ../../src/pnnx test_onnx_unary_ops_ext.onnx inputshape=[3,4,5]")
+    os.system("../../src/pnnx test_onnx_unary_ops_ext.onnx inputshape=[3,4,5]")
 
     import test_onnx_unary_ops_ext_pnnx
     b = test_onnx_unary_ops_ext_pnnx.test_inference()

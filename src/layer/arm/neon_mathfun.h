@@ -464,6 +464,76 @@ static inline float32x4_t logaddexp_ps(const float32x4_t& x, const float32x4_t& 
     return vaddq_f32(max_xy, log_result);
 }
 
+static inline float32x4_t sqrt_ps(const float32x4_t& x)
+{
+#if __aarch64__
+    return vsqrtq_f32(x);
+#else
+    float32x4_t _reciprocal = vrsqrteq_f32(x);
+    _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(x, _reciprocal), _reciprocal), _reciprocal);
+    return vmulq_f32(x, _reciprocal);
+#endif
+}
+
+static inline float32x4_t expm1_ps(const float32x4_t& x)
+{
+    float32x4_t x2 = vmulq_f32(x, x);
+    float32x4_t poly = vmlaq_f32(x, x2, vmlaq_f32(vdupq_n_f32(0.5f), x, vdupq_n_f32(1.0f / 6.0f)));
+    float32x4_t y = vsubq_f32(exp_ps(x), vdupq_n_f32(1.f));
+    uint32x4_t mask = vcltq_f32(vabsq_f32(x), vdupq_n_f32(1e-4f));
+    return vbslq_f32(mask, poly, y);
+}
+
+static inline float32x4_t log1p_ps(const float32x4_t& x)
+{
+    float32x4_t x2 = vmulq_f32(x, x);
+    float32x4_t poly = vmlaq_f32(x, x2, vmlaq_f32(vdupq_n_f32(-0.5f), x, vdupq_n_f32(1.0f / 3.0f)));
+    float32x4_t y = log_ps(vaddq_f32(vdupq_n_f32(1.f), x));
+    uint32x4_t mask = vcltq_f32(vabsq_f32(x), vdupq_n_f32(1e-4f));
+    return vbslq_f32(mask, poly, y);
+}
+
+static inline float32x4_t sinh_ps(const float32x4_t& x)
+{
+    float32x4_t expm1_x = expm1_ps(x);
+    float32x4_t expm1_neg_x = expm1_ps(vnegq_f32(x));
+    return vmulq_f32(vsubq_f32(expm1_x, expm1_neg_x), vdupq_n_f32(0.5f));
+}
+
+static inline float32x4_t asinh_ps(const float32x4_t& x)
+{
+    float32x4_t ax = vabsq_f32(x);
+    float32x4_t x2 = vmulq_f32(ax, ax);
+    float32x4_t y = log_ps(vaddq_f32(ax, sqrt_ps(vaddq_f32(x2, vdupq_n_f32(1.f)))));
+    float32x4_t y_large = vaddq_f32(log_ps(ax), vdupq_n_f32(0.6931471805599453f));
+    uint32x4_t mask = vcgtq_f32(ax, vdupq_n_f32(1e19f));
+    y = vbslq_f32(mask, y_large, y);
+    return vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(y), vandq_u32(vreinterpretq_u32_f32(x), vdupq_n_u32(0x80000000))));
+}
+
+static inline float32x4_t cosh_ps(const float32x4_t& x)
+{
+    float32x4_t exp_x = exp_ps(x);
+    float32x4_t exp_neg_x = exp_ps(vnegq_f32(x));
+    return vmulq_f32(vaddq_f32(exp_x, exp_neg_x), vdupq_n_f32(0.5f));
+}
+
+static inline float32x4_t acosh_ps(const float32x4_t& x)
+{
+    float32x4_t one = vdupq_n_f32(1.f);
+    float32x4_t y = log_ps(vaddq_f32(x, vmulq_f32(sqrt_ps(vsubq_f32(x, one)), sqrt_ps(vaddq_f32(x, one)))));
+    float32x4_t y_large = vaddq_f32(log_ps(x), vdupq_n_f32(0.6931471805599453f));
+    uint32x4_t mask = vcgtq_f32(x, vdupq_n_f32(1e19f));
+    return vbslq_f32(mask, y_large, y);
+}
+
+static inline float32x4_t atanh_ps(const float32x4_t& x)
+{
+    float32x4_t one = vdupq_n_f32(1.f);
+    float32x4_t y = div_ps(vaddq_f32(x, x), vsubq_f32(one, x));
+    return vmulq_f32(log1p_ps(y), vdupq_n_f32(0.5f));
+}
+
 static inline float32x4_t floor_ps(const float32x4_t& x)
 {
 #if __aarch64__

@@ -22,16 +22,18 @@ static const float PI = 3.14159265358979323846;
 static const float PI_2 = 1.57079632679489661923; /* PI/2 */
 static const float E = 2.71828182845904523536;
 
+typedef char simplemath_unsigned_int_must_be_32bit[sizeof(unsigned int) == 4 ? 1 : -1];
+
 /* re-interpret the bit pattern of an unsigned int as an IEEE-754 float */
 static float uint32_as_float(unsigned int a)
 {
-    float r;
-    float* rp = &r;
-    unsigned int* ap = &a;
-
-    *rp = *(float*)ap;
-
-    return r;
+    union
+    {
+        unsigned int i;
+        float f;
+    } u;
+    u.i = a;
+    return u.f;
 }
 
 #ifdef __cplusplus

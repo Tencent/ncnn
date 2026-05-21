@@ -171,14 +171,7 @@ struct unary_op_sqrt
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
     {
-#if __aarch64__
-        return vsqrtq_f32(x);
-#else
-        float32x4_t _reciprocal = vrsqrteq_f32(x);
-        _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(x, _reciprocal), _reciprocal), _reciprocal);
-        // _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(x, _reciprocal), _reciprocal), _reciprocal);
-        return vmulq_f32(x, _reciprocal);
-#endif
+        return sqrt_ps(x);
     }
 #endif // __ARM_NEON
 };
@@ -487,13 +480,7 @@ struct unary_op_expm1
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
     {
-        float tmp[4];
-        vst1q_f32(tmp, x);
-        tmp[0] = expm1f(tmp[0]);
-        tmp[1] = expm1f(tmp[1]);
-        tmp[2] = expm1f(tmp[2]);
-        tmp[3] = expm1f(tmp[3]);
-        return vld1q_f32(tmp);
+        return expm1_ps(x);
     }
 #endif // __ARM_NEON
 };
@@ -507,13 +494,7 @@ struct unary_op_sinh
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
     {
-        float tmp[4];
-        vst1q_f32(tmp, x);
-        tmp[0] = sinhf(tmp[0]);
-        tmp[1] = sinhf(tmp[1]);
-        tmp[2] = sinhf(tmp[2]);
-        tmp[3] = sinhf(tmp[3]);
-        return vld1q_f32(tmp);
+        return sinh_ps(x);
     }
 #endif // __ARM_NEON
 };
@@ -527,13 +508,7 @@ struct unary_op_asinh
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
     {
-        float tmp[4];
-        vst1q_f32(tmp, x);
-        tmp[0] = asinhf(tmp[0]);
-        tmp[1] = asinhf(tmp[1]);
-        tmp[2] = asinhf(tmp[2]);
-        tmp[3] = asinhf(tmp[3]);
-        return vld1q_f32(tmp);
+        return asinh_ps(x);
     }
 #endif // __ARM_NEON
 };
@@ -547,13 +522,7 @@ struct unary_op_cosh
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
     {
-        float tmp[4];
-        vst1q_f32(tmp, x);
-        tmp[0] = coshf(tmp[0]);
-        tmp[1] = coshf(tmp[1]);
-        tmp[2] = coshf(tmp[2]);
-        tmp[3] = coshf(tmp[3]);
-        return vld1q_f32(tmp);
+        return cosh_ps(x);
     }
 #endif // __ARM_NEON
 };
@@ -567,13 +536,7 @@ struct unary_op_acosh
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
     {
-        float tmp[4];
-        vst1q_f32(tmp, x);
-        tmp[0] = acoshf(tmp[0]);
-        tmp[1] = acoshf(tmp[1]);
-        tmp[2] = acoshf(tmp[2]);
-        tmp[3] = acoshf(tmp[3]);
-        return vld1q_f32(tmp);
+        return acosh_ps(x);
     }
 #endif // __ARM_NEON
 };
@@ -587,13 +550,7 @@ struct unary_op_atanh
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
     {
-        float tmp[4];
-        vst1q_f32(tmp, x);
-        tmp[0] = atanhf(tmp[0]);
-        tmp[1] = atanhf(tmp[1]);
-        tmp[2] = atanhf(tmp[2]);
-        tmp[3] = atanhf(tmp[3]);
-        return vld1q_f32(tmp);
+        return atanh_ps(x);
     }
 #endif // __ARM_NEON
 };
@@ -607,13 +564,7 @@ struct unary_op_log1p
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
     {
-        float tmp[4];
-        vst1q_f32(tmp, x);
-        tmp[0] = log1pf(tmp[0]);
-        tmp[1] = log1pf(tmp[1]);
-        tmp[2] = log1pf(tmp[2]);
-        tmp[3] = log1pf(tmp[3]);
-        return vld1q_f32(tmp);
+        return log1p_ps(x);
     }
 #endif // __ARM_NEON
 };

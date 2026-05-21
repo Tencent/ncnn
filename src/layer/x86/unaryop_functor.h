@@ -582,29 +582,17 @@ struct unary_op_expm1
 #if __SSE2__
     NCNN_FORCEINLINE __m128 func_pack4(const __m128& x) const
     {
-        __m128 x2 = _mm_mul_ps(x, x);
-        __m128 poly = _mm_add_ps(x, _mm_mul_ps(x2, _mm_add_ps(_mm_set1_ps(0.5f), _mm_mul_ps(x, _mm_set1_ps(1.0f / 6.0f)))));
-        __m128 y = _mm_sub_ps(exp_ps(x), _mm_set1_ps(1.f));
-        __m128 mask = _mm_cmplt_ps(abs_ps(x), _mm_set1_ps(1e-4f));
-        return _mm_or_ps(_mm_and_ps(mask, poly), _mm_andnot_ps(mask, y));
+        return expm1_ps(x);
     }
 #if __AVX__
     NCNN_FORCEINLINE __m256 func_pack8(const __m256& x) const
     {
-        __m256 x2 = _mm256_mul_ps(x, x);
-        __m256 poly = _mm256_add_ps(x, _mm256_mul_ps(x2, _mm256_add_ps(_mm256_set1_ps(0.5f), _mm256_mul_ps(x, _mm256_set1_ps(1.0f / 6.0f)))));
-        __m256 y = _mm256_sub_ps(exp256_ps(x), _mm256_set1_ps(1.f));
-        __m256 mask = _mm256_cmp_ps(abs256_ps(x), _mm256_set1_ps(1e-4f), _CMP_LT_OQ);
-        return _mm256_or_ps(_mm256_and_ps(mask, poly), _mm256_andnot_ps(mask, y));
+        return expm1256_ps(x);
     }
 #if __AVX512F__
     NCNN_FORCEINLINE __m512 func_pack16(const __m512& x) const
     {
-        __m512 x2 = _mm512_mul_ps(x, x);
-        __m512 poly = _mm512_add_ps(x, _mm512_mul_ps(x2, _mm512_add_ps(_mm512_set1_ps(0.5f), _mm512_mul_ps(x, _mm512_set1_ps(1.0f / 6.0f)))));
-        __m512 y = _mm512_sub_ps(exp512_ps(x), _mm512_set1_ps(1.f));
-        __mmask16 mask = _mm512_cmp_ps_mask(abs512_ps(x), _mm512_set1_ps(1e-4f), _CMP_LT_OQ);
-        return _mm512_mask_blend_ps(mask, y, poly);
+        return expm1512_ps(x);
     }
 #endif // __AVX512F__
 #endif // __AVX__
@@ -620,23 +608,17 @@ struct unary_op_sinh
 #if __SSE2__
     NCNN_FORCEINLINE __m128 func_pack4(const __m128& x) const
     {
-        __m128 exp_x = exp_ps(x);
-        __m128 exp_neg_x = exp_ps(_mm_sub_ps(_mm_setzero_ps(), x));
-        return _mm_mul_ps(_mm_sub_ps(exp_x, exp_neg_x), _mm_set1_ps(0.5f));
+        return sinh_ps(x);
     }
 #if __AVX__
     NCNN_FORCEINLINE __m256 func_pack8(const __m256& x) const
     {
-        __m256 exp_x = exp256_ps(x);
-        __m256 exp_neg_x = exp256_ps(_mm256_sub_ps(_mm256_setzero_ps(), x));
-        return _mm256_mul_ps(_mm256_sub_ps(exp_x, exp_neg_x), _mm256_set1_ps(0.5f));
+        return sinh256_ps(x);
     }
 #if __AVX512F__
     NCNN_FORCEINLINE __m512 func_pack16(const __m512& x) const
     {
-        __m512 exp_x = exp512_ps(x);
-        __m512 exp_neg_x = exp512_ps(_mm512_sub_ps(_mm512_setzero_ps(), x));
-        return _mm512_mul_ps(_mm512_sub_ps(exp_x, exp_neg_x), _mm512_set1_ps(0.5f));
+        return sinh512_ps(x);
     }
 #endif // __AVX512F__
 #endif // __AVX__
@@ -652,23 +634,17 @@ struct unary_op_asinh
 #if __SSE2__
     NCNN_FORCEINLINE __m128 func_pack4(const __m128& x) const
     {
-        __m128 one = _mm_set1_ps(1.f);
-        __m128 x2 = _mm_mul_ps(x, x);
-        return log_ps(_mm_add_ps(x, _mm_sqrt_ps(_mm_add_ps(x2, one))));
+        return asinh_ps(x);
     }
 #if __AVX__
     NCNN_FORCEINLINE __m256 func_pack8(const __m256& x) const
     {
-        __m256 one = _mm256_set1_ps(1.f);
-        __m256 x2 = _mm256_mul_ps(x, x);
-        return log256_ps(_mm256_add_ps(x, _mm256_sqrt_ps(_mm256_add_ps(x2, one))));
+        return asinh256_ps(x);
     }
 #if __AVX512F__
     NCNN_FORCEINLINE __m512 func_pack16(const __m512& x) const
     {
-        __m512 one = _mm512_set1_ps(1.f);
-        __m512 x2 = _mm512_mul_ps(x, x);
-        return log512_ps(_mm512_add_ps(x, _mm512_sqrt_ps(_mm512_add_ps(x2, one))));
+        return asinh512_ps(x);
     }
 #endif // __AVX512F__
 #endif // __AVX__
@@ -684,23 +660,17 @@ struct unary_op_cosh
 #if __SSE2__
     NCNN_FORCEINLINE __m128 func_pack4(const __m128& x) const
     {
-        __m128 exp_x = exp_ps(x);
-        __m128 exp_neg_x = exp_ps(_mm_sub_ps(_mm_setzero_ps(), x));
-        return _mm_mul_ps(_mm_add_ps(exp_x, exp_neg_x), _mm_set1_ps(0.5f));
+        return cosh_ps(x);
     }
 #if __AVX__
     NCNN_FORCEINLINE __m256 func_pack8(const __m256& x) const
     {
-        __m256 exp_x = exp256_ps(x);
-        __m256 exp_neg_x = exp256_ps(_mm256_sub_ps(_mm256_setzero_ps(), x));
-        return _mm256_mul_ps(_mm256_add_ps(exp_x, exp_neg_x), _mm256_set1_ps(0.5f));
+        return cosh256_ps(x);
     }
 #if __AVX512F__
     NCNN_FORCEINLINE __m512 func_pack16(const __m512& x) const
     {
-        __m512 exp_x = exp512_ps(x);
-        __m512 exp_neg_x = exp512_ps(_mm512_sub_ps(_mm512_setzero_ps(), x));
-        return _mm512_mul_ps(_mm512_add_ps(exp_x, exp_neg_x), _mm512_set1_ps(0.5f));
+        return cosh512_ps(x);
     }
 #endif // __AVX512F__
 #endif // __AVX__
@@ -716,23 +686,17 @@ struct unary_op_acosh
 #if __SSE2__
     NCNN_FORCEINLINE __m128 func_pack4(const __m128& x) const
     {
-        __m128 one = _mm_set1_ps(1.f);
-        __m128 x2 = _mm_mul_ps(x, x);
-        return log_ps(_mm_add_ps(x, _mm_sqrt_ps(_mm_sub_ps(x2, one))));
+        return acosh_ps(x);
     }
 #if __AVX__
     NCNN_FORCEINLINE __m256 func_pack8(const __m256& x) const
     {
-        __m256 one = _mm256_set1_ps(1.f);
-        __m256 x2 = _mm256_mul_ps(x, x);
-        return log256_ps(_mm256_add_ps(x, _mm256_sqrt_ps(_mm256_sub_ps(x2, one))));
+        return acosh256_ps(x);
     }
 #if __AVX512F__
     NCNN_FORCEINLINE __m512 func_pack16(const __m512& x) const
     {
-        __m512 one = _mm512_set1_ps(1.f);
-        __m512 x2 = _mm512_mul_ps(x, x);
-        return log512_ps(_mm512_add_ps(x, _mm512_sqrt_ps(_mm512_sub_ps(x2, one))));
+        return acosh512_ps(x);
     }
 #endif // __AVX512F__
 #endif // __AVX__
@@ -748,26 +712,17 @@ struct unary_op_atanh
 #if __SSE2__
     NCNN_FORCEINLINE __m128 func_pack4(const __m128& x) const
     {
-        __m128 one = _mm_set1_ps(1.f);
-        __m128 a = _mm_add_ps(one, x);
-        __m128 b = _mm_sub_ps(one, x);
-        return _mm_mul_ps(log_ps(_mm_div_ps(a, b)), _mm_set1_ps(0.5f));
+        return atanh_ps(x);
     }
 #if __AVX__
     NCNN_FORCEINLINE __m256 func_pack8(const __m256& x) const
     {
-        __m256 one = _mm256_set1_ps(1.f);
-        __m256 a = _mm256_add_ps(one, x);
-        __m256 b = _mm256_sub_ps(one, x);
-        return _mm256_mul_ps(log256_ps(_mm256_div_ps(a, b)), _mm256_set1_ps(0.5f));
+        return atanh256_ps(x);
     }
 #if __AVX512F__
     NCNN_FORCEINLINE __m512 func_pack16(const __m512& x) const
     {
-        __m512 one = _mm512_set1_ps(1.f);
-        __m512 a = _mm512_add_ps(one, x);
-        __m512 b = _mm512_sub_ps(one, x);
-        return _mm512_mul_ps(log512_ps(_mm512_div_ps(a, b)), _mm512_set1_ps(0.5f));
+        return atanh512_ps(x);
     }
 #endif // __AVX512F__
 #endif // __AVX__
@@ -783,29 +738,17 @@ struct unary_op_log1p
 #if __SSE2__
     NCNN_FORCEINLINE __m128 func_pack4(const __m128& x) const
     {
-        __m128 x2 = _mm_mul_ps(x, x);
-        __m128 poly = _mm_add_ps(x, _mm_mul_ps(x2, _mm_add_ps(_mm_set1_ps(-0.5f), _mm_mul_ps(x, _mm_set1_ps(1.0f / 3.0f)))));
-        __m128 y = log_ps(_mm_add_ps(_mm_set1_ps(1.f), x));
-        __m128 mask = _mm_cmplt_ps(abs_ps(x), _mm_set1_ps(1e-4f));
-        return _mm_or_ps(_mm_and_ps(mask, poly), _mm_andnot_ps(mask, y));
+        return log1p_ps(x);
     }
 #if __AVX__
     NCNN_FORCEINLINE __m256 func_pack8(const __m256& x) const
     {
-        __m256 x2 = _mm256_mul_ps(x, x);
-        __m256 poly = _mm256_add_ps(x, _mm256_mul_ps(x2, _mm256_add_ps(_mm256_set1_ps(-0.5f), _mm256_mul_ps(x, _mm256_set1_ps(1.0f / 3.0f)))));
-        __m256 y = log256_ps(_mm256_add_ps(_mm256_set1_ps(1.f), x));
-        __m256 mask = _mm256_cmp_ps(abs256_ps(x), _mm256_set1_ps(1e-4f), _CMP_LT_OQ);
-        return _mm256_or_ps(_mm256_and_ps(mask, poly), _mm256_andnot_ps(mask, y));
+        return log1p256_ps(x);
     }
 #if __AVX512F__
     NCNN_FORCEINLINE __m512 func_pack16(const __m512& x) const
     {
-        __m512 x2 = _mm512_mul_ps(x, x);
-        __m512 poly = _mm512_add_ps(x, _mm512_mul_ps(x2, _mm512_add_ps(_mm512_set1_ps(-0.5f), _mm512_mul_ps(x, _mm512_set1_ps(1.0f / 3.0f)))));
-        __m512 y = log512_ps(_mm512_add_ps(_mm512_set1_ps(1.f), x));
-        __mmask16 mask = _mm512_cmp_ps_mask(abs512_ps(x), _mm512_set1_ps(1e-4f), _CMP_LT_OQ);
-        return _mm512_mask_blend_ps(mask, y, poly);
+        return log1p512_ps(x);
     }
 #endif // __AVX512F__
 #endif // __AVX__

@@ -87,12 +87,12 @@ struct unary_op_abs
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        return (__m128)__lsx_vbitclri_w((__m128i)x, 31);
+        return abs_ps(x);
     }
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        return (__m256)__lasx_xvbitclri_w((__m256i)x, 31);
+        return abs256_ps(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
@@ -541,18 +541,12 @@ struct unary_op_expm1
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = expm1f(tmp[0]);
-        tmp[1] = expm1f(tmp[1]);
-        tmp[2] = expm1f(tmp[2]);
-        tmp[3] = expm1f(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return expm1_ps(x);
     }
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        return __lasx_concat_128_s(func_pack4(__lasx_extract_128_lo_s(x)), func_pack4(__lasx_extract_128_hi_s(x)));
+        return expm1256_ps(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
@@ -567,18 +561,12 @@ struct unary_op_sinh
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = sinhf(tmp[0]);
-        tmp[1] = sinhf(tmp[1]);
-        tmp[2] = sinhf(tmp[2]);
-        tmp[3] = sinhf(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return sinh_ps(x);
     }
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        return __lasx_concat_128_s(func_pack4(__lasx_extract_128_lo_s(x)), func_pack4(__lasx_extract_128_hi_s(x)));
+        return sinh256_ps(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
@@ -593,18 +581,12 @@ struct unary_op_asinh
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = asinhf(tmp[0]);
-        tmp[1] = asinhf(tmp[1]);
-        tmp[2] = asinhf(tmp[2]);
-        tmp[3] = asinhf(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return asinh_ps(x);
     }
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        return __lasx_concat_128_s(func_pack4(__lasx_extract_128_lo_s(x)), func_pack4(__lasx_extract_128_hi_s(x)));
+        return asinh256_ps(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
@@ -619,18 +601,12 @@ struct unary_op_cosh
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = coshf(tmp[0]);
-        tmp[1] = coshf(tmp[1]);
-        tmp[2] = coshf(tmp[2]);
-        tmp[3] = coshf(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return cosh_ps(x);
     }
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        return __lasx_concat_128_s(func_pack4(__lasx_extract_128_lo_s(x)), func_pack4(__lasx_extract_128_hi_s(x)));
+        return cosh256_ps(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
@@ -645,18 +621,12 @@ struct unary_op_acosh
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = acoshf(tmp[0]);
-        tmp[1] = acoshf(tmp[1]);
-        tmp[2] = acoshf(tmp[2]);
-        tmp[3] = acoshf(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return acosh_ps(x);
     }
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        return __lasx_concat_128_s(func_pack4(__lasx_extract_128_lo_s(x)), func_pack4(__lasx_extract_128_hi_s(x)));
+        return acosh256_ps(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
@@ -671,18 +641,12 @@ struct unary_op_atanh
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = atanhf(tmp[0]);
-        tmp[1] = atanhf(tmp[1]);
-        tmp[2] = atanhf(tmp[2]);
-        tmp[3] = atanhf(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return atanh_ps(x);
     }
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        return __lasx_concat_128_s(func_pack4(__lasx_extract_128_lo_s(x)), func_pack4(__lasx_extract_128_hi_s(x)));
+        return atanh256_ps(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
@@ -697,18 +661,12 @@ struct unary_op_log1p
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = log1pf(tmp[0]);
-        tmp[1] = log1pf(tmp[1]);
-        tmp[2] = log1pf(tmp[2]);
-        tmp[3] = log1pf(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return log1p_ps(x);
     }
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        return __lasx_concat_128_s(func_pack4(__lasx_extract_128_lo_s(x)), func_pack4(__lasx_extract_128_hi_s(x)));
+        return log1p256_ps(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
