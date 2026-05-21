@@ -103,6 +103,7 @@ int ELU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) cons
 #if __ARM_NEON
         float32x4_t _alpha = vdupq_n_f32(alpha);
 
+#if __aarch64__
         for (; i + 15 < size; i += 16)
         {
             uint16x8_t _p = vld1q_u16(ptr);
@@ -126,6 +127,7 @@ int ELU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) cons
             vst1q_u16(ptr, _p);
             ptr += 8;
         }
+#endif // __aarch64__
         for (; i + 3 < size; i += 4)
         {
             float32x4_t _p = elu_ps(bfloat2float(vld1_u16(ptr)), _alpha);

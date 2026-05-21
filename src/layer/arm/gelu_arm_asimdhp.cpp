@@ -70,7 +70,7 @@ int GELU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
             for (; i < size; i++)
             {
                 float v = (float)*ptr;
-                v = 0.5f * v * (1.0f + erff(0.70710678f * v));
+                v = 0.5f * v * erfcf(-0.70710678f * v);
                 *ptr = (__fp16)v;
                 ptr++;
             }
@@ -132,7 +132,9 @@ int GELU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) co
 
             for (; i < size; i++)
             {
-                *ptr = (__fp16)0.5f * *ptr * (__fp16)(1.0f + erff((__fp16)0.70710678f * *ptr));
+                float v = (float)*ptr;
+                v = 0.5f * v * erfcf(-0.70710678f * v);
+                *ptr = (__fp16)v;
                 ptr++;
             }
         }

@@ -59,6 +59,18 @@ int Erf_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         int i = 0;
 #if __ARM_NEON
+#if __aarch64__
+        for (; i + 7 < size; i += 8)
+        {
+            float32x4_t _p0 = vld1q_f32(ptr);
+            float32x4_t _p1 = vld1q_f32(ptr + 4);
+            _p0 = erf_ps(_p0);
+            _p1 = erf_ps(_p1);
+            vst1q_f32(ptr, _p0);
+            vst1q_f32(ptr + 4, _p1);
+            ptr += 8;
+        }
+#endif // __aarch64__
         for (; i + 3 < size; i += 4)
         {
             float32x4_t _p = vld1q_f32(ptr);
@@ -93,6 +105,31 @@ int Erf_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) cons
 
         int i = 0;
 #if __ARM_NEON
+#if __aarch64__
+        for (; i + 15 < size; i += 16)
+        {
+            uint16x8_t _p = vld1q_u16(ptr);
+            uint16x8_t _q = vld1q_u16(ptr + 8);
+            float32x4_t _p0 = erf_ps(bfloat2float(vget_low_u16(_p)));
+            float32x4_t _p1 = erf_ps(bfloat2float(vget_high_u16(_p)));
+            float32x4_t _p2 = erf_ps(bfloat2float(vget_low_u16(_q)));
+            float32x4_t _p3 = erf_ps(bfloat2float(vget_high_u16(_q)));
+            _p = vcombine_u16(float2bfloat(_p0), float2bfloat(_p1));
+            _q = vcombine_u16(float2bfloat(_p2), float2bfloat(_p3));
+            vst1q_u16(ptr, _p);
+            vst1q_u16(ptr + 8, _q);
+            ptr += 16;
+        }
+        for (; i + 7 < size; i += 8)
+        {
+            uint16x8_t _p = vld1q_u16(ptr);
+            float32x4_t _p0 = erf_ps(bfloat2float(vget_low_u16(_p)));
+            float32x4_t _p1 = erf_ps(bfloat2float(vget_high_u16(_p)));
+            _p = vcombine_u16(float2bfloat(_p0), float2bfloat(_p1));
+            vst1q_u16(ptr, _p);
+            ptr += 8;
+        }
+#endif // __aarch64__
         for (; i + 3 < size; i += 4)
         {
             float32x4_t _p = bfloat2float(vld1_u16(ptr));

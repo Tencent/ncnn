@@ -36,42 +36,6 @@ int SELU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
         float32x4_t _alphaxlambda_f32 = vdupq_n_f32(alphaxlambda);
         float32x4_t _lambda_f32 = vdupq_n_f32(lambda);
 
-        for (; i + 31 < size; i += 32)
-        {
-            float16x8_t _p0 = vld1q_f16(ptr);
-            float16x8_t _p1 = vld1q_f16(ptr + 8);
-            float16x8_t _p2 = vld1q_f16(ptr + 16);
-            float16x8_t _p3 = vld1q_f16(ptr + 24);
-
-            float32x4_t _p0_low = selu_ps(vcvt_f32_f16(vget_low_f16(_p0)), _alphaxlambda_f32, _lambda_f32);
-            float32x4_t _p0_high = selu_ps(vcvt_f32_f16(vget_high_f16(_p0)), _alphaxlambda_f32, _lambda_f32);
-            float32x4_t _p1_low = selu_ps(vcvt_f32_f16(vget_low_f16(_p1)), _alphaxlambda_f32, _lambda_f32);
-            float32x4_t _p1_high = selu_ps(vcvt_f32_f16(vget_high_f16(_p1)), _alphaxlambda_f32, _lambda_f32);
-            float32x4_t _p2_low = selu_ps(vcvt_f32_f16(vget_low_f16(_p2)), _alphaxlambda_f32, _lambda_f32);
-            float32x4_t _p2_high = selu_ps(vcvt_f32_f16(vget_high_f16(_p2)), _alphaxlambda_f32, _lambda_f32);
-            float32x4_t _p3_low = selu_ps(vcvt_f32_f16(vget_low_f16(_p3)), _alphaxlambda_f32, _lambda_f32);
-            float32x4_t _p3_high = selu_ps(vcvt_f32_f16(vget_high_f16(_p3)), _alphaxlambda_f32, _lambda_f32);
-
-            vst1q_f16(ptr, vcombine_f16(vcvt_f16_f32(_p0_low), vcvt_f16_f32(_p0_high)));
-            vst1q_f16(ptr + 8, vcombine_f16(vcvt_f16_f32(_p1_low), vcvt_f16_f32(_p1_high)));
-            vst1q_f16(ptr + 16, vcombine_f16(vcvt_f16_f32(_p2_low), vcvt_f16_f32(_p2_high)));
-            vst1q_f16(ptr + 24, vcombine_f16(vcvt_f16_f32(_p3_low), vcvt_f16_f32(_p3_high)));
-            ptr += 32;
-        }
-        for (; i + 15 < size; i += 16)
-        {
-            float16x8_t _p0 = vld1q_f16(ptr);
-            float16x8_t _p1 = vld1q_f16(ptr + 8);
-
-            float32x4_t _p0_low = selu_ps(vcvt_f32_f16(vget_low_f16(_p0)), _alphaxlambda_f32, _lambda_f32);
-            float32x4_t _p0_high = selu_ps(vcvt_f32_f16(vget_high_f16(_p0)), _alphaxlambda_f32, _lambda_f32);
-            float32x4_t _p1_low = selu_ps(vcvt_f32_f16(vget_low_f16(_p1)), _alphaxlambda_f32, _lambda_f32);
-            float32x4_t _p1_high = selu_ps(vcvt_f32_f16(vget_high_f16(_p1)), _alphaxlambda_f32, _lambda_f32);
-
-            vst1q_f16(ptr, vcombine_f16(vcvt_f16_f32(_p0_low), vcvt_f16_f32(_p0_high)));
-            vst1q_f16(ptr + 8, vcombine_f16(vcvt_f16_f32(_p1_low), vcvt_f16_f32(_p1_high)));
-            ptr += 16;
-        }
         for (; i + 7 < size; i += 8)
         {
             float16x8_t _p = vld1q_f16(ptr);
@@ -97,7 +61,7 @@ int SELU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
             if (v < (__fp16)0.f)
                 ptr[0] = (__fp16)((expf((float)v) - 1.f) * alphaxlambda);
             else
-                ptr[0] = v * (__fp16)lambda;
+                ptr[0] = (__fp16)((float)v * lambda);
 
             ptr += 1;
         }

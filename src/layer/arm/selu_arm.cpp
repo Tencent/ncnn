@@ -110,6 +110,7 @@ int SELU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
         float32x4_t _alphaxlambda = vdupq_n_f32(alphaxlambda);
         float32x4_t _lambda = vdupq_n_f32(lambda);
 
+#if __aarch64__
         for (; i + 15 < size; i += 16)
         {
             uint16x8_t _p = vld1q_u16(ptr);
@@ -133,6 +134,7 @@ int SELU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
             vst1q_u16(ptr, _p);
             ptr += 8;
         }
+#endif // __aarch64__
         for (; i + 3 < size; i += 4)
         {
             float32x4_t _p = selu_ps(bfloat2float(vld1_u16(ptr)), _alphaxlambda, _lambda);

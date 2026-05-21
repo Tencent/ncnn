@@ -33,42 +33,6 @@ int ELU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) cons
 
         float32x4_t _alpha_f32 = vdupq_n_f32(alpha);
 
-        for (; i + 31 < size; i += 32)
-        {
-            float16x8_t _p0 = vld1q_f16(ptr);
-            float16x8_t _p1 = vld1q_f16(ptr + 8);
-            float16x8_t _p2 = vld1q_f16(ptr + 16);
-            float16x8_t _p3 = vld1q_f16(ptr + 24);
-
-            float32x4_t _p0_low = elu_ps(vcvt_f32_f16(vget_low_f16(_p0)), _alpha_f32);
-            float32x4_t _p0_high = elu_ps(vcvt_f32_f16(vget_high_f16(_p0)), _alpha_f32);
-            float32x4_t _p1_low = elu_ps(vcvt_f32_f16(vget_low_f16(_p1)), _alpha_f32);
-            float32x4_t _p1_high = elu_ps(vcvt_f32_f16(vget_high_f16(_p1)), _alpha_f32);
-            float32x4_t _p2_low = elu_ps(vcvt_f32_f16(vget_low_f16(_p2)), _alpha_f32);
-            float32x4_t _p2_high = elu_ps(vcvt_f32_f16(vget_high_f16(_p2)), _alpha_f32);
-            float32x4_t _p3_low = elu_ps(vcvt_f32_f16(vget_low_f16(_p3)), _alpha_f32);
-            float32x4_t _p3_high = elu_ps(vcvt_f32_f16(vget_high_f16(_p3)), _alpha_f32);
-
-            vst1q_f16(ptr, vcombine_f16(vcvt_f16_f32(_p0_low), vcvt_f16_f32(_p0_high)));
-            vst1q_f16(ptr + 8, vcombine_f16(vcvt_f16_f32(_p1_low), vcvt_f16_f32(_p1_high)));
-            vst1q_f16(ptr + 16, vcombine_f16(vcvt_f16_f32(_p2_low), vcvt_f16_f32(_p2_high)));
-            vst1q_f16(ptr + 24, vcombine_f16(vcvt_f16_f32(_p3_low), vcvt_f16_f32(_p3_high)));
-            ptr += 32;
-        }
-        for (; i + 15 < size; i += 16)
-        {
-            float16x8_t _p0 = vld1q_f16(ptr);
-            float16x8_t _p1 = vld1q_f16(ptr + 8);
-
-            float32x4_t _p0_low = elu_ps(vcvt_f32_f16(vget_low_f16(_p0)), _alpha_f32);
-            float32x4_t _p0_high = elu_ps(vcvt_f32_f16(vget_high_f16(_p0)), _alpha_f32);
-            float32x4_t _p1_low = elu_ps(vcvt_f32_f16(vget_low_f16(_p1)), _alpha_f32);
-            float32x4_t _p1_high = elu_ps(vcvt_f32_f16(vget_high_f16(_p1)), _alpha_f32);
-
-            vst1q_f16(ptr, vcombine_f16(vcvt_f16_f32(_p0_low), vcvt_f16_f32(_p0_high)));
-            vst1q_f16(ptr + 8, vcombine_f16(vcvt_f16_f32(_p1_low), vcvt_f16_f32(_p1_high)));
-            ptr += 16;
-        }
         for (; i + 7 < size; i += 8)
         {
             float16x8_t _p = vld1q_f16(ptr);
@@ -119,24 +83,6 @@ int ELU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) con
 
         float16x8_t _alpha = vdupq_n_f16((__fp16)alpha);
 
-        for (; i + 31 < size; i += 32)
-        {
-            float16x8_t _p0 = vld1q_f16(ptr);
-            float16x8_t _p1 = vld1q_f16(ptr + 8);
-            float16x8_t _p2 = vld1q_f16(ptr + 16);
-            float16x8_t _p3 = vld1q_f16(ptr + 24);
-
-            _p0 = elu_ps_f16(_p0, _alpha);
-            _p1 = elu_ps_f16(_p1, _alpha);
-            _p2 = elu_ps_f16(_p2, _alpha);
-            _p3 = elu_ps_f16(_p3, _alpha);
-
-            vst1q_f16(ptr, _p0);
-            vst1q_f16(ptr + 8, _p1);
-            vst1q_f16(ptr + 16, _p2);
-            vst1q_f16(ptr + 24, _p3);
-            ptr += 32;
-        }
         for (; i + 15 < size; i += 16)
         {
             float16x8_t _p0 = vld1q_f16(ptr);
