@@ -310,7 +310,7 @@ static NCNN_FORCEINLINE __m128 sin_ps(__m128 x)
     __m128i swap_sign_bit, poly_mask, sign_bit;
     __m128 n0p5 = __lsx_vfmul_s((__m128)__lsx_vreplgr2vr_w(c_n1.i), (__m128)__lsx_vreplgr2vr_w(c_0p5.i));
 
-    sign_bit = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));
+    sign_bit = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w((int)0x80000000));
     x = (__m128)__lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x7fffffff));
 
     y = __lsx_vfmul_s(x, (__m128)__lsx_vreplgr2vr_w(c_cephes_FOPI.i));
@@ -412,7 +412,7 @@ static NCNN_FORCEINLINE void sincos_ps(__m128 x, __m128& s, __m128& c)
     __m128i swap_sign_bit_cos, swap_sign_bit_sin, poly_mask, sign_bit_sin, sign_bit_cos;
     __m128 n0p5 = __lsx_vfmul_s((__m128)__lsx_vreplgr2vr_w(c_n1.i), (__m128)__lsx_vreplgr2vr_w(c_0p5.i));
 
-    sign_bit_sin = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));
+    sign_bit_sin = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w((int)0x80000000));
     x = (__m128)__lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x7fffffff));
 
     y = __lsx_vfmul_s(x, (__m128)__lsx_vreplgr2vr_w(c_cephes_FOPI.i));
@@ -510,7 +510,7 @@ static NCNN_FORCEINLINE __m128 asin_ps(__m128 x)
     __m128 tmp1, tmp2, tmp3, tmp4;
     __m128i mask, is_small_input, is_big_input;
 
-    mask = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));
+    mask = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w((int)0x80000000));
     x = (__m128)__lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x7fffffff));
 
     is_small_input = __lsx_vfcmp_cle_s(x, (__m128)__lsx_vreplgr2vr_w(c_0p5.i));
@@ -551,7 +551,7 @@ static NCNN_FORCEINLINE __m128 acos_ps(__m128 x)
     __m128i mask, is_small_input, is_big_input, lt_zero;
 
     lt_zero = __lsx_vfcmp_clt_s(x, (__m128)__lsx_vreplgr2vr_w(c_0.i));
-    mask = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));
+    mask = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w((int)0x80000000));
     x = (__m128)__lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x7fffffff));
 
     is_small_input = __lsx_vfcmp_cle_s(x, (__m128)__lsx_vreplgr2vr_w(c_0p5.i));
@@ -605,7 +605,7 @@ static NCNN_FORCEINLINE __m128 atan_ps(__m128 x)
     __m128 tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, input_approx, output_approx;
     __m128 square_of_input_approx, fourth_power_of_input_approx;
 
-    mask = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));
+    mask = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w((int)0x80000000));
     x = (__m128)__lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x7fffffff));
 
     is_small_input = __lsx_vfcmp_clt_s((__m128)__lsx_vreplgr2vr_w(c_1.i), x);
@@ -648,8 +648,8 @@ static NCNN_FORCEINLINE __m128 atan2_ps(__m128 y, __m128 x)
     not_eq_zero_y = __lsx_vfcmp_cne_s(y, (__m128)__lsx_vreplgr2vr_w(c_0.i));
     eq_zero_y = __lsx_vxor_v(not_eq_zero_y, __lsx_vreplgr2vr_w(0xffffffff));
     normal_mode = __lsx_vand_v(not_eq_zero_x, not_eq_zero_y);
-    negative_mask_x = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));
-    negative_mask_y = __lsx_vand_v((__m128i)y, __lsx_vreplgr2vr_w(0x80000000));
+    negative_mask_x = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w((int)0x80000000));
+    negative_mask_y = __lsx_vand_v((__m128i)y, __lsx_vreplgr2vr_w((int)0x80000000));
 
     lt_zero_mask_x = __lsx_vfcmp_clt_s(x, (__m128)__lsx_vreplgr2vr_w(0));
     lt_zero_mask_y = __lsx_vfcmp_clt_s(y, (__m128)__lsx_vreplgr2vr_w(0));
@@ -700,6 +700,70 @@ static NCNN_FORCEINLINE __m128 logaddexp_ps(__m128 a, __m128 b)
     __m128 one_plus_exp = __lsx_vfadd_s(one, exp_diff);
     __m128 log_result = log_ps(one_plus_exp);
     return __lsx_vfadd_s(max_xy, log_result);
+}
+
+static NCNN_FORCEINLINE __m128 abs_ps(__m128 x)
+{
+    return (__m128)__lsx_vbitclri_w((__m128i)x, 31);
+}
+
+static NCNN_FORCEINLINE __m128 expm1_ps(__m128 x)
+{
+    __m128 x2 = __lsx_vfmul_s(x, x);
+    __m128 poly = __lsx_vfadd_s(x, __lsx_vfmul_s(x2, __lsx_vfadd_s(__lsx_vreplfr2vr_s(0.5f), __lsx_vfmul_s(x, __lsx_vreplfr2vr_s(1.0f / 6.0f)))));
+    __m128 y = __lsx_vfsub_s(exp_ps(x), __lsx_vreplfr2vr_s(1.f));
+    __m128i mask = __lsx_vfcmp_clt_s(abs_ps(x), __lsx_vreplfr2vr_s(1e-4f));
+    return (__m128)__lsx_vbitsel_v((__m128i)y, (__m128i)poly, mask);
+}
+
+static NCNN_FORCEINLINE __m128 log1p_ps(__m128 x)
+{
+    __m128 x2 = __lsx_vfmul_s(x, x);
+    __m128 poly = __lsx_vfadd_s(x, __lsx_vfmul_s(x2, __lsx_vfadd_s(__lsx_vreplfr2vr_s(-0.5f), __lsx_vfmul_s(x, __lsx_vreplfr2vr_s(1.0f / 3.0f)))));
+    __m128 y = log_ps(__lsx_vfadd_s(__lsx_vreplfr2vr_s(1.f), x));
+    __m128i mask = __lsx_vfcmp_clt_s(abs_ps(x), __lsx_vreplfr2vr_s(1e-4f));
+    return (__m128)__lsx_vbitsel_v((__m128i)y, (__m128i)poly, mask);
+}
+
+static NCNN_FORCEINLINE __m128 sinh_ps(__m128 x)
+{
+    __m128 expm1_x = expm1_ps(x);
+    __m128 expm1_neg_x = expm1_ps(__lsx_vfsub_s(__lsx_vreplfr2vr_s(0.f), x));
+    return __lsx_vfmul_s(__lsx_vfsub_s(expm1_x, expm1_neg_x), __lsx_vreplfr2vr_s(0.5f));
+}
+
+static NCNN_FORCEINLINE __m128 asinh_ps(__m128 x)
+{
+    __m128 ax = abs_ps(x);
+    __m128 x2 = __lsx_vfmul_s(ax, ax);
+    __m128 y = log_ps(__lsx_vfadd_s(ax, __lsx_vfsqrt_s(__lsx_vfadd_s(x2, __lsx_vreplfr2vr_s(1.f)))));
+    __m128 y_large = __lsx_vfadd_s(log_ps(ax), __lsx_vreplfr2vr_s(0.6931471805599453f));
+    __m128i mask = __lsx_vfcmp_clt_s(__lsx_vreplfr2vr_s(1e19f), ax);
+    y = (__m128)__lsx_vbitsel_v((__m128i)y, (__m128i)y_large, mask);
+    return (__m128)__lsx_vor_v((__m128i)y, __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w((int)0x80000000)));
+}
+
+static NCNN_FORCEINLINE __m128 cosh_ps(__m128 x)
+{
+    __m128 exp_x = exp_ps(x);
+    __m128 exp_neg_x = exp_ps(__lsx_vfsub_s(__lsx_vreplfr2vr_s(0.f), x));
+    return __lsx_vfmul_s(__lsx_vfadd_s(exp_x, exp_neg_x), __lsx_vreplfr2vr_s(0.5f));
+}
+
+static NCNN_FORCEINLINE __m128 acosh_ps(__m128 x)
+{
+    __m128 one = __lsx_vreplfr2vr_s(1.f);
+    __m128 y = log_ps(__lsx_vfadd_s(x, __lsx_vfmul_s(__lsx_vfsqrt_s(__lsx_vfsub_s(x, one)), __lsx_vfsqrt_s(__lsx_vfadd_s(x, one)))));
+    __m128 y_large = __lsx_vfadd_s(log_ps(x), __lsx_vreplfr2vr_s(0.6931471805599453f));
+    __m128i mask = __lsx_vfcmp_clt_s(__lsx_vreplfr2vr_s(1e19f), x);
+    return (__m128)__lsx_vbitsel_v((__m128i)y, (__m128i)y_large, mask);
+}
+
+static NCNN_FORCEINLINE __m128 atanh_ps(__m128 x)
+{
+    __m128 log_pos = log1p_ps(x);
+    __m128 log_neg = log1p_ps(__lsx_vfsub_s(__lsx_vreplfr2vr_s(0.f), x));
+    return __lsx_vfmul_s(__lsx_vfsub_s(log_pos, log_neg), __lsx_vreplfr2vr_s(0.5f));
 }
 
 static NCNN_FORCEINLINE __m128 floor_ps(__m128 x)

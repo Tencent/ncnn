@@ -540,6 +540,92 @@ static inline float16x8_t tanh_ps_f16(float16x8_t x)
     return y;
 }
 
+static inline float16x4_t expm1_ps_f16(float16x4_t x)
+{
+    return vsub_f16(exp_ps_f16(x), vdup_n_f16(1.f));
+}
+
+static inline float16x8_t expm1_ps_f16(float16x8_t x)
+{
+    return vsubq_f16(exp_ps_f16(x), vdupq_n_f16(1.f));
+}
+
+static inline float16x4_t log1p_ps_f16(float16x4_t x)
+{
+    return log_ps_f16(vadd_f16(vdup_n_f16(1.f), x));
+}
+
+static inline float16x8_t log1p_ps_f16(float16x8_t x)
+{
+    return log_ps_f16(vaddq_f16(vdupq_n_f16(1.f), x));
+}
+
+static inline float16x4_t sinh_ps_f16(float16x4_t x)
+{
+    return vmul_f16(vsub_f16(expm1_ps_f16(x), expm1_ps_f16(vneg_f16(x))), vdup_n_f16(0.5f));
+}
+
+static inline float16x8_t sinh_ps_f16(float16x8_t x)
+{
+    return vmulq_f16(vsubq_f16(expm1_ps_f16(x), expm1_ps_f16(vnegq_f16(x))), vdupq_n_f16(0.5f));
+}
+
+static inline float16x4_t asinh_ps_f16(float16x4_t x)
+{
+    float16x4_t ax = vabs_f16(x);
+    float16x4_t x2 = vmul_f16(ax, ax);
+    float16x4_t y = log_ps_f16(vadd_f16(ax, vsqrt_f16(vadd_f16(x2, vdup_n_f16(1.f)))));
+    float16x4_t y_large = vadd_f16(log_ps_f16(ax), vdup_n_f16(0.6931471805599453f));
+    y = vreinterpret_f16_u16(vbsl_u16(vcgt_f16(ax, vdup_n_f16(128.f)), vreinterpret_u16_f16(y_large), vreinterpret_u16_f16(y)));
+    return vreinterpret_f16_u16(vorr_u16(vreinterpret_u16_f16(y), vand_u16(vreinterpret_u16_f16(x), vdup_n_u16(1u << 15))));
+}
+
+static inline float16x8_t asinh_ps_f16(float16x8_t x)
+{
+    float16x8_t ax = vabsq_f16(x);
+    float16x8_t x2 = vmulq_f16(ax, ax);
+    float16x8_t y = log_ps_f16(vaddq_f16(ax, vsqrtq_f16(vaddq_f16(x2, vdupq_n_f16(1.f)))));
+    float16x8_t y_large = vaddq_f16(log_ps_f16(ax), vdupq_n_f16(0.6931471805599453f));
+    y = vreinterpretq_f16_u16(vbslq_u16(vcgtq_f16(ax, vdupq_n_f16(128.f)), vreinterpretq_u16_f16(y_large), vreinterpretq_u16_f16(y)));
+    return vreinterpretq_f16_u16(vorrq_u16(vreinterpretq_u16_f16(y), vandq_u16(vreinterpretq_u16_f16(x), vdupq_n_u16(1u << 15))));
+}
+
+static inline float16x4_t cosh_ps_f16(float16x4_t x)
+{
+    return vmul_f16(vadd_f16(exp_ps_f16(x), exp_ps_f16(vneg_f16(x))), vdup_n_f16(0.5f));
+}
+
+static inline float16x8_t cosh_ps_f16(float16x8_t x)
+{
+    return vmulq_f16(vaddq_f16(exp_ps_f16(x), exp_ps_f16(vnegq_f16(x))), vdupq_n_f16(0.5f));
+}
+
+static inline float16x4_t acosh_ps_f16(float16x4_t x)
+{
+    float16x4_t one = vdup_n_f16(1.f);
+    float16x4_t y = log_ps_f16(vadd_f16(x, vmul_f16(vsqrt_f16(vsub_f16(x, one)), vsqrt_f16(vadd_f16(x, one)))));
+    float16x4_t y_large = vadd_f16(log_ps_f16(x), vdup_n_f16(0.6931471805599453f));
+    return vreinterpret_f16_u16(vbsl_u16(vcgt_f16(x, vdup_n_f16(32768.f)), vreinterpret_u16_f16(y_large), vreinterpret_u16_f16(y)));
+}
+
+static inline float16x8_t acosh_ps_f16(float16x8_t x)
+{
+    float16x8_t one = vdupq_n_f16(1.f);
+    float16x8_t y = log_ps_f16(vaddq_f16(x, vmulq_f16(vsqrtq_f16(vsubq_f16(x, one)), vsqrtq_f16(vaddq_f16(x, one)))));
+    float16x8_t y_large = vaddq_f16(log_ps_f16(x), vdupq_n_f16(0.6931471805599453f));
+    return vreinterpretq_f16_u16(vbslq_u16(vcgtq_f16(x, vdupq_n_f16(32768.f)), vreinterpretq_u16_f16(y_large), vreinterpretq_u16_f16(y)));
+}
+
+static inline float16x4_t atanh_ps_f16(float16x4_t x)
+{
+    return vmul_f16(vsub_f16(log1p_ps_f16(x), log1p_ps_f16(vneg_f16(x))), vdup_n_f16(0.5f));
+}
+
+static inline float16x8_t atanh_ps_f16(float16x8_t x)
+{
+    return vmulq_f16(vsubq_f16(log1p_ps_f16(x), log1p_ps_f16(vnegq_f16(x))), vdupq_n_f16(0.5f));
+}
+
 static inline float16x4_t sigmoid_ps_f16(float16x4_t _v)
 {
     float16x4_t _one = vdup_n_f16(1.f);
