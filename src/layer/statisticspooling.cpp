@@ -59,7 +59,8 @@ int StatisticsPooling::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         float std = 0.f;
         for (int i = 0; i < size; i++)
         {
-            std += powf((ptr[i] - top_blob[q - channels]), 2);
+            float v = ptr[i] - top_blob[q - channels];
+            std += v * v;
         }
         top_blob[q] = sqrtf(std / size);
     }

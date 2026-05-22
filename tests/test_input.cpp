@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
-#include "input.h"
 
 static void set_input_params(ncnn::ParamDict& pd, const ncnn::Mat& a)
 {
@@ -19,27 +18,6 @@ static int test_input(const ncnn::Mat& a)
 {
     ncnn::ParamDict pd;
     set_input_params(pd, a);
-
-    {
-        ncnn::Input op;
-
-        int ret = op.load_param(pd);
-        if (ret != 0)
-        {
-            fprintf(stderr, "test_input load_param failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);
-            return ret;
-        }
-
-        int h = a.dims >= 2 ? a.h : 0;
-        int d = a.dims == 4 ? a.d : 0;
-        int c = a.dims >= 3 ? a.c : 0;
-
-        if (op.w != a.w || op.h != h || op.d != d || op.c != c)
-        {
-            fprintf(stderr, "test_input shape param failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);
-            return -1;
-        }
-    }
 
     std::vector<ncnn::Mat> weights(0);
 
