@@ -115,6 +115,14 @@ ex.input("in0", in);
 ncnn::Mat out;
 ex.extract("out0", out);</code></pre>
 
+### Or use Python
+
+<pre><code class="language-python">import ncnn
+
+net = ncnn.Net()
+net.load_param("model.ncnn.param")
+net.load_model("model.ncnn.bin")</code></pre>
+
 </td>
 </tr>
 </table>
