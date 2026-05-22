@@ -76,15 +76,18 @@ import pnnx
 class Model(nn.Module):
     def __init__(self):
         super().__init__()
-        self.conv = nn.Conv2d(3, 8, 3, 1, 1)
-        self.pool = nn.AdaptiveAvgPool2d(1)
+        self.conv = nn.Conv2d(3, 8, 1)
+        self.relu = nn.ReLU()
+        self.fc = nn.Linear(8, 4)
 
     def forward(self, x):
-        x = torch.relu(self.conv(x))
-        x = self.pool(x)
-        return torch.flatten(x, 1)
+        x = self.conv(x)
+        x = self.relu(x)
+        x = x.mean((2, 3))
+        return self.fc(x)
 
 model = Model().eval()
+
 x = torch.rand(1, 3, 224, 224)
 
 pnnx.export(model, "model.pt", (x,))</code></pre>
