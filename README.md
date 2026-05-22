@@ -131,8 +131,8 @@ mat = ncnn.Mat(x)
 
 ex = net.create_extractor()
 ex.input("in0", mat)
-ret, out = ex.extract("out0")
 
+ret, out = ex.extract("out0")
 print(np.array(out).shape)
 ```
 
