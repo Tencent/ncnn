@@ -8,7 +8,7 @@ This page documents the existing AHB import path (`VkAndroidHardwareBufferImageA
 
 - Android API level **26 or higher**.
 - ncnn built with `-DANDROID_PLATFORM=android-26` (or higher) and `-DNCNN_VULKAN=ON`. The official prebuilt archives published on the releases page are built with `-DANDROID_PLATFORM=android-21` (see [`build-android.cmd`](../../build-android.cmd)) and have every AHB symbol stripped from `libncnn.a`. If you link the official prebuilt and try to use any of `VkAndroidHardwareBufferImageAllocator`, `VkImageMat::from_android_hardware_buffer`, or `ImportAndroidHardwareBufferPipeline`, the linker will fail with `undefined symbol: ...`.
-- A Vulkan-capable GPU that supports `VK_ANDROID_external_memory_android_hardware_buffer`.
+- A Vulkan-capable GPU that supports `VK_ANDROID_external_memory_android_hardware_buffer`. Verified on Adreno 830 (Vulkan 1.3.284) and Mali-G925 Immortalis MC12 (Vulkan 1.3.278) — both report `spec version 5`. The camera HAL on each surfaces the same YCbCr externalFormat (`AHARDWAREBUFFER_FORMAT_Y8Cb8Cr8_420`); only the auxiliary usage bits differ between vendors and are not consumed by this path.
 
 Quick runtime capability check:
 
