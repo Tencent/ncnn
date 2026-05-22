@@ -87,12 +87,12 @@ struct unary_op_abs
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        return (__m128)__lsx_vbitclri_w((__m128i)x, 31);
+        return abs_ps(x);
     }
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        return (__m256)__lasx_xvbitclri_w((__m256i)x, 31);
+        return abs256_ps(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
@@ -500,6 +500,178 @@ struct unary_op_trunc
 #endif // __loongarch_sx
 };
 
+struct unary_op_sign
+{
+    float func(const float& x) const
+    {
+        return x > 0.f ? 1.f : x < 0.f ? -1.f : 0.f;
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        __m128 _zero = (__m128)__lsx_vreplgr2vr_w(0);
+        __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
+        __m128 _negone = (__m128)__lsx_vreplfr2vr_s(-1.f);
+        __m128i _posmask = __lsx_vfcmp_clt_s(_zero, x);
+        __m128i _negmask = __lsx_vfcmp_clt_s(x, _zero);
+        __m128 _sign = (__m128)__lsx_vbitsel_v((__m128i)_zero, (__m128i)_one, _posmask);
+        return (__m128)__lsx_vbitsel_v((__m128i)_sign, (__m128i)_negone, _negmask);
+    }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        __m256 _zero = (__m256)__lasx_xvreplgr2vr_w(0);
+        __m256 _one = (__m256)__lasx_xvreplfr2vr_s(1.f);
+        __m256 _negone = (__m256)__lasx_xvreplfr2vr_s(-1.f);
+        __m256i _posmask = __lasx_xvfcmp_clt_s(_zero, x);
+        __m256i _negmask = __lasx_xvfcmp_clt_s(x, _zero);
+        __m256 _sign = (__m256)__lasx_xvbitsel_v((__m256i)_zero, (__m256i)_one, _posmask);
+        return (__m256)__lasx_xvbitsel_v((__m256i)_sign, (__m256i)_negone, _negmask);
+    }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+};
+
+struct unary_op_expm1
+{
+    float func(const float& x) const
+    {
+        return (float)expm1f(x);
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        return expm1_ps(x);
+    }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return expm1256_ps(x);
+    }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+};
+
+struct unary_op_sinh
+{
+    float func(const float& x) const
+    {
+        return (float)sinhf(x);
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        return sinh_ps(x);
+    }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return sinh256_ps(x);
+    }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+};
+
+struct unary_op_asinh
+{
+    float func(const float& x) const
+    {
+        return (float)asinhf(x);
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        return asinh_ps(x);
+    }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return asinh256_ps(x);
+    }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+};
+
+struct unary_op_cosh
+{
+    float func(const float& x) const
+    {
+        return (float)coshf(x);
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        return cosh_ps(x);
+    }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return cosh256_ps(x);
+    }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+};
+
+struct unary_op_acosh
+{
+    float func(const float& x) const
+    {
+        return (float)acoshf(x);
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        return acosh_ps(x);
+    }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return acosh256_ps(x);
+    }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+};
+
+struct unary_op_atanh
+{
+    float func(const float& x) const
+    {
+        return (float)atanhf(x);
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        return atanh_ps(x);
+    }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return atanh256_ps(x);
+    }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+};
+
+struct unary_op_log1p
+{
+    float func(const float& x) const
+    {
+        return (float)log1pf(x);
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        return log1p_ps(x);
+    }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return log1p256_ps(x);
+    }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+};
+
 } // namespace UnaryOp_loongarch_functor
 
 #if NCNN_BF16
@@ -635,6 +807,30 @@ int UnaryOp_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
 
+    if (op_type == Operation_SIGN)
+        return unary_op_inplace<unary_op_sign>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXPM1)
+        return unary_op_inplace<unary_op_expm1>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SINH)
+        return unary_op_inplace<unary_op_sinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASINH)
+        return unary_op_inplace<unary_op_asinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COSH)
+        return unary_op_inplace<unary_op_cosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOSH)
+        return unary_op_inplace<unary_op_acosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATANH)
+        return unary_op_inplace<unary_op_atanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG1P)
+        return unary_op_inplace<unary_op_log1p>(bottom_top_blob, opt);
+
     return 0;
 }
 
@@ -702,6 +898,30 @@ int UnaryOp_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace_bf16s<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SIGN)
+        return unary_op_inplace_bf16s<unary_op_sign>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXPM1)
+        return unary_op_inplace_bf16s<unary_op_expm1>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SINH)
+        return unary_op_inplace_bf16s<unary_op_sinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASINH)
+        return unary_op_inplace_bf16s<unary_op_asinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COSH)
+        return unary_op_inplace_bf16s<unary_op_cosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOSH)
+        return unary_op_inplace_bf16s<unary_op_acosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATANH)
+        return unary_op_inplace_bf16s<unary_op_atanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG1P)
+        return unary_op_inplace_bf16s<unary_op_log1p>(bottom_top_blob, opt);
 
     return 0;
 }

@@ -7,6 +7,7 @@ endmacro()
 
 pnnx_onnx_add_test(onnx_activation_ops)
 pnnx_onnx_add_test(onnx_math_ops)
+pnnx_onnx_add_test(onnx_unary_ops_ext)
 pnnx_onnx_add_test(onnx_reduce_ops)
 pnnx_onnx_add_test(onnx_layout_ops)
 pnnx_onnx_add_test(onnx_normalize_ops)
