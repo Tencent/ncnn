@@ -1,12 +1,5 @@
 
 
-
-
-
-
-
-
-
 #include "lstm_riscv.h"
 #include <riscv_vector.h>
 #include "riscv_usability.h"
@@ -24,7 +17,7 @@ static inline float dot_product(const float* a, const float* b, int n)
 {
     size_t max_vl = __riscv_vsetvlmax_e32m8();
     vfloat32m8_t sum_v = __riscv_vfmv_v_f_f32m8(0.f, max_vl);
-    
+
     while (n > 0)
     {
         size_t vl = __riscv_vsetvl_e32m8(n);
@@ -35,7 +28,7 @@ static inline float dot_product(const float* a, const float* b, int n)
         b += vl;
         n -= vl;
     }
-    
+
     vfloat32m1_t sum_s = __riscv_vfredusum_vs_f32m8_f32m1(sum_v, __riscv_vfmv_v_f_f32m1(0.f, 1), max_vl);
     return __riscv_vfmv_f_s_f32m1_f32(sum_s);
 }
@@ -46,12 +39,12 @@ static void sigmoid_vector(float* ptr, int n)
     {
         size_t vl = __riscv_vsetvl_e32m8(n);
         vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-        
+
         vfloat32m8_t _neg_p = __riscv_vfmul_vf_f32m8(_p, -1.f, vl);
         vfloat32m8_t _exp_neg_p = exp_ps(_neg_p, vl);
         vfloat32m8_t _den = __riscv_vfadd_vf_f32m8(_exp_neg_p, 1.f, vl);
         _p = __riscv_vfrdiv_vf_f32m8(_den, 1.f, vl);
-        
+
         __riscv_vse32_v_f32m8(ptr, _p, vl);
         ptr += vl;
         n -= vl;
@@ -64,13 +57,13 @@ static void tanh_vector(float* ptr, int n)
     {
         size_t vl = __riscv_vsetvl_e32m8(n);
         vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-        
+
         vfloat32m8_t _2x = __riscv_vfmul_vf_f32m8(_p, 2.f, vl);
         vfloat32m8_t _exp2x = exp_ps(_2x, vl);
         vfloat32m8_t _num = __riscv_vfsub_vf_f32m8(_exp2x, 1.f, vl);
         vfloat32m8_t _den = __riscv_vfadd_vf_f32m8(_exp2x, 1.f, vl);
         _p = __riscv_vfdiv_vv_f32m8(_num, _den, vl);
-        
+
         __riscv_vse32_v_f32m8(ptr, _p, vl);
         ptr += vl;
         n -= vl;
@@ -103,7 +96,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
         int ti = reverse ? T - 1 - t : t;
 
         const float* x = bottom_blob.row(ti);
-        
+
         float* I_ptr = gates.row(0);
         float* F_ptr = gates.row(1);
         float* O_ptr = gates.row(2);
@@ -147,18 +140,18 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             O_ptr[q] = O;
             G_ptr[q] = G;
         }
-        
+
         sigmoid_vector(I_ptr, hidden_size);
         sigmoid_vector(F_ptr, hidden_size);
         sigmoid_vector(O_ptr, hidden_size);
         tanh_vector(G_ptr, hidden_size);
-        
+
         // Update cell and hidden
         float* cell_ptr = cell_state;
         float* hidden_ptr = hidden_state;
         float* tmp_hidden_ptr = tmp_hidden_state;
         float* output_data = top_blob.row(ti);
-        
+
         int n = hidden_size;
         float* i_p = I_ptr;
         float* f_p = F_ptr;
@@ -166,7 +159,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
         float* g_p = G_ptr;
         float* c_p = cell_ptr;
         float* h_out_p = (num_output == hidden_size) ? hidden_ptr : tmp_hidden_ptr;
-        
+
         while (n > 0)
         {
             size_t vl = __riscv_vsetvl_e32m8(n);
@@ -175,34 +168,38 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             vfloat32m8_t _o = __riscv_vle32_v_f32m8(o_p, vl);
             vfloat32m8_t _g = __riscv_vle32_v_f32m8(g_p, vl);
             vfloat32m8_t _c = __riscv_vle32_v_f32m8(c_p, vl);
-            
+
             // cell = F * cell + I * G
             vfloat32m8_t _fc = __riscv_vfmul_vv_f32m8(_f, _c, vl);
             vfloat32m8_t _ig = __riscv_vfmul_vv_f32m8(_i, _g, vl);
             _c = __riscv_vfadd_vv_f32m8(_fc, _ig, vl);
             __riscv_vse32_v_f32m8(c_p, _c, vl);
-            
+
             // H = O * tanh(cell)
             vfloat32m8_t _2c = __riscv_vfmul_vf_f32m8(_c, 2.f, vl);
             vfloat32m8_t _exp2c = exp_ps(_2c, vl);
             vfloat32m8_t _num = __riscv_vfsub_vf_f32m8(_exp2c, 1.f, vl);
             vfloat32m8_t _den = __riscv_vfadd_vf_f32m8(_exp2c, 1.f, vl);
             vfloat32m8_t _tanh_c = __riscv_vfdiv_vv_f32m8(_num, _den, vl);
-            
+
             vfloat32m8_t _h = __riscv_vfmul_vv_f32m8(_o, _tanh_c, vl);
             __riscv_vse32_v_f32m8(h_out_p, _h, vl);
-            
+
             if (num_output == hidden_size)
             {
                 __riscv_vse32_v_f32m8(output_data, _h, vl);
                 output_data += vl;
             }
-            
-            i_p += vl; f_p += vl; o_p += vl; g_p += vl;
-            c_p += vl; h_out_p += vl;
+
+            i_p += vl;
+            f_p += vl;
+            o_p += vl;
+            g_p += vl;
+            c_p += vl;
+            h_out_p += vl;
             n -= vl;
         }
-        
+
         if (num_output != hidden_size)
         {
             // Projection
@@ -211,9 +208,9 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             {
                 const float* hr = weight_hr.row(q);
                 const float* tmp_h = tmp_hidden_state;
-                
+
                 float H = dot_product(hr, tmp_h, hidden_size);
-                
+
                 hidden_state[q] = H;
                 top_blob.row(ti)[q] = H;
             }
@@ -643,11 +640,3 @@ int LSTM_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 }
 
 } // namespace ncnn
-
-
-
-
-
-
-
-

@@ -1,11 +1,5 @@
 
 
-
-
-
-
-
-
 #ifndef LAYER_LSTM_RISCV_H
 #define LAYER_LSTM_RISCV_H
 
@@ -26,10 +20,3 @@ public:
 } // namespace ncnn
 
 #endif // LAYER_LSTM_RISCV_H
-
-
-
-
-
-
-
