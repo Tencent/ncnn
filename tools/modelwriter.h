@@ -2106,7 +2106,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", h)
             fprintf_param_value(" 2=%d", c)
             fprintf_param_value(" 11=%d", d)
-            if (op->w != 0 || op->h != 0 || op->d != 0 || op->c != 0)
+            if (!op->data.empty())
             {
                 fwrite_weight_data(op->data, bp);
             }
