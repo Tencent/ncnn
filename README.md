@@ -6,18 +6,14 @@
 [![Download Total Count](https://img.shields.io/github/downloads/Tencent/ncnn/total.svg?style=for-the-badge)](https://github.com/Tencent/ncnn/releases)
 [![codecov](https://img.shields.io/codecov/c/github/Tencent/ncnn/master?style=for-the-badge)](https://codecov.io/gh/Tencent/ncnn)
 
-ncnn is a high-performance neural network inference computing framework optimized for mobile platforms.
-ncnn is deeply considerate of deployment and uses on mobile phones from the beginning of design.
-ncnn does not have third-party dependencies.
-It is cross-platform and runs faster than all known open-source frameworks on mobile phone cpu.
-Developers can easily deploy deep learning algorithm models to the mobile platform by using efficient ncnn implementation, creating intelligent APPs, and bringing artificial intelligence to your fingertips.
+ncnn is a high-performance neural network inference framework optimized for mobile, embedded, and desktop deployment.
+It has no third-party runtime dependencies, runs across CPU and Vulkan GPU backends, and provides tools such as pnnx for converting PyTorch and ONNX models to ncnn.
+Developers can deploy deep learning models efficiently on phones, PCs, browsers, and edge devices.
 ncnn is currently being used in many Tencent applications, such as QQ, Qzone, WeChat, Pitu, and so on.
 
-ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架。
-ncnn 从设计之初深刻考虑手机端的部署和使用。
-无第三方依赖，跨平台，手机端 cpu 的速度快于目前所有已知的开源框架。
-基于 ncnn，开发者能够将深度学习算法轻松移植到手机端高效执行，
-开发出人工智能 APP，将 AI 带到你的指尖。
+ncnn 是一个面向移动端、嵌入式和桌面端部署优化的高性能神经网络推理框架。
+ncnn 无第三方运行时依赖，支持 CPU 和 Vulkan GPU 后端，并提供 pnnx 等工具将 PyTorch 和 ONNX 模型转换为 ncnn 模型。
+基于 ncnn，开发者可以将深度学习模型高效部署到手机、PC、浏览器和边缘设备上。
 ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天天 P 图等。
 
 ---
@@ -57,7 +53,100 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 
 ---
 
-## Download & Build status
+## Quick Start
+
+The recommended beginner path is PyTorch -> pnnx -> ncnn.
+
+1. Install pnnx in a PyTorch environment.
+
+```bash
+pip3 install pnnx
+```
+
+2. Export a PyTorch model to ncnn.
+
+```python
+import torch
+import torch.nn as nn
+import pnnx
+
+class Model(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv = nn.Conv2d(3, 8, 3, 1, 1)
+        self.pool = nn.AdaptiveAvgPool2d(1)
+
+    def forward(self, x):
+        x = torch.relu(self.conv(x))
+        x = self.pool(x)
+        return torch.flatten(x, 1)
+
+model = Model().eval()
+x = torch.rand(1, 3, 224, 224)
+
+pnnx.export(model, "model.pt", (x,))
+```
+
+This generates `model.ncnn.param` and `model.ncnn.bin`.
+
+3. Load and run the model with ncnn.
+
+```cpp
+#include "net.h"
+
+ncnn::Net net;
+net.load_param("model.ncnn.param");
+net.load_model("model.ncnn.bin");
+
+ncnn::Mat in(224, 224, 3);
+
+ncnn::Extractor ex = net.create_extractor();
+ex.input("in0", in);      // replace with the input name in model.ncnn.param
+
+ncnn::Mat out;
+ex.extract("out0", out);  // replace with the output name in model.ncnn.param
+```
+
+See [pnnx](tools/pnnx), [use ncnn with PyTorch or ONNX](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx), [Python API](python), and [examples](examples) for complete workflows.
+
+---
+
+## Platform Support
+
+ncnn runs on phones, PCs, browsers, and embedded boards, with optimized CPU execution and Vulkan GPU acceleration where available.
+
+| Target | CPU / Architecture | Acceleration | Common Use |
+| --- | --- | --- | --- |
+| Android / HarmonyOS | ARM, ARM64, x86 | Vulkan | mobile apps and devices |
+| iOS / macOS / Apple platforms | ARM64, x86_64 | Vulkan via MoltenVK where available | Apple apps and xcframeworks |
+| Linux | x86, x86_64, ARM, ARM64, MIPS, POWER, RISC-V, LoongArch | Vulkan | desktop, server, Jetson, Raspberry Pi, embedded Linux |
+| Windows | x86, x64, ARM64 | Vulkan | desktop applications |
+| WebAssembly | wasm32 | SIMD / threads where available | browser and web runtime |
+
+The full prebuilt package and build-status matrix is kept below for exact download variants.
+
+---
+
+## Download & CI
+
+[![Latest Release](https://img.shields.io/github/v/release/Tencent/ncnn?style=for-the-badge&label=release)](https://github.com/Tencent/ncnn/releases/latest)
+[![Download Total Count](https://img.shields.io/github/downloads/Tencent/ncnn/total.svg?style=for-the-badge)](https://github.com/Tencent/ncnn/releases)
+[![codecov](https://img.shields.io/codecov/c/github/Tencent/ncnn/master?style=for-the-badge)](https://codecov.io/gh/Tencent/ncnn)
+
+| Target | Download | CI status |
+| --- | --- | --- |
+| Source | [<img src="https://img.shields.io/badge/download-source-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-full-source.zip) | [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/test-coverage.yml?branch=master&style=for-the-badge&label=test">](https://github.com/Tencent/ncnn/actions?query=workflow%3Atest-coverage) |
+| Android | [<img src="https://img.shields.io/badge/download-vulkan-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-android-vulkan.zip) [<img src="https://img.shields.io/badge/cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-android.zip) | [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/android.yml?branch=master&style=for-the-badge&label=android">](https://github.com/Tencent/ncnn/actions?query=workflow%3Aandroid) |
+| iOS | [<img src="https://img.shields.io/badge/download-vulkan-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ios-vulkan.zip) [<img src="https://img.shields.io/badge/cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ios.zip) | [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios.yml?branch=master&style=for-the-badge&label=ios">](https://github.com/Tencent/ncnn/actions?query=workflow%3Aios) |
+| macOS | [<img src="https://img.shields.io/badge/download-vulkan-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-macos-vulkan.zip) [<img src="https://img.shields.io/badge/cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-macos.zip) | [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/macos.yml?branch=master&style=for-the-badge&label=macos">](https://github.com/Tencent/ncnn/actions?query=workflow%3Amacos) |
+| Linux | [<img src="https://img.shields.io/badge/ubuntu_22.04-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ubuntu-2204.zip) [<img src="https://img.shields.io/badge/ubuntu_24.04-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ubuntu-2404.zip) | [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-x64-gpu-gcc.yml?branch=master&style=for-the-badge&label=linux">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-x64-gpu-gcc) |
+| Windows | [<img src="https://img.shields.io/badge/vs2022-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2022.zip) [<img src="https://img.shields.io/badge/shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2022-shared.zip) | [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/windows.yml?branch=master&style=for-the-badge&label=windows">](https://github.com/Tencent/ncnn/actions?query=workflow%3Awindows) |
+| WebAssembly | [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-webassembly.zip) | [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/web-assembly.yml?branch=master&style=for-the-badge&label=wasm">](https://github.com/Tencent/ncnn/actions?query=workflow%3Aweb-assembly) |
+
+For all prebuilt packages, CPU-only/shared variants, and platform-specific build links, open the full matrix.
+
+<details>
+<summary>Full prebuilt package and build status matrix</summary>
 
 https://github.com/Tencent/ncnn/releases/latest
 
@@ -488,180 +577,94 @@ https://github.com/Tencent/ncnn/releases/latest
 
 </table>
 
+</details>
 
 ---
 
-## Support most commonly used CNN network
+## Build
 
-## 支持大部分常用的 CNN 网络
+Use the prebuilt packages above when possible. To build from source, see the full [how to build ncnn library](https://github.com/Tencent/ncnn/wiki/how-to-build) guide for Linux, Windows, macOS, Android, iOS, WebAssembly, HarmonyOS, Raspberry Pi, Jetson, and embedded targets.
 
-- Classical CNN:
-  [VGG](https://github.com/BVLC/caffe/wiki/Model-Zoo#models-used-by-the-vgg-team-in-ilsvrc-2014)
-  [AlexNet](https://github.com/BVLC/caffe/tree/9b891540183ddc834a02b2bd81b31afae71b2153/models/bvlc_alexnet)
-  [GoogleNet](https://github.com/BVLC/caffe/tree/9b891540183ddc834a02b2bd81b31afae71b2153/models/bvlc_googlenet)
-  Inception
-  ...
-- Practical CNN:
-  [ResNet](https://github.com/tornadomeet/ResNet)
-  [DenseNet](https://github.com/liuzhuang13/DenseNet)
-  [SENet](https://github.com/hujie-frank/SENet)
-  [FPN](https://github.com/unsky/FPN)
-  ...
-- Light-weight CNN:
-  [SqueezeNet](https://github.com/forresti/SqueezeNet)
-  [MobileNetV1](https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet_v1.md)
-  [MobileNetV2/V3](https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet/README.md)
-  [ShuffleNetV1](https://github.com/farmingyard/ShuffleNet)
-  [ShuffleNetV2](https://github.com/opconty/keras-shufflenetV2)
-  [MNasNet](https://github.com/tensorflow/models/tree/master/research/slim/nets/nasnet)
-  ...
-- Face Detection:
-  [MTCNN](https://github.com/ipazc/mtcnn)
-  [RetinaFace](https://github.com/biubug6/Pytorch_Retinaface)
-  [scrfd](https://github.com/nihui/ncnn-android-scrfd)
-  ...
-- Detection:
-  [VGG-SSD](https://github.com/lzx1413/CAFFE_SSD)
-  [MobileNet-SSD](https://github.com/chuanqi305/MobileNet-SSD)
-  [SqueezeNet-SSD](https://github.com/chuanqi305/SqueezeNet-SSD)
-  [MobileNetV2-SSDLite](https://github.com/chuanqi305/MobileNetv2-SSDLite)
-  [MobileNetV3-SSDLite](https://github.com/XiaoyuHuang96/MobilenetV3SSDLite-tfkeras)
-  ...
-- Detection:
-  [Faster-RCNN](https://github.com/rbgirshick/py-faster-rcnn)
-  [R-FCN](https://github.com/daijifeng001/R-FCN)
-  ...
-- Detection:
-  [YOLOv2](https://github.com/longcw/yolo2-pytorch)
-  [YOLOv3](https://github.com/ultralytics/yolov3)
-  [MobileNet-YOLOv3](https://github.com/eric612/MobileNet-YOLO)
-  [YOLOv4](https://github.com/Tianxiaomo/pytorch-YOLOv4)
-  [YOLOv5](https://github.com/ultralytics/yolov5)
-  [YOLOv7](https://github.com/WongKinYiu/yolov7)
-  [YOLOX](https://github.com/Megvii-BaseDetection/YOLOX)
-  [YOLOv8](https://github.com/nihui/ncnn-android-yolov8)
-  ...
-- Detection:
-  [NanoDet](https://github.com/RangiLyu/nanodet)
-- Segmentation:
-  [FCN](https://github.com/unsky/FPN)
-  [PSPNet](https://github.com/hszhao/PSPNet)
-  [UNet](https://github.com/zhixuhao/unet)
-  [YOLACT](https://github.com/dbolya/yolact)
-  ...
-- Pose Estimation:
-  [SimplePose](https://github.com/dog-qiuqiu/Ultralight-SimplePose)
-  ...
+Common Linux build:
+
+```bash
+git clone --recursive https://github.com/Tencent/ncnn.git
+cd ncnn
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=ON ..
+cmake --build . -j$(nproc)
+```
 
 ---
 
-## HowTo
+## Model Conversion
 
-**[use ncnn with alexnet](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet) with detailed steps, recommended for beginners :)**
+| Source model | Recommended path | Docs |
+| --- | --- | --- |
+| PyTorch | `pnnx.export(model, "model.pt", (input_tensor,))` or `pnnx model.pt inputshape=[...]` | [pnnx](tools/pnnx), [PyTorch / ONNX guide](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx) |
+| ONNX | `pnnx model.onnx` | [pnnx](tools/pnnx), [onnx tools](tools/onnx) |
+| ncnn model optimization | `ncnnoptimize model.param model.bin new.param new.bin flag` | [quantization](tools/quantize), [model file spec](https://github.com/Tencent/ncnn/wiki/param-and-model-file-structure) |
+| Legacy Caffe / MXNet / Darknet | Use compatibility converters when maintaining older models | [caffe](tools/caffe), [mxnet](tools/mxnet), [darknet](tools/darknet), [AlexNet legacy tutorial](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet) |
 
-**[ncnn 组件使用指北 alexnet](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet.zh) 附带详细步骤，新人强烈推荐 :)**
-
-**[use netron for ncnn model visualization](https://netron.app)**
-
-**[use ncnn with pytorch or onnx](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx)**
-
-[ncnn low-level operation api](https://github.com/Tencent/ncnn/wiki/low-level-operation-api)
-
-[ncnn param and model file spec](https://github.com/Tencent/ncnn/wiki/param-and-model-file-structure)
-
-[ncnn operation param weight table](https://github.com/Tencent/ncnn/wiki/operation-param-weight-table)
-
-[how to implement custom layer step by step](https://github.com/Tencent/ncnn/wiki/how-to-implement-custom-layer-step-by-step)
-
----
-
-## FAQ
-
-**[ncnn deepwiki](https://deepwiki.com/Tencent/ncnn) LLM Answering Questions ;)** 
-
-**[ncnn throw error](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-throw-error)**
-
-**[ncnn produce wrong result](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result)**
-
-**[ncnn vulkan](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-vulkan)**
+Use [Netron](https://netron.app) to inspect `.param`, `.onnx`, and `.pnnx.param` graphs.
 
 ---
 
 ## Features
 
-- Supports convolutional neural networks, supports multiple input and multi-branch structure, can calculate part of the branch
-- No third-party library dependencies, does not rely on BLAS / NNPACK or any other computing framework
-- Pure C++ implementation, cross-platform, supports Android, iOS and so on
-- ARM NEON assembly level of careful optimization, calculation speed is extremely high
-- Sophisticated memory management and data structure design, very low memory footprint
-- Supports multi-core parallel computing acceleration, ARM big.LITTLE CPU scheduling optimization
-- Supports GPU acceleration via the next-generation low-overhead Vulkan API
-- Extensible model design, supports 8bit [quantization](https://github.com/Tencent/ncnn/wiki/quantized-int8-inference) and half-precision floating point storage, can import caffe/pytorch/mxnet/onnx/darknet/keras/tensorflow(mlir) models
-- Support direct memory zero copy reference load network model
-- Can be registered with custom layer implementation and extended
-- Well, it is strong, not afraid of being stuffed with 卷 QvQ
-
-## 功能概述
-
-- 支持卷积神经网络，支持多输入和多分支结构，可计算部分分支
-- 无任何第三方库依赖，不依赖 BLAS/NNPACK 等计算框架
-- 纯 C++ 实现，跨平台，支持 Android / iOS 等
-- ARM Neon 汇编级良心优化，计算速度极快
-- 精细的内存管理和数据结构设计，内存占用极低
-- 支持多核并行计算加速，ARM big.LITTLE CPU 调度优化
-- 支持基于全新低消耗的 Vulkan API GPU 加速
-- 可扩展的模型设计，支持 8bit [量化](tools/quantize) 和半精度浮点存储，可导入 caffe/pytorch/mxnet/onnx/darknet/keras/tensorflow(mlir) 模型
-- 支持直接内存零拷贝引用加载网络模型
-- 可注册自定义层实现并扩展
-- 恩，很强就是了，不怕被塞卷 QvQ
+- No third-party runtime dependencies and no BLAS / NNPACK requirement.
+- Pure C++ implementation with C API and Python binding.
+- Optimized CPU inference for mobile and embedded processors, including ARM NEON and multi-core scheduling.
+- Vulkan GPU acceleration for supported platforms.
+- Low memory footprint with explicit blob/workspace allocator design.
+- Supports multi-input, multi-output, and multi-branch graphs.
+- PyTorch and ONNX conversion through pnnx, plus legacy converter support for older model formats.
+- Supports fp16 storage/arithmetic paths, int8 quantized inference, model optimization, and custom layers.
+- Direct memory reference loading for `.param` and `.bin` models.
 
 ---
 
-## supported platform matrix
+## Model and Workload Coverage
 
-- ✅ = known work and runs fast with good optimization
-- ✔️ = known work, but speed may not be fast enough
-- ❔ = shall work, not confirmed
-- / = not applied
+ncnn is still strong for classic and mobile CNN workloads, but current usage is broader than CNN-only deployment.
 
-|            | Windows | Linux | Android | macOS | iOS |
-| ---------- | ------- | ----- | ------- | ----- | --- |
-| intel-cpu  | ✔️      | ✔️    | ✔️      | ✔️    | /   |
-| intel-gpu  | ✔️      | ✔️    | ✔️      | ✔️    | /   |
-| amd-cpu    | ✔️      | ✔️    | ✔️      | ✔️    | /   |
-| amd-gpu    | ✔️      | ✔️    | ✔️      | ✔️    | /   |
-| nvidia-gpu | ✔️      | ✔️    | ✔️      | ✔️    | /   |
-| qcom-cpu   | ✅      | ✅    | ✅      | /     | /   |
-| qcom-gpu   | ✔️      | ✔️    | ✔️      | /     | /   |
-| arm-cpu    | ✅      | ✅    | ✅      | /     | /   |
-| arm-gpu    | ❔      | ✔️    | ✔️      | /     | /   |
-| apple-cpu  | /       | /     | /       | ✔️    | ✅  |
-| apple-gpu  | /       | /     | /       | ✔️    | ✔️  |
-| ibm-cpu    | /       | ✔️     | /       | /    | /  |
+- Classification and backbones: [VGG](https://github.com/BVLC/caffe/wiki/Model-Zoo#models-used-by-the-vgg-team-in-ilsvrc-2014), [AlexNet](https://github.com/BVLC/caffe/tree/9b891540183ddc834a02b2bd81b31afae71b2153/models/bvlc_alexnet), [GoogleNet](https://github.com/BVLC/caffe/tree/9b891540183ddc834a02b2bd81b31afae71b2153/models/bvlc_googlenet), Inception, [ResNet](https://github.com/tornadomeet/ResNet), [DenseNet](https://github.com/liuzhuang13/DenseNet), [SENet](https://github.com/hujie-frank/SENet), [SqueezeNet](https://github.com/forresti/SqueezeNet), MobileNet, ShuffleNet, MNasNet.
+- Detection and face: SSD, Faster R-CNN, R-FCN, [MTCNN](https://github.com/ipazc/mtcnn), [RetinaFace](https://github.com/biubug6/Pytorch_Retinaface), [scrfd](https://github.com/nihui/ncnn-android-scrfd), [YOLOv2](https://github.com/longcw/yolo2-pytorch), [YOLOv3](https://github.com/ultralytics/yolov3), [YOLOv4](https://github.com/Tianxiaomo/pytorch-YOLOv4), [YOLOv5](https://github.com/ultralytics/yolov5), [YOLOv7](https://github.com/WongKinYiu/yolov7), [YOLOv8](https://github.com/nihui/ncnn-android-yolov8), [YOLOX](https://github.com/Megvii-BaseDetection/YOLOX), [NanoDet](https://github.com/RangiLyu/nanodet).
+- Segmentation, pose, and OCR: FCN, [PSPNet](https://github.com/hszhao/PSPNet), [UNet](https://github.com/zhixuhao/unet), [YOLACT](https://github.com/dbolya/yolact), [SimplePose](https://github.com/dog-qiuqiu/Ultralight-SimplePose), PP-OCR examples.
+- Audio, generation, and language workloads are represented by community projects and examples where the model operators are supported.
+
+For operator-level detail, see [supported PyTorch operator status](tools/pnnx#supported-pytorch-operator-status), [supported ONNX operator status](tools/pnnx#supported-onnx-operator-status), and [operation param weight table](https://github.com/Tencent/ncnn/wiki/operation-param-weight-table).
 
 ---
 
-## Project examples
+## Project Examples
 
-- <https://github.com/nihui/ncnn-android-squeezenet>
-- <https://github.com/nihui/ncnn-android-styletransfer>
-- <https://github.com/nihui/ncnn-android-mobilenetssd>
-- <https://github.com/moli232777144/mtcnn_ncnn>
-- <https://github.com/nihui/ncnn-android-yolov5>
-- <https://github.com/xiang-wuu/ncnn-android-yolov7>
-- <https://github.com/nihui/ncnn-android-scrfd> 🤩
-- <https://github.com/shaoshengsong/qt_android_ncnn_lib_encrypt_example>
+| Area | Project |
+| --- | --- |
+| Image generation | [zimage-ncnn-vulkan](https://github.com/nihui/zimage-ncnn-vulkan) - Z-Image generation with ncnn and Vulkan |
+| LLM / embedding / vision-language | [ncnn_llm](https://github.com/futz12/ncnn_llm) - LLM, embedding, and vision-language examples with ncnn |
+| Android classification | [ncnn-android-squeezenet](https://github.com/nihui/ncnn-android-squeezenet) |
+| Android style transfer | [ncnn-android-styletransfer](https://github.com/nihui/ncnn-android-styletransfer) |
+| Android detection | [ncnn-android-mobilenetssd](https://github.com/nihui/ncnn-android-mobilenetssd), [ncnn-android-yolov5](https://github.com/nihui/ncnn-android-yolov5), [ncnn-android-yolov7](https://github.com/xiang-wuu/ncnn-android-yolov7), [ncnn-android-scrfd](https://github.com/nihui/ncnn-android-scrfd) |
+| Face detection | [mtcnn_ncnn](https://github.com/moli232777144/mtcnn_ncnn) |
+| Qt / Android integration | [qt_android_ncnn_lib_encrypt_example](https://github.com/shaoshengsong/qt_android_ncnn_lib_encrypt_example) |
+| Colorization | [ncnn-colorization-siggraph17](https://github.com/magicse/ncnn-colorization-siggraph17) |
+| Fortran binding | [ncnn-fortran](https://github.com/mizu-bai/ncnn-fortran) |
+| Speech recognition | [sherpa](https://github.com/k2-fsa/sherpa) - real-time speech recognition on embedded and mobile devices |
 
-<img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-2.jpg" height ="230"/><img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/4.jpg" height ="230"/><img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-33.jpg" height ="230"/><img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-m.png" height ="230"/><img src="https://github.com/nihui/ncnn-android-yolov5/raw/master/screenshot.jpg" height ="230"/><img src="https://github.com/nihui/ncnn-android-scrfd/raw/master/screenshot.jpg" height ="230"/><br>
+---
 
-- <https://github.com/magicse/ncnn-colorization-siggraph17><br>
-<img src="https://user-images.githubusercontent.com/13585785/189326958-f5a8d6f8-caef-49bf-88da-ae494371195d.jpg" width ="700"/>
+## Documentation And FAQ
 
-- <https://github.com/mizu-bai/ncnn-fortran> Call ncnn from Fortran
-
-- <https://github.com/k2-fsa/sherpa> Use ncnn for real-time speech
-  recognition (i.e., speech-to-text); also support embedded devices and provide
-  mobile Apps (e.g., Android App)
+| Topic | Links |
+| --- | --- |
+| Build | [how to build](https://github.com/Tencent/ncnn/wiki/how-to-build) |
+| PyTorch / ONNX conversion | [use ncnn with PyTorch or ONNX](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx), [pnnx](tools/pnnx), [PyTorch converter notes](tools/pytorch) |
+| API and examples | [C++ examples](examples), [Python API](python), [low-level operation API](https://github.com/Tencent/ncnn/wiki/low-level-operation-api) |
+| Model format | [param and model file spec](https://github.com/Tencent/ncnn/wiki/param-and-model-file-structure), [operation param weight table](https://github.com/Tencent/ncnn/wiki/operation-param-weight-table) |
+| Extension | [custom layer guide](https://github.com/Tencent/ncnn/wiki/how-to-implement-custom-layer-step-by-step), [plugin tools](tools/plugin) |
+| FAQ | [deepwiki](https://deepwiki.com/Tencent/ncnn), [throw error](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-throw-error), [wrong result](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result), [Vulkan](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-vulkan) |
+| Legacy beginner material | [use ncnn with AlexNet](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet), [AlexNet Chinese tutorial](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet.zh) |
 
 ---
 
