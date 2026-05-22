@@ -61,9 +61,12 @@ dst.create(width, height, /*c=*/3, /*elemsize=*/4u, /*elempack=*/1, opt.blob_vka
 ncnn::VkCompute cmd(vkdev);
 cmd.record_import_android_hardware_buffer(&pipe, src, dst);
 
-// Feed `dst` straight into your extractor — no host roundtrip.
-// ex.input ("data",   dst, cmd);
-// ex.extract("output", out_vk, cmd);
+// `dst` is now a regular ncnn::VkMat — feed it into your extractor as the
+// first-blob input. IMPORTANT: see the "ex.input(VkMat) does not auto-convert"
+// caveat below — if your network was loaded with use_fp16_storage or
+// use_fp16_packed you must pre-cast `dst` to the matching (elempack, dtype)
+// via vkdev->convert_packing BEFORE ex.input, or extractor will recurse on
+// itself trying to resolve an implicit converter.
 
 cmd.submit_and_wait();
 
@@ -77,7 +80,7 @@ vkdev->reclaim_staging_allocator(opt.staging_vkallocator);
 
 **`AHardwareBuffer_acquire` for any cache.** `VkAndroidHardwareBufferImageAllocator` does not take a ref on its AHB. If the allocator (or its `VkImageMat`) is going to outlive the `AImage` the AHB came from, the caller must `AHardwareBuffer_acquire(ahb)` before `AImage_delete(image)` and `AHardwareBuffer_release(ahb)` when evicting the cache entry.
 
-**Per-frame `pipe.create` is expensive (~24 ms median on Adreno 830).** The pipeline depends only on the immutable sampler (= the `samplerYcbcrConversion` derived from the AHB's `externalFormat`) and the `(type_to, rotate_from, target_w, target_h)` specialisation constants, all of which are stable for a given camera session. `AImageReader` cycles through a fixed buffer pool (size = `maxImages`), so caching the allocator + pipeline by AHB pointer keeps the cache small (≤ `maxImages` entries) and brings the steady-state setup cost from 24 ms to a few microseconds:
+**Per-frame `pipe.create` is expensive (~24 ms median on Adreno 830).** The pipeline depends only on the immutable sampler (= the `samplerYcbcrConversion` derived from the AHB's `externalFormat`) and the `(type_to, rotate_from, target_w, target_h)` specialisation constants, all of which are stable for a given camera session. `AImageReader` cycles through a small AHB pool — typically near `maxImages` under steady state, though the camera HAL may transiently allocate extras across surface/focus events — so caching the allocator + pipeline by AHB pointer keeps the cache bounded and brings the steady-state setup cost from 24 ms to a few microseconds:
 
 ```cpp
 struct CacheEntry {
@@ -104,6 +107,8 @@ cmd.record_import_android_hardware_buffer(e.pipe, e.src, dst);
 **Read-only input.** The imported `VkImage` is created with `VK_IMAGE_USAGE_SAMPLED_BIT` only. Don't try to write to the AHB through this path; for an output AHB allocate a separate exportable one and use `vkGetMemoryAndroidHardwareBufferANDROID`.
 
 **The convert_ycbcr shader scales by 255.** Output is RGB float in the `[0, 255]` range to match `from_pixels`'s convention, NOT `[0, 1]`. If your model expects normalised input, fold the `1/255` into a post-import scale (a `Scale` layer in the graph, or a small custom compute pass) — `record_import_android_hardware_buffer` does not normalise.
+
+**`ex.input(VkMat)` does not auto-convert format.** Unlike `ex.input(Mat)` — which implicitly uploads and re-packs the host blob to whatever `(elempack, dtype)` the next layer expects — `ex.input(VkMat)` stores the user-provided VkMat verbatim into `blob_mats_gpu`. If the network was loaded with `use_fp16_storage` or `use_fp16_packed` (common on the Vulkan path), and `dst` is the raw `fp32, elempack=1` output of `record_import_android_hardware_buffer`, the first conv layer's bottom-blob lookup will see a format mismatch. `NetPrivate::forward_layer` then walks the producer chain looking for an implicit converter that doesn't exist, recurses into itself, and stack-overflows (observed: ~180 frames at `net.cpp:251`). **Pre-cast `dst` via `vkdev->convert_packing(dst, dst_casted, target_elempack, cast_type_to, cmd, opt)` to the format the network expects before calling `ex.input`.**
 
 ### troubleshooting
 
