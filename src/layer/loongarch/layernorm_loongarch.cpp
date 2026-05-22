@@ -330,6 +330,7 @@ int LayerNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
     const int elempack = bottom_top_blob.elempack;
     const int w = bottom_top_blob.w;
     const int h = bottom_top_blob.h;
+    const int d = bottom_top_blob.d;
     const int channels = bottom_top_blob.c;
 
     if (dims == 1)
@@ -369,6 +370,46 @@ int LayerNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
             {
                 float* ptr = bottom_top_blob.channel(q);
                 layernorm_loongarch(ptr, gamma_data, beta_data, eps, w * h, elempack);
+            }
+        }
+    }
+
+    if (dims == 4)
+    {
+        if (affine_size == w)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                for (int z = 0; z < d; z++)
+                {
+                    for (int i = 0; i < h; i++)
+                    {
+                        float* ptr = bottom_top_blob.channel(q).depth(z).row(i);
+                        layernorm_loongarch(ptr, gamma_data, beta_data, eps, w, elempack);
+                    }
+                }
+            }
+        }
+        else if (affine_size == w * h)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                for (int z = 0; z < d; z++)
+                {
+                    float* ptr = bottom_top_blob.channel(q).depth(z);
+                    layernorm_loongarch(ptr, gamma_data, beta_data, eps, w * h, elempack);
+                }
+            }
+        }
+        else // if (affine_size == w * h * d)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                float* ptr = bottom_top_blob.channel(q);
+                layernorm_loongarch(ptr, gamma_data, beta_data, eps, w * h * d, elempack);
             }
         }
     }
@@ -782,6 +823,7 @@ int LayerNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Optio
     const int elempack = bottom_top_blob.elempack;
     const int w = bottom_top_blob.w;
     const int h = bottom_top_blob.h;
+    const int d = bottom_top_blob.d;
     const int channels = bottom_top_blob.c;
 
     if (dims == 1)
@@ -821,6 +863,46 @@ int LayerNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Optio
             {
                 unsigned short* ptr = (unsigned short*)bottom_top_blob.channel(q);
                 layernorm_loongarch_bf16(ptr, gamma_data, beta_data, eps, w * h, elempack);
+            }
+        }
+    }
+
+    if (dims == 4)
+    {
+        if (affine_size == w)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                for (int z = 0; z < d; z++)
+                {
+                    for (int i = 0; i < h; i++)
+                    {
+                        unsigned short* ptr = (unsigned short*)bottom_top_blob.channel(q).depth(z).row(i);
+                        layernorm_loongarch_bf16(ptr, gamma_data, beta_data, eps, w, elempack);
+                    }
+                }
+            }
+        }
+        else if (affine_size == w * h)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                for (int z = 0; z < d; z++)
+                {
+                    unsigned short* ptr = (unsigned short*)bottom_top_blob.channel(q).depth(z);
+                    layernorm_loongarch_bf16(ptr, gamma_data, beta_data, eps, w * h, elempack);
+                }
+            }
+        }
+        else // if (affine_size == w * h * d)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                unsigned short* ptr = (unsigned short*)bottom_top_blob.channel(q);
+                layernorm_loongarch_bf16(ptr, gamma_data, beta_data, eps, w * h * d, elempack);
             }
         }
     }

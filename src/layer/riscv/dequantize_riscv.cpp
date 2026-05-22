@@ -111,6 +111,7 @@ int Dequantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     const int dims = bottom_blob.dims;
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
 
@@ -150,7 +151,7 @@ int Dequantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -161,7 +162,7 @@ int Dequantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
             const Mat bias_data_q = bias_data_size > 1 ? bias_data.range(q * elempack, elempack) : bias_data;
 
-            dequantize(intptr, ptr, scale_data_q, bias_data_q, w * h, elempack);
+            dequantize(intptr, ptr, scale_data_q, bias_data_q, w * h * d, elempack);
         }
     }
 

@@ -37,6 +37,7 @@ int Scale_loongarch::forward_inplace(std::vector<Mat>& bottom_top_blobs, const O
 
     const int w = bottom_top_blob.w;
     const int h = bottom_top_blob.h;
+    const int d = bottom_top_blob.d;
     const int channels = bottom_top_blob.c;
     const int dims = bottom_top_blob.dims;
     const int elempack = bottom_top_blob.elempack;
@@ -199,9 +200,9 @@ int Scale_loongarch::forward_inplace(std::vector<Mat>& bottom_top_blobs, const O
         return 0;
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
-        const int size = w * h * elempack;
+        const int size = w * h * d * elempack;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -520,6 +521,7 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
 
     const int w = bottom_top_blob.w;
     const int h = bottom_top_blob.h;
+    const int d = bottom_top_blob.d;
     const int channels = bottom_top_blob.c;
     const int dims = bottom_top_blob.dims;
     const int elempack = bottom_top_blob.elempack;
@@ -588,9 +590,9 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
         return 0;
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
-        const int size = w * h * elempack;
+        const int size = w * h * d * elempack;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)

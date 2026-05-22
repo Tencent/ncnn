@@ -24,11 +24,15 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int size = w * h;
+    int size = w * h * d;
 
-    top_blob.create(w, h, channels, elemsize, opt.blob_allocator);
+    if (bottom_blob.dims == 4)
+        top_blob.create(w, h, d, channels, elemsize, opt.blob_allocator);
+    else
+        top_blob.create(w, h, channels, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 

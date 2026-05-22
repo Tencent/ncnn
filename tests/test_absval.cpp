@@ -12,7 +12,7 @@ static int test_absval(const ncnn::Mat& a)
     int ret = test_layer("AbsVal", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_absval failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
+        fprintf(stderr, "test_absval failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);
     }
 
     return ret;
@@ -21,6 +21,9 @@ static int test_absval(const ncnn::Mat& a)
 static int test_absval_0()
 {
     return 0
+           || test_absval(RandomMat(5, 6, 7, 24))
+           || test_absval(RandomMat(7, 8, 9, 12))
+           || test_absval(RandomMat(3, 4, 5, 13))
            || test_absval(RandomMat(1, 1, 13))
            || test_absval(RandomMat(5, 7, 24))
            || test_absval(RandomMat(7, 9, 12))

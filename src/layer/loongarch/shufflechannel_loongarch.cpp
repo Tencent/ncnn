@@ -35,10 +35,11 @@ int ShuffleChannel_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, con
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    int size = w * h;
+    int size = w * h * d;
 
     int logical_channels = channels * elempack;
     if (logical_channels % group != 0)
@@ -63,7 +64,7 @@ int ShuffleChannel_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, con
 
         if (_group == 2 && channels % _group == 0)
         {
-            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create_like(bottom_blob, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -96,7 +97,7 @@ int ShuffleChannel_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, con
 
         if (_group == 4 && channels % _group == 0)
         {
-            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create_like(bottom_blob, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -141,7 +142,7 @@ int ShuffleChannel_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, con
 
         if (_group == 8 && channels % _group == 0)
         {
-            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create_like(bottom_blob, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -216,7 +217,7 @@ int ShuffleChannel_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, con
 
         if (_group == 2 && channels % _group != 0)
         {
-            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create_like(bottom_blob, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -283,7 +284,7 @@ int ShuffleChannel_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, con
 
         if (_group <= 4 && channels % _group == 0)
         {
-            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create_like(bottom_blob, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -421,7 +422,7 @@ int ShuffleChannel_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, con
     int channels_per_group = logical_channels / _group;
     size_t lane_size = elemsize / elempack;
 
-    top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+    top_blob.create_like(bottom_blob, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
@@ -460,10 +461,11 @@ int ShuffleChannel_loongarch::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& t
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    int size = w * h;
+    int size = w * h * d;
 
     int logical_channels = channels * elempack;
     if (logical_channels % group != 0)
@@ -488,7 +490,7 @@ int ShuffleChannel_loongarch::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& t
 
         if (_group == 2 && channels % _group == 0)
         {
-            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create_like(bottom_blob, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -522,7 +524,7 @@ int ShuffleChannel_loongarch::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& t
 
         if (_group == 4 && channels % _group == 0)
         {
-            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create_like(bottom_blob, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -567,7 +569,7 @@ int ShuffleChannel_loongarch::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& t
 
         if (_group == 8 && channels % _group == 0)
         {
-            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create_like(bottom_blob, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -642,7 +644,7 @@ int ShuffleChannel_loongarch::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& t
 
         if (_group == 2 && channels % _group != 0)
         {
-            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create_like(bottom_blob, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -708,7 +710,7 @@ int ShuffleChannel_loongarch::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& t
 
         if (_group <= 4 && channels % _group == 0)
         {
-            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create_like(bottom_blob, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -846,7 +848,7 @@ int ShuffleChannel_loongarch::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& t
     int channels_per_group = logical_channels / _group;
     size_t lane_size = elemsize / elempack;
 
-    top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+    top_blob.create_like(bottom_blob, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 

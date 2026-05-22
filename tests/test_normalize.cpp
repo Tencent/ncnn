@@ -21,7 +21,7 @@ static int test_normalize(const ncnn::Mat& a, int across_spatial, int across_cha
     int ret = test_layer("Normalize", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_normalize failed a.dims=%d a=(%d %d %d) across_spatial=%d across_channel=%d channel_shared=%d eps=%f eps_mode=%d\n", a.dims, a.w, a.h, a.c, across_spatial, across_channel, channel_shared, eps, eps_mode);
+        fprintf(stderr, "test_normalize failed a.dims=%d a=(%d %d %d %d) across_spatial=%d across_channel=%d channel_shared=%d eps=%f eps_mode=%d\n", a.dims, a.w, a.h, a.d, a.c, across_spatial, across_channel, channel_shared, eps, eps_mode);
     }
 
     return ret;
@@ -87,6 +87,20 @@ static int test_normalize_2()
            || test_normalize(b, 1, 1, 1, 0.002f, 2);
 }
 
+static int test_normalize_3()
+{
+    ncnn::Mat a = RandomMat(5, 4, 3, 3);
+    ncnn::Mat b = RandomMat(3, 3, 2, 8);
+
+    return 0
+           || test_normalize(a, 1, 0, 0, 0.01f, 0)
+           || test_normalize(a, 1, 0, 1, 0.001f, 1)
+           || test_normalize(b, 0, 1, 0, 0.002f, 2)
+           || test_normalize(b, 0, 1, 1, 0.01f, 0)
+           || test_normalize(a, 1, 1, 0, 0.001f, 1)
+           || test_normalize(b, 1, 1, 1, 0.002f, 2);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -94,5 +108,6 @@ int main()
     return 0
            || test_normalize_0()
            || test_normalize_1()
-           || test_normalize_2();
+           || test_normalize_2()
+           || test_normalize_3();
 }

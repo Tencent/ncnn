@@ -94,9 +94,10 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int size = w * h;
+    int size = w * h * d;
 
     if (bottom_blob.dims == 2 && w == num_input)
     {
@@ -170,9 +171,10 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int size = w * h;
+    int size = w * h * d;
 
     Mat bottom_blob_int8 = bottom_blob;
     if (elemsize != 1)
