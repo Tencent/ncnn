@@ -1,5 +1,5 @@
-
-
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 #include "lstm_riscv.h"
 #include <riscv_vector.h>
 #include "riscv_usability.h"
