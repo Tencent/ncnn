@@ -57,16 +57,19 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 
 The recommended beginner path is PyTorch -> pnnx -> ncnn.
 
-1. Install pnnx in a PyTorch environment.
+<table>
+<tr>
+<td width="50%" valign="top">
 
-```bash
-pip3 install pnnx
-```
+### Convert from PyTorch
 
-2. Export a PyTorch model to ncnn.
+Install pnnx in a PyTorch environment.
 
-```python
-import torch
+<pre><code class="language-bash">pip3 install pnnx</code></pre>
+
+Export a PyTorch model to ncnn.
+
+<pre><code class="language-python">import torch
 import torch.nn as nn
 import pnnx
 
@@ -84,15 +87,18 @@ class Model(nn.Module):
 model = Model().eval()
 x = torch.rand(1, 3, 224, 224)
 
-pnnx.export(model, "model.pt", (x,))
-```
+pnnx.export(model, "model.pt", (x,))</code></pre>
 
 This generates `model.ncnn.param` and `model.ncnn.bin`.
 
-3. Load and run the model with ncnn.
+</td>
+<td width="50%" valign="top">
 
-```cpp
-#include "net.h"
+### Run with ncnn C++ API
+
+Load the generated ncnn model and run inference.
+
+<pre><code class="language-cpp">#include "net.h"
 
 ncnn::Net net;
 net.load_param("model.ncnn.param");
@@ -104,8 +110,11 @@ ncnn::Extractor ex = net.create_extractor();
 ex.input("in0", in);      // replace with the input name in model.ncnn.param
 
 ncnn::Mat out;
-ex.extract("out0", out);  // replace with the output name in model.ncnn.param
-```
+ex.extract("out0", out);  // replace with the output name in model.ncnn.param</code></pre>
+
+</td>
+</tr>
+</table>
 
 See [pnnx](tools/pnnx), [use ncnn with PyTorch or ONNX](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx), [Python API](python), and [examples](examples) for complete workflows.
 
