@@ -23,6 +23,7 @@ int ShuffleChannel::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
@@ -35,11 +36,11 @@ int ShuffleChannel::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
     int _group = reverse ? channels / group : group;
     int channels_per_group = channels / _group;
 
-    top_blob.create(w, h, channels, elemsize, opt.blob_allocator);
+    top_blob.create_like(bottom_blob, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
-    const size_t feature_sz = (size_t)w * h * elemsize;
+    const size_t feature_sz = (size_t)w * h * d * elemsize;
     for (int i = 0; i < _group; i++)
     {
         for (int j = 0; j < channels_per_group; j++)

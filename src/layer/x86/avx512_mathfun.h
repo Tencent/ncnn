@@ -933,6 +933,65 @@ static NCNN_FORCEINLINE __m512 logaddexp512_ps(const __m512& x, const __m512& y)
     return _mm512_add_ps(max_xy, log_result);
 }
 
+static NCNN_FORCEINLINE __m512 expm1512_ps(const __m512& x)
+{
+    __m512 x2 = _mm512_mul_ps(x, x);
+    __m512 poly = _mm512_add_ps(x, _mm512_mul_ps(x2, _mm512_add_ps(_mm512_set1_ps(0.5f), _mm512_mul_ps(x, _mm512_set1_ps(1.0f / 6.0f)))));
+    __m512 y = _mm512_sub_ps(exp512_ps(x), _mm512_set1_ps(1.f));
+    __mmask16 mask = _mm512_cmp_ps_mask(abs512_ps(x), _mm512_set1_ps(1e-4f), _CMP_LT_OQ);
+    return _mm512_mask_blend_ps(mask, y, poly);
+}
+
+static NCNN_FORCEINLINE __m512 log1p512_ps(const __m512& x)
+{
+    __m512 x2 = _mm512_mul_ps(x, x);
+    __m512 poly = _mm512_add_ps(x, _mm512_mul_ps(x2, _mm512_add_ps(_mm512_set1_ps(-0.5f), _mm512_mul_ps(x, _mm512_set1_ps(1.0f / 3.0f)))));
+    __m512 y = log512_ps(_mm512_add_ps(_mm512_set1_ps(1.f), x));
+    __mmask16 mask = _mm512_cmp_ps_mask(abs512_ps(x), _mm512_set1_ps(1e-4f), _CMP_LT_OQ);
+    return _mm512_mask_blend_ps(mask, y, poly);
+}
+
+static NCNN_FORCEINLINE __m512 sinh512_ps(const __m512& x)
+{
+    __m512 expm1_x = expm1512_ps(x);
+    __m512 expm1_neg_x = expm1512_ps(_mm512_sub_ps(_mm512_setzero_ps(), x));
+    return _mm512_mul_ps(_mm512_sub_ps(expm1_x, expm1_neg_x), _mm512_set1_ps(0.5f));
+}
+
+static NCNN_FORCEINLINE __m512 asinh512_ps(const __m512& x)
+{
+    __m512 ax = abs512_ps(x);
+    __m512 x2 = _mm512_mul_ps(ax, ax);
+    __m512 y = log512_ps(_mm512_add_ps(ax, _mm512_sqrt_ps(_mm512_add_ps(x2, _mm512_set1_ps(1.f)))));
+    __m512 y_large = _mm512_add_ps(log512_ps(ax), _mm512_set1_ps(0.6931471805599453f));
+    __mmask16 mask = _mm512_cmp_ps_mask(ax, _mm512_set1_ps(1e19f), _CMP_GT_OQ);
+    y = _mm512_mask_blend_ps(mask, y, y_large);
+    return _mm512_or_ps(y, _mm512_and_ps(x, _mm512_set1_ps(-0.f)));
+}
+
+static NCNN_FORCEINLINE __m512 cosh512_ps(const __m512& x)
+{
+    __m512 exp_x = exp512_ps(x);
+    __m512 exp_neg_x = exp512_ps(_mm512_sub_ps(_mm512_setzero_ps(), x));
+    return _mm512_mul_ps(_mm512_add_ps(exp_x, exp_neg_x), _mm512_set1_ps(0.5f));
+}
+
+static NCNN_FORCEINLINE __m512 acosh512_ps(const __m512& x)
+{
+    __m512 one = _mm512_set1_ps(1.f);
+    __m512 y = log512_ps(_mm512_add_ps(x, _mm512_mul_ps(_mm512_sqrt_ps(_mm512_sub_ps(x, one)), _mm512_sqrt_ps(_mm512_add_ps(x, one)))));
+    __m512 y_large = _mm512_add_ps(log512_ps(x), _mm512_set1_ps(0.6931471805599453f));
+    __mmask16 mask = _mm512_cmp_ps_mask(x, _mm512_set1_ps(1e19f), _CMP_GT_OQ);
+    return _mm512_mask_blend_ps(mask, y, y_large);
+}
+
+static NCNN_FORCEINLINE __m512 atanh512_ps(const __m512& x)
+{
+    __m512 log_pos = log1p512_ps(x);
+    __m512 log_neg = log1p512_ps(_mm512_sub_ps(_mm512_setzero_ps(), x));
+    return _mm512_mul_ps(_mm512_sub_ps(log_pos, log_neg), _mm512_set1_ps(0.5f));
+}
+
 static NCNN_FORCEINLINE __m512 floor_divide512_ps(const __m512& x, const __m512& y)
 {
     __m512 q = _mm512_div_ps(x, y);

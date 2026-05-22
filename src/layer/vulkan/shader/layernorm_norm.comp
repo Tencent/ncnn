@@ -28,25 +28,15 @@ void main()
     if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
-    int group_id;
-    int inner_id;
-
-    if (affine_size == p.w)
-    {
-        group_id = gz * p.h + gy;
-        inner_id = gx;
-    }
-    else // if (affine_size == p.w * p.h)
-    {
-        group_id = gz;
-        inner_id = gy * p.w + gx;
-    }
+    const int gi = gz * p.cstep + gy * p.w + gx;
+    const int q = gy * p.w + gx;
+    const int group_id = gz * (p.w * p.h / affine_size) + q / affine_size;
+    const int inner_id = q % affine_size;
 
     afp a = buffer_ld1(coeffs_blob_data, group_id * 2);
     afp b = buffer_ld1(coeffs_blob_data, group_id * 2 + 1);
 
-    int linear_index = gz * p.cstep + gy * p.w + gx;
-    afp v = buffer_ld1(bottom_top_blob_data, linear_index);
+    afp v = buffer_ld1(bottom_top_blob_data, gi);
 
     // (x - mean) / sqrt(var + eps)
     v = v * a + b;
@@ -58,5 +48,5 @@ void main()
         v = v * gamma + beta;
     }
 
-    buffer_st1(bottom_top_blob_data, linear_index, v);
+    buffer_st1(bottom_top_blob_data, gi, v);
 }

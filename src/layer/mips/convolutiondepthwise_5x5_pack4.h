@@ -64,11 +64,11 @@ static void convdw5x5s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _k04 = (v4f32)__msa_ld_w(k0 + 4 * 4, 0);
                 k0 += 4 * 5;
 
-                _sum0 = __msa_fmadd_w(_sum0, _k00, _r00);
-                _sum0 = __msa_fmadd_w(_sum0, _k01, _r01);
-                _sum0 = __msa_fmadd_w(_sum0, _k02, _r02);
-                _sum0 = __msa_fmadd_w(_sum0, _k03, _r03);
-                _sum0 = __msa_fmadd_w(_sum0, _k04, _r04);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k00, _r00);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k01, _r01);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k02, _r02);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k03, _r03);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k04, _r04);
 
                 v4f32 _r10 = (v4f32)__msa_ld_w(r1, 0);
                 v4f32 _r11 = (v4f32)__msa_ld_w(r1 + 4, 0);
@@ -76,11 +76,11 @@ static void convdw5x5s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _r13 = (v4f32)__msa_ld_w(r1 + 4 * 3, 0);
                 v4f32 _r14 = (v4f32)__msa_ld_w(r1 + 4 * 4, 0);
 
-                _sum1 = __msa_fmadd_w(_sum1, _k00, _r10);
-                _sum1 = __msa_fmadd_w(_sum1, _k01, _r11);
-                _sum1 = __msa_fmadd_w(_sum1, _k02, _r12);
-                _sum1 = __msa_fmadd_w(_sum1, _k03, _r13);
-                _sum1 = __msa_fmadd_w(_sum1, _k04, _r14);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k00, _r10);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k01, _r11);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k02, _r12);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k03, _r13);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k04, _r14);
 
                 v4f32 _k10 = (v4f32)__msa_ld_w(k0, 0);
                 v4f32 _k11 = (v4f32)__msa_ld_w(k0 + 4, 0);
@@ -89,11 +89,11 @@ static void convdw5x5s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _k14 = (v4f32)__msa_ld_w(k0 + 4 * 4, 0);
                 k0 += 4 * 5;
 
-                _sum0 = __msa_fmadd_w(_sum0, _k10, _r10);
-                _sum0 = __msa_fmadd_w(_sum0, _k11, _r11);
-                _sum0 = __msa_fmadd_w(_sum0, _k12, _r12);
-                _sum0 = __msa_fmadd_w(_sum0, _k13, _r13);
-                _sum0 = __msa_fmadd_w(_sum0, _k14, _r14);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k10, _r10);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k11, _r11);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k12, _r12);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k13, _r13);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k14, _r14);
 
                 v4f32 _r20 = (v4f32)__msa_ld_w(r2, 0);
                 v4f32 _r21 = (v4f32)__msa_ld_w(r2 + 4, 0);
@@ -101,11 +101,11 @@ static void convdw5x5s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _r23 = (v4f32)__msa_ld_w(r2 + 4 * 3, 0);
                 v4f32 _r24 = (v4f32)__msa_ld_w(r2 + 4 * 4, 0);
 
-                _sum1 = __msa_fmadd_w(_sum1, _k10, _r20);
-                _sum1 = __msa_fmadd_w(_sum1, _k11, _r21);
-                _sum1 = __msa_fmadd_w(_sum1, _k12, _r22);
-                _sum1 = __msa_fmadd_w(_sum1, _k13, _r23);
-                _sum1 = __msa_fmadd_w(_sum1, _k14, _r24);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k10, _r20);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k11, _r21);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k12, _r22);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k13, _r23);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k14, _r24);
 
                 v4f32 _k20 = (v4f32)__msa_ld_w(k0, 0);
                 v4f32 _k21 = (v4f32)__msa_ld_w(k0 + 4, 0);
@@ -114,11 +114,11 @@ static void convdw5x5s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _k24 = (v4f32)__msa_ld_w(k0 + 4 * 4, 0);
                 k0 += 4 * 5;
 
-                _sum0 = __msa_fmadd_w(_sum0, _k20, _r20);
-                _sum0 = __msa_fmadd_w(_sum0, _k21, _r21);
-                _sum0 = __msa_fmadd_w(_sum0, _k22, _r22);
-                _sum0 = __msa_fmadd_w(_sum0, _k23, _r23);
-                _sum0 = __msa_fmadd_w(_sum0, _k24, _r24);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k20, _r20);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k21, _r21);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k22, _r22);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k23, _r23);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k24, _r24);
 
                 v4f32 _r30 = (v4f32)__msa_ld_w(r3, 0);
                 v4f32 _r31 = (v4f32)__msa_ld_w(r3 + 4, 0);
@@ -126,11 +126,11 @@ static void convdw5x5s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _r33 = (v4f32)__msa_ld_w(r3 + 4 * 3, 0);
                 v4f32 _r34 = (v4f32)__msa_ld_w(r3 + 4 * 4, 0);
 
-                _sum1 = __msa_fmadd_w(_sum1, _k20, _r30);
-                _sum1 = __msa_fmadd_w(_sum1, _k21, _r31);
-                _sum1 = __msa_fmadd_w(_sum1, _k22, _r32);
-                _sum1 = __msa_fmadd_w(_sum1, _k23, _r33);
-                _sum1 = __msa_fmadd_w(_sum1, _k24, _r34);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k20, _r30);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k21, _r31);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k22, _r32);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k23, _r33);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k24, _r34);
 
                 v4f32 _k30 = (v4f32)__msa_ld_w(k0, 0);
                 v4f32 _k31 = (v4f32)__msa_ld_w(k0 + 4, 0);
@@ -139,11 +139,11 @@ static void convdw5x5s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _k34 = (v4f32)__msa_ld_w(k0 + 4 * 4, 0);
                 k0 += 4 * 5;
 
-                _sum0 = __msa_fmadd_w(_sum0, _k30, _r30);
-                _sum0 = __msa_fmadd_w(_sum0, _k31, _r31);
-                _sum0 = __msa_fmadd_w(_sum0, _k32, _r32);
-                _sum0 = __msa_fmadd_w(_sum0, _k33, _r33);
-                _sum0 = __msa_fmadd_w(_sum0, _k34, _r34);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k30, _r30);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k31, _r31);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k32, _r32);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k33, _r33);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k34, _r34);
 
                 v4f32 _r40 = (v4f32)__msa_ld_w(r4, 0);
                 v4f32 _r41 = (v4f32)__msa_ld_w(r4 + 4, 0);
@@ -151,11 +151,11 @@ static void convdw5x5s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _r43 = (v4f32)__msa_ld_w(r4 + 4 * 3, 0);
                 v4f32 _r44 = (v4f32)__msa_ld_w(r4 + 4 * 4, 0);
 
-                _sum1 = __msa_fmadd_w(_sum1, _k30, _r40);
-                _sum1 = __msa_fmadd_w(_sum1, _k31, _r41);
-                _sum1 = __msa_fmadd_w(_sum1, _k32, _r42);
-                _sum1 = __msa_fmadd_w(_sum1, _k33, _r43);
-                _sum1 = __msa_fmadd_w(_sum1, _k34, _r44);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k30, _r40);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k31, _r41);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k32, _r42);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k33, _r43);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k34, _r44);
 
                 v4f32 _k40 = (v4f32)__msa_ld_w(k0, 0);
                 v4f32 _k41 = (v4f32)__msa_ld_w(k0 + 4, 0);
@@ -164,11 +164,11 @@ static void convdw5x5s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _k44 = (v4f32)__msa_ld_w(k0 + 4 * 4, 0);
                 k0 -= 4 * 20;
 
-                _sum0 = __msa_fmadd_w(_sum0, _k40, _r40);
-                _sum0 = __msa_fmadd_w(_sum0, _k41, _r41);
-                _sum0 = __msa_fmadd_w(_sum0, _k42, _r42);
-                _sum0 = __msa_fmadd_w(_sum0, _k43, _r43);
-                _sum0 = __msa_fmadd_w(_sum0, _k44, _r44);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k40, _r40);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k41, _r41);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k42, _r42);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k43, _r43);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k44, _r44);
 
                 v4f32 _r50 = (v4f32)__msa_ld_w(r5, 0);
                 v4f32 _r51 = (v4f32)__msa_ld_w(r5 + 4, 0);
@@ -176,11 +176,11 @@ static void convdw5x5s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _r53 = (v4f32)__msa_ld_w(r5 + 4 * 3, 0);
                 v4f32 _r54 = (v4f32)__msa_ld_w(r5 + 4 * 4, 0);
 
-                _sum1 = __msa_fmadd_w(_sum1, _k40, _r50);
-                _sum1 = __msa_fmadd_w(_sum1, _k41, _r51);
-                _sum1 = __msa_fmadd_w(_sum1, _k42, _r52);
-                _sum1 = __msa_fmadd_w(_sum1, _k43, _r53);
-                _sum1 = __msa_fmadd_w(_sum1, _k44, _r54);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k40, _r50);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k41, _r51);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k42, _r52);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k43, _r53);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _k44, _r54);
 
                 __msa_st_w((v4i32)_sum0, outptr0, 0);
                 __msa_st_w((v4i32)_sum1, outptr1, 0);
@@ -234,11 +234,11 @@ static void convdw5x5s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _k04 = (v4f32)__msa_ld_w(k0 + 4 * 4, 0);
                 k0 += 4 * 5;
 
-                _sum0 = __msa_fmadd_w(_sum0, _k00, _r00);
-                _sum0 = __msa_fmadd_w(_sum0, _k01, _r01);
-                _sum0 = __msa_fmadd_w(_sum0, _k02, _r02);
-                _sum0 = __msa_fmadd_w(_sum0, _k03, _r03);
-                _sum0 = __msa_fmadd_w(_sum0, _k04, _r04);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k00, _r00);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k01, _r01);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k02, _r02);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k03, _r03);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k04, _r04);
 
                 v4f32 _r10 = (v4f32)__msa_ld_w(r1, 0);
                 v4f32 _r11 = (v4f32)__msa_ld_w(r1 + 4, 0);
@@ -253,11 +253,11 @@ static void convdw5x5s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _k14 = (v4f32)__msa_ld_w(k0 + 4 * 4, 0);
                 k0 += 4 * 5;
 
-                _sum0 = __msa_fmadd_w(_sum0, _k10, _r10);
-                _sum0 = __msa_fmadd_w(_sum0, _k11, _r11);
-                _sum0 = __msa_fmadd_w(_sum0, _k12, _r12);
-                _sum0 = __msa_fmadd_w(_sum0, _k13, _r13);
-                _sum0 = __msa_fmadd_w(_sum0, _k14, _r14);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k10, _r10);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k11, _r11);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k12, _r12);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k13, _r13);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k14, _r14);
 
                 v4f32 _r20 = (v4f32)__msa_ld_w(r2, 0);
                 v4f32 _r21 = (v4f32)__msa_ld_w(r2 + 4, 0);
@@ -272,11 +272,11 @@ static void convdw5x5s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _k24 = (v4f32)__msa_ld_w(k0 + 4 * 4, 0);
                 k0 += 4 * 5;
 
-                _sum0 = __msa_fmadd_w(_sum0, _k20, _r20);
-                _sum0 = __msa_fmadd_w(_sum0, _k21, _r21);
-                _sum0 = __msa_fmadd_w(_sum0, _k22, _r22);
-                _sum0 = __msa_fmadd_w(_sum0, _k23, _r23);
-                _sum0 = __msa_fmadd_w(_sum0, _k24, _r24);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k20, _r20);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k21, _r21);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k22, _r22);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k23, _r23);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k24, _r24);
 
                 v4f32 _r30 = (v4f32)__msa_ld_w(r3, 0);
                 v4f32 _r31 = (v4f32)__msa_ld_w(r3 + 4, 0);
@@ -291,11 +291,11 @@ static void convdw5x5s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _k34 = (v4f32)__msa_ld_w(k0 + 4 * 4, 0);
                 k0 += 4 * 5;
 
-                _sum0 = __msa_fmadd_w(_sum0, _k30, _r30);
-                _sum0 = __msa_fmadd_w(_sum0, _k31, _r31);
-                _sum0 = __msa_fmadd_w(_sum0, _k32, _r32);
-                _sum0 = __msa_fmadd_w(_sum0, _k33, _r33);
-                _sum0 = __msa_fmadd_w(_sum0, _k34, _r34);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k30, _r30);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k31, _r31);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k32, _r32);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k33, _r33);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k34, _r34);
 
                 v4f32 _r40 = (v4f32)__msa_ld_w(r4, 0);
                 v4f32 _r41 = (v4f32)__msa_ld_w(r4 + 4, 0);
@@ -310,11 +310,11 @@ static void convdw5x5s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _k44 = (v4f32)__msa_ld_w(k0 + 4 * 4, 0);
                 k0 -= 4 * 20;
 
-                _sum0 = __msa_fmadd_w(_sum0, _k40, _r40);
-                _sum0 = __msa_fmadd_w(_sum0, _k41, _r41);
-                _sum0 = __msa_fmadd_w(_sum0, _k42, _r42);
-                _sum0 = __msa_fmadd_w(_sum0, _k43, _r43);
-                _sum0 = __msa_fmadd_w(_sum0, _k44, _r44);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k40, _r40);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k41, _r41);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k42, _r42);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k43, _r43);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k44, _r44);
 
                 __msa_st_w((v4i32)_sum0, outptr0, 0);
 
@@ -397,11 +397,11 @@ static void convdw5x5s2_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _k04 = (v4f32)__msa_ld_w(k0 + 4 * 4, 0);
                 k0 += 4 * 5;
 
-                _sum0 = __msa_fmadd_w(_sum0, _k00, _r00);
-                _sum0 = __msa_fmadd_w(_sum0, _k01, _r01);
-                _sum0 = __msa_fmadd_w(_sum0, _k02, _r02);
-                _sum0 = __msa_fmadd_w(_sum0, _k03, _r03);
-                _sum0 = __msa_fmadd_w(_sum0, _k04, _r04);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k00, _r00);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k01, _r01);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k02, _r02);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k03, _r03);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k04, _r04);
 
                 v4f32 _r10 = (v4f32)__msa_ld_w(r1, 0);
                 v4f32 _r11 = (v4f32)__msa_ld_w(r1 + 4, 0);
@@ -416,11 +416,11 @@ static void convdw5x5s2_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _k14 = (v4f32)__msa_ld_w(k0 + 4 * 4, 0);
                 k0 += 4 * 5;
 
-                _sum0 = __msa_fmadd_w(_sum0, _k10, _r10);
-                _sum0 = __msa_fmadd_w(_sum0, _k11, _r11);
-                _sum0 = __msa_fmadd_w(_sum0, _k12, _r12);
-                _sum0 = __msa_fmadd_w(_sum0, _k13, _r13);
-                _sum0 = __msa_fmadd_w(_sum0, _k14, _r14);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k10, _r10);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k11, _r11);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k12, _r12);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k13, _r13);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k14, _r14);
 
                 v4f32 _r20 = (v4f32)__msa_ld_w(r2, 0);
                 v4f32 _r21 = (v4f32)__msa_ld_w(r2 + 4, 0);
@@ -435,11 +435,11 @@ static void convdw5x5s2_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _k24 = (v4f32)__msa_ld_w(k0 + 4 * 4, 0);
                 k0 += 4 * 5;
 
-                _sum0 = __msa_fmadd_w(_sum0, _k20, _r20);
-                _sum0 = __msa_fmadd_w(_sum0, _k21, _r21);
-                _sum0 = __msa_fmadd_w(_sum0, _k22, _r22);
-                _sum0 = __msa_fmadd_w(_sum0, _k23, _r23);
-                _sum0 = __msa_fmadd_w(_sum0, _k24, _r24);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k20, _r20);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k21, _r21);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k22, _r22);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k23, _r23);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k24, _r24);
 
                 v4f32 _r30 = (v4f32)__msa_ld_w(r3, 0);
                 v4f32 _r31 = (v4f32)__msa_ld_w(r3 + 4, 0);
@@ -454,11 +454,11 @@ static void convdw5x5s2_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _k34 = (v4f32)__msa_ld_w(k0 + 4 * 4, 0);
                 k0 += 4 * 5;
 
-                _sum0 = __msa_fmadd_w(_sum0, _k30, _r30);
-                _sum0 = __msa_fmadd_w(_sum0, _k31, _r31);
-                _sum0 = __msa_fmadd_w(_sum0, _k32, _r32);
-                _sum0 = __msa_fmadd_w(_sum0, _k33, _r33);
-                _sum0 = __msa_fmadd_w(_sum0, _k34, _r34);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k30, _r30);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k31, _r31);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k32, _r32);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k33, _r33);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k34, _r34);
 
                 v4f32 _r40 = (v4f32)__msa_ld_w(r4, 0);
                 v4f32 _r41 = (v4f32)__msa_ld_w(r4 + 4, 0);
@@ -473,11 +473,11 @@ static void convdw5x5s2_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
                 v4f32 _k44 = (v4f32)__msa_ld_w(k0 + 4 * 4, 0);
                 k0 -= 4 * 20;
 
-                _sum0 = __msa_fmadd_w(_sum0, _k40, _r40);
-                _sum0 = __msa_fmadd_w(_sum0, _k41, _r41);
-                _sum0 = __msa_fmadd_w(_sum0, _k42, _r42);
-                _sum0 = __msa_fmadd_w(_sum0, _k43, _r43);
-                _sum0 = __msa_fmadd_w(_sum0, _k44, _r44);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k40, _r40);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k41, _r41);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k42, _r42);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k43, _r43);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _k44, _r44);
 
                 __msa_st_w((v4i32)_sum0, outptr0, 0);
 

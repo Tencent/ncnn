@@ -1265,6 +1265,65 @@ static NCNN_FORCEINLINE __m128 logaddexp_ps(const __m128& x, const __m128& y)
     return _mm_add_ps(max_xy, log_result);
 }
 
+static NCNN_FORCEINLINE __m128 expm1_ps(const __m128& x)
+{
+    __m128 x2 = _mm_mul_ps(x, x);
+    __m128 poly = _mm_add_ps(x, _mm_mul_ps(x2, _mm_add_ps(_mm_set1_ps(0.5f), _mm_mul_ps(x, _mm_set1_ps(1.0f / 6.0f)))));
+    __m128 y = _mm_sub_ps(exp_ps(x), _mm_set1_ps(1.f));
+    __m128 mask = _mm_cmplt_ps(abs_ps(x), _mm_set1_ps(1e-4f));
+    return _mm_or_ps(_mm_and_ps(mask, poly), _mm_andnot_ps(mask, y));
+}
+
+static NCNN_FORCEINLINE __m128 log1p_ps(const __m128& x)
+{
+    __m128 x2 = _mm_mul_ps(x, x);
+    __m128 poly = _mm_add_ps(x, _mm_mul_ps(x2, _mm_add_ps(_mm_set1_ps(-0.5f), _mm_mul_ps(x, _mm_set1_ps(1.0f / 3.0f)))));
+    __m128 y = log_ps(_mm_add_ps(_mm_set1_ps(1.f), x));
+    __m128 mask = _mm_cmplt_ps(abs_ps(x), _mm_set1_ps(1e-4f));
+    return _mm_or_ps(_mm_and_ps(mask, poly), _mm_andnot_ps(mask, y));
+}
+
+static NCNN_FORCEINLINE __m128 sinh_ps(const __m128& x)
+{
+    __m128 expm1_x = expm1_ps(x);
+    __m128 expm1_neg_x = expm1_ps(_mm_sub_ps(_mm_setzero_ps(), x));
+    return _mm_mul_ps(_mm_sub_ps(expm1_x, expm1_neg_x), _mm_set1_ps(0.5f));
+}
+
+static NCNN_FORCEINLINE __m128 asinh_ps(const __m128& x)
+{
+    __m128 ax = abs_ps(x);
+    __m128 x2 = _mm_mul_ps(ax, ax);
+    __m128 y = log_ps(_mm_add_ps(ax, _mm_sqrt_ps(_mm_add_ps(x2, _mm_set1_ps(1.f)))));
+    __m128 y_large = _mm_add_ps(log_ps(ax), _mm_set1_ps(0.6931471805599453f));
+    __m128 mask = _mm_cmpgt_ps(ax, _mm_set1_ps(1e19f));
+    y = _mm_or_ps(_mm_and_ps(mask, y_large), _mm_andnot_ps(mask, y));
+    return _mm_or_ps(y, _mm_and_ps(x, _mm_set1_ps(-0.f)));
+}
+
+static NCNN_FORCEINLINE __m128 cosh_ps(const __m128& x)
+{
+    __m128 exp_x = exp_ps(x);
+    __m128 exp_neg_x = exp_ps(_mm_sub_ps(_mm_setzero_ps(), x));
+    return _mm_mul_ps(_mm_add_ps(exp_x, exp_neg_x), _mm_set1_ps(0.5f));
+}
+
+static NCNN_FORCEINLINE __m128 acosh_ps(const __m128& x)
+{
+    __m128 one = _mm_set1_ps(1.f);
+    __m128 y = log_ps(_mm_add_ps(x, _mm_mul_ps(_mm_sqrt_ps(_mm_sub_ps(x, one)), _mm_sqrt_ps(_mm_add_ps(x, one)))));
+    __m128 y_large = _mm_add_ps(log_ps(x), _mm_set1_ps(0.6931471805599453f));
+    __m128 mask = _mm_cmpgt_ps(x, _mm_set1_ps(1e19f));
+    return _mm_or_ps(_mm_and_ps(mask, y_large), _mm_andnot_ps(mask, y));
+}
+
+static NCNN_FORCEINLINE __m128 atanh_ps(const __m128& x)
+{
+    __m128 log_pos = log1p_ps(x);
+    __m128 log_neg = log1p_ps(_mm_sub_ps(_mm_setzero_ps(), x));
+    return _mm_mul_ps(_mm_sub_ps(log_pos, log_neg), _mm_set1_ps(0.5f));
+}
+
 static NCNN_FORCEINLINE __m128 floor_divide_ps(const __m128& x, const __m128& y)
 {
     __m128 q = _mm_div_ps(x, y);
