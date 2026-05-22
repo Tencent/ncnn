@@ -102,6 +102,29 @@ static const layer_shader_registry_entry layer_shader_registry[] = {
 
 static const int layer_shader_registry_entry_count = sizeof(layer_shader_registry) / sizeof(layer_shader_registry_entry);
 
+static uint64_t fnv1a_64_update(uint64_t h, const unsigned char* data, int size)
+{
+    for (int i = 0; i < size; i++)
+    {
+        h ^= (uint64_t)data[i];
+        h *= 0x00000100000001b3ull;
+    }
+
+    return h;
+}
+
+uint64_t get_shader_source_hash(int shader_type_index)
+{
+    if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count)
+        return 0;
+
+    const layer_shader_registry_entry& entry = layer_shader_registry[shader_type_index];
+    uint64_t h = 0xcbf29ce484222325ull;
+    h = fnv1a_64_update(h, (const unsigned char*)&entry.comp_data_size, sizeof(entry.comp_data_size));
+    h = fnv1a_64_update(h, (const unsigned char*)entry.comp_data, entry.comp_data_size);
+    return h;
+}
+
 // vulkan core
 PFN_vkAllocateCommandBuffers vkAllocateCommandBuffers = 0;
 PFN_vkAllocateDescriptorSets vkAllocateDescriptorSets = 0;
@@ -200,6 +223,7 @@ PFN_vkUpdateDescriptorSets vkUpdateDescriptorSets = 0;
 PFN_vkWaitForFences vkWaitForFences = 0;
 
 int support_VK_KHR_external_memory_capabilities = 0;
+int support_VK_KHR_device_group_creation = 0;
 int support_VK_KHR_get_physical_device_properties2 = 0;
 int support_VK_KHR_get_surface_capabilities2 = 0;
 int support_VK_KHR_portability_enumeration = 0;
@@ -325,6 +349,7 @@ public:
     int support_VK_KHR_cooperative_matrix;
     int support_VK_KHR_dedicated_allocation;
     int support_VK_KHR_descriptor_update_template;
+    int support_VK_KHR_device_group;
     int support_VK_KHR_driver_properties;
     int support_VK_KHR_external_memory;
     int support_VK_KHR_get_memory_requirements2;
@@ -693,6 +718,7 @@ int GpuInfoPrivate::query_extensions()
     support_VK_KHR_cooperative_matrix = 0;
     support_VK_KHR_dedicated_allocation = 0;
     support_VK_KHR_descriptor_update_template = 0;
+    support_VK_KHR_device_group = 0;
     support_VK_KHR_driver_properties = 0;
     support_VK_KHR_external_memory = 0;
     support_VK_KHR_get_memory_requirements2 = 0;
@@ -755,6 +781,8 @@ int GpuInfoPrivate::query_extensions()
             support_VK_KHR_dedicated_allocation = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_descriptor_update_template") == 0)
             support_VK_KHR_descriptor_update_template = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_KHR_device_group") == 0)
+            support_VK_KHR_device_group = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_driver_properties") == 0)
             support_VK_KHR_driver_properties = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_external_memory") == 0)
@@ -836,6 +864,88 @@ int GpuInfoPrivate::query_extensions()
         else if (strcmp(exp.extensionName, "VK_NV_cooperative_vector") == 0)
             support_VK_NV_cooperative_vector = exp.specVersion;
     }
+
+    const bool support_VK_VERSION_1_1 = physicalDeviceProperties.apiVersion >= VK_MAKE_VERSION(1, 1, 0);
+
+    // filter out extensions with unmet dependencies
+    // later extensions may depend on earlier ones
+
+    if (!support_VK_VERSION_1_1 && !support_VK_KHR_device_group_creation)
+        support_VK_KHR_device_group = 0;
+
+    if (!support_VK_VERSION_1_1)
+    {
+        if (!support_VK_KHR_get_physical_device_properties2)
+        {
+            support_VK_AMD_device_coherent_memory = 0;
+            support_VK_EXT_buffer_device_address = 0;
+            support_VK_EXT_memory_budget = 0;
+            support_VK_EXT_memory_priority = 0;
+            support_VK_EXT_robustness2 = 0;
+            support_VK_EXT_shader_atomic_float = 0;
+            support_VK_EXT_shader_float8 = 0;
+            support_VK_KHR_cooperative_matrix = 0;
+            support_VK_KHR_driver_properties = 0;
+            support_VK_KHR_maintenance3 = 0;
+            support_VK_KHR_multiview = 0;
+            support_VK_KHR_portability_subset = 0;
+            support_VK_KHR_push_descriptor = 0;
+            support_VK_KHR_robustness2 = 0;
+            support_VK_KHR_shader_bfloat16 = 0;
+            support_VK_KHR_shader_float16_int8 = 0;
+            support_VK_KHR_shader_float_controls = 0;
+            support_VK_KHR_shader_integer_dot_product = 0;
+            support_VK_KHR_shader_subgroup_rotate = 0;
+            support_VK_KHR_vulkan_memory_model = 0;
+            support_VK_KHR_zero_initialize_workgroup_memory = 0;
+            support_VK_NV_cooperative_matrix = 0;
+            support_VK_NV_cooperative_vector = 0;
+        }
+
+        if (!support_VK_KHR_external_memory_capabilities)
+            support_VK_KHR_external_memory = 0;
+        if (!support_VK_KHR_external_memory)
+        {
+            support_VK_EXT_external_memory_host = 0;
+            support_VK_EXT_queue_family_foreign = 0;
+        }
+        if (!support_VK_KHR_get_memory_requirements2)
+            support_VK_KHR_dedicated_allocation = 0;
+        if (!support_VK_KHR_get_physical_device_properties2 || !support_VK_KHR_storage_buffer_storage_class)
+        {
+            support_VK_KHR_8bit_storage = 0;
+            support_VK_KHR_16bit_storage = 0;
+        }
+        if (!support_VK_KHR_get_physical_device_properties2 || !support_VK_KHR_device_group)
+            support_VK_KHR_buffer_device_address = 0;
+        if (!support_VK_KHR_get_physical_device_properties2 || !support_VK_KHR_maintenance3)
+            support_VK_EXT_descriptor_indexing = 0;
+        if (!support_VK_KHR_multiview || !support_VK_KHR_maintenance2)
+            support_VK_KHR_create_renderpass2 = 0;
+        if (!support_VK_KHR_maintenance1 || !support_VK_KHR_bind_memory2 || !support_VK_KHR_get_memory_requirements2 || !support_VK_KHR_get_physical_device_properties2)
+            support_VK_KHR_sampler_ycbcr_conversion = 0;
+        support_VK_EXT_subgroup_size_control = 0;
+        support_VK_KHR_shader_float_controls2 = 0;
+        support_VK_KHR_shader_subgroup_extended_types = 0;
+    }
+    else if (!support_VK_KHR_shader_float_controls)
+    {
+        support_VK_KHR_shader_float_controls2 = 0;
+    }
+
+    if (!support_VK_EXT_shader_atomic_float)
+        support_VK_EXT_shader_atomic_float2 = 0;
+    if (!support_VK_KHR_cooperative_matrix)
+        support_VK_NV_cooperative_matrix2 = 0;
+    if (!support_VK_KHR_surface)
+        support_VK_KHR_swapchain = 0;
+
+#if __ANDROID_API__ >= 26
+    if (!support_VK_EXT_queue_family_foreign)
+        support_VK_ANDROID_external_memory_android_hardware_buffer = 0;
+    if (!support_VK_VERSION_1_1 && (!support_VK_KHR_sampler_ycbcr_conversion || !support_VK_KHR_external_memory || !support_VK_KHR_dedicated_allocation))
+        support_VK_ANDROID_external_memory_android_hardware_buffer = 0;
+#endif // __ANDROID_API__ >= 26
 
     if (support_VK_KHR_buffer_device_address)
     {
@@ -1112,6 +1222,14 @@ void GpuInfoPrivate::query_extension_features()
         default:
             break;
         }
+    }
+
+    if (physicalDeviceProperties.vendorID == 0x5143)
+    {
+        // adreno drivers break on the ncnn cm kernel tile unrolls, which exceed hardware limitations
+        // TODO special unroll strategy needs to be designed for adreno
+        queryCooperativeMatrixFeatures.cooperativeMatrix = VK_FALSE;
+        queryCooperativeMatrixFeaturesNV.cooperativeMatrix = VK_FALSE;
     }
 }
 
@@ -1925,6 +2043,11 @@ int GpuInfo::support_VK_KHR_descriptor_update_template() const
     return d->support_VK_KHR_descriptor_update_template;
 }
 
+int GpuInfo::support_VK_KHR_device_group() const
+{
+    return d->support_VK_KHR_device_group;
+}
+
 int GpuInfo::support_VK_KHR_driver_properties() const
 {
     return d->support_VK_KHR_driver_properties;
@@ -2665,6 +2788,8 @@ int create_gpu_instance(const char* driver_path)
         return -1;
     }
 
+    support_VK_KHR_external_memory_capabilities = 0;
+    support_VK_KHR_device_group_creation = 0;
     support_VK_KHR_get_physical_device_properties2 = 0;
     support_VK_KHR_get_surface_capabilities2 = 0;
     support_VK_KHR_portability_enumeration = 0;
@@ -2682,6 +2807,8 @@ int create_gpu_instance(const char* driver_path)
 
         if (strcmp(exp.extensionName, "VK_KHR_external_memory_capabilities") == 0)
             support_VK_KHR_external_memory_capabilities = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_KHR_device_group_creation") == 0)
+            support_VK_KHR_device_group_creation = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_get_physical_device_properties2") == 0)
             support_VK_KHR_get_physical_device_properties2 = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_get_surface_capabilities2") == 0)
@@ -2708,8 +2835,35 @@ int create_gpu_instance(const char* driver_path)
         support_VK_EXT_validation_flags = 0;
     }
 
+    uint32_t instance_api_version = VK_MAKE_VERSION(1, 0, 0);
+    typedef VkResult(VKAPI_PTR * PFN_vkEnumerateInstanceVersion)(uint32_t * pApiVersion);
+    PFN_vkEnumerateInstanceVersion vkEnumerateInstanceVersion = (PFN_vkEnumerateInstanceVersion)vkGetInstanceProcAddr(0, "vkEnumerateInstanceVersion");
+    if (vkEnumerateInstanceVersion)
+    {
+        ret = vkEnumerateInstanceVersion(&instance_api_version);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkEnumerateInstanceVersion failed %d", ret);
+            return -1;
+        }
+    }
+
+    // NCNN_LOGE("instance apiVersion = %u.%u.%u", VK_VERSION_MAJOR(instance_api_version), VK_VERSION_MINOR(instance_api_version), VK_VERSION_PATCH(instance_api_version));
+
+    const bool instance_support_VK_VERSION_1_1 = instance_api_version >= VK_MAKE_VERSION(1, 1, 0);
+    if (!instance_support_VK_VERSION_1_1 && !support_VK_KHR_get_physical_device_properties2)
+        support_VK_KHR_external_memory_capabilities = 0;
+    if (!support_VK_KHR_surface)
+        support_VK_KHR_get_surface_capabilities2 = 0;
+#if __ANDROID_API__ >= 26
+    if (!support_VK_KHR_surface)
+        support_VK_KHR_android_surface = 0;
+#endif // __ANDROID_API__ >= 26
+
     if (support_VK_KHR_external_memory_capabilities)
         enabledExtensions.push_back("VK_KHR_external_memory_capabilities");
+    if (support_VK_KHR_device_group_creation)
+        enabledExtensions.push_back("VK_KHR_device_group_creation");
     if (support_VK_KHR_get_physical_device_properties2)
         enabledExtensions.push_back("VK_KHR_get_physical_device_properties2");
     if (support_VK_KHR_get_surface_capabilities2)
@@ -2730,21 +2884,6 @@ int create_gpu_instance(const char* driver_path)
     if (support_VK_KHR_android_surface)
         enabledExtensions.push_back("VK_KHR_android_surface");
 #endif // __ANDROID_API__ >= 26
-
-    uint32_t instance_api_version = VK_MAKE_VERSION(1, 0, 0);
-    typedef VkResult(VKAPI_PTR * PFN_vkEnumerateInstanceVersion)(uint32_t * pApiVersion);
-    PFN_vkEnumerateInstanceVersion vkEnumerateInstanceVersion = (PFN_vkEnumerateInstanceVersion)vkGetInstanceProcAddr(0, "vkEnumerateInstanceVersion");
-    if (vkEnumerateInstanceVersion)
-    {
-        ret = vkEnumerateInstanceVersion(&instance_api_version);
-        if (ret != VK_SUCCESS)
-        {
-            NCNN_LOGE("vkEnumerateInstanceVersion failed %d", ret);
-            return -1;
-        }
-    }
-
-    // NCNN_LOGE("instance apiVersion = %u.%u.%u", VK_VERSION_MAJOR(instance_api_version), VK_VERSION_MINOR(instance_api_version), VK_VERSION_PATCH(instance_api_version));
 
     VkApplicationInfo applicationInfo;
     applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -3591,6 +3730,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_dedicated_allocation");
     if (info.support_VK_KHR_descriptor_update_template())
         enabledExtensions.push_back("VK_KHR_descriptor_update_template");
+    if (info.support_VK_KHR_device_group())
+        enabledExtensions.push_back("VK_KHR_device_group");
     if (info.support_VK_KHR_driver_properties())
         enabledExtensions.push_back("VK_KHR_driver_properties");
     if (info.support_VK_KHR_external_memory())
@@ -4078,6 +4219,11 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
 
 int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipeline* pipeline) const
 {
+    return create_pipeline(shader_module, pipeline_layout, specializations, subgroup_size, 0, pipeline);
+}
+
+int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipelineCache pipeline_cache, VkPipeline* pipeline) const
+{
     const int specialization_count = specializations.size();
 
     std::vector<VkSpecializationMapEntry> specializationMapEntries(specialization_count);
@@ -4134,7 +4280,7 @@ int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout
     computePipelineCreateInfo.basePipelineHandle = 0;
     computePipelineCreateInfo.basePipelineIndex = 0;
 
-    VkResult ret = vkCreateComputePipelines(d->device, 0, 1, &computePipelineCreateInfo, 0, pipeline);
+    VkResult ret = vkCreateComputePipelines(d->device, pipeline_cache, 1, &computePipelineCreateInfo, 0, pipeline);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkCreateComputePipelines failed %d", ret);

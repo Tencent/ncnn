@@ -16,6 +16,50 @@
 
 namespace pnnx {
 
+static std::string normalize_exponent(std::string s)
+{
+    // keep scientific notation compact and parser-friendly, e.g. 1.0e+06 -> 1.0e6.
+    size_t pos = s.find_first_of("eE");
+    if (pos == std::string::npos || pos + 1 == s.size())
+        return s;
+
+    size_t exponent_pos = pos + 1;
+    if (s[exponent_pos] == '+')
+    {
+        s.erase(exponent_pos, 1);
+    }
+    else if (s[exponent_pos] == '-')
+    {
+        exponent_pos++;
+    }
+
+    while (exponent_pos + 1 < s.size() && s[exponent_pos] == '0')
+        s.erase(exponent_pos, 1);
+
+    return s;
+}
+
+static bool fractional_digits_exceed(const char* s, int max_digits)
+{
+    // ncnn ParamDict parses decimals with an unsigned int pow10 accumulator.
+    // prefer scientific notation before long fractional parts can overflow it.
+    const char* dot = strchr(s, '.');
+    if (!dot)
+        return false;
+
+    int digits = 0;
+    const char* p = dot + 1;
+    while (*p != '\0' && *p != 'e' && *p != 'E')
+    {
+        digits++;
+        if (digits > max_digits)
+            return true;
+        p++;
+    }
+
+    return false;
+}
+
 unsigned short float32_to_float16(float value)
 {
     // 1 : 8 : 23
@@ -132,10 +176,25 @@ std::string float_to_string(float f)
     if (abs_f < 0.0001f || abs_f >= 1000000.0f)
     {
         snprintf(buffer, sizeof(buffer), "%e", f);
-        return std::string(buffer);
+        // keep short output when it round-trips; otherwise emit enough digits
+        // for exact float32 recovery from text.
+        if (strtof(buffer, 0) != f)
+            snprintf(buffer, sizeof(buffer), "%.*e", std::numeric_limits<float>::max_digits10 - 1, f);
+        return normalize_exponent(buffer);
     }
 
-    const int len = snprintf(buffer, sizeof(buffer), "%g", f);
+    int len = snprintf(buffer, sizeof(buffer), "%g", f);
+    if (strtof(buffer, 0) != f)
+    {
+        // scalarized attributes, such as PReLU weight -> LeakyReLU slope,
+        // must survive text serialization without changing the float32 value.
+        len = snprintf(buffer, sizeof(buffer), "%.*g", std::numeric_limits<float>::max_digits10, f);
+        if (fractional_digits_exceed(buffer, 9))
+        {
+            snprintf(buffer, sizeof(buffer), "%.*e", std::numeric_limits<float>::max_digits10 - 1, f);
+            return normalize_exponent(buffer);
+        }
+    }
 
     bool is_integer = true;
     for (int i = 0; i < len; i++)
@@ -169,10 +228,23 @@ std::string double_to_string(double d)
     if (abs_d < 0.0001 || abs_d >= 1000000.0)
     {
         snprintf(buffer, sizeof(buffer), "%e", d);
-        return std::string(buffer);
+        // mirror float_to_string for f64 constants used in pnnx expressions.
+        if (strtod(buffer, 0) != d)
+            snprintf(buffer, sizeof(buffer), "%.*e", std::numeric_limits<double>::max_digits10 - 1, d);
+        return normalize_exponent(buffer);
     }
 
-    const int len = snprintf(buffer, sizeof(buffer), "%g", d);
+    int len = snprintf(buffer, sizeof(buffer), "%g", d);
+    if (strtod(buffer, 0) != d)
+    {
+        // preserve f64 constants while avoiding extremely long plain decimals.
+        len = snprintf(buffer, sizeof(buffer), "%.*g", std::numeric_limits<double>::max_digits10, d);
+        if (fractional_digits_exceed(buffer, 17))
+        {
+            snprintf(buffer, sizeof(buffer), "%.*e", std::numeric_limits<double>::max_digits10 - 1, d);
+            return normalize_exponent(buffer);
+        }
+    }
 
     bool is_integer = true;
     for (int i = 0; i < len; i++)

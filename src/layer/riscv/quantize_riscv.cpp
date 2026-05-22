@@ -160,6 +160,7 @@ int Quantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
     const int dims = bottom_blob.dims;
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
 
@@ -259,7 +260,7 @@ int Quantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         int out_elempack = 1;
 #if __riscv_vector
@@ -271,7 +272,10 @@ int Quantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
         const int outc = channels * elempack / out_elempack;
         const size_t out_elemsize = out_elempack * 1u;
 
-        top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        if (dims == 3)
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -289,7 +293,7 @@ int Quantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * out_elempack, out_elempack) : scale_data;
 
-                quantize_packnton_s8(ptr0, ptr1, ptr2, ptr3, s8ptr, scale_data_q, w * h);
+                quantize_packnton_s8(ptr0, ptr1, ptr2, ptr3, s8ptr, scale_data_q, w * h * d);
             }
         }
         if (elempack == packn && out_elempack == 1)
@@ -302,7 +306,7 @@ int Quantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize_packnto1(ptr, s8ptr, scale_data_q, w * h, top_blob.cstep);
+                quantize_packnto1(ptr, s8ptr, scale_data_q, w * h * d, top_blob.cstep);
             }
         }
 #endif // __riscv_vector
@@ -316,7 +320,7 @@ int Quantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize(ptr, s8ptr, scale_data_q, w * h, elempack);
+                quantize(ptr, s8ptr, scale_data_q, w * h * d, elempack);
             }
         }
     }

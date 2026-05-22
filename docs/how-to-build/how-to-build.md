@@ -757,40 +757,6 @@ You can upload binary inside `build-c906/examples` folder and run on D1 board fo
 
 ### Build for Loongson 2K1000
 
-For gcc version < 8.5, you need to fix msa.h header for workaround msa fmadd/fmsub/maddv/msubv bug.
-
-Open ```/usr/lib/gcc/mips64el-linux-gnuabi64/8/include/msa.h```, find ```__msa_fmadd``` and ```__msa_fmsub``` and apply changes as the following
-```c
-// #define __msa_fmadd_w __builtin_msa_fmadd_w
-// #define __msa_fmadd_d __builtin_msa_fmadd_d
-// #define __msa_fmsub_w __builtin_msa_fmsub_w
-// #define __msa_fmsub_d __builtin_msa_fmsub_d
-#define __msa_fmadd_w(a, b, c) __builtin_msa_fmadd_w(c, b, a)
-#define __msa_fmadd_d(a, b, c) __builtin_msa_fmadd_d(c, b, a)
-#define __msa_fmsub_w(a, b, c) __builtin_msa_fmsub_w(c, b, a)
-#define __msa_fmsub_d(a, b, c) __builtin_msa_fmsub_d(c, b, a)
-```
-
-find ```__msa_maddv``` and ```__msa_msubv``` and apply changes as the following
-```c
-// #define __msa_maddv_b __builtin_msa_maddv_b
-// #define __msa_maddv_h __builtin_msa_maddv_h
-// #define __msa_maddv_w __builtin_msa_maddv_w
-// #define __msa_maddv_d __builtin_msa_maddv_d
-// #define __msa_msubv_b __builtin_msa_msubv_b
-// #define __msa_msubv_h __builtin_msa_msubv_h
-// #define __msa_msubv_w __builtin_msa_msubv_w
-// #define __msa_msubv_d __builtin_msa_msubv_d
-#define __msa_maddv_b(a, b, c) __builtin_msa_maddv_b(c, b, a)
-#define __msa_maddv_h(a, b, c) __builtin_msa_maddv_h(c, b, a)
-#define __msa_maddv_w(a, b, c) __builtin_msa_maddv_w(c, b, a)
-#define __msa_maddv_d(a, b, c) __builtin_msa_maddv_d(c, b, a)
-#define __msa_msubv_b(a, b, c) __builtin_msa_msubv_b(c, b, a)
-#define __msa_msubv_h(a, b, c) __builtin_msa_msubv_h(c, b, a)
-#define __msa_msubv_w(a, b, c) __builtin_msa_msubv_w(c, b, a)
-#define __msa_msubv_d(a, b, c) __builtin_msa_msubv_d(c, b, a)
-```
-
 Build ncnn with mips msa and simpleocv enabled:
 ```shell
 mkdir -p build
@@ -948,10 +914,8 @@ cd build
 export HM_SDK=/opt/ohos-sdk/linux
 
 # Choose HarmonyOS sdk cmake toolchain file.
-# If you want to enable vulkan, set -DNCNN_VULKAN=ON
-# The HarmonyOS sdk does not support openmp, use ncnn simpleomp instead.
 # Cross-compiling with CMake must use the one provided by the HarmonyOS SDK; otherwise, it won't recognize parameters like OHOS_PLATFORM, leading to compilation errors.
-${HM_SDK}/native/build-tools/cmake/bin/cmake -DOHOS_STL=c++_static -DOHOS_ARCH=arm64-v8a -DOHOS_PLATFORM=OHOS -DCMAKE_TOOLCHAIN_FILE=${HM_SDK}/native/build/cmake/ohos.toolchain.cmake -DNCNN_VULKAN=ON -DNCNN_SIMPLEOMP=ON ..
+${HM_SDK}/native/build-tools/cmake/bin/cmake -DOHOS_ARCH=arm64-v8a -DCMAKE_TOOLCHAIN_FILE=${HM_SDK}/native/build/cmake/ohos.toolchain.cmake -DNCNN_VULKAN=ON ..
 
 make -j$(nproc)
 make install
