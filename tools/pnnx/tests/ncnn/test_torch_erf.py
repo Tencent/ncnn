@@ -1,4 +1,4 @@
-# Copyright 2021 Tencent
+# Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
 import torch
@@ -10,14 +10,9 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
-        x = F.normalize(x, dim=0)
-        x = F.normalize(x, dim=0, eps=1e-3)
-
-        y = F.normalize(y, dim=0)
-        y = F.normalize(y, dim=0, eps=1e-4)
-
-        z = F.normalize(z, dim=0)
-        z = F.normalize(z, dim=0, eps=1e-4)
+        x = torch.erf(x * 2 - 1)
+        y = torch.erf(y * 2 - 1)
+        z = torch.erf(z * 2 - 1)
         return x, y, z
 
 def test():
@@ -25,23 +20,23 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(64)
-    y = torch.rand(12, 24, 64)
-    z = torch.rand(12, 3, 24, 64)
+    x = torch.rand(16)
+    y = torch.rand(3, 12, 16)
+    z = torch.rand(2, 3, 4, 5)
 
     a = net(x, y, z)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_F_normalize.pt")
+    mod.save("test_torch_erf.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_normalize.pt inputshape=[64],[12,24,64],[12,3,24,64]")
+    os.system("../../src/pnnx test_torch_erf.pt inputshape=[16],[3,12,16],[2,3,4,5]")
 
     # ncnn inference
-    import test_F_normalize_ncnn
-    b = test_F_normalize_ncnn.test_inference()
+    import test_torch_erf_ncnn
+    b = test_torch_erf_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):

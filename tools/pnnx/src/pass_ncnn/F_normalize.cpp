@@ -67,7 +67,7 @@ pnnx.Output             output      1 0 out
         if (batch_index >= 0 && batch_index < input_rank)
             input_rank -= 1;
 
-        if (input_rank == 2 || axis != 0)
+        if (input_rank == 2 || input_rank > 4 || axis != 0)
         {
             fprintf(stderr, "unsupported normalize for %d-rank tensor with axis %d\n", input_rank, axis);
             return;
@@ -79,7 +79,7 @@ pnnx.Output             output      1 0 out
             op->params["4"] = 1; // across_channel
         }
 
-        if (input_rank == 3 && axis == 0)
+        if ((input_rank == 3 || input_rank == 4) && axis == 0)
         {
             op->params["0"] = 0; // across_spatial
             op->params["4"] = 1; // across_channel
