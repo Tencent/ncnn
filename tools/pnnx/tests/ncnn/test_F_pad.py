@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -22,6 +23,10 @@ class Model(nn.Module):
         z = F.pad(z, (2,1,2,0), mode='replicate')
         z = F.pad(z, (1,0,2,0), mode='constant', value=1.3)
         z = F.pad(z, (3,3,3,3))
+
+        if version.parse(torch.__version__) < version.parse('1.10'):
+            w = w.relu()
+            return x, y, z, w
 
         w = F.pad(w, (1,2,2,1,1,0), mode='reflect')
         w = F.pad(w, (2,1,1,0,0,1), mode='replicate')
