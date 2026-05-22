@@ -111,27 +111,7 @@ See [pnnx](tools/pnnx), [use ncnn with PyTorch or ONNX](https://github.com/Tence
 
 ---
 
-## Download & CI
-
-ncnn runs on phones, PCs, browsers, and embedded boards. Prebuilt packages and CI jobs cover Android, HarmonyOS, Apple platforms, Linux, Windows, WebAssembly, Raspberry Pi, Jetson, RISC-V, LoongArch, POWER, MIPS, and other embedded targets.
-
-[![Latest Release](https://img.shields.io/github/v/release/Tencent/ncnn?style=for-the-badge&label=release)](https://github.com/Tencent/ncnn/releases/latest)
-[![Download Total Count](https://img.shields.io/github/downloads/Tencent/ncnn/total.svg?style=for-the-badge)](https://github.com/Tencent/ncnn/releases)
-[![codecov](https://img.shields.io/codecov/c/github/Tencent/ncnn/master?style=for-the-badge)](https://codecov.io/gh/Tencent/ncnn)
-
-| Platform | Downloads | Build status | Build docs |
-| --- | --- | --- | --- |
-| Source | [<img src="https://img.shields.io/badge/source-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-full-source.zip) | [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/test-coverage.yml?branch=master&style=for-the-badge&label=test">](https://github.com/Tencent/ncnn/actions?query=workflow%3Atest-coverage) | [build from source](https://github.com/Tencent/ncnn/wiki/how-to-build) |
-| Android / HarmonyOS | [<img src="https://img.shields.io/badge/android_vulkan-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-android-vulkan.zip)<br>[<img src="https://img.shields.io/badge/cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-android.zip) | [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/android.yml?branch=master&style=for-the-badge&label=android">](https://github.com/Tencent/ncnn/actions?query=workflow%3Aandroid)<br>[<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/harmonyos.yml?branch=master&style=for-the-badge&label=harmonyos">](https://github.com/Tencent/ncnn/actions?query=workflow%3Aharmonyos) | [Android](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-android)<br>[HarmonyOS](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-harmonyos-with-cross-compiling) |
-| Apple platforms | [<img src="https://img.shields.io/badge/ios_vulkan-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ios-vulkan.zip)<br>[<img src="https://img.shields.io/badge/macos_vulkan-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-macos-vulkan.zip)<br>[<img src="https://img.shields.io/badge/xcframework-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-apple-vulkan.zip) | [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios.yml?branch=master&style=for-the-badge&label=ios">](https://github.com/Tencent/ncnn/actions?query=workflow%3Aios)<br>[<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/macos.yml?branch=master&style=for-the-badge&label=macos">](https://github.com/Tencent/ncnn/actions?query=workflow%3Amacos) | [iOS](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-ios-on-macos-with-xcode)<br>[macOS](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-macos) |
-| Linux / embedded | [<img src="https://img.shields.io/badge/ubuntu_22.04-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ubuntu-2204.zip)<br>[<img src="https://img.shields.io/badge/ubuntu_24.04-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ubuntu-2404.zip) | [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-x64-gpu-gcc.yml?branch=master&style=for-the-badge&label=x64">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-x64-gpu-gcc)<br>[<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-aarch64.yml?branch=master&style=for-the-badge&label=aarch64">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-aarch64)<br>[<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-riscv64.yml?branch=master&style=for-the-badge&label=riscv64">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-riscv64) | [Linux](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-linux)<br>[ARM](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-arm-cortex-a-family-with-cross-compiling)<br>[RISC-V](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-allwinner-d1) |
-| Windows | [<img src="https://img.shields.io/badge/vs2022-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2022.zip)<br>[<img src="https://img.shields.io/badge/shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2022-shared.zip) | [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/windows.yml?branch=master&style=for-the-badge&label=windows">](https://github.com/Tencent/ncnn/actions?query=workflow%3Awindows)<br>[<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/windows-arm.yml?branch=master&style=for-the-badge&label=arm64">](https://github.com/Tencent/ncnn/actions?query=workflow%3Awindows-arm) | [Visual Studio](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-windows-x64-using-visual-studio-community-2017)<br>[MinGW](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-windows-x64-using-mingw-w64) |
-| WebAssembly | [<img src="https://img.shields.io/badge/wasm-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-webassembly.zip) | [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/web-assembly.yml?branch=master&style=for-the-badge&label=wasm">](https://github.com/Tencent/ncnn/actions?query=workflow%3Aweb-assembly) | [WebAssembly](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-webassembly) |
-
-Open the full matrix for every prebuilt package, CPU-only/shared variant, and platform-specific CI job.
-
-<details>
-<summary>Full prebuilt package and build status matrix</summary>
+## Download & Build status
 
 https://github.com/Tencent/ncnn/releases/latest
 
@@ -561,8 +541,6 @@ https://github.com/Tencent/ncnn/releases/latest
 </tr>
 
 </table>
-
-</details>
 
 ---
 
