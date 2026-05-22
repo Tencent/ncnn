@@ -279,17 +279,17 @@ static int benchmark_model(const ModelConfig& config, const ncnn::Option& opt)
 
     std::vector<ncnn::Mat> empty_cache;
     std::vector<ncnn::Mat> past_cache;
-    run_decoder_once(decoder, proj_out, cache_indexes, config.hidden_size, config.rope_half_dim, 1024, 0, empty_cache, past_cache);
+    run_decoder_once(decoder, proj_out, cache_indexes, config.hidden_size, config.rope_half_dim, 256, 0, empty_cache, past_cache);
 
     char prefill_name[256];
-    snprintf(prefill_name, 256, "%s_1k_prefill", config.name);
+    snprintf(prefill_name, 256, "%s_256_prefill", config.name);
 
-    benchmark_case(prefill_name, decoder, proj_out, cache_indexes, config.hidden_size, config.rope_half_dim, 1024, 0, empty_cache, 1024.0);
+    benchmark_case(prefill_name, decoder, proj_out, cache_indexes, config.hidden_size, config.rope_half_dim, 256, 0, empty_cache, 256.0);
 
     char decode_name[256];
-    snprintf(decode_name, 256, "%s_1k_decode", config.name);
+    snprintf(decode_name, 256, "%s_256_decode", config.name);
 
-    benchmark_case(decode_name, decoder, proj_out, cache_indexes, config.hidden_size, config.rope_half_dim, 1, 1024, past_cache, 1.0);
+    benchmark_case(decode_name, decoder, proj_out, cache_indexes, config.hidden_size, config.rope_half_dim, 1, 256, past_cache, 1.0);
 
     return 0;
 }
