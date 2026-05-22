@@ -109,7 +109,7 @@ net.load_model("model.ncnn.bin");
 
 ncnn::Mat in(224, 224, 3);
 
-ncnn::Extractor ex = net.create_extractor();
+auto ex = net.create_extractor();
 ex.input("in0", in);
 
 ncnn::Mat out;
