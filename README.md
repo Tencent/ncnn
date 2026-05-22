@@ -61,15 +61,16 @@ The recommended beginner path is PyTorch -> pnnx -> ncnn.
 <tr>
 <td width="50%" valign="top">
 
-### Convert from PyTorch
+**Install pnnx in a PyTorch environment**
 
-Install pnnx in a PyTorch environment.
+```shell
+pip3 install pnnx
+```
 
-<pre><code class="language-bash">pip3 install pnnx</code></pre>
+**Export a PyTorch model to ncnn**
 
-Export a PyTorch model to ncnn.
-
-<pre><code class="language-python">import torch
+```python
+import torch
 import torch.nn as nn
 import pnnx
 
@@ -89,19 +90,18 @@ class Model(nn.Module):
 model = Model().eval()
 
 x = torch.rand(1, 3, 224, 224)
-
-pnnx.export(model, "model.pt", (x,))</code></pre>
+pnnx.export(model, "model.pt", (x,))
+```
 
 This generates `model.ncnn.param` and `model.ncnn.bin`.
 
 </td>
 <td width="50%" valign="top">
 
-### Run with ncnn C++ API
+**Run with ncnn C++ API**
 
-Load the generated ncnn model and run inference.
-
-<pre><code class="language-cpp">#include "net.h"
+```cpp
+#include "net.h"
 
 ncnn::Net net;
 net.load_param("model.ncnn.param");
@@ -113,11 +113,13 @@ auto ex = net.create_extractor();
 ex.input("in0", in);
 
 ncnn::Mat out;
-ex.extract("out0", out);</code></pre>
+ex.extract("out0", out);
+```
 
-### Or use Python
+**Or use Python**
 
-<pre><code class="language-python">import numpy as np
+```python
+import numpy as np
 import ncnn
 
 net = ncnn.Net()
@@ -131,7 +133,8 @@ ex = net.create_extractor()
 ex.input("in0", mat)
 ret, out = ex.extract("out0")
 
-print(np.array(out).shape)</code></pre>
+print(np.array(out).shape)
+```
 
 </td>
 </tr>
