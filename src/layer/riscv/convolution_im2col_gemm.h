@@ -110,7 +110,6 @@ static void convolution_gemm_transB_packed_tile_rvv(const Mat& AT_tile, const Ma
 
     float* outptr = topT_tile;
 
-
     int ii = 0;
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
@@ -518,7 +517,6 @@ static void convolution_gemm_transB_packed_tile_rvv(const Mat& AT_tile, const Ma
                     _sum0 = __riscv_vle32_v_f32m1(pC, vl);
                 else
                     _sum0 = __riscv_vfmv_v_f_f32m1(0.f, vl);
-
             }
             else
             {

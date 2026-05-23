@@ -110,7 +110,6 @@ static void convolution_gemm_transB_packed_tile_fp16sa_rvv(const Mat& AT_tile, c
 
     __fp16* outptr = topT_tile;
 
-
     int ii = 0;
 #if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
@@ -518,7 +517,6 @@ static void convolution_gemm_transB_packed_tile_fp16sa_rvv(const Mat& AT_tile, c
                     _sum0 = __riscv_vle16_v_f16m1(pC, vl);
                 else
                     _sum0 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
-
             }
             else
             {
