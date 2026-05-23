@@ -1,11 +1,9 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-static void convolution_im2col_pack_A_tile_rvv(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+static void convolution_im2col_pack_A_tile_rvv(const Mat& kernel, Mat& AT, int i, int max_ii, int k, int max_kk, int maxk, int K, int elempack)
 {
-    // A = (elempack, maxk, inch/elempack), outch
-    const int A_hstep = A.w;
-
+    const float* kernel_ptr = kernel;
     float* pp = AT;
 
     int ii = 0;
@@ -15,89 +13,58 @@ static void convolution_im2col_pack_A_tile_rvv(const Mat& A, Mat& AT, int i, int
 
     for (; ii + (packn - 1) < max_ii; ii += packn)
     {
-        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+        const float* kptr = kernel_ptr + (i + ii) * K;
 
         for (int kk = 0; kk < max_kk; kk++)
         {
-            vfloat32m1_t _r0 = __riscv_vlse32_v_f32m1(p0, A_hstep * sizeof(float), vl);
+            const int kk_global = k + kk;
+            const int p = kk_global / (maxk * elempack) * elempack + kk_global % elempack;
+            const int uv = (kk_global / elempack) % maxk;
+
+            const float* k00 = kptr + p * maxk + uv;
+
+            vfloat32m1_t _r0 = __riscv_vlse32_v_f32m1(k00, K * sizeof(float), vl);
             __riscv_vse32_v_f32m1(pp, _r0, vl);
 
             pp += packn;
-            p0++;
         }
     }
 #else
     for (; ii + 1 < max_ii; ii += 2)
     {
-        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
-        const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
+        const float* kptr0 = kernel_ptr + (i + ii) * K;
+        const float* kptr1 = kernel_ptr + (i + ii + 1) * K;
 
         for (int kk = 0; kk < max_kk; kk++)
         {
-            pp[0] = p0[0];
-            pp[1] = p1[0];
+            const int kk_global = k + kk;
+            const int p = kk_global / (maxk * elempack) * elempack + kk_global % elempack;
+            const int uv = (kk_global / elempack) % maxk;
+
+            const int offset = p * maxk + uv;
+
+            pp[0] = kptr0[offset];
+            pp[1] = kptr1[offset];
             pp += 2;
-            p0++;
-            p1++;
         }
     }
 #endif // __riscv_vector
 
     for (; ii < max_ii; ii++)
     {
-        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+        const float* kptr = kernel_ptr + (i + ii) * K;
 
         for (int kk = 0; kk < max_kk; kk++)
         {
-            pp[0] = p0[0];
-            pp++;
-            p0++;
-        }
-    }
-}
+            const int kk_global = k + kk;
+            const int p = kk_global / (maxk * elempack) * elempack + kk_global % elempack;
+            const int uv = (kk_global / elempack) % maxk;
 
-#if __riscv_vector
-static void convolution_im2col_pack_A_tile_direct_rvv(const Mat& weight_data_r2, Mat& AT, int i, int max_ii, int k, int max_kk, int maxk, int elempack)
-{
-    float* pp = AT;
-
-    const int packn = csrr_vlenb() / 4;
-    const size_t vl = __riscv_vsetvl_e32m1(packn);
-
-    int ii = 0;
-    for (; ii + (packn - 1) < max_ii; ii += packn)
-    {
-        for (int kk = 0; kk < max_kk; kk++)
-        {
-            int kk_global = k + kk;
-            int p = kk_global / (maxk * elempack) * elempack + kk_global % elempack;
-            int uv = (kk_global / elempack) % maxk;
-
-            const float* k00 = weight_data_r2.channel(i + ii).row(p) + uv;
-
-            vfloat32m1_t _r0 = __riscv_vlse32_v_f32m1(k00, weight_data_r2.cstep * sizeof(float), vl);
-            __riscv_vse32_v_f32m1(pp, _r0, vl);
-
-            pp += packn;
-        }
-    }
-
-    for (; ii < max_ii; ii++)
-    {
-        for (int kk = 0; kk < max_kk; kk++)
-        {
-            int kk_global = k + kk;
-            int p = kk_global / (maxk * elempack) * elempack + kk_global % elempack;
-            int uv = (kk_global / elempack) % maxk;
-
-            const float* k00 = weight_data_r2.channel(i + ii).row(p);
-
-            pp[0] = k00[uv];
+            pp[0] = kptr[p * maxk + uv];
             pp++;
         }
     }
 }
-#endif // __riscv_vector
 
 static void convolution_gemm_transB_packed_tile_rvv(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end)
 {
@@ -998,110 +965,58 @@ static void convolution_gemm_transB_packed_tile_rvv(const Mat& AT_tile, const Ma
             outptr += 4;
         }
 
-        for (; jj + 1 < max_jj; jj += 2)
-        {
-            const float* pA = pAT;
-
-            float sum0;
-            float sum1;
-
-            if (k == 0)
-            {
-                if (pC)
-                {
-                    sum0 = pC[0];
-                    sum1 = pC[0];
-                }
-                else
-                {
-                    sum0 = 0.f;
-                    sum1 = 0.f;
-                }
-            }
-            else
-            {
-                sum0 = outptr[0];
-                sum1 = outptr[1];
-            }
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                float w = pA[0];
-                sum0 += w * pB[0];
-                sum1 += w * pB[1];
-
-                pA += 1;
-                pB += 2;
-            }
-
-            if (k_end)
-            {
-                outptr0[0] = sum0;
-                outptr0[out_elempack] = sum1;
-                outptr0 += out_elempack * 2;
-            }
-            else
-            {
-                outptr[0] = sum0;
-                outptr[1] = sum1;
-            }
-
-            outptr += 2;
-        }
-
-#else
-        for (; jj + 1 < max_jj; jj += 2)
-        {
-            const float* pA = pAT;
-
-            float sum0;
-            float sum1;
-
-            if (k == 0)
-            {
-                if (pC)
-                {
-                    sum0 = pC[0];
-                    sum1 = pC[0];
-                }
-                else
-                {
-                    sum0 = 0.f;
-                    sum1 = 0.f;
-                }
-            }
-            else
-            {
-                sum0 = outptr[0];
-                sum1 = outptr[1];
-            }
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                float w = pA[0];
-                sum0 += w * pB[0];
-                sum1 += w * pB[1];
-
-                pA += 1;
-                pB += 2;
-            }
-
-            if (k_end)
-            {
-                outptr0[0] = sum0;
-                outptr0[out_elempack] = sum1;
-                outptr0 += out_elempack * 2;
-            }
-            else
-            {
-                outptr[0] = sum0;
-                outptr[1] = sum1;
-            }
-
-            outptr += 2;
-        }
-
 #endif // __riscv_vector
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            const float* pA = pAT;
+
+            float sum0;
+            float sum1;
+
+            if (k == 0)
+            {
+                if (pC)
+                {
+                    sum0 = pC[0];
+                    sum1 = pC[0];
+                }
+                else
+                {
+                    sum0 = 0.f;
+                    sum1 = 0.f;
+                }
+            }
+            else
+            {
+                sum0 = outptr[0];
+                sum1 = outptr[1];
+            }
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                float w = pA[0];
+                sum0 += w * pB[0];
+                sum1 += w * pB[1];
+
+                pA += 1;
+                pB += 2;
+            }
+
+            if (k_end)
+            {
+                outptr0[0] = sum0;
+                outptr0[out_elempack] = sum1;
+                outptr0 += out_elempack * 2;
+            }
+            else
+            {
+                outptr[0] = sum0;
+                outptr[1] = sum1;
+            }
+
+            outptr += 2;
+        }
+
         for (; jj < max_jj; jj++)
         {
             const float* pA = pAT;
@@ -1700,27 +1615,55 @@ static inline void convolution_im2col_input_tile_impl_rvv(const Mat& bottom_blob
                 }
                 if (elempack == 1)
                 {
-                    const float* base = (const float*)img;
-                    const int w = img.w;
-
-                    unsigned int index[16];
-                    for (int n = 0; n < 16; n++)
+                    if (stride_w == 1 && dy15 == dy0 + 1)
                     {
-                        int dy = (j + jj + n) / outw;
-                        int dx = (j + jj + n) % outw;
-                        int x = stride_w * dx + dilation_w * v;
-                        int y = stride_h * dy + dilation_h * u;
-                        index[n] = (y * w + x) * sizeof(float);
+                        int nn0 = outw - dx0;
+                        int y0 = stride_h * dy0 + dilation_h * u;
+                        int y1 = stride_h * (dy0 + 1) + dilation_h * u;
+
+                        const float* sptr0 = img.row(y0) + dx0 + dilation_w * v;
+                        const float* sptr1 = img.row(y1) + dilation_w * v;
+
+                        int n = 0;
+                        while (n < nn0)
+                        {
+                            const size_t vl1 = __riscv_vsetvl_e32m1(nn0 - n);
+                            vfloat32m1_t _val = __riscv_vle32_v_f32m1(sptr0 + n, vl1);
+                            __riscv_vse32_v_f32m1(pp + n, _val, vl1);
+                            n += vl1;
+                        }
+                        while (n < 16)
+                        {
+                            const size_t vl1 = __riscv_vsetvl_e32m1(16 - n);
+                            vfloat32m1_t _val = __riscv_vle32_v_f32m1(sptr1 + n - nn0, vl1);
+                            __riscv_vse32_v_f32m1(pp + n, _val, vl1);
+                            n += vl1;
+                        }
                     }
-
-                    int n = 0;
-                    while (n < 16)
+                    else
                     {
-                        const size_t vl1 = __riscv_vsetvl_e32m1(16 - n);
-                        vuint32m1_t _index = __riscv_vle32_v_u32m1(index + n, vl1);
-                        vfloat32m1_t _val = __riscv_vloxei32_v_f32m1(base, _index, vl1);
-                        __riscv_vse32_v_f32m1(pp + n, _val, vl1);
-                        n += vl1;
+                        const float* base = (const float*)img;
+                        const int w = img.w;
+
+                        unsigned int index[16];
+                        for (int n = 0; n < 16; n++)
+                        {
+                            int dy = (j + jj + n) / outw;
+                            int dx = (j + jj + n) % outw;
+                            int x = stride_w * dx + dilation_w * v;
+                            int y = stride_h * dy + dilation_h * u;
+                            index[n] = (y * w + x) * sizeof(float);
+                        }
+
+                        int n = 0;
+                        while (n < 16)
+                        {
+                            const size_t vl1 = __riscv_vsetvl_e32m1(16 - n);
+                            vuint32m1_t _index = __riscv_vle32_v_u32m1(index + n, vl1);
+                            vfloat32m1_t _val = __riscv_vloxei32_v_f32m1(base, _index, vl1);
+                            __riscv_vse32_v_f32m1(pp + n, _val, vl1);
+                            n += vl1;
+                        }
                     }
                     pp += 16;
                 }
@@ -1844,27 +1787,55 @@ static inline void convolution_im2col_input_tile_impl_rvv(const Mat& bottom_blob
                 }
                 if (elempack == 1)
                 {
-                    const float* base = (const float*)img;
-                    const int w = img.w;
-
-                    unsigned int index[16];
-                    for (int n = 0; n < 8; n++)
+                    if (stride_w == 1 && dy7 == dy0 + 1)
                     {
-                        int dy = (j + jj + n) / outw;
-                        int dx = (j + jj + n) % outw;
-                        int x = stride_w * dx + dilation_w * v;
-                        int y = stride_h * dy + dilation_h * u;
-                        index[n] = (y * w + x) * sizeof(float);
+                        int nn0 = outw - dx0;
+                        int y0 = stride_h * dy0 + dilation_h * u;
+                        int y1 = stride_h * (dy0 + 1) + dilation_h * u;
+
+                        const float* sptr0 = img.row(y0) + dx0 + dilation_w * v;
+                        const float* sptr1 = img.row(y1) + dilation_w * v;
+
+                        int n = 0;
+                        while (n < nn0)
+                        {
+                            const size_t vl1 = __riscv_vsetvl_e32m1(nn0 - n);
+                            vfloat32m1_t _val = __riscv_vle32_v_f32m1(sptr0 + n, vl1);
+                            __riscv_vse32_v_f32m1(pp + n, _val, vl1);
+                            n += vl1;
+                        }
+                        while (n < 8)
+                        {
+                            const size_t vl1 = __riscv_vsetvl_e32m1(8 - n);
+                            vfloat32m1_t _val = __riscv_vle32_v_f32m1(sptr1 + n - nn0, vl1);
+                            __riscv_vse32_v_f32m1(pp + n, _val, vl1);
+                            n += vl1;
+                        }
                     }
-
-                    int n = 0;
-                    while (n < 8)
+                    else
                     {
-                        const size_t vl1 = __riscv_vsetvl_e32m1(8 - n);
-                        vuint32m1_t _index = __riscv_vle32_v_u32m1(index + n, vl1);
-                        vfloat32m1_t _val = __riscv_vloxei32_v_f32m1(base, _index, vl1);
-                        __riscv_vse32_v_f32m1(pp + n, _val, vl1);
-                        n += vl1;
+                        const float* base = (const float*)img;
+                        const int w = img.w;
+
+                        unsigned int index[16];
+                        for (int n = 0; n < 8; n++)
+                        {
+                            int dy = (j + jj + n) / outw;
+                            int dx = (j + jj + n) % outw;
+                            int x = stride_w * dx + dilation_w * v;
+                            int y = stride_h * dy + dilation_h * u;
+                            index[n] = (y * w + x) * sizeof(float);
+                        }
+
+                        int n = 0;
+                        while (n < 8)
+                        {
+                            const size_t vl1 = __riscv_vsetvl_e32m1(8 - n);
+                            vuint32m1_t _index = __riscv_vle32_v_u32m1(index + n, vl1);
+                            vfloat32m1_t _val = __riscv_vloxei32_v_f32m1(base, _index, vl1);
+                            __riscv_vse32_v_f32m1(pp + n, _val, vl1);
+                            n += vl1;
+                        }
                     }
                     pp += 8;
                 }
@@ -1988,27 +1959,55 @@ static inline void convolution_im2col_input_tile_impl_rvv(const Mat& bottom_blob
                 }
                 if (elempack == 1)
                 {
-                    const float* base = (const float*)img;
-                    const int w = img.w;
-
-                    unsigned int index[16];
-                    for (int n = 0; n < 4; n++)
+                    if (stride_w == 1 && dy3 == dy0 + 1)
                     {
-                        int dy = (j + jj + n) / outw;
-                        int dx = (j + jj + n) % outw;
-                        int x = stride_w * dx + dilation_w * v;
-                        int y = stride_h * dy + dilation_h * u;
-                        index[n] = (y * w + x) * sizeof(float);
+                        int nn0 = outw - dx0;
+                        int y0 = stride_h * dy0 + dilation_h * u;
+                        int y1 = stride_h * (dy0 + 1) + dilation_h * u;
+
+                        const float* sptr0 = img.row(y0) + dx0 + dilation_w * v;
+                        const float* sptr1 = img.row(y1) + dilation_w * v;
+
+                        int n = 0;
+                        while (n < nn0)
+                        {
+                            const size_t vl1 = __riscv_vsetvl_e32m1(nn0 - n);
+                            vfloat32m1_t _val = __riscv_vle32_v_f32m1(sptr0 + n, vl1);
+                            __riscv_vse32_v_f32m1(pp + n, _val, vl1);
+                            n += vl1;
+                        }
+                        while (n < 4)
+                        {
+                            const size_t vl1 = __riscv_vsetvl_e32m1(4 - n);
+                            vfloat32m1_t _val = __riscv_vle32_v_f32m1(sptr1 + n - nn0, vl1);
+                            __riscv_vse32_v_f32m1(pp + n, _val, vl1);
+                            n += vl1;
+                        }
                     }
-
-                    int n = 0;
-                    while (n < 4)
+                    else
                     {
-                        const size_t vl1 = __riscv_vsetvl_e32m1(4 - n);
-                        vuint32m1_t _index = __riscv_vle32_v_u32m1(index + n, vl1);
-                        vfloat32m1_t _val = __riscv_vloxei32_v_f32m1(base, _index, vl1);
-                        __riscv_vse32_v_f32m1(pp + n, _val, vl1);
-                        n += vl1;
+                        const float* base = (const float*)img;
+                        const int w = img.w;
+
+                        unsigned int index[16];
+                        for (int n = 0; n < 4; n++)
+                        {
+                            int dy = (j + jj + n) / outw;
+                            int dx = (j + jj + n) % outw;
+                            int x = stride_w * dx + dilation_w * v;
+                            int y = stride_h * dy + dilation_h * u;
+                            index[n] = (y * w + x) * sizeof(float);
+                        }
+
+                        int n = 0;
+                        while (n < 4)
+                        {
+                            const size_t vl1 = __riscv_vsetvl_e32m1(4 - n);
+                            vuint32m1_t _index = __riscv_vle32_v_u32m1(index + n, vl1);
+                            vfloat32m1_t _val = __riscv_vloxei32_v_f32m1(base, _index, vl1);
+                            __riscv_vse32_v_f32m1(pp + n, _val, vl1);
+                            n += vl1;
+                        }
                     }
                     pp += 4;
                 }
@@ -2132,27 +2131,55 @@ static inline void convolution_im2col_input_tile_impl_rvv(const Mat& bottom_blob
                 }
                 if (elempack == 1)
                 {
-                    const float* base = (const float*)img;
-                    const int w = img.w;
-
-                    unsigned int index[16];
-                    for (int n = 0; n < 2; n++)
+                    if (stride_w == 1 && dy1 == dy0 + 1)
                     {
-                        int dy = (j + jj + n) / outw;
-                        int dx = (j + jj + n) % outw;
-                        int x = stride_w * dx + dilation_w * v;
-                        int y = stride_h * dy + dilation_h * u;
-                        index[n] = (y * w + x) * sizeof(float);
+                        int nn0 = outw - dx0;
+                        int y0 = stride_h * dy0 + dilation_h * u;
+                        int y1 = stride_h * (dy0 + 1) + dilation_h * u;
+
+                        const float* sptr0 = img.row(y0) + dx0 + dilation_w * v;
+                        const float* sptr1 = img.row(y1) + dilation_w * v;
+
+                        int n = 0;
+                        while (n < nn0)
+                        {
+                            const size_t vl1 = __riscv_vsetvl_e32m1(nn0 - n);
+                            vfloat32m1_t _val = __riscv_vle32_v_f32m1(sptr0 + n, vl1);
+                            __riscv_vse32_v_f32m1(pp + n, _val, vl1);
+                            n += vl1;
+                        }
+                        while (n < 2)
+                        {
+                            const size_t vl1 = __riscv_vsetvl_e32m1(2 - n);
+                            vfloat32m1_t _val = __riscv_vle32_v_f32m1(sptr1 + n - nn0, vl1);
+                            __riscv_vse32_v_f32m1(pp + n, _val, vl1);
+                            n += vl1;
+                        }
                     }
-
-                    int n = 0;
-                    while (n < 2)
+                    else
                     {
-                        const size_t vl1 = __riscv_vsetvl_e32m1(2 - n);
-                        vuint32m1_t _index = __riscv_vle32_v_u32m1(index + n, vl1);
-                        vfloat32m1_t _val = __riscv_vloxei32_v_f32m1(base, _index, vl1);
-                        __riscv_vse32_v_f32m1(pp + n, _val, vl1);
-                        n += vl1;
+                        const float* base = (const float*)img;
+                        const int w = img.w;
+
+                        unsigned int index[16];
+                        for (int n = 0; n < 2; n++)
+                        {
+                            int dy = (j + jj + n) / outw;
+                            int dx = (j + jj + n) % outw;
+                            int x = stride_w * dx + dilation_w * v;
+                            int y = stride_h * dy + dilation_h * u;
+                            index[n] = (y * w + x) * sizeof(float);
+                        }
+
+                        int n = 0;
+                        while (n < 2)
+                        {
+                            const size_t vl1 = __riscv_vsetvl_e32m1(2 - n);
+                            vuint32m1_t _index = __riscv_vle32_v_u32m1(index + n, vl1);
+                            vfloat32m1_t _val = __riscv_vloxei32_v_f32m1(base, _index, vl1);
+                            __riscv_vse32_v_f32m1(pp + n, _val, vl1);
+                            n += vl1;
+                        }
                     }
                     pp += 2;
                 }
@@ -2314,68 +2341,7 @@ static void convolution_im2col_gemm_transform_kernel_rvv(const Mat& kernel, Mat&
     }
 #endif // __riscv_vector
 
-#if __riscv_vector
-    {
-        const int packn = csrr_vlenb() / 4;
-
-        if (packn == 4 || packn == 8)
-        {
-            Mat weight_data_r2 = kernel.reshape(maxk, inch, outch);
-
-            AT.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M);
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int ppj = 0; ppj < nn_M; ppj++)
-            {
-                const int i = ppj * TILE_M;
-
-                const int max_ii = std::min((M - i), TILE_M);
-
-                for (int k = 0; k < K; k += TILE_K)
-                {
-                    const int max_kk = std::min((K - k), TILE_K);
-
-                    Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
-
-                    convolution_im2col_pack_A_tile_direct_rvv(weight_data_r2, AT_tile, i, max_ii, k, max_kk, maxk, elempack);
-                }
-            }
-
-            return;
-        }
-    }
-#endif // __riscv_vector
-
-    Mat A_data;
-    if (maxk == 1)
-    {
-        A_data = kernel.reshape(maxk * inch, outch);
-    }
-    else
-    {
-        Mat weight_data_r2 = kernel.reshape(maxk, inch, outch);
-
-        A_data.create(maxk * inch, outch);
-
-        for (int q = 0; q < outch; q += 1)
-        {
-            float* g00 = A_data.row(q);
-
-            for (int p = 0; p + (elempack - 1) < inch; p += elempack)
-            {
-                for (int k = 0; k < maxk; k++)
-                {
-                    for (int i = 0; i < elempack; i++)
-                    {
-                        const float* k00 = weight_data_r2.channel(q).row(p + i);
-                        g00[0] = k00[k];
-                        g00++;
-                    }
-                }
-            }
-        }
-    }
-
+    // maxk-inch-outch to pa-maxk-inch/pa-outch
     AT.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M);
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -2391,7 +2357,7 @@ static void convolution_im2col_gemm_transform_kernel_rvv(const Mat& kernel, Mat&
 
             Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
 
-            convolution_im2col_pack_A_tile_rvv(A_data, AT_tile, i, max_ii, k, max_kk);
+            convolution_im2col_pack_A_tile_rvv(kernel, AT_tile, i, max_ii, k, max_kk, maxk, K, elempack);
         }
     }
 }
