@@ -3698,19 +3698,24 @@ static int convolution_im2col_gemm_fp16sa_rvv(const Mat& bottom_blob, Mat& top_b
             return -100;
     }
 
-    #pragma omp parallel for num_threads(nT)
-    for (int ppj = 0; ppj < nn_M; ppj++)
+    if (nT > nn_M)
     {
-        const int i = ppj * TILE_M;
+        const int nn_MN = nn_M * nn_N;
 
-        Mat topT_tile;
-        if (K > TILE_K)
-            topT_tile = topT_tileX.channel(get_omp_thread_num());
-
-        const int max_ii = std::min((M - i), TILE_M);
-
-        for (int j = 0; j < N; j += TILE_N)
+        #pragma omp parallel for num_threads(nT)
+        for (int ppij = 0; ppij < nn_MN; ppij++)
         {
+            const int ppi = ppij / nn_N;
+            const int ppj = ppij % nn_N;
+
+            const int i = ppi * TILE_M;
+            const int j = ppj * TILE_N;
+
+            Mat topT_tile;
+            if (K > TILE_K)
+                topT_tile = topT_tileX.channel(get_omp_thread_num());
+
+            const int max_ii = std::min((M - i), TILE_M);
             const int max_jj = std::min((N - j), TILE_N);
 
             for (int k = 0; k < K; k += TILE_K)
@@ -3724,6 +3729,38 @@ static int convolution_im2col_gemm_fp16sa_rvv(const Mat& bottom_blob, Mat& top_b
                 bool k_end = k + TILE_K >= K;
 
                 convolution_gemm_transB_packed_tile_fp16sa_rvv(AT_tile, BT_tile, bias, topT_tile, top_blob, i, max_ii, j, max_jj, k, max_kk, k_end);
+            }
+        }
+    }
+    else
+    {
+        #pragma omp parallel for num_threads(nT)
+        for (int ppj = 0; ppj < nn_M; ppj++)
+        {
+            const int i = ppj * TILE_M;
+
+            Mat topT_tile;
+            if (K > TILE_K)
+                topT_tile = topT_tileX.channel(get_omp_thread_num());
+
+            const int max_ii = std::min((M - i), TILE_M);
+
+            for (int j = 0; j < N; j += TILE_N)
+            {
+                const int max_jj = std::min((N - j), TILE_N);
+
+                for (int k = 0; k < K; k += TILE_K)
+                {
+                    const int max_kk = std::min((K - k), TILE_K);
+
+                    const Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
+
+                    const Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+                    bool k_end = k + TILE_K >= K;
+
+                    convolution_gemm_transB_packed_tile_fp16sa_rvv(AT_tile, BT_tile, bias, topT_tile, top_blob, i, max_ii, j, max_jj, k, max_kk, k_end);
+                }
             }
         }
     }
