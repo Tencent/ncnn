@@ -43,8 +43,16 @@ int Convolution_riscv::create_pipeline_fp16s(const Option& opt)
     }
 #endif // __riscv_zvfh
 
-    int l2_cache_size = get_cpu_level2_cache_size();
-    bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * (int)sizeof(unsigned short) * 2 > l2_cache_size || (num_input > 16 || num_output > 16);
+    bool prefer_sgemm = opt.use_sgemm_convolution;
+#if __riscv_zvfh
+    if (elempack == 1 && out_elempack == packn
+            && ((kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+                || (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+                || (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)))
+    {
+        prefer_sgemm = false;
+    }
+#endif // __riscv_zvfh
 
 #if __riscv_zvfh
     // packn
@@ -59,7 +67,7 @@ int Convolution_riscv::create_pipeline_fp16s(const Option& opt)
             else // if (opt.use_winograd23_convolution)
                 conv3x3s1_winograd23_transform_kernel_fp16sa_rvv(weight_data, weight_winograd23_data, num_input, num_output, opt);
         }
-        else if (opt.use_fp16_arithmetic && ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1)))
+        else if (opt.use_fp16_arithmetic && (prefer_sgemm || (kernel_w == 1 && kernel_h == 1)))
         {
             convolution_im2col_gemm_transform_kernel_fp16sa_rvv(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
         }
@@ -72,7 +80,7 @@ int Convolution_riscv::create_pipeline_fp16s(const Option& opt)
     // pack1ton
     if (elempack == 1 && out_elempack == packn)
     {
-        if (opt.use_fp16_arithmetic && ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1)))
+        if (opt.use_fp16_arithmetic && (prefer_sgemm || (kernel_w == 1 && kernel_h == 1)))
         {
             convolution_im2col_gemm_transform_kernel_fp16sa_rvv(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
         }
@@ -92,7 +100,7 @@ int Convolution_riscv::create_pipeline_fp16s(const Option& opt)
     // packnto1
     if (elempack == packn && out_elempack == 1)
     {
-        if (opt.use_fp16_arithmetic && ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1)))
+        if (opt.use_fp16_arithmetic && (prefer_sgemm || (kernel_w == 1 && kernel_h == 1)))
         {
             convolution_im2col_gemm_transform_kernel_fp16sa_rvv(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
         }
@@ -106,7 +114,7 @@ int Convolution_riscv::create_pipeline_fp16s(const Option& opt)
     // pack1
     if (elempack == 1 && out_elempack == 1)
     {
-        if (opt.use_fp16_arithmetic && ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1)))
+        if (opt.use_fp16_arithmetic && (prefer_sgemm || (kernel_w == 1 && kernel_h == 1)))
         {
             convolution_im2col_gemm_transform_kernel_fp16sa_rvv(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
         }
@@ -238,9 +246,9 @@ int Convolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
     if (top_blob.empty())
         return -100;
 
+#if __riscv_zvfh
     const int num_input = bottom_blob.c * elempack;
 
-#if __riscv_zvfh
     if (elempack == packn && out_elempack == packn && opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         if ((opt.use_winograd63_convolution && num_input >= packn * 2 && num_output >= packn * 2 && num_input <= packn * 16 && num_output <= packn * 16) || (!opt.use_winograd43_convolution && !opt.use_winograd23_convolution))
@@ -259,10 +267,18 @@ int Convolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
     }
 #endif // __riscv_zvfh
 
-    int l2_cache_size = get_cpu_level2_cache_size();
-    bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * (int)sizeof(unsigned short) * 2 > l2_cache_size || (num_input > 16 || num_output > 16);
+    bool prefer_sgemm = opt.use_sgemm_convolution;
+#if __riscv_zvfh
+    if (elempack == 1 && out_elempack == packn
+            && ((kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+                || (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+                || (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)))
+    {
+        prefer_sgemm = false;
+    }
+#endif // __riscv_zvfh
 
-    if ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1))
+    if (prefer_sgemm || (kernel_w == 1 && kernel_h == 1))
     {
         int _nT = nT ? nT : opt.num_threads;
         if (nT != 0 && opt.num_threads != nT)

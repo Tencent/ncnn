@@ -83,8 +83,16 @@ int Convolution_riscv::create_pipeline(const Option& opt)
     }
 #endif
 
-    int l2_cache_size = get_cpu_level2_cache_size();
-    bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * (int)sizeof(float) * 2 > l2_cache_size || (num_input > 16 || num_output > 16);
+    bool prefer_sgemm = opt.use_sgemm_convolution;
+#if __riscv_vector
+    if (elempack == 1 && out_elempack == packn
+            && ((kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+                || (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+                || (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)))
+    {
+        prefer_sgemm = false;
+    }
+#endif // __riscv_vector
 
 #if __riscv_vector
     // packn
@@ -99,7 +107,7 @@ int Convolution_riscv::create_pipeline(const Option& opt)
             else // if (opt.use_winograd23_convolution)
                 conv3x3s1_winograd23_transform_kernel_rvv(weight_data, weight_winograd23_data, num_input, num_output, opt);
         }
-        else if ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1))
+        else if (prefer_sgemm || (kernel_w == 1 && kernel_h == 1))
         {
             convolution_im2col_gemm_transform_kernel_rvv(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
         }
@@ -112,7 +120,7 @@ int Convolution_riscv::create_pipeline(const Option& opt)
     // pack1ton
     if (elempack == 1 && out_elempack == packn)
     {
-        if ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1))
+        if (prefer_sgemm || (kernel_w == 1 && kernel_h == 1))
         {
             convolution_im2col_gemm_transform_kernel_rvv(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
         }
@@ -131,7 +139,7 @@ int Convolution_riscv::create_pipeline(const Option& opt)
     // packnto1
     if (elempack == packn && out_elempack == 1)
     {
-        if ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1))
+        if (prefer_sgemm || (kernel_w == 1 && kernel_h == 1))
         {
             convolution_im2col_gemm_transform_kernel_rvv(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
         }
@@ -160,7 +168,7 @@ int Convolution_riscv::create_pipeline(const Option& opt)
                 conv3x3s1_winograd23_transform_kernel_rvv(weight_data, weight_winograd23_data, num_input, num_output, opt);
             }
         }
-        else if (opt.use_sgemm_convolution && prefer_sgemm)
+        else if (prefer_sgemm)
         {
             convolution_im2col_gemm_transform_kernel_rvv(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
         }
@@ -347,10 +355,18 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         return 0;
     }
 
-    int l2_cache_size = get_cpu_level2_cache_size();
-    bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * (int)sizeof(float) * 2 > l2_cache_size || (num_input > 16 || num_output > 16);
+    bool prefer_sgemm = opt.use_sgemm_convolution;
+#if __riscv_vector
+    if (elempack == 1 && out_elempack == packn
+            && ((kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+                || (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+                || (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)))
+    {
+        prefer_sgemm = false;
+    }
+#endif // __riscv_vector
 
-    if ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1))
+    if (prefer_sgemm || (kernel_w == 1 && kernel_h == 1))
     {
         int _nT = nT ? nT : opt.num_threads;
         if (nT != 0 && opt.num_threads != nT)
