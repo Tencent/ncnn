@@ -7,12 +7,21 @@
 #include <riscv_vector.h>
 #endif // __riscv_vector
 
+#include "cpu.h"
+
 namespace ncnn {
 
 Dropout_riscv::Dropout_riscv()
 {
 #if __riscv_vector
     support_packing = true;
+#endif
+#if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
 #endif
 }
 
@@ -22,6 +31,18 @@ int Dropout_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     {
         return 0;
     }
+
+#if NCNN_ZFH
+    int elembits = bottom_top_blob.elembits();
+
+    if (opt.use_fp16_storage && elembits == 16)
+    {
+        if (opt.use_fp16_arithmetic)
+            return forward_inplace_fp16sa(bottom_top_blob, opt);
+        else
+            return forward_inplace_fp16s(bottom_top_blob, opt);
+    }
+#endif
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;

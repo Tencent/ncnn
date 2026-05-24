@@ -1479,8 +1479,13 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
             }
             if (out_elempack == 1)
             {
+#ifdef _MSC_VER
+                __declspec(align(64))
+#else
+                __attribute__((aligned(64)))
+#endif
                 float sum[16];
-                _mm512_storeu_ps(sum, _sum0);
+                _mm512_store_ps(sum, _sum0);
 
                 outptr[0] = sum[0];
                 outptr[M] = sum[1];
@@ -1907,8 +1912,13 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
             }
             if (out_elempack == 1)
             {
+#ifdef _MSC_VER
+                __declspec(align(32))
+#else
+                __attribute__((aligned(32)))
+#endif
                 float sum[8];
-                _mm256_storeu_ps(sum, _sum0);
+                _mm256_store_ps(sum, _sum0);
 
                 outptr[0] = sum[0];
                 outptr[M] = sum[1];
@@ -2325,8 +2335,13 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
             }
             if (out_elempack == 1)
             {
+#ifdef _MSC_VER
+                __declspec(align(16))
+#else
+                __attribute__((aligned(16)))
+#endif
                 float sum[4];
-                _mm_storeu_ps(sum, _sum0);
+                _mm_store_ps(sum, _sum0);
 
                 outptr[0] = sum[0];
                 outptr[M] = sum[1];

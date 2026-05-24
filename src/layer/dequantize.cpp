@@ -50,6 +50,7 @@ int Dequantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
     const int dims = bottom_blob.dims;
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
 
     top_blob.create_like(bottom_blob, opt.blob_allocator);
@@ -85,7 +86,7 @@ int Dequantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -96,7 +97,7 @@ int Dequantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             const float scale = scale_data_size == 1 ? scale_data[0] : scale_data[q];
             const float bias = bias_data_size == 0 ? 0.f : bias_data_size == 1 ? bias_data[0] : bias_data[q];
 
-            dequantize(intptr, ptr, scale, bias, w * h);
+            dequantize(intptr, ptr, scale, bias, w * h * d);
         }
     }
 

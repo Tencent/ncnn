@@ -17,7 +17,7 @@ static int test_layernorm(const ncnn::Mat& a, int affine_size, float eps, int af
     int ret = test_layer("LayerNorm", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_layernorm failed a.dims=%d a=(%d %d %d) affine_size=%d eps=%f affine=%d\n", a.dims, a.w, a.h, a.c, affine_size, eps, affine);
+        fprintf(stderr, "test_layernorm failed a.dims=%d a=(%d %d %d %d) affine_size=%d eps=%f affine=%d\n", a.dims, a.w, a.h, a.d, a.c, affine_size, eps, affine);
     }
 
     return ret;
@@ -99,6 +99,17 @@ static int test_layernorm_3()
            || test_layernorm(RandomMat(32), 32, 0.001f, 1);
 }
 
+static int test_layernorm_4()
+{
+    return 0
+           || test_layernorm(RandomMat(5, 3, 2, 8), 5, 0.01f, 0)
+           || test_layernorm(RandomMat(4, 3, 2, 5), 4, 0.01f, 1)
+           || test_layernorm(RandomMat(5, 3, 2, 8), 15, 0.002f, 0)
+           || test_layernorm(RandomMat(4, 3, 2, 5), 12, 0.002f, 1)
+           || test_layernorm(RandomMat(5, 3, 2, 8), 30, 0.001f, 0)
+           || test_layernorm(RandomMat(4, 3, 2, 5), 24, 0.001f, 1);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -107,5 +118,6 @@ int main()
            || test_layernorm_0()
            || test_layernorm_1()
            || test_layernorm_2()
-           || test_layernorm_3();
+           || test_layernorm_3()
+           || test_layernorm_4();
 }

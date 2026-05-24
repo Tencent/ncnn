@@ -45,8 +45,9 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
     int elempack = bottom_top_blob.elempack;
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int c = bottom_top_blob.c;
-    int size = w * h;
+    int size = w * h * d;
 
     int dims = bottom_top_blob.dims;
     if (elempack == 1)
