@@ -2176,37 +2176,62 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk_fp16sa_rvv(int M, int N
     if (nT == 0)
         nT = get_physical_big_cpu_count();
 
-    int packn = 1;
 #if __riscv_zvfh
-    packn = csrr_vlenb() / 2;
-#endif // __riscv_zvfh
+    const int packn = csrr_vlenb() / 2;
+#endif
 
     // solve K
     {
+#if __riscv_zvfh
         int tile_size = (l2_cache_size_fp16 - packn * 4) / (packn * 2);
+#else
+        int tile_size = (l2_cache_size_fp16 - 2) / 3;
+#endif
 
+#if __riscv_zvfh
         TILE_K = std::max(packn, tile_size / packn * packn);
+#else
+        TILE_K = std::max(2, tile_size / 2 * 2);
+#endif
 
         int nn_K = (K + TILE_K - 1) / TILE_K;
+#if __riscv_zvfh
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + packn - 1) / packn * packn);
+#else
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 1) / 2 * 2);
+#endif
     }
 
     // solve M
     {
+#if __riscv_zvfh
         int nn_M = (M + packn * 4 - 1) / (packn * 4);
 
         TILE_M = std::max(packn, ((M + nn_M - 1) / nn_M + packn - 1) / packn * packn);
+#else
+        int nn_M = (M + 7) / 8;
+
+        TILE_M = std::max(2, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
+#endif
     }
 
     {
         TILE_M *= std::min(nT, get_physical_cpu_count());
 
         int nn_M = (M + TILE_M - 1) / TILE_M;
+#if __riscv_zvfh
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + packn - 1) / packn * packn);
+#else
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
+#endif
 
         if (nT > 1)
         {
+#if __riscv_zvfh
             TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + packn - 1) / packn * packn);
+#else
+            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
+#endif
         }
     }
 
