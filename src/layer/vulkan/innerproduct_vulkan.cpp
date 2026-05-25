@@ -126,7 +126,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     Mat shape_flatten;
     if (shape.dims != 0)
     {
-        shape_flatten = Mat(shape.w * shape.h * shape.c * shape.elempack / in_elempack, (void*)0, elemsize, in_elempack);
+        shape_flatten = Mat(shape.w * shape.h * shape.d * shape.c * shape.elempack / in_elempack, (void*)0, elemsize, in_elempack);
     }
 
     {

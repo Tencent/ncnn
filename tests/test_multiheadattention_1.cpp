@@ -4,6 +4,62 @@
 #include "testutil.h"
 
 #if NCNN_INT8
+static void RandomizeDynamicQuantMat(ncnn::Mat& m, float absmax)
+{
+    const int h = m.dims == 3 ? m.c : m.h;
+    for (int i = 0; i < h; i++)
+    {
+        float* p = m.dims == 3 ? m.channel(i) : m.row(i);
+        float randabsmax = RandomFloat(absmax * 0.5f, absmax);
+        randabsmax = ncnn::float16_to_float32(ncnn::float32_to_float16(randabsmax));
+        randabsmax = ncnn::bfloat16_to_float32(ncnn::float32_to_bfloat16(randabsmax));
+
+        for (int j = 0; j < m.w; j++)
+        {
+            p[j] = RandomFloat(-randabsmax, randabsmax);
+        }
+
+        p[RandomInt(0, m.w - 1)] = -randabsmax;
+        p[RandomInt(0, m.w - 1)] = randabsmax;
+
+        for (int j = 0; j < m.w; j++)
+        {
+            float v = p[j] * (127.f / randabsmax);
+            float vv = fabs(v - (int)v);
+
+            float hp = ncnn::float16_to_float32(ncnn::float32_to_float16(p[j]));
+            float hv = hp * (127.f / randabsmax);
+            float hvv = fabs(hv - (int)hv);
+
+            float bp = ncnn::bfloat16_to_float32(ncnn::float32_to_bfloat16(p[j]));
+            float bv = bp * (127.f / randabsmax);
+            float bvv = fabs(bv - (int)bv);
+
+            while ((vv > 0.45f && vv < 0.55f) || (hvv > 0.45f && hvv < 0.55f) || (bvv > 0.45f && bvv < 0.55f))
+            {
+                p[j] = RandomFloat(-randabsmax, randabsmax);
+                v = p[j] * (127.f / randabsmax);
+                vv = fabs(v - (int)v);
+
+                hp = ncnn::float16_to_float32(ncnn::float32_to_float16(p[j]));
+                hv = hp * (127.f / randabsmax);
+                hvv = fabs(hv - (int)hv);
+
+                bp = ncnn::bfloat16_to_float32(ncnn::float32_to_bfloat16(p[j]));
+                bv = bp * (127.f / randabsmax);
+                bvv = fabs(bv - (int)bv);
+            }
+        }
+    }
+}
+
+static ncnn::Mat RandomDynamicQuantMat(int w, int h)
+{
+    ncnn::Mat m(w, h);
+    RandomizeDynamicQuantMat(m, 1.2f);
+    return m;
+}
+
 static int test_multiheadattention_int8(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int embed_dim, int num_heads, int attn_mask)
 {
     const int qdim = q.w;
@@ -142,32 +198,32 @@ static int test_multiheadattention_int8_sameqkv(const ncnn::Mat& a, int embed_di
 static int test_multiheadattention_0()
 {
     return 0
-           || test_multiheadattention_int8(RandomMat(62, 66), RandomMat(32, 66), RandomMat(20, 66), 62, 2, 0)
-           || test_multiheadattention_int8(RandomMat(26, 64), RandomMat(32, 64), RandomMat(18, 64), 26, 2, 1)
-           || test_multiheadattention_int8(RandomMat(64, 128), RandomMat(64, 128), RandomMat(64, 128), 64, 4, 0)
-           || test_multiheadattention_int8(RandomMat(48, 127), RandomMat(64, 127), RandomMat(64, 127), 64, 16, 1)
-           || test_multiheadattention_int8(RandomMat(16, 128), RandomMat(44, 128), RandomMat(55, 128), 16, 2, 0)
-           || test_multiheadattention_int8(RandomMat(12, 128), RandomMat(44, 127), RandomMat(55, 127), 16, 4, 1)
-           || test_multiheadattention_int8(RandomMat(12, 17), RandomMat(28, 127), RandomMat(32, 127), 12, 3, 0)
-           || test_multiheadattention_int8(RandomMat(12, 17), RandomMat(28, 32), RandomMat(11, 32), 12, 3, 1);
+           || test_multiheadattention_int8(RandomDynamicQuantMat(62, 66), RandomDynamicQuantMat(32, 66), RandomDynamicQuantMat(20, 66), 62, 2, 0)
+           || test_multiheadattention_int8(RandomDynamicQuantMat(26, 64), RandomDynamicQuantMat(32, 64), RandomDynamicQuantMat(18, 64), 26, 2, 1)
+           || test_multiheadattention_int8(RandomDynamicQuantMat(64, 128), RandomDynamicQuantMat(64, 128), RandomDynamicQuantMat(64, 128), 64, 4, 0)
+           || test_multiheadattention_int8(RandomDynamicQuantMat(48, 127), RandomDynamicQuantMat(64, 127), RandomDynamicQuantMat(64, 127), 64, 16, 1)
+           || test_multiheadattention_int8(RandomDynamicQuantMat(16, 128), RandomDynamicQuantMat(44, 128), RandomDynamicQuantMat(55, 128), 16, 2, 0)
+           || test_multiheadattention_int8(RandomDynamicQuantMat(12, 128), RandomDynamicQuantMat(44, 127), RandomDynamicQuantMat(55, 127), 16, 4, 1)
+           || test_multiheadattention_int8(RandomDynamicQuantMat(12, 17), RandomDynamicQuantMat(28, 127), RandomDynamicQuantMat(32, 127), 12, 3, 0)
+           || test_multiheadattention_int8(RandomDynamicQuantMat(12, 17), RandomDynamicQuantMat(28, 32), RandomDynamicQuantMat(11, 32), 12, 3, 1);
 }
 
 static int test_multiheadattention_1()
 {
     return 0
-           || test_multiheadattention_int8_samekv(RandomMat(64, 128), RandomMat(64, 128), 64, 4)
-           || test_multiheadattention_int8_samekv(RandomMat(48, 127), RandomMat(64, 127), 64, 16)
-           || test_multiheadattention_int8_samekv(RandomMat(16, 128), RandomMat(44, 128), 16, 2)
-           || test_multiheadattention_int8_samekv(RandomMat(12, 128), RandomMat(22, 127), 16, 4)
-           || test_multiheadattention_int8_samekv(RandomMat(12, 17), RandomMat(28, 127), 12, 3)
-           || test_multiheadattention_int8_samekv(RandomMat(12, 17), RandomMat(11, 32), 12, 3);
+           || test_multiheadattention_int8_samekv(RandomDynamicQuantMat(64, 128), RandomDynamicQuantMat(64, 128), 64, 4)
+           || test_multiheadattention_int8_samekv(RandomDynamicQuantMat(48, 127), RandomDynamicQuantMat(64, 127), 64, 16)
+           || test_multiheadattention_int8_samekv(RandomDynamicQuantMat(16, 128), RandomDynamicQuantMat(44, 128), 16, 2)
+           || test_multiheadattention_int8_samekv(RandomDynamicQuantMat(12, 128), RandomDynamicQuantMat(22, 127), 16, 4)
+           || test_multiheadattention_int8_samekv(RandomDynamicQuantMat(12, 17), RandomDynamicQuantMat(28, 127), 12, 3)
+           || test_multiheadattention_int8_samekv(RandomDynamicQuantMat(12, 17), RandomDynamicQuantMat(11, 32), 12, 3);
 }
 
 static int test_multiheadattention_2()
 {
     return 0
-           || test_multiheadattention_int8_sameqkv(RandomMat(64, 128), 64, 4)
-           || test_multiheadattention_int8_sameqkv(RandomMat(48, 127), 64, 8);
+           || test_multiheadattention_int8_sameqkv(RandomDynamicQuantMat(64, 128), 64, 4)
+           || test_multiheadattention_int8_sameqkv(RandomDynamicQuantMat(48, 127), 64, 8);
 }
 #endif
 

@@ -122,9 +122,24 @@ static int test_expanddims_2()
            || test_expanddims_all_params(RandomMat(1));
 }
 
+static int test_expanddims_3()
+{
+    ncnn::Mat a = RandomMat(3, 4, 5);
+    ncnn::Mat b = RandomMat(3, 4);
+
+    return 0
+           || test_expanddims_axes(a, IntArray(-4))
+           || test_expanddims_axes(a, IntArray(-3))
+           || test_expanddims_axes(a, IntArray(-2))
+           || test_expanddims_axes(a, IntArray(-1))
+           || test_expanddims_axes(b, IntArray(0, 1))
+           || test_expanddims_axes(b, IntArray(0, 3))
+           || test_expanddims_axes(b, IntArray(2, 3));
+}
+
 int main()
 {
     SRAND(7767517);
 
-    return test_expanddims_0() || test_expanddims_1() || test_expanddims_2();
+    return test_expanddims_0() || test_expanddims_1() || test_expanddims_2() || test_expanddims_3();
 }

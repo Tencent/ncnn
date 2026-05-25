@@ -15,7 +15,7 @@ static int test_power(const ncnn::Mat& a)
     int ret = test_layer("Power", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_power failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
+        fprintf(stderr, "test_power failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);
     }
 
     return ret;
@@ -24,6 +24,9 @@ static int test_power(const ncnn::Mat& a)
 static int test_power_0()
 {
     return 0
+           || test_power(RandomMat(5, 6, 7, 24))
+           || test_power(RandomMat(7, 8, 9, 12))
+           || test_power(RandomMat(3, 4, 5, 13))
            || test_power(RandomMat(5, 7, 24))
            || test_power(RandomMat(7, 9, 12))
            || test_power(RandomMat(3, 5, 13));

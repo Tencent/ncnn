@@ -549,6 +549,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_Hardswish.cpp
     pass_ncnn/nn_Hardtanh.cpp
     pass_ncnn/nn_InstanceNorm2d.cpp
+    pass_ncnn/nn_InstanceNorm3d.cpp
     pass_ncnn/nn_LayerNorm.cpp
     pass_ncnn/nn_LeakyReLU.cpp
     pass_ncnn/nn_Linear.cpp
@@ -757,6 +758,7 @@ endif()
 set(pnnx_SRCS
     main.cpp
     ir.cpp
+    model_stat.cpp
     storezip.cpp
     utils.cpp
 

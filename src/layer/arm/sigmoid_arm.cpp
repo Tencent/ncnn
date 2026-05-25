@@ -78,7 +78,6 @@ int Sigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             vst1q_f32(ptr + 12, _p3);
             ptr += 16;
         }
-#endif // __aarch64__
         for (; i + 7 < size; i += 8)
         {
             float32x4_t _p0 = vld1q_f32(ptr);
@@ -89,6 +88,7 @@ int Sigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             vst1q_f32(ptr + 4, _p1);
             ptr += 8;
         }
+#endif // __aarch64__
         for (; i + 3 < size; i += 4)
         {
             float32x4_t _p = vld1q_f32(ptr);
@@ -144,7 +144,6 @@ int Sigmoid_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
             vst1q_u16(ptr + 8, _p23);
             ptr += 16;
         }
-#endif // __aarch64__
         for (; i + 7 < size; i += 8)
         {
             uint16x8_t _p = vld1q_u16(ptr);
@@ -156,6 +155,7 @@ int Sigmoid_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
             vst1q_u16(ptr, _p);
             ptr += 8;
         }
+#endif // __aarch64__
         for (; i + 3 < size; i += 4)
         {
             float32x4_t _p = bfloat2float(vld1_u16(ptr));
