@@ -1234,17 +1234,10 @@ static void convolution_gemm_transB_packed_tile_fp16sa_rvv(const Mat& AT_tile, c
 
                 if (k_end)
                 {
-                    // gcc may emit wrong writeback for this packn=16 4x16 tail if the
-                    // four accumulators are stored directly.
-                    __fp16 tmp0[16];
-                    __fp16 tmp1[16];
-                    __fp16 tmp2[16];
-                    __fp16 tmp3[16];
-                    __riscv_vse16_v_f16m1(tmp0, _sum0, vl16);
-                    __riscv_vse16_v_f16m1(tmp1, _sum1, vl16);
-                    __riscv_vse16_v_f16m1(tmp2, _sum2, vl16);
-                    __riscv_vse16_v_f16m1(tmp3, _sum3, vl16);
-                    __asm__ volatile("" ::: "memory");
+                    // gcc may emit wrong writeback for this packn=16 4x16 tail.
+                    // Keep a live stack slot to avoid that codegen pattern.
+                    __fp16 tmp;
+                    __asm__ volatile("" : : "r"(&tmp) : "memory");
 
                     __riscv_vse16_v_f16m1(outptr0, _sum0, vl16);
                     __riscv_vse16_v_f16m1(outptr0 + out_hstep, _sum1, vl16);
