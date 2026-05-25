@@ -297,6 +297,7 @@ jobs:
     runs-on: [self-hosted, linux, ubuntu]
     steps:
     - uses: actions/checkout@v6
+    # https://github.com/riscv-collab/riscv-gnu-toolchain/releases/download/2026.05.19/riscv64-glibc-ubuntu-22.04-llvm.tar.xz
     - name: build
       run: |
         export RISCV_ROOT_PATH=/data/action/osd/riscv
