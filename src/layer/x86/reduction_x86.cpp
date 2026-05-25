@@ -8,8 +8,13 @@
 
 #if __SSE2__
 #include <emmintrin.h>
+#include "sse_mathfun.h"
 #if __AVX__
 #include <immintrin.h>
+#include "avx_mathfun.h"
+#if __AVX512F__
+#include "avx512_mathfun.h"
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 
@@ -55,9 +60,11 @@ static bool reduction_x86_operation_supported(int operation)
            || operation == Reduction::ReductionOp_MEAN
            || operation == Reduction::ReductionOp_MAX
            || operation == Reduction::ReductionOp_MIN
+           || operation == Reduction::ReductionOp_PROD
            || operation == Reduction::ReductionOp_L1
            || operation == Reduction::ReductionOp_L2
-           || operation == Reduction::ReductionOp_LogSum;
+           || operation == Reduction::ReductionOp_LogSum
+           || operation == Reduction::ReductionOp_LogSumExp;
 }
 
 static float reduction_x86_initial_value(int operation)
@@ -66,6 +73,8 @@ static float reduction_x86_initial_value(int operation)
         return -FLT_MAX;
     if (operation == Reduction::ReductionOp_MIN)
         return FLT_MAX;
+    if (operation == Reduction::ReductionOp_PROD)
+        return 1.f;
 
     return 0.f;
 }
@@ -76,6 +85,8 @@ static float reduction_x86_combine(float x, float y, int operation)
         return x > y ? x : y;
     if (operation == Reduction::ReductionOp_MIN)
         return x < y ? x : y;
+    if (operation == Reduction::ReductionOp_PROD)
+        return x * y;
 
     return x + y;
 }
@@ -92,7 +103,7 @@ static float reduction_x86_finalize(float v, int operation, float coeff, int sca
         v = sqrtf(v < FLT_MIN ? 0.f : v);
     }
 
-    if (operation == Reduction::ReductionOp_LogSum)
+    if (operation == Reduction::ReductionOp_LogSum || operation == Reduction::ReductionOp_LogSumExp)
     {
         v = logf(v);
     }
@@ -332,6 +343,111 @@ static float reduction_x86_min(const float* ptr, int size)
     return v;
 }
 
+static float reduction_x86_prod(const float* ptr, int size)
+{
+    float v = 1.f;
+
+    int i = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+    __m512 _v_avx512 = _mm512_set1_ps(1.f);
+    for (; i + 15 < size; i += 16)
+    {
+        __m512 _p = _mm512_loadu_ps(ptr);
+        _v_avx512 = _mm512_mul_ps(_v_avx512, _p);
+        ptr += 16;
+    }
+    float prod_avx512 = 1.f;
+    {
+        float tmp[16];
+        _mm512_storeu_ps(tmp, _v_avx512);
+        for (int k = 0; k < 16; k++) prod_avx512 *= tmp[k];
+    }
+    v *= prod_avx512;
+#endif // __AVX512F__
+    __m256 _v_avx = _mm256_set1_ps(1.f);
+    for (; i + 7 < size; i += 8)
+    {
+        __m256 _p = _mm256_loadu_ps(ptr);
+        _v_avx = _mm256_mul_ps(_v_avx, _p);
+        ptr += 8;
+    }
+    {
+        float tmp[8];
+        _mm256_storeu_ps(tmp, _v_avx);
+        for (int k = 0; k < 8; k++) v *= tmp[k];
+    }
+#endif // __AVX__
+    __m128 _v = _mm_set1_ps(1.f);
+    for (; i + 3 < size; i += 4)
+    {
+        __m128 _p = _mm_loadu_ps(ptr);
+        _v = _mm_mul_ps(_v, _p);
+        ptr += 4;
+    }
+    {
+        float tmp[4];
+        _mm_storeu_ps(tmp, _v);
+        for (int k = 0; k < 4; k++) v *= tmp[k];
+    }
+#endif // __SSE2__
+    for (; i < size; i++)
+    {
+        v *= ptr[0];
+        ptr++;
+    }
+
+    return v;
+}
+
+static float reduction_x86_sumexp(const float* ptr, int size)
+{
+    float sum = 0.f;
+
+    int i = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+    __m512 _sum_avx512 = _mm512_setzero_ps();
+    for (; i + 15 < size; i += 16)
+    {
+        __m512 _p = _mm512_loadu_ps(ptr);
+        _p = _mm512_exp_ps(_p);
+        _sum_avx512 = _mm512_add_ps(_sum_avx512, _p);
+        ptr += 16;
+    }
+    sum += _mm512_comp_reduce_add_ps(_sum_avx512);
+#endif // __AVX512F__
+    __m256 _sum_avx = _mm256_setzero_ps();
+    for (; i + 7 < size; i += 8)
+    {
+        __m256 _p = _mm256_loadu_ps(ptr);
+        _p = _mm256_exp_ps(_p);
+        _sum_avx = _mm256_add_ps(_sum_avx, _p);
+        ptr += 8;
+    }
+    sum += _mm256_reduce_add_ps(_sum_avx);
+#endif // __AVX__
+    __m128 _sum = _mm_setzero_ps();
+    for (; i + 3 < size; i += 4)
+    {
+        __m128 _p = _mm_loadu_ps(ptr);
+        _p = _mm_exp_ps(_p);
+        _sum = _mm_add_ps(_sum, _p);
+        ptr += 4;
+    }
+    sum += _mm_reduce_add_ps(_sum);
+#endif // __SSE2__
+    for (; i < size; i++)
+    {
+        sum += expf(ptr[0]);
+        ptr++;
+    }
+
+    return sum;
+}
+
 static float reduction_x86_contiguous(const float* ptr, int size, int operation)
 {
     if (operation == Reduction::ReductionOp_ASUM || operation == Reduction::ReductionOp_L1)
@@ -342,6 +458,10 @@ static float reduction_x86_contiguous(const float* ptr, int size, int operation)
         return reduction_x86_max(ptr, size);
     if (operation == Reduction::ReductionOp_MIN)
         return reduction_x86_min(ptr, size);
+    if (operation == Reduction::ReductionOp_PROD)
+        return reduction_x86_prod(ptr, size);
+    if (operation == Reduction::ReductionOp_LogSumExp)
+        return reduction_x86_sumexp(ptr, size);
 
     return reduction_x86_sum(ptr, size);
 }
@@ -570,6 +690,99 @@ static void reduction_x86_vector_accumulate(const float* ptr, float* outptr, int
         return;
     }
 
+    if (operation == Reduction::ReductionOp_PROD)
+    {
+        int i = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+        for (; i + 15 < size; i += 16)
+        {
+            __m512 _p = _mm512_loadu_ps(ptr);
+            __m512 _outp = _mm512_loadu_ps(outptr);
+            _outp = _mm512_mul_ps(_outp, _p);
+            _mm512_storeu_ps(outptr, _outp);
+            ptr += 16;
+            outptr += 16;
+        }
+#endif // __AVX512F__
+        for (; i + 7 < size; i += 8)
+        {
+            __m256 _p = _mm256_loadu_ps(ptr);
+            __m256 _outp = _mm256_loadu_ps(outptr);
+            _outp = _mm256_mul_ps(_outp, _p);
+            _mm256_storeu_ps(outptr, _outp);
+            ptr += 8;
+            outptr += 8;
+        }
+#endif // __AVX__
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _p = _mm_loadu_ps(ptr);
+            __m128 _outp = _mm_loadu_ps(outptr);
+            _outp = _mm_mul_ps(_outp, _p);
+            _mm_storeu_ps(outptr, _outp);
+            ptr += 4;
+            outptr += 4;
+        }
+#endif // __SSE2__
+        for (; i < size; i++)
+        {
+            outptr[0] *= ptr[0];
+            ptr++;
+            outptr++;
+        }
+        return;
+    }
+
+    if (operation == Reduction::ReductionOp_LogSumExp)
+    {
+        int i = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+        for (; i + 15 < size; i += 16)
+        {
+            __m512 _p = _mm512_loadu_ps(ptr);
+            __m512 _outp = _mm512_loadu_ps(outptr);
+            _p = _mm512_exp_ps(_p);
+            _outp = _mm512_add_ps(_outp, _p);
+            _mm512_storeu_ps(outptr, _outp);
+            ptr += 16;
+            outptr += 16;
+        }
+#endif // __AVX512F__
+        for (; i + 7 < size; i += 8)
+        {
+            __m256 _p = _mm256_loadu_ps(ptr);
+            __m256 _outp = _mm256_loadu_ps(outptr);
+            _p = _mm256_exp_ps(_p);
+            _outp = _mm256_add_ps(_outp, _p);
+            _mm256_storeu_ps(outptr, _outp);
+            ptr += 8;
+            outptr += 8;
+        }
+#endif // __AVX__
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _p = _mm_loadu_ps(ptr);
+            __m128 _outp = _mm_loadu_ps(outptr);
+            _p = _mm_exp_ps(_p);
+            _outp = _mm_add_ps(_outp, _p);
+            _mm_storeu_ps(outptr, _outp);
+            ptr += 4;
+            outptr += 4;
+        }
+#endif // __SSE2__
+        for (; i < size; i++)
+        {
+            outptr[0] += expf(ptr[0]);
+            ptr++;
+            outptr++;
+        }
+        return;
+    }
+
     int i = 0;
 #if __SSE2__
 #if __AVX__
@@ -619,7 +832,7 @@ static void reduction_x86_finalize_vector(float* ptr, int size, int operation, f
         coeff = coeff / scale;
     }
 
-    if (operation == Reduction::ReductionOp_L2 || operation == Reduction::ReductionOp_LogSum)
+    if (operation == Reduction::ReductionOp_L2 || operation == Reduction::ReductionOp_LogSum || operation == Reduction::ReductionOp_LogSumExp)
     {
         for (int i = 0; i < size; i++)
         {
@@ -669,29 +882,6 @@ static void reduction_x86_finalize_vector(float* ptr, int size, int operation, f
     }
 }
 
-static bool reduction_x86_shape_supported(int dims, bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c)
-{
-    if (dims == 1)
-        return reduce_w;
-
-    if (dims == 2)
-        return reduce_w || reduce_h;
-
-    if (dims == 3)
-    {
-        if (reduce_w || reduce_h || reduce_c)
-            return true;
-    }
-
-    if (dims == 4)
-    {
-        if (reduce_w || reduce_h || reduce_d || reduce_c)
-            return true;
-    }
-
-    return false;
-}
-
 static int reduction_x86_create_top_blob(Mat& top_blob, int outdims, int outw, int outh, int outd, int outc, size_t elemsize, Allocator* allocator)
 {
     if (outdims == 0)
@@ -713,17 +903,11 @@ static int reduction_x86_create_top_blob(Mat& top_blob, int outdims, int outw, i
 
 int Reduction_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (bottom_blob.elempack != 1 || bottom_blob.elemsize != 4u || !reduction_x86_operation_supported(operation))
-        return Reduction::forward(bottom_blob, top_blob, opt);
-
     bool reduce_w, reduce_h, reduce_d, reduce_c;
     int outdims, outw, outh, outd, outc;
     resolve_reduce_flags_and_output_shape(bottom_blob, reduce_w, reduce_h, reduce_d, reduce_c, outdims, outw, outh, outd, outc);
 
     const int dims = bottom_blob.dims;
-
-    if (!reduction_x86_shape_supported(dims, reduce_w, reduce_h, reduce_d, reduce_c))
-        return Reduction::forward(bottom_blob, top_blob, opt);
 
     int ret = reduction_x86_create_top_blob(top_blob, outdims, outw, outh, outd, outc, bottom_blob.elemsize, opt.blob_allocator);
     if (ret != 0)
