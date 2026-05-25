@@ -7,11 +7,16 @@
 
 namespace ncnn {
 
-#include "cumulativesum_x86_packed.h"
+#include "cumulativesum_x86_helper.h"
 
-int cumulative_sum_forward_inplace_avx2(Mat& bottom_top_blob, int axis, const Option& opt)
+void cumulative_sum_prefix_sum_row_avx2(float* ptr, int w)
 {
-    return cumulative_sum_forward_inplace_avx2_impl(bottom_top_blob, axis, opt);
+    cumulative_sum_prefix_sum_row_avx2_impl(ptr, w);
+}
+
+void cumulative_sum_add_avx2(const float* ptr, float* outptr, int size)
+{
+    cumulative_sum_add_avx2_impl(ptr, outptr, size);
 }
 
 } // namespace ncnn
