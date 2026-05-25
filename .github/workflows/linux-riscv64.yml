@@ -115,7 +115,7 @@ jobs:
 
     - name: build
       run: |
-        export RISCV_ROOT_PATH=/data/action/osd/Xuantie-900-gcc-linux-6.6.36-glibc-x86_64-V3.3.0
+        export RISCV_ROOT_PATH=/data/action/osd/Xuantie-900-gcc-linux-6.6.36-glibc-x86_64-V3.4.0
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/${{ matrix.cpu }}-v310.toolchain.cmake -DCMAKE_BUILD_TYPE=release \
             -DNCNN_OPENMP=${{ matrix.OPENMP }} -DNCNN_THREADS=${{ matrix.OPENMP }} \
@@ -129,7 +129,7 @@ jobs:
 
     - name: test
       run: |
-        export PATH=/data/action/osd/Xuantie-qemu-x86_64-Ubuntu-20.04-V5.2.8-B20250721-0303/bin:$PATH
+        export PATH=/data/action/osd/xuantie-qemu-x86_64-Ubuntu-20.04-V5.4.1/bin:$PATH
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;${{ matrix.QEMU_CPU }}" ctest --output-on-failure -j 8
 
@@ -145,10 +145,10 @@ jobs:
     steps:
     - uses: actions/checkout@v6
 
-    # https://archive.spacemit.com/toolchain/spacemit-toolchain-linux-glibc-x86_64-v1.1.2.tar.xz
+    # https://archive.spacemit.com/toolchain/spacemit-toolchain-linux-glibc-x86_64-v1.2.4.tar.xz
     - name: build-gcc
       run: |
-        export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.1.2
+        export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.2.4
         mkdir build-gcc && cd build-gcc
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/k1.toolchain.cmake -DCMAKE_BUILD_TYPE=release \
             -DNCNN_OPENMP=${{ matrix.OPENMP }} -DNCNN_THREADS=${{ matrix.OPENMP }} \
@@ -162,7 +162,7 @@ jobs:
 
     - name: build-llvm
       run: |
-        export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.1.2
+        export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.2.4
         mkdir build-llvm && cd build-llvm
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/k1.llvm.toolchain.cmake -DCMAKE_BUILD_TYPE=release \
             -DNCNN_OPENMP=${{ matrix.OPENMP }} -DNCNN_THREADS=${{ matrix.OPENMP }} \
@@ -174,17 +174,17 @@ jobs:
             -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 8
 
-    # https://archive.spacemit.com/spacemit-ai/qemu/jdsk-qemu-v0.0.14.tar.gz
+    # https://archive.spacemit.com/spacemit-ai/qemu/jdsk-qemu-v10.0.2.tar.gz
     - name: test-gcc
       run: |
-        export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.1.2
+        export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.2.4
         export PATH=/data/action/osd/jdsk-qemu/bin:$PATH
         cd build-gcc
         TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;${{ matrix.QEMU_CPU }};-L;${RISCV_ROOT_PATH}/sysroot" ctest --output-on-failure -j 8
 
     - name: test-llvm
       run: |
-        export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.1.2
+        export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.2.4
         export PATH=/data/action/osd/jdsk-qemu/bin:$PATH
         cd build-llvm
         TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;${{ matrix.QEMU_CPU }};-L;${RISCV_ROOT_PATH}/sysroot" ctest --output-on-failure -j 8
