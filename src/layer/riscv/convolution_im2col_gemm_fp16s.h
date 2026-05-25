@@ -1234,10 +1234,12 @@ static void convolution_gemm_transB_packed_tile_fp16sa_rvv(const Mat& AT_tile, c
 
                 if (k_end)
                 {
+#if defined(__GNUC__) && !defined(__clang__)
                     // gcc may emit wrong writeback for this packn=16 4x16 tail.
                     // Keep a live stack slot to avoid that codegen pattern.
                     __fp16 tmp;
                     __asm__ volatile("" : : "r"(&tmp) : "memory");
+#endif
 
                     __riscv_vse16_v_f16m1(outptr0, _sum0, vl16);
                     __riscv_vse16_v_f16m1(outptr0 + out_hstep, _sum1, vl16);
