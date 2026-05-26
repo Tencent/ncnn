@@ -1911,6 +1911,72 @@ jobs:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
+  harmonyos:
+    needs: [setup]
+    strategy:
+      matrix:
+        opt:
+          - { vulkan: OFF, shared-lib: OFF, id: harmonyos               }
+          - { vulkan: OFF, shared-lib: ON,  id: harmonyos-shared        }
+          - { vulkan: ON,  shared-lib: OFF, id: harmonyos-vulkan        }
+          - { vulkan: ON,  shared-lib: ON,  id: harmonyos-vulkan-shared }
+    runs-on: ubuntu-latest
+    env:
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
+      OHOS_NDK_HOME: $GITHUB_WORKSPACE/ohos-sdk/linux/native
+      OHOS_NDK_CMAKE: $GITHUB_WORKSPACE/ohos-sdk/linux/native/build-tools/cmake/bin/cmake
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/ohos-sdk/linux/native/build/cmake/ohos.toolchain.cmake \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+        -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
+        -DNCNN_SHARED_LIB=${{ matrix.opt.shared-lib }} \
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+    - name: setup-sdk
+      run: |
+        wget -q https://repo.huaweicloud.com/harmonyos/os/5.0.3-Release/ohos-sdk-windows_linux-public.tar.gz
+        tar -xf ohos-sdk-windows_linux-public.tar.gz
+        cd ohos-sdk/linux
+        unzip -q native-linux-x64-5.0.3.135-Release.zip
+    - name: build-armeabi-v7a
+      run: |
+        mkdir build-armeabi-v7a && cd build-armeabi-v7a
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DOHOS_ARCH="armeabi-v7a" ..
+        cmake --build . -j $(nproc)
+        cmake --build . --target install/strip
+    - name: build-arm64-v8a
+      run: |
+        mkdir build-arm64-v8a && cd build-arm64-v8a
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DOHOS_ARCH="arm64-v8a" ..
+        cmake --build . -j $(nproc)
+        cmake --build . --target install/strip
+    - name: build-x86_64
+      run: |
+        mkdir build-x86_64 && cd build-x86_64
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DOHOS_ARCH="x86_64" ..
+        cmake --build . -j $(nproc)
+        cmake --build . --target install/strip
+    - name: package
+      run: |
+        rm -rf ${{ env.PACKAGENAME }}
+        mkdir -p ${{ env.PACKAGENAME }}
+        cp -a build-armeabi-v7a/install ${{ env.PACKAGENAME }}/armeabi-v7a
+        cp -a build-arm64-v8a/install ${{ env.PACKAGENAME }}/arm64-v8a
+        cp -a build-x86_64/install ${{ env.PACKAGENAME }}/x86_64
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+    - name: upload-zip
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ env.PACKAGENAME }}
+        path: ${{ env.PACKAGENAME }}.zip
+
   webassembly:
     needs: [setup]
     runs-on: ubuntu-latest
@@ -2242,7 +2308,7 @@ jobs:
   release:
     permissions:
       contents: write  # for softprops/action-gh-release to create a release
-    needs: [setup, full-source, ubuntu, macos, ios, ios-simulator, mac-catalyst, watchos, watchos-simulator, tvos, tvos-simulator, android, webassembly, windows, apple]
+    needs: [setup, full-source, ubuntu, macos, ios, ios-simulator, mac-catalyst, watchos, watchos-simulator, tvos, tvos-simulator, android, harmonyos, webassembly, windows, apple]
     runs-on: ubuntu-latest
     steps:
     - name: download
