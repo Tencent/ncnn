@@ -3,6 +3,7 @@ on:
   push:
     tags:
       - '*'
+  workflow_dispatch:
 
 env:
   DEVELOPER_DIR: /Applications/Xcode_16.4.0.app/Contents/Developer
