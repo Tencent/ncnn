@@ -220,6 +220,9 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>HarmonyOS</td>
 <td>
 
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-harmonyos-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-harmonyos.zip)
+
 </td>
 <td rowspan=2>
 
@@ -230,6 +233,9 @@ https://github.com/Tencent/ncnn/releases/latest
 <tr>
 <td>HarmonyOS shared</td>
 <td>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-harmonyos-vulkan-shared.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-harmonyos-shared.zip)
 
 </td>
 </tr>
