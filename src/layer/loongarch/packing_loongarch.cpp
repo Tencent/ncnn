@@ -712,13 +712,14 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                 for (int i = 0; i < size; i++)
                 {
-                    __builtin_prefetch(r0 + 16);
-                    __builtin_prefetch(r1 + 16);
-
-                    __m128 _r0 = (__m128)__lsx_vld(r0, 0);
-                    __m128 _r1 = (__m128)__lsx_vld(r1, 0);
-                    __m256 _p = __lasx_concat_128_s(_r0, _r1);
-                    __lasx_xvst((__m256i)_p, outptr, 0);
+                    outptr[0] = r0[0];
+                    outptr[1] = r0[1];
+                    outptr[2] = r0[2];
+                    outptr[3] = r0[3];
+                    outptr[4] = r1[0];
+                    outptr[5] = r1[1];
+                    outptr[6] = r1[2];
+                    outptr[7] = r1[3];
 
                     r0 += 4;
                     r1 += 4;
@@ -738,11 +739,14 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                 for (int i = 0; i < size; i++)
                 {
-                    __builtin_prefetch(r0 + 16);
-
-                    __m256 _p = (__m256)__lasx_xvld(r0, 0);
-                    __lsx_vst(__lasx_extract_128_lo((__m256i)_p), outptr0, 0);
-                    __lsx_vst(__lasx_extract_128_hi((__m256i)_p), outptr1, 0);
+                    outptr0[0] = r0[0];
+                    outptr0[1] = r0[1];
+                    outptr0[2] = r0[2];
+                    outptr0[3] = r0[3];
+                    outptr1[0] = r0[4];
+                    outptr1[1] = r0[5];
+                    outptr1[2] = r0[6];
+                    outptr1[3] = r0[7];
 
                     r0 += 8;
                     outptr0 += 4;
