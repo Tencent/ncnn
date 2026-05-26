@@ -50,22 +50,12 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     bool pack1to4 = elempack == 1 && out_elempack == 4;
     bool pack4to1 = elempack == 4 && out_elempack == 1;
-#if __loongarch_sx
-#if __loongarch_asx
     bool pack1to8 = elempack == 1 && out_elempack == 8;
     bool pack8to1 = elempack == 8 && out_elempack == 1;
     bool pack4to8 = elempack == 4 && out_elempack == 8;
     bool pack8to4 = elempack == 8 && out_elempack == 4;
-#endif // __loongarch_asx
-#endif // __loongarch_sx
 
-    if (!pack1to4 && !pack4to1
-#if __loongarch_sx
-#if __loongarch_asx
-            && !pack1to8 && !pack8to1 && !pack4to8 && !pack8to4
-#endif // __loongarch_asx
-#endif // __loongarch_sx
-       )
+    if (!pack1to4 && !pack4to1 && !pack1to8 && !pack8to1 && !pack4to8 && !pack8to4)
     {
         return Packing::forward(bottom_blob, top_blob, opt);
     }
@@ -230,8 +220,6 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 }
             }
         }
-#if __loongarch_sx
-#if __loongarch_asx
         if (pack1to8)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -249,6 +237,8 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 float* outptr = top_blob.row(i);
 
                 int j = 0;
+#if __loongarch_sx
+#if __loongarch_asx
                 for (; j + 7 < w; j += 8)
                 {
                     __builtin_prefetch(r0 + 16);
@@ -290,6 +280,8 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     r7 += 8;
                     outptr += 64;
                 }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
                 for (; j < w; j++)
                 {
                     outptr[0] = *r0++;
@@ -322,6 +314,8 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 float* outptr7 = top_blob.row(i * 8 + 7);
 
                 int j = 0;
+#if __loongarch_sx
+#if __loongarch_asx
                 for (; j + 7 < w; j += 8)
                 {
                     __builtin_prefetch(r0 + 64);
@@ -356,6 +350,8 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     outptr6 += 8;
                     outptr7 += 8;
                 }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
                 for (; j < w; j++)
                 {
                     *outptr0++ = r0[0];
@@ -383,13 +379,14 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                 for (int j = 0; j < w; j++)
                 {
-                    __builtin_prefetch(r0 + 16);
-                    __builtin_prefetch(r1 + 16);
-
-                    __m128 _r0 = (__m128)__lsx_vld(r0, 0);
-                    __m128 _r1 = (__m128)__lsx_vld(r1, 0);
-                    __m256 _p = __lasx_concat_128_s(_r0, _r1);
-                    __lasx_xvst((__m256i)_p, outptr, 0);
+                    outptr[0] = r0[0];
+                    outptr[1] = r0[1];
+                    outptr[2] = r0[2];
+                    outptr[3] = r0[3];
+                    outptr[4] = r1[0];
+                    outptr[5] = r1[1];
+                    outptr[6] = r1[2];
+                    outptr[7] = r1[3];
 
                     r0 += 4;
                     r1 += 4;
@@ -409,11 +406,14 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                 for (int j = 0; j < w; j++)
                 {
-                    __builtin_prefetch(r0 + 16);
-
-                    __m256 _p = (__m256)__lasx_xvld(r0, 0);
-                    __lsx_vst(__lasx_extract_128_lo((__m256i)_p), outptr0, 0);
-                    __lsx_vst(__lasx_extract_128_hi((__m256i)_p), outptr1, 0);
+                    outptr0[0] = r0[0];
+                    outptr0[1] = r0[1];
+                    outptr0[2] = r0[2];
+                    outptr0[3] = r0[3];
+                    outptr1[0] = r0[4];
+                    outptr1[1] = r0[5];
+                    outptr1[2] = r0[6];
+                    outptr1[3] = r0[7];
 
                     r0 += 8;
                     outptr0 += 4;
@@ -421,8 +421,6 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 }
             }
         }
-#endif // __loongarch_asx
-#endif // __loongarch_sx
 
         return 0;
     }
@@ -555,8 +553,6 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 }
             }
         }
-#if __loongarch_sx
-#if __loongarch_asx
         if (pack1to8)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -574,6 +570,8 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 float* outptr = top_blob.channel(q);
 
                 int i = 0;
+#if __loongarch_sx
+#if __loongarch_asx
                 for (; i + 7 < size; i += 8)
                 {
                     __builtin_prefetch(r0 + 16);
@@ -615,6 +613,8 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     r7 += 8;
                     outptr += 64;
                 }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
                 for (; i < size; i++)
                 {
                     outptr[0] = *r0++;
@@ -647,6 +647,8 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 float* outptr7 = top_blob.channel(q * 8 + 7);
 
                 int i = 0;
+#if __loongarch_sx
+#if __loongarch_asx
                 for (; i + 7 < size; i += 8)
                 {
                     __builtin_prefetch(r0 + 64);
@@ -681,6 +683,8 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     outptr6 += 8;
                     outptr7 += 8;
                 }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
                 for (; i < size; i++)
                 {
                     *outptr0++ = r0[0];
@@ -708,13 +712,14 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                 for (int i = 0; i < size; i++)
                 {
-                    __builtin_prefetch(r0 + 16);
-                    __builtin_prefetch(r1 + 16);
-
-                    __m128 _r0 = (__m128)__lsx_vld(r0, 0);
-                    __m128 _r1 = (__m128)__lsx_vld(r1, 0);
-                    __m256 _p = __lasx_concat_128_s(_r0, _r1);
-                    __lasx_xvst((__m256i)_p, outptr, 0);
+                    outptr[0] = r0[0];
+                    outptr[1] = r0[1];
+                    outptr[2] = r0[2];
+                    outptr[3] = r0[3];
+                    outptr[4] = r1[0];
+                    outptr[5] = r1[1];
+                    outptr[6] = r1[2];
+                    outptr[7] = r1[3];
 
                     r0 += 4;
                     r1 += 4;
@@ -734,11 +739,14 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                 for (int i = 0; i < size; i++)
                 {
-                    __builtin_prefetch(r0 + 16);
-
-                    __m256 _p = (__m256)__lasx_xvld(r0, 0);
-                    __lsx_vst(__lasx_extract_128_lo((__m256i)_p), outptr0, 0);
-                    __lsx_vst(__lasx_extract_128_hi((__m256i)_p), outptr1, 0);
+                    outptr0[0] = r0[0];
+                    outptr0[1] = r0[1];
+                    outptr0[2] = r0[2];
+                    outptr0[3] = r0[3];
+                    outptr1[0] = r0[4];
+                    outptr1[1] = r0[5];
+                    outptr1[2] = r0[6];
+                    outptr1[3] = r0[7];
 
                     r0 += 8;
                     outptr0 += 4;
@@ -746,8 +754,6 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 }
             }
         }
-#endif // __loongarch_asx
-#endif // __loongarch_sx
 
         return 0;
     }
@@ -995,18 +1001,12 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
     bool pack1to4 = elempack == 1 && out_elempack == 4;
     bool pack4to1 = elempack == 4 && out_elempack == 1;
-#if __loongarch_sx
     bool pack1to8 = elempack == 1 && out_elempack == 8;
     bool pack8to1 = elempack == 8 && out_elempack == 1;
     bool pack4to8 = elempack == 4 && out_elempack == 8;
     bool pack8to4 = elempack == 8 && out_elempack == 4;
-#endif // __loongarch_sx
 
-    if (!pack1to4 && !pack4to1
-#if __loongarch_sx
-            && !pack1to8 && !pack8to1 && !pack4to8 && !pack8to4
-#endif // __loongarch_sx
-       )
+    if (!pack1to4 && !pack4to1 && !pack1to8 && !pack8to1 && !pack4to8 && !pack8to4)
     {
         return Packing::forward(bottom_blob, top_blob, opt);
     }
@@ -1168,7 +1168,6 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
             }
         }
-#if __loongarch_sx
         if (pack1to8)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -1186,6 +1185,7 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 unsigned short* outptr = top_blob.row<unsigned short>(i);
 
                 int j = 0;
+#if __loongarch_sx
                 for (; j + 7 < w; j += 8)
                 {
                     __builtin_prefetch(r0 + 16);
@@ -1227,6 +1227,7 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                     r7 += 8;
                     outptr += 64;
                 }
+#endif // __loongarch_sx
                 for (; j < w; j++)
                 {
                     outptr[0] = *r0++;
@@ -1259,6 +1260,7 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 unsigned short* outptr7 = top_blob.row<unsigned short>(i * 8 + 7);
 
                 int j = 0;
+#if __loongarch_sx
                 for (; j + 7 < w; j += 8)
                 {
                     __builtin_prefetch(r0 + 64);
@@ -1293,6 +1295,7 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                     outptr6 += 8;
                     outptr7 += 8;
                 }
+#endif // __loongarch_sx
                 for (; j < w; j++)
                 {
                     *outptr0++ = r0[0];
@@ -1319,6 +1322,7 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 unsigned short* outptr = top_blob.row<unsigned short>(i);
 
                 int j = 0;
+#if __loongarch_sx
                 for (; j + 1 < w; j += 2)
                 {
                     __builtin_prefetch(r0 + 16);
@@ -1333,6 +1337,7 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                     r1 += 8;
                     outptr += 16;
                 }
+#endif // __loongarch_sx
                 for (; j < w; j++)
                 {
                     outptr[0] = r0[0];
@@ -1362,11 +1367,14 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                 for (int j = 0; j < w; j++)
                 {
-                    __builtin_prefetch(r0 + 16);
-
-                    __m128i _p = __lsx_vld(r0, 0);
-                    __lsx_vstelm_d(_p, outptr0, 0, 0);
-                    __lsx_vstelm_d(_p, outptr1, 0, 1);
+                    outptr0[0] = r0[0];
+                    outptr0[1] = r0[1];
+                    outptr0[2] = r0[2];
+                    outptr0[3] = r0[3];
+                    outptr1[0] = r0[4];
+                    outptr1[1] = r0[5];
+                    outptr1[2] = r0[6];
+                    outptr1[3] = r0[7];
 
                     r0 += 8;
                     outptr0 += 4;
@@ -1374,7 +1382,6 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
             }
         }
-#endif // __loongarch_sx
 
         return 0;
     }
@@ -1504,7 +1511,6 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
             }
         }
-#if __loongarch_sx
         if (pack1to8)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -1522,6 +1528,7 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 unsigned short* outptr = top_blob.channel(q);
 
                 int i = 0;
+#if __loongarch_sx
                 for (; i + 7 < size; i += 8)
                 {
                     __builtin_prefetch(r0 + 16);
@@ -1563,6 +1570,7 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                     r7 += 8;
                     outptr += 64;
                 }
+#endif // __loongarch_sx
                 for (; i < size; i++)
                 {
                     outptr[0] = *r0++;
@@ -1595,6 +1603,7 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 unsigned short* outptr7 = top_blob.channel(q * 8 + 7);
 
                 int i = 0;
+#if __loongarch_sx
                 for (; i + 7 < size; i += 8)
                 {
                     __builtin_prefetch(r0 + 64);
@@ -1629,6 +1638,7 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                     outptr6 += 8;
                     outptr7 += 8;
                 }
+#endif // __loongarch_sx
                 for (; i < size; i++)
                 {
                     *outptr0++ = r0[0];
@@ -1655,6 +1665,7 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 unsigned short* outptr = top_blob.channel(q);
 
                 int i = 0;
+#if __loongarch_sx
                 for (; i + 1 < size; i += 2)
                 {
                     __builtin_prefetch(r0 + 16);
@@ -1669,6 +1680,7 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                     r1 += 8;
                     outptr += 16;
                 }
+#endif // __loongarch_sx
                 for (; i < size; i++)
                 {
                     outptr[0] = r0[0];
@@ -1698,11 +1710,14 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                 for (int i = 0; i < size; i++)
                 {
-                    __builtin_prefetch(r0 + 16);
-
-                    __m128i _p = __lsx_vld(r0, 0);
-                    __lsx_vstelm_d(_p, outptr0, 0, 0);
-                    __lsx_vstelm_d(_p, outptr1, 0, 1);
+                    outptr0[0] = r0[0];
+                    outptr0[1] = r0[1];
+                    outptr0[2] = r0[2];
+                    outptr0[3] = r0[3];
+                    outptr1[0] = r0[4];
+                    outptr1[1] = r0[5];
+                    outptr1[2] = r0[6];
+                    outptr1[3] = r0[7];
 
                     r0 += 8;
                     outptr0 += 4;
@@ -1710,7 +1725,6 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
             }
         }
-#endif // __loongarch_sx
 
         return 0;
     }
