@@ -145,7 +145,6 @@ jobs:
       env:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
-        CIBW_ENABLE: pypy
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT_WINDOWS: CMAKE_BUILD_PARALLEL_LEVEL=4
         CIBW_BEFORE_BUILD: pip install delvewheel
