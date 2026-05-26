@@ -413,7 +413,7 @@ static float reduction_x86_sumexp(const float* ptr, int size)
     for (; i + 15 < size; i += 16)
     {
         __m512 _p = _mm512_loadu_ps(ptr);
-        _p = _mm512_exp_ps(_p);
+        _p = exp512_ps(_p);
         _sum_avx512 = _mm512_add_ps(_sum_avx512, _p);
         ptr += 16;
     }
@@ -423,7 +423,7 @@ static float reduction_x86_sumexp(const float* ptr, int size)
     for (; i + 7 < size; i += 8)
     {
         __m256 _p = _mm256_loadu_ps(ptr);
-        _p = _mm256_exp_ps(_p);
+        _p = exp256_ps(_p);
         _sum_avx = _mm256_add_ps(_sum_avx, _p);
         ptr += 8;
     }
@@ -433,7 +433,7 @@ static float reduction_x86_sumexp(const float* ptr, int size)
     for (; i + 3 < size; i += 4)
     {
         __m128 _p = _mm_loadu_ps(ptr);
-        _p = _mm_exp_ps(_p);
+        _p = exp_ps(_p);
         _sum = _mm_add_ps(_sum, _p);
         ptr += 4;
     }
@@ -745,7 +745,7 @@ static void reduction_x86_vector_accumulate(const float* ptr, float* outptr, int
         {
             __m512 _p = _mm512_loadu_ps(ptr);
             __m512 _outp = _mm512_loadu_ps(outptr);
-            _p = _mm512_exp_ps(_p);
+            _p = exp512_ps(_p);
             _outp = _mm512_add_ps(_outp, _p);
             _mm512_storeu_ps(outptr, _outp);
             ptr += 16;
@@ -756,7 +756,7 @@ static void reduction_x86_vector_accumulate(const float* ptr, float* outptr, int
         {
             __m256 _p = _mm256_loadu_ps(ptr);
             __m256 _outp = _mm256_loadu_ps(outptr);
-            _p = _mm256_exp_ps(_p);
+            _p = exp256_ps(_p);
             _outp = _mm256_add_ps(_outp, _p);
             _mm256_storeu_ps(outptr, _outp);
             ptr += 8;
@@ -767,7 +767,7 @@ static void reduction_x86_vector_accumulate(const float* ptr, float* outptr, int
         {
             __m128 _p = _mm_loadu_ps(ptr);
             __m128 _outp = _mm_loadu_ps(outptr);
-            _p = _mm_exp_ps(_p);
+            _p = exp_ps(_p);
             _outp = _mm_add_ps(_outp, _p);
             _mm_storeu_ps(outptr, _outp);
             ptr += 4;
