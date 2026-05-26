@@ -3,7 +3,9 @@
 
 #include "pass_ncnn.h"
 
+#include <errno.h>
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <set>
@@ -48,6 +50,24 @@ static bool token_is_literal(const std::string& t)
     float f;
     iss >> std::noskipws >> f;
     return iss.eof() && !iss.fail();
+}
+
+static bool parse_float_noexcept(const std::string& t, float& f)
+{
+    errno = 0;
+
+    char* endptr = 0;
+    f = strtof(t.c_str(), &endptr);
+
+    if (endptr == t.c_str())
+        return false;
+
+    // strtof reports ERANGE for both overflow and underflow.
+    // Accept subnormal/underflow values and reject only true overflow.
+    if (errno == ERANGE && (f == HUGE_VALF || f == -HUGE_VALF))
+        return false;
+
+    return true;
 }
 
 static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx_expr_index)
@@ -241,7 +261,14 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                 op_binary_inb->consumers.push_back(op_binary);
 
                 op_binary->params["1"] = 1; // with_scalar
-                op_binary->params["2"] = std::stof(a);
+
+                float scalar = 0.f;
+                if (!parse_float_noexcept(a, scalar))
+                {
+                    fprintf(stderr, "ncnn expand_expression failed to parse literal %s in expr %s\n", a.c_str(), expr.c_str());
+                    return std::string();
+                }
+                op_binary->params["2"] = scalar;
 
                 Operand* op_binary_out = graph.new_operand(op->name + "_" + r);
                 op_binary_out->producer = op_binary;
@@ -257,9 +284,16 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                 op_binary_ina->consumers.push_back(op_binary);
 
                 op_binary->params["1"] = 1; // with_scalar
-                op_binary->params["2"] = std::stof(b);
 
-                if (t == "pow" && std::stof(b) == 2)
+                float scalar = 0.f;
+                if (!parse_float_noexcept(b, scalar))
+                {
+                    fprintf(stderr, "ncnn expand_expression failed to parse literal %s in expr %s\n", b.c_str(), expr.c_str());
+                    return std::string();
+                }
+                op_binary->params["2"] = scalar;
+
+                if (t == "pow" && scalar == 2)
                 {
                     // replace pow 2 with square
                     op_binary->type = "UnaryOp";
