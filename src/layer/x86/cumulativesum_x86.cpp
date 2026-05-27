@@ -102,6 +102,98 @@ int CumulativeSum_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
         return 0;
     }
 
+    if (dims == 4 && positive_axis == 0)
+    {
+        const int w = bottom_top_blob.w;
+        const int h = bottom_top_blob.h;
+        const int d = bottom_top_blob.d;
+        const int c = bottom_top_blob.c;
+        const int size = w * h * d;
+
+        for (int q = 1; q < c; q++)
+        {
+            const float* prev = bottom_top_blob.channel(q - 1);
+            float* cur = bottom_top_blob.channel(q);
+            cumulative_sum_add(prev, cur, size);
+        }
+        return 0;
+    }
+
+    if (dims == 4 && positive_axis == 1)
+    {
+        const int w = bottom_top_blob.w;
+        const int h = bottom_top_blob.h;
+        const int d = bottom_top_blob.d;
+        const int c = bottom_top_blob.c;
+        const int size = w * h;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < c; q++)
+        {
+            Mat this_channel = bottom_top_blob.channel(q);
+
+            for (int z = 1; z < d; z++)
+            {
+                const float* prev = this_channel.depth(z - 1);
+                float* cur = this_channel.depth(z);
+                cumulative_sum_add(prev, cur, size);
+            }
+        }
+        return 0;
+    }
+
+    if (dims == 4 && positive_axis == 2)
+    {
+        const int w = bottom_top_blob.w;
+        const int h = bottom_top_blob.h;
+        const int d = bottom_top_blob.d;
+        const int c = bottom_top_blob.c;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < c; q++)
+        {
+            Mat this_channel = bottom_top_blob.channel(q);
+
+            for (int z = 0; z < d; z++)
+            {
+                Mat this_depth = this_channel.depth(z);
+
+                for (int i = 1; i < h; i++)
+                {
+                    const float* prev_row = this_depth.row(i - 1);
+                    float* this_row = this_depth.row(i);
+                    cumulative_sum_add(prev_row, this_row, w);
+                }
+            }
+        }
+        return 0;
+    }
+
+    if (dims == 4 && positive_axis == 3)
+    {
+        const int w = bottom_top_blob.w;
+        const int h = bottom_top_blob.h;
+        const int d = bottom_top_blob.d;
+        const int c = bottom_top_blob.c;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < c; q++)
+        {
+            Mat this_channel = bottom_top_blob.channel(q);
+
+            for (int z = 0; z < d; z++)
+            {
+                Mat this_depth = this_channel.depth(z);
+
+                for (int i = 0; i < h; i++)
+                {
+                    cumulative_sum_prefix_sum_row(this_depth.row(i), w);
+                }
+            }
+        }
+        return 0;
+    }
+
     return -100;
 }
 
