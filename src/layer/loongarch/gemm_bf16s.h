@@ -264,13 +264,15 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
-                for (int q = 0; q < 8; q++)
-                {
-                    pp[q * 4] = p0[q];
-                    pp[q * 4 + 1] = p0[8 + q];
-                    pp[q * 4 + 2] = p0[16 + q];
-                    pp[q * 4 + 3] = p0[24 + q];
-                }
+                __m128i _r0 = __lsx_vld(p0, 0);
+                __m128i _r1 = __lsx_vld(p0 + 8, 0);
+                __m128i _r2 = __lsx_vld(p0 + 16, 0);
+                __m128i _r3 = __lsx_vld(p0 + 24, 0);
+                transpose8x4_epi16(_r0, _r1, _r2, _r3);
+                __lsx_vst(_r0, pp, 0);
+                __lsx_vst(_r1, pp + 8, 0);
+                __lsx_vst(_r2, pp + 16, 0);
+                __lsx_vst(_r3, pp + 24, 0);
                 pp += 32;
                 p0 += A_hstep * 8;
             }
@@ -460,7 +462,30 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             const unsigned short* p2 = (const unsigned short*)B + (j + jj + 8) * B_hstep + k * 4;
             const unsigned short* p3 = (const unsigned short*)B + (j + jj + 12) * B_hstep + k * 4;
 
-            for (int kk = 0; kk < max_kk; kk++)
+            int kk = 0;
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                __builtin_prefetch(p0 + 32);
+                __builtin_prefetch(p1 + 32);
+                __builtin_prefetch(p2 + 32);
+                __builtin_prefetch(p3 + 32);
+                __m128i _r0 = __lsx_vld(p0, 0);
+                __m128i _r1 = __lsx_vld(p1, 0);
+                __m128i _r2 = __lsx_vld(p2, 0);
+                __m128i _r3 = __lsx_vld(p3, 0);
+                __m128i _r01 = __lsx_vilvl_d(_r1, _r0);
+                __m128i _r23 = __lsx_vilvl_d(_r3, _r2);
+                __lasx_xvst(__lasx_concat_128(_r01, _r23), pp, 0);
+                _r01 = __lsx_vilvh_d(_r1, _r0);
+                _r23 = __lsx_vilvh_d(_r3, _r2);
+                __lasx_xvst(__lasx_concat_128(_r01, _r23), pp + 16, 0);
+                pp += 32;
+                p0 += 8;
+                p1 += 8;
+                p2 += 8;
+                p3 += 8;
+            }
+            for (; kk < max_kk; kk++)
             {
                 __builtin_prefetch(p0 + 32);
                 __builtin_prefetch(p1 + 32);

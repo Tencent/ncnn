@@ -1945,24 +1945,19 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
             {
                 __builtin_prefetch(p0 + bottom_blob.cstep * 4);
 
-                v8i16 _r0 = (v8i16)__msa_loadl_d(p0);
-                v8i16 _r1 = (v8i16)__msa_loadl_d(p0 + 4);
-                v8i16 _r2 = (v8i16)__msa_loadl_d(p0 + 8);
-                v8i16 _r3 = (v8i16)__msa_loadl_d(p0 + 12);
-                v8i16 _r4 = (v8i16)__msa_loadl_d(p0 + 16);
-                v8i16 _r5 = (v8i16)__msa_loadl_d(p0 + 20);
-                v8i16 _r6 = (v8i16)__msa_loadl_d(p0 + 24);
-                v8i16 _r7 = (v8i16)__msa_loadl_d(p0 + 28);
-                transpose4x4_epi16(_r0, _r1, _r2, _r3);
-                transpose4x4_epi16(_r4, _r5, _r6, _r7);
-                __msa_storel_d((v4i32)_r0, pp);
-                __msa_storel_d((v4i32)_r4, pp + 4);
-                __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_r0, (v16i8)_r0, 8), pp + 8);
-                __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_r4, (v16i8)_r4, 8), pp + 12);
-                __msa_storel_d((v4i32)_r1, pp + 16);
-                __msa_storel_d((v4i32)_r5, pp + 20);
-                __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_r1, (v16i8)_r1, 8), pp + 24);
-                __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_r5, (v16i8)_r5, 8), pp + 28);
+                v8i16 _r01 = (v8i16)__msa_ld_h(p0, 0);
+                v8i16 _r23 = (v8i16)__msa_ld_h(p0 + 8, 0);
+                v8i16 _r45 = (v8i16)__msa_ld_h(p0 + 16, 0);
+                v8i16 _r67 = (v8i16)__msa_ld_h(p0 + 24, 0);
+                v8i16 _r0 = (v8i16)__msa_ilvr_d((v2i64)_r45, (v2i64)_r01);
+                v8i16 _r1 = (v8i16)__msa_ilvl_d((v2i64)_r45, (v2i64)_r01);
+                v8i16 _r2 = (v8i16)__msa_ilvr_d((v2i64)_r67, (v2i64)_r23);
+                v8i16 _r3 = (v8i16)__msa_ilvl_d((v2i64)_r67, (v2i64)_r23);
+                transpose8x4_epi16(_r0, _r1, _r2, _r3);
+                __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r2, (v2i64)_r0), pp, 0);
+                __msa_st_h((v8i16)__msa_ilvl_d((v2i64)_r2, (v2i64)_r0), pp + 8, 0);
+                __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r3, (v2i64)_r1), pp + 16, 0);
+                __msa_st_h((v8i16)__msa_ilvl_d((v2i64)_r3, (v2i64)_r1), pp + 24, 0);
                 pp += 32;
                 p0 += bottom_blob.cstep * 4;
             }
@@ -2024,15 +2019,14 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
             {
                 __builtin_prefetch(p0 + bottom_blob.cstep * 4);
 
-                v8i16 _r0 = (v8i16)__msa_loadl_d(p0);
-                v8i16 _r1 = (v8i16)__msa_loadl_d(p0 + 4);
-                v8i16 _r2 = (v8i16)__msa_loadl_d(p0 + 8);
-                v8i16 _r3 = (v8i16)__msa_loadl_d(p0 + 12);
-                transpose4x4_epi16(_r0, _r1, _r2, _r3);
-                __msa_storel_d((v4i32)_r0, pp);
-                __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_r0, (v16i8)_r0, 8), pp + 4);
-                __msa_storel_d((v4i32)_r1, pp + 8);
-                __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_r1, (v16i8)_r1, 8), pp + 12);
+                v8i16 _r01 = (v8i16)__msa_ld_h(p0, 0);
+                v8i16 _r23 = (v8i16)__msa_ld_h(p0 + 8, 0);
+                v8i16 _r02 = (v8i16)__msa_ilvr_d((v2i64)_r23, (v2i64)_r01);
+                v8i16 _r13 = (v8i16)__msa_ilvl_d((v2i64)_r23, (v2i64)_r01);
+                v8i16 _tmp0 = (v8i16)__msa_ilvr_h(_r13, _r02);
+                v8i16 _tmp1 = (v8i16)__msa_ilvl_h(_r13, _r02);
+                __msa_st_h((v8i16)__msa_ilvr_w((v4i32)_tmp1, (v4i32)_tmp0), pp, 0);
+                __msa_st_h((v8i16)__msa_ilvl_w((v4i32)_tmp1, (v4i32)_tmp0), pp + 8, 0);
                 pp += 16;
                 p0 += bottom_blob.cstep * 4;
             }
@@ -2090,8 +2084,9 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
                 // transpose4x2
                 __builtin_prefetch(p0 + bottom_blob.cstep * 4);
 
-                v8i16 _r0 = (v8i16)__msa_loadl_d(p0);
-                v8i16 _r1 = (v8i16)__msa_loadl_d(p0 + 4);
+                v8i16 _r01 = (v8i16)__msa_ld_h(p0, 0);
+                v8i16 _r0 = (v8i16)__msa_ilvr_d((v2i64)_r01, (v2i64)_r01);
+                v8i16 _r1 = (v8i16)__msa_ilvl_d((v2i64)_r01, (v2i64)_r01);
                 v8i16 _tmp0 = (v8i16)__msa_ilvr_h(_r1, _r0);
                 __msa_st_h(_tmp0, pp, 0);
                 pp += 8;
@@ -2250,24 +2245,39 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                 }
                 if (elempack == 4)
                 {
-                    v8i16 _r0 = (v8i16)__msa_loadl_d(sptr);
-                    v8i16 _r1 = (v8i16)__msa_loadl_d(sptr + stride_w * 4);
-                    v8i16 _r2 = (v8i16)__msa_loadl_d(sptr + stride_w * 8);
-                    v8i16 _r3 = (v8i16)__msa_loadl_d(sptr + stride_w * 12);
-                    v8i16 _r4 = (v8i16)__msa_loadl_d(sptr + stride_w * 16);
-                    v8i16 _r5 = (v8i16)__msa_loadl_d(sptr + stride_w * 20);
-                    v8i16 _r6 = (v8i16)__msa_loadl_d(sptr + stride_w * 24);
-                    v8i16 _r7 = (v8i16)__msa_loadl_d(sptr + stride_w * 28);
-                    transpose4x4_epi16(_r0, _r1, _r2, _r3);
-                    transpose4x4_epi16(_r4, _r5, _r6, _r7);
-                    __msa_storel_d((v4i32)_r0, pp);
-                    __msa_storel_d((v4i32)_r4, pp + 4);
-                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_r0, (v16i8)_r0, 8), pp + 8);
-                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_r4, (v16i8)_r4, 8), pp + 12);
-                    __msa_storel_d((v4i32)_r1, pp + 16);
-                    __msa_storel_d((v4i32)_r5, pp + 20);
-                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_r1, (v16i8)_r1, 8), pp + 24);
-                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_r5, (v16i8)_r5, 8), pp + 28);
+                    if (stride_w == 1)
+                    {
+                        v8i16 _r01 = (v8i16)__msa_ld_h(sptr, 0);
+                        v8i16 _r23 = (v8i16)__msa_ld_h(sptr + 8, 0);
+                        v8i16 _r45 = (v8i16)__msa_ld_h(sptr + 16, 0);
+                        v8i16 _r67 = (v8i16)__msa_ld_h(sptr + 24, 0);
+                        v8i16 _r0 = (v8i16)__msa_ilvr_d((v2i64)_r45, (v2i64)_r01);
+                        v8i16 _r1 = (v8i16)__msa_ilvl_d((v2i64)_r45, (v2i64)_r01);
+                        v8i16 _r2 = (v8i16)__msa_ilvr_d((v2i64)_r67, (v2i64)_r23);
+                        v8i16 _r3 = (v8i16)__msa_ilvl_d((v2i64)_r67, (v2i64)_r23);
+                        transpose8x4_epi16(_r0, _r1, _r2, _r3);
+                        __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r2, (v2i64)_r0), pp, 0);
+                        __msa_st_h((v8i16)__msa_ilvl_d((v2i64)_r2, (v2i64)_r0), pp + 8, 0);
+                        __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r3, (v2i64)_r1), pp + 16, 0);
+                        __msa_st_h((v8i16)__msa_ilvl_d((v2i64)_r3, (v2i64)_r1), pp + 24, 0);
+                    }
+                    else
+                    {
+                        v8i16 _r0 = (v8i16)__msa_loadl_d(sptr);
+                        v8i16 _r1 = (v8i16)__msa_loadl_d(sptr + stride_w * 4);
+                        v8i16 _r2 = (v8i16)__msa_loadl_d(sptr + stride_w * 8);
+                        v8i16 _r3 = (v8i16)__msa_loadl_d(sptr + stride_w * 12);
+                        v8i16 _r4 = (v8i16)__msa_loadl_d(sptr + stride_w * 16);
+                        v8i16 _r5 = (v8i16)__msa_loadl_d(sptr + stride_w * 20);
+                        v8i16 _r6 = (v8i16)__msa_loadl_d(sptr + stride_w * 24);
+                        v8i16 _r7 = (v8i16)__msa_loadl_d(sptr + stride_w * 28);
+                        transpose4x4_epi16(_r0, _r1, _r2, _r3);
+                        transpose4x4_epi16(_r4, _r5, _r6, _r7);
+                        __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r4, (v2i64)_r0), pp, 0);
+                        __msa_st_h((v8i16)__msa_ilvl_d((v2i64)_r4, (v2i64)_r0), pp + 8, 0);
+                        __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r5, (v2i64)_r1), pp + 16, 0);
+                        __msa_st_h((v8i16)__msa_ilvl_d((v2i64)_r5, (v2i64)_r1), pp + 24, 0);
+                    }
                     pp += 32;
                 }
                 if (elempack == 1)
@@ -2355,14 +2365,10 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     v8i16 _r7 = (v8i16)__msa_loadl_d(sptr7);
                     transpose4x4_epi16(_r0, _r1, _r2, _r3);
                     transpose4x4_epi16(_r4, _r5, _r6, _r7);
-                    __msa_storel_d((v4i32)_r0, pp);
-                    __msa_storel_d((v4i32)_r4, pp + 4);
-                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_r0, (v16i8)_r0, 8), pp + 8);
-                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_r4, (v16i8)_r4, 8), pp + 12);
-                    __msa_storel_d((v4i32)_r1, pp + 16);
-                    __msa_storel_d((v4i32)_r5, pp + 20);
-                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_r1, (v16i8)_r1, 8), pp + 24);
-                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_r5, (v16i8)_r5, 8), pp + 28);
+                    __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r4, (v2i64)_r0), pp, 0);
+                    __msa_st_h((v8i16)__msa_ilvl_d((v2i64)_r4, (v2i64)_r0), pp + 8, 0);
+                    __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r5, (v2i64)_r1), pp + 16, 0);
+                    __msa_st_h((v8i16)__msa_ilvl_d((v2i64)_r5, (v2i64)_r1), pp + 24, 0);
                     pp += 32;
                 }
                 if (elempack == 1)
@@ -2423,15 +2429,27 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                 }
                 if (elempack == 4)
                 {
-                    v8i16 _r0 = (v8i16)__msa_loadl_d(sptr);
-                    v8i16 _r1 = (v8i16)__msa_loadl_d(sptr + stride_w * 4);
-                    v8i16 _r2 = (v8i16)__msa_loadl_d(sptr + stride_w * 8);
-                    v8i16 _r3 = (v8i16)__msa_loadl_d(sptr + stride_w * 12);
-                    transpose4x4_epi16(_r0, _r1, _r2, _r3);
-                    __msa_storel_d((v4i32)_r0, pp);
-                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_r0, (v16i8)_r0, 8), pp + 4);
-                    __msa_storel_d((v4i32)_r1, pp + 8);
-                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_r1, (v16i8)_r1, 8), pp + 12);
+                    if (stride_w == 1)
+                    {
+                        v8i16 _r01 = (v8i16)__msa_ld_h(sptr, 0);
+                        v8i16 _r23 = (v8i16)__msa_ld_h(sptr + 8, 0);
+                        v8i16 _r02 = (v8i16)__msa_ilvr_d((v2i64)_r23, (v2i64)_r01);
+                        v8i16 _r13 = (v8i16)__msa_ilvl_d((v2i64)_r23, (v2i64)_r01);
+                        v8i16 _tmp0 = (v8i16)__msa_ilvr_h(_r13, _r02);
+                        v8i16 _tmp1 = (v8i16)__msa_ilvl_h(_r13, _r02);
+                        __msa_st_h((v8i16)__msa_ilvr_w((v4i32)_tmp1, (v4i32)_tmp0), pp, 0);
+                        __msa_st_h((v8i16)__msa_ilvl_w((v4i32)_tmp1, (v4i32)_tmp0), pp + 8, 0);
+                    }
+                    else
+                    {
+                        v8i16 _r0 = (v8i16)__msa_loadl_d(sptr);
+                        v8i16 _r1 = (v8i16)__msa_loadl_d(sptr + stride_w * 4);
+                        v8i16 _r2 = (v8i16)__msa_loadl_d(sptr + stride_w * 8);
+                        v8i16 _r3 = (v8i16)__msa_loadl_d(sptr + stride_w * 12);
+                        transpose4x4_epi16(_r0, _r1, _r2, _r3);
+                        __msa_st_h(_r0, pp, 0);
+                        __msa_st_h(_r1, pp + 8, 0);
+                    }
                     pp += 16;
                 }
                 if (elempack == 1)
@@ -2490,10 +2508,8 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     v8i16 _r2 = (v8i16)__msa_loadl_d(sptr2);
                     v8i16 _r3 = (v8i16)__msa_loadl_d(sptr3);
                     transpose4x4_epi16(_r0, _r1, _r2, _r3);
-                    __msa_storel_d((v4i32)_r0, pp);
-                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_r0, (v16i8)_r0, 8), pp + 4);
-                    __msa_storel_d((v4i32)_r1, pp + 8);
-                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_r1, (v16i8)_r1, 8), pp + 12);
+                    __msa_st_h(_r0, pp, 0);
+                    __msa_st_h(_r1, pp + 8, 0);
                     pp += 16;
                 }
                 if (elempack == 1)
@@ -2545,8 +2561,19 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                 }
                 if (elempack == 4)
                 {
-                    v8i16 _r0 = (v8i16)__msa_loadl_d(sptr);
-                    v8i16 _r1 = (v8i16)__msa_loadl_d(sptr + stride_w * 4);
+                    v8i16 _r0;
+                    v8i16 _r1;
+                    if (stride_w == 1)
+                    {
+                        v8i16 _r01 = (v8i16)__msa_ld_h(sptr, 0);
+                        _r0 = (v8i16)__msa_ilvr_d((v2i64)_r01, (v2i64)_r01);
+                        _r1 = (v8i16)__msa_ilvl_d((v2i64)_r01, (v2i64)_r01);
+                    }
+                    else
+                    {
+                        _r0 = (v8i16)__msa_loadl_d(sptr);
+                        _r1 = (v8i16)__msa_loadl_d(sptr + stride_w * 4);
+                    }
                     v8i16 _tmp0 = (v8i16)__msa_ilvr_h(_r1, _r0);
                     __msa_st_h(_tmp0, pp, 0);
                     pp += 8;
