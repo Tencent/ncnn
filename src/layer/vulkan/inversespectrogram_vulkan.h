@@ -26,16 +26,33 @@ public:
 
     Mat basis_cos_data_packed;
     Mat basis_sin_data_packed;
+    Mat basis_cos_data_gemm_packed;
+    Mat basis_sin_data_gemm_packed;
 
     VkMat basis_cos_data_gpu;
     VkMat basis_sin_data_gpu;
+    VkMat basis_cos_data_gemm_gpu;
+    VkMat basis_sin_data_gemm_gpu;
 
     VkMat window2_data_gpu;
 
     Pipeline* pipeline_inversespectrogram_idft;
     Pipeline* pipeline_inversespectrogram_idft_pack4;
+    Pipeline* pipeline_inversespectrogram_idft_packed_gemm;
+    Pipeline* pipeline_inversespectrogram_idft_gemm_cm;
     Pipeline* pipeline_inversespectrogram_ola;
     Pipeline* pipeline_inversespectrogram_ola_pack4;
+
+    bool use_cooperative_matrix;
+    int coopmat_M;
+    int coopmat_N;
+    int coopmat_K;
+    int coopmat_subgroup_size;
+    int UNROLL_SG_M;
+    int UNROLL_SG_N;
+    int UNROLL_SG_K;
+    int UNROLL_WG_M;
+    int UNROLL_WG_N;
 };
 
 } // namespace ncnn
