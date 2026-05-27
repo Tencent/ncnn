@@ -3027,8 +3027,11 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
         }
         else
         {
-            p0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
-            p0f = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
+            // if (out_elempack == 1)
+            {
+                p0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j;
+                p0f = (float*)top_blob + (i + ii) * out_hstep + j;
+            }
         }
 
         const float* pC0 = pC;
@@ -3097,15 +3100,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     }
                     else
                     {
-                        if (out_elempack == 8)
-                        {
-                            p0f[0] = sum;
-                        }
-                        if (out_elempack == 4)
-                        {
-                            p0f[0] = sum;
-                        }
-                        if (out_elempack == 1)
+                        // if (out_elempack == 1)
                         {
                             p0f[0] = sum;
                         }
@@ -3130,15 +3125,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     }
                     else
                     {
-                        if (out_elempack == 8)
-                        {
-                            p0[0] = float32_to_bfloat16(sum);
-                        }
-                        if (out_elempack == 4)
-                        {
-                            p0[0] = float32_to_bfloat16(sum);
-                        }
-                        if (out_elempack == 1)
+                        // if (out_elempack == 1)
                         {
                             p0[0] = float32_to_bfloat16(sum);
                         }

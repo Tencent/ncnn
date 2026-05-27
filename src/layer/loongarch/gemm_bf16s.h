@@ -191,13 +191,13 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
             for (int kk = 0; kk + 7 < max_kk; kk += 8)
             {
                 __m128i _r0 = __lsx_vld(p0, 0);
-                __m128i _r1 = __lsx_vld(p0 + A_hstep, 0);
-                __m128i _r2 = __lsx_vld(p0 + A_hstep * 2, 0);
-                __m128i _r3 = __lsx_vld(p0 + A_hstep * 3, 0);
-                __m128i _r4 = __lsx_vld(p0 + A_hstep * 4, 0);
-                __m128i _r5 = __lsx_vld(p0 + A_hstep * 5, 0);
-                __m128i _r6 = __lsx_vld(p0 + A_hstep * 5, 0);
-                __m128i _r7 = __lsx_vld(p0 + A_hstep * 6, 0);
+                __m128i _r1 = __lsx_vld(p0 + 8, 0);
+                __m128i _r2 = __lsx_vld(p0 + 16, 0);
+                __m128i _r3 = __lsx_vld(p0 + 24, 0);
+                __m128i _r4 = __lsx_vld(p0 + 32, 0);
+                __m128i _r5 = __lsx_vld(p0 + 40, 0);
+                __m128i _r6 = __lsx_vld(p0 + 48, 0);
+                __m128i _r7 = __lsx_vld(p0 + 56, 0);
 
                 transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
 

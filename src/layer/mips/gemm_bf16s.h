@@ -180,13 +180,13 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
             for (int kk = 0; kk + 7 < max_kk; kk += 8)
             {
                 v8i16 _r0 = (v8i16)__msa_ld_h(p0, 0);
-                v8i16 _r1 = (v8i16)__msa_ld_h(p0 + A_hstep, 0);
-                v8i16 _r2 = (v8i16)__msa_ld_h(p0 + A_hstep * 2, 0);
-                v8i16 _r3 = (v8i16)__msa_ld_h(p0 + A_hstep * 3, 0);
-                v8i16 _r4 = (v8i16)__msa_ld_h(p0 + A_hstep * 4, 0);
-                v8i16 _r5 = (v8i16)__msa_ld_h(p0 + A_hstep * 5, 0);
-                v8i16 _r6 = (v8i16)__msa_ld_h(p0 + A_hstep * 5, 0);
-                v8i16 _r7 = (v8i16)__msa_ld_h(p0 + A_hstep * 6, 0);
+                v8i16 _r1 = (v8i16)__msa_ld_h(p0 + 8, 0);
+                v8i16 _r2 = (v8i16)__msa_ld_h(p0 + 16, 0);
+                v8i16 _r3 = (v8i16)__msa_ld_h(p0 + 24, 0);
+                v8i16 _r4 = (v8i16)__msa_ld_h(p0 + 32, 0);
+                v8i16 _r5 = (v8i16)__msa_ld_h(p0 + 40, 0);
+                v8i16 _r6 = (v8i16)__msa_ld_h(p0 + 48, 0);
+                v8i16 _r7 = (v8i16)__msa_ld_h(p0 + 56, 0);
 
                 transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
 
