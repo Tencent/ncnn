@@ -102,10 +102,10 @@ static AImageReader* open_camera_reader(int width, int height)
 {
     AImageReader* reader = nullptr;
     media_status_t st = AImageReader_newWithUsage(
-        width, height, AIMAGE_FORMAT_YUV_420_888,
-        AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN
-            | AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE,
-        /*maxImages=*/3, &reader);
+                            width, height, AIMAGE_FORMAT_YUV_420_888,
+                            AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN
+                            | AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE,
+                            /*maxImages=*/3, &reader);
     if (st != AMEDIA_OK) return nullptr;
     return reader;
 }
@@ -130,10 +130,10 @@ static bool ahb_has_gpu_sampled_flag(AHardwareBuffer* ahb)
 
 struct AhbCacheEntry
 {
-    AHardwareBuffer*                              ahb;
-    ncnn::VkAndroidHardwareBufferImageAllocator*  alloc;
-    ncnn::ImportAndroidHardwareBufferPipeline*    pipe;
-    ncnn::VkImageMat                              src;
+    AHardwareBuffer* ahb;
+    ncnn::VkAndroidHardwareBufferImageAllocator* alloc;
+    ncnn::ImportAndroidHardwareBufferPipeline* pipe;
+    ncnn::VkImageMat src;
 };
 
 // Look up or create a cache entry for `ahb`. Camera-thread only -- the
@@ -141,11 +141,11 @@ struct AhbCacheEntry
 static AhbCacheEntry& import_ahb_or_get_cached(
     std::unordered_map<AHardwareBuffer*, AhbCacheEntry>& cache,
     ncnn::VulkanDevice* vkdev,
-    AHardwareBuffer*    ahb,
-    int                 target_w,
-    int                 target_h,
-    int                 type_to,        // 1=RGB, 2=BGR, 3=GRAY, 4=RGBA, 5=BGRA
-    int                 rotate_from,    // EXIF orientation code: 1 = identity, 5..8 = rotations
+    AHardwareBuffer* ahb,
+    int target_w,
+    int target_h,
+    int type_to,     // 1=RGB, 2=BGR, 3=GRAY, 4=RGBA, 5=BGRA
+    int rotate_from, // EXIF orientation code: 1 = identity, 5..8 = rotations
     const ncnn::Option& opt)
 {
     auto it = cache.find(ahb);
@@ -156,10 +156,10 @@ static AhbCacheEntry& import_ahb_or_get_cached(
     AHardwareBuffer_acquire(ahb);
 
     AhbCacheEntry e{};
-    e.ahb   = ahb;
+    e.ahb = ahb;
     e.alloc = new ncnn::VkAndroidHardwareBufferImageAllocator(vkdev, ahb);
-    e.src   = ncnn::VkImageMat::from_android_hardware_buffer(e.alloc);
-    e.pipe  = new ncnn::ImportAndroidHardwareBufferPipeline(vkdev);
+    e.src = ncnn::VkImageMat::from_android_hardware_buffer(e.alloc);
+    e.pipe = new ncnn::ImportAndroidHardwareBufferPipeline(vkdev);
     e.pipe->create(e.alloc, type_to, rotate_from, target_w, target_h, opt);
 
     auto ins = cache.emplace(ahb, std::move(e));
@@ -199,10 +199,10 @@ static void evict_ahb_cache(
 //     5 = bf16
 static ncnn::VkMat cast_to_extractor_format(
     ncnn::VulkanDevice* vkdev,
-    const ncnn::VkMat&  src,
-    int                 target_elempack,
-    int                 cast_type_to,
-    ncnn::VkCompute&    cmd,
+    const ncnn::VkMat& src,
+    int target_elempack,
+    int cast_type_to,
+    ncnn::VkCompute& cmd,
     const ncnn::Option& opt)
 {
     ncnn::VkMat dst;
@@ -222,9 +222,9 @@ static ncnn::VkMat cast_to_extractor_format(
 
 struct Ctx
 {
-    ncnn::Net*                                              net;
-    ncnn::VulkanDevice*                                     vkdev;
-    std::unordered_map<AHardwareBuffer*, AhbCacheEntry>     ahb_cache;
+    ncnn::Net* net;
+    ncnn::VulkanDevice* vkdev;
+    std::unordered_map<AHardwareBuffer*, AhbCacheEntry> ahb_cache;
 };
 
 static void on_image_available_example(void* userdata, AImageReader* reader)
@@ -257,20 +257,20 @@ static void on_image_available_example(void* userdata, AImageReader* reader)
     // RGB conversion AND the resize in a single compute pass, so you
     // can target the network's input size directly without a separate
     // resize step.
-    const int target_w = 1280;  // TODO: replace with your network's expected width
-    const int target_h = 720;   // TODO: replace with your network's expected height
+    const int target_w = 1280; // TODO: replace with your network's expected width
+    const int target_h = 720;  // TODO: replace with your network's expected height
 
     ncnn::Option opt = ctx->net->opt;
-    opt.use_vulkan_compute  = true;
-    opt.blob_vkallocator    = ctx->vkdev->acquire_blob_allocator();
+    opt.use_vulkan_compute = true;
+    opt.blob_vkallocator = ctx->vkdev->acquire_blob_allocator();
     opt.staging_vkallocator = ctx->vkdev->acquire_staging_allocator();
 
     AhbCacheEntry& e = import_ahb_or_get_cached(
-        ctx->ahb_cache, ctx->vkdev, ahb,
-        target_w, target_h,
-        /*type_to=*/1,        // RGB
-        /*rotate_from=*/1,    // identity (set this per your camera orientation)
-        opt);
+                           ctx->ahb_cache, ctx->vkdev, ahb,
+                           target_w, target_h,
+                           /*type_to=*/1,     // RGB
+                           /*rotate_from=*/1, // identity (set this per your camera orientation)
+                           opt);
 
     ncnn::VkCompute cmd(ctx->vkdev);
 
@@ -288,18 +288,18 @@ static void on_image_available_example(void* userdata, AImageReader* reader)
     // pass `dst` straight into ex.input. When in doubt -- ALWAYS cast.
     // See cast_to_extractor_format() above for the cast_type_to codes.
     ncnn::VkMat in_blob = cast_to_extractor_format(
-        ctx->vkdev, dst,
-        /*target_elempack=*/4,                // TODO: read from your model
-        /*cast_type_to=*/2,                   // fp16; TODO: match your model
-        cmd, opt);
+                              ctx->vkdev, dst,
+                              /*target_elempack=*/4, // TODO: read from your model
+                              /*cast_type_to=*/2,    // fp16; TODO: match your model
+                              cmd, opt);
 
     // Step 3: run the network. ex.input takes the casted VkMat; the
     // rest of the extractor pipeline is identical to the CPU path.
     ncnn::Extractor ex = ctx->net->create_extractor();
-    ex.input("in0", in_blob);              // TODO: your network's input blob name
+    ex.input("in0", in_blob); // TODO: your network's input blob name
 
     ncnn::VkMat out_vk;
-    ex.extract("out0", out_vk, cmd);       // TODO: your network's output blob name
+    ex.extract("out0", out_vk, cmd); // TODO: your network's output blob name
 
     cmd.submit_and_wait();
 
