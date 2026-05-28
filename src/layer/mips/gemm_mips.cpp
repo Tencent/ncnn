@@ -5657,21 +5657,6 @@ int Gemm_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
     {
         C = !CT_data.empty() ? CT_data : C_data;
         broadcast_type_C = constant_broadcast_type_C;
-
-        if (!C.empty())
-        {
-            if (C.elembits() == 16)
-            {
-                Option opt_cast = opt;
-                opt_cast.blob_allocator = opt.workspace_allocator;
-
-                Mat C_fp32;
-                cast_bfloat16_to_float32(C, C_fp32, opt_cast);
-                if (C_fp32.empty())
-                    return -100;
-                C = C_fp32;
-            }
-        }
     }
     else
     {
