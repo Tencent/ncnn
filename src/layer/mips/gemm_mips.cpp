@@ -2665,11 +2665,6 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 {
                     if (output_transpose)
                     {
-                        if (out_elempack == 8)
-                        {
-                            p0f[q] = sum0;
-                            p0f[q + 8] = sum1;
-                        }
                         if (out_elempack == 4)
                         {
                             p0f[q] = sum0;
@@ -2822,10 +2817,6 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 {
                     if (output_transpose)
                     {
-                        if (out_elempack == 8)
-                        {
-                            p0f[q] = sum;
-                        }
                         if (out_elempack == 4)
                         {
                             p0f[q] = sum;
