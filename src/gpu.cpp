@@ -5114,13 +5114,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     const GpuInfo& info = get_gpu_info(device_index);
     const bool support_fp16_storage = info.support_fp16_storage();
-    const bool support_int16_packed = info.support_int16_packed();
-    const bool support_int16_storage = info.support_int16_storage();
     const bool support_fp16_uniform = info.support_fp16_uniform();
-    const bool support_shader_int64 = info.physicalDevicefeatures().shaderInt64;
-    const bool support_shader_int16 = info.physicalDevicefeatures().shaderInt16;
-    const bool use_int16_storage = opt.use_int16_storage && support_int16_storage && support_shader_int16;
-    const bool use_int16_packed = !use_int16_storage && opt.use_int16_packed && support_int16_packed;
 
     if (opt.use_bf16_storage)
     {
@@ -5472,12 +5466,12 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("sint8", "int");
     }
 
-    if (use_int16_storage)
+    if (opt.use_int16_storage)
     {
         custom_defines.append("NCNN_int16_storage", 1);
         custom_defines.append("sint16", "int16_t");
     }
-    else if (use_int16_packed)
+    else if (opt.use_int16_packed)
     {
         custom_defines.append("NCNN_int16_packed", 1);
         custom_defines.append("sint16", "int");
@@ -5588,6 +5582,9 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 #endif
 
     custom_defines.append("ncnn_glsl_version", 1);
+
+    const bool support_shader_int64 = info.physicalDevicefeatures().shaderInt64;
+    const bool support_shader_int16 = info.physicalDevicefeatures().shaderInt16;
 
     // fill device macros
     {
@@ -6157,7 +6154,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     {
         custom_exts += "#extension GL_EXT_bfloat16: require\n";
     }
-    if (opt.use_fp16_storage || opt.use_bf16_storage || use_int16_storage)
+    if (opt.use_fp16_storage || opt.use_bf16_storage || opt.use_int16_storage)
     {
         custom_exts += "#extension GL_EXT_shader_16bit_storage: require\n";
     }
