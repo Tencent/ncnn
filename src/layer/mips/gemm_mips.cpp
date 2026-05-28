@@ -176,20 +176,6 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 #if __mips_msa
     for (; ii + 3 < max_ii; ii += 4)
     {
-        if (elempack == 8)
-        {
-            const int i_pack = (i + ii) / 8;
-            const int i_lane = (i + ii) % 8;
-            const float* p0 = (const float*)A + (size_t)i_pack * A_hstep * 8 + k * 8 + i_lane;
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                __builtin_prefetch(p0 + 32);
-                __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
-                pp += 4;
-                p0 += 8;
-            }
-        }
         if (elempack == 4)
         {
             const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;
@@ -252,25 +238,6 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
         const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
         const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
 
-#if __mips_msa
-        if (elempack == 8)
-        {
-            const int i_pack = (i + ii) / 8;
-            const int i_lane = (i + ii) % 8;
-            p0 = (const float*)A + (size_t)i_pack * A_hstep * 8 + k * 8 + i_lane;
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp += 2;
-                p0 += 8;
-            }
-
-            continue;
-        }
-#endif // __mips_msa
-
         for (int kk = 0; kk < max_kk; kk++)
         {
             pp[0] = p0[0];
@@ -284,24 +251,6 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
     for (; ii < max_ii; ii += 1)
     {
         const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
-
-#if __mips_msa
-        if (elempack == 8)
-        {
-            const int i_pack = (i + ii) / 8;
-            const int i_lane = (i + ii) % 8;
-            p0 = (const float*)A + (size_t)i_pack * A_hstep * 8 + k * 8 + i_lane;
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp += 1;
-                p0 += 8;
-            }
-
-            continue;
-        }
-#endif // __mips_msa
 
         int kk = 0;
 #if __mips_msa
@@ -1811,27 +1760,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        float* p1f = p0f + out_hstep * 4;
-                        uint64_t v0 = (uint32_t)__msa_copy_s_w((v4i32)_sum00, 0) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum10, 0) << 32);
-                        uint64_t v1 = (uint32_t)__msa_copy_s_w((v4i32)_sum00, 1) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum10, 1) << 32);
-                        uint64_t v2 = (uint32_t)__msa_copy_s_w((v4i32)_sum00, 2) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum10, 2) << 32);
-                        uint64_t v3 = (uint32_t)__msa_copy_s_w((v4i32)_sum00, 3) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum10, 3) << 32);
-                        uint64_t v4 = (uint32_t)__msa_copy_s_w((v4i32)_sum01, 0) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum11, 0) << 32);
-                        uint64_t v5 = (uint32_t)__msa_copy_s_w((v4i32)_sum01, 1) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum11, 1) << 32);
-                        uint64_t v6 = (uint32_t)__msa_copy_s_w((v4i32)_sum01, 2) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum11, 2) << 32);
-                        uint64_t v7 = (uint32_t)__msa_copy_s_w((v4i32)_sum01, 3) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum11, 3) << 32);
-                        memcpy(p0f, &v0, 8);
-                        memcpy(p0f + 4, &v1, 8);
-                        memcpy(p0f + 8, &v2, 8);
-                        memcpy(p0f + 12, &v3, 8);
-                        memcpy(p1f, &v4, 8);
-                        memcpy(p1f + 4, &v5, 8);
-                        memcpy(p1f + 8, &v6, 8);
-                        memcpy(p1f + 12, &v7, 8);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __msa_st_w((v4i32)_sum00, p0f, 0);
                         __msa_st_w((v4i32)_sum01, p0f + 4, 0);
@@ -1877,31 +1806,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        unsigned short* p1 = p0 + out_hstep * 4;
-                        v8i16 _bf0 = (v8i16)float2bfloat_msa(_sum00);
-                        v8i16 _bf1 = (v8i16)float2bfloat_msa(_sum10);
-                        v8i16 _bf2 = (v8i16)float2bfloat_msa(_sum01);
-                        v8i16 _bf3 = (v8i16)float2bfloat_msa(_sum11);
-                        uint32_t v0 = (unsigned short)__msa_copy_s_h(_bf0, 0) | ((uint32_t)(unsigned short)__msa_copy_s_h(_bf1, 0) << 16);
-                        uint32_t v1 = (unsigned short)__msa_copy_s_h(_bf0, 1) | ((uint32_t)(unsigned short)__msa_copy_s_h(_bf1, 1) << 16);
-                        uint32_t v2 = (unsigned short)__msa_copy_s_h(_bf0, 2) | ((uint32_t)(unsigned short)__msa_copy_s_h(_bf1, 2) << 16);
-                        uint32_t v3 = (unsigned short)__msa_copy_s_h(_bf0, 3) | ((uint32_t)(unsigned short)__msa_copy_s_h(_bf1, 3) << 16);
-                        uint32_t v4 = (unsigned short)__msa_copy_s_h(_bf2, 0) | ((uint32_t)(unsigned short)__msa_copy_s_h(_bf3, 0) << 16);
-                        uint32_t v5 = (unsigned short)__msa_copy_s_h(_bf2, 1) | ((uint32_t)(unsigned short)__msa_copy_s_h(_bf3, 1) << 16);
-                        uint32_t v6 = (unsigned short)__msa_copy_s_h(_bf2, 2) | ((uint32_t)(unsigned short)__msa_copy_s_h(_bf3, 2) << 16);
-                        uint32_t v7 = (unsigned short)__msa_copy_s_h(_bf2, 3) | ((uint32_t)(unsigned short)__msa_copy_s_h(_bf3, 3) << 16);
-                        memcpy(p0, &v0, 4);
-                        memcpy(p0 + 4, &v1, 4);
-                        memcpy(p0 + 8, &v2, 4);
-                        memcpy(p0 + 12, &v3, 4);
-                        memcpy(p1, &v4, 4);
-                        memcpy(p1 + 4, &v5, 4);
-                        memcpy(p1 + 8, &v6, 4);
-                        memcpy(p1 + 12, &v7, 4);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __msa_st_w(float2bfloat_msa(_sum00, _sum01), p0, 0);
                         __msa_st_w(float2bfloat_msa(_sum10, _sum11), p0 + out_hstep, 0);
@@ -1992,27 +1897,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        float* p1f = p0f + out_hstep * 4;
-                        uint32_t v0 = __msa_copy_s_w((v4i32)_sum0, 0);
-                        uint32_t v1 = __msa_copy_s_w((v4i32)_sum0, 1);
-                        uint32_t v2 = __msa_copy_s_w((v4i32)_sum0, 2);
-                        uint32_t v3 = __msa_copy_s_w((v4i32)_sum0, 3);
-                        uint32_t v4 = __msa_copy_s_w((v4i32)_sum1, 0);
-                        uint32_t v5 = __msa_copy_s_w((v4i32)_sum1, 1);
-                        uint32_t v6 = __msa_copy_s_w((v4i32)_sum1, 2);
-                        uint32_t v7 = __msa_copy_s_w((v4i32)_sum1, 3);
-                        memcpy(p0f, &v0, 4);
-                        memcpy(p0f + 4, &v1, 4);
-                        memcpy(p0f + 8, &v2, 4);
-                        memcpy(p0f + 12, &v3, 4);
-                        memcpy(p1f, &v4, 4);
-                        memcpy(p1f + 4, &v5, 4);
-                        memcpy(p1f + 8, &v6, 4);
-                        memcpy(p1f + 12, &v7, 4);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __msa_st_w((v4i32)_sum0, p0f, 0);
                         __msa_st_w((v4i32)_sum1, p0f + 4, 0);
@@ -2054,21 +1939,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        unsigned short* p1 = p0 + out_hstep * 4;
-                        v8i16 _bf0 = (v8i16)float2bfloat_msa(_sum0);
-                        v8i16 _bf1 = (v8i16)float2bfloat_msa(_sum1);
-                        p0[0] = (unsigned short)__msa_copy_s_h(_bf0, 0);
-                        p0[4] = (unsigned short)__msa_copy_s_h(_bf0, 1);
-                        p0[8] = (unsigned short)__msa_copy_s_h(_bf0, 2);
-                        p0[12] = (unsigned short)__msa_copy_s_h(_bf0, 3);
-                        p1[0] = (unsigned short)__msa_copy_s_h(_bf1, 0);
-                        p1[4] = (unsigned short)__msa_copy_s_h(_bf1, 1);
-                        p1[8] = (unsigned short)__msa_copy_s_h(_bf1, 2);
-                        p1[12] = (unsigned short)__msa_copy_s_h(_bf1, 3);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __msa_st_w(float2bfloat_msa(_sum0, _sum1), p0, 0);
                     }
@@ -2626,18 +2497,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        uint64_t v0 = (uint32_t)__msa_copy_s_w((v4i32)_sum0, 0) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum1, 0) << 32);
-                        uint64_t v1 = (uint32_t)__msa_copy_s_w((v4i32)_sum0, 1) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum1, 1) << 32);
-                        uint64_t v2 = (uint32_t)__msa_copy_s_w((v4i32)_sum0, 2) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum1, 2) << 32);
-                        uint64_t v3 = (uint32_t)__msa_copy_s_w((v4i32)_sum0, 3) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum1, 3) << 32);
-                        memcpy(p0f, &v0, 8);
-                        memcpy(p0f + 4, &v1, 8);
-                        memcpy(p0f + 8, &v2, 8);
-                        memcpy(p0f + 12, &v3, 8);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __msa_st_w((v4i32)_sum0, p0f, 0);
                         __msa_st_w((v4i32)_sum1, p0f + out_hstep, 0);
@@ -2670,20 +2530,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        v8i16 _bf0 = (v8i16)float2bfloat_msa(_sum0);
-                        v8i16 _bf1 = (v8i16)float2bfloat_msa(_sum1);
-                        uint32_t v0 = (unsigned short)__msa_copy_s_h(_bf0, 0) | ((uint32_t)(unsigned short)__msa_copy_s_h(_bf1, 0) << 16);
-                        uint32_t v1 = (unsigned short)__msa_copy_s_h(_bf0, 1) | ((uint32_t)(unsigned short)__msa_copy_s_h(_bf1, 1) << 16);
-                        uint32_t v2 = (unsigned short)__msa_copy_s_h(_bf0, 2) | ((uint32_t)(unsigned short)__msa_copy_s_h(_bf1, 2) << 16);
-                        uint32_t v3 = (unsigned short)__msa_copy_s_h(_bf0, 3) | ((uint32_t)(unsigned short)__msa_copy_s_h(_bf1, 3) << 16);
-                        memcpy(p0, &v0, 4);
-                        memcpy(p0 + 4, &v1, 4);
-                        memcpy(p0 + 8, &v2, 4);
-                        memcpy(p0 + 12, &v3, 4);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         v4i32 _bf = float2bfloat_msa(_sum0, _sum1);
                         int64_t v0 = __msa_copy_s_d((v2i64)_bf, 0);
@@ -2751,18 +2598,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        uint32_t v0 = __msa_copy_s_w((v4i32)_sum0, 0);
-                        uint32_t v1 = __msa_copy_s_w((v4i32)_sum0, 1);
-                        uint32_t v2 = __msa_copy_s_w((v4i32)_sum0, 2);
-                        uint32_t v3 = __msa_copy_s_w((v4i32)_sum0, 3);
-                        memcpy(p0f, &v0, 4);
-                        memcpy(p0f + 4, &v1, 4);
-                        memcpy(p0f + 8, &v2, 4);
-                        memcpy(p0f + 12, &v3, 4);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __msa_st_w((v4i32)_sum0, p0f, 0);
                     }
@@ -2793,15 +2629,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        v8i16 _bf = (v8i16)float2bfloat_msa(_sum0);
-                        p0[0] = (unsigned short)__msa_copy_s_h(_bf, 0);
-                        p0[4] = (unsigned short)__msa_copy_s_h(_bf, 1);
-                        p0[8] = (unsigned short)__msa_copy_s_h(_bf, 2);
-                        p0[12] = (unsigned short)__msa_copy_s_h(_bf, 3);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         v4i32 _bf = float2bfloat_msa(_sum0);
                         int64_t v = __msa_copy_s_d((v2i64)_bf, 0);
@@ -2926,17 +2754,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     }
                     else
                     {
-                        if (out_elempack == 8)
-                        {
-                            p0f[0] = sum0;
-                            p0f[out_hstep] = sum1;
-                        }
-                        if (out_elempack == 4)
-                        {
-                            p0f[0] = sum0;
-                            p0f[out_hstep] = sum1;
-                        }
-                        if (out_elempack == 1)
+                        // if (out_elempack == 1)
                         {
                             p0f[0] = sum0;
                             p0f[out_hstep] = sum1;
@@ -2965,17 +2783,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     }
                     else
                     {
-                        if (out_elempack == 8)
-                        {
-                            p0[0] = float32_to_bfloat16(sum0);
-                            p0[out_hstep] = float32_to_bfloat16(sum1);
-                        }
-                        if (out_elempack == 4)
-                        {
-                            p0[0] = float32_to_bfloat16(sum0);
-                            p0[out_hstep] = float32_to_bfloat16(sum1);
-                        }
-                        if (out_elempack == 1)
+                        // if (out_elempack == 1)
                         {
                             p0[0] = float32_to_bfloat16(sum0);
                             p0[out_hstep] = float32_to_bfloat16(sum1);

@@ -533,23 +533,6 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
     for (; jj + 3 < max_jj; jj += 4)
     {
 #if __mips_msa
-        if (elempack == 8)
-        {
-            const int j_pack = (j + jj) / 8;
-            const int j_lane = (j + jj) % 8;
-            const unsigned short* p0 = (const unsigned short*)B + (size_t)j_pack * B_hstep * 8 + k * 8 + j_lane;
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                __builtin_prefetch(p0 + 32);
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
-                pp += 4;
-                p0 += 8;
-            }
-        }
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * 4;
@@ -593,93 +576,33 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
     }
     for (; jj + 1 < max_jj; jj += 2)
     {
-#if __mips_msa
-        if (elempack == 8)
+        // if (elempack == 1)
         {
-            const int j_pack = (j + jj) / 8;
-            const int j_lane = (j + jj) % 8;
-            const unsigned short* p0 = (const unsigned short*)B + (size_t)j_pack * B_hstep * 8 + k * 8 + j_lane;
+            const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k;
+            const unsigned short* p1 = (const unsigned short*)B + (j + jj + 1) * B_hstep + k;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
-                pp[1] = p0[1];
+                pp[1] = p1[0];
                 pp += 2;
-                p0 += 8;
+                p0++;
+                p1++;
             }
-
-            continue;
-        }
-        if (elempack == 4)
-        {
-            const int j_pack = (j + jj) / 4;
-            const int j_lane = (j + jj) % 4;
-            const unsigned short* p0 = (const unsigned short*)B + (size_t)j_pack * B_hstep * 4 + k * 4 + j_lane;
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp += 2;
-                p0 += 4;
-            }
-
-            continue;
-        }
-#endif // __mips_msa
-        const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k;
-        const unsigned short* p1 = (const unsigned short*)B + (j + jj + 1) * B_hstep + k;
-
-        for (int kk = 0; kk < max_kk; kk++)
-        {
-            pp[0] = p0[0];
-            pp[1] = p1[0];
-            pp += 2;
-            p0++;
-            p1++;
         }
     }
     for (; jj < max_jj; jj++)
     {
-#if __mips_msa
-        if (elempack == 8)
+        // if (elempack == 1)
         {
-            const int j_pack = (j + jj) / 8;
-            const int j_lane = (j + jj) % 8;
-            const unsigned short* p0 = (const unsigned short*)B + (size_t)j_pack * B_hstep * 8 + k * 8 + j_lane;
+            const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
                 pp += 1;
-                p0 += 8;
+                p0++;
             }
-
-            continue;
-        }
-        if (elempack == 4)
-        {
-            const int j_pack = (j + jj) / 4;
-            const int j_lane = (j + jj) % 4;
-            const unsigned short* p0 = (const unsigned short*)B + (size_t)j_pack * B_hstep * 4 + k * 4 + j_lane;
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp += 1;
-                p0 += 4;
-            }
-
-            continue;
-        }
-#endif // __mips_msa
-        const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k;
-
-        for (int kk = 0; kk < max_kk; kk++)
-        {
-            pp[0] = p0[0];
-            pp += 1;
-            p0++;
         }
     }
 }

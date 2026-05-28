@@ -662,27 +662,11 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
 #endif // __loongarch_sx
     for (; jj + 3 < max_jj; jj += 4)
     {
-        const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * elempack;
 #if __loongarch_sx
-        if (elempack == 8)
-        {
-            const int j_pack = (j + jj) / 8;
-            const int j_lane = (j + jj) % 8;
-            p0 = (const unsigned short*)B + (size_t)j_pack * B_hstep * 8 + k * 8 + j_lane;
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                __builtin_prefetch(p0 + 32);
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
-                pp += 4;
-                p0 += 8;
-            }
-        }
         if (elempack == 4)
         {
+            const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * 4;
+
             for (int kk = 0; kk < max_kk; kk++)
             {
                 __builtin_prefetch(p0 + 32);
@@ -694,13 +678,13 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
                 p0 += 4;
             }
         }
-        if (elempack == 1)
 #endif // __loongarch_sx
+        // if (elempack == 1)
         {
+            const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k;
             const unsigned short* p1 = (const unsigned short*)B + (j + jj + 1) * B_hstep + k;
             const unsigned short* p2 = (const unsigned short*)B + (j + jj + 2) * B_hstep + k;
             const unsigned short* p3 = (const unsigned short*)B + (j + jj + 3) * B_hstep + k;
-            p0 = (const unsigned short*)B + (j + jj) * B_hstep + k;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
@@ -722,60 +706,33 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
     }
     for (; jj + 1 < max_jj; jj += 2)
     {
-        const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k;
-        const unsigned short* p1 = (const unsigned short*)B + (j + jj + 1) * B_hstep + k;
-
-#if __loongarch_sx
-        if (elempack == 8)
+        // if (elempack == 1)
         {
-            const int j_pack = (j + jj) / 8;
-            const int j_lane = (j + jj) % 8;
-            p0 = (const unsigned short*)B + (size_t)j_pack * B_hstep * 8 + k * 8 + j_lane;
+            const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k;
+            const unsigned short* p1 = (const unsigned short*)B + (j + jj + 1) * B_hstep + k;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
-                pp[1] = p0[1];
+                pp[1] = p1[0];
                 pp += 2;
-                p0 += 8;
+                p0++;
+                p1++;
             }
-            continue;
-        }
-#endif // __loongarch_sx
-        for (int kk = 0; kk < max_kk; kk++)
-        {
-            pp[0] = p0[0];
-            pp[1] = p1[0];
-            pp += 2;
-            p0++;
-            p1++;
         }
     }
     for (; jj < max_jj; jj++)
     {
-        const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k;
-
-#if __loongarch_sx
-        if (elempack == 8)
+        // if (elempack == 1)
         {
-            const int j_pack = (j + jj) / 8;
-            const int j_lane = (j + jj) % 8;
-            p0 = (const unsigned short*)B + (size_t)j_pack * B_hstep * 8 + k * 8 + j_lane;
+            const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
                 pp += 1;
-                p0 += 8;
+                p0++;
             }
-            continue;
-        }
-#endif // __loongarch_sx
-        for (int kk = 0; kk < max_kk; kk++)
-        {
-            pp[0] = p0[0];
-            pp += 1;
-            p0++;
         }
     }
 }
