@@ -166,6 +166,33 @@ shared lfp tmp_a[8][4][2];
 |lfp|float|float|float|float16_t|float|bfloat16_t|
 |lfpvec4|vec4|uvec2|uint64_t|f16vec4|uvec2|bf16vec4|
 
+## integer type
+
+declare int8/int16 buffer data layout and local variables in glsl code
+
+```c
+layout (binding = 0) readonly buffer bottom_blob { sint8vec4 bottom_blob_data[]; };
+layout (binding = 1) readonly buffer weight_blob { sint16 weight_blob_data[]; };
+```
+
+|int8 storage type|int8p|int8s|int8s+int8a|
+|---|---|---|---|
+|sint8|int|int8_t|int8_t|
+|sint8vec4|int|int|i8vec4|
+
+|int8 arithmetic type|int8|
+|---|---|
+|aint8|int|
+|aint8vec4|ivec4|
+
+|int16 storage type|int16p|int16s|
+|---|---|---|
+|sint16|int|int16_t|
+
+`sint8vec4` uses native `i8vec4` only when both `opt.use_int8_storage` and `opt.use_int8_arithmetic` are enabled. Otherwise it uses one `int` to hold four signed int8 lanes.
+
+`sint16` uses one `int` to hold two signed int16 lanes when `opt.use_int16_packed` is enabled, and uses native `int16_t` when `opt.use_int16_storage` is enabled.
+
 # buffer functions
 
 - load typed value from src[offset]
@@ -203,6 +230,41 @@ void buffer_cp1to4(sfpvec4 dst, int dst_offset, sfp src, ivec4 src_offsets);
 ```c
 void buffer_cp4to1(sfp dst, ivec4 dst_offsets, sfpvec4 src, int src_offset);
 ```
+
+# integer buffer functions
+
+- load int8 typed value from src[offset]
+
+```c
+aint8 i8buffer_ld1(sint8 src, int offset);
+aint8vec4 i8buffer_ld4(sint8vec4 src, int offset);
+```
+
+- store int8 typed value to dst[offset]
+
+```c
+void i8buffer_st1(sint8 dst, int offset, aint8 v);
+void i8buffer_st4(sint8vec4 dst, int offset, aint8vec4 v);
+```
+
+- copy int8 typed value from src[src_offset] to dst[dst_offset]
+
+```c
+void i8buffer_cp1(sint8 dst, int dst_offset, sint8 src, int src_offset);
+void i8buffer_cp4(sint8vec4 dst, int dst_offset, sint8vec4 src, int src_offset);
+```
+
+- pack and unpack signed integer lanes
+
+```c
+ivec4 unpackInt4x8(int v);
+int packInt4x8(ivec4 v);
+ivec2 unpackInt2x16(int v);
+int packInt2x16(ivec2 v);
+```
+
+`packInt4x8` stores `.r/.g/.b/.a` in the low-to-high bytes of one `int`. `packInt2x16` stores `.r/.g` in the low-to-high 16-bit lanes of one `int`.
+
 # local data conversion functions
 
 - storage buffer to local memory
@@ -357,7 +419,7 @@ At runtime, `NCNN_LOGE` will print out the value of `gx`
 
 enable glsl extension only if user enable some options
 
-The `GL_EXT_shader_16bit_storage` extension will be automatically enabled without explicit code indication when the device supports 16-bit storage and the user turns on `opt.use_fp16_storage` or `opt.use_bf16_storage`
+The `GL_EXT_shader_16bit_storage` extension will be automatically enabled without explicit code indication when the device supports 16-bit storage and the user turns on `opt.use_fp16_storage`, `opt.use_bf16_storage`, or `opt.use_int16_storage`
 
 The `GL_EXT_shader_explicit_arithmetic_types_float16` extension will be automatically enabled without explicit code indication when the device supports 16-bit arithmetic and the user turns on `opt.use_fp16_arithmetic`
 
@@ -388,6 +450,8 @@ void main()
 |NCNN_int8_packed|opt.use_int8_packed|
 |NCNN_int8_storage|opt.use_int8_storage|
 |NCNN_int8_arithmetic|opt.use_int8_arithmetic|
+|NCNN_int16_packed|opt.use_int16_packed|
+|NCNN_int16_storage|opt.use_int16_storage|
 |NCNN_bf16_packed|opt.use_bf16_packed|
 |NCNN_bf16_storage|opt.use_bf16_storage|
 |NCNN_shader_local_memory|opt.use_shader_local_memory|

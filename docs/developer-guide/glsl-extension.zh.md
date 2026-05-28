@@ -166,6 +166,33 @@ shared lfp tmp_a[8][4][2];
 |lfp|float|float|float|float16_t|float|bfloat16_t|
 |lfpvec4|vec4|uvec2|uint64_t|f16vec4|uvec2|bf16vec4|
 
+## 整数类型(integer type)
+
+在 GLSL 代码中声明 int8/int16 缓冲区数据布局和局部变量
+
+```c
+layout (binding = 0) readonly buffer bottom_blob { sint8vec4 bottom_blob_data[]; };
+layout (binding = 1) readonly buffer weight_blob { sint16 weight_blob_data[]; };
+```
+
+|int8 存储类型|int8p|int8s|int8s+int8a|
+|---|---|---|---|
+|sint8|int|int8_t|int8_t|
+|sint8vec4|int|int|i8vec4|
+
+|int8 算术类型|int8|
+|---|---|
+|aint8|int|
+|aint8vec4|ivec4|
+
+|int16 存储类型|int16p|int16s|
+|---|---|---|
+|sint16|int|int16_t|
+
+只有在同时启用 `opt.use_int8_storage` 和 `opt.use_int8_arithmetic` 时，`sint8vec4` 才会使用原生 `i8vec4`。否则，`sint8vec4` 使用一个 `int` 保存四个有符号 int8 lane。
+
+启用 `opt.use_int16_packed` 时，`sint16` 使用一个 `int` 保存两个有符号 int16 lane；启用 `opt.use_int16_storage` 时，`sint16` 使用原生 `int16_t`。
+
 # 缓冲区函数(buffer functions)
 
 - 从 src[offset] 加载已经确定类型的值
@@ -203,6 +230,40 @@ void buffer_cp1to4(sfpvec4 dst, int dst_offset, sfp src, ivec4 src_offsets);
 ```c
 void buffer_cp4to1(sfp dst, ivec4 dst_offsets, sfpvec4 src, int src_offset);
 ```
+
+# 整数缓冲区函数(integer buffer functions)
+
+- 从 src[offset] 加载 int8 类型的值
+
+```c
+aint8 i8buffer_ld1(sint8 src, int offset);
+aint8vec4 i8buffer_ld4(sint8vec4 src, int offset);
+```
+
+- 将 int8 类型的值存储到 dst[offset]
+
+```c
+void i8buffer_st1(sint8 dst, int offset, aint8 v);
+void i8buffer_st4(sint8vec4 dst, int offset, aint8vec4 v);
+```
+
+- 从 src[src_offset] 的 int8 类型值拷贝到 dst[dst_offset]
+
+```c
+void i8buffer_cp1(sint8 dst, int dst_offset, sint8 src, int src_offset);
+void i8buffer_cp4(sint8vec4 dst, int dst_offset, sint8vec4 src, int src_offset);
+```
+
+- 打包和解包有符号整数 lane
+
+```c
+ivec4 unpackInt4x8(int v);
+int packInt4x8(ivec4 v);
+ivec2 unpackInt2x16(int v);
+int packInt2x16(ivec2 v);
+```
+
+`packInt4x8` 将 `.r/.g/.b/.a` 按低字节到高字节保存到一个 `int`。`packInt2x16` 将 `.r/.g` 按低 16-bit lane 到高 16-bit lane 保存到一个 `int`。
 
 # 本地数据转换函数
 
@@ -358,7 +419,7 @@ void main()
 
 仅当用户启用某些选项时才启用 GLSL 扩展
 
-`GL_EXT_shader_16bit_storage` 扩展会在设备支持 16 位存储且用户开启了 `opt.use_fp16_storage` 或 `opt.use_bf16_storage` 选项时，自动启用，无需显式代码指示。
+`GL_EXT_shader_16bit_storage` 扩展会在设备支持 16 位存储且用户开启了 `opt.use_fp16_storage`、`opt.use_bf16_storage` 或 `opt.use_int16_storage` 选项时，自动启用，无需显式代码指示。
 
 `GL_EXT_shader_explicit_arithmetic_types_float16` 扩展会在设备支持 16 位算术运算且用户开启了 `opt.use_fp16_arithmetic` 选项时，自动启用，无需显式代码指示。
 
@@ -389,6 +450,8 @@ void main()
 |NCNN_int8_packed|opt.use_int8_packed|
 |NCNN_int8_storage|opt.use_int8_storage|
 |NCNN_int8_arithmetic|opt.use_int8_arithmetic|
+|NCNN_int16_packed|opt.use_int16_packed|
+|NCNN_int16_storage|opt.use_int16_storage|
 |NCNN_bf16_packed|opt.use_bf16_packed|
 |NCNN_bf16_storage|opt.use_bf16_storage|
 |NCNN_shader_local_memory|opt.use_shader_local_memory|
