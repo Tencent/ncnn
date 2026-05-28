@@ -5103,21 +5103,6 @@ int compile_spirv_module(const char* comp_string, const Option& opt, std::vector
     return compile_spirv_module(comp_string, length, opt, spirv);
 }
 
-static bool shader_source_contains(const char* comp_data, int comp_data_size, const char* pattern)
-{
-    const int pattern_size = (int)strlen(pattern);
-    if (pattern_size == 0 || comp_data_size < pattern_size)
-        return false;
-
-    for (int i = 0; i <= comp_data_size - pattern_size; i++)
-    {
-        if (memcmp(comp_data + i, pattern, pattern_size) == 0)
-            return true;
-    }
-
-    return false;
-}
-
 int compile_spirv_module(const char* comp_data, int comp_data_size, const Option& opt, std::vector<uint32_t>& spirv)
 {
     DefinitionCollector custom_defines;
@@ -5134,10 +5119,8 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     const bool support_fp16_uniform = info.support_fp16_uniform();
     const bool support_shader_int64 = info.physicalDevicefeatures().shaderInt64;
     const bool support_shader_int16 = info.physicalDevicefeatures().shaderInt16;
-    const bool shader_uses_int16_storage = shader_source_contains(comp_data, comp_data_size, "sint16") || shader_source_contains(comp_data, comp_data_size, "NCNN_int16_storage") || shader_source_contains(comp_data, comp_data_size, "NCNN_int16_packed");
-    const bool effective_int16_storage = opt.use_int16_storage && support_int16_storage && support_shader_int16 && shader_uses_int16_storage;
-    const bool use_int16_packed = opt.use_int16_packed && support_int16_packed && !effective_int16_storage && shader_uses_int16_storage;
-    const bool use_int16_storage = effective_int16_storage;
+    const bool use_int16_storage = opt.use_int16_storage && support_int16_storage && support_shader_int16;
+    const bool use_int16_packed = !use_int16_storage && opt.use_int16_packed && support_int16_packed;
 
     if (opt.use_bf16_storage)
     {
@@ -5489,15 +5472,15 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("sint8", "int");
     }
 
-    if (use_int16_packed)
-    {
-        custom_defines.append("NCNN_int16_packed", 1);
-        custom_defines.append("sint16", "int");
-    }
-    else if (use_int16_storage)
+    if (use_int16_storage)
     {
         custom_defines.append("NCNN_int16_storage", 1);
         custom_defines.append("sint16", "int16_t");
+    }
+    else if (use_int16_packed)
+    {
+        custom_defines.append("NCNN_int16_packed", 1);
+        custom_defines.append("sint16", "int");
     }
     else
     {
