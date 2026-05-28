@@ -42,7 +42,7 @@ _LOONGARCH_FLOAT_CONST(c_n3, -3.0f);
 _LOONGARCH_FLOAT_CONST(c_0p5, 0.5f);
 _LOONGARCH_FLOAT_CONST(c_eps, 1E-8f);
 
-#define c_inv_mant_mask ~0x7f800000u
+#define c_inv_mant_mask_lsx ~0x7f800000u
 _LOONGARCH_FLOAT_CONST(c_cephes_SQRTHF, 0.707106781186547524);
 _LOONGARCH_FLOAT_CONST(c_cephes_log_p0, 7.0376836292E-2);
 _LOONGARCH_FLOAT_CONST(c_cephes_log_p1, -1.1514610310E-1);
@@ -59,7 +59,7 @@ _LOONGARCH_FLOAT_CONST(c_cephes_log_q2, 0.693359375);
 /* natural logarithm computed for 4 simultaneous float
  *   return NaN for x <= 0
  */
-static inline __m128 log_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 log_ps(__m128 x)
 {
     __m128 one = (__m128)__lsx_vreplgr2vr_w(c_1.i);
 
@@ -71,7 +71,7 @@ static inline __m128 log_ps(__m128 x)
     __m128i emm0 = __lsx_vsrl_w(ux, __lsx_vreplgr2vr_w(23));
 
     /* keep only the fractional part */
-    ux = __lsx_vand_v(ux, __lsx_vreplgr2vr_w(c_inv_mant_mask));
+    ux = __lsx_vand_v(ux, __lsx_vreplgr2vr_w(c_inv_mant_mask_lsx));
     ux = __lsx_vor_v(ux, __lsx_vreplgr2vr_w(c_0p5.i));
     x = (__m128)(ux);
 
@@ -136,7 +136,7 @@ _LOONGARCH_FLOAT_CONST(c_cephes_exp_p4, 1.6666665459E-1);
 _LOONGARCH_FLOAT_CONST(c_cephes_exp_p5, 5.0000001201E-1);
 
 /* exp() computed for 4 float at once */
-static inline __m128 exp_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 exp_ps(__m128 x)
 {
     __m128 tmp, fx;
 
@@ -203,7 +203,7 @@ _LOONGARCH_FLOAT_CONST(c_tanh_beta_4, 1.18534705686654e-4f);
 _LOONGARCH_FLOAT_CONST(c_tanh_beta_6, 1.19825839466702e-6f);
 
 /* tanh() computed for 4 float at once */
-static inline __m128 tanh_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 tanh_ps(__m128 x)
 {
     __m128 x2 = (__m128)__lsx_vbitclri_w((__m128i)x, 31);
     __m128i tiny_mask = __lsx_vfcmp_clt_s((__m128)x2, (__m128)(__m128)__lsx_vreplgr2vr_w(c_tanh_tiny.i));
@@ -245,6 +245,54 @@ static inline __m128 tanh_ps(__m128 x)
     return y;
 }
 
+_LOONGARCH_FLOAT_CONST(c_erf_threshold, 0.927734375f);
+_LOONGARCH_FLOAT_CONST(c_erf_c0, -1.72853470e-5f);
+_LOONGARCH_FLOAT_CONST(c_erf_c1, 3.83197126e-4f);
+_LOONGARCH_FLOAT_CONST(c_erf_c2, -3.88396438e-3f);
+_LOONGARCH_FLOAT_CONST(c_erf_c3, 2.42546219e-2f);
+_LOONGARCH_FLOAT_CONST(c_erf_c4, -1.06777877e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_c5, -6.34846687e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_c6, -1.28717512e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_p0, -5.96761703e-4f);
+_LOONGARCH_FLOAT_CONST(c_erf_p1, 4.99119423e-3f);
+_LOONGARCH_FLOAT_CONST(c_erf_p2, -2.67681349e-2f);
+_LOONGARCH_FLOAT_CONST(c_erf_p3, 1.12819925e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_p4, -3.76125336e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_p5, 1.28379166e-1f);
+
+static NCNN_FORCEINLINE __m128 erf_ps(__m128 a)
+{
+    __m128 one = (__m128)__lsx_vreplgr2vr_w(c_1.i);
+
+    __m128 t = (__m128)__lsx_vbitclri_w((__m128i)a, 31);
+    __m128 s = __lsx_vfmul_s(a, a);
+
+    __m128i mask = __lsx_vfcmp_clt_s((__m128)__lsx_vreplgr2vr_w(c_erf_threshold.i), t);
+
+    __m128 r1 = __lsx_vfmadd_s((__m128)__lsx_vreplgr2vr_w(c_erf_c0.i), t, (__m128)__lsx_vreplgr2vr_w(c_erf_c1.i));
+    __m128 u = __lsx_vfmadd_s((__m128)__lsx_vreplgr2vr_w(c_erf_c2.i), t, (__m128)__lsx_vreplgr2vr_w(c_erf_c3.i));
+    r1 = __lsx_vfmadd_s(r1, s, u);
+    r1 = __lsx_vfmadd_s(r1, t, (__m128)__lsx_vreplgr2vr_w(c_erf_c4.i));
+    r1 = __lsx_vfmadd_s(r1, t, (__m128)__lsx_vreplgr2vr_w(c_erf_c5.i));
+    r1 = __lsx_vfmadd_s(r1, t, (__m128)__lsx_vreplgr2vr_w(c_erf_c6.i));
+    __m128 neg_t = (__m128)__lsx_vbitrevi_w((__m128i)t, 31);
+    r1 = __lsx_vfmadd_s(r1, t, neg_t);
+    r1 = __lsx_vfsub_s(one, exp_ps(r1));
+    r1 = (__m128)__lsx_vor_v((__m128i)r1, __lsx_vand_v((__m128i)a, __lsx_vreplgr2vr_w(1 << 31)));
+
+    __m128 r2 = (__m128)__lsx_vreplgr2vr_w(c_erf_p0.i);
+    r2 = __lsx_vfmadd_s(r2, s, (__m128)__lsx_vreplgr2vr_w(c_erf_p1.i));
+    r2 = __lsx_vfmadd_s(r2, s, (__m128)__lsx_vreplgr2vr_w(c_erf_p2.i));
+    r2 = __lsx_vfmadd_s(r2, s, (__m128)__lsx_vreplgr2vr_w(c_erf_p3.i));
+    r2 = __lsx_vfmadd_s(r2, s, (__m128)__lsx_vreplgr2vr_w(c_erf_p4.i));
+    r2 = __lsx_vfmadd_s(r2, s, (__m128)__lsx_vreplgr2vr_w(c_erf_p5.i));
+    r2 = __lsx_vfmadd_s(r2, a, a);
+
+    __m128 r = (__m128)__lsx_vbitsel_v((__m128i)r2, (__m128i)r1, mask);
+
+    return r;
+}
+
 _LOONGARCH_FLOAT_CONST(c_minus_cephes_DP1, -0.78515625f);
 _LOONGARCH_FLOAT_CONST(c_minus_cephes_DP2, -2.4187564849853515625e-4f);
 _LOONGARCH_FLOAT_CONST(c_minus_cephes_DP3, -3.77489497744594108e-8f);
@@ -256,13 +304,13 @@ _LOONGARCH_FLOAT_CONST(c_cephes_cos_p1, -1.388731625493765E-003f);
 _LOONGARCH_FLOAT_CONST(c_cephes_cos_p2, 4.166664568298827E-002f);
 _LOONGARCH_FLOAT_CONST(c_cephes_FOPI, 1.27323954473516f); // 4/PI
 
-static inline __m128 sin_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 sin_ps(__m128 x)
 {
     __m128 y;
     __m128i swap_sign_bit, poly_mask, sign_bit;
     __m128 n0p5 = __lsx_vfmul_s((__m128)__lsx_vreplgr2vr_w(c_n1.i), (__m128)__lsx_vreplgr2vr_w(c_0p5.i));
 
-    sign_bit = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));
+    sign_bit = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w((int)0x80000000));
     x = (__m128)__lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x7fffffff));
 
     y = __lsx_vfmul_s(x, (__m128)__lsx_vreplgr2vr_w(c_cephes_FOPI.i));
@@ -307,7 +355,7 @@ static inline __m128 sin_ps(__m128 x)
     return y;
 }
 
-static inline __m128 cos_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 cos_ps(__m128 x)
 {
     __m128 y;
     __m128i swap_sign_bit, poly_mask, sign_bit;
@@ -358,13 +406,13 @@ static inline __m128 cos_ps(__m128 x)
     return y;
 }
 
-static inline void sincos_ps(__m128 x, __m128* s, __m128* c)
+static NCNN_FORCEINLINE void sincos_ps(__m128 x, __m128& s, __m128& c)
 {
     __m128 y;
     __m128i swap_sign_bit_cos, swap_sign_bit_sin, poly_mask, sign_bit_sin, sign_bit_cos;
     __m128 n0p5 = __lsx_vfmul_s((__m128)__lsx_vreplgr2vr_w(c_n1.i), (__m128)__lsx_vreplgr2vr_w(c_0p5.i));
 
-    sign_bit_sin = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));
+    sign_bit_sin = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w((int)0x80000000));
     x = (__m128)__lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x7fffffff));
 
     y = __lsx_vfmul_s(x, (__m128)__lsx_vreplgr2vr_w(c_cephes_FOPI.i));
@@ -414,30 +462,29 @@ static inline void sincos_ps(__m128 x, __m128* s, __m128* c)
     ysin1 = __lsx_vfadd_s(ysin1, ysin2);
     y = __lsx_vfadd_s(y, y2);
 
-    *s = (__m128)__lsx_vxor_v((__m128i)ysin1, sign_bit_sin);
-    *c = (__m128)__lsx_vxor_v((__m128i)y, sign_bit_cos);
+    s = (__m128)__lsx_vxor_v((__m128i)ysin1, sign_bit_sin);
+    c = (__m128)__lsx_vxor_v((__m128i)y, sign_bit_cos);
 }
 
-static inline __m128 tan_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 tan_ps(__m128 x)
 {
     __m128 ysin, ycos;
     __m128 eps = (__m128)__lsx_vreplgr2vr_w(c_eps.i);
-    __m128 zero = (__m128)__lsx_vreplgr2vr_w(c_0.i);
-    sincos_ps(x, &ysin, &ycos);
-    __m128i mask = __lsx_vfcmp_ceq_s(ycos, eps);
+    sincos_ps(x, ysin, ycos);
+    __m128i mask = __lsx_vfcmp_ceq_s(ycos, (__m128)__lsx_vreplgr2vr_w(c_0.i));
     mask = __lsx_vand_v(mask, (__m128i)eps);
     ycos = __lsx_vfadd_s(ycos, (__m128)mask);
     __m128 ytan = __lsx_vfdiv_s(ysin, ycos);
     return ytan;
 }
 
-static inline __m128 pow_ps(__m128 a, __m128 b)
+static NCNN_FORCEINLINE __m128 pow_ps(__m128 a, __m128 b)
 {
     // pow(x, m) = exp(m * log(x))
     return exp_ps(__lsx_vfmul_s(b, log_ps(a)));
 }
 
-static inline __m128 sigmoid_ps(__m128 _v)
+static NCNN_FORCEINLINE __m128 sigmoid_ps(__m128 _v)
 {
     __m128 _one = __lsx_vreplfr2vr_s(1.f);
     _v = (__m128)__lsx_vbitrevi_w((__m128i)_v, 31);
@@ -456,14 +503,14 @@ _LOONGARCH_FLOAT_CONST(c_cephes_asin_half_pi, 1.5707964f);
 _LOONGARCH_FLOAT_CONST(c_cephes_asin_pi, 3.1415927f);
 _LOONGARCH_FLOAT_CONST(c_cephes_asin_npi, -3.1415927f);
 
-static inline __m128 asin_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 asin_ps(__m128 x)
 {
     __m128 big_input_approx, input_approx, square_of_input_approx, fourth_power_of_input_approx;
     __m128 is_big_input_one, output_approx, final_approx;
     __m128 tmp1, tmp2, tmp3, tmp4;
     __m128i mask, is_small_input, is_big_input;
 
-    mask = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));
+    mask = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w((int)0x80000000));
     x = (__m128)__lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x7fffffff));
 
     is_small_input = __lsx_vfcmp_cle_s(x, (__m128)__lsx_vreplgr2vr_w(c_0p5.i));
@@ -496,15 +543,15 @@ static inline __m128 asin_ps(__m128 x)
     return final_approx;
 }
 
-static inline __m128 acos_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 acos_ps(__m128 x)
 {
     __m128 big_input_approx, input_approx, square_of_input_approx, fourth_power_of_input_approx;
     __m128 output_approx, final_approx, small_final_approx, big_final_approx;
     __m128 tmp1, tmp2, tmp3, tmp4;
-    __m128i mask, mask2, is_small_input, is_big_input, lt_zero;
+    __m128i mask, is_small_input, is_big_input, lt_zero;
 
     lt_zero = __lsx_vfcmp_clt_s(x, (__m128)__lsx_vreplgr2vr_w(c_0.i));
-    mask = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));
+    mask = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w((int)0x80000000));
     x = (__m128)__lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x7fffffff));
 
     is_small_input = __lsx_vfcmp_cle_s(x, (__m128)__lsx_vreplgr2vr_w(c_0p5.i));
@@ -552,13 +599,13 @@ _LOONGARCH_FLOAT_CONST(c_cephes_atan_x6, 0.04269152f);
 _LOONGARCH_FLOAT_CONST(c_cephes_atan_x7, -0.01606863f);
 _LOONGARCH_FLOAT_CONST(c_cephes_atan_x8, 0.0028498897f);
 
-static inline __m128 atan_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 atan_ps(__m128 x)
 {
     __m128i mask, is_small_input, is_big_input;
     __m128 tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, input_approx, output_approx;
     __m128 square_of_input_approx, fourth_power_of_input_approx;
 
-    mask = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));
+    mask = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w((int)0x80000000));
     x = (__m128)__lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x7fffffff));
 
     is_small_input = __lsx_vfcmp_clt_s((__m128)__lsx_vreplgr2vr_w(c_1.i), x);
@@ -590,9 +637,10 @@ static inline __m128 atan_ps(__m128 x)
     return tmp1;
 }
 
-static inline __m128 atan2_ps(__m128 y, __m128 x)
+static NCNN_FORCEINLINE __m128 atan2_ps(__m128 y, __m128 x)
 {
     __m128i not_eq_zero_x, not_eq_zero_y, normal_mode, negative_mask_x, negative_mask_y;
+    __m128i negative_mask_full_x;
     __m128i lt_zero_mask_x, lt_zero_mask_y, ge_zero_mask_y, eq_zero_y;
     __m128 pi_additions, tmp1, tmp2, normal_result, special_result, final_result;
 
@@ -600,8 +648,8 @@ static inline __m128 atan2_ps(__m128 y, __m128 x)
     not_eq_zero_y = __lsx_vfcmp_cne_s(y, (__m128)__lsx_vreplgr2vr_w(c_0.i));
     eq_zero_y = __lsx_vxor_v(not_eq_zero_y, __lsx_vreplgr2vr_w(0xffffffff));
     normal_mode = __lsx_vand_v(not_eq_zero_x, not_eq_zero_y);
-    negative_mask_x = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));
-    negative_mask_y = __lsx_vand_v((__m128i)y, __lsx_vreplgr2vr_w(0x80000000));
+    negative_mask_x = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w((int)0x80000000));
+    negative_mask_y = __lsx_vand_v((__m128i)y, __lsx_vreplgr2vr_w((int)0x80000000));
 
     lt_zero_mask_x = __lsx_vfcmp_clt_s(x, (__m128)__lsx_vreplgr2vr_w(0));
     lt_zero_mask_y = __lsx_vfcmp_clt_s(y, (__m128)__lsx_vreplgr2vr_w(0));
@@ -614,8 +662,11 @@ static inline __m128 atan2_ps(__m128 y, __m128 x)
     normal_result = __lsx_vfdiv_s(y, x);
     normal_result = __lsx_vfadd_s(atan_ps(normal_result), pi_additions);
 
-    tmp1 = (__m128)__lsx_vand_v(negative_mask_y, __lsx_vreplgr2vr_w(c_cephes_asin_half_pi.i));
-    tmp2 = (__m128)__lsx_vand_v(negative_mask_x, __lsx_vreplgr2vr_w(c_cephes_asin_pi.i));
+    tmp1 = (__m128)__lsx_vor_v(negative_mask_y, __lsx_vreplgr2vr_w(c_cephes_asin_half_pi.i));
+    negative_mask_full_x = __lsx_vfcmp_clt_s(
+                               (__m128)__lsx_vor_v(negative_mask_x, __lsx_vreplgr2vr_w(c_cephes_asin_pi.i)),
+                               (__m128)__lsx_vreplgr2vr_w(c_0.i));
+    tmp2 = (__m128)__lsx_vand_v(negative_mask_full_x, __lsx_vreplgr2vr_w(c_cephes_asin_pi.i));
     special_result = (__m128)__lsx_vand_v(not_eq_zero_y, (__m128i)tmp1);
     special_result = (__m128)__lsx_vor_v(__lsx_vand_v(eq_zero_y, (__m128i)tmp2), (__m128i)special_result);
 
@@ -624,6 +675,113 @@ static inline __m128 atan2_ps(__m128 y, __m128 x)
     final_result = (__m128)__lsx_vor_v(__lsx_vand_v(normal_mode, (__m128i)special_result), (__m128i)final_result);
 
     return final_result;
+}
+
+static NCNN_FORCEINLINE __m128 fmod_ps(__m128 a, __m128 b)
+{
+    // fmod(a,b) = a - trunc(a/b)*b  (trunc toward 0)
+    __m128 q = __lsx_vfdiv_s(a, b);
+    __m128 qf = (__m128)__lsx_vfrintrz_s(q);
+    return __lsx_vfsub_s(a, __lsx_vfmul_s(qf, b));
+}
+
+static NCNN_FORCEINLINE __m128 round_ps(__m128 x)
+{
+    return (__m128)__lsx_vfrintrne_s(x);
+}
+
+static NCNN_FORCEINLINE __m128 logaddexp_ps(__m128 a, __m128 b)
+{
+    __m128 one = (__m128)__lsx_vreplgr2vr_w(c_1.i);
+    __m128 max_xy = __lsx_vfmax_s(a, b);
+    __m128 min_xy = __lsx_vfmin_s(a, b);
+    __m128 diff = __lsx_vfsub_s(min_xy, max_xy);
+    __m128 exp_diff = exp_ps(diff);
+    __m128 one_plus_exp = __lsx_vfadd_s(one, exp_diff);
+    __m128 log_result = log_ps(one_plus_exp);
+    return __lsx_vfadd_s(max_xy, log_result);
+}
+
+static NCNN_FORCEINLINE __m128 abs_ps(__m128 x)
+{
+    return (__m128)__lsx_vbitclri_w((__m128i)x, 31);
+}
+
+static NCNN_FORCEINLINE __m128 expm1_ps(__m128 x)
+{
+    __m128 x2 = __lsx_vfmul_s(x, x);
+    __m128 poly = __lsx_vfadd_s(x, __lsx_vfmul_s(x2, __lsx_vfadd_s(__lsx_vreplfr2vr_s(0.5f), __lsx_vfmul_s(x, __lsx_vreplfr2vr_s(1.0f / 6.0f)))));
+    __m128 y = __lsx_vfsub_s(exp_ps(x), __lsx_vreplfr2vr_s(1.f));
+    __m128i mask = __lsx_vfcmp_clt_s(abs_ps(x), __lsx_vreplfr2vr_s(1e-4f));
+    return (__m128)__lsx_vbitsel_v((__m128i)y, (__m128i)poly, mask);
+}
+
+static NCNN_FORCEINLINE __m128 log1p_ps(__m128 x)
+{
+    __m128 x2 = __lsx_vfmul_s(x, x);
+    __m128 poly = __lsx_vfadd_s(x, __lsx_vfmul_s(x2, __lsx_vfadd_s(__lsx_vreplfr2vr_s(-0.5f), __lsx_vfmul_s(x, __lsx_vreplfr2vr_s(1.0f / 3.0f)))));
+    __m128 y = log_ps(__lsx_vfadd_s(__lsx_vreplfr2vr_s(1.f), x));
+    __m128i mask = __lsx_vfcmp_clt_s(abs_ps(x), __lsx_vreplfr2vr_s(1e-4f));
+    return (__m128)__lsx_vbitsel_v((__m128i)y, (__m128i)poly, mask);
+}
+
+static NCNN_FORCEINLINE __m128 sinh_ps(__m128 x)
+{
+    __m128 expm1_x = expm1_ps(x);
+    __m128 expm1_neg_x = expm1_ps(__lsx_vfsub_s(__lsx_vreplfr2vr_s(0.f), x));
+    return __lsx_vfmul_s(__lsx_vfsub_s(expm1_x, expm1_neg_x), __lsx_vreplfr2vr_s(0.5f));
+}
+
+static NCNN_FORCEINLINE __m128 asinh_ps(__m128 x)
+{
+    __m128 ax = abs_ps(x);
+    __m128 x2 = __lsx_vfmul_s(ax, ax);
+    __m128 y = log_ps(__lsx_vfadd_s(ax, __lsx_vfsqrt_s(__lsx_vfadd_s(x2, __lsx_vreplfr2vr_s(1.f)))));
+    __m128 y_large = __lsx_vfadd_s(log_ps(ax), __lsx_vreplfr2vr_s(0.6931471805599453f));
+    __m128i mask = __lsx_vfcmp_clt_s(__lsx_vreplfr2vr_s(1e19f), ax);
+    y = (__m128)__lsx_vbitsel_v((__m128i)y, (__m128i)y_large, mask);
+    return (__m128)__lsx_vor_v((__m128i)y, __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w((int)0x80000000)));
+}
+
+static NCNN_FORCEINLINE __m128 cosh_ps(__m128 x)
+{
+    __m128 exp_x = exp_ps(x);
+    __m128 exp_neg_x = exp_ps(__lsx_vfsub_s(__lsx_vreplfr2vr_s(0.f), x));
+    return __lsx_vfmul_s(__lsx_vfadd_s(exp_x, exp_neg_x), __lsx_vreplfr2vr_s(0.5f));
+}
+
+static NCNN_FORCEINLINE __m128 acosh_ps(__m128 x)
+{
+    __m128 one = __lsx_vreplfr2vr_s(1.f);
+    __m128 y = log_ps(__lsx_vfadd_s(x, __lsx_vfmul_s(__lsx_vfsqrt_s(__lsx_vfsub_s(x, one)), __lsx_vfsqrt_s(__lsx_vfadd_s(x, one)))));
+    __m128 y_large = __lsx_vfadd_s(log_ps(x), __lsx_vreplfr2vr_s(0.6931471805599453f));
+    __m128i mask = __lsx_vfcmp_clt_s(__lsx_vreplfr2vr_s(1e19f), x);
+    return (__m128)__lsx_vbitsel_v((__m128i)y, (__m128i)y_large, mask);
+}
+
+static NCNN_FORCEINLINE __m128 atanh_ps(__m128 x)
+{
+    __m128 log_pos = log1p_ps(x);
+    __m128 log_neg = log1p_ps(__lsx_vfsub_s(__lsx_vreplfr2vr_s(0.f), x));
+    return __lsx_vfmul_s(__lsx_vfsub_s(log_pos, log_neg), __lsx_vreplfr2vr_s(0.5f));
+}
+
+static NCNN_FORCEINLINE __m128 floor_ps(__m128 x)
+{
+    return (__m128)__lsx_vfrintrm_s(x);
+}
+
+static NCNN_FORCEINLINE __m128 floor_divide_ps(__m128 a, __m128 b)
+{
+    __m128 q = __lsx_vfdiv_s(a, b);
+    return floor_ps(q);
+}
+
+static NCNN_FORCEINLINE __m128 remainder_ps(__m128 a, __m128 b)
+{
+    __m128 q = __lsx_vfdiv_s(a, b);
+    __m128 rq = round_ps(q);
+    return __lsx_vfsub_s(a, __lsx_vfmul_s(rq, b));
 }
 
 #endif // LSX_MATHFUN_H

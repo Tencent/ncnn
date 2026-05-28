@@ -227,6 +227,12 @@ static void gemm_transB_int8(const Mat& A_int8, const Mat& BT_int8, const Mat& A
             for (int k = 0; k < K; k++)
             {
                 sum += ptrA[k] * ptrBT[k];
+#if __mips_loongson_mmi && !__mips_msa
+                // GCC may mis-vectorize this int8 dot loop with -mloongson-mmi.
+                // Keep this loop scalar without disabling tree-vectorize globally.
+                asm volatile("" ::
+                             : "memory");
+#endif
             }
 
             float sum_fp32 = sum * descale;

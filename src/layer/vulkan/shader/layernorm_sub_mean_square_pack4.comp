@@ -26,23 +26,15 @@ void main()
     if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
-    int group_id;
-    if (affine_size == p.w)
-    {
-        group_id = gz * p.h + gy;
-    }
-    else // if (affine_size == p.w * p.h)
-    {
-        group_id = gz;
-    }
+    const int gi = gz * p.cstep + gy * p.w + gx;
+    const int q = gy * p.w + gx;
+    const int group_id = gz * (p.w * p.h / affine_size) + q / affine_size;
 
     vec4 mean = mean_data[group_id];
 
-    int linear_index = gz * p.cstep + gy * p.w + gx;
-
-    vec4 v = vec4(buffer_ld4(bottom_top_blob_data, linear_index));
+    vec4 v = vec4(buffer_ld4(bottom_top_blob_data, gi));
 
     v = v - mean;
 
-    buffer_st4(square_blob_data, linear_index, afpvec4(v * v));
+    buffer_st4(square_blob_data, gi, afpvec4(v * v));
 }

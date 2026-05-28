@@ -12,13 +12,22 @@
 
 #include "x86_usability.h"
 
+#include "cpu.h"
+
 namespace ncnn {
+
+#if NCNN_BF16
+#include "quantize_bf16s.h"
+#endif
 
 Quantize_x86::Quantize_x86()
 {
 #if __SSE2__
     support_packing = true;
 #endif // __SSE2__
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 static void quantize(const float* ptr, signed char* s8ptr, const Mat& scale_data, int elemcount, int elempack)
@@ -271,9 +280,15 @@ static void quantize_pack4to1(const float* ptr, signed char* s8ptr0, signed char
 
 int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
+        return forward_bf16s(bottom_blob, top_blob, opt);
+#endif
+
     const int dims = bottom_blob.dims;
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
 
@@ -393,7 +408,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         int out_elempack = 1;
 #if __SSE2__
@@ -405,7 +420,10 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         const int outc = channels * elempack / out_elempack;
         const size_t out_elemsize = out_elempack * 1u;
 
-        top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        if (dims == 3)
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -422,7 +440,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize_pack16to8(ptr, s8ptr0, s8ptr1, scale_data_q, w * h);
+                quantize_pack16to8(ptr, s8ptr0, s8ptr1, scale_data_q, w * h * d);
             }
         }
 #endif // __AVX512F__
@@ -438,7 +456,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * out_elempack, out_elempack) : scale_data;
 
-                quantize_pack4to8(ptr0, ptr1, s8ptr, scale_data_q, w * h);
+                quantize_pack4to8(ptr0, ptr1, s8ptr, scale_data_q, w * h * d);
             }
         }
 #endif // !__AVX__
@@ -455,7 +473,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize_pack4to1(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_q, w * h);
+                quantize_pack4to1(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_q, w * h * d);
             }
         }
 #endif // __SSE2__
@@ -469,12 +487,19 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize(ptr, s8ptr, scale_data_q, w * h, elempack);
+                quantize(ptr, s8ptr, scale_data_q, w * h * d, elempack);
             }
         }
     }
 
     return 0;
 }
+
+#if NCNN_BF16
+int Quantize_x86::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    return quantize_forward_bf16s(bottom_blob, top_blob, scale_data, scale_data_size, opt);
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

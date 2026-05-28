@@ -9,6 +9,10 @@
 #if __loongarch_sx
 #include <lsxintrin.h>
 #include "lsx_mathfun.h"
+#if __loongarch_asx
+#include <lasxintrin.h>
+#include "lasx_mathfun.h"
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 
 namespace ncnn {
@@ -17,7 +21,11 @@ UnaryOp_loongarch::UnaryOp_loongarch()
 {
 #if __loongarch_sx
     support_packing = true;
+    support_any_packing = true;
 #endif // __loongarch_sx
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 template<typename Op>
@@ -39,6 +47,16 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 
         int i = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(ptr + 32);
+            __m256 _p = (__m256)__lasx_xvld(ptr, 0);
+            _p = op.func_pack8(_p);
+            __lasx_xvst((__m256i)_p, ptr, 0);
+            ptr += 8;
+        }
+#endif // __loongarch_asx
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);
@@ -69,8 +87,14 @@ struct unary_op_abs
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        return (__m128)__lsx_vbitclri_w((__m128i)x, 31);
+        return abs_ps(x);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return abs256_ps(x);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -85,6 +109,12 @@ struct unary_op_neg
     {
         return (__m128)__lsx_vbitrevi_w((__m128i)x, 31);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return (__m256)__lasx_xvbitrevi_w((__m256i)x, 31);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -99,6 +129,12 @@ struct unary_op_floor
     {
         return (__m128)__lsx_vfrintrm_s(x);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return (__m256)__lasx_xvfrintrm_s(x);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -113,6 +149,12 @@ struct unary_op_ceil
     {
         return (__m128)__lsx_vfrintrp_s(x);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return (__m256)__lasx_xvfrintrp_s(x);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -127,6 +169,12 @@ struct unary_op_square
     {
         return __lsx_vfmul_s(x, x);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return __lasx_xvfmul_s(x, x);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -141,6 +189,12 @@ struct unary_op_sqrt
     {
         return __lsx_vfsqrt_s(x);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return __lasx_xvfsqrt_s(x);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -155,6 +209,12 @@ struct unary_op_rsqrt
     {
         return __lsx_vfrsqrt_s(x);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return __lasx_xvfrsqrt_s(x);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -169,6 +229,12 @@ struct unary_op_exp
     {
         return exp_ps(x);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return exp256_ps(x);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -183,6 +249,12 @@ struct unary_op_log
     {
         return log_ps(x);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return log256_ps(x);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -195,15 +267,14 @@ struct unary_op_sin
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = sinf(tmp[0]);
-        tmp[1] = sinf(tmp[1]);
-        tmp[2] = sinf(tmp[2]);
-        tmp[3] = sinf(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return sin_ps(x);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return sin256_ps(x);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -216,15 +287,14 @@ struct unary_op_cos
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = cosf(tmp[0]);
-        tmp[1] = cosf(tmp[1]);
-        tmp[2] = cosf(tmp[2]);
-        tmp[3] = cosf(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return cos_ps(x);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return cos256_ps(x);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -237,15 +307,14 @@ struct unary_op_tan
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = tanf(tmp[0]);
-        tmp[1] = tanf(tmp[1]);
-        tmp[2] = tanf(tmp[2]);
-        tmp[3] = tanf(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return tan_ps(x);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return tan256_ps(x);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -258,15 +327,14 @@ struct unary_op_asin
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = asinf(tmp[0]);
-        tmp[1] = asinf(tmp[1]);
-        tmp[2] = asinf(tmp[2]);
-        tmp[3] = asinf(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return asin_ps(x);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return asin256_ps(x);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -279,15 +347,14 @@ struct unary_op_acos
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = acosf(tmp[0]);
-        tmp[1] = acosf(tmp[1]);
-        tmp[2] = acosf(tmp[2]);
-        tmp[3] = acosf(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return acos_ps(x);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return acos256_ps(x);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -300,15 +367,14 @@ struct unary_op_atan
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = atanf(tmp[0]);
-        tmp[1] = atanf(tmp[1]);
-        tmp[2] = atanf(tmp[2]);
-        tmp[3] = atanf(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return atan_ps(x);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return atan256_ps(x);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -323,6 +389,12 @@ struct unary_op_reciprocal
     {
         return __lsx_vfrecip_s(x);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return __lasx_xvfrecip_s(x);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -337,6 +409,12 @@ struct unary_op_tanh
     {
         return tanh_ps(x);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return tanh256_ps(x);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -351,6 +429,12 @@ struct unary_op_log10
     {
         return __lsx_vfmul_s(log_ps(x), __lsx_vreplfr2vr_s(0.434294481903));
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return __lasx_xvfmul_s(log256_ps(x), __lasx_xvreplfr2vr_s(0.434294481903));
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -387,6 +471,12 @@ struct unary_op_round
     {
         return (__m128)__lsx_vfrintrne_s(x);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return (__m256)__lasx_xvfrintrne_s(x);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
@@ -401,13 +491,260 @@ struct unary_op_trunc
     {
         return (__m128)__lsx_vfrintrz_s(x);
     }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return (__m256)__lasx_xvfrintrz_s(x);
+    }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+};
+
+struct unary_op_sign
+{
+    float func(const float& x) const
+    {
+        return x > 0.f ? 1.f : x < 0.f ? -1.f : 0.f;
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        __m128 _zero = (__m128)__lsx_vreplgr2vr_w(0);
+        __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
+        __m128 _negone = (__m128)__lsx_vreplfr2vr_s(-1.f);
+        __m128i _posmask = __lsx_vfcmp_clt_s(_zero, x);
+        __m128i _negmask = __lsx_vfcmp_clt_s(x, _zero);
+        __m128 _sign = (__m128)__lsx_vbitsel_v((__m128i)_zero, (__m128i)_one, _posmask);
+        return (__m128)__lsx_vbitsel_v((__m128i)_sign, (__m128i)_negone, _negmask);
+    }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        __m256 _zero = (__m256)__lasx_xvreplgr2vr_w(0);
+        __m256 _one = (__m256)__lasx_xvreplfr2vr_s(1.f);
+        __m256 _negone = (__m256)__lasx_xvreplfr2vr_s(-1.f);
+        __m256i _posmask = __lasx_xvfcmp_clt_s(_zero, x);
+        __m256i _negmask = __lasx_xvfcmp_clt_s(x, _zero);
+        __m256 _sign = (__m256)__lasx_xvbitsel_v((__m256i)_zero, (__m256i)_one, _posmask);
+        return (__m256)__lasx_xvbitsel_v((__m256i)_sign, (__m256i)_negone, _negmask);
+    }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+};
+
+struct unary_op_expm1
+{
+    float func(const float& x) const
+    {
+        return (float)expm1f(x);
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        return expm1_ps(x);
+    }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return expm1256_ps(x);
+    }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+};
+
+struct unary_op_sinh
+{
+    float func(const float& x) const
+    {
+        return (float)sinhf(x);
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        return sinh_ps(x);
+    }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return sinh256_ps(x);
+    }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+};
+
+struct unary_op_asinh
+{
+    float func(const float& x) const
+    {
+        return (float)asinhf(x);
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        return asinh_ps(x);
+    }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return asinh256_ps(x);
+    }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+};
+
+struct unary_op_cosh
+{
+    float func(const float& x) const
+    {
+        return (float)coshf(x);
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        return cosh_ps(x);
+    }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return cosh256_ps(x);
+    }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+};
+
+struct unary_op_acosh
+{
+    float func(const float& x) const
+    {
+        return (float)acoshf(x);
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        return acosh_ps(x);
+    }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return acosh256_ps(x);
+    }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+};
+
+struct unary_op_atanh
+{
+    float func(const float& x) const
+    {
+        return (float)atanhf(x);
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        return atanh_ps(x);
+    }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return atanh256_ps(x);
+    }
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+};
+
+struct unary_op_log1p
+{
+    float func(const float& x) const
+    {
+        return (float)log1pf(x);
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        return log1p_ps(x);
+    }
+#if __loongarch_asx
+    __m256 func_pack8(const __m256& x) const
+    {
+        return log1p256_ps(x);
+    }
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 };
 
 } // namespace UnaryOp_loongarch_functor
 
+#if NCNN_BF16
+#include "loongarch_usability.h"
+
+template<typename Op>
+static int unary_op_inplace_bf16s(Mat& a, const Option& opt)
+{
+    Op op;
+
+    int w = a.w;
+    int h = a.h;
+    int d = a.d;
+    int channels = a.c;
+    int elempack = a.elempack;
+    int size = w * h * d * elempack;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        unsigned short* ptr = a.channel(q);
+
+        int i = 0;
+#if __loongarch_sx
+#if __loongarch_asx
+        for (; i + 7 < size; i += 8)
+        {
+            __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
+            _p = op.func_pack8(_p);
+            __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
+            ptr += 8;
+        }
+#else  // __loongarch_asx
+        {
+            __m128i _zero = __lsx_vreplgr2vr_w(0);
+            for (; i + 7 < size; i += 8)
+            {
+                __m128i _p01 = __lsx_vld(ptr, 0);
+                __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero);
+                __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero);
+                _p0 = op.func_pack4(_p0);
+                _p1 = op.func_pack4(_p1);
+                __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
+                ptr += 8;
+            }
+        }
+#endif // __loongarch_asx
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
+            _p = op.func_pack4(_p);
+            __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
+            ptr += 4;
+        }
+#endif // __loongarch_sx
+        for (; i < size; i++)
+        {
+            *ptr = float32_to_bfloat16(op.func(bfloat16_to_float32(*ptr)));
+            ptr++;
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
+
 int UnaryOp_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
+
     using namespace UnaryOp_loongarch_functor;
 
     if (op_type == Operation_ABS)
@@ -470,7 +807,124 @@ int UnaryOp_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
 
+    if (op_type == Operation_SIGN)
+        return unary_op_inplace<unary_op_sign>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXPM1)
+        return unary_op_inplace<unary_op_expm1>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SINH)
+        return unary_op_inplace<unary_op_sinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASINH)
+        return unary_op_inplace<unary_op_asinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COSH)
+        return unary_op_inplace<unary_op_cosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOSH)
+        return unary_op_inplace<unary_op_acosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATANH)
+        return unary_op_inplace<unary_op_atanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG1P)
+        return unary_op_inplace<unary_op_log1p>(bottom_top_blob, opt);
+
     return 0;
 }
+
+#if NCNN_BF16
+int UnaryOp_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    using namespace UnaryOp_loongarch_functor;
+
+    if (op_type == Operation_ABS)
+        return unary_op_inplace_bf16s<unary_op_abs>(bottom_top_blob, opt);
+
+    if (op_type == Operation_NEG)
+        return unary_op_inplace_bf16s<unary_op_neg>(bottom_top_blob, opt);
+
+    if (op_type == Operation_FLOOR)
+        return unary_op_inplace_bf16s<unary_op_floor>(bottom_top_blob, opt);
+
+    if (op_type == Operation_CEIL)
+        return unary_op_inplace_bf16s<unary_op_ceil>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SQUARE)
+        return unary_op_inplace_bf16s<unary_op_square>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SQRT)
+        return unary_op_inplace_bf16s<unary_op_sqrt>(bottom_top_blob, opt);
+
+    if (op_type == Operation_RSQRT)
+        return unary_op_inplace_bf16s<unary_op_rsqrt>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXP)
+        return unary_op_inplace_bf16s<unary_op_exp>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG)
+        return unary_op_inplace_bf16s<unary_op_log>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SIN)
+        return unary_op_inplace_bf16s<unary_op_sin>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COS)
+        return unary_op_inplace_bf16s<unary_op_cos>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TAN)
+        return unary_op_inplace_bf16s<unary_op_tan>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASIN)
+        return unary_op_inplace_bf16s<unary_op_asin>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOS)
+        return unary_op_inplace_bf16s<unary_op_acos>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATAN)
+        return unary_op_inplace_bf16s<unary_op_atan>(bottom_top_blob, opt);
+
+    if (op_type == Operation_RECIPROCAL)
+        return unary_op_inplace_bf16s<unary_op_reciprocal>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TANH)
+        return unary_op_inplace_bf16s<unary_op_tanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG10)
+        return unary_op_inplace_bf16s<unary_op_log10>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+        return unary_op_inplace_bf16s<unary_op_round>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace_bf16s<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SIGN)
+        return unary_op_inplace_bf16s<unary_op_sign>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXPM1)
+        return unary_op_inplace_bf16s<unary_op_expm1>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SINH)
+        return unary_op_inplace_bf16s<unary_op_sinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASINH)
+        return unary_op_inplace_bf16s<unary_op_asinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COSH)
+        return unary_op_inplace_bf16s<unary_op_cosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOSH)
+        return unary_op_inplace_bf16s<unary_op_acosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATANH)
+        return unary_op_inplace_bf16s<unary_op_atanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG1P)
+        return unary_op_inplace_bf16s<unary_op_log1p>(bottom_top_blob, opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

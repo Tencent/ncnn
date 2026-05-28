@@ -28,103 +28,85 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
     int positive_axis = axis < 0 ? shape.dims + axis : axis;
 
-    int elempack = 1;
-    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3 || shape.dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
+    int elempack = shape.elempack;
+    size_t elemsize = shape.elemsize;
 
-    size_t elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
-    {
-        elemsize = elempack * 2u;
-    }
-    else
-    {
-        elemsize = elempack * 4u;
-    }
-
-    Mat shape_packed;
-    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
-
-    Mat workspace_shape_packed;
+    Mat workspace_shape;
     if (shape.dims == 1) // positive_axis == 0
     {
-        workspace_shape_packed = Mat(1, (void*)0, elemsize, elempack);
+        workspace_shape = Mat(1, (void*)0, elemsize, elempack);
     }
     else if (shape.dims == 2 && positive_axis == 0)
     {
-        workspace_shape_packed = Mat(shape.w, (void*)0, elemsize, elempack);
+        workspace_shape = Mat(shape.w, (void*)0, elemsize, elempack);
     }
     else if (shape.dims == 2 && positive_axis == 1)
     {
-        workspace_shape_packed = Mat(shape.h / elempack, (void*)0, elemsize, elempack);
+        workspace_shape = Mat(shape.h, (void*)0, elemsize, elempack);
     }
     else if (shape.dims == 3 && positive_axis == 0)
     {
-        workspace_shape_packed = Mat(shape.w, shape.h, (void*)0, elemsize, elempack);
+        workspace_shape = Mat(shape.w, shape.h, (void*)0, elemsize, elempack);
     }
     else if (shape.dims == 3 && positive_axis == 1)
     {
-        workspace_shape_packed = Mat(shape.w, shape.c / elempack, (void*)0, elemsize, elempack);
+        workspace_shape = Mat(shape.w, shape.c, (void*)0, elemsize, elempack);
     }
     else if (shape.dims == 3 && positive_axis == 2)
     {
-        workspace_shape_packed = Mat(shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+        workspace_shape = Mat(shape.h, shape.c, (void*)0, elemsize, elempack);
     }
     else if (shape.dims == 4 && positive_axis == 0)
     {
-        workspace_shape_packed = Mat(shape.w, shape.h, shape.d, (void*)0, elemsize, elempack);
+        workspace_shape = Mat(shape.w, shape.h, shape.d, (void*)0, elemsize, elempack);
     }
     else if (shape.dims == 4 && positive_axis == 1)
     {
-        workspace_shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+        workspace_shape = Mat(shape.w, shape.h, shape.c, (void*)0, elemsize, elempack);
     }
     else if (shape.dims == 4 && positive_axis == 2)
     {
-        workspace_shape_packed = Mat(shape.w, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+        workspace_shape = Mat(shape.w, shape.d, shape.c, (void*)0, elemsize, elempack);
     }
     else if (shape.dims == 4 && positive_axis == 3)
     {
-        workspace_shape_packed = Mat(shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+        workspace_shape = Mat(shape.h, shape.d, shape.c, (void*)0, elemsize, elempack);
     }
 
     std::vector<vk_specialization_type> specializations(1 + 12);
     specializations[0].i = axis;
-    specializations[1 + 0].i = shape_packed.dims;
-    specializations[1 + 1].i = shape_packed.w;
-    specializations[1 + 2].i = shape_packed.h;
-    specializations[1 + 3].i = shape_packed.d;
-    specializations[1 + 4].i = shape_packed.c;
-    specializations[1 + 5].i = shape_packed.cstep;
-    specializations[1 + 6].i = workspace_shape_packed.dims;
-    specializations[1 + 7].i = workspace_shape_packed.w;
-    specializations[1 + 8].i = workspace_shape_packed.h;
-    specializations[1 + 9].i = workspace_shape_packed.d;
-    specializations[1 + 10].i = workspace_shape_packed.c;
-    specializations[1 + 11].i = workspace_shape_packed.cstep;
+    specializations[1 + 0].i = shape.dims;
+    specializations[1 + 1].i = shape.w;
+    specializations[1 + 2].i = shape.h;
+    specializations[1 + 3].i = shape.d;
+    specializations[1 + 4].i = shape.c;
+    specializations[1 + 5].i = shape.cstep;
+    specializations[1 + 6].i = workspace_shape.dims;
+    specializations[1 + 7].i = workspace_shape.w;
+    specializations[1 + 8].i = workspace_shape.h;
+    specializations[1 + 9].i = workspace_shape.d;
+    specializations[1 + 10].i = workspace_shape.c;
+    specializations[1 + 11].i = workspace_shape.cstep;
 
     {
         Mat local_size_xyz;
-        if (workspace_shape_packed.dims == 1)
+        if (workspace_shape.dims == 1)
         {
-            local_size_xyz.w = std::min(64, workspace_shape_packed.w);
+            local_size_xyz.w = std::min(64, workspace_shape.w);
             local_size_xyz.h = 1;
             local_size_xyz.c = 1;
         }
-        if (workspace_shape_packed.dims == 2)
+        if (workspace_shape.dims == 2)
         {
-            local_size_xyz.w = std::min(8, workspace_shape_packed.w);
-            local_size_xyz.h = std::min(8, workspace_shape_packed.h);
+            local_size_xyz.w = std::min(8, workspace_shape.w);
+            local_size_xyz.h = std::min(8, workspace_shape.h);
             local_size_xyz.c = 1;
         }
-        if (workspace_shape_packed.dims != 0)
+        if (workspace_shape.dims != 0)
         {
-            local_size_xyz.w = std::min(4, workspace_shape_packed.w);
-            local_size_xyz.h = std::min(4, workspace_shape_packed.h * workspace_shape_packed.d);
-            local_size_xyz.c = std::min(4, workspace_shape_packed.c);
+            local_size_xyz.w = std::min(4, workspace_shape.w);
+            local_size_xyz.h = std::min(4, workspace_shape.h * workspace_shape.d);
+            local_size_xyz.c = std::min(4, workspace_shape.c);
         }
 
         // pack1
@@ -154,29 +136,29 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
 
     {
         Mat local_size_xyz;
-        if (shape_packed.dims == 1)
+        if (shape.dims == 1)
         {
-            local_size_xyz.w = std::min(64, shape_packed.w);
+            local_size_xyz.w = std::min(64, shape.w);
             local_size_xyz.h = 1;
             local_size_xyz.c = 1;
         }
-        if (shape_packed.dims == 2)
+        if (shape.dims == 2)
         {
-            local_size_xyz.w = std::min(8, shape_packed.w);
-            local_size_xyz.h = std::min(8, shape_packed.h);
+            local_size_xyz.w = std::min(8, shape.w);
+            local_size_xyz.h = std::min(8, shape.h);
             local_size_xyz.c = 1;
         }
-        if (shape_packed.dims == 3)
+        if (shape.dims == 3)
         {
-            local_size_xyz.w = std::min(4, shape_packed.w);
-            local_size_xyz.h = std::min(4, shape_packed.h);
-            local_size_xyz.c = std::min(4, shape_packed.c);
+            local_size_xyz.w = std::min(4, shape.w);
+            local_size_xyz.h = std::min(4, shape.h);
+            local_size_xyz.c = std::min(4, shape.c);
         }
-        if (shape_packed.dims == 4)
+        if (shape.dims == 4)
         {
-            local_size_xyz.w = std::min(4, shape_packed.w);
-            local_size_xyz.h = std::min(4, shape_packed.h * shape_packed.d);
-            local_size_xyz.c = std::min(4, shape_packed.c);
+            local_size_xyz.w = std::min(4, shape.w);
+            local_size_xyz.h = std::min(4, shape.h * shape.d);
+            local_size_xyz.c = std::min(4, shape.c);
         }
 
         // pack1

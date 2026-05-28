@@ -13,29 +13,9 @@ MemoryData_vulkan::MemoryData_vulkan()
     support_vulkan_packing = true;
 }
 
-int MemoryData_vulkan::create_pipeline(const Option& opt)
+int MemoryData_vulkan::create_pipeline(const Option& /*opt*/)
 {
-    const Mat& out_shape = top_shapes.empty() ? data.shape() : top_shapes[0];
-
-    int out_elempack = 1;
-    if (out_shape.dims == 1) out_elempack = out_shape.w % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 2) out_elempack = out_shape.h % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
-
-    size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
-    {
-        out_elemsize = out_elempack * 2u;
-    }
-    else
-    {
-        out_elemsize = out_elempack * 4u;
-    }
-
-    Mat out_shape_packed;
-    if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 3 || out_shape.dims == 4) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+    // const Mat& out_shape = top_shapes.empty() ? data.shape() : top_shapes[0];
 
     return 0;
 }

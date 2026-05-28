@@ -56,7 +56,7 @@ static NCNN_FORCEINLINE size_t alignSize(size_t sz, int n)
 static NCNN_FORCEINLINE void* fastMalloc(size_t size)
 {
 #if _MSC_VER
-    return _aligned_malloc(size, NCNN_MALLOC_ALIGN);
+    return _aligned_malloc(size + NCNN_MALLOC_OVERREAD, NCNN_MALLOC_ALIGN);
 #elif (defined(__unix__) || defined(__APPLE__)) && _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
     void* ptr = 0;
     if (posix_memalign(&ptr, NCNN_MALLOC_ALIGN, size + NCNN_MALLOC_OVERREAD))
@@ -221,6 +221,8 @@ public:
     VkDeviceMemory memory;
     void* mapped_ptr;
 
+    uint32_t memory_type_index;
+
     // buffer state, modified by command functions internally
     mutable VkAccessFlags access_flags;
     mutable VkPipelineStageFlags stage_flags;
@@ -243,6 +245,8 @@ public:
 
     VkDeviceMemory memory;
     void* mapped_ptr;
+
+    uint32_t memory_type_index;
 
     // the base offset assigned by allocator
     size_t bind_offset;

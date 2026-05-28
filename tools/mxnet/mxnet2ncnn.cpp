@@ -428,7 +428,7 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
                 {
                     // assign default unknown name
                     char unknownname[256];
-                    sprintf(unknownname, "unknownncnn_%d", internal_unknown);
+                    snprintf(unknownname, 256, "unknownncnn_%d", internal_unknown);
 
                     n.name = unknownname;
 
@@ -438,7 +438,7 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
                 {
                     // workaround for potential duplicated _plus0
                     char underscorename[256];
-                    sprintf(underscorename, "underscorencnn_%d%s", internal_underscore, n.name.c_str());
+                    snprintf(underscorename, 256, "underscorencnn_%d%s", internal_underscore, n.name.c_str());
 
                     n.name = underscorename;
 
@@ -857,7 +857,7 @@ static void fuse_shufflechannel(std::vector<MXNetNode>& nodes, std::vector<MXNet
             new_node.name = n3.name;
             new_node.output_size = n3.output_size;
             char group[16];
-            sprintf(group, "%d", shape[2]);
+            snprintf(group, 16, "%d", shape[2]);
             new_node.attrs["group"] = group;
             new_node.inputs = n.inputs;
             new_node.subinputs = n.subinputs;
@@ -914,8 +914,8 @@ static void fuse_hardsigmoid_hardswish(std::vector<MXNetNode>& nodes, std::vecto
                 new_node.name = n2.name;
                 new_node.output_size = n2.output_size;
                 char alpha[16], beta[16];
-                sprintf(alpha, "%f", 1.f / 6.f);
-                sprintf(beta, "%f", 3.f / 6.f);
+                snprintf(alpha, 16, "%f", 1.f / 6.f);
+                snprintf(beta, 16, "%f", 3.f / 6.f);
                 new_node.attrs["alpha"] = alpha;
                 new_node.attrs["beta"] = beta;
                 new_node.inputs = n.inputs;
@@ -940,8 +940,8 @@ static void fuse_hardsigmoid_hardswish(std::vector<MXNetNode>& nodes, std::vecto
                 new_node.name = n3.name;
                 new_node.output_size = n3.output_size;
                 char alpha[16], beta[16];
-                sprintf(alpha, "%f", 1.f / 6.f);
-                sprintf(beta, "%f", 3.f / 6.f);
+                snprintf(alpha, 16, "%f", 1.f / 6.f);
+                snprintf(beta, 16, "%f", 3.f / 6.f);
                 new_node.attrs["alpha"] = alpha;
                 new_node.attrs["beta"] = beta;
                 new_node.inputs = n.inputs;
@@ -1004,7 +1004,7 @@ int main(int argc, char** argv)
 
             // non-unique name detected, append index as suffix
             char suffix[32];
-            sprintf(suffix, "_%d", (int)i);
+            snprintf(suffix, 32, "_%d", (int)i);
             n.name = n.name + std::string(suffix);
         }
     }
@@ -1094,7 +1094,7 @@ int main(int argc, char** argv)
             if (subinput_index != 0)
             {
                 char subinputsuffix[256];
-                sprintf(subinputsuffix, "_subncnn_%d", subinput_index);
+                snprintf(subinputsuffix, 256, "_subncnn_%d", subinput_index);
                 input_name = input_name + subinputsuffix;
             }
 
@@ -1118,7 +1118,7 @@ int main(int argc, char** argv)
         for (int j = 1; j < n.output_size; j++)
         {
             char subinputsuffix[256];
-            sprintf(subinputsuffix, "_%d", j);
+            snprintf(subinputsuffix, 256, "_%d", j);
             std::string output_name_j = output_name + subinputsuffix;
             blob_names.insert(output_name_j);
         }
@@ -1576,7 +1576,7 @@ int main(int argc, char** argv)
             if (subinput_index != 0)
             {
                 char subinputsuffix[256];
-                sprintf(subinputsuffix, "_subncnn_%d", subinput_index);
+                snprintf(subinputsuffix, 256, "_subncnn_%d", subinput_index);
                 input_name = input_name + subinputsuffix;
             }
 
@@ -1587,7 +1587,7 @@ int main(int argc, char** argv)
                 node_reference[input_uid] = refidx;
 
                 char splitsuffix[256];
-                sprintf(splitsuffix, "_splitncnn_%d", refidx);
+                snprintf(splitsuffix, 256, "_splitncnn_%d", refidx);
                 input_name = input_name + splitsuffix;
             }
 
@@ -2735,7 +2735,7 @@ int main(int argc, char** argv)
                     std::string output_name = n.name;
 
                     char splitname[256];
-                    sprintf(splitname, "splitncnn_%d", internal_split);
+                    snprintf(splitname, 256, "splitncnn_%d", internal_split);
                     fprintf(pp, "%-16s %-32s %d %d", "Split", splitname, 1, refcount);
                     if (j == 0)
                     {

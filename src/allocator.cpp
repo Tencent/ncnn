@@ -719,6 +719,7 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
             ptr->memory = d->buffer_blocks[i]->memory;
             ptr->capacity = aligned_size;
             ptr->mapped_ptr = d->buffer_blocks[i]->mapped_ptr;
+            ptr->memory_type_index = d->buffer_blocks[i]->memory_type_index;
             ptr->access_flags = 0;
             ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
@@ -797,6 +798,8 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
         vkMapMemory(vkdev->vkdevice(), block->memory, 0, new_block_size, 0, &block->mapped_ptr);
     }
 
+    block->memory_type_index = buffer_memory_type_index;
+
     d->buffer_blocks.push_back(block);
 
     // return sub buffer
@@ -807,6 +810,7 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     ptr->memory = block->memory;
     ptr->capacity = aligned_size;
     ptr->mapped_ptr = block->mapped_ptr;
+    ptr->memory_type_index = block->memory_type_index;
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
@@ -991,6 +995,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
 
             // do not allow host access to optimal tiling image
             ptr->mapped_ptr = 0;
+            ptr->memory_type_index = image_memory_type_index;
 
             ptr->imageview = create_imageview(ptr->image, format);
 
@@ -1080,6 +1085,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
 
     // do not allow host access to optimal tiling image
     ptr->mapped_ptr = 0;
+    ptr->memory_type_index = image_memory_type_index;
 
     ptr->imageview = create_imageview(ptr->image, format);
 
@@ -1364,6 +1370,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             ptr->memory = d->buffer_blocks[i]->memory;
             ptr->capacity = aligned_size;
             ptr->mapped_ptr = d->buffer_blocks[i]->mapped_ptr;
+            ptr->memory_type_index = d->buffer_blocks[i]->memory_type_index;
             ptr->access_flags = 0;
             ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
@@ -1455,6 +1462,8 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
                 vkMapMemory(vkdev->vkdevice(), block->memory, 0, new_block_size, 0, &block->mapped_ptr);
             }
 
+            block->memory_type_index = buffer_memory_type_index;
+
             d->dedicated_buffer_blocks.push_back(block);
 
             // return sub buffer
@@ -1465,6 +1474,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             ptr->memory = block->memory;
             ptr->capacity = new_block_size;
             ptr->mapped_ptr = block->mapped_ptr;
+            ptr->memory_type_index = block->memory_type_index;
             ptr->access_flags = 0;
             ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
@@ -1608,6 +1618,8 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
         vkMapMemory(vkdev->vkdevice(), block->memory, 0, new_block_size, 0, &block->mapped_ptr);
     }
 
+    block->memory_type_index = buffer_memory_type_index;
+
     d->buffer_blocks.push_back(block);
 
     d->buffer_block_free_spaces.push_back(new_block_size - aligned_size);
@@ -1620,6 +1632,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     ptr->memory = block->memory;
     ptr->capacity = aligned_size;
     ptr->mapped_ptr = block->mapped_ptr;
+    ptr->memory_type_index = block->memory_type_index;
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
@@ -1774,6 +1787,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
 
             // do not allow host access to optimal tiling image
             ptr->mapped_ptr = 0;
+            ptr->memory_type_index = image_memory_type_index;
 
             ptr->imageview = create_imageview(ptr->image, format);
 
@@ -1815,6 +1829,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
 
             // do not allow host access to optimal tiling image
             ptr->mapped_ptr = 0;
+            ptr->memory_type_index = image_memory_type_index;
 
             ptr->imageview = create_imageview(ptr->image, format);
 
@@ -1974,6 +1989,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
 
     // do not allow host access to optimal tiling image
     ptr->mapped_ptr = 0;
+    ptr->memory_type_index = image_memory_type_index;
 
     ptr->imageview = create_imageview(ptr->image, format);
 
@@ -2114,6 +2130,8 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
 
     vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, size, 0, &ptr->mapped_ptr);
 
+    ptr->memory_type_index = buffer_memory_type_index;
+
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
@@ -2149,6 +2167,7 @@ VkImageMemory* VkStagingAllocator::fastMalloc(int w, int h, int c, size_t elemsi
     ptr->bind_capacity = size;
 
     ptr->mapped_ptr = malloc(size);
+    ptr->memory_type_index = (uint32_t)-1;
 
     ptr->imageview = 0;
 
@@ -2228,6 +2247,8 @@ VkBufferMemory* VkWeightStagingAllocator::fastMalloc(size_t size)
     ptr->capacity = size;
 
     vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, size, 0, &ptr->mapped_ptr);
+
+    ptr->memory_type_index = buffer_memory_type_index;
 
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
@@ -2418,6 +2439,7 @@ VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*w*/, int 
     ptr->memory = memory;
     ptr->imageview = imageview;
     ptr->mapped_ptr = 0;
+    ptr->memory_type_index = (uint32_t)-1;
     ptr->access_flags = 0;
     ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;

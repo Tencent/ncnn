@@ -83,6 +83,33 @@ void main()
                 buffer_st1(top_blob_data, gi, v);
             }
         }
-        // TODO implement type 1 and 2
+        if (type == 1)
+        {
+            x = clamp(x, 0, psc(w) - 1);
+            yh = clamp(yh, 0, psc(h) - 1);
+            yd = clamp(yd, 0, psc(d) - 1);
+            y = yd * psc(h) + yh;
+
+            int v_offset = z * psc(cstep) + y * psc(w) + x;
+            buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+        }
+        if (type == 2)
+        {
+            x = abs(x);
+            yh = abs(yh);
+            yd = abs(yd);
+            // NOTE psc(X) get zeros on nvidia
+            // TODO only enable this workaround for some nvidia driver
+            x = (p.w - 1) - abs(x - (p.w - 1));
+            yh = (p.h - 1) - abs(yh - (p.h - 1));
+            yd = (p.d - 1) - abs(yd - (p.d - 1));
+            //             x = (psc(w) - 1) - abs(x - (psc(w) - 1));
+            //             yh = (psc(h) - 1) - abs(yh - (psc(h) - 1));
+            //             yd = (psc(d) - 1) - abs(yd - (psc(d) - 1));
+            y = yd * psc(h) + yh;
+
+            int v_offset = z * psc(cstep) + y * psc(w) + x;
+            buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+        }
     }
 }
