@@ -1,0 +1,167 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#extension GL_EXT_integer_dot_product : require
+#endif
+
+#extension GL_GOOGLE_include_directive : enable
+#include "vulkan_activation.comp"
+
+layout(constant_id = 0) const int kernel_w = 1;
+layout(constant_id = 1) const int kernel_h = 1;
+layout(constant_id = 2) const int dilation_w = 1;
+layout(constant_id = 3) const int dilation_h = 1;
+layout(constant_id = 4) const int stride_w = 1;
+layout(constant_id = 5) const int stride_h = 1;
+layout(constant_id = 6) const int bias_term = 0;
+layout(constant_id = 7) const int activation_type = 0;
+layout(constant_id = 8) const float activation_param_0 = 0;
+layout(constant_id = 9) const float activation_param_1 = 0;
+layout(constant_id = 10) const int use_int8_requantize = 0;
+
+#define shape_constant_id_offset 11
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
+layout(binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+layout(binding = 2) readonly buffer weight_blob { sint8 weight_data[]; };
+layout(binding = 3) readonly buffer bias_blob { float bias_data[]; };
+layout(binding = 4) readonly buffer weight_scales_blob { float weight_scales_data[]; };
+layout(binding = 5) readonly buffer bottom_scales_blob { float bottom_scales_data[]; };
+layout(binding = 6) readonly buffer top_scales_blob { float top_scales_data[]; };
+layout(binding = 7) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
+layout(binding = 8) readonly buffer bottom_blob_int8 { sint8 bottom_blob_int8_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
+
+    int pad_left;
+    int pad_top;
+    int bottom_is_int8;
+} p;
+
+int float2int8_local(float v)
+{
+    v = clamp(v, -127.f, 127.f);
+    return int(v > 0.f ? floor(v + 0.5f) : ceil(v - 0.5f));
+}
+
+int load_bottom_int8(int q, int x, int y, float scale)
+{
+    if (x < 0 || x >= psc(w) || y < 0 || y >= psc(h))
+        return 0;
+
+    const int gi = q * psc(cstep) + y * psc(w) + x;
+
+    if (p.bottom_is_int8 == 1)
+        return i8buffer_ld1(bottom_blob_int8_data, gi);
+
+    return float2int8_local(bottom_blob_data[gi] * scale);
+}
+
+int load_bottom_int8_k(int q, int gx, int gy, int k, float scale)
+{
+    const int ky = k / kernel_w;
+    const int kx = k - ky * kernel_w;
+    const int x = gx * stride_w + kx * dilation_w - p.pad_left;
+    const int y = gy * stride_h + ky * dilation_h - p.pad_top;
+
+    return load_bottom_int8(q, x, y, scale);
+}
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
+        return;
+
+    const int maxk = kernel_w * kernel_h;
+    const float bottom_scale = bottom_scales_data[0];
+
+    int sum = 0;
+
+    for (int q = 0; q < psc(c); q++)
+    {
+        int k = 0;
+        for (; k + 3 < maxk; k += 4)
+        {
+            ivec4 v;
+            v.r = load_bottom_int8_k(q, gx, gy, k + 0, bottom_scale);
+            v.g = load_bottom_int8_k(q, gx, gy, k + 1, bottom_scale);
+            v.b = load_bottom_int8_k(q, gx, gy, k + 2, bottom_scale);
+            v.a = load_bottom_int8_k(q, gx, gy, k + 3, bottom_scale);
+
+            const int w_offset = (gz * psc(c) + q) * maxk + k;
+
+            ivec4 weight;
+            weight.r = i8buffer_ld1(weight_data, w_offset + 0);
+            weight.g = i8buffer_ld1(weight_data, w_offset + 1);
+            weight.b = i8buffer_ld1(weight_data, w_offset + 2);
+            weight.a = i8buffer_ld1(weight_data, w_offset + 3);
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+            sum += dotPacked4x8EXT(packInt4x8(v), packInt4x8(weight));
+#else
+            sum += v.r * weight.r + v.g * weight.g + v.b * weight.b + v.a * weight.a;
+#endif
+        }
+
+        for (; k < maxk; k++)
+        {
+            const int v = load_bottom_int8_k(q, gx, gy, k, bottom_scale);
+            const int weight = i8buffer_ld1(weight_data, (gz * psc(c) + q) * maxk + k);
+            sum += v * weight;
+        }
+    }
+
+    const float weight_scale = weight_scales_data[gz];
+    const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
+
+    float sumfp32 = float(sum) * scale_in;
+
+    if (bias_term == 1)
+    {
+        sumfp32 += bias_data[gz];
+    }
+
+    sumfp32 = float(activation_afp(afp(sumfp32), activation_type, activation_param_0, activation_param_1));
+
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+    if (use_int8_requantize == 1)
+    {
+        const int v = float2int8_local(sumfp32 * top_scales_data[0]);
+        i8buffer_st1(top_blob_int8_data, gi, v);
+    }
+    else
+    {
+        top_blob_data[gi] = sumfp32;
+    }
+}

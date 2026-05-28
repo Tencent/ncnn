@@ -1279,12 +1279,6 @@ int Net::load_param(const DataReader& dr)
             return -1;
         }
 
-        if (layer->support_int8_storage)
-        {
-            // no int8 gpu support yet
-            opt.use_vulkan_compute = false;
-        }
-
         Option opt1 = get_masked_option(opt, layer->featmask);
 
         if (layer_support_vulkan && (!layer->support_vulkan || !opt1.use_vulkan_compute))
@@ -1639,12 +1633,6 @@ int Net::load_param_bin(const DataReader& dr)
             delete layer;
             clear();
             return -1;
-        }
-
-        if (layer->support_int8_storage)
-        {
-            // no int8 gpu support yet
-            opt.use_vulkan_compute = false;
         }
 
         Option opt1 = get_masked_option(opt, layer->featmask);

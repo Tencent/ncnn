@@ -119,7 +119,7 @@ static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)
         weights[2] = input_scales;
     }
 
-    int flag = TEST_LAYER_DISABLE_GPU_TESTING;
+    int flag = 0;
     int ret = test_layer("InnerProduct", pd, weights, a, 0.001f, flag);
     if (ret != 0)
     {
@@ -231,7 +231,7 @@ static int test_innerproduct_gemm_int8(const ncnn::Mat& a, int outch, int bias)
         weights[2] = input_scales;
     }
 
-    int flag = TEST_LAYER_DISABLE_GPU_TESTING;
+    int flag = 0;
     int ret = test_layer("InnerProduct", pd, weights, a, 0.001f, flag);
     if (ret != 0)
     {

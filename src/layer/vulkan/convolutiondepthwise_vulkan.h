@@ -26,19 +26,32 @@ public:
 public:
     Mat weight_data_packed;
     Mat weight_data_packed_groups;
+    Mat weight_data_int8_packed;
 
     VkMat weight_data_gpu;
+    VkMat weight_data_int8_gpu;
+    VkMat weight_data_int8_scales_gpu;
+    VkMat bottom_blob_int8_scales_gpu;
+    VkMat top_blob_int8_scales_gpu;
     VkMat bias_data_gpu;
 
     ncnn::Layer* padding;
 
     Pipeline* pipeline_convolutiondepthwise;
     Pipeline* pipeline_convolutiondepthwise_pack4;
+    Pipeline* pipeline_convolutiondepthwise_int8;
+    Pipeline* pipeline_convolutiondepthwise_pack4_int8;
+    Pipeline* pipeline_convolutiondepthwise_group_int8;
 
     Pipeline* pipeline_convolutiondepthwise_group;
     Pipeline* pipeline_convolutiondepthwise_group_pack4;
     Pipeline* pipeline_convolutiondepthwise_group_pack1to4;
     Pipeline* pipeline_convolutiondepthwise_group_pack4to1;
+
+protected:
+    int create_pipeline_int8(const Option& opt);
+    int upload_model_int8(VkTransfer& cmd, const Option& opt);
+    int forward_int8(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 };
 
 } // namespace ncnn

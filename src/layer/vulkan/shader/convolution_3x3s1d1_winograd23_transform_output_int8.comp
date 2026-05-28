@@ -1,0 +1,125 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_GOOGLE_include_directive : enable
+#include "vulkan_activation.comp"
+
+layout(constant_id = 0) const int bias_term = 0;
+layout(constant_id = 1) const int activation_type = 0;
+layout(constant_id = 2) const float activation_param_0 = 0;
+layout(constant_id = 3) const float activation_param_1 = 0;
+layout(constant_id = 4) const int use_int8_requantize = 0;
+
+layout(binding = 0) readonly buffer top_tm_blob { int top_tm_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+layout(binding = 2) readonly buffer bias_blob { float bias_data[]; };
+layout(binding = 3) readonly buffer weight_scales_blob { float weight_scales_data[]; };
+layout(binding = 4) readonly buffer bottom_scales_blob { float bottom_scales_data[]; };
+layout(binding = 5) readonly buffer top_scales_blob { float top_scales_data[]; };
+layout(binding = 6) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int cstep;
+
+    int block_x;
+    int block_y;
+
+    int outw;
+    int outh;
+    int outcstep;
+    int outc;
+} p;
+
+int float2int8_local(float v)
+{
+    v = clamp(v, -127.f, 127.f);
+    return int(v > 0.f ? floor(v + 0.5f) : ceil(v - 0.5f));
+}
+
+int rshift2(int v)
+{
+    return v >= 0 ? v >> 2 : -(((-v) + 3) >> 2);
+}
+
+int load_top_tm(int q, int k, int tile)
+{
+    return top_tm_blob_data[(k * p.outc + q) * p.cstep + tile];
+}
+
+void store_result(int q, int x, int y, int sum)
+{
+    if (x >= p.outw || y >= p.outh)
+        return;
+
+    const float bottom_scale = bottom_scales_data[0];
+    const float weight_scale = weight_scales_data[q];
+    const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
+
+    float sumfp32 = float(sum) * scale_in;
+    if (bias_term == 1)
+    {
+        sumfp32 += bias_data[q];
+    }
+
+    sumfp32 = float(activation_afp(afp(sumfp32), activation_type, activation_param_0, activation_param_1));
+
+    const int gi = q * p.outcstep + y * p.outw + x;
+    if (use_int8_requantize == 1)
+    {
+        i8buffer_st1(top_blob_int8_data, gi, float2int8_local(sumfp32 * top_scales_data[0]));
+    }
+    else
+    {
+        top_blob_data[gi] = sumfp32;
+    }
+}
+
+void main()
+{
+    const int gx = int(gl_GlobalInvocationID.x);
+    const int gy = int(gl_GlobalInvocationID.y);
+    const int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.block_x || gy >= p.block_y || gz >= p.outc)
+        return;
+
+    const int tile = gy * p.block_x + gx;
+
+    int v00 = load_top_tm(gz, 0, tile);
+    int v01 = load_top_tm(gz, 1, tile);
+    int v02 = load_top_tm(gz, 2, tile);
+    int v03 = load_top_tm(gz, 3, tile);
+    int v10 = load_top_tm(gz, 4, tile);
+    int v11 = load_top_tm(gz, 5, tile);
+    int v12 = load_top_tm(gz, 6, tile);
+    int v13 = load_top_tm(gz, 7, tile);
+    int v20 = load_top_tm(gz, 8, tile);
+    int v21 = load_top_tm(gz, 9, tile);
+    int v22 = load_top_tm(gz, 10, tile);
+    int v23 = load_top_tm(gz, 11, tile);
+    int v30 = load_top_tm(gz, 12, tile);
+    int v31 = load_top_tm(gz, 13, tile);
+    int v32 = load_top_tm(gz, 14, tile);
+    int v33 = load_top_tm(gz, 15, tile);
+
+    int m00 = v00 + v01 + v02;
+    int m01 = v10 + v11 + v12;
+    int m02 = v20 + v21 + v22;
+    int m03 = v30 + v31 + v32;
+
+    int m10 = v01 - v02 + v03;
+    int m11 = v11 - v12 + v13;
+    int m12 = v21 - v22 + v23;
+    int m13 = v31 - v32 + v33;
+
+    const int x = gx * 2;
+    const int y = gy * 2;
+
+    store_result(gz, x + 0, y + 0, rshift2(m00 + m01 + m02));
+    store_result(gz, x + 1, y + 0, rshift2(m01 - m02 + m03));
+    store_result(gz, x + 0, y + 1, rshift2(m10 + m11 + m12));
+    store_result(gz, x + 1, y + 1, rshift2(m11 - m12 + m13));
+}

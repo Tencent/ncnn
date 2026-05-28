@@ -1,0 +1,170 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#define LOCAL_MEMORY_UNROLL_INCH 8
+
+layout(binding = 0) readonly buffer bottom_tm_blob { int bottom_tm_blob_data[]; };
+layout(binding = 1) writeonly buffer top_tm_blob { int top_tm_blob_data[]; };
+layout(binding = 2) readonly buffer weight_tm_blob { int weight_tm_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int cstep;
+    int outw;
+    int outcstep;
+    int c;
+    int outc;
+} p;
+
+#if NCNN_shader_local_memory
+shared int tmp_v[8][LOCAL_MEMORY_UNROLL_INCH][4];
+shared int tmp_k[8][LOCAL_MEMORY_UNROLL_INCH][4];
+#endif
+
+int load_bottom_tm(int pos, int q, int batch)
+{
+    if (pos >= p.outw || q >= p.c)
+        return 0;
+
+    return bottom_tm_blob_data[(batch * p.c + q) * p.cstep + pos];
+}
+
+int load_weight_tm(int outch_index, int q, int batch)
+{
+    if (outch_index >= p.outc || q >= p.c)
+        return 0;
+
+    return weight_tm_data[batch * p.c * p.outc + outch_index * p.c + q];
+}
+
+void store_top_tm(int outch_index, int pos, int batch, int v)
+{
+    if (outch_index >= p.outc || pos >= p.outw)
+        return;
+
+    top_tm_blob_data[(batch * p.outc + outch_index) * p.outcstep + pos] = v;
+}
+
+void main()
+{
+    const int gx = int(gl_GlobalInvocationID.x) * 4;
+    const int gy = int(gl_GlobalInvocationID.y) * 4;
+    const int gz = int(gl_GlobalInvocationID.z);
+
+#if !NCNN_shader_local_memory
+    if (gx >= p.outw || gy >= p.outc)
+        return;
+#endif
+
+    ivec4 sum0 = ivec4(0);
+    ivec4 sum1 = ivec4(0);
+    ivec4 sum2 = ivec4(0);
+    ivec4 sum3 = ivec4(0);
+
+#if NCNN_shader_local_memory
+    const int lx = int(gl_LocalInvocationID.x);
+    const int ly = int(gl_LocalInvocationID.y);
+
+    int q = 0;
+    for (; q + (LOCAL_MEMORY_UNROLL_INCH - 1) < p.c; q += LOCAL_MEMORY_UNROLL_INCH)
+    {
+        if (ly < 4)
+        {
+            for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+            {
+                tmp_v[lx][z4][ly] = load_bottom_tm(gx + ly, q + z4, gz);
+            }
+        }
+
+        if (lx < 4)
+        {
+            for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+            {
+                tmp_k[ly][z4][lx] = load_weight_tm(gy + lx, q + z4, gz);
+            }
+        }
+
+        barrier();
+
+        for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+        {
+            const ivec4 v = ivec4(tmp_v[lx][z4][0], tmp_v[lx][z4][1], tmp_v[lx][z4][2], tmp_v[lx][z4][3]);
+            const ivec4 k = ivec4(tmp_k[ly][z4][0], tmp_k[ly][z4][1], tmp_k[ly][z4][2], tmp_k[ly][z4][3]);
+
+            sum0 += v.r * k;
+            sum1 += v.g * k;
+            sum2 += v.b * k;
+            sum3 += v.a * k;
+        }
+
+        barrier();
+    }
+
+    if (q < p.c)
+    {
+        const int remain = p.c - q;
+
+        if (ly < 4)
+        {
+            for (int z4 = 0; z4 < remain; z4++)
+            {
+                tmp_v[lx][z4][ly] = load_bottom_tm(gx + ly, q + z4, gz);
+            }
+        }
+
+        if (lx < 4)
+        {
+            for (int z4 = 0; z4 < remain; z4++)
+            {
+                tmp_k[ly][z4][lx] = load_weight_tm(gy + lx, q + z4, gz);
+            }
+        }
+
+        barrier();
+
+        for (int z4 = 0; z4 < remain; z4++)
+        {
+            const ivec4 v = ivec4(tmp_v[lx][z4][0], tmp_v[lx][z4][1], tmp_v[lx][z4][2], tmp_v[lx][z4][3]);
+            const ivec4 k = ivec4(tmp_k[ly][z4][0], tmp_k[ly][z4][1], tmp_k[ly][z4][2], tmp_k[ly][z4][3]);
+
+            sum0 += v.r * k;
+            sum1 += v.g * k;
+            sum2 += v.b * k;
+            sum3 += v.a * k;
+        }
+    }
+#else
+    for (int q = 0; q < p.c; q++)
+    {
+        const ivec4 v = ivec4(load_bottom_tm(gx + 0, q, gz), load_bottom_tm(gx + 1, q, gz), load_bottom_tm(gx + 2, q, gz), load_bottom_tm(gx + 3, q, gz));
+        const ivec4 k = ivec4(load_weight_tm(gy + 0, q, gz), load_weight_tm(gy + 1, q, gz), load_weight_tm(gy + 2, q, gz), load_weight_tm(gy + 3, q, gz));
+
+        sum0 += v.r * k;
+        sum1 += v.g * k;
+        sum2 += v.b * k;
+        sum3 += v.a * k;
+    }
+#endif
+
+    store_top_tm(gy + 0, gx + 0, gz, sum0.r);
+    store_top_tm(gy + 1, gx + 0, gz, sum0.g);
+    store_top_tm(gy + 2, gx + 0, gz, sum0.b);
+    store_top_tm(gy + 3, gx + 0, gz, sum0.a);
+
+    store_top_tm(gy + 0, gx + 1, gz, sum1.r);
+    store_top_tm(gy + 1, gx + 1, gz, sum1.g);
+    store_top_tm(gy + 2, gx + 1, gz, sum1.b);
+    store_top_tm(gy + 3, gx + 1, gz, sum1.a);
+
+    store_top_tm(gy + 0, gx + 2, gz, sum2.r);
+    store_top_tm(gy + 1, gx + 2, gz, sum2.g);
+    store_top_tm(gy + 2, gx + 2, gz, sum2.b);
+    store_top_tm(gy + 3, gx + 2, gz, sum2.a);
+
+    store_top_tm(gy + 0, gx + 3, gz, sum3.r);
+    store_top_tm(gy + 1, gx + 3, gz, sum3.g);
+    store_top_tm(gy + 2, gx + 3, gz, sum3.b);
+    store_top_tm(gy + 3, gx + 3, gz, sum3.a);
+}

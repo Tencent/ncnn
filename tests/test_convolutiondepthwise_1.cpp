@@ -125,7 +125,7 @@ static int test_convolutiondepthwise_int8(int w, int h, int c, int outch, int ke
         weights[3] = top_scales;
     }
 
-    int flag = TEST_LAYER_DISABLE_GPU_TESTING;
+    int flag = 0;
     int ret = test_layer("ConvolutionDepthWise", pd, weights, a, requant ? 1.0f : 0.001f, flag);
     if (ret != 0)
     {

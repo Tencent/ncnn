@@ -1,0 +1,110 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#extension GL_EXT_integer_dot_product : require
+#endif
+
+#extension GL_GOOGLE_include_directive : enable
+#include "vulkan_activation.comp"
+
+layout(constant_id = 0) const int bias_term = 0;
+layout(constant_id = 1) const int activation_type = 0;
+layout(constant_id = 2) const float activation_param_0 = 0;
+layout(constant_id = 3) const float activation_param_1 = 0;
+layout(constant_id = 4) const float bottom_blob_int8_scale = 1.f;
+
+#define shape_constant_id_offset 5
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
+layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 2) readonly buffer weight_blob { sint8 weight_data[]; };
+layout(binding = 3) readonly buffer weight_scales_blob { sfp weight_scales_data[]; };
+layout(binding = 4) readonly buffer bias_blob { sfp bias_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= 1)
+        return;
+
+    int sum = 0;
+
+    int v_offset = gy * psc(w);
+    int w_offset = gx * psc(w);
+
+    int i = 0;
+    for (; i + 3 < psc(w); i += 4)
+    {
+        ivec4 v;
+        v.r = int(round(clamp(buffer_ld1(bottom_blob_data, v_offset + i + 0) * afp(bottom_blob_int8_scale), afp(-127.f), afp(127.f))));
+        v.g = int(round(clamp(buffer_ld1(bottom_blob_data, v_offset + i + 1) * afp(bottom_blob_int8_scale), afp(-127.f), afp(127.f))));
+        v.b = int(round(clamp(buffer_ld1(bottom_blob_data, v_offset + i + 2) * afp(bottom_blob_int8_scale), afp(-127.f), afp(127.f))));
+        v.a = int(round(clamp(buffer_ld1(bottom_blob_data, v_offset + i + 3) * afp(bottom_blob_int8_scale), afp(-127.f), afp(127.f))));
+
+        ivec4 k;
+        k.r = i8buffer_ld1(weight_data, w_offset + i + 0);
+        k.g = i8buffer_ld1(weight_data, w_offset + i + 1);
+        k.b = i8buffer_ld1(weight_data, w_offset + i + 2);
+        k.a = i8buffer_ld1(weight_data, w_offset + i + 3);
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+        sum += dotPacked4x8EXT(packInt4x8(v), packInt4x8(k));
+#else
+        sum += v.r * k.r + v.g * k.g + v.b * k.b + v.a * k.a;
+#endif
+    }
+
+    for (; i < psc(w); i++)
+    {
+        int v = int(round(clamp(buffer_ld1(bottom_blob_data, v_offset + i) * afp(bottom_blob_int8_scale), afp(-127.f), afp(127.f))));
+        int k = i8buffer_ld1(weight_data, w_offset + i);
+        sum += v * k;
+    }
+
+    float weight_scale = float(buffer_ld1(weight_scales_data, gx));
+    float scale_in = weight_scale == 0.f ? 0.f : 1.f / (bottom_blob_int8_scale * weight_scale);
+
+    afp sumfp32 = afp(float(sum) * scale_in);
+
+    if (bias_term == 1)
+    {
+        sumfp32 += buffer_ld1(bias_data, gx);
+    }
+
+    sumfp32 = activation_afp(sumfp32, activation_type, activation_param_0, activation_param_1);
+
+    const int gi = gy * psc(outw) + gx;
+    buffer_st1(top_blob_data, gi, sumfp32);
+}

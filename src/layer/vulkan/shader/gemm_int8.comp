@@ -1,0 +1,169 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#extension GL_EXT_integer_dot_product : require
+#endif
+
+layout(constant_id = 0) const float alpha = 1.f;
+layout(constant_id = 1) const float beta = 1.f;
+layout(constant_id = 2) const int constantC = 0;
+layout(constant_id = 3) const int constant_broadcast_type_C = 0;
+layout(constant_id = 4) const int output_N1M = 0;
+layout(constant_id = 5) const int output_transpose = 0;
+
+layout(binding = 0) writeonly buffer top_blob { float top_blob_data[]; };
+layout(binding = 1) readonly buffer A_int8_blob { sint8 A_int8_data[]; };
+layout(binding = 2) readonly buffer B_int8_blob { sint8 B_int8_data[]; };
+layout(binding = 3) readonly buffer C_blob { float C_blob_data[]; };
+layout(binding = 4) readonly buffer A_scales_blob { float A_scales_data[]; };
+layout(binding = 5) readonly buffer B_scale_blob { float B_scale_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int M;
+    int N;
+    int K;
+    int broadcast_type_C;
+    int C_dims;
+    int C_hstep;
+    int outdims;
+    int outhstep;
+} p;
+
+#if NCNN_shader_local_memory
+shared int tile_a[8][8];
+shared int tile_b[8][8];
+#endif
+
+void main()
+{
+    const int gx = int(gl_GlobalInvocationID.x);
+    const int gy = int(gl_GlobalInvocationID.y);
+    const int gz = int(gl_GlobalInvocationID.z);
+
+    if (gz >= 1)
+        return;
+
+    int sum = 0;
+
+#if NCNN_shader_local_memory
+    const int lx = int(gl_LocalInvocationID.x);
+    const int ly = int(gl_LocalInvocationID.y);
+
+    for (int k0 = 0; k0 < p.K; k0 += 8)
+    {
+        const int ak = k0 + lx;
+        const int bk = k0 + ly;
+
+        tile_a[ly][lx] = (gy < p.M && ak < p.K) ? i8buffer_ld1(A_int8_data, gy * p.K + ak) : 0;
+        tile_b[ly][lx] = (gx < p.N && bk < p.K) ? i8buffer_ld1(B_int8_data, gx * p.K + bk) : 0;
+
+        barrier();
+
+        if (gx < p.N && gy < p.M)
+        {
+            int kk = 0;
+            for (; kk + 3 < min(8, p.K - k0); kk += 4)
+            {
+                ivec4 a;
+                a.r = tile_a[ly][kk + 0];
+                a.g = tile_a[ly][kk + 1];
+                a.b = tile_a[ly][kk + 2];
+                a.a = tile_a[ly][kk + 3];
+
+                ivec4 b;
+                b.r = tile_b[kk + 0][lx];
+                b.g = tile_b[kk + 1][lx];
+                b.b = tile_b[kk + 2][lx];
+                b.a = tile_b[kk + 3][lx];
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+                sum += dotPacked4x8EXT(packInt4x8(a), packInt4x8(b));
+#else
+                sum += a.r * b.r + a.g * b.g + a.b * b.b + a.a * b.a;
+#endif
+            }
+
+            for (; kk < min(8, p.K - k0); kk++)
+            {
+                sum += tile_a[ly][kk] * tile_b[kk][lx];
+            }
+        }
+
+        barrier();
+    }
+
+    if (gx >= p.N || gy >= p.M)
+        return;
+#else
+    if (gx >= p.N || gy >= p.M)
+        return;
+
+    int k = 0;
+    for (; k + 3 < p.K; k += 4)
+    {
+        ivec4 a;
+        a.r = i8buffer_ld1(A_int8_data, gy * p.K + k + 0);
+        a.g = i8buffer_ld1(A_int8_data, gy * p.K + k + 1);
+        a.b = i8buffer_ld1(A_int8_data, gy * p.K + k + 2);
+        a.a = i8buffer_ld1(A_int8_data, gy * p.K + k + 3);
+
+        ivec4 b;
+        b.r = i8buffer_ld1(B_int8_data, gx * p.K + k + 0);
+        b.g = i8buffer_ld1(B_int8_data, gx * p.K + k + 1);
+        b.b = i8buffer_ld1(B_int8_data, gx * p.K + k + 2);
+        b.a = i8buffer_ld1(B_int8_data, gx * p.K + k + 3);
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+        sum += dotPacked4x8EXT(packInt4x8(a), packInt4x8(b));
+#else
+        sum += a.r * b.r + a.g * b.g + a.b * b.b + a.a * b.a;
+#endif
+    }
+
+    for (; k < p.K; k++)
+    {
+        const int a = i8buffer_ld1(A_int8_data, gy * p.K + k);
+        const int b = i8buffer_ld1(B_int8_data, gx * p.K + k);
+        sum += a * b;
+    }
+#endif
+
+    const float A_scale = A_scales_data[gy];
+    const float B_scale = B_scale_data[0];
+    const float descale = A_scale == 0.f || B_scale == 0.f ? 0.f : 1.f / (A_scale * B_scale);
+
+    float sum_fp32 = float(sum) * descale;
+
+    const int broadcast_type_C = constantC == 1 ? constant_broadcast_type_C : p.broadcast_type_C;
+    if (broadcast_type_C != -1)
+    {
+        float c = 0.f;
+        if (broadcast_type_C == 0)
+        {
+            c = C_blob_data[0];
+        }
+        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+        {
+            c = C_blob_data[gy];
+        }
+        if (broadcast_type_C == 3)
+        {
+            c = C_blob_data[gy * p.N + gx];
+        }
+        if (broadcast_type_C == 4)
+        {
+            c = C_blob_data[gx];
+        }
+
+        sum_fp32 += c * beta;
+    }
+
+    sum_fp32 *= alpha;
+
+    const int gi = output_transpose == 1 ? gx * p.outhstep + gy : gy * p.outhstep + gx;
+    top_blob_data[gi] = sum_fp32;
+}

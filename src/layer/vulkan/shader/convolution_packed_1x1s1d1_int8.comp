@@ -1,0 +1,260 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#extension GL_EXT_integer_dot_product : require
+#endif
+
+#extension GL_GOOGLE_include_directive : enable
+#include "vulkan_activation.comp"
+
+layout(constant_id = 0) const int kernel_w = 1;
+layout(constant_id = 1) const int kernel_h = 1;
+layout(constant_id = 2) const int dilation_w = 1;
+layout(constant_id = 3) const int dilation_h = 1;
+layout(constant_id = 4) const int stride_w = 1;
+layout(constant_id = 5) const int stride_h = 1;
+layout(constant_id = 6) const int bias_term = 0;
+layout(constant_id = 7) const int activation_type = 0;
+layout(constant_id = 8) const float activation_param_0 = 0;
+layout(constant_id = 9) const float activation_param_1 = 0;
+layout(constant_id = 10) const int use_int8_requantize = 0;
+
+#define shape_constant_id_offset 11
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
+layout(binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+layout(binding = 2) readonly buffer weight_blob { sint8 weight_data[]; };
+layout(binding = 3) readonly buffer bias_blob { float bias_data[]; };
+layout(binding = 4) readonly buffer weight_scales_blob { float weight_scales_data[]; };
+layout(binding = 5) readonly buffer bottom_scales_blob { float bottom_scales_data[]; };
+layout(binding = 6) readonly buffer top_scales_blob { float top_scales_data[]; };
+layout(binding = 7) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
+layout(binding = 8) readonly buffer bottom_blob_int8 { sint8 bottom_blob_int8_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
+
+    int pad_left;
+    int pad_top;
+    int bottom_is_int8;
+} p;
+
+#if NCNN_shader_local_memory
+shared ivec4 tmp_v[8][4];
+shared ivec4 tmp_w[8][4];
+#endif
+
+int float2int8_local(float v)
+{
+    v = clamp(v, -127.f, 127.f);
+    return int(v > 0.f ? floor(v + 0.5f) : ceil(v - 0.5f));
+}
+
+int dot4_int8(ivec4 v, ivec4 w)
+{
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+    return dotPacked4x8EXT(packInt4x8(v), packInt4x8(w));
+#else
+    return v.r * w.r + v.g * w.g + v.b * w.b + v.a * w.a;
+#endif
+}
+
+int load_bottom_int8(int q, int x, int y, float scale)
+{
+    if (q >= psc(c) || x < 0 || x >= psc(w) || y < 0 || y >= psc(h))
+        return 0;
+
+    const int gi = q * psc(cstep) + y * psc(w) + x;
+
+    if (p.bottom_is_int8 == 1)
+        return i8buffer_ld1(bottom_blob_int8_data, gi);
+
+    return float2int8_local(bottom_blob_data[gi] * scale);
+}
+
+ivec4 load_bottom4(int q, int pos, float scale)
+{
+    if (pos >= psc(outw) * psc(outh))
+        return ivec4(0);
+
+    const int x = pos % psc(outw) - p.pad_left;
+    const int y = pos / psc(outw) - p.pad_top;
+
+    ivec4 v;
+    v.r = load_bottom_int8(q + 0, x, y, scale);
+    v.g = load_bottom_int8(q + 1, x, y, scale);
+    v.b = load_bottom_int8(q + 2, x, y, scale);
+    v.a = load_bottom_int8(q + 3, x, y, scale);
+    return v;
+}
+
+ivec4 load_weight4(int outch_index, int q)
+{
+    if (outch_index >= psc(outc))
+        return ivec4(0);
+
+    ivec4 v;
+    v.r = q + 0 < psc(c) ? i8buffer_ld1(weight_data, outch_index * psc(c) + q + 0) : 0;
+    v.g = q + 1 < psc(c) ? i8buffer_ld1(weight_data, outch_index * psc(c) + q + 1) : 0;
+    v.b = q + 2 < psc(c) ? i8buffer_ld1(weight_data, outch_index * psc(c) + q + 2) : 0;
+    v.a = q + 3 < psc(c) ? i8buffer_ld1(weight_data, outch_index * psc(c) + q + 3) : 0;
+    return v;
+}
+
+void store_result(int outch_index, int pos, int sum)
+{
+    if (outch_index >= psc(outc) || pos >= psc(outw) * psc(outh))
+        return;
+
+    const float bottom_scale = bottom_scales_data[0];
+    const float weight_scale = weight_scales_data[outch_index];
+    const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
+
+    float sumfp32 = float(sum) * scale_in;
+
+    if (bias_term == 1)
+    {
+        sumfp32 += bias_data[outch_index];
+    }
+
+    sumfp32 = float(activation_afp(afp(sumfp32), activation_type, activation_param_0, activation_param_1));
+
+    const int gi = outch_index * psc(outcstep) + pos;
+
+    if (use_int8_requantize == 1)
+    {
+        const int v = float2int8_local(sumfp32 * top_scales_data[0]);
+        i8buffer_st1(top_blob_int8_data, gi, v);
+    }
+    else
+    {
+        top_blob_data[gi] = sumfp32;
+    }
+}
+
+void main()
+{
+    const int gx = int(gl_GlobalInvocationID.x) * 4;
+    const int gy = int(gl_GlobalInvocationID.y) * 4;
+
+#if !NCNN_shader_local_memory
+    if (gx >= psc(outw) * psc(outh) || gy >= psc(outc))
+        return;
+#endif
+
+    ivec4 sum0 = ivec4(0);
+    ivec4 sum1 = ivec4(0);
+    ivec4 sum2 = ivec4(0);
+    ivec4 sum3 = ivec4(0);
+
+    const float bottom_scale = bottom_scales_data[0];
+
+#if NCNN_shader_local_memory
+    const int lx = int(gl_LocalInvocationID.x);
+    const int ly = int(gl_LocalInvocationID.y);
+#endif
+
+    for (int q = 0; q < psc(c); q += 4)
+    {
+#if NCNN_shader_local_memory
+        if (ly < 4)
+        {
+            tmp_v[lx][ly] = load_bottom4(q, gx + ly, bottom_scale);
+        }
+
+        if (lx < 4)
+        {
+            tmp_w[ly][lx] = load_weight4(gy + lx, q);
+        }
+
+        barrier();
+
+        ivec4 v0 = tmp_v[lx][0];
+        ivec4 v1 = tmp_v[lx][1];
+        ivec4 v2 = tmp_v[lx][2];
+        ivec4 v3 = tmp_v[lx][3];
+
+        ivec4 w0 = tmp_w[ly][0];
+        ivec4 w1 = tmp_w[ly][1];
+        ivec4 w2 = tmp_w[ly][2];
+        ivec4 w3 = tmp_w[ly][3];
+
+        barrier();
+#else
+        ivec4 v0 = load_bottom4(q, gx + 0, bottom_scale);
+        ivec4 v1 = load_bottom4(q, gx + 1, bottom_scale);
+        ivec4 v2 = load_bottom4(q, gx + 2, bottom_scale);
+        ivec4 v3 = load_bottom4(q, gx + 3, bottom_scale);
+
+        ivec4 w0 = load_weight4(gy + 0, q);
+        ivec4 w1 = load_weight4(gy + 1, q);
+        ivec4 w2 = load_weight4(gy + 2, q);
+        ivec4 w3 = load_weight4(gy + 3, q);
+#endif
+
+        sum0.r += dot4_int8(v0, w0);
+        sum0.g += dot4_int8(v0, w1);
+        sum0.b += dot4_int8(v0, w2);
+        sum0.a += dot4_int8(v0, w3);
+
+        sum1.r += dot4_int8(v1, w0);
+        sum1.g += dot4_int8(v1, w1);
+        sum1.b += dot4_int8(v1, w2);
+        sum1.a += dot4_int8(v1, w3);
+
+        sum2.r += dot4_int8(v2, w0);
+        sum2.g += dot4_int8(v2, w1);
+        sum2.b += dot4_int8(v2, w2);
+        sum2.a += dot4_int8(v2, w3);
+
+        sum3.r += dot4_int8(v3, w0);
+        sum3.g += dot4_int8(v3, w1);
+        sum3.b += dot4_int8(v3, w2);
+        sum3.a += dot4_int8(v3, w3);
+    }
+
+    store_result(gy + 0, gx + 0, sum0.r);
+    store_result(gy + 1, gx + 0, sum0.g);
+    store_result(gy + 2, gx + 0, sum0.b);
+    store_result(gy + 3, gx + 0, sum0.a);
+
+    store_result(gy + 0, gx + 1, sum1.r);
+    store_result(gy + 1, gx + 1, sum1.g);
+    store_result(gy + 2, gx + 1, sum1.b);
+    store_result(gy + 3, gx + 1, sum1.a);
+
+    store_result(gy + 0, gx + 2, sum2.r);
+    store_result(gy + 1, gx + 2, sum2.g);
+    store_result(gy + 2, gx + 2, sum2.b);
+    store_result(gy + 3, gx + 2, sum2.a);
+
+    store_result(gy + 0, gx + 3, sum3.r);
+    store_result(gy + 1, gx + 3, sum3.g);
+    store_result(gy + 2, gx + 3, sum3.b);
+    store_result(gy + 3, gx + 3, sum3.a);
+}

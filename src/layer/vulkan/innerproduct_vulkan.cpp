@@ -16,15 +16,26 @@ InnerProduct_vulkan::InnerProduct_vulkan()
     flatten = 0;
 
     pipeline_innerproduct = 0;
+    pipeline_innerproduct_int8 = 0;
+    pipeline_innerproduct_int8_input_int8 = 0;
 
     pipeline_innerproduct_sum8 = 0;
     pipeline_innerproduct_reduce_sum8 = 0;
 
     pipeline_innerproduct_gemm = 0;
+    pipeline_innerproduct_gemm_int8 = 0;
+    pipeline_innerproduct_gemm_int8_input_int8 = 0;
 }
 
 int InnerProduct_vulkan::create_pipeline(const Option& opt)
 {
+#if NCNN_INT8
+    if (int8_scale_term && weight_data.elemsize == (size_t)1u)
+    {
+        return create_pipeline_int8(opt);
+    }
+#endif
+
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
@@ -271,6 +282,177 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
+int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
+{
+#if NCNN_INT8
+    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    const int num_input = weight_data_size / num_output;
+
+    weight_data_int8_packed = weight_data.reshape(weight_data_size);
+
+    const float bottom_blob_int8_scale = bottom_blob_int8_scales.empty() ? 1.f : bottom_blob_int8_scales[0];
+
+    if (shape.dims == 2 && shape.w == num_input)
+    {
+        // gemm
+        Mat shape_unpacked(shape.w, shape.h * shape.elempack, (void*)0);
+        Mat out_shape_unpacked(num_output, out_shape.dims == 0 ? 0 : out_shape.h * out_shape.elempack, (void*)0);
+
+        std::vector<vk_specialization_type> specializations(5 + 10);
+        specializations[0].i = bias_term;
+        specializations[1].i = activation_type;
+        specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+        specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+        specializations[4].f = bottom_blob_int8_scale;
+        specializations[5 + 0].i = shape_unpacked.dims;
+        specializations[5 + 1].i = shape_unpacked.w;
+        specializations[5 + 2].i = shape_unpacked.h;
+        specializations[5 + 3].i = shape_unpacked.c;
+        specializations[5 + 4].i = shape_unpacked.cstep;
+        specializations[5 + 5].i = out_shape_unpacked.dims;
+        specializations[5 + 6].i = out_shape_unpacked.w;
+        specializations[5 + 7].i = out_shape_unpacked.h;
+        specializations[5 + 8].i = out_shape_unpacked.c;
+        specializations[5 + 9].i = out_shape_unpacked.cstep;
+
+        Mat local_size_xyz(std::min(16, num_output), 4, 1, (void*)0);
+        if (out_shape_unpacked.dims != 0)
+        {
+            local_size_xyz.w = std::min(16, out_shape_unpacked.w);
+            local_size_xyz.h = std::min(4, out_shape_unpacked.h);
+            local_size_xyz.c = 1;
+        }
+
+        pipeline_innerproduct_gemm_int8 = new Pipeline(vkdev);
+        pipeline_innerproduct_gemm_int8->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_innerproduct_gemm_int8->create(LayerShaderType::innerproduct_gemm_int8, opt, specializations);
+
+        pipeline_innerproduct_gemm_int8_input_int8 = new Pipeline(vkdev);
+        pipeline_innerproduct_gemm_int8_input_int8->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_innerproduct_gemm_int8_input_int8->create(LayerShaderType::innerproduct_gemm_int8_input_int8, opt, specializations);
+
+        if (opt.lightmode)
+        {
+            weight_data.release();
+        }
+
+        return 0;
+    }
+
+    size_t elemsize;
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
+    {
+        elemsize = 2u;
+    }
+    else
+    {
+        elemsize = 4u;
+    }
+
+    Mat shape_flatten;
+    if (shape.dims != 0)
+    {
+        const int total = shape.w * shape.h * shape.d * shape.c * shape.elempack;
+        const int flatten_elempack = total % 4 == 0 ? 4 : 1;
+        shape_flatten = Mat(total / flatten_elempack, (void*)0, elemsize * flatten_elempack, flatten_elempack);
+    }
+
+    {
+        flatten = ncnn::create_layer_vulkan(ncnn::LayerType::Flatten);
+        flatten->vkdev = vkdev;
+
+        flatten->bottom_shapes.resize(1);
+        flatten->bottom_shapes[0] = shape;
+        flatten->top_shapes.resize(1);
+        flatten->top_shapes[0] = shape_flatten;
+
+        ncnn::ParamDict pd;
+
+        flatten->load_param(pd);
+
+        flatten->create_pipeline(opt);
+    }
+
+    {
+        std::vector<vk_specialization_type> specializations(5 + 10);
+        specializations[0].i = bias_term;
+        specializations[1].i = activation_type;
+        specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+        specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+        specializations[4].f = bottom_blob_int8_scale;
+        specializations[5 + 0].i = shape_flatten.dims;
+        specializations[5 + 1].i = shape_flatten.w * shape_flatten.elempack;
+        specializations[5 + 2].i = shape_flatten.h;
+        specializations[5 + 3].i = shape_flatten.c;
+        specializations[5 + 4].i = shape_flatten.cstep;
+        specializations[5 + 5].i = out_shape.dims == 0 ? 0 : 1;
+        specializations[5 + 6].i = num_output;
+        specializations[5 + 7].i = 1;
+        specializations[5 + 8].i = 1;
+        specializations[5 + 9].i = num_output;
+
+        Mat local_size_xyz(std::min(64, num_output), 1, 1, (void*)0);
+        if (out_shape.dims != 0)
+        {
+            local_size_xyz.w = std::min(64, num_output);
+            local_size_xyz.h = 1;
+            local_size_xyz.c = 1;
+        }
+
+        pipeline_innerproduct_int8 = new Pipeline(vkdev);
+        pipeline_innerproduct_int8->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_innerproduct_int8->create(LayerShaderType::innerproduct_int8, opt, specializations);
+
+        pipeline_innerproduct_int8_input_int8 = new Pipeline(vkdev);
+        pipeline_innerproduct_int8_input_int8->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_innerproduct_int8_input_int8->create(LayerShaderType::innerproduct_int8_input_int8, opt, specializations);
+    }
+
+    // gemm for no shape hint
+    if (shape.dims == 0)
+    {
+        std::vector<vk_specialization_type> specializations(5 + 10);
+        specializations[0].i = bias_term;
+        specializations[1].i = activation_type;
+        specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+        specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+        specializations[4].f = bottom_blob_int8_scale;
+        specializations[5 + 0].i = 0;
+        specializations[5 + 1].i = 0;
+        specializations[5 + 2].i = 0;
+        specializations[5 + 3].i = 0;
+        specializations[5 + 4].i = 0;
+        specializations[5 + 5].i = 0;
+        specializations[5 + 6].i = 0;
+        specializations[5 + 7].i = 0;
+        specializations[5 + 8].i = 0;
+        specializations[5 + 9].i = 0;
+
+        Mat local_size_xyz(std::min(16, num_output), 4, 1, (void*)0);
+
+        pipeline_innerproduct_gemm_int8 = new Pipeline(vkdev);
+        pipeline_innerproduct_gemm_int8->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_innerproduct_gemm_int8->create(LayerShaderType::innerproduct_gemm_int8, opt, specializations);
+
+        pipeline_innerproduct_gemm_int8_input_int8 = new Pipeline(vkdev);
+        pipeline_innerproduct_gemm_int8_input_int8->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_innerproduct_gemm_int8_input_int8->create(LayerShaderType::innerproduct_gemm_int8_input_int8, opt, specializations);
+    }
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
+    }
+
+    return 0;
+#else
+    (void)opt;
+    return -1;
+#endif
+}
+
 int InnerProduct_vulkan::destroy_pipeline(const Option& opt)
 {
     if (flatten)
@@ -283,6 +465,12 @@ int InnerProduct_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_innerproduct;
     pipeline_innerproduct = 0;
 
+    delete pipeline_innerproduct_int8;
+    pipeline_innerproduct_int8 = 0;
+
+    delete pipeline_innerproduct_int8_input_int8;
+    pipeline_innerproduct_int8_input_int8 = 0;
+
     delete pipeline_innerproduct_sum8;
     delete pipeline_innerproduct_reduce_sum8;
     pipeline_innerproduct_sum8 = 0;
@@ -291,11 +479,24 @@ int InnerProduct_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_innerproduct_gemm;
     pipeline_innerproduct_gemm = 0;
 
+    delete pipeline_innerproduct_gemm_int8;
+    pipeline_innerproduct_gemm_int8 = 0;
+
+    delete pipeline_innerproduct_gemm_int8_input_int8;
+    pipeline_innerproduct_gemm_int8_input_int8 = 0;
+
     return 0;
 }
 
 int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
+#if NCNN_INT8
+    if (int8_scale_term && weight_data_int8_packed.elemsize == (size_t)1u)
+    {
+        return upload_model_int8(cmd, opt);
+    }
+#endif
+
     cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
 
     weight_data_packed.release();
@@ -310,8 +511,40 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     return 0;
 }
 
+int InnerProduct_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
+{
+#if NCNN_INT8
+    cmd.record_upload(weight_data_int8_packed, weight_data_int8_gpu, opt);
+
+    weight_data_int8_packed.release();
+
+    cmd.record_upload(weight_data_int8_scales, weight_data_int8_scales_gpu, opt);
+    cmd.record_upload(bottom_blob_int8_scales, bottom_blob_int8_scales_gpu, opt);
+
+    if (bias_term)
+    {
+        cmd.record_upload(bias_data, bias_data_gpu, opt);
+
+        bias_data.release();
+    }
+
+    return 0;
+#else
+    (void)cmd;
+    (void)opt;
+    return -1;
+#endif
+}
+
 int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        return forward_int8(bottom_blob, top_blob, cmd, opt);
+    }
+#endif
+
     const int num_input = weight_data_size / num_output;
 
     int in_elempack = num_input % 4 == 0 ? 4 : 1;
@@ -461,6 +694,139 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
     }
 
     return 0;
+}
+
+int InnerProduct_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
+{
+#if NCNN_INT8
+    const int num_input = weight_data_size / num_output;
+
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input)
+    {
+        // gemm
+        const int elempack = bottom_blob.elempack;
+
+        VkMat bottom_blob_unpacked = bottom_blob;
+        if (elempack > 1)
+        {
+            Option opt_pack1 = opt;
+            opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
+
+            vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, 1, cmd, opt_pack1);
+        }
+
+        const int h = bottom_blob_unpacked.h;
+        size_t out_elemsize;
+        if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
+        {
+            out_elemsize = 2u;
+        }
+        else
+        {
+            out_elemsize = 4u;
+        }
+
+        top_blob.create(num_output, h, out_elemsize, 1, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        std::vector<VkMat> bindings(5);
+        bindings[0] = bottom_blob_unpacked;
+        bindings[1] = top_blob;
+        bindings[2] = weight_data_int8_gpu;
+        bindings[3] = weight_data_int8_scales_gpu;
+        bindings[4] = bias_data_gpu;
+
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_blob_unpacked.dims;
+        constants[1].i = bottom_blob_unpacked.w;
+        constants[2].i = bottom_blob_unpacked.h;
+        constants[3].i = bottom_blob_unpacked.c;
+        constants[4].i = bottom_blob_unpacked.cstep;
+        constants[5].i = top_blob.dims;
+        constants[6].i = top_blob.w;
+        constants[7].i = top_blob.h;
+        constants[8].i = top_blob.c;
+        constants[9].i = top_blob.cstep;
+
+        VkMat dispatcher;
+        dispatcher.w = top_blob.w;
+        dispatcher.h = top_blob.h;
+        dispatcher.c = 1;
+
+        const Pipeline* pipeline = bottom_blob_unpacked.elembits() == 8 ? pipeline_innerproduct_gemm_int8_input_int8 : pipeline_innerproduct_gemm_int8;
+
+        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+
+        return 0;
+    }
+
+    // flatten
+    VkMat bottom_blob_flattened = bottom_blob;
+    {
+        Option opt_flatten = opt;
+        opt_flatten.blob_vkallocator = opt.workspace_vkallocator;
+
+        flatten->forward(bottom_blob, bottom_blob_flattened, cmd, opt_flatten);
+    }
+
+    if (bottom_blob_flattened.elempack > 1)
+    {
+        VkMat bottom_blob_unpacked;
+
+        Option opt_pack1 = opt;
+        opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
+
+        vkdev->convert_packing(bottom_blob_flattened, bottom_blob_unpacked, 1, cmd, opt_pack1);
+
+        bottom_blob_flattened = bottom_blob_unpacked;
+    }
+
+    size_t out_elemsize;
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
+    {
+        out_elemsize = 2u;
+    }
+    else
+    {
+        out_elemsize = 4u;
+    }
+
+    top_blob.create(num_output, out_elemsize, 1, opt.blob_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+    std::vector<VkMat> bindings(5);
+    bindings[0] = bottom_blob_flattened;
+    bindings[1] = top_blob;
+    bindings[2] = weight_data_int8_gpu;
+    bindings[3] = weight_data_int8_scales_gpu;
+    bindings[4] = bias_data_gpu;
+
+    std::vector<vk_constant_type> constants(10);
+    constants[0].i = bottom_blob_flattened.dims;
+    constants[1].i = bottom_blob_flattened.w * bottom_blob_flattened.elempack;
+    constants[2].i = bottom_blob_flattened.h;
+    constants[3].i = bottom_blob_flattened.c;
+    constants[4].i = bottom_blob_flattened.cstep;
+    constants[5].i = top_blob.dims;
+    constants[6].i = top_blob.w;
+    constants[7].i = top_blob.h;
+    constants[8].i = top_blob.c;
+    constants[9].i = top_blob.cstep;
+
+    const Pipeline* pipeline = bottom_blob_flattened.elembits() == 8 ? pipeline_innerproduct_int8_input_int8 : pipeline_innerproduct_int8;
+
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+    return 0;
+#else
+    (void)bottom_blob;
+    (void)top_blob;
+    (void)cmd;
+    (void)opt;
+    return -1;
+#endif
 }
 
 } // namespace ncnn

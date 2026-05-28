@@ -28,18 +28,29 @@ public:
     Mat A_data_packed;
     Mat B_data_packed;
     Mat C_data_packed;
+    Mat A_data_int8_packed;
+    Mat B_data_int8_packed;
+    Mat B_data_int8_scale_data;
 
     VkMat A_data_gpu;
     VkMat B_data_gpu;
     VkMat C_data_gpu;
+    VkMat A_data_int8_gpu;
+    VkMat B_data_int8_gpu;
+    VkMat A_data_int8_scales_gpu;
+    VkMat B_data_int8_scale_gpu;
 
     Pipeline* pipeline_gemm;
+    Pipeline* pipeline_gemm_int8_cm;
+    Pipeline* pipeline_gemm_quantize_A_int8;
+    Pipeline* pipeline_gemm_quantize_B_int8;
 
     // subgroup
     bool use_subgroup_ops;
 
     // cooperative matrix
     bool use_cooperative_matrix;
+    bool use_int8_cooperative_matrix;
     int coopmat_M;
     int coopmat_N;
     int coopmat_K;
@@ -49,6 +60,11 @@ public:
     int UNROLL_SG_K;
     int UNROLL_WG_M;
     int UNROLL_WG_N;
+
+protected:
+    int create_pipeline_int8(const Option& opt);
+    int upload_model_int8(VkTransfer& cmd, const Option& opt);
+    int forward_int8(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
 };
 
 } // namespace ncnn

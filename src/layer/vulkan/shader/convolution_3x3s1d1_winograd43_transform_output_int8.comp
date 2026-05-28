@@ -1,0 +1,151 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_GOOGLE_include_directive : enable
+#include "vulkan_activation.comp"
+
+layout(constant_id = 0) const int bias_term = 0;
+layout(constant_id = 1) const int activation_type = 0;
+layout(constant_id = 2) const float activation_param_0 = 0;
+layout(constant_id = 3) const float activation_param_1 = 0;
+layout(constant_id = 4) const int use_int8_requantize = 0;
+
+layout(binding = 0) readonly buffer top_tm_blob { int top_tm_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+layout(binding = 2) readonly buffer bias_blob { float bias_data[]; };
+layout(binding = 3) readonly buffer weight_scales_blob { float weight_scales_data[]; };
+layout(binding = 4) readonly buffer bottom_scales_blob { float bottom_scales_data[]; };
+layout(binding = 5) readonly buffer top_scales_blob { float top_scales_data[]; };
+layout(binding = 6) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int cstep;
+
+    int block_x;
+    int block_y;
+
+    int outw;
+    int outh;
+    int outcstep;
+    int outc;
+} p;
+
+int float2int8_local(float v)
+{
+    v = clamp(v, -127.f, 127.f);
+    return int(v > 0.f ? floor(v + 0.5f) : ceil(v - 0.5f));
+}
+
+int load_top_tm(int q, int k, int tile)
+{
+    return top_tm_blob_data[(k * p.outc + q) * p.cstep + tile];
+}
+
+void store_result(int q, int x, int y, int sum)
+{
+    if (x >= p.outw || y >= p.outh)
+        return;
+
+    const float bottom_scale = bottom_scales_data[0];
+    const float weight_scale = weight_scales_data[q];
+    const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
+
+    float sumfp32 = float(sum) * scale_in;
+    if (bias_term == 1)
+    {
+        sumfp32 += bias_data[q];
+    }
+
+    sumfp32 = float(activation_afp(afp(sumfp32), activation_type, activation_param_0, activation_param_1));
+
+    const int gi = q * p.outcstep + y * p.outw + x;
+    if (use_int8_requantize == 1)
+    {
+        i8buffer_st1(top_blob_int8_data, gi, float2int8_local(sumfp32 * top_scales_data[0]));
+    }
+    else
+    {
+        top_blob_data[gi] = sumfp32;
+    }
+}
+
+void main()
+{
+    const int gx = int(gl_GlobalInvocationID.x);
+    const int gy = int(gl_GlobalInvocationID.y);
+    const int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.block_x || gy >= p.block_y || gz >= p.outc)
+        return;
+
+    const int tile = gy * p.block_x + gx;
+
+    int v[36];
+    for (int k = 0; k < 36; k++)
+    {
+        v[k] = load_top_tm(gz, k, tile);
+    }
+
+    int tmp[24];
+    for (int m = 0; m < 5; m++)
+    {
+        int r0 = v[m * 6 + 0];
+        int r1 = v[m * 6 + 1];
+        int r2 = v[m * 6 + 2];
+        int r3 = v[m * 6 + 3];
+        int r4 = v[m * 6 + 4];
+        int r5 = v[m * 6 + 5];
+
+        int tmp02a = r1 + r2;
+        int tmp02b = r3 + r4;
+        int tmp13a = r1 - r2;
+        int tmp13b = r3 - r4;
+
+        tmp[0 * 6 + m] = tmp02a + tmp02b + r0;
+        tmp[1 * 6 + m] = tmp13a + tmp13b * 2;
+        tmp[2 * 6 + m] = tmp02a + tmp02b * 4;
+        tmp[3 * 6 + m] = tmp13a + tmp13b * 8 + r5 * 4;
+    }
+    {
+        int r0 = v[5 * 6 + 0];
+        int r1 = v[5 * 6 + 1];
+        int r2 = v[5 * 6 + 2];
+        int r3 = v[5 * 6 + 3];
+        int r4 = v[5 * 6 + 4];
+        int r5 = v[5 * 6 + 5];
+
+        int tmp02a = r1 + r2;
+        int tmp02b = r3 + r4;
+        int tmp13a = r1 - r2;
+        int tmp13b = r3 - r4;
+
+        tmp[0 * 6 + 5] = (tmp02a + tmp02b + r0) * 4;
+        tmp[1 * 6 + 5] = (tmp13a + tmp13b * 2) * 4;
+        tmp[2 * 6 + 5] = (tmp02a + tmp02b * 4) * 4;
+        tmp[3 * 6 + 5] = (tmp13a + tmp13b * 8 + r5 * 4) * 4;
+    }
+
+    const int x = gx * 4;
+    const int y = gy * 4;
+
+    for (int m = 0; m < 4; m++)
+    {
+        int tmp02a = tmp[m * 6 + 1] + tmp[m * 6 + 2];
+        int tmp02b = tmp[m * 6 + 3] + tmp[m * 6 + 4];
+        int tmp13a = tmp[m * 6 + 1] - tmp[m * 6 + 2];
+        int tmp13b = tmp[m * 6 + 3] - tmp[m * 6 + 4];
+
+        int out0 = (tmp02a + tmp02b + tmp[m * 6 + 0]) / 576;
+        int out1 = (tmp13a + tmp13b * 2) / 576;
+        int out2 = (tmp02a + tmp02b * 4) / 576;
+        int out3 = (tmp13a + tmp13b * 8 + tmp[m * 6 + 5]) / 576;
+
+        store_result(gz, x + 0, y + m, out0);
+        store_result(gz, x + 1, y + m, out1);
+        store_result(gz, x + 2, y + m, out2);
+        store_result(gz, x + 3, y + m, out3);
+    }
+}

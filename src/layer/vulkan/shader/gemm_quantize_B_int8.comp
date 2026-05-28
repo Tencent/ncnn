@@ -1,0 +1,49 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int transB = 0;
+
+layout(binding = 0) readonly buffer B_blob { float B_blob_data[]; };
+layout(binding = 1) writeonly buffer B_int8_blob { sint8 B_int8_data[]; };
+layout(binding = 2) writeonly buffer B_scale_blob { float B_scale_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int N;
+    int K;
+    int B_dims;
+    int B_hstep;
+} p;
+
+void main()
+{
+    float absmax = 0.f;
+
+    const int h = transB == 1 ? p.N : p.K;
+    const int w = transB == 1 ? p.K : p.N;
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            const float v = B_blob_data[y * p.B_hstep + x];
+            absmax = max(absmax, abs(v));
+        }
+    }
+
+    const float scale = absmax == 0.f ? 1.f : 127.f / absmax;
+    B_scale_data[0] = scale;
+
+    for (int j = 0; j < p.N; j++)
+    {
+        for (int k = 0; k < p.K; k++)
+        {
+            const int bi = transB == 1 ? j * p.B_hstep + k : k * p.B_hstep + j;
+            const float v = B_blob_data[bi] * scale;
+            const int vi = int(round(clamp(v, -127.f, 127.f)));
+            i8buffer_st1(B_int8_data, j * p.K + k, vi);
+        }
+    }
+}
