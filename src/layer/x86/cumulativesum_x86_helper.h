@@ -81,7 +81,10 @@ static void cumulative_sum_prefix_sum_row(float* ptr, int w)
     int j = 0;
     float sum = 0.f;
 
-#if __AVX__
+#if __AVX2__
+    cumulative_sum_prefix_sum_row_avx2_impl(ptr, w);
+    return;
+#elif __AVX__
     for (; j + 8 <= w; j += 8)
     {
         __m256 v = _mm256_loadu_ps(ptr + j);
@@ -124,7 +127,15 @@ static void cumulative_sum_add(const float* ptr, float* outptr, int size)
 
     int i = 0;
 
-#if __AVX__
+#if __AVX2__
+    for (; i + 7 < size; i += 8)
+    {
+        __m256 _p = _mm256_loadu_ps(ptr + i);
+        __m256 _outp = _mm256_loadu_ps(outptr + i);
+        _outp = _mm256_add_ps(_outp, _p);
+        _mm256_storeu_ps(outptr + i, _outp);
+    }
+#elif __AVX__
     for (; i + 7 < size; i += 8)
     {
         __m256 _p = _mm256_loadu_ps(ptr + i);
