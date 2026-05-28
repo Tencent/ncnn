@@ -334,6 +334,11 @@ int ncnn_option_get_use_int8_arithmetic(const ncnn_option_t opt)
     return ((const Option*)opt)->use_int8_arithmetic;
 }
 
+int ncnn_option_get_use_int16_storage(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_int16_storage;
+}
+
 int ncnn_option_get_use_bf16_packed(const ncnn_option_t opt)
 {
     return ((const Option*)opt)->use_bf16_packed;
@@ -422,6 +427,11 @@ void ncnn_option_set_use_int8_storage(ncnn_option_t opt, int enable)
 void ncnn_option_set_use_int8_arithmetic(ncnn_option_t opt, int enable)
 {
     ((Option*)opt)->use_int8_arithmetic = enable;
+}
+
+void ncnn_option_set_use_int16_storage(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_int16_storage = enable;
 }
 
 void ncnn_option_set_use_bf16_packed(ncnn_option_t opt, int enable)

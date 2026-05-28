@@ -5,7 +5,7 @@
 
 layout(constant_id = 0) const int transB = 0;
 
-layout(binding = 0) readonly buffer B_blob { float B_blob_data[]; };
+layout(binding = 0) readonly buffer B_blob { sfp B_blob_data[]; };
 layout(binding = 1) writeonly buffer B_int8_blob { sint8 B_int8_data[]; };
 layout(binding = 2) writeonly buffer B_scale_blob { float B_scale_data[]; };
 
@@ -28,7 +28,7 @@ void main()
     {
         for (int x = 0; x < w; x++)
         {
-            const float v = B_blob_data[y * p.B_hstep + x];
+            const float v = float(buffer_ld1(B_blob_data, y * p.B_hstep + x));
             absmax = max(absmax, abs(v));
         }
     }
@@ -41,7 +41,7 @@ void main()
         for (int k = 0; k < p.K; k++)
         {
             const int bi = transB == 1 ? j * p.B_hstep + k : k * p.B_hstep + j;
-            const float v = B_blob_data[bi] * scale;
+            const float v = float(buffer_ld1(B_blob_data, bi)) * scale;
             const int vi = int(round(clamp(v, -127.f, 127.f)));
             i8buffer_st1(B_int8_data, j * p.K + k, vi);
         }

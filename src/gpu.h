@@ -278,7 +278,7 @@ public:
     // but sometimes bug is a feature
     bool bug_implicit_fp16_arithmetic() const;
 
-    // fp16 and int8 feature
+    // fp16/int8/int16 feature
     bool support_fp16_packed() const;
     bool support_fp16_storage() const;
     bool support_fp16_uniform() const;
@@ -287,6 +287,7 @@ public:
     bool support_int8_storage() const;
     bool support_int8_uniform() const;
     bool support_int8_arithmetic() const;
+    bool support_int16_storage() const;
 
     // bf16 feature
     bool support_bf16_packed() const;

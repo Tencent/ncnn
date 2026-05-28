@@ -3,7 +3,7 @@
 
 #version 450
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && (ncnn_integerDotProduct4x8BitPackedSignedAccelerated || (NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_integerDotProduct8BitSignedAccelerated))
 #extension GL_EXT_integer_dot_product : require
 #endif
 
@@ -17,7 +17,7 @@ layout(constant_id = 5) const int output_transpose = 0;
 layout(binding = 0) writeonly buffer top_blob { float top_blob_data[]; };
 layout(binding = 1) readonly buffer A_int8_blob { sint8 A_int8_data[]; };
 layout(binding = 2) readonly buffer B_int8_blob { sint8 B_int8_data[]; };
-layout(binding = 3) readonly buffer C_blob { float C_blob_data[]; };
+layout(binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
 layout(binding = 4) readonly buffer A_scales_blob { float A_scales_data[]; };
 layout(binding = 5) readonly buffer B_scale_blob { float B_scale_data[]; };
 
@@ -34,8 +34,13 @@ layout(push_constant) uniform parameter
 } p;
 
 #if NCNN_shader_local_memory
-shared int tile_a[8][8];
-shared int tile_b[8][8];
+#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
+shared i8vec4 tile_a[8][2];
+shared i8vec4 tile_b[8][2];
+#else
+shared int tile_a[8][2];
+shared int tile_b[8][2];
+#endif
 #endif
 
 void main()
@@ -55,42 +60,145 @@ void main()
 
     for (int k0 = 0; k0 < p.K; k0 += 8)
     {
-        const int ak = k0 + lx;
-        const int bk = k0 + ly;
+#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
+        if (lx < 2)
+        {
+            const int k = k0 + lx * 4;
+            const int ai = gy * p.K + k;
 
-        tile_a[ly][lx] = (gy < p.M && ak < p.K) ? i8buffer_ld1(A_int8_data, gy * p.K + ak) : 0;
-        tile_b[ly][lx] = (gx < p.N && bk < p.K) ? i8buffer_ld1(B_int8_data, gx * p.K + bk) : 0;
+            i8vec4 a4 = i8vec4(int8_t(0));
+            if (gy < p.M && k < p.K)
+            {
+                a4.r = A_int8_data[ai + 0];
+                if (k + 1 < p.K) a4.g = A_int8_data[ai + 1];
+                if (k + 2 < p.K) a4.b = A_int8_data[ai + 2];
+                if (k + 3 < p.K) a4.a = A_int8_data[ai + 3];
+            }
+            tile_a[ly][lx] = a4;
+        }
+
+        if (ly < 2)
+        {
+            const int k = k0 + ly * 4;
+            const int bi = gx * p.K + k;
+
+            i8vec4 b4 = i8vec4(int8_t(0));
+            if (gx < p.N && k < p.K)
+            {
+                b4.r = B_int8_data[bi + 0];
+                if (k + 1 < p.K) b4.g = B_int8_data[bi + 1];
+                if (k + 2 < p.K) b4.b = B_int8_data[bi + 2];
+                if (k + 3 < p.K) b4.a = B_int8_data[bi + 3];
+            }
+            tile_b[lx][ly] = b4;
+        }
+#else
+        if (lx < 2)
+        {
+            const int k = k0 + lx * 4;
+            const int ai = gy * p.K + k;
+
+            int a4 = 0;
+            if (gy < p.M && k < p.K)
+            {
+#if NCNN_int8_storage
+                ivec4 a = ivec4(0);
+                a.r = int(A_int8_data[ai + 0]);
+                if (k + 1 < p.K) a.g = int(A_int8_data[ai + 1]);
+                if (k + 2 < p.K) a.b = int(A_int8_data[ai + 2]);
+                if (k + 3 < p.K) a.a = int(A_int8_data[ai + 3]);
+                a4 = packInt4x8(a);
+#else
+                if (k + 3 < p.K)
+                {
+                    const int aid4 = ai / 4;
+                    const int aim4 = ai % 4;
+                    if (aim4 == 0)
+                    {
+                        a4 = A_int8_data[aid4];
+                    }
+                    else
+                    {
+                        const int shift = aim4 * 8;
+                        a4 = int((uint(A_int8_data[aid4]) >> shift) | (uint(A_int8_data[aid4 + 1]) << (32 - shift)));
+                    }
+                }
+                else
+                {
+                    ivec4 a = ivec4(0);
+                    a.r = i8buffer_ld1(A_int8_data, ai + 0);
+                    if (k + 1 < p.K) a.g = i8buffer_ld1(A_int8_data, ai + 1);
+                    if (k + 2 < p.K) a.b = i8buffer_ld1(A_int8_data, ai + 2);
+                    a4 = packInt4x8(a);
+                }
+#endif
+            }
+            tile_a[ly][lx] = a4;
+        }
+
+        if (ly < 2)
+        {
+            const int k = k0 + ly * 4;
+            const int bi = gx * p.K + k;
+
+            int b4 = 0;
+            if (gx < p.N && k < p.K)
+            {
+#if NCNN_int8_storage
+                ivec4 b = ivec4(0);
+                b.r = int(B_int8_data[bi + 0]);
+                if (k + 1 < p.K) b.g = int(B_int8_data[bi + 1]);
+                if (k + 2 < p.K) b.b = int(B_int8_data[bi + 2]);
+                if (k + 3 < p.K) b.a = int(B_int8_data[bi + 3]);
+                b4 = packInt4x8(b);
+#else
+                if (k + 3 < p.K)
+                {
+                    const int bid4 = bi / 4;
+                    const int bim4 = bi % 4;
+                    if (bim4 == 0)
+                    {
+                        b4 = B_int8_data[bid4];
+                    }
+                    else
+                    {
+                        const int shift = bim4 * 8;
+                        b4 = int((uint(B_int8_data[bid4]) >> shift) | (uint(B_int8_data[bid4 + 1]) << (32 - shift)));
+                    }
+                }
+                else
+                {
+                    ivec4 b = ivec4(0);
+                    b.r = i8buffer_ld1(B_int8_data, bi + 0);
+                    if (k + 1 < p.K) b.g = i8buffer_ld1(B_int8_data, bi + 1);
+                    if (k + 2 < p.K) b.b = i8buffer_ld1(B_int8_data, bi + 2);
+                    b4 = packInt4x8(b);
+                }
+#endif
+            }
+            tile_b[lx][ly] = b4;
+        }
+#endif
 
         barrier();
 
         if (gx < p.N && gy < p.M)
         {
-            int kk = 0;
-            for (; kk + 3 < min(8, p.K - k0); kk += 4)
-            {
-                ivec4 a;
-                a.r = tile_a[ly][kk + 0];
-                a.g = tile_a[ly][kk + 1];
-                a.b = tile_a[ly][kk + 2];
-                a.a = tile_a[ly][kk + 3];
-
-                ivec4 b;
-                b.r = tile_b[kk + 0][lx];
-                b.g = tile_b[kk + 1][lx];
-                b.b = tile_b[kk + 2][lx];
-                b.a = tile_b[kk + 3][lx];
-
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
-                sum += dotPacked4x8EXT(packInt4x8(a), packInt4x8(b));
+#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
+            sum += dotEXT(tile_a[ly][0], tile_b[lx][0]);
+            sum += dotEXT(tile_a[ly][1], tile_b[lx][1]);
+#elif ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+            sum += dotPacked4x8EXT(tile_a[ly][0], tile_b[lx][0]);
+            sum += dotPacked4x8EXT(tile_a[ly][1], tile_b[lx][1]);
 #else
-                sum += a.r * b.r + a.g * b.g + a.b * b.b + a.a * b.a;
-#endif
-            }
+            ivec4 a = unpackInt4x8(tile_a[ly][0]);
+            ivec4 b = unpackInt4x8(tile_b[lx][0]);
+            sum += a.r * b.r + a.g * b.g + a.b * b.b + a.a * b.a;
 
-            for (; kk < min(8, p.K - k0); kk++)
-            {
-                sum += tile_a[ly][kk] * tile_b[kk][lx];
-            }
+            a = unpackInt4x8(tile_a[ly][1]);
+            b = unpackInt4x8(tile_b[lx][1]);
+            sum += a.r * b.r + a.g * b.g + a.b * b.b + a.a * b.a;
+#endif
         }
 
         barrier();
@@ -105,22 +213,55 @@ void main()
     int k = 0;
     for (; k + 3 < p.K; k += 4)
     {
-        ivec4 a;
-        a.r = i8buffer_ld1(A_int8_data, gy * p.K + k + 0);
-        a.g = i8buffer_ld1(A_int8_data, gy * p.K + k + 1);
-        a.b = i8buffer_ld1(A_int8_data, gy * p.K + k + 2);
-        a.a = i8buffer_ld1(A_int8_data, gy * p.K + k + 3);
+#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
+        const int ai = gy * p.K + k;
+        const int bi = gx * p.K + k;
 
-        ivec4 b;
-        b.r = i8buffer_ld1(B_int8_data, gx * p.K + k + 0);
-        b.g = i8buffer_ld1(B_int8_data, gx * p.K + k + 1);
-        b.b = i8buffer_ld1(B_int8_data, gx * p.K + k + 2);
-        b.a = i8buffer_ld1(B_int8_data, gx * p.K + k + 3);
+        sum += dotEXT(i8vec4(A_int8_data[ai + 0], A_int8_data[ai + 1], A_int8_data[ai + 2], A_int8_data[ai + 3]),
+                      i8vec4(B_int8_data[bi + 0], B_int8_data[bi + 1], B_int8_data[bi + 2], B_int8_data[bi + 3]));
+#else
+        const int ai = gy * p.K + k;
+        const int bi = gx * p.K + k;
+
+        int a4;
+        int b4;
+
+#if NCNN_int8_storage
+        a4 = packInt4x8(ivec4(int(A_int8_data[ai + 0]), int(A_int8_data[ai + 1]), int(A_int8_data[ai + 2]), int(A_int8_data[ai + 3])));
+        b4 = packInt4x8(ivec4(int(B_int8_data[bi + 0]), int(B_int8_data[bi + 1]), int(B_int8_data[bi + 2]), int(B_int8_data[bi + 3])));
+#else
+        const int aid4 = ai / 4;
+        const int aim4 = ai % 4;
+        if (aim4 == 0)
+        {
+            a4 = A_int8_data[aid4];
+        }
+        else
+        {
+            const int shift = aim4 * 8;
+            a4 = int((uint(A_int8_data[aid4]) >> shift) | (uint(A_int8_data[aid4 + 1]) << (32 - shift)));
+        }
+
+        const int bid4 = bi / 4;
+        const int bim4 = bi % 4;
+        if (bim4 == 0)
+        {
+            b4 = B_int8_data[bid4];
+        }
+        else
+        {
+            const int shift = bim4 * 8;
+            b4 = int((uint(B_int8_data[bid4]) >> shift) | (uint(B_int8_data[bid4 + 1]) << (32 - shift)));
+        }
+#endif
 
 #if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
-        sum += dotPacked4x8EXT(packInt4x8(a), packInt4x8(b));
+        sum += dotPacked4x8EXT(a4, b4);
 #else
+        const ivec4 a = unpackInt4x8(a4);
+        const ivec4 b = unpackInt4x8(b4);
         sum += a.r * b.r + a.g * b.g + a.b * b.b + a.a * b.a;
+#endif
 #endif
     }
 
@@ -144,19 +285,19 @@ void main()
         float c = 0.f;
         if (broadcast_type_C == 0)
         {
-            c = C_blob_data[0];
+            c = float(buffer_ld1(C_blob_data, 0));
         }
         if (broadcast_type_C == 1 || broadcast_type_C == 2)
         {
-            c = C_blob_data[gy];
+            c = float(buffer_ld1(C_blob_data, gy));
         }
         if (broadcast_type_C == 3)
         {
-            c = C_blob_data[gy * p.N + gx];
+            c = float(buffer_ld1(C_blob_data, gy * p.N + gx));
         }
         if (broadcast_type_C == 4)
         {
-            c = C_blob_data[gx];
+            c = float(buffer_ld1(C_blob_data, gx));
         }
 
         sum_fp32 += c * beta;

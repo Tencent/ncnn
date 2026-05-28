@@ -331,6 +331,8 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
     opt_int8.use_fp16_arithmetic = false;
     opt_int8.use_bf16_packed = false;
     opt_int8.use_bf16_storage = false;
+    opt_int8.use_int16_storage = false;
+    opt_int8.use_int8_arithmetic = opt_int8.use_int8_storage && vkdev->info.support_int8_arithmetic();
 
     if (is_depthwise)
     {
@@ -429,7 +431,14 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
         }
 
         pipeline_convolutiondepthwise_group_int8 = new Pipeline(vkdev);
-        pipeline_convolutiondepthwise_group_int8->set_optimal_local_size_xyz(local_size_xyz);
+        if (opt_int8.use_shader_local_memory)
+        {
+            pipeline_convolutiondepthwise_group_int8->set_local_size_xyz(8, 8, 1);
+        }
+        else
+        {
+            pipeline_convolutiondepthwise_group_int8->set_optimal_local_size_xyz(local_size_xyz);
+        }
         pipeline_convolutiondepthwise_group_int8->create(LayerShaderType::convolutiondepthwise_group_int8, opt_int8, specializations);
     }
 
@@ -533,8 +542,17 @@ int ConvolutionDepthWise_vulkan::upload_model_int8(VkTransfer& cmd, const Option
     opt_float.use_fp16_storage = false;
     opt_float.use_bf16_packed = false;
     opt_float.use_bf16_storage = false;
+    opt_float.use_int16_storage = false;
 
-    cmd.record_upload(weight_data_int8_packed, weight_data_int8_gpu, opt);
+    Option opt_int8 = opt;
+    opt_int8.use_fp16_packed = false;
+    opt_int8.use_fp16_storage = false;
+    opt_int8.use_fp16_arithmetic = false;
+    opt_int8.use_bf16_packed = false;
+    opt_int8.use_bf16_storage = false;
+    opt_int8.use_int16_storage = false;
+
+    cmd.record_upload(weight_data_int8_packed, weight_data_int8_gpu, opt_int8);
 
     weight_data_int8_packed.release();
 

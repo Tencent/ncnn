@@ -33,45 +33,6 @@ layout(push_constant) uniform parameter
     int outc;
 } p;
 
-int float2int8_local(float v)
-{
-    v = clamp(v, -127.f, 127.f);
-    return int(v > 0.f ? floor(v + 0.5f) : ceil(v - 0.5f));
-}
-
-int load_top_tm(int q, int k, int tile)
-{
-    return top_tm_blob_data[(k * p.outc + q) * p.cstep + tile];
-}
-
-void store_result(int q, int x, int y, int sum)
-{
-    if (x >= p.outw || y >= p.outh)
-        return;
-
-    const float bottom_scale = bottom_scales_data[0];
-    const float weight_scale = weight_scales_data[q];
-    const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
-
-    float sumfp32 = float(sum) * scale_in;
-    if (bias_term == 1)
-    {
-        sumfp32 += bias_data[q];
-    }
-
-    sumfp32 = float(activation_afp(afp(sumfp32), activation_type, activation_param_0, activation_param_1));
-
-    const int gi = q * p.outcstep + y * p.outw + x;
-    if (use_int8_requantize == 1)
-    {
-        i8buffer_st1(top_blob_int8_data, gi, float2int8_local(sumfp32 * top_scales_data[0]));
-    }
-    else
-    {
-        top_blob_data[gi] = sumfp32;
-    }
-}
-
 void main()
 {
     const int gx = int(gl_GlobalInvocationID.x);
@@ -86,7 +47,7 @@ void main()
     int v[36];
     for (int k = 0; k < 36; k++)
     {
-        v[k] = load_top_tm(gz, k, tile);
+        v[k] = top_tm_blob_data[(k * p.outc + gz) * p.cstep + tile];
     }
 
     int tmp[24];
@@ -131,6 +92,10 @@ void main()
     const int x = gx * 4;
     const int y = gy * 4;
 
+    const float bottom_scale = bottom_scales_data[0];
+    const float weight_scale = weight_scales_data[gz];
+    const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
+
     for (int m = 0; m < 4; m++)
     {
         int tmp02a = tmp[m * 6 + 1] + tmp[m * 6 + 2];
@@ -143,9 +108,38 @@ void main()
         int out2 = (tmp02a + tmp02b * 4) / 576;
         int out3 = (tmp13a + tmp13b * 8 + tmp[m * 6 + 5]) / 576;
 
-        store_result(gz, x + 0, y + m, out0);
-        store_result(gz, x + 1, y + m, out1);
-        store_result(gz, x + 2, y + m, out2);
-        store_result(gz, x + 3, y + m, out3);
+        int outv[4];
+        outv[0] = out0;
+        outv[1] = out1;
+        outv[2] = out2;
+        outv[3] = out3;
+
+        for (int n = 0; n < 4; n++)
+        {
+            const int ox = x + n;
+            const int oy = y + m;
+            if (ox >= p.outw || oy >= p.outh)
+                continue;
+
+            float sumfp32 = float(outv[n]) * scale_in;
+            if (bias_term == 1)
+            {
+                sumfp32 += bias_data[gz];
+            }
+
+            sumfp32 = float(activation_afp(afp(sumfp32), activation_type, activation_param_0, activation_param_1));
+
+            const int gi = gz * p.outcstep + oy * p.outw + ox;
+            if (use_int8_requantize == 1)
+            {
+                const float vf = clamp(sumfp32 * top_scales_data[0], -127.f, 127.f);
+                const int v = int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f));
+                i8buffer_st1(top_blob_int8_data, gi, v);
+            }
+            else
+            {
+                top_blob_data[gi] = sumfp32;
+            }
+        }
     }
 }

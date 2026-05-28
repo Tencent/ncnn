@@ -3,7 +3,7 @@
 
 #version 450
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && (ncnn_integerDotProduct4x8BitPackedSignedAccelerated || (NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_integerDotProduct8BitSignedAccelerated))
 #extension GL_EXT_integer_dot_product : require
 #endif
 
@@ -65,117 +65,14 @@ layout(push_constant) uniform parameter
 } p;
 
 #if NCNN_shader_local_memory
-shared ivec4 tmp_v[8][4];
-shared ivec4 tmp_w[8][4];
-#endif
-
-int float2int8_local(float v)
-{
-    v = clamp(v, -127.f, 127.f);
-    return int(v > 0.f ? floor(v + 0.5f) : ceil(v - 0.5f));
-}
-
-int dot4_int8(ivec4 v, ivec4 w)
-{
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
-    return dotPacked4x8EXT(packInt4x8(v), packInt4x8(w));
+#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
+shared i8vec4 tmp_v[8][4];
+shared i8vec4 tmp_w[8][4];
 #else
-    return v.r * w.r + v.g * w.g + v.b * w.b + v.a * w.a;
+shared int tmp_v[8][4];
+shared int tmp_w[8][4];
 #endif
-}
-
-int load_bottom_int8(int q, int x, int y, float scale)
-{
-    if (q >= psc(c) || x < 0 || x >= psc(w) || y < 0 || y >= psc(h))
-        return 0;
-
-    const int gi = q * psc(cstep) + y * psc(w) + x;
-
-    if (p.bottom_is_int8 == 1)
-        return i8buffer_ld1(bottom_blob_int8_data, gi);
-
-    return float2int8_local(bottom_blob_data[gi] * scale);
-}
-
-int load_bottom_int8_k(int pos, int kk, float scale)
-{
-    const int maxk = kernel_w * kernel_h;
-    const int q = kk / maxk;
-    const int k = kk - q * maxk;
-
-    const int ky = k / kernel_w;
-    const int kx = k - ky * kernel_w;
-
-    const int gx = pos % psc(outw);
-    const int gy = pos / psc(outw);
-
-    const int x = gx * stride_w + kx * dilation_w - p.pad_left;
-    const int y = gy * stride_h + ky * dilation_h - p.pad_top;
-
-    return load_bottom_int8(q, x, y, scale);
-}
-
-ivec4 load_bottom4(int pos, int kk, float scale)
-{
-    const int K = psc(c) * kernel_w * kernel_h;
-    const int outsize = psc(outw) * psc(outh);
-    if (pos >= outsize)
-        return ivec4(0);
-
-    ivec4 v;
-    v.r = kk + 0 < K ? load_bottom_int8_k(pos, kk + 0, scale) : 0;
-    v.g = kk + 1 < K ? load_bottom_int8_k(pos, kk + 1, scale) : 0;
-    v.b = kk + 2 < K ? load_bottom_int8_k(pos, kk + 2, scale) : 0;
-    v.a = kk + 3 < K ? load_bottom_int8_k(pos, kk + 3, scale) : 0;
-    return v;
-}
-
-ivec4 load_weight4(int outch_index, int kk)
-{
-    const int K = psc(c) * kernel_w * kernel_h;
-    if (outch_index >= psc(outc))
-        return ivec4(0);
-
-    const int base = outch_index * K + kk;
-
-    ivec4 v;
-    v.r = kk + 0 < K ? i8buffer_ld1(weight_data, base + 0) : 0;
-    v.g = kk + 1 < K ? i8buffer_ld1(weight_data, base + 1) : 0;
-    v.b = kk + 2 < K ? i8buffer_ld1(weight_data, base + 2) : 0;
-    v.a = kk + 3 < K ? i8buffer_ld1(weight_data, base + 3) : 0;
-    return v;
-}
-
-void store_result(int outch_index, int pos, int sum)
-{
-    if (outch_index >= psc(outc) || pos >= psc(outw) * psc(outh))
-        return;
-
-    const float bottom_scale = bottom_scales_data[0];
-    const float weight_scale = weight_scales_data[outch_index];
-    const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
-
-    float sumfp32 = float(sum) * scale_in;
-
-    if (bias_term == 1)
-    {
-        sumfp32 += bias_data[outch_index];
-    }
-
-    sumfp32 = float(activation_afp(afp(sumfp32), activation_type, activation_param_0, activation_param_1));
-
-    const int gi = outch_index * psc(outcstep) + pos;
-
-    if (use_int8_requantize == 1)
-    {
-        const int v = float2int8_local(sumfp32 * top_scales_data[0]);
-        i8buffer_st1(top_blob_int8_data, gi, v);
-    }
-    else
-    {
-        top_blob_data[gi] = sumfp32;
-    }
-}
+#endif
 
 void main()
 {
@@ -205,79 +102,674 @@ void main()
     for (int kk = 0; kk < K; kk += 4)
     {
 #if NCNN_shader_local_memory
+#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
         if (ly < 4)
         {
-            tmp_v[lx][ly] = load_bottom4(gx + ly, kk, bottom_scale);
+            const int pos = gx + ly;
+            i8vec4 v = i8vec4(int8_t(0));
+
+            if (pos < outsize)
+            {
+                const int outx = pos % psc(outw);
+                const int outy = pos / psc(outw);
+
+                for (int lane = 0; lane < 4; lane++)
+                {
+                    if (kk + lane < K)
+                    {
+                        const int q = (kk + lane) / (kernel_w * kernel_h);
+                        const int k = (kk + lane) - q * kernel_w * kernel_h;
+                        const int ky = k / kernel_w;
+                        const int kx = k - ky * kernel_w;
+                        const int x = outx * stride_w + kx * dilation_w - p.pad_left;
+                        const int y = outy * stride_h + ky * dilation_h - p.pad_top;
+
+                        if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+                        {
+                            const int gi = q * psc(cstep) + y * psc(w) + x;
+                            if (p.bottom_is_int8 == 1)
+                            {
+                                v[lane] = bottom_blob_int8_data[gi];
+                            }
+                            else
+                            {
+                                const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
+                                v[lane] = int8_t(int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f)));
+                            }
+                        }
+                    }
+                }
+            }
+
+            tmp_v[lx][ly] = v;
         }
 
         if (lx < 4)
         {
-            tmp_w[ly][lx] = load_weight4(gy + lx, kk);
+            const int outch_index = gy + lx;
+
+            i8vec4 w = i8vec4(int8_t(0));
+            if (outch_index < psc(outc))
+            {
+                const int wi = outch_index * K + kk;
+
+                w.r = weight_data[wi + 0];
+                if (kk + 1 < K) w.g = weight_data[wi + 1];
+                if (kk + 2 < K) w.b = weight_data[wi + 2];
+                if (kk + 3 < K) w.a = weight_data[wi + 3];
+            }
+
+            tmp_w[ly][lx] = w;
         }
 
         barrier();
 
-        ivec4 v0 = tmp_v[lx][0];
-        ivec4 v1 = tmp_v[lx][1];
-        ivec4 v2 = tmp_v[lx][2];
-        ivec4 v3 = tmp_v[lx][3];
+        i8vec4 v0 = tmp_v[lx][0];
+        i8vec4 v1 = tmp_v[lx][1];
+        i8vec4 v2 = tmp_v[lx][2];
+        i8vec4 v3 = tmp_v[lx][3];
 
-        ivec4 w0 = tmp_w[ly][0];
-        ivec4 w1 = tmp_w[ly][1];
-        ivec4 w2 = tmp_w[ly][2];
-        ivec4 w3 = tmp_w[ly][3];
+        i8vec4 w0 = tmp_w[ly][0];
+        i8vec4 w1 = tmp_w[ly][1];
+        i8vec4 w2 = tmp_w[ly][2];
+        i8vec4 w3 = tmp_w[ly][3];
 
         barrier();
 #else
-        ivec4 v0 = load_bottom4(gx + 0, kk, bottom_scale);
-        ivec4 v1 = load_bottom4(gx + 1, kk, bottom_scale);
-        ivec4 v2 = load_bottom4(gx + 2, kk, bottom_scale);
-        ivec4 v3 = load_bottom4(gx + 3, kk, bottom_scale);
+        if (ly < 4)
+        {
+            const int pos = gx + ly;
+            ivec4 v = ivec4(0);
 
-        ivec4 w0 = load_weight4(gy + 0, kk);
-        ivec4 w1 = load_weight4(gy + 1, kk);
-        ivec4 w2 = load_weight4(gy + 2, kk);
-        ivec4 w3 = load_weight4(gy + 3, kk);
+            if (pos < outsize)
+            {
+                const int outx = pos % psc(outw);
+                const int outy = pos / psc(outw);
+
+                for (int lane = 0; lane < 4; lane++)
+                {
+                    if (kk + lane < K)
+                    {
+                        const int q = (kk + lane) / (kernel_w * kernel_h);
+                        const int k = (kk + lane) - q * kernel_w * kernel_h;
+                        const int ky = k / kernel_w;
+                        const int kx = k - ky * kernel_w;
+                        const int x = outx * stride_w + kx * dilation_w - p.pad_left;
+                        const int y = outy * stride_h + ky * dilation_h - p.pad_top;
+
+                        if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+                        {
+                            const int gi = q * psc(cstep) + y * psc(w) + x;
+                            if (p.bottom_is_int8 == 1)
+                            {
+                                v[lane] = i8buffer_ld1(bottom_blob_int8_data, gi);
+                            }
+                            else
+                            {
+                                const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
+                                v[lane] = int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f));
+                            }
+                        }
+                    }
+                }
+            }
+
+            tmp_v[lx][ly] = packInt4x8(v);
+        }
+
+        if (lx < 4)
+        {
+            const int outch_index = gy + lx;
+
+            int w4 = 0;
+            if (outch_index < psc(outc))
+            {
+                const int wi = outch_index * K + kk;
+
+                if (kk + 3 < K)
+                {
+#if NCNN_int8_storage
+                    w4 = packInt4x8(ivec4(int(weight_data[wi + 0]), int(weight_data[wi + 1]), int(weight_data[wi + 2]), int(weight_data[wi + 3])));
+#else
+                    const int wid4 = wi / 4;
+                    const int wim4 = wi % 4;
+                    if (wim4 == 0)
+                    {
+                        w4 = weight_data[wid4];
+                    }
+                    else
+                    {
+                        const int shift = wim4 * 8;
+                        w4 = int((uint(weight_data[wid4]) >> shift) | (uint(weight_data[wid4 + 1]) << (32 - shift)));
+                    }
+#endif
+                }
+                else
+                {
+                    ivec4 w = ivec4(0);
+                    w.r = i8buffer_ld1(weight_data, wi + 0);
+                    if (kk + 1 < K) w.g = i8buffer_ld1(weight_data, wi + 1);
+                    if (kk + 2 < K) w.b = i8buffer_ld1(weight_data, wi + 2);
+                    w4 = packInt4x8(w);
+                }
+            }
+
+            tmp_w[ly][lx] = w4;
+        }
+
+        barrier();
+
+        int v0p = tmp_v[lx][0];
+        int v1p = tmp_v[lx][1];
+        int v2p = tmp_v[lx][2];
+        int v3p = tmp_v[lx][3];
+
+        int w0p = tmp_w[ly][0];
+        int w1p = tmp_w[ly][1];
+        int w2p = tmp_w[ly][2];
+        int w3p = tmp_w[ly][3];
+
+        barrier();
+#endif
+#else
+#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
+        i8vec4 v0 = i8vec4(int8_t(0));
+        i8vec4 v1 = i8vec4(int8_t(0));
+        i8vec4 v2 = i8vec4(int8_t(0));
+        i8vec4 v3 = i8vec4(int8_t(0));
+
+        const ivec4 pos4 = gx + ivec4(0, 1, 2, 3);
+        const ivec4 outx4 = pos4 % psc(outw);
+        const ivec4 outy4 = pos4 / psc(outw);
+
+        if (pos4.r < outsize)
+        {
+            for (int lane = 0; lane < 4; lane++)
+            {
+                if (kk + lane < K)
+                {
+                    const int q = (kk + lane) / (kernel_w * kernel_h);
+                    const int k = (kk + lane) - q * kernel_w * kernel_h;
+                    const int ky = k / kernel_w;
+                    const int kx = k - ky * kernel_w;
+                    const int x = outx4.r * stride_w + kx * dilation_w - p.pad_left;
+                    const int y = outy4.r * stride_h + ky * dilation_h - p.pad_top;
+
+                    if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+                    {
+                        const int gi = q * psc(cstep) + y * psc(w) + x;
+                        if (p.bottom_is_int8 == 1)
+                        {
+                            v0[lane] = bottom_blob_int8_data[gi];
+                        }
+                        else
+                        {
+                            const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
+                            v0[lane] = int8_t(int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f)));
+                        }
+                    }
+                }
+            }
+        }
+        if (pos4.g < outsize)
+        {
+            for (int lane = 0; lane < 4; lane++)
+            {
+                if (kk + lane < K)
+                {
+                    const int q = (kk + lane) / (kernel_w * kernel_h);
+                    const int k = (kk + lane) - q * kernel_w * kernel_h;
+                    const int ky = k / kernel_w;
+                    const int kx = k - ky * kernel_w;
+                    const int x = outx4.g * stride_w + kx * dilation_w - p.pad_left;
+                    const int y = outy4.g * stride_h + ky * dilation_h - p.pad_top;
+
+                    if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+                    {
+                        const int gi = q * psc(cstep) + y * psc(w) + x;
+                        if (p.bottom_is_int8 == 1)
+                        {
+                            v1[lane] = bottom_blob_int8_data[gi];
+                        }
+                        else
+                        {
+                            const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
+                            v1[lane] = int8_t(int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f)));
+                        }
+                    }
+                }
+            }
+        }
+        if (pos4.b < outsize)
+        {
+            for (int lane = 0; lane < 4; lane++)
+            {
+                if (kk + lane < K)
+                {
+                    const int q = (kk + lane) / (kernel_w * kernel_h);
+                    const int k = (kk + lane) - q * kernel_w * kernel_h;
+                    const int ky = k / kernel_w;
+                    const int kx = k - ky * kernel_w;
+                    const int x = outx4.b * stride_w + kx * dilation_w - p.pad_left;
+                    const int y = outy4.b * stride_h + ky * dilation_h - p.pad_top;
+
+                    if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+                    {
+                        const int gi = q * psc(cstep) + y * psc(w) + x;
+                        if (p.bottom_is_int8 == 1)
+                        {
+                            v2[lane] = bottom_blob_int8_data[gi];
+                        }
+                        else
+                        {
+                            const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
+                            v2[lane] = int8_t(int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f)));
+                        }
+                    }
+                }
+            }
+        }
+        if (pos4.a < outsize)
+        {
+            for (int lane = 0; lane < 4; lane++)
+            {
+                if (kk + lane < K)
+                {
+                    const int q = (kk + lane) / (kernel_w * kernel_h);
+                    const int k = (kk + lane) - q * kernel_w * kernel_h;
+                    const int ky = k / kernel_w;
+                    const int kx = k - ky * kernel_w;
+                    const int x = outx4.a * stride_w + kx * dilation_w - p.pad_left;
+                    const int y = outy4.a * stride_h + ky * dilation_h - p.pad_top;
+
+                    if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+                    {
+                        const int gi = q * psc(cstep) + y * psc(w) + x;
+                        if (p.bottom_is_int8 == 1)
+                        {
+                            v3[lane] = bottom_blob_int8_data[gi];
+                        }
+                        else
+                        {
+                            const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
+                            v3[lane] = int8_t(int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f)));
+                        }
+                    }
+                }
+            }
+        }
+
+        i8vec4 w0 = i8vec4(int8_t(0));
+        i8vec4 w1 = i8vec4(int8_t(0));
+        i8vec4 w2 = i8vec4(int8_t(0));
+        i8vec4 w3 = i8vec4(int8_t(0));
+
+        if (gy + 0 < psc(outc))
+        {
+            const int wi = (gy + 0) * K + kk;
+            w0.r = weight_data[wi + 0];
+            if (kk + 1 < K) w0.g = weight_data[wi + 1];
+            if (kk + 2 < K) w0.b = weight_data[wi + 2];
+            if (kk + 3 < K) w0.a = weight_data[wi + 3];
+        }
+        if (gy + 1 < psc(outc))
+        {
+            const int wi = (gy + 1) * K + kk;
+            w1.r = weight_data[wi + 0];
+            if (kk + 1 < K) w1.g = weight_data[wi + 1];
+            if (kk + 2 < K) w1.b = weight_data[wi + 2];
+            if (kk + 3 < K) w1.a = weight_data[wi + 3];
+        }
+        if (gy + 2 < psc(outc))
+        {
+            const int wi = (gy + 2) * K + kk;
+            w2.r = weight_data[wi + 0];
+            if (kk + 1 < K) w2.g = weight_data[wi + 1];
+            if (kk + 2 < K) w2.b = weight_data[wi + 2];
+            if (kk + 3 < K) w2.a = weight_data[wi + 3];
+        }
+        if (gy + 3 < psc(outc))
+        {
+            const int wi = (gy + 3) * K + kk;
+            w3.r = weight_data[wi + 0];
+            if (kk + 1 < K) w3.g = weight_data[wi + 1];
+            if (kk + 2 < K) w3.b = weight_data[wi + 2];
+            if (kk + 3 < K) w3.a = weight_data[wi + 3];
+        }
+#else
+        int v0p = 0;
+        int v1p = 0;
+        int v2p = 0;
+        int v3p = 0;
+
+        const ivec4 pos4 = gx + ivec4(0, 1, 2, 3);
+        const ivec4 outx4 = pos4 % psc(outw);
+        const ivec4 outy4 = pos4 / psc(outw);
+
+        if (pos4.r < outsize)
+        {
+            ivec4 v = ivec4(0);
+            for (int lane = 0; lane < 4; lane++)
+            {
+                if (kk + lane < K)
+                {
+                    const int q = (kk + lane) / (kernel_w * kernel_h);
+                    const int k = (kk + lane) - q * kernel_w * kernel_h;
+                    const int ky = k / kernel_w;
+                    const int kx = k - ky * kernel_w;
+                    const int x = outx4.r * stride_w + kx * dilation_w - p.pad_left;
+                    const int y = outy4.r * stride_h + ky * dilation_h - p.pad_top;
+
+                    if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+                    {
+                        const int gi = q * psc(cstep) + y * psc(w) + x;
+                        if (p.bottom_is_int8 == 1)
+                        {
+                            v[lane] = i8buffer_ld1(bottom_blob_int8_data, gi);
+                        }
+                        else
+                        {
+                            const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
+                            v[lane] = int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f));
+                        }
+                    }
+                }
+            }
+            v0p = packInt4x8(v);
+        }
+        if (pos4.g < outsize)
+        {
+            ivec4 v = ivec4(0);
+            for (int lane = 0; lane < 4; lane++)
+            {
+                if (kk + lane < K)
+                {
+                    const int q = (kk + lane) / (kernel_w * kernel_h);
+                    const int k = (kk + lane) - q * kernel_w * kernel_h;
+                    const int ky = k / kernel_w;
+                    const int kx = k - ky * kernel_w;
+                    const int x = outx4.g * stride_w + kx * dilation_w - p.pad_left;
+                    const int y = outy4.g * stride_h + ky * dilation_h - p.pad_top;
+
+                    if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+                    {
+                        const int gi = q * psc(cstep) + y * psc(w) + x;
+                        if (p.bottom_is_int8 == 1)
+                        {
+                            v[lane] = i8buffer_ld1(bottom_blob_int8_data, gi);
+                        }
+                        else
+                        {
+                            const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
+                            v[lane] = int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f));
+                        }
+                    }
+                }
+            }
+            v1p = packInt4x8(v);
+        }
+        if (pos4.b < outsize)
+        {
+            ivec4 v = ivec4(0);
+            for (int lane = 0; lane < 4; lane++)
+            {
+                if (kk + lane < K)
+                {
+                    const int q = (kk + lane) / (kernel_w * kernel_h);
+                    const int k = (kk + lane) - q * kernel_w * kernel_h;
+                    const int ky = k / kernel_w;
+                    const int kx = k - ky * kernel_w;
+                    const int x = outx4.b * stride_w + kx * dilation_w - p.pad_left;
+                    const int y = outy4.b * stride_h + ky * dilation_h - p.pad_top;
+
+                    if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+                    {
+                        const int gi = q * psc(cstep) + y * psc(w) + x;
+                        if (p.bottom_is_int8 == 1)
+                        {
+                            v[lane] = i8buffer_ld1(bottom_blob_int8_data, gi);
+                        }
+                        else
+                        {
+                            const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
+                            v[lane] = int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f));
+                        }
+                    }
+                }
+            }
+            v2p = packInt4x8(v);
+        }
+        if (pos4.a < outsize)
+        {
+            ivec4 v = ivec4(0);
+            for (int lane = 0; lane < 4; lane++)
+            {
+                if (kk + lane < K)
+                {
+                    const int q = (kk + lane) / (kernel_w * kernel_h);
+                    const int k = (kk + lane) - q * kernel_w * kernel_h;
+                    const int ky = k / kernel_w;
+                    const int kx = k - ky * kernel_w;
+                    const int x = outx4.a * stride_w + kx * dilation_w - p.pad_left;
+                    const int y = outy4.a * stride_h + ky * dilation_h - p.pad_top;
+
+                    if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+                    {
+                        const int gi = q * psc(cstep) + y * psc(w) + x;
+                        if (p.bottom_is_int8 == 1)
+                        {
+                            v[lane] = i8buffer_ld1(bottom_blob_int8_data, gi);
+                        }
+                        else
+                        {
+                            const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
+                            v[lane] = int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f));
+                        }
+                    }
+                }
+            }
+            v3p = packInt4x8(v);
+        }
+
+        int w0p = 0;
+        int w1p = 0;
+        int w2p = 0;
+        int w3p = 0;
+
+        if (kk + 3 < K)
+        {
+#if NCNN_int8_storage
+            if (gy + 0 < psc(outc)) w0p = packInt4x8(ivec4(int(weight_data[(gy + 0) * K + kk + 0]), int(weight_data[(gy + 0) * K + kk + 1]), int(weight_data[(gy + 0) * K + kk + 2]), int(weight_data[(gy + 0) * K + kk + 3])));
+            if (gy + 1 < psc(outc)) w1p = packInt4x8(ivec4(int(weight_data[(gy + 1) * K + kk + 0]), int(weight_data[(gy + 1) * K + kk + 1]), int(weight_data[(gy + 1) * K + kk + 2]), int(weight_data[(gy + 1) * K + kk + 3])));
+            if (gy + 2 < psc(outc)) w2p = packInt4x8(ivec4(int(weight_data[(gy + 2) * K + kk + 0]), int(weight_data[(gy + 2) * K + kk + 1]), int(weight_data[(gy + 2) * K + kk + 2]), int(weight_data[(gy + 2) * K + kk + 3])));
+            if (gy + 3 < psc(outc)) w3p = packInt4x8(ivec4(int(weight_data[(gy + 3) * K + kk + 0]), int(weight_data[(gy + 3) * K + kk + 1]), int(weight_data[(gy + 3) * K + kk + 2]), int(weight_data[(gy + 3) * K + kk + 3])));
+#else
+            if (gy + 0 < psc(outc))
+            {
+                const int wi = (gy + 0) * K + kk;
+                const int wid4 = wi / 4;
+                const int wim4 = wi % 4;
+                w0p = wim4 == 0 ? weight_data[wid4] : int((uint(weight_data[wid4]) >> (wim4 * 8)) | (uint(weight_data[wid4 + 1]) << (32 - wim4 * 8)));
+            }
+            if (gy + 1 < psc(outc))
+            {
+                const int wi = (gy + 1) * K + kk;
+                const int wid4 = wi / 4;
+                const int wim4 = wi % 4;
+                w1p = wim4 == 0 ? weight_data[wid4] : int((uint(weight_data[wid4]) >> (wim4 * 8)) | (uint(weight_data[wid4 + 1]) << (32 - wim4 * 8)));
+            }
+            if (gy + 2 < psc(outc))
+            {
+                const int wi = (gy + 2) * K + kk;
+                const int wid4 = wi / 4;
+                const int wim4 = wi % 4;
+                w2p = wim4 == 0 ? weight_data[wid4] : int((uint(weight_data[wid4]) >> (wim4 * 8)) | (uint(weight_data[wid4 + 1]) << (32 - wim4 * 8)));
+            }
+            if (gy + 3 < psc(outc))
+            {
+                const int wi = (gy + 3) * K + kk;
+                const int wid4 = wi / 4;
+                const int wim4 = wi % 4;
+                w3p = wim4 == 0 ? weight_data[wid4] : int((uint(weight_data[wid4]) >> (wim4 * 8)) | (uint(weight_data[wid4 + 1]) << (32 - wim4 * 8)));
+            }
+#endif
+        }
+        else
+        {
+            if (gy + 0 < psc(outc))
+            {
+                const int wi = (gy + 0) * K + kk;
+                ivec4 w = ivec4(0);
+                w.r = i8buffer_ld1(weight_data, wi + 0);
+                if (kk + 1 < K) w.g = i8buffer_ld1(weight_data, wi + 1);
+                if (kk + 2 < K) w.b = i8buffer_ld1(weight_data, wi + 2);
+                w0p = packInt4x8(w);
+            }
+            if (gy + 1 < psc(outc))
+            {
+                const int wi = (gy + 1) * K + kk;
+                ivec4 w = ivec4(0);
+                w.r = i8buffer_ld1(weight_data, wi + 0);
+                if (kk + 1 < K) w.g = i8buffer_ld1(weight_data, wi + 1);
+                if (kk + 2 < K) w.b = i8buffer_ld1(weight_data, wi + 2);
+                w1p = packInt4x8(w);
+            }
+            if (gy + 2 < psc(outc))
+            {
+                const int wi = (gy + 2) * K + kk;
+                ivec4 w = ivec4(0);
+                w.r = i8buffer_ld1(weight_data, wi + 0);
+                if (kk + 1 < K) w.g = i8buffer_ld1(weight_data, wi + 1);
+                if (kk + 2 < K) w.b = i8buffer_ld1(weight_data, wi + 2);
+                w2p = packInt4x8(w);
+            }
+            if (gy + 3 < psc(outc))
+            {
+                const int wi = (gy + 3) * K + kk;
+                ivec4 w = ivec4(0);
+                w.r = i8buffer_ld1(weight_data, wi + 0);
+                if (kk + 1 < K) w.g = i8buffer_ld1(weight_data, wi + 1);
+                if (kk + 2 < K) w.b = i8buffer_ld1(weight_data, wi + 2);
+                w3p = packInt4x8(w);
+            }
+        }
+#endif
 #endif
 
-        sum0.r += dot4_int8(v0, w0);
-        sum0.g += dot4_int8(v0, w1);
-        sum0.b += dot4_int8(v0, w2);
-        sum0.a += dot4_int8(v0, w3);
+#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
+        sum0.r += dotEXT(v0, w0);
+        sum0.g += dotEXT(v0, w1);
+        sum0.b += dotEXT(v0, w2);
+        sum0.a += dotEXT(v0, w3);
 
-        sum1.r += dot4_int8(v1, w0);
-        sum1.g += dot4_int8(v1, w1);
-        sum1.b += dot4_int8(v1, w2);
-        sum1.a += dot4_int8(v1, w3);
+        sum1.r += dotEXT(v1, w0);
+        sum1.g += dotEXT(v1, w1);
+        sum1.b += dotEXT(v1, w2);
+        sum1.a += dotEXT(v1, w3);
 
-        sum2.r += dot4_int8(v2, w0);
-        sum2.g += dot4_int8(v2, w1);
-        sum2.b += dot4_int8(v2, w2);
-        sum2.a += dot4_int8(v2, w3);
+        sum2.r += dotEXT(v2, w0);
+        sum2.g += dotEXT(v2, w1);
+        sum2.b += dotEXT(v2, w2);
+        sum2.a += dotEXT(v2, w3);
 
-        sum3.r += dot4_int8(v3, w0);
-        sum3.g += dot4_int8(v3, w1);
-        sum3.b += dot4_int8(v3, w2);
-        sum3.a += dot4_int8(v3, w3);
+        sum3.r += dotEXT(v3, w0);
+        sum3.g += dotEXT(v3, w1);
+        sum3.b += dotEXT(v3, w2);
+        sum3.a += dotEXT(v3, w3);
+#elif ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+        sum0.r += dotPacked4x8EXT(v0p, w0p);
+        sum0.g += dotPacked4x8EXT(v0p, w1p);
+        sum0.b += dotPacked4x8EXT(v0p, w2p);
+        sum0.a += dotPacked4x8EXT(v0p, w3p);
+
+        sum1.r += dotPacked4x8EXT(v1p, w0p);
+        sum1.g += dotPacked4x8EXT(v1p, w1p);
+        sum1.b += dotPacked4x8EXT(v1p, w2p);
+        sum1.a += dotPacked4x8EXT(v1p, w3p);
+
+        sum2.r += dotPacked4x8EXT(v2p, w0p);
+        sum2.g += dotPacked4x8EXT(v2p, w1p);
+        sum2.b += dotPacked4x8EXT(v2p, w2p);
+        sum2.a += dotPacked4x8EXT(v2p, w3p);
+
+        sum3.r += dotPacked4x8EXT(v3p, w0p);
+        sum3.g += dotPacked4x8EXT(v3p, w1p);
+        sum3.b += dotPacked4x8EXT(v3p, w2p);
+        sum3.a += dotPacked4x8EXT(v3p, w3p);
+#else
+        ivec4 v0 = unpackInt4x8(v0p);
+        ivec4 v1 = unpackInt4x8(v1p);
+        ivec4 v2 = unpackInt4x8(v2p);
+        ivec4 v3 = unpackInt4x8(v3p);
+
+        ivec4 w0 = unpackInt4x8(w0p);
+        ivec4 w1 = unpackInt4x8(w1p);
+        ivec4 w2 = unpackInt4x8(w2p);
+        ivec4 w3 = unpackInt4x8(w3p);
+
+        sum0.r += v0.r * w0.r + v0.g * w0.g + v0.b * w0.b + v0.a * w0.a;
+        sum0.g += v0.r * w1.r + v0.g * w1.g + v0.b * w1.b + v0.a * w1.a;
+        sum0.b += v0.r * w2.r + v0.g * w2.g + v0.b * w2.b + v0.a * w2.a;
+        sum0.a += v0.r * w3.r + v0.g * w3.g + v0.b * w3.b + v0.a * w3.a;
+
+        sum1.r += v1.r * w0.r + v1.g * w0.g + v1.b * w0.b + v1.a * w0.a;
+        sum1.g += v1.r * w1.r + v1.g * w1.g + v1.b * w1.b + v1.a * w1.a;
+        sum1.b += v1.r * w2.r + v1.g * w2.g + v1.b * w2.b + v1.a * w2.a;
+        sum1.a += v1.r * w3.r + v1.g * w3.g + v1.b * w3.b + v1.a * w3.a;
+
+        sum2.r += v2.r * w0.r + v2.g * w0.g + v2.b * w0.b + v2.a * w0.a;
+        sum2.g += v2.r * w1.r + v2.g * w1.g + v2.b * w1.b + v2.a * w1.a;
+        sum2.b += v2.r * w2.r + v2.g * w2.g + v2.b * w2.b + v2.a * w2.a;
+        sum2.a += v2.r * w3.r + v2.g * w3.g + v2.b * w3.b + v2.a * w3.a;
+
+        sum3.r += v3.r * w0.r + v3.g * w0.g + v3.b * w0.b + v3.a * w0.a;
+        sum3.g += v3.r * w1.r + v3.g * w1.g + v3.b * w1.b + v3.a * w1.a;
+        sum3.b += v3.r * w2.r + v3.g * w2.g + v3.b * w2.b + v3.a * w2.a;
+        sum3.a += v3.r * w3.r + v3.g * w3.g + v3.b * w3.b + v3.a * w3.a;
+#endif
     }
 
-    store_result(gy + 0, gx + 0, sum0.r);
-    store_result(gy + 1, gx + 0, sum0.g);
-    store_result(gy + 2, gx + 0, sum0.b);
-    store_result(gy + 3, gx + 0, sum0.a);
+    for (int xi = 0; xi < 4; xi++)
+    {
+        const int pos = gx + xi;
+        if (pos >= outsize)
+            continue;
 
-    store_result(gy + 0, gx + 1, sum1.r);
-    store_result(gy + 1, gx + 1, sum1.g);
-    store_result(gy + 2, gx + 1, sum1.b);
-    store_result(gy + 3, gx + 1, sum1.a);
+        ivec4 sumv = sum0;
+        if (xi == 1) sumv = sum1;
+        if (xi == 2) sumv = sum2;
+        if (xi == 3) sumv = sum3;
 
-    store_result(gy + 0, gx + 2, sum2.r);
-    store_result(gy + 1, gx + 2, sum2.g);
-    store_result(gy + 2, gx + 2, sum2.b);
-    store_result(gy + 3, gx + 2, sum2.a);
+        for (int yi = 0; yi < 4; yi++)
+        {
+            const int outch_index = gy + yi;
+            if (outch_index >= psc(outc))
+                continue;
 
-    store_result(gy + 0, gx + 3, sum3.r);
-    store_result(gy + 1, gx + 3, sum3.g);
-    store_result(gy + 2, gx + 3, sum3.b);
-    store_result(gy + 3, gx + 3, sum3.a);
+            const float weight_scale = weight_scales_data[outch_index];
+            const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
+
+            float sumfp32 = float(sumv[yi]) * scale_in;
+
+            if (bias_term == 1)
+            {
+                sumfp32 += bias_data[outch_index];
+            }
+
+            sumfp32 = float(activation_afp(afp(sumfp32), activation_type, activation_param_0, activation_param_1));
+
+            const int gi = outch_index * psc(outcstep) + pos;
+
+            if (use_int8_requantize == 1)
+            {
+                const float vf = clamp(sumfp32 * top_scales_data[0], -127.f, 127.f);
+                const int v = int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f));
+                i8buffer_st1(top_blob_int8_data, gi, v);
+            }
+            else
+            {
+                top_blob_data[gi] = sumfp32;
+            }
+        }
+    }
 }

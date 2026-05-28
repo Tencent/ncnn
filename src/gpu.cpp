@@ -1943,6 +1943,11 @@ bool GpuInfo::support_int8_arithmetic() const
     return d->queryFloat16Int8Features.shaderInt8;
 }
 
+bool GpuInfo::support_int16_storage() const
+{
+    return d->query16BitStorageFeatures.storageBuffer16BitAccess;
+}
+
 bool GpuInfo::support_bf16_packed() const
 {
     return true;
@@ -3554,6 +3559,7 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
     opt.use_fp16_storage = use_fp16 && vkdev->info.support_fp16_storage();
     opt.use_int8_packed = use_int8; // int8p is always supported
     opt.use_int8_storage = use_int8 && vkdev->info.support_int8_storage();
+    opt.use_int16_storage = false;
     opt.use_bf16_packed = use_bf16; // bf16p is always supported
     opt.use_bf16_storage = use_bf16 && vkdev->info.support_bf16_storage();
 
@@ -3633,6 +3639,7 @@ void VulkanDevicePrivate::destroy_utility_operator()
             opt.use_fp16_storage = use_fp16 && vkdev->info.support_fp16_storage();
             opt.use_int8_packed = false;
             opt.use_int8_storage = false;
+            opt.use_int16_storage = false;
             opt.use_bf16_packed = false;
             opt.use_bf16_storage = false;
 
@@ -3660,6 +3667,7 @@ void VulkanDevicePrivate::destroy_utility_operator()
         opt.use_fp16_storage = false;
         opt.use_int8_packed = use_int8;
         opt.use_int8_storage = use_int8 && vkdev->info.support_int8_storage();
+        opt.use_int16_storage = false;
         opt.use_bf16_packed = false;
         opt.use_bf16_storage = false;
 
@@ -3689,6 +3697,7 @@ void VulkanDevicePrivate::destroy_utility_operator()
         opt.use_fp16_storage = false;
         opt.use_int8_packed = false;
         opt.use_int8_storage = false;
+        opt.use_int16_storage = false;
         opt.use_bf16_packed = use_bf16;
         opt.use_bf16_storage = use_bf16 && vkdev->info.support_bf16_storage();
 
@@ -5096,7 +5105,12 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     const GpuInfo& info = get_gpu_info(device_index);
     const bool support_fp16_storage = info.support_fp16_storage();
+    const bool support_int16_storage = info.support_int16_storage();
     const bool support_fp16_uniform = info.support_fp16_uniform();
+    const bool support_shader_int64 = info.physicalDevicefeatures().shaderInt64;
+    const bool support_shader_int16 = info.physicalDevicefeatures().shaderInt16;
+    const bool shader_uses_int16_storage = strstr(comp_data, "sint16") || strstr(comp_data, "NCNN_int16_storage");
+    const bool use_int16_storage = opt.use_int16_storage && support_int16_storage && support_shader_int16 && shader_uses_int16_storage;
 
     if (opt.use_bf16_storage)
     {
@@ -5448,7 +5462,24 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("sint8", "int");
     }
 
-    custom_defines.append("sint8vec4", "int");
+    if (use_int16_storage)
+    {
+        custom_defines.append("NCNN_int16_storage", 1);
+        custom_defines.append("sint16", "int16_t");
+    }
+    else
+    {
+        custom_defines.append("sint16", "int");
+    }
+
+    if (opt.use_int8_storage && opt.use_int8_arithmetic)
+    {
+        custom_defines.append("sint8vec4", "i8vec4");
+    }
+    else
+    {
+        custom_defines.append("sint8vec4", "int");
+    }
 
     custom_defines.append("aint8", "int");
     custom_defines.append("aint8vec4", "ivec4");
@@ -5469,9 +5500,18 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("i8buffer_cp1(buf,i,sbuf,si)", "{int _v=i8buffer_ld1(sbuf,si);i8buffer_st1(buf,i,_v);}");
     }
 
-    custom_defines.append("i8buffer_ld4(buf,i)", "unpackInt4x8(buf[i])");
-    custom_defines.append("i8buffer_st4(buf,i,v)", "{buf[i]=packInt4x8(v);}");
-    custom_defines.append("i8buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
+    if (opt.use_int8_storage && opt.use_int8_arithmetic)
+    {
+        custom_defines.append("i8buffer_ld4(buf,i)", "ivec4(int(buf[i].r),int(buf[i].g),int(buf[i].b),int(buf[i].a))");
+        custom_defines.append("i8buffer_st4(buf,i,v)", "{buf[i]=i8vec4(int8_t(v.r),int8_t(v.g),int8_t(v.b),int8_t(v.a));}");
+        custom_defines.append("i8buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
+    }
+    else
+    {
+        custom_defines.append("i8buffer_ld4(buf,i)", "unpackInt4x8(buf[i])");
+        custom_defines.append("i8buffer_st4(buf,i,v)", "{buf[i]=packInt4x8(v);}");
+        custom_defines.append("i8buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
+    }
 
     custom_defines.append("psc(x)", "(x==0?p.x:x)");
 
@@ -5531,9 +5571,6 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 #endif
 
     custom_defines.append("ncnn_glsl_version", 1);
-
-    const bool support_shader_int64 = info.physicalDevicefeatures().shaderInt64;
-    const bool support_shader_int16 = info.physicalDevicefeatures().shaderInt16;
 
     // fill device macros
     {
@@ -6103,7 +6140,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     {
         custom_exts += "#extension GL_EXT_bfloat16: require\n";
     }
-    if (opt.use_fp16_storage || opt.use_bf16_storage)
+    if (opt.use_fp16_storage || opt.use_bf16_storage || use_int16_storage)
     {
         custom_exts += "#extension GL_EXT_shader_16bit_storage: require\n";
     }

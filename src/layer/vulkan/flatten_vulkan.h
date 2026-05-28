@@ -23,6 +23,9 @@ public:
     Pipeline* pipeline_flatten;
     Pipeline* pipeline_flatten_pack4;
     Pipeline* pipeline_flatten_pack1to4;
+    Pipeline* pipeline_flatten_int8;
+    Pipeline* pipeline_flatten_pack4_int8;
+    Pipeline* pipeline_flatten_pack1to4_int8;
 };
 
 } // namespace ncnn

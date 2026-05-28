@@ -355,6 +355,7 @@ static int test_c_api_3()
     TEST_OPTION_SET_GET(use_int8_packed, 1, 0)
     TEST_OPTION_SET_GET(use_int8_storage, 1, 0)
     TEST_OPTION_SET_GET(use_int8_arithmetic, 1, 0)
+    TEST_OPTION_SET_GET(use_int16_storage, 1, 0)
     TEST_OPTION_SET_GET(use_bf16_packed, 1, 0)
     TEST_OPTION_SET_GET(use_bf16_storage, 1, 0)
 

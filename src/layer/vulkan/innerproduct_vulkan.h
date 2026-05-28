@@ -13,6 +13,8 @@ class InnerProduct_vulkan : public InnerProduct
 public:
     InnerProduct_vulkan();
 
+    virtual int load_param(const ParamDict& pd);
+
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
 
@@ -27,6 +29,7 @@ public:
 
 public:
     ncnn::Layer* flatten;
+    ncnn::Layer* flatten_int8;
 
     Mat weight_data_packed;
     Mat weight_data_int8_packed;

@@ -15,6 +15,9 @@ Flatten_vulkan::Flatten_vulkan()
     pipeline_flatten = 0;
     pipeline_flatten_pack4 = 0;
     pipeline_flatten_pack1to4 = 0;
+    pipeline_flatten_int8 = 0;
+    pipeline_flatten_pack4_int8 = 0;
+    pipeline_flatten_pack1to4_int8 = 0;
 }
 
 int Flatten_vulkan::create_pipeline(const Option& opt)
@@ -42,12 +45,25 @@ int Flatten_vulkan::create_pipeline(const Option& opt)
         local_size_xyz.c = 1;
     }
 
+    Option opt_int8 = opt;
+    opt_int8.use_fp16_packed = false;
+    opt_int8.use_fp16_storage = false;
+    opt_int8.use_fp16_arithmetic = false;
+    opt_int8.use_bf16_packed = false;
+    opt_int8.use_bf16_storage = false;
+    opt_int8.use_int16_storage = false;
+    opt_int8.use_int8_arithmetic = opt_int8.use_int8_storage && vkdev->info.support_int8_arithmetic();
+
     // pack1
     if (shape.dims == 0 || (shape.elempack == 1 && out_shape.elempack == 1))
     {
         pipeline_flatten = new Pipeline(vkdev);
         pipeline_flatten->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_flatten->create(LayerShaderType::flatten, opt, specializations);
+
+        pipeline_flatten_int8 = new Pipeline(vkdev);
+        pipeline_flatten_int8->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_flatten_int8->create(LayerShaderType::flatten_int8, opt_int8, specializations);
     }
 
     // pack4
@@ -56,6 +72,10 @@ int Flatten_vulkan::create_pipeline(const Option& opt)
         pipeline_flatten_pack4 = new Pipeline(vkdev);
         pipeline_flatten_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_flatten_pack4->create(LayerShaderType::flatten_pack4, opt, specializations);
+
+        pipeline_flatten_pack4_int8 = new Pipeline(vkdev);
+        pipeline_flatten_pack4_int8->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_flatten_pack4_int8->create(LayerShaderType::flatten_pack4_int8, opt_int8, specializations);
     }
 
     // pack1to4
@@ -64,6 +84,10 @@ int Flatten_vulkan::create_pipeline(const Option& opt)
         pipeline_flatten_pack1to4 = new Pipeline(vkdev);
         pipeline_flatten_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_flatten_pack1to4->create(LayerShaderType::flatten_pack1to4, opt, specializations);
+
+        pipeline_flatten_pack1to4_int8 = new Pipeline(vkdev);
+        pipeline_flatten_pack1to4_int8->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_flatten_pack1to4_int8->create(LayerShaderType::flatten_pack1to4_int8, opt_int8, specializations);
     }
 
     return 0;
@@ -79,6 +103,15 @@ int Flatten_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_flatten_pack1to4;
     pipeline_flatten_pack1to4 = 0;
+
+    delete pipeline_flatten_int8;
+    pipeline_flatten_int8 = 0;
+
+    delete pipeline_flatten_pack4_int8;
+    pipeline_flatten_pack4_int8 = 0;
+
+    delete pipeline_flatten_pack1to4_int8;
+    pipeline_flatten_pack1to4_int8 = 0;
 
     return 0;
 }
@@ -138,7 +171,19 @@ int Flatten_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[9].i = top_blob.cstep;
 
     const Pipeline* pipeline = 0;
-    if (elempack == 1 && out_elempack == 1)
+    if (bottom_blob.elembits() == 8 && elempack == 1 && out_elempack == 1)
+    {
+        pipeline = pipeline_flatten_int8;
+    }
+    else if (bottom_blob.elembits() == 8 && elempack == 4 && out_elempack == 4)
+    {
+        pipeline = pipeline_flatten_pack4_int8;
+    }
+    else if (bottom_blob.elembits() == 8 && elempack == 1 && out_elempack == 4)
+    {
+        pipeline = pipeline_flatten_pack1to4_int8;
+    }
+    else if (elempack == 1 && out_elempack == 1)
     {
         pipeline = pipeline_flatten;
     }

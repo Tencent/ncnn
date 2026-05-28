@@ -4,7 +4,7 @@
 #version 450
 
 layout(binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
-layout(binding = 1) writeonly buffer bottom_tm_blob { int bottom_tm_blob_data[]; };
+layout(binding = 1) writeonly buffer bottom_tm_blob { sint16 bottom_tm_blob_data[]; };
 layout(binding = 2) readonly buffer bottom_blob_int8 { sint8 bottom_blob_int8_data[]; };
 layout(binding = 3) readonly buffer bottom_scales_blob { float bottom_scales_data[]; };
 
@@ -25,30 +25,6 @@ layout(push_constant) uniform parameter
     int c;
 } p;
 
-int float2int8_local(float v)
-{
-    v = clamp(v, -127.f, 127.f);
-    return int(v > 0.f ? floor(v + 0.5f) : ceil(v - 0.5f));
-}
-
-int load_bottom_int8(int q, int x, int y)
-{
-    if (x < 0 || x >= p.w || y < 0 || y >= p.h)
-        return 0;
-
-    const int gi = q * p.cstep + y * p.w + x;
-
-    if (p.bottom_is_int8 == 1)
-        return i8buffer_ld1(bottom_blob_int8_data, gi);
-
-    return float2int8_local(bottom_blob_data[gi] * bottom_scales_data[0]);
-}
-
-void store_tm(int q, int k, int tile, int v)
-{
-    bottom_tm_blob_data[(k * p.c + q) * p.outcstep + tile] = v;
-}
-
 void main()
 {
     const int gx = int(gl_GlobalInvocationID.x);
@@ -62,47 +38,74 @@ void main()
     const int sy = gy * 4 - p.pad_top;
     const int tile = gy * p.block_x + gx;
 
-    int v00 = load_bottom_int8(gz, sx + 0, sy + 0);
-    int v01 = load_bottom_int8(gz, sx + 1, sy + 0);
-    int v02 = load_bottom_int8(gz, sx + 2, sy + 0);
-    int v03 = load_bottom_int8(gz, sx + 3, sy + 0);
-    int v04 = load_bottom_int8(gz, sx + 4, sy + 0);
-    int v05 = load_bottom_int8(gz, sx + 5, sy + 0);
+    int d[36];
+    for (int yy = 0; yy < 6; yy++)
+    {
+        for (int xx = 0; xx < 6; xx++)
+        {
+            const int x = sx + xx;
+            const int y = sy + yy;
 
-    int v10 = load_bottom_int8(gz, sx + 0, sy + 1);
-    int v11 = load_bottom_int8(gz, sx + 1, sy + 1);
-    int v12 = load_bottom_int8(gz, sx + 2, sy + 1);
-    int v13 = load_bottom_int8(gz, sx + 3, sy + 1);
-    int v14 = load_bottom_int8(gz, sx + 4, sy + 1);
-    int v15 = load_bottom_int8(gz, sx + 5, sy + 1);
+            int v = 0;
+            if (x >= 0 && x < p.w && y >= 0 && y < p.h)
+            {
+                const int gi = gz * p.cstep + y * p.w + x;
+                if (p.bottom_is_int8 == 1)
+                {
+                    v = i8buffer_ld1(bottom_blob_int8_data, gi);
+                }
+                else
+                {
+                    const float vf = clamp(bottom_blob_data[gi] * bottom_scales_data[0], -127.f, 127.f);
+                    v = int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f));
+                }
+            }
 
-    int v20 = load_bottom_int8(gz, sx + 0, sy + 2);
-    int v21 = load_bottom_int8(gz, sx + 1, sy + 2);
-    int v22 = load_bottom_int8(gz, sx + 2, sy + 2);
-    int v23 = load_bottom_int8(gz, sx + 3, sy + 2);
-    int v24 = load_bottom_int8(gz, sx + 4, sy + 2);
-    int v25 = load_bottom_int8(gz, sx + 5, sy + 2);
+            d[yy * 6 + xx] = v;
+        }
+    }
 
-    int v30 = load_bottom_int8(gz, sx + 0, sy + 3);
-    int v31 = load_bottom_int8(gz, sx + 1, sy + 3);
-    int v32 = load_bottom_int8(gz, sx + 2, sy + 3);
-    int v33 = load_bottom_int8(gz, sx + 3, sy + 3);
-    int v34 = load_bottom_int8(gz, sx + 4, sy + 3);
-    int v35 = load_bottom_int8(gz, sx + 5, sy + 3);
+    int v00 = d[0];
+    int v01 = d[1];
+    int v02 = d[2];
+    int v03 = d[3];
+    int v04 = d[4];
+    int v05 = d[5];
 
-    int v40 = load_bottom_int8(gz, sx + 0, sy + 4);
-    int v41 = load_bottom_int8(gz, sx + 1, sy + 4);
-    int v42 = load_bottom_int8(gz, sx + 2, sy + 4);
-    int v43 = load_bottom_int8(gz, sx + 3, sy + 4);
-    int v44 = load_bottom_int8(gz, sx + 4, sy + 4);
-    int v45 = load_bottom_int8(gz, sx + 5, sy + 4);
+    int v10 = d[6];
+    int v11 = d[7];
+    int v12 = d[8];
+    int v13 = d[9];
+    int v14 = d[10];
+    int v15 = d[11];
 
-    int v50 = load_bottom_int8(gz, sx + 0, sy + 5);
-    int v51 = load_bottom_int8(gz, sx + 1, sy + 5);
-    int v52 = load_bottom_int8(gz, sx + 2, sy + 5);
-    int v53 = load_bottom_int8(gz, sx + 3, sy + 5);
-    int v54 = load_bottom_int8(gz, sx + 4, sy + 5);
-    int v55 = load_bottom_int8(gz, sx + 5, sy + 5);
+    int v20 = d[12];
+    int v21 = d[13];
+    int v22 = d[14];
+    int v23 = d[15];
+    int v24 = d[16];
+    int v25 = d[17];
+
+    int v30 = d[18];
+    int v31 = d[19];
+    int v32 = d[20];
+    int v33 = d[21];
+    int v34 = d[22];
+    int v35 = d[23];
+
+    int v40 = d[24];
+    int v41 = d[25];
+    int v42 = d[26];
+    int v43 = d[27];
+    int v44 = d[28];
+    int v45 = d[29];
+
+    int v50 = d[30];
+    int v51 = d[31];
+    int v52 = d[32];
+    int v53 = d[33];
+    int v54 = d[34];
+    int v55 = d[35];
 
     int m00 = v04 + v00 * 4 - v02 * 5;
     int m01 = v14 + v10 * 4 - v12 * 5;
@@ -188,40 +191,40 @@ void main()
     v45 = m45 + m41 * 4 - m43 * 5;
     v55 = m55 + m51 * 4 - m53 * 5;
 
-    store_tm(gz, 0, tile, v00);
-    store_tm(gz, 1, tile, v01);
-    store_tm(gz, 2, tile, v02);
-    store_tm(gz, 3, tile, v03);
-    store_tm(gz, 4, tile, v04);
-    store_tm(gz, 5, tile, v05);
-    store_tm(gz, 6, tile, v10);
-    store_tm(gz, 7, tile, v11);
-    store_tm(gz, 8, tile, v12);
-    store_tm(gz, 9, tile, v13);
-    store_tm(gz, 10, tile, v14);
-    store_tm(gz, 11, tile, v15);
-    store_tm(gz, 12, tile, v20);
-    store_tm(gz, 13, tile, v21);
-    store_tm(gz, 14, tile, v22);
-    store_tm(gz, 15, tile, v23);
-    store_tm(gz, 16, tile, v24);
-    store_tm(gz, 17, tile, v25);
-    store_tm(gz, 18, tile, v30);
-    store_tm(gz, 19, tile, v31);
-    store_tm(gz, 20, tile, v32);
-    store_tm(gz, 21, tile, v33);
-    store_tm(gz, 22, tile, v34);
-    store_tm(gz, 23, tile, v35);
-    store_tm(gz, 24, tile, v40);
-    store_tm(gz, 25, tile, v41);
-    store_tm(gz, 26, tile, v42);
-    store_tm(gz, 27, tile, v43);
-    store_tm(gz, 28, tile, v44);
-    store_tm(gz, 29, tile, v45);
-    store_tm(gz, 30, tile, v50);
-    store_tm(gz, 31, tile, v51);
-    store_tm(gz, 32, tile, v52);
-    store_tm(gz, 33, tile, v53);
-    store_tm(gz, 34, tile, v54);
-    store_tm(gz, 35, tile, v55);
+    bottom_tm_blob_data[(0 * p.c + gz) * p.outcstep + tile] = sint16(v00);
+    bottom_tm_blob_data[(1 * p.c + gz) * p.outcstep + tile] = sint16(v01);
+    bottom_tm_blob_data[(2 * p.c + gz) * p.outcstep + tile] = sint16(v02);
+    bottom_tm_blob_data[(3 * p.c + gz) * p.outcstep + tile] = sint16(v03);
+    bottom_tm_blob_data[(4 * p.c + gz) * p.outcstep + tile] = sint16(v04);
+    bottom_tm_blob_data[(5 * p.c + gz) * p.outcstep + tile] = sint16(v05);
+    bottom_tm_blob_data[(6 * p.c + gz) * p.outcstep + tile] = sint16(v10);
+    bottom_tm_blob_data[(7 * p.c + gz) * p.outcstep + tile] = sint16(v11);
+    bottom_tm_blob_data[(8 * p.c + gz) * p.outcstep + tile] = sint16(v12);
+    bottom_tm_blob_data[(9 * p.c + gz) * p.outcstep + tile] = sint16(v13);
+    bottom_tm_blob_data[(10 * p.c + gz) * p.outcstep + tile] = sint16(v14);
+    bottom_tm_blob_data[(11 * p.c + gz) * p.outcstep + tile] = sint16(v15);
+    bottom_tm_blob_data[(12 * p.c + gz) * p.outcstep + tile] = sint16(v20);
+    bottom_tm_blob_data[(13 * p.c + gz) * p.outcstep + tile] = sint16(v21);
+    bottom_tm_blob_data[(14 * p.c + gz) * p.outcstep + tile] = sint16(v22);
+    bottom_tm_blob_data[(15 * p.c + gz) * p.outcstep + tile] = sint16(v23);
+    bottom_tm_blob_data[(16 * p.c + gz) * p.outcstep + tile] = sint16(v24);
+    bottom_tm_blob_data[(17 * p.c + gz) * p.outcstep + tile] = sint16(v25);
+    bottom_tm_blob_data[(18 * p.c + gz) * p.outcstep + tile] = sint16(v30);
+    bottom_tm_blob_data[(19 * p.c + gz) * p.outcstep + tile] = sint16(v31);
+    bottom_tm_blob_data[(20 * p.c + gz) * p.outcstep + tile] = sint16(v32);
+    bottom_tm_blob_data[(21 * p.c + gz) * p.outcstep + tile] = sint16(v33);
+    bottom_tm_blob_data[(22 * p.c + gz) * p.outcstep + tile] = sint16(v34);
+    bottom_tm_blob_data[(23 * p.c + gz) * p.outcstep + tile] = sint16(v35);
+    bottom_tm_blob_data[(24 * p.c + gz) * p.outcstep + tile] = sint16(v40);
+    bottom_tm_blob_data[(25 * p.c + gz) * p.outcstep + tile] = sint16(v41);
+    bottom_tm_blob_data[(26 * p.c + gz) * p.outcstep + tile] = sint16(v42);
+    bottom_tm_blob_data[(27 * p.c + gz) * p.outcstep + tile] = sint16(v43);
+    bottom_tm_blob_data[(28 * p.c + gz) * p.outcstep + tile] = sint16(v44);
+    bottom_tm_blob_data[(29 * p.c + gz) * p.outcstep + tile] = sint16(v45);
+    bottom_tm_blob_data[(30 * p.c + gz) * p.outcstep + tile] = sint16(v50);
+    bottom_tm_blob_data[(31 * p.c + gz) * p.outcstep + tile] = sint16(v51);
+    bottom_tm_blob_data[(32 * p.c + gz) * p.outcstep + tile] = sint16(v52);
+    bottom_tm_blob_data[(33 * p.c + gz) * p.outcstep + tile] = sint16(v53);
+    bottom_tm_blob_data[(34 * p.c + gz) * p.outcstep + tile] = sint16(v54);
+    bottom_tm_blob_data[(35 * p.c + gz) * p.outcstep + tile] = sint16(v55);
 }

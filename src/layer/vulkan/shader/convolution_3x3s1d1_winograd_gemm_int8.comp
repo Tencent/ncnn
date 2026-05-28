@@ -3,11 +3,15 @@
 
 #version 450
 
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && (ncnn_integerDotProduct32BitSignedAccelerated || (NCNN_int16_storage && ncnn_integerDotProduct16BitSignedAccelerated))
+#extension GL_EXT_integer_dot_product : require
+#endif
+
 #define LOCAL_MEMORY_UNROLL_INCH 8
 
-layout(binding = 0) readonly buffer bottom_tm_blob { int bottom_tm_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_tm_blob { sint16 bottom_tm_blob_data[]; };
 layout(binding = 1) writeonly buffer top_tm_blob { int top_tm_blob_data[]; };
-layout(binding = 2) readonly buffer weight_tm_blob { int weight_tm_data[]; };
+layout(binding = 2) readonly buffer weight_tm_blob { sint16 weight_tm_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -22,30 +26,6 @@ layout(push_constant) uniform parameter
 shared int tmp_v[8][LOCAL_MEMORY_UNROLL_INCH][4];
 shared int tmp_k[8][LOCAL_MEMORY_UNROLL_INCH][4];
 #endif
-
-int load_bottom_tm(int pos, int q, int batch)
-{
-    if (pos >= p.outw || q >= p.c)
-        return 0;
-
-    return bottom_tm_blob_data[(batch * p.c + q) * p.cstep + pos];
-}
-
-int load_weight_tm(int outch_index, int q, int batch)
-{
-    if (outch_index >= p.outc || q >= p.c)
-        return 0;
-
-    return weight_tm_data[batch * p.c * p.outc + outch_index * p.c + q];
-}
-
-void store_top_tm(int outch_index, int pos, int batch, int v)
-{
-    if (outch_index >= p.outc || pos >= p.outw)
-        return;
-
-    top_tm_blob_data[(batch * p.outc + outch_index) * p.outcstep + pos] = v;
-}
 
 void main()
 {
@@ -67,6 +47,9 @@ void main()
     const int lx = int(gl_LocalInvocationID.x);
     const int ly = int(gl_LocalInvocationID.y);
 
+    const int bottom_batch_offset = gz * p.c * p.cstep;
+    const int weight_batch_offset = gz * p.c * p.outc;
+
     int q = 0;
     for (; q + (LOCAL_MEMORY_UNROLL_INCH - 1) < p.c; q += LOCAL_MEMORY_UNROLL_INCH)
     {
@@ -74,7 +57,8 @@ void main()
         {
             for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
             {
-                tmp_v[lx][z4][ly] = load_bottom_tm(gx + ly, q + z4, gz);
+                const int pos = gx + ly;
+                tmp_v[lx][z4][ly] = pos < p.outw ? bottom_tm_blob_data[bottom_batch_offset + (q + z4) * p.cstep + pos] : 0;
             }
         }
 
@@ -82,12 +66,80 @@ void main()
         {
             for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
             {
-                tmp_k[ly][z4][lx] = load_weight_tm(gy + lx, q + z4, gz);
+                const int outch_index = gy + lx;
+                tmp_k[ly][z4][lx] = outch_index < p.outc ? weight_tm_data[weight_batch_offset + outch_index * p.c + q + z4] : 0;
             }
         }
 
         barrier();
 
+#if NCNN_int16_storage && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct16BitSignedAccelerated
+        for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4 += 4)
+        {
+            const i16vec4 v0 = i16vec4(int16_t(tmp_v[lx][z4 + 0][0]), int16_t(tmp_v[lx][z4 + 1][0]), int16_t(tmp_v[lx][z4 + 2][0]), int16_t(tmp_v[lx][z4 + 3][0]));
+            const i16vec4 v1 = i16vec4(int16_t(tmp_v[lx][z4 + 0][1]), int16_t(tmp_v[lx][z4 + 1][1]), int16_t(tmp_v[lx][z4 + 2][1]), int16_t(tmp_v[lx][z4 + 3][1]));
+            const i16vec4 v2 = i16vec4(int16_t(tmp_v[lx][z4 + 0][2]), int16_t(tmp_v[lx][z4 + 1][2]), int16_t(tmp_v[lx][z4 + 2][2]), int16_t(tmp_v[lx][z4 + 3][2]));
+            const i16vec4 v3 = i16vec4(int16_t(tmp_v[lx][z4 + 0][3]), int16_t(tmp_v[lx][z4 + 1][3]), int16_t(tmp_v[lx][z4 + 2][3]), int16_t(tmp_v[lx][z4 + 3][3]));
+
+            const i16vec4 k0 = i16vec4(int16_t(tmp_k[ly][z4 + 0][0]), int16_t(tmp_k[ly][z4 + 1][0]), int16_t(tmp_k[ly][z4 + 2][0]), int16_t(tmp_k[ly][z4 + 3][0]));
+            const i16vec4 k1 = i16vec4(int16_t(tmp_k[ly][z4 + 0][1]), int16_t(tmp_k[ly][z4 + 1][1]), int16_t(tmp_k[ly][z4 + 2][1]), int16_t(tmp_k[ly][z4 + 3][1]));
+            const i16vec4 k2 = i16vec4(int16_t(tmp_k[ly][z4 + 0][2]), int16_t(tmp_k[ly][z4 + 1][2]), int16_t(tmp_k[ly][z4 + 2][2]), int16_t(tmp_k[ly][z4 + 3][2]));
+            const i16vec4 k3 = i16vec4(int16_t(tmp_k[ly][z4 + 0][3]), int16_t(tmp_k[ly][z4 + 1][3]), int16_t(tmp_k[ly][z4 + 2][3]), int16_t(tmp_k[ly][z4 + 3][3]));
+
+            sum0.r += dotEXT(v0, k0);
+            sum0.g += dotEXT(v0, k1);
+            sum0.b += dotEXT(v0, k2);
+            sum0.a += dotEXT(v0, k3);
+
+            sum1.r += dotEXT(v1, k0);
+            sum1.g += dotEXT(v1, k1);
+            sum1.b += dotEXT(v1, k2);
+            sum1.a += dotEXT(v1, k3);
+
+            sum2.r += dotEXT(v2, k0);
+            sum2.g += dotEXT(v2, k1);
+            sum2.b += dotEXT(v2, k2);
+            sum2.a += dotEXT(v2, k3);
+
+            sum3.r += dotEXT(v3, k0);
+            sum3.g += dotEXT(v3, k1);
+            sum3.b += dotEXT(v3, k2);
+            sum3.a += dotEXT(v3, k3);
+        }
+#elif ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct32BitSignedAccelerated
+        for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4 += 4)
+        {
+            const ivec4 v0 = ivec4(tmp_v[lx][z4 + 0][0], tmp_v[lx][z4 + 1][0], tmp_v[lx][z4 + 2][0], tmp_v[lx][z4 + 3][0]);
+            const ivec4 v1 = ivec4(tmp_v[lx][z4 + 0][1], tmp_v[lx][z4 + 1][1], tmp_v[lx][z4 + 2][1], tmp_v[lx][z4 + 3][1]);
+            const ivec4 v2 = ivec4(tmp_v[lx][z4 + 0][2], tmp_v[lx][z4 + 1][2], tmp_v[lx][z4 + 2][2], tmp_v[lx][z4 + 3][2]);
+            const ivec4 v3 = ivec4(tmp_v[lx][z4 + 0][3], tmp_v[lx][z4 + 1][3], tmp_v[lx][z4 + 2][3], tmp_v[lx][z4 + 3][3]);
+
+            const ivec4 k0 = ivec4(tmp_k[ly][z4 + 0][0], tmp_k[ly][z4 + 1][0], tmp_k[ly][z4 + 2][0], tmp_k[ly][z4 + 3][0]);
+            const ivec4 k1 = ivec4(tmp_k[ly][z4 + 0][1], tmp_k[ly][z4 + 1][1], tmp_k[ly][z4 + 2][1], tmp_k[ly][z4 + 3][1]);
+            const ivec4 k2 = ivec4(tmp_k[ly][z4 + 0][2], tmp_k[ly][z4 + 1][2], tmp_k[ly][z4 + 2][2], tmp_k[ly][z4 + 3][2]);
+            const ivec4 k3 = ivec4(tmp_k[ly][z4 + 0][3], tmp_k[ly][z4 + 1][3], tmp_k[ly][z4 + 2][3], tmp_k[ly][z4 + 3][3]);
+
+            sum0.r += dotEXT(v0, k0);
+            sum0.g += dotEXT(v0, k1);
+            sum0.b += dotEXT(v0, k2);
+            sum0.a += dotEXT(v0, k3);
+
+            sum1.r += dotEXT(v1, k0);
+            sum1.g += dotEXT(v1, k1);
+            sum1.b += dotEXT(v1, k2);
+            sum1.a += dotEXT(v1, k3);
+
+            sum2.r += dotEXT(v2, k0);
+            sum2.g += dotEXT(v2, k1);
+            sum2.b += dotEXT(v2, k2);
+            sum2.a += dotEXT(v2, k3);
+
+            sum3.r += dotEXT(v3, k0);
+            sum3.g += dotEXT(v3, k1);
+            sum3.b += dotEXT(v3, k2);
+            sum3.a += dotEXT(v3, k3);
+        }
+#else
         for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
         {
             const ivec4 v = ivec4(tmp_v[lx][z4][0], tmp_v[lx][z4][1], tmp_v[lx][z4][2], tmp_v[lx][z4][3]);
@@ -98,6 +150,7 @@ void main()
             sum2 += v.b * k;
             sum3 += v.a * k;
         }
+#endif
 
         barrier();
     }
@@ -110,7 +163,8 @@ void main()
         {
             for (int z4 = 0; z4 < remain; z4++)
             {
-                tmp_v[lx][z4][ly] = load_bottom_tm(gx + ly, q + z4, gz);
+                const int pos = gx + ly;
+                tmp_v[lx][z4][ly] = pos < p.outw ? bottom_tm_blob_data[bottom_batch_offset + (q + z4) * p.cstep + pos] : 0;
             }
         }
 
@@ -118,12 +172,104 @@ void main()
         {
             for (int z4 = 0; z4 < remain; z4++)
             {
-                tmp_k[ly][z4][lx] = load_weight_tm(gy + lx, q + z4, gz);
+                const int outch_index = gy + lx;
+                tmp_k[ly][z4][lx] = outch_index < p.outc ? weight_tm_data[weight_batch_offset + outch_index * p.c + q + z4] : 0;
             }
         }
 
         barrier();
 
+#if NCNN_int16_storage && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct16BitSignedAccelerated
+        int z4 = 0;
+        for (; z4 + 3 < remain; z4 += 4)
+        {
+            const i16vec4 v0 = i16vec4(int16_t(tmp_v[lx][z4 + 0][0]), int16_t(tmp_v[lx][z4 + 1][0]), int16_t(tmp_v[lx][z4 + 2][0]), int16_t(tmp_v[lx][z4 + 3][0]));
+            const i16vec4 v1 = i16vec4(int16_t(tmp_v[lx][z4 + 0][1]), int16_t(tmp_v[lx][z4 + 1][1]), int16_t(tmp_v[lx][z4 + 2][1]), int16_t(tmp_v[lx][z4 + 3][1]));
+            const i16vec4 v2 = i16vec4(int16_t(tmp_v[lx][z4 + 0][2]), int16_t(tmp_v[lx][z4 + 1][2]), int16_t(tmp_v[lx][z4 + 2][2]), int16_t(tmp_v[lx][z4 + 3][2]));
+            const i16vec4 v3 = i16vec4(int16_t(tmp_v[lx][z4 + 0][3]), int16_t(tmp_v[lx][z4 + 1][3]), int16_t(tmp_v[lx][z4 + 2][3]), int16_t(tmp_v[lx][z4 + 3][3]));
+
+            const i16vec4 k0 = i16vec4(int16_t(tmp_k[ly][z4 + 0][0]), int16_t(tmp_k[ly][z4 + 1][0]), int16_t(tmp_k[ly][z4 + 2][0]), int16_t(tmp_k[ly][z4 + 3][0]));
+            const i16vec4 k1 = i16vec4(int16_t(tmp_k[ly][z4 + 0][1]), int16_t(tmp_k[ly][z4 + 1][1]), int16_t(tmp_k[ly][z4 + 2][1]), int16_t(tmp_k[ly][z4 + 3][1]));
+            const i16vec4 k2 = i16vec4(int16_t(tmp_k[ly][z4 + 0][2]), int16_t(tmp_k[ly][z4 + 1][2]), int16_t(tmp_k[ly][z4 + 2][2]), int16_t(tmp_k[ly][z4 + 3][2]));
+            const i16vec4 k3 = i16vec4(int16_t(tmp_k[ly][z4 + 0][3]), int16_t(tmp_k[ly][z4 + 1][3]), int16_t(tmp_k[ly][z4 + 2][3]), int16_t(tmp_k[ly][z4 + 3][3]));
+
+            sum0.r += dotEXT(v0, k0);
+            sum0.g += dotEXT(v0, k1);
+            sum0.b += dotEXT(v0, k2);
+            sum0.a += dotEXT(v0, k3);
+
+            sum1.r += dotEXT(v1, k0);
+            sum1.g += dotEXT(v1, k1);
+            sum1.b += dotEXT(v1, k2);
+            sum1.a += dotEXT(v1, k3);
+
+            sum2.r += dotEXT(v2, k0);
+            sum2.g += dotEXT(v2, k1);
+            sum2.b += dotEXT(v2, k2);
+            sum2.a += dotEXT(v2, k3);
+
+            sum3.r += dotEXT(v3, k0);
+            sum3.g += dotEXT(v3, k1);
+            sum3.b += dotEXT(v3, k2);
+            sum3.a += dotEXT(v3, k3);
+        }
+
+        for (; z4 < remain; z4++)
+        {
+            const ivec4 v = ivec4(tmp_v[lx][z4][0], tmp_v[lx][z4][1], tmp_v[lx][z4][2], tmp_v[lx][z4][3]);
+            const ivec4 k = ivec4(tmp_k[ly][z4][0], tmp_k[ly][z4][1], tmp_k[ly][z4][2], tmp_k[ly][z4][3]);
+
+            sum0 += v.r * k;
+            sum1 += v.g * k;
+            sum2 += v.b * k;
+            sum3 += v.a * k;
+        }
+#elif ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct32BitSignedAccelerated
+        int z4 = 0;
+        for (; z4 + 3 < remain; z4 += 4)
+        {
+            const ivec4 v0 = ivec4(tmp_v[lx][z4 + 0][0], tmp_v[lx][z4 + 1][0], tmp_v[lx][z4 + 2][0], tmp_v[lx][z4 + 3][0]);
+            const ivec4 v1 = ivec4(tmp_v[lx][z4 + 0][1], tmp_v[lx][z4 + 1][1], tmp_v[lx][z4 + 2][1], tmp_v[lx][z4 + 3][1]);
+            const ivec4 v2 = ivec4(tmp_v[lx][z4 + 0][2], tmp_v[lx][z4 + 1][2], tmp_v[lx][z4 + 2][2], tmp_v[lx][z4 + 3][2]);
+            const ivec4 v3 = ivec4(tmp_v[lx][z4 + 0][3], tmp_v[lx][z4 + 1][3], tmp_v[lx][z4 + 2][3], tmp_v[lx][z4 + 3][3]);
+
+            const ivec4 k0 = ivec4(tmp_k[ly][z4 + 0][0], tmp_k[ly][z4 + 1][0], tmp_k[ly][z4 + 2][0], tmp_k[ly][z4 + 3][0]);
+            const ivec4 k1 = ivec4(tmp_k[ly][z4 + 0][1], tmp_k[ly][z4 + 1][1], tmp_k[ly][z4 + 2][1], tmp_k[ly][z4 + 3][1]);
+            const ivec4 k2 = ivec4(tmp_k[ly][z4 + 0][2], tmp_k[ly][z4 + 1][2], tmp_k[ly][z4 + 2][2], tmp_k[ly][z4 + 3][2]);
+            const ivec4 k3 = ivec4(tmp_k[ly][z4 + 0][3], tmp_k[ly][z4 + 1][3], tmp_k[ly][z4 + 2][3], tmp_k[ly][z4 + 3][3]);
+
+            sum0.r += dotEXT(v0, k0);
+            sum0.g += dotEXT(v0, k1);
+            sum0.b += dotEXT(v0, k2);
+            sum0.a += dotEXT(v0, k3);
+
+            sum1.r += dotEXT(v1, k0);
+            sum1.g += dotEXT(v1, k1);
+            sum1.b += dotEXT(v1, k2);
+            sum1.a += dotEXT(v1, k3);
+
+            sum2.r += dotEXT(v2, k0);
+            sum2.g += dotEXT(v2, k1);
+            sum2.b += dotEXT(v2, k2);
+            sum2.a += dotEXT(v2, k3);
+
+            sum3.r += dotEXT(v3, k0);
+            sum3.g += dotEXT(v3, k1);
+            sum3.b += dotEXT(v3, k2);
+            sum3.a += dotEXT(v3, k3);
+        }
+
+        for (; z4 < remain; z4++)
+        {
+            const ivec4 v = ivec4(tmp_v[lx][z4][0], tmp_v[lx][z4][1], tmp_v[lx][z4][2], tmp_v[lx][z4][3]);
+            const ivec4 k = ivec4(tmp_k[ly][z4][0], tmp_k[ly][z4][1], tmp_k[ly][z4][2], tmp_k[ly][z4][3]);
+
+            sum0 += v.r * k;
+            sum1 += v.g * k;
+            sum2 += v.b * k;
+            sum3 += v.a * k;
+        }
+#else
         for (int z4 = 0; z4 < remain; z4++)
         {
             const ivec4 v = ivec4(tmp_v[lx][z4][0], tmp_v[lx][z4][1], tmp_v[lx][z4][2], tmp_v[lx][z4][3]);
@@ -134,12 +280,215 @@ void main()
             sum2 += v.b * k;
             sum3 += v.a * k;
         }
+#endif
     }
 #else
-    for (int q = 0; q < p.c; q++)
+    const int bottom_batch_offset = gz * p.c * p.cstep;
+    const int weight_batch_offset = gz * p.c * p.outc;
+
+#if NCNN_int16_storage && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct16BitSignedAccelerated
+    int q = 0;
+    for (; q + 3 < p.c; q += 4)
     {
-        const ivec4 v = ivec4(load_bottom_tm(gx + 0, q, gz), load_bottom_tm(gx + 1, q, gz), load_bottom_tm(gx + 2, q, gz), load_bottom_tm(gx + 3, q, gz));
-        const ivec4 k = ivec4(load_weight_tm(gy + 0, q, gz), load_weight_tm(gy + 1, q, gz), load_weight_tm(gy + 2, q, gz), load_weight_tm(gy + 3, q, gz));
+        i16vec4 v0 = i16vec4(int16_t(0));
+        i16vec4 v1 = i16vec4(int16_t(0));
+        i16vec4 v2 = i16vec4(int16_t(0));
+        i16vec4 v3 = i16vec4(int16_t(0));
+
+        if (gx + 0 < p.outw)
+        {
+            v0.r = bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 0];
+            v0.g = bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 0];
+            v0.b = bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 0];
+            v0.a = bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 0];
+        }
+        if (gx + 1 < p.outw)
+        {
+            v1.r = bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 1];
+            v1.g = bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 1];
+            v1.b = bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 1];
+            v1.a = bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 1];
+        }
+        if (gx + 2 < p.outw)
+        {
+            v2.r = bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 2];
+            v2.g = bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 2];
+            v2.b = bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 2];
+            v2.a = bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 2];
+        }
+        if (gx + 3 < p.outw)
+        {
+            v3.r = bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 3];
+            v3.g = bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 3];
+            v3.b = bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 3];
+            v3.a = bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 3];
+        }
+
+        i16vec4 k0 = i16vec4(int16_t(0));
+        i16vec4 k1 = i16vec4(int16_t(0));
+        i16vec4 k2 = i16vec4(int16_t(0));
+        i16vec4 k3 = i16vec4(int16_t(0));
+
+        if (gy + 0 < p.outc)
+        {
+            k0.r = weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 0];
+            k0.g = weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 1];
+            k0.b = weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 2];
+            k0.a = weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 3];
+        }
+        if (gy + 1 < p.outc)
+        {
+            k1.r = weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 0];
+            k1.g = weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 1];
+            k1.b = weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 2];
+            k1.a = weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 3];
+        }
+        if (gy + 2 < p.outc)
+        {
+            k2.r = weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 0];
+            k2.g = weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 1];
+            k2.b = weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 2];
+            k2.a = weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 3];
+        }
+        if (gy + 3 < p.outc)
+        {
+            k3.r = weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 0];
+            k3.g = weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 1];
+            k3.b = weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 2];
+            k3.a = weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 3];
+        }
+
+        sum0.r += dotEXT(v0, k0);
+        sum0.g += dotEXT(v0, k1);
+        sum0.b += dotEXT(v0, k2);
+        sum0.a += dotEXT(v0, k3);
+
+        sum1.r += dotEXT(v1, k0);
+        sum1.g += dotEXT(v1, k1);
+        sum1.b += dotEXT(v1, k2);
+        sum1.a += dotEXT(v1, k3);
+
+        sum2.r += dotEXT(v2, k0);
+        sum2.g += dotEXT(v2, k1);
+        sum2.b += dotEXT(v2, k2);
+        sum2.a += dotEXT(v2, k3);
+
+        sum3.r += dotEXT(v3, k0);
+        sum3.g += dotEXT(v3, k1);
+        sum3.b += dotEXT(v3, k2);
+        sum3.a += dotEXT(v3, k3);
+    }
+
+    for (; q < p.c; q++)
+#elif ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct32BitSignedAccelerated
+    int q = 0;
+    for (; q + 3 < p.c; q += 4)
+    {
+        ivec4 v0 = ivec4(0);
+        ivec4 v1 = ivec4(0);
+        ivec4 v2 = ivec4(0);
+        ivec4 v3 = ivec4(0);
+
+        if (gx + 0 < p.outw)
+        {
+            v0.r = bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 0];
+            v0.g = bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 0];
+            v0.b = bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 0];
+            v0.a = bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 0];
+        }
+        if (gx + 1 < p.outw)
+        {
+            v1.r = bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 1];
+            v1.g = bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 1];
+            v1.b = bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 1];
+            v1.a = bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 1];
+        }
+        if (gx + 2 < p.outw)
+        {
+            v2.r = bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 2];
+            v2.g = bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 2];
+            v2.b = bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 2];
+            v2.a = bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 2];
+        }
+        if (gx + 3 < p.outw)
+        {
+            v3.r = bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 3];
+            v3.g = bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 3];
+            v3.b = bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 3];
+            v3.a = bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 3];
+        }
+
+        ivec4 k0 = ivec4(0);
+        ivec4 k1 = ivec4(0);
+        ivec4 k2 = ivec4(0);
+        ivec4 k3 = ivec4(0);
+
+        if (gy + 0 < p.outc)
+        {
+            k0.r = weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 0];
+            k0.g = weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 1];
+            k0.b = weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 2];
+            k0.a = weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 3];
+        }
+        if (gy + 1 < p.outc)
+        {
+            k1.r = weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 0];
+            k1.g = weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 1];
+            k1.b = weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 2];
+            k1.a = weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 3];
+        }
+        if (gy + 2 < p.outc)
+        {
+            k2.r = weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 0];
+            k2.g = weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 1];
+            k2.b = weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 2];
+            k2.a = weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 3];
+        }
+        if (gy + 3 < p.outc)
+        {
+            k3.r = weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 0];
+            k3.g = weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 1];
+            k3.b = weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 2];
+            k3.a = weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 3];
+        }
+
+        sum0.r += dotEXT(v0, k0);
+        sum0.g += dotEXT(v0, k1);
+        sum0.b += dotEXT(v0, k2);
+        sum0.a += dotEXT(v0, k3);
+
+        sum1.r += dotEXT(v1, k0);
+        sum1.g += dotEXT(v1, k1);
+        sum1.b += dotEXT(v1, k2);
+        sum1.a += dotEXT(v1, k3);
+
+        sum2.r += dotEXT(v2, k0);
+        sum2.g += dotEXT(v2, k1);
+        sum2.b += dotEXT(v2, k2);
+        sum2.a += dotEXT(v2, k3);
+
+        sum3.r += dotEXT(v3, k0);
+        sum3.g += dotEXT(v3, k1);
+        sum3.b += dotEXT(v3, k2);
+        sum3.a += dotEXT(v3, k3);
+    }
+
+    for (; q < p.c; q++)
+#else
+    for (int q = 0; q < p.c; q++)
+#endif
+    {
+        ivec4 v = ivec4(0);
+        if (gx + 0 < p.outw) v.r = bottom_tm_blob_data[bottom_batch_offset + q * p.cstep + gx + 0];
+        if (gx + 1 < p.outw) v.g = bottom_tm_blob_data[bottom_batch_offset + q * p.cstep + gx + 1];
+        if (gx + 2 < p.outw) v.b = bottom_tm_blob_data[bottom_batch_offset + q * p.cstep + gx + 2];
+        if (gx + 3 < p.outw) v.a = bottom_tm_blob_data[bottom_batch_offset + q * p.cstep + gx + 3];
+
+        ivec4 k = ivec4(0);
+        if (gy + 0 < p.outc) k.r = weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q];
+        if (gy + 1 < p.outc) k.g = weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q];
+        if (gy + 2 < p.outc) k.b = weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q];
+        if (gy + 3 < p.outc) k.a = weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q];
 
         sum0 += v.r * k;
         sum1 += v.g * k;
@@ -148,23 +497,39 @@ void main()
     }
 #endif
 
-    store_top_tm(gy + 0, gx + 0, gz, sum0.r);
-    store_top_tm(gy + 1, gx + 0, gz, sum0.g);
-    store_top_tm(gy + 2, gx + 0, gz, sum0.b);
-    store_top_tm(gy + 3, gx + 0, gz, sum0.a);
+    if (gx + 0 < p.outw)
+    {
+        const int gi = (gz * p.outc + gy) * p.outcstep + gx + 0;
+        if (gy + 0 < p.outc) top_tm_blob_data[gi + 0 * p.outcstep] = sum0.r;
+        if (gy + 1 < p.outc) top_tm_blob_data[gi + 1 * p.outcstep] = sum0.g;
+        if (gy + 2 < p.outc) top_tm_blob_data[gi + 2 * p.outcstep] = sum0.b;
+        if (gy + 3 < p.outc) top_tm_blob_data[gi + 3 * p.outcstep] = sum0.a;
+    }
 
-    store_top_tm(gy + 0, gx + 1, gz, sum1.r);
-    store_top_tm(gy + 1, gx + 1, gz, sum1.g);
-    store_top_tm(gy + 2, gx + 1, gz, sum1.b);
-    store_top_tm(gy + 3, gx + 1, gz, sum1.a);
+    if (gx + 1 < p.outw)
+    {
+        const int gi = (gz * p.outc + gy) * p.outcstep + gx + 1;
+        if (gy + 0 < p.outc) top_tm_blob_data[gi + 0 * p.outcstep] = sum1.r;
+        if (gy + 1 < p.outc) top_tm_blob_data[gi + 1 * p.outcstep] = sum1.g;
+        if (gy + 2 < p.outc) top_tm_blob_data[gi + 2 * p.outcstep] = sum1.b;
+        if (gy + 3 < p.outc) top_tm_blob_data[gi + 3 * p.outcstep] = sum1.a;
+    }
 
-    store_top_tm(gy + 0, gx + 2, gz, sum2.r);
-    store_top_tm(gy + 1, gx + 2, gz, sum2.g);
-    store_top_tm(gy + 2, gx + 2, gz, sum2.b);
-    store_top_tm(gy + 3, gx + 2, gz, sum2.a);
+    if (gx + 2 < p.outw)
+    {
+        const int gi = (gz * p.outc + gy) * p.outcstep + gx + 2;
+        if (gy + 0 < p.outc) top_tm_blob_data[gi + 0 * p.outcstep] = sum2.r;
+        if (gy + 1 < p.outc) top_tm_blob_data[gi + 1 * p.outcstep] = sum2.g;
+        if (gy + 2 < p.outc) top_tm_blob_data[gi + 2 * p.outcstep] = sum2.b;
+        if (gy + 3 < p.outc) top_tm_blob_data[gi + 3 * p.outcstep] = sum2.a;
+    }
 
-    store_top_tm(gy + 0, gx + 3, gz, sum3.r);
-    store_top_tm(gy + 1, gx + 3, gz, sum3.g);
-    store_top_tm(gy + 2, gx + 3, gz, sum3.b);
-    store_top_tm(gy + 3, gx + 3, gz, sum3.a);
+    if (gx + 3 < p.outw)
+    {
+        const int gi = (gz * p.outc + gy) * p.outcstep + gx + 3;
+        if (gy + 0 < p.outc) top_tm_blob_data[gi + 0 * p.outcstep] = sum3.r;
+        if (gy + 1 < p.outc) top_tm_blob_data[gi + 1 * p.outcstep] = sum3.g;
+        if (gy + 2 < p.outc) top_tm_blob_data[gi + 2 * p.outcstep] = sum3.b;
+        if (gy + 3 < p.outc) top_tm_blob_data[gi + 3 * p.outcstep] = sum3.a;
+    }
 }

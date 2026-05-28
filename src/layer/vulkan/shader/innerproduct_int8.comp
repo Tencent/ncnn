@@ -3,7 +3,7 @@
 
 #version 450
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && (ncnn_integerDotProduct4x8BitPackedSignedAccelerated || (NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_integerDotProduct8BitSignedAccelerated))
 #extension GL_EXT_integer_dot_product : require
 #endif
 
@@ -66,28 +66,60 @@ void main()
     int i = 0;
     for (; i + 3 < psc(w); i += 4)
     {
-        ivec4 v;
-        v.r = int(round(clamp(buffer_ld1(bottom_blob_data, i + 0) * afp(bottom_blob_int8_scale), afp(-127.f), afp(127.f))));
-        v.g = int(round(clamp(buffer_ld1(bottom_blob_data, i + 1) * afp(bottom_blob_int8_scale), afp(-127.f), afp(127.f))));
-        v.b = int(round(clamp(buffer_ld1(bottom_blob_data, i + 2) * afp(bottom_blob_int8_scale), afp(-127.f), afp(127.f))));
-        v.a = int(round(clamp(buffer_ld1(bottom_blob_data, i + 3) * afp(bottom_blob_int8_scale), afp(-127.f), afp(127.f))));
+        const afp vf0 = clamp(buffer_ld1(bottom_blob_data, i + 0) * afp(bottom_blob_int8_scale), afp(-127.f), afp(127.f));
+        const afp vf1 = clamp(buffer_ld1(bottom_blob_data, i + 1) * afp(bottom_blob_int8_scale), afp(-127.f), afp(127.f));
+        const afp vf2 = clamp(buffer_ld1(bottom_blob_data, i + 2) * afp(bottom_blob_int8_scale), afp(-127.f), afp(127.f));
+        const afp vf3 = clamp(buffer_ld1(bottom_blob_data, i + 3) * afp(bottom_blob_int8_scale), afp(-127.f), afp(127.f));
+#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
+        i8vec4 v;
+        v.r = int8_t(int(round(vf0)));
+        v.g = int8_t(int(round(vf1)));
+        v.b = int8_t(int(round(vf2)));
+        v.a = int8_t(int(round(vf3)));
 
-        ivec4 k;
-        k.r = i8buffer_ld1(weight_data, w_offset + i + 0);
-        k.g = i8buffer_ld1(weight_data, w_offset + i + 1);
-        k.b = i8buffer_ld1(weight_data, w_offset + i + 2);
-        k.a = i8buffer_ld1(weight_data, w_offset + i + 3);
+        const int wi = w_offset + i;
+
+        sum += dotEXT(v, i8vec4(weight_data[wi + 0], weight_data[wi + 1], weight_data[wi + 2], weight_data[wi + 3]));
+#else
+        ivec4 v;
+        v.r = int(round(vf0));
+        v.g = int(round(vf1));
+        v.b = int(round(vf2));
+        v.a = int(round(vf3));
+
+        const int wi = w_offset + i;
+
+        int k4;
+
+#if NCNN_int8_storage
+        k4 = packInt4x8(ivec4(int(weight_data[wi + 0]), int(weight_data[wi + 1]), int(weight_data[wi + 2]), int(weight_data[wi + 3])));
+#else
+        const int wid4 = wi / 4;
+        const int wim4 = wi % 4;
+        if (wim4 == 0)
+        {
+            k4 = weight_data[wid4];
+        }
+        else
+        {
+            const int shift = wim4 * 8;
+            k4 = int((uint(weight_data[wid4]) >> shift) | (uint(weight_data[wid4 + 1]) << (32 - shift)));
+        }
+#endif
 
 #if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
-        sum += dotPacked4x8EXT(packInt4x8(v), packInt4x8(k));
+        sum += dotPacked4x8EXT(packInt4x8(v), k4);
 #else
+        const ivec4 k = unpackInt4x8(k4);
         sum += v.r * k.r + v.g * k.g + v.b * k.b + v.a * k.a;
+#endif
 #endif
     }
 
     for (; i < psc(w); i++)
     {
-        int v = int(round(clamp(buffer_ld1(bottom_blob_data, i) * afp(bottom_blob_int8_scale), afp(-127.f), afp(127.f))));
+        const afp vf = clamp(buffer_ld1(bottom_blob_data, i) * afp(bottom_blob_int8_scale), afp(-127.f), afp(127.f));
+        int v = int(round(vf));
         int k = i8buffer_ld1(weight_data, w_offset + i);
         sum += v * k;
     }
