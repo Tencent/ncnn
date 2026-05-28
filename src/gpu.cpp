@@ -3559,6 +3559,7 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
     opt.use_fp16_storage = use_fp16 && vkdev->info.support_fp16_storage();
     opt.use_int8_packed = use_int8; // int8p is always supported
     opt.use_int8_storage = use_int8 && vkdev->info.support_int8_storage();
+    opt.use_int16_packed = false;
     opt.use_int16_storage = false;
     opt.use_bf16_packed = use_bf16; // bf16p is always supported
     opt.use_bf16_storage = use_bf16 && vkdev->info.support_bf16_storage();
@@ -3639,6 +3640,7 @@ void VulkanDevicePrivate::destroy_utility_operator()
             opt.use_fp16_storage = use_fp16 && vkdev->info.support_fp16_storage();
             opt.use_int8_packed = false;
             opt.use_int8_storage = false;
+            opt.use_int16_packed = false;
             opt.use_int16_storage = false;
             opt.use_bf16_packed = false;
             opt.use_bf16_storage = false;
@@ -3667,6 +3669,7 @@ void VulkanDevicePrivate::destroy_utility_operator()
         opt.use_fp16_storage = false;
         opt.use_int8_packed = use_int8;
         opt.use_int8_storage = use_int8 && vkdev->info.support_int8_storage();
+        opt.use_int16_packed = false;
         opt.use_int16_storage = false;
         opt.use_bf16_packed = false;
         opt.use_bf16_storage = false;
@@ -3697,6 +3700,7 @@ void VulkanDevicePrivate::destroy_utility_operator()
         opt.use_fp16_storage = false;
         opt.use_int8_packed = false;
         opt.use_int8_storage = false;
+        opt.use_int16_packed = false;
         opt.use_int16_storage = false;
         opt.use_bf16_packed = use_bf16;
         opt.use_bf16_storage = use_bf16 && vkdev->info.support_bf16_storage();
@@ -5094,6 +5098,21 @@ int compile_spirv_module(const char* comp_string, const Option& opt, std::vector
     return compile_spirv_module(comp_string, length, opt, spirv);
 }
 
+static bool shader_source_contains(const char* comp_data, int comp_data_size, const char* pattern)
+{
+    const int pattern_size = (int)strlen(pattern);
+    if (pattern_size == 0 || comp_data_size < pattern_size)
+        return false;
+
+    for (int i = 0; i <= comp_data_size - pattern_size; i++)
+    {
+        if (memcmp(comp_data + i, pattern, pattern_size) == 0)
+            return true;
+    }
+
+    return false;
+}
+
 int compile_spirv_module(const char* comp_data, int comp_data_size, const Option& opt, std::vector<uint32_t>& spirv)
 {
     DefinitionCollector custom_defines;
@@ -5109,8 +5128,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     const bool support_fp16_uniform = info.support_fp16_uniform();
     const bool support_shader_int64 = info.physicalDevicefeatures().shaderInt64;
     const bool support_shader_int16 = info.physicalDevicefeatures().shaderInt16;
-    const bool shader_uses_int16_storage = strstr(comp_data, "sint16") || strstr(comp_data, "NCNN_int16_storage");
-    const bool use_int16_storage = opt.use_int16_storage && support_int16_storage && support_shader_int16 && shader_uses_int16_storage;
+    const bool shader_uses_int16_storage = shader_source_contains(comp_data, comp_data_size, "sint16") || shader_source_contains(comp_data, comp_data_size, "NCNN_int16_storage") || shader_source_contains(comp_data, comp_data_size, "NCNN_int16_packed");
+    const bool effective_int16_storage = opt.use_int16_storage && support_int16_storage && support_shader_int16 && shader_uses_int16_storage;
+    const bool use_int16_packed = opt.use_int16_packed && !effective_int16_storage && shader_uses_int16_storage;
+    const bool use_int16_storage = effective_int16_storage;
 
     if (opt.use_bf16_storage)
     {
@@ -5462,7 +5483,12 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("sint8", "int");
     }
 
-    if (use_int16_storage)
+    if (use_int16_packed)
+    {
+        custom_defines.append("NCNN_int16_packed", 1);
+        custom_defines.append("sint16", "int");
+    }
+    else if (use_int16_storage)
     {
         custom_defines.append("NCNN_int16_storage", 1);
         custom_defines.append("sint16", "int16_t");
@@ -5486,6 +5512,8 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     custom_defines.append("unpackInt4x8(v)", "ivec4((v<<24)>>24,(v<<16)>>24,(v<<8)>>24,v>>24)");
     custom_defines.append("packInt4x8(v)", "int((uint(v.r)&0xFFu)|((uint(v.g)&0xFFu)<<8)|((uint(v.b)&0xFFu)<<16)|((uint(v.a)&0xFFu)<<24))");
+    custom_defines.append("unpackInt2x16(v)", "ivec2((int(v)<<16)>>16,int(v)>>16)");
+    custom_defines.append("packInt2x16(v)", "int((uint(v.r)&0xFFFFu)|((uint(v.g)&0xFFFFu)<<16))");
 
     if (opt.use_int8_storage)
     {

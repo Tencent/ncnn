@@ -79,6 +79,7 @@ public:
     // cooperative matrix
     bool use_cooperative_matrix;
     bool use_int8_cooperative_matrix;
+    bool use_int8_winograd_int16_packed;
     bool use_int8_winograd_int16_storage;
     int coopmat_M;
     int coopmat_N;

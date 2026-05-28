@@ -125,6 +125,16 @@ void main()
     v23 = m23 - m21;
     v33 = m33 - m31;
 
+#if NCNN_int16_packed
+    bottom_tm_blob_data[(0 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v00, v01));
+    bottom_tm_blob_data[(1 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v02, v03));
+    bottom_tm_blob_data[(2 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v10, v11));
+    bottom_tm_blob_data[(3 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v12, v13));
+    bottom_tm_blob_data[(4 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v20, v21));
+    bottom_tm_blob_data[(5 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v22, v23));
+    bottom_tm_blob_data[(6 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v30, v31));
+    bottom_tm_blob_data[(7 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v32, v33));
+#else
     bottom_tm_blob_data[(0 * p.c + gz) * p.outcstep + tile] = sint16(v00);
     bottom_tm_blob_data[(1 * p.c + gz) * p.outcstep + tile] = sint16(v01);
     bottom_tm_blob_data[(2 * p.c + gz) * p.outcstep + tile] = sint16(v02);
@@ -141,4 +151,5 @@ void main()
     bottom_tm_blob_data[(13 * p.c + gz) * p.outcstep + tile] = sint16(v31);
     bottom_tm_blob_data[(14 * p.c + gz) * p.outcstep + tile] = sint16(v32);
     bottom_tm_blob_data[(15 * p.c + gz) * p.outcstep + tile] = sint16(v33);
+#endif
 }

@@ -145,8 +145,8 @@ public:
     bool use_fp16_uniform;
     bool use_int8_uniform;
 
+    bool use_int16_packed;
     bool use_int16_storage;
-    bool use_reserved_10;
     bool use_reserved_11;
 };
 

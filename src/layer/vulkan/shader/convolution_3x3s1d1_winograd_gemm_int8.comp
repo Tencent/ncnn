@@ -3,7 +3,7 @@
 
 #version 450
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && (ncnn_integerDotProduct32BitSignedAccelerated || (NCNN_int16_storage && ncnn_integerDotProduct16BitSignedAccelerated))
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && (ncnn_integerDotProduct32BitSignedAccelerated || ((NCNN_int16_storage || NCNN_int16_packed) && ncnn_shaderInt16 && ncnn_integerDotProduct16BitSignedAccelerated))
 #extension GL_EXT_integer_dot_product : require
 #endif
 
@@ -47,8 +47,15 @@ void main()
     const int lx = int(gl_LocalInvocationID.x);
     const int ly = int(gl_LocalInvocationID.y);
 
+#if NCNN_int16_packed
+    const int bottom_batch_offset = (gz / 2) * p.c * p.cstep;
+    const int weight_batch_offset = (gz / 2) * p.c * p.outc;
+    const int int16_lane = gz - (gz / 2) * 2;
+#else
     const int bottom_batch_offset = gz * p.c * p.cstep;
     const int weight_batch_offset = gz * p.c * p.outc;
+    const int int16_lane = 0;
+#endif
 
     int q = 0;
     for (; q + (LOCAL_MEMORY_UNROLL_INCH - 1) < p.c; q += LOCAL_MEMORY_UNROLL_INCH)
@@ -58,7 +65,7 @@ void main()
             for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
             {
                 const int pos = gx + ly;
-                tmp_v[lx][z4][ly] = pos < p.outw ? bottom_tm_blob_data[bottom_batch_offset + (q + z4) * p.cstep + pos] : 0;
+                tmp_v[lx][z4][ly] = pos < p.outw ? unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + z4) * p.cstep + pos])[int16_lane] : 0;
             }
         }
 
@@ -67,13 +74,13 @@ void main()
             for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
             {
                 const int outch_index = gy + lx;
-                tmp_k[ly][z4][lx] = outch_index < p.outc ? weight_tm_data[weight_batch_offset + outch_index * p.c + q + z4] : 0;
+                tmp_k[ly][z4][lx] = outch_index < p.outc ? unpackInt2x16(weight_tm_data[weight_batch_offset + outch_index * p.c + q + z4])[int16_lane] : 0;
             }
         }
 
         barrier();
 
-#if NCNN_int16_storage && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct16BitSignedAccelerated
+#if (NCNN_int16_storage || NCNN_int16_packed) && ncnn_shaderInt16 && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct16BitSignedAccelerated
         for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4 += 4)
         {
             const i16vec4 v0 = i16vec4(int16_t(tmp_v[lx][z4 + 0][0]), int16_t(tmp_v[lx][z4 + 1][0]), int16_t(tmp_v[lx][z4 + 2][0]), int16_t(tmp_v[lx][z4 + 3][0]));
@@ -164,7 +171,7 @@ void main()
             for (int z4 = 0; z4 < remain; z4++)
             {
                 const int pos = gx + ly;
-                tmp_v[lx][z4][ly] = pos < p.outw ? bottom_tm_blob_data[bottom_batch_offset + (q + z4) * p.cstep + pos] : 0;
+                tmp_v[lx][z4][ly] = pos < p.outw ? unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + z4) * p.cstep + pos])[int16_lane] : 0;
             }
         }
 
@@ -173,13 +180,13 @@ void main()
             for (int z4 = 0; z4 < remain; z4++)
             {
                 const int outch_index = gy + lx;
-                tmp_k[ly][z4][lx] = outch_index < p.outc ? weight_tm_data[weight_batch_offset + outch_index * p.c + q + z4] : 0;
+                tmp_k[ly][z4][lx] = outch_index < p.outc ? unpackInt2x16(weight_tm_data[weight_batch_offset + outch_index * p.c + q + z4])[int16_lane] : 0;
             }
         }
 
         barrier();
 
-#if NCNN_int16_storage && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct16BitSignedAccelerated
+#if (NCNN_int16_storage || NCNN_int16_packed) && ncnn_shaderInt16 && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct16BitSignedAccelerated
         int z4 = 0;
         for (; z4 + 3 < remain; z4 += 4)
         {
@@ -283,10 +290,17 @@ void main()
 #endif
     }
 #else
+#if NCNN_int16_packed
+    const int bottom_batch_offset = (gz / 2) * p.c * p.cstep;
+    const int weight_batch_offset = (gz / 2) * p.c * p.outc;
+    const int int16_lane = gz - (gz / 2) * 2;
+#else
     const int bottom_batch_offset = gz * p.c * p.cstep;
     const int weight_batch_offset = gz * p.c * p.outc;
+    const int int16_lane = 0;
+#endif
 
-#if NCNN_int16_storage && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct16BitSignedAccelerated
+#if (NCNN_int16_storage || NCNN_int16_packed) && ncnn_shaderInt16 && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct16BitSignedAccelerated
     int q = 0;
     for (; q + 3 < p.c; q += 4)
     {
@@ -297,31 +311,31 @@ void main()
 
         if (gx + 0 < p.outw)
         {
-            v0.r = bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 0];
-            v0.g = bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 0];
-            v0.b = bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 0];
-            v0.a = bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 0];
+            v0.r = int16_t(unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 0])[int16_lane]);
+            v0.g = int16_t(unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 0])[int16_lane]);
+            v0.b = int16_t(unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 0])[int16_lane]);
+            v0.a = int16_t(unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 0])[int16_lane]);
         }
         if (gx + 1 < p.outw)
         {
-            v1.r = bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 1];
-            v1.g = bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 1];
-            v1.b = bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 1];
-            v1.a = bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 1];
+            v1.r = int16_t(unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 1])[int16_lane]);
+            v1.g = int16_t(unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 1])[int16_lane]);
+            v1.b = int16_t(unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 1])[int16_lane]);
+            v1.a = int16_t(unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 1])[int16_lane]);
         }
         if (gx + 2 < p.outw)
         {
-            v2.r = bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 2];
-            v2.g = bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 2];
-            v2.b = bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 2];
-            v2.a = bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 2];
+            v2.r = int16_t(unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 2])[int16_lane]);
+            v2.g = int16_t(unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 2])[int16_lane]);
+            v2.b = int16_t(unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 2])[int16_lane]);
+            v2.a = int16_t(unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 2])[int16_lane]);
         }
         if (gx + 3 < p.outw)
         {
-            v3.r = bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 3];
-            v3.g = bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 3];
-            v3.b = bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 3];
-            v3.a = bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 3];
+            v3.r = int16_t(unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 3])[int16_lane]);
+            v3.g = int16_t(unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 3])[int16_lane]);
+            v3.b = int16_t(unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 3])[int16_lane]);
+            v3.a = int16_t(unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 3])[int16_lane]);
         }
 
         i16vec4 k0 = i16vec4(int16_t(0));
@@ -331,31 +345,31 @@ void main()
 
         if (gy + 0 < p.outc)
         {
-            k0.r = weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 0];
-            k0.g = weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 1];
-            k0.b = weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 2];
-            k0.a = weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 3];
+            k0.r = int16_t(unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 0])[int16_lane]);
+            k0.g = int16_t(unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 1])[int16_lane]);
+            k0.b = int16_t(unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 2])[int16_lane]);
+            k0.a = int16_t(unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 3])[int16_lane]);
         }
         if (gy + 1 < p.outc)
         {
-            k1.r = weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 0];
-            k1.g = weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 1];
-            k1.b = weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 2];
-            k1.a = weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 3];
+            k1.r = int16_t(unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 0])[int16_lane]);
+            k1.g = int16_t(unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 1])[int16_lane]);
+            k1.b = int16_t(unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 2])[int16_lane]);
+            k1.a = int16_t(unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 3])[int16_lane]);
         }
         if (gy + 2 < p.outc)
         {
-            k2.r = weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 0];
-            k2.g = weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 1];
-            k2.b = weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 2];
-            k2.a = weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 3];
+            k2.r = int16_t(unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 0])[int16_lane]);
+            k2.g = int16_t(unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 1])[int16_lane]);
+            k2.b = int16_t(unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 2])[int16_lane]);
+            k2.a = int16_t(unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 3])[int16_lane]);
         }
         if (gy + 3 < p.outc)
         {
-            k3.r = weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 0];
-            k3.g = weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 1];
-            k3.b = weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 2];
-            k3.a = weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 3];
+            k3.r = int16_t(unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 0])[int16_lane]);
+            k3.g = int16_t(unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 1])[int16_lane]);
+            k3.b = int16_t(unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 2])[int16_lane]);
+            k3.a = int16_t(unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 3])[int16_lane]);
         }
 
         sum0.r += dotEXT(v0, k0);
@@ -391,31 +405,31 @@ void main()
 
         if (gx + 0 < p.outw)
         {
-            v0.r = bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 0];
-            v0.g = bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 0];
-            v0.b = bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 0];
-            v0.a = bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 0];
+            v0.r = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 0])[int16_lane];
+            v0.g = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 0])[int16_lane];
+            v0.b = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 0])[int16_lane];
+            v0.a = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 0])[int16_lane];
         }
         if (gx + 1 < p.outw)
         {
-            v1.r = bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 1];
-            v1.g = bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 1];
-            v1.b = bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 1];
-            v1.a = bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 1];
+            v1.r = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 1])[int16_lane];
+            v1.g = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 1])[int16_lane];
+            v1.b = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 1])[int16_lane];
+            v1.a = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 1])[int16_lane];
         }
         if (gx + 2 < p.outw)
         {
-            v2.r = bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 2];
-            v2.g = bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 2];
-            v2.b = bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 2];
-            v2.a = bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 2];
+            v2.r = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 2])[int16_lane];
+            v2.g = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 2])[int16_lane];
+            v2.b = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 2])[int16_lane];
+            v2.a = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 2])[int16_lane];
         }
         if (gx + 3 < p.outw)
         {
-            v3.r = bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 3];
-            v3.g = bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 3];
-            v3.b = bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 3];
-            v3.a = bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 3];
+            v3.r = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 0) * p.cstep + gx + 3])[int16_lane];
+            v3.g = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 1) * p.cstep + gx + 3])[int16_lane];
+            v3.b = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 2) * p.cstep + gx + 3])[int16_lane];
+            v3.a = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + 3) * p.cstep + gx + 3])[int16_lane];
         }
 
         ivec4 k0 = ivec4(0);
@@ -425,31 +439,31 @@ void main()
 
         if (gy + 0 < p.outc)
         {
-            k0.r = weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 0];
-            k0.g = weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 1];
-            k0.b = weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 2];
-            k0.a = weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 3];
+            k0.r = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 0])[int16_lane];
+            k0.g = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 1])[int16_lane];
+            k0.b = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 2])[int16_lane];
+            k0.a = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q + 3])[int16_lane];
         }
         if (gy + 1 < p.outc)
         {
-            k1.r = weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 0];
-            k1.g = weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 1];
-            k1.b = weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 2];
-            k1.a = weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 3];
+            k1.r = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 0])[int16_lane];
+            k1.g = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 1])[int16_lane];
+            k1.b = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 2])[int16_lane];
+            k1.a = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q + 3])[int16_lane];
         }
         if (gy + 2 < p.outc)
         {
-            k2.r = weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 0];
-            k2.g = weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 1];
-            k2.b = weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 2];
-            k2.a = weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 3];
+            k2.r = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 0])[int16_lane];
+            k2.g = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 1])[int16_lane];
+            k2.b = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 2])[int16_lane];
+            k2.a = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q + 3])[int16_lane];
         }
         if (gy + 3 < p.outc)
         {
-            k3.r = weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 0];
-            k3.g = weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 1];
-            k3.b = weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 2];
-            k3.a = weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 3];
+            k3.r = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 0])[int16_lane];
+            k3.g = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 1])[int16_lane];
+            k3.b = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 2])[int16_lane];
+            k3.a = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q + 3])[int16_lane];
         }
 
         sum0.r += dotEXT(v0, k0);
@@ -479,16 +493,16 @@ void main()
 #endif
     {
         ivec4 v = ivec4(0);
-        if (gx + 0 < p.outw) v.r = bottom_tm_blob_data[bottom_batch_offset + q * p.cstep + gx + 0];
-        if (gx + 1 < p.outw) v.g = bottom_tm_blob_data[bottom_batch_offset + q * p.cstep + gx + 1];
-        if (gx + 2 < p.outw) v.b = bottom_tm_blob_data[bottom_batch_offset + q * p.cstep + gx + 2];
-        if (gx + 3 < p.outw) v.a = bottom_tm_blob_data[bottom_batch_offset + q * p.cstep + gx + 3];
+        if (gx + 0 < p.outw) v.r = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + q * p.cstep + gx + 0])[int16_lane];
+        if (gx + 1 < p.outw) v.g = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + q * p.cstep + gx + 1])[int16_lane];
+        if (gx + 2 < p.outw) v.b = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + q * p.cstep + gx + 2])[int16_lane];
+        if (gx + 3 < p.outw) v.a = unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + q * p.cstep + gx + 3])[int16_lane];
 
         ivec4 k = ivec4(0);
-        if (gy + 0 < p.outc) k.r = weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q];
-        if (gy + 1 < p.outc) k.g = weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q];
-        if (gy + 2 < p.outc) k.b = weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q];
-        if (gy + 3 < p.outc) k.a = weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q];
+        if (gy + 0 < p.outc) k.r = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 0) * p.c + q])[int16_lane];
+        if (gy + 1 < p.outc) k.g = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 1) * p.c + q])[int16_lane];
+        if (gy + 2 < p.outc) k.b = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 2) * p.c + q])[int16_lane];
+        if (gy + 3 < p.outc) k.a = unpackInt2x16(weight_tm_data[weight_batch_offset + (gy + 3) * p.c + q])[int16_lane];
 
         sum0 += v.r * k;
         sum1 += v.g * k;

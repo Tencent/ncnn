@@ -43,6 +43,7 @@ Convolution_vulkan::Convolution_vulkan()
 
     use_cooperative_matrix = false;
     use_int8_cooperative_matrix = false;
+    use_int8_winograd_int16_packed = false;
     use_int8_winograd_int16_storage = false;
     coopmat_M = 0;
     coopmat_N = 0;
@@ -1495,6 +1496,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
 {
 #if NCNN_INT8
     use_int8_cooperative_matrix = false;
+    use_int8_winograd_int16_packed = false;
     use_int8_winograd_int16_storage = false;
 
     // Keep the cooperative-matrix decision point local to the int8 pipeline.
@@ -1524,6 +1526,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     opt_int8.use_fp16_arithmetic = false;
     opt_int8.use_bf16_packed = false;
     opt_int8.use_bf16_storage = false;
+    opt_int8.use_int16_packed = false;
     opt_int8.use_int16_storage = false;
     opt_int8.use_int8_arithmetic = opt_int8.use_int8_storage && vkdev->info.support_int8_arithmetic();
 
@@ -1558,7 +1561,13 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     bool use_winograd = opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16;
     bool use_gemm = opt.use_sgemm_convolution && !is_conv1x1s1d1 && !use_winograd && num_input * maxk >= 8 && num_output >= 8;
-    use_int8_winograd_int16_storage = use_winograd && opt.use_int16_storage && vkdev->info.support_int16_storage() && vkdev->info.physicalDevicefeatures().shaderInt16;
+    const bool support_int8_winograd_int16_storage = opt.use_int16_storage && vkdev->info.support_int16_storage() && vkdev->info.physicalDevicefeatures().shaderInt16;
+    use_int8_winograd_int16_packed = use_winograd && !support_int8_winograd_int16_storage && opt.use_int16_packed;
+    use_int8_winograd_int16_storage = use_winograd && support_int8_winograd_int16_storage;
+    if (use_int8_winograd_int16_packed)
+    {
+        opt_int8.use_int16_packed = true;
+    }
     if (use_int8_winograd_int16_storage)
     {
         opt_int8.use_int16_storage = true;
@@ -1612,7 +1621,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 }
             }
 
-            weight_winograd43_data_int8_packed.create(num_input, num_output, 36, use_int8_winograd_int16_storage ? (size_t)2u : (size_t)4u, 1);
+            weight_winograd43_data_int8_packed.create(num_input, num_output, use_int8_winograd_int16_packed ? 18 : 36, use_int8_winograd_int16_storage ? (size_t)2u : (size_t)4u, 1);
             if (use_int8_winograd_int16_storage)
             {
                 for (int k = 0; k < 36; k++)
@@ -1626,6 +1635,26 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                         for (int q = 0; q < num_input; q++)
                         {
                             g00[0] = (short)k0[q * 36 + k];
+                            g00++;
+                        }
+                    }
+                }
+            }
+            else if (use_int8_winograd_int16_packed)
+            {
+                for (int k = 0; k < 36; k += 2)
+                {
+                    int* g00 = weight_winograd43_data_int8_packed.channel(k / 2);
+
+                    for (int p = 0; p < num_output; p++)
+                    {
+                        const int* k0 = weight_data_tm.channel(p);
+
+                        for (int q = 0; q < num_input; q++)
+                        {
+                            const int v0 = k0[q * 36 + k];
+                            const int v1 = k0[q * 36 + k + 1];
+                            g00[0] = (int)(((unsigned int)(unsigned short)v0) | ((unsigned int)(unsigned short)v1 << 16));
                             g00++;
                         }
                     }
@@ -1716,7 +1745,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 }
             }
 
-            weight_winograd23_data_int8_packed.create(num_input, num_output, 16, use_int8_winograd_int16_storage ? (size_t)2u : (size_t)4u, 1);
+            weight_winograd23_data_int8_packed.create(num_input, num_output, use_int8_winograd_int16_packed ? 8 : 16, use_int8_winograd_int16_storage ? (size_t)2u : (size_t)4u, 1);
             if (use_int8_winograd_int16_storage)
             {
                 for (int k = 0; k < 16; k++)
@@ -1730,6 +1759,26 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                         for (int q = 0; q < num_input; q++)
                         {
                             g00[0] = (short)k0[q * 16 + k];
+                            g00++;
+                        }
+                    }
+                }
+            }
+            else if (use_int8_winograd_int16_packed)
+            {
+                for (int k = 0; k < 16; k += 2)
+                {
+                    int* g00 = weight_winograd23_data_int8_packed.channel(k / 2);
+
+                    for (int p = 0; p < num_output; p++)
+                    {
+                        const int* k0 = weight_data_tm.channel(p);
+
+                        for (int q = 0; q < num_input; q++)
+                        {
+                            const int v0 = k0[q * 16 + k];
+                            const int v1 = k0[q * 16 + k + 1];
+                            g00[0] = (int)(((unsigned int)(unsigned short)v0) | ((unsigned int)(unsigned short)v1 << 16));
                             g00++;
                         }
                     }
@@ -1907,6 +1956,7 @@ int Convolution_vulkan::destroy_pipeline(const Option& opt)
 
     use_cooperative_matrix = false;
     use_int8_cooperative_matrix = false;
+    use_int8_winograd_int16_packed = false;
     use_int8_winograd_int16_storage = false;
     coopmat_M = 0;
     coopmat_N = 0;
@@ -1984,6 +2034,7 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     opt_float.use_fp16_arithmetic = false;
     opt_float.use_bf16_packed = false;
     opt_float.use_bf16_storage = false;
+    opt_float.use_int16_packed = false;
     opt_float.use_int16_storage = false;
 
     Option opt_int8 = opt;
@@ -1992,9 +2043,14 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     opt_int8.use_fp16_arithmetic = false;
     opt_int8.use_bf16_packed = false;
     opt_int8.use_bf16_storage = false;
+    opt_int8.use_int16_packed = false;
     opt_int8.use_int16_storage = false;
 
     Option opt_winograd = opt_float;
+    if (use_int8_winograd_int16_packed)
+    {
+        opt_winograd.use_int16_packed = true;
+    }
     if (use_int8_winograd_int16_storage)
     {
         opt_winograd.use_int16_storage = true;
@@ -2178,12 +2234,13 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
         }
 
         const int B = pre_winograd43 ? 36 : 16;
+        const int B_packed = use_int8_winograd_int16_packed ? B / 2 : B;
         const int block_x = pre_winograd43 ? (outw + 3) / 4 : (outw + 1) / 2;
         const int block_y = pre_winograd43 ? (outh + 3) / 4 : (outh + 1) / 2;
 
         VkMat bottom_tm_blob;
         {
-            bottom_tm_blob.create(block_x * block_y, 1, channels * B, use_int8_winograd_int16_storage ? (size_t)2u : (size_t)4u, 1, opt.workspace_vkallocator);
+            bottom_tm_blob.create(block_x * block_y, 1, channels * B_packed, use_int8_winograd_int16_storage ? (size_t)2u : (size_t)4u, 1, opt.workspace_vkallocator);
             if (bottom_tm_blob.empty())
                 return -100;
 
