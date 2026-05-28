@@ -225,6 +225,14 @@ static int test_slice_3()
     return 0;
 }
 
+static int test_slice_4()
+{
+    ncnn::Mat a = RandomMat(31, 28);
+    ncnn::Mat b = RandomMat(1, 21, 36);
+
+    return test_slice(a, IntArray(4, -233), 0) || test_slice(b, IntArray(12, -233), 0);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -233,5 +241,6 @@ int main()
            || test_slice_0()
            || test_slice_1()
            || test_slice_2()
-           || test_slice_3();
+           || test_slice_3()
+           || test_slice_4();
 }

@@ -9,6 +9,7 @@ static int test_scale(const ncnn::Mat& a, int bias)
     if (a.dims == 1) scale_data_size = a.w;
     if (a.dims == 2) scale_data_size = a.h;
     if (a.dims == 3) scale_data_size = a.c;
+    if (a.dims == 4) scale_data_size = a.c;
 
     ncnn::ParamDict pd;
     pd.set(0, scale_data_size);
@@ -22,7 +23,7 @@ static int test_scale(const ncnn::Mat& a, int bias)
     int ret = test_layer("Scale", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_scale failed a.dims=%d a=(%d %d %d) bias=%d\n", a.dims, a.w, a.h, a.c, bias);
+        fprintf(stderr, "test_scale failed a.dims=%d a=(%d %d %d %d) bias=%d\n", a.dims, a.w, a.h, a.d, a.c, bias);
     }
 
     return ret;
@@ -34,6 +35,7 @@ static int test_scale_attention(const ncnn::Mat& a)
     if (a.dims == 1) scale_data_size = a.w;
     if (a.dims == 2) scale_data_size = a.h;
     if (a.dims == 3) scale_data_size = a.c;
+    if (a.dims == 4) scale_data_size = a.c;
 
     ncnn::ParamDict pd;
     pd.set(0, -233);
@@ -47,7 +49,7 @@ static int test_scale_attention(const ncnn::Mat& a)
     int ret = test_layer("Scale", pd, weights, ab, 2);
     if (ret != 0)
     {
-        fprintf(stderr, "test_scale_attention failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
+        fprintf(stderr, "test_scale_attention failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);
     }
 
     return ret;
@@ -116,11 +118,23 @@ static int test_scale_5()
            || test_scale_attention(RandomMat(127));
 }
 
+static int test_scale_6()
+{
+    return 0
+           || test_scale(RandomMat(5, 3, 2, 24), 0)
+           || test_scale(RandomMat(5, 3, 2, 24), 1)
+           || test_scale(RandomMat(3, 5, 3, 13), 0)
+           || test_scale(RandomMat(3, 5, 3, 13), 1)
+           || test_scale_attention(RandomMat(5, 3, 2, 24))
+           || test_scale_attention(RandomMat(3, 5, 3, 13));
+}
+
 int main()
 {
     SRAND(7767517);
 
     return 0
+           || test_scale_6()
            || test_scale_0()
            || test_scale_1()
            || test_scale_2()

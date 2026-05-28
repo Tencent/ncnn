@@ -163,7 +163,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     // treat 1d blob as unpacked layout
     const int dims = bottom_top_blob.dims;
     const int w = dims == 1 ? bottom_top_blob.w * bottom_top_blob.elempack : bottom_top_blob.w;
-    const int h = bottom_top_blob.h;
+    const int h = bottom_top_blob.h * bottom_top_blob.d;
     const int channels = bottom_top_blob.c;
     const size_t elemsize = dims == 1 ? bottom_top_blob.elemsize * bottom_top_blob.elempack : bottom_top_blob.elemsize;
     const int elempack = dims == 1 ? 1 : bottom_top_blob.elempack;
@@ -188,14 +188,18 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     }
     else
     {
-        // (w, h, c)
         if (affine_size == w)
         {
             group_size = w;
             num_groups_per_channel = h;
         }
+        else if (dims == 4 && affine_size == w * bottom_top_blob.h)
+        {
+            group_size = affine_size;
+            num_groups_per_channel = bottom_top_blob.d;
+        }
         else
-        {   // affine_size == w * h, like InstanceNorm
+        {
             group_size = w * h;
             num_groups_per_channel = 1;
         }

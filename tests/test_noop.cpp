@@ -15,10 +15,18 @@ static int test_noop(const ncnn::Mat& a)
     int ret = test_layer("Noop", pd, weights, as, 1);
     if (ret != 0)
     {
-        fprintf(stderr, "test_noop failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
+        fprintf(stderr, "test_noop failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);
     }
 
     return ret;
+}
+
+static int test_noop_4d()
+{
+    return 0
+           || test_noop(RandomMat(5, 7, 3, 24))
+           || test_noop(RandomMat(7, 9, 5, 12))
+           || test_noop(RandomMat(3, 5, 4, 13));
 }
 
 static int test_noop_0()
@@ -50,6 +58,7 @@ int main()
     SRAND(7767517);
 
     return 0
+           || test_noop_4d()
            || test_noop_0()
            || test_noop_1()
            || test_noop_2();

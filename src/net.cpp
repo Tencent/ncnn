@@ -443,6 +443,11 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
                 const int packn = ncnn::cpu_riscv_vlenb() / 4;
                 if (elemcount % packn == 0)
                     dst_elempack = packn;
+#elif NCNN_LASX
+                if (elemcount % 8 == 0 && ncnn::cpu_support_loongarch_lasx())
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
 #else
                 if (elemcount % 4 == 0)
                     dst_elempack = 4;
@@ -471,6 +476,23 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
                 const int packn = ncnn::cpu_riscv_vlenb() / 2;
                 if (elemcount % packn == 0)
                     dst_elempack = packn;
+#elif NCNN_LASX
+                if (elemcount % 8 == 0 && ncnn::cpu_support_loongarch_lasx() && opt.use_bf16_storage && layer->support_bf16_storage)
+                    dst_elempack = 8;
+                else if (elemcount % 8 == 0 && ncnn::cpu_support_loongarch_lsx() && opt.use_bf16_storage && layer->support_bf16_storage)
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
+#elif NCNN_LSX
+                if (elemcount % 8 == 0 && ncnn::cpu_support_loongarch_lsx() && opt.use_bf16_storage && layer->support_bf16_storage)
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
+#elif NCNN_MSA
+                if (elemcount % 8 == 0 && ncnn::cpu_support_mips_msa() && opt.use_bf16_storage && layer->support_bf16_storage)
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
 #else
                 if (elemcount % 4 == 0)
                     dst_elempack = 4;

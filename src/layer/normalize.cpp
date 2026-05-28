@@ -36,9 +36,10 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
     size_t elemsize = bottom_top_blob.elemsize;
-    int size = w * h;
+    int size = w * h * d;
 
     if (across_spatial && across_channel)
     {
