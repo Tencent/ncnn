@@ -287,6 +287,7 @@ public:
     bool support_int8_storage() const;
     bool support_int8_uniform() const;
     bool support_int8_arithmetic() const;
+    bool support_int16_packed() const;
     bool support_int16_storage() const;
 
     // bf16 feature

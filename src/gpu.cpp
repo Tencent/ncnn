@@ -1943,6 +1943,11 @@ bool GpuInfo::support_int8_arithmetic() const
     return d->queryFloat16Int8Features.shaderInt8;
 }
 
+bool GpuInfo::support_int16_packed() const
+{
+    return true;
+}
+
 bool GpuInfo::support_int16_storage() const
 {
     return d->query16BitStorageFeatures.storageBuffer16BitAccess;
@@ -5124,13 +5129,14 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     const GpuInfo& info = get_gpu_info(device_index);
     const bool support_fp16_storage = info.support_fp16_storage();
+    const bool support_int16_packed = info.support_int16_packed();
     const bool support_int16_storage = info.support_int16_storage();
     const bool support_fp16_uniform = info.support_fp16_uniform();
     const bool support_shader_int64 = info.physicalDevicefeatures().shaderInt64;
     const bool support_shader_int16 = info.physicalDevicefeatures().shaderInt16;
     const bool shader_uses_int16_storage = shader_source_contains(comp_data, comp_data_size, "sint16") || shader_source_contains(comp_data, comp_data_size, "NCNN_int16_storage") || shader_source_contains(comp_data, comp_data_size, "NCNN_int16_packed");
     const bool effective_int16_storage = opt.use_int16_storage && support_int16_storage && support_shader_int16 && shader_uses_int16_storage;
-    const bool use_int16_packed = opt.use_int16_packed && !effective_int16_storage && shader_uses_int16_storage;
+    const bool use_int16_packed = opt.use_int16_packed && support_int16_packed && !effective_int16_storage && shader_uses_int16_storage;
     const bool use_int16_storage = effective_int16_storage;
 
     if (opt.use_bf16_storage)

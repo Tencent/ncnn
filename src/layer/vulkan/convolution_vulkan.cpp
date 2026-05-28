@@ -1562,7 +1562,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     bool use_winograd = opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16;
     bool use_gemm = opt.use_sgemm_convolution && !is_conv1x1s1d1 && !use_winograd && num_input * maxk >= 8 && num_output >= 8;
     const bool support_int8_winograd_int16_storage = opt.use_int16_storage && vkdev->info.support_int16_storage() && vkdev->info.physicalDevicefeatures().shaderInt16;
-    use_int8_winograd_int16_packed = use_winograd && !support_int8_winograd_int16_storage && opt.use_int16_packed;
+    use_int8_winograd_int16_packed = use_winograd && !support_int8_winograd_int16_storage && opt.use_int16_packed && vkdev->info.support_int16_packed();
     use_int8_winograd_int16_storage = use_winograd && support_int8_winograd_int16_storage;
     if (use_int8_winograd_int16_packed)
     {
