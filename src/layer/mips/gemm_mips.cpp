@@ -310,19 +310,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 pp += 32;
                 p0 += A_hstep * 4;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp[2] = p0[8];
-                pp[3] = p0[12];
-                pp[4] = p0[16];
-                pp[5] = p0[20];
-                pp[6] = p0[24];
-                pp[7] = p0[28];
-                pp += 8;
-                p0++;
-            }
         }
         if (elempack == 1)
         {
@@ -362,15 +349,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 __msa_st_w((v4i32)_r3, pp + 12, 0);
                 pp += 16;
                 p0 += A_hstep * 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp[2] = p0[8];
-                pp[3] = p0[12];
-                pp += 4;
-                p0++;
             }
         }
         if (elempack == 1)
@@ -419,13 +397,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 pp += 8;
                 p0 += A_hstep * 4;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp += 2;
-                p0++;
-            }
         }
 #endif // __mips_msa
         if (elempack == 1)
@@ -450,19 +421,12 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
         {
             const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
 
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (int kk = 0; kk + 3 < max_kk; kk += 4)
             {
                 __builtin_prefetch(p0 + A_hstep * 4);
                 __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
                 pp += 4;
                 p0 += A_hstep * 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp += 1;
-                p0++;
             }
         }
 #endif // __mips_msa
@@ -721,19 +685,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 pp += 32;
                 p0 += B_hstep * 4;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp[2] = p0[8];
-                pp[3] = p0[12];
-                pp[4] = p0[16];
-                pp[5] = p0[20];
-                pp[6] = p0[24];
-                pp[7] = p0[28];
-                pp += 8;
-                p0++;
-            }
         }
         if (elempack == 1)
         {
@@ -772,15 +723,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 __msa_st_w((v4i32)_r3, pp + 12, 0);
                 pp += 16;
                 p0 += B_hstep * 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp[2] = p0[8];
-                pp[3] = p0[12];
-                pp += 4;
-                p0++;
             }
         }
 #endif // __mips_msa
@@ -829,13 +771,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 pp += 8;
                 p0 += B_hstep * 4;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp += 2;
-                p0++;
-            }
         }
 #endif // __mips_msa
         if (elempack == 1)
@@ -867,12 +802,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
                 pp += 4;
                 p0 += B_hstep * 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp += 1;
-                p0++;
             }
         }
 #endif // __mips_msa

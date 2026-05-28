@@ -679,7 +679,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             }
         }
 #endif // __loongarch_sx
-        // if (elempack == 1)
+        if (elempack == 1)
         {
             const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k;
             const unsigned short* p1 = (const unsigned short*)B + (j + jj + 1) * B_hstep + k;

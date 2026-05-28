@@ -742,15 +742,6 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 pp += 16;
                 p0 += B_hstep * 4;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp[2] = p0[8];
-                pp[3] = p0[12];
-                pp += 4;
-                p0++;
-            }
         }
 #endif // __mips_msa
         if (elempack == 1)
@@ -810,13 +801,6 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 pp += 8;
                 p0 += B_hstep * 4;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp += 2;
-                p0++;
-            }
         }
 #endif // __mips_msa
         if (elempack == 1)
@@ -868,12 +852,6 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 pp[3] = p0[3];
                 pp += 4;
                 p0 += B_hstep * 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp += 1;
-                p0++;
             }
         }
 #endif // __mips_msa
