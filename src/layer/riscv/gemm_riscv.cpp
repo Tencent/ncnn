@@ -254,6 +254,72 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 
     int jj = 0;
 #if __riscv_vector
+    for (; jj + 15 < max_jj; jj += 16)
+    {
+        if (elempack == packn)
+        {
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k * packn;
+
+            if (packn == 16)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    __riscv_vse32_v_f32m1(pp, __riscv_vle32_v_f32m1(p0, vl), vl);
+                    pp += 16;
+                    p0 += 16;
+                }
+            }
+            if (packn == 8)
+            {
+                const float* p1 = (const float*)B + (j + jj + 8) * B_hstep + k * 8;
+
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    __riscv_vse32_v_f32m1(pp, __riscv_vle32_v_f32m1(p0, vl), vl);
+                    __riscv_vse32_v_f32m1(pp + 8, __riscv_vle32_v_f32m1(p1, vl), vl);
+                    pp += 16;
+                    p0 += 8;
+                    p1 += 8;
+                }
+            }
+            if (packn == 4)
+            {
+                const float* p1 = (const float*)B + (j + jj + 4) * B_hstep + k * 4;
+                const float* p2 = (const float*)B + (j + jj + 8) * B_hstep + k * 4;
+                const float* p3 = (const float*)B + (j + jj + 12) * B_hstep + k * 4;
+
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    __riscv_vse32_v_f32m1(pp, __riscv_vle32_v_f32m1(p0, vl), vl);
+                    __riscv_vse32_v_f32m1(pp + 4, __riscv_vle32_v_f32m1(p1, vl), vl);
+                    __riscv_vse32_v_f32m1(pp + 8, __riscv_vle32_v_f32m1(p2, vl), vl);
+                    __riscv_vse32_v_f32m1(pp + 12, __riscv_vle32_v_f32m1(p3, vl), vl);
+                    pp += 16;
+                    p0 += 4;
+                    p1 += 4;
+                    p2 += 4;
+                    p3 += 4;
+                }
+            }
+        }
+        if (elempack == 1)
+        {
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                int n = 0;
+                while (n < 16)
+                {
+                    const size_t vl1 = __riscv_vsetvl_e32m1(16 - n);
+                    __riscv_vse32_v_f32m1(pp + n, __riscv_vlse32_v_f32m1(p0 + n * B_hstep, B_hstep * sizeof(float), vl1), vl1);
+                    n += vl1;
+                }
+                pp += 16;
+                p0++;
+            }
+        }
+    }
     for (; jj + (packn - 1) < max_jj; jj += packn)
     {
         if (elempack == packn)
@@ -350,6 +416,87 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 
     int jj = 0;
 #if __riscv_vector
+    for (; jj + 15 < max_jj; jj += 16)
+    {
+        if (elempack == packn)
+        {
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * packn;
+
+            if (packn == 16)
+            {
+                int kk = 0;
+                for (; kk + 15 < max_kk; kk += 16)
+                {
+                    // transpose16x16
+                    for (int l = 0; l < 16; l++)
+                    {
+                        __riscv_vse32_v_f32m1(pp, __riscv_vlse32_v_f32m1(p0 + l, 16 * sizeof(float), vl), vl);
+                        pp += 16;
+                    }
+                    p0 += B_hstep * 16;
+                }
+            }
+            if (packn == 8)
+            {
+                const float* p1 = p0 + 8 * 8;
+
+                int kk = 0;
+                for (; kk + 7 < max_kk; kk += 8)
+                {
+                    // transpose8x8 + transpose8x8
+                    for (int l = 0; l < 8; l++)
+                    {
+                        __riscv_vse32_v_f32m1(pp, __riscv_vlse32_v_f32m1(p0 + l, 8 * sizeof(float), vl), vl);
+                        __riscv_vse32_v_f32m1(pp + 8, __riscv_vlse32_v_f32m1(p1 + l, 8 * sizeof(float), vl), vl);
+                        pp += 16;
+                    }
+                    p0 += B_hstep * 8;
+                    p1 += B_hstep * 8;
+                }
+            }
+            if (packn == 4)
+            {
+                const float* p1 = p0 + 4 * 4;
+                const float* p2 = p0 + 8 * 4;
+                const float* p3 = p0 + 12 * 4;
+
+                int kk = 0;
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    // transpose4x4 + transpose4x4 + transpose4x4 + transpose4x4
+                    for (int l = 0; l < 4; l++)
+                    {
+                        __riscv_vse32_v_f32m1(pp, __riscv_vlse32_v_f32m1(p0 + l, 4 * sizeof(float), vl), vl);
+                        __riscv_vse32_v_f32m1(pp + 4, __riscv_vlse32_v_f32m1(p1 + l, 4 * sizeof(float), vl), vl);
+                        __riscv_vse32_v_f32m1(pp + 8, __riscv_vlse32_v_f32m1(p2 + l, 4 * sizeof(float), vl), vl);
+                        __riscv_vse32_v_f32m1(pp + 12, __riscv_vlse32_v_f32m1(p3 + l, 4 * sizeof(float), vl), vl);
+                        pp += 16;
+                    }
+                    p0 += B_hstep * 4;
+                    p1 += B_hstep * 4;
+                    p2 += B_hstep * 4;
+                    p3 += B_hstep * 4;
+                }
+            }
+        }
+        if (elempack == 1)
+        {
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj);
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                int n = 0;
+                while (n < 16)
+                {
+                    const size_t vl1 = __riscv_vsetvl_e32m1(16 - n);
+                    __riscv_vse32_v_f32m1(pp + n, __riscv_vle32_v_f32m1(p0 + n, vl1), vl1);
+                    n += vl1;
+                }
+                pp += 16;
+                p0 += B_hstep;
+            }
+        }
+    }
     for (; jj + (packn - 1) < max_jj; jj += packn)
     {
         if (elempack == packn)
@@ -557,6 +704,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
     const size_t vl = __riscv_vsetvl_e32m1(packn);
+    const size_t vl16 = __riscv_vsetvl_e32m4(16);
 #endif
 
     const int out_elempack = top_blob.elempack;
@@ -589,6 +737,236 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
         }
 
         int jj = 0;
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            vfloat32m1_t _sum0;
+            vfloat32m1_t _sum1;
+            vfloat32m1_t _sum2;
+            vfloat32m1_t _sum3;
+            vfloat32m1_t _sum4;
+            vfloat32m1_t _sum5;
+            vfloat32m1_t _sum6;
+            vfloat32m1_t _sum7;
+            vfloat32m1_t _sum8;
+            vfloat32m1_t _sum9;
+            vfloat32m1_t _suma;
+            vfloat32m1_t _sumb;
+            vfloat32m1_t _sumc;
+            vfloat32m1_t _sumd;
+            vfloat32m1_t _sume;
+            vfloat32m1_t _sumf;
+
+            if (k == 0)
+            {
+                _sum0 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _sum1 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _sum2 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _sum3 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _sum4 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _sum5 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _sum6 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _sum7 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _sum8 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _sum9 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _suma = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _sumb = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _sumc = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _sumd = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _sume = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _sumf = __riscv_vfmv_v_f_f32m1(0.f, vl);
+
+                if (pC)
+                {
+                    if (broadcast_type_C == 0)
+                    {
+                        _sum0 = __riscv_vfmv_v_f_f32m1(pC[0], vl);
+                        _sum1 = _sum0;
+                        _sum2 = _sum0;
+                        _sum3 = _sum0;
+                        _sum4 = _sum0;
+                        _sum5 = _sum0;
+                        _sum6 = _sum0;
+                        _sum7 = _sum0;
+                        _sum8 = _sum0;
+                        _sum9 = _sum0;
+                        _suma = _sum0;
+                        _sumb = _sum0;
+                        _sumc = _sum0;
+                        _sumd = _sum0;
+                        _sume = _sum0;
+                        _sumf = _sum0;
+                    }
+                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    {
+                        _sum0 = __riscv_vle32_v_f32m1(pC, vl);
+                        _sum1 = _sum0;
+                        _sum2 = _sum0;
+                        _sum3 = _sum0;
+                        _sum4 = _sum0;
+                        _sum5 = _sum0;
+                        _sum6 = _sum0;
+                        _sum7 = _sum0;
+                        _sum8 = _sum0;
+                        _sum9 = _sum0;
+                        _suma = _sum0;
+                        _sumb = _sum0;
+                        _sumc = _sum0;
+                        _sumd = _sum0;
+                        _sume = _sum0;
+                        _sumf = _sum0;
+                    }
+                    if (broadcast_type_C == 3)
+                    {
+                        _sum0 = __riscv_vle32_v_f32m1(pC, vl);
+                        _sum1 = __riscv_vle32_v_f32m1(pC + packn, vl);
+                        _sum2 = __riscv_vle32_v_f32m1(pC + packn * 2, vl);
+                        _sum3 = __riscv_vle32_v_f32m1(pC + packn * 3, vl);
+                        _sum4 = __riscv_vle32_v_f32m1(pC + packn * 4, vl);
+                        _sum5 = __riscv_vle32_v_f32m1(pC + packn * 5, vl);
+                        _sum6 = __riscv_vle32_v_f32m1(pC + packn * 6, vl);
+                        _sum7 = __riscv_vle32_v_f32m1(pC + packn * 7, vl);
+                        _sum8 = __riscv_vle32_v_f32m1(pC + packn * 8, vl);
+                        _sum9 = __riscv_vle32_v_f32m1(pC + packn * 9, vl);
+                        _suma = __riscv_vle32_v_f32m1(pC + packn * 10, vl);
+                        _sumb = __riscv_vle32_v_f32m1(pC + packn * 11, vl);
+                        _sumc = __riscv_vle32_v_f32m1(pC + packn * 12, vl);
+                        _sumd = __riscv_vle32_v_f32m1(pC + packn * 13, vl);
+                        _sume = __riscv_vle32_v_f32m1(pC + packn * 14, vl);
+                        _sumf = __riscv_vle32_v_f32m1(pC + packn * 15, vl);
+                        pC += packn * 16;
+                    }
+                    if (broadcast_type_C == 4)
+                    {
+                        _sum0 = __riscv_vfmv_v_f_f32m1(pC[0], vl);
+                        _sum1 = __riscv_vfmv_v_f_f32m1(pC[1], vl);
+                        _sum2 = __riscv_vfmv_v_f_f32m1(pC[2], vl);
+                        _sum3 = __riscv_vfmv_v_f_f32m1(pC[3], vl);
+                        _sum4 = __riscv_vfmv_v_f_f32m1(pC[4], vl);
+                        _sum5 = __riscv_vfmv_v_f_f32m1(pC[5], vl);
+                        _sum6 = __riscv_vfmv_v_f_f32m1(pC[6], vl);
+                        _sum7 = __riscv_vfmv_v_f_f32m1(pC[7], vl);
+                        _sum8 = __riscv_vfmv_v_f_f32m1(pC[8], vl);
+                        _sum9 = __riscv_vfmv_v_f_f32m1(pC[9], vl);
+                        _suma = __riscv_vfmv_v_f_f32m1(pC[10], vl);
+                        _sumb = __riscv_vfmv_v_f_f32m1(pC[11], vl);
+                        _sumc = __riscv_vfmv_v_f_f32m1(pC[12], vl);
+                        _sumd = __riscv_vfmv_v_f_f32m1(pC[13], vl);
+                        _sume = __riscv_vfmv_v_f_f32m1(pC[14], vl);
+                        _sumf = __riscv_vfmv_v_f_f32m1(pC[15], vl);
+                        pC += 16;
+                    }
+                }
+            }
+            else
+            {
+                _sum0 = __riscv_vle32_v_f32m1(outptr, vl);
+                _sum1 = __riscv_vle32_v_f32m1(outptr + packn, vl);
+                _sum2 = __riscv_vle32_v_f32m1(outptr + packn * 2, vl);
+                _sum3 = __riscv_vle32_v_f32m1(outptr + packn * 3, vl);
+                _sum4 = __riscv_vle32_v_f32m1(outptr + packn * 4, vl);
+                _sum5 = __riscv_vle32_v_f32m1(outptr + packn * 5, vl);
+                _sum6 = __riscv_vle32_v_f32m1(outptr + packn * 6, vl);
+                _sum7 = __riscv_vle32_v_f32m1(outptr + packn * 7, vl);
+                _sum8 = __riscv_vle32_v_f32m1(outptr + packn * 8, vl);
+                _sum9 = __riscv_vle32_v_f32m1(outptr + packn * 9, vl);
+                _suma = __riscv_vle32_v_f32m1(outptr + packn * 10, vl);
+                _sumb = __riscv_vle32_v_f32m1(outptr + packn * 11, vl);
+                _sumc = __riscv_vle32_v_f32m1(outptr + packn * 12, vl);
+                _sumd = __riscv_vle32_v_f32m1(outptr + packn * 13, vl);
+                _sume = __riscv_vle32_v_f32m1(outptr + packn * 14, vl);
+                _sumf = __riscv_vle32_v_f32m1(outptr + packn * 15, vl);
+            }
+
+            const float* pA = pAT;
+            int kk = 0;
+            for (; kk < max_kk; kk += 1)
+            {
+                vfloat32m1_t _pA = __riscv_vle32_v_f32m1(pA, vl);
+                _sum0 = __riscv_vfmadd_vf_f32m1(_pA, pB[0], _sum0, vl);
+                _sum1 = __riscv_vfmadd_vf_f32m1(_pA, pB[1], _sum1, vl);
+                _sum2 = __riscv_vfmadd_vf_f32m1(_pA, pB[2], _sum2, vl);
+                _sum3 = __riscv_vfmadd_vf_f32m1(_pA, pB[3], _sum3, vl);
+                _sum4 = __riscv_vfmadd_vf_f32m1(_pA, pB[4], _sum4, vl);
+                _sum5 = __riscv_vfmadd_vf_f32m1(_pA, pB[5], _sum5, vl);
+                _sum6 = __riscv_vfmadd_vf_f32m1(_pA, pB[6], _sum6, vl);
+                _sum7 = __riscv_vfmadd_vf_f32m1(_pA, pB[7], _sum7, vl);
+                _sum8 = __riscv_vfmadd_vf_f32m1(_pA, pB[8], _sum8, vl);
+                _sum9 = __riscv_vfmadd_vf_f32m1(_pA, pB[9], _sum9, vl);
+                _suma = __riscv_vfmadd_vf_f32m1(_pA, pB[10], _suma, vl);
+                _sumb = __riscv_vfmadd_vf_f32m1(_pA, pB[11], _sumb, vl);
+                _sumc = __riscv_vfmadd_vf_f32m1(_pA, pB[12], _sumc, vl);
+                _sumd = __riscv_vfmadd_vf_f32m1(_pA, pB[13], _sumd, vl);
+                _sume = __riscv_vfmadd_vf_f32m1(_pA, pB[14], _sume, vl);
+                _sumf = __riscv_vfmadd_vf_f32m1(_pA, pB[15], _sumf, vl);
+                pA += packn;
+                pB += 16;
+            }
+
+            if (k_end)
+            {
+                if (out_elempack == packn)
+                {
+                    __riscv_vse32_v_f32m1(outptr0, _sum0, vl);
+                    __riscv_vse32_v_f32m1(outptr0 + packn, _sum1, vl);
+                    __riscv_vse32_v_f32m1(outptr0 + packn * 2, _sum2, vl);
+                    __riscv_vse32_v_f32m1(outptr0 + packn * 3, _sum3, vl);
+                    __riscv_vse32_v_f32m1(outptr0 + packn * 4, _sum4, vl);
+                    __riscv_vse32_v_f32m1(outptr0 + packn * 5, _sum5, vl);
+                    __riscv_vse32_v_f32m1(outptr0 + packn * 6, _sum6, vl);
+                    __riscv_vse32_v_f32m1(outptr0 + packn * 7, _sum7, vl);
+                    __riscv_vse32_v_f32m1(outptr0 + packn * 8, _sum8, vl);
+                    __riscv_vse32_v_f32m1(outptr0 + packn * 9, _sum9, vl);
+                    __riscv_vse32_v_f32m1(outptr0 + packn * 10, _suma, vl);
+                    __riscv_vse32_v_f32m1(outptr0 + packn * 11, _sumb, vl);
+                    __riscv_vse32_v_f32m1(outptr0 + packn * 12, _sumc, vl);
+                    __riscv_vse32_v_f32m1(outptr0 + packn * 13, _sumd, vl);
+                    __riscv_vse32_v_f32m1(outptr0 + packn * 14, _sume, vl);
+                    __riscv_vse32_v_f32m1(outptr0 + packn * 15, _sumf, vl);
+                    outptr0 += packn * 16;
+                }
+                if (out_elempack == 1)
+                {
+                    __riscv_vsse32_v_f32m1(outptr0, out_hstep * sizeof(float), _sum0, vl);
+                    __riscv_vsse32_v_f32m1(outptr0 + 1, out_hstep * sizeof(float), _sum1, vl);
+                    __riscv_vsse32_v_f32m1(outptr0 + 2, out_hstep * sizeof(float), _sum2, vl);
+                    __riscv_vsse32_v_f32m1(outptr0 + 3, out_hstep * sizeof(float), _sum3, vl);
+                    __riscv_vsse32_v_f32m1(outptr0 + 4, out_hstep * sizeof(float), _sum4, vl);
+                    __riscv_vsse32_v_f32m1(outptr0 + 5, out_hstep * sizeof(float), _sum5, vl);
+                    __riscv_vsse32_v_f32m1(outptr0 + 6, out_hstep * sizeof(float), _sum6, vl);
+                    __riscv_vsse32_v_f32m1(outptr0 + 7, out_hstep * sizeof(float), _sum7, vl);
+                    __riscv_vsse32_v_f32m1(outptr0 + 8, out_hstep * sizeof(float), _sum8, vl);
+                    __riscv_vsse32_v_f32m1(outptr0 + 9, out_hstep * sizeof(float), _sum9, vl);
+                    __riscv_vsse32_v_f32m1(outptr0 + 10, out_hstep * sizeof(float), _suma, vl);
+                    __riscv_vsse32_v_f32m1(outptr0 + 11, out_hstep * sizeof(float), _sumb, vl);
+                    __riscv_vsse32_v_f32m1(outptr0 + 12, out_hstep * sizeof(float), _sumc, vl);
+                    __riscv_vsse32_v_f32m1(outptr0 + 13, out_hstep * sizeof(float), _sumd, vl);
+                    __riscv_vsse32_v_f32m1(outptr0 + 14, out_hstep * sizeof(float), _sume, vl);
+                    __riscv_vsse32_v_f32m1(outptr0 + 15, out_hstep * sizeof(float), _sumf, vl);
+                    outptr0 += 16;
+                }
+            }
+            else
+            {
+                __riscv_vse32_v_f32m1(outptr, _sum0, vl);
+                __riscv_vse32_v_f32m1(outptr + packn, _sum1, vl);
+                __riscv_vse32_v_f32m1(outptr + packn * 2, _sum2, vl);
+                __riscv_vse32_v_f32m1(outptr + packn * 3, _sum3, vl);
+                __riscv_vse32_v_f32m1(outptr + packn * 4, _sum4, vl);
+                __riscv_vse32_v_f32m1(outptr + packn * 5, _sum5, vl);
+                __riscv_vse32_v_f32m1(outptr + packn * 6, _sum6, vl);
+                __riscv_vse32_v_f32m1(outptr + packn * 7, _sum7, vl);
+                __riscv_vse32_v_f32m1(outptr + packn * 8, _sum8, vl);
+                __riscv_vse32_v_f32m1(outptr + packn * 9, _sum9, vl);
+                __riscv_vse32_v_f32m1(outptr + packn * 10, _suma, vl);
+                __riscv_vse32_v_f32m1(outptr + packn * 11, _sumb, vl);
+                __riscv_vse32_v_f32m1(outptr + packn * 12, _sumc, vl);
+                __riscv_vse32_v_f32m1(outptr + packn * 13, _sumd, vl);
+                __riscv_vse32_v_f32m1(outptr + packn * 14, _sume, vl);
+                __riscv_vse32_v_f32m1(outptr + packn * 15, _sumf, vl);
+            }
+
+            outptr += packn * 16;
+        }
         for (; jj + (packn - 1) < max_jj; jj += packn)
         {
             if (packn == 8)
@@ -998,6 +1376,79 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
         int jj = 0;
 #if __riscv_vector
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            vfloat32m4_t _sum0;
+            vfloat32m4_t _sum1;
+
+            if (k == 0)
+            {
+                _sum0 = __riscv_vfmv_v_f_f32m4(0.f, vl16);
+                _sum1 = __riscv_vfmv_v_f_f32m4(0.f, vl16);
+
+                if (pC)
+                {
+                    if (broadcast_type_C == 0)
+                    {
+                        _sum0 = __riscv_vfmv_v_f_f32m4(pC[0], vl16);
+                        _sum1 = _sum0;
+                    }
+                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    {
+                        _sum0 = __riscv_vfmv_v_f_f32m4(pC[0], vl16);
+                        _sum1 = __riscv_vfmv_v_f_f32m4(pC[1], vl16);
+                    }
+                    if (broadcast_type_C == 3)
+                    {
+                        vfloat32m4x2_t _s0 = __riscv_vlseg2e32_v_f32m4x2(pC, vl16);
+                        _sum0 = __riscv_vget_v_f32m4x2_f32m4(_s0, 0);
+                        _sum1 = __riscv_vget_v_f32m4x2_f32m4(_s0, 1);
+                        pC += 16 * 2;
+                    }
+                    if (broadcast_type_C == 4)
+                    {
+                        _sum0 = __riscv_vle32_v_f32m4(pC, vl16);
+                        _sum1 = _sum0;
+                        pC += 16;
+                    }
+                }
+            }
+            else
+            {
+                vfloat32m4x2_t _s0 = __riscv_vlseg2e32_v_f32m4x2(outptr, vl16);
+                _sum0 = __riscv_vget_v_f32m4x2_f32m4(_s0, 0);
+                _sum1 = __riscv_vget_v_f32m4x2_f32m4(_s0, 1);
+            }
+
+            const float* pA = pAT;
+            int kk = 0;
+            for (; kk < max_kk; kk += 1)
+            {
+                vfloat32m4_t _pB = __riscv_vle32_v_f32m4(pB, vl16);
+
+                _sum0 = __riscv_vfmadd_vf_f32m4(_pB, pA[0], _sum0, vl16);
+                _sum1 = __riscv_vfmadd_vf_f32m4(_pB, pA[1], _sum1, vl16);
+
+                pA += 2;
+                pB += 16;
+            }
+
+            if (k_end)
+            {
+                // if (out_elempack == 1)
+                {
+                    __riscv_vse32_v_f32m4(outptr0, _sum0, vl16);
+                    __riscv_vse32_v_f32m4(outptr0 + out_hstep, _sum1, vl16);
+                    outptr0 += 16;
+                }
+            }
+            else
+            {
+                __riscv_vsseg2e32_v_f32m4x2(outptr, __riscv_vcreate_v_f32m4x2(_sum0, _sum1), vl16);
+            }
+
+            outptr += 16 * 2;
+        }
         for (; jj + (packn - 1) < max_jj; jj += packn)
         {
             vfloat32m1_t _sum0;
@@ -1253,6 +1704,59 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
         int jj = 0;
 #if __riscv_vector
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            vfloat32m4_t _sum;
+
+            if (k == 0)
+            {
+                _sum = __riscv_vfmv_v_f_f32m4(0.f, vl16);
+
+                if (pC)
+                {
+                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                    {
+                        _sum = __riscv_vfmv_v_f_f32m4(pC[0], vl16);
+                    }
+                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                    {
+                        _sum = __riscv_vle32_v_f32m4(pC, vl16);
+                        pC += 16;
+                    }
+                }
+            }
+            else
+            {
+                _sum = __riscv_vle32_v_f32m4(outptr, vl16);
+            }
+
+            const float* pA = pAT;
+            int kk = 0;
+            for (; kk < max_kk; kk += 1)
+            {
+                vfloat32m4_t _pB = __riscv_vle32_v_f32m4(pB, vl16);
+
+                _sum = __riscv_vfmadd_vf_f32m4(_pB, pA[0], _sum, vl16);
+
+                pA += 1;
+                pB += 16;
+            }
+
+            if (k_end)
+            {
+                // if (out_elempack == 1)
+                {
+                    __riscv_vse32_v_f32m4(outptr0, _sum, vl16);
+                    outptr0 += 16;
+                }
+            }
+            else
+            {
+                __riscv_vse32_v_f32m4(outptr, _sum, vl16);
+            }
+
+            outptr += 16;
+        }
         for (; jj + (packn - 1) < max_jj; jj += packn)
         {
             vfloat32m1_t _sum;
@@ -1434,12 +1938,14 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
+    const int packn_n = 16;
 #else
     const int packn = 4;
+    const int packn_n = 4;
 #endif
 
     TILE_M = std::max(packn, tile_size / packn * packn);
-    TILE_N = std::max(packn, tile_size / packn * packn);
+    TILE_N = std::max(packn_n, tile_size / packn_n * packn_n);
     TILE_K = std::max(packn, tile_size / packn * packn);
 
     if (K > 0)
@@ -1451,7 +1957,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
         {
             tile_size = (int)((float)l2_cache_size / 2 / sizeof(float) / TILE_K);
             TILE_M = std::max(packn, tile_size / packn * packn);
-            TILE_N = std::max(packn, tile_size / packn * packn);
+            TILE_N = std::max(packn_n, tile_size / packn_n * packn_n);
         }
     }
 
@@ -1466,7 +1972,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
     if (N > 0)
     {
         int nn_N = (N + TILE_N - 1) / TILE_N;
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + (packn - 1)) / packn * packn);
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + (packn_n - 1)) / packn_n * packn_n);
     }
 
     if (nT > 1)
@@ -1482,7 +1988,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
 
     if (constant_TILE_N > 0)
     {
-        TILE_N = (constant_TILE_N + (packn - 1)) / packn * packn;
+        TILE_N = (constant_TILE_N + (packn_n - 1)) / packn_n * packn_n;
     }
 
     if (constant_TILE_K > 0)
@@ -1553,24 +2059,60 @@ static int gemm_riscv(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, i
             return -100;
     }
 
-    #pragma omp parallel for num_threads(nT)
-    for (int ppi = 0; ppi < nn_M; ppi++)
+    if (nT > nn_M)
     {
-        const int i = ppi * TILE_M;
+        Mat AT(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 4u, opt.workspace_allocator);
+        if (AT.empty())
+            return -100;
 
-        // shadowed variable for less openmp task args
-        const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
-        const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+        const int nn_MK = nn_M * nn_K;
 
-        const int max_ii = std::min((M - i), TILE_M);
-
-        Mat topT_tile;
-        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-            topT_tile = topT.channel(get_omp_thread_num());
-
-        for (int j = 0; j < N; j += TILE_N)
+        // pack A
+        #pragma omp parallel for num_threads(nT)
+        for (int ppik = 0; ppik < nn_MK; ppik++)
         {
+            const int ppi = ppik / nn_K;
+            const int ppk = ppik % nn_K;
+
+            const int i = ppi * TILE_M;
+            const int k = ppk * TILE_K;
+
+            const int max_ii = std::min((M - i), TILE_M);
+            const int max_kk = std::min((K - k), TILE_K);
+
+            Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
+
+            if (transA)
+            {
+                transpose_pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
+            }
+            else
+            {
+                pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
+            }
+        }
+
+        const int nn_MN = nn_M * nn_N;
+
+        #pragma omp parallel for num_threads(nT)
+        for (int ppij = 0; ppij < nn_MN; ppij++)
+        {
+            const int ppi = ppij / nn_N;
+            const int ppj = ppij % nn_N;
+
+            const int i = ppi * TILE_M;
+            const int j = ppj * TILE_N;
+
+            // shadowed variable for less openmp task args
+            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
+            const int max_ii = std::min((M - i), TILE_M);
             const int max_jj = std::min((N - j), TILE_N);
+
+            Mat topT_tile;
+            if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+                topT_tile = topT.channel(get_omp_thread_num());
 
             if (broadcast_type_C == 3)
             {
@@ -1585,21 +2127,9 @@ static int gemm_riscv(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, i
 
                 // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
 
-                Mat AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
+                Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
 
                 Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
-
-                if (j == 0)
-                {
-                    if (transA)
-                    {
-                        transpose_pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
-                    }
-                    else
-                    {
-                        pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
-                    }
-                }
 
                 bool k_end = !output_transpose && k + TILE_K >= K;
                 gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
@@ -1608,6 +2138,67 @@ static int gemm_riscv(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, i
             if (output_transpose)
             {
                 transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
+            }
+        }
+    }
+    else
+    {
+        #pragma omp parallel for num_threads(nT)
+        for (int ppi = 0; ppi < nn_M; ppi++)
+        {
+            const int i = ppi * TILE_M;
+
+            // shadowed variable for less openmp task args
+            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
+            const int max_ii = std::min((M - i), TILE_M);
+
+            Mat topT_tile;
+            if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+                topT_tile = topT.channel(get_omp_thread_num());
+
+            for (int j = 0; j < N; j += TILE_N)
+            {
+                const int max_jj = std::min((N - j), TILE_N);
+
+                if (broadcast_type_C == 3)
+                {
+                    pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+                }
+
+                const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+
+                for (int k = 0; k < K; k += TILE_K)
+                {
+                    const int max_kk = std::min((K - k), TILE_K);
+
+                    // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
+
+                    Mat AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
+
+                    Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+                    if (j == 0)
+                    {
+                        if (transA)
+                        {
+                            transpose_pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
+                        }
+                        else
+                        {
+                            pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
+                        }
+                    }
+
+                    bool k_end = !output_transpose && k + TILE_K >= K;
+                    gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+                }
+
+                if (output_transpose)
+                {
+                    transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
+                }
             }
         }
     }
@@ -1669,44 +2260,46 @@ static int gemm_AT_riscv(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blo
             return -100;
     }
 
+    const int nn_MN = nn_M * nn_N;
     #pragma omp parallel for num_threads(nT)
-    for (int ppi = 0; ppi < nn_M; ppi++)
+    for (int ppij = 0; ppij < nn_MN; ppij++)
     {
+        const int ppi = ppij / nn_N;
+        const int ppj = ppij % nn_N;
+
         const int i = ppi * TILE_M;
+        const int j = ppj * TILE_N;
 
         const int max_ii = std::min((M - i), TILE_M);
+        const int max_jj = std::min((N - j), TILE_N);
 
         Mat topT_tile;
         if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
             topT_tile = topT.channel(get_omp_thread_num());
-        for (int j = 0; j < N; j += TILE_N)
+
+        if (broadcast_type_C == 3)
         {
-            const int max_jj = std::min((N - j), TILE_N);
+            pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+        }
 
-            if (broadcast_type_C == 3)
-            {
-                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
-            }
+        const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
 
-            const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+        for (int k = 0; k < K; k += TILE_K)
+        {
+            const int max_kk = std::min((K - k), TILE_K);
 
-            for (int k = 0; k < K; k += TILE_K)
-            {
-                const int max_kk = std::min((K - k), TILE_K);
+            // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
+            Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
 
-                // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
-                Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
+            Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
 
-                Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+            bool k_end = !output_transpose && k + TILE_K >= K;
+            gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+        }
 
-                bool k_end = !output_transpose && k + TILE_K >= K;
-                gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
-            }
-
-            if (output_transpose)
-            {
-                transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
-            }
+        if (output_transpose)
+        {
+            transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
         }
     }
 
@@ -1725,11 +2318,8 @@ static int gemm_BT_riscv(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blo
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
     int nn_M = (M + TILE_M - 1) / TILE_M;
-    // int nn_N = (N + TILE_N - 1) / TILE_N;
-
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.workspace_allocator);
-    if (ATX.empty())
-        return -100;
+    int nn_N = (N + TILE_N - 1) / TILE_N;
+    int nn_K = (K + TILE_K - 1) / TILE_K;
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
@@ -1739,103 +2329,60 @@ static int gemm_BT_riscv(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blo
             return -100;
     }
 
-    #pragma omp parallel for num_threads(nT)
-    for (int ppi = 0; ppi < nn_M; ppi++)
+    if (nT > nn_M)
     {
-        const int i = ppi * TILE_M;
+        Mat AT(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 4u, opt.workspace_allocator);
+        if (AT.empty())
+            return -100;
 
-        // shadowed variable for less openmp task args
-        const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
-        const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+        const int nn_MK = nn_M * nn_K;
 
-        const int max_ii = std::min((M - i), TILE_M);
-
-        Mat topT_tile;
-        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-            topT_tile = topT.channel(get_omp_thread_num());
-
-        for (int j = 0; j < N; j += TILE_N)
+        // pack A
+        #pragma omp parallel for num_threads(nT)
+        for (int ppik = 0; ppik < nn_MK; ppik++)
         {
-            const int max_jj = std::min((N - j), TILE_N);
+            const int ppi = ppik / nn_K;
+            const int ppk = ppik % nn_K;
 
-            if (broadcast_type_C == 3)
+            const int i = ppi * TILE_M;
+            const int k = ppk * TILE_K;
+
+            const int max_ii = std::min((M - i), TILE_M);
+            const int max_kk = std::min((K - k), TILE_K);
+
+            Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
+
+            if (transA)
             {
-                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+                transpose_pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
             }
-
-            const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
-
-            for (int k = 0; k < K; k += TILE_K)
+            else
             {
-                const int max_kk = std::min((K - k), TILE_K);
-
-                // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
-
-                Mat AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
-
-                Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
-
-                if (j == 0)
-                {
-                    if (transA)
-                    {
-                        transpose_pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
-                    }
-                    else
-                    {
-                        pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
-                    }
-                }
-
-                bool k_end = !output_transpose && k + TILE_K >= K;
-
-                gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
-            }
-
-            if (output_transpose)
-            {
-                transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
+                pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
             }
         }
-    }
 
-    return 0;
-}
+        const int nn_MN = nn_M * nn_N;
 
-static int gemm_AT_BT_riscv(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
-{
-    // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
-
-    int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
-
-    // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
-
-    int nn_M = (M + TILE_M - 1) / TILE_M;
-    // int nn_N = (N + TILE_N - 1) / TILE_N;
-
-    Mat topT;
-    if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-    {
-        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
-        if (topT.empty())
-            return -100;
-    }
-
-    #pragma omp parallel for num_threads(nT)
-    for (int ppi = 0; ppi < nn_M; ppi++)
-    {
-        const int i = ppi * TILE_M;
-
-        const int max_ii = std::min((M - i), TILE_M);
-
-        Mat topT_tile;
-        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-            topT_tile = topT.channel(get_omp_thread_num());
-
-        for (int j = 0; j < N; j += TILE_N)
+        #pragma omp parallel for num_threads(nT)
+        for (int ppij = 0; ppij < nn_MN; ppij++)
         {
+            const int ppi = ppij / nn_N;
+            const int ppj = ppij % nn_N;
+
+            const int i = ppi * TILE_M;
+            const int j = ppj * TILE_N;
+
+            // shadowed variable for less openmp task args
+            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
+            const int max_ii = std::min((M - i), TILE_M);
             const int max_jj = std::min((N - j), TILE_N);
+
+            Mat topT_tile;
+            if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+                topT_tile = topT.channel(get_omp_thread_num());
 
             if (broadcast_type_C == 3)
             {
@@ -1863,6 +2410,140 @@ static int gemm_AT_BT_riscv(const Mat& AT, const Mat& BT, const Mat& C, Mat& top
             {
                 transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
             }
+        }
+    }
+    else
+    {
+        Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.workspace_allocator);
+        if (ATX.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(nT)
+        for (int ppi = 0; ppi < nn_M; ppi++)
+        {
+            const int i = ppi * TILE_M;
+
+            // shadowed variable for less openmp task args
+            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
+            const int max_ii = std::min((M - i), TILE_M);
+
+            Mat topT_tile;
+            if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+                topT_tile = topT.channel(get_omp_thread_num());
+
+            for (int j = 0; j < N; j += TILE_N)
+            {
+                const int max_jj = std::min((N - j), TILE_N);
+
+                if (broadcast_type_C == 3)
+                {
+                    pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+                }
+
+                const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+
+                for (int k = 0; k < K; k += TILE_K)
+                {
+                    const int max_kk = std::min((K - k), TILE_K);
+
+                    // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
+
+                    Mat AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
+
+                    Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+                    if (j == 0)
+                    {
+                        if (transA)
+                        {
+                            transpose_pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
+                        }
+                        else
+                        {
+                            pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
+                        }
+                    }
+
+                    bool k_end = !output_transpose && k + TILE_K >= K;
+
+                    gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+                }
+
+                if (output_transpose)
+                {
+                    transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int gemm_AT_BT_riscv(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+{
+    // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
+
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
+
+    // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
+
+    int nn_M = (M + TILE_M - 1) / TILE_M;
+    int nn_N = (N + TILE_N - 1) / TILE_N;
+
+    Mat topT;
+    if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
+        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
+
+    const int nn_MN = nn_M * nn_N;
+    #pragma omp parallel for num_threads(nT)
+    for (int ppij = 0; ppij < nn_MN; ppij++)
+    {
+        const int ppi = ppij / nn_N;
+        const int ppj = ppij % nn_N;
+
+        const int i = ppi * TILE_M;
+        const int j = ppj * TILE_N;
+
+        const int max_ii = std::min((M - i), TILE_M);
+        const int max_jj = std::min((N - j), TILE_N);
+
+        Mat topT_tile;
+        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+            topT_tile = topT.channel(get_omp_thread_num());
+
+        if (broadcast_type_C == 3)
+        {
+            pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+        }
+
+        const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+
+        for (int k = 0; k < K; k += TILE_K)
+        {
+            const int max_kk = std::min((K - k), TILE_K);
+
+            // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
+
+            Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
+
+            Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+            bool k_end = !output_transpose && k + TILE_K >= K;
+
+            gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+        }
+
+        if (output_transpose)
+        {
+            transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
         }
     }
 
