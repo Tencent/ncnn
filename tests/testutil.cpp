@@ -765,7 +765,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     opt.use_vulkan_compute = false;
 
     if (flag & TEST_LAYER_ENABLE_THREADING)
-        opt.num_threads = ncnn::get_physical_big_cpu_count();
+        opt.num_threads = std::min(ncnn::get_physical_big_cpu_count(), 4);
     else
         opt.num_threads = 1;
 
@@ -899,7 +899,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     op->vkdev = vkdev;
 
     if (flag & TEST_LAYER_ENABLE_THREADING)
-        opt.num_threads = ncnn::get_physical_big_cpu_count();
+        opt.num_threads = std::min(ncnn::get_physical_big_cpu_count(), 4);
     else
         opt.num_threads = 1;
 
@@ -1365,7 +1365,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     opt.use_vulkan_compute = false;
 
     if (flag & TEST_LAYER_ENABLE_THREADING)
-        opt.num_threads = ncnn::get_physical_big_cpu_count();
+        opt.num_threads = std::min(ncnn::get_physical_big_cpu_count(), 4);
     else
         opt.num_threads = 1;
 
@@ -1475,7 +1475,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     opt.use_vulkan_compute = true;
 
     if (flag & TEST_LAYER_ENABLE_THREADING)
-        opt.num_threads = ncnn::get_physical_big_cpu_count();
+        opt.num_threads = std::min(ncnn::get_physical_big_cpu_count(), 4);
     else
         opt.num_threads = 1;
 
@@ -2164,7 +2164,7 @@ int test_layer_oom_opt(const char* layer_type, const ncnn::ParamDict& pd, const 
     opt.use_vulkan_compute = false;
 
     if (flag & TEST_LAYER_ENABLE_THREADING)
-        opt.num_threads = ncnn::get_physical_big_cpu_count();
+        opt.num_threads = std::min(ncnn::get_physical_big_cpu_count(), 4);
     else
         opt.num_threads = 1;
 
@@ -2342,7 +2342,7 @@ int test_layer_oom_opt(const char* layer_type, const ncnn::ParamDict& pd, const 
     opt.use_vulkan_compute = false;
 
     if (flag & TEST_LAYER_ENABLE_THREADING)
-        opt.num_threads = ncnn::get_physical_big_cpu_count();
+        opt.num_threads = std::min(ncnn::get_physical_big_cpu_count(), 4);
     else
         opt.num_threads = 1;
 
