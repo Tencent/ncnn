@@ -65,10 +65,5 @@ void main()
         v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 4 + z4 % 4;
     }
 
-    ivec4 v = ivec4(i8buffer_ld1(bottom_blob_data, v_offset.r),
-                    i8buffer_ld1(bottom_blob_data, v_offset.g),
-                    i8buffer_ld1(bottom_blob_data, v_offset.b),
-                    i8buffer_ld1(bottom_blob_data, v_offset.a));
-
-    i8buffer_st4(top_blob_data, gx, v);
+    i8buffer_cp1to4(top_blob_data, gx, bottom_blob_data, v_offset);
 }

@@ -247,11 +247,25 @@ void i8buffer_st1(sint8 dst, int offset, aint8 v);
 void i8buffer_st4(sint8vec4 dst, int offset, aint8vec4 v);
 ```
 
+Without native int8 storage, `i8buffer_st1` updates one byte lane inside a packed `int` and may use an atomic compare-and-swap loop.
+
 - copy int8 typed value from src[src_offset] to dst[dst_offset]
 
 ```c
 void i8buffer_cp1(sint8 dst, int dst_offset, sint8 src, int src_offset);
 void i8buffer_cp4(sint8vec4 dst, int dst_offset, sint8vec4 src, int src_offset);
+```
+
+- copy and pack int8 typed values from src[src_offsets[0],src_offsets[1],...] to dst[dst_offset]
+
+```c
+void i8buffer_cp1to4(sint8vec4 dst, int dst_offset, sint8 src, ivec4 src_offsets);
+```
+
+- copy and unpack int8 typed values from src[src_offset] to dst[dst_offsets[0],dst_offsets[1],...]
+
+```c
+void i8buffer_cp4to1(sint8 dst, ivec4 dst_offsets, sint8vec4 src, int src_offset);
 ```
 
 - pack and unpack signed integer lanes
@@ -261,9 +275,11 @@ ivec4 unpackInt4x8(int v);
 int packInt4x8(ivec4 v);
 ivec2 unpackInt2x16(int v);
 int packInt2x16(ivec2 v);
+int int8_round(float v);
 ```
 
 `packInt4x8` stores `.r/.g/.b/.a` in the low-to-high bytes of one `int`. `packInt2x16` stores `.r/.g` in the low-to-high 16-bit lanes of one `int`.
+`int8_round` rounds half away from zero for deterministic int8 quantization.
 
 # local data conversion functions
 

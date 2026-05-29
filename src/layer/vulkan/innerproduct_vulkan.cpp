@@ -14,7 +14,6 @@ InnerProduct_vulkan::InnerProduct_vulkan()
     support_vulkan_packing = true;
 
     flatten = 0;
-    flatten_int8 = 0;
 
     pipeline_innerproduct = 0;
     pipeline_innerproduct_int8 = 0;
@@ -310,6 +309,7 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
     const float bottom_blob_int8_scale = bottom_blob_int8_scales.empty() ? 1.f : bottom_blob_int8_scales[0];
 
     Option opt_int8 = opt;
+    opt_int8.use_int16_packed = false;
     opt_int8.use_int16_storage = false;
     opt_int8.use_int8_arithmetic = opt_int8.use_int8_storage && vkdev->info.support_int8_arithmetic();
 
@@ -385,20 +385,11 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
     }
 
     Mat shape_flatten;
-    Mat shape_int8;
-    Mat shape_flatten_int8;
     if (shape.dims != 0)
     {
         const int total = shape.w * shape.h * shape.d * shape.c * shape.elempack;
         const int flatten_elempack = total % 4 == 0 ? 4 : 1;
         shape_flatten = Mat(total / flatten_elempack, (void*)0, elemsize * flatten_elempack, flatten_elempack);
-
-        size_t elemsize_int8 = shape.elempack;
-        if (shape.dims == 1) shape_int8 = Mat(shape.w, (void*)0, elemsize_int8, shape.elempack);
-        if (shape.dims == 2) shape_int8 = Mat(shape.w, shape.h, (void*)0, elemsize_int8, shape.elempack);
-        if (shape.dims == 3) shape_int8 = Mat(shape.w, shape.h, shape.c, (void*)0, elemsize_int8, shape.elempack);
-        if (shape.dims == 4) shape_int8 = Mat(shape.w, shape.h, shape.d, shape.c, (void*)0, elemsize_int8, shape.elempack);
-        shape_flatten_int8 = Mat(total / flatten_elempack, (void*)0, (size_t)flatten_elempack, flatten_elempack);
     }
 
     {
@@ -415,18 +406,6 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
         flatten->load_param(pd);
 
         flatten->create_pipeline(opt);
-
-        flatten_int8 = ncnn::create_layer_vulkan(ncnn::LayerType::Flatten);
-        flatten_int8->vkdev = vkdev;
-
-        flatten_int8->bottom_shapes.resize(1);
-        flatten_int8->bottom_shapes[0] = shape_int8;
-        flatten_int8->top_shapes.resize(1);
-        flatten_int8->top_shapes[0] = shape_flatten_int8;
-
-        flatten_int8->load_param(pd);
-
-        flatten_int8->create_pipeline(opt_int8);
     }
 
     {
@@ -529,17 +508,6 @@ int InnerProduct_vulkan::destroy_pipeline(const Option& opt)
         delete flatten;
         flatten = 0;
     }
-    if (flatten_int8)
-    {
-        Option opt_int8 = opt;
-        opt_int8.use_int16_storage = false;
-        opt_int8.use_int8_arithmetic = opt_int8.use_int8_storage && vkdev->info.support_int8_arithmetic();
-
-        flatten_int8->destroy_pipeline(opt_int8);
-        delete flatten_int8;
-        flatten_int8 = 0;
-    }
-
     delete pipeline_innerproduct;
     pipeline_innerproduct = 0;
 
@@ -598,14 +566,20 @@ int InnerProduct_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     opt_int8.use_fp16_arithmetic = false;
     opt_int8.use_bf16_packed = false;
     opt_int8.use_bf16_storage = false;
+    opt_int8.use_int16_packed = false;
     opt_int8.use_int16_storage = false;
+
+    Option opt_float = opt_int8;
+    opt_float.use_int8_packed = false;
+    opt_float.use_int8_storage = false;
+    opt_float.use_int8_arithmetic = false;
 
     cmd.record_upload(weight_data_int8_packed, weight_data_int8_gpu, opt_int8);
 
     weight_data_int8_packed.release();
 
-    cmd.record_upload(weight_data_int8_scales, weight_data_int8_scales_gpu, opt);
-    cmd.record_upload(bottom_blob_int8_scales, bottom_blob_int8_scales_gpu, opt);
+    cmd.record_upload(weight_data_int8_scales, weight_data_int8_scales_gpu, opt_float);
+    cmd.record_upload(bottom_blob_int8_scales, bottom_blob_int8_scales_gpu, opt_float);
 
     if (bias_term)
     {
@@ -627,7 +601,11 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
 #if NCNN_INT8
     if (int8_scale_term)
     {
-        return forward_int8(bottom_blob, top_blob, cmd, opt);
+        if (pipeline_innerproduct_int8 || pipeline_innerproduct_gemm_int8)
+            return forward_int8(bottom_blob, top_blob, cmd, opt);
+
+        NCNN_LOGE("InnerProduct_vulkan int8 pipeline is missing");
+        return -1;
     }
 #endif
 
@@ -853,8 +831,7 @@ int InnerProduct_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob,
         Option opt_flatten = opt;
         opt_flatten.blob_vkallocator = opt.workspace_vkallocator;
 
-        const ncnn::Layer* flatten_op = bottom_blob.elembits() == 8 ? flatten_int8 : flatten;
-        flatten_op->forward(bottom_blob, bottom_blob_flattened, cmd, opt_flatten);
+        flatten->forward(bottom_blob, bottom_blob_flattened, cmd, opt_flatten);
     }
 
     if (bottom_blob_flattened.elempack > 1 && bottom_blob_flattened.elembits() != 8)

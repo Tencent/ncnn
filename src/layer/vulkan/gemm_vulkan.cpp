@@ -14,14 +14,12 @@ Gemm_vulkan::Gemm_vulkan()
     support_vulkan_any_packing = true;
 
     pipeline_gemm = 0;
-    pipeline_gemm_int8_cm = 0;
     pipeline_gemm_quantize_A_int8 = 0;
     pipeline_gemm_quantize_B_int8 = 0;
 
     use_subgroup_ops = false;
 
     use_cooperative_matrix = false;
-    use_int8_cooperative_matrix = false;
     coopmat_M = 0;
     coopmat_N = 0;
     coopmat_K = 0;
@@ -610,25 +608,19 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
 int Gemm_vulkan::create_pipeline_int8(const Option& opt)
 {
 #if NCNN_INT8
-    use_int8_cooperative_matrix = false;
-
-    // Keep the cooperative-matrix decision point local to the int8 pipeline.
-    // This pass deliberately leaves it disabled until dedicated int8 cm shaders
-    // and layout constraints are added.
-    if (opt.use_cooperative_matrix)
-    {
-        use_int8_cooperative_matrix = false;
-    }
-
     Option opt_data = opt;
     opt_data.use_fp16_arithmetic = false;
+    opt_data.use_int16_packed = false;
     opt_data.use_int16_storage = false;
     opt_data.use_int8_arithmetic = opt_data.use_int8_storage && vkdev->info.support_int8_arithmetic();
 
     if (constantA)
     {
         if (A_data.elemsize != (size_t)1u)
+        {
+            NCNN_LOGE("Gemm_vulkan int8 constant A is not int8");
             return -1;
+        }
 
         A_data_int8_packed.create(constantK, constantM, (size_t)1u, 1);
         if (A_data_int8_packed.empty())
@@ -649,7 +641,10 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
     if (constantB)
     {
         if (B_data.elemsize != (size_t)1u)
+        {
+            NCNN_LOGE("Gemm_vulkan int8 constant B is not int8");
             return -1;
+        }
 
         B_data_int8_packed.create(constantK, constantN, (size_t)1u, 1);
         if (B_data_int8_packed.empty())
@@ -666,11 +661,11 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
             }
         }
 
-        B_data_int8_scale_data.create(1);
-        if (B_data_int8_scale_data.empty())
+        B_data_int8_scales.create(1);
+        if (B_data_int8_scales.empty())
             return -100;
 
-        B_data_int8_scale_data[0] = B_data_int8_scale;
+        B_data_int8_scales[0] = B_data_int8_scale;
     }
 
     if (constantC && constant_broadcast_type_C != -1)
@@ -694,17 +689,16 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
         specializations[0].i = transB;
 
         pipeline_gemm_quantize_B_int8 = new Pipeline(vkdev);
-        pipeline_gemm_quantize_B_int8->set_local_size_xyz(1, 1, 1);
+        pipeline_gemm_quantize_B_int8->set_local_size_xyz(128, 1, 1);
         pipeline_gemm_quantize_B_int8->create(LayerShaderType::gemm_quantize_B_int8, opt_data, specializations);
     }
 
-    std::vector<vk_specialization_type> specializations(6);
+    std::vector<vk_specialization_type> specializations(5);
     specializations[0].f = alpha;
     specializations[1].f = beta;
     specializations[2].i = constantC;
     specializations[3].i = constant_broadcast_type_C;
-    specializations[4].i = output_N1M;
-    specializations[5].i = output_transpose;
+    specializations[4].i = output_transpose;
 
     pipeline_gemm = new Pipeline(vkdev);
     pipeline_gemm->set_local_size_xyz(8, 8, 1);
@@ -729,9 +723,6 @@ int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_gemm;
     pipeline_gemm = 0;
 
-    delete pipeline_gemm_int8_cm;
-    pipeline_gemm_int8_cm = 0;
-
     delete pipeline_gemm_quantize_A_int8;
     pipeline_gemm_quantize_A_int8 = 0;
 
@@ -741,7 +732,6 @@ int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
     use_subgroup_ops = false;
 
     use_cooperative_matrix = false;
-    use_int8_cooperative_matrix = false;
     coopmat_M = 0;
     coopmat_N = 0;
     coopmat_K = 0;
@@ -797,14 +787,20 @@ int Gemm_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     opt_int8.use_fp16_arithmetic = false;
     opt_int8.use_bf16_packed = false;
     opt_int8.use_bf16_storage = false;
+    opt_int8.use_int16_packed = false;
     opt_int8.use_int16_storage = false;
 
     Option opt_float = opt;
     opt_float.use_fp16_packed = false;
     opt_float.use_fp16_storage = false;
+    opt_float.use_fp16_arithmetic = false;
     opt_float.use_bf16_packed = false;
     opt_float.use_bf16_storage = false;
+    opt_float.use_int16_packed = false;
     opt_float.use_int16_storage = false;
+    opt_float.use_int8_packed = false;
+    opt_float.use_int8_storage = false;
+    opt_float.use_int8_arithmetic = false;
 
     if (constantA)
     {
@@ -823,9 +819,9 @@ int Gemm_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
         B_data_int8_packed.release();
 
-        cmd.record_upload(B_data_int8_scale_data, B_data_int8_scale_gpu, opt_float);
+        cmd.record_upload(B_data_int8_scales, B_data_int8_scales_gpu, opt_float);
 
-        B_data_int8_scale_data.release();
+        B_data_int8_scales.release();
     }
 
     if (constantC && constant_broadcast_type_C != -1)
@@ -852,11 +848,18 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
     VkMat A = A0;
     VkMat B = B0;
 
+    // Runtime int8 blobs do not carry scale metadata, so reject before recording int8 pipelines.
     if (!constantA && A.elembits() == 8)
+    {
+        NCNN_LOGE("Gemm_vulkan int8 dynamic int8 A is not supported without input scale");
         return -1;
+    }
 
     if (!constantB && B.elembits() == 8)
+    {
+        NCNN_LOGE("Gemm_vulkan int8 dynamic int8 B is not supported without input scale");
         return -1;
+    }
 
     if (!constantA && A.elempack != 1)
     {
@@ -993,7 +996,7 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
     }
 
     VkMat B_int8 = B;
-    VkMat B_int8_scale = B_data_int8_scale_gpu;
+    VkMat B_int8_scale = B_data_int8_scales_gpu;
     if (!constantB)
     {
         B_int8.create(K, N, (size_t)1u, 1, opt.workspace_vkallocator);
@@ -1049,15 +1052,12 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
     bindings[4] = A_int8_scales;
     bindings[5] = B_int8_scale;
 
-    std::vector<vk_constant_type> constants(8);
+    std::vector<vk_constant_type> constants(5);
     constants[0].i = M;
     constants[1].i = N;
     constants[2].i = K;
     constants[3].i = broadcast_type_C;
-    constants[4].i = C.empty() ? 0 : C.dims;
-    constants[5].i = C.empty() ? 0 : C.dims == 3 ? C.cstep : C.dims == 2 ? C.w : C.w;
-    constants[6].i = top_blob.dims;
-    constants[7].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
+    constants[4].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
 
     VkMat dispatcher;
     dispatcher.w = N;

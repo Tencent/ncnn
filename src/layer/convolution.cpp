@@ -394,6 +394,60 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
             return -100;
     }
 
+    // flattened blob, implement as InnerProduct
+    if (bottom_blob_unbordered.dims == 1 && kernel_w == 1 && kernel_h == 1)
+    {
+        const int num_input = weight_data_size / num_output;
+        if (bottom_blob_unbordered.w * bottom_blob_unbordered.elempack == num_input)
+        {
+            bool use_int8_requantize = int8_scale_term > 100;
+            size_t out_elemsize = use_int8_requantize ? 1u : 4u;
+
+            top_blob.create(num_output, out_elemsize, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            const signed char* m = bottom_blob_unbordered;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p = 0; p < num_output; p++)
+            {
+                const signed char* kptr = (const signed char*)weight_data + num_input * p;
+
+                int sum = 0;
+                for (int i = 0; i < num_input; i++)
+                {
+                    sum += m[i] * kptr[i];
+                }
+
+                float scale_in;
+                if (bottom_blob_int8_scales[0] == 0 || weight_data_int8_scales[p] == 0)
+                    scale_in = 0;
+                else
+                    scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+                float sumfp32 = sum * scale_in;
+
+                if (bias_term)
+                    sumfp32 += bias_data[p];
+
+                sumfp32 = activation_ss(sumfp32, activation_type, activation_params);
+
+                if (use_int8_requantize)
+                {
+                    float scale_out = top_blob_int8_scales[0];
+                    ((signed char*)top_blob)[p] = float2int8(sumfp32 * scale_out);
+                }
+                else
+                {
+                    top_blob[p] = sumfp32;
+                }
+            }
+
+            return 0;
+        }
+    }
+
     Mat bottom_blob_bordered;
     make_padding(bottom_blob_unbordered, bottom_blob_bordered, opt);
     if (bottom_blob_bordered.empty())

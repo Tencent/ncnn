@@ -288,7 +288,9 @@ public:
     bool support_int8_uniform() const;
     bool support_int8_arithmetic() const;
     bool support_int16_packed() const;
+    // storage only; pair with support_int16_arithmetic() for shader int16 type
     bool support_int16_storage() const;
+    bool support_int16_arithmetic() const;
 
     // bf16 feature
     bool support_bf16_packed() const;

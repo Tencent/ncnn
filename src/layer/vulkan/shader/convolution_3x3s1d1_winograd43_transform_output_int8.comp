@@ -94,7 +94,7 @@ void main()
 
     const float bottom_scale = bottom_scales_data[0];
     const float weight_scale = weight_scales_data[gz];
-    const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
+    const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : (1.f / 576.f) / (bottom_scale * weight_scale);
 
     for (int m = 0; m < 4; m++)
     {
@@ -103,10 +103,10 @@ void main()
         int tmp13a = tmp[m * 6 + 1] - tmp[m * 6 + 2];
         int tmp13b = tmp[m * 6 + 3] - tmp[m * 6 + 4];
 
-        int out0 = (tmp02a + tmp02b + tmp[m * 6 + 0]) / 576;
-        int out1 = (tmp13a + tmp13b * 2) / 576;
-        int out2 = (tmp02a + tmp02b * 4) / 576;
-        int out3 = (tmp13a + tmp13b * 8 + tmp[m * 6 + 5]) / 576;
+        int out0 = tmp02a + tmp02b + tmp[m * 6 + 0];
+        int out1 = tmp13a + tmp13b * 2;
+        int out2 = tmp02a + tmp02b * 4;
+        int out3 = tmp13a + tmp13b * 8 + tmp[m * 6 + 5];
 
         int outv[4];
         outv[0] = out0;
@@ -133,7 +133,7 @@ void main()
             if (use_int8_requantize == 1)
             {
                 const float vf = clamp(sumfp32 * top_scales_data[0], -127.f, 127.f);
-                const int v = int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f));
+                const int v = int8_round(vf);
                 i8buffer_st1(top_blob_int8_data, gi, v);
             }
             else

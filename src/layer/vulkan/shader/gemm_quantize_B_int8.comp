@@ -17,33 +17,53 @@ layout(push_constant) uniform parameter
     int B_hstep;
 } p;
 
+// local_size_x is fixed to 128 by Gemm_vulkan::create_pipeline_int8
+shared float absmax_shared[128];
+
 void main()
 {
+    if (gl_WorkGroupID.x != 0 || gl_WorkGroupID.y != 0 || gl_WorkGroupID.z != 0)
+        return;
+
+    const int lid = int(gl_LocalInvocationID.x);
+
     float absmax = 0.f;
 
-    const int h = transB == 1 ? p.N : p.K;
-    const int w = transB == 1 ? p.K : p.N;
-
-    for (int y = 0; y < h; y++)
+    for (int i = lid; i < p.N * p.K; i += 128)
     {
-        for (int x = 0; x < w; x++)
-        {
-            const float v = float(buffer_ld1(B_blob_data, y * p.B_hstep + x));
-            absmax = max(absmax, abs(v));
-        }
+        const int j = i / p.K;
+        const int k = i - j * p.K;
+        const int bi = transB == 1 ? j * p.B_hstep + k : k * p.B_hstep + j;
+        const float v = float(buffer_ld1(B_blob_data, bi));
+        absmax = max(absmax, abs(v));
     }
 
-    const float scale = absmax == 0.f ? 1.f : 127.f / absmax;
-    B_scale_data[0] = scale;
+    absmax_shared[lid] = absmax;
 
-    for (int j = 0; j < p.N; j++)
+    barrier();
+
+    for (int stride = 64; stride > 0; stride >>= 1)
     {
-        for (int k = 0; k < p.K; k++)
-        {
-            const int bi = transB == 1 ? j * p.B_hstep + k : k * p.B_hstep + j;
-            const float v = float(buffer_ld1(B_blob_data, bi)) * scale;
-            const int vi = int(round(clamp(v, -127.f, 127.f)));
-            i8buffer_st1(B_int8_data, j * p.K + k, vi);
-        }
+        if (lid < stride)
+            absmax_shared[lid] = max(absmax_shared[lid], absmax_shared[lid + stride]);
+
+        barrier();
+    }
+
+    absmax = absmax_shared[0];
+    const float scale = absmax == 0.f ? 1.f : 127.f / absmax;
+    if (lid == 0)
+        B_scale_data[0] = scale;
+
+    barrier();
+
+    for (int i = lid; i < p.N * p.K; i += 128)
+    {
+        const int j = i / p.K;
+        const int k = i - j * p.K;
+        const int bi = transB == 1 ? j * p.B_hstep + k : k * p.B_hstep + j;
+        const float v = float(buffer_ld1(B_blob_data, bi)) * scale;
+        const int vi = int8_round(clamp(v, -127.f, 127.f));
+        i8buffer_st1(B_int8_data, i, vi);
     }
 }

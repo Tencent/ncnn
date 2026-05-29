@@ -11,8 +11,7 @@ layout(constant_id = 0) const float alpha = 1.f;
 layout(constant_id = 1) const float beta = 1.f;
 layout(constant_id = 2) const int constantC = 0;
 layout(constant_id = 3) const int constant_broadcast_type_C = 0;
-layout(constant_id = 4) const int output_N1M = 0;
-layout(constant_id = 5) const int output_transpose = 0;
+layout(constant_id = 4) const int output_transpose = 0;
 
 layout(binding = 0) writeonly buffer top_blob { float top_blob_data[]; };
 layout(binding = 1) readonly buffer A_int8_blob { sint8 A_int8_data[]; };
@@ -27,13 +26,11 @@ layout(push_constant) uniform parameter
     int N;
     int K;
     int broadcast_type_C;
-    int C_dims;
-    int C_hstep;
-    int outdims;
     int outhstep;
 } p;
 
 #if NCNN_shader_local_memory
+// shared-memory path requires local_size_x = 8 and local_size_y = 8
 #if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
 shared i8vec4 tile_a[8][2];
 shared i8vec4 tile_b[8][2];

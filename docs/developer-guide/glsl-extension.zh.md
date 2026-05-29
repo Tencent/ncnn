@@ -247,11 +247,25 @@ void i8buffer_st1(sint8 dst, int offset, aint8 v);
 void i8buffer_st4(sint8vec4 dst, int offset, aint8vec4 v);
 ```
 
+没有原生 int8 storage 时，`i8buffer_st1` 会更新 packed `int` 中的一个 byte lane，可能使用 atomic compare-and-swap 循环。
+
 - 从 src[src_offset] 的 int8 类型值拷贝到 dst[dst_offset]
 
 ```c
 void i8buffer_cp1(sint8 dst, int dst_offset, sint8 src, int src_offset);
 void i8buffer_cp4(sint8vec4 dst, int dst_offset, sint8vec4 src, int src_offset);
+```
+
+- 从 src[src_offsets[0],src_offsets[1],...] 的 int8 类型值拷贝并打包到 dst[dst_offset]
+
+```c
+void i8buffer_cp1to4(sint8vec4 dst, int dst_offset, sint8 src, ivec4 src_offsets);
+```
+
+- 从 src[src_offset] 的 int8 类型值拷贝并解包到 dst[dst_offsets[0],dst_offsets[1],...]
+
+```c
+void i8buffer_cp4to1(sint8 dst, ivec4 dst_offsets, sint8vec4 src, int src_offset);
 ```
 
 - 打包和解包有符号整数 lane
@@ -261,9 +275,11 @@ ivec4 unpackInt4x8(int v);
 int packInt4x8(ivec4 v);
 ivec2 unpackInt2x16(int v);
 int packInt2x16(ivec2 v);
+int int8_round(float v);
 ```
 
 `packInt4x8` 将 `.r/.g/.b/.a` 按低字节到高字节保存到一个 `int`。`packInt2x16` 将 `.r/.g` 按低 16-bit lane 到高 16-bit lane 保存到一个 `int`。
+`int8_round` 使用 half-away-from-zero 规则，用于确定性的 int8 量化。
 
 # 本地数据转换函数
 

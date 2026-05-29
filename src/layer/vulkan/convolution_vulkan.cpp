@@ -17,7 +17,6 @@ Convolution_vulkan::Convolution_vulkan()
 
     pipeline_convolution = 0;
     pipeline_convolution_int8 = 0;
-    pipeline_convolution_int8_cm = 0;
     pipeline_convolution_1x1s1d1 = 0;
     pipeline_convolution_1x1s1d1_int8 = 0;
 
@@ -42,7 +41,6 @@ Convolution_vulkan::Convolution_vulkan()
     reshape_w = 0;
 
     use_cooperative_matrix = false;
-    use_int8_cooperative_matrix = false;
     use_int8_winograd_int16_packed = false;
     use_int8_winograd_int16_storage = false;
     coopmat_M = 0;
@@ -68,6 +66,12 @@ int Convolution_vulkan::load_param(const ParamDict& pd)
 #if !NCNN_INT8
     if (int8_scale_term)
     {
+        support_vulkan = false;
+    }
+#else
+    if (int8_scale_term && pad_value != 0.f)
+    {
+        NCNN_LOGE("Convolution_vulkan int8 nonzero pad value is not supported");
         support_vulkan = false;
     }
 #endif
@@ -1495,28 +1499,21 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 int Convolution_vulkan::create_pipeline_int8(const Option& opt)
 {
 #if NCNN_INT8
-    use_int8_cooperative_matrix = false;
     use_int8_winograd_int16_packed = false;
     use_int8_winograd_int16_storage = false;
 
-    // Keep the cooperative-matrix decision point local to the int8 pipeline.
-    // This pass deliberately leaves it disabled until dedicated int8 cm shaders
-    // and layout constraints are added.
-    if (opt.use_cooperative_matrix)
-    {
-        use_int8_cooperative_matrix = false;
-    }
+    Mat shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    Mat out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
-    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
-    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
-    if (shape.dims != 0 && shape.dims != 3)
-    {
-        support_vulkan = false;
-        return 0;
-    }
+    // skip fc like hint
+    if (shape.dims != 3) shape = Mat();
+    if (out_shape.dims != 3) out_shape = Mat();
 
     if (weight_data.elemsize != (size_t)1u)
+    {
+        NCNN_LOGE("Convolution_vulkan int8 weight data is not int8");
         return -1;
+    }
 
     weight_data_int8_packed = weight_data.reshape(weight_data_size);
 
@@ -1530,7 +1527,9 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     opt_int8.use_int16_storage = false;
     opt_int8.use_int8_arithmetic = opt_int8.use_int8_storage && vkdev->info.support_int8_arithmetic();
 
+    // shape specializations intentionally stay zero and are supplied through push constants at runtime
     std::vector<vk_specialization_type> specializations(11 + 10);
+    const bool use_int8_requantize = int8_scale_term > 100;
     specializations[0].i = kernel_w;
     specializations[1].i = kernel_h;
     specializations[2].i = dilation_w;
@@ -1541,18 +1540,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     specializations[7].i = activation_type;
     specializations[8].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
     specializations[9].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-    specializations[10].i = int8_scale_term > 100 ? 1 : 0;
-
-    specializations[11 + 0].i = 0;
-    specializations[11 + 1].i = 0;
-    specializations[11 + 2].i = 0;
-    specializations[11 + 3].i = 0;
-    specializations[11 + 4].i = 0;
-    specializations[11 + 5].i = 0;
-    specializations[11 + 6].i = 0;
-    specializations[11 + 7].i = 0;
-    specializations[11 + 8].i = 0;
-    specializations[11 + 9].i = 0;
+    specializations[10].i = use_int8_requantize ? 1 : 0;
 
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
@@ -1561,7 +1549,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     bool use_winograd = opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16;
     bool use_gemm = opt.use_sgemm_convolution && !is_conv1x1s1d1 && !use_winograd && num_input * maxk >= 8 && num_output >= 8;
-    const bool support_int8_winograd_int16_storage = opt.use_int16_storage && vkdev->info.support_int16_storage() && vkdev->info.physicalDevicefeatures().shaderInt16;
+    const bool support_int8_winograd_int16_storage = opt.use_int16_storage && vkdev->info.support_int16_storage() && vkdev->info.support_int16_arithmetic();
     use_int8_winograd_int16_packed = use_winograd && !support_int8_winograd_int16_storage && opt.use_int16_packed && vkdev->info.support_int16_packed();
     use_int8_winograd_int16_storage = use_winograd && support_int8_winograd_int16_storage;
     if (use_int8_winograd_int16_packed)
@@ -1695,7 +1683,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 specializations_winograd_output[1].i = activation_type;
                 specializations_winograd_output[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
                 specializations_winograd_output[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-                specializations_winograd_output[4].i = int8_scale_term > 100 ? 1 : 0;
+                specializations_winograd_output[4].i = use_int8_requantize ? 1 : 0;
 
                 pipeline_convolution_3x3s1d1_winograd43_transform_output_int8 = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd43_transform_output_int8->set_local_size_xyz(4, 4, 1);
@@ -1819,7 +1807,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 specializations_winograd_output[1].i = activation_type;
                 specializations_winograd_output[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
                 specializations_winograd_output[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-                specializations_winograd_output[4].i = int8_scale_term > 100 ? 1 : 0;
+                specializations_winograd_output[4].i = use_int8_requantize ? 1 : 0;
 
                 pipeline_convolution_3x3s1d1_winograd23_transform_output_int8 = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd23_transform_output_int8->set_local_size_xyz(8, 8, 1);
@@ -1896,9 +1884,6 @@ int Convolution_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_convolution_int8;
     pipeline_convolution_int8 = 0;
 
-    delete pipeline_convolution_int8_cm;
-    pipeline_convolution_int8_cm = 0;
-
     delete pipeline_convolution_1x1s1d1;
     pipeline_convolution_1x1s1d1 = 0;
 
@@ -1955,7 +1940,6 @@ int Convolution_vulkan::destroy_pipeline(const Option& opt)
     }
 
     use_cooperative_matrix = false;
-    use_int8_cooperative_matrix = false;
     use_int8_winograd_int16_packed = false;
     use_int8_winograd_int16_storage = false;
     coopmat_M = 0;
@@ -2036,6 +2020,9 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     opt_float.use_bf16_storage = false;
     opt_float.use_int16_packed = false;
     opt_float.use_int16_storage = false;
+    opt_float.use_int8_packed = false;
+    opt_float.use_int8_storage = false;
+    opt_float.use_int8_arithmetic = false;
 
     Option opt_int8 = opt;
     opt_int8.use_fp16_packed = false;
@@ -2091,7 +2078,8 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     cmd.record_upload(weight_data_int8_scales, weight_data_int8_scales_gpu, opt_float);
     cmd.record_upload(bottom_blob_int8_scales, bottom_blob_int8_scales_gpu, opt_float);
 
-    if (int8_scale_term > 100)
+    const bool use_int8_requantize = int8_scale_term > 100;
+    if (use_int8_requantize)
     {
         cmd.record_upload(top_blob_int8_scales, top_blob_int8_scales_gpu, opt_float);
     }
@@ -2114,8 +2102,42 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
 #if NCNN_INT8
+    const int maxk = kernel_w * kernel_h;
+    const int num_input = weight_data_size / maxk / num_output;
+
+    // flattened blob, implement as InnerProduct
+    if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
+    {
+        if (bottom_blob.w * bottom_blob.elempack == num_input)
+        {
+            VkMat bottom_blob_1x1xw = bottom_blob;
+            bottom_blob_1x1xw.dims = 3;
+            bottom_blob_1x1xw.w = 1;
+            bottom_blob_1x1xw.h = 1;
+            bottom_blob_1x1xw.c = bottom_blob.w;
+            bottom_blob_1x1xw.cstep = 1;
+
+            VkMat top_blob_1x1xw;
+            int ret = forward_int8(bottom_blob_1x1xw, top_blob_1x1xw, cmd, opt);
+            if (ret != 0)
+                return ret;
+
+            top_blob = top_blob_1x1xw;
+            top_blob.dims = 1;
+            top_blob.w = top_blob_1x1xw.c;
+            top_blob.h = 1;
+            top_blob.c = 1;
+            top_blob.cstep = top_blob_1x1xw.c;
+
+            return 0;
+        }
+    }
+
     if (bottom_blob.dims != 3)
+    {
+        NCNN_LOGE("Convolution_vulkan int8 only supports 3d input for now");
         return -1;
+    }
 
     VkMat bottom = bottom_blob;
     const bool bottom_is_int8 = bottom.elembits() == 8;
@@ -2134,10 +2156,11 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
     const int h = bottom.h;
     const int channels = bottom.c;
 
-    const int maxk = kernel_w * kernel_h;
-    const int num_input = weight_data_size / maxk / num_output;
     if (channels != num_input)
+    {
+        NCNN_LOGE("Convolution_vulkan int8 input channels mismatch");
         return -1;
+    }
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -2197,6 +2220,7 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
     bindings[4] = weight_data_int8_scales_gpu;
     bindings[5] = bottom_blob_int8_scales_gpu;
     bindings[6] = top_blob_int8_scales_gpu;
+    // bindings 7/8 alias top/bottom with int8 SSBO element types
     bindings[7] = top_blob_unpacked;
     bindings[8] = bottom;
 

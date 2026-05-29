@@ -520,31 +520,6 @@ int Convolution_x86::destroy_pipeline(const Option& opt)
 
 int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-#if NCNN_INT8
-    if (opt.use_int8_inference && int8_scale_term)
-    {
-#if NCNN_BF16
-        if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
-        {
-            Mat bottom_blob_fp32;
-            cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
-            if (bottom_blob_fp32.empty())
-                return -100;
-
-            return forward_int8_x86(bottom_blob_fp32, top_blob, opt);
-        }
-#endif
-        return forward_int8_x86(bottom_blob, top_blob, opt);
-    }
-#endif
-
-#if NCNN_BF16
-    if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
-    {
-        return forward_bf16s(bottom_blob, top_blob, opt);
-    }
-#endif
-
     // flattened blob, implement as InnerProduct
     if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
     {
@@ -588,6 +563,31 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
         return 0;
     }
+
+#if NCNN_INT8
+    if (opt.use_int8_inference && int8_scale_term)
+    {
+#if NCNN_BF16
+        if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
+        {
+            Mat bottom_blob_fp32;
+            cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+            if (bottom_blob_fp32.empty())
+                return -100;
+
+            return forward_int8_x86(bottom_blob_fp32, top_blob, opt);
+        }
+#endif
+        return forward_int8_x86(bottom_blob, top_blob, opt);
+    }
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
+    {
+        return forward_bf16s(bottom_blob, top_blob, opt);
+    }
+#endif
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;

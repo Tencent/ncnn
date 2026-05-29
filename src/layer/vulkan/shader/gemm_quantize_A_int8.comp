@@ -40,7 +40,7 @@ void main()
     {
         const int ai = transA == 1 ? k * p.A_hstep + i : i * p.A_hstep + k;
         const float v = float(buffer_ld1(A_blob_data, ai)) * scale;
-        const int vi = int(round(clamp(v, -127.f, 127.f)));
+        const int vi = int8_round(clamp(v, -127.f, 127.f));
         i8buffer_st1(A_int8_data, i * p.K + k, vi);
     }
 }

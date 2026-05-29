@@ -32,8 +32,8 @@ layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-layout(binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
-layout(binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 layout(binding = 2) readonly buffer weight_blob { sint8vec4 weight_data[]; };
 layout(binding = 3) readonly buffer bias_blob { float bias_data[]; };
 layout(binding = 4) readonly buffer weight_scales_blob { float weight_scales_data[]; };
@@ -73,6 +73,7 @@ void main()
     const int maxk = kernel_w * kernel_h;
     const int scale_offset = gz * 4;
 
+    // scales are per output-channel lane for depthwise pack4
     const vec4 bottom_scale = vec4(bottom_scales_data[scale_offset + 0], bottom_scales_data[scale_offset + 1], bottom_scales_data[scale_offset + 2], bottom_scales_data[scale_offset + 3]);
 
     ivec4 sum = ivec4(0);
@@ -94,12 +95,12 @@ void main()
             }
             else
             {
-                const vec4 vf = clamp(vec4(bottom_blob_data[gi * 4 + 0], bottom_blob_data[gi * 4 + 1], bottom_blob_data[gi * 4 + 2], bottom_blob_data[gi * 4 + 3]) * bottom_scale, vec4(-127.f), vec4(127.f));
+                const vec4 vf = clamp(vec4(buffer_ld4(bottom_blob_data, gi)) * bottom_scale, vec4(-127.f), vec4(127.f));
                 v = ivec4(
-                    int(round(vf.r)),
-                    int(round(vf.g)),
-                    int(round(vf.b)),
-                    int(round(vf.a)));
+                    int8_round(vf.r),
+                    int8_round(vf.g),
+                    int8_round(vf.b),
+                    int8_round(vf.a));
             }
         }
 
@@ -130,17 +131,14 @@ void main()
         const vec4 top_scale = vec4(top_scales_data[scale_offset + 0], top_scales_data[scale_offset + 1], top_scales_data[scale_offset + 2], top_scales_data[scale_offset + 3]);
         const vec4 vf = clamp(sumfp32 * top_scale, vec4(-127.f), vec4(127.f));
         const ivec4 v = ivec4(
-            int(round(vf.r)),
-            int(round(vf.g)),
-            int(round(vf.b)),
-            int(round(vf.a)));
+            int8_round(vf.r),
+            int8_round(vf.g),
+            int8_round(vf.b),
+            int8_round(vf.a));
         i8buffer_st4(top_blob_int8_data, gi, v);
     }
     else
     {
-        top_blob_data[gi * 4 + 0] = sumfp32.r;
-        top_blob_data[gi * 4 + 1] = sumfp32.g;
-        top_blob_data[gi * 4 + 2] = sumfp32.b;
-        top_blob_data[gi * 4 + 3] = sumfp32.a;
+        buffer_st4(top_blob_data, gi, afpvec4(sumfp32));
     }
 }

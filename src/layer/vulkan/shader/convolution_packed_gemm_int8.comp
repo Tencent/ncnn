@@ -44,6 +44,7 @@ layout(binding = 5) readonly buffer bottom_scales_blob { float bottom_scales_dat
 layout(binding = 6) readonly buffer top_scales_blob { float top_scales_data[]; };
 layout(binding = 7) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
 layout(binding = 8) readonly buffer bottom_blob_int8 { sint8 bottom_blob_int8_data[]; };
+// bottom/top scales are per tensor; weight scales are per output channel
 
 layout(push_constant) uniform parameter
 {
@@ -134,7 +135,7 @@ void main()
                             else
                             {
                                 const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                                v[lane] = int8_t(int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f)));
+                                v[lane] = int8_t(int8_round(vf));
                             }
                         }
                     }
@@ -207,7 +208,7 @@ void main()
                             else
                             {
                                 const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                                v[lane] = int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f));
+                                v[lane] = int8_round(vf);
                             }
                         }
                     }
@@ -305,7 +306,7 @@ void main()
                         else
                         {
                             const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v0[lane] = int8_t(int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f)));
+                            v0[lane] = int8_t(int8_round(vf));
                         }
                     }
                 }
@@ -334,7 +335,7 @@ void main()
                         else
                         {
                             const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v1[lane] = int8_t(int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f)));
+                            v1[lane] = int8_t(int8_round(vf));
                         }
                     }
                 }
@@ -363,7 +364,7 @@ void main()
                         else
                         {
                             const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v2[lane] = int8_t(int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f)));
+                            v2[lane] = int8_t(int8_round(vf));
                         }
                     }
                 }
@@ -392,7 +393,7 @@ void main()
                         else
                         {
                             const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v3[lane] = int8_t(int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f)));
+                            v3[lane] = int8_t(int8_round(vf));
                         }
                     }
                 }
@@ -470,7 +471,7 @@ void main()
                         else
                         {
                             const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v[lane] = int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f));
+                            v[lane] = int8_round(vf);
                         }
                     }
                 }
@@ -501,7 +502,7 @@ void main()
                         else
                         {
                             const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v[lane] = int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f));
+                            v[lane] = int8_round(vf);
                         }
                     }
                 }
@@ -532,7 +533,7 @@ void main()
                         else
                         {
                             const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v[lane] = int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f));
+                            v[lane] = int8_round(vf);
                         }
                     }
                 }
@@ -563,7 +564,7 @@ void main()
                         else
                         {
                             const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v[lane] = int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f));
+                            v[lane] = int8_round(vf);
                         }
                     }
                 }
@@ -763,7 +764,7 @@ void main()
             if (use_int8_requantize == 1)
             {
                 const float vf = clamp(sumfp32 * top_scales_data[0], -127.f, 127.f);
-                const int v = int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f));
+                const int v = int8_round(vf);
                 i8buffer_st1(top_blob_int8_data, gi, v);
             }
             else

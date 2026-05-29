@@ -46,7 +46,6 @@ public:
 
     Pipeline* pipeline_convolution;
     Pipeline* pipeline_convolution_int8;
-    Pipeline* pipeline_convolution_int8_cm;
     Pipeline* pipeline_convolution_1x1s1d1;
     Pipeline* pipeline_convolution_1x1s1d1_int8;
 
@@ -78,7 +77,6 @@ public:
 
     // cooperative matrix
     bool use_cooperative_matrix;
-    bool use_int8_cooperative_matrix;
     bool use_int8_winograd_int16_packed;
     bool use_int8_winograd_int16_storage;
     int coopmat_M;

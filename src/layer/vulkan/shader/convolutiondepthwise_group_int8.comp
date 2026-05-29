@@ -45,6 +45,7 @@ layout(binding = 5) readonly buffer bottom_scales_blob { float bottom_scales_dat
 layout(binding = 6) readonly buffer top_scales_blob { float top_scales_data[]; };
 layout(binding = 7) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
 layout(binding = 8) readonly buffer bottom_blob_int8 { sint8 bottom_blob_int8_data[]; };
+// scales are indexed by group for grouped int8 convolution
 
 layout(push_constant) uniform parameter
 {
@@ -66,6 +67,7 @@ layout(push_constant) uniform parameter
 } p;
 
 #if NCNN_shader_local_memory
+// shared-memory path requires local_size_x = 8 and local_size_y = 8
 #if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
 shared i8vec4 tmp_v[8][4];
 shared i8vec4 tmp_w[8][4];
@@ -138,7 +140,7 @@ void main()
                             else
                             {
                                 const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                                v[lane] = int8_t(int(round(vf)));
+                                v[lane] = int8_t(int8_round(vf));
                             }
                         }
                     }
@@ -212,7 +214,7 @@ void main()
                             else
                             {
                                 const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                                v[lane] = int(round(vf));
+                                v[lane] = int8_round(vf);
                             }
                         }
                     }
@@ -311,7 +313,7 @@ void main()
                         else
                         {
                             const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v0[lane] = int8_t(int(round(vf)));
+                            v0[lane] = int8_t(int8_round(vf));
                         }
                     }
                 }
@@ -340,7 +342,7 @@ void main()
                         else
                         {
                             const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v1[lane] = int8_t(int(round(vf)));
+                            v1[lane] = int8_t(int8_round(vf));
                         }
                     }
                 }
@@ -369,7 +371,7 @@ void main()
                         else
                         {
                             const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v2[lane] = int8_t(int(round(vf)));
+                            v2[lane] = int8_t(int8_round(vf));
                         }
                     }
                 }
@@ -398,7 +400,7 @@ void main()
                         else
                         {
                             const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v3[lane] = int8_t(int(round(vf)));
+                            v3[lane] = int8_t(int8_round(vf));
                         }
                     }
                 }
@@ -476,7 +478,7 @@ void main()
                         else
                         {
                             const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v[lane] = int(round(vf));
+                            v[lane] = int8_round(vf);
                         }
                     }
                 }
@@ -507,7 +509,7 @@ void main()
                         else
                         {
                             const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v[lane] = int(round(vf));
+                            v[lane] = int8_round(vf);
                         }
                     }
                 }
@@ -538,7 +540,7 @@ void main()
                         else
                         {
                             const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v[lane] = int(round(vf));
+                            v[lane] = int8_round(vf);
                         }
                     }
                 }
@@ -569,7 +571,7 @@ void main()
                         else
                         {
                             const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v[lane] = int(round(vf));
+                            v[lane] = int8_round(vf);
                         }
                     }
                 }
@@ -773,7 +775,7 @@ void main()
             if (use_int8_requantize == 1)
             {
                 const float vf = clamp(sumfp32 * top_scales_data[gz], -127.f, 127.f);
-                const int v = int(round(vf));
+                const int v = int8_round(vf);
                 i8buffer_st1(top_blob_int8_data, gi, v);
             }
             else

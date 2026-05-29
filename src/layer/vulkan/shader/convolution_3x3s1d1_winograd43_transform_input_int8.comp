@@ -57,7 +57,7 @@ void main()
                 else
                 {
                     const float vf = clamp(bottom_blob_data[gi] * bottom_scales_data[0], -127.f, 127.f);
-                    v = int(vf > 0.f ? floor(vf + 0.5f) : ceil(vf - 0.5f));
+                    v = int8_round(vf);
                 }
             }
 

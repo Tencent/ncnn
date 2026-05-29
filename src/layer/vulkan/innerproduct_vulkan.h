@@ -29,7 +29,6 @@ public:
 
 public:
     ncnn::Layer* flatten;
-    ncnn::Layer* flatten_int8;
 
     Mat weight_data_packed;
     Mat weight_data_int8_packed;

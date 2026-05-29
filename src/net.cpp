@@ -1101,7 +1101,7 @@ int Net::load_param(const DataReader& dr)
         // sanitize use options
         if (!d->vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
         if (!d->vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
-        if (!d->vkdev->info.support_int16_storage() || !d->vkdev->info.physicalDevicefeatures().shaderInt16) opt.use_int16_storage = false;
+        if (!d->vkdev->info.support_int16_storage() || !d->vkdev->info.support_int16_arithmetic()) opt.use_int16_storage = false;
         if (!d->vkdev->info.support_fp16_uniform()) opt.use_fp16_uniform = false;
         if (!d->vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
         if (!d->vkdev->info.support_int8_packed()) opt.use_int8_packed = false;
@@ -1475,7 +1475,7 @@ int Net::load_param_bin(const DataReader& dr)
         // sanitize use options
         if (!d->vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
         if (!d->vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
-        if (!d->vkdev->info.support_int16_storage() || !d->vkdev->info.physicalDevicefeatures().shaderInt16) opt.use_int16_storage = false;
+        if (!d->vkdev->info.support_int16_storage() || !d->vkdev->info.support_int16_arithmetic()) opt.use_int16_storage = false;
         if (!d->vkdev->info.support_fp16_uniform()) opt.use_fp16_uniform = false;
         if (!d->vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
         if (!d->vkdev->info.support_int8_packed()) opt.use_int8_packed = false;

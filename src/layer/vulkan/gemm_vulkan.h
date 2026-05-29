@@ -30,7 +30,7 @@ public:
     Mat C_data_packed;
     Mat A_data_int8_packed;
     Mat B_data_int8_packed;
-    Mat B_data_int8_scale_data;
+    Mat B_data_int8_scales;
 
     VkMat A_data_gpu;
     VkMat B_data_gpu;
@@ -38,10 +38,9 @@ public:
     VkMat A_data_int8_gpu;
     VkMat B_data_int8_gpu;
     VkMat A_data_int8_scales_gpu;
-    VkMat B_data_int8_scale_gpu;
+    VkMat B_data_int8_scales_gpu;
 
     Pipeline* pipeline_gemm;
-    Pipeline* pipeline_gemm_int8_cm;
     Pipeline* pipeline_gemm_quantize_A_int8;
     Pipeline* pipeline_gemm_quantize_B_int8;
 
@@ -50,7 +49,6 @@ public:
 
     // cooperative matrix
     bool use_cooperative_matrix;
-    bool use_int8_cooperative_matrix;
     int coopmat_M;
     int coopmat_N;
     int coopmat_K;

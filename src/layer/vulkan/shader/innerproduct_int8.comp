@@ -32,7 +32,7 @@ layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 2) readonly buffer weight_blob { sint8 weight_data[]; };
-layout(binding = 3) readonly buffer weight_scales_blob { sfp weight_scales_data[]; };
+layout(binding = 3) readonly buffer weight_scales_blob { float weight_scales_data[]; };
 layout(binding = 4) readonly buffer bias_blob { sfp bias_data[]; };
 
 layout(push_constant) uniform parameter
@@ -72,20 +72,20 @@ void main()
         const afp vf3 = clamp(buffer_ld1(bottom_blob_data, i + 3) * afp(bottom_blob_int8_scale), afp(-127.f), afp(127.f));
 #if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
         i8vec4 v;
-        v.r = int8_t(int(round(vf0)));
-        v.g = int8_t(int(round(vf1)));
-        v.b = int8_t(int(round(vf2)));
-        v.a = int8_t(int(round(vf3)));
+        v.r = int8_t(int8_round(vf0));
+        v.g = int8_t(int8_round(vf1));
+        v.b = int8_t(int8_round(vf2));
+        v.a = int8_t(int8_round(vf3));
 
         const int wi = w_offset + i;
 
         sum += dotEXT(v, i8vec4(weight_data[wi + 0], weight_data[wi + 1], weight_data[wi + 2], weight_data[wi + 3]));
 #else
         ivec4 v;
-        v.r = int(round(vf0));
-        v.g = int(round(vf1));
-        v.b = int(round(vf2));
-        v.a = int(round(vf3));
+        v.r = int8_round(vf0);
+        v.g = int8_round(vf1);
+        v.b = int8_round(vf2);
+        v.a = int8_round(vf3);
 
         const int wi = w_offset + i;
 
@@ -119,13 +119,13 @@ void main()
     for (; i < psc(w); i++)
     {
         const afp vf = clamp(buffer_ld1(bottom_blob_data, i) * afp(bottom_blob_int8_scale), afp(-127.f), afp(127.f));
-        int v = int(round(vf));
+        int v = int8_round(vf);
         int k = i8buffer_ld1(weight_data, w_offset + i);
         sum += v * k;
     }
 
-    float weight_scale = float(buffer_ld1(weight_scales_data, gx));
-    float scale_in = weight_scale == 0.f ? 0.f : 1.f / (bottom_blob_int8_scale * weight_scale);
+    const float weight_scale = weight_scales_data[gx];
+    float scale_in = bottom_blob_int8_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_blob_int8_scale * weight_scale);
 
     afp sumfp32 = afp(float(sum) * scale_in);
 
