@@ -7,7 +7,8 @@ layout(constant_id = 0) const int transB = 0;
 
 layout(binding = 0) readonly buffer B_blob { sfp B_blob_data[]; };
 layout(binding = 1) writeonly buffer B_int8_blob { sint8 B_int8_data[]; };
-layout(binding = 2) writeonly buffer B_scale_blob { float B_scale_data[]; };
+layout(binding = 2) readonly buffer B_scale_blob { float B_scale_data[]; };
+layout(binding = 3) writeonly buffer B_int8_blob_pack4 { sint8vec4 B_int8_data_pack4[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -15,55 +16,41 @@ layout(push_constant) uniform parameter
     int K;
     int B_dims;
     int B_hstep;
+    int size;
 } p;
-
-// local_size_x is fixed to 128 by Gemm_vulkan::create_pipeline_int8
-shared float absmax_shared[128];
 
 void main()
 {
-    if (gl_WorkGroupID.x != 0 || gl_WorkGroupID.y != 0 || gl_WorkGroupID.z != 0)
+    const int gx = int(gl_GlobalInvocationID.x);
+    const int i = gx * 4;
+
+    if (i >= p.size)
         return;
 
-    const int lid = int(gl_LocalInvocationID.x);
+    const float scale = B_scale_data[0];
 
-    float absmax = 0.f;
-
-    for (int i = lid; i < p.N * p.K; i += 128)
+    ivec4 v = ivec4(0);
+    for (int lane = 0; lane < 4; lane++)
     {
-        const int j = i / p.K;
-        const int k = i - j * p.K;
+        const int i1 = i + lane;
+        if (i1 >= p.size)
+            break;
+
+        const int j = i1 / p.K;
+        const int k = i1 - j * p.K;
         const int bi = transB == 1 ? j * p.B_hstep + k : k * p.B_hstep + j;
-        const float v = float(buffer_ld1(B_blob_data, bi));
-        absmax = max(absmax, abs(v));
+        const float vf = float(buffer_ld1(B_blob_data, bi)) * scale;
+        v[lane] = int8_round(clamp(vf, -127.f, 127.f));
     }
 
-    absmax_shared[lid] = absmax;
-
-    barrier();
-
-    for (int stride = 64; stride > 0; stride >>= 1)
+    if (i + 3 < p.size)
     {
-        if (lid < stride)
-            absmax_shared[lid] = max(absmax_shared[lid], absmax_shared[lid + stride]);
-
-        barrier();
+        i8buffer_st4(B_int8_data_pack4, gx, v);
     }
-
-    absmax = absmax_shared[0];
-    const float scale = absmax == 0.f ? 1.f : 127.f / absmax;
-    if (lid == 0)
-        B_scale_data[0] = scale;
-
-    barrier();
-
-    for (int i = lid; i < p.N * p.K; i += 128)
+    else
     {
-        const int j = i / p.K;
-        const int k = i - j * p.K;
-        const int bi = transB == 1 ? j * p.B_hstep + k : k * p.B_hstep + j;
-        const float v = float(buffer_ld1(B_blob_data, bi)) * scale;
-        const int vi = int8_round(clamp(v, -127.f, 127.f));
-        i8buffer_st1(B_int8_data, i, vi);
+        i8buffer_st1(B_int8_data, i + 0, v.r);
+        if (i + 1 < p.size) i8buffer_st1(B_int8_data, i + 1, v.g);
+        if (i + 2 < p.size) i8buffer_st1(B_int8_data, i + 2, v.b);
     }
 }

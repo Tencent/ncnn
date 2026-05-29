@@ -1527,9 +1527,11 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     opt_int8.use_int16_storage = false;
     opt_int8.use_int8_arithmetic = opt_int8.use_int8_storage && vkdev->info.support_int8_arithmetic();
 
-    // shape specializations intentionally stay zero and are supplied through push constants at runtime
-    std::vector<vk_specialization_type> specializations(11 + 10);
     const bool use_int8_requantize = int8_scale_term > 100;
+    const int maxk = kernel_w * kernel_h;
+    const int num_input = weight_data_size / maxk / num_output;
+
+    std::vector<vk_specialization_type> specializations(11 + 10);
     specializations[0].i = kernel_w;
     specializations[1].i = kernel_h;
     specializations[2].i = dilation_w;
@@ -1541,9 +1543,16 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     specializations[8].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
     specializations[9].f = activation_params.w == 2 ? activation_params[1] : 0.f;
     specializations[10].i = use_int8_requantize ? 1 : 0;
-
-    const int maxk = kernel_w * kernel_h;
-    const int num_input = weight_data_size / maxk / num_output;
+    specializations[11 + 0].i = shape.dims;
+    specializations[11 + 1].i = shape.w;
+    specializations[11 + 2].i = shape.h;
+    specializations[11 + 3].i = shape.dims != 0 ? num_input : 0;
+    specializations[11 + 4].i = 0;
+    specializations[11 + 5].i = out_shape.dims;
+    specializations[11 + 6].i = out_shape.w;
+    specializations[11 + 7].i = out_shape.h;
+    specializations[11 + 8].i = out_shape.dims != 0 ? num_output : 0;
+    specializations[11 + 9].i = 0;
 
     bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
@@ -1673,6 +1682,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 pipeline_convolution_3x3s1d1_winograd43_transform_input_int8->create(LayerShaderType::convolution_3x3s1d1_winograd43_transform_input_int8, opt_int8, std::vector<vk_specialization_type>());
             }
             {
+                // winograd23/43 share gemm shader, transform count is set by dispatcher.c
                 pipeline_convolution_3x3s1d1_winograd43_gemm_int8 = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd43_gemm_int8->set_local_size_xyz(opt_int8.use_shader_local_memory ? 8 : 4, opt_int8.use_shader_local_memory ? 8 : std::min(4, num_output), 1);
                 pipeline_convolution_3x3s1d1_winograd43_gemm_int8->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8, opt_int8, std::vector<vk_specialization_type>());
@@ -1797,6 +1807,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 pipeline_convolution_3x3s1d1_winograd23_transform_input_int8->create(LayerShaderType::convolution_3x3s1d1_winograd23_transform_input_int8, opt_int8, std::vector<vk_specialization_type>());
             }
             {
+                // winograd23/43 share gemm shader, transform count is set by dispatcher.c
                 pipeline_convolution_3x3s1d1_winograd23_gemm_int8 = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd23_gemm_int8->set_local_size_xyz(opt_int8.use_shader_local_memory ? 8 : 4, opt_int8.use_shader_local_memory ? 8 : std::min(4, num_output), 1);
                 pipeline_convolution_3x3s1d1_winograd23_gemm_int8->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8, opt_int8, std::vector<vk_specialization_type>());

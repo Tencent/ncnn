@@ -20,6 +20,9 @@ ConvolutionDepthWise_vulkan::ConvolutionDepthWise_vulkan()
     pipeline_convolutiondepthwise_int8 = 0;
     pipeline_convolutiondepthwise_pack4_int8 = 0;
     pipeline_convolutiondepthwise_group_int8 = 0;
+    pipeline_convolutiondepthwise_group_pack4_int8 = 0;
+    pipeline_convolutiondepthwise_group_pack1to4_int8 = 0;
+    pipeline_convolutiondepthwise_group_pack4to1_int8 = 0;
 
     pipeline_convolutiondepthwise_group = 0;
     pipeline_convolutiondepthwise_group_pack4 = 0;
@@ -323,8 +326,11 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
 int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
 {
 #if NCNN_INT8
-    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
-    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+    Mat shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    Mat out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    if (shape.dims != 3) shape = Mat();
+    if (out_shape.dims != 3) out_shape = Mat();
 
     const int maxk = kernel_w * kernel_h;
     if (group == 0 || num_output % group != 0)
@@ -335,6 +341,12 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
 
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
     const bool is_depthwise = channels == group && group == num_output;
+    const int channels_g = channels / group;
+    const int num_output_g = num_output / group;
+    const int elempack = is_depthwise && opt.use_packing_layout && group % 4 == 0 ? 4 : 1;
+    const int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
+    const int elempack_g = !is_depthwise && opt.use_packing_layout && channels_g % 4 == 0 ? 4 : 1;
+    const int out_elempack_g = !is_depthwise && opt.use_packing_layout && num_output_g % 4 == 0 ? 4 : 1;
 
     if (weight_data.elemsize != (size_t)1u)
     {
@@ -352,10 +364,14 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
     opt_int8.use_int16_storage = false;
     opt_int8.use_int8_arithmetic = opt_int8.use_int8_storage && vkdev->info.support_int8_arithmetic();
 
+    Option opt_int8_pack4 = opt;
+    opt_int8_pack4.use_fp16_arithmetic = false;
+    opt_int8_pack4.use_int16_packed = false;
+    opt_int8_pack4.use_int16_storage = false;
+    opt_int8_pack4.use_int8_arithmetic = opt_int8_pack4.use_int8_storage && vkdev->info.support_int8_arithmetic();
+
     if (is_depthwise)
     {
-        const int elempack = opt.use_packing_layout && group % 4 == 0 ? 4 : 1;
-
         if (elempack == 4)
         {
             const Mat weight_data_r2 = weight_data.reshape(maxk, group);
@@ -385,10 +401,50 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
     }
     else
     {
-        weight_data_int8_packed = weight_data.reshape(weight_data_size);
+        if (elempack_g == 1 && out_elempack_g == 1)
+        {
+            weight_data_int8_packed = weight_data.reshape(weight_data_size);
+        }
+        else
+        {
+            const Mat weight_data_r2_groups = weight_data.reshape(maxk, channels_g, num_output_g * group);
+
+            weight_data_int8_packed.create(maxk, channels_g / elempack_g, num_output_g / out_elempack_g * group, (size_t)elempack_g * out_elempack_g, elempack_g * out_elempack_g);
+
+            for (int g = 0; g < group; g++)
+            {
+                const Mat weight_data_r2 = weight_data_r2_groups.channel_range(num_output_g * g, num_output_g);
+
+                Mat weight_data_packed = weight_data_int8_packed.channel_range(num_output_g / out_elempack_g * g, num_output_g / out_elempack_g);
+
+                for (int q = 0; q + (out_elempack_g - 1) < num_output_g; q += out_elempack_g)
+                {
+                    signed char* g00 = weight_data_packed.channel(q / out_elempack_g);
+
+                    for (int p = 0; p + (elempack_g - 1) < channels_g; p += elempack_g)
+                    {
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            for (int i = 0; i < out_elempack_g; i++)
+                            {
+                                const Mat k0 = weight_data_r2.channel(q + i);
+
+                                for (int j = 0; j < elempack_g; j++)
+                                {
+                                    const signed char* k00 = k0.row<const signed char>(p + j);
+
+                                    g00[0] = k00[k];
+
+                                    g00++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
-    // shape specializations intentionally stay zero and are supplied through push constants at runtime
     std::vector<vk_specialization_type> specializations(12 + 10);
     const bool use_int8_requantize = int8_scale_term > 100;
     specializations[0].i = kernel_w;
@@ -403,6 +459,16 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
     specializations[9].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
     specializations[10].f = activation_params.w == 2 ? activation_params[1] : 0.f;
     specializations[11].i = use_int8_requantize ? 1 : 0;
+    specializations[12 + 0].i = shape.dims;
+    specializations[12 + 1].i = shape.w;
+    specializations[12 + 2].i = shape.h;
+    specializations[12 + 3].i = shape.dims != 0 ? channels / (is_depthwise ? elempack : elempack_g) : 0;
+    specializations[12 + 4].i = 0;
+    specializations[12 + 5].i = out_shape.dims;
+    specializations[12 + 6].i = out_shape.w;
+    specializations[12 + 7].i = out_shape.h;
+    specializations[12 + 8].i = out_shape.dims != 0 ? num_output / (is_depthwise ? out_elempack : out_elempack_g) : 0;
+    specializations[12 + 9].i = 0;
 
     if (is_depthwise)
     {
@@ -418,7 +484,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
         {
             pipeline_convolutiondepthwise_pack4_int8 = new Pipeline(vkdev);
             pipeline_convolutiondepthwise_pack4_int8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_convolutiondepthwise_pack4_int8->create(LayerShaderType::convolutiondepthwise_pack4_int8, opt_int8, specializations);
+            pipeline_convolutiondepthwise_pack4_int8->create(LayerShaderType::convolutiondepthwise_pack4_int8, opt_int8_pack4, specializations);
         }
         else
         {
@@ -429,26 +495,57 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
     }
     else
     {
-        const int num_output_g = num_output / group;
-
         Mat local_size_xyz(8, 8, 1, (void*)0);
-        if (out_shape.dims != 0)
+        if (out_elempack_g == 1 && elempack_g == 1)
         {
-            local_size_xyz.w = std::min(8, std::max(4, (out_shape.w * out_shape.h + 3) / 4));
-            local_size_xyz.h = std::min(8, std::max(4, (num_output_g + 3) / 4));
-            local_size_xyz.c = 1;
-        }
+            if (out_shape.dims != 0)
+            {
+                local_size_xyz.w = std::min(8, std::max(4, (out_shape.w * out_shape.h + 3) / 4));
+                local_size_xyz.h = std::min(8, std::max(4, (num_output_g + 3) / 4));
+                local_size_xyz.c = 1;
+            }
 
-        pipeline_convolutiondepthwise_group_int8 = new Pipeline(vkdev);
-        if (opt_int8.use_shader_local_memory)
-        {
-            pipeline_convolutiondepthwise_group_int8->set_local_size_xyz(8, 8, 1);
+            pipeline_convolutiondepthwise_group_int8 = new Pipeline(vkdev);
+            if (opt_int8.use_shader_local_memory)
+            {
+                pipeline_convolutiondepthwise_group_int8->set_local_size_xyz(8, 8, 1);
+            }
+            else
+            {
+                pipeline_convolutiondepthwise_group_int8->set_optimal_local_size_xyz(local_size_xyz);
+            }
+            pipeline_convolutiondepthwise_group_int8->create(LayerShaderType::convolutiondepthwise_group_int8, opt_int8, specializations);
         }
         else
         {
-            pipeline_convolutiondepthwise_group_int8->set_optimal_local_size_xyz(local_size_xyz);
+            if (out_shape.dims != 0)
+            {
+                local_size_xyz.w = std::min(8, out_shape.w);
+                local_size_xyz.h = std::min(8, out_shape.h);
+                local_size_xyz.c = std::min(4, num_output / out_elempack_g);
+            }
+
+            if (elempack_g == 4 && out_elempack_g == 4)
+            {
+                pipeline_convolutiondepthwise_group_pack4_int8 = new Pipeline(vkdev);
+                pipeline_convolutiondepthwise_group_pack4_int8->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_convolutiondepthwise_group_pack4_int8->create(LayerShaderType::convolutiondepthwise_group_pack4_int8, opt_int8_pack4, specializations);
+            }
+
+            if (elempack_g == 1 && out_elempack_g == 4)
+            {
+                pipeline_convolutiondepthwise_group_pack1to4_int8 = new Pipeline(vkdev);
+                pipeline_convolutiondepthwise_group_pack1to4_int8->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_convolutiondepthwise_group_pack1to4_int8->create(LayerShaderType::convolutiondepthwise_group_pack1to4_int8, opt_int8_pack4, specializations);
+            }
+
+            if (elempack_g == 4 && out_elempack_g == 1)
+            {
+                pipeline_convolutiondepthwise_group_pack4to1_int8 = new Pipeline(vkdev);
+                pipeline_convolutiondepthwise_group_pack4to1_int8->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_convolutiondepthwise_group_pack4to1_int8->create(LayerShaderType::convolutiondepthwise_group_pack4to1_int8, opt_int8_pack4, specializations);
+            }
         }
-        pipeline_convolutiondepthwise_group_int8->create(LayerShaderType::convolutiondepthwise_group_int8, opt_int8, specializations);
     }
 
     if (opt.lightmode)
@@ -486,6 +583,15 @@ int ConvolutionDepthWise_vulkan::destroy_pipeline(const Option& opt)
 
     delete pipeline_convolutiondepthwise_group_int8;
     pipeline_convolutiondepthwise_group_int8 = 0;
+
+    delete pipeline_convolutiondepthwise_group_pack4_int8;
+    pipeline_convolutiondepthwise_group_pack4_int8 = 0;
+
+    delete pipeline_convolutiondepthwise_group_pack1to4_int8;
+    pipeline_convolutiondepthwise_group_pack1to4_int8 = 0;
+
+    delete pipeline_convolutiondepthwise_group_pack4to1_int8;
+    pipeline_convolutiondepthwise_group_pack4to1_int8 = 0;
 
     delete pipeline_convolutiondepthwise_group;
     pipeline_convolutiondepthwise_group = 0;
@@ -603,15 +709,22 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
 
     int channels = bottom.c * bottom.elempack;
     const bool is_depthwise = channels == group && group == num_output;
+    const int channels_g = channels / group;
+    const int num_output_g = num_output / group;
     const int elempack = is_depthwise && opt.use_packing_layout && channels % 4 == 0 ? 4 : 1;
+    const int elempack_g = !is_depthwise && opt.use_packing_layout && channels_g % 4 == 0 ? 4 : 1;
+    const int out_elempack_g = !is_depthwise && opt.use_packing_layout && num_output_g % 4 == 0 ? 4 : 1;
+    const bool use_depthwise_pack4 = is_depthwise && elempack == 4;
+    const bool use_group_packing = !is_depthwise && (elempack_g != 1 || out_elempack_g != 1);
+    const int bottom_elempack = is_depthwise ? elempack : elempack_g;
 
-    if (bottom.elempack != elempack || (!bottom_is_int8 && bottom.elembits() == 16))
+    if (bottom.elempack != bottom_elempack || (!bottom_is_int8 && bottom.elembits() == 16 && !use_depthwise_pack4 && !use_group_packing))
     {
         Option opt_pack1 = opt;
         opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
 
         VkMat bottom_unpacked;
-        vkdev->convert_packing(bottom, bottom_unpacked, elempack, bottom_is_int8 ? 0 : 1, cmd, opt_pack1);
+        vkdev->convert_packing(bottom, bottom_unpacked, bottom_elempack, bottom_is_int8 || use_depthwise_pack4 || use_group_packing ? 0 : 1, cmd, opt_pack1);
         bottom = bottom_unpacked;
     }
 
@@ -619,9 +732,9 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
     const int h = bottom.h;
     channels = bottom.c * bottom.elempack;
 
-    if (channels % group != 0 || num_output % group != 0)
+    if (channels % group != 0)
     {
-        NCNN_LOGE("ConvolutionDepthWise_vulkan int8 input channels or output channels mismatch");
+        NCNN_LOGE("ConvolutionDepthWise_vulkan int8 input channels mismatch");
         return -1;
     }
 
@@ -660,17 +773,43 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
 
     const bool use_int8_requantize = int8_scale_term > 100;
     const int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
-    const size_t out_elemsize = use_int8_requantize ? (size_t)out_elempack : (size_t)4u * out_elempack;
+    const bool use_sfp_output = !use_int8_requantize && (use_depthwise_pack4 || use_group_packing) && (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed);
+    size_t out_elemsize;
+    if (use_int8_requantize)
+    {
+        out_elemsize = out_elempack;
+    }
+    else if (use_sfp_output)
+    {
+        out_elemsize = (size_t)2u * out_elempack;
+    }
+    else
+    {
+        out_elemsize = (size_t)4u * out_elempack;
+    }
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 
     VkMat top_blob_unpacked = top_blob;
-    if (!is_depthwise && out_elempack != 1)
+    if (!is_depthwise && out_elempack_g != out_elempack)
     {
-        const size_t out_elemsize_unpacked = use_int8_requantize ? 1u : 4u;
-        top_blob_unpacked.create(outw, outh, num_output, out_elemsize_unpacked, 1, opt.workspace_vkallocator);
+        size_t out_elemsize_g;
+        if (use_int8_requantize)
+        {
+            out_elemsize_g = out_elempack_g;
+        }
+        else if (use_sfp_output)
+        {
+            out_elemsize_g = (size_t)2u * out_elempack_g;
+        }
+        else
+        {
+            out_elemsize_g = (size_t)4u * out_elempack_g;
+        }
+
+        top_blob_unpacked.create(outw, outh, num_output / out_elempack_g, out_elemsize_g, out_elempack_g, opt.workspace_vkallocator);
         if (top_blob_unpacked.empty())
             return -100;
     }
@@ -709,16 +848,28 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
     }
     else
     {
-        const int num_output_g = num_output / group;
+        const Pipeline* pipeline = 0;
+        if (elempack_g == 1 && out_elempack_g == 1)
+        {
+            pipeline = pipeline_convolutiondepthwise_group_int8;
 
-        VkMat dispatcher;
-        dispatcher.w = (top_blob_unpacked.w * top_blob_unpacked.h + 3) / 4;
-        dispatcher.h = (num_output_g + 3) / 4;
-        dispatcher.c = group;
+            VkMat dispatcher;
+            dispatcher.w = (top_blob_unpacked.w * top_blob_unpacked.h + 3) / 4;
+            dispatcher.h = (num_output_g + 3) / 4;
+            dispatcher.c = group;
 
-        cmd.record_pipeline(pipeline_convolutiondepthwise_group_int8, bindings, constants, dispatcher);
+            cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+        }
+        else
+        {
+            if (elempack_g == 4 && out_elempack_g == 4) pipeline = pipeline_convolutiondepthwise_group_pack4_int8;
+            if (elempack_g == 1 && out_elempack_g == 4) pipeline = pipeline_convolutiondepthwise_group_pack1to4_int8;
+            if (elempack_g == 4 && out_elempack_g == 1) pipeline = pipeline_convolutiondepthwise_group_pack4to1_int8;
 
-        if (out_elempack != 1)
+            cmd.record_pipeline(pipeline, bindings, constants, top_blob_unpacked);
+        }
+
+        if (out_elempack_g != out_elempack)
         {
             vkdev->convert_packing(top_blob_unpacked, top_blob, out_elempack, cmd, opt);
         }

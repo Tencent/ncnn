@@ -42,6 +42,8 @@ public:
 
     Pipeline* pipeline_gemm;
     Pipeline* pipeline_gemm_quantize_A_int8;
+    Pipeline* pipeline_gemm_quantize_B_absmax_int8;
+    Pipeline* pipeline_gemm_quantize_B_scale_int8;
     Pipeline* pipeline_gemm_quantize_B_int8;
 
     // subgroup

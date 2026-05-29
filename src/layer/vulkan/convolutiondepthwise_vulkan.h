@@ -42,6 +42,9 @@ public:
     Pipeline* pipeline_convolutiondepthwise_int8;
     Pipeline* pipeline_convolutiondepthwise_pack4_int8;
     Pipeline* pipeline_convolutiondepthwise_group_int8;
+    Pipeline* pipeline_convolutiondepthwise_group_pack4_int8;
+    Pipeline* pipeline_convolutiondepthwise_group_pack1to4_int8;
+    Pipeline* pipeline_convolutiondepthwise_group_pack4to1_int8;
 
     Pipeline* pipeline_convolutiondepthwise_group;
     Pipeline* pipeline_convolutiondepthwise_group_pack4;

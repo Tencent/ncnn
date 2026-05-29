@@ -15,6 +15,8 @@ Gemm_vulkan::Gemm_vulkan()
 
     pipeline_gemm = 0;
     pipeline_gemm_quantize_A_int8 = 0;
+    pipeline_gemm_quantize_B_absmax_int8 = 0;
+    pipeline_gemm_quantize_B_scale_int8 = 0;
     pipeline_gemm_quantize_B_int8 = 0;
 
     use_subgroup_ops = false;
@@ -688,8 +690,16 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
         std::vector<vk_specialization_type> specializations(1);
         specializations[0].i = transB;
 
+        pipeline_gemm_quantize_B_absmax_int8 = new Pipeline(vkdev);
+        pipeline_gemm_quantize_B_absmax_int8->set_local_size_xyz(128, 1, 1);
+        pipeline_gemm_quantize_B_absmax_int8->create(LayerShaderType::gemm_quantize_B_absmax_int8, opt_data, specializations);
+
+        pipeline_gemm_quantize_B_scale_int8 = new Pipeline(vkdev);
+        pipeline_gemm_quantize_B_scale_int8->set_local_size_xyz(128, 1, 1);
+        pipeline_gemm_quantize_B_scale_int8->create(LayerShaderType::gemm_quantize_B_scale_int8, opt_data, std::vector<vk_specialization_type>());
+
         pipeline_gemm_quantize_B_int8 = new Pipeline(vkdev);
-        pipeline_gemm_quantize_B_int8->set_local_size_xyz(128, 1, 1);
+        pipeline_gemm_quantize_B_int8->set_optimal_local_size_xyz(Mat(64, 1, 1, (void*)0));
         pipeline_gemm_quantize_B_int8->create(LayerShaderType::gemm_quantize_B_int8, opt_data, specializations);
     }
 
@@ -725,6 +735,12 @@ int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_gemm_quantize_A_int8;
     pipeline_gemm_quantize_A_int8 = 0;
+
+    delete pipeline_gemm_quantize_B_absmax_int8;
+    pipeline_gemm_quantize_B_absmax_int8 = 0;
+
+    delete pipeline_gemm_quantize_B_scale_int8;
+    pipeline_gemm_quantize_B_scale_int8 = 0;
 
     delete pipeline_gemm_quantize_B_int8;
     pipeline_gemm_quantize_B_int8 = 0;
@@ -962,7 +978,15 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
         C = C_unpacked;
     }
 
-    const size_t out_elemsize = 4u;
+    size_t out_elemsize;
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
+    {
+        out_elemsize = 2u;
+    }
+    else
+    {
+        out_elemsize = 4u;
+    }
 
     VkMat A_int8 = A;
     VkMat A_int8_scales = A_data_int8_scales_gpu;
@@ -999,6 +1023,9 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
     VkMat B_int8_scale = B_data_int8_scales_gpu;
     if (!constantB)
     {
+        const int size = N * K;
+        const int blocks = (size + 1023) / 1024;
+
         B_int8.create(K, N, (size_t)1u, 1, opt.workspace_vkallocator);
         if (B_int8.empty())
             return -100;
@@ -1007,19 +1034,62 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
         if (B_int8_scale.empty())
             return -100;
 
-        std::vector<VkMat> bindings(3);
+        VkMat B_absmax;
+        B_absmax.create(blocks, (size_t)4u, 1, opt.workspace_vkallocator);
+        if (B_absmax.empty())
+            return -100;
+
+        {
+            std::vector<VkMat> bindings(2);
+            bindings[0] = B;
+            bindings[1] = B_absmax;
+
+            std::vector<vk_constant_type> constants(5);
+            constants[0].i = N;
+            constants[1].i = K;
+            constants[2].i = B.dims;
+            constants[3].i = B.dims == 3 ? B.cstep : B.dims == 2 ? B.w : transB ? K : N;
+            constants[4].i = size;
+
+            VkMat dispatcher;
+            dispatcher.w = blocks * 128;
+            dispatcher.h = 1;
+            dispatcher.c = 1;
+
+            cmd.record_pipeline(pipeline_gemm_quantize_B_absmax_int8, bindings, constants, dispatcher);
+        }
+
+        {
+            std::vector<VkMat> bindings(2);
+            bindings[0] = B_absmax;
+            bindings[1] = B_int8_scale;
+
+            std::vector<vk_constant_type> constants(1);
+            constants[0].i = blocks;
+
+            VkMat dispatcher;
+            dispatcher.w = 1;
+            dispatcher.h = 1;
+            dispatcher.c = 1;
+
+            cmd.record_pipeline(pipeline_gemm_quantize_B_scale_int8, bindings, constants, dispatcher);
+        }
+
+        std::vector<VkMat> bindings(4);
         bindings[0] = B;
         bindings[1] = B_int8;
         bindings[2] = B_int8_scale;
+        bindings[3] = B_int8;
 
-        std::vector<vk_constant_type> constants(4);
+        std::vector<vk_constant_type> constants(5);
         constants[0].i = N;
         constants[1].i = K;
         constants[2].i = B.dims;
         constants[3].i = B.dims == 3 ? B.cstep : B.dims == 2 ? B.w : transB ? K : N;
+        constants[4].i = size;
 
         VkMat dispatcher;
-        dispatcher.w = 1;
+        dispatcher.w = (size + 3) / 4;
         dispatcher.h = 1;
         dispatcher.c = 1;
 

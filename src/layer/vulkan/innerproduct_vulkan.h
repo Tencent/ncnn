@@ -36,7 +36,6 @@ public:
     VkMat weight_data_gpu;
     VkMat weight_data_int8_gpu;
     VkMat weight_data_int8_scales_gpu;
-    VkMat bottom_blob_int8_scales_gpu;
     VkMat bias_data_gpu;
 
     Pipeline* pipeline_innerproduct;

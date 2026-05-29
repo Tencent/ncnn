@@ -579,7 +579,6 @@ int InnerProduct_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     weight_data_int8_packed.release();
 
     cmd.record_upload(weight_data_int8_scales, weight_data_int8_scales_gpu, opt_float);
-    cmd.record_upload(bottom_blob_int8_scales, bottom_blob_int8_scales_gpu, opt_float);
 
     if (bias_term)
     {
