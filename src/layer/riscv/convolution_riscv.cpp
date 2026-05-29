@@ -208,6 +208,8 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             opt_pack1.blob_allocator = opt.workspace_allocator;
 
             convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         Mat bottom_blob_unpacked_fp32 = bottom_blob_unpacked;
@@ -217,6 +219,8 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             opt_pack1.blob_allocator = opt.workspace_allocator;
 
             cast_float16_to_float32(bottom_blob_unpacked, bottom_blob_unpacked_fp32, opt_pack1);
+            if (bottom_blob_unpacked_fp32.empty())
+                return -100;
         }
 
         Option opt_unpacked = opt;
@@ -320,12 +324,15 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 #if __riscv_vector
     if (elempack == packn && out_elempack == packn && opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
+        int ret = 0;
         if ((opt.use_winograd63_convolution && num_input >= packn * 2 && num_output >= packn * 2 && num_input <= packn * 16 && num_output <= packn * 16) || (!opt.use_winograd43_convolution && !opt.use_winograd23_convolution))
-            conv3x3s1_winograd63_rvv(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, nT, opt);
+            ret = conv3x3s1_winograd63_rvv(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, nT, opt);
         else if ((opt.use_winograd43_convolution && num_input >= packn * 2 && num_output >= packn * 2) || (!opt.use_winograd63_convolution && !opt.use_winograd23_convolution))
-            conv3x3s1_winograd43_rvv(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, nT, opt);
+            ret = conv3x3s1_winograd43_rvv(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, nT, opt);
         else // if (opt.use_winograd23_convolution)
-            conv3x3s1_winograd23_rvv(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, nT, opt);
+            ret = conv3x3s1_winograd23_rvv(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, nT, opt);
+        if (ret != 0)
+            return ret;
 
         if (activation)
         {
@@ -338,14 +345,17 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     if (elempack == 1 && out_elempack == 1 && opt.use_winograd_convolution && (opt.use_winograd43_convolution || opt.use_winograd23_convolution) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
+        int ret = 0;
         if ((opt.use_winograd43_convolution && num_input >= 16 && num_output >= 16) || !opt.use_winograd23_convolution)
         {
-            conv3x3s1_winograd43_rvv(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, nT, opt);
+            ret = conv3x3s1_winograd43_rvv(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, nT, opt);
         }
         else if (opt.use_winograd23_convolution)
         {
-            conv3x3s1_winograd23_rvv(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, nT, opt);
+            ret = conv3x3s1_winograd23_rvv(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, nT, opt);
         }
+        if (ret != 0)
+            return ret;
 
         if (activation)
         {

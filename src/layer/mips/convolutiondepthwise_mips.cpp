@@ -1250,6 +1250,8 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
         Option opt_q = opt;
         opt_q.blob_allocator = opt.workspace_allocator;
         quantize_to_int8(bottom_blob, bottom_blob_int8, scales, opt_q);
+        if (bottom_blob_int8.empty())
+            return -100;
     }
 
     Mat bottom_blob_bordered;
@@ -1551,6 +1553,8 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
         Option opt_p = opt;
         opt_p.blob_allocator = opt.workspace_allocator;
         convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, g_elempack, opt_p);
+        if (bottom_blob_bordered_unpacked.empty())
+            return -100;
     }
 
     Mat top_blob_unpacked = top_blob;
@@ -1561,6 +1565,7 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
             return -100;
     }
 
+    int _ret = 0;
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int g = 0; g < group; g++)
     {
@@ -1573,13 +1578,19 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
         opt_g.blob_allocator = top_blob_unpacked.allocator;
 
         // forward
-        op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        int gret = op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        if (gret != 0)
+            _ret = gret;
     }
+    if (_ret != 0)
+        return _ret;
 
     // packing
     if (out_g_elempack < out_elempack)
     {
         convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+        if (top_blob.empty())
+            return -100;
     }
     else
     {

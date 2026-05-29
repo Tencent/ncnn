@@ -830,6 +830,8 @@ int Convolution_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& t
         Option opt_q = opt;
         opt_q.blob_allocator = opt.workspace_allocator;
         quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
+        if (bottom_blob_int8.empty())
+            return -100;
     }
 
     Mat bottom_blob_bordered;
@@ -934,12 +936,16 @@ int Convolution_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& t
             {
                 Mat tmp;
                 convert_packing(top_blob_int32, tmp, 1, opt);
+                if (tmp.empty())
+                    return -100;
                 top_blob_int32 = tmp;
             }
             if (top_blob_int32.elempack == 4 && top_blob_int32.c % 2 == 0)
             {
                 Mat tmp;
                 convert_packing(top_blob_int32, tmp, 8, opt);
+                if (tmp.empty())
+                    return -100;
                 top_blob_int32 = tmp;
             }
         }
@@ -949,10 +955,14 @@ int Convolution_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& t
     if (use_int8_requantize)
     {
         requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, activation_type, activation_params, opt);
+        if (top_blob.empty())
+            return -100;
     }
     else
     {
         dequantize_from_int32(top_blob_int32, top_blob, scale_in_data, bias_data, opt);
+        if (top_blob.empty())
+            return -100;
 
         if (activation)
         {
