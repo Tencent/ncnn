@@ -9,7 +9,6 @@
 #extension GL_EXT_shader_subgroup_extended_types_float16 : require
 #endif
 
-
 layout(binding = 0) readonly buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
 layout(binding = 1) writeonly buffer mean_blob { float mean_data[]; };
 layout(binding = 2) writeonly buffer var_blob { float var_data[]; };
@@ -170,7 +169,6 @@ void main()
     barrier();
     mean_v4 = sdata_v4[0];
 
-
     // Phase 2: compute sqsum -> var
     vec4 sqsum = vec4(0.f);
     for (int t = tid; t < p.size; t += 256)
@@ -307,5 +305,4 @@ void main()
         var_data[actual_channel_base + 2] = var_v4.b;
         var_data[actual_channel_base + 3] = var_v4.a;
     }
-
 }
