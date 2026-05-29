@@ -9,7 +9,6 @@
 #extension GL_EXT_shader_subgroup_extended_types_float16 : require
 #endif
 
-
 layout(binding = 0) readonly buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
 layout(binding = 1) writeonly buffer rms_blob { float rms_data[]; };
 
@@ -155,5 +154,4 @@ void main()
         }
     }
 #endif
-
 }
