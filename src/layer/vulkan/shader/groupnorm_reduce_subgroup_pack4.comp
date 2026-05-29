@@ -9,7 +9,6 @@
 #extension GL_EXT_shader_subgroup_extended_types_float16 : require
 #endif
 
-
 layout(binding = 0) readonly buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
 layout(binding = 1) writeonly buffer mean_blob { float mean_data[]; };
 layout(binding = 2) writeonly buffer var_blob { float var_data[]; };
@@ -181,7 +180,6 @@ void main()
     barrier();
     mean_val = sdata[0];
 
-
     // Phase 2: compute sqsum -> var
     float sqsum = 0.f;
     for (int s = tid; s < p.group_area; s += 256)
@@ -337,5 +335,4 @@ void main()
     {
         var_data[group_id] = var_val;
     }
-
 }
