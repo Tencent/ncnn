@@ -125,11 +125,6 @@ int main()
 {
     SRAND(7767517);
 
-#if __mips__ || __loongarch64 || __riscv
-    // TODO
-    return 0;
-#endif
-
 #if NCNN_INT8
     return test_convolution_0() || test_convolution_1() || test_convolution_2();
 #else

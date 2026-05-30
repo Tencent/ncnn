@@ -457,6 +457,8 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
         Option opt_q = opt;
         opt_q.blob_allocator = opt.workspace_allocator;
         quantize_to_int8(bottom_blob, bottom_blob_int8, scales, opt_q);
+        if (bottom_blob_int8.empty())
+            return -100;
     }
 
     Mat bottom_blob_bordered;

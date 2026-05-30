@@ -264,6 +264,8 @@ int ConvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_b
         Option opt_p = opt;
         opt_p.blob_allocator = opt.workspace_allocator;
         convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, 1, opt_p);
+        if (bottom_blob_bordered_unpacked.empty())
+            return -100;
     }
 
     Mat top_blob_unpacked = top_blob;
@@ -285,13 +287,17 @@ int ConvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_b
         opt_g.blob_allocator = top_blob_unpacked.allocator;
 
         // forward
-        op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        int ret = op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        if (ret != 0)
+            return ret;
     }
 
     // packing
     if (out_g_elempack < out_elempack)
     {
         convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+        if (top_blob.empty())
+            return -100;
     }
     else
     {
@@ -528,6 +534,8 @@ int ConvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_
         Option opt_p = opt;
         opt_p.blob_allocator = opt.workspace_allocator;
         convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, g_elempack, opt_p);
+        if (bottom_blob_bordered_unpacked.empty())
+            return -100;
     }
 
     Mat top_blob_unpacked = top_blob;
@@ -549,13 +557,17 @@ int ConvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_
         opt_g.blob_allocator = top_blob_unpacked.allocator;
 
         // forward
-        op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        int ret = op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        if (ret != 0)
+            return ret;
     }
 
     // packing
     if (out_g_elempack < out_elempack)
     {
         convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+        if (top_blob.empty())
+            return -100;
     }
     else
     {
