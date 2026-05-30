@@ -1696,8 +1696,6 @@ int ConvolutionDepthWise_loongarch::forward_int8_loongarch(const Mat& bottom_blo
             return -100;
     }
 
-    int _ret = 0;
-    #pragma omp parallel for num_threads(opt.num_threads)
     for (int g = 0; g < group; g++)
     {
         const Mat bottom_blob_bordered_g = bottom_blob_bordered_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);
@@ -1709,12 +1707,10 @@ int ConvolutionDepthWise_loongarch::forward_int8_loongarch(const Mat& bottom_blo
         opt_g.blob_allocator = top_blob_unpacked.allocator;
 
         // forward
-        int gret = op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
-        if (gret != 0)
-            _ret = gret;
+        int ret = op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        if (ret != 0)
+            return ret;
     }
-    if (_ret != 0)
-        return _ret;
 
     // packing
     if (out_g_elempack < out_elempack)
