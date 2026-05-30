@@ -206,7 +206,8 @@ static void transpose_pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int
 // FIXME inline causes incorrect codegen on c906
 __attribute__((noinline))
 #endif
-static void pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
+static void
+pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
 #if __riscv_vector
     const size_t vl8 = __riscv_vsetvl_e16m1(8);
