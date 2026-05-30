@@ -19,6 +19,8 @@ public:
 
 protected:
 #if NCNN_ZFH
+    int create_pipeline_fp16sa(const Option& opt);
+    int forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
     int create_pipeline_fp16s(const Option& opt);
     int forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif

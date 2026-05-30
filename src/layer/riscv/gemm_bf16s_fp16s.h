@@ -211,6 +211,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
     const int packn = csrr_vlenb() / 2;
     const size_t vl = __riscv_vsetvl_e16m1(packn);
     const size_t vl8 = __riscv_vsetvl_e16m1(8);
+    const size_t vl4 = __riscv_vsetvl_e16m1(4);
 #endif
 
     const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
@@ -248,16 +249,18 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
             }
         }
     }
-    for (; jj + (packn - 1) < max_jj; jj += packn)
+    for (; jj + 3 < max_jj; jj += 4)
     {
         if (elempack == packn)
         {
-            const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * packn;
+            const int q = (j + jj) / packn * packn;
+            const int r = (j + jj) % packn;
+            const unsigned short* p0 = (const unsigned short*)B + q * B_hstep + k * packn + r;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
-                __riscv_vse16_v_u16m1(pp, __riscv_vle16_v_u16m1(p0, vl), vl);
-                pp += packn;
+                __riscv_vse16_v_u16m1(pp, __riscv_vle16_v_u16m1(p0, vl4), vl4);
+                pp += 4;
                 p0 += packn;
             }
         }
@@ -267,8 +270,8 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
-                __riscv_vse16_v_u16m1(pp, __riscv_vlse16_v_u16m1(p0, B_hstep * sizeof(unsigned short), vl), vl);
-                pp += packn;
+                __riscv_vse16_v_u16m1(pp, __riscv_vlse16_v_u16m1(p0, B_hstep * sizeof(unsigned short), vl4), vl4);
+                pp += 4;
                 p0++;
             }
         }
@@ -334,6 +337,7 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
     const int packn = csrr_vlenb() / 2;
     const size_t vl = __riscv_vsetvl_e16m1(packn);
     const size_t vl8 = __riscv_vsetvl_e16m1(8);
+    const size_t vl4 = __riscv_vsetvl_e16m1(4);
 #endif
 
     const int elempack = B.elempack;
@@ -374,20 +378,22 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
             }
         }
     }
-    for (; jj + (packn - 1) < max_jj; jj += packn)
+    for (; jj + 3 < max_jj; jj += 4)
     {
         if (elempack == packn)
         {
-            const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * packn;
+            const int q = (j + jj) / packn * packn;
+            const int r = (j + jj) % packn;
+            const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + q * packn + r * packn;
 
             int kk = 0;
             for (; kk + (packn - 1) < max_kk; kk += packn)
             {
-                // transposeNxN
+                // transposeNx4
                 for (int l = 0; l < packn; l++)
                 {
-                    __riscv_vse16_v_u16m1(pp, __riscv_vlse16_v_u16m1(p0 + l, packn * sizeof(unsigned short), vl), vl);
-                    pp += packn;
+                    __riscv_vse16_v_u16m1(pp, __riscv_vlse16_v_u16m1(p0 + l, packn * sizeof(unsigned short), vl4), vl4);
+                    pp += 4;
                 }
                 p0 += B_hstep * packn;
             }
@@ -399,8 +405,8 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
-                __riscv_vse16_v_u16m1(pp, __riscv_vle16_v_u16m1(p0, vl), vl);
-                pp += packn;
+                __riscv_vse16_v_u16m1(pp, __riscv_vle16_v_u16m1(p0, vl4), vl4);
+                pp += 4;
                 p0 += B_hstep;
             }
         }
