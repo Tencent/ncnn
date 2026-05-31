@@ -19,6 +19,217 @@ Requantize_riscv::Requantize_riscv()
 #endif // __riscv_vector
 }
 
+#if __riscv_vector
+static void requantize_packnton_s8(const int* ptr0, const int* ptr1, const int* ptr2, const int* ptr3, signed char* s8ptr, const Mat& scale_in_data, const Mat& bias_data, const Mat& scale_out_data, int activation_type, const Mat& activation_params, int elemcount)
+{
+    const size_t vlm8 = __riscv_vsetvlmax_e32m8();
+    const size_t vlm4 = __riscv_vsetvlmax_e32m4();
+    const size_t vlm1 = __riscv_vsetvlmax_e32m1();
+
+    float scale_in = scale_in_data[0];
+    float scale_out = scale_out_data[0];
+
+    vfloat32m4_t _scale_in0 = __riscv_vfmv_v_f_f32m4(scale_in, vlm4);
+    if (scale_in_data.w > 1)
+    {
+        _scale_in0 = __riscv_vle32_v_f32m4(scale_in_data, vlm4);
+    }
+
+    vfloat32m4_t _scale_out0 = __riscv_vfmv_v_f_f32m4(scale_out, vlm4);
+    if (scale_out_data.w > 1)
+    {
+        _scale_out0 = __riscv_vle32_v_f32m4(scale_out_data, vlm4);
+    }
+
+    vfloat32m8_t _scale_in = __riscv_vcreate_v_f32m4_f32m8(_scale_in0, _scale_in0);
+    vfloat32m8_t _scale_out = __riscv_vcreate_v_f32m4_f32m8(_scale_out0, _scale_out0);
+
+    if (bias_data.w == 0)
+    {
+        int i = 0;
+        for (; i + 1 < elemcount; i += 2)
+        {
+            vint32m1_t _v0 = __riscv_vle32_v_i32m1(ptr0, vlm1);
+            vint32m1_t _v1 = __riscv_vle32_v_i32m1(ptr1, vlm1);
+            vint32m1_t _v2 = __riscv_vle32_v_i32m1(ptr2, vlm1);
+            vint32m1_t _v3 = __riscv_vle32_v_i32m1(ptr3, vlm1);
+            vint32m1_t _v4 = __riscv_vle32_v_i32m1(ptr0 + vlm1, vlm1);
+            vint32m1_t _v5 = __riscv_vle32_v_i32m1(ptr1 + vlm1, vlm1);
+            vint32m1_t _v6 = __riscv_vle32_v_i32m1(ptr2 + vlm1, vlm1);
+            vint32m1_t _v7 = __riscv_vle32_v_i32m1(ptr3 + vlm1, vlm1);
+            vint32m8_t _vi = __riscv_vcreate_v_i32m1_i32m8(_v0, _v1, _v2, _v3, _v4, _v5, _v6, _v7);
+            vfloat32m8_t _vf = __riscv_vfcvt_f_x_v_f32m8(_vi, vlm8);
+            _vf = __riscv_vfmul_vv_f32m8(_vf, _scale_in, vlm8);
+            _vf = activation_ps(_vf, activation_type, activation_params, vlm8);
+            _vf = __riscv_vfmul_vv_f32m8(_vf, _scale_out, vlm8);
+            __riscv_vse8_v_i8m2(s8ptr, float2int8(_vf, vlm8), vlm8);
+
+            ptr0 += vlm1 * 2;
+            ptr1 += vlm1 * 2;
+            ptr2 += vlm1 * 2;
+            ptr3 += vlm1 * 2;
+            s8ptr += vlm8;
+        }
+
+        for (; i < elemcount; i++)
+        {
+            vint32m1_t _v0 = __riscv_vle32_v_i32m1(ptr0, vlm1);
+            vint32m1_t _v1 = __riscv_vle32_v_i32m1(ptr1, vlm1);
+            vint32m1_t _v2 = __riscv_vle32_v_i32m1(ptr2, vlm1);
+            vint32m1_t _v3 = __riscv_vle32_v_i32m1(ptr3, vlm1);
+            vint32m4_t _vi = __riscv_vcreate_v_i32m1_i32m4(_v0, _v1, _v2, _v3);
+            vfloat32m4_t _vf = __riscv_vfcvt_f_x_v_f32m4(_vi, vlm4);
+            _vf = __riscv_vfmul_vv_f32m4(_vf, _scale_in0, vlm4);
+            _vf = activation_ps(_vf, activation_type, activation_params, vlm4);
+            _vf = __riscv_vfmul_vv_f32m4(_vf, _scale_out0, vlm4);
+            __riscv_vse8_v_i8m1(s8ptr, float2int8(_vf, vlm4), vlm4);
+
+            ptr0 += vlm1;
+            ptr1 += vlm1;
+            ptr2 += vlm1;
+            ptr3 += vlm1;
+            s8ptr += vlm4;
+        }
+    }
+    else
+    {
+        float bias = bias_data[0];
+        vfloat32m4_t _bias0 = __riscv_vfmv_v_f_f32m4(bias, vlm4);
+        if (bias_data.w > 1)
+        {
+            _bias0 = __riscv_vle32_v_f32m4(bias_data, vlm4);
+        }
+        vfloat32m8_t _bias = __riscv_vcreate_v_f32m4_f32m8(_bias0, _bias0);
+
+        int i = 0;
+        for (; i + 1 < elemcount; i += 2)
+        {
+            vint32m1_t _v0 = __riscv_vle32_v_i32m1(ptr0, vlm1);
+            vint32m1_t _v1 = __riscv_vle32_v_i32m1(ptr1, vlm1);
+            vint32m1_t _v2 = __riscv_vle32_v_i32m1(ptr2, vlm1);
+            vint32m1_t _v3 = __riscv_vle32_v_i32m1(ptr3, vlm1);
+            vint32m1_t _v4 = __riscv_vle32_v_i32m1(ptr0 + vlm1, vlm1);
+            vint32m1_t _v5 = __riscv_vle32_v_i32m1(ptr1 + vlm1, vlm1);
+            vint32m1_t _v6 = __riscv_vle32_v_i32m1(ptr2 + vlm1, vlm1);
+            vint32m1_t _v7 = __riscv_vle32_v_i32m1(ptr3 + vlm1, vlm1);
+            vint32m8_t _vi = __riscv_vcreate_v_i32m1_i32m8(_v0, _v1, _v2, _v3, _v4, _v5, _v6, _v7);
+            vfloat32m8_t _vf = __riscv_vfcvt_f_x_v_f32m8(_vi, vlm8);
+            _vf = __riscv_vfmadd_vv_f32m8(_vf, _scale_in, _bias, vlm8);
+            _vf = activation_ps(_vf, activation_type, activation_params, vlm8);
+            _vf = __riscv_vfmul_vv_f32m8(_vf, _scale_out, vlm8);
+            __riscv_vse8_v_i8m2(s8ptr, float2int8(_vf, vlm8), vlm8);
+
+            ptr0 += vlm1 * 2;
+            ptr1 += vlm1 * 2;
+            ptr2 += vlm1 * 2;
+            ptr3 += vlm1 * 2;
+            s8ptr += vlm8;
+        }
+
+        for (; i < elemcount; i++)
+        {
+            vint32m1_t _v0 = __riscv_vle32_v_i32m1(ptr0, vlm1);
+            vint32m1_t _v1 = __riscv_vle32_v_i32m1(ptr1, vlm1);
+            vint32m1_t _v2 = __riscv_vle32_v_i32m1(ptr2, vlm1);
+            vint32m1_t _v3 = __riscv_vle32_v_i32m1(ptr3, vlm1);
+            vint32m4_t _vi = __riscv_vcreate_v_i32m1_i32m4(_v0, _v1, _v2, _v3);
+            vfloat32m4_t _vf = __riscv_vfcvt_f_x_v_f32m4(_vi, vlm4);
+            _vf = __riscv_vfmadd_vv_f32m4(_vf, _scale_in0, _bias0, vlm4);
+            _vf = activation_ps(_vf, activation_type, activation_params, vlm4);
+            _vf = __riscv_vfmul_vv_f32m4(_vf, _scale_out0, vlm4);
+            __riscv_vse8_v_i8m1(s8ptr, float2int8(_vf, vlm4), vlm4);
+
+            ptr0 += vlm1;
+            ptr1 += vlm1;
+            ptr2 += vlm1;
+            ptr3 += vlm1;
+            s8ptr += vlm4;
+        }
+    }
+}
+
+static void requantize_packnto1(const int* ptr, signed char* s8ptr, const Mat& scale_in_data, const Mat& bias_data, const Mat& scale_out_data, int activation_type, const Mat& activation_params, int elemcount, int stride)
+{
+    const size_t vlm8 = __riscv_vsetvlmax_e32m8();
+    const size_t vlm1 = __riscv_vsetvlmax_e32m1();
+
+    float scale_in = scale_in_data[0];
+    float scale_out = scale_out_data[0];
+
+    vfloat32m8_t _scale_in = __riscv_vfmv_v_f_f32m8(scale_in, vlm8);
+    if (scale_in_data.w > 1)
+    {
+        vfloat32m1_t _s = __riscv_vle32_v_f32m1(scale_in_data, vlm1);
+        _scale_in = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
+    }
+
+    vfloat32m8_t _scale_out = __riscv_vfmv_v_f_f32m8(scale_out, vlm8);
+    if (scale_out_data.w > 1)
+    {
+        vfloat32m1_t _s = __riscv_vle32_v_f32m1(scale_out_data, vlm1);
+        _scale_out = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
+    }
+
+    signed char tmp[vlm8];
+    int n = elemcount * vlm1;
+
+    if (bias_data.w == 0)
+    {
+        while (n > 0)
+        {
+            size_t vl = __riscv_vsetvl_e32m8(n);
+            vfloat32m8_t _vf = __riscv_vfcvt_f_x_v_f32m8(__riscv_vle32_v_i32m8(ptr, vl), vl);
+            _vf = __riscv_vfmul_vv_f32m8(_vf, _scale_in, vl);
+            _vf = activation_ps(_vf, activation_type, activation_params, vl);
+            _vf = __riscv_vfmul_vv_f32m8(_vf, _scale_out, vl);
+            __riscv_vse8_v_i8m2(tmp, float2int8(_vf, vl), vl);
+            for (size_t j = 0; j < (vl / vlm1); j++)
+            {
+                for (int i = 0; i < vlm1; i++)
+                {
+                    s8ptr[i * stride] = tmp[j * vlm1 + i];
+                }
+                s8ptr++;
+            }
+
+            ptr += vl;
+            n -= vl;
+        }
+    }
+    else
+    {
+        float bias = bias_data[0];
+        vfloat32m8_t _bias = __riscv_vfmv_v_f_f32m8(bias, vlm8);
+        if (bias_data.w > 1)
+        {
+            vfloat32m1_t _b = __riscv_vle32_v_f32m1(bias_data, vlm1);
+            _bias = __riscv_vcreate_v_f32m1_f32m8(_b, _b, _b, _b, _b, _b, _b, _b);
+        }
+
+        while (n > 0)
+        {
+            size_t vl = __riscv_vsetvl_e32m8(n);
+            vfloat32m8_t _vf = __riscv_vfcvt_f_x_v_f32m8(__riscv_vle32_v_i32m8(ptr, vl), vl);
+            _vf = __riscv_vfmadd_vv_f32m8(_vf, _scale_in, _bias, vl);
+            _vf = activation_ps(_vf, activation_type, activation_params, vl);
+            _vf = __riscv_vfmul_vv_f32m8(_vf, _scale_out, vl);
+            __riscv_vse8_v_i8m2(tmp, float2int8(_vf, vl), vl);
+            for (size_t j = 0; j < (vl / vlm1); j++)
+            {
+                for (int i = 0; i < vlm1; i++)
+                {
+                    s8ptr[i * stride] = tmp[j * vlm1 + i];
+                }
+                s8ptr++;
+            }
+
+            ptr += vl;
+            n -= vl;
+        }
+    }
+}
+#endif // __riscv_vector
+
 static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scale_in_data, const Mat& bias_data, const Mat& scale_out_data, int elemcount, int elempack)
 {
     const int bias_data_size = bias_data.w;
@@ -358,9 +569,24 @@ int Requantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     const int elempack = bottom_blob.elempack;
     const size_t out_elemsize = elempack * 1u;
 
+#if __riscv_vector
+    const int packn = csrr_vlenb() / 4;
+    const int packn_s8 = csrr_vlenb();
+#endif
+
     if (dims == 1)
     {
-        top_blob.create(w, out_elemsize, elempack, opt.blob_allocator);
+        int out_elempack = 1;
+#if __riscv_vector
+        if (opt.use_packing_layout)
+        {
+            out_elempack = w * elempack % packn_s8 == 0 ? packn_s8 : 1;
+        }
+#endif
+        const int outw = w * elempack / out_elempack;
+        const size_t out_elemsize = out_elempack * 1u;
+
+        top_blob.create(outw, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -382,44 +608,139 @@ int Requantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     if (dims == 2)
     {
-        top_blob.create(w, h, out_elemsize, elempack, opt.blob_allocator);
+        int out_elempack = 1;
+#if __riscv_vector
+        if (opt.use_packing_layout)
+        {
+            out_elempack = h * elempack % packn_s8 == 0 ? packn_s8 : 1;
+        }
+#endif // __riscv_vector
+        const int outh = h * elempack / out_elempack;
+        const size_t out_elemsize = out_elempack * 1u;
+
+        top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < h; i++)
+#if __riscv_vector
+        if (elempack == packn && out_elempack == packn_s8)
         {
-            const int* intptr = bottom_blob.row<const int>(i);
-            signed char* ptr = top_blob.row<signed char>(i);
+            for (int i = 0; i < outh; i++)
+            {
+                const int* ptr0 = bottom_blob.row<int>(i * 4);
+                const int* ptr1 = bottom_blob.row<int>(i * 4 + 1);
+                const int* ptr2 = bottom_blob.row<int>(i * 4 + 2);
+                const int* ptr3 = bottom_blob.row<int>(i * 4 + 3);
+                signed char* s8ptr = top_blob.row<signed char>(i);
 
-            const Mat scale_in_data_i = scale_in_data_size > 1 ? scale_in_data.range(i * elempack, elempack) : scale_in_data;
-            const Mat bias_data_i = bias_data_size > 1 ? bias_data.range(i * elempack, elempack) : bias_data;
-            const Mat scale_out_data_i = scale_out_data_size > 1 ? scale_out_data.range(i * elempack, elempack) : scale_out_data;
+                const Mat scale_in_data_i = scale_in_data_size > 1 ? scale_in_data.range(i * out_elempack, out_elempack) : scale_in_data;
+                const Mat bias_data_i = bias_data_size > 1 ? bias_data.range(i * out_elempack, out_elempack) : bias_data;
+                const Mat scale_out_data_i = scale_out_data_size > 1 ? scale_out_data.range(i * out_elempack, out_elempack) : scale_out_data;
 
-            requantize(intptr, ptr, scale_in_data_i, bias_data_i, scale_out_data_i, activation_type, activation_params, w, elempack);
+                requantize_packnton_s8(ptr0, ptr1, ptr2, ptr3, s8ptr, scale_in_data_i, bias_data_i, scale_out_data_i, activation_type, activation_params, w);
+            }
+        }
+
+        if (elempack == packn && out_elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const int* ptr = bottom_blob.row<int>(i);
+                signed char* s8ptr = top_blob.row<signed char>(i * packn);
+
+                const Mat scale_in_data_i = scale_in_data_size > 1 ? scale_in_data.range(i * elempack, elempack) : scale_in_data;
+                const Mat bias_data_i = bias_data_size > 1 ? bias_data.range(i * elempack, elempack) : bias_data;
+                const Mat scale_out_data_i = scale_out_data_size > 1 ? scale_out_data.range(i * elempack, elempack) : scale_out_data;
+
+                requantize_packnto1(ptr, s8ptr, scale_in_data_i, bias_data_i, scale_out_data_i, activation_type, activation_params, w, w);
+            }
+        }
+#endif // __riscv_vector
+        if (elempack == 1 && out_elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const int* intptr = bottom_blob.row<const int>(i);
+                signed char* ptr = top_blob.row<signed char>(i);
+
+                const Mat scale_in_data_i = scale_in_data_size > 1 ? scale_in_data.range(i * elempack, elempack) : scale_in_data;
+                const Mat bias_data_i = bias_data_size > 1 ? bias_data.range(i * elempack, elempack) : bias_data;
+                const Mat scale_out_data_i = scale_out_data_size > 1 ? scale_out_data.range(i * elempack, elempack) : scale_out_data;
+
+                requantize(intptr, ptr, scale_in_data_i, bias_data_i, scale_out_data_i, activation_type, activation_params, w, elempack);
+            }
         }
     }
 
     if (dims == 3 || dims == 4)
     {
+        int out_elempack = 1;
+#if __riscv_vector
+        if (opt.use_packing_layout)
+        {
+            out_elempack = channels * elempack % packn_s8 == 0 ? packn_s8 : 1;
+        }
+#endif
+        const int outc = channels * elempack / out_elempack;
+        const size_t out_elemsize = out_elempack * 1u;
+
         if (dims == 3)
-            top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_allocator);
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
         else
-            top_blob.create(w, h, d, channels, out_elemsize, elempack, opt.blob_allocator);
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
+#if __riscv_vector
+        if (elempack == packn && out_elempack == packn_s8)
         {
-            const int* intptr = bottom_blob.channel(q);
-            signed char* ptr = top_blob.channel(q);
+            for (int q = 0; q < outc; q++)
+            {
+                const int* ptr0 = bottom_blob.channel(q * 4);
+                const int* ptr1 = bottom_blob.channel(q * 4 + 1);
+                const int* ptr2 = bottom_blob.channel(q * 4 + 2);
+                const int* ptr3 = bottom_blob.channel(q * 4 + 3);
+                signed char* s8ptr = top_blob.channel(q);
 
-            const Mat scale_in_data_q = scale_in_data_size > 1 ? scale_in_data.range(q * elempack, elempack) : scale_in_data;
-            const Mat bias_data_q = bias_data_size > 1 ? bias_data.range(q * elempack, elempack) : bias_data;
-            const Mat scale_out_data_q = scale_out_data_size > 1 ? scale_out_data.range(q * elempack, elempack) : scale_out_data;
+                const Mat scale_in_data_q = scale_in_data_size > 1 ? scale_in_data.range(q * out_elempack, out_elempack) : scale_in_data;
+                const Mat bias_data_q = bias_data_size > 1 ? bias_data.range(q * out_elempack, out_elempack) : bias_data;
+                const Mat scale_out_data_q = scale_out_data_size > 1 ? scale_out_data.range(q * out_elempack, out_elempack) : scale_out_data;
 
-            requantize(intptr, ptr, scale_in_data_q, bias_data_q, scale_out_data_q, activation_type, activation_params, w * h * d, elempack);
+                requantize_packnton_s8(ptr0, ptr1, ptr2, ptr3, s8ptr, scale_in_data_q, bias_data_q, scale_out_data_q, activation_type, activation_params, w * h * d);
+            }
+        }
+
+        if (elempack == packn && out_elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const int* ptr = bottom_blob.channel(q);
+                signed char* s8ptr = top_blob.channel(q * packn);
+
+                const Mat scale_in_data_q = scale_in_data_size > 1 ? scale_in_data.range(q * elempack, elempack) : scale_in_data;
+                const Mat bias_data_q = bias_data_size > 1 ? bias_data.range(q * elempack, elempack) : bias_data;
+                const Mat scale_out_data_q = scale_out_data_size > 1 ? scale_out_data.range(q * elempack, elempack) : scale_out_data;
+
+                requantize_packnto1(ptr, s8ptr, scale_in_data_q, bias_data_q, scale_out_data_q, activation_type, activation_params, w * h * d, top_blob.cstep);
+            }
+        }
+#endif // __riscv_vector
+        if (elempack == 1 && out_elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const int* intptr = bottom_blob.channel(q);
+                signed char* ptr = top_blob.channel(q);
+
+                const Mat scale_in_data_q = scale_in_data_size > 1 ? scale_in_data.range(q * elempack, elempack) : scale_in_data;
+                const Mat bias_data_q = bias_data_size > 1 ? bias_data.range(q * elempack, elempack) : bias_data;
+                const Mat scale_out_data_q = scale_out_data_size > 1 ? scale_out_data.range(q * elempack, elempack) : scale_out_data;
+
+                requantize(intptr, ptr, scale_in_data_q, bias_data_q, scale_out_data_q, activation_type, activation_params, w * h * d, elempack);
+            }
         }
     }
 
