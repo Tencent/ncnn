@@ -7,6 +7,7 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#include "arm_usability.h"
 #include "cpu.h"
 
 namespace ncnn {
@@ -18,6 +19,10 @@ RotaryEmbed_arm::RotaryEmbed_arm()
     support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
+
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int RotaryEmbed_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -30,6 +35,11 @@ int RotaryEmbed_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
         else
             return forward_fp16s(bottom_blobs, top_blobs, opt);
     }
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_blobs[0].elembits() == 16)
+        return forward_bf16s(bottom_blobs, top_blobs, opt);
 #endif
 
     const Mat& bottom_blob = bottom_blobs[0];
@@ -138,5 +148,118 @@ int RotaryEmbed_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 
     return 0;
 }
+
+#if NCNN_BF16
+int RotaryEmbed_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& cos_cache = bottom_blobs[1];
+    const Mat& sin_cache = bottom_blobs[2];
+
+    const int embed_dim = bottom_blob.w;
+    const int seqlen = bottom_blob.h;
+    const int num_heads = bottom_blob.c;
+    const int half = embed_dim / 2;
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create_like(bottom_blob, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < num_heads; q++)
+    {
+        const Mat head = bottom_blob.channel(q);
+        Mat out_head = top_blob.channel(q);
+
+        for (int i = 0; i < seqlen; i++)
+        {
+            const unsigned short* cos_ptr = cos_cache.row<const unsigned short>(i);
+            const unsigned short* sin_ptr = sin_cache.row<const unsigned short>(i);
+
+            if (interleaved)
+            {
+                const unsigned short* ptr = head.row<const unsigned short>(i);
+                unsigned short* outptr = out_head.row<unsigned short>(i);
+
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < half; j += 4)
+                {
+                    uint16x4x2_t _p = vld2_u16(ptr); // _p.val[0]=x0 lanes, _p.val[1]=x1 lanes
+                    float32x4_t _x0 = bfloat2float(_p.val[0]);
+                    float32x4_t _x1 = bfloat2float(_p.val[1]);
+                    float32x4_t _c = bfloat2float(vld1_u16(cos_ptr));
+                    float32x4_t _s = bfloat2float(vld1_u16(sin_ptr));
+
+                    uint16x4x2_t _out;
+                    _out.val[0] = float2bfloat(vmlsq_f32(vmulq_f32(_x0, _c), _x1, _s)); // x0*c - x1*s
+                    _out.val[1] = float2bfloat(vmlaq_f32(vmulq_f32(_x1, _c), _x0, _s)); // x0*s + x1*c
+                    vst2_u16(outptr, _out);
+
+                    ptr += 8;
+                    outptr += 8;
+                    cos_ptr += 4;
+                    sin_ptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < half; j++)
+                {
+                    const float x0 = bfloat16_to_float32(ptr[0]);
+                    const float x1 = bfloat16_to_float32(ptr[1]);
+                    const float cos_val = bfloat16_to_float32(*cos_ptr++);
+                    const float sin_val = bfloat16_to_float32(*sin_ptr++);
+                    outptr[0] = float32_to_bfloat16(x0 * cos_val - x1 * sin_val);
+                    outptr[1] = float32_to_bfloat16(x0 * sin_val + x1 * cos_val);
+                    ptr += 2;
+                    outptr += 2;
+                }
+            }
+            else
+            {
+                const unsigned short* ptr0 = head.row<const unsigned short>(i);
+                const unsigned short* ptr1 = ptr0 + half;
+                unsigned short* outptr0 = out_head.row<unsigned short>(i);
+                unsigned short* outptr1 = outptr0 + half;
+
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < half; j += 4)
+                {
+                    float32x4_t _x0 = bfloat2float(vld1_u16(ptr0));
+                    float32x4_t _x1 = bfloat2float(vld1_u16(ptr1));
+                    float32x4_t _c = bfloat2float(vld1_u16(cos_ptr));
+                    float32x4_t _s = bfloat2float(vld1_u16(sin_ptr));
+
+                    float32x4_t _y0 = vmlsq_f32(vmulq_f32(_x0, _c), _x1, _s); // x0*c - x1*s
+                    float32x4_t _y1 = vmlaq_f32(vmulq_f32(_x1, _c), _x0, _s); // x1*c + x0*s
+
+                    vst1_u16(outptr0, float2bfloat(_y0));
+                    vst1_u16(outptr1, float2bfloat(_y1));
+
+                    ptr0 += 4;
+                    ptr1 += 4;
+                    cos_ptr += 4;
+                    sin_ptr += 4;
+                    outptr0 += 4;
+                    outptr1 += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < half; j++)
+                {
+                    const float x0 = bfloat16_to_float32(*ptr0++);
+                    const float x1 = bfloat16_to_float32(*ptr1++);
+                    const float cos_val = bfloat16_to_float32(*cos_ptr++);
+                    const float sin_val = bfloat16_to_float32(*sin_ptr++);
+                    *outptr0++ = float32_to_bfloat16(x0 * cos_val - x1 * sin_val);
+                    *outptr1++ = float32_to_bfloat16(x0 * sin_val + x1 * cos_val);
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn
