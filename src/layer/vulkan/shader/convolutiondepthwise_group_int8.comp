@@ -36,15 +36,14 @@ layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-layout(binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { sint8 bottom_blob_int8_data[]; };
 layout(binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
 layout(binding = 2) readonly buffer weight_blob { sint8 weight_data[]; };
 layout(binding = 3) readonly buffer bias_blob { float bias_data[]; };
-layout(binding = 4) readonly buffer weight_scales_blob { float weight_scales_data[]; };
-layout(binding = 5) readonly buffer bottom_scales_blob { float bottom_scales_data[]; };
-layout(binding = 6) readonly buffer top_scales_blob { float top_scales_data[]; };
+layout(binding = 4) readonly buffer weight_scales_blob { sfp weight_scales_data[]; };
+layout(binding = 5) readonly buffer bottom_scales_blob { sfp bottom_scales_data[]; };
+layout(binding = 6) readonly buffer top_scales_blob { sfp top_scales_data[]; };
 layout(binding = 7) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
-layout(binding = 8) readonly buffer bottom_blob_int8 { sint8 bottom_blob_int8_data[]; };
 // scales are indexed by group for grouped int8 convolution
 
 layout(push_constant) uniform parameter
@@ -63,7 +62,6 @@ layout(push_constant) uniform parameter
 
     int pad_left;
     int pad_top;
-    int bottom_is_int8;
 } p;
 
 #if NCNN_shader_local_memory
@@ -93,7 +91,7 @@ void main()
 
     const int channels_g = psc(c) / group;
     const int K = channels_g * kernel_w * kernel_h;
-    const float bottom_scale = bottom_scales_data[gz];
+    const float bottom_scale = buffer_ld1(bottom_scales_data, gz);
 
     ivec4 sum0 = ivec4(0);
     ivec4 sum1 = ivec4(0);
@@ -133,15 +131,7 @@ void main()
                         if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
                         {
                             const int gi = (gz * channels_g + q) * psc(cstep) + y * psc(w) + x;
-                            if (p.bottom_is_int8 == 1)
-                            {
-                                v[lane] = bottom_blob_int8_data[gi];
-                            }
-                            else
-                            {
-                                const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                                v[lane] = int8_t(int8_round(vf));
-                            }
+                            v[lane] = bottom_blob_int8_data[gi];
                         }
                     }
                 }
@@ -207,15 +197,7 @@ void main()
                         if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
                         {
                             const int gi = (gz * channels_g + q) * psc(cstep) + y * psc(w) + x;
-                            if (p.bottom_is_int8 == 1)
-                            {
-                                v[lane] = i8buffer_ld1(bottom_blob_int8_data, gi);
-                            }
-                            else
-                            {
-                                const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                                v[lane] = int8_round(vf);
-                            }
+                            v[lane] = i8buffer_ld1(bottom_blob_int8_data, gi);
                         }
                     }
                 }
@@ -306,15 +288,7 @@ void main()
                     if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
                     {
                         const int gi = (gz * channels_g + q) * psc(cstep) + y * psc(w) + x;
-                        if (p.bottom_is_int8 == 1)
-                        {
-                            v0[lane] = bottom_blob_int8_data[gi];
-                        }
-                        else
-                        {
-                            const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v0[lane] = int8_t(int8_round(vf));
-                        }
+                        v0[lane] = bottom_blob_int8_data[gi];
                     }
                 }
             }
@@ -335,15 +309,7 @@ void main()
                     if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
                     {
                         const int gi = (gz * channels_g + q) * psc(cstep) + y * psc(w) + x;
-                        if (p.bottom_is_int8 == 1)
-                        {
-                            v1[lane] = bottom_blob_int8_data[gi];
-                        }
-                        else
-                        {
-                            const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v1[lane] = int8_t(int8_round(vf));
-                        }
+                        v1[lane] = bottom_blob_int8_data[gi];
                     }
                 }
             }
@@ -364,15 +330,7 @@ void main()
                     if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
                     {
                         const int gi = (gz * channels_g + q) * psc(cstep) + y * psc(w) + x;
-                        if (p.bottom_is_int8 == 1)
-                        {
-                            v2[lane] = bottom_blob_int8_data[gi];
-                        }
-                        else
-                        {
-                            const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v2[lane] = int8_t(int8_round(vf));
-                        }
+                        v2[lane] = bottom_blob_int8_data[gi];
                     }
                 }
             }
@@ -393,15 +351,7 @@ void main()
                     if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
                     {
                         const int gi = (gz * channels_g + q) * psc(cstep) + y * psc(w) + x;
-                        if (p.bottom_is_int8 == 1)
-                        {
-                            v3[lane] = bottom_blob_int8_data[gi];
-                        }
-                        else
-                        {
-                            const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v3[lane] = int8_t(int8_round(vf));
-                        }
+                        v3[lane] = bottom_blob_int8_data[gi];
                     }
                 }
             }
@@ -471,15 +421,7 @@ void main()
                     if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
                     {
                         const int gi = (gz * channels_g + q) * psc(cstep) + y * psc(w) + x;
-                        if (p.bottom_is_int8 == 1)
-                        {
-                            v[lane] = i8buffer_ld1(bottom_blob_int8_data, gi);
-                        }
-                        else
-                        {
-                            const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v[lane] = int8_round(vf);
-                        }
+                        v[lane] = i8buffer_ld1(bottom_blob_int8_data, gi);
                     }
                 }
             }
@@ -502,15 +444,7 @@ void main()
                     if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
                     {
                         const int gi = (gz * channels_g + q) * psc(cstep) + y * psc(w) + x;
-                        if (p.bottom_is_int8 == 1)
-                        {
-                            v[lane] = i8buffer_ld1(bottom_blob_int8_data, gi);
-                        }
-                        else
-                        {
-                            const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v[lane] = int8_round(vf);
-                        }
+                        v[lane] = i8buffer_ld1(bottom_blob_int8_data, gi);
                     }
                 }
             }
@@ -533,15 +467,7 @@ void main()
                     if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
                     {
                         const int gi = (gz * channels_g + q) * psc(cstep) + y * psc(w) + x;
-                        if (p.bottom_is_int8 == 1)
-                        {
-                            v[lane] = i8buffer_ld1(bottom_blob_int8_data, gi);
-                        }
-                        else
-                        {
-                            const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v[lane] = int8_round(vf);
-                        }
+                        v[lane] = i8buffer_ld1(bottom_blob_int8_data, gi);
                     }
                 }
             }
@@ -564,15 +490,7 @@ void main()
                     if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
                     {
                         const int gi = (gz * channels_g + q) * psc(cstep) + y * psc(w) + x;
-                        if (p.bottom_is_int8 == 1)
-                        {
-                            v[lane] = i8buffer_ld1(bottom_blob_int8_data, gi);
-                        }
-                        else
-                        {
-                            const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                            v[lane] = int8_round(vf);
-                        }
+                        v[lane] = i8buffer_ld1(bottom_blob_int8_data, gi);
                     }
                 }
             }
@@ -758,7 +676,7 @@ void main()
                 continue;
 
             const int outch_index = gz * num_output_g + outch_g_index;
-            const float weight_scale = weight_scales_data[gz];
+            const float weight_scale = buffer_ld1(weight_scales_data, gz);
             const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
 
             float sumfp32 = float(sumv[yi]) * scale_in;
@@ -774,7 +692,7 @@ void main()
 
             if (use_int8_requantize == 1)
             {
-                const float vf = clamp(sumfp32 * top_scales_data[gz], -127.f, 127.f);
+                const float vf = clamp(sumfp32 * buffer_ld1(top_scales_data, gz), -127.f, 127.f);
                 const int v = int8_round(vf);
                 i8buffer_st1(top_blob_int8_data, gi, v);
             }

@@ -15,9 +15,9 @@ layout(constant_id = 4) const int use_int8_requantize = 0;
 layout(binding = 0) readonly buffer top_tm_blob { int top_tm_blob_data[]; };
 layout(binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
 layout(binding = 2) readonly buffer bias_blob { float bias_data[]; };
-layout(binding = 3) readonly buffer weight_scales_blob { float weight_scales_data[]; };
-layout(binding = 4) readonly buffer bottom_scales_blob { float bottom_scales_data[]; };
-layout(binding = 5) readonly buffer top_scales_blob { float top_scales_data[]; };
+layout(binding = 3) readonly buffer weight_scales_blob { sfp weight_scales_data[]; };
+layout(binding = 4) readonly buffer bottom_scales_blob { sfp bottom_scales_data[]; };
+layout(binding = 5) readonly buffer top_scales_blob { sfp top_scales_data[]; };
 layout(binding = 6) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
 
 layout(push_constant) uniform parameter
@@ -92,8 +92,8 @@ void main()
     oy[2] = y + 1;
     oy[3] = y + 1;
 
-    const float bottom_scale = bottom_scales_data[0];
-    const float weight_scale = weight_scales_data[gz];
+    const float bottom_scale = buffer_ld1(bottom_scales_data, 0);
+    const float weight_scale = buffer_ld1(weight_scales_data, gz);
     const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 0.25f / (bottom_scale * weight_scale);
 
     for (int i = 0; i < 4; i++)
@@ -112,7 +112,7 @@ void main()
         const int gi = gz * p.outcstep + oy[i] * p.outw + ox[i];
         if (use_int8_requantize == 1)
         {
-            const float vf = clamp(sumfp32 * top_scales_data[0], -127.f, 127.f);
+            const float vf = clamp(sumfp32 * buffer_ld1(top_scales_data, 0), -127.f, 127.f);
             const int v = int8_round(vf);
             i8buffer_st1(top_blob_int8_data, gi, v);
         }

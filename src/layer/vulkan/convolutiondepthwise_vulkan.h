@@ -47,6 +47,8 @@ public:
     Pipeline* pipeline_convolutiondepthwise_group_pack4to1;
 
 #if NCNN_INT8
+    ncnn::Layer* quantize;
+
     Mat weight_data_int8_packed;
 
     VkMat weight_data_int8_scales_gpu;

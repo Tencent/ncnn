@@ -5,6 +5,7 @@
 
 #include "layer_shader_type.h"
 #include "layer_type.h"
+#include "modelbin.h"
 
 namespace ncnn {
 
@@ -32,6 +33,8 @@ Convolution_vulkan::Convolution_vulkan()
 
     use_cooperative_matrix = false;
 #if NCNN_INT8
+    quantize = 0;
+
     use_int8_winograd_int16_packed = false;
     use_int8_winograd_int16_storage = false;
 #endif
@@ -55,12 +58,7 @@ int Convolution_vulkan::load_param(const ParamDict& pd)
         support_vulkan = false;
     }
 
-#if !NCNN_INT8
-    if (int8_scale_term)
-    {
-        support_vulkan = false;
-    }
-#else
+#if NCNN_INT8
     if (int8_scale_term && pad_value != 0.f)
     {
         NCNN_LOGE("Convolution_vulkan int8 nonzero pad value is not supported");
@@ -1537,6 +1535,13 @@ int Convolution_vulkan::destroy_pipeline(const Option& opt)
 
     use_cooperative_matrix = false;
 #if NCNN_INT8
+    if (quantize)
+    {
+        quantize->destroy_pipeline(opt);
+        delete quantize;
+        quantize = 0;
+    }
+
     use_int8_winograd_int16_packed = false;
     use_int8_winograd_int16_storage = false;
 #endif
@@ -2167,16 +2172,47 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     weight_data_int8_packed = weight_data.reshape(weight_data_size);
 
     Option opt_int8 = opt;
-    opt_int8.use_fp16_packed = false;
-    opt_int8.use_fp16_storage = false;
     opt_int8.use_fp16_arithmetic = false;
-    opt_int8.use_bf16_packed = false;
-    opt_int8.use_bf16_storage = false;
     opt_int8.use_int16_packed = false;
     opt_int8.use_int16_storage = false;
     const bool use_int8_requantize = int8_scale_term > 100;
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
+
+    {
+        quantize = ncnn::create_layer_vulkan(ncnn::LayerType::Quantize);
+        quantize->vkdev = vkdev;
+
+        Mat shape_quantize;
+        Mat out_shape_quantize;
+        if (shape.dims == 3)
+        {
+            size_t shape_elemsize = shape.elemsize;
+            if (shape.elempack != 1)
+                shape_elemsize = shape.elemsize / shape.elempack;
+
+            shape_quantize = Mat(shape.w, shape.h, num_input, (void*)0, shape_elemsize, 1);
+            out_shape_quantize = Mat(shape.w, shape.h, num_input, (void*)0, (size_t)1u, 1);
+        }
+
+        quantize->bottom_shapes.resize(1);
+        quantize->bottom_shapes[0] = shape_quantize;
+        quantize->top_shapes.resize(1);
+        quantize->top_shapes[0] = out_shape_quantize;
+
+        ncnn::ParamDict pd;
+        pd.set(0, 1);
+        quantize->load_param(pd);
+
+        Mat weights[1];
+        weights[0] = bottom_blob_int8_scales;
+        quantize->load_model(ModelBinFromMatArray(weights));
+
+        Option opt_quantize = opt;
+        opt_quantize.use_fp16_arithmetic = false;
+
+        quantize->create_pipeline(opt_quantize);
+    }
 
     std::vector<vk_specialization_type> specializations(11 + 10);
     specializations[0].i = kernel_w;
@@ -2531,15 +2567,6 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     opt_float.use_bf16_packed = false;
     opt_float.use_bf16_storage = false;
 
-    Option opt_int8 = opt;
-    opt_int8.use_fp16_packed = false;
-    opt_int8.use_fp16_storage = false;
-    opt_int8.use_fp16_arithmetic = false;
-    opt_int8.use_bf16_packed = false;
-    opt_int8.use_bf16_storage = false;
-    opt_int8.use_int16_packed = false;
-    opt_int8.use_int16_storage = false;
-
     Option opt_winograd = opt_float;
     if (use_int8_winograd_int16_packed)
     {
@@ -2577,18 +2604,18 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     }
     else
     {
-        cmd.record_upload(weight_data_int8_packed, weight_data_gpu, opt_int8);
+        cmd.record_upload(weight_data_int8_packed, weight_data_gpu, opt);
 
         weight_data_int8_packed.release();
     }
 
-    cmd.record_upload(weight_data_int8_scales, weight_data_int8_scales_gpu, opt_float);
-    cmd.record_upload(bottom_blob_int8_scales, bottom_blob_int8_scales_gpu, opt_float);
+    cmd.record_upload(weight_data_int8_scales, weight_data_int8_scales_gpu, opt);
+    cmd.record_upload(bottom_blob_int8_scales, bottom_blob_int8_scales_gpu, opt);
 
     const bool use_int8_requantize = int8_scale_term > 100;
     if (use_int8_requantize)
     {
-        cmd.record_upload(top_blob_int8_scales, top_blob_int8_scales_gpu, opt_float);
+        cmd.record_upload(top_blob_int8_scales, top_blob_int8_scales_gpu, opt);
     }
 
     if (bias_term)
@@ -2597,6 +2624,8 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
         bias_data.release();
     }
+
+    quantize->upload_model(cmd, opt);
 
     return 0;
 }
@@ -2621,16 +2650,31 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
     }
 
     VkMat bottom = bottom_blob;
-    const bool bottom_is_int8 = bottom.elembits() == 8;
+    bool bottom_is_int8 = bottom.elembits() == 8;
 
-    if (bottom.elempack != 1 || (!bottom_is_int8 && bottom.elembits() == 16))
+    if (bottom.elempack != 1)
     {
         Option opt_pack1 = opt;
         opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
 
         VkMat bottom_unpacked;
-        vkdev->convert_packing(bottom, bottom_unpacked, 1, bottom_is_int8 ? 0 : 1, cmd, opt_pack1);
+        vkdev->convert_packing(bottom, bottom_unpacked, 1, cmd, opt_pack1);
         bottom = bottom_unpacked;
+    }
+
+    if (!bottom_is_int8)
+    {
+        Option opt_quantize = opt;
+        opt_quantize.blob_vkallocator = opt.workspace_vkallocator;
+        opt_quantize.use_fp16_arithmetic = false;
+
+        VkMat bottom_int8;
+        int ret = quantize->forward(bottom, bottom_int8, cmd, opt_quantize);
+        if (ret != 0)
+            return ret;
+
+        bottom = bottom_int8;
+        bottom_is_int8 = true;
     }
 
     const int w = bottom.w;
@@ -2693,7 +2737,7 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
             return -100;
     }
 
-    std::vector<VkMat> bindings(9);
+    std::vector<VkMat> bindings(8);
     bindings[0] = bottom;
     bindings[1] = top_blob_unpacked;
     bindings[2] = weight_data_gpu;
@@ -2701,11 +2745,10 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
     bindings[4] = weight_data_int8_scales_gpu;
     bindings[5] = bottom_blob_int8_scales_gpu;
     bindings[6] = top_blob_int8_scales_gpu;
-    // bindings 7/8 alias top/bottom with int8 SSBO element types
+    // binding 7 aliases top with int8 SSBO element type
     bindings[7] = top_blob_unpacked;
-    bindings[8] = bottom;
 
-    std::vector<vk_constant_type> constants(13);
+    std::vector<vk_constant_type> constants(12);
     constants[0].i = bottom.dims;
     constants[1].i = bottom.w;
     constants[2].i = bottom.h;
@@ -2718,7 +2761,6 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
     constants[9].i = top_blob_unpacked.cstep;
     constants[10].i = pad_left_real;
     constants[11].i = pad_top_real;
-    constants[12].i = bottom_is_int8 ? 1 : 0;
 
     const bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     const bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
@@ -2749,13 +2791,11 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
             if (bottom_tm_blob.empty())
                 return -100;
 
-            std::vector<VkMat> bindings(4);
+            std::vector<VkMat> bindings(2);
             bindings[0] = bottom;
             bindings[1] = bottom_tm_blob;
-            bindings[2] = bottom;
-            bindings[3] = bottom_blob_int8_scales_gpu;
 
-            std::vector<vk_constant_type> constants(10);
+            std::vector<vk_constant_type> constants(9);
             constants[0].i = bottom.w;
             constants[1].i = bottom.h;
             constants[2].i = bottom.cstep;
@@ -2764,8 +2804,7 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
             constants[5].i = block_y;
             constants[6].i = pad_left_real;
             constants[7].i = pad_top_real;
-            constants[8].i = bottom_is_int8 ? 1 : 0;
-            constants[9].i = channels;
+            constants[8].i = channels;
 
             VkMat dispatcher;
             dispatcher.w = block_x;

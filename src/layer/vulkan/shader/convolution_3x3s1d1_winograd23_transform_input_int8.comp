@@ -3,10 +3,8 @@
 
 #version 450
 
-layout(binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { sint8 bottom_blob_int8_data[]; };
 layout(binding = 1) writeonly buffer bottom_tm_blob { sint16 bottom_tm_blob_data[]; };
-layout(binding = 2) readonly buffer bottom_blob_int8 { sint8 bottom_blob_int8_data[]; };
-layout(binding = 3) readonly buffer bottom_scales_blob { float bottom_scales_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -21,7 +19,6 @@ layout(push_constant) uniform parameter
 
     int pad_left;
     int pad_top;
-    int bottom_is_int8;
     int c;
 } p;
 
@@ -50,15 +47,7 @@ void main()
             if (x >= 0 && x < p.w && y >= 0 && y < p.h)
             {
                 const int gi = gz * p.cstep + y * p.w + x;
-                if (p.bottom_is_int8 == 1)
-                {
-                    v = i8buffer_ld1(bottom_blob_int8_data, gi);
-                }
-                else
-                {
-                    const float vf = clamp(bottom_blob_data[gi] * bottom_scales_data[0], -127.f, 127.f);
-                    v = int8_round(vf);
-                }
+                v = i8buffer_ld1(bottom_blob_int8_data, gi);
             }
 
             d[yy * 4 + xx] = v;

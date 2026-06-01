@@ -36,15 +36,14 @@ layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-layout(binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { sint8 bottom_blob_int8_data[]; };
 layout(binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
 layout(binding = 2) readonly buffer weight_blob { sint8 weight_data[]; };
 layout(binding = 3) readonly buffer bias_blob { float bias_data[]; };
-layout(binding = 4) readonly buffer weight_scales_blob { float weight_scales_data[]; };
-layout(binding = 5) readonly buffer bottom_scales_blob { float bottom_scales_data[]; };
-layout(binding = 6) readonly buffer top_scales_blob { float top_scales_data[]; };
+layout(binding = 4) readonly buffer weight_scales_blob { sfp weight_scales_data[]; };
+layout(binding = 5) readonly buffer bottom_scales_blob { sfp bottom_scales_data[]; };
+layout(binding = 6) readonly buffer top_scales_blob { sfp top_scales_data[]; };
 layout(binding = 7) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
-layout(binding = 8) readonly buffer bottom_blob_int8 { sint8 bottom_blob_int8_data[]; };
 // scales are per channel for depthwise pack1
 
 layout(push_constant) uniform parameter
@@ -63,7 +62,6 @@ layout(push_constant) uniform parameter
 
     int pad_left;
     int pad_top;
-    int bottom_is_int8;
 } p;
 
 void main()
@@ -76,7 +74,7 @@ void main()
         return;
 
     const int maxk = kernel_w * kernel_h;
-    const float bottom_scale = bottom_scales_data[gz];
+    const float bottom_scale = buffer_ld1(bottom_scales_data, gz);
 
     int sum = 0;
 
@@ -97,86 +95,38 @@ void main()
         if (x4.r >= 0 && x4.r < psc(w) && y4.r >= 0 && y4.r < psc(h))
         {
             const int gi = gz * psc(cstep) + y4.r * psc(w) + x4.r;
-            if (p.bottom_is_int8 == 1)
-            {
 #if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-                v.r = bottom_blob_int8_data[gi];
+            v.r = bottom_blob_int8_data[gi];
 #else
-                v.r = i8buffer_ld1(bottom_blob_int8_data, gi);
+            v.r = i8buffer_ld1(bottom_blob_int8_data, gi);
 #endif
-            }
-            else
-            {
-                const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-                v.r = int8_t(int8_round(vf));
-#else
-                v.r = int8_round(vf);
-#endif
-            }
         }
         if (x4.g >= 0 && x4.g < psc(w) && y4.g >= 0 && y4.g < psc(h))
         {
             const int gi = gz * psc(cstep) + y4.g * psc(w) + x4.g;
-            if (p.bottom_is_int8 == 1)
-            {
 #if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-                v.g = bottom_blob_int8_data[gi];
+            v.g = bottom_blob_int8_data[gi];
 #else
-                v.g = i8buffer_ld1(bottom_blob_int8_data, gi);
+            v.g = i8buffer_ld1(bottom_blob_int8_data, gi);
 #endif
-            }
-            else
-            {
-                const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-                v.g = int8_t(int8_round(vf));
-#else
-                v.g = int8_round(vf);
-#endif
-            }
         }
         if (x4.b >= 0 && x4.b < psc(w) && y4.b >= 0 && y4.b < psc(h))
         {
             const int gi = gz * psc(cstep) + y4.b * psc(w) + x4.b;
-            if (p.bottom_is_int8 == 1)
-            {
 #if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-                v.b = bottom_blob_int8_data[gi];
+            v.b = bottom_blob_int8_data[gi];
 #else
-                v.b = i8buffer_ld1(bottom_blob_int8_data, gi);
+            v.b = i8buffer_ld1(bottom_blob_int8_data, gi);
 #endif
-            }
-            else
-            {
-                const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-                v.b = int8_t(int8_round(vf));
-#else
-                v.b = int8_round(vf);
-#endif
-            }
         }
         if (x4.a >= 0 && x4.a < psc(w) && y4.a >= 0 && y4.a < psc(h))
         {
             const int gi = gz * psc(cstep) + y4.a * psc(w) + x4.a;
-            if (p.bottom_is_int8 == 1)
-            {
 #if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-                v.a = bottom_blob_int8_data[gi];
+            v.a = bottom_blob_int8_data[gi];
 #else
-                v.a = i8buffer_ld1(bottom_blob_int8_data, gi);
+            v.a = i8buffer_ld1(bottom_blob_int8_data, gi);
 #endif
-            }
-            else
-            {
-                const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-                v.a = int8_t(int8_round(vf));
-#else
-                v.a = int8_round(vf);
-#endif
-            }
         }
 
         const int w_offset = gz * maxk + k;
@@ -222,22 +172,14 @@ void main()
         if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
         {
             const int gi = gz * psc(cstep) + y * psc(w) + x;
-            if (p.bottom_is_int8 == 1)
-            {
-                v = i8buffer_ld1(bottom_blob_int8_data, gi);
-            }
-            else
-            {
-                const float vf = clamp(bottom_blob_data[gi] * bottom_scale, -127.f, 127.f);
-                v = int8_round(vf);
-            }
+            v = i8buffer_ld1(bottom_blob_int8_data, gi);
         }
 
         const int weight = i8buffer_ld1(weight_data, gz * maxk + k);
         sum += v * weight;
     }
 
-    const float weight_scale = weight_scales_data[gz];
+    const float weight_scale = buffer_ld1(weight_scales_data, gz);
     const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
 
     float sumfp32 = float(sum) * scale_in;
@@ -253,7 +195,7 @@ void main()
 
     if (use_int8_requantize == 1)
     {
-        const float vf = clamp(sumfp32 * top_scales_data[gz], -127.f, 127.f);
+        const float vf = clamp(sumfp32 * buffer_ld1(top_scales_data, gz), -127.f, 127.f);
         const int v = int8_round(vf);
         i8buffer_st1(top_blob_int8_data, gi, v);
     }

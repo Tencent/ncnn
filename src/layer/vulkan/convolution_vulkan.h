@@ -72,6 +72,8 @@ public:
     int UNROLL_WG_N;
 
 #if NCNN_INT8
+    ncnn::Layer* quantize;
+
     Mat weight_data_int8_packed;
     Mat weight_winograd23_data_int8_packed;
     Mat weight_winograd43_data_int8_packed;

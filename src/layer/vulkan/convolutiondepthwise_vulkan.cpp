@@ -5,6 +5,7 @@
 
 #include "layer_shader_type.h"
 #include "layer_type.h"
+#include "modelbin.h"
 
 namespace ncnn {
 
@@ -22,6 +23,10 @@ ConvolutionDepthWise_vulkan::ConvolutionDepthWise_vulkan()
     pipeline_convolutiondepthwise_group_pack4 = 0;
     pipeline_convolutiondepthwise_group_pack1to4 = 0;
     pipeline_convolutiondepthwise_group_pack4to1 = 0;
+
+#if NCNN_INT8
+    quantize = 0;
+#endif
 }
 
 int ConvolutionDepthWise_vulkan::load_param(const ParamDict& pd)
@@ -34,28 +39,9 @@ int ConvolutionDepthWise_vulkan::load_param(const ParamDict& pd)
     }
 
 #if NCNN_INT8
-    if (int8_scale_term)
+    if (int8_scale_term && pad_value != 0.f)
     {
-        const int maxk = kernel_w * kernel_h;
-        if (pad_value != 0.f || group == 0 || num_output % group != 0)
-        {
-            NCNN_LOGE("ConvolutionDepthWise_vulkan int8 nonzero pad value or invalid group is not supported");
-            support_vulkan = false;
-        }
-        else
-        {
-            const int num_output_g = num_output / group;
-            const int weight_data_size_g = group * maxk * num_output_g;
-            if (weight_data_size_g == 0 || weight_data_size % weight_data_size_g != 0)
-            {
-                NCNN_LOGE("ConvolutionDepthWise_vulkan int8 weight shape mismatch");
-                support_vulkan = false;
-            }
-        }
-    }
-#else
-    if (int8_scale_term)
-    {
+        NCNN_LOGE("ConvolutionDepthWise_vulkan int8 nonzero pad value is not supported");
         support_vulkan = false;
     }
 #endif
@@ -344,6 +330,15 @@ int ConvolutionDepthWise_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_convolutiondepthwise_group_pack4to1;
     pipeline_convolutiondepthwise_group_pack4to1 = 0;
 
+#if NCNN_INT8
+    if (quantize)
+    {
+        quantize->destroy_pipeline(opt);
+        delete quantize;
+        quantize = 0;
+    }
+#endif
+
     return 0;
 }
 
@@ -603,14 +598,22 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
         return -1;
     }
 
-    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
+    const int num_output_g = num_output / group;
+    const int weight_data_size_g = group * maxk * num_output_g;
+    if (weight_data_size_g == 0 || weight_data_size % weight_data_size_g != 0)
+    {
+        NCNN_LOGE("ConvolutionDepthWise_vulkan int8 weight shape mismatch");
+        return -1;
+    }
+
+    int channels = weight_data_size / weight_data_size_g * group;
     const bool is_depthwise = channels == group && group == num_output;
     const int channels_g = channels / group;
-    const int num_output_g = num_output / group;
     const int elempack = is_depthwise && opt.use_packing_layout && group % 4 == 0 ? 4 : 1;
     const int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
     const int elempack_g = !is_depthwise && opt.use_packing_layout && channels_g % 4 == 0 ? 4 : 1;
     const int out_elempack_g = !is_depthwise && opt.use_packing_layout && num_output_g % 4 == 0 ? 4 : 1;
+    const int bottom_elempack = is_depthwise ? elempack : elempack_g;
 
     if (weight_data.elemsize != (size_t)1u)
     {
@@ -619,17 +622,50 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
     }
 
     Option opt_int8 = opt;
-    opt_int8.use_fp16_packed = false;
-    opt_int8.use_fp16_storage = false;
     opt_int8.use_fp16_arithmetic = false;
-    opt_int8.use_bf16_packed = false;
-    opt_int8.use_bf16_storage = false;
     opt_int8.use_int16_packed = false;
     opt_int8.use_int16_storage = false;
+
     Option opt_int8_pack4 = opt;
     opt_int8_pack4.use_fp16_arithmetic = false;
     opt_int8_pack4.use_int16_packed = false;
     opt_int8_pack4.use_int16_storage = false;
+
+    {
+        quantize = ncnn::create_layer_vulkan(ncnn::LayerType::Quantize);
+        quantize->vkdev = vkdev;
+
+        Mat shape_quantize;
+        Mat out_shape_quantize;
+        if (shape.dims == 3)
+        {
+            size_t shape_elemsize = shape.elemsize;
+            if (shape.elempack != bottom_elempack)
+                shape_elemsize = shape.elemsize / shape.elempack * bottom_elempack;
+
+            shape_quantize = Mat(shape.w, shape.h, channels / bottom_elempack, (void*)0, shape_elemsize, bottom_elempack);
+            out_shape_quantize = Mat(shape.w, shape.h, channels / bottom_elempack, (void*)0, (size_t)bottom_elempack, bottom_elempack);
+        }
+
+        quantize->bottom_shapes.resize(1);
+        quantize->bottom_shapes[0] = shape_quantize;
+        quantize->top_shapes.resize(1);
+        quantize->top_shapes[0] = out_shape_quantize;
+
+        ncnn::ParamDict pd;
+        pd.set(0, 1);
+        quantize->load_param(pd);
+
+        Mat weights[1];
+        weights[0] = bottom_blob_int8_scales;
+        quantize->load_model(ModelBinFromMatArray(weights));
+
+        Option opt_quantize = opt;
+        opt_quantize.use_fp16_arithmetic = false;
+
+        quantize->create_pipeline(opt_quantize);
+    }
+
     if (is_depthwise)
     {
         if (elempack == 4)
@@ -824,26 +860,17 @@ int ConvolutionDepthWise_vulkan::upload_model_int8(VkTransfer& cmd, const Option
     opt_float.use_bf16_packed = false;
     opt_float.use_bf16_storage = false;
 
-    Option opt_int8 = opt;
-    opt_int8.use_fp16_packed = false;
-    opt_int8.use_fp16_storage = false;
-    opt_int8.use_fp16_arithmetic = false;
-    opt_int8.use_bf16_packed = false;
-    opt_int8.use_bf16_storage = false;
-    opt_int8.use_int16_packed = false;
-    opt_int8.use_int16_storage = false;
-
-    cmd.record_upload(weight_data_int8_packed, weight_data_gpu, opt_int8);
+    cmd.record_upload(weight_data_int8_packed, weight_data_gpu, opt);
 
     weight_data_int8_packed.release();
 
-    cmd.record_upload(weight_data_int8_scales, weight_data_int8_scales_gpu, opt_float);
-    cmd.record_upload(bottom_blob_int8_scales, bottom_blob_int8_scales_gpu, opt_float);
+    cmd.record_upload(weight_data_int8_scales, weight_data_int8_scales_gpu, opt);
+    cmd.record_upload(bottom_blob_int8_scales, bottom_blob_int8_scales_gpu, opt);
 
     const bool use_int8_requantize = int8_scale_term > 100;
     if (use_int8_requantize)
     {
-        cmd.record_upload(top_blob_int8_scales, top_blob_int8_scales_gpu, opt_float);
+        cmd.record_upload(top_blob_int8_scales, top_blob_int8_scales_gpu, opt);
     }
 
     if (bias_term)
@@ -853,13 +880,15 @@ int ConvolutionDepthWise_vulkan::upload_model_int8(VkTransfer& cmd, const Option
         bias_data.release();
     }
 
+    quantize->upload_model(cmd, opt);
+
     return 0;
 }
 
 int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     VkMat bottom = bottom_blob;
-    const bool bottom_is_int8 = bottom.elembits() == 8;
+    bool bottom_is_int8 = bottom.elembits() == 8;
 
     int channels = bottom.c * bottom.elempack;
     const bool is_depthwise = channels == group && group == num_output;
@@ -872,14 +901,29 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
     const bool use_group_packing = !is_depthwise && (elempack_g != 1 || out_elempack_g != 1);
     const int bottom_elempack = is_depthwise ? elempack : elempack_g;
 
-    if (bottom.elempack != bottom_elempack || (!bottom_is_int8 && bottom.elembits() == 16 && !use_depthwise_pack4 && !use_group_packing))
+    if (bottom.elempack != bottom_elempack)
     {
         Option opt_pack1 = opt;
         opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
 
         VkMat bottom_unpacked;
-        vkdev->convert_packing(bottom, bottom_unpacked, bottom_elempack, bottom_is_int8 || use_depthwise_pack4 || use_group_packing ? 0 : 1, cmd, opt_pack1);
+        vkdev->convert_packing(bottom, bottom_unpacked, bottom_elempack, cmd, opt_pack1);
         bottom = bottom_unpacked;
+    }
+
+    if (!bottom_is_int8)
+    {
+        Option opt_quantize = opt;
+        opt_quantize.blob_vkallocator = opt.workspace_vkallocator;
+        opt_quantize.use_fp16_arithmetic = false;
+
+        VkMat bottom_int8;
+        int ret = quantize->forward(bottom, bottom_int8, cmd, opt_quantize);
+        if (ret != 0)
+            return ret;
+
+        bottom = bottom_int8;
+        bottom_is_int8 = true;
     }
 
     const int w = bottom.w;
@@ -968,7 +1012,7 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
             return -100;
     }
 
-    std::vector<VkMat> bindings(9);
+    std::vector<VkMat> bindings(8);
     bindings[0] = bottom;
     bindings[1] = top_blob_unpacked;
     bindings[2] = weight_data_gpu;
@@ -976,11 +1020,10 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
     bindings[4] = weight_data_int8_scales_gpu;
     bindings[5] = bottom_blob_int8_scales_gpu;
     bindings[6] = top_blob_int8_scales_gpu;
-    // bindings 7/8 alias top/bottom with int8 SSBO element types
+    // binding 7 aliases top with int8 SSBO element type
     bindings[7] = top_blob_unpacked;
-    bindings[8] = bottom;
 
-    std::vector<vk_constant_type> constants(13);
+    std::vector<vk_constant_type> constants(12);
     constants[0].i = bottom.dims;
     constants[1].i = bottom.w;
     constants[2].i = bottom.h;
@@ -993,7 +1036,6 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
     constants[9].i = top_blob_unpacked.cstep;
     constants[10].i = pad_left_real;
     constants[11].i = pad_top_real;
-    constants[12].i = bottom_is_int8 ? 1 : 0;
 
     if (is_depthwise)
     {

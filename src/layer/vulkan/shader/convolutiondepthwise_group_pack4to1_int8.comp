@@ -36,15 +36,14 @@ layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { sint8vec4 bottom_blob_int8_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 2) readonly buffer weight_blob { sint8vec4 weight_data[]; };
 layout(binding = 3) readonly buffer bias_blob { float bias_data[]; };
-layout(binding = 4) readonly buffer weight_scales_blob { float weight_scales_data[]; };
-layout(binding = 5) readonly buffer bottom_scales_blob { float bottom_scales_data[]; };
-layout(binding = 6) readonly buffer top_scales_blob { float top_scales_data[]; };
+layout(binding = 4) readonly buffer weight_scales_blob { sfp weight_scales_data[]; };
+layout(binding = 5) readonly buffer bottom_scales_blob { sfp bottom_scales_data[]; };
+layout(binding = 6) readonly buffer top_scales_blob { sfp top_scales_data[]; };
 layout(binding = 7) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
-layout(binding = 8) readonly buffer bottom_blob_int8 { sint8vec4 bottom_blob_int8_data[]; };
 // scales are indexed by group for grouped int8 convolution
 
 layout(push_constant) uniform parameter
@@ -63,7 +62,6 @@ layout(push_constant) uniform parameter
 
     int pad_left;
     int pad_top;
-    int bottom_is_int8;
 } p;
 
 void main()
@@ -80,7 +78,7 @@ void main()
     const int num_output_g = psc(outc) / group;
     const int gg = gz / num_output_g;
 
-    const float bottom_scale = bottom_scales_data[gg];
+    const float bottom_scale = buffer_ld1(bottom_scales_data, gg);
 
     int sum = 0;
 
@@ -100,15 +98,7 @@ void main()
             if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
             {
                 const int gi = (gg * channels_g + q) * psc(cstep) + y * psc(w) + x;
-                if (p.bottom_is_int8 == 1)
-                {
-                    v = bottom_blob_int8_data[gi];
-                }
-                else
-                {
-                    const vec4 vf = clamp(vec4(buffer_ld4(bottom_blob_data, gi)) * bottom_scale, vec4(-127.f), vec4(127.f));
-                    v = i8vec4(int8_t(int8_round(vf.r)), int8_t(int8_round(vf.g)), int8_t(int8_round(vf.b)), int8_t(int8_round(vf.a)));
-                }
+                v = bottom_blob_int8_data[gi];
             }
 
             sum += dotEXT(v, weight_data[wi]);
@@ -117,15 +107,7 @@ void main()
             if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
             {
                 const int gi = (gg * channels_g + q) * psc(cstep) + y * psc(w) + x;
-                if (p.bottom_is_int8 == 1)
-                {
-                    v = bottom_blob_int8_data[gi];
-                }
-                else
-                {
-                    const vec4 vf = clamp(vec4(buffer_ld4(bottom_blob_data, gi)) * bottom_scale, vec4(-127.f), vec4(127.f));
-                    v = packInt4x8(ivec4(int8_round(vf.r), int8_round(vf.g), int8_round(vf.b), int8_round(vf.a)));
-                }
+                v = bottom_blob_int8_data[gi];
             }
 
             sum += dotPacked4x8EXT(v, weight_data[wi]);
@@ -134,15 +116,7 @@ void main()
             if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
             {
                 const int gi = (gg * channels_g + q) * psc(cstep) + y * psc(w) + x;
-                if (p.bottom_is_int8 == 1)
-                {
-                    v = i8buffer_ld4(bottom_blob_int8_data, gi);
-                }
-                else
-                {
-                    const vec4 vf = clamp(vec4(buffer_ld4(bottom_blob_data, gi)) * bottom_scale, vec4(-127.f), vec4(127.f));
-                    v = ivec4(int8_round(vf.r), int8_round(vf.g), int8_round(vf.b), int8_round(vf.a));
-                }
+                v = i8buffer_ld4(bottom_blob_int8_data, gi);
             }
 
             const ivec4 weight = i8buffer_ld4(weight_data, wi);
@@ -151,7 +125,7 @@ void main()
         }
     }
 
-    const float weight_scale = weight_scales_data[gg];
+    const float weight_scale = buffer_ld1(weight_scales_data, gg);
     const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
 
     float sumfp32 = float(sum) * scale_in;
@@ -167,7 +141,7 @@ void main()
 
     if (use_int8_requantize == 1)
     {
-        const float vf = clamp(sumfp32 * top_scales_data[gg], -127.f, 127.f);
+        const float vf = clamp(sumfp32 * buffer_ld1(top_scales_data, gg), -127.f, 127.f);
         const int v = int8_round(vf);
         i8buffer_st1(top_blob_int8_data, gi, v);
     }

@@ -44,12 +44,14 @@ public:
     Pipeline* pipeline_innerproduct_gemm;
 
 #if NCNN_INT8
+    ncnn::Layer* quantize;
+
     Mat weight_data_int8_packed;
 
     VkMat weight_data_int8_scales_gpu;
 
-    Pipeline* pipeline_innerproduct_input_int8;
-    Pipeline* pipeline_innerproduct_gemm_input_int8;
+    Pipeline* pipeline_innerproduct_int8;
+    Pipeline* pipeline_innerproduct_gemm_int8;
 #endif
 };
 

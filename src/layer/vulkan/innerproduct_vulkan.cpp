@@ -5,6 +5,7 @@
 
 #include "layer_shader_type.h"
 #include "layer_type.h"
+#include "modelbin.h"
 
 namespace ncnn {
 
@@ -21,8 +22,10 @@ InnerProduct_vulkan::InnerProduct_vulkan()
     pipeline_innerproduct_gemm = 0;
 
 #if NCNN_INT8
-    pipeline_innerproduct_input_int8 = 0;
-    pipeline_innerproduct_gemm_input_int8 = 0;
+    quantize = 0;
+
+    pipeline_innerproduct_int8 = 0;
+    pipeline_innerproduct_gemm_int8 = 0;
 #endif
 }
 
@@ -301,11 +304,18 @@ int InnerProduct_vulkan::destroy_pipeline(const Option& opt)
     pipeline_innerproduct_gemm = 0;
 
 #if NCNN_INT8
-    delete pipeline_innerproduct_input_int8;
-    pipeline_innerproduct_input_int8 = 0;
+    if (quantize)
+    {
+        quantize->destroy_pipeline(opt);
+        delete quantize;
+        quantize = 0;
+    }
 
-    delete pipeline_innerproduct_gemm_input_int8;
-    pipeline_innerproduct_gemm_input_int8 = 0;
+    delete pipeline_innerproduct_int8;
+    pipeline_innerproduct_int8 = 0;
+
+    delete pipeline_innerproduct_gemm_int8;
+    pipeline_innerproduct_gemm_int8 = 0;
 #endif
 
     return 0;
@@ -509,6 +519,46 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
     Option opt_int8 = opt;
     opt_int8.use_int16_packed = false;
     opt_int8.use_int16_storage = false;
+
+    {
+        quantize = ncnn::create_layer_vulkan(ncnn::LayerType::Quantize);
+        quantize->vkdev = vkdev;
+
+        Mat shape_quantize;
+        Mat out_shape_quantize;
+        if (shape.dims == 2 && shape.w == num_input)
+        {
+            const size_t elemsize = shape.elempack == 0 ? (size_t)4u : shape.elemsize / shape.elempack;
+            shape_quantize = Mat(shape.w, shape.h * shape.elempack, (void*)0, elemsize, 1);
+            out_shape_quantize = Mat(shape.w, shape.h * shape.elempack, (void*)0, (size_t)1u, 1);
+        }
+        else if (shape.dims != 0)
+        {
+            const int total = shape.w * shape.h * shape.d * shape.c * shape.elempack;
+            const size_t elemsize = shape.elempack == 0 ? (size_t)4u : shape.elemsize / shape.elempack;
+            shape_quantize = Mat(total, (void*)0, elemsize, 1);
+            out_shape_quantize = Mat(total, (void*)0, (size_t)1u, 1);
+        }
+
+        quantize->bottom_shapes.resize(1);
+        quantize->bottom_shapes[0] = shape_quantize;
+        quantize->top_shapes.resize(1);
+        quantize->top_shapes[0] = out_shape_quantize;
+
+        ncnn::ParamDict pd;
+        pd.set(0, 1);
+        quantize->load_param(pd);
+
+        Mat weights[1];
+        weights[0] = bottom_blob_int8_scales;
+        quantize->load_model(ModelBinFromMatArray(weights));
+
+        Option opt_quantize = opt;
+        opt_quantize.use_fp16_arithmetic = false;
+
+        quantize->create_pipeline(opt_quantize);
+    }
+
     if (shape.dims == 2 && shape.w == num_input)
     {
         // gemm
@@ -540,27 +590,16 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
             local_size_xyz.c = 1;
         }
 
-        pipeline_innerproduct_gemm = new Pipeline(vkdev);
+        pipeline_innerproduct_gemm_int8 = new Pipeline(vkdev);
         if (opt.use_shader_local_memory)
         {
-            pipeline_innerproduct_gemm->set_local_size_xyz(8, 8, 1);
+            pipeline_innerproduct_gemm_int8->set_local_size_xyz(8, 8, 1);
         }
         else
         {
-            pipeline_innerproduct_gemm->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_innerproduct_gemm_int8->set_optimal_local_size_xyz(local_size_xyz);
         }
-        pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm_int8, opt_int8, specializations);
-
-        pipeline_innerproduct_gemm_input_int8 = new Pipeline(vkdev);
-        if (opt.use_shader_local_memory)
-        {
-            pipeline_innerproduct_gemm_input_int8->set_local_size_xyz(8, 8, 1);
-        }
-        else
-        {
-            pipeline_innerproduct_gemm_input_int8->set_optimal_local_size_xyz(local_size_xyz);
-        }
-        pipeline_innerproduct_gemm_input_int8->create(LayerShaderType::innerproduct_gemm_int8_input_int8, opt_int8, specializations);
+        pipeline_innerproduct_gemm_int8->create(LayerShaderType::innerproduct_gemm_int8, opt_int8, specializations);
 
         if (opt.lightmode)
         {
@@ -630,13 +669,9 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
             local_size_xyz.c = 1;
         }
 
-        pipeline_innerproduct = new Pipeline(vkdev);
-        pipeline_innerproduct->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct->create(LayerShaderType::innerproduct_int8, opt_int8, specializations);
-
-        pipeline_innerproduct_input_int8 = new Pipeline(vkdev);
-        pipeline_innerproduct_input_int8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct_input_int8->create(LayerShaderType::innerproduct_int8_input_int8, opt_int8, specializations);
+        pipeline_innerproduct_int8 = new Pipeline(vkdev);
+        pipeline_innerproduct_int8->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_innerproduct_int8->create(LayerShaderType::innerproduct_int8, opt_int8, specializations);
     }
 
     // gemm for no shape hint
@@ -661,27 +696,16 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
 
         Mat local_size_xyz(std::min(16, num_output), 4, 1, (void*)0);
 
-        pipeline_innerproduct_gemm = new Pipeline(vkdev);
+        pipeline_innerproduct_gemm_int8 = new Pipeline(vkdev);
         if (opt.use_shader_local_memory)
         {
-            pipeline_innerproduct_gemm->set_local_size_xyz(8, 8, 1);
+            pipeline_innerproduct_gemm_int8->set_local_size_xyz(8, 8, 1);
         }
         else
         {
-            pipeline_innerproduct_gemm->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_innerproduct_gemm_int8->set_optimal_local_size_xyz(local_size_xyz);
         }
-        pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm_int8, opt_int8, specializations);
-
-        pipeline_innerproduct_gemm_input_int8 = new Pipeline(vkdev);
-        if (opt.use_shader_local_memory)
-        {
-            pipeline_innerproduct_gemm_input_int8->set_local_size_xyz(8, 8, 1);
-        }
-        else
-        {
-            pipeline_innerproduct_gemm_input_int8->set_optimal_local_size_xyz(local_size_xyz);
-        }
-        pipeline_innerproduct_gemm_input_int8->create(LayerShaderType::innerproduct_gemm_int8_input_int8, opt_int8, specializations);
+        pipeline_innerproduct_gemm_int8->create(LayerShaderType::innerproduct_gemm_int8, opt_int8, specializations);
     }
 
     if (opt.lightmode)
@@ -694,17 +718,11 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
 
 int InnerProduct_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 {
-    Option opt_float = opt;
-    opt_float.use_fp16_packed = false;
-    opt_float.use_fp16_storage = false;
-    opt_float.use_bf16_packed = false;
-    opt_float.use_bf16_storage = false;
-
     cmd.record_upload(weight_data_int8_packed, weight_data_gpu, opt);
 
     weight_data_int8_packed.release();
 
-    cmd.record_upload(weight_data_int8_scales, weight_data_int8_scales_gpu, opt_float);
+    cmd.record_upload(weight_data_int8_scales, weight_data_int8_scales_gpu, opt);
 
     weight_data_int8_scales.release();
 
@@ -714,6 +732,8 @@ int InnerProduct_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
         bias_data.release();
     }
+
+    quantize->upload_model(cmd, opt);
 
     return 0;
 }
@@ -734,6 +754,20 @@ int InnerProduct_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob,
             opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
 
             vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, 1, cmd, opt_pack1);
+        }
+
+        if (bottom_blob_unpacked.elembits() != 8)
+        {
+            Option opt_quantize = opt;
+            opt_quantize.blob_vkallocator = opt.workspace_vkallocator;
+            opt_quantize.use_fp16_arithmetic = false;
+
+            VkMat bottom_blob_int8;
+            int ret = quantize->forward(bottom_blob_unpacked, bottom_blob_int8, cmd, opt_quantize);
+            if (ret != 0)
+                return ret;
+
+            bottom_blob_unpacked = bottom_blob_int8;
         }
 
         const int h = bottom_blob_unpacked.h;
@@ -775,9 +809,7 @@ int InnerProduct_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob,
         dispatcher.h = top_blob.h;
         dispatcher.c = 1;
 
-        const Pipeline* pipeline = bottom_blob_unpacked.elembits() == 8 ? pipeline_innerproduct_gemm_input_int8 : pipeline_innerproduct_gemm;
-
-        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+        cmd.record_pipeline(pipeline_innerproduct_gemm_int8, bindings, constants, dispatcher);
 
         return 0;
     }
@@ -801,6 +833,20 @@ int InnerProduct_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob,
         vkdev->convert_packing(bottom_blob_flattened, bottom_blob_unpacked, 1, cmd, opt_pack1);
 
         bottom_blob_flattened = bottom_blob_unpacked;
+    }
+
+    if (bottom_blob_flattened.elembits() != 8)
+    {
+        Option opt_quantize = opt;
+        opt_quantize.blob_vkallocator = opt.workspace_vkallocator;
+        opt_quantize.use_fp16_arithmetic = false;
+
+        VkMat bottom_blob_int8;
+        int ret = quantize->forward(bottom_blob_flattened, bottom_blob_int8, cmd, opt_quantize);
+        if (ret != 0)
+            return ret;
+
+        bottom_blob_flattened = bottom_blob_int8;
     }
 
     size_t out_elemsize;
@@ -836,9 +882,7 @@ int InnerProduct_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob,
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
 
-    const Pipeline* pipeline = bottom_blob_flattened.elembits() == 8 ? pipeline_innerproduct_input_int8 : pipeline_innerproduct;
-
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+    cmd.record_pipeline(pipeline_innerproduct_int8, bindings, constants, top_blob);
 
     return 0;
 }
