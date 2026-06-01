@@ -72,16 +72,6 @@ int Flatten_vulkan::create_pipeline(const Option& opt)
     specializations_int8[0 + 8].i = out_shape_int8.c;
     specializations_int8[0 + 9].i = out_shape_int8.cstep;
 
-    Option opt_int8 = opt;
-    opt_int8.use_fp16_packed = false;
-    opt_int8.use_fp16_storage = false;
-    opt_int8.use_fp16_arithmetic = false;
-    opt_int8.use_bf16_packed = false;
-    opt_int8.use_bf16_storage = false;
-    opt_int8.use_int16_packed = false;
-    opt_int8.use_int16_storage = false;
-    opt_int8.use_int8_arithmetic = opt_int8.use_int8_storage && vkdev->info.support_int8_arithmetic();
-
     const bool use_int8_pipeline = opt.use_int8_packed || opt.use_int8_storage;
 #endif
 
@@ -116,21 +106,21 @@ int Flatten_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_flatten_int8 = new Pipeline(vkdev);
             pipeline_flatten_int8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_flatten_int8->create(LayerShaderType::flatten_int8, opt_int8, specializations_int8);
+            pipeline_flatten_int8->create(LayerShaderType::flatten_int8, opt, specializations_int8);
         }
 
         if (shape.dims == 0 || (shape.elempack == 4 && out_shape.elempack == 4))
         {
             pipeline_flatten_pack4_int8 = new Pipeline(vkdev);
             pipeline_flatten_pack4_int8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_flatten_pack4_int8->create(LayerShaderType::flatten_pack4_int8, opt_int8, specializations_int8);
+            pipeline_flatten_pack4_int8->create(LayerShaderType::flatten_pack4_int8, opt, specializations_int8);
         }
 
         if (shape.dims == 0 || (shape.elempack == 1 && out_shape.elempack == 4))
         {
             pipeline_flatten_pack1to4_int8 = new Pipeline(vkdev);
             pipeline_flatten_pack1to4_int8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_flatten_pack1to4_int8->create(LayerShaderType::flatten_pack1to4_int8, opt_int8, specializations_int8);
+            pipeline_flatten_pack1to4_int8->create(LayerShaderType::flatten_pack1to4_int8, opt, specializations_int8);
         }
     }
 #endif

@@ -13,8 +13,6 @@ class InnerProduct_vulkan : public InnerProduct
 public:
     InnerProduct_vulkan();
 
-    virtual int load_param(const ParamDict& pd);
-
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
 

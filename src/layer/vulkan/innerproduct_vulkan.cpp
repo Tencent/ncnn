@@ -26,20 +26,6 @@ InnerProduct_vulkan::InnerProduct_vulkan()
 #endif
 }
 
-int InnerProduct_vulkan::load_param(const ParamDict& pd)
-{
-    int ret = InnerProduct::load_param(pd);
-
-#if !NCNN_INT8
-    if (int8_scale_term)
-    {
-        support_vulkan = false;
-    }
-#endif
-
-    return ret;
-}
-
 int InnerProduct_vulkan::create_pipeline(const Option& opt)
 {
 #if NCNN_INT8
@@ -353,11 +339,7 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
 #if NCNN_INT8
     if (int8_scale_term)
     {
-        if (pipeline_innerproduct || pipeline_innerproduct_gemm)
-            return forward_int8(bottom_blob, top_blob, cmd, opt);
-
-        NCNN_LOGE("InnerProduct_vulkan int8 pipeline is missing");
-        return -1;
+        return forward_int8(bottom_blob, top_blob, cmd, opt);
     }
 #endif
 
@@ -714,25 +696,25 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
 
 int InnerProduct_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 {
-    Option opt_int8 = opt;
-    opt_int8.use_fp16_packed = false;
-    opt_int8.use_fp16_storage = false;
-    opt_int8.use_fp16_arithmetic = false;
-    opt_int8.use_bf16_packed = false;
-    opt_int8.use_bf16_storage = false;
-    opt_int8.use_int16_packed = false;
-    opt_int8.use_int16_storage = false;
-
-    Option opt_float = opt_int8;
+    Option opt_float = opt;
+    opt_float.use_fp16_packed = false;
+    opt_float.use_fp16_storage = false;
+    opt_float.use_fp16_arithmetic = false;
+    opt_float.use_bf16_packed = false;
+    opt_float.use_bf16_storage = false;
+    opt_float.use_int16_packed = false;
+    opt_float.use_int16_storage = false;
     opt_float.use_int8_packed = false;
     opt_float.use_int8_storage = false;
     opt_float.use_int8_arithmetic = false;
 
-    cmd.record_upload(weight_data_int8_packed, weight_data_gpu, opt_int8);
+    cmd.record_upload(weight_data_int8_packed, weight_data_gpu, opt);
 
     weight_data_int8_packed.release();
 
     cmd.record_upload(weight_data_int8_scales, weight_data_int8_scales_gpu, opt_float);
+
+    weight_data_int8_scales.release();
 
     if (bias_term)
     {
