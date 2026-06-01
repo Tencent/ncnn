@@ -30,7 +30,7 @@ def test():
     a = net(x)
 
     # export onnx
-    if version.parse(torch.__version__) >= version.parse('2.9') and version.parse(torch.__version__) < version.parse('2.11'):
+    if version.parse(torch.__version__) >= version.parse('2.9') and version.parse(torch.__version__) < version.parse('2.12'):
         torch.onnx.export(net, (x,), "test_F_adaptive_avg_pool3d.onnx", dynamo=False)
     else:
         torch.onnx.export(net, (x,), "test_F_adaptive_avg_pool3d.onnx")

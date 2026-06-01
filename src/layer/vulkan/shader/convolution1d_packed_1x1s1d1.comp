@@ -1,0 +1,176 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_GOOGLE_include_directive : enable
+#include "vulkan_activation.comp"
+
+layout(constant_id = 0) const int bias_term = 0;
+layout(constant_id = 1) const int activation_type = 0;
+layout(constant_id = 2) const float activation_param_0 = 0;
+layout(constant_id = 3) const float activation_param_1 = 0;
+layout(constant_id = 4) const int elempack = 1;
+layout(constant_id = 5) const int out_elempack = 1;
+
+#define shape_constant_id_offset 6
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int h = 0;
+
+layout(constant_id = shape_constant_id_offset + 2) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int outh = 0;
+
+layout(constant_id = shape_constant_id_offset + 4) const int num_output = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int num_input_packed = 0;
+
+layout(binding = 0) readonly buffer bottom_blob_1 { sfp bottom_blob_data_1[]; };
+layout(binding = 1) writeonly buffer top_blob_1 { sfp top_blob_data_1[]; };
+
+layout(binding = 2) readonly buffer bottom_blob_4 { sfpvec4 bottom_blob_data_4[]; };
+layout(binding = 3) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
+layout(binding = 4) readonly buffer weight_blob { sfpvec4 weight_data[]; };
+layout(binding = 5) readonly buffer bias_blob { sfpvec4 bias_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int w;
+    int h;
+
+    int outw;
+    int outh;
+
+    int num_output;
+    int num_input_packed;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x) * 2;
+    int gy = int(gl_GlobalInvocationID.y) * 2;
+
+    if (gx >= psc(outw) || gy >= psc(outh))
+        return;
+
+    const ivec2 gx2 = gx + ivec2(0, 1);
+    const ivec2 gy2 = gy + ivec2(0, 1);
+
+    afpvec4 sum0;
+    afpvec4 sum1;
+    afpvec4 sum2;
+    afpvec4 sum3;
+
+    if (bias_term == 1)
+    {
+        sum0 = buffer_ld4(bias_data, gy2.x);
+        sum2 = buffer_ld4(bias_data, gy2.y);
+        sum1 = sum0;
+        sum3 = sum2;
+    }
+    else
+    {
+        sum0 = afpvec4(0.f);
+        sum1 = afpvec4(0.f);
+        sum2 = afpvec4(0.f);
+        sum3 = afpvec4(0.f);
+    }
+
+    const int num_input_pack4 = psc(num_input_packed) / 4;
+    const int inch = psc(h);
+
+    for (int y = 0; y < num_input_pack4; y++)
+    {
+        afpvec4 v0, v1;
+
+        if (elempack == 4)
+        {
+            v0 = buffer_ld4(bottom_blob_data_4, gx2.x + y * psc(w));
+            v1 = buffer_ld4(bottom_blob_data_4, gx2.y + y * psc(w));
+        }
+        else
+        {
+            const int ch = y * 4;
+
+            afp v00 = (ch + 0 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.x + (ch + 0) * psc(w)) : afp(0.f);
+            afp v01 = (ch + 1 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.x + (ch + 1) * psc(w)) : afp(0.f);
+            afp v02 = (ch + 2 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.x + (ch + 2) * psc(w)) : afp(0.f);
+            afp v03 = (ch + 3 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.x + (ch + 3) * psc(w)) : afp(0.f);
+            v0 = afpvec4(v00, v01, v02, v03);
+
+            afp v10 = (ch + 0 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.y + (ch + 0) * psc(w)) : afp(0.f);
+            afp v11 = (ch + 1 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.y + (ch + 1) * psc(w)) : afp(0.f);
+            afp v12 = (ch + 2 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.y + (ch + 2) * psc(w)) : afp(0.f);
+            afp v13 = (ch + 3 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.y + (ch + 3) * psc(w)) : afp(0.f);
+            v1 = afpvec4(v10, v11, v12, v13);
+        }
+
+        const int wbase0 = gy2.x * num_input_pack4 * 4 + y * 4;
+        const int wbase1 = gy2.y * num_input_pack4 * 4 + y * 4;
+
+        afpvec4 k00 = buffer_ld4(weight_data, wbase0 + 0);
+        afpvec4 k01 = buffer_ld4(weight_data, wbase0 + 1);
+        afpvec4 k02 = buffer_ld4(weight_data, wbase0 + 2);
+        afpvec4 k03 = buffer_ld4(weight_data, wbase0 + 3);
+
+        afpvec4 k10 = buffer_ld4(weight_data, wbase1 + 0);
+        afpvec4 k11 = buffer_ld4(weight_data, wbase1 + 1);
+        afpvec4 k12 = buffer_ld4(weight_data, wbase1 + 2);
+        afpvec4 k13 = buffer_ld4(weight_data, wbase1 + 3);
+
+        sum0 += afpvec4(dot(v0, k00), dot(v0, k01), dot(v0, k02), dot(v0, k03));
+        sum1 += afpvec4(dot(v1, k00), dot(v1, k01), dot(v1, k02), dot(v1, k03));
+        sum2 += afpvec4(dot(v0, k10), dot(v0, k11), dot(v0, k12), dot(v0, k13));
+        sum3 += afpvec4(dot(v1, k10), dot(v1, k11), dot(v1, k12), dot(v1, k13));
+    }
+
+    sum0 = activation_afpvec4(sum0, activation_type, activation_param_0, activation_param_1);
+    sum1 = activation_afpvec4(sum1, activation_type, activation_param_0, activation_param_1);
+    sum2 = activation_afpvec4(sum2, activation_type, activation_param_0, activation_param_1);
+    sum3 = activation_afpvec4(sum3, activation_type, activation_param_0, activation_param_1);
+
+    if (out_elempack == 4)
+    {
+        const int gi = gy * psc(outw) + gx;
+
+        buffer_st4(top_blob_data_4, gi, sum0);
+        if (gx + 1 < psc(outw)) buffer_st4(top_blob_data_4, gi + 1, sum1);
+        if (gy + 1 < psc(outh)) buffer_st4(top_blob_data_4, gi + psc(outw), sum2);
+        if (gy + 1 < psc(outh) && gx + 1 < psc(outw)) buffer_st4(top_blob_data_4, gi + psc(outw) + 1, sum3);
+    }
+    else
+    {
+        const int outcstep = psc(outw);
+        const int gi = gy * outcstep * 4 + gx;
+
+        const ivec2 base_ch = gy2 * 4;
+        const int nout = psc(num_output);
+
+        buffer_st1(top_blob_data_1, gi, sum0.r);
+        if (base_ch.x + 1 < nout) buffer_st1(top_blob_data_1, gi + outcstep, sum0.g);
+        if (base_ch.x + 2 < nout) buffer_st1(top_blob_data_1, gi + outcstep * 2, sum0.b);
+        if (base_ch.x + 3 < nout) buffer_st1(top_blob_data_1, gi + outcstep * 3, sum0.a);
+
+        if (gx + 1 < psc(outw))
+        {
+            buffer_st1(top_blob_data_1, gi + 1, sum1.r);
+            if (base_ch.x + 1 < nout) buffer_st1(top_blob_data_1, gi + 1 + outcstep, sum1.g);
+            if (base_ch.x + 2 < nout) buffer_st1(top_blob_data_1, gi + 1 + outcstep * 2, sum1.b);
+            if (base_ch.x + 3 < nout) buffer_st1(top_blob_data_1, gi + 1 + outcstep * 3, sum1.a);
+        }
+        if (gy + 1 < psc(outh))
+        {
+            int gi2 = gi + outcstep * 4;
+            if (base_ch.y < nout) buffer_st1(top_blob_data_1, gi2, sum2.r);
+            if (base_ch.y + 1 < nout) buffer_st1(top_blob_data_1, gi2 + outcstep, sum2.g);
+            if (base_ch.y + 2 < nout) buffer_st1(top_blob_data_1, gi2 + outcstep * 2, sum2.b);
+            if (base_ch.y + 3 < nout) buffer_st1(top_blob_data_1, gi2 + outcstep * 3, sum2.a);
+        }
+        if (gy + 1 < psc(outh) && gx + 1 < psc(outw))
+        {
+            int gi3 = gi + outcstep * 4 + 1;
+            if (base_ch.y < nout) buffer_st1(top_blob_data_1, gi3, sum3.r);
+            if (base_ch.y + 1 < nout) buffer_st1(top_blob_data_1, gi3 + outcstep, sum3.g);
+            if (base_ch.y + 2 < nout) buffer_st1(top_blob_data_1, gi3 + outcstep * 2, sum3.b);
+            if (base_ch.y + 3 < nout) buffer_st1(top_blob_data_1, gi3 + outcstep * 3, sum3.a);
+        }
+    }
+}

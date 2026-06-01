@@ -98,8 +98,8 @@ static void quantize_packnto1_fp16s(const __fp16* ptr, signed char* s8ptr, const
     vfloat32m8_t _scale = __riscv_vfmv_v_f_f32m8(scale, __riscv_vsetvlmax_e32m8());
     if (scale_data.w > 1)
     {
-        vfloat32m1_t _s = __riscv_vle32_v_f32m1(scale_data, __riscv_vsetvlmax_e32m1());
-        _scale = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
+        vfloat32m2_t _s = __riscv_vle32_v_f32m2(scale_data, vlm1);
+        _scale = __riscv_vcreate_v_f32m2_f32m8(_s, _s, _s, _s);
     }
 
     signed char tmp[vlm4];
@@ -130,6 +130,7 @@ int Quantize_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
     const int dims = bottom_blob.dims;
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
 
@@ -230,7 +231,7 @@ int Quantize_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         int out_elempack = 1;
 #if __riscv_vector
@@ -242,7 +243,10 @@ int Quantize_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
         const int outc = channels * elempack / out_elempack;
         const size_t out_elemsize = out_elempack * 1u;
 
-        top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        if (dims == 3)
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 #if __riscv_vector
@@ -257,7 +261,7 @@ int Quantize_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * out_elempack, out_elempack) : scale_data;
 
-                quantize_packnton_s8_fp16s(ptr0, ptr1, s8ptr, scale_data_q, w * h);
+                quantize_packnton_s8_fp16s(ptr0, ptr1, s8ptr, scale_data_q, w * h * d);
             }
         }
         if (elempack == packn && out_elempack == 1)
@@ -270,7 +274,7 @@ int Quantize_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize_packnto1_fp16s(ptr, s8ptr, scale_data_q, w * h, top_blob.cstep);
+                quantize_packnto1_fp16s(ptr, s8ptr, scale_data_q, w * h * d, top_blob.cstep);
             }
         }
 #endif
@@ -284,7 +288,7 @@ int Quantize_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize_fp16s(ptr, s8ptr, scale_data_q, w * h, elempack);
+                quantize_fp16s(ptr, s8ptr, scale_data_q, w * h * d, elempack);
             }
         }
     }
@@ -398,8 +402,8 @@ static void quantize_packnto1_fp16sa(const __fp16* ptr, signed char* s8ptr, cons
     vfloat16m8_t _scale = __riscv_vfmv_v_f_f16m8(scale, __riscv_vsetvlmax_e16m8());
     if (scale_data.w > 1)
     {
-        vfloat32m1_t _s32 = __riscv_vle32_v_f32m1(scale_data, __riscv_vsetvlmax_e32m1());
-        vfloat16m1_t _s16 = __riscv_vfncvt_f_f_w_f16m1(__riscv_vcreate_v_f32m1_f32m2(_s32, _s32), vlm1);
+        vfloat32m2_t _s32 = __riscv_vle32_v_f32m2(scale_data, vlm1);
+        vfloat16m1_t _s16 = __riscv_vfncvt_f_f_w_f16m1(_s32, vlm1);
         _scale = __riscv_vcreate_v_f16m1_f16m8(_s16, _s16, _s16, _s16, _s16, _s16, _s16, _s16);
     }
 
@@ -431,6 +435,7 @@ int Quantize_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const 
     const int dims = bottom_blob.dims;
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
 
@@ -531,7 +536,7 @@ int Quantize_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const 
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         int out_elempack = 1;
 #if __riscv_zvfh
@@ -543,7 +548,10 @@ int Quantize_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const 
         const int outc = channels * elempack / out_elempack;
         const size_t out_elemsize = out_elempack * 1u;
 
-        top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        if (dims == 3)
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -559,7 +567,7 @@ int Quantize_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const 
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * out_elempack, out_elempack) : scale_data;
 
-                quantize_packnton_s8_fp16sa(ptr0, ptr1, s8ptr, scale_data_q, w * h);
+                quantize_packnton_s8_fp16sa(ptr0, ptr1, s8ptr, scale_data_q, w * h * d);
             }
         }
 
@@ -573,7 +581,7 @@ int Quantize_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const 
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize_packnto1_fp16sa(ptr, s8ptr, scale_data_q, w * h, top_blob.cstep);
+                quantize_packnto1_fp16sa(ptr, s8ptr, scale_data_q, w * h * d, top_blob.cstep);
             }
         }
 #endif
@@ -587,7 +595,7 @@ int Quantize_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const 
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize_fp16sa(ptr, s8ptr, scale_data_q, w * h, elempack);
+                quantize_fp16sa(ptr, s8ptr, scale_data_q, w * h * d, elempack);
             }
         }
     }

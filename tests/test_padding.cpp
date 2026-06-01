@@ -62,7 +62,15 @@ static int test_padding_0()
 
            || test_padding(a, 1, 1, 1, 1, 1, 1, 0, -1.f, 0)
            || test_padding(b, 1, 1, 1, 1, 1, 1, 0, -2.f, 0)
-           || test_padding(c, 1, 1, 1, 1, 1, 1, 0, 3.f, 0);
+           || test_padding(c, 1, 1, 1, 1, 1, 1, 0, 3.f, 0)
+
+           || test_padding(a, 1, 2, 3, 1, 2, 1, 1, 0.f, 0)
+           || test_padding(b, 2, 1, 1, 3, 1, 2, 1, 0.f, 0)
+           || test_padding(c, 1, 1, 2, 1, 1, 1, 1, 0.f, 0)
+
+           || test_padding(a, 2, 1, 1, 2, 1, 2, 2, 0.f, 0)
+           || test_padding(b, 1, 2, 2, 1, 2, 1, 2, 0.f, 0)
+           || test_padding(c, 1, 1, 1, 2, 1, 1, 2, 0.f, 0);
 }
 
 static int test_padding_1()
@@ -272,7 +280,15 @@ static int test_padding_4()
 
            || test_padding_int8(a, 1, 1, 1, 1, 1, 1, 0, -1.f, 0)
            || test_padding_int8(b, 1, 1, 1, 1, 1, 1, 0, -2.f, 0)
-           || test_padding_int8(c, 1, 1, 1, 1, 1, 1, 0, 3.f, 0);
+           || test_padding_int8(c, 1, 1, 1, 1, 1, 1, 0, 3.f, 0)
+
+           || test_padding_int8(a, 1, 2, 3, 1, 2, 1, 1, 0.f, 0)
+           || test_padding_int8(b, 2, 1, 1, 3, 1, 2, 1, 0.f, 0)
+           || test_padding_int8(c, 1, 1, 2, 1, 1, 1, 1, 0.f, 0)
+
+           || test_padding_int8(a, 2, 1, 1, 2, 1, 2, 2, 0.f, 0)
+           || test_padding_int8(b, 1, 2, 2, 1, 2, 1, 2, 0.f, 0)
+           || test_padding_int8(c, 1, 1, 1, 2, 1, 1, 2, 0.f, 0);
 }
 
 static int test_padding_5()

@@ -3,6 +3,7 @@ on:
   push:
     tags:
       - '*'
+  workflow_dispatch:
 
 env:
   DEVELOPER_DIR: /Applications/Xcode_16.4.0.app/Contents/Developer
@@ -1873,25 +1874,25 @@ jobs:
     - name: build-arm64-v8a
       run: |
         mkdir build-arm64-v8a && cd build-arm64-v8a
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="arm64-v8a" ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="arm64-v8a" ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-x86
       run: |
         mkdir build-x86 && cd build-x86
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="x86" ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="x86" ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="x86_64" ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="x86_64" ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-riscv64
       run: |
         mkdir build-riscv64 && cd build-riscv64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="riscv64" ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="riscv64" ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: package
@@ -1903,6 +1904,72 @@ jobs:
         cp -a build-x86/install ${{ env.PACKAGENAME }}/x86
         cp -a build-x86_64/install ${{ env.PACKAGENAME }}/x86_64
         cp -a build-riscv64/install ${{ env.PACKAGENAME }}/riscv64
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+    - name: upload-zip
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ env.PACKAGENAME }}
+        path: ${{ env.PACKAGENAME }}.zip
+
+  harmonyos:
+    needs: [setup]
+    strategy:
+      matrix:
+        opt:
+          - { vulkan: OFF, shared-lib: OFF, id: harmonyos               }
+          - { vulkan: OFF, shared-lib: ON,  id: harmonyos-shared        }
+          - { vulkan: ON,  shared-lib: OFF, id: harmonyos-vulkan        }
+          - { vulkan: ON,  shared-lib: ON,  id: harmonyos-vulkan-shared }
+    runs-on: ubuntu-latest
+    env:
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
+      OHOS_NDK_HOME: $GITHUB_WORKSPACE/ohos-sdk/linux/native
+      OHOS_NDK_CMAKE: $GITHUB_WORKSPACE/ohos-sdk/linux/native/build-tools/cmake/bin/cmake
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/ohos-sdk/linux/native/build/cmake/ohos.toolchain.cmake \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+        -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
+        -DNCNN_SHARED_LIB=${{ matrix.opt.shared-lib }} \
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+    - name: setup-sdk
+      run: |
+        wget -q https://repo.huaweicloud.com/harmonyos/os/5.0.3-Release/ohos-sdk-windows_linux-public.tar.gz
+        tar -xf ohos-sdk-windows_linux-public.tar.gz
+        cd ohos-sdk/linux
+        unzip -q native-linux-x64-5.0.3.135-Release.zip
+    - name: build-armeabi-v7a
+      run: |
+        mkdir build-armeabi-v7a && cd build-armeabi-v7a
+        ${{ env.OHOS_NDK_CMAKE }} ${{ env.NCNN_CMAKE_OPTIONS }} -DOHOS_ARCH="armeabi-v7a" ..
+        ${{ env.OHOS_NDK_CMAKE }} --build . -j $(nproc)
+        ${{ env.OHOS_NDK_CMAKE }} --build . --target install/strip
+    - name: build-arm64-v8a
+      run: |
+        mkdir build-arm64-v8a && cd build-arm64-v8a
+        ${{ env.OHOS_NDK_CMAKE }} ${{ env.NCNN_CMAKE_OPTIONS }} -DOHOS_ARCH="arm64-v8a" ..
+        ${{ env.OHOS_NDK_CMAKE }} --build . -j $(nproc)
+        ${{ env.OHOS_NDK_CMAKE }} --build . --target install/strip
+    - name: build-x86_64
+      run: |
+        mkdir build-x86_64 && cd build-x86_64
+        ${{ env.OHOS_NDK_CMAKE }} ${{ env.NCNN_CMAKE_OPTIONS }} -DOHOS_ARCH="x86_64" ..
+        ${{ env.OHOS_NDK_CMAKE }} --build . -j $(nproc)
+        ${{ env.OHOS_NDK_CMAKE }} --build . --target install/strip
+    - name: package
+      run: |
+        rm -rf ${{ env.PACKAGENAME }}
+        mkdir -p ${{ env.PACKAGENAME }}
+        cp -a build-armeabi-v7a/install ${{ env.PACKAGENAME }}/armeabi-v7a
+        cp -a build-arm64-v8a/install ${{ env.PACKAGENAME }}/arm64-v8a
+        cp -a build-x86_64/install ${{ env.PACKAGENAME }}/x86_64
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
@@ -2030,7 +2097,7 @@ jobs:
         echo "INCLUDE=$($lines[1])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
         echo "LIB=$($lines[2])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2.4
+    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2.5
       with:
         sdk-version: ${{ matrix.opt.windows-sdk-version }}
 
@@ -2242,7 +2309,7 @@ jobs:
   release:
     permissions:
       contents: write  # for softprops/action-gh-release to create a release
-    needs: [setup, full-source, ubuntu, macos, ios, ios-simulator, mac-catalyst, watchos, watchos-simulator, tvos, tvos-simulator, android, webassembly, windows, apple]
+    needs: [setup, full-source, ubuntu, macos, ios, ios-simulator, mac-catalyst, watchos, watchos-simulator, tvos, tvos-simulator, android, harmonyos, webassembly, windows, apple]
     runs-on: ubuntu-latest
     steps:
     - name: download
