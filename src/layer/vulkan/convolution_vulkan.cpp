@@ -2119,29 +2119,9 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
     // flattened blob, implement as InnerProduct
     if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
     {
-        if (bottom_blob.w * bottom_blob.elempack == num_input)
-        {
-            VkMat bottom_blob_1x1xw = bottom_blob;
-            bottom_blob_1x1xw.dims = 3;
-            bottom_blob_1x1xw.w = 1;
-            bottom_blob_1x1xw.h = 1;
-            bottom_blob_1x1xw.c = bottom_blob.w;
-            bottom_blob_1x1xw.cstep = 1;
-
-            VkMat top_blob_1x1xw;
-            int ret = forward_int8(bottom_blob_1x1xw, top_blob_1x1xw, cmd, opt);
-            if (ret != 0)
-                return ret;
-
-            top_blob = top_blob_1x1xw;
-            top_blob.dims = 1;
-            top_blob.w = top_blob_1x1xw.c;
-            top_blob.h = 1;
-            top_blob.c = 1;
-            top_blob.cstep = top_blob_1x1xw.c;
-
-            return 0;
-        }
+        NCNN_LOGE("Convolution int8 1d input is not supported, please replace this layer with InnerProduct");
+        NCNN_LOGE("ncnn param suggestion: Convolution ... 0=%d 1=1 11=1 5=%d 6=%d 8=%d 9=%d 10=... -> InnerProduct ... 0=%d 1=%d 2=%d 8=%d 9=%d 10=...", num_output, bias_term, weight_data_size, int8_scale_term, activation_type, num_output, bias_term, weight_data_size, int8_scale_term, activation_type);
+        return -1;
     }
 
     if (bottom_blob.dims != 3)
@@ -2417,6 +2397,9 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     // flattened blob, implement as InnerProduct
     if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
     {
+        NCNN_LOGE("Convolution 1d input compatibility path is deprecated and will be removed, please replace this layer with InnerProduct");
+        NCNN_LOGE("ncnn param suggestion: Convolution ... 0=%d 1=1 11=1 5=%d 6=%d 8=%d 9=%d 10=... -> InnerProduct ... 0=%d 1=%d 2=%d 8=%d 9=%d 10=...", num_output, bias_term, weight_data_size, int8_scale_term, activation_type, num_output, bias_term, weight_data_size, int8_scale_term, activation_type);
+
         int num_input = weight_data_size / num_output;
         if (bottom_blob.w * bottom_blob.elempack == num_input)
         {

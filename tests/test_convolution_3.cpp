@@ -328,83 +328,6 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     return ret;
 }
 
-static int test_convolution_int8_1d(int w, int outch, int bias, bool requant = false, bool input_int8 = false)
-{
-    ncnn::Mat a = RandomMat(w);
-
-    const int int8_scale_term = requant ? 101 : 1;
-    const bool use_requant = int8_scale_term > 100;
-
-    ncnn::ParamDict pd;
-    pd.set(0, outch);
-    pd.set(1, 1); // kernel_w
-    pd.set(2, 1); // dilation_w
-    pd.set(3, 1); // stride_w
-    pd.set(4, 0); // pad_left
-    pd.set(5, bias);
-    pd.set(6, outch * w);
-    pd.set(8, int8_scale_term); // int8_scale_term
-
-    int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
-    ncnn::Mat activation_params(2);
-    activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
-    activation_params[1] = RandomFloat(0, 1);                                               // beta
-    pd.set(9, activation_type);
-    pd.set(10, activation_params);
-
-    std::vector<ncnn::Mat> weights(bias ? 5 : 4);
-    weights[0] = RandomMat(outch * w);
-
-    ncnn::Mat weight_scales = scales_mat(weights[0], outch, w, w);
-    ncnn::Mat input_scales = scales_mat(a, 1, w, w);
-    ncnn::Mat top_scales = use_requant ? scales_mat(a, 1, w, w) : ncnn::Mat();
-
-    ncnn::Mat a_int8 = a;
-    if (input_int8)
-    {
-        ncnn::Option opt;
-        opt.num_threads = 1;
-        opt.use_packing_layout = false;
-        ncnn::quantize_to_int8(a, a_int8, input_scales, opt);
-    }
-
-    if (bias)
-    {
-        weights[1] = RandomMat(outch);
-        weights[2] = weight_scales;
-        weights[3] = input_scales;
-        weights[4] = top_scales;
-    }
-    else
-    {
-        weights[1] = weight_scales;
-        weights[2] = input_scales;
-        weights[3] = top_scales;
-    }
-
-    int flag = input_int8 ? TEST_LAYER_DISABLE_AUTO_INPUT_CASTING : 0;
-
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_packing_layout = true;
-    opt.use_fp16_packed = false;
-    opt.use_fp16_storage = false;
-    opt.use_fp16_arithmetic = false;
-    opt.use_bf16_packed = false;
-    opt.use_bf16_storage = false;
-    opt.use_sgemm_convolution = false;
-    opt.use_winograd_convolution = false;
-
-    int ret = test_layer_opt("Convolution", pd, weights, opt, a_int8, use_requant ? 1.0f : 0.001f, flag);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_convolution_int8_1d failed w=%d outch=%d bias=%d int8_scale_term=%d input_int8=%d act=%d actparams=[%f,%f]\n", w, outch, bias, int8_scale_term, input_int8, activation_type, activation_params[0], activation_params[1]);
-        return ret;
-    }
-
-    return 0;
-}
-
 static int test_convolution_1()
 {
     static const int kdsp[16][4] = {
@@ -493,9 +416,7 @@ static int test_convolution_1()
            || test_convolution_int8(7, 5, 4, 8, 1, 1, 1, 0, 1, false, 2)
            || test_convolution_int8(7, 5, 4, 8, 1, 1, 1, 0, 1, true, 102)
            || test_convolution_int8(9, 7, 8, 12, 2, 1, 2, 1, 1, false, 1, true)
-           || test_convolution_int8(9, 7, 8, 12, 2, 1, 2, 1, 1, true, 101, true)
-           || test_convolution_int8_1d(15, 8, 1)
-           || test_convolution_int8_1d(16, 16, 1);
+           || test_convolution_int8(9, 7, 8, 12, 2, 1, 2, 1, 1, true, 101, true);
 }
 
 static int test_convolution_1_int8_input()
@@ -506,8 +427,7 @@ static int test_convolution_1_int8_input()
            || test_convolution_int8(8, 6, 4, 8, 1, 1, 1, 0, 1, false, 1, false, true)
            || test_convolution_int8(8, 6, 4, 8, 1, 1, 1, 0, 1, false, 2, false, true)
            || test_convolution_int8(8, 6, 4, 8, 1, 1, 1, 0, 1, true, 102, false, true)
-           || test_convolution_int8(9, 7, 8, 8, 2, 1, 1, 1, 1, false, 1, true, true)
-           || test_convolution_int8_1d(16, 16, 1, false, true);
+           || test_convolution_int8(9, 7, 8, 8, 2, 1, 1, 1, 1, false, 1, true, true);
 }
 
 static int test_convolution_1_2()
