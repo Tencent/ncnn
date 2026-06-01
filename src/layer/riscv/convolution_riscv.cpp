@@ -530,7 +530,7 @@ int Convolution_riscv::create_pipeline_int8_rvv(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
-    // TODO: implment kernel transform for winograd, sgemm, etc
+    // TODO: implement kernel transform for winograd, sgemm, etc
     convolution_transform_kernel_packed_int8_rvv(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
 
     scale_in_data.create(num_output);
