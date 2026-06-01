@@ -16,33 +16,25 @@ Convolution_vulkan::Convolution_vulkan()
     padding = 0;
 
     pipeline_convolution = 0;
-    pipeline_convolution_int8 = 0;
     pipeline_convolution_1x1s1d1 = 0;
-    pipeline_convolution_1x1s1d1_int8 = 0;
-
     pipeline_convolution_gemm = 0;
-    pipeline_convolution_gemm_int8 = 0;
 
     pipeline_convolution_3x3s1d1_winograd23_transform_input = 0;
     pipeline_convolution_3x3s1d1_winograd23_gemm = 0;
     pipeline_convolution_3x3s1d1_winograd23_transform_output = 0;
-    pipeline_convolution_3x3s1d1_winograd23_transform_input_int8 = 0;
-    pipeline_convolution_3x3s1d1_winograd23_gemm_int8 = 0;
-    pipeline_convolution_3x3s1d1_winograd23_transform_output_int8 = 0;
 
     pipeline_convolution_3x3s1d1_winograd43_transform_input = 0;
     pipeline_convolution_3x3s1d1_winograd43_gemm = 0;
     pipeline_convolution_3x3s1d1_winograd43_transform_output = 0;
-    pipeline_convolution_3x3s1d1_winograd43_transform_input_int8 = 0;
-    pipeline_convolution_3x3s1d1_winograd43_gemm_int8 = 0;
-    pipeline_convolution_3x3s1d1_winograd43_transform_output_int8 = 0;
 
     reshape_1x1xw = 0;
     reshape_w = 0;
 
     use_cooperative_matrix = false;
+#if NCNN_INT8
     use_int8_winograd_int16_packed = false;
     use_int8_winograd_int16_storage = false;
+#endif
     coopmat_M = 0;
     coopmat_N = 0;
     coopmat_K = 0;
@@ -1496,9 +1488,9 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
+#if NCNN_INT8
 int Convolution_vulkan::create_pipeline_int8(const Option& opt)
 {
-#if NCNN_INT8
     use_int8_winograd_int16_packed = false;
     use_int8_winograd_int16_storage = false;
 
@@ -1677,15 +1669,15 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
             }
 
             {
-                pipeline_convolution_3x3s1d1_winograd43_transform_input_int8 = new Pipeline(vkdev);
-                pipeline_convolution_3x3s1d1_winograd43_transform_input_int8->set_local_size_xyz(4, 4, 1);
-                pipeline_convolution_3x3s1d1_winograd43_transform_input_int8->create(LayerShaderType::convolution_3x3s1d1_winograd43_transform_input_int8, opt_int8, std::vector<vk_specialization_type>());
+                pipeline_convolution_3x3s1d1_winograd43_transform_input = new Pipeline(vkdev);
+                pipeline_convolution_3x3s1d1_winograd43_transform_input->set_local_size_xyz(4, 4, 1);
+                pipeline_convolution_3x3s1d1_winograd43_transform_input->create(LayerShaderType::convolution_3x3s1d1_winograd43_transform_input_int8, opt_int8, std::vector<vk_specialization_type>());
             }
             {
                 // winograd23/43 share gemm shader, transform count is set by dispatcher.c
-                pipeline_convolution_3x3s1d1_winograd43_gemm_int8 = new Pipeline(vkdev);
-                pipeline_convolution_3x3s1d1_winograd43_gemm_int8->set_local_size_xyz(opt_int8.use_shader_local_memory ? 8 : 4, opt_int8.use_shader_local_memory ? 8 : std::min(4, num_output), 1);
-                pipeline_convolution_3x3s1d1_winograd43_gemm_int8->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8, opt_int8, std::vector<vk_specialization_type>());
+                pipeline_convolution_3x3s1d1_winograd43_gemm = new Pipeline(vkdev);
+                pipeline_convolution_3x3s1d1_winograd43_gemm->set_local_size_xyz(opt_int8.use_shader_local_memory ? 8 : 4, opt_int8.use_shader_local_memory ? 8 : std::min(4, num_output), 1);
+                pipeline_convolution_3x3s1d1_winograd43_gemm->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8, opt_int8, std::vector<vk_specialization_type>());
             }
             {
                 std::vector<vk_specialization_type> specializations_winograd_output(5);
@@ -1695,9 +1687,9 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 specializations_winograd_output[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
                 specializations_winograd_output[4].i = use_int8_requantize ? 1 : 0;
 
-                pipeline_convolution_3x3s1d1_winograd43_transform_output_int8 = new Pipeline(vkdev);
-                pipeline_convolution_3x3s1d1_winograd43_transform_output_int8->set_local_size_xyz(4, 4, 1);
-                pipeline_convolution_3x3s1d1_winograd43_transform_output_int8->create(LayerShaderType::convolution_3x3s1d1_winograd43_transform_output_int8, opt_int8, specializations_winograd_output);
+                pipeline_convolution_3x3s1d1_winograd43_transform_output = new Pipeline(vkdev);
+                pipeline_convolution_3x3s1d1_winograd43_transform_output->set_local_size_xyz(4, 4, 1);
+                pipeline_convolution_3x3s1d1_winograd43_transform_output->create(LayerShaderType::convolution_3x3s1d1_winograd43_transform_output_int8, opt_int8, specializations_winograd_output);
             }
         }
 
@@ -1802,15 +1794,15 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
             }
 
             {
-                pipeline_convolution_3x3s1d1_winograd23_transform_input_int8 = new Pipeline(vkdev);
-                pipeline_convolution_3x3s1d1_winograd23_transform_input_int8->set_local_size_xyz(8, 8, 1);
-                pipeline_convolution_3x3s1d1_winograd23_transform_input_int8->create(LayerShaderType::convolution_3x3s1d1_winograd23_transform_input_int8, opt_int8, std::vector<vk_specialization_type>());
+                pipeline_convolution_3x3s1d1_winograd23_transform_input = new Pipeline(vkdev);
+                pipeline_convolution_3x3s1d1_winograd23_transform_input->set_local_size_xyz(8, 8, 1);
+                pipeline_convolution_3x3s1d1_winograd23_transform_input->create(LayerShaderType::convolution_3x3s1d1_winograd23_transform_input_int8, opt_int8, std::vector<vk_specialization_type>());
             }
             {
                 // winograd23/43 share gemm shader, transform count is set by dispatcher.c
-                pipeline_convolution_3x3s1d1_winograd23_gemm_int8 = new Pipeline(vkdev);
-                pipeline_convolution_3x3s1d1_winograd23_gemm_int8->set_local_size_xyz(opt_int8.use_shader_local_memory ? 8 : 4, opt_int8.use_shader_local_memory ? 8 : std::min(4, num_output), 1);
-                pipeline_convolution_3x3s1d1_winograd23_gemm_int8->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8, opt_int8, std::vector<vk_specialization_type>());
+                pipeline_convolution_3x3s1d1_winograd23_gemm = new Pipeline(vkdev);
+                pipeline_convolution_3x3s1d1_winograd23_gemm->set_local_size_xyz(opt_int8.use_shader_local_memory ? 8 : 4, opt_int8.use_shader_local_memory ? 8 : std::min(4, num_output), 1);
+                pipeline_convolution_3x3s1d1_winograd23_gemm->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8, opt_int8, std::vector<vk_specialization_type>());
             }
             {
                 std::vector<vk_specialization_type> specializations_winograd_output(5);
@@ -1820,9 +1812,9 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 specializations_winograd_output[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
                 specializations_winograd_output[4].i = use_int8_requantize ? 1 : 0;
 
-                pipeline_convolution_3x3s1d1_winograd23_transform_output_int8 = new Pipeline(vkdev);
-                pipeline_convolution_3x3s1d1_winograd23_transform_output_int8->set_local_size_xyz(8, 8, 1);
-                pipeline_convolution_3x3s1d1_winograd23_transform_output_int8->create(LayerShaderType::convolution_3x3s1d1_winograd23_transform_output_int8, opt_int8, specializations_winograd_output);
+                pipeline_convolution_3x3s1d1_winograd23_transform_output = new Pipeline(vkdev);
+                pipeline_convolution_3x3s1d1_winograd23_transform_output->set_local_size_xyz(8, 8, 1);
+                pipeline_convolution_3x3s1d1_winograd23_transform_output->create(LayerShaderType::convolution_3x3s1d1_winograd23_transform_output_int8, opt_int8, specializations_winograd_output);
             }
         }
     }
@@ -1831,16 +1823,16 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
         const int outc_pack4 = (num_output + 3) / 4;
         Mat local_size_xyz(8, std::min(8, outc_pack4), 1, (void*)0);
 
-        pipeline_convolution_1x1s1d1_int8 = new Pipeline(vkdev);
+        pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
         if (opt_int8.use_shader_local_memory)
         {
-            pipeline_convolution_1x1s1d1_int8->set_local_size_xyz(8, 8, 1);
+            pipeline_convolution_1x1s1d1->set_local_size_xyz(8, 8, 1);
         }
         else
         {
-            pipeline_convolution_1x1s1d1_int8->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_convolution_1x1s1d1->set_optimal_local_size_xyz(local_size_xyz);
         }
-        pipeline_convolution_1x1s1d1_int8->create(LayerShaderType::convolution_packed_1x1s1d1_int8, opt_int8, specializations);
+        pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_packed_1x1s1d1_int8, opt_int8, specializations);
     }
     else if (use_gemm)
     {
@@ -1848,24 +1840,24 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
         const int outsize = shape.dims == 3 ? (shape.w * shape.h + 3) / 4 : 16;
         Mat local_size_xyz(std::min(8, outsize), std::min(8, outc_pack4), 1, (void*)0);
 
-        pipeline_convolution_gemm_int8 = new Pipeline(vkdev);
+        pipeline_convolution_gemm = new Pipeline(vkdev);
         if (opt_int8.use_shader_local_memory)
         {
-            pipeline_convolution_gemm_int8->set_local_size_xyz(8, 8, 1);
+            pipeline_convolution_gemm->set_local_size_xyz(8, 8, 1);
         }
         else
         {
-            pipeline_convolution_gemm_int8->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_convolution_gemm->set_optimal_local_size_xyz(local_size_xyz);
         }
-        pipeline_convolution_gemm_int8->create(LayerShaderType::convolution_packed_gemm_int8, opt_int8, specializations);
+        pipeline_convolution_gemm->create(LayerShaderType::convolution_packed_gemm_int8, opt_int8, specializations);
     }
     else
     {
         Mat local_size_xyz(8, 8, std::min(4, num_output), (void*)0);
 
-        pipeline_convolution_int8 = new Pipeline(vkdev);
-        pipeline_convolution_int8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolution_int8->create(LayerShaderType::convolution_packed_int8, opt_int8, specializations);
+        pipeline_convolution = new Pipeline(vkdev);
+        pipeline_convolution->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_convolution->create(LayerShaderType::convolution_packed_int8, opt_int8, specializations);
     }
 
     if (opt.lightmode)
@@ -1874,11 +1866,8 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     }
 
     return 0;
-#else
-    (void)opt;
-    return -1;
-#endif
 }
+#endif // NCNN_INT8
 
 int Convolution_vulkan::destroy_pipeline(const Option& opt)
 {
@@ -1892,20 +1881,11 @@ int Convolution_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_convolution;
     pipeline_convolution = 0;
 
-    delete pipeline_convolution_int8;
-    pipeline_convolution_int8 = 0;
-
     delete pipeline_convolution_1x1s1d1;
     pipeline_convolution_1x1s1d1 = 0;
 
-    delete pipeline_convolution_1x1s1d1_int8;
-    pipeline_convolution_1x1s1d1_int8 = 0;
-
     delete pipeline_convolution_gemm;
     pipeline_convolution_gemm = 0;
-
-    delete pipeline_convolution_gemm_int8;
-    pipeline_convolution_gemm_int8 = 0;
 
     delete pipeline_convolution_3x3s1d1_winograd23_transform_input;
     delete pipeline_convolution_3x3s1d1_winograd23_gemm;
@@ -1914,26 +1894,12 @@ int Convolution_vulkan::destroy_pipeline(const Option& opt)
     pipeline_convolution_3x3s1d1_winograd23_gemm = 0;
     pipeline_convolution_3x3s1d1_winograd23_transform_output = 0;
 
-    delete pipeline_convolution_3x3s1d1_winograd23_transform_input_int8;
-    delete pipeline_convolution_3x3s1d1_winograd23_gemm_int8;
-    delete pipeline_convolution_3x3s1d1_winograd23_transform_output_int8;
-    pipeline_convolution_3x3s1d1_winograd23_transform_input_int8 = 0;
-    pipeline_convolution_3x3s1d1_winograd23_gemm_int8 = 0;
-    pipeline_convolution_3x3s1d1_winograd23_transform_output_int8 = 0;
-
     delete pipeline_convolution_3x3s1d1_winograd43_transform_input;
     delete pipeline_convolution_3x3s1d1_winograd43_gemm;
     delete pipeline_convolution_3x3s1d1_winograd43_transform_output;
     pipeline_convolution_3x3s1d1_winograd43_transform_input = 0;
     pipeline_convolution_3x3s1d1_winograd43_gemm = 0;
     pipeline_convolution_3x3s1d1_winograd43_transform_output = 0;
-
-    delete pipeline_convolution_3x3s1d1_winograd43_transform_input_int8;
-    delete pipeline_convolution_3x3s1d1_winograd43_gemm_int8;
-    delete pipeline_convolution_3x3s1d1_winograd43_transform_output_int8;
-    pipeline_convolution_3x3s1d1_winograd43_transform_input_int8 = 0;
-    pipeline_convolution_3x3s1d1_winograd43_gemm_int8 = 0;
-    pipeline_convolution_3x3s1d1_winograd43_transform_output_int8 = 0;
 
     // fc
     if (reshape_1x1xw)
@@ -1951,8 +1917,10 @@ int Convolution_vulkan::destroy_pipeline(const Option& opt)
     }
 
     use_cooperative_matrix = false;
+#if NCNN_INT8
     use_int8_winograd_int16_packed = false;
     use_int8_winograd_int16_storage = false;
+#endif
     coopmat_M = 0;
     coopmat_N = 0;
     coopmat_K = 0;
@@ -2020,9 +1988,9 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     return 0;
 }
 
+#if NCNN_INT8
 int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 {
-#if NCNN_INT8
     Option opt_float = opt;
     opt_float.use_fp16_packed = false;
     opt_float.use_fp16_storage = false;
@@ -2065,14 +2033,14 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     {
         if (opt.use_winograd43_convolution)
         {
-            cmd.record_upload(weight_winograd43_data_int8_packed, weight_data_int8_gpu_tm_winograd43, opt_winograd);
+            cmd.record_upload(weight_winograd43_data_int8_packed, weight_data_gpu_tm_winograd43, opt_winograd);
 
             weight_winograd43_data_int8_packed.release();
         }
 
         if (opt.use_winograd23_convolution)
         {
-            cmd.record_upload(weight_winograd23_data_int8_packed, weight_data_int8_gpu_tm_winograd23, opt_winograd);
+            cmd.record_upload(weight_winograd23_data_int8_packed, weight_data_gpu_tm_winograd23, opt_winograd);
 
             weight_winograd23_data_int8_packed.release();
         }
@@ -2081,7 +2049,7 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     }
     else
     {
-        cmd.record_upload(weight_data_int8_packed, weight_data_int8_gpu, opt_int8);
+        cmd.record_upload(weight_data_int8_packed, weight_data_gpu, opt_int8);
 
         weight_data_int8_packed.release();
     }
@@ -2103,16 +2071,12 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     }
 
     return 0;
-#else
-    (void)cmd;
-    (void)opt;
-    return -1;
-#endif
 }
+#endif // NCNN_INT8
 
+#if NCNN_INT8
 int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-#if NCNN_INT8
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
@@ -2206,7 +2170,7 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
     std::vector<VkMat> bindings(9);
     bindings[0] = bottom;
     bindings[1] = top_blob_unpacked;
-    bindings[2] = weight_data_int8_gpu;
+    bindings[2] = weight_data_gpu;
     bindings[3] = bias_data_gpu;
     bindings[4] = weight_data_int8_scales_gpu;
     bindings[5] = bottom_blob_int8_scales_gpu;
@@ -2282,7 +2246,7 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
             dispatcher.h = block_y;
             dispatcher.c = channels;
 
-            const Pipeline* pipeline = pre_winograd43 ? pipeline_convolution_3x3s1d1_winograd43_transform_input_int8 : pipeline_convolution_3x3s1d1_winograd23_transform_input_int8;
+            const Pipeline* pipeline = pre_winograd43 ? pipeline_convolution_3x3s1d1_winograd43_transform_input : pipeline_convolution_3x3s1d1_winograd23_transform_input;
             cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
         }
 
@@ -2295,7 +2259,7 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
             std::vector<VkMat> bindings(3);
             bindings[0] = bottom_tm_blob;
             bindings[1] = top_tm_blob;
-            bindings[2] = pre_winograd43 ? weight_data_int8_gpu_tm_winograd43 : weight_data_int8_gpu_tm_winograd23;
+            bindings[2] = pre_winograd43 ? weight_data_gpu_tm_winograd43 : weight_data_gpu_tm_winograd23;
 
             std::vector<vk_constant_type> constants(5);
             constants[0].i = bottom_tm_blob.cstep;
@@ -2309,7 +2273,7 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
             dispatcher.h = (num_output + 3) / 4;
             dispatcher.c = B;
 
-            const Pipeline* pipeline = pre_winograd43 ? pipeline_convolution_3x3s1d1_winograd43_gemm_int8 : pipeline_convolution_3x3s1d1_winograd23_gemm_int8;
+            const Pipeline* pipeline = pre_winograd43 ? pipeline_convolution_3x3s1d1_winograd43_gemm : pipeline_convolution_3x3s1d1_winograd23_gemm;
             cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
         }
 
@@ -2337,7 +2301,7 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
             dispatcher.h = block_y;
             dispatcher.c = num_output;
 
-            const Pipeline* pipeline = pre_winograd43 ? pipeline_convolution_3x3s1d1_winograd43_transform_output_int8 : pipeline_convolution_3x3s1d1_winograd23_transform_output_int8;
+            const Pipeline* pipeline = pre_winograd43 ? pipeline_convolution_3x3s1d1_winograd43_transform_output : pipeline_convolution_3x3s1d1_winograd23_transform_output;
             cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
         }
     }
@@ -2348,7 +2312,7 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
         dispatcher.h = (num_output + 3) / 4;
         dispatcher.c = 1;
 
-        cmd.record_pipeline(pipeline_convolution_1x1s1d1_int8, bindings, constants, dispatcher);
+        cmd.record_pipeline(pipeline_convolution_1x1s1d1, bindings, constants, dispatcher);
     }
     else if (use_gemm)
     {
@@ -2357,11 +2321,11 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
         dispatcher.h = (num_output + 3) / 4;
         dispatcher.c = 1;
 
-        cmd.record_pipeline(pipeline_convolution_gemm_int8, bindings, constants, dispatcher);
+        cmd.record_pipeline(pipeline_convolution_gemm, bindings, constants, dispatcher);
     }
     else
     {
-        cmd.record_pipeline(pipeline_convolution_int8, bindings, constants, top_blob_unpacked);
+        cmd.record_pipeline(pipeline_convolution, bindings, constants, top_blob_unpacked);
     }
 
     if (out_elempack != 1)
@@ -2370,14 +2334,8 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
     }
 
     return 0;
-#else
-    (void)bottom_blob;
-    (void)top_blob;
-    (void)cmd;
-    (void)opt;
-    return -1;
-#endif
 }
+#endif // NCNN_INT8
 
 int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {

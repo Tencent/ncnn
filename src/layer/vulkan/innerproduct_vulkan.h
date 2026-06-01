@@ -23,31 +23,33 @@ public:
     using InnerProduct::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
-    int create_pipeline_int8(const Option& opt);
-    int upload_model_int8(VkTransfer& cmd, const Option& opt);
-    int forward_int8(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
-
 public:
     ncnn::Layer* flatten;
 
     Mat weight_data_packed;
-    Mat weight_data_int8_packed;
 
     VkMat weight_data_gpu;
-    VkMat weight_data_int8_gpu;
-    VkMat weight_data_int8_scales_gpu;
     VkMat bias_data_gpu;
 
     Pipeline* pipeline_innerproduct;
-    Pipeline* pipeline_innerproduct_int8;
-    Pipeline* pipeline_innerproduct_int8_input_int8;
 
     Pipeline* pipeline_innerproduct_sum8;
     Pipeline* pipeline_innerproduct_reduce_sum8;
 
     Pipeline* pipeline_innerproduct_gemm;
-    Pipeline* pipeline_innerproduct_gemm_int8;
-    Pipeline* pipeline_innerproduct_gemm_int8_input_int8;
+
+#if NCNN_INT8
+    int create_pipeline_int8(const Option& opt);
+    int upload_model_int8(VkTransfer& cmd, const Option& opt);
+    int forward_int8(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
+
+    Mat weight_data_int8_packed;
+
+    VkMat weight_data_int8_scales_gpu;
+
+    Pipeline* pipeline_innerproduct_input_int8;
+    Pipeline* pipeline_innerproduct_gemm_input_int8;
+#endif
 };
 
 } // namespace ncnn

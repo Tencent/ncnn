@@ -14,10 +14,12 @@ Gemm_vulkan::Gemm_vulkan()
     support_vulkan_any_packing = true;
 
     pipeline_gemm = 0;
+#if NCNN_INT8
     pipeline_gemm_quantize_A_int8 = 0;
     pipeline_gemm_quantize_B_absmax_int8 = 0;
     pipeline_gemm_quantize_B_scale_int8 = 0;
     pipeline_gemm_quantize_B_int8 = 0;
+#endif
 
     use_subgroup_ops = false;
 
@@ -607,9 +609,9 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
+#if NCNN_INT8
 int Gemm_vulkan::create_pipeline_int8(const Option& opt)
 {
-#if NCNN_INT8
     Option opt_data = opt;
     opt_data.use_fp16_arithmetic = false;
     opt_data.use_int16_packed = false;
@@ -722,17 +724,15 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
     }
 
     return 0;
-#else
-    (void)opt;
-    return -1;
-#endif
 }
+#endif // NCNN_INT8
 
 int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_gemm;
     pipeline_gemm = 0;
 
+#if NCNN_INT8
     delete pipeline_gemm_quantize_A_int8;
     pipeline_gemm_quantize_A_int8 = 0;
 
@@ -744,6 +744,7 @@ int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_gemm_quantize_B_int8;
     pipeline_gemm_quantize_B_int8 = 0;
+#endif
 
     use_subgroup_ops = false;
 
@@ -794,9 +795,9 @@ int Gemm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     return 0;
 }
 
+#if NCNN_INT8
 int Gemm_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 {
-#if NCNN_INT8
     Option opt_int8 = opt;
     opt_int8.use_fp16_packed = false;
     opt_int8.use_fp16_storage = false;
@@ -820,7 +821,7 @@ int Gemm_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
     if (constantA)
     {
-        cmd.record_upload(A_data_int8_packed, A_data_int8_gpu, opt_int8);
+        cmd.record_upload(A_data_int8_packed, A_data_gpu, opt_int8);
 
         A_data_int8_packed.release();
 
@@ -831,7 +832,7 @@ int Gemm_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
     if (constantB)
     {
-        cmd.record_upload(B_data_int8_packed, B_data_int8_gpu, opt_int8);
+        cmd.record_upload(B_data_int8_packed, B_data_gpu, opt_int8);
 
         B_data_int8_packed.release();
 
@@ -848,18 +849,14 @@ int Gemm_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     }
 
     return 0;
-#else
-    (void)cmd;
-    (void)opt;
-    return -1;
-#endif
 }
+#endif // NCNN_INT8
 
+#if NCNN_INT8
 int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
-#if NCNN_INT8
-    const VkMat& A0 = constantA ? A_data_int8_gpu : bottom_blobs[0];
-    const VkMat& B0 = constantB ? B_data_int8_gpu : constantA ? bottom_blobs[0] : bottom_blobs[1];
+    const VkMat& A0 = constantA ? A_data_gpu : bottom_blobs[0];
+    const VkMat& B0 = constantB ? B_data_gpu : constantA ? bottom_blobs[0] : bottom_blobs[1];
 
     VkMat A = A0;
     VkMat B = B0;
@@ -1137,14 +1134,8 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
     cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
 
     return 0;
-#else
-    (void)bottom_blobs;
-    (void)top_blobs;
-    (void)cmd;
-    (void)opt;
-    return -1;
-#endif
 }
+#endif // NCNN_INT8
 
 int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {

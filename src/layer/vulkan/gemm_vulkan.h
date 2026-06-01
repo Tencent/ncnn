@@ -28,23 +28,12 @@ public:
     Mat A_data_packed;
     Mat B_data_packed;
     Mat C_data_packed;
-    Mat A_data_int8_packed;
-    Mat B_data_int8_packed;
-    Mat B_data_int8_scales;
 
     VkMat A_data_gpu;
     VkMat B_data_gpu;
     VkMat C_data_gpu;
-    VkMat A_data_int8_gpu;
-    VkMat B_data_int8_gpu;
-    VkMat A_data_int8_scales_gpu;
-    VkMat B_data_int8_scales_gpu;
 
     Pipeline* pipeline_gemm;
-    Pipeline* pipeline_gemm_quantize_A_int8;
-    Pipeline* pipeline_gemm_quantize_B_absmax_int8;
-    Pipeline* pipeline_gemm_quantize_B_scale_int8;
-    Pipeline* pipeline_gemm_quantize_B_int8;
 
     // subgroup
     bool use_subgroup_ops;
@@ -61,10 +50,25 @@ public:
     int UNROLL_WG_M;
     int UNROLL_WG_N;
 
+#if NCNN_INT8
+public:
+    Mat A_data_int8_packed;
+    Mat B_data_int8_packed;
+    Mat B_data_int8_scales;
+
+    VkMat A_data_int8_scales_gpu;
+    VkMat B_data_int8_scales_gpu;
+
+    Pipeline* pipeline_gemm_quantize_A_int8;
+    Pipeline* pipeline_gemm_quantize_B_absmax_int8;
+    Pipeline* pipeline_gemm_quantize_B_scale_int8;
+    Pipeline* pipeline_gemm_quantize_B_int8;
+
 protected:
     int create_pipeline_int8(const Option& opt);
     int upload_model_int8(VkTransfer& cmd, const Option& opt);
     int forward_int8(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
+#endif
 };
 
 } // namespace ncnn
