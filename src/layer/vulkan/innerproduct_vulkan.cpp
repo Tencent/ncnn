@@ -509,8 +509,6 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
     Option opt_int8 = opt;
     opt_int8.use_int16_packed = false;
     opt_int8.use_int16_storage = false;
-    opt_int8.use_int8_arithmetic = opt_int8.use_int8_storage && vkdev->info.support_int8_arithmetic();
-
     if (shape.dims == 2 && shape.w == num_input)
     {
         // gemm
@@ -699,14 +697,8 @@ int InnerProduct_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     Option opt_float = opt;
     opt_float.use_fp16_packed = false;
     opt_float.use_fp16_storage = false;
-    opt_float.use_fp16_arithmetic = false;
     opt_float.use_bf16_packed = false;
     opt_float.use_bf16_storage = false;
-    opt_float.use_int16_packed = false;
-    opt_float.use_int16_storage = false;
-    opt_float.use_int8_packed = false;
-    opt_float.use_int8_storage = false;
-    opt_float.use_int8_arithmetic = false;
 
     cmd.record_upload(weight_data_int8_packed, weight_data_gpu, opt);
 

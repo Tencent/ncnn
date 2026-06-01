@@ -2174,8 +2174,6 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     opt_int8.use_bf16_storage = false;
     opt_int8.use_int16_packed = false;
     opt_int8.use_int16_storage = false;
-    opt_int8.use_int8_arithmetic = opt_int8.use_int8_storage && vkdev->info.support_int8_arithmetic();
-
     const bool use_int8_requantize = int8_scale_term > 100;
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
@@ -2530,14 +2528,8 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     Option opt_float = opt;
     opt_float.use_fp16_packed = false;
     opt_float.use_fp16_storage = false;
-    opt_float.use_fp16_arithmetic = false;
     opt_float.use_bf16_packed = false;
     opt_float.use_bf16_storage = false;
-    opt_float.use_int16_packed = false;
-    opt_float.use_int16_storage = false;
-    opt_float.use_int8_packed = false;
-    opt_float.use_int8_storage = false;
-    opt_float.use_int8_arithmetic = false;
 
     Option opt_int8 = opt;
     opt_int8.use_fp16_packed = false;

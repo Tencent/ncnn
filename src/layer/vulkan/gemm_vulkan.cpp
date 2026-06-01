@@ -7,6 +7,16 @@
 
 namespace ncnn {
 
+#if NCNN_INT8
+static inline signed char float2int8(float v)
+{
+    int int32 = static_cast<int>(round(v));
+    if (int32 > 127) return 127;
+    if (int32 < -127) return -127;
+    return (signed char)int32;
+}
+#endif // NCNN_INT8
+
 Gemm_vulkan::Gemm_vulkan()
 {
     support_vulkan = true;
@@ -33,20 +43,6 @@ Gemm_vulkan::Gemm_vulkan()
     UNROLL_SG_K = 1;
     UNROLL_WG_M = 1;
     UNROLL_WG_N = 1;
-}
-
-int Gemm_vulkan::load_param(const ParamDict& pd)
-{
-    int ret = Gemm::load_param(pd);
-
-#if !NCNN_INT8
-    if (int8_scale_term)
-    {
-        support_vulkan = false;
-    }
-#endif
-
-    return ret;
 }
 
 int Gemm_vulkan::create_pipeline(const Option& opt)
@@ -915,60 +911,107 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
     opt_data.use_fp16_arithmetic = false;
     opt_data.use_int16_packed = false;
     opt_data.use_int16_storage = false;
-    opt_data.use_int8_arithmetic = opt_data.use_int8_storage && vkdev->info.support_int8_arithmetic();
-
     if (constantA)
     {
-        if (A_data.elemsize != (size_t)1u)
-        {
-            NCNN_LOGE("Gemm_vulkan int8 constant A is not int8");
-            return -1;
-        }
-
         A_data_int8_packed.create(constantK, constantM, (size_t)1u, 1);
         if (A_data_int8_packed.empty())
             return -100;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < constantM; i++)
+        if (A_data.elemsize == (size_t)1u)
         {
-            signed char* outptr = A_data_int8_packed.row<signed char>(i);
-
-            for (int k = 0; k < constantK; k++)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < constantM; i++)
             {
-                outptr[k] = transA ? A_data.row<const signed char>(k)[i] : A_data.row<const signed char>(i)[k];
+                signed char* outptr = A_data_int8_packed.row<signed char>(i);
+
+                for (int k = 0; k < constantK; k++)
+                {
+                    outptr[k] = transA ? A_data.row<const signed char>(k)[i] : A_data.row<const signed char>(i)[k];
+                }
+            }
+        }
+        else
+        {
+            A_data_int8_scales.create(constantM, (size_t)4u, 1);
+            if (A_data_int8_scales.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < constantM; i++)
+            {
+                float absmax = 0.f;
+                for (int k = 0; k < constantK; k++)
+                {
+                    const float v = transA ? A_data.row(k)[i] : A_data.row(i)[k];
+                    absmax = std::max(absmax, v < 0.f ? -v : v);
+                }
+
+                const float A_int8_scale = absmax == 0.f ? 1.f : 127.f / absmax;
+                A_data_int8_scales[i] = A_int8_scale;
+
+                signed char* outptr = A_data_int8_packed.row<signed char>(i);
+
+                for (int k = 0; k < constantK; k++)
+                {
+                    const float v = transA ? A_data.row(k)[i] : A_data.row(i)[k];
+                    outptr[k] = float2int8(v * A_int8_scale);
+                }
             }
         }
     }
 
     if (constantB)
     {
-        if (B_data.elemsize != (size_t)1u)
-        {
-            NCNN_LOGE("Gemm_vulkan int8 constant B is not int8");
-            return -1;
-        }
-
         B_data_int8_packed.create(constantK, constantN, (size_t)1u, 1);
         if (B_data_int8_packed.empty())
             return -100;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int j = 0; j < constantN; j++)
-        {
-            signed char* outptr = B_data_int8_packed.row<signed char>(j);
-
-            for (int k = 0; k < constantK; k++)
-            {
-                outptr[k] = transB ? B_data.row<const signed char>(j)[k] : B_data.row<const signed char>(k)[j];
-            }
-        }
 
         B_data_int8_scales.create(1);
         if (B_data_int8_scales.empty())
             return -100;
 
-        B_data_int8_scales[0] = B_data_int8_scale;
+        if (B_data.elemsize == (size_t)1u)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int j = 0; j < constantN; j++)
+            {
+                signed char* outptr = B_data_int8_packed.row<signed char>(j);
+
+                for (int k = 0; k < constantK; k++)
+                {
+                    outptr[k] = transB ? B_data.row<const signed char>(j)[k] : B_data.row<const signed char>(k)[j];
+                }
+            }
+
+            B_data_int8_scales[0] = B_data_int8_scale;
+        }
+        else
+        {
+            float absmax = 0.f;
+            for (int j = 0; j < constantN; j++)
+            {
+                for (int k = 0; k < constantK; k++)
+                {
+                    const float v = transB ? B_data.row(j)[k] : B_data.row(k)[j];
+                    absmax = std::max(absmax, v < 0.f ? -v : v);
+                }
+            }
+
+            const float B_int8_scale = absmax == 0.f ? 1.f : 127.f / absmax;
+            B_data_int8_scales[0] = B_int8_scale;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int j = 0; j < constantN; j++)
+            {
+                signed char* outptr = B_data_int8_packed.row<signed char>(j);
+
+                for (int k = 0; k < constantK; k++)
+                {
+                    const float v = transB ? B_data.row(j)[k] : B_data.row(k)[j];
+                    outptr[k] = float2int8(v * B_int8_scale);
+                }
+            }
+        }
     }
 
     if (constantC && constant_broadcast_type_C != -1)
@@ -1027,30 +1070,15 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
 
 int Gemm_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 {
-    Option opt_int8 = opt;
-    opt_int8.use_fp16_packed = false;
-    opt_int8.use_fp16_storage = false;
-    opt_int8.use_fp16_arithmetic = false;
-    opt_int8.use_bf16_packed = false;
-    opt_int8.use_bf16_storage = false;
-    opt_int8.use_int16_packed = false;
-    opt_int8.use_int16_storage = false;
-
     Option opt_float = opt;
     opt_float.use_fp16_packed = false;
     opt_float.use_fp16_storage = false;
-    opt_float.use_fp16_arithmetic = false;
     opt_float.use_bf16_packed = false;
     opt_float.use_bf16_storage = false;
-    opt_float.use_int16_packed = false;
-    opt_float.use_int16_storage = false;
-    opt_float.use_int8_packed = false;
-    opt_float.use_int8_storage = false;
-    opt_float.use_int8_arithmetic = false;
 
     if (constantA)
     {
-        cmd.record_upload(A_data_int8_packed, A_data_gpu, opt_int8);
+        cmd.record_upload(A_data_int8_packed, A_data_gpu, opt);
 
         A_data_int8_packed.release();
 
@@ -1061,7 +1089,7 @@ int Gemm_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
     if (constantB)
     {
-        cmd.record_upload(B_data_int8_packed, B_data_gpu, opt_int8);
+        cmd.record_upload(B_data_int8_packed, B_data_gpu, opt);
 
         B_data_int8_packed.release();
 

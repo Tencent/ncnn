@@ -39,7 +39,7 @@ Option::Option()
     use_fp16_arithmetic = true;
     use_int8_packed = true;
     use_int8_storage = true;
-    use_int8_arithmetic = false;
+    use_int8_arithmetic = true;
 
     use_packing_layout = true;
 
