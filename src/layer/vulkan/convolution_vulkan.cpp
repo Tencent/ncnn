@@ -1488,7 +1488,6 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-
 int Convolution_vulkan::destroy_pipeline(const Option& opt)
 {
     if (padding)
@@ -1607,7 +1606,6 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     return 0;
 }
-
 
 int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {

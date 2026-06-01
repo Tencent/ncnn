@@ -609,7 +609,6 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-
 int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_gemm;
@@ -677,7 +676,6 @@ int Gemm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     return 0;
 }
-
 
 int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {

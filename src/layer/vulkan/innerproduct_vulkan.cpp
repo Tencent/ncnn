@@ -295,7 +295,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-
 int InnerProduct_vulkan::destroy_pipeline(const Option& opt)
 {
     if (flatten)
@@ -348,7 +347,6 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     return 0;
 }
-
 
 int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
@@ -513,7 +511,6 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
 
     return 0;
 }
-
 
 #if NCNN_INT8
 int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)

@@ -317,7 +317,6 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-
 int ConvolutionDepthWise_vulkan::destroy_pipeline(const Option& opt)
 {
     if (padding)
@@ -388,7 +387,6 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt
 
     return 0;
 }
-
 
 int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
