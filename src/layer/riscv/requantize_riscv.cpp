@@ -624,6 +624,7 @@ int Requantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 #if __riscv_vector
         if (elempack == packn && out_elempack == packn_s8)
         {
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < outh; i++)
             {
                 const int* ptr0 = bottom_blob.row<int>(i * 4);
