@@ -295,6 +295,226 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
+
+int InnerProduct_vulkan::destroy_pipeline(const Option& opt)
+{
+    if (flatten)
+    {
+        flatten->destroy_pipeline(opt);
+        delete flatten;
+        flatten = 0;
+    }
+    delete pipeline_innerproduct;
+    pipeline_innerproduct = 0;
+
+    delete pipeline_innerproduct_sum8;
+    delete pipeline_innerproduct_reduce_sum8;
+    pipeline_innerproduct_sum8 = 0;
+    pipeline_innerproduct_reduce_sum8 = 0;
+
+    delete pipeline_innerproduct_gemm;
+    pipeline_innerproduct_gemm = 0;
+
+#if NCNN_INT8
+    delete pipeline_innerproduct_input_int8;
+    pipeline_innerproduct_input_int8 = 0;
+
+    delete pipeline_innerproduct_gemm_input_int8;
+    pipeline_innerproduct_gemm_input_int8 = 0;
+#endif
+
+    return 0;
+}
+
+int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
+{
+#if NCNN_INT8
+    if (int8_scale_term && weight_data_int8_packed.elemsize == (size_t)1u)
+    {
+        return upload_model_int8(cmd, opt);
+    }
+#endif
+
+    cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
+
+    weight_data_packed.release();
+
+    if (bias_term)
+    {
+        cmd.record_upload(bias_data, bias_data_gpu, opt);
+
+        bias_data.release();
+    }
+
+    return 0;
+}
+
+
+int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
+{
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        if (pipeline_innerproduct || pipeline_innerproduct_gemm)
+            return forward_int8(bottom_blob, top_blob, cmd, opt);
+
+        NCNN_LOGE("InnerProduct_vulkan int8 pipeline is missing");
+        return -1;
+    }
+#endif
+
+    const int num_input = weight_data_size / num_output;
+
+    int in_elempack = num_input % 4 == 0 ? 4 : 1;
+    int out_elempack = num_output % 4 == 0 ? 4 : 1;
+
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input)
+    {
+        // gemm
+        int h = bottom_blob.h;
+        size_t elemsize = bottom_blob.elemsize;
+        int elempack = bottom_blob.elempack;
+
+        // unpacking
+        VkMat bottom_blob_unpacked = bottom_blob;
+        if (elempack > 1)
+        {
+            Option opt_pack1 = opt;
+            opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
+
+            vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, 1, cmd, opt_pack1);
+        }
+
+        top_blob.create(num_output, h, elemsize, elempack, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        VkMat top_blob_unpacked = top_blob;
+        if (elempack > 1)
+        {
+            top_blob_unpacked.create(num_output, h * elempack, bottom_blob_unpacked.elemsize, 1, opt.workspace_vkallocator);
+            if (top_blob_unpacked.empty())
+                return -100;
+        }
+
+        std::vector<VkMat> bindings(4);
+        bindings[0] = bottom_blob_unpacked;
+        bindings[1] = top_blob_unpacked;
+        bindings[2] = weight_data_gpu;
+        bindings[3] = bias_data_gpu;
+
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_blob_unpacked.dims;
+        constants[1].i = bottom_blob_unpacked.w;
+        constants[2].i = bottom_blob_unpacked.h;
+        constants[3].i = bottom_blob_unpacked.c;
+        constants[4].i = bottom_blob_unpacked.cstep;
+        constants[5].i = top_blob_unpacked.dims;
+        constants[6].i = top_blob_unpacked.w;
+        constants[7].i = top_blob_unpacked.h;
+        constants[8].i = top_blob_unpacked.c;
+        constants[9].i = top_blob_unpacked.cstep;
+
+        VkMat dispatcher;
+        dispatcher.w = top_blob_unpacked.w / out_elempack;
+        dispatcher.h = top_blob_unpacked.h;
+        dispatcher.c = 1;
+
+        cmd.record_pipeline(pipeline_innerproduct_gemm, bindings, constants, dispatcher);
+
+        // packing
+        if (elempack > 1)
+        {
+            vkdev->convert_packing(top_blob_unpacked, top_blob, elempack, cmd, opt);
+        }
+
+        return 0;
+    }
+
+    // flatten
+    VkMat bottom_blob_flattened = bottom_blob;
+    {
+        Option opt_flatten = opt;
+        opt_flatten.blob_vkallocator = opt.workspace_vkallocator;
+
+        flatten->forward(bottom_blob, bottom_blob_flattened, cmd, opt_flatten);
+    }
+
+    size_t elemsize = bottom_blob_flattened.elemsize;
+    size_t out_elemsize = elemsize / in_elempack * out_elempack;
+
+    if (num_input / in_elempack >= 32)
+    {
+        // sum8
+        VkMat top_blob_sum8;
+        {
+            top_blob_sum8.create((num_input / in_elempack + 7) / 8, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+            if (top_blob_sum8.empty())
+                return -100;
+
+            std::vector<VkMat> bindings(3);
+            bindings[0] = bottom_blob_flattened;
+            bindings[1] = top_blob_sum8;
+            bindings[2] = weight_data_gpu;
+
+            std::vector<vk_constant_type> constants(3);
+            constants[0].i = bottom_blob_flattened.w;
+            constants[1].i = top_blob_sum8.w;
+            constants[2].i = top_blob_sum8.h;
+
+            cmd.record_pipeline(pipeline_innerproduct_sum8, bindings, constants, top_blob_sum8);
+        }
+
+        // reduce sum8
+        {
+            top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+            if (top_blob.empty())
+                return -100;
+
+            std::vector<VkMat> bindings(3);
+            bindings[0] = top_blob_sum8;
+            bindings[1] = top_blob;
+            bindings[2] = bias_data_gpu;
+
+            std::vector<vk_constant_type> constants(3);
+            constants[0].i = top_blob_sum8.w;
+            constants[1].i = top_blob_sum8.h;
+            constants[2].i = top_blob.w;
+
+            cmd.record_pipeline(pipeline_innerproduct_reduce_sum8, bindings, constants, top_blob);
+        }
+    }
+    else
+    {
+        top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        std::vector<VkMat> bindings(4);
+        bindings[0] = bottom_blob_flattened;
+        bindings[1] = top_blob;
+        bindings[2] = weight_data_gpu;
+        bindings[3] = bias_data_gpu;
+
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_blob_flattened.dims;
+        constants[1].i = bottom_blob_flattened.w;
+        constants[2].i = bottom_blob_flattened.h;
+        constants[3].i = bottom_blob_flattened.c;
+        constants[4].i = bottom_blob_flattened.cstep;
+        constants[5].i = top_blob.dims;
+        constants[6].i = top_blob.w;
+        constants[7].i = top_blob.h;
+        constants[8].i = top_blob.c;
+        constants[9].i = top_blob.cstep;
+
+        cmd.record_pipeline(pipeline_innerproduct, bindings, constants, top_blob);
+    }
+
+    return 0;
+}
+
+
 #if NCNN_INT8
 int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
 {
@@ -494,62 +714,7 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
 
     return 0;
 }
-#endif // NCNN_INT8
 
-int InnerProduct_vulkan::destroy_pipeline(const Option& opt)
-{
-    if (flatten)
-    {
-        flatten->destroy_pipeline(opt);
-        delete flatten;
-        flatten = 0;
-    }
-    delete pipeline_innerproduct;
-    pipeline_innerproduct = 0;
-
-    delete pipeline_innerproduct_sum8;
-    delete pipeline_innerproduct_reduce_sum8;
-    pipeline_innerproduct_sum8 = 0;
-    pipeline_innerproduct_reduce_sum8 = 0;
-
-    delete pipeline_innerproduct_gemm;
-    pipeline_innerproduct_gemm = 0;
-
-#if NCNN_INT8
-    delete pipeline_innerproduct_input_int8;
-    pipeline_innerproduct_input_int8 = 0;
-
-    delete pipeline_innerproduct_gemm_input_int8;
-    pipeline_innerproduct_gemm_input_int8 = 0;
-#endif
-
-    return 0;
-}
-
-int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
-{
-#if NCNN_INT8
-    if (int8_scale_term && weight_data_int8_packed.elemsize == (size_t)1u)
-    {
-        return upload_model_int8(cmd, opt);
-    }
-#endif
-
-    cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
-
-    weight_data_packed.release();
-
-    if (bias_term)
-    {
-        cmd.record_upload(bias_data, bias_data_gpu, opt);
-
-        bias_data.release();
-    }
-
-    return 0;
-}
-
-#if NCNN_INT8
 int InnerProduct_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 {
     Option opt_int8 = opt;
@@ -581,173 +746,7 @@ int InnerProduct_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
     return 0;
 }
-#endif // NCNN_INT8
 
-int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
-{
-#if NCNN_INT8
-    if (int8_scale_term)
-    {
-        if (pipeline_innerproduct || pipeline_innerproduct_gemm)
-            return forward_int8(bottom_blob, top_blob, cmd, opt);
-
-        NCNN_LOGE("InnerProduct_vulkan int8 pipeline is missing");
-        return -1;
-    }
-#endif
-
-    const int num_input = weight_data_size / num_output;
-
-    int in_elempack = num_input % 4 == 0 ? 4 : 1;
-    int out_elempack = num_output % 4 == 0 ? 4 : 1;
-
-    if (bottom_blob.dims == 2 && bottom_blob.w == num_input)
-    {
-        // gemm
-        int h = bottom_blob.h;
-        size_t elemsize = bottom_blob.elemsize;
-        int elempack = bottom_blob.elempack;
-
-        // unpacking
-        VkMat bottom_blob_unpacked = bottom_blob;
-        if (elempack > 1)
-        {
-            Option opt_pack1 = opt;
-            opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
-
-            vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, 1, cmd, opt_pack1);
-        }
-
-        top_blob.create(num_output, h, elemsize, elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-
-        VkMat top_blob_unpacked = top_blob;
-        if (elempack > 1)
-        {
-            top_blob_unpacked.create(num_output, h * elempack, bottom_blob_unpacked.elemsize, 1, opt.workspace_vkallocator);
-            if (top_blob_unpacked.empty())
-                return -100;
-        }
-
-        std::vector<VkMat> bindings(4);
-        bindings[0] = bottom_blob_unpacked;
-        bindings[1] = top_blob_unpacked;
-        bindings[2] = weight_data_gpu;
-        bindings[3] = bias_data_gpu;
-
-        std::vector<vk_constant_type> constants(10);
-        constants[0].i = bottom_blob_unpacked.dims;
-        constants[1].i = bottom_blob_unpacked.w;
-        constants[2].i = bottom_blob_unpacked.h;
-        constants[3].i = bottom_blob_unpacked.c;
-        constants[4].i = bottom_blob_unpacked.cstep;
-        constants[5].i = top_blob_unpacked.dims;
-        constants[6].i = top_blob_unpacked.w;
-        constants[7].i = top_blob_unpacked.h;
-        constants[8].i = top_blob_unpacked.c;
-        constants[9].i = top_blob_unpacked.cstep;
-
-        VkMat dispatcher;
-        dispatcher.w = top_blob_unpacked.w / out_elempack;
-        dispatcher.h = top_blob_unpacked.h;
-        dispatcher.c = 1;
-
-        cmd.record_pipeline(pipeline_innerproduct_gemm, bindings, constants, dispatcher);
-
-        // packing
-        if (elempack > 1)
-        {
-            vkdev->convert_packing(top_blob_unpacked, top_blob, elempack, cmd, opt);
-        }
-
-        return 0;
-    }
-
-    // flatten
-    VkMat bottom_blob_flattened = bottom_blob;
-    {
-        Option opt_flatten = opt;
-        opt_flatten.blob_vkallocator = opt.workspace_vkallocator;
-
-        flatten->forward(bottom_blob, bottom_blob_flattened, cmd, opt_flatten);
-    }
-
-    size_t elemsize = bottom_blob_flattened.elemsize;
-    size_t out_elemsize = elemsize / in_elempack * out_elempack;
-
-    if (num_input / in_elempack >= 32)
-    {
-        // sum8
-        VkMat top_blob_sum8;
-        {
-            top_blob_sum8.create((num_input / in_elempack + 7) / 8, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-            if (top_blob_sum8.empty())
-                return -100;
-
-            std::vector<VkMat> bindings(3);
-            bindings[0] = bottom_blob_flattened;
-            bindings[1] = top_blob_sum8;
-            bindings[2] = weight_data_gpu;
-
-            std::vector<vk_constant_type> constants(3);
-            constants[0].i = bottom_blob_flattened.w;
-            constants[1].i = top_blob_sum8.w;
-            constants[2].i = top_blob_sum8.h;
-
-            cmd.record_pipeline(pipeline_innerproduct_sum8, bindings, constants, top_blob_sum8);
-        }
-
-        // reduce sum8
-        {
-            top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-            if (top_blob.empty())
-                return -100;
-
-            std::vector<VkMat> bindings(3);
-            bindings[0] = top_blob_sum8;
-            bindings[1] = top_blob;
-            bindings[2] = bias_data_gpu;
-
-            std::vector<vk_constant_type> constants(3);
-            constants[0].i = top_blob_sum8.w;
-            constants[1].i = top_blob_sum8.h;
-            constants[2].i = top_blob.w;
-
-            cmd.record_pipeline(pipeline_innerproduct_reduce_sum8, bindings, constants, top_blob);
-        }
-    }
-    else
-    {
-        top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-
-        std::vector<VkMat> bindings(4);
-        bindings[0] = bottom_blob_flattened;
-        bindings[1] = top_blob;
-        bindings[2] = weight_data_gpu;
-        bindings[3] = bias_data_gpu;
-
-        std::vector<vk_constant_type> constants(10);
-        constants[0].i = bottom_blob_flattened.dims;
-        constants[1].i = bottom_blob_flattened.w;
-        constants[2].i = bottom_blob_flattened.h;
-        constants[3].i = bottom_blob_flattened.c;
-        constants[4].i = bottom_blob_flattened.cstep;
-        constants[5].i = top_blob.dims;
-        constants[6].i = top_blob.w;
-        constants[7].i = top_blob.h;
-        constants[8].i = top_blob.c;
-        constants[9].i = top_blob.cstep;
-
-        cmd.record_pipeline(pipeline_innerproduct, bindings, constants, top_blob);
-    }
-
-    return 0;
-}
-
-#if NCNN_INT8
 int InnerProduct_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     const int num_input = weight_data_size / num_output;

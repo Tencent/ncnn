@@ -23,6 +23,13 @@ public:
     using Convolution::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
+protected:
+#if NCNN_INT8
+    int create_pipeline_int8(const Option& opt);
+    int upload_model_int8(VkTransfer& cmd, const Option& opt);
+    int forward_int8(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
+#endif
+
 public:
     ncnn::Layer* padding;
 
@@ -65,10 +72,6 @@ public:
     int UNROLL_WG_N;
 
 #if NCNN_INT8
-    int create_pipeline_int8(const Option& opt);
-    int upload_model_int8(VkTransfer& cmd, const Option& opt);
-    int forward_int8(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
-
     Mat weight_data_int8_packed;
     Mat weight_winograd23_data_int8_packed;
     Mat weight_winograd43_data_int8_packed;
