@@ -326,7 +326,7 @@ int Dequantize_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
         {
             const int i = ii * wp;
             const int* intptr = (const int*)bottom_blob + i * elempack;
-            __fp16* ptr = (__fp16*)top_blob + i * out_elempack;
+            __fp16* ptr = (__fp16*)top_blob + i * elempack;
             const int size = std::min(w - i, wp) * elempack;
 
             dequantize_fp16s(intptr, ptr, scale_data, bias_data, size, 1);
