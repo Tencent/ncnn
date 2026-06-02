@@ -72,6 +72,11 @@ void qk_gemm_bf16s_avx512bf16(float* S, const float* Q, const unsigned short* K,
     }
 }
 
+void qk_gemm_bf16s_avx512bf16_qbf16(float* S, const unsigned short* Q, const unsigned short* K, int m, int n, int d, float scale)
+{
+    qk_gemm_bf16s_avx512bf16_qbf16_kernel(S, Q, K, m, n, d, scale);
+}
+
 void pv_gemm_bf16s_avx512bf16(float* O, const float* P, const unsigned short* V, int m, int n, int d)
 {
     switch (d)

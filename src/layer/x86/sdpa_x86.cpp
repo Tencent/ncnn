@@ -3174,6 +3174,7 @@ static inline void pv_gemm_sse2(float* O, const float* P, const float* V, int m,
 
 static int sdpa_forward_prefill(
     const Mat& query_ref,
+    const Mat& query_bf16_ref,
     const Mat& attn_mask_ref,
     Mat& key,
     Mat& value,
@@ -3193,6 +3194,7 @@ static int sdpa_forward_prefill(
     bool use_bf16_path)
 {
     (void)num_heads;
+    (void)query_bf16_ref;
     const int BLOCK_M = 64;
     const int BLOCK_N = 128;
     Mat s_vec(BLOCK_N * BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
@@ -3714,10 +3716,11 @@ static int sdpa_forward_prefill(
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
                                 if (ncnn::cpu_support_x86_avx512_bf16())
                                 {
-                                    qk_gemm_bf16s_avx512bf16(s_head,
-                                                             q_ptr,
-                                                             key_head.row<const unsigned short>(n_start2),
-                                                             block_m, block_n2, embed_dim, _scale);
+                                    const Mat query_bf16_head = query_bf16_ref.channel(q);
+                                    qk_gemm_bf16s_avx512bf16_qbf16(s_head,
+                                                                   query_bf16_head.row<const unsigned short>(m_start),
+                                                                   key_head.row<const unsigned short>(n_start2),
+                                                                   block_m, block_n2, embed_dim, _scale);
                                 }
                                 else
 #endif
@@ -4121,10 +4124,11 @@ static int sdpa_forward_prefill(
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
                                 if (ncnn::cpu_support_x86_avx512_bf16())
                                 {
-                                    qk_gemm_bf16s_avx512bf16(s_head,
-                                                             q_ptr,
-                                                             key_head.row<const unsigned short>(n_start2),
-                                                             block_m, block_n2, embed_dim, _scale);
+                                    const Mat query_bf16_head = query_bf16_ref.channel(q);
+                                    qk_gemm_bf16s_avx512bf16_qbf16(s_head,
+                                                                   query_bf16_head.row<const unsigned short>(m_start),
+                                                                   key_head.row<const unsigned short>(n_start2),
+                                                                   block_m, block_n2, embed_dim, _scale);
                                 }
                                 else
 #endif
@@ -5724,13 +5728,24 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
 #if NCNN_BF16
     bool use_bf16_path = opt.use_bf16_storage && query.elembits() == 16;
+    bool use_qbf16_prefill = false;
+#if __AVX512F__
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
+    use_qbf16_prefill = use_bf16_path && src_seqlen > 1 && embed_dim > 512
+                         && (src_seqlen > 16 || num_heads_per_group > 1)
+                         && ncnn::cpu_support_x86_avx512_bf16();
+#endif
+#endif
     Mat query_fp32;
     Mat attn_mask_fp32;
     if (use_bf16_path)
     {
-        cast_bfloat16_to_float32(query, query_fp32, opt);
-        if (query_fp32.empty())
-            return -100;
+        if (!use_qbf16_prefill)
+        {
+            cast_bfloat16_to_float32(query, query_fp32, opt);
+            if (query_fp32.empty())
+                return -100;
+        }
         if (attn_mask && !attn_mask_blob.empty())
         {
             cast_bfloat16_to_float32(attn_mask_blob, attn_mask_fp32, opt);
@@ -5738,7 +5753,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 return -100;
         }
     }
-    const Mat& query_ref = use_bf16_path ? query_fp32 : query;
+    const Mat& query_ref = use_bf16_path && !use_qbf16_prefill ? query_fp32 : query;
     const Mat& attn_mask_ref = (use_bf16_path && attn_mask) ? attn_mask_fp32 : attn_mask_blob;
 #else
     const Mat& query_ref = query;
@@ -5902,7 +5917,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         return 0;
     }
 
-    return sdpa_forward_prefill(query_ref, attn_mask_ref, key, value, top_blob,
+    return sdpa_forward_prefill(query_ref, query, attn_mask_ref, key, value, top_blob,
                                 top_blobs, opt, embed_dim, src_seqlen, num_heads,
                                 num_group, out_embed_dim, dst_seqlen,
                                 num_heads_per_group, _scale, kv_cache, attn_mask,

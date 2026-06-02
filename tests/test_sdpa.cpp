@@ -3,6 +3,8 @@
 
 #include "testutil.h"
 
+#include <stdlib.h>
+
 static int test_sdpa(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int attn_mask, float scale = 0.f)
 {
     const int src_seqlen = q.h;
@@ -54,6 +56,17 @@ static int test_sdpa_0()
            || test_sdpa(RandomMat(64, 1, 12), RandomMat(64, 127, 2), RandomMat(48, 127, 2), 1)
            || test_sdpa(RandomMat(44, 1, 4), RandomMat(44, 123, 4), RandomMat(55, 123, 4), 0, 1.f)
            || test_sdpa(RandomMat(12, 1, 4), RandomMat(12, 127, 4), RandomMat(55, 127, 4), 1, 1.f);
+}
+
+static int test_sdpa_large_dim()
+{
+    if (!getenv("NCNN_TEST_SDPA_LARGE_DIM"))
+        return 0;
+
+    return 0
+           || test_sdpa(RandomMat(4096, 16, 32), RandomMat(4096, 16, 1), RandomMat(4096, 16, 1), 0, 1.f / 64.f)
+           || test_sdpa(RandomMat(4096, 16, 32), RandomMat(4096, 16, 4), RandomMat(4096, 16, 4), 0, 1.f / 64.f)
+           || test_sdpa(RandomMat(4096, 32, 32), RandomMat(4096, 32, 32), RandomMat(4096, 32, 32), 0, 1.f / 64.f);
 }
 
 #if NCNN_INT8
@@ -111,8 +124,8 @@ int main()
     SRAND(7767517);
 
 #if NCNN_INT8
-    return test_sdpa_0() || test_sdpa_1();
+    return test_sdpa_0() || test_sdpa_1() || test_sdpa_large_dim();
 #else
-    return test_sdpa_0();
+    return test_sdpa_0() || test_sdpa_large_dim();
 #endif
 }
