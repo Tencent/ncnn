@@ -1600,6 +1600,7 @@ template<int M_BLOCK, int D_UNROLL>
 static inline void pv_gemm_avx512(float* O, const float* P, const float* V, int m, int n, int d)
 {
     const int VEC_PER_UNROLL = D_UNROLL / 16;
+    const bool prefetch_v = d >= 512 && n >= 256;
     int dd = 0;
     for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
     {
@@ -1621,7 +1622,7 @@ static inline void pv_gemm_avx512(float* O, const float* P, const float* V, int 
 
             for (int j = 0; j < n; j++)
             {
-                if (d >= 512 && n >= 256 && j + 4 < n)
+                if (prefetch_v && j + 4 < n)
                     _mm_prefetch((const char*)(V + (j + 4) * d + dd), _MM_HINT_T1);
                 __m512 vvec[VEC_PER_UNROLL];
                 for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
@@ -1651,7 +1652,7 @@ static inline void pv_gemm_avx512(float* O, const float* P, const float* V, int 
 
             for (int j = 0; j < n; j++)
             {
-                if (d >= 512 && n >= 256 && j + 4 < n)
+                if (prefetch_v && j + 4 < n)
                     _mm_prefetch((const char*)(V + (j + 4) * d + dd), _MM_HINT_T1);
                 __m512 pvec = _mm512_set1_ps(pptr[j]);
                 for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
