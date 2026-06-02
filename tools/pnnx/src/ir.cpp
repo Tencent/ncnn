@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "ir.h"
+#include "model_stat.h"
 
 #include <limits.h>
 #include <stdint.h>
@@ -1037,9 +1038,11 @@ static std::string expand_expression(const Operator* op)
                  || t == "cosh"
                  || t == "erf"
                  || t == "exp"
+                 || t == "expm1"
                  || t == "floor"
                  || t == "log"
                  || t == "log10"
+                 || t == "log1p"
                  || t == "neg"
                  || t == "reciprocal"
                  || t == "round"
@@ -1070,9 +1073,11 @@ static std::string expand_expression(const Operator* op)
             if (t == "cosh") unaryop = "torch.cosh";
             if (t == "erf") unaryop = "torch.erf";
             if (t == "exp") unaryop = "torch.exp";
+            if (t == "expm1") unaryop = "torch.expm1";
             if (t == "floor") unaryop = "torch.floor";
             if (t == "log") unaryop = "torch.log";
             if (t == "log10") unaryop = "torch.log10";
+            if (t == "log1p") unaryop = "torch.log1p";
             if (t == "neg") unaryop = "-";
             if (t == "reciprocal") unaryop = "torch.reciprocal";
             if (t == "round") unaryop = "torch.round";
@@ -1456,7 +1461,7 @@ static std::string make_index_expression(const Operator* op)
     return index_expr;
 }
 
-int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, const std::vector<std::vector<int64_t> >& input_shapes)
+int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, const std::vector<std::vector<int64_t> >& input_shapes, const ModelStat& model_stat)
 {
     FILE* pyfp = fopen(pypath.c_str(), "wb");
     if (!pyfp)
@@ -1464,6 +1469,16 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(stderr, "fopen %s failed\n", pypath.c_str());
         return -1;
     }
+
+    const std::string input_shapes_stat = format_model_stat_input_shapes(*this);
+    const std::string flops = format_model_stat_ops(model_stat.flops);
+    const std::string memops = format_model_stat_ops(model_stat.memops);
+
+    fprintf(pyfp, "# pnnx model stat\n");
+    fprintf(pyfp, "# model inputshape = %s\n", input_shapes_stat.c_str());
+    fprintf(pyfp, "# FLOPS = %s\n", flops.c_str());
+    fprintf(pyfp, "# memory OPS = %s\n", memops.c_str());
+    fprintf(pyfp, "\n");
 
     fprintf(pyfp, "import os\n");
     fprintf(pyfp, "import numpy as np\n");

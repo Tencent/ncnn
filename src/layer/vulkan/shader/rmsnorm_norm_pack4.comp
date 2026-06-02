@@ -22,21 +22,13 @@ void main()
     int gx = int(gl_GlobalInvocationID.x), gy = int(gl_GlobalInvocationID.y), gz = int(gl_GlobalInvocationID.z);
     if (gx >= p.w || gy >= p.h || gz >= p.c) return;
 
-    int group_id, inner_id;
-    if (affine_size == p.w)
-    {
-        group_id = gz * p.h + gy;
-        inner_id = gx;
-    }
-    else
-    {
-        group_id = gz;
-        inner_id = gy * p.w + gx;
-    }
+    const int gi = gz * p.cstep + gy * p.w + gx;
+    const int q = gy * p.w + gx;
+    const int group_id = gz * (p.w * p.h / affine_size) + q / affine_size;
+    const int inner_id = q % affine_size;
 
     afpvec4 a = buffer_ld4(coeffs_blob_data, group_id);
-    int idx = gz * p.cstep + gy * p.w + gx;
-    afpvec4 v = buffer_ld4(bottom_top_blob_data, idx);
+    afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
     v = v * a;
 
     if (affine == 1)
@@ -44,5 +36,5 @@ void main()
         afp gamma = buffer_ld1(gamma_data, inner_id);
         v = v * afpvec4(gamma);
     }
-    buffer_st4(bottom_top_blob_data, idx, v);
+    buffer_st4(bottom_top_blob_data, gi, v);
 }

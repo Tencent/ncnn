@@ -180,14 +180,43 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
 #endif
                 const float* m = bottom_blob.row(j);
 
-                __m512 _sum = _mm512_setzero_ps();
+                __m512 _sum0 = _mm512_setzero_ps();
+                __m512 _sum1 = _mm512_setzero_ps();
+                __m512 _sum2 = _mm512_setzero_ps();
+                __m512 _sum3 = _mm512_setzero_ps();
 
                 if (bias_data_ptr)
                 {
-                    _sum = _mm512_loadu_ps(bias_data_ptr + p * 16);
+                    _sum0 = _mm512_loadu_ps(bias_data_ptr + p * 16);
                 }
 
                 int i = 0;
+                for (; i + 3 < num_input; i += 4)
+                {
+                    __m512 _val0 = _mm512_set1_ps(m[0]);
+                    __m512 _val1 = _mm512_set1_ps(m[1]);
+                    __m512 _val2 = _mm512_set1_ps(m[2]);
+                    __m512 _val3 = _mm512_set1_ps(m[3]);
+#if NCNN_IMPL_FP16S
+                    __m512 _w0 = _mm512_cvtph_ps(_mm256_lddqu_si256((const __m256i*)kptr));
+                    __m512 _w1 = _mm512_cvtph_ps(_mm256_lddqu_si256((const __m256i*)(kptr + 16)));
+                    __m512 _w2 = _mm512_cvtph_ps(_mm256_lddqu_si256((const __m256i*)(kptr + 32)));
+                    __m512 _w3 = _mm512_cvtph_ps(_mm256_lddqu_si256((const __m256i*)(kptr + 48)));
+#else
+                    __m512 _w0 = _mm512_loadu_ps(kptr);
+                    __m512 _w1 = _mm512_loadu_ps(kptr + 16);
+                    __m512 _w2 = _mm512_loadu_ps(kptr + 32);
+                    __m512 _w3 = _mm512_loadu_ps(kptr + 48);
+#endif
+
+                    _sum0 = _mm512_fmadd_ps(_val0, _w0, _sum0);
+                    _sum1 = _mm512_fmadd_ps(_val1, _w1, _sum1);
+                    _sum2 = _mm512_fmadd_ps(_val2, _w2, _sum2);
+                    _sum3 = _mm512_fmadd_ps(_val3, _w3, _sum3);
+
+                    m += 4;
+                    kptr += 64;
+                }
                 for (; i < num_input; i++)
                 {
                     __m512 _val = _mm512_set1_ps(m[0]);
@@ -197,15 +226,19 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m512 _w = _mm512_loadu_ps(kptr);
 #endif
 
-                    _sum = _mm512_fmadd_ps(_val, _w, _sum);
+                    _sum0 = _mm512_fmadd_ps(_val, _w, _sum0);
 
                     m += 1;
                     kptr += 16;
                 }
 
-                _sum = activation_avx512(_sum, activation_type, activation_params);
+                _sum0 = _mm512_add_ps(_sum0, _sum1);
+                _sum2 = _mm512_add_ps(_sum2, _sum3);
+                _sum0 = _mm512_add_ps(_sum0, _sum2);
 
-                _mm512_storeu_ps(outptr, _sum);
+                _sum0 = activation_avx512(_sum0, activation_type, activation_params);
+
+                _mm512_storeu_ps(outptr, _sum0);
                 outptr += 16;
             }
         }
@@ -695,6 +728,10 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                 __m256 _sum1 = _mm256_setzero_ps();
                 __m256 _sum2 = _mm256_setzero_ps();
                 __m256 _sum3 = _mm256_setzero_ps();
+                __m256 _sum4 = _mm256_setzero_ps();
+                __m256 _sum5 = _mm256_setzero_ps();
+                __m256 _sum6 = _mm256_setzero_ps();
+                __m256 _sum7 = _mm256_setzero_ps();
 
                 if (bias_data_ptr)
                 {
@@ -709,12 +746,10 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m256 _val2 = _mm256_broadcast_ss(m + 2);
                     __m256 _val3 = _mm256_broadcast_ss(m + 3);
 #if NCNN_IMPL_FP16S
-                    __m256i _w01 = _mm256_lddqu_si256((const __m256i*)kptr);
-                    __m256i _w23 = _mm256_lddqu_si256((const __m256i*)(kptr + 16));
-                    __m256 _w0 = _mm256_cvtph_ps(_mm256_extractf128_si256(_w01, 0));
-                    __m256 _w1 = _mm256_cvtph_ps(_mm256_extractf128_si256(_w01, 1));
-                    __m256 _w2 = _mm256_cvtph_ps(_mm256_extractf128_si256(_w23, 0));
-                    __m256 _w3 = _mm256_cvtph_ps(_mm256_extractf128_si256(_w23, 1));
+                    __m256 _w0 = _mm256_cvtph_ps(_mm_lddqu_si128((const __m128i*)kptr));
+                    __m256 _w1 = _mm256_cvtph_ps(_mm_lddqu_si128((const __m128i*)(kptr + 8)));
+                    __m256 _w2 = _mm256_cvtph_ps(_mm_lddqu_si128((const __m128i*)(kptr + 16)));
+                    __m256 _w3 = _mm256_cvtph_ps(_mm_lddqu_si128((const __m128i*)(kptr + 24)));
 #else
                     __m256 _w0 = _mm256_loadu_ps(kptr);
                     __m256 _w1 = _mm256_loadu_ps(kptr + 8);
@@ -732,12 +767,10 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m256 _val6 = _mm256_broadcast_ss(m + 6);
                     __m256 _val7 = _mm256_broadcast_ss(m + 7);
 #if NCNN_IMPL_FP16S
-                    __m256i _w45 = _mm256_lddqu_si256((const __m256i*)(kptr + 32));
-                    __m256i _w67 = _mm256_lddqu_si256((const __m256i*)(kptr + 48));
-                    __m256 _w4 = _mm256_cvtph_ps(_mm256_extractf128_si256(_w45, 0));
-                    __m256 _w5 = _mm256_cvtph_ps(_mm256_extractf128_si256(_w45, 1));
-                    __m256 _w6 = _mm256_cvtph_ps(_mm256_extractf128_si256(_w67, 0));
-                    __m256 _w7 = _mm256_cvtph_ps(_mm256_extractf128_si256(_w67, 1));
+                    __m256 _w4 = _mm256_cvtph_ps(_mm_lddqu_si128((const __m128i*)(kptr + 32)));
+                    __m256 _w5 = _mm256_cvtph_ps(_mm_lddqu_si128((const __m128i*)(kptr + 40)));
+                    __m256 _w6 = _mm256_cvtph_ps(_mm_lddqu_si128((const __m128i*)(kptr + 48)));
+                    __m256 _w7 = _mm256_cvtph_ps(_mm_lddqu_si128((const __m128i*)(kptr + 56)));
 #else
                     __m256 _w4 = _mm256_loadu_ps(kptr + 32);
                     __m256 _w5 = _mm256_loadu_ps(kptr + 40);
@@ -745,10 +778,10 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m256 _w7 = _mm256_loadu_ps(kptr + 56);
 #endif
 
-                    _sum0 = _mm256_comp_fmadd_ps(_val4, _w4, _sum0);
-                    _sum1 = _mm256_comp_fmadd_ps(_val5, _w5, _sum1);
-                    _sum2 = _mm256_comp_fmadd_ps(_val6, _w6, _sum2);
-                    _sum3 = _mm256_comp_fmadd_ps(_val7, _w7, _sum3);
+                    _sum4 = _mm256_comp_fmadd_ps(_val4, _w4, _sum4);
+                    _sum5 = _mm256_comp_fmadd_ps(_val5, _w5, _sum5);
+                    _sum6 = _mm256_comp_fmadd_ps(_val6, _w6, _sum6);
+                    _sum7 = _mm256_comp_fmadd_ps(_val7, _w7, _sum7);
 
                     m += 8;
                     kptr += 64;
@@ -760,12 +793,10 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m256 _val2 = _mm256_broadcast_ss(m + 2);
                     __m256 _val3 = _mm256_broadcast_ss(m + 3);
 #if NCNN_IMPL_FP16S
-                    __m256i _w01 = _mm256_lddqu_si256((const __m256i*)kptr);
-                    __m256i _w23 = _mm256_lddqu_si256((const __m256i*)(kptr + 16));
-                    __m256 _w0 = _mm256_cvtph_ps(_mm256_extractf128_si256(_w01, 0));
-                    __m256 _w1 = _mm256_cvtph_ps(_mm256_extractf128_si256(_w01, 1));
-                    __m256 _w2 = _mm256_cvtph_ps(_mm256_extractf128_si256(_w23, 0));
-                    __m256 _w3 = _mm256_cvtph_ps(_mm256_extractf128_si256(_w23, 1));
+                    __m256 _w0 = _mm256_cvtph_ps(_mm_lddqu_si128((const __m128i*)kptr));
+                    __m256 _w1 = _mm256_cvtph_ps(_mm_lddqu_si128((const __m128i*)(kptr + 8)));
+                    __m256 _w2 = _mm256_cvtph_ps(_mm_lddqu_si128((const __m128i*)(kptr + 16)));
+                    __m256 _w3 = _mm256_cvtph_ps(_mm_lddqu_si128((const __m128i*)(kptr + 24)));
 #else
                     __m256 _w0 = _mm256_loadu_ps(kptr);
                     __m256 _w1 = _mm256_loadu_ps(kptr + 8);
@@ -797,7 +828,11 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
 
                 _sum0 = _mm256_add_ps(_sum0, _sum1);
                 _sum2 = _mm256_add_ps(_sum2, _sum3);
+                _sum4 = _mm256_add_ps(_sum4, _sum5);
+                _sum6 = _mm256_add_ps(_sum6, _sum7);
                 _sum0 = _mm256_add_ps(_sum0, _sum2);
+                _sum4 = _mm256_add_ps(_sum4, _sum6);
+                _sum0 = _mm256_add_ps(_sum0, _sum4);
 
                 _sum0 = activation_avx(_sum0, activation_type, activation_params);
 
@@ -1086,14 +1121,42 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
 #endif
                 const float* m = bottom_blob.row(j);
 
-                __m128 _sum = _mm_setzero_ps();
+                __m128 _sum0 = _mm_setzero_ps();
+                __m128 _sum1 = _mm_setzero_ps();
+                __m128 _sum2 = _mm_setzero_ps();
+                __m128 _sum3 = _mm_setzero_ps();
 
                 if (bias_data_ptr)
                 {
-                    _sum = _mm_loadu_ps(bias_data_ptr + p * 4);
+                    _sum0 = _mm_loadu_ps(bias_data_ptr + p * 4);
                 }
 
                 int i = 0;
+                for (; i + 3 < num_input; i += 4)
+                {
+                    __m128 _val0 = _mm_set1_ps(m[0]);
+                    __m128 _val1 = _mm_set1_ps(m[1]);
+                    __m128 _val2 = _mm_set1_ps(m[2]);
+                    __m128 _val3 = _mm_set1_ps(m[3]);
+#if NCNN_IMPL_FP16S
+                    __m128 _w0 = _mm_cvtph_ps(_mm_loadl_epi64((const __m128i*)kptr));
+                    __m128 _w1 = _mm_cvtph_ps(_mm_loadl_epi64((const __m128i*)(kptr + 4)));
+                    __m128 _w2 = _mm_cvtph_ps(_mm_loadl_epi64((const __m128i*)(kptr + 8)));
+                    __m128 _w3 = _mm_cvtph_ps(_mm_loadl_epi64((const __m128i*)(kptr + 12)));
+#else
+                    __m128 _w0 = _mm_loadu_ps(kptr);
+                    __m128 _w1 = _mm_loadu_ps(kptr + 4);
+                    __m128 _w2 = _mm_loadu_ps(kptr + 8);
+                    __m128 _w3 = _mm_loadu_ps(kptr + 12);
+#endif
+                    _sum0 = _mm_comp_fmadd_ps(_val0, _w0, _sum0);
+                    _sum1 = _mm_comp_fmadd_ps(_val1, _w1, _sum1);
+                    _sum2 = _mm_comp_fmadd_ps(_val2, _w2, _sum2);
+                    _sum3 = _mm_comp_fmadd_ps(_val3, _w3, _sum3);
+
+                    m += 4;
+                    kptr += 16;
+                }
                 for (; i < num_input; i++)
                 {
                     __m128 _val = _mm_set1_ps(m[0]);
@@ -1102,15 +1165,19 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
 #else
                     __m128 _w = _mm_loadu_ps(kptr);
 #endif
-                    _sum = _mm_comp_fmadd_ps(_val, _w, _sum);
+                    _sum0 = _mm_comp_fmadd_ps(_val, _w, _sum0);
 
                     m += 1;
                     kptr += 4;
                 }
 
-                _sum = activation_sse(_sum, activation_type, activation_params);
+                _sum0 = _mm_add_ps(_sum0, _sum1);
+                _sum2 = _mm_add_ps(_sum2, _sum3);
+                _sum0 = _mm_add_ps(_sum0, _sum2);
 
-                _mm_storeu_ps(outptr, _sum);
+                _sum0 = activation_sse(_sum0, activation_type, activation_params);
+
+                _mm_storeu_ps(outptr, _sum0);
                 outptr += 4;
             }
         }

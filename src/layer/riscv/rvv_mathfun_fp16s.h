@@ -486,6 +486,123 @@ _RVV_FLOAT16_LOGADDEXP_OP(2, 8)
 _RVV_FLOAT16_LOGADDEXP_OP(4, 4)
 _RVV_FLOAT16_LOGADDEXP_OP(8, 2)
 
+#define _RVV_FLOAT16_ABS_OP(LMUL, MLEN)                                        \
+    static inline vfloat16m##LMUL##_t abs_ps(vfloat16m##LMUL##_t x, size_t vl) \
+    {                                                                          \
+        return __riscv_vfsgnjx_vv_f16m##LMUL(x, x, vl);                        \
+    }
+
+_RVV_FLOAT16_ABS_OP(1, 16)
+_RVV_FLOAT16_ABS_OP(2, 8)
+_RVV_FLOAT16_ABS_OP(4, 4)
+_RVV_FLOAT16_ABS_OP(8, 2)
+
+#define _RVV_FLOAT16_EXPM1_OP(LMUL, MLEN)                                        \
+    static inline vfloat16m##LMUL##_t expm1_ps(vfloat16m##LMUL##_t x, size_t vl) \
+    {                                                                            \
+        return __riscv_vfsub_vf_f16m##LMUL(exp_ps(x, vl), (__fp16)1.f, vl);      \
+    }
+
+_RVV_FLOAT16_EXPM1_OP(1, 16)
+_RVV_FLOAT16_EXPM1_OP(2, 8)
+_RVV_FLOAT16_EXPM1_OP(4, 4)
+_RVV_FLOAT16_EXPM1_OP(8, 2)
+
+#define _RVV_FLOAT16_LOG1P_OP(LMUL, MLEN)                                        \
+    static inline vfloat16m##LMUL##_t log1p_ps(vfloat16m##LMUL##_t x, size_t vl) \
+    {                                                                            \
+        return log_ps(__riscv_vfadd_vf_f16m##LMUL(x, (__fp16)1.f, vl), vl);      \
+    }
+
+_RVV_FLOAT16_LOG1P_OP(1, 16)
+_RVV_FLOAT16_LOG1P_OP(2, 8)
+_RVV_FLOAT16_LOG1P_OP(4, 4)
+_RVV_FLOAT16_LOG1P_OP(8, 2)
+
+#define _RVV_FLOAT16_SINH_OP(LMUL, MLEN)                                                          \
+    static inline vfloat16m##LMUL##_t sinh_ps(vfloat16m##LMUL##_t x, size_t vl)                   \
+    {                                                                                             \
+        vfloat16m##LMUL##_t expm1_x = expm1_ps(x, vl);                                            \
+        vfloat16m##LMUL##_t expm1_neg_x = expm1_ps(__riscv_vfneg_v_f16m##LMUL(x, vl), vl);        \
+        return __riscv_vfmul_vf_f16m##LMUL(__riscv_vfsub_vv_f16m##LMUL(expm1_x, expm1_neg_x, vl), \
+                                           (__fp16)0.5f, vl);                                     \
+    }
+
+_RVV_FLOAT16_SINH_OP(1, 16)
+_RVV_FLOAT16_SINH_OP(2, 8)
+_RVV_FLOAT16_SINH_OP(4, 4)
+_RVV_FLOAT16_SINH_OP(8, 2)
+
+#define _RVV_FLOAT16_ASINH_OP(LMUL, MLEN)                                                                           \
+    static inline vfloat16m##LMUL##_t asinh_ps(vfloat16m##LMUL##_t x, size_t vl)                                    \
+    {                                                                                                               \
+        vfloat16m##LMUL##_t ax = abs_ps(x, vl);                                                                     \
+        vfloat16m##LMUL##_t x2 = __riscv_vfmul_vv_f16m##LMUL(ax, ax, vl);                                           \
+        vfloat16m##LMUL##_t y = log_ps(                                                                             \
+            __riscv_vfadd_vv_f16m##LMUL(                                                                            \
+                ax,                                                                                                 \
+                __riscv_vfsqrt_v_f16m##LMUL(__riscv_vfadd_vf_f16m##LMUL(x2, (__fp16)1.f, vl), vl), vl),             \
+            vl);                                                                                                    \
+        vfloat16m##LMUL##_t y_large = __riscv_vfadd_vf_f16m##LMUL(log_ps(ax, vl), (__fp16)0.6931471805599453f, vl); \
+        vbool##MLEN##_t mask = __riscv_vmfgt_vf_f16m##LMUL##_b##MLEN(ax, (__fp16)128.f, vl);                        \
+        y = __riscv_vmerge_vvm_f16m##LMUL(y, y_large, mask, vl);                                                    \
+        return __riscv_vfsgnj_vv_f16m##LMUL(y, x, vl);                                                              \
+    }
+
+_RVV_FLOAT16_ASINH_OP(1, 16)
+_RVV_FLOAT16_ASINH_OP(2, 8)
+_RVV_FLOAT16_ASINH_OP(4, 4)
+_RVV_FLOAT16_ASINH_OP(8, 2)
+
+#define _RVV_FLOAT16_COSH_OP(LMUL, MLEN)                                                      \
+    static inline vfloat16m##LMUL##_t cosh_ps(vfloat16m##LMUL##_t x, size_t vl)               \
+    {                                                                                         \
+        vfloat16m##LMUL##_t exp_x = exp_ps(x, vl);                                            \
+        vfloat16m##LMUL##_t exp_neg_x = exp_ps(__riscv_vfneg_v_f16m##LMUL(x, vl), vl);        \
+        return __riscv_vfmul_vf_f16m##LMUL(__riscv_vfadd_vv_f16m##LMUL(exp_x, exp_neg_x, vl), \
+                                           (__fp16)0.5f, vl);                                 \
+    }
+
+_RVV_FLOAT16_COSH_OP(1, 16)
+_RVV_FLOAT16_COSH_OP(2, 8)
+_RVV_FLOAT16_COSH_OP(4, 4)
+_RVV_FLOAT16_COSH_OP(8, 2)
+
+#define _RVV_FLOAT16_ACOSH_OP(LMUL, MLEN)                                                                          \
+    static inline vfloat16m##LMUL##_t acosh_ps(vfloat16m##LMUL##_t x, size_t vl)                                   \
+    {                                                                                                              \
+        vfloat16m##LMUL##_t one = __riscv_vfmv_v_f_f16m##LMUL((__fp16)1.f, vl);                                    \
+        vfloat16m##LMUL##_t y = log_ps(                                                                            \
+            __riscv_vfadd_vv_f16m##LMUL(                                                                           \
+                x,                                                                                                 \
+                __riscv_vfmul_vv_f16m##LMUL(                                                                       \
+                    __riscv_vfsqrt_v_f16m##LMUL(__riscv_vfsub_vv_f16m##LMUL(x, one, vl), vl),                      \
+                    __riscv_vfsqrt_v_f16m##LMUL(__riscv_vfadd_vv_f16m##LMUL(x, one, vl), vl), vl),                 \
+                vl),                                                                                               \
+            vl);                                                                                                   \
+        vfloat16m##LMUL##_t y_large = __riscv_vfadd_vf_f16m##LMUL(log_ps(x, vl), (__fp16)0.6931471805599453f, vl); \
+        vbool##MLEN##_t mask = __riscv_vmfgt_vf_f16m##LMUL##_b##MLEN(x, (__fp16)32768.f, vl);                      \
+        return __riscv_vmerge_vvm_f16m##LMUL(y, y_large, mask, vl);                                                \
+    }
+
+_RVV_FLOAT16_ACOSH_OP(1, 16)
+_RVV_FLOAT16_ACOSH_OP(2, 8)
+_RVV_FLOAT16_ACOSH_OP(4, 4)
+_RVV_FLOAT16_ACOSH_OP(8, 2)
+
+#define _RVV_FLOAT16_ATANH_OP(LMUL, MLEN)                                                                        \
+    static inline vfloat16m##LMUL##_t atanh_ps(vfloat16m##LMUL##_t x, size_t vl)                                 \
+    {                                                                                                            \
+        vfloat16m##LMUL##_t log_pos = log1p_ps(x, vl);                                                           \
+        vfloat16m##LMUL##_t log_neg = log1p_ps(__riscv_vfneg_v_f16m##LMUL(x, vl), vl);                           \
+        return __riscv_vfmul_vf_f16m##LMUL(__riscv_vfsub_vv_f16m##LMUL(log_pos, log_neg, vl), (__fp16)0.5f, vl); \
+    }
+
+_RVV_FLOAT16_ATANH_OP(1, 16)
+_RVV_FLOAT16_ATANH_OP(2, 8)
+_RVV_FLOAT16_ATANH_OP(4, 4)
+_RVV_FLOAT16_ATANH_OP(8, 2)
+
 /* floor */
 #define _RVV_FLOAT16_FLOOR_OP(LMUL, MLEN)                                               \
     static inline vfloat16m##LMUL##_t floor_ps(vfloat16m##LMUL##_t x, size_t vl)        \

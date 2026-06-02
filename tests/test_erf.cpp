@@ -12,7 +12,7 @@ static int test_erf(const ncnn::Mat& a)
     int ret = test_layer("Erf", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_erf failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
+        fprintf(stderr, "test_erf failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);
     }
 
     return ret;
@@ -21,6 +21,9 @@ static int test_erf(const ncnn::Mat& a)
 static int test_erf_0()
 {
     return 0
+           || test_erf(RandomMat(5, 6, 7, 24))
+           || test_erf(RandomMat(7, 8, 9, 12))
+           || test_erf(RandomMat(3, 4, 5, 13))
            || test_erf(RandomMat(10, 12, 5))
            || test_erf(RandomMat(3, 6, 18))
            || test_erf(RandomMat(12, 4, 7));

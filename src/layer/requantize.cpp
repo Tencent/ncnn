@@ -69,6 +69,7 @@ int Requantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
     const int dims = bottom_blob.dims;
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
 
     if (dims == 1)
@@ -111,9 +112,12 @@ int Requantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
-        top_blob.create(w, h, channels, (size_t)1u, opt.blob_allocator);
+        if (dims == 3)
+            top_blob.create(w, h, channels, (size_t)1u, opt.blob_allocator);
+        else
+            top_blob.create(w, h, d, channels, (size_t)1u, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -127,7 +131,7 @@ int Requantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             const float bias = bias_data_size == 0 ? 0.f : bias_data_size == 1 ? bias_data[0] : bias_data[q];
             const float scale_out = scale_out_data_size == 1 ? scale_out_data[0] : scale_out_data[q];
 
-            requantize(intptr, ptr, scale_in, bias, scale_out, activation_type, activation_params, w * h);
+            requantize(intptr, ptr, scale_in, bias, scale_out, activation_type, activation_params, w * h * d);
         }
     }
 
