@@ -36,6 +36,19 @@ LayerNorm_vulkan::LayerNorm_vulkan()
 
 int LayerNorm_vulkan::create_pipeline(const Option& opt)
 {
+    const bool use_subgroup = opt.use_subgroup_ops && (vkdev->info.support_subgroup_ops() & VK_SUBGROUP_FEATURE_ARITHMETIC_BIT);
+
+    if (use_subgroup)
+    {
+        pipeline_layernorm_reduce_subgroup = new Pipeline(vkdev);
+        pipeline_layernorm_reduce_subgroup->set_local_size_xyz(256, 1, 1);
+        pipeline_layernorm_reduce_subgroup->create(LayerShaderType::layernorm_reduce_subgroup, opt, std::vector<vk_specialization_type>());
+
+        pipeline_layernorm_reduce_subgroup_pack4 = new Pipeline(vkdev);
+        pipeline_layernorm_reduce_subgroup_pack4->set_local_size_xyz(256, 1, 1);
+        pipeline_layernorm_reduce_subgroup_pack4->create(LayerShaderType::layernorm_reduce_subgroup_pack4, opt, std::vector<vk_specialization_type>());
+    }
+    else
     {
         pipeline_layernorm_reduce_sum4_fp16_to_fp32 = new Pipeline(vkdev);
         pipeline_layernorm_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(16, 4, 1);
@@ -58,9 +71,7 @@ int LayerNorm_vulkan::create_pipeline(const Option& opt)
         pipeline_layernorm_reduce_sum4_fp32_pack4[1] = new Pipeline(vkdev);
         pipeline_layernorm_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(8, 8, 1);
         pipeline_layernorm_reduce_sum4_fp32_pack4[1]->create(LayerShaderType::layernorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
-    }
 
-    {
         pipeline_layernorm_reduce_mean = new Pipeline(vkdev);
         pipeline_layernorm_reduce_mean->set_optimal_local_size_xyz(1, 8, 8);
         pipeline_layernorm_reduce_mean->create(LayerShaderType::layernorm_reduce_mean, opt, std::vector<vk_specialization_type>());
@@ -68,19 +79,19 @@ int LayerNorm_vulkan::create_pipeline(const Option& opt)
         pipeline_layernorm_reduce_mean_pack4 = new Pipeline(vkdev);
         pipeline_layernorm_reduce_mean_pack4->set_optimal_local_size_xyz(1, 8, 8);
         pipeline_layernorm_reduce_mean_pack4->create(LayerShaderType::layernorm_reduce_mean_pack4, opt, std::vector<vk_specialization_type>());
-    }
 
-    {
-        std::vector<vk_specialization_type> specializations(1);
-        specializations[0].i = affine_size;
+        {
+            std::vector<vk_specialization_type> specializations(1);
+            specializations[0].i = affine_size;
 
-        pipeline_layernorm_sub_mean_square = new Pipeline(vkdev);
-        pipeline_layernorm_sub_mean_square->set_optimal_local_size_xyz(8, 8, 1);
-        pipeline_layernorm_sub_mean_square->create(LayerShaderType::layernorm_sub_mean_square, opt, specializations);
+            pipeline_layernorm_sub_mean_square = new Pipeline(vkdev);
+            pipeline_layernorm_sub_mean_square->set_optimal_local_size_xyz(8, 8, 1);
+            pipeline_layernorm_sub_mean_square->create(LayerShaderType::layernorm_sub_mean_square, opt, specializations);
 
-        pipeline_layernorm_sub_mean_square_pack4 = new Pipeline(vkdev);
-        pipeline_layernorm_sub_mean_square_pack4->set_optimal_local_size_xyz(8, 8, 1);
-        pipeline_layernorm_sub_mean_square_pack4->create(LayerShaderType::layernorm_sub_mean_square_pack4, opt, specializations);
+            pipeline_layernorm_sub_mean_square_pack4 = new Pipeline(vkdev);
+            pipeline_layernorm_sub_mean_square_pack4->set_optimal_local_size_xyz(8, 8, 1);
+            pipeline_layernorm_sub_mean_square_pack4->create(LayerShaderType::layernorm_sub_mean_square_pack4, opt, specializations);
+        }
     }
 
     {
@@ -108,17 +119,6 @@ int LayerNorm_vulkan::create_pipeline(const Option& opt)
         pipeline_layernorm_norm_pack4 = new Pipeline(vkdev);
         pipeline_layernorm_norm_pack4->set_optimal_local_size_xyz(8, 8, 1);
         pipeline_layernorm_norm_pack4->create(LayerShaderType::layernorm_norm_pack4, opt, specializations);
-    }
-
-    if (vkdev->info.support_subgroup_ops() & VK_SUBGROUP_FEATURE_ARITHMETIC_BIT)
-    {
-        pipeline_layernorm_reduce_subgroup = new Pipeline(vkdev);
-        pipeline_layernorm_reduce_subgroup->set_local_size_xyz(256, 1, 1);
-        pipeline_layernorm_reduce_subgroup->create(LayerShaderType::layernorm_reduce_subgroup, opt, std::vector<vk_specialization_type>());
-
-        pipeline_layernorm_reduce_subgroup_pack4 = new Pipeline(vkdev);
-        pipeline_layernorm_reduce_subgroup_pack4->set_local_size_xyz(256, 1, 1);
-        pipeline_layernorm_reduce_subgroup_pack4->create(LayerShaderType::layernorm_reduce_subgroup_pack4, opt, std::vector<vk_specialization_type>());
     }
 
     return 0;
