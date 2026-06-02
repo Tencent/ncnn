@@ -3200,9 +3200,11 @@ static int sdpa_forward_prefill(
     Mat s_vec(BLOCK_N * BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
     Mat o_accum(out_embed_dim, BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
     const bool large_dim = embed_dim > 512 && (src_seqlen > 16 || num_heads_per_group > 1);
-    Mat q_batch(embed_dim, BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
+    Mat q_batch;
+    if (!large_dim)
+        q_batch.create(embed_dim, BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
 
-    if (s_vec.empty() || o_accum.empty() || q_batch.empty())
+    if (s_vec.empty() || o_accum.empty() || (!large_dim && q_batch.empty()))
         return -100;
 
     int num_m_tiles = (src_seqlen + BLOCK_M - 1) / BLOCK_M;
