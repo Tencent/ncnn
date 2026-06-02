@@ -3197,11 +3197,12 @@ static int sdpa_forward_prefill(
     Mat s_vec(BLOCK_N * BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
     Mat o_accum(out_embed_dim, BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
     const bool large_dim = embed_dim > 512 && (src_seqlen > 16 || num_heads_per_group > 1);
+    const bool pack_q = !large_dim && num_heads_per_group > 1;
     Mat q_batch;
-    if (!large_dim)
+    if (pack_q)
         q_batch.create(embed_dim, BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
 
-    if (s_vec.empty() || o_accum.empty() || (!large_dim && q_batch.empty()))
+    if (s_vec.empty() || o_accum.empty() || (pack_q && q_batch.empty()))
         return -100;
 
     int num_m_tiles = (src_seqlen + BLOCK_M - 1) / BLOCK_M;
@@ -3226,7 +3227,9 @@ static int sdpa_forward_prefill(
 
         Mat s_vec_thread = s_vec.channel(get_omp_thread_num());
         Mat o_accum_thread = o_accum.channel(get_omp_thread_num());
-        Mat q_batch_thread = q_batch.channel(get_omp_thread_num());
+        Mat q_batch_thread;
+        if (pack_q)
+            q_batch_thread = q_batch.channel(get_omp_thread_num());
 
         // Pre-resolve mask pointers for all heads in this group
         const float* mask_data[num_heads_per_group];
@@ -3249,7 +3252,15 @@ static int sdpa_forward_prefill(
         Mat m_state_tile = m_state.channel(idx);
         Mat l_state_tile = l_state.channel(idx);
 
-        if (!large_dim)
+        Mat query_head_unpacked;
+        const float* q_data = 0;
+        if (!large_dim && !pack_q)
+        {
+            query_head_unpacked = query_ref.channel(g * num_heads_per_group);
+            q_data = query_head_unpacked.row(m_start);
+        }
+
+        if (pack_q)
         {
             for (int hq = 0; hq < num_heads_per_group; hq++)
             {
@@ -3288,6 +3299,8 @@ static int sdpa_forward_prefill(
 
             if (!large_dim)
             {
+                if (pack_q)
+                    q_data = q_batch_thread.row(0);
 #if NCNN_BF16
                 if (use_bf16_path)
                 {
@@ -3296,7 +3309,7 @@ static int sdpa_forward_prefill(
                     if (ncnn::cpu_support_x86_avx512_bf16())
                     {
                         qk_gemm_bf16s_avx512bf16(s_ptr,
-                                                 q_batch_thread.row(0),
+                                                 q_data,
                                                  key_head.row<const unsigned short>(n_start),
                                                  block_m * num_heads_per_group, block_n, embed_dim, _scale);
                     }
@@ -3304,23 +3317,23 @@ static int sdpa_forward_prefill(
 #endif
                     {
                         qk_gemm_bf16s_avx512_kernel(s_ptr,
-                                                    q_batch_thread.row(0),
+                                                    q_data,
                                                     key_head.row<const unsigned short>(n_start),
                                                     block_m * num_heads_per_group, block_n, embed_dim, _scale);
                     }
 #elif __AVX__
                     qk_gemm_bf16s_avx_kernel(s_ptr,
-                                             q_batch_thread.row(0),
+                                             q_data,
                                              key_head.row<const unsigned short>(n_start),
                                              block_m * num_heads_per_group, block_n, embed_dim, _scale);
 #elif __SSE2__
                     qk_gemm_bf16s_sse2_kernel(s_ptr,
-                                              q_batch_thread.row(0),
+                                              q_data,
                                               key_head.row<const unsigned short>(n_start),
                                               block_m * num_heads_per_group, block_n, embed_dim, _scale);
 #else
                     qk_gemm_bf16s_scalar_kernel(s_ptr,
-                                                q_batch_thread.row(0),
+                                                q_data,
                                                 key_head.row<const unsigned short>(n_start),
                                                 block_m * num_heads_per_group, block_n, embed_dim, _scale);
 #endif
@@ -3332,167 +3345,167 @@ static int sdpa_forward_prefill(
                     {
                     case 128:
 #if __AVX512F__
-                        qk_gemm_specialized_avx512<128>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx512<128>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __AVX__
-                        qk_gemm_specialized_avx<128>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx<128>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __SSE2__
-                        qk_gemm_specialized_sse2<128>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_sse2<128>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #endif
                     case 64:
 #if __AVX512F__
-                        qk_gemm_specialized_avx512<64>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx512<64>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __AVX__
-                        qk_gemm_specialized_avx<64>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx<64>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __SSE2__
-                        qk_gemm_specialized_sse2<64>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_sse2<64>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #endif
                     case 512:
 #if __AVX512F__
-                        qk_gemm_specialized_avx512<512>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx512<512>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __AVX__
-                        qk_gemm_specialized_avx<512>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx<512>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __SSE2__
-                        qk_gemm_specialized_sse2<512>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_sse2<512>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #endif
                     case 256:
 #if __AVX512F__
-                        qk_gemm_specialized_avx512<256>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx512<256>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __AVX__
-                        qk_gemm_specialized_avx<256>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx<256>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __SSE2__
-                        qk_gemm_specialized_sse2<256>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_sse2<256>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #endif
                     case 32:
 #if __AVX512F__
-                        qk_gemm_specialized_avx512<32>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx512<32>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __AVX__
-                        qk_gemm_specialized_avx<32>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx<32>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __SSE2__
-                        qk_gemm_specialized_sse2<32>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_sse2<32>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #endif
                     case 80:
 #if __AVX512F__
-                        qk_gemm_specialized_avx512<80>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx512<80>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __AVX__
-                        qk_gemm_specialized_avx<80>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx<80>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __SSE2__
-                        qk_gemm_specialized_sse2<80>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_sse2<80>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #endif
                     case 96:
 #if __AVX512F__
-                        qk_gemm_specialized_avx512<96>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx512<96>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __AVX__
-                        qk_gemm_specialized_avx<96>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx<96>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __SSE2__
-                        qk_gemm_specialized_sse2<96>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_sse2<96>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #endif
                     case 160:
 #if __AVX512F__
-                        qk_gemm_specialized_avx512<160>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx512<160>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __AVX__
-                        qk_gemm_specialized_avx<160>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx<160>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __SSE2__
-                        qk_gemm_specialized_sse2<160>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_sse2<160>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #endif
                     case 1024:
 #if __AVX512F__
-                        qk_gemm_specialized_avx512<1024>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx512<1024>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __AVX__
-                        qk_gemm_specialized_avx<1024>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx<1024>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __SSE2__
-                        qk_gemm_specialized_sse2<1024>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_sse2<1024>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #endif
                     case 2048:
 #if __AVX512F__
-                        qk_gemm_specialized_avx512<2048>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx512<2048>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __AVX__
-                        qk_gemm_specialized_avx<2048>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx<2048>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __SSE2__
-                        qk_gemm_specialized_sse2<2048>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_sse2<2048>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #endif
                     case 4096:
 #if __AVX512F__
-                        qk_gemm_specialized_avx512<4096>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx512<4096>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __AVX__
-                        qk_gemm_specialized_avx<4096>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx<4096>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __SSE2__
-                        qk_gemm_specialized_sse2<4096>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_sse2<4096>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #endif
                     case 768:
 #if __AVX512F__
-                        qk_gemm_specialized_avx512<768>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx512<768>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __AVX__
-                        qk_gemm_specialized_avx<768>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx<768>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __SSE2__
-                        qk_gemm_specialized_sse2<768>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_sse2<768>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #endif
                     case 1536:
 #if __AVX512F__
-                        qk_gemm_specialized_avx512<1536>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx512<1536>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __AVX__
-                        qk_gemm_specialized_avx<1536>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx<1536>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __SSE2__
-                        qk_gemm_specialized_sse2<1536>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_sse2<1536>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #endif
                     case 3072:
 #if __AVX512F__
-                        qk_gemm_specialized_avx512<3072>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx512<3072>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __AVX__
-                        qk_gemm_specialized_avx<3072>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_avx<3072>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #elif __SSE2__
-                        qk_gemm_specialized_sse2<3072>(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        qk_gemm_specialized_sse2<3072>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
                         break;
 #endif
                     default:
 #if __AVX512F__
-                        qk_gemm_avx512(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, embed_dim, _scale);
+                        qk_gemm_avx512(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, embed_dim, _scale);
 #elif __AVX__
-                        qk_gemm_avx(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, embed_dim, _scale);
+                        qk_gemm_avx(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, embed_dim, _scale);
 #elif __SSE2__
-                        qk_gemm_sse2(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, embed_dim, _scale);
+                        qk_gemm_sse2(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, embed_dim, _scale);
 #else
-                        qk_gemm_scalar(s_ptr, q_batch_thread.row(0), key_head.row(n_start), block_m * num_heads_per_group, block_n, embed_dim, _scale);
+                        qk_gemm_scalar(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, embed_dim, _scale);
 #endif
                         break;
                     }
