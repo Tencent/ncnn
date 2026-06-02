@@ -3,9 +3,31 @@
 
 #include "perfutil.h"
 
+#include <stdlib.h>
+
+static bool match_env_int(const char* name, int value)
+{
+    const char* s = getenv(name);
+    if (!s || !s[0])
+        return true;
+
+    return atoi(s) == value;
+}
+
+static bool should_run_prefill(int embed_dim, int num_heads, int num_groups, int src_seqlen)
+{
+    return match_env_int("NCNN_PERF_SDPA_EMBED", embed_dim)
+           && match_env_int("NCNN_PERF_SDPA_HEADS", num_heads)
+           && match_env_int("NCNN_PERF_SDPA_GROUPS", num_groups)
+           && match_env_int("NCNN_PERF_SDPA_SEQLEN", src_seqlen);
+}
+
 // prefill phase: larger src_seqlen, no kv_cache (past_seqlen=0)
 static void perf_sdpa_prefill(int embed_dim, int num_heads, int num_groups, int src_seqlen)
 {
+    if (!should_run_prefill(embed_dim, num_heads, num_groups, src_seqlen))
+        return;
+
     const int cur_seqlen = src_seqlen; // in prefill, cur_seqlen == src_seqlen
     const int out_embed_dim = embed_dim;
 

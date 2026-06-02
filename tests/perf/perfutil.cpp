@@ -11,6 +11,7 @@
 #include <float.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #if NCNN_VULKAN
@@ -743,6 +744,15 @@ static const PrecisionConfig s_configs[] = {
 };
 static const int s_num_configs = sizeof(s_configs) / sizeof(s_configs[0]);
 
+static bool should_run_dtype(const char* label)
+{
+    const char* s = getenv("NCNN_PERF_DTYPE");
+    if (!s || !s[0])
+        return true;
+
+    return strcmp(s, label) == 0;
+}
+
 static void perf_layer_impl(const char* layer_type, const ncnn::ParamDict& pd,
                             const std::vector<ncnn::Mat>& weights,
                             const std::vector<ncnn::Mat>& inputs,
@@ -754,6 +764,9 @@ static void perf_layer_impl(const char* layer_type, const ncnn::ParamDict& pd,
     int cpu_inner_loops = 0;
     for (int i = 0; i < s_num_configs; i++)
     {
+        if (!should_run_dtype(s_configs[i].label))
+            continue;
+
         ncnn::Option opt = make_perf_option(s_configs[i].fp16_ps, s_configs[i].fp16_arith, s_configs[i].bf16);
 
         PerfResult result;
@@ -792,6 +805,9 @@ static void perf_layer_impl(const char* layer_type, const ncnn::ParamDict& pd,
             int gpu_inner_loops = 0;
             for (int i = 0; i < s_num_configs; i++)
             {
+                if (!should_run_dtype(s_configs[i].label))
+                    continue;
+
                 ncnn::Option opt = make_perf_option(s_configs[i].fp16_ps, s_configs[i].fp16_arith, s_configs[i].bf16);
 
                 PerfResult result;
@@ -870,7 +886,7 @@ void perf_layer_int8(const char* layer_type, const ncnn::ParamDict& pd,
     opt.use_int8_inference = true;
 
     PerfResult result;
-    int ret = perf_layer_cpu(layer_type, pd, weights, inputs, top_blob_count, opt, 0, result);
+    int ret = should_run_dtype("int8") ? perf_layer_cpu(layer_type, pd, weights, inputs, top_blob_count, opt, 0, result) : -1;
     if (ret == 0)
     {
         char full_tag[512];

@@ -3197,7 +3197,7 @@ static int sdpa_forward_prefill(
     const int BLOCK_N = 128;
     Mat s_vec(BLOCK_N * BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
     Mat o_accum(out_embed_dim, BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
-    const bool large_dim = embed_dim > 512 && src_seqlen > 16;
+    const bool large_dim = embed_dim > 512 && (src_seqlen > 16 || num_heads_per_group > 1);
     Mat q_batch(embed_dim, BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
 
     if (s_vec.empty() || o_accum.empty() || q_batch.empty())
