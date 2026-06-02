@@ -875,6 +875,8 @@ static inline void sdpa_int8_decode_core(
 static void qk_gemm_avx512(float* S, const float* Q, const float* K,
                            int m, int n, int d, float scale)
 {
+    const int tail = d & 15;
+    const __mmask16 tail_mask = (__mmask16)((1u << tail) - 1);
     int i = 0;
     for (; i + 8 <= m; i += 8)
     {
@@ -905,15 +907,14 @@ static void qk_gemm_avx512(float* S, const float* Q, const float* K,
                 }
             }
 
-            if (k < d)
+            if (tail)
             {
-                __mmask16 mask = (__mmask16)((1u << (d - k)) - 1);
-                __m512 kv0 = _mm512_maskz_loadu_ps(mask, k0 + k);
-                __m512 kv1 = _mm512_maskz_loadu_ps(mask, k1 + k);
+                __m512 kv0 = _mm512_maskz_loadu_ps(tail_mask, k0 + k);
+                __m512 kv1 = _mm512_maskz_loadu_ps(tail_mask, k1 + k);
 
                 for (int mi = 0; mi < 8; mi++)
                 {
-                    __m512 qvec = _mm512_maskz_loadu_ps(mask, Q + (i + mi) * d + k);
+                    __m512 qvec = _mm512_maskz_loadu_ps(tail_mask, Q + (i + mi) * d + k);
                     acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
                     acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
                 }
@@ -945,13 +946,12 @@ static void qk_gemm_avx512(float* S, const float* Q, const float* K,
                 }
             }
 
-            if (k < d)
+            if (tail)
             {
-                __mmask16 mask = (__mmask16)((1u << (d - k)) - 1);
-                __m512 kvec = _mm512_maskz_loadu_ps(mask, kptr + k);
+                __m512 kvec = _mm512_maskz_loadu_ps(tail_mask, kptr + k);
                 for (int mi = 0; mi < 8; mi++)
                 {
-                    __m512 qvec = _mm512_maskz_loadu_ps(mask, Q + (i + mi) * d + k);
+                    __m512 qvec = _mm512_maskz_loadu_ps(tail_mask, Q + (i + mi) * d + k);
                     acc[mi] = _mm512_fmadd_ps(qvec, kvec, acc[mi]);
                 }
             }
@@ -990,15 +990,14 @@ static void qk_gemm_avx512(float* S, const float* Q, const float* K,
                 }
             }
 
-            if (k < d)
+            if (tail)
             {
-                __mmask16 mask = (__mmask16)((1u << (d - k)) - 1);
-                __m512 kv0 = _mm512_maskz_loadu_ps(mask, k0 + k);
-                __m512 kv1 = _mm512_maskz_loadu_ps(mask, k1 + k);
+                __m512 kv0 = _mm512_maskz_loadu_ps(tail_mask, k0 + k);
+                __m512 kv1 = _mm512_maskz_loadu_ps(tail_mask, k1 + k);
 
                 for (int mi = 0; mi < 4; mi++)
                 {
-                    __m512 qvec = _mm512_maskz_loadu_ps(mask, Q + (i + mi) * d + k);
+                    __m512 qvec = _mm512_maskz_loadu_ps(tail_mask, Q + (i + mi) * d + k);
                     acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
                     acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
                 }
@@ -1030,13 +1029,12 @@ static void qk_gemm_avx512(float* S, const float* Q, const float* K,
                 }
             }
 
-            if (k < d)
+            if (tail)
             {
-                __mmask16 mask = (__mmask16)((1u << (d - k)) - 1);
-                __m512 kvec = _mm512_maskz_loadu_ps(mask, kptr + k);
+                __m512 kvec = _mm512_maskz_loadu_ps(tail_mask, kptr + k);
                 for (int mi = 0; mi < 4; mi++)
                 {
-                    __m512 qvec = _mm512_maskz_loadu_ps(mask, Q + (i + mi) * d + k);
+                    __m512 qvec = _mm512_maskz_loadu_ps(tail_mask, Q + (i + mi) * d + k);
                     acc[mi] = _mm512_fmadd_ps(qvec, kvec, acc[mi]);
                 }
             }
@@ -1072,14 +1070,13 @@ static void qk_gemm_avx512(float* S, const float* Q, const float* K,
                 acc3 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k3 + k), acc3);
             }
 
-            if (k < d)
+            if (tail)
             {
-                __mmask16 mask = (__mmask16)((1u << (d - k)) - 1);
-                __m512 qvec = _mm512_maskz_loadu_ps(mask, qptr + k);
-                acc0 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(mask, k0 + k), acc0);
-                acc1 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(mask, k1 + k), acc1);
-                acc2 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(mask, k2 + k), acc2);
-                acc3 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(mask, k3 + k), acc3);
+                __m512 qvec = _mm512_maskz_loadu_ps(tail_mask, qptr + k);
+                acc0 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(tail_mask, k0 + k), acc0);
+                acc1 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(tail_mask, k1 + k), acc1);
+                acc2 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(tail_mask, k2 + k), acc2);
+                acc3 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(tail_mask, k3 + k), acc3);
             }
 
             S[i * n + j + 0] = _mm512_comp_reduce_add_ps(acc0) * scale;
@@ -1097,10 +1094,9 @@ static void qk_gemm_avx512(float* S, const float* Q, const float* K,
             __m512 vacc = _mm512_setzero_ps();
             for (; k + 15 < d; k += 16)
                 vacc = _mm512_fmadd_ps(_mm512_loadu_ps(qptr + k), _mm512_loadu_ps(kptr + k), vacc);
-            if (k < d)
+            if (tail)
             {
-                __mmask16 mask = (__mmask16)((1u << (d - k)) - 1);
-                vacc = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(mask, qptr + k), _mm512_maskz_loadu_ps(mask, kptr + k), vacc);
+                vacc = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(tail_mask, qptr + k), _mm512_maskz_loadu_ps(tail_mask, kptr + k), vacc);
             }
             S[i * n + j] = _mm512_comp_reduce_add_ps(vacc) * scale;
         }
