@@ -178,7 +178,7 @@ layout (binding = 1) readonly buffer weight_blob { sint16 weight_blob_data[]; };
 |int8 storage type|int8p|int8s|int8s+int8a|
 |---|---|---|---|
 |sint8|int|int8_t|int8_t|
-|sint8vec4|int|int|i8vec4|
+|sint8vec4|int|int|int|
 
 |int8 arithmetic type|int8|
 |---|---|
@@ -189,7 +189,7 @@ layout (binding = 1) readonly buffer weight_blob { sint16 weight_blob_data[]; };
 |---|---|---|
 |sint16|int|int16_t|
 
-`sint8vec4` uses native `i8vec4` only when both `opt.use_int8_storage` and `opt.use_int8_arithmetic` are enabled. Otherwise it uses one `int` to hold four signed int8 lanes.
+`sint8vec4` uses one `int` to hold four signed int8 lanes in all int8 storage modes. This keeps pack4 data in packed form for integer dot-product and shared-memory paths. Use `i8buffer_ld4` to unpack it to `ivec4`, and use `i8buffer_sm4` to load the raw packed `int`.
 
 `sint16` uses one `int` to hold two signed int16 lanes when `opt.use_int16_packed` is enabled, and uses native `int16_t` when `opt.use_int16_storage` is enabled.
 
@@ -238,7 +238,10 @@ void buffer_cp4to1(sfp dst, ivec4 dst_offsets, sfpvec4 src, int src_offset);
 ```c
 aint8 i8buffer_ld1(sint8 src, int offset);
 aint8vec4 i8buffer_ld4(sint8vec4 src, int offset);
+int i8buffer_sm4(sint8vec4 src, int offset);
 ```
+
+`i8buffer_sm4` loads the raw packed `int` representation of four int8 lanes. It is useful for shared-memory staging and `dotPacked4x8EXT` paths where unpacking to `ivec4` would be wasteful.
 
 - store int8 typed value to dst[offset]
 
@@ -390,6 +393,10 @@ void main()
 
 #if ncnn_subgroupSize == 32
     // here is the code path optimized for subgroup_size == 32
+#endif
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+    // here is the packed int8 dot-product path
 #endif
 
     // use macro definitions

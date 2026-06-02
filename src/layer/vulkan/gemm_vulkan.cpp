@@ -907,10 +907,10 @@ int Gemm_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
 #if NCNN_INT8
 int Gemm_vulkan::create_pipeline_int8(const Option& opt)
 {
-    Option opt_data = opt;
-    opt_data.use_fp16_arithmetic = false;
-    opt_data.use_int16_packed = false;
-    opt_data.use_int16_storage = false;
+    Option opt_int8 = opt;
+    opt_int8.use_fp16_arithmetic = false;
+    opt_int8.use_int16_packed = false;
+    opt_int8.use_int16_storage = false;
     if (constantA)
     {
         A_data_int8_packed.create(constantK, constantM, (size_t)1u, 1);
@@ -1026,7 +1026,7 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
 
         pipeline_gemm_quantize_A_int8 = new Pipeline(vkdev);
         pipeline_gemm_quantize_A_int8->set_optimal_local_size_xyz(Mat(64, 1, 1, (void*)0));
-        pipeline_gemm_quantize_A_int8->create(LayerShaderType::gemm_quantize_A_int8, opt_data, specializations);
+        pipeline_gemm_quantize_A_int8->create(LayerShaderType::gemm_quantize_A_int8, opt_int8, specializations);
     }
 
     if (!constantB)
@@ -1036,15 +1036,15 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
 
         pipeline_gemm_quantize_B_absmax_int8 = new Pipeline(vkdev);
         pipeline_gemm_quantize_B_absmax_int8->set_local_size_xyz(128, 1, 1);
-        pipeline_gemm_quantize_B_absmax_int8->create(LayerShaderType::gemm_quantize_B_absmax_int8, opt_data, specializations);
+        pipeline_gemm_quantize_B_absmax_int8->create(LayerShaderType::gemm_quantize_B_absmax_int8, opt_int8, specializations);
 
         pipeline_gemm_quantize_B_scale_int8 = new Pipeline(vkdev);
         pipeline_gemm_quantize_B_scale_int8->set_local_size_xyz(128, 1, 1);
-        pipeline_gemm_quantize_B_scale_int8->create(LayerShaderType::gemm_quantize_B_scale_int8, opt_data, std::vector<vk_specialization_type>());
+        pipeline_gemm_quantize_B_scale_int8->create(LayerShaderType::gemm_quantize_B_scale_int8, opt_int8, std::vector<vk_specialization_type>());
 
         pipeline_gemm_quantize_B_int8 = new Pipeline(vkdev);
         pipeline_gemm_quantize_B_int8->set_optimal_local_size_xyz(Mat(64, 1, 1, (void*)0));
-        pipeline_gemm_quantize_B_int8->create(LayerShaderType::gemm_quantize_B_int8, opt_data, specializations);
+        pipeline_gemm_quantize_B_int8->create(LayerShaderType::gemm_quantize_B_int8, opt_int8, specializations);
     }
 
     std::vector<vk_specialization_type> specializations(5);
@@ -1056,7 +1056,7 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
 
     pipeline_gemm = new Pipeline(vkdev);
     pipeline_gemm->set_local_size_xyz(8, 8, 1);
-    pipeline_gemm->create(LayerShaderType::gemm_int8, opt_data, specializations);
+    pipeline_gemm->create(LayerShaderType::gemm_int8, opt_int8, specializations);
 
     if (opt.lightmode)
     {
@@ -1070,11 +1070,11 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
 
 int Gemm_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 {
-    Option opt_float = opt;
-    opt_float.use_fp16_packed = false;
-    opt_float.use_fp16_storage = false;
-    opt_float.use_bf16_packed = false;
-    opt_float.use_bf16_storage = false;
+    Option opt_fp32 = opt;
+    opt_fp32.use_fp16_packed = false;
+    opt_fp32.use_fp16_storage = false;
+    opt_fp32.use_bf16_packed = false;
+    opt_fp32.use_bf16_storage = false;
 
     if (constantA)
     {
@@ -1082,7 +1082,7 @@ int Gemm_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
         A_data_int8_packed.release();
 
-        cmd.record_upload(A_data_int8_scales, A_data_int8_scales_gpu, opt_float);
+        cmd.record_upload(A_data_int8_scales, A_data_int8_scales_gpu, opt_fp32);
 
         A_data_int8_scales.release();
     }
@@ -1093,7 +1093,7 @@ int Gemm_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
         B_data_int8_packed.release();
 
-        cmd.record_upload(B_data_int8_scales, B_data_int8_scales_gpu, opt_float);
+        cmd.record_upload(B_data_int8_scales, B_data_int8_scales_gpu, opt_fp32);
 
         B_data_int8_scales.release();
     }
@@ -1382,8 +1382,8 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
     constants[4].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
 
     VkMat dispatcher;
-    dispatcher.w = N;
-    dispatcher.h = M;
+    dispatcher.w = (N + 3) / 4;
+    dispatcher.h = (M + 3) / 4;
     dispatcher.c = 1;
 
     cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);

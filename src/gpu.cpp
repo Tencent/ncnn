@@ -5486,14 +5486,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("sint16", "int");
     }
 
-    if (opt.use_int8_storage && opt.use_int8_arithmetic)
-    {
-        custom_defines.append("sint8vec4", "i8vec4");
-    }
-    else
-    {
-        custom_defines.append("sint8vec4", "int");
-    }
+    custom_defines.append("sint8vec4", "int");
 
     custom_defines.append("aint8", "int");
     custom_defines.append("aint8vec4", "ivec4");
@@ -5517,22 +5510,12 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("i8buffer_cp1(buf,i,sbuf,si)", "{int _v=i8buffer_ld1(sbuf,si);i8buffer_st1(buf,i,_v);}");
     }
 
-    if (opt.use_int8_storage && opt.use_int8_arithmetic)
-    {
-        custom_defines.append("i8buffer_ld4(buf,i)", "ivec4(int(buf[i].r),int(buf[i].g),int(buf[i].b),int(buf[i].a))");
-        custom_defines.append("i8buffer_st4(buf,i,v)", "{buf[i]=i8vec4(int8_t(v.r),int8_t(v.g),int8_t(v.b),int8_t(v.a));}");
-        custom_defines.append("i8buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("i8buffer_cp1to4(buf,i,sbuf,si)", "{buf[i]=i8vec4(sbuf[si.r],sbuf[si.g],sbuf[si.b],sbuf[si.a]);}");
-        custom_defines.append("i8buffer_cp4to1(buf,i4,sbuf,si)", "{i8vec4 _v=sbuf[si];buf[i4.r]=_v.r;buf[i4.g]=_v.g;buf[i4.b]=_v.b;buf[i4.a]=_v.a;}");
-    }
-    else
-    {
-        custom_defines.append("i8buffer_ld4(buf,i)", "unpackInt4x8(buf[i])");
-        custom_defines.append("i8buffer_st4(buf,i,v)", "{buf[i]=packInt4x8(v);}");
-        custom_defines.append("i8buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("i8buffer_cp1to4(buf,i,sbuf,si)", "{ivec4 _v=ivec4(i8buffer_ld1(sbuf,si.r),i8buffer_ld1(sbuf,si.g),i8buffer_ld1(sbuf,si.b),i8buffer_ld1(sbuf,si.a));i8buffer_st4(buf,i,_v);}");
-        custom_defines.append("i8buffer_cp4to1(buf,i4,sbuf,si)", "{ivec4 _v=i8buffer_ld4(sbuf,si);i8buffer_st1(buf,i4.r,_v.r);i8buffer_st1(buf,i4.g,_v.g);i8buffer_st1(buf,i4.b,_v.b);i8buffer_st1(buf,i4.a,_v.a);}");
-    }
+    custom_defines.append("i8buffer_ld4(buf,i)", "unpackInt4x8(buf[i])");
+    custom_defines.append("i8buffer_sm4(buf,i)", "buf[i]");
+    custom_defines.append("i8buffer_st4(buf,i,v)", "{buf[i]=packInt4x8(v);}");
+    custom_defines.append("i8buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
+    custom_defines.append("i8buffer_cp1to4(buf,i,sbuf,si)", "{ivec4 _v=ivec4(i8buffer_ld1(sbuf,si.r),i8buffer_ld1(sbuf,si.g),i8buffer_ld1(sbuf,si.b),i8buffer_ld1(sbuf,si.a));i8buffer_st4(buf,i,_v);}");
+    custom_defines.append("i8buffer_cp4to1(buf,i4,sbuf,si)", "{ivec4 _v=i8buffer_ld4(sbuf,si);i8buffer_st1(buf,i4.r,_v.r);i8buffer_st1(buf,i4.g,_v.g);i8buffer_st1(buf,i4.b,_v.b);i8buffer_st1(buf,i4.a,_v.a);}");
 
     custom_defines.append("psc(x)", "(x==0?p.x:x)");
 

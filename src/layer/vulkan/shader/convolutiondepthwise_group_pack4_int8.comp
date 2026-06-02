@@ -3,7 +3,7 @@
 
 #version 450
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && (ncnn_integerDotProduct4x8BitPackedSignedAccelerated || (NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_integerDotProduct8BitSignedAccelerated))
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
 #extension GL_EXT_integer_dot_product : require
 #endif
 
@@ -59,9 +59,6 @@ layout(push_constant) uniform parameter
     int outh;
     int outc;
     int outcstep;
-
-    int pad_left;
-    int pad_top;
 } p;
 
 void main()
@@ -89,52 +86,55 @@ void main()
         {
             const int ky = k / kernel_w;
             const int kx = k - ky * kernel_w;
-            const int x = gx * stride_w + kx * dilation_w - p.pad_left;
-            const int y = gy * stride_h + ky * dilation_h - p.pad_top;
+            const int x = gx * stride_w + kx * dilation_w;
+            const int y = gy * stride_h + ky * dilation_h;
 
             const int wi = ((gz * channels_g + q) * maxk + k) * 4;
 
-#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-            i8vec4 v = i8vec4(int8_t(0));
-            if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+            int v4p = 0;
+            if (x < psc(w) && y < psc(h))
             {
                 const int gi = (gg * channels_g + q) * psc(cstep) + y * psc(w) + x;
-                v = bottom_blob_int8_data[gi];
+#if NCNN_int8_storage
+                v4p = packInt4x8(i8buffer_ld4(bottom_blob_int8_data, gi));
+#else
+                v4p = bottom_blob_int8_data[gi];
+#endif
             }
 
-            sum.r += dotEXT(v, weight_data[wi + 0]);
-            sum.g += dotEXT(v, weight_data[wi + 1]);
-            sum.b += dotEXT(v, weight_data[wi + 2]);
-            sum.a += dotEXT(v, weight_data[wi + 3]);
-#elif ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
-            int v = 0;
-            if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
-            {
-                const int gi = (gg * channels_g + q) * psc(cstep) + y * psc(w) + x;
-                v = bottom_blob_int8_data[gi];
-            }
-
-            sum.r += dotPacked4x8EXT(v, weight_data[wi + 0]);
-            sum.g += dotPacked4x8EXT(v, weight_data[wi + 1]);
-            sum.b += dotPacked4x8EXT(v, weight_data[wi + 2]);
-            sum.a += dotPacked4x8EXT(v, weight_data[wi + 3]);
+#if NCNN_int8_storage
+            const int k0p = packInt4x8(i8buffer_ld4(weight_data, wi + 0));
+            const int k1p = packInt4x8(i8buffer_ld4(weight_data, wi + 1));
+            const int k2p = packInt4x8(i8buffer_ld4(weight_data, wi + 2));
+            const int k3p = packInt4x8(i8buffer_ld4(weight_data, wi + 3));
+#else
+            const int k0p = weight_data[wi + 0];
+            const int k1p = weight_data[wi + 1];
+            const int k2p = weight_data[wi + 2];
+            const int k3p = weight_data[wi + 3];
+#endif
+            sum.r += dotPacked4x8EXT(v4p, k0p);
+            sum.g += dotPacked4x8EXT(v4p, k1p);
+            sum.b += dotPacked4x8EXT(v4p, k2p);
+            sum.a += dotPacked4x8EXT(v4p, k3p);
 #else
             ivec4 v = ivec4(0);
-            if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+            if (x < psc(w) && y < psc(h))
             {
                 const int gi = (gg * channels_g + q) * psc(cstep) + y * psc(w) + x;
                 v = i8buffer_ld4(bottom_blob_int8_data, gi);
             }
 
-            const ivec4 w0 = i8buffer_ld4(weight_data, wi + 0);
-            const ivec4 w1 = i8buffer_ld4(weight_data, wi + 1);
-            const ivec4 w2 = i8buffer_ld4(weight_data, wi + 2);
-            const ivec4 w3 = i8buffer_ld4(weight_data, wi + 3);
+            const ivec4 k0 = i8buffer_ld4(weight_data, wi + 0);
+            const ivec4 k1 = i8buffer_ld4(weight_data, wi + 1);
+            const ivec4 k2 = i8buffer_ld4(weight_data, wi + 2);
+            const ivec4 k3 = i8buffer_ld4(weight_data, wi + 3);
 
-            sum.r += v.r * w0.r + v.g * w0.g + v.b * w0.b + v.a * w0.a;
-            sum.g += v.r * w1.r + v.g * w1.g + v.b * w1.b + v.a * w1.a;
-            sum.b += v.r * w2.r + v.g * w2.g + v.b * w2.b + v.a * w2.a;
-            sum.a += v.r * w3.r + v.g * w3.g + v.b * w3.b + v.a * w3.a;
+            sum.r += v.r * k0.r + v.g * k0.g + v.b * k0.b + v.a * k0.a;
+            sum.g += v.r * k1.r + v.g * k1.g + v.b * k1.b + v.a * k1.a;
+            sum.b += v.r * k2.r + v.g * k2.g + v.b * k2.b + v.a * k2.a;
+            sum.a += v.r * k3.r + v.g * k3.g + v.b * k3.b + v.a * k3.a;
 #endif
         }
     }

@@ -17,8 +17,6 @@ layout(push_constant) uniform parameter
     int block_x;
     int block_y;
 
-    int pad_left;
-    int pad_top;
     int c;
 } p;
 
@@ -31,8 +29,8 @@ void main()
     if (gx >= p.block_x || gy >= p.block_y || gz >= p.c)
         return;
 
-    const int sx = gx * 4 - p.pad_left;
-    const int sy = gy * 4 - p.pad_top;
+    const int sx = gx * 4;
+    const int sy = gy * 4;
     const int tile = gy * p.block_x + gx;
 
     int d[36];
@@ -44,7 +42,7 @@ void main()
             const int y = sy + yy;
 
             int v = 0;
-            if (x >= 0 && x < p.w && y >= 0 && y < p.h)
+            if (x < p.w && y < p.h)
             {
                 const int gi = gz * p.cstep + y * p.w + x;
                 v = i8buffer_ld1(bottom_blob_int8_data, gi);

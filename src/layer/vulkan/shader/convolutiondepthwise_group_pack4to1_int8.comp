@@ -3,7 +3,7 @@
 
 #version 450
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && (ncnn_integerDotProduct4x8BitPackedSignedAccelerated || (NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_integerDotProduct8BitSignedAccelerated))
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
 #extension GL_EXT_integer_dot_product : require
 #endif
 
@@ -59,9 +59,6 @@ layout(push_constant) uniform parameter
     int outh;
     int outc;
     int outcstep;
-
-    int pad_left;
-    int pad_top;
 } p;
 
 void main()
@@ -88,39 +85,39 @@ void main()
         {
             const int ky = k / kernel_w;
             const int kx = k - ky * kernel_w;
-            const int x = gx * stride_w + kx * dilation_w - p.pad_left;
-            const int y = gy * stride_h + ky * dilation_h - p.pad_top;
+            const int x = gx * stride_w + kx * dilation_w;
+            const int y = gy * stride_h + ky * dilation_h;
 
             const int wi = (gz * channels_g + q) * maxk + k;
 
-#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-            i8vec4 v = i8vec4(int8_t(0));
-            if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+            int v4p = 0;
+            if (x < psc(w) && y < psc(h))
             {
                 const int gi = (gg * channels_g + q) * psc(cstep) + y * psc(w) + x;
-                v = bottom_blob_int8_data[gi];
+#if NCNN_int8_storage
+                v4p = packInt4x8(i8buffer_ld4(bottom_blob_int8_data, gi));
+#else
+                v4p = bottom_blob_int8_data[gi];
+#endif
             }
 
-            sum += dotEXT(v, weight_data[wi]);
-#elif ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
-            int v = 0;
-            if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
-            {
-                const int gi = (gg * channels_g + q) * psc(cstep) + y * psc(w) + x;
-                v = bottom_blob_int8_data[gi];
-            }
-
-            sum += dotPacked4x8EXT(v, weight_data[wi]);
+#if NCNN_int8_storage
+            const int k4p = packInt4x8(i8buffer_ld4(weight_data, wi));
+#else
+            const int k4p = weight_data[wi];
+#endif
+            sum += dotPacked4x8EXT(v4p, k4p);
 #else
             ivec4 v = ivec4(0);
-            if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+            if (x < psc(w) && y < psc(h))
             {
                 const int gi = (gg * channels_g + q) * psc(cstep) + y * psc(w) + x;
                 v = i8buffer_ld4(bottom_blob_int8_data, gi);
             }
 
-            const ivec4 weight = i8buffer_ld4(weight_data, wi);
-            sum += v.r * weight.r + v.g * weight.g + v.b * weight.b + v.a * weight.a;
+            const ivec4 kv = i8buffer_ld4(weight_data, wi);
+            sum += v.r * kv.r + v.g * kv.g + v.b * kv.b + v.a * kv.a;
 #endif
         }
     }

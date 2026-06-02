@@ -3,7 +3,7 @@
 
 #version 450
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && (ncnn_integerDotProduct4x8BitPackedSignedAccelerated || (NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_integerDotProduct8BitSignedAccelerated))
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
 #extension GL_EXT_integer_dot_product : require
 #endif
 
@@ -37,7 +37,7 @@ layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 layout(binding = 0) readonly buffer bottom_blob { sint8 bottom_blob_int8_data[]; };
-layout(binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 2) readonly buffer weight_blob { sint8 weight_data[]; };
 layout(binding = 3) readonly buffer bias_blob { float bias_data[]; };
 layout(binding = 4) readonly buffer weight_scales_blob { sfp weight_scales_data[]; };
@@ -59,9 +59,6 @@ layout(push_constant) uniform parameter
     int outh;
     int outc;
     int outcstep;
-
-    int pad_left;
-    int pad_top;
 } p;
 
 void main()
@@ -84,80 +81,56 @@ void main()
         const ivec4 k4 = k + ivec4(0, 1, 2, 3);
         const ivec4 ky4 = k4 / kernel_w;
         const ivec4 kx4 = k4 - ky4 * kernel_w;
-        const ivec4 x4 = gx * stride_w + kx4 * dilation_w - p.pad_left;
-        const ivec4 y4 = gy * stride_h + ky4 * dilation_h - p.pad_top;
+        const ivec4 x4 = gx * stride_w + kx4 * dilation_w;
+        const ivec4 y4 = gy * stride_h + ky4 * dilation_h;
 
-#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-        i8vec4 v = i8vec4(int8_t(0));
-#else
         ivec4 v = ivec4(0);
-#endif
-        if (x4.r >= 0 && x4.r < psc(w) && y4.r >= 0 && y4.r < psc(h))
+        if (x4.r < psc(w) && y4.r < psc(h))
         {
             const int gi = gz * psc(cstep) + y4.r * psc(w) + x4.r;
-#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-            v.r = bottom_blob_int8_data[gi];
-#else
             v.r = i8buffer_ld1(bottom_blob_int8_data, gi);
-#endif
         }
-        if (x4.g >= 0 && x4.g < psc(w) && y4.g >= 0 && y4.g < psc(h))
+        if (x4.g < psc(w) && y4.g < psc(h))
         {
             const int gi = gz * psc(cstep) + y4.g * psc(w) + x4.g;
-#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-            v.g = bottom_blob_int8_data[gi];
-#else
             v.g = i8buffer_ld1(bottom_blob_int8_data, gi);
-#endif
         }
-        if (x4.b >= 0 && x4.b < psc(w) && y4.b >= 0 && y4.b < psc(h))
+        if (x4.b < psc(w) && y4.b < psc(h))
         {
             const int gi = gz * psc(cstep) + y4.b * psc(w) + x4.b;
-#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-            v.b = bottom_blob_int8_data[gi];
-#else
             v.b = i8buffer_ld1(bottom_blob_int8_data, gi);
-#endif
         }
-        if (x4.a >= 0 && x4.a < psc(w) && y4.a >= 0 && y4.a < psc(h))
+        if (x4.a < psc(w) && y4.a < psc(h))
         {
             const int gi = gz * psc(cstep) + y4.a * psc(w) + x4.a;
-#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-            v.a = bottom_blob_int8_data[gi];
-#else
             v.a = i8buffer_ld1(bottom_blob_int8_data, gi);
-#endif
         }
 
-        const int w_offset = gz * maxk + k;
+        const int k_offset = gz * maxk + k;
 
-#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-        sum += dotEXT(v, i8vec4(weight_data[w_offset + 0], weight_data[w_offset + 1], weight_data[w_offset + 2], weight_data[w_offset + 3]));
-#else
-        int weight4;
+        int k4p;
 
 #if NCNN_int8_storage
-        weight4 = packInt4x8(ivec4(int(weight_data[w_offset + 0]), int(weight_data[w_offset + 1]), int(weight_data[w_offset + 2]), int(weight_data[w_offset + 3])));
+        k4p = packInt4x8(ivec4(int(weight_data[k_offset + 0]), int(weight_data[k_offset + 1]), int(weight_data[k_offset + 2]), int(weight_data[k_offset + 3])));
 #else
-        const int woffsetd4 = w_offset / 4;
-        const int woffsetm4 = w_offset % 4;
-        if (woffsetm4 == 0)
+        const int koffsetd4 = k_offset / 4;
+        const int koffsetm4 = k_offset % 4;
+        if (koffsetm4 == 0)
         {
-            weight4 = weight_data[woffsetd4];
+            k4p = weight_data[koffsetd4];
         }
         else
         {
-            const int shift = woffsetm4 * 8;
-            weight4 = int((uint(weight_data[woffsetd4]) >> shift) | (uint(weight_data[woffsetd4 + 1]) << (32 - shift)));
+            const int shift = koffsetm4 * 8;
+            k4p = int((uint(weight_data[koffsetd4]) >> shift) | (uint(weight_data[koffsetd4 + 1]) << (32 - shift)));
         }
 #endif
 
 #if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
-        sum += dotPacked4x8EXT(packInt4x8(v), weight4);
+        sum += dotPacked4x8EXT(packInt4x8(v), k4p);
 #else
-        const ivec4 weight = unpackInt4x8(weight4);
-        sum += v.r * weight.r + v.g * weight.g + v.b * weight.b + v.a * weight.a;
-#endif
+        const ivec4 k4v = unpackInt4x8(k4p);
+        sum += v.r * k4v.r + v.g * k4v.g + v.b * k4v.b + v.a * k4v.a;
 #endif
     }
 
@@ -165,18 +138,18 @@ void main()
     {
         const int ky = k / kernel_w;
         const int kx = k - ky * kernel_w;
-        const int x = gx * stride_w + kx * dilation_w - p.pad_left;
-        const int y = gy * stride_h + ky * dilation_h - p.pad_top;
+        const int x = gx * stride_w + kx * dilation_w;
+        const int y = gy * stride_h + ky * dilation_h;
 
         int v = 0;
-        if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+        if (x < psc(w) && y < psc(h))
         {
             const int gi = gz * psc(cstep) + y * psc(w) + x;
             v = i8buffer_ld1(bottom_blob_int8_data, gi);
         }
 
-        const int weight = i8buffer_ld1(weight_data, gz * maxk + k);
-        sum += v * weight;
+        const int kv = i8buffer_ld1(weight_data, gz * maxk + k);
+        sum += v * kv;
     }
 
     const float weight_scale = buffer_ld1(weight_scales_data, gz);
@@ -201,6 +174,6 @@ void main()
     }
     else
     {
-        top_blob_data[gi] = sumfp32;
+        buffer_st1(top_blob_data, gi, afp(sumfp32));
     }
 }

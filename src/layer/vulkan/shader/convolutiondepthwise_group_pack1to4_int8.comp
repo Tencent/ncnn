@@ -55,9 +55,6 @@ layout(push_constant) uniform parameter
     int outh;
     int outc;
     int outcstep;
-
-    int pad_left;
-    int pad_top;
 } p;
 
 void main()
@@ -85,18 +82,18 @@ void main()
         {
             const int ky = k / kernel_w;
             const int kx = k - ky * kernel_w;
-            const int x = gx * stride_w + kx * dilation_w - p.pad_left;
-            const int y = gy * stride_h + ky * dilation_h - p.pad_top;
+            const int x = gx * stride_w + kx * dilation_w;
+            const int y = gy * stride_h + ky * dilation_h;
 
             int v = 0;
-            if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+            if (x < psc(w) && y < psc(h))
             {
                 const int gi = (gg * channels_g + q) * psc(cstep) + y * psc(w) + x;
                 v = i8buffer_ld1(bottom_blob_int8_data, gi);
             }
 
-            const ivec4 weight = i8buffer_ld4(weight_data, (gz * channels_g + q) * maxk + k);
-            sum += v * weight;
+            const ivec4 kv = i8buffer_ld4(weight_data, (gz * channels_g + q) * maxk + k);
+            sum += v * kv;
         }
     }
 

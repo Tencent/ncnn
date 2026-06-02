@@ -3,7 +3,7 @@
 
 #version 450
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && (ncnn_integerDotProduct4x8BitPackedSignedAccelerated || (NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_integerDotProduct8BitSignedAccelerated))
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
 #extension GL_EXT_integer_dot_product : require
 #endif
 
@@ -21,188 +21,459 @@ layout(constant_id = 7) const int activation_type = 0;
 layout(constant_id = 8) const float activation_param_0 = 0;
 layout(constant_id = 9) const float activation_param_1 = 0;
 layout(constant_id = 10) const int use_int8_requantize = 0;
+layout(constant_id = 11) const int elempack = 1;
+layout(constant_id = 12) const int out_elempack = 1;
 
-#define shape_constant_id_offset 11
-layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+#define shape_constant_id_offset 13
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outcstep = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int num_output = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int num_input = 0;
 
-layout(constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout(constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+// scalar view  (for pack1 input/output access)
+layout(binding = 0) readonly buffer bottom_blob_1 { sint8 bottom_blob_int8_data_1[]; };
+layout(binding = 1) writeonly buffer top_blob_1 { sfp top_blob_data_1[]; };
 
-layout(binding = 0) readonly buffer bottom_blob { sint8 bottom_blob_int8_data[]; };
-layout(binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
-layout(binding = 2) readonly buffer weight_blob { sint8 weight_data[]; };
-layout(binding = 3) readonly buffer bias_blob { float bias_data[]; };
-layout(binding = 4) readonly buffer weight_scales_blob { sfp weight_scales_data[]; };
-layout(binding = 5) readonly buffer bottom_scales_blob { sfp bottom_scales_data[]; };
-layout(binding = 6) readonly buffer top_scales_blob { sfp top_scales_data[]; };
-layout(binding = 7) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
+// vec4 view  (for pack4 input/output access, weight always vec4)
+layout(binding = 2) readonly buffer bottom_blob_4 { sint8vec4 bottom_blob_int8_data_4[]; };
+layout(binding = 3) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
+layout(binding = 4) readonly buffer weight_blob { sint8vec4 weight_data[]; };
+layout(binding = 5) readonly buffer bias_blob { float bias_data[]; };
+layout(binding = 6) readonly buffer weight_scales_blob { sfp weight_scales_data[]; };
+layout(binding = 7) readonly buffer bottom_scales_blob { sfp bottom_scales_data[]; };
+layout(binding = 8) readonly buffer top_scales_blob { sfp top_scales_data[]; };
+layout(binding = 9) writeonly buffer top_blob_int8_1 { sint8 top_blob_int8_data_1[]; };
+layout(binding = 10) writeonly buffer top_blob_int8_4 { sint8vec4 top_blob_int8_data_4[]; };
 // bottom/top scales are per tensor; weight scales are per output channel
 
 layout(push_constant) uniform parameter
 {
-    int dims;
     int w;
     int h;
     int c;
     int cstep;
 
-    int outdims;
     int outw;
     int outh;
     int outc;
     int outcstep;
-
-    int pad_left;
-    int pad_top;
+    int num_output;
+    int num_input;
 } p;
 
 void main()
 {
-    int gx = int(gl_GlobalInvocationID.x);
-    int gy = int(gl_GlobalInvocationID.y);
-    int gz = int(gl_GlobalInvocationID.z);
+    int gx = int(gl_GlobalInvocationID.x) * 2;
+    int gy = int(gl_GlobalInvocationID.y) * 2;
+    int gz = int(gl_GlobalInvocationID.z) * 2;
 
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    const int maxk = kernel_w * kernel_h;
-    const float bottom_scale = buffer_ld1(bottom_scales_data, 0);
+    int maxk = kernel_w * kernel_h;
+    float bottom_scale = buffer_ld1(bottom_scales_data, 0);
 
-    int sum = 0;
+    ivec2 gx2 = gx + ivec2(0, 1);
+    ivec2 gy2 = gy + ivec2(0, 1);
+    ivec2 gz2 = gz + ivec2(0, 1);
 
-    for (int q = 0; q < psc(c); q++)
+    ivec4 sum0 = ivec4(0);
+    ivec4 sum1 = ivec4(0);
+    ivec4 sum2 = ivec4(0);
+    ivec4 sum3 = ivec4(0);
+    ivec4 sum4 = ivec4(0);
+    ivec4 sum5 = ivec4(0);
+    ivec4 sum6 = ivec4(0);
+    ivec4 sum7 = ivec4(0);
+
+    for (int z = 0; z < psc(c); z++)
     {
-        int k = 0;
-        for (; k + 3 < maxk; k += 4)
+        if (elempack == 4)
         {
-            const ivec4 k4 = k + ivec4(0, 1, 2, 3);
-            const ivec4 ky4 = k4 / kernel_w;
-            const ivec4 kx4 = k4 - ky4 * kernel_w;
-            const ivec4 x4 = gx * stride_w + kx4 * dilation_w - p.pad_left;
-            const ivec4 y4 = gy * stride_h + ky4 * dilation_h - p.pad_top;
+            ivec4 v_offset;
+            v_offset.rg = z * psc(cstep) + gy2.x * stride_h * psc(w) + gx2 * stride_w;
+            v_offset.ba = z * psc(cstep) + gy2.y * stride_h * psc(w) + gx2 * stride_w;
 
-#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-            i8vec4 v = i8vec4(int8_t(0));
-#else
-            ivec4 v = ivec4(0);
-#endif
-            if (x4.r >= 0 && x4.r < psc(w) && y4.r >= 0 && y4.r < psc(h))
-            {
-                const int gi = q * psc(cstep) + y4.r * psc(w) + x4.r;
-#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-                v.r = bottom_blob_int8_data[gi];
-#else
-                v.r = i8buffer_ld1(bottom_blob_int8_data, gi);
-#endif
-            }
-            if (x4.g >= 0 && x4.g < psc(w) && y4.g >= 0 && y4.g < psc(h))
-            {
-                const int gi = q * psc(cstep) + y4.g * psc(w) + x4.g;
-#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-                v.g = bottom_blob_int8_data[gi];
-#else
-                v.g = i8buffer_ld1(bottom_blob_int8_data, gi);
-#endif
-            }
-            if (x4.b >= 0 && x4.b < psc(w) && y4.b >= 0 && y4.b < psc(h))
-            {
-                const int gi = q * psc(cstep) + y4.b * psc(w) + x4.b;
-#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-                v.b = bottom_blob_int8_data[gi];
-#else
-                v.b = i8buffer_ld1(bottom_blob_int8_data, gi);
-#endif
-            }
-            if (x4.a >= 0 && x4.a < psc(w) && y4.a >= 0 && y4.a < psc(h))
-            {
-                const int gi = q * psc(cstep) + y4.a * psc(w) + x4.a;
-#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-                v.a = bottom_blob_int8_data[gi];
-#else
-                v.a = i8buffer_ld1(bottom_blob_int8_data, gi);
-#endif
-            }
+            ivec2 w_offset = (gz2 * psc(c) + z) * maxk * 4;
 
-            const int w_offset = (gz * psc(c) + q) * maxk + k;
-
-#if NCNN_int8_storage && NCNN_int8_arithmetic && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct8BitSignedAccelerated
-            sum += dotEXT(v, i8vec4(weight_data[w_offset + 0], weight_data[w_offset + 1], weight_data[w_offset + 2], weight_data[w_offset + 3]));
-#else
-            int weight4;
-
-#if NCNN_int8_storage
-            weight4 = packInt4x8(ivec4(int(weight_data[w_offset + 0]), int(weight_data[w_offset + 1]), int(weight_data[w_offset + 2]), int(weight_data[w_offset + 3])));
-#else
-            const int woffsetd4 = w_offset / 4;
-            const int woffsetm4 = w_offset % 4;
-            if (woffsetm4 == 0)
+            for (int y = 0; y < kernel_h; y++)
             {
-                weight4 = weight_data[woffsetd4];
-            }
-            else
-            {
-                const int shift = woffsetm4 * 8;
-                weight4 = int((uint(weight_data[woffsetd4]) >> shift) | (uint(weight_data[woffsetd4 + 1]) << (32 - shift)));
-            }
-#endif
+                for (int x = 0; x < kernel_w; x++)
+                {
+                    int v0p = i8buffer_sm4(bottom_blob_int8_data_4, v_offset.r + x * dilation_w);
+                    int v1p = gx + 1 < psc(outw) ? i8buffer_sm4(bottom_blob_int8_data_4, v_offset.g + x * dilation_w) : 0;
+                    int v2p = gy + 1 < psc(outh) ? i8buffer_sm4(bottom_blob_int8_data_4, v_offset.b + x * dilation_w) : 0;
+                    int v3p = gx + 1 < psc(outw) && gy + 1 < psc(outh) ? i8buffer_sm4(bottom_blob_int8_data_4, v_offset.a + x * dilation_w) : 0;
+
+                    int k0p = i8buffer_sm4(weight_data, w_offset.x + x * 4 + 0);
+                    int k1p = i8buffer_sm4(weight_data, w_offset.x + x * 4 + 1);
+                    int k2p = i8buffer_sm4(weight_data, w_offset.x + x * 4 + 2);
+                    int k3p = i8buffer_sm4(weight_data, w_offset.x + x * 4 + 3);
+                    int k4p = i8buffer_sm4(weight_data, w_offset.y + x * 4 + 0);
+                    int k5p = i8buffer_sm4(weight_data, w_offset.y + x * 4 + 1);
+                    int k6p = i8buffer_sm4(weight_data, w_offset.y + x * 4 + 2);
+                    int k7p = i8buffer_sm4(weight_data, w_offset.y + x * 4 + 3);
 
 #if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
-            sum += dotPacked4x8EXT(packInt4x8(v), weight4);
+                    sum0 += ivec4(dotPacked4x8EXT(v0p, k0p), dotPacked4x8EXT(v0p, k1p), dotPacked4x8EXT(v0p, k2p), dotPacked4x8EXT(v0p, k3p));
+                    sum1 += ivec4(dotPacked4x8EXT(v1p, k0p), dotPacked4x8EXT(v1p, k1p), dotPacked4x8EXT(v1p, k2p), dotPacked4x8EXT(v1p, k3p));
+                    sum2 += ivec4(dotPacked4x8EXT(v2p, k0p), dotPacked4x8EXT(v2p, k1p), dotPacked4x8EXT(v2p, k2p), dotPacked4x8EXT(v2p, k3p));
+                    sum3 += ivec4(dotPacked4x8EXT(v3p, k0p), dotPacked4x8EXT(v3p, k1p), dotPacked4x8EXT(v3p, k2p), dotPacked4x8EXT(v3p, k3p));
+                    sum4 += ivec4(dotPacked4x8EXT(v0p, k4p), dotPacked4x8EXT(v0p, k5p), dotPacked4x8EXT(v0p, k6p), dotPacked4x8EXT(v0p, k7p));
+                    sum5 += ivec4(dotPacked4x8EXT(v1p, k4p), dotPacked4x8EXT(v1p, k5p), dotPacked4x8EXT(v1p, k6p), dotPacked4x8EXT(v1p, k7p));
+                    sum6 += ivec4(dotPacked4x8EXT(v2p, k4p), dotPacked4x8EXT(v2p, k5p), dotPacked4x8EXT(v2p, k6p), dotPacked4x8EXT(v2p, k7p));
+                    sum7 += ivec4(dotPacked4x8EXT(v3p, k4p), dotPacked4x8EXT(v3p, k5p), dotPacked4x8EXT(v3p, k6p), dotPacked4x8EXT(v3p, k7p));
 #else
-            const ivec4 weight = unpackInt4x8(weight4);
-            sum += v.r * weight.r + v.g * weight.g + v.b * weight.b + v.a * weight.a;
-#endif
-#endif
-        }
+                    ivec4 v0 = unpackInt4x8(v0p);
+                    ivec4 v1 = unpackInt4x8(v1p);
+                    ivec4 v2 = unpackInt4x8(v2p);
+                    ivec4 v3 = unpackInt4x8(v3p);
+                    ivec4 k0 = unpackInt4x8(k0p);
+                    ivec4 k1 = unpackInt4x8(k1p);
+                    ivec4 k2 = unpackInt4x8(k2p);
+                    ivec4 k3 = unpackInt4x8(k3p);
+                    ivec4 k4 = unpackInt4x8(k4p);
+                    ivec4 k5 = unpackInt4x8(k5p);
+                    ivec4 k6 = unpackInt4x8(k6p);
+                    ivec4 k7 = unpackInt4x8(k7p);
 
-        for (; k < maxk; k++)
-        {
-            const int ky = k / kernel_w;
-            const int kx = k - ky * kernel_w;
-            const int x = gx * stride_w + kx * dilation_w - p.pad_left;
-            const int y = gy * stride_h + ky * dilation_h - p.pad_top;
+                    sum0 += ivec4(v0.r * k0.r + v0.g * k0.g + v0.b * k0.b + v0.a * k0.a,
+                                  v0.r * k1.r + v0.g * k1.g + v0.b * k1.b + v0.a * k1.a,
+                                  v0.r * k2.r + v0.g * k2.g + v0.b * k2.b + v0.a * k2.a,
+                                  v0.r * k3.r + v0.g * k3.g + v0.b * k3.b + v0.a * k3.a);
+                    sum1 += ivec4(v1.r * k0.r + v1.g * k0.g + v1.b * k0.b + v1.a * k0.a,
+                                  v1.r * k1.r + v1.g * k1.g + v1.b * k1.b + v1.a * k1.a,
+                                  v1.r * k2.r + v1.g * k2.g + v1.b * k2.b + v1.a * k2.a,
+                                  v1.r * k3.r + v1.g * k3.g + v1.b * k3.b + v1.a * k3.a);
+                    sum2 += ivec4(v2.r * k0.r + v2.g * k0.g + v2.b * k0.b + v2.a * k0.a,
+                                  v2.r * k1.r + v2.g * k1.g + v2.b * k1.b + v2.a * k1.a,
+                                  v2.r * k2.r + v2.g * k2.g + v2.b * k2.b + v2.a * k2.a,
+                                  v2.r * k3.r + v2.g * k3.g + v2.b * k3.b + v2.a * k3.a);
+                    sum3 += ivec4(v3.r * k0.r + v3.g * k0.g + v3.b * k0.b + v3.a * k0.a,
+                                  v3.r * k1.r + v3.g * k1.g + v3.b * k1.b + v3.a * k1.a,
+                                  v3.r * k2.r + v3.g * k2.g + v3.b * k2.b + v3.a * k2.a,
+                                  v3.r * k3.r + v3.g * k3.g + v3.b * k3.b + v3.a * k3.a);
+                    sum4 += ivec4(v0.r * k4.r + v0.g * k4.g + v0.b * k4.b + v0.a * k4.a,
+                                  v0.r * k5.r + v0.g * k5.g + v0.b * k5.b + v0.a * k5.a,
+                                  v0.r * k6.r + v0.g * k6.g + v0.b * k6.b + v0.a * k6.a,
+                                  v0.r * k7.r + v0.g * k7.g + v0.b * k7.b + v0.a * k7.a);
+                    sum5 += ivec4(v1.r * k4.r + v1.g * k4.g + v1.b * k4.b + v1.a * k4.a,
+                                  v1.r * k5.r + v1.g * k5.g + v1.b * k5.b + v1.a * k5.a,
+                                  v1.r * k6.r + v1.g * k6.g + v1.b * k6.b + v1.a * k6.a,
+                                  v1.r * k7.r + v1.g * k7.g + v1.b * k7.b + v1.a * k7.a);
+                    sum6 += ivec4(v2.r * k4.r + v2.g * k4.g + v2.b * k4.b + v2.a * k4.a,
+                                  v2.r * k5.r + v2.g * k5.g + v2.b * k5.b + v2.a * k5.a,
+                                  v2.r * k6.r + v2.g * k6.g + v2.b * k6.b + v2.a * k6.a,
+                                  v2.r * k7.r + v2.g * k7.g + v2.b * k7.b + v2.a * k7.a);
+                    sum7 += ivec4(v3.r * k4.r + v3.g * k4.g + v3.b * k4.b + v3.a * k4.a,
+                                  v3.r * k5.r + v3.g * k5.g + v3.b * k5.b + v3.a * k5.a,
+                                  v3.r * k6.r + v3.g * k6.g + v3.b * k6.b + v3.a * k6.a,
+                                  v3.r * k7.r + v3.g * k7.g + v3.b * k7.b + v3.a * k7.a);
+#endif
+                }
 
-            int v = 0;
-            if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
-            {
-                const int gi = q * psc(cstep) + y * psc(w) + x;
-                v = i8buffer_ld1(bottom_blob_int8_data, gi);
+                v_offset += dilation_h * psc(w);
+                w_offset += kernel_w * 4;
             }
+        }
+        else // elempack == 1
+        {
+            ivec2 w_offset = (gz2 * psc(c) + z) * maxk;
 
-            const int weight = i8buffer_ld1(weight_data, (gz * psc(c) + q) * maxk + k);
-            sum += v * weight;
+            for (int y = 0; y < kernel_h; y++)
+            {
+                ivec4 v_offset;
+                v_offset.rg = z * psc(cstep) + gy2.x * stride_h * psc(w) + gx2 * stride_w + y * dilation_h * psc(w);
+                v_offset.ba = z * psc(cstep) + gy2.y * stride_h * psc(w) + gx2 * stride_w + y * dilation_h * psc(w);
+
+                for (int x = 0; x < kernel_w; x++)
+                {
+                    int v0 = i8buffer_ld1(bottom_blob_int8_data_1, v_offset.r + x * dilation_w);
+                    int v1 = gx + 1 < psc(outw) ? i8buffer_ld1(bottom_blob_int8_data_1, v_offset.g + x * dilation_w) : 0;
+                    int v2 = gy + 1 < psc(outh) ? i8buffer_ld1(bottom_blob_int8_data_1, v_offset.b + x * dilation_w) : 0;
+                    int v3 = gx + 1 < psc(outw) && gy + 1 < psc(outh) ? i8buffer_ld1(bottom_blob_int8_data_1, v_offset.a + x * dilation_w) : 0;
+
+                    int k0p = i8buffer_sm4(weight_data, w_offset.x + x);
+                    int k1p = i8buffer_sm4(weight_data, w_offset.y + x);
+
+                    ivec4 k0 = unpackInt4x8(k0p);
+                    ivec4 k1 = unpackInt4x8(k1p);
+
+                    sum0 += v0 * k0;
+                    sum1 += v1 * k0;
+                    sum2 += v2 * k0;
+                    sum3 += v3 * k0;
+                    sum4 += v0 * k1;
+                    sum5 += v1 * k1;
+                    sum6 += v2 * k1;
+                    sum7 += v3 * k1;
+                }
+
+                w_offset += kernel_w;
+            }
         }
     }
 
-    const float weight_scale = buffer_ld1(weight_scales_data, gz);
-    const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
+    int nout = psc(num_output);
+    ivec2 base_ch = gz2 * 4;
 
-    float sumfp32 = float(sum) * scale_in;
+    vec4 weight_scale0 = vec4(
+        buffer_ld1(weight_scales_data, base_ch.x + 0),
+        base_ch.x + 1 < nout ? buffer_ld1(weight_scales_data, base_ch.x + 1) : 1.f,
+        base_ch.x + 2 < nout ? buffer_ld1(weight_scales_data, base_ch.x + 2) : 1.f,
+        base_ch.x + 3 < nout ? buffer_ld1(weight_scales_data, base_ch.x + 3) : 1.f);
+    vec4 scale_in0 = bottom_scale == 0.f ? vec4(0.f) : vec4(
+        weight_scale0.r == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale0.r),
+        weight_scale0.g == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale0.g),
+        weight_scale0.b == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale0.b),
+        weight_scale0.a == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale0.a));
+
+    vec4 sumfp32_0 = vec4(sum0) * scale_in0;
+    vec4 sumfp32_1 = vec4(sum1) * scale_in0;
+    vec4 sumfp32_2 = vec4(sum2) * scale_in0;
+    vec4 sumfp32_3 = vec4(sum3) * scale_in0;
 
     if (bias_term == 1)
     {
-        sumfp32 += bias_data[gz];
+        vec4 bias0 = vec4(
+            bias_data[base_ch.x + 0],
+            base_ch.x + 1 < nout ? bias_data[base_ch.x + 1] : 0.f,
+            base_ch.x + 2 < nout ? bias_data[base_ch.x + 2] : 0.f,
+            base_ch.x + 3 < nout ? bias_data[base_ch.x + 3] : 0.f);
+
+        sumfp32_0 += bias0;
+        sumfp32_1 += bias0;
+        sumfp32_2 += bias0;
+        sumfp32_3 += bias0;
     }
 
-    sumfp32 = float(activation_afp(afp(sumfp32), activation_type, activation_param_0, activation_param_1));
+    sumfp32_0 = vec4(activation_afpvec4(afpvec4(sumfp32_0), activation_type, activation_param_0, activation_param_1));
+    sumfp32_1 = vec4(activation_afpvec4(afpvec4(sumfp32_1), activation_type, activation_param_0, activation_param_1));
+    sumfp32_2 = vec4(activation_afpvec4(afpvec4(sumfp32_2), activation_type, activation_param_0, activation_param_1));
+    sumfp32_3 = vec4(activation_afpvec4(afpvec4(sumfp32_3), activation_type, activation_param_0, activation_param_1));
 
-    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+    vec4 weight_scale1 = vec4(
+        base_ch.y + 0 < nout ? buffer_ld1(weight_scales_data, base_ch.y + 0) : 1.f,
+        base_ch.y + 1 < nout ? buffer_ld1(weight_scales_data, base_ch.y + 1) : 1.f,
+        base_ch.y + 2 < nout ? buffer_ld1(weight_scales_data, base_ch.y + 2) : 1.f,
+        base_ch.y + 3 < nout ? buffer_ld1(weight_scales_data, base_ch.y + 3) : 1.f);
+    vec4 scale_in1 = bottom_scale == 0.f ? vec4(0.f) : vec4(
+        weight_scale1.r == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale1.r),
+        weight_scale1.g == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale1.g),
+        weight_scale1.b == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale1.b),
+        weight_scale1.a == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale1.a));
+
+    vec4 sumfp32_4 = vec4(sum4) * scale_in1;
+    vec4 sumfp32_5 = vec4(sum5) * scale_in1;
+    vec4 sumfp32_6 = vec4(sum6) * scale_in1;
+    vec4 sumfp32_7 = vec4(sum7) * scale_in1;
+
+    if (bias_term == 1)
+    {
+        vec4 bias1 = vec4(
+            base_ch.y + 0 < nout ? bias_data[base_ch.y + 0] : 0.f,
+            base_ch.y + 1 < nout ? bias_data[base_ch.y + 1] : 0.f,
+            base_ch.y + 2 < nout ? bias_data[base_ch.y + 2] : 0.f,
+            base_ch.y + 3 < nout ? bias_data[base_ch.y + 3] : 0.f);
+
+        sumfp32_4 += bias1;
+        sumfp32_5 += bias1;
+        sumfp32_6 += bias1;
+        sumfp32_7 += bias1;
+    }
+
+    sumfp32_4 = vec4(activation_afpvec4(afpvec4(sumfp32_4), activation_type, activation_param_0, activation_param_1));
+    sumfp32_5 = vec4(activation_afpvec4(afpvec4(sumfp32_5), activation_type, activation_param_0, activation_param_1));
+    sumfp32_6 = vec4(activation_afpvec4(afpvec4(sumfp32_6), activation_type, activation_param_0, activation_param_1));
+    sumfp32_7 = vec4(activation_afpvec4(afpvec4(sumfp32_7), activation_type, activation_param_0, activation_param_1));
 
     if (use_int8_requantize == 1)
     {
-        const float vf = clamp(sumfp32 * buffer_ld1(top_scales_data, 0), -127.f, 127.f);
-        const int v = int8_round(vf);
-        i8buffer_st1(top_blob_int8_data, gi, v);
+        float top_scale = buffer_ld1(top_scales_data, 0);
+        vec4 vf0 = clamp(sumfp32_0 * top_scale, vec4(-127.f), vec4(127.f));
+        vec4 vf1 = clamp(sumfp32_1 * top_scale, vec4(-127.f), vec4(127.f));
+        vec4 vf2 = clamp(sumfp32_2 * top_scale, vec4(-127.f), vec4(127.f));
+        vec4 vf3 = clamp(sumfp32_3 * top_scale, vec4(-127.f), vec4(127.f));
+        vec4 vf4 = clamp(sumfp32_4 * top_scale, vec4(-127.f), vec4(127.f));
+        vec4 vf5 = clamp(sumfp32_5 * top_scale, vec4(-127.f), vec4(127.f));
+        vec4 vf6 = clamp(sumfp32_6 * top_scale, vec4(-127.f), vec4(127.f));
+        vec4 vf7 = clamp(sumfp32_7 * top_scale, vec4(-127.f), vec4(127.f));
+
+        ivec4 v0 = ivec4(int8_round(vf0.r), int8_round(vf0.g), int8_round(vf0.b), int8_round(vf0.a));
+        ivec4 v1 = ivec4(int8_round(vf1.r), int8_round(vf1.g), int8_round(vf1.b), int8_round(vf1.a));
+        ivec4 v2 = ivec4(int8_round(vf2.r), int8_round(vf2.g), int8_round(vf2.b), int8_round(vf2.a));
+        ivec4 v3 = ivec4(int8_round(vf3.r), int8_round(vf3.g), int8_round(vf3.b), int8_round(vf3.a));
+        ivec4 v4 = ivec4(int8_round(vf4.r), int8_round(vf4.g), int8_round(vf4.b), int8_round(vf4.a));
+        ivec4 v5 = ivec4(int8_round(vf5.r), int8_round(vf5.g), int8_round(vf5.b), int8_round(vf5.a));
+        ivec4 v6 = ivec4(int8_round(vf6.r), int8_round(vf6.g), int8_round(vf6.b), int8_round(vf6.a));
+        ivec4 v7 = ivec4(int8_round(vf7.r), int8_round(vf7.g), int8_round(vf7.b), int8_round(vf7.a));
+
+        if (out_elempack == 4)
+        {
+            ivec2 gi = gz2 * psc(outcstep) + gy * psc(outw) + gx;
+
+            i8buffer_st4(top_blob_int8_data_4, gi.x, v0);
+            if (gx + 1 < psc(outw)) i8buffer_st4(top_blob_int8_data_4, gi.x + 1, v1);
+            if (gy + 1 < psc(outh)) i8buffer_st4(top_blob_int8_data_4, gi.x + psc(outw), v2);
+            if (gy + 1 < psc(outh) && gx + 1 < psc(outw)) i8buffer_st4(top_blob_int8_data_4, gi.x + psc(outw) + 1, v3);
+            if (gz + 1 < psc(outc))
+            {
+                i8buffer_st4(top_blob_int8_data_4, gi.y, v4);
+                if (gx + 1 < psc(outw)) i8buffer_st4(top_blob_int8_data_4, gi.y + 1, v5);
+                if (gy + 1 < psc(outh)) i8buffer_st4(top_blob_int8_data_4, gi.y + psc(outw), v6);
+                if (gy + 1 < psc(outh) && gx + 1 < psc(outw)) i8buffer_st4(top_blob_int8_data_4, gi.y + psc(outw) + 1, v7);
+            }
+        }
+        else // out_elempack == 1
+        {
+            int channel_step = psc(outcstep) / 4;
+            ivec2 gi = gz2 * psc(outcstep) + gy * psc(outw) + gx;
+
+            i8buffer_st1(top_blob_int8_data_1, gi.x, v0.r);
+            if (base_ch.x + 1 < nout) i8buffer_st1(top_blob_int8_data_1, gi.x + channel_step, v0.g);
+            if (base_ch.x + 2 < nout) i8buffer_st1(top_blob_int8_data_1, gi.x + channel_step * 2, v0.b);
+            if (base_ch.x + 3 < nout) i8buffer_st1(top_blob_int8_data_1, gi.x + channel_step * 3, v0.a);
+            if (gx + 1 < psc(outw))
+            {
+                i8buffer_st1(top_blob_int8_data_1, gi.x + 1, v1.r);
+                if (base_ch.x + 1 < nout) i8buffer_st1(top_blob_int8_data_1, gi.x + 1 + channel_step, v1.g);
+                if (base_ch.x + 2 < nout) i8buffer_st1(top_blob_int8_data_1, gi.x + 1 + channel_step * 2, v1.b);
+                if (base_ch.x + 3 < nout) i8buffer_st1(top_blob_int8_data_1, gi.x + 1 + channel_step * 3, v1.a);
+            }
+            if (gy + 1 < psc(outh))
+            {
+                int gi2 = gi.x + psc(outw);
+                i8buffer_st1(top_blob_int8_data_1, gi2, v2.r);
+                if (base_ch.x + 1 < nout) i8buffer_st1(top_blob_int8_data_1, gi2 + channel_step, v2.g);
+                if (base_ch.x + 2 < nout) i8buffer_st1(top_blob_int8_data_1, gi2 + channel_step * 2, v2.b);
+                if (base_ch.x + 3 < nout) i8buffer_st1(top_blob_int8_data_1, gi2 + channel_step * 3, v2.a);
+            }
+            if (gy + 1 < psc(outh) && gx + 1 < psc(outw))
+            {
+                int gi3 = gi.x + psc(outw) + 1;
+                i8buffer_st1(top_blob_int8_data_1, gi3, v3.r);
+                if (base_ch.x + 1 < nout) i8buffer_st1(top_blob_int8_data_1, gi3 + channel_step, v3.g);
+                if (base_ch.x + 2 < nout) i8buffer_st1(top_blob_int8_data_1, gi3 + channel_step * 2, v3.b);
+                if (base_ch.x + 3 < nout) i8buffer_st1(top_blob_int8_data_1, gi3 + channel_step * 3, v3.a);
+            }
+            if (gz + 1 < psc(outc))
+            {
+                if (base_ch.y < nout) i8buffer_st1(top_blob_int8_data_1, gi.y, v4.r);
+                if (base_ch.y + 1 < nout) i8buffer_st1(top_blob_int8_data_1, gi.y + channel_step, v4.g);
+                if (base_ch.y + 2 < nout) i8buffer_st1(top_blob_int8_data_1, gi.y + channel_step * 2, v4.b);
+                if (base_ch.y + 3 < nout) i8buffer_st1(top_blob_int8_data_1, gi.y + channel_step * 3, v4.a);
+                if (gx + 1 < psc(outw))
+                {
+                    if (base_ch.y < nout) i8buffer_st1(top_blob_int8_data_1, gi.y + 1, v5.r);
+                    if (base_ch.y + 1 < nout) i8buffer_st1(top_blob_int8_data_1, gi.y + 1 + channel_step, v5.g);
+                    if (base_ch.y + 2 < nout) i8buffer_st1(top_blob_int8_data_1, gi.y + 1 + channel_step * 2, v5.b);
+                    if (base_ch.y + 3 < nout) i8buffer_st1(top_blob_int8_data_1, gi.y + 1 + channel_step * 3, v5.a);
+                }
+                if (gy + 1 < psc(outh))
+                {
+                    int gi6 = gi.y + psc(outw);
+                    if (base_ch.y < nout) i8buffer_st1(top_blob_int8_data_1, gi6, v6.r);
+                    if (base_ch.y + 1 < nout) i8buffer_st1(top_blob_int8_data_1, gi6 + channel_step, v6.g);
+                    if (base_ch.y + 2 < nout) i8buffer_st1(top_blob_int8_data_1, gi6 + channel_step * 2, v6.b);
+                    if (base_ch.y + 3 < nout) i8buffer_st1(top_blob_int8_data_1, gi6 + channel_step * 3, v6.a);
+                }
+                if (gy + 1 < psc(outh) && gx + 1 < psc(outw))
+                {
+                    int gi7 = gi.y + psc(outw) + 1;
+                    if (base_ch.y < nout) i8buffer_st1(top_blob_int8_data_1, gi7, v7.r);
+                    if (base_ch.y + 1 < nout) i8buffer_st1(top_blob_int8_data_1, gi7 + channel_step, v7.g);
+                    if (base_ch.y + 2 < nout) i8buffer_st1(top_blob_int8_data_1, gi7 + channel_step * 2, v7.b);
+                    if (base_ch.y + 3 < nout) i8buffer_st1(top_blob_int8_data_1, gi7 + channel_step * 3, v7.a);
+                }
+            }
+        }
     }
     else
     {
-        top_blob_data[gi] = sumfp32;
+        if (out_elempack == 4)
+        {
+            ivec2 gi = gz2 * psc(outcstep) + gy * psc(outw) + gx;
+
+            buffer_st4(top_blob_data_4, gi.x, afpvec4(sumfp32_0));
+            if (gx + 1 < psc(outw)) buffer_st4(top_blob_data_4, gi.x + 1, afpvec4(sumfp32_1));
+            if (gy + 1 < psc(outh)) buffer_st4(top_blob_data_4, gi.x + psc(outw), afpvec4(sumfp32_2));
+            if (gy + 1 < psc(outh) && gx + 1 < psc(outw)) buffer_st4(top_blob_data_4, gi.x + psc(outw) + 1, afpvec4(sumfp32_3));
+            if (gz + 1 < psc(outc))
+            {
+                buffer_st4(top_blob_data_4, gi.y, afpvec4(sumfp32_4));
+                if (gx + 1 < psc(outw)) buffer_st4(top_blob_data_4, gi.y + 1, afpvec4(sumfp32_5));
+                if (gy + 1 < psc(outh)) buffer_st4(top_blob_data_4, gi.y + psc(outw), afpvec4(sumfp32_6));
+                if (gy + 1 < psc(outh) && gx + 1 < psc(outw)) buffer_st4(top_blob_data_4, gi.y + psc(outw) + 1, afpvec4(sumfp32_7));
+            }
+        }
+        else // out_elempack == 1
+        {
+            int channel_step = psc(outcstep) / 4;
+            ivec2 gi = gz2 * psc(outcstep) + gy * psc(outw) + gx;
+
+            buffer_st1(top_blob_data_1, gi.x, afp(sumfp32_0.r));
+            if (base_ch.x + 1 < nout) buffer_st1(top_blob_data_1, gi.x + channel_step, afp(sumfp32_0.g));
+            if (base_ch.x + 2 < nout) buffer_st1(top_blob_data_1, gi.x + channel_step * 2, afp(sumfp32_0.b));
+            if (base_ch.x + 3 < nout) buffer_st1(top_blob_data_1, gi.x + channel_step * 3, afp(sumfp32_0.a));
+            if (gx + 1 < psc(outw))
+            {
+                buffer_st1(top_blob_data_1, gi.x + 1, afp(sumfp32_1.r));
+                if (base_ch.x + 1 < nout) buffer_st1(top_blob_data_1, gi.x + 1 + channel_step, afp(sumfp32_1.g));
+                if (base_ch.x + 2 < nout) buffer_st1(top_blob_data_1, gi.x + 1 + channel_step * 2, afp(sumfp32_1.b));
+                if (base_ch.x + 3 < nout) buffer_st1(top_blob_data_1, gi.x + 1 + channel_step * 3, afp(sumfp32_1.a));
+            }
+            if (gy + 1 < psc(outh))
+            {
+                int gi2 = gi.x + psc(outw);
+                buffer_st1(top_blob_data_1, gi2, afp(sumfp32_2.r));
+                if (base_ch.x + 1 < nout) buffer_st1(top_blob_data_1, gi2 + channel_step, afp(sumfp32_2.g));
+                if (base_ch.x + 2 < nout) buffer_st1(top_blob_data_1, gi2 + channel_step * 2, afp(sumfp32_2.b));
+                if (base_ch.x + 3 < nout) buffer_st1(top_blob_data_1, gi2 + channel_step * 3, afp(sumfp32_2.a));
+            }
+            if (gy + 1 < psc(outh) && gx + 1 < psc(outw))
+            {
+                int gi3 = gi.x + psc(outw) + 1;
+                buffer_st1(top_blob_data_1, gi3, afp(sumfp32_3.r));
+                if (base_ch.x + 1 < nout) buffer_st1(top_blob_data_1, gi3 + channel_step, afp(sumfp32_3.g));
+                if (base_ch.x + 2 < nout) buffer_st1(top_blob_data_1, gi3 + channel_step * 2, afp(sumfp32_3.b));
+                if (base_ch.x + 3 < nout) buffer_st1(top_blob_data_1, gi3 + channel_step * 3, afp(sumfp32_3.a));
+            }
+            if (gz + 1 < psc(outc))
+            {
+                if (base_ch.y < nout) buffer_st1(top_blob_data_1, gi.y, afp(sumfp32_4.r));
+                if (base_ch.y + 1 < nout) buffer_st1(top_blob_data_1, gi.y + channel_step, afp(sumfp32_4.g));
+                if (base_ch.y + 2 < nout) buffer_st1(top_blob_data_1, gi.y + channel_step * 2, afp(sumfp32_4.b));
+                if (base_ch.y + 3 < nout) buffer_st1(top_blob_data_1, gi.y + channel_step * 3, afp(sumfp32_4.a));
+                if (gx + 1 < psc(outw))
+                {
+                    if (base_ch.y < nout) buffer_st1(top_blob_data_1, gi.y + 1, afp(sumfp32_5.r));
+                    if (base_ch.y + 1 < nout) buffer_st1(top_blob_data_1, gi.y + 1 + channel_step, afp(sumfp32_5.g));
+                    if (base_ch.y + 2 < nout) buffer_st1(top_blob_data_1, gi.y + 1 + channel_step * 2, afp(sumfp32_5.b));
+                    if (base_ch.y + 3 < nout) buffer_st1(top_blob_data_1, gi.y + 1 + channel_step * 3, afp(sumfp32_5.a));
+                }
+                if (gy + 1 < psc(outh))
+                {
+                    int gi6 = gi.y + psc(outw);
+                    if (base_ch.y < nout) buffer_st1(top_blob_data_1, gi6, afp(sumfp32_6.r));
+                    if (base_ch.y + 1 < nout) buffer_st1(top_blob_data_1, gi6 + channel_step, afp(sumfp32_6.g));
+                    if (base_ch.y + 2 < nout) buffer_st1(top_blob_data_1, gi6 + channel_step * 2, afp(sumfp32_6.b));
+                    if (base_ch.y + 3 < nout) buffer_st1(top_blob_data_1, gi6 + channel_step * 3, afp(sumfp32_6.a));
+                }
+                if (gy + 1 < psc(outh) && gx + 1 < psc(outw))
+                {
+                    int gi7 = gi.y + psc(outw) + 1;
+                    if (base_ch.y < nout) buffer_st1(top_blob_data_1, gi7, afp(sumfp32_7.r));
+                    if (base_ch.y + 1 < nout) buffer_st1(top_blob_data_1, gi7 + channel_step, afp(sumfp32_7.g));
+                    if (base_ch.y + 2 < nout) buffer_st1(top_blob_data_1, gi7 + channel_step * 2, afp(sumfp32_7.b));
+                    if (base_ch.y + 3 < nout) buffer_st1(top_blob_data_1, gi7 + channel_step * 3, afp(sumfp32_7.a));
+                }
+            }
+        }
     }
 }

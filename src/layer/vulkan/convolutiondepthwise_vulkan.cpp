@@ -610,7 +610,6 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
     const bool is_depthwise = channels == group && group == num_output;
     const int channels_g = channels / group;
     const int elempack = is_depthwise && opt.use_packing_layout && group % 4 == 0 ? 4 : 1;
-    const int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
     const int elempack_g = !is_depthwise && opt.use_packing_layout && channels_g % 4 == 0 ? 4 : 1;
     const int out_elempack_g = !is_depthwise && opt.use_packing_layout && num_output_g % 4 == 0 ? 4 : 1;
     const int bottom_elempack = is_depthwise ? elempack : elempack_g;
@@ -626,10 +625,50 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
     opt_int8.use_int16_packed = false;
     opt_int8.use_int16_storage = false;
 
-    Option opt_int8_pack4 = opt;
-    opt_int8_pack4.use_fp16_arithmetic = false;
-    opt_int8_pack4.use_int16_packed = false;
-    opt_int8_pack4.use_int16_storage = false;
+    Mat shape_int8;
+    if (shape.dims == 3)
+    {
+        shape_int8 = Mat(shape.w, shape.h, channels / bottom_elempack, (void*)0, (size_t)bottom_elempack, bottom_elempack);
+    }
+
+    Mat shape_int8_bordered;
+    if (shape_int8.dims == 3)
+    {
+        if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
+        {
+            shape_int8_bordered = Mat(shape_int8.w + pad_left + pad_right, shape_int8.h + pad_top + pad_bottom, shape_int8.c, (void*)0, shape_int8.elemsize, shape_int8.elempack);
+        }
+        else if ((pad_left == -233 && pad_right == -233 && pad_top == -233 && pad_bottom == -233)
+                 || (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234))
+        {
+            const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+            const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+            int wpad = kernel_extent_w + (shape_int8.w - 1) / stride_w * stride_w - shape_int8.w;
+            int hpad = kernel_extent_h + (shape_int8.h - 1) / stride_h * stride_h - shape_int8.h;
+            if (wpad > 0 || hpad > 0)
+            {
+                shape_int8_bordered = Mat(shape_int8.w + wpad, shape_int8.h + hpad, shape_int8.c, (void*)0, shape_int8.elemsize, shape_int8.elempack);
+            }
+            else
+            {
+                shape_int8_bordered = shape_int8;
+            }
+        }
+        else
+        {
+            shape_int8_bordered = shape_int8;
+        }
+    }
+
+    Mat shape_padding_int8_bordered;
+    if (shape_int8_bordered.dims == 3)
+    {
+        const int padding_outc = shape_int8_bordered.c * shape_int8_bordered.elempack;
+        const int padding_out_elempack = padding_outc % 4 == 0 ? 4 : 1;
+        const size_t padding_out_elemsize = shape_int8_bordered.elemsize / shape_int8_bordered.elempack * padding_out_elempack;
+        shape_padding_int8_bordered = Mat(shape_int8_bordered.w, shape_int8_bordered.h, padding_outc / padding_out_elempack, (void*)0, padding_out_elemsize, padding_out_elempack);
+    }
 
     {
         quantize = ncnn::create_layer_vulkan(ncnn::LayerType::Quantize);
@@ -644,7 +683,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
                 shape_elemsize = shape.elemsize / shape.elempack * bottom_elempack;
 
             shape_quantize = Mat(shape.w, shape.h, channels / bottom_elempack, (void*)0, shape_elemsize, bottom_elempack);
-            out_shape_quantize = Mat(shape.w, shape.h, channels / bottom_elempack, (void*)0, (size_t)bottom_elempack, bottom_elempack);
+            out_shape_quantize = shape_int8;
         }
 
         quantize->bottom_shapes.resize(1);
@@ -664,6 +703,28 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
         opt_quantize.use_fp16_arithmetic = false;
 
         quantize->create_pipeline(opt_quantize);
+    }
+
+    {
+        padding = ncnn::create_layer_vulkan(ncnn::LayerType::Padding);
+        padding->vkdev = vkdev;
+
+        padding->bottom_shapes.resize(1);
+        padding->bottom_shapes[0] = shape_int8;
+        padding->top_shapes.resize(1);
+        padding->top_shapes[0] = shape_padding_int8_bordered;
+
+        ncnn::ParamDict pd;
+        pd.set(0, pad_top);
+        pd.set(1, pad_bottom);
+        pd.set(2, pad_left);
+        pd.set(3, pad_right);
+        pd.set(4, 0);
+        pd.set(5, 0.f);
+
+        padding->load_param(pd);
+
+        padding->create_pipeline(opt);
     }
 
     if (is_depthwise)
@@ -755,15 +816,15 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
     specializations[9].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
     specializations[10].f = activation_params.w == 2 ? activation_params[1] : 0.f;
     specializations[11].i = use_int8_requantize ? 1 : 0;
-    specializations[12 + 0].i = shape.dims;
-    specializations[12 + 1].i = shape.w;
-    specializations[12 + 2].i = shape.h;
-    specializations[12 + 3].i = shape.dims != 0 ? channels / (is_depthwise ? elempack : elempack_g) : 0;
+    specializations[12 + 0].i = 0;
+    specializations[12 + 1].i = 0;
+    specializations[12 + 2].i = 0;
+    specializations[12 + 3].i = 0;
     specializations[12 + 4].i = 0;
-    specializations[12 + 5].i = out_shape.dims;
-    specializations[12 + 6].i = out_shape.w;
-    specializations[12 + 7].i = out_shape.h;
-    specializations[12 + 8].i = out_shape.dims != 0 ? num_output / (is_depthwise ? out_elempack : out_elempack_g) : 0;
+    specializations[12 + 5].i = 0;
+    specializations[12 + 6].i = 0;
+    specializations[12 + 7].i = 0;
+    specializations[12 + 8].i = 0;
     specializations[12 + 9].i = 0;
 
     if (is_depthwise)
@@ -780,7 +841,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
         {
             pipeline_convolutiondepthwise_pack4 = new Pipeline(vkdev);
             pipeline_convolutiondepthwise_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_convolutiondepthwise_pack4->create(LayerShaderType::convolutiondepthwise_pack4_int8, opt_int8_pack4, specializations);
+            pipeline_convolutiondepthwise_pack4->create(LayerShaderType::convolutiondepthwise_pack4_int8, opt_int8, specializations);
         }
         else
         {
@@ -825,21 +886,21 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
             {
                 pipeline_convolutiondepthwise_group_pack4 = new Pipeline(vkdev);
                 pipeline_convolutiondepthwise_group_pack4->set_optimal_local_size_xyz(local_size_xyz);
-                pipeline_convolutiondepthwise_group_pack4->create(LayerShaderType::convolutiondepthwise_group_pack4_int8, opt_int8_pack4, specializations);
+                pipeline_convolutiondepthwise_group_pack4->create(LayerShaderType::convolutiondepthwise_group_pack4_int8, opt_int8, specializations);
             }
 
             if (elempack_g == 1 && out_elempack_g == 4)
             {
                 pipeline_convolutiondepthwise_group_pack1to4 = new Pipeline(vkdev);
                 pipeline_convolutiondepthwise_group_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
-                pipeline_convolutiondepthwise_group_pack1to4->create(LayerShaderType::convolutiondepthwise_group_pack1to4_int8, opt_int8_pack4, specializations);
+                pipeline_convolutiondepthwise_group_pack1to4->create(LayerShaderType::convolutiondepthwise_group_pack1to4_int8, opt_int8, specializations);
             }
 
             if (elempack_g == 4 && out_elempack_g == 1)
             {
                 pipeline_convolutiondepthwise_group_pack4to1 = new Pipeline(vkdev);
                 pipeline_convolutiondepthwise_group_pack4to1->set_optimal_local_size_xyz(local_size_xyz);
-                pipeline_convolutiondepthwise_group_pack4to1->create(LayerShaderType::convolutiondepthwise_group_pack4to1_int8, opt_int8_pack4, specializations);
+                pipeline_convolutiondepthwise_group_pack4to1->create(LayerShaderType::convolutiondepthwise_group_pack4to1_int8, opt_int8, specializations);
             }
         }
     }
@@ -854,11 +915,11 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
 
 int ConvolutionDepthWise_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 {
-    Option opt_float = opt;
-    opt_float.use_fp16_packed = false;
-    opt_float.use_fp16_storage = false;
-    opt_float.use_bf16_packed = false;
-    opt_float.use_bf16_storage = false;
+    Option opt_fp32 = opt;
+    opt_fp32.use_fp16_packed = false;
+    opt_fp32.use_fp16_storage = false;
+    opt_fp32.use_bf16_packed = false;
+    opt_fp32.use_bf16_storage = false;
 
     cmd.record_upload(weight_data_int8_packed, weight_data_gpu, opt);
 
@@ -875,9 +936,14 @@ int ConvolutionDepthWise_vulkan::upload_model_int8(VkTransfer& cmd, const Option
 
     if (bias_term)
     {
-        cmd.record_upload(bias_data, bias_data_gpu, opt_float);
+        cmd.record_upload(bias_data, bias_data_gpu, opt_fp32);
 
         bias_data.release();
+    }
+
+    if (padding)
+    {
+        padding->upload_model(cmd, opt);
     }
 
     quantize->upload_model(cmd, opt);
@@ -897,8 +963,6 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
     const int elempack = is_depthwise && opt.use_packing_layout && channels % 4 == 0 ? 4 : 1;
     const int elempack_g = !is_depthwise && opt.use_packing_layout && channels_g % 4 == 0 ? 4 : 1;
     const int out_elempack_g = !is_depthwise && opt.use_packing_layout && num_output_g % 4 == 0 ? 4 : 1;
-    const bool use_depthwise_pack4 = is_depthwise && elempack == 4;
-    const bool use_group_packing = !is_depthwise && (elempack_g != 1 || out_elempack_g != 1);
     const int bottom_elempack = is_depthwise ? elempack : elempack_g;
 
     if (bottom.elempack != bottom_elempack)
@@ -926,8 +990,8 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
         bottom_is_int8 = true;
     }
 
-    const int w = bottom.w;
-    const int h = bottom.h;
+    int w = bottom.w;
+    int h = bottom.h;
     channels = bottom.c * bottom.elempack;
 
     if (channels % group != 0)
@@ -939,39 +1003,105 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int wpad = 0;
-    int hpad = 0;
-    int pad_left_real = 0;
-    int pad_top_real = 0;
-
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
     {
-        wpad = pad_left + pad_right;
-        hpad = pad_top + pad_bottom;
-        pad_left_real = pad_left;
-        pad_top_real = pad_top;
+        Option opt_pad = opt;
+        opt_pad.blob_vkallocator = opt.workspace_vkallocator;
+
+        VkMat bottom_bordered;
+        int ret = padding->forward(bottom, bottom_bordered, cmd, opt_pad);
+        if (ret != 0)
+            return ret;
+
+        bottom = bottom_bordered;
+        w = bottom.w;
+        h = bottom.h;
     }
     else if (pad_left == -233 && pad_right == -233 && pad_top == -233 && pad_bottom == -233)
     {
-        wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
-        hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
-        pad_left_real = wpad / 2;
-        pad_top_real = hpad / 2;
+        int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
+        int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            Option opt_pad = opt;
+            opt_pad.blob_vkallocator = opt.workspace_vkallocator;
+
+            VkMat padding_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
+            int* padding_params = padding_param_blob.mapped();
+
+            padding_params[0] = hpad / 2;
+            padding_params[1] = hpad - hpad / 2;
+            padding_params[2] = wpad / 2;
+            padding_params[3] = wpad - wpad / 2;
+            padding_params[4] = 0;
+            padding_params[5] = 0;
+
+            std::vector<VkMat> padding_inputs(2);
+            padding_inputs[0] = bottom;
+            padding_inputs[1] = padding_param_blob;
+
+            std::vector<VkMat> padding_outputs(1);
+            int ret = padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
+            if (ret != 0)
+                return ret;
+
+            bottom = padding_outputs[0];
+            w = bottom.w;
+            h = bottom.h;
+        }
     }
     else if (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234)
     {
-        wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
-        hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
-        pad_left_real = wpad - wpad / 2;
-        pad_top_real = hpad - hpad / 2;
+        int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
+        int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            Option opt_pad = opt;
+            opt_pad.blob_vkallocator = opt.workspace_vkallocator;
+
+            VkMat padding_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
+            int* padding_params = padding_param_blob.mapped();
+
+            padding_params[0] = hpad - hpad / 2;
+            padding_params[1] = hpad / 2;
+            padding_params[2] = wpad - wpad / 2;
+            padding_params[3] = wpad / 2;
+            padding_params[4] = 0;
+            padding_params[5] = 0;
+
+            std::vector<VkMat> padding_inputs(2);
+            padding_inputs[0] = bottom;
+            padding_inputs[1] = padding_param_blob;
+
+            std::vector<VkMat> padding_outputs(1);
+            int ret = padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
+            if (ret != 0)
+                return ret;
+
+            bottom = padding_outputs[0];
+            w = bottom.w;
+            h = bottom.h;
+        }
     }
 
-    const int outw = (w + wpad - kernel_extent_w) / stride_w + 1;
-    const int outh = (h + hpad - kernel_extent_h) / stride_h + 1;
+    if (bottom.elempack != bottom_elempack)
+    {
+        Option opt_pack1 = opt;
+        opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
+
+        VkMat bottom_unpacked;
+        vkdev->convert_packing(bottom, bottom_unpacked, bottom_elempack, cmd, opt_pack1);
+        bottom = bottom_unpacked;
+        w = bottom.w;
+        h = bottom.h;
+    }
+
+    const int outw = (w - kernel_extent_w) / stride_w + 1;
+    const int outh = (h - kernel_extent_h) / stride_h + 1;
 
     const bool use_int8_requantize = int8_scale_term > 100;
     const int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
-    const bool use_sfp_output = !use_int8_requantize && (use_depthwise_pack4 || use_group_packing) && (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed);
+    const bool use_sfp_output = !use_int8_requantize && (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed);
     size_t out_elemsize;
     if (use_int8_requantize)
     {
@@ -1023,7 +1153,7 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
     // binding 7 aliases top with int8 SSBO element type
     bindings[7] = top_blob_unpacked;
 
-    std::vector<vk_constant_type> constants(12);
+    std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom.dims;
     constants[1].i = bottom.w;
     constants[2].i = bottom.h;
@@ -1034,8 +1164,6 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
     constants[7].i = top_blob_unpacked.h;
     constants[8].i = top_blob_unpacked.c;
     constants[9].i = top_blob_unpacked.cstep;
-    constants[10].i = pad_left_real;
-    constants[11].i = pad_top_real;
 
     if (is_depthwise)
     {

@@ -23,8 +23,10 @@ layout(push_constant) uniform parameter
 } p;
 
 #if NCNN_shader_local_memory
-shared int tmp_v[8][LOCAL_MEMORY_UNROLL_INCH][4];
-shared int tmp_k[8][LOCAL_MEMORY_UNROLL_INCH][4];
+// shared-memory path requires local_size_x = 8 and local_size_y = 8
+#define PAD 1
+shared int tmp_v[8][LOCAL_MEMORY_UNROLL_INCH * 4 + PAD];
+shared int tmp_k[8][LOCAL_MEMORY_UNROLL_INCH * 4 + PAD];
 #endif
 
 void main()
@@ -65,7 +67,7 @@ void main()
             for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
             {
                 const int pos = gx + ly;
-                tmp_v[lx][z4][ly] = pos < p.outw ? unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + z4) * p.cstep + pos])[int16_lane] : 0;
+                tmp_v[lx][z4 * 4 + ly] = pos < p.outw ? unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + z4) * p.cstep + pos])[int16_lane] : 0;
             }
         }
 
@@ -74,7 +76,7 @@ void main()
             for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
             {
                 const int outch_index = gy + lx;
-                tmp_k[ly][z4][lx] = outch_index < p.outc ? unpackInt2x16(weight_tm_data[weight_batch_offset + outch_index * p.c + q + z4])[int16_lane] : 0;
+                tmp_k[ly][z4 * 4 + lx] = outch_index < p.outc ? unpackInt2x16(weight_tm_data[weight_batch_offset + outch_index * p.c + q + z4])[int16_lane] : 0;
             }
         }
 
@@ -83,15 +85,15 @@ void main()
 #if (NCNN_int16_storage || NCNN_int16_packed) && ncnn_shaderInt16 && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct16BitSignedAccelerated
         for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4 += 4)
         {
-            const i16vec4 v0 = i16vec4(int16_t(tmp_v[lx][z4 + 0][0]), int16_t(tmp_v[lx][z4 + 1][0]), int16_t(tmp_v[lx][z4 + 2][0]), int16_t(tmp_v[lx][z4 + 3][0]));
-            const i16vec4 v1 = i16vec4(int16_t(tmp_v[lx][z4 + 0][1]), int16_t(tmp_v[lx][z4 + 1][1]), int16_t(tmp_v[lx][z4 + 2][1]), int16_t(tmp_v[lx][z4 + 3][1]));
-            const i16vec4 v2 = i16vec4(int16_t(tmp_v[lx][z4 + 0][2]), int16_t(tmp_v[lx][z4 + 1][2]), int16_t(tmp_v[lx][z4 + 2][2]), int16_t(tmp_v[lx][z4 + 3][2]));
-            const i16vec4 v3 = i16vec4(int16_t(tmp_v[lx][z4 + 0][3]), int16_t(tmp_v[lx][z4 + 1][3]), int16_t(tmp_v[lx][z4 + 2][3]), int16_t(tmp_v[lx][z4 + 3][3]));
+            const i16vec4 v0 = i16vec4(int16_t(tmp_v[lx][(z4 + 0) * 4 + 0]), int16_t(tmp_v[lx][(z4 + 1) * 4 + 0]), int16_t(tmp_v[lx][(z4 + 2) * 4 + 0]), int16_t(tmp_v[lx][(z4 + 3) * 4 + 0]));
+            const i16vec4 v1 = i16vec4(int16_t(tmp_v[lx][(z4 + 0) * 4 + 1]), int16_t(tmp_v[lx][(z4 + 1) * 4 + 1]), int16_t(tmp_v[lx][(z4 + 2) * 4 + 1]), int16_t(tmp_v[lx][(z4 + 3) * 4 + 1]));
+            const i16vec4 v2 = i16vec4(int16_t(tmp_v[lx][(z4 + 0) * 4 + 2]), int16_t(tmp_v[lx][(z4 + 1) * 4 + 2]), int16_t(tmp_v[lx][(z4 + 2) * 4 + 2]), int16_t(tmp_v[lx][(z4 + 3) * 4 + 2]));
+            const i16vec4 v3 = i16vec4(int16_t(tmp_v[lx][(z4 + 0) * 4 + 3]), int16_t(tmp_v[lx][(z4 + 1) * 4 + 3]), int16_t(tmp_v[lx][(z4 + 2) * 4 + 3]), int16_t(tmp_v[lx][(z4 + 3) * 4 + 3]));
 
-            const i16vec4 k0 = i16vec4(int16_t(tmp_k[ly][z4 + 0][0]), int16_t(tmp_k[ly][z4 + 1][0]), int16_t(tmp_k[ly][z4 + 2][0]), int16_t(tmp_k[ly][z4 + 3][0]));
-            const i16vec4 k1 = i16vec4(int16_t(tmp_k[ly][z4 + 0][1]), int16_t(tmp_k[ly][z4 + 1][1]), int16_t(tmp_k[ly][z4 + 2][1]), int16_t(tmp_k[ly][z4 + 3][1]));
-            const i16vec4 k2 = i16vec4(int16_t(tmp_k[ly][z4 + 0][2]), int16_t(tmp_k[ly][z4 + 1][2]), int16_t(tmp_k[ly][z4 + 2][2]), int16_t(tmp_k[ly][z4 + 3][2]));
-            const i16vec4 k3 = i16vec4(int16_t(tmp_k[ly][z4 + 0][3]), int16_t(tmp_k[ly][z4 + 1][3]), int16_t(tmp_k[ly][z4 + 2][3]), int16_t(tmp_k[ly][z4 + 3][3]));
+            const i16vec4 k0 = i16vec4(int16_t(tmp_k[ly][(z4 + 0) * 4 + 0]), int16_t(tmp_k[ly][(z4 + 1) * 4 + 0]), int16_t(tmp_k[ly][(z4 + 2) * 4 + 0]), int16_t(tmp_k[ly][(z4 + 3) * 4 + 0]));
+            const i16vec4 k1 = i16vec4(int16_t(tmp_k[ly][(z4 + 0) * 4 + 1]), int16_t(tmp_k[ly][(z4 + 1) * 4 + 1]), int16_t(tmp_k[ly][(z4 + 2) * 4 + 1]), int16_t(tmp_k[ly][(z4 + 3) * 4 + 1]));
+            const i16vec4 k2 = i16vec4(int16_t(tmp_k[ly][(z4 + 0) * 4 + 2]), int16_t(tmp_k[ly][(z4 + 1) * 4 + 2]), int16_t(tmp_k[ly][(z4 + 2) * 4 + 2]), int16_t(tmp_k[ly][(z4 + 3) * 4 + 2]));
+            const i16vec4 k3 = i16vec4(int16_t(tmp_k[ly][(z4 + 0) * 4 + 3]), int16_t(tmp_k[ly][(z4 + 1) * 4 + 3]), int16_t(tmp_k[ly][(z4 + 2) * 4 + 3]), int16_t(tmp_k[ly][(z4 + 3) * 4 + 3]));
 
             sum0.r += dotEXT(v0, k0);
             sum0.g += dotEXT(v0, k1);
@@ -116,15 +118,15 @@ void main()
 #elif ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct32BitSignedAccelerated
         for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4 += 4)
         {
-            const ivec4 v0 = ivec4(tmp_v[lx][z4 + 0][0], tmp_v[lx][z4 + 1][0], tmp_v[lx][z4 + 2][0], tmp_v[lx][z4 + 3][0]);
-            const ivec4 v1 = ivec4(tmp_v[lx][z4 + 0][1], tmp_v[lx][z4 + 1][1], tmp_v[lx][z4 + 2][1], tmp_v[lx][z4 + 3][1]);
-            const ivec4 v2 = ivec4(tmp_v[lx][z4 + 0][2], tmp_v[lx][z4 + 1][2], tmp_v[lx][z4 + 2][2], tmp_v[lx][z4 + 3][2]);
-            const ivec4 v3 = ivec4(tmp_v[lx][z4 + 0][3], tmp_v[lx][z4 + 1][3], tmp_v[lx][z4 + 2][3], tmp_v[lx][z4 + 3][3]);
+            const ivec4 v0 = ivec4(tmp_v[lx][(z4 + 0) * 4 + 0], tmp_v[lx][(z4 + 1) * 4 + 0], tmp_v[lx][(z4 + 2) * 4 + 0], tmp_v[lx][(z4 + 3) * 4 + 0]);
+            const ivec4 v1 = ivec4(tmp_v[lx][(z4 + 0) * 4 + 1], tmp_v[lx][(z4 + 1) * 4 + 1], tmp_v[lx][(z4 + 2) * 4 + 1], tmp_v[lx][(z4 + 3) * 4 + 1]);
+            const ivec4 v2 = ivec4(tmp_v[lx][(z4 + 0) * 4 + 2], tmp_v[lx][(z4 + 1) * 4 + 2], tmp_v[lx][(z4 + 2) * 4 + 2], tmp_v[lx][(z4 + 3) * 4 + 2]);
+            const ivec4 v3 = ivec4(tmp_v[lx][(z4 + 0) * 4 + 3], tmp_v[lx][(z4 + 1) * 4 + 3], tmp_v[lx][(z4 + 2) * 4 + 3], tmp_v[lx][(z4 + 3) * 4 + 3]);
 
-            const ivec4 k0 = ivec4(tmp_k[ly][z4 + 0][0], tmp_k[ly][z4 + 1][0], tmp_k[ly][z4 + 2][0], tmp_k[ly][z4 + 3][0]);
-            const ivec4 k1 = ivec4(tmp_k[ly][z4 + 0][1], tmp_k[ly][z4 + 1][1], tmp_k[ly][z4 + 2][1], tmp_k[ly][z4 + 3][1]);
-            const ivec4 k2 = ivec4(tmp_k[ly][z4 + 0][2], tmp_k[ly][z4 + 1][2], tmp_k[ly][z4 + 2][2], tmp_k[ly][z4 + 3][2]);
-            const ivec4 k3 = ivec4(tmp_k[ly][z4 + 0][3], tmp_k[ly][z4 + 1][3], tmp_k[ly][z4 + 2][3], tmp_k[ly][z4 + 3][3]);
+            const ivec4 k0 = ivec4(tmp_k[ly][(z4 + 0) * 4 + 0], tmp_k[ly][(z4 + 1) * 4 + 0], tmp_k[ly][(z4 + 2) * 4 + 0], tmp_k[ly][(z4 + 3) * 4 + 0]);
+            const ivec4 k1 = ivec4(tmp_k[ly][(z4 + 0) * 4 + 1], tmp_k[ly][(z4 + 1) * 4 + 1], tmp_k[ly][(z4 + 2) * 4 + 1], tmp_k[ly][(z4 + 3) * 4 + 1]);
+            const ivec4 k2 = ivec4(tmp_k[ly][(z4 + 0) * 4 + 2], tmp_k[ly][(z4 + 1) * 4 + 2], tmp_k[ly][(z4 + 2) * 4 + 2], tmp_k[ly][(z4 + 3) * 4 + 2]);
+            const ivec4 k3 = ivec4(tmp_k[ly][(z4 + 0) * 4 + 3], tmp_k[ly][(z4 + 1) * 4 + 3], tmp_k[ly][(z4 + 2) * 4 + 3], tmp_k[ly][(z4 + 3) * 4 + 3]);
 
             sum0.r += dotEXT(v0, k0);
             sum0.g += dotEXT(v0, k1);
@@ -149,8 +151,8 @@ void main()
 #else
         for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
         {
-            const ivec4 v = ivec4(tmp_v[lx][z4][0], tmp_v[lx][z4][1], tmp_v[lx][z4][2], tmp_v[lx][z4][3]);
-            const ivec4 k = ivec4(tmp_k[ly][z4][0], tmp_k[ly][z4][1], tmp_k[ly][z4][2], tmp_k[ly][z4][3]);
+            const ivec4 v = ivec4(tmp_v[lx][z4 * 4 + 0], tmp_v[lx][z4 * 4 + 1], tmp_v[lx][z4 * 4 + 2], tmp_v[lx][z4 * 4 + 3]);
+            const ivec4 k = ivec4(tmp_k[ly][z4 * 4 + 0], tmp_k[ly][z4 * 4 + 1], tmp_k[ly][z4 * 4 + 2], tmp_k[ly][z4 * 4 + 3]);
 
             sum0 += v.r * k;
             sum1 += v.g * k;
@@ -171,7 +173,7 @@ void main()
             for (int z4 = 0; z4 < remain; z4++)
             {
                 const int pos = gx + ly;
-                tmp_v[lx][z4][ly] = pos < p.outw ? unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + z4) * p.cstep + pos])[int16_lane] : 0;
+                tmp_v[lx][z4 * 4 + ly] = pos < p.outw ? unpackInt2x16(bottom_tm_blob_data[bottom_batch_offset + (q + z4) * p.cstep + pos])[int16_lane] : 0;
             }
         }
 
@@ -180,7 +182,7 @@ void main()
             for (int z4 = 0; z4 < remain; z4++)
             {
                 const int outch_index = gy + lx;
-                tmp_k[ly][z4][lx] = outch_index < p.outc ? unpackInt2x16(weight_tm_data[weight_batch_offset + outch_index * p.c + q + z4])[int16_lane] : 0;
+                tmp_k[ly][z4 * 4 + lx] = outch_index < p.outc ? unpackInt2x16(weight_tm_data[weight_batch_offset + outch_index * p.c + q + z4])[int16_lane] : 0;
             }
         }
 
@@ -190,15 +192,15 @@ void main()
         int z4 = 0;
         for (; z4 + 3 < remain; z4 += 4)
         {
-            const i16vec4 v0 = i16vec4(int16_t(tmp_v[lx][z4 + 0][0]), int16_t(tmp_v[lx][z4 + 1][0]), int16_t(tmp_v[lx][z4 + 2][0]), int16_t(tmp_v[lx][z4 + 3][0]));
-            const i16vec4 v1 = i16vec4(int16_t(tmp_v[lx][z4 + 0][1]), int16_t(tmp_v[lx][z4 + 1][1]), int16_t(tmp_v[lx][z4 + 2][1]), int16_t(tmp_v[lx][z4 + 3][1]));
-            const i16vec4 v2 = i16vec4(int16_t(tmp_v[lx][z4 + 0][2]), int16_t(tmp_v[lx][z4 + 1][2]), int16_t(tmp_v[lx][z4 + 2][2]), int16_t(tmp_v[lx][z4 + 3][2]));
-            const i16vec4 v3 = i16vec4(int16_t(tmp_v[lx][z4 + 0][3]), int16_t(tmp_v[lx][z4 + 1][3]), int16_t(tmp_v[lx][z4 + 2][3]), int16_t(tmp_v[lx][z4 + 3][3]));
+            const i16vec4 v0 = i16vec4(int16_t(tmp_v[lx][(z4 + 0) * 4 + 0]), int16_t(tmp_v[lx][(z4 + 1) * 4 + 0]), int16_t(tmp_v[lx][(z4 + 2) * 4 + 0]), int16_t(tmp_v[lx][(z4 + 3) * 4 + 0]));
+            const i16vec4 v1 = i16vec4(int16_t(tmp_v[lx][(z4 + 0) * 4 + 1]), int16_t(tmp_v[lx][(z4 + 1) * 4 + 1]), int16_t(tmp_v[lx][(z4 + 2) * 4 + 1]), int16_t(tmp_v[lx][(z4 + 3) * 4 + 1]));
+            const i16vec4 v2 = i16vec4(int16_t(tmp_v[lx][(z4 + 0) * 4 + 2]), int16_t(tmp_v[lx][(z4 + 1) * 4 + 2]), int16_t(tmp_v[lx][(z4 + 2) * 4 + 2]), int16_t(tmp_v[lx][(z4 + 3) * 4 + 2]));
+            const i16vec4 v3 = i16vec4(int16_t(tmp_v[lx][(z4 + 0) * 4 + 3]), int16_t(tmp_v[lx][(z4 + 1) * 4 + 3]), int16_t(tmp_v[lx][(z4 + 2) * 4 + 3]), int16_t(tmp_v[lx][(z4 + 3) * 4 + 3]));
 
-            const i16vec4 k0 = i16vec4(int16_t(tmp_k[ly][z4 + 0][0]), int16_t(tmp_k[ly][z4 + 1][0]), int16_t(tmp_k[ly][z4 + 2][0]), int16_t(tmp_k[ly][z4 + 3][0]));
-            const i16vec4 k1 = i16vec4(int16_t(tmp_k[ly][z4 + 0][1]), int16_t(tmp_k[ly][z4 + 1][1]), int16_t(tmp_k[ly][z4 + 2][1]), int16_t(tmp_k[ly][z4 + 3][1]));
-            const i16vec4 k2 = i16vec4(int16_t(tmp_k[ly][z4 + 0][2]), int16_t(tmp_k[ly][z4 + 1][2]), int16_t(tmp_k[ly][z4 + 2][2]), int16_t(tmp_k[ly][z4 + 3][2]));
-            const i16vec4 k3 = i16vec4(int16_t(tmp_k[ly][z4 + 0][3]), int16_t(tmp_k[ly][z4 + 1][3]), int16_t(tmp_k[ly][z4 + 2][3]), int16_t(tmp_k[ly][z4 + 3][3]));
+            const i16vec4 k0 = i16vec4(int16_t(tmp_k[ly][(z4 + 0) * 4 + 0]), int16_t(tmp_k[ly][(z4 + 1) * 4 + 0]), int16_t(tmp_k[ly][(z4 + 2) * 4 + 0]), int16_t(tmp_k[ly][(z4 + 3) * 4 + 0]));
+            const i16vec4 k1 = i16vec4(int16_t(tmp_k[ly][(z4 + 0) * 4 + 1]), int16_t(tmp_k[ly][(z4 + 1) * 4 + 1]), int16_t(tmp_k[ly][(z4 + 2) * 4 + 1]), int16_t(tmp_k[ly][(z4 + 3) * 4 + 1]));
+            const i16vec4 k2 = i16vec4(int16_t(tmp_k[ly][(z4 + 0) * 4 + 2]), int16_t(tmp_k[ly][(z4 + 1) * 4 + 2]), int16_t(tmp_k[ly][(z4 + 2) * 4 + 2]), int16_t(tmp_k[ly][(z4 + 3) * 4 + 2]));
+            const i16vec4 k3 = i16vec4(int16_t(tmp_k[ly][(z4 + 0) * 4 + 3]), int16_t(tmp_k[ly][(z4 + 1) * 4 + 3]), int16_t(tmp_k[ly][(z4 + 2) * 4 + 3]), int16_t(tmp_k[ly][(z4 + 3) * 4 + 3]));
 
             sum0.r += dotEXT(v0, k0);
             sum0.g += dotEXT(v0, k1);
@@ -223,8 +225,8 @@ void main()
 
         for (; z4 < remain; z4++)
         {
-            const ivec4 v = ivec4(tmp_v[lx][z4][0], tmp_v[lx][z4][1], tmp_v[lx][z4][2], tmp_v[lx][z4][3]);
-            const ivec4 k = ivec4(tmp_k[ly][z4][0], tmp_k[ly][z4][1], tmp_k[ly][z4][2], tmp_k[ly][z4][3]);
+            const ivec4 v = ivec4(tmp_v[lx][z4 * 4 + 0], tmp_v[lx][z4 * 4 + 1], tmp_v[lx][z4 * 4 + 2], tmp_v[lx][z4 * 4 + 3]);
+            const ivec4 k = ivec4(tmp_k[ly][z4 * 4 + 0], tmp_k[ly][z4 * 4 + 1], tmp_k[ly][z4 * 4 + 2], tmp_k[ly][z4 * 4 + 3]);
 
             sum0 += v.r * k;
             sum1 += v.g * k;
@@ -235,15 +237,15 @@ void main()
         int z4 = 0;
         for (; z4 + 3 < remain; z4 += 4)
         {
-            const ivec4 v0 = ivec4(tmp_v[lx][z4 + 0][0], tmp_v[lx][z4 + 1][0], tmp_v[lx][z4 + 2][0], tmp_v[lx][z4 + 3][0]);
-            const ivec4 v1 = ivec4(tmp_v[lx][z4 + 0][1], tmp_v[lx][z4 + 1][1], tmp_v[lx][z4 + 2][1], tmp_v[lx][z4 + 3][1]);
-            const ivec4 v2 = ivec4(tmp_v[lx][z4 + 0][2], tmp_v[lx][z4 + 1][2], tmp_v[lx][z4 + 2][2], tmp_v[lx][z4 + 3][2]);
-            const ivec4 v3 = ivec4(tmp_v[lx][z4 + 0][3], tmp_v[lx][z4 + 1][3], tmp_v[lx][z4 + 2][3], tmp_v[lx][z4 + 3][3]);
+            const ivec4 v0 = ivec4(tmp_v[lx][(z4 + 0) * 4 + 0], tmp_v[lx][(z4 + 1) * 4 + 0], tmp_v[lx][(z4 + 2) * 4 + 0], tmp_v[lx][(z4 + 3) * 4 + 0]);
+            const ivec4 v1 = ivec4(tmp_v[lx][(z4 + 0) * 4 + 1], tmp_v[lx][(z4 + 1) * 4 + 1], tmp_v[lx][(z4 + 2) * 4 + 1], tmp_v[lx][(z4 + 3) * 4 + 1]);
+            const ivec4 v2 = ivec4(tmp_v[lx][(z4 + 0) * 4 + 2], tmp_v[lx][(z4 + 1) * 4 + 2], tmp_v[lx][(z4 + 2) * 4 + 2], tmp_v[lx][(z4 + 3) * 4 + 2]);
+            const ivec4 v3 = ivec4(tmp_v[lx][(z4 + 0) * 4 + 3], tmp_v[lx][(z4 + 1) * 4 + 3], tmp_v[lx][(z4 + 2) * 4 + 3], tmp_v[lx][(z4 + 3) * 4 + 3]);
 
-            const ivec4 k0 = ivec4(tmp_k[ly][z4 + 0][0], tmp_k[ly][z4 + 1][0], tmp_k[ly][z4 + 2][0], tmp_k[ly][z4 + 3][0]);
-            const ivec4 k1 = ivec4(tmp_k[ly][z4 + 0][1], tmp_k[ly][z4 + 1][1], tmp_k[ly][z4 + 2][1], tmp_k[ly][z4 + 3][1]);
-            const ivec4 k2 = ivec4(tmp_k[ly][z4 + 0][2], tmp_k[ly][z4 + 1][2], tmp_k[ly][z4 + 2][2], tmp_k[ly][z4 + 3][2]);
-            const ivec4 k3 = ivec4(tmp_k[ly][z4 + 0][3], tmp_k[ly][z4 + 1][3], tmp_k[ly][z4 + 2][3], tmp_k[ly][z4 + 3][3]);
+            const ivec4 k0 = ivec4(tmp_k[ly][(z4 + 0) * 4 + 0], tmp_k[ly][(z4 + 1) * 4 + 0], tmp_k[ly][(z4 + 2) * 4 + 0], tmp_k[ly][(z4 + 3) * 4 + 0]);
+            const ivec4 k1 = ivec4(tmp_k[ly][(z4 + 0) * 4 + 1], tmp_k[ly][(z4 + 1) * 4 + 1], tmp_k[ly][(z4 + 2) * 4 + 1], tmp_k[ly][(z4 + 3) * 4 + 1]);
+            const ivec4 k2 = ivec4(tmp_k[ly][(z4 + 0) * 4 + 2], tmp_k[ly][(z4 + 1) * 4 + 2], tmp_k[ly][(z4 + 2) * 4 + 2], tmp_k[ly][(z4 + 3) * 4 + 2]);
+            const ivec4 k3 = ivec4(tmp_k[ly][(z4 + 0) * 4 + 3], tmp_k[ly][(z4 + 1) * 4 + 3], tmp_k[ly][(z4 + 2) * 4 + 3], tmp_k[ly][(z4 + 3) * 4 + 3]);
 
             sum0.r += dotEXT(v0, k0);
             sum0.g += dotEXT(v0, k1);
@@ -268,8 +270,8 @@ void main()
 
         for (; z4 < remain; z4++)
         {
-            const ivec4 v = ivec4(tmp_v[lx][z4][0], tmp_v[lx][z4][1], tmp_v[lx][z4][2], tmp_v[lx][z4][3]);
-            const ivec4 k = ivec4(tmp_k[ly][z4][0], tmp_k[ly][z4][1], tmp_k[ly][z4][2], tmp_k[ly][z4][3]);
+            const ivec4 v = ivec4(tmp_v[lx][z4 * 4 + 0], tmp_v[lx][z4 * 4 + 1], tmp_v[lx][z4 * 4 + 2], tmp_v[lx][z4 * 4 + 3]);
+            const ivec4 k = ivec4(tmp_k[ly][z4 * 4 + 0], tmp_k[ly][z4 * 4 + 1], tmp_k[ly][z4 * 4 + 2], tmp_k[ly][z4 * 4 + 3]);
 
             sum0 += v.r * k;
             sum1 += v.g * k;
@@ -279,8 +281,8 @@ void main()
 #else
         for (int z4 = 0; z4 < remain; z4++)
         {
-            const ivec4 v = ivec4(tmp_v[lx][z4][0], tmp_v[lx][z4][1], tmp_v[lx][z4][2], tmp_v[lx][z4][3]);
-            const ivec4 k = ivec4(tmp_k[ly][z4][0], tmp_k[ly][z4][1], tmp_k[ly][z4][2], tmp_k[ly][z4][3]);
+            const ivec4 v = ivec4(tmp_v[lx][z4 * 4 + 0], tmp_v[lx][z4 * 4 + 1], tmp_v[lx][z4 * 4 + 2], tmp_v[lx][z4 * 4 + 3]);
+            const ivec4 k = ivec4(tmp_k[ly][z4 * 4 + 0], tmp_k[ly][z4 * 4 + 1], tmp_k[ly][z4 * 4 + 2], tmp_k[ly][z4 * 4 + 3]);
 
             sum0 += v.r * k;
             sum1 += v.g * k;

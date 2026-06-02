@@ -805,8 +805,8 @@ int InnerProduct_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob,
         constants[9].i = top_blob.cstep;
 
         VkMat dispatcher;
-        dispatcher.w = top_blob.w;
-        dispatcher.h = top_blob.h;
+        dispatcher.w = (top_blob.w + 3) / 4;
+        dispatcher.h = (top_blob.h + 3) / 4;
         dispatcher.c = 1;
 
         cmd.record_pipeline(pipeline_innerproduct_gemm_int8, bindings, constants, dispatcher);

@@ -178,7 +178,7 @@ layout (binding = 1) readonly buffer weight_blob { sint16 weight_blob_data[]; };
 |int8 存储类型|int8p|int8s|int8s+int8a|
 |---|---|---|---|
 |sint8|int|int8_t|int8_t|
-|sint8vec4|int|int|i8vec4|
+|sint8vec4|int|int|int|
 
 |int8 算术类型|int8|
 |---|---|
@@ -189,7 +189,7 @@ layout (binding = 1) readonly buffer weight_blob { sint16 weight_blob_data[]; };
 |---|---|---|
 |sint16|int|int16_t|
 
-只有在同时启用 `opt.use_int8_storage` 和 `opt.use_int8_arithmetic` 时，`sint8vec4` 才会使用原生 `i8vec4`。否则，`sint8vec4` 使用一个 `int` 保存四个有符号 int8 lane。
+`sint8vec4` 在所有 int8 存储模式下都使用一个 `int` 保存四个有符号 int8 lane。这样可以让 pack4 数据在 integer dot product 和 shared memory 路径中保持 packed 形式。使用 `i8buffer_ld4` 解包为 `ivec4`，使用 `i8buffer_sm4` 直接加载 packed `int`。
 
 启用 `opt.use_int16_packed` 时，`sint16` 使用一个 `int` 保存两个有符号 int16 lane；启用 `opt.use_int16_storage` 时，`sint16` 使用原生 `int16_t`。
 
@@ -238,7 +238,10 @@ void buffer_cp4to1(sfp dst, ivec4 dst_offsets, sfpvec4 src, int src_offset);
 ```c
 aint8 i8buffer_ld1(sint8 src, int offset);
 aint8vec4 i8buffer_ld4(sint8vec4 src, int offset);
+int i8buffer_sm4(sint8vec4 src, int offset);
 ```
+
+`i8buffer_sm4` 加载四个 int8 lane 的原始 packed `int` 表示。它适用于 shared memory 暂存和 `dotPacked4x8EXT` 路径，避免先解包成 `ivec4` 再重新打包。
 
 - 将 int8 类型的值存储到 dst[offset]
 
@@ -390,6 +393,10 @@ void main()
 
 #if ncnn_subgroupSize == 32
     // 为 subgroup_size == 32 优化的代码路径
+#endif
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+    // packed int8 dot-product 路径
 #endif
 
     // 使用宏定义

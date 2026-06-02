@@ -13,7 +13,7 @@ layout(constant_id = 3) const float activation_param_1 = 0;
 layout(constant_id = 4) const int use_int8_requantize = 0;
 
 layout(binding = 0) readonly buffer top_tm_blob { int top_tm_blob_data[]; };
-layout(binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 2) readonly buffer bias_blob { float bias_data[]; };
 layout(binding = 3) readonly buffer weight_scales_blob { sfp weight_scales_data[]; };
 layout(binding = 4) readonly buffer bottom_scales_blob { sfp bottom_scales_data[]; };
@@ -118,7 +118,7 @@ void main()
         }
         else
         {
-            top_blob_data[gi] = sumfp32;
+            buffer_st1(top_blob_data, gi, afp(sumfp32));
         }
     }
 }
