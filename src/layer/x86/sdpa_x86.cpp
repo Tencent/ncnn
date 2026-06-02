@@ -135,7 +135,7 @@ static inline void vec_zero(float* x, int n)
 }
 
 static inline void softmax_tile(float* P, const float* S,
-                                float* m_vec, float* l_vec, float* scale_out, int m, int n)
+                                float* m_vec, float* l_vec, float* scale_out, unsigned char* changed_out, int m, int n)
 {
     for (int i = 0; i < m; i++)
     {
@@ -157,6 +157,7 @@ static inline void softmax_tile(float* P, const float* S,
 
         float scale_factor = expf(m_vec[i] - m_new);
         scale_out[i] = scale_factor;
+        changed_out[i] = m_vec[i] != m_new;
         l_vec[i] *= scale_factor;
 
         __m512 vm_new = _mm512_set1_ps(m_new);
@@ -191,6 +192,7 @@ static inline void softmax_tile(float* P, const float* S,
 
         float scale_factor = expf(m_vec[i] - m_new);
         scale_out[i] = scale_factor;
+        changed_out[i] = m_vec[i] != m_new;
         l_vec[i] *= scale_factor;
 
         __m256 vm_new = _mm256_set1_ps(m_new);
@@ -222,6 +224,7 @@ static inline void softmax_tile(float* P, const float* S,
 
         float scale_factor = expf(m_vec[i] - m_new);
         scale_out[i] = scale_factor;
+        changed_out[i] = m_vec[i] != m_new;
         l_vec[i] *= scale_factor;
 
         __m128 vm_new = _mm_set1_ps(m_new);
@@ -248,6 +251,7 @@ static inline void softmax_tile(float* P, const float* S,
             m_new = std::max(m_new, sptr[j]);
         float scale_factor = expf(m_vec[i] - m_new);
         scale_out[i] = scale_factor;
+        changed_out[i] = m_vec[i] != m_new;
         l_vec[i] *= scale_factor;
         float l_add = 0.f;
         for (int j = 0; j < n; j++)
@@ -3529,17 +3533,13 @@ static int sdpa_forward_prefill(
                     float* l_vec = l_state_tile.row(hq);
                     float* o_ptr = o_accum_thread.row(hq * block_m);
 
-                    float m_old[BLOCK_M];
                     float scale_factors[BLOCK_M];
-                    for (int i = 0; i < block_m; i++)
-                    {
-                        m_old[i] = m_vec[i];
-                    }
-                    softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, block_m, block_n);
+                    unsigned char changed[BLOCK_M];
+                    softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, changed, block_m, block_n);
 
                     for (int i = 0; i < block_m; i++)
                     {
-                        if (m_old[i] != m_vec[i])
+                        if (changed[i])
                         {
                             vec_scale(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
                         }
@@ -3946,17 +3946,13 @@ static int sdpa_forward_prefill(
                             float* l_vec = l_state_tile.row(hq);
                             float* o_ptr = o_accum_thread.row(hq * block_m);
 
-                            float m_old[BLOCK_M];
                             float scale_factors[BLOCK_M];
-                            for (int i = 0; i < block_m; i++)
-                            {
-                                m_old[i] = m_vec[i];
-                            }
-                            softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, block_m, block_n2);
+                            unsigned char changed[BLOCK_M];
+                            softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, changed, block_m, block_n2);
 
                             for (int i = 0; i < block_m; i++)
                             {
-                                if (m_old[i] != m_vec[i])
+                                if (changed[i])
                                 {
                                     vec_scale(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
                                 }
@@ -4354,17 +4350,13 @@ static int sdpa_forward_prefill(
                             float* l_vec = l_state_tile.row(hq);
                             float* o_ptr = o_accum_thread.row(hq * block_m);
 
-                            float m_old[BLOCK_M];
                             float scale_factors[BLOCK_M];
-                            for (int i = 0; i < block_m; i++)
-                            {
-                                m_old[i] = m_vec[i];
-                            }
-                            softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, block_m, block_n2);
+                            unsigned char changed[BLOCK_M];
+                            softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, changed, block_m, block_n2);
 
                             for (int i = 0; i < block_m; i++)
                             {
-                                if (m_old[i] != m_vec[i])
+                                if (changed[i])
                                 {
                                     vec_scale(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
                                 }
