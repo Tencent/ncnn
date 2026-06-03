@@ -37,12 +37,12 @@ template void qk_gemm_bf16s_avx512bf16_kernel_t<512>(float*, const float*, const
 template void qk_gemm_bf16s_avx512bf16_kernel_t<1024>(float*, const float*, const unsigned short*, int, int, float);
 template void qk_gemm_bf16s_avx512bf16_kernel_t<4096>(float*, const float*, const unsigned short*, int, int, float);
 
-template void pv_gemm_bf16s_avx512bf16_kernel_t<64>(float*, const float*, const unsigned short*, int, int);
-template void pv_gemm_bf16s_avx512bf16_kernel_t<128>(float*, const float*, const unsigned short*, int, int);
-template void pv_gemm_bf16s_avx512bf16_kernel_t<256>(float*, const float*, const unsigned short*, int, int);
-template void pv_gemm_bf16s_avx512bf16_kernel_t<512>(float*, const float*, const unsigned short*, int, int);
-template void pv_gemm_bf16s_avx512bf16_kernel_t<1024>(float*, const float*, const unsigned short*, int, int);
-template void pv_gemm_bf16s_avx512bf16_kernel_t<4096>(float*, const float*, const unsigned short*, int, int);
+template void pv_gemm_bf16s_avx512bf16_kernel_t<64>(float*, const float*, const unsigned short*, int, int, bool);
+template void pv_gemm_bf16s_avx512bf16_kernel_t<128>(float*, const float*, const unsigned short*, int, int, bool);
+template void pv_gemm_bf16s_avx512bf16_kernel_t<256>(float*, const float*, const unsigned short*, int, int, bool);
+template void pv_gemm_bf16s_avx512bf16_kernel_t<512>(float*, const float*, const unsigned short*, int, int, bool);
+template void pv_gemm_bf16s_avx512bf16_kernel_t<1024>(float*, const float*, const unsigned short*, int, int, bool);
+template void pv_gemm_bf16s_avx512bf16_kernel_t<4096>(float*, const float*, const unsigned short*, int, int, bool);
 
 void qk_gemm_bf16s_avx512bf16(float* S, const float* Q, const unsigned short* K, int m, int n, int d, float scale)
 {
@@ -77,27 +77,27 @@ void qk_gemm_bf16s_avx512bf16_qbf16(float* S, const unsigned short* Q, const uns
     qk_gemm_bf16s_avx512bf16_qbf16_kernel(S, Q, K, m, n, d, scale);
 }
 
-void pv_gemm_bf16s_avx512bf16(float* O, const float* P, const unsigned short* V, int m, int n, int d)
+void pv_gemm_bf16s_avx512bf16(float* O, const float* P, const unsigned short* V, int m, int n, int d, bool init_zero)
 {
     switch (d)
     {
     case 64:
-        pv_gemm_bf16s_avx512bf16_kernel_t<64>(O, P, V, m, n);
+        pv_gemm_bf16s_avx512bf16_kernel_t<64>(O, P, V, m, n, init_zero);
         break;
     case 128:
-        pv_gemm_bf16s_avx512bf16_kernel_t<128>(O, P, V, m, n);
+        pv_gemm_bf16s_avx512bf16_kernel_t<128>(O, P, V, m, n, init_zero);
         break;
     case 256:
-        pv_gemm_bf16s_avx512bf16_kernel_t<256>(O, P, V, m, n);
+        pv_gemm_bf16s_avx512bf16_kernel_t<256>(O, P, V, m, n, init_zero);
         break;
     case 512:
-        pv_gemm_bf16s_avx512bf16_kernel_t<512>(O, P, V, m, n);
+        pv_gemm_bf16s_avx512bf16_kernel_t<512>(O, P, V, m, n, init_zero);
         break;
     case 1024:
-        pv_gemm_bf16s_avx512bf16_kernel_t<1024>(O, P, V, m, n);
+        pv_gemm_bf16s_avx512bf16_kernel_t<1024>(O, P, V, m, n, init_zero);
         break;
     case 4096:
-        pv_gemm_bf16s_avx512bf16_kernel_t<4096>(O, P, V, m, n);
+        pv_gemm_bf16s_avx512bf16_kernel_t<4096>(O, P, V, m, n, init_zero);
         break;
     default:
         pv_gemm_bf16s_avx512bf16_kernel(O, P, V, m, n, d);

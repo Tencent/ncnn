@@ -14,6 +14,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(__linux__)
+#include <sched.h>
+#endif
+
 #if NCNN_VULKAN
 #include "command.h"
 #include "gpu.h"
@@ -25,6 +29,60 @@
 #define PERF_GPU_WARMUP_BATCH 100
 #define PERF_RUN_COUNT        20
 #define PERF_TARGET_MIN_MS    5.0
+
+static int perf_env_int(const char* name, int default_value, int min_value)
+{
+    const char* s = getenv(name);
+    if (!s || !s[0])
+        return default_value;
+
+    int v = atoi(s);
+    return v < min_value ? min_value : v;
+}
+
+static double perf_env_double(const char* name, double default_value, double min_value)
+{
+    const char* s = getenv(name);
+    if (!s || !s[0])
+        return default_value;
+
+    double v = atof(s);
+    return v < min_value ? min_value : v;
+}
+
+static void setup_perf_cpu_affinity()
+{
+    static bool initialized = false;
+    if (initialized)
+        return;
+    initialized = true;
+
+#if defined(__linux__)
+    const char* s = getenv("NCNN_PERF_CPU_AFFINITY");
+    if (!s || !s[0])
+        return;
+
+    int cpu = atoi(s);
+    if (cpu < 0)
+        return;
+    if (cpu >= CPU_SETSIZE)
+    {
+        fprintf(stderr, "NCNN_PERF_CPU_AFFINITY=%d exceeds CPU_SETSIZE=%d\n", cpu, CPU_SETSIZE);
+        return;
+    }
+
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(cpu, &cpuset);
+
+    if (sched_setaffinity(0, sizeof(cpuset), &cpuset) != 0)
+    {
+        fprintf(stderr, "NCNN_PERF_CPU_AFFINITY=%d sched_setaffinity failed\n", cpu);
+    }
+#else
+    (void)getenv("NCNN_PERF_CPU_AFFINITY");
+#endif
+}
 
 // benchmark result for a single test case
 struct PerfResult
@@ -268,6 +326,12 @@ static int perf_layer_cpu(const char* layer_type, const ncnn::ParamDict& pd,
                           int forced_inner_loops,
                           PerfResult& result)
 {
+    setup_perf_cpu_affinity();
+
+    const int warmup_count = perf_env_int("NCNN_PERF_WARMUP_COUNT", PERF_WARMUP_COUNT, 1);
+    const int run_count = perf_env_int("NCNN_PERF_RUN_COUNT", PERF_RUN_COUNT, 1);
+    const double target_min_ms = perf_env_double("NCNN_PERF_TARGET_MIN_MS", PERF_TARGET_MIN_MS, 0.0);
+
     ncnn::Layer* op = ncnn::create_layer_cpu(layer_type);
     if (!op)
     {
@@ -291,7 +355,7 @@ static int perf_layer_cpu(const char* layer_type, const ncnn::ParamDict& pd,
 
     // warmup and calibrate inner loop count from warmup min time
     double warmup_min_ms = DBL_MAX;
-    for (int i = 0; i < PERF_WARMUP_COUNT; i++)
+    for (int i = 0; i < warmup_count; i++)
     {
         double t0 = ncnn::get_current_time();
         int ret = run_layer_forward_cpu(op, converted, top_blob_count, opt);
@@ -315,19 +379,19 @@ static int perf_layer_cpu(const char* layer_type, const ncnn::ParamDict& pd,
     {
         // calibrate inner loop count to power of 10, so total time >= PERF_TARGET_MIN_MS
         inner_loops = 1;
-        if (warmup_min_ms > 0 && warmup_min_ms < PERF_TARGET_MIN_MS)
+        if (warmup_min_ms > 0 && warmup_min_ms < target_min_ms)
         {
-            while (inner_loops * warmup_min_ms < PERF_TARGET_MIN_MS)
+            while (inner_loops * warmup_min_ms < target_min_ms)
                 inner_loops *= 10;
         }
     }
 
-    double* times = new double[PERF_RUN_COUNT];
+    double* times = new double[run_count];
     double time_sum = 0;
     double time_min_val = DBL_MAX;
     double time_max_val = -DBL_MAX;
 
-    for (int i = 0; i < PERF_RUN_COUNT; i++)
+    for (int i = 0; i < run_count; i++)
     {
         double start = ncnn::get_current_time();
 
@@ -345,16 +409,16 @@ static int perf_layer_cpu(const char* layer_type, const ncnn::ParamDict& pd,
         if (t > time_max_val) time_max_val = t;
     }
 
-    sort_doubles(times, PERF_RUN_COUNT);
+    sort_doubles(times, run_count);
     double time_median_val;
-    if (PERF_RUN_COUNT % 2 == 0)
-        time_median_val = (times[PERF_RUN_COUNT / 2 - 1] + times[PERF_RUN_COUNT / 2]) / 2.0;
+    if (run_count % 2 == 0)
+        time_median_val = (times[run_count / 2 - 1] + times[run_count / 2]) / 2.0;
     else
-        time_median_val = times[PERF_RUN_COUNT / 2];
+        time_median_val = times[run_count / 2];
 
     result.time_min = time_min_val;
     result.time_max = time_max_val;
-    result.time_avg = time_sum / PERF_RUN_COUNT;
+    result.time_avg = time_sum / run_count;
     result.time_median = time_median_val;
     result.loop_count = inner_loops;
 
@@ -410,6 +474,11 @@ static int perf_layer_gpu(const char* layer_type, const ncnn::ParamDict& pd,
                           int forced_inner_loops,
                           PerfResult& result)
 {
+    const int warmup_count = perf_env_int("NCNN_PERF_GPU_WARMUP_COUNT", PERF_GPU_WARMUP_COUNT, 1);
+    const int warmup_batch = perf_env_int("NCNN_PERF_GPU_WARMUP_BATCH", PERF_GPU_WARMUP_BATCH, 1);
+    const int run_count = perf_env_int("NCNN_PERF_RUN_COUNT", PERF_RUN_COUNT, 1);
+    const double target_min_ms = perf_env_double("NCNN_PERF_TARGET_MIN_MS", PERF_TARGET_MIN_MS, 0.0);
+
     ncnn::Layer* op = ncnn::create_layer_vulkan(layer_type);
     if (!op)
     {
@@ -516,17 +585,17 @@ static int perf_layer_gpu(const char* layer_type, const ncnn::ParamDict& pd,
     // warmup and calibrate inner loop count from warmup min time
     // batch multiple forwards per submit to amortize submit_and_wait overhead
     double warmup_min_ms = DBL_MAX;
-    for (int i = 0; i < PERF_GPU_WARMUP_COUNT; i++)
+    for (int i = 0; i < warmup_count; i++)
     {
         ncnn::VkCompute cmd(vkdev);
-        for (int b = 0; b < PERF_GPU_WARMUP_BATCH; b++)
+        for (int b = 0; b < warmup_batch; b++)
         {
             run_layer_forward_gpu(op, vk_inputs, top_blob_count, cmd, opt);
         }
         double t0 = ncnn::get_current_time();
         cmd.submit_and_wait();
         double t1 = ncnn::get_current_time();
-        double t = (t1 - t0) / PERF_GPU_WARMUP_BATCH;
+        double t = (t1 - t0) / warmup_batch;
         if (t < warmup_min_ms) warmup_min_ms = t;
     }
 
@@ -539,20 +608,20 @@ static int perf_layer_gpu(const char* layer_type, const ncnn::ParamDict& pd,
     {
         // calibrate inner loop count to power of 10, so total time >= PERF_TARGET_MIN_MS
         inner_loops = 1;
-        if (warmup_min_ms > 0 && warmup_min_ms < PERF_TARGET_MIN_MS)
+        if (warmup_min_ms > 0 && warmup_min_ms < target_min_ms)
         {
-            while (inner_loops * warmup_min_ms < PERF_TARGET_MIN_MS)
+            while (inner_loops * warmup_min_ms < target_min_ms)
                 inner_loops *= 10;
         }
     }
     // record inner_loops forwards into one command buffer, single submit
     // this measures pure GPU kernel time, excluding per-launch overhead
-    double* times = new double[PERF_RUN_COUNT];
+    double* times = new double[run_count];
     double time_sum = 0;
     double time_min_val = DBL_MAX;
     double time_max_val = -DBL_MAX;
 
-    for (int i = 0; i < PERF_RUN_COUNT; i++)
+    for (int i = 0; i < run_count; i++)
     {
         ncnn::VkCompute cmd(vkdev);
         for (int k = 0; k < inner_loops; k++)
@@ -572,16 +641,16 @@ static int perf_layer_gpu(const char* layer_type, const ncnn::ParamDict& pd,
         if (t > time_max_val) time_max_val = t;
     }
 
-    sort_doubles(times, PERF_RUN_COUNT);
+    sort_doubles(times, run_count);
     double time_median_val;
-    if (PERF_RUN_COUNT % 2 == 0)
-        time_median_val = (times[PERF_RUN_COUNT / 2 - 1] + times[PERF_RUN_COUNT / 2]) / 2.0;
+    if (run_count % 2 == 0)
+        time_median_val = (times[run_count / 2 - 1] + times[run_count / 2]) / 2.0;
     else
-        time_median_val = times[PERF_RUN_COUNT / 2];
+        time_median_val = times[run_count / 2];
 
     result.time_min = time_min_val;
     result.time_max = time_max_val;
-    result.time_avg = time_sum / PERF_RUN_COUNT;
+    result.time_avg = time_sum / run_count;
     result.time_median = time_median_val;
     result.loop_count = inner_loops;
 

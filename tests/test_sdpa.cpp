@@ -117,6 +117,17 @@ static int test_sdpa_1()
            || test_sdpa_int8(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 0.1f)
            || test_sdpa_int8(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1, -0.4f);
 }
+
+static int test_sdpa_int8_large_dim()
+{
+    if (!getenv("NCNN_TEST_SDPA_LARGE_DIM"))
+        return 0;
+
+    return 0
+           || test_sdpa_int8(RandomMat(4096, 16, 32), RandomMat(4096, 16, 1), RandomMat(4096, 16, 1), 0, 1.f / 64.f)
+           || test_sdpa_int8(RandomMat(4096, 16, 32), RandomMat(4096, 16, 4), RandomMat(4096, 16, 4), 0, 1.f / 64.f)
+           || test_sdpa_int8(RandomMat(4096, 32, 32), RandomMat(4096, 32, 32), RandomMat(4096, 32, 32), 0, 1.f / 64.f);
+}
 #endif
 
 int main()
@@ -124,7 +135,7 @@ int main()
     SRAND(7767517);
 
 #if NCNN_INT8
-    return test_sdpa_0() || test_sdpa_1() || test_sdpa_large_dim();
+    return test_sdpa_0() || test_sdpa_1() || test_sdpa_large_dim() || test_sdpa_int8_large_dim();
 #else
     return test_sdpa_0() || test_sdpa_large_dim();
 #endif

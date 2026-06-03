@@ -23,7 +23,7 @@ void decode_qk_dot_bf16s_avx512bf16(float* s, const float* q, const unsigned sho
 void decode_pv_gemv_bf16s_avx512bf16(float* out, const float* s, const unsigned short* V, int n_start, int block_n, int out_d);
 void qk_gemm_bf16s_avx512bf16(float* S, const float* Q, const unsigned short* K, int m, int n, int d, float scale);
 void qk_gemm_bf16s_avx512bf16_qbf16(float* S, const unsigned short* Q, const unsigned short* K, int m, int n, int d, float scale);
-void pv_gemm_bf16s_avx512bf16(float* O, const float* P, const unsigned short* V, int m, int n, int d);
+void pv_gemm_bf16s_avx512bf16(float* O, const float* P, const unsigned short* V, int m, int n, int d, bool init_zero = false);
 #endif
 
 // ---------------------------------------------------------------------------
@@ -2265,7 +2265,7 @@ static void qk_gemm_bf16s_avx512bf16_kernel_t(float* S, const float* Q, const un
 }
 
 template<int D>
-static void pv_gemm_bf16s_avx512bf16_kernel_t(float* O, const float* P, const unsigned short* V, int m, int n)
+static void pv_gemm_bf16s_avx512bf16_kernel_t(float* O, const float* P, const unsigned short* V, int m, int n, bool init_zero)
 {
     unsigned short* p_bf16 = (unsigned short*)_mm_malloc(m * n * sizeof(unsigned short), 64);
     for (int i = 0; i < m; i++)
@@ -2296,8 +2296,8 @@ static void pv_gemm_bf16s_avx512bf16_kernel_t(float* O, const float* P, const un
             __m512 acc[4][2];
             for (int mi = 0; mi < 4; mi++)
             {
-                acc[mi][0] = _mm512_loadu_ps(op[mi] + 0);
-                acc[mi][1] = _mm512_loadu_ps(op[mi] + 16);
+                acc[mi][0] = init_zero ? _mm512_setzero_ps() : _mm512_loadu_ps(op[mi] + 0);
+                acc[mi][1] = init_zero ? _mm512_setzero_ps() : _mm512_loadu_ps(op[mi] + 16);
             }
 
             for (int j = 0; j < n; j++)
@@ -2327,10 +2327,10 @@ static void pv_gemm_bf16s_avx512bf16_kernel_t(float* O, const float* P, const un
         {
             float* op0 = O + i * D + dd;
             float* op1 = O + (i + 1) * D + dd;
-            __m512 acc00 = _mm512_loadu_ps(op0 + 0);
-            __m512 acc01 = _mm512_loadu_ps(op0 + 16);
-            __m512 acc10 = _mm512_loadu_ps(op1 + 0);
-            __m512 acc11 = _mm512_loadu_ps(op1 + 16);
+            __m512 acc00 = init_zero ? _mm512_setzero_ps() : _mm512_loadu_ps(op0 + 0);
+            __m512 acc01 = init_zero ? _mm512_setzero_ps() : _mm512_loadu_ps(op0 + 16);
+            __m512 acc10 = init_zero ? _mm512_setzero_ps() : _mm512_loadu_ps(op1 + 0);
+            __m512 acc11 = init_zero ? _mm512_setzero_ps() : _mm512_loadu_ps(op1 + 16);
             for (int j = 0; j < n; j++)
             {
                 const unsigned short* vptr = V + j * D + dd;
@@ -2355,8 +2355,8 @@ static void pv_gemm_bf16s_avx512bf16_kernel_t(float* O, const float* P, const un
         for (; i < m; i++)
         {
             float* optr = O + i * D + dd;
-            __m512 acc0 = _mm512_loadu_ps(optr + 0);
-            __m512 acc1 = _mm512_loadu_ps(optr + 16);
+            __m512 acc0 = init_zero ? _mm512_setzero_ps() : _mm512_loadu_ps(optr + 0);
+            __m512 acc1 = init_zero ? _mm512_setzero_ps() : _mm512_loadu_ps(optr + 16);
             for (int j = 0; j < n; j++)
             {
                 const unsigned short* vptr = V + j * D + dd;
@@ -2384,7 +2384,7 @@ static void pv_gemm_bf16s_avx512bf16_kernel_t(float* O, const float* P, const un
                 op[mi] = O + (i + mi) * D + dd;
             __m512 acc[4];
             for (int mi = 0; mi < 4; mi++)
-                acc[mi] = _mm512_loadu_ps(op[mi]);
+                acc[mi] = init_zero ? _mm512_setzero_ps() : _mm512_loadu_ps(op[mi]);
 
             for (int j = 0; j < n; j++)
             {
@@ -2404,8 +2404,8 @@ static void pv_gemm_bf16s_avx512bf16_kernel_t(float* O, const float* P, const un
         {
             float* op0 = O + i * D + dd;
             float* op1 = O + (i + 1) * D + dd;
-            __m512 acc0 = _mm512_loadu_ps(op0);
-            __m512 acc1 = _mm512_loadu_ps(op1);
+            __m512 acc0 = init_zero ? _mm512_setzero_ps() : _mm512_loadu_ps(op0);
+            __m512 acc1 = init_zero ? _mm512_setzero_ps() : _mm512_loadu_ps(op1);
             for (int j = 0; j < n; j++)
             {
                 __m256i v0 = _mm256_loadu_si256((const __m256i*)(V + j * D + dd));
@@ -2423,7 +2423,7 @@ static void pv_gemm_bf16s_avx512bf16_kernel_t(float* O, const float* P, const un
         for (; i < m; i++)
         {
             float* optr = O + i * D + dd;
-            __m512 acc = _mm512_loadu_ps(optr);
+            __m512 acc = init_zero ? _mm512_setzero_ps() : _mm512_loadu_ps(optr);
             for (int j = 0; j < n; j++)
             {
                 __m256i v0 = _mm256_loadu_si256((const __m256i*)(V + j * D + dd));
@@ -2441,7 +2441,7 @@ static void pv_gemm_bf16s_avx512bf16_kernel_t(float* O, const float* P, const un
         for (int i = 0; i < m; i++)
         {
             float* optr = O + i * D + dd;
-            float acc = optr[0];
+            float acc = init_zero ? 0.f : optr[0];
             for (int j = 0; j < n; j++)
                 acc += bfloat16_to_float32(p_bf16[i * n + j]) * bfloat16_to_float32(V[j * D + dd]);
             optr[0] = acc;
@@ -2449,6 +2449,12 @@ static void pv_gemm_bf16s_avx512bf16_kernel_t(float* O, const float* P, const un
     }
 
     _mm_free(p_bf16);
+}
+
+template<int D>
+static void pv_gemm_bf16s_avx512bf16_kernel_t(float* O, const float* P, const unsigned short* V, int m, int n)
+{
+    pv_gemm_bf16s_avx512bf16_kernel_t<D>(O, P, V, m, n, false);
 }
 
 #endif // __AVX512F__ && __AVX512BF16__
