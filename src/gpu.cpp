@@ -5517,6 +5517,39 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     custom_defines.append("i8buffer_cp1to4(buf,i,sbuf,si)", "{ivec4 _v=ivec4(i8buffer_ld1(sbuf,si.r),i8buffer_ld1(sbuf,si.g),i8buffer_ld1(sbuf,si.b),i8buffer_ld1(sbuf,si.a));i8buffer_st4(buf,i,_v);}");
     custom_defines.append("i8buffer_cp4to1(buf,i4,sbuf,si)", "{ivec4 _v=i8buffer_ld4(sbuf,si);i8buffer_st1(buf,i4.r,_v.r);i8buffer_st1(buf,i4.g,_v.g);i8buffer_st1(buf,i4.b,_v.b);i8buffer_st1(buf,i4.a,_v.a);}");
 
+    if (opt.use_int16_storage)
+    {
+        custom_defines.append("i16buffer_ld1(buf,i)", "int(buf[i])");
+        custom_defines.append("i16buffer_st1(buf,i,v)", "{buf[i]=int16_t(v);}");
+    }
+    else if (opt.use_int16_packed)
+    {
+        custom_defines.append("i16buffer_ld1(buf,i)", "unpackInt2x16(buf[(i)/2])[(i)%2]");
+        custom_defines.append("i16buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;int _vs=int(v);int _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);ivec2 _v=unpackInt2x16(_old_v);_v[_im2]=_vs;_new_v=packInt2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
+    }
+    else
+    {
+        custom_defines.append("i16buffer_ld1(buf,i)", "int(buf[i])");
+        custom_defines.append("i16buffer_st1(buf,i,v)", "{buf[i]=int(v);}");
+    }
+    custom_defines.append("i16buffer_ld2(buf,i)", "ivec2(i16buffer_ld1(buf,i),i16buffer_ld1(buf,(i)+1))");
+    custom_defines.append("i16buffer_ld4(buf,i)", "ivec4(i16buffer_ld1(buf,i),i16buffer_ld1(buf,(i)+1),i16buffer_ld1(buf,(i)+2),i16buffer_ld1(buf,(i)+3))");
+    if (opt.use_int16_storage)
+    {
+        custom_defines.append("i16buffer_st2(buf,i,v)", "{ivec2 _v=ivec2(v);buf[i]=int16_t(_v.r);buf[(i)+1]=int16_t(_v.g);}");
+        custom_defines.append("i16buffer_st4(buf,i,v)", "{ivec4 _v=ivec4(v);buf[i]=int16_t(_v.r);buf[(i)+1]=int16_t(_v.g);buf[(i)+2]=int16_t(_v.b);buf[(i)+3]=int16_t(_v.a);}");
+    }
+    else if (opt.use_int16_packed)
+    {
+        custom_defines.append("i16buffer_st2(buf,i,v)", "{uint _i=uint(i);ivec2 _v=ivec2(v);if((_i&1u)==0u){buf[_i/2]=packInt2x16(_v);}else{i16buffer_st1(buf,int(_i),_v.r);i16buffer_st1(buf,int(_i)+1,_v.g);}}");
+        custom_defines.append("i16buffer_st4(buf,i,v)", "{uint _i=uint(i);ivec4 _v=ivec4(v);if((_i&1u)==0u){buf[_i/2]=packInt2x16(ivec2(_v.r,_v.g));buf[_i/2+1]=packInt2x16(ivec2(_v.b,_v.a));}else{i16buffer_st1(buf,int(_i),_v.r);buf[_i/2+1]=packInt2x16(ivec2(_v.g,_v.b));i16buffer_st1(buf,int(_i)+3,_v.a);}}");
+    }
+    else
+    {
+        custom_defines.append("i16buffer_st2(buf,i,v)", "{ivec2 _v=ivec2(v);buf[i]=int(_v.r);buf[(i)+1]=int(_v.g);}");
+        custom_defines.append("i16buffer_st4(buf,i,v)", "{ivec4 _v=ivec4(v);buf[i]=int(_v.r);buf[(i)+1]=int(_v.g);buf[(i)+2]=int(_v.b);buf[(i)+3]=int(_v.a);}");
+    }
+
     custom_defines.append("psc(x)", "(x==0?p.x:x)");
 
     if (opt.use_bf16_storage)

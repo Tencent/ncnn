@@ -233,24 +233,34 @@ void buffer_cp4to1(sfp dst, ivec4 dst_offsets, sfpvec4 src, int src_offset);
 
 # integer buffer functions
 
-- load int8 typed value from src[offset]
+- load integer typed value from src[offset]
 
 ```c
 aint8 i8buffer_ld1(sint8 src, int offset);
 aint8vec4 i8buffer_ld4(sint8vec4 src, int offset);
 int i8buffer_sm4(sint8vec4 src, int offset);
+int i16buffer_ld1(sint16 src, int offset);
+ivec2 i16buffer_ld2(sint16 src, int offset);
+ivec4 i16buffer_ld4(sint16 src, int offset);
 ```
 
 `i8buffer_sm4` loads the raw packed `int` representation of four int8 lanes. It is useful for shared-memory staging and `dotPacked4x8EXT` paths where unpacking to `ivec4` would be wasteful.
 
-- store int8 typed value to dst[offset]
+`i16buffer_ld1`, `i16buffer_ld2` and `i16buffer_ld4` load signed int16 lanes as `int`, `ivec2` and `ivec4`. Without native int16 storage, `offset` is still the logical int16 lane offset, and packed storage groups two adjacent lanes in one `int`.
+
+- store integer typed value to dst[offset]
 
 ```c
 void i8buffer_st1(sint8 dst, int offset, aint8 v);
 void i8buffer_st4(sint8vec4 dst, int offset, aint8vec4 v);
+void i16buffer_st1(sint16 dst, int offset, int v);
+void i16buffer_st2(sint16 dst, int offset, ivec2 v);
+void i16buffer_st4(sint16 dst, int offset, ivec4 v);
 ```
 
 Without native int8 storage, `i8buffer_st1` updates one byte lane inside a packed `int` and may use an atomic compare-and-swap loop.
+
+Without native int16 storage, `i16buffer_st1` updates one int16 lane inside a packed `int` and may use an atomic compare-and-swap loop. `i16buffer_st2` and `i16buffer_st4` store complete packed words directly when `offset` is aligned.
 
 - copy int8 typed value from src[src_offset] to dst[dst_offset]
 

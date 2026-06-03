@@ -29,48 +29,34 @@ void main()
     if (gx >= p.block_x || gy >= p.block_y || gz >= p.c)
         return;
 
-    const int sx = gx * 2;
-    const int sy = gy * 2;
-    const int tile = gy * p.block_x + gx;
+    // load 4x4
+    int sx = gx * 2;
+    int sy = gy * 2;
 
-    int d[16];
-    for (int yy = 0; yy < 4; yy++)
-    {
-        for (int xx = 0; xx < 4; xx++)
-        {
-            const int x = sx + xx;
-            const int y = sy + yy;
+    int v_offset_0 = gz * p.cstep + sy * p.w + sx;
+    ivec4 v_offset = v_offset_0 + ivec4(0, 1, 2, 3) * p.w;
 
-            int v = 0;
-            if (x < p.w && y < p.h)
-            {
-                const int gi = gz * p.cstep + y * p.w + x;
-                v = i8buffer_ld1(bottom_blob_int8_data, gi);
-            }
+    int v00 = i8buffer_ld1(bottom_blob_int8_data, v_offset.r + 0);
+    int v01 = sx + 1 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.r + 1) : 0;
+    int v02 = sx + 2 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.r + 2) : 0;
+    int v03 = sx + 3 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.r + 3) : 0;
 
-            d[yy * 4 + xx] = v;
-        }
-    }
+    int v10 = sy + 1 < p.h ? i8buffer_ld1(bottom_blob_int8_data, v_offset.g + 0) : 0;
+    int v11 = sy + 1 < p.h && sx + 1 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.g + 1) : 0;
+    int v12 = sy + 1 < p.h && sx + 2 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.g + 2) : 0;
+    int v13 = sy + 1 < p.h && sx + 3 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.g + 3) : 0;
 
-    int v00 = d[0];
-    int v01 = d[1];
-    int v02 = d[2];
-    int v03 = d[3];
+    int v20 = sy + 2 < p.h ? i8buffer_ld1(bottom_blob_int8_data, v_offset.b + 0) : 0;
+    int v21 = sy + 2 < p.h && sx + 1 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.b + 1) : 0;
+    int v22 = sy + 2 < p.h && sx + 2 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.b + 2) : 0;
+    int v23 = sy + 2 < p.h && sx + 3 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.b + 3) : 0;
 
-    int v10 = d[4];
-    int v11 = d[5];
-    int v12 = d[6];
-    int v13 = d[7];
+    int v30 = sy + 3 < p.h ? i8buffer_ld1(bottom_blob_int8_data, v_offset.a + 0) : 0;
+    int v31 = sy + 3 < p.h && sx + 1 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.a + 1) : 0;
+    int v32 = sy + 3 < p.h && sx + 2 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.a + 2) : 0;
+    int v33 = sy + 3 < p.h && sx + 3 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.a + 3) : 0;
 
-    int v20 = d[8];
-    int v21 = d[9];
-    int v22 = d[10];
-    int v23 = d[11];
-
-    int v30 = d[12];
-    int v31 = d[13];
-    int v32 = d[14];
-    int v33 = d[15];
+    int tile = gy * p.block_x + gx;
 
     int m00 = v00 - v02;
     int m01 = v10 - v12;
@@ -112,31 +98,38 @@ void main()
     v23 = m23 - m21;
     v33 = m33 - m31;
 
+    // store 16
+    int v_tm_offset = gz * p.outcstep + gy * p.block_x + gx;
+    int v_tm_step = p.outcstep * p.c;
+
 #if NCNN_int16_packed
-    bottom_tm_blob_data[(0 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v00, v01));
-    bottom_tm_blob_data[(1 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v02, v03));
-    bottom_tm_blob_data[(2 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v10, v11));
-    bottom_tm_blob_data[(3 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v12, v13));
-    bottom_tm_blob_data[(4 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v20, v21));
-    bottom_tm_blob_data[(5 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v22, v23));
-    bottom_tm_blob_data[(6 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v30, v31));
-    bottom_tm_blob_data[(7 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v32, v33));
+    int v_tm_offset2 = v_tm_offset * 2;
+    int v_tm_step2 = v_tm_step * 2;
+
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 0 * v_tm_step2, ivec2(v00, v01));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 1 * v_tm_step2, ivec2(v02, v03));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 2 * v_tm_step2, ivec2(v10, v11));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 3 * v_tm_step2, ivec2(v12, v13));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 4 * v_tm_step2, ivec2(v20, v21));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 5 * v_tm_step2, ivec2(v22, v23));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 6 * v_tm_step2, ivec2(v30, v31));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 7 * v_tm_step2, ivec2(v32, v33));
 #else
-    bottom_tm_blob_data[(0 * p.c + gz) * p.outcstep + tile] = sint16(v00);
-    bottom_tm_blob_data[(1 * p.c + gz) * p.outcstep + tile] = sint16(v01);
-    bottom_tm_blob_data[(2 * p.c + gz) * p.outcstep + tile] = sint16(v02);
-    bottom_tm_blob_data[(3 * p.c + gz) * p.outcstep + tile] = sint16(v03);
-    bottom_tm_blob_data[(4 * p.c + gz) * p.outcstep + tile] = sint16(v10);
-    bottom_tm_blob_data[(5 * p.c + gz) * p.outcstep + tile] = sint16(v11);
-    bottom_tm_blob_data[(6 * p.c + gz) * p.outcstep + tile] = sint16(v12);
-    bottom_tm_blob_data[(7 * p.c + gz) * p.outcstep + tile] = sint16(v13);
-    bottom_tm_blob_data[(8 * p.c + gz) * p.outcstep + tile] = sint16(v20);
-    bottom_tm_blob_data[(9 * p.c + gz) * p.outcstep + tile] = sint16(v21);
-    bottom_tm_blob_data[(10 * p.c + gz) * p.outcstep + tile] = sint16(v22);
-    bottom_tm_blob_data[(11 * p.c + gz) * p.outcstep + tile] = sint16(v23);
-    bottom_tm_blob_data[(12 * p.c + gz) * p.outcstep + tile] = sint16(v30);
-    bottom_tm_blob_data[(13 * p.c + gz) * p.outcstep + tile] = sint16(v31);
-    bottom_tm_blob_data[(14 * p.c + gz) * p.outcstep + tile] = sint16(v32);
-    bottom_tm_blob_data[(15 * p.c + gz) * p.outcstep + tile] = sint16(v33);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 0 * v_tm_step, v00);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 1 * v_tm_step, v01);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 2 * v_tm_step, v02);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 3 * v_tm_step, v03);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 4 * v_tm_step, v10);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 5 * v_tm_step, v11);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 6 * v_tm_step, v12);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 7 * v_tm_step, v13);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 8 * v_tm_step, v20);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 9 * v_tm_step, v21);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 10 * v_tm_step, v22);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 11 * v_tm_step, v23);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 12 * v_tm_step, v30);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 13 * v_tm_step, v31);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 14 * v_tm_step, v32);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 15 * v_tm_step, v33);
 #endif
 }

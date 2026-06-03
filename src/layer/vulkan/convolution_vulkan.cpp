@@ -2523,59 +2523,31 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 }
             }
 
-            weight_winograd43_data_int8_packed.create(num_input, num_output, use_int8_winograd_int16_packed ? 18 : 36, use_int8_winograd_int16_storage ? (size_t)2u : (size_t)4u, 1);
-            if (use_int8_winograd_int16_storage)
             {
-                for (int k = 0; k < 36; k++)
-                {
-                    short* g00 = weight_winograd43_data_int8_packed.channel(k);
+                const int num_input_packed = (num_input + 3) / 4 * 4;
+                const int num_output_packed = (num_output + 3) / 4 * 4;
+                const int c4 = num_input_packed / 4;
 
-                    for (int p = 0; p < num_output; p++)
-                    {
-                        const int* k0 = weight_data_tm.channel(p);
+                weight_winograd43_data_int8_packed.create(c4, num_output_packed, 36, (size_t)8u, 1);
 
-                        for (int q = 0; q < num_input; q++)
-                        {
-                            g00[0] = (short)k0[q * 36 + k];
-                            g00++;
-                        }
-                    }
-                }
-            }
-            else if (use_int8_winograd_int16_packed)
-            {
-                for (int k = 0; k < 36; k += 2)
-                {
-                    int* g00 = weight_winograd43_data_int8_packed.channel(k / 2);
-
-                    for (int p = 0; p < num_output; p++)
-                    {
-                        const int* k0 = weight_data_tm.channel(p);
-
-                        for (int q = 0; q < num_input; q++)
-                        {
-                            const int v0 = k0[q * 36 + k];
-                            const int v1 = k0[q * 36 + k + 1];
-                            g00[0] = (int)(((unsigned int)(unsigned short)v0) | ((unsigned int)(unsigned short)v1 << 16));
-                            g00++;
-                        }
-                    }
-                }
-            }
-            else
-            {
                 for (int k = 0; k < 36; k++)
                 {
                     int* g00 = weight_winograd43_data_int8_packed.channel(k);
 
-                    for (int p = 0; p < num_output; p++)
+                    for (int p = 0; p < num_output_packed; p++)
                     {
-                        const int* k0 = weight_data_tm.channel(p);
+                        const int* k0 = p < num_output ? weight_data_tm.channel(p) : 0;
 
-                        for (int q = 0; q < num_input; q++)
+                        for (int q = 0; q < num_input_packed; q += 4)
                         {
-                            g00[0] = k0[q * 36 + k];
-                            g00++;
+                            const int v0 = k0 && q + 0 < num_input ? k0[(q + 0) * 36 + k] : 0;
+                            const int v1 = k0 && q + 1 < num_input ? k0[(q + 1) * 36 + k] : 0;
+                            const int v2 = k0 && q + 2 < num_input ? k0[(q + 2) * 36 + k] : 0;
+                            const int v3 = k0 && q + 3 < num_input ? k0[(q + 3) * 36 + k] : 0;
+
+                            g00[0] = (int)(((unsigned int)(unsigned short)v0) | ((unsigned int)(unsigned short)v1 << 16));
+                            g00[1] = (int)(((unsigned int)(unsigned short)v2) | ((unsigned int)(unsigned short)v3 << 16));
+                            g00 += 2;
                         }
                     }
                 }
@@ -2648,59 +2620,31 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 }
             }
 
-            weight_winograd23_data_int8_packed.create(num_input, num_output, use_int8_winograd_int16_packed ? 8 : 16, use_int8_winograd_int16_storage ? (size_t)2u : (size_t)4u, 1);
-            if (use_int8_winograd_int16_storage)
             {
-                for (int k = 0; k < 16; k++)
-                {
-                    short* g00 = weight_winograd23_data_int8_packed.channel(k);
+                const int num_input_packed = (num_input + 3) / 4 * 4;
+                const int num_output_packed = (num_output + 3) / 4 * 4;
+                const int c4 = num_input_packed / 4;
 
-                    for (int p = 0; p < num_output; p++)
-                    {
-                        const int* k0 = weight_data_tm.channel(p);
+                weight_winograd23_data_int8_packed.create(c4, num_output_packed, 16, (size_t)8u, 1);
 
-                        for (int q = 0; q < num_input; q++)
-                        {
-                            g00[0] = (short)k0[q * 16 + k];
-                            g00++;
-                        }
-                    }
-                }
-            }
-            else if (use_int8_winograd_int16_packed)
-            {
-                for (int k = 0; k < 16; k += 2)
-                {
-                    int* g00 = weight_winograd23_data_int8_packed.channel(k / 2);
-
-                    for (int p = 0; p < num_output; p++)
-                    {
-                        const int* k0 = weight_data_tm.channel(p);
-
-                        for (int q = 0; q < num_input; q++)
-                        {
-                            const int v0 = k0[q * 16 + k];
-                            const int v1 = k0[q * 16 + k + 1];
-                            g00[0] = (int)(((unsigned int)(unsigned short)v0) | ((unsigned int)(unsigned short)v1 << 16));
-                            g00++;
-                        }
-                    }
-                }
-            }
-            else
-            {
                 for (int k = 0; k < 16; k++)
                 {
                     int* g00 = weight_winograd23_data_int8_packed.channel(k);
 
-                    for (int p = 0; p < num_output; p++)
+                    for (int p = 0; p < num_output_packed; p++)
                     {
-                        const int* k0 = weight_data_tm.channel(p);
+                        const int* k0 = p < num_output ? weight_data_tm.channel(p) : 0;
 
-                        for (int q = 0; q < num_input; q++)
+                        for (int q = 0; q < num_input_packed; q += 4)
                         {
-                            g00[0] = k0[q * 16 + k];
-                            g00++;
+                            const int v0 = k0 && q + 0 < num_input ? k0[(q + 0) * 16 + k] : 0;
+                            const int v1 = k0 && q + 1 < num_input ? k0[(q + 1) * 16 + k] : 0;
+                            const int v2 = k0 && q + 2 < num_input ? k0[(q + 2) * 16 + k] : 0;
+                            const int v3 = k0 && q + 3 < num_input ? k0[(q + 3) * 16 + k] : 0;
+
+                            g00[0] = (int)(((unsigned int)(unsigned short)v0) | ((unsigned int)(unsigned short)v1 << 16));
+                            g00[1] = (int)(((unsigned int)(unsigned short)v2) | ((unsigned int)(unsigned short)v3 << 16));
+                            g00 += 2;
                         }
                     }
                 }
@@ -2819,17 +2763,6 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     opt_fp32.use_bf16_packed = false;
     opt_fp32.use_bf16_storage = false;
 
-    Option opt_winograd = opt_fp32;
-    if (use_int8_winograd_int16_packed)
-    {
-        opt_winograd.use_int16_packed = true;
-    }
-    if (use_int8_winograd_int16_storage)
-    {
-        opt_winograd.use_int16_storage = true;
-    }
-    opt_winograd.use_fp16_arithmetic = false;
-
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
@@ -2841,14 +2774,14 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     {
         if (opt.use_winograd43_convolution)
         {
-            cmd.record_upload(weight_winograd43_data_int8_packed, weight_data_gpu_tm_winograd43, opt_winograd);
+            cmd.record_upload(weight_winograd43_data_int8_packed, weight_data_gpu_tm_winograd43, opt_fp32);
 
             weight_winograd43_data_int8_packed.release();
         }
 
         if (opt.use_winograd23_convolution)
         {
-            cmd.record_upload(weight_winograd23_data_int8_packed, weight_data_gpu_tm_winograd23, opt_winograd);
+            cmd.record_upload(weight_winograd23_data_int8_packed, weight_data_gpu_tm_winograd23, opt_fp32);
 
             weight_winograd23_data_int8_packed.release();
         }

@@ -233,24 +233,34 @@ void buffer_cp4to1(sfp dst, ivec4 dst_offsets, sfpvec4 src, int src_offset);
 
 # 整数缓冲区函数(integer buffer functions)
 
-- 从 src[offset] 加载 int8 类型的值
+- 从 src[offset] 加载整数类型的值
 
 ```c
 aint8 i8buffer_ld1(sint8 src, int offset);
 aint8vec4 i8buffer_ld4(sint8vec4 src, int offset);
 int i8buffer_sm4(sint8vec4 src, int offset);
+int i16buffer_ld1(sint16 src, int offset);
+ivec2 i16buffer_ld2(sint16 src, int offset);
+ivec4 i16buffer_ld4(sint16 src, int offset);
 ```
 
 `i8buffer_sm4` 加载四个 int8 lane 的原始 packed `int` 表示。它适用于 shared memory 暂存和 `dotPacked4x8EXT` 路径，避免先解包成 `ivec4` 再重新打包。
 
-- 将 int8 类型的值存储到 dst[offset]
+`i16buffer_ld1`、`i16buffer_ld2` 和 `i16buffer_ld4` 将有符号 int16 lane 加载为 `int`、`ivec2` 和 `ivec4`。没有原生 int16 storage 时，`offset` 仍表示逻辑 int16 lane 偏移，packed storage 会把相邻两个 lane 放在一个 `int` 中。
+
+- 将整数类型的值存储到 dst[offset]
 
 ```c
 void i8buffer_st1(sint8 dst, int offset, aint8 v);
 void i8buffer_st4(sint8vec4 dst, int offset, aint8vec4 v);
+void i16buffer_st1(sint16 dst, int offset, int v);
+void i16buffer_st2(sint16 dst, int offset, ivec2 v);
+void i16buffer_st4(sint16 dst, int offset, ivec4 v);
 ```
 
 没有原生 int8 storage 时，`i8buffer_st1` 会更新 packed `int` 中的一个 byte lane，可能使用 atomic compare-and-swap 循环。
+
+没有原生 int16 storage 时，`i16buffer_st1` 会更新 packed `int` 中的一个 int16 lane，可能使用 atomic compare-and-swap 循环。`i16buffer_st2` 和 `i16buffer_st4` 在 `offset` 对齐时会直接写入完整 packed word。
 
 - 从 src[src_offset] 的 int8 类型值拷贝到 dst[dst_offset]
 

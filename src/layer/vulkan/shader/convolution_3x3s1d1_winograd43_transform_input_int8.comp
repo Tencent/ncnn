@@ -29,70 +29,57 @@ void main()
     if (gx >= p.block_x || gy >= p.block_y || gz >= p.c)
         return;
 
-    const int sx = gx * 4;
-    const int sy = gy * 4;
-    const int tile = gy * p.block_x + gx;
+    // load 6x6
+    int sx = gx * 4;
+    int sy = gy * 4;
 
-    int d[36];
-    for (int yy = 0; yy < 6; yy++)
-    {
-        for (int xx = 0; xx < 6; xx++)
-        {
-            const int x = sx + xx;
-            const int y = sy + yy;
+    int v_offset_0 = gz * p.cstep + sy * p.w + sx;
+    ivec4 v_offset = v_offset_0 + ivec4(0, 1, 2, 3) * p.w;
+    ivec2 v_offset45 = v_offset_0 + ivec2(4, 5) * p.w;
 
-            int v = 0;
-            if (x < p.w && y < p.h)
-            {
-                const int gi = gz * p.cstep + y * p.w + x;
-                v = i8buffer_ld1(bottom_blob_int8_data, gi);
-            }
+    int v00 = i8buffer_ld1(bottom_blob_int8_data, v_offset.r + 0);
+    int v01 = sx + 1 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.r + 1) : 0;
+    int v02 = sx + 2 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.r + 2) : 0;
+    int v03 = sx + 3 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.r + 3) : 0;
+    int v04 = sx + 4 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.r + 4) : 0;
+    int v05 = sx + 5 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.r + 5) : 0;
 
-            d[yy * 6 + xx] = v;
-        }
-    }
+    int v10 = sy + 1 < p.h ? i8buffer_ld1(bottom_blob_int8_data, v_offset.g + 0) : 0;
+    int v11 = sy + 1 < p.h && sx + 1 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.g + 1) : 0;
+    int v12 = sy + 1 < p.h && sx + 2 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.g + 2) : 0;
+    int v13 = sy + 1 < p.h && sx + 3 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.g + 3) : 0;
+    int v14 = sy + 1 < p.h && sx + 4 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.g + 4) : 0;
+    int v15 = sy + 1 < p.h && sx + 5 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.g + 5) : 0;
 
-    int v00 = d[0];
-    int v01 = d[1];
-    int v02 = d[2];
-    int v03 = d[3];
-    int v04 = d[4];
-    int v05 = d[5];
+    int v20 = sy + 2 < p.h ? i8buffer_ld1(bottom_blob_int8_data, v_offset.b + 0) : 0;
+    int v21 = sy + 2 < p.h && sx + 1 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.b + 1) : 0;
+    int v22 = sy + 2 < p.h && sx + 2 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.b + 2) : 0;
+    int v23 = sy + 2 < p.h && sx + 3 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.b + 3) : 0;
+    int v24 = sy + 2 < p.h && sx + 4 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.b + 4) : 0;
+    int v25 = sy + 2 < p.h && sx + 5 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.b + 5) : 0;
 
-    int v10 = d[6];
-    int v11 = d[7];
-    int v12 = d[8];
-    int v13 = d[9];
-    int v14 = d[10];
-    int v15 = d[11];
+    int v30 = sy + 3 < p.h ? i8buffer_ld1(bottom_blob_int8_data, v_offset.a + 0) : 0;
+    int v31 = sy + 3 < p.h && sx + 1 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.a + 1) : 0;
+    int v32 = sy + 3 < p.h && sx + 2 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.a + 2) : 0;
+    int v33 = sy + 3 < p.h && sx + 3 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.a + 3) : 0;
+    int v34 = sy + 3 < p.h && sx + 4 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.a + 4) : 0;
+    int v35 = sy + 3 < p.h && sx + 5 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset.a + 5) : 0;
 
-    int v20 = d[12];
-    int v21 = d[13];
-    int v22 = d[14];
-    int v23 = d[15];
-    int v24 = d[16];
-    int v25 = d[17];
+    int v40 = sy + 4 < p.h ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.x + 0) : 0;
+    int v41 = sy + 4 < p.h && sx + 1 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.x + 1) : 0;
+    int v42 = sy + 4 < p.h && sx + 2 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.x + 2) : 0;
+    int v43 = sy + 4 < p.h && sx + 3 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.x + 3) : 0;
+    int v44 = sy + 4 < p.h && sx + 4 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.x + 4) : 0;
+    int v45 = sy + 4 < p.h && sx + 5 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.x + 5) : 0;
 
-    int v30 = d[18];
-    int v31 = d[19];
-    int v32 = d[20];
-    int v33 = d[21];
-    int v34 = d[22];
-    int v35 = d[23];
+    int v50 = sy + 5 < p.h ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.y + 0) : 0;
+    int v51 = sy + 5 < p.h && sx + 1 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.y + 1) : 0;
+    int v52 = sy + 5 < p.h && sx + 2 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.y + 2) : 0;
+    int v53 = sy + 5 < p.h && sx + 3 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.y + 3) : 0;
+    int v54 = sy + 5 < p.h && sx + 4 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.y + 4) : 0;
+    int v55 = sy + 5 < p.h && sx + 5 < p.w ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.y + 5) : 0;
 
-    int v40 = d[24];
-    int v41 = d[25];
-    int v42 = d[26];
-    int v43 = d[27];
-    int v44 = d[28];
-    int v45 = d[29];
-
-    int v50 = d[30];
-    int v51 = d[31];
-    int v52 = d[32];
-    int v53 = d[33];
-    int v54 = d[34];
-    int v55 = d[35];
+    int tile = gy * p.block_x + gx;
 
     int m00 = v04 + v00 * 4 - v02 * 5;
     int m01 = v14 + v10 * 4 - v12 * 5;
@@ -178,61 +165,68 @@ void main()
     v45 = m45 + m41 * 4 - m43 * 5;
     v55 = m55 + m51 * 4 - m53 * 5;
 
+    // store 36
+    int v_tm_offset = gz * p.outcstep + gy * p.block_x + gx;
+    int v_tm_step = p.outcstep * p.c;
+
 #if NCNN_int16_packed
-    bottom_tm_blob_data[(0 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v00, v01));
-    bottom_tm_blob_data[(1 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v02, v03));
-    bottom_tm_blob_data[(2 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v04, v05));
-    bottom_tm_blob_data[(3 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v10, v11));
-    bottom_tm_blob_data[(4 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v12, v13));
-    bottom_tm_blob_data[(5 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v14, v15));
-    bottom_tm_blob_data[(6 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v20, v21));
-    bottom_tm_blob_data[(7 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v22, v23));
-    bottom_tm_blob_data[(8 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v24, v25));
-    bottom_tm_blob_data[(9 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v30, v31));
-    bottom_tm_blob_data[(10 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v32, v33));
-    bottom_tm_blob_data[(11 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v34, v35));
-    bottom_tm_blob_data[(12 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v40, v41));
-    bottom_tm_blob_data[(13 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v42, v43));
-    bottom_tm_blob_data[(14 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v44, v45));
-    bottom_tm_blob_data[(15 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v50, v51));
-    bottom_tm_blob_data[(16 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v52, v53));
-    bottom_tm_blob_data[(17 * p.c + gz) * p.outcstep + tile] = packInt2x16(ivec2(v54, v55));
+    int v_tm_offset2 = v_tm_offset * 2;
+    int v_tm_step2 = v_tm_step * 2;
+
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 0 * v_tm_step2, ivec2(v00, v01));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 1 * v_tm_step2, ivec2(v02, v03));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 2 * v_tm_step2, ivec2(v04, v05));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 3 * v_tm_step2, ivec2(v10, v11));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 4 * v_tm_step2, ivec2(v12, v13));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 5 * v_tm_step2, ivec2(v14, v15));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 6 * v_tm_step2, ivec2(v20, v21));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 7 * v_tm_step2, ivec2(v22, v23));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 8 * v_tm_step2, ivec2(v24, v25));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 9 * v_tm_step2, ivec2(v30, v31));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 10 * v_tm_step2, ivec2(v32, v33));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 11 * v_tm_step2, ivec2(v34, v35));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 12 * v_tm_step2, ivec2(v40, v41));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 13 * v_tm_step2, ivec2(v42, v43));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 14 * v_tm_step2, ivec2(v44, v45));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 15 * v_tm_step2, ivec2(v50, v51));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 16 * v_tm_step2, ivec2(v52, v53));
+    i16buffer_st2(bottom_tm_blob_data, v_tm_offset2 + 17 * v_tm_step2, ivec2(v54, v55));
 #else
-    bottom_tm_blob_data[(0 * p.c + gz) * p.outcstep + tile] = sint16(v00);
-    bottom_tm_blob_data[(1 * p.c + gz) * p.outcstep + tile] = sint16(v01);
-    bottom_tm_blob_data[(2 * p.c + gz) * p.outcstep + tile] = sint16(v02);
-    bottom_tm_blob_data[(3 * p.c + gz) * p.outcstep + tile] = sint16(v03);
-    bottom_tm_blob_data[(4 * p.c + gz) * p.outcstep + tile] = sint16(v04);
-    bottom_tm_blob_data[(5 * p.c + gz) * p.outcstep + tile] = sint16(v05);
-    bottom_tm_blob_data[(6 * p.c + gz) * p.outcstep + tile] = sint16(v10);
-    bottom_tm_blob_data[(7 * p.c + gz) * p.outcstep + tile] = sint16(v11);
-    bottom_tm_blob_data[(8 * p.c + gz) * p.outcstep + tile] = sint16(v12);
-    bottom_tm_blob_data[(9 * p.c + gz) * p.outcstep + tile] = sint16(v13);
-    bottom_tm_blob_data[(10 * p.c + gz) * p.outcstep + tile] = sint16(v14);
-    bottom_tm_blob_data[(11 * p.c + gz) * p.outcstep + tile] = sint16(v15);
-    bottom_tm_blob_data[(12 * p.c + gz) * p.outcstep + tile] = sint16(v20);
-    bottom_tm_blob_data[(13 * p.c + gz) * p.outcstep + tile] = sint16(v21);
-    bottom_tm_blob_data[(14 * p.c + gz) * p.outcstep + tile] = sint16(v22);
-    bottom_tm_blob_data[(15 * p.c + gz) * p.outcstep + tile] = sint16(v23);
-    bottom_tm_blob_data[(16 * p.c + gz) * p.outcstep + tile] = sint16(v24);
-    bottom_tm_blob_data[(17 * p.c + gz) * p.outcstep + tile] = sint16(v25);
-    bottom_tm_blob_data[(18 * p.c + gz) * p.outcstep + tile] = sint16(v30);
-    bottom_tm_blob_data[(19 * p.c + gz) * p.outcstep + tile] = sint16(v31);
-    bottom_tm_blob_data[(20 * p.c + gz) * p.outcstep + tile] = sint16(v32);
-    bottom_tm_blob_data[(21 * p.c + gz) * p.outcstep + tile] = sint16(v33);
-    bottom_tm_blob_data[(22 * p.c + gz) * p.outcstep + tile] = sint16(v34);
-    bottom_tm_blob_data[(23 * p.c + gz) * p.outcstep + tile] = sint16(v35);
-    bottom_tm_blob_data[(24 * p.c + gz) * p.outcstep + tile] = sint16(v40);
-    bottom_tm_blob_data[(25 * p.c + gz) * p.outcstep + tile] = sint16(v41);
-    bottom_tm_blob_data[(26 * p.c + gz) * p.outcstep + tile] = sint16(v42);
-    bottom_tm_blob_data[(27 * p.c + gz) * p.outcstep + tile] = sint16(v43);
-    bottom_tm_blob_data[(28 * p.c + gz) * p.outcstep + tile] = sint16(v44);
-    bottom_tm_blob_data[(29 * p.c + gz) * p.outcstep + tile] = sint16(v45);
-    bottom_tm_blob_data[(30 * p.c + gz) * p.outcstep + tile] = sint16(v50);
-    bottom_tm_blob_data[(31 * p.c + gz) * p.outcstep + tile] = sint16(v51);
-    bottom_tm_blob_data[(32 * p.c + gz) * p.outcstep + tile] = sint16(v52);
-    bottom_tm_blob_data[(33 * p.c + gz) * p.outcstep + tile] = sint16(v53);
-    bottom_tm_blob_data[(34 * p.c + gz) * p.outcstep + tile] = sint16(v54);
-    bottom_tm_blob_data[(35 * p.c + gz) * p.outcstep + tile] = sint16(v55);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 0 * v_tm_step, v00);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 1 * v_tm_step, v01);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 2 * v_tm_step, v02);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 3 * v_tm_step, v03);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 4 * v_tm_step, v04);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 5 * v_tm_step, v05);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 6 * v_tm_step, v10);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 7 * v_tm_step, v11);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 8 * v_tm_step, v12);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 9 * v_tm_step, v13);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 10 * v_tm_step, v14);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 11 * v_tm_step, v15);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 12 * v_tm_step, v20);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 13 * v_tm_step, v21);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 14 * v_tm_step, v22);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 15 * v_tm_step, v23);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 16 * v_tm_step, v24);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 17 * v_tm_step, v25);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 18 * v_tm_step, v30);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 19 * v_tm_step, v31);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 20 * v_tm_step, v32);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 21 * v_tm_step, v33);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 22 * v_tm_step, v34);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 23 * v_tm_step, v35);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 24 * v_tm_step, v40);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 25 * v_tm_step, v41);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 26 * v_tm_step, v42);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 27 * v_tm_step, v43);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 28 * v_tm_step, v44);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 29 * v_tm_step, v45);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 30 * v_tm_step, v50);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 31 * v_tm_step, v51);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 32 * v_tm_step, v52);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 33 * v_tm_step, v53);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 34 * v_tm_step, v54);
+    i16buffer_st1(bottom_tm_blob_data, v_tm_offset + 35 * v_tm_step, v55);
 #endif
 }

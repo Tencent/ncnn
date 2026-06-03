@@ -42,24 +42,26 @@ void main()
     if (gx >= p.block_x || gy >= p.block_y || gz >= p.outc)
         return;
 
-    const int tile = gy * p.block_x + gx;
+    // load 16
+    int v_tm_offset = gz * p.cstep + gy * p.block_x + gx;
+    int v_tm_step = p.cstep * p.outc;
 
-    int v00 = top_tm_blob_data[(0 * p.outc + gz) * p.cstep + tile];
-    int v01 = top_tm_blob_data[(1 * p.outc + gz) * p.cstep + tile];
-    int v02 = top_tm_blob_data[(2 * p.outc + gz) * p.cstep + tile];
-    int v03 = top_tm_blob_data[(3 * p.outc + gz) * p.cstep + tile];
-    int v10 = top_tm_blob_data[(4 * p.outc + gz) * p.cstep + tile];
-    int v11 = top_tm_blob_data[(5 * p.outc + gz) * p.cstep + tile];
-    int v12 = top_tm_blob_data[(6 * p.outc + gz) * p.cstep + tile];
-    int v13 = top_tm_blob_data[(7 * p.outc + gz) * p.cstep + tile];
-    int v20 = top_tm_blob_data[(8 * p.outc + gz) * p.cstep + tile];
-    int v21 = top_tm_blob_data[(9 * p.outc + gz) * p.cstep + tile];
-    int v22 = top_tm_blob_data[(10 * p.outc + gz) * p.cstep + tile];
-    int v23 = top_tm_blob_data[(11 * p.outc + gz) * p.cstep + tile];
-    int v30 = top_tm_blob_data[(12 * p.outc + gz) * p.cstep + tile];
-    int v31 = top_tm_blob_data[(13 * p.outc + gz) * p.cstep + tile];
-    int v32 = top_tm_blob_data[(14 * p.outc + gz) * p.cstep + tile];
-    int v33 = top_tm_blob_data[(15 * p.outc + gz) * p.cstep + tile];
+    int v00 = top_tm_blob_data[v_tm_offset + 0 * v_tm_step];
+    int v01 = top_tm_blob_data[v_tm_offset + 1 * v_tm_step];
+    int v02 = top_tm_blob_data[v_tm_offset + 2 * v_tm_step];
+    int v03 = top_tm_blob_data[v_tm_offset + 3 * v_tm_step];
+    int v10 = top_tm_blob_data[v_tm_offset + 4 * v_tm_step];
+    int v11 = top_tm_blob_data[v_tm_offset + 5 * v_tm_step];
+    int v12 = top_tm_blob_data[v_tm_offset + 6 * v_tm_step];
+    int v13 = top_tm_blob_data[v_tm_offset + 7 * v_tm_step];
+    int v20 = top_tm_blob_data[v_tm_offset + 8 * v_tm_step];
+    int v21 = top_tm_blob_data[v_tm_offset + 9 * v_tm_step];
+    int v22 = top_tm_blob_data[v_tm_offset + 10 * v_tm_step];
+    int v23 = top_tm_blob_data[v_tm_offset + 11 * v_tm_step];
+    int v30 = top_tm_blob_data[v_tm_offset + 12 * v_tm_step];
+    int v31 = top_tm_blob_data[v_tm_offset + 13 * v_tm_step];
+    int v32 = top_tm_blob_data[v_tm_offset + 14 * v_tm_step];
+    int v33 = top_tm_blob_data[v_tm_offset + 15 * v_tm_step];
 
     int m00 = v00 + v01 + v02;
     int m01 = v10 + v11 + v12;
@@ -71,54 +73,51 @@ void main()
     int m12 = v21 - v22 + v23;
     int m13 = v31 - v32 + v33;
 
-    const int x = gx * 2;
-    const int y = gy * 2;
-
-    int outv[4];
-    outv[0] = m00 + m01 + m02;
-    outv[1] = m01 - m02 + m03;
-    outv[2] = m10 + m11 + m12;
-    outv[3] = m11 - m12 + m13;
-
-    int ox[4];
-    ox[0] = x + 0;
-    ox[1] = x + 1;
-    ox[2] = x + 0;
-    ox[3] = x + 1;
-
-    int oy[4];
-    oy[0] = y + 0;
-    oy[1] = y + 0;
-    oy[2] = y + 1;
-    oy[3] = y + 1;
-
     const float bottom_scale = buffer_ld1(bottom_scales_data, 0);
     const float weight_scale = buffer_ld1(weight_scales_data, gz);
     const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 0.25f / (bottom_scale * weight_scale);
 
-    for (int i = 0; i < 4; i++)
+    float out00 = float(m00 + m01 + m02) * scale_in;
+    float out01 = float(m01 - m02 + m03) * scale_in;
+    float out10 = float(m10 + m11 + m12) * scale_in;
+    float out11 = float(m11 - m12 + m13) * scale_in;
+
+    if (bias_term == 1)
     {
-        if (ox[i] >= p.outw || oy[i] >= p.outh)
-            continue;
+        const float bias_value = bias_data[gz];
 
-        float sumfp32 = float(outv[i]) * scale_in;
-        if (bias_term == 1)
-        {
-            sumfp32 += bias_data[gz];
-        }
+        out00 += bias_value;
+        out01 += bias_value;
+        out10 += bias_value;
+        out11 += bias_value;
+    }
 
-        sumfp32 = float(activation_afp(afp(sumfp32), activation_type, activation_param_0, activation_param_1));
+    out00 = float(activation_afp(afp(out00), activation_type, activation_param_0, activation_param_1));
+    out01 = float(activation_afp(afp(out01), activation_type, activation_param_0, activation_param_1));
+    out10 = float(activation_afp(afp(out10), activation_type, activation_param_0, activation_param_1));
+    out11 = float(activation_afp(afp(out11), activation_type, activation_param_0, activation_param_1));
 
-        const int gi = gz * p.outcstep + oy[i] * p.outw + ox[i];
-        if (use_int8_requantize == 1)
-        {
-            const float vf = clamp(sumfp32 * buffer_ld1(top_scales_data, 0), -127.f, 127.f);
-            const int v = int8_round(vf);
-            i8buffer_st1(top_blob_int8_data, gi, v);
-        }
-        else
-        {
-            buffer_st1(top_blob_data, gi, afp(sumfp32));
-        }
+    // store 2x2
+    int x = gx * 2;
+    int y = gy * 2;
+
+    int v_offset_0 = gz * p.outcstep + y * p.outw + x;
+    int v_offset_1 = v_offset_0 + p.outw;
+
+    if (use_int8_requantize == 1)
+    {
+        const float top_scale = buffer_ld1(top_scales_data, 0);
+
+        i8buffer_st1(top_blob_int8_data, v_offset_0 + 0, int8_round(clamp(out00 * top_scale, -127.f, 127.f)));
+        if (x + 1 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset_0 + 1, int8_round(clamp(out01 * top_scale, -127.f, 127.f)));
+        if (y + 1 < p.outh) i8buffer_st1(top_blob_int8_data, v_offset_1 + 0, int8_round(clamp(out10 * top_scale, -127.f, 127.f)));
+        if (y + 1 < p.outh && x + 1 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset_1 + 1, int8_round(clamp(out11 * top_scale, -127.f, 127.f)));
+    }
+    else
+    {
+        buffer_st1(top_blob_data, v_offset_0 + 0, afp(out00));
+        if (x + 1 < p.outw) buffer_st1(top_blob_data, v_offset_0 + 1, afp(out01));
+        if (y + 1 < p.outh) buffer_st1(top_blob_data, v_offset_1 + 0, afp(out10));
+        if (y + 1 < p.outh && x + 1 < p.outw) buffer_st1(top_blob_data, v_offset_1 + 1, afp(out11));
     }
 }
