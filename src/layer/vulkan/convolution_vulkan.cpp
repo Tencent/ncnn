@@ -3085,16 +3085,14 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
                 pre_winograd43 = false;
         }
 
-        const bool use_int8_winograd_int16_storage = opt.use_int16_storage && vkdev->info.support_int16_storage() && vkdev->info.support_int16_arithmetic();
-
         const int B = pre_winograd43 ? 36 : 16;
-        const int B_packed = use_int8_winograd_int16_storage ? B : B / 2;
+        const int c4 = (channels + 3) / 4;
         const int block_x = pre_winograd43 ? (outw + 3) / 4 : (outw + 1) / 2;
         const int block_y = pre_winograd43 ? (outh + 3) / 4 : (outh + 1) / 2;
 
         VkMat bottom_tm_blob;
         {
-            bottom_tm_blob.create(block_x * block_y, 1, channels * B_packed, use_int8_winograd_int16_storage ? (size_t)2u : (size_t)4u, 1, opt.workspace_vkallocator);
+            bottom_tm_blob.create(block_x * block_y, 1, c4 * B, (size_t)8u, 1, opt.workspace_vkallocator);
             if (bottom_tm_blob.empty())
                 return -100;
 
@@ -3114,7 +3112,7 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
             VkMat dispatcher;
             dispatcher.w = block_x;
             dispatcher.h = block_y;
-            dispatcher.c = channels;
+            dispatcher.c = c4;
 
             const Pipeline* pipeline = pre_winograd43 ? pipeline_convolution_3x3s1d1_winograd43_transform_input : pipeline_convolution_3x3s1d1_winograd23_transform_input;
             cmd.record_pipeline(pipeline, bindings, constants, dispatcher);

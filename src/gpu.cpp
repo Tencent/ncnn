@@ -5120,6 +5120,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     const GpuInfo& info = get_gpu_info(device_index);
     const bool support_fp16_storage = info.support_fp16_storage();
     const bool support_fp16_uniform = info.support_fp16_uniform();
+    const bool support_int16_arithmetic = info.physicalDevicefeatures().shaderInt16;
 
     if (opt.use_bf16_storage)
     {
@@ -5475,15 +5476,36 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     {
         custom_defines.append("NCNN_int16_storage", 1);
         custom_defines.append("sint16", "int16_t");
+        custom_defines.append("sint16vec4", "i16vec4");
+        custom_defines.append("lint16", "int16_t");
+        custom_defines.append("lint16vec4", "i16vec4");
+        custom_defines.append("aint16", support_int16_arithmetic ? "int16_t" : "int");
+        custom_defines.append("aint16vec4", support_int16_arithmetic ? "i16vec4" : "ivec4");
+        custom_defines.append("lint162aint16(v)", support_int16_arithmetic ? "v" : "int(v)");
+        custom_defines.append("lint162aint16vec4(v)", support_int16_arithmetic ? "v" : "ivec4(v)");
     }
     else if (opt.use_int16_packed)
     {
         custom_defines.append("NCNN_int16_packed", 1);
         custom_defines.append("sint16", "int");
+        custom_defines.append("sint16vec4", "ivec2");
+        custom_defines.append("lint16", "int");
+        custom_defines.append("lint16vec4", "ivec2");
+        custom_defines.append("aint16", support_int16_arithmetic ? "int16_t" : "int");
+        custom_defines.append("aint16vec4", support_int16_arithmetic ? "i16vec4" : "ivec4");
+        custom_defines.append("lint162aint16(v)", support_int16_arithmetic ? "int16_t(v)" : "int(v)");
+        custom_defines.append("lint162aint16vec4(v)", support_int16_arithmetic ? "i16vec4(unpack16(v.r),unpack16(v.g))" : "ivec4(unpackInt2x16(v.r),unpackInt2x16(v.g))");
     }
     else
     {
         custom_defines.append("sint16", "int");
+        custom_defines.append("sint16vec4", "ivec4");
+        custom_defines.append("lint16", "int");
+        custom_defines.append("lint16vec4", "ivec4");
+        custom_defines.append("aint16", "int");
+        custom_defines.append("aint16vec4", "ivec4");
+        custom_defines.append("lint162aint16(v)", "v");
+        custom_defines.append("lint162aint16vec4(v)", "v");
     }
 
     custom_defines.append("sint8vec4", "int");
@@ -5533,21 +5555,26 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("i16buffer_st1(buf,i,v)", "{buf[i]=int(v);}");
     }
     custom_defines.append("i16buffer_ld2(buf,i)", "ivec2(i16buffer_ld1(buf,i),i16buffer_ld1(buf,(i)+1))");
-    custom_defines.append("i16buffer_ld4(buf,i)", "ivec4(i16buffer_ld1(buf,i),i16buffer_ld1(buf,(i)+1),i16buffer_ld1(buf,(i)+2),i16buffer_ld1(buf,(i)+3))");
     if (opt.use_int16_storage)
     {
         custom_defines.append("i16buffer_st2(buf,i,v)", "{ivec2 _v=ivec2(v);buf[i]=int16_t(_v.r);buf[(i)+1]=int16_t(_v.g);}");
-        custom_defines.append("i16buffer_st4(buf,i,v)", "{ivec4 _v=ivec4(v);buf[i]=int16_t(_v.r);buf[(i)+1]=int16_t(_v.g);buf[(i)+2]=int16_t(_v.b);buf[(i)+3]=int16_t(_v.a);}");
+        custom_defines.append("i16buffer_sm4(buf,i)", "buf[i]");
+        custom_defines.append("i16buffer_ld4(buf,i)", support_int16_arithmetic ? "buf[i]" : "ivec4(buf[i])");
+        custom_defines.append("i16buffer_st4(buf,i,v)", "{buf[i]=i16vec4(v);}");
     }
     else if (opt.use_int16_packed)
     {
         custom_defines.append("i16buffer_st2(buf,i,v)", "{uint _i=uint(i);ivec2 _v=ivec2(v);if((_i&1u)==0u){buf[_i/2]=packInt2x16(_v);}else{i16buffer_st1(buf,int(_i),_v.r);i16buffer_st1(buf,int(_i)+1,_v.g);}}");
-        custom_defines.append("i16buffer_st4(buf,i,v)", "{uint _i=uint(i);ivec4 _v=ivec4(v);if((_i&1u)==0u){buf[_i/2]=packInt2x16(ivec2(_v.r,_v.g));buf[_i/2+1]=packInt2x16(ivec2(_v.b,_v.a));}else{i16buffer_st1(buf,int(_i),_v.r);buf[_i/2+1]=packInt2x16(ivec2(_v.g,_v.b));i16buffer_st1(buf,int(_i)+3,_v.a);}}");
+        custom_defines.append("i16buffer_sm4(buf,i)", "buf[i]");
+        custom_defines.append("i16buffer_ld4(buf,i)", support_int16_arithmetic ? "i16vec4(unpack16(buf[i].r),unpack16(buf[i].g))" : "ivec4(unpackInt2x16(buf[i].r),unpackInt2x16(buf[i].g))");
+        custom_defines.append("i16buffer_st4(buf,i,v)", "{ivec4 _v=ivec4(v);buf[i]=ivec2(packInt2x16(ivec2(_v.r,_v.g)),packInt2x16(ivec2(_v.b,_v.a)));}");
     }
     else
     {
         custom_defines.append("i16buffer_st2(buf,i,v)", "{ivec2 _v=ivec2(v);buf[i]=int(_v.r);buf[(i)+1]=int(_v.g);}");
-        custom_defines.append("i16buffer_st4(buf,i,v)", "{ivec4 _v=ivec4(v);buf[i]=int(_v.r);buf[(i)+1]=int(_v.g);buf[(i)+2]=int(_v.b);buf[(i)+3]=int(_v.a);}");
+        custom_defines.append("i16buffer_sm4(buf,i)", "buf[i]");
+        custom_defines.append("i16buffer_ld4(buf,i)", "ivec4(buf[i])");
+        custom_defines.append("i16buffer_st4(buf,i,v)", "{buf[i]=ivec4(v);}");
     }
 
     custom_defines.append("psc(x)", "(x==0?p.x:x)");

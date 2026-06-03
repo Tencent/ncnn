@@ -185,13 +185,21 @@ layout (binding = 1) readonly buffer weight_blob { sint16 weight_blob_data[]; };
 |aint8|int|
 |aint8vec4|ivec4|
 
-|int16 storage type|int16p|int16s|
+|int16 arithmetic type|int16|
+|---|---|
+|aint16|int16_t when shaderInt16 is available, otherwise int|
+|aint16vec4|i16vec4 when shaderInt16 is available, otherwise ivec4|
+
+|int16 storage/local type|int16p|int16s|
 |---|---|---|
 |sint16|int|int16_t|
+|sint16vec4|ivec2|i16vec4|
+|lint16|int|int16_t|
+|lint16vec4|ivec2|i16vec4|
 
 `sint8vec4` uses one `int` to hold four signed int8 lanes in all int8 storage modes. This keeps pack4 data in packed form for integer dot-product and shared-memory paths. Use `i8buffer_ld4` to unpack it to `ivec4`, and use `i8buffer_sm4` to load the raw packed `int`.
 
-`sint16` uses one `int` to hold two signed int16 lanes when `opt.use_int16_packed` is enabled, and uses native `int16_t` when `opt.use_int16_storage` is enabled.
+`sint16` uses one `int` to hold two signed int16 lanes when `opt.use_int16_packed` is enabled, and uses native `int16_t` when `opt.use_int16_storage` is enabled. `sint16vec4` stores four logical int16 lanes as two packed `int` values in int16p mode and as native `i16vec4` in int16s mode. `lint16` and `lint16vec4` are the shared/local-memory counterparts.
 
 # buffer functions
 
@@ -241,12 +249,17 @@ aint8vec4 i8buffer_ld4(sint8vec4 src, int offset);
 int i8buffer_sm4(sint8vec4 src, int offset);
 int i16buffer_ld1(sint16 src, int offset);
 ivec2 i16buffer_ld2(sint16 src, int offset);
-ivec4 i16buffer_ld4(sint16 src, int offset);
+sint16vec4 i16buffer_sm4(sint16vec4 src, int offset);
+aint16vec4 i16buffer_ld4(sint16vec4 src, int offset);
+aint16 lint162aint16(lint16 v);
+aint16vec4 lint162aint16vec4(lint16vec4 v);
 ```
 
 `i8buffer_sm4` loads the raw packed `int` representation of four int8 lanes. It is useful for shared-memory staging and `dotPacked4x8EXT` paths where unpacking to `ivec4` would be wasteful.
 
-`i16buffer_ld1`, `i16buffer_ld2` and `i16buffer_ld4` load signed int16 lanes as `int`, `ivec2` and `ivec4`. Without native int16 storage, `offset` is still the logical int16 lane offset, and packed storage groups two adjacent lanes in one `int`.
+`i16buffer_ld1` and `i16buffer_ld2` load signed int16 lanes as `int` and `ivec2`. Without native int16 storage, `offset` is still the logical int16 lane offset, and packed storage groups two adjacent lanes in one `int`.
+
+`i16buffer_sm4` loads the raw `sint16vec4` representation of four logical int16 lanes from buffer storage. `i16buffer_ld4` loads four logical int16 lanes from buffer storage as `aint16vec4`. `lint162aint16` and `lint162aint16vec4` convert shared/local int16 values to arithmetic int16 values.
 
 - store integer typed value to dst[offset]
 
@@ -255,12 +268,13 @@ void i8buffer_st1(sint8 dst, int offset, aint8 v);
 void i8buffer_st4(sint8vec4 dst, int offset, aint8vec4 v);
 void i16buffer_st1(sint16 dst, int offset, int v);
 void i16buffer_st2(sint16 dst, int offset, ivec2 v);
-void i16buffer_st4(sint16 dst, int offset, ivec4 v);
+void i16buffer_st4(sint16vec4 dst, int offset, ivec4 v);
+void i16buffer_st4(lint16vec4 dst, int offset, ivec4 v);
 ```
 
 Without native int8 storage, `i8buffer_st1` updates one byte lane inside a packed `int` and may use an atomic compare-and-swap loop.
 
-Without native int16 storage, `i16buffer_st1` updates one int16 lane inside a packed `int` and may use an atomic compare-and-swap loop. `i16buffer_st2` and `i16buffer_st4` store complete packed words directly when `offset` is aligned.
+Without native int16 storage, `i16buffer_st1` updates one int16 lane inside a packed `int` and may use an atomic compare-and-swap loop. `i16buffer_st2` stores complete packed words directly when `offset` is aligned. `i16buffer_st4` writes four logical int16 lanes to `sint16vec4` storage or `lint16vec4` shared/local memory.
 
 - copy int8 typed value from src[src_offset] to dst[dst_offset]
 

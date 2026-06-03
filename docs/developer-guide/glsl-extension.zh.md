@@ -185,13 +185,21 @@ layout (binding = 1) readonly buffer weight_blob { sint16 weight_blob_data[]; };
 |aint8|int|
 |aint8vec4|ivec4|
 
-|int16 存储类型|int16p|int16s|
+|int16 算术类型|int16|
+|---|---|
+|aint16|shaderInt16 可用时为 int16_t，否则为 int|
+|aint16vec4|shaderInt16 可用时为 i16vec4，否则为 ivec4|
+
+|int16 存储/local 类型|int16p|int16s|
 |---|---|---|
 |sint16|int|int16_t|
+|sint16vec4|ivec2|i16vec4|
+|lint16|int|int16_t|
+|lint16vec4|ivec2|i16vec4|
 
 `sint8vec4` 在所有 int8 存储模式下都使用一个 `int` 保存四个有符号 int8 lane。这样可以让 pack4 数据在 integer dot product 和 shared memory 路径中保持 packed 形式。使用 `i8buffer_ld4` 解包为 `ivec4`，使用 `i8buffer_sm4` 直接加载 packed `int`。
 
-启用 `opt.use_int16_packed` 时，`sint16` 使用一个 `int` 保存两个有符号 int16 lane；启用 `opt.use_int16_storage` 时，`sint16` 使用原生 `int16_t`。
+启用 `opt.use_int16_packed` 时，`sint16` 使用一个 `int` 保存两个有符号 int16 lane；启用 `opt.use_int16_storage` 时，`sint16` 使用原生 `int16_t`。`sint16vec4` 在 int16p 模式下使用两个 packed `int` 保存四个逻辑 int16 lane，在 int16s 模式下使用原生 `i16vec4`。`lint16` 和 `lint16vec4` 是 shared/local memory 对应类型。
 
 # 缓冲区函数(buffer functions)
 
@@ -241,12 +249,17 @@ aint8vec4 i8buffer_ld4(sint8vec4 src, int offset);
 int i8buffer_sm4(sint8vec4 src, int offset);
 int i16buffer_ld1(sint16 src, int offset);
 ivec2 i16buffer_ld2(sint16 src, int offset);
-ivec4 i16buffer_ld4(sint16 src, int offset);
+sint16vec4 i16buffer_sm4(sint16vec4 src, int offset);
+aint16vec4 i16buffer_ld4(sint16vec4 src, int offset);
+aint16 lint162aint16(lint16 v);
+aint16vec4 lint162aint16vec4(lint16vec4 v);
 ```
 
 `i8buffer_sm4` 加载四个 int8 lane 的原始 packed `int` 表示。它适用于 shared memory 暂存和 `dotPacked4x8EXT` 路径，避免先解包成 `ivec4` 再重新打包。
 
-`i16buffer_ld1`、`i16buffer_ld2` 和 `i16buffer_ld4` 将有符号 int16 lane 加载为 `int`、`ivec2` 和 `ivec4`。没有原生 int16 storage 时，`offset` 仍表示逻辑 int16 lane 偏移，packed storage 会把相邻两个 lane 放在一个 `int` 中。
+`i16buffer_ld1` 和 `i16buffer_ld2` 将有符号 int16 lane 加载为 `int` 和 `ivec2`。没有原生 int16 storage 时，`offset` 仍表示逻辑 int16 lane 偏移，packed storage 会把相邻两个 lane 放在一个 `int` 中。
+
+`i16buffer_sm4` 从 buffer storage 加载四个逻辑 int16 lane 的原始 `sint16vec4` 表示。`i16buffer_ld4` 从 buffer storage 将四个逻辑 int16 lane 加载为 `aint16vec4`。`lint162aint16` 和 `lint162aint16vec4` 将 shared/local int16 值转换为算术 int16 值。
 
 - 将整数类型的值存储到 dst[offset]
 
@@ -255,12 +268,13 @@ void i8buffer_st1(sint8 dst, int offset, aint8 v);
 void i8buffer_st4(sint8vec4 dst, int offset, aint8vec4 v);
 void i16buffer_st1(sint16 dst, int offset, int v);
 void i16buffer_st2(sint16 dst, int offset, ivec2 v);
-void i16buffer_st4(sint16 dst, int offset, ivec4 v);
+void i16buffer_st4(sint16vec4 dst, int offset, ivec4 v);
+void i16buffer_st4(lint16vec4 dst, int offset, ivec4 v);
 ```
 
 没有原生 int8 storage 时，`i8buffer_st1` 会更新 packed `int` 中的一个 byte lane，可能使用 atomic compare-and-swap 循环。
 
-没有原生 int16 storage 时，`i16buffer_st1` 会更新 packed `int` 中的一个 int16 lane，可能使用 atomic compare-and-swap 循环。`i16buffer_st2` 和 `i16buffer_st4` 在 `offset` 对齐时会直接写入完整 packed word。
+没有原生 int16 storage 时，`i16buffer_st1` 会更新 packed `int` 中的一个 int16 lane，可能使用 atomic compare-and-swap 循环。`i16buffer_st2` 在 `offset` 对齐时会直接写入完整 packed word。`i16buffer_st4` 将四个逻辑 int16 lane 写入 `sint16vec4` 存储或 `lint16vec4` shared/local memory。
 
 - 从 src[src_offset] 的 int8 类型值拷贝到 dst[dst_offset]
 
