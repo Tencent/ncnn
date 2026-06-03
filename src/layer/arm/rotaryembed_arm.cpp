@@ -184,6 +184,30 @@ int RotaryEmbed_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::ve
 
                 int j = 0;
 #if __ARM_NEON
+                for (; j + 7 < half; j += 8)
+                {
+                    uint16x8x2_t _p = vld2q_u16(ptr); // _p.val[0]=x0 lanes, _p.val[1]=x1 lanes
+                    float32x4_t _x0l = bfloat2float(vget_low_u16(_p.val[0]));
+                    float32x4_t _x0h = bfloat2float(vget_high_u16(_p.val[0]));
+                    float32x4_t _x1l = bfloat2float(vget_low_u16(_p.val[1]));
+                    float32x4_t _x1h = bfloat2float(vget_high_u16(_p.val[1]));
+                    uint16x8_t _cu = vld1q_u16(cos_ptr);
+                    uint16x8_t _su = vld1q_u16(sin_ptr);
+                    float32x4_t _cl = bfloat2float(vget_low_u16(_cu));
+                    float32x4_t _ch = bfloat2float(vget_high_u16(_cu));
+                    float32x4_t _sl = bfloat2float(vget_low_u16(_su));
+                    float32x4_t _sh = bfloat2float(vget_high_u16(_su));
+
+                    uint16x8x2_t _out;
+                    _out.val[0] = vcombine_u16(float2bfloat(vmlsq_f32(vmulq_f32(_x0l, _cl), _x1l, _sl)), float2bfloat(vmlsq_f32(vmulq_f32(_x0h, _ch), _x1h, _sh))); // x0*c - x1*s
+                    _out.val[1] = vcombine_u16(float2bfloat(vmlaq_f32(vmulq_f32(_x1l, _cl), _x0l, _sl)), float2bfloat(vmlaq_f32(vmulq_f32(_x1h, _ch), _x0h, _sh))); // x0*s + x1*c
+                    vst2q_u16(outptr, _out);
+
+                    ptr += 16;
+                    outptr += 16;
+                    cos_ptr += 8;
+                    sin_ptr += 8;
+                }
                 for (; j + 3 < half; j += 4)
                 {
                     uint16x4x2_t _p = vld2_u16(ptr); // _p.val[0]=x0 lanes, _p.val[1]=x1 lanes
@@ -224,6 +248,37 @@ int RotaryEmbed_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::ve
 
                 int j = 0;
 #if __ARM_NEON
+                for (; j + 7 < half; j += 8)
+                {
+                    uint16x8_t _x0u = vld1q_u16(ptr0);
+                    uint16x8_t _x1u = vld1q_u16(ptr1);
+                    uint16x8_t _cu = vld1q_u16(cos_ptr);
+                    uint16x8_t _su = vld1q_u16(sin_ptr);
+
+                    float32x4_t _x0l = bfloat2float(vget_low_u16(_x0u));
+                    float32x4_t _x0h = bfloat2float(vget_high_u16(_x0u));
+                    float32x4_t _x1l = bfloat2float(vget_low_u16(_x1u));
+                    float32x4_t _x1h = bfloat2float(vget_high_u16(_x1u));
+                    float32x4_t _cl = bfloat2float(vget_low_u16(_cu));
+                    float32x4_t _ch = bfloat2float(vget_high_u16(_cu));
+                    float32x4_t _sl = bfloat2float(vget_low_u16(_su));
+                    float32x4_t _sh = bfloat2float(vget_high_u16(_su));
+
+                    float32x4_t _y0l = vmlsq_f32(vmulq_f32(_x0l, _cl), _x1l, _sl); // x0*c - x1*s
+                    float32x4_t _y0h = vmlsq_f32(vmulq_f32(_x0h, _ch), _x1h, _sh);
+                    float32x4_t _y1l = vmlaq_f32(vmulq_f32(_x1l, _cl), _x0l, _sl); // x1*c + x0*s
+                    float32x4_t _y1h = vmlaq_f32(vmulq_f32(_x1h, _ch), _x0h, _sh);
+
+                    vst1q_u16(outptr0, vcombine_u16(float2bfloat(_y0l), float2bfloat(_y0h)));
+                    vst1q_u16(outptr1, vcombine_u16(float2bfloat(_y1l), float2bfloat(_y1h)));
+
+                    ptr0 += 8;
+                    ptr1 += 8;
+                    cos_ptr += 8;
+                    sin_ptr += 8;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                }
                 for (; j + 3 < half; j += 4)
                 {
                     float32x4_t _x0 = bfloat2float(vld1_u16(ptr0));
