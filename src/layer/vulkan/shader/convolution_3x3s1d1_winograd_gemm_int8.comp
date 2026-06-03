@@ -7,7 +7,7 @@
 #extension GL_EXT_integer_dot_product : require
 #endif
 
-#define LOCAL_MEMORY_UNROLL_INCH 8
+#define LOCAL_MEMORY_UNROLL_INCH  8
 #define LOCAL_MEMORY_UNROLL_INCH4 (LOCAL_MEMORY_UNROLL_INCH / 4)
 
 layout(binding = 0) readonly buffer bottom_tm_blob { sint16vec4 bottom_tm_blob_data[]; };
