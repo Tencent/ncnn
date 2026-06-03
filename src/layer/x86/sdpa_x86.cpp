@@ -6265,8 +6265,8 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 #if __AVX512F__
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
     use_qbf16_prefill = use_bf16_path && src_seqlen > 1 && embed_dim > 512
-                         && (src_seqlen > 16 || num_heads_per_group > 1)
-                         && ncnn::cpu_support_x86_avx512_bf16();
+                        && (src_seqlen > 16 || num_heads_per_group > 1)
+                        && ncnn::cpu_support_x86_avx512_bf16();
 #endif
 #endif
     Mat query_fp32;
