@@ -81,9 +81,6 @@ public:
     VkMat weight_data_int8_scales_gpu;
     VkMat bottom_blob_int8_scales_gpu;
     VkMat top_blob_int8_scales_gpu;
-
-    bool use_int8_winograd_int16_packed;
-    bool use_int8_winograd_int16_storage;
 #endif
 };
 

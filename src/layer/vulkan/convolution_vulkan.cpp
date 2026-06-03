@@ -34,9 +34,6 @@ Convolution_vulkan::Convolution_vulkan()
     use_cooperative_matrix = false;
 #if NCNN_INT8
     quantize = 0;
-
-    use_int8_winograd_int16_packed = false;
-    use_int8_winograd_int16_storage = false;
 #endif
     coopmat_M = 0;
     coopmat_N = 0;
@@ -1541,9 +1538,6 @@ int Convolution_vulkan::destroy_pipeline(const Option& opt)
         delete quantize;
         quantize = 0;
     }
-
-    use_int8_winograd_int16_packed = false;
-    use_int8_winograd_int16_storage = false;
 #endif
     coopmat_M = 0;
     coopmat_N = 0;
@@ -2153,9 +2147,6 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 #if NCNN_INT8
 int Convolution_vulkan::create_pipeline_int8(const Option& opt)
 {
-    use_int8_winograd_int16_packed = false;
-    use_int8_winograd_int16_storage = false;
-
     Mat shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     Mat out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
@@ -2336,16 +2327,13 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     specializations[13 + 8].i = num_output;
     specializations[13 + 9].i = num_input;
 
-    const bool support_int8_winograd_int16_storage = opt.use_int16_storage && vkdev->info.support_int16_storage() && vkdev->info.support_int16_arithmetic();
-    use_int8_winograd_int16_packed = use_winograd && !support_int8_winograd_int16_storage && opt.use_int16_packed && vkdev->info.support_int16_packed();
-    use_int8_winograd_int16_storage = use_winograd && support_int8_winograd_int16_storage;
-    if (use_int8_winograd_int16_packed)
+    const bool use_int8_winograd_int16_storage = use_winograd && opt.use_int16_storage && vkdev->info.support_int16_storage() && vkdev->info.support_int16_arithmetic();
+    if (use_winograd)
     {
-        opt_int8.use_int16_packed = true;
-    }
-    if (use_int8_winograd_int16_storage)
-    {
-        opt_int8.use_int16_storage = true;
+        if (use_int8_winograd_int16_storage)
+            opt_int8.use_int16_storage = true;
+        else
+            opt_int8.use_int16_packed = true;
     }
 
     if (is_conv1x1s1d1)
@@ -3097,8 +3085,10 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
                 pre_winograd43 = false;
         }
 
+        const bool use_int8_winograd_int16_storage = opt.use_int16_storage && vkdev->info.support_int16_storage() && vkdev->info.support_int16_arithmetic();
+
         const int B = pre_winograd43 ? 36 : 16;
-        const int B_packed = use_int8_winograd_int16_packed ? B / 2 : B;
+        const int B_packed = use_int8_winograd_int16_storage ? B : B / 2;
         const int block_x = pre_winograd43 ? (outw + 3) / 4 : (outw + 1) / 2;
         const int block_y = pre_winograd43 ? (outh + 3) / 4 : (outh + 1) / 2;
 
