@@ -228,11 +228,7 @@ void main()
         base_ch.x + 1 < nout ? buffer_ld1(weight_scales_data, base_ch.x + 1) : 1.f,
         base_ch.x + 2 < nout ? buffer_ld1(weight_scales_data, base_ch.x + 2) : 1.f,
         base_ch.x + 3 < nout ? buffer_ld1(weight_scales_data, base_ch.x + 3) : 1.f);
-    vec4 scale_in0 = bottom_scale == 0.f ? vec4(0.f) : vec4(
-        weight_scale0.r == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale0.r),
-        weight_scale0.g == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale0.g),
-        weight_scale0.b == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale0.b),
-        weight_scale0.a == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale0.a));
+    vec4 scale_in0 = bottom_scale == 0.f ? vec4(0.f) : vec4(weight_scale0.r == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale0.r), weight_scale0.g == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale0.g), weight_scale0.b == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale0.b), weight_scale0.a == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale0.a));
 
     vec4 sumfp32_0 = vec4(sum0) * scale_in0;
     vec4 sumfp32_1 = vec4(sum1) * scale_in0;
@@ -263,11 +259,7 @@ void main()
         base_ch.y + 1 < nout ? buffer_ld1(weight_scales_data, base_ch.y + 1) : 1.f,
         base_ch.y + 2 < nout ? buffer_ld1(weight_scales_data, base_ch.y + 2) : 1.f,
         base_ch.y + 3 < nout ? buffer_ld1(weight_scales_data, base_ch.y + 3) : 1.f);
-    vec4 scale_in1 = bottom_scale == 0.f ? vec4(0.f) : vec4(
-        weight_scale1.r == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale1.r),
-        weight_scale1.g == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale1.g),
-        weight_scale1.b == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale1.b),
-        weight_scale1.a == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale1.a));
+    vec4 scale_in1 = bottom_scale == 0.f ? vec4(0.f) : vec4(weight_scale1.r == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale1.r), weight_scale1.g == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale1.g), weight_scale1.b == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale1.b), weight_scale1.a == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale1.a));
 
     vec4 sumfp32_4 = vec4(sum4) * scale_in1;
     vec4 sumfp32_5 = vec4(sum5) * scale_in1;
