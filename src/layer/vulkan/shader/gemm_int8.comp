@@ -294,35 +294,28 @@ void main()
     const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
     const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
 
-    const float B_scale = B_scale_data[0];
+    const float B_descale = B_scale_data[0];
 
     float descale0 = 0.f;
     float descale1 = 0.f;
     float descale2 = 0.f;
     float descale3 = 0.f;
 
-    if (B_scale != 0.f)
+    if (gy4.r < p.M)
     {
-        if (gy4.r < p.M)
-        {
-            const float A_scale = A_scales_data[gy4.r];
-            descale0 = A_scale == 0.f ? 0.f : 1.f / (A_scale * B_scale);
-        }
-        if (gy4.g < p.M)
-        {
-            const float A_scale = A_scales_data[gy4.g];
-            descale1 = A_scale == 0.f ? 0.f : 1.f / (A_scale * B_scale);
-        }
-        if (gy4.b < p.M)
-        {
-            const float A_scale = A_scales_data[gy4.b];
-            descale2 = A_scale == 0.f ? 0.f : 1.f / (A_scale * B_scale);
-        }
-        if (gy4.a < p.M)
-        {
-            const float A_scale = A_scales_data[gy4.a];
-            descale3 = A_scale == 0.f ? 0.f : 1.f / (A_scale * B_scale);
-        }
+        descale0 = A_scales_data[gy4.r] * B_descale;
+    }
+    if (gy4.g < p.M)
+    {
+        descale1 = A_scales_data[gy4.g] * B_descale;
+    }
+    if (gy4.b < p.M)
+    {
+        descale2 = A_scales_data[gy4.b] * B_descale;
+    }
+    if (gy4.a < p.M)
+    {
+        descale3 = A_scales_data[gy4.a] * B_descale;
     }
 
     vec4 sumfp0 = vec4(sum0) * descale0;

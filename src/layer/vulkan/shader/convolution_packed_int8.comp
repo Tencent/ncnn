@@ -40,12 +40,12 @@ layout(constant_id = shape_constant_id_offset + 9) const int num_input = 0;
 layout(binding = 0) readonly buffer bottom_blob_1 { sint8 bottom_blob_int8_data_1[]; };
 layout(binding = 1) writeonly buffer top_blob_1 { sfp top_blob_data_1[]; };
 
-// vec4 view  (for pack4 input/output access, weight always vec4)
+// vec4 view  (for pack4 input/output access, weight/bias always vec4)
 layout(binding = 2) readonly buffer bottom_blob_4 { sint8vec4 bottom_blob_int8_data_4[]; };
 layout(binding = 3) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
 layout(binding = 4) readonly buffer weight_blob { sint8vec4 weight_data[]; };
-layout(binding = 5) readonly buffer bias_blob { float bias_data[]; };
-layout(binding = 6) readonly buffer weight_scales_blob { sfp weight_scales_data[]; };
+layout(binding = 5) readonly buffer bias_blob { sfpvec4 bias_data[]; };
+layout(binding = 6) readonly buffer weight_scales_blob { sfpvec4 weight_scales_data[]; };
 layout(binding = 7) readonly buffer bottom_scales_blob { sfp bottom_scales_data[]; };
 layout(binding = 8) readonly buffer top_scales_blob { sfp top_scales_data[]; };
 layout(binding = 9) writeonly buffer top_blob_int8_1 { sint8 top_blob_int8_data_1[]; };
@@ -63,8 +63,6 @@ layout(push_constant) uniform parameter
     int outh;
     int outc;
     int outcstep;
-    int num_output;
-    int num_input;
 } p;
 
 void main()
@@ -77,7 +75,7 @@ void main()
         return;
 
     int maxk = kernel_w * kernel_h;
-    float bottom_scale = buffer_ld1(bottom_scales_data, 0);
+    const float bottom_descale = buffer_ld1(bottom_scales_data, 0);
 
     ivec2 gx2 = gx + ivec2(0, 1);
     ivec2 gy2 = gy + ivec2(0, 1);
@@ -143,38 +141,38 @@ void main()
                     ivec4 k6 = unpackInt4x8(k6p);
                     ivec4 k7 = unpackInt4x8(k7p);
 
-                    sum0 += ivec4(v0.r * k0.r + v0.g * k0.g + v0.b * k0.b + v0.a * k0.a,
-                                  v0.r * k1.r + v0.g * k1.g + v0.b * k1.b + v0.a * k1.a,
-                                  v0.r * k2.r + v0.g * k2.g + v0.b * k2.b + v0.a * k2.a,
-                                  v0.r * k3.r + v0.g * k3.g + v0.b * k3.b + v0.a * k3.a);
-                    sum1 += ivec4(v1.r * k0.r + v1.g * k0.g + v1.b * k0.b + v1.a * k0.a,
-                                  v1.r * k1.r + v1.g * k1.g + v1.b * k1.b + v1.a * k1.a,
-                                  v1.r * k2.r + v1.g * k2.g + v1.b * k2.b + v1.a * k2.a,
-                                  v1.r * k3.r + v1.g * k3.g + v1.b * k3.b + v1.a * k3.a);
-                    sum2 += ivec4(v2.r * k0.r + v2.g * k0.g + v2.b * k0.b + v2.a * k0.a,
-                                  v2.r * k1.r + v2.g * k1.g + v2.b * k1.b + v2.a * k1.a,
-                                  v2.r * k2.r + v2.g * k2.g + v2.b * k2.b + v2.a * k2.a,
-                                  v2.r * k3.r + v2.g * k3.g + v2.b * k3.b + v2.a * k3.a);
-                    sum3 += ivec4(v3.r * k0.r + v3.g * k0.g + v3.b * k0.b + v3.a * k0.a,
-                                  v3.r * k1.r + v3.g * k1.g + v3.b * k1.b + v3.a * k1.a,
-                                  v3.r * k2.r + v3.g * k2.g + v3.b * k2.b + v3.a * k2.a,
-                                  v3.r * k3.r + v3.g * k3.g + v3.b * k3.b + v3.a * k3.a);
-                    sum4 += ivec4(v0.r * k4.r + v0.g * k4.g + v0.b * k4.b + v0.a * k4.a,
-                                  v0.r * k5.r + v0.g * k5.g + v0.b * k5.b + v0.a * k5.a,
-                                  v0.r * k6.r + v0.g * k6.g + v0.b * k6.b + v0.a * k6.a,
-                                  v0.r * k7.r + v0.g * k7.g + v0.b * k7.b + v0.a * k7.a);
-                    sum5 += ivec4(v1.r * k4.r + v1.g * k4.g + v1.b * k4.b + v1.a * k4.a,
-                                  v1.r * k5.r + v1.g * k5.g + v1.b * k5.b + v1.a * k5.a,
-                                  v1.r * k6.r + v1.g * k6.g + v1.b * k6.b + v1.a * k6.a,
-                                  v1.r * k7.r + v1.g * k7.g + v1.b * k7.b + v1.a * k7.a);
-                    sum6 += ivec4(v2.r * k4.r + v2.g * k4.g + v2.b * k4.b + v2.a * k4.a,
-                                  v2.r * k5.r + v2.g * k5.g + v2.b * k5.b + v2.a * k5.a,
-                                  v2.r * k6.r + v2.g * k6.g + v2.b * k6.b + v2.a * k6.a,
-                                  v2.r * k7.r + v2.g * k7.g + v2.b * k7.b + v2.a * k7.a);
-                    sum7 += ivec4(v3.r * k4.r + v3.g * k4.g + v3.b * k4.b + v3.a * k4.a,
-                                  v3.r * k5.r + v3.g * k5.g + v3.b * k5.b + v3.a * k5.a,
-                                  v3.r * k6.r + v3.g * k6.g + v3.b * k6.b + v3.a * k6.a,
-                                  v3.r * k7.r + v3.g * k7.g + v3.b * k7.b + v3.a * k7.a);
+                    sum0.r += v0.r * k0.r + v0.g * k0.g + v0.b * k0.b + v0.a * k0.a;
+                    sum0.g += v0.r * k1.r + v0.g * k1.g + v0.b * k1.b + v0.a * k1.a;
+                    sum0.b += v0.r * k2.r + v0.g * k2.g + v0.b * k2.b + v0.a * k2.a;
+                    sum0.a += v0.r * k3.r + v0.g * k3.g + v0.b * k3.b + v0.a * k3.a;
+                    sum1.r += v1.r * k0.r + v1.g * k0.g + v1.b * k0.b + v1.a * k0.a;
+                    sum1.g += v1.r * k1.r + v1.g * k1.g + v1.b * k1.b + v1.a * k1.a;
+                    sum1.b += v1.r * k2.r + v1.g * k2.g + v1.b * k2.b + v1.a * k2.a;
+                    sum1.a += v1.r * k3.r + v1.g * k3.g + v1.b * k3.b + v1.a * k3.a;
+                    sum2.r += v2.r * k0.r + v2.g * k0.g + v2.b * k0.b + v2.a * k0.a;
+                    sum2.g += v2.r * k1.r + v2.g * k1.g + v2.b * k1.b + v2.a * k1.a;
+                    sum2.b += v2.r * k2.r + v2.g * k2.g + v2.b * k2.b + v2.a * k2.a;
+                    sum2.a += v2.r * k3.r + v2.g * k3.g + v2.b * k3.b + v2.a * k3.a;
+                    sum3.r += v3.r * k0.r + v3.g * k0.g + v3.b * k0.b + v3.a * k0.a;
+                    sum3.g += v3.r * k1.r + v3.g * k1.g + v3.b * k1.b + v3.a * k1.a;
+                    sum3.b += v3.r * k2.r + v3.g * k2.g + v3.b * k2.b + v3.a * k2.a;
+                    sum3.a += v3.r * k3.r + v3.g * k3.g + v3.b * k3.b + v3.a * k3.a;
+                    sum4.r += v0.r * k4.r + v0.g * k4.g + v0.b * k4.b + v0.a * k4.a;
+                    sum4.g += v0.r * k5.r + v0.g * k5.g + v0.b * k5.b + v0.a * k5.a;
+                    sum4.b += v0.r * k6.r + v0.g * k6.g + v0.b * k6.b + v0.a * k6.a;
+                    sum4.a += v0.r * k7.r + v0.g * k7.g + v0.b * k7.b + v0.a * k7.a;
+                    sum5.r += v1.r * k4.r + v1.g * k4.g + v1.b * k4.b + v1.a * k4.a;
+                    sum5.g += v1.r * k5.r + v1.g * k5.g + v1.b * k5.b + v1.a * k5.a;
+                    sum5.b += v1.r * k6.r + v1.g * k6.g + v1.b * k6.b + v1.a * k6.a;
+                    sum5.a += v1.r * k7.r + v1.g * k7.g + v1.b * k7.b + v1.a * k7.a;
+                    sum6.r += v2.r * k4.r + v2.g * k4.g + v2.b * k4.b + v2.a * k4.a;
+                    sum6.g += v2.r * k5.r + v2.g * k5.g + v2.b * k5.b + v2.a * k5.a;
+                    sum6.b += v2.r * k6.r + v2.g * k6.g + v2.b * k6.b + v2.a * k6.a;
+                    sum6.a += v2.r * k7.r + v2.g * k7.g + v2.b * k7.b + v2.a * k7.a;
+                    sum7.r += v3.r * k4.r + v3.g * k4.g + v3.b * k4.b + v3.a * k4.a;
+                    sum7.g += v3.r * k5.r + v3.g * k5.g + v3.b * k5.b + v3.a * k5.a;
+                    sum7.b += v3.r * k6.r + v3.g * k6.g + v3.b * k6.b + v3.a * k6.a;
+                    sum7.a += v3.r * k7.r + v3.g * k7.g + v3.b * k7.b + v3.a * k7.a;
 #endif
                 }
 
@@ -220,47 +218,18 @@ void main()
         }
     }
 
-    int nout = psc(num_output);
+    int nout = num_output;
     ivec2 base_ch = gz2 * 4;
 
-    vec4 weight_scale0 = vec4(
-        buffer_ld1(weight_scales_data, base_ch.x + 0),
-        base_ch.x + 1 < nout ? buffer_ld1(weight_scales_data, base_ch.x + 1) : 1.f,
-        base_ch.x + 2 < nout ? buffer_ld1(weight_scales_data, base_ch.x + 2) : 1.f,
-        base_ch.x + 3 < nout ? buffer_ld1(weight_scales_data, base_ch.x + 3) : 1.f);
-    vec4 scale_in0 = bottom_scale == 0.f ? vec4(0.f) : vec4(weight_scale0.r == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale0.r), weight_scale0.g == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale0.g), weight_scale0.b == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale0.b), weight_scale0.a == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale0.a));
+    const vec4 weight_descale0 = vec4(buffer_ld4(weight_scales_data, gz2.x));
+    const vec4 weight_descale1 = vec4(buffer_ld4(weight_scales_data, gz2.y));
+    const vec4 scale_in0 = bottom_descale * weight_descale0;
+    const vec4 scale_in1 = bottom_descale * weight_descale1;
 
     vec4 sumfp32_0 = vec4(sum0) * scale_in0;
     vec4 sumfp32_1 = vec4(sum1) * scale_in0;
     vec4 sumfp32_2 = vec4(sum2) * scale_in0;
     vec4 sumfp32_3 = vec4(sum3) * scale_in0;
-
-    if (bias_term == 1)
-    {
-        vec4 bias0 = vec4(
-            bias_data[base_ch.x + 0],
-            base_ch.x + 1 < nout ? bias_data[base_ch.x + 1] : 0.f,
-            base_ch.x + 2 < nout ? bias_data[base_ch.x + 2] : 0.f,
-            base_ch.x + 3 < nout ? bias_data[base_ch.x + 3] : 0.f);
-
-        sumfp32_0 += bias0;
-        sumfp32_1 += bias0;
-        sumfp32_2 += bias0;
-        sumfp32_3 += bias0;
-    }
-
-    sumfp32_0 = vec4(activation_afpvec4(afpvec4(sumfp32_0), activation_type, activation_param_0, activation_param_1));
-    sumfp32_1 = vec4(activation_afpvec4(afpvec4(sumfp32_1), activation_type, activation_param_0, activation_param_1));
-    sumfp32_2 = vec4(activation_afpvec4(afpvec4(sumfp32_2), activation_type, activation_param_0, activation_param_1));
-    sumfp32_3 = vec4(activation_afpvec4(afpvec4(sumfp32_3), activation_type, activation_param_0, activation_param_1));
-
-    vec4 weight_scale1 = vec4(
-        base_ch.y + 0 < nout ? buffer_ld1(weight_scales_data, base_ch.y + 0) : 1.f,
-        base_ch.y + 1 < nout ? buffer_ld1(weight_scales_data, base_ch.y + 1) : 1.f,
-        base_ch.y + 2 < nout ? buffer_ld1(weight_scales_data, base_ch.y + 2) : 1.f,
-        base_ch.y + 3 < nout ? buffer_ld1(weight_scales_data, base_ch.y + 3) : 1.f);
-    vec4 scale_in1 = bottom_scale == 0.f ? vec4(0.f) : vec4(weight_scale1.r == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale1.r), weight_scale1.g == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale1.g), weight_scale1.b == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale1.b), weight_scale1.a == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale1.a));
-
     vec4 sumfp32_4 = vec4(sum4) * scale_in1;
     vec4 sumfp32_5 = vec4(sum5) * scale_in1;
     vec4 sumfp32_6 = vec4(sum6) * scale_in1;
@@ -268,18 +237,23 @@ void main()
 
     if (bias_term == 1)
     {
-        vec4 bias1 = vec4(
-            base_ch.y + 0 < nout ? bias_data[base_ch.y + 0] : 0.f,
-            base_ch.y + 1 < nout ? bias_data[base_ch.y + 1] : 0.f,
-            base_ch.y + 2 < nout ? bias_data[base_ch.y + 2] : 0.f,
-            base_ch.y + 3 < nout ? bias_data[base_ch.y + 3] : 0.f);
+        vec4 bias0 = vec4(buffer_ld4(bias_data, gz2.x));
+        vec4 bias1 = vec4(buffer_ld4(bias_data, gz2.y));
 
+        sumfp32_0 += bias0;
+        sumfp32_1 += bias0;
+        sumfp32_2 += bias0;
+        sumfp32_3 += bias0;
         sumfp32_4 += bias1;
         sumfp32_5 += bias1;
         sumfp32_6 += bias1;
         sumfp32_7 += bias1;
     }
 
+    sumfp32_0 = vec4(activation_afpvec4(afpvec4(sumfp32_0), activation_type, activation_param_0, activation_param_1));
+    sumfp32_1 = vec4(activation_afpvec4(afpvec4(sumfp32_1), activation_type, activation_param_0, activation_param_1));
+    sumfp32_2 = vec4(activation_afpvec4(afpvec4(sumfp32_2), activation_type, activation_param_0, activation_param_1));
+    sumfp32_3 = vec4(activation_afpvec4(afpvec4(sumfp32_3), activation_type, activation_param_0, activation_param_1));
     sumfp32_4 = vec4(activation_afpvec4(afpvec4(sumfp32_4), activation_type, activation_param_0, activation_param_1));
     sumfp32_5 = vec4(activation_afpvec4(afpvec4(sumfp32_5), activation_type, activation_param_0, activation_param_1));
     sumfp32_6 = vec4(activation_afpvec4(afpvec4(sumfp32_6), activation_type, activation_param_0, activation_param_1));

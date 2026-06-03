@@ -75,7 +75,7 @@ void main()
     const int num_output_g = psc(outc) / group;
     const int gg = gz / num_output_g;
 
-    const float bottom_scale = buffer_ld1(bottom_scales_data, gg);
+    const float bottom_descale = buffer_ld1(bottom_scales_data, gg);
 
     int sum = 0;
 
@@ -122,8 +122,8 @@ void main()
         }
     }
 
-    const float weight_scale = buffer_ld1(weight_scales_data, gg);
-    const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
+    const float weight_descale = buffer_ld1(weight_scales_data, gg);
+    const float scale_in = bottom_descale * weight_descale;
 
     float sumfp32 = float(sum) * scale_in;
 

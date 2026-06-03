@@ -27,7 +27,8 @@ void main()
     if (i >= p.size)
         return;
 
-    const float scale = B_scale_data[0];
+    const float descale = B_scale_data[0];
+    const float scale = descale == 0.f ? 1.f : 1.f / descale;
 
     ivec4 v = ivec4(0);
     for (int lane = 0; lane < 4; lane++)

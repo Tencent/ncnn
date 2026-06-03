@@ -39,6 +39,6 @@ void main()
     if (lid == 0)
     {
         absmax = absmax_shared[0];
-        B_scale_data[0] = absmax == 0.f ? 1.f : 127.f / absmax;
+        B_scale_data[0] = absmax == 0.f ? 0.f : absmax * (1.f / 127.f);
     }
 }

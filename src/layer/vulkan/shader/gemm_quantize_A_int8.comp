@@ -34,7 +34,7 @@ void main()
     }
 
     const float scale = absmax == 0.f ? 1.f : 127.f / absmax;
-    A_scales_data[i] = scale;
+    A_scales_data[i] = absmax == 0.f ? 0.f : absmax * (1.f / 127.f);
 
     for (int k = 0; k < p.K; k++)
     {

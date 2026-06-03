@@ -48,8 +48,6 @@ layout(push_constant) uniform parameter
     int outcstep;
     int outcstep_native;
     int size;
-    int num_output;
-    int num_input;
 } p;
 
 #if NCNN_shader_local_memory
@@ -99,7 +97,7 @@ void main()
                     else // elempack == 1
                     {
                         const int ci = zz * 4 + ly;
-                        if (ci < psc(num_input))
+                        if (ci < num_input)
                             v4p = i8buffer_sm4(bottom_blob_int8_data, gx + ci * psc(cstep));
                     }
                 }
@@ -212,7 +210,7 @@ void main()
                     else // elempack == 1
                     {
                         const int ci = zz * 4 + ly;
-                        if (ci < psc(num_input))
+                        if (ci < num_input)
                             v4p = i8buffer_sm4(bottom_blob_int8_data, gx + ci * psc(cstep));
                     }
                 }
@@ -322,9 +320,9 @@ void main()
             const int v_offset = gx + z * 4 * psc(cstep);
             const int ci = z * 4;
             const ivec4 r0 = i8buffer_ld4(bottom_blob_int8_data, v_offset);
-            const ivec4 r1 = ci + 1 < psc(num_input) ? i8buffer_ld4(bottom_blob_int8_data, v_offset + psc(cstep)) : ivec4(0);
-            const ivec4 r2 = ci + 2 < psc(num_input) ? i8buffer_ld4(bottom_blob_int8_data, v_offset + psc(cstep) * 2) : ivec4(0);
-            const ivec4 r3 = ci + 3 < psc(num_input) ? i8buffer_ld4(bottom_blob_int8_data, v_offset + psc(cstep) * 3) : ivec4(0);
+            const ivec4 r1 = ci + 1 < num_input ? i8buffer_ld4(bottom_blob_int8_data, v_offset + psc(cstep)) : ivec4(0);
+            const ivec4 r2 = ci + 2 < num_input ? i8buffer_ld4(bottom_blob_int8_data, v_offset + psc(cstep) * 2) : ivec4(0);
+            const ivec4 r3 = ci + 3 < num_input ? i8buffer_ld4(bottom_blob_int8_data, v_offset + psc(cstep) * 3) : ivec4(0);
 
             v0p = packInt4x8(ivec4(r0.r, r1.r, r2.r, r3.r));
             v1p = packInt4x8(ivec4(r0.g, r1.g, r2.g, r3.g));
@@ -360,9 +358,9 @@ void main()
             const int v_offset = gx + z * 4 * psc(cstep);
             const int ci = z * 4;
             const ivec4 r0 = i8buffer_ld4(bottom_blob_int8_data, v_offset);
-            const ivec4 r1 = ci + 1 < psc(num_input) ? i8buffer_ld4(bottom_blob_int8_data, v_offset + psc(cstep)) : ivec4(0);
-            const ivec4 r2 = ci + 2 < psc(num_input) ? i8buffer_ld4(bottom_blob_int8_data, v_offset + psc(cstep) * 2) : ivec4(0);
-            const ivec4 r3 = ci + 3 < psc(num_input) ? i8buffer_ld4(bottom_blob_int8_data, v_offset + psc(cstep) * 3) : ivec4(0);
+            const ivec4 r1 = ci + 1 < num_input ? i8buffer_ld4(bottom_blob_int8_data, v_offset + psc(cstep)) : ivec4(0);
+            const ivec4 r2 = ci + 2 < num_input ? i8buffer_ld4(bottom_blob_int8_data, v_offset + psc(cstep) * 2) : ivec4(0);
+            const ivec4 r3 = ci + 3 < num_input ? i8buffer_ld4(bottom_blob_int8_data, v_offset + psc(cstep) * 3) : ivec4(0);
 
             v0 = ivec4(r0.r, r1.r, r2.r, r3.r);
             v1 = ivec4(r0.g, r1.g, r2.g, r3.g);
@@ -403,14 +401,10 @@ void main()
 #endif
 
     const int base_ch = gy * 4;
-    const int nout = psc(num_output);
-    const float bottom_scale = buffer_ld1(bottom_scales_data, 0);
-    const vec4 weight_scale = vec4(buffer_ld4(weight_scales_data, gy));
-    const vec4 scale_in = vec4(
-        bottom_scale == 0.f || weight_scale.r == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale.r),
-        bottom_scale == 0.f || weight_scale.g == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale.g),
-        bottom_scale == 0.f || weight_scale.b == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale.b),
-        bottom_scale == 0.f || weight_scale.a == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale.a));
+    const int nout = num_output;
+    const float bottom_descale = buffer_ld1(bottom_scales_data, 0);
+    const vec4 weight_descale = vec4(buffer_ld4(weight_scales_data, gy));
+    const vec4 scale_in = bottom_descale * weight_descale;
 
     vec4 sumfp32_0 = vec4(sum0) * scale_in;
     vec4 sumfp32_1 = vec4(sum1) * scale_in;

@@ -84,7 +84,7 @@ void main()
 
     const int channels_g = psc(c) / group;
     const int K = channels_g * kernel_w * kernel_h;
-    const float bottom_scale = buffer_ld1(bottom_scales_data, gz);
+    const float bottom_descale = buffer_ld1(bottom_scales_data, gz);
 
     ivec4 sum0 = ivec4(0);
     ivec4 sum1 = ivec4(0);
@@ -452,8 +452,8 @@ void main()
                 continue;
 
             const int outch_index = gz * num_output_g + outch_g_index;
-            const float weight_scale = buffer_ld1(weight_scales_data, gz);
-            const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
+            const float weight_descale = buffer_ld1(weight_scales_data, gz);
+            const float scale_in = bottom_descale * weight_descale;
 
             float sumfp32 = float(sumv[yi]) * scale_in;
 

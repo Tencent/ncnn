@@ -132,9 +132,9 @@ void main()
     v23 = (m21 - m22) + (m23 - m24) * 8 + m25;
     v33 = (m31 - m32) + (m33 - m34) * 8 + m35;
 
-    const float bottom_scale = buffer_ld1(bottom_scales_data, 0);
-    const float weight_scale = buffer_ld1(weight_scales_data, gz);
-    const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : (1.f / 576.f) / (bottom_scale * weight_scale);
+    const float bottom_descale = buffer_ld1(bottom_scales_data, 0);
+    const float weight_descale = buffer_ld1(weight_scales_data, gz);
+    const float scale_in = (1.f / 576.f) * bottom_descale * weight_descale;
 
     float out00 = float(v00) * scale_in;
     float out01 = float(v01) * scale_in;

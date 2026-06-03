@@ -16,7 +16,7 @@ layout(constant_id = 0) const int bias_term = 0;
 layout(constant_id = 1) const int activation_type = 0;
 layout(constant_id = 2) const float activation_param_0 = 0;
 layout(constant_id = 3) const float activation_param_1 = 0;
-layout(constant_id = 4) const float bottom_blob_int8_scale = 1.f;
+layout(constant_id = 4) const float bottom_blob_int8_descale = 1.f;
 
 #define shape_constant_id_offset 5
 layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
@@ -34,7 +34,7 @@ layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 layout(binding = 0) readonly buffer bottom_blob { sint8 bottom_blob_int8_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 2) readonly buffer weight_blob { sint8 weight_data[]; };
-layout(binding = 3) readonly buffer weight_scales_blob { sfp weight_scales_data[]; };
+layout(binding = 3) readonly buffer weight_scales_blob { sfpvec4 weight_scales_data[]; };
 layout(binding = 4) readonly buffer bias_blob { sfp bias_data[]; };
 
 layout(push_constant) uniform parameter
@@ -315,30 +315,7 @@ void main()
     const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
     const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
 
-    vec4 scale_in = vec4(0.f);
-    if (bottom_blob_int8_scale != 0.f)
-    {
-        if (gx4.r < psc(outw))
-        {
-            const float weight_scale = buffer_ld1(weight_scales_data, gx4.r);
-            scale_in.r = weight_scale == 0.f ? 0.f : 1.f / (bottom_blob_int8_scale * weight_scale);
-        }
-        if (gx4.g < psc(outw))
-        {
-            const float weight_scale = buffer_ld1(weight_scales_data, gx4.g);
-            scale_in.g = weight_scale == 0.f ? 0.f : 1.f / (bottom_blob_int8_scale * weight_scale);
-        }
-        if (gx4.b < psc(outw))
-        {
-            const float weight_scale = buffer_ld1(weight_scales_data, gx4.b);
-            scale_in.b = weight_scale == 0.f ? 0.f : 1.f / (bottom_blob_int8_scale * weight_scale);
-        }
-        if (gx4.a < psc(outw))
-        {
-            const float weight_scale = buffer_ld1(weight_scales_data, gx4.a);
-            scale_in.a = weight_scale == 0.f ? 0.f : 1.f / (bottom_blob_int8_scale * weight_scale);
-        }
-    }
+    const vec4 scale_in = bottom_blob_int8_descale * vec4(buffer_ld4(weight_scales_data, gx));
 
     vec4 sumfp0 = vec4(sum0) * scale_in;
     vec4 sumfp1 = vec4(sum1) * scale_in;

@@ -36,9 +36,9 @@ layout(binding = 0) readonly buffer bottom_blob { sint8vec4 bottom_blob_int8_dat
 layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 layout(binding = 2) readonly buffer weight_blob { sint8vec4 weight_data[]; };
 layout(binding = 3) readonly buffer bias_blob { float bias_data[]; };
-layout(binding = 4) readonly buffer weight_scales_blob { sfp weight_scales_data[]; };
-layout(binding = 5) readonly buffer bottom_scales_blob { sfp bottom_scales_data[]; };
-layout(binding = 6) readonly buffer top_scales_blob { sfp top_scales_data[]; };
+layout(binding = 4) readonly buffer weight_scales_blob { sfpvec4 weight_scales_data[]; };
+layout(binding = 5) readonly buffer bottom_scales_blob { sfpvec4 bottom_scales_data[]; };
+layout(binding = 6) readonly buffer top_scales_blob { sfpvec4 top_scales_data[]; };
 layout(binding = 7) writeonly buffer top_blob_int8 { sint8vec4 top_blob_int8_data[]; };
 
 layout(push_constant) uniform parameter
@@ -67,9 +67,8 @@ void main()
 
     const int maxk = kernel_w * kernel_h;
     const int scale_offset = gz * 4;
-
     // scales are per output-channel lane for depthwise pack4
-    const vec4 bottom_scale = vec4(buffer_ld1(bottom_scales_data, scale_offset + 0), buffer_ld1(bottom_scales_data, scale_offset + 1), buffer_ld1(bottom_scales_data, scale_offset + 2), buffer_ld1(bottom_scales_data, scale_offset + 3));
+    const vec4 bottom_descale = vec4(buffer_ld4(bottom_scales_data, gz));
 
     ivec4 sum = ivec4(0);
 
@@ -91,12 +90,8 @@ void main()
         sum += v * kv;
     }
 
-    const vec4 weight_scale = vec4(buffer_ld1(weight_scales_data, scale_offset + 0), buffer_ld1(weight_scales_data, scale_offset + 1), buffer_ld1(weight_scales_data, scale_offset + 2), buffer_ld1(weight_scales_data, scale_offset + 3));
-    const vec4 scale_in = vec4(
-        bottom_scale.r == 0.f || weight_scale.r == 0.f ? 0.f : 1.f / (bottom_scale.r * weight_scale.r),
-        bottom_scale.g == 0.f || weight_scale.g == 0.f ? 0.f : 1.f / (bottom_scale.g * weight_scale.g),
-        bottom_scale.b == 0.f || weight_scale.b == 0.f ? 0.f : 1.f / (bottom_scale.b * weight_scale.b),
-        bottom_scale.a == 0.f || weight_scale.a == 0.f ? 0.f : 1.f / (bottom_scale.a * weight_scale.a));
+    const vec4 weight_descale = vec4(buffer_ld4(weight_scales_data, gz));
+    const vec4 scale_in = bottom_descale * weight_descale;
 
     vec4 sumfp32 = vec4(sum) * scale_in;
 
@@ -111,7 +106,7 @@ void main()
 
     if (use_int8_requantize == 1)
     {
-        const vec4 top_scale = vec4(buffer_ld1(top_scales_data, scale_offset + 0), buffer_ld1(top_scales_data, scale_offset + 1), buffer_ld1(top_scales_data, scale_offset + 2), buffer_ld1(top_scales_data, scale_offset + 3));
+        const vec4 top_scale = vec4(buffer_ld4(top_scales_data, gz));
         const vec4 vf = clamp(sumfp32 * top_scale, vec4(-127.f), vec4(127.f));
         const ivec4 v = ivec4(
             int8_round(vf.r),

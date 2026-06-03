@@ -71,7 +71,7 @@ void main()
         return;
 
     const int maxk = kernel_w * kernel_h;
-    const float bottom_scale = buffer_ld1(bottom_scales_data, gz);
+    const float bottom_descale = buffer_ld1(bottom_scales_data, gz);
 
     int sum = 0;
 
@@ -152,8 +152,8 @@ void main()
         sum += v * kv;
     }
 
-    const float weight_scale = buffer_ld1(weight_scales_data, gz);
-    const float scale_in = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
+    const float weight_descale = buffer_ld1(weight_scales_data, gz);
+    const float scale_in = bottom_descale * weight_descale;
 
     float sumfp32 = float(sum) * scale_in;
 

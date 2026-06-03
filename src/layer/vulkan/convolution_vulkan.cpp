@@ -2737,7 +2737,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
         Mat local_size_xyz(8, 8, std::min(4, (outc_pack4 + 1) / 2), (void*)0);
 
         std::vector<vk_specialization_type> specializations_direct = specializations;
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < 8; i++)
         {
             specializations_direct[13 + i].i = 0;
         }
@@ -2769,6 +2769,7 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     const bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     const bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     const bool use_winograd = opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16;
+    const bool use_gemm = opt.use_sgemm_convolution && !is_conv1x1s1d1 && !use_winograd && num_input * maxk >= 8 && num_output >= 8;
 
     if (use_winograd)
     {
@@ -2795,30 +2796,47 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
         weight_data_int8_packed.release();
     }
 
-    if (is_conv1x1s1d1)
     {
-        const int num_output_packed = (num_output + 3) / 4 * 4;
+        int num_output_packed = (num_output + 3) / 4 * 4;
+        if (!is_conv1x1s1d1 && !use_winograd && !use_gemm)
+            num_output_packed = (num_output + 7) / 8 * 8;
 
-        Mat weight_data_int8_scales_packed;
-        weight_data_int8_scales_packed.create(num_output_packed / 4, (size_t)4u * 4, 4);
+        Mat weight_data_int8_descales;
+        if (is_conv1x1s1d1)
+            weight_data_int8_descales.create(num_output_packed / 4, (size_t)4u * 4, 4);
+        else
+            weight_data_int8_descales.create(num_output_packed, (size_t)4u, 1);
 
-        float* outptr = weight_data_int8_scales_packed;
+        float* outptr = weight_data_int8_descales;
         for (int q = 0; q < num_output_packed; q += 4)
         {
-            outptr[0] = q + 0 < num_output ? weight_data_int8_scales[q + 0] : 1.f;
-            outptr[1] = q + 1 < num_output ? weight_data_int8_scales[q + 1] : 1.f;
-            outptr[2] = q + 2 < num_output ? weight_data_int8_scales[q + 2] : 1.f;
-            outptr[3] = q + 3 < num_output ? weight_data_int8_scales[q + 3] : 1.f;
+            float scale0 = q + 0 < num_output ? weight_data_int8_scales[q + 0] : 0.f;
+            float scale1 = q + 1 < num_output ? weight_data_int8_scales[q + 1] : 0.f;
+            float scale2 = q + 2 < num_output ? weight_data_int8_scales[q + 2] : 0.f;
+            float scale3 = q + 3 < num_output ? weight_data_int8_scales[q + 3] : 0.f;
+            outptr[0] = scale0 == 0.f ? 0.f : 1.f / scale0;
+            outptr[1] = scale1 == 0.f ? 0.f : 1.f / scale1;
+            outptr[2] = scale2 == 0.f ? 0.f : 1.f / scale2;
+            outptr[3] = scale3 == 0.f ? 0.f : 1.f / scale3;
             outptr += 4;
         }
 
-        cmd.record_upload(weight_data_int8_scales_packed, weight_data_int8_scales_gpu, opt);
+        cmd.record_upload(weight_data_int8_descales, weight_data_int8_scales_gpu, opt);
     }
-    else
+
     {
-        cmd.record_upload(weight_data_int8_scales, weight_data_int8_scales_gpu, opt);
+        Mat bottom_blob_int8_descales;
+        bottom_blob_int8_descales.create((int)bottom_blob_int8_scales.total(), (size_t)4u, 1);
+
+        float* outptr = bottom_blob_int8_descales;
+        for (int i = 0; i < bottom_blob_int8_descales.w; i++)
+        {
+            float scale = bottom_blob_int8_scales[i];
+            outptr[i] = scale == 0.f ? 0.f : 1.f / scale;
+        }
+
+        cmd.record_upload(bottom_blob_int8_descales, bottom_blob_int8_scales_gpu, opt);
     }
-    cmd.record_upload(bottom_blob_int8_scales, bottom_blob_int8_scales_gpu, opt);
 
     const bool use_int8_requantize = int8_scale_term > 100;
     if (use_int8_requantize)
@@ -2828,29 +2846,27 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
     if (bias_term)
     {
-        if (is_conv1x1s1d1)
+        int num_output_packed = (num_output + 3) / 4 * 4;
+        if (!is_conv1x1s1d1 && !use_winograd && !use_gemm)
+            num_output_packed = (num_output + 7) / 8 * 8;
+
+        Mat bias_data_packed;
+        bias_data_packed.create(num_output_packed, (size_t)4u, 1);
+
+        float* outptr = bias_data_packed;
+        for (int q = 0; q < num_output_packed; q += 4)
         {
-            const int num_output_packed = (num_output + 3) / 4 * 4;
-
-            Mat bias_data_packed;
-            bias_data_packed.create(num_output_packed / 4, (size_t)4u * 4, 4);
-
-            float* outptr = bias_data_packed;
-            for (int q = 0; q < num_output_packed; q += 4)
-            {
-                outptr[0] = q + 0 < num_output ? bias_data[q + 0] : 0.f;
-                outptr[1] = q + 1 < num_output ? bias_data[q + 1] : 0.f;
-                outptr[2] = q + 2 < num_output ? bias_data[q + 2] : 0.f;
-                outptr[3] = q + 3 < num_output ? bias_data[q + 3] : 0.f;
-                outptr += 4;
-            }
-
-            cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
+            outptr[0] = q + 0 < num_output ? bias_data[q + 0] : 0.f;
+            outptr[1] = q + 1 < num_output ? bias_data[q + 1] : 0.f;
+            outptr[2] = q + 2 < num_output ? bias_data[q + 2] : 0.f;
+            outptr[3] = q + 3 < num_output ? bias_data[q + 3] : 0.f;
+            outptr += 4;
         }
+
+        if (use_winograd)
+            cmd.record_upload(bias_data_packed, bias_data_gpu, opt_fp32);
         else
-        {
-            cmd.record_upload(bias_data, bias_data_gpu, opt_fp32);
-        }
+            cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
 
         bias_data.release();
     }
@@ -3190,15 +3206,13 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
         bindings_1x1[6] = top_blob_int8_scales_gpu;
         bindings_1x1[7] = top_blob;
 
-        std::vector<vk_constant_type> constants_1x1(8);
+        std::vector<vk_constant_type> constants_1x1(6);
         constants_1x1[0].i = c_packed;
         constants_1x1[1].i = cstep_vec4;
         constants_1x1[2].i = outc_pack4;
         constants_1x1[3].i = outcstep_vec4;
         constants_1x1[4].i = outcstep_native;
         constants_1x1[5].i = size;
-        constants_1x1[6].i = num_output;
-        constants_1x1[7].i = num_input;
 
         VkMat dispatcher;
         dispatcher.w = size;
@@ -3225,7 +3239,7 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
         bindings[9] = top_blob;
         bindings[10] = top_blob;
 
-        std::vector<vk_constant_type> constants(10);
+        std::vector<vk_constant_type> constants(8);
         constants[0].i = bottom.w;
         constants[1].i = bottom.h;
         constants[2].i = c_packed;
@@ -3234,8 +3248,6 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
         constants[5].i = top_blob.h;
         constants[6].i = outc_pack4;
         constants[7].i = out_elempack == 4 ? top_blob.cstep : top_blob.cstep * 4;
-        constants[8].i = num_output;
-        constants[9].i = num_input;
 
         VkMat dispatcher;
         dispatcher.w = (top_blob.w * top_blob.h + 3) / 4;
@@ -3263,7 +3275,7 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
         bindings[9] = top_blob;
         bindings[10] = top_blob;
 
-        std::vector<vk_constant_type> constants(10);
+        std::vector<vk_constant_type> constants(8);
         constants[0].i = bottom.w;
         constants[1].i = bottom.h;
         constants[2].i = c_shader;
@@ -3272,8 +3284,6 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
         constants[5].i = top_blob.h;
         constants[6].i = outc_pack4;
         constants[7].i = out_elempack == 4 ? top_blob.cstep : top_blob.cstep * 4;
-        constants[8].i = num_output;
-        constants[9].i = num_input;
 
         VkMat dispatcher;
         dispatcher.w = (top_blob.w + 1) / 2;

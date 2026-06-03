@@ -14,7 +14,7 @@ layout(constant_id = 0) const int bias_term = 0;
 layout(constant_id = 1) const int activation_type = 0;
 layout(constant_id = 2) const float activation_param_0 = 0;
 layout(constant_id = 3) const float activation_param_1 = 0;
-layout(constant_id = 4) const float bottom_blob_int8_scale = 1.f;
+layout(constant_id = 4) const float bottom_blob_int8_descale = 1.f;
 
 #define shape_constant_id_offset 5
 layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
@@ -116,8 +116,8 @@ void main()
         sum += v * k;
     }
 
-    const float weight_scale = buffer_ld1(weight_scales_data, gx);
-    float scale_in = bottom_blob_int8_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_blob_int8_scale * weight_scale);
+    const float weight_descale = buffer_ld1(weight_scales_data, gx);
+    const float scale_in = bottom_blob_int8_descale * weight_descale;
 
     afp sumfp32 = afp(float(sum) * scale_in);
 

@@ -1082,7 +1082,17 @@ int Gemm_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
         A_data_int8_packed.release();
 
-        cmd.record_upload(A_data_int8_scales, A_data_int8_scales_gpu, opt_fp32);
+        Mat A_data_int8_descales;
+        A_data_int8_descales.create((int)A_data_int8_scales.total(), (size_t)4u, 1);
+
+        float* outptr = A_data_int8_descales;
+        for (int i = 0; i < A_data_int8_descales.w; i++)
+        {
+            float scale = A_data_int8_scales[i];
+            outptr[i] = scale == 0.f ? 0.f : 1.f / scale;
+        }
+
+        cmd.record_upload(A_data_int8_descales, A_data_int8_scales_gpu, opt_fp32);
 
         A_data_int8_scales.release();
     }
@@ -1093,7 +1103,17 @@ int Gemm_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
         B_data_int8_packed.release();
 
-        cmd.record_upload(B_data_int8_scales, B_data_int8_scales_gpu, opt_fp32);
+        Mat B_data_int8_descales;
+        B_data_int8_descales.create((int)B_data_int8_scales.total(), (size_t)4u, 1);
+
+        float* outptr = B_data_int8_descales;
+        for (int i = 0; i < B_data_int8_descales.w; i++)
+        {
+            float scale = B_data_int8_scales[i];
+            outptr[i] = scale == 0.f ? 0.f : 1.f / scale;
+        }
+
+        cmd.record_upload(B_data_int8_descales, B_data_int8_scales_gpu, opt_fp32);
 
         B_data_int8_scales.release();
     }

@@ -925,8 +925,33 @@ int ConvolutionDepthWise_vulkan::upload_model_int8(VkTransfer& cmd, const Option
 
     weight_data_int8_packed.release();
 
-    cmd.record_upload(weight_data_int8_scales, weight_data_int8_scales_gpu, opt);
-    cmd.record_upload(bottom_blob_int8_scales, bottom_blob_int8_scales_gpu, opt);
+    {
+        Mat weight_data_int8_descales;
+        weight_data_int8_descales.create((int)weight_data_int8_scales.total(), (size_t)4u, 1);
+
+        float* outptr = weight_data_int8_descales;
+        for (int i = 0; i < weight_data_int8_descales.w; i++)
+        {
+            float scale = weight_data_int8_scales[i];
+            outptr[i] = scale == 0.f ? 0.f : 1.f / scale;
+        }
+
+        cmd.record_upload(weight_data_int8_descales, weight_data_int8_scales_gpu, opt);
+    }
+
+    {
+        Mat bottom_blob_int8_descales;
+        bottom_blob_int8_descales.create((int)bottom_blob_int8_scales.total(), (size_t)4u, 1);
+
+        float* outptr = bottom_blob_int8_descales;
+        for (int i = 0; i < bottom_blob_int8_descales.w; i++)
+        {
+            float scale = bottom_blob_int8_scales[i];
+            outptr[i] = scale == 0.f ? 0.f : 1.f / scale;
+        }
+
+        cmd.record_upload(bottom_blob_int8_descales, bottom_blob_int8_scales_gpu, opt);
+    }
 
     const bool use_int8_requantize = int8_scale_term > 100;
     if (use_int8_requantize)
