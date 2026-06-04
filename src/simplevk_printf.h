@@ -12,8 +12,8 @@
 
 namespace ncnn {
 
-#define NCNN_SIMPLEVK_PRINTF_SET 3
-#define NCNN_SIMPLEVK_PRINTF_BINDING 0
+#define NCNN_SIMPLEVK_PRINTF_SET              3
+#define NCNN_SIMPLEVK_PRINTF_BINDING          0
 #define NCNN_SIMPLEVK_PRINTF_SHADER_INFO_FLAG 1
 
 struct SimplevkPrintfCommand;
