@@ -135,24 +135,30 @@ int Padding_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack1
-    if (out_shape.dims == 0 || (offset_elempack == 1 && out_shape.elempack == 1))
+    if (out_shape.dims == 0 || (out_shape.dims != 4 && offset_elempack == 1 && out_shape.elempack == 1))
     {
         pipeline_padding = new Pipeline(vkdev);
         pipeline_padding->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_padding->create(LayerShaderType::padding, opt, specializations);
+    }
 
+    if (out_shape.dims == 0 || (out_shape.dims == 4 && offset_elempack == 1 && out_shape.elempack == 1))
+    {
         pipeline_padding_3d = new Pipeline(vkdev);
         pipeline_padding_3d->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_padding_3d->create(LayerShaderType::padding_3d, opt, specializations_3d);
     }
 
     // pack4
-    if (out_shape.dims == 0 || (offset_elempack == 4 && out_shape.elempack == 4))
+    if (out_shape.dims == 0 || (out_shape.dims != 4 && offset_elempack == 4 && out_shape.elempack == 4))
     {
         pipeline_padding_pack4 = new Pipeline(vkdev);
         pipeline_padding_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_padding_pack4->create(LayerShaderType::padding_pack4, opt, specializations);
+    }
 
+    if (out_shape.dims == 0 || (out_shape.dims == 4 && offset_elempack == 4 && out_shape.elempack == 4))
+    {
         pipeline_padding_3d_pack4 = new Pipeline(vkdev);
         pipeline_padding_3d_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_padding_3d_pack4->create(LayerShaderType::padding_3d_pack4, opt, specializations_3d);
@@ -704,24 +710,30 @@ int Padding_vulkan::create_pipeline_int8(const Option& opt)
     }
 
     // pack1
-    if (out_shape.dims == 0 || (offset_elempack == 1 && out_shape.elempack == 1))
+    if (out_shape.dims == 0 || (out_shape.dims != 4 && offset_elempack == 1 && out_shape.elempack == 1))
     {
         pipeline_padding_int8 = new Pipeline(vkdev);
         pipeline_padding_int8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_padding_int8->create(LayerShaderType::padding_int8, opt, specializations);
+    }
 
+    if (out_shape.dims == 0 || (out_shape.dims == 4 && offset_elempack == 1 && out_shape.elempack == 1))
+    {
         pipeline_padding_3d_int8 = new Pipeline(vkdev);
         pipeline_padding_3d_int8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_padding_3d_int8->create(LayerShaderType::padding_3d_int8, opt, specializations_3d);
     }
 
     // pack4
-    if (out_shape.dims == 0 || (offset_elempack == 4 && out_shape.elempack == 4))
+    if (out_shape.dims == 0 || (out_shape.dims != 4 && offset_elempack == 4 && out_shape.elempack == 4))
     {
         pipeline_padding_pack4_int8 = new Pipeline(vkdev);
         pipeline_padding_pack4_int8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_padding_pack4_int8->create(LayerShaderType::padding_pack4_int8, opt, specializations);
+    }
 
+    if (out_shape.dims == 0 || (out_shape.dims == 4 && offset_elempack == 4 && out_shape.elempack == 4))
+    {
         pipeline_padding_3d_pack4_int8 = new Pipeline(vkdev);
         pipeline_padding_3d_pack4_int8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_padding_3d_pack4_int8->create(LayerShaderType::padding_3d_pack4_int8, opt, specializations_3d);

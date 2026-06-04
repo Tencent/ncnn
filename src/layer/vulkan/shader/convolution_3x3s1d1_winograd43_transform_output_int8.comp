@@ -15,8 +15,8 @@ layout(constant_id = 4) const int use_int8_requantize = 0;
 layout(binding = 0) readonly buffer top_tm_blob { int top_tm_blob_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 2) readonly buffer bias_blob { float bias_data[]; };
-layout(binding = 3) readonly buffer weight_scales_blob { sfp weight_scales_data[]; };
-layout(binding = 4) readonly buffer bottom_scales_blob { sfp bottom_scales_data[]; };
+layout(binding = 3) readonly buffer weight_scales_blob { float weight_scales_data[]; };
+layout(binding = 4) readonly buffer bottom_scales_blob { float bottom_scales_data[]; };
 layout(binding = 5) readonly buffer top_scales_blob { sfp top_scales_data[]; };
 layout(binding = 6) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
 
@@ -132,8 +132,8 @@ void main()
     v23 = (m21 - m22) + (m23 - m24) * 8 + m25;
     v33 = (m31 - m32) + (m33 - m34) * 8 + m35;
 
-    const float bottom_descale = buffer_ld1(bottom_scales_data, 0);
-    const float weight_descale = buffer_ld1(weight_scales_data, gz);
+    const float bottom_descale = bottom_scales_data[0];
+    const float weight_descale = weight_scales_data[gz];
     const float scale_in = (1.f / 576.f) * bottom_descale * weight_descale;
 
     float out00 = float(v00) * scale_in;

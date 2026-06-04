@@ -45,8 +45,8 @@ layout(binding = 2) readonly buffer bottom_blob_4 { sint8vec4 bottom_blob_int8_d
 layout(binding = 3) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
 layout(binding = 4) readonly buffer weight_blob { sint8vec4 weight_data[]; };
 layout(binding = 5) readonly buffer bias_blob { sfpvec4 bias_data[]; };
-layout(binding = 6) readonly buffer weight_scales_blob { sfpvec4 weight_scales_data[]; };
-layout(binding = 7) readonly buffer bottom_scales_blob { sfp bottom_scales_data[]; };
+layout(binding = 6) readonly buffer weight_scales_blob { vec4 weight_scales_data[]; };
+layout(binding = 7) readonly buffer bottom_scales_blob { float bottom_scales_data[]; };
 layout(binding = 8) readonly buffer top_scales_blob { sfp top_scales_data[]; };
 layout(binding = 9) writeonly buffer top_blob_int8_1 { sint8 top_blob_int8_data_1[]; };
 layout(binding = 10) writeonly buffer top_blob_int8_4 { sint8vec4 top_blob_int8_data_4[]; };
@@ -75,7 +75,7 @@ void main()
         return;
 
     int maxk = kernel_w * kernel_h;
-    const float bottom_descale = buffer_ld1(bottom_scales_data, 0);
+    const float bottom_descale = bottom_scales_data[0];
 
     ivec2 gx2 = gx + ivec2(0, 1);
     ivec2 gy2 = gy + ivec2(0, 1);
@@ -221,8 +221,8 @@ void main()
     int nout = num_output;
     ivec2 base_ch = gz2 * 4;
 
-    const vec4 weight_descale0 = vec4(buffer_ld4(weight_scales_data, gz2.x));
-    const vec4 weight_descale1 = vec4(buffer_ld4(weight_scales_data, gz2.y));
+    const vec4 weight_descale0 = weight_scales_data[gz2.x];
+    const vec4 weight_descale1 = weight_scales_data[gz2.y];
     const vec4 scale_in0 = bottom_descale * weight_descale0;
     const vec4 scale_in1 = bottom_descale * weight_descale1;
 

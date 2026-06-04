@@ -2809,7 +2809,7 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
             outptr += 4;
         }
 
-        cmd.record_upload(weight_data_int8_descales, weight_data_int8_scales_gpu, opt);
+        cmd.record_upload(weight_data_int8_descales, weight_data_int8_scales_gpu, opt_fp32);
     }
 
     {
@@ -2823,7 +2823,7 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
             outptr[i] = scale == 0.f ? 0.f : 1.f / scale;
         }
 
-        cmd.record_upload(bottom_blob_int8_descales, bottom_blob_int8_scales_gpu, opt);
+        cmd.record_upload(bottom_blob_int8_descales, bottom_blob_int8_scales_gpu, opt_fp32);
     }
 
     const bool use_int8_requantize = int8_scale_term > 100;
