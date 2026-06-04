@@ -166,6 +166,33 @@ static void transpose_contiguous_pack1_fp32(const float* ptr, int w, int h, floa
 
 Permute_x86::Permute_x86()
 {
+#if __SSE2__
+    support_packing = true;
+#endif
+}
+
+static void unpack_permute_repack(const Mat& bottom_blob, Mat& top_blob, int order_type, const Option& opt)
+{
+    Mat bottom_blob_unpacked;
+    {
+        Option opt_unpack = opt;
+        opt_unpack.blob_allocator = opt.workspace_allocator;
+        ncnn::convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_unpack);
+    }
+
+    Mat top_unpacked;
+    Permute permute_op;
+    permute_op.order_type = order_type;
+    permute_op.forward(bottom_blob_unpacked, top_unpacked, opt);
+
+    if (bottom_blob.elempack > 1 && top_unpacked.c % bottom_blob.elempack == 0)
+    {
+        ncnn::convert_packing(top_unpacked, top_blob, bottom_blob.elempack, opt);
+    }
+    else
+    {
+        top_blob = top_unpacked;
+    }
 }
 
 int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -176,11 +203,19 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     const int channels = bottom_blob.c;
     const size_t elemsize = bottom_blob.elemsize;
     const int dims = bottom_blob.dims;
-    const bool use_fp32_pack1_fast_path = bottom_blob.elembits() == 32 && bottom_blob.elempack == 1;
+    const int elempack = bottom_blob.elempack;
+    const bool use_fp32_pack1_fast_path = bottom_blob.elembits() == 32 && elempack == 1;
 
     if (dims == 1)
     {
         top_blob = bottom_blob;
+        return 0;
+    }
+
+    if (elempack > 1 && bottom_blob.elembits() == 32)
+    {
+        // packed fp32: unpack → pack1 permute → repack
+        unpack_permute_repack(bottom_blob, top_blob, order_type, opt);
         return 0;
     }
 
