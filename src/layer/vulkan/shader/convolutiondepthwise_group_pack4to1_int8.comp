@@ -40,10 +40,9 @@ layout(binding = 0) readonly buffer bottom_blob { sint8vec4 bottom_blob_int8_dat
 layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 2) readonly buffer weight_blob { sint8vec4 weight_data[]; };
 layout(binding = 3) readonly buffer bias_blob { float bias_data[]; };
-layout(binding = 4) readonly buffer weight_scales_blob { sfp weight_scales_data[]; };
-layout(binding = 5) readonly buffer bottom_scales_blob { sfp bottom_scales_data[]; };
-layout(binding = 6) readonly buffer top_scales_blob { sfp top_scales_data[]; };
-layout(binding = 7) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
+layout(binding = 4) readonly buffer scale_in_blob { float scale_in_data[]; };
+layout(binding = 5) readonly buffer top_scales_blob { sfp top_scales_data[]; };
+layout(binding = 6) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
 // scales are indexed by group for grouped int8 convolution
 
 layout(push_constant) uniform parameter
@@ -75,8 +74,6 @@ void main()
     const int num_output_g = psc(outc) / group;
     const int gg = gz / num_output_g;
 
-    const float bottom_descale = buffer_ld1(bottom_scales_data, gg);
-
     int sum = 0;
 
     for (int q = 0; q < channels_g; q++)
@@ -91,16 +88,12 @@ void main()
             const int wi = (gz * channels_g + q) * maxk + k;
 
 #if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
-            int v4p = 0;
-            if (x < psc(w) && y < psc(h))
-            {
-                const int gi = (gg * channels_g + q) * psc(cstep) + y * psc(w) + x;
+            const int gi = (gg * channels_g + q) * psc(cstep) + y * psc(w) + x;
 #if NCNN_int8_storage
-                v4p = packInt4x8(i8buffer_ld4(bottom_blob_int8_data, gi));
+            const int v4p = packInt4x8(i8buffer_ld4(bottom_blob_int8_data, gi));
 #else
-                v4p = bottom_blob_int8_data[gi];
+            const int v4p = bottom_blob_int8_data[gi];
 #endif
-            }
 
 #if NCNN_int8_storage
             const int k4p = packInt4x8(i8buffer_ld4(weight_data, wi));
@@ -109,12 +102,8 @@ void main()
 #endif
             sum += dotPacked4x8EXT(v4p, k4p);
 #else
-            ivec4 v = ivec4(0);
-            if (x < psc(w) && y < psc(h))
-            {
-                const int gi = (gg * channels_g + q) * psc(cstep) + y * psc(w) + x;
-                v = i8buffer_ld4(bottom_blob_int8_data, gi);
-            }
+            const int gi = (gg * channels_g + q) * psc(cstep) + y * psc(w) + x;
+            const ivec4 v = i8buffer_ld4(bottom_blob_int8_data, gi);
 
             const ivec4 kv = i8buffer_ld4(weight_data, wi);
             sum += v.r * kv.r + v.g * kv.g + v.b * kv.b + v.a * kv.a;
@@ -122,10 +111,7 @@ void main()
         }
     }
 
-    const float weight_descale = buffer_ld1(weight_scales_data, gg);
-    const float scale_in = bottom_descale * weight_descale;
-
-    float sumfp32 = float(sum) * scale_in;
+    float sumfp32 = float(sum) * scale_in_data[gg];
 
     if (bias_term == 1)
     {

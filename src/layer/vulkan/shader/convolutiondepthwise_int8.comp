@@ -38,13 +38,11 @@ layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 layout(binding = 0) readonly buffer bottom_blob { sint8 bottom_blob_int8_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
-layout(binding = 2) readonly buffer weight_blob { sint8 weight_data[]; };
+layout(binding = 2) readonly buffer weight_blob { sint8vec4 weight_data[]; };
 layout(binding = 3) readonly buffer bias_blob { float bias_data[]; };
-layout(binding = 4) readonly buffer weight_scales_blob { sfp weight_scales_data[]; };
-layout(binding = 5) readonly buffer bottom_scales_blob { sfp bottom_scales_data[]; };
-layout(binding = 6) readonly buffer top_scales_blob { sfp top_scales_data[]; };
-layout(binding = 7) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
-// scales are per channel for depthwise pack1
+layout(binding = 4) readonly buffer scale_in_blob { float scale_in_data[]; };
+layout(binding = 5) readonly buffer top_scales_blob { sfp top_scales_data[]; };
+layout(binding = 6) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -71,91 +69,35 @@ void main()
         return;
 
     const int maxk = kernel_w * kernel_h;
-    const float bottom_descale = buffer_ld1(bottom_scales_data, gz);
+    const int maxk4 = (maxk + 3) / 4 * 4;
+    const int maxk4d4 = maxk4 / 4;
 
     int sum = 0;
 
-    int k = 0;
-    for (; k + 3 < maxk; k += 4)
+    for (int k = 0; k < maxk4; k += 4)
     {
-        const ivec4 k4 = k + ivec4(0, 1, 2, 3);
+        const ivec4 k4 = min(k + ivec4(0, 1, 2, 3), ivec4(maxk - 1));
         const ivec4 ky4 = k4 / kernel_w;
         const ivec4 kx4 = k4 - ky4 * kernel_w;
         const ivec4 x4 = gx * stride_w + kx4 * dilation_w;
         const ivec4 y4 = gy * stride_h + ky4 * dilation_h;
 
-        ivec4 v = ivec4(0);
-        if (x4.r < psc(w) && y4.r < psc(h))
-        {
-            const int gi = gz * psc(cstep) + y4.r * psc(w) + x4.r;
-            v.r = i8buffer_ld1(bottom_blob_int8_data, gi);
-        }
-        if (x4.g < psc(w) && y4.g < psc(h))
-        {
-            const int gi = gz * psc(cstep) + y4.g * psc(w) + x4.g;
-            v.g = i8buffer_ld1(bottom_blob_int8_data, gi);
-        }
-        if (x4.b < psc(w) && y4.b < psc(h))
-        {
-            const int gi = gz * psc(cstep) + y4.b * psc(w) + x4.b;
-            v.b = i8buffer_ld1(bottom_blob_int8_data, gi);
-        }
-        if (x4.a < psc(w) && y4.a < psc(h))
-        {
-            const int gi = gz * psc(cstep) + y4.a * psc(w) + x4.a;
-            v.a = i8buffer_ld1(bottom_blob_int8_data, gi);
-        }
+        const ivec4 v = ivec4(
+            i8buffer_ld1(bottom_blob_int8_data, gz * psc(cstep) + y4.r * psc(w) + x4.r),
+            i8buffer_ld1(bottom_blob_int8_data, gz * psc(cstep) + y4.g * psc(w) + x4.g),
+            i8buffer_ld1(bottom_blob_int8_data, gz * psc(cstep) + y4.b * psc(w) + x4.b),
+            i8buffer_ld1(bottom_blob_int8_data, gz * psc(cstep) + y4.a * psc(w) + x4.a));
 
-        const int k_offset = gz * maxk + k;
-
-        int k4p;
-
-#if NCNN_int8_storage
-        k4p = packInt4x8(ivec4(int(weight_data[k_offset + 0]), int(weight_data[k_offset + 1]), int(weight_data[k_offset + 2]), int(weight_data[k_offset + 3])));
-#else
-        const int koffsetd4 = k_offset / 4;
-        const int koffsetm4 = k_offset % 4;
-        if (koffsetm4 == 0)
-        {
-            k4p = weight_data[koffsetd4];
-        }
-        else
-        {
-            const int shift = koffsetm4 * 8;
-            k4p = int((uint(weight_data[koffsetd4]) >> shift) | (uint(weight_data[koffsetd4 + 1]) << (32 - shift)));
-        }
-#endif
+        const ivec4 kv = i8buffer_ld4(weight_data, gz * maxk4d4 + k / 4);
 
 #if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
-        sum += dotPacked4x8EXT(packInt4x8(v), k4p);
+        sum += dotPacked4x8EXT(packInt4x8(v), packInt4x8(kv));
 #else
-        const ivec4 k4v = unpackInt4x8(k4p);
-        sum += v.r * k4v.r + v.g * k4v.g + v.b * k4v.b + v.a * k4v.a;
+        sum += v.r * kv.r + v.g * kv.g + v.b * kv.b + v.a * kv.a;
 #endif
     }
 
-    for (; k < maxk; k++)
-    {
-        const int ky = k / kernel_w;
-        const int kx = k - ky * kernel_w;
-        const int x = gx * stride_w + kx * dilation_w;
-        const int y = gy * stride_h + ky * dilation_h;
-
-        int v = 0;
-        if (x < psc(w) && y < psc(h))
-        {
-            const int gi = gz * psc(cstep) + y * psc(w) + x;
-            v = i8buffer_ld1(bottom_blob_int8_data, gi);
-        }
-
-        const int kv = i8buffer_ld1(weight_data, gz * maxk + k);
-        sum += v * kv;
-    }
-
-    const float weight_descale = buffer_ld1(weight_scales_data, gz);
-    const float scale_in = bottom_descale * weight_descale;
-
-    float sumfp32 = float(sum) * scale_in;
+    float sumfp32 = float(sum) * scale_in_data[gz];
 
     if (bias_term == 1)
     {

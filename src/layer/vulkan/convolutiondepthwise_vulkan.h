@@ -52,7 +52,6 @@ public:
     Mat weight_data_int8_packed;
 
     VkMat weight_data_int8_scales_gpu;
-    VkMat bottom_blob_int8_scales_gpu;
     VkMat top_blob_int8_scales_gpu;
 #endif
 };

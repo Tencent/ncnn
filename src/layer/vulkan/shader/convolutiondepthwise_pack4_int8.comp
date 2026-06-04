@@ -3,6 +3,10 @@
 
 #version 450
 
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#extension GL_EXT_integer_dot_product : require
+#endif
+
 #extension GL_GOOGLE_include_directive : enable
 #include "vulkan_activation.comp"
 
@@ -35,11 +39,10 @@ layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 layout(binding = 0) readonly buffer bottom_blob { sint8vec4 bottom_blob_int8_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 layout(binding = 2) readonly buffer weight_blob { sint8vec4 weight_data[]; };
-layout(binding = 3) readonly buffer bias_blob { float bias_data[]; };
-layout(binding = 4) readonly buffer weight_scales_blob { sfpvec4 weight_scales_data[]; };
-layout(binding = 5) readonly buffer bottom_scales_blob { sfpvec4 bottom_scales_data[]; };
-layout(binding = 6) readonly buffer top_scales_blob { sfpvec4 top_scales_data[]; };
-layout(binding = 7) writeonly buffer top_blob_int8 { sint8vec4 top_blob_int8_data[]; };
+layout(binding = 3) readonly buffer bias_blob { vec4 bias_data[]; };
+layout(binding = 4) readonly buffer scale_in_blob { vec4 scale_in_data[]; };
+layout(binding = 5) readonly buffer top_scales_blob { sfpvec4 top_scales_data[]; };
+layout(binding = 6) writeonly buffer top_blob_int8 { sint8vec4 top_blob_int8_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -66,38 +69,47 @@ void main()
         return;
 
     const int maxk = kernel_w * kernel_h;
-    const int scale_offset = gz * 4;
-    // scales are per output-channel lane for depthwise pack4
-    const vec4 bottom_descale = vec4(buffer_ld4(bottom_scales_data, gz));
+    const int maxk4 = (maxk + 3) / 4 * 4;
 
     ivec4 sum = ivec4(0);
 
-    for (int k = 0; k < maxk; k++)
+    int k = 0;
+    for (; k < maxk4; k += 4)
     {
-        const int ky = k / kernel_w;
-        const int kx = k - ky * kernel_w;
-        const int x = gx * stride_w + kx * dilation_w;
-        const int y = gy * stride_h + ky * dilation_h;
+        const ivec4 k4 = min(k + ivec4(0, 1, 2, 3), ivec4(maxk - 1));
+        const ivec4 ky4 = k4 / kernel_w;
+        const ivec4 kx4 = k4 - ky4 * kernel_w;
+        const ivec4 x4 = gx * stride_w + kx4 * dilation_w;
+        const ivec4 y4 = gy * stride_h + ky4 * dilation_h;
 
-        ivec4 v = ivec4(0);
-        if (x < psc(w) && y < psc(h))
-        {
-            const int gi = gz * psc(cstep) + y * psc(w) + x;
-            v = i8buffer_ld4(bottom_blob_int8_data, gi);
-        }
+        const ivec4 v0 = i8buffer_ld4(bottom_blob_int8_data, gz * psc(cstep) + y4.r * psc(w) + x4.r);
+        const ivec4 v1 = i8buffer_ld4(bottom_blob_int8_data, gz * psc(cstep) + y4.g * psc(w) + x4.g);
+        const ivec4 v2 = i8buffer_ld4(bottom_blob_int8_data, gz * psc(cstep) + y4.b * psc(w) + x4.b);
+        const ivec4 v3 = i8buffer_ld4(bottom_blob_int8_data, gz * psc(cstep) + y4.a * psc(w) + x4.a);
 
-        const ivec4 kv = i8buffer_ld4(weight_data, gz * maxk + k);
-        sum += v * kv;
+        const ivec4 k0 = i8buffer_ld4(weight_data, gz * maxk4 + k + 0);
+        const ivec4 k1 = i8buffer_ld4(weight_data, gz * maxk4 + k + 1);
+        const ivec4 k2 = i8buffer_ld4(weight_data, gz * maxk4 + k + 2);
+        const ivec4 k3 = i8buffer_ld4(weight_data, gz * maxk4 + k + 3);
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+        sum.r += dotPacked4x8EXT(packInt4x8(ivec4(v0.r, v1.r, v2.r, v3.r)), packInt4x8(ivec4(k0.r, k1.r, k2.r, k3.r)));
+        sum.g += dotPacked4x8EXT(packInt4x8(ivec4(v0.g, v1.g, v2.g, v3.g)), packInt4x8(ivec4(k0.g, k1.g, k2.g, k3.g)));
+        sum.b += dotPacked4x8EXT(packInt4x8(ivec4(v0.b, v1.b, v2.b, v3.b)), packInt4x8(ivec4(k0.b, k1.b, k2.b, k3.b)));
+        sum.a += dotPacked4x8EXT(packInt4x8(ivec4(v0.a, v1.a, v2.a, v3.a)), packInt4x8(ivec4(k0.a, k1.a, k2.a, k3.a)));
+#else
+        sum += v0 * k0;
+        sum += v1 * k1;
+        sum += v2 * k2;
+        sum += v3 * k3;
+#endif
     }
 
-    const vec4 weight_descale = vec4(buffer_ld4(weight_scales_data, gz));
-    const vec4 scale_in = bottom_descale * weight_descale;
-
-    vec4 sumfp32 = vec4(sum) * scale_in;
+    vec4 sumfp32 = vec4(sum) * scale_in_data[gz];
 
     if (bias_term == 1)
     {
-        sumfp32 += vec4(bias_data[scale_offset + 0], bias_data[scale_offset + 1], bias_data[scale_offset + 2], bias_data[scale_offset + 3]);
+        sumfp32 += bias_data[gz];
     }
 
     sumfp32 = vec4(activation_afpvec4(afpvec4(sumfp32), activation_type, activation_param_0, activation_param_1));
@@ -106,13 +118,8 @@ void main()
 
     if (use_int8_requantize == 1)
     {
-        const vec4 top_scale = vec4(buffer_ld4(top_scales_data, gz));
-        const vec4 vf = clamp(sumfp32 * top_scale, vec4(-127.f), vec4(127.f));
-        const ivec4 v = ivec4(
-            int8_round(vf.r),
-            int8_round(vf.g),
-            int8_round(vf.b),
-            int8_round(vf.a));
+        const vec4 vf = clamp(sumfp32 * vec4(buffer_ld4(top_scales_data, gz)), vec4(-127.f), vec4(127.f));
+        const ivec4 v = ivec4(int8_round(vf.r), int8_round(vf.g), int8_round(vf.b), int8_round(vf.a));
         i8buffer_st4(top_blob_int8_data, gi, v);
     }
     else
