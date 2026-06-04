@@ -33,6 +33,10 @@ protected:
 public:
     VkMat per_channel_pad_data_gpu;
 
+#if NCNN_INT8
+    VkMat per_channel_pad_data_int8_gpu;
+#endif // NCNN_INT8
+
     Pipeline* pipeline_padding;
     Pipeline* pipeline_padding_pack4;
     Pipeline* pipeline_padding_pack1to4;

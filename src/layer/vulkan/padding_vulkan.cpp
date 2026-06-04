@@ -240,6 +240,27 @@ int Padding_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     cmd.record_upload(per_channel_pad_data, per_channel_pad_data_gpu, opt);
 
+#if NCNN_INT8
+    {
+        Mat per_channel_pad_data_int8;
+        per_channel_pad_data_int8.create((per_channel_pad_data_size + 3) / 4 * 4, (size_t)1u, 1);
+        if (per_channel_pad_data_int8.empty())
+            return -100;
+
+        signed char* outptr = per_channel_pad_data_int8;
+        for (int i = 0; i < per_channel_pad_data_int8.w; i++)
+        {
+            outptr[i] = 0;
+        }
+        for (int i = 0; i < per_channel_pad_data_size; i++)
+        {
+            outptr[i] = static_cast<signed char>((float)per_channel_pad_data[i]);
+        }
+
+        cmd.record_upload(per_channel_pad_data_int8, per_channel_pad_data_int8_gpu, opt);
+    }
+#endif // NCNN_INT8
+
     if (opt.lightmode)
     {
         per_channel_pad_data.release();
@@ -867,7 +888,7 @@ int Padding_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, VkCo
     std::vector<VkMat> bindings(3);
     bindings[0] = bottom_blob_unpacked;
     bindings[1] = top_blob;
-    bindings[2] = per_channel_pad_data_gpu;
+    bindings[2] = per_channel_pad_data_int8_gpu;
 
     if (dims == 4)
     {
@@ -1063,7 +1084,7 @@ int Padding_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::ve
     std::vector<VkMat> bindings(3);
     bindings[0] = bottom_blob_unpacked;
     bindings[1] = top_blob;
-    bindings[2] = per_channel_pad_data_gpu;
+    bindings[2] = per_channel_pad_data_int8_gpu;
 
     if (dims == 4)
     {
