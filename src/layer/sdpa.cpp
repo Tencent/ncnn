@@ -9,6 +9,28 @@
 
 namespace ncnn {
 
+static int read_past_len_blob(const Mat& past_len_blob, bool use_bf16_storage, int& past_seqlen)
+{
+    if (past_len_blob.dims == 0 || past_len_blob.total() < 1)
+        return -1;
+
+    float past_len = 0.f;
+    if (past_len_blob.elemsize == 4)
+        past_len = ((const float*)past_len_blob.data)[0];
+    else if (past_len_blob.elemsize == 2 && use_bf16_storage)
+        past_len = ncnn::bfloat16_to_float32(((const unsigned short*)past_len_blob.data)[0]);
+    else if (past_len_blob.elemsize == 2)
+        past_len = ncnn::float16_to_float32(((const unsigned short*)past_len_blob.data)[0]);
+    else
+        return -1;
+
+    if (!(past_len >= 0.f) || past_len > 2147483520.f)
+        return -1;
+
+    past_seqlen = (int)past_len;
+    return 0;
+}
+
 SDPA::SDPA()
 {
 }
@@ -37,8 +59,12 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     const Mat& cur_key = bottom_blobs[1];
     const Mat& cur_value = bottom_blobs[2];
     const Mat& attn_mask_blob = attn_mask ? bottom_blobs[3] : Mat();
-    const Mat& past_key = kv_cache ? bottom_blobs[attn_mask ? 4 : 3] : Mat();
-    const Mat& past_value = kv_cache ? bottom_blobs[attn_mask ? 5 : 4] : Mat();
+    const int blob_offset = attn_mask ? 4 : 3;
+    if (kv_cache == 2 && (int)bottom_blobs.size() <= blob_offset + 2)
+        return -1;
+    const Mat& past_key = kv_cache ? bottom_blobs[blob_offset] : Mat();
+    const Mat& past_value = kv_cache ? bottom_blobs[blob_offset + 1] : Mat();
+    const Mat& past_len_blob = (kv_cache == 2) ? bottom_blobs[blob_offset + 2] : Mat();
 
     const int embed_dim = query.w;
     const int src_seqlen = query.h;
@@ -46,8 +72,24 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     const int cur_seqlen = cur_key.h;
     const int num_group = cur_key.c;
     const int out_embed_dim = cur_value.w;
-    const int past_seqlen = kv_cache ? past_key.h : 0;
+
+    int past_seqlen = 0;
+    if (kv_cache == 2)
+    {
+        // past_len stored as float; may be fp32 or fp16 after ncnn auto-conversion
+        if (past_key.dims == 0 || past_value.dims == 0 || read_past_len_blob(past_len_blob, opt.use_bf16_storage, past_seqlen) != 0)
+            return -1;
+    }
+    else if (kv_cache == 1 && past_key.dims > 0)
+        past_seqlen = past_key.h;
+
+    if (kv_cache == 2 && (past_seqlen > past_key.h || past_seqlen > past_value.h))
+        return -1;
+
     const int dst_seqlen = past_seqlen + cur_seqlen;
+
+    if (kv_cache == 2 && past_key.dims > 0 && (dst_seqlen > past_key.h || dst_seqlen > past_value.h))
+        return -1;
 
     // assert cur_key.w == embed_dim
     // assert cur_key.h == cur_value.h == cur_seqlen
@@ -66,44 +108,88 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     if (qk_cross.empty())
         return -100;
 
-    Mat key = cur_key;
-    if (past_seqlen > 0)
+    Mat key;
+    Mat value;
+    if (kv_cache == 2 && past_key.dims > 0)
+    {
+        // In-place append: write cur into preallocated past buffer
+        const size_t elemsize = cur_key.elemsize;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_group; q++)
+        {
+            unsigned char* kd = (unsigned char*)past_key.channel(q).data + (size_t)past_seqlen * embed_dim * elemsize;
+            memcpy(kd, cur_key.channel(q).data, embed_dim * cur_seqlen * elemsize);
+            unsigned char* vd = (unsigned char*)past_value.channel(q).data + (size_t)past_seqlen * out_embed_dim * elemsize;
+            memcpy(vd, cur_value.channel(q).data, out_embed_dim * cur_seqlen * elemsize);
+        }
+        // Copy dst_seqlen rows into compact fp32 Mats for attention computation
+        key.create(embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
+        if (key.empty())
+            return -100;
+        value.create(out_embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
+        if (value.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_group; q++)
+        {
+            // Convert from source elemsize to fp32
+            if (elemsize == 4)
+            {
+                memcpy(key.channel(q), past_key.channel(q), embed_dim * dst_seqlen * 4);
+                memcpy(value.channel(q), past_value.channel(q), out_embed_dim * dst_seqlen * 4);
+            }
+            else
+            {
+                // fp16/bf16 -> fp32 conversion
+                const unsigned short* ksrc = (const unsigned short*)past_key.channel(q).data;
+                float* kdst = (float*)key.channel(q);
+
+                const unsigned short* vsrc = (const unsigned short*)past_value.channel(q).data;
+                float* vdst = (float*)value.channel(q);
+                if (opt.use_bf16_storage)
+                {
+                    for (int i = 0; i < embed_dim * dst_seqlen; i++)
+                        kdst[i] = ncnn::bfloat16_to_float32(ksrc[i]);
+
+                    for (int i = 0; i < out_embed_dim * dst_seqlen; i++)
+                        vdst[i] = ncnn::bfloat16_to_float32(vsrc[i]);
+                }
+                else
+                {
+                    for (int i = 0; i < embed_dim * dst_seqlen; i++)
+                        kdst[i] = ncnn::float16_to_float32(ksrc[i]);
+
+                    for (int i = 0; i < out_embed_dim * dst_seqlen; i++)
+                        vdst[i] = ncnn::float16_to_float32(vsrc[i]);
+                }
+            }
+        }
+    }
+    else if (past_seqlen > 0)
     {
         key.create(embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
         if (key.empty())
             return -100;
 
-        // concat
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < num_group; q++)
-        {
-            const Mat past_key_head = past_key.channel(q);
-            const Mat cur_key_head = cur_key.channel(q);
-            Mat key_head = key.channel(q);
-
-            memcpy(key_head.row(0), past_key_head, embed_dim * past_seqlen * sizeof(float));
-            memcpy(key_head.row(past_seqlen), cur_key_head, embed_dim * cur_seqlen * sizeof(float));
-        }
-    }
-
-    Mat value = cur_value;
-    if (past_seqlen > 0)
-    {
         value.create(out_embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
         if (value.empty())
             return -100;
 
-        // concat
+        // concat key and value
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_group; q++)
         {
-            const Mat past_value_head = past_value.channel(q);
-            const Mat cur_value_head = cur_value.channel(q);
-            Mat value_head = value.channel(q);
-
-            memcpy(value_head.row(0), past_value_head, out_embed_dim * past_seqlen * sizeof(float));
-            memcpy(value_head.row(past_seqlen), cur_value_head, out_embed_dim * cur_seqlen * sizeof(float));
+            memcpy((float*)key.channel(q), past_key.channel(q), embed_dim * past_seqlen * sizeof(float));
+            memcpy((float*)key.channel(q) + embed_dim * past_seqlen, cur_key.channel(q), embed_dim * cur_seqlen * sizeof(float));
+            memcpy((float*)value.channel(q), past_value.channel(q), out_embed_dim * past_seqlen * sizeof(float));
+            memcpy((float*)value.channel(q) + out_embed_dim * past_seqlen, cur_value.channel(q), out_embed_dim * cur_seqlen * sizeof(float));
         }
+    }
+    else
+    {
+        key = cur_key;
+        value = cur_value;
     }
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -198,7 +284,13 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         }
     }
 
-    if (kv_cache)
+    if (kv_cache == 2)
+    {
+        // Return the preallocated buffer (shallow copy)
+        top_blobs[1] = past_key;
+        top_blobs[2] = past_value;
+    }
+    else if (kv_cache)
     {
         // assert top_blobs.size() == 3
         top_blobs[1] = key;
@@ -278,8 +370,12 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     const Mat& cur_key = bottom_blobs[1];
     const Mat& cur_value = bottom_blobs[2];
     const Mat& attn_mask_blob = attn_mask ? bottom_blobs[3] : Mat();
-    const Mat& past_key = kv_cache ? bottom_blobs[attn_mask ? 4 : 3] : Mat();
-    const Mat& past_value = kv_cache ? bottom_blobs[attn_mask ? 5 : 4] : Mat();
+    const int blob_offset = attn_mask ? 4 : 3;
+    if (kv_cache == 2 && (int)bottom_blobs.size() <= blob_offset + 2)
+        return -1;
+    const Mat& past_key = kv_cache ? bottom_blobs[blob_offset] : Mat();
+    const Mat& past_value = kv_cache ? bottom_blobs[blob_offset + 1] : Mat();
+    const Mat& past_len_blob = (kv_cache == 2) ? bottom_blobs[blob_offset + 2] : Mat();
 
     const int embed_dim = query.w;
     const int src_seqlen = query.h;
@@ -287,8 +383,22 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     const int cur_seqlen = cur_key.h;
     const int num_group = cur_key.c;
     const int out_embed_dim = cur_value.w;
-    const int past_seqlen = kv_cache ? past_key.h : 0;
+    int past_seqlen = 0;
+    if (kv_cache == 2)
+    {
+        if (past_key.dims == 0 || past_value.dims == 0 || read_past_len_blob(past_len_blob, opt.use_bf16_storage, past_seqlen) != 0)
+            return -1;
+    }
+    else if (kv_cache == 1 && past_key.dims > 0)
+        past_seqlen = past_key.h;
+
+    if (kv_cache == 2 && (past_seqlen > past_key.h || past_seqlen > past_value.h))
+        return -1;
+
     const int dst_seqlen = past_seqlen + cur_seqlen;
+
+    if (kv_cache == 2 && past_key.dims > 0 && (dst_seqlen > past_key.h || dst_seqlen > past_value.h))
+        return -1;
 
     // assert cur_key.w == embed_dim
     // assert cur_key.h == cur_value.h == cur_seqlen
@@ -328,7 +438,47 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         return -100;
 
     Mat key = cur_key;
-    if (past_seqlen > 0)
+    if (kv_cache == 2 && past_key.dims > 0)
+    {
+        const size_t elemsize = cur_key.elemsize;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_group; q++)
+        {
+            unsigned char* kd = (unsigned char*)past_key.channel(q).data + (size_t)past_seqlen * embed_dim * elemsize;
+            memcpy(kd, cur_key.channel(q).data, embed_dim * cur_seqlen * elemsize);
+            unsigned char* vd = (unsigned char*)past_value.channel(q).data + (size_t)past_seqlen * out_embed_dim * elemsize;
+            memcpy(vd, cur_value.channel(q).data, out_embed_dim * cur_seqlen * elemsize);
+        }
+
+        key.create(embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
+        if (key.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_group; q++)
+        {
+            if (elemsize == 4)
+            {
+                memcpy(key.channel(q), past_key.channel(q), embed_dim * dst_seqlen * sizeof(float));
+            }
+            else
+            {
+                const unsigned short* ksrc = (const unsigned short*)past_key.channel(q).data;
+                float* kdst = (float*)key.channel(q);
+                if (opt.use_bf16_storage)
+                {
+                    for (int i = 0; i < embed_dim * dst_seqlen; i++)
+                        kdst[i] = ncnn::bfloat16_to_float32(ksrc[i]);
+                }
+                else
+                {
+                    for (int i = 0; i < embed_dim * dst_seqlen; i++)
+                        kdst[i] = ncnn::float16_to_float32(ksrc[i]);
+                }
+            }
+        }
+    }
+    else if (past_seqlen > 0)
     {
         key.create(embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
         if (key.empty())
@@ -348,7 +498,38 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     }
 
     Mat value = cur_value;
-    if (past_seqlen > 0)
+    if (kv_cache == 2 && past_key.dims > 0)
+    {
+        const size_t elemsize = cur_value.elemsize;
+        value.create(out_embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
+        if (value.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_group; q++)
+        {
+            if (elemsize == 4)
+            {
+                memcpy(value.channel(q), past_value.channel(q), out_embed_dim * dst_seqlen * sizeof(float));
+            }
+            else
+            {
+                const unsigned short* vsrc = (const unsigned short*)past_value.channel(q).data;
+                float* vdst = (float*)value.channel(q);
+                if (opt.use_bf16_storage)
+                {
+                    for (int i = 0; i < out_embed_dim * dst_seqlen; i++)
+                        vdst[i] = ncnn::bfloat16_to_float32(vsrc[i]);
+                }
+                else
+                {
+                    for (int i = 0; i < out_embed_dim * dst_seqlen; i++)
+                        vdst[i] = ncnn::float16_to_float32(vsrc[i]);
+                }
+            }
+        }
+    }
+    else if (past_seqlen > 0)
     {
         value.create(out_embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
         if (value.empty())
@@ -485,7 +666,12 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         }
     }
 
-    if (kv_cache)
+    if (kv_cache == 2)
+    {
+        top_blobs[1] = past_key;
+        top_blobs[2] = past_value;
+    }
+    else if (kv_cache)
     {
         // assert top_blobs.size() == 3
         top_blobs[1] = key;

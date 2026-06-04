@@ -3,9 +3,32 @@
 
 #include "sdpa_loongarch.h"
 
+#include "cpu.h"
 #include "layer_type.h"
 
 namespace ncnn {
+
+static int read_past_len_blob_loongarch(const Mat& past_len_blob, bool use_bf16_storage, int& past_seqlen)
+{
+    if (past_len_blob.dims == 0 || past_len_blob.total() < 1)
+        return -1;
+
+    float past_len = 0.f;
+    if (past_len_blob.elemsize == 4)
+        past_len = ((const float*)past_len_blob.data)[0];
+    else if (past_len_blob.elemsize == 2 && use_bf16_storage)
+        past_len = ncnn::bfloat16_to_float32(((const unsigned short*)past_len_blob.data)[0]);
+    else if (past_len_blob.elemsize == 2)
+        past_len = ncnn::float16_to_float32(((const unsigned short*)past_len_blob.data)[0]);
+    else
+        return -1;
+
+    if (!(past_len >= 0.f) || past_len > 2147483520.f)
+        return -1;
+
+    past_seqlen = (int)past_len;
+    return 0;
+}
 
 SDPA_loongarch::SDPA_loongarch()
 {
@@ -143,8 +166,12 @@ int SDPA_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     const Mat& cur_key = bottom_blobs[1];
     const Mat& cur_value = bottom_blobs[2];
     const Mat& attn_mask_blob = attn_mask ? bottom_blobs[3] : Mat();
-    const Mat& past_key = kv_cache ? bottom_blobs[attn_mask ? 4 : 3] : Mat();
-    const Mat& past_value = kv_cache ? bottom_blobs[attn_mask ? 5 : 4] : Mat();
+    const int blob_offset = attn_mask ? 4 : 3;
+    if (kv_cache == 2 && (int)bottom_blobs.size() <= blob_offset + 2)
+        return -1;
+    const Mat& past_key = kv_cache ? bottom_blobs[blob_offset] : Mat();
+    const Mat& past_value = kv_cache ? bottom_blobs[blob_offset + 1] : Mat();
+    const Mat& past_len_blob = (kv_cache == 2) ? bottom_blobs[blob_offset + 2] : Mat();
 
     const int embed_dim = query.w;
     const int src_seqlen = query.h;
@@ -152,13 +179,55 @@ int SDPA_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     const int cur_seqlen = cur_key.h;
     const int num_group = cur_key.c;
     const int out_embed_dim = cur_value.w;
-    const int past_seqlen = kv_cache ? past_key.h : 0;
+    int past_seqlen = 0;
+    if (kv_cache == 2)
+    {
+        if (past_key.dims == 0 || past_value.dims == 0 || read_past_len_blob_loongarch(past_len_blob, opt.use_bf16_storage, past_seqlen) != 0)
+            return -1;
+    }
+    else if (kv_cache == 1 && past_key.dims > 0)
+        past_seqlen = past_key.h;
+
+    if (kv_cache == 2 && (past_seqlen > past_key.h || past_seqlen > past_value.h))
+        return -1;
+
     const int dst_seqlen = past_seqlen + cur_seqlen;
+
+    if (kv_cache == 2 && past_key.dims > 0 && (dst_seqlen > past_key.h || dst_seqlen > past_value.h))
+        return -1;
 
     const size_t elemsize = query.elemsize;
 
     Mat key;
-    if (past_seqlen > 0)
+    Mat value;
+    if (kv_cache == 2 && past_key.dims > 0)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_group; q++)
+        {
+            unsigned char* pk = (unsigned char*)past_key.channel(q).data;
+            unsigned char* pv = (unsigned char*)past_value.channel(q).data;
+            memcpy(pk + (size_t)past_seqlen * embed_dim * elemsize,
+                   cur_key.channel(q).data, embed_dim * cur_seqlen * elemsize);
+            memcpy(pv + (size_t)past_seqlen * out_embed_dim * elemsize,
+                   cur_value.channel(q).data, out_embed_dim * cur_seqlen * elemsize);
+        }
+
+        key.create(embed_dim, dst_seqlen, num_group, elemsize, opt.blob_allocator);
+        if (key.empty())
+            return -100;
+        value.create(out_embed_dim, dst_seqlen, num_group, elemsize, opt.blob_allocator);
+        if (value.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_group; q++)
+        {
+            memcpy(key.channel(q), past_key.channel(q), embed_dim * dst_seqlen * elemsize);
+            memcpy(value.channel(q), past_value.channel(q), out_embed_dim * dst_seqlen * elemsize);
+        }
+    }
+    else if (past_seqlen > 0)
     {
         key.create(embed_dim, dst_seqlen, num_group, elemsize, opt.blob_allocator);
         if (key.empty())
@@ -180,8 +249,7 @@ int SDPA_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         key = cur_key;
     }
 
-    Mat value;
-    if (past_seqlen > 0)
+    if (kv_cache != 2 && past_seqlen > 0)
     {
         value.create(out_embed_dim, dst_seqlen, num_group, elemsize, opt.blob_allocator);
         if (value.empty())
@@ -198,7 +266,7 @@ int SDPA_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             memcpy(value_head.row(past_seqlen), cur_value_head, out_embed_dim * cur_seqlen * elemsize);
         }
     }
-    else
+    else if (kv_cache != 2)
     {
         value = cur_value;
     }
@@ -337,7 +405,12 @@ int SDPA_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
     value_fp32.release();
 
-    if (kv_cache)
+    if (kv_cache == 2)
+    {
+        top_blobs[1] = past_key;
+        top_blobs[2] = past_value;
+    }
+    else if (kv_cache)
     {
         top_blobs[1] = key;
         top_blobs[2] = value;
