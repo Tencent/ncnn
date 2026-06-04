@@ -24,10 +24,7 @@
 #include "layer_type.h"
 #include "mat.h"
 #include "pipelinecache.h"
-
-// There is known issue that vkDestroyDebugUtilsMessengerEXT crash on exit when vulkan validation layer enabled
-// upstream fix https://github.com/KhronosGroup/Vulkan-Loader/pull/539
-#define ENABLE_VALIDATION_LAYER 0
+#include "simplevk_printf.h"
 
 namespace ncnn {
 
@@ -51,7 +48,7 @@ public:
 #endif
 #endif // NCNN_VULKAN_LOADER
 
-#if ENABLE_VALIDATION_LAYER
+#if ENABLE_VALIDATION_LAYER && !NCNN_SIMPLEVK_DEBUG_PRINTF
         callback = 0;
 #endif
     }
@@ -71,7 +68,7 @@ public:
     int created;
     bool glslang_initialized;
 
-#if ENABLE_VALIDATION_LAYER
+#if ENABLE_VALIDATION_LAYER && !NCNN_SIMPLEVK_DEBUG_PRINTF
     VkDebugUtilsMessengerEXT callback;
 #endif
 };
@@ -2647,7 +2644,7 @@ static int init_instance_extension()
     return 0;
 }
 
-#if ENABLE_VALIDATION_LAYER
+#if ENABLE_VALIDATION_LAYER && !NCNN_SIMPLEVK_DEBUG_PRINTF
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT /*messageSeverity*/,
     VkDebugUtilsMessageTypeFlagsEXT /*messageType*/,
@@ -2674,7 +2671,7 @@ static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMesse
     if (func)
         func(instance, callback, pAllocator);
 }
-#endif // ENABLE_VALIDATION_LAYER
+#endif // ENABLE_VALIDATION_LAYER && !NCNN_SIMPLEVK_DEBUG_PRINTF
 
 static int find_default_vulkan_device_index()
 {
@@ -2733,7 +2730,7 @@ int create_gpu_instance(const char* driver_path)
 
     std::vector<const char*> enabledLayers;
 
-#if ENABLE_VALIDATION_LAYER
+#if ENABLE_VALIDATION_LAYER && !NCNN_SIMPLEVK_DEBUG_PRINTF
     uint32_t instanceLayerPropertyCount;
     ret = vkEnumerateInstanceLayerProperties(&instanceLayerPropertyCount, NULL);
     if (ret != VK_SUCCESS)
@@ -2768,7 +2765,7 @@ int create_gpu_instance(const char* driver_path)
             enabledLayers.push_back("VK_LAYER_KHRONOS_validation");
         }
     }
-#endif // ENABLE_VALIDATION_LAYER
+#endif // ENABLE_VALIDATION_LAYER && !NCNN_SIMPLEVK_DEBUG_PRINTF
 
     std::vector<const char*> enabledExtensions;
 
@@ -2872,14 +2869,14 @@ int create_gpu_instance(const char* driver_path)
         enabledExtensions.push_back("VK_KHR_portability_enumeration");
     if (support_VK_KHR_surface)
         enabledExtensions.push_back("VK_KHR_surface");
-#if ENABLE_VALIDATION_LAYER
+#if ENABLE_VALIDATION_LAYER && !NCNN_SIMPLEVK_DEBUG_PRINTF
     if (support_VK_EXT_debug_utils)
         enabledExtensions.push_back("VK_EXT_debug_utils");
     if (support_VK_EXT_validation_features)
         enabledExtensions.push_back("VK_EXT_validation_features");
     if (support_VK_EXT_validation_flags)
         enabledExtensions.push_back("VK_EXT_validation_flags");
-#endif // ENABLE_VALIDATION_LAYER
+#endif // ENABLE_VALIDATION_LAYER && !NCNN_SIMPLEVK_DEBUG_PRINTF
 #if __ANDROID_API__ >= 26
     if (support_VK_KHR_android_surface)
         enabledExtensions.push_back("VK_KHR_android_surface");
@@ -2896,7 +2893,7 @@ int create_gpu_instance(const char* driver_path)
 
     void* enabledExtensionFeatures = 0;
 
-#if ENABLE_VALIDATION_LAYER
+#if ENABLE_VALIDATION_LAYER && !NCNN_SIMPLEVK_DEBUG_PRINTF
     std::vector<VkValidationFeatureEnableEXT> enabledValidationFeature;
     enabledValidationFeature.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
     enabledValidationFeature.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
@@ -2927,7 +2924,7 @@ int create_gpu_instance(const char* driver_path)
         validationFlags.pNext = enabledExtensionFeatures;
         enabledExtensionFeatures = &validationFlags;
     }
-#endif // ENABLE_VALIDATION_LAYER
+#endif // ENABLE_VALIDATION_LAYER && !NCNN_SIMPLEVK_DEBUG_PRINTF
 
     VkInstanceCreateInfo instanceCreateInfo;
     instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -2954,7 +2951,7 @@ int create_gpu_instance(const char* driver_path)
 
     init_instance_core();
 
-#if ENABLE_VALIDATION_LAYER
+#if ENABLE_VALIDATION_LAYER && !NCNN_SIMPLEVK_DEBUG_PRINTF
     if (support_VK_EXT_debug_utils)
     {
         VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
@@ -2970,7 +2967,7 @@ int create_gpu_instance(const char* driver_path)
             return -1;
         }
     }
-#endif // ENABLE_VALIDATION_LAYER
+#endif // ENABLE_VALIDATION_LAYER && !NCNN_SIMPLEVK_DEBUG_PRINTF
 
     init_instance_extension();
 
@@ -3301,13 +3298,13 @@ void destroy_gpu_instance()
         g_gpu_infos[i] = 0;
     }
 
-#if ENABLE_VALIDATION_LAYER
+#if ENABLE_VALIDATION_LAYER && !NCNN_SIMPLEVK_DEBUG_PRINTF
     if (support_VK_EXT_debug_utils && g_instance.callback)
     {
         DestroyDebugUtilsMessengerEXT(g_instance, g_instance.callback, NULL);
         g_instance.callback = 0;
     }
-#endif // ENABLE_VALIDATION_LAYER
+#endif // ENABLE_VALIDATION_LAYER && !NCNN_SIMPLEVK_DEBUG_PRINTF
 
     if (vkDestroyInstance)
     {
@@ -3401,6 +3398,10 @@ public:
     int create_dummy_buffer_image();
     void destroy_dummy_buffer_image();
 
+    // simplevk shader printf
+    int create_simplevk_printf_layouts() const;
+    void destroy_simplevk_printf_layouts();
+
     // utility operator
     const ncnn::Layer* get_utility_operator(int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const;
     void destroy_utility_operator();
@@ -3437,6 +3438,9 @@ public:
     // device-wide pipeline cache
     PipelineCache* pipeline_cache;
 
+    mutable VkDescriptorSetLayout simplevk_printf_empty_descriptorset_layout;
+    mutable VkDescriptorSetLayout simplevk_printf_descriptorset_layout;
+
     // utility operator
     // from fp32 | fp16
     // to fp32 | fp16
@@ -3462,6 +3466,8 @@ VulkanDevicePrivate::VulkanDevicePrivate(VulkanDevice* _vkdev)
     texelfetch_sampler = 0;
     dummy_allocator = 0;
     pipeline_cache = 0;
+    simplevk_printf_empty_descriptorset_layout = 0;
+    simplevk_printf_descriptorset_layout = 0;
     valid = false;
     memset(uop_packing, 0, sizeof(uop_packing));
     memset(uop_packing_int8, 0, sizeof(uop_packing_int8));
@@ -3510,6 +3516,70 @@ void VulkanDevicePrivate::destroy_dummy_buffer_image()
     {
         delete dummy_allocator;
         dummy_allocator = 0;
+    }
+}
+
+int VulkanDevicePrivate::create_simplevk_printf_layouts() const
+{
+    if (simplevk_printf_empty_descriptorset_layout && simplevk_printf_descriptorset_layout)
+        return 0;
+
+    if (!simplevk_printf_empty_descriptorset_layout)
+    {
+        VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
+        descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        descriptorSetLayoutCreateInfo.pNext = 0;
+        descriptorSetLayoutCreateInfo.flags = 0;
+        descriptorSetLayoutCreateInfo.bindingCount = 0;
+        descriptorSetLayoutCreateInfo.pBindings = 0;
+
+        VkResult ret = vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, 0, &simplevk_printf_empty_descriptorset_layout);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkCreateDescriptorSetLayout failed %d", ret);
+            return -1;
+        }
+    }
+
+    if (!simplevk_printf_descriptorset_layout)
+    {
+        VkDescriptorSetLayoutBinding descriptorSetLayoutBinding;
+        descriptorSetLayoutBinding.binding = NCNN_SIMPLEVK_PRINTF_BINDING;
+        descriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptorSetLayoutBinding.descriptorCount = 1;
+        descriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        descriptorSetLayoutBinding.pImmutableSamplers = 0;
+
+        VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
+        descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        descriptorSetLayoutCreateInfo.pNext = 0;
+        descriptorSetLayoutCreateInfo.flags = 0;
+        descriptorSetLayoutCreateInfo.bindingCount = 1;
+        descriptorSetLayoutCreateInfo.pBindings = &descriptorSetLayoutBinding;
+
+        VkResult ret = vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, 0, &simplevk_printf_descriptorset_layout);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkCreateDescriptorSetLayout failed %d", ret);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+void VulkanDevicePrivate::destroy_simplevk_printf_layouts()
+{
+    if (simplevk_printf_descriptorset_layout)
+    {
+        vkDestroyDescriptorSetLayout(device, simplevk_printf_descriptorset_layout, 0);
+        simplevk_printf_descriptorset_layout = 0;
+    }
+
+    if (simplevk_printf_empty_descriptorset_layout)
+    {
+        vkDestroyDescriptorSetLayout(device, simplevk_printf_empty_descriptorset_layout, 0);
+        simplevk_printf_empty_descriptorset_layout = 0;
     }
 }
 
@@ -3959,6 +4029,8 @@ VulkanDevice::~VulkanDevice()
         delete d->pipeline_cache;
     }
 
+    d->destroy_simplevk_printf_layouts();
+
     if (d->device)
     {
         vkDestroyDevice(d->device, 0);
@@ -4175,6 +4247,14 @@ int VulkanDevice::create_descriptorset_layout(int binding_count, const int* bind
 
 int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const
 {
+    ShaderInfo shader_info;
+    memset(&shader_info, 0, sizeof(shader_info));
+
+    return create_pipeline_layout(push_constant_count, descriptorset_layout, shader_info, pipeline_layout);
+}
+
+int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSetLayout descriptorset_layout, const ShaderInfo& shader_info, VkPipelineLayout* pipeline_layout) const
+{
     VkPushConstantRange pushConstantRange;
     pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     pushConstantRange.offset = 0;
@@ -4185,12 +4265,40 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
     pipelineLayoutCreateInfo.pNext = 0;
     pipelineLayoutCreateInfo.flags = 0;
 
-    if (descriptorset_layout)
+    int use_simplevk_printf = 0;
+
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+    VkDescriptorSetLayout setLayouts[4];
+    use_simplevk_printf = simplevk_printf_shader_info_has_printf(shader_info);
+    if (use_simplevk_printf)
+    {
+        if (!simplevk_printf_shader_info_supported(info, shader_info))
+        {
+            NCNN_LOGE("simplevk shader printf is not supported on this device");
+            return -1;
+        }
+
+        if (d->create_simplevk_printf_layouts() != 0)
+            return -1;
+
+        setLayouts[0] = descriptorset_layout ? descriptorset_layout : d->simplevk_printf_empty_descriptorset_layout;
+        setLayouts[1] = d->simplevk_printf_empty_descriptorset_layout;
+        setLayouts[2] = d->simplevk_printf_empty_descriptorset_layout;
+        setLayouts[3] = d->simplevk_printf_descriptorset_layout;
+
+        pipelineLayoutCreateInfo.setLayoutCount = 4;
+        pipelineLayoutCreateInfo.pSetLayouts = setLayouts;
+    }
+#else
+    (void)shader_info;
+#endif // NCNN_SIMPLEVK_DEBUG_PRINTF
+
+    if (!use_simplevk_printf && descriptorset_layout)
     {
         pipelineLayoutCreateInfo.setLayoutCount = 1;
         pipelineLayoutCreateInfo.pSetLayouts = &descriptorset_layout;
     }
-    else
+    else if (!use_simplevk_printf)
     {
         pipelineLayoutCreateInfo.setLayoutCount = 0;
         pipelineLayoutCreateInfo.pSetLayouts = 0;
@@ -4215,6 +4323,18 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
     }
 
     return 0;
+}
+
+VkDescriptorSetLayout VulkanDevice::simplevk_printf_descriptorset_layout() const
+{
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+    if (d->create_simplevk_printf_layouts() != 0)
+        return 0;
+
+    return d->simplevk_printf_descriptorset_layout;
+#else
+    return 0;
+#endif
 }
 
 int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipeline* pipeline) const
@@ -5007,12 +5127,29 @@ static TBuiltInResource get_default_TBuiltInResource()
 class VulkanShaderIncluder : public glslang::TShader::Includer
 {
 public:
+    VulkanShaderIncluder()
+    {
+        simplevk_printf_rewrite = 0;
+        simplevk_printf_enable = 0;
+    }
+
     virtual glslang::TShader::Includer::IncludeResult* includeLocal(const char* headerName, const char* /*includerName*/, size_t /*inclusionDepth*/)
     {
         if (strcmp(headerName, "vulkan_activation.comp") == 0)
         {
             const char* const headerData = vulkan_activation_comp_data;
             const size_t headerLength = sizeof(vulkan_activation_comp_data);
+
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+            if (simplevk_printf_rewrite)
+            {
+                std::string* transformed = new std::string;
+                simplevk_printf_rewrite_shader(headerData, (int)headerLength, simplevk_printf_enable, *transformed, 0);
+                glslang::TShader::Includer::IncludeResult* r = new glslang::TShader::Includer::IncludeResult(headerName, transformed->c_str(), transformed->size(), transformed);
+                return r;
+            }
+#endif // NCNN_SIMPLEVK_DEBUG_PRINTF
+
             glslang::TShader::Includer::IncludeResult* r = new glslang::TShader::Includer::IncludeResult(headerName, headerData, headerLength, 0);
             return r;
         }
@@ -5022,8 +5159,20 @@ public:
 
     virtual void releaseInclude(glslang::TShader::Includer::IncludeResult* r)
     {
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+        if (r->userData)
+        {
+            std::string* transformed = (std::string*)r->userData;
+            delete transformed;
+        }
+#endif // NCNN_SIMPLEVK_DEBUG_PRINTF
+
         delete r;
     }
+
+public:
+    int simplevk_printf_rewrite;
+    int simplevk_printf_enable;
 };
 
 class DefinitionCollector
@@ -5097,6 +5246,30 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     const GpuInfo& info = get_gpu_info(device_index);
     const bool support_fp16_storage = info.support_fp16_storage();
     const bool support_fp16_uniform = info.support_fp16_uniform();
+
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+    int simplevk_printf_rewrite = 0;
+    int simplevk_printf_enable = 0;
+    std::string simplevk_printf_comp_data;
+    std::string simplevk_printf_comp_source(comp_data, comp_data_size);
+    const int simplevk_printf_use_activation_include = simplevk_printf_comp_source.find("vulkan_activation.comp") != std::string::npos;
+
+    if (simplevk_printf_source_contains_log(comp_data, comp_data_size) || (simplevk_printf_use_activation_include && simplevk_printf_source_contains_log(vulkan_activation_comp_data, (int)sizeof(vulkan_activation_comp_data))))
+    {
+        simplevk_printf_rewrite = 1;
+        simplevk_printf_enable = simplevk_printf_device_supported(info);
+
+        if (simplevk_printf_source_conflicts(comp_data, comp_data_size) || (simplevk_printf_use_activation_include && simplevk_printf_source_conflicts(vulkan_activation_comp_data, (int)sizeof(vulkan_activation_comp_data))))
+        {
+            NCNN_LOGE("simplevk shader printf reserved symbol conflict, fallback to no-op");
+            simplevk_printf_enable = 0;
+        }
+        if (!simplevk_printf_enable)
+        {
+            NCNN_LOGE("simplevk shader printf is disabled, NCNN_LOGE in shader becomes no-op");
+        }
+    }
+#endif // NCNN_SIMPLEVK_DEBUG_PRINTF
 
     if (opt.use_bf16_storage)
     {
@@ -5987,7 +6160,9 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             DD_APPEND_PROPERTY(requiredSubgroupSizeStages)
         }
 
-#if ENABLE_VALIDATION_LAYER
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+        device_defines.append("enable_validation_layer", VK_TRUE);
+#elif ENABLE_VALIDATION_LAYER
         if (info.support_VK_KHR_shader_non_semantic_info())
         {
             device_defines.append("enable_validation_layer", VK_TRUE);
@@ -6089,6 +6264,13 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         }
     }
 
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+    if (simplevk_printf_enable)
+    {
+        define_macro_data += simplevk_printf_glsl_header();
+    }
+#endif // NCNN_SIMPLEVK_DEBUG_PRINTF
+
     // enable extensions
     std::string custom_exts;
     if (support_shader_int64)
@@ -6119,7 +6301,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     {
         custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_int8: require\n";
     }
-#if ENABLE_VALIDATION_LAYER
+#if ENABLE_VALIDATION_LAYER && !NCNN_SIMPLEVK_DEBUG_PRINTF
     {
         custom_exts += "#extension GL_EXT_debug_printf : require\n";
     }
@@ -6127,6 +6309,18 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     // debug
     // NCNN_LOGE("%s", define_macro_data.c_str());
+
+    const char* comp_data_current = comp_data;
+    int comp_data_size_current = comp_data_size;
+
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+    if (simplevk_printf_rewrite)
+    {
+        simplevk_printf_rewrite_shader(comp_data, comp_data_size, simplevk_printf_enable, simplevk_printf_comp_data, 0);
+        comp_data_current = simplevk_printf_comp_data.c_str();
+        comp_data_size_current = (int)simplevk_printf_comp_data.size();
+    }
+#endif // NCNN_SIMPLEVK_DEBUG_PRINTF
 
     bool compile_success = true;
 
@@ -6136,17 +6330,17 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         // split shader source by token "#version 450\n"
         int version_end_pos = -1;
         {
-            for (int i = 0; i < comp_data_size - 8; i++)
+            for (int i = 0; i < comp_data_size_current - 8; i++)
             {
-                if (strncmp(comp_data + i, "#version", 8) != 0)
+                if (strncmp(comp_data_current + i, "#version", 8) != 0)
                     continue;
 
                 // #version shall be the very beginning or after newline
-                if (i != 0 && comp_data[i - 1] != '\n')
+                if (i != 0 && comp_data_current[i - 1] != '\n')
                     continue;
 
                 int nversion = 0;
-                sscanf(comp_data + i, "#version %*d\n%n", &nversion);
+                sscanf(comp_data_current + i, "#version %*d\n%n", &nversion);
                 if (nversion == 0)
                     continue;
 
@@ -6163,11 +6357,11 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             // NCNN_LOGE("version_end_pos = %d", version_end_pos);
         }
 
-        const char* comp_data_2 = comp_data + version_end_pos;
+        const char* comp_data_2 = comp_data_current + version_end_pos;
         int comp_data_size_1 = version_end_pos;
-        int comp_data_size_2 = comp_data_size - comp_data_size_1;
+        int comp_data_size_2 = comp_data_size_current - comp_data_size_1;
 
-        const char* comp_datas[4] = {comp_data, custom_exts.c_str(), define_macro_data.c_str(), comp_data_2};
+        const char* comp_datas[4] = {comp_data_current, custom_exts.c_str(), define_macro_data.c_str(), comp_data_2};
         const int comp_data_sizes[4] = {comp_data_size_1, (int)custom_exts.size(), (int)define_macro_data.size(), comp_data_size_2};
 
         s.setStringsWithLengths(comp_datas, comp_data_sizes, 4);
@@ -6192,6 +6386,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         TBuiltInResource resources = get_default_TBuiltInResource();
 
         VulkanShaderIncluder includer;
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+        includer.simplevk_printf_rewrite = simplevk_printf_rewrite;
+        includer.simplevk_printf_enable = simplevk_printf_enable;
+#endif // NCNN_SIMPLEVK_DEBUG_PRINTF
 
         bool pr = s.parse(&resources, 100, ENoProfile, false, false, EShMsgDefault, includer);
         if (!pr)
@@ -6249,24 +6447,33 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
     shader_info.specialization_count = 0;
     shader_info.binding_count = 0;
     shader_info.push_constant_count = 0;
+    shader_info.reserved_0 = 0;
+    shader_info.reserved_1 = 0;
+    shader_info.reserved_2 = 0;
+    shader_info.reserved_3 = 0;
+    memset(shader_info.binding_types, 0, sizeof(shader_info.binding_types));
 
     uint32_t parameter_id = -233;
 
     int specialization_count = 0;
-    int binding_count = 0;
     int push_constant_count = 0;
 
     // id -> binding_type
     std::vector<int> id_types;
 
-    // binding_id -> binding_type
-    std::vector<int> binding_types;
+    // id -> descriptor set/binding/name
+    std::vector<int> id_sets;
+    std::vector<int> id_bindings;
+    std::vector<std::string> id_names;
 
     const uint32_t* p = spv_data;
 
     int bound = p[3];
 
     id_types.resize(bound);
+    id_sets.resize(bound, -1);
+    id_bindings.resize(bound, -1);
+    id_names.resize(bound);
 
     // skip magic version generator bound schema
     p += 5;
@@ -6283,6 +6490,10 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
         {
             uint32_t id = p[1];
             const char* name = (const char*)&p[2];
+            if (id < (uint32_t)bound)
+            {
+                id_names[id] = name;
+            }
             if (strcmp(name, "parameter") == 0)
             {
                 parameter_id = id;
@@ -6347,7 +6558,6 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
         {
             uint32_t id = p[1];
             uint32_t decoration = p[2];
-            uint32_t binding_id = p[3];
             if (decoration == 1) // SpecId
             {
                 specialization_count++;
@@ -6358,14 +6568,52 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
             }
             else if (decoration == 33) // Binding
             {
-                binding_count = std::max(binding_count, (int)binding_id + 1);
-
-                binding_types.resize(binding_count);
-                binding_types[binding_id] = id;
+                uint32_t binding_id = p[3];
+                if (id < (uint32_t)bound)
+                    id_bindings[id] = (int)binding_id;
+            }
+            else if (decoration == 34) // DescriptorSet
+            {
+                uint32_t set_id = p[3];
+                if (id < (uint32_t)bound)
+                    id_sets[id] = (int)set_id;
             }
         }
 
         p += wordcount;
+    }
+
+    int binding_count = 0;
+
+    // binding_id -> variable id
+    std::vector<int> binding_types;
+
+    for (int id = 0; id < bound; id++)
+    {
+        if (id_bindings[id] < 0)
+            continue;
+
+        const int set_id = id_sets[id] < 0 ? 0 : id_sets[id];
+        const int binding_id = id_bindings[id];
+
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+        if (set_id == NCNN_SIMPLEVK_PRINTF_SET && binding_id == NCNN_SIMPLEVK_PRINTF_BINDING && id_names[id] == "ncnn_simplevk_printf")
+        {
+            simplevk_printf_shader_info_set_has_printf(shader_info);
+            continue;
+        }
+#endif // NCNN_SIMPLEVK_DEBUG_PRINTF
+
+        if (set_id != 0)
+        {
+            NCNN_LOGE("unsupported descriptor set %d binding %d", set_id, binding_id);
+            return -1;
+        }
+
+        binding_count = std::max(binding_count, binding_id + 1);
+
+        binding_types.resize(binding_count);
+        binding_types[binding_id] = id;
     }
 
     if (binding_count > 16)

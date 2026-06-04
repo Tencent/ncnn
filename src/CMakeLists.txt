@@ -42,6 +42,7 @@ set(ncnn_SRCS
     simplestl.cpp
     simplemath.cpp
     simplevk.cpp
+    simplevk_printf.cpp
 )
 
 if(ANDROID)

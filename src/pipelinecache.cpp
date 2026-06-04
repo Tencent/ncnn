@@ -221,11 +221,17 @@ static uint32_t encode_spirv_cache_opt_bits(const Option& opt)
 
 static bool can_cache_spirv(const VulkanDevice* vkdev, const Option& opt)
 {
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+    (void)vkdev;
+    (void)opt;
+    return false;
+#else
     int device_index = opt.vulkan_device_index;
     if (device_index < 0 || device_index >= get_gpu_count())
         device_index = get_default_gpu_index();
 
     return device_index == vkdev->info.device_index();
+#endif
 }
 
 static void append_data(std::vector<unsigned char>& data, const void* ptr, size_t size)
@@ -1216,7 +1222,7 @@ int PipelineCache::new_pipeline(VkShaderModule shader_module, const ShaderInfo& 
     if (ret != 0)
         goto ERROR_PipelineCache;
 
-    ret = vkdev->create_pipeline_layout(shader_info.push_constant_count, descriptorset_layout, &pipeline_layout);
+    ret = vkdev->create_pipeline_layout(shader_info.push_constant_count, descriptorset_layout, shader_info, &pipeline_layout);
     if (ret != 0)
         goto ERROR_PipelineCache;
 
