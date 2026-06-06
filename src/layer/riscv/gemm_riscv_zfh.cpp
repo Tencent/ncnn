@@ -134,7 +134,7 @@ static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_b
 
             if (broadcast_type_C == 3)
             {
-                pack_A_tile_fp16s(C, topT_tile, i, max_ii, j, max_jj);
+                pack_A_tile_fp32(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -182,7 +182,7 @@ static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_b
                 const int max_jj = std::min((N - j), TILE_N);
                 if (broadcast_type_C == 3)
                 {
-                    pack_A_tile_fp16s(C, topT_tile, i, max_ii, j, max_jj);
+                    pack_A_tile_fp32(C, topT_tile, i, max_ii, j, max_jj);
                 }
 
                 const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -298,7 +298,7 @@ static int gemm_AT_riscv_fp16s(const Mat& AT, const Mat& B, const Mat& C, Mat& t
 
         if (broadcast_type_C == 3)
         {
-            pack_A_tile_fp16s(C, topT_tile, i, max_ii, j, max_jj);
+            pack_A_tile_fp32(C, topT_tile, i, max_ii, j, max_jj);
         }
 
         const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -408,7 +408,7 @@ static int gemm_BT_riscv_fp16s(const Mat& A, const Mat& BT, const Mat& C, Mat& t
 
             if (broadcast_type_C == 3)
             {
-                pack_A_tile_fp16s(C, topT_tile, i, max_ii, j, max_jj);
+                pack_A_tile_fp32(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -462,7 +462,7 @@ static int gemm_BT_riscv_fp16s(const Mat& A, const Mat& BT, const Mat& C, Mat& t
 
                 if (broadcast_type_C == 3)
                 {
-                    pack_A_tile_fp16s(C, topT_tile, i, max_ii, j, max_jj);
+                    pack_A_tile_fp32(C, topT_tile, i, max_ii, j, max_jj);
                 }
 
                 const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -545,7 +545,7 @@ static int gemm_AT_BT_riscv_fp16s(const Mat& AT, const Mat& BT, const Mat& C, Ma
 
         if (broadcast_type_C == 3)
         {
-            pack_A_tile_fp16s(C, topT_tile, i, max_ii, j, max_jj);
+            pack_A_tile_fp32(C, topT_tile, i, max_ii, j, max_jj);
         }
 
         const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -575,7 +575,7 @@ static int gemm_AT_BT_riscv_fp16s(const Mat& AT, const Mat& BT, const Mat& C, Ma
     return 0;
 }
 
-static int gemm_riscv_fp16sa(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+static int gemm_riscv_fp16sa(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
@@ -706,7 +706,9 @@ static int gemm_riscv_fp16sa(const Mat& A, const Mat& B, const Mat& C, Mat& top_
                 Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
 
                 bool k_end = !output_transpose && k + TILE_K >= K;
-                gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+                float _alpha = k + TILE_K >= K ? alpha : 1.f;
+
+                gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, _alpha, i, max_ii, j, max_jj, k, max_kk, k_end);
             }
 
             if (output_transpose)
@@ -764,7 +766,9 @@ static int gemm_riscv_fp16sa(const Mat& A, const Mat& B, const Mat& C, Mat& top_
                     }
 
                     bool k_end = !output_transpose && k + TILE_K >= K;
-                    gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+                    float _alpha = k + TILE_K >= K ? alpha : 1.f;
+
+                    gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, _alpha, i, max_ii, j, max_jj, k, max_kk, k_end);
                 }
 
                 if (output_transpose)
@@ -778,7 +782,7 @@ static int gemm_riscv_fp16sa(const Mat& A, const Mat& B, const Mat& C, Mat& top_
     return 0;
 }
 
-static int gemm_AT_riscv_fp16sa(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int K, int transB, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+static int gemm_AT_riscv_fp16sa(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int K, int transB, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     const int N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
 
@@ -867,8 +871,9 @@ static int gemm_AT_riscv_fp16sa(const Mat& AT, const Mat& B, const Mat& C, Mat& 
             Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
 
             bool k_end = !output_transpose && k + TILE_K >= K;
+            float _alpha = k + TILE_K >= K ? alpha : 1.f;
 
-            gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+            gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, _alpha, i, max_ii, j, max_jj, k, max_kk, k_end);
         }
 
         if (output_transpose)
@@ -880,7 +885,7 @@ static int gemm_AT_riscv_fp16sa(const Mat& AT, const Mat& B, const Mat& C, Mat& 
     return 0;
 }
 
-static int gemm_BT_riscv_fp16sa(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+static int gemm_BT_riscv_fp16sa(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
 
@@ -976,7 +981,9 @@ static int gemm_BT_riscv_fp16sa(const Mat& A, const Mat& BT, const Mat& C, Mat& 
                 Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
 
                 bool k_end = !output_transpose && k + TILE_K >= K;
-                gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+                float _alpha = k + TILE_K >= K ? alpha : 1.f;
+
+                gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, _alpha, i, max_ii, j, max_jj, k, max_kk, k_end);
             }
 
             if (output_transpose)
@@ -1040,7 +1047,9 @@ static int gemm_BT_riscv_fp16sa(const Mat& A, const Mat& BT, const Mat& C, Mat& 
                     }
 
                     bool k_end = !output_transpose && k + TILE_K >= K;
-                    gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+                    float _alpha = k + TILE_K >= K ? alpha : 1.f;
+
+                    gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, _alpha, i, max_ii, j, max_jj, k, max_kk, k_end);
                 }
 
                 if (output_transpose)
@@ -1054,7 +1063,7 @@ static int gemm_BT_riscv_fp16sa(const Mat& A, const Mat& BT, const Mat& C, Mat& 
     return 0;
 }
 
-static int gemm_AT_BT_riscv_fp16sa(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+static int gemm_AT_BT_riscv_fp16sa(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
@@ -1109,8 +1118,9 @@ static int gemm_AT_BT_riscv_fp16sa(const Mat& AT, const Mat& BT, const Mat& C, M
             Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
 
             bool k_end = !output_transpose && k + TILE_K >= K;
+            float _alpha = k + TILE_K >= K ? alpha : 1.f;
 
-            gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+            gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, _alpha, i, max_ii, j, max_jj, k, max_kk, k_end);
         }
 
         if (output_transpose)
@@ -1408,38 +1418,26 @@ int Gemm_riscv::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector
     int ret = 0;
     if (constantA && constantB)
     {
-        ret = gemm_AT_BT_riscv_fp16sa(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        ret = gemm_AT_BT_riscv_fp16sa(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, alpha, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
     else if (constantA)
     {
         const Mat& B = bottom_blobs[0];
-        ret = gemm_AT_riscv_fp16sa(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        ret = gemm_AT_riscv_fp16sa(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, alpha, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
     else if (constantB)
     {
         const Mat& A = bottom_blobs[0];
-        ret = gemm_BT_riscv_fp16sa(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        ret = gemm_BT_riscv_fp16sa(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, alpha, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
     else
     {
         const Mat& A = bottom_blobs[0];
         const Mat& B = bottom_blobs[1];
-        ret = gemm_riscv_fp16sa(A, B, C, top_blob, broadcast_type_C, transA, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        ret = gemm_riscv_fp16sa(A, B, C, top_blob, broadcast_type_C, transA, transB, output_transpose, alpha, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
     if (ret != 0)
         return ret;
-
-    if (alpha != 1.f)
-    {
-        const int size = top_blob.total() * out_elempack;
-        __fp16* ptr = top_blob;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < size; i++)
-        {
-            ptr[i] *= (__fp16)alpha;
-        }
-    }
 
     return 0;
 }

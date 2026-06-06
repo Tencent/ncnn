@@ -1,7 +1,7 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-static void pack_A_tile_fp16s(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+static void pack_A_tile_fp32(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
 #if __riscv_vector
     const int packn = csrr_vlenb() / 2;
@@ -408,9 +408,8 @@ static void transpose_unpack_output_tile_fp32_to_fp16(const Mat& topT, Mat& top_
 
             for (; jj < max_jj; jj++)
             {
-                const int q = (j + jj) / packn * packn;
-                const int r = (j + jj) % packn;
-                __fp16* p0 = (__fp16*)top_blob + q * out_hstep + r + (i + ii) * packn;
+                const int out_j = j + jj;
+                __fp16* p0 = (__fp16*)top_blob + (out_j / packn * packn) * out_hstep + out_j % packn + (i + ii) * packn;
                 __riscv_vsse16_v_f16m1(p0, packn * sizeof(__fp16), __riscv_vfncvt_f_f_w_f16m1(__riscv_vle32_v_f32m2(pp, vl), vl), vl);
                 pp += packn;
             }
@@ -436,27 +435,24 @@ static void transpose_unpack_output_tile_fp32_to_fp16(const Mat& topT, Mat& top_
             int jj = 0;
             for (; jj + 7 < max_jj; jj += 8)
             {
-                const int q = (j + jj) / packn * packn;
-                const int r = (j + jj) % packn;
-                __fp16* p0 = (__fp16*)top_blob + q * out_hstep + r + (i + ii) * packn;
+                const int out_j = j + jj;
+                __fp16* p0 = (__fp16*)top_blob + (out_j / packn * packn) * out_hstep + out_j % packn + (i + ii) * packn;
                 __riscv_vse16_v_f16m2(p0, __riscv_vfncvt_f_f_w_f16m2(__riscv_vle32_v_f32m4(pp, vl8w), vl8), vl8);
                 __riscv_vse16_v_f16m2(p0 + packn, __riscv_vfncvt_f_f_w_f16m2(__riscv_vle32_v_f32m4(pp + 8, vl8w), vl8), vl8);
                 pp += 8 * 2;
             }
             for (; jj + 3 < max_jj; jj += 4)
             {
-                const int q = (j + jj) / packn * packn;
-                const int r = (j + jj) % packn;
-                __fp16* p0 = (__fp16*)top_blob + q * out_hstep + r + (i + ii) * packn;
+                const int out_j = j + jj;
+                __fp16* p0 = (__fp16*)top_blob + (out_j / packn * packn) * out_hstep + out_j % packn + (i + ii) * packn;
                 __riscv_vse16_v_f16m1(p0, __riscv_vfncvt_f_f_w_f16m1(__riscv_vle32_v_f32m2(pp, vl4w), vl4), vl4);
                 __riscv_vse16_v_f16m1(p0 + packn, __riscv_vfncvt_f_f_w_f16m1(__riscv_vle32_v_f32m2(pp + 4, vl4w), vl4), vl4);
                 pp += 4 * 2;
             }
             for (; jj + 1 < max_jj; jj += 2)
             {
-                const int q = (j + jj) / packn * packn;
-                const int r = (j + jj) % packn;
-                __fp16* p0 = (__fp16*)top_blob + q * out_hstep + r + (i + ii) * packn;
+                const int out_j = j + jj;
+                __fp16* p0 = (__fp16*)top_blob + (out_j / packn * packn) * out_hstep + out_j % packn + (i + ii) * packn;
                 p0[0] = (__fp16)(pp[0]);
                 p0[1] = (__fp16)(pp[1]);
                 p0[packn] = (__fp16)(pp[2]);
@@ -465,9 +461,8 @@ static void transpose_unpack_output_tile_fp32_to_fp16(const Mat& topT, Mat& top_
             }
             for (; jj < max_jj; jj += 1)
             {
-                const int q = (j + jj) / packn * packn;
-                const int r = (j + jj) % packn;
-                __fp16* p0 = (__fp16*)top_blob + q * out_hstep + r + (i + ii) * packn;
+                const int out_j = j + jj;
+                __fp16* p0 = (__fp16*)top_blob + (out_j / packn * packn) * out_hstep + out_j % packn + (i + ii) * packn;
                 p0[0] = (__fp16)(pp[0]);
                 p0[packn] = (__fp16)(pp[1]);
                 pp += 2;
@@ -523,25 +518,22 @@ static void transpose_unpack_output_tile_fp32_to_fp16(const Mat& topT, Mat& top_
             int jj = 0;
             for (; jj + 7 < max_jj; jj += 8)
             {
-                const int q = (j + jj) / packn * packn;
-                const int r = (j + jj) % packn;
-                __fp16* p0 = (__fp16*)top_blob + q * out_hstep + r + (i + ii) * packn;
+                const int out_j = j + jj;
+                __fp16* p0 = (__fp16*)top_blob + (out_j / packn * packn) * out_hstep + out_j % packn + (i + ii) * packn;
                 __riscv_vse16_v_f16m2(p0, __riscv_vfncvt_f_f_w_f16m2(__riscv_vle32_v_f32m4(pp, vl8w), vl8), vl8);
                 pp += 8;
             }
             for (; jj + 3 < max_jj; jj += 4)
             {
-                const int q = (j + jj) / packn * packn;
-                const int r = (j + jj) % packn;
-                __fp16* p0 = (__fp16*)top_blob + q * out_hstep + r + (i + ii) * packn;
+                const int out_j = j + jj;
+                __fp16* p0 = (__fp16*)top_blob + (out_j / packn * packn) * out_hstep + out_j % packn + (i + ii) * packn;
                 __riscv_vse16_v_f16m1(p0, __riscv_vfncvt_f_f_w_f16m1(__riscv_vle32_v_f32m2(pp, vl4w), vl4), vl4);
                 pp += 4;
             }
             for (; jj < max_jj; jj += 1)
             {
-                const int q = (j + jj) / packn * packn;
-                const int r = (j + jj) % packn;
-                __fp16* p0 = (__fp16*)top_blob + q * out_hstep + r + (i + ii) * packn;
+                const int out_j = j + jj;
+                __fp16* p0 = (__fp16*)top_blob + (out_j / packn * packn) * out_hstep + out_j % packn + (i + ii) * packn;
                 p0[0] = (__fp16)(pp[0]);
                 pp += 1;
             }
@@ -636,15 +628,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
 
             if (k == 0)
             {
-                _sum0 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
-                _sum1 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
-                _sum2 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
-                _sum3 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
-                _sum4 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
-                _sum5 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
-                _sum6 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
-                _sum7 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
-
                 if (pC)
                 {
                     if (broadcast_type_C == 0)
@@ -693,6 +676,17 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                         _sum7 = __riscv_vfmv_v_f_f32m2(pC[7], vl2);
                         pC += 8;
                     }
+                }
+                else
+                {
+                    _sum0 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
+                    _sum1 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
+                    _sum2 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
+                    _sum3 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
+                    _sum4 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
+                    _sum5 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
+                    _sum6 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
+                    _sum7 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
                 }
             }
             else
@@ -788,11 +782,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
 
             if (k == 0)
             {
-                _sum0 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
-                _sum1 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
-                _sum2 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
-                _sum3 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
-
                 if (pC)
                 {
                     if (broadcast_type_C == 0)
@@ -825,6 +814,13 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                         _sum3 = __riscv_vfmv_v_f_f32m2(pC[3], vl2);
                         pC += 4;
                     }
+                }
+                else
+                {
+                    _sum0 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
+                    _sum1 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
+                    _sum2 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
+                    _sum3 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
                 }
             }
             else
@@ -894,9 +890,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
 
             if (k == 0)
             {
-                _sum0 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
-                _sum1 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
-
                 if (pC)
                 {
                     if (broadcast_type_C == 0)
@@ -921,6 +914,11 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                         _sum1 = __riscv_vfmv_v_f_f32m2(pC[1], vl2);
                         pC += 2;
                     }
+                }
+                else
+                {
+                    _sum0 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
+                    _sum1 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
                 }
             }
             else
@@ -977,8 +975,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
 
             if (k == 0)
             {
-                _sum0 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
-
                 if (pC)
                 {
                     if (broadcast_type_C == 0)
@@ -999,6 +995,10 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                         _sum0 = __riscv_vfmv_v_f_f32m2(pC[0], vl2);
                         pC += 1;
                     }
+                }
+                else
+                {
+                    _sum0 = __riscv_vfmv_v_f_f32m2(0.f, vl2);
                 }
             }
             else
@@ -1072,9 +1072,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
 
             if (k == 0)
             {
-                _sum0 = __riscv_vfmv_v_f_f32m4(0.f, vl8w);
-                _sum1 = __riscv_vfmv_v_f_f32m4(0.f, vl8w);
-
                 if (pC)
                 {
                     if (broadcast_type_C == 0)
@@ -1100,6 +1097,11 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                         _sum1 = _sum0;
                         pC += 8;
                     }
+                }
+                else
+                {
+                    _sum0 = __riscv_vfmv_v_f_f32m4(0.f, vl8w);
+                    _sum1 = __riscv_vfmv_v_f_f32m4(0.f, vl8w);
                 }
             }
             else
@@ -1149,9 +1151,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
 
             if (k == 0)
             {
-                _sum0 = __riscv_vfmv_v_f_f32m2(0.f, vl4w);
-                _sum1 = __riscv_vfmv_v_f_f32m2(0.f, vl4w);
-
                 if (pC)
                 {
                     if (broadcast_type_C == 0)
@@ -1177,6 +1176,11 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                         _sum1 = _sum0;
                         pC += 4;
                     }
+                }
+                else
+                {
+                    _sum0 = __riscv_vfmv_v_f_f32m2(0.f, vl4w);
+                    _sum1 = __riscv_vfmv_v_f_f32m2(0.f, vl4w);
                 }
             }
             else
@@ -1421,8 +1425,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
 
             if (k == 0)
             {
-                _sum = __riscv_vfmv_v_f_f32m4(0.f, vl8w);
-
                 if (pC)
                 {
                     if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
@@ -1434,6 +1436,10 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                         _sum = __riscv_vle32_v_f32m4(pC, vl8w);
                         pC += 8;
                     }
+                }
+                else
+                {
+                    _sum = __riscv_vfmv_v_f_f32m4(0.f, vl8w);
                 }
             }
             else
@@ -1477,8 +1483,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
 
             if (k == 0)
             {
-                _sum = __riscv_vfmv_v_f_f32m2(0.f, vl4w);
-
                 if (pC)
                 {
                     if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
@@ -1490,6 +1494,10 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                         _sum = __riscv_vle32_v_f32m2(pC, vl4w);
                         pC += 4;
                     }
+                }
+                else
+                {
+                    _sum = __riscv_vfmv_v_f_f32m2(0.f, vl4w);
                 }
             }
             else
