@@ -351,9 +351,7 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
     {
         if (elempack == packn)
         {
-            const int q = (j + jj) / packn * packn;
-            const int r = (j + jj) % packn;
-            const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + q * packn + r * packn;
+            const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * packn;
 
             int kk = 0;
             for (; kk + (packn - 1) < max_kk; kk += packn)
@@ -382,9 +380,7 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
     {
         if (elempack == packn)
         {
-            const int q = (j + jj) / packn * packn;
-            const int r = (j + jj) % packn;
-            const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + q * packn + r * packn;
+            const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * packn;
 
             int kk = 0;
             for (; kk + (packn - 1) < max_kk; kk += packn)
@@ -470,111 +466,6 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
                 pp[0] = p0[0];
                 pp += 1;
                 p0 += B_hstep;
-            }
-        }
-    }
-}
-
-static void transpose_unpack_output_tile_bf16_fp16(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj)
-{
-#if __riscv_vector
-    const int packn = csrr_vlenb() / 2;
-    const size_t vl = __riscv_vsetvl_e16m1(packn);
-#endif
-
-    const int out_elempack = top_blob.elempack;
-    const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
-
-    const unsigned short* pp = topT;
-
-    int ii = 0;
-#if __riscv_vector
-    for (; ii + (packn - 1) < max_ii; ii += packn)
-    {
-        if (out_elempack == packn)
-        {
-            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * packn;
-
-            for (int jj = 0; jj + (packn - 1) < max_jj; jj += packn)
-            {
-                // transposeNxN
-                for (int l = 0; l < packn; l++)
-                {
-                    __riscv_vsse16_v_u16m1(p0 + l, packn * sizeof(unsigned short), __riscv_vle16_v_u16m1(pp, vl), vl);
-                    pp += packn;
-                }
-                p0 += out_hstep * packn;
-            }
-        }
-        if (out_elempack == 1)
-        {
-            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii);
-
-            for (int jj = 0; jj < max_jj; jj += 1)
-            {
-                vuint16m1_t _r0 = __riscv_vle16_v_u16m1(pp, vl);
-                __riscv_vse16_v_u16m1(p0, _r0, vl);
-                pp += packn;
-                p0 += out_hstep;
-            }
-        }
-    }
-#endif // __riscv_vector
-    for (; ii + 1 < max_ii; ii += 2)
-    {
-#if __riscv_vector
-        if (out_elempack == packn)
-        {
-            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * packn;
-
-            for (int jj = 0; jj + (packn - 1) < max_jj; jj += packn)
-            {
-                vuint16m1x2_t _s0 = __riscv_vlseg2e16_v_u16m1x2(pp, vl);
-                __riscv_vse16_v_u16m1(p0, __riscv_vget_v_u16m1x2_u16m1(_s0, 0), vl);
-                __riscv_vse16_v_u16m1(p0 + packn, __riscv_vget_v_u16m1x2_u16m1(_s0, 1), vl);
-                pp += packn * 2;
-                p0 += out_hstep * packn;
-            }
-        }
-#endif // __riscv_vector
-        if (out_elempack == 1)
-        {
-            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii);
-
-            for (int jj = 0; jj < max_jj; jj += 1)
-            {
-                p0[0] = pp[0];
-                p0[1] = pp[1];
-                pp += 2;
-                p0 += out_hstep;
-            }
-        }
-    }
-    for (; ii < max_ii; ii += 1)
-    {
-#if __riscv_vector
-        if (out_elempack == packn)
-        {
-            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * packn;
-
-            for (int jj = 0; jj + (packn - 1) < max_jj; jj += packn)
-            {
-                vuint16m1_t _r0 = __riscv_vle16_v_u16m1(pp, vl);
-                __riscv_vse16_v_u16m1(p0, _r0, vl);
-                pp += packn;
-                p0 += out_hstep * packn;
-            }
-        }
-#endif // __riscv_vector
-        if (out_elempack == 1)
-        {
-            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii);
-
-            for (int jj = 0; jj < max_jj; jj += 1)
-            {
-                p0[0] = pp[0];
-                pp += 1;
-                p0 += out_hstep;
             }
         }
     }

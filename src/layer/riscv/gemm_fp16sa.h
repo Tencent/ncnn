@@ -6,6 +6,7 @@ static void pack_B_tile_fp16sa(const Mat& B, Mat& BT, int j, int max_jj, int k, 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 2;
     const size_t vl = __riscv_vsetvl_e16m1(packn);
+    const size_t vl16 = __riscv_vsetvl_e16m1(16);
     const size_t vl8 = __riscv_vsetvl_e16m1(8);
     const size_t vl4 = __riscv_vsetvl_e16m1(4);
 #endif
@@ -21,20 +22,22 @@ static void pack_B_tile_fp16sa(const Mat& B, Mat& BT, int j, int max_jj, int k, 
     {
         if (elempack == packn)
         {
-            const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * packn;
+            const int q = (j + jj) / packn * packn;
+            const int r = (j + jj) % packn;
+            const unsigned short* p0 = (const unsigned short*)B + q * B_hstep + k * packn + r;
 
-            if (packn == 16)
+            if (packn >= 16)
             {
                 for (int kk = 0; kk < max_kk; kk++)
                 {
-                    __riscv_vse16_v_u16m1(pp, __riscv_vle16_v_u16m1(p0, vl), vl);
+                    __riscv_vse16_v_u16m1(pp, __riscv_vle16_v_u16m1(p0, vl16), vl16);
                     pp += 16;
-                    p0 += 16;
+                    p0 += packn;
                 }
             }
             if (packn == 8)
             {
-                const unsigned short* p1 = (const unsigned short*)B + (j + jj + 8) * B_hstep + k * 8;
+                const unsigned short* p1 = (const unsigned short*)B + (q + 8) * B_hstep + k * 8;
 
                 for (int kk = 0; kk < max_kk; kk++)
                 {
@@ -209,6 +212,7 @@ static void transpose_pack_B_tile_fp16sa(const Mat& B, Mat& BT, int j, int max_j
 #if __riscv_vector
     const int packn = csrr_vlenb() / 2;
     const size_t vl = __riscv_vsetvl_e16m1(packn);
+    const size_t vl16 = __riscv_vsetvl_e16m1(16);
     const size_t vl8 = __riscv_vsetvl_e16m1(8);
     const size_t vl4 = __riscv_vsetvl_e16m1(4);
 #endif
@@ -226,17 +230,17 @@ static void transpose_pack_B_tile_fp16sa(const Mat& B, Mat& BT, int j, int max_j
         {
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * packn;
 
-            if (packn == 16)
+            if (packn >= 16)
             {
                 int kk = 0;
-                for (; kk + 15 < max_kk; kk += 16)
+                for (; kk + (packn - 1) < max_kk; kk += packn)
                 {
-                    for (int l = 0; l < 16; l++)
+                    for (int l = 0; l < packn; l++)
                     {
-                        __riscv_vse16_v_u16m1(pp, __riscv_vlse16_v_u16m1(p0 + l, 16 * sizeof(unsigned short), vl), vl);
+                        __riscv_vse16_v_u16m1(pp, __riscv_vlse16_v_u16m1(p0 + l, packn * sizeof(unsigned short), vl16), vl16);
                         pp += 16;
                     }
-                    p0 += B_hstep * 16;
+                    p0 += B_hstep * packn;
                 }
             }
             if (packn == 8)
@@ -279,9 +283,7 @@ static void transpose_pack_B_tile_fp16sa(const Mat& B, Mat& BT, int j, int max_j
     {
         if (elempack == packn)
         {
-            const int q = (j + jj) / packn * packn;
-            const int r = (j + jj) % packn;
-            const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + q * packn + r * packn;
+            const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * packn;
 
             int kk = 0;
             for (; kk + (packn - 1) < max_kk; kk += packn)
@@ -311,9 +313,7 @@ static void transpose_pack_B_tile_fp16sa(const Mat& B, Mat& BT, int j, int max_j
     {
         if (elempack == packn)
         {
-            const int q = (j + jj) / packn * packn;
-            const int r = (j + jj) % packn;
-            const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + q * packn + r * packn;
+            const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * packn;
 
             int kk = 0;
             for (; kk + (packn - 1) < max_kk; kk += packn)
@@ -346,9 +346,7 @@ static void transpose_pack_B_tile_fp16sa(const Mat& B, Mat& BT, int j, int max_j
 #if __riscv_vector
         if (elempack == packn)
         {
-            const int q = (j + jj) / packn * packn;
-            const int r = (j + jj) % packn;
-            const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + q * packn + r * packn;
+            const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * packn;
 
             int kk = 0;
             for (; kk + (packn - 1) < max_kk; kk += packn)
@@ -380,9 +378,7 @@ static void transpose_pack_B_tile_fp16sa(const Mat& B, Mat& BT, int j, int max_j
 #if __riscv_vector
         if (elempack == packn)
         {
-            const int q = (j + jj) / packn * packn;
-            const int r = (j + jj) % packn;
-            const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + q * packn + r * packn;
+            const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * packn;
 
             int kk = 0;
             for (; kk + (packn - 1) < max_kk; kk += packn)
@@ -413,9 +409,14 @@ static void transpose_unpack_output_tile_fp16sa(const Mat& topT, Mat& top_blob, 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 2;
     const size_t vl = __riscv_vsetvl_e16m1(packn);
+    const size_t vl16 = __riscv_vsetvl_e16m2(16);
+    const size_t vl8 = __riscv_vsetvl_e16m1(8);
+    const size_t vl4 = __riscv_vsetvl_e16m1(4);
 #endif
 
+#if __riscv_vector
     const int out_elempack = top_blob.elempack;
+#endif
     const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
 
     const __fp16* pp = topT;
@@ -427,9 +428,38 @@ static void transpose_unpack_output_tile_fp16sa(const Mat& topT, Mat& top_blob, 
         if (out_elempack == packn)
         {
             int jj = 0;
-            for (; jj < max_jj; jj += 1)
+
+            const int r0 = j % packn;
+            if (r0 != 0)
             {
-                __fp16* p0 = (__fp16*)top_blob + ((j + jj) / packn) * out_hstep * packn + ((j + jj) % packn) + (i + ii) * packn;
+                const int nn = std::min(packn - r0, max_jj);
+                __fp16* p0 = (__fp16*)top_blob + (j / packn * packn) * out_hstep + r0 + (i + ii) * packn;
+
+                for (; jj < nn; jj++)
+                {
+                    __riscv_vsse16_v_f16m1(p0, packn * sizeof(__fp16), __riscv_vle16_v_f16m1(pp, vl), vl);
+                    pp += packn;
+                    p0++;
+                }
+            }
+
+            for (; jj + (packn - 1) < max_jj; jj += packn)
+            {
+                __fp16* p0 = (__fp16*)top_blob + (j + jj) * out_hstep + (i + ii) * packn;
+
+                // transposeNxN
+                for (int l = 0; l < packn; l++)
+                {
+                    __riscv_vsse16_v_f16m1(p0 + l, packn * sizeof(__fp16), __riscv_vle16_v_f16m1(pp, vl), vl);
+                    pp += packn;
+                }
+            }
+
+            for (; jj < max_jj; jj++)
+            {
+                const int q = (j + jj) / packn * packn;
+                const int r = (j + jj) % packn;
+                __fp16* p0 = (__fp16*)top_blob + q * out_hstep + r + (i + ii) * packn;
                 __riscv_vsse16_v_f16m1(p0, packn * sizeof(__fp16), __riscv_vle16_v_f16m1(pp, vl), vl);
                 pp += packn;
             }
@@ -453,24 +483,107 @@ static void transpose_unpack_output_tile_fp16sa(const Mat& topT, Mat& top_blob, 
         if (out_elempack == packn)
         {
             int jj = 0;
-            for (; jj + (packn - 1) < max_jj; jj += packn)
+            for (; jj + 15 < max_jj; jj += 16)
             {
-                __fp16* p0 = (__fp16*)top_blob + ((j + jj) / packn) * out_hstep * packn + ((j + jj) % packn) + (i + ii) * packn;
+                const int q = (j + jj) / packn * packn;
+                const int r = (j + jj) % packn;
+                __fp16* p0 = (__fp16*)top_blob + q * out_hstep + r + (i + ii) * packn;
 
-                for (int l = 0; l < packn; l++)
+                if (packn == 8)
                 {
-                    p0[l] = pp[l * 2];
-                    p0[packn + l] = pp[l * 2 + 1];
+                    __riscv_vse16_v_f16m1(p0, __riscv_vle16_v_f16m1(pp, vl8), vl8);
+                    __riscv_vse16_v_f16m1(p0 + packn, __riscv_vle16_v_f16m1(pp + 16, vl8), vl8);
+                    p0 += out_hstep * packn;
+                    __riscv_vse16_v_f16m1(p0, __riscv_vle16_v_f16m1(pp + 8, vl8), vl8);
+                    __riscv_vse16_v_f16m1(p0 + packn, __riscv_vle16_v_f16m1(pp + 24, vl8), vl8);
                 }
-                pp += packn * 2;
+                if (packn >= 16)
+                {
+                    __riscv_vse16_v_f16m2(p0, __riscv_vle16_v_f16m2(pp, vl16), vl16);
+                    __riscv_vse16_v_f16m2(p0 + packn, __riscv_vle16_v_f16m2(pp + 16, vl16), vl16);
+                }
+                pp += 16 * 2;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
+            {
+                const int q = (j + jj) / packn * packn;
+                const int r = (j + jj) % packn;
+                __fp16* p0 = (__fp16*)top_blob + q * out_hstep + r + (i + ii) * packn;
+                __riscv_vse16_v_f16m1(p0, __riscv_vle16_v_f16m1(pp, vl8), vl8);
+                __riscv_vse16_v_f16m1(p0 + packn, __riscv_vle16_v_f16m1(pp + 8, vl8), vl8);
+                pp += 8 * 2;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                const int q = (j + jj) / packn * packn;
+                const int r = (j + jj) % packn;
+                __fp16* p0 = (__fp16*)top_blob + q * out_hstep + r + (i + ii) * packn;
+                __riscv_vse16_v_f16m1(p0, __riscv_vle16_v_f16m1(pp, vl4), vl4);
+                __riscv_vse16_v_f16m1(p0 + packn, __riscv_vle16_v_f16m1(pp + 4, vl4), vl4);
+                pp += 4 * 2;
+            }
+            for (; jj + 1 < max_jj; jj += 2)
+            {
+                const int q = (j + jj) / packn * packn;
+                const int r = (j + jj) % packn;
+                __fp16* p0 = (__fp16*)top_blob + q * out_hstep + r + (i + ii) * packn;
+                p0[0] = pp[0];
+                p0[1] = pp[1];
+                p0[packn] = pp[2];
+                p0[packn + 1] = pp[3];
+                pp += 2 * 2;
+            }
+            for (; jj < max_jj; jj += 1)
+            {
+                const int q = (j + jj) / packn * packn;
+                const int r = (j + jj) % packn;
+                __fp16* p0 = (__fp16*)top_blob + q * out_hstep + r + (i + ii) * packn;
+                p0[0] = pp[0];
+                p0[packn] = pp[1];
+                pp += 2;
             }
         }
 #endif // __riscv_vector
+#if __riscv_vector
         if (out_elempack == 1)
+#endif // __riscv_vector
         {
             __fp16* p0 = (__fp16*)top_blob + j * out_hstep + (i + ii);
 
-            for (int jj = 0; jj < max_jj; jj += 1)
+            int jj = 0;
+#if __riscv_vector
+            for (; jj + 15 < max_jj; jj += 16)
+            {
+                __riscv_vsse16_v_f16m2(p0, out_hstep * sizeof(__fp16), __riscv_vle16_v_f16m2(pp, vl16), vl16);
+                __riscv_vsse16_v_f16m2(p0 + 1, out_hstep * sizeof(__fp16), __riscv_vle16_v_f16m2(pp + 16, vl16), vl16);
+                pp += 16 * 2;
+                p0 += out_hstep * 16;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
+            {
+                __riscv_vsse16_v_f16m1(p0, out_hstep * sizeof(__fp16), __riscv_vle16_v_f16m1(pp, vl8), vl8);
+                __riscv_vsse16_v_f16m1(p0 + 1, out_hstep * sizeof(__fp16), __riscv_vle16_v_f16m1(pp + 8, vl8), vl8);
+                pp += 8 * 2;
+                p0 += out_hstep * 8;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                __riscv_vsse16_v_f16m1(p0, out_hstep * sizeof(__fp16), __riscv_vle16_v_f16m1(pp, vl4), vl4);
+                __riscv_vsse16_v_f16m1(p0 + 1, out_hstep * sizeof(__fp16), __riscv_vle16_v_f16m1(pp + 4, vl4), vl4);
+                pp += 4 * 2;
+                p0 += out_hstep * 4;
+            }
+#endif // __riscv_vector
+            for (; jj + 1 < max_jj; jj += 2)
+            {
+                p0[0] = pp[0];
+                p0[out_hstep] = pp[1];
+                p0[1] = pp[2];
+                p0[out_hstep + 1] = pp[3];
+                pp += 2 * 2;
+                p0 += out_hstep * 2;
+            }
+            for (; jj < max_jj; jj += 1)
             {
                 p0[0] = pp[0];
                 p0[1] = pp[1];
@@ -485,23 +598,78 @@ static void transpose_unpack_output_tile_fp16sa(const Mat& topT, Mat& top_blob, 
         if (out_elempack == packn)
         {
             int jj = 0;
-            for (; jj + (packn - 1) < max_jj; jj += packn)
+            for (; jj + 15 < max_jj; jj += 16)
             {
-                __fp16* p0 = (__fp16*)top_blob + ((j + jj) / packn) * out_hstep * packn + ((j + jj) % packn) + (i + ii) * packn;
+                const int q = (j + jj) / packn * packn;
+                const int r = (j + jj) % packn;
+                __fp16* p0 = (__fp16*)top_blob + q * out_hstep + r + (i + ii) * packn;
 
-                for (int l = 0; l < packn; l++)
+                if (packn == 8)
                 {
-                    p0[l] = pp[l];
+                    __riscv_vse16_v_f16m1(p0, __riscv_vle16_v_f16m1(pp, vl8), vl8);
+                    p0 += out_hstep * packn;
+                    __riscv_vse16_v_f16m1(p0, __riscv_vle16_v_f16m1(pp + 8, vl8), vl8);
                 }
-                pp += packn;
+                if (packn >= 16)
+                {
+                    __riscv_vse16_v_f16m2(p0, __riscv_vle16_v_f16m2(pp, vl16), vl16);
+                }
+                pp += 16;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
+            {
+                const int q = (j + jj) / packn * packn;
+                const int r = (j + jj) % packn;
+                __fp16* p0 = (__fp16*)top_blob + q * out_hstep + r + (i + ii) * packn;
+                __riscv_vse16_v_f16m1(p0, __riscv_vle16_v_f16m1(pp, vl8), vl8);
+                pp += 8;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                const int q = (j + jj) / packn * packn;
+                const int r = (j + jj) % packn;
+                __fp16* p0 = (__fp16*)top_blob + q * out_hstep + r + (i + ii) * packn;
+                __riscv_vse16_v_f16m1(p0, __riscv_vle16_v_f16m1(pp, vl4), vl4);
+                pp += 4;
+            }
+            for (; jj < max_jj; jj += 1)
+            {
+                const int q = (j + jj) / packn * packn;
+                const int r = (j + jj) % packn;
+                __fp16* p0 = (__fp16*)top_blob + q * out_hstep + r + (i + ii) * packn;
+                p0[0] = pp[0];
+                pp += 1;
             }
         }
 #endif // __riscv_vector
+#if __riscv_vector
         if (out_elempack == 1)
+#endif // __riscv_vector
         {
             __fp16* p0 = (__fp16*)top_blob + j * out_hstep + (i + ii);
 
-            for (int jj = 0; jj < max_jj; jj += 1)
+            int jj = 0;
+#if __riscv_vector
+            for (; jj + 15 < max_jj; jj += 16)
+            {
+                __riscv_vsse16_v_f16m2(p0, out_hstep * sizeof(__fp16), __riscv_vle16_v_f16m2(pp, vl16), vl16);
+                pp += 16;
+                p0 += out_hstep * 16;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
+            {
+                __riscv_vsse16_v_f16m1(p0, out_hstep * sizeof(__fp16), __riscv_vle16_v_f16m1(pp, vl8), vl8);
+                pp += 8;
+                p0 += out_hstep * 8;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                __riscv_vsse16_v_f16m1(p0, out_hstep * sizeof(__fp16), __riscv_vle16_v_f16m1(pp, vl4), vl4);
+                pp += 4;
+                p0 += out_hstep * 4;
+            }
+#endif // __riscv_vector
+            for (; jj < max_jj; jj += 1)
             {
                 p0[0] = pp[0];
                 pp += 1;
@@ -1194,9 +1362,8 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             }
             else
             {
-                vfloat16m2x2_t _s0 = __riscv_vlseg2e16_v_f16m2x2(outptr, vl16);
-                _sum0 = __riscv_vget_v_f16m2x2_f16m2(_s0, 0);
-                _sum1 = __riscv_vget_v_f16m2x2_f16m2(_s0, 1);
+                _sum0 = __riscv_vle16_v_f16m2(outptr, vl16);
+                _sum1 = __riscv_vle16_v_f16m2(outptr + 16, vl16);
             }
 
             const __fp16* pA = pAT;
@@ -1217,7 +1384,8 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             }
             else
             {
-                __riscv_vsseg2e16_v_f16m2x2(outptr, __riscv_vcreate_v_f16m2x2(_sum0, _sum1), vl16);
+                __riscv_vse16_v_f16m2(outptr, _sum0, vl16);
+                __riscv_vse16_v_f16m2(outptr + 16, _sum1, vl16);
             }
 
             outptr += 16 * 2;
@@ -1261,9 +1429,8 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             }
             else
             {
-                vfloat16m1x2_t _s0 = __riscv_vlseg2e16_v_f16m1x2(outptr, vl8);
-                _sum0 = __riscv_vget_v_f16m1x2_f16m1(_s0, 0);
-                _sum1 = __riscv_vget_v_f16m1x2_f16m1(_s0, 1);
+                _sum0 = __riscv_vle16_v_f16m1(outptr, vl8);
+                _sum1 = __riscv_vle16_v_f16m1(outptr + 8, vl8);
             }
 
             const __fp16* pA = pAT;
@@ -1284,7 +1451,8 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             }
             else
             {
-                __riscv_vsseg2e16_v_f16m1x2(outptr, __riscv_vcreate_v_f16m1x2(_sum0, _sum1), vl8);
+                __riscv_vse16_v_f16m1(outptr, _sum0, vl8);
+                __riscv_vse16_v_f16m1(outptr + 8, _sum1, vl8);
             }
 
             outptr += 8 * 2;
@@ -1328,9 +1496,8 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             }
             else
             {
-                vfloat16m1x2_t _s0 = __riscv_vlseg2e16_v_f16m1x2(outptr, vl4);
-                _sum0 = __riscv_vget_v_f16m1x2_f16m1(_s0, 0);
-                _sum1 = __riscv_vget_v_f16m1x2_f16m1(_s0, 1);
+                _sum0 = __riscv_vle16_v_f16m1(outptr, vl4);
+                _sum1 = __riscv_vle16_v_f16m1(outptr + 4, vl4);
             }
 
             const __fp16* pA = pAT;
@@ -1351,7 +1518,8 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             }
             else
             {
-                __riscv_vsseg2e16_v_f16m1x2(outptr, __riscv_vcreate_v_f16m1x2(_sum0, _sum1), vl4);
+                __riscv_vse16_v_f16m1(outptr, _sum0, vl4);
+                __riscv_vse16_v_f16m1(outptr + 4, _sum1, vl4);
             }
 
             outptr += 4 * 2;
@@ -1408,8 +1576,8 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             else
             {
                 sum00 = outptr[0];
-                sum01 = outptr[1];
-                sum10 = outptr[2];
+                sum10 = outptr[1];
+                sum01 = outptr[2];
                 sum11 = outptr[3];
             }
 
@@ -1435,8 +1603,8 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             else
             {
                 outptr[0] = sum00;
-                outptr[1] = sum01;
-                outptr[2] = sum10;
+                outptr[1] = sum10;
+                outptr[2] = sum01;
                 outptr[3] = sum11;
             }
 
