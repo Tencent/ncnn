@@ -41,8 +41,8 @@ static void pack_B_tile_fp16sa(const Mat& B, Mat& BT, int j, int max_jj, int k, 
 
                 for (int kk = 0; kk < max_kk; kk++)
                 {
-                    __riscv_vse16_v_u16m1(pp, __riscv_vle16_v_u16m1(p0, vl), vl);
-                    __riscv_vse16_v_u16m1(pp + 8, __riscv_vle16_v_u16m1(p1, vl), vl);
+                    __riscv_vse16_v_u16m1(pp, __riscv_vle16_v_u16m1(p0, vl8), vl8);
+                    __riscv_vse16_v_u16m1(pp + 8, __riscv_vle16_v_u16m1(p1, vl8), vl8);
                     pp += 16;
                     p0 += 8;
                     p1 += 8;
@@ -229,11 +229,13 @@ static void transpose_pack_B_tile_fp16sa(const Mat& B, Mat& BT, int j, int max_j
                 int kk = 0;
                 for (; kk + (packn - 1) < max_kk; kk += packn)
                 {
+                    // transposeNx16
                     for (int l = 0; l < packn; l++)
                     {
                         __riscv_vse16_v_u16m1(pp, __riscv_vlse16_v_u16m1(p0 + l, packn * sizeof(unsigned short), vl16), vl16);
                         pp += 16;
                     }
+
                     p0 += B_hstep * packn;
                 }
             }
@@ -244,12 +246,14 @@ static void transpose_pack_B_tile_fp16sa(const Mat& B, Mat& BT, int j, int max_j
                 int kk = 0;
                 for (; kk + 7 < max_kk; kk += 8)
                 {
+                    // transpose8x16
                     for (int l = 0; l < 8; l++)
                     {
-                        __riscv_vse16_v_u16m1(pp, __riscv_vlse16_v_u16m1(p0 + l, 8 * sizeof(unsigned short), vl), vl);
-                        __riscv_vse16_v_u16m1(pp + 8, __riscv_vlse16_v_u16m1(p1 + l, 8 * sizeof(unsigned short), vl), vl);
+                        __riscv_vse16_v_u16m1(pp, __riscv_vlse16_v_u16m1(p0 + l, 8 * sizeof(unsigned short), vl8), vl8);
+                        __riscv_vse16_v_u16m1(pp + 8, __riscv_vlse16_v_u16m1(p1 + l, 8 * sizeof(unsigned short), vl8), vl8);
                         pp += 16;
                     }
+
                     p0 += B_hstep * 8;
                     p1 += B_hstep * 8;
                 }
@@ -276,11 +280,13 @@ static void transpose_pack_B_tile_fp16sa(const Mat& B, Mat& BT, int j, int max_j
             int kk = 0;
             for (; kk + (packn - 1) < max_kk; kk += packn)
             {
+                // transposeNx8
                 for (int l = 0; l < packn; l++)
                 {
                     __riscv_vse16_v_u16m1(pp, __riscv_vlse16_v_u16m1(p0 + l, packn * sizeof(unsigned short), vl8), vl8);
                     pp += 8;
                 }
+
                 p0 += B_hstep * packn;
             }
         }
@@ -431,24 +437,25 @@ static void transpose_unpack_output_tile_fp16sa(const Mat& topT, Mat& top_blob, 
                 }
             }
 
+            __fp16* p0 = (__fp16*)top_blob + (j + jj) * out_hstep + (i + ii) * packn;
+
             for (; jj + (packn - 1) < max_jj; jj += packn)
             {
-                __fp16* p0 = (__fp16*)top_blob + (j + jj) * out_hstep + (i + ii) * packn;
-
                 // transposeNxN
                 for (int l = 0; l < packn; l++)
                 {
                     __riscv_vsse16_v_f16m1(p0 + l, packn * sizeof(__fp16), __riscv_vle16_v_f16m1(pp, vl), vl);
                     pp += packn;
                 }
+
+                p0 += out_hstep * packn;
             }
 
             for (; jj < max_jj; jj++)
             {
-                const int out_j = j + jj;
-                __fp16* p0 = (__fp16*)top_blob + (out_j / packn * packn) * out_hstep + out_j % packn + (i + ii) * packn;
                 __riscv_vsse16_v_f16m1(p0, packn * sizeof(__fp16), __riscv_vle16_v_f16m1(pp, vl), vl);
                 pp += packn;
+                p0++;
             }
         }
         if (out_elempack == 1)
@@ -470,16 +477,16 @@ static void transpose_unpack_output_tile_fp16sa(const Mat& topT, Mat& top_blob, 
         if (out_elempack == packn)
         {
             int jj = 0;
+
             for (; jj + 15 < max_jj; jj += 16)
             {
                 const int out_j = j + jj;
                 __fp16* p0 = (__fp16*)top_blob + (out_j / packn * packn) * out_hstep + out_j % packn + (i + ii) * packn;
-
                 if (packn == 8)
                 {
                     __riscv_vse16_v_f16m1(p0, __riscv_vle16_v_f16m1(pp, vl8), vl8);
                     __riscv_vse16_v_f16m1(p0 + packn, __riscv_vle16_v_f16m1(pp + 16, vl8), vl8);
-                    p0 += out_hstep * packn;
+                    p0 += out_hstep * 8;
                     __riscv_vse16_v_f16m1(p0, __riscv_vle16_v_f16m1(pp + 8, vl8), vl8);
                     __riscv_vse16_v_f16m1(p0 + packn, __riscv_vle16_v_f16m1(pp + 24, vl8), vl8);
                 }
@@ -525,8 +532,6 @@ static void transpose_unpack_output_tile_fp16sa(const Mat& topT, Mat& top_blob, 
                 pp += 2;
             }
         }
-#endif // __riscv_vector
-#if __riscv_vector
         if (out_elempack == 1)
 #endif // __riscv_vector
         {
@@ -580,15 +585,15 @@ static void transpose_unpack_output_tile_fp16sa(const Mat& topT, Mat& top_blob, 
         if (out_elempack == packn)
         {
             int jj = 0;
+
             for (; jj + 15 < max_jj; jj += 16)
             {
                 const int out_j = j + jj;
                 __fp16* p0 = (__fp16*)top_blob + (out_j / packn * packn) * out_hstep + out_j % packn + (i + ii) * packn;
-
                 if (packn == 8)
                 {
                     __riscv_vse16_v_f16m1(p0, __riscv_vle16_v_f16m1(pp, vl8), vl8);
-                    p0 += out_hstep * packn;
+                    p0 += out_hstep * 8;
                     __riscv_vse16_v_f16m1(p0, __riscv_vle16_v_f16m1(pp + 8, vl8), vl8);
                 }
                 if (packn >= 16)
@@ -619,8 +624,6 @@ static void transpose_unpack_output_tile_fp16sa(const Mat& topT, Mat& top_blob, 
                 pp += 1;
             }
         }
-#endif // __riscv_vector
-#if __riscv_vector
         if (out_elempack == 1)
 #endif // __riscv_vector
         {

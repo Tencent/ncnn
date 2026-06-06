@@ -394,24 +394,25 @@ static void transpose_unpack_output_tile_fp32_to_fp16(const Mat& topT, Mat& top_
                 }
             }
 
+            __fp16* p0 = (__fp16*)top_blob + (j + jj) * out_hstep + (i + ii) * packn;
+
             for (; jj + (packn - 1) < max_jj; jj += packn)
             {
-                __fp16* p0 = (__fp16*)top_blob + (j + jj) * out_hstep + (i + ii) * packn;
-
                 // transposeNxN
                 for (int l = 0; l < packn; l++)
                 {
                     __riscv_vsse16_v_f16m1(p0 + l, packn * sizeof(__fp16), __riscv_vfncvt_f_f_w_f16m1(__riscv_vle32_v_f32m2(pp, vl), vl), vl);
                     pp += packn;
                 }
+
+                p0 += out_hstep * packn;
             }
 
             for (; jj < max_jj; jj++)
             {
-                const int out_j = j + jj;
-                __fp16* p0 = (__fp16*)top_blob + (out_j / packn * packn) * out_hstep + out_j % packn + (i + ii) * packn;
                 __riscv_vsse16_v_f16m1(p0, packn * sizeof(__fp16), __riscv_vfncvt_f_f_w_f16m1(__riscv_vle32_v_f32m2(pp, vl), vl), vl);
                 pp += packn;
+                p0++;
             }
         }
         if (out_elempack == 1)
@@ -433,6 +434,7 @@ static void transpose_unpack_output_tile_fp32_to_fp16(const Mat& topT, Mat& top_
         if (out_elempack == packn)
         {
             int jj = 0;
+
             for (; jj + 7 < max_jj; jj += 8)
             {
                 const int out_j = j + jj;
@@ -468,8 +470,6 @@ static void transpose_unpack_output_tile_fp32_to_fp16(const Mat& topT, Mat& top_
                 pp += 2;
             }
         }
-#endif // __riscv_vector
-#if __riscv_vector
         if (out_elempack == 1)
 #endif // __riscv_vector
         {
@@ -516,6 +516,7 @@ static void transpose_unpack_output_tile_fp32_to_fp16(const Mat& topT, Mat& top_
         if (out_elempack == packn)
         {
             int jj = 0;
+
             for (; jj + 7 < max_jj; jj += 8)
             {
                 const int out_j = j + jj;
@@ -538,8 +539,6 @@ static void transpose_unpack_output_tile_fp32_to_fp16(const Mat& topT, Mat& top_
                 pp += 1;
             }
         }
-#endif // __riscv_vector
-#if __riscv_vector
         if (out_elempack == 1)
 #endif // __riscv_vector
         {
