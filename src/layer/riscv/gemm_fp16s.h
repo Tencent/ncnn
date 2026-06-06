@@ -100,7 +100,8 @@ static void pack_A_tile_fp16s(const Mat& A, Mat& AT, int i, int max_ii, int k, i
 // FIXME inline causes incorrect codegen on c906
 __attribute__((noinline))
 #endif
-static void pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+static void
+pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
 #if __riscv_vector
     const int packn = csrr_vlenb() / 2;
@@ -157,7 +158,8 @@ static void pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, i
 // FIXME inline causes incorrect codegen on c906
 __attribute__((noinline))
 #endif
-static void transpose_pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+static void
+transpose_pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
 #if __riscv_vector
     const int packn = csrr_vlenb() / 2;
@@ -286,7 +288,8 @@ pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int ma
 // FIXME inline causes incorrect codegen on c906
 __attribute__((noinline))
 #endif
-static void transpose_pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
+static void
+transpose_pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
 #if __riscv_vector
     const size_t vl8 = __riscv_vsetvl_e32m2(8);
