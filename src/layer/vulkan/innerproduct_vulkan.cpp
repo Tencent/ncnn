@@ -518,6 +518,7 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
     const float bottom_blob_int8_descale = bottom_blob_int8_scale == 0.f ? 0.f : 1.f / bottom_blob_int8_scale;
 
     Option opt_int8 = opt;
+    opt_int8.use_fp16_arithmetic = false;
     opt_int8.use_int16_packed = false;
     opt_int8.use_int16_storage = false;
 

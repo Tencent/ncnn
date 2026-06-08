@@ -50,6 +50,9 @@ public:
     ncnn::Layer* quantize;
 
     Mat weight_data_int8_packed;
+    Mat weight_data_int8_descales;
+    Mat top_blob_int8_scales_packed;
+    Mat bias_data_int8_packed;
 
     VkMat weight_data_int8_scales_gpu;
     VkMat top_blob_int8_scales_gpu;

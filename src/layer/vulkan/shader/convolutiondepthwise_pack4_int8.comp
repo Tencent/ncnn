@@ -74,9 +74,9 @@ void main()
     ivec4 sum = ivec4(0);
 
     int k = 0;
-    for (; k < maxk4; k += 4)
+    for (; k + 3 < maxk; k += 4)
     {
-        const ivec4 k4 = min(k + ivec4(0, 1, 2, 3), ivec4(maxk - 1));
+        const ivec4 k4 = k + ivec4(0, 1, 2, 3);
         const ivec4 ky4 = k4 / kernel_w;
         const ivec4 kx4 = k4 - ky4 * kernel_w;
         const ivec4 x4 = gx * stride_w + kx4 * dilation_w;
@@ -103,6 +103,19 @@ void main()
         sum += v2 * k2;
         sum += v3 * k3;
 #endif
+    }
+
+    for (; k < maxk; k++)
+    {
+        const int ky = k / kernel_w;
+        const int kx = k - ky * kernel_w;
+        const int x = gx * stride_w + kx * dilation_w;
+        const int y = gy * stride_h + ky * dilation_h;
+
+        const ivec4 v = i8buffer_ld4(bottom_blob_int8_data, gz * psc(cstep) + y * psc(w) + x);
+        const ivec4 kv = i8buffer_ld4(weight_data, gz * maxk4 + k);
+
+        sum += v * kv;
     }
 
     vec4 sumfp32 = vec4(sum) * scale_in_data[gz];

@@ -2170,6 +2170,8 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     bool use_winograd = opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16;
+    bool use_winograd43 = use_winograd && opt.use_winograd43_convolution;
+    bool use_winograd23 = use_winograd && opt.use_winograd23_convolution;
     bool use_gemm = opt.use_sgemm_convolution && !is_conv1x1s1d1 && !use_winograd && num_input * maxk >= 8 && num_output >= 8;
     const int elempack = !use_winograd && opt.use_packing_layout && num_input % 4 == 0 ? 4 : 1;
     const int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
@@ -2208,6 +2210,21 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
         {
             shape_int8_bordered = shape_int8;
         }
+    }
+
+    if (shape_int8_bordered.dims == 3 && use_winograd43 && use_winograd23)
+    {
+        const int w_bordered = shape_int8_bordered.w;
+        const int h_bordered = shape_int8_bordered.h;
+
+        bool prefer_winograd43 = true;
+        if (vkdev->info.type() == 0 && ((w_bordered <= 18 && h_bordered <= 18) || ((w_bordered >= 23 && w_bordered <= 24) && (h_bordered >= 23 && h_bordered <= 24))))
+            prefer_winograd43 = false;
+        if (vkdev->info.type() != 0 && (w_bordered <= 12 && h_bordered <= 12))
+            prefer_winograd43 = false;
+
+        use_winograd43 = prefer_winograd43;
+        use_winograd23 = !prefer_winograd43;
     }
 
     Mat shape_padding_int8_bordered;
@@ -2465,7 +2482,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
 
     if (use_winograd)
     {
-        if (opt.use_winograd43_convolution)
+        if (use_winograd43)
         {
             Mat weight_data_tm;
             weight_data_tm.create(36, num_input, num_output);
@@ -2566,7 +2583,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
             }
         }
 
-        if (opt.use_winograd23_convolution)
+        if (use_winograd23)
         {
             Mat weight_data_tm;
             weight_data_tm.create(16, num_input, num_output);
@@ -2761,14 +2778,14 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
     if (use_winograd)
     {
-        if (opt.use_winograd43_convolution)
+        if (!weight_winograd43_data_int8_packed.empty())
         {
             cmd.record_upload(weight_winograd43_data_int8_packed, weight_data_gpu_tm_winograd43, opt_fp32);
 
             weight_winograd43_data_int8_packed.release();
         }
 
-        if (opt.use_winograd23_convolution)
+        if (!weight_winograd23_data_int8_packed.empty())
         {
             cmd.record_upload(weight_winograd23_data_int8_packed, weight_data_gpu_tm_winograd23, opt_fp32);
 
