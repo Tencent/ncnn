@@ -313,6 +313,9 @@ public:
     bool support_cooperative_matrix_16_8_16() const;
     bool support_cooperative_matrix_16_16_16() const;
 
+    // int8 cooperative matrix feature
+    bool support_int8_cooperative_matrix() const;
+
     // bf16 cooperative matrix feature
     bool support_bf16_cooperative_matrix() const;
 

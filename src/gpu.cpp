@@ -337,6 +337,9 @@ public:
     bool support_cooperative_matrix_16_8_16;
     bool support_cooperative_matrix_16_16_16;
 
+    // int8 cooperative matrix feature
+    bool support_int8_cooperative_matrix;
+
     // bf16 cooperative matrix feature
     bool support_bf16_cooperative_matrix;
 
@@ -1436,6 +1439,7 @@ void GpuInfoPrivate::query_extension_properties()
     support_cooperative_matrix_16_8_8 = false;
     support_cooperative_matrix_16_8_16 = false;
     support_cooperative_matrix_16_16_16 = false;
+    support_int8_cooperative_matrix = false;
     support_bf16_cooperative_matrix = false;
     if (support_VK_KHR_cooperative_matrix && queryCooperativeMatrixFeatures.cooperativeMatrix)
     {
@@ -1491,6 +1495,13 @@ void GpuInfoPrivate::query_extension_properties()
                     && cmp.scope == VK_SCOPE_SUBGROUP_KHR)
             {
                 support_cooperative_matrix_16_16_16 = true;
+            }
+
+            if (cmp.AType == VK_COMPONENT_TYPE_SINT8_KHR && cmp.BType == VK_COMPONENT_TYPE_SINT8_KHR
+                    && cmp.CType == VK_COMPONENT_TYPE_SINT32_KHR && cmp.ResultType == VK_COMPONENT_TYPE_SINT32_KHR
+                    && cmp.scope == VK_SCOPE_SUBGROUP_KHR)
+            {
+                support_int8_cooperative_matrix = true;
             }
 
             if (cmp.AType == VK_COMPONENT_TYPE_BFLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_BFLOAT16_KHR
@@ -1556,6 +1567,13 @@ void GpuInfoPrivate::query_extension_properties()
             {
                 support_cooperative_matrix_16_16_16 = true;
             }
+
+            if (cmp.AType == VK_COMPONENT_TYPE_SINT8_NV && cmp.BType == VK_COMPONENT_TYPE_SINT8_NV
+                    && cmp.CType == VK_COMPONENT_TYPE_SINT32_NV && cmp.DType == VK_COMPONENT_TYPE_SINT32_NV
+                    && cmp.scope == VK_SCOPE_SUBGROUP_NV)
+            {
+                support_int8_cooperative_matrix = true;
+            }
         }
     }
 
@@ -1583,11 +1601,6 @@ void GpuInfoPrivate::query_extension_properties()
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV failed %d", ret);
         }
 
-        for (uint32_t j = 0; j < propertyCount; j++)
-        {
-            const VkCooperativeMatrixFlexibleDimensionsPropertiesNV& cmfdp = queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV[j];
-            // NCNN_LOGE("cmfdp %2d %2d %2d  %d %d %d %d  %d %d %d", cmfdp.MGranularity, cmfdp.NGranularity, cmfdp.KGranularity, cmfdp.AType, cmfdp.BType, cmfdp.CType, cmfdp.ResultType, cmfdp.saturatingAccumulation, cmfdp.scope, cmfdp.workgroupInvocations);
-        }
     }
 
     // query supported cooperative vector types and operations
@@ -1614,11 +1627,6 @@ void GpuInfoPrivate::query_extension_properties()
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeVectorPropertiesNV failed %d", ret);
         }
 
-        for (uint32_t j = 0; j < propertyCount; j++)
-        {
-            const VkCooperativeVectorPropertiesNV& cvp = queryCooperativeVectorSubPropertiesNV[j];
-            // NCNN_LOGE("cvp %d %d %d %d %d  %d", cvp.inputType, cvp.inputInterpretation, cvp.matrixInterpretation, cvp.biasInterpretation, cvp.resultType, cvp.transpose);
-        }
     }
 
     if (queryDriverProperties.driverID == VK_DRIVER_ID_MESA_TURNIP)
@@ -2011,6 +2019,11 @@ bool GpuInfo::support_cooperative_matrix_16_8_16() const
 bool GpuInfo::support_cooperative_matrix_16_16_16() const
 {
     return d->support_cooperative_matrix_16_16_16;
+}
+
+bool GpuInfo::support_int8_cooperative_matrix() const
+{
+    return d->support_int8_cooperative_matrix && support_int8_arithmetic();
 }
 
 bool GpuInfo::support_bf16_cooperative_matrix() const
