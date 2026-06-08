@@ -94,7 +94,7 @@ jobs:
         cat compare-binary-size.md
 
     - name: upload-compare-binary-size-md
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: compare-binary-size.md
         path: compare-binary-size.md

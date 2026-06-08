@@ -154,7 +154,7 @@ int RMSNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     // Same 1D unpacking logic and cstep/elempack handling as LayerNorm (see LN for reference).
     const int dims = bottom_top_blob.dims;
     const int w = dims == 1 ? bottom_top_blob.w * bottom_top_blob.elempack : bottom_top_blob.w;
-    const int h = bottom_top_blob.h;
+    const int h = bottom_top_blob.h * bottom_top_blob.d;
     const int channels = bottom_top_blob.c;
     const size_t elemsize = dims == 1 ? bottom_top_blob.elemsize * bottom_top_blob.elempack : bottom_top_blob.elemsize;
     const int elempack = dims == 1 ? 1 : bottom_top_blob.elempack;
@@ -183,11 +183,16 @@ int RMSNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
             group_size = w;
             num_groups_per_channel = h;
         }
+        else if (dims == 4 && affine_size == w * bottom_top_blob.h)
+        {
+            group_size = affine_size;
+            num_groups_per_channel = bottom_top_blob.d;
+        }
         else
         {
             group_size = w * h;
             num_groups_per_channel = 1;
-        } // affine_size == w*h
+        }
     }
     int num_groups_total = num_groups_per_channel * channels;
 

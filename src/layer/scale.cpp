@@ -108,12 +108,13 @@ int Scale::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
+        int d = bottom_top_blob.d;
         int channels = bottom_top_blob.c;
-        int size = w * h;
+        int size = w * h * d;
 
         if (bias_term)
         {

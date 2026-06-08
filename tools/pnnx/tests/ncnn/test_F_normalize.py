@@ -9,13 +9,16 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y):
+    def forward(self, x, y, z):
         x = F.normalize(x, dim=0)
         x = F.normalize(x, dim=0, eps=1e-3)
 
         y = F.normalize(y, dim=0)
         y = F.normalize(y, dim=0, eps=1e-4)
-        return x, y
+
+        z = F.normalize(z, dim=0)
+        z = F.normalize(z, dim=0, eps=1e-4)
+        return x, y, z
 
 def test():
     net = Model()
@@ -24,16 +27,17 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(64)
     y = torch.rand(12, 24, 64)
+    z = torch.rand(12, 3, 24, 64)
 
-    a = net(x, y)
+    a = net(x, y, z)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y))
+    mod = torch.jit.trace(net, (x, y, z))
     mod.save("test_F_normalize.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_normalize.pt inputshape=[64],[12,24,64]")
+    os.system("../../src/pnnx test_F_normalize.pt inputshape=[64],[12,24,64],[12,3,24,64]")
 
     # ncnn inference
     import test_F_normalize_ncnn

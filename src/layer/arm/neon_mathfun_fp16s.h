@@ -190,28 +190,13 @@ static inline float16x4_t exp_ps_f16(float16x4_t x)
     x = vmax_f16(x, vdup_n_f16(c_exp_lo_f16));
 
     /* express exp(x) as exp(g + n*log(2)) */
-#if defined(_MSC_VER) && !defined(__clang__)
-    fx = vfma_f16(vdup_n_f16(0.5f), x, vcvt_f16_f32(vdupq_n_f32(c_cephes_LOG2EF)));
-#else
     fx = vfma_f16(vdup_n_f16(0.5f), x, vdup_n_f16(c_cephes_LOG2EF));
-#endif
 
     /* perform a floorf */
-    tmp = vcvt_f16_s16(vcvt_s16_f16(fx));
+    fx = vrndm_f16(fx);
 
-    /* if greater, substract 1 */
-    uint16x4_t mask = vcgt_f16(tmp, fx);
-    mask = vand_u16(mask, (uint16x4_t)(one));
-
-    fx = vsub_f16(tmp, (float16x4_t)(mask));
-
-#if defined(_MSC_VER) && !defined(__clang__)
-    tmp = vmul_f16(fx, vcvt_f16_f32(vdupq_n_f32(c_cephes_exp_C1)));
-    float16x4_t z = vmul_f16(fx, vcvt_f16_f32(vdupq_n_f32(c_cephes_exp_C2)));
-#else
     tmp = vmul_f16(fx, vdup_n_f16(c_cephes_exp_C1));
     float16x4_t z = vmul_f16(fx, vdup_n_f16(c_cephes_exp_C2));
-#endif
     x = vsub_f16(x, tmp);
     x = vsub_f16(x, z);
 
@@ -247,31 +232,13 @@ static inline float16x8_t exp_ps_f16(float16x8_t x)
     x = vmaxq_f16(x, vdupq_n_f16(c_exp_lo_f16));
 
     /* express exp(x) as exp(g + n*log(2)) */
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_cephes_LOG2EF = vcvt_f16_f32(vdupq_n_f32(c_cephes_LOG2EF));
-    fx = vfmaq_f16(vdupq_n_f16(0.5f), x, vcombine_f16(_c_cephes_LOG2EF, _c_cephes_LOG2EF));
-#else
     fx = vfmaq_f16(vdupq_n_f16(0.5f), x, vdupq_n_f16(c_cephes_LOG2EF));
-#endif
 
     /* perform a floorf */
-    tmp = vcvtq_f16_s16(vcvtq_s16_f16(fx));
+    fx = vrndmq_f16(fx);
 
-    /* if greater, substract 1 */
-    uint16x8_t mask = vcgtq_f16(tmp, fx);
-    mask = vandq_u16(mask, vreinterpretq_u16_f16(one));
-
-    fx = vsubq_f16(tmp, vreinterpretq_f16_u16(mask));
-
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_cephes_exp_C1 = vcvt_f16_f32(vdupq_n_f32(c_cephes_exp_C1));
-    tmp = vmulq_f16(fx, vcombine_f16(_c_cephes_exp_C1, _c_cephes_exp_C1));
-    float16x4_t _c_cephes_exp_C2 = vcvt_f16_f32(vdupq_n_f32(c_cephes_exp_C2));
-    float16x8_t z = vmulq_f16(fx, vcombine_f16(_c_cephes_exp_C2, _c_cephes_exp_C2));
-#else
     tmp = vmulq_f16(fx, vdupq_n_f16(c_cephes_exp_C1));
     float16x8_t z = vmulq_f16(fx, vdupq_n_f16(c_cephes_exp_C2));
-#endif
     x = vsubq_f16(x, tmp);
     x = vsubq_f16(x, z);
 
@@ -336,12 +303,7 @@ static inline void sincos_ps_f16(float16x4_t x, float16x4_t* ysin, float16x4_t* 
     x = vabs_f16(x);
 
     /* scale by 4/Pi */
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_cephes_FOPI = vcvt_f16_f32(vdupq_n_f32(c_cephes_FOPI));
-    y = vmul_f16(x, _c_cephes_FOPI);
-#else
     y = vmul_f16(x, vdup_n_f16(c_cephes_FOPI));
-#endif
 
     /* store the integer part of y in mm0 */
     emm2 = vcvt_u16_f16(y);
@@ -360,18 +322,9 @@ static inline void sincos_ps_f16(float16x4_t x, float16x4_t* ysin, float16x4_t* 
 
     /* The magic pass: "Extended precision modular arithmetic"
      *     x = ((x - y * DP1) - y * DP2) - y * DP3; */
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_minus_cephes_DP1 = vcvt_f16_f32(vdupq_n_f32(c_minus_cephes_DP1));
-    float16x4_t _c_minus_cephes_DP2 = vcvt_f16_f32(vdupq_n_f32(c_minus_cephes_DP2));
-    float16x4_t _c_minus_cephes_DP3 = vcvt_f16_f32(vdupq_n_f32(c_minus_cephes_DP3));
-    x = vfma_f16(x, y, _c_minus_cephes_DP1);
-    x = vfma_f16(x, y, _c_minus_cephes_DP2);
-    x = vfma_f16(x, y, _c_minus_cephes_DP3);
-#else
     x = vfma_f16(x, y, vdup_n_f16(c_minus_cephes_DP1));
     x = vfma_f16(x, y, vdup_n_f16(c_minus_cephes_DP2));
     x = vfma_f16(x, y, vdup_n_f16(c_minus_cephes_DP3));
-#endif
 
     sign_mask_sin = veor_u16(sign_mask_sin, vtst_u16(emm2, vdup_n_u16(4)));
     sign_mask_cos = vtst_u16(vsub_u16(emm2, vdup_n_u16(2)), vdup_n_u16(4));
@@ -411,12 +364,7 @@ static inline void sincos_ps_f16(float16x8_t x, float16x8_t* ysin, float16x8_t* 
     x = vabsq_f16(x);
 
     /* scale by 4/Pi */
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_cephes_FOPI = vcvt_f16_f32(vdupq_n_f32(c_cephes_FOPI));
-    y = vmulq_f16(x, vcombine_f16(_c_cephes_FOPI, _c_cephes_FOPI));
-#else
     y = vmulq_f16(x, vdupq_n_f16(c_cephes_FOPI));
-#endif
 
     /* store the integer part of y in mm0 */
     emm2 = vcvtq_u16_f16(y);
@@ -435,18 +383,9 @@ static inline void sincos_ps_f16(float16x8_t x, float16x8_t* ysin, float16x8_t* 
 
     /* The magic pass: "Extended precision modular arithmetic"
      *     x = ((x - y * DP1) - y * DP2) - y * DP3; */
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_minus_cephes_DP1 = vcvt_f16_f32(vdupq_n_f32(c_minus_cephes_DP1));
-    float16x4_t _c_minus_cephes_DP2 = vcvt_f16_f32(vdupq_n_f32(c_minus_cephes_DP2));
-    float16x4_t _c_minus_cephes_DP3 = vcvt_f16_f32(vdupq_n_f32(c_minus_cephes_DP3));
-    x = vfmaq_f16(x, y, vcombine_f16(_c_minus_cephes_DP1, _c_minus_cephes_DP1));
-    x = vfmaq_f16(x, y, vcombine_f16(_c_minus_cephes_DP2, _c_minus_cephes_DP2));
-    x = vfmaq_f16(x, y, vcombine_f16(_c_minus_cephes_DP3, _c_minus_cephes_DP3));
-#else
     x = vfmaq_f16(x, y, vdupq_n_f16(c_minus_cephes_DP1));
     x = vfmaq_f16(x, y, vdupq_n_f16(c_minus_cephes_DP2));
     x = vfmaq_f16(x, y, vdupq_n_f16(c_minus_cephes_DP3));
-#endif
 
     sign_mask_sin = veorq_u16(sign_mask_sin, vtstq_u16(emm2, vdupq_n_u16(4)));
     sign_mask_cos = vtstq_u16(vsubq_u16(emm2, vdupq_n_u16(2)), vdupq_n_u16(4));
@@ -601,6 +540,261 @@ static inline float16x8_t tanh_ps_f16(float16x8_t x)
     return y;
 }
 
+#ifndef c_erf_threshold
+#define c_erf_threshold 0.927734375f
+#endif
+
+#ifndef c_erf_a0
+#define c_erf_a0 -1.72853470e-5f
+#define c_erf_a1 3.83197126e-4f
+#define c_erf_a2 -3.88396438e-3f
+#define c_erf_a3 2.42546219e-2f
+#define c_erf_a4 -1.06777877e-1f
+#define c_erf_a5 -6.34846687e-1f
+#define c_erf_a6 -1.28717512e-1f
+#endif
+
+#ifndef c_erf_b0
+#define c_erf_b0 -5.96761703e-4f
+#define c_erf_b1 4.99119423e-3f
+#define c_erf_b2 -2.67681349e-2f
+#define c_erf_b3 1.12819925e-1f
+#define c_erf_b4 -3.76125336e-1f
+#define c_erf_b5 1.28379166e-1f
+#endif
+
+static inline float16x4_t erf_ps_f16(float16x4_t x)
+{
+    float16x4_t t = vabs_f16(x);
+    float16x4_t s = vmul_f16(x, x);
+
+    uint16x4_t branch_mask = vcgt_f16(t, vdup_n_f16(c_erf_threshold));
+
+    float16x4_t r_large, r_small;
+
+    {
+        r_large = vfma_f16(vdup_n_f16(c_erf_a1), t, vdup_n_f16(c_erf_a0));
+        float16x4_t u = vfma_f16(vdup_n_f16(c_erf_a3), t, vdup_n_f16(c_erf_a2));
+        r_large = vfma_f16(u, r_large, s);
+        r_large = vfma_f16(vdup_n_f16(c_erf_a4), r_large, t);
+        r_large = vfma_f16(vdup_n_f16(c_erf_a5), r_large, t);
+        r_large = vfma_f16(vdup_n_f16(c_erf_a6), r_large, t);
+        r_large = vfma_f16(vneg_f16(t), r_large, t);
+        r_large = vsub_f16(vdup_n_f16(1.f), exp_ps_f16(r_large));
+        uint16x4_t sign_mask = vdup_n_u16(0x8000);
+        r_large = vbsl_f16(sign_mask, x, r_large);
+    }
+
+    {
+        r_small = vdup_n_f16(c_erf_b0);
+        r_small = vfma_f16(vdup_n_f16(c_erf_b1), r_small, s);
+        r_small = vfma_f16(vdup_n_f16(c_erf_b2), r_small, s);
+        r_small = vfma_f16(vdup_n_f16(c_erf_b3), r_small, s);
+        r_small = vfma_f16(vdup_n_f16(c_erf_b4), r_small, s);
+        r_small = vfma_f16(vdup_n_f16(c_erf_b5), r_small, s);
+        r_small = vfma_f16(x, r_small, x);
+    }
+
+    return vbsl_f16(branch_mask, r_large, r_small);
+}
+
+static inline float16x8_t erf_ps_f16(float16x8_t x)
+{
+    float16x8_t t = vabsq_f16(x);
+    float16x8_t s = vmulq_f16(x, x);
+
+    uint16x8_t branch_mask = vcgtq_f16(t, vdupq_n_f16(c_erf_threshold));
+
+    float16x8_t r_large, r_small;
+
+    {
+        r_large = vfmaq_f16(vdupq_n_f16(c_erf_a1), t, vdupq_n_f16(c_erf_a0));
+        float16x8_t u = vfmaq_f16(vdupq_n_f16(c_erf_a3), t, vdupq_n_f16(c_erf_a2));
+        r_large = vfmaq_f16(u, r_large, s);
+        r_large = vfmaq_f16(vdupq_n_f16(c_erf_a4), r_large, t);
+        r_large = vfmaq_f16(vdupq_n_f16(c_erf_a5), r_large, t);
+        r_large = vfmaq_f16(vdupq_n_f16(c_erf_a6), r_large, t);
+        r_large = vfmaq_f16(vnegq_f16(t), r_large, t);
+        r_large = vsubq_f16(vdupq_n_f16(1.f), exp_ps_f16(r_large));
+        uint16x8_t sign_mask = vdupq_n_u16(0x8000);
+        r_large = vbslq_f16(sign_mask, x, r_large);
+    }
+
+    {
+        r_small = vdupq_n_f16(c_erf_b0);
+        r_small = vfmaq_f16(vdupq_n_f16(c_erf_b1), r_small, s);
+        r_small = vfmaq_f16(vdupq_n_f16(c_erf_b2), r_small, s);
+        r_small = vfmaq_f16(vdupq_n_f16(c_erf_b3), r_small, s);
+        r_small = vfmaq_f16(vdupq_n_f16(c_erf_b4), r_small, s);
+        r_small = vfmaq_f16(vdupq_n_f16(c_erf_b5), r_small, s);
+        r_small = vfmaq_f16(x, r_small, x);
+    }
+
+    return vbslq_f16(branch_mask, r_large, r_small);
+}
+
+static inline float16x4_t erfc_ps_f16(float16x4_t x)
+{
+    float16x4_t t = vabs_f16(x);
+    float16x4_t s = vmul_f16(x, x);
+
+    float16x4_t _one = vdup_n_f16(1.f);
+    uint16x4_t branch_mask = vcgt_f16(t, vdup_n_f16(c_erf_threshold));
+
+    float16x4_t r_large, r_small;
+
+    {
+        r_large = vfma_f16(vdup_n_f16(c_erf_a1), t, vdup_n_f16(c_erf_a0));
+        float16x4_t u = vfma_f16(vdup_n_f16(c_erf_a3), t, vdup_n_f16(c_erf_a2));
+        r_large = vfma_f16(u, r_large, s);
+        r_large = vfma_f16(vdup_n_f16(c_erf_a4), r_large, t);
+        r_large = vfma_f16(vdup_n_f16(c_erf_a5), r_large, t);
+        r_large = vfma_f16(vdup_n_f16(c_erf_a6), r_large, t);
+        r_large = vfma_f16(vneg_f16(t), r_large, t);
+        r_large = exp_ps_f16(r_large);
+
+        uint16x4_t negative_mask = vclt_f16(x, vdup_n_f16(0.f));
+        r_large = vbsl_f16(negative_mask, vsub_f16(vdup_n_f16(2.f), r_large), r_large);
+    }
+
+    {
+        r_small = vdup_n_f16(c_erf_b0);
+        r_small = vfma_f16(vdup_n_f16(c_erf_b1), r_small, s);
+        r_small = vfma_f16(vdup_n_f16(c_erf_b2), r_small, s);
+        r_small = vfma_f16(vdup_n_f16(c_erf_b3), r_small, s);
+        r_small = vfma_f16(vdup_n_f16(c_erf_b4), r_small, s);
+        r_small = vfma_f16(vdup_n_f16(c_erf_b5), r_small, s);
+        r_small = vfma_f16(x, r_small, x);
+        r_small = vsub_f16(_one, r_small);
+    }
+
+    return vbsl_f16(branch_mask, r_large, r_small);
+}
+
+static inline float16x8_t erfc_ps_f16(float16x8_t x)
+{
+    float16x8_t t = vabsq_f16(x);
+    float16x8_t s = vmulq_f16(x, x);
+
+    float16x8_t _one = vdupq_n_f16(1.f);
+    uint16x8_t branch_mask = vcgtq_f16(t, vdupq_n_f16(c_erf_threshold));
+
+    float16x8_t r_large, r_small;
+
+    {
+        r_large = vfmaq_f16(vdupq_n_f16(c_erf_a1), t, vdupq_n_f16(c_erf_a0));
+        float16x8_t u = vfmaq_f16(vdupq_n_f16(c_erf_a3), t, vdupq_n_f16(c_erf_a2));
+        r_large = vfmaq_f16(u, r_large, s);
+        r_large = vfmaq_f16(vdupq_n_f16(c_erf_a4), r_large, t);
+        r_large = vfmaq_f16(vdupq_n_f16(c_erf_a5), r_large, t);
+        r_large = vfmaq_f16(vdupq_n_f16(c_erf_a6), r_large, t);
+        r_large = vfmaq_f16(vnegq_f16(t), r_large, t);
+        r_large = exp_ps_f16(r_large);
+
+        uint16x8_t negative_mask = vcltq_f16(x, vdupq_n_f16(0.f));
+        r_large = vbslq_f16(negative_mask, vsubq_f16(vdupq_n_f16(2.f), r_large), r_large);
+    }
+
+    {
+        r_small = vdupq_n_f16(c_erf_b0);
+        r_small = vfmaq_f16(vdupq_n_f16(c_erf_b1), r_small, s);
+        r_small = vfmaq_f16(vdupq_n_f16(c_erf_b2), r_small, s);
+        r_small = vfmaq_f16(vdupq_n_f16(c_erf_b3), r_small, s);
+        r_small = vfmaq_f16(vdupq_n_f16(c_erf_b4), r_small, s);
+        r_small = vfmaq_f16(vdupq_n_f16(c_erf_b5), r_small, s);
+        r_small = vfmaq_f16(x, r_small, x);
+        r_small = vsubq_f16(_one, r_small);
+    }
+
+    return vbslq_f16(branch_mask, r_large, r_small);
+}
+
+static inline float16x4_t expm1_ps_f16(float16x4_t x)
+{
+    return vsub_f16(exp_ps_f16(x), vdup_n_f16(1.f));
+}
+
+static inline float16x8_t expm1_ps_f16(float16x8_t x)
+{
+    return vsubq_f16(exp_ps_f16(x), vdupq_n_f16(1.f));
+}
+
+static inline float16x4_t log1p_ps_f16(float16x4_t x)
+{
+    return log_ps_f16(vadd_f16(vdup_n_f16(1.f), x));
+}
+
+static inline float16x8_t log1p_ps_f16(float16x8_t x)
+{
+    return log_ps_f16(vaddq_f16(vdupq_n_f16(1.f), x));
+}
+
+static inline float16x4_t sinh_ps_f16(float16x4_t x)
+{
+    return vmul_f16(vsub_f16(expm1_ps_f16(x), expm1_ps_f16(vneg_f16(x))), vdup_n_f16(0.5f));
+}
+
+static inline float16x8_t sinh_ps_f16(float16x8_t x)
+{
+    return vmulq_f16(vsubq_f16(expm1_ps_f16(x), expm1_ps_f16(vnegq_f16(x))), vdupq_n_f16(0.5f));
+}
+
+static inline float16x4_t asinh_ps_f16(float16x4_t x)
+{
+    float16x4_t ax = vabs_f16(x);
+    float16x4_t x2 = vmul_f16(ax, ax);
+    float16x4_t y = log_ps_f16(vadd_f16(ax, vsqrt_f16(vadd_f16(x2, vdup_n_f16(1.f)))));
+    float16x4_t y_large = vadd_f16(log_ps_f16(ax), vdup_n_f16(0.6931471805599453f));
+    y = vreinterpret_f16_u16(vbsl_u16(vcgt_f16(ax, vdup_n_f16(128.f)), vreinterpret_u16_f16(y_large), vreinterpret_u16_f16(y)));
+    return vreinterpret_f16_u16(vorr_u16(vreinterpret_u16_f16(y), vand_u16(vreinterpret_u16_f16(x), vdup_n_u16(1u << 15))));
+}
+
+static inline float16x8_t asinh_ps_f16(float16x8_t x)
+{
+    float16x8_t ax = vabsq_f16(x);
+    float16x8_t x2 = vmulq_f16(ax, ax);
+    float16x8_t y = log_ps_f16(vaddq_f16(ax, vsqrtq_f16(vaddq_f16(x2, vdupq_n_f16(1.f)))));
+    float16x8_t y_large = vaddq_f16(log_ps_f16(ax), vdupq_n_f16(0.6931471805599453f));
+    y = vreinterpretq_f16_u16(vbslq_u16(vcgtq_f16(ax, vdupq_n_f16(128.f)), vreinterpretq_u16_f16(y_large), vreinterpretq_u16_f16(y)));
+    return vreinterpretq_f16_u16(vorrq_u16(vreinterpretq_u16_f16(y), vandq_u16(vreinterpretq_u16_f16(x), vdupq_n_u16(1u << 15))));
+}
+
+static inline float16x4_t cosh_ps_f16(float16x4_t x)
+{
+    return vmul_f16(vadd_f16(exp_ps_f16(x), exp_ps_f16(vneg_f16(x))), vdup_n_f16(0.5f));
+}
+
+static inline float16x8_t cosh_ps_f16(float16x8_t x)
+{
+    return vmulq_f16(vaddq_f16(exp_ps_f16(x), exp_ps_f16(vnegq_f16(x))), vdupq_n_f16(0.5f));
+}
+
+static inline float16x4_t acosh_ps_f16(float16x4_t x)
+{
+    float16x4_t one = vdup_n_f16(1.f);
+    float16x4_t y = log_ps_f16(vadd_f16(x, vmul_f16(vsqrt_f16(vsub_f16(x, one)), vsqrt_f16(vadd_f16(x, one)))));
+    float16x4_t y_large = vadd_f16(log_ps_f16(x), vdup_n_f16(0.6931471805599453f));
+    return vreinterpret_f16_u16(vbsl_u16(vcgt_f16(x, vdup_n_f16(32768.f)), vreinterpret_u16_f16(y_large), vreinterpret_u16_f16(y)));
+}
+
+static inline float16x8_t acosh_ps_f16(float16x8_t x)
+{
+    float16x8_t one = vdupq_n_f16(1.f);
+    float16x8_t y = log_ps_f16(vaddq_f16(x, vmulq_f16(vsqrtq_f16(vsubq_f16(x, one)), vsqrtq_f16(vaddq_f16(x, one)))));
+    float16x8_t y_large = vaddq_f16(log_ps_f16(x), vdupq_n_f16(0.6931471805599453f));
+    return vreinterpretq_f16_u16(vbslq_u16(vcgtq_f16(x, vdupq_n_f16(32768.f)), vreinterpretq_u16_f16(y_large), vreinterpretq_u16_f16(y)));
+}
+
+static inline float16x4_t atanh_ps_f16(float16x4_t x)
+{
+    return vmul_f16(vsub_f16(log1p_ps_f16(x), log1p_ps_f16(vneg_f16(x))), vdup_n_f16(0.5f));
+}
+
+static inline float16x8_t atanh_ps_f16(float16x8_t x)
+{
+    return vmulq_f16(vsubq_f16(log1p_ps_f16(x), log1p_ps_f16(vnegq_f16(x))), vdupq_n_f16(0.5f));
+}
+
 static inline float16x4_t sigmoid_ps_f16(float16x4_t _v)
 {
     float16x4_t _one = vdup_n_f16(1.f);
@@ -617,6 +811,92 @@ static inline float16x8_t sigmoid_ps_f16(float16x8_t _v)
     _v = exp_ps_f16(_v);
     _v = vaddq_f16(_v, _one);
     return vdivq_f16(_one, _v);
+}
+
+static inline float16x4_t elu_ps_f16(float16x4_t x, float16x4_t alpha)
+{
+    float16x4_t _zero = vdup_n_f16(0.f);
+    float16x4_t _one = vdup_n_f16(1.f);
+    float16x4_t _pos = vmax_f16(x, _zero);
+    float16x4_t _neg = vmin_f16(x, _zero);
+    _neg = vsub_f16(exp_ps_f16(_neg), _one);
+    return vadd_f16(_pos, vmul_f16(alpha, _neg));
+}
+
+static inline float16x8_t elu_ps_f16(float16x8_t x, float16x8_t alpha)
+{
+    float16x8_t _zero = vdupq_n_f16(0.f);
+    float16x8_t _one = vdupq_n_f16(1.f);
+    float16x8_t _pos = vmaxq_f16(x, _zero);
+    float16x8_t _neg = vminq_f16(x, _zero);
+    _neg = vsubq_f16(exp_ps_f16(_neg), _one);
+    return vaddq_f16(_pos, vmulq_f16(alpha, _neg));
+}
+
+static inline float16x4_t gelu_ps_f16(float16x4_t x)
+{
+    float16x4_t _half = vdup_n_f16(0.5f);
+    float16x4_t _blob = vmul_f16(vdup_n_f16(-0.70710678f), x);
+    _blob = erfc_ps_f16(_blob);
+    return vmul_f16(_half, vmul_f16(_blob, x));
+}
+
+static inline float16x8_t gelu_ps_f16(float16x8_t x)
+{
+    float16x8_t _half = vdupq_n_f16(0.5f);
+    float16x8_t _blob = vmulq_f16(vdupq_n_f16(-0.70710678f), x);
+    _blob = erfc_ps_f16(_blob);
+    return vmulq_f16(_half, vmulq_f16(_blob, x));
+}
+
+static inline float16x4_t fast_gelu_ps_f16(float16x4_t x)
+{
+    float16x4_t _half = vdup_n_f16(0.5f);
+    float16x4_t _one = vdup_n_f16(1.f);
+    float16x4_t _blob = vmul_f16(x, x);
+    _blob = vmul_f16(x, _blob);
+    _blob = vmul_f16(vdup_n_f16(0.044715f * 0.79788452f), _blob);
+    _blob = vfma_f16(_blob, vdup_n_f16(0.79788452f), x);
+    _blob = tanh_ps_f16(_blob);
+    _blob = vadd_f16(_one, _blob);
+    return vmul_f16(_half, vmul_f16(_blob, x));
+}
+
+static inline float16x8_t fast_gelu_ps_f16(float16x8_t x)
+{
+    float16x8_t _half = vdupq_n_f16(0.5f);
+    float16x8_t _one = vdupq_n_f16(1.f);
+    float16x8_t _blob = vmulq_f16(x, x);
+    _blob = vmulq_f16(x, _blob);
+    _blob = vmulq_f16(vdupq_n_f16(0.044715f * 0.79788452f), _blob);
+    _blob = vfmaq_f16(_blob, vdupq_n_f16(0.79788452f), x);
+    _blob = tanh_ps_f16(_blob);
+    _blob = vaddq_f16(_one, _blob);
+    return vmulq_f16(_half, vmulq_f16(_blob, x));
+}
+
+static inline float16x4_t selu_ps_f16(float16x4_t x, float16x4_t alphaxlambda, float16x4_t lambda)
+{
+    float16x4_t _zero = vdup_n_f16(0.f);
+    float16x4_t _one = vdup_n_f16(1.f);
+    uint16x4_t _lemask = vcle_f16(x, _zero);
+    float16x4_t _neg = vmin_f16(x, _zero);
+    float16x4_t _nps = vsub_f16(exp_ps_f16(_neg), _one);
+    _nps = vmul_f16(_nps, alphaxlambda);
+    float16x4_t _pps = vmul_f16(x, lambda);
+    return vbsl_f16(_lemask, _nps, _pps);
+}
+
+static inline float16x8_t selu_ps_f16(float16x8_t x, float16x8_t alphaxlambda, float16x8_t lambda)
+{
+    float16x8_t _zero = vdupq_n_f16(0.f);
+    float16x8_t _one = vdupq_n_f16(1.f);
+    uint16x8_t _lemask = vcleq_f16(x, _zero);
+    float16x8_t _neg = vminq_f16(x, _zero);
+    float16x8_t _nps = vsubq_f16(exp_ps_f16(_neg), _one);
+    _nps = vmulq_f16(_nps, alphaxlambda);
+    float16x8_t _pps = vmulq_f16(x, lambda);
+    return vbslq_f16(_lemask, _nps, _pps);
 }
 
 #endif // NEON_MATHFUN_FP16S_H

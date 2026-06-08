@@ -4012,10 +4012,16 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
                     _mm256_i32scatter_epi32(outptr0, _vindex, _tmp0, sizeof(int));
                     if (tj * 2 + 1 < outw) _mm256_i32scatter_epi32(outptr0 + 1, _vindex, _tmp1, sizeof(int));
 #else
-                    int tmp0[8];
-                    int tmp1[8];
-                    _mm256_storeu_si256((__m256i*)tmp0, _tmp0);
-                    _mm256_storeu_si256((__m256i*)tmp1, _tmp1);
+#ifdef _MSC_VER
+                    __declspec(align(32))
+#else
+                    __attribute__((aligned(32)))
+#endif
+                    int tmpbuf[16];
+                    int* tmp0 = tmpbuf;
+                    int* tmp1 = tmpbuf + 8;
+                    _mm256_store_si256((__m256i*)tmp0, _tmp0);
+                    _mm256_store_si256((__m256i*)tmp1, _tmp1);
 
                     int* outptr1 = outptr0 + N;
                     int* outptr2 = outptr0 + N * 2;
@@ -4135,10 +4141,16 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
                     _mm_i32scatter_epi32(outptr0, _vindex, _tmp0, sizeof(int));
                     if (tj * 2 + 1 < outw) _mm_i32scatter_epi32(outptr0 + 1, _vindex, _tmp1, sizeof(int));
 #else
-                    int tmp0[4];
-                    int tmp1[4];
-                    _mm_storeu_si128((__m128i*)tmp0, _tmp0);
-                    _mm_storeu_si128((__m128i*)tmp1, _tmp1);
+#ifdef _MSC_VER
+                    __declspec(align(16))
+#else
+                    __attribute__((aligned(16)))
+#endif
+                    int tmpbuf[8];
+                    int* tmp0 = tmpbuf;
+                    int* tmp1 = tmpbuf + 4;
+                    _mm_store_si128((__m128i*)tmp0, _tmp0);
+                    _mm_store_si128((__m128i*)tmp1, _tmp1);
 
                     int* outptr1 = outptr0 + N;
                     int* outptr2 = outptr0 + N * 2;
@@ -5569,14 +5581,20 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                     if (tj * 4 + 2 < outw) _mm256_i32scatter_epi32(outptr0 + 2, _vindex, _tmp2, sizeof(int));
                     if (tj * 4 + 3 < outw) _mm256_i32scatter_epi32(outptr0 + 3, _vindex, _tmp3, sizeof(int));
 #else
-                    int tmp0[8];
-                    int tmp1[8];
-                    int tmp2[8];
-                    int tmp3[8];
-                    _mm256_storeu_si256((__m256i*)tmp0, _tmp0);
-                    _mm256_storeu_si256((__m256i*)tmp1, _tmp1);
-                    _mm256_storeu_si256((__m256i*)tmp2, _tmp2);
-                    _mm256_storeu_si256((__m256i*)tmp3, _tmp3);
+#ifdef _MSC_VER
+                    __declspec(align(32))
+#else
+                    __attribute__((aligned(32)))
+#endif
+                    int tmpbuf[32];
+                    int* tmp0 = tmpbuf;
+                    int* tmp1 = tmpbuf + 8;
+                    int* tmp2 = tmpbuf + 16;
+                    int* tmp3 = tmpbuf + 24;
+                    _mm256_store_si256((__m256i*)tmp0, _tmp0);
+                    _mm256_store_si256((__m256i*)tmp1, _tmp1);
+                    _mm256_store_si256((__m256i*)tmp2, _tmp2);
+                    _mm256_store_si256((__m256i*)tmp3, _tmp3);
 
                     int* outptr1 = outptr0 + N;
                     int* outptr2 = outptr0 + N * 2;
@@ -5796,14 +5814,20 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                     if (tj * 4 + 2 < outw) _mm_i32scatter_epi32(outptr0 + 2, _vindex, _tmp2, sizeof(int));
                     if (tj * 4 + 3 < outw) _mm_i32scatter_epi32(outptr0 + 3, _vindex, _tmp3, sizeof(int));
 #else
-                    int tmp0[4];
-                    int tmp1[4];
-                    int tmp2[4];
-                    int tmp3[4];
-                    _mm_storeu_si128((__m128i*)tmp0, _tmp0);
-                    _mm_storeu_si128((__m128i*)tmp1, _tmp1);
-                    _mm_storeu_si128((__m128i*)tmp2, _tmp2);
-                    _mm_storeu_si128((__m128i*)tmp3, _tmp3);
+#ifdef _MSC_VER
+                    __declspec(align(16))
+#else
+                    __attribute__((aligned(16)))
+#endif
+                    int tmpbuf[16];
+                    int* tmp0 = tmpbuf;
+                    int* tmp1 = tmpbuf + 4;
+                    int* tmp2 = tmpbuf + 8;
+                    int* tmp3 = tmpbuf + 12;
+                    _mm_store_si128((__m128i*)tmp0, _tmp0);
+                    _mm_store_si128((__m128i*)tmp1, _tmp1);
+                    _mm_store_si128((__m128i*)tmp2, _tmp2);
+                    _mm_store_si128((__m128i*)tmp3, _tmp3);
 
                     int* outptr1 = outptr0 + N;
                     int* outptr2 = outptr0 + N * 2;

@@ -775,7 +775,7 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
         int wcut = top_blob_bordered.w - output_w;
         int hcut = top_blob_bordered.h - output_h;
 
-        VkMat crop_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
+        VkMat crop_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
         int* crop_params = crop_param_blob.mapped();
 
         if (pad_left == -233 || pad_right == -233 || pad_top == -233 || pad_bottom == -233)
