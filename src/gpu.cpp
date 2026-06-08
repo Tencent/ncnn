@@ -1600,7 +1600,6 @@ void GpuInfoPrivate::query_extension_properties()
         {
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV failed %d", ret);
         }
-
     }
 
     // query supported cooperative vector types and operations
@@ -1626,7 +1625,6 @@ void GpuInfoPrivate::query_extension_properties()
         {
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeVectorPropertiesNV failed %d", ret);
         }
-
     }
 
     if (queryDriverProperties.driverID == VK_DRIVER_ID_MESA_TURNIP)
