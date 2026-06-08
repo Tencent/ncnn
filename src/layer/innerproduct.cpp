@@ -184,6 +184,8 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
         opt_g.use_packing_layout = false;
 
         quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_g);
+        if (bottom_blob_int8.empty())
+            return -100;
     }
 
     if (bottom_blob.dims == 2 && w == num_input)

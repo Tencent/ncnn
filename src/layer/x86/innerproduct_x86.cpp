@@ -113,6 +113,9 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         {
             Mat bottom_blob_fp32;
             cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+            if (bottom_blob_fp32.empty())
+                return -100;
+
             return forward_int8_x86(bottom_blob_fp32, top_blob, opt);
         }
 #endif
