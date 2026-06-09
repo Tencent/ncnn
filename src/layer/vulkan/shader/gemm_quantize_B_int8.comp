@@ -41,7 +41,7 @@ void main()
         const int k = i1 - j * p.K;
         const int bi = transB == 1 ? j * p.B_hstep + k : k * p.B_hstep + j;
         const float vf = float(buffer_ld1(B_blob_data, bi)) * scale;
-        v[lane] = int8_round(clamp(vf, -127.f, 127.f));
+        v[lane] = float2int8(vf);
     }
 
     if (i + 3 < p.size)

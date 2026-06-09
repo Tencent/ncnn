@@ -110,8 +110,8 @@ void main()
 
     if (use_int8_requantize == 1)
     {
-        const float vf = clamp(sumfp32 * buffer_ld1(top_scales_data, gz), -127.f, 127.f);
-        const int v = int8_round(vf);
+        sumfp32 *= buffer_ld1(top_scales_data, gz);
+        const int v = float2int8(sumfp32);
         i8buffer_st1(top_blob_int8_data, gi, v);
     }
     else

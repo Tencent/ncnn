@@ -302,11 +302,12 @@ ivec4 unpackInt4x8(int v);
 int packInt4x8(ivec4 v);
 ivec2 unpackInt2x16(int v);
 int packInt2x16(ivec2 v);
-int int8_round(float v);
+int float2int8(float v);
+ivec4 float2int8vec4(vec4 v);
 ```
 
 `packInt4x8` stores `.r/.g/.b/.a` in the low-to-high bytes of one `int`. `packInt2x16` stores `.r/.g` in the low-to-high 16-bit lanes of one `int`.
-`int8_round` rounds half away from zero for deterministic int8 quantization.
+`float2int8` and `float2int8vec4` round half away from zero and saturate to [-127, 127] for deterministic int8 quantization.
 
 # local data conversion functions
 

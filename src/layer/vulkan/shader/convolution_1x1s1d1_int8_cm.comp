@@ -580,8 +580,8 @@ void main()
                 if (use_int8_requantize == 1)
                 {
                     const float top_scale = float(buffer_ld1(top_scales_data, 0));
-                    const vec4 vf = clamp(sumfp * top_scale, vec4(-127.f), vec4(127.f));
-                    const ivec4 vi = ivec4(int8_round(vf.r), int8_round(vf.g), int8_round(vf.b), int8_round(vf.a));
+                    sumfp *= top_scale;
+                    const ivec4 vi = float2int8vec4(sumfp);
 
                     if (out_elempack == 4)
                     {

@@ -262,23 +262,23 @@ void main()
     if (use_int8_requantize == 1)
     {
         float top_scale = buffer_ld1(top_scales_data, 0);
-        vec4 vf0 = clamp(sumfp32_0 * top_scale, vec4(-127.f), vec4(127.f));
-        vec4 vf1 = clamp(sumfp32_1 * top_scale, vec4(-127.f), vec4(127.f));
-        vec4 vf2 = clamp(sumfp32_2 * top_scale, vec4(-127.f), vec4(127.f));
-        vec4 vf3 = clamp(sumfp32_3 * top_scale, vec4(-127.f), vec4(127.f));
-        vec4 vf4 = clamp(sumfp32_4 * top_scale, vec4(-127.f), vec4(127.f));
-        vec4 vf5 = clamp(sumfp32_5 * top_scale, vec4(-127.f), vec4(127.f));
-        vec4 vf6 = clamp(sumfp32_6 * top_scale, vec4(-127.f), vec4(127.f));
-        vec4 vf7 = clamp(sumfp32_7 * top_scale, vec4(-127.f), vec4(127.f));
+        sumfp32_0 *= top_scale;
+        sumfp32_1 *= top_scale;
+        sumfp32_2 *= top_scale;
+        sumfp32_3 *= top_scale;
+        sumfp32_4 *= top_scale;
+        sumfp32_5 *= top_scale;
+        sumfp32_6 *= top_scale;
+        sumfp32_7 *= top_scale;
 
-        ivec4 v0 = ivec4(int8_round(vf0.r), int8_round(vf0.g), int8_round(vf0.b), int8_round(vf0.a));
-        ivec4 v1 = ivec4(int8_round(vf1.r), int8_round(vf1.g), int8_round(vf1.b), int8_round(vf1.a));
-        ivec4 v2 = ivec4(int8_round(vf2.r), int8_round(vf2.g), int8_round(vf2.b), int8_round(vf2.a));
-        ivec4 v3 = ivec4(int8_round(vf3.r), int8_round(vf3.g), int8_round(vf3.b), int8_round(vf3.a));
-        ivec4 v4 = ivec4(int8_round(vf4.r), int8_round(vf4.g), int8_round(vf4.b), int8_round(vf4.a));
-        ivec4 v5 = ivec4(int8_round(vf5.r), int8_round(vf5.g), int8_round(vf5.b), int8_round(vf5.a));
-        ivec4 v6 = ivec4(int8_round(vf6.r), int8_round(vf6.g), int8_round(vf6.b), int8_round(vf6.a));
-        ivec4 v7 = ivec4(int8_round(vf7.r), int8_round(vf7.g), int8_round(vf7.b), int8_round(vf7.a));
+        ivec4 v0 = float2int8vec4(sumfp32_0);
+        ivec4 v1 = float2int8vec4(sumfp32_1);
+        ivec4 v2 = float2int8vec4(sumfp32_2);
+        ivec4 v3 = float2int8vec4(sumfp32_3);
+        ivec4 v4 = float2int8vec4(sumfp32_4);
+        ivec4 v5 = float2int8vec4(sumfp32_5);
+        ivec4 v6 = float2int8vec4(sumfp32_6);
+        ivec4 v7 = float2int8vec4(sumfp32_7);
 
         if (out_elempack == 4)
         {

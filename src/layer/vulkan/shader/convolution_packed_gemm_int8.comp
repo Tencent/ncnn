@@ -455,15 +455,15 @@ void main()
     if (use_int8_requantize == 1)
     {
         const float top_scale = buffer_ld1(top_scales_data, 0);
-        const vec4 vf0 = clamp(sumfp32_0 * top_scale, vec4(-127.f), vec4(127.f));
-        const vec4 vf1 = clamp(sumfp32_1 * top_scale, vec4(-127.f), vec4(127.f));
-        const vec4 vf2 = clamp(sumfp32_2 * top_scale, vec4(-127.f), vec4(127.f));
-        const vec4 vf3 = clamp(sumfp32_3 * top_scale, vec4(-127.f), vec4(127.f));
+        sumfp32_0 *= top_scale;
+        sumfp32_1 *= top_scale;
+        sumfp32_2 *= top_scale;
+        sumfp32_3 *= top_scale;
 
-        const ivec4 v0 = ivec4(int8_round(vf0.r), int8_round(vf0.g), int8_round(vf0.b), int8_round(vf0.a));
-        const ivec4 v1 = ivec4(int8_round(vf1.r), int8_round(vf1.g), int8_round(vf1.b), int8_round(vf1.a));
-        const ivec4 v2 = ivec4(int8_round(vf2.r), int8_round(vf2.g), int8_round(vf2.b), int8_round(vf2.a));
-        const ivec4 v3 = ivec4(int8_round(vf3.r), int8_round(vf3.g), int8_round(vf3.b), int8_round(vf3.a));
+        const ivec4 v0 = float2int8vec4(sumfp32_0);
+        const ivec4 v1 = float2int8vec4(sumfp32_1);
+        const ivec4 v2 = float2int8vec4(sumfp32_2);
+        const ivec4 v3 = float2int8vec4(sumfp32_3);
 
         if (out_elempack == 4)
         {

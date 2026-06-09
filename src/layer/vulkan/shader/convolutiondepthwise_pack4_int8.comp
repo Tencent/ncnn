@@ -131,8 +131,8 @@ void main()
 
     if (use_int8_requantize == 1)
     {
-        const vec4 vf = clamp(sumfp32 * vec4(buffer_ld4(top_scales_data, gz)), vec4(-127.f), vec4(127.f));
-        const ivec4 v = ivec4(int8_round(vf.r), int8_round(vf.g), int8_round(vf.b), int8_round(vf.a));
+        sumfp32 *= vec4(buffer_ld4(top_scales_data, gz));
+        const ivec4 v = float2int8vec4(sumfp32);
         i8buffer_st4(top_blob_int8_data, gi, v);
     }
     else

@@ -302,11 +302,12 @@ ivec4 unpackInt4x8(int v);
 int packInt4x8(ivec4 v);
 ivec2 unpackInt2x16(int v);
 int packInt2x16(ivec2 v);
-int int8_round(float v);
+int float2int8(float v);
+ivec4 float2int8vec4(vec4 v);
 ```
 
 `packInt4x8` 将 `.r/.g/.b/.a` 按低字节到高字节保存到一个 `int`。`packInt2x16` 将 `.r/.g` 按低 16-bit lane 到高 16-bit lane 保存到一个 `int`。
-`int8_round` 使用 half-away-from-zero 规则，用于确定性的 int8 量化。
+`float2int8` 和 `float2int8vec4` 使用 half-away-from-zero 规则，并饱和到 [-127, 127]，用于确定性的 int8 量化。
 
 # 本地数据转换函数
 

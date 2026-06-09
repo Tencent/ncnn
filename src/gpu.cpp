@@ -5528,7 +5528,8 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     custom_defines.append("packInt4x8(v)", "int((uint(v.r)&0xFFu)|((uint(v.g)&0xFFu)<<8)|((uint(v.b)&0xFFu)<<16)|((uint(v.a)&0xFFu)<<24))");
     custom_defines.append("unpackInt2x16(v)", "ivec2((int(v)<<16)>>16,int(v)>>16)");
     custom_defines.append("packInt2x16(v)", "int((uint(v.r)&0xFFFFu)|((uint(v.g)&0xFFFFu)<<16))");
-    custom_defines.append("int8_round(v)", "int(float(v)>=0.f?floor(float(v)+0.5f):ceil(float(v)-0.5f))");
+    custom_defines.append("float2int8(v)", "int(clamp(float(v)+(float(v)>=0.f?0.5f:-0.5f),-127.f,127.f))");
+    custom_defines.append("float2int8vec4(v)", "ivec4(clamp(vec4(v)+mix(vec4(-0.5f),vec4(0.5f),greaterThanEqual(vec4(v),vec4(0.f))),vec4(-127.f),vec4(127.f)))");
 
     if (opt.use_int8_storage)
     {
