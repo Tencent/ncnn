@@ -62,7 +62,6 @@ layout(binding = 4) readonly buffer bias_blob { sfpvec4 bias_data[]; };
 layout(binding = 5) readonly buffer weight_descales_blob { vec4 weight_descales_data[]; };
 layout(binding = 6) readonly buffer top_scales_blob { sfp top_scales_data[]; };
 
-
 layout(push_constant) uniform parameter
 {
     int w;
@@ -500,27 +499,27 @@ void main()
         icoopmatNV<8, gl_ScopeSubgroup, K, N> B[UNROLL_SG_N];
 #endif
 
-            [[unroll]] for (uint zk = 0; zk < UNROLL_SG_K; zk++)
+        [[unroll]] for (uint zk = 0; zk < UNROLL_SG_K; zk++)
+        {
+            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
             {
-                [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                if (elempack == 1)
                 {
-                    if (elempack == 1)
-                    {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(A[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
+                    coopMatLoad(A[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(A[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
+                    coopMatLoadNV(A[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
 #endif
-                    }
-                    else // elempack == 4
-                    {
-#if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(A[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
-#elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(A[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, false);
-#endif
-                    }
                 }
+                else // elempack == 4
+                {
+#if ncnn_VK_KHR_cooperative_matrix
+                    coopMatLoad(A[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+#elif ncnn_VK_NV_cooperative_matrix
+                    coopMatLoadNV(A[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, false);
+#endif
+                }
+            }
 
             [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
             {
