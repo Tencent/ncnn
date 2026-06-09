@@ -44,12 +44,10 @@ layout(binding = 2) readonly buffer bottom_blob_4 { sint8vec4 bottom_blob_int8_d
 layout(binding = 3) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
 layout(binding = 4) readonly buffer weight_blob { sint8vec4 weight_data[]; };
 layout(binding = 5) readonly buffer bias_blob { sfpvec4 bias_data[]; };
-layout(binding = 6) readonly buffer weight_scales_blob { vec4 weight_scales_data[]; };
-layout(binding = 7) readonly buffer bottom_scales_blob { float bottom_scales_data[]; };
-layout(binding = 8) readonly buffer top_scales_blob { sfp top_scales_data[]; };
-layout(binding = 9) writeonly buffer top_blob_int8_1 { sint8 top_blob_int8_data_1[]; };
-layout(binding = 10) writeonly buffer top_blob_int8_4 { sint8vec4 top_blob_int8_data_4[]; };
-// bottom/top scales are per tensor; weight scales are per output channel
+layout(binding = 6) readonly buffer weight_descales_blob { vec4 weight_descales_data[]; };
+layout(binding = 7) readonly buffer top_scales_blob { sfp top_scales_data[]; };
+layout(binding = 8) writeonly buffer top_blob_int8_1 { sint8 top_blob_int8_data_1[]; };
+layout(binding = 9) writeonly buffer top_blob_int8_4 { sint8vec4 top_blob_int8_data_4[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -83,8 +81,6 @@ void main()
 
     const int maxk = kernel_w * kernel_h;
     const int N = psc(c) * maxk;
-    const float bottom_descale = bottom_scales_data[0];
-
     const ivec4 gx4 = gx + ivec4(0, 1, 2, 3);
 
     const ivec4 sy4 = gx4 / psc(outw);
@@ -429,13 +425,12 @@ void main()
 
     const int base_ch = gy * 4;
     const int nout = num_output;
-    const vec4 weight_descale = weight_scales_data[gy];
-    const vec4 scale_in = bottom_descale * weight_descale;
+    const vec4 descale = weight_descales_data[gy];
 
-    vec4 sumfp32_0 = vec4(sum0) * scale_in;
-    vec4 sumfp32_1 = vec4(sum1) * scale_in;
-    vec4 sumfp32_2 = vec4(sum2) * scale_in;
-    vec4 sumfp32_3 = vec4(sum3) * scale_in;
+    vec4 sumfp32_0 = vec4(sum0) * descale;
+    vec4 sumfp32_1 = vec4(sum1) * descale;
+    vec4 sumfp32_2 = vec4(sum2) * descale;
+    vec4 sumfp32_3 = vec4(sum3) * descale;
 
     if (bias_term == 1)
     {

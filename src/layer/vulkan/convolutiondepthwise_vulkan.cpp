@@ -1102,7 +1102,7 @@ int ConvolutionDepthWise_vulkan::upload_model_int8(VkTransfer& cmd, const Option
 
     weight_data_int8_packed.release();
 
-    cmd.record_upload(weight_data_int8_descales, weight_data_int8_scales_gpu, opt_fp32);
+    cmd.record_upload(weight_data_int8_descales, weight_data_int8_descales_gpu, opt_fp32);
 
     weight_data_int8_descales.release();
 
@@ -1328,7 +1328,7 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
         bindings[1] = top_blob_unpacked;
         bindings[2] = weight_data_gpu;
         bindings[3] = bias_data_gpu;
-        bindings[4] = weight_data_int8_scales_gpu;
+        bindings[4] = weight_data_int8_descales_gpu;
         bindings[5] = top_blob_int8_scales_gpu;
         // binding 6 aliases top with int8 SSBO element type
         bindings[6] = top_blob_unpacked;
@@ -1345,7 +1345,7 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
         bindings[3] = top_blob_unpacked;
         bindings[4] = weight_data_gpu;
         bindings[5] = bias_data_gpu;
-        bindings[6] = weight_data_int8_scales_gpu;
+        bindings[6] = weight_data_int8_descales_gpu;
         bindings[7] = top_blob_int8_scales_gpu;
         bindings[8] = top_blob_unpacked;
         bindings[9] = top_blob_unpacked;

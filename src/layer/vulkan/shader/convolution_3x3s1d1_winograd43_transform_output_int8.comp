@@ -15,10 +15,9 @@ layout(constant_id = 4) const int use_int8_requantize = 0;
 layout(binding = 0) readonly buffer top_tm_blob { int top_tm_blob_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 2) readonly buffer bias_blob { float bias_data[]; };
-layout(binding = 3) readonly buffer weight_scales_blob { float weight_scales_data[]; };
-layout(binding = 4) readonly buffer bottom_scales_blob { float bottom_scales_data[]; };
-layout(binding = 5) readonly buffer top_scales_blob { sfp top_scales_data[]; };
-layout(binding = 6) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
+layout(binding = 3) readonly buffer weight_descales_blob { float weight_descales_data[]; };
+layout(binding = 4) readonly buffer top_scales_blob { sfp top_scales_data[]; };
+layout(binding = 5) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -132,26 +131,24 @@ void main()
     v23 = (m21 - m22) + (m23 - m24) * 8 + m25;
     v33 = (m31 - m32) + (m33 - m34) * 8 + m35;
 
-    const float bottom_descale = bottom_scales_data[0];
-    const float weight_descale = weight_scales_data[gz];
-    const float scale_in = (1.f / 576.f) * bottom_descale * weight_descale;
+    const float descale = (1.f / 576.f) * weight_descales_data[gz];
 
-    float out00 = float(v00) * scale_in;
-    float out01 = float(v01) * scale_in;
-    float out02 = float(v02) * scale_in;
-    float out03 = float(v03) * scale_in;
-    float out10 = float(v10) * scale_in;
-    float out11 = float(v11) * scale_in;
-    float out12 = float(v12) * scale_in;
-    float out13 = float(v13) * scale_in;
-    float out20 = float(v20) * scale_in;
-    float out21 = float(v21) * scale_in;
-    float out22 = float(v22) * scale_in;
-    float out23 = float(v23) * scale_in;
-    float out30 = float(v30) * scale_in;
-    float out31 = float(v31) * scale_in;
-    float out32 = float(v32) * scale_in;
-    float out33 = float(v33) * scale_in;
+    float out00 = float(v00) * descale;
+    float out01 = float(v01) * descale;
+    float out02 = float(v02) * descale;
+    float out03 = float(v03) * descale;
+    float out10 = float(v10) * descale;
+    float out11 = float(v11) * descale;
+    float out12 = float(v12) * descale;
+    float out13 = float(v13) * descale;
+    float out20 = float(v20) * descale;
+    float out21 = float(v21) * descale;
+    float out22 = float(v22) * descale;
+    float out23 = float(v23) * descale;
+    float out30 = float(v30) * descale;
+    float out31 = float(v31) * descale;
+    float out32 = float(v32) * descale;
+    float out33 = float(v33) * descale;
 
     if (bias_term == 1)
     {

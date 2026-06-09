@@ -324,7 +324,7 @@ int InnerProduct_vulkan::destroy_pipeline(const Option& opt)
 int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
 #if NCNN_INT8
-    if (int8_scale_term && weight_data_int8_packed.elemsize == (size_t)1u)
+    if (int8_scale_term && weight_data_int8_packed.elembits() == 8)
     {
         return upload_model_int8(cmd, opt);
     }
@@ -512,10 +512,26 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
 
     const int num_input = weight_data_size / num_output;
 
-    weight_data_int8_packed = weight_data.reshape(weight_data_size);
+    const int num_input_packed = (num_input + 7) / 8 * 8;
+    const int num_output_packed = (num_output + 3) / 4 * 4;
 
-    const float bottom_blob_int8_scale = bottom_blob_int8_scales.empty() ? 1.f : bottom_blob_int8_scales[0];
-    const float bottom_blob_int8_descale = bottom_blob_int8_scale == 0.f ? 0.f : 1.f / bottom_blob_int8_scale;
+    {
+        Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
+
+        weight_data_int8_packed.create(num_input_packed / 4, num_output_packed, (size_t)4u, 4);
+        weight_data_int8_packed.fill(0);
+
+        for (int q = 0; q < num_output; q++)
+        {
+            const signed char* k0 = weight_data_r2.row<const signed char>(q);
+            signed char* g00 = weight_data_int8_packed.row<signed char>(q);
+
+            for (int p = 0; p < num_input; p++)
+            {
+                g00[p] = k0[p];
+            }
+        }
+    }
 
     Option opt_int8 = opt;
     opt_int8.use_fp16_arithmetic = false;
@@ -531,15 +547,16 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
         if (shape.dims == 2 && shape.w == num_input)
         {
             const size_t elemsize = shape.elempack == 0 ? (size_t)4u : shape.elemsize / shape.elempack;
-            shape_quantize = Mat(shape.w, shape.h * shape.elempack, (void*)0, elemsize, 1);
-            out_shape_quantize = Mat(shape.w, shape.h * shape.elempack, (void*)0, (size_t)1u, 1);
+            shape_quantize = Mat(shape.w, shape.h, (void*)0, elemsize * shape.elempack, shape.elempack);
+            out_shape_quantize = Mat(shape.w, shape.h, (void*)0, (size_t)shape.elempack, shape.elempack);
         }
         else if (shape.dims != 0)
         {
             const int total = shape.w * shape.h * shape.d * shape.c * shape.elempack;
+            const int flatten_elempack = total % 4 == 0 ? 4 : 1;
             const size_t elemsize = shape.elempack == 0 ? (size_t)4u : shape.elemsize / shape.elempack;
-            shape_quantize = Mat(total, (void*)0, elemsize, 1);
-            out_shape_quantize = Mat(total, (void*)0, (size_t)1u, 1);
+            shape_quantize = Mat(total / flatten_elempack, (void*)0, elemsize * flatten_elempack, flatten_elempack);
+            out_shape_quantize = Mat(total / flatten_elempack, (void*)0, (size_t)flatten_elempack, flatten_elempack);
         }
 
         quantize->bottom_shapes.resize(1);
@@ -564,30 +581,31 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
     if (shape.dims == 2 && shape.w == num_input)
     {
         // gemm
-        Mat shape_unpacked(shape.w, shape.h * shape.elempack, (void*)0);
+        Mat shape_unpacked(num_input, shape.h * shape.elempack, (void*)0);
         Mat out_shape_unpacked(num_output, out_shape.dims == 0 ? 0 : out_shape.h * out_shape.elempack, (void*)0);
 
-        std::vector<vk_specialization_type> specializations(5 + 10);
+        std::vector<vk_specialization_type> specializations(6 + 10);
         specializations[0].i = bias_term;
         specializations[1].i = activation_type;
         specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
         specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-        specializations[4].f = bottom_blob_int8_descale;
-        specializations[5 + 0].i = shape_unpacked.dims;
-        specializations[5 + 1].i = shape_unpacked.w;
-        specializations[5 + 2].i = shape_unpacked.h;
-        specializations[5 + 3].i = shape_unpacked.c;
-        specializations[5 + 4].i = shape_unpacked.cstep;
-        specializations[5 + 5].i = out_shape_unpacked.dims;
-        specializations[5 + 6].i = out_shape_unpacked.w;
-        specializations[5 + 7].i = out_shape_unpacked.h;
-        specializations[5 + 8].i = out_shape_unpacked.c;
-        specializations[5 + 9].i = out_shape_unpacked.cstep;
+        specializations[4].i = shape.elempack;
+        specializations[5].i = num_input_packed;
+        specializations[6 + 0].i = shape_unpacked.dims;
+        specializations[6 + 1].i = shape_unpacked.w;
+        specializations[6 + 2].i = shape_unpacked.h;
+        specializations[6 + 3].i = shape.elempack;
+        specializations[6 + 4].i = shape.w;
+        specializations[6 + 5].i = out_shape_unpacked.dims;
+        specializations[6 + 6].i = out_shape_unpacked.w;
+        specializations[6 + 7].i = out_shape_unpacked.h;
+        specializations[6 + 8].i = out_shape_unpacked.c;
+        specializations[6 + 9].i = out_shape.w;
 
-        Mat local_size_xyz(std::min(16, num_output), 4, 1, (void*)0);
+        Mat local_size_xyz(std::min(16, (num_output + 3) / 4), 4, 1, (void*)0);
         if (out_shape_unpacked.dims != 0)
         {
-            local_size_xyz.w = std::min(16, out_shape_unpacked.w);
+            local_size_xyz.w = std::min(16, (out_shape_unpacked.w + 3) / 4);
             local_size_xyz.h = std::min(4, out_shape_unpacked.h);
             local_size_xyz.c = 1;
         }
@@ -646,27 +664,19 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
     }
 
     {
-        std::vector<vk_specialization_type> specializations(5 + 10);
+        std::vector<vk_specialization_type> specializations(5 + 2);
         specializations[0].i = bias_term;
         specializations[1].i = activation_type;
         specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
         specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-        specializations[4].f = bottom_blob_int8_descale;
-        specializations[5 + 0].i = shape_flatten.dims;
-        specializations[5 + 1].i = shape_flatten.w * shape_flatten.elempack;
-        specializations[5 + 2].i = shape_flatten.h;
-        specializations[5 + 3].i = shape_flatten.c;
-        specializations[5 + 4].i = shape_flatten.cstep;
-        specializations[5 + 5].i = out_shape.dims == 0 ? 0 : 1;
-        specializations[5 + 6].i = num_output;
-        specializations[5 + 7].i = 1;
-        specializations[5 + 8].i = 1;
-        specializations[5 + 9].i = num_output;
+        specializations[4].i = num_input_packed;
+        specializations[5 + 0].i = shape_flatten.w * shape_flatten.elempack;
+        specializations[5 + 1].i = num_output;
 
-        Mat local_size_xyz(std::min(64, num_output), 1, 1, (void*)0);
+        Mat local_size_xyz(std::min(64, (num_output + 3) / 4), 1, 1, (void*)0);
         if (out_shape.dims != 0)
         {
-            local_size_xyz.w = std::min(64, num_output);
+            local_size_xyz.w = std::min(64, (num_output + 3) / 4);
             local_size_xyz.h = 1;
             local_size_xyz.c = 1;
         }
@@ -679,24 +689,25 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
     // gemm for no shape hint
     if (shape.dims == 0)
     {
-        std::vector<vk_specialization_type> specializations(5 + 10);
+        std::vector<vk_specialization_type> specializations(6 + 10);
         specializations[0].i = bias_term;
         specializations[1].i = activation_type;
         specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
         specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-        specializations[4].f = bottom_blob_int8_descale;
-        specializations[5 + 0].i = 0;
-        specializations[5 + 1].i = 0;
-        specializations[5 + 2].i = 0;
-        specializations[5 + 3].i = 0;
-        specializations[5 + 4].i = 0;
-        specializations[5 + 5].i = 0;
-        specializations[5 + 6].i = 0;
-        specializations[5 + 7].i = 0;
-        specializations[5 + 8].i = 0;
-        specializations[5 + 9].i = 0;
+        specializations[4].i = 0;
+        specializations[5].i = num_input_packed;
+        specializations[6 + 0].i = 0;
+        specializations[6 + 1].i = 0;
+        specializations[6 + 2].i = 0;
+        specializations[6 + 3].i = 0;
+        specializations[6 + 4].i = 0;
+        specializations[6 + 5].i = 0;
+        specializations[6 + 6].i = 0;
+        specializations[6 + 7].i = 0;
+        specializations[6 + 8].i = 0;
+        specializations[6 + 9].i = 0;
 
-        Mat local_size_xyz(std::min(16, num_output), 4, 1, (void*)0);
+        Mat local_size_xyz(std::min(16, (num_output + 3) / 4), 4, 1, (void*)0);
 
         pipeline_innerproduct_gemm_int8 = new Pipeline(vkdev);
         if (opt.use_shader_local_memory)
@@ -725,24 +736,37 @@ int InnerProduct_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     weight_data_int8_packed.release();
 
     const int num_output_packed = (num_output + 3) / 4 * 4;
+    const float bottom_blob_int8_scale = bottom_blob_int8_scales.empty() ? 1.f : bottom_blob_int8_scales[0];
+    const float bottom_blob_int8_descale = bottom_blob_int8_scale == 0.f ? 0.f : 1.f / bottom_blob_int8_scale;
 
     Mat weight_data_int8_descales;
-    weight_data_int8_descales.create(num_output_packed, (size_t)4u, 1);
+    weight_data_int8_descales.create(num_output_packed / 4, (size_t)4u * 4, 4);
+    weight_data_int8_descales.fill(0.f);
 
     float* outptr = weight_data_int8_descales;
-    for (int q = 0; q < num_output_packed; q++)
+    for (int q = 0; q < num_output; q++)
     {
-        float scale = q < num_output ? weight_data_int8_scales[q] : 0.f;
-        outptr[q] = scale == 0.f ? 0.f : 1.f / scale;
+        float scale = weight_data_int8_scales[q];
+        outptr[q] = scale == 0.f ? 0.f : bottom_blob_int8_descale / scale;
     }
 
-    cmd.record_upload(weight_data_int8_descales, weight_data_int8_scales_gpu, opt);
+    cmd.record_upload(weight_data_int8_descales, weight_data_int8_descales_gpu, opt);
 
     weight_data_int8_scales.release();
 
     if (bias_term)
     {
-        cmd.record_upload(bias_data, bias_data_gpu, opt);
+        Mat bias_data_packed;
+        bias_data_packed.create(num_output_packed / 4, (size_t)4u * 4, 4);
+        bias_data_packed.fill(0.f);
+
+        float* outptr = bias_data_packed;
+        for (int q = 0; q < num_output; q++)
+        {
+            outptr[q] = bias_data[q];
+        }
+
+        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
 
         bias_data.release();
     }
@@ -755,72 +779,68 @@ int InnerProduct_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 int InnerProduct_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     const int num_input = weight_data_size / num_output;
+    const int out_elempack = num_output % 4 == 0 ? 4 : 1;
 
     if (bottom_blob.dims == 2 && bottom_blob.w == num_input)
     {
         // gemm
-        const int elempack = bottom_blob.elempack;
+        VkMat bottom_blob_quantized = bottom_blob;
 
-        VkMat bottom_blob_unpacked = bottom_blob;
-        if (elempack > 1)
-        {
-            Option opt_pack1 = opt;
-            opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
-
-            vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, 1, cmd, opt_pack1);
-        }
-
-        if (bottom_blob_unpacked.elembits() != 8)
+        if (bottom_blob_quantized.elembits() != 8)
         {
             Option opt_quantize = opt;
             opt_quantize.blob_vkallocator = opt.workspace_vkallocator;
             opt_quantize.use_fp16_arithmetic = false;
 
             VkMat bottom_blob_int8;
-            int ret = quantize->forward(bottom_blob_unpacked, bottom_blob_int8, cmd, opt_quantize);
+            int ret = quantize->forward(bottom_blob_quantized, bottom_blob_int8, cmd, opt_quantize);
             if (ret != 0)
                 return ret;
 
-            bottom_blob_unpacked = bottom_blob_int8;
+            bottom_blob_quantized = bottom_blob_int8;
         }
 
-        const int h = bottom_blob_unpacked.h;
+        const int h = bottom_blob_quantized.h;
+        const int elempack = bottom_blob_quantized.elempack;
+        const int outh = h * elempack;
         size_t out_elemsize;
         if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
         {
-            out_elemsize = 2u;
+            out_elemsize = elempack * 2u;
         }
         else
         {
-            out_elemsize = 4u;
+            out_elemsize = elempack * 4u;
         }
 
-        top_blob.create(num_output, h, out_elemsize, 1, opt.blob_vkallocator);
+        top_blob.create(num_output, h, out_elemsize, elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 
-        std::vector<VkMat> bindings(5);
-        bindings[0] = bottom_blob_unpacked;
+        std::vector<VkMat> bindings(7);
+        bindings[0] = bottom_blob_quantized;
         bindings[1] = top_blob;
         bindings[2] = weight_data_gpu;
-        bindings[3] = weight_data_int8_scales_gpu;
+        bindings[3] = weight_data_int8_descales_gpu;
         bindings[4] = bias_data_gpu;
+        bindings[5] = top_blob;
+        bindings[6] = bottom_blob_quantized;
 
         std::vector<vk_constant_type> constants(10);
-        constants[0].i = bottom_blob_unpacked.dims;
-        constants[1].i = bottom_blob_unpacked.w;
-        constants[2].i = bottom_blob_unpacked.h;
-        constants[3].i = bottom_blob_unpacked.c;
-        constants[4].i = bottom_blob_unpacked.cstep;
+        constants[0].i = bottom_blob_quantized.dims;
+        constants[1].i = num_input;
+        constants[2].i = outh;
+        constants[3].i = elempack;
+        constants[4].i = bottom_blob_quantized.w;
         constants[5].i = top_blob.dims;
-        constants[6].i = top_blob.w;
-        constants[7].i = top_blob.h;
+        constants[6].i = num_output;
+        constants[7].i = outh;
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
 
         VkMat dispatcher;
-        dispatcher.w = (top_blob.w + 3) / 4;
-        dispatcher.h = (top_blob.h + 3) / 4;
+        dispatcher.w = (num_output + 3) / 4;
+        dispatcher.h = (outh + 3) / 4;
         dispatcher.c = 1;
 
         cmd.record_pipeline(pipeline_innerproduct_gemm_int8, bindings, constants, dispatcher);
@@ -835,18 +855,6 @@ int InnerProduct_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob,
         opt_flatten.blob_vkallocator = opt.workspace_vkallocator;
 
         flatten->forward(bottom_blob, bottom_blob_flattened, cmd, opt_flatten);
-    }
-
-    if (bottom_blob_flattened.elempack > 1 && bottom_blob_flattened.elembits() != 8)
-    {
-        VkMat bottom_blob_unpacked;
-
-        Option opt_pack1 = opt;
-        opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
-
-        vkdev->convert_packing(bottom_blob_flattened, bottom_blob_unpacked, 1, cmd, opt_pack1);
-
-        bottom_blob_flattened = bottom_blob_unpacked;
     }
 
     if (bottom_blob_flattened.elembits() != 8)
@@ -866,14 +874,14 @@ int InnerProduct_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob,
     size_t out_elemsize;
     if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
-        out_elemsize = 2u;
+        out_elemsize = out_elempack * 2u;
     }
     else
     {
-        out_elemsize = 4u;
+        out_elemsize = out_elempack * 4u;
     }
 
-    top_blob.create(num_output, out_elemsize, 1, opt.blob_vkallocator);
+    top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -881,22 +889,19 @@ int InnerProduct_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob,
     bindings[0] = bottom_blob_flattened;
     bindings[1] = top_blob;
     bindings[2] = weight_data_gpu;
-    bindings[3] = weight_data_int8_scales_gpu;
+    bindings[3] = weight_data_int8_descales_gpu;
     bindings[4] = bias_data_gpu;
 
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_blob_flattened.dims;
-    constants[1].i = bottom_blob_flattened.w * bottom_blob_flattened.elempack;
-    constants[2].i = bottom_blob_flattened.h;
-    constants[3].i = bottom_blob_flattened.c;
-    constants[4].i = bottom_blob_flattened.cstep;
-    constants[5].i = top_blob.dims;
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h;
-    constants[8].i = top_blob.c;
-    constants[9].i = top_blob.cstep;
+    std::vector<vk_constant_type> constants(2);
+    constants[0].i = bottom_blob_flattened.w * bottom_blob_flattened.elempack;
+    constants[1].i = num_output;
 
-    cmd.record_pipeline(pipeline_innerproduct_int8, bindings, constants, top_blob);
+    VkMat dispatcher;
+    dispatcher.w = (num_output + 3) / 4;
+    dispatcher.h = 1;
+    dispatcher.c = 1;
+
+    cmd.record_pipeline(pipeline_innerproduct_int8, bindings, constants, dispatcher);
 
     return 0;
 }

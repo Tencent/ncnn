@@ -58,14 +58,15 @@ public:
 #if NCNN_INT8
     Mat A_data_int8_packed;
     Mat B_data_int8_packed;
-    Mat B_data_int8_scales;
+    Mat A_data_int8_descales;
+    Mat B_data_int8_descales;
 
-    VkMat A_data_int8_scales_gpu;
-    VkMat B_data_int8_scales_gpu;
+    VkMat A_data_int8_descales_gpu;
+    VkMat B_data_int8_descales_gpu;
 
     Pipeline* pipeline_gemm_quantize_A_int8;
     Pipeline* pipeline_gemm_quantize_B_absmax_int8;
-    Pipeline* pipeline_gemm_quantize_B_scale_int8;
+    Pipeline* pipeline_gemm_quantize_B_descale_int8;
     Pipeline* pipeline_gemm_quantize_B_int8;
 #endif
 };

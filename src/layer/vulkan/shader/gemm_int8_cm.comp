@@ -42,8 +42,8 @@ layout(binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 1) readonly buffer A_int8_blob { sint8 A_int8_data[]; };
 layout(binding = 2) readonly buffer B_int8_blob { sint8 B_int8_data[]; };
 layout(binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
-layout(binding = 4) readonly buffer A_scales_blob { float A_scales_data[]; };
-layout(binding = 5) readonly buffer B_scale_blob { float B_scale_data[]; };
+layout(binding = 4) readonly buffer A_descales_blob { float A_descales_data[]; };
+layout(binding = 5) readonly buffer B_descale_blob { float B_descale_data[]; };
 layout(binding = 6) readonly buffer A_int8_blob_4 { sint8vec4 A_int8_data_4[]; };
 layout(binding = 7) readonly buffer B_int8_blob_4 { sint8vec4 B_int8_data_4[]; };
 
@@ -628,7 +628,7 @@ void main()
             if (gm < psc(GM) && gn < psc(GN))
             {
                 ivec4 sumi = tmp_o[sgi][siq];
-                vec4 sumfp = vec4(sumi) * A_scales_data[gm] * B_scale_data[0];
+                vec4 sumfp = vec4(sumi) * A_descales_data[gm] * B_descale_data[0];
 
                 if (broadcast_type_C == 0)
                 {

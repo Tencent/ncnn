@@ -48,7 +48,7 @@ public:
 
     Mat weight_data_int8_packed;
 
-    VkMat weight_data_int8_scales_gpu;
+    VkMat weight_data_int8_descales_gpu;
 
     Pipeline* pipeline_innerproduct_int8;
     Pipeline* pipeline_innerproduct_gemm_int8;

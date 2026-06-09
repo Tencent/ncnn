@@ -7,7 +7,7 @@ layout(constant_id = 0) const int transA = 0;
 
 layout(binding = 0) readonly buffer A_blob { sfp A_blob_data[]; };
 layout(binding = 1) writeonly buffer A_int8_blob { sint8 A_int8_data[]; };
-layout(binding = 2) writeonly buffer A_scales_blob { float A_scales_data[]; };
+layout(binding = 2) writeonly buffer A_descales_blob { float A_descales_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -34,7 +34,7 @@ void main()
     }
 
     const float scale = absmax == 0.f ? 1.f : 127.f / absmax;
-    A_scales_data[i] = absmax == 0.f ? 0.f : absmax * (1.f / 127.f);
+    A_descales_data[i] = absmax == 0.f ? 0.f : absmax * (1.f / 127.f);
 
     for (int k = 0; k < p.K; k++)
     {

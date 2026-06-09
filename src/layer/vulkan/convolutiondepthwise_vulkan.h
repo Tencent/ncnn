@@ -54,7 +54,7 @@ public:
     Mat top_blob_int8_scales_packed;
     Mat bias_data_int8_packed;
 
-    VkMat weight_data_int8_scales_gpu;
+    VkMat weight_data_int8_descales_gpu;
     VkMat top_blob_int8_scales_gpu;
 #endif
 };

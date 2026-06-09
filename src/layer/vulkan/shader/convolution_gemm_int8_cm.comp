@@ -60,13 +60,11 @@ layout(binding = 2) readonly buffer bottom_blob_4 { sint8vec4 bottom_blob_int8_d
 layout(binding = 3) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
 layout(binding = 4) readonly buffer weight_blob { sint8 weight_data[]; };
 layout(binding = 5) readonly buffer bias_blob { sfp bias_data[]; };
-layout(binding = 6) readonly buffer weight_scales_blob { float weight_scales_data[]; };
-layout(binding = 7) readonly buffer bottom_scales_blob { float bottom_scales_data[]; };
-layout(binding = 8) readonly buffer top_scales_blob { sfp top_scales_data[]; };
-layout(binding = 9) writeonly buffer top_blob_int8_1 { sint8 top_blob_int8_data[]; };
-layout(binding = 10) writeonly buffer top_blob_int8_4 { sint8vec4 top_blob_int8_data_4[]; };
-layout(binding = 11) readonly buffer weight_blob_4 { sint8vec4 weight_data_4[]; };
-// bottom/top scales are per tensor; weight scales are per output channel
+layout(binding = 6) readonly buffer weight_descales_blob { float weight_descales_data[]; };
+layout(binding = 7) readonly buffer top_scales_blob { sfp top_scales_data[]; };
+layout(binding = 8) writeonly buffer top_blob_int8_1 { sint8 top_blob_int8_data[]; };
+layout(binding = 9) writeonly buffer top_blob_int8_4 { sint8vec4 top_blob_int8_data_4[]; };
+layout(binding = 10) readonly buffer weight_blob_4 { sint8vec4 weight_data_4[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -594,11 +592,11 @@ void main()
             if (gm < uint(size) && gn < psc(num_output))
             {
                 const ivec4 sumi = tmp_o[sgi][siq];
-                vec4 sumfp = vec4(sumi) * bottom_scales_data[0];
-                sumfp.r *= weight_scales_data[gn];
-                if (gn + 1 < psc(num_output)) sumfp.g *= weight_scales_data[gn + 1];
-                if (gn + 2 < psc(num_output)) sumfp.b *= weight_scales_data[gn + 2];
-                if (gn + 3 < psc(num_output)) sumfp.a *= weight_scales_data[gn + 3];
+                vec4 sumfp = vec4(sumi);
+                sumfp.r *= weight_descales_data[gn];
+                if (gn + 1 < psc(num_output)) sumfp.g *= weight_descales_data[gn + 1];
+                if (gn + 2 < psc(num_output)) sumfp.b *= weight_descales_data[gn + 2];
+                if (gn + 3 < psc(num_output)) sumfp.a *= weight_descales_data[gn + 3];
 
                 if (bias_term == 1)
                 {

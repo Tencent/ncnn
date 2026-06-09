@@ -27,7 +27,7 @@ Gemm_vulkan::Gemm_vulkan()
 #if NCNN_INT8
     pipeline_gemm_quantize_A_int8 = 0;
     pipeline_gemm_quantize_B_absmax_int8 = 0;
-    pipeline_gemm_quantize_B_scale_int8 = 0;
+    pipeline_gemm_quantize_B_descale_int8 = 0;
     pipeline_gemm_quantize_B_int8 = 0;
 #endif
 
@@ -617,8 +617,8 @@ int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_gemm_quantize_B_absmax_int8;
     pipeline_gemm_quantize_B_absmax_int8 = 0;
 
-    delete pipeline_gemm_quantize_B_scale_int8;
-    pipeline_gemm_quantize_B_scale_int8 = 0;
+    delete pipeline_gemm_quantize_B_descale_int8;
+    pipeline_gemm_quantize_B_descale_int8 = 0;
 
     delete pipeline_gemm_quantize_B_int8;
     pipeline_gemm_quantize_B_int8 = 0;
@@ -947,8 +947,18 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
         if (A_data_int8_packed.empty())
             return -100;
 
+        A_data_int8_descales.create(constantM, (size_t)4u, 1);
+        if (A_data_int8_descales.empty())
+            return -100;
+
         if (A_data.elemsize == (size_t)1u)
         {
+            for (int i = 0; i < constantM; i++)
+            {
+                const float scale = A_data_int8_scales[i];
+                A_data_int8_descales[i] = scale == 0.f ? 0.f : 1.f / scale;
+            }
+
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < constantM; i++)
             {
@@ -962,10 +972,6 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
         }
         else
         {
-            A_data_int8_scales.create(constantM, (size_t)4u, 1);
-            if (A_data_int8_scales.empty())
-                return -100;
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < constantM; i++)
             {
@@ -977,7 +983,7 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
                 }
 
                 const float A_int8_scale = absmax == 0.f ? 1.f : 127.f / absmax;
-                A_data_int8_scales[i] = A_int8_scale;
+                A_data_int8_descales[i] = absmax == 0.f ? 0.f : absmax * (1.f / 127.f);
 
                 signed char* outptr = A_data_int8_packed.row<signed char>(i);
 
@@ -1072,8 +1078,8 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
         if (B_data_int8_packed.empty())
             return -100;
 
-        B_data_int8_scales.create(1);
-        if (B_data_int8_scales.empty())
+        B_data_int8_descales.create(1);
+        if (B_data_int8_descales.empty())
             return -100;
 
         if (B_data.elemsize == (size_t)1u)
@@ -1089,7 +1095,7 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
                 }
             }
 
-            B_data_int8_scales[0] = B_data_int8_scale;
+            B_data_int8_descales[0] = B_data_int8_scale == 0.f ? 0.f : 1.f / B_data_int8_scale;
         }
         else
         {
@@ -1104,7 +1110,7 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
             }
 
             const float B_int8_scale = absmax == 0.f ? 1.f : 127.f / absmax;
-            B_data_int8_scales[0] = B_int8_scale;
+            B_data_int8_descales[0] = absmax == 0.f ? 0.f : absmax * (1.f / 127.f);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int j = 0; j < constantN; j++)
@@ -1220,9 +1226,9 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
         pipeline_gemm_quantize_B_absmax_int8->set_local_size_xyz(128, 1, 1);
         pipeline_gemm_quantize_B_absmax_int8->create(LayerShaderType::gemm_quantize_B_absmax_int8, opt_int8, specializations);
 
-        pipeline_gemm_quantize_B_scale_int8 = new Pipeline(vkdev);
-        pipeline_gemm_quantize_B_scale_int8->set_local_size_xyz(128, 1, 1);
-        pipeline_gemm_quantize_B_scale_int8->create(LayerShaderType::gemm_quantize_B_scale_int8, opt_int8, std::vector<vk_specialization_type>());
+        pipeline_gemm_quantize_B_descale_int8 = new Pipeline(vkdev);
+        pipeline_gemm_quantize_B_descale_int8->set_local_size_xyz(128, 1, 1);
+        pipeline_gemm_quantize_B_descale_int8->create(LayerShaderType::gemm_quantize_B_descale_int8, opt_int8, std::vector<vk_specialization_type>());
 
         pipeline_gemm_quantize_B_int8 = new Pipeline(vkdev);
         pipeline_gemm_quantize_B_int8->set_optimal_local_size_xyz(Mat(64, 1, 1, (void*)0));
@@ -1296,18 +1302,9 @@ int Gemm_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
         A_data_int8_packed.release();
 
-        Mat A_data_int8_descales;
-        A_data_int8_descales.create((int)A_data_int8_scales.total(), (size_t)4u, 1);
+        cmd.record_upload(A_data_int8_descales, A_data_int8_descales_gpu, opt_fp32);
 
-        float* outptr = A_data_int8_descales;
-        for (int i = 0; i < A_data_int8_descales.w; i++)
-        {
-            float scale = A_data_int8_scales[i];
-            outptr[i] = scale == 0.f ? 0.f : 1.f / scale;
-        }
-
-        cmd.record_upload(A_data_int8_descales, A_data_int8_scales_gpu, opt_fp32);
-
+        A_data_int8_descales.release();
         A_data_int8_scales.release();
     }
 
@@ -1317,19 +1314,9 @@ int Gemm_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
         B_data_int8_packed.release();
 
-        Mat B_data_int8_descales;
-        B_data_int8_descales.create((int)B_data_int8_scales.total(), (size_t)4u, 1);
+        cmd.record_upload(B_data_int8_descales, B_data_int8_descales_gpu, opt_fp32);
 
-        float* outptr = B_data_int8_descales;
-        for (int i = 0; i < B_data_int8_descales.w; i++)
-        {
-            float scale = B_data_int8_scales[i];
-            outptr[i] = scale == 0.f ? 0.f : 1.f / scale;
-        }
-
-        cmd.record_upload(B_data_int8_descales, B_data_int8_scales_gpu, opt_fp32);
-
-        B_data_int8_scales.release();
+        B_data_int8_descales.release();
     }
 
     if (constantC && constant_broadcast_type_C != -1)
@@ -1475,21 +1462,21 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
     }
 
     VkMat A_int8 = A;
-    VkMat A_int8_scales = A_data_int8_scales_gpu;
+    VkMat A_int8_descales = A_data_int8_descales_gpu;
     if (!constantA)
     {
         A_int8.create(K, M, (size_t)1u, 1, opt.workspace_vkallocator);
         if (A_int8.empty())
             return -100;
 
-        A_int8_scales.create(M, (size_t)4u, 1, opt.workspace_vkallocator);
-        if (A_int8_scales.empty())
+        A_int8_descales.create(M, (size_t)4u, 1, opt.workspace_vkallocator);
+        if (A_int8_descales.empty())
             return -100;
 
         std::vector<VkMat> bindings(3);
         bindings[0] = A;
         bindings[1] = A_int8;
-        bindings[2] = A_int8_scales;
+        bindings[2] = A_int8_descales;
 
         std::vector<vk_constant_type> constants(4);
         constants[0].i = M;
@@ -1506,7 +1493,7 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
     }
 
     VkMat B_int8 = B;
-    VkMat B_int8_scale = B_data_int8_scales_gpu;
+    VkMat B_int8_descale = B_data_int8_descales_gpu;
     if (!constantB)
     {
         const int size = N * K;
@@ -1516,8 +1503,8 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
         if (B_int8.empty())
             return -100;
 
-        B_int8_scale.create(1, (size_t)4u, 1, opt.workspace_vkallocator);
-        if (B_int8_scale.empty())
+        B_int8_descale.create(1, (size_t)4u, 1, opt.workspace_vkallocator);
+        if (B_int8_descale.empty())
             return -100;
 
         VkMat B_absmax;
@@ -1548,7 +1535,7 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
         {
             std::vector<VkMat> bindings(2);
             bindings[0] = B_absmax;
-            bindings[1] = B_int8_scale;
+            bindings[1] = B_int8_descale;
 
             std::vector<vk_constant_type> constants(1);
             constants[0].i = blocks;
@@ -1558,13 +1545,13 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
             dispatcher.h = 1;
             dispatcher.c = 1;
 
-            cmd.record_pipeline(pipeline_gemm_quantize_B_scale_int8, bindings, constants, dispatcher);
+            cmd.record_pipeline(pipeline_gemm_quantize_B_descale_int8, bindings, constants, dispatcher);
         }
 
         std::vector<VkMat> bindings(4);
         bindings[0] = B;
         bindings[1] = B_int8;
-        bindings[2] = B_int8_scale;
+        bindings[2] = B_int8_descale;
         bindings[3] = B_int8;
 
         std::vector<vk_constant_type> constants(5);
@@ -1605,8 +1592,8 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
     bindings[1] = A_int8;
     bindings[2] = B_int8;
     bindings[3] = C;
-    bindings[4] = A_int8_scales;
-    bindings[5] = B_int8_scale;
+    bindings[4] = A_int8_descales;
+    bindings[5] = B_int8_descale;
     if (use_cooperative_matrix)
     {
         bindings[6] = A_int8;

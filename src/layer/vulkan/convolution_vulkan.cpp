@@ -3068,6 +3068,9 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
         if (!is_conv1x1s1d1 && !use_winograd && !use_gemm)
             num_output_packed = (num_output + 7) / 8 * 8;
 
+        const float bottom_blob_int8_scale = bottom_blob_int8_scales.empty() ? 1.f : bottom_blob_int8_scales[0];
+        const float bottom_blob_int8_descale = bottom_blob_int8_scale == 0.f ? 0.f : 1.f / bottom_blob_int8_scale;
+
         Mat weight_data_int8_descales;
         if (is_conv1x1s1d1)
             weight_data_int8_descales.create(num_output_packed / 4, (size_t)4u * 4, 4);
@@ -3081,28 +3084,14 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
             float scale1 = q + 1 < num_output ? weight_data_int8_scales[q + 1] : 0.f;
             float scale2 = q + 2 < num_output ? weight_data_int8_scales[q + 2] : 0.f;
             float scale3 = q + 3 < num_output ? weight_data_int8_scales[q + 3] : 0.f;
-            outptr[0] = scale0 == 0.f ? 0.f : 1.f / scale0;
-            outptr[1] = scale1 == 0.f ? 0.f : 1.f / scale1;
-            outptr[2] = scale2 == 0.f ? 0.f : 1.f / scale2;
-            outptr[3] = scale3 == 0.f ? 0.f : 1.f / scale3;
+            outptr[0] = scale0 == 0.f ? 0.f : bottom_blob_int8_descale / scale0;
+            outptr[1] = scale1 == 0.f ? 0.f : bottom_blob_int8_descale / scale1;
+            outptr[2] = scale2 == 0.f ? 0.f : bottom_blob_int8_descale / scale2;
+            outptr[3] = scale3 == 0.f ? 0.f : bottom_blob_int8_descale / scale3;
             outptr += 4;
         }
 
-        cmd.record_upload(weight_data_int8_descales, weight_data_int8_scales_gpu, opt_fp32);
-    }
-
-    {
-        Mat bottom_blob_int8_descales;
-        bottom_blob_int8_descales.create((int)bottom_blob_int8_scales.total(), (size_t)4u, 1);
-
-        float* outptr = bottom_blob_int8_descales;
-        for (int i = 0; i < bottom_blob_int8_descales.w; i++)
-        {
-            float scale = bottom_blob_int8_scales[i];
-            outptr[i] = scale == 0.f ? 0.f : 1.f / scale;
-        }
-
-        cmd.record_upload(bottom_blob_int8_descales, bottom_blob_int8_scales_gpu, opt_fp32);
+        cmd.record_upload(weight_data_int8_descales, weight_data_int8_descales_gpu, opt_fp32);
     }
 
     const bool use_int8_requantize = int8_scale_term > 100;
@@ -3425,14 +3414,13 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
         }
 
         {
-            std::vector<VkMat> bindings(7);
+            std::vector<VkMat> bindings(6);
             bindings[0] = top_tm_blob;
             bindings[1] = top_blob_unpacked;
             bindings[2] = bias_data_gpu;
-            bindings[3] = weight_data_int8_scales_gpu;
-            bindings[4] = bottom_blob_int8_scales_gpu;
-            bindings[5] = top_blob_int8_scales_gpu;
-            bindings[6] = top_blob_unpacked;
+            bindings[3] = weight_data_int8_descales_gpu;
+            bindings[4] = top_blob_int8_scales_gpu;
+            bindings[5] = top_blob_unpacked;
 
             std::vector<vk_constant_type> constants(7);
             constants[0].i = top_tm_blob.cstep;
@@ -3454,22 +3442,21 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
     }
     else if (is_conv1x1s1d1)
     {
-        std::vector<VkMat> bindings_1x1(use_cooperative_matrix ? 12 : 8);
+        std::vector<VkMat> bindings_1x1(use_cooperative_matrix ? 11 : 7);
         bindings_1x1[0] = bottom;
         bindings_1x1[1] = top_blob;
         bindings_1x1[2] = weight_data_gpu;
         bindings_1x1[3] = bias_data_gpu;
-        bindings_1x1[4] = weight_data_int8_scales_gpu;
-        bindings_1x1[5] = bottom_blob_int8_scales_gpu;
-        bindings_1x1[6] = top_blob_int8_scales_gpu;
-        bindings_1x1[7] = top_blob;
+        bindings_1x1[4] = weight_data_int8_descales_gpu;
+        bindings_1x1[5] = top_blob_int8_scales_gpu;
+        bindings_1x1[6] = top_blob;
 
         if (use_cooperative_matrix)
         {
-            bindings_1x1[8] = bottom;
-            bindings_1x1[9] = weight_data_gpu;
+            bindings_1x1[7] = bottom;
+            bindings_1x1[8] = weight_data_gpu;
+            bindings_1x1[9] = top_blob;
             bindings_1x1[10] = top_blob;
-            bindings_1x1[11] = top_blob;
 
             const int size = top_blob.w * top_blob.h;
 
@@ -3521,19 +3508,18 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
     {
         if (use_cooperative_matrix)
         {
-            std::vector<VkMat> bindings(12);
+            std::vector<VkMat> bindings(11);
             bindings[0] = bottom;
             bindings[1] = top_blob;
             bindings[2] = bottom;
             bindings[3] = top_blob;
             bindings[4] = weight_data_gpu;
             bindings[5] = bias_data_gpu;
-            bindings[6] = weight_data_int8_scales_gpu;
-            bindings[7] = bottom_blob_int8_scales_gpu;
-            bindings[8] = top_blob_int8_scales_gpu;
+            bindings[6] = weight_data_int8_descales_gpu;
+            bindings[7] = top_blob_int8_scales_gpu;
+            bindings[8] = top_blob;
             bindings[9] = top_blob;
-            bindings[10] = top_blob;
-            bindings[11] = weight_data_gpu;
+            bindings[10] = weight_data_gpu;
 
             std::vector<vk_constant_type> constants(8);
             constants[0].i = bottom.w;
@@ -3561,18 +3547,17 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
             const int c_packed = (num_input + 3) / 4;
             const int outc_pack4 = (num_output + 3) / 4;
 
-            std::vector<VkMat> bindings(11);
+            std::vector<VkMat> bindings(10);
             bindings[0] = bottom;
             bindings[1] = top_blob;
             bindings[2] = bottom;
             bindings[3] = top_blob;
             bindings[4] = weight_data_gpu;
             bindings[5] = bias_data_gpu;
-            bindings[6] = weight_data_int8_scales_gpu;
-            bindings[7] = bottom_blob_int8_scales_gpu;
-            bindings[8] = top_blob_int8_scales_gpu;
+            bindings[6] = weight_data_int8_descales_gpu;
+            bindings[7] = top_blob_int8_scales_gpu;
+            bindings[8] = top_blob;
             bindings[9] = top_blob;
-            bindings[10] = top_blob;
 
             std::vector<vk_constant_type> constants(8);
             constants[0].i = bottom.w;
@@ -3598,18 +3583,17 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
         const int c_shader = bottom.elempack == 4 ? c_packed : num_input;
         const int outc_pack4 = (num_output + 3) / 4;
 
-        std::vector<VkMat> bindings(11);
+        std::vector<VkMat> bindings(10);
         bindings[0] = bottom;
         bindings[1] = top_blob;
         bindings[2] = bottom;
         bindings[3] = top_blob;
         bindings[4] = weight_data_gpu;
         bindings[5] = bias_data_gpu;
-        bindings[6] = weight_data_int8_scales_gpu;
-        bindings[7] = bottom_blob_int8_scales_gpu;
-        bindings[8] = top_blob_int8_scales_gpu;
+        bindings[6] = weight_data_int8_descales_gpu;
+        bindings[7] = top_blob_int8_scales_gpu;
+        bindings[8] = top_blob;
         bindings[9] = top_blob;
-        bindings[10] = top_blob;
 
         std::vector<vk_constant_type> constants(8);
         constants[0].i = bottom.w;
