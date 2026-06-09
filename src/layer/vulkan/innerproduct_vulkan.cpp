@@ -25,6 +25,8 @@ InnerProduct_vulkan::InnerProduct_vulkan()
     quantize = 0;
 
     pipeline_innerproduct_int8 = 0;
+    pipeline_innerproduct_sum8_int8 = 0;
+    pipeline_innerproduct_reduce_sum8_int8 = 0;
     pipeline_innerproduct_gemm_int8 = 0;
 #endif
 }
@@ -314,6 +316,11 @@ int InnerProduct_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_innerproduct_int8;
     pipeline_innerproduct_int8 = 0;
 
+    delete pipeline_innerproduct_sum8_int8;
+    delete pipeline_innerproduct_reduce_sum8_int8;
+    pipeline_innerproduct_sum8_int8 = 0;
+    pipeline_innerproduct_reduce_sum8_int8 = 0;
+
     delete pipeline_innerproduct_gemm_int8;
     pipeline_innerproduct_gemm_int8 = 0;
 #endif
@@ -518,17 +525,17 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
     {
         Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
-        weight_data_int8_packed.create(num_input_packed / 4, num_output_packed, (size_t)4u, 4);
+        weight_data_int8_packed.create(num_input_packed, num_output_packed / 4, (size_t)4u, 4);
         weight_data_int8_packed.fill(0);
 
         for (int q = 0; q < num_output; q++)
         {
             const signed char* k0 = weight_data_r2.row<const signed char>(q);
-            signed char* g00 = weight_data_int8_packed.row<signed char>(q);
+            signed char* g00 = weight_data_int8_packed.row<signed char>(q / 4) + (q % 4) * 4;
 
             for (int p = 0; p < num_input; p++)
             {
-                g00[p] = k0[p];
+                g00[p / 4 * 16 + p % 4] = k0[p];
             }
         }
     }
@@ -663,6 +670,41 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
         flatten->create_pipeline(opt);
     }
 
+    if (num_input_packed / 4 >= 32)
+    {
+        const int outw_sum8 = (num_input_packed / 4 + 7) / 8;
+        const int outh_sum8 = num_output_packed / 4;
+
+        // sum8
+        {
+            std::vector<vk_specialization_type> specializations(1 + 3);
+            specializations[0].i = num_input_packed;
+            specializations[1 + 0].i = shape_flatten.w * shape_flatten.elempack;
+            specializations[1 + 1].i = outw_sum8;
+            specializations[1 + 2].i = outh_sum8;
+
+            pipeline_innerproduct_sum8_int8 = new Pipeline(vkdev);
+            pipeline_innerproduct_sum8_int8->set_local_size_xyz(8, std::min(8, outh_sum8), 1);
+            pipeline_innerproduct_sum8_int8->create(LayerShaderType::innerproduct_sum8_int8, opt_int8, specializations);
+        }
+
+        // reduce sum8
+        {
+            std::vector<vk_specialization_type> specializations(4 + 3);
+            specializations[0].i = bias_term;
+            specializations[1].i = activation_type;
+            specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+            specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+            specializations[4 + 0].i = outw_sum8;
+            specializations[4 + 1].i = outh_sum8;
+            specializations[4 + 2].i = (num_output + 3) / 4;
+
+            pipeline_innerproduct_reduce_sum8_int8 = new Pipeline(vkdev);
+            pipeline_innerproduct_reduce_sum8_int8->set_local_size_xyz(std::min(64, (num_output + 3) / 4), 1, 1);
+            pipeline_innerproduct_reduce_sum8_int8->create(LayerShaderType::innerproduct_reduce_sum8_int8, opt_int8, specializations);
+        }
+    }
+    else
     {
         std::vector<vk_specialization_type> specializations(5 + 2);
         specializations[0].i = bias_term;
@@ -879,6 +921,54 @@ int InnerProduct_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob,
     else
     {
         out_elemsize = out_elempack * 4u;
+    }
+
+    const int num_input_packed = (num_input + 7) / 8 * 8;
+    const int num_output_packed = (num_output + 3) / 4 * 4;
+
+    if (num_input_packed / 4 >= 32)
+    {
+        // sum8
+        VkMat top_blob_sum8;
+        {
+            top_blob_sum8.create((num_input_packed / 4 + 7) / 8, num_output_packed / 4, (size_t)4u * 4, 4, opt.blob_vkallocator);
+            if (top_blob_sum8.empty())
+                return -100;
+
+            std::vector<VkMat> bindings(3);
+            bindings[0] = bottom_blob_flattened;
+            bindings[1] = top_blob_sum8;
+            bindings[2] = weight_data_gpu;
+
+            std::vector<vk_constant_type> constants(3);
+            constants[0].i = bottom_blob_flattened.w * bottom_blob_flattened.elempack;
+            constants[1].i = top_blob_sum8.w;
+            constants[2].i = top_blob_sum8.h;
+
+            cmd.record_pipeline(pipeline_innerproduct_sum8_int8, bindings, constants, top_blob_sum8);
+        }
+
+        // reduce sum8
+        {
+            top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+            if (top_blob.empty())
+                return -100;
+
+            std::vector<VkMat> bindings(4);
+            bindings[0] = top_blob_sum8;
+            bindings[1] = top_blob;
+            bindings[2] = weight_data_int8_descales_gpu;
+            bindings[3] = bias_data_gpu;
+
+            std::vector<vk_constant_type> constants(3);
+            constants[0].i = top_blob_sum8.w;
+            constants[1].i = top_blob_sum8.h;
+            constants[2].i = (num_output + 3) / 4;
+
+            cmd.record_pipeline(pipeline_innerproduct_reduce_sum8_int8, bindings, constants, top_blob);
+        }
+
+        return 0;
     }
 
     top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);

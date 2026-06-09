@@ -125,8 +125,7 @@ void main()
             tmp_v[ly][lx] = v;
 
             const int kk = i + int(ly / 4) * 4;
-            const uint kx = gx * 4 + ly % 4;
-            const int k = i8buffer_sm4(weight_data, int(kx) * weight_data_stride / 4 + kk / 4);
+            const int k = i8buffer_sm4(weight_data, int(gx) * weight_data_stride + kk + int(ly % 4));
 
             tmp_k[lx][ly] = k;
         }
@@ -306,10 +305,10 @@ void main()
 
         const int wi = i / 4;
 
-        const int k0 = i8buffer_sm4(weight_data, int(gx4.r) * weight_data_stride / 4 + wi);
-        const int k1 = i8buffer_sm4(weight_data, int(gx4.g) * weight_data_stride / 4 + wi);
-        const int k2 = i8buffer_sm4(weight_data, int(gx4.b) * weight_data_stride / 4 + wi);
-        const int k3 = i8buffer_sm4(weight_data, int(gx4.a) * weight_data_stride / 4 + wi);
+        const int k0 = i8buffer_sm4(weight_data, int(gx) * weight_data_stride + wi * 4 + 0);
+        const int k1 = i8buffer_sm4(weight_data, int(gx) * weight_data_stride + wi * 4 + 1);
+        const int k2 = i8buffer_sm4(weight_data, int(gx) * weight_data_stride + wi * 4 + 2);
+        const int k3 = i8buffer_sm4(weight_data, int(gx) * weight_data_stride + wi * 4 + 3);
 
 #if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
         sum0 += ivec4(dotPacked4x8EXT(v0, k0), dotPacked4x8EXT(v0, k1), dotPacked4x8EXT(v0, k2), dotPacked4x8EXT(v0, k3));

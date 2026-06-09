@@ -51,6 +51,8 @@ public:
     VkMat weight_data_int8_descales_gpu;
 
     Pipeline* pipeline_innerproduct_int8;
+    Pipeline* pipeline_innerproduct_sum8_int8;
+    Pipeline* pipeline_innerproduct_reduce_sum8_int8;
     Pipeline* pipeline_innerproduct_gemm_int8;
 #endif
 };
