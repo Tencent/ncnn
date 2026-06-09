@@ -3445,21 +3445,16 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
     }
     else if (is_conv1x1s1d1)
     {
-        std::vector<VkMat> bindings_1x1(use_cooperative_matrix ? 11 : 7);
-        bindings_1x1[0] = bottom;
-        bindings_1x1[1] = top_blob;
-        bindings_1x1[2] = weight_data_gpu;
-        bindings_1x1[3] = bias_data_gpu;
-        bindings_1x1[4] = weight_data_int8_descales_gpu;
-        bindings_1x1[5] = top_blob_int8_scales_gpu;
-        bindings_1x1[6] = top_blob;
-
         if (use_cooperative_matrix)
         {
-            bindings_1x1[7] = bottom;
-            bindings_1x1[8] = weight_data_gpu;
-            bindings_1x1[9] = top_blob;
-            bindings_1x1[10] = top_blob;
+            std::vector<VkMat> bindings_1x1(7);
+            bindings_1x1[0] = bottom;
+            bindings_1x1[1] = top_blob;
+            bindings_1x1[2] = top_blob;
+            bindings_1x1[3] = weight_data_gpu;
+            bindings_1x1[4] = bias_data_gpu;
+            bindings_1x1[5] = weight_data_int8_descales_gpu;
+            bindings_1x1[6] = top_blob_int8_scales_gpu;
 
             const int size = top_blob.w * top_blob.h;
 
@@ -3482,6 +3477,15 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
         }
         else
         {
+            std::vector<VkMat> bindings_1x1(7);
+            bindings_1x1[0] = bottom;
+            bindings_1x1[1] = top_blob;
+            bindings_1x1[2] = weight_data_gpu;
+            bindings_1x1[3] = bias_data_gpu;
+            bindings_1x1[4] = weight_data_int8_descales_gpu;
+            bindings_1x1[5] = top_blob_int8_scales_gpu;
+            bindings_1x1[6] = top_blob;
+
             const int num_input_packed = (num_input + 3) / 4 * 4;
             const int num_output_packed = (num_output + 3) / 4 * 4;
             const int outc_pack4 = num_output_packed / 4;
@@ -3511,18 +3515,14 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
     {
         if (use_cooperative_matrix)
         {
-            std::vector<VkMat> bindings(11);
+            std::vector<VkMat> bindings(7);
             bindings[0] = bottom;
             bindings[1] = top_blob;
-            bindings[2] = bottom;
-            bindings[3] = top_blob;
-            bindings[4] = weight_data_gpu;
-            bindings[5] = bias_data_gpu;
-            bindings[6] = weight_data_int8_descales_gpu;
-            bindings[7] = top_blob_int8_scales_gpu;
-            bindings[8] = top_blob;
-            bindings[9] = top_blob;
-            bindings[10] = weight_data_gpu;
+            bindings[2] = top_blob;
+            bindings[3] = weight_data_gpu;
+            bindings[4] = bias_data_gpu;
+            bindings[5] = weight_data_int8_descales_gpu;
+            bindings[6] = top_blob_int8_scales_gpu;
 
             std::vector<vk_constant_type> constants(8);
             constants[0].i = bottom.w;

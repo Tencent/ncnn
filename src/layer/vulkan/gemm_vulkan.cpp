@@ -1237,7 +1237,12 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
 
     if (use_cooperative_matrix)
     {
-        std::vector<vk_specialization_type> specializations(10 + 9);
+        int outh = output_transpose ? constantN : constantM;
+        int out_elempack = outh ? (outh % 4 == 0 ? 4 : 1) : 0;
+        if (output_elempack)
+            out_elempack = output_elempack;
+
+        std::vector<vk_specialization_type> specializations(11 + 9);
         specializations[0].f = alpha;
         specializations[1].f = beta;
         specializations[2].i = constantA;
@@ -1248,16 +1253,17 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
         specializations[7].i = constantM;
         specializations[8].i = constantN;
         specializations[9].i = constantK;
+        specializations[10].i = out_elempack;
 
-        specializations[10 + 0].u32 = coopmat_M;
-        specializations[10 + 1].u32 = coopmat_N;
-        specializations[10 + 2].u32 = coopmat_K;
-        specializations[10 + 3].u32 = coopmat_subgroup_size;
-        specializations[10 + 4].u32 = UNROLL_SG_M;
-        specializations[10 + 5].u32 = UNROLL_SG_N;
-        specializations[10 + 6].u32 = UNROLL_SG_K;
-        specializations[10 + 7].u32 = UNROLL_WG_M;
-        specializations[10 + 8].u32 = UNROLL_WG_N;
+        specializations[11 + 0].u32 = coopmat_M;
+        specializations[11 + 1].u32 = coopmat_N;
+        specializations[11 + 2].u32 = coopmat_K;
+        specializations[11 + 3].u32 = coopmat_subgroup_size;
+        specializations[11 + 4].u32 = UNROLL_SG_M;
+        specializations[11 + 5].u32 = UNROLL_SG_N;
+        specializations[11 + 6].u32 = UNROLL_SG_K;
+        specializations[11 + 7].u32 = UNROLL_WG_M;
+        specializations[11 + 8].u32 = UNROLL_WG_N;
 
         pipeline_gemm = new Pipeline(vkdev);
         pipeline_gemm->set_subgroup_size(coopmat_subgroup_size);
@@ -1451,15 +1457,25 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
         C = C_unpacked;
     }
 
-    size_t out_elemsize;
+    int out_elempack = 1;
+    if (use_cooperative_matrix)
+    {
+        int outh = output_transpose ? N : M;
+        out_elempack = outh % 4 == 0 ? 4 : 1;
+        if (output_elempack)
+            out_elempack = output_elempack;
+    }
+
+    size_t elemsize;
     if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
-        out_elemsize = 2u;
+        elemsize = 2u;
     }
     else
     {
-        out_elemsize = 4u;
+        elemsize = 4u;
     }
+    size_t out_elemsize = elemsize * out_elempack;
 
     VkMat A_int8 = A;
     VkMat A_int8_descales = A_data_int8_descales_gpu;
@@ -1573,21 +1589,21 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
     if (output_transpose)
     {
         if (output_N1M)
-            top_blob.create(M, 1, N, out_elemsize, 1, opt.blob_vkallocator);
+            top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         else
-            top_blob.create(M, N, out_elemsize, 1, opt.blob_vkallocator);
+            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     }
     else
     {
         if (output_N1M)
-            top_blob.create(N, 1, M, out_elemsize, 1, opt.blob_vkallocator);
+            top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         else
-            top_blob.create(N, M, out_elemsize, 1, opt.blob_vkallocator);
+            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     }
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkMat> bindings(use_cooperative_matrix ? 8 : 6);
+    std::vector<VkMat> bindings(use_cooperative_matrix ? 7 : 6);
     bindings[0] = top_blob;
     bindings[1] = A_int8;
     bindings[2] = B_int8;
@@ -1596,16 +1612,19 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
     bindings[5] = B_int8_descale;
     if (use_cooperative_matrix)
     {
-        bindings[6] = A_int8;
-        bindings[7] = B_int8;
+        bindings[6] = top_blob;
     }
 
-    std::vector<vk_constant_type> constants(5);
+    std::vector<vk_constant_type> constants(use_cooperative_matrix ? 6 : 5);
     constants[0].i = M;
     constants[1].i = N;
     constants[2].i = K;
     constants[3].i = broadcast_type_C;
     constants[4].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
+    if (use_cooperative_matrix)
+    {
+        constants[5].i = out_elempack;
+    }
 
     VkMat dispatcher;
     if (use_cooperative_matrix)
