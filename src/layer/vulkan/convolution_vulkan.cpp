@@ -2169,10 +2169,42 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     const int num_input = weight_data_size / maxk / num_output;
     bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
-    bool use_winograd = opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16;
+    bool use_gemm_candidate = opt.use_sgemm_convolution && !is_conv1x1s1d1 && num_input * maxk >= 8 && num_output >= 8;
+
+    use_cooperative_matrix = false;
+    coopmat_M = 0;
+    coopmat_N = 0;
+    coopmat_K = 0;
+    coopmat_subgroup_size = 0;
+
+    if ((is_conv1x1s1d1 || use_gemm_candidate) && opt.use_cooperative_matrix && opt.use_int8_arithmetic && vkdev->info.support_int8_cooperative_matrix())
+    {
+        const int M = out_shape.dims == 3 ? out_shape.w * out_shape.h : 1024;
+        const int N = num_output;
+        const int K = is_conv1x1s1d1 ? num_input : num_input * maxk;
+
+        if (N >= 8 && K >= 8)
+        {
+            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_SINT8_KHR, VK_COMPONENT_TYPE_SINT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+        }
+
+        if (coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0)
+        {
+            use_cooperative_matrix = true;
+
+            UNROLL_SG_M = std::min((M + coopmat_M - 1) / coopmat_M, 2);
+            UNROLL_SG_N = std::min((N + coopmat_N - 1) / coopmat_N, 2);
+            UNROLL_SG_K = std::min((K + coopmat_K - 1) / coopmat_K, 2);
+
+            UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
+            UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
+        }
+    }
+
+    bool use_winograd = opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16 && !use_cooperative_matrix;
     bool use_winograd43 = use_winograd && opt.use_winograd43_convolution;
     bool use_winograd23 = use_winograd && opt.use_winograd23_convolution;
-    bool use_gemm = opt.use_sgemm_convolution && !is_conv1x1s1d1 && !use_winograd && num_input * maxk >= 8 && num_output >= 8;
+    bool use_gemm = use_gemm_candidate && !use_winograd;
     const int elempack = !use_winograd && opt.use_packing_layout && num_input % 4 == 0 ? 4 : 1;
     const int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
 
@@ -2351,36 +2383,6 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
             opt_int8.use_int16_storage = true;
         else
             opt_int8.use_int16_packed = true;
-    }
-
-    use_cooperative_matrix = false;
-    coopmat_M = 0;
-    coopmat_N = 0;
-    coopmat_K = 0;
-    coopmat_subgroup_size = 0;
-
-    if ((is_conv1x1s1d1 || use_gemm) && opt.use_cooperative_matrix && opt.use_int8_arithmetic && vkdev->info.support_int8_cooperative_matrix())
-    {
-        const int M = out_shape.dims == 3 ? out_shape.w * out_shape.h : 1024;
-        const int N = num_output;
-        const int K = is_conv1x1s1d1 ? num_input : num_input * maxk;
-
-        if (N >= 8 && K >= 8)
-        {
-            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_SINT8_KHR, VK_COMPONENT_TYPE_SINT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
-        }
-
-        if (coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0)
-        {
-            use_cooperative_matrix = true;
-
-            UNROLL_SG_M = std::min((M + coopmat_M - 1) / coopmat_M, 2);
-            UNROLL_SG_N = std::min((N + coopmat_N - 1) / coopmat_N, 2);
-            UNROLL_SG_K = std::min((K + coopmat_K - 1) / coopmat_K, 2);
-
-            UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
-            UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
-        }
     }
 
     if (is_conv1x1s1d1)
@@ -3035,8 +3037,9 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
     const bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     const bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
-    const bool use_winograd = opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16;
-    const bool use_gemm = opt.use_sgemm_convolution && !is_conv1x1s1d1 && !use_winograd && num_input * maxk >= 8 && num_output >= 8;
+    const bool use_gemm_candidate = opt.use_sgemm_convolution && !is_conv1x1s1d1 && num_input * maxk >= 8 && num_output >= 8;
+    const bool use_winograd = opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16 && !use_cooperative_matrix;
+    const bool use_gemm = use_gemm_candidate && !use_winograd;
 
     if (use_winograd)
     {
@@ -3154,8 +3157,9 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
     const int num_input = weight_data_size / maxk / num_output;
     const bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     const bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
-    const bool use_winograd = opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16;
-    const bool use_gemm = opt.use_sgemm_convolution && !is_conv1x1s1d1 && !use_winograd && num_input * maxk >= 8 && num_output >= 8;
+    const bool use_gemm_candidate = opt.use_sgemm_convolution && !is_conv1x1s1d1 && num_input * maxk >= 8 && num_output >= 8;
+    const bool use_winograd = opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16 && !use_cooperative_matrix;
+    const bool use_gemm = use_gemm_candidate && !use_winograd;
 
     // flattened blob, implement as InnerProduct
     if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
