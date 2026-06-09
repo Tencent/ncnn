@@ -48,7 +48,7 @@ int SDPA_vulkan::load_param(const ParamDict& pd)
 {
     int ret = SDPA::load_param(pd);
 
-    if (int8_scale_term)
+    if (int8_scale_term || kv_cache == 2)
     {
         support_vulkan = false;
     }
