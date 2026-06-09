@@ -28,8 +28,6 @@ layout(push_constant) uniform parameter
     int cstep;
     int outw;
     int outcstep;
-    int c;
-    int outc;
 } p;
 
 #if NCNN_shader_local_memory
@@ -41,11 +39,11 @@ shared lint16vec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH4][4];
 void main()
 {
     const int gx = int(gl_GlobalInvocationID.x) * 4;
-    const int gy = int(gl_GlobalInvocationID.y) * 4;
+    const int gy = int(gl_GlobalInvocationID.y);
     const int gz = int(gl_GlobalInvocationID.z);
 
 #if !NCNN_shader_local_memory
-    if (gx >= psc(outw) || gy >= psc(outc) || gz >= batch)
+    if (gx >= psc(outw) || gy >= outc || gz >= batch)
         return;
 #endif
 
@@ -54,15 +52,15 @@ void main()
     ivec4 sum2 = ivec4(0);
     ivec4 sum3 = ivec4(0);
 
-    const int c4 = (psc(c) + 3) / 4;
-    const int outc_aligned = (psc(outc) + 3) / 4 * 4;
+    const int c4 = (c + 3) / 4;
+    const int outc_aligned = outc * 4;
 
 #if NCNN_shader_local_memory
     const int lx = int(gl_LocalInvocationID.x);
     const int ly = int(gl_LocalInvocationID.y);
 
     int v_offset = gz * c4 * psc(cstep) + gx;
-    int w_offset = gz * outc_aligned * c4 + gy * c4;
+    int w_offset = gz * outc_aligned * c4 + gy * 4 * c4;
 
     int q4 = 0;
     for (; q4 + (LOCAL_MEMORY_UNROLL_INCH4 - 1) < c4; q4 += LOCAL_MEMORY_UNROLL_INCH4)
@@ -70,12 +68,19 @@ void main()
         if (ly < 4)
         {
             const int pos = gx + ly;
-            for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH4; z4++)
+            if (pos < psc(outw))
             {
-                if (pos < psc(outw))
+                for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH4; z4++)
+                {
                     tmp_v[lx][z4][ly] = i16buffer_sm4(bottom_tm_blob_data, v_offset + z4 * psc(cstep) + ly);
-                else
+                }
+            }
+            else
+            {
+                for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH4; z4++)
+                {
                     i16buffer_st4(tmp_v[lx][z4], ly, ivec4(0));
+                }
             }
         }
 
@@ -170,12 +175,19 @@ void main()
         if (ly < 4)
         {
             const int pos = gx + ly;
-            for (int z4 = 0; z4 < remain; z4++)
+            if (pos < psc(outw))
             {
-                if (pos < psc(outw))
+                for (int z4 = 0; z4 < remain; z4++)
+                {
                     tmp_v[lx][z4][ly] = i16buffer_sm4(bottom_tm_blob_data, v_offset + z4 * psc(cstep) + ly);
-                else
+                }
+            }
+            else
+            {
+                for (int z4 = 0; z4 < remain; z4++)
+                {
                     i16buffer_st4(tmp_v[lx][z4], ly, ivec4(0));
+                }
             }
         }
 
@@ -259,32 +271,15 @@ void main()
     }
 #else
     const int bottom_batch_offset = gz * c4 * psc(cstep);
-    const int weight_batch_offset = gz * outc_aligned * c4 + gy * c4;
+    const int weight_batch_offset = gz * outc_aligned * c4 + gy * 4 * c4;
 
 #if (NCNN_int16_storage || NCNN_int16_packed) && ncnn_shaderInt16 && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct16BitSignedAccelerated
     for (int q4 = 0; q4 < c4; q4++)
     {
-        aint16vec4 v0 = aint16vec4(int16_t(0));
-        aint16vec4 v1 = aint16vec4(int16_t(0));
-        aint16vec4 v2 = aint16vec4(int16_t(0));
-        aint16vec4 v3 = aint16vec4(int16_t(0));
-
-        if (gx + 0 < psc(outw))
-        {
-            v0 = i16buffer_ld4(bottom_tm_blob_data, bottom_batch_offset + q4 * psc(cstep) + gx + 0);
-        }
-        if (gx + 1 < psc(outw))
-        {
-            v1 = i16buffer_ld4(bottom_tm_blob_data, bottom_batch_offset + q4 * psc(cstep) + gx + 1);
-        }
-        if (gx + 2 < psc(outw))
-        {
-            v2 = i16buffer_ld4(bottom_tm_blob_data, bottom_batch_offset + q4 * psc(cstep) + gx + 2);
-        }
-        if (gx + 3 < psc(outw))
-        {
-            v3 = i16buffer_ld4(bottom_tm_blob_data, bottom_batch_offset + q4 * psc(cstep) + gx + 3);
-        }
+        const aint16vec4 v0 = i16buffer_ld4(bottom_tm_blob_data, bottom_batch_offset + q4 * psc(cstep) + gx + 0);
+        const aint16vec4 v1 = i16buffer_ld4(bottom_tm_blob_data, bottom_batch_offset + q4 * psc(cstep) + gx + 1);
+        const aint16vec4 v2 = i16buffer_ld4(bottom_tm_blob_data, bottom_batch_offset + q4 * psc(cstep) + gx + 2);
+        const aint16vec4 v3 = i16buffer_ld4(bottom_tm_blob_data, bottom_batch_offset + q4 * psc(cstep) + gx + 3);
 
         const aint16vec4 k0 = i16buffer_ld4(weight_tm_data, weight_batch_offset + 0 * c4 + q4);
         const aint16vec4 k1 = i16buffer_ld4(weight_tm_data, weight_batch_offset + 1 * c4 + q4);
@@ -314,10 +309,10 @@ void main()
 #else
     for (int q4 = 0; q4 < c4; q4++)
     {
-        const ivec4 v0 = gx + 0 < psc(outw) ? ivec4(i16buffer_ld4(bottom_tm_blob_data, bottom_batch_offset + q4 * psc(cstep) + gx + 0)) : ivec4(0);
-        const ivec4 v1 = gx + 1 < psc(outw) ? ivec4(i16buffer_ld4(bottom_tm_blob_data, bottom_batch_offset + q4 * psc(cstep) + gx + 1)) : ivec4(0);
-        const ivec4 v2 = gx + 2 < psc(outw) ? ivec4(i16buffer_ld4(bottom_tm_blob_data, bottom_batch_offset + q4 * psc(cstep) + gx + 2)) : ivec4(0);
-        const ivec4 v3 = gx + 3 < psc(outw) ? ivec4(i16buffer_ld4(bottom_tm_blob_data, bottom_batch_offset + q4 * psc(cstep) + gx + 3)) : ivec4(0);
+        const ivec4 v0 = ivec4(i16buffer_ld4(bottom_tm_blob_data, bottom_batch_offset + q4 * psc(cstep) + gx + 0));
+        const ivec4 v1 = ivec4(i16buffer_ld4(bottom_tm_blob_data, bottom_batch_offset + q4 * psc(cstep) + gx + 1));
+        const ivec4 v2 = ivec4(i16buffer_ld4(bottom_tm_blob_data, bottom_batch_offset + q4 * psc(cstep) + gx + 2));
+        const ivec4 v3 = ivec4(i16buffer_ld4(bottom_tm_blob_data, bottom_batch_offset + q4 * psc(cstep) + gx + 3));
 
         const ivec4 k0 = ivec4(i16buffer_ld4(weight_tm_data, weight_batch_offset + 0 * c4 + q4));
         const ivec4 k1 = ivec4(i16buffer_ld4(weight_tm_data, weight_batch_offset + 1 * c4 + q4));
@@ -348,15 +343,14 @@ void main()
 #endif
 
 #if NCNN_shader_local_memory
-    if (gx >= psc(outw) || gy >= psc(outc) || gz >= batch)
+    if (gx >= psc(outw) || gy >= outc || gz >= batch)
         return;
 #endif
 
-    const int outcstep4 = psc(outcstep) / 4;
-    const int gi4 = ((gz * psc(outc) + gy) * psc(outcstep) + gx) / 4;
+    const int gi = (gz * outc + gy) * psc(outcstep) + gx;
 
-    top_tm_blob_data[gi4 + 0 * outcstep4] = ivec4(sum0.r, sum1.r, sum2.r, sum3.r);
-    if (gy + 1 < psc(outc)) top_tm_blob_data[gi4 + 1 * outcstep4] = ivec4(sum0.g, sum1.g, sum2.g, sum3.g);
-    if (gy + 2 < psc(outc)) top_tm_blob_data[gi4 + 2 * outcstep4] = ivec4(sum0.b, sum1.b, sum2.b, sum3.b);
-    if (gy + 3 < psc(outc)) top_tm_blob_data[gi4 + 3 * outcstep4] = ivec4(sum0.a, sum1.a, sum2.a, sum3.a);
+    top_tm_blob_data[gi + 0] = sum0;
+    if (gx + 1 < psc(outw)) top_tm_blob_data[gi + 1] = sum1;
+    if (gx + 2 < psc(outw)) top_tm_blob_data[gi + 2] = sum2;
+    if (gx + 3 < psc(outw)) top_tm_blob_data[gi + 3] = sum3;
 }

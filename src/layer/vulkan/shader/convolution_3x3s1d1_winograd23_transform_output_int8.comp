@@ -12,7 +12,7 @@ layout(constant_id = 2) const float activation_param_0 = 0;
 layout(constant_id = 3) const float activation_param_1 = 0;
 layout(constant_id = 4) const int use_int8_requantize = 0;
 
-layout(binding = 0) readonly buffer top_tm_blob { int top_tm_blob_data[]; };
+layout(binding = 0) readonly buffer top_tm_blob { ivec4 top_tm_blob_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 2) readonly buffer bias_blob { float bias_data[]; };
 layout(binding = 3) readonly buffer weight_descales_blob { float weight_descales_data[]; };
@@ -42,25 +42,28 @@ void main()
         return;
 
     // load 16
-    int v_tm_offset = gz * p.cstep + gy * p.block_x + gx;
-    int v_tm_step = p.cstep * p.outc;
+    const int gz4 = gz / 4;
+    const int lane = gz % 4;
 
-    int v00 = top_tm_blob_data[v_tm_offset + 0 * v_tm_step];
-    int v01 = top_tm_blob_data[v_tm_offset + 1 * v_tm_step];
-    int v02 = top_tm_blob_data[v_tm_offset + 2 * v_tm_step];
-    int v03 = top_tm_blob_data[v_tm_offset + 3 * v_tm_step];
-    int v10 = top_tm_blob_data[v_tm_offset + 4 * v_tm_step];
-    int v11 = top_tm_blob_data[v_tm_offset + 5 * v_tm_step];
-    int v12 = top_tm_blob_data[v_tm_offset + 6 * v_tm_step];
-    int v13 = top_tm_blob_data[v_tm_offset + 7 * v_tm_step];
-    int v20 = top_tm_blob_data[v_tm_offset + 8 * v_tm_step];
-    int v21 = top_tm_blob_data[v_tm_offset + 9 * v_tm_step];
-    int v22 = top_tm_blob_data[v_tm_offset + 10 * v_tm_step];
-    int v23 = top_tm_blob_data[v_tm_offset + 11 * v_tm_step];
-    int v30 = top_tm_blob_data[v_tm_offset + 12 * v_tm_step];
-    int v31 = top_tm_blob_data[v_tm_offset + 13 * v_tm_step];
-    int v32 = top_tm_blob_data[v_tm_offset + 14 * v_tm_step];
-    int v33 = top_tm_blob_data[v_tm_offset + 15 * v_tm_step];
+    int v_tm_offset = gz4 * p.cstep + gy * p.block_x + gx;
+    int v_tm_step = p.cstep * ((p.outc + 3) / 4);
+
+    int v00 = top_tm_blob_data[v_tm_offset + 0 * v_tm_step][lane];
+    int v01 = top_tm_blob_data[v_tm_offset + 1 * v_tm_step][lane];
+    int v02 = top_tm_blob_data[v_tm_offset + 2 * v_tm_step][lane];
+    int v03 = top_tm_blob_data[v_tm_offset + 3 * v_tm_step][lane];
+    int v10 = top_tm_blob_data[v_tm_offset + 4 * v_tm_step][lane];
+    int v11 = top_tm_blob_data[v_tm_offset + 5 * v_tm_step][lane];
+    int v12 = top_tm_blob_data[v_tm_offset + 6 * v_tm_step][lane];
+    int v13 = top_tm_blob_data[v_tm_offset + 7 * v_tm_step][lane];
+    int v20 = top_tm_blob_data[v_tm_offset + 8 * v_tm_step][lane];
+    int v21 = top_tm_blob_data[v_tm_offset + 9 * v_tm_step][lane];
+    int v22 = top_tm_blob_data[v_tm_offset + 10 * v_tm_step][lane];
+    int v23 = top_tm_blob_data[v_tm_offset + 11 * v_tm_step][lane];
+    int v30 = top_tm_blob_data[v_tm_offset + 12 * v_tm_step][lane];
+    int v31 = top_tm_blob_data[v_tm_offset + 13 * v_tm_step][lane];
+    int v32 = top_tm_blob_data[v_tm_offset + 14 * v_tm_step][lane];
+    int v33 = top_tm_blob_data[v_tm_offset + 15 * v_tm_step][lane];
 
     int m00 = v00 + v01 + v02;
     int m01 = v10 + v11 + v12;
