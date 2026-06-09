@@ -132,6 +132,153 @@ static int test_sdpa_kvcache2_invalid_past_len()
     return 0;
 }
 
+static int test_sdpa_kvcache2_persistent_buffer()
+{
+    const int embed_dim = 4;
+    const int out_embed_dim = 3;
+    const int past_seqlen = 2;
+    const int cur_seqlen = 2;
+    const int max_seqlen = 5;
+
+    ncnn::Mat query(embed_dim, cur_seqlen, 2);
+    query.fill(0.01f);
+
+    ncnn::Mat cur_key(embed_dim, cur_seqlen, 1);
+    ncnn::Mat cur_value(out_embed_dim, cur_seqlen, 1);
+    ncnn::Mat past_key(embed_dim, max_seqlen, 1);
+    ncnn::Mat past_value(out_embed_dim, max_seqlen, 1);
+
+    for (int y = 0; y < cur_seqlen; y++)
+    {
+        float* kptr = cur_key.row(y);
+        for (int x = 0; x < embed_dim; x++)
+            kptr[x] = 100.f + y * 10 + x;
+
+        float* vptr = cur_value.row(y);
+        for (int x = 0; x < out_embed_dim; x++)
+            vptr[x] = 200.f + y * 10 + x;
+    }
+
+    for (int y = 0; y < max_seqlen; y++)
+    {
+        float* kptr = past_key.row(y);
+        for (int x = 0; x < embed_dim; x++)
+            kptr[x] = 300.f + y * 10 + x;
+
+        float* vptr = past_value.row(y);
+        for (int x = 0; x < out_embed_dim; x++)
+            vptr[x] = 400.f + y * 10 + x;
+    }
+
+    ncnn::Mat past_len(1);
+    past_len.fill((float)past_seqlen);
+
+    ncnn::ParamDict pd;
+    pd.set(7, 2); // kv_cache
+
+    ncnn::Layer* op = ncnn::create_layer_cpu("SDPA");
+    op->load_param(pd);
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+
+    op->create_pipeline(opt);
+
+    std::vector<ncnn::Mat> bottom_blobs(6);
+    bottom_blobs[0] = query;
+    bottom_blobs[1] = cur_key;
+    bottom_blobs[2] = cur_value;
+    bottom_blobs[3] = past_key;
+    bottom_blobs[4] = past_value;
+    bottom_blobs[5] = past_len;
+
+    std::vector<ncnn::Mat> top_blobs(3);
+    int ret = op->forward(bottom_blobs, top_blobs, opt);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_sdpa_kvcache2_persistent_buffer failed forward\n");
+        op->destroy_pipeline(opt);
+        delete op;
+        return -1;
+    }
+
+    if (top_blobs[1].data != past_key.data || top_blobs[2].data != past_value.data)
+    {
+        fprintf(stderr, "test_sdpa_kvcache2_persistent_buffer failed buffer identity\n");
+        op->destroy_pipeline(opt);
+        delete op;
+        return -1;
+    }
+
+    for (int y = 0; y < past_seqlen; y++)
+    {
+        const float* kptr = past_key.row(y);
+        for (int x = 0; x < embed_dim; x++)
+        {
+            if (kptr[x] != 300.f + y * 10 + x)
+            {
+                fprintf(stderr, "test_sdpa_kvcache2_persistent_buffer clobbered past_key\n");
+                op->destroy_pipeline(opt);
+                delete op;
+                return -1;
+            }
+        }
+
+        const float* vptr = past_value.row(y);
+        for (int x = 0; x < out_embed_dim; x++)
+        {
+            if (vptr[x] != 400.f + y * 10 + x)
+            {
+                fprintf(stderr, "test_sdpa_kvcache2_persistent_buffer clobbered past_value\n");
+                op->destroy_pipeline(opt);
+                delete op;
+                return -1;
+            }
+        }
+    }
+
+    for (int y = 0; y < cur_seqlen; y++)
+    {
+        const float* kptr = past_key.row(past_seqlen + y);
+        for (int x = 0; x < embed_dim; x++)
+        {
+            if (kptr[x] != 100.f + y * 10 + x)
+            {
+                fprintf(stderr, "test_sdpa_kvcache2_persistent_buffer failed appended key\n");
+                op->destroy_pipeline(opt);
+                delete op;
+                return -1;
+            }
+        }
+
+        const float* vptr = past_value.row(past_seqlen + y);
+        for (int x = 0; x < out_embed_dim; x++)
+        {
+            if (vptr[x] != 200.f + y * 10 + x)
+            {
+                fprintf(stderr, "test_sdpa_kvcache2_persistent_buffer failed appended value\n");
+                op->destroy_pipeline(opt);
+                delete op;
+                return -1;
+            }
+        }
+    }
+
+    past_len.fill((float)(max_seqlen - cur_seqlen + 1));
+    ret = op->forward(bottom_blobs, top_blobs, opt);
+    if (ret == 0)
+    {
+        fprintf(stderr, "test_sdpa_kvcache2_persistent_buffer failed overflow check\n");
+        op->destroy_pipeline(opt);
+        delete op;
+        return -1;
+    }
+
+    op->destroy_pipeline(opt);
+    delete op;
+    return 0;
+}
+
 static int test_sdpa_0()
 {
     return 0
@@ -152,6 +299,7 @@ static int test_sdpa_0()
            || test_sdpa_kvcache2(RandomMat(32, 16, 8), RandomMat(32, 16, 8), RandomMat(20, 16, 8), 0, 0, 32)
            || test_sdpa_kvcache2(RandomMat(64, 17, 12), RandomMat(64, 17, 2), RandomMat(64, 17, 2), 0, 0, 32)
            || test_sdpa_kvcache2_invalid_past_len()
+           || test_sdpa_kvcache2_persistent_buffer()
            || test_sdpa_kvcache2(RandomMat(32, 16, 8), RandomMat(32, 16, 8), RandomMat(20, 16, 8), 1, 0, 32)
            || test_sdpa_kvcache2(RandomMat(64, 17, 12), RandomMat(64, 17, 2), RandomMat(64, 17, 2), 1, 0, 32);
 }
