@@ -2782,9 +2782,19 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
             }
             {
                 // winograd23/43 share gemm shader, transform count is set by dispatcher.c
+                std::vector<vk_specialization_type> specializations_winograd_gemm(3 + 3);
+                specializations_winograd_gemm[0].i = 36;
+                specializations_winograd_gemm[1].i = num_input;
+                specializations_winograd_gemm[2].i = num_output;
+                specializations_winograd_gemm[3 + 0].i = 0;
+                specializations_winograd_gemm[3 + 1].i = 0;
+                specializations_winograd_gemm[3 + 2].i = 0;
+
+                const int outc4 = (num_output + 3) / 4;
+
                 pipeline_convolution_3x3s1d1_winograd43_gemm = new Pipeline(vkdev);
-                pipeline_convolution_3x3s1d1_winograd43_gemm->set_local_size_xyz(opt_int8.use_shader_local_memory ? 8 : 4, opt_int8.use_shader_local_memory ? 8 : std::min(4, num_output), 1);
-                pipeline_convolution_3x3s1d1_winograd43_gemm->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8, opt_int8, std::vector<vk_specialization_type>());
+                pipeline_convolution_3x3s1d1_winograd43_gemm->set_local_size_xyz(opt_int8.use_shader_local_memory ? 8 : 4, opt_int8.use_shader_local_memory ? 8 : std::min(4, outc4), opt_int8.use_shader_local_memory ? 1 : 4);
+                pipeline_convolution_3x3s1d1_winograd43_gemm->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8, opt_int8, specializations_winograd_gemm);
             }
             {
                 std::vector<vk_specialization_type> specializations_winograd_output(5);
@@ -2879,9 +2889,19 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
             }
             {
                 // winograd23/43 share gemm shader, transform count is set by dispatcher.c
+                std::vector<vk_specialization_type> specializations_winograd_gemm(3 + 3);
+                specializations_winograd_gemm[0].i = 16;
+                specializations_winograd_gemm[1].i = num_input;
+                specializations_winograd_gemm[2].i = num_output;
+                specializations_winograd_gemm[3 + 0].i = 0;
+                specializations_winograd_gemm[3 + 1].i = 0;
+                specializations_winograd_gemm[3 + 2].i = 0;
+
+                const int outc4 = (num_output + 3) / 4;
+
                 pipeline_convolution_3x3s1d1_winograd23_gemm = new Pipeline(vkdev);
-                pipeline_convolution_3x3s1d1_winograd23_gemm->set_local_size_xyz(opt_int8.use_shader_local_memory ? 8 : 4, opt_int8.use_shader_local_memory ? 8 : std::min(4, num_output), 1);
-                pipeline_convolution_3x3s1d1_winograd23_gemm->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8, opt_int8, std::vector<vk_specialization_type>());
+                pipeline_convolution_3x3s1d1_winograd23_gemm->set_local_size_xyz(opt_int8.use_shader_local_memory ? 8 : 4, opt_int8.use_shader_local_memory ? 8 : std::min(4, outc4), opt_int8.use_shader_local_memory ? 1 : 4);
+                pipeline_convolution_3x3s1d1_winograd23_gemm->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8, opt_int8, specializations_winograd_gemm);
             }
             {
                 std::vector<vk_specialization_type> specializations_winograd_output(5);
