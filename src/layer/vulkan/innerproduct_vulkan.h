@@ -47,6 +47,7 @@ public:
     ncnn::Layer* quantize;
 
     Mat weight_data_int8_packed;
+    Mat weight_data_int8_descales;
 
     VkMat weight_data_int8_descales_gpu;
 

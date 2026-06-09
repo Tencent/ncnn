@@ -88,7 +88,7 @@ void main()
     const uint lx = gl_LocalInvocationID.x;
     const uint ly = gl_LocalInvocationID.y;
 
-    for (int i = 0; i < weight_data_stride; i += LOCAL_MEMORY_UNROLL_INCH)
+    for (int i = 0; i < weight_data_stride * 4; i += LOCAL_MEMORY_UNROLL_INCH)
     {
         {
             int v = 0;
@@ -125,7 +125,8 @@ void main()
             tmp_v[ly][lx] = v;
 
             const int kk = i + int(ly / 4) * 4;
-            const int k = i8buffer_sm4(weight_data, int(gx) * weight_data_stride + kk + int(ly % 4));
+            const int w_offset = int(gx) * weight_data_stride + kk / 4;
+            const int k = i8buffer_sm4(weight_data, w_offset * 4 + int(ly % 4));
 
             tmp_k[lx][ly] = k;
         }
@@ -187,7 +188,7 @@ void main()
     if (gx * 4 >= psc(outw) || gy * 4 >= psc(outh))
         return;
 #else
-    for (int i = 0; i < weight_data_stride; i += 4)
+    for (int i = 0; i < weight_data_stride * 4; i += 4)
     {
         const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
         const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
@@ -304,11 +305,12 @@ void main()
         }
 
         const int wi = i / 4;
+        const int w_offset = int(gx) * weight_data_stride + wi;
 
-        const int k0 = i8buffer_sm4(weight_data, int(gx) * weight_data_stride + wi * 4 + 0);
-        const int k1 = i8buffer_sm4(weight_data, int(gx) * weight_data_stride + wi * 4 + 1);
-        const int k2 = i8buffer_sm4(weight_data, int(gx) * weight_data_stride + wi * 4 + 2);
-        const int k3 = i8buffer_sm4(weight_data, int(gx) * weight_data_stride + wi * 4 + 3);
+        const int k0 = i8buffer_sm4(weight_data, w_offset * 4 + 0);
+        const int k1 = i8buffer_sm4(weight_data, w_offset * 4 + 1);
+        const int k2 = i8buffer_sm4(weight_data, w_offset * 4 + 2);
+        const int k3 = i8buffer_sm4(weight_data, w_offset * 4 + 3);
 
 #if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
         sum0 += ivec4(dotPacked4x8EXT(v0, k0), dotPacked4x8EXT(v0, k1), dotPacked4x8EXT(v0, k2), dotPacked4x8EXT(v0, k3));

@@ -525,18 +525,43 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
     {
         Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
-        weight_data_int8_packed.create(num_input_packed, num_output_packed / 4, (size_t)4u, 4);
+        weight_data_int8_packed.create(num_input_packed / 4, num_output_packed / 4, (size_t)16u, 16);
         weight_data_int8_packed.fill(0);
 
+        for (int q = 0; q < num_output_packed; q += 4)
+        {
+            signed char* g00 = weight_data_int8_packed.row<signed char>(q / 4);
+
+            for (int p = 0; p < num_input_packed; p += 4)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    const signed char* k0 = q + i < num_output && p < num_input ? weight_data_r2.row<const signed char>(q + i) + p : 0;
+
+                    for (int j = 0; j < 4; j++)
+                    {
+                        g00[0] = k0 && p + j < num_input ? k0[j] : 0;
+                        g00++;
+                    }
+                }
+            }
+        }
+    }
+
+    {
+        const float bottom_blob_int8_scale = bottom_blob_int8_scales.empty() ? 1.f : bottom_blob_int8_scales[0];
+        const float bottom_blob_int8_descale = bottom_blob_int8_scale == 0.f ? 0.f : 1.f / bottom_blob_int8_scale;
+
+        weight_data_int8_descales.create(num_output_packed / 4, (size_t)4u * 4, 4);
+        if (weight_data_int8_descales.empty())
+            return -100;
+        weight_data_int8_descales.fill(0.f);
+
+        float* outptr = weight_data_int8_descales;
         for (int q = 0; q < num_output; q++)
         {
-            const signed char* k0 = weight_data_r2.row<const signed char>(q);
-            signed char* g00 = weight_data_int8_packed.row<signed char>(q / 4) + (q % 4) * 4;
-
-            for (int p = 0; p < num_input; p++)
-            {
-                g00[p / 4 * 16 + p % 4] = k0[p];
-            }
+            float scale = weight_data_int8_scales[q];
+            outptr[q] = scale == 0.f ? 0.f : bottom_blob_int8_descale / scale;
         }
     }
 
@@ -597,7 +622,7 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
         specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
         specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
         specializations[4].i = shape.elempack;
-        specializations[5].i = num_input_packed;
+        specializations[5].i = num_input_packed / 4;
         specializations[6 + 0].i = shape_unpacked.dims;
         specializations[6 + 1].i = shape_unpacked.w;
         specializations[6 + 2].i = shape_unpacked.h;
@@ -678,7 +703,7 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
         // sum8
         {
             std::vector<vk_specialization_type> specializations(1 + 3);
-            specializations[0].i = num_input_packed;
+            specializations[0].i = num_input_packed / 4;
             specializations[1 + 0].i = shape_flatten.w * shape_flatten.elempack;
             specializations[1 + 1].i = outw_sum8;
             specializations[1 + 2].i = outh_sum8;
@@ -711,7 +736,7 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
         specializations[1].i = activation_type;
         specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
         specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-        specializations[4].i = num_input_packed;
+        specializations[4].i = num_input_packed / 4;
         specializations[5 + 0].i = shape_flatten.w * shape_flatten.elempack;
         specializations[5 + 1].i = num_output;
 
@@ -737,7 +762,7 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
         specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
         specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
         specializations[4].i = 0;
-        specializations[5].i = num_input_packed;
+        specializations[5].i = num_input_packed / 4;
         specializations[6 + 0].i = 0;
         specializations[6 + 1].i = 0;
         specializations[6 + 2].i = 0;
@@ -777,27 +802,15 @@ int InnerProduct_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
     weight_data_int8_packed.release();
 
-    const int num_output_packed = (num_output + 3) / 4 * 4;
-    const float bottom_blob_int8_scale = bottom_blob_int8_scales.empty() ? 1.f : bottom_blob_int8_scales[0];
-    const float bottom_blob_int8_descale = bottom_blob_int8_scale == 0.f ? 0.f : 1.f / bottom_blob_int8_scale;
-
-    Mat weight_data_int8_descales;
-    weight_data_int8_descales.create(num_output_packed / 4, (size_t)4u * 4, 4);
-    weight_data_int8_descales.fill(0.f);
-
-    float* outptr = weight_data_int8_descales;
-    for (int q = 0; q < num_output; q++)
-    {
-        float scale = weight_data_int8_scales[q];
-        outptr[q] = scale == 0.f ? 0.f : bottom_blob_int8_descale / scale;
-    }
-
     cmd.record_upload(weight_data_int8_descales, weight_data_int8_descales_gpu, opt);
 
+    weight_data_int8_descales.release();
     weight_data_int8_scales.release();
 
     if (bias_term)
     {
+        const int num_output_packed = (num_output + 3) / 4 * 4;
+
         Mat bias_data_packed;
         bias_data_packed.create(num_output_packed / 4, (size_t)4u * 4, 4);
         bias_data_packed.fill(0.f);

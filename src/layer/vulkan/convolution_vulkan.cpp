@@ -2667,6 +2667,36 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
         }
     }
 
+    {
+        int num_output_packed = (num_output + 3) / 4 * 4;
+        if (!is_conv1x1s1d1 && !use_winograd && !use_gemm)
+            num_output_packed = (num_output + 7) / 8 * 8;
+
+        const float bottom_blob_int8_scale = bottom_blob_int8_scales.empty() ? 1.f : bottom_blob_int8_scales[0];
+        const float bottom_blob_int8_descale = bottom_blob_int8_scale == 0.f ? 0.f : 1.f / bottom_blob_int8_scale;
+
+        if (is_conv1x1s1d1)
+            weight_data_int8_descales.create(num_output_packed / 4, (size_t)4u * 4, 4);
+        else
+            weight_data_int8_descales.create(num_output_packed, (size_t)4u, 1);
+        if (weight_data_int8_descales.empty())
+            return -100;
+
+        float* outptr = weight_data_int8_descales;
+        for (int q = 0; q < num_output_packed; q += 4)
+        {
+            float scale0 = q + 0 < num_output ? weight_data_int8_scales[q + 0] : 0.f;
+            float scale1 = q + 1 < num_output ? weight_data_int8_scales[q + 1] : 0.f;
+            float scale2 = q + 2 < num_output ? weight_data_int8_scales[q + 2] : 0.f;
+            float scale3 = q + 3 < num_output ? weight_data_int8_scales[q + 3] : 0.f;
+            outptr[0] = scale0 == 0.f ? 0.f : bottom_blob_int8_descale / scale0;
+            outptr[1] = scale1 == 0.f ? 0.f : bottom_blob_int8_descale / scale1;
+            outptr[2] = scale2 == 0.f ? 0.f : bottom_blob_int8_descale / scale2;
+            outptr[3] = scale3 == 0.f ? 0.f : bottom_blob_int8_descale / scale3;
+            outptr += 4;
+        }
+    }
+
     if (use_winograd)
     {
         if (use_winograd43)
@@ -3063,36 +3093,9 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
         weight_data_int8_packed.release();
     }
 
-    {
-        int num_output_packed = (num_output + 3) / 4 * 4;
-        if (!is_conv1x1s1d1 && !use_winograd && !use_gemm)
-            num_output_packed = (num_output + 7) / 8 * 8;
+    cmd.record_upload(weight_data_int8_descales, weight_data_int8_descales_gpu, opt_fp32);
 
-        const float bottom_blob_int8_scale = bottom_blob_int8_scales.empty() ? 1.f : bottom_blob_int8_scales[0];
-        const float bottom_blob_int8_descale = bottom_blob_int8_scale == 0.f ? 0.f : 1.f / bottom_blob_int8_scale;
-
-        Mat weight_data_int8_descales;
-        if (is_conv1x1s1d1)
-            weight_data_int8_descales.create(num_output_packed / 4, (size_t)4u * 4, 4);
-        else
-            weight_data_int8_descales.create(num_output_packed, (size_t)4u, 1);
-
-        float* outptr = weight_data_int8_descales;
-        for (int q = 0; q < num_output_packed; q += 4)
-        {
-            float scale0 = q + 0 < num_output ? weight_data_int8_scales[q + 0] : 0.f;
-            float scale1 = q + 1 < num_output ? weight_data_int8_scales[q + 1] : 0.f;
-            float scale2 = q + 2 < num_output ? weight_data_int8_scales[q + 2] : 0.f;
-            float scale3 = q + 3 < num_output ? weight_data_int8_scales[q + 3] : 0.f;
-            outptr[0] = scale0 == 0.f ? 0.f : bottom_blob_int8_descale / scale0;
-            outptr[1] = scale1 == 0.f ? 0.f : bottom_blob_int8_descale / scale1;
-            outptr[2] = scale2 == 0.f ? 0.f : bottom_blob_int8_descale / scale2;
-            outptr[3] = scale3 == 0.f ? 0.f : bottom_blob_int8_descale / scale3;
-            outptr += 4;
-        }
-
-        cmd.record_upload(weight_data_int8_descales, weight_data_int8_descales_gpu, opt_fp32);
-    }
+    weight_data_int8_descales.release();
 
     const bool use_int8_requantize = int8_scale_term > 100;
     if (use_int8_requantize)
