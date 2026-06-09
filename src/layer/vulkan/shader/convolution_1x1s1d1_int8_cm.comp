@@ -53,7 +53,6 @@ layout(binding = 4) readonly buffer bias_blob { sfpvec4 bias_data[]; };
 layout(binding = 5) readonly buffer weight_descales_blob { vec4 weight_descales_data[]; };
 layout(binding = 6) readonly buffer top_scales_blob { sfp top_scales_data[]; };
 
-
 layout(push_constant) uniform parameter
 {
     int cstep;
