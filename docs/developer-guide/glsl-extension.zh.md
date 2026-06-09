@@ -423,6 +423,12 @@ void main()
     // packed int8 dot-product 路径
 #endif
 
+#if ncnn_VK_KHR_cooperative_matrix
+    // KHR cooperative matrix 路径
+#elif ncnn_VK_NV_cooperative_matrix
+    // NV cooperative matrix 路径
+#endif
+
     // 使用宏定义
     uint size; // 来自先前例程的动态值
     if (size < ncnn_subgroupSize)
@@ -437,6 +443,12 @@ void main()
     }
 }
 ```
+
+Cooperative matrix 的形状和 component type 组合在 host 侧选择。创建 cooperative matrix pipeline 前，应使用 `GpuInfo::support_cooperative_matrix()`、`GpuInfo::support_int8_cooperative_matrix()`、`GpuInfo::support_bf16_cooperative_matrix()` 和 `GpuInfo::get_optimal_cooperative_matrix_mnk()` 判断能力并选择参数。
+
+对于有符号 int8 cooperative matrix kernel，ncnn 要求设备支持 subgroup scope 下的 signed int8 A/B 和 signed int32 accumulator/result cooperative matrix。shader 仍然使用普通的 `ncnn_VK_KHR_cooperative_matrix` / `ncnn_VK_NV_cooperative_matrix` 扩展宏选择 GLSL 语法，host 侧通过 `support_int8_cooperative_matrix()` 选择该路径。
+
+在 int8 cooperative matrix 和 integer dot-product shader 中，如果数据布局已经是 packed 形式，应优先保持 `sint8vec4` 的 packed 表示，并使用 `i8buffer_sm4` 做 shared memory 暂存。只有在算术逻辑需要解包后的 `ivec4` lane 时才使用 `i8buffer_ld4`。
 
 ### 验证层宏定义
 
@@ -501,4 +513,6 @@ void main()
 |NCNN_int16_storage|opt.use_int16_storage|
 |NCNN_bf16_packed|opt.use_bf16_packed|
 |NCNN_bf16_storage|opt.use_bf16_storage|
+|NCNN_fp16_uniform|opt.use_fp16_uniform|
+|NCNN_int8_uniform|opt.use_int8_uniform|
 |NCNN_shader_local_memory|opt.use_shader_local_memory|

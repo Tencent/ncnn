@@ -423,6 +423,12 @@ void main()
     // here is the packed int8 dot-product path
 #endif
 
+#if ncnn_VK_KHR_cooperative_matrix
+    // here is the KHR cooperative matrix path
+#elif ncnn_VK_NV_cooperative_matrix
+    // here is the NV cooperative matrix path
+#endif
+
     // use macro definitions
     uint size; // dynamic value from some previous routines
     if (size < ncnn_subgroupSize)
@@ -437,6 +443,12 @@ void main()
     }
 }
 ```
+
+Cooperative matrix shape and component-type combinations are selected on the host side. Use `GpuInfo::support_cooperative_matrix()`, `GpuInfo::support_int8_cooperative_matrix()`, `GpuInfo::support_bf16_cooperative_matrix()`, and `GpuInfo::get_optimal_cooperative_matrix_mnk()` before creating a cooperative matrix pipeline.
+
+For signed int8 cooperative matrix kernels, ncnn requires signed int8 A/B and signed int32 accumulator/result cooperative matrix support at subgroup scope. The shader still uses the normal `ncnn_VK_KHR_cooperative_matrix` / `ncnn_VK_NV_cooperative_matrix` extension macros to select GLSL syntax, while the host selects this path with `support_int8_cooperative_matrix()`.
+
+In int8 cooperative matrix and integer dot-product shaders, prefer keeping pack4 data in the packed `sint8vec4` representation and use `i8buffer_sm4` for shared-memory staging when the layout is already packed. Use `i8buffer_ld4` only when arithmetic needs unpacked `ivec4` lanes.
 
 ### validation layer macros
 
@@ -501,4 +513,6 @@ void main()
 |NCNN_int16_storage|opt.use_int16_storage|
 |NCNN_bf16_packed|opt.use_bf16_packed|
 |NCNN_bf16_storage|opt.use_bf16_storage|
+|NCNN_fp16_uniform|opt.use_fp16_uniform|
+|NCNN_int8_uniform|opt.use_int8_uniform|
 |NCNN_shader_local_memory|opt.use_shader_local_memory|
