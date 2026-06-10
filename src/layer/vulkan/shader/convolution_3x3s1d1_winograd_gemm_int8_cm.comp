@@ -299,13 +299,13 @@ void main()
 #if ncnn_VK_KHR_cooperative_matrix
                     sum[zn][zm] = coopMatMulAdd(A0[zm], B0[zn], sum[zn][zm]);
                     sum8[zn][zm] = coopMatMulAdd(A1[zm], B0[zn], sum8[zn][zm]);
-                    sum8[zn][zm] = coopMatMulAdd(A0[zm], B1[zn], sum8[zn][zm]);
                     sum16[zn][zm] = coopMatMulAdd(A1[zm], B1[zn], sum16[zn][zm]);
+                    sum8[zn][zm] = coopMatMulAdd(A0[zm], B1[zn], sum8[zn][zm]);
 #elif ncnn_VK_NV_cooperative_matrix
                     sum[zn][zm] = coopMatMulAddNV(A0[zm], B0[zn], sum[zn][zm]);
                     sum8[zn][zm] = coopMatMulAddNV(A1[zm], B0[zn], sum8[zn][zm]);
-                    sum8[zn][zm] = coopMatMulAddNV(A0[zm], B1[zn], sum8[zn][zm]);
                     sum16[zn][zm] = coopMatMulAddNV(A1[zm], B1[zn], sum16[zn][zm]);
+                    sum8[zn][zm] = coopMatMulAddNV(A0[zm], B1[zn], sum8[zn][zm]);
 #endif
                 }
             }
@@ -318,10 +318,7 @@ void main()
     {
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
-            [[unroll]] for (int i = 0; i < sum[zn][zm].length(); i++)
-            {
-                sum[zn][zm][i] += (sum8[zn][zm][i] << 8) + (sum16[zn][zm][i] << 16);
-            }
+            sum[zn][zm] += sum8[zn][zm] * (1 << 8) + sum16[zn][zm] * (1 << 16);
         }
     }
 
