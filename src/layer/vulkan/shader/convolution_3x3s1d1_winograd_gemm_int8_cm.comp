@@ -40,9 +40,10 @@ layout(constant_id = shape_constant_id_offset + 2) const uint outcstep = 0;
 
 layout(binding = 0) readonly buffer bottom_tm_low_blob { sint8vec4 bottom_tm_low_data[]; };
 layout(binding = 1) readonly buffer bottom_tm_high_blob { sint8vec4 bottom_tm_high_data[]; };
-layout(binding = 2) writeonly buffer top_tm_blob { int top_tm_blob_data[]; };
-layout(binding = 3) writeonly buffer top_tm_blob_4 { ivec4 top_tm_blob_data_4[]; };
-layout(binding = 4) readonly buffer weight_tm_blob { ivec2 weight_tm_data[]; };
+layout(binding = 2) readonly buffer bottom_tm_low_high_blob { ivec2 bottom_tm_low_high_data[]; };
+layout(binding = 3) writeonly buffer top_tm_blob { int top_tm_blob_data[]; };
+layout(binding = 4) writeonly buffer top_tm_blob_4 { ivec4 top_tm_blob_data_4[]; };
+layout(binding = 5) readonly buffer weight_tm_blob { ivec2 weight_tm_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -174,6 +175,7 @@ void main()
             else // if (elempack == 4)
             {
                 const uint inchd4 = inch / 4;
+                const uint cstepd2 = psc(cstep) / 2;
 
                 [[unroll]] for (uint q = 0; q < V_USGM_USGK_d_subgroupsize; q++)
                 {
@@ -191,8 +193,8 @@ void main()
                         const uint gm = (mi + zm) * M + i;
                         const uint gk = (ki + zk) * Kd4 + j;
 
-                        const uint gi = (gz * inchd4 + gk) * psc(cstep) + gm * 2;
-                        prefetch_tmp_v[q] = ivec2(i8buffer_sm4(bottom_tm_low_data, gi), i8buffer_sm4(bottom_tm_low_data, gi + 1));
+                        const uint gi = (gz * inchd4 + gk) * cstepd2 + gm;
+                        prefetch_tmp_v[q] = bottom_tm_low_high_data[gi];
                     }
                 }
             }
@@ -273,6 +275,7 @@ void main()
                 else // if (elempack == 4)
                 {
                     const uint inchd4 = inch / 4;
+                    const uint cstepd2 = psc(cstep) / 2;
 
                     [[unroll]] for (uint q = 0; q < V_USGM_USGK_d_subgroupsize; q++)
                     {
@@ -290,8 +293,8 @@ void main()
                             const uint gm = (mi + zm) * M + i;
                             const uint gk = (ki + zk) * Kd4 + j;
 
-                            const uint gi = (gz * inchd4 + gk) * psc(cstep) + gm * 2;
-                            prefetch_tmp_v[q] = ivec2(i8buffer_sm4(bottom_tm_low_data, gi), i8buffer_sm4(bottom_tm_low_data, gi + 1));
+                            const uint gi = (gz * inchd4 + gk) * cstepd2 + gm;
+                            prefetch_tmp_v[q] = bottom_tm_low_high_data[gi];
                         }
                     }
                 }
@@ -518,6 +521,7 @@ void main()
                         }
                         else
                         {
+                            const uint cstepd2 = psc(cstep) / 2;
                             const uint zk = siq / M_Kd4p_USGM;
                             const uint zmij = siq % M_Kd4p_USGM;
                             const uint zm = zmij / (M * Kd4p);
@@ -528,9 +532,9 @@ void main()
                             const uint gm = (mi + zm) * M + i;
                             const uint gk = (k + zk) * Kd4 + j;
 
-                            const uint gi = (gz * (inch / 4) + gk) * psc(cstep) + gm * 2;
-                            tmp_v0[sgmi][siq] = i8buffer_sm4(bottom_tm_low_data, gi);
-                            tmp_v1[sgmi][siq] = i8buffer_sm4(bottom_tm_low_data, gi + 1);
+                            const ivec2 v01 = bottom_tm_low_high_data[(gz * (inch / 4) + gk) * cstepd2 + gm];
+                            tmp_v0[sgmi][siq] = v01.x;
+                            tmp_v1[sgmi][siq] = v01.y;
                         }
                     }
                 }

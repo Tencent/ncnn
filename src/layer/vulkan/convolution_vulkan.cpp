@@ -3773,12 +3773,13 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
                     return -100;
             }
 
-            std::vector<VkMat> bindings(use_cooperative_matrix ? 3 : 2);
+            std::vector<VkMat> bindings(use_cooperative_matrix && elempack == 1 ? 3 : 2);
             bindings[0] = bottom;
             if (use_cooperative_matrix)
             {
                 bindings[1] = bottom_tm_blob_low;
-                bindings[2] = bottom_tm_blob_high;
+                if (elempack == 1)
+                    bindings[2] = bottom_tm_blob_high;
             }
             else
             {
@@ -3811,12 +3812,13 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
 
             if (use_cooperative_matrix)
             {
-                std::vector<VkMat> bindings(5);
+                std::vector<VkMat> bindings(6);
                 bindings[0] = bottom_tm_blob_low;
                 bindings[1] = bottom_tm_blob_high;
-                bindings[2] = top_tm_blob;
+                bindings[2] = bottom_tm_blob_low;
                 bindings[3] = top_tm_blob;
-                bindings[4] = pre_winograd43 ? weight_data_gpu_tm_winograd43_int8_cm : weight_data_gpu_tm_winograd23_int8_cm;
+                bindings[4] = top_tm_blob;
+                bindings[5] = pre_winograd43 ? weight_data_gpu_tm_winograd43_int8_cm : weight_data_gpu_tm_winograd23_int8_cm;
 
                 std::vector<vk_constant_type> constants(3);
                 constants[0].i = top_tm_blob.w;
