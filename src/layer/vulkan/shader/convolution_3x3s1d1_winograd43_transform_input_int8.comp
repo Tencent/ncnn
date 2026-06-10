@@ -3,8 +3,11 @@
 
 #version 450
 
+layout(constant_id = 0) const int elempack = 1;
+
 layout(binding = 0) readonly buffer bottom_blob { sint8 bottom_blob_int8_data[]; };
-layout(binding = 1) writeonly buffer bottom_tm_blob { sint16vec4 bottom_tm_blob_data[]; };
+layout(binding = 1) readonly buffer bottom_blob_4 { sint8vec4 bottom_blob_int8_data_4[]; };
+layout(binding = 2) writeonly buffer bottom_tm_blob { sint16vec4 bottom_tm_blob_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -22,6 +25,9 @@ layout(push_constant) uniform parameter
 
 ivec4 load_int8x4(int q, int offset)
 {
+    if (elempack == 4)
+        return i8buffer_ld4(bottom_blob_int8_data_4, (q / 4) * p.cstep + offset);
+
     ivec4 v = ivec4(0);
 
     if (q + 0 < p.c) v.r = i8buffer_ld1(bottom_blob_int8_data, (q + 0) * p.cstep + offset);

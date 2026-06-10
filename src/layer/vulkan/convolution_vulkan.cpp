@@ -2173,7 +2173,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     bool use_winograd43 = use_winograd && opt.use_winograd43_convolution;
     bool use_winograd23 = use_winograd && opt.use_winograd23_convolution;
     bool use_gemm = opt.use_sgemm_convolution && !is_conv1x1s1d1 && !use_winograd && num_input * maxk >= 8 && num_output >= 8;
-    const int elempack = !use_winograd && opt.use_packing_layout && num_input % 4 == 0 ? 4 : 1;
+    const int elempack = opt.use_packing_layout && num_input % 4 == 0 ? 4 : 1;
     const int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
 
     Mat shape_int8;
@@ -2776,9 +2776,12 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
             }
 
             {
+                std::vector<vk_specialization_type> specializations_winograd_input(1);
+                specializations_winograd_input[0].i = elempack;
+
                 pipeline_convolution_3x3s1d1_winograd43_transform_input = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd43_transform_input->set_local_size_xyz(4, 4, 1);
-                pipeline_convolution_3x3s1d1_winograd43_transform_input->create(LayerShaderType::convolution_3x3s1d1_winograd43_transform_input_int8, opt_int8, std::vector<vk_specialization_type>());
+                pipeline_convolution_3x3s1d1_winograd43_transform_input->create(LayerShaderType::convolution_3x3s1d1_winograd43_transform_input_int8, opt_int8, specializations_winograd_input);
             }
             {
                 // winograd23/43 share gemm shader, transform count is set by dispatcher.c
@@ -2797,12 +2800,13 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 pipeline_convolution_3x3s1d1_winograd43_gemm->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8, opt_int8, specializations_winograd_gemm);
             }
             {
-                std::vector<vk_specialization_type> specializations_winograd_output(5);
+                std::vector<vk_specialization_type> specializations_winograd_output(6);
                 specializations_winograd_output[0].i = bias_term;
                 specializations_winograd_output[1].i = activation_type;
                 specializations_winograd_output[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
                 specializations_winograd_output[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
                 specializations_winograd_output[4].i = use_int8_requantize ? 1 : 0;
+                specializations_winograd_output[5].i = out_elempack;
 
                 pipeline_convolution_3x3s1d1_winograd43_transform_output = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd43_transform_output->set_local_size_xyz(4, 4, 1);
@@ -2883,9 +2887,12 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
             }
 
             {
+                std::vector<vk_specialization_type> specializations_winograd_input(1);
+                specializations_winograd_input[0].i = elempack;
+
                 pipeline_convolution_3x3s1d1_winograd23_transform_input = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd23_transform_input->set_local_size_xyz(8, 8, 1);
-                pipeline_convolution_3x3s1d1_winograd23_transform_input->create(LayerShaderType::convolution_3x3s1d1_winograd23_transform_input_int8, opt_int8, std::vector<vk_specialization_type>());
+                pipeline_convolution_3x3s1d1_winograd23_transform_input->create(LayerShaderType::convolution_3x3s1d1_winograd23_transform_input_int8, opt_int8, specializations_winograd_input);
             }
             {
                 // winograd23/43 share gemm shader, transform count is set by dispatcher.c
@@ -2904,12 +2911,13 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 pipeline_convolution_3x3s1d1_winograd23_gemm->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8, opt_int8, specializations_winograd_gemm);
             }
             {
-                std::vector<vk_specialization_type> specializations_winograd_output(5);
+                std::vector<vk_specialization_type> specializations_winograd_output(6);
                 specializations_winograd_output[0].i = bias_term;
                 specializations_winograd_output[1].i = activation_type;
                 specializations_winograd_output[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
                 specializations_winograd_output[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
                 specializations_winograd_output[4].i = use_int8_requantize ? 1 : 0;
+                specializations_winograd_output[5].i = out_elempack;
 
                 pipeline_convolution_3x3s1d1_winograd23_transform_output = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd23_transform_output->set_local_size_xyz(8, 8, 1);
@@ -3186,7 +3194,7 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
     VkMat bottom = bottom_blob;
     bool bottom_is_int8 = bottom.elembits() == 8;
 
-    const int elempack = !use_winograd && opt.use_packing_layout && num_input % 4 == 0 ? 4 : 1;
+    const int elempack = opt.use_packing_layout && num_input % 4 == 0 ? 4 : 1;
 
     if (bottom.elempack != elempack)
     {
@@ -3342,27 +3350,6 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
     if (top_blob.empty())
         return -100;
 
-    VkMat top_blob_unpacked = top_blob;
-    if (use_winograd && out_elempack != 1)
-    {
-        size_t out_elemsize_unpacked;
-        if (use_int8_requantize)
-        {
-            out_elemsize_unpacked = 1u;
-        }
-        else if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
-        {
-            out_elemsize_unpacked = 2u;
-        }
-        else
-        {
-            out_elemsize_unpacked = 4u;
-        }
-        top_blob_unpacked.create(outw, outh, num_output, out_elemsize_unpacked, 1, opt.workspace_vkallocator);
-        if (top_blob_unpacked.empty())
-            return -100;
-    }
-
     if (use_winograd)
     {
         bool pre_winograd43 = opt.use_winograd43_convolution;
@@ -3387,9 +3374,10 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
             if (bottom_tm_blob.empty())
                 return -100;
 
-            std::vector<VkMat> bindings(2);
+            std::vector<VkMat> bindings(3);
             bindings[0] = bottom;
-            bindings[1] = bottom_tm_blob;
+            bindings[1] = bottom;
+            bindings[2] = bottom_tm_blob;
 
             std::vector<vk_constant_type> constants(7);
             constants[0].i = bottom.w;
@@ -3437,27 +3425,29 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
         }
 
         {
-            std::vector<VkMat> bindings(6);
+            std::vector<VkMat> bindings(8);
             bindings[0] = top_tm_blob;
-            bindings[1] = top_blob_unpacked;
-            bindings[2] = bias_data_gpu;
-            bindings[3] = weight_data_int8_descales_gpu;
-            bindings[4] = top_blob_int8_scales_gpu;
-            bindings[5] = top_blob_unpacked;
+            bindings[1] = top_blob;
+            bindings[2] = top_blob;
+            bindings[3] = bias_data_gpu;
+            bindings[4] = weight_data_int8_descales_gpu;
+            bindings[5] = top_blob_int8_scales_gpu;
+            bindings[6] = top_blob;
+            bindings[7] = top_blob;
 
             std::vector<vk_constant_type> constants(7);
             constants[0].i = top_tm_blob.cstep;
             constants[1].i = block_x;
             constants[2].i = block_y;
-            constants[3].i = top_blob_unpacked.w;
-            constants[4].i = top_blob_unpacked.h;
-            constants[5].i = top_blob_unpacked.cstep;
+            constants[3].i = top_blob.w;
+            constants[4].i = top_blob.h;
+            constants[5].i = top_blob.cstep;
             constants[6].i = num_output;
 
             VkMat dispatcher;
             dispatcher.w = block_x;
             dispatcher.h = block_y;
-            dispatcher.c = num_output;
+            dispatcher.c = (num_output + 3) / 4;
 
             const Pipeline* pipeline = pre_winograd43 ? pipeline_convolution_3x3s1d1_winograd43_transform_output : pipeline_convolution_3x3s1d1_winograd23_transform_output;
             cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
@@ -3634,11 +3624,6 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
         dispatcher.c = (outc_pack4 + 1) / 2;
 
         cmd.record_pipeline(pipeline_convolution, bindings, constants, dispatcher);
-    }
-
-    if (use_winograd && out_elempack != 1)
-    {
-        vkdev->convert_packing(top_blob_unpacked, top_blob, out_elempack, cmd, opt);
     }
 
     return 0;
