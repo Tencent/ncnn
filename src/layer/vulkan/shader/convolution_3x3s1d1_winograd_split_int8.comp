@@ -1,0 +1,67 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int elempack = 1;
+
+#define shape_constant_id_offset 1
+layout(constant_id = shape_constant_id_offset + 0) const int size = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int outcstep = 0;
+
+layout(binding = 0) readonly buffer bottom_tm_blob { sint16 bottom_tm_blob_data[]; };
+layout(binding = 1) readonly buffer bottom_tm_blob_4 { sint16vec4 bottom_tm_blob_data_4[]; };
+layout(binding = 2) writeonly buffer bottom_tm_low_blob { sint8vec4 bottom_tm_low_data[]; };
+layout(binding = 3) writeonly buffer bottom_tm_low_blob_4 { sint8vec4 bottom_tm_low_data_4[]; };
+layout(binding = 4) writeonly buffer bottom_tm_high_blob { sint8vec4 bottom_tm_high_data[]; };
+layout(binding = 5) writeonly buffer bottom_tm_high_blob_4 { sint8vec4 bottom_tm_high_data_4[]; };
+
+layout(push_constant) uniform parameter
+{
+    int size;
+    int cstep;
+    int outcstep;
+} p;
+
+void main()
+{
+    const int gx = int(gl_GlobalInvocationID.x);
+    const int gz = int(gl_GlobalInvocationID.z);
+
+    if (elempack == 4)
+    {
+        if (gx >= psc(size))
+            return;
+
+        const int gi = gz * psc(cstep) + gx;
+        const ivec4 v = ivec4(i16buffer_ld4(bottom_tm_blob_data_4, gi));
+        ivec4 vlow = v & ivec4(255);
+        vlow = mix(vlow, vlow - ivec4(256), greaterThanEqual(vlow, ivec4(128)));
+        const ivec4 vhigh = (v - vlow) >> 8;
+
+        const int go = gz * psc(outcstep) + gx;
+        i8buffer_st4(bottom_tm_low_data_4, go, vlow);
+        i8buffer_st4(bottom_tm_high_data_4, go, vhigh);
+    }
+    else
+    {
+        const int gx4 = gx * 4;
+        if (gx4 >= psc(size))
+            return;
+
+        const int gi = gz * psc(cstep) + gx4;
+        ivec4 v = ivec4(
+            i16buffer_ld1(bottom_tm_blob_data, gi + 0),
+            gx4 + 1 < psc(size) ? i16buffer_ld1(bottom_tm_blob_data, gi + 1) : 0,
+            gx4 + 2 < psc(size) ? i16buffer_ld1(bottom_tm_blob_data, gi + 2) : 0,
+            gx4 + 3 < psc(size) ? i16buffer_ld1(bottom_tm_blob_data, gi + 3) : 0);
+        ivec4 vlow = v & ivec4(255);
+        vlow = mix(vlow, vlow - ivec4(256), greaterThanEqual(vlow, ivec4(128)));
+        const ivec4 vhigh = (v - vlow) >> 8;
+
+        const int go = (gz * psc(outcstep) + gx4) / 4;
+        i8buffer_st4(bottom_tm_low_data, go, vlow);
+        i8buffer_st4(bottom_tm_high_data, go, vhigh);
+    }
+}
