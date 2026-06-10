@@ -74,20 +74,16 @@ public:
 #if NCNN_INT8
     ncnn::Layer* quantize;
 
-    VkMat weight_data_gpu_tm_winograd23_int8_cm_low;
-    VkMat weight_data_gpu_tm_winograd23_int8_cm_high;
-    VkMat weight_data_gpu_tm_winograd43_int8_cm_low;
-    VkMat weight_data_gpu_tm_winograd43_int8_cm_high;
+    VkMat weight_data_gpu_tm_winograd23_int8_cm;
+    VkMat weight_data_gpu_tm_winograd43_int8_cm;
     Pipeline* pipeline_convolution_3x3s1d1_winograd23_gemm_int8_cm;
     Pipeline* pipeline_convolution_3x3s1d1_winograd43_gemm_int8_cm;
 
     Mat weight_data_int8_packed;
     Mat weight_winograd23_data_int8_packed;
-    Mat weight_winograd23_data_int8_packed_cm_low;
-    Mat weight_winograd23_data_int8_packed_cm_high;
+    Mat weight_winograd23_data_int8_packed_cm;
     Mat weight_winograd43_data_int8_packed;
-    Mat weight_winograd43_data_int8_packed_cm_low;
-    Mat weight_winograd43_data_int8_packed_cm_high;
+    Mat weight_winograd43_data_int8_packed_cm;
     Mat weight_data_int8_descales;
 
     VkMat weight_data_int8_descales_gpu;

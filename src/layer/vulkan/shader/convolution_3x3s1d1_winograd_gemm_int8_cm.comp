@@ -42,8 +42,7 @@ layout(binding = 0) readonly buffer bottom_tm_low_blob { sint8vec4 bottom_tm_low
 layout(binding = 1) readonly buffer bottom_tm_high_blob { sint8vec4 bottom_tm_high_data[]; };
 layout(binding = 2) writeonly buffer top_tm_blob { int top_tm_blob_data[]; };
 layout(binding = 3) writeonly buffer top_tm_blob_4 { ivec4 top_tm_blob_data_4[]; };
-layout(binding = 4) readonly buffer weight_tm_low_blob { sint8vec4 weight_tm_low_data[]; };
-layout(binding = 5) readonly buffer weight_tm_high_blob { sint8vec4 weight_tm_high_data[]; };
+layout(binding = 4) readonly buffer weight_tm_blob { ivec2 weight_tm_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -140,10 +139,8 @@ void main()
         const uint K_Nd4p_USGN_USGK = K_Nd4p_USGN * UNROLL_SG_K;
         const uint K_Nd4p_USGN_USGK_d_subgroupsize = (K_Nd4p_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
 
-        int prefetch_tmp_v0[(M_Kd4p_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N)];
-        int prefetch_tmp_v1[(M_Kd4p_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N)];
-        int prefetch_tmp_k0[(K_Nd4p_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M)];
-        int prefetch_tmp_k1[(K_Nd4p_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M)];
+        ivec2 prefetch_tmp_v[(M_Kd4p_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N)];
+        ivec2 prefetch_tmp_k[(K_Nd4p_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M)];
 
         // prefetch the very first
         {
@@ -170,8 +167,7 @@ void main()
                         const uint gm = (mi + zm) * Md4 + j;
 
                         const uint gi = (gz * inch + gk) * cstepd4 + gm;
-                        prefetch_tmp_v0[q] = i8buffer_sm4(bottom_tm_low_data, gi);
-                        prefetch_tmp_v1[q] = i8buffer_sm4(bottom_tm_high_data, gi);
+                        prefetch_tmp_v[q] = ivec2(i8buffer_sm4(bottom_tm_low_data, gi), i8buffer_sm4(bottom_tm_high_data, gi));
                     }
                 }
             }
@@ -196,8 +192,7 @@ void main()
                         const uint gk = (ki + zk) * Kd4 + j;
 
                         const uint gi = (gz * inchd4 + gk) * psc(cstep) + gm * 2;
-                        prefetch_tmp_v0[q] = i8buffer_sm4(bottom_tm_low_data, gi);
-                        prefetch_tmp_v1[q] = i8buffer_sm4(bottom_tm_low_data, gi + 1);
+                        prefetch_tmp_v[q] = ivec2(i8buffer_sm4(bottom_tm_low_data, gi), i8buffer_sm4(bottom_tm_low_data, gi + 1));
                     }
                 }
             }
@@ -211,8 +206,7 @@ void main()
 
                 if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
                 {
-                    prefetch_tmp_k0[q] = i8buffer_sm4(weight_tm_low_data, w_offset + siq);
-                    prefetch_tmp_k1[q] = i8buffer_sm4(weight_tm_high_data, w_offset + siq);
+                    prefetch_tmp_k[q] = weight_tm_data[w_offset + siq];
                 }
             }
         }
@@ -228,8 +222,8 @@ void main()
 
                     if (V_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < V_USGM_USGK)
                     {
-                        tmp_v0[sgmi][siq] = prefetch_tmp_v0[q];
-                        tmp_v1[sgmi][siq] = prefetch_tmp_v1[q];
+                        tmp_v0[sgmi][siq] = prefetch_tmp_v[q].x;
+                        tmp_v1[sgmi][siq] = prefetch_tmp_v[q].y;
                     }
                 }
             }
@@ -240,8 +234,8 @@ void main()
 
                     if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
                     {
-                        tmp_k0[sgni][siq] = prefetch_tmp_k0[q];
-                        tmp_k1[sgni][siq] = prefetch_tmp_k1[q];
+                        tmp_k0[sgni][siq] = prefetch_tmp_k[q].x;
+                        tmp_k1[sgni][siq] = prefetch_tmp_k[q].y;
                     }
                 }
             }
@@ -272,8 +266,7 @@ void main()
                             const uint gm = (mi + zm) * Md4 + j;
 
                             const uint gi = (gz * inch + gk) * cstepd4 + gm;
-                            prefetch_tmp_v0[q] = i8buffer_sm4(bottom_tm_low_data, gi);
-                            prefetch_tmp_v1[q] = i8buffer_sm4(bottom_tm_high_data, gi);
+                            prefetch_tmp_v[q] = ivec2(i8buffer_sm4(bottom_tm_low_data, gi), i8buffer_sm4(bottom_tm_high_data, gi));
                         }
                     }
                 }
@@ -298,8 +291,7 @@ void main()
                             const uint gk = (ki + zk) * Kd4 + j;
 
                             const uint gi = (gz * inchd4 + gk) * psc(cstep) + gm * 2;
-                            prefetch_tmp_v0[q] = i8buffer_sm4(bottom_tm_low_data, gi);
-                            prefetch_tmp_v1[q] = i8buffer_sm4(bottom_tm_low_data, gi + 1);
+                            prefetch_tmp_v[q] = ivec2(i8buffer_sm4(bottom_tm_low_data, gi), i8buffer_sm4(bottom_tm_low_data, gi + 1));
                         }
                     }
                 }
@@ -313,8 +305,7 @@ void main()
 
                     if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
                     {
-                        prefetch_tmp_k0[q] = i8buffer_sm4(weight_tm_low_data, w_offset + siq);
-                        prefetch_tmp_k1[q] = i8buffer_sm4(weight_tm_high_data, w_offset + siq);
+                        prefetch_tmp_k[q] = weight_tm_data[w_offset + siq];
                     }
                 }
             }
@@ -400,8 +391,8 @@ void main()
 
                 if (V_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < V_USGM_USGK)
                 {
-                    tmp_v0[sgmi][siq] = prefetch_tmp_v0[q];
-                    tmp_v1[sgmi][siq] = prefetch_tmp_v1[q];
+                    tmp_v0[sgmi][siq] = prefetch_tmp_v[q].x;
+                    tmp_v1[sgmi][siq] = prefetch_tmp_v[q].y;
                 }
             }
         }
@@ -412,8 +403,8 @@ void main()
 
                 if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
                 {
-                    tmp_k0[sgni][siq] = prefetch_tmp_k0[q];
-                    tmp_k1[sgni][siq] = prefetch_tmp_k1[q];
+                    tmp_k0[sgni][siq] = prefetch_tmp_k[q].x;
+                    tmp_k1[sgni][siq] = prefetch_tmp_k[q].y;
                 }
             }
         }
@@ -556,8 +547,9 @@ void main()
 
                     if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
                     {
-                        tmp_k0[sgni][siq] = i8buffer_sm4(weight_tm_low_data, w_offset + siq);
-                        tmp_k1[sgni][siq] = i8buffer_sm4(weight_tm_high_data, w_offset + siq);
+                        const ivec2 k01 = weight_tm_data[w_offset + siq];
+                        tmp_k0[sgni][siq] = k01.x;
+                        tmp_k1[sgni][siq] = k01.y;
                     }
                 }
             }
