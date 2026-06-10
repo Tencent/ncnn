@@ -42,8 +42,7 @@ layout(binding = 0) readonly buffer bottom_tm_low_blob { sint8vec4 bottom_tm_low
 layout(binding = 1) readonly buffer bottom_tm_high_blob { sint8vec4 bottom_tm_high_data[]; };
 layout(binding = 2) writeonly buffer top_tm_blob { int top_tm_blob_data[]; };
 layout(binding = 3) writeonly buffer top_tm_blob_4 { ivec4 top_tm_blob_data_4[]; };
-layout(binding = 4) readonly buffer weight_tm_low_blob { sint8vec4 weight_tm_low_data[]; };
-layout(binding = 5) readonly buffer weight_tm_high_blob { sint8vec4 weight_tm_high_data[]; };
+layout(binding = 4) readonly buffer weight_tm_blob { sint8vec4 weight_tm_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -67,8 +66,7 @@ const uint Nd4p = Nd4 + PAD;
 
 shared int tmp_v0[UNROLL_WG_M][UNROLL_SG_K * UNROLL_SG_M * M * Kd4p];
 shared int tmp_v1[UNROLL_WG_M][UNROLL_SG_K * UNROLL_SG_M * M * Kd4p];
-shared int tmp_k0[UNROLL_WG_N][UNROLL_SG_K * UNROLL_SG_N * K * Nd4p];
-shared int tmp_k1[UNROLL_WG_N][UNROLL_SG_K * UNROLL_SG_N * K * Nd4p];
+shared int tmp_k[UNROLL_WG_N][UNROLL_SG_K * UNROLL_SG_N * K * Nd4p * 2];
 shared ivec4 tmp_o[UNROLL_WG_N * UNROLL_WG_M][UNROLL_SG_N * UNROLL_SG_M * M * N / 4];
 
 uint get_v_offset(uint siq)
@@ -95,19 +93,6 @@ uint get_v_offset(uint siq)
     const uint j = ij % Kd4;
 
     return ((zk * UNROLL_SG_M + zm) * M + i) * Kd4p + j;
-}
-
-uint get_k_offset(uint siq)
-{
-    const uint K_Nd4_USGN = K * Nd4 * UNROLL_SG_N;
-    const uint zk = siq / K_Nd4_USGN;
-    const uint znij = siq % K_Nd4_USGN;
-    const uint zn = znij / (K * Nd4);
-    const uint ij = znij % (K * Nd4);
-    const uint i = ij / Nd4;
-    const uint j = ij % Nd4;
-
-    return ((zk * UNROLL_SG_N + zn) * K + i) * Nd4p + j;
 }
 
 int load_v_packed(uint siq, uint ki, uint mi, int high)
@@ -150,35 +135,8 @@ int load_v_packed(uint siq, uint ki, uint mi, int high)
 
     if (gk < inch / 4 && gm < psc(size))
     {
-        const uint gi = (gz * (inch / 4) + gk) * psc(cstep) + gm;
-        return high == 0 ? i8buffer_sm4(bottom_tm_low_data, gi) : i8buffer_sm4(bottom_tm_high_data, gi);
-    }
-
-    return 0;
-}
-
-int load_k_packed(uint siq, uint ki, uint sgni, uint wgni, uint kk, int high)
-{
-    const uint gz = gl_GlobalInvocationID.z;
-    const uint K_Nd4_USGN = K * Nd4 * UNROLL_SG_N;
-    const uint K_Nd4_USGN_USGK = K_Nd4_USGN * UNROLL_SG_K;
-    const uint kk_full = kk / UNROLL_SG_K;
-
-    if (ki / UNROLL_SG_K < kk_full)
-    {
-        const uint w_offset = gz * wbstep + (wgni * kk * UNROLL_WG_N) * K_Nd4_USGN + ((ki / UNROLL_SG_K) * UNROLL_WG_N + sgni) * K_Nd4_USGN_USGK;
-
-        return high == 0 ? i8buffer_sm4(weight_tm_low_data, w_offset + siq) : i8buffer_sm4(weight_tm_high_data, w_offset + siq);
-    }
-
-    const uint zk = siq / K_Nd4_USGN;
-    const uint znij = siq % K_Nd4_USGN;
-
-    if (ki + zk < kk)
-    {
-        const uint tail_offset = gz * wbstep + (wgni * kk * UNROLL_WG_N + kk_full * UNROLL_WG_N * UNROLL_SG_K + (ki + zk - kk_full * UNROLL_SG_K) * UNROLL_WG_N + sgni) * K_Nd4_USGN;
-
-        return high == 0 ? i8buffer_sm4(weight_tm_low_data, tail_offset + znij) : i8buffer_sm4(weight_tm_high_data, tail_offset + znij);
+        const uint gi = (gz * (inch / 4) + gk) * psc(cstep) + gm * 2 + uint(high);
+        return i8buffer_sm4(bottom_tm_low_data, gi);
     }
 
     return 0;
@@ -206,6 +164,7 @@ void main()
         return;
 
     const uint kk = (inch + K - 1) / K;
+    const uint kk_padded = (kk + UNROLL_SG_K - 1) / UNROLL_SG_K * UNROLL_SG_K;
     const uint si = gl_SubgroupInvocationID;
 
     const uint mi = (wgmi * UNROLL_WG_M + sgmi) * UNROLL_SG_M;
@@ -252,16 +211,24 @@ void main()
         {
             const uint K_Nd4_USGN = K * Nd4 * UNROLL_SG_N;
             const uint K_Nd4_USGN_USGK = K_Nd4_USGN * UNROLL_SG_K;
-            const uint K_Nd4_USGN_USGK_d_subgroupsize = (K_Nd4_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
+            const uint K_Nd4_USGN_USGK_2 = K_Nd4_USGN_USGK * 2;
+            const uint K_Nd4 = K * Nd4;
+            const uint K_Nd4_USGN_USGK_d_subgroupsize = (K_Nd4_USGN_USGK_2 + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
             [[unroll]] for (uint q = 0; q < K_Nd4_USGN_USGK_d_subgroupsize; q++)
             {
                 const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                if (K_Nd4_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4_USGN_USGK)
+                if (K_Nd4_USGN_USGK_2 % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4_USGN_USGK_2)
                 {
-                    const uint k_offset = get_k_offset(siq);
-                    tmp_k0[sgni][k_offset] = load_k_packed(siq, k, sgni, wgni, kk, 0);
-                    tmp_k1[sgni][k_offset] = load_k_packed(siq, k, sgni, wgni, kk, 1);
+                    const uint tile = siq / (K_Nd4 * 2);
+                    const uint ij2 = siq % (K_Nd4 * 2);
+                    const uint high = ij2 / K_Nd4;
+                    const uint ij = ij2 % K_Nd4;
+                    const uint i = ij / Nd4;
+                    const uint j = ij % Nd4;
+                    const uint k_offset = tile * (K * Nd4p * 2) + high * (K * Nd4p) + i * Nd4p + j;
+                    const uint w_offset = (wgni * kk_padded * UNROLL_WG_N) * K_Nd4_USGN * 2 + ((k / UNROLL_SG_K) * UNROLL_WG_N + sgni) * K_Nd4_USGN_USGK * 2 + tile * K_Nd4 * 2 + high * K_Nd4 + ij;
+                    tmp_k[sgni][k_offset] = i8buffer_sm4(weight_tm_data, gz * wbstep + w_offset);
                 }
             }
         }
@@ -309,11 +276,13 @@ void main()
             [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
             {
 #if ncnn_VK_KHR_cooperative_matrix
-                coopMatLoad(B0[zn], tmp_k0[sgni], (zk * UNROLL_SG_N + zn) * (K * Nd4p), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
-                coopMatLoad(B1[zn], tmp_k1[sgni], (zk * UNROLL_SG_N + zn) * (K * Nd4p), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                const uint k_offset = (zk * UNROLL_SG_N + zn) * (K * Nd4p * 2);
+                coopMatLoad(B0[zn], tmp_k[sgni], k_offset, Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                coopMatLoad(B1[zn], tmp_k[sgni], k_offset + K * Nd4p, Nd4p, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                coopMatLoadNV(B0[zn], tmp_k0[sgni], (zk * UNROLL_SG_N + zn) * (K * Nd4p), Nd4p, false);
-                coopMatLoadNV(B1[zn], tmp_k1[sgni], (zk * UNROLL_SG_N + zn) * (K * Nd4p), Nd4p, false);
+                const uint k_offset = (zk * UNROLL_SG_N + zn) * (K * Nd4p * 2);
+                coopMatLoadNV(B0[zn], tmp_k[sgni], k_offset, Nd4p, false);
+                coopMatLoadNV(B1[zn], tmp_k[sgni], k_offset + K * Nd4p, Nd4p, false);
 #endif
             }
 
