@@ -172,10 +172,12 @@ void main()
 
 #if ncnn_VK_KHR_cooperative_matrix
     coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum[UNROLL_SG_N][UNROLL_SG_M];
-    coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_tmp[UNROLL_SG_N][UNROLL_SG_M];
+    coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum8[UNROLL_SG_N][UNROLL_SG_M];
+    coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum16[UNROLL_SG_N][UNROLL_SG_M];
 #elif ncnn_VK_NV_cooperative_matrix
     icoopmatNV<32, gl_ScopeSubgroup, M, N> sum[UNROLL_SG_N][UNROLL_SG_M];
-    icoopmatNV<32, gl_ScopeSubgroup, M, N> sum_tmp[UNROLL_SG_N][UNROLL_SG_M];
+    icoopmatNV<32, gl_ScopeSubgroup, M, N> sum8[UNROLL_SG_N][UNROLL_SG_M];
+    icoopmatNV<32, gl_ScopeSubgroup, M, N> sum16[UNROLL_SG_N][UNROLL_SG_M];
 #endif
 
     [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
@@ -184,8 +186,12 @@ void main()
         {
 #if ncnn_VK_KHR_cooperative_matrix
             sum[zn][zm] = coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0);
+            sum8[zn][zm] = coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0);
+            sum16[zn][zm] = coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0);
 #elif ncnn_VK_NV_cooperative_matrix
             sum[zn][zm] = icoopmatNV<32, gl_ScopeSubgroup, M, N>(0);
+            sum8[zn][zm] = icoopmatNV<32, gl_ScopeSubgroup, M, N>(0);
+            sum16[zn][zm] = icoopmatNV<32, gl_ScopeSubgroup, M, N>(0);
 #endif
         }
     }
@@ -292,86 +298,31 @@ void main()
                 {
 #if ncnn_VK_KHR_cooperative_matrix
                     sum[zn][zm] = coopMatMulAdd(A0[zm], B0[zn], sum[zn][zm]);
+                    sum8[zn][zm] = coopMatMulAdd(A1[zm], B0[zn], sum8[zn][zm]);
+                    sum8[zn][zm] = coopMatMulAdd(A0[zm], B1[zn], sum8[zn][zm]);
+                    sum16[zn][zm] = coopMatMulAdd(A1[zm], B1[zn], sum16[zn][zm]);
 #elif ncnn_VK_NV_cooperative_matrix
                     sum[zn][zm] = coopMatMulAddNV(A0[zm], B0[zn], sum[zn][zm]);
+                    sum8[zn][zm] = coopMatMulAddNV(A1[zm], B0[zn], sum8[zn][zm]);
+                    sum8[zn][zm] = coopMatMulAddNV(A0[zm], B1[zn], sum8[zn][zm]);
+                    sum16[zn][zm] = coopMatMulAddNV(A1[zm], B1[zn], sum16[zn][zm]);
 #endif
-                }
-            }
-
-            [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
-            {
-                [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-                {
-#if ncnn_VK_KHR_cooperative_matrix
-                    sum_tmp[zn][zm] = coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0);
-#elif ncnn_VK_NV_cooperative_matrix
-                    sum_tmp[zn][zm] = icoopmatNV<32, gl_ScopeSubgroup, M, N>(0);
-#endif
-                }
-            }
-
-            [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
-            {
-                [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-                {
-#if ncnn_VK_KHR_cooperative_matrix
-                    sum_tmp[zn][zm] = coopMatMulAdd(A1[zm], B0[zn], sum_tmp[zn][zm]);
-                    sum_tmp[zn][zm] = coopMatMulAdd(A0[zm], B1[zn], sum_tmp[zn][zm]);
-#elif ncnn_VK_NV_cooperative_matrix
-                    sum_tmp[zn][zm] = coopMatMulAddNV(A1[zm], B0[zn], sum_tmp[zn][zm]);
-                    sum_tmp[zn][zm] = coopMatMulAddNV(A0[zm], B1[zn], sum_tmp[zn][zm]);
-#endif
-                }
-            }
-
-            [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
-            {
-                [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-                {
-                    [[unroll]] for (int i = 0; i < sum[zn][zm].length(); i++)
-                    {
-                        sum[zn][zm][i] += sum_tmp[zn][zm][i] << 8;
-                    }
-                }
-            }
-
-            [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
-            {
-                [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-                {
-#if ncnn_VK_KHR_cooperative_matrix
-                    sum_tmp[zn][zm] = coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0);
-#elif ncnn_VK_NV_cooperative_matrix
-                    sum_tmp[zn][zm] = icoopmatNV<32, gl_ScopeSubgroup, M, N>(0);
-#endif
-                }
-            }
-
-            [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
-            {
-                [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-                {
-#if ncnn_VK_KHR_cooperative_matrix
-                    sum_tmp[zn][zm] = coopMatMulAdd(A1[zm], B1[zn], sum_tmp[zn][zm]);
-#elif ncnn_VK_NV_cooperative_matrix
-                    sum_tmp[zn][zm] = coopMatMulAddNV(A1[zm], B1[zn], sum_tmp[zn][zm]);
-#endif
-                }
-            }
-
-            [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
-            {
-                [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-                {
-                    [[unroll]] for (int i = 0; i < sum[zn][zm].length(); i++)
-                    {
-                        sum[zn][zm][i] += sum_tmp[zn][zm][i] << 16;
-                    }
                 }
             }
         }
 
         barrier();
+    }
+
+    [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
+    {
+        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+        {
+            [[unroll]] for (int i = 0; i < sum[zn][zm].length(); i++)
+            {
+                sum[zn][zm][i] += (sum8[zn][zm][i] << 8) + (sum16[zn][zm][i] << 16);
+            }
+        }
     }
 
     [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
