@@ -11,16 +11,12 @@ layout(constant_id = 1) const int activation_type = 0;
 layout(constant_id = 2) const float activation_param_0 = 0;
 layout(constant_id = 3) const float activation_param_1 = 0;
 layout(constant_id = 4) const int use_int8_requantize = 0;
-layout(constant_id = 5) const int out_elempack = 1;
-
-layout(binding = 0) readonly buffer top_tm_blob { ivec4 top_tm_blob_data[]; };
+layout(binding = 0) readonly buffer top_tm_blob { int top_tm_blob_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
-layout(binding = 2) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
-layout(binding = 3) readonly buffer bias_blob { sfpvec4 bias_data[]; };
-layout(binding = 4) readonly buffer weight_descales_blob { vec4 weight_descales_data[]; };
-layout(binding = 5) readonly buffer top_scales_blob { sfp top_scales_data[]; };
-layout(binding = 6) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
-layout(binding = 7) writeonly buffer top_blob_int8_4 { sint8vec4 top_blob_int8_data_4[]; };
+layout(binding = 2) readonly buffer bias_blob { sfpvec4 bias_data[]; };
+layout(binding = 3) readonly buffer weight_descales_blob { vec4 weight_descales_data[]; };
+layout(binding = 4) readonly buffer top_scales_blob { sfp top_scales_data[]; };
+layout(binding = 5) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -41,80 +37,78 @@ void main()
     const int gy = int(gl_GlobalInvocationID.y);
     const int gz = int(gl_GlobalInvocationID.z);
 
-    const int outc4 = (p.outc + 3) / 4;
-
-    if (gx >= p.block_x || gy >= p.block_y || gz >= outc4)
+    if (gx >= p.block_x || gy >= p.block_y || gz >= p.outc)
         return;
 
     // load 36
     int v_tm_offset = gz * p.cstep + gy * p.block_x + gx;
-    int v_tm_step = p.cstep * outc4;
+    int v_tm_step = p.cstep * p.outc;
 
-    ivec4 v00 = top_tm_blob_data[v_tm_offset + 0 * v_tm_step];
-    ivec4 v01 = top_tm_blob_data[v_tm_offset + 1 * v_tm_step];
-    ivec4 v02 = top_tm_blob_data[v_tm_offset + 2 * v_tm_step];
-    ivec4 v03 = top_tm_blob_data[v_tm_offset + 3 * v_tm_step];
-    ivec4 v04 = top_tm_blob_data[v_tm_offset + 4 * v_tm_step];
-    ivec4 v05 = top_tm_blob_data[v_tm_offset + 5 * v_tm_step];
-    ivec4 v10 = top_tm_blob_data[v_tm_offset + 6 * v_tm_step];
-    ivec4 v11 = top_tm_blob_data[v_tm_offset + 7 * v_tm_step];
-    ivec4 v12 = top_tm_blob_data[v_tm_offset + 8 * v_tm_step];
-    ivec4 v13 = top_tm_blob_data[v_tm_offset + 9 * v_tm_step];
-    ivec4 v14 = top_tm_blob_data[v_tm_offset + 10 * v_tm_step];
-    ivec4 v15 = top_tm_blob_data[v_tm_offset + 11 * v_tm_step];
-    ivec4 v20 = top_tm_blob_data[v_tm_offset + 12 * v_tm_step];
-    ivec4 v21 = top_tm_blob_data[v_tm_offset + 13 * v_tm_step];
-    ivec4 v22 = top_tm_blob_data[v_tm_offset + 14 * v_tm_step];
-    ivec4 v23 = top_tm_blob_data[v_tm_offset + 15 * v_tm_step];
-    ivec4 v24 = top_tm_blob_data[v_tm_offset + 16 * v_tm_step];
-    ivec4 v25 = top_tm_blob_data[v_tm_offset + 17 * v_tm_step];
-    ivec4 v30 = top_tm_blob_data[v_tm_offset + 18 * v_tm_step];
-    ivec4 v31 = top_tm_blob_data[v_tm_offset + 19 * v_tm_step];
-    ivec4 v32 = top_tm_blob_data[v_tm_offset + 20 * v_tm_step];
-    ivec4 v33 = top_tm_blob_data[v_tm_offset + 21 * v_tm_step];
-    ivec4 v34 = top_tm_blob_data[v_tm_offset + 22 * v_tm_step];
-    ivec4 v35 = top_tm_blob_data[v_tm_offset + 23 * v_tm_step];
-    ivec4 v40 = top_tm_blob_data[v_tm_offset + 24 * v_tm_step];
-    ivec4 v41 = top_tm_blob_data[v_tm_offset + 25 * v_tm_step];
-    ivec4 v42 = top_tm_blob_data[v_tm_offset + 26 * v_tm_step];
-    ivec4 v43 = top_tm_blob_data[v_tm_offset + 27 * v_tm_step];
-    ivec4 v44 = top_tm_blob_data[v_tm_offset + 28 * v_tm_step];
-    ivec4 v45 = top_tm_blob_data[v_tm_offset + 29 * v_tm_step];
-    ivec4 v50 = top_tm_blob_data[v_tm_offset + 30 * v_tm_step];
-    ivec4 v51 = top_tm_blob_data[v_tm_offset + 31 * v_tm_step];
-    ivec4 v52 = top_tm_blob_data[v_tm_offset + 32 * v_tm_step];
-    ivec4 v53 = top_tm_blob_data[v_tm_offset + 33 * v_tm_step];
-    ivec4 v54 = top_tm_blob_data[v_tm_offset + 34 * v_tm_step];
-    ivec4 v55 = top_tm_blob_data[v_tm_offset + 35 * v_tm_step];
+    int v00 = top_tm_blob_data[v_tm_offset + 0 * v_tm_step];
+    int v01 = top_tm_blob_data[v_tm_offset + 1 * v_tm_step];
+    int v02 = top_tm_blob_data[v_tm_offset + 2 * v_tm_step];
+    int v03 = top_tm_blob_data[v_tm_offset + 3 * v_tm_step];
+    int v04 = top_tm_blob_data[v_tm_offset + 4 * v_tm_step];
+    int v05 = top_tm_blob_data[v_tm_offset + 5 * v_tm_step];
+    int v10 = top_tm_blob_data[v_tm_offset + 6 * v_tm_step];
+    int v11 = top_tm_blob_data[v_tm_offset + 7 * v_tm_step];
+    int v12 = top_tm_blob_data[v_tm_offset + 8 * v_tm_step];
+    int v13 = top_tm_blob_data[v_tm_offset + 9 * v_tm_step];
+    int v14 = top_tm_blob_data[v_tm_offset + 10 * v_tm_step];
+    int v15 = top_tm_blob_data[v_tm_offset + 11 * v_tm_step];
+    int v20 = top_tm_blob_data[v_tm_offset + 12 * v_tm_step];
+    int v21 = top_tm_blob_data[v_tm_offset + 13 * v_tm_step];
+    int v22 = top_tm_blob_data[v_tm_offset + 14 * v_tm_step];
+    int v23 = top_tm_blob_data[v_tm_offset + 15 * v_tm_step];
+    int v24 = top_tm_blob_data[v_tm_offset + 16 * v_tm_step];
+    int v25 = top_tm_blob_data[v_tm_offset + 17 * v_tm_step];
+    int v30 = top_tm_blob_data[v_tm_offset + 18 * v_tm_step];
+    int v31 = top_tm_blob_data[v_tm_offset + 19 * v_tm_step];
+    int v32 = top_tm_blob_data[v_tm_offset + 20 * v_tm_step];
+    int v33 = top_tm_blob_data[v_tm_offset + 21 * v_tm_step];
+    int v34 = top_tm_blob_data[v_tm_offset + 22 * v_tm_step];
+    int v35 = top_tm_blob_data[v_tm_offset + 23 * v_tm_step];
+    int v40 = top_tm_blob_data[v_tm_offset + 24 * v_tm_step];
+    int v41 = top_tm_blob_data[v_tm_offset + 25 * v_tm_step];
+    int v42 = top_tm_blob_data[v_tm_offset + 26 * v_tm_step];
+    int v43 = top_tm_blob_data[v_tm_offset + 27 * v_tm_step];
+    int v44 = top_tm_blob_data[v_tm_offset + 28 * v_tm_step];
+    int v45 = top_tm_blob_data[v_tm_offset + 29 * v_tm_step];
+    int v50 = top_tm_blob_data[v_tm_offset + 30 * v_tm_step];
+    int v51 = top_tm_blob_data[v_tm_offset + 31 * v_tm_step];
+    int v52 = top_tm_blob_data[v_tm_offset + 32 * v_tm_step];
+    int v53 = top_tm_blob_data[v_tm_offset + 33 * v_tm_step];
+    int v54 = top_tm_blob_data[v_tm_offset + 34 * v_tm_step];
+    int v55 = top_tm_blob_data[v_tm_offset + 35 * v_tm_step];
 
     // implicit transpose
-    ivec4 m00 = v00 + v01 + v02 + v03 + v04;
-    ivec4 m01 = v10 + v11 + v12 + v13 + v14;
-    ivec4 m02 = v20 + v21 + v22 + v23 + v24;
-    ivec4 m03 = v30 + v31 + v32 + v33 + v34;
-    ivec4 m04 = v40 + v41 + v42 + v43 + v44;
-    ivec4 m05 = (v50 + v51 + v52 + v53 + v54) * 4;
+    int m00 = v00 + v01 + v02 + v03 + v04;
+    int m01 = v10 + v11 + v12 + v13 + v14;
+    int m02 = v20 + v21 + v22 + v23 + v24;
+    int m03 = v30 + v31 + v32 + v33 + v34;
+    int m04 = v40 + v41 + v42 + v43 + v44;
+    int m05 = (v50 + v51 + v52 + v53 + v54) * 4;
 
-    ivec4 m10 = (v01 - v02) + (v03 - v04) * 2;
-    ivec4 m11 = (v11 - v12) + (v13 - v14) * 2;
-    ivec4 m12 = (v21 - v22) + (v23 - v24) * 2;
-    ivec4 m13 = (v31 - v32) + (v33 - v34) * 2;
-    ivec4 m14 = (v41 - v42) + (v43 - v44) * 2;
-    ivec4 m15 = ((v51 - v52) + (v53 - v54) * 2) * 4;
+    int m10 = (v01 - v02) + (v03 - v04) * 2;
+    int m11 = (v11 - v12) + (v13 - v14) * 2;
+    int m12 = (v21 - v22) + (v23 - v24) * 2;
+    int m13 = (v31 - v32) + (v33 - v34) * 2;
+    int m14 = (v41 - v42) + (v43 - v44) * 2;
+    int m15 = ((v51 - v52) + (v53 - v54) * 2) * 4;
 
-    ivec4 m20 = (v01 + v02) + (v03 + v04) * 4;
-    ivec4 m21 = (v11 + v12) + (v13 + v14) * 4;
-    ivec4 m22 = (v21 + v22) + (v23 + v24) * 4;
-    ivec4 m23 = (v31 + v32) + (v33 + v34) * 4;
-    ivec4 m24 = (v41 + v42) + (v43 + v44) * 4;
-    ivec4 m25 = ((v51 + v52) + (v53 + v54) * 4) * 4;
+    int m20 = (v01 + v02) + (v03 + v04) * 4;
+    int m21 = (v11 + v12) + (v13 + v14) * 4;
+    int m22 = (v21 + v22) + (v23 + v24) * 4;
+    int m23 = (v31 + v32) + (v33 + v34) * 4;
+    int m24 = (v41 + v42) + (v43 + v44) * 4;
+    int m25 = ((v51 + v52) + (v53 + v54) * 4) * 4;
 
-    ivec4 m30 = (v01 - v02) + (v03 - v04) * 8 + v05 * 4;
-    ivec4 m31 = (v11 - v12) + (v13 - v14) * 8 + v15 * 4;
-    ivec4 m32 = (v21 - v22) + (v23 - v24) * 8 + v25 * 4;
-    ivec4 m33 = (v31 - v32) + (v33 - v34) * 8 + v35 * 4;
-    ivec4 m34 = (v41 - v42) + (v43 - v44) * 8 + v45 * 4;
-    ivec4 m35 = ((v51 - v52) + (v53 - v54) * 8 + v55 * 4) * 4;
+    int m30 = (v01 - v02) + (v03 - v04) * 8 + v05 * 4;
+    int m31 = (v11 - v12) + (v13 - v14) * 8 + v15 * 4;
+    int m32 = (v21 - v22) + (v23 - v24) * 8 + v25 * 4;
+    int m33 = (v31 - v32) + (v33 - v34) * 8 + v35 * 4;
+    int m34 = (v41 - v42) + (v43 - v44) * 8 + v45 * 4;
+    int m35 = ((v51 - v52) + (v53 - v54) * 8 + v55 * 4) * 4;
 
     v00 = m00 + m01 + m02 + m03 + m04;
     v10 = m10 + m11 + m12 + m13 + m14;
@@ -136,63 +130,65 @@ void main()
     v23 = (m21 - m22) + (m23 - m24) * 8 + m25;
     v33 = (m31 - m32) + (m33 - m34) * 8 + m35;
 
-    const vec4 descale = vec4(1.f / 576.f) * weight_descales_data[gz];
+    const int gz4 = gz / 4;
+    const int lane = gz % 4;
+    const float descale = weight_descales_data[gz4][lane] * (1.f / 576.f);
 
-    vec4 out00 = vec4(v00) * descale;
-    vec4 out01 = vec4(v01) * descale;
-    vec4 out02 = vec4(v02) * descale;
-    vec4 out03 = vec4(v03) * descale;
-    vec4 out10 = vec4(v10) * descale;
-    vec4 out11 = vec4(v11) * descale;
-    vec4 out12 = vec4(v12) * descale;
-    vec4 out13 = vec4(v13) * descale;
-    vec4 out20 = vec4(v20) * descale;
-    vec4 out21 = vec4(v21) * descale;
-    vec4 out22 = vec4(v22) * descale;
-    vec4 out23 = vec4(v23) * descale;
-    vec4 out30 = vec4(v30) * descale;
-    vec4 out31 = vec4(v31) * descale;
-    vec4 out32 = vec4(v32) * descale;
-    vec4 out33 = vec4(v33) * descale;
+    float out00 = float(v00) * descale;
+    float out01 = float(v01) * descale;
+    float out02 = float(v02) * descale;
+    float out03 = float(v03) * descale;
+    float out10 = float(v10) * descale;
+    float out11 = float(v11) * descale;
+    float out12 = float(v12) * descale;
+    float out13 = float(v13) * descale;
+    float out20 = float(v20) * descale;
+    float out21 = float(v21) * descale;
+    float out22 = float(v22) * descale;
+    float out23 = float(v23) * descale;
+    float out30 = float(v30) * descale;
+    float out31 = float(v31) * descale;
+    float out32 = float(v32) * descale;
+    float out33 = float(v33) * descale;
 
     if (bias_term == 1)
     {
-        const vec4 bias_value = vec4(buffer_ld4(bias_data, gz));
+        const vec4 bias_value = vec4(buffer_ld4(bias_data, gz4));
 
-        out00 += bias_value;
-        out01 += bias_value;
-        out02 += bias_value;
-        out03 += bias_value;
-        out10 += bias_value;
-        out11 += bias_value;
-        out12 += bias_value;
-        out13 += bias_value;
-        out20 += bias_value;
-        out21 += bias_value;
-        out22 += bias_value;
-        out23 += bias_value;
-        out30 += bias_value;
-        out31 += bias_value;
-        out32 += bias_value;
-        out33 += bias_value;
+        out00 += bias_value[lane];
+        out01 += bias_value[lane];
+        out02 += bias_value[lane];
+        out03 += bias_value[lane];
+        out10 += bias_value[lane];
+        out11 += bias_value[lane];
+        out12 += bias_value[lane];
+        out13 += bias_value[lane];
+        out20 += bias_value[lane];
+        out21 += bias_value[lane];
+        out22 += bias_value[lane];
+        out23 += bias_value[lane];
+        out30 += bias_value[lane];
+        out31 += bias_value[lane];
+        out32 += bias_value[lane];
+        out33 += bias_value[lane];
     }
 
-    out00 = vec4(activation_afpvec4(afpvec4(out00), activation_type, activation_param_0, activation_param_1));
-    out01 = vec4(activation_afpvec4(afpvec4(out01), activation_type, activation_param_0, activation_param_1));
-    out02 = vec4(activation_afpvec4(afpvec4(out02), activation_type, activation_param_0, activation_param_1));
-    out03 = vec4(activation_afpvec4(afpvec4(out03), activation_type, activation_param_0, activation_param_1));
-    out10 = vec4(activation_afpvec4(afpvec4(out10), activation_type, activation_param_0, activation_param_1));
-    out11 = vec4(activation_afpvec4(afpvec4(out11), activation_type, activation_param_0, activation_param_1));
-    out12 = vec4(activation_afpvec4(afpvec4(out12), activation_type, activation_param_0, activation_param_1));
-    out13 = vec4(activation_afpvec4(afpvec4(out13), activation_type, activation_param_0, activation_param_1));
-    out20 = vec4(activation_afpvec4(afpvec4(out20), activation_type, activation_param_0, activation_param_1));
-    out21 = vec4(activation_afpvec4(afpvec4(out21), activation_type, activation_param_0, activation_param_1));
-    out22 = vec4(activation_afpvec4(afpvec4(out22), activation_type, activation_param_0, activation_param_1));
-    out23 = vec4(activation_afpvec4(afpvec4(out23), activation_type, activation_param_0, activation_param_1));
-    out30 = vec4(activation_afpvec4(afpvec4(out30), activation_type, activation_param_0, activation_param_1));
-    out31 = vec4(activation_afpvec4(afpvec4(out31), activation_type, activation_param_0, activation_param_1));
-    out32 = vec4(activation_afpvec4(afpvec4(out32), activation_type, activation_param_0, activation_param_1));
-    out33 = vec4(activation_afpvec4(afpvec4(out33), activation_type, activation_param_0, activation_param_1));
+    out00 = float(activation_afp(afp(out00), activation_type, activation_param_0, activation_param_1));
+    out01 = float(activation_afp(afp(out01), activation_type, activation_param_0, activation_param_1));
+    out02 = float(activation_afp(afp(out02), activation_type, activation_param_0, activation_param_1));
+    out03 = float(activation_afp(afp(out03), activation_type, activation_param_0, activation_param_1));
+    out10 = float(activation_afp(afp(out10), activation_type, activation_param_0, activation_param_1));
+    out11 = float(activation_afp(afp(out11), activation_type, activation_param_0, activation_param_1));
+    out12 = float(activation_afp(afp(out12), activation_type, activation_param_0, activation_param_1));
+    out13 = float(activation_afp(afp(out13), activation_type, activation_param_0, activation_param_1));
+    out20 = float(activation_afp(afp(out20), activation_type, activation_param_0, activation_param_1));
+    out21 = float(activation_afp(afp(out21), activation_type, activation_param_0, activation_param_1));
+    out22 = float(activation_afp(afp(out22), activation_type, activation_param_0, activation_param_1));
+    out23 = float(activation_afp(afp(out23), activation_type, activation_param_0, activation_param_1));
+    out30 = float(activation_afp(afp(out30), activation_type, activation_param_0, activation_param_1));
+    out31 = float(activation_afp(afp(out31), activation_type, activation_param_0, activation_param_1));
+    out32 = float(activation_afp(afp(out32), activation_type, activation_param_0, activation_param_1));
+    out33 = float(activation_afp(afp(out33), activation_type, activation_param_0, activation_param_1));
 
     // store 4x4
     int x = gx * 4;
@@ -219,303 +215,74 @@ void main()
         out32 *= top_scale;
         out33 *= top_scale;
 
-        if (out_elempack == 4)
-        {
-            ivec4 v_offset = gz * p.outcstep + y * p.outw + x + ivec4(0, 1, 2, 3) * p.outw;
+        int v_offset0 = gz * p.outcstep + y * p.outw + x;
+        int v_offset1 = v_offset0 + p.outw;
+        int v_offset2 = v_offset1 + p.outw;
+        int v_offset3 = v_offset2 + p.outw;
 
-            i8buffer_st4(top_blob_int8_data_4, v_offset.r + 0, float2int8vec4(out00));
-            if (x + 1 < p.outw) i8buffer_st4(top_blob_int8_data_4, v_offset.r + 1, float2int8vec4(out01));
-            if (x + 2 < p.outw) i8buffer_st4(top_blob_int8_data_4, v_offset.r + 2, float2int8vec4(out02));
-            if (x + 3 < p.outw) i8buffer_st4(top_blob_int8_data_4, v_offset.r + 3, float2int8vec4(out03));
-            if (y + 1 < p.outh) i8buffer_st4(top_blob_int8_data_4, v_offset.g + 0, float2int8vec4(out10));
-            if (y + 1 < p.outh && x + 1 < p.outw) i8buffer_st4(top_blob_int8_data_4, v_offset.g + 1, float2int8vec4(out11));
-            if (y + 1 < p.outh && x + 2 < p.outw) i8buffer_st4(top_blob_int8_data_4, v_offset.g + 2, float2int8vec4(out12));
-            if (y + 1 < p.outh && x + 3 < p.outw) i8buffer_st4(top_blob_int8_data_4, v_offset.g + 3, float2int8vec4(out13));
-            if (y + 2 < p.outh) i8buffer_st4(top_blob_int8_data_4, v_offset.b + 0, float2int8vec4(out20));
-            if (y + 2 < p.outh && x + 1 < p.outw) i8buffer_st4(top_blob_int8_data_4, v_offset.b + 1, float2int8vec4(out21));
-            if (y + 2 < p.outh && x + 2 < p.outw) i8buffer_st4(top_blob_int8_data_4, v_offset.b + 2, float2int8vec4(out22));
-            if (y + 2 < p.outh && x + 3 < p.outw) i8buffer_st4(top_blob_int8_data_4, v_offset.b + 3, float2int8vec4(out23));
-            if (y + 3 < p.outh) i8buffer_st4(top_blob_int8_data_4, v_offset.a + 0, float2int8vec4(out30));
-            if (y + 3 < p.outh && x + 1 < p.outw) i8buffer_st4(top_blob_int8_data_4, v_offset.a + 1, float2int8vec4(out31));
-            if (y + 3 < p.outh && x + 2 < p.outw) i8buffer_st4(top_blob_int8_data_4, v_offset.a + 2, float2int8vec4(out32));
-            if (y + 3 < p.outh && x + 3 < p.outw) i8buffer_st4(top_blob_int8_data_4, v_offset.a + 3, float2int8vec4(out33));
+        i8buffer_st1(top_blob_int8_data, v_offset0 + 0, float2int8(out00));
+        if (x + 1 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset0 + 1, float2int8(out01));
+        if (x + 2 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset0 + 2, float2int8(out02));
+        if (x + 3 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset0 + 3, float2int8(out03));
+
+        if (y + 1 < p.outh)
+        {
+            i8buffer_st1(top_blob_int8_data, v_offset1 + 0, float2int8(out10));
+            if (x + 1 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset1 + 1, float2int8(out11));
+            if (x + 2 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset1 + 2, float2int8(out12));
+            if (x + 3 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset1 + 3, float2int8(out13));
         }
-        else // out_elempack == 1
+
+        if (y + 2 < p.outh)
         {
-            const ivec4 gz4 = gz * 4 + ivec4(0, 1, 2, 3);
-            const ivec4 v_offset0 = gz4 * p.outcstep + y * p.outw + x;
-            const ivec4 v_offset1 = v_offset0 + p.outw;
-            const ivec4 v_offset2 = v_offset1 + p.outw;
-            const ivec4 v_offset3 = v_offset2 + p.outw;
+            i8buffer_st1(top_blob_int8_data, v_offset2 + 0, float2int8(out20));
+            if (x + 1 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset2 + 1, float2int8(out21));
+            if (x + 2 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset2 + 2, float2int8(out22));
+            if (x + 3 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset2 + 3, float2int8(out23));
+        }
 
-            ivec4 v00 = float2int8vec4(out00);
-            ivec4 v01 = float2int8vec4(out01);
-            ivec4 v02 = float2int8vec4(out02);
-            ivec4 v03 = float2int8vec4(out03);
-            ivec4 v10 = float2int8vec4(out10);
-            ivec4 v11 = float2int8vec4(out11);
-            ivec4 v12 = float2int8vec4(out12);
-            ivec4 v13 = float2int8vec4(out13);
-            ivec4 v20 = float2int8vec4(out20);
-            ivec4 v21 = float2int8vec4(out21);
-            ivec4 v22 = float2int8vec4(out22);
-            ivec4 v23 = float2int8vec4(out23);
-            ivec4 v30 = float2int8vec4(out30);
-            ivec4 v31 = float2int8vec4(out31);
-            ivec4 v32 = float2int8vec4(out32);
-            ivec4 v33 = float2int8vec4(out33);
-
-            i8buffer_st1(top_blob_int8_data, v_offset0.r + 0, v00.r);
-            if (gz4.g < p.outc) i8buffer_st1(top_blob_int8_data, v_offset0.g + 0, v00.g);
-            if (gz4.b < p.outc) i8buffer_st1(top_blob_int8_data, v_offset0.b + 0, v00.b);
-            if (gz4.a < p.outc) i8buffer_st1(top_blob_int8_data, v_offset0.a + 0, v00.a);
-            if (x + 1 < p.outw)
-            {
-                i8buffer_st1(top_blob_int8_data, v_offset0.r + 1, v01.r);
-                if (gz4.g < p.outc) i8buffer_st1(top_blob_int8_data, v_offset0.g + 1, v01.g);
-                if (gz4.b < p.outc) i8buffer_st1(top_blob_int8_data, v_offset0.b + 1, v01.b);
-                if (gz4.a < p.outc) i8buffer_st1(top_blob_int8_data, v_offset0.a + 1, v01.a);
-            }
-            if (x + 2 < p.outw)
-            {
-                i8buffer_st1(top_blob_int8_data, v_offset0.r + 2, v02.r);
-                if (gz4.g < p.outc) i8buffer_st1(top_blob_int8_data, v_offset0.g + 2, v02.g);
-                if (gz4.b < p.outc) i8buffer_st1(top_blob_int8_data, v_offset0.b + 2, v02.b);
-                if (gz4.a < p.outc) i8buffer_st1(top_blob_int8_data, v_offset0.a + 2, v02.a);
-            }
-            if (x + 3 < p.outw)
-            {
-                i8buffer_st1(top_blob_int8_data, v_offset0.r + 3, v03.r);
-                if (gz4.g < p.outc) i8buffer_st1(top_blob_int8_data, v_offset0.g + 3, v03.g);
-                if (gz4.b < p.outc) i8buffer_st1(top_blob_int8_data, v_offset0.b + 3, v03.b);
-                if (gz4.a < p.outc) i8buffer_st1(top_blob_int8_data, v_offset0.a + 3, v03.a);
-            }
-            if (y + 1 < p.outh)
-            {
-                i8buffer_st1(top_blob_int8_data, v_offset1.r + 0, v10.r);
-                if (gz4.g < p.outc) i8buffer_st1(top_blob_int8_data, v_offset1.g + 0, v10.g);
-                if (gz4.b < p.outc) i8buffer_st1(top_blob_int8_data, v_offset1.b + 0, v10.b);
-                if (gz4.a < p.outc) i8buffer_st1(top_blob_int8_data, v_offset1.a + 0, v10.a);
-                if (x + 1 < p.outw)
-                {
-                    i8buffer_st1(top_blob_int8_data, v_offset1.r + 1, v11.r);
-                    if (gz4.g < p.outc) i8buffer_st1(top_blob_int8_data, v_offset1.g + 1, v11.g);
-                    if (gz4.b < p.outc) i8buffer_st1(top_blob_int8_data, v_offset1.b + 1, v11.b);
-                    if (gz4.a < p.outc) i8buffer_st1(top_blob_int8_data, v_offset1.a + 1, v11.a);
-                }
-                if (x + 2 < p.outw)
-                {
-                    i8buffer_st1(top_blob_int8_data, v_offset1.r + 2, v12.r);
-                    if (gz4.g < p.outc) i8buffer_st1(top_blob_int8_data, v_offset1.g + 2, v12.g);
-                    if (gz4.b < p.outc) i8buffer_st1(top_blob_int8_data, v_offset1.b + 2, v12.b);
-                    if (gz4.a < p.outc) i8buffer_st1(top_blob_int8_data, v_offset1.a + 2, v12.a);
-                }
-                if (x + 3 < p.outw)
-                {
-                    i8buffer_st1(top_blob_int8_data, v_offset1.r + 3, v13.r);
-                    if (gz4.g < p.outc) i8buffer_st1(top_blob_int8_data, v_offset1.g + 3, v13.g);
-                    if (gz4.b < p.outc) i8buffer_st1(top_blob_int8_data, v_offset1.b + 3, v13.b);
-                    if (gz4.a < p.outc) i8buffer_st1(top_blob_int8_data, v_offset1.a + 3, v13.a);
-                }
-            }
-            if (y + 2 < p.outh)
-            {
-                i8buffer_st1(top_blob_int8_data, v_offset2.r + 0, v20.r);
-                if (gz4.g < p.outc) i8buffer_st1(top_blob_int8_data, v_offset2.g + 0, v20.g);
-                if (gz4.b < p.outc) i8buffer_st1(top_blob_int8_data, v_offset2.b + 0, v20.b);
-                if (gz4.a < p.outc) i8buffer_st1(top_blob_int8_data, v_offset2.a + 0, v20.a);
-                if (x + 1 < p.outw)
-                {
-                    i8buffer_st1(top_blob_int8_data, v_offset2.r + 1, v21.r);
-                    if (gz4.g < p.outc) i8buffer_st1(top_blob_int8_data, v_offset2.g + 1, v21.g);
-                    if (gz4.b < p.outc) i8buffer_st1(top_blob_int8_data, v_offset2.b + 1, v21.b);
-                    if (gz4.a < p.outc) i8buffer_st1(top_blob_int8_data, v_offset2.a + 1, v21.a);
-                }
-                if (x + 2 < p.outw)
-                {
-                    i8buffer_st1(top_blob_int8_data, v_offset2.r + 2, v22.r);
-                    if (gz4.g < p.outc) i8buffer_st1(top_blob_int8_data, v_offset2.g + 2, v22.g);
-                    if (gz4.b < p.outc) i8buffer_st1(top_blob_int8_data, v_offset2.b + 2, v22.b);
-                    if (gz4.a < p.outc) i8buffer_st1(top_blob_int8_data, v_offset2.a + 2, v22.a);
-                }
-                if (x + 3 < p.outw)
-                {
-                    i8buffer_st1(top_blob_int8_data, v_offset2.r + 3, v23.r);
-                    if (gz4.g < p.outc) i8buffer_st1(top_blob_int8_data, v_offset2.g + 3, v23.g);
-                    if (gz4.b < p.outc) i8buffer_st1(top_blob_int8_data, v_offset2.b + 3, v23.b);
-                    if (gz4.a < p.outc) i8buffer_st1(top_blob_int8_data, v_offset2.a + 3, v23.a);
-                }
-            }
-            if (y + 3 < p.outh)
-            {
-                i8buffer_st1(top_blob_int8_data, v_offset3.r + 0, v30.r);
-                if (gz4.g < p.outc) i8buffer_st1(top_blob_int8_data, v_offset3.g + 0, v30.g);
-                if (gz4.b < p.outc) i8buffer_st1(top_blob_int8_data, v_offset3.b + 0, v30.b);
-                if (gz4.a < p.outc) i8buffer_st1(top_blob_int8_data, v_offset3.a + 0, v30.a);
-                if (x + 1 < p.outw)
-                {
-                    i8buffer_st1(top_blob_int8_data, v_offset3.r + 1, v31.r);
-                    if (gz4.g < p.outc) i8buffer_st1(top_blob_int8_data, v_offset3.g + 1, v31.g);
-                    if (gz4.b < p.outc) i8buffer_st1(top_blob_int8_data, v_offset3.b + 1, v31.b);
-                    if (gz4.a < p.outc) i8buffer_st1(top_blob_int8_data, v_offset3.a + 1, v31.a);
-                }
-                if (x + 2 < p.outw)
-                {
-                    i8buffer_st1(top_blob_int8_data, v_offset3.r + 2, v32.r);
-                    if (gz4.g < p.outc) i8buffer_st1(top_blob_int8_data, v_offset3.g + 2, v32.g);
-                    if (gz4.b < p.outc) i8buffer_st1(top_blob_int8_data, v_offset3.b + 2, v32.b);
-                    if (gz4.a < p.outc) i8buffer_st1(top_blob_int8_data, v_offset3.a + 2, v32.a);
-                }
-                if (x + 3 < p.outw)
-                {
-                    i8buffer_st1(top_blob_int8_data, v_offset3.r + 3, v33.r);
-                    if (gz4.g < p.outc) i8buffer_st1(top_blob_int8_data, v_offset3.g + 3, v33.g);
-                    if (gz4.b < p.outc) i8buffer_st1(top_blob_int8_data, v_offset3.b + 3, v33.b);
-                    if (gz4.a < p.outc) i8buffer_st1(top_blob_int8_data, v_offset3.a + 3, v33.a);
-                }
-            }
+        if (y + 3 < p.outh)
+        {
+            i8buffer_st1(top_blob_int8_data, v_offset3 + 0, float2int8(out30));
+            if (x + 1 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset3 + 1, float2int8(out31));
+            if (x + 2 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset3 + 2, float2int8(out32));
+            if (x + 3 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset3 + 3, float2int8(out33));
         }
     }
     else
     {
-        if (out_elempack == 4)
-        {
-            ivec4 v_offset = gz * p.outcstep + y * p.outw + x + ivec4(0, 1, 2, 3) * p.outw;
+        int v_offset0 = gz * p.outcstep + y * p.outw + x;
+        int v_offset1 = v_offset0 + p.outw;
+        int v_offset2 = v_offset1 + p.outw;
+        int v_offset3 = v_offset2 + p.outw;
 
-            buffer_st4(top_blob_data_4, v_offset.r + 0, afpvec4(out00));
-            if (x + 1 < p.outw) buffer_st4(top_blob_data_4, v_offset.r + 1, afpvec4(out01));
-            if (x + 2 < p.outw) buffer_st4(top_blob_data_4, v_offset.r + 2, afpvec4(out02));
-            if (x + 3 < p.outw) buffer_st4(top_blob_data_4, v_offset.r + 3, afpvec4(out03));
-            if (y + 1 < p.outh) buffer_st4(top_blob_data_4, v_offset.g + 0, afpvec4(out10));
-            if (y + 1 < p.outh && x + 1 < p.outw) buffer_st4(top_blob_data_4, v_offset.g + 1, afpvec4(out11));
-            if (y + 1 < p.outh && x + 2 < p.outw) buffer_st4(top_blob_data_4, v_offset.g + 2, afpvec4(out12));
-            if (y + 1 < p.outh && x + 3 < p.outw) buffer_st4(top_blob_data_4, v_offset.g + 3, afpvec4(out13));
-            if (y + 2 < p.outh) buffer_st4(top_blob_data_4, v_offset.b + 0, afpvec4(out20));
-            if (y + 2 < p.outh && x + 1 < p.outw) buffer_st4(top_blob_data_4, v_offset.b + 1, afpvec4(out21));
-            if (y + 2 < p.outh && x + 2 < p.outw) buffer_st4(top_blob_data_4, v_offset.b + 2, afpvec4(out22));
-            if (y + 2 < p.outh && x + 3 < p.outw) buffer_st4(top_blob_data_4, v_offset.b + 3, afpvec4(out23));
-            if (y + 3 < p.outh) buffer_st4(top_blob_data_4, v_offset.a + 0, afpvec4(out30));
-            if (y + 3 < p.outh && x + 1 < p.outw) buffer_st4(top_blob_data_4, v_offset.a + 1, afpvec4(out31));
-            if (y + 3 < p.outh && x + 2 < p.outw) buffer_st4(top_blob_data_4, v_offset.a + 2, afpvec4(out32));
-            if (y + 3 < p.outh && x + 3 < p.outw) buffer_st4(top_blob_data_4, v_offset.a + 3, afpvec4(out33));
+        buffer_st1(top_blob_data, v_offset0 + 0, afp(out00));
+        if (x + 1 < p.outw) buffer_st1(top_blob_data, v_offset0 + 1, afp(out01));
+        if (x + 2 < p.outw) buffer_st1(top_blob_data, v_offset0 + 2, afp(out02));
+        if (x + 3 < p.outw) buffer_st1(top_blob_data, v_offset0 + 3, afp(out03));
+
+        if (y + 1 < p.outh)
+        {
+            buffer_st1(top_blob_data, v_offset1 + 0, afp(out10));
+            if (x + 1 < p.outw) buffer_st1(top_blob_data, v_offset1 + 1, afp(out11));
+            if (x + 2 < p.outw) buffer_st1(top_blob_data, v_offset1 + 2, afp(out12));
+            if (x + 3 < p.outw) buffer_st1(top_blob_data, v_offset1 + 3, afp(out13));
         }
-        else // out_elempack == 1
-        {
-            const ivec4 gz4 = gz * 4 + ivec4(0, 1, 2, 3);
-            const ivec4 v_offset0 = gz4 * p.outcstep + y * p.outw + x;
-            const ivec4 v_offset1 = v_offset0 + p.outw;
-            const ivec4 v_offset2 = v_offset1 + p.outw;
-            const ivec4 v_offset3 = v_offset2 + p.outw;
 
-            buffer_st1(top_blob_data, v_offset0.r + 0, afp(out00.r));
-            if (gz4.g < p.outc) buffer_st1(top_blob_data, v_offset0.g + 0, afp(out00.g));
-            if (gz4.b < p.outc) buffer_st1(top_blob_data, v_offset0.b + 0, afp(out00.b));
-            if (gz4.a < p.outc) buffer_st1(top_blob_data, v_offset0.a + 0, afp(out00.a));
-            if (x + 1 < p.outw)
-            {
-                buffer_st1(top_blob_data, v_offset0.r + 1, afp(out01.r));
-                if (gz4.g < p.outc) buffer_st1(top_blob_data, v_offset0.g + 1, afp(out01.g));
-                if (gz4.b < p.outc) buffer_st1(top_blob_data, v_offset0.b + 1, afp(out01.b));
-                if (gz4.a < p.outc) buffer_st1(top_blob_data, v_offset0.a + 1, afp(out01.a));
-            }
-            if (x + 2 < p.outw)
-            {
-                buffer_st1(top_blob_data, v_offset0.r + 2, afp(out02.r));
-                if (gz4.g < p.outc) buffer_st1(top_blob_data, v_offset0.g + 2, afp(out02.g));
-                if (gz4.b < p.outc) buffer_st1(top_blob_data, v_offset0.b + 2, afp(out02.b));
-                if (gz4.a < p.outc) buffer_st1(top_blob_data, v_offset0.a + 2, afp(out02.a));
-            }
-            if (x + 3 < p.outw)
-            {
-                buffer_st1(top_blob_data, v_offset0.r + 3, afp(out03.r));
-                if (gz4.g < p.outc) buffer_st1(top_blob_data, v_offset0.g + 3, afp(out03.g));
-                if (gz4.b < p.outc) buffer_st1(top_blob_data, v_offset0.b + 3, afp(out03.b));
-                if (gz4.a < p.outc) buffer_st1(top_blob_data, v_offset0.a + 3, afp(out03.a));
-            }
-            if (y + 1 < p.outh)
-            {
-                buffer_st1(top_blob_data, v_offset1.r + 0, afp(out10.r));
-                if (gz4.g < p.outc) buffer_st1(top_blob_data, v_offset1.g + 0, afp(out10.g));
-                if (gz4.b < p.outc) buffer_st1(top_blob_data, v_offset1.b + 0, afp(out10.b));
-                if (gz4.a < p.outc) buffer_st1(top_blob_data, v_offset1.a + 0, afp(out10.a));
-                if (x + 1 < p.outw)
-                {
-                    buffer_st1(top_blob_data, v_offset1.r + 1, afp(out11.r));
-                    if (gz4.g < p.outc) buffer_st1(top_blob_data, v_offset1.g + 1, afp(out11.g));
-                    if (gz4.b < p.outc) buffer_st1(top_blob_data, v_offset1.b + 1, afp(out11.b));
-                    if (gz4.a < p.outc) buffer_st1(top_blob_data, v_offset1.a + 1, afp(out11.a));
-                }
-                if (x + 2 < p.outw)
-                {
-                    buffer_st1(top_blob_data, v_offset1.r + 2, afp(out12.r));
-                    if (gz4.g < p.outc) buffer_st1(top_blob_data, v_offset1.g + 2, afp(out12.g));
-                    if (gz4.b < p.outc) buffer_st1(top_blob_data, v_offset1.b + 2, afp(out12.b));
-                    if (gz4.a < p.outc) buffer_st1(top_blob_data, v_offset1.a + 2, afp(out12.a));
-                }
-                if (x + 3 < p.outw)
-                {
-                    buffer_st1(top_blob_data, v_offset1.r + 3, afp(out13.r));
-                    if (gz4.g < p.outc) buffer_st1(top_blob_data, v_offset1.g + 3, afp(out13.g));
-                    if (gz4.b < p.outc) buffer_st1(top_blob_data, v_offset1.b + 3, afp(out13.b));
-                    if (gz4.a < p.outc) buffer_st1(top_blob_data, v_offset1.a + 3, afp(out13.a));
-                }
-            }
-            if (y + 2 < p.outh)
-            {
-                buffer_st1(top_blob_data, v_offset2.r + 0, afp(out20.r));
-                if (gz4.g < p.outc) buffer_st1(top_blob_data, v_offset2.g + 0, afp(out20.g));
-                if (gz4.b < p.outc) buffer_st1(top_blob_data, v_offset2.b + 0, afp(out20.b));
-                if (gz4.a < p.outc) buffer_st1(top_blob_data, v_offset2.a + 0, afp(out20.a));
-                if (x + 1 < p.outw)
-                {
-                    buffer_st1(top_blob_data, v_offset2.r + 1, afp(out21.r));
-                    if (gz4.g < p.outc) buffer_st1(top_blob_data, v_offset2.g + 1, afp(out21.g));
-                    if (gz4.b < p.outc) buffer_st1(top_blob_data, v_offset2.b + 1, afp(out21.b));
-                    if (gz4.a < p.outc) buffer_st1(top_blob_data, v_offset2.a + 1, afp(out21.a));
-                }
-                if (x + 2 < p.outw)
-                {
-                    buffer_st1(top_blob_data, v_offset2.r + 2, afp(out22.r));
-                    if (gz4.g < p.outc) buffer_st1(top_blob_data, v_offset2.g + 2, afp(out22.g));
-                    if (gz4.b < p.outc) buffer_st1(top_blob_data, v_offset2.b + 2, afp(out22.b));
-                    if (gz4.a < p.outc) buffer_st1(top_blob_data, v_offset2.a + 2, afp(out22.a));
-                }
-                if (x + 3 < p.outw)
-                {
-                    buffer_st1(top_blob_data, v_offset2.r + 3, afp(out23.r));
-                    if (gz4.g < p.outc) buffer_st1(top_blob_data, v_offset2.g + 3, afp(out23.g));
-                    if (gz4.b < p.outc) buffer_st1(top_blob_data, v_offset2.b + 3, afp(out23.b));
-                    if (gz4.a < p.outc) buffer_st1(top_blob_data, v_offset2.a + 3, afp(out23.a));
-                }
-            }
-            if (y + 3 < p.outh)
-            {
-                buffer_st1(top_blob_data, v_offset3.r + 0, afp(out30.r));
-                if (gz4.g < p.outc) buffer_st1(top_blob_data, v_offset3.g + 0, afp(out30.g));
-                if (gz4.b < p.outc) buffer_st1(top_blob_data, v_offset3.b + 0, afp(out30.b));
-                if (gz4.a < p.outc) buffer_st1(top_blob_data, v_offset3.a + 0, afp(out30.a));
-                if (x + 1 < p.outw)
-                {
-                    buffer_st1(top_blob_data, v_offset3.r + 1, afp(out31.r));
-                    if (gz4.g < p.outc) buffer_st1(top_blob_data, v_offset3.g + 1, afp(out31.g));
-                    if (gz4.b < p.outc) buffer_st1(top_blob_data, v_offset3.b + 1, afp(out31.b));
-                    if (gz4.a < p.outc) buffer_st1(top_blob_data, v_offset3.a + 1, afp(out31.a));
-                }
-                if (x + 2 < p.outw)
-                {
-                    buffer_st1(top_blob_data, v_offset3.r + 2, afp(out32.r));
-                    if (gz4.g < p.outc) buffer_st1(top_blob_data, v_offset3.g + 2, afp(out32.g));
-                    if (gz4.b < p.outc) buffer_st1(top_blob_data, v_offset3.b + 2, afp(out32.b));
-                    if (gz4.a < p.outc) buffer_st1(top_blob_data, v_offset3.a + 2, afp(out32.a));
-                }
-                if (x + 3 < p.outw)
-                {
-                    buffer_st1(top_blob_data, v_offset3.r + 3, afp(out33.r));
-                    if (gz4.g < p.outc) buffer_st1(top_blob_data, v_offset3.g + 3, afp(out33.g));
-                    if (gz4.b < p.outc) buffer_st1(top_blob_data, v_offset3.b + 3, afp(out33.b));
-                    if (gz4.a < p.outc) buffer_st1(top_blob_data, v_offset3.a + 3, afp(out33.a));
-                }
-            }
+        if (y + 2 < p.outh)
+        {
+            buffer_st1(top_blob_data, v_offset2 + 0, afp(out20));
+            if (x + 1 < p.outw) buffer_st1(top_blob_data, v_offset2 + 1, afp(out21));
+            if (x + 2 < p.outw) buffer_st1(top_blob_data, v_offset2 + 2, afp(out22));
+            if (x + 3 < p.outw) buffer_st1(top_blob_data, v_offset2 + 3, afp(out23));
+        }
+
+        if (y + 3 < p.outh)
+        {
+            buffer_st1(top_blob_data, v_offset3 + 0, afp(out30));
+            if (x + 1 < p.outw) buffer_st1(top_blob_data, v_offset3 + 1, afp(out31));
+            if (x + 2 < p.outw) buffer_st1(top_blob_data, v_offset3 + 2, afp(out32));
+            if (x + 3 < p.outw) buffer_st1(top_blob_data, v_offset3 + 3, afp(out33));
         }
     }
 }
