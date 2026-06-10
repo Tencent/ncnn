@@ -8,26 +8,11 @@
 
 namespace ncnn {
 
-static int read_past_len_blob_arm(const Mat& past_len_blob, bool use_bf16_storage, int& past_seqlen)
+static Mat make_persistent_kvcache_view_arm(const Mat& cache, int seqlen)
 {
-    if (past_len_blob.dims == 0 || past_len_blob.total() < 1)
-        return -1;
-
-    float past_len = 0.f;
-    if (past_len_blob.elemsize == 4)
-        past_len = ((const float*)past_len_blob.data)[0];
-    else if (past_len_blob.elemsize == 2 && use_bf16_storage)
-        past_len = ncnn::bfloat16_to_float32(((const unsigned short*)past_len_blob.data)[0]);
-    else if (past_len_blob.elemsize == 2)
-        past_len = (float)(*(__fp16*)past_len_blob.data);
-    else
-        return -1;
-
-    if (!(past_len >= 0.f) || past_len > 2147483520.f)
-        return -1;
-
-    past_seqlen = (int)past_len;
-    return 0;
+    Mat view = cache;
+    view.h = seqlen;
+    return view;
 }
 
 SDPA_arm::SDPA_arm()
@@ -173,6 +158,8 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (int8_scale_term)
     {
         opt.use_packing_layout = false; // TODO enable packing
+        if (kv_cache == 2)
+            return SDPA::forward(bottom_blobs, top_blobs, opt);
     }
 
     const Mat& query = bottom_blobs[0];
@@ -180,11 +167,10 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     const Mat& cur_value = bottom_blobs[2];
     const Mat& attn_mask_blob = attn_mask ? bottom_blobs[3] : Mat();
     const int blob_offset = attn_mask ? 4 : 3;
-    if (kv_cache == 2 && (int)bottom_blobs.size() <= blob_offset + 2)
+    if (kv_cache == 2 && (int)bottom_blobs.size() <= blob_offset + 1)
         return -1;
     const Mat& past_key = kv_cache ? bottom_blobs[blob_offset] : Mat();
     const Mat& past_value = kv_cache ? bottom_blobs[blob_offset + 1] : Mat();
-    const Mat& past_len_blob = (kv_cache == 2) ? bottom_blobs[blob_offset + 2] : Mat();
 
     const int embed_dim = query.w;
     const int src_seqlen = query.h;
@@ -196,19 +182,17 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     int past_seqlen = 0;
     if (kv_cache == 2)
     {
-        if (past_key.dims == 0 || past_value.dims == 0 || read_past_len_blob_arm(past_len_blob, opt.use_bf16_storage, past_seqlen) != 0)
+        if (past_key.dims == 0 || past_value.dims == 0)
             return -1;
+        past_seqlen = past_key.h;
     }
     else if (kv_cache == 1 && past_key.dims > 0)
         past_seqlen = past_key.h;
 
-    if (kv_cache == 2 && (past_seqlen > past_key.h || past_seqlen > past_value.h))
+    if (kv_cache == 2 && past_value.h != past_seqlen)
         return -1;
 
     const int dst_seqlen = past_seqlen + cur_seqlen;
-
-    if (kv_cache == 2 && past_key.dims > 0 && (dst_seqlen > past_key.h || dst_seqlen > past_value.h))
-        return -1;
 
     const size_t elemsize = query.elemsize;
     const int num_heads_per_group = num_heads / num_group;
@@ -216,6 +200,11 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     // kv_cache==2: in-place append to preallocated buffer
     if (kv_cache == 2 && past_key.dims > 0)
     {
+        const int key_capacity = (int)(past_key.cstep / embed_dim);
+        const int value_capacity = (int)(past_value.cstep / out_embed_dim);
+        if (dst_seqlen > key_capacity || dst_seqlen > value_capacity)
+            return -1;
+
         // In-place append cur_key/cur_value to preallocated buffer
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_group; q++)
@@ -434,8 +423,8 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     if (kv_cache == 2)
     {
-        top_blobs[1] = past_key;
-        top_blobs[2] = past_value;
+        top_blobs[1] = make_persistent_kvcache_view_arm(past_key, dst_seqlen);
+        top_blobs[2] = make_persistent_kvcache_view_arm(past_value, dst_seqlen);
     }
     else if (kv_cache)
     {

@@ -220,6 +220,25 @@ static void convert_input_layout(const ncnn::Mat& src, ncnn::Mat& dst, const ncn
     }
 }
 
+static void convert_input_layout_persistent_view(const ncnn::Mat& src, ncnn::Mat& dst, const ncnn::Option& opt, const ncnn::Layer* op)
+{
+    ncnn::Mat src_full = src;
+    const int capacity = src.w == 0 ? src.h : (int)(src.cstep / src.w);
+    src_full.h = capacity;
+
+    convert_input_layout(src_full, dst, opt, op);
+    dst.h = src.h;
+}
+
+static bool is_sdpa_persistent_kvcache_input(const char* layer_type, const ncnn::ParamDict& pd, size_t input_index)
+{
+    if (strcmp(layer_type, "SDPA") != 0 || pd.get(7, 0) != 2)
+        return false;
+
+    const int blob_offset = pd.get(5, 0) ? 4 : 3;
+    return input_index == (size_t)blob_offset || input_index == (size_t)(blob_offset + 1);
+}
+
 // run a single forward pass (pure compute, no conversion)
 static int run_layer_forward_cpu(ncnn::Layer* op,
                                  const std::vector<ncnn::Mat>& converted_inputs,
@@ -286,7 +305,10 @@ static int perf_layer_cpu(const char* layer_type, const ncnn::ParamDict& pd,
     std::vector<ncnn::Mat> converted(inputs.size());
     for (size_t i = 0; i < inputs.size(); i++)
     {
-        convert_input_layout(inputs[i], converted[i], opt, op);
+        if (is_sdpa_persistent_kvcache_input(layer_type, pd, i))
+            convert_input_layout_persistent_view(inputs[i], converted[i], opt, op);
+        else
+            convert_input_layout(inputs[i], converted[i], opt, op);
     }
 
     // warmup and calibrate inner loop count from warmup min time
