@@ -38,10 +38,11 @@ layout(constant_id = shape_constant_id_offset + 0) const uint size = 0;
 layout(constant_id = shape_constant_id_offset + 1) const uint cstep = 0;
 layout(constant_id = shape_constant_id_offset + 2) const uint outcstep = 0;
 
-layout(binding = 0) readonly buffer bottom_tm_blob { sint8vec4 bottom_tm_data[]; };
-layout(binding = 1) writeonly buffer top_tm_blob { int top_tm_blob_data[]; };
-layout(binding = 2) writeonly buffer top_tm_blob_4 { ivec4 top_tm_blob_data_4[]; };
-layout(binding = 3) readonly buffer weight_tm_blob { sint8vec4 weight_tm_data[]; };
+layout(binding = 0) readonly buffer bottom_tm_low_blob { sint8vec4 bottom_tm_low_data[]; };
+layout(binding = 1) readonly buffer bottom_tm_high_blob { sint8vec4 bottom_tm_high_data[]; };
+layout(binding = 2) writeonly buffer top_tm_blob { int top_tm_blob_data[]; };
+layout(binding = 3) writeonly buffer top_tm_blob_4 { ivec4 top_tm_blob_data_4[]; };
+layout(binding = 4) readonly buffer weight_tm_blob { sint8vec4 weight_tm_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -62,12 +63,37 @@ const uint Kd4 = K / 4;
 
 const uint Kd4p = Kd4 + PAD;
 const uint Nd4p = Nd4 + PAD;
-const uint M_Kd4p_USGM = M * Kd4p * UNROLL_SG_M;
-const uint M_Kd4p_USGM_USGK = M_Kd4p_USGM * UNROLL_SG_K;
 
-shared int tmp_v[UNROLL_WG_M][M_Kd4p_USGM_USGK * 2];
+shared int tmp_v0[UNROLL_WG_M][UNROLL_SG_K * UNROLL_SG_M * M * Kd4p];
+shared int tmp_v1[UNROLL_WG_M][UNROLL_SG_K * UNROLL_SG_M * M * Kd4p];
 shared int tmp_k[UNROLL_WG_N][UNROLL_SG_K * UNROLL_SG_N * K * Nd4p * 2];
 shared ivec4 tmp_o[UNROLL_WG_N * UNROLL_WG_M][UNROLL_SG_N * UNROLL_SG_M * M * N / 4];
+
+uint get_v_offset(uint siq)
+{
+    if (elempack == 1)
+    {
+        const uint Md4_K_USGM = Md4 * K * UNROLL_SG_M;
+        const uint zk = siq / Md4_K_USGM;
+        const uint zmij = siq % Md4_K_USGM;
+        const uint zm = zmij / (Md4 * K);
+        const uint ij = zmij % (Md4 * K);
+        const uint i = ij / Md4;
+        const uint j = ij % Md4;
+
+        return ((zk * UNROLL_SG_M + zm) * K + i) * Md4 + j;
+    }
+
+    const uint M_Kd4_USGM = M * Kd4 * UNROLL_SG_M;
+    const uint zk = siq / M_Kd4_USGM;
+    const uint zmij = siq % M_Kd4_USGM;
+    const uint zm = zmij / (M * Kd4);
+    const uint ij = zmij % (M * Kd4);
+    const uint i = ij / Kd4;
+    const uint j = ij % Kd4;
+
+    return ((zk * UNROLL_SG_M + zm) * M + i) * Kd4p + j;
+}
 
 void main()
 {
@@ -91,7 +117,6 @@ void main()
         return;
 
     const uint kk = (inch + K - 1) / K;
-    const uint kk_groups = (kk + UNROLL_SG_K - 1) / UNROLL_SG_K;
     const uint kk_padded = (kk + UNROLL_SG_K - 1) / UNROLL_SG_K * UNROLL_SG_K;
     const uint si = gl_SubgroupInvocationID;
 
@@ -128,40 +153,103 @@ void main()
     {
         // local stack and shared memory ping-pong
 
-        const uint M_Kd4p_USGM_USGK_2 = M_Kd4p_USGM_USGK * 2;
-        const uint M_Kd4p_USGM_USGK_2_d_subgroupsize = (M_Kd4p_USGM_USGK_2 + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
-        const uint K_Nd4p_USGN = K * Nd4p * UNROLL_SG_N;
-        const uint K_Nd4p_USGN_USGK = K_Nd4p_USGN * UNROLL_SG_K;
-        const uint K_Nd4p_USGN_USGK_2 = K_Nd4p_USGN_USGK * 2;
+        const uint M_Kd4_USGM = M * Kd4 * UNROLL_SG_M;
+        const uint M_Kd4_USGM_USGK = M_Kd4_USGM * UNROLL_SG_K;
+        const uint M_Kd4_USGM_USGK_d_subgroupsize = (M_Kd4_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
+        const uint K_Nd4_USGN = K * Nd4 * UNROLL_SG_N;
+        const uint K_Nd4_USGN_USGK = K_Nd4_USGN * UNROLL_SG_K;
+        const uint K_Nd4_USGN_USGK_2 = K_Nd4_USGN_USGK * 2;
+        const uint K_Nd4 = K * Nd4;
         const uint K_Nd4p = K * Nd4p;
-        const uint K_Nd4p_USGN_USGK_d_subgroupsize = (K_Nd4p_USGN_USGK_2 + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
+        const uint K_Nd4_USGN_USGK_d_subgroupsize = (K_Nd4_USGN_USGK_2 + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
 
-        int prefetch_tmp_v[(M_Kd4p_USGM_USGK_2 + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N)];
-        int prefetch_tmp_k[(K_Nd4p_USGN_USGK_2 + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M)];
+        int prefetch_tmp_v0[(M_Kd4_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N)];
+        int prefetch_tmp_v1[(M_Kd4_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N)];
+        int prefetch_tmp_k[(K_Nd4_USGN_USGK_2 + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M)];
 
         // prefetch the very first
         {
             const uint ki = 0;
-            const uint v_offset = gz * psc(cstep) + (wgmi * kk_groups + ki / UNROLL_SG_K) * UNROLL_WG_M * M_Kd4p_USGM_USGK_2 + sgmi * M_Kd4p_USGM_USGK_2;
 
-            [[unroll]] for (uint q = 0; q < M_Kd4p_USGM_USGK_2_d_subgroupsize; q++)
+            if (elempack == 1)
             {
-                const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
+                const uint cstepd4 = psc(cstep) / 4;
+                const uint Md4_K_USGM = Md4 * K * UNROLL_SG_M;
 
-                if (M_Kd4p_USGM_USGK_2 % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK_2)
+                [[unroll]] for (uint q = 0; q < M_Kd4_USGM_USGK_d_subgroupsize; q++)
                 {
-                    prefetch_tmp_v[q] = i8buffer_sm4(bottom_tm_data, v_offset + siq);
+                    const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
+
+                    if (M_Kd4_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4_USGM_USGK)
+                    {
+                        const uint zk = siq / Md4_K_USGM;
+                        const uint zmij = siq % Md4_K_USGM;
+                        const uint zm = zmij / (Md4 * K);
+                        const uint ij = zmij % (Md4 * K);
+                        const uint i = ij / Md4;
+                        const uint j = ij % Md4;
+
+                        const uint gk = (ki + zk) * K + i;
+                        const uint gm = (mi + zm) * Md4 + j;
+
+                        if (gk < inch && gm * 4 < psc(size))
+                        {
+                            const uint gi = (gz * inch + gk) * cstepd4 + gm;
+                            prefetch_tmp_v0[q] = i8buffer_sm4(bottom_tm_low_data, gi);
+                            prefetch_tmp_v1[q] = i8buffer_sm4(bottom_tm_high_data, gi);
+                        }
+                        else
+                        {
+                            prefetch_tmp_v0[q] = 0;
+                            prefetch_tmp_v1[q] = 0;
+                        }
+                    }
+                }
+            }
+            else // if (elempack == 4)
+            {
+                const uint inchd4 = inch / 4;
+                const uint M_Kd4_USGM = M * Kd4 * UNROLL_SG_M;
+
+                [[unroll]] for (uint q = 0; q < M_Kd4_USGM_USGK_d_subgroupsize; q++)
+                {
+                    const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
+
+                    if (M_Kd4_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4_USGM_USGK)
+                    {
+                        const uint zk = siq / M_Kd4_USGM;
+                        const uint zmij = siq % M_Kd4_USGM;
+                        const uint zm = zmij / (M * Kd4);
+                        const uint ij = zmij % (M * Kd4);
+                        const uint i = ij / Kd4;
+                        const uint j = ij % Kd4;
+
+                        const uint gm = (mi + zm) * M + i;
+                        const uint gk = (ki + zk) * Kd4 + j;
+
+                        if (gk < inchd4 && gm < psc(size))
+                        {
+                            const uint gi = (gz * inchd4 + gk) * psc(cstep) + gm * 2;
+                            prefetch_tmp_v0[q] = i8buffer_sm4(bottom_tm_low_data, gi);
+                            prefetch_tmp_v1[q] = i8buffer_sm4(bottom_tm_low_data, gi + 1);
+                        }
+                        else
+                        {
+                            prefetch_tmp_v0[q] = 0;
+                            prefetch_tmp_v1[q] = 0;
+                        }
+                    }
                 }
             }
         }
         {
-            const uint w_offset = gz * wbstep + (wgni * kk_padded * UNROLL_WG_N) * K_Nd4p_USGN * 2 + sgni * K_Nd4p_USGN_USGK * 2;
+            const uint w_offset = gz * wbstep + (wgni * kk_padded * UNROLL_WG_N) * K_Nd4_USGN * 2 + sgni * K_Nd4_USGN_USGK * 2;
 
-            [[unroll]] for (uint q = 0; q < K_Nd4p_USGN_USGK_d_subgroupsize; q++)
+            [[unroll]] for (uint q = 0; q < K_Nd4_USGN_USGK_d_subgroupsize; q++)
             {
                 const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                if (K_Nd4p_USGN_USGK_2 % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK_2)
+                if (K_Nd4_USGN_USGK_2 % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4_USGN_USGK_2)
                 {
                     prefetch_tmp_k[q] = i8buffer_sm4(weight_tm_data, w_offset + siq);
                 }
@@ -173,24 +261,34 @@ void main()
         {
             // copy prefetched tile to shared memory
             {
-                [[unroll]] for (uint q = 0; q < M_Kd4p_USGM_USGK_2_d_subgroupsize; q++)
+                [[unroll]] for (uint q = 0; q < M_Kd4_USGM_USGK_d_subgroupsize; q++)
                 {
                     const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                    if (M_Kd4p_USGM_USGK_2 % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK_2)
+                    if (M_Kd4_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4_USGM_USGK)
                     {
-                        tmp_v[sgmi][siq] = prefetch_tmp_v[q];
+                        const uint v_offset = get_v_offset(siq);
+                        tmp_v0[sgmi][v_offset] = prefetch_tmp_v0[q];
+                        tmp_v1[sgmi][v_offset] = prefetch_tmp_v1[q];
                     }
                 }
             }
             {
-                [[unroll]] for (uint q = 0; q < K_Nd4p_USGN_USGK_d_subgroupsize; q++)
+                [[unroll]] for (uint q = 0; q < K_Nd4_USGN_USGK_d_subgroupsize; q++)
                 {
                     const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                    if (K_Nd4p_USGN_USGK_2 % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK_2)
+                    if (K_Nd4_USGN_USGK_2 % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4_USGN_USGK_2)
                     {
-                        tmp_k[sgni][siq] = prefetch_tmp_k[q];
+                        const uint tile = siq / (K_Nd4 * 2);
+                        const uint ij2 = siq % (K_Nd4 * 2);
+                        const uint high = ij2 / K_Nd4;
+                        const uint ij = ij2 % K_Nd4;
+                        const uint i = ij / Nd4;
+                        const uint j = ij % Nd4;
+                        const uint k_offset = tile * (K_Nd4p * 2) + high * K_Nd4p + i * Nd4p + j;
+
+                        tmp_k[sgni][k_offset] = prefetch_tmp_k[q];
                     }
                 }
             }
@@ -200,26 +298,85 @@ void main()
             // prefetch next tile
             const uint ki = k + UNROLL_SG_K;
             {
-                const uint v_offset = gz * psc(cstep) + (wgmi * kk_groups + ki / UNROLL_SG_K) * UNROLL_WG_M * M_Kd4p_USGM_USGK_2 + sgmi * M_Kd4p_USGM_USGK_2;
-
-                [[unroll]] for (uint q = 0; q < M_Kd4p_USGM_USGK_2_d_subgroupsize; q++)
+                if (elempack == 1)
                 {
-                    const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
+                    const uint cstepd4 = psc(cstep) / 4;
+                    const uint Md4_K_USGM = Md4 * K * UNROLL_SG_M;
 
-                    if (M_Kd4p_USGM_USGK_2 % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK_2)
+                    [[unroll]] for (uint q = 0; q < M_Kd4_USGM_USGK_d_subgroupsize; q++)
                     {
-                        prefetch_tmp_v[q] = i8buffer_sm4(bottom_tm_data, v_offset + siq);
+                        const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
+
+                        if (M_Kd4_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4_USGM_USGK)
+                        {
+                            const uint zk = siq / Md4_K_USGM;
+                            const uint zmij = siq % Md4_K_USGM;
+                            const uint zm = zmij / (Md4 * K);
+                            const uint ij = zmij % (Md4 * K);
+                            const uint i = ij / Md4;
+                            const uint j = ij % Md4;
+
+                            const uint gk = (ki + zk) * K + i;
+                            const uint gm = (mi + zm) * Md4 + j;
+
+                            if (gk < inch && gm * 4 < psc(size))
+                            {
+                                const uint gi = (gz * inch + gk) * cstepd4 + gm;
+                                prefetch_tmp_v0[q] = i8buffer_sm4(bottom_tm_low_data, gi);
+                                prefetch_tmp_v1[q] = i8buffer_sm4(bottom_tm_high_data, gi);
+                            }
+                            else
+                            {
+                                prefetch_tmp_v0[q] = 0;
+                                prefetch_tmp_v1[q] = 0;
+                            }
+                        }
+                    }
+                }
+                else // if (elempack == 4)
+                {
+                    const uint inchd4 = inch / 4;
+                    const uint M_Kd4_USGM = M * Kd4 * UNROLL_SG_M;
+
+                    [[unroll]] for (uint q = 0; q < M_Kd4_USGM_USGK_d_subgroupsize; q++)
+                    {
+                        const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
+
+                        if (M_Kd4_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4_USGM_USGK)
+                        {
+                            const uint zk = siq / M_Kd4_USGM;
+                            const uint zmij = siq % M_Kd4_USGM;
+                            const uint zm = zmij / (M * Kd4);
+                            const uint ij = zmij % (M * Kd4);
+                            const uint i = ij / Kd4;
+                            const uint j = ij % Kd4;
+
+                            const uint gm = (mi + zm) * M + i;
+                            const uint gk = (ki + zk) * Kd4 + j;
+
+                            if (gk < inchd4 && gm < psc(size))
+                            {
+                                const uint gi = (gz * inchd4 + gk) * psc(cstep) + gm * 2;
+                                prefetch_tmp_v0[q] = i8buffer_sm4(bottom_tm_low_data, gi);
+                                prefetch_tmp_v1[q] = i8buffer_sm4(bottom_tm_low_data, gi + 1);
+                            }
+                            else
+                            {
+                                prefetch_tmp_v0[q] = 0;
+                                prefetch_tmp_v1[q] = 0;
+                            }
+                        }
                     }
                 }
             }
             {
-                const uint w_offset = gz * wbstep + (wgni * kk_padded * UNROLL_WG_N) * K_Nd4p_USGN * 2 + ((ki / UNROLL_SG_K) * UNROLL_WG_N + sgni) * K_Nd4p_USGN_USGK * 2;
+                const uint w_offset = gz * wbstep + (wgni * kk_padded * UNROLL_WG_N) * K_Nd4_USGN * 2 + ((ki / UNROLL_SG_K) * UNROLL_WG_N + sgni) * K_Nd4_USGN_USGK * 2;
 
-                [[unroll]] for (uint q = 0; q < K_Nd4p_USGN_USGK_d_subgroupsize; q++)
+                [[unroll]] for (uint q = 0; q < K_Nd4_USGN_USGK_d_subgroupsize; q++)
                 {
                     const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                    if (K_Nd4p_USGN_USGK_2 % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK_2)
+                    if (K_Nd4_USGN_USGK_2 % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4_USGN_USGK_2)
                     {
                         prefetch_tmp_k[q] = i8buffer_sm4(weight_tm_data, w_offset + siq);
                     }
@@ -245,25 +402,21 @@ void main()
                     if (elempack == 1)
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        const uint v_offset = (zk * UNROLL_SG_M + zm) * (Md4 * K);
-                        coopMatLoad(A0[zm], tmp_v[sgmi], v_offset, Md4, gl_CooperativeMatrixLayoutColumnMajor);
-                        coopMatLoad(A1[zm], tmp_v[sgmi], v_offset + M_Kd4p_USGM_USGK, Md4, gl_CooperativeMatrixLayoutColumnMajor);
+                        coopMatLoad(A0[zm], tmp_v0[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
+                        coopMatLoad(A1[zm], tmp_v1[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                        const uint v_offset = (zk * UNROLL_SG_M + zm) * (Md4 * K);
-                        coopMatLoadNV(A0[zm], tmp_v[sgmi], v_offset, Md4, true);
-                        coopMatLoadNV(A1[zm], tmp_v[sgmi], v_offset + M_Kd4p_USGM_USGK, Md4, true);
+                        coopMatLoadNV(A0[zm], tmp_v0[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
+                        coopMatLoadNV(A1[zm], tmp_v1[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
 #endif
                     }
                     else
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        const uint v_offset = (zk * UNROLL_SG_M + zm) * (M * Kd4p);
-                        coopMatLoad(A0[zm], tmp_v[sgmi], v_offset, Kd4p, gl_CooperativeMatrixLayoutRowMajor);
-                        coopMatLoad(A1[zm], tmp_v[sgmi], v_offset + M_Kd4p_USGM_USGK, Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        coopMatLoad(A0[zm], tmp_v0[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        coopMatLoad(A1[zm], tmp_v1[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                        const uint v_offset = (zk * UNROLL_SG_M + zm) * (M * Kd4p);
-                        coopMatLoadNV(A0[zm], tmp_v[sgmi], v_offset, Kd4p, false);
-                        coopMatLoadNV(A1[zm], tmp_v[sgmi], v_offset + M_Kd4p_USGM_USGK, Kd4p, false);
+                        coopMatLoadNV(A0[zm], tmp_v0[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, false);
+                        coopMatLoadNV(A1[zm], tmp_v1[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, false);
 #endif
                     }
                 }
@@ -305,24 +458,34 @@ void main()
 
         // the last copy prefetch to shared memory
         {
-            [[unroll]] for (uint q = 0; q < M_Kd4p_USGM_USGK_2_d_subgroupsize; q++)
+            [[unroll]] for (uint q = 0; q < M_Kd4_USGM_USGK_d_subgroupsize; q++)
             {
                 const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                if (M_Kd4p_USGM_USGK_2 % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK_2)
+                if (M_Kd4_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4_USGM_USGK)
                 {
-                    tmp_v[sgmi][siq] = prefetch_tmp_v[q];
+                    const uint v_offset = get_v_offset(siq);
+                    tmp_v0[sgmi][v_offset] = prefetch_tmp_v0[q];
+                    tmp_v1[sgmi][v_offset] = prefetch_tmp_v1[q];
                 }
             }
         }
         {
-            [[unroll]] for (uint q = 0; q < K_Nd4p_USGN_USGK_d_subgroupsize; q++)
+            [[unroll]] for (uint q = 0; q < K_Nd4_USGN_USGK_d_subgroupsize; q++)
             {
                 const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                if (K_Nd4p_USGN_USGK_2 % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK_2)
+                if (K_Nd4_USGN_USGK_2 % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4_USGN_USGK_2)
                 {
-                    tmp_k[sgni][siq] = prefetch_tmp_k[q];
+                    const uint tile = siq / (K_Nd4 * 2);
+                    const uint ij2 = siq % (K_Nd4 * 2);
+                    const uint high = ij2 / K_Nd4;
+                    const uint ij = ij2 % K_Nd4;
+                    const uint i = ij / Nd4;
+                    const uint j = ij % Nd4;
+                    const uint k_offset = tile * (K_Nd4p * 2) + high * K_Nd4p + i * Nd4p + j;
+
+                    tmp_k[sgni][k_offset] = prefetch_tmp_k[q];
                 }
             }
         }
@@ -348,25 +511,21 @@ void main()
                 if (elempack == 1)
                 {
 #if ncnn_VK_KHR_cooperative_matrix
-                    const uint v_offset = (zk * UNROLL_SG_M + zm) * (Md4 * K);
-                    coopMatLoad(A0[zm], tmp_v[sgmi], v_offset, Md4, gl_CooperativeMatrixLayoutColumnMajor);
-                    coopMatLoad(A1[zm], tmp_v[sgmi], v_offset + M_Kd4p_USGM_USGK, Md4, gl_CooperativeMatrixLayoutColumnMajor);
+                    coopMatLoad(A0[zm], tmp_v0[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
+                    coopMatLoad(A1[zm], tmp_v1[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                    const uint v_offset = (zk * UNROLL_SG_M + zm) * (Md4 * K);
-                    coopMatLoadNV(A0[zm], tmp_v[sgmi], v_offset, Md4, true);
-                    coopMatLoadNV(A1[zm], tmp_v[sgmi], v_offset + M_Kd4p_USGM_USGK, Md4, true);
+                    coopMatLoadNV(A0[zm], tmp_v0[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
+                    coopMatLoadNV(A1[zm], tmp_v1[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
 #endif
                 }
                 else
                 {
 #if ncnn_VK_KHR_cooperative_matrix
-                    const uint v_offset = (zk * UNROLL_SG_M + zm) * (M * Kd4p);
-                    coopMatLoad(A0[zm], tmp_v[sgmi], v_offset, Kd4p, gl_CooperativeMatrixLayoutRowMajor);
-                    coopMatLoad(A1[zm], tmp_v[sgmi], v_offset + M_Kd4p_USGM_USGK, Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                    coopMatLoad(A0[zm], tmp_v0[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                    coopMatLoad(A1[zm], tmp_v1[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                    const uint v_offset = (zk * UNROLL_SG_M + zm) * (M * Kd4p);
-                    coopMatLoadNV(A0[zm], tmp_v[sgmi], v_offset, Kd4p, false);
-                    coopMatLoadNV(A1[zm], tmp_v[sgmi], v_offset + M_Kd4p_USGM_USGK, Kd4p, false);
+                    coopMatLoadNV(A0[zm], tmp_v0[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, false);
+                    coopMatLoadNV(A1[zm], tmp_v1[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, false);
 #endif
                 }
             }
@@ -409,33 +568,93 @@ void main()
         for (uint k = 0; k < kk; k += UNROLL_SG_K)
         {
             {
-                const uint M_Kd4p_USGM_USGK_2 = M_Kd4p_USGM_USGK * 2;
-                const uint M_Kd4p_USGM_USGK_2_d_subgroupsize = (M_Kd4p_USGM_USGK_2 + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
-                const uint v_offset = gz * psc(cstep) + (wgmi * kk_groups + k / UNROLL_SG_K) * UNROLL_WG_M * M_Kd4p_USGM_USGK_2 + sgmi * M_Kd4p_USGM_USGK_2;
-
-                [[unroll]] for (uint q = 0; q < M_Kd4p_USGM_USGK_2_d_subgroupsize; q++)
+                const uint M_Kd4_USGM = M * Kd4 * UNROLL_SG_M;
+                const uint M_Kd4_USGM_USGK = M_Kd4_USGM * UNROLL_SG_K;
+                const uint M_Kd4_USGM_USGK_d_subgroupsize = (M_Kd4_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
+                [[unroll]] for (uint q = 0; q < M_Kd4_USGM_USGK_d_subgroupsize; q++)
                 {
                     const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                    if (M_Kd4p_USGM_USGK_2 % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK_2)
+                    if (M_Kd4_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4_USGM_USGK)
                     {
-                        tmp_v[sgmi][siq] = i8buffer_sm4(bottom_tm_data, v_offset + siq);
+                        const uint v_offset = get_v_offset(siq);
+                        if (elempack == 1)
+                        {
+                            const uint Md4_K_USGM = Md4 * K * UNROLL_SG_M;
+                            const uint zk = siq / Md4_K_USGM;
+                            const uint zmij = siq % Md4_K_USGM;
+                            const uint zm = zmij / (Md4 * K);
+                            const uint ij = zmij % (Md4 * K);
+                            const uint i = ij / Md4;
+                            const uint j = ij % Md4;
+
+                            const uint gk = (k + zk) * K + i;
+                            const uint gm = (mi + zm) * Md4 + j;
+
+                            if (gk < inch && gm * 4 < psc(size))
+                            {
+                                const uint cstepd4 = psc(cstep) / 4;
+                                const uint gi = (gz * inch + gk) * cstepd4 + gm;
+                                tmp_v0[sgmi][v_offset] = i8buffer_sm4(bottom_tm_low_data, gi);
+                                tmp_v1[sgmi][v_offset] = i8buffer_sm4(bottom_tm_high_data, gi);
+                            }
+                            else
+                            {
+                                tmp_v0[sgmi][v_offset] = 0;
+                                tmp_v1[sgmi][v_offset] = 0;
+                            }
+                        }
+                        else
+                        {
+                            const uint M_Kd4_USGM = M * Kd4 * UNROLL_SG_M;
+                            const uint zk = siq / M_Kd4_USGM;
+                            const uint zmij = siq % M_Kd4_USGM;
+                            const uint zm = zmij / (M * Kd4);
+                            const uint ij = zmij % (M * Kd4);
+                            const uint i = ij / Kd4;
+                            const uint j = ij % Kd4;
+
+                            const uint gm = (mi + zm) * M + i;
+                            const uint gk = (k + zk) * Kd4 + j;
+
+                            if (gk < inch / 4 && gm < psc(size))
+                            {
+                                const uint gi = (gz * (inch / 4) + gk) * psc(cstep) + gm * 2;
+                                tmp_v0[sgmi][v_offset] = i8buffer_sm4(bottom_tm_low_data, gi);
+                                tmp_v1[sgmi][v_offset] = i8buffer_sm4(bottom_tm_low_data, gi + 1);
+                            }
+                            else
+                            {
+                                tmp_v0[sgmi][v_offset] = 0;
+                                tmp_v1[sgmi][v_offset] = 0;
+                            }
+                        }
                     }
                 }
             }
             {
-                const uint K_Nd4p_USGN = K * Nd4p * UNROLL_SG_N;
-                const uint K_Nd4p_USGN_USGK = K_Nd4p_USGN * UNROLL_SG_K;
-                const uint K_Nd4p_USGN_USGK_2 = K_Nd4p_USGN_USGK * 2;
-                const uint w_offset = gz * wbstep + (wgni * kk_padded * UNROLL_WG_N) * K_Nd4p_USGN * 2 + ((k / UNROLL_SG_K) * UNROLL_WG_N + sgni) * K_Nd4p_USGN_USGK * 2;
-                const uint K_Nd4p_USGN_USGK_d_subgroupsize = (K_Nd4p_USGN_USGK_2 + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
-                [[unroll]] for (uint q = 0; q < K_Nd4p_USGN_USGK_d_subgroupsize; q++)
+                const uint K_Nd4_USGN = K * Nd4 * UNROLL_SG_N;
+                const uint K_Nd4_USGN_USGK = K_Nd4_USGN * UNROLL_SG_K;
+                const uint K_Nd4_USGN_USGK_2 = K_Nd4_USGN_USGK * 2;
+                const uint K_Nd4 = K * Nd4;
+                const uint K_Nd4p = K * Nd4p;
+                const uint w_offset = gz * wbstep + (wgni * kk_padded * UNROLL_WG_N) * K_Nd4_USGN * 2 + ((k / UNROLL_SG_K) * UNROLL_WG_N + sgni) * K_Nd4_USGN_USGK * 2;
+                const uint K_Nd4_USGN_USGK_d_subgroupsize = (K_Nd4_USGN_USGK_2 + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
+                [[unroll]] for (uint q = 0; q < K_Nd4_USGN_USGK_d_subgroupsize; q++)
                 {
                     const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                    if (K_Nd4p_USGN_USGK_2 % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK_2)
+                    if (K_Nd4_USGN_USGK_2 % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4_USGN_USGK_2)
                     {
-                        tmp_k[sgni][siq] = i8buffer_sm4(weight_tm_data, w_offset + siq);
+                        const uint tile = siq / (K_Nd4 * 2);
+                        const uint ij2 = siq % (K_Nd4 * 2);
+                        const uint high = ij2 / K_Nd4;
+                        const uint ij = ij2 % K_Nd4;
+                        const uint i = ij / Nd4;
+                        const uint j = ij % Nd4;
+                        const uint k_offset = tile * (K_Nd4p * 2) + high * K_Nd4p + i * Nd4p + j;
+
+                        tmp_k[sgni][k_offset] = i8buffer_sm4(weight_tm_data, w_offset + siq);
                     }
                 }
             }
@@ -461,25 +680,21 @@ void main()
                     if (elempack == 1)
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        const uint v_offset = (zk * UNROLL_SG_M + zm) * (Md4 * K);
-                        coopMatLoad(A0[zm], tmp_v[sgmi], v_offset, Md4, gl_CooperativeMatrixLayoutColumnMajor);
-                        coopMatLoad(A1[zm], tmp_v[sgmi], v_offset + M_Kd4p_USGM_USGK, Md4, gl_CooperativeMatrixLayoutColumnMajor);
+                        coopMatLoad(A0[zm], tmp_v0[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
+                        coopMatLoad(A1[zm], tmp_v1[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                        const uint v_offset = (zk * UNROLL_SG_M + zm) * (Md4 * K);
-                        coopMatLoadNV(A0[zm], tmp_v[sgmi], v_offset, Md4, true);
-                        coopMatLoadNV(A1[zm], tmp_v[sgmi], v_offset + M_Kd4p_USGM_USGK, Md4, true);
+                        coopMatLoadNV(A0[zm], tmp_v0[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
+                        coopMatLoadNV(A1[zm], tmp_v1[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
 #endif
                     }
                     else
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        const uint v_offset = (zk * UNROLL_SG_M + zm) * (M * Kd4p);
-                        coopMatLoad(A0[zm], tmp_v[sgmi], v_offset, Kd4p, gl_CooperativeMatrixLayoutRowMajor);
-                        coopMatLoad(A1[zm], tmp_v[sgmi], v_offset + M_Kd4p_USGM_USGK, Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        coopMatLoad(A0[zm], tmp_v0[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        coopMatLoad(A1[zm], tmp_v1[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                        const uint v_offset = (zk * UNROLL_SG_M + zm) * (M * Kd4p);
-                        coopMatLoadNV(A0[zm], tmp_v[sgmi], v_offset, Kd4p, false);
-                        coopMatLoadNV(A1[zm], tmp_v[sgmi], v_offset + M_Kd4p_USGM_USGK, Kd4p, false);
+                        coopMatLoadNV(A0[zm], tmp_v0[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, false);
+                        coopMatLoadNV(A1[zm], tmp_v1[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, false);
 #endif
                     }
                 }
