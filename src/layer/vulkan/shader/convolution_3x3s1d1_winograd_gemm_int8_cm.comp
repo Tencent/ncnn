@@ -65,8 +65,10 @@ const uint Kd4 = K / 4;
 const uint Kd4p = Kd4 + PAD;
 const uint Nd4p = Nd4 + PAD;
 
-shared int tmp_v[UNROLL_WG_M][UNROLL_SG_K * UNROLL_SG_M * M * Kd4p];
-shared int tmp_k[UNROLL_WG_N][UNROLL_SG_K * UNROLL_SG_N * K * Nd4p];
+shared int tmp_v0[UNROLL_WG_M][UNROLL_SG_K * UNROLL_SG_M * M * Kd4p];
+shared int tmp_v1[UNROLL_WG_M][UNROLL_SG_K * UNROLL_SG_M * M * Kd4p];
+shared int tmp_k0[UNROLL_WG_N][UNROLL_SG_K * UNROLL_SG_N * K * Nd4p];
+shared int tmp_k1[UNROLL_WG_N][UNROLL_SG_K * UNROLL_SG_N * K * Nd4p];
 shared ivec4 tmp_o[UNROLL_WG_N * UNROLL_WG_M][UNROLL_SG_N * UNROLL_SG_M * M * N / 4];
 
 uint get_v_offset(uint siq)
@@ -240,7 +242,11 @@ void main()
                 const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
                 if (M_Kd4_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4_USGM_USGK)
-                    tmp_v[sgmi][get_v_offset(siq)] = load_v_packed(siq, k, mi, 0);
+                {
+                    const uint v_offset = get_v_offset(siq);
+                    tmp_v0[sgmi][v_offset] = load_v_packed(siq, k, mi, 0);
+                    tmp_v1[sgmi][v_offset] = load_v_packed(siq, k, mi, 1);
+                }
             }
         }
         {
@@ -252,7 +258,11 @@ void main()
                 const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
                 if (K_Nd4_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4_USGN_USGK)
-                    tmp_k[sgni][get_k_offset(siq)] = load_k_packed(siq, k, sgni, wgni, kk, 0);
+                {
+                    const uint k_offset = get_k_offset(siq);
+                    tmp_k0[sgni][k_offset] = load_k_packed(siq, k, sgni, wgni, kk, 0);
+                    tmp_k1[sgni][k_offset] = load_k_packed(siq, k, sgni, wgni, kk, 1);
+                }
             }
         }
 
@@ -260,10 +270,14 @@ void main()
 
 #if ncnn_VK_KHR_cooperative_matrix
         coopmat<int8_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> A0[UNROLL_SG_M];
+        coopmat<int8_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> A1[UNROLL_SG_M];
         coopmat<int8_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> B0[UNROLL_SG_N];
+        coopmat<int8_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> B1[UNROLL_SG_N];
 #elif ncnn_VK_NV_cooperative_matrix
         icoopmatNV<8, gl_ScopeSubgroup, M, K> A0[UNROLL_SG_M];
+        icoopmatNV<8, gl_ScopeSubgroup, M, K> A1[UNROLL_SG_M];
         icoopmatNV<8, gl_ScopeSubgroup, K, N> B0[UNROLL_SG_N];
+        icoopmatNV<8, gl_ScopeSubgroup, K, N> B1[UNROLL_SG_N];
 #endif
 
         [[unroll]] for (uint zk = 0; zk < UNROLL_SG_K; zk++)
@@ -273,17 +287,21 @@ void main()
                 if (elempack == 1)
                 {
 #if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(A0[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
+                    coopMatLoad(A0[zm], tmp_v0[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
+                    coopMatLoad(A1[zm], tmp_v1[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(A0[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
+                    coopMatLoadNV(A0[zm], tmp_v0[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
+                    coopMatLoadNV(A1[zm], tmp_v1[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
 #endif
                 }
                 else
                 {
 #if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(A0[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                    coopMatLoad(A0[zm], tmp_v0[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                    coopMatLoad(A1[zm], tmp_v1[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(A0[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, false);
+                    coopMatLoadNV(A0[zm], tmp_v0[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, false);
+                    coopMatLoadNV(A1[zm], tmp_v1[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, false);
 #endif
                 }
             }
@@ -291,9 +309,11 @@ void main()
             [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
             {
 #if ncnn_VK_KHR_cooperative_matrix
-                coopMatLoad(B0[zn], tmp_k[sgni], (zk * UNROLL_SG_N + zn) * (K * Nd4p), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                coopMatLoad(B0[zn], tmp_k0[sgni], (zk * UNROLL_SG_N + zn) * (K * Nd4p), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                coopMatLoad(B1[zn], tmp_k1[sgni], (zk * UNROLL_SG_N + zn) * (K * Nd4p), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                coopMatLoadNV(B0[zn], tmp_k[sgni], (zk * UNROLL_SG_N + zn) * (K * Nd4p), Nd4p, false);
+                coopMatLoadNV(B0[zn], tmp_k0[sgni], (zk * UNROLL_SG_N + zn) * (K * Nd4p), Nd4p, false);
+                coopMatLoadNV(B1[zn], tmp_k1[sgni], (zk * UNROLL_SG_N + zn) * (K * Nd4p), Nd4p, false);
 #endif
             }
 
@@ -308,33 +328,7 @@ void main()
 #endif
                 }
             }
-        }
 
-        barrier();
-
-        {
-            const uint M_Kd4_USGM = M * Kd4 * UNROLL_SG_M;
-            const uint M_Kd4_USGM_USGK = M_Kd4_USGM * UNROLL_SG_K;
-            const uint M_Kd4_USGM_USGK_d_subgroupsize = (M_Kd4_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
-            [[unroll]] for (uint q = 0; q < M_Kd4_USGM_USGK_d_subgroupsize; q++)
-            {
-                const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
-
-                if (M_Kd4_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4_USGM_USGK)
-                    tmp_v[sgmi][get_v_offset(siq)] = load_v_packed(siq, k, mi, 1);
-            }
-        }
-
-        barrier();
-
-#if ncnn_VK_KHR_cooperative_matrix
-        coopmat<int8_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> A1[UNROLL_SG_M];
-#elif ncnn_VK_NV_cooperative_matrix
-        icoopmatNV<8, gl_ScopeSubgroup, M, K> A1[UNROLL_SG_M];
-#endif
-
-        [[unroll]] for (uint zk = 0; zk < UNROLL_SG_K; zk++)
-        {
             [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
             {
                 [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
@@ -343,26 +337,6 @@ void main()
                     sum_tmp[zn][zm] = coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0);
 #elif ncnn_VK_NV_cooperative_matrix
                     sum_tmp[zn][zm] = icoopmatNV<32, gl_ScopeSubgroup, M, N>(0);
-#endif
-                }
-            }
-
-            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-            {
-                if (elempack == 1)
-                {
-#if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(A1[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
-#elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(A1[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
-#endif
-                }
-                else
-                {
-#if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(A1[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
-#elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(A1[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, false);
 #endif
                 }
             }
@@ -373,109 +347,9 @@ void main()
                 {
 #if ncnn_VK_KHR_cooperative_matrix
                     sum_tmp[zn][zm] = coopMatMulAdd(A1[zm], B0[zn], sum_tmp[zn][zm]);
-#elif ncnn_VK_NV_cooperative_matrix
-                    sum_tmp[zn][zm] = coopMatMulAddNV(A1[zm], B0[zn], sum_tmp[zn][zm]);
-#endif
-                }
-            }
-
-            [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
-            {
-                [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-                {
-                    [[unroll]] for (int i = 0; i < sum[zn][zm].length(); i++)
-                    {
-                        sum[zn][zm][i] += sum_tmp[zn][zm][i] << 8;
-                    }
-                }
-            }
-        }
-
-        barrier();
-
-        {
-            const uint M_Kd4_USGM = M * Kd4 * UNROLL_SG_M;
-            const uint M_Kd4_USGM_USGK = M_Kd4_USGM * UNROLL_SG_K;
-            const uint M_Kd4_USGM_USGK_d_subgroupsize = (M_Kd4_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
-            [[unroll]] for (uint q = 0; q < M_Kd4_USGM_USGK_d_subgroupsize; q++)
-            {
-                const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
-
-                if (M_Kd4_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4_USGM_USGK)
-                    tmp_v[sgmi][get_v_offset(siq)] = load_v_packed(siq, k, mi, 0);
-            }
-        }
-        {
-            const uint K_Nd4_USGN = K * Nd4 * UNROLL_SG_N;
-            const uint K_Nd4_USGN_USGK = K_Nd4_USGN * UNROLL_SG_K;
-            const uint K_Nd4_USGN_USGK_d_subgroupsize = (K_Nd4_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
-            [[unroll]] for (uint q = 0; q < K_Nd4_USGN_USGK_d_subgroupsize; q++)
-            {
-                const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
-
-                if (K_Nd4_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4_USGN_USGK)
-                    tmp_k[sgni][get_k_offset(siq)] = load_k_packed(siq, k, sgni, wgni, kk, 1);
-            }
-        }
-
-        barrier();
-
-#if ncnn_VK_KHR_cooperative_matrix
-        coopmat<int8_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> B1[UNROLL_SG_N];
-#elif ncnn_VK_NV_cooperative_matrix
-        icoopmatNV<8, gl_ScopeSubgroup, K, N> B1[UNROLL_SG_N];
-#endif
-
-        [[unroll]] for (uint zk = 0; zk < UNROLL_SG_K; zk++)
-        {
-            [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
-            {
-                [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-                {
-#if ncnn_VK_KHR_cooperative_matrix
-                    sum_tmp[zn][zm] = coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0);
-#elif ncnn_VK_NV_cooperative_matrix
-                    sum_tmp[zn][zm] = icoopmatNV<32, gl_ScopeSubgroup, M, N>(0);
-#endif
-                }
-            }
-
-            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-            {
-                if (elempack == 1)
-                {
-#if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(A0[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
-#elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(A0[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
-#endif
-                }
-                else
-                {
-#if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(A0[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
-#elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(A0[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, false);
-#endif
-                }
-            }
-
-            [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
-            {
-#if ncnn_VK_KHR_cooperative_matrix
-                coopMatLoad(B1[zn], tmp_k[sgni], (zk * UNROLL_SG_N + zn) * (K * Nd4p), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
-#elif ncnn_VK_NV_cooperative_matrix
-                coopMatLoadNV(B1[zn], tmp_k[sgni], (zk * UNROLL_SG_N + zn) * (K * Nd4p), Nd4p, false);
-#endif
-            }
-
-            [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
-            {
-                [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-                {
-#if ncnn_VK_KHR_cooperative_matrix
                     sum_tmp[zn][zm] = coopMatMulAdd(A0[zm], B1[zn], sum_tmp[zn][zm]);
 #elif ncnn_VK_NV_cooperative_matrix
+                    sum_tmp[zn][zm] = coopMatMulAddNV(A1[zm], B0[zn], sum_tmp[zn][zm]);
                     sum_tmp[zn][zm] = coopMatMulAddNV(A0[zm], B1[zn], sum_tmp[zn][zm]);
 #endif
                 }
@@ -491,27 +365,7 @@ void main()
                     }
                 }
             }
-        }
 
-        barrier();
-
-        {
-            const uint M_Kd4_USGM = M * Kd4 * UNROLL_SG_M;
-            const uint M_Kd4_USGM_USGK = M_Kd4_USGM * UNROLL_SG_K;
-            const uint M_Kd4_USGM_USGK_d_subgroupsize = (M_Kd4_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
-            [[unroll]] for (uint q = 0; q < M_Kd4_USGM_USGK_d_subgroupsize; q++)
-            {
-                const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
-
-                if (M_Kd4_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4_USGM_USGK)
-                    tmp_v[sgmi][get_v_offset(siq)] = load_v_packed(siq, k, mi, 1);
-            }
-        }
-
-        barrier();
-
-        [[unroll]] for (uint zk = 0; zk < UNROLL_SG_K; zk++)
-        {
             [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
             {
                 [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
@@ -520,26 +374,6 @@ void main()
                     sum_tmp[zn][zm] = coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0);
 #elif ncnn_VK_NV_cooperative_matrix
                     sum_tmp[zn][zm] = icoopmatNV<32, gl_ScopeSubgroup, M, N>(0);
-#endif
-                }
-            }
-
-            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-            {
-                if (elempack == 1)
-                {
-#if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(A1[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
-#elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(A1[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
-#endif
-                }
-                else
-                {
-#if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(A1[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
-#elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(A1[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (M * Kd4p), Kd4p, false);
 #endif
                 }
             }
