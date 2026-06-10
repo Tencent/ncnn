@@ -34,7 +34,6 @@ Convolution_vulkan::Convolution_vulkan()
     use_cooperative_matrix = false;
 #if NCNN_INT8
     quantize = 0;
-    pipeline_convolution_3x3s1d1_winograd_split_int8 = 0;
     pipeline_convolution_3x3s1d1_winograd23_gemm_int8_cm = 0;
     pipeline_convolution_3x3s1d1_winograd43_gemm_int8_cm = 0;
 #endif
@@ -1519,10 +1518,8 @@ int Convolution_vulkan::destroy_pipeline(const Option& opt)
     pipeline_convolution_3x3s1d1_winograd43_transform_output = 0;
 
 #if NCNN_INT8
-    delete pipeline_convolution_3x3s1d1_winograd_split_int8;
     delete pipeline_convolution_3x3s1d1_winograd23_gemm_int8_cm;
     delete pipeline_convolution_3x3s1d1_winograd43_gemm_int8_cm;
-    pipeline_convolution_3x3s1d1_winograd_split_int8 = 0;
     pipeline_convolution_3x3s1d1_winograd23_gemm_int8_cm = 0;
     pipeline_convolution_3x3s1d1_winograd43_gemm_int8_cm = 0;
 #endif
@@ -2793,19 +2790,6 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
 
     if (use_winograd)
     {
-        if (use_cooperative_matrix)
-        {
-            std::vector<vk_specialization_type> specializations_winograd_split(1 + 3);
-            specializations_winograd_split[0].i = elempack;
-            specializations_winograd_split[1 + 0].i = 0;
-            specializations_winograd_split[1 + 1].i = 0;
-            specializations_winograd_split[1 + 2].i = 0;
-
-            pipeline_convolution_3x3s1d1_winograd_split_int8 = new Pipeline(vkdev);
-            pipeline_convolution_3x3s1d1_winograd_split_int8->set_local_size_xyz(64, 1, 1);
-            pipeline_convolution_3x3s1d1_winograd_split_int8->create(LayerShaderType::convolution_3x3s1d1_winograd_split_int8, opt_int8, specializations_winograd_split);
-        }
-
         if (use_winograd43)
         {
             Mat weight_data_tm;
@@ -2965,10 +2949,20 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 {
                     block_x = (out_shape_blob.w + 3) / 4;
                     block_y = (out_shape_blob.h + 3) / 4;
-                    if (elempack == 4)
-                        shape_winograd_input_transformed = Mat(block_x * block_y, 1, c_packed * 36, (void*)0, (size_t)8u, 4);
+                    if (use_cooperative_matrix)
+                    {
+                        if (elempack == 4)
+                            shape_winograd_input_transformed = Mat(block_x * block_y, 1, c_packed * 36, (void*)0, (size_t)4u, 4);
+                        else
+                            shape_winograd_input_transformed = Mat(block_x * block_y, 1, num_input * 36, (void*)0, (size_t)1u, 1);
+                    }
                     else
-                        shape_winograd_input_transformed = Mat(block_x * block_y, 1, num_input * 36, (void*)0, (size_t)2u, 1);
+                    {
+                        if (elempack == 4)
+                            shape_winograd_input_transformed = Mat(block_x * block_y, 1, c_packed * 36, (void*)0, (size_t)8u, 4);
+                        else
+                            shape_winograd_input_transformed = Mat(block_x * block_y, 1, num_input * 36, (void*)0, (size_t)2u, 1);
+                    }
                 }
 
                 std::vector<vk_specialization_type> specializations_winograd_input(1 + 6);
@@ -2981,8 +2975,16 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 specializations_winograd_input[1 + 5].i = block_y;
 
                 int shader_type_index = -1;
-                if (elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd43_transform_input_int8;
-                if (elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd43_transform_input_int8;
+                if (use_cooperative_matrix)
+                {
+                    if (elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd43_transform_input_int8_cm;
+                    if (elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd43_transform_input_int8_cm;
+                }
+                else
+                {
+                    if (elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd43_transform_input_int8;
+                    if (elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd43_transform_input_int8;
+                }
 
                 pipeline_convolution_3x3s1d1_winograd43_transform_input = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd43_transform_input->set_local_size_xyz(4, 4, 1);
@@ -3207,10 +3209,20 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 {
                     block_x = (out_shape_blob.w + 1) / 2;
                     block_y = (out_shape_blob.h + 1) / 2;
-                    if (elempack == 4)
-                        shape_winograd_input_transformed = Mat(block_x * block_y, 1, c_packed * 16, (void*)0, (size_t)8u, 4);
+                    if (use_cooperative_matrix)
+                    {
+                        if (elempack == 4)
+                            shape_winograd_input_transformed = Mat(block_x * block_y, 1, c_packed * 16, (void*)0, (size_t)4u, 4);
+                        else
+                            shape_winograd_input_transformed = Mat(block_x * block_y, 1, num_input * 16, (void*)0, (size_t)1u, 1);
+                    }
                     else
-                        shape_winograd_input_transformed = Mat(block_x * block_y, 1, num_input * 16, (void*)0, (size_t)2u, 1);
+                    {
+                        if (elempack == 4)
+                            shape_winograd_input_transformed = Mat(block_x * block_y, 1, c_packed * 16, (void*)0, (size_t)8u, 4);
+                        else
+                            shape_winograd_input_transformed = Mat(block_x * block_y, 1, num_input * 16, (void*)0, (size_t)2u, 1);
+                    }
                 }
 
                 std::vector<vk_specialization_type> specializations_winograd_input(1 + 6);
@@ -3223,8 +3235,16 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 specializations_winograd_input[1 + 5].i = block_y;
 
                 int shader_type_index = -1;
-                if (elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd23_transform_input_int8;
-                if (elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd23_transform_input_int8;
+                if (use_cooperative_matrix)
+                {
+                    if (elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd23_transform_input_int8_cm;
+                    if (elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd23_transform_input_int8_cm;
+                }
+                else
+                {
+                    if (elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd23_transform_input_int8;
+                    if (elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd23_transform_input_int8;
+                }
 
                 pipeline_convolution_3x3s1d1_winograd23_transform_input = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd23_transform_input->set_local_size_xyz(8, 8, 1);
@@ -3769,23 +3789,51 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
         const int block_y = pre_winograd43 ? (outh + 3) / 4 : (outh + 1) / 2;
 
         VkMat bottom_tm_blob;
+        VkMat bottom_tm_blob_low;
+        VkMat bottom_tm_blob_high;
         {
-            if (elempack == 4)
-                bottom_tm_blob.create(block_x * block_y, 1, c4 * B, (size_t)8u, 4, opt.workspace_vkallocator);
+            if (use_cooperative_matrix)
+            {
+                if (elempack == 4)
+                {
+                    bottom_tm_blob_low.create(block_x * block_y, 1, c4 * B, (size_t)4u, 4, opt.workspace_vkallocator);
+                    bottom_tm_blob_high.create(block_x * block_y, 1, c4 * B, (size_t)4u, 4, opt.workspace_vkallocator);
+                }
+                else
+                {
+                    bottom_tm_blob_low.create(block_x * block_y, 1, channels * B, (size_t)1u, 1, opt.workspace_vkallocator);
+                    bottom_tm_blob_high.create(block_x * block_y, 1, channels * B, (size_t)1u, 1, opt.workspace_vkallocator);
+                }
+                if (bottom_tm_blob_low.empty() || bottom_tm_blob_high.empty())
+                    return -100;
+            }
             else
-                bottom_tm_blob.create(block_x * block_y, 1, channels * B, (size_t)2u, 1, opt.workspace_vkallocator);
-            if (bottom_tm_blob.empty())
-                return -100;
+            {
+                if (elempack == 4)
+                    bottom_tm_blob.create(block_x * block_y, 1, c4 * B, (size_t)8u, 4, opt.workspace_vkallocator);
+                else
+                    bottom_tm_blob.create(block_x * block_y, 1, channels * B, (size_t)2u, 1, opt.workspace_vkallocator);
+                if (bottom_tm_blob.empty())
+                    return -100;
+            }
 
-            std::vector<VkMat> bindings(2);
+            std::vector<VkMat> bindings(use_cooperative_matrix ? 3 : 2);
             bindings[0] = bottom;
-            bindings[1] = bottom_tm_blob;
+            if (use_cooperative_matrix)
+            {
+                bindings[1] = bottom_tm_blob_low;
+                bindings[2] = bottom_tm_blob_high;
+            }
+            else
+            {
+                bindings[1] = bottom_tm_blob;
+            }
 
             std::vector<vk_constant_type> constants(7);
             constants[0].i = bottom.w;
             constants[1].i = bottom.h;
             constants[2].i = bottom.cstep;
-            constants[3].i = bottom_tm_blob.cstep;
+            constants[3].i = use_cooperative_matrix ? bottom_tm_blob_low.cstep : bottom_tm_blob.cstep;
             constants[4].i = block_x;
             constants[5].i = block_y;
             constants[6].i = elempack == 4 ? c4 : channels;
@@ -3793,48 +3841,10 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
             VkMat dispatcher;
             dispatcher.w = block_x;
             dispatcher.h = block_y;
-            dispatcher.c = bottom_tm_blob.c / B;
+            dispatcher.c = use_cooperative_matrix ? bottom_tm_blob_low.c / B : bottom_tm_blob.c / B;
 
             const Pipeline* pipeline = pre_winograd43 ? pipeline_convolution_3x3s1d1_winograd43_transform_input : pipeline_convolution_3x3s1d1_winograd23_transform_input;
             cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
-        }
-
-        VkMat bottom_tm_blob_low;
-        VkMat bottom_tm_blob_high;
-        if (use_cooperative_matrix)
-        {
-            if (elempack == 4)
-            {
-                bottom_tm_blob_low.create(block_x * block_y, 1, c4 * B, (size_t)4u, 4, opt.workspace_vkallocator);
-                bottom_tm_blob_high.create(block_x * block_y, 1, c4 * B, (size_t)4u, 4, opt.workspace_vkallocator);
-            }
-            else
-            {
-                bottom_tm_blob_low.create(block_x * block_y, 1, channels * B, (size_t)1u, 1, opt.workspace_vkallocator);
-                bottom_tm_blob_high.create(block_x * block_y, 1, channels * B, (size_t)1u, 1, opt.workspace_vkallocator);
-            }
-            if (bottom_tm_blob_low.empty() || bottom_tm_blob_high.empty())
-                return -100;
-
-            std::vector<VkMat> bindings(6);
-            bindings[0] = bottom_tm_blob;
-            bindings[1] = bottom_tm_blob;
-            bindings[2] = bottom_tm_blob_low;
-            bindings[3] = bottom_tm_blob_low;
-            bindings[4] = bottom_tm_blob_high;
-            bindings[5] = bottom_tm_blob_high;
-
-            std::vector<vk_constant_type> constants(3);
-            constants[0].i = bottom_tm_blob.w;
-            constants[1].i = bottom_tm_blob.cstep;
-            constants[2].i = bottom_tm_blob_low.cstep;
-
-            VkMat dispatcher;
-            dispatcher.w = elempack == 4 ? bottom_tm_blob.w : (bottom_tm_blob.w + 3) / 4;
-            dispatcher.h = 1;
-            dispatcher.c = bottom_tm_blob.c;
-
-            cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd_split_int8, bindings, constants, dispatcher);
         }
 
         VkMat top_tm_blob;
