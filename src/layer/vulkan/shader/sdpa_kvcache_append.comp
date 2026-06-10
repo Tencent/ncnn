@@ -1,0 +1,32 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(binding = 0) readonly buffer cur_blob { sfp cur_blob_data[]; };
+layout(binding = 1) writeonly buffer cache_blob { sfp cache_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int c;
+    int cur_cstep;
+    int cache_cstep;
+    int past_seqlen;
+} p;
+
+void main()
+{
+    const int gx = int(gl_GlobalInvocationID.x);
+    const int gy = int(gl_GlobalInvocationID.y);
+    const int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.w || gy >= p.h || gz >= p.c)
+        return;
+
+    const int cur_offset = gz * p.cur_cstep + gy * p.w + gx;
+    const int cache_offset = gz * p.cache_cstep + (p.past_seqlen + gy) * p.w + gx;
+
+    buffer_cp1(cache_blob_data, cache_offset, cur_blob_data, cur_offset);
+}
