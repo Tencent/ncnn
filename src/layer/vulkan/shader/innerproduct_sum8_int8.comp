@@ -17,7 +17,7 @@ layout(constant_id = shape_constant_id_offset + 2) const int outh = 0;
 
 layout(binding = 0) readonly buffer bottom_blob { sint8vec4 bottom_blob_int8_data[]; };
 layout(binding = 1) writeonly buffer top_blob { ivec4 top_blob_data[]; };
-layout(binding = 2) readonly buffer weight_blob { sint8vec4 weight_data[]; };
+layout(binding = 2) readonly buffer weight_blob { ivec4 weight_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -47,19 +47,16 @@ void main()
     {
         const int v4 = i8buffer_sm4(bottom_blob_int8_data, i);
 
-        const int k0 = i8buffer_sm4(weight_data, w_offset * 4 + 0);
-        const int k1 = i8buffer_sm4(weight_data, w_offset * 4 + 1);
-        const int k2 = i8buffer_sm4(weight_data, w_offset * 4 + 2);
-        const int k3 = i8buffer_sm4(weight_data, w_offset * 4 + 3);
+        const ivec4 k = weight_data[w_offset];
 
 #if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
-        sum += ivec4(dotPacked4x8EXT(v4, k0), dotPacked4x8EXT(v4, k1), dotPacked4x8EXT(v4, k2), dotPacked4x8EXT(v4, k3));
+        sum += ivec4(dotPacked4x8EXT(v4, k.x), dotPacked4x8EXT(v4, k.y), dotPacked4x8EXT(v4, k.z), dotPacked4x8EXT(v4, k.w));
 #else
         const ivec4 v0 = unpackInt4x8(v4);
-        const ivec4 k0v = unpackInt4x8(k0);
-        const ivec4 k1v = unpackInt4x8(k1);
-        const ivec4 k2v = unpackInt4x8(k2);
-        const ivec4 k3v = unpackInt4x8(k3);
+        const ivec4 k0v = unpackInt4x8(k.x);
+        const ivec4 k1v = unpackInt4x8(k.y);
+        const ivec4 k2v = unpackInt4x8(k.z);
+        const ivec4 k3v = unpackInt4x8(k.w);
 
         sum += ivec4(v0.r * k0v.r + v0.g * k0v.g + v0.b * k0v.b + v0.a * k0v.a,
                      v0.r * k1v.r + v0.g * k1v.g + v0.b * k1v.b + v0.a * k1v.a,
