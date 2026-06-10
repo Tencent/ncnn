@@ -108,13 +108,22 @@ void main()
         out10 *= top_scale;
         out11 *= top_scale;
 
+        ivec4 out00_int8 = float2int8vec4(out00);
+        ivec4 out01_int8 = float2int8vec4(out01);
+        ivec4 out10_int8 = float2int8vec4(out10);
+        ivec4 out11_int8 = float2int8vec4(out11);
+
         int v_offset_0 = gz * p.outcstep + y * p.outw + x;
         int v_offset_1 = v_offset_0 + p.outw;
 
-        i8buffer_st4(top_blob_int8_data, v_offset_0 + 0, float2int8vec4(out00));
-        if (x + 1 < p.outw) i8buffer_st4(top_blob_int8_data, v_offset_0 + 1, float2int8vec4(out01));
-        if (y + 1 < p.outh) i8buffer_st4(top_blob_int8_data, v_offset_1 + 0, float2int8vec4(out10));
-        if (y + 1 < p.outh && x + 1 < p.outw) i8buffer_st4(top_blob_int8_data, v_offset_1 + 1, float2int8vec4(out11));
+        i8buffer_st4(top_blob_int8_data, v_offset_0 + 0, out00_int8);
+        if (x + 1 < p.outw) i8buffer_st4(top_blob_int8_data, v_offset_0 + 1, out01_int8);
+
+        if (y + 1 < p.outh)
+        {
+            i8buffer_st4(top_blob_int8_data, v_offset_1 + 0, out10_int8);
+            if (x + 1 < p.outw) i8buffer_st4(top_blob_int8_data, v_offset_1 + 1, out11_int8);
+        }
     }
     else
     {
@@ -123,7 +132,11 @@ void main()
 
         buffer_st4(top_blob_data, v_offset_0 + 0, afpvec4(out00));
         if (x + 1 < p.outw) buffer_st4(top_blob_data, v_offset_0 + 1, afpvec4(out01));
-        if (y + 1 < p.outh) buffer_st4(top_blob_data, v_offset_1 + 0, afpvec4(out10));
-        if (y + 1 < p.outh && x + 1 < p.outw) buffer_st4(top_blob_data, v_offset_1 + 1, afpvec4(out11));
+
+        if (y + 1 < p.outh)
+        {
+            buffer_st4(top_blob_data, v_offset_1 + 0, afpvec4(out10));
+            if (x + 1 < p.outw) buffer_st4(top_blob_data, v_offset_1 + 1, afpvec4(out11));
+        }
     }
 }

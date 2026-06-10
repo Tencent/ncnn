@@ -213,38 +213,55 @@ void main()
         out32 *= top_scale;
         out33 *= top_scale;
 
+        int out00_int8 = float2int8(out00);
+        int out01_int8 = float2int8(out01);
+        int out02_int8 = float2int8(out02);
+        int out03_int8 = float2int8(out03);
+        int out10_int8 = float2int8(out10);
+        int out11_int8 = float2int8(out11);
+        int out12_int8 = float2int8(out12);
+        int out13_int8 = float2int8(out13);
+        int out20_int8 = float2int8(out20);
+        int out21_int8 = float2int8(out21);
+        int out22_int8 = float2int8(out22);
+        int out23_int8 = float2int8(out23);
+        int out30_int8 = float2int8(out30);
+        int out31_int8 = float2int8(out31);
+        int out32_int8 = float2int8(out32);
+        int out33_int8 = float2int8(out33);
+
         int v_offset0 = gz * p.outcstep + y * p.outw + x;
         int v_offset1 = v_offset0 + p.outw;
         int v_offset2 = v_offset1 + p.outw;
         int v_offset3 = v_offset2 + p.outw;
 
-        i8buffer_st1(top_blob_int8_data, v_offset0 + 0, float2int8(out00));
-        if (x + 1 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset0 + 1, float2int8(out01));
-        if (x + 2 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset0 + 2, float2int8(out02));
-        if (x + 3 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset0 + 3, float2int8(out03));
+        i8buffer_st1(top_blob_int8_data, v_offset0 + 0, out00_int8);
+        if (x + 1 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset0 + 1, out01_int8);
+        if (x + 2 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset0 + 2, out02_int8);
+        if (x + 3 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset0 + 3, out03_int8);
 
         if (y + 1 < p.outh)
         {
-            i8buffer_st1(top_blob_int8_data, v_offset1 + 0, float2int8(out10));
-            if (x + 1 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset1 + 1, float2int8(out11));
-            if (x + 2 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset1 + 2, float2int8(out12));
-            if (x + 3 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset1 + 3, float2int8(out13));
+            i8buffer_st1(top_blob_int8_data, v_offset1 + 0, out10_int8);
+            if (x + 1 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset1 + 1, out11_int8);
+            if (x + 2 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset1 + 2, out12_int8);
+            if (x + 3 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset1 + 3, out13_int8);
         }
 
         if (y + 2 < p.outh)
         {
-            i8buffer_st1(top_blob_int8_data, v_offset2 + 0, float2int8(out20));
-            if (x + 1 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset2 + 1, float2int8(out21));
-            if (x + 2 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset2 + 2, float2int8(out22));
-            if (x + 3 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset2 + 3, float2int8(out23));
+            i8buffer_st1(top_blob_int8_data, v_offset2 + 0, out20_int8);
+            if (x + 1 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset2 + 1, out21_int8);
+            if (x + 2 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset2 + 2, out22_int8);
+            if (x + 3 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset2 + 3, out23_int8);
         }
 
         if (y + 3 < p.outh)
         {
-            i8buffer_st1(top_blob_int8_data, v_offset3 + 0, float2int8(out30));
-            if (x + 1 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset3 + 1, float2int8(out31));
-            if (x + 2 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset3 + 2, float2int8(out32));
-            if (x + 3 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset3 + 3, float2int8(out33));
+            i8buffer_st1(top_blob_int8_data, v_offset3 + 0, out30_int8);
+            if (x + 1 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset3 + 1, out31_int8);
+            if (x + 2 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset3 + 2, out32_int8);
+            if (x + 3 < p.outw) i8buffer_st1(top_blob_int8_data, v_offset3 + 3, out33_int8);
         }
     }
     else
