@@ -13,8 +13,8 @@ layout(constant_id = 3) const float activation_param_1 = 0;
 layout(constant_id = 4) const int use_int8_requantize = 0;
 layout(binding = 0) readonly buffer top_tm_blob { int top_tm_blob_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
-layout(binding = 2) readonly buffer bias_blob { sfpvec4 bias_data[]; };
-layout(binding = 3) readonly buffer weight_descales_blob { vec4 weight_descales_data[]; };
+layout(binding = 2) readonly buffer bias_blob { sfp bias_data[]; };
+layout(binding = 3) readonly buffer weight_descales_blob { float weight_descales_data[]; };
 layout(binding = 4) readonly buffer top_scales_blob { sfp top_scales_data[]; };
 layout(binding = 5) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
 
@@ -71,9 +71,7 @@ void main()
     int m12 = v21 - v22 + v23;
     int m13 = v31 - v32 + v33;
 
-    const int gz4 = gz / 4;
-    const int lane = gz % 4;
-    const float descale = weight_descales_data[gz4][lane] * 0.25f;
+    const float descale = weight_descales_data[gz] * 0.25f;
 
     float out00 = float(m00 + m01 + m02) * descale;
     float out01 = float(m01 - m02 + m03) * descale;
@@ -82,12 +80,12 @@ void main()
 
     if (bias_term == 1)
     {
-        const vec4 bias_value = vec4(buffer_ld4(bias_data, gz4));
+        const float bias_value = float(buffer_ld1(bias_data, gz));
 
-        out00 += bias_value[lane];
-        out01 += bias_value[lane];
-        out10 += bias_value[lane];
-        out11 += bias_value[lane];
+        out00 += bias_value;
+        out01 += bias_value;
+        out10 += bias_value;
+        out11 += bias_value;
     }
 
     out00 = float(activation_afp(afp(out00), activation_type, activation_param_0, activation_param_1));

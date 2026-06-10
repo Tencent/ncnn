@@ -13,8 +13,8 @@ layout(constant_id = 3) const float activation_param_1 = 0;
 layout(constant_id = 4) const int use_int8_requantize = 0;
 layout(binding = 0) readonly buffer top_tm_blob { int top_tm_blob_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
-layout(binding = 2) readonly buffer bias_blob { sfpvec4 bias_data[]; };
-layout(binding = 3) readonly buffer weight_descales_blob { vec4 weight_descales_data[]; };
+layout(binding = 2) readonly buffer bias_blob { sfp bias_data[]; };
+layout(binding = 3) readonly buffer weight_descales_blob { float weight_descales_data[]; };
 layout(binding = 4) readonly buffer top_scales_blob { sfp top_scales_data[]; };
 layout(binding = 5) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
 
@@ -130,9 +130,7 @@ void main()
     v23 = (m21 - m22) + (m23 - m24) * 8 + m25;
     v33 = (m31 - m32) + (m33 - m34) * 8 + m35;
 
-    const int gz4 = gz / 4;
-    const int lane = gz % 4;
-    const float descale = weight_descales_data[gz4][lane] * (1.f / 576.f);
+    const float descale = weight_descales_data[gz] * (1.f / 576.f);
 
     float out00 = float(v00) * descale;
     float out01 = float(v01) * descale;
@@ -153,24 +151,24 @@ void main()
 
     if (bias_term == 1)
     {
-        const vec4 bias_value = vec4(buffer_ld4(bias_data, gz4));
+        const float bias_value = float(buffer_ld1(bias_data, gz));
 
-        out00 += bias_value[lane];
-        out01 += bias_value[lane];
-        out02 += bias_value[lane];
-        out03 += bias_value[lane];
-        out10 += bias_value[lane];
-        out11 += bias_value[lane];
-        out12 += bias_value[lane];
-        out13 += bias_value[lane];
-        out20 += bias_value[lane];
-        out21 += bias_value[lane];
-        out22 += bias_value[lane];
-        out23 += bias_value[lane];
-        out30 += bias_value[lane];
-        out31 += bias_value[lane];
-        out32 += bias_value[lane];
-        out33 += bias_value[lane];
+        out00 += bias_value;
+        out01 += bias_value;
+        out02 += bias_value;
+        out03 += bias_value;
+        out10 += bias_value;
+        out11 += bias_value;
+        out12 += bias_value;
+        out13 += bias_value;
+        out20 += bias_value;
+        out21 += bias_value;
+        out22 += bias_value;
+        out23 += bias_value;
+        out30 += bias_value;
+        out31 += bias_value;
+        out32 += bias_value;
+        out33 += bias_value;
     }
 
     out00 = float(activation_afp(afp(out00), activation_type, activation_param_0, activation_param_1));
