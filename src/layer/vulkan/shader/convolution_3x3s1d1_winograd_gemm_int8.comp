@@ -81,11 +81,7 @@ void main()
                     {
                         const ivec4 q = min((q4 + z4) * 4 + ivec4(0, 1, 2, 3), ivec4(c - 1));
                         const int v_offset = gz * c * psc(cstep) + pos;
-                        i16buffer_st4(tmp_v[lx][z4], ly, ivec4(
-                            i16buffer_ld1(bottom_tm_blob_data, v_offset + q.r * psc(cstep)),
-                            i16buffer_ld1(bottom_tm_blob_data, v_offset + q.g * psc(cstep)),
-                            i16buffer_ld1(bottom_tm_blob_data, v_offset + q.b * psc(cstep)),
-                            i16buffer_ld1(bottom_tm_blob_data, v_offset + q.a * psc(cstep))));
+                        i16buffer_st4(tmp_v[lx][z4], ly, ivec4(i16buffer_ld1(bottom_tm_blob_data, v_offset + q.r * psc(cstep)), i16buffer_ld1(bottom_tm_blob_data, v_offset + q.g * psc(cstep)), i16buffer_ld1(bottom_tm_blob_data, v_offset + q.b * psc(cstep)), i16buffer_ld1(bottom_tm_blob_data, v_offset + q.a * psc(cstep))));
                     }
                 }
             }
@@ -182,11 +178,7 @@ void main()
                     {
                         const ivec4 q = min((q4 + z4) * 4 + ivec4(0, 1, 2, 3), ivec4(c - 1));
                         const int v_offset = gz * c * psc(cstep) + pos;
-                        i16buffer_st4(tmp_v[lx][z4], ly, ivec4(
-                            i16buffer_ld1(bottom_tm_blob_data, v_offset + q.r * psc(cstep)),
-                            i16buffer_ld1(bottom_tm_blob_data, v_offset + q.g * psc(cstep)),
-                            i16buffer_ld1(bottom_tm_blob_data, v_offset + q.b * psc(cstep)),
-                            i16buffer_ld1(bottom_tm_blob_data, v_offset + q.a * psc(cstep))));
+                        i16buffer_st4(tmp_v[lx][z4], ly, ivec4(i16buffer_ld1(bottom_tm_blob_data, v_offset + q.r * psc(cstep)), i16buffer_ld1(bottom_tm_blob_data, v_offset + q.g * psc(cstep)), i16buffer_ld1(bottom_tm_blob_data, v_offset + q.b * psc(cstep)), i16buffer_ld1(bottom_tm_blob_data, v_offset + q.a * psc(cstep))));
                     }
                 }
             }
