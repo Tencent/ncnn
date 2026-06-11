@@ -208,29 +208,26 @@ void main()
 
                     if (M_Kd4p_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK)
                     {
-                        int v = 0;
                         const uint zk = siq / M_Kd4p_USGM;
                         const uint zmij = siq % M_Kd4p_USGM;
                         const uint zmi = zmij / Kd4p;
                         const uint j = zmij % Kd4p;
 
-                        if (j < Kd4)
+                        const uint gm = mi * M + zmi;
+                        const uint gk = zk * Kd4 + j;
+
+                        int v = 0;
+                        if (gm < size && gk < K04)
                         {
-                            const uint gm = mi * M + zmi;
-                            const uint gk = zk * Kd4 + j;
+                            const uint sx = gm % psc(outw);
+                            const uint sy = gm / psc(outw);
+                            const uint sz = gk / maxk;
+                            const uint k = gk - sz * maxk;
+                            const uint ky = k / kernel_w;
+                            const uint kx = k - ky * kernel_w;
+                            const uint spatial = (sy * stride_h + ky * dilation_h) * psc(w) + sx * stride_w + kx * dilation_w;
 
-                            if (gm < size && gk < K04)
-                            {
-                                const uint sx = gm % psc(outw);
-                                const uint sy = gm / psc(outw);
-                                const uint sz = gk / maxk;
-                                const uint k = gk - sz * maxk;
-                                const uint ky = k / kernel_w;
-                                const uint kx = k - ky * kernel_w;
-                                const uint spatial = (sy * stride_h + ky * dilation_h) * psc(w) + sx * stride_w + kx * dilation_w;
-
-                                v = i8buffer_sm4(bottom_blob_int8_data, sz * psc(cstep) + spatial);
-                            }
+                            v = i8buffer_sm4(bottom_blob_int8_data, sz * psc(cstep) + spatial);
                         }
 
                         prefetch_tmp_v[q] = v;
@@ -361,29 +358,26 @@ void main()
 
                         if (M_Kd4p_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK)
                         {
-                            int v = 0;
                             const uint zk = siq / M_Kd4p_USGM;
                             const uint zmij = siq % M_Kd4p_USGM;
                             const uint zmi = zmij / Kd4p;
                             const uint j = zmij % Kd4p;
 
-                            if (j < Kd4)
+                            const uint gm = mi * M + zmi;
+                            const uint gk = (ki + zk) * Kd4 + j;
+
+                            int v = 0;
+                            if (gm < size && gk < K04)
                             {
-                                const uint gm = mi * M + zmi;
-                                const uint gk = (ki + zk) * Kd4 + j;
+                                const uint sx = gm % psc(outw);
+                                const uint sy = gm / psc(outw);
+                                const uint sz = gk / maxk;
+                                const uint k = gk - sz * maxk;
+                                const uint ky = k / kernel_w;
+                                const uint kx = k - ky * kernel_w;
+                                const uint spatial = (sy * stride_h + ky * dilation_h) * psc(w) + sx * stride_w + kx * dilation_w;
 
-                                if (gm < size && gk < K04)
-                                {
-                                    const uint sx = gm % psc(outw);
-                                    const uint sy = gm / psc(outw);
-                                    const uint sz = gk / maxk;
-                                    const uint k = gk - sz * maxk;
-                                    const uint ky = k / kernel_w;
-                                    const uint kx = k - ky * kernel_w;
-                                    const uint spatial = (sy * stride_h + ky * dilation_h) * psc(w) + sx * stride_w + kx * dilation_w;
-
-                                    v = i8buffer_sm4(bottom_blob_int8_data, sz * psc(cstep) + spatial);
-                                }
+                                v = i8buffer_sm4(bottom_blob_int8_data, sz * psc(cstep) + spatial);
                             }
 
                             prefetch_tmp_v[q] = v;
@@ -624,29 +618,26 @@ void main()
 
                         if (M_Kd4p_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK)
                         {
-                            int v = 0;
                             const uint zk = siq / M_Kd4p_USGM;
                             const uint zmij = siq % M_Kd4p_USGM;
                             const uint zmi = zmij / Kd4p;
                             const uint j = zmij % Kd4p;
 
-                            if (j < Kd4)
+                            const uint gm = mi * M + zmi;
+                            const uint gk = (ki + zk) * Kd4 + j;
+
+                            int v = 0;
+                            if (gm < size && gk < K04)
                             {
-                                const uint gm = mi * M + zmi;
-                                const uint gk = (ki + zk) * Kd4 + j;
+                                const uint sx = gm % psc(outw);
+                                const uint sy = gm / psc(outw);
+                                const uint sz = gk / maxk;
+                                const uint k = gk - sz * maxk;
+                                const uint ky = k / kernel_w;
+                                const uint kx = k - ky * kernel_w;
+                                const uint spatial = (sy * stride_h + ky * dilation_h) * psc(w) + sx * stride_w + kx * dilation_w;
 
-                                if (gm < size && gk < K04)
-                                {
-                                    const uint sx = gm % psc(outw);
-                                    const uint sy = gm / psc(outw);
-                                    const uint sz = gk / maxk;
-                                    const uint k = gk - sz * maxk;
-                                    const uint ky = k / kernel_w;
-                                    const uint kx = k - ky * kernel_w;
-                                    const uint spatial = (sy * stride_h + ky * dilation_h) * psc(w) + sx * stride_w + kx * dilation_w;
-
-                                    v = i8buffer_sm4(bottom_blob_int8_data, sz * psc(cstep) + spatial);
-                                }
+                                v = i8buffer_sm4(bottom_blob_int8_data, sz * psc(cstep) + spatial);
                             }
 
                             tmp_v[sgmi][siq] = v;

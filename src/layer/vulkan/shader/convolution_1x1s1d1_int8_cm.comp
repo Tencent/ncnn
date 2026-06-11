@@ -179,14 +179,10 @@ void main()
                         const uint zmi = zmij / Kd4p;
                         const uint j = zmij % Kd4p;
 
-                        int v = 0;
-                        if (j < Kd4)
-                        {
-                            const uint gm = mi * M + zmi;
-                            const uint gk = zk * K + j * 4;
+                        const uint gm = mi * M + zmi;
+                        const uint gk = zk * K + j * 4;
 
-                            v = gm < psc(size) && gk < psc(num_input) ? i8buffer_sm4(bottom_blob_int8_data, (gk / 4) * psc(cstep) + gm) : 0;
-                        }
+                        const int v = gm < psc(size) && gk < psc(num_input) ? i8buffer_sm4(bottom_blob_int8_data, (gk / 4) * psc(cstep) + gm) : 0;
 
                         prefetch_tmp_v[q] = v;
                     }
@@ -304,14 +300,10 @@ void main()
                             const uint zmi = zmij / Kd4p;
                             const uint j = zmij % Kd4p;
 
-                            int v = 0;
-                            if (j < Kd4)
-                            {
-                                const uint gm = mi * M + zmi;
-                                const uint gk = (ki + zk) * K + j * 4;
+                            const uint gm = mi * M + zmi;
+                            const uint gk = (ki + zk) * K + j * 4;
 
-                                v = gm < psc(size) && gk < psc(num_input) ? i8buffer_sm4(bottom_blob_int8_data, (gk / 4) * psc(cstep) + gm) : 0;
-                            }
+                            const int v = gm < psc(size) && gk < psc(num_input) ? i8buffer_sm4(bottom_blob_int8_data, (gk / 4) * psc(cstep) + gm) : 0;
 
                             prefetch_tmp_v[q] = v;
                         }
@@ -541,13 +533,9 @@ void main()
                             const uint i = ij / Kd4p;
                             const uint j = ij % Kd4p;
 
-                            int v = 0;
-                            if (j < Kd4)
-                            {
-                                const uint gm = (mi + zm) * M + i;
-                                const uint gk = (ki + zk) * K + j * 4;
-                                v = gm < psc(size) && gk < psc(num_input) ? i8buffer_sm4(bottom_blob_int8_data, (gk / 4) * psc(cstep) + gm) : 0;
-                            }
+                            const uint gm = (mi + zm) * M + i;
+                            const uint gk = (ki + zk) * K + j * 4;
+                            const int v = gm < psc(size) && gk < psc(num_input) ? i8buffer_sm4(bottom_blob_int8_data, (gk / 4) * psc(cstep) + gm) : 0;
 
                             tmp_v[sgmi][siq] = v;
                         }
