@@ -44,7 +44,7 @@ layout(binding = 1) writeonly buffer top_blob_1 { sfp top_blob_data_1[]; };
 layout(binding = 2) readonly buffer bottom_blob_4 { sint8vec4 bottom_blob_int8_data_4[]; };
 layout(binding = 3) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
 layout(binding = 4) readonly buffer weight_blob { sint8vec4 weight_data[]; };
-layout(binding = 5) readonly buffer bias_blob { sfpvec4 bias_data[]; };
+layout(binding = 5) readonly buffer bias_blob { vec4 bias_data[]; };
 layout(binding = 6) readonly buffer weight_descales_blob { vec4 weight_descales_data[]; };
 layout(binding = 7) readonly buffer top_scales_blob { sfp top_scales_data[]; };
 layout(binding = 8) writeonly buffer top_blob_int8_1 { sint8 top_blob_int8_data_1[]; };
@@ -231,8 +231,8 @@ void main()
 
     if (bias_term == 1)
     {
-        vec4 bias0 = vec4(buffer_ld4(bias_data, gz2.x));
-        vec4 bias1 = vec4(buffer_ld4(bias_data, gz2.y));
+        vec4 bias0 = bias_data[gz2.x];
+        vec4 bias1 = bias_data[gz2.y];
 
         sumfp32_0 += bias0;
         sumfp32_1 += bias0;

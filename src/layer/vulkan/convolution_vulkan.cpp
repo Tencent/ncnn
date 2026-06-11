@@ -3472,10 +3472,7 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
     if (bias_term)
     {
-        if (use_winograd)
-            cmd.record_upload(bias_data_int8_packed, bias_data_gpu, opt_fp32);
-        else
-            cmd.record_upload(bias_data_int8_packed, bias_data_gpu, opt);
+        cmd.record_upload(bias_data_int8_packed, bias_data_gpu, opt_fp32);
 
         bias_data_int8_packed.release();
         bias_data.release();
