@@ -7,6 +7,8 @@
 #include "layer_type.h"
 #include "modelbin.h"
 
+#include <string.h>
+
 namespace ncnn {
 
 ConvolutionDepthWise_vulkan::ConvolutionDepthWise_vulkan()
@@ -734,8 +736,8 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
         {
             const Mat weight_data_r2 = weight_data.reshape(maxk, group);
 
-            weight_data_int8_packed.create(maxk4, group / 4, (size_t)4u, 4);
-            weight_data_int8_packed.fill(0);
+            weight_data_int8_packed.create(maxk4 / 4, group / 4, (size_t)16u, 1);
+            memset(weight_data_int8_packed.data, 0, weight_data_int8_packed.total() * weight_data_int8_packed.elemsize);
 
             for (int q = 0; q + 3 < group; q += 4)
             {
@@ -745,14 +747,20 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
                 const signed char* k2 = weight_data_r2.row<const signed char>(q + 2);
                 const signed char* k3 = weight_data_r2.row<const signed char>(q + 3);
 
-                for (int k = 0; k < maxk; k++)
+                for (int k = 0; k < maxk4; k += 4)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
+                    signed char* g0 = g00 + k * 4;
+                    signed char* g1 = g0 + 4;
+                    signed char* g2 = g1 + 4;
+                    signed char* g3 = g2 + 4;
 
-                    g00 += 4;
+                    for (int i = 0; i < 4 && k + i < maxk; i++)
+                    {
+                        g0[i] = k0[k + i];
+                        g1[i] = k1[k + i];
+                        g2[i] = k2[k + i];
+                        g3[i] = k3[k + i];
+                    }
                 }
             }
         }

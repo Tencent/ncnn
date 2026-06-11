@@ -74,27 +74,44 @@ void main()
 
     int sum = 0;
 
-    for (int k = 0; k < maxk4; k += 4)
+    int k = 0;
+    for (; k + 3 < maxk; k += 4)
     {
-        const ivec4 k4 = min(k + ivec4(0, 1, 2, 3), ivec4(maxk - 1));
+        const ivec4 k4 = k + ivec4(0, 1, 2, 3);
         const ivec4 ky4 = k4 / kernel_w;
         const ivec4 kx4 = k4 - ky4 * kernel_w;
         const ivec4 x4 = gx * stride_w + kx4 * dilation_w;
         const ivec4 y4 = gy * stride_h + ky4 * dilation_h;
 
-        const ivec4 v = ivec4(
-            i8buffer_ld1(bottom_blob_int8_data, gz * psc(cstep) + y4.r * psc(w) + x4.r),
-            i8buffer_ld1(bottom_blob_int8_data, gz * psc(cstep) + y4.g * psc(w) + x4.g),
-            i8buffer_ld1(bottom_blob_int8_data, gz * psc(cstep) + y4.b * psc(w) + x4.b),
-            i8buffer_ld1(bottom_blob_int8_data, gz * psc(cstep) + y4.a * psc(w) + x4.a));
-
-        const ivec4 kv = i8buffer_ld4(weight_data, gz * maxk4d4 + k / 4);
+        const int v0 = i8buffer_ld1(bottom_blob_int8_data, gz * psc(cstep) + y4.r * psc(w) + x4.r);
+        const int v1 = i8buffer_ld1(bottom_blob_int8_data, gz * psc(cstep) + y4.g * psc(w) + x4.g);
+        const int v2 = i8buffer_ld1(bottom_blob_int8_data, gz * psc(cstep) + y4.b * psc(w) + x4.b);
+        const int v3 = i8buffer_ld1(bottom_blob_int8_data, gz * psc(cstep) + y4.a * psc(w) + x4.a);
 
 #if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
-        sum += dotPacked4x8EXT(packInt4x8(v), packInt4x8(kv));
+        const int vp = int((uint(v0) & 0xffu) | ((uint(v1) & 0xffu) << 8) | ((uint(v2) & 0xffu) << 16) | ((uint(v3) & 0xffu) << 24));
+        const int kvp = i8buffer_sm4(weight_data, gz * maxk4d4 + k / 4);
+        sum += dotPacked4x8EXT(vp, kvp);
 #else
+        const ivec4 v = ivec4(v0, v1, v2, v3);
+        const ivec4 kv = i8buffer_ld4(weight_data, gz * maxk4d4 + k / 4);
         sum += v.r * kv.r + v.g * kv.g + v.b * kv.b + v.a * kv.a;
 #endif
+    }
+
+    for (; k < maxk; k++)
+    {
+        const int ky = k / kernel_w;
+        const int kx = k - ky * kernel_w;
+        const int x = gx * stride_w + kx * dilation_w;
+        const int y = gy * stride_h + ky * dilation_h;
+
+        const int v = i8buffer_ld1(bottom_blob_int8_data, gz * psc(cstep) + y * psc(w) + x);
+        const int kvp = i8buffer_sm4(weight_data, gz * maxk4d4 + k / 4);
+        const int ktail = k - k / 4 * 4;
+        const int kv = (kvp << (24 - ktail * 8)) >> 24;
+
+        sum += v * kv;
     }
 
     float sumfp32 = float(sum) * descales_data[gz];

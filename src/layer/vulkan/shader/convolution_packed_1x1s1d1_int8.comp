@@ -32,7 +32,7 @@ layout(constant_id = shape_constant_id_offset + 7) const int num_input = 0;
 
 layout(binding = 0) readonly buffer bottom_blob { sint8vec4 bottom_blob_int8_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
-layout(binding = 2) readonly buffer weight_blob { sint8vec4 weight_data[]; };
+layout(binding = 2) readonly buffer weight_blob { ivec4 weight_data[]; };
 layout(binding = 3) readonly buffer bias_blob { sfpvec4 bias_data[]; };
 layout(binding = 4) readonly buffer weight_descales_blob { vec4 weight_descales_data[]; };
 layout(binding = 5) readonly buffer top_scales_blob { sfp top_scales_data[]; };
@@ -49,8 +49,8 @@ layout(push_constant) uniform parameter
 } p;
 
 #if NCNN_shader_local_memory
-shared int tmp_v[8][LOCAL_MEMORY_UNROLL_INCH][4];
-shared int tmp_k[8][LOCAL_MEMORY_UNROLL_INCH][4];
+shared ivec4 tmp_v[8][LOCAL_MEMORY_UNROLL_INCH];
+shared ivec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH];
 #endif
 
 void main()
@@ -79,74 +79,77 @@ void main()
     int z = 0;
     for (; z + (LOCAL_MEMORY_UNROLL_INCH - 1) < psc(c); z += LOCAL_MEMORY_UNROLL_INCH)
     {
-        if (ly < 4)
+        if (ly < LOCAL_MEMORY_UNROLL_INCH)
         {
-            for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+            const int zz = z + ly;
+
+            if (elempack == 4)
             {
-                const int zz = z + z4;
-                int v4p = 0;
+                int v0p = 0;
+                int v1p = 0;
+                int v2p = 0;
+                int v3p = 0;
 
                 if (gx < psc(size))
                 {
-                    if (elempack == 4)
-                    {
-                        v4p = i8buffer_sm4(bottom_blob_int8_data, base_pos + ly + zz * psc(cstep));
-                    }
-                    else // elempack == 1
-                    {
-                        const int ci = zz * 4 + ly;
-                        if (ci < num_input)
-                            v4p = i8buffer_sm4(bottom_blob_int8_data, gx + ci * psc(cstep));
-                    }
+                    const int v_offset = base_pos + zz * psc(cstep);
+                    v0p = i8buffer_sm4(bottom_blob_int8_data, v_offset + 0);
+                    v1p = i8buffer_sm4(bottom_blob_int8_data, v_offset + 1);
+                    v2p = i8buffer_sm4(bottom_blob_int8_data, v_offset + 2);
+                    v3p = i8buffer_sm4(bottom_blob_int8_data, v_offset + 3);
                 }
 
-                tmp_v[lx][z4][ly] = v4p;
+                tmp_v[lx][ly] = ivec4(v0p, v1p, v2p, v3p);
+            }
+            else // elempack == 1
+            {
+                const int ci = zz * 4;
+
+                int r0p = 0;
+                int r1p = 0;
+                int r2p = 0;
+                int r3p = 0;
+
+                if (gx < psc(size))
+                {
+                    r0p = i8buffer_sm4(bottom_blob_int8_data, gx + ci * psc(cstep));
+                    if (ci + 1 < num_input) r1p = i8buffer_sm4(bottom_blob_int8_data, gx + (ci + 1) * psc(cstep));
+                    if (ci + 2 < num_input) r2p = i8buffer_sm4(bottom_blob_int8_data, gx + (ci + 2) * psc(cstep));
+                    if (ci + 3 < num_input) r3p = i8buffer_sm4(bottom_blob_int8_data, gx + (ci + 3) * psc(cstep));
+                }
+
+                const ivec4 r0 = unpackInt4x8(r0p);
+                const ivec4 r1 = unpackInt4x8(r1p);
+                const ivec4 r2 = unpackInt4x8(r2p);
+                const ivec4 r3 = unpackInt4x8(r3p);
+
+                tmp_v[lx][ly] = ivec4(packInt4x8(ivec4(r0.r, r1.r, r2.r, r3.r)),
+                                      packInt4x8(ivec4(r0.g, r1.g, r2.g, r3.g)),
+                                      packInt4x8(ivec4(r0.b, r1.b, r2.b, r3.b)),
+                                      packInt4x8(ivec4(r0.a, r1.a, r2.a, r3.a)));
             }
         }
 
-        if (lx < 4)
+        if (lx < LOCAL_MEMORY_UNROLL_INCH)
         {
-            for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
-            {
-                int k4p = i8buffer_sm4(weight_data, w_offset + z4 * 4 + lx);
-
-                tmp_k[ly][z4][lx] = k4p;
-            }
+            tmp_k[ly][lx] = weight_data[w_offset / 4 + lx];
         }
 
         barrier();
 
         for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
         {
-            int v0p;
-            int v1p;
-            int v2p;
-            int v3p;
+            const ivec4 vp = tmp_v[lx][z4];
+            const int v0p = vp.r;
+            const int v1p = vp.g;
+            const int v2p = vp.b;
+            const int v3p = vp.a;
 
-            if (elempack == 1)
-            {
-                const ivec4 r0 = unpackInt4x8(tmp_v[lx][z4][0]);
-                const ivec4 r1 = unpackInt4x8(tmp_v[lx][z4][1]);
-                const ivec4 r2 = unpackInt4x8(tmp_v[lx][z4][2]);
-                const ivec4 r3 = unpackInt4x8(tmp_v[lx][z4][3]);
-
-                v0p = packInt4x8(ivec4(r0.r, r1.r, r2.r, r3.r));
-                v1p = packInt4x8(ivec4(r0.g, r1.g, r2.g, r3.g));
-                v2p = packInt4x8(ivec4(r0.b, r1.b, r2.b, r3.b));
-                v3p = packInt4x8(ivec4(r0.a, r1.a, r2.a, r3.a));
-            }
-            else
-            {
-                v0p = tmp_v[lx][z4][0];
-                v1p = tmp_v[lx][z4][1];
-                v2p = tmp_v[lx][z4][2];
-                v3p = tmp_v[lx][z4][3];
-            }
-
-            const int k0p = tmp_k[ly][z4][0];
-            const int k1p = tmp_k[ly][z4][1];
-            const int k2p = tmp_k[ly][z4][2];
-            const int k3p = tmp_k[ly][z4][3];
+            const ivec4 kp = tmp_k[ly][z4];
+            const int k0p = kp.r;
+            const int k1p = kp.g;
+            const int k2p = kp.b;
+            const int k3p = kp.a;
 
 #if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
             sum0 += ivec4(dotPacked4x8EXT(v0p, k0p), dotPacked4x8EXT(v0p, k1p), dotPacked4x8EXT(v0p, k2p), dotPacked4x8EXT(v0p, k3p));
@@ -192,74 +195,77 @@ void main()
     {
         const int remain = psc(c) - z;
 
-        if (ly < 4)
+        if (ly < remain)
         {
-            for (int z4 = 0; z4 < remain; z4++)
+            const int zz = z + ly;
+
+            if (elempack == 4)
             {
-                const int zz = z + z4;
-                int v4p = 0;
+                int v0p = 0;
+                int v1p = 0;
+                int v2p = 0;
+                int v3p = 0;
 
                 if (gx < psc(size))
                 {
-                    if (elempack == 4)
-                    {
-                        v4p = i8buffer_sm4(bottom_blob_int8_data, base_pos + ly + zz * psc(cstep));
-                    }
-                    else // elempack == 1
-                    {
-                        const int ci = zz * 4 + ly;
-                        if (ci < num_input)
-                            v4p = i8buffer_sm4(bottom_blob_int8_data, gx + ci * psc(cstep));
-                    }
+                    const int v_offset = base_pos + zz * psc(cstep);
+                    v0p = i8buffer_sm4(bottom_blob_int8_data, v_offset + 0);
+                    v1p = i8buffer_sm4(bottom_blob_int8_data, v_offset + 1);
+                    v2p = i8buffer_sm4(bottom_blob_int8_data, v_offset + 2);
+                    v3p = i8buffer_sm4(bottom_blob_int8_data, v_offset + 3);
                 }
 
-                tmp_v[lx][z4][ly] = v4p;
+                tmp_v[lx][ly] = ivec4(v0p, v1p, v2p, v3p);
+            }
+            else // elempack == 1
+            {
+                const int ci = zz * 4;
+
+                int r0p = 0;
+                int r1p = 0;
+                int r2p = 0;
+                int r3p = 0;
+
+                if (gx < psc(size))
+                {
+                    r0p = i8buffer_sm4(bottom_blob_int8_data, gx + ci * psc(cstep));
+                    if (ci + 1 < num_input) r1p = i8buffer_sm4(bottom_blob_int8_data, gx + (ci + 1) * psc(cstep));
+                    if (ci + 2 < num_input) r2p = i8buffer_sm4(bottom_blob_int8_data, gx + (ci + 2) * psc(cstep));
+                    if (ci + 3 < num_input) r3p = i8buffer_sm4(bottom_blob_int8_data, gx + (ci + 3) * psc(cstep));
+                }
+
+                const ivec4 r0 = unpackInt4x8(r0p);
+                const ivec4 r1 = unpackInt4x8(r1p);
+                const ivec4 r2 = unpackInt4x8(r2p);
+                const ivec4 r3 = unpackInt4x8(r3p);
+
+                tmp_v[lx][ly] = ivec4(packInt4x8(ivec4(r0.r, r1.r, r2.r, r3.r)),
+                                      packInt4x8(ivec4(r0.g, r1.g, r2.g, r3.g)),
+                                      packInt4x8(ivec4(r0.b, r1.b, r2.b, r3.b)),
+                                      packInt4x8(ivec4(r0.a, r1.a, r2.a, r3.a)));
             }
         }
 
-        if (lx < 4)
+        if (lx < remain)
         {
-            for (int z4 = 0; z4 < remain; z4++)
-            {
-                int k4p = i8buffer_sm4(weight_data, w_offset + z4 * 4 + lx);
-
-                tmp_k[ly][z4][lx] = k4p;
-            }
+            tmp_k[ly][lx] = weight_data[w_offset / 4 + lx];
         }
 
         barrier();
 
         for (int z4 = 0; z4 < remain; z4++)
         {
-            int v0p;
-            int v1p;
-            int v2p;
-            int v3p;
+            const ivec4 vp = tmp_v[lx][z4];
+            const int v0p = vp.r;
+            const int v1p = vp.g;
+            const int v2p = vp.b;
+            const int v3p = vp.a;
 
-            if (elempack == 1)
-            {
-                const ivec4 r0 = unpackInt4x8(tmp_v[lx][z4][0]);
-                const ivec4 r1 = unpackInt4x8(tmp_v[lx][z4][1]);
-                const ivec4 r2 = unpackInt4x8(tmp_v[lx][z4][2]);
-                const ivec4 r3 = unpackInt4x8(tmp_v[lx][z4][3]);
-
-                v0p = packInt4x8(ivec4(r0.r, r1.r, r2.r, r3.r));
-                v1p = packInt4x8(ivec4(r0.g, r1.g, r2.g, r3.g));
-                v2p = packInt4x8(ivec4(r0.b, r1.b, r2.b, r3.b));
-                v3p = packInt4x8(ivec4(r0.a, r1.a, r2.a, r3.a));
-            }
-            else
-            {
-                v0p = tmp_v[lx][z4][0];
-                v1p = tmp_v[lx][z4][1];
-                v2p = tmp_v[lx][z4][2];
-                v3p = tmp_v[lx][z4][3];
-            }
-
-            const int k0p = tmp_k[ly][z4][0];
-            const int k1p = tmp_k[ly][z4][1];
-            const int k2p = tmp_k[ly][z4][2];
-            const int k3p = tmp_k[ly][z4][3];
+            const ivec4 kp = tmp_k[ly][z4];
+            const int k0p = kp.r;
+            const int k1p = kp.g;
+            const int k2p = kp.b;
+            const int k3p = kp.a;
 
 #if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
             sum0 += ivec4(dotPacked4x8EXT(v0p, k0p), dotPacked4x8EXT(v0p, k1p), dotPacked4x8EXT(v0p, k2p), dotPacked4x8EXT(v0p, k3p));
@@ -328,10 +334,11 @@ void main()
             v3p = packInt4x8(ivec4(r0.a, r1.a, r2.a, r3.a));
         }
 
-        const int k0p = i8buffer_sm4(weight_data, w_offset + 0);
-        const int k1p = i8buffer_sm4(weight_data, w_offset + 1);
-        const int k2p = i8buffer_sm4(weight_data, w_offset + 2);
-        const int k3p = i8buffer_sm4(weight_data, w_offset + 3);
+        const ivec4 kp = weight_data[w_offset / 4];
+        const int k0p = kp.r;
+        const int k1p = kp.g;
+        const int k2p = kp.b;
+        const int k3p = kp.a;
 
         sum0 += ivec4(dotPacked4x8EXT(v0p, k0p), dotPacked4x8EXT(v0p, k1p), dotPacked4x8EXT(v0p, k2p), dotPacked4x8EXT(v0p, k3p));
         sum1 += ivec4(dotPacked4x8EXT(v1p, k0p), dotPacked4x8EXT(v1p, k1p), dotPacked4x8EXT(v1p, k2p), dotPacked4x8EXT(v1p, k3p));
@@ -366,10 +373,11 @@ void main()
             v3 = ivec4(r0.a, r1.a, r2.a, r3.a);
         }
 
-        const ivec4 k0 = i8buffer_ld4(weight_data, w_offset + 0);
-        const ivec4 k1 = i8buffer_ld4(weight_data, w_offset + 1);
-        const ivec4 k2 = i8buffer_ld4(weight_data, w_offset + 2);
-        const ivec4 k3 = i8buffer_ld4(weight_data, w_offset + 3);
+        const ivec4 kp = weight_data[w_offset / 4];
+        const ivec4 k0 = unpackInt4x8(kp.r);
+        const ivec4 k1 = unpackInt4x8(kp.g);
+        const ivec4 k2 = unpackInt4x8(kp.b);
+        const ivec4 k3 = unpackInt4x8(kp.a);
 
         sum0 += ivec4(v0.r * k0.r + v0.g * k0.g + v0.b * k0.b + v0.a * k0.a,
                       v0.r * k1.r + v0.g * k1.g + v0.b * k1.b + v0.a * k1.a,
