@@ -450,7 +450,6 @@ void main()
         const ivec4 v2 = unpackInt4x8(v2p);
         const ivec4 v3 = unpackInt4x8(v3p);
 
-        const ivec4 kp = weight_data[w_offset / 4];
         const ivec4 k0 = unpackInt4x8(kp.r);
         const ivec4 k1 = unpackInt4x8(kp.g);
         const ivec4 k2 = unpackInt4x8(kp.b);
