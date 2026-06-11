@@ -3,7 +3,7 @@
 
 #version 450
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct
 #extension GL_EXT_integer_dot_product : require
 #endif
 
@@ -54,7 +54,7 @@ void main()
         const int k2 = i8buffer_sm4(weight_data, w_offset * 4 + 2);
         const int k3 = i8buffer_sm4(weight_data, w_offset * 4 + 3);
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct
         sum += ivec4(dotPacked4x8EXT(v4, k0), dotPacked4x8EXT(v4, k1), dotPacked4x8EXT(v4, k2), dotPacked4x8EXT(v4, k3));
 #else
         const ivec4 v0 = unpackInt4x8(v4);

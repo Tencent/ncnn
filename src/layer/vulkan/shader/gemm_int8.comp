@@ -3,7 +3,7 @@
 
 #version 450
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct
 #extension GL_EXT_integer_dot_product : require
 #endif
 
@@ -99,7 +99,7 @@ void main()
         {
             const int kk = k4 * 4;
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct
             const int a0 = tmp_a[ly][kk + 0];
             const int a1 = tmp_a[ly][kk + 1];
             const int a2 = tmp_a[ly][kk + 2];
@@ -243,7 +243,7 @@ void main()
             if (k + 3 < p.K) b3.a = i8buffer_ld1(B_int8_data, bi + 3);
         }
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct
         const int a0_packed = packInt4x8(a0);
         const int a1_packed = packInt4x8(a1);
         const int a2_packed = packInt4x8(a2);

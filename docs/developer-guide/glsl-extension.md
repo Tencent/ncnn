@@ -420,7 +420,7 @@ void main()
     // here is the code path optimized for subgroup_size == 32
 #endif
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct
     // here is the packed int8 dot-product path
 #endif
 

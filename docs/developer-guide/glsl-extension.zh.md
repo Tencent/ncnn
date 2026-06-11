@@ -420,7 +420,7 @@ void main()
     // 为 subgroup_size == 32 优化的代码路径
 #endif
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct
     // packed int8 dot-product 路径
 #endif
 

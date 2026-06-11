@@ -3,7 +3,7 @@
 
 #version 450
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct
 #extension GL_EXT_integer_dot_product : require
 #endif
 
@@ -196,7 +196,7 @@ void main()
             const int k2p = kp.b;
             const int k3p = kp.a;
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct
             sum0 += ivec4(dotPacked4x8EXT(v0p, k0p), dotPacked4x8EXT(v0p, k1p), dotPacked4x8EXT(v0p, k2p), dotPacked4x8EXT(v0p, k3p));
             sum1 += ivec4(dotPacked4x8EXT(v1p, k0p), dotPacked4x8EXT(v1p, k1p), dotPacked4x8EXT(v1p, k2p), dotPacked4x8EXT(v1p, k3p));
             sum2 += ivec4(dotPacked4x8EXT(v2p, k0p), dotPacked4x8EXT(v2p, k1p), dotPacked4x8EXT(v2p, k2p), dotPacked4x8EXT(v2p, k3p));
@@ -333,7 +333,7 @@ void main()
             const int k2p = kp.b;
             const int k3p = kp.a;
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct
             sum0 += ivec4(dotPacked4x8EXT(v0p, k0p), dotPacked4x8EXT(v0p, k1p), dotPacked4x8EXT(v0p, k2p), dotPacked4x8EXT(v0p, k3p));
             sum1 += ivec4(dotPacked4x8EXT(v1p, k0p), dotPacked4x8EXT(v1p, k1p), dotPacked4x8EXT(v1p, k2p), dotPacked4x8EXT(v1p, k3p));
             sum2 += ivec4(dotPacked4x8EXT(v2p, k0p), dotPacked4x8EXT(v2p, k1p), dotPacked4x8EXT(v2p, k2p), dotPacked4x8EXT(v2p, k3p));
@@ -439,7 +439,7 @@ void main()
         const int k2p = kp.b;
         const int k3p = kp.a;
 
-#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct
         sum0 += ivec4(dotPacked4x8EXT(v0p, k0p), dotPacked4x8EXT(v0p, k1p), dotPacked4x8EXT(v0p, k2p), dotPacked4x8EXT(v0p, k3p));
         sum1 += ivec4(dotPacked4x8EXT(v1p, k0p), dotPacked4x8EXT(v1p, k1p), dotPacked4x8EXT(v1p, k2p), dotPacked4x8EXT(v1p, k3p));
         sum2 += ivec4(dotPacked4x8EXT(v2p, k0p), dotPacked4x8EXT(v2p, k1p), dotPacked4x8EXT(v2p, k2p), dotPacked4x8EXT(v2p, k3p));
