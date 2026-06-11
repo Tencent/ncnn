@@ -1250,10 +1250,10 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
         specializations[4].i = constantC;
         specializations[5].i = constant_broadcast_type_C;
         specializations[6].i = output_transpose;
-        specializations[7].i = constantM;
-        specializations[8].i = constantN;
-        specializations[9].i = constantK;
-        specializations[10].i = out_elempack;
+        specializations[7].u32 = constantM;
+        specializations[8].u32 = constantN;
+        specializations[9].u32 = constantK;
+        specializations[10].u32 = out_elempack;
 
         specializations[11 + 0].u32 = coopmat_M;
         specializations[11 + 1].u32 = coopmat_N;
@@ -1616,14 +1616,14 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
     }
 
     std::vector<vk_constant_type> constants(use_cooperative_matrix ? 6 : 5);
-    constants[0].i = M;
-    constants[1].i = N;
-    constants[2].i = K;
+    constants[0].u32 = M;
+    constants[1].u32 = N;
+    constants[2].u32 = K;
     constants[3].i = broadcast_type_C;
-    constants[4].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
+    constants[4].u32 = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
     if (use_cooperative_matrix)
     {
-        constants[5].i = out_elempack;
+        constants[5].u32 = out_elempack;
     }
 
     VkMat dispatcher;
