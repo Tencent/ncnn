@@ -657,88 +657,125 @@ int Padding_vulkan::create_pipeline_int8(const Option& opt)
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
+    Mat shape_int8;
+    if (shape.dims == 1) shape_int8 = Mat(shape.w, (void*)0, (size_t)shape.elempack, shape.elempack);
+    if (shape.dims == 2) shape_int8 = Mat(shape.w, shape.h, (void*)0, (size_t)shape.elempack, shape.elempack);
+    if (shape.dims == 3) shape_int8 = Mat(shape.w, shape.h, shape.c, (void*)0, (size_t)shape.elempack, shape.elempack);
+    if (shape.dims == 4) shape_int8 = Mat(shape.w, shape.h, shape.d, shape.c, (void*)0, (size_t)shape.elempack, shape.elempack);
+
+    Mat out_shape_int8;
+    if (out_shape.dims == 1) out_shape_int8 = Mat(out_shape.w, (void*)0, (size_t)out_shape.elempack, out_shape.elempack);
+    if (out_shape.dims == 2) out_shape_int8 = Mat(out_shape.w, out_shape.h, (void*)0, (size_t)out_shape.elempack, out_shape.elempack);
+    if (out_shape.dims == 3) out_shape_int8 = Mat(out_shape.w, out_shape.h, out_shape.c, (void*)0, (size_t)out_shape.elempack, out_shape.elempack);
+    if (out_shape.dims == 4) out_shape_int8 = Mat(out_shape.w, out_shape.h, out_shape.d, out_shape.c, (void*)0, (size_t)out_shape.elempack, out_shape.elempack);
+
     int offset_elempack = 1;
-    if (shape.dims == 1)
+    if (shape_int8.dims == 1)
     {
         if (left == 0)
-            offset_elempack = shape.elempack;
+            offset_elempack = shape_int8.elempack;
         else
             offset_elempack = left % 4 == 0 ? 4 : 1;
     }
-    else if (shape.dims == 2)
+    else if (shape_int8.dims == 2)
     {
         if (top == 0)
-            offset_elempack = shape.elempack;
+            offset_elempack = shape_int8.elempack;
         else
             offset_elempack = top % 4 == 0 ? 4 : 1;
     }
-    else if (shape.dims == 3)
+    else if (shape_int8.dims == 3)
     {
         if (front == 0)
-            offset_elempack = shape.elempack;
+            offset_elempack = shape_int8.elempack;
         else
             offset_elempack = front % 4 == 0 ? 4 : 1;
     }
-    else // if (shape.dims == 4)
+    else // if (shape_int8.dims == 4)
     {
-        offset_elempack = shape.elempack;
+        offset_elempack = shape_int8.elempack;
     }
 
-    offset_elempack = std::min(offset_elempack, shape.elempack);
+    offset_elempack = std::min(offset_elempack, shape_int8.elempack);
+
+    Mat shape_unpacked = shape_int8;
+    if (one_blob_only && shape_int8.dims != 0 && shape_int8.elempack > offset_elempack)
+    {
+        size_t offset_elemsize = shape_int8.elemsize / shape_int8.elempack * offset_elempack;
+
+        if (shape_int8.dims == 1) shape_unpacked = Mat(shape_int8.w * shape_int8.elempack / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
+        if (shape_int8.dims == 2) shape_unpacked = Mat(shape_int8.w, shape_int8.h * shape_int8.elempack / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
+        if (shape_int8.dims == 3) shape_unpacked = Mat(shape_int8.w, shape_int8.h, shape_int8.c * shape_int8.elempack / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
+        // if (shape_int8.dims == 4) should never reach here
+    }
 
     std::vector<vk_specialization_type> specializations(3 + 10);
     specializations[0].i = type;
     specializations[1].f = value;
     specializations[2].i = per_channel_pad_data_size ? 1 : 0;
-    for (int i = 0; i < 10; i++)
-    {
-        specializations[3 + i].i = 0;
-    }
+    specializations[3 + 0].i = shape_unpacked.dims;
+    specializations[3 + 1].i = shape_unpacked.w;
+    specializations[3 + 2].i = shape_unpacked.h;
+    specializations[3 + 3].i = shape_unpacked.c;
+    specializations[3 + 4].i = shape_unpacked.cstep;
+    specializations[3 + 5].i = out_shape_int8.dims;
+    specializations[3 + 6].i = out_shape_int8.w;
+    specializations[3 + 7].i = out_shape_int8.h;
+    specializations[3 + 8].i = out_shape_int8.c;
+    specializations[3 + 9].i = out_shape_int8.cstep;
 
     std::vector<vk_specialization_type> specializations_3d(3 + 12);
     specializations_3d[0].i = type;
     specializations_3d[1].f = value;
     specializations_3d[2].i = per_channel_pad_data_size ? 1 : 0;
-    for (int i = 0; i < 12; i++)
-    {
-        specializations_3d[3 + i].i = 0;
-    }
+    specializations_3d[3 + 0].i = shape_unpacked.dims;
+    specializations_3d[3 + 1].i = shape_unpacked.w;
+    specializations_3d[3 + 2].i = shape_unpacked.h;
+    specializations_3d[3 + 3].i = shape_unpacked.d;
+    specializations_3d[3 + 4].i = shape_unpacked.c;
+    specializations_3d[3 + 5].i = shape_unpacked.cstep;
+    specializations_3d[3 + 6].i = out_shape_int8.dims;
+    specializations_3d[3 + 7].i = out_shape_int8.w;
+    specializations_3d[3 + 8].i = out_shape_int8.h;
+    specializations_3d[3 + 9].i = out_shape_int8.d;
+    specializations_3d[3 + 10].i = out_shape_int8.c;
+    specializations_3d[3 + 11].i = out_shape_int8.cstep;
 
     Mat local_size_xyz;
-    if (out_shape.dims == 1)
+    if (out_shape_int8.dims == 1)
     {
-        local_size_xyz.w = std::min(64, out_shape.w);
+        local_size_xyz.w = std::min(64, out_shape_int8.w);
         local_size_xyz.h = 1;
         local_size_xyz.c = 1;
     }
-    if (out_shape.dims == 2)
+    if (out_shape_int8.dims == 2)
     {
-        local_size_xyz.w = std::min(8, out_shape.w);
-        local_size_xyz.h = std::min(8, out_shape.h);
+        local_size_xyz.w = std::min(8, out_shape_int8.w);
+        local_size_xyz.h = std::min(8, out_shape_int8.h);
         local_size_xyz.c = 1;
     }
-    if (out_shape.dims == 3)
+    if (out_shape_int8.dims == 3)
     {
-        local_size_xyz.w = std::min(4, out_shape.w);
-        local_size_xyz.h = std::min(4, out_shape.h);
-        local_size_xyz.c = std::min(4, out_shape.c);
+        local_size_xyz.w = std::min(4, out_shape_int8.w);
+        local_size_xyz.h = std::min(4, out_shape_int8.h);
+        local_size_xyz.c = std::min(4, out_shape_int8.c);
     }
-    if (out_shape.dims == 4)
+    if (out_shape_int8.dims == 4)
     {
-        local_size_xyz.w = std::min(4, out_shape.w);
-        local_size_xyz.h = std::min(4, out_shape.h * out_shape.d);
-        local_size_xyz.c = std::min(4, out_shape.c);
+        local_size_xyz.w = std::min(4, out_shape_int8.w);
+        local_size_xyz.h = std::min(4, out_shape_int8.h * out_shape_int8.d);
+        local_size_xyz.c = std::min(4, out_shape_int8.c);
     }
 
     // pack1
-    if (out_shape.dims == 0 || (out_shape.dims != 4 && offset_elempack == 1 && out_shape.elempack == 1))
+    if (out_shape_int8.dims == 0 || (out_shape_int8.dims != 4 && offset_elempack == 1 && out_shape_int8.elempack == 1))
     {
         pipeline_padding_int8 = new Pipeline(vkdev);
         pipeline_padding_int8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_padding_int8->create(LayerShaderType::padding_int8, opt, specializations);
     }
 
-    if (out_shape.dims == 0 || (out_shape.dims == 4 && offset_elempack == 1 && out_shape.elempack == 1))
+    if (out_shape_int8.dims == 0 || (out_shape_int8.dims == 4 && offset_elempack == 1 && out_shape_int8.elempack == 1))
     {
         pipeline_padding_3d_int8 = new Pipeline(vkdev);
         pipeline_padding_3d_int8->set_optimal_local_size_xyz(local_size_xyz);
@@ -746,14 +783,14 @@ int Padding_vulkan::create_pipeline_int8(const Option& opt)
     }
 
     // pack4
-    if (out_shape.dims == 0 || (out_shape.dims != 4 && offset_elempack == 4 && out_shape.elempack == 4))
+    if (out_shape_int8.dims == 0 || (out_shape_int8.dims != 4 && offset_elempack == 4 && out_shape_int8.elempack == 4))
     {
         pipeline_padding_pack4_int8 = new Pipeline(vkdev);
         pipeline_padding_pack4_int8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_padding_pack4_int8->create(LayerShaderType::padding_pack4_int8, opt, specializations);
     }
 
-    if (out_shape.dims == 0 || (out_shape.dims == 4 && offset_elempack == 4 && out_shape.elempack == 4))
+    if (out_shape_int8.dims == 0 || (out_shape_int8.dims == 4 && offset_elempack == 4 && out_shape_int8.elempack == 4))
     {
         pipeline_padding_3d_pack4_int8 = new Pipeline(vkdev);
         pipeline_padding_3d_pack4_int8->set_optimal_local_size_xyz(local_size_xyz);
@@ -761,7 +798,7 @@ int Padding_vulkan::create_pipeline_int8(const Option& opt)
     }
 
     // pack1to4
-    if (out_shape.dims == 0 || (offset_elempack == 1 && out_shape.elempack == 4))
+    if (out_shape_int8.dims == 0 || (offset_elempack == 1 && out_shape_int8.elempack == 4))
     {
         pipeline_padding_pack1to4_int8 = new Pipeline(vkdev);
         pipeline_padding_pack1to4_int8->set_optimal_local_size_xyz(local_size_xyz);
@@ -769,7 +806,7 @@ int Padding_vulkan::create_pipeline_int8(const Option& opt)
     }
 
     // pack4to1
-    if (out_shape.dims == 0 || (offset_elempack == 4 && out_shape.elempack == 1))
+    if (out_shape_int8.dims == 0 || (offset_elempack == 4 && out_shape_int8.elempack == 1))
     {
         pipeline_padding_pack4to1_int8 = new Pipeline(vkdev);
         pipeline_padding_pack4to1_int8->set_optimal_local_size_xyz(local_size_xyz);
