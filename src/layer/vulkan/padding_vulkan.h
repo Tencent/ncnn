@@ -34,6 +34,7 @@ public:
     VkMat per_channel_pad_data_gpu;
 
 #if NCNN_INT8
+    Mat per_channel_pad_data_int8;
     VkMat per_channel_pad_data_int8_gpu;
 #endif // NCNN_INT8
 

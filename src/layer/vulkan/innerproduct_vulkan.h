@@ -48,6 +48,7 @@ public:
 
     Mat weight_data_int8_packed;
     Mat weight_data_int8_descales;
+    Mat bias_data_int8_packed;
 
     VkMat weight_data_int8_descales_gpu;
 

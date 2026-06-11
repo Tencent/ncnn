@@ -85,6 +85,7 @@ public:
     Mat weight_winograd43_data_int8_packed;
     Mat weight_winograd43_data_int8_packed_cm;
     Mat weight_data_int8_descales;
+    Mat bias_data_int8_packed;
 
     VkMat weight_data_int8_descales_gpu;
     VkMat top_blob_int8_scales_gpu;

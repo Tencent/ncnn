@@ -2732,6 +2732,27 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
         }
     }
 
+    if (bias_term)
+    {
+        int num_output_packed = (num_output + 3) / 4 * 4;
+        if (!is_conv1x1s1d1 && !use_winograd && !use_gemm)
+            num_output_packed = (num_output + 7) / 8 * 8;
+
+        bias_data_int8_packed.create(num_output_packed, (size_t)4u, 1);
+        if (bias_data_int8_packed.empty())
+            return -100;
+
+        float* outptr = bias_data_int8_packed;
+        for (int q = 0; q < num_output_packed; q += 4)
+        {
+            outptr[0] = q + 0 < num_output ? bias_data[q + 0] : 0.f;
+            outptr[1] = q + 1 < num_output ? bias_data[q + 1] : 0.f;
+            outptr[2] = q + 2 < num_output ? bias_data[q + 2] : 0.f;
+            outptr[3] = q + 3 < num_output ? bias_data[q + 3] : 0.f;
+            outptr += 4;
+        }
+    }
+
     if (use_winograd)
     {
         if (use_winograd43)
@@ -3386,10 +3407,8 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
-    const bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     const bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     const bool use_winograd = opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16;
-    const bool use_gemm = opt.use_sgemm_convolution && !is_conv1x1s1d1 && !use_winograd && num_input * maxk >= 8 && num_output >= 8;
 
     if (use_winograd)
     {
@@ -3453,28 +3472,12 @@ int Convolution_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
     if (bias_term)
     {
-        int num_output_packed = (num_output + 3) / 4 * 4;
-        if (!is_conv1x1s1d1 && !use_winograd && !use_gemm)
-            num_output_packed = (num_output + 7) / 8 * 8;
-
-        Mat bias_data_packed;
-        bias_data_packed.create(num_output_packed, (size_t)4u, 1);
-
-        float* outptr = bias_data_packed;
-        for (int q = 0; q < num_output_packed; q += 4)
-        {
-            outptr[0] = q + 0 < num_output ? bias_data[q + 0] : 0.f;
-            outptr[1] = q + 1 < num_output ? bias_data[q + 1] : 0.f;
-            outptr[2] = q + 2 < num_output ? bias_data[q + 2] : 0.f;
-            outptr[3] = q + 3 < num_output ? bias_data[q + 3] : 0.f;
-            outptr += 4;
-        }
-
         if (use_winograd)
-            cmd.record_upload(bias_data_packed, bias_data_gpu, opt_fp32);
+            cmd.record_upload(bias_data_int8_packed, bias_data_gpu, opt_fp32);
         else
-            cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
+            cmd.record_upload(bias_data_int8_packed, bias_data_gpu, opt);
 
+        bias_data_int8_packed.release();
         bias_data.release();
     }
 

@@ -565,6 +565,20 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
         }
     }
 
+    if (bias_term)
+    {
+        bias_data_int8_packed.create(num_output_packed / 4, (size_t)4u * 4, 4);
+        if (bias_data_int8_packed.empty())
+            return -100;
+        bias_data_int8_packed.fill(0.f);
+
+        float* outptr = bias_data_int8_packed;
+        for (int q = 0; q < num_output; q++)
+        {
+            outptr[q] = bias_data[q];
+        }
+    }
+
     Option opt_int8 = opt;
     opt_int8.use_fp16_arithmetic = false;
     opt_int8.use_int16_packed = false;
@@ -809,20 +823,9 @@ int InnerProduct_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 
     if (bias_term)
     {
-        const int num_output_packed = (num_output + 3) / 4 * 4;
+        cmd.record_upload(bias_data_int8_packed, bias_data_gpu, opt);
 
-        Mat bias_data_packed;
-        bias_data_packed.create(num_output_packed / 4, (size_t)4u * 4, 4);
-        bias_data_packed.fill(0.f);
-
-        float* outptr = bias_data_packed;
-        for (int q = 0; q < num_output; q++)
-        {
-            outptr[q] = bias_data[q];
-        }
-
-        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
-
+        bias_data_int8_packed.release();
         bias_data.release();
     }
 
