@@ -305,6 +305,8 @@ void main()
 #else
     for (int z = 0; z < psc(c); z++)
     {
+        const ivec4 kp = weight_data[w_offset / 4];
+
 #if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
         int v0p;
         int v1p;
@@ -334,7 +336,6 @@ void main()
             v3p = packInt4x8(ivec4(r0.a, r1.a, r2.a, r3.a));
         }
 
-        const ivec4 kp = weight_data[w_offset / 4];
         const int k0p = kp.r;
         const int k1p = kp.g;
         const int k2p = kp.b;
