@@ -187,10 +187,26 @@ void main()
                             const uvec4 sx = gm4 - sy * psc(outw);
                             const uvec4 spatial = (sy * stride_h + ky * dilation_h) * psc(w) + sx * stride_w + kx * dilation_w;
 
-                            if (gm4.r < size) { const uint gi = sz * psc(cstep) + spatial.r; v4.r = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4]; }
-                            if (gm4.g < size) { const uint gi = sz * psc(cstep) + spatial.g; v4.g = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4]; }
-                            if (gm4.b < size) { const uint gi = sz * psc(cstep) + spatial.b; v4.b = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4]; }
-                            if (gm4.a < size) { const uint gi = sz * psc(cstep) + spatial.a; v4.a = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4]; }
+                            if (gm4.r < size)
+                            {
+                                const uint gi = sz * psc(cstep) + spatial.r;
+                                v4.r = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4];
+                            }
+                            if (gm4.g < size)
+                            {
+                                const uint gi = sz * psc(cstep) + spatial.g;
+                                v4.g = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4];
+                            }
+                            if (gm4.b < size)
+                            {
+                                const uint gi = sz * psc(cstep) + spatial.b;
+                                v4.b = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4];
+                            }
+                            if (gm4.a < size)
+                            {
+                                const uint gi = sz * psc(cstep) + spatial.a;
+                                v4.a = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4];
+                            }
                         }
 
                         prefetch_tmp_v[q] = packInt4x8(v4);
@@ -337,10 +353,26 @@ void main()
                                 const uvec4 sx = gm4 - sy * psc(outw);
                                 const uvec4 spatial = (sy * stride_h + ky * dilation_h) * psc(w) + sx * stride_w + kx * dilation_w;
 
-                                if (gm4.r < size) { const uint gi = sz * psc(cstep) + spatial.r; v4.r = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4]; }
-                                if (gm4.g < size) { const uint gi = sz * psc(cstep) + spatial.g; v4.g = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4]; }
-                                if (gm4.b < size) { const uint gi = sz * psc(cstep) + spatial.b; v4.b = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4]; }
-                                if (gm4.a < size) { const uint gi = sz * psc(cstep) + spatial.a; v4.a = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4]; }
+                                if (gm4.r < size)
+                                {
+                                    const uint gi = sz * psc(cstep) + spatial.r;
+                                    v4.r = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4];
+                                }
+                                if (gm4.g < size)
+                                {
+                                    const uint gi = sz * psc(cstep) + spatial.g;
+                                    v4.g = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4];
+                                }
+                                if (gm4.b < size)
+                                {
+                                    const uint gi = sz * psc(cstep) + spatial.b;
+                                    v4.b = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4];
+                                }
+                                if (gm4.a < size)
+                                {
+                                    const uint gi = sz * psc(cstep) + spatial.a;
+                                    v4.a = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4];
+                                }
                             }
 
                             prefetch_tmp_v[q] = packInt4x8(v4);
@@ -597,10 +629,26 @@ void main()
                                 const uvec4 sx = gm4 - sy * psc(outw);
                                 const uvec4 spatial = (sy * stride_h + ky * dilation_h) * psc(w) + sx * stride_w + kx * dilation_w;
 
-                                if (gm4.r < size) { const uint gi = sz * psc(cstep) + spatial.r; v4.r = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4]; }
-                                if (gm4.g < size) { const uint gi = sz * psc(cstep) + spatial.g; v4.g = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4]; }
-                                if (gm4.b < size) { const uint gi = sz * psc(cstep) + spatial.b; v4.b = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4]; }
-                                if (gm4.a < size) { const uint gi = sz * psc(cstep) + spatial.a; v4.a = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4]; }
+                                if (gm4.r < size)
+                                {
+                                    const uint gi = sz * psc(cstep) + spatial.r;
+                                    v4.r = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4];
+                                }
+                                if (gm4.g < size)
+                                {
+                                    const uint gi = sz * psc(cstep) + spatial.g;
+                                    v4.g = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4];
+                                }
+                                if (gm4.b < size)
+                                {
+                                    const uint gi = sz * psc(cstep) + spatial.b;
+                                    v4.b = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4];
+                                }
+                                if (gm4.a < size)
+                                {
+                                    const uint gi = sz * psc(cstep) + spatial.a;
+                                    v4.a = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4];
+                                }
                             }
 
                             tmp_v[sgmi][siq] = packInt4x8(v4);
