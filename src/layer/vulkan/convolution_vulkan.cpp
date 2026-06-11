@@ -3572,16 +3572,6 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
 
     const int elempack = opt.use_packing_layout && num_input % 4 == 0 ? 4 : 1;
 
-    if (bottom.elempack != elempack)
-    {
-        Option opt_pack = opt;
-        opt_pack.blob_vkallocator = opt.workspace_vkallocator;
-
-        VkMat bottom_packed;
-        vkdev->convert_packing(bottom, bottom_packed, elempack, cmd, opt_pack);
-        bottom = bottom_packed;
-    }
-
     if (!bottom_is_int8)
     {
         Option opt_quantize = opt;
@@ -3689,18 +3679,6 @@ int Convolution_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, 
             w = bottom.w;
             h = bottom.h;
         }
-    }
-
-    if (bottom.elempack != elempack)
-    {
-        Option opt_pack = opt;
-        opt_pack.blob_vkallocator = opt.workspace_vkallocator;
-
-        VkMat bottom_packed;
-        vkdev->convert_packing(bottom, bottom_packed, elempack, cmd, opt_pack);
-        bottom = bottom_packed;
-        w = bottom.w;
-        h = bottom.h;
     }
 
     const int outw = (w - kernel_extent_w) / stride_w + 1;
