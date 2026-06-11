@@ -16,7 +16,7 @@ layout(constant_id = 0) const int bias_term = 0;
 layout(constant_id = 1) const int activation_type = 0;
 layout(constant_id = 2) const float activation_param_0 = 0;
 layout(constant_id = 3) const float activation_param_1 = 0;
-layout(constant_id = 4) const int out_elempack = 1;
+layout(constant_id = 4) const int input_elempack = 1;
 layout(constant_id = 5) const int weight_data_stride = 0;
 
 #define shape_constant_id_offset 6
@@ -76,8 +76,8 @@ void main()
         return;
 #endif
 
-    const int input_elempack = psc(c);
-    const int output_elempack = out_elempack == 0 ? psc(c) : out_elempack;
+    const int elempack = input_elempack == 0 ? psc(c) : input_elempack;
+    const int output_elempack = elempack;
 
     ivec4 sum0 = ivec4(0);
     ivec4 sum1 = ivec4(0);
@@ -96,7 +96,7 @@ void main()
             const uint vy = gy * 4 + lx % 4;
             if (vy < psc(outh) && vk < psc(w))
             {
-                if (input_elempack == 4)
+                if (elempack == 4)
                 {
                     ivec4 v4 = ivec4(0);
                     const int vy4 = int(vy) / 4;
@@ -109,7 +109,7 @@ void main()
 
                     v = packInt4x8(v4);
                 }
-                else // input_elempack == 1
+                else // elempack == 1
                 {
                     ivec4 v4 = ivec4(0);
                     const int vi = int(vy) * psc(cstep) + vk;
@@ -200,7 +200,7 @@ void main()
 
         if (i < psc(w))
         {
-            if (input_elempack == 4)
+            if (elempack == 4)
             {
                 if (gy4.r < psc(outh))
                 {
@@ -255,7 +255,7 @@ void main()
                     v3 = packInt4x8(v);
                 }
             }
-            else // input_elempack == 1
+            else // elempack == 1
             {
                 if (gy4.r < psc(outh))
                 {

@@ -1041,12 +1041,12 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
         specializations[12 + 8].i = out_shape_int8.c;
         specializations[12 + 9].i = out_shape_int8.cstep;
 
-        Mat local_size_xyz(8, 8, std::min(4, num_output), (void*)0);
+        Mat local_size_xyz(8, 8, std::min(4, num_output / out_elempack), (void*)0);
         if (out_shape.dims != 0)
         {
             local_size_xyz.w = std::min(8, out_shape.w);
             local_size_xyz.h = std::min(8, out_shape.h);
-            local_size_xyz.c = std::min(4, num_output);
+            local_size_xyz.c = std::min(4, out_shape_int8.c);
         }
 
         if (opt.use_packing_layout && group % 4 == 0)
