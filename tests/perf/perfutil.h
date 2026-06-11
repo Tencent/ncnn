@@ -14,6 +14,11 @@ ncnn::Mat PerfMat(int w, int h, float v = 0.01f);
 ncnn::Mat PerfMat(int w, int h, int c, float v = 0.01f);
 ncnn::Mat PerfMat(int w, int h, int d, int c, float v = 0.01f);
 
+int perf_env_int(const char* name, int default_value, int min_value = 0);
+bool perf_has_env(const char* name);
+bool perf_match_env_int(const char* name, int value);
+bool perf_match_env_string(const char* name, const char* value);
+
 // high-level perf entry point: benchmark a layer across all precision and GPU variations
 // layer_type: ncnn layer type name (e.g. "Convolution")
 // pd, weights, input(s): layer configuration

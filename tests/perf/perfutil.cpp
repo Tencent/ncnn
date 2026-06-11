@@ -11,6 +11,7 @@
 #include <float.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #if NCNN_VULKAN
@@ -24,6 +25,40 @@
 #define PERF_GPU_WARMUP_BATCH 100
 #define PERF_RUN_COUNT        20
 #define PERF_TARGET_MIN_MS    5.0
+
+int perf_env_int(const char* name, int default_value, int min_value)
+{
+    const char* s = getenv(name);
+    if (!s || !s[0])
+        return default_value;
+
+    int v = atoi(s);
+    return v < min_value ? min_value : v;
+}
+
+bool perf_has_env(const char* name)
+{
+    const char* s = getenv(name);
+    return s && s[0];
+}
+
+bool perf_match_env_int(const char* name, int value)
+{
+    const char* s = getenv(name);
+    if (!s || !s[0])
+        return true;
+
+    return atoi(s) == value;
+}
+
+bool perf_match_env_string(const char* name, const char* value)
+{
+    const char* s = getenv(name);
+    if (!s || !s[0])
+        return true;
+
+    return strcmp(s, value) == 0;
+}
 
 // benchmark result for a single test case
 struct PerfResult
