@@ -420,19 +420,20 @@ void main()
                     }
                 }
             }
+        }
+        {
+            const uint K_Nd4p_USGN_USGK = K * Nd4p * UNROLL_SG_N * UNROLL_SG_K;
+            const uint K_Nd4p_USGN_USGK_d_subgroupsize = (K_Nd4p_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
+            [[unroll]] for (uint q = 0; q < K_Nd4p_USGN_USGK_d_subgroupsize; q++)
             {
-                const uint K_Nd4p_USGN_USGK = K * Nd4p * UNROLL_SG_N * UNROLL_SG_K;
-                const uint K_Nd4p_USGN_USGK_d_subgroupsize = (K_Nd4p_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
-                [[unroll]] for (uint q = 0; q < K_Nd4p_USGN_USGK_d_subgroupsize; q++)
-                {
-                    const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
+                const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                    if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
-                    {
-                        tmp_k[sgni][siq] = prefetch_tmp_k[q];
-                    }
+                if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
+                {
+                    tmp_k[sgni][siq] = prefetch_tmp_k[q];
                 }
             }
+        }
 
         barrier();
 
