@@ -758,6 +758,25 @@ int Convolution_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, c
 {
     int elembits = bottom_blob.elembits();
 
+    // flattened blob, implement as InnerProduct
+    if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
+    {
+        Mat bottom_blob_3d = bottom_blob.reshape(1, 1, bottom_blob.w, opt.workspace_allocator);
+        if (bottom_blob_3d.empty())
+            return -100;
+
+        Mat top_blob_3d;
+        int ret = forward_int8_mips(bottom_blob_3d, top_blob_3d, opt);
+        if (ret != 0)
+            return ret;
+
+        top_blob = top_blob_3d.reshape(top_blob_3d.w * top_blob_3d.h * top_blob_3d.c, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        return 0;
+    }
+
     Mat bottom_blob_int8 = bottom_blob;
     if (elembits != 8)
     {

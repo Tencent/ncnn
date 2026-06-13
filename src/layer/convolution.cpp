@@ -380,6 +380,52 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     //     NCNN_LOGE("Convolution input %d x %d  ksize=%d %d  stride=%d %d", w, h, kernel_w, kernel_h, stride_w, stride_h);
 
+    // flattened blob, implement as InnerProduct
+    if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
+    {
+        int num_input = weight_data_size / num_output;
+        if (bottom_blob.w * bottom_blob.elempack == num_input)
+        {
+            // call InnerProduct
+            ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::InnerProduct);
+
+            // set param
+            ncnn::ParamDict pd;
+            pd.set(0, num_output);
+            pd.set(1, bias_term);
+            pd.set(2, weight_data_size);
+            pd.set(8, int8_scale_term);
+            pd.set(9, activation_type);
+            pd.set(10, activation_params);
+
+            op->load_param(pd);
+
+            // set weights
+            ncnn::Mat weights[4];
+            weights[0] = weight_data;
+            weights[1] = bias_data;
+
+            if (int8_scale_term)
+            {
+                weights[2] = weight_data_int8_scales;
+                weights[3] = bottom_blob_int8_scales;
+            }
+
+            op->load_model(ModelBinFromMatArray(weights));
+
+            op->create_pipeline(opt);
+
+            // forward
+            int ret = op->forward(bottom_blob, top_blob, opt);
+
+            op->destroy_pipeline(opt);
+
+            delete op;
+
+            return ret;
+        }
+    }
+
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
