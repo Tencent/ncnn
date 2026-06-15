@@ -68,7 +68,9 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
     }
 
     const int subgroup_size = vkdev->info.subgroup_size();
-    use_subgroup_ops = opt.use_subgroup_ops && (vkdev->info.support_subgroup_ops() & (VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT));
+    const uint32_t support_subgroup_ops = vkdev->info.support_subgroup_ops();
+    const uint32_t required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+    use_subgroup_ops = opt.use_subgroup_ops && ((support_subgroup_ops & required_subgroup_ops) == required_subgroup_ops);
     if (subgroup_size < 4 || subgroup_size > 128)
     {
         // sanitize wired subgroup_size
