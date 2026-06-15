@@ -74,6 +74,11 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         // sanitize wired subgroup_size
         use_subgroup_ops = false;
     }
+    if (opt.use_fp16_arithmetic && !opt.use_bf16_storage && !opt.use_bf16_packed && !vkdev->info.support_VK_KHR_shader_subgroup_extended_types())
+    {
+        // gemm_sg shuffles fp16 vectors, which requires subgroup extended types
+        use_subgroup_ops = false;
+    }
 
     if (use_cooperative_matrix)
     {

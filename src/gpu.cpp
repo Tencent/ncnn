@@ -408,6 +408,7 @@ public:
     VkPhysicalDeviceShaderFloatControls2FeaturesKHR queryShaderFloatControls2Features;
     VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR queryShaderIntegerDotProductFeatures;
     VkPhysicalDeviceSubgroupSizeControlFeaturesEXT querySubgroupSizeControlFeatures;
+    VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR queryShaderSubgroupExtendedTypesFeatures;
     VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR queryShaderSubgroupRotateFeatures;
     VkPhysicalDeviceShaderAtomicFloatFeaturesEXT queryShaderAtomicFloatFeatures;
     VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT queryShaderAtomicFloat2Features;
@@ -1110,6 +1111,16 @@ void GpuInfoPrivate::query_extension_features()
     {
         querySubgroupSizeControlFeatures.pNext = queryExtensionFeatures;
         queryExtensionFeatures = &querySubgroupSizeControlFeatures;
+    }
+
+    // query subgroup extended types
+    memset(&queryShaderSubgroupExtendedTypesFeatures, 0, sizeof(queryShaderSubgroupExtendedTypesFeatures));
+    queryShaderSubgroupExtendedTypesFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_EXTENDED_TYPES_FEATURES_KHR;
+    queryShaderSubgroupExtendedTypesFeatures.pNext = 0;
+    if (support_VK_KHR_shader_subgroup_extended_types)
+    {
+        queryShaderSubgroupExtendedTypesFeatures.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryShaderSubgroupExtendedTypesFeatures;
     }
 
     // query subgroup rotate
@@ -2318,6 +2329,11 @@ const VkPhysicalDeviceShaderFloatControls2FeaturesKHR& GpuInfo::queryShaderFloat
 const VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR& GpuInfo::queryShaderIntegerDotProductFeatures() const
 {
     return d->queryShaderIntegerDotProductFeatures;
+}
+
+const VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR& GpuInfo::queryShaderSubgroupExtendedTypesFeatures() const
+{
+    return d->queryShaderSubgroupExtendedTypesFeatures;
 }
 
 const VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR& GpuInfo::queryShaderSubgroupRotateFeatures() const
@@ -5699,6 +5715,11 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         {
             const VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR& features = info.queryShaderIntegerDotProductFeatures();
             DD_APPEND_FEATURE(shaderIntegerDotProduct)
+        }
+        if (info.support_VK_KHR_shader_subgroup_extended_types())
+        {
+            const VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR& features = info.queryShaderSubgroupExtendedTypesFeatures();
+            DD_APPEND_FEATURE(shaderSubgroupExtendedTypes)
         }
         if (info.support_VK_KHR_shader_subgroup_rotate())
         {
