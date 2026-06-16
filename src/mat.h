@@ -1742,7 +1742,7 @@ NCNN_FORCEINLINE size_t VkMat::buffer_offset() const
 
 NCNN_FORCEINLINE size_t VkMat::buffer_capacity() const
 {
-    return nstep * elemsize;
+    return nstep * n * elemsize;
 }
 
 NCNN_FORCEINLINE VkMat VkMat::batch(int b)

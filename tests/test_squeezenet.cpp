@@ -413,27 +413,49 @@ static int test_squeezenet_batch(const ncnn::Option& opt, float epsilon = 0.001)
     squeezenet.load_param(MODEL_DIR "/squeezenet_v1.1.param");
     squeezenet.load_model(MODEL_DIR "/squeezenet_v1.1.bin");
 
-    ncnn::Mat in = generate_ncnn_logo(ncnn::Mat::PIXEL_BGR, 227, 227);
+    const int B = 3;
 
+    ncnn::Mat in = generate_ncnn_logo(ncnn::Mat::PIXEL_BGR, 227, 227);
     const float mean_vals[3] = {104.f, 117.f, 123.f};
     in.substract_mean_normalize(mean_vals, 0);
 
+    std::vector<ncnn::Mat> inputs(B);
+    for (int b = 0; b < B; b++)
+    {
+        inputs[b] = in.clone();
+        if (inputs[b].empty())
+        {
+            fprintf(stderr, "test_squeezenet_batch input clone failed\n");
+            return -1;
+        }
+
+        const float bias = b * 0.25f;
+        for (int q = 0; q < inputs[b].c; q++)
+        {
+            float* ptr = inputs[b].channel(q);
+            for (int i = 0; i < inputs[b].w * inputs[b].h; i++)
+            {
+                ptr[i] += bias;
+            }
+        }
+    }
+
     // single inference for reference
-    ncnn::Mat ref_out;
+    std::vector<ncnn::Mat> ref_outs(B);
+    for (int b = 0; b < B; b++)
     {
         ncnn::Extractor ex = squeezenet.create_extractor();
-        ex.input("data", in);
-        ex.extract("prob", ref_out);
+        ex.input("data", inputs[b]);
+        ex.extract("prob", ref_outs[b]);
+
+        if (ref_outs[b].empty() || ref_outs[b].w != 1000)
+        {
+            fprintf(stderr, "test_squeezenet_batch reference output invalid batch=%d w=%d\n", b, ref_outs[b].w);
+            return -1;
+        }
     }
 
-    if (ref_out.empty() || ref_out.w != 1000)
-    {
-        fprintf(stderr, "test_squeezenet_batch reference output invalid w=%d\n", ref_out.w);
-        return -1;
-    }
-
-    // create batch input (3 copies of the same image)
-    const int B = 3;
+    // create batch input
     ncnn::Mat in_batch;
     in_batch.create_batch(in.w, in.h, in.c, B, in.elemsize, in.elempack);
     if (in_batch.empty())
@@ -445,7 +467,7 @@ static int test_squeezenet_batch(const ncnn::Option& opt, float epsilon = 0.001)
     size_t single_size = in.cstep * in.c * in.elemsize;
     for (int b = 0; b < B; b++)
     {
-        memcpy(in_batch.batch(b).data, in.data, single_size);
+        memcpy(in_batch.batch(b).data, inputs[b].data, single_size);
     }
 
     // batch inference
@@ -476,7 +498,7 @@ static int test_squeezenet_batch(const ncnn::Option& opt, float epsilon = 0.001)
     for (int b = 0; b < B; b++)
     {
         const ncnn::Mat out_b = out_batch.batch(b);
-        const float* ref_ptr = (const float*)ref_out.data;
+        const float* ref_ptr = (const float*)ref_outs[b].data;
         const float* out_ptr = (const float*)out_b.data;
 
         for (int j = 0; j < 1000; j++)
