@@ -2368,7 +2368,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     coopmat_K = 0;
     coopmat_subgroup_size = 0;
 
-    if (use_winograd && opt.use_cooperative_matrix && vkdev->info.support_int8_cooperative_matrix())
+    if (use_winograd && opt.use_cooperative_matrix && opt.use_int8_arithmetic && vkdev->info.support_int8_cooperative_matrix())
     {
         int M = 1024;
         if (out_shape.dims == 3)
@@ -2855,6 +2855,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                         }
                     }
                 }
+                else
                 {
                     const int num_input_packed = (num_input + 3) / 4 * 4;
                     const int num_output_packed = (num_output + 3) / 4 * 4;
@@ -2936,6 +2937,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 pipeline_convolution_3x3s1d1_winograd43_transform_input->set_local_size_xyz(4, 4, 1);
                 pipeline_convolution_3x3s1d1_winograd43_transform_input->create(shader_type_index, opt_int8, specializations_winograd_input);
             }
+            if (!use_cooperative_matrix)
             {
                 // winograd23/43 share gemm shader, transform count is set by dispatcher.c
                 pipeline_convolution_3x3s1d1_winograd43_gemm = new Pipeline(vkdev);
@@ -2953,34 +2955,33 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                     pipeline_convolution_3x3s1d1_winograd43_gemm->set_local_size_xyz(opt_int8.use_shader_local_memory ? 8 : 4, opt_int8.use_shader_local_memory ? 8 : std::min(4, (num_output + 3) / 4), opt_int8.use_shader_local_memory ? 1 : 4);
                     pipeline_convolution_3x3s1d1_winograd43_gemm->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8, opt_int8, specializations_winograd_gemm);
                 }
+            }
+            else
+            {
+                std::vector<vk_specialization_type> specializations_winograd_gemm(15 + 3);
+                specializations_winograd_gemm[0].u32 = 36;
+                specializations_winograd_gemm[1].u32 = coopmat_M;
+                specializations_winograd_gemm[2].u32 = coopmat_N;
+                specializations_winograd_gemm[3].u32 = coopmat_K;
+                specializations_winograd_gemm[4].u32 = UNROLL_SG_M;
+                specializations_winograd_gemm[5].u32 = UNROLL_SG_N;
+                specializations_winograd_gemm[6].u32 = UNROLL_SG_K;
+                specializations_winograd_gemm[7].u32 = UNROLL_WG_M;
+                specializations_winograd_gemm[8].u32 = UNROLL_WG_N;
+                specializations_winograd_gemm[9].u32 = coopmat_subgroup_size;
+                specializations_winograd_gemm[10].u32 = num_input;
+                specializations_winograd_gemm[11].u32 = num_output;
+                specializations_winograd_gemm[12].u32 = elempack;
+                specializations_winograd_gemm[13].u32 = out_elempack;
+                specializations_winograd_gemm[14].u32 = weight_winograd43_data_int8_packed_cm.cstep;
+                specializations_winograd_gemm[15 + 0].u32 = 0;
+                specializations_winograd_gemm[15 + 1].u32 = 0;
+                specializations_winograd_gemm[15 + 2].u32 = 0;
 
-                if (use_cooperative_matrix)
-                {
-                    std::vector<vk_specialization_type> specializations_winograd_gemm(15 + 3);
-                    specializations_winograd_gemm[0].u32 = 36;
-                    specializations_winograd_gemm[1].u32 = coopmat_M;
-                    specializations_winograd_gemm[2].u32 = coopmat_N;
-                    specializations_winograd_gemm[3].u32 = coopmat_K;
-                    specializations_winograd_gemm[4].u32 = UNROLL_SG_M;
-                    specializations_winograd_gemm[5].u32 = UNROLL_SG_N;
-                    specializations_winograd_gemm[6].u32 = UNROLL_SG_K;
-                    specializations_winograd_gemm[7].u32 = UNROLL_WG_M;
-                    specializations_winograd_gemm[8].u32 = UNROLL_WG_N;
-                    specializations_winograd_gemm[9].u32 = coopmat_subgroup_size;
-                    specializations_winograd_gemm[10].u32 = num_input;
-                    specializations_winograd_gemm[11].u32 = num_output;
-                    specializations_winograd_gemm[12].u32 = elempack;
-                    specializations_winograd_gemm[13].u32 = out_elempack;
-                    specializations_winograd_gemm[14].u32 = weight_winograd43_data_int8_packed_cm.cstep;
-                    specializations_winograd_gemm[15 + 0].u32 = 0;
-                    specializations_winograd_gemm[15 + 1].u32 = 0;
-                    specializations_winograd_gemm[15 + 2].u32 = 0;
-
-                    pipeline_convolution_3x3s1d1_winograd43_gemm_int8_cm = new Pipeline(vkdev);
-                    pipeline_convolution_3x3s1d1_winograd43_gemm_int8_cm->set_subgroup_size(coopmat_subgroup_size);
-                    pipeline_convolution_3x3s1d1_winograd43_gemm_int8_cm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-                    pipeline_convolution_3x3s1d1_winograd43_gemm_int8_cm->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8_cm, opt_int8, specializations_winograd_gemm);
-                }
+                pipeline_convolution_3x3s1d1_winograd43_gemm_int8_cm = new Pipeline(vkdev);
+                pipeline_convolution_3x3s1d1_winograd43_gemm_int8_cm->set_subgroup_size(coopmat_subgroup_size);
+                pipeline_convolution_3x3s1d1_winograd43_gemm_int8_cm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+                pipeline_convolution_3x3s1d1_winograd43_gemm_int8_cm->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8_cm, opt_int8, specializations_winograd_gemm);
             }
             {
                 std::vector<vk_specialization_type> specializations_winograd_output(5);
@@ -3096,6 +3097,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                         }
                     }
                 }
+                else
                 {
                     const int num_input_packed = (num_input + 3) / 4 * 4;
                     const int num_output_packed = (num_output + 3) / 4 * 4;
@@ -3177,6 +3179,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 pipeline_convolution_3x3s1d1_winograd23_transform_input->set_local_size_xyz(8, 8, 1);
                 pipeline_convolution_3x3s1d1_winograd23_transform_input->create(shader_type_index, opt_int8, specializations_winograd_input);
             }
+            if (!use_cooperative_matrix)
             {
                 // winograd23/43 share gemm shader, transform count is set by dispatcher.c
                 pipeline_convolution_3x3s1d1_winograd23_gemm = new Pipeline(vkdev);
@@ -3194,34 +3197,33 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                     pipeline_convolution_3x3s1d1_winograd23_gemm->set_local_size_xyz(opt_int8.use_shader_local_memory ? 8 : 4, opt_int8.use_shader_local_memory ? 8 : std::min(4, (num_output + 3) / 4), opt_int8.use_shader_local_memory ? 1 : 4);
                     pipeline_convolution_3x3s1d1_winograd23_gemm->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8, opt_int8, specializations_winograd_gemm);
                 }
+            }
+            else
+            {
+                std::vector<vk_specialization_type> specializations_winograd_gemm(15 + 3);
+                specializations_winograd_gemm[0].u32 = 16;
+                specializations_winograd_gemm[1].u32 = coopmat_M;
+                specializations_winograd_gemm[2].u32 = coopmat_N;
+                specializations_winograd_gemm[3].u32 = coopmat_K;
+                specializations_winograd_gemm[4].u32 = UNROLL_SG_M;
+                specializations_winograd_gemm[5].u32 = UNROLL_SG_N;
+                specializations_winograd_gemm[6].u32 = UNROLL_SG_K;
+                specializations_winograd_gemm[7].u32 = UNROLL_WG_M;
+                specializations_winograd_gemm[8].u32 = UNROLL_WG_N;
+                specializations_winograd_gemm[9].u32 = coopmat_subgroup_size;
+                specializations_winograd_gemm[10].u32 = num_input;
+                specializations_winograd_gemm[11].u32 = num_output;
+                specializations_winograd_gemm[12].u32 = elempack;
+                specializations_winograd_gemm[13].u32 = out_elempack;
+                specializations_winograd_gemm[14].u32 = weight_winograd23_data_int8_packed_cm.cstep;
+                specializations_winograd_gemm[15 + 0].u32 = 0;
+                specializations_winograd_gemm[15 + 1].u32 = 0;
+                specializations_winograd_gemm[15 + 2].u32 = 0;
 
-                if (use_cooperative_matrix)
-                {
-                    std::vector<vk_specialization_type> specializations_winograd_gemm(15 + 3);
-                    specializations_winograd_gemm[0].u32 = 16;
-                    specializations_winograd_gemm[1].u32 = coopmat_M;
-                    specializations_winograd_gemm[2].u32 = coopmat_N;
-                    specializations_winograd_gemm[3].u32 = coopmat_K;
-                    specializations_winograd_gemm[4].u32 = UNROLL_SG_M;
-                    specializations_winograd_gemm[5].u32 = UNROLL_SG_N;
-                    specializations_winograd_gemm[6].u32 = UNROLL_SG_K;
-                    specializations_winograd_gemm[7].u32 = UNROLL_WG_M;
-                    specializations_winograd_gemm[8].u32 = UNROLL_WG_N;
-                    specializations_winograd_gemm[9].u32 = coopmat_subgroup_size;
-                    specializations_winograd_gemm[10].u32 = num_input;
-                    specializations_winograd_gemm[11].u32 = num_output;
-                    specializations_winograd_gemm[12].u32 = elempack;
-                    specializations_winograd_gemm[13].u32 = out_elempack;
-                    specializations_winograd_gemm[14].u32 = weight_winograd23_data_int8_packed_cm.cstep;
-                    specializations_winograd_gemm[15 + 0].u32 = 0;
-                    specializations_winograd_gemm[15 + 1].u32 = 0;
-                    specializations_winograd_gemm[15 + 2].u32 = 0;
-
-                    pipeline_convolution_3x3s1d1_winograd23_gemm_int8_cm = new Pipeline(vkdev);
-                    pipeline_convolution_3x3s1d1_winograd23_gemm_int8_cm->set_subgroup_size(coopmat_subgroup_size);
-                    pipeline_convolution_3x3s1d1_winograd23_gemm_int8_cm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-                    pipeline_convolution_3x3s1d1_winograd23_gemm_int8_cm->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8_cm, opt_int8, specializations_winograd_gemm);
-                }
+                pipeline_convolution_3x3s1d1_winograd23_gemm_int8_cm = new Pipeline(vkdev);
+                pipeline_convolution_3x3s1d1_winograd23_gemm_int8_cm->set_subgroup_size(coopmat_subgroup_size);
+                pipeline_convolution_3x3s1d1_winograd23_gemm_int8_cm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+                pipeline_convolution_3x3s1d1_winograd23_gemm_int8_cm->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8_cm, opt_int8, specializations_winograd_gemm);
             }
             {
                 std::vector<vk_specialization_type> specializations_winograd_output(5);
