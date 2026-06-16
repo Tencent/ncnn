@@ -224,23 +224,23 @@ void main()
                 {
                     const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                if (M_Kd4p_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK)
-                {
-                    prefetch_tmp_a[q] = i8buffer_sm4(A_int8_data, A_offset + (kg + 1) * A_offset_step + siq);
+                    if (M_Kd4p_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK)
+                    {
+                        prefetch_tmp_a[q] = i8buffer_sm4(A_int8_data, A_offset + (kg + 1) * A_offset_step + siq);
+                    }
                 }
             }
-        }
             {
                 [[unroll]] for (uint q = 0; q < K_Nd4p_USGN_USGK_d_subgroupsize; q++)
                 {
                     const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
-                {
-                    prefetch_tmp_b[q] = i8buffer_sm4(B_int8_data, B_offset + (kg + 1) * B_offset_step + siq);
+                    if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
+                    {
+                        prefetch_tmp_b[q] = i8buffer_sm4(B_int8_data, B_offset + (kg + 1) * B_offset_step + siq);
+                    }
                 }
             }
-        }
 
 #if ncnn_VK_KHR_cooperative_matrix
             coopmat<int8_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> A[UNROLL_SG_M];
@@ -364,23 +364,23 @@ void main()
                 {
                     const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                if (M_Kd4p_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK)
-                {
-                    tmp_a[sgmi][siq] = i8buffer_sm4(A_int8_data, A_offset + kg * A_offset_step + siq);
+                    if (M_Kd4p_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK)
+                    {
+                        tmp_a[sgmi][siq] = i8buffer_sm4(A_int8_data, A_offset + kg * A_offset_step + siq);
+                    }
                 }
             }
-        }
             {
                 [[unroll]] for (uint q = 0; q < K_Nd4p_USGN_USGK_d_subgroupsize; q++)
                 {
                     const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
-                {
-                    tmp_b[sgni][siq] = i8buffer_sm4(B_int8_data, B_offset + kg * B_offset_step + siq);
+                    if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
+                    {
+                        tmp_b[sgni][siq] = i8buffer_sm4(B_int8_data, B_offset + kg * B_offset_step + siq);
+                    }
                 }
             }
-        }
 
             barrier();
 
