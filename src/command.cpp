@@ -393,10 +393,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 
     // upload staging buffer
     VkMat dst_staging;
-    if (B > 1)
-        dst_staging.create_like_batch(src_fp16.batch(0), B, opt.staging_vkallocator);
-    else
-        dst_staging.create_like(src_fp16, opt.staging_vkallocator);
+    dst_staging.create_like(src_fp16, opt.staging_vkallocator);
     if (dst_staging.empty())
         return;
 
@@ -519,10 +516,7 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 
     // create dst
     Mat dst_fp16;
-    if (B > 1)
-        dst_fp16.create_like_batch(dst_staging.batch(0), B, opt.blob_allocator);
-    else
-        dst_fp16.create_like(dst_staging, opt.blob_allocator);
+    dst_fp16.create_like(dst_staging, opt.blob_allocator);
     if (dst_fp16.empty())
         return;
 
@@ -600,10 +594,7 @@ void VkCompute::record_clone(const Mat& src, VkMat& dst, const Option& opt)
 
     // host to staging
     VkMat dst_staging;
-    if (B > 1)
-        dst_staging.create_like_batch(src.batch(0), B, opt.staging_vkallocator);
-    else
-        dst_staging.create_like(src, opt.staging_vkallocator);
+    dst_staging.create_like(src, opt.staging_vkallocator);
     if (dst_staging.empty())
         return;
 
@@ -648,8 +639,6 @@ void VkCompute::record_clone(const VkMat& src, Mat& dst, const Option& opt)
 {
     //     NCNN_LOGE("record_clone buffer to host");
 
-    const int B = src.n;
-
     if (!src.allocator->mappable)
     {
         // device to staging
@@ -665,10 +654,7 @@ void VkCompute::record_clone(const VkMat& src, Mat& dst, const Option& opt)
     }
 
     // create dst
-    if (B > 1)
-        dst.create_like_batch(src.batch(0), B, opt.blob_allocator);
-    else
-        dst.create_like(src, opt.blob_allocator);
+    dst.create_like(src, opt.blob_allocator);
     if (dst.empty())
         return;
 
@@ -744,13 +730,8 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
 {
     //     NCNN_LOGE("record_clone buffer to buffer");
 
-    const int B = src.n;
-
     // create dst
-    if (B > 1)
-        dst.create_like_batch(src.batch(0), B, opt.blob_vkallocator);
-    else
-        dst.create_like(src, opt.blob_vkallocator);
+    dst.create_like(src, opt.blob_vkallocator);
     if (dst.empty())
         return;
 
