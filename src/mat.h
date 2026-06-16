@@ -1426,6 +1426,7 @@ NCNN_FORCEINLINE Mat Mat::batch(int b)
     Mat m(w, h, d, c, (unsigned char*)data + nstep * b * elemsize, elemsize, elempack, allocator);
     m.dims = dims;
     m.cstep = cstep;
+    m.nstep = nstep;
     return m;
 }
 
@@ -1434,6 +1435,7 @@ NCNN_FORCEINLINE const Mat Mat::batch(int b) const
     Mat m(w, h, d, c, (unsigned char*)data + nstep * b * elemsize, elemsize, elempack, allocator);
     m.dims = dims;
     m.cstep = cstep;
+    m.nstep = nstep;
     return m;
 }
 
