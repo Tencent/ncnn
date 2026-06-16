@@ -68,10 +68,17 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
     }
 
     const int subgroup_size = vkdev->info.subgroup_size();
-    use_subgroup_ops = opt.use_subgroup_ops && (vkdev->info.support_subgroup_ops() & (VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT));
+    const uint32_t support_subgroup_ops = vkdev->info.support_subgroup_ops();
+    const uint32_t required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+    use_subgroup_ops = opt.use_subgroup_ops && ((support_subgroup_ops & required_subgroup_ops) == required_subgroup_ops);
     if (subgroup_size < 4 || subgroup_size > 128)
     {
         // sanitize wired subgroup_size
+        use_subgroup_ops = false;
+    }
+    if (opt.use_fp16_arithmetic && !opt.use_bf16_storage && !opt.use_bf16_packed && !vkdev->info.queryShaderSubgroupExtendedTypesFeatures().shaderSubgroupExtendedTypes)
+    {
+        // gemm_sg shuffles fp16 vectors, which requires subgroup extended types
         use_subgroup_ops = false;
     }
 
