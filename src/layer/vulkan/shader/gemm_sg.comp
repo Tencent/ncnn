@@ -5,7 +5,7 @@
 
 #extension GL_KHR_shader_subgroup_basic : require
 #extension GL_KHR_shader_subgroup_shuffle : require
-#if NCNN_fp16_storage
+#if NCNN_fp16_arithmetic && !NCNN_bf16_storage && !NCNN_bf16_packed
 #extension GL_EXT_shader_subgroup_extended_types_float16 : require
 #endif
 

@@ -3,10 +3,10 @@
 
 #version 450
 
-#if ncnn_subgroup_arithmetic
+#if ncnn_subgroup_basic && ncnn_subgroup_arithmetic && (!NCNN_fp16_arithmetic || ncnn_shaderSubgroupExtendedTypes)
 #extension GL_KHR_shader_subgroup_basic : enable
 #extension GL_KHR_shader_subgroup_arithmetic : enable
-#if NCNN_fp16_storage
+#if NCNN_fp16_arithmetic && !NCNN_bf16_storage && !NCNN_bf16_packed
 #extension GL_EXT_shader_subgroup_extended_types_float16 : require
 #endif
 #endif
@@ -78,7 +78,7 @@ afp combine_accum(afp a, afp b)
     return a + b;
 }
 
-#if ncnn_subgroup_arithmetic
+#if ncnn_subgroup_basic && ncnn_subgroup_arithmetic && (!NCNN_fp16_arithmetic || ncnn_shaderSubgroupExtendedTypes)
 afp subgroup_reduce_acc(afp v)
 {
     if (op == 4) return subgroupMax(v);
@@ -209,7 +209,7 @@ void main()
         acc = element_accum(acc, v);
     }
 
-#if ncnn_subgroup_arithmetic
+#if ncnn_subgroup_basic && ncnn_subgroup_arithmetic && (!NCNN_fp16_arithmetic || ncnn_shaderSubgroupExtendedTypes)
     afp sg = subgroup_reduce_acc(acc);
 
     if (subgroupElect())
