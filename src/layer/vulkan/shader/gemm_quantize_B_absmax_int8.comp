@@ -12,9 +12,7 @@ layout(push_constant) uniform parameter
 {
     int N;
     int K;
-    int B_dims;
     int B_hstep;
-    int size;
 } p;
 
 shared float absmax_shared[128];
@@ -22,8 +20,9 @@ shared float absmax_shared[128];
 void main()
 {
     const int lid = int(gl_LocalInvocationID.x);
+    const int size = p.N * p.K;
     const int block_offset = int(gl_WorkGroupID.x) * 1024;
-    const int block_end = min(block_offset + 1024, p.size);
+    const int block_end = min(block_offset + 1024, size);
 
     float absmax = 0.f;
 

@@ -19,33 +19,31 @@
 
 layout(constant_id = 0) const float alpha = 1.f;
 layout(constant_id = 1) const float beta = 1.f;
-layout(constant_id = 2) const int constantA = 0;
-layout(constant_id = 3) const int constantB = 0;
-layout(constant_id = 4) const int constantC = 0;
-layout(constant_id = 5) const int constant_broadcast_type_C = 0;
-layout(constant_id = 6) const int output_transpose = 0;
-layout(constant_id = 7) const uint GM = 0;
-layout(constant_id = 8) const uint GN = 0;
-layout(constant_id = 9) const uint GK = 0;
-layout(constant_id = 10) const uint out_elempack = 0;
+layout(constant_id = 2) const int constantC = 0;
+layout(constant_id = 3) const int constant_broadcast_type_C = 0;
+layout(constant_id = 4) const int output_transpose = 0;
+layout(constant_id = 5) const uint GM = 0;
+layout(constant_id = 6) const uint GN = 0;
+layout(constant_id = 7) const uint GK = 0;
+layout(constant_id = 8) const uint out_elempack = 0;
 
-layout(constant_id = 11 + 0) const uint M = 1;
-layout(constant_id = 11 + 1) const uint N = 1;
-layout(constant_id = 11 + 2) const uint K = 1;
-layout(constant_id = 11 + 3) const uint subgroup_size = 32;
-layout(constant_id = 11 + 4) const uint UNROLL_SG_M = 2;
-layout(constant_id = 11 + 5) const uint UNROLL_SG_N = 2;
-layout(constant_id = 11 + 6) const uint UNROLL_SG_K = 2;
-layout(constant_id = 11 + 7) const uint UNROLL_WG_M = 2;
-layout(constant_id = 11 + 8) const uint UNROLL_WG_N = 2;
+layout(constant_id = 9 + 0) const uint M = 1;
+layout(constant_id = 9 + 1) const uint N = 1;
+layout(constant_id = 9 + 2) const uint K = 1;
+layout(constant_id = 9 + 3) const uint subgroup_size = 32;
+layout(constant_id = 9 + 4) const uint UNROLL_SG_M = 2;
+layout(constant_id = 9 + 5) const uint UNROLL_SG_N = 2;
+layout(constant_id = 9 + 6) const uint UNROLL_SG_K = 2;
+layout(constant_id = 9 + 7) const uint UNROLL_WG_M = 2;
+layout(constant_id = 9 + 8) const uint UNROLL_WG_N = 2;
 
 layout(binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 1) readonly buffer A_int8_blob { sint8vec4 A_int8_data[]; };
 layout(binding = 2) readonly buffer B_int8_blob { sint8vec4 B_int8_data[]; };
 layout(binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
-layout(binding = 4) readonly buffer A_descales_blob { float A_descales_data[]; };
-layout(binding = 5) readonly buffer B_descale_blob { float B_descale_data[]; };
-layout(binding = 6) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
+layout(binding = 4) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
+layout(binding = 5) readonly buffer A_descales_blob { float A_descales_data[]; };
+layout(binding = 6) readonly buffer B_descale_blob { float B_descale_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -67,7 +65,7 @@ const uint Kd4 = K / 4;
 #if ncnn_VK_KHR_cooperative_matrix
 #define PAD 1
 #elif ncnn_VK_NV_cooperative_matrix
-// fixme: pad causes incorrect result on old driver
+// nv cooperative matrix path keeps the original packed stride
 #define PAD 0
 #endif
 
@@ -147,228 +145,73 @@ void main()
         }
     }
 
-    uint k = 0;
+    const uint kkg = (kk + UNROLL_SG_K - 1) / UNROLL_SG_K;
+    const uint M_Kd4p_USGM = M * Kd4p * UNROLL_SG_M;
+    const uint M_Kd4p_USGM_USGK = M_Kd4p_USGM * UNROLL_SG_K;
+    const uint M_Kd4p_USGM_USGK_d_subgroupsize = (M_Kd4p_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
+    const uint K_Nd4p_USGN = K * Nd4p * UNROLL_SG_N;
+    const uint K_Nd4p_USGN_USGK = K_Nd4p_USGN * UNROLL_SG_K;
+    const uint K_Nd4p_USGN_USGK_d_subgroupsize = (K_Nd4p_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
+    const uint A_offset = (wgmi * kkg * UNROLL_WG_M + sgmi) * M_Kd4p_USGM_USGK;
+    const uint A_offset_step = UNROLL_WG_M * M_Kd4p_USGM_USGK;
+    const uint B_offset = (wgni * kkg * UNROLL_WG_N + sgni) * K_Nd4p_USGN_USGK;
+    const uint B_offset_step = UNROLL_WG_N * K_Nd4p_USGN_USGK;
 
-    if (kk >= UNROLL_SG_K * 2)
+    if (kkg >= 2)
     {
         // local stack and shared memory ping-pong
 
         // prefetch
-        int prefetch_tmp_a[(UNROLL_SG_M * UNROLL_SG_K * M * Kd4 + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N)];
-        int prefetch_tmp_b[(UNROLL_SG_N * UNROLL_SG_K * K * Nd4 + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M)];
+        int prefetch_tmp_a[(UNROLL_SG_M * UNROLL_SG_K * M * Kd4p + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N)];
+        int prefetch_tmp_b[(UNROLL_SG_N * UNROLL_SG_K * K * Nd4p + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M)];
 
         // prefetch the very first
         {
-            const uint M_Kd4_USGM = M * Kd4 * UNROLL_SG_M;
-            const uint M_Kd4_USGM_USGK = M_Kd4_USGM * UNROLL_SG_K;
-            const uint M_Kd4_USGM_USGK_d_subgroupsize = (M_Kd4_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
-            [[unroll]] for (uint q = 0; q < M_Kd4_USGM_USGK_d_subgroupsize; q++)
+            [[unroll]] for (uint q = 0; q < M_Kd4p_USGM_USGK_d_subgroupsize; q++)
             {
                 const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                if (M_Kd4_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4_USGM_USGK)
+                if (M_Kd4p_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK)
                 {
-                    int v = 0;
-
-                    if (constantA == 1)
-                    {
-                        const uint kk_full = kk / UNROLL_SG_K;
-
-                        if (0 < kk_full)
-                        {
-                            const uint a_offset = (wgmi * kk * UNROLL_WG_M) * M_Kd4_USGM + sgmi * M_Kd4_USGM_USGK;
-                            v = i8buffer_sm4(A_int8_data, a_offset + siq);
-                        }
-                        else
-                        {
-                            const uint zk = siq / M_Kd4_USGM;
-                            const uint sij = siq % M_Kd4_USGM;
-
-                            if (zk < kk)
-                            {
-                                const uint tail_offset = (wgmi * kk * UNROLL_WG_M + sgmi) * M_Kd4_USGM;
-                                v = i8buffer_sm4(A_int8_data, tail_offset + sij);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        const uint zk = siq / M_Kd4_USGM;
-                        const uint zmij = siq % M_Kd4_USGM;
-                        const uint zm = zmij / (M * Kd4);
-                        const uint ij = zmij % (M * Kd4);
-                        const uint i = ij / Kd4;
-                        const uint j = ij % Kd4;
-
-                        const uint gm = (mi + zm) * M + i;
-                        const uint gk = zk * K + j * 4;
-
-                        if (gm < psc(GM) && gk < psc(GK))
-                        {
-                            if (psc(GK) % 4 == 0)
-                            {
-                                v = i8buffer_sm4(A_int8_data, (gm * psc(GK) + gk) / 4);
-                            }
-                            else
-                            {
-                                const uint ai = gm * psc(GK) + gk;
-                                const uint aim4 = ai % 4;
-                                const ivec4 v0 = i8buffer_ld4(A_int8_data, ai / 4);
-                                ivec4 v1 = ivec4(0);
-                                if (gk + 4 - aim4 < psc(GK)) v1 = i8buffer_ld4(A_int8_data, ai / 4 + 1);
-                                ivec4 v4;
-                                if (aim4 == 0)
-                                {
-                                    v4 = v0;
-                                }
-                                else if (aim4 == 1)
-                                {
-                                    v4 = ivec4(v0.g, v0.b, v0.a, v1.r);
-                                }
-                                else if (aim4 == 2)
-                                {
-                                    v4 = ivec4(v0.b, v0.a, v1.r, v1.g);
-                                }
-                                else
-                                {
-                                    v4 = ivec4(v0.a, v1.r, v1.g, v1.b);
-                                }
-                                if (gk + 1 >= psc(GK)) v4.g = 0;
-                                if (gk + 2 >= psc(GK)) v4.b = 0;
-                                if (gk + 3 >= psc(GK)) v4.a = 0;
-                                v = packInt4x8(v4);
-                            }
-                        }
-                    }
-
-                    prefetch_tmp_a[q] = v;
+                    prefetch_tmp_a[q] = i8buffer_sm4(A_int8_data, A_offset + siq);
                 }
             }
         }
         {
-            const uint K_Nd4_USGN = K * Nd4 * UNROLL_SG_N;
-            const uint K_Nd4_USGN_USGK = K_Nd4_USGN * UNROLL_SG_K;
-            const uint K_Nd4_USGN_USGK_d_subgroupsize = (K_Nd4_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
-            [[unroll]] for (uint q = 0; q < K_Nd4_USGN_USGK_d_subgroupsize; q++)
+            [[unroll]] for (uint q = 0; q < K_Nd4p_USGN_USGK_d_subgroupsize; q++)
             {
                 const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                if (K_Nd4_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4_USGN_USGK)
+                if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
                 {
-                    int v = 0;
-
-                    if (constantB == 1)
-                    {
-                        const uint kk_full = kk / UNROLL_SG_K;
-
-                        if (0 < kk_full)
-                        {
-                            const uint b_offset = (wgni * kk * UNROLL_WG_N) * K_Nd4_USGN + sgni * K_Nd4_USGN_USGK;
-                            v = i8buffer_sm4(B_int8_data, b_offset + siq);
-                        }
-                        else
-                        {
-                            const uint zk = siq / K_Nd4_USGN;
-                            const uint sij = siq % K_Nd4_USGN;
-
-                            if (zk < kk)
-                            {
-                                const uint tail_offset = (wgni * kk * UNROLL_WG_N + sgni) * K_Nd4_USGN;
-                                v = i8buffer_sm4(B_int8_data, tail_offset + sij);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        const uint zk = siq / K_Nd4_USGN;
-                        const uint znij = siq % K_Nd4_USGN;
-                        const uint zn = znij / (K * Nd4);
-                        const uint ij = znij % (K * Nd4);
-                        const uint i = ij / Nd4;
-                        const uint j = ij % Nd4;
-
-                        const uint gk = zk * K + i;
-                        const uint gn = (ni + zn) * N + j * 4;
-
-                        if (gn < psc(GN) && gk < psc(GK))
-                        {
-                            ivec4 v4 = ivec4(0);
-                            uint bi = gn * psc(GK) + gk;
-                            v4.r = i8buffer_ld4(B_int8_data, bi / 4)[bi % 4];
-                            if (gn + 1 < psc(GN))
-                            {
-                                bi += psc(GK);
-                                v4.g = i8buffer_ld4(B_int8_data, bi / 4)[bi % 4];
-                            }
-                            if (gn + 2 < psc(GN))
-                            {
-                                bi += psc(GK);
-                                v4.b = i8buffer_ld4(B_int8_data, bi / 4)[bi % 4];
-                            }
-                            if (gn + 3 < psc(GN))
-                            {
-                                bi += psc(GK);
-                                v4.a = i8buffer_ld4(B_int8_data, bi / 4)[bi % 4];
-                            }
-                            v = packInt4x8(v4);
-                        }
-                    }
-
-                    prefetch_tmp_b[q] = v;
+                    prefetch_tmp_b[q] = i8buffer_sm4(B_int8_data, B_offset + siq);
                 }
             }
         }
 
-        for (; k + UNROLL_SG_K < kk; k += UNROLL_SG_K)
+        uint kg = 0;
+        for (; kg + 1 < kkg; kg++)
         {
             // copy prefetched tile to shared memory
             {
-                const uint M_Kd4_USGM = M * Kd4 * UNROLL_SG_M;
-                const uint M_Kd4_USGM_USGK = M_Kd4_USGM * UNROLL_SG_K;
-                const uint M_Kd4_USGM_USGK_d_subgroupsize = (M_Kd4_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
-                [[unroll]] for (uint q = 0; q < M_Kd4_USGM_USGK_d_subgroupsize; q++)
+                [[unroll]] for (uint q = 0; q < M_Kd4p_USGM_USGK_d_subgroupsize; q++)
                 {
                     const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                    if (M_Kd4_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4_USGM_USGK)
+                    if (M_Kd4p_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK)
                     {
-#if ncnn_VK_KHR_cooperative_matrix
-                        const uint zk = siq / M_Kd4_USGM;
-                        const uint zmij = siq % M_Kd4_USGM;
-                        const uint zm = zmij / (M * Kd4);
-                        const uint ij = zmij % (M * Kd4);
-                        const uint i = ij / Kd4;
-                        const uint j = ij % Kd4;
-
-                        tmp_a[sgmi][((zk * UNROLL_SG_M + zm) * M + i) * Kd4p + j] = prefetch_tmp_a[q];
-#elif ncnn_VK_NV_cooperative_matrix
                         tmp_a[sgmi][siq] = prefetch_tmp_a[q];
-#endif
                     }
                 }
             }
             {
-                const uint K_Nd4_USGN = K * Nd4 * UNROLL_SG_N;
-                const uint K_Nd4_USGN_USGK = K_Nd4_USGN * UNROLL_SG_K;
-                const uint K_Nd4_USGN_USGK_d_subgroupsize = (K_Nd4_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
-                [[unroll]] for (uint q = 0; q < K_Nd4_USGN_USGK_d_subgroupsize; q++)
+                [[unroll]] for (uint q = 0; q < K_Nd4p_USGN_USGK_d_subgroupsize; q++)
                 {
                     const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                    if (K_Nd4_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4_USGN_USGK)
+                    if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
                     {
-#if ncnn_VK_KHR_cooperative_matrix
-                        const uint zk = siq / K_Nd4_USGN;
-                        const uint znij = siq % K_Nd4_USGN;
-                        const uint zn = znij / (K * Nd4);
-                        const uint ij = znij % (K * Nd4);
-                        const uint i = ij / Nd4;
-                        const uint j = ij % Nd4;
-
-                        tmp_b[sgni][((zk * UNROLL_SG_N + zn) * K + i) * Nd4p + j] = prefetch_tmp_b[q];
-#elif ncnn_VK_NV_cooperative_matrix
                         tmp_b[sgni][siq] = prefetch_tmp_b[q];
-#endif
                     }
                 }
             }
@@ -376,167 +219,28 @@ void main()
             barrier();
 
             // prefetch next tile
-            const uint ki = k + UNROLL_SG_K;
             {
-                const uint M_Kd4_USGM = M * Kd4 * UNROLL_SG_M;
-                const uint M_Kd4_USGM_USGK = M_Kd4_USGM * UNROLL_SG_K;
-                const uint M_Kd4_USGM_USGK_d_subgroupsize = (M_Kd4_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
-                [[unroll]] for (uint q = 0; q < M_Kd4_USGM_USGK_d_subgroupsize; q++)
+                [[unroll]] for (uint q = 0; q < M_Kd4p_USGM_USGK_d_subgroupsize; q++)
                 {
                     const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                    if (M_Kd4_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4_USGM_USGK)
-                    {
-                        int v = 0;
-
-                        if (constantA == 1)
-                        {
-                            const uint kk_full = kk / UNROLL_SG_K;
-
-                            if (ki / UNROLL_SG_K < kk_full)
-                            {
-                                const uint a_offset = (wgmi * kk * UNROLL_WG_M) * M_Kd4_USGM + ((ki / UNROLL_SG_K) * UNROLL_WG_M + sgmi) * M_Kd4_USGM_USGK;
-                                v = i8buffer_sm4(A_int8_data, a_offset + siq);
-                            }
-                            else
-                            {
-                                const uint zk = siq / M_Kd4_USGM;
-                                const uint sij = siq % M_Kd4_USGM;
-
-                                if (ki + zk < kk)
-                                {
-                                    const uint tail_offset = (wgmi * kk * UNROLL_WG_M + kk_full * UNROLL_WG_M * UNROLL_SG_K + (ki + zk - kk_full * UNROLL_SG_K) * UNROLL_WG_M + sgmi) * M_Kd4_USGM;
-                                    v = i8buffer_sm4(A_int8_data, tail_offset + sij);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            const uint zk = siq / M_Kd4_USGM;
-                            const uint zmij = siq % M_Kd4_USGM;
-                            const uint zm = zmij / (M * Kd4);
-                            const uint ij = zmij % (M * Kd4);
-                            const uint i = ij / Kd4;
-                            const uint j = ij % Kd4;
-
-                            const uint gm = (mi + zm) * M + i;
-                            const uint gk = (ki + zk) * K + j * 4;
-
-                            if (gm < psc(GM) && gk < psc(GK))
-                            {
-                                if (psc(GK) % 4 == 0)
-                                {
-                                    v = i8buffer_sm4(A_int8_data, (gm * psc(GK) + gk) / 4);
-                                }
-                                else
-                                {
-                                    const uint ai = gm * psc(GK) + gk;
-                                    const uint aim4 = ai % 4;
-                                    const ivec4 v0 = i8buffer_ld4(A_int8_data, ai / 4);
-                                    ivec4 v1 = ivec4(0);
-                                    if (gk + 4 - aim4 < psc(GK)) v1 = i8buffer_ld4(A_int8_data, ai / 4 + 1);
-                                    ivec4 v4;
-                                    if (aim4 == 0)
-                                    {
-                                        v4 = v0;
-                                    }
-                                    else if (aim4 == 1)
-                                    {
-                                        v4 = ivec4(v0.g, v0.b, v0.a, v1.r);
-                                    }
-                                    else if (aim4 == 2)
-                                    {
-                                        v4 = ivec4(v0.b, v0.a, v1.r, v1.g);
-                                    }
-                                    else
-                                    {
-                                        v4 = ivec4(v0.a, v1.r, v1.g, v1.b);
-                                    }
-                                    if (gk + 1 >= psc(GK)) v4.g = 0;
-                                    if (gk + 2 >= psc(GK)) v4.b = 0;
-                                    if (gk + 3 >= psc(GK)) v4.a = 0;
-                                    v = packInt4x8(v4);
-                                }
-                            }
-                        }
-
-                        prefetch_tmp_a[q] = v;
-                    }
+                if (M_Kd4p_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK)
+                {
+                    prefetch_tmp_a[q] = i8buffer_sm4(A_int8_data, A_offset + (kg + 1) * A_offset_step + siq);
                 }
             }
+        }
             {
-                const uint K_Nd4_USGN = K * Nd4 * UNROLL_SG_N;
-                const uint K_Nd4_USGN_USGK = K_Nd4_USGN * UNROLL_SG_K;
-                const uint K_Nd4_USGN_USGK_d_subgroupsize = (K_Nd4_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
-                [[unroll]] for (uint q = 0; q < K_Nd4_USGN_USGK_d_subgroupsize; q++)
+                [[unroll]] for (uint q = 0; q < K_Nd4p_USGN_USGK_d_subgroupsize; q++)
                 {
                     const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                    if (K_Nd4_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4_USGN_USGK)
-                    {
-                        int v = 0;
-
-                        if (constantB == 1)
-                        {
-                            const uint kk_full = kk / UNROLL_SG_K;
-
-                            if (ki / UNROLL_SG_K < kk_full)
-                            {
-                                const uint b_offset = (wgni * kk * UNROLL_WG_N) * K_Nd4_USGN + ((ki / UNROLL_SG_K) * UNROLL_WG_N + sgni) * K_Nd4_USGN_USGK;
-                                v = i8buffer_sm4(B_int8_data, b_offset + siq);
-                            }
-                            else
-                            {
-                                const uint zk = siq / K_Nd4_USGN;
-                                const uint sij = siq % K_Nd4_USGN;
-
-                                if (ki + zk < kk)
-                                {
-                                    const uint tail_offset = (wgni * kk * UNROLL_WG_N + kk_full * UNROLL_WG_N * UNROLL_SG_K + (ki + zk - kk_full * UNROLL_SG_K) * UNROLL_WG_N + sgni) * K_Nd4_USGN;
-                                    v = i8buffer_sm4(B_int8_data, tail_offset + sij);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            const uint zk = siq / K_Nd4_USGN;
-                            const uint znij = siq % K_Nd4_USGN;
-                            const uint zn = znij / (K * Nd4);
-                            const uint ij = znij % (K * Nd4);
-                            const uint i = ij / Nd4;
-                            const uint j = ij % Nd4;
-
-                            const uint gk = (ki + zk) * K + i;
-                            const uint gn = (ni + zn) * N + j * 4;
-
-                            if (gn < psc(GN) && gk < psc(GK))
-                            {
-                                ivec4 v4 = ivec4(0);
-                                uint bi = gn * psc(GK) + gk;
-                                v4.r = i8buffer_ld4(B_int8_data, bi / 4)[bi % 4];
-                                if (gn + 1 < psc(GN))
-                                {
-                                    bi += psc(GK);
-                                    v4.g = i8buffer_ld4(B_int8_data, bi / 4)[bi % 4];
-                                }
-                                if (gn + 2 < psc(GN))
-                                {
-                                    bi += psc(GK);
-                                    v4.b = i8buffer_ld4(B_int8_data, bi / 4)[bi % 4];
-                                }
-                                if (gn + 3 < psc(GN))
-                                {
-                                    bi += psc(GK);
-                                    v4.a = i8buffer_ld4(B_int8_data, bi / 4)[bi % 4];
-                                }
-                                v = packInt4x8(v4);
-                            }
-                        }
-
-                        prefetch_tmp_b[q] = v;
-                    }
+                if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
+                {
+                    prefetch_tmp_b[q] = i8buffer_sm4(B_int8_data, B_offset + (kg + 1) * B_offset_step + siq);
                 }
             }
+        }
 
 #if ncnn_VK_KHR_cooperative_matrix
             coopmat<int8_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> A[UNROLL_SG_M];
@@ -584,52 +288,24 @@ void main()
 
         // copy and compute the last prefetched tile
         {
-            const uint M_Kd4_USGM = M * Kd4 * UNROLL_SG_M;
-            const uint M_Kd4_USGM_USGK = M_Kd4_USGM * UNROLL_SG_K;
-            const uint M_Kd4_USGM_USGK_d_subgroupsize = (M_Kd4_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
-            [[unroll]] for (uint q = 0; q < M_Kd4_USGM_USGK_d_subgroupsize; q++)
+            [[unroll]] for (uint q = 0; q < M_Kd4p_USGM_USGK_d_subgroupsize; q++)
             {
                 const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                if (M_Kd4_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4_USGM_USGK)
+                if (M_Kd4p_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK)
                 {
-#if ncnn_VK_KHR_cooperative_matrix
-                    const uint zk = siq / M_Kd4_USGM;
-                    const uint zmij = siq % M_Kd4_USGM;
-                    const uint zm = zmij / (M * Kd4);
-                    const uint ij = zmij % (M * Kd4);
-                    const uint i = ij / Kd4;
-                    const uint j = ij % Kd4;
-
-                    tmp_a[sgmi][((zk * UNROLL_SG_M + zm) * M + i) * Kd4p + j] = prefetch_tmp_a[q];
-#elif ncnn_VK_NV_cooperative_matrix
                     tmp_a[sgmi][siq] = prefetch_tmp_a[q];
-#endif
                 }
             }
         }
         {
-            const uint K_Nd4_USGN = K * Nd4 * UNROLL_SG_N;
-            const uint K_Nd4_USGN_USGK = K_Nd4_USGN * UNROLL_SG_K;
-            const uint K_Nd4_USGN_USGK_d_subgroupsize = (K_Nd4_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
-            [[unroll]] for (uint q = 0; q < K_Nd4_USGN_USGK_d_subgroupsize; q++)
+            [[unroll]] for (uint q = 0; q < K_Nd4p_USGN_USGK_d_subgroupsize; q++)
             {
                 const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                if (K_Nd4_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4_USGN_USGK)
+                if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
                 {
-#if ncnn_VK_KHR_cooperative_matrix
-                    const uint zk = siq / K_Nd4_USGN;
-                    const uint znij = siq % K_Nd4_USGN;
-                    const uint zn = znij / (K * Nd4);
-                    const uint ij = znij % (K * Nd4);
-                    const uint i = ij / Nd4;
-                    const uint j = ij % Nd4;
-
-                    tmp_b[sgni][((zk * UNROLL_SG_N + zn) * K + i) * Nd4p + j] = prefetch_tmp_b[q];
-#elif ncnn_VK_NV_cooperative_matrix
                     tmp_b[sgni][siq] = prefetch_tmp_b[q];
-#endif
                 }
             }
         }
@@ -681,190 +357,30 @@ void main()
     }
     else
     {
-        for (uint ki = 0; ki < kk; ki += UNROLL_SG_K)
+        for (uint kg = 0; kg < kkg; kg++)
         {
             {
-                const uint M_Kd4_USGM = M * Kd4 * UNROLL_SG_M;
-                const uint M_Kd4_USGM_USGK = M_Kd4_USGM * UNROLL_SG_K;
-                const uint M_Kd4_USGM_USGK_d_subgroupsize = (M_Kd4_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
-                [[unroll]] for (uint q = 0; q < M_Kd4_USGM_USGK_d_subgroupsize; q++)
+                [[unroll]] for (uint q = 0; q < M_Kd4p_USGM_USGK_d_subgroupsize; q++)
                 {
                     const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                    if (M_Kd4_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4_USGM_USGK)
-                    {
-                        int v = 0;
-
-                        if (constantA == 1)
-                        {
-                            const uint kk_full = kk / UNROLL_SG_K;
-
-                            if (ki / UNROLL_SG_K < kk_full)
-                            {
-                                const uint a_offset = (wgmi * kk * UNROLL_WG_M) * M_Kd4_USGM + ((ki / UNROLL_SG_K) * UNROLL_WG_M + sgmi) * M_Kd4_USGM_USGK;
-                                v = i8buffer_sm4(A_int8_data, a_offset + siq);
-                            }
-                            else
-                            {
-                                const uint zk = siq / M_Kd4_USGM;
-                                const uint sij = siq % M_Kd4_USGM;
-
-                                if (ki + zk < kk)
-                                {
-                                    const uint tail_offset = (wgmi * kk * UNROLL_WG_M + kk_full * UNROLL_WG_M * UNROLL_SG_K + (ki + zk - kk_full * UNROLL_SG_K) * UNROLL_WG_M + sgmi) * M_Kd4_USGM;
-                                    v = i8buffer_sm4(A_int8_data, tail_offset + sij);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            const uint zk = siq / M_Kd4_USGM;
-                            const uint zmij = siq % M_Kd4_USGM;
-                            const uint zm = zmij / (M * Kd4);
-                            const uint ij = zmij % (M * Kd4);
-                            const uint i = ij / Kd4;
-                            const uint j = ij % Kd4;
-
-                            const uint gm = (mi + zm) * M + i;
-                            const uint gk = (ki + zk) * K + j * 4;
-
-                            if (gm < psc(GM) && gk < psc(GK))
-                            {
-                                if (psc(GK) % 4 == 0)
-                                {
-                                    v = i8buffer_sm4(A_int8_data, (gm * psc(GK) + gk) / 4);
-                                }
-                                else
-                                {
-                                    const uint ai = gm * psc(GK) + gk;
-                                    const uint aim4 = ai % 4;
-                                    const ivec4 v0 = i8buffer_ld4(A_int8_data, ai / 4);
-                                    ivec4 v1 = ivec4(0);
-                                    if (gk + 4 - aim4 < psc(GK)) v1 = i8buffer_ld4(A_int8_data, ai / 4 + 1);
-                                    ivec4 v4;
-                                    if (aim4 == 0)
-                                    {
-                                        v4 = v0;
-                                    }
-                                    else if (aim4 == 1)
-                                    {
-                                        v4 = ivec4(v0.g, v0.b, v0.a, v1.r);
-                                    }
-                                    else if (aim4 == 2)
-                                    {
-                                        v4 = ivec4(v0.b, v0.a, v1.r, v1.g);
-                                    }
-                                    else
-                                    {
-                                        v4 = ivec4(v0.a, v1.r, v1.g, v1.b);
-                                    }
-                                    if (gk + 1 >= psc(GK)) v4.g = 0;
-                                    if (gk + 2 >= psc(GK)) v4.b = 0;
-                                    if (gk + 3 >= psc(GK)) v4.a = 0;
-                                    v = packInt4x8(v4);
-                                }
-                            }
-                        }
-
-#if ncnn_VK_KHR_cooperative_matrix
-                        const uint zk = siq / M_Kd4_USGM;
-                        const uint zmij = siq % M_Kd4_USGM;
-                        const uint zm = zmij / (M * Kd4);
-                        const uint ij = zmij % (M * Kd4);
-                        const uint i = ij / Kd4;
-                        const uint j = ij % Kd4;
-
-                        tmp_a[sgmi][((zk * UNROLL_SG_M + zm) * M + i) * Kd4p + j] = v;
-#elif ncnn_VK_NV_cooperative_matrix
-                        tmp_a[sgmi][siq] = v;
-#endif
-                    }
+                if (M_Kd4p_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK)
+                {
+                    tmp_a[sgmi][siq] = i8buffer_sm4(A_int8_data, A_offset + kg * A_offset_step + siq);
                 }
             }
+        }
             {
-                const uint K_Nd4_USGN = K * Nd4 * UNROLL_SG_N;
-                const uint K_Nd4_USGN_USGK = K_Nd4_USGN * UNROLL_SG_K;
-                const uint K_Nd4_USGN_USGK_d_subgroupsize = (K_Nd4_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
-                [[unroll]] for (uint q = 0; q < K_Nd4_USGN_USGK_d_subgroupsize; q++)
+                [[unroll]] for (uint q = 0; q < K_Nd4p_USGN_USGK_d_subgroupsize; q++)
                 {
                     const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                    if (K_Nd4_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4_USGN_USGK)
-                    {
-                        int v = 0;
-
-                        if (constantB == 1)
-                        {
-                            const uint kk_full = kk / UNROLL_SG_K;
-
-                            if (ki / UNROLL_SG_K < kk_full)
-                            {
-                                const uint b_offset = (wgni * kk * UNROLL_WG_N) * K_Nd4_USGN + ((ki / UNROLL_SG_K) * UNROLL_WG_N + sgni) * K_Nd4_USGN_USGK;
-                                v = i8buffer_sm4(B_int8_data, b_offset + siq);
-                            }
-                            else
-                            {
-                                const uint zk = siq / K_Nd4_USGN;
-                                const uint sij = siq % K_Nd4_USGN;
-
-                                if (ki + zk < kk)
-                                {
-                                    const uint tail_offset = (wgni * kk * UNROLL_WG_N + kk_full * UNROLL_WG_N * UNROLL_SG_K + (ki + zk - kk_full * UNROLL_SG_K) * UNROLL_WG_N + sgni) * K_Nd4_USGN;
-                                    v = i8buffer_sm4(B_int8_data, tail_offset + sij);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            const uint zk = siq / K_Nd4_USGN;
-                            const uint znij = siq % K_Nd4_USGN;
-                            const uint zn = znij / (K * Nd4);
-                            const uint ij = znij % (K * Nd4);
-                            const uint i = ij / Nd4;
-                            const uint j = ij % Nd4;
-
-                            const uint gk = (ki + zk) * K + i;
-                            const uint gn = (ni + zn) * N + j * 4;
-
-                            if (gn < psc(GN) && gk < psc(GK))
-                            {
-                                ivec4 v4 = ivec4(0);
-                                uint bi = gn * psc(GK) + gk;
-                                v4.r = i8buffer_ld4(B_int8_data, bi / 4)[bi % 4];
-                                if (gn + 1 < psc(GN))
-                                {
-                                    bi += psc(GK);
-                                    v4.g = i8buffer_ld4(B_int8_data, bi / 4)[bi % 4];
-                                }
-                                if (gn + 2 < psc(GN))
-                                {
-                                    bi += psc(GK);
-                                    v4.b = i8buffer_ld4(B_int8_data, bi / 4)[bi % 4];
-                                }
-                                if (gn + 3 < psc(GN))
-                                {
-                                    bi += psc(GK);
-                                    v4.a = i8buffer_ld4(B_int8_data, bi / 4)[bi % 4];
-                                }
-                                v = packInt4x8(v4);
-                            }
-                        }
-
-#if ncnn_VK_KHR_cooperative_matrix
-                        const uint zk = siq / K_Nd4_USGN;
-                        const uint znij = siq % K_Nd4_USGN;
-                        const uint zn = znij / (K * Nd4);
-                        const uint ij = znij % (K * Nd4);
-                        const uint i = ij / Nd4;
-                        const uint j = ij % Nd4;
-
-                        tmp_b[sgni][((zk * UNROLL_SG_N + zn) * K + i) * Nd4p + j] = v;
-#elif ncnn_VK_NV_cooperative_matrix
-                        tmp_b[sgni][siq] = v;
-#endif
-                    }
+                if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
+                {
+                    tmp_b[sgni][siq] = i8buffer_sm4(B_int8_data, B_offset + kg * B_offset_step + siq);
                 }
             }
+        }
 
             barrier();
 
