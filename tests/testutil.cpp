@@ -257,8 +257,8 @@ int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon)
 
     for (int n = 0; n < a.n; n++)
     {
-        const ncnn::Mat ba = a.n == 1 ? a : a.batch(n);
-        const ncnn::Mat bb = b.n == 1 ? b : b.batch(n);
+        const ncnn::Mat ba = a.batch(n);
+        const ncnn::Mat bb = b.batch(n);
 
         for (int q = 0; q < a.c; q++)
         {
