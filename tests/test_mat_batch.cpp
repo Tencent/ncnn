@@ -3,13 +3,13 @@
 
 #include "mat.h"
 #include "net.h"
+#include "testutil.h"
 
 #if NCNN_VULKAN
 #include "gpu.h"
 #include "command.h"
 #endif
 
-#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -421,7 +421,7 @@ static int test_batch_reshape()
         for (int i = 0; i < W * H * C; i++)
         {
             float expected = (float)(b * 100 + (i / (W * H)) * 10 + i % (W * H));
-            if (fabsf(ptr[i] - expected) > 1e-5f)
+            if (!NearlyEqual(ptr[i], expected, 1e-5f))
             {
                 fprintf(stderr, "test_batch_reshape mismatch at b=%d i=%d got %f expect %f\n", b, i, ptr[i], expected);
                 return -1;
@@ -471,7 +471,7 @@ static int test_batch_reshape_zero_copy()
         for (int i = 0; i < W * H * C; i++)
         {
             float expected = (float)(b * 100 + i);
-            if (fabsf(ptr[i] - expected) > 1e-5f)
+            if (!NearlyEqual(ptr[i], expected, 1e-5f))
             {
                 fprintf(stderr, "test_batch_reshape_zero_copy mismatch at b=%d i=%d got %f expect %f\n", b, i, ptr[i], expected);
                 return -1;
@@ -749,7 +749,7 @@ static int test_batch_forward_binaryop_same_batch()
             for (int i = 0; i < W * H; i++)
             {
                 float expected = (float)(bi * 100 + q * 10 + i + bi * 7 + q * 3 + i);
-                if (fabsf(ptr[i] - expected) > 1e-5f)
+                if (!NearlyEqual(ptr[i], expected, 1e-5f))
                 {
                     fprintf(stderr, "test_batch_forward_binaryop_same_batch mismatch at b=%d q=%d i=%d got %f expect %f\n", bi, q, i, ptr[i], expected);
                     return -1;
@@ -828,7 +828,7 @@ static int test_batch_forward_binaryop_broadcast()
             for (int i = 0; i < W * H; i++)
             {
                 float expected = (float)(bi * 100 + q * 10 + i + q * 3 + i);
-                if (fabsf(ptr[i] - expected) > 1e-5f)
+                if (!NearlyEqual(ptr[i], expected, 1e-5f))
                 {
                     fprintf(stderr, "test_batch_forward_binaryop_broadcast mismatch at b=%d q=%d i=%d got %f expect %f\n", bi, q, i, ptr[i], expected);
                     return -1;
@@ -903,7 +903,7 @@ static int test_batch_forward_scale_external()
             for (int i = 0; i < W * H; i++)
             {
                 float expected = (float)(bi * 100 + q * 10 + i) * (q + 2);
-                if (fabsf(ptr[i] - expected) > 1e-5f)
+                if (!NearlyEqual(ptr[i], expected, 1e-5f))
                 {
                     fprintf(stderr, "test_batch_forward_scale_external mismatch at b=%d q=%d i=%d got %f expect %f\n", bi, q, i, ptr[i], expected);
                     return -1;
@@ -995,24 +995,10 @@ static int test_batch_forward_split()
         return -1;
     }
 
-    for (int b = 0; b < B; b++)
+    if (CompareMat(input_batch, out0, 1e-5) != 0 || CompareMat(input_batch, out1, 1e-5) != 0)
     {
-        const ncnn::Mat out0_b = out0.batch(b);
-        const ncnn::Mat out1_b = out1.batch(b);
-        for (int q = 0; q < C; q++)
-        {
-            const float* ptr0 = out0_b.channel(q);
-            const float* ptr1 = out1_b.channel(q);
-            for (int i = 0; i < W * H; i++)
-            {
-                float expected = (float)(b * 100 + q * 10 + i);
-                if (fabsf(ptr0[i] - expected) > 1e-5f || fabsf(ptr1[i] - expected) > 1e-5f)
-                {
-                    fprintf(stderr, "test_batch_forward_split mismatch at b=%d q=%d i=%d got %f %f expect %f\n", b, q, i, ptr0[i], ptr1[i], expected);
-                    return -1;
-                }
-            }
-        }
+        fprintf(stderr, "test_batch_forward_split value mismatch\n");
+        return -1;
     }
 
     return 0;
@@ -1071,7 +1057,7 @@ static int test_batch_forward_flatten()
         for (int i = 0; i < W * H * C; i++)
         {
             float expected = (float)(b * 100 + (i / (W * H)) * 10 + i % (W * H));
-            if (fabsf(ptr[i] - expected) > 1e-5f)
+            if (!NearlyEqual(ptr[i], expected, 1e-5f))
             {
                 fprintf(stderr, "test_batch_forward_flatten mismatch at b=%d i=%d got %f expect %f\n", b, i, ptr[i], expected);
                 return -1;
@@ -1138,7 +1124,7 @@ static int test_batch_forward_shape_ops()
         for (int i = 0; i < W * H * C; i++)
         {
             float expected = (float)(b * 100 + (i / (W * H)) * 10 + i % (W * H));
-            if (fabsf(ptr[i] - expected) > 1e-5f)
+            if (!NearlyEqual(ptr[i], expected, 1e-5f))
             {
                 fprintf(stderr, "test_batch_forward_shape_ops mismatch at b=%d i=%d got %f expect %f\n", b, i, ptr[i], expected);
                 return -1;
@@ -1159,6 +1145,8 @@ static int test_batch_forward_relu()
                              "ReLU  relu  1 1 data output 0=1.000000e-01\n";
 
     ncnn::Net net;
+    net.opt.use_fp16_storage = false;
+    net.opt.use_fp16_arithmetic = false;
     net.load_param_mem(param_str);
 
     const int B = 4;
@@ -1215,7 +1203,7 @@ static int test_batch_forward_relu()
             const float* ptr = out_sub.channel(q);
             for (int i = 0; i < W * H; i++)
             {
-                if (fabsf(ptr[i] - expected) > 1e-5f)
+                if (!NearlyEqual(ptr[i], expected, 1e-5f))
                 {
                     fprintf(stderr, "test_batch_forward_relu value mismatch at b=%d q=%d i=%d: got %f expect %f\n",
                             b, q, i, ptr[i], expected);
@@ -1292,7 +1280,7 @@ static int test_batch_forward_pooling()
         float expected[4] = {5.f, 7.f, 13.f, 15.f};
         for (int i = 0; i < 4; i++)
         {
-            if (fabsf(ptr[i] - expected[i]) > 1e-5f)
+            if (!NearlyEqual(ptr[i], expected[i], 1e-5f))
             {
                 fprintf(stderr, "test_batch_forward_pooling b0 mismatch at i=%d: got %f expect %f\n",
                         i, ptr[i], expected[i]);
@@ -1308,7 +1296,7 @@ static int test_batch_forward_pooling()
         float expected[4] = {105.f, 107.f, 113.f, 115.f};
         for (int i = 0; i < 4; i++)
         {
-            if (fabsf(ptr[i] - expected[i]) > 1e-5f)
+            if (!NearlyEqual(ptr[i], expected[i], 1e-5f))
             {
                 fprintf(stderr, "test_batch_forward_pooling b1 mismatch at i=%d: got %f expect %f\n",
                         i, ptr[i], expected[i]);
@@ -1667,22 +1655,12 @@ static int test_vkmat_batch_upload_download()
             return -1;
         }
 
-        const ncnn::Mat orig = cpu_batch.batch(b);
-        for (int q = 0; q < C; q++)
+        if (CompareMat(cpu_batch.batch(b), result, 1e-5) != 0)
         {
-            const float* orig_ptr = orig.channel(q);
-            const float* result_ptr = result.channel(q);
-            for (int i = 0; i < W * H; i++)
-            {
-                if (fabsf(orig_ptr[i] - result_ptr[i]) > 1e-5f)
-                {
-                    fprintf(stderr, "test_vkmat_batch_upload_download value mismatch at b=%d q=%d i=%d: got %f expect %f\n",
-                            b, q, i, result_ptr[i], orig_ptr[i]);
-                    vkdev->reclaim_staging_allocator(staging_allocator);
-                    vkdev->reclaim_blob_allocator(blob_allocator);
-                    return -1;
-                }
-            }
+            fprintf(stderr, "test_vkmat_batch_upload_download value mismatch at batch %d\n", b);
+            vkdev->reclaim_staging_allocator(staging_allocator);
+            vkdev->reclaim_blob_allocator(blob_allocator);
+            return -1;
         }
     }
 
@@ -1747,26 +1725,12 @@ static int test_vkmat_batch_upload_download_whole()
         return -1;
     }
 
-    for (int b = 0; b < B; b++)
+    if (CompareMat(cpu_batch, cpu_result, 1e-5) != 0)
     {
-        const ncnn::Mat orig = cpu_batch.batch(b);
-        const ncnn::Mat result = cpu_result.batch(b);
-        for (int q = 0; q < C; q++)
-        {
-            const float* orig_ptr = orig.channel(q);
-            const float* result_ptr = result.channel(q);
-            for (int i = 0; i < W * H; i++)
-            {
-                if (fabsf(result_ptr[i] - orig_ptr[i]) > 1e-5f)
-                {
-                    fprintf(stderr, "test_vkmat_batch_upload_download_whole value mismatch at b=%d q=%d i=%d got %f expect %f\n",
-                            b, q, i, result_ptr[i], orig_ptr[i]);
-                    vkdev->reclaim_staging_allocator(staging_allocator);
-                    vkdev->reclaim_blob_allocator(blob_allocator);
-                    return -1;
-                }
-            }
-        }
+        fprintf(stderr, "test_vkmat_batch_upload_download_whole value mismatch\n");
+        vkdev->reclaim_staging_allocator(staging_allocator);
+        vkdev->reclaim_blob_allocator(blob_allocator);
+        return -1;
     }
 
     vkdev->reclaim_staging_allocator(staging_allocator);
@@ -1842,26 +1806,12 @@ static int test_vktransfer_batch_upload()
         return -1;
     }
 
-    for (int b = 0; b < B; b++)
+    if (CompareMat(cpu_batch, cpu_result, 1e-5) != 0)
     {
-        const ncnn::Mat orig = cpu_batch.batch(b);
-        const ncnn::Mat result = cpu_result.batch(b);
-        for (int q = 0; q < C; q++)
-        {
-            const float* orig_ptr = orig.channel(q);
-            const float* result_ptr = result.channel(q);
-            for (int i = 0; i < W * H; i++)
-            {
-                if (fabsf(result_ptr[i] - orig_ptr[i]) > 1e-5f)
-                {
-                    fprintf(stderr, "test_vktransfer_batch_upload value mismatch at b=%d q=%d i=%d got %f expect %f\n",
-                            b, q, i, result_ptr[i], orig_ptr[i]);
-                    vkdev->reclaim_staging_allocator(staging_allocator);
-                    vkdev->reclaim_blob_allocator(blob_allocator);
-                    return -1;
-                }
-            }
-        }
+        fprintf(stderr, "test_vktransfer_batch_upload value mismatch\n");
+        vkdev->reclaim_staging_allocator(staging_allocator);
+        vkdev->reclaim_blob_allocator(blob_allocator);
+        return -1;
     }
 
     vkdev->reclaim_staging_allocator(staging_allocator);
@@ -1935,7 +1885,7 @@ static int test_vkmat_batch_forward_relu()
             const float* ptr = out_sub.channel(q);
             for (int i = 0; i < W * H; i++)
             {
-                if (fabsf(ptr[i] - expected) > 1e-4f)
+                if (!NearlyEqual(ptr[i], expected, 1e-4f))
                 {
                     fprintf(stderr, "test_vkmat_batch_forward_relu value mismatch at b=%d q=%d i=%d: got %f expect %f\n",
                             b, q, i, ptr[i], expected);
@@ -2015,7 +1965,7 @@ static int test_vkmat_batch_forward_pooling()
         float expected[4] = {5.f, 7.f, 13.f, 15.f};
         for (int i = 0; i < 4; i++)
         {
-            if (fabsf(ptr[i] - expected[i]) > 1e-4f)
+            if (!NearlyEqual(ptr[i], expected[i], 1e-4f))
             {
                 fprintf(stderr, "test_vkmat_batch_forward_pooling b0 mismatch at i=%d: got %f expect %f\n",
                         i, ptr[i], expected[i]);
@@ -2031,7 +1981,7 @@ static int test_vkmat_batch_forward_pooling()
         float expected[4] = {105.f, 107.f, 113.f, 115.f};
         for (int i = 0; i < 4; i++)
         {
-            if (fabsf(ptr[i] - expected[i]) > 1e-4f)
+            if (!NearlyEqual(ptr[i], expected[i], 1e-4f))
             {
                 fprintf(stderr, "test_vkmat_batch_forward_pooling b1 mismatch at i=%d: got %f expect %f\n",
                         i, ptr[i], expected[i]);
@@ -2096,24 +2046,10 @@ static int test_vkmat_batch_forward_split()
         return -1;
     }
 
-    for (int b = 0; b < B; b++)
+    if (CompareMat(input_batch, out0, 1e-5) != 0 || CompareMat(input_batch, out1, 1e-5) != 0)
     {
-        const ncnn::Mat out0_b = out0.batch(b);
-        const ncnn::Mat out1_b = out1.batch(b);
-        for (int q = 0; q < C; q++)
-        {
-            const float* ptr0 = out0_b.channel(q);
-            const float* ptr1 = out1_b.channel(q);
-            for (int i = 0; i < W * H; i++)
-            {
-                float expected = (float)(b * 100 + q * 10 + i);
-                if (fabsf(ptr0[i] - expected) > 1e-5f || fabsf(ptr1[i] - expected) > 1e-5f)
-                {
-                    fprintf(stderr, "test_vkmat_batch_forward_split mismatch at b=%d q=%d i=%d got %f %f expect %f\n", b, q, i, ptr0[i], ptr1[i], expected);
-                    return -1;
-                }
-            }
-        }
+        fprintf(stderr, "test_vkmat_batch_forward_split value mismatch\n");
+        return -1;
     }
 
     return 0;
@@ -2186,7 +2122,7 @@ static int test_vkmat_batch_forward_binaryop_same_batch()
             for (int i = 0; i < W * H; i++)
             {
                 float expected = (float)(bi * 100 + q * 10 + i + bi * 7 + q * 3 + i);
-                if (fabsf(ptr[i] - expected) > 1e-4f)
+                if (!NearlyEqual(ptr[i], expected, 1e-4f))
                 {
                     fprintf(stderr, "test_vkmat_batch_forward_binaryop_same_batch mismatch at b=%d q=%d i=%d got %f expect %f\n", bi, q, i, ptr[i], expected);
                     return -1;
@@ -2269,7 +2205,7 @@ static int test_vkmat_batch_forward_binaryop_broadcast()
             for (int i = 0; i < W * H; i++)
             {
                 float expected = (float)(bi * 100 + q * 10 + i + q * 3 + i);
-                if (fabsf(ptr[i] - expected) > 1e-4f)
+                if (!NearlyEqual(ptr[i], expected, 1e-4f))
                 {
                     fprintf(stderr, "test_vkmat_batch_forward_binaryop_broadcast mismatch at b=%d q=%d i=%d got %f expect %f\n", bi, q, i, ptr[i], expected);
                     return -1;
@@ -2348,7 +2284,7 @@ static int test_vkmat_batch_forward_scale_external()
             for (int i = 0; i < W * H; i++)
             {
                 float expected = (float)(bi * 100 + q * 10 + i) * (q + 2);
-                if (fabsf(ptr[i] - expected) > 1e-4f)
+                if (!NearlyEqual(ptr[i], expected, 1e-4f))
                 {
                     fprintf(stderr, "test_vkmat_batch_forward_scale_external mismatch at b=%d q=%d i=%d got %f expect %f\n", bi, q, i, ptr[i], expected);
                     return -1;
