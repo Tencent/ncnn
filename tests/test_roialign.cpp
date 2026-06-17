@@ -42,7 +42,11 @@ static int test_roialign_0()
            || test_roialign(14, 14, 4, 7, 7, 0.12500, 2, 0, 1)
            || test_roialign(14, 14, 8, 7, 7, 0.06250, 3, 1, 0)
            || test_roialign(7, 7, 12, 3, 3, 0.03125, 4, 0, 0)
-           || test_roialign(7, 7, 16, 3, 3, 0.03125, 4, 1, 1);
+           || test_roialign(7, 7, 16, 3, 3, 0.03125, 4, 1, 1)
+           || test_roialign(28, 28, 4, 7, 7, 0.50000, 0, 0, 0)
+           || test_roialign(40, 40, 8, 5, 5, 0.50000, 0, 1, 0)
+           || test_roialign(28, 28, 8, 7, 7, 0.50000, 0, 0, 1)
+           || test_roialign(40, 40, 16, 5, 5, 0.50000, 0, 1, 1);
 }
 
 int main()
