@@ -2566,8 +2566,6 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
 
             if (use_cooperative_matrix)
             {
-                const signed char* weight_data_ptr = weight_data;
-
                 const int K = num_input * maxk;
                 const int blocks_n = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
                 const int kk = (K + coopmat_K - 1) / coopmat_K;
@@ -2583,7 +2581,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int bn = 0; bn < blocks_n; bn++)
                 {
-                    signed char* p = weight_data_int8_packed.row<signed char>(bn);
+                    signed char* g00 = weight_data_int8_packed.row<signed char>(bn);
 
                     for (int k = 0; k < kk_padded; k += UNROLL_SG_K)
                     {
@@ -2602,7 +2600,26 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                                                 const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j * 4 + jj;
                                                 const int gki = (k + zk) * coopmat_K + i;
 
-                                                *p++ = j < coopmat_Nd4 && gni < num_output && gki < K ? weight_data_ptr[gni * K + gki] : 0;
+                                                if (j < coopmat_Nd4 && gni < num_output && gki < K)
+                                                {
+                                                    int p = gki / maxk;
+                                                    int k0 = gki - p * maxk;
+
+                                                    if (elempack == 4)
+                                                    {
+                                                        const int gki4 = gki / 4;
+                                                        p = (gki4 / maxk) * 4 + gki % 4;
+                                                        k0 = gki4 % maxk;
+                                                    }
+
+                                                    const signed char* k00 = weight_data_r2.channel(gni).row<const signed char>(p);
+                                                    g00[0] = k00[k0];
+                                                }
+                                                else
+                                                {
+                                                    g00[0] = 0;
+                                                }
+                                                g00++;
                                             }
                                         }
                                     }
