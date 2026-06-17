@@ -86,7 +86,7 @@ static int test_innerproduct_3()
 }
 
 #if NCNN_INT8
-static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)
+static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias, bool input_int8 = false, bool weight_int8 = false)
 {
     ncnn::ParamDict pd;
     pd.set(0, outch); // num_output
@@ -103,9 +103,18 @@ static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)
 
     std::vector<ncnn::Mat> weights(bias ? 4 : 3);
     const int k = a.w * a.h * a.d * a.c;
-    weights[0] = RandomMat(outch * k);
-    ncnn::Mat weight_scales = scales_mat(weights[0], outch, k, k);
+    weights[0] = weight_int8 ? RandomS8Mat(outch * k) : RandomMat(outch * k);
+    ncnn::Mat weight_scales = weight_int8 ? RandomMat(outch, 10.f, 20.f) : scales_mat(weights[0], outch, k, k);
     ncnn::Mat input_scales = scales_mat(a, 1, k, k);
+
+    ncnn::Mat a_int8 = a;
+    if (input_int8)
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_packing_layout = false;
+        ncnn::quantize_to_int8(a, a_int8, input_scales, opt);
+    }
 
     if (bias)
     {
@@ -119,11 +128,28 @@ static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)
         weights[2] = input_scales;
     }
 
-    int flag = TEST_LAYER_DISABLE_GPU_TESTING;
-    int ret = test_layer("InnerProduct", pd, weights, a, 0.001f, flag);
+    int flag = input_int8 ? TEST_LAYER_DISABLE_AUTO_INPUT_CASTING : 0;
+    int ret = 0;
+    if (input_int8)
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_packing_layout = true;
+        opt.use_fp16_packed = false;
+        opt.use_fp16_storage = false;
+        opt.use_fp16_arithmetic = false;
+        opt.use_bf16_packed = false;
+        opt.use_bf16_storage = false;
+
+        ret = test_layer_opt("InnerProduct", pd, weights, opt, a_int8, 0.001f, flag);
+    }
+    else
+    {
+        ret = test_layer("InnerProduct", pd, weights, a_int8, 0.001f, flag);
+    }
     if (ret != 0)
     {
-        fprintf(stderr, "test_innerproduct_int8 failed a.dims=%d a=(%d %d %d %d) outch=%d bias=%d act=%d actparams=[%f,%f]\n", a.dims, a.w, a.h, a.d, a.c, outch, bias, activation_type, activation_params[0], activation_params[1]);
+        fprintf(stderr, "test_innerproduct_int8 failed a.dims=%d a=(%d %d %d %d) outch=%d bias=%d input_int8=%d weight_int8=%d act=%d actparams=[%f,%f]\n", a.dims, a.w, a.h, a.d, a.c, outch, bias, input_int8, weight_int8, activation_type, activation_params[0], activation_params[1]);
     }
 
     return ret;
@@ -142,7 +168,14 @@ static int test_innerproduct_4()
            || test_innerproduct_int8(RandomMat(6, 2, 8), 8, 1)
            || test_innerproduct_int8(RandomMat(8, 3, 15), 15, 1)
            || test_innerproduct_int8(RandomMat(7, 2, 16), 4, 1)
-           || test_innerproduct_int8(RandomMat(6, 3, 16), 16, 1);
+           || test_innerproduct_int8(RandomMat(6, 3, 16), 16, 1)
+           || test_innerproduct_int8(RandomMat(16), 16, 1, true)
+           || test_innerproduct_int8(RandomMat(32), 16, 1, false, true)
+           || test_innerproduct_int8(RandomMat(16), 12, 1, true, true)
+           || test_innerproduct_int8(RandomMat(2, 2, 1), 7, 1, true)
+           || test_innerproduct_int8(RandomMat(2, 2, 2), 7, 1, true)
+           || test_innerproduct_int8(RandomMat(2, 2, 3), 7, 1, true)
+           || test_innerproduct_int8(RandomMat(2, 2, 4), 8, 1, true);
 }
 #endif // NCNN_INT8
 
@@ -205,7 +238,7 @@ static int test_innerproduct_5()
 }
 
 #if NCNN_INT8
-static int test_innerproduct_gemm_int8(const ncnn::Mat& a, int outch, int bias)
+static int test_innerproduct_gemm_int8(const ncnn::Mat& a, int outch, int bias, bool input_int8 = false, bool weight_int8 = false)
 {
     ncnn::ParamDict pd;
     pd.set(0, outch);
@@ -215,9 +248,18 @@ static int test_innerproduct_gemm_int8(const ncnn::Mat& a, int outch, int bias)
 
     std::vector<ncnn::Mat> weights(bias ? 4 : 3);
     const int k = a.w;
-    weights[0] = RandomMat(outch * k);
-    ncnn::Mat weight_scales = scales_mat(weights[0], outch, k, k);
+    weights[0] = weight_int8 ? RandomS8Mat(outch * k) : RandomMat(outch * k);
+    ncnn::Mat weight_scales = weight_int8 ? RandomMat(outch, 10.f, 20.f) : scales_mat(weights[0], outch, k, k);
     ncnn::Mat input_scales = scales_mat(a, 1, k, k);
+
+    ncnn::Mat a_int8 = a;
+    if (input_int8)
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_packing_layout = false;
+        ncnn::quantize_to_int8(a, a_int8, input_scales, opt);
+    }
 
     if (bias)
     {
@@ -231,11 +273,28 @@ static int test_innerproduct_gemm_int8(const ncnn::Mat& a, int outch, int bias)
         weights[2] = input_scales;
     }
 
-    int flag = TEST_LAYER_DISABLE_GPU_TESTING;
-    int ret = test_layer("InnerProduct", pd, weights, a, 0.001f, flag);
+    int flag = input_int8 ? TEST_LAYER_DISABLE_AUTO_INPUT_CASTING : 0;
+    int ret = 0;
+    if (input_int8)
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_packing_layout = true;
+        opt.use_fp16_packed = false;
+        opt.use_fp16_storage = false;
+        opt.use_fp16_arithmetic = false;
+        opt.use_bf16_packed = false;
+        opt.use_bf16_storage = false;
+
+        ret = test_layer_opt("InnerProduct", pd, weights, opt, a_int8, 0.001f, flag);
+    }
+    else
+    {
+        ret = test_layer("InnerProduct", pd, weights, a_int8, 0.001f, flag);
+    }
     if (ret != 0)
     {
-        fprintf(stderr, "test_innerproduct_gemm_int8 failed a.dims=%d a=(%d %d %d) outch=%d bias=%d\n", a.dims, a.w, a.h, a.c, outch, bias);
+        fprintf(stderr, "test_innerproduct_gemm_int8 failed a.dims=%d a=(%d %d %d) outch=%d bias=%d input_int8=%d weight_int8=%d\n", a.dims, a.w, a.h, a.c, outch, bias, input_int8, weight_int8);
     }
 
     return ret;
@@ -252,7 +311,11 @@ static int test_innerproduct_6()
            || test_innerproduct_gemm_int8(RandomMat(16, 12), 16, 0)
            || test_innerproduct_gemm_int8(RandomMat(4, 15), 8, 1)
            || test_innerproduct_gemm_int8(RandomMat(6, 16), 16, 0)
-           || test_innerproduct_gemm_int8(RandomMat(12, 16), 7, 1);
+           || test_innerproduct_gemm_int8(RandomMat(12, 16), 7, 1)
+           || test_innerproduct_gemm_int8(RandomMat(11, 16), 8, 1, false, true)
+           || test_innerproduct_gemm_int8(RandomMat(13, 15), 7, 1, true)
+           || test_innerproduct_gemm_int8(RandomMat(12, 16), 7, 1, true)
+           || test_innerproduct_gemm_int8(RandomMat(12, 16), 7, 1, true, true);
 }
 
 static int test_innerproduct_7()

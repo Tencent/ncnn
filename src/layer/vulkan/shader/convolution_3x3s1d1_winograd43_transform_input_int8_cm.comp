@@ -1,0 +1,326 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int c = 0;
+
+#define shape_constant_id_offset 1
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 3) const int outcstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 4) const int block_x = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int block_y = 0;
+
+layout(binding = 0) readonly buffer bottom_blob { sint8 bottom_blob_int8_data[]; };
+layout(binding = 1) writeonly buffer bottom_tm_low_blob { sint8 bottom_tm_low_data[]; };
+layout(binding = 2) writeonly buffer bottom_tm_high_blob { sint8 bottom_tm_high_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int cstep;
+
+    int outcstep;
+
+    int block_x;
+    int block_y;
+} p;
+
+void main()
+{
+    const int gx = int(gl_GlobalInvocationID.x);
+    const int gy = int(gl_GlobalInvocationID.y);
+    const int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(block_x) || gy >= psc(block_y) || gz >= c)
+        return;
+
+    // load 6x6
+    int sx = gx * 4;
+    int sy = gy * 4;
+
+    int v_offset_0 = gz * psc(cstep) + sy * psc(w) + sx;
+    ivec4 v_offset = v_offset_0 + ivec4(0, 1, 2, 3) * psc(w);
+    ivec2 v_offset45 = v_offset_0 + ivec2(4, 5) * psc(w);
+
+    int v00 = i8buffer_ld1(bottom_blob_int8_data, v_offset.r + 0);
+    int v01 = sx + 1 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.r + 1) : 0;
+    int v02 = sx + 2 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.r + 2) : 0;
+    int v03 = sx + 3 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.r + 3) : 0;
+    int v04 = sx + 4 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.r + 4) : 0;
+    int v05 = sx + 5 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.r + 5) : 0;
+
+    int v10 = sy + 1 < psc(h) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.g + 0) : 0;
+    int v11 = sy + 1 < psc(h) && sx + 1 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.g + 1) : 0;
+    int v12 = sy + 1 < psc(h) && sx + 2 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.g + 2) : 0;
+    int v13 = sy + 1 < psc(h) && sx + 3 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.g + 3) : 0;
+    int v14 = sy + 1 < psc(h) && sx + 4 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.g + 4) : 0;
+    int v15 = sy + 1 < psc(h) && sx + 5 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.g + 5) : 0;
+
+    int v20 = sy + 2 < psc(h) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.b + 0) : 0;
+    int v21 = sy + 2 < psc(h) && sx + 1 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.b + 1) : 0;
+    int v22 = sy + 2 < psc(h) && sx + 2 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.b + 2) : 0;
+    int v23 = sy + 2 < psc(h) && sx + 3 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.b + 3) : 0;
+    int v24 = sy + 2 < psc(h) && sx + 4 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.b + 4) : 0;
+    int v25 = sy + 2 < psc(h) && sx + 5 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.b + 5) : 0;
+
+    int v30 = sy + 3 < psc(h) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.a + 0) : 0;
+    int v31 = sy + 3 < psc(h) && sx + 1 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.a + 1) : 0;
+    int v32 = sy + 3 < psc(h) && sx + 2 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.a + 2) : 0;
+    int v33 = sy + 3 < psc(h) && sx + 3 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.a + 3) : 0;
+    int v34 = sy + 3 < psc(h) && sx + 4 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.a + 4) : 0;
+    int v35 = sy + 3 < psc(h) && sx + 5 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset.a + 5) : 0;
+
+    int v40 = sy + 4 < psc(h) ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.x + 0) : 0;
+    int v41 = sy + 4 < psc(h) && sx + 1 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.x + 1) : 0;
+    int v42 = sy + 4 < psc(h) && sx + 2 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.x + 2) : 0;
+    int v43 = sy + 4 < psc(h) && sx + 3 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.x + 3) : 0;
+    int v44 = sy + 4 < psc(h) && sx + 4 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.x + 4) : 0;
+    int v45 = sy + 4 < psc(h) && sx + 5 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.x + 5) : 0;
+
+    int v50 = sy + 5 < psc(h) ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.y + 0) : 0;
+    int v51 = sy + 5 < psc(h) && sx + 1 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.y + 1) : 0;
+    int v52 = sy + 5 < psc(h) && sx + 2 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.y + 2) : 0;
+    int v53 = sy + 5 < psc(h) && sx + 3 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.y + 3) : 0;
+    int v54 = sy + 5 < psc(h) && sx + 4 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.y + 4) : 0;
+    int v55 = sy + 5 < psc(h) && sx + 5 < psc(w) ? i8buffer_ld1(bottom_blob_int8_data, v_offset45.y + 5) : 0;
+
+    // implicit transpose
+    int m00 = v04 + v00 * 4 - v02 * 5;
+    int m01 = v14 + v10 * 4 - v12 * 5;
+    int m02 = v24 + v20 * 4 - v22 * 5;
+    int m03 = v34 + v30 * 4 - v32 * 5;
+    int m04 = v44 + v40 * 4 - v42 * 5;
+    int m05 = v54 + v50 * 4 - v52 * 5;
+
+    int m10 = (v04 - v02 * 4) + (v03 - v01 * 4);
+    int m11 = (v14 - v12 * 4) + (v13 - v11 * 4);
+    int m12 = (v24 - v22 * 4) + (v23 - v21 * 4);
+    int m13 = (v34 - v32 * 4) + (v33 - v31 * 4);
+    int m14 = (v44 - v42 * 4) + (v43 - v41 * 4);
+    int m15 = (v54 - v52 * 4) + (v53 - v51 * 4);
+
+    int m20 = (v04 - v02 * 4) - (v03 - v01 * 4);
+    int m21 = (v14 - v12 * 4) - (v13 - v11 * 4);
+    int m22 = (v24 - v22 * 4) - (v23 - v21 * 4);
+    int m23 = (v34 - v32 * 4) - (v33 - v31 * 4);
+    int m24 = (v44 - v42 * 4) - (v43 - v41 * 4);
+    int m25 = (v54 - v52 * 4) - (v53 - v51 * 4);
+
+    int m30 = (v04 - v02) + (v03 - v01) * 2;
+    int m31 = (v14 - v12) + (v13 - v11) * 2;
+    int m32 = (v24 - v22) + (v23 - v21) * 2;
+    int m33 = (v34 - v32) + (v33 - v31) * 2;
+    int m34 = (v44 - v42) + (v43 - v41) * 2;
+    int m35 = (v54 - v52) + (v53 - v51) * 2;
+
+    int m40 = (v04 - v02) - (v03 - v01) * 2;
+    int m41 = (v14 - v12) - (v13 - v11) * 2;
+    int m42 = (v24 - v22) - (v23 - v21) * 2;
+    int m43 = (v34 - v32) - (v33 - v31) * 2;
+    int m44 = (v44 - v42) - (v43 - v41) * 2;
+    int m45 = (v54 - v52) - (v53 - v51) * 2;
+
+    int m50 = v05 + v01 * 4 - v03 * 5;
+    int m51 = v15 + v11 * 4 - v13 * 5;
+    int m52 = v25 + v21 * 4 - v23 * 5;
+    int m53 = v35 + v31 * 4 - v33 * 5;
+    int m54 = v45 + v41 * 4 - v43 * 5;
+    int m55 = v55 + v51 * 4 - v53 * 5;
+
+    v00 = m04 + m00 * 4 - m02 * 5;
+    v10 = m14 + m10 * 4 - m12 * 5;
+    v20 = m24 + m20 * 4 - m22 * 5;
+    v30 = m34 + m30 * 4 - m32 * 5;
+    v40 = m44 + m40 * 4 - m42 * 5;
+    v50 = m54 + m50 * 4 - m52 * 5;
+
+    v01 = (m04 - m02 * 4) + (m03 - m01 * 4);
+    v11 = (m14 - m12 * 4) + (m13 - m11 * 4);
+    v21 = (m24 - m22 * 4) + (m23 - m21 * 4);
+    v31 = (m34 - m32 * 4) + (m33 - m31 * 4);
+    v41 = (m44 - m42 * 4) + (m43 - m41 * 4);
+    v51 = (m54 - m52 * 4) + (m53 - m51 * 4);
+
+    v02 = (m04 - m02 * 4) - (m03 - m01 * 4);
+    v12 = (m14 - m12 * 4) - (m13 - m11 * 4);
+    v22 = (m24 - m22 * 4) - (m23 - m21 * 4);
+    v32 = (m34 - m32 * 4) - (m33 - m31 * 4);
+    v42 = (m44 - m42 * 4) - (m43 - m41 * 4);
+    v52 = (m54 - m52 * 4) - (m53 - m51 * 4);
+
+    v03 = (m04 - m02) + (m03 - m01) * 2;
+    v13 = (m14 - m12) + (m13 - m11) * 2;
+    v23 = (m24 - m22) + (m23 - m21) * 2;
+    v33 = (m34 - m32) + (m33 - m31) * 2;
+    v43 = (m44 - m42) + (m43 - m41) * 2;
+    v53 = (m54 - m52) + (m53 - m51) * 2;
+
+    v04 = (m04 - m02) - (m03 - m01) * 2;
+    v14 = (m14 - m12) - (m13 - m11) * 2;
+    v24 = (m24 - m22) - (m23 - m21) * 2;
+    v34 = (m34 - m32) - (m33 - m31) * 2;
+    v44 = (m44 - m42) - (m43 - m41) * 2;
+    v54 = (m54 - m52) - (m53 - m51) * 2;
+
+    v05 = m05 + m01 * 4 - m03 * 5;
+    v15 = m15 + m11 * 4 - m13 * 5;
+    v25 = m25 + m21 * 4 - m23 * 5;
+    v35 = m35 + m31 * 4 - m33 * 5;
+    v45 = m45 + m41 * 4 - m43 * 5;
+    v55 = m55 + m51 * 4 - m53 * 5;
+
+    // store 36
+    int v_tm_offset = gz * psc(outcstep) + gy * psc(block_x) + gx;
+    int v_tm_step = psc(outcstep) * c;
+
+    int v00_low = v00 & 255;
+    v00_low = v00_low >= 128 ? v00_low - 256 : v00_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 0 * v_tm_step, v00_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 0 * v_tm_step, (v00 - v00_low) >> 8);
+    int v01_low = v01 & 255;
+    v01_low = v01_low >= 128 ? v01_low - 256 : v01_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 1 * v_tm_step, v01_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 1 * v_tm_step, (v01 - v01_low) >> 8);
+    int v02_low = v02 & 255;
+    v02_low = v02_low >= 128 ? v02_low - 256 : v02_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 2 * v_tm_step, v02_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 2 * v_tm_step, (v02 - v02_low) >> 8);
+    int v03_low = v03 & 255;
+    v03_low = v03_low >= 128 ? v03_low - 256 : v03_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 3 * v_tm_step, v03_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 3 * v_tm_step, (v03 - v03_low) >> 8);
+    int v04_low = v04 & 255;
+    v04_low = v04_low >= 128 ? v04_low - 256 : v04_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 4 * v_tm_step, v04_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 4 * v_tm_step, (v04 - v04_low) >> 8);
+    int v05_low = v05 & 255;
+    v05_low = v05_low >= 128 ? v05_low - 256 : v05_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 5 * v_tm_step, v05_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 5 * v_tm_step, (v05 - v05_low) >> 8);
+    int v10_low = v10 & 255;
+    v10_low = v10_low >= 128 ? v10_low - 256 : v10_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 6 * v_tm_step, v10_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 6 * v_tm_step, (v10 - v10_low) >> 8);
+    int v11_low = v11 & 255;
+    v11_low = v11_low >= 128 ? v11_low - 256 : v11_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 7 * v_tm_step, v11_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 7 * v_tm_step, (v11 - v11_low) >> 8);
+    int v12_low = v12 & 255;
+    v12_low = v12_low >= 128 ? v12_low - 256 : v12_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 8 * v_tm_step, v12_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 8 * v_tm_step, (v12 - v12_low) >> 8);
+    int v13_low = v13 & 255;
+    v13_low = v13_low >= 128 ? v13_low - 256 : v13_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 9 * v_tm_step, v13_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 9 * v_tm_step, (v13 - v13_low) >> 8);
+    int v14_low = v14 & 255;
+    v14_low = v14_low >= 128 ? v14_low - 256 : v14_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 10 * v_tm_step, v14_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 10 * v_tm_step, (v14 - v14_low) >> 8);
+    int v15_low = v15 & 255;
+    v15_low = v15_low >= 128 ? v15_low - 256 : v15_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 11 * v_tm_step, v15_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 11 * v_tm_step, (v15 - v15_low) >> 8);
+    int v20_low = v20 & 255;
+    v20_low = v20_low >= 128 ? v20_low - 256 : v20_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 12 * v_tm_step, v20_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 12 * v_tm_step, (v20 - v20_low) >> 8);
+    int v21_low = v21 & 255;
+    v21_low = v21_low >= 128 ? v21_low - 256 : v21_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 13 * v_tm_step, v21_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 13 * v_tm_step, (v21 - v21_low) >> 8);
+    int v22_low = v22 & 255;
+    v22_low = v22_low >= 128 ? v22_low - 256 : v22_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 14 * v_tm_step, v22_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 14 * v_tm_step, (v22 - v22_low) >> 8);
+    int v23_low = v23 & 255;
+    v23_low = v23_low >= 128 ? v23_low - 256 : v23_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 15 * v_tm_step, v23_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 15 * v_tm_step, (v23 - v23_low) >> 8);
+    int v24_low = v24 & 255;
+    v24_low = v24_low >= 128 ? v24_low - 256 : v24_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 16 * v_tm_step, v24_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 16 * v_tm_step, (v24 - v24_low) >> 8);
+    int v25_low = v25 & 255;
+    v25_low = v25_low >= 128 ? v25_low - 256 : v25_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 17 * v_tm_step, v25_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 17 * v_tm_step, (v25 - v25_low) >> 8);
+    int v30_low = v30 & 255;
+    v30_low = v30_low >= 128 ? v30_low - 256 : v30_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 18 * v_tm_step, v30_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 18 * v_tm_step, (v30 - v30_low) >> 8);
+    int v31_low = v31 & 255;
+    v31_low = v31_low >= 128 ? v31_low - 256 : v31_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 19 * v_tm_step, v31_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 19 * v_tm_step, (v31 - v31_low) >> 8);
+    int v32_low = v32 & 255;
+    v32_low = v32_low >= 128 ? v32_low - 256 : v32_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 20 * v_tm_step, v32_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 20 * v_tm_step, (v32 - v32_low) >> 8);
+    int v33_low = v33 & 255;
+    v33_low = v33_low >= 128 ? v33_low - 256 : v33_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 21 * v_tm_step, v33_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 21 * v_tm_step, (v33 - v33_low) >> 8);
+    int v34_low = v34 & 255;
+    v34_low = v34_low >= 128 ? v34_low - 256 : v34_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 22 * v_tm_step, v34_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 22 * v_tm_step, (v34 - v34_low) >> 8);
+    int v35_low = v35 & 255;
+    v35_low = v35_low >= 128 ? v35_low - 256 : v35_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 23 * v_tm_step, v35_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 23 * v_tm_step, (v35 - v35_low) >> 8);
+    int v40_low = v40 & 255;
+    v40_low = v40_low >= 128 ? v40_low - 256 : v40_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 24 * v_tm_step, v40_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 24 * v_tm_step, (v40 - v40_low) >> 8);
+    int v41_low = v41 & 255;
+    v41_low = v41_low >= 128 ? v41_low - 256 : v41_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 25 * v_tm_step, v41_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 25 * v_tm_step, (v41 - v41_low) >> 8);
+    int v42_low = v42 & 255;
+    v42_low = v42_low >= 128 ? v42_low - 256 : v42_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 26 * v_tm_step, v42_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 26 * v_tm_step, (v42 - v42_low) >> 8);
+    int v43_low = v43 & 255;
+    v43_low = v43_low >= 128 ? v43_low - 256 : v43_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 27 * v_tm_step, v43_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 27 * v_tm_step, (v43 - v43_low) >> 8);
+    int v44_low = v44 & 255;
+    v44_low = v44_low >= 128 ? v44_low - 256 : v44_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 28 * v_tm_step, v44_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 28 * v_tm_step, (v44 - v44_low) >> 8);
+    int v45_low = v45 & 255;
+    v45_low = v45_low >= 128 ? v45_low - 256 : v45_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 29 * v_tm_step, v45_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 29 * v_tm_step, (v45 - v45_low) >> 8);
+    int v50_low = v50 & 255;
+    v50_low = v50_low >= 128 ? v50_low - 256 : v50_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 30 * v_tm_step, v50_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 30 * v_tm_step, (v50 - v50_low) >> 8);
+    int v51_low = v51 & 255;
+    v51_low = v51_low >= 128 ? v51_low - 256 : v51_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 31 * v_tm_step, v51_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 31 * v_tm_step, (v51 - v51_low) >> 8);
+    int v52_low = v52 & 255;
+    v52_low = v52_low >= 128 ? v52_low - 256 : v52_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 32 * v_tm_step, v52_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 32 * v_tm_step, (v52 - v52_low) >> 8);
+    int v53_low = v53 & 255;
+    v53_low = v53_low >= 128 ? v53_low - 256 : v53_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 33 * v_tm_step, v53_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 33 * v_tm_step, (v53 - v53_low) >> 8);
+    int v54_low = v54 & 255;
+    v54_low = v54_low >= 128 ? v54_low - 256 : v54_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 34 * v_tm_step, v54_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 34 * v_tm_step, (v54 - v54_low) >> 8);
+    int v55_low = v55 & 255;
+    v55_low = v55_low >= 128 ? v55_low - 256 : v55_low;
+    i8buffer_st1(bottom_tm_low_data, v_tm_offset + 35 * v_tm_step, v55_low);
+    i8buffer_st1(bottom_tm_high_data, v_tm_offset + 35 * v_tm_step, (v55 - v55_low) >> 8);
+}

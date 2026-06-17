@@ -1,0 +1,103 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int transA = 0;
+
+#define LOCAL_MEMORY_UNROLL_K4 2
+
+layout(binding = 0) readonly buffer A_blob { sfp A_blob_data[]; };
+layout(binding = 1) writeonly buffer A_int8_blob { sint8vec4 A_int8_data[]; };
+layout(binding = 2) writeonly buffer A_descales_blob { float A_descales_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int M;
+    int K;
+    int A_hstep;
+} p;
+
+void main()
+{
+    const int i = int(gl_GlobalInvocationID.x);
+    const int M4 = (p.M + 3) / 4;
+    const int M4_aligned = (M4 + 7) / 8 * 8;
+
+    if (i >= M4_aligned * 4)
+        return;
+
+    const int K4 = (p.K + 3) / 4;
+    const int K4p = ((K4 + (LOCAL_MEMORY_UNROLL_K4 - 1)) / LOCAL_MEMORY_UNROLL_K4) * LOCAL_MEMORY_UNROLL_K4;
+    const int K4_full = p.K / 4;
+
+    if (i >= p.M)
+    {
+        for (int k4 = 0; k4 < K4p; k4++)
+        {
+            i8buffer_st4(A_int8_data, i * K4p + k4, ivec4(0));
+        }
+
+        A_descales_data[i] = 0.f;
+        return;
+    }
+
+    float absmax = 0.f;
+
+    for (int k = 0; k < p.K; k++)
+    {
+        const int ai = transA == 1 ? k * p.A_hstep + i : i * p.A_hstep + k;
+        const float v = float(buffer_ld1(A_blob_data, ai));
+        absmax = max(absmax, abs(v));
+    }
+
+    const float scale = absmax == 0.f ? 1.f : 127.f / absmax;
+    A_descales_data[i] = absmax == 0.f ? 0.f : absmax * (1.f / 127.f);
+
+    for (int k4 = 0; k4 < K4_full; k4++)
+    {
+        const int k = k4 * 4;
+
+        const int ai0 = transA == 1 ? (k + 0) * p.A_hstep + i : i * p.A_hstep + k + 0;
+        const int ai1 = transA == 1 ? (k + 1) * p.A_hstep + i : i * p.A_hstep + k + 1;
+        const int ai2 = transA == 1 ? (k + 2) * p.A_hstep + i : i * p.A_hstep + k + 2;
+        const int ai3 = transA == 1 ? (k + 3) * p.A_hstep + i : i * p.A_hstep + k + 3;
+
+        vec4 v;
+        v.r = float(buffer_ld1(A_blob_data, ai0));
+        v.g = float(buffer_ld1(A_blob_data, ai1));
+        v.b = float(buffer_ld1(A_blob_data, ai2));
+        v.a = float(buffer_ld1(A_blob_data, ai3));
+
+        i8buffer_st4(A_int8_data, i * K4p + k4, float2int8vec4(v * scale));
+    }
+
+    if (K4_full < K4)
+    {
+        const int k = K4_full * 4;
+
+        ivec4 v = ivec4(0);
+        if (k + 0 < p.K)
+        {
+            const int ai = transA == 1 ? (k + 0) * p.A_hstep + i : i * p.A_hstep + k + 0;
+            v.r = float2int8(float(buffer_ld1(A_blob_data, ai)) * scale);
+        }
+        if (k + 1 < p.K)
+        {
+            const int ai = transA == 1 ? (k + 1) * p.A_hstep + i : i * p.A_hstep + k + 1;
+            v.g = float2int8(float(buffer_ld1(A_blob_data, ai)) * scale);
+        }
+        if (k + 2 < p.K)
+        {
+            const int ai = transA == 1 ? (k + 2) * p.A_hstep + i : i * p.A_hstep + k + 2;
+            v.b = float2int8(float(buffer_ld1(A_blob_data, ai)) * scale);
+        }
+
+        i8buffer_st4(A_int8_data, i * K4p + K4_full, v);
+    }
+
+    for (int k4 = K4; k4 < K4p; k4++)
+    {
+        i8buffer_st4(A_int8_data, i * K4p + k4, ivec4(0));
+    }
+}

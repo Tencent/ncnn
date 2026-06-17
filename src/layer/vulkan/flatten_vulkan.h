@@ -23,6 +23,11 @@ public:
     Pipeline* pipeline_flatten;
     Pipeline* pipeline_flatten_pack4;
     Pipeline* pipeline_flatten_pack1to4;
+#if NCNN_INT8
+    Pipeline* pipeline_flatten_int8;
+    Pipeline* pipeline_flatten_pack4_int8;
+    Pipeline* pipeline_flatten_pack1to4_int8;
+#endif
 };
 
 } // namespace ncnn

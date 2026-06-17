@@ -1,0 +1,173 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int type = 1;
+layout(constant_id = 1) const float value = 0;
+layout(constant_id = 2) const int per_channel_pad = 0;
+
+#define shape_constant_id_offset 3
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
+layout(binding = 0) readonly buffer bottom_blob { sint8 bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sint8vec4 top_blob_data[]; };
+layout(binding = 2) readonly buffer per_channel_pad_blob { sint8vec4 per_channel_pad_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
+
+    int left;
+    int top;
+    int front;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
+        return;
+
+    const ivec4 pad_value = ivec4(int(value));
+
+    if (psc(dims) == 1)
+    {
+        ivec4 x4 = gx * 4 - p.left + ivec4(0, 1, 2, 3);
+
+        if (type == 0)
+        {
+            bvec4 mask = bvec4(uvec4(greaterThanEqual(x4, ivec4(0))) & uvec4(lessThan(x4, ivec4(psc(w)))));
+
+            ivec4 v;
+            v.r = mask.r ? i8buffer_ld1(bottom_blob_data, x4.r) : pad_value.r;
+            v.g = mask.g ? i8buffer_ld1(bottom_blob_data, x4.g) : pad_value.g;
+            v.b = mask.b ? i8buffer_ld1(bottom_blob_data, x4.b) : pad_value.b;
+            v.a = mask.a ? i8buffer_ld1(bottom_blob_data, x4.a) : pad_value.a;
+
+            i8buffer_st4(top_blob_data, gx, v);
+        }
+        if (type == 1)
+        {
+            x4 = clamp(x4, 0, psc(w) - 1);
+
+            i8buffer_cp1to4(top_blob_data, gx, bottom_blob_data, x4);
+        }
+        if (type == 2)
+        {
+            x4 = abs(x4);
+            x4 = (p.w - 1) - abs(x4 - (p.w - 1));
+
+            i8buffer_cp1to4(top_blob_data, gx, bottom_blob_data, x4);
+        }
+    }
+    else if (psc(dims) == 2)
+    {
+        const int gi = gy * psc(outw) + gx;
+
+        int x = gx - p.left;
+        ivec4 y4 = gy * 4 - p.top + ivec4(0, 1, 2, 3);
+
+        if (type == 0)
+        {
+            bvec4 mask = bvec4(uvec4(x >= 0 && x < psc(w)) & (uvec4(greaterThanEqual(y4, ivec4(0))) & uvec4(lessThan(y4, ivec4(psc(h))))));
+
+            ivec4 v_offset = y4 * psc(w) + x;
+
+            ivec4 v;
+            v.r = mask.r ? i8buffer_ld1(bottom_blob_data, v_offset.r) : pad_value.r;
+            v.g = mask.g ? i8buffer_ld1(bottom_blob_data, v_offset.g) : pad_value.g;
+            v.b = mask.b ? i8buffer_ld1(bottom_blob_data, v_offset.b) : pad_value.b;
+            v.a = mask.a ? i8buffer_ld1(bottom_blob_data, v_offset.a) : pad_value.a;
+
+            i8buffer_st4(top_blob_data, gi, v);
+        }
+        if (type == 1)
+        {
+            x = clamp(x, 0, psc(w) - 1);
+            y4 = clamp(y4, 0, psc(h) - 1);
+
+            ivec4 v_offset = y4 * psc(w) + x;
+            i8buffer_cp1to4(top_blob_data, gi, bottom_blob_data, v_offset);
+        }
+        if (type == 2)
+        {
+            x = abs(x);
+            y4 = abs(y4);
+            x = (p.w - 1) - abs(x - (p.w - 1));
+            y4 = (p.h - 1) - abs(y4 - (p.h - 1));
+
+            ivec4 v_offset = y4 * psc(w) + x;
+            i8buffer_cp1to4(top_blob_data, gi, bottom_blob_data, v_offset);
+        }
+    }
+    else // if (psc(dims) == 3)
+    {
+        const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+        int x = gx - p.left;
+        int y = gy - p.top;
+        ivec4 z4 = gz * 4 - p.front + ivec4(0, 1, 2, 3);
+
+        if (type == 0)
+        {
+            bvec4 mask = bvec4(uvec4(x >= 0 && x < psc(w) && y >= 0 && y < psc(h)) & (uvec4(greaterThanEqual(z4, ivec4(0))) & uvec4(lessThan(z4, ivec4(psc(c))))));
+
+            ivec4 pad_value4 = per_channel_pad == 1 ? i8buffer_ld4(per_channel_pad_blob_data, gz) : pad_value;
+
+            ivec4 v_offset = z4 * psc(cstep) + y * psc(w) + x;
+
+            ivec4 v;
+            v.r = mask.r ? i8buffer_ld1(bottom_blob_data, v_offset.r) : pad_value4.r;
+            v.g = mask.g ? i8buffer_ld1(bottom_blob_data, v_offset.g) : pad_value4.g;
+            v.b = mask.b ? i8buffer_ld1(bottom_blob_data, v_offset.b) : pad_value4.b;
+            v.a = mask.a ? i8buffer_ld1(bottom_blob_data, v_offset.a) : pad_value4.a;
+
+            i8buffer_st4(top_blob_data, gi, v);
+        }
+        if (type == 1)
+        {
+            x = clamp(x, 0, psc(w) - 1);
+            y = clamp(y, 0, psc(h) - 1);
+            z4 = clamp(z4, 0, psc(c) - 1);
+
+            ivec4 v_offset = z4 * psc(cstep) + y * psc(w) + x;
+            i8buffer_cp1to4(top_blob_data, gi, bottom_blob_data, v_offset);
+        }
+        if (type == 2)
+        {
+            x = abs(x);
+            y = abs(y);
+            z4 = abs(z4);
+            x = (p.w - 1) - abs(x - (p.w - 1));
+            y = (p.h - 1) - abs(y - (p.h - 1));
+            z4 = (p.c - 1) - abs(z4 - (p.c - 1));
+
+            ivec4 v_offset = z4 * psc(cstep) + y * psc(w) + x;
+            i8buffer_cp1to4(top_blob_data, gi, bottom_blob_data, v_offset);
+        }
+    }
+}

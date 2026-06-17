@@ -278,7 +278,7 @@ public:
     // but sometimes bug is a feature
     bool bug_implicit_fp16_arithmetic() const;
 
-    // fp16 and int8 feature
+    // fp16/int8/int16 feature
     bool support_fp16_packed() const;
     bool support_fp16_storage() const;
     bool support_fp16_uniform() const;
@@ -287,6 +287,10 @@ public:
     bool support_int8_storage() const;
     bool support_int8_uniform() const;
     bool support_int8_arithmetic() const;
+    bool support_int16_packed() const;
+    // storage only; pair with support_int16_arithmetic() for shader int16 type
+    bool support_int16_storage() const;
+    bool support_int16_arithmetic() const;
 
     // bf16 feature
     bool support_bf16_packed() const;
@@ -308,6 +312,9 @@ public:
     bool support_cooperative_matrix_16_8_8() const;
     bool support_cooperative_matrix_16_8_16() const;
     bool support_cooperative_matrix_16_16_16() const;
+
+    // int8 cooperative matrix feature
+    bool support_int8_cooperative_matrix() const;
 
     // bf16 cooperative matrix feature
     bool support_bf16_cooperative_matrix() const;

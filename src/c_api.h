@@ -75,6 +75,8 @@ NCNN_EXPORT int ncnn_option_get_use_fp16_arithmetic(const ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_use_int8_packed(const ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_use_int8_storage(const ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_use_int8_arithmetic(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_int16_packed(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_int16_storage(const ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_use_bf16_packed(const ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_use_bf16_storage(const ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_use_shader_local_memory(const ncnn_option_t opt);
@@ -91,6 +93,8 @@ NCNN_EXPORT void ncnn_option_set_use_fp16_arithmetic(ncnn_option_t opt, int enab
 NCNN_EXPORT void ncnn_option_set_use_int8_packed(ncnn_option_t opt, int enable);
 NCNN_EXPORT void ncnn_option_set_use_int8_storage(ncnn_option_t opt, int enable);
 NCNN_EXPORT void ncnn_option_set_use_int8_arithmetic(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_int16_packed(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_int16_storage(ncnn_option_t opt, int enable);
 NCNN_EXPORT void ncnn_option_set_use_bf16_packed(ncnn_option_t opt, int enable);
 NCNN_EXPORT void ncnn_option_set_use_bf16_storage(ncnn_option_t opt, int enable);
 NCNN_EXPORT void ncnn_option_set_use_shader_local_memory(ncnn_option_t opt, int enable);

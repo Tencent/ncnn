@@ -35,12 +35,6 @@ void main()
 
     const uint gi = gy * psc(n) + gx;
 
-    //     if (cast_type_from == cast_type_to)
-    //     {
-    //         i8buffer_cp1to4(top_blob_data, gi, bottom_blob_data, gi4);
-    //         return;
-    //     }
-
     ivec4 v;
     if (cast_type_from == 3)
     {
@@ -51,10 +45,18 @@ void main()
     }
     else
     {
-        v.r = i8buffer_ld1(bottom_blob_data, gi4.r);
-        v.g = i8buffer_ld1(bottom_blob_data, gi4.g);
-        v.b = i8buffer_ld1(bottom_blob_data, gi4.b);
-        v.a = i8buffer_ld1(bottom_blob_data, gi4.a);
+        if (cast_type_to == 3)
+        {
+            v.r = i8buffer_ld1(bottom_blob_data, gi4.r);
+            v.g = i8buffer_ld1(bottom_blob_data, gi4.g);
+            v.b = i8buffer_ld1(bottom_blob_data, gi4.b);
+            v.a = i8buffer_ld1(bottom_blob_data, gi4.a);
+        }
+        else
+        {
+            i8buffer_cp1to4(top_blob_data, gi, bottom_blob_data, ivec4(gi4));
+            return;
+        }
     }
 
     if (cast_type_to == 3)

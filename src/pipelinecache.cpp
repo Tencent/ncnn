@@ -22,7 +22,7 @@ namespace ncnn {
 
 #if NCNN_VULKAN
 #define NCNN_PIPELINE_CACHE_FILE_MAGIC   0x5a545546
-#define NCNN_PIPELINE_CACHE_FILE_VERSION 1
+#define NCNN_PIPELINE_CACHE_FILE_VERSION 2
 #define NCNN_PIPELINE_CACHE_FILE_ENDIAN  0x12345678
 #define NCNN_PIPELINE_CACHE_NCNN_VERSION NCNN_VERSION_NUMBER
 
@@ -216,7 +216,9 @@ static uint32_t encode_spirv_cache_opt_bits(const Option& opt)
            | (uint32_t)opt.use_int8_uniform << 9
            | (uint32_t)opt.use_subgroup_ops << 10
            | (uint32_t)opt.use_shader_local_memory << 11
-           | (uint32_t)opt.use_cooperative_matrix << 12;
+           | (uint32_t)opt.use_cooperative_matrix << 12
+           | (uint32_t)opt.use_int16_packed << 13
+           | (uint32_t)opt.use_int16_storage << 14;
 }
 
 static bool can_cache_spirv(const VulkanDevice* vkdev, const Option& opt)
