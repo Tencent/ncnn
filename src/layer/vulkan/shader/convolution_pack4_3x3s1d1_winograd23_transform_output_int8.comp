@@ -11,6 +11,18 @@ layout(constant_id = 1) const int activation_type = 0;
 layout(constant_id = 2) const float activation_param_0 = 0;
 layout(constant_id = 3) const float activation_param_1 = 0;
 layout(constant_id = 4) const int use_int8_requantize = 0;
+layout(constant_id = 5) const int outc = 0;
+
+#define shape_constant_id_offset 6
+layout(constant_id = shape_constant_id_offset + 0) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 1) const int block_x = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int block_y = 0;
+
+layout(constant_id = shape_constant_id_offset + 3) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int outcstep = 0;
+
 layout(binding = 0) readonly buffer top_tm_blob { ivec4 top_tm_blob_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 layout(binding = 2) readonly buffer bias_blob { vec4 bias_data[]; };
@@ -37,14 +49,14 @@ void main()
     const int gy = int(gl_GlobalInvocationID.y);
     const int gz = int(gl_GlobalInvocationID.z);
 
-    const int outc4 = (p.outc + 3) / 4;
+    const int outc4 = (psc(outc) + 3) / 4;
 
-    if (gx >= p.block_x || gy >= p.block_y || gz >= outc4)
+    if (gx >= psc(block_x) || gy >= psc(block_y) || gz >= outc4)
         return;
 
     // load 16
-    int v_tm_offset = gz * p.cstep + gy * p.block_x + gx;
-    int v_tm_step = p.cstep * outc4;
+    int v_tm_offset = gz * psc(cstep) + gy * psc(block_x) + gx;
+    int v_tm_step = psc(cstep) * outc4;
 
     ivec4 v00 = top_tm_blob_data[v_tm_offset + 0 * v_tm_step];
     ivec4 v01 = top_tm_blob_data[v_tm_offset + 1 * v_tm_step];
@@ -63,6 +75,7 @@ void main()
     ivec4 v32 = top_tm_blob_data[v_tm_offset + 14 * v_tm_step];
     ivec4 v33 = top_tm_blob_data[v_tm_offset + 15 * v_tm_step];
 
+    // implicit transpose
     ivec4 m00 = v00 + v01 + v02;
     ivec4 m01 = v10 + v11 + v12;
     ivec4 m02 = v20 + v21 + v22;
@@ -99,6 +112,9 @@ void main()
     int x = gx * 2;
     int y = gy * 2;
 
+    int v_offset_0 = gz * psc(outcstep) + y * psc(outw) + x;
+    int v_offset_1 = v_offset_0 + psc(outw);
+
     if (use_int8_requantize == 1)
     {
         const float top_scale = buffer_ld1(top_scales_data, 0);
@@ -113,30 +129,24 @@ void main()
         ivec4 out10_int8 = float2int8vec4(out10);
         ivec4 out11_int8 = float2int8vec4(out11);
 
-        int v_offset_0 = gz * p.outcstep + y * p.outw + x;
-        int v_offset_1 = v_offset_0 + p.outw;
-
         i8buffer_st4(top_blob_int8_data, v_offset_0 + 0, out00_int8);
-        if (x + 1 < p.outw) i8buffer_st4(top_blob_int8_data, v_offset_0 + 1, out01_int8);
+        if (x + 1 < psc(outw)) i8buffer_st4(top_blob_int8_data, v_offset_0 + 1, out01_int8);
 
-        if (y + 1 < p.outh)
+        if (y + 1 < psc(outh))
         {
             i8buffer_st4(top_blob_int8_data, v_offset_1 + 0, out10_int8);
-            if (x + 1 < p.outw) i8buffer_st4(top_blob_int8_data, v_offset_1 + 1, out11_int8);
+            if (x + 1 < psc(outw)) i8buffer_st4(top_blob_int8_data, v_offset_1 + 1, out11_int8);
         }
     }
     else
     {
-        int v_offset_0 = gz * p.outcstep + y * p.outw + x;
-        int v_offset_1 = v_offset_0 + p.outw;
-
         buffer_st4(top_blob_data, v_offset_0 + 0, afpvec4(out00));
-        if (x + 1 < p.outw) buffer_st4(top_blob_data, v_offset_0 + 1, afpvec4(out01));
+        if (x + 1 < psc(outw)) buffer_st4(top_blob_data, v_offset_0 + 1, afpvec4(out01));
 
-        if (y + 1 < p.outh)
+        if (y + 1 < psc(outh))
         {
             buffer_st4(top_blob_data, v_offset_1 + 0, afpvec4(out10));
-            if (x + 1 < p.outw) buffer_st4(top_blob_data, v_offset_1 + 1, afpvec4(out11));
+            if (x + 1 < psc(outw)) buffer_st4(top_blob_data, v_offset_1 + 1, afpvec4(out11));
         }
     }
 }

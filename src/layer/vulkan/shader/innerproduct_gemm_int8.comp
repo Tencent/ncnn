@@ -16,43 +16,30 @@ layout(constant_id = 0) const int bias_term = 0;
 layout(constant_id = 1) const int activation_type = 0;
 layout(constant_id = 2) const float activation_param_0 = 0;
 layout(constant_id = 3) const float activation_param_1 = 0;
-layout(constant_id = 4) const int input_elempack = 1;
-layout(constant_id = 5) const int weight_data_stride = 0;
+layout(constant_id = 4) const int weight_data_stride = 0;
 
-#define shape_constant_id_offset 6
-layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
-
-layout(constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout(constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+#define shape_constant_id_offset 5
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int elempack = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int hstep = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int outh = 0;
 
 layout(binding = 0) readonly buffer bottom_blob_1 { sint8 bottom_blob_int8_data_1[]; };
 layout(binding = 1) writeonly buffer top_blob_1 { sfp top_blob_data_1[]; };
-layout(binding = 2) readonly buffer weight_blob { sint8vec4 weight_data[]; };
-layout(binding = 3) readonly buffer weight_descales_blob { sfpvec4 weight_descales_data[]; };
-layout(binding = 4) readonly buffer bias_blob { sfpvec4 bias_data[]; };
-layout(binding = 5) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
-layout(binding = 6) readonly buffer bottom_blob_4 { sint8vec4 bottom_blob_int8_data_4[]; };
+layout(binding = 2) readonly buffer bottom_blob_4 { sint8vec4 bottom_blob_int8_data_4[]; };
+layout(binding = 3) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
+layout(binding = 4) readonly buffer weight_blob { sint8vec4 weight_data[]; };
+layout(binding = 5) readonly buffer weight_descales_blob { sfpvec4 weight_descales_data[]; };
+layout(binding = 6) readonly buffer bias_blob { sfpvec4 bias_data[]; };
 
 layout(push_constant) uniform parameter
 {
-    int dims;
     int w;
-    int h;
-    int c;
-    int cstep;
-
-    int outdims;
+    int elempack;
+    int hstep;
     int outw;
     int outh;
-    int outc;
-    int outcstep;
 } p;
 
 #if NCNN_shader_local_memory
@@ -64,9 +51,9 @@ shared int tmp_k[8][LOCAL_MEMORY_UNROLL_INCH + PAD];
 
 void main()
 {
-    const uint gx = gl_GlobalInvocationID.x;
-    const uint gy = gl_GlobalInvocationID.y;
-    const uint gz = gl_GlobalInvocationID.z;
+    const int gx = int(gl_GlobalInvocationID.x);
+    const int gy = int(gl_GlobalInvocationID.y);
+    const int gz = int(gl_GlobalInvocationID.z);
 
 #if !NCNN_shader_local_memory
     if (gx * 4 >= psc(outw) || gy * 4 >= psc(outh) || gz >= 1)
@@ -76,32 +63,29 @@ void main()
         return;
 #endif
 
-    const int elempack = input_elempack == 0 ? psc(c) : input_elempack;
-    const int output_elempack = elempack;
-
     ivec4 sum0 = ivec4(0);
     ivec4 sum1 = ivec4(0);
     ivec4 sum2 = ivec4(0);
     ivec4 sum3 = ivec4(0);
 
 #if NCNN_shader_local_memory
-    const uint lx = gl_LocalInvocationID.x;
-    const uint ly = gl_LocalInvocationID.y;
+    const int lx = int(gl_LocalInvocationID.x);
+    const int ly = int(gl_LocalInvocationID.y);
 
     for (int i = 0; i < weight_data_stride * 4; i += LOCAL_MEMORY_UNROLL_INCH)
     {
         {
             int v = 0;
-            const int vk = i + int(lx / 4) * 4;
-            const uint vy = gy * 4 + lx % 4;
+            const int vk = i + lx / 4 * 4;
+            const int vy = gy * 4 + lx % 4;
             if (vy < psc(outh) && vk < psc(w))
             {
-                if (elempack == 4)
+                if (psc(elempack) == 4)
                 {
                     ivec4 v4 = ivec4(0);
-                    const int vy4 = int(vy) / 4;
-                    const int vlane = int(vy) % 4;
-                    const int vi = vy4 * psc(cstep) + vk;
+                    const int vy4 = vy / 4;
+                    const int vlane = vy % 4;
+                    const int vi = vy4 * psc(hstep) + vk;
                     v4.r = i8buffer_ld4(bottom_blob_int8_data_4, vi + 0)[vlane];
                     if (vk + 1 < psc(w)) v4.g = i8buffer_ld4(bottom_blob_int8_data_4, vi + 1)[vlane];
                     if (vk + 2 < psc(w)) v4.b = i8buffer_ld4(bottom_blob_int8_data_4, vi + 2)[vlane];
@@ -112,7 +96,7 @@ void main()
                 else // elempack == 1
                 {
                     ivec4 v4 = ivec4(0);
-                    const int vi = int(vy) * psc(cstep) + vk;
+                    const int vi = vy * psc(hstep) + vk;
                     v4.r = i8buffer_ld1(bottom_blob_int8_data_1, vi + 0);
                     if (vk + 1 < psc(w)) v4.g = i8buffer_ld1(bottom_blob_int8_data_1, vi + 1);
                     if (vk + 2 < psc(w)) v4.b = i8buffer_ld1(bottom_blob_int8_data_1, vi + 2);
@@ -124,9 +108,9 @@ void main()
 
             tmp_v[ly][lx] = v;
 
-            const int kk = i + int(ly / 4) * 4;
-            const int w_offset = int(gx) * weight_data_stride + kk / 4;
-            const int k = i8buffer_sm4(weight_data, w_offset * 4 + int(ly % 4));
+            const int kk = i + ly / 4 * 4;
+            const int w_offset = gx * weight_data_stride + kk / 4;
+            const int k = i8buffer_sm4(weight_data, w_offset * 4 + ly % 4);
 
             tmp_k[lx][ly] = k;
         }
@@ -190,8 +174,8 @@ void main()
 #else
     for (int i = 0; i < weight_data_stride * 4; i += 4)
     {
-        const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
-        const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
+        const ivec4 gy4 = gy * 4 + ivec4(0, 1, 2, 3);
+        const ivec4 gx4 = gx * 4 + ivec4(0, 1, 2, 3);
 
         int v0 = 0;
         int v1 = 0;
@@ -200,14 +184,14 @@ void main()
 
         if (i < psc(w))
         {
-            if (elempack == 4)
+            if (psc(elempack) == 4)
             {
                 if (gy4.r < psc(outh))
                 {
                     ivec4 v = ivec4(0);
-                    const int vy4 = int(gy4.r) / 4;
-                    const int vlane = int(gy4.r) % 4;
-                    const int vi = vy4 * psc(cstep) + i;
+                    const int vy4 = gy4.r / 4;
+                    const int vlane = gy4.r % 4;
+                    const int vi = vy4 * psc(hstep) + i;
                     v.r = i8buffer_ld4(bottom_blob_int8_data_4, vi + 0)[vlane];
                     if (i + 1 < psc(w)) v.g = i8buffer_ld4(bottom_blob_int8_data_4, vi + 1)[vlane];
                     if (i + 2 < psc(w)) v.b = i8buffer_ld4(bottom_blob_int8_data_4, vi + 2)[vlane];
@@ -218,9 +202,9 @@ void main()
                 if (gy4.g < psc(outh))
                 {
                     ivec4 v = ivec4(0);
-                    const int vy4 = int(gy4.g) / 4;
-                    const int vlane = int(gy4.g) % 4;
-                    const int vi = vy4 * psc(cstep) + i;
+                    const int vy4 = gy4.g / 4;
+                    const int vlane = gy4.g % 4;
+                    const int vi = vy4 * psc(hstep) + i;
                     v.r = i8buffer_ld4(bottom_blob_int8_data_4, vi + 0)[vlane];
                     if (i + 1 < psc(w)) v.g = i8buffer_ld4(bottom_blob_int8_data_4, vi + 1)[vlane];
                     if (i + 2 < psc(w)) v.b = i8buffer_ld4(bottom_blob_int8_data_4, vi + 2)[vlane];
@@ -231,9 +215,9 @@ void main()
                 if (gy4.b < psc(outh))
                 {
                     ivec4 v = ivec4(0);
-                    const int vy4 = int(gy4.b) / 4;
-                    const int vlane = int(gy4.b) % 4;
-                    const int vi = vy4 * psc(cstep) + i;
+                    const int vy4 = gy4.b / 4;
+                    const int vlane = gy4.b % 4;
+                    const int vi = vy4 * psc(hstep) + i;
                     v.r = i8buffer_ld4(bottom_blob_int8_data_4, vi + 0)[vlane];
                     if (i + 1 < psc(w)) v.g = i8buffer_ld4(bottom_blob_int8_data_4, vi + 1)[vlane];
                     if (i + 2 < psc(w)) v.b = i8buffer_ld4(bottom_blob_int8_data_4, vi + 2)[vlane];
@@ -244,9 +228,9 @@ void main()
                 if (gy4.a < psc(outh))
                 {
                     ivec4 v = ivec4(0);
-                    const int vy4 = int(gy4.a) / 4;
-                    const int vlane = int(gy4.a) % 4;
-                    const int vi = vy4 * psc(cstep) + i;
+                    const int vy4 = gy4.a / 4;
+                    const int vlane = gy4.a % 4;
+                    const int vi = vy4 * psc(hstep) + i;
                     v.r = i8buffer_ld4(bottom_blob_int8_data_4, vi + 0)[vlane];
                     if (i + 1 < psc(w)) v.g = i8buffer_ld4(bottom_blob_int8_data_4, vi + 1)[vlane];
                     if (i + 2 < psc(w)) v.b = i8buffer_ld4(bottom_blob_int8_data_4, vi + 2)[vlane];
@@ -260,7 +244,7 @@ void main()
                 if (gy4.r < psc(outh))
                 {
                     ivec4 v = ivec4(0);
-                    const int vi = int(gy4.r) * psc(cstep) + i;
+                    const int vi = gy4.r * psc(hstep) + i;
                     v.r = i8buffer_ld1(bottom_blob_int8_data_1, vi + 0);
                     if (i + 1 < psc(w)) v.g = i8buffer_ld1(bottom_blob_int8_data_1, vi + 1);
                     if (i + 2 < psc(w)) v.b = i8buffer_ld1(bottom_blob_int8_data_1, vi + 2);
@@ -271,7 +255,7 @@ void main()
                 if (gy4.g < psc(outh))
                 {
                     ivec4 v = ivec4(0);
-                    const int vi = int(gy4.g) * psc(cstep) + i;
+                    const int vi = gy4.g * psc(hstep) + i;
                     v.r = i8buffer_ld1(bottom_blob_int8_data_1, vi + 0);
                     if (i + 1 < psc(w)) v.g = i8buffer_ld1(bottom_blob_int8_data_1, vi + 1);
                     if (i + 2 < psc(w)) v.b = i8buffer_ld1(bottom_blob_int8_data_1, vi + 2);
@@ -282,7 +266,7 @@ void main()
                 if (gy4.b < psc(outh))
                 {
                     ivec4 v = ivec4(0);
-                    const int vi = int(gy4.b) * psc(cstep) + i;
+                    const int vi = gy4.b * psc(hstep) + i;
                     v.r = i8buffer_ld1(bottom_blob_int8_data_1, vi + 0);
                     if (i + 1 < psc(w)) v.g = i8buffer_ld1(bottom_blob_int8_data_1, vi + 1);
                     if (i + 2 < psc(w)) v.b = i8buffer_ld1(bottom_blob_int8_data_1, vi + 2);
@@ -293,7 +277,7 @@ void main()
                 if (gy4.a < psc(outh))
                 {
                     ivec4 v = ivec4(0);
-                    const int vi = int(gy4.a) * psc(cstep) + i;
+                    const int vi = gy4.a * psc(hstep) + i;
                     v.r = i8buffer_ld1(bottom_blob_int8_data_1, vi + 0);
                     if (i + 1 < psc(w)) v.g = i8buffer_ld1(bottom_blob_int8_data_1, vi + 1);
                     if (i + 2 < psc(w)) v.b = i8buffer_ld1(bottom_blob_int8_data_1, vi + 2);
@@ -305,7 +289,7 @@ void main()
         }
 
         const int wi = i / 4;
-        const int w_offset = int(gx) * weight_data_stride + wi;
+        const int w_offset = gx * weight_data_stride + wi;
 
         const int k0 = i8buffer_sm4(weight_data, w_offset * 4 + 0);
         const int k1 = i8buffer_sm4(weight_data, w_offset * 4 + 1);
@@ -348,8 +332,8 @@ void main()
     }
 #endif
 
-    const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
-    const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
+    const ivec4 gx4 = gx * 4 + ivec4(0, 1, 2, 3);
+    const ivec4 gy4 = gy * 4 + ivec4(0, 1, 2, 3);
 
     const vec4 descale = vec4(buffer_ld4(weight_descales_data, gx));
 
@@ -373,9 +357,9 @@ void main()
     afpvec4 out2 = activation_afpvec4(afpvec4(sumfp2), activation_type, activation_param_0, activation_param_1);
     afpvec4 out3 = activation_afpvec4(afpvec4(sumfp3), activation_type, activation_param_0, activation_param_1);
 
-    if (output_elempack == 4)
+    if (psc(elempack) == 4)
     {
-        const uint gi = gy * uint(psc(outw)) + gx * 4;
+        const int gi = gy * psc(outw) + gx * 4;
 
         buffer_st4(top_blob_data_4, gi + 0, afpvec4(out0.r, out1.r, out2.r, out3.r));
         if (gx4.g < psc(outw)) buffer_st4(top_blob_data_4, gi + 1, afpvec4(out0.g, out1.g, out2.g, out3.g));
@@ -385,7 +369,7 @@ void main()
         return;
     }
 
-    const uvec4 gi4 = gy4 * uint(psc(outw)) + gx * 4;
+    const ivec4 gi4 = gy4 * psc(outw) + gx * 4;
 
     buffer_st1(top_blob_data_1, gi4.r, out0.r);
     if (gx4.g < psc(outw)) buffer_st1(top_blob_data_1, gi4.r + 1, out0.g);

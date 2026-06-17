@@ -29,8 +29,6 @@ layout(push_constant) uniform parameter
 
     int block_x;
     int block_y;
-
-    int c;
 } p;
 
 void main()

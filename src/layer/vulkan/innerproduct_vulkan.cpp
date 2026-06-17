@@ -7,6 +7,8 @@
 #include "layer_type.h"
 #include "modelbin.h"
 
+#include <string.h>
+
 namespace ncnn {
 
 InnerProduct_vulkan::InnerProduct_vulkan()
@@ -526,7 +528,7 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
         Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
         weight_data_int8_packed.create(num_input_packed / 4, num_output_packed / 4, (size_t)16u, 16);
-        weight_data_int8_packed.fill(0);
+        memset(weight_data_int8_packed.data, 0, weight_data_int8_packed.total() * weight_data_int8_packed.elemsize);
 
         for (int q = 0; q < num_output_packed; q += 4)
         {
@@ -555,7 +557,7 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
         weight_data_int8_descales.create(num_output_packed / 4, (size_t)4u * 4, 4);
         if (weight_data_int8_descales.empty())
             return -100;
-        weight_data_int8_descales.fill(0.f);
+        memset(weight_data_int8_descales.data, 0, weight_data_int8_descales.total() * weight_data_int8_descales.elemsize);
 
         float* outptr = weight_data_int8_descales;
         for (int q = 0; q < num_output; q++)
@@ -570,7 +572,7 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
         bias_data_int8_packed.create(num_output_packed / 4, (size_t)4u * 4, 4);
         if (bias_data_int8_packed.empty())
             return -100;
-        bias_data_int8_packed.fill(0.f);
+        memset(bias_data_int8_packed.data, 0, bias_data_int8_packed.total() * bias_data_int8_packed.elemsize);
 
         float* outptr = bias_data_int8_packed;
         for (int q = 0; q < num_output; q++)
@@ -592,7 +594,7 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
         Mat out_shape_quantize;
         if (shape.dims == 2 && shape.w == num_input)
         {
-            const size_t elemsize = shape.elempack == 0 ? (size_t)4u : shape.elemsize / shape.elempack;
+            const size_t elemsize = shape.elemsize / shape.elempack;
             shape_quantize = Mat(shape.w, shape.h, (void*)0, elemsize * shape.elempack, shape.elempack);
             out_shape_quantize = Mat(shape.w, shape.h, (void*)0, (size_t)shape.elempack, shape.elempack);
         }
@@ -600,7 +602,7 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
         {
             const int total = shape.w * shape.h * shape.d * shape.c * shape.elempack;
             const int flatten_elempack = total % 4 == 0 ? 4 : 1;
-            const size_t elemsize = shape.elempack == 0 ? (size_t)4u : shape.elemsize / shape.elempack;
+            const size_t elemsize = shape.elemsize / shape.elempack;
             shape_quantize = Mat(total / flatten_elempack, (void*)0, elemsize * flatten_elempack, flatten_elempack);
             out_shape_quantize = Mat(total / flatten_elempack, (void*)0, (size_t)flatten_elempack, flatten_elempack);
         }
@@ -630,23 +632,17 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
         Mat shape_unpacked(num_input, shape.h * shape.elempack, (void*)0);
         Mat out_shape_unpacked(num_output, out_shape.dims == 0 ? 0 : out_shape.h * out_shape.elempack, (void*)0);
 
-        std::vector<vk_specialization_type> specializations(6 + 10);
+        std::vector<vk_specialization_type> specializations(5 + 5);
         specializations[0].i = bias_term;
         specializations[1].i = activation_type;
         specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
         specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-        specializations[4].i = shape.elempack;
-        specializations[5].i = num_input_packed / 4;
-        specializations[6 + 0].i = shape_unpacked.dims;
-        specializations[6 + 1].i = shape_unpacked.w;
-        specializations[6 + 2].i = shape_unpacked.h;
-        specializations[6 + 3].i = shape.elempack;
-        specializations[6 + 4].i = shape.w;
-        specializations[6 + 5].i = out_shape_unpacked.dims;
-        specializations[6 + 6].i = out_shape_unpacked.w;
-        specializations[6 + 7].i = out_shape_unpacked.h;
-        specializations[6 + 8].i = out_shape_unpacked.c;
-        specializations[6 + 9].i = out_shape.w;
+        specializations[4].i = num_input_packed / 4;
+        specializations[5 + 0].i = shape_unpacked.w;
+        specializations[5 + 1].i = shape.elempack;
+        specializations[5 + 2].i = shape.w;
+        specializations[5 + 3].i = out_shape_unpacked.w;
+        specializations[5 + 4].i = out_shape_unpacked.h;
 
         Mat local_size_xyz(std::min(16, (num_output + 3) / 4), 4, 1, (void*)0);
         if (out_shape_unpacked.dims != 0)
@@ -770,23 +766,17 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
     // gemm for no shape hint
     if (shape.dims == 0)
     {
-        std::vector<vk_specialization_type> specializations(6 + 10);
+        std::vector<vk_specialization_type> specializations(5 + 5);
         specializations[0].i = bias_term;
         specializations[1].i = activation_type;
         specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
         specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-        specializations[4].i = 0;
-        specializations[5].i = num_input_packed / 4;
-        specializations[6 + 0].i = 0;
-        specializations[6 + 1].i = 0;
-        specializations[6 + 2].i = 0;
-        specializations[6 + 3].i = 0;
-        specializations[6 + 4].i = 0;
-        specializations[6 + 5].i = 0;
-        specializations[6 + 6].i = 0;
-        specializations[6 + 7].i = 0;
-        specializations[6 + 8].i = 0;
-        specializations[6 + 9].i = 0;
+        specializations[4].i = num_input_packed / 4;
+        specializations[5 + 0].i = 0;
+        specializations[5 + 1].i = 0;
+        specializations[5 + 2].i = 0;
+        specializations[5 + 3].i = 0;
+        specializations[5 + 4].i = 0;
 
         Mat local_size_xyz(std::min(16, (num_output + 3) / 4), 4, 1, (void*)0);
 
@@ -851,9 +841,7 @@ int InnerProduct_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob,
             opt_quantize.use_fp16_arithmetic = false;
 
             VkMat bottom_blob_int8;
-            int ret = quantize->forward(bottom_blob_quantized, bottom_blob_int8, cmd, opt_quantize);
-            if (ret != 0)
-                return ret;
+            quantize->forward(bottom_blob_quantized, bottom_blob_int8, cmd, opt_quantize);
 
             bottom_blob_quantized = bottom_blob_int8;
         }
@@ -878,23 +866,18 @@ int InnerProduct_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob,
         std::vector<VkMat> bindings(7);
         bindings[0] = bottom_blob_quantized;
         bindings[1] = top_blob;
-        bindings[2] = weight_data_gpu;
-        bindings[3] = weight_data_int8_descales_gpu;
-        bindings[4] = bias_data_gpu;
-        bindings[5] = top_blob;
-        bindings[6] = bottom_blob_quantized;
+        bindings[2] = bottom_blob_quantized;
+        bindings[3] = top_blob;
+        bindings[4] = weight_data_gpu;
+        bindings[5] = weight_data_int8_descales_gpu;
+        bindings[6] = bias_data_gpu;
 
-        std::vector<vk_constant_type> constants(10);
-        constants[0].i = bottom_blob_quantized.dims;
-        constants[1].i = num_input;
-        constants[2].i = outh;
-        constants[3].i = elempack;
-        constants[4].i = bottom_blob_quantized.w;
-        constants[5].i = top_blob.dims;
-        constants[6].i = num_output;
-        constants[7].i = outh;
-        constants[8].i = top_blob.c;
-        constants[9].i = top_blob.cstep;
+        std::vector<vk_constant_type> constants(5);
+        constants[0].i = num_input;
+        constants[1].i = elempack;
+        constants[2].i = bottom_blob_quantized.w;
+        constants[3].i = num_output;
+        constants[4].i = outh;
 
         VkMat dispatcher;
         dispatcher.w = (num_output + 3) / 4;
@@ -922,9 +905,7 @@ int InnerProduct_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob,
         opt_quantize.use_fp16_arithmetic = false;
 
         VkMat bottom_blob_int8;
-        int ret = quantize->forward(bottom_blob_flattened, bottom_blob_int8, cmd, opt_quantize);
-        if (ret != 0)
-            return ret;
+        quantize->forward(bottom_blob_flattened, bottom_blob_int8, cmd, opt_quantize);
 
         bottom_blob_flattened = bottom_blob_int8;
     }

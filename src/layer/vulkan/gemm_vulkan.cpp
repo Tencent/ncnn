@@ -5,6 +5,8 @@
 
 #include "layer_shader_type.h"
 
+#include <string.h>
+
 namespace ncnn {
 
 #if NCNN_INT8
@@ -945,9 +947,14 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
     {
         if (use_cooperative_matrix)
         {
-            A_data_int8_descales.create(constantM, (size_t)4u, 1);
+            const int blocks_m = (constantM + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
+            const int M_aligned = blocks_m * coopmat_M * UNROLL_SG_M * UNROLL_WG_M;
+            const int M4_aligned = (M_aligned + 3) / 4;
+
+            A_data_int8_descales.create(M4_aligned, (size_t)16u, 4);
             if (A_data_int8_descales.empty())
                 return -100;
+            memset(A_data_int8_descales.data, 0, A_data_int8_descales.total() * A_data_int8_descales.elemsize);
 
             if (A_data.elemsize == (size_t)1u)
             {
@@ -973,7 +980,6 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
                 }
             }
 
-            const int blocks_m = (constantM + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
             const int kk = (constantK + coopmat_K - 1) / coopmat_K;
             const int kkg = (kk + UNROLL_SG_K - 1) / UNROLL_SG_K;
             const int coopmat_Kd4 = coopmat_K / 4;
@@ -1046,7 +1052,7 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
             A_data_int8_descales.create(M4_aligned, (size_t)16u, 4);
             if (A_data_int8_descales.empty())
                 return -100;
-            A_data_int8_descales.fill(0.f);
+            memset(A_data_int8_descales.data, 0, A_data_int8_descales.total() * A_data_int8_descales.elemsize);
 
             if (A_data.elemsize == (size_t)1u)
             {
@@ -1466,7 +1472,7 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
     VkMat A = A0;
     VkMat B = B0;
 
-    // Runtime int8 blobs do not carry scale metadata, so reject before recording int8 pipelines.
+    // dynamic int8 input has no scale
     if (!constantA && A.elembits() == 8)
     {
         NCNN_LOGE("Gemm_vulkan int8 dynamic int8 A is not supported without input scale");
@@ -1611,13 +1617,14 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
             const int coopmat_Kd4 = coopmat_K / 4;
             const int coopmat_Kd4p = coopmat_Kd4 + (vkdev->info.support_VK_KHR_cooperative_matrix() ? 1 : 0);
             const int M_aligned = blocks_m * coopmat_M * UNROLL_SG_M * UNROLL_WG_M;
+            const int M4_aligned = (M_aligned + 3) / 4;
             const int A_int8_packed_size = coopmat_M * coopmat_Kd4p * UNROLL_SG_K * UNROLL_SG_M * UNROLL_WG_M * kkg;
 
             A_int8.create(A_int8_packed_size, blocks_m, (size_t)4u, 4, opt.workspace_vkallocator);
             if (A_int8.empty())
                 return -100;
 
-            A_int8_descales.create(M_aligned, (size_t)4u, 1, opt.workspace_vkallocator);
+            A_int8_descales.create(M4_aligned, (size_t)16u, 4, opt.workspace_vkallocator);
             if (A_int8_descales.empty())
                 return -100;
 

@@ -682,10 +682,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
         Mat out_shape_quantize;
         if (shape.dims == 3)
         {
-            size_t shape_elemsize = shape.elemsize;
-            if (shape.elempack != bottom_elempack)
-                shape_elemsize = shape.elemsize / shape.elempack * bottom_elempack;
-
+            const size_t shape_elemsize = shape.elemsize / shape.elempack * bottom_elempack;
             shape_quantize = Mat(shape.w, shape.h, channels / bottom_elempack, (void*)0, shape_elemsize, bottom_elempack);
             out_shape_quantize = shape_int8;
         }
@@ -790,7 +787,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
         if (elempack_g == 4)
         {
             weight_data_int8_packed.create(maxk, channels_g / 4, num_output_g_pack4_aligned * group, (size_t)16u, 16);
-            weight_data_int8_packed.fill(0);
+            memset(weight_data_int8_packed.data, 0, weight_data_int8_packed.total() * weight_data_int8_packed.elemsize);
 
             for (int g = 0; g < group; g++)
             {
@@ -869,7 +866,8 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
             {
                 const float bottom_scale = bottom_blob_int8_scales[g];
                 const float weight_scale = weight_data_int8_scales[g];
-                outptr[g] = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
+                const float descale = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
+                outptr[g] = descale;
             }
         }
         else
@@ -881,14 +879,15 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
             {
                 const float bottom_scale = bottom_blob_int8_scales[g];
                 const float weight_scale = weight_data_int8_scales[g];
-                outptr[g] = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
+                const float descale = bottom_scale == 0.f || weight_scale == 0.f ? 0.f : 1.f / (bottom_scale * weight_scale);
+                outptr[g] = descale;
             }
         }
     }
     else
     {
         weight_data_int8_descales.create(num_output_g_pack4_aligned * group, (size_t)16u, 4);
-        weight_data_int8_descales.fill(0.f);
+        memset(weight_data_int8_descales.data, 0, weight_data_int8_descales.total() * weight_data_int8_descales.elemsize);
 
         float* outptr = weight_data_int8_descales;
         for (int g = 0; g < group; g++)
@@ -926,7 +925,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
         else
         {
             top_blob_int8_scales_packed.create(num_output_g_pack4_aligned * group, (size_t)16u, 4);
-            top_blob_int8_scales_packed.fill(0.f);
+            memset(top_blob_int8_scales_packed.data, 0, top_blob_int8_scales_packed.total() * top_blob_int8_scales_packed.elemsize);
 
             float* outptr = top_blob_int8_scales_packed;
             for (int g = 0; g < group; g++)
@@ -948,7 +947,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
             if (elempack == 4)
             {
                 bias_data_int8_packed.create(num_output / 4, (size_t)16u, 4);
-                bias_data_int8_packed.fill(0.f);
+                memset(bias_data_int8_packed.data, 0, bias_data_int8_packed.total() * bias_data_int8_packed.elemsize);
 
                 float* outptr = bias_data_int8_packed;
                 for (int q = 0; q < num_output; q++)
@@ -964,7 +963,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
         else
         {
             bias_data_int8_packed.create(num_output_g_pack4_aligned * group, (size_t)16u, 4);
-            bias_data_int8_packed.fill(0.f);
+            memset(bias_data_int8_packed.data, 0, bias_data_int8_packed.total() * bias_data_int8_packed.elemsize);
 
             float* outptr = bias_data_int8_packed;
             for (int q = 0; q < num_output; q++)
@@ -1064,7 +1063,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
     }
     else
     {
-        std::vector<vk_specialization_type> specializations_group(15 + 10);
+        std::vector<vk_specialization_type> specializations_group(15 + 6);
         for (int i = 0; i < 12; i++)
         {
             specializations_group[i] = specializations[i];
@@ -1072,10 +1071,12 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
         specializations_group[12].i = elempack_g;
         specializations_group[13].i = out_elempack_g;
         specializations_group[14].i = num_output_g;
-        for (int i = 0; i < 10; i++)
-        {
-            specializations_group[15 + i].i = 0;
-        }
+        specializations_group[15 + 0].i = shape_int8_bordered.w;
+        specializations_group[15 + 1].i = shape_int8_bordered.c;
+        specializations_group[15 + 2].i = shape_int8_bordered.cstep;
+        specializations_group[15 + 3].i = out_shape_int8_g.w;
+        specializations_group[15 + 4].i = out_shape_int8_g.h;
+        specializations_group[15 + 5].i = out_elempack_g == 4 ? out_shape_int8_g.cstep : out_shape_int8_g.cstep * 4;
 
         Mat local_size_xyz(8, 8, 1, (void*)0);
         if (out_shape.dims != 0)
@@ -1144,7 +1145,6 @@ int ConvolutionDepthWise_vulkan::upload_model_int8(VkTransfer& cmd, const Option
 int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     VkMat bottom = bottom_blob;
-    bool bottom_is_int8 = bottom.elembits() == 8;
 
     int channels = bottom.c * bottom.elempack;
     const bool is_depthwise = channels == group && group == num_output;
@@ -1166,26 +1166,16 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
         bottom = bottom_unpacked;
     }
 
-    if (!bottom_is_int8)
+    if (bottom.elembits() != 8)
     {
         VkMat bottom_int8;
-        int ret = quantize->forward(bottom, bottom_int8, cmd, opt_workspace);
-        if (ret != 0)
-            return ret;
+        quantize->forward(bottom, bottom_int8, cmd, opt_workspace);
 
         bottom = bottom_int8;
-        bottom_is_int8 = true;
     }
 
     int w = bottom.w;
     int h = bottom.h;
-    channels = bottom.c * bottom.elempack;
-
-    if (channels % group != 0)
-    {
-        NCNN_LOGE("ConvolutionDepthWise_vulkan int8 input channels mismatch");
-        return -1;
-    }
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -1193,9 +1183,7 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
     {
         VkMat bottom_bordered;
-        int ret = padding->forward(bottom, bottom_bordered, cmd, opt_workspace);
-        if (ret != 0)
-            return ret;
+        padding->forward(bottom, bottom_bordered, cmd, opt_workspace);
 
         bottom = bottom_bordered;
         w = bottom.w;
@@ -1222,9 +1210,7 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
             padding_inputs[1] = padding_param_blob;
 
             std::vector<VkMat> padding_outputs(1);
-            int ret = padding->forward(padding_inputs, padding_outputs, cmd, opt_workspace);
-            if (ret != 0)
-                return ret;
+            padding->forward(padding_inputs, padding_outputs, cmd, opt_workspace);
 
             bottom = padding_outputs[0];
             w = bottom.w;
@@ -1252,9 +1238,7 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
             padding_inputs[1] = padding_param_blob;
 
             std::vector<VkMat> padding_outputs(1);
-            int ret = padding->forward(padding_inputs, padding_outputs, cmd, opt_workspace);
-            if (ret != 0)
-                return ret;
+            padding->forward(padding_inputs, padding_outputs, cmd, opt_workspace);
 
             bottom = padding_outputs[0];
             w = bottom.w;
@@ -1360,9 +1344,13 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
 
         const int num_output_g_pack4 = (num_output_g + 3) / 4;
 
-        std::vector<vk_constant_type> constants_group = constants;
-        constants_group[8].i = num_output_g_pack4 * group;
-        constants_group[9].i = out_elempack_g == 4 ? top_blob_unpacked.cstep : top_blob_unpacked.cstep * 4;
+        std::vector<vk_constant_type> constants_group(6);
+        constants_group[0].i = bottom.w;
+        constants_group[1].i = bottom.c;
+        constants_group[2].i = bottom.cstep;
+        constants_group[3].i = top_blob_unpacked.w;
+        constants_group[4].i = top_blob_unpacked.h;
+        constants_group[5].i = out_elempack_g == 4 ? top_blob_unpacked.cstep : top_blob_unpacked.cstep * 4;
 
         VkMat dispatcher;
         dispatcher.w = top_blob_unpacked.w;

@@ -28,8 +28,6 @@ layout(push_constant) uniform parameter
 
     int block_x;
     int block_y;
-
-    int c;
 } p;
 
 void main()
@@ -38,7 +36,7 @@ void main()
     const int gy = int(gl_GlobalInvocationID.y);
     const int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(block_x) || gy >= psc(block_y) || gz >= psc(c))
+    if (gx >= psc(block_x) || gy >= psc(block_y) || gz >= c)
         return;
 
     // load 4x4
@@ -113,7 +111,7 @@ void main()
     // store 16
     const int outcstepd2 = psc(outcstep) / 2;
     int v_tm_offset = gz * outcstepd2 + tile;
-    int v_tm_step = outcstepd2 * psc(c);
+    int v_tm_step = outcstepd2 * c;
 
     ivec4 v00_low = v00 & ivec4(255);
     v00_low = mix(v00_low, v00_low - ivec4(256), greaterThanEqual(v00_low, ivec4(128)));

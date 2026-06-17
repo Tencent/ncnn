@@ -79,10 +79,7 @@ void main()
         if (type == 2)
         {
             x4 = abs(x4);
-            // NOTE psc(X) get zeros on nvidia
-            // TODO only enable this workaround for some nvidia driver
             x4 = (p.w - 1) - abs(x4 - (p.w - 1));
-            //             x4 = (psc(w) - 1) - abs(x4 - (psc(w) - 1));
 
             i8buffer_cp1to4(top_blob_data, gx, bottom_blob_data, x4);
         }
@@ -120,12 +117,8 @@ void main()
         {
             x = abs(x);
             y4 = abs(y4);
-            // NOTE psc(X) get zeros on nvidia
-            // TODO only enable this workaround for some nvidia driver
             x = (p.w - 1) - abs(x - (p.w - 1));
             y4 = (p.h - 1) - abs(y4 - (p.h - 1));
-            //             x = (psc(w) - 1) - abs(x - (psc(w) - 1));
-            //             y4 = (psc(h) - 1) - abs(y4 - (psc(h) - 1));
 
             ivec4 v_offset = y4 * psc(w) + x;
             i8buffer_cp1to4(top_blob_data, gi, bottom_blob_data, v_offset);
@@ -169,14 +162,9 @@ void main()
             x = abs(x);
             y = abs(y);
             z4 = abs(z4);
-            // NOTE psc(X) get zeros on nvidia
-            // TODO only enable this workaround for some nvidia driver
             x = (p.w - 1) - abs(x - (p.w - 1));
             y = (p.h - 1) - abs(y - (p.h - 1));
             z4 = (p.c - 1) - abs(z4 - (p.c - 1));
-            //             x = (psc(w) - 1) - abs(x - (psc(w) - 1));
-            //             y = (psc(h) - 1) - abs(y - (psc(h) - 1));
-            //             z4 = (psc(c) - 1) - abs(z4 - (psc(c) - 1));
 
             ivec4 v_offset = z4 * psc(cstep) + y * psc(w) + x;
             i8buffer_cp1to4(top_blob_data, gi, bottom_blob_data, v_offset);

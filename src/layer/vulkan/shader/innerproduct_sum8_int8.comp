@@ -50,16 +50,16 @@ void main()
         const ivec4 k = weight_data[w_offset];
 
 #if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
-        sum.r += dotPacked4x8EXT(v4, k.x);
-        sum.g += dotPacked4x8EXT(v4, k.y);
-        sum.b += dotPacked4x8EXT(v4, k.z);
-        sum.a += dotPacked4x8EXT(v4, k.w);
+        sum.r += dotPacked4x8EXT(v4, k.r);
+        sum.g += dotPacked4x8EXT(v4, k.g);
+        sum.b += dotPacked4x8EXT(v4, k.b);
+        sum.a += dotPacked4x8EXT(v4, k.a);
 #else
         const ivec4 v0 = unpackInt4x8(v4);
-        const ivec4 k0v = unpackInt4x8(k.x);
-        const ivec4 k1v = unpackInt4x8(k.y);
-        const ivec4 k2v = unpackInt4x8(k.z);
-        const ivec4 k3v = unpackInt4x8(k.w);
+        const ivec4 k0v = unpackInt4x8(k.r);
+        const ivec4 k1v = unpackInt4x8(k.g);
+        const ivec4 k2v = unpackInt4x8(k.b);
+        const ivec4 k3v = unpackInt4x8(k.a);
 
         sum.r += v0.r * k0v.r + v0.g * k0v.g + v0.b * k0v.b + v0.a * k0v.a;
         sum.g += v0.r * k1v.r + v0.g * k1v.g + v0.b * k1v.b + v0.a * k1v.a;

@@ -36,11 +36,9 @@ layout(constant_id = shape_constant_id_offset + 7) const int outcstep = 0;
 layout(constant_id = shape_constant_id_offset + 8) const int num_output = 0;
 layout(constant_id = shape_constant_id_offset + 9) const int num_input = 0;
 
-// scalar view  (for pack1 input/output access)
 layout(binding = 0) readonly buffer bottom_blob_1 { sint8 bottom_blob_int8_data_1[]; };
 layout(binding = 1) writeonly buffer top_blob_1 { sfp top_blob_data_1[]; };
 
-// vec4 view  (for pack4 input/output access, weight/bias always vec4)
 layout(binding = 2) readonly buffer bottom_blob_4 { sint8vec4 bottom_blob_int8_data_4[]; };
 layout(binding = 3) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
 layout(binding = 4) readonly buffer weight_blob { sint8vec4 weight_data[]; };

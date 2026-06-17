@@ -42,7 +42,7 @@ layout(binding = 1) readonly buffer A_int8_blob { sint8vec4 A_int8_data[]; };
 layout(binding = 2) readonly buffer B_int8_blob { sint8vec4 B_int8_data[]; };
 layout(binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
 layout(binding = 4) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
-layout(binding = 5) readonly buffer A_descales_blob { float A_descales_data[]; };
+layout(binding = 5) readonly buffer A_descales_blob { vec4 A_descales_data[]; };
 layout(binding = 6) readonly buffer B_descale_blob { float B_descale_data[]; };
 
 layout(push_constant) uniform parameter
@@ -152,10 +152,10 @@ void main()
     const uint K_Nd4p_USGN = K * Nd4p * UNROLL_SG_N;
     const uint K_Nd4p_USGN_USGK = K_Nd4p_USGN * UNROLL_SG_K;
     const uint K_Nd4p_USGN_USGK_d_subgroupsize = (K_Nd4p_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
-    const uint A_offset = (wgmi * kkg * UNROLL_WG_M + sgmi) * M_Kd4p_USGM_USGK;
-    const uint A_offset_step = UNROLL_WG_M * M_Kd4p_USGM_USGK;
-    const uint B_offset = (wgni * kkg * UNROLL_WG_N + sgni) * K_Nd4p_USGN_USGK;
-    const uint B_offset_step = UNROLL_WG_N * K_Nd4p_USGN_USGK;
+    const uint a_offset = (wgmi * kkg * UNROLL_WG_M + sgmi) * M_Kd4p_USGM_USGK;
+    const uint a_offset_step = UNROLL_WG_M * M_Kd4p_USGM_USGK;
+    const uint b_offset = (wgni * kkg * UNROLL_WG_N + sgni) * K_Nd4p_USGN_USGK;
+    const uint b_offset_step = UNROLL_WG_N * K_Nd4p_USGN_USGK;
 
     if (kkg >= 2)
     {
@@ -173,7 +173,7 @@ void main()
 
                 if (M_Kd4p_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK)
                 {
-                    prefetch_tmp_a[q] = i8buffer_sm4(A_int8_data, A_offset + siq);
+                    prefetch_tmp_a[q] = i8buffer_sm4(A_int8_data, a_offset + siq);
                 }
             }
         }
@@ -184,7 +184,7 @@ void main()
 
                 if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
                 {
-                    prefetch_tmp_b[q] = i8buffer_sm4(B_int8_data, B_offset + siq);
+                    prefetch_tmp_b[q] = i8buffer_sm4(B_int8_data, b_offset + siq);
                 }
             }
         }
@@ -218,7 +218,7 @@ void main()
 
             barrier();
 
-            // prefetch next tile
+            // prefetch the next
             {
                 [[unroll]] for (uint q = 0; q < M_Kd4p_USGM_USGK_d_subgroupsize; q++)
                 {
@@ -226,7 +226,7 @@ void main()
 
                     if (M_Kd4p_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK)
                     {
-                        prefetch_tmp_a[q] = i8buffer_sm4(A_int8_data, A_offset + (kg + 1) * A_offset_step + siq);
+                        prefetch_tmp_a[q] = i8buffer_sm4(A_int8_data, a_offset + (kg + 1) * a_offset_step + siq);
                     }
                 }
             }
@@ -237,7 +237,7 @@ void main()
 
                     if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
                     {
-                        prefetch_tmp_b[q] = i8buffer_sm4(B_int8_data, B_offset + (kg + 1) * B_offset_step + siq);
+                        prefetch_tmp_b[q] = i8buffer_sm4(B_int8_data, b_offset + (kg + 1) * b_offset_step + siq);
                     }
                 }
             }
@@ -366,7 +366,7 @@ void main()
 
                     if (M_Kd4p_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < M_Kd4p_USGM_USGK)
                     {
-                        tmp_a[sgmi][siq] = i8buffer_sm4(A_int8_data, A_offset + kg * A_offset_step + siq);
+                        tmp_a[sgmi][siq] = i8buffer_sm4(A_int8_data, a_offset + kg * a_offset_step + siq);
                     }
                 }
             }
@@ -377,7 +377,7 @@ void main()
 
                     if (K_Nd4p_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < K_Nd4p_USGN_USGK)
                     {
-                        tmp_b[sgni][siq] = i8buffer_sm4(B_int8_data, B_offset + kg * B_offset_step + siq);
+                        tmp_b[sgni][siq] = i8buffer_sm4(B_int8_data, b_offset + kg * b_offset_step + siq);
                     }
                 }
             }
@@ -480,14 +480,7 @@ void main()
                 {
                     ivec4 sumi = tmp_o[sgi][siq];
                     const uvec4 gm4 = gm * 4 + uvec4(0, 1, 2, 3);
-
-                    vec4 descale = vec4(0.f);
-                    descale.r = A_descales_data[gm4.r];
-                    if (gm4.g < psc(GM)) descale.g = A_descales_data[gm4.g];
-                    if (gm4.b < psc(GM)) descale.b = A_descales_data[gm4.b];
-                    if (gm4.a < psc(GM)) descale.a = A_descales_data[gm4.a];
-
-                    vec4 sumfp = vec4(sumi) * descale * B_descale_data[0];
+                    vec4 sumfp = vec4(sumi) * A_descales_data[gm] * B_descale_data[0];
 
                     if (broadcast_type_C == 0)
                     {
@@ -545,7 +538,7 @@ void main()
                 if (gm < psc(GM) && gn < psc(GN))
                 {
                     ivec4 sumi = tmp_o[sgi][siq];
-                    vec4 sumfp = vec4(sumi) * A_descales_data[gm] * B_descale_data[0];
+                    vec4 sumfp = vec4(sumi) * A_descales_data[gm / 4][int(gm % 4)] * B_descale_data[0];
 
                     if (broadcast_type_C == 0)
                     {

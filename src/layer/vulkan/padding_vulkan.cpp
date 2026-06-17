@@ -36,25 +36,6 @@ int Padding_vulkan::create_pipeline(const Option& opt)
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
-#if NCNN_INT8
-    if (per_channel_pad_data_size)
-    {
-        per_channel_pad_data_int8.create((per_channel_pad_data_size + 3) / 4 * 4, (size_t)1u, 1);
-        if (per_channel_pad_data_int8.empty())
-            return -100;
-
-        signed char* outptr = per_channel_pad_data_int8;
-        for (int i = 0; i < per_channel_pad_data_int8.w; i++)
-        {
-            outptr[i] = 0;
-        }
-        for (int i = 0; i < per_channel_pad_data_size; i++)
-        {
-            outptr[i] = static_cast<signed char>((float)per_channel_pad_data[i]);
-        }
-    }
-#endif // NCNN_INT8
-
     int offset_elempack = 1;
     if (shape.dims == 1)
     {
@@ -260,7 +241,8 @@ int Padding_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     cmd.record_upload(per_channel_pad_data, per_channel_pad_data_gpu, opt);
 
 #if NCNN_INT8
-    cmd.record_upload(per_channel_pad_data_int8, per_channel_pad_data_int8_gpu, opt);
+    if (!per_channel_pad_data_int8.empty())
+        cmd.record_upload(per_channel_pad_data_int8, per_channel_pad_data_int8_gpu, opt);
 #endif // NCNN_INT8
 
     if (opt.lightmode)
@@ -661,6 +643,23 @@ int Padding_vulkan::create_pipeline_int8(const Option& opt)
 {
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    if (per_channel_pad_data_size)
+    {
+        per_channel_pad_data_int8.create((per_channel_pad_data_size + 3) / 4 * 4, (size_t)1u, 1);
+        if (per_channel_pad_data_int8.empty())
+            return -100;
+
+        signed char* outptr = per_channel_pad_data_int8;
+        for (int i = 0; i < per_channel_pad_data_int8.w; i++)
+        {
+            outptr[i] = 0;
+        }
+        for (int i = 0; i < per_channel_pad_data_size; i++)
+        {
+            outptr[i] = static_cast<signed char>((float)per_channel_pad_data[i]);
+        }
+    }
 
     Mat shape_int8;
     if (shape.dims == 1) shape_int8 = Mat(shape.w, (void*)0, (size_t)shape.elempack, shape.elempack);

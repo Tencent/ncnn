@@ -27,17 +27,12 @@ layout(constant_id = 13) const int out_elempack = 1;
 layout(constant_id = 14) const int num_output_g = 1;
 
 #define shape_constant_id_offset 15
-layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
-
-layout(constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout(constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int outcstep = 0;
 
 layout(binding = 0) readonly buffer bottom_blob_1 { sint8 bottom_blob_int8_data_1[]; };
 layout(binding = 1) writeonly buffer top_blob_1 { sfp top_blob_data_1[]; };
@@ -45,23 +40,18 @@ layout(binding = 2) readonly buffer bottom_blob_4 { sint8vec4 bottom_blob_int8_d
 layout(binding = 3) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
 layout(binding = 4) readonly buffer weight_blob { sint8vec4 weight_data[]; };
 layout(binding = 5) readonly buffer bias_blob { vec4 bias_data[]; };
-layout(binding = 6) readonly buffer descales_blob { vec4 descales_data[]; };
+layout(binding = 6) readonly buffer weight_descales_blob { vec4 weight_descales_data[]; };
 layout(binding = 7) readonly buffer top_scales_blob { sfpvec4 top_scales_data[]; };
 layout(binding = 8) writeonly buffer top_blob_int8_1 { sint8 top_blob_int8_data_1[]; };
 layout(binding = 9) writeonly buffer top_blob_int8_4 { sint8vec4 top_blob_int8_data_4[]; };
 
 layout(push_constant) uniform parameter
 {
-    int dims;
     int w;
-    int h;
     int c;
     int cstep;
-
-    int outdims;
     int outw;
     int outh;
-    int outc;
     int outcstep;
 } p;
 
@@ -69,27 +59,26 @@ void main()
 {
     int gx = int(gl_GlobalInvocationID.x);
     int gy = int(gl_GlobalInvocationID.y);
-    int gz = int(gl_GlobalInvocationID.z);
+    const int gz = int(gl_GlobalInvocationID.z);
 
-    int outc_g = (num_output_g + 3) / 4;
-    int gg = gz / outc_g;
-    gz = gz - gg * outc_g;
+    const int num_output_g4 = (num_output_g + 3) / 4;
+    const int gg = gz / num_output_g4;
+    const int gz4 = gz - gg * num_output_g4;
 
     if (gx >= psc(outw) || gy >= psc(outh) || gg >= group)
         return;
 
-    int maxk = kernel_w * kernel_h;
-    int channels_g = psc(c) / group;
-    int outc_g_aligned = (outc_g + 7) / 8 * 8;
-    int gz_aligned = gg * outc_g_aligned + gz;
-    int top_z = gg * outc_g + gz;
+    const int maxk = kernel_w * kernel_h;
+    const int channels_g = psc(c) / group;
+    const int num_output_g4_aligned = (num_output_g4 + 7) / 8 * 8;
+    const int gz_aligned = gg * num_output_g4_aligned + gz4;
 
     ivec4 sum = ivec4(0);
 
     // group convolution
-    for (int z = 0; z < channels_g; z++)
+    if (elempack == 4)
     {
-        if (elempack == 4)
+        for (int z = 0; z < channels_g; z++)
         {
             int v_offset = (gg * channels_g + z) * psc(cstep) + gy * stride_h * psc(w) + gx * stride_w;
             int w_offset = (gz_aligned * channels_g + z) * maxk * 4;
@@ -124,7 +113,10 @@ void main()
                 w_offset += kernel_w * 4;
             }
         }
-        else // elempack == 1
+    }
+    else // elempack == 1
+    {
+        for (int z = 0; z < channels_g; z++)
         {
             int w_offset = (gz_aligned * channels_g + z) * maxk;
 
@@ -146,7 +138,7 @@ void main()
         }
     }
 
-    vec4 sumfp32 = vec4(sum) * descales_data[gz_aligned];
+    vec4 sumfp32 = vec4(sum) * weight_descales_data[gz_aligned];
 
     if (bias_term == 1)
     {
@@ -155,7 +147,7 @@ void main()
 
     sumfp32 = vec4(activation_afpvec4(afpvec4(sumfp32), activation_type, activation_param_0, activation_param_1));
 
-    int outch0 = gz * 4;
+    int outch0 = gz4 * 4;
 
     if (use_int8_requantize == 1)
     {
@@ -165,7 +157,7 @@ void main()
 
         if (out_elempack == 4)
         {
-            int gi = top_z * psc(outcstep) + gy * psc(outw) + gx;
+            int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
             i8buffer_st4(top_blob_int8_data_4, gi, v);
         }
         else // out_elempack == 1
@@ -184,7 +176,7 @@ void main()
     {
         if (out_elempack == 4)
         {
-            int gi = top_z * psc(outcstep) + gy * psc(outw) + gx;
+            int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
             buffer_st4(top_blob_data_4, gi, afpvec4(sumfp32));
         }
         else // out_elempack == 1

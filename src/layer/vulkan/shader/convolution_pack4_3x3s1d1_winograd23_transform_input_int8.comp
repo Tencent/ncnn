@@ -28,8 +28,6 @@ layout(push_constant) uniform parameter
 
     int block_x;
     int block_y;
-
-    int c;
 } p;
 
 void main()
@@ -38,7 +36,7 @@ void main()
     const int gy = int(gl_GlobalInvocationID.y);
     const int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(block_x) || gy >= psc(block_y) || gz >= psc(c))
+    if (gx >= psc(block_x) || gy >= psc(block_y) || gz >= c)
         return;
 
     // load 4x4
@@ -112,7 +110,7 @@ void main()
 
     // store 16
     int v_tm_offset = gz * psc(outcstep) + tile;
-    int v_tm_step = psc(outcstep) * psc(c);
+    int v_tm_step = psc(outcstep) * c;
 
     i16buffer_st4(bottom_tm_blob_data, v_tm_offset + 0 * v_tm_step, v00);
     i16buffer_st4(bottom_tm_blob_data, v_tm_offset + 1 * v_tm_step, v01);

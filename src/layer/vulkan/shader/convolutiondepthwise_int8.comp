@@ -40,7 +40,7 @@ layout(binding = 0) readonly buffer bottom_blob { sint8 bottom_blob_int8_data[];
 layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 2) readonly buffer weight_blob { sint8vec4 weight_data[]; };
 layout(binding = 3) readonly buffer bias_blob { float bias_data[]; };
-layout(binding = 4) readonly buffer descales_blob { float descales_data[]; };
+layout(binding = 4) readonly buffer weight_descales_blob { float weight_descales_data[]; };
 layout(binding = 5) readonly buffer top_scales_blob { sfp top_scales_data[]; };
 layout(binding = 6) writeonly buffer top_blob_int8 { sint8 top_blob_int8_data[]; };
 
@@ -87,13 +87,13 @@ void main()
         const int v1 = i8buffer_ld1(bottom_blob_int8_data, gz * psc(cstep) + y4.g * psc(w) + x4.g);
         const int v2 = i8buffer_ld1(bottom_blob_int8_data, gz * psc(cstep) + y4.b * psc(w) + x4.b);
         const int v3 = i8buffer_ld1(bottom_blob_int8_data, gz * psc(cstep) + y4.a * psc(w) + x4.a);
+        const ivec4 v = ivec4(v0, v1, v2, v3);
 
 #if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
-        const int vp = int((uint(v0) & 0xffu) | ((uint(v1) & 0xffu) << 8) | ((uint(v2) & 0xffu) << 16) | ((uint(v3) & 0xffu) << 24));
+        const int vp = packInt4x8(v);
         const int kvp = i8buffer_sm4(weight_data, gz * maxk4d4 + k / 4);
         sum += dotPacked4x8EXT(vp, kvp);
 #else
-        const ivec4 v = ivec4(v0, v1, v2, v3);
         const ivec4 kv = i8buffer_ld4(weight_data, gz * maxk4d4 + k / 4);
         sum += v.r * kv.r + v.g * kv.g + v.b * kv.b + v.a * kv.a;
 #endif
@@ -114,7 +114,7 @@ void main()
         sum += v * kv;
     }
 
-    float sumfp32 = float(sum) * descales_data[gz];
+    float sumfp32 = float(sum) * weight_descales_data[gz];
 
     if (bias_term == 1)
     {

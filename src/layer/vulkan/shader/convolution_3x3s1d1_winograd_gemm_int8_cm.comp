@@ -386,7 +386,7 @@ void main()
             barrier();
         }
 
-        // the last copy prefetch to shared memory
+        // copy and compute the last prefetched tile
         {
             [[unroll]] for (uint q = 0; q < V_USGM_USGK_d_subgroupsize; q++)
             {
