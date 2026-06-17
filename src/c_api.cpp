@@ -487,6 +487,34 @@ ncnn_mat_t ncnn_mat_create_4d(int w, int h, int d, int c, ncnn_allocator_t alloc
     return (ncnn_mat_t)(new Mat(w, h, d, c, (size_t)4u, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
+ncnn_mat_t ncnn_mat_create_1d_batch(int w, int batch, ncnn_allocator_t allocator)
+{
+    Mat* m = new Mat();
+    m->create_batch(w, batch, (size_t)4u, 1, allocator ? (Allocator*)allocator->pthis : NULL);
+    return (ncnn_mat_t)m;
+}
+
+ncnn_mat_t ncnn_mat_create_2d_batch(int w, int h, int batch, ncnn_allocator_t allocator)
+{
+    Mat* m = new Mat();
+    m->create_batch(w, h, batch, (size_t)4u, 1, allocator ? (Allocator*)allocator->pthis : NULL);
+    return (ncnn_mat_t)m;
+}
+
+ncnn_mat_t ncnn_mat_create_3d_batch(int w, int h, int c, int batch, ncnn_allocator_t allocator)
+{
+    Mat* m = new Mat();
+    m->create_batch(w, h, c, batch, (size_t)4u, 1, allocator ? (Allocator*)allocator->pthis : NULL);
+    return (ncnn_mat_t)m;
+}
+
+ncnn_mat_t ncnn_mat_create_4d_batch(int w, int h, int d, int c, int batch, ncnn_allocator_t allocator)
+{
+    Mat* m = new Mat();
+    m->create_batch(w, h, d, c, batch, (size_t)4u, 1, allocator ? (Allocator*)allocator->pthis : NULL);
+    return (ncnn_mat_t)m;
+}
+
 ncnn_mat_t ncnn_mat_create_external_1d(int w, void* data, ncnn_allocator_t allocator)
 {
     return (ncnn_mat_t)(new Mat(w, data, (size_t)4u, allocator ? (Allocator*)allocator->pthis : NULL));
@@ -525,6 +553,34 @@ ncnn_mat_t ncnn_mat_create_3d_elem(int w, int h, int c, size_t elemsize, int ele
 ncnn_mat_t ncnn_mat_create_4d_elem(int w, int h, int d, int c, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
     return (ncnn_mat_t)(new Mat(w, h, d, c, elemsize, elempack, allocator ? (Allocator*)allocator->pthis : NULL));
+}
+
+ncnn_mat_t ncnn_mat_create_1d_batch_elem(int w, int batch, size_t elemsize, int elempack, ncnn_allocator_t allocator)
+{
+    Mat* m = new Mat();
+    m->create_batch(w, batch, elemsize, elempack, allocator ? (Allocator*)allocator->pthis : NULL);
+    return (ncnn_mat_t)m;
+}
+
+ncnn_mat_t ncnn_mat_create_2d_batch_elem(int w, int h, int batch, size_t elemsize, int elempack, ncnn_allocator_t allocator)
+{
+    Mat* m = new Mat();
+    m->create_batch(w, h, batch, elemsize, elempack, allocator ? (Allocator*)allocator->pthis : NULL);
+    return (ncnn_mat_t)m;
+}
+
+ncnn_mat_t ncnn_mat_create_3d_batch_elem(int w, int h, int c, int batch, size_t elemsize, int elempack, ncnn_allocator_t allocator)
+{
+    Mat* m = new Mat();
+    m->create_batch(w, h, c, batch, elemsize, elempack, allocator ? (Allocator*)allocator->pthis : NULL);
+    return (ncnn_mat_t)m;
+}
+
+ncnn_mat_t ncnn_mat_create_4d_batch_elem(int w, int h, int d, int c, int batch, size_t elemsize, int elempack, ncnn_allocator_t allocator)
+{
+    Mat* m = new Mat();
+    m->create_batch(w, h, d, c, batch, elemsize, elempack, allocator ? (Allocator*)allocator->pthis : NULL);
+    return (ncnn_mat_t)m;
 }
 
 ncnn_mat_t ncnn_mat_create_external_1d_elem(int w, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator)
@@ -607,6 +663,11 @@ int ncnn_mat_get_c(const ncnn_mat_t mat)
     return ((const Mat*)mat)->c;
 }
 
+int ncnn_mat_get_n(const ncnn_mat_t mat)
+{
+    return ((const Mat*)mat)->n;
+}
+
 size_t ncnn_mat_get_elemsize(const ncnn_mat_t mat)
 {
     return ((const Mat*)mat)->elemsize;
@@ -622,9 +683,19 @@ size_t ncnn_mat_get_cstep(const ncnn_mat_t mat)
     return ((const Mat*)mat)->cstep;
 }
 
+size_t ncnn_mat_get_nstep(const ncnn_mat_t mat)
+{
+    return ((const Mat*)mat)->nstep;
+}
+
 void* ncnn_mat_get_data(const ncnn_mat_t mat)
 {
     return ((const Mat*)mat)->data;
+}
+
+ncnn_mat_t ncnn_mat_get_batch(const ncnn_mat_t mat, int b)
+{
+    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->batch(b)));
 }
 
 void* ncnn_mat_get_channel_data(const ncnn_mat_t mat, int c)
