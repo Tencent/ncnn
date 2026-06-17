@@ -203,9 +203,8 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     {
         if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
         {
-            NCNN_LOGE("Convolution int8 1d input is not supported, please replace this layer with InnerProduct");
+            NCNN_LOGE("Convolution 1d input compatibility path is deprecated and will be removed, please replace this layer with InnerProduct");
             NCNN_LOGE("ncnn param suggestion: Convolution ... 0=%d 1=1 11=1 5=%d 6=%d 8=%d 9=%d 10=... -> InnerProduct ... 0=%d 1=%d 2=%d 8=%d 9=%d 10=...", num_output, bias_term, weight_data_size, int8_scale_term, activation_type, num_output, bias_term, weight_data_size, int8_scale_term, activation_type);
-            return -1;
         }
 
         Mat bottom_blob_unpacked = bottom_blob;
