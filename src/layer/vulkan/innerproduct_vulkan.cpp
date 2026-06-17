@@ -528,6 +528,8 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
         Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
         weight_data_int8_packed.create(num_input_packed / 4, num_output_packed / 4, (size_t)16u, 16);
+        if (weight_data_int8_packed.empty())
+            return -100;
         memset(weight_data_int8_packed.data, 0, weight_data_int8_packed.total() * weight_data_int8_packed.elemsize);
 
         for (int q = 0; q < num_output_packed; q += 4)
