@@ -614,6 +614,9 @@ void Mat::create_batch(int _w, int _batch, size_t _elemsize, int _elempack, Allo
         return;
     }
 
+    if (dims == 1 && w == _w && elemsize == _elemsize && elempack == _elempack && allocator == _allocator && n == _batch)
+        return;
+
     release();
 
     elemsize = _elemsize;
@@ -653,6 +656,9 @@ void Mat::create_batch(int _w, int _h, int _batch, size_t _elemsize, int _elempa
         create(_w, _h, _elemsize, _elempack, _allocator);
         return;
     }
+
+    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && elempack == _elempack && allocator == _allocator && n == _batch)
+        return;
 
     release();
 
@@ -694,6 +700,9 @@ void Mat::create_batch(int _w, int _h, int _c, int _batch, size_t _elemsize, int
         return;
     }
 
+    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && elempack == _elempack && allocator == _allocator && n == _batch)
+        return;
+
     release();
 
     elemsize = _elemsize;
@@ -733,6 +742,9 @@ void Mat::create_batch(int _w, int _h, int _d, int _c, int _batch, size_t _elems
         create(_w, _h, _d, _c, _elemsize, _elempack, _allocator);
         return;
     }
+
+    if (dims == 4 && w == _w && h == _h && d == _d && c == _c && elemsize == _elemsize && elempack == _elempack && allocator == _allocator && n == _batch)
+        return;
 
     release();
 
@@ -1168,6 +1180,9 @@ void VkMat::create_batch(int _w, int _batch, size_t _elemsize, int _elempack, Vk
         return;
     }
 
+    if (dims == 1 && w == _w && elemsize == _elemsize && elempack == _elempack && allocator == _allocator && n == _batch)
+        return;
+
     release();
 
     elemsize = _elemsize;
@@ -1204,6 +1219,9 @@ void VkMat::create_batch(int _w, int _h, int _batch, size_t _elemsize, int _elem
         create(_w, _h, _elemsize, _elempack, _allocator);
         return;
     }
+
+    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && elempack == _elempack && allocator == _allocator && n == _batch)
+        return;
 
     release();
 
@@ -1242,6 +1260,9 @@ void VkMat::create_batch(int _w, int _h, int _c, int _batch, size_t _elemsize, i
         return;
     }
 
+    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && elempack == _elempack && allocator == _allocator && n == _batch)
+        return;
+
     release();
 
     elemsize = _elemsize;
@@ -1278,6 +1299,9 @@ void VkMat::create_batch(int _w, int _h, int _d, int _c, int _batch, size_t _ele
         create(_w, _h, _d, _c, _elemsize, _elempack, _allocator);
         return;
     }
+
+    if (dims == 4 && w == _w && h == _h && d == _d && c == _c && elemsize == _elemsize && elempack == _elempack && allocator == _allocator && n == _batch)
+        return;
 
     release();
 
