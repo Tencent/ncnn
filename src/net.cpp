@@ -687,8 +687,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
                             return -100;
                     }
 
-                    size_t batch_data_size = top_b.cstep * top_b.c * top_b.elemsize;
-                    memcpy(top_batch.batch(b).data, top_b.data, batch_data_size);
+                    memcpy(top_batch.batch(b), top_b, top_b.total() * top_b.elemsize);
                 }
 
                 // store top blob
@@ -809,8 +808,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
 
                 for (size_t i = 0; i < top_batches.size(); i++)
                 {
-                    size_t batch_data_size = top_b[i].cstep * top_b[i].c * top_b[i].elemsize;
-                    memcpy(top_batches[i].batch(b).data, top_b[i].data, batch_data_size);
+                    memcpy(top_batches[i].batch(b), top_b[i], top_b[i].total() * top_b[i].elemsize);
                 }
             }
 

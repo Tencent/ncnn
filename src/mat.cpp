@@ -42,8 +42,7 @@ static Mat reshape_batch(const Mat& bottom_blob, int dims, int w, int h, int d, 
                 return top_blob;
         }
 
-        size_t batch_data_size = top_blob_b.cstep * top_blob_b.c * top_blob_b.elemsize;
-        memcpy(top_blob.batch(b).data, top_blob_b.data, batch_data_size);
+        memcpy(top_blob.batch(b), top_blob_b, top_blob_b.total() * top_blob_b.elemsize);
     }
 
     return top_blob;
@@ -63,12 +62,10 @@ Mat Mat::clone(Allocator* _allocator) const
             return m;
 
         // copy batch by batch (nstep may include 4K padding)
-        size_t single_batch_size = cstep * c * elemsize;
+        size_t single_batch_size = total() * elemsize;
         for (int b = 0; b < n; b++)
         {
-            const void* src = (const unsigned char*)data + nstep * b * elemsize;
-            void* dst = (unsigned char*)m.data + m.nstep * b * elemsize;
-            memcpy(dst, src, single_batch_size);
+            memcpy(m.batch(b), batch(b), single_batch_size);
         }
 
         return m;
