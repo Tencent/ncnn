@@ -259,9 +259,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             top_blob.cstep = bottom_blob.cstep * elempack;
             top_blob.elemsize = bottom_blob.elemsize / elempack;
             top_blob.elempack = out_elempack;
-            // preserve byte stride per batch when element size changes
-            if (B > 1)
-                top_blob.nstep = bottom_blob.nstep * bottom_blob.elemsize / top_blob.elemsize;
+            top_blob.nstep = bottom_blob.nstep * bottom_blob.elemsize / top_blob.elemsize;
             return 0;
         }
 

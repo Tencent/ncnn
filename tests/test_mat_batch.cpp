@@ -365,9 +365,9 @@ static int test_batch_create_reset()
         fprintf(stderr, "test_batch_create_reset n expect 1 got %d\n", m.n);
         return -1;
     }
-    if (m.nstep != 0)
+    if (m.nstep != m.total())
     {
-        fprintf(stderr, "test_batch_create_reset nstep expect 0 got %zu\n", m.nstep);
+        fprintf(stderr, "test_batch_create_reset nstep expect %zu got %zu\n", m.total(), m.nstep);
         return -1;
     }
     if (m.dims != 3 || m.w != 4 || m.h != 3 || m.c != 2)

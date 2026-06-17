@@ -305,6 +305,7 @@ void Mat::create(int _w, size_t _elemsize, Allocator* _allocator)
     c = 1;
 
     cstep = alignSize(w * elemsize, 16) / elemsize;
+    nstep = total();
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -340,6 +341,7 @@ void Mat::create(int _w, int _h, size_t _elemsize, Allocator* _allocator)
     c = 1;
 
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+    nstep = total();
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -375,6 +377,7 @@ void Mat::create(int _w, int _h, int _c, size_t _elemsize, Allocator* _allocator
     c = _c;
 
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+    nstep = total();
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -410,6 +413,7 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, Allocator* _a
     c = _c;
 
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
+    nstep = total();
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -445,6 +449,7 @@ void Mat::create(int _w, size_t _elemsize, int _elempack, Allocator* _allocator)
     c = 1;
 
     cstep = alignSize(w * elemsize, 16) / elemsize;
+    nstep = total();
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -480,6 +485,7 @@ void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, Allocator* _al
     c = 1;
 
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+    nstep = total();
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -515,6 +521,7 @@ void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, Alloca
     c = _c;
 
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+    nstep = total();
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -550,6 +557,7 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack
     c = _c;
 
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
+    nstep = total();
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -823,6 +831,7 @@ void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
     c = 1;
 
     cstep = alignSize(w * elemsize, 16) / elemsize;
+    nstep = total();
 
     if (total() > 0)
     {
@@ -835,7 +844,6 @@ void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
-        nstep = data->capacity / elemsize;
     }
 }
 
@@ -857,6 +865,7 @@ void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
     c = 1;
 
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+    nstep = total();
 
     if (total() > 0)
     {
@@ -869,7 +878,6 @@ void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
-        nstep = data->capacity / elemsize;
     }
 }
 
@@ -891,6 +899,7 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _alloc
     c = _c;
 
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+    nstep = total();
 
     if (total() > 0)
     {
@@ -903,7 +912,6 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _alloc
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
-        nstep = data->capacity / elemsize;
     }
 }
 
@@ -925,6 +933,7 @@ void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, VkAllocator
     c = _c;
 
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
+    nstep = total();
 
     if (total() > 0)
     {
@@ -937,7 +946,6 @@ void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, VkAllocator
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
-        nstep = data->capacity / elemsize;
     }
 }
 
@@ -959,6 +967,7 @@ void VkMat::create(int _w, size_t _elemsize, int _elempack, VkAllocator* _alloca
     c = 1;
 
     cstep = alignSize(w * elemsize, 16) / elemsize;
+    nstep = total();
 
     if (total() > 0)
     {
@@ -971,7 +980,6 @@ void VkMat::create(int _w, size_t _elemsize, int _elempack, VkAllocator* _alloca
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
-        nstep = data->capacity / elemsize;
     }
 }
 
@@ -993,6 +1001,7 @@ void VkMat::create(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator*
     c = 1;
 
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+    nstep = total();
 
     if (total() > 0)
     {
@@ -1005,7 +1014,6 @@ void VkMat::create(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator*
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
-        nstep = data->capacity / elemsize;
     }
 }
 
@@ -1027,6 +1035,7 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAl
     c = _c;
 
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+    nstep = total();
 
     if (total() > 0)
     {
@@ -1039,7 +1048,6 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAl
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
-        nstep = data->capacity / elemsize;
     }
 }
 
@@ -1061,6 +1069,7 @@ void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempa
     c = _c;
 
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
+    nstep = total();
 
     if (total() > 0)
     {
@@ -1073,7 +1082,6 @@ void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempa
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
-        nstep = data->capacity / elemsize;
     }
 }
 
