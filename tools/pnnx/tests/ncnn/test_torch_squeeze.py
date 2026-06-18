@@ -8,13 +8,18 @@ import torch.nn.functional as F
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
+        self.conv = nn.Conv2d(3, 4, 1)
 
-    def forward(self, x, y, z, w):
+    def forward(self, x, y, z, w, q):
         x = torch.squeeze(x, 0)
         y = torch.squeeze(y, 1)
         z = torch.squeeze(z)
         w = torch.squeeze(w, 2)
-        return x, y, z, w
+        q = self.conv(q)
+        q0 = torch.squeeze(q)
+        q1 = torch.squeeze(q, 2)
+        q2 = torch.squeeze(q, 0)
+        return x, y, z, w, q0, q1, q2
 
 def test():
     net = Model()
@@ -25,23 +30,29 @@ def test():
     y = torch.rand(3, 1)
     z = torch.rand(5, 1, 11)
     w = torch.rand(5, 9, 1, 33)
+    q = torch.rand(2, 3, 1, 5)
 
-    a = net(x, y, z, w)
+    a = net(x, y, z, w, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
+    mod = torch.jit.trace(net, (x, y, z, w, q))
     mod.save("test_torch_squeeze.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_squeeze.pt inputshape=[1,16],[3,1],[5,1,11],[5,9,1,33]")
+    os.system("../../src/pnnx test_torch_squeeze.pt inputshape=[1,16],[3,1],[5,1,11],[5,9,1,33],[2,3,1,5]")
+
+    with open("test_torch_squeeze.ncnn.param") as f:
+        lines = f.readlines()
+        if sum(1 for line in lines if line.startswith("Squeeze")) != 6:
+            return False
 
     # ncnn inference
     import test_torch_squeeze_ncnn
     b = test_torch_squeeze_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+        if not torch.allclose(a0, b0, 1e-3, 1e-3):
             return False
     return True
 

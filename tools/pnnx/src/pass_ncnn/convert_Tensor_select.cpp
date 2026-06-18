@@ -28,16 +28,17 @@ void convert_Tensor_select(Graph& graph)
             const int batch_index = op->inputs[0]->params["__batch_index"].i;
 
             int axis = op->params.at("dim").i;
+            if (axis < 0)
+            {
+                int input_rank = op->inputs[0]->shape.size();
+                if (input_rank > 0)
+                    axis = input_rank + axis;
+            }
+
             if (axis == batch_index)
             {
                 fprintf(stderr, "select along batch axis %d is not supported\n", batch_index);
                 continue;
-            }
-
-            if (axis < 0)
-            {
-                int input_rank = op->inputs[0]->shape.size();
-                axis = input_rank + axis;
             }
 
             if (axis > batch_index)
@@ -47,7 +48,9 @@ void convert_Tensor_select(Graph& graph)
             int index;
             if (op->has_param("dim"))
             {
-                dim = op->params.at("dim").i;
+                dim = axis;
+                if (dim >= batch_index)
+                    dim += 1;
             }
             else
             {

@@ -36,6 +36,12 @@ pnnx.Output             output      1 0 out
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
 
         int dim = captured_params.at("dim").i;
+        int input_rank = op->inputs[0]->shape.size();
+        if (input_rank == 0)
+            input_rank = op->outputs[0]->shape.size();
+        if (dim < 0 && input_rank > 0)
+            dim += input_rank;
+
         if (dim == batch_index)
         {
             fprintf(stderr, "slice_scatter batch dim %d is not supported yet!\n", batch_index);
@@ -49,8 +55,6 @@ pnnx.Output             output      1 0 out
         {
             fprintf(stderr, "slice_scatter step %d is not supported yet!\n", step);
         }
-
-        int input_rank = op->inputs[0]->shape.size();
 
         if (input_rank > 5)
         {

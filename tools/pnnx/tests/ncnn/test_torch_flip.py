@@ -43,6 +43,35 @@ class Model(nn.Module):
 
         return x0, y0, y1, y2, z0, z1, z2, z3, z4, z5, z6, w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14
 
+class ModelBatchWarning(nn.Module):
+    def __init__(self):
+        super(ModelBatchWarning, self).__init__()
+        self.conv = nn.Conv2d(3, 4, 1)
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = torch.flip(x, [0])
+        return x
+
+def test_warning():
+    import subprocess
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 3, 5, 7)
+
+    net = ModelBatchWarning()
+    net.eval()
+    mod = torch.jit.trace(net, x)
+    mod.save("test_torch_flip_batch_warning.pt")
+
+    p = subprocess.run("../../src/pnnx test_torch_flip_batch_warning.pt inputshape=[2,3,5,7]", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    if p.returncode != 0:
+        return False
+    if "flip along batch axis is not supported yet" not in p.stdout:
+        return False
+
+    return True
+
 def test():
     net = Model()
     net.eval()
@@ -70,7 +99,7 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
             return False
-    return True
+    return test_warning()
 
 if __name__ == "__main__":
     if test():

@@ -108,7 +108,7 @@ void convert_Tensor_slice_copy(Graph& graph)
             const int axes_rank = axes.size();
 
             bool has_select = false;
-            std::vector<int> selected_axes;
+            std::vector<int> selected_axis_indices;
             for (int i = 0; i < axes_rank; i++)
             {
                 if (steps[i] == 0)
@@ -118,7 +118,7 @@ void convert_Tensor_slice_copy(Graph& graph)
                     ends[i] = selects[i] + 1;
                     steps[i] = 1;
                     has_select = true;
-                    selected_axes.push_back(axes[i]);
+                    selected_axis_indices.push_back(i);
                 }
                 else if (steps[i] != 1)
                 {
@@ -141,18 +141,18 @@ void convert_Tensor_slice_copy(Graph& graph)
                 }
             }
 
+            int input_rank0 = op->inputs[0]->shape.size();
             for (int i = 0; i < axes_rank; i++)
             {
+                if (axes[i] < 0 && input_rank0 > 0)
+                {
+                    axes[i] = input_rank0 + axes[i];
+                }
+
                 if (axes[i] == batch_index && (starts[i] != 0 || ends[i] != INT_MAX))
                 {
                     fprintf(stderr, "slice_copy along batch axis is not supported\n");
                     continue;
-                }
-
-                if (axes[i] < 0)
-                {
-                    int input_rank = op->inputs[0]->shape.size();
-                    axes[i] = input_rank + axes[i];
                 }
 
                 if (axes[i] > batch_index)
@@ -203,9 +203,15 @@ void convert_Tensor_slice_copy(Graph& graph)
                 in->consumers.push_back(reshape);
 
                 std::vector<int> shape = in->shape;
-                for (auto sa : selected_axes)
+                for (auto si : selected_axis_indices)
                 {
                     // unsqueeze
+                    int sa = axes[si];
+                    if (shape.empty())
+                        continue;
+                    if (sa < 0 || sa > (int)shape.size())
+                        continue;
+
                     shape.insert(shape.begin() + sa, 1);
                 }
 

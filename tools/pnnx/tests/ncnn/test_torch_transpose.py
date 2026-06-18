@@ -13,6 +13,8 @@ class Model(nn.Module):
         self.conv3 = nn.Conv2d(3, 4, 1)
         self.conv4 = nn.Conv2d(3, 4, 1)
         self.conv5 = nn.Conv2d(3, 4, 1)
+        self.conv6 = nn.Conv2d(3, 4, 1)
+        self.conv7 = nn.Conv2d(3, 4, 1)
 
     def forward(self, x, y, z, w, v):
         x = torch.transpose(x, 0, 1)
@@ -32,6 +34,12 @@ class Model(nn.Module):
         w2 = torch.flatten(w2, start_dim=0, end_dim=2)
         w3 = self.conv5(w)
         w3 = torch.transpose(w3, 0, 1)
+        w4 = self.conv6(w)
+        w4 = torch.transpose(w4, 0, 2)
+        w4 = F.relu(w4)
+        w5 = self.conv7(w)
+        w5 = torch.transpose(w5, 0, 3)
+        w5 = F.relu(w5)
         v = v.reshape(4, 2, 5, 7)
         v = torch.transpose(v, 0, 1)
         v = torch.clone(v)
@@ -40,7 +48,7 @@ class Model(nn.Module):
         x = F.relu(x)
         y = F.relu(y)
         z = F.relu(z)
-        return x, y, z, w0, w1, w2, w3, v
+        return x, y, z, w0, w1, w2, w3, w4, w5, v
 
 def test():
     net = Model()
@@ -69,7 +77,7 @@ def test():
             return False
         if sum(1 for line in lines if line.startswith("Reshape") and "12=2" in line) != 1:
             return False
-        if sum(1 for line in lines if line.startswith("Permute")) != 10:
+        if sum(1 for line in lines if line.startswith("Permute")) != 12:
             return False
 
     # ncnn inference

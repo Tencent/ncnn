@@ -57,15 +57,16 @@ pnnx.Output             output      1 0 out
         const int batch_index = in->params.at("__batch_index").i;
 
         int axis = captured_params.at("dims").ai[0];
-        if (axis == batch_index)
-        {
-            fprintf(stderr, "roll along batch axis %d is not supported\n", batch_index);
-        }
-
         if (axis < 0)
         {
             int input_rank = in->shape.size();
-            axis = input_rank + axis;
+            if (input_rank > 0)
+                axis = input_rank + axis;
+        }
+
+        if (axis == batch_index)
+        {
+            fprintf(stderr, "roll along batch axis %d is not supported\n", batch_index);
         }
 
         if (axis > batch_index)
@@ -137,25 +138,28 @@ pnnx.Output             output      1 0 out
 
         int axis0 = captured_params.at("dims").ai[0];
         int axis1 = captured_params.at("dims").ai[1];
+        if (axis0 < 0)
+        {
+            int input_rank = in->shape.size();
+            if (input_rank > 0)
+                axis0 = input_rank + axis0;
+        }
+
+        if (axis1 < 0)
+        {
+            int input_rank = in->shape.size();
+            if (input_rank > 0)
+                axis1 = input_rank + axis1;
+        }
+
         if (axis0 == batch_index || axis1 == batch_index)
         {
             fprintf(stderr, "roll along batch axis %d is not supported\n", batch_index);
         }
 
-        if (axis0 < 0)
-        {
-            int input_rank = in->shape.size();
-            axis0 = input_rank + axis0;
-        }
-
         if (axis0 > batch_index)
             axis0 -= 1;
 
-        if (axis1 < 0)
-        {
-            int input_rank = in->shape.size();
-            axis1 = input_rank + axis1;
-        }
         if (axis1 > batch_index)
             axis1 -= 1;
 

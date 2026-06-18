@@ -140,18 +140,18 @@ void convert_Tensor_slice(Graph& graph)
                 }
             }
 
+            int input_rank0 = op->inputs[0]->shape.size();
             for (int i = 0; i < axes_rank; i++)
             {
+                if (axes[i] < 0 && input_rank0 > 0)
+                {
+                    axes[i] = input_rank0 + axes[i];
+                }
+
                 if (axes[i] == batch_index && (starts[i] != 0 || ends[i] != INT_MAX))
                 {
                     fprintf(stderr, "slice along batch axis is not supported\n");
                     continue;
-                }
-
-                if (axes[i] < 0)
-                {
-                    int input_rank = op->inputs[0]->shape.size();
-                    axes[i] = input_rank + axes[i];
                 }
 
                 if (axes[i] > batch_index)

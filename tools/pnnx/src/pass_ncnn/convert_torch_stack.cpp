@@ -26,21 +26,24 @@ void convert_torch_stack(Graph& graph)
             op->name = std::string("stack_") + std::to_string(op_index++);
 
             const int batch_index = op->inputs[0]->params["__batch_index"].i;
-            const int input_rank = op->inputs[0]->shape.size();
+            int input_rank = op->inputs[0]->shape.size();
+            if (input_rank == 0 && op->outputs[0]->shape.size() != 0)
+                input_rank = (int)op->outputs[0]->shape.size() - 1;
 
             int axis = op->params.at("dim").i;
+            if (axis < 0 && input_rank > 0)
+            {
+                axis = input_rank + 1 + axis;
+            }
+
             if (axis == batch_index)
             {
                 fprintf(stderr, "stack along batch axis %d is not supported\n", batch_index);
                 continue;
             }
 
-            if (axis < 0)
-            {
-                axis = input_rank + 1 + axis;
-            }
-
             bool stack_inner_most = axis == input_rank;
+            const int axis0 = axis;
 
             if (axis > batch_index)
                 axis -= 1;
@@ -91,11 +94,6 @@ void convert_torch_stack(Graph& graph)
                 std::vector<int> shape = op->inputs[0]->shape;
                 if (shape.size() != 0)
                 {
-                    int axis0 = op->params.at("dim").i;
-                    if (axis0 < 0)
-                    {
-                        axis0 = shape.size() + axis0;
-                    }
                     shape[axis0] *= op->inputs.size();
                     reshape_in->shape = shape;
                 }

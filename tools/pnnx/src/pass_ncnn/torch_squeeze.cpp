@@ -45,9 +45,12 @@ pnnx.Output             output      1 0 out
         if (captured_params.at("dim").type == 2)
         {
             int dim = captured_params.at("dim").i;
+            if (dim < 0 && input_rank > 0)
+                dim += input_rank;
+
             if (dim == batch_index)
             {
-                fprintf(stderr, "squeeze batch dim %d is not supported yet!\n", batch_index);
+                op->type = "Noop";
                 return;
             }
 
@@ -60,18 +63,31 @@ pnnx.Output             output      1 0 out
         else // if (captured_params.at("dim").type == 5)
         {
             std::vector<int> axes = captured_params.at("dim").ai;
+            std::vector<int> new_axes;
             for (size_t i = 0; i < axes.size(); i++)
             {
-                if (axes[i] == batch_index)
+                int dim = axes[i];
+                if (dim < 0 && input_rank > 0)
+                    dim += input_rank;
+
+                if (dim == batch_index)
                 {
-                    fprintf(stderr, "squeeze batch dim %d is not supported yet!\n", batch_index);
-                    return;
+                    continue;
                 }
 
-                if (axes[i] > batch_index)
-                    axes[i] -= 1;
+                if (dim > batch_index)
+                    dim -= 1;
+
+                new_axes.push_back(dim);
             }
-            op->params["3"] = axes;
+
+            if (new_axes.empty())
+            {
+                op->type = "Noop";
+                return;
+            }
+
+            op->params["3"] = new_axes;
         }
     }
 };

@@ -116,11 +116,13 @@ pnnx.Output             output      1 0 out
         const std::vector<int>& dims = captured_params.at("dims").ai;
 
         int input_rank = (int)op->inputs[0]->shape.size();
+        int full_input_rank = input_rank;
 
         if (input_rank == 0)
         {
             // assume input is fine
             input_rank = (int)dims.size();
+            full_input_rank = input_rank;
         }
 
         if (batch_index >= 0 && batch_index < input_rank)
@@ -136,10 +138,14 @@ pnnx.Output             output      1 0 out
         std::vector<int> new_dims;
         for (int i = 0; i < (int)dims.size(); i++)
         {
-            if (dims[i] == batch_index)
+            int dim = dims[i];
+            if (dim < 0 && full_input_rank > 0)
+                dim += full_input_rank;
+
+            if (dim == batch_index)
                 continue;
 
-            int new_dim = dims[i] > batch_index ? dims[i] - 1 : dims[i];
+            int new_dim = dim > batch_index ? dim - 1 : dim;
             new_dims.push_back(new_dim);
         }
 
