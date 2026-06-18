@@ -11,6 +11,8 @@ class Model(nn.Module):
         self.conv = nn.Conv2d(3, 4, 1)
         self.conv2 = nn.Conv2d(4, 3, 1)
         self.conv3 = nn.Conv2d(3, 4, 1)
+        self.conv4 = nn.Conv2d(3, 4, 1)
+        self.conv5 = nn.Conv2d(3, 4, 1)
 
     def forward(self, x, y, z, w, v):
         x = torch.transpose(x, 0, 1)
@@ -22,13 +24,23 @@ class Model(nn.Module):
         w1 = torch.transpose(w1, 0, 1)
         w1 = torch.transpose(w1, 2, 3)
         w1 = torch.flatten(w1, start_dim=0, end_dim=1)
+        w2 = self.conv4(w)
+        w2 = torch.transpose(w2, 0, 1)
+        w2 = torch.clone(w2)
+        w2 = w2.permute(0, 2, 1, 3)
+        w2 = torch.clone(w2)
+        w2 = torch.flatten(w2, start_dim=0, end_dim=2)
+        w3 = self.conv5(w)
+        w3 = torch.transpose(w3, 0, 1)
         v = v.reshape(4, 2, 5, 7)
         v = torch.transpose(v, 0, 1)
+        v = torch.clone(v)
+        v = v.permute(0, 1, 3, 2)
         v = self.conv2(v)
         x = F.relu(x)
         y = F.relu(y)
         z = F.relu(z)
-        return x, y, z, w0, w1, v
+        return x, y, z, w0, w1, w2, w3, v
 
 def test():
     net = Model()
@@ -53,11 +65,11 @@ def test():
 
     with open("test_torch_transpose.ncnn.param") as f:
         lines = f.readlines()
-        if sum(1 for line in lines if line.startswith("Reshape") and "12=1" in line) != 2:
+        if sum(1 for line in lines if line.startswith("Reshape") and "12=1" in line) != 4:
             return False
         if sum(1 for line in lines if line.startswith("Reshape") and "12=2" in line) != 1:
             return False
-        if sum(1 for line in lines if line.startswith("Permute")) != 6:
+        if sum(1 for line in lines if line.startswith("Permute")) != 10:
             return False
 
     # ncnn inference

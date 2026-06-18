@@ -7,9 +7,24 @@ namespace pnnx {
 
 namespace ncnn {
 
-static bool fold_batch_after_permute(Operator* op)
+static bool is_layout_op(const Operator* op)
 {
-    if (op->type != "Tensor.permute" && op->type != "torch.transpose")
+    return op->type == "Tensor.permute" || op->type == "torch.transpose";
+}
+
+static bool is_identity_op(const Operator* op)
+{
+    return op->type == "Noop" || op->type == "Tensor.clone" || op->type == "torch.clone";
+}
+
+static bool is_reshape_op(const Operator* op)
+{
+    return op->type == "Tensor.reshape" || op->type == "torch.flatten";
+}
+
+static bool fold_batch_after_permute(Operator* op, std::vector<Operator*>& chain)
+{
+    if (!is_layout_op(op))
         return false;
 
     Operand* in = op->inputs[0];
@@ -21,31 +36,43 @@ static bool fold_batch_after_permute(Operator* op)
     if (input_batch_index != 0 || output_batch_index == 0 || output_batch_index == 233)
         return false;
 
-    if (out->consumers.size() != 1)
-        return false;
+    chain.clear();
+    chain.push_back(op);
 
-    Operator* op2 = out->consumers[0];
-    if (op2->type == "Tensor.permute" || op2->type == "torch.transpose")
+    while (out->consumers.size() == 1)
     {
-        Operand* out2 = op2->outputs[0];
-        if (out2->consumers.size() != 1)
+        Operator* op2 = out->consumers[0];
+        if (op2->type == "pnnx.Output")
+        {
+            const int batch_index = out->params["__batch_index"].i;
+            if (batch_index != 0 && batch_index != 233)
+                return true;
+
+            return false;
+        }
+
+        if (is_reshape_op(op2))
+        {
+            if (op2->outputs[0]->params.find("__batch_index") != op2->outputs[0]->params.end() && op2->outputs[0]->params["__batch_index"].i != 233)
+                return false;
+
+            chain.push_back(op2);
+            return true;
+        }
+
+        if (!is_layout_op(op2) && !is_identity_op(op2))
             return false;
 
-        op2 = out2->consumers[0];
+        chain.push_back(op2);
+        out = op2->outputs[0];
     }
 
-    if (op2->type != "Tensor.reshape" && op2->type != "torch.flatten")
-        return false;
-
-    if (op2->outputs[0]->params.find("__batch_index") != op2->outputs[0]->params.end() && op2->outputs[0]->params["__batch_index"].i != 233)
-        return false;
-
-    return true;
+    return false;
 }
 
-static bool extract_batch_after_permute(Operator* op)
+static bool extract_batch_after_permute(Operator* op, std::vector<Operator*>& chain)
 {
-    if (op->type != "Tensor.permute" && op->type != "torch.transpose")
+    if (!is_layout_op(op))
         return false;
 
     Operand* in = op->inputs[0];
@@ -57,17 +84,29 @@ static bool extract_batch_after_permute(Operator* op)
     if (input_batch_index == 233 || output_batch_index != 0)
         return false;
 
-    if (in->consumers.size() != 1)
-        return false;
+    chain.clear();
+    chain.push_back(op);
 
-    Operator* op0 = in->producer;
-    if (op0->type != "Tensor.reshape")
-        return false;
+    while (in->consumers.size() == 1)
+    {
+        Operator* op0 = in->producer;
+        if (op0->type == "Tensor.reshape")
+        {
+            if (op0->inputs[0]->params["__batch_index"].i != 233)
+                return false;
 
-    if (op0->inputs[0]->params["__batch_index"].i != 233)
-        return false;
+            chain.push_back(op0);
+            return true;
+        }
 
-    return true;
+        if (!is_layout_op(op0) && !is_identity_op(op0))
+            return false;
+
+        chain.push_back(op0);
+        in = op0->inputs[0];
+    }
+
+    return false;
 }
 
 void convert_batch_reshape(Graph& graph)
@@ -78,10 +117,11 @@ void convert_batch_reshape(Graph& graph)
 
         for (Operator* op : graph.ops)
         {
-            if (fold_batch_after_permute(op))
+            std::vector<Operator*> chain;
+
+            if (fold_batch_after_permute(op, chain))
             {
                 Operand* in = op->inputs[0];
-                Operand* out = op->outputs[0];
 
                 Operator* reshape = graph.new_operator_before("Tensor.reshape", op->name + "_ncnnbatch2dim", op);
                 Operand* reshape_out = graph.new_operand(op->name + "_ncnnbatch2dim_out");
@@ -100,23 +140,18 @@ void convert_batch_reshape(Graph& graph)
                 reshape_out->params["__batch_index"] = 233;
 
                 op->inputs[0] = reshape_out;
-                out->params["__batch_index"] = 233;
 
-                Operator* op2 = out->consumers[0];
-                if (op2->type == "Tensor.permute" || op2->type == "torch.transpose")
+                for (Operator* x : chain)
                 {
-                    op2->outputs[0]->params["__batch_index"] = 233;
-                    op2 = op2->outputs[0]->consumers[0];
+                    x->outputs[0]->params["__batch_index"] = 233;
                 }
-
-                op2->outputs[0]->params["__batch_index"] = 233;
 
                 matched = true;
                 break;
             }
-            else if (extract_batch_after_permute(op))
+
+            if (extract_batch_after_permute(op, chain))
             {
-                Operand* in = op->inputs[0];
                 Operand* out = op->outputs[0];
 
                 Operator* reshape = graph.new_operator_after("Tensor.reshape", op->name + "_ncnndim2batch", op);
@@ -134,7 +169,11 @@ void convert_batch_reshape(Graph& graph)
 
                 op->outputs[0] = reshape_in;
 
-                in->params["__batch_index"] = 233;
+                for (Operator* x : chain)
+                {
+                    x->outputs[0]->params["__batch_index"] = 233;
+                }
+
                 out->producer = reshape;
                 out->params["__batch_index"] = 0;
 
