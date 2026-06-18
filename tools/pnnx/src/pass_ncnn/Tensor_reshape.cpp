@@ -34,19 +34,29 @@ pnnx.Output             output      1 0 out
     {
         const std::vector<int>& shape = captured_params.at("shape").ai;
 
+        const int input_batch_index = op->inputs[0]->params["__batch_index"].i;
         const int batch_index = op->outputs[0]->params["__batch_index"].i;
 
-        if (batch_index != 0 && batch_index != 233)
+        int batch_mode = 0;
+        if (input_batch_index == 0 && batch_index == 233)
+            batch_mode = 1;
+        if (input_batch_index == 233 && batch_index == 0)
+            batch_mode = 2;
+
+        if (input_batch_index != 233 && input_batch_index != 0 && batch_index == 233)
         {
-            if (op->outputs[0]->shape.empty() || op->outputs[0]->shape[batch_index] != 1)
-                fprintf(stderr, "reshape tensor with batch index %d is not supported yet!\n", batch_index);
+            fprintf(stderr, "reshape tensor with batch index %d folded is not supported yet!\n", input_batch_index);
+            return;
         }
 
         // drop shape batch index
         std::vector<int> new_shape;
         for (int i = 0; i < (int)shape.size(); i++)
         {
-            if (i == batch_index && shape[i] == 1)
+            if (batch_mode == 2 && i == batch_index)
+                continue;
+
+            if (batch_mode == 0 && i == batch_index)
                 continue;
 
             new_shape.push_back(shape[i]);
@@ -91,6 +101,9 @@ pnnx.Output             output      1 0 out
             op->params["11"] = new_shape[1];
             op->params["2"] = new_shape[0];
         }
+
+        if (batch_mode != 0)
+            op->params["12"] = batch_mode;
     }
 };
 

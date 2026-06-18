@@ -69,6 +69,9 @@ void convert_torch_unbind(Graph& graph)
                 out->producer = reshape;
                 reshape_in->producer = op;
                 reshape_in->consumers.push_back(reshape);
+                reshape_in->type = out->type;
+                reshape_in->shape = out->shape;
+                reshape_in->params["__batch_index"] = out->params["__batch_index"];
 
                 reshape->params["shape"] = out->shape;
             }

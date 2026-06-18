@@ -21,8 +21,14 @@ Reshape_vulkan::Reshape_vulkan()
 
 int Reshape_vulkan::create_pipeline(const Option& opt)
 {
-    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
-    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+    Mat shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    Mat out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    if (batch_mode != 0)
+    {
+        shape = Mat();
+        out_shape = Mat();
+    }
 
     std::vector<vk_specialization_type> specializations(1 + 12);
     specializations[0].i = ndim;
@@ -164,6 +170,11 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     int out_elempack = 0;
 
     int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
+    if (batch_mode == 1)
+        total *= bottom_blob.n;
+
+    if (batch_mode != 0 && (ndim == 0 || elempack != 1))
+        return -1;
 
     // resolve out shape
     int outw = w;
@@ -193,7 +204,7 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
         out_elempack = outw % 4 == 0 ? 4 : 1;
 
-        if (dims == 1 && bottom_blob.w * elempack == outw && elempack == out_elempack)
+        if (batch_mode == 0 && dims == 1 && bottom_blob.w * elempack == outw && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             return 0;
@@ -213,7 +224,7 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
         out_elempack = outh % 4 == 0 ? 4 : 1;
 
-        if (dims == 2 && bottom_blob.h * elempack == outh && elempack == out_elempack)
+        if (batch_mode == 0 && dims == 2 && bottom_blob.h * elempack == outh && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             return 0;
@@ -237,7 +248,7 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
         out_elempack = outc % 4 == 0 ? 4 : 1;
 
-        if (dims == 3 && bottom_blob.c * elempack == outc && elempack == out_elempack)
+        if (batch_mode == 0 && dims == 3 && bottom_blob.c * elempack == outc && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             top_blob.w = outw;
@@ -267,7 +278,7 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
         out_elempack = outc % 4 == 0 ? 4 : 1;
 
-        if (dims == 4 && bottom_blob.c * elempack == outc && elempack == out_elempack)
+        if (batch_mode == 0 && dims == 4 && bottom_blob.c * elempack == outc && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             top_blob.w = outw;
@@ -275,6 +286,152 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
             top_blob.d = outd;
             return 0;
         }
+    }
+
+    if (batch_mode == 1)
+    {
+        VkMat bottom_blob_flattened;
+        bottom_blob_flattened.create(total, elemsize, 1, opt.blob_vkallocator);
+        if (bottom_blob_flattened.empty())
+            return -100;
+
+        const int size = bottom_blob.w * bottom_blob.h * bottom_blob.d;
+        int offset = 0;
+        for (int b = 0; b < bottom_blob.n; b++)
+        {
+            for (int q = 0; q < bottom_blob.c; q++)
+            {
+                VkMat src(size, bottom_blob.data, elemsize, 1, bottom_blob.allocator);
+                src.cstep = size;
+                src.nstep = size;
+                src.offset = bottom_blob.offset + ((size_t)bottom_blob.nstep * b + bottom_blob.cstep * q) * elemsize;
+
+                VkMat dst(size, bottom_blob_flattened.data, elemsize, 1, bottom_blob_flattened.allocator);
+                dst.cstep = size;
+                dst.nstep = size;
+                dst.offset = bottom_blob_flattened.offset + (size_t)offset * elemsize;
+
+                cmd.record_clone(src, dst, opt);
+                offset += size;
+            }
+        }
+
+        if (ndim == 1 && outw == total)
+        {
+            top_blob = bottom_blob_flattened;
+            return 0;
+        }
+
+        if (ndim == 1)
+            top_blob.create(outw, elemsize, 1, opt.blob_vkallocator);
+        if (ndim == 2)
+            top_blob.create(outw, outh, elemsize, 1, opt.blob_vkallocator);
+        if (ndim == 3)
+            top_blob.create(outw, outh, outc, elemsize, 1, opt.blob_vkallocator);
+        if (ndim == 4)
+            top_blob.create(outw, outh, outd, outc, elemsize, 1, opt.blob_vkallocator);
+
+        if (top_blob.empty())
+            return -100;
+
+        std::vector<VkMat> bindings(2);
+        bindings[0] = bottom_blob_flattened;
+        bindings[1] = top_blob;
+
+        std::vector<vk_constant_type> constants(12);
+        constants[0].i = bottom_blob_flattened.dims;
+        constants[1].i = bottom_blob_flattened.w;
+        constants[2].i = bottom_blob_flattened.h;
+        constants[3].i = bottom_blob_flattened.d;
+        constants[4].i = bottom_blob_flattened.c;
+        constants[5].i = bottom_blob_flattened.cstep;
+        constants[6].i = top_blob.dims;
+        constants[7].i = top_blob.w;
+        constants[8].i = top_blob.h;
+        constants[9].i = top_blob.d;
+        constants[10].i = top_blob.c;
+        constants[11].i = top_blob.cstep;
+
+        cmd.record_pipeline(pipeline_reshape, bindings, constants, top_blob);
+
+        return 0;
+    }
+
+    if (batch_mode == 2)
+    {
+        if (bottom_blob.n != 1)
+            return -1;
+
+        size_t out_total = outw;
+        if (ndim == 2)
+            out_total *= outh;
+        if (ndim == 3)
+            out_total *= (size_t)outh * outc;
+        if (ndim == 4)
+            out_total *= (size_t)outh * outd * outc;
+
+        const size_t bottom_total = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
+        const int batch = bottom_total / out_total;
+        if ((size_t)batch * out_total != bottom_total)
+            return -1;
+
+        if (ndim == 1)
+            top_blob.create_batch(outw, batch, elemsize, 1, opt.blob_vkallocator);
+        if (ndim == 2)
+            top_blob.create_batch(outw, outh, batch, elemsize, 1, opt.blob_vkallocator);
+        if (ndim == 3)
+            top_blob.create_batch(outw, outh, outc, batch, elemsize, 1, opt.blob_vkallocator);
+        if (ndim == 4)
+            top_blob.create_batch(outw, outh, outd, outc, batch, elemsize, 1, opt.blob_vkallocator);
+
+        if (top_blob.empty())
+            return -100;
+
+        VkMat bottom_blob_flattened;
+        bottom_blob_flattened.create(bottom_total, elemsize, 1, opt.blob_vkallocator);
+        if (bottom_blob_flattened.empty())
+            return -100;
+
+        const int size = bottom_blob.w * bottom_blob.h * bottom_blob.d;
+        int offset = 0;
+        for (int q = 0; q < bottom_blob.c; q++)
+        {
+            VkMat src(size, bottom_blob.data, elemsize, 1, bottom_blob.allocator);
+            src.cstep = size;
+            src.nstep = size;
+            src.offset = bottom_blob.offset + bottom_blob.cstep * q * elemsize;
+
+            VkMat dst(size, bottom_blob_flattened.data, elemsize, 1, bottom_blob_flattened.allocator);
+            dst.cstep = size;
+            dst.nstep = size;
+            dst.offset = bottom_blob_flattened.offset + (size_t)offset * elemsize;
+
+            cmd.record_clone(src, dst, opt);
+            offset += size;
+        }
+
+        const int out_size = top_blob.w * top_blob.h * top_blob.d;
+        offset = 0;
+        for (int b = 0; b < batch; b++)
+        {
+            for (int q = 0; q < top_blob.c; q++)
+            {
+                VkMat src(out_size, bottom_blob_flattened.data, elemsize, 1, bottom_blob_flattened.allocator);
+                src.cstep = out_size;
+                src.nstep = out_size;
+                src.offset = bottom_blob_flattened.offset + (size_t)offset * elemsize;
+
+                VkMat dst(out_size, top_blob.data, elemsize, 1, top_blob.allocator);
+                dst.cstep = out_size;
+                dst.nstep = out_size;
+                dst.offset = top_blob.offset + ((size_t)top_blob.nstep * b + top_blob.cstep * q) * elemsize;
+
+                cmd.record_clone(src, dst, opt);
+                offset += out_size;
+            }
+        }
+
+        return 0;
     }
 
     size_t out_elemsize = elemsize / elempack * out_elempack;

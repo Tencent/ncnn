@@ -482,6 +482,393 @@ static int test_batch_reshape_zero_copy()
     return 0;
 }
 
+static int test_batch_reshape_batch_to_dim_flatten()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=-1 12=1\n";
+
+    ncnn::Net net;
+    net.load_param_mem(param_str);
+
+    const int B = 3;
+    const int C = 2;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 1000 + q * 100 + i);
+            }
+        }
+    }
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    int ret = ex.extract("output", output);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_flatten extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.n != 1 || output.dims != 1 || output.w != B * C * H * W)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_flatten shape mismatch\n");
+        return -1;
+    }
+
+    const float* ptr = output;
+    for (int b = 0; b < B; b++)
+    {
+        for (int q = 0; q < C; q++)
+        {
+            for (int i = 0; i < W * H; i++)
+            {
+                float expected = (float)(b * 1000 + q * 100 + i);
+                if (!NearlyEqual(*ptr, expected, 1e-5f))
+                {
+                    fprintf(stderr, "test_batch_reshape_batch_to_dim_flatten mismatch b=%d q=%d i=%d got %f expect %f\n", b, q, i, *ptr, expected);
+                    return -1;
+                }
+                ptr++;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_batch_to_dim_4d()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=-1 12=1\n";
+
+    ncnn::Net net;
+    net.load_param_mem(param_str);
+
+    const int B = 3;
+    const int C = 2;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 1000 + q * 100 + i);
+            }
+        }
+    }
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    int ret = ex.extract("output", output);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_4d extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.n != 1 || output.dims != 4 || output.w != W || output.h != H || output.d != C || output.c != B)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_4d shape mismatch\n");
+        return -1;
+    }
+
+    for (int b = 0; b < B; b++)
+    {
+        const ncnn::Mat sub = output.channel(b);
+        for (int q = 0; q < C; q++)
+        {
+            const float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                float expected = (float)(b * 1000 + q * 100 + i);
+                if (!NearlyEqual(ptr[i], expected, 1e-5f))
+                {
+                    fprintf(stderr, "test_batch_reshape_batch_to_dim_4d mismatch b=%d q=%d i=%d got %f expect %f\n", b, q, i, ptr[i], expected);
+                    return -1;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_dim_to_batch()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 2=2 12=2\n";
+
+    ncnn::Net net;
+    net.load_param_mem(param_str);
+
+    const int B = 3;
+    const int C = 2;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input;
+    input.create(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input.channel(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 1000 + q * 100 + i);
+            }
+        }
+    }
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input);
+
+    ncnn::Mat output_batch;
+    int ret = ex.extract("output", output_batch);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output_batch.n != B || output_batch.dims != 3 || output_batch.w != W || output_batch.h != H || output_batch.c != C)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch shape mismatch\n");
+        return -1;
+    }
+
+    for (int b = 0; b < B; b++)
+    {
+        const ncnn::Mat sub = output_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            const float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                float expected = (float)(b * 1000 + q * 100 + i);
+                if (!NearlyEqual(ptr[i], expected, 1e-5f))
+                {
+                    fprintf(stderr, "test_batch_reshape_dim_to_batch mismatch b=%d q=%d i=%d got %f expect %f\n", b, q, i, ptr[i], expected);
+                    return -1;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_roundtrip()
+{
+    const char param_str[] = "7767517\n"
+                             "3 3\n"
+                             "Input   input    0 1 data\n"
+                             "Reshape b2d      1 1 data tmp 0=5 1=3 11=2 2=-1 12=1\n"
+                             "Reshape d2b      1 1 tmp output 0=5 1=3 2=2 12=2\n";
+
+    ncnn::Net net;
+    net.load_param_mem(param_str);
+
+    const int B = 3;
+    const int C = 2;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 1000 + q * 100 + i);
+            }
+        }
+    }
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output_batch;
+    int ret = ex.extract("output", output_batch);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_roundtrip extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (CompareMat(input_batch, output_batch, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_roundtrip value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_permute_fold()
+{
+    const char param_str[] = "7767517\n"
+                             "4 4\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape b2d     1 1 data tmp0 0=5 1=3 11=2 2=3 12=1\n"
+                             "Permute permute 1 1 tmp0 tmp1 0=6\n"
+                             "Reshape reshape 1 1 tmp1 output 0=5 1=3 2=6\n";
+
+    ncnn::Net net;
+    net.load_param_mem(param_str);
+
+    const int B = 3;
+    const int C = 2;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 1000 + q * 100 + i);
+            }
+        }
+    }
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    int ret = ex.extract("output", output);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_permute_fold extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.n != 1 || output.dims != 3 || output.w != W || output.h != H || output.c != B * C)
+    {
+        fprintf(stderr, "test_batch_reshape_permute_fold shape mismatch\n");
+        return -1;
+    }
+
+    for (int q = 0; q < C; q++)
+    {
+        for (int b = 0; b < B; b++)
+        {
+            const float* ptr = output.channel(q * B + b);
+            for (int i = 0; i < W * H; i++)
+            {
+                float expected = (float)(b * 1000 + q * 100 + i);
+                if (!NearlyEqual(ptr[i], expected, 1e-5f))
+                {
+                    fprintf(stderr, "test_batch_reshape_permute_fold mismatch b=%d q=%d i=%d got %f expect %f\n", b, q, i, ptr[i], expected);
+                    return -1;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_permute_extract()
+{
+    const char param_str[] = "7767517\n"
+                             "3 3\n"
+                             "Input   input   0 1 data\n"
+                             "Permute permute 1 1 data tmp 0=6\n"
+                             "Reshape d2b     1 1 tmp output 0=5 1=3 2=2 12=2\n";
+
+    ncnn::Net net;
+    net.load_param_mem(param_str);
+
+    const int B = 3;
+    const int C = 2;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input;
+    input.create(W, H, B, C, 4u, 1);
+    for (int q = 0; q < C; q++)
+    {
+        ncnn::Mat sub = input.channel(q);
+        for (int b = 0; b < B; b++)
+        {
+            float* ptr = sub.channel(b);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 1000 + q * 100 + i);
+            }
+        }
+    }
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input);
+
+    ncnn::Mat output_batch;
+    int ret = ex.extract("output", output_batch);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_permute_extract extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output_batch.n != B || output_batch.dims != 3 || output_batch.w != W || output_batch.h != H || output_batch.c != C)
+    {
+        fprintf(stderr, "test_batch_reshape_permute_extract shape mismatch\n");
+        return -1;
+    }
+
+    for (int b = 0; b < B; b++)
+    {
+        const ncnn::Mat sub = output_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            const float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                float expected = (float)(b * 1000 + q * 100 + i);
+                if (!NearlyEqual(ptr[i], expected, 1e-5f))
+                {
+                    fprintf(stderr, "test_batch_reshape_permute_extract mismatch b=%d q=%d i=%d got %f expect %f\n", b, q, i, ptr[i], expected);
+                    return -1;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
 static int test_backward_compatibility()
 {
     // regular Mat should have n=1
@@ -1819,6 +2206,148 @@ static int test_vktransfer_batch_upload()
     return 0;
 }
 
+static int test_vkmat_batch_forward_reshape_batch_to_dim()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=-1 12=1\n";
+
+    ncnn::Net net;
+    ncnn::Option opt;
+    opt.use_vulkan_compute = true;
+    net.opt = opt;
+    net.load_param_mem(param_str);
+    net.load_model((const unsigned char*)"");
+
+    const int B = 3;
+    const int C = 2;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    int ret = ex.extract("output", output);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_reshape_batch_to_dim extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.n != 1 || output.dims != 4 || output.w != W || output.h != H || output.d != C || output.c != B)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_reshape_batch_to_dim shape mismatch\n");
+        return -1;
+    }
+
+    for (int b = 0; b < B; b++)
+    {
+        const ncnn::Mat sub = output.channel(b);
+        for (int q = 0; q < C; q++)
+        {
+            const float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                float expected = (float)(b * 100 + q * 20 + i);
+                if (!NearlyEqual(ptr[i], expected, 1e-4f))
+                {
+                    fprintf(stderr, "test_vkmat_batch_forward_reshape_batch_to_dim mismatch b=%d q=%d i=%d got %f expect %f\n", b, q, i, ptr[i], expected);
+                    return -1;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int test_vkmat_batch_forward_reshape_dim_to_batch()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 2=2 12=2\n";
+
+    ncnn::Net net;
+    ncnn::Option opt;
+    opt.use_vulkan_compute = true;
+    net.opt = opt;
+    net.load_param_mem(param_str);
+    net.load_model((const unsigned char*)"");
+
+    const int B = 3;
+    const int C = 2;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input;
+    input.create(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input.channel(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input);
+
+    ncnn::Mat output_batch;
+    int ret = ex.extract("output", output_batch);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_reshape_dim_to_batch extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output_batch.n != B || output_batch.dims != 3 || output_batch.w != W || output_batch.h != H || output_batch.c != C)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_reshape_dim_to_batch shape mismatch\n");
+        return -1;
+    }
+
+    for (int b = 0; b < B; b++)
+    {
+        const ncnn::Mat sub = output_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            const float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                float expected = (float)(b * 100 + q * 20 + i);
+                if (!NearlyEqual(ptr[i], expected, 1e-4f))
+                {
+                    fprintf(stderr, "test_vkmat_batch_forward_reshape_dim_to_batch mismatch b=%d q=%d i=%d got %f expect %f\n", b, q, i, ptr[i], expected);
+                    return -1;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
 static int test_vkmat_batch_forward_relu()
 {
     const char param_str[] = "7767517\n"
@@ -2347,6 +2876,12 @@ int main()
     ret |= test_batch_create_reset();
     ret |= test_batch_reshape();
     ret |= test_batch_reshape_zero_copy();
+    ret |= test_batch_reshape_batch_to_dim_flatten();
+    ret |= test_batch_reshape_batch_to_dim_4d();
+    ret |= test_batch_reshape_dim_to_batch();
+    ret |= test_batch_reshape_roundtrip();
+    ret |= test_batch_reshape_permute_fold();
+    ret |= test_batch_reshape_permute_extract();
     ret |= test_backward_compatibility();
     ret |= test_create_batch_single();
     ret |= test_create_batch_1d();
@@ -2375,6 +2910,8 @@ int main()
         ret |= test_vkmat_batch_upload_download();
         ret |= test_vkmat_batch_upload_download_whole();
         ret |= test_vktransfer_batch_upload();
+        ret |= test_vkmat_batch_forward_reshape_batch_to_dim();
+        ret |= test_vkmat_batch_forward_reshape_dim_to_batch();
         ret |= test_vkmat_batch_forward_relu();
         ret |= test_vkmat_batch_forward_pooling();
         ret |= test_vkmat_batch_forward_split();

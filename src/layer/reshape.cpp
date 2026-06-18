@@ -5,12 +5,15 @@
 
 #include "expression.h"
 
+#include <string.h>
+
 namespace ncnn {
 
 Reshape::Reshape()
 {
     one_blob_only = true;
     support_inplace = false;
+    batch_mode = 0;
 }
 
 int Reshape::load_param(const ParamDict& pd)
@@ -29,6 +32,14 @@ int Reshape::load_param(const ParamDict& pd)
         ndim = 1;
     if (w == -233)
         ndim = 0;
+
+    batch_mode = pd.get(12, 0);
+    if (batch_mode != 0)
+    {
+        support_batch = true;
+        support_packing = false;
+        support_vulkan_packing = false;
+    }
 
     shape_expr = pd.get(6, "");
 
@@ -79,8 +90,13 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
     }
 
     int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
+    if (batch_mode == 1)
+        total *= bottom_blob.n;
 
     int dims = bottom_blob.dims;
+
+    if (batch_mode != 0 && ndim == 0)
+        return -1;
 
     if (ndim == 1)
     {
@@ -90,7 +106,7 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         if (outw == -1)
             outw = total;
 
-        if (dims == 1 && bottom_blob.w == outw)
+        if (batch_mode == 0 && dims == 1 && bottom_blob.w == outw)
         {
             top_blob = bottom_blob;
             return 0;
@@ -108,7 +124,7 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         if (outh == -1)
             outh = total / outw;
 
-        if (dims == 2 && bottom_blob.h == outh)
+        if (batch_mode == 0 && dims == 2 && bottom_blob.h == outh)
         {
             top_blob = bottom_blob;
             return 0;
@@ -130,7 +146,7 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         if (outc == -1)
             outc = total / outh / outw;
 
-        if (dims == 3 && bottom_blob.c == outc)
+        if (batch_mode == 0 && dims == 3 && bottom_blob.c == outc)
         {
             top_blob = bottom_blob;
             top_blob.w = outw;
@@ -158,7 +174,7 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         if (outc == -1)
             outc = total / outd / outh / outw;
 
-        if (dims == 4 && bottom_blob.c == outc)
+        if (batch_mode == 0 && dims == 4 && bottom_blob.c == outc)
         {
             top_blob = bottom_blob;
             top_blob.w = outw;
@@ -166,6 +182,104 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
             top_blob.d = outd;
             return 0;
         }
+    }
+
+    if (batch_mode == 1)
+    {
+        if (bottom_blob.elempack != 1)
+            return -1;
+
+        Mat bottom_blob_flattened(total, bottom_blob.elemsize, opt.blob_allocator);
+        if (bottom_blob_flattened.empty())
+            return -100;
+
+        unsigned char* outptr = bottom_blob_flattened;
+        const size_t size = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.elemsize;
+        for (int b = 0; b < bottom_blob.n; b++)
+        {
+            const Mat bottom_blob_b = bottom_blob.batch(b);
+            for (int q = 0; q < bottom_blob.c; q++)
+            {
+                const unsigned char* ptr = (const unsigned char*)bottom_blob_b + bottom_blob.cstep * q * bottom_blob.elemsize;
+                memcpy(outptr, ptr, size);
+                outptr += size;
+            }
+        }
+
+        if (ndim == 1)
+            top_blob = bottom_blob_flattened.reshape(outw, opt.blob_allocator);
+        if (ndim == 2)
+            top_blob = bottom_blob_flattened.reshape(outw, outh, opt.blob_allocator);
+        if (ndim == 3)
+            top_blob = bottom_blob_flattened.reshape(outw, outh, outc, opt.blob_allocator);
+        if (ndim == 4)
+            top_blob = bottom_blob_flattened.reshape(outw, outh, outd, outc, opt.blob_allocator);
+
+        if (top_blob.empty())
+            return -100;
+
+        return 0;
+    }
+
+    if (batch_mode == 2)
+    {
+        if (bottom_blob.n != 1 || bottom_blob.elempack != 1)
+            return -1;
+
+        size_t out_total = outw;
+        if (ndim == 2)
+            out_total *= outh;
+        if (ndim == 3)
+            out_total *= (size_t)outh * outc;
+        if (ndim == 4)
+            out_total *= (size_t)outh * outd * outc;
+
+        if (out_total == 0)
+            return -1;
+
+        const size_t bottom_total = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
+        const int batch = bottom_total / out_total;
+        if ((size_t)batch * out_total != bottom_total)
+            return -1;
+
+        if (ndim == 1)
+            top_blob.create_batch(outw, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+        if (ndim == 2)
+            top_blob.create_batch(outw, outh, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+        if (ndim == 3)
+            top_blob.create_batch(outw, outh, outc, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+        if (ndim == 4)
+            top_blob.create_batch(outw, outh, outd, outc, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+
+        if (top_blob.empty())
+            return -100;
+
+        Mat bottom_blob_flattened(bottom_total, bottom_blob.elemsize, opt.workspace_allocator);
+        if (bottom_blob_flattened.empty())
+            return -100;
+
+        unsigned char* outptr = bottom_blob_flattened;
+        const size_t size = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.elemsize;
+        for (int q = 0; q < bottom_blob.c; q++)
+        {
+            const unsigned char* ptr = (const unsigned char*)bottom_blob + bottom_blob.cstep * q * bottom_blob.elemsize;
+            memcpy(outptr, ptr, size);
+            outptr += size;
+        }
+
+        const unsigned char* ptr = bottom_blob_flattened;
+        const size_t out_channel_size = (size_t)top_blob.w * top_blob.h * top_blob.d * bottom_blob.elemsize;
+        for (int b = 0; b < batch; b++)
+        {
+            Mat top_blob_b = top_blob.batch(b);
+            for (int q = 0; q < top_blob.c; q++)
+            {
+                memcpy(top_blob_b.channel(q), ptr, out_channel_size);
+                ptr += out_channel_size;
+            }
+        }
+
+        return 0;
     }
 
     if (ndim == 1)

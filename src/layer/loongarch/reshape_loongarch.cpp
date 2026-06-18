@@ -21,6 +21,9 @@ Reshape_loongarch::Reshape_loongarch()
 
 int Reshape_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    if (batch_mode != 0)
+        return Reshape::forward(bottom_blobs, top_blobs, opt);
+
     const Mat& bottom_blob = bottom_blobs[0];
     Mat& top_blob = top_blobs[0];
 
@@ -480,6 +483,9 @@ int Reshape_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 
 int Reshape_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    if (batch_mode != 0)
+        return Reshape::forward(bottom_blobs, top_blobs, opt);
+
     const Mat& bottom_blob = bottom_blobs[0];
     Mat& top_blob = top_blobs[0];
 

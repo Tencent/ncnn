@@ -32,6 +32,7 @@ public:
     int c;
 
     int ndim;
+    int batch_mode;
 
     // see docs/developer-guide/expression.md
     std::string shape_expr;

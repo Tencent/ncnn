@@ -50,18 +50,24 @@ pnnx.Output             output      1 0 out
             dim1 = input_rank + dim1;
         }
 
-        if (dim0 == batch_index || dim1 == batch_index)
-        {
-            fprintf(stderr, "permute across batch dim is not supported yet!\n");
-            return;
-        }
-
         if (batch_index >= 0 && batch_index < input_rank)
             input_rank -= 1;
 
         if (input_rank > 4)
         {
             fprintf(stderr, "permute %d-rank tensor is not supported yet!\n", input_rank);
+            return;
+        }
+
+        if (batch_index == 0 && (dim0 == 0 || dim1 == 0))
+        {
+            op->type = "Noop";
+            return;
+        }
+
+        if (dim0 == batch_index || dim1 == batch_index)
+        {
+            fprintf(stderr, "permute across batch dim is not supported yet!\n");
             return;
         }
 

@@ -4,6 +4,7 @@
 #include "pass_ncnn.h"
 
 #include "pass_ncnn/convert_attribute.h"
+#include "pass_ncnn/convert_batch_reshape.h"
 #include "pass_ncnn/convert_custom_op.h"
 #include "pass_ncnn/convert_module_op.h"
 #include "pass_ncnn/convert_half_to_float.h"
@@ -87,6 +88,8 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     ncnn::chain_multi_output(g);
 
     ncnn::solve_batch_index(g);
+
+    ncnn::convert_batch_reshape(g);
 
     ncnn::convert_half_to_float(g);
 

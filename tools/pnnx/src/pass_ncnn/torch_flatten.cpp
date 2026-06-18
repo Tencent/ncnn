@@ -34,10 +34,10 @@ pnnx.Output             output      1 0 out
     {
         const Operator* op = matched_operators.at("op_0");
         const int input_rank = op->inputs[0]->shape.size();
-        const int batch_index = op->outputs[0]->params["__batch_index"].i;
+        const int batch_index = op->inputs[0]->params["__batch_index"].i;
 
         const int start_dim = captured_params.at("start_dim").i;
-        if (start_dim == 0 || (start_dim == 1 && batch_index == 0))
+        if ((start_dim == 0 && batch_index == 233) || (start_dim == 1 && batch_index == 0))
         {
             const int end_dim = captured_params.at("end_dim").i;
             if (end_dim == -1)
@@ -122,12 +122,17 @@ pnnx.Output             output      1 0 out
             shape_flattened.push_back(op->inputs[0]->shape[i]);
         }
 
+        const int input_batch_index = op->inputs[0]->params["__batch_index"].i;
         const int batch_index = op->outputs[0]->params["__batch_index"].i;
+
+        int batch_mode = 0;
+        if (input_batch_index == 0 && batch_index == 233 && start_dim == 0)
+            batch_mode = 1;
 
         std::vector<int> new_shape;
         for (int i = 0; i < (int)shape_flattened.size(); i++)
         {
-            if (i == batch_index && shape_flattened[i] == 1)
+            if (batch_mode == 0 && i == batch_index)
                 continue;
 
             new_shape.push_back(shape_flattened[i]);
@@ -212,6 +217,8 @@ pnnx.Output             output      1 0 out
             }
 
             op->params["6"] = shape_expr;
+            if (batch_mode != 0)
+                op->params["12"] = batch_mode;
             return;
         }
 
@@ -237,6 +244,9 @@ pnnx.Output             output      1 0 out
             op->params["11"] = new_shape[1];
             op->params["2"] = new_shape[0];
         }
+
+        if (batch_mode != 0)
+            op->params["12"] = batch_mode;
     }
 };
 

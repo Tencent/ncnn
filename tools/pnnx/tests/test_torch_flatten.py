@@ -8,12 +8,16 @@ import torch.nn.functional as F
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
+        self.conv = nn.Conv2d(3, 4, 1)
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w):
         x = torch.flatten(x)
         y = torch.flatten(y, start_dim=1, end_dim=-1)
         z = torch.flatten(z, start_dim=3, end_dim=4)
-        return x, y, z
+        w = self.conv(w)
+        w0 = torch.flatten(w, start_dim=0)
+        w1 = torch.flatten(w, start_dim=2)
+        return x, y, z, w0, w1
 
 def test():
     net = Model()
@@ -23,16 +27,24 @@ def test():
     x = torch.rand(1, 3, 16)
     y = torch.rand(1, 5, 9, 11)
     z = torch.rand(14, 8, 5, 9, 10)
+    w = torch.rand(2, 3, 5, 7)
 
-    a = net(x, y, z)
+    a = net(x, y, z, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w))
     mod.save("test_torch_flatten.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_torch_flatten.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]")
+    os.system("../src/pnnx test_torch_flatten.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10],[2,3,5,7]")
+
+    with open("test_torch_flatten.ncnn.param") as f:
+        lines = f.readlines()
+        if not any(line.startswith("Reshape") and "12=1" in line for line in lines):
+            return False
+        if not any(line.startswith("Reshape") and "0=35" in line and "1=4" in line and "2=" not in line for line in lines):
+            return False
 
     # pnnx inference
     import test_torch_flatten_pnnx
