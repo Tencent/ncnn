@@ -50,6 +50,8 @@ pnnx.Output             output      1 0 out
         }
 
         // drop shape batch index
+        const std::vector<int>& out_shape = op->outputs[0]->shape;
+        const int out_shape_rank = (int)out_shape.size();
         std::vector<int> new_shape;
         for (int i = 0; i < (int)shape.size(); i++)
         {
@@ -59,7 +61,11 @@ pnnx.Output             output      1 0 out
             if (batch_mode == 0 && i == batch_index)
                 continue;
 
-            new_shape.push_back(shape[i]);
+            int s = shape[i];
+            if (batch_mode == 2 && s == -1 && out_shape_rank == (int)shape.size())
+                s = out_shape[i];
+
+            new_shape.push_back(s);
         }
 
         if (new_shape.size() == 5 && batch_index == 233)

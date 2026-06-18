@@ -13,7 +13,7 @@ class Model(nn.Module):
         self.conv3 = nn.Conv2d(4, 3, 1)
         self.conv4 = nn.Conv2d(3, 4, 1)
 
-    def forward(self, x, y, z, w, u, v, r):
+    def forward(self, x, y, z, w, u, v, r, s):
         x = x.reshape(1, 2, 24)
         x = x.reshape(48)
         y = y.reshape(1, 11, 5, 9)
@@ -30,7 +30,9 @@ class Model(nn.Module):
         v = self.conv3(v)
         r = self.conv4(r)
         r = r.reshape(2, -1)
-        return x, y, z, w, u, v, r
+        s = s.reshape(2, 3, -1, 7)
+        s = self.conv(s)
+        return x, y, z, w, u, v, r, s
 
 def test():
     net = Model()
@@ -44,16 +46,17 @@ def test():
     u = torch.rand(2, 3, 5, 7)
     v = torch.rand(280)
     r = torch.rand(2, 3, 5, 7)
+    s = torch.rand(210)
 
-    a = net(x, y, z, w, u, v, r)
+    a = net(x, y, z, w, u, v, r, s)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w, u, v, r))
+    mod = torch.jit.trace(net, (x, y, z, w, u, v, r, s))
     mod.save("test_Tensor_reshape.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_Tensor_reshape.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10],[210],[2,3,5,7],[280],[2,3,5,7]")
+    os.system("../src/pnnx test_Tensor_reshape.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10],[210],[2,3,5,7],[280],[2,3,5,7],[210]")
 
     with open("test_Tensor_reshape.ncnn.param") as f:
         lines = f.readlines()
@@ -64,6 +67,8 @@ def test():
         if not any(line.startswith("Permute") for line in lines):
             return False
         if not any(line.startswith("Reshape") and "0=140" in line and "12=" not in line for line in lines):
+            return False
+        if any(line.startswith("Reshape") and "12=2" in line and "=-1" in line for line in lines):
             return False
 
     # pnnx inference
