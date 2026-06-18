@@ -507,7 +507,7 @@ static int test_batch_reshape_batch_to_dim_flatten()
             float* ptr = sub.channel(q);
             for (int i = 0; i < W * H; i++)
             {
-                ptr[i] = (float)(b * 1000 + q * 100 + i);
+                ptr[i] = (float)(b * 100 + q * 20 + i);
             }
         }
     }
@@ -535,7 +535,7 @@ static int test_batch_reshape_batch_to_dim_flatten()
         {
             for (int i = 0; i < W * H; i++)
             {
-                float expected = (float)(b * 1000 + q * 100 + i);
+                float expected = (float)(b * 100 + q * 20 + i);
                 if (!NearlyEqual(*ptr, expected, 1e-5f))
                 {
                     fprintf(stderr, "test_batch_reshape_batch_to_dim_flatten mismatch b=%d q=%d i=%d got %f expect %f\n", b, q, i, *ptr, expected);
@@ -574,7 +574,7 @@ static int test_batch_reshape_batch_to_dim_4d()
             float* ptr = sub.channel(q);
             for (int i = 0; i < W * H; i++)
             {
-                ptr[i] = (float)(b * 1000 + q * 100 + i);
+                ptr[i] = (float)(b * 100 + q * 20 + i);
             }
         }
     }
@@ -603,7 +603,7 @@ static int test_batch_reshape_batch_to_dim_4d()
             const float* ptr = sub.channel(q);
             for (int i = 0; i < W * H; i++)
             {
-                float expected = (float)(b * 1000 + q * 100 + i);
+                float expected = (float)(b * 100 + q * 20 + i);
                 if (!NearlyEqual(ptr[i], expected, 1e-5f))
                 {
                     fprintf(stderr, "test_batch_reshape_batch_to_dim_4d mismatch b=%d q=%d i=%d got %f expect %f\n", b, q, i, ptr[i], expected);
@@ -641,7 +641,7 @@ static int test_batch_reshape_dim_to_batch()
             float* ptr = sub.channel(q);
             for (int i = 0; i < W * H; i++)
             {
-                ptr[i] = (float)(b * 1000 + q * 100 + i);
+                ptr[i] = (float)(b * 100 + q * 20 + i);
             }
         }
     }
@@ -670,7 +670,7 @@ static int test_batch_reshape_dim_to_batch()
             const float* ptr = sub.channel(q);
             for (int i = 0; i < W * H; i++)
             {
-                float expected = (float)(b * 1000 + q * 100 + i);
+                float expected = (float)(b * 100 + q * 20 + i);
                 if (!NearlyEqual(ptr[i], expected, 1e-5f))
                 {
                     fprintf(stderr, "test_batch_reshape_dim_to_batch mismatch b=%d q=%d i=%d got %f expect %f\n", b, q, i, ptr[i], expected);
@@ -709,7 +709,7 @@ static int test_batch_reshape_roundtrip()
             float* ptr = sub.channel(q);
             for (int i = 0; i < W * H; i++)
             {
-                ptr[i] = (float)(b * 1000 + q * 100 + i);
+                ptr[i] = (float)(b * 100 + q * 20 + i);
             }
         }
     }
@@ -760,7 +760,7 @@ static int test_batch_reshape_permute_fold()
             float* ptr = sub.channel(q);
             for (int i = 0; i < W * H; i++)
             {
-                ptr[i] = (float)(b * 1000 + q * 100 + i);
+                ptr[i] = (float)(b * 100 + q * 20 + i);
             }
         }
     }
@@ -788,7 +788,7 @@ static int test_batch_reshape_permute_fold()
             const float* ptr = output.channel(q * B + b);
             for (int i = 0; i < W * H; i++)
             {
-                float expected = (float)(b * 1000 + q * 100 + i);
+                float expected = (float)(b * 100 + q * 20 + i);
                 if (!NearlyEqual(ptr[i], expected, 1e-5f))
                 {
                     fprintf(stderr, "test_batch_reshape_permute_fold mismatch b=%d q=%d i=%d got %f expect %f\n", b, q, i, ptr[i], expected);
@@ -827,7 +827,7 @@ static int test_batch_reshape_permute_extract()
             float* ptr = sub.channel(b);
             for (int i = 0; i < W * H; i++)
             {
-                ptr[i] = (float)(b * 1000 + q * 100 + i);
+                ptr[i] = (float)(b * 100 + q * 20 + i);
             }
         }
     }
@@ -856,7 +856,7 @@ static int test_batch_reshape_permute_extract()
             const float* ptr = sub.channel(q);
             for (int i = 0; i < W * H; i++)
             {
-                float expected = (float)(b * 1000 + q * 100 + i);
+                float expected = (float)(b * 100 + q * 20 + i);
                 if (!NearlyEqual(ptr[i], expected, 1e-5f))
                 {
                     fprintf(stderr, "test_batch_reshape_permute_extract mismatch b=%d q=%d i=%d got %f expect %f\n", b, q, i, ptr[i], expected);
