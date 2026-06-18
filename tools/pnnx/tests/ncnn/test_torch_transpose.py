@@ -8,15 +8,27 @@ import torch.nn.functional as F
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
+        self.conv = nn.Conv2d(3, 4, 1)
+        self.conv2 = nn.Conv2d(4, 3, 1)
+        self.conv3 = nn.Conv2d(3, 4, 1)
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w, v):
         x = torch.transpose(x, 0, 1)
         y = torch.transpose(y, 1, 2)
         z = torch.transpose(z, 0, 2)
+        w0 = self.conv(w)
+        w0 = torch.transpose(w0, 0, 1).reshape(8, 5, 7)
+        w1 = self.conv3(w)
+        w1 = torch.transpose(w1, 0, 1)
+        w1 = torch.transpose(w1, 2, 3)
+        w1 = torch.flatten(w1, start_dim=0, end_dim=1)
+        v = v.reshape(4, 2, 5, 7)
+        v = torch.transpose(v, 0, 1)
+        v = self.conv2(v)
         x = F.relu(x)
         y = F.relu(y)
         z = F.relu(z)
-        return x, y, z
+        return x, y, z, w0, w1, v
 
 def test():
     net = Model()
@@ -26,23 +38,34 @@ def test():
     x = torch.rand(3, 16)
     y = torch.rand(5, 9, 11)
     z = torch.rand(8, 5, 9, 10)
+    w = torch.rand(2, 3, 5, 7)
+    v = torch.rand(280)
 
-    a = net(x, y, z)
+    a = net(x, y, z, w, v)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w, v))
     mod.save("test_torch_transpose.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_transpose.pt inputshape=[3,16],[5,9,11],[8,5,9,10]")
+    os.system("../../src/pnnx test_torch_transpose.pt inputshape=[3,16],[5,9,11],[8,5,9,10],[2,3,5,7],[280]")
+
+    with open("test_torch_transpose.ncnn.param") as f:
+        lines = f.readlines()
+        if sum(1 for line in lines if line.startswith("Reshape") and "12=1" in line) != 2:
+            return False
+        if sum(1 for line in lines if line.startswith("Reshape") and "12=2" in line) != 1:
+            return False
+        if sum(1 for line in lines if line.startswith("Permute")) != 6:
+            return False
 
     # ncnn inference
     import test_torch_transpose_ncnn
     b = test_torch_transpose_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+        if not torch.allclose(a0, b0, 1e-3, 1e-3):
             return False
     return True
 

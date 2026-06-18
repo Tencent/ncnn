@@ -398,6 +398,30 @@ static void solve_batch_index_forward(Operand* operand)
                 // give up reshape across batch index
             }
         }
+        else if (op->type == "torch.flatten")
+        {
+            int start_dim = op->params.at("start_dim").i;
+            int end_dim = op->params.at("end_dim").i;
+            if (start_dim < 0)
+                start_dim += input_rank0;
+            if (end_dim < 0)
+                end_dim += input_rank0;
+
+            int batch_index_flattened = batch_index;
+            if (start_dim <= batch_index && batch_index <= end_dim)
+                batch_index_flattened = 233;
+            else if (end_dim < batch_index)
+                batch_index_flattened = batch_index - (end_dim - start_dim);
+
+            Operand* r = op->outputs[0];
+            if (r->params.find("__batch_index") == r->params.end())
+            {
+                r->params["__batch_index"] = batch_index_flattened;
+
+                solve_batch_index_forward(r);
+                solve_batch_index_backward(r);
+            }
+        }
         else if (op->type == "Tensor.slice" || op->type == "Tensor.select")
         {
             Operand* r = op->outputs[0];
@@ -955,6 +979,16 @@ void solve_batch_index(Graph& graph)
             fprintf(stderr, "fallback batch axis 233 for operand %s\n", r->name.c_str());
             r->params["__batch_index"] = 233;
         }
+    }
+
+    // pnnx.Input output operand is torch model input
+    for (Operator* op : graph.ops)
+    {
+        if (op->type != "pnnx.Input")
+            continue;
+
+        Operand* input = op->outputs[0];
+        op->params["__torch_batch_index"] = input->params["__batch_index"];
     }
 }
 

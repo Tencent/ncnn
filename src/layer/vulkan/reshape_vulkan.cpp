@@ -370,6 +370,9 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         if (ndim == 4)
             out_total *= (size_t)outh * outd * outc;
 
+        if (out_total == 0)
+            return -1;
+
         const size_t bottom_total = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
         const int batch = bottom_total / out_total;
         if ((size_t)batch * out_total != bottom_total)

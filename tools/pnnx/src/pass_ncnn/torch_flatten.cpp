@@ -135,7 +135,11 @@ pnnx.Output             output      1 0 out
             if (batch_mode == 0 && i == batch_index)
                 continue;
 
-            new_shape.push_back(shape_flattened[i]);
+            int s = shape_flattened[i];
+            if (batch_mode == 1 && i == 0)
+                s = -1;
+
+            new_shape.push_back(s);
         }
 
         if (new_shape.size() == 5 && batch_index == 233)

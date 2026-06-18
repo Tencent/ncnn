@@ -114,6 +114,10 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
 
             if (!string_is_positive_integer(it.first))
             {
+                // skip internal pass metadata
+                if (it.first.size() >= 2 && it.first[0] == '_' && it.first[1] == '_')
+                    continue;
+
                 fprintf(stderr, "ignore %s %s param %s=", op->type.c_str(), op->name.c_str(), it.first.c_str());
 
                 if (param.type == 0)
@@ -414,15 +418,11 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             if (!r)
                 break;
 
-            const int batch_index = r->params.at("__batch_index").i;
-            if (batch_index != 233)
-            {
-                fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.squeeze(%d).numpy()).clone())\n", input_name.c_str(), input_name.c_str(), batch_index);
-            }
-            else
-            {
-                fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.numpy()).clone())\n", input_name.c_str(), input_name.c_str());
-            }
+            int batch_index = r->params.at("__batch_index").i;
+            if (r->producer->params.find("__torch_batch_index") != r->producer->params.end())
+                batch_index = r->producer->params.at("__torch_batch_index").i;
+
+            fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.numpy(), batch_index=%d).clone())\n", input_name.c_str(), input_name.c_str(), batch_index);
         }
 
         fprintf(pyfp, "\n");
@@ -437,14 +437,7 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             fprintf(pyfp, "            _, %s = ex.extract(\"%s\")\n", output_name.c_str(), output_name.c_str());
 
             const int batch_index = r->params.at("__batch_index").i;
-            if (batch_index != 233)
-            {
-                fprintf(pyfp, "            out.append(torch.from_numpy(np.array(%s)).unsqueeze(%d))\n", output_name.c_str(), batch_index);
-            }
-            else
-            {
-                fprintf(pyfp, "            out.append(torch.from_numpy(np.array(%s)))\n", output_name.c_str());
-            }
+            fprintf(pyfp, "            out.append(torch.from_numpy(%s.numpy(batch_index=%d)))\n", output_name.c_str(), batch_index);
         }
 
         fprintf(pyfp, "\n");

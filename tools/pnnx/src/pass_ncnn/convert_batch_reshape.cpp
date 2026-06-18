@@ -9,7 +9,7 @@ namespace ncnn {
 
 static bool fold_batch_after_permute(Operator* op)
 {
-    if (op->type != "Tensor.permute")
+    if (op->type != "Tensor.permute" && op->type != "torch.transpose")
         return false;
 
     Operand* in = op->inputs[0];
@@ -25,10 +25,19 @@ static bool fold_batch_after_permute(Operator* op)
         return false;
 
     Operator* op2 = out->consumers[0];
+    if (op2->type == "Tensor.permute" || op2->type == "torch.transpose")
+    {
+        Operand* out2 = op2->outputs[0];
+        if (out2->consumers.size() != 1)
+            return false;
+
+        op2 = out2->consumers[0];
+    }
+
     if (op2->type != "Tensor.reshape" && op2->type != "torch.flatten")
         return false;
 
-    if (op2->outputs[0]->params["__batch_index"].i != 233)
+    if (op2->outputs[0]->params.find("__batch_index") != op2->outputs[0]->params.end() && op2->outputs[0]->params["__batch_index"].i != 233)
         return false;
 
     return true;
@@ -36,7 +45,7 @@ static bool fold_batch_after_permute(Operator* op)
 
 static bool extract_batch_after_permute(Operator* op)
 {
-    if (op->type != "Tensor.permute")
+    if (op->type != "Tensor.permute" && op->type != "torch.transpose")
         return false;
 
     Operand* in = op->inputs[0];
@@ -92,6 +101,15 @@ void convert_batch_reshape(Graph& graph)
 
                 op->inputs[0] = reshape_out;
                 out->params["__batch_index"] = 233;
+
+                Operator* op2 = out->consumers[0];
+                if (op2->type == "Tensor.permute" || op2->type == "torch.transpose")
+                {
+                    op2->outputs[0]->params["__batch_index"] = 233;
+                    op2 = op2->outputs[0]->consumers[0];
+                }
+
+                op2->outputs[0]->params["__batch_index"] = 233;
 
                 matched = true;
                 break;
