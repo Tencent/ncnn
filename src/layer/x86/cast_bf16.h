@@ -35,13 +35,17 @@ static void cast_fp32_to_bf16_sse(const Mat& bottom_blob, Mat& top_blob, const O
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
 
+    const int batch = bottom_blob.n;
     const int size = w * h * d * elempack;
 
+    const int total_bc = batch * channels;
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
+    for (int bc = 0; bc < total_bc; bc++)
     {
-        const float* ptr = bottom_blob.channel(q);
-        unsigned short* outptr = top_blob.channel(q);
+        int b = bc / channels;
+        int q = bc % channels;
+        const float* ptr = bottom_blob.batch(b).channel(q);
+        unsigned short* outptr = top_blob.batch(b).channel(q);
 
         int i = 0;
 #if __SSE2__
@@ -107,13 +111,17 @@ static void cast_bf16_to_fp32_sse(const Mat& bottom_blob, Mat& top_blob, const O
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
 
+    const int batch = bottom_blob.n;
     const int size = w * h * d * elempack;
 
+    const int total_bc = batch * channels;
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
+    for (int bc = 0; bc < total_bc; bc++)
     {
-        const unsigned short* ptr = bottom_blob.channel(q);
-        float* outptr = top_blob.channel(q);
+        int b = bc / channels;
+        int q = bc % channels;
+        const unsigned short* ptr = bottom_blob.batch(b).channel(q);
+        float* outptr = top_blob.batch(b).channel(q);
 
         int i = 0;
 #if __SSE2__

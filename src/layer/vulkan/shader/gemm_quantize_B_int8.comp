@@ -1,0 +1,75 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int transB = 0;
+layout(constant_id = 1) const int CM_N = 1;
+layout(constant_id = 2) const int CM_K = 1;
+layout(constant_id = 3) const int UNROLL_SG_N = 1;
+layout(constant_id = 4) const int UNROLL_SG_K = 1;
+layout(constant_id = 5) const int UNROLL_WG_N = 1;
+
+layout(binding = 0) readonly buffer B_blob { sfp B_blob_data[]; };
+layout(binding = 1) writeonly buffer B_int8_blob { sint8vec4 B_int8_data[]; };
+layout(binding = 2) readonly buffer B_descale_blob { float B_descale_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int N;
+    int K;
+    int B_hstep;
+} p;
+
+#if ncnn_VK_KHR_cooperative_matrix
+#define PAD 1
+#else
+#define PAD 0
+#endif
+
+void main()
+{
+    const int gx = int(gl_GlobalInvocationID.x);
+
+    const int Nd4 = CM_N / 4;
+    const int Nd4p = Nd4 + PAD;
+    const int kk = (p.K + CM_K - 1) / CM_K;
+    const int kkg = (kk + UNROLL_SG_K - 1) / UNROLL_SG_K;
+    const int K_Nd4p_USGN = CM_K * Nd4p * UNROLL_SG_N;
+    const int K_Nd4p_USGN_USGK = K_Nd4p_USGN * UNROLL_SG_K;
+    const int words_per_block = K_Nd4p_USGN_USGK * UNROLL_WG_N * kkg;
+
+    const int bn = gx / words_per_block;
+    const int siq = gx - bn * words_per_block;
+
+    const int wi = siq / K_Nd4p_USGN_USGK;
+    const int kg = wi / UNROLL_WG_N;
+    const int wn = wi - kg * UNROLL_WG_N;
+
+    const int sij = siq - wi * K_Nd4p_USGN_USGK;
+    const int zk = sij / K_Nd4p_USGN;
+    const int znij = sij - zk * K_Nd4p_USGN;
+    const int zn = znij / (CM_K * Nd4p);
+    const int ij = znij - zn * CM_K * Nd4p;
+    const int i = ij / Nd4p;
+    const int j = ij - i * Nd4p;
+
+    const int kt = kg * UNROLL_SG_K + zk;
+
+    const int gk = kt * CM_K + i;
+    const int gn = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * CM_N + j * 4;
+
+    const float descale = B_descale_data[0];
+    const float scale = descale == 0.f ? 1.f : 1.f / descale;
+
+    ivec4 v = ivec4(0);
+    if (kt < kk && j < Nd4 && gk < p.K)
+    {
+        if (gn + 0 < p.N) v.r = float2int8(float(buffer_ld1(B_blob_data, transB == 1 ? (gn + 0) * p.B_hstep + gk : gk * p.B_hstep + gn + 0)) * scale);
+        if (gn + 1 < p.N) v.g = float2int8(float(buffer_ld1(B_blob_data, transB == 1 ? (gn + 1) * p.B_hstep + gk : gk * p.B_hstep + gn + 1)) * scale);
+        if (gn + 2 < p.N) v.b = float2int8(float(buffer_ld1(B_blob_data, transB == 1 ? (gn + 2) * p.B_hstep + gk : gk * p.B_hstep + gn + 2)) * scale);
+        if (gn + 3 < p.N) v.a = float2int8(float(buffer_ld1(B_blob_data, transB == 1 ? (gn + 3) * p.B_hstep + gk : gk * p.B_hstep + gn + 3)) * scale);
+    }
+
+    i8buffer_st4(B_int8_data, gx, v);
+}

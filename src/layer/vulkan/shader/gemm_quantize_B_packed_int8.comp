@@ -1,0 +1,81 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int transB = 0;
+
+#define LOCAL_MEMORY_UNROLL_K4 2
+
+layout(binding = 0) readonly buffer B_blob { sfp B_blob_data[]; };
+layout(binding = 1) writeonly buffer B_int8_blob { sint8vec4 B_int8_data[]; };
+layout(binding = 2) readonly buffer B_descale_blob { float B_descale_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int N;
+    int K;
+    int B_hstep;
+} p;
+
+void main()
+{
+    const int gx = int(gl_GlobalInvocationID.x);
+    const int K4 = (p.K + 3) / 4;
+    const int K4p = ((K4 + (LOCAL_MEMORY_UNROLL_K4 - 1)) / LOCAL_MEMORY_UNROLL_K4) * LOCAL_MEMORY_UNROLL_K4;
+    const int K4_full = p.K / 4;
+    const int N4 = (p.N + 3) / 4;
+    const int N4_aligned = (N4 + 7) / 8 * 8;
+
+    if (gx >= N4_aligned * 4 * K4p)
+        return;
+
+    const int j = gx / K4p;
+    const int k4 = gx - j * K4p;
+    const int k = k4 * 4;
+
+    if (j >= p.N || k4 >= K4)
+    {
+        i8buffer_st4(B_int8_data, gx, ivec4(0));
+        return;
+    }
+
+    const float descale = B_descale_data[0];
+    const float scale = descale == 0.f ? 1.f : 1.f / descale;
+
+    if (k4 < K4_full)
+    {
+        const int bi0 = transB == 1 ? j * p.B_hstep + k + 0 : (k + 0) * p.B_hstep + j;
+        const int bi1 = transB == 1 ? j * p.B_hstep + k + 1 : (k + 1) * p.B_hstep + j;
+        const int bi2 = transB == 1 ? j * p.B_hstep + k + 2 : (k + 2) * p.B_hstep + j;
+        const int bi3 = transB == 1 ? j * p.B_hstep + k + 3 : (k + 3) * p.B_hstep + j;
+
+        vec4 v;
+        v.r = float(buffer_ld1(B_blob_data, bi0));
+        v.g = float(buffer_ld1(B_blob_data, bi1));
+        v.b = float(buffer_ld1(B_blob_data, bi2));
+        v.a = float(buffer_ld1(B_blob_data, bi3));
+
+        i8buffer_st4(B_int8_data, gx, float2int8vec4(v * scale));
+        return;
+    }
+
+    ivec4 v = ivec4(0);
+    if (k + 0 < p.K)
+    {
+        const int bi = transB == 1 ? j * p.B_hstep + k + 0 : (k + 0) * p.B_hstep + j;
+        v.r = float2int8(float(buffer_ld1(B_blob_data, bi)) * scale);
+    }
+    if (k + 1 < p.K)
+    {
+        const int bi = transB == 1 ? j * p.B_hstep + k + 1 : (k + 1) * p.B_hstep + j;
+        v.g = float2int8(float(buffer_ld1(B_blob_data, bi)) * scale);
+    }
+    if (k + 2 < p.K)
+    {
+        const int bi = transB == 1 ? j * p.B_hstep + k + 2 : (k + 2) * p.B_hstep + j;
+        v.b = float2int8(float(buffer_ld1(B_blob_data, bi)) * scale);
+    }
+
+    i8buffer_st4(B_int8_data, gx, v);
+}

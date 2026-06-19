@@ -1,0 +1,44 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(binding = 0) readonly buffer B_absmax_blob { float B_absmax_data[]; };
+layout(binding = 1) writeonly buffer B_descale_blob { float B_descale_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int blocks;
+} p;
+
+shared float absmax_shared[128];
+
+void main()
+{
+    const int lid = int(gl_LocalInvocationID.x);
+
+    float absmax = 0.f;
+
+    for (int i = lid; i < p.blocks; i += 128)
+    {
+        absmax = max(absmax, B_absmax_data[i]);
+    }
+
+    absmax_shared[lid] = absmax;
+
+    barrier();
+
+    for (int stride = 64; stride > 0; stride >>= 1)
+    {
+        if (lid < stride)
+            absmax_shared[lid] = max(absmax_shared[lid], absmax_shared[lid + stride]);
+
+        barrier();
+    }
+
+    if (lid == 0)
+    {
+        absmax = absmax_shared[0];
+        B_descale_data[0] = absmax == 0.f ? 0.f : absmax * (1.f / 127.f);
+    }
+}
