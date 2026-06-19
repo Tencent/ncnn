@@ -54,7 +54,7 @@ jobs:
           libc-dev
           linux-headers
 
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: build
       shell: alpine.sh {0}
       run: |

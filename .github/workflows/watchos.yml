@@ -64,7 +64,7 @@ jobs:
         -DOpenMP_libomp_LIBRARY="libomp.a" \
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: cache-openmp
       id: cache-openmp
