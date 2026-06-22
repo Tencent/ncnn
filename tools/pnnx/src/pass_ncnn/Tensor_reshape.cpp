@@ -79,7 +79,7 @@ pnnx.Output             output      1 0 out
 
         const int shape_rank = (int)new_shape.size();
 
-        if (shape_rank > 5)
+        if (shape_rank == 0 || shape_rank > 4)
         {
             fprintf(stderr, "reshape to %d-rank tensor is not supported yet!\n", shape_rank);
             return;
