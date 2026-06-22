@@ -20,7 +20,7 @@ jobs:
         apt-get update -y
         apt-get install -y astyle git
 
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: cache-clang-format
       id: cache-clang-format
