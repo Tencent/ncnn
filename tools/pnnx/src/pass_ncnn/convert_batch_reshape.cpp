@@ -43,13 +43,7 @@ static bool fold_batch_after_permute(Operator* op, std::vector<Operator*>& chain
     {
         Operator* op2 = out->consumers[0];
         if (op2->type == "pnnx.Output")
-        {
-            const int batch_index = out->params["__batch_index"].i;
-            if (batch_index != 0 && batch_index != 233)
-                return true;
-
             return false;
-        }
 
         if (is_reshape_op(op2))
         {

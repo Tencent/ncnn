@@ -73,11 +73,11 @@ def test():
 
     with open("test_torch_transpose.ncnn.param") as f:
         lines = f.readlines()
-        if sum(1 for line in lines if line.startswith("Reshape") and "12=1" in line) != 4:
+        if sum(1 for line in lines if line.startswith("Reshape") and "12=1" in line) != 3:
             return False
         if sum(1 for line in lines if line.startswith("Reshape") and "12=2" in line) != 1:
             return False
-        if sum(1 for line in lines if line.startswith("Permute")) != 12:
+        if sum(1 for line in lines if line.startswith("Permute")) != 11:
             return False
 
     # ncnn inference

@@ -62,15 +62,31 @@ pnnx.Output             output      1 0 out
         else // if (captured_params.at("dim").type == 5)
         {
             std::vector<int> axes = captured_params.at("dim").ai;
+            int output_rank = op->outputs[0]->shape.size();
+            if (output_rank == 0)
+                output_rank = input_rank + axes.size();
+
+            const int output_batch_index = op->outputs[0]->params["__batch_index"].i;
+            std::vector<int> new_axes;
             for (size_t i = 0; i < axes.size(); i++)
             {
-                if (axes[i] < 0 && input_rank > 0)
-                    axes[i] += input_rank + 1;
+                int axis = axes[i];
+                if (axis < 0 && output_rank > 0)
+                    axis += output_rank;
 
-                if (axes[i] > batch_index)
-                    axes[i] -= 1;
+                if (output_batch_index >= 0 && output_batch_index < output_rank)
+                {
+                    if (axis == output_batch_index)
+                        continue;
+                    if (axis > output_batch_index)
+                        axis -= 1;
+                }
+                else if (axis > batch_index)
+                    axis -= 1;
+
+                new_axes.push_back(axis);
             }
-            op->params["3"] = axes;
+            op->params["3"] = new_axes;
         }
     }
 };

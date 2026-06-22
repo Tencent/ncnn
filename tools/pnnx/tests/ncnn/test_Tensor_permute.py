@@ -70,6 +70,15 @@ class ModelComputeBarrier(nn.Module):
         x = x.reshape(8, 5, 7)
         return x
 
+class ModelOutputBoundary(nn.Module):
+    def __init__(self):
+        super(ModelOutputBoundary, self).__init__()
+        self.conv = nn.Conv2d(3, 4, 1)
+
+    def forward(self, x):
+        x = self.conv(x)
+        return x.permute(2, 0, 1, 3)
+
 def test_conservative():
     import os
 
@@ -100,6 +109,26 @@ def test_conservative():
         if any(line.startswith("Reshape") and ("12=1" in line or "12=2" in line) for line in lines):
             return False
 
+    net = ModelOutputBoundary()
+    net.eval()
+    a = net(x)
+    mod = torch.jit.trace(net, x)
+    mod.save("test_Tensor_permute_output_boundary.pt")
+    if os.system("../../src/pnnx test_Tensor_permute_output_boundary.pt inputshape=[2,3,5,7]") != 0:
+        return False
+
+    with open("test_Tensor_permute_output_boundary.ncnn.param") as f:
+        lines = f.readlines()
+        if any(line.startswith("Reshape") and ("12=1" in line or "12=2" in line) for line in lines):
+            return False
+        if sum(1 for line in lines if line.startswith("Permute")) != 1:
+            return False
+
+    import test_Tensor_permute_output_boundary_ncnn
+    b = test_Tensor_permute_output_boundary_ncnn.test_inference()
+    if not torch.allclose(a, b, 1e-3, 1e-3):
+        return False
+
     return True
 
 def test():
@@ -125,11 +154,11 @@ def test():
 
     with open("test_Tensor_permute.ncnn.param") as f:
         lines = f.readlines()
-        if sum(1 for line in lines if line.startswith("Reshape") and "12=1" in line) != 4:
+        if sum(1 for line in lines if line.startswith("Reshape") and "12=1" in line) != 3:
             return False
         if sum(1 for line in lines if line.startswith("Reshape") and "12=2" in line) != 1:
             return False
-        if sum(1 for line in lines if line.startswith("Permute")) != 11:
+        if sum(1 for line in lines if line.startswith("Permute")) != 10:
             return False
 
     # ncnn inference

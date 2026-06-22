@@ -77,6 +77,19 @@ def test():
     import os
     os.system("../../src/pnnx test_onnx_layout_ops.onnx inputshape=[1,12,16,14] inputshape2=[1,12,48,66]")
 
+    with open("test_onnx_layout_ops.ncnn.param") as f:
+        lines = f.readlines()
+        if not any(line.startswith("Permute") and " out17 " in line and "0=2" in line for line in lines):
+            return False
+        if not any(line.startswith("ExpandDims") and " out10 " in line and "-23303=2,2,0" in line for line in lines):
+            return False
+        if not any(line.startswith("ExpandDims") and " out12 " in line and "-23303=2,1,2" in line for line in lines):
+            return False
+
+    with open("test_onnx_layout_ops_ncnn.py") as f:
+        if "out17.numpy(batch_index=233)" in f.read():
+            return False
+
     # pnnx inference
     import test_onnx_layout_ops_pnnx
     b = test_onnx_layout_ops_pnnx.test_inference()

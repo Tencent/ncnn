@@ -58,7 +58,7 @@ def test():
             return False
         if sum(1 for line in lines if line.startswith("Reshape") and "12=2" in line) != 1:
             return False
-        if sum(1 for line in lines if line.startswith("Permute")) != 6:
+        if sum(1 for line in lines if line.startswith("Permute")) != 7:
             return False
 
     # pnnx inference
