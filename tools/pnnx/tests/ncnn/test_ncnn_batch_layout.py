@@ -5,6 +5,7 @@ import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 
 class ModelMiddleBatch(nn.Module):
@@ -153,10 +154,11 @@ def run_model(name, net, inputs, checks=None):
 
 
 def test():
-    torch.manual_seed(0)
-    x = torch.rand(6, 5, 7)
-    if not run_model("test_ncnn_batch_layout_middle_batch", ModelMiddleBatch(), x, ["12=2", "13=1"]):
-        return False
+    if version.parse(torch.__version__) >= version.parse('1.13'):
+        torch.manual_seed(0)
+        x = torch.rand(6, 5, 7)
+        if not run_model("test_ncnn_batch_layout_middle_batch", ModelMiddleBatch(), x, ["12=2", "13=1"]):
+            return False
 
     torch.manual_seed(0)
     x = torch.rand(6, 5, 7)
