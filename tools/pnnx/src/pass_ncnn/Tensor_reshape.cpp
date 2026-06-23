@@ -72,11 +72,10 @@ pnnx.Output             output      1 0 out
             batch_mode = 2;
             batch_axis = batch_index;
         }
-
         if (input_batch_index != 233 && input_batch_index != 0 && batch_index == 233)
         {
-            fprintf(stderr, "reshape tensor with batch index %d folded is not supported yet!\n", input_batch_index);
-            return;
+            batch_mode = 1;
+            batch_axis = input_batch_index;
         }
 
         // drop shape batch index

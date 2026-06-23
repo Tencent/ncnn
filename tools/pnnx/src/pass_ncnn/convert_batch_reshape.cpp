@@ -22,58 +22,6 @@ static bool is_reshape_op(const Operator* op)
     return op->type == "Tensor.reshape" || op->type == "torch.flatten";
 }
 
-static bool is_batch_move_only(const Operator* op)
-{
-    if (op->type != "Tensor.permute")
-        return false;
-
-    Operand* in = op->inputs[0];
-    Operand* out = op->outputs[0];
-
-    const int input_batch_index = in->params["__batch_index"].i;
-    const int output_batch_index = out->params["__batch_index"].i;
-
-    if (input_batch_index < 0 || input_batch_index == 233 || output_batch_index < 0 || output_batch_index == 233)
-        return false;
-
-    const int input_rank = (int)in->shape.size();
-    const std::vector<int>& dims = op->params.at("dims").ai;
-
-    std::vector<int> new_dims;
-    for (int i = 0; i < (int)dims.size(); i++)
-    {
-        int dim = dims[i];
-        if (dim < 0)
-            dim += input_rank;
-
-        if (dim == input_batch_index)
-            continue;
-
-        new_dims.push_back(dim > input_batch_index ? dim - 1 : dim);
-    }
-
-    for (int i = 0; i < (int)new_dims.size(); i++)
-    {
-        if (new_dims[i] != i)
-            return false;
-    }
-
-    return true;
-}
-
-static bool fold_batch_to_output_after_permute(Operator* op)
-{
-    if (!is_layout_op(op))
-        return false;
-
-    Operand* out = op->outputs[0];
-
-    if (out->consumers.size() != 1 || out->consumers[0]->type != "pnnx.Output")
-        return false;
-
-    return is_batch_move_only(op);
-}
-
 static bool fold_batch_after_permute(Operator* op, std::vector<Operator*>& chain)
 {
     if (!is_layout_op(op))
@@ -164,22 +112,6 @@ void convert_batch_reshape(Graph& graph)
         for (Operator* op : graph.ops)
         {
             std::vector<Operator*> chain;
-
-            if (fold_batch_to_output_after_permute(op))
-            {
-                Operand* out = op->outputs[0];
-                const int batch_axis = out->params["__batch_index"].i;
-
-                op->type = "Tensor.reshape";
-                op->params.clear();
-                op->params["shape"] = out->shape;
-
-                out->params["__batch_axis"] = batch_axis;
-                out->params["__batch_index"] = 233;
-
-                matched = true;
-                break;
-            }
 
             if (fold_batch_after_permute(op, chain))
             {

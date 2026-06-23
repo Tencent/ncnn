@@ -52,15 +52,6 @@ def test():
     import os
     os.system("../src/pnnx test_torch_transpose.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10],[2,3,5,7],[280]")
 
-    with open("test_torch_transpose.ncnn.param") as f:
-        lines = f.readlines()
-        if sum(1 for line in lines if line.startswith("Reshape") and "12=1" in line) != 2:
-            return False
-        if sum(1 for line in lines if line.startswith("Reshape") and "12=2" in line) != 1:
-            return False
-        if sum(1 for line in lines if line.startswith("Permute")) != 7:
-            return False
-
     # pnnx inference
     import test_torch_transpose_pnnx
     b = test_torch_transpose_pnnx.test_inference()
