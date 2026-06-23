@@ -53,6 +53,12 @@ static bool is_known_operator_with_batch_index_0(const Operator* op)
         "F.upsample_nearest",
         "F.upsample",
 
+        "torch.bmm",
+        "torch.istft",
+        "torch.stft",
+        "torchaudio.functional.inverse_spectrogram",
+        "torchaudio.functional.spectrogram",
+
         "nn.AdaptiveAvgPool1d",
         "nn.AdaptiveAvgPool2d",
         "nn.AdaptiveAvgPool3d",
@@ -138,6 +144,16 @@ static int get_known_operator_batch_index(const Operator* op)
     if (op->type.find("pool3d") != std::string::npos || op->type.find("Pool3d") != std::string::npos)
     {
         if (input_rank == 4)
+            return 233;
+    }
+    if (op->type == "torch.stft" || op->type == "torchaudio.functional.spectrogram")
+    {
+        if (input_rank == 1)
+            return 233;
+    }
+    if (op->type == "torch.istft" || op->type == "torchaudio.functional.inverse_spectrogram")
+    {
+        if (input_rank == 2)
             return 233;
     }
 
@@ -1009,6 +1025,33 @@ static void solve_batch_index_backward(Operand* operand)
             if (r->params.find("__batch_index") != r->params.end())
                 continue;
 
+            if (op->type == "BinaryOp" && batch_index >= 0 && batch_index < output_rank0 && (int)r->shape.size() <= output_rank0 - 1)
+            {
+                bool broadcast_without_batch = true;
+                int j = (int)r->shape.size() - 1;
+                for (int i = output_rank0 - 1; i >= 0; i--)
+                {
+                    if (i == batch_index)
+                        continue;
+
+                    int dim = 1;
+                    if (j >= 0)
+                        dim = r->shape[j--];
+
+                    if (dim != 1 && dim != op->outputs[0]->shape[i])
+                    {
+                        broadcast_without_batch = false;
+                        break;
+                    }
+                }
+
+                if (broadcast_without_batch)
+                {
+                    r->params["__batch_index"] = 233;
+                    continue;
+                }
+            }
+
             r->params["__batch_index"] = batch_index;
 
             solve_batch_index_backward(r);
@@ -1036,6 +1079,10 @@ void solve_batch_index(Graph& graph)
                 op->inputs[2]->params["__batch_index"] = 0;
                 if (op->inputs.size() == 4)
                     op->inputs[3]->params["__batch_index"] = 0;
+            }
+            if (op->type == std::string("torch.bmm"))
+            {
+                op->inputs[1]->params["__batch_index"] = batch_index;
             }
 
             op->inputs[0]->params["__batch_index"] = batch_index;

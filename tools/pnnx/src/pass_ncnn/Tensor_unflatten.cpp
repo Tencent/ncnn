@@ -60,7 +60,7 @@ pnnx.Output             output      1 0 out
         std::vector<int> new_shape;
         for (int i = 0; i < (int)shape.size(); i++)
         {
-            if (i == batch_index && shape[i] == 1)
+            if (i == batch_index)
                 continue;
 
             new_shape.push_back(shape[i]);
@@ -77,7 +77,7 @@ pnnx.Output             output      1 0 out
 
         const int shape_rank = (int)new_shape.size();
 
-        if (shape_rank > 5)
+        if (shape_rank > 4)
         {
             fprintf(stderr, "reshape to %d-rank tensor is not supported yet!\n", shape_rank);
             return;

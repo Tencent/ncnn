@@ -9,11 +9,16 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, u, v, r):
         out0 = torch.minimum(x, y)
         out1 = torch.minimum(y, y)
         out2 = torch.minimum(z, torch.ones_like(z) + 0.1)
-        return out0, out1, out2
+        u = F.max_pool2d(u, 1)
+        v = F.max_pool2d(v, 1)
+        out3 = torch.minimum(u, v)
+        out4 = torch.minimum(u, u + 0.1)
+        out5 = torch.minimum(u, r)
+        return out0, out1, out2, out3, out4, out5
 
 def test():
     net = Model()
@@ -23,16 +28,19 @@ def test():
     x = torch.rand(3, 16)
     y = torch.rand(3, 16)
     z = torch.rand(5, 9, 3)
+    u = torch.rand(2, 3, 5, 7)
+    v = torch.rand(2, 3, 5, 7)
+    r = torch.rand(3, 5, 7)
 
-    a = net(x, y, z)
+    a = net(x, y, z, u, v, r)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, u, v, r))
     mod.save("test_torch_minimum.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_minimum.pt inputshape=[3,16],[3,16],[5,9,3]")
+    os.system("../../src/pnnx test_torch_minimum.pt inputshape=[3,16],[3,16],[5,9,3],[2,3,5,7],[2,3,5,7],[3,5,7]")
 
     # ncnn inference
     import test_torch_minimum_ncnn

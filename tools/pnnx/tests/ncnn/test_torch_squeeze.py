@@ -10,7 +10,7 @@ class Model(nn.Module):
         super(Model, self).__init__()
         self.conv = nn.Conv2d(3, 4, 1)
 
-    def forward(self, x, y, z, w, q):
+    def forward(self, x, y, z, w, q, r):
         x = torch.squeeze(x, 0)
         y = torch.squeeze(y, 1)
         z = torch.squeeze(z)
@@ -19,7 +19,9 @@ class Model(nn.Module):
         q0 = torch.squeeze(q)
         q1 = torch.squeeze(q, 2)
         q2 = torch.squeeze(q, 0)
-        return x, y, z, w, q0, q1, q2
+        r = self.conv(r)
+        r = torch.squeeze(r, 0)
+        return x, y, z, w, q0, q1, q2, r
 
 def test():
     net = Model()
@@ -31,16 +33,17 @@ def test():
     z = torch.rand(5, 1, 11)
     w = torch.rand(5, 9, 1, 33)
     q = torch.rand(2, 3, 1, 5)
+    r = torch.rand(1, 3, 1, 5)
 
-    a = net(x, y, z, w, q)
+    a = net(x, y, z, w, q, r)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w, q))
+    mod = torch.jit.trace(net, (x, y, z, w, q, r))
     mod.save("test_torch_squeeze.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_squeeze.pt inputshape=[1,16],[3,1],[5,1,11],[5,9,1,33],[2,3,1,5]")
+    os.system("../../src/pnnx test_torch_squeeze.pt inputshape=[1,16],[3,1],[5,1,11],[5,9,1,33],[2,3,1,5],[1,3,1,5]")
 
     with open("test_torch_squeeze.ncnn.param") as f:
         lines = f.readlines()

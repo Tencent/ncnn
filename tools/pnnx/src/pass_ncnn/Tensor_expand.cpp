@@ -43,20 +43,35 @@ pnnx.Output             output      1 0 out
             return;
         }
 
+        const int input_rank = (int)shape.size();
+        const int output_rank = (int)sizes.size();
+        if (input_rank > output_rank)
+        {
+            fprintf(stderr, "expand %d-rank tensor to %d-rank tensor is not supported yet!\n", input_rank, output_rank);
+            return;
+        }
+
+        const int rank_offset = output_rank - input_rank;
+
         // drop sizes batch index
         std::vector<int> repeats;
-        for (int i = 0; i < (int)sizes.size(); i++)
+        for (int i = 0; i < output_rank; i++)
         {
+            const int shape_index = i - rank_offset;
+            const int shape_dim = shape_index >= 0 ? shape[shape_index] : 1;
+
             if (i == batch_index)
             {
-                if (sizes[i] == 1)
-                    continue;
-
-                fprintf(stderr, "expand tensor along batch index %d is not supported yet!\n", batch_index);
+                if (sizes[i] != -1 && sizes[i] != shape_dim)
+                {
+                    fprintf(stderr, "expand tensor along batch index %d is not supported yet!\n", batch_index);
+                    return;
+                }
+                continue;
             }
 
             int repeat = 1;
-            if (sizes[i] != -1 && shape[i] == 1)
+            if (sizes[i] != -1 && shape_dim == 1)
             {
                 repeat = sizes[i];
             }

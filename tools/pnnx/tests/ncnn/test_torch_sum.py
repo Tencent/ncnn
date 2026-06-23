@@ -15,34 +15,14 @@ class Model(nn.Module):
         z = torch.sum(z, dim=(0,3), keepdim=True)
         return x, y, z
 
-class ModelBatchWarning(nn.Module):
+class ModelBatch(nn.Module):
     def __init__(self):
-        super(ModelBatchWarning, self).__init__()
-        self.conv = nn.Conv2d(3, 4, 1)
+        super(ModelBatch, self).__init__()
 
     def forward(self, x):
-        x = self.conv(x)
-        x = torch.sum(x, dim=0)
-        return x
-
-def test_warning():
-    import subprocess
-
-    torch.manual_seed(0)
-    x = torch.rand(2, 3, 5, 7)
-
-    net = ModelBatchWarning()
-    net.eval()
-    mod = torch.jit.trace(net, x)
-    mod.save("test_torch_sum_batch_warning.pt")
-
-    p = subprocess.run("../../src/pnnx test_torch_sum_batch_warning.pt inputshape=[2,3,5,7]", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    if p.returncode != 0:
-        return False
-    if "sum along batch axis is not supported yet" not in p.stdout:
-        return False
-
-    return True
+        x0 = torch.sum(x, dim=2, keepdim=False)
+        x1 = torch.sum(x, dim=(1,3), keepdim=True)
+        return x0, x1
 
 def test():
     net = Model()
@@ -70,7 +50,33 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
-    return test_warning()
+    return test_batch()
+
+def test_batch():
+    net = ModelBatch()
+    net.eval()
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 3, 5, 7)
+
+    a = net(x)
+
+    # export torchscript
+    mod = torch.jit.trace(net, x)
+    mod.save("test_torch_sum_batch.pt")
+
+    # torchscript to pnnx
+    import os
+    os.system("../../src/pnnx test_torch_sum_batch.pt inputshape=[2,3,5,7]")
+
+    # ncnn inference
+    import test_torch_sum_batch_ncnn
+    b = test_torch_sum_batch_ncnn.test_inference()
+
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():

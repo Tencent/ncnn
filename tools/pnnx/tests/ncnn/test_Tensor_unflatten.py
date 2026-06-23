@@ -10,11 +10,13 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, q):
         x = x.unflatten(dim=0, sizes=(2,1,2,-1))
         y = y.unflatten(dim=1, sizes=(3,4))
         z = z.unflatten(dim=-2, sizes=(3,-1))
-        return x, y, z
+        q = F.max_pool2d(q, 1)
+        q = q.unflatten(dim=1, sizes=(3,4))
+        return x, y, z, q
 
 def test():
     if version.parse(torch.__version__) < version.parse('1.13'):
@@ -27,16 +29,17 @@ def test():
     x = torch.rand(16)
     y = torch.rand(9, 12)
     z = torch.rand(8, 9, 10)
+    q = torch.rand(2, 12, 5, 7)
 
-    a = net(x, y, z)
+    a = net(x, y, z, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, q))
     mod.save("test_Tensor_unflatten.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_Tensor_unflatten.pt inputshape=[16],[9,12],[8,9,10]")
+    os.system("../../src/pnnx test_Tensor_unflatten.pt inputshape=[16],[9,12],[8,9,10],[2,12,5,7]")
 
     # ncnn inference
     import test_Tensor_unflatten_ncnn

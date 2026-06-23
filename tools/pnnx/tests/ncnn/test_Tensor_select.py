@@ -5,49 +5,53 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
     def forward(self, x, y, z, w):
-        x = torch.sign(x - 0.5)
-        y = torch.sign(y - 0.5)
-        z = torch.sign(z - 0.5)
+        x = x.select(1, 1)
+        y = y.select(2, 4)
+        z0 = z.select(-1, 0)
+        z1 = z.select(-1, 1)
         w = F.max_pool2d(w, 1)
-        w = torch.sign(w - 0.5)
-        return x, y, z, w
-
+        w0 = w.select(1, 1)
+        w1 = w.select(-1, 3)
+        return x, y, z0, z1, w0, w1
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(3, 16)
-    y = torch.rand(5, 9, 11)
-    z = torch.rand(8, 5, 9, 10)
+    x = torch.rand(1, 3, 16)
+    y = torch.rand(1, 5, 9, 11)
+    z = torch.rand(4, 5, 2)
     w = torch.rand(2, 3, 5, 7)
 
     a = net(x, y, z, w)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z, w))
-    mod.save("test_torch_sign.pt")
+    mod.save("test_Tensor_select.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_sign.pt inputshape=[3,16],[5,9,11],[8,5,9,10],[2,3,5,7]")
+    os.system("../../src/pnnx test_Tensor_select.pt inputshape=[1,3,16],[1,5,9,11],[4,5,2],[2,3,5,7]")
+
+    with open("test_Tensor_select.ncnn.param") as f:
+        lines = f.readlines()
+        if not any(line.startswith("Slice") for line in lines):
+            return False
 
     # ncnn inference
-    import test_torch_sign_ncnn
-    b = test_torch_sign_ncnn.test_inference()
+    import test_Tensor_select_ncnn
+    b = test_Tensor_select_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
             return False
     return True
-
 
 if __name__ == "__main__":
     if test():
