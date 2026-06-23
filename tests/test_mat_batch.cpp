@@ -683,6 +683,33 @@ static int test_batch_reshape_dim_to_batch()
     return 0;
 }
 
+static int test_batch_reshape_dim_to_batch_no_infer()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=-1 1=3 2=2 12=2\n";
+
+    ncnn::Net net;
+    net.load_param_mem(param_str);
+
+    ncnn::Mat input;
+    input.create(5, 3, 2, 3, 4u, 1);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input);
+
+    ncnn::Mat output;
+    int ret = ex.extract("output", output);
+    if (ret == 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_no_infer should fail\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 static int test_batch_reshape_roundtrip()
 {
     const char param_str[] = "7767517\n"
@@ -2879,6 +2906,7 @@ int main()
     ret |= test_batch_reshape_batch_to_dim_flatten();
     ret |= test_batch_reshape_batch_to_dim_4d();
     ret |= test_batch_reshape_dim_to_batch();
+    ret |= test_batch_reshape_dim_to_batch_no_infer();
     ret |= test_batch_reshape_roundtrip();
     ret |= test_batch_reshape_permute_fold();
     ret |= test_batch_reshape_permute_extract();

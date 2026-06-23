@@ -194,6 +194,9 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
             return -1;
     }
 
+    if (batch_mode == 2 && (outw == -1 || outh == -1 || outd == -1 || outc == -1))
+        return -1;
+
     if (ndim == 1)
     {
         if (outw == 0)

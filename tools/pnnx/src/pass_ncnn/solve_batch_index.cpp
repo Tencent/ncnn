@@ -1065,20 +1065,26 @@ void solve_batch_index(Graph& graph)
     // assign known operator
     for (Operator* op : graph.ops)
     {
+        if (op->type == std::string("F.scaled_dot_product_attention"))
+        {
+            for (Operand* r : op->inputs)
+            {
+                r->params["__batch_index"] = r->shape.empty() || r->shape.size() > 3 ? 0 : 233;
+            }
+            for (Operand* r : op->outputs)
+            {
+                r->params["__batch_index"] = r->shape.empty() || r->shape.size() > 3 ? 0 : 233;
+            }
+            continue;
+        }
+
         if (is_known_operator_with_batch_index_0(op))
         {
             const int batch_index = get_known_operator_batch_index(op);
 
             if (op->type == std::string("F.grid_sample"))
             {
-                op->inputs[1]->params["__batch_index"] = 0;
-            }
-            if (op->type == std::string("F.scaled_dot_product_attention"))
-            {
-                op->inputs[1]->params["__batch_index"] = 0;
-                op->inputs[2]->params["__batch_index"] = 0;
-                if (op->inputs.size() == 4)
-                    op->inputs[3]->params["__batch_index"] = 0;
+                op->inputs[1]->params["__batch_index"] = batch_index;
             }
             if (op->type == std::string("torch.bmm"))
             {

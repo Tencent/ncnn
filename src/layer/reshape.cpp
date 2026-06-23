@@ -89,6 +89,9 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
     }
 
+    if (batch_mode == 2 && (outw == -1 || outh == -1 || outd == -1 || outc == -1))
+        return -1;
+
     int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
     if (batch_mode == 1)
         total *= bottom_blob.n;
