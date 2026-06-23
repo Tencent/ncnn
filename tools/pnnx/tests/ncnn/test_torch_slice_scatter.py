@@ -20,7 +20,10 @@ class Model(nn.Module):
         r = F.max_pool2d(r, 1)
         s = F.max_pool2d(s, 1)
         out2 = torch.slice_scatter(q, r, dim=1, start=1, end=2)
-        out3 = torch.slice_scatter(q, s, dim=-1, start=2, end=6)
+        if version.parse(torch.__version__) >= version.parse('1.13') and version.parse(torch.__version__) < version.parse('2.0'):
+            out3 = torch.slice_scatter(q, s, dim=3, start=2, end=6)
+        else:
+            out3 = torch.slice_scatter(q, s, dim=-1, start=2, end=6)
         return out0, out1, out2, out3
 
 def test():

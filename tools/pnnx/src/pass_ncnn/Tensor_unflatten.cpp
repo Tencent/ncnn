@@ -53,7 +53,10 @@ pnnx.Output             output      1 0 out
         if (batch_index != 0 && batch_index != 233)
         {
             if (op->outputs[0]->shape.empty() || op->outputs[0]->shape[batch_index] != 1)
+            {
                 fprintf(stderr, "unflatten tensor to batch index %d is not supported yet!\n", batch_index);
+                return;
+            }
         }
 
         // drop shape batch index

@@ -18,6 +18,16 @@ class Model(nn.Module):
         q = q.unflatten(dim=1, sizes=(3,4))
         return x, y, z, q
 
+class ModelMiddleBatch(nn.Module):
+    def __init__(self):
+        super(ModelMiddleBatch, self).__init__()
+
+    def forward(self, x):
+        x = x.unflatten(dim=0, sizes=(3,2))
+        x = x.permute(1, 0, 2, 3)
+        x = F.max_pool2d(x, 1)
+        return x
+
 def test():
     if version.parse(torch.__version__) < version.parse('1.13'):
         return True
@@ -48,6 +58,24 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
             return False
+
+    net = ModelMiddleBatch()
+    net.eval()
+
+    x = torch.rand(6, 5, 7)
+
+    # export torchscript
+    mod = torch.jit.trace(net, (x,))
+    mod.save("test_Tensor_unflatten_middle_batch.pt")
+
+    # torchscript to pnnx
+    os.system("../../src/pnnx test_Tensor_unflatten_middle_batch.pt inputshape=[6,5,7]")
+
+    with open("test_Tensor_unflatten_middle_batch.ncnn.param") as f:
+        text = f.read()
+        if "0=7 1=5 2=3" in text:
+            return False
+
     return True
 
 if __name__ == "__main__":
