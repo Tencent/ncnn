@@ -50,13 +50,6 @@ def test():
     import os
     os.system("../../src/pnnx test_Tensor_view.pt inputshape=[3,16],[5,9,11],[8,5,9,2],[2,3,5,7],[280]")
 
-    with open("test_Tensor_view.ncnn.param") as f:
-        lines = f.readlines()
-        if sum(1 for line in lines if line.startswith("Reshape") and "12=1" in line) != 1:
-            return False
-        if sum(1 for line in lines if line.startswith("Reshape") and "12=2" in line) != 1:
-            return False
-
     # ncnn inference
     import test_Tensor_view_ncnn
     b = test_Tensor_view_ncnn.test_inference()

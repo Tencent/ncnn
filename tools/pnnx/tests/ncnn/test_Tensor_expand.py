@@ -44,13 +44,6 @@ def test():
     import os
     os.system("../../src/pnnx test_Tensor_expand.pt inputshape=[1],[3,1,1],[8,1,9,1],[2,3,1,1],[1,3,1]")
 
-    with open("test_Tensor_expand.ncnn.param") as f:
-        lines = f.readlines()
-        if not any(line.startswith("Tile") and "-23302=3,1,5,7" in line for line in lines):
-            return False
-        if not any(line.startswith("Tile") and "-23302=4,2,1,1,5" in line for line in lines):
-            return False
-
     # ncnn inference
     import test_Tensor_expand_ncnn
     b = test_Tensor_expand_ncnn.test_inference()

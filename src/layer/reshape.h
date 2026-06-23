@@ -33,6 +33,7 @@ public:
 
     int ndim;
     int batch_mode;
+    int batch_axis;
 
     // see docs/developer-guide/expression.md
     std::string shape_expr;

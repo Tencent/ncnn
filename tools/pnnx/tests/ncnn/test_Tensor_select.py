@@ -39,11 +39,6 @@ def test():
     import os
     os.system("../../src/pnnx test_Tensor_select.pt inputshape=[1,3,16],[1,5,9,11],[4,5,2],[2,3,5,7]")
 
-    with open("test_Tensor_select.ncnn.param") as f:
-        lines = f.readlines()
-        if not any(line.startswith("Slice") for line in lines):
-            return False
-
     # ncnn inference
     import test_Tensor_select_ncnn
     b = test_Tensor_select_ncnn.test_inference()

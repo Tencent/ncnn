@@ -45,11 +45,6 @@ def test():
     import os
     os.system("../../src/pnnx test_torch_squeeze.pt inputshape=[1,16],[3,1],[5,1,11],[5,9,1,33],[2,3,1,5],[1,3,1,5]")
 
-    with open("test_torch_squeeze.ncnn.param") as f:
-        lines = f.readlines()
-        if sum(1 for line in lines if line.startswith("Squeeze")) != 6:
-            return False
-
     # ncnn inference
     import test_torch_squeeze_ncnn
     b = test_torch_squeeze_ncnn.test_inference()

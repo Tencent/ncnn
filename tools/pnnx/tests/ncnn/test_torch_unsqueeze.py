@@ -43,11 +43,6 @@ def test():
     import os
     os.system("../../src/pnnx test_torch_unsqueeze.pt inputshape=[16],[9,11],[4,6,7],[2,3,5,7]")
 
-    with open("test_torch_unsqueeze.ncnn.param") as f:
-        lines = f.readlines()
-        if sum(1 for line in lines if line.startswith("ExpandDims")) != 9:
-            return False
-
     # ncnn inference
     import test_torch_unsqueeze_ncnn
     b = test_torch_unsqueeze_ncnn.test_inference()

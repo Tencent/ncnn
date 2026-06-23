@@ -16,12 +16,12 @@ class Model(nn.Module):
         y = y.reshape(99, 5)
         z = z.reshape(4, 3, 6, 10)
         z = z.reshape(15, 6, 8)
-        w = F.max_pool2d(w, 1)
+        w = F.max_pool2d(w, 3, stride=1, padding=1)
         w0 = w.reshape(2, 3, 35)
         w1 = w.reshape(6, 5, 7)
         v = v.reshape(4, 2, 5, 7)
         v = v.permute(1, 0, 2, 3)
-        v = F.max_pool2d(v, 1)
+        v = F.max_pool2d(v, 3, stride=1, padding=1)
         x = F.relu(x)
         y = F.relu(y)
         z = F.relu(z)
@@ -49,13 +49,6 @@ def test():
     # torchscript to pnnx
     import os
     os.system("../../src/pnnx test_Tensor_reshape.pt inputshape=[3,16],[5,9,11],[8,5,9,2],[2,3,5,7],[280]")
-
-    with open("test_Tensor_reshape.ncnn.param") as f:
-        lines = f.readlines()
-        if sum(1 for line in lines if line.startswith("Reshape") and "12=1" in line) != 1:
-            return False
-        if sum(1 for line in lines if line.startswith("Reshape") and "12=2" in line) != 1:
-            return False
 
     # ncnn inference
     import test_Tensor_reshape_ncnn

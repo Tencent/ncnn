@@ -13,7 +13,7 @@ class Model(nn.Module):
         x = x.reshape_as(y)
         y = y.reshape_as(z)
         z = z.reshape_as(x)
-        q = F.max_pool2d(q, 1)
+        q = F.max_pool2d(q, 3, stride=1, padding=1)
         r = F.max_pool1d(r, 1)
         q0 = q.reshape_as(r)
         q1 = r.reshape_as(q)

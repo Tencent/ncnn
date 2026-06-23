@@ -1,0 +1,119 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int d;
+    int c;
+    int cstep;
+    int n;
+    int nstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outd;
+    int outc;
+    int outcstep;
+    int outn;
+    int outnstep;
+
+    int batch_mode;
+    int prefix;
+    int suffix;
+    int batch;
+} p;
+
+int blob_offset(int dims, int w, int h, int d, int cstep, int i)
+{
+    if (dims == 1)
+        return i;
+
+    if (dims == 2)
+    {
+        int y = i / w;
+        int x = i - y * w;
+        return y * w + x;
+    }
+
+    int size = w * h * d;
+    int z = i / size;
+    int r = i - z * size;
+    int y = r / w;
+    int x = r - y * w;
+    return z * cstep + y * w + x;
+}
+
+int blob_offset_xyz(int dims, int w, int h, int d, int cstep, int x, int y, int z)
+{
+    if (dims == 1)
+        return x;
+
+    if (dims == 2)
+        return y * w + x;
+
+    return z * cstep + y * w + x;
+}
+
+int compact_offset_xyz(int dims, int w, int h, int d, int x, int y, int z)
+{
+    if (dims == 1)
+        return x;
+
+    if (dims == 2)
+        return y * w + x;
+
+    return z * d * h * w + y * w + x;
+}
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    int outbatch = p.batch_mode == 2 ? p.batch : 1;
+
+    if (gx >= p.outw || gy >= p.outh * p.outd || gz >= p.outc * outbatch)
+        return;
+
+    int b = 0;
+    int z = gz;
+    if (p.batch_mode == 2)
+    {
+        b = gz / p.outc;
+        z = gz - b * p.outc;
+    }
+
+    int outi = compact_offset_xyz(p.outdims, p.outw, p.outh, p.outd, gx, gy, z);
+    int dst_offset = b * p.outnstep + blob_offset_xyz(p.outdims, p.outw, p.outh, p.outd, p.outcstep, gx, gy, z);
+
+    int src_offset;
+    if (p.batch_mode == 2)
+    {
+        int pi = outi / p.suffix;
+        int si = outi - pi * p.suffix;
+        int srci = (pi * p.batch + b) * p.suffix + si;
+        src_offset = blob_offset(p.dims, p.w, p.h, p.d, p.cstep, srci);
+    }
+    else
+    {
+        int batch_stride = p.batch * p.suffix;
+        int pi = outi / batch_stride;
+        int ri = outi - pi * batch_stride;
+        b = ri / p.suffix;
+        int si = ri - b * p.suffix;
+        int srci = pi * p.suffix + si;
+        src_offset = b * p.nstep + blob_offset(p.dims, p.w, p.h, p.d, p.cstep, srci);
+    }
+
+    buffer_cp1(top_blob_data, dst_offset, bottom_blob_data, src_offset);
+}

@@ -14,7 +14,7 @@ class Model(nn.Module):
         x = x.unflatten(dim=0, sizes=(2,1,2,-1))
         y = y.unflatten(dim=1, sizes=(3,4))
         z = z.unflatten(dim=-2, sizes=(3,-1))
-        q = F.max_pool2d(q, 1)
+        q = F.max_pool2d(q, 3, stride=1, padding=1)
         q = q.unflatten(dim=1, sizes=(3,4))
         return x, y, z, q
 
@@ -25,7 +25,7 @@ class ModelMiddleBatch(nn.Module):
     def forward(self, x):
         x = x.unflatten(dim=0, sizes=(3,2))
         x = x.permute(1, 0, 2, 3)
-        x = F.max_pool2d(x, 1)
+        x = F.max_pool2d(x, 3, stride=1, padding=1)
         return x
 
 def test():
@@ -62,7 +62,9 @@ def test():
     net = ModelMiddleBatch()
     net.eval()
 
+    torch.manual_seed(0)
     x = torch.rand(6, 5, 7)
+    a = net(x)
 
     # export torchscript
     mod = torch.jit.trace(net, (x,))
@@ -71,10 +73,11 @@ def test():
     # torchscript to pnnx
     os.system("../../src/pnnx test_Tensor_unflatten_middle_batch.pt inputshape=[6,5,7]")
 
-    with open("test_Tensor_unflatten_middle_batch.ncnn.param") as f:
-        text = f.read()
-        if "0=7 1=5 2=3" in text:
-            return False
+    import test_Tensor_unflatten_middle_batch_ncnn
+    b = test_Tensor_unflatten_middle_batch_ncnn.test_inference()
+
+    if not torch.equal(a, b):
+        return False
 
     return True
 

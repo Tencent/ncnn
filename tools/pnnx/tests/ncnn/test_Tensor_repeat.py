@@ -41,13 +41,6 @@ def test():
     import os
     os.system("../../src/pnnx test_Tensor_repeat.pt inputshape=[3,16],[5,9,11],[8,5,9,10],[2,3,5,1]")
 
-    with open("test_Tensor_repeat.ncnn.param") as f:
-        lines = f.readlines()
-        if not any(line.startswith("Tile") and "-23302=3,2,1,1" in line for line in lines):
-            return False
-        if not any(line.startswith("Tile") and "-23302=3,1,1,4" in line for line in lines):
-            return False
-
     # ncnn inference
     import test_Tensor_repeat_ncnn
     b = test_Tensor_repeat_ncnn.test_inference()

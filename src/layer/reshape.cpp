@@ -14,6 +14,7 @@ Reshape::Reshape()
     one_blob_only = true;
     support_inplace = false;
     batch_mode = 0;
+    batch_axis = 0;
 }
 
 int Reshape::load_param(const ParamDict& pd)
@@ -34,6 +35,7 @@ int Reshape::load_param(const ParamDict& pd)
         ndim = 0;
 
     batch_mode = pd.get(12, 0);
+    batch_axis = pd.get(13, 0);
     if (batch_mode != 0)
     {
         support_batch = true;
@@ -192,6 +194,75 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         if (bottom_blob.elempack != 1)
             return -1;
 
+        int shape[4] = {0, 0, 0, 0};
+        if (ndim == 1)
+            shape[0] = outw;
+        if (ndim == 2)
+        {
+            shape[0] = outh;
+            shape[1] = outw;
+        }
+        if (ndim == 3)
+        {
+            shape[0] = outc;
+            shape[1] = outh;
+            shape[2] = outw;
+        }
+        if (ndim == 4)
+        {
+            shape[0] = outc;
+            shape[1] = outd;
+            shape[2] = outh;
+            shape[3] = outw;
+        }
+
+        if (batch_axis != 0)
+        {
+            size_t prefix = 1;
+            for (int i = 0; i < batch_axis; i++)
+                prefix *= shape[i];
+
+            size_t suffix = 1;
+            for (int i = batch_axis + 1; i < ndim; i++)
+                suffix *= shape[i];
+
+            if (ndim == 1)
+                top_blob.create(outw, bottom_blob.elemsize, 1, opt.blob_allocator);
+            if (ndim == 2)
+                top_blob.create(outw, outh, bottom_blob.elemsize, 1, opt.blob_allocator);
+            if (ndim == 3)
+                top_blob.create(outw, outh, outc, bottom_blob.elemsize, 1, opt.blob_allocator);
+            if (ndim == 4)
+                top_blob.create(outw, outh, outd, outc, bottom_blob.elemsize, 1, opt.blob_allocator);
+
+            if (top_blob.empty())
+                return -100;
+
+            const size_t bottom_channel_size = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.d;
+            const size_t top_channel_size = (size_t)top_blob.w * top_blob.h * top_blob.d;
+            const size_t suffix_bytes = suffix * bottom_blob.elemsize;
+            for (size_t p = 0; p < prefix; p++)
+            {
+                const size_t srci = p * suffix;
+                const int sq = srci / bottom_channel_size;
+                const size_t sr = srci - (size_t)sq * bottom_channel_size;
+
+                for (int b = 0; b < bottom_blob.n; b++)
+                {
+                    const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + (size_t)sq * bottom_blob.cstep + sr) * bottom_blob.elemsize;
+
+                    const size_t dsti = (p * bottom_blob.n + b) * suffix;
+                    const int dq = dsti / top_channel_size;
+                    const size_t dr = dsti - (size_t)dq * top_channel_size;
+                    unsigned char* outptr = (unsigned char*)top_blob + ((size_t)dq * top_blob.cstep + dr) * bottom_blob.elemsize;
+
+                    memcpy(outptr, ptr, suffix_bytes);
+                }
+            }
+
+            return 0;
+        }
+
         Mat bottom_blob_flattened(total, bottom_blob.elemsize, opt.blob_allocator);
         if (bottom_blob_flattened.empty())
             return -100;
@@ -245,17 +316,73 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         if ((size_t)batch * out_total != bottom_total)
             return -1;
 
-        if (ndim == 1)
-            top_blob.create_batch(outw, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
-        if (ndim == 2)
-            top_blob.create_batch(outw, outh, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
-        if (ndim == 3)
-            top_blob.create_batch(outw, outh, outc, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
-        if (ndim == 4)
-            top_blob.create_batch(outw, outh, outd, outc, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+        if (batch_axis != 0)
+        {
+            int shape[4] = {0, 0, 0, 0};
+            if (ndim == 1)
+                shape[0] = outw;
+            if (ndim == 2)
+            {
+                shape[0] = outh;
+                shape[1] = outw;
+            }
+            if (ndim == 3)
+            {
+                shape[0] = outc;
+                shape[1] = outh;
+                shape[2] = outw;
+            }
+            if (ndim == 4)
+            {
+                shape[0] = outc;
+                shape[1] = outd;
+                shape[2] = outh;
+                shape[3] = outw;
+            }
 
-        if (top_blob.empty())
-            return -100;
+            size_t prefix = 1;
+            for (int i = 0; i < batch_axis; i++)
+                prefix *= shape[i];
+
+            size_t suffix = 1;
+            for (int i = batch_axis; i < ndim; i++)
+                suffix *= shape[i];
+
+            if (ndim == 1)
+                top_blob.create_batch(outw, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+            if (ndim == 2)
+                top_blob.create_batch(outw, outh, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+            if (ndim == 3)
+                top_blob.create_batch(outw, outh, outc, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+            if (ndim == 4)
+                top_blob.create_batch(outw, outh, outd, outc, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+
+            if (top_blob.empty())
+                return -100;
+
+            const size_t bottom_channel_size = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.d;
+            const size_t top_channel_size = (size_t)top_blob.w * top_blob.h * top_blob.d;
+            const size_t suffix_bytes = suffix * bottom_blob.elemsize;
+            for (size_t p = 0; p < prefix; p++)
+            {
+                for (int b = 0; b < batch; b++)
+                {
+                    const size_t srci = (p * batch + b) * suffix;
+                    const int sq = srci / bottom_channel_size;
+                    const size_t sr = srci - (size_t)sq * bottom_channel_size;
+                    const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)sq * bottom_blob.cstep + sr) * bottom_blob.elemsize;
+
+                    const size_t dsti = p * suffix;
+                    const int dq = dsti / top_channel_size;
+                    const size_t dr = dsti - (size_t)dq * top_channel_size;
+                    unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + (size_t)dq * top_blob.cstep + dr) * bottom_blob.elemsize;
+
+                    memcpy(outptr, ptr, suffix_bytes);
+                }
+            }
+
+            return 0;
+        }
 
         Mat bottom_blob_flattened(bottom_total, bottom_blob.elemsize, opt.workspace_allocator);
         if (bottom_blob_flattened.empty())
@@ -269,6 +396,18 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
             memcpy(outptr, ptr, size);
             outptr += size;
         }
+
+        if (ndim == 1)
+            top_blob.create_batch(outw, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+        if (ndim == 2)
+            top_blob.create_batch(outw, outh, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+        if (ndim == 3)
+            top_blob.create_batch(outw, outh, outc, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+        if (ndim == 4)
+            top_blob.create_batch(outw, outh, outd, outc, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+
+        if (top_blob.empty())
+            return -100;
 
         const unsigned char* ptr = bottom_blob_flattened;
         const size_t out_channel_size = (size_t)top_blob.w * top_blob.h * top_blob.d * bottom_blob.elemsize;

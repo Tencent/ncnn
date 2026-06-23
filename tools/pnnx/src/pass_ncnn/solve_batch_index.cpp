@@ -172,7 +172,7 @@ static void solve_batch_index_forward(Operand* operand)
         return;
 
     int batch_index = operand->params["__batch_index"].i;
-    if (batch_index == 233)
+    if (batch_index < 0 || batch_index == 233)
         return;
 
     for (Operator* op : operand->consumers)
@@ -437,6 +437,28 @@ static void solve_batch_index_forward(Operand* operand)
                 // give up reshape across batch index
             }
         }
+        else if (op->type == "Tensor.unflatten")
+        {
+            int dim = op->params.at("dim").i;
+            const int sizes_rank = (int)op->params.at("sizes").ai.size();
+            if (dim < 0)
+                dim += input_rank0;
+
+            int batch_index_unflattened = batch_index;
+            if (dim == batch_index)
+                batch_index_unflattened = 233;
+            else if (dim < batch_index)
+                batch_index_unflattened = batch_index + sizes_rank - 1;
+
+            Operand* r = op->outputs[0];
+            if (r->params.find("__batch_index") == r->params.end())
+            {
+                r->params["__batch_index"] = batch_index_unflattened;
+
+                solve_batch_index_forward(r);
+                solve_batch_index_backward(r);
+            }
+        }
         else if (op->type == "torch.flatten")
         {
             int start_dim = op->params.at("start_dim").i;
@@ -607,7 +629,7 @@ static void solve_batch_index_backward(Operand* operand)
         return;
 
     int batch_index = operand->params["__batch_index"].i;
-    if (batch_index == 233)
+    if (batch_index < 0 || batch_index == 233)
         return;
 
     Operator* op = operand->producer;
@@ -862,6 +884,28 @@ static void solve_batch_index_backward(Operand* operand)
         else
         {
             // give up reshape across batch index
+        }
+    }
+    else if (op->type == "Tensor.unflatten")
+    {
+        int dim = op->params.at("dim").i;
+        const int sizes_rank = (int)op->params.at("sizes").ai.size();
+        if (dim < 0)
+            dim += input_rank0;
+
+        int batch_index_unflattened = batch_index;
+        if (dim <= batch_index && batch_index < dim + sizes_rank)
+            batch_index_unflattened = 233;
+        else if (batch_index >= dim + sizes_rank)
+            batch_index_unflattened = batch_index - sizes_rank + 1;
+
+        Operand* r = op->inputs[0];
+        if (r->params.find("__batch_index") == r->params.end())
+        {
+            r->params["__batch_index"] = batch_index_unflattened;
+
+            solve_batch_index_backward(r);
+            solve_batch_index_forward(r);
         }
     }
     else if (op->type == "Tensor.slice" || op->type == "Tensor.select")

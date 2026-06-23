@@ -38,10 +38,40 @@ pnnx.Output             output      1 0 out
         const int batch_index = op->outputs[0]->params["__batch_index"].i;
 
         int batch_mode = 0;
+        int batch_axis = 0;
         if (input_batch_index == 0 && batch_index == 233)
+        {
             batch_mode = 1;
-        if (input_batch_index == 233 && batch_index == 0)
+            if (op->outputs[0]->params.find("__batch_axis") != op->outputs[0]->params.end())
+            {
+                batch_axis = op->outputs[0]->params["__batch_axis"].i;
+            }
+            else
+            {
+                const std::vector<int>& input_shape = op->inputs[0]->shape;
+                const std::vector<int>& output_shape = op->outputs[0]->shape;
+                if (!input_shape.empty() && !output_shape.empty())
+                {
+                    const int batch_size = input_shape[input_batch_index];
+                    int batch_axis_count = 0;
+                    for (int i = 0; i < (int)output_shape.size(); i++)
+                    {
+                        if (output_shape[i] == batch_size)
+                        {
+                            batch_axis = i;
+                            batch_axis_count += 1;
+                        }
+                    }
+                    if (batch_axis_count != 1)
+                        batch_axis = 0;
+                }
+            }
+        }
+        if (input_batch_index == 233 && batch_index != 233)
+        {
             batch_mode = 2;
+            batch_axis = batch_index;
+        }
 
         if (input_batch_index != 233 && input_batch_index != 0 && batch_index == 233)
         {
@@ -110,6 +140,9 @@ pnnx.Output             output      1 0 out
 
         if (batch_mode != 0)
             op->params["12"] = batch_mode;
+
+        if (batch_mode != 0 && batch_axis != 0)
+            op->params["13"] = batch_axis;
     }
 };
 

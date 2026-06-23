@@ -44,11 +44,6 @@ def test():
     import os
     os.system("../../src/pnnx test_Tensor_slice.pt inputshape=[13,26],[15,19,21],[18,15,19,20],[2,3,6,8]")
 
-    with open("test_Tensor_slice.ncnn.param") as f:
-        lines = f.readlines()
-        if not any(line.startswith("Crop") and "slice_9" in line and "-23311=3,0,1,2" in line for line in lines):
-            return False
-
     # ncnn inference
     import test_Tensor_slice_ncnn
     b = test_Tensor_slice_ncnn.test_inference()

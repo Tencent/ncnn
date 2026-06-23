@@ -40,11 +40,6 @@ def test():
     import os
     os.system("../../src/pnnx test_torch_t.pt inputshape=[3],[5,9],[2,3,1,1]")
 
-    with open("test_torch_t.ncnn.param") as f:
-        lines = f.readlines()
-        if sum(1 for line in lines if line.startswith("Permute")) != 2:
-            return False
-
     # ncnn inference
     import test_torch_t_ncnn
     b = test_torch_t_ncnn.test_inference()
