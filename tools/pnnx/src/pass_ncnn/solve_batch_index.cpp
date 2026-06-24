@@ -270,6 +270,9 @@ static void solve_batch_index_forward(Operand* operand)
         }
         else if (op->type == "Tensor.reshape")
         {
+            if (operand != op->inputs[0])
+                continue;
+
             std::vector<int> shape;
             if (op->params.find("shape") == op->params.end())
             {
@@ -324,6 +327,9 @@ static void solve_batch_index_forward(Operand* operand)
             {
                 shape = op->params.at("shape").ai;
             }
+
+            if (batch_index >= input_rank0 || output_rank0 == 0 || shape.empty())
+                continue;
 
             const int batch_size = op->inputs[0]->shape[batch_index];
             const int batch_axis_size = batch_size > 1 ? batch_size : 1;
@@ -716,6 +722,9 @@ static void solve_batch_index_backward(Operand* operand)
     }
     else if (op->type == "Tensor.reshape")
     {
+        if (operand != op->outputs[0])
+            return;
+
         std::vector<int> shape;
         if (op->params.find("shape") == op->params.end())
         {
@@ -770,6 +779,9 @@ static void solve_batch_index_backward(Operand* operand)
         {
             shape = op->params.at("shape").ai;
         }
+
+        if (batch_index >= output_rank0 || input_rank0 == 0 || shape.empty())
+            return;
 
         const int batch_size = op->outputs[0]->shape[batch_index];
         const int batch_axis_size = batch_size > 1 ? batch_size : 1;
@@ -870,11 +882,9 @@ static void solve_batch_index_backward(Operand* operand)
 
         if (keep_batch_index)
         {
-            for (Operand* r : op->inputs)
+            Operand* r = op->inputs[0];
+            if (r->params.find("__batch_index") == r->params.end())
             {
-                if (r->params.find("__batch_index") != r->params.end())
-                    continue;
-
                 r->params["__batch_index"] = batch_index_unreshaped;
 
                 solve_batch_index_backward(r);
@@ -898,6 +908,33 @@ static void solve_batch_index_backward(Operand* operand)
             batch_index_unflattened = 233;
         else if (batch_index >= dim + sizes_rank)
             batch_index_unflattened = batch_index - sizes_rank + 1;
+
+        Operand* r = op->inputs[0];
+        if (r->params.find("__batch_index") == r->params.end())
+        {
+            r->params["__batch_index"] = batch_index_unflattened;
+
+            solve_batch_index_backward(r);
+            solve_batch_index_forward(r);
+        }
+    }
+    else if (op->type == "torch.flatten")
+    {
+        int start_dim = op->params.at("start_dim").i;
+        int end_dim = op->params.at("end_dim").i;
+        if (start_dim < 0)
+            start_dim += input_rank0;
+        if (end_dim < 0)
+            end_dim += input_rank0;
+
+        if (input_rank0 <= start_dim || input_rank0 <= end_dim)
+            return;
+
+        int batch_index_unflattened = batch_index;
+        if (batch_index == start_dim && start_dim != end_dim)
+            return;
+        if (batch_index > start_dim)
+            batch_index_unflattened = batch_index + end_dim - start_dim;
 
         Operand* r = op->inputs[0];
         if (r->params.find("__batch_index") == r->params.end())

@@ -39,8 +39,6 @@ int Reshape::load_param(const ParamDict& pd)
     if (batch_mode != 0)
     {
         support_batch = true;
-        support_packing = false;
-        support_vulkan_packing = false;
     }
 
     shape_expr = pd.get(6, "");

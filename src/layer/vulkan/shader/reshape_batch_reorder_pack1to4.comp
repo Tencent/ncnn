@@ -1,0 +1,124 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#if NCNN_fp16_packed || NCNN_bf16_packed
+layout(binding = 0) readonly buffer bottom_blob { sfpvec2 bottom_blob_data[]; };
+#else
+layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+#endif
+layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int d;
+    int c;
+    int cstep;
+    int n;
+    int nstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outd;
+    int outc;
+    int outcstep;
+    int outn;
+    int outnstep;
+
+    int batch_mode;
+    int prefix;
+    int suffix;
+    int batch;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    int outbatch = p.batch_mode == 2 ? p.batch : 1;
+
+    if (gx >= p.outw || gy >= p.outh * p.outd || gz >= p.outc * outbatch)
+        return;
+
+    int b = 0;
+    int z = gz;
+    if (p.batch_mode == 2)
+    {
+        b = gz / p.outc;
+        z = gz - b * p.outc;
+    }
+
+    ivec4 i4;
+    if (p.outdims == 1) i4 = gx * 4 + ivec4(0, 1, 2, 3);
+    if (p.outdims == 2) i4 = (gy * 4) * p.outw + gx + ivec4(0, 1, 2, 3) * p.outw;
+    if (p.outdims == 3) i4 = (z * 4) * p.outh * p.outw + gy * p.outw + gx + ivec4(0, 1, 2, 3) * p.outh * p.outw;
+    if (p.outdims == 4) i4 = (z * 4) * p.outd * p.outh * p.outw + gy * p.outw + gx + ivec4(0, 1, 2, 3) * p.outd * p.outh * p.outw;
+
+    ivec4 src_b = ivec4(0);
+    ivec4 src_i;
+    if (p.batch_mode == 2)
+    {
+        ivec4 pi = i4 / p.suffix;
+        ivec4 si = i4 - pi * p.suffix;
+        src_i = (pi * p.batch + b) * p.suffix + si;
+    }
+    else
+    {
+        int batch_stride = p.batch * p.suffix;
+        ivec4 pi = i4 / batch_stride;
+        ivec4 ri = i4 - pi * batch_stride;
+        src_b = ri / p.suffix;
+        ivec4 si = ri - src_b * p.suffix;
+        src_i = pi * p.suffix + si;
+    }
+
+    ivec4 src_offset;
+    if (p.dims == 1)
+    {
+        src_offset = src_i;
+    }
+    else if (p.dims == 2)
+    {
+        ivec4 y = src_i / p.w;
+        ivec4 x = src_i - y * p.w;
+        src_offset = y * p.w + x;
+    }
+    else
+    {
+        int size = p.w * p.h * p.d;
+        ivec4 z = src_i / size;
+        ivec4 r = src_i - z * size;
+        ivec4 y = r / p.w;
+        ivec4 x = r - y * p.w;
+        src_offset = z * p.cstep + y * p.w + x;
+    }
+    src_offset += src_b * p.nstep;
+
+    int gi = b * p.outnstep;
+    if (p.outdims == 1) gi += gx;
+    if (p.outdims == 2) gi += gy * p.outw + gx;
+    if (p.outdims == 3 || p.outdims == 4) gi += z * p.outcstep + gy * p.outw + gx;
+
+#if NCNN_fp16_packed || NCNN_bf16_packed
+    ivec4 v_offset = src_offset / 2;
+    ivec4 lane2 = src_offset % 2;
+
+    afpvec2 vr = buffer_ld2(bottom_blob_data, v_offset.r);
+    afpvec2 vg = buffer_ld2(bottom_blob_data, v_offset.g);
+    afpvec2 vb = buffer_ld2(bottom_blob_data, v_offset.b);
+    afpvec2 va = buffer_ld2(bottom_blob_data, v_offset.a);
+
+    afpvec4 v = afpvec4(vr[lane2.r], vg[lane2.g], vb[lane2.b], va[lane2.a]);
+
+    buffer_st4(top_blob_data, gi, v);
+#else
+    buffer_cp1to4(top_blob_data, gi, bottom_blob_data, src_offset);
+#endif
+}

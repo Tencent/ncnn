@@ -13,7 +13,12 @@ class Reshape_riscv : public Reshape
 public:
     Reshape_riscv();
 
+    virtual int load_param(const ParamDict& pd);
+
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
+protected:
+    int forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 };
 
 } // namespace ncnn

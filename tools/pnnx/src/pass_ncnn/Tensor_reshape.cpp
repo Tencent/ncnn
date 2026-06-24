@@ -72,10 +72,33 @@ pnnx.Output             output      1 0 out
             batch_mode = 2;
             batch_axis = batch_index;
         }
-        if (input_batch_index != 233 && input_batch_index != 0 && batch_index == 233)
+        if (input_batch_index != 233 && input_batch_index > 0 && batch_index == 233)
         {
             batch_mode = 1;
-            batch_axis = input_batch_index;
+            const std::vector<int>& input_shape = op->inputs[0]->shape;
+            const std::vector<int>& output_shape = op->outputs[0]->shape;
+            if (input_shape.empty() || output_shape.empty() || input_batch_index >= (int)input_shape.size())
+            {
+                fprintf(stderr, "reshape tensor with batch index %d folded is not supported yet!\n", input_batch_index);
+                return;
+            }
+
+            const int batch_size = input_shape[input_batch_index];
+            int batch_axis_count = 0;
+            for (int i = 0; i < (int)output_shape.size(); i++)
+            {
+                if (output_shape[i] == batch_size)
+                {
+                    batch_axis = i;
+                    batch_axis_count += 1;
+                }
+            }
+
+            if (batch_axis_count != 1)
+            {
+                fprintf(stderr, "reshape tensor with batch index %d folded is not supported yet!\n", input_batch_index);
+                return;
+            }
         }
 
         // drop shape batch index

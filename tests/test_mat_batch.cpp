@@ -816,6 +816,1640 @@ static int test_batch_reshape_batch_to_dim_axis1()
     return 0;
 }
 
+static int test_batch_reshape_packed_batch_to_dim_axis0()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=-1 12=1\n";
+
+    const int B = 2;
+    const int C = 4;
+    const int H = 5;
+    const int W = 7;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 1000 + q * 100 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis0 reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+
+    ncnn::Mat input_batch_pack4;
+    ncnn::convert_packing(input_batch, input_batch_pack4, 4, opt);
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch_pack4);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis0 extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis0 output should stay packed\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis0 value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_packed_batch_to_dim_axis0_2d()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=7 1=8 12=1\n";
+
+    const int B = 2;
+    const int H = 4;
+    const int W = 7;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int y = 0; y < H; y++)
+        {
+            float* ptr = sub.row(y);
+            for (int x = 0; x < W; x++)
+            {
+                ptr[x] = (float)(b * 1000 + y * 100 + x);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis0_2d reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+
+    ncnn::Mat input_batch_pack4;
+    ncnn::convert_packing(input_batch, input_batch_pack4, 4, opt);
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch_pack4);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis0_2d extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis0_2d output should stay packed\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis0_2d value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=7 1=32 12=1\n";
+
+    const int B = 2;
+    const int H = 16;
+    const int W = 7;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int y = 0; y < H; y++)
+        {
+            float* ptr = sub.row(y);
+            for (int x = 0; x < W; x++)
+            {
+                ptr[x] = (float)(b * 1000 + y * 100 + x);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked output should be packed\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_packed_batch_to_dim_axis1()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=4 12=1 13=1\n";
+
+    const int B = 2;
+    const int C = 4;
+    const int H = 5;
+    const int W = 7;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 1000 + q * 100 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis1 reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+
+    ncnn::Mat input_batch_pack4;
+    ncnn::convert_packing(input_batch, input_batch_pack4, 4, opt);
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch_pack4);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis1 extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis1 output should stay packed\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis1 value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_packed_batch_to_dim_axis1_2d()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=7 1=2 2=4 12=1 13=1\n";
+
+    const int B = 2;
+    const int H = 4;
+    const int W = 7;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int y = 0; y < H; y++)
+        {
+            float* ptr = sub.row(y);
+            for (int x = 0; x < W; x++)
+            {
+                ptr[x] = (float)(b * 1000 + y * 100 + x);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis1_2d reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+
+    ncnn::Mat input_batch_pack4;
+    ncnn::convert_packing(input_batch, input_batch_pack4, 4, opt);
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch_pack4);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis1_2d extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis1_2d output should stay packed\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis1_2d value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_batch_to_dim_axis1_pack1topacked()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=4 12=1 13=1\n";
+
+    const int B = 2;
+    const int C = 4;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 1000 + q * 100 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis1_pack1topacked reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis1_pack1topacked extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis1_pack1topacked output should be packed\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis1_pack1topacked value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_packed_dim_to_batch_axis0()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=7 1=5 2=4 12=2\n";
+
+    const int B = 2;
+    const int C = 4;
+    const int H = 5;
+    const int W = 7;
+
+    ncnn::Mat input;
+    input.create(W, H, C * B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = input.channel(b * C + q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 1000 + q * 100 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis0 reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+
+    ncnn::Mat input_pack4;
+    ncnn::convert_packing(input, input_pack4, 4, opt);
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_pack4);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis0 extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis0 output should stay packed\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis0 value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_packed_dim_to_batch_axis0_2d()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=7 1=4 12=2\n";
+
+    const int B = 2;
+    const int H = 4;
+    const int W = 7;
+
+    ncnn::Mat input;
+    input.create(W, H * B, (size_t)4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        for (int y = 0; y < H; y++)
+        {
+            float* ptr = input.row(b * H + y);
+            for (int x = 0; x < W; x++)
+            {
+                ptr[x] = (float)(b * 1000 + y * 100 + x);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis0_2d reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+
+    ncnn::Mat input_pack4;
+    ncnn::convert_packing(input, input_pack4, 4, opt);
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_pack4);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis0_2d extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis0_2d output should stay packed\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis0_2d value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_dim_to_batch_axis0_2d_pack1topacked()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=7 1=16 12=2\n";
+
+    const int B = 2;
+    const int H = 16;
+    const int W = 7;
+
+    ncnn::Mat input;
+    input.create(W, H * B, (size_t)4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        for (int y = 0; y < H; y++)
+        {
+            float* ptr = input.row(b * H + y);
+            for (int x = 0; x < W; x++)
+            {
+                ptr[x] = (float)(b * 1000 + y * 100 + x);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_axis0_2d_pack1topacked reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_axis0_2d_pack1topacked extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_axis0_2d_pack1topacked output should be packed\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_axis0_2d_pack1topacked value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_packed_dim_to_batch_axis1()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=7 1=5 2=4 12=2 13=1\n";
+
+    const int B = 2;
+    const int C = 4;
+    const int H = 5;
+    const int W = 7;
+
+    ncnn::Mat input;
+    input.create(W, H, C * B, 4u, 1);
+    for (int q = 0; q < C; q++)
+    {
+        for (int b = 0; b < B; b++)
+        {
+            float* ptr = input.channel(q * B + b);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 1000 + q * 100 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1 reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+
+    ncnn::Mat input_pack4;
+    ncnn::convert_packing(input, input_pack4, 4, opt);
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_pack4);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1 extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1 output should stay packed\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1 value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_packed_dim_to_batch_axis1_2d()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=7 1=4 12=2 13=1\n";
+
+    const int B = 2;
+    const int H = 4;
+    const int W = 7;
+
+    ncnn::Mat input;
+    input.create(W, B, H, 4u, 1);
+    for (int y = 0; y < H; y++)
+    {
+        ncnn::Mat sub = input.channel(y);
+        for (int b = 0; b < B; b++)
+        {
+            float* ptr = sub.row(b);
+            for (int x = 0; x < W; x++)
+            {
+                ptr[x] = (float)(b * 1000 + y * 100 + x);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1_2d reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+
+    ncnn::Mat input_pack4;
+    ncnn::convert_packing(input, input_pack4, 4, opt);
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_pack4);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1_2d extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1_2d output should stay packed\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1_2d value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_packed_dim_to_batch_axis1_4d()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=7 1=5 2=4 12=2 13=1\n";
+
+    const int B = 2;
+    const int C = 4;
+    const int H = 5;
+    const int W = 7;
+
+    ncnn::Mat input;
+    input.create(W, H, B, C, 4u, 1);
+    for (int q = 0; q < C; q++)
+    {
+        ncnn::Mat sub = input.channel(q);
+        for (int b = 0; b < B; b++)
+        {
+            float* ptr = sub.channel(b);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 1000 + q * 100 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1_4d reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+
+    ncnn::Mat input_pack4;
+    ncnn::convert_packing(input, input_pack4, 4, opt);
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_pack4);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1_4d extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1_4d output should stay packed\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1_4d value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_dim_to_batch_axis1_pack1topacked()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 2=4 12=2 13=1\n";
+
+    const int B = 2;
+    const int C = 4;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input;
+    input.create(W, H, B, C, 4u, 1);
+    for (int q = 0; q < C; q++)
+    {
+        ncnn::Mat sub = input.channel(q);
+        for (int b = 0; b < B; b++)
+        {
+            float* ptr = sub.channel(b);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 1000 + q * 100 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_axis1_pack1topacked reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_axis1_pack1topacked extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_axis1_pack1topacked output should be packed\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_axis1_pack1topacked value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_batch_to_dim_pack1topacked()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 2=12 12=1\n";
+
+    const int B = 4;
+    const int C = 3;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_pack1topacked reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_pack1topacked extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_pack1topacked output should be packed\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_pack1topacked value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_batch_to_dim_pack1tohighpack()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 2=16 12=1\n";
+
+    const int B = 4;
+    const int C = 4;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_pack1tohighpack reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_pack1tohighpack extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_pack1tohighpack output should be packed\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_pack1tohighpack value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_batch_to_dim_pack4topack1()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=60 1=2 12=1\n";
+
+    const int B = 2;
+    const int C = 4;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_pack4topack1 reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+
+    ncnn::Mat input_batch_pack4;
+    ncnn::convert_packing(input_batch, input_batch_pack4, 4, opt);
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch_pack4);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_pack4topack1 extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack != 1)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_pack4topack1 output should be pack1\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_pack4topack1 value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_dim_to_batch_pack1topacked()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 2=4 12=2\n";
+
+    const int B = 3;
+    const int C = 4;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input;
+    input.create(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input.channel(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_pack1topacked reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_pack1topacked extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_pack1topacked output should be packed\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_pack1topacked value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_dim_to_batch_pack1tohighpack()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 2=16 12=2\n";
+
+    const int B = 2;
+    const int C = 16;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input;
+    input.create(W, H, C * B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = input.channel(b * C + q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_pack1tohighpack reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_pack1tohighpack extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_pack1tohighpack output should be packed\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_pack1tohighpack value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_dim_to_batch_pack4topack1()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 2=3 12=2\n";
+
+    const int B = 4;
+    const int C = 3;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input;
+    input.create(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input.channel(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_pack4topack1 reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+
+    ncnn::Mat input_pack4;
+    ncnn::convert_packing(input, input_pack4, 4, opt);
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_pack4);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_pack4topack1 extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack != 1)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_pack4topack1 output should be pack1\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_pack4topack1 value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+#if NCNN_BF16
+static int test_batch_reshape_bf16_storage_packed()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 2=12 12=1\n";
+
+    const int B = 4;
+    const int C = 3;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 16 + q * 4 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_bf16_storage_packed reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.opt.use_bf16_storage = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_bf16_storage_packed extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_bf16_storage_packed output should be packed\n");
+        return -1;
+    }
+    if (output.elembits() != 16)
+    {
+        fprintf(stderr, "test_batch_reshape_bf16_storage_packed output should be bf16 storage\n");
+        return -1;
+    }
+
+    ncnn::Mat output32;
+    ncnn::cast_bfloat16_to_float32(output, output32, net.opt);
+    if (CompareMat(output_ref, output32, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_bf16_storage_packed value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_bf16_storage_dim_to_batch_packed()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 2=12 12=2\n";
+
+    const int B = 2;
+    const int C = 12;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input;
+    input.create(W, H, C * B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = input.channel(b * C + q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 16 + q * 4 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_bf16_storage_dim_to_batch_packed reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.opt.use_bf16_storage = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_bf16_storage_dim_to_batch_packed extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_bf16_storage_dim_to_batch_packed output should be packed\n");
+        return -1;
+    }
+    if (output.elembits() != 16)
+    {
+        fprintf(stderr, "test_batch_reshape_bf16_storage_dim_to_batch_packed output should be bf16 storage\n");
+        return -1;
+    }
+
+    ncnn::Mat output32;
+    ncnn::cast_bfloat16_to_float32(output, output32, net.opt);
+    if (CompareMat(output_ref, output32, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_bf16_storage_dim_to_batch_packed value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_bf16_storage_axis1_packed()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=4 12=1 13=1\n";
+
+    const int B = 2;
+    const int C = 4;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 16 + q * 4 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_bf16_storage_axis1_packed reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.opt.use_bf16_storage = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_bf16_storage_axis1_packed extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_bf16_storage_axis1_packed output should be packed\n");
+        return -1;
+    }
+    if (output.elembits() != 16)
+    {
+        fprintf(stderr, "test_batch_reshape_bf16_storage_axis1_packed output should be bf16 storage\n");
+        return -1;
+    }
+
+    ncnn::Mat output32;
+    ncnn::cast_bfloat16_to_float32(output, output32, net.opt);
+    if (CompareMat(output_ref, output32, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_bf16_storage_axis1_packed value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
+
 static int test_batch_reshape_dim_to_batch_no_infer()
 {
     const char param_str[] = "7767517\n"
@@ -2752,6 +4386,333 @@ static int test_vkmat_batch_forward_reshape_batch_to_dim_axis1()
     return 0;
 }
 
+static int test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=-1 12=1\n";
+
+    const int B = 2;
+    const int C = 3;
+    const int H = 5;
+    const int W = 4;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4 reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    for (int use_fp16_storage = 0; use_fp16_storage < 2; use_fp16_storage++)
+    {
+        if (use_fp16_storage && !ncnn::get_gpu_device()->info.support_fp16_storage())
+            continue;
+
+        ncnn::Net net;
+        ncnn::Option opt;
+        opt.use_vulkan_compute = true;
+        opt.use_packing_layout = true;
+        opt.use_fp16_packed = use_fp16_storage;
+        opt.use_fp16_storage = use_fp16_storage;
+        net.opt = opt;
+        net.load_param_mem(param_str);
+        net.load_model((const unsigned char*)"");
+
+        ncnn::Extractor ex = net.create_extractor();
+        ex.input("data", input_batch);
+
+        ncnn::Mat output;
+        ret = ex.extract("output", output, 1);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4 extract failed fp16s=%d ret=%d\n", use_fp16_storage, ret);
+            return -1;
+        }
+        if (output.elempack != 4)
+        {
+            fprintf(stderr, "test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4 output should be pack4 fp16s=%d\n", use_fp16_storage);
+            return -1;
+        }
+        if (CompareMat(output_ref, output, 1e-4f) != 0)
+        {
+            fprintf(stderr, "test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4 value mismatch fp16s=%d\n", use_fp16_storage);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int test_vkmat_batch_forward_reshape_packed_batch_to_dim_axis1()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=4 12=1 13=1\n";
+
+    const int B = 2;
+    const int C = 4;
+    const int H = 5;
+    const int W = 7;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_reshape_packed_batch_to_dim_axis1 reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    for (int use_fp16_storage = 0; use_fp16_storage < 2; use_fp16_storage++)
+    {
+        if (use_fp16_storage && !ncnn::get_gpu_device()->info.support_fp16_storage())
+            continue;
+
+        ncnn::Net net;
+        ncnn::Option opt;
+        opt.use_vulkan_compute = true;
+        opt.use_packing_layout = true;
+        opt.use_fp16_packed = use_fp16_storage;
+        opt.use_fp16_storage = use_fp16_storage;
+        net.opt = opt;
+        net.load_param_mem(param_str);
+        net.load_model((const unsigned char*)"");
+
+        ncnn::Extractor ex = net.create_extractor();
+        ex.input("data", input_batch);
+
+        ncnn::Mat output;
+        ret = ex.extract("output", output, 1);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_vkmat_batch_forward_reshape_packed_batch_to_dim_axis1 extract failed fp16s=%d ret=%d\n", use_fp16_storage, ret);
+            return -1;
+        }
+        if (output.elempack != 4)
+        {
+            fprintf(stderr, "test_vkmat_batch_forward_reshape_packed_batch_to_dim_axis1 output should be pack4 fp16s=%d\n", use_fp16_storage);
+            return -1;
+        }
+        if (CompareMat(output_ref, output, 1e-4f) != 0)
+        {
+            fprintf(stderr, "test_vkmat_batch_forward_reshape_packed_batch_to_dim_axis1 value mismatch fp16s=%d\n", use_fp16_storage);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int test_vkmat_batch_forward_reshape_dim_to_batch_pack4to1()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 2=3 12=2\n";
+
+    const int B = 4;
+    const int C = 3;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input;
+    input.create(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input.channel(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_reshape_dim_to_batch_pack4to1 reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    for (int use_fp16_storage = 0; use_fp16_storage < 2; use_fp16_storage++)
+    {
+        if (use_fp16_storage && !ncnn::get_gpu_device()->info.support_fp16_storage())
+            continue;
+
+        ncnn::Net net;
+        ncnn::Option opt;
+        opt.use_vulkan_compute = true;
+        opt.use_packing_layout = true;
+        opt.use_fp16_packed = use_fp16_storage;
+        opt.use_fp16_storage = use_fp16_storage;
+        net.opt = opt;
+        net.load_param_mem(param_str);
+        net.load_model((const unsigned char*)"");
+
+        ncnn::Extractor ex = net.create_extractor();
+        ex.input("data", input);
+
+        ncnn::Mat output;
+        ret = ex.extract("output", output, 1);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_vkmat_batch_forward_reshape_dim_to_batch_pack4to1 extract failed fp16s=%d ret=%d\n", use_fp16_storage, ret);
+            return -1;
+        }
+        if (output.elempack != 1)
+        {
+            fprintf(stderr, "test_vkmat_batch_forward_reshape_dim_to_batch_pack4to1 output should be pack1 fp16s=%d\n", use_fp16_storage);
+            return -1;
+        }
+        if (CompareMat(output_ref, output, 1e-4f) != 0)
+        {
+            fprintf(stderr, "test_vkmat_batch_forward_reshape_dim_to_batch_pack4to1 value mismatch fp16s=%d\n", use_fp16_storage);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=7 1=5 2=4 12=2 13=1\n";
+
+    const int B = 2;
+    const int C = 4;
+    const int H = 5;
+    const int W = 7;
+
+    ncnn::Mat input;
+    input.create(W, H, C * B, 4u, 1);
+    for (int q = 0; q < C; q++)
+    {
+        for (int b = 0; b < B; b++)
+        {
+            float* ptr = input.channel(q * B + b);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1 reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    for (int use_fp16_storage = 0; use_fp16_storage < 2; use_fp16_storage++)
+    {
+        if (use_fp16_storage && !ncnn::get_gpu_device()->info.support_fp16_storage())
+            continue;
+
+        ncnn::Net net;
+        ncnn::Option opt;
+        opt.use_vulkan_compute = true;
+        opt.use_packing_layout = true;
+        opt.use_fp16_packed = use_fp16_storage;
+        opt.use_fp16_storage = use_fp16_storage;
+        net.opt = opt;
+        net.load_param_mem(param_str);
+        net.load_model((const unsigned char*)"");
+
+        ncnn::Extractor ex = net.create_extractor();
+        ex.input("data", input);
+
+        ncnn::Mat output;
+        ret = ex.extract("output", output, 1);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1 extract failed fp16s=%d ret=%d\n", use_fp16_storage, ret);
+            return -1;
+        }
+        if (output.elempack != 4)
+        {
+            fprintf(stderr, "test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1 output should be pack4 fp16s=%d\n", use_fp16_storage);
+            return -1;
+        }
+        if (CompareMat(output_ref, output, 1e-4f) != 0)
+        {
+            fprintf(stderr, "test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1 value mismatch fp16s=%d\n", use_fp16_storage);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 static int test_vkmat_batch_forward_relu()
 {
     const char param_str[] = "7767517\n"
@@ -3285,6 +5246,30 @@ int main()
     ret |= test_batch_reshape_dim_to_batch();
     ret |= test_batch_reshape_dim_to_batch_axis1();
     ret |= test_batch_reshape_batch_to_dim_axis1();
+    ret |= test_batch_reshape_packed_batch_to_dim_axis0();
+    ret |= test_batch_reshape_packed_batch_to_dim_axis0_2d();
+    ret |= test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked();
+    ret |= test_batch_reshape_packed_batch_to_dim_axis1();
+    ret |= test_batch_reshape_packed_batch_to_dim_axis1_2d();
+    ret |= test_batch_reshape_batch_to_dim_axis1_pack1topacked();
+    ret |= test_batch_reshape_packed_dim_to_batch_axis0();
+    ret |= test_batch_reshape_packed_dim_to_batch_axis0_2d();
+    ret |= test_batch_reshape_dim_to_batch_axis0_2d_pack1topacked();
+    ret |= test_batch_reshape_packed_dim_to_batch_axis1();
+    ret |= test_batch_reshape_packed_dim_to_batch_axis1_2d();
+    ret |= test_batch_reshape_packed_dim_to_batch_axis1_4d();
+    ret |= test_batch_reshape_dim_to_batch_axis1_pack1topacked();
+    ret |= test_batch_reshape_batch_to_dim_pack1topacked();
+    ret |= test_batch_reshape_batch_to_dim_pack1tohighpack();
+    ret |= test_batch_reshape_batch_to_dim_pack4topack1();
+    ret |= test_batch_reshape_dim_to_batch_pack1topacked();
+    ret |= test_batch_reshape_dim_to_batch_pack1tohighpack();
+    ret |= test_batch_reshape_dim_to_batch_pack4topack1();
+#if NCNN_BF16
+    ret |= test_batch_reshape_bf16_storage_packed();
+    ret |= test_batch_reshape_bf16_storage_dim_to_batch_packed();
+    ret |= test_batch_reshape_bf16_storage_axis1_packed();
+#endif // NCNN_BF16
     ret |= test_batch_reshape_dim_to_batch_no_infer();
     ret |= test_batch_reshape_roundtrip_axis1();
     ret |= test_batch_reshape_roundtrip_axis2();
@@ -3323,6 +5308,10 @@ int main()
         ret |= test_vkmat_batch_forward_reshape_dim_to_batch();
         ret |= test_vkmat_batch_forward_reshape_dim_to_batch_axis1();
         ret |= test_vkmat_batch_forward_reshape_batch_to_dim_axis1();
+        ret |= test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4();
+        ret |= test_vkmat_batch_forward_reshape_packed_batch_to_dim_axis1();
+        ret |= test_vkmat_batch_forward_reshape_dim_to_batch_pack4to1();
+        ret |= test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1();
         ret |= test_vkmat_batch_forward_relu();
         ret |= test_vkmat_batch_forward_pooling();
         ret |= test_vkmat_batch_forward_split();

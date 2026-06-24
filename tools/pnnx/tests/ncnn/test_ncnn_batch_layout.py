@@ -83,6 +83,17 @@ class ModelFlattenRoundTrip(nn.Module):
         return x
 
 
+class ModelFlattenBackwardBatch(nn.Module):
+    def __init__(self):
+        super(ModelFlattenBackwardBatch, self).__init__()
+
+    def forward(self, x):
+        x = torch.flatten(x, 0, 1)
+        x = x.permute(1, 0, 2)
+        x = F.max_pool1d(x, 1)
+        return x
+
+
 class ModelTwoBatchAxisReshapes(nn.Module):
     def __init__(self):
         super(ModelTwoBatchAxisReshapes, self).__init__()
@@ -116,14 +127,29 @@ class ModelMultiConsumer(nn.Module):
         return y, z
 
 
+class ModelPackedBatchReshapeBetweenConv(nn.Module):
+    def __init__(self):
+        super(ModelPackedBatchReshapeBetweenConv, self).__init__()
+
+        self.conv0 = nn.Conv2d(3, 8, 3, padding=1)
+        self.conv1 = nn.Conv2d(4, 8, 1)
+
+    def forward(self, x):
+        x = self.conv0(x)
+        x = torch.flatten(x, 0, 1)
+        x = x.reshape(4, 4, 5, 7)
+        x = self.conv1(x)
+        return x
+
+
 def compare(a, b):
     if isinstance(a, tuple):
         for a0, b0 in zip(a, b):
-            if not torch.equal(a0, b0):
+            if not torch.allclose(a0, b0, 1e-3, 1e-3):
                 return False
         return True
 
-    return torch.equal(a, b)
+    return torch.allclose(a, b, 1e-3, 1e-3)
 
 
 def run_model(name, net, inputs, checks=None):
@@ -191,6 +217,11 @@ def test():
         return False
 
     torch.manual_seed(0)
+    x = torch.rand(3, 5, 2, 7)
+    if not run_model("test_ncnn_batch_layout_flatten_backward", ModelFlattenBackwardBatch(), x):
+        return False
+
+    torch.manual_seed(0)
     x = torch.rand(6, 5, 7)
     y = torch.rand(8, 3, 5)
     if not run_model("test_ncnn_batch_layout_two_reshapes", ModelTwoBatchAxisReshapes(), (x, y), ["12=2", "13=1"]):
@@ -204,6 +235,11 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(6, 5, 7)
     if not run_model("test_ncnn_batch_layout_multi_consumer", ModelMultiConsumer(), x):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 3, 5, 7)
+    if not run_model("test_ncnn_batch_layout_packed_between_conv", ModelPackedBatchReshapeBetweenConv(), x):
         return False
 
     return True

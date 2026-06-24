@@ -18,6 +18,9 @@ Reshape_vulkan::Reshape_vulkan()
     pipeline_reshape_pack1to4 = 0;
     pipeline_reshape_pack4to1 = 0;
     pipeline_reshape_batch_reorder = 0;
+    pipeline_reshape_batch_reorder_pack4 = 0;
+    pipeline_reshape_batch_reorder_pack1to4 = 0;
+    pipeline_reshape_batch_reorder_pack4to1 = 0;
 }
 
 int Reshape_vulkan::create_pipeline(const Option& opt)
@@ -27,8 +30,23 @@ int Reshape_vulkan::create_pipeline(const Option& opt)
 
     if (batch_mode != 0)
     {
-        shape = Mat();
-        out_shape = Mat();
+        pipeline_reshape_batch_reorder = new Pipeline(vkdev);
+        pipeline_reshape_batch_reorder->set_optimal_local_size_xyz(Mat(4, 4, 4, (void*)0));
+        pipeline_reshape_batch_reorder->create(LayerShaderType::reshape_batch_reorder, opt, std::vector<vk_specialization_type>());
+
+        pipeline_reshape_batch_reorder_pack4 = new Pipeline(vkdev);
+        pipeline_reshape_batch_reorder_pack4->set_optimal_local_size_xyz(Mat(4, 4, 4, (void*)0));
+        pipeline_reshape_batch_reorder_pack4->create(LayerShaderType::reshape_batch_reorder_pack4, opt, std::vector<vk_specialization_type>());
+
+        pipeline_reshape_batch_reorder_pack1to4 = new Pipeline(vkdev);
+        pipeline_reshape_batch_reorder_pack1to4->set_optimal_local_size_xyz(Mat(4, 4, 4, (void*)0));
+        pipeline_reshape_batch_reorder_pack1to4->create(LayerShaderType::reshape_batch_reorder_pack1to4, opt, std::vector<vk_specialization_type>());
+
+        pipeline_reshape_batch_reorder_pack4to1 = new Pipeline(vkdev);
+        pipeline_reshape_batch_reorder_pack4to1->set_optimal_local_size_xyz(Mat(4, 4, 4, (void*)0));
+        pipeline_reshape_batch_reorder_pack4to1->create(LayerShaderType::reshape_batch_reorder_pack4to1, opt, std::vector<vk_specialization_type>());
+
+        return 0;
     }
 
     std::vector<vk_specialization_type> specializations(1 + 12);
@@ -130,13 +148,6 @@ int Reshape_vulkan::create_pipeline(const Option& opt)
         pipeline_reshape_pack4to1->create(LayerShaderType::reshape_pack4to1, opt, specializations);
     }
 
-    if (batch_mode != 0)
-    {
-        pipeline_reshape_batch_reorder = new Pipeline(vkdev);
-        pipeline_reshape_batch_reorder->set_optimal_local_size_xyz(Mat(4, 4, 4, (void*)0));
-        pipeline_reshape_batch_reorder->create(LayerShaderType::reshape_batch_reorder, opt, std::vector<vk_specialization_type>());
-    }
-
     return 0;
 }
 
@@ -156,6 +167,15 @@ int Reshape_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_reshape_batch_reorder;
     pipeline_reshape_batch_reorder = 0;
+
+    delete pipeline_reshape_batch_reorder_pack4;
+    pipeline_reshape_batch_reorder_pack4 = 0;
+
+    delete pipeline_reshape_batch_reorder_pack1to4;
+    pipeline_reshape_batch_reorder_pack1to4 = 0;
+
+    delete pipeline_reshape_batch_reorder_pack4to1;
+    pipeline_reshape_batch_reorder_pack4to1 = 0;
 
     return 0;
 }
@@ -184,7 +204,7 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     if (batch_mode == 1)
         total *= bottom_blob.n;
 
-    if (batch_mode != 0 && (ndim == 0 || elempack != 1))
+    if (batch_mode != 0 && ndim == 0)
         return -1;
 
     // resolve out shape
@@ -302,154 +322,31 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         }
     }
 
-    if (batch_mode == 1)
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    if (batch_mode != 0)
     {
-        if (batch_axis != 0)
-        {
-            if (ndim == 1)
-                top_blob.create(outw, elemsize, 1, opt.blob_vkallocator);
-            if (ndim == 2)
-                top_blob.create(outw, outh, elemsize, 1, opt.blob_vkallocator);
-            if (ndim == 3)
-                top_blob.create(outw, outh, outc, elemsize, 1, opt.blob_vkallocator);
-            if (ndim == 4)
-                top_blob.create(outw, outh, outd, outc, elemsize, 1, opt.blob_vkallocator);
-
-            if (top_blob.empty())
-                return -100;
-
-            int shape[4] = {0, 0, 0, 0};
-            if (ndim == 1)
-                shape[0] = outw;
-            if (ndim == 2)
-            {
-                shape[0] = outh;
-                shape[1] = outw;
-            }
-            if (ndim == 3)
-            {
-                shape[0] = outc;
-                shape[1] = outh;
-                shape[2] = outw;
-            }
-            if (ndim == 4)
-            {
-                shape[0] = outc;
-                shape[1] = outd;
-                shape[2] = outh;
-                shape[3] = outw;
-            }
-
-            int prefix = 1;
-            for (int i = 0; i < batch_axis; i++)
-                prefix *= shape[i];
-
-            int suffix = 1;
-            for (int i = batch_axis + 1; i < ndim; i++)
-                suffix *= shape[i];
-
-            std::vector<VkMat> bindings(2);
-            bindings[0] = bottom_blob;
-            bindings[1] = top_blob;
-
-            std::vector<vk_constant_type> constants(20);
-            constants[0].i = bottom_blob.dims;
-            constants[1].i = bottom_blob.w;
-            constants[2].i = bottom_blob.h;
-            constants[3].i = bottom_blob.d;
-            constants[4].i = bottom_blob.c;
-            constants[5].i = bottom_blob.cstep;
-            constants[6].i = bottom_blob.n;
-            constants[7].i = bottom_blob.nstep;
-            constants[8].i = top_blob.dims;
-            constants[9].i = top_blob.w;
-            constants[10].i = top_blob.h;
-            constants[11].i = top_blob.d;
-            constants[12].i = top_blob.c;
-            constants[13].i = top_blob.cstep;
-            constants[14].i = top_blob.n;
-            constants[15].i = top_blob.nstep;
-            constants[16].i = 1;
-            constants[17].i = prefix;
-            constants[18].i = suffix;
-            constants[19].i = bottom_blob.n;
-
-            cmd.record_pipeline(pipeline_reshape_batch_reorder, bindings, constants, top_blob);
-
-            return 0;
-        }
-
-        VkMat bottom_blob_flattened;
-        bottom_blob_flattened.create(total, elemsize, 1, opt.blob_vkallocator);
-        if (bottom_blob_flattened.empty())
-            return -100;
-
-        const int size = bottom_blob.w * bottom_blob.h * bottom_blob.d;
-        int offset = 0;
-        for (int b = 0; b < bottom_blob.n; b++)
-        {
-            for (int q = 0; q < bottom_blob.c; q++)
-            {
-                VkMat src(size, bottom_blob.data, elemsize, 1, bottom_blob.allocator);
-                src.cstep = size;
-                src.nstep = size;
-                src.offset = bottom_blob.offset + ((size_t)bottom_blob.nstep * b + bottom_blob.cstep * q) * elemsize;
-
-                VkMat dst(size, bottom_blob_flattened.data, elemsize, 1, bottom_blob_flattened.allocator);
-                dst.cstep = size;
-                dst.nstep = size;
-                dst.offset = bottom_blob_flattened.offset + (size_t)offset * elemsize;
-
-                cmd.record_clone(src, dst, opt);
-                offset += size;
-            }
-        }
-
-        if (ndim == 1 && outw == total)
-        {
-            top_blob = bottom_blob_flattened;
-            return 0;
-        }
-
+        int shape[4] = {0, 0, 0, 0};
         if (ndim == 1)
-            top_blob.create(outw, elemsize, 1, opt.blob_vkallocator);
+            shape[0] = outw;
         if (ndim == 2)
-            top_blob.create(outw, outh, elemsize, 1, opt.blob_vkallocator);
+        {
+            shape[0] = outh;
+            shape[1] = outw;
+        }
         if (ndim == 3)
-            top_blob.create(outw, outh, outc, elemsize, 1, opt.blob_vkallocator);
+        {
+            shape[0] = outc;
+            shape[1] = outh;
+            shape[2] = outw;
+        }
         if (ndim == 4)
-            top_blob.create(outw, outh, outd, outc, elemsize, 1, opt.blob_vkallocator);
-
-        if (top_blob.empty())
-            return -100;
-
-        std::vector<VkMat> bindings(2);
-        bindings[0] = bottom_blob_flattened;
-        bindings[1] = top_blob;
-
-        std::vector<vk_constant_type> constants(12);
-        constants[0].i = bottom_blob_flattened.dims;
-        constants[1].i = bottom_blob_flattened.w;
-        constants[2].i = bottom_blob_flattened.h;
-        constants[3].i = bottom_blob_flattened.d;
-        constants[4].i = bottom_blob_flattened.c;
-        constants[5].i = bottom_blob_flattened.cstep;
-        constants[6].i = top_blob.dims;
-        constants[7].i = top_blob.w;
-        constants[8].i = top_blob.h;
-        constants[9].i = top_blob.d;
-        constants[10].i = top_blob.c;
-        constants[11].i = top_blob.cstep;
-
-        cmd.record_pipeline(pipeline_reshape, bindings, constants, top_blob);
-
-        return 0;
-    }
-
-    if (batch_mode == 2)
-    {
-        if (bottom_blob.n != 1)
-            return -1;
+        {
+            shape[0] = outc;
+            shape[1] = outd;
+            shape[2] = outh;
+            shape[3] = outw;
+        }
 
         size_t out_total = outw;
         if (ndim == 2)
@@ -459,138 +356,113 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         if (ndim == 4)
             out_total *= (size_t)outh * outd * outc;
 
-        if (out_total == 0)
-            return -1;
+        int batch = bottom_blob.n;
+        if (batch_mode == 2)
+        {
+            if (bottom_blob.n != 1)
+                return -1;
 
-        const size_t bottom_total = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
-        const int batch = bottom_total / out_total;
-        if ((size_t)batch * out_total != bottom_total)
-            return -1;
+            if (out_total == 0)
+                return -1;
 
-        if (ndim == 1)
-            top_blob.create_batch(outw, batch, elemsize, 1, opt.blob_vkallocator);
-        if (ndim == 2)
-            top_blob.create_batch(outw, outh, batch, elemsize, 1, opt.blob_vkallocator);
-        if (ndim == 3)
-            top_blob.create_batch(outw, outh, outc, batch, elemsize, 1, opt.blob_vkallocator);
-        if (ndim == 4)
-            top_blob.create_batch(outw, outh, outd, outc, batch, elemsize, 1, opt.blob_vkallocator);
+            const size_t bottom_total = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
+            batch = bottom_total / out_total;
+            if ((size_t)batch * out_total != bottom_total)
+                return -1;
+        }
+
+        if (batch_mode == 1)
+        {
+            if (ndim == 1)
+                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+            if (ndim == 2)
+                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+            if (ndim == 3)
+                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+            if (ndim == 4)
+                top_blob.create(outw, outh, outd, outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+        }
+        if (batch_mode == 2)
+        {
+            if (ndim == 1)
+                top_blob.create_batch(outw / out_elempack, batch, out_elemsize, out_elempack, opt.blob_vkallocator);
+            if (ndim == 2)
+                top_blob.create_batch(outw, outh / out_elempack, batch, out_elemsize, out_elempack, opt.blob_vkallocator);
+            if (ndim == 3)
+                top_blob.create_batch(outw, outh, outc / out_elempack, batch, out_elemsize, out_elempack, opt.blob_vkallocator);
+            if (ndim == 4)
+                top_blob.create_batch(outw, outh, outd, outc / out_elempack, batch, out_elemsize, out_elempack, opt.blob_vkallocator);
+        }
 
         if (top_blob.empty())
             return -100;
 
-        if (batch_axis != 0)
+        int prefix = 1;
+        for (int i = 0; i < batch_axis; i++)
+            prefix *= shape[i];
+
+        int suffix = 1;
+        if (batch_mode == 1 && batch_axis == 0)
+            suffix = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
+        else if (batch_mode == 1)
         {
-            int shape[4] = {0, 0, 0, 0};
-            if (ndim == 1)
-                shape[0] = outw;
-            if (ndim == 2)
-            {
-                shape[0] = outh;
-                shape[1] = outw;
-            }
-            if (ndim == 3)
-            {
-                shape[0] = outc;
-                shape[1] = outh;
-                shape[2] = outw;
-            }
-            if (ndim == 4)
-            {
-                shape[0] = outc;
-                shape[1] = outd;
-                shape[2] = outh;
-                shape[3] = outw;
-            }
-
-            int prefix = 1;
-            for (int i = 0; i < batch_axis; i++)
-                prefix *= shape[i];
-
-            int suffix = 1;
+            for (int i = batch_axis + 1; i < ndim; i++)
+                suffix *= shape[i];
+        }
+        else if (batch_axis == 0)
+            suffix = out_total;
+        else
+        {
             for (int i = batch_axis; i < ndim; i++)
                 suffix *= shape[i];
+        }
 
-            std::vector<VkMat> bindings(2);
-            bindings[0] = bottom_blob;
-            bindings[1] = top_blob;
+        std::vector<VkMat> bindings(2);
+        bindings[0] = bottom_blob;
+        bindings[1] = top_blob;
 
-            std::vector<vk_constant_type> constants(20);
-            constants[0].i = bottom_blob.dims;
-            constants[1].i = bottom_blob.w;
-            constants[2].i = bottom_blob.h;
-            constants[3].i = bottom_blob.d;
-            constants[4].i = bottom_blob.c;
-            constants[5].i = bottom_blob.cstep;
-            constants[6].i = bottom_blob.n;
-            constants[7].i = bottom_blob.nstep;
-            constants[8].i = top_blob.dims;
-            constants[9].i = top_blob.w;
-            constants[10].i = top_blob.h;
-            constants[11].i = top_blob.d;
-            constants[12].i = top_blob.c;
-            constants[13].i = top_blob.cstep;
-            constants[14].i = top_blob.n;
-            constants[15].i = top_blob.nstep;
-            constants[16].i = 2;
-            constants[17].i = prefix;
-            constants[18].i = suffix;
-            constants[19].i = batch;
+        std::vector<vk_constant_type> constants(20);
+        constants[0].i = bottom_blob.dims;
+        constants[1].i = bottom_blob.w;
+        constants[2].i = bottom_blob.h;
+        constants[3].i = bottom_blob.d;
+        constants[4].i = bottom_blob.c;
+        constants[5].i = bottom_blob.cstep;
+        constants[6].i = bottom_blob.n;
+        constants[7].i = bottom_blob.nstep;
+        constants[8].i = top_blob.dims;
+        constants[9].i = top_blob.w;
+        constants[10].i = top_blob.h;
+        constants[11].i = top_blob.d;
+        constants[12].i = top_blob.c;
+        constants[13].i = top_blob.cstep;
+        constants[14].i = top_blob.n;
+        constants[15].i = top_blob.nstep;
+        constants[16].i = batch_mode;
+        constants[17].i = prefix;
+        constants[18].i = suffix;
+        constants[19].i = batch;
 
+        const Pipeline* pipeline = pipeline_reshape_batch_reorder;
+        if (elempack == 4 && out_elempack == 4)
+            pipeline = pipeline_reshape_batch_reorder_pack4;
+        if (elempack == 1 && out_elempack == 4)
+            pipeline = pipeline_reshape_batch_reorder_pack1to4;
+        if (elempack == 4 && out_elempack == 1)
+            pipeline = pipeline_reshape_batch_reorder_pack4to1;
+
+        if (batch_mode == 2)
+        {
             Mat dispatcher(top_blob.w, top_blob.h, top_blob.d, top_blob.c * batch, (void*)0);
-            cmd.record_pipeline(pipeline_reshape_batch_reorder, bindings, std::vector<VkImageMat>(), constants, dispatcher);
-
-            return 0;
+            cmd.record_pipeline(pipeline, bindings, std::vector<VkImageMat>(), constants, dispatcher);
         }
-
-        VkMat bottom_blob_flattened;
-        bottom_blob_flattened.create(bottom_total, elemsize, 1, opt.blob_vkallocator);
-        if (bottom_blob_flattened.empty())
-            return -100;
-
-        const int size = bottom_blob.w * bottom_blob.h * bottom_blob.d;
-        int offset = 0;
-        for (int q = 0; q < bottom_blob.c; q++)
+        else
         {
-            VkMat src(size, bottom_blob.data, elemsize, 1, bottom_blob.allocator);
-            src.cstep = size;
-            src.nstep = size;
-            src.offset = bottom_blob.offset + bottom_blob.cstep * q * elemsize;
-
-            VkMat dst(size, bottom_blob_flattened.data, elemsize, 1, bottom_blob_flattened.allocator);
-            dst.cstep = size;
-            dst.nstep = size;
-            dst.offset = bottom_blob_flattened.offset + (size_t)offset * elemsize;
-
-            cmd.record_clone(src, dst, opt);
-            offset += size;
-        }
-
-        const int out_size = top_blob.w * top_blob.h * top_blob.d;
-        offset = 0;
-        for (int b = 0; b < batch; b++)
-        {
-            for (int q = 0; q < top_blob.c; q++)
-            {
-                VkMat src(out_size, bottom_blob_flattened.data, elemsize, 1, bottom_blob_flattened.allocator);
-                src.cstep = out_size;
-                src.nstep = out_size;
-                src.offset = bottom_blob_flattened.offset + (size_t)offset * elemsize;
-
-                VkMat dst(out_size, top_blob.data, elemsize, 1, top_blob.allocator);
-                dst.cstep = out_size;
-                dst.nstep = out_size;
-                dst.offset = top_blob.offset + ((size_t)top_blob.nstep * b + top_blob.cstep * q) * elemsize;
-
-                cmd.record_clone(src, dst, opt);
-                offset += out_size;
-            }
+            cmd.record_pipeline(pipeline, bindings, std::vector<VkImageMat>(), constants, top_blob);
         }
 
         return 0;
     }
-
-    size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (ndim == 1)
     {

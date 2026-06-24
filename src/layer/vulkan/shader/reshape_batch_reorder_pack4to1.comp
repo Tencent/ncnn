@@ -3,7 +3,7 @@
 
 #version 450
 
-layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 
 layout(push_constant) uniform parameter
@@ -71,7 +71,6 @@ void main()
 
     int src_b = 0;
     int src_i;
-    int src_offset;
     if (p.batch_mode == 2)
     {
         int pi = outi / p.suffix;
@@ -88,15 +87,19 @@ void main()
         src_i = pi * p.suffix + si;
     }
 
+    int src_offset;
+    int lane;
     if (p.dims == 1)
     {
-        src_offset = src_i;
+        src_offset = src_i / 4;
+        lane = src_i % 4;
     }
     else if (p.dims == 2)
     {
         int y = src_i / p.w;
         int x = src_i - y * p.w;
-        src_offset = y * p.w + x;
+        src_offset = (y / 4) * p.w + x;
+        lane = y % 4;
     }
     else
     {
@@ -105,9 +108,11 @@ void main()
         int r = src_i - q * size;
         int y = r / p.w;
         int x = r - y * p.w;
-        src_offset = q * p.cstep + y * p.w + x;
+        src_offset = (q / 4) * p.cstep + y * p.w + x;
+        lane = q % 4;
     }
     src_offset += src_b * p.nstep;
 
-    buffer_cp1(top_blob_data, dst_offset, bottom_blob_data, src_offset);
+    afpvec4 v = buffer_ld4(bottom_blob_data, src_offset);
+    buffer_st1(top_blob_data, dst_offset, v[lane]);
 }
