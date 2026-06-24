@@ -156,7 +156,7 @@ jobs:
     - name: cache-openmp for macos
       if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-15'
       id: cache-openmp
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: openmp-install
         key: openmp-macos-install-20251004
