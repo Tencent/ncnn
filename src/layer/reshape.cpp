@@ -13,8 +13,10 @@ Reshape::Reshape()
 {
     one_blob_only = true;
     support_inplace = false;
+#if NCNN_BATCH
     batch_mode = 0;
     batch_axis = 0;
+#endif
 }
 
 int Reshape::load_param(const ParamDict& pd)
@@ -34,12 +36,20 @@ int Reshape::load_param(const ParamDict& pd)
     if (w == -233)
         ndim = 0;
 
+#if NCNN_BATCH
     batch_mode = pd.get(12, 0);
     batch_axis = pd.get(13, 0);
     if (batch_mode != 0)
     {
         support_batch = true;
     }
+#else
+    if (pd.get(12, 0) != 0)
+    {
+        NCNN_LOGE("please build ncnn with NCNN_BATCH enabled for batch inference");
+        return -1;
+    }
+#endif
 
     shape_expr = pd.get(6, "");
 
@@ -89,17 +99,25 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
     }
 
+#if NCNN_BATCH
     if (batch_mode == 2 && (outw == -1 || outh == -1 || outd == -1 || outc == -1))
         return -1;
+#else
+    const int batch_mode = 0;
+#endif
 
     int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
+#if NCNN_BATCH
     if (batch_mode == 1)
         total *= bottom_blob.n;
+#endif
 
     int dims = bottom_blob.dims;
 
+#if NCNN_BATCH
     if (batch_mode != 0 && ndim == 0)
         return -1;
+#endif
 
     if (ndim == 1)
     {
@@ -187,6 +205,7 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         }
     }
 
+#if NCNN_BATCH
     if (batch_mode == 1)
     {
         if (bottom_blob.elempack != 1)
@@ -347,13 +366,13 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
                 suffix *= shape[i];
 
             if (ndim == 1)
-                top_blob.create_batch(outw, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+                top_blob.create(outw, bottom_blob.elemsize, 1, batch, opt.blob_allocator);
             if (ndim == 2)
-                top_blob.create_batch(outw, outh, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+                top_blob.create(outw, outh, bottom_blob.elemsize, 1, batch, opt.blob_allocator);
             if (ndim == 3)
-                top_blob.create_batch(outw, outh, outc, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+                top_blob.create(outw, outh, outc, bottom_blob.elemsize, 1, batch, opt.blob_allocator);
             if (ndim == 4)
-                top_blob.create_batch(outw, outh, outd, outc, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+                top_blob.create(outw, outh, outd, outc, bottom_blob.elemsize, 1, batch, opt.blob_allocator);
 
             if (top_blob.empty())
                 return -100;
@@ -396,13 +415,13 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         }
 
         if (ndim == 1)
-            top_blob.create_batch(outw, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+            top_blob.create(outw, bottom_blob.elemsize, 1, batch, opt.blob_allocator);
         if (ndim == 2)
-            top_blob.create_batch(outw, outh, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+            top_blob.create(outw, outh, bottom_blob.elemsize, 1, batch, opt.blob_allocator);
         if (ndim == 3)
-            top_blob.create_batch(outw, outh, outc, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+            top_blob.create(outw, outh, outc, bottom_blob.elemsize, 1, batch, opt.blob_allocator);
         if (ndim == 4)
-            top_blob.create_batch(outw, outh, outd, outc, batch, bottom_blob.elemsize, 1, opt.blob_allocator);
+            top_blob.create(outw, outh, outd, outc, bottom_blob.elemsize, 1, batch, opt.blob_allocator);
 
         if (top_blob.empty())
             return -100;
@@ -421,6 +440,7 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 
         return 0;
     }
+#endif // NCNN_BATCH
 
     if (ndim == 1)
     {

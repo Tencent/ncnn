@@ -32,8 +32,10 @@ public:
     int c;
 
     int ndim;
+#if NCNN_BATCH
     int batch_mode;
     int batch_axis;
+#endif
 
     // see docs/developer-guide/expression.md
     std::string shape_expr;

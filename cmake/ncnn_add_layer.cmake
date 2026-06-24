@@ -133,6 +133,13 @@ macro(ncnn_add_layer class)
         file(GLOB NCNN_SHADER_SRCS "layer/vulkan/shader/${name}.comp")
         file(GLOB NCNN_SHADER_SUBSRCS "layer/vulkan/shader/${name}_*.comp")
         list(APPEND NCNN_SHADER_SRCS ${NCNN_SHADER_SUBSRCS})
+        if(NOT NCNN_BATCH AND name STREQUAL "reshape")
+            list(REMOVE_ITEM NCNN_SHADER_SRCS
+                ${CMAKE_CURRENT_SOURCE_DIR}/layer/vulkan/shader/reshape_batch_reorder.comp
+                ${CMAKE_CURRENT_SOURCE_DIR}/layer/vulkan/shader/reshape_batch_reorder_pack1to4.comp
+                ${CMAKE_CURRENT_SOURCE_DIR}/layer/vulkan/shader/reshape_batch_reorder_pack4.comp
+                ${CMAKE_CURRENT_SOURCE_DIR}/layer/vulkan/shader/reshape_batch_reorder_pack4to1.comp)
+        endif()
         foreach(NCNN_SHADER_SRC ${NCNN_SHADER_SRCS})
             ncnn_add_shader(${NCNN_SHADER_SRC})
         endforeach()

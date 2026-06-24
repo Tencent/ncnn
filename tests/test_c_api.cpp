@@ -403,6 +403,7 @@ static int test_c_api_3()
     return 0;
 }
 
+#if NCNN_BATCH
 static int test_c_api_batch()
 {
     const int W = 4;
@@ -466,7 +467,7 @@ static int test_c_api_batch()
         ncnn_mat_destroy(c0);
     }
 
-    d = ncnn_mat_create_2d_batch_elem(5, 6, 2, (size_t)2u, 1, NULL);
+    d = ncnn_mat_create_2d_elem_batch(5, 6, (size_t)2u, 1, 2, NULL);
     success = success && ncnn_mat_get_dims(d) == 2;
     success = success && ncnn_mat_get_w(d) == 5;
     success = success && ncnn_mat_get_h(d) == 6;
@@ -485,8 +486,13 @@ static int test_c_api_batch()
 
     return success ? 0 : -1;
 }
+#endif // NCNN_BATCH
 
 int main()
 {
-    return test_c_api_0() || test_c_api_1() || test_c_api_2() || test_c_api_3() || test_c_api_batch();
+    return test_c_api_0() || test_c_api_1() || test_c_api_2() || test_c_api_3()
+#if NCNN_BATCH
+           || test_c_api_batch()
+#endif
+           ;
 }

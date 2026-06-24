@@ -17,10 +17,12 @@ Reshape_vulkan::Reshape_vulkan()
     pipeline_reshape_pack4 = 0;
     pipeline_reshape_pack1to4 = 0;
     pipeline_reshape_pack4to1 = 0;
+#if NCNN_BATCH
     pipeline_reshape_batch_reorder = 0;
     pipeline_reshape_batch_reorder_pack4 = 0;
     pipeline_reshape_batch_reorder_pack1to4 = 0;
     pipeline_reshape_batch_reorder_pack4to1 = 0;
+#endif
 }
 
 int Reshape_vulkan::create_pipeline(const Option& opt)
@@ -28,6 +30,7 @@ int Reshape_vulkan::create_pipeline(const Option& opt)
     Mat shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     Mat out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
+#if NCNN_BATCH
     if (batch_mode != 0)
     {
         pipeline_reshape_batch_reorder = new Pipeline(vkdev);
@@ -48,6 +51,7 @@ int Reshape_vulkan::create_pipeline(const Option& opt)
 
         return 0;
     }
+#endif
 
     std::vector<vk_specialization_type> specializations(1 + 12);
     specializations[0].i = ndim;
@@ -165,6 +169,7 @@ int Reshape_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_reshape_pack4to1;
     pipeline_reshape_pack4to1 = 0;
 
+#if NCNN_BATCH
     delete pipeline_reshape_batch_reorder;
     pipeline_reshape_batch_reorder = 0;
 
@@ -176,6 +181,7 @@ int Reshape_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_reshape_batch_reorder_pack4to1;
     pipeline_reshape_batch_reorder_pack4to1 = 0;
+#endif
 
     return 0;
 }
@@ -201,11 +207,15 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     int out_elempack = 0;
 
     int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
+#if NCNN_BATCH
     if (batch_mode == 1)
         total *= bottom_blob.n;
 
     if (batch_mode != 0 && ndim == 0)
         return -1;
+#else
+    const int batch_mode = 0;
+#endif
 
     // resolve out shape
     int outw = w;
@@ -225,8 +235,10 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
             return -1;
     }
 
+#if NCNN_BATCH
     if (batch_mode == 2 && (outw == -1 || outh == -1 || outd == -1 || outc == -1))
         return -1;
+#endif
 
     if (ndim == 1)
     {
@@ -324,6 +336,7 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
+#if NCNN_BATCH
     if (batch_mode != 0)
     {
         int shape[4] = {0, 0, 0, 0};
@@ -385,13 +398,13 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         if (batch_mode == 2)
         {
             if (ndim == 1)
-                top_blob.create_batch(outw / out_elempack, batch, out_elemsize, out_elempack, opt.blob_vkallocator);
+                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, batch, opt.blob_vkallocator);
             if (ndim == 2)
-                top_blob.create_batch(outw, outh / out_elempack, batch, out_elemsize, out_elempack, opt.blob_vkallocator);
+                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, batch, opt.blob_vkallocator);
             if (ndim == 3)
-                top_blob.create_batch(outw, outh, outc / out_elempack, batch, out_elemsize, out_elempack, opt.blob_vkallocator);
+                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, batch, opt.blob_vkallocator);
             if (ndim == 4)
-                top_blob.create_batch(outw, outh, outd, outc / out_elempack, batch, out_elemsize, out_elempack, opt.blob_vkallocator);
+                top_blob.create(outw, outh, outd, outc / out_elempack, out_elemsize, out_elempack, batch, opt.blob_vkallocator);
         }
 
         if (top_blob.empty())
@@ -463,6 +476,7 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
         return 0;
     }
+#endif // NCNN_BATCH
 
     if (ndim == 1)
     {

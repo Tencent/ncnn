@@ -16,6 +16,7 @@
 
 namespace ncnn {
 
+#if NCNN_BATCH
 static Mat reshape_batch(const Mat& bottom_blob, int dims, int w, int h, int d, int c, Allocator* allocator)
 {
     Mat top_blob;
@@ -37,7 +38,7 @@ static Mat reshape_batch(const Mat& bottom_blob, int dims, int w, int h, int d, 
 
         if (b == 0)
         {
-            top_blob.create_like_batch(top_blob_b, bottom_blob.n, allocator);
+            top_blob.create_like(top_blob_b, bottom_blob.n, allocator);
             if (top_blob.empty())
                 return top_blob;
         }
@@ -47,6 +48,7 @@ static Mat reshape_batch(const Mat& bottom_blob, int dims, int w, int h, int d, 
 
     return top_blob;
 }
+#endif // NCNN_BATCH
 
 Mat Mat::clone(Allocator* _allocator) const
 {
@@ -54,9 +56,10 @@ Mat Mat::clone(Allocator* _allocator) const
         return Mat();
 
     Mat m;
+#if NCNN_BATCH
     if (n > 1)
     {
-        m.create_like_batch(*this, n, _allocator);
+        m.create_like(*this, n, _allocator);
 
         if (m.empty())
             return m;
@@ -70,6 +73,7 @@ Mat Mat::clone(Allocator* _allocator) const
 
         return m;
     }
+#endif // NCNN_BATCH
 
     if (dims == 1)
         m.create(w, elemsize, elempack, _allocator);
@@ -113,8 +117,10 @@ Mat Mat::reshape(int _w, Allocator* _allocator) const
 
     if (dims >= 3 && cstep != (size_t)w * h * d)
     {
+#if NCNN_BATCH
         if (n > 1)
             return reshape_batch(*this, 1, _w, 0, 0, 0, _allocator);
+#endif
 
         Mat m;
         m.create(_w, elemsize, elempack, _allocator);
@@ -152,8 +158,10 @@ Mat Mat::reshape(int _w, int _h, Allocator* _allocator) const
 
     if (dims >= 3 && cstep != (size_t)w * h * d)
     {
+#if NCNN_BATCH
         if (n > 1)
             return reshape_batch(*this, 2, _w, _h, 0, 0, _allocator);
+#endif
 
         Mat m;
         m.create(_w, _h, elemsize, elempack, _allocator);
@@ -193,8 +201,10 @@ Mat Mat::reshape(int _w, int _h, int _c, Allocator* _allocator) const
     {
         if ((size_t)_w * _h != alignSize((size_t)_w * _h * elemsize, 16) / elemsize)
         {
+#if NCNN_BATCH
             if (n > 1)
                 return reshape_batch(*this, 3, _w, _h, 0, _c, _allocator);
+#endif
 
             Mat m;
             m.create(_w, _h, _c, elemsize, elempack, _allocator);
@@ -243,8 +253,10 @@ Mat Mat::reshape(int _w, int _h, int _d, int _c, Allocator* _allocator) const
     {
         if ((size_t)_w * _h * _d != alignSize((size_t)_w * _h * _d * elemsize, 16) / elemsize)
         {
+#if NCNN_BATCH
             if (n > 1)
                 return reshape_batch(*this, 4, _w, _h, _d, _c, _allocator);
+#endif
 
             Mat m;
             m.create(_w, _h, _d, _c, elemsize, elempack, _allocator);
@@ -286,7 +298,11 @@ Mat Mat::reshape(int _w, int _h, int _d, int _c, Allocator* _allocator) const
 
 void Mat::create(int _w, size_t _elemsize, Allocator* _allocator)
 {
+#if NCNN_BATCH
     if (dims == 1 && w == _w && elemsize == _elemsize && elempack == 1 && allocator == _allocator && n == 1)
+#else
+    if (dims == 1 && w == _w && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
+#endif
         return;
 
     release();
@@ -301,8 +317,12 @@ void Mat::create(int _w, size_t _elemsize, Allocator* _allocator)
     d = 1;
     c = 1;
 
+#if NCNN_BATCH
     cstep = alignSize(w * elemsize, 16) / elemsize;
     nstep = total();
+#else
+    cstep = alignSize(w * elemsize, 16) / elemsize;
+#endif
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -322,7 +342,11 @@ void Mat::create(int _w, size_t _elemsize, Allocator* _allocator)
 
 void Mat::create(int _w, int _h, size_t _elemsize, Allocator* _allocator)
 {
+#if NCNN_BATCH
     if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && elempack == 1 && allocator == _allocator && n == 1)
+#else
+    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
+#endif
         return;
 
     release();
@@ -337,8 +361,12 @@ void Mat::create(int _w, int _h, size_t _elemsize, Allocator* _allocator)
     d = 1;
     c = 1;
 
+#if NCNN_BATCH
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
     nstep = total();
+#else
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#endif
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -358,7 +386,11 @@ void Mat::create(int _w, int _h, size_t _elemsize, Allocator* _allocator)
 
 void Mat::create(int _w, int _h, int _c, size_t _elemsize, Allocator* _allocator)
 {
+#if NCNN_BATCH
     if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && elempack == 1 && allocator == _allocator && n == 1)
+#else
+    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
+#endif
         return;
 
     release();
@@ -373,8 +405,12 @@ void Mat::create(int _w, int _h, int _c, size_t _elemsize, Allocator* _allocator
     d = 1;
     c = _c;
 
+#if NCNN_BATCH
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
     nstep = total();
+#else
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#endif
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -394,7 +430,11 @@ void Mat::create(int _w, int _h, int _c, size_t _elemsize, Allocator* _allocator
 
 void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, Allocator* _allocator)
 {
+#if NCNN_BATCH
     if (dims == 4 && w == _w && h == _h && d == _d && c == _c && elemsize == _elemsize && elempack == 1 && allocator == _allocator && n == 1)
+#else
+    if (dims == 4 && w == _w && h == _h && d == _d && c == _c && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
+#endif
         return;
 
     release();
@@ -409,8 +449,12 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, Allocator* _a
     d = _d;
     c = _c;
 
+#if NCNN_BATCH
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
     nstep = total();
+#else
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
+#endif
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -430,7 +474,11 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, Allocator* _a
 
 void Mat::create(int _w, size_t _elemsize, int _elempack, Allocator* _allocator)
 {
+#if NCNN_BATCH
     if (dims == 1 && w == _w && elemsize == _elemsize && elempack == _elempack && allocator == _allocator && n == 1)
+#else
+    if (dims == 1 && w == _w && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
+#endif
         return;
 
     release();
@@ -445,8 +493,12 @@ void Mat::create(int _w, size_t _elemsize, int _elempack, Allocator* _allocator)
     d = 1;
     c = 1;
 
+#if NCNN_BATCH
     cstep = alignSize(w * elemsize, 16) / elemsize;
     nstep = total();
+#else
+    cstep = alignSize(w * elemsize, 16) / elemsize;
+#endif
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -466,7 +518,11 @@ void Mat::create(int _w, size_t _elemsize, int _elempack, Allocator* _allocator)
 
 void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, Allocator* _allocator)
 {
+#if NCNN_BATCH
     if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && elempack == _elempack && allocator == _allocator && n == 1)
+#else
+    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
+#endif
         return;
 
     release();
@@ -481,8 +537,12 @@ void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, Allocator* _al
     d = 1;
     c = 1;
 
+#if NCNN_BATCH
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
     nstep = total();
+#else
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#endif
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -502,7 +562,11 @@ void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, Allocator* _al
 
 void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, Allocator* _allocator)
 {
+#if NCNN_BATCH
     if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && elempack == _elempack && allocator == _allocator && n == 1)
+#else
+    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
+#endif
         return;
 
     release();
@@ -517,8 +581,12 @@ void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, Alloca
     d = 1;
     c = _c;
 
+#if NCNN_BATCH
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
     nstep = total();
+#else
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#endif
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -538,7 +606,11 @@ void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, Alloca
 
 void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, Allocator* _allocator)
 {
+#if NCNN_BATCH
     if (dims == 4 && w == _w && h == _h && d == _d && c == _c && elemsize == _elemsize && elempack == _elempack && allocator == _allocator && n == 1)
+#else
+    if (dims == 4 && w == _w && h == _h && d == _d && c == _c && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
+#endif
         return;
 
     release();
@@ -553,8 +625,12 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack
     d = _d;
     c = _c;
 
+#if NCNN_BATCH
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
     nstep = total();
+#else
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
+#endif
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -574,11 +650,13 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack
 
 void Mat::create_like(const Mat& m, Allocator* _allocator)
 {
+#if NCNN_BATCH
     if (m.n > 1)
     {
-        create_like_batch(m, m.n, _allocator);
+        create_like(m, m.n, _allocator);
         return;
     }
+#endif
 
     int _dims = m.dims;
     if (_dims == 1)
@@ -591,19 +669,20 @@ void Mat::create_like(const Mat& m, Allocator* _allocator)
         create(m.w, m.h, m.d, m.c, m.elemsize, m.elempack, _allocator);
 }
 
-void Mat::create_like_batch(const Mat& m, int _batch, Allocator* _allocator)
+#if NCNN_BATCH
+void Mat::create_like(const Mat& m, int _batch, Allocator* _allocator)
 {
     if (m.dims == 1)
-        create_batch(m.w, _batch, m.elemsize, m.elempack, _allocator);
+        create(m.w, m.elemsize, m.elempack, _batch, _allocator);
     else if (m.dims == 2)
-        create_batch(m.w, m.h, _batch, m.elemsize, m.elempack, _allocator);
+        create(m.w, m.h, m.elemsize, m.elempack, _batch, _allocator);
     else if (m.dims == 3)
-        create_batch(m.w, m.h, m.c, _batch, m.elemsize, m.elempack, _allocator);
+        create(m.w, m.h, m.c, m.elemsize, m.elempack, _batch, _allocator);
     else if (m.dims == 4)
-        create_batch(m.w, m.h, m.d, m.c, _batch, m.elemsize, m.elempack, _allocator);
+        create(m.w, m.h, m.d, m.c, m.elemsize, m.elempack, _batch, _allocator);
 }
 
-void Mat::create_batch(int _w, int _batch, size_t _elemsize, int _elempack, Allocator* _allocator)
+void Mat::create(int _w, size_t _elemsize, int _elempack, int _batch, Allocator* _allocator)
 {
     if (_batch <= 1)
     {
@@ -646,7 +725,7 @@ void Mat::create_batch(int _w, int _batch, size_t _elemsize, int _elempack, Allo
     }
 }
 
-void Mat::create_batch(int _w, int _h, int _batch, size_t _elemsize, int _elempack, Allocator* _allocator)
+void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, int _batch, Allocator* _allocator)
 {
     if (_batch <= 1)
     {
@@ -689,7 +768,7 @@ void Mat::create_batch(int _w, int _h, int _batch, size_t _elemsize, int _elempa
     }
 }
 
-void Mat::create_batch(int _w, int _h, int _c, int _batch, size_t _elemsize, int _elempack, Allocator* _allocator)
+void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, int _batch, Allocator* _allocator)
 {
     if (_batch <= 1)
     {
@@ -732,7 +811,7 @@ void Mat::create_batch(int _w, int _h, int _c, int _batch, size_t _elemsize, int
     }
 }
 
-void Mat::create_batch(int _w, int _h, int _d, int _c, int _batch, size_t _elemsize, int _elempack, Allocator* _allocator)
+void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, int _batch, Allocator* _allocator)
 {
     if (_batch <= 1)
     {
@@ -774,15 +853,43 @@ void Mat::create_batch(int _w, int _h, int _d, int _c, int _batch, size_t _elems
         *refcount = 1;
     }
 }
+#else
+void Mat::create_like(const Mat& m, int, Allocator* _allocator)
+{
+    create_like(m, _allocator);
+}
+
+void Mat::create(int _w, size_t _elemsize, int _elempack, int, Allocator* _allocator)
+{
+    create(_w, _elemsize, _elempack, _allocator);
+}
+
+void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, int, Allocator* _allocator)
+{
+    create(_w, _h, _elemsize, _elempack, _allocator);
+}
+
+void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, int, Allocator* _allocator)
+{
+    create(_w, _h, _c, _elemsize, _elempack, _allocator);
+}
+
+void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, int, Allocator* _allocator)
+{
+    create(_w, _h, _d, _c, _elemsize, _elempack, _allocator);
+}
+#endif // NCNN_BATCH
 
 #if NCNN_VULKAN
 void Mat::create_like(const VkMat& m, Allocator* _allocator)
 {
+#if NCNN_BATCH
     if (m.n > 1)
     {
-        create_like_batch(m, m.n, _allocator);
+        create_like(m, m.n, _allocator);
         return;
     }
+#endif
 
     int _dims = m.dims;
     if (_dims == 1)
@@ -795,17 +902,24 @@ void Mat::create_like(const VkMat& m, Allocator* _allocator)
         create(m.w, m.h, m.d, m.c, m.elemsize, m.elempack, _allocator);
 }
 
-void Mat::create_like_batch(const VkMat& m, int _batch, Allocator* _allocator)
+#if NCNN_BATCH
+void Mat::create_like(const VkMat& m, int _batch, Allocator* _allocator)
 {
     if (m.dims == 1)
-        create_batch(m.w, _batch, m.elemsize, m.elempack, _allocator);
+        create(m.w, m.elemsize, m.elempack, _batch, _allocator);
     else if (m.dims == 2)
-        create_batch(m.w, m.h, _batch, m.elemsize, m.elempack, _allocator);
+        create(m.w, m.h, m.elemsize, m.elempack, _batch, _allocator);
     else if (m.dims == 3)
-        create_batch(m.w, m.h, m.c, _batch, m.elemsize, m.elempack, _allocator);
+        create(m.w, m.h, m.c, m.elemsize, m.elempack, _batch, _allocator);
     else if (m.dims == 4)
-        create_batch(m.w, m.h, m.d, m.c, _batch, m.elemsize, m.elempack, _allocator);
+        create(m.w, m.h, m.d, m.c, m.elemsize, m.elempack, _batch, _allocator);
 }
+#else
+void Mat::create_like(const VkMat& m, int, Allocator* _allocator)
+{
+    create_like(m, _allocator);
+}
+#endif // NCNN_BATCH
 
 void Mat::create_like(const VkImageMat& im, Allocator* _allocator)
 {
@@ -824,7 +938,11 @@ void Mat::create_like(const VkImageMat& im, Allocator* _allocator)
 #if NCNN_VULKAN
 void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
 {
+#if NCNN_BATCH
     if (dims == 1 && w == _w && elemsize == _elemsize && elempack == 1 && allocator == _allocator && n == 1)
+#else
+    if (dims == 1 && w == _w && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
+#endif
         return;
 
     release();
@@ -839,8 +957,12 @@ void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
     d = 1;
     c = 1;
 
+#if NCNN_BATCH
     cstep = alignSize(w * elemsize, 16) / elemsize;
     nstep = total();
+#else
+    cstep = alignSize(w * elemsize, 16) / elemsize;
+#endif
 
     if (total() > 0)
     {
@@ -858,7 +980,11 @@ void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
 
 void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
 {
+#if NCNN_BATCH
     if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && elempack == 1 && allocator == _allocator && n == 1)
+#else
+    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
+#endif
         return;
 
     release();
@@ -873,8 +999,12 @@ void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
     d = 1;
     c = 1;
 
+#if NCNN_BATCH
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
     nstep = total();
+#else
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#endif
 
     if (total() > 0)
     {
@@ -892,7 +1022,11 @@ void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
 
 void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _allocator)
 {
+#if NCNN_BATCH
     if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && elempack == 1 && allocator == _allocator && n == 1)
+#else
+    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
+#endif
         return;
 
     release();
@@ -907,8 +1041,12 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _alloc
     d = 1;
     c = _c;
 
+#if NCNN_BATCH
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
     nstep = total();
+#else
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#endif
 
     if (total() > 0)
     {
@@ -926,7 +1064,11 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _alloc
 
 void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, VkAllocator* _allocator)
 {
+#if NCNN_BATCH
     if (dims == 4 && w == _w && h == _h && d == _d && c == _c && elemsize == _elemsize && elempack == 1 && allocator == _allocator && n == 1)
+#else
+    if (dims == 4 && w == _w && h == _h && d == _d && c == _c && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
+#endif
         return;
 
     release();
@@ -941,8 +1083,12 @@ void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, VkAllocator
     d = _d;
     c = _c;
 
+#if NCNN_BATCH
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
     nstep = total();
+#else
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
+#endif
 
     if (total() > 0)
     {
@@ -960,7 +1106,11 @@ void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, VkAllocator
 
 void VkMat::create(int _w, size_t _elemsize, int _elempack, VkAllocator* _allocator)
 {
+#if NCNN_BATCH
     if (dims == 1 && w == _w && elemsize == _elemsize && elempack == _elempack && allocator == _allocator && n == 1)
+#else
+    if (dims == 1 && w == _w && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
+#endif
         return;
 
     release();
@@ -975,8 +1125,12 @@ void VkMat::create(int _w, size_t _elemsize, int _elempack, VkAllocator* _alloca
     d = 1;
     c = 1;
 
+#if NCNN_BATCH
     cstep = alignSize(w * elemsize, 16) / elemsize;
     nstep = total();
+#else
+    cstep = alignSize(w * elemsize, 16) / elemsize;
+#endif
 
     if (total() > 0)
     {
@@ -994,7 +1148,11 @@ void VkMat::create(int _w, size_t _elemsize, int _elempack, VkAllocator* _alloca
 
 void VkMat::create(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator* _allocator)
 {
+#if NCNN_BATCH
     if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && elempack == _elempack && allocator == _allocator && n == 1)
+#else
+    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
+#endif
         return;
 
     release();
@@ -1009,8 +1167,12 @@ void VkMat::create(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator*
     d = 1;
     c = 1;
 
+#if NCNN_BATCH
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
     nstep = total();
+#else
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#endif
 
     if (total() > 0)
     {
@@ -1028,7 +1190,11 @@ void VkMat::create(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator*
 
 void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAllocator* _allocator)
 {
+#if NCNN_BATCH
     if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && elempack == _elempack && allocator == _allocator && n == 1)
+#else
+    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
+#endif
         return;
 
     release();
@@ -1043,8 +1209,12 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAl
     d = 1;
     c = _c;
 
+#if NCNN_BATCH
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
     nstep = total();
+#else
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#endif
 
     if (total() > 0)
     {
@@ -1062,7 +1232,11 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAl
 
 void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, VkAllocator* _allocator)
 {
+#if NCNN_BATCH
     if (dims == 4 && w == _w && h == _h && d == _d && c == _c && elemsize == _elemsize && elempack == _elempack && allocator == _allocator && n == 1)
+#else
+    if (dims == 4 && w == _w && h == _h && d == _d && c == _c && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
+#endif
         return;
 
     release();
@@ -1077,8 +1251,12 @@ void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempa
     d = _d;
     c = _c;
 
+#if NCNN_BATCH
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
     nstep = total();
+#else
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
+#endif
 
     if (total() > 0)
     {
@@ -1096,11 +1274,13 @@ void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempa
 
 void VkMat::create_like(const Mat& m, VkAllocator* _allocator)
 {
+#if NCNN_BATCH
     if (m.n > 1)
     {
-        create_like_batch(m, m.n, _allocator);
+        create_like(m, m.n, _allocator);
         return;
     }
+#endif
 
     int _dims = m.dims;
     if (_dims == 1)
@@ -1115,11 +1295,13 @@ void VkMat::create_like(const Mat& m, VkAllocator* _allocator)
 
 void VkMat::create_like(const VkMat& m, VkAllocator* _allocator)
 {
+#if NCNN_BATCH
     if (m.n > 1)
     {
-        create_like_batch(m, m.n, _allocator);
+        create_like(m, m.n, _allocator);
         return;
     }
+#endif
 
     int _dims = m.dims;
     if (_dims == 1)
@@ -1132,29 +1314,41 @@ void VkMat::create_like(const VkMat& m, VkAllocator* _allocator)
         create(m.w, m.h, m.d, m.c, m.elemsize, m.elempack, _allocator);
 }
 
-void VkMat::create_like_batch(const Mat& m, int _batch, VkAllocator* _allocator)
+#if NCNN_BATCH
+void VkMat::create_like(const Mat& m, int _batch, VkAllocator* _allocator)
 {
     if (m.dims == 1)
-        create_batch(m.w, _batch, m.elemsize, m.elempack, _allocator);
+        create(m.w, m.elemsize, m.elempack, _batch, _allocator);
     else if (m.dims == 2)
-        create_batch(m.w, m.h, _batch, m.elemsize, m.elempack, _allocator);
+        create(m.w, m.h, m.elemsize, m.elempack, _batch, _allocator);
     else if (m.dims == 3)
-        create_batch(m.w, m.h, m.c, _batch, m.elemsize, m.elempack, _allocator);
+        create(m.w, m.h, m.c, m.elemsize, m.elempack, _batch, _allocator);
     else if (m.dims == 4)
-        create_batch(m.w, m.h, m.d, m.c, _batch, m.elemsize, m.elempack, _allocator);
+        create(m.w, m.h, m.d, m.c, m.elemsize, m.elempack, _batch, _allocator);
 }
 
-void VkMat::create_like_batch(const VkMat& m, int _batch, VkAllocator* _allocator)
+void VkMat::create_like(const VkMat& m, int _batch, VkAllocator* _allocator)
 {
     if (m.dims == 1)
-        create_batch(m.w, _batch, m.elemsize, m.elempack, _allocator);
+        create(m.w, m.elemsize, m.elempack, _batch, _allocator);
     else if (m.dims == 2)
-        create_batch(m.w, m.h, _batch, m.elemsize, m.elempack, _allocator);
+        create(m.w, m.h, m.elemsize, m.elempack, _batch, _allocator);
     else if (m.dims == 3)
-        create_batch(m.w, m.h, m.c, _batch, m.elemsize, m.elempack, _allocator);
+        create(m.w, m.h, m.c, m.elemsize, m.elempack, _batch, _allocator);
     else if (m.dims == 4)
-        create_batch(m.w, m.h, m.d, m.c, _batch, m.elemsize, m.elempack, _allocator);
+        create(m.w, m.h, m.d, m.c, m.elemsize, m.elempack, _batch, _allocator);
 }
+#else
+void VkMat::create_like(const Mat& m, int, VkAllocator* _allocator)
+{
+    create_like(m, _allocator);
+}
+
+void VkMat::create_like(const VkMat& m, int, VkAllocator* _allocator)
+{
+    create_like(m, _allocator);
+}
+#endif // NCNN_BATCH
 
 void VkMat::create_like(const VkImageMat& im, VkAllocator* _allocator)
 {
@@ -1169,7 +1363,8 @@ void VkMat::create_like(const VkImageMat& im, VkAllocator* _allocator)
         create(im.w, im.h, im.d, im.c, im.elemsize, im.elempack, _allocator);
 }
 
-void VkMat::create_batch(int _w, int _batch, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+#if NCNN_BATCH
+void VkMat::create(int _w, size_t _elemsize, int _elempack, int _batch, VkAllocator* _allocator)
 {
     if (_batch <= 1)
     {
@@ -1209,7 +1404,7 @@ void VkMat::create_batch(int _w, int _batch, size_t _elemsize, int _elempack, Vk
     }
 }
 
-void VkMat::create_batch(int _w, int _h, int _batch, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+void VkMat::create(int _w, int _h, size_t _elemsize, int _elempack, int _batch, VkAllocator* _allocator)
 {
     if (_batch <= 1)
     {
@@ -1249,7 +1444,7 @@ void VkMat::create_batch(int _w, int _h, int _batch, size_t _elemsize, int _elem
     }
 }
 
-void VkMat::create_batch(int _w, int _h, int _c, int _batch, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, int _batch, VkAllocator* _allocator)
 {
     if (_batch <= 1)
     {
@@ -1289,7 +1484,7 @@ void VkMat::create_batch(int _w, int _h, int _c, int _batch, size_t _elemsize, i
     }
 }
 
-void VkMat::create_batch(int _w, int _h, int _d, int _c, int _batch, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, int _batch, VkAllocator* _allocator)
 {
     if (_batch <= 1)
     {
@@ -1328,6 +1523,27 @@ void VkMat::create_batch(int _w, int _h, int _d, int _c, int _batch, size_t _ele
         *refcount = 1;
     }
 }
+#else
+void VkMat::create(int _w, size_t _elemsize, int _elempack, int, VkAllocator* _allocator)
+{
+    create(_w, _elemsize, _elempack, _allocator);
+}
+
+void VkMat::create(int _w, int _h, size_t _elemsize, int _elempack, int, VkAllocator* _allocator)
+{
+    create(_w, _h, _elemsize, _elempack, _allocator);
+}
+
+void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, int, VkAllocator* _allocator)
+{
+    create(_w, _h, _c, _elemsize, _elempack, _allocator);
+}
+
+void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, int, VkAllocator* _allocator)
+{
+    create(_w, _h, _d, _c, _elemsize, _elempack, _allocator);
+}
+#endif // NCNN_BATCH
 
 void VkImageMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
 {

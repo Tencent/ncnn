@@ -539,13 +539,13 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
         {
             int dims = dst_fp16.dims;
             if (dims == 1)
-                dst.create_batch(dst_fp16.w, dst_fp16.n, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+                dst.create(dst_fp16.w, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, dst_fp16.n, opt.blob_allocator);
             if (dims == 2)
-                dst.create_batch(dst_fp16.w, dst_fp16.h, dst_fp16.n, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+                dst.create(dst_fp16.w, dst_fp16.h, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, dst_fp16.n, opt.blob_allocator);
             if (dims == 3)
-                dst.create_batch(dst_fp16.w, dst_fp16.h, dst_fp16.c, dst_fp16.n, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+                dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, dst_fp16.n, opt.blob_allocator);
             if (dims == 4)
-                dst.create_batch(dst_fp16.w, dst_fp16.h, dst_fp16.d, dst_fp16.c, dst_fp16.n, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+                dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.d, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, dst_fp16.n, opt.blob_allocator);
 
             d->download_post_mats.push_back(dst);
 
@@ -561,13 +561,13 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
         {
             int dims = dst_fp16.dims;
             if (dims == 1)
-                dst.create_batch(dst_fp16.w, dst_fp16.n, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+                dst.create(dst_fp16.w, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, dst_fp16.n, opt.blob_allocator);
             if (dims == 2)
-                dst.create_batch(dst_fp16.w, dst_fp16.h, dst_fp16.n, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+                dst.create(dst_fp16.w, dst_fp16.h, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, dst_fp16.n, opt.blob_allocator);
             if (dims == 3)
-                dst.create_batch(dst_fp16.w, dst_fp16.h, dst_fp16.c, dst_fp16.n, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+                dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, dst_fp16.n, opt.blob_allocator);
             if (dims == 4)
-                dst.create_batch(dst_fp16.w, dst_fp16.h, dst_fp16.d, dst_fp16.c, dst_fp16.n, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+                dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.d, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, dst_fp16.n, opt.blob_allocator);
 
             d->download_post_mats.push_back(dst);
 
@@ -1997,8 +1997,9 @@ int VkCompute::submit_and_wait()
             src.allocator->invalidate(src.data);
             for (int b = 0; b < dst.n; b++)
             {
+                const VkMat src_b = src.batch(b);
                 Mat dst_b = dst.batch(b);
-                memcpy(dst_b.data, (const unsigned char*)src.mapped_ptr() + src.nstep * b * src.elemsize, dst_b.total() * dst_b.elemsize);
+                memcpy(dst_b.data, src_b.mapped_ptr(), dst_b.total() * dst_b.elemsize);
             }
             break;
         }

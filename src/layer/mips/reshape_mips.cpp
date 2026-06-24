@@ -22,6 +22,7 @@ Reshape_mips::Reshape_mips()
 #endif
 }
 
+#if NCNN_BATCH
 int Reshape_mips::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
@@ -798,13 +799,13 @@ int Reshape_mips::forward_batch(const std::vector<Mat>& bottom_blobs, std::vecto
             return -1;
 
         if (ndim == 1)
-            top_blob.create_batch(outw / out_elempack, batch, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(outw / out_elempack, out_elemsize, out_elempack, batch, opt.blob_allocator);
         if (ndim == 2)
-            top_blob.create_batch(outw, outh / out_elempack, batch, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, batch, opt.blob_allocator);
         if (ndim == 3)
-            top_blob.create_batch(outw, outh, outc / out_elempack, batch, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, batch, opt.blob_allocator);
         if (ndim == 4)
-            top_blob.create_batch(outw, outh, outd, outc / out_elempack, batch, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(outw, outh, outd, outc / out_elempack, out_elemsize, out_elempack, batch, opt.blob_allocator);
 
         if (top_blob.empty())
             return -100;
@@ -1363,14 +1364,17 @@ int Reshape_mips::forward_batch(const std::vector<Mat>& bottom_blobs, std::vecto
 
     return -1;
 }
+#endif // NCNN_BATCH
 
 int Reshape_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     Mat& top_blob = top_blobs[0];
 
+#if NCNN_BATCH
     if (batch_mode != 0)
         return forward_batch(bottom_blobs, top_blobs, opt);
+#endif
 
     const int elembits = bottom_blob.elembits();
     if (elembits == 16)
@@ -1674,8 +1678,10 @@ int Reshape_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
 int Reshape_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_BATCH
     if (batch_mode != 0)
         return forward_batch(bottom_blobs, top_blobs, opt);
+#endif
 
     const Mat& bottom_blob = bottom_blobs[0];
     Mat& top_blob = top_blobs[0];

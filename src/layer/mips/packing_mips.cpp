@@ -99,7 +99,7 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         int outh = h * elempack / out_elempack;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        top_blob.create_batch(w, outh, batch, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create(w, outh, out_elemsize, out_elempack, batch, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -234,9 +234,9 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         if (dims == 3)
-            top_blob.create_batch(w, h, outc, batch, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, batch, opt.blob_allocator);
         else
-            top_blob.create_batch(w, h, d, outc, batch, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, batch, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -435,7 +435,7 @@ int Packing_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
         int outh = h * elempack / out_elempack;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        top_blob.create_batch(w, outh, batch, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create(w, outh, out_elemsize, out_elempack, batch, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -520,9 +520,9 @@ int Packing_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         if (dims == 3)
-            top_blob.create_batch(w, h, outc, batch, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, batch, opt.blob_allocator);
         else
-            top_blob.create_batch(w, h, d, outc, batch, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, batch, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 

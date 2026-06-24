@@ -17,7 +17,7 @@ static int test_create_batch_basic()
 {
     // create a batch of 4 images, 3 channels, 8x6 spatial
     ncnn::Mat m;
-    m.create_batch(8, 6, 3, 4, 4u, 1);
+    m.create(8, 6, 3, 4u, 1, 4);
 
     if (m.dims != 3)
     {
@@ -53,7 +53,7 @@ static int test_nstep_alignment()
     // verify nstep * elemsize is 4K aligned
     {
         ncnn::Mat m;
-        m.create_batch(8, 6, 3, 4, 4u, 1);
+        m.create(8, 6, 3, 4u, 1, 4);
         size_t nstep_bytes = m.nstep * m.elemsize;
         if (nstep_bytes % 4096 != 0)
         {
@@ -65,7 +65,7 @@ static int test_nstep_alignment()
     // odd spatial dims
     {
         ncnn::Mat m;
-        m.create_batch(7, 5, 13, 2, 4u, 1);
+        m.create(7, 5, 13, 4u, 1, 2);
         size_t nstep_bytes = m.nstep * m.elemsize;
         if (nstep_bytes % 4096 != 0)
         {
@@ -77,7 +77,7 @@ static int test_nstep_alignment()
     // 4D with depth
     {
         ncnn::Mat m;
-        m.create_batch(5, 4, 3, 2, 8, 4u, 1, 0);
+        m.create(5, 4, 3, 2, 4u, 1, 8, 0);
         if (m.dims != 4)
         {
             fprintf(stderr, "test_nstep_alignment 4D dims expect 4 got %d\n", m.dims);
@@ -94,7 +94,7 @@ static int test_nstep_alignment()
     // packed elempack=4
     {
         ncnn::Mat m;
-        m.create_batch(8, 6, 1, 12, 4, 16u, 4, 0);
+        m.create(8, 6, 1, 12, 16u, 4, 4, 0);
         size_t nstep_bytes = m.nstep * m.elemsize;
         if (nstep_bytes % 4096 != 0)
         {
@@ -109,7 +109,7 @@ static int test_nstep_alignment()
 static int test_batch_subview_zero_copy()
 {
     ncnn::Mat m;
-    m.create_batch(4, 3, 2, 3, 4u, 1);
+    m.create(4, 3, 2, 4u, 1, 3);
 
     // fill each batch with distinct value
     for (int b = 0; b < m.n; b++)
@@ -176,7 +176,7 @@ static int test_batch_subview_zero_copy()
 static int test_batch_range()
 {
     ncnn::Mat m;
-    m.create_batch(4, 3, 2, 4, 4u, 1);
+    m.create(4, 3, 2, 4u, 1, 4);
 
     // fill with batch index
     for (int b = 0; b < 4; b++)
@@ -222,7 +222,7 @@ static int test_batch_range()
 static int test_batch_data_isolation()
 {
     ncnn::Mat m;
-    m.create_batch(16, 16, 3, 4, 4u, 1);
+    m.create(16, 16, 3, 4u, 1, 4);
 
     // write unique pattern to each batch
     for (int b = 0; b < 4; b++)
@@ -264,7 +264,7 @@ static int test_batch_data_isolation()
 static int test_batch_clone()
 {
     ncnn::Mat m;
-    m.create_batch(8, 6, 3, 4, 4u, 1);
+    m.create(8, 6, 3, 4u, 1, 4);
 
     // fill with data
     for (int b = 0; b < 4; b++)
@@ -326,7 +326,7 @@ static int test_batch_clone()
 static int test_batch_release()
 {
     ncnn::Mat m;
-    m.create_batch(4, 3, 2, 4, 4u, 1);
+    m.create(4, 3, 2, 4u, 1, 4);
 
     m.release();
 
@@ -357,7 +357,7 @@ static int test_batch_release()
 static int test_batch_create_reset()
 {
     ncnn::Mat m;
-    m.create_batch(4, 3, 2, 3, 4u, 1);
+    m.create(4, 3, 2, 4u, 1, 3);
     m.create(4, 3, 2, (size_t)4u, (ncnn::Allocator*)0);
 
     if (m.n != 1)
@@ -387,7 +387,7 @@ static int test_batch_reshape()
     const int W = 2;
 
     ncnn::Mat m;
-    m.create_batch(W, H, C, B, 4u, 1);
+    m.create(W, H, C, 4u, 1, B);
 
     for (int b = 0; b < B; b++)
     {
@@ -440,7 +440,7 @@ static int test_batch_reshape_zero_copy()
     const int W = 4;
 
     ncnn::Mat m;
-    m.create_batch(W, H, C, B, 4u, 1);
+    m.create(W, H, C, 4u, 1, B);
 
     for (int b = 0; b < B; b++)
     {
@@ -498,7 +498,7 @@ static int test_batch_reshape_batch_to_dim_flatten()
     const int W = 5;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -565,7 +565,7 @@ static int test_batch_reshape_batch_to_dim_4d()
     const int W = 5;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -765,7 +765,7 @@ static int test_batch_reshape_batch_to_dim_axis1()
     const int W = 7;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -829,7 +829,7 @@ static int test_batch_reshape_packed_batch_to_dim_axis0()
     const int W = 7;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -905,7 +905,7 @@ static int test_batch_reshape_packed_batch_to_dim_axis0_2d()
     const int W = 7;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, B, 4u, 1);
+    input_batch.create(W, H, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -981,7 +981,7 @@ static int test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked()
     const int W = 7;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, B, 4u, 1);
+    input_batch.create(W, H, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -1051,7 +1051,7 @@ static int test_batch_reshape_packed_batch_to_dim_axis1()
     const int W = 7;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -1127,7 +1127,7 @@ static int test_batch_reshape_packed_batch_to_dim_axis1_2d()
     const int W = 7;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, B, 4u, 1);
+    input_batch.create(W, H, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -1204,7 +1204,7 @@ static int test_batch_reshape_batch_to_dim_axis1_pack1topacked()
     const int W = 5;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -1792,7 +1792,7 @@ static int test_batch_reshape_batch_to_dim_pack1topacked()
     const int W = 5;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -1862,7 +1862,7 @@ static int test_batch_reshape_batch_to_dim_pack1tohighpack()
     const int W = 5;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -1932,7 +1932,7 @@ static int test_batch_reshape_batch_to_dim_pack4topack1()
     const int W = 5;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -2226,7 +2226,7 @@ static int test_batch_reshape_bf16_storage_packed()
     const int W = 5;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -2383,7 +2383,7 @@ static int test_batch_reshape_bf16_storage_axis1_packed()
     const int W = 5;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -2597,7 +2597,7 @@ static int test_batch_reshape_roundtrip()
     const int W = 5;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -2648,7 +2648,7 @@ static int test_batch_reshape_permute_fold()
     const int W = 5;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -2814,7 +2814,7 @@ static int test_create_batch_single()
 {
     // create_batch with batch=1 should fall back to regular create
     ncnn::Mat m;
-    m.create_batch(8, 6, 3, 1, 4u, 1);
+    m.create(8, 6, 3, 4u, 1, 1);
 
     if (m.dims != 3)
     {
@@ -2847,7 +2847,7 @@ static int test_create_batch_1d()
 {
     // create a batch of 4 1D vectors, w=100
     ncnn::Mat m;
-    m.create_batch(100, 4, 4u, 1);
+    m.create(100, (size_t)4u, 1, 4);
 
     if (m.dims != 1)
     {
@@ -2913,7 +2913,7 @@ static int test_create_batch_2d()
 {
     // create a batch of 3 2D matrices, 10x20
     ncnn::Mat m;
-    m.create_batch(10, 20, 3, 4u, 1);
+    m.create(10, 20, 4u, 1, 3);
 
     if (m.dims != 2)
     {
@@ -2988,8 +2988,8 @@ static int test_batch_forward_binaryop_same_batch()
 
     ncnn::Mat a;
     ncnn::Mat b;
-    a.create_batch(W, H, C, B, 4u, 1);
-    b.create_batch(W, H, C, B, 4u, 1);
+    a.create(W, H, C, 4u, 1, B);
+    b.create(W, H, C, 4u, 1, B);
 
     for (int bi = 0; bi < B; bi++)
     {
@@ -3063,7 +3063,7 @@ static int test_batch_forward_binaryop_broadcast()
 
     ncnn::Mat a;
     ncnn::Mat b(W, H, C);
-    a.create_batch(W, H, C, B, 4u, 1);
+    a.create(W, H, C, 4u, 1, B);
 
     for (int bi = 0; bi < B; bi++)
     {
@@ -3141,7 +3141,7 @@ static int test_batch_forward_scale_external()
     const int W = 4;
 
     ncnn::Mat data;
-    data.create_batch(W, H, C, B, 4u, 1);
+    data.create(W, H, C, 4u, 1, B);
     ncnn::Mat scale(C);
 
     for (int bi = 0; bi < B; bi++)
@@ -3212,8 +3212,8 @@ static int test_batch_forward_binaryop_mismatch()
 
     ncnn::Mat a;
     ncnn::Mat b;
-    a.create_batch(4, 3, 2, 3, 4u, 1);
-    b.create_batch(4, 3, 2, 2, 4u, 1);
+    a.create(4, 3, 2, 4u, 1, 3);
+    b.create(4, 3, 2, 4u, 1, 2);
 
     ncnn::Extractor ex = net.create_extractor();
     ex.input("a", a);
@@ -3247,7 +3247,7 @@ static int test_batch_forward_split()
     const int W = 4;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -3304,7 +3304,7 @@ static int test_batch_forward_flatten()
     const int W = 4;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -3371,7 +3371,7 @@ static int test_batch_forward_shape_ops()
     const int W = 4;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -3439,7 +3439,7 @@ static int test_batch_forward_relu()
     const int W = 4;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     if (input_batch.empty())
     {
         fprintf(stderr, "test_batch_forward_relu create_batch failed\n");
@@ -3517,7 +3517,7 @@ static int test_batch_forward_pooling()
     const int W = 4;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
 
     for (int b = 0; b < B; b++)
     {
@@ -3599,7 +3599,7 @@ static int test_vkmat_create_batch_basic()
     ncnn::VkAllocator* blob_allocator = vkdev->acquire_blob_allocator();
 
     ncnn::VkMat m;
-    m.create_batch(8, 6, 3, 4, 4u, 1, blob_allocator);
+    m.create(8, 6, 3, 4u, 1, 4, blob_allocator);
 
     if (m.dims != 3)
     {
@@ -3637,7 +3637,7 @@ static int test_vkmat_nstep_alignment()
     ncnn::VkAllocator* blob_allocator = vkdev->acquire_blob_allocator();
 
     ncnn::VkMat m;
-    m.create_batch(7, 5, 13, 4, 4u, 1, blob_allocator);
+    m.create(7, 5, 13, 4u, 1, 4, blob_allocator);
 
     size_t nstep_bytes = m.nstep * m.elemsize;
     if (nstep_bytes % 4096 != 0)
@@ -3659,7 +3659,7 @@ static int test_vkmat_batch_subview()
     ncnn::VkAllocator* blob_allocator = vkdev->acquire_blob_allocator();
 
     ncnn::VkMat m;
-    m.create_batch(4, 3, 2, 3, 4u, 1, blob_allocator);
+    m.create(4, 3, 2, 4u, 1, 3, blob_allocator);
 
     for (int b = 0; b < m.n; b++)
     {
@@ -3727,7 +3727,7 @@ static int test_vkmat_batch_range()
     ncnn::VkAllocator* blob_allocator = vkdev->acquire_blob_allocator();
 
     ncnn::VkMat m;
-    m.create_batch(4, 3, 2, 4, 4u, 1, blob_allocator);
+    m.create(4, 3, 2, 4u, 1, 4, blob_allocator);
 
     ncnn::VkMat range = m.batch_range(1, 2);
     if (range.n != 2)
@@ -3774,7 +3774,7 @@ static int test_vkmat_batch_release()
     ncnn::VkAllocator* blob_allocator = vkdev->acquire_blob_allocator();
 
     ncnn::VkMat m;
-    m.create_batch(4, 3, 2, 4, 4u, 1, blob_allocator);
+    m.create(4, 3, 2, 4u, 1, 4, blob_allocator);
     m.release();
 
     if (m.dims != 0)
@@ -3800,7 +3800,7 @@ static int test_vkmat_create_reset()
     ncnn::VkAllocator* blob_allocator = vkdev->acquire_blob_allocator();
 
     ncnn::VkMat m;
-    m.create_batch(4, 3, 2, 3, 4u, 1, blob_allocator);
+    m.create(4, 3, 2, 4u, 1, 3, blob_allocator);
     m.create(4, 3, 2, (size_t)4u, blob_allocator);
 
     if (m.n != 1)
@@ -3829,7 +3829,7 @@ static int test_vkimage_batch_not_supported()
     ncnn::VkAllocator* blob_allocator = vkdev->acquire_blob_allocator();
 
     ncnn::Mat cpu_batch;
-    cpu_batch.create_batch(4, 3, 2, 3, 4u, 1);
+    cpu_batch.create(4, 3, 2, 4u, 1, 3);
 
     ncnn::VkImageMat im;
     im.create_like(cpu_batch, blob_allocator);
@@ -3842,7 +3842,7 @@ static int test_vkimage_batch_not_supported()
     }
 
     ncnn::VkMat gpu_batch;
-    gpu_batch.create_batch(4, 3, 2, 3, 4u, 1, blob_allocator);
+    gpu_batch.create(4, 3, 2, 4u, 1, 3, blob_allocator);
     im.create_like(gpu_batch, blob_allocator);
     if (!im.empty())
     {
@@ -3871,7 +3871,7 @@ static int test_vkmat_batch_upload_download()
 
     // create and fill cpu batch
     ncnn::Mat cpu_batch;
-    cpu_batch.create_batch(W, H, C, B, 4u, 1);
+    cpu_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = cpu_batch.batch(b);
@@ -3903,7 +3903,7 @@ static int test_vkmat_batch_upload_download()
 
         if (b == 0)
         {
-            gpu_batch.create_like_batch(gpu_b, B, blob_allocator);
+            gpu_batch.create_like(gpu_b, B, blob_allocator);
         }
 
         ncnn::VkMat gpu_batch_slot = gpu_batch.batch(b);
@@ -3965,7 +3965,7 @@ static int test_vkmat_batch_upload_download_whole()
     const int C = 2;
 
     ncnn::Mat cpu_batch;
-    cpu_batch.create_batch(W, H, C, B, 4u, 1);
+    cpu_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = cpu_batch.batch(b);
@@ -4034,7 +4034,7 @@ static int test_vktransfer_batch_upload()
     const int C = 2;
 
     ncnn::Mat cpu_batch;
-    cpu_batch.create_batch(W, H, C, B, 4u, 1);
+    cpu_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = cpu_batch.batch(b);
@@ -4123,7 +4123,7 @@ static int test_vkmat_batch_forward_reshape_batch_to_dim()
     const int W = 5;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -4335,7 +4335,7 @@ static int test_vkmat_batch_forward_reshape_batch_to_dim_axis1()
     const int W = 7;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -4399,7 +4399,7 @@ static int test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4()
     const int W = 4;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -4481,7 +4481,7 @@ static int test_vkmat_batch_forward_reshape_packed_batch_to_dim_axis1()
     const int W = 7;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -4733,7 +4733,7 @@ static int test_vkmat_batch_forward_relu()
     const int W = 4;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     if (input_batch.empty())
     {
         fprintf(stderr, "test_vkmat_batch_forward_relu create_batch failed\n");
@@ -4812,7 +4812,7 @@ static int test_vkmat_batch_forward_pooling()
     const int W = 4;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
 
     for (int b = 0; b < B; b++)
     {
@@ -4908,7 +4908,7 @@ static int test_vkmat_batch_forward_split()
     const int W = 4;
 
     ncnn::Mat input_batch;
-    input_batch.create_batch(W, H, C, B, 4u, 1);
+    input_batch.create(W, H, C, 4u, 1, B);
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
@@ -4971,8 +4971,8 @@ static int test_vkmat_batch_forward_binaryop_same_batch()
 
     ncnn::Mat a;
     ncnn::Mat b;
-    a.create_batch(W, H, C, B, 4u, 1);
-    b.create_batch(W, H, C, B, 4u, 1);
+    a.create(W, H, C, 4u, 1, B);
+    b.create(W, H, C, 4u, 1, B);
 
     for (int bi = 0; bi < B; bi++)
     {
@@ -5050,7 +5050,7 @@ static int test_vkmat_batch_forward_binaryop_broadcast()
 
     ncnn::Mat a;
     ncnn::Mat b(W, H, C);
-    a.create_batch(W, H, C, B, 4u, 1);
+    a.create(W, H, C, 4u, 1, B);
 
     for (int bi = 0; bi < B; bi++)
     {
@@ -5132,7 +5132,7 @@ static int test_vkmat_batch_forward_scale_external()
     const int W = 4;
 
     ncnn::Mat data;
-    data.create_batch(W, H, C, B, 4u, 1);
+    data.create(W, H, C, 4u, 1, B);
     ncnn::Mat scale(C);
 
     for (int bi = 0; bi < B; bi++)
@@ -5207,8 +5207,8 @@ static int test_vkmat_batch_forward_binaryop_mismatch()
 
     ncnn::Mat a;
     ncnn::Mat b;
-    a.create_batch(4, 3, 2, 3, 4u, 1);
-    b.create_batch(4, 3, 2, 2, 4u, 1);
+    a.create(4, 3, 2, 4u, 1, 3);
+    b.create(4, 3, 2, 4u, 1, 2);
 
     ncnn::Extractor ex = net.create_extractor();
     ex.input("a", a);

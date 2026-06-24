@@ -61,13 +61,13 @@ int Cast_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
     }
 
     if (dims == 1)
-        top_blob.create_batch(w, batch, out_elemsize, elempack, opt.blob_allocator);
+        top_blob.create(w, out_elemsize, elempack, batch, opt.blob_allocator);
     else if (dims == 2)
-        top_blob.create_batch(w, h, batch, out_elemsize, elempack, opt.blob_allocator);
+        top_blob.create(w, h, out_elemsize, elempack, batch, opt.blob_allocator);
     else if (dims == 3)
-        top_blob.create_batch(w, h, channels, batch, out_elemsize, elempack, opt.blob_allocator);
+        top_blob.create(w, h, channels, out_elemsize, elempack, batch, opt.blob_allocator);
     else if (dims == 4)
-        top_blob.create_batch(w, h, d, channels, batch, out_elemsize, elempack, opt.blob_allocator);
+        top_blob.create(w, h, d, channels, out_elemsize, elempack, batch, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
