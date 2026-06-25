@@ -17,6 +17,96 @@ static bool is_identity_op(const Operator* op)
     return op->type == "Noop" || op->type == "Tensor.clone" || op->type == "torch.clone";
 }
 
+static bool is_elementwise_op(const Operator* op)
+{
+    static const char* elementwise_ops[] = {
+        "F.celu",
+        "F.elu",
+        "F.gelu",
+        "F.hardshrink",
+        "F.hardsigmoid",
+        "F.hardswish",
+        "F.hardtanh",
+        "F.leaky_relu",
+        "F.logsigmoid",
+        "F.mish",
+        "F.relu",
+        "F.relu6",
+        "F.selu",
+        "F.sigmoid",
+        "F.silu",
+        "F.softplus",
+        "F.softshrink",
+        "F.softsign",
+        "F.tanh",
+        "F.tanhshrink",
+        "F.threshold",
+
+        "nn.CELU",
+        "nn.ELU",
+        "nn.GELU",
+        "nn.Hardshrink",
+        "nn.Hardsigmoid",
+        "nn.Hardswish",
+        "nn.Hardtanh",
+        "nn.LeakyReLU",
+        "nn.LogSigmoid",
+        "nn.Mish",
+        "nn.ReLU",
+        "nn.ReLU6",
+        "nn.SELU",
+        "nn.Sigmoid",
+        "nn.SiLU",
+        "nn.Softplus",
+        "nn.Softshrink",
+        "nn.Softsign",
+        "nn.Tanh",
+        "nn.Tanhshrink",
+        "nn.Threshold",
+
+        "torch.abs",
+        "torch.acos",
+        "torch.acosh",
+        "torch.asin",
+        "torch.asinh",
+        "torch.atan",
+        "torch.atanh",
+        "torch.ceil",
+        "torch.clamp",
+        "torch.cos",
+        "torch.cosh",
+        "torch.exp",
+        "torch.floor",
+        "torch.imag",
+        "torch.log",
+        "torch.log10",
+        "torch.neg",
+        "torch.real",
+        "torch.reciprocal",
+        "torch.rsqrt",
+        "torch.sign",
+        "torch.sin",
+        "torch.sinh",
+        "torch.sqrt",
+        "torch.square",
+        "torch.tan",
+        "torch.tanh",
+        "torch.trunc",
+    };
+
+    if (op->inputs.size() != 1 || op->outputs.size() != 1 || op->inputs[0]->shape != op->outputs[0]->shape)
+        return false;
+
+    const size_t elementwise_ops_count = sizeof(elementwise_ops) / sizeof(const char*);
+    for (size_t i = 0; i < elementwise_ops_count; i++)
+    {
+        if (op->type == elementwise_ops[i])
+            return true;
+    }
+
+    return false;
+}
+
 static bool is_reshape_op(const Operator* op)
 {
     return op->type == "Tensor.reshape" || op->type == "torch.flatten";
@@ -54,7 +144,7 @@ static bool fold_batch_after_permute(Operator* op, std::vector<Operator*>& chain
             return true;
         }
 
-        if (!is_layout_op(op2) && !is_identity_op(op2))
+        if (!is_layout_op(op2) && !is_identity_op(op2) && !is_elementwise_op(op2))
             return false;
 
         chain.push_back(op2);
@@ -93,7 +183,7 @@ static bool extract_batch_after_permute(Operator* op, std::vector<Operator*>& ch
             return true;
         }
 
-        if (!is_layout_op(op0) && !is_identity_op(op0))
+        if (!is_layout_op(op0) && !is_identity_op(op0) && !is_elementwise_op(op0))
             return false;
 
         chain.push_back(op0);

@@ -61,6 +61,18 @@ class ModelBatchToMiddleOutputSameDim(nn.Module):
         return x
 
 
+class ModelMiddleBatchReshapeFoldAmbiguousAxis(nn.Module):
+    def __init__(self):
+        super(ModelMiddleBatchReshapeFoldAmbiguousAxis, self).__init__()
+
+    def forward(self, x):
+        x = F.max_pool2d(x, 3, stride=1, padding=1)
+        x = x.permute(1, 0, 2, 3)
+        x = F.relu(x)
+        x = x.reshape(2, 105)
+        return x
+
+
 class ModelBatchMiddleRoundTrip(nn.Module):
     def __init__(self):
         super(ModelBatchMiddleRoundTrip, self).__init__()
@@ -91,6 +103,30 @@ class ModelFlattenBackwardBatch(nn.Module):
         x = torch.flatten(x, 0, 1)
         x = x.permute(1, 0, 2)
         x = F.max_pool1d(x, 1)
+        return x
+
+
+class ModelMiddleBatchFlattenFold(nn.Module):
+    def __init__(self):
+        super(ModelMiddleBatchFlattenFold, self).__init__()
+
+    def forward(self, x):
+        x = F.max_pool2d(x, 1)
+        x = x.permute(1, 0, 2, 3)
+        x = x.unsqueeze(1)
+        x = torch.flatten(x, 1, 2)
+        return x
+
+
+class ModelMiddleBatchUnflattenFold(nn.Module):
+    def __init__(self):
+        super(ModelMiddleBatchUnflattenFold, self).__init__()
+
+    def forward(self, x):
+        x = F.max_pool2d(x, 1)
+        x = x.permute(1, 0, 2, 3)
+        x = x.reshape(3, 2, 35)
+        x = x.unflatten(dim=1, sizes=(1, 2))
         return x
 
 
@@ -152,7 +188,7 @@ def compare(a, b):
     return torch.allclose(a, b, 1e-3, 1e-3)
 
 
-def run_model(name, net, inputs, checks=None):
+def run_model(name, net, inputs):
     net.eval()
 
     if not isinstance(inputs, tuple):
@@ -166,13 +202,6 @@ def run_model(name, net, inputs, checks=None):
     inputshape = ",".join([str(list(x.shape)).replace(" ", "") for x in inputs])
     os.system("../../src/pnnx " + name + ".pt inputshape=" + inputshape)
 
-    if checks:
-        with open(name + ".ncnn.param") as f:
-            text = f.read()
-            for s in checks:
-                if s not in text:
-                    return False
-
     ncnnpy = __import__(name + "_ncnn")
     b = ncnnpy.test_inference()
 
@@ -183,27 +212,32 @@ def test():
     if version.parse(torch.__version__) >= version.parse('1.13'):
         torch.manual_seed(0)
         x = torch.rand(6, 5, 7)
-        if not run_model("test_ncnn_batch_layout_middle_batch", ModelMiddleBatch(), x, ["12=2", "13=1"]):
+        if not run_model("test_ncnn_batch_layout_middle_batch", ModelMiddleBatch(), x):
             return False
 
     torch.manual_seed(0)
     x = torch.rand(6, 5, 7)
-    if not run_model("test_ncnn_batch_layout_reshape_middle_batch", ModelReshapeMiddleBatch(), x, ["12=2", "13=1"]):
+    if not run_model("test_ncnn_batch_layout_reshape_middle_batch", ModelReshapeMiddleBatch(), x):
         return False
 
     torch.manual_seed(0)
     x = torch.rand(6, 5, 7)
-    if not run_model("test_ncnn_batch_layout_ordinary_permute", ModelMiddleBatchWithOrdinaryPermute(), x, ["12=2", "13=1"]):
+    if not run_model("test_ncnn_batch_layout_ordinary_permute", ModelMiddleBatchWithOrdinaryPermute(), x):
         return False
 
     torch.manual_seed(0)
     x = torch.rand(2, 3, 5, 7)
-    if not run_model("test_ncnn_batch_layout_batch_to_middle", ModelBatchToMiddleOutput(), x, ["12=1", "13=1"]):
+    if not run_model("test_ncnn_batch_layout_batch_to_middle", ModelBatchToMiddleOutput(), x):
         return False
 
     torch.manual_seed(0)
     x = torch.rand(2, 2, 5, 7)
-    if not run_model("test_ncnn_batch_layout_batch_to_middle_same_dim", ModelBatchToMiddleOutputSameDim(), x, ["12=1", "13=1"]):
+    if not run_model("test_ncnn_batch_layout_batch_to_middle_same_dim", ModelBatchToMiddleOutputSameDim(), x):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 3, 5, 7)
+    if not run_model("test_ncnn_batch_layout_middle_batch_reshape_fold_ambiguous_axis", ModelMiddleBatchReshapeFoldAmbiguousAxis(), x):
         return False
 
     torch.manual_seed(0)
@@ -222,14 +256,24 @@ def test():
         return False
 
     torch.manual_seed(0)
-    x = torch.rand(6, 5, 7)
-    y = torch.rand(8, 3, 5)
-    if not run_model("test_ncnn_batch_layout_two_reshapes", ModelTwoBatchAxisReshapes(), (x, y), ["12=2", "13=1"]):
+    x = torch.rand(2, 3, 5, 7)
+    if not run_model("test_ncnn_batch_layout_middle_batch_flatten_fold", ModelMiddleBatchFlattenFold(), x):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 3, 5, 7)
+    if not run_model("test_ncnn_batch_layout_middle_batch_unflatten_fold", ModelMiddleBatchUnflattenFold(), x):
         return False
 
     torch.manual_seed(0)
     x = torch.rand(6, 5, 7)
-    if not run_model("test_ncnn_batch_layout_compute_barrier", ModelComputeBarrier(), x, ["12=2", "13=1"]):
+    y = torch.rand(8, 3, 5)
+    if not run_model("test_ncnn_batch_layout_two_reshapes", ModelTwoBatchAxisReshapes(), (x, y)):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(6, 5, 7)
+    if not run_model("test_ncnn_batch_layout_compute_barrier", ModelComputeBarrier(), x):
         return False
 
     torch.manual_seed(0)

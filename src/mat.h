@@ -1085,10 +1085,14 @@ NCNN_FORCEINLINE Mat::~Mat()
 
 NCNN_FORCEINLINE void Mat::fill(float _v)
 {
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     float* ptr = (float*)data;
 
-    int i = 0;
+    size_t i = 0;
 #if __ARM_NEON
     float32x4_t _c = vdupq_n_f32(_v);
     for (; i + 3 < size; i += 4)
@@ -1105,10 +1109,14 @@ NCNN_FORCEINLINE void Mat::fill(float _v)
 
 NCNN_FORCEINLINE void Mat::fill(int _v)
 {
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     int* ptr = (int*)data;
 
-    int i = 0;
+    size_t i = 0;
 #if __ARM_NEON
     int32x4_t _c = vdupq_n_s32(_v);
     for (; i + 3 < size; i += 4)
@@ -1126,9 +1134,13 @@ NCNN_FORCEINLINE void Mat::fill(int _v)
 #if __ARM_NEON
 NCNN_FORCEINLINE void Mat::fill(float32x4_t _v)
 {
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     float* ptr = (float*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         vst1q_f32(ptr, _v);
         ptr += 4;
@@ -1137,9 +1149,13 @@ NCNN_FORCEINLINE void Mat::fill(float32x4_t _v)
 
 NCNN_FORCEINLINE void Mat::fill(uint16x4_t _v)
 {
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     unsigned short* ptr = (unsigned short*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         vst1_u16(ptr, _v);
         ptr += 4;
@@ -1149,9 +1165,13 @@ NCNN_FORCEINLINE void Mat::fill(uint16x4_t _v)
 #if !defined(_MSC_VER)
 NCNN_FORCEINLINE void Mat::fill(int32x4_t _v)
 {
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     int* ptr = (int*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         vst1q_s32(ptr, _v);
         ptr += 4;
@@ -1161,9 +1181,13 @@ NCNN_FORCEINLINE void Mat::fill(int32x4_t _v)
 
 NCNN_FORCEINLINE void Mat::fill(int32x4_t _v0, int32x4_t _v1)
 {
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     int* ptr = (int*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         vst1q_s32(ptr, _v0);
         vst1q_s32(ptr + 4, _v1);
@@ -1174,9 +1198,13 @@ NCNN_FORCEINLINE void Mat::fill(int32x4_t _v0, int32x4_t _v1)
 #if !defined(_MSC_VER)
 NCNN_FORCEINLINE void Mat::fill(float16x4_t _v)
 {
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     __fp16* ptr = (__fp16*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         vst1_f16(ptr, _v);
         ptr += 4;
@@ -1185,9 +1213,13 @@ NCNN_FORCEINLINE void Mat::fill(float16x4_t _v)
 
 NCNN_FORCEINLINE void Mat::fill(float16x8_t _v)
 {
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     __fp16* ptr = (__fp16*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         vst1q_f16(ptr, _v);
         ptr += 8;
@@ -1202,9 +1234,13 @@ NCNN_FORCEINLINE void Mat::fill(float16x8_t _v)
 #if __AVX512F__
 NCNN_FORCEINLINE void Mat::fill(const __m512& _v)
 {
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     float* ptr = (float*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         _mm512_storeu_ps(ptr, _v);
         ptr += 16;
@@ -1216,9 +1252,13 @@ NCNN_FORCEINLINE void Mat::fill(const __m256& _v, int _i)
     // old gcc cannot overload __m128 and __m256 type
     // add a dummy int parameter for different mangled function symbol
     (void)_i;
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     float* ptr = (float*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         _mm256_storeu_ps(ptr, _v);
         ptr += 8;
@@ -1227,9 +1267,13 @@ NCNN_FORCEINLINE void Mat::fill(const __m256& _v, int _i)
 #endif // __AVX__
 NCNN_FORCEINLINE void Mat::fill(const __m128& _v)
 {
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     float* ptr = (float*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         _mm_storeu_ps(ptr, _v);
         ptr += 4;
@@ -1237,9 +1281,13 @@ NCNN_FORCEINLINE void Mat::fill(const __m128& _v)
 }
 NCNN_FORCEINLINE void Mat::fill(const __m128i& _v)
 {
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     unsigned short* ptr = (unsigned short*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         _mm_store_si128((__m128i*)ptr, _v);
         ptr += 8;
@@ -1250,9 +1298,13 @@ NCNN_FORCEINLINE void Mat::fill(const __m128i& _v)
 #if __mips_msa
 NCNN_FORCEINLINE void Mat::fill(v4f32 _v)
 {
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     float* ptr = (float*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         __msa_st_w((v4i32)_v, ptr, 0);
         ptr += 4;
@@ -1263,9 +1315,13 @@ NCNN_FORCEINLINE void Mat::fill(v4f32 _v)
 #if __loongarch_sx
 NCNN_FORCEINLINE void Mat::fill(__m128 _v)
 {
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     float* ptr = (float*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         __lsx_vst(_v, ptr, 0);
         ptr += 4;
@@ -1279,9 +1335,13 @@ NCNN_FORCEINLINE void Mat::fill(vfloat32m1_t _v)
     const int packn = cpu_riscv_vlenb() / 4;
     const size_t vl = __riscv_vsetvl_e32m1(packn);
 
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     float* ptr = (float*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         __riscv_vse32_v_f32m1(ptr, _v, vl);
         ptr += packn;
@@ -1293,9 +1353,13 @@ NCNN_FORCEINLINE void Mat::fill(vuint16m1_t _v)
     const int packn = cpu_riscv_vlenb() / 2;
     const size_t vl = __riscv_vsetvl_e16m1(packn);
 
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     unsigned short* ptr = (unsigned short*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         __riscv_vse16_v_u16m1(ptr, _v, vl);
         ptr += packn;
@@ -1307,9 +1371,13 @@ NCNN_FORCEINLINE void Mat::fill(vint8m1_t _v)
     const int packn = cpu_riscv_vlenb() / 1;
     const size_t vl = __riscv_vsetvl_e8m1(packn);
 
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     signed char* ptr = (signed char*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         __riscv_vse8_v_i8m1(ptr, _v, vl);
         ptr += packn;
@@ -1321,9 +1389,13 @@ NCNN_FORCEINLINE void Mat::fill(vfloat16m1_t _v)
     const int packn = cpu_riscv_vlenb() / 2;
     const size_t vl = __riscv_vsetvl_e16m1(packn);
 
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     __fp16* ptr = (__fp16*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         __riscv_vse16_v_f16m1(ptr, _v, vl);
         ptr += packn;
@@ -1335,9 +1407,13 @@ NCNN_FORCEINLINE void Mat::fill(vfloat16m1_t _v)
 template<typename T>
 NCNN_FORCEINLINE void Mat::fill(T _v)
 {
-    int size = (int)total();
+#if NCNN_BATCH
+    size_t size = nstep * n;
+#else
+    size_t size = total();
+#endif
     T* ptr = (T*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         ptr[i] = _v;
     }

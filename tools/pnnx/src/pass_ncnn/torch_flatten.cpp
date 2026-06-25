@@ -126,8 +126,99 @@ pnnx.Output             output      1 0 out
         const int batch_index = op->outputs[0]->params["__batch_index"].i;
 
         int batch_mode = 0;
+        int batch_axis = 0;
         if (input_batch_index == 0 && batch_index == 233 && start_dim == 0)
+        {
             batch_mode = 1;
+        }
+        if (input_batch_index != 233 && input_batch_index > 0 && batch_index == 233)
+        {
+            batch_mode = 1;
+            const std::vector<int>& input_shape = op->inputs[0]->shape;
+            const std::vector<int>& output_shape = op->outputs[0]->shape;
+            if (input_shape.empty() || output_shape.empty() || input_batch_index >= (int)input_shape.size())
+            {
+                fprintf(stderr, "flatten tensor with batch index %d folded is not supported yet!\n", input_batch_index);
+                return;
+            }
+
+            const int batch_size = input_shape[input_batch_index];
+            if (batch_size <= 0)
+            {
+                fprintf(stderr, "flatten tensor with batch index %d folded is not supported yet!\n", input_batch_index);
+                return;
+            }
+
+            int left = 1;
+            for (int i = 0; i < input_batch_index; i++)
+            {
+                if (input_shape[i] <= 0)
+                {
+                    left = -1;
+                    break;
+                }
+                left *= input_shape[i];
+            }
+
+            int right = 1;
+            for (int i = input_batch_index + 1; i < (int)input_shape.size(); i++)
+            {
+                if (input_shape[i] <= 0)
+                {
+                    right = -1;
+                    break;
+                }
+                right *= input_shape[i];
+            }
+            if (left <= 0 || right <= 0)
+            {
+                fprintf(stderr, "flatten tensor with batch index %d folded is not supported yet!\n", input_batch_index);
+                return;
+            }
+
+            int batch_axis_count = 0;
+            for (int i = 0; i < (int)output_shape.size(); i++)
+            {
+                if (output_shape[i] != batch_size)
+                    continue;
+
+                int left2 = 1;
+                for (int j = 0; j < i; j++)
+                {
+                    if (output_shape[j] <= 0)
+                    {
+                        left2 = -1;
+                        break;
+                    }
+                    left2 *= output_shape[j];
+                }
+
+                int right2 = 1;
+                for (int j = i + 1; j < (int)output_shape.size(); j++)
+                {
+                    if (output_shape[j] <= 0)
+                    {
+                        right2 = -1;
+                        break;
+                    }
+                    right2 *= output_shape[j];
+                }
+                if (left2 <= 0 || right2 <= 0)
+                    continue;
+
+                if (left2 == left && right2 == right)
+                {
+                    batch_axis = i;
+                    batch_axis_count += 1;
+                }
+            }
+
+            if (batch_axis_count != 1)
+            {
+                fprintf(stderr, "flatten tensor with batch index %d folded is not supported yet!\n", input_batch_index);
+                return;
+            }
+        }
 
         std::vector<int> new_shape;
         for (int i = 0; i < (int)shape_flattened.size(); i++)
@@ -136,7 +227,7 @@ pnnx.Output             output      1 0 out
                 continue;
 
             int s = shape_flattened[i];
-            if (batch_mode == 1 && i == 0)
+            if (batch_mode == 1 && i == batch_axis)
                 s = -1;
 
             new_shape.push_back(s);
@@ -223,6 +314,8 @@ pnnx.Output             output      1 0 out
             op->params["6"] = shape_expr;
             if (batch_mode != 0)
                 op->params["12"] = batch_mode;
+            if (batch_mode != 0 && batch_axis != 0)
+                op->params["13"] = batch_axis;
             return;
         }
 
@@ -251,6 +344,9 @@ pnnx.Output             output      1 0 out
 
         if (batch_mode != 0)
             op->params["12"] = batch_mode;
+
+        if (batch_mode != 0 && batch_axis != 0)
+            op->params["13"] = batch_axis;
     }
 };
 

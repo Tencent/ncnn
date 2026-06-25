@@ -226,7 +226,7 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                 const int b = bq / bottom_blob.c;
                 const int q = bq - b * bottom_blob.c;
 
-                const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + (size_t)q * bottom_blob.cstep) * elemsize;
+                const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + q * bottom_blob.cstep) * elemsize;
                 unsigned char* outptr = (unsigned char*)top_blob + (size_t)bq * top_blob.cstep * out_elemsize;
 
                 memcpy(outptr, ptr, size);
@@ -245,8 +245,8 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                 const int b = bq / bottom_blob.h;
                 const int q = bq - b * bottom_blob.h;
 
-                const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + (size_t)q * bottom_blob.w) * elemsize;
-                unsigned char* outptr = (unsigned char*)top_blob + ((size_t)q * top_blob.cstep + (size_t)b * top_blob.w) * out_elemsize;
+                const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + q * bottom_blob.w) * elemsize;
+                unsigned char* outptr = (unsigned char*)top_blob + (q * top_blob.cstep + (size_t)b * top_blob.w) * out_elemsize;
 
                 memcpy(outptr, ptr, size);
             }
@@ -264,8 +264,8 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                 const int b = bq / bottom_blob.c;
                 const int q = bq - b * bottom_blob.c;
 
-                const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + (size_t)q * bottom_blob.cstep) * elemsize;
-                unsigned char* outptr = (unsigned char*)top_blob + ((size_t)q * top_blob.cstep + (size_t)b * top_blob.w * top_blob.h) * out_elemsize;
+                const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + q * bottom_blob.cstep) * elemsize;
+                unsigned char* outptr = (unsigned char*)top_blob + (q * top_blob.cstep + (size_t)b * top_blob.w * top_blob.h) * out_elemsize;
 
                 memcpy(outptr, ptr, size);
             }
@@ -343,7 +343,7 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                 const int q2 = bq + 2 - b2 * bottom_blob.c;
                 const int q3 = bq + 3 - b3 * bottom_blob.c;
 
-                const float* ptr0 = (const float*)bottom_blob + (size_t)b0 * bottom_blob.nstep + (size_t)q0 * bottom_blob.cstep;
+                const float* ptr0 = (const float*)bottom_blob + (size_t)b0 * bottom_blob.nstep + q0 * bottom_blob.cstep;
                 const float* ptr1 = (const float*)bottom_blob + (size_t)b1 * bottom_blob.nstep + (size_t)q1 * bottom_blob.cstep;
                 const float* ptr2 = (const float*)bottom_blob + (size_t)b2 * bottom_blob.nstep + (size_t)q2 * bottom_blob.cstep;
                 const float* ptr3 = (const float*)bottom_blob + (size_t)b3 * bottom_blob.nstep + (size_t)q3 * bottom_blob.cstep;
@@ -581,7 +581,7 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                 const int q2 = bq + 2 - b2 * bottom_blob.c;
                 const int q3 = bq + 3 - b3 * bottom_blob.c;
 
-                const unsigned short* ptr0 = (const unsigned short*)bottom_blob + (size_t)b0 * bottom_blob.nstep + (size_t)q0 * bottom_blob.cstep;
+                const unsigned short* ptr0 = (const unsigned short*)bottom_blob + (size_t)b0 * bottom_blob.nstep + q0 * bottom_blob.cstep;
                 const unsigned short* ptr1 = (const unsigned short*)bottom_blob + (size_t)b1 * bottom_blob.nstep + (size_t)q1 * bottom_blob.cstep;
                 const unsigned short* ptr2 = (const unsigned short*)bottom_blob + (size_t)b2 * bottom_blob.nstep + (size_t)q2 * bottom_blob.cstep;
                 const unsigned short* ptr3 = (const unsigned short*)bottom_blob + (size_t)b3 * bottom_blob.nstep + (size_t)q3 * bottom_blob.cstep;
@@ -644,7 +644,7 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                 const int q6 = bq + 6 - b6 * bottom_blob.c;
                 const int q7 = bq + 7 - b7 * bottom_blob.c;
 
-                const unsigned short* ptr0 = (const unsigned short*)bottom_blob + (size_t)b0 * bottom_blob.nstep + (size_t)q0 * bottom_blob.cstep;
+                const unsigned short* ptr0 = (const unsigned short*)bottom_blob + (size_t)b0 * bottom_blob.nstep + q0 * bottom_blob.cstep;
                 const unsigned short* ptr1 = (const unsigned short*)bottom_blob + (size_t)b1 * bottom_blob.nstep + (size_t)q1 * bottom_blob.cstep;
                 const unsigned short* ptr2 = (const unsigned short*)bottom_blob + (size_t)b2 * bottom_blob.nstep + (size_t)q2 * bottom_blob.cstep;
                 const unsigned short* ptr3 = (const unsigned short*)bottom_blob + (size_t)b3 * bottom_blob.nstep + (size_t)q3 * bottom_blob.cstep;
@@ -794,11 +794,11 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                     }
                     else
                     {
-                        const int q = srci / bottom_channel_size;
-                        const size_t r = srci - (size_t)q * bottom_channel_size;
-                        const int q0 = q / elempack;
+                        const size_t q = srci / bottom_channel_size;
+                        const size_t r = srci - q * bottom_channel_size;
+                        const size_t q0 = q / elempack;
                         const int k = q % elempack;
-                        ptr += ((size_t)q0 * bottom_blob.cstep + r) * elemsize + k * scalar_elemsize;
+                        ptr += (q0 * bottom_blob.cstep + r) * elemsize + k * scalar_elemsize;
                     }
 
                     const size_t dsti = batch_axis == 0 ? (size_t)b * suffix + s : ((size_t)pp * bottom_blob.n + b) * suffix + s;
@@ -819,11 +819,11 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                     }
                     else
                     {
-                        const int q = dsti / top_channel_size;
-                        const size_t r = dsti - (size_t)q * top_channel_size;
-                        const int q0 = q / out_elempack;
+                        const size_t q = dsti / top_channel_size;
+                        const size_t r = dsti - q * top_channel_size;
+                        const size_t q0 = q / out_elempack;
                         const int k = q % out_elempack;
-                        outptr += ((size_t)q0 * top_blob.cstep + r) * out_elemsize + k * scalar_elemsize;
+                        outptr += (q0 * top_blob.cstep + r) * out_elemsize + k * scalar_elemsize;
                     }
 
                     memcpy(outptr, ptr, scalar_elemsize);
@@ -910,7 +910,7 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                 const int q = bq - b * top_blob.c;
 
                 const unsigned char* ptr = (const unsigned char*)bottom_blob + (size_t)bq * bottom_blob.cstep * elemsize;
-                unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + (size_t)q * top_blob.cstep) * out_elemsize;
+                unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + q * top_blob.cstep) * out_elemsize;
 
                 memcpy(outptr, ptr, size);
             }
@@ -928,8 +928,8 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                 const int b = bq / top_blob.h;
                 const int q = bq - b * top_blob.h;
 
-                const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)q * bottom_blob.cstep + (size_t)b * bottom_blob.w) * elemsize;
-                unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + (size_t)q * top_blob.w) * out_elemsize;
+                const unsigned char* ptr = (const unsigned char*)bottom_blob + (q * bottom_blob.cstep + (size_t)b * bottom_blob.w) * elemsize;
+                unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + q * top_blob.w) * out_elemsize;
 
                 memcpy(outptr, ptr, size);
             }
@@ -947,8 +947,8 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                 const int b = bq / top_blob.c;
                 const int q = bq - b * top_blob.c;
 
-                const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)q * bottom_blob.cstep + (size_t)b * bottom_blob.w * bottom_blob.h) * elemsize;
-                unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + (size_t)q * top_blob.cstep) * out_elemsize;
+                const unsigned char* ptr = (const unsigned char*)bottom_blob + (q * bottom_blob.cstep + (size_t)b * bottom_blob.w * bottom_blob.h) * elemsize;
+                unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + q * top_blob.cstep) * out_elemsize;
 
                 memcpy(outptr, ptr, size);
             }
@@ -1132,7 +1132,7 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                 const float* ptr1 = bottom_blob.channel(sq + 1);
                 const float* ptr2 = bottom_blob.channel(sq + 2);
                 const float* ptr3 = bottom_blob.channel(sq + 3);
-                float* outptr = (float*)top_blob + ((size_t)b * top_blob.nstep + (size_t)q * top_blob.cstep) * 4;
+                float* outptr = (float*)top_blob + ((size_t)b * top_blob.nstep + q * top_blob.cstep) * 4;
 
                 int i = 0;
                 for (; i + 3 < size; i += 4)
@@ -1180,7 +1180,7 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                 const unsigned short* ptr1 = bottom_blob.channel(sq + 1);
                 const unsigned short* ptr2 = bottom_blob.channel(sq + 2);
                 const unsigned short* ptr3 = bottom_blob.channel(sq + 3);
-                unsigned short* outptr = (unsigned short*)top_blob + ((size_t)b * top_blob.nstep + (size_t)q * top_blob.cstep) * 4;
+                unsigned short* outptr = (unsigned short*)top_blob + ((size_t)b * top_blob.nstep + q * top_blob.cstep) * 4;
 
                 int i = 0;
                 for (; i + 3 < size; i += 4)
@@ -1233,7 +1233,7 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                 const unsigned short* ptr5 = bottom_blob.channel(sq + 5);
                 const unsigned short* ptr6 = bottom_blob.channel(sq + 6);
                 const unsigned short* ptr7 = bottom_blob.channel(sq + 7);
-                unsigned short* outptr = (unsigned short*)top_blob + ((size_t)b * top_blob.nstep + (size_t)q * top_blob.cstep) * 8;
+                unsigned short* outptr = (unsigned short*)top_blob + ((size_t)b * top_blob.nstep + q * top_blob.cstep) * 8;
 
                 int i = 0;
                 for (; i + 3 < size; i += 4)
@@ -1351,7 +1351,7 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                 const int q3 = bq + 3 - b3 * top_blob.c;
 
                 const float* ptr = bottom_blob.channel(q);
-                float* outptr0 = (float*)top_blob + (size_t)b0 * top_blob.nstep + (size_t)q0 * top_blob.cstep;
+                float* outptr0 = (float*)top_blob + (size_t)b0 * top_blob.nstep + q0 * top_blob.cstep;
                 float* outptr1 = (float*)top_blob + (size_t)b1 * top_blob.nstep + (size_t)q1 * top_blob.cstep;
                 float* outptr2 = (float*)top_blob + (size_t)b2 * top_blob.nstep + (size_t)q2 * top_blob.cstep;
                 float* outptr3 = (float*)top_blob + (size_t)b3 * top_blob.nstep + (size_t)q3 * top_blob.cstep;
@@ -1581,7 +1581,7 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                 const int q3 = bq + 3 - b3 * top_blob.c;
 
                 const unsigned short* ptr = bottom_blob.channel(q);
-                unsigned short* outptr0 = (unsigned short*)top_blob + (size_t)b0 * top_blob.nstep + (size_t)q0 * top_blob.cstep;
+                unsigned short* outptr0 = (unsigned short*)top_blob + (size_t)b0 * top_blob.nstep + q0 * top_blob.cstep;
                 unsigned short* outptr1 = (unsigned short*)top_blob + (size_t)b1 * top_blob.nstep + (size_t)q1 * top_blob.cstep;
                 unsigned short* outptr2 = (unsigned short*)top_blob + (size_t)b2 * top_blob.nstep + (size_t)q2 * top_blob.cstep;
                 unsigned short* outptr3 = (unsigned short*)top_blob + (size_t)b3 * top_blob.nstep + (size_t)q3 * top_blob.cstep;
@@ -1642,7 +1642,7 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                 const int q7 = bq + 7 - b7 * top_blob.c;
 
                 const unsigned short* ptr = bottom_blob.channel(q);
-                unsigned short* outptr0 = (unsigned short*)top_blob + (size_t)b0 * top_blob.nstep + (size_t)q0 * top_blob.cstep;
+                unsigned short* outptr0 = (unsigned short*)top_blob + (size_t)b0 * top_blob.nstep + q0 * top_blob.cstep;
                 unsigned short* outptr1 = (unsigned short*)top_blob + (size_t)b1 * top_blob.nstep + (size_t)q1 * top_blob.cstep;
                 unsigned short* outptr2 = (unsigned short*)top_blob + (size_t)b2 * top_blob.nstep + (size_t)q2 * top_blob.cstep;
                 unsigned short* outptr3 = (unsigned short*)top_blob + (size_t)b3 * top_blob.nstep + (size_t)q3 * top_blob.cstep;
@@ -1787,11 +1787,11 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                     }
                     else
                     {
-                        const int q = srci / bottom_channel_size;
-                        const size_t r = srci - (size_t)q * bottom_channel_size;
-                        const int q0 = q / elempack;
+                        const size_t q = srci / bottom_channel_size;
+                        const size_t r = srci - q * bottom_channel_size;
+                        const size_t q0 = q / elempack;
                         const int k = q % elempack;
-                        ptr += ((size_t)q0 * bottom_blob.cstep + r) * elemsize + k * scalar_elemsize;
+                        ptr += (q0 * bottom_blob.cstep + r) * elemsize + k * scalar_elemsize;
                     }
 
                     const size_t dsti = batch_axis == 0 ? s : (size_t)pp * suffix + s;
@@ -1812,11 +1812,11 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
                     }
                     else
                     {
-                        const int q = dsti / top_channel_size;
-                        const size_t r = dsti - (size_t)q * top_channel_size;
-                        const int q0 = q / out_elempack;
+                        const size_t q = dsti / top_channel_size;
+                        const size_t r = dsti - q * top_channel_size;
+                        const size_t q0 = q / out_elempack;
                         const int k = q % out_elempack;
-                        outptr += ((size_t)q0 * top_blob.cstep + r) * out_elemsize + k * scalar_elemsize;
+                        outptr += (q0 * top_blob.cstep + r) * out_elemsize + k * scalar_elemsize;
                     }
 
                     memcpy(outptr, ptr, scalar_elemsize);

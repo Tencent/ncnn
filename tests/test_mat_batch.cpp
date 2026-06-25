@@ -4,6 +4,7 @@
 #include "mat.h"
 #include "net.h"
 #include "testutil.h"
+#include "layer/reshape.h"
 
 #if NCNN_VULKAN
 #include "gpu.h"
@@ -807,6 +808,78 @@ static int test_batch_reshape_batch_to_dim_axis1()
                 if (!NearlyEqual(ptr[i], expected, 1e-5f))
                 {
                     fprintf(stderr, "test_batch_reshape_batch_to_dim_axis1 mismatch b=%d q=%d i=%d got %f expect %f\n", b, q, i, ptr[i], expected);
+                    return -1;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_batch_to_dim_axis1_cstep_padding()
+{
+    const int B = 2;
+    const int C = 4;
+    const int H = 2;
+    const int W = 3;
+
+    ncnn::Mat input_batch;
+    input_batch.create(W, H, C, 4u, 1, B);
+
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 1000 + q * 100 + i);
+            }
+        }
+    }
+
+    ncnn::ParamDict pd;
+    pd.set(0, 8);  // w
+    pd.set(1, 2);  // h
+    pd.set(2, 3);  // c
+    pd.set(12, 1); // batch to dim
+    pd.set(13, 1); // batch axis
+
+    ncnn::Reshape op;
+    op.load_param(pd);
+
+    ncnn::Option opt;
+    ncnn::Mat output;
+    int ret = op.forward(input_batch, output, opt);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis1_cstep_padding forward failed ret=%d\n", ret);
+        return -1;
+    }
+
+    if (output.dims != 3 || output.w != 8 || output.h != B || output.c != 3)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis1_cstep_padding shape mismatch\n");
+        return -1;
+    }
+
+    for (int q = 0; q < output.c; q++)
+    {
+        const ncnn::Mat ch = output.channel(q);
+        for (int b = 0; b < B; b++)
+        {
+            const float* ptr = ch.row(b);
+            for (int i = 0; i < output.w; i++)
+            {
+                int index = q * output.w + i;
+                int sq = index / (W * H);
+                int sr = index - sq * W * H;
+                float expected = (float)(b * 1000 + sq * 100 + sr);
+                if (!NearlyEqual(ptr[i], expected, 1e-5f))
+                {
+                    fprintf(stderr, "test_batch_reshape_batch_to_dim_axis1_cstep_padding mismatch q=%d b=%d i=%d got %f expect %f\n", q, b, i, ptr[i], expected);
                     return -1;
                 }
             }
@@ -2757,6 +2830,76 @@ static int test_batch_reshape_permute_extract()
                 if (!NearlyEqual(ptr[i], expected, 1e-5f))
                 {
                     fprintf(stderr, "test_batch_reshape_permute_extract mismatch b=%d q=%d i=%d got %f expect %f\n", b, q, i, ptr[i], expected);
+                    return -1;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int test_batch_fill()
+{
+    ncnn::Mat m;
+    m.create(4, 3, 2, 4u, 1, 3);
+    m.fill(7.f);
+
+    for (int b = 0; b < m.n; b++)
+    {
+        const ncnn::Mat mb = m.batch(b);
+        for (int q = 0; q < m.c; q++)
+        {
+            const float* ptr = mb.channel(q);
+            for (int i = 0; i < m.w * m.h; i++)
+            {
+                if (!NearlyEqual(ptr[i], 7.f, 1e-5f))
+                {
+                    fprintf(stderr, "test_batch_fill mismatch b=%d q=%d i=%d got %f\n", b, q, i, ptr[i]);
+                    return -1;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int test_batch_substract_mean_normalize()
+{
+    ncnn::Mat m;
+    m.create(4, 3, 3, 4u, 1, 2);
+
+    for (int b = 0; b < m.n; b++)
+    {
+        ncnn::Mat mb = m.batch(b);
+        for (int q = 0; q < m.c; q++)
+        {
+            float* ptr = mb.channel(q);
+            for (int i = 0; i < m.w * m.h; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 10 + i);
+            }
+        }
+    }
+
+    const float mean_vals[3] = {1.f, 2.f, 3.f};
+    const float norm_vals[3] = {0.5f, 1.5f, 2.f};
+    m.substract_mean_normalize(mean_vals, norm_vals);
+
+    for (int b = 0; b < m.n; b++)
+    {
+        const ncnn::Mat mb = m.batch(b);
+        for (int q = 0; q < m.c; q++)
+        {
+            const float* ptr = mb.channel(q);
+            for (int i = 0; i < m.w * m.h; i++)
+            {
+                float v = (float)(b * 100 + q * 10 + i);
+                float expected = (v - mean_vals[q]) * norm_vals[q];
+                if (!NearlyEqual(ptr[i], expected, 1e-5f))
+                {
+                    fprintf(stderr, "test_batch_substract_mean_normalize mismatch b=%d q=%d i=%d got %f expect %f\n", b, q, i, ptr[i], expected);
                     return -1;
                 }
             }
@@ -5252,6 +5395,7 @@ int main()
     ret |= test_batch_reshape_packed_batch_to_dim_axis1();
     ret |= test_batch_reshape_packed_batch_to_dim_axis1_2d();
     ret |= test_batch_reshape_batch_to_dim_axis1_pack1topacked();
+    ret |= test_batch_reshape_batch_to_dim_axis1_cstep_padding();
     ret |= test_batch_reshape_packed_dim_to_batch_axis0();
     ret |= test_batch_reshape_packed_dim_to_batch_axis0_2d();
     ret |= test_batch_reshape_dim_to_batch_axis0_2d_pack1topacked();
@@ -5276,6 +5420,8 @@ int main()
     ret |= test_batch_reshape_roundtrip();
     ret |= test_batch_reshape_permute_fold();
     ret |= test_batch_reshape_permute_extract();
+    ret |= test_batch_fill();
+    ret |= test_batch_substract_mean_normalize();
     ret |= test_backward_compatibility();
     ret |= test_create_batch_single();
     ret |= test_create_batch_1d();

@@ -1907,7 +1907,11 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
 
     op->create_pipeline(opt);
 
-    op->forward_inplace(*this, opt);
+    for (int b = 0; b < n; b++)
+    {
+        Mat m = batch(b);
+        op->forward_inplace(m, opt);
+    }
 
     op->destroy_pipeline(opt);
 

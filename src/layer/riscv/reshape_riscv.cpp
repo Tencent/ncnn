@@ -38,272 +38,12 @@ int Reshape_riscv::load_param(const ParamDict& pd)
     return Reshape::load_param(pd);
 }
 
-int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+#if NCNN_BATCH
+int Reshape_riscv::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     Mat& top_blob = top_blobs[0];
 
-#if NCNN_BATCH
-    if (batch_mode == 0)
-#endif
-    {
-        int elembits = bottom_blob.elembits();
-
-        if (elembits == 16 && (opt.use_fp16_storage || opt.use_bf16_storage))
-            return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
-
-        if (elembits != 32)
-            return Reshape::forward(bottom_blobs, top_blobs, opt);
-
-        int outw = w;
-        int outh = h;
-        int outd = d;
-        int outc = c;
-
-        if (!shape_expr.empty())
-        {
-            int er = eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
-            if (er != 0)
-                return -1;
-        }
-
-        if (ndim == 1)
-        {
-            flatten(bottom_blob, top_blob, opt);
-            if (top_blob.empty())
-                return -100;
-
-            return 0;
-        }
-
-        const int dims = bottom_blob.dims;
-        const int elempack = bottom_blob.elempack;
-        const size_t elemsize = bottom_blob.elemsize;
-
-        const int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
-
-#if __riscv_vector
-        const int packn = csrr_vlenb() / 4;
-#endif // __riscv_vector
-
-        if (ndim == 2)
-        {
-            if (outw == 0)
-                outw = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
-            if (outh == 0)
-                outh = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
-
-            if (outw == -1)
-                outw = total / outh;
-            if (outh == -1)
-                outh = total / outw;
-
-            int out_elempack = 1;
-#if __riscv_vector
-            if (opt.use_packing_layout)
-            {
-                out_elempack = outh % packn == 0 ? packn : 1;
-            }
-#endif // __riscv_vector
-            size_t out_elemsize = elemsize / elempack * out_elempack;
-
-            if (dims == 2 && bottom_blob.h * elempack == outh && elempack == out_elempack)
-            {
-                top_blob = bottom_blob;
-                return 0;
-            }
-
-            if (out_elempack == 1)
-            {
-                flatten(bottom_blob, top_blob, opt);
-                if (top_blob.empty())
-                    return -100;
-
-                top_blob.dims = 2;
-                top_blob.w = outw;
-                top_blob.h = outh;
-                top_blob.cstep = top_blob.cstep * top_blob.elempack;
-                top_blob.elemsize = out_elemsize;
-                top_blob.elempack = out_elempack;
-
-                return 0;
-            }
-
-            Mat bottom_blob_flattened = bottom_blob;
-            {
-                Option opt_flatten = opt;
-                opt_flatten.blob_allocator = opt.workspace_allocator;
-
-                flatten(bottom_blob, bottom_blob_flattened, opt_flatten);
-                if (bottom_blob_flattened.empty())
-                    return -100;
-            }
-
-            top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-#if __riscv_vector
-            if (out_elempack == packn)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < top_blob.h; i++)
-                {
-                    const float* ptr = (const float*)bottom_blob_flattened + outw * i * packn;
-                    float* outptr = top_blob.row(i);
-
-                    for (int j = 0; j < outw; j++)
-                    {
-                        size_t vl = __riscv_vsetvl_e32m1(packn);
-
-                        vfloat32m1_t _p = __riscv_vlse32_v_f32m1(ptr + j, outw * sizeof(float), vl);
-                        __riscv_vse32_v_f32m1(outptr, _p, vl);
-
-                        outptr += vl;
-                    }
-                }
-            }
-#endif // __riscv_vector
-        }
-
-        if (ndim == 3 || ndim == 4)
-        {
-            if (ndim == 3)
-            {
-                if (outw == 0)
-                    outw = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
-                if (outh == 0)
-                    outh = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
-                if (outc == 0)
-                    outc = dims == 3 ? bottom_blob.c * elempack : bottom_blob.c;
-
-                if (outw == -1)
-                    outw = total / outc / outh;
-                if (outh == -1)
-                    outh = total / outc / outw;
-                if (outc == -1)
-                    outc = total / outh / outw;
-
-                outd = 1;
-            }
-            else
-            {
-                if (outw == 0)
-                    outw = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
-                if (outh == 0)
-                    outh = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
-                if (outd == 0)
-                    outd = bottom_blob.d;
-                if (outc == 0)
-                    outc = (dims == 3 || dims == 4) ? bottom_blob.c * elempack : bottom_blob.c;
-
-                if (outw == -1)
-                    outw = total / outc / outd / outh;
-                if (outh == -1)
-                    outh = total / outc / outd / outw;
-                if (outd == -1)
-                    outd = total / outc / outh / outw;
-                if (outc == -1)
-                    outc = total / outd / outh / outw;
-            }
-
-            int out_elempack = 1;
-#if __riscv_vector
-            if (opt.use_packing_layout)
-            {
-                out_elempack = outc % packn == 0 ? packn : 1;
-            }
-#endif // __riscv_vector
-            size_t out_elemsize = elemsize / elempack * out_elempack;
-
-            if ((dims == 3 || dims == 4) && bottom_blob.c * elempack == outc && elempack == out_elempack)
-            {
-                top_blob = bottom_blob;
-                top_blob.dims = ndim;
-                top_blob.w = outw;
-                top_blob.h = outh;
-                top_blob.d = outd;
-                return 0;
-            }
-
-            Mat bottom_blob_flattened = bottom_blob;
-            {
-                Option opt_flatten = opt;
-                opt_flatten.blob_allocator = opt.workspace_allocator;
-
-                flatten(bottom_blob, bottom_blob_flattened, opt_flatten);
-                if (bottom_blob_flattened.empty())
-                    return -100;
-            }
-
-            if (ndim == 3)
-                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            else
-                top_blob.create(outw, outh, outd, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-
-            if (top_blob.empty())
-                return -100;
-
-            int size = top_blob.w * top_blob.h * top_blob.d;
-
-#if __riscv_vector
-            if (out_elempack == packn)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < top_blob.c; q++)
-                {
-                    const float* ptr = (const float*)bottom_blob_flattened + size * q * packn;
-                    float* outptr = top_blob.channel(q);
-
-                    for (int i = 0; i < size; i++)
-                    {
-                        size_t vl = __riscv_vsetvl_e32m1(packn);
-
-                        vfloat32m1_t _p = __riscv_vlse32_v_f32m1(ptr + i, size * sizeof(float), vl);
-                        __riscv_vse32_v_f32m1(outptr, _p, vl);
-
-                        outptr += vl;
-                    }
-                }
-            }
-#endif // __riscv_vector
-
-            if (out_elempack == 1)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < top_blob.c; q++)
-                {
-                    const float* ptr = (const float*)bottom_blob_flattened + size * q;
-                    float* outptr = top_blob.channel(q);
-
-                    int i = 0;
-#if __riscv_vector
-                    int n = size;
-                    while (n > 0)
-                    {
-                        size_t vl = __riscv_vsetvl_e32m8(n);
-
-                        vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-                        __riscv_vse32_v_f32m8(outptr, _p, vl);
-
-                        ptr += vl;
-                        outptr += vl;
-                        n -= vl;
-                        i += vl;
-                    }
-#endif // __riscv_vector
-                    for (; i < size; i++)
-                    {
-                        *outptr++ = *ptr++;
-                    }
-                }
-            }
-        }
-
-        return 0;
-    }
-
-#if NCNN_BATCH
     int outw = w;
     int outh = h;
     int outd = d;
@@ -482,7 +222,7 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                 const int b = bq / bottom_blob.c;
                 const int q = bq - b * bottom_blob.c;
 
-                const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + (size_t)q * bottom_blob.cstep) * elemsize;
+                const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + q * bottom_blob.cstep) * elemsize;
                 unsigned char* outptr = (unsigned char*)top_blob + (size_t)bq * top_blob.cstep * out_elemsize;
 
                 memcpy(outptr, ptr, size);
@@ -501,8 +241,8 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                 const int b = bq / bottom_blob.h;
                 const int q = bq - b * bottom_blob.h;
 
-                const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + (size_t)q * bottom_blob.w) * elemsize;
-                unsigned char* outptr = (unsigned char*)top_blob + ((size_t)q * top_blob.cstep + (size_t)b * top_blob.w) * out_elemsize;
+                const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + q * bottom_blob.w) * elemsize;
+                unsigned char* outptr = (unsigned char*)top_blob + (q * top_blob.cstep + (size_t)b * top_blob.w) * out_elemsize;
 
                 memcpy(outptr, ptr, size);
             }
@@ -520,8 +260,8 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                 const int b = bq / bottom_blob.c;
                 const int q = bq - b * bottom_blob.c;
 
-                const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + (size_t)q * bottom_blob.cstep) * elemsize;
-                unsigned char* outptr = (unsigned char*)top_blob + ((size_t)q * top_blob.cstep + (size_t)b * top_blob.w * top_blob.h) * out_elemsize;
+                const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + q * bottom_blob.cstep) * elemsize;
+                unsigned char* outptr = (unsigned char*)top_blob + (q * top_blob.cstep + (size_t)b * top_blob.w * top_blob.h) * out_elemsize;
 
                 memcpy(outptr, ptr, size);
             }
@@ -543,7 +283,7 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     const int q = bq - b * top_blob.c;
 
                     const float* ptr = (const float*)bottom_blob + (size_t)b * bottom_blob.nstep + (size_t)(q * packn) * bottom_blob.w;
-                    float* outptr = (float*)top_blob + ((size_t)q * top_blob.cstep + (size_t)b * top_blob.w) * packn;
+                    float* outptr = (float*)top_blob + (q * top_blob.cstep + (size_t)b * top_blob.w) * packn;
 
                     for (int i = 0; i < size; i++)
                     {
@@ -565,7 +305,7 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     const int q = bq - b * top_blob.c;
 
                     const unsigned short* ptr = (const unsigned short*)bottom_blob + (size_t)b * bottom_blob.nstep + (size_t)(q * packn) * bottom_blob.w;
-                    unsigned short* outptr = (unsigned short*)top_blob + ((size_t)q * top_blob.cstep + (size_t)b * top_blob.w) * packn;
+                    unsigned short* outptr = (unsigned short*)top_blob + (q * top_blob.cstep + (size_t)b * top_blob.w) * packn;
 
                     for (int i = 0; i < size; i++)
                     {
@@ -594,7 +334,7 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     const int b = bq / bottom_blob.h;
                     const int q = bq - b * bottom_blob.h;
 
-                    const float* ptr = (const float*)bottom_blob + ((size_t)b * bottom_blob.nstep + (size_t)q * bottom_blob.w) * packn;
+                    const float* ptr = (const float*)bottom_blob + ((size_t)b * bottom_blob.nstep + q * bottom_blob.w) * packn;
                     float* outptr = (float*)top_blob + (size_t)(q * packn) * top_blob.cstep + (size_t)b * top_blob.w;
 
                     for (int i = 0; i < size; i++)
@@ -617,7 +357,7 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     const int b = bq / bottom_blob.h;
                     const int q = bq - b * bottom_blob.h;
 
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + ((size_t)b * bottom_blob.nstep + (size_t)q * bottom_blob.w) * packn;
+                    const unsigned short* ptr = (const unsigned short*)bottom_blob + ((size_t)b * bottom_blob.nstep + q * bottom_blob.w) * packn;
                     unsigned short* outptr = (unsigned short*)top_blob + (size_t)(q * packn) * top_blob.cstep + (size_t)b * top_blob.w;
 
                     for (int i = 0; i < size; i++)
@@ -809,7 +549,7 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     const int q = bq - b * top_blob.c;
 
                     const float* ptr = (const float*)bottom_blob + (size_t)b * bottom_blob.nstep + (size_t)(q * packn) * bottom_blob.cstep;
-                    float* outptr = (float*)top_blob + ((size_t)q * top_blob.cstep + (size_t)b * top_blob.w * top_blob.h) * packn;
+                    float* outptr = (float*)top_blob + (q * top_blob.cstep + (size_t)b * top_blob.w * top_blob.h) * packn;
 
                     for (int i = 0; i < size; i++)
                     {
@@ -831,7 +571,7 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     const int q = bq - b * top_blob.c;
 
                     const unsigned short* ptr = (const unsigned short*)bottom_blob + (size_t)b * bottom_blob.nstep + (size_t)(q * packn) * bottom_blob.cstep;
-                    unsigned short* outptr = (unsigned short*)top_blob + ((size_t)q * top_blob.cstep + (size_t)b * top_blob.w * top_blob.h) * packn;
+                    unsigned short* outptr = (unsigned short*)top_blob + (q * top_blob.cstep + (size_t)b * top_blob.w * top_blob.h) * packn;
 
                     for (int i = 0; i < size; i++)
                     {
@@ -890,11 +630,11 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     }
                     else
                     {
-                        const int q = srci / bottom_channel_size;
-                        const size_t r = srci - (size_t)q * bottom_channel_size;
-                        const int q0 = q / elempack;
+                        const size_t q = srci / bottom_channel_size;
+                        const size_t r = srci - q * bottom_channel_size;
+                        const size_t q0 = q / elempack;
                         const int k = q % elempack;
-                        ptr += ((size_t)q0 * bottom_blob.cstep + r) * elemsize + k * scalar_elemsize;
+                        ptr += (q0 * bottom_blob.cstep + r) * elemsize + k * scalar_elemsize;
                     }
 
                     const size_t dsti = batch_axis == 0 ? (size_t)b * suffix + s : ((size_t)pp * bottom_blob.n + b) * suffix + s;
@@ -915,11 +655,11 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     }
                     else
                     {
-                        const int q = dsti / top_channel_size;
-                        const size_t r = dsti - (size_t)q * top_channel_size;
-                        const int q0 = q / out_elempack;
+                        const size_t q = dsti / top_channel_size;
+                        const size_t r = dsti - q * top_channel_size;
+                        const size_t q0 = q / out_elempack;
                         const int k = q % out_elempack;
-                        outptr += ((size_t)q0 * top_blob.cstep + r) * out_elemsize + k * scalar_elemsize;
+                        outptr += (q0 * top_blob.cstep + r) * out_elemsize + k * scalar_elemsize;
                     }
 
                     memcpy(outptr, ptr, scalar_elemsize);
@@ -1006,7 +746,7 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                 const int q = bq - b * top_blob.c;
 
                 const unsigned char* ptr = (const unsigned char*)bottom_blob + (size_t)bq * bottom_blob.cstep * elemsize;
-                unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + (size_t)q * top_blob.cstep) * out_elemsize;
+                unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + q * top_blob.cstep) * out_elemsize;
 
                 memcpy(outptr, ptr, size);
             }
@@ -1024,8 +764,8 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                 const int b = bq / top_blob.h;
                 const int q = bq - b * top_blob.h;
 
-                const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)q * bottom_blob.cstep + (size_t)b * bottom_blob.w) * elemsize;
-                unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + (size_t)q * top_blob.w) * out_elemsize;
+                const unsigned char* ptr = (const unsigned char*)bottom_blob + (q * bottom_blob.cstep + (size_t)b * bottom_blob.w) * elemsize;
+                unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + q * top_blob.w) * out_elemsize;
 
                 memcpy(outptr, ptr, size);
             }
@@ -1043,8 +783,8 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                 const int b = bq / top_blob.c;
                 const int q = bq - b * top_blob.c;
 
-                const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)q * bottom_blob.cstep + (size_t)b * bottom_blob.w * bottom_blob.h) * elemsize;
-                unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + (size_t)q * top_blob.cstep) * out_elemsize;
+                const unsigned char* ptr = (const unsigned char*)bottom_blob + (q * bottom_blob.cstep + (size_t)b * bottom_blob.w * bottom_blob.h) * elemsize;
+                unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + q * top_blob.cstep) * out_elemsize;
 
                 memcpy(outptr, ptr, size);
             }
@@ -1066,7 +806,7 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     const int q = bq - b * top_blob.h;
 
                     const float* ptr = (const float*)bottom_blob + (size_t)(q * packn) * bottom_blob.cstep + (size_t)b * bottom_blob.w;
-                    float* outptr = (float*)top_blob + ((size_t)b * top_blob.nstep + (size_t)q * top_blob.w) * packn;
+                    float* outptr = (float*)top_blob + ((size_t)b * top_blob.nstep + q * top_blob.w) * packn;
 
                     for (int i = 0; i < size; i++)
                     {
@@ -1088,7 +828,7 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     const int q = bq - b * top_blob.h;
 
                     const unsigned short* ptr = (const unsigned short*)bottom_blob + (size_t)(q * packn) * bottom_blob.cstep + (size_t)b * bottom_blob.w;
-                    unsigned short* outptr = (unsigned short*)top_blob + ((size_t)b * top_blob.nstep + (size_t)q * top_blob.w) * packn;
+                    unsigned short* outptr = (unsigned short*)top_blob + ((size_t)b * top_blob.nstep + q * top_blob.w) * packn;
 
                     for (int i = 0; i < size; i++)
                     {
@@ -1117,7 +857,7 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     const int b = bq / bottom_blob.c;
                     const int q = bq - b * bottom_blob.c;
 
-                    const float* ptr = (const float*)bottom_blob + ((size_t)q * bottom_blob.cstep + (size_t)b * bottom_blob.w) * packn;
+                    const float* ptr = (const float*)bottom_blob + (q * bottom_blob.cstep + (size_t)b * bottom_blob.w) * packn;
                     float* outptr = (float*)top_blob + (size_t)b * top_blob.nstep + (size_t)(q * packn) * top_blob.w;
 
                     for (int i = 0; i < size; i++)
@@ -1140,7 +880,7 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     const int b = bq / bottom_blob.c;
                     const int q = bq - b * bottom_blob.c;
 
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + ((size_t)q * bottom_blob.cstep + (size_t)b * bottom_blob.w) * packn;
+                    const unsigned short* ptr = (const unsigned short*)bottom_blob + (q * bottom_blob.cstep + (size_t)b * bottom_blob.w) * packn;
                     unsigned short* outptr = (unsigned short*)top_blob + (size_t)b * top_blob.nstep + (size_t)(q * packn) * top_blob.w;
 
                     for (int i = 0; i < size; i++)
@@ -1279,7 +1019,7 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     const int sq = b * top_blob.c * packn + q * packn;
 
                     const float* ptr = bottom_blob.channel(sq);
-                    float* outptr = (float*)top_blob + ((size_t)b * top_blob.nstep + (size_t)q * top_blob.cstep) * packn;
+                    float* outptr = (float*)top_blob + ((size_t)b * top_blob.nstep + q * top_blob.cstep) * packn;
 
                     for (int i = 0; i < size; i++)
                     {
@@ -1302,7 +1042,7 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     const int sq = b * top_blob.c * packn + q * packn;
 
                     const unsigned short* ptr = bottom_blob.channel(sq);
-                    unsigned short* outptr = (unsigned short*)top_blob + ((size_t)b * top_blob.nstep + (size_t)q * top_blob.cstep) * packn;
+                    unsigned short* outptr = (unsigned short*)top_blob + ((size_t)b * top_blob.nstep + q * top_blob.cstep) * packn;
 
                     for (int i = 0; i < size; i++)
                     {
@@ -1332,7 +1072,7 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     const int q = bq - b * top_blob.c;
 
                     const float* ptr = (const float*)bottom_blob + ((size_t)(q * packn) * bottom_blob.cstep + (size_t)b * bottom_blob.w * bottom_blob.h);
-                    float* outptr = (float*)top_blob + ((size_t)b * top_blob.nstep + (size_t)q * top_blob.cstep) * packn;
+                    float* outptr = (float*)top_blob + ((size_t)b * top_blob.nstep + q * top_blob.cstep) * packn;
 
                     for (int i = 0; i < size; i++)
                     {
@@ -1354,7 +1094,7 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     const int q = bq - b * top_blob.c;
 
                     const unsigned short* ptr = (const unsigned short*)bottom_blob + ((size_t)(q * packn) * bottom_blob.cstep + (size_t)b * bottom_blob.w * bottom_blob.h);
-                    unsigned short* outptr = (unsigned short*)top_blob + ((size_t)b * top_blob.nstep + (size_t)q * top_blob.cstep) * packn;
+                    unsigned short* outptr = (unsigned short*)top_blob + ((size_t)b * top_blob.nstep + q * top_blob.cstep) * packn;
 
                     for (int i = 0; i < size; i++)
                     {
@@ -1439,7 +1179,7 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     const int b = bq / bottom_blob.c;
                     const int q = bq - b * bottom_blob.c;
 
-                    const float* ptr = (const float*)bottom_blob + ((size_t)q * bottom_blob.cstep + (size_t)b * bottom_blob.w * bottom_blob.h) * packn;
+                    const float* ptr = (const float*)bottom_blob + (q * bottom_blob.cstep + (size_t)b * bottom_blob.w * bottom_blob.h) * packn;
                     float* outptr = (float*)top_blob + (size_t)b * top_blob.nstep + (size_t)(q * packn) * top_blob.cstep;
 
                     for (int i = 0; i < size; i++)
@@ -1462,7 +1202,7 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     const int b = bq / bottom_blob.c;
                     const int q = bq - b * bottom_blob.c;
 
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + ((size_t)q * bottom_blob.cstep + (size_t)b * bottom_blob.w * bottom_blob.h) * packn;
+                    const unsigned short* ptr = (const unsigned short*)bottom_blob + (q * bottom_blob.cstep + (size_t)b * bottom_blob.w * bottom_blob.h) * packn;
                     unsigned short* outptr = (unsigned short*)top_blob + (size_t)b * top_blob.nstep + (size_t)(q * packn) * top_blob.cstep;
 
                     for (int i = 0; i < size; i++)
@@ -1523,11 +1263,11 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     }
                     else
                     {
-                        const int q = srci / bottom_channel_size;
-                        const size_t r = srci - (size_t)q * bottom_channel_size;
-                        const int q0 = q / elempack;
+                        const size_t q = srci / bottom_channel_size;
+                        const size_t r = srci - q * bottom_channel_size;
+                        const size_t q0 = q / elempack;
                         const int k = q % elempack;
-                        ptr += ((size_t)q0 * bottom_blob.cstep + r) * elemsize + k * scalar_elemsize;
+                        ptr += (q0 * bottom_blob.cstep + r) * elemsize + k * scalar_elemsize;
                     }
 
                     const size_t dsti = batch_axis == 0 ? s : (size_t)pp * suffix + s;
@@ -1548,11 +1288,11 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                     }
                     else
                     {
-                        const int q = dsti / top_channel_size;
-                        const size_t r = dsti - (size_t)q * top_channel_size;
-                        const int q0 = q / out_elempack;
+                        const size_t q = dsti / top_channel_size;
+                        const size_t r = dsti - q * top_channel_size;
+                        const size_t q0 = q / out_elempack;
                         const int k = q % out_elempack;
-                        outptr += ((size_t)q0 * top_blob.cstep + r) * out_elemsize + k * scalar_elemsize;
+                        outptr += (q0 * top_blob.cstep + r) * out_elemsize + k * scalar_elemsize;
                     }
 
                     memcpy(outptr, ptr, scalar_elemsize);
@@ -1564,11 +1304,282 @@ int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
     }
 
     return -1;
+}
 #endif // NCNN_BATCH
+
+int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    Mat& top_blob = top_blobs[0];
+
+#if NCNN_BATCH
+    if (batch_mode != 0)
+        return forward_batch(bottom_blobs, top_blobs, opt);
+#endif
+
+    int elembits = bottom_blob.elembits();
+
+    if (elembits == 16 && (opt.use_fp16_storage || opt.use_bf16_storage))
+        return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
+
+    if (elembits != 32)
+        return Reshape::forward(bottom_blobs, top_blobs, opt);
+
+    int outw = w;
+    int outh = h;
+    int outd = d;
+    int outc = c;
+
+    if (!shape_expr.empty())
+    {
+        int er = eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
+        if (er != 0)
+            return -1;
+    }
+
+    if (ndim == 1)
+    {
+        flatten(bottom_blob, top_blob, opt);
+        if (top_blob.empty())
+            return -100;
+
+        return 0;
+    }
+
+    const int dims = bottom_blob.dims;
+    const int elempack = bottom_blob.elempack;
+    const size_t elemsize = bottom_blob.elemsize;
+
+    const int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
+
+#if __riscv_vector
+    const int packn = csrr_vlenb() / 4;
+#endif // __riscv_vector
+
+    if (ndim == 2)
+    {
+        if (outw == 0)
+            outw = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
+        if (outh == 0)
+            outh = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
+
+        if (outw == -1)
+            outw = total / outh;
+        if (outh == -1)
+            outh = total / outw;
+
+        int out_elempack = 1;
+#if __riscv_vector
+        if (opt.use_packing_layout)
+        {
+            out_elempack = outh % packn == 0 ? packn : 1;
+        }
+#endif // __riscv_vector
+        size_t out_elemsize = elemsize / elempack * out_elempack;
+
+        if (dims == 2 && bottom_blob.h * elempack == outh && elempack == out_elempack)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        if (out_elempack == 1)
+        {
+            flatten(bottom_blob, top_blob, opt);
+            if (top_blob.empty())
+                return -100;
+
+            top_blob.dims = 2;
+            top_blob.w = outw;
+            top_blob.h = outh;
+            top_blob.cstep = top_blob.cstep * top_blob.elempack;
+            top_blob.elemsize = out_elemsize;
+            top_blob.elempack = out_elempack;
+
+            return 0;
+        }
+
+        Mat bottom_blob_flattened = bottom_blob;
+        {
+            Option opt_flatten = opt;
+            opt_flatten.blob_allocator = opt.workspace_allocator;
+
+            flatten(bottom_blob, bottom_blob_flattened, opt_flatten);
+            if (bottom_blob_flattened.empty())
+                return -100;
+        }
+
+        top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+#if __riscv_vector
+        if (out_elempack == packn)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < top_blob.h; i++)
+            {
+                const float* ptr = (const float*)bottom_blob_flattened + outw * i * packn;
+                float* outptr = top_blob.row(i);
+
+                for (int j = 0; j < outw; j++)
+                {
+                    size_t vl = __riscv_vsetvl_e32m1(packn);
+
+                    vfloat32m1_t _p = __riscv_vlse32_v_f32m1(ptr + j, outw * sizeof(float), vl);
+                    __riscv_vse32_v_f32m1(outptr, _p, vl);
+
+                    outptr += vl;
+                }
+            }
+        }
+#endif // __riscv_vector
+    }
+
+    if (ndim == 3 || ndim == 4)
+    {
+        if (ndim == 3)
+        {
+            if (outw == 0)
+                outw = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
+            if (outh == 0)
+                outh = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
+            if (outc == 0)
+                outc = dims == 3 ? bottom_blob.c * elempack : bottom_blob.c;
+
+            if (outw == -1)
+                outw = total / outc / outh;
+            if (outh == -1)
+                outh = total / outc / outw;
+            if (outc == -1)
+                outc = total / outh / outw;
+
+            outd = 1;
+        }
+        else
+        {
+            if (outw == 0)
+                outw = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
+            if (outh == 0)
+                outh = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
+            if (outd == 0)
+                outd = bottom_blob.d;
+            if (outc == 0)
+                outc = (dims == 3 || dims == 4) ? bottom_blob.c * elempack : bottom_blob.c;
+
+            if (outw == -1)
+                outw = total / outc / outd / outh;
+            if (outh == -1)
+                outh = total / outc / outd / outw;
+            if (outd == -1)
+                outd = total / outc / outh / outw;
+            if (outc == -1)
+                outc = total / outd / outh / outw;
+        }
+
+        int out_elempack = 1;
+#if __riscv_vector
+        if (opt.use_packing_layout)
+        {
+            out_elempack = outc % packn == 0 ? packn : 1;
+        }
+#endif // __riscv_vector
+        size_t out_elemsize = elemsize / elempack * out_elempack;
+
+        if ((dims == 3 || dims == 4) && bottom_blob.c * elempack == outc && elempack == out_elempack)
+        {
+            top_blob = bottom_blob;
+            top_blob.dims = ndim;
+            top_blob.w = outw;
+            top_blob.h = outh;
+            top_blob.d = outd;
+            return 0;
+        }
+
+        Mat bottom_blob_flattened = bottom_blob;
+        {
+            Option opt_flatten = opt;
+            opt_flatten.blob_allocator = opt.workspace_allocator;
+
+            flatten(bottom_blob, bottom_blob_flattened, opt_flatten);
+            if (bottom_blob_flattened.empty())
+                return -100;
+        }
+
+        if (ndim == 3)
+            top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(outw, outh, outd, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+
+        if (top_blob.empty())
+            return -100;
+
+        int size = top_blob.w * top_blob.h * top_blob.d;
+
+#if __riscv_vector
+        if (out_elempack == packn)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < top_blob.c; q++)
+            {
+                const float* ptr = (const float*)bottom_blob_flattened + size * q * packn;
+                float* outptr = top_blob.channel(q);
+
+                for (int i = 0; i < size; i++)
+                {
+                    size_t vl = __riscv_vsetvl_e32m1(packn);
+
+                    vfloat32m1_t _p = __riscv_vlse32_v_f32m1(ptr + i, size * sizeof(float), vl);
+                    __riscv_vse32_v_f32m1(outptr, _p, vl);
+
+                    outptr += vl;
+                }
+            }
+        }
+#endif // __riscv_vector
+
+        if (out_elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < top_blob.c; q++)
+            {
+                const float* ptr = (const float*)bottom_blob_flattened + size * q;
+                float* outptr = top_blob.channel(q);
+
+                int i = 0;
+#if __riscv_vector
+                int n = size;
+                while (n > 0)
+                {
+                    size_t vl = __riscv_vsetvl_e32m8(n);
+
+                    vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+                    __riscv_vse32_v_f32m8(outptr, _p, vl);
+
+                    ptr += vl;
+                    outptr += vl;
+                    n -= vl;
+                    i += vl;
+                }
+#endif // __riscv_vector
+                for (; i < size; i++)
+                {
+                    *outptr++ = *ptr++;
+                }
+            }
+        }
+    }
+
+    return 0;
 }
 
 int Reshape_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_BATCH
+    if (batch_mode != 0)
+        return forward_batch(bottom_blobs, top_blobs, opt);
+#endif
+
     const Mat& bottom_blob = bottom_blobs[0];
     Mat& top_blob = top_blobs[0];
 

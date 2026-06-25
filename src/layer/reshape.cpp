@@ -257,23 +257,35 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 
             const size_t bottom_channel_size = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.d;
             const size_t top_channel_size = (size_t)top_blob.w * top_blob.h * top_blob.d;
-            const size_t suffix_bytes = suffix * bottom_blob.elemsize;
             for (size_t p = 0; p < prefix; p++)
             {
-                const size_t srci = p * suffix;
-                const int sq = srci / bottom_channel_size;
-                const size_t sr = srci - (size_t)sq * bottom_channel_size;
-
                 for (int b = 0; b < bottom_blob.n; b++)
                 {
-                    const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + (size_t)sq * bottom_blob.cstep + sr) * bottom_blob.elemsize;
+                    size_t srci = p * suffix;
+                    size_t dsti = (p * bottom_blob.n + b) * suffix;
+                    size_t remain = suffix;
+                    while (remain > 0)
+                    {
+                        const size_t sq = srci / bottom_channel_size;
+                        const size_t sr = srci - sq * bottom_channel_size;
+                        const size_t dq = dsti / top_channel_size;
+                        const size_t dr = dsti - dq * top_channel_size;
 
-                    const size_t dsti = (p * bottom_blob.n + b) * suffix;
-                    const int dq = dsti / top_channel_size;
-                    const size_t dr = dsti - (size_t)dq * top_channel_size;
-                    unsigned char* outptr = (unsigned char*)top_blob + ((size_t)dq * top_blob.cstep + dr) * bottom_blob.elemsize;
+                        size_t size = remain;
+                        if (size > bottom_channel_size - sr)
+                            size = bottom_channel_size - sr;
+                        if (size > top_channel_size - dr)
+                            size = top_channel_size - dr;
 
-                    memcpy(outptr, ptr, suffix_bytes);
+                        const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + sq * bottom_blob.cstep + sr) * bottom_blob.elemsize;
+                        unsigned char* outptr = (unsigned char*)top_blob + (dq * top_blob.cstep + dr) * bottom_blob.elemsize;
+
+                        memcpy(outptr, ptr, size * bottom_blob.elemsize);
+
+                        srci += size;
+                        dsti += size;
+                        remain -= size;
+                    }
                 }
             }
 
@@ -379,22 +391,35 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 
             const size_t bottom_channel_size = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.d;
             const size_t top_channel_size = (size_t)top_blob.w * top_blob.h * top_blob.d;
-            const size_t suffix_bytes = suffix * bottom_blob.elemsize;
             for (size_t p = 0; p < prefix; p++)
             {
                 for (int b = 0; b < batch; b++)
                 {
-                    const size_t srci = (p * batch + b) * suffix;
-                    const int sq = srci / bottom_channel_size;
-                    const size_t sr = srci - (size_t)sq * bottom_channel_size;
-                    const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)sq * bottom_blob.cstep + sr) * bottom_blob.elemsize;
+                    size_t srci = (p * batch + b) * suffix;
+                    size_t dsti = p * suffix;
+                    size_t remain = suffix;
+                    while (remain > 0)
+                    {
+                        const size_t sq = srci / bottom_channel_size;
+                        const size_t sr = srci - sq * bottom_channel_size;
+                        const size_t dq = dsti / top_channel_size;
+                        const size_t dr = dsti - dq * top_channel_size;
 
-                    const size_t dsti = p * suffix;
-                    const int dq = dsti / top_channel_size;
-                    const size_t dr = dsti - (size_t)dq * top_channel_size;
-                    unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + (size_t)dq * top_blob.cstep + dr) * bottom_blob.elemsize;
+                        size_t size = remain;
+                        if (size > bottom_channel_size - sr)
+                            size = bottom_channel_size - sr;
+                        if (size > top_channel_size - dr)
+                            size = top_channel_size - dr;
 
-                    memcpy(outptr, ptr, suffix_bytes);
+                        const unsigned char* ptr = (const unsigned char*)bottom_blob + (sq * bottom_blob.cstep + sr) * bottom_blob.elemsize;
+                        unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + dq * top_blob.cstep + dr) * bottom_blob.elemsize;
+
+                        memcpy(outptr, ptr, size * bottom_blob.elemsize);
+
+                        srci += size;
+                        dsti += size;
+                        remain -= size;
+                    }
                 }
             }
 

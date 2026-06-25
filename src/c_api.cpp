@@ -720,9 +720,9 @@ void* ncnn_mat_get_data(const ncnn_mat_t mat)
 }
 
 #if NCNN_BATCH
-ncnn_mat_t ncnn_mat_get_batch(const ncnn_mat_t mat, int b)
+void* ncnn_mat_get_batch_data(const ncnn_mat_t mat, int b)
 {
-    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->batch(b)));
+    return ((const Mat*)mat)->batch(b).data;
 }
 #endif // NCNN_BATCH
 

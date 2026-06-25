@@ -160,7 +160,7 @@ NCNN_EXPORT size_t ncnn_mat_get_nstep(const ncnn_mat_t mat);
 NCNN_EXPORT void* ncnn_mat_get_data(const ncnn_mat_t mat);
 
 #if NCNN_BATCH
-NCNN_EXPORT ncnn_mat_t ncnn_mat_get_batch(const ncnn_mat_t mat, int b);
+NCNN_EXPORT void* ncnn_mat_get_batch_data(const ncnn_mat_t mat, int b);
 #endif
 NCNN_EXPORT void* ncnn_mat_get_channel_data(const ncnn_mat_t mat, int c);
 

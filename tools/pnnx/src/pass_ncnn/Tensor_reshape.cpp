@@ -84,10 +84,70 @@ pnnx.Output             output      1 0 out
             }
 
             const int batch_size = input_shape[input_batch_index];
+            if (batch_size <= 0)
+            {
+                fprintf(stderr, "reshape tensor with batch index %d folded is not supported yet!\n", input_batch_index);
+                return;
+            }
+
+            int left = 1;
+            for (int i = 0; i < input_batch_index; i++)
+            {
+                if (input_shape[i] <= 0)
+                {
+                    left = -1;
+                    break;
+                }
+                left *= input_shape[i];
+            }
+
+            int right = 1;
+            for (int i = input_batch_index + 1; i < (int)input_shape.size(); i++)
+            {
+                if (input_shape[i] <= 0)
+                {
+                    right = -1;
+                    break;
+                }
+                right *= input_shape[i];
+            }
+            if (left <= 0 || right <= 0)
+            {
+                fprintf(stderr, "reshape tensor with batch index %d folded is not supported yet!\n", input_batch_index);
+                return;
+            }
+
             int batch_axis_count = 0;
             for (int i = 0; i < (int)output_shape.size(); i++)
             {
-                if (output_shape[i] == batch_size)
+                if (output_shape[i] != batch_size)
+                    continue;
+
+                int left2 = 1;
+                for (int j = 0; j < i; j++)
+                {
+                    if (output_shape[j] <= 0)
+                    {
+                        left2 = -1;
+                        break;
+                    }
+                    left2 *= output_shape[j];
+                }
+
+                int right2 = 1;
+                for (int j = i + 1; j < (int)output_shape.size(); j++)
+                {
+                    if (output_shape[j] <= 0)
+                    {
+                        right2 = -1;
+                        break;
+                    }
+                    right2 *= output_shape[j];
+                }
+                if (left2 <= 0 || right2 <= 0)
+                    continue;
+
+                if (left2 == left && right2 == right)
                 {
                     batch_axis = i;
                     batch_axis_count += 1;

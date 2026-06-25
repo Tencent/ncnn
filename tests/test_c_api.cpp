@@ -426,16 +426,15 @@ static int test_c_api_batch()
 
     for (int bi = 0; bi < B; bi++)
     {
-        ncnn_mat_t a0 = ncnn_mat_get_batch(a, bi);
+        float* data = (float*)ncnn_mat_get_batch_data(a, bi);
         for (int q = 0; q < C; q++)
         {
-            float* ptr = (float*)ncnn_mat_get_channel_data(a0, q);
+            float* ptr = data + q * ncnn_mat_get_cstep(a);
             for (int i = 0; i < W * H; i++)
             {
                 ptr[i] = (float)(bi * 100 + q * 10 + i);
             }
         }
-        ncnn_mat_destroy(a0);
     }
 
     b = ncnn_mat_clone(a, NULL);
@@ -448,13 +447,12 @@ static int test_c_api_batch()
 
     for (int bi = 0; bi < B; bi++)
     {
-        ncnn_mat_t b0 = ncnn_mat_get_batch(b, bi);
-        ncnn_mat_t c0 = ncnn_mat_get_batch(c, bi);
-        const float* cptr = (const float*)ncnn_mat_get_data(c0);
+        const float* bdata = (const float*)ncnn_mat_get_batch_data(b, bi);
+        const float* cptr = (const float*)ncnn_mat_get_batch_data(c, bi);
 
         for (int q = 0; q < C; q++)
         {
-            const float* bptr = (const float*)ncnn_mat_get_channel_data(b0, q);
+            const float* bptr = bdata + q * ncnn_mat_get_cstep(b);
             for (int i = 0; i < W * H; i++)
             {
                 float expected = (float)(bi * 100 + q * 10 + i);
@@ -462,9 +460,6 @@ static int test_c_api_batch()
                     success = false;
             }
         }
-
-        ncnn_mat_destroy(b0);
-        ncnn_mat_destroy(c0);
     }
 
     d = ncnn_mat_create_2d_elem_batch(5, 6, (size_t)2u, 1, 2, NULL);
