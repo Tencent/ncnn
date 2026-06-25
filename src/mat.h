@@ -514,11 +514,12 @@ public:
     // element step from one batch to the next
     // for non-batch VkMat, equals total()
     size_t nstep;
-#else
-    static const int n = 1;
-#endif // NCNN_BATCH
     // byte offset relative to data->offset (for batch sub-views)
     size_t offset;
+#else
+    static const int n = 1;
+    static const size_t offset = 0;
+#endif // NCNN_BATCH
 };
 
 class NCNN_EXPORT VkImageMat
@@ -1685,10 +1686,9 @@ NCNN_FORCEINLINE VkMat::VkMat()
 #if NCNN_BATCH
     ,
       n(1),
-      nstep(0)
-#endif
-    ,
+      nstep(0),
       offset(0)
+#endif
 {
 }
 
@@ -1697,10 +1697,9 @@ NCNN_FORCEINLINE VkMat::VkMat(int _w, size_t _elemsize, VkAllocator* _allocator)
 #if NCNN_BATCH
     ,
       n(1),
-      nstep(0)
-#endif
-    ,
+      nstep(0),
       offset(0)
+#endif
 {
     create(_w, _elemsize, _allocator);
 }
@@ -1710,10 +1709,9 @@ NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, size_t _elemsize, VkAllocator* _al
 #if NCNN_BATCH
     ,
       n(1),
-      nstep(0)
-#endif
-    ,
+      nstep(0),
       offset(0)
+#endif
 {
     create(_w, _h, _elemsize, _allocator);
 }
@@ -1723,10 +1721,9 @@ NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, VkAlloca
 #if NCNN_BATCH
     ,
       n(1),
-      nstep(0)
-#endif
-    ,
+      nstep(0),
       offset(0)
+#endif
 {
     create(_w, _h, _c, _elemsize, _allocator);
 }
@@ -1736,10 +1733,9 @@ NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, size_t _elemsize, 
 #if NCNN_BATCH
     ,
       n(1),
-      nstep(0)
-#endif
-    ,
+      nstep(0),
       offset(0)
+#endif
 {
     create(_w, _h, _d, _c, _elemsize, _allocator);
 }
@@ -1749,10 +1745,9 @@ NCNN_FORCEINLINE VkMat::VkMat(int _w, size_t _elemsize, int _elempack, VkAllocat
 #if NCNN_BATCH
     ,
       n(1),
-      nstep(0)
-#endif
-    ,
+      nstep(0),
       offset(0)
+#endif
 {
     create(_w, _elemsize, _elempack, _allocator);
 }
@@ -1762,10 +1757,9 @@ NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, size_t _elemsize, int _elempack, V
 #if NCNN_BATCH
     ,
       n(1),
-      nstep(0)
-#endif
-    ,
+      nstep(0),
       offset(0)
+#endif
 {
     create(_w, _h, _elemsize, _elempack, _allocator);
 }
@@ -1775,10 +1769,9 @@ NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, int _ele
 #if NCNN_BATCH
     ,
       n(1),
-      nstep(0)
-#endif
-    ,
+      nstep(0),
       offset(0)
+#endif
 {
     create(_w, _h, _c, _elemsize, _elempack, _allocator);
 }
@@ -1788,10 +1781,9 @@ NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, size_t _elemsize, 
 #if NCNN_BATCH
     ,
       n(1),
-      nstep(0)
-#endif
-    ,
+      nstep(0),
       offset(0)
+#endif
 {
     create(_w, _h, _d, _c, _elemsize, _elempack, _allocator);
 }
@@ -1805,8 +1797,8 @@ NCNN_FORCEINLINE VkMat::VkMat(const VkMat& m)
 #if NCNN_BATCH
     n = m.n;
     nstep = m.nstep;
-#endif
     offset = m.offset;
+#endif
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
@@ -1814,10 +1806,9 @@ NCNN_FORCEINLINE VkMat::VkMat(int _w, VkBufferMemory* _data, size_t _elemsize, V
 #if NCNN_BATCH
     ,
       n(1),
-      nstep(0)
-#endif
-    ,
+      nstep(0),
       offset(0)
+#endif
 {
     cstep = alignSize(w * elemsize, 16) / elemsize;
 #if NCNN_BATCH
@@ -1830,10 +1821,9 @@ NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, VkBufferMemory* _data, size_t _ele
 #if NCNN_BATCH
     ,
       n(1),
-      nstep(0)
-#endif
-    ,
+      nstep(0),
       offset(0)
+#endif
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #if NCNN_BATCH
@@ -1846,10 +1836,9 @@ NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, VkBufferMemory* _data, siz
 #if NCNN_BATCH
     ,
       n(1),
-      nstep(0)
-#endif
-    ,
+      nstep(0),
       offset(0)
+#endif
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #if NCNN_BATCH
@@ -1862,10 +1851,9 @@ NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, VkBufferMemory* _d
 #if NCNN_BATCH
     ,
       n(1),
-      nstep(0)
-#endif
-    ,
+      nstep(0),
       offset(0)
+#endif
 {
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 #if NCNN_BATCH
@@ -1878,10 +1866,9 @@ NCNN_FORCEINLINE VkMat::VkMat(int _w, VkBufferMemory* _data, size_t _elemsize, i
 #if NCNN_BATCH
     ,
       n(1),
-      nstep(0)
-#endif
-    ,
+      nstep(0),
       offset(0)
+#endif
 {
     cstep = alignSize(w * elemsize, 16) / elemsize;
 #if NCNN_BATCH
@@ -1894,10 +1881,9 @@ NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, VkBufferMemory* _data, size_t _ele
 #if NCNN_BATCH
     ,
       n(1),
-      nstep(0)
-#endif
-    ,
+      nstep(0),
       offset(0)
+#endif
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #if NCNN_BATCH
@@ -1910,10 +1896,9 @@ NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, VkBufferMemory* _data, siz
 #if NCNN_BATCH
     ,
       n(1),
-      nstep(0)
-#endif
-    ,
+      nstep(0),
       offset(0)
+#endif
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #if NCNN_BATCH
@@ -1926,10 +1911,9 @@ NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, VkBufferMemory* _d
 #if NCNN_BATCH
     ,
       n(1),
-      nstep(0)
-#endif
-    ,
+      nstep(0),
       offset(0)
+#endif
 {
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 #if NCNN_BATCH
@@ -1969,8 +1953,8 @@ NCNN_FORCEINLINE VkMat& VkMat::operator=(const VkMat& m)
 #if NCNN_BATCH
     n = m.n;
     nstep = m.nstep;
-#endif
     offset = m.offset;
+#endif
 
     return *this;
 }
@@ -2037,8 +2021,8 @@ NCNN_FORCEINLINE void VkMat::release()
 #if NCNN_BATCH
     n = 1;
     nstep = 0;
-#endif
     offset = 0;
+#endif
 
     refcount = 0;
 }
@@ -2186,7 +2170,6 @@ NCNN_FORCEINLINE VkMat VkMat::batch(int)
     m.d = d;
     m.c = c;
     m.cstep = cstep;
-    m.offset = offset;
     return m;
 }
 
@@ -2204,7 +2187,6 @@ NCNN_FORCEINLINE const VkMat VkMat::batch(int) const
     m.d = d;
     m.c = c;
     m.cstep = cstep;
-    m.offset = offset;
     return m;
 }
 
@@ -2222,7 +2204,6 @@ NCNN_FORCEINLINE VkMat VkMat::batch_range(int, int)
     m.d = d;
     m.c = c;
     m.cstep = cstep;
-    m.offset = offset;
     return m;
 }
 
@@ -2240,7 +2221,6 @@ NCNN_FORCEINLINE const VkMat VkMat::batch_range(int, int) const
     m.d = d;
     m.c = c;
     m.cstep = cstep;
-    m.offset = offset;
     return m;
 }
 #endif // NCNN_BATCH
