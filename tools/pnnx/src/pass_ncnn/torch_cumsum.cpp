@@ -34,6 +34,7 @@ pnnx.Output             output      1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
+        const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
 
         int axis = captured_params.at("dim").i;
         if (axis < 0)
@@ -46,9 +47,11 @@ pnnx.Output             output      1 0 out
         if (axis == batch_index)
         {
             fprintf(stderr, "cumsum along batch axis %d is not supported\n", batch_index);
-            axis = 0;
+            op->params["0"] = 233;
+            return;
         }
-        else if (axis > batch_index)
+
+        if (batch_index != 233 && batch_in_shape == 0 && axis > batch_index)
         {
             axis -= 1;
         }

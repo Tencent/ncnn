@@ -26,6 +26,7 @@ void convert_torch_unbind(Graph& graph)
             op->name = std::string("unbind_") + std::to_string(op_index++);
 
             const int batch_index = op->inputs[0]->params["__batch_index"].i;
+            const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
 
             int axis = op->params.at("dim").i;
             if (axis < 0)
@@ -43,7 +44,7 @@ void convert_torch_unbind(Graph& graph)
 
             int output_size = (int)op->outputs.size();
 
-            if (axis > batch_index)
+            if (batch_index != 233 && batch_in_shape == 0 && axis > batch_index)
                 axis -= 1;
 
             op->params["0"].type = 5;
@@ -73,6 +74,7 @@ void convert_torch_unbind(Graph& graph)
                 reshape_in->type = out->type;
                 reshape_in->shape = out->shape;
                 reshape_in->params["__batch_index"] = out->params["__batch_index"];
+                reshape_in->params["__ncnn_batch_in_shape"] = out->params["__ncnn_batch_in_shape"];
 
                 reshape->params["shape"] = out->shape;
             }

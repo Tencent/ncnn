@@ -36,8 +36,9 @@ pnnx.Output             output      1 0 out
         const int shape_rank = (int)op->outputs[0]->shape.size();
 
         const int batch_index = op->outputs[0]->params["__batch_index"].i;
+        const int batch_in_shape = op->outputs[0]->params["__ncnn_batch_in_shape"].i;
 
-        if (batch_index != 0 && batch_index != 233)
+        if (batch_index != 0 && batch_index != 233 && batch_in_shape == 0)
         {
             if (shape_rank == 0 || op->outputs[0]->shape[batch_index] != 1)
                 fprintf(stderr, "reshape_as tensor with batch index %d is not supported yet!\n", batch_index);
@@ -49,7 +50,7 @@ pnnx.Output             output      1 0 out
         }
         else if (shape_rank == 2)
         {
-            if (batch_index == 233)
+            if (batch_index == 233 || batch_in_shape == 1)
             {
                 op->params["6"] = "1w,1h";
             }
@@ -60,7 +61,7 @@ pnnx.Output             output      1 0 out
         }
         else if (shape_rank == 3)
         {
-            if (batch_index == 233)
+            if (batch_index == 233 || batch_in_shape == 1)
             {
                 op->params["6"] = "1w,1h,1c";
             }
@@ -71,7 +72,7 @@ pnnx.Output             output      1 0 out
         }
         else if (shape_rank == 4)
         {
-            if (batch_index == 233)
+            if (batch_index == 233 || batch_in_shape == 1)
             {
                 op->params["6"] = "1w,1h,1d,1c";
             }
@@ -82,7 +83,7 @@ pnnx.Output             output      1 0 out
         }
         else if (shape_rank == 5)
         {
-            if (batch_index == 233)
+            if (batch_index == 233 || batch_in_shape == 1)
             {
                 fprintf(stderr, "reshape_as tensor with unbatched 5 rank tensor is not supported yet!\n");
             }

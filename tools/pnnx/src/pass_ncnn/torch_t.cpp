@@ -35,7 +35,8 @@ pnnx.Output             output      1 0 out
         op->params["0"] = 1;
 
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
-        if (batch_index == 233)
+        const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
+        if (batch_index == 233 || batch_in_shape == 1)
             return;
 
         int input_rank = op->inputs[0]->shape.size();

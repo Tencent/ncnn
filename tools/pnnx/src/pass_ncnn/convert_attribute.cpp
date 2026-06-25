@@ -20,6 +20,7 @@ void convert_attribute(Graph& graph)
         const Attribute& data = op->attrs.begin()->second;
 
         const int batch_index = op->outputs[0]->params["__batch_index"].i;
+        const int batch_in_shape = op->outputs[0]->params["__ncnn_batch_in_shape"].i;
 
         if ((int)data.shape.size() > 5)
         {
@@ -31,7 +32,7 @@ void convert_attribute(Graph& graph)
         std::vector<int> new_shape;
         for (int i = 0; i < (int)data.shape.size(); i++)
         {
-            if (i == batch_index && data.shape[i] == 1)
+            if (batch_in_shape == 0 && i == batch_index && data.shape[i] == 1)
                 continue;
 
             new_shape.push_back(data.shape[i]);

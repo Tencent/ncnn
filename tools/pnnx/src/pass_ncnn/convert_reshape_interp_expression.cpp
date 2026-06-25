@@ -264,8 +264,9 @@ void convert_reshape_interp_expression(Graph& graph)
                                 int bi = std::stoi(b);
 
                                 const int a_batch_index = ordered_references[input_index]->params["__batch_index"].i;
+                                const int a_batch_in_shape = ordered_references[input_index]->params["__ncnn_batch_in_shape"].i;
 
-                                if (bi == a_batch_index)
+                                if (a_batch_in_shape == 0 && bi == a_batch_index)
                                 {
                                     fprintf(stderr, "reshape expression refer to batch axis %d is not supported\n", a_batch_index);
                                     std::string r = std::string("size(") + a + "," + b + ")";
@@ -278,7 +279,7 @@ void convert_reshape_interp_expression(Graph& graph)
                                     if (bi < 0)
                                         bi = a_rank + bi;
 
-                                    if (bi > a_batch_index)
+                                    if (a_batch_in_shape == 0 && bi > a_batch_index)
                                     {
                                         a_rank -= 1;
                                         bi -= 1;
@@ -427,9 +428,10 @@ void convert_reshape_interp_expression(Graph& graph)
                     {
                         // drop output batch index
                         const int batch_index = op->outputs[0]->params["__batch_index"].i;
+                        const int batch_in_shape = op->outputs[0]->params["__ncnn_batch_in_shape"].i;
                         // fprintf(stderr, "batch_index = %d\n", batch_index);
 
-                        if (batch_index != 233)
+                        if (batch_index != 233 && batch_in_shape == 0)
                         {
                             for (int j = batch_index; j + 1 < (int)elements.size(); j++)
                             {

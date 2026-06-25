@@ -55,6 +55,7 @@ pnnx.Output             output      1 0 out
         const Operand* in = ops.at("slice")->inputs[0];
 
         const int batch_index = in->params.at("__batch_index").i;
+        const int batch_in_shape = in->params.at("__ncnn_batch_in_shape").i;
 
         int axis = captured_params.at("dims").ai[0];
         if (axis < 0)
@@ -69,7 +70,7 @@ pnnx.Output             output      1 0 out
             fprintf(stderr, "roll along batch axis %d is not supported\n", batch_index);
         }
 
-        if (axis > batch_index)
+        if (batch_index != 233 && batch_in_shape == 0 && axis > batch_index)
             axis -= 1;
 
         ops.at("slice")->params["1"] = axis;
@@ -135,6 +136,7 @@ pnnx.Output             output      1 0 out
         const Operand* in = ops.at("slice")->inputs[0];
 
         const int batch_index = in->params.at("__batch_index").i;
+        const int batch_in_shape = in->params.at("__ncnn_batch_in_shape").i;
 
         int axis0 = captured_params.at("dims").ai[0];
         int axis1 = captured_params.at("dims").ai[1];
@@ -157,10 +159,10 @@ pnnx.Output             output      1 0 out
             fprintf(stderr, "roll along batch axis %d is not supported\n", batch_index);
         }
 
-        if (axis0 > batch_index)
+        if (batch_index != 233 && batch_in_shape == 0 && axis0 > batch_index)
             axis0 -= 1;
 
-        if (axis1 > batch_index)
+        if (batch_index != 233 && batch_in_shape == 0 && axis1 > batch_index)
             axis1 -= 1;
 
         ops.at("slice")->params["1"] = axis0;

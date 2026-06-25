@@ -35,6 +35,7 @@ pnnx.Output             output      1 0 out
         const std::vector<int>& sizes = captured_params.at("sizes").ai;
 
         const int batch_index = op->outputs[0]->params["__batch_index"].i;
+        const int batch_in_shape = op->outputs[0]->params["__ncnn_batch_in_shape"].i;
 
         const std::vector<int> shape = op->inputs[0]->shape;
         if (shape.empty())
@@ -65,9 +66,11 @@ pnnx.Output             output      1 0 out
                 if (sizes[i] != -1 && sizes[i] != shape_dim)
                 {
                     fprintf(stderr, "expand tensor along batch index %d is not supported yet!\n", batch_index);
-                    return;
+                    if (batch_in_shape == 0)
+                        return;
                 }
-                continue;
+                if (batch_in_shape == 0)
+                    continue;
             }
 
             int repeat = 1;

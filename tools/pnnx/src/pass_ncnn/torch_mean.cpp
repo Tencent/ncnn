@@ -35,6 +35,7 @@ pnnx.Output             output      1 0 out
         const std::vector<int>& dims = captured_params.at("dim").ai;
 
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
+        const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
         int input_rank = op->inputs[0]->shape.size();
         if (input_rank == 0)
             input_rank = op->outputs[0]->shape.size();
@@ -50,10 +51,13 @@ pnnx.Output             output      1 0 out
             if (dim == batch_index)
             {
                 fprintf(stderr, "mean along batch axis is not supported yet\n");
-                continue;
+                op->params["0"] = 3;
+                op->params["1"] = 0;
+                op->params["3"] = std::vector<int>{233};
+                return;
             }
 
-            int new_dim = dim > batch_index ? dim - 1 : dim;
+            int new_dim = batch_index != 233 && batch_in_shape == 0 && dim > batch_index ? dim - 1 : dim;
             new_dims.push_back(new_dim);
         }
 
@@ -94,7 +98,13 @@ pnnx.Output             output      1 0 out
     {
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
         if (batch_index != 233)
+        {
             fprintf(stderr, "mean along batch axis is not supported yet\n");
+            op->params["0"] = 3;
+            op->params["1"] = 0;
+            op->params["3"] = std::vector<int>{233};
+            return;
+        }
 
         op->params["0"] = 3;
         op->params["1"] = 1;

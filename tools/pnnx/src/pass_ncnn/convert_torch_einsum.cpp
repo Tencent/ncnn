@@ -19,8 +19,9 @@ void convert_torch_einsum(Graph& graph)
         std::string equation = op->params.at("equation").s;
 
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
+        const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
 
-        if (batch_index != 233)
+        if (batch_index != 233 && batch_in_shape == 0)
         {
             // drop batch index in equation
             char batch_x = 'i' + batch_index;

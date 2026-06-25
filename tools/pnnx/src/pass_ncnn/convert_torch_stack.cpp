@@ -26,6 +26,7 @@ void convert_torch_stack(Graph& graph)
             op->name = std::string("stack_") + std::to_string(op_index++);
 
             const int batch_index = op->inputs[0]->params["__batch_index"].i;
+            const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
             int input_rank = op->inputs[0]->shape.size();
             if (input_rank == 0 && op->outputs[0]->shape.size() != 0)
                 input_rank = (int)op->outputs[0]->shape.size() - 1;
@@ -45,7 +46,7 @@ void convert_torch_stack(Graph& graph)
             bool stack_inner_most = axis == input_rank;
             const int axis0 = axis;
 
-            if (axis > batch_index)
+            if (batch_index != 233 && batch_in_shape == 0 && axis > batch_index)
                 axis -= 1;
 
             op->params["0"] = axis;
@@ -62,6 +63,7 @@ void convert_torch_stack(Graph& graph)
 
                     Operand* reshape_out = graph.new_operand(op->name + "_ncnnreshape_in");
                     reshape_out->params["__batch_index"] = batch_index;
+                    reshape_out->params["__ncnn_batch_in_shape"] = batch_in_shape;
 
                     reshape->inputs.push_back(in);
                     reshape->outputs.push_back(reshape_out);
@@ -98,6 +100,7 @@ void convert_torch_stack(Graph& graph)
                     reshape_in->shape = shape;
                 }
                 reshape_in->params["__batch_index"] = batch_index;
+                reshape_in->params["__ncnn_batch_in_shape"] = batch_in_shape;
 
                 reshape->inputs.push_back(reshape_in);
                 reshape->outputs.push_back(out);

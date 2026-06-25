@@ -914,15 +914,15 @@ int Reshape_loongarch::forward_batch(const std::vector<Mat>& bottom_blobs, std::
                     const unsigned char* ptr = (const unsigned char*)bottom_blob + (size_t)b * bottom_blob.nstep * elemsize;
                     if (dims == 1)
                     {
-                        const int x = srci / elempack;
+                        const size_t x = srci / elempack;
                         const int k = srci % elempack;
                         ptr += (size_t)x * elemsize + k * scalar_elemsize;
                     }
                     else if (dims == 2)
                     {
-                        const int x = srci % bottom_blob.w;
-                        const int y = srci / bottom_blob.w;
-                        const int y0 = y / elempack;
+                        const size_t x = srci % bottom_blob.w;
+                        const size_t y = srci / bottom_blob.w;
+                        const size_t y0 = y / elempack;
                         const int k = y % elempack;
                         ptr += ((size_t)y0 * bottom_blob.w + x) * elemsize + k * scalar_elemsize;
                     }
@@ -939,15 +939,15 @@ int Reshape_loongarch::forward_batch(const std::vector<Mat>& bottom_blobs, std::
                     unsigned char* outptr = (unsigned char*)top_blob;
                     if (top_blob.dims == 1)
                     {
-                        const int x = dsti / out_elempack;
+                        const size_t x = dsti / out_elempack;
                         const int k = dsti % out_elempack;
                         outptr += (size_t)x * out_elemsize + k * scalar_elemsize;
                     }
                     else if (top_blob.dims == 2)
                     {
-                        const int x = dsti % top_blob.w;
-                        const int y = dsti / top_blob.w;
-                        const int y0 = y / out_elempack;
+                        const size_t x = dsti % top_blob.w;
+                        const size_t y = dsti / top_blob.w;
+                        const size_t y0 = y / out_elempack;
                         const int k = y % out_elempack;
                         outptr += ((size_t)y0 * top_blob.w + x) * out_elemsize + k * scalar_elemsize;
                     }
@@ -1815,15 +1815,15 @@ int Reshape_loongarch::forward_batch(const std::vector<Mat>& bottom_blobs, std::
                     const unsigned char* ptr = (const unsigned char*)bottom_blob;
                     if (dims == 1)
                     {
-                        const int x = srci / elempack;
+                        const size_t x = srci / elempack;
                         const int k = srci % elempack;
                         ptr += (size_t)x * elemsize + k * scalar_elemsize;
                     }
                     else if (dims == 2)
                     {
-                        const int x = srci % bottom_blob.w;
-                        const int y = srci / bottom_blob.w;
-                        const int y0 = y / elempack;
+                        const size_t x = srci % bottom_blob.w;
+                        const size_t y = srci / bottom_blob.w;
+                        const size_t y0 = y / elempack;
                         const int k = y % elempack;
                         ptr += ((size_t)y0 * bottom_blob.w + x) * elemsize + k * scalar_elemsize;
                     }
@@ -1840,15 +1840,15 @@ int Reshape_loongarch::forward_batch(const std::vector<Mat>& bottom_blobs, std::
                     unsigned char* outptr = (unsigned char*)top_blob + (size_t)b * top_blob.nstep * out_elemsize;
                     if (top_blob.dims == 1)
                     {
-                        const int x = dsti / out_elempack;
+                        const size_t x = dsti / out_elempack;
                         const int k = dsti % out_elempack;
                         outptr += (size_t)x * out_elemsize + k * scalar_elemsize;
                     }
                     else if (top_blob.dims == 2)
                     {
-                        const int x = dsti % top_blob.w;
-                        const int y = dsti / top_blob.w;
-                        const int y0 = y / out_elempack;
+                        const size_t x = dsti % top_blob.w;
+                        const size_t y = dsti / top_blob.w;
+                        const size_t y0 = y / out_elempack;
                         const int k = y % out_elempack;
                         outptr += ((size_t)y0 * top_blob.w + x) * out_elemsize + k * scalar_elemsize;
                     }

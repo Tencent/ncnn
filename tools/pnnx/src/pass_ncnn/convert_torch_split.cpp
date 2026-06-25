@@ -27,6 +27,7 @@ void convert_torch_split(Graph& graph)
         }
 
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
+        const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
 
         int axis = op->params.at("dim").i;
         if (axis < 0)
@@ -42,7 +43,7 @@ void convert_torch_split(Graph& graph)
             continue;
         }
 
-        if (axis > batch_index)
+        if (batch_index != 233 && batch_in_shape == 0 && axis > batch_index)
             axis -= 1;
 
         if (split_size_or_sections.type == 2)

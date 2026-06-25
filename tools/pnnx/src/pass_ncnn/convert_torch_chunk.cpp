@@ -20,6 +20,7 @@ void convert_torch_chunk(Graph& graph)
         op->name = std::string("chunk_") + std::to_string(op_index++);
 
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
+        const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
 
         int axis = op->params.at("dim").i;
         if (axis < 0)
@@ -46,7 +47,7 @@ void convert_torch_chunk(Graph& graph)
             }
         }
 
-        if (axis > batch_index)
+        if (batch_index != 233 && batch_in_shape == 0 && axis > batch_index)
             axis -= 1;
 
         op->params["0"].type = 5;

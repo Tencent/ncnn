@@ -418,9 +418,13 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             if (!r)
                 break;
 
-            int batch_index = r->params.at("__batch_index").i;
-            if (r->producer->params.find("__torch_batch_index") != r->producer->params.end())
-                batch_index = r->producer->params.at("__torch_batch_index").i;
+            int batch_index = 233;
+            if (r->params.find("__ncnn_batch_in_shape") != r->params.end() && r->params.at("__ncnn_batch_in_shape").i == 0)
+            {
+                batch_index = r->params.at("__batch_index").i;
+                if (r->producer->params.find("__torch_batch_index") != r->producer->params.end())
+                    batch_index = r->producer->params.at("__torch_batch_index").i;
+            }
 
             fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.numpy(), batch_index=%d).clone())\n", input_name.c_str(), input_name.c_str(), batch_index);
         }
@@ -436,7 +440,9 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
 
             fprintf(pyfp, "            _, %s = ex.extract(\"%s\")\n", output_name.c_str(), output_name.c_str());
 
-            const int batch_index = r->params.at("__batch_index").i;
+            int batch_index = 233;
+            if (r->params.find("__ncnn_batch_in_shape") != r->params.end() && r->params.at("__ncnn_batch_in_shape").i == 0)
+                batch_index = r->params.at("__batch_index").i;
             fprintf(pyfp, "            out.append(torch.from_numpy(%s.numpy(batch_index=%d)))\n", output_name.c_str(), batch_index);
         }
 

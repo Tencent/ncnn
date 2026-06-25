@@ -118,6 +118,18 @@ class ModelMiddleBatchFlattenFold(nn.Module):
         return x
 
 
+class ModelMiddleBatchFlattenFoldAmbiguousAxis(nn.Module):
+    def __init__(self):
+        super(ModelMiddleBatchFlattenFoldAmbiguousAxis, self).__init__()
+
+    def forward(self, x):
+        x = F.max_pool2d(x, 1)
+        x = x.permute(1, 0, 2, 3)
+        x = x.unsqueeze(1)
+        x = torch.flatten(x, 1, 2)
+        return x
+
+
 class ModelMiddleBatchUnflattenFold(nn.Module):
     def __init__(self):
         super(ModelMiddleBatchUnflattenFold, self).__init__()
@@ -130,6 +142,18 @@ class ModelMiddleBatchUnflattenFold(nn.Module):
         return x
 
 
+class ModelMiddleBatchUnflattenFoldAmbiguousAxis(nn.Module):
+    def __init__(self):
+        super(ModelMiddleBatchUnflattenFoldAmbiguousAxis, self).__init__()
+
+    def forward(self, x):
+        x = F.max_pool2d(x, 1)
+        x = x.permute(1, 0, 2, 3)
+        x = x.reshape(2, 2, 35)
+        x = x.unflatten(dim=1, sizes=(1, 2))
+        return x
+
+
 class ModelTwoBatchAxisReshapes(nn.Module):
     def __init__(self):
         super(ModelTwoBatchAxisReshapes, self).__init__()
@@ -137,6 +161,16 @@ class ModelTwoBatchAxisReshapes(nn.Module):
     def forward(self, x, y):
         x = x.reshape(3, 2, 5, 7).permute(1, 0, 2, 3)
         y = y.reshape(4, 2, 3, 5).permute(1, 0, 2, 3)
+        return F.max_pool2d(x, 3, stride=1, padding=1), F.max_pool2d(y, 3, stride=1, padding=1)
+
+
+class ModelTwoDifferentMiddleBatchAxes(nn.Module):
+    def __init__(self):
+        super(ModelTwoDifferentMiddleBatchAxes, self).__init__()
+
+    def forward(self, x, y):
+        x = x.reshape(3, 2, 5, 7).permute(1, 0, 2, 3)
+        y = y.reshape(4, 3, 2, 5).permute(2, 0, 1, 3)
         return F.max_pool2d(x, 3, stride=1, padding=1), F.max_pool2d(y, 3, stride=1, padding=1)
 
 
@@ -161,6 +195,68 @@ class ModelMultiConsumer(nn.Module):
         y = x.permute(1, 0, 2, 3)
         z = x.reshape(3, 2, 35)
         return y, z
+
+
+class ModelBranchLayoutSplit(nn.Module):
+    def __init__(self):
+        super(ModelBranchLayoutSplit, self).__init__()
+
+    def forward(self, x):
+        x = x.reshape(3, 2, 5, 7)
+        y = x.permute(1, 0, 2, 3)
+        y = F.max_pool2d(y, 3, stride=1, padding=1)
+        z = x.reshape(3, 2, 35)
+        return y, z
+
+
+class ModelAxisSensitiveNonBatchOps(nn.Module):
+    def __init__(self):
+        super(ModelAxisSensitiveNonBatchOps, self).__init__()
+
+    def forward(self, x):
+        x = F.max_pool2d(x, 1)
+        x = x.permute(1, 0, 2, 3)
+        y = F.softmax(x, dim=0)
+        z = torch.sum(x, dim=0, keepdim=False)
+        q = torch.cumsum(x, dim=3)
+        r = torch.flip(x, [2])
+        s = x[:, :, 1:4, 2:6]
+        return y, z, q, r, s
+
+
+class ModelBinaryLayoutAgreement(nn.Module):
+    def __init__(self):
+        super(ModelBinaryLayoutAgreement, self).__init__()
+
+    def forward(self, x, y, z):
+        x = F.max_pool2d(x, 1)
+        y = F.max_pool2d(y, 1)
+        q = x.permute(1, 0, 2, 3)
+        r = y.permute(1, 0, 2, 3)
+        z0 = z
+        z = z.unsqueeze(1)
+        out0 = q + r
+        out1 = q + z
+        out2 = x + z0
+        return out0, out1, out2
+
+
+class ModelCatStackSplitLayout(nn.Module):
+    def __init__(self):
+        super(ModelCatStackSplitLayout, self).__init__()
+
+    def forward(self, x, y):
+        x = F.max_pool1d(x, 1)
+        y = F.max_pool1d(y, 1)
+        x = x.permute(1, 0, 2)
+        y = y.permute(1, 0, 2)
+        out0 = torch.cat((x, y), dim=0)
+        out1 = torch.stack((x, y), dim=0)
+        out2, out3 = torch.split(x, split_size_or_sections=[1, 2], dim=0)
+        out4, out5 = torch.chunk(y, chunks=2, dim=2)
+        out6, out7 = torch.tensor_split(x, (1,), dim=0)
+        out8, out9, out10 = torch.unbind(x, dim=0)
+        return out0, out1, out2, out3, out4, out5, out6, out7, out8, out9, out10
 
 
 class ModelPackedBatchReshapeBetweenConv(nn.Module):
@@ -261,8 +357,18 @@ def test():
         return False
 
     torch.manual_seed(0)
+    x = torch.rand(2, 2, 5, 7)
+    if not run_model("test_ncnn_batch_layout_middle_batch_flatten_fold_ambiguous_axis", ModelMiddleBatchFlattenFoldAmbiguousAxis(), x):
+        return False
+
+    torch.manual_seed(0)
     x = torch.rand(2, 3, 5, 7)
     if not run_model("test_ncnn_batch_layout_middle_batch_unflatten_fold", ModelMiddleBatchUnflattenFold(), x):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 2, 5, 7)
+    if not run_model("test_ncnn_batch_layout_middle_batch_unflatten_fold_ambiguous_axis", ModelMiddleBatchUnflattenFoldAmbiguousAxis(), x):
         return False
 
     torch.manual_seed(0)
@@ -273,12 +379,41 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(6, 5, 7)
+    y = torch.rand(12, 2, 5)
+    if not run_model("test_ncnn_batch_layout_two_different_middle_batch_axes", ModelTwoDifferentMiddleBatchAxes(), (x, y)):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(6, 5, 7)
     if not run_model("test_ncnn_batch_layout_compute_barrier", ModelComputeBarrier(), x):
         return False
 
     torch.manual_seed(0)
     x = torch.rand(6, 5, 7)
     if not run_model("test_ncnn_batch_layout_multi_consumer", ModelMultiConsumer(), x):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(6, 5, 7)
+    if not run_model("test_ncnn_batch_layout_branch_layout_split", ModelBranchLayoutSplit(), x):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 3, 5, 7)
+    if not run_model("test_ncnn_batch_layout_axis_sensitive_nonbatch_ops", ModelAxisSensitiveNonBatchOps(), x):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 3, 5, 7)
+    y = torch.rand(2, 3, 5, 7)
+    z = torch.rand(3, 1, 1)
+    if not run_model("test_ncnn_batch_layout_binary_layout_agreement", ModelBinaryLayoutAgreement(), (x, y, z)):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 3, 8)
+    y = torch.rand(2, 3, 8)
+    if not run_model("test_ncnn_batch_layout_cat_stack_split", ModelCatStackSplitLayout(), (x, y)):
         return False
 
     torch.manual_seed(0)

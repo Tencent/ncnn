@@ -33,12 +33,13 @@ pnnx.Output             output      1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
+        const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
         int input_rank = op->inputs[0]->shape.size();
         if (input_rank == 0 && op->outputs[0]->shape.size() != 0)
             input_rank = (int)op->outputs[0]->shape.size() - 1;
 
         int inner_rank = input_rank;
-        if (batch_index >= 0 && batch_index < input_rank)
+        if (batch_index >= 0 && batch_index < input_rank && batch_in_shape == 0)
             inner_rank -= 1;
 
         if (inner_rank > 4)
@@ -53,7 +54,9 @@ pnnx.Output             output      1 0 out
             if (dim < 0 && input_rank > 0)
                 dim += input_rank + 1;
 
-            if (dim > batch_index)
+            const int output_batch_index = op->outputs[0]->params["__batch_index"].i;
+            const int output_batch_in_shape = op->outputs[0]->params["__ncnn_batch_in_shape"].i;
+            if (output_batch_index != 233 && output_batch_in_shape == 0 && dim > output_batch_index)
                 dim -= 1;
 
             std::vector<int> axes = {dim};
@@ -67,6 +70,7 @@ pnnx.Output             output      1 0 out
                 output_rank = input_rank + axes.size();
 
             const int output_batch_index = op->outputs[0]->params["__batch_index"].i;
+            const int output_batch_in_shape = op->outputs[0]->params["__ncnn_batch_in_shape"].i;
             std::vector<int> new_axes;
             for (size_t i = 0; i < axes.size(); i++)
             {
@@ -74,14 +78,14 @@ pnnx.Output             output      1 0 out
                 if (axis < 0 && output_rank > 0)
                     axis += output_rank;
 
-                if (output_batch_index >= 0 && output_batch_index < output_rank)
+                if (output_batch_index >= 0 && output_batch_index < output_rank && output_batch_in_shape == 0)
                 {
                     if (axis == output_batch_index)
                         continue;
                     if (axis > output_batch_index)
                         axis -= 1;
                 }
-                else if (axis > batch_index)
+                else if (batch_index != 233 && batch_in_shape == 0 && axis > batch_index)
                     axis -= 1;
 
                 new_axes.push_back(axis);

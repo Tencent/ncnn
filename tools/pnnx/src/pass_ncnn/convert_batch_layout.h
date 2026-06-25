@@ -7,7 +7,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-void convert_batch_reshape(Graph& graph);
+void convert_batch_layout(Graph& graph);
 
 } // namespace ncnn
 
