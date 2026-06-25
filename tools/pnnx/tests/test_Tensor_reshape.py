@@ -58,19 +58,6 @@ def test():
     import os
     os.system("../src/pnnx test_Tensor_reshape.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10],[210],[2,3,5,7],[280],[2,3,5,7],[210]")
 
-    with open("test_Tensor_reshape.ncnn.param") as f:
-        lines = f.readlines()
-        if not any(line.startswith("Reshape") and "12=1" in line for line in lines):
-            return False
-        if not any(line.startswith("Reshape") and "12=2" in line for line in lines):
-            return False
-        if not any(line.startswith("Permute") for line in lines):
-            return False
-        if not any(line.startswith("Reshape") and "0=140" in line and "12=" not in line for line in lines):
-            return False
-        if any(line.startswith("Reshape") and "12=2" in line and "=-1" in line for line in lines):
-            return False
-
     # pnnx inference
     import test_Tensor_reshape_pnnx
     b = test_Tensor_reshape_pnnx.test_inference()

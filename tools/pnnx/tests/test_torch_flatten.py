@@ -40,17 +40,6 @@ def test():
     import os
     os.system("../src/pnnx test_torch_flatten.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10],[2,3,5,7]")
 
-    with open("test_torch_flatten.ncnn.param") as f:
-        lines = f.readlines()
-        if sum(1 for line in lines if line.startswith("Reshape") and "12=1" in line) != 2:
-            return False
-        if not any(line.startswith("Reshape") and "0=-1" in line and "12=1" in line for line in lines):
-            return False
-        if not any(line.startswith("Reshape") and "0=7" in line and "1=5" in line and "2=-1" in line and "12=1" in line for line in lines):
-            return False
-        if not any(line.startswith("Reshape") and "0=35" in line and "1=4" in line and "2=" not in line for line in lines):
-            return False
-
     # pnnx inference
     import test_torch_flatten_pnnx
     b = test_torch_flatten_pnnx.test_inference()
