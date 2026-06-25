@@ -31,7 +31,6 @@ layout(push_constant) uniform parameter
     int outnstep;
 
     int batch_mode;
-    int prefix;
     int suffix;
     int batch;
 } p;

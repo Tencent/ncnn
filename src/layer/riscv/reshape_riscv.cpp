@@ -376,7 +376,7 @@ int Reshape_riscv::forward_batch(const std::vector<Mat>& bottom_blobs, std::vect
             return 0;
         }
 
-        if (batch_axis == 0 && elempack == 1 && out_elempack == packn && dims == 2 && ndim == 2 && bottom_blob.w == top_blob.w && top_blob.h * packn == bottom_blob.h * bottom_blob.n)
+        if (batch_axis == 0 && elempack == 1 && out_elempack == packn && dims == 2 && ndim == 2 && bottom_blob.w == top_blob.w && top_blob.h * packn == bottom_blob.h * bottom_blob.n && bottom_blob.h % packn == 0)
         {
             if (scalar_elemsize == 4)
             {
@@ -482,7 +482,7 @@ int Reshape_riscv::forward_batch(const std::vector<Mat>& bottom_blobs, std::vect
             return 0;
         }
 
-        if (batch_axis == 0 && elempack == 1 && out_elempack == packn && (dims == 3 || dims == 4) && (ndim == 3 || ndim == 4) && bottom_blob.w == top_blob.w && bottom_blob.h == top_blob.h && bottom_blob.d == top_blob.d && top_blob.c * packn == bottom_blob.c * bottom_blob.n)
+        if (batch_axis == 0 && elempack == 1 && out_elempack == packn && (dims == 3 || dims == 4) && (ndim == 3 || ndim == 4) && bottom_blob.w == top_blob.w && bottom_blob.h == top_blob.h && bottom_blob.d == top_blob.d && top_blob.c * packn == bottom_blob.c * bottom_blob.n && bottom_blob.c % packn == 0)
         {
             const int size = bottom_blob.w * bottom_blob.h * bottom_blob.d;
 
@@ -951,7 +951,7 @@ int Reshape_riscv::forward_batch(const std::vector<Mat>& bottom_blobs, std::vect
             return 0;
         }
 
-        if (batch_axis == 0 && elempack == packn && out_elempack == 1 && dims == 2 && ndim == 2 && bottom_blob.w == top_blob.w && bottom_blob.h * packn == top_blob.h * batch)
+        if (batch_axis == 0 && elempack == packn && out_elempack == 1 && dims == 2 && ndim == 2 && bottom_blob.w == top_blob.w && bottom_blob.h * packn == top_blob.h * batch && top_blob.h % packn == 0)
         {
             if (scalar_elemsize == 4)
             {
@@ -1111,7 +1111,7 @@ int Reshape_riscv::forward_batch(const std::vector<Mat>& bottom_blobs, std::vect
             return 0;
         }
 
-        if (batch_axis == 0 && elempack == packn && out_elempack == 1 && (dims == 3 || dims == 4) && (ndim == 3 || ndim == 4) && bottom_blob.w == top_blob.w && bottom_blob.h == top_blob.h && bottom_blob.d == top_blob.d && bottom_blob.c * packn == top_blob.c * batch)
+        if (batch_axis == 0 && elempack == packn && out_elempack == 1 && (dims == 3 || dims == 4) && (ndim == 3 || ndim == 4) && bottom_blob.w == top_blob.w && bottom_blob.h == top_blob.h && bottom_blob.d == top_blob.d && bottom_blob.c * packn == top_blob.c * batch && top_blob.c % packn == 0)
         {
             const int size = top_blob.w * top_blob.h * top_blob.d;
 

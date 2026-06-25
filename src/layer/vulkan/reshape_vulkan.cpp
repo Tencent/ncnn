@@ -410,10 +410,6 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         if (top_blob.empty())
             return -100;
 
-        int prefix = 1;
-        for (int i = 0; i < batch_axis; i++)
-            prefix *= shape[i];
-
         int suffix = 1;
         if (batch_mode == 1 && batch_axis == 0)
             suffix = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
@@ -434,7 +430,7 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         bindings[0] = bottom_blob;
         bindings[1] = top_blob;
 
-        std::vector<vk_constant_type> constants(20);
+        std::vector<vk_constant_type> constants(19);
         constants[0].i = bottom_blob.dims;
         constants[1].i = bottom_blob.w;
         constants[2].i = bottom_blob.h;
@@ -452,9 +448,8 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         constants[14].i = top_blob.n;
         constants[15].i = top_blob.nstep;
         constants[16].i = batch_mode;
-        constants[17].i = prefix;
-        constants[18].i = suffix;
-        constants[19].i = batch;
+        constants[17].i = suffix;
+        constants[18].i = batch;
 
         const Pipeline* pipeline = pipeline_reshape_batch_reorder;
         if (elempack == 4 && out_elempack == 4)

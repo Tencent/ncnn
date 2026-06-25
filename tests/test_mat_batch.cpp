@@ -1111,6 +1111,75 @@ static int test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked()
     return 0;
 }
 
+static int test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked_nstep_padding()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=12 12=1\n";
+
+    const int B = 4;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input_batch;
+    input_batch.create(W, H, (size_t)4u, 1, B);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int y = 0; y < H; y++)
+        {
+            float* ptr = sub.row(y);
+            for (int x = 0; x < W; x++)
+            {
+                ptr[x] = (float)(b * 1000 + y * 100 + x);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked_nstep_padding reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked_nstep_padding extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack == 1)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked_nstep_padding output should be packed\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked_nstep_padding value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 static int test_batch_reshape_packed_batch_to_dim_axis1()
 {
     const char param_str[] = "7767517\n"
@@ -1547,6 +1616,81 @@ static int test_batch_reshape_dim_to_batch_axis0_2d_pack1topacked()
     if (CompareMat(output_ref, output, 1e-5f) != 0)
     {
         fprintf(stderr, "test_batch_reshape_dim_to_batch_axis0_2d_pack1topacked value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_dim_to_batch_axis0_2d_pack4topack1_nstep_padding()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 12=2\n";
+
+    const int B = 4;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input;
+    input.create(W, H * B, (size_t)4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        for (int y = 0; y < H; y++)
+        {
+            float* ptr = input.row(b * H + y);
+            for (int x = 0; x < W; x++)
+            {
+                ptr[x] = (float)(b * 1000 + y * 100 + x);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_axis0_2d_pack4topack1_nstep_padding reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+
+    ncnn::Mat input_pack4;
+    ncnn::convert_packing(input, input_pack4, 4, opt);
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_pack4);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_axis0_2d_pack4topack1_nstep_padding extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (output.elempack != 1)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_axis0_2d_pack4topack1_nstep_padding output should be pack1\n");
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_axis0_2d_pack4topack1_nstep_padding value mismatch\n");
         return -1;
     }
 
@@ -5392,6 +5536,7 @@ int main()
     ret |= test_batch_reshape_packed_batch_to_dim_axis0();
     ret |= test_batch_reshape_packed_batch_to_dim_axis0_2d();
     ret |= test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked();
+    ret |= test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked_nstep_padding();
     ret |= test_batch_reshape_packed_batch_to_dim_axis1();
     ret |= test_batch_reshape_packed_batch_to_dim_axis1_2d();
     ret |= test_batch_reshape_batch_to_dim_axis1_pack1topacked();
@@ -5399,6 +5544,7 @@ int main()
     ret |= test_batch_reshape_packed_dim_to_batch_axis0();
     ret |= test_batch_reshape_packed_dim_to_batch_axis0_2d();
     ret |= test_batch_reshape_dim_to_batch_axis0_2d_pack1topacked();
+    ret |= test_batch_reshape_dim_to_batch_axis0_2d_pack4topack1_nstep_padding();
     ret |= test_batch_reshape_packed_dim_to_batch_axis1();
     ret |= test_batch_reshape_packed_dim_to_batch_axis1_2d();
     ret |= test_batch_reshape_packed_dim_to_batch_axis1_4d();
