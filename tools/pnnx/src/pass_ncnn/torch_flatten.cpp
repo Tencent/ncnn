@@ -141,87 +141,94 @@ pnnx.Output             output      1 0 out
             {
                 const std::vector<int>& input_shape = op->inputs[0]->shape;
                 const std::vector<int>& output_shape = op->outputs[0]->shape;
-                if (input_shape.empty() || output_shape.empty() || input_batch_index >= (int)input_shape.size())
+                if (start_dim <= input_batch_index && input_batch_index <= end_dim)
                 {
-                    fprintf(stderr, "flatten tensor with batch index %d folded is not supported yet!\n", input_batch_index);
-                    return;
+                    batch_axis = start_dim;
                 }
-
-                const int batch_size = input_shape[input_batch_index];
-                if (batch_size <= 0)
+                else
                 {
-                    fprintf(stderr, "flatten tensor with batch index %d folded is not supported yet!\n", input_batch_index);
-                    return;
-                }
-
-                int left = 1;
-                for (int i = 0; i < input_batch_index; i++)
-                {
-                    if (input_shape[i] <= 0)
+                    if (input_shape.empty() || output_shape.empty() || input_batch_index >= (int)input_shape.size())
                     {
-                        left = -1;
-                        break;
+                        fprintf(stderr, "flatten tensor with batch index %d folded is not supported yet!\n", input_batch_index);
+                        return;
                     }
-                    left *= input_shape[i];
-                }
 
-                int right = 1;
-                for (int i = input_batch_index + 1; i < (int)input_shape.size(); i++)
-                {
-                    if (input_shape[i] <= 0)
+                    const int batch_size = input_shape[input_batch_index];
+                    if (batch_size <= 0)
                     {
-                        right = -1;
-                        break;
+                        fprintf(stderr, "flatten tensor with batch index %d folded is not supported yet!\n", input_batch_index);
+                        return;
                     }
-                    right *= input_shape[i];
-                }
-                if (left <= 0 || right <= 0)
-                {
-                    fprintf(stderr, "flatten tensor with batch index %d folded is not supported yet!\n", input_batch_index);
-                    return;
-                }
 
-                int batch_axis_count = 0;
-                for (int i = 0; i < (int)output_shape.size(); i++)
-                {
-                    if (output_shape[i] != batch_size)
-                        continue;
-
-                    int left2 = 1;
-                    for (int j = 0; j < i; j++)
+                    int left = 1;
+                    for (int i = 0; i < input_batch_index; i++)
                     {
-                        if (output_shape[j] <= 0)
+                        if (input_shape[i] <= 0)
                         {
-                            left2 = -1;
+                            left = -1;
                             break;
                         }
-                        left2 *= output_shape[j];
+                        left *= input_shape[i];
                     }
 
-                    int right2 = 1;
-                    for (int j = i + 1; j < (int)output_shape.size(); j++)
+                    int right = 1;
+                    for (int i = input_batch_index + 1; i < (int)input_shape.size(); i++)
                     {
-                        if (output_shape[j] <= 0)
+                        if (input_shape[i] <= 0)
                         {
-                            right2 = -1;
+                            right = -1;
                             break;
                         }
-                        right2 *= output_shape[j];
+                        right *= input_shape[i];
                     }
-                    if (left2 <= 0 || right2 <= 0)
-                        continue;
-
-                    if (left2 == left && right2 == right)
+                    if (left <= 0 || right <= 0)
                     {
-                        batch_axis = i;
-                        batch_axis_count += 1;
+                        fprintf(stderr, "flatten tensor with batch index %d folded is not supported yet!\n", input_batch_index);
+                        return;
                     }
-                }
 
-                if (batch_axis_count != 1)
-                {
-                    fprintf(stderr, "flatten tensor with batch index %d folded is not supported yet!\n", input_batch_index);
-                    return;
+                    int batch_axis_count = 0;
+                    for (int i = 0; i < (int)output_shape.size(); i++)
+                    {
+                        if (output_shape[i] != batch_size)
+                            continue;
+
+                        int left2 = 1;
+                        for (int j = 0; j < i; j++)
+                        {
+                            if (output_shape[j] <= 0)
+                            {
+                                left2 = -1;
+                                break;
+                            }
+                            left2 *= output_shape[j];
+                        }
+
+                        int right2 = 1;
+                        for (int j = i + 1; j < (int)output_shape.size(); j++)
+                        {
+                            if (output_shape[j] <= 0)
+                            {
+                                right2 = -1;
+                                break;
+                            }
+                            right2 *= output_shape[j];
+                        }
+                        if (left2 <= 0 || right2 <= 0)
+                            continue;
+
+                        if (left2 == left && right2 == right)
+                        {
+                            batch_axis = i;
+                            batch_axis_count += 1;
+                        }
+                    }
+
+                    if (batch_axis_count != 1)
+                    {
+                        fprintf(stderr, "flatten tensor with batch index %d folded is not supported yet!\n", input_batch_index);
+                        return;
+                    }
                 }
             }
         }

@@ -134,9 +134,20 @@ static bool is_layout_op(const Operator* op)
     return op->type == "Tensor.permute" || op->type == "torch.transpose" || op->type == "torch.t";
 }
 
+static bool is_axis_op(const Operator* op)
+{
+    return op->type == "torch.cat" || op->type == "torch.chunk" || op->type == "torch.split" || op->type == "torch.tensor_split"
+           || op->type == "Tensor.slice" || op->type == "Tensor.select";
+}
+
 static bool is_reshape_op(const Operator* op)
 {
     return op->type == "Tensor.reshape" || op->type == "torch.flatten" || op->type == "Tensor.unflatten";
+}
+
+static bool is_recurrent_op(const Operator* op)
+{
+    return op->type == "nn.RNN" || op->type == "nn.LSTM" || op->type == "nn.GRU";
 }
 
 static bool is_binary_eltwise_op(const Operator* op)
@@ -159,6 +170,15 @@ static int get_consumer_ncnn_batch_in_shape(const Operator* op, int input_index,
     if (op->type == "pnnx.Output")
         return get_ncnn_batch_in_shape(r);
 
+    if (op->type == "pnnx.Expression" || op->type == "pnnx.SliceIndexes")
+        return get_ncnn_batch_in_shape(r);
+
+    if (op->type == "Tensor.reshape" && input_index != 0)
+        return get_ncnn_batch_in_shape(r);
+
+    if ((op->type == "Tensor.slice" || op->type == "Tensor.select") && input_index != 0)
+        return get_ncnn_batch_in_shape(r);
+
     if (op->type == "F.scaled_dot_product_attention")
         return r->params.at("__batch_index").i == 233 ? 1 : 0;
 
@@ -179,10 +199,19 @@ static int get_consumer_ncnn_batch_in_shape(const Operator* op, int input_index,
             return default_ncnn_batch_in_shape(op->outputs[0]->params.at("__batch_index").i);
     }
 
-    if (is_reshape_op(op) && get_ncnn_batch_in_shape(r) == 0)
+    if (is_recurrent_op(op))
+        return get_ncnn_batch_in_shape(r);
+
+    if (is_layout_op(op) && r->params.at("__batch_index").i != 233)
+        return 0;
+
+    if (is_axis_op(op))
+        return get_ncnn_batch_in_shape(r);
+
+    if (is_reshape_op(op) && input_index == 0 && get_ncnn_batch_in_shape(r) == 0)
     {
         const int batch_index = r->params.at("__batch_index").i;
-        if (batch_index > 0 && batch_index != 233)
+        if (batch_index > 0 && batch_index != 233 && r->shape.size() <= 4 && !op->outputs.empty() && !op->outputs[0]->shape.empty() && op->outputs[0]->params.at("__batch_index").i == 233)
             return 1;
     }
 
@@ -277,9 +306,8 @@ static void set_reshape_batch_axis(Operator* op, const std::map<Operand*, int>& 
     if (in_batch_in_shape == 0 && out_batch_in_shape == 1)
     {
         int batch_index = get_batch_index(batch_indices, out);
-        if (batch_index == 233)
-            batch_index = get_batch_index(batch_indices, in);
-        out->params["__batch_axis"] = batch_index == 233 ? 0 : batch_index;
+        if (batch_index != 233)
+            out->params["__batch_axis"] = batch_index;
     }
     if (in_batch_in_shape == 1 && out_batch_in_shape == 0)
     {
@@ -337,10 +365,22 @@ void convert_batch_layout(Graph& graph)
             for (Operand* r : op->outputs)
                 set_ncnn_batch_in_shape(r, batch_in_shape);
         }
+        else if (is_recurrent_op(op))
+        {
+            const int batch_in_shape = op->inputs.empty() ? default_ncnn_batch_in_shape(get_batch_index(batch_indices, op->outputs[0])) : get_ncnn_batch_in_shape(op->inputs[0]);
+            for (Operand* r : op->outputs)
+                set_ncnn_batch_in_shape(r, batch_in_shape);
+        }
         else if (is_reshape_op(op))
         {
             for (Operand* r : op->outputs)
-                set_ncnn_batch_in_shape(r, default_ncnn_batch_in_shape(get_batch_index(batch_indices, r)));
+            {
+                const int batch_index = get_batch_index(batch_indices, r);
+                if (r->shape.size() > 4 && batch_index != 233)
+                    set_ncnn_batch_in_shape(r, 0);
+                else
+                    set_ncnn_batch_in_shape(r, default_ncnn_batch_in_shape(batch_index));
+            }
 
             set_reshape_batch_axis(op, batch_indices);
         }
