@@ -37,10 +37,10 @@ void convert_torch_stack(Graph& graph)
                 axis = input_rank + 1 + axis;
             }
 
-            if (axis == batch_index)
+            if (batch_index != 233 && batch_in_shape == 0 && axis == batch_index)
             {
                 fprintf(stderr, "stack along batch axis %d is not supported\n", batch_index);
-                continue;
+                axis = 0;
             }
 
             bool stack_inner_most = axis == input_rank;

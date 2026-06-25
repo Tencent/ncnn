@@ -43,10 +43,10 @@ pnnx.Output             output      1 0 out
                 axis = input_rank + axis;
         }
 
-        if (axis == batch_index)
+        if (batch_index != 233 && batch_in_shape == 0 && axis == batch_index)
         {
             fprintf(stderr, "normalize along batch axis %d is not supported\n", batch_index);
-            return;
+            axis = 0;
         }
 
         if (batch_index != 233 && batch_in_shape == 0 && axis > batch_index)

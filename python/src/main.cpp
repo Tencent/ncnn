@@ -396,7 +396,7 @@ PYBIND11_MODULE(ncnn, m)
             for (int i = 0; i < m->n; i++)
             {
                 Mat mb = m->batch(i);
-                batch_slices.append(py::array(to_buffer_info(mb, format)));
+                batch_slices.append(py::array(to_buffer_info(mb, format), obj));
             }
             return numpy.attr("stack")(batch_slices, py::arg("axis") = batch_index).cast<py::array>();
         }

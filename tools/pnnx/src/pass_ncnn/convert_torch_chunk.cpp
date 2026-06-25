@@ -30,10 +30,10 @@ void convert_torch_chunk(Graph& graph)
                 axis = input_rank + axis;
         }
 
-        if (axis == batch_index)
+        if (batch_index != 233 && batch_in_shape == 0 && axis == batch_index)
         {
             fprintf(stderr, "chunk along batch axis %d is not supported\n", batch_index);
-            continue;
+            axis = 0;
         }
 
         int chunks = op->params.at("chunks").i;

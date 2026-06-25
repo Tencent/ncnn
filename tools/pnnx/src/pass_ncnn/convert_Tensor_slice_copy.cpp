@@ -143,18 +143,25 @@ void convert_Tensor_slice_copy(Graph& graph)
             }
 
             int input_rank0 = op->inputs[0]->shape.size();
+            std::vector<int> axes_in_shape = axes;
             for (int i = 0; i < axes_rank; i++)
             {
                 if (axes[i] < 0 && input_rank0 > 0)
                 {
                     axes[i] = input_rank0 + axes[i];
                 }
+                axes_in_shape[i] = axes[i];
 
-                if (axes[i] == batch_index && (starts[i] != 0 || ends[i] != INT_MAX))
+                if (batch_index != 233 && batch_in_shape == 0 && axes[i] == batch_index)
                 {
-                    fprintf(stderr, "slice_copy along batch axis is not supported\n");
-                    unsupported = true;
-                    break;
+                    if (starts[i] != 0 || ends[i] != INT_MAX)
+                    {
+                        fprintf(stderr, "slice_copy along batch axis is not supported\n");
+                        unsupported = true;
+                        break;
+                    }
+                    axes[i] = -233;
+                    continue;
                 }
 
                 if (batch_index != 233 && batch_in_shape == 0 && axes[i] > batch_index)
@@ -165,6 +172,21 @@ void convert_Tensor_slice_copy(Graph& graph)
             }
             if (unsupported)
                 continue;
+
+            {
+                std::vector<int> axes2;
+                std::vector<int> starts2;
+                for (int i = 0; i < axes_rank; i++)
+                {
+                    if (axes[i] == -233)
+                        continue;
+
+                    axes2.push_back(axes[i]);
+                    starts2.push_back(starts[i]);
+                }
+                axes = axes2;
+                starts = starts2;
+            }
 
             matched = true;
 
@@ -216,7 +238,7 @@ void convert_Tensor_slice_copy(Graph& graph)
                 for (auto si : selected_axis_indices)
                 {
                     // unsqueeze
-                    int sa = axes[si];
+                    int sa = axes_in_shape[si];
                     if (shape.empty())
                         continue;
                     if (sa < 0 || sa > (int)shape.size())

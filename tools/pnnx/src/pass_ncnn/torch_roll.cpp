@@ -65,9 +65,10 @@ pnnx.Output             output      1 0 out
                 axis = input_rank + axis;
         }
 
-        if (axis == batch_index)
+        if (batch_index != 233 && batch_in_shape == 0 && axis == batch_index)
         {
             fprintf(stderr, "roll along batch axis %d is not supported\n", batch_index);
+            axis = 0;
         }
 
         if (batch_index != 233 && batch_in_shape == 0 && axis > batch_index)
@@ -154,9 +155,13 @@ pnnx.Output             output      1 0 out
                 axis1 = input_rank + axis1;
         }
 
-        if (axis0 == batch_index || axis1 == batch_index)
+        if (batch_index != 233 && batch_in_shape == 0 && (axis0 == batch_index || axis1 == batch_index))
         {
             fprintf(stderr, "roll along batch axis %d is not supported\n", batch_index);
+            if (axis0 == batch_index)
+                axis0 = 0;
+            if (axis1 == batch_index)
+                axis1 = 0;
         }
 
         if (batch_index != 233 && batch_in_shape == 0 && axis0 > batch_index)

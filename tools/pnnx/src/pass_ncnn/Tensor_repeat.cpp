@@ -41,13 +41,13 @@ pnnx.Output             output      1 0 out
         std::vector<int> new_sizes;
         for (int i = 0; i < (int)sizes.size(); i++)
         {
-            if (i == batch_index)
+            if (batch_index != 233 && batch_in_shape == 0 && i == batch_index)
             {
-                if (batch_in_shape == 0 && sizes[i] == 1)
+                if (sizes[i] == 1)
                     continue;
 
-                if (batch_in_shape == 0 || sizes[i] != 1)
-                    fprintf(stderr, "repeat tensor along batch index %d is not supported yet!\n", batch_index);
+                fprintf(stderr, "repeat tensor along batch index %d is not supported yet!\n", batch_index);
+                continue;
             }
 
             new_sizes.push_back(sizes[i]);

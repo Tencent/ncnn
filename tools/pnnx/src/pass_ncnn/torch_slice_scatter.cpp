@@ -43,10 +43,10 @@ pnnx.Output             output      1 0 out
         if (dim < 0 && input_rank > 0)
             dim += input_rank;
 
-        if (dim == batch_index)
+        if (batch_index != 233 && batch_in_shape == 0 && dim == batch_index)
         {
             fprintf(stderr, "slice_scatter batch dim %d is not supported yet!\n", batch_index);
-            return;
+            dim = 0;
         }
 
         int start = captured_params.at("start").type == 2 ? captured_params.at("start").i : 0;
