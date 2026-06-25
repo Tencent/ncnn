@@ -581,7 +581,9 @@ PYBIND11_MODULE(ncnn, m)
 #if NCNN_BATCH
     .def_readwrite("n", &Mat::n)
 #else
-    .def_property_readonly("n", [](const Mat&) { return 1; })
+    .def_property_readonly("n", [](const Mat&) {
+        return 1;
+    })
 #endif
     .def("__repr__", [](const Mat& m) {
         std::stringstream ss;
