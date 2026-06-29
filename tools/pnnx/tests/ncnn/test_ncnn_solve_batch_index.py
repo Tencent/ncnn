@@ -46,23 +46,22 @@ def test():
     os.system("../../src/pnnx test_ncnn_solve_batch_index.pt inputshape=[1,3,32,32] inputshape2=[1,3,64,64]")
 
     # ncnn inference
-    import numpy as np
     import ncnn
     with ncnn.Net() as net:
         net.load_param("test_ncnn_solve_batch_index.ncnn.param")
         net.load_model("test_ncnn_solve_batch_index.ncnn.bin")
 
         with net.create_extractor() as ex:
-            ex.input("in0", ncnn.Mat(x0.squeeze(0).numpy()).clone())
+            ex.input("in0", ncnn.Mat(x0.numpy(), batch_index=0).clone())
 
             _, out0 = ex.extract("out0")
-            b0 = torch.from_numpy(np.array(out0)).unsqueeze(0)
+            b0 = torch.from_numpy(out0.numpy(batch_index=0))
 
         with net.create_extractor() as ex:
-            ex.input("in0", ncnn.Mat(x1.squeeze(0).numpy()).clone())
+            ex.input("in0", ncnn.Mat(x1.numpy(), batch_index=0).clone())
 
             _, out0 = ex.extract("out0")
-            b1 = torch.from_numpy(np.array(out0)).unsqueeze(0)
+            b1 = torch.from_numpy(out0.numpy(batch_index=0))
 
     return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
 

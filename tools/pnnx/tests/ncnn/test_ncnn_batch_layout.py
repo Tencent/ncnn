@@ -361,15 +361,16 @@ def test():
     if not run_model("test_ncnn_batch_layout_middle_batch_flatten_fold_ambiguous_axis", ModelMiddleBatchFlattenFoldAmbiguousAxis(), x):
         return False
 
-    torch.manual_seed(0)
-    x = torch.rand(2, 3, 5, 7)
-    if not run_model("test_ncnn_batch_layout_middle_batch_unflatten_fold", ModelMiddleBatchUnflattenFold(), x):
-        return False
+    if version.parse(torch.__version__) >= version.parse('1.13'):
+        torch.manual_seed(0)
+        x = torch.rand(2, 3, 5, 7)
+        if not run_model("test_ncnn_batch_layout_middle_batch_unflatten_fold", ModelMiddleBatchUnflattenFold(), x):
+            return False
 
-    torch.manual_seed(0)
-    x = torch.rand(2, 2, 5, 7)
-    if not run_model("test_ncnn_batch_layout_middle_batch_unflatten_fold_ambiguous_axis", ModelMiddleBatchUnflattenFoldAmbiguousAxis(), x):
-        return False
+        torch.manual_seed(0)
+        x = torch.rand(2, 2, 5, 7)
+        if not run_model("test_ncnn_batch_layout_middle_batch_unflatten_fold_ambiguous_axis", ModelMiddleBatchUnflattenFoldAmbiguousAxis(), x):
+            return False
 
     torch.manual_seed(0)
     x = torch.rand(6, 5, 7)
