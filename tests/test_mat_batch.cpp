@@ -4,7 +4,6 @@
 #include "mat.h"
 #include "net.h"
 #include "testutil.h"
-#include "layer/reshape.h"
 
 #if NCNN_VULKAN
 #include "gpu.h"
@@ -819,6 +818,11 @@ static int test_batch_reshape_batch_to_dim_axis1()
 
 static int test_batch_reshape_batch_to_dim_axis1_cstep_padding()
 {
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=8 1=2 2=3 12=1 13=1\n";
+
     const int B = 2;
     const int C = 4;
     const int H = 2;
@@ -840,22 +844,17 @@ static int test_batch_reshape_batch_to_dim_axis1_cstep_padding()
         }
     }
 
-    ncnn::ParamDict pd;
-    pd.set(0, 8);  // w
-    pd.set(1, 2);  // h
-    pd.set(2, 3);  // c
-    pd.set(12, 1); // batch to dim
-    pd.set(13, 1); // batch axis
+    ncnn::Net net;
+    net.load_param_mem(param_str);
 
-    ncnn::Reshape op;
-    op.load_param(pd);
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
 
-    ncnn::Option opt;
     ncnn::Mat output;
-    int ret = op.forward(input_batch, output, opt);
+    int ret = ex.extract("output", output);
     if (ret != 0)
     {
-        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis1_cstep_padding forward failed ret=%d\n", ret);
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis1_cstep_padding extract failed ret=%d\n", ret);
         return -1;
     }
 
@@ -952,11 +951,6 @@ static int test_batch_reshape_packed_batch_to_dim_axis0()
         fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis0 extract failed ret=%d\n", ret);
         return -1;
     }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis0 output should stay packed\n");
-        return -1;
-    }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
     {
         fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis0 value mismatch\n");
@@ -1028,11 +1022,6 @@ static int test_batch_reshape_packed_batch_to_dim_axis0_2d()
         fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis0_2d extract failed ret=%d\n", ret);
         return -1;
     }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis0_2d output should stay packed\n");
-        return -1;
-    }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
     {
         fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis0_2d value mismatch\n");
@@ -1097,11 +1086,6 @@ static int test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked()
         fprintf(stderr, "test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked extract failed ret=%d\n", ret);
         return -1;
     }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked output should be packed\n");
-        return -1;
-    }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
     {
         fprintf(stderr, "test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked value mismatch\n");
@@ -1164,11 +1148,6 @@ static int test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked_nstep_padding(
     if (ret != 0)
     {
         fprintf(stderr, "test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked_nstep_padding extract failed ret=%d\n", ret);
-        return -1;
-    }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked_nstep_padding output should be packed\n");
         return -1;
     }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
@@ -1243,11 +1222,6 @@ static int test_batch_reshape_packed_batch_to_dim_axis1()
         fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis1 extract failed ret=%d\n", ret);
         return -1;
     }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis1 output should stay packed\n");
-        return -1;
-    }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
     {
         fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis1 value mismatch\n");
@@ -1319,11 +1293,6 @@ static int test_batch_reshape_packed_batch_to_dim_axis1_2d()
         fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis1_2d extract failed ret=%d\n", ret);
         return -1;
     }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis1_2d output should stay packed\n");
-        return -1;
-    }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
     {
         fprintf(stderr, "test_batch_reshape_packed_batch_to_dim_axis1_2d value mismatch\n");
@@ -1387,11 +1356,6 @@ static int test_batch_reshape_batch_to_dim_axis1_pack1topacked()
     if (ret != 0)
     {
         fprintf(stderr, "test_batch_reshape_batch_to_dim_axis1_pack1topacked extract failed ret=%d\n", ret);
-        return -1;
-    }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis1_pack1topacked output should be packed\n");
         return -1;
     }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
@@ -1465,11 +1429,6 @@ static int test_batch_reshape_packed_dim_to_batch_axis0()
         fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis0 extract failed ret=%d\n", ret);
         return -1;
     }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis0 output should stay packed\n");
-        return -1;
-    }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
     {
         fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis0 value mismatch\n");
@@ -1540,11 +1499,6 @@ static int test_batch_reshape_packed_dim_to_batch_axis0_2d()
         fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis0_2d extract failed ret=%d\n", ret);
         return -1;
     }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis0_2d output should stay packed\n");
-        return -1;
-    }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
     {
         fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis0_2d value mismatch\n");
@@ -1606,11 +1560,6 @@ static int test_batch_reshape_dim_to_batch_axis0_2d_pack1topacked()
     if (ret != 0)
     {
         fprintf(stderr, "test_batch_reshape_dim_to_batch_axis0_2d_pack1topacked extract failed ret=%d\n", ret);
-        return -1;
-    }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_dim_to_batch_axis0_2d_pack1topacked output should be packed\n");
         return -1;
     }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
@@ -1681,11 +1630,6 @@ static int test_batch_reshape_dim_to_batch_axis0_2d_pack4topack1_nstep_padding()
     if (ret != 0)
     {
         fprintf(stderr, "test_batch_reshape_dim_to_batch_axis0_2d_pack4topack1_nstep_padding extract failed ret=%d\n", ret);
-        return -1;
-    }
-    if (output.elempack != 1)
-    {
-        fprintf(stderr, "test_batch_reshape_dim_to_batch_axis0_2d_pack4topack1_nstep_padding output should be pack1\n");
         return -1;
     }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
@@ -1759,11 +1703,6 @@ static int test_batch_reshape_packed_dim_to_batch_axis1()
         fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1 extract failed ret=%d\n", ret);
         return -1;
     }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1 output should stay packed\n");
-        return -1;
-    }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
     {
         fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1 value mismatch\n");
@@ -1833,11 +1772,6 @@ static int test_batch_reshape_packed_dim_to_batch_axis1_2d()
     if (ret != 0)
     {
         fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1_2d extract failed ret=%d\n", ret);
-        return -1;
-    }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1_2d output should stay packed\n");
         return -1;
     }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
@@ -1912,11 +1846,6 @@ static int test_batch_reshape_packed_dim_to_batch_axis1_4d()
         fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1_4d extract failed ret=%d\n", ret);
         return -1;
     }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1_4d output should stay packed\n");
-        return -1;
-    }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
     {
         fprintf(stderr, "test_batch_reshape_packed_dim_to_batch_axis1_4d value mismatch\n");
@@ -1980,11 +1909,6 @@ static int test_batch_reshape_dim_to_batch_axis1_pack1topacked()
     if (ret != 0)
     {
         fprintf(stderr, "test_batch_reshape_dim_to_batch_axis1_pack1topacked extract failed ret=%d\n", ret);
-        return -1;
-    }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_dim_to_batch_axis1_pack1topacked output should be packed\n");
         return -1;
     }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
@@ -2052,11 +1976,6 @@ static int test_batch_reshape_batch_to_dim_pack1topacked()
         fprintf(stderr, "test_batch_reshape_batch_to_dim_pack1topacked extract failed ret=%d\n", ret);
         return -1;
     }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_batch_to_dim_pack1topacked output should be packed\n");
-        return -1;
-    }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
     {
         fprintf(stderr, "test_batch_reshape_batch_to_dim_pack1topacked value mismatch\n");
@@ -2120,11 +2039,6 @@ static int test_batch_reshape_batch_to_dim_pack1tohighpack()
     if (ret != 0)
     {
         fprintf(stderr, "test_batch_reshape_batch_to_dim_pack1tohighpack extract failed ret=%d\n", ret);
-        return -1;
-    }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_batch_to_dim_pack1tohighpack output should be packed\n");
         return -1;
     }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
@@ -2199,11 +2113,6 @@ static int test_batch_reshape_batch_to_dim_pack4topack1()
         fprintf(stderr, "test_batch_reshape_batch_to_dim_pack4topack1 extract failed ret=%d\n", ret);
         return -1;
     }
-    if (output.elempack != 1)
-    {
-        fprintf(stderr, "test_batch_reshape_batch_to_dim_pack4topack1 output should be pack1\n");
-        return -1;
-    }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
     {
         fprintf(stderr, "test_batch_reshape_batch_to_dim_pack4topack1 value mismatch\n");
@@ -2269,11 +2178,6 @@ static int test_batch_reshape_dim_to_batch_pack1topacked()
         fprintf(stderr, "test_batch_reshape_dim_to_batch_pack1topacked extract failed ret=%d\n", ret);
         return -1;
     }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_dim_to_batch_pack1topacked output should be packed\n");
-        return -1;
-    }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
     {
         fprintf(stderr, "test_batch_reshape_dim_to_batch_pack1topacked value mismatch\n");
@@ -2336,11 +2240,6 @@ static int test_batch_reshape_dim_to_batch_pack1tohighpack()
     if (ret != 0)
     {
         fprintf(stderr, "test_batch_reshape_dim_to_batch_pack1tohighpack extract failed ret=%d\n", ret);
-        return -1;
-    }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_dim_to_batch_pack1tohighpack output should be packed\n");
         return -1;
     }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
@@ -2415,11 +2314,6 @@ static int test_batch_reshape_dim_to_batch_pack4topack1()
         fprintf(stderr, "test_batch_reshape_dim_to_batch_pack4topack1 extract failed ret=%d\n", ret);
         return -1;
     }
-    if (output.elempack != 1)
-    {
-        fprintf(stderr, "test_batch_reshape_dim_to_batch_pack4topack1 output should be pack1\n");
-        return -1;
-    }
     if (CompareMat(output_ref, output, 1e-5f) != 0)
     {
         fprintf(stderr, "test_batch_reshape_dim_to_batch_pack4topack1 value mismatch\n");
@@ -2474,6 +2368,7 @@ static int test_batch_reshape_bf16_storage_packed()
 
     ncnn::Net net;
     net.opt.use_packing_layout = true;
+    net.opt.use_fp16_storage = false;
     net.opt.use_bf16_storage = true;
     net.load_param_mem(param_str);
 
@@ -2485,11 +2380,6 @@ static int test_batch_reshape_bf16_storage_packed()
     if (ret != 0)
     {
         fprintf(stderr, "test_batch_reshape_bf16_storage_packed extract failed ret=%d\n", ret);
-        return -1;
-    }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_bf16_storage_packed output should be packed\n");
         return -1;
     }
     if (output.elembits() != 16)
@@ -2552,6 +2442,7 @@ static int test_batch_reshape_bf16_storage_dim_to_batch_packed()
 
     ncnn::Net net;
     net.opt.use_packing_layout = true;
+    net.opt.use_fp16_storage = false;
     net.opt.use_bf16_storage = true;
     net.load_param_mem(param_str);
 
@@ -2563,11 +2454,6 @@ static int test_batch_reshape_bf16_storage_dim_to_batch_packed()
     if (ret != 0)
     {
         fprintf(stderr, "test_batch_reshape_bf16_storage_dim_to_batch_packed extract failed ret=%d\n", ret);
-        return -1;
-    }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_bf16_storage_dim_to_batch_packed output should be packed\n");
         return -1;
     }
     if (output.elembits() != 16)
@@ -2631,6 +2517,7 @@ static int test_batch_reshape_bf16_storage_axis1_packed()
 
     ncnn::Net net;
     net.opt.use_packing_layout = true;
+    net.opt.use_fp16_storage = false;
     net.opt.use_bf16_storage = true;
     net.load_param_mem(param_str);
 
@@ -2642,11 +2529,6 @@ static int test_batch_reshape_bf16_storage_axis1_packed()
     if (ret != 0)
     {
         fprintf(stderr, "test_batch_reshape_bf16_storage_axis1_packed extract failed ret=%d\n", ret);
-        return -1;
-    }
-    if (output.elempack == 1)
-    {
-        fprintf(stderr, "test_batch_reshape_bf16_storage_axis1_packed output should be packed\n");
         return -1;
     }
     if (output.elembits() != 16)
@@ -3265,9 +3147,6 @@ static int test_batch_forward_binaryop_same_batch()
                              "Input    input1 0 1 b\n"
                              "BinaryOp add    2 1 a b out 0=0\n";
 
-    ncnn::Net net;
-    net.load_param_mem(param_str);
-
     const int B = 3;
     const int C = 2;
     const int H = 3;
@@ -3294,40 +3173,73 @@ static int test_batch_forward_binaryop_same_batch()
         }
     }
 
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.opt.use_fp16_storage = false;
+    net_ref.opt.use_fp16_arithmetic = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("a", a);
+    ex_ref.input("b", b);
+
+    ncnn::Mat out_ref;
+    int ret = ex_ref.extract("out", out_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_forward_binaryop_same_batch reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_fp16_storage = false;
+    net.opt.use_fp16_arithmetic = false;
+    net.load_param_mem(param_str);
+
     ncnn::Extractor ex = net.create_extractor();
     ex.input("a", a);
     ex.input("b", b);
 
     ncnn::Mat out;
-    int ret = ex.extract("out", out);
+    ret = ex.extract("out", out);
     if (ret != 0)
     {
         fprintf(stderr, "test_batch_forward_binaryop_same_batch extract failed ret=%d\n", ret);
         return -1;
     }
-    if (out.n != B || out.w != W || out.h != H || out.c != C)
+    if (CompareMat(out_ref, out, 1e-5f) != 0)
     {
-        fprintf(stderr, "test_batch_forward_binaryop_same_batch shape mismatch\n");
+        fprintf(stderr, "test_batch_forward_binaryop_same_batch value mismatch\n");
         return -1;
     }
 
-    for (int bi = 0; bi < B; bi++)
+#if NCNN_VULKAN
     {
-        const ncnn::Mat out0 = out.batch(bi);
-        for (int q = 0; q < C; q++)
+        ncnn::Net net;
+        net.opt.use_vulkan_compute = true;
+        net.opt.use_fp16_storage = false;
+        net.opt.use_fp16_arithmetic = false;
+        net.load_param_mem(param_str);
+        net.load_model((const unsigned char*)"");
+
+        ncnn::Extractor ex = net.create_extractor();
+        ex.input("a", a);
+        ex.input("b", b);
+
+        ncnn::Mat out;
+        ret = ex.extract("out", out);
+        if (ret != 0)
         {
-            const float* ptr = out0.channel(q);
-            for (int i = 0; i < W * H; i++)
-            {
-                float expected = (float)(bi * 100 + q * 10 + i + bi * 7 + q * 3 + i);
-                if (!NearlyEqual(ptr[i], expected, 1e-5f))
-                {
-                    fprintf(stderr, "test_batch_forward_binaryop_same_batch mismatch at b=%d q=%d i=%d got %f expect %f\n", bi, q, i, ptr[i], expected);
-                    return -1;
-                }
-            }
+            fprintf(stderr, "test_batch_forward_binaryop_same_batch vulkan extract failed ret=%d\n", ret);
+            return -1;
+        }
+        if (CompareMat(out_ref, out, 1e-4f) != 0)
+        {
+            fprintf(stderr, "test_batch_forward_binaryop_same_batch vulkan value mismatch\n");
+            return -1;
         }
     }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -3339,9 +3251,6 @@ static int test_batch_forward_binaryop_broadcast()
                              "Input    input0 0 1 a\n"
                              "Input    input1 0 1 b\n"
                              "BinaryOp add    2 1 a b out 0=0\n";
-
-    ncnn::Net net;
-    net.load_param_mem(param_str);
 
     const int B = 3;
     const int C = 2;
@@ -3373,40 +3282,73 @@ static int test_batch_forward_binaryop_broadcast()
         }
     }
 
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.opt.use_fp16_storage = false;
+    net_ref.opt.use_fp16_arithmetic = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("a", a);
+    ex_ref.input("b", b);
+
+    ncnn::Mat out_ref;
+    int ret = ex_ref.extract("out", out_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_forward_binaryop_broadcast reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_fp16_storage = false;
+    net.opt.use_fp16_arithmetic = false;
+    net.load_param_mem(param_str);
+
     ncnn::Extractor ex = net.create_extractor();
     ex.input("a", a);
     ex.input("b", b);
 
     ncnn::Mat out;
-    int ret = ex.extract("out", out);
+    ret = ex.extract("out", out);
     if (ret != 0)
     {
         fprintf(stderr, "test_batch_forward_binaryop_broadcast extract failed ret=%d\n", ret);
         return -1;
     }
-    if (out.n != B || out.w != W || out.h != H || out.c != C)
+    if (CompareMat(out_ref, out, 1e-5f) != 0)
     {
-        fprintf(stderr, "test_batch_forward_binaryop_broadcast shape mismatch\n");
+        fprintf(stderr, "test_batch_forward_binaryop_broadcast value mismatch\n");
         return -1;
     }
 
-    for (int bi = 0; bi < B; bi++)
+#if NCNN_VULKAN
     {
-        const ncnn::Mat out0 = out.batch(bi);
-        for (int q = 0; q < C; q++)
+        ncnn::Net net;
+        net.opt.use_vulkan_compute = true;
+        net.opt.use_fp16_storage = false;
+        net.opt.use_fp16_arithmetic = false;
+        net.load_param_mem(param_str);
+        net.load_model((const unsigned char*)"");
+
+        ncnn::Extractor ex = net.create_extractor();
+        ex.input("a", a);
+        ex.input("b", b);
+
+        ncnn::Mat out;
+        ret = ex.extract("out", out);
+        if (ret != 0)
         {
-            const float* ptr = out0.channel(q);
-            for (int i = 0; i < W * H; i++)
-            {
-                float expected = (float)(bi * 100 + q * 10 + i + q * 3 + i);
-                if (!NearlyEqual(ptr[i], expected, 1e-5f))
-                {
-                    fprintf(stderr, "test_batch_forward_binaryop_broadcast mismatch at b=%d q=%d i=%d got %f expect %f\n", bi, q, i, ptr[i], expected);
-                    return -1;
-                }
-            }
+            fprintf(stderr, "test_batch_forward_binaryop_broadcast vulkan extract failed ret=%d\n", ret);
+            return -1;
+        }
+        if (CompareMat(out_ref, out, 1e-4f) != 0)
+        {
+            fprintf(stderr, "test_batch_forward_binaryop_broadcast vulkan value mismatch\n");
+            return -1;
         }
     }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -3418,9 +3360,6 @@ static int test_batch_forward_scale_external()
                              "Input input0 0 1 data\n"
                              "Input input1 0 1 scale\n"
                              "Scale scale0 2 1 data scale out 0=-233\n";
-
-    ncnn::Net net;
-    net.load_param_mem(param_str);
 
     const int B = 3;
     const int C = 2;
@@ -3448,40 +3387,73 @@ static int test_batch_forward_scale_external()
         scale[q] = (float)(q + 2);
     }
 
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.opt.use_fp16_storage = false;
+    net_ref.opt.use_fp16_arithmetic = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", data);
+    ex_ref.input("scale", scale);
+
+    ncnn::Mat out_ref;
+    int ret = ex_ref.extract("out", out_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_forward_scale_external reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_fp16_storage = false;
+    net.opt.use_fp16_arithmetic = false;
+    net.load_param_mem(param_str);
+
     ncnn::Extractor ex = net.create_extractor();
     ex.input("data", data);
     ex.input("scale", scale);
 
     ncnn::Mat out;
-    int ret = ex.extract("out", out);
+    ret = ex.extract("out", out);
     if (ret != 0)
     {
         fprintf(stderr, "test_batch_forward_scale_external extract failed ret=%d\n", ret);
         return -1;
     }
-    if (out.n != B || out.w != W || out.h != H || out.c != C)
+    if (CompareMat(out_ref, out, 1e-5f) != 0)
     {
-        fprintf(stderr, "test_batch_forward_scale_external shape mismatch\n");
+        fprintf(stderr, "test_batch_forward_scale_external value mismatch\n");
         return -1;
     }
 
-    for (int bi = 0; bi < B; bi++)
+#if NCNN_VULKAN
     {
-        const ncnn::Mat out0 = out.batch(bi);
-        for (int q = 0; q < C; q++)
+        ncnn::Net net;
+        net.opt.use_vulkan_compute = true;
+        net.opt.use_fp16_storage = false;
+        net.opt.use_fp16_arithmetic = false;
+        net.load_param_mem(param_str);
+        net.load_model((const unsigned char*)"");
+
+        ncnn::Extractor ex = net.create_extractor();
+        ex.input("data", data);
+        ex.input("scale", scale);
+
+        ncnn::Mat out;
+        ret = ex.extract("out", out);
+        if (ret != 0)
         {
-            const float* ptr = out0.channel(q);
-            for (int i = 0; i < W * H; i++)
-            {
-                float expected = (float)(bi * 100 + q * 10 + i) * (q + 2);
-                if (!NearlyEqual(ptr[i], expected, 1e-5f))
-                {
-                    fprintf(stderr, "test_batch_forward_scale_external mismatch at b=%d q=%d i=%d got %f expect %f\n", bi, q, i, ptr[i], expected);
-                    return -1;
-                }
-            }
+            fprintf(stderr, "test_batch_forward_scale_external vulkan extract failed ret=%d\n", ret);
+            return -1;
+        }
+        if (CompareMat(out_ref, out, 1e-4f) != 0)
+        {
+            fprintf(stderr, "test_batch_forward_scale_external vulkan value mismatch\n");
+            return -1;
         }
     }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -3495,6 +3467,8 @@ static int test_batch_forward_binaryop_mismatch()
                              "BinaryOp add    2 1 a b out 0=0\n";
 
     ncnn::Net net;
+    net.opt.use_fp16_storage = false;
+    net.opt.use_fp16_arithmetic = false;
     net.load_param_mem(param_str);
 
     ncnn::Mat a;
@@ -3514,6 +3488,29 @@ static int test_batch_forward_binaryop_mismatch()
         return -1;
     }
 
+#if NCNN_VULKAN
+    {
+        ncnn::Net net;
+        net.opt.use_vulkan_compute = true;
+        net.opt.use_fp16_storage = false;
+        net.opt.use_fp16_arithmetic = false;
+        net.load_param_mem(param_str);
+        net.load_model((const unsigned char*)"");
+
+        ncnn::Extractor ex = net.create_extractor();
+        ex.input("a", a);
+        ex.input("b", b);
+
+        ncnn::Mat out;
+        ret = ex.extract("out", out);
+        if (ret == 0)
+        {
+            fprintf(stderr, "test_batch_forward_binaryop_mismatch vulkan should fail\n");
+            return -1;
+        }
+    }
+#endif // NCNN_VULKAN
+
     return 0;
 }
 
@@ -3523,10 +3520,6 @@ static int test_batch_forward_split()
                              "2 3\n"
                              "Input input 0 1 data\n"
                              "Split split 1 2 data out0 out1\n";
-
-    ncnn::Net net;
-    net.opt.lightmode = false;
-    net.load_param_mem(param_str);
 
     const int B = 3;
     const int C = 2;
@@ -3548,29 +3541,79 @@ static int test_batch_forward_split()
         }
     }
 
+    ncnn::Net net_ref;
+    net_ref.opt.lightmode = false;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.opt.use_fp16_storage = false;
+    net_ref.opt.use_fp16_arithmetic = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat out0_ref;
+    ncnn::Mat out1_ref;
+    int ret0 = ex_ref.extract("out0", out0_ref);
+    int ret1 = ex_ref.extract("out1", out1_ref);
+    if (ret0 != 0 || ret1 != 0)
+    {
+        fprintf(stderr, "test_batch_forward_split reference extract failed ret0=%d ret1=%d\n", ret0, ret1);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.lightmode = false;
+    net.opt.use_fp16_storage = false;
+    net.opt.use_fp16_arithmetic = false;
+    net.load_param_mem(param_str);
+
     ncnn::Extractor ex = net.create_extractor();
     ex.input("data", input_batch);
 
     ncnn::Mat out0;
     ncnn::Mat out1;
-    int ret0 = ex.extract("out0", out0);
-    int ret1 = ex.extract("out1", out1);
+    ret0 = ex.extract("out0", out0);
+    ret1 = ex.extract("out1", out1);
     if (ret0 != 0 || ret1 != 0)
     {
         fprintf(stderr, "test_batch_forward_split extract failed ret0=%d ret1=%d\n", ret0, ret1);
         return -1;
     }
-    if (out0.n != B || out1.n != B || out0.w != W || out1.w != W || out0.h != H || out1.h != H || out0.c != C || out1.c != C)
-    {
-        fprintf(stderr, "test_batch_forward_split shape mismatch\n");
-        return -1;
-    }
-
-    if (CompareMat(input_batch, out0, 1e-5) != 0 || CompareMat(input_batch, out1, 1e-5) != 0)
+    if (CompareMat(out0_ref, out0, 1e-5f) != 0 || CompareMat(out1_ref, out1, 1e-5f) != 0)
     {
         fprintf(stderr, "test_batch_forward_split value mismatch\n");
         return -1;
     }
+
+#if NCNN_VULKAN
+    {
+        ncnn::Net net;
+        net.opt.lightmode = false;
+        net.opt.use_vulkan_compute = true;
+        net.opt.use_fp16_storage = false;
+        net.opt.use_fp16_arithmetic = false;
+        net.load_param_mem(param_str);
+        net.load_model((const unsigned char*)"");
+
+        ncnn::Extractor ex = net.create_extractor();
+        ex.input("data", input_batch);
+
+        ncnn::Mat out0;
+        ncnn::Mat out1;
+        ret0 = ex.extract("out0", out0);
+        ret1 = ex.extract("out1", out1);
+        if (ret0 != 0 || ret1 != 0)
+        {
+            fprintf(stderr, "test_batch_forward_split vulkan extract failed ret0=%d ret1=%d\n", ret0, ret1);
+            return -1;
+        }
+        if (CompareMat(out0_ref, out0, 1e-4f) != 0 || CompareMat(out1_ref, out1, 1e-4f) != 0)
+        {
+            fprintf(stderr, "test_batch_forward_split vulkan value mismatch\n");
+            return -1;
+        }
+    }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -3581,9 +3624,6 @@ static int test_batch_forward_flatten()
                              "2 2\n"
                              "Input   input   0 1 data\n"
                              "Flatten flatten 1 1 data output\n";
-
-    ncnn::Net net;
-    net.load_param_mem(param_str);
 
     const int B = 2;
     const int C = 2;
@@ -3605,36 +3645,70 @@ static int test_batch_forward_flatten()
         }
     }
 
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.opt.use_fp16_storage = false;
+    net_ref.opt.use_fp16_arithmetic = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_forward_flatten reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_fp16_storage = false;
+    net.opt.use_fp16_arithmetic = false;
+    net.load_param_mem(param_str);
+
     ncnn::Extractor ex = net.create_extractor();
     ex.input("data", input_batch);
 
     ncnn::Mat output_batch;
-    int ret = ex.extract("output", output_batch);
+    ret = ex.extract("output", output_batch);
     if (ret != 0)
     {
         fprintf(stderr, "test_batch_forward_flatten extract failed ret=%d\n", ret);
         return -1;
     }
-    if (output_batch.n != B || output_batch.dims != 1 || output_batch.w != W * H * C)
+    if (CompareMat(output_ref, output_batch, 1e-5f) != 0)
     {
-        fprintf(stderr, "test_batch_forward_flatten shape mismatch\n");
+        fprintf(stderr, "test_batch_forward_flatten value mismatch\n");
         return -1;
     }
 
-    for (int b = 0; b < B; b++)
+#if NCNN_VULKAN
     {
-        const ncnn::Mat sub = output_batch.batch(b);
-        const float* ptr = sub;
-        for (int i = 0; i < W * H * C; i++)
+        ncnn::Net net;
+        net.opt.use_vulkan_compute = true;
+        net.opt.use_fp16_storage = false;
+        net.opt.use_fp16_arithmetic = false;
+        net.load_param_mem(param_str);
+        net.load_model((const unsigned char*)"");
+
+        ncnn::Extractor ex = net.create_extractor();
+        ex.input("data", input_batch);
+
+        ncnn::Mat output_batch;
+        ret = ex.extract("output", output_batch);
+        if (ret != 0)
         {
-            float expected = (float)(b * 100 + (i / (W * H)) * 10 + i % (W * H));
-            if (!NearlyEqual(ptr[i], expected, 1e-5f))
-            {
-                fprintf(stderr, "test_batch_forward_flatten mismatch at b=%d i=%d got %f expect %f\n", b, i, ptr[i], expected);
-                return -1;
-            }
+            fprintf(stderr, "test_batch_forward_flatten vulkan extract failed ret=%d\n", ret);
+            return -1;
+        }
+        if (CompareMat(output_ref, output_batch, 1e-4f) != 0)
+        {
+            fprintf(stderr, "test_batch_forward_flatten vulkan value mismatch\n");
+            return -1;
         }
     }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -3649,9 +3723,6 @@ static int test_batch_forward_shape_ops()
                              "Squeeze    squeeze 1 1 expanded squeezed -23303=1,1\n"
                              "Flatten    flatten 1 1 squeezed output\n";
 
-    ncnn::Net net;
-    net.load_param_mem(param_str);
-
     const int B = 2;
     const int C = 2;
     const int H = 3;
@@ -3672,53 +3743,80 @@ static int test_batch_forward_shape_ops()
         }
     }
 
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.opt.use_fp16_storage = false;
+    net_ref.opt.use_fp16_arithmetic = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_forward_shape_ops reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_fp16_storage = false;
+    net.opt.use_fp16_arithmetic = false;
+    net.load_param_mem(param_str);
+
     ncnn::Extractor ex = net.create_extractor();
     ex.input("data", input_batch);
 
     ncnn::Mat output_batch;
-    int ret = ex.extract("output", output_batch);
+    ret = ex.extract("output", output_batch);
     if (ret != 0)
     {
         fprintf(stderr, "test_batch_forward_shape_ops extract failed ret=%d\n", ret);
         return -1;
     }
-    if (output_batch.n != B || output_batch.dims != 1 || output_batch.w != W * H * C)
+    if (CompareMat(output_ref, output_batch, 1e-5f) != 0)
     {
-        fprintf(stderr, "test_batch_forward_shape_ops shape mismatch\n");
+        fprintf(stderr, "test_batch_forward_shape_ops value mismatch\n");
         return -1;
     }
 
-    for (int b = 0; b < B; b++)
+#if NCNN_VULKAN
     {
-        const ncnn::Mat sub = output_batch.batch(b);
-        const float* ptr = sub;
-        for (int i = 0; i < W * H * C; i++)
+        ncnn::Net net;
+        net.opt.use_vulkan_compute = true;
+        net.opt.use_fp16_storage = false;
+        net.opt.use_fp16_arithmetic = false;
+        net.load_param_mem(param_str);
+        net.load_model((const unsigned char*)"");
+
+        ncnn::Extractor ex = net.create_extractor();
+        ex.input("data", input_batch);
+
+        ncnn::Mat output_batch;
+        ret = ex.extract("output", output_batch);
+        if (ret != 0)
         {
-            float expected = (float)(b * 100 + (i / (W * H)) * 10 + i % (W * H));
-            if (!NearlyEqual(ptr[i], expected, 1e-5f))
-            {
-                fprintf(stderr, "test_batch_forward_shape_ops mismatch at b=%d i=%d got %f expect %f\n", b, i, ptr[i], expected);
-                return -1;
-            }
+            fprintf(stderr, "test_batch_forward_shape_ops vulkan extract failed ret=%d\n", ret);
+            return -1;
+        }
+        if (CompareMat(output_ref, output_batch, 1e-4f) != 0)
+        {
+            fprintf(stderr, "test_batch_forward_shape_ops vulkan value mismatch\n");
+            return -1;
         }
     }
+#endif // NCNN_VULKAN
 
     return 0;
 }
 
 static int test_batch_forward_relu()
 {
-    // Build a minimal Input -> ReLU network
-    // ReLU with slope=0.1 (leaky relu)
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input input 0 1 data\n"
                              "ReLU  relu  1 1 data output 0=1.000000e-01\n";
-
-    ncnn::Net net;
-    net.opt.use_fp16_storage = false;
-    net.opt.use_fp16_arithmetic = false;
-    net.load_param_mem(param_str);
 
     const int B = 4;
     const int C = 3;
@@ -3729,74 +3827,90 @@ static int test_batch_forward_relu()
     input_batch.create(W, H, C, 4u, 1, B);
     if (input_batch.empty())
     {
-        fprintf(stderr, "test_batch_forward_relu create_batch failed\n");
+        fprintf(stderr, "test_batch_forward_relu create failed\n");
         return -1;
     }
 
-    // fill: batch b gets value (b - 1.5), some negative, some positive
     for (int b = 0; b < B; b++)
     {
         ncnn::Mat sub = input_batch.batch(b);
         sub.fill((float)(b - 1.5f));
     }
 
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.opt.use_fp16_storage = false;
+    net_ref.opt.use_fp16_arithmetic = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_forward_relu reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_fp16_storage = false;
+    net.opt.use_fp16_arithmetic = false;
+    net.load_param_mem(param_str);
+
     ncnn::Extractor ex = net.create_extractor();
     ex.input("data", input_batch);
 
     ncnn::Mat output_batch;
-    int ret = ex.extract("output", output_batch);
+    ret = ex.extract("output", output_batch);
     if (ret != 0)
     {
         fprintf(stderr, "test_batch_forward_relu extract failed ret=%d\n", ret);
         return -1;
     }
-
-    if (output_batch.n != B)
+    if (CompareMat(output_ref, output_batch, 1e-5f) != 0)
     {
-        fprintf(stderr, "test_batch_forward_relu output n expect %d got %d\n", B, output_batch.n);
-        return -1;
-    }
-    if (output_batch.w != W || output_batch.h != H || output_batch.c != C)
-    {
-        fprintf(stderr, "test_batch_forward_relu output shape mismatch\n");
+        fprintf(stderr, "test_batch_forward_relu value mismatch\n");
         return -1;
     }
 
-    // verify leaky relu: max(x, 0.1*x)
-    for (int b = 0; b < B; b++)
+#if NCNN_VULKAN
     {
-        const ncnn::Mat out_sub = output_batch.batch(b);
-        float input_val = (float)(b - 1.5f);
-        float expected = input_val > 0 ? input_val : input_val * 0.1f;
+        ncnn::Net net;
+        net.opt.use_vulkan_compute = true;
+        net.opt.use_fp16_storage = false;
+        net.opt.use_fp16_arithmetic = false;
+        net.load_param_mem(param_str);
+        net.load_model((const unsigned char*)"");
 
-        for (int q = 0; q < C; q++)
+        ncnn::Extractor ex = net.create_extractor();
+        ex.input("data", input_batch);
+
+        ncnn::Mat output_batch;
+        ret = ex.extract("output", output_batch);
+        if (ret != 0)
         {
-            const float* ptr = out_sub.channel(q);
-            for (int i = 0; i < W * H; i++)
-            {
-                if (!NearlyEqual(ptr[i], expected, 1e-5f))
-                {
-                    fprintf(stderr, "test_batch_forward_relu value mismatch at b=%d q=%d i=%d: got %f expect %f\n",
-                            b, q, i, ptr[i], expected);
-                    return -1;
-                }
-            }
+            fprintf(stderr, "test_batch_forward_relu vulkan extract failed ret=%d\n", ret);
+            return -1;
+        }
+        if (CompareMat(output_ref, output_batch, 1e-4f) != 0)
+        {
+            fprintf(stderr, "test_batch_forward_relu vulkan value mismatch\n");
+            return -1;
         }
     }
+#endif // NCNN_VULKAN
 
     return 0;
 }
 
 static int test_batch_forward_pooling()
 {
-    // Input -> Pooling(max, 2x2, stride=2)
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
                              "Pooling pooling 1 1 data output 0=0 1=2 2=2\n";
-
-    ncnn::Net net;
-    net.load_param_mem(param_str);
 
     const int B = 2;
     const int C = 2;
@@ -3819,62 +3933,70 @@ static int test_batch_forward_pooling()
         }
     }
 
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.opt.use_fp16_storage = false;
+    net_ref.opt.use_fp16_arithmetic = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_forward_pooling reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.opt.use_fp16_storage = false;
+    net.opt.use_fp16_arithmetic = false;
+    net.load_param_mem(param_str);
+
     ncnn::Extractor ex = net.create_extractor();
     ex.input("data", input_batch);
 
     ncnn::Mat output_batch;
-    int ret = ex.extract("output", output_batch);
+    ret = ex.extract("output", output_batch);
     if (ret != 0)
     {
         fprintf(stderr, "test_batch_forward_pooling extract failed ret=%d\n", ret);
         return -1;
     }
-
-    if (output_batch.n != B)
+    if (CompareMat(output_ref, output_batch, 1e-5f) != 0)
     {
-        fprintf(stderr, "test_batch_forward_pooling output n expect %d got %d\n", B, output_batch.n);
-        return -1;
-    }
-    if (output_batch.w != 2 || output_batch.h != 2 || output_batch.c != C)
-    {
-        fprintf(stderr, "test_batch_forward_pooling output shape expect 2x2x%d got %dx%dx%d\n",
-                C, output_batch.w, output_batch.h, output_batch.c);
+        fprintf(stderr, "test_batch_forward_pooling value mismatch\n");
         return -1;
     }
 
-    // verify max pooling for batch 0, channel 0
-    // input 4x4: [ 0  1  2  3 / 4  5  6  7 / 8  9 10 11 / 12 13 14 15 ]
-    // max pool 2x2 stride 2 -> [ 5 7 / 13 15 ]
+#if NCNN_VULKAN
     {
-        const ncnn::Mat out0 = output_batch.batch(0);
-        const float* ptr = out0.channel(0);
-        float expected[4] = {5.f, 7.f, 13.f, 15.f};
-        for (int i = 0; i < 4; i++)
-        {
-            if (!NearlyEqual(ptr[i], expected[i], 1e-5f))
-            {
-                fprintf(stderr, "test_batch_forward_pooling b0 mismatch at i=%d: got %f expect %f\n",
-                        i, ptr[i], expected[i]);
-                return -1;
-            }
-        }
-    }
+        ncnn::Net net;
+        net.opt.use_vulkan_compute = true;
+        net.opt.use_fp16_storage = false;
+        net.opt.use_fp16_arithmetic = false;
+        net.load_param_mem(param_str);
+        net.load_model((const unsigned char*)"");
 
-    // verify batch 1, channel 0: input 100+i -> max pool -> [105, 107, 113, 115]
-    {
-        const ncnn::Mat out1 = output_batch.batch(1);
-        const float* ptr = out1.channel(0);
-        float expected[4] = {105.f, 107.f, 113.f, 115.f};
-        for (int i = 0; i < 4; i++)
+        ncnn::Extractor ex = net.create_extractor();
+        ex.input("data", input_batch);
+
+        ncnn::Mat output_batch;
+        ret = ex.extract("output", output_batch);
+        if (ret != 0)
         {
-            if (!NearlyEqual(ptr[i], expected[i], 1e-5f))
-            {
-                fprintf(stderr, "test_batch_forward_pooling b1 mismatch at i=%d: got %f expect %f\n",
-                        i, ptr[i], expected[i]);
-                return -1;
-            }
+            fprintf(stderr, "test_batch_forward_pooling vulkan extract failed ret=%d\n", ret);
+            return -1;
+        }
+        if (CompareMat(output_ref, output_batch, 1e-4f) != 0)
+        {
+            fprintf(stderr, "test_batch_forward_pooling vulkan value mismatch\n");
+            return -1;
         }
     }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -4225,7 +4347,6 @@ static int test_vkmat_batch_upload_download()
             vkdev->reclaim_blob_allocator(blob_allocator);
             return -1;
         }
-
         if (CompareMat(cpu_batch.batch(b), result, 1e-5) != 0)
         {
             fprintf(stderr, "test_vkmat_batch_upload_download value mismatch at batch %d\n", b);
@@ -4740,11 +4861,6 @@ static int test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4()
             fprintf(stderr, "test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4 extract failed fp16s=%d ret=%d\n", use_fp16_storage, ret);
             return -1;
         }
-        if (output.elempack != 4)
-        {
-            fprintf(stderr, "test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4 output should be pack4 fp16s=%d\n", use_fp16_storage);
-            return -1;
-        }
         if (CompareMat(output_ref, output, 1e-4f) != 0)
         {
             fprintf(stderr, "test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4 value mismatch fp16s=%d\n", use_fp16_storage);
@@ -4820,11 +4936,6 @@ static int test_vkmat_batch_forward_reshape_packed_batch_to_dim_axis1()
         if (ret != 0)
         {
             fprintf(stderr, "test_vkmat_batch_forward_reshape_packed_batch_to_dim_axis1 extract failed fp16s=%d ret=%d\n", use_fp16_storage, ret);
-            return -1;
-        }
-        if (output.elempack != 4)
-        {
-            fprintf(stderr, "test_vkmat_batch_forward_reshape_packed_batch_to_dim_axis1 output should be pack4 fp16s=%d\n", use_fp16_storage);
             return -1;
         }
         if (CompareMat(output_ref, output, 1e-4f) != 0)
@@ -4904,11 +5015,6 @@ static int test_vkmat_batch_forward_reshape_dim_to_batch_pack4to1()
             fprintf(stderr, "test_vkmat_batch_forward_reshape_dim_to_batch_pack4to1 extract failed fp16s=%d ret=%d\n", use_fp16_storage, ret);
             return -1;
         }
-        if (output.elempack != 1)
-        {
-            fprintf(stderr, "test_vkmat_batch_forward_reshape_dim_to_batch_pack4to1 output should be pack1 fp16s=%d\n", use_fp16_storage);
-            return -1;
-        }
         if (CompareMat(output_ref, output, 1e-4f) != 0)
         {
             fprintf(stderr, "test_vkmat_batch_forward_reshape_dim_to_batch_pack4to1 value mismatch fp16s=%d\n", use_fp16_storage);
@@ -4985,11 +5091,6 @@ static int test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1()
             fprintf(stderr, "test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1 extract failed fp16s=%d ret=%d\n", use_fp16_storage, ret);
             return -1;
         }
-        if (output.elempack != 4)
-        {
-            fprintf(stderr, "test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1 output should be pack4 fp16s=%d\n", use_fp16_storage);
-            return -1;
-        }
         if (CompareMat(output_ref, output, 1e-4f) != 0)
         {
             fprintf(stderr, "test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1 value mismatch fp16s=%d\n", use_fp16_storage);
@@ -5000,617 +5101,112 @@ static int test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1()
     return 0;
 }
 
-static int test_vkmat_batch_forward_relu()
-{
-    const char param_str[] = "7767517\n"
-                             "2 2\n"
-                             "Input input 0 1 data\n"
-                             "ReLU  relu  1 1 data output 0=1.000000e-01\n";
-
-    ncnn::Net net;
-    ncnn::Option opt;
-    opt.use_vulkan_compute = true;
-    net.opt = opt;
-    net.load_param_mem(param_str);
-    net.load_model((const unsigned char*)"");
-
-    const int B = 4;
-    const int C = 3;
-    const int H = 3;
-    const int W = 4;
-
-    ncnn::Mat input_batch;
-    input_batch.create(W, H, C, 4u, 1, B);
-    if (input_batch.empty())
-    {
-        fprintf(stderr, "test_vkmat_batch_forward_relu create_batch failed\n");
-        return -1;
-    }
-
-    for (int b = 0; b < B; b++)
-    {
-        ncnn::Mat sub = input_batch.batch(b);
-        sub.fill((float)(b - 1.5f));
-    }
-
-    ncnn::Extractor ex = net.create_extractor();
-    ex.input("data", input_batch);
-
-    ncnn::Mat output_batch;
-    int ret = ex.extract("output", output_batch);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_vkmat_batch_forward_relu extract failed ret=%d\n", ret);
-        return -1;
-    }
-
-    if (output_batch.n != B)
-    {
-        fprintf(stderr, "test_vkmat_batch_forward_relu output n expect %d got %d\n", B, output_batch.n);
-        return -1;
-    }
-    if (output_batch.w != W || output_batch.h != H || output_batch.c != C)
-    {
-        fprintf(stderr, "test_vkmat_batch_forward_relu output shape mismatch\n");
-        return -1;
-    }
-
-    for (int b = 0; b < B; b++)
-    {
-        const ncnn::Mat out_sub = output_batch.batch(b);
-        float input_val = (float)(b - 1.5f);
-        float expected = input_val > 0 ? input_val : input_val * 0.1f;
-
-        for (int q = 0; q < C; q++)
-        {
-            const float* ptr = out_sub.channel(q);
-            for (int i = 0; i < W * H; i++)
-            {
-                if (!NearlyEqual(ptr[i], expected, 1e-4f))
-                {
-                    fprintf(stderr, "test_vkmat_batch_forward_relu value mismatch at b=%d q=%d i=%d: got %f expect %f\n",
-                            b, q, i, ptr[i], expected);
-                    return -1;
-                }
-            }
-        }
-    }
-
-    return 0;
-}
-
-static int test_vkmat_batch_forward_pooling()
-{
-    const char param_str[] = "7767517\n"
-                             "2 2\n"
-                             "Input   input   0 1 data\n"
-                             "Pooling pooling 1 1 data output 0=0 1=2 2=2\n";
-
-    ncnn::Net net;
-    ncnn::Option opt;
-    opt.use_vulkan_compute = true;
-    net.opt = opt;
-    net.load_param_mem(param_str);
-    net.load_model((const unsigned char*)"");
-
-    const int B = 2;
-    const int C = 2;
-    const int H = 4;
-    const int W = 4;
-
-    ncnn::Mat input_batch;
-    input_batch.create(W, H, C, 4u, 1, B);
-
-    for (int b = 0; b < B; b++)
-    {
-        ncnn::Mat sub = input_batch.batch(b);
-        for (int q = 0; q < C; q++)
-        {
-            float* ptr = sub.channel(q);
-            for (int i = 0; i < W * H; i++)
-            {
-                ptr[i] = (float)(b * 100 + q * 10 + i);
-            }
-        }
-    }
-
-    ncnn::Extractor ex = net.create_extractor();
-    ex.input("data", input_batch);
-
-    ncnn::Mat output_batch;
-    int ret = ex.extract("output", output_batch);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_vkmat_batch_forward_pooling extract failed ret=%d\n", ret);
-        return -1;
-    }
-
-    if (output_batch.n != B)
-    {
-        fprintf(stderr, "test_vkmat_batch_forward_pooling output n expect %d got %d\n", B, output_batch.n);
-        return -1;
-    }
-    if (output_batch.w != 2 || output_batch.h != 2 || output_batch.c != C)
-    {
-        fprintf(stderr, "test_vkmat_batch_forward_pooling output shape expect 2x2x%d got %dx%dx%d\n",
-                C, output_batch.w, output_batch.h, output_batch.c);
-        return -1;
-    }
-
-    // verify max pooling for batch 0, channel 0
-    // input 4x4: [ 0  1  2  3 / 4  5  6  7 / 8  9 10 11 / 12 13 14 15 ]
-    // max pool 2x2 stride 2 -> [ 5 7 / 13 15 ]
-    {
-        const ncnn::Mat out0 = output_batch.batch(0);
-        const float* ptr = out0.channel(0);
-        float expected[4] = {5.f, 7.f, 13.f, 15.f};
-        for (int i = 0; i < 4; i++)
-        {
-            if (!NearlyEqual(ptr[i], expected[i], 1e-4f))
-            {
-                fprintf(stderr, "test_vkmat_batch_forward_pooling b0 mismatch at i=%d: got %f expect %f\n",
-                        i, ptr[i], expected[i]);
-                return -1;
-            }
-        }
-    }
-
-    // verify batch 1, channel 0: input 100+i -> max pool -> [105, 107, 113, 115]
-    {
-        const ncnn::Mat out1 = output_batch.batch(1);
-        const float* ptr = out1.channel(0);
-        float expected[4] = {105.f, 107.f, 113.f, 115.f};
-        for (int i = 0; i < 4; i++)
-        {
-            if (!NearlyEqual(ptr[i], expected[i], 1e-4f))
-            {
-                fprintf(stderr, "test_vkmat_batch_forward_pooling b1 mismatch at i=%d: got %f expect %f\n",
-                        i, ptr[i], expected[i]);
-                return -1;
-            }
-        }
-    }
-
-    return 0;
-}
-
-static int test_vkmat_batch_forward_split()
-{
-    const char param_str[] = "7767517\n"
-                             "2 3\n"
-                             "Input input 0 1 data\n"
-                             "Split split 1 2 data out0 out1\n";
-
-    ncnn::Net net;
-    ncnn::Option opt;
-    opt.use_vulkan_compute = true;
-    opt.lightmode = false;
-    net.opt = opt;
-    net.load_param_mem(param_str);
-    net.load_model((const unsigned char*)"");
-
-    const int B = 3;
-    const int C = 2;
-    const int H = 3;
-    const int W = 4;
-
-    ncnn::Mat input_batch;
-    input_batch.create(W, H, C, 4u, 1, B);
-    for (int b = 0; b < B; b++)
-    {
-        ncnn::Mat sub = input_batch.batch(b);
-        for (int q = 0; q < C; q++)
-        {
-            float* ptr = sub.channel(q);
-            for (int i = 0; i < W * H; i++)
-            {
-                ptr[i] = (float)(b * 100 + q * 10 + i);
-            }
-        }
-    }
-
-    ncnn::Extractor ex = net.create_extractor();
-    ex.input("data", input_batch);
-
-    ncnn::Mat out0;
-    ncnn::Mat out1;
-    int ret0 = ex.extract("out0", out0);
-    int ret1 = ex.extract("out1", out1);
-    if (ret0 != 0 || ret1 != 0)
-    {
-        fprintf(stderr, "test_vkmat_batch_forward_split extract failed ret0=%d ret1=%d\n", ret0, ret1);
-        return -1;
-    }
-    if (out0.n != B || out1.n != B || out0.w != W || out1.w != W || out0.h != H || out1.h != H || out0.c != C || out1.c != C)
-    {
-        fprintf(stderr, "test_vkmat_batch_forward_split shape mismatch\n");
-        return -1;
-    }
-
-    if (CompareMat(input_batch, out0, 1e-5) != 0 || CompareMat(input_batch, out1, 1e-5) != 0)
-    {
-        fprintf(stderr, "test_vkmat_batch_forward_split value mismatch\n");
-        return -1;
-    }
-
-    return 0;
-}
-
-static int test_vkmat_batch_forward_binaryop_same_batch()
-{
-    const char param_str[] = "7767517\n"
-                             "3 3\n"
-                             "Input    input0 0 1 a\n"
-                             "Input    input1 0 1 b\n"
-                             "BinaryOp add    2 1 a b out 0=0\n";
-
-    ncnn::Net net;
-    ncnn::Option opt;
-    opt.use_vulkan_compute = true;
-    net.opt = opt;
-    net.load_param_mem(param_str);
-    net.load_model((const unsigned char*)"");
-
-    const int B = 3;
-    const int C = 2;
-    const int H = 3;
-    const int W = 4;
-
-    ncnn::Mat a;
-    ncnn::Mat b;
-    a.create(W, H, C, 4u, 1, B);
-    b.create(W, H, C, 4u, 1, B);
-
-    for (int bi = 0; bi < B; bi++)
-    {
-        ncnn::Mat a0 = a.batch(bi);
-        ncnn::Mat b0 = b.batch(bi);
-        for (int q = 0; q < C; q++)
-        {
-            float* pa = a0.channel(q);
-            float* pb = b0.channel(q);
-            for (int i = 0; i < W * H; i++)
-            {
-                pa[i] = (float)(bi * 100 + q * 10 + i);
-                pb[i] = (float)(bi * 7 + q * 3 + i);
-            }
-        }
-    }
-
-    ncnn::Extractor ex = net.create_extractor();
-    ex.input("a", a);
-    ex.input("b", b);
-
-    ncnn::Mat out;
-    int ret = ex.extract("out", out);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_vkmat_batch_forward_binaryop_same_batch extract failed ret=%d\n", ret);
-        return -1;
-    }
-    if (out.n != B || out.w != W || out.h != H || out.c != C)
-    {
-        fprintf(stderr, "test_vkmat_batch_forward_binaryop_same_batch shape mismatch\n");
-        return -1;
-    }
-
-    for (int bi = 0; bi < B; bi++)
-    {
-        const ncnn::Mat out0 = out.batch(bi);
-        for (int q = 0; q < C; q++)
-        {
-            const float* ptr = out0.channel(q);
-            for (int i = 0; i < W * H; i++)
-            {
-                float expected = (float)(bi * 100 + q * 10 + i + bi * 7 + q * 3 + i);
-                if (!NearlyEqual(ptr[i], expected, 1e-4f))
-                {
-                    fprintf(stderr, "test_vkmat_batch_forward_binaryop_same_batch mismatch at b=%d q=%d i=%d got %f expect %f\n", bi, q, i, ptr[i], expected);
-                    return -1;
-                }
-            }
-        }
-    }
-
-    return 0;
-}
-
-static int test_vkmat_batch_forward_binaryop_broadcast()
-{
-    const char param_str[] = "7767517\n"
-                             "3 3\n"
-                             "Input    input0 0 1 a\n"
-                             "Input    input1 0 1 b\n"
-                             "BinaryOp add    2 1 a b out 0=0\n";
-
-    ncnn::Net net;
-    ncnn::Option opt;
-    opt.use_vulkan_compute = true;
-    net.opt = opt;
-    net.load_param_mem(param_str);
-    net.load_model((const unsigned char*)"");
-
-    const int B = 3;
-    const int C = 2;
-    const int H = 3;
-    const int W = 4;
-
-    ncnn::Mat a;
-    ncnn::Mat b(W, H, C);
-    a.create(W, H, C, 4u, 1, B);
-
-    for (int bi = 0; bi < B; bi++)
-    {
-        ncnn::Mat a0 = a.batch(bi);
-        for (int q = 0; q < C; q++)
-        {
-            float* ptr = a0.channel(q);
-            for (int i = 0; i < W * H; i++)
-            {
-                ptr[i] = (float)(bi * 100 + q * 10 + i);
-            }
-        }
-    }
-    for (int q = 0; q < C; q++)
-    {
-        float* ptr = b.channel(q);
-        for (int i = 0; i < W * H; i++)
-        {
-            ptr[i] = (float)(q * 3 + i);
-        }
-    }
-
-    ncnn::Extractor ex = net.create_extractor();
-    ex.input("a", a);
-    ex.input("b", b);
-
-    ncnn::Mat out;
-    int ret = ex.extract("out", out);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_vkmat_batch_forward_binaryop_broadcast extract failed ret=%d\n", ret);
-        return -1;
-    }
-    if (out.n != B || out.w != W || out.h != H || out.c != C)
-    {
-        fprintf(stderr, "test_vkmat_batch_forward_binaryop_broadcast shape mismatch\n");
-        return -1;
-    }
-
-    for (int bi = 0; bi < B; bi++)
-    {
-        const ncnn::Mat out0 = out.batch(bi);
-        for (int q = 0; q < C; q++)
-        {
-            const float* ptr = out0.channel(q);
-            for (int i = 0; i < W * H; i++)
-            {
-                float expected = (float)(bi * 100 + q * 10 + i + q * 3 + i);
-                if (!NearlyEqual(ptr[i], expected, 1e-4f))
-                {
-                    fprintf(stderr, "test_vkmat_batch_forward_binaryop_broadcast mismatch at b=%d q=%d i=%d got %f expect %f\n", bi, q, i, ptr[i], expected);
-                    return -1;
-                }
-            }
-        }
-    }
-
-    return 0;
-}
-
-static int test_vkmat_batch_forward_scale_external()
-{
-    const char param_str[] = "7767517\n"
-                             "3 3\n"
-                             "Input input0 0 1 data\n"
-                             "Input input1 0 1 scale\n"
-                             "Scale scale0 2 1 data scale out 0=-233\n";
-
-    ncnn::Net net;
-    ncnn::Option opt;
-    opt.use_vulkan_compute = true;
-    net.opt = opt;
-    net.load_param_mem(param_str);
-    net.load_model((const unsigned char*)"");
-
-    const int B = 3;
-    const int C = 2;
-    const int H = 3;
-    const int W = 4;
-
-    ncnn::Mat data;
-    data.create(W, H, C, 4u, 1, B);
-    ncnn::Mat scale(C);
-
-    for (int bi = 0; bi < B; bi++)
-    {
-        ncnn::Mat data0 = data.batch(bi);
-        for (int q = 0; q < C; q++)
-        {
-            float* ptr = data0.channel(q);
-            for (int i = 0; i < W * H; i++)
-            {
-                ptr[i] = (float)(bi * 100 + q * 10 + i);
-            }
-        }
-    }
-    for (int q = 0; q < C; q++)
-    {
-        scale[q] = (float)(q + 2);
-    }
-
-    ncnn::Extractor ex = net.create_extractor();
-    ex.input("data", data);
-    ex.input("scale", scale);
-
-    ncnn::Mat out;
-    int ret = ex.extract("out", out);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_vkmat_batch_forward_scale_external extract failed ret=%d\n", ret);
-        return -1;
-    }
-    if (out.n != B || out.w != W || out.h != H || out.c != C)
-    {
-        fprintf(stderr, "test_vkmat_batch_forward_scale_external shape mismatch\n");
-        return -1;
-    }
-
-    for (int bi = 0; bi < B; bi++)
-    {
-        const ncnn::Mat out0 = out.batch(bi);
-        for (int q = 0; q < C; q++)
-        {
-            const float* ptr = out0.channel(q);
-            for (int i = 0; i < W * H; i++)
-            {
-                float expected = (float)(bi * 100 + q * 10 + i) * (q + 2);
-                if (!NearlyEqual(ptr[i], expected, 1e-4f))
-                {
-                    fprintf(stderr, "test_vkmat_batch_forward_scale_external mismatch at b=%d q=%d i=%d got %f expect %f\n", bi, q, i, ptr[i], expected);
-                    return -1;
-                }
-            }
-        }
-    }
-
-    return 0;
-}
-
-static int test_vkmat_batch_forward_binaryop_mismatch()
-{
-    const char param_str[] = "7767517\n"
-                             "3 3\n"
-                             "Input    input0 0 1 a\n"
-                             "Input    input1 0 1 b\n"
-                             "BinaryOp add    2 1 a b out 0=0\n";
-
-    ncnn::Net net;
-    ncnn::Option opt;
-    opt.use_vulkan_compute = true;
-    net.opt = opt;
-    net.load_param_mem(param_str);
-    net.load_model((const unsigned char*)"");
-
-    ncnn::Mat a;
-    ncnn::Mat b;
-    a.create(4, 3, 2, 4u, 1, 3);
-    b.create(4, 3, 2, 4u, 1, 2);
-
-    ncnn::Extractor ex = net.create_extractor();
-    ex.input("a", a);
-    ex.input("b", b);
-
-    ncnn::Mat out;
-    int ret = ex.extract("out", out);
-    if (ret == 0)
-    {
-        fprintf(stderr, "test_vkmat_batch_forward_binaryop_mismatch should fail\n");
-        return -1;
-    }
-
-    return 0;
-}
-
 #endif // NCNN_VULKAN
 
 int main()
 {
-    int ret = 0;
-
-    ret |= test_create_batch_basic();
-    ret |= test_nstep_alignment();
-    ret |= test_batch_subview_zero_copy();
-    ret |= test_batch_range();
-    ret |= test_batch_data_isolation();
-    ret |= test_batch_clone();
-    ret |= test_batch_release();
-    ret |= test_batch_create_reset();
-    ret |= test_batch_reshape();
-    ret |= test_batch_reshape_zero_copy();
-    ret |= test_batch_reshape_batch_to_dim_flatten();
-    ret |= test_batch_reshape_batch_to_dim_4d();
-    ret |= test_batch_reshape_dim_to_batch();
-    ret |= test_batch_reshape_dim_to_batch_axis1();
-    ret |= test_batch_reshape_batch_to_dim_axis1();
-    ret |= test_batch_reshape_packed_batch_to_dim_axis0();
-    ret |= test_batch_reshape_packed_batch_to_dim_axis0_2d();
-    ret |= test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked();
-    ret |= test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked_nstep_padding();
-    ret |= test_batch_reshape_packed_batch_to_dim_axis1();
-    ret |= test_batch_reshape_packed_batch_to_dim_axis1_2d();
-    ret |= test_batch_reshape_batch_to_dim_axis1_pack1topacked();
-    ret |= test_batch_reshape_batch_to_dim_axis1_cstep_padding();
-    ret |= test_batch_reshape_packed_dim_to_batch_axis0();
-    ret |= test_batch_reshape_packed_dim_to_batch_axis0_2d();
-    ret |= test_batch_reshape_dim_to_batch_axis0_2d_pack1topacked();
-    ret |= test_batch_reshape_dim_to_batch_axis0_2d_pack4topack1_nstep_padding();
-    ret |= test_batch_reshape_packed_dim_to_batch_axis1();
-    ret |= test_batch_reshape_packed_dim_to_batch_axis1_2d();
-    ret |= test_batch_reshape_packed_dim_to_batch_axis1_4d();
-    ret |= test_batch_reshape_dim_to_batch_axis1_pack1topacked();
-    ret |= test_batch_reshape_batch_to_dim_pack1topacked();
-    ret |= test_batch_reshape_batch_to_dim_pack1tohighpack();
-    ret |= test_batch_reshape_batch_to_dim_pack4topack1();
-    ret |= test_batch_reshape_dim_to_batch_pack1topacked();
-    ret |= test_batch_reshape_dim_to_batch_pack1tohighpack();
-    ret |= test_batch_reshape_dim_to_batch_pack4topack1();
+    int ret = 0
+              || test_create_batch_basic()
+              || test_nstep_alignment()
+              || test_batch_subview_zero_copy()
+              || test_batch_range()
+              || test_batch_data_isolation()
+              || test_batch_clone()
+              || test_batch_release()
+              || test_batch_create_reset()
+              || test_batch_reshape()
+              || test_batch_reshape_zero_copy()
+              || test_batch_reshape_batch_to_dim_flatten()
+              || test_batch_reshape_batch_to_dim_4d()
+              || test_batch_reshape_dim_to_batch()
+              || test_batch_reshape_dim_to_batch_axis1()
+              || test_batch_reshape_batch_to_dim_axis1()
+              || test_batch_reshape_packed_batch_to_dim_axis0()
+              || test_batch_reshape_packed_batch_to_dim_axis0_2d()
+              || test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked()
+              || test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked_nstep_padding()
+              || test_batch_reshape_packed_batch_to_dim_axis1()
+              || test_batch_reshape_packed_batch_to_dim_axis1_2d()
+              || test_batch_reshape_batch_to_dim_axis1_pack1topacked()
+              || test_batch_reshape_batch_to_dim_axis1_cstep_padding()
+              || test_batch_reshape_packed_dim_to_batch_axis0()
+              || test_batch_reshape_packed_dim_to_batch_axis0_2d()
+              || test_batch_reshape_dim_to_batch_axis0_2d_pack1topacked()
+              || test_batch_reshape_dim_to_batch_axis0_2d_pack4topack1_nstep_padding()
+              || test_batch_reshape_packed_dim_to_batch_axis1()
+              || test_batch_reshape_packed_dim_to_batch_axis1_2d()
+              || test_batch_reshape_packed_dim_to_batch_axis1_4d()
+              || test_batch_reshape_dim_to_batch_axis1_pack1topacked()
+              || test_batch_reshape_batch_to_dim_pack1topacked()
+              || test_batch_reshape_batch_to_dim_pack1tohighpack()
+              || test_batch_reshape_batch_to_dim_pack4topack1()
+              || test_batch_reshape_dim_to_batch_pack1topacked()
+              || test_batch_reshape_dim_to_batch_pack1tohighpack()
+              || test_batch_reshape_dim_to_batch_pack4topack1()
 #if NCNN_BF16
-    ret |= test_batch_reshape_bf16_storage_packed();
-    ret |= test_batch_reshape_bf16_storage_dim_to_batch_packed();
-    ret |= test_batch_reshape_bf16_storage_axis1_packed();
+              || test_batch_reshape_bf16_storage_packed()
+              || test_batch_reshape_bf16_storage_dim_to_batch_packed()
+              || test_batch_reshape_bf16_storage_axis1_packed()
 #endif // NCNN_BF16
-    ret |= test_batch_reshape_dim_to_batch_no_infer();
-    ret |= test_batch_reshape_roundtrip_axis1();
-    ret |= test_batch_reshape_roundtrip_axis2();
-    ret |= test_batch_reshape_roundtrip();
-    ret |= test_batch_reshape_permute_fold();
-    ret |= test_batch_reshape_permute_extract();
-    ret |= test_batch_fill();
-    ret |= test_batch_substract_mean_normalize();
-    ret |= test_backward_compatibility();
-    ret |= test_create_batch_single();
-    ret |= test_create_batch_1d();
-    ret |= test_create_batch_2d();
-    ret |= test_batch_forward_binaryop_same_batch();
-    ret |= test_batch_forward_binaryop_broadcast();
-    ret |= test_batch_forward_scale_external();
-    ret |= test_batch_forward_binaryop_mismatch();
-    ret |= test_batch_forward_split();
-    ret |= test_batch_forward_flatten();
-    ret |= test_batch_forward_shape_ops();
-    ret |= test_batch_forward_relu();
-    ret |= test_batch_forward_pooling();
+              || test_batch_reshape_dim_to_batch_no_infer()
+              || test_batch_reshape_roundtrip_axis1()
+              || test_batch_reshape_roundtrip_axis2()
+              || test_batch_reshape_roundtrip()
+              || test_batch_reshape_permute_fold()
+              || test_batch_reshape_permute_extract()
+              || test_batch_fill()
+              || test_batch_substract_mean_normalize()
+              || test_backward_compatibility()
+              || test_create_batch_single()
+              || test_create_batch_1d()
+              || test_create_batch_2d();
+    if (ret != 0)
+        return ret;
 
 #if NCNN_VULKAN
     ncnn::create_gpu_instance();
+#endif // NCNN_VULKAN
+
+    ret = 0
+          || test_batch_forward_binaryop_same_batch()
+          || test_batch_forward_binaryop_broadcast()
+          || test_batch_forward_scale_external()
+          || test_batch_forward_binaryop_mismatch()
+          || test_batch_forward_split()
+          || test_batch_forward_flatten()
+          || test_batch_forward_shape_ops()
+          || test_batch_forward_relu()
+          || test_batch_forward_pooling();
+    if (ret != 0)
+    {
+#if NCNN_VULKAN
+        ncnn::destroy_gpu_instance();
+#endif // NCNN_VULKAN
+        return ret;
+    }
+
+#if NCNN_VULKAN
     if (ncnn::get_gpu_count() > 0)
     {
-        ret |= test_vkmat_create_batch_basic();
-        ret |= test_vkmat_nstep_alignment();
-        ret |= test_vkmat_batch_subview();
-        ret |= test_vkmat_batch_range();
-        ret |= test_vkmat_batch_release();
-        ret |= test_vkmat_create_reset();
-        ret |= test_vkimage_batch_not_supported();
-        ret |= test_vkmat_batch_upload_download();
-        ret |= test_vkmat_batch_upload_download_whole();
-        ret |= test_vktransfer_batch_upload();
-        ret |= test_vkmat_batch_forward_reshape_batch_to_dim();
-        ret |= test_vkmat_batch_forward_reshape_dim_to_batch();
-        ret |= test_vkmat_batch_forward_reshape_dim_to_batch_axis1();
-        ret |= test_vkmat_batch_forward_reshape_batch_to_dim_axis1();
-        ret |= test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4();
-        ret |= test_vkmat_batch_forward_reshape_packed_batch_to_dim_axis1();
-        ret |= test_vkmat_batch_forward_reshape_dim_to_batch_pack4to1();
-        ret |= test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1();
-        ret |= test_vkmat_batch_forward_relu();
-        ret |= test_vkmat_batch_forward_pooling();
-        ret |= test_vkmat_batch_forward_split();
-        ret |= test_vkmat_batch_forward_binaryop_same_batch();
-        ret |= test_vkmat_batch_forward_binaryop_broadcast();
-        ret |= test_vkmat_batch_forward_scale_external();
-        ret |= test_vkmat_batch_forward_binaryop_mismatch();
+        ret = 0
+              || test_vkmat_create_batch_basic()
+              || test_vkmat_nstep_alignment()
+              || test_vkmat_batch_subview()
+              || test_vkmat_batch_range()
+              || test_vkmat_batch_release()
+              || test_vkmat_create_reset()
+              || test_vkimage_batch_not_supported()
+              || test_vkmat_batch_upload_download()
+              || test_vkmat_batch_upload_download_whole()
+              || test_vktransfer_batch_upload()
+              || test_vkmat_batch_forward_reshape_batch_to_dim()
+              || test_vkmat_batch_forward_reshape_dim_to_batch()
+              || test_vkmat_batch_forward_reshape_dim_to_batch_axis1()
+              || test_vkmat_batch_forward_reshape_batch_to_dim_axis1()
+              || test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4()
+              || test_vkmat_batch_forward_reshape_packed_batch_to_dim_axis1()
+              || test_vkmat_batch_forward_reshape_dim_to_batch_pack4to1()
+              || test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1();
     }
     else
     {
@@ -5618,9 +5214,6 @@ int main()
     }
     ncnn::destroy_gpu_instance();
 #endif // NCNN_VULKAN
-
-    if (ret == 0)
-        fprintf(stderr, "test_mat_batch passed\n");
 
     return ret;
 }
