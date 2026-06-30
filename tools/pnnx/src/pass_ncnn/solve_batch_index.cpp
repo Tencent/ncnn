@@ -1248,15 +1248,6 @@ void solve_batch_index(Graph& graph)
         }
     }
 
-    // pnnx.Input output operand is torch model input
-    for (Operator* op : graph.ops)
-    {
-        if (op->type != "pnnx.Input")
-            continue;
-
-        Operand* input = op->outputs[0];
-        op->params["__torch_batch_index"] = input->params["__batch_index"];
-    }
 }
 
 } // namespace ncnn

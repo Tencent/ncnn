@@ -419,14 +419,12 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 break;
 
             int batch_index = 233;
-            if (r->params.find("__ncnn_batch_axis") != r->params.end())
-            {
+            if (r->params.find("__batch_index") != r->params.end())
+                batch_index = r->params.at("__batch_index").i;
+            else if (r->params.find("__ncnn_batch_axis") != r->params.end())
                 batch_index = r->params.at("__ncnn_batch_axis").i;
-                if (batch_index != 233 && r->producer->params.find("__torch_batch_index") != r->producer->params.end())
-                    batch_index = r->producer->params.at("__torch_batch_index").i;
-                if (r->shape.size() < 2)
-                    batch_index = 233;
-            }
+            if (r->shape.size() < 2)
+                batch_index = 233;
 
             fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.numpy(), batch_index=%d).clone())\n", input_name.c_str(), input_name.c_str(), batch_index);
         }

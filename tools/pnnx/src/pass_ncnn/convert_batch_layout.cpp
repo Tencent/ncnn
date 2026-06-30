@@ -319,8 +319,8 @@ void convert_batch_layout(Graph& graph)
         batch_indices[r] = r->params.at("__batch_index").i;
         set_ncnn_batch_axis(r, default_ncnn_batch_axis(batch_indices[r]));
 
-        if (r->producer && r->producer->type == "pnnx.Input" && r->producer->params.find("__torch_batch_index") != r->producer->params.end() && r->producer->params["__torch_batch_index"].i != 233)
-            set_ncnn_batch_axis(r, r->params.at("__batch_index").i);
+        if (r->producer && r->producer->type == "pnnx.Input" && batch_indices[r] != 233)
+            set_ncnn_batch_axis(r, batch_indices[r]);
     }
 
     std::vector<Operator*> ops = graph.ops;
