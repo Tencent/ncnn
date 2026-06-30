@@ -107,7 +107,9 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
+#if NCNN_BATCH
         top_blob.nstep = bottom_blob.nstep * elempack / out_elempack;
+#endif
         return 0;
     }
 
@@ -876,7 +878,9 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
         top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
+#if NCNN_BATCH
         top_blob.nstep = bottom_blob.nstep * elempack / out_elempack;
+#endif
         return 0;
     }
 
@@ -1638,7 +1642,9 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
         top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
+#if NCNN_BATCH
         top_blob.nstep = bottom_blob.nstep * elempack / out_elempack;
+#endif
         return 0;
     }
 

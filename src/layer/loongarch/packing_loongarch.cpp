@@ -94,7 +94,9 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
+#if NCNN_BATCH
         top_blob.nstep = bottom_blob.nstep * elempack / out_elempack;
+#endif
         return 0;
     }
 
@@ -857,7 +859,9 @@ int Packing_loongarch::forward_int8(const Mat& bottom_blob, Mat& top_blob, const
         top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
+#if NCNN_BATCH
         top_blob.nstep = bottom_blob.nstep * elempack / out_elempack;
+#endif
         return 0;
     }
 
@@ -1097,7 +1101,9 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
         top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
+#if NCNN_BATCH
         top_blob.nstep = bottom_blob.nstep * elempack / out_elempack;
+#endif
         return 0;
     }
 

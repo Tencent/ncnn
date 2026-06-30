@@ -155,11 +155,6 @@ static bool is_binary_eltwise_op(const Operator* op)
     return op->type == "BinaryOp" || op->type == "Eltwise";
 }
 
-static bool is_attention_op(const Operator* op)
-{
-    return op->type == "F.scaled_dot_product_attention" || op->type == "nn.MultiheadAttention";
-}
-
 static bool is_layout_transparent_op(const Operator* op)
 {
     return is_identity_op(op) || is_elementwise_op(op) || is_layout_op(op);
@@ -187,7 +182,14 @@ static int get_consumer_ncnn_batch_axis(const Operator* op, int input_index, con
         if (op->inputnames.size() == op->inputs.size() && op->inputnames[input_index] == "attn_mask")
             return 233;
 
-        return r->params.at("__batch_index").i == 233 ? 233 : 0;
+        if (r->params.at("__batch_index").i == 233)
+            return 233;
+
+        bool batch_first = false;
+        if (op->params.find("batch_first") != op->params.end())
+            batch_first = op->params.at("batch_first").b;
+
+        return batch_first ? 0 : 1;
     }
 
     if (is_binary_eltwise_op(op))
@@ -478,10 +480,20 @@ void convert_batch_layout(Graph& graph)
             for (Operand* r : op->outputs)
                 set_ncnn_batch_axis(r, default_ncnn_batch_axis(get_batch_index(batch_indices, r)));
         }
-        else if (is_attention_op(op))
+        else if (op->type == "F.scaled_dot_product_attention")
         {
             for (Operand* r : op->outputs)
                 set_ncnn_batch_axis(r, get_batch_index(batch_indices, r) == 233 ? 233 : 0);
+        }
+        else if (op->type == "nn.MultiheadAttention")
+        {
+            bool batch_first = false;
+            if (op->params.find("batch_first") != op->params.end())
+                batch_first = op->params.at("batch_first").b;
+
+            const int batch_axis = batch_first ? 0 : 1;
+            for (Operand* r : op->outputs)
+                set_ncnn_batch_axis(r, get_batch_index(batch_indices, r) == 233 ? 233 : batch_axis);
         }
         else
         {

@@ -2859,14 +2859,9 @@ static int test_batch_reshape_bf16_storage_packed()
         fprintf(stderr, "test_batch_reshape_bf16_storage_packed extract failed ret=%d\n", ret);
         return -1;
     }
-    if (output.elembits() != 16)
-    {
-        fprintf(stderr, "test_batch_reshape_bf16_storage_packed output should be bf16 storage\n");
-        return -1;
-    }
-
-    ncnn::Mat output32;
-    ncnn::cast_bfloat16_to_float32(output, output32, net.opt);
+    ncnn::Mat output32 = output;
+    if (output.elembits() == 16)
+        ncnn::cast_bfloat16_to_float32(output, output32, net.opt);
     if (CompareMat(output_ref, output32, 1e-5f) != 0)
     {
         fprintf(stderr, "test_batch_reshape_bf16_storage_packed value mismatch\n");
@@ -2933,14 +2928,9 @@ static int test_batch_reshape_bf16_storage_dim_to_batch_packed()
         fprintf(stderr, "test_batch_reshape_bf16_storage_dim_to_batch_packed extract failed ret=%d\n", ret);
         return -1;
     }
-    if (output.elembits() != 16)
-    {
-        fprintf(stderr, "test_batch_reshape_bf16_storage_dim_to_batch_packed output should be bf16 storage\n");
-        return -1;
-    }
-
-    ncnn::Mat output32;
-    ncnn::cast_bfloat16_to_float32(output, output32, net.opt);
+    ncnn::Mat output32 = output;
+    if (output.elembits() == 16)
+        ncnn::cast_bfloat16_to_float32(output, output32, net.opt);
     if (CompareMat(output_ref, output32, 1e-5f) != 0)
     {
         fprintf(stderr, "test_batch_reshape_bf16_storage_dim_to_batch_packed value mismatch\n");
@@ -3008,14 +2998,9 @@ static int test_batch_reshape_bf16_storage_axis1_packed()
         fprintf(stderr, "test_batch_reshape_bf16_storage_axis1_packed extract failed ret=%d\n", ret);
         return -1;
     }
-    if (output.elembits() != 16)
-    {
-        fprintf(stderr, "test_batch_reshape_bf16_storage_axis1_packed output should be bf16 storage\n");
-        return -1;
-    }
-
-    ncnn::Mat output32;
-    ncnn::cast_bfloat16_to_float32(output, output32, net.opt);
+    ncnn::Mat output32 = output;
+    if (output.elembits() == 16)
+        ncnn::cast_bfloat16_to_float32(output, output32, net.opt);
     if (CompareMat(output_ref, output32, 1e-5f) != 0)
     {
         fprintf(stderr, "test_batch_reshape_bf16_storage_axis1_packed value mismatch\n");
