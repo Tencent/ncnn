@@ -1247,7 +1247,6 @@ void solve_batch_index(Graph& graph)
             r->params["__batch_index"] = 233;
         }
     }
-
 }
 
 } // namespace ncnn
