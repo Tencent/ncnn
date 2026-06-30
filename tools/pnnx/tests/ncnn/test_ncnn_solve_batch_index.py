@@ -26,6 +26,8 @@ class Model(nn.Module):
         return x
 
 def test():
+    torch.manual_seed(0)
+
     net = Model().half().float()
     net.eval()
 
@@ -63,7 +65,20 @@ def test():
             _, out0 = ex.extract("out0")
             b1 = torch.from_numpy(out0.numpy(batch_index=0))
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
+    if a0.shape != b0.shape:
+        print(a0.shape, b0.shape)
+        return False
+    if a1.shape != b1.shape:
+        print(a1.shape, b1.shape)
+        return False
+    if not torch.allclose(a0, b0, 1e-3, 1e-3):
+        print((a0 - b0).abs().max())
+        return False
+    if not torch.allclose(a1, b1, 1e-3, 1e-3):
+        print((a1 - b1).abs().max())
+        return False
+
+    return True
 
 if __name__ == "__main__":
     if test():

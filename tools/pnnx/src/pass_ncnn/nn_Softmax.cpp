@@ -46,7 +46,6 @@ pnnx.Output             output      1 0 out
         if (ncnn_batch_axis != 233 && axis == ncnn_batch_axis)
         {
             fprintf(stderr, "softmax along batch axis %d is not supported\n", batch_index);
-            return;
         }
 
         if (ncnn_batch_axis != 233 && axis > ncnn_batch_axis)

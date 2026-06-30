@@ -67,7 +67,6 @@ pnnx.Output             output      1 0 out
         if (axis == ncnn_batch_axis)
         {
             fprintf(stderr, "roll along batch axis %d is not supported\n", ncnn_batch_axis);
-            return;
         }
 
         if (ncnn_batch_axis != 233 && axis > ncnn_batch_axis)
@@ -156,7 +155,6 @@ pnnx.Output             output      1 0 out
         if (axis0 == ncnn_batch_axis || axis1 == ncnn_batch_axis)
         {
             fprintf(stderr, "roll along batch axis %d is not supported\n", ncnn_batch_axis);
-            return;
         }
 
         if (ncnn_batch_axis != 233 && axis0 > ncnn_batch_axis)

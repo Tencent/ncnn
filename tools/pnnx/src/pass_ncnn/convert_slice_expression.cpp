@@ -616,6 +616,10 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
 
             const int batch_index = op->outputs[0]->params["__batch_index"].i;
             const int ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
+            if (ncnn_batch_axis != 233 && dim == ncnn_batch_axis)
+            {
+                fprintf(stderr, "slice along batch axis %d is not supported\n", batch_index);
+            }
 
             std::string starts_expr = transform_nchw_annotation_and_drop_batch_index(start_tokens, ordered_references, ncnn_batch_axis);
             std::string ends_expr = transform_nchw_annotation_and_drop_batch_index(end_tokens, ordered_references, ncnn_batch_axis);
@@ -771,6 +775,10 @@ void convert_slice_expression_single_axis_select(Graph& graph)
 
             const int batch_index = op->outputs[0]->params["__batch_index"].i;
             const int ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
+            if (ncnn_batch_axis != 233 && dim == ncnn_batch_axis)
+            {
+                fprintf(stderr, "select along batch axis %d is not supported\n", batch_index);
+            }
 
             std::string starts_expr = transform_nchw_annotation_and_drop_batch_index(start_tokens, ordered_references, ncnn_batch_axis);
 
@@ -1303,6 +1311,11 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
 
             for (size_t i = 0; i < dims_count; i++)
             {
+                if (ncnn_batch_axis != 233 && dims[i] == ncnn_batch_axis)
+                {
+                    fprintf(stderr, "slice along batch axis %d is not supported\n", batch_index);
+                }
+
                 const std::string& start_expr = starts_expr[i];
                 const std::string& end_expr = ends_expr[i];
                 const std::string& step_expr = steps_expr[i];
