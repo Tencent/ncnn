@@ -18,7 +18,6 @@
 
 namespace ncnn {
 
-
 Reshape_x86::Reshape_x86()
 {
 #if __SSE2__
@@ -29,7 +28,6 @@ Reshape_x86::Reshape_x86()
     support_bf16_storage = true;
 #endif
 }
-
 
 int Reshape_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {

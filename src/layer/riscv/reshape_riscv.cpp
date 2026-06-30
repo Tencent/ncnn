@@ -16,7 +16,6 @@
 
 namespace ncnn {
 
-
 Reshape_riscv::Reshape_riscv()
 {
 #if __riscv_vector
@@ -34,7 +33,6 @@ Reshape_riscv::Reshape_riscv()
     support_bf16_storage = true;
 #endif
 }
-
 
 int Reshape_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {

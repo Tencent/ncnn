@@ -14,7 +14,6 @@
 
 namespace ncnn {
 
-
 Reshape_arm::Reshape_arm()
 {
 #if __ARM_NEON
@@ -28,7 +27,6 @@ Reshape_arm::Reshape_arm()
     support_bf16_storage = true;
 #endif
 }
-
 
 int Reshape_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {

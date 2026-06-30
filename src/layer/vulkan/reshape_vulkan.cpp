@@ -610,7 +610,6 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
-
     if (ndim == 1)
     {
         top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);

@@ -13,7 +13,6 @@
 
 namespace ncnn {
 
-
 Reshape_loongarch::Reshape_loongarch()
 {
 #if __loongarch_sx
@@ -23,7 +22,6 @@ Reshape_loongarch::Reshape_loongarch()
     support_bf16_storage = true;
 #endif
 }
-
 
 int Reshape_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {

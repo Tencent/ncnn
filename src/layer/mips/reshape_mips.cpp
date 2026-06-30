@@ -14,7 +14,6 @@
 
 namespace ncnn {
 
-
 Reshape_mips::Reshape_mips()
 {
 #if __mips_msa
@@ -24,7 +23,6 @@ Reshape_mips::Reshape_mips()
     support_bf16_storage = true;
 #endif
 }
-
 
 int Reshape_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
