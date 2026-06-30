@@ -232,7 +232,15 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         const size_t scalar_elemsize = elemsize / elempack;
         const size_t out_elemsize = scalar_elemsize * out_elempack;
 
-        if (input_axis == output_axis && output_shape.n == bottom_blob.n && elempack == out_elempack)
+        bool reshape_zero_copy = input_axis == output_axis && output_shape.n == bottom_blob.n && elempack == out_elempack;
+        if (reshape_zero_copy && elempack != 1)
+        {
+            const int pack_axis_size = bottom_blob.dims == 1 ? bottom_blob.w * elempack : bottom_blob.dims == 2 ? bottom_blob.h * elempack : bottom_blob.c * elempack;
+            const int out_pack_axis_size = output_shape.dims == 1 ? output_shape.w : output_shape.dims == 2 ? output_shape.h : output_shape.c;
+            reshape_zero_copy = pack_axis_size == out_pack_axis_size;
+        }
+
+        if (reshape_zero_copy)
         {
             int outw2 = output_shape.w;
             int outh2 = output_shape.h;

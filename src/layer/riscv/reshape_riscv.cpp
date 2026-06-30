@@ -585,7 +585,15 @@ int Reshape_riscv::forward_batch(const std::vector<Mat>& bottom_blobs, std::vect
 
     const size_t out_elemsize = scalar_elemsize * out_elempack;
 
-    if (input_axis == output_axis && output_shape.n == bottom_blob.n && out_elempack == bottom_blob.elempack)
+    bool reshape_zero_copy = input_axis == output_axis && output_shape.n == bottom_blob.n && out_elempack == bottom_blob.elempack;
+    if (reshape_zero_copy && bottom_blob.elempack != 1)
+    {
+        const int pack_axis_size = bottom_blob.dims == 1 ? bottom_blob.w * bottom_blob.elempack : bottom_blob.dims == 2 ? bottom_blob.h * bottom_blob.elempack : bottom_blob.c * bottom_blob.elempack;
+        const int out_pack_axis_size = output_shape.dims == 1 ? output_shape.w : output_shape.dims == 2 ? output_shape.h : output_shape.c;
+        reshape_zero_copy = pack_axis_size == out_pack_axis_size;
+    }
+
+    if (reshape_zero_copy)
     {
         if (output_shape.dims == 1)
             top_blob = bottom_blob.reshape(output_shape.w / out_elempack, opt.blob_allocator);

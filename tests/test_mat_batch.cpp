@@ -1370,6 +1370,73 @@ static int test_batch_reshape_packed_batch_to_dim_axis0()
     return 0;
 }
 
+static int test_batch_reshape_packed_same_axis_reorder()
+{
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 6=\"5,3,1,4,-1\" 12=2 13=2\n";
+
+    const int C = 32;
+    const int H = 32;
+    const int W = 15;
+
+    ncnn::Mat input;
+    input.create(W, H, C);
+    for (int q = 0; q < C; q++)
+    {
+        float* ptr = input.channel(q);
+        for (int i = 0; i < W * H; i++)
+        {
+            ptr[i] = (float)(q * 1000 + i);
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_same_axis_reorder reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+
+    ncnn::Mat input_pack;
+    ncnn::convert_packing(input, input_pack, 4, opt);
+
+    ncnn::Net net;
+    net.opt.use_packing_layout = true;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_pack);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_same_axis_reorder extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_packed_same_axis_reorder value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 static int test_batch_reshape_packed_batch_to_dim_axis0_2d()
 {
     const char param_str[] = "7767517\n"
@@ -5820,6 +5887,7 @@ int main()
               || test_batch_reshape_batch_to_dim_axis1_negative_axis()
               || test_batch_reshape_input_batch_axis_negative_tail()
               || test_batch_reshape_packed_batch_to_dim_axis0()
+              || test_batch_reshape_packed_same_axis_reorder()
               || test_batch_reshape_packed_batch_to_dim_axis0_2d()
               || test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked()
               || test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked_nstep_padding()
