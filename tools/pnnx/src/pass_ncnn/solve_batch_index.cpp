@@ -331,17 +331,27 @@ static void solve_batch_index_forward(Operand* operand)
             if (batch_index >= input_rank0 || output_rank0 == 0 || shape.empty())
                 continue;
 
+            std::vector<int> output_shape = op->outputs[0]->shape;
+            if (output_shape.size() == shape.size())
+            {
+                for (size_t i = 0; i < shape.size(); i++)
+                {
+                    if (output_shape[i] == -1 && shape[i] > 0)
+                        output_shape[i] = shape[i];
+                }
+            }
+
             const int batch_size = op->inputs[0]->shape[batch_index];
             const int batch_axis_size = batch_size > 1 ? batch_size : 1;
             bool keep_batch_index = false;
             int batch_index_reshaped = batch_index;
-            if (batch_index == 0 && ((batch_size == 1 && shape[0] == 1) || (batch_size > 1 && output_rank0 > 0 && op->outputs[0]->shape[0] == batch_size)))
+            if (batch_index == 0 && ((batch_size == 1 && shape[0] == 1) || (batch_size > 1 && output_rank0 > 0 && output_shape[0] == batch_size)))
             {
                 keep_batch_index = true;
             }
             else if (output_rank0 > 0)
             {
-                if (batch_index == input_rank0 - 1 && ((batch_size == 1 && shape[shape.size() - 1] == 1) || (batch_size > 1 && op->outputs[0]->shape[output_rank0 - 1] == batch_size)))
+                if (batch_index == input_rank0 - 1 && ((batch_size == 1 && shape[shape.size() - 1] == 1) || (batch_size > 1 && output_shape[output_rank0 - 1] == batch_size)))
                 {
                     keep_batch_index = true;
                     batch_index_reshaped = output_rank0 - 1;
@@ -378,16 +388,16 @@ static void solve_batch_index_forward(Operand* operand)
                         int left2 = 1;
                         for (int i = 0; i < output_rank0 - 1; i++)
                         {
-                            if (op->outputs[0]->shape[i] == -1)
+                            if (output_shape[i] == -1)
                             {
                                 left2 = -1;
                                 break;
                             }
-                            left2 *= op->outputs[0]->shape[i];
-                            if (left2 == left && op->outputs[0]->shape[i + 1] == batch_axis_size)
+                            left2 *= output_shape[i];
+                            if (left2 == left && output_shape[i + 1] == batch_axis_size)
                             {
                                 batch_index_reshaped = i + 1;
-                                if (batch_index_reshaped + 1 < output_rank0 && op->outputs[0]->shape[batch_index_reshaped + 1] == batch_axis_size)
+                                if (batch_index_reshaped + 1 < output_rank0 && output_shape[batch_index_reshaped + 1] == batch_axis_size)
                                 {
                                     // multiple axes can be batch index, give up
                                     batch_index_reshaped = -1;
@@ -401,16 +411,16 @@ static void solve_batch_index_forward(Operand* operand)
                         int right2 = 1;
                         for (int i = output_rank0 - 1; i >= 1; i--)
                         {
-                            if (op->outputs[0]->shape[i] == -1)
+                            if (output_shape[i] == -1)
                             {
                                 right2 = -1;
                                 break;
                             }
-                            right2 *= op->outputs[0]->shape[i];
-                            if (right2 == right && op->outputs[0]->shape[i - 1] == batch_axis_size)
+                            right2 *= output_shape[i];
+                            if (right2 == right && output_shape[i - 1] == batch_axis_size)
                             {
                                 batch_index_reshaped = i - 1;
-                                if (batch_index_reshaped - 1 >= 0 && op->outputs[0]->shape[batch_index_reshaped - 1] == batch_axis_size)
+                                if (batch_index_reshaped - 1 >= 0 && output_shape[batch_index_reshaped - 1] == batch_axis_size)
                                 {
                                     // multiple axes can be batch index, give up
                                     batch_index_reshaped = -1;
@@ -783,7 +793,17 @@ static void solve_batch_index_backward(Operand* operand)
         if (batch_index >= output_rank0 || input_rank0 == 0 || shape.empty())
             return;
 
-        const int batch_size = op->outputs[0]->shape[batch_index];
+        std::vector<int> output_shape = op->outputs[0]->shape;
+        if (output_shape.size() == shape.size())
+        {
+            for (size_t i = 0; i < shape.size(); i++)
+            {
+                if (output_shape[i] == -1 && shape[i] > 0)
+                    output_shape[i] = shape[i];
+            }
+        }
+
+        const int batch_size = output_shape[batch_index];
         const int batch_axis_size = batch_size > 1 ? batch_size : 1;
         bool keep_batch_index = false;
         int batch_index_unreshaped = batch_index;
@@ -809,21 +829,21 @@ static void solve_batch_index_backward(Operand* operand)
                     int right = 1;
                     for (int i = 0; i < batch_index; i++)
                     {
-                        if (op->outputs[0]->shape[i] == -1)
+                        if (output_shape[i] == -1)
                         {
                             left = -1;
                             break;
                         }
-                        left *= op->outputs[0]->shape[i];
+                        left *= output_shape[i];
                     }
-                    for (int i = batch_index + 1; i < (int)op->outputs[0]->shape.size(); i++)
+                    for (int i = batch_index + 1; i < (int)output_shape.size(); i++)
                     {
-                        if (op->outputs[0]->shape[i] == -1)
+                        if (output_shape[i] == -1)
                         {
                             right = -1;
                             break;
                         }
-                        right *= op->outputs[0]->shape[i];
+                        right *= output_shape[i];
                     }
 
                     // try to find batch index in the output shape
