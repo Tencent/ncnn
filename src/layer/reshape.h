@@ -20,6 +20,13 @@ public:
 
 protected:
     int eval_shape_expr(const std::vector<Mat>& bottom_blobs, int& outw, int& outh, int& outd, int& outc) const;
+#if NCNN_BATCH
+    int resolve_batch_shape(const std::vector<Mat>& bottom_blobs,
+                            Mat& input_shape, Mat& output_shape,
+                            int& input_axis, int& output_axis,
+                            size_t& total) const;
+    size_t get_batch_reshape_offset(const Mat& m, const Mat& shape, int batch_axis, size_t i, size_t scalar_elemsize) const;
+#endif
 
 public:
     // reshape flag

@@ -3,6 +3,9 @@
 
 #version 450
 
+layout(constant_id = 0) const int input_batch_axis = 233;
+layout(constant_id = 1) const int output_batch_axis = 233;
+
 layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 
@@ -16,7 +19,6 @@ layout(push_constant) uniform parameter
     int cstep;
     int n;
     int nstep;
-    int elempack;
 
     int outdims;
     int outw;
@@ -26,22 +28,6 @@ layout(push_constant) uniform parameter
     int outcstep;
     int outn;
     int outnstep;
-
-    int input_dims;
-    int input_batch_axis;
-    int output_dims;
-    int output_batch_axis;
-
-    int inshape0;
-    int inshape1;
-    int inshape2;
-    int inshape3;
-    int inshape4;
-    int outshape0;
-    int outshape1;
-    int outshape2;
-    int outshape3;
-    int outshape4;
 } p;
 
 void main()
@@ -52,6 +38,16 @@ void main()
 
     if (gx >= p.outw || gy >= p.outh * p.outd || gz >= p.outc * p.outn)
         return;
+
+    int output_axis = output_batch_axis;
+    int output_dims = p.outdims + (output_axis == 233 ? 0 : 1);
+    if (output_axis < 0)
+        output_axis += output_dims;
+
+    int input_axis = input_batch_axis;
+    int input_dims = p.dims + (input_axis == 233 ? 0 : 1);
+    if (input_axis < 0)
+        input_axis += input_dims;
 
     int out_b = gz / p.outc;
     int out_q = gz - out_b * p.outc;
@@ -81,22 +77,84 @@ void main()
 
     ivec4 out_coord[5];
     int pi = 0;
-    for (int i = 0; i < p.output_dims; i++)
+    for (int i = 0; i < output_dims; i++)
     {
-        if (i == p.output_batch_axis)
+        if (i == output_axis)
             out_coord[i] = ivec4(out_b);
         else
             out_coord[i] = out_pcoord[pi++];
     }
 
-    int out_shape[5] = int[](p.outshape0, p.outshape1, p.outshape2, p.outshape3, p.outshape4);
+    int out_pshape[4];
+    if (p.outdims == 1)
+        out_pshape[0] = p.outw * 4;
+    if (p.outdims == 2)
+    {
+        out_pshape[0] = p.outh * 4;
+        out_pshape[1] = p.outw;
+    }
+    if (p.outdims == 3)
+    {
+        out_pshape[0] = p.outc * 4;
+        out_pshape[1] = p.outh;
+        out_pshape[2] = p.outw;
+    }
+    if (p.outdims == 4)
+    {
+        out_pshape[0] = p.outc * 4;
+        out_pshape[1] = p.outd;
+        out_pshape[2] = p.outh;
+        out_pshape[3] = p.outw;
+    }
+
+    int out_shape[5];
+    pi = 0;
+    for (int i = 0; i < output_dims; i++)
+    {
+        if (i == output_axis)
+            out_shape[i] = p.outn;
+        else
+            out_shape[i] = out_pshape[pi++];
+    }
+
     ivec4 src_i = ivec4(0);
-    for (int i = 0; i < p.output_dims; i++)
+    for (int i = 0; i < output_dims; i++)
         src_i = src_i * out_shape[i] + out_coord[i];
 
-    int in_shape[5] = int[](p.inshape0, p.inshape1, p.inshape2, p.inshape3, p.inshape4);
+    int in_pshape[4];
+    if (p.dims == 1)
+        in_pshape[0] = p.w;
+    if (p.dims == 2)
+    {
+        in_pshape[0] = p.h;
+        in_pshape[1] = p.w;
+    }
+    if (p.dims == 3)
+    {
+        in_pshape[0] = p.c;
+        in_pshape[1] = p.h;
+        in_pshape[2] = p.w;
+    }
+    if (p.dims == 4)
+    {
+        in_pshape[0] = p.c;
+        in_pshape[1] = p.d;
+        in_pshape[2] = p.h;
+        in_pshape[3] = p.w;
+    }
+
+    int in_shape[5];
+    pi = 0;
+    for (int i = 0; i < input_dims; i++)
+    {
+        if (i == input_axis)
+            in_shape[i] = p.n;
+        else
+            in_shape[i] = in_pshape[pi++];
+    }
+
     ivec4 in_coord[5];
-    for (int i = p.input_dims - 1; i >= 0; i--)
+    for (int i = input_dims - 1; i >= 0; i--)
     {
         in_coord[i] = src_i % in_shape[i];
         src_i = src_i / in_shape[i];
@@ -105,9 +163,9 @@ void main()
     ivec4 src_b = ivec4(0);
     ivec4 in_pcoord[4];
     pi = 0;
-    for (int i = 0; i < p.input_dims; i++)
+    for (int i = 0; i < input_dims; i++)
     {
-        if (i == p.input_batch_axis)
+        if (i == input_axis)
             src_b = in_coord[i];
         else
             in_pcoord[pi++] = in_coord[i];

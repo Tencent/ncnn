@@ -112,10 +112,10 @@ NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d(int w, int h, ncnn_allocator_t allocat
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_4d(int w, int h, int d, int c, ncnn_allocator_t allocator);
 #if NCNN_BATCH
-NCNN_EXPORT ncnn_mat_t ncnn_mat_create_1d_batch(int w, int batch, ncnn_allocator_t allocator);
-NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d_batch(int w, int h, int batch, ncnn_allocator_t allocator);
-NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d_batch(int w, int h, int c, int batch, ncnn_allocator_t allocator);
-NCNN_EXPORT ncnn_mat_t ncnn_mat_create_4d_batch(int w, int h, int d, int c, int batch, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_1d_batch(int w, int n, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d_batch(int w, int h, int n, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d_batch(int w, int h, int c, int n, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_4d_batch(int w, int h, int d, int c, int n, ncnn_allocator_t allocator);
 #endif
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_1d(int w, void* data, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_2d(int w, int h, void* data, ncnn_allocator_t allocator);
@@ -126,10 +126,10 @@ NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d_elem(int w, int h, size_t elemsize, in
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d_elem(int w, int h, int c, size_t elemsize, int elempack, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_4d_elem(int w, int h, int d, int c, size_t elemsize, int elempack, ncnn_allocator_t allocator);
 #if NCNN_BATCH
-NCNN_EXPORT ncnn_mat_t ncnn_mat_create_1d_elem_batch(int w, size_t elemsize, int elempack, int batch, ncnn_allocator_t allocator);
-NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d_elem_batch(int w, int h, size_t elemsize, int elempack, int batch, ncnn_allocator_t allocator);
-NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d_elem_batch(int w, int h, int c, size_t elemsize, int elempack, int batch, ncnn_allocator_t allocator);
-NCNN_EXPORT ncnn_mat_t ncnn_mat_create_4d_elem_batch(int w, int h, int d, int c, size_t elemsize, int elempack, int batch, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_1d_elem_batch(int w, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d_elem_batch(int w, int h, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d_elem_batch(int w, int h, int c, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_4d_elem_batch(int w, int h, int d, int c, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator);
 #endif
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_1d_elem(int w, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_2d_elem(int w, int h, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator);

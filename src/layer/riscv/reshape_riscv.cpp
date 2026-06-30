@@ -559,223 +559,17 @@ int Reshape_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std
 }
 
 #if NCNN_BATCH
-static size_t get_batch_reshape_offset_packed(const Mat& m, const int* shape, int dims, int batch_axis, size_t i, size_t scalar_elemsize)
-{
-    int coord[5] = {0, 0, 0, 0, 0};
-    for (int j = dims - 1; j >= 0; j--)
-    {
-        coord[j] = (int)(i % shape[j]);
-        i /= shape[j];
-    }
-
-    int b = 0;
-    int p[4] = {0, 0, 0, 0};
-    int pdims = 0;
-    for (int j = 0; j < dims; j++)
-    {
-        if (j == batch_axis)
-        {
-            b = coord[j];
-            continue;
-        }
-
-        p[pdims++] = coord[j];
-    }
-
-    int lane = 0;
-    size_t offset = (size_t)b * m.nstep;
-    if (pdims == 1)
-    {
-        lane = p[0] % m.elempack;
-        offset += p[0] / m.elempack;
-    }
-    if (pdims == 2)
-    {
-        lane = p[0] % m.elempack;
-        offset += (size_t)(p[0] / m.elempack) * m.w + p[1];
-    }
-    if (pdims == 3)
-    {
-        lane = p[0] % m.elempack;
-        offset += (size_t)(p[0] / m.elempack) * m.cstep + (size_t)p[1] * m.w + p[2];
-    }
-    if (pdims == 4)
-    {
-        lane = p[0] % m.elempack;
-        offset += (size_t)(p[0] / m.elempack) * m.cstep + (size_t)p[1] * m.w * m.h + (size_t)p[2] * m.w + p[3];
-    }
-
-    return offset * m.elemsize + lane * scalar_elemsize;
-}
-
 int Reshape_riscv::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     Mat& top_blob = top_blobs[0];
 
-    int physical_input_shape[4] = {0, 0, 0, 0};
-    if (bottom_blob.dims == 1)
-        physical_input_shape[0] = bottom_blob.w * bottom_blob.elempack;
-    if (bottom_blob.dims == 2)
-    {
-        physical_input_shape[0] = bottom_blob.h * bottom_blob.elempack;
-        physical_input_shape[1] = bottom_blob.w;
-    }
-    if (bottom_blob.dims == 3)
-    {
-        physical_input_shape[0] = bottom_blob.c * bottom_blob.elempack;
-        physical_input_shape[1] = bottom_blob.h;
-        physical_input_shape[2] = bottom_blob.w;
-    }
-    if (bottom_blob.dims == 4)
-    {
-        physical_input_shape[0] = bottom_blob.c * bottom_blob.elempack;
-        physical_input_shape[1] = bottom_blob.d;
-        physical_input_shape[2] = bottom_blob.h;
-        physical_input_shape[3] = bottom_blob.w;
-    }
-
-    int input_axis = input_batch_axis;
-    if (input_axis < 0)
-        input_axis += bottom_blob.dims + 1;
-
-    int input_shape[5] = {0, 0, 0, 0, 0};
-    int input_dims = bottom_blob.dims;
-    if (input_axis != 233)
-    {
-        if (input_axis < 0 || input_axis > bottom_blob.dims)
-            return -1;
-
-        input_dims = bottom_blob.dims + 1;
-        for (int i = 0; i < input_dims; i++)
-        {
-            if (i < input_axis)
-                input_shape[i] = physical_input_shape[i];
-            else if (i == input_axis)
-                input_shape[i] = bottom_blob.n;
-            else
-                input_shape[i] = physical_input_shape[i - 1];
-        }
-    }
-    else
-    {
-        if (bottom_blob.n != 1)
-            return -1;
-
-        for (int i = 0; i < input_dims; i++)
-            input_shape[i] = physical_input_shape[i];
-    }
-
-    std::vector<int> output_shape;
-    if (!shape_expr.empty())
-    {
-        int er = eval_list_expression(shape_expr, bottom_blobs, output_shape);
-        if (er != 0)
-            return -1;
-
-        for (size_t i = 0; i < output_shape.size() / 2; i++)
-        {
-            int tmp = output_shape[i];
-            output_shape[i] = output_shape[output_shape.size() - 1 - i];
-            output_shape[output_shape.size() - 1 - i] = tmp;
-        }
-    }
-    else
-    {
-        if (ndim == 1)
-            output_shape.push_back(w);
-        if (ndim == 2)
-        {
-            output_shape.push_back(h);
-            output_shape.push_back(w);
-        }
-        if (ndim == 3)
-        {
-            output_shape.push_back(c);
-            output_shape.push_back(h);
-            output_shape.push_back(w);
-        }
-        if (ndim == 4)
-        {
-            output_shape.push_back(c);
-            output_shape.push_back(d);
-            output_shape.push_back(h);
-            output_shape.push_back(w);
-        }
-    }
-
-    const int output_dims = (int)output_shape.size();
-    if (output_dims == 0 || output_dims > 5)
-        return -1;
-
-    int output_axis = output_batch_axis;
-    if (output_axis < 0)
-        output_axis += output_dims;
-
-    if (output_axis != 233 && (output_axis < 0 || output_axis >= output_dims))
-        return -1;
-
-    size_t input_total = 1;
-    for (int i = 0; i < input_dims; i++)
-        input_total *= input_shape[i];
-
-    size_t output_total = 1;
-    int remaining_axis = -1;
-    for (int i = 0; i < output_dims; i++)
-    {
-        if (output_shape[i] == 0)
-        {
-            if (i >= input_dims)
-                return -1;
-
-            output_shape[i] = input_shape[i];
-        }
-
-        if (output_shape[i] == -1)
-        {
-            if (remaining_axis != -1)
-                return -1;
-
-            remaining_axis = i;
-            continue;
-        }
-
-        if (output_shape[i] <= 0)
-            return -1;
-
-        output_total *= output_shape[i];
-    }
-
-    if (remaining_axis != -1)
-    {
-        if (output_total == 0 || input_total % output_total != 0)
-            return -1;
-
-        output_shape[remaining_axis] = (int)(input_total / output_total);
-        output_total *= output_shape[remaining_axis];
-    }
-
-    if (input_total != output_total)
-        return -1;
-
-    int batch = 1;
-    int physical_output_shape[4] = {0, 0, 0, 0};
-    int physical_output_dims = 0;
-    for (int i = 0; i < output_dims; i++)
-    {
-        if (i == output_axis)
-        {
-            batch = output_shape[i];
-            continue;
-        }
-
-        if (physical_output_dims == 4)
-            return -1;
-
-        physical_output_shape[physical_output_dims++] = output_shape[i];
-    }
-
-    if (physical_output_dims == 0)
+    Mat input_shape;
+    Mat output_shape;
+    int input_axis = 233;
+    int output_axis = 233;
+    size_t input_total = 0;
+    if (resolve_batch_shape(bottom_blobs, input_shape, output_shape, input_axis, output_axis, input_total) != 0)
         return -1;
 
     const size_t scalar_elemsize = bottom_blob.elemsize / bottom_blob.elempack;
@@ -785,22 +579,22 @@ int Reshape_riscv::forward_batch(const std::vector<Mat>& bottom_blobs, std::vect
     if (opt.use_packing_layout)
     {
         const int packn = csrr_vlenb() / (int)scalar_elemsize;
-        out_elempack = physical_output_shape[0] % packn == 0 ? packn : 1;
+        out_elempack = (output_shape.dims == 1 ? output_shape.w : output_shape.dims == 2 ? output_shape.h : output_shape.c) % packn == 0 ? packn : 1;
     }
 #endif // __riscv_vector
 
     const size_t out_elemsize = scalar_elemsize * out_elempack;
 
-    if (input_axis == output_axis && batch == bottom_blob.n && out_elempack == bottom_blob.elempack && bottom_blob.elempack == 1)
+    if (input_axis == output_axis && output_shape.n == bottom_blob.n && out_elempack == bottom_blob.elempack)
     {
-        if (physical_output_dims == 1)
-            top_blob = bottom_blob.reshape(physical_output_shape[0] / out_elempack, opt.blob_allocator);
-        if (physical_output_dims == 2)
-            top_blob = bottom_blob.reshape(physical_output_shape[1], physical_output_shape[0] / out_elempack, opt.blob_allocator);
-        if (physical_output_dims == 3)
-            top_blob = bottom_blob.reshape(physical_output_shape[2], physical_output_shape[1], physical_output_shape[0] / out_elempack, opt.blob_allocator);
-        if (physical_output_dims == 4)
-            top_blob = bottom_blob.reshape(physical_output_shape[3], physical_output_shape[2], physical_output_shape[1], physical_output_shape[0] / out_elempack, opt.blob_allocator);
+        if (output_shape.dims == 1)
+            top_blob = bottom_blob.reshape(output_shape.w / out_elempack, opt.blob_allocator);
+        if (output_shape.dims == 2)
+            top_blob = bottom_blob.reshape(output_shape.w, output_shape.h / out_elempack, opt.blob_allocator);
+        if (output_shape.dims == 3)
+            top_blob = bottom_blob.reshape(output_shape.w, output_shape.h, output_shape.c / out_elempack, opt.blob_allocator);
+        if (output_shape.dims == 4)
+            top_blob = bottom_blob.reshape(output_shape.w, output_shape.h, output_shape.d, output_shape.c / out_elempack, opt.blob_allocator);
 
         if (top_blob.empty())
             return -100;
@@ -808,21 +602,21 @@ int Reshape_riscv::forward_batch(const std::vector<Mat>& bottom_blobs, std::vect
         return 0;
     }
 
-    if (physical_output_dims == 1)
-        top_blob.create(physical_output_shape[0] / out_elempack, out_elemsize, out_elempack, batch, opt.blob_allocator);
-    if (physical_output_dims == 2)
-        top_blob.create(physical_output_shape[1], physical_output_shape[0] / out_elempack, out_elemsize, out_elempack, batch, opt.blob_allocator);
-    if (physical_output_dims == 3)
-        top_blob.create(physical_output_shape[2], physical_output_shape[1], physical_output_shape[0] / out_elempack, out_elemsize, out_elempack, batch, opt.blob_allocator);
-    if (physical_output_dims == 4)
-        top_blob.create(physical_output_shape[3], physical_output_shape[2], physical_output_shape[1], physical_output_shape[0] / out_elempack, out_elemsize, out_elempack, batch, opt.blob_allocator);
+    if (output_shape.dims == 1)
+        top_blob.create(output_shape.w / out_elempack, out_elemsize, out_elempack, output_shape.n, opt.blob_allocator);
+    if (output_shape.dims == 2)
+        top_blob.create(output_shape.w, output_shape.h / out_elempack, out_elemsize, out_elempack, output_shape.n, opt.blob_allocator);
+    if (output_shape.dims == 3)
+        top_blob.create(output_shape.w, output_shape.h, output_shape.c / out_elempack, out_elemsize, out_elempack, output_shape.n, opt.blob_allocator);
+    if (output_shape.dims == 4)
+        top_blob.create(output_shape.w, output_shape.h, output_shape.d, output_shape.c / out_elempack, out_elemsize, out_elempack, output_shape.n, opt.blob_allocator);
 
     if (top_blob.empty())
         return -100;
 
     if (out_elempack == bottom_blob.elempack)
     {
-        if (physical_output_dims == bottom_blob.dims)
+        if (output_shape.dims == bottom_blob.dims)
         {
             if (input_axis == 0 && output_axis == 233)
             {
@@ -981,13 +775,13 @@ int Reshape_riscv::forward_batch(const std::vector<Mat>& bottom_blobs, std::vect
         for (int t = 0; t < nn; t++)
         {
             const size_t i = i0 + t;
-            const size_t srcoff = get_batch_reshape_offset_packed(bottom_blob, input_shape, input_dims, input_axis, i, scalar_elemsize);
-            const size_t dstoff = get_batch_reshape_offset_packed(top_blob, &output_shape[0], output_dims, output_axis, i, scalar_elemsize);
+            const size_t srcoff = get_batch_reshape_offset(bottom_blob, input_shape, input_axis, i, scalar_elemsize);
+            const size_t dstoff = get_batch_reshape_offset(top_blob, output_shape, output_axis, i, scalar_elemsize);
 
             if (i != 0)
             {
-                const size_t srcoff0 = get_batch_reshape_offset_packed(bottom_blob, input_shape, input_dims, input_axis, i - 1, scalar_elemsize);
-                const size_t dstoff0 = get_batch_reshape_offset_packed(top_blob, &output_shape[0], output_dims, output_axis, i - 1, scalar_elemsize);
+                const size_t srcoff0 = get_batch_reshape_offset(bottom_blob, input_shape, input_axis, i - 1, scalar_elemsize);
+                const size_t dstoff0 = get_batch_reshape_offset(top_blob, output_shape, output_axis, i - 1, scalar_elemsize);
                 if (srcoff == srcoff0 + scalar_elemsize && dstoff == dstoff0 + scalar_elemsize)
                     continue;
             }
@@ -995,8 +789,8 @@ int Reshape_riscv::forward_batch(const std::vector<Mat>& bottom_blobs, std::vect
             size_t size = 1;
             while (i + size < input_total)
             {
-                const size_t srcoff1 = get_batch_reshape_offset_packed(bottom_blob, input_shape, input_dims, input_axis, i + size, scalar_elemsize);
-                const size_t dstoff1 = get_batch_reshape_offset_packed(top_blob, &output_shape[0], output_dims, output_axis, i + size, scalar_elemsize);
+                const size_t srcoff1 = get_batch_reshape_offset(bottom_blob, input_shape, input_axis, i + size, scalar_elemsize);
+                const size_t dstoff1 = get_batch_reshape_offset(top_blob, output_shape, output_axis, i + size, scalar_elemsize);
                 if (srcoff1 != srcoff + size * scalar_elemsize || dstoff1 != dstoff + size * scalar_elemsize)
                     break;
 

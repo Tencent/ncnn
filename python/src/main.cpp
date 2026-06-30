@@ -433,17 +433,17 @@ PYBIND11_MODULE(ncnn, m)
     .def("reshape", (Mat(Mat::*)(int, int, int, int, Allocator*) const) & Mat::reshape, py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(), py::arg("allocator") = nullptr)
 
     .def(
-    "create", [](Mat& mat, py::tuple shape, size_t elemsize, int elempack, int batch, Allocator* allocator) {
+    "create", [](Mat& mat, py::tuple shape, size_t elemsize, int elempack, int n, Allocator* allocator) {
         switch (shape.size())
         {
         case 1:
-            return mat.create(shape[0].cast<int>(), elemsize, elempack, batch, allocator);
+            return mat.create(shape[0].cast<int>(), elemsize, elempack, n, allocator);
         case 2:
-            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), elemsize, elempack, batch, allocator);
+            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), elemsize, elempack, n, allocator);
         case 3:
-            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), elemsize, elempack, batch, allocator);
+            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), elemsize, elempack, n, allocator);
         case 4:
-            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), shape[3].cast<int>(), elemsize, elempack, batch, allocator);
+            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), shape[3].cast<int>(), elemsize, elempack, n, allocator);
         default:
             std::stringstream ss;
             ss << "shape must be 1, 2, 3 or 4 dims, not " << shape.size();
@@ -451,13 +451,13 @@ PYBIND11_MODULE(ncnn, m)
         }
         return;
     },
-    py::arg("shape"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("batch") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, size_t, int, int, Allocator*)) & Mat::create, py::arg("w"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("batch") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, int, size_t, int, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("batch") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, int, int, size_t, int, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("batch") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, int, int, int, size_t, int, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("batch") = 1, py::arg("allocator") = nullptr)
+    py::arg("shape"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("n") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, size_t, int, int, Allocator*)) & Mat::create, py::arg("w"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("n") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, int, size_t, int, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("n") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, int, int, size_t, int, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("n") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, int, int, int, size_t, int, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("n") = 1, py::arg("allocator") = nullptr)
     .def("create_like", (void (Mat::*)(const Mat&, Allocator*)) & Mat::create_like, py::arg("m"), py::arg("allocator") = nullptr)
-    .def("create_like", (void (Mat::*)(const Mat&, int, Allocator*)) & Mat::create_like, py::arg("m"), py::arg("batch"), py::arg("allocator") = nullptr)
+    .def("create_like", (void (Mat::*)(const Mat&, int, Allocator*)) & Mat::create_like, py::arg("m"), py::arg("n"), py::arg("allocator") = nullptr)
     .def("addref", &Mat::addref)
     .def("release", &Mat::release)
     .def("empty", &Mat::empty)
