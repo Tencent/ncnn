@@ -34,8 +34,7 @@ pnnx.Output             output      1 0 out
     {
         op->params["0"] = 0;
 
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
-        const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
         int dim0 = captured_params.at("dim0").i;
         int dim1 = captured_params.at("dim1").i;
@@ -47,8 +46,8 @@ pnnx.Output             output      1 0 out
         if (input_rank == 0 && dim0 >= 0 && dim1 >= 0)
         {
             input_rank = dim0 > dim1 ? dim0 + 1 : dim1 + 1;
-            if (batch_index >= 0 && batch_index >= input_rank)
-                input_rank = batch_index + 1;
+            if (ncnn_batch_axis >= 0 && ncnn_batch_axis >= input_rank)
+                input_rank = ncnn_batch_axis + 1;
         }
 
         int full_input_rank = input_rank;
@@ -84,7 +83,7 @@ pnnx.Output             output      1 0 out
         dims[dim0] = dims[dim1];
         dims[dim1] = tmp;
 
-        if (batch_index >= 0 && batch_index < input_rank && batch_in_shape == 0)
+        if (ncnn_batch_axis >= 0 && ncnn_batch_axis < input_rank)
             input_rank -= 1;
 
         if (input_rank > 4)
@@ -97,10 +96,10 @@ pnnx.Output             output      1 0 out
         std::vector<int> new_dims;
         for (int i = 0; i < (int)dims.size(); i++)
         {
-            if (batch_index != 233 && batch_in_shape == 0 && dims[i] == batch_index)
+            if (ncnn_batch_axis != 233 && dims[i] == ncnn_batch_axis)
                 continue;
 
-            int new_dim = batch_index != 233 && batch_in_shape == 0 && dims[i] > batch_index ? dims[i] - 1 : dims[i];
+            int new_dim = ncnn_batch_axis != 233 && dims[i] > ncnn_batch_axis ? dims[i] - 1 : dims[i];
             new_dims.push_back(new_dim);
         }
 

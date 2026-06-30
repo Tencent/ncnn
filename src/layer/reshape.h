@@ -33,8 +33,9 @@ public:
 
     int ndim;
 #if NCNN_BATCH
-    int batch_mode;
-    int batch_axis;
+    // 233 = no ncnn batch axis, otherwise python-style axis in logical shape
+    int input_batch_axis;
+    int output_batch_axis;
 #endif
 
     // see docs/developer-guide/expression.md

@@ -34,7 +34,7 @@ pnnx.Output          output         1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
-        const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
         int axis = captured_params.at("dim").i;
         if (axis < 0)
@@ -44,13 +44,13 @@ pnnx.Output          output         1 0 out
                 axis = input_rank + axis;
         }
 
-        if (batch_index != 233 && batch_in_shape == 0 && axis == batch_index)
+        if (ncnn_batch_axis != 233 && axis == ncnn_batch_axis)
         {
             fprintf(stderr, "glu along batch axis %d is not supported\n", batch_index);
-            axis = 0;
+            return;
         }
 
-        if (batch_index != 233 && batch_in_shape == 0 && axis > batch_index)
+        if (ncnn_batch_axis != 233 && axis > ncnn_batch_axis)
             axis -= 1;
 
         op->params["0"] = axis;

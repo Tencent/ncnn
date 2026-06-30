@@ -54,8 +54,7 @@ pnnx.Output             output      1 0 out
 
         const Operand* in = ops.at("slice")->inputs[0];
 
-        const int batch_index = in->params.at("__batch_index").i;
-        const int batch_in_shape = in->params.at("__ncnn_batch_in_shape").i;
+        const int ncnn_batch_axis = in->params.at("__ncnn_batch_axis").i;
 
         int axis = captured_params.at("dims").ai[0];
         if (axis < 0)
@@ -65,13 +64,13 @@ pnnx.Output             output      1 0 out
                 axis = input_rank + axis;
         }
 
-        if (batch_index != 233 && batch_in_shape == 0 && axis == batch_index)
+        if (axis == ncnn_batch_axis)
         {
-            fprintf(stderr, "roll along batch axis %d is not supported\n", batch_index);
-            axis = 0;
+            fprintf(stderr, "roll along batch axis %d is not supported\n", ncnn_batch_axis);
+            return;
         }
 
-        if (batch_index != 233 && batch_in_shape == 0 && axis > batch_index)
+        if (ncnn_batch_axis != 233 && axis > ncnn_batch_axis)
             axis -= 1;
 
         ops.at("slice")->params["1"] = axis;
@@ -136,8 +135,7 @@ pnnx.Output             output      1 0 out
 
         const Operand* in = ops.at("slice")->inputs[0];
 
-        const int batch_index = in->params.at("__batch_index").i;
-        const int batch_in_shape = in->params.at("__ncnn_batch_in_shape").i;
+        const int ncnn_batch_axis = in->params.at("__ncnn_batch_axis").i;
 
         int axis0 = captured_params.at("dims").ai[0];
         int axis1 = captured_params.at("dims").ai[1];
@@ -155,19 +153,16 @@ pnnx.Output             output      1 0 out
                 axis1 = input_rank + axis1;
         }
 
-        if (batch_index != 233 && batch_in_shape == 0 && (axis0 == batch_index || axis1 == batch_index))
+        if (axis0 == ncnn_batch_axis || axis1 == ncnn_batch_axis)
         {
-            fprintf(stderr, "roll along batch axis %d is not supported\n", batch_index);
-            if (axis0 == batch_index)
-                axis0 = 0;
-            if (axis1 == batch_index)
-                axis1 = 0;
+            fprintf(stderr, "roll along batch axis %d is not supported\n", ncnn_batch_axis);
+            return;
         }
 
-        if (batch_index != 233 && batch_in_shape == 0 && axis0 > batch_index)
+        if (ncnn_batch_axis != 233 && axis0 > ncnn_batch_axis)
             axis0 -= 1;
 
-        if (batch_index != 233 && batch_in_shape == 0 && axis1 > batch_index)
+        if (ncnn_batch_axis != 233 && axis1 > ncnn_batch_axis)
             axis1 -= 1;
 
         ops.at("slice")->params["1"] = axis0;

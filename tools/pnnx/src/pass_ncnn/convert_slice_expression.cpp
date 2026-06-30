@@ -125,7 +125,7 @@ static std::vector<std::string> split_into_tokens(const std::string& expr)
     return tokens;
 }
 
-static std::string transform_nchw_annotation_and_drop_batch_index(const std::vector<std::string>& tokens, const std::vector<Operand*>& ordered_references, int output_batch_index, int output_batch_in_shape)
+static std::string transform_nchw_annotation_and_drop_batch_index(const std::vector<std::string>& tokens, const std::vector<Operand*>& ordered_references, int output_ncnn_batch_axis)
 {
     // change nchw annotation to w,h,c / w,h,d,c with batch index dropped
 
@@ -204,12 +204,11 @@ static std::string transform_nchw_annotation_and_drop_batch_index(const std::vec
 
                         int bi = std::stoi(b);
 
-                        const int a_batch_index = ordered_references[input_index]->params["__batch_index"].i;
-                        const int a_batch_in_shape = ordered_references[input_index]->params["__ncnn_batch_in_shape"].i;
+                        const int a_ncnn_batch_axis = ordered_references[input_index]->params["__ncnn_batch_axis"].i;
 
-                        if (a_batch_in_shape == 0 && bi == a_batch_index)
+                        if (bi == a_ncnn_batch_axis)
                         {
-                            fprintf(stderr, "slice expression refer to batch axis %d is not supported\n", a_batch_index);
+                            fprintf(stderr, "slice expression refer to batch axis %d is not supported\n", a_ncnn_batch_axis);
                             std::string r = std::string("size(") + a + "," + b + ")";
                             exprstack.push(r);
                         }
@@ -220,7 +219,7 @@ static std::string transform_nchw_annotation_and_drop_batch_index(const std::vec
                             if (bi < 0)
                                 bi = a_rank + bi;
 
-                            if (a_batch_in_shape == 0 && bi > a_batch_index)
+                            if (a_ncnn_batch_axis != 233 && bi > a_ncnn_batch_axis)
                             {
                                 a_rank -= 1;
                                 bi -= 1;
@@ -366,9 +365,9 @@ static std::string transform_nchw_annotation_and_drop_batch_index(const std::vec
             }
 
             // drop output batch index
-            if (output_batch_index != 233 && output_batch_in_shape == 0)
+            if (output_ncnn_batch_axis != 233)
             {
-                for (int j = output_batch_index; j + 1 < (int)elements.size(); j++)
+                for (int j = output_ncnn_batch_axis; j + 1 < (int)elements.size(); j++)
                 {
                     elements[j] = elements[j + 1];
                 }
@@ -616,11 +615,11 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
             // change nchw annotation to w,h,c / w,h,d,c with batch index dropped
 
             const int batch_index = op->outputs[0]->params["__batch_index"].i;
-            const int batch_in_shape = op->outputs[0]->params["__ncnn_batch_in_shape"].i;
+            const int ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
 
-            std::string starts_expr = transform_nchw_annotation_and_drop_batch_index(start_tokens, ordered_references, batch_index, batch_in_shape);
-            std::string ends_expr = transform_nchw_annotation_and_drop_batch_index(end_tokens, ordered_references, batch_index, batch_in_shape);
-            std::string steps_expr = transform_nchw_annotation_and_drop_batch_index(step_tokens, ordered_references, batch_index, batch_in_shape);
+            std::string starts_expr = transform_nchw_annotation_and_drop_batch_index(start_tokens, ordered_references, ncnn_batch_axis);
+            std::string ends_expr = transform_nchw_annotation_and_drop_batch_index(end_tokens, ordered_references, ncnn_batch_axis);
+            std::string steps_expr = transform_nchw_annotation_and_drop_batch_index(step_tokens, ordered_references, ncnn_batch_axis);
 
             if (steps_expr != std::to_string(1))
             {
@@ -633,7 +632,7 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
             op->params.clear();
             op->params["19"] = starts_expr;
             op->params["20"] = ends_expr;
-            op->params["21"] = std::to_string(batch_index != 233 && batch_in_shape == 0 && dim > batch_index ? dim - 1 : dim);
+            op->params["21"] = std::to_string(ncnn_batch_axis != 233 && dim > ncnn_batch_axis ? dim - 1 : dim);
 
             // link references to reshape
             {
@@ -661,7 +660,7 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
                 Operand* reshape_in = graph.new_operand(op->name + "_ncnnreshape_in");
 
                 reshape_in->params["__batch_index"] = batch_index;
-                reshape_in->params["__ncnn_batch_in_shape"] = batch_in_shape;
+                reshape_in->params["__ncnn_batch_axis"] = ncnn_batch_axis;
 
                 reshape->inputs.push_back(reshape_in);
                 reshape->outputs.push_back(out);
@@ -771,9 +770,9 @@ void convert_slice_expression_single_axis_select(Graph& graph)
             // change nchw annotation to w,h,c / w,h,d,c with batch index dropped
 
             const int batch_index = op->outputs[0]->params["__batch_index"].i;
-            const int batch_in_shape = op->outputs[0]->params["__ncnn_batch_in_shape"].i;
+            const int ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
 
-            std::string starts_expr = transform_nchw_annotation_and_drop_batch_index(start_tokens, ordered_references, batch_index, batch_in_shape);
+            std::string starts_expr = transform_nchw_annotation_and_drop_batch_index(start_tokens, ordered_references, ncnn_batch_axis);
 
             op->type = "Crop";
             op->name = std::string("slice2_") + std::to_string(op_index++);
@@ -781,7 +780,7 @@ void convert_slice_expression_single_axis_select(Graph& graph)
             op->params.clear();
             op->params["19"] = starts_expr;
             op->params["20"] = std::string("+(") + starts_expr + ",1)";
-            op->params["21"] = std::to_string(batch_index != 233 && batch_in_shape == 0 && dim > batch_index ? dim - 1 : dim);
+            op->params["21"] = std::to_string(ncnn_batch_axis != 233 && dim > ncnn_batch_axis ? dim - 1 : dim);
 
             // link references to reshape
             {
@@ -816,7 +815,7 @@ void convert_slice_expression_single_axis_select(Graph& graph)
                 squeeze->params["dim"] = dim;
 
                 squeeze_in->params["__batch_index"] = batch_index;
-                squeeze_in->params["__ncnn_batch_in_shape"] = batch_in_shape;
+                squeeze_in->params["__ncnn_batch_axis"] = ncnn_batch_axis;
             }
 
             break;
@@ -1295,7 +1294,7 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
             // change nchw annotation to w,h,c / w,h,d,c with batch index dropped
 
             const int batch_index = op->outputs[0]->params["__batch_index"].i;
-            const int batch_in_shape = op->outputs[0]->params["__ncnn_batch_in_shape"].i;
+            const int ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
 
             std::string new_starts_expr;
             std::string new_ends_expr;
@@ -1313,9 +1312,9 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 std::vector<std::string> end_tokens = split_into_tokens(end_expr);
                 std::vector<std::string> step_tokens = split_into_tokens(step_expr);
 
-                std::string new_start_expr = transform_nchw_annotation_and_drop_batch_index(start_tokens, ordered_references, batch_index, batch_in_shape);
-                std::string new_end_expr = transform_nchw_annotation_and_drop_batch_index(end_tokens, ordered_references, batch_index, batch_in_shape);
-                std::string new_step_expr = transform_nchw_annotation_and_drop_batch_index(step_tokens, ordered_references, batch_index, batch_in_shape);
+                std::string new_start_expr = transform_nchw_annotation_and_drop_batch_index(start_tokens, ordered_references, ncnn_batch_axis);
+                std::string new_end_expr = transform_nchw_annotation_and_drop_batch_index(end_tokens, ordered_references, ncnn_batch_axis);
+                std::string new_step_expr = transform_nchw_annotation_and_drop_batch_index(step_tokens, ordered_references, ncnn_batch_axis);
 
                 if (new_step_expr != std::to_string(1))
                 {
@@ -1325,7 +1324,7 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 new_starts_expr += new_start_expr;
                 new_ends_expr += new_end_expr;
                 new_steps_expr += new_step_expr;
-                new_dims_expr += std::to_string(batch_index != 233 && batch_in_shape == 0 && dims[i] > batch_index ? dims[i] - 1 : dims[i]);
+                new_dims_expr += std::to_string(ncnn_batch_axis != 233 && dims[i] > ncnn_batch_axis ? dims[i] - 1 : dims[i]);
 
                 if (i + 1 != dims_count)
                 {
@@ -1370,7 +1369,7 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 Operand* reshape_in = graph.new_operand(op->name + "_ncnnreshape_in");
 
                 reshape_in->params["__batch_index"] = batch_index;
-                reshape_in->params["__ncnn_batch_in_shape"] = batch_in_shape;
+                reshape_in->params["__ncnn_batch_axis"] = ncnn_batch_axis;
 
                 reshape->inputs.push_back(reshape_in);
                 reshape->outputs.push_back(out);

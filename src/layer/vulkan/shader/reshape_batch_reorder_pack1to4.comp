@@ -3,11 +3,7 @@
 
 #version 450
 
-#if NCNN_fp16_packed || NCNN_bf16_packed
-layout(binding = 0) readonly buffer bottom_blob { sfpvec2 bottom_blob_data[]; };
-#else
 layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
-#endif
 layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 
 layout(push_constant) uniform parameter
@@ -20,6 +16,7 @@ layout(push_constant) uniform parameter
     int cstep;
     int n;
     int nstep;
+    int elempack;
 
     int outdims;
     int outw;
@@ -30,9 +27,21 @@ layout(push_constant) uniform parameter
     int outn;
     int outnstep;
 
-    int batch_mode;
-    int suffix;
-    int batch;
+    int input_dims;
+    int input_batch_axis;
+    int output_dims;
+    int output_batch_axis;
+
+    int inshape0;
+    int inshape1;
+    int inshape2;
+    int inshape3;
+    int inshape4;
+    int outshape0;
+    int outshape1;
+    int outshape2;
+    int outshape3;
+    int outshape4;
 } p;
 
 void main()
@@ -41,83 +50,86 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    int outbatch = p.batch_mode == 2 ? p.batch : 1;
-
-    if (gx >= p.outw || gy >= p.outh * p.outd || gz >= p.outc * outbatch)
+    if (gx >= p.outw || gy >= p.outh * p.outd || gz >= p.outc * p.outn)
         return;
 
-    int b = 0;
-    int z = gz;
-    if (p.batch_mode == 2)
+    int out_b = gz / p.outc;
+    int out_q = gz - out_b * p.outc;
+
+    ivec4 lane = ivec4(0, 1, 2, 3);
+    ivec4 out_pcoord[4];
+    if (p.outdims == 1)
+        out_pcoord[0] = gx * 4 + lane;
+    if (p.outdims == 2)
     {
-        b = gz / p.outc;
-        z = gz - b * p.outc;
+        out_pcoord[0] = gy * 4 + lane;
+        out_pcoord[1] = ivec4(gx);
+    }
+    if (p.outdims == 3)
+    {
+        out_pcoord[0] = out_q * 4 + lane;
+        out_pcoord[1] = ivec4(gy);
+        out_pcoord[2] = ivec4(gx);
+    }
+    if (p.outdims == 4)
+    {
+        out_pcoord[0] = out_q * 4 + lane;
+        out_pcoord[1] = ivec4(gy / p.outh);
+        out_pcoord[2] = ivec4(gy - out_pcoord[1].r * p.outh);
+        out_pcoord[3] = ivec4(gx);
     }
 
-    ivec4 i4;
-    if (p.outdims == 1) i4 = gx * 4 + ivec4(0, 1, 2, 3);
-    if (p.outdims == 2) i4 = (gy * 4) * p.outw + gx + ivec4(0, 1, 2, 3) * p.outw;
-    if (p.outdims == 3) i4 = (z * 4) * p.outh * p.outw + gy * p.outw + gx + ivec4(0, 1, 2, 3) * p.outh * p.outw;
-    if (p.outdims == 4) i4 = (z * 4) * p.outd * p.outh * p.outw + gy * p.outw + gx + ivec4(0, 1, 2, 3) * p.outd * p.outh * p.outw;
+    ivec4 out_coord[5];
+    int pi = 0;
+    for (int i = 0; i < p.output_dims; i++)
+    {
+        if (i == p.output_batch_axis)
+            out_coord[i] = ivec4(out_b);
+        else
+            out_coord[i] = out_pcoord[pi++];
+    }
+
+    int out_shape[5] = int[](p.outshape0, p.outshape1, p.outshape2, p.outshape3, p.outshape4);
+    ivec4 src_i = ivec4(0);
+    for (int i = 0; i < p.output_dims; i++)
+        src_i = src_i * out_shape[i] + out_coord[i];
+
+    int in_shape[5] = int[](p.inshape0, p.inshape1, p.inshape2, p.inshape3, p.inshape4);
+    ivec4 in_coord[5];
+    for (int i = p.input_dims - 1; i >= 0; i--)
+    {
+        in_coord[i] = src_i % in_shape[i];
+        src_i = src_i / in_shape[i];
+    }
 
     ivec4 src_b = ivec4(0);
-    ivec4 src_i;
-    if (p.batch_mode == 2)
+    ivec4 in_pcoord[4];
+    pi = 0;
+    for (int i = 0; i < p.input_dims; i++)
     {
-        ivec4 pi = i4 / p.suffix;
-        ivec4 si = i4 - pi * p.suffix;
-        src_i = (pi * p.batch + b) * p.suffix + si;
-    }
-    else
-    {
-        int batch_stride = p.batch * p.suffix;
-        ivec4 pi = i4 / batch_stride;
-        ivec4 ri = i4 - pi * batch_stride;
-        src_b = ri / p.suffix;
-        ivec4 si = ri - src_b * p.suffix;
-        src_i = pi * p.suffix + si;
+        if (i == p.input_batch_axis)
+            src_b = in_coord[i];
+        else
+            in_pcoord[pi++] = in_coord[i];
     }
 
-    ivec4 src_offset;
+    ivec4 src_offset = src_b * p.nstep;
     if (p.dims == 1)
-    {
-        src_offset = src_i;
-    }
-    else if (p.dims == 2)
-    {
-        ivec4 y = src_i / p.w;
-        ivec4 x = src_i - y * p.w;
-        src_offset = y * p.w + x;
-    }
-    else
-    {
-        int size = p.w * p.h * p.d;
-        ivec4 z = src_i / size;
-        ivec4 r = src_i - z * size;
-        ivec4 y = r / p.w;
-        ivec4 x = r - y * p.w;
-        src_offset = z * p.cstep + y * p.w + x;
-    }
-    src_offset += src_b * p.nstep;
+        src_offset += in_pcoord[0];
+    if (p.dims == 2)
+        src_offset += in_pcoord[0] * p.w + in_pcoord[1];
+    if (p.dims == 3)
+        src_offset += in_pcoord[0] * p.cstep + in_pcoord[1] * p.w + in_pcoord[2];
+    if (p.dims == 4)
+        src_offset += in_pcoord[0] * p.cstep + (in_pcoord[1] * p.h + in_pcoord[2]) * p.w + in_pcoord[3];
 
-    int gi = b * p.outnstep;
-    if (p.outdims == 1) gi += gx;
-    if (p.outdims == 2) gi += gy * p.outw + gx;
-    if (p.outdims == 3 || p.outdims == 4) gi += z * p.outcstep + gy * p.outw + gx;
+    int dst_offset = out_b * p.outnstep;
+    if (p.outdims == 1)
+        dst_offset += gx;
+    if (p.outdims == 2)
+        dst_offset += gy * p.outw + gx;
+    if (p.outdims == 3 || p.outdims == 4)
+        dst_offset += out_q * p.outcstep + gy * p.outw + gx;
 
-#if NCNN_fp16_packed || NCNN_bf16_packed
-    ivec4 v_offset = src_offset / 2;
-    ivec4 lane2 = src_offset % 2;
-
-    afpvec2 vr = buffer_ld2(bottom_blob_data, v_offset.r);
-    afpvec2 vg = buffer_ld2(bottom_blob_data, v_offset.g);
-    afpvec2 vb = buffer_ld2(bottom_blob_data, v_offset.b);
-    afpvec2 va = buffer_ld2(bottom_blob_data, v_offset.a);
-
-    afpvec4 v = afpvec4(vr[lane2.r], vg[lane2.g], vb[lane2.b], va[lane2.a]);
-
-    buffer_st4(top_blob_data, gi, v);
-#else
-    buffer_cp1to4(top_blob_data, gi, bottom_blob_data, src_offset);
-#endif
+    buffer_cp1to4(top_blob_data, dst_offset, bottom_blob_data, src_offset);
 }

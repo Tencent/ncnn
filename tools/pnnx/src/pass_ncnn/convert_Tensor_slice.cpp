@@ -125,12 +125,12 @@ void convert_Tensor_slice(Graph& graph)
                 continue;
 
             const int batch_index = op->inputs[0]->params["__batch_index"].i;
-            const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
+            const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
             {
                 int input_rank = op->inputs[0]->shape.size();
 
-                if (batch_index >= 0 && batch_index < input_rank && batch_in_shape == 0)
+                if (ncnn_batch_axis >= 0 && ncnn_batch_axis < input_rank)
                     input_rank -= 1;
 
                 if (input_rank > 4)
@@ -148,14 +148,14 @@ void convert_Tensor_slice(Graph& graph)
                     axes[i] = input_rank0 + axes[i];
                 }
 
-                if (axes[i] == batch_index && (starts[i] != 0 || ends[i] != INT_MAX))
+                if (axes[i] == ncnn_batch_axis && (starts[i] != 0 || ends[i] != INT_MAX))
                 {
                     fprintf(stderr, "slice along batch axis is not supported\n");
                     unsupported = true;
                     break;
                 }
 
-                if (batch_index != 233 && batch_in_shape == 0 && axes[i] > batch_index)
+                if (ncnn_batch_axis != 233 && axes[i] > ncnn_batch_axis)
                     axes[i] -= 1;
 
                 if (ends[i] == INT_MAX)
@@ -194,7 +194,7 @@ void convert_Tensor_slice(Graph& graph)
                 Operand* reshape_in = graph.new_operand(op->name + "_ncnnreshape_in");
 
                 reshape_in->params["__batch_index"] = batch_index;
-                reshape_in->params["__ncnn_batch_in_shape"] = batch_in_shape;
+                reshape_in->params["__ncnn_batch_axis"] = ncnn_batch_axis;
 
                 reshape->inputs.push_back(reshape_in);
                 reshape->outputs.push_back(out);

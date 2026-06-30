@@ -32,8 +32,7 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
-        const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
         int input_rank = op->inputs[0]->shape.size();
 
@@ -49,13 +48,21 @@ pnnx.Output             output      1 0 out
             if (dim < 0 && input_rank > 0)
                 dim += input_rank;
 
-            if (dim == batch_index)
+            if (dim == ncnn_batch_axis)
             {
+                int output_ncnn_batch_axis = 233;
+                if (!op->inputs[0]->shape.empty() && dim >= 0 && dim < (int)op->inputs[0]->shape.size() && op->inputs[0]->shape[dim] != 1)
+                    output_ncnn_batch_axis = ncnn_batch_axis;
+                if (output_ncnn_batch_axis == ncnn_batch_axis)
+                {
+                    op->inputs[0]->params["__ncnn_batch_axis"] = output_ncnn_batch_axis;
+                }
+                op->outputs[0]->params["__ncnn_batch_axis"] = output_ncnn_batch_axis;
                 op->type = "Noop";
                 return;
             }
 
-            if (batch_index != 233 && batch_in_shape == 0 && dim > batch_index)
+            if (ncnn_batch_axis != 233 && dim > ncnn_batch_axis)
                 dim -= 1;
 
             std::vector<int> axes = {dim};
@@ -71,12 +78,12 @@ pnnx.Output             output      1 0 out
                 if (dim < 0 && input_rank > 0)
                     dim += input_rank;
 
-                if (dim == batch_index)
+                if (dim == ncnn_batch_axis)
                 {
                     continue;
                 }
 
-                if (batch_index != 233 && batch_in_shape == 0 && dim > batch_index)
+                if (ncnn_batch_axis != 233 && dim > ncnn_batch_axis)
                     dim -= 1;
 
                 new_axes.push_back(dim);

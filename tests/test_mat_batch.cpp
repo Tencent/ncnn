@@ -487,7 +487,7 @@ static int test_batch_reshape_batch_to_dim_flatten()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=-1 12=1\n";
+                             "Reshape reshape 1 1 data output 0=-1 12=0 13=233\n";
 
     ncnn::Net net;
     net.load_param_mem(param_str);
@@ -554,7 +554,7 @@ static int test_batch_reshape_batch_to_dim_4d()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=-1 12=1\n";
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=-1 12=0 13=233\n";
 
     ncnn::Net net;
     net.load_param_mem(param_str);
@@ -616,12 +616,148 @@ static int test_batch_reshape_batch_to_dim_4d()
     return 0;
 }
 
+static int test_batch_reshape_batch_to_dim_negative_axis()
+{
+    const char param_str_ref[] = "7767517\n"
+                                 "2 2\n"
+                                 "Input   input   0 1 data\n"
+                                 "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=-1 12=0 13=233\n";
+
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=-1 12=-4 13=233\n";
+
+    const int B = 3;
+    const int C = 2;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input_batch;
+    input_batch.create(W, H, C, 4u, 1, B);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.load_param_mem(param_str_ref);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_negative_axis reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_negative_axis extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_negative_axis value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_batch_to_dim_shape_expr()
+{
+    const char param_str_ref[] = "7767517\n"
+                                 "2 2\n"
+                                 "Input   input   0 1 data\n"
+                                 "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=3 12=0 13=233\n";
+
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 6=\"0w,0h,0c,0n\" 12=0 13=233\n";
+
+    const int B = 3;
+    const int C = 2;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input_batch;
+    input_batch.create(W, H, C, 4u, 1, B);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.load_param_mem(param_str_ref);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_shape_expr reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_shape_expr extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_shape_expr value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 static int test_batch_reshape_dim_to_batch()
 {
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=5 1=3 2=2 12=2\n";
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=3 12=233 13=0\n";
 
     ncnn::Net net;
     net.load_param_mem(param_str);
@@ -683,12 +819,148 @@ static int test_batch_reshape_dim_to_batch()
     return 0;
 }
 
+static int test_batch_reshape_dim_to_batch_negative_axis()
+{
+    const char param_str_ref[] = "7767517\n"
+                                 "2 2\n"
+                                 "Input   input   0 1 data\n"
+                                 "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=3 12=233 13=0\n";
+
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=3 12=233 13=-4\n";
+
+    const int B = 3;
+    const int C = 2;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input;
+    input.create(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input.channel(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.load_param_mem(param_str_ref);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_negative_axis reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_negative_axis extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_negative_axis value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_output_batch_axis_negative_tail()
+{
+    const char param_str_ref[] = "7767517\n"
+                                 "2 2\n"
+                                 "Input   input   0 1 data\n"
+                                 "Reshape reshape 1 1 data output 0=2 1=5 11=4 2=3 12=0 13=3\n";
+
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=2 1=5 11=4 2=3 12=0 13=-1\n";
+
+    const int B = 2;
+    const int C = 3;
+    const int H = 4;
+    const int W = 5;
+
+    ncnn::Mat input_batch;
+    input_batch.create(W, H, C, 4u, 1, B);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.load_param_mem(param_str_ref);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_output_batch_axis_negative_tail reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_output_batch_axis_negative_tail extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_output_batch_axis_negative_tail value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 static int test_batch_reshape_dim_to_batch_axis1()
 {
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=7 1=5 2=3 12=2 13=1\n";
+                             "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=3 12=233 13=1\n";
 
     ncnn::Net net;
     net.load_param_mem(param_str);
@@ -754,7 +1026,7 @@ static int test_batch_reshape_batch_to_dim_axis1()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=3 12=1 13=1\n";
+                             "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=3 12=1 13=233\n";
 
     ncnn::Net net;
     net.load_param_mem(param_str);
@@ -816,12 +1088,148 @@ static int test_batch_reshape_batch_to_dim_axis1()
     return 0;
 }
 
+static int test_batch_reshape_batch_to_dim_axis1_negative_axis()
+{
+    const char param_str_ref[] = "7767517\n"
+                                 "2 2\n"
+                                 "Input   input   0 1 data\n"
+                                 "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=3 12=1 13=233\n";
+
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=3 12=-3 13=233\n";
+
+    const int B = 2;
+    const int C = 3;
+    const int H = 5;
+    const int W = 7;
+
+    ncnn::Mat input_batch;
+    input_batch.create(W, H, C, 4u, 1, B);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.load_param_mem(param_str_ref);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis1_negative_axis reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis1_negative_axis extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_batch_to_dim_axis1_negative_axis value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_batch_reshape_input_batch_axis_negative_tail()
+{
+    const char param_str_ref[] = "7767517\n"
+                                 "2 2\n"
+                                 "Input   input   0 1 data\n"
+                                 "Reshape reshape 1 1 data output 0=2 1=5 11=4 2=3 12=3 13=233\n";
+
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=2 1=5 11=4 2=3 12=-1 13=233\n";
+
+    const int B = 2;
+    const int C = 3;
+    const int H = 4;
+    const int W = 5;
+
+    ncnn::Mat input_batch;
+    input_batch.create(W, H, C, 4u, 1, B);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.load_param_mem(param_str_ref);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_input_batch_axis_negative_tail reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_input_batch_axis_negative_tail extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_input_batch_axis_negative_tail value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 static int test_batch_reshape_batch_to_dim_axis1_cstep_padding()
 {
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=8 1=2 2=3 12=1 13=1\n";
+                             "Reshape reshape 1 1 data output 0=8 1=2 2=3 12=1 13=233\n";
 
     const int B = 2;
     const int C = 4;
@@ -872,10 +1280,12 @@ static int test_batch_reshape_batch_to_dim_axis1_cstep_padding()
             const float* ptr = ch.row(b);
             for (int i = 0; i < output.w; i++)
             {
-                int index = q * output.w + i;
-                int sq = index / (W * H);
-                int sr = index - sq * W * H;
-                float expected = (float)(b * 1000 + sq * 100 + sr);
+                int index = (q * B + b) * output.w + i;
+                int sx = index % W;
+                int sy = index / W % H;
+                int sb = index / (W * H) % B;
+                int sq = index / (W * H * B);
+                float expected = (float)(sb * 1000 + sq * 100 + sy * W + sx);
                 if (!NearlyEqual(ptr[i], expected, 1e-5f))
                 {
                     fprintf(stderr, "test_batch_reshape_batch_to_dim_axis1_cstep_padding mismatch q=%d b=%d i=%d got %f expect %f\n", q, b, i, ptr[i], expected);
@@ -893,7 +1303,7 @@ static int test_batch_reshape_packed_batch_to_dim_axis0()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=-1 12=1\n";
+                             "Reshape reshape 1 1 data output 0=-1 12=0 13=233\n";
 
     const int B = 2;
     const int C = 4;
@@ -965,7 +1375,7 @@ static int test_batch_reshape_packed_batch_to_dim_axis0_2d()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=7 1=8 12=1\n";
+                             "Reshape reshape 1 1 data output 0=7 1=8 12=0 13=233\n";
 
     const int B = 2;
     const int H = 4;
@@ -1036,7 +1446,7 @@ static int test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=7 1=32 12=1\n";
+                             "Reshape reshape 1 1 data output 0=7 1=32 12=0 13=233\n";
 
     const int B = 2;
     const int H = 16;
@@ -1100,7 +1510,7 @@ static int test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked_nstep_padding(
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=5 1=12 12=1\n";
+                             "Reshape reshape 1 1 data output 0=5 1=12 12=0 13=233\n";
 
     const int B = 4;
     const int H = 3;
@@ -1164,7 +1574,7 @@ static int test_batch_reshape_packed_batch_to_dim_axis1()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=4 12=1 13=1\n";
+                             "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=4 12=1 13=233\n";
 
     const int B = 2;
     const int C = 4;
@@ -1236,7 +1646,7 @@ static int test_batch_reshape_packed_batch_to_dim_axis1_2d()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=7 1=2 2=4 12=1 13=1\n";
+                             "Reshape reshape 1 1 data output 0=7 1=2 2=4 12=1 13=233\n";
 
     const int B = 2;
     const int H = 4;
@@ -1307,7 +1717,7 @@ static int test_batch_reshape_batch_to_dim_axis1_pack1topacked()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=4 12=1 13=1\n";
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=4 12=1 13=233\n";
 
     const int B = 2;
     const int C = 4;
@@ -1372,7 +1782,7 @@ static int test_batch_reshape_packed_dim_to_batch_axis0()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=7 1=5 2=4 12=2\n";
+                             "Reshape reshape 1 1 data output 0=7 1=5 11=4 2=2 12=233 13=0\n";
 
     const int B = 2;
     const int C = 4;
@@ -1443,7 +1853,7 @@ static int test_batch_reshape_packed_dim_to_batch_axis0_2d()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=7 1=4 12=2\n";
+                             "Reshape reshape 1 1 data output 0=7 1=4 2=2 12=233 13=0\n";
 
     const int B = 2;
     const int H = 4;
@@ -1513,7 +1923,7 @@ static int test_batch_reshape_dim_to_batch_axis0_2d_pack1topacked()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=7 1=16 12=2\n";
+                             "Reshape reshape 1 1 data output 0=7 1=16 2=2 12=233 13=0\n";
 
     const int B = 2;
     const int H = 16;
@@ -1576,7 +1986,7 @@ static int test_batch_reshape_dim_to_batch_axis0_2d_pack4topack1_nstep_padding()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=5 1=3 12=2\n";
+                             "Reshape reshape 1 1 data output 0=5 1=3 2=4 12=233 13=0\n";
 
     const int B = 4;
     const int H = 3;
@@ -1646,7 +2056,7 @@ static int test_batch_reshape_packed_dim_to_batch_axis1()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=7 1=5 2=4 12=2 13=1\n";
+                             "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=4 12=233 13=1\n";
 
     const int B = 2;
     const int C = 4;
@@ -1717,7 +2127,7 @@ static int test_batch_reshape_packed_dim_to_batch_axis1_2d()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=7 1=4 12=2 13=1\n";
+                             "Reshape reshape 1 1 data output 0=7 1=2 2=4 12=233 13=1\n";
 
     const int B = 2;
     const int H = 4;
@@ -1788,7 +2198,7 @@ static int test_batch_reshape_packed_dim_to_batch_axis1_4d()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=7 1=5 2=4 12=2 13=1\n";
+                             "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=4 12=233 13=1\n";
 
     const int B = 2;
     const int C = 4;
@@ -1855,12 +2265,79 @@ static int test_batch_reshape_packed_dim_to_batch_axis1_4d()
     return 0;
 }
 
+static int test_batch_reshape_dim_to_batch_axis1_negative_axis()
+{
+    const char param_str_ref[] = "7767517\n"
+                                 "2 2\n"
+                                 "Input   input   0 1 data\n"
+                                 "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=3 12=233 13=1\n";
+
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=3 12=233 13=-3\n";
+
+    const int B = 2;
+    const int C = 3;
+    const int H = 5;
+    const int W = 7;
+
+    ncnn::Mat input;
+    input.create(W, H, C * B, 4u, 1);
+    for (int q = 0; q < C; q++)
+    {
+        for (int b = 0; b < B; b++)
+        {
+            float* ptr = input.channel(q * B + b);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.load_param_mem(param_str_ref);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_axis1_negative_axis reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    net.load_param_mem(param_str);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_axis1_negative_axis extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-5f) != 0)
+    {
+        fprintf(stderr, "test_batch_reshape_dim_to_batch_axis1_negative_axis value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 static int test_batch_reshape_dim_to_batch_axis1_pack1topacked()
 {
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=5 1=3 2=4 12=2 13=1\n";
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=4 12=233 13=1\n";
 
     const int B = 2;
     const int C = 4;
@@ -1925,7 +2402,7 @@ static int test_batch_reshape_batch_to_dim_pack1topacked()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=5 1=3 2=12 12=1\n";
+                             "Reshape reshape 1 1 data output 0=5 1=3 2=12 12=0 13=233\n";
 
     const int B = 4;
     const int C = 3;
@@ -1990,7 +2467,7 @@ static int test_batch_reshape_batch_to_dim_pack1tohighpack()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=5 1=3 2=16 12=1\n";
+                             "Reshape reshape 1 1 data output 0=5 1=3 2=16 12=0 13=233\n";
 
     const int B = 4;
     const int C = 4;
@@ -2055,7 +2532,7 @@ static int test_batch_reshape_batch_to_dim_pack4topack1()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=60 1=2 12=1\n";
+                             "Reshape reshape 1 1 data output 0=60 1=2 12=0 13=233\n";
 
     const int B = 2;
     const int C = 4;
@@ -2127,7 +2604,7 @@ static int test_batch_reshape_dim_to_batch_pack1topacked()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=5 1=3 2=4 12=2\n";
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=4 2=3 12=233 13=0\n";
 
     const int B = 3;
     const int C = 4;
@@ -2192,7 +2669,7 @@ static int test_batch_reshape_dim_to_batch_pack1tohighpack()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=5 1=3 2=16 12=2\n";
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=16 2=2 12=233 13=0\n";
 
     const int B = 2;
     const int C = 16;
@@ -2256,7 +2733,7 @@ static int test_batch_reshape_dim_to_batch_pack4topack1()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=5 1=3 2=3 12=2\n";
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=3 2=4 12=233 13=0\n";
 
     const int B = 4;
     const int C = 3;
@@ -2329,7 +2806,7 @@ static int test_batch_reshape_bf16_storage_packed()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=5 1=3 2=12 12=1\n";
+                             "Reshape reshape 1 1 data output 0=5 1=3 2=12 12=0 13=233\n";
 
     const int B = 4;
     const int C = 3;
@@ -2404,7 +2881,7 @@ static int test_batch_reshape_bf16_storage_dim_to_batch_packed()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=5 1=3 2=12 12=2\n";
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=12 2=2 12=233 13=0\n";
 
     const int B = 2;
     const int C = 12;
@@ -2478,7 +2955,7 @@ static int test_batch_reshape_bf16_storage_axis1_packed()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=4 12=1 13=1\n";
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=4 12=1 13=233\n";
 
     const int B = 2;
     const int C = 4;
@@ -2554,7 +3031,7 @@ static int test_batch_reshape_dim_to_batch_no_infer()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=-1 1=3 2=2 12=2\n";
+                             "Reshape reshape 1 1 data output 0=-1 1=3 11=2 2=-1 12=233 13=0\n";
 
     ncnn::Net net;
     net.load_param_mem(param_str);
@@ -2581,8 +3058,8 @@ static int test_batch_reshape_roundtrip_axis1()
     const char param_str[] = "7767517\n"
                              "3 3\n"
                              "Input   input   0 1 data\n"
-                             "Reshape d2b     1 1 data tmp 0=7 1=5 2=3 12=2 13=1\n"
-                             "Reshape b2d     1 1 tmp output 0=7 1=5 11=2 2=3 12=1 13=1\n";
+                             "Reshape d2b     1 1 data tmp 0=7 1=5 11=2 2=3 12=233 13=1\n"
+                             "Reshape b2d     1 1 tmp output 0=7 1=5 11=2 2=3 12=1 13=233\n";
 
     ncnn::Net net;
     net.load_param_mem(param_str);
@@ -2631,8 +3108,8 @@ static int test_batch_reshape_roundtrip_axis2()
     const char param_str[] = "7767517\n"
                              "3 3\n"
                              "Input   input   0 1 data\n"
-                             "Reshape d2b     1 1 data tmp 0=7 1=5 2=3 12=2 13=2\n"
-                             "Reshape b2d     1 1 tmp output 0=7 1=2 11=5 2=3 12=1 13=2\n";
+                             "Reshape d2b     1 1 data tmp 0=7 1=2 11=5 2=3 12=233 13=2\n"
+                             "Reshape b2d     1 1 tmp output 0=7 1=2 11=5 2=3 12=2 13=233\n";
 
     ncnn::Net net;
     net.load_param_mem(param_str);
@@ -2684,8 +3161,8 @@ static int test_batch_reshape_roundtrip()
     const char param_str[] = "7767517\n"
                              "3 3\n"
                              "Input   input    0 1 data\n"
-                             "Reshape b2d      1 1 data tmp 0=5 1=3 11=2 2=-1 12=1\n"
-                             "Reshape d2b      1 1 tmp output 0=5 1=3 2=2 12=2\n";
+                             "Reshape b2d      1 1 data tmp 0=5 1=3 11=2 2=-1 12=0 13=233\n"
+                             "Reshape d2b      1 1 tmp output 0=5 1=3 11=2 2=3 12=233 13=0\n";
 
     ncnn::Net net;
     net.load_param_mem(param_str);
@@ -2734,7 +3211,7 @@ static int test_batch_reshape_permute_fold()
     const char param_str[] = "7767517\n"
                              "4 4\n"
                              "Input   input   0 1 data\n"
-                             "Reshape b2d     1 1 data tmp0 0=5 1=3 11=2 2=3 12=1\n"
+                             "Reshape b2d     1 1 data tmp0 0=5 1=3 11=2 2=3 12=0 13=233\n"
                              "Permute permute 1 1 tmp0 tmp1 0=6\n"
                              "Reshape reshape 1 1 tmp1 output 0=5 1=3 2=6\n";
 
@@ -2803,7 +3280,7 @@ static int test_batch_reshape_permute_extract()
                              "3 3\n"
                              "Input   input   0 1 data\n"
                              "Permute permute 1 1 data tmp 0=6\n"
-                             "Reshape d2b     1 1 tmp output 0=5 1=3 2=2 12=2\n";
+                             "Reshape d2b     1 1 tmp output 0=5 1=3 11=2 2=3 12=233 13=0\n";
 
     ncnn::Net net;
     net.load_param_mem(param_str);
@@ -4516,11 +4993,14 @@ static int test_vkmat_batch_forward_reshape_batch_to_dim()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=-1 12=1\n";
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=-1 12=0 13=233\n";
 
     ncnn::Net net;
     ncnn::Option opt;
     opt.use_vulkan_compute = true;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
     net.opt = opt;
     net.load_param_mem(param_str);
     net.load_model((const unsigned char*)"");
@@ -4587,11 +5067,14 @@ static int test_vkmat_batch_forward_reshape_dim_to_batch()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=5 1=3 2=2 12=2\n";
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=3 12=233 13=0\n";
 
     ncnn::Net net;
     ncnn::Option opt;
     opt.use_vulkan_compute = true;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
     net.opt = opt;
     net.load_param_mem(param_str);
     net.load_model((const unsigned char*)"");
@@ -4653,12 +5136,236 @@ static int test_vkmat_batch_forward_reshape_dim_to_batch()
     return 0;
 }
 
+static int test_vkmat_batch_forward_reshape_negative_axis()
+{
+    const char param_str_ref[] = "7767517\n"
+                                 "2 2\n"
+                                 "Input   input   0 1 data\n"
+                                 "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=-1 12=0 13=233\n";
+
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=-1 12=-4 13=233\n";
+
+    const int B = 3;
+    const int C = 2;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input_batch;
+    input_batch.create(W, H, C, 4u, 1, B);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str_ref);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_reshape_negative_axis reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    ncnn::Option opt;
+    opt.use_vulkan_compute = true;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    net.opt = opt;
+    net.load_param_mem(param_str);
+    net.load_model((const unsigned char*)"");
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_reshape_negative_axis extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-4f) != 0)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_reshape_negative_axis value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_vkmat_batch_forward_reshape_shape_expr()
+{
+    const char param_str_ref[] = "7767517\n"
+                                 "2 2\n"
+                                 "Input   input   0 1 data\n"
+                                 "Reshape reshape 1 1 data output 0=5 1=3 11=2 2=3 12=0 13=233\n";
+
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data output 6=\"0w,0h,0c,0n\" 12=0 13=233\n";
+
+    const int B = 3;
+    const int C = 2;
+    const int H = 3;
+    const int W = 5;
+
+    ncnn::Mat input_batch;
+    input_batch.create(W, H, C, 4u, 1, B);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str_ref);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_reshape_shape_expr reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    ncnn::Option opt;
+    opt.use_vulkan_compute = true;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    net.opt = opt;
+    net.load_param_mem(param_str);
+    net.load_model((const unsigned char*)"");
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_reshape_shape_expr extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-4f) != 0)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_reshape_shape_expr value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_vkmat_batch_forward_reshape_same_axis_relu()
+{
+    const char param_str[] = "7767517\n"
+                             "3 3\n"
+                             "Input   input   0 1 data\n"
+                             "Reshape reshape 1 1 data reshaped 0=4 1=2 11=3 2=3 12=0 13=0\n"
+                             "ReLU    relu    1 1 reshaped output 0=1.000000e-01\n";
+
+    const int B = 3;
+    const int C = 2;
+    const int H = 3;
+    const int W = 4;
+
+    ncnn::Mat input_batch;
+    input_batch.create(W, H, C, 4u, 1, B);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 20 + i - 8);
+            }
+        }
+    }
+
+    ncnn::Net net_ref;
+    net_ref.opt.use_packing_layout = false;
+    net_ref.load_param_mem(param_str);
+
+    ncnn::Extractor ex_ref = net_ref.create_extractor();
+    ex_ref.input("data", input_batch);
+
+    ncnn::Mat output_ref;
+    int ret = ex_ref.extract("output", output_ref);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_reshape_same_axis_relu reference extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    ncnn::Net net;
+    ncnn::Option opt;
+    opt.use_vulkan_compute = true;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    net.opt = opt;
+    net.load_param_mem(param_str);
+    net.load_model((const unsigned char*)"");
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output;
+    ret = ex.extract("output", output);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_reshape_same_axis_relu extract failed ret=%d\n", ret);
+        return -1;
+    }
+    if (CompareMat(output_ref, output, 1e-4f) != 0)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_reshape_same_axis_relu value mismatch\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 static int test_vkmat_batch_forward_reshape_dim_to_batch_axis1()
 {
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=7 1=5 2=3 12=2 13=1\n";
+                             "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=3 12=233 13=1\n";
 
     ncnn::Net net;
     ncnn::Option opt;
@@ -4728,7 +5435,7 @@ static int test_vkmat_batch_forward_reshape_batch_to_dim_axis1()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=3 12=1 13=1\n";
+                             "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=3 12=1 13=233\n";
 
     ncnn::Net net;
     ncnn::Option opt;
@@ -4799,7 +5506,7 @@ static int test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=-1 12=1\n";
+                             "Reshape reshape 1 1 data output 0=-1 12=0 13=233\n";
 
     const int B = 2;
     const int C = 3;
@@ -4876,7 +5583,7 @@ static int test_vkmat_batch_forward_reshape_packed_batch_to_dim_axis1()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=4 12=1 13=1\n";
+                             "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=4 12=1 13=233\n";
 
     const int B = 2;
     const int C = 4;
@@ -4953,7 +5660,7 @@ static int test_vkmat_batch_forward_reshape_dim_to_batch_pack4to1()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=5 1=3 2=3 12=2\n";
+                             "Reshape reshape 1 1 data output 0=5 1=3 11=3 2=4 12=233 13=0\n";
 
     const int B = 4;
     const int C = 3;
@@ -5030,7 +5737,7 @@ static int test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1()
     const char param_str[] = "7767517\n"
                              "2 2\n"
                              "Input   input   0 1 data\n"
-                             "Reshape reshape 1 1 data output 0=7 1=5 2=4 12=2 13=1\n";
+                             "Reshape reshape 1 1 data output 0=7 1=5 11=2 2=4 12=233 13=1\n";
 
     const int B = 2;
     const int C = 4;
@@ -5118,9 +5825,15 @@ int main()
               || test_batch_reshape_zero_copy()
               || test_batch_reshape_batch_to_dim_flatten()
               || test_batch_reshape_batch_to_dim_4d()
+              || test_batch_reshape_batch_to_dim_negative_axis()
+              || test_batch_reshape_batch_to_dim_shape_expr()
               || test_batch_reshape_dim_to_batch()
+              || test_batch_reshape_dim_to_batch_negative_axis()
+              || test_batch_reshape_output_batch_axis_negative_tail()
               || test_batch_reshape_dim_to_batch_axis1()
               || test_batch_reshape_batch_to_dim_axis1()
+              || test_batch_reshape_batch_to_dim_axis1_negative_axis()
+              || test_batch_reshape_input_batch_axis_negative_tail()
               || test_batch_reshape_packed_batch_to_dim_axis0()
               || test_batch_reshape_packed_batch_to_dim_axis0_2d()
               || test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked()
@@ -5136,6 +5849,7 @@ int main()
               || test_batch_reshape_packed_dim_to_batch_axis1()
               || test_batch_reshape_packed_dim_to_batch_axis1_2d()
               || test_batch_reshape_packed_dim_to_batch_axis1_4d()
+              || test_batch_reshape_dim_to_batch_axis1_negative_axis()
               || test_batch_reshape_dim_to_batch_axis1_pack1topacked()
               || test_batch_reshape_batch_to_dim_pack1topacked()
               || test_batch_reshape_batch_to_dim_pack1tohighpack()
@@ -5201,6 +5915,9 @@ int main()
               || test_vktransfer_batch_upload()
               || test_vkmat_batch_forward_reshape_batch_to_dim()
               || test_vkmat_batch_forward_reshape_dim_to_batch()
+              || test_vkmat_batch_forward_reshape_negative_axis()
+              || test_vkmat_batch_forward_reshape_shape_expr()
+              || test_vkmat_batch_forward_reshape_same_axis_relu()
               || test_vkmat_batch_forward_reshape_dim_to_batch_axis1()
               || test_vkmat_batch_forward_reshape_batch_to_dim_axis1()
               || test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4()

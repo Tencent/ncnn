@@ -14,8 +14,8 @@ Reshape::Reshape()
     one_blob_only = true;
     support_inplace = false;
 #if NCNN_BATCH
-    batch_mode = 0;
-    batch_axis = 0;
+    input_batch_axis = 233;
+    output_batch_axis = 233;
 #endif
 }
 
@@ -37,14 +37,14 @@ int Reshape::load_param(const ParamDict& pd)
         ndim = 0;
 
 #if NCNN_BATCH
-    batch_mode = pd.get(12, 0);
-    batch_axis = pd.get(13, 0);
-    if (batch_mode != 0)
+    input_batch_axis = pd.get(12, 233);
+    output_batch_axis = pd.get(13, 233);
+    if (input_batch_axis != 233 || output_batch_axis != 233)
     {
         support_batch = true;
     }
 #else
-    if (pd.get(12, 0) != 0)
+    if (pd.get(12, 233) != 233 || pd.get(13, 233) != 233)
     {
         NCNN_LOGE("please build ncnn with NCNN_BATCH enabled for batch inference");
         return -1;
@@ -83,6 +83,44 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     return ret;
 }
 
+#if NCNN_BATCH
+static size_t get_batch_reshape_offset(const Mat& m, const int* shape, int dims, int batch_axis, size_t i)
+{
+    int coord[5] = {0, 0, 0, 0, 0};
+    for (int j = dims - 1; j >= 0; j--)
+    {
+        coord[j] = (int)(i % shape[j]);
+        i /= shape[j];
+    }
+
+    int b = 0;
+    int p[4] = {0, 0, 0, 0};
+    int pdims = 0;
+    for (int j = 0; j < dims; j++)
+    {
+        if (j == batch_axis)
+        {
+            b = coord[j];
+            continue;
+        }
+
+        p[pdims++] = coord[j];
+    }
+
+    size_t offset = (size_t)b * m.nstep;
+    if (pdims == 1)
+        offset += p[0];
+    if (pdims == 2)
+        offset += (size_t)p[0] * m.w + p[1];
+    if (pdims == 3)
+        offset += (size_t)p[0] * m.cstep + (size_t)p[1] * m.w + p[2];
+    if (pdims == 4)
+        offset += (size_t)p[0] * m.cstep + (size_t)p[1] * m.w * m.h + (size_t)p[2] * m.w + p[3];
+
+    return offset;
+}
+#endif // NCNN_BATCH
+
 int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
@@ -94,30 +132,246 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
     int outd = d;
     int outc = c;
 
+#if NCNN_BATCH
+    if (!shape_expr.empty() && input_batch_axis == 233 && output_batch_axis == 233)
+#else
     if (!shape_expr.empty())
+#endif
     {
         eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
     }
 
 #if NCNN_BATCH
-    if (batch_mode == 2 && (outw == -1 || outh == -1 || outd == -1 || outc == -1))
-        return -1;
-#else
-    const int batch_mode = 0;
+    if (input_batch_axis != 233 || output_batch_axis != 233)
+    {
+        if (bottom_blob.elempack != 1)
+            return -1;
+
+        int physical_input_shape[4] = {0, 0, 0, 0};
+        if (bottom_blob.dims == 1)
+            physical_input_shape[0] = bottom_blob.w;
+        if (bottom_blob.dims == 2)
+        {
+            physical_input_shape[0] = bottom_blob.h;
+            physical_input_shape[1] = bottom_blob.w;
+        }
+        if (bottom_blob.dims == 3)
+        {
+            physical_input_shape[0] = bottom_blob.c;
+            physical_input_shape[1] = bottom_blob.h;
+            physical_input_shape[2] = bottom_blob.w;
+        }
+        if (bottom_blob.dims == 4)
+        {
+            physical_input_shape[0] = bottom_blob.c;
+            physical_input_shape[1] = bottom_blob.d;
+            physical_input_shape[2] = bottom_blob.h;
+            physical_input_shape[3] = bottom_blob.w;
+        }
+
+        int input_axis = input_batch_axis;
+        if (input_axis < 0)
+            input_axis += bottom_blob.dims + 1;
+
+        int input_shape[5] = {0, 0, 0, 0, 0};
+        int input_dims = bottom_blob.dims;
+        if (input_axis != 233)
+        {
+            if (input_axis < 0 || input_axis > bottom_blob.dims)
+                return -1;
+
+            input_dims = bottom_blob.dims + 1;
+            for (int i = 0; i < input_dims; i++)
+            {
+                if (i < input_axis)
+                    input_shape[i] = physical_input_shape[i];
+                else if (i == input_axis)
+                    input_shape[i] = bottom_blob.n;
+                else
+                    input_shape[i] = physical_input_shape[i - 1];
+            }
+        }
+        else
+        {
+            if (bottom_blob.n != 1)
+                return -1;
+
+            for (int i = 0; i < input_dims; i++)
+                input_shape[i] = physical_input_shape[i];
+        }
+
+        std::vector<int> output_shape;
+        if (!shape_expr.empty())
+        {
+            int er = eval_list_expression(shape_expr, bottom_blobs, output_shape);
+            if (er != 0)
+                return -1;
+
+            for (size_t i = 0; i < output_shape.size() / 2; i++)
+            {
+                int tmp = output_shape[i];
+                output_shape[i] = output_shape[output_shape.size() - 1 - i];
+                output_shape[output_shape.size() - 1 - i] = tmp;
+            }
+        }
+        else
+        {
+            if (ndim == 1)
+                output_shape.push_back(outw);
+            if (ndim == 2)
+            {
+                output_shape.push_back(outh);
+                output_shape.push_back(outw);
+            }
+            if (ndim == 3)
+            {
+                output_shape.push_back(outc);
+                output_shape.push_back(outh);
+                output_shape.push_back(outw);
+            }
+            if (ndim == 4)
+            {
+                output_shape.push_back(outc);
+                output_shape.push_back(outd);
+                output_shape.push_back(outh);
+                output_shape.push_back(outw);
+            }
+        }
+
+        const int output_dims = (int)output_shape.size();
+        if (output_dims == 0 || output_dims > 5)
+            return -1;
+
+        int output_axis = output_batch_axis;
+        if (output_axis < 0)
+            output_axis += output_dims;
+
+        if (output_axis != 233 && (output_axis < 0 || output_axis >= output_dims))
+            return -1;
+
+        size_t input_total = 1;
+        for (int i = 0; i < input_dims; i++)
+            input_total *= input_shape[i];
+
+        size_t output_total = 1;
+        int remaining_axis = -1;
+        for (int i = 0; i < output_dims; i++)
+        {
+            if (output_shape[i] == 0)
+            {
+                if (i >= input_dims)
+                    return -1;
+
+                output_shape[i] = input_shape[i];
+            }
+
+            if (output_shape[i] == -1)
+            {
+                if (remaining_axis != -1)
+                    return -1;
+
+                remaining_axis = i;
+                continue;
+            }
+
+            if (output_shape[i] <= 0)
+                return -1;
+
+            output_total *= output_shape[i];
+        }
+
+        if (remaining_axis != -1)
+        {
+            if (output_total == 0 || input_total % output_total != 0)
+                return -1;
+
+            output_shape[remaining_axis] = (int)(input_total / output_total);
+            output_total *= output_shape[remaining_axis];
+        }
+
+        if (input_total != output_total)
+            return -1;
+
+        int batch = 1;
+        int physical_output_shape[4] = {0, 0, 0, 0};
+        int physical_output_dims = 0;
+        for (int i = 0; i < output_dims; i++)
+        {
+            if (i == output_axis)
+            {
+                batch = output_shape[i];
+                continue;
+            }
+
+            if (physical_output_dims == 4)
+                return -1;
+
+            physical_output_shape[physical_output_dims++] = output_shape[i];
+        }
+
+        if (physical_output_dims == 0)
+            return -1;
+
+        if (input_axis == output_axis && batch == bottom_blob.n)
+        {
+            if (physical_output_dims == 1)
+                top_blob = bottom_blob.reshape(physical_output_shape[0], opt.blob_allocator);
+            if (physical_output_dims == 2)
+                top_blob = bottom_blob.reshape(physical_output_shape[1], physical_output_shape[0], opt.blob_allocator);
+            if (physical_output_dims == 3)
+                top_blob = bottom_blob.reshape(physical_output_shape[2], physical_output_shape[1], physical_output_shape[0], opt.blob_allocator);
+            if (physical_output_dims == 4)
+                top_blob = bottom_blob.reshape(physical_output_shape[3], physical_output_shape[2], physical_output_shape[1], physical_output_shape[0], opt.blob_allocator);
+
+            if (top_blob.empty())
+                return -100;
+
+            return 0;
+        }
+
+        if (physical_output_dims == 1)
+            top_blob.create(physical_output_shape[0], bottom_blob.elemsize, 1, batch, opt.blob_allocator);
+        if (physical_output_dims == 2)
+            top_blob.create(physical_output_shape[1], physical_output_shape[0], bottom_blob.elemsize, 1, batch, opt.blob_allocator);
+        if (physical_output_dims == 3)
+            top_blob.create(physical_output_shape[2], physical_output_shape[1], physical_output_shape[0], bottom_blob.elemsize, 1, batch, opt.blob_allocator);
+        if (physical_output_dims == 4)
+            top_blob.create(physical_output_shape[3], physical_output_shape[2], physical_output_shape[1], physical_output_shape[0], bottom_blob.elemsize, 1, batch, opt.blob_allocator);
+
+        if (top_blob.empty())
+            return -100;
+
+        const unsigned char* ptr = (const unsigned char*)bottom_blob;
+        unsigned char* outptr = (unsigned char*)top_blob;
+        for (size_t i = 0; i < input_total;)
+        {
+            const size_t srcoff = get_batch_reshape_offset(bottom_blob, input_shape, input_dims, input_axis, i);
+            const size_t dstoff = get_batch_reshape_offset(top_blob, &output_shape[0], output_dims, output_axis, i);
+
+            size_t size = 1;
+            while (i + size < input_total)
+            {
+                const size_t srcoff1 = get_batch_reshape_offset(bottom_blob, input_shape, input_dims, input_axis, i + size);
+                const size_t dstoff1 = get_batch_reshape_offset(top_blob, &output_shape[0], output_dims, output_axis, i + size);
+                if (srcoff1 != srcoff + size || dstoff1 != dstoff + size)
+                    break;
+
+                size++;
+            }
+
+            memcpy(outptr + dstoff * bottom_blob.elemsize, ptr + srcoff * bottom_blob.elemsize, size * bottom_blob.elemsize);
+
+            i += size;
+        }
+
+        return 0;
+    }
+
 #endif
 
     int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
-#if NCNN_BATCH
-    if (batch_mode == 1)
-        total *= bottom_blob.n;
-#endif
 
     int dims = bottom_blob.dims;
-
-#if NCNN_BATCH
-    if (batch_mode != 0 && ndim == 0)
-        return -1;
-#endif
 
     if (ndim == 1)
     {
@@ -127,7 +381,7 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         if (outw == -1)
             outw = total;
 
-        if (batch_mode == 0 && dims == 1 && bottom_blob.w == outw)
+        if (dims == 1 && bottom_blob.w == outw)
         {
             top_blob = bottom_blob;
             return 0;
@@ -145,7 +399,7 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         if (outh == -1)
             outh = total / outw;
 
-        if (batch_mode == 0 && dims == 2 && bottom_blob.h == outh)
+        if (dims == 2 && bottom_blob.h == outh)
         {
             top_blob = bottom_blob;
             return 0;
@@ -167,7 +421,7 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         if (outc == -1)
             outc = total / outh / outw;
 
-        if (batch_mode == 0 && dims == 3 && bottom_blob.c == outc)
+        if (dims == 3 && bottom_blob.c == outc)
         {
             top_blob = bottom_blob;
             top_blob.w = outw;
@@ -195,7 +449,7 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         if (outc == -1)
             outc = total / outd / outh / outw;
 
-        if (batch_mode == 0 && dims == 4 && bottom_blob.c == outc)
+        if (dims == 4 && bottom_blob.c == outc)
         {
             top_blob = bottom_blob;
             top_blob.w = outw;
@@ -205,267 +459,6 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         }
     }
 
-#if NCNN_BATCH
-    if (batch_mode == 1)
-    {
-        if (bottom_blob.elempack != 1)
-            return -1;
-
-        int shape[4] = {0, 0, 0, 0};
-        if (ndim == 1)
-            shape[0] = outw;
-        if (ndim == 2)
-        {
-            shape[0] = outh;
-            shape[1] = outw;
-        }
-        if (ndim == 3)
-        {
-            shape[0] = outc;
-            shape[1] = outh;
-            shape[2] = outw;
-        }
-        if (ndim == 4)
-        {
-            shape[0] = outc;
-            shape[1] = outd;
-            shape[2] = outh;
-            shape[3] = outw;
-        }
-
-        if (batch_axis != 0)
-        {
-            size_t prefix = 1;
-            for (int i = 0; i < batch_axis; i++)
-                prefix *= shape[i];
-
-            size_t suffix = 1;
-            for (int i = batch_axis + 1; i < ndim; i++)
-                suffix *= shape[i];
-
-            if (ndim == 1)
-                top_blob.create(outw, bottom_blob.elemsize, 1, opt.blob_allocator);
-            if (ndim == 2)
-                top_blob.create(outw, outh, bottom_blob.elemsize, 1, opt.blob_allocator);
-            if (ndim == 3)
-                top_blob.create(outw, outh, outc, bottom_blob.elemsize, 1, opt.blob_allocator);
-            if (ndim == 4)
-                top_blob.create(outw, outh, outd, outc, bottom_blob.elemsize, 1, opt.blob_allocator);
-
-            if (top_blob.empty())
-                return -100;
-
-            const size_t bottom_channel_size = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.d;
-            const size_t top_channel_size = (size_t)top_blob.w * top_blob.h * top_blob.d;
-            for (size_t p = 0; p < prefix; p++)
-            {
-                for (int b = 0; b < bottom_blob.n; b++)
-                {
-                    size_t srci = p * suffix;
-                    size_t dsti = (p * bottom_blob.n + b) * suffix;
-                    size_t remain = suffix;
-                    while (remain > 0)
-                    {
-                        const size_t sq = srci / bottom_channel_size;
-                        const size_t sr = srci - sq * bottom_channel_size;
-                        const size_t dq = dsti / top_channel_size;
-                        const size_t dr = dsti - dq * top_channel_size;
-
-                        size_t size = remain;
-                        if (size > bottom_channel_size - sr)
-                            size = bottom_channel_size - sr;
-                        if (size > top_channel_size - dr)
-                            size = top_channel_size - dr;
-
-                        const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + sq * bottom_blob.cstep + sr) * bottom_blob.elemsize;
-                        unsigned char* outptr = (unsigned char*)top_blob + (dq * top_blob.cstep + dr) * bottom_blob.elemsize;
-
-                        memcpy(outptr, ptr, size * bottom_blob.elemsize);
-
-                        srci += size;
-                        dsti += size;
-                        remain -= size;
-                    }
-                }
-            }
-
-            return 0;
-        }
-
-        Mat bottom_blob_flattened(total, bottom_blob.elemsize, opt.blob_allocator);
-        if (bottom_blob_flattened.empty())
-            return -100;
-
-        unsigned char* outptr = bottom_blob_flattened;
-        const size_t size = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.elemsize;
-        for (int b = 0; b < bottom_blob.n; b++)
-        {
-            const Mat bottom_blob_b = bottom_blob.batch(b);
-            for (int q = 0; q < bottom_blob.c; q++)
-            {
-                const unsigned char* ptr = (const unsigned char*)bottom_blob_b + bottom_blob.cstep * q * bottom_blob.elemsize;
-                memcpy(outptr, ptr, size);
-                outptr += size;
-            }
-        }
-
-        if (ndim == 1)
-            top_blob = bottom_blob_flattened.reshape(outw, opt.blob_allocator);
-        if (ndim == 2)
-            top_blob = bottom_blob_flattened.reshape(outw, outh, opt.blob_allocator);
-        if (ndim == 3)
-            top_blob = bottom_blob_flattened.reshape(outw, outh, outc, opt.blob_allocator);
-        if (ndim == 4)
-            top_blob = bottom_blob_flattened.reshape(outw, outh, outd, outc, opt.blob_allocator);
-
-        if (top_blob.empty())
-            return -100;
-
-        return 0;
-    }
-
-    if (batch_mode == 2)
-    {
-        if (bottom_blob.n != 1 || bottom_blob.elempack != 1)
-            return -1;
-
-        size_t out_total = outw;
-        if (ndim == 2)
-            out_total *= outh;
-        if (ndim == 3)
-            out_total *= (size_t)outh * outc;
-        if (ndim == 4)
-            out_total *= (size_t)outh * outd * outc;
-
-        if (out_total == 0)
-            return -1;
-
-        const size_t bottom_total = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
-        const int batch = bottom_total / out_total;
-        if ((size_t)batch * out_total != bottom_total)
-            return -1;
-
-        if (batch_axis != 0)
-        {
-            int shape[4] = {0, 0, 0, 0};
-            if (ndim == 1)
-                shape[0] = outw;
-            if (ndim == 2)
-            {
-                shape[0] = outh;
-                shape[1] = outw;
-            }
-            if (ndim == 3)
-            {
-                shape[0] = outc;
-                shape[1] = outh;
-                shape[2] = outw;
-            }
-            if (ndim == 4)
-            {
-                shape[0] = outc;
-                shape[1] = outd;
-                shape[2] = outh;
-                shape[3] = outw;
-            }
-
-            size_t prefix = 1;
-            for (int i = 0; i < batch_axis; i++)
-                prefix *= shape[i];
-
-            size_t suffix = 1;
-            for (int i = batch_axis; i < ndim; i++)
-                suffix *= shape[i];
-
-            if (ndim == 1)
-                top_blob.create(outw, bottom_blob.elemsize, 1, batch, opt.blob_allocator);
-            if (ndim == 2)
-                top_blob.create(outw, outh, bottom_blob.elemsize, 1, batch, opt.blob_allocator);
-            if (ndim == 3)
-                top_blob.create(outw, outh, outc, bottom_blob.elemsize, 1, batch, opt.blob_allocator);
-            if (ndim == 4)
-                top_blob.create(outw, outh, outd, outc, bottom_blob.elemsize, 1, batch, opt.blob_allocator);
-
-            if (top_blob.empty())
-                return -100;
-
-            const size_t bottom_channel_size = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.d;
-            const size_t top_channel_size = (size_t)top_blob.w * top_blob.h * top_blob.d;
-            for (size_t p = 0; p < prefix; p++)
-            {
-                for (int b = 0; b < batch; b++)
-                {
-                    size_t srci = (p * batch + b) * suffix;
-                    size_t dsti = p * suffix;
-                    size_t remain = suffix;
-                    while (remain > 0)
-                    {
-                        const size_t sq = srci / bottom_channel_size;
-                        const size_t sr = srci - sq * bottom_channel_size;
-                        const size_t dq = dsti / top_channel_size;
-                        const size_t dr = dsti - dq * top_channel_size;
-
-                        size_t size = remain;
-                        if (size > bottom_channel_size - sr)
-                            size = bottom_channel_size - sr;
-                        if (size > top_channel_size - dr)
-                            size = top_channel_size - dr;
-
-                        const unsigned char* ptr = (const unsigned char*)bottom_blob + (sq * bottom_blob.cstep + sr) * bottom_blob.elemsize;
-                        unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + dq * top_blob.cstep + dr) * bottom_blob.elemsize;
-
-                        memcpy(outptr, ptr, size * bottom_blob.elemsize);
-
-                        srci += size;
-                        dsti += size;
-                        remain -= size;
-                    }
-                }
-            }
-
-            return 0;
-        }
-
-        Mat bottom_blob_flattened(bottom_total, bottom_blob.elemsize, opt.workspace_allocator);
-        if (bottom_blob_flattened.empty())
-            return -100;
-
-        unsigned char* outptr = bottom_blob_flattened;
-        const size_t size = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.elemsize;
-        for (int q = 0; q < bottom_blob.c; q++)
-        {
-            const unsigned char* ptr = (const unsigned char*)bottom_blob + bottom_blob.cstep * q * bottom_blob.elemsize;
-            memcpy(outptr, ptr, size);
-            outptr += size;
-        }
-
-        if (ndim == 1)
-            top_blob.create(outw, bottom_blob.elemsize, 1, batch, opt.blob_allocator);
-        if (ndim == 2)
-            top_blob.create(outw, outh, bottom_blob.elemsize, 1, batch, opt.blob_allocator);
-        if (ndim == 3)
-            top_blob.create(outw, outh, outc, bottom_blob.elemsize, 1, batch, opt.blob_allocator);
-        if (ndim == 4)
-            top_blob.create(outw, outh, outd, outc, bottom_blob.elemsize, 1, batch, opt.blob_allocator);
-
-        if (top_blob.empty())
-            return -100;
-
-        const unsigned char* ptr = bottom_blob_flattened;
-        const size_t out_channel_size = (size_t)top_blob.w * top_blob.h * top_blob.d * bottom_blob.elemsize;
-        for (int b = 0; b < batch; b++)
-        {
-            Mat top_blob_b = top_blob.batch(b);
-            for (int q = 0; q < top_blob.c; q++)
-            {
-                memcpy(top_blob_b.channel(q), ptr, out_channel_size);
-                ptr += out_channel_size;
-            }
-        }
-
-        return 0;
-    }
-#endif // NCNN_BATCH
 
     if (ndim == 1)
     {

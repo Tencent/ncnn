@@ -127,12 +127,12 @@ void convert_Tensor_slice_copy(Graph& graph)
                 continue;
 
             const int batch_index = op->inputs[0]->params["__batch_index"].i;
-            const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
+            const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
             {
                 int input_rank = op->inputs[0]->shape.size();
 
-                if (batch_index >= 0 && batch_index < input_rank && batch_in_shape == 0)
+                if (ncnn_batch_axis >= 0 && ncnn_batch_axis < input_rank)
                     input_rank -= 1;
 
                 if (input_rank > 4)
@@ -152,7 +152,7 @@ void convert_Tensor_slice_copy(Graph& graph)
                 }
                 axes_in_shape[i] = axes[i];
 
-                if (batch_index != 233 && batch_in_shape == 0 && axes[i] == batch_index)
+                if (axes[i] == ncnn_batch_axis)
                 {
                     if (starts[i] != 0 || ends[i] != INT_MAX)
                     {
@@ -164,7 +164,7 @@ void convert_Tensor_slice_copy(Graph& graph)
                     continue;
                 }
 
-                if (batch_index != 233 && batch_in_shape == 0 && axes[i] > batch_index)
+                if (ncnn_batch_axis != 233 && axes[i] > ncnn_batch_axis)
                     axes[i] -= 1;
 
                 if (ends[i] == INT_MAX)
@@ -222,7 +222,7 @@ void convert_Tensor_slice_copy(Graph& graph)
                 Operand* reshape_out = graph.new_operand(op->name + "_ncnnreshape_out");
 
                 reshape_out->params["__batch_index"] = batch_index;
-                reshape_out->params["__ncnn_batch_in_shape"] = batch_in_shape;
+                reshape_out->params["__ncnn_batch_axis"] = ncnn_batch_axis;
 
                 reshape->inputs.push_back(in);
                 reshape->outputs.push_back(reshape_out);

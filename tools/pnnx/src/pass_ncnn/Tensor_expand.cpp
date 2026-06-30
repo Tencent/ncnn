@@ -34,8 +34,7 @@ pnnx.Output             output      1 0 out
     {
         const std::vector<int>& sizes = captured_params.at("sizes").ai;
 
-        const int batch_index = op->outputs[0]->params["__batch_index"].i;
-        const int batch_in_shape = op->outputs[0]->params["__ncnn_batch_in_shape"].i;
+        const int ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
 
         const std::vector<int> shape = op->inputs[0]->shape;
         if (shape.empty())
@@ -61,16 +60,14 @@ pnnx.Output             output      1 0 out
             const int shape_index = i - rank_offset;
             const int shape_dim = shape_index >= 0 ? shape[shape_index] : 1;
 
-            if (i == batch_index)
+            if (i == ncnn_batch_axis)
             {
                 if (sizes[i] != -1 && sizes[i] != shape_dim)
                 {
-                    fprintf(stderr, "expand tensor along batch index %d is not supported yet!\n", batch_index);
-                    if (batch_in_shape == 0)
-                        return;
+                    fprintf(stderr, "expand tensor along batch index %d is not supported yet!\n", ncnn_batch_axis);
+                    return;
                 }
-                if (batch_in_shape == 0)
-                    continue;
+                continue;
             }
 
             int repeat = 1;
@@ -82,7 +79,7 @@ pnnx.Output             output      1 0 out
             repeats.push_back(repeat);
         }
 
-        if (repeats.size() == 5 && batch_index == 233)
+        if (repeats.size() == 5 && ncnn_batch_axis == 233)
         {
             if (repeats[0] == 1)
             {

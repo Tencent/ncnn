@@ -26,8 +26,7 @@ void convert_torch_split(Graph& graph)
             continue;
         }
 
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
-        const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
         int axis = op->params.at("dim").i;
         if (axis < 0)
@@ -37,13 +36,14 @@ void convert_torch_split(Graph& graph)
                 axis = input_rank + axis;
         }
 
-        if (batch_index != 233 && batch_in_shape == 0 && axis == batch_index)
+        if (axis == ncnn_batch_axis)
         {
-            fprintf(stderr, "split along batch axis %d is not supported\n", batch_index);
-            axis = 0;
+            fprintf(stderr, "split along batch axis %d is not supported\n", ncnn_batch_axis);
+            op->params.clear();
+            continue;
         }
 
-        if (batch_index != 233 && batch_in_shape == 0 && axis > batch_index)
+        if (ncnn_batch_axis != 233 && axis > ncnn_batch_axis)
             axis -= 1;
 
         if (split_size_or_sections.type == 2)

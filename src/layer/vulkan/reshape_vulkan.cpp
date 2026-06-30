@@ -3,6 +3,7 @@
 
 #include "reshape_vulkan.h"
 
+#include "expression.h"
 #include "layer_type.h"
 #include "layer_shader_type.h"
 
@@ -31,7 +32,7 @@ int Reshape_vulkan::create_pipeline(const Option& opt)
     Mat out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
 #if NCNN_BATCH
-    if (batch_mode != 0)
+    if (input_batch_axis != 233 || output_batch_axis != 233)
     {
         pipeline_reshape_batch_reorder = new Pipeline(vkdev);
         pipeline_reshape_batch_reorder->set_optimal_local_size_xyz(Mat(4, 4, 4, (void*)0));
@@ -206,16 +207,294 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     int elempack = bottom_blob.elempack;
     int out_elempack = 0;
 
-    int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
 #if NCNN_BATCH
-    if (batch_mode == 1)
-        total *= bottom_blob.n;
+    if (input_batch_axis != 233 || output_batch_axis != 233)
+    {
+        int input_axis = input_batch_axis;
+        if (input_axis < 0)
+            input_axis += bottom_blob.dims + 1;
 
-    if (batch_mode != 0 && ndim == 0)
-        return -1;
-#else
-    const int batch_mode = 0;
-#endif
+        int physical_input_shape[4] = {0, 0, 0, 0};
+        if (bottom_blob.dims == 1)
+            physical_input_shape[0] = bottom_blob.w * elempack;
+        if (bottom_blob.dims == 2)
+        {
+            physical_input_shape[0] = bottom_blob.h * elempack;
+            physical_input_shape[1] = bottom_blob.w;
+        }
+        if (bottom_blob.dims == 3)
+        {
+            physical_input_shape[0] = bottom_blob.c * elempack;
+            physical_input_shape[1] = bottom_blob.h;
+            physical_input_shape[2] = bottom_blob.w;
+        }
+        if (bottom_blob.dims == 4)
+        {
+            physical_input_shape[0] = bottom_blob.c * elempack;
+            physical_input_shape[1] = bottom_blob.d;
+            physical_input_shape[2] = bottom_blob.h;
+            physical_input_shape[3] = bottom_blob.w;
+        }
+
+        int input_shape[5] = {0, 0, 0, 0, 0};
+        int input_dims = bottom_blob.dims;
+        if (input_axis != 233)
+        {
+            if (input_axis < 0 || input_axis > bottom_blob.dims)
+                return -1;
+
+            input_dims = bottom_blob.dims + 1;
+            for (int i = 0; i < input_dims; i++)
+            {
+                if (i < input_axis)
+                    input_shape[i] = physical_input_shape[i];
+                else if (i == input_axis)
+                    input_shape[i] = bottom_blob.n;
+                else
+                    input_shape[i] = physical_input_shape[i - 1];
+            }
+        }
+        else
+        {
+            if (bottom_blob.n != 1)
+                return -1;
+
+            for (int i = 0; i < input_dims; i++)
+                input_shape[i] = physical_input_shape[i];
+        }
+
+        std::vector<int> output_shape;
+        if (!shape_expr.empty())
+        {
+            std::vector<Mat> bottom_blob_shapes(bottom_blobs.size());
+            for (size_t i = 0; i < bottom_blobs.size(); i++)
+            {
+                bottom_blob_shapes[i] = bottom_blobs[i].shape();
+                bottom_blob_shapes[i].n = bottom_blobs[i].n;
+            }
+            int er = eval_list_expression(shape_expr, bottom_blob_shapes, output_shape);
+            if (er != 0)
+                return -1;
+
+            for (size_t i = 0; i < output_shape.size() / 2; i++)
+            {
+                int tmp = output_shape[i];
+                output_shape[i] = output_shape[output_shape.size() - 1 - i];
+                output_shape[output_shape.size() - 1 - i] = tmp;
+            }
+        }
+        else
+        {
+            if (ndim == 1)
+                output_shape.push_back(w);
+            if (ndim == 2)
+            {
+                output_shape.push_back(h);
+                output_shape.push_back(w);
+            }
+            if (ndim == 3)
+            {
+                output_shape.push_back(c);
+                output_shape.push_back(h);
+                output_shape.push_back(w);
+            }
+            if (ndim == 4)
+            {
+                output_shape.push_back(c);
+                output_shape.push_back(d);
+                output_shape.push_back(h);
+                output_shape.push_back(w);
+            }
+        }
+
+        const int output_dims = (int)output_shape.size();
+        if (output_dims == 0 || output_dims > 5)
+            return -1;
+
+        int output_axis = output_batch_axis;
+        if (output_axis < 0)
+            output_axis += output_dims;
+        if (output_axis != 233 && (output_axis < 0 || output_axis >= output_dims))
+            return -1;
+
+        size_t input_total = 1;
+        for (int i = 0; i < input_dims; i++)
+            input_total *= input_shape[i];
+
+        size_t output_total = 1;
+        int remaining_axis = -1;
+        for (int i = 0; i < output_dims; i++)
+        {
+            if (output_shape[i] == 0)
+            {
+                if (i >= input_dims)
+                    return -1;
+                output_shape[i] = input_shape[i];
+            }
+            if (output_shape[i] == -1)
+            {
+                if (remaining_axis != -1)
+                    return -1;
+                remaining_axis = i;
+                continue;
+            }
+            if (output_shape[i] <= 0)
+                return -1;
+            output_total *= output_shape[i];
+        }
+
+        if (remaining_axis != -1)
+        {
+            if (output_total == 0 || input_total % output_total != 0)
+                return -1;
+            output_shape[remaining_axis] = (int)(input_total / output_total);
+            output_total *= output_shape[remaining_axis];
+        }
+
+        if (input_total != output_total)
+            return -1;
+
+        int batch = 1;
+        int physical_output_shape[4] = {0, 0, 0, 0};
+        int physical_output_dims = 0;
+        for (int i = 0; i < output_dims; i++)
+        {
+            if (i == output_axis)
+            {
+                batch = output_shape[i];
+                continue;
+            }
+            if (physical_output_dims == 4)
+                return -1;
+            physical_output_shape[physical_output_dims++] = output_shape[i];
+        }
+
+        if (physical_output_dims == 0)
+            return -1;
+
+        out_elempack = 1;
+        if (opt.use_packing_layout)
+            out_elempack = physical_output_shape[0] % 4 == 0 ? 4 : 1;
+
+        const size_t scalar_elemsize = elemsize / elempack;
+        const size_t out_elemsize = scalar_elemsize * out_elempack;
+
+        if (input_axis == output_axis && batch == bottom_blob.n && elempack == 1 && out_elempack == 1)
+        {
+            int outw2 = 1;
+            int outh2 = 1;
+            int outd2 = 1;
+            int outc2 = 1;
+            if (physical_output_dims == 1)
+            {
+                outw2 = physical_output_shape[0];
+            }
+            if (physical_output_dims == 2)
+            {
+                outw2 = physical_output_shape[1];
+                outh2 = physical_output_shape[0];
+            }
+            if (physical_output_dims == 3)
+            {
+                outw2 = physical_output_shape[2];
+                outh2 = physical_output_shape[1];
+                outc2 = physical_output_shape[0];
+            }
+            if (physical_output_dims == 4)
+            {
+                outw2 = physical_output_shape[3];
+                outh2 = physical_output_shape[2];
+                outd2 = physical_output_shape[1];
+                outc2 = physical_output_shape[0];
+            }
+
+            size_t outcstep = 0;
+            if (physical_output_dims == 1)
+                outcstep = alignSize((size_t)outw2 * out_elemsize, 16) / out_elemsize;
+            if (physical_output_dims == 2)
+                outcstep = alignSize((size_t)outw2 * outh2 * out_elemsize, 16) / out_elemsize;
+            if (physical_output_dims == 3)
+                outcstep = alignSize((size_t)outw2 * outh2 * out_elemsize, 16) / out_elemsize;
+            if (physical_output_dims == 4)
+                outcstep = alignSize((size_t)outw2 * outh2 * outd2 * out_elemsize, 16) / out_elemsize;
+
+            const size_t batch_total = input_total / bottom_blob.n;
+            if (bottom_blob.total() == batch_total && outcstep * outc2 == batch_total)
+            {
+                top_blob = bottom_blob;
+                top_blob.dims = physical_output_dims;
+                top_blob.w = outw2;
+                top_blob.h = outh2;
+                top_blob.d = outd2;
+                top_blob.c = outc2;
+                top_blob.cstep = outcstep;
+
+                return 0;
+            }
+        }
+
+        if (physical_output_dims == 1)
+            top_blob.create(physical_output_shape[0] / out_elempack, out_elemsize, out_elempack, batch, opt.blob_vkallocator);
+        if (physical_output_dims == 2)
+            top_blob.create(physical_output_shape[1], physical_output_shape[0] / out_elempack, out_elemsize, out_elempack, batch, opt.blob_vkallocator);
+        if (physical_output_dims == 3)
+            top_blob.create(physical_output_shape[2], physical_output_shape[1], physical_output_shape[0] / out_elempack, out_elemsize, out_elempack, batch, opt.blob_vkallocator);
+        if (physical_output_dims == 4)
+            top_blob.create(physical_output_shape[3], physical_output_shape[2], physical_output_shape[1], physical_output_shape[0] / out_elempack, out_elemsize, out_elempack, batch, opt.blob_vkallocator);
+
+        if (top_blob.empty())
+            return -100;
+
+        std::vector<VkMat> bindings(2);
+        bindings[0] = bottom_blob;
+        bindings[1] = top_blob;
+
+        std::vector<vk_constant_type> constants(31);
+        constants[0].i = bottom_blob.dims;
+        constants[1].i = bottom_blob.w;
+        constants[2].i = bottom_blob.h;
+        constants[3].i = bottom_blob.d;
+        constants[4].i = bottom_blob.c;
+        constants[5].i = bottom_blob.cstep;
+        constants[6].i = bottom_blob.n;
+        constants[7].i = bottom_blob.nstep;
+        constants[8].i = bottom_blob.elempack;
+        constants[9].i = top_blob.dims;
+        constants[10].i = top_blob.w;
+        constants[11].i = top_blob.h;
+        constants[12].i = top_blob.d;
+        constants[13].i = top_blob.c;
+        constants[14].i = top_blob.cstep;
+        constants[15].i = top_blob.n;
+        constants[16].i = top_blob.nstep;
+        constants[17].i = input_dims;
+        constants[18].i = input_axis;
+        constants[19].i = output_dims;
+        constants[20].i = output_axis;
+        for (int i = 0; i < 5; i++)
+        {
+            constants[21 + i].i = input_shape[i];
+            constants[26 + i].i = output_shape[i];
+        }
+
+        const Pipeline* pipeline = 0;
+        if (elempack == 1 && out_elempack == 1)
+            pipeline = pipeline_reshape_batch_reorder;
+        if (elempack == 4 && out_elempack == 4)
+            pipeline = pipeline_reshape_batch_reorder_pack4;
+        if (elempack == 1 && out_elempack == 4)
+            pipeline = pipeline_reshape_batch_reorder_pack1to4;
+        if (elempack == 4 && out_elempack == 1)
+            pipeline = pipeline_reshape_batch_reorder_pack4to1;
+
+        Mat dispatcher(top_blob.w, top_blob.h, top_blob.d, top_blob.c * top_blob.n, (void*)0);
+        cmd.record_pipeline(pipeline, bindings, std::vector<VkImageMat>(), constants, dispatcher);
+
+        return 0;
+    }
+#endif // NCNN_BATCH
+
+    int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
 
     // resolve out shape
     int outw = w;
@@ -235,11 +514,6 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
             return -1;
     }
 
-#if NCNN_BATCH
-    if (batch_mode == 2 && (outw == -1 || outh == -1 || outd == -1 || outc == -1))
-        return -1;
-#endif
-
     if (ndim == 1)
     {
         if (outw == 0)
@@ -250,7 +524,7 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
         out_elempack = outw % 4 == 0 ? 4 : 1;
 
-        if (batch_mode == 0 && dims == 1 && bottom_blob.w * elempack == outw && elempack == out_elempack)
+        if (dims == 1 && bottom_blob.w * elempack == outw && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             return 0;
@@ -270,7 +544,7 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
         out_elempack = outh % 4 == 0 ? 4 : 1;
 
-        if (batch_mode == 0 && dims == 2 && bottom_blob.h * elempack == outh && elempack == out_elempack)
+        if (dims == 2 && bottom_blob.h * elempack == outh && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             return 0;
@@ -294,7 +568,7 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
         out_elempack = outc % 4 == 0 ? 4 : 1;
 
-        if (batch_mode == 0 && dims == 3 && bottom_blob.c * elempack == outc && elempack == out_elempack)
+        if (dims == 3 && bottom_blob.c * elempack == outc && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             top_blob.w = outw;
@@ -324,7 +598,7 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
         out_elempack = outc % 4 == 0 ? 4 : 1;
 
-        if (batch_mode == 0 && dims == 4 && bottom_blob.c * elempack == outc && elempack == out_elempack)
+        if (dims == 4 && bottom_blob.c * elempack == outc && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             top_blob.w = outw;
@@ -336,142 +610,6 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
-#if NCNN_BATCH
-    if (batch_mode != 0)
-    {
-        int shape[4] = {0, 0, 0, 0};
-        if (ndim == 1)
-            shape[0] = outw;
-        if (ndim == 2)
-        {
-            shape[0] = outh;
-            shape[1] = outw;
-        }
-        if (ndim == 3)
-        {
-            shape[0] = outc;
-            shape[1] = outh;
-            shape[2] = outw;
-        }
-        if (ndim == 4)
-        {
-            shape[0] = outc;
-            shape[1] = outd;
-            shape[2] = outh;
-            shape[3] = outw;
-        }
-
-        size_t out_total = outw;
-        if (ndim == 2)
-            out_total *= outh;
-        if (ndim == 3)
-            out_total *= (size_t)outh * outc;
-        if (ndim == 4)
-            out_total *= (size_t)outh * outd * outc;
-
-        int batch = bottom_blob.n;
-        if (batch_mode == 2)
-        {
-            if (bottom_blob.n != 1)
-                return -1;
-
-            if (out_total == 0)
-                return -1;
-
-            const size_t bottom_total = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
-            batch = bottom_total / out_total;
-            if ((size_t)batch * out_total != bottom_total)
-                return -1;
-        }
-
-        if (batch_mode == 1)
-        {
-            if (ndim == 1)
-                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-            if (ndim == 2)
-                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-            if (ndim == 3)
-                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-            if (ndim == 4)
-                top_blob.create(outw, outh, outd, outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-        }
-        if (batch_mode == 2)
-        {
-            if (ndim == 1)
-                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, batch, opt.blob_vkallocator);
-            if (ndim == 2)
-                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, batch, opt.blob_vkallocator);
-            if (ndim == 3)
-                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, batch, opt.blob_vkallocator);
-            if (ndim == 4)
-                top_blob.create(outw, outh, outd, outc / out_elempack, out_elemsize, out_elempack, batch, opt.blob_vkallocator);
-        }
-
-        if (top_blob.empty())
-            return -100;
-
-        int suffix = 1;
-        if (batch_mode == 1 && batch_axis == 0)
-            suffix = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
-        else if (batch_mode == 1)
-        {
-            for (int i = batch_axis + 1; i < ndim; i++)
-                suffix *= shape[i];
-        }
-        else if (batch_axis == 0)
-            suffix = out_total;
-        else
-        {
-            for (int i = batch_axis; i < ndim; i++)
-                suffix *= shape[i];
-        }
-
-        std::vector<VkMat> bindings(2);
-        bindings[0] = bottom_blob;
-        bindings[1] = top_blob;
-
-        std::vector<vk_constant_type> constants(19);
-        constants[0].i = bottom_blob.dims;
-        constants[1].i = bottom_blob.w;
-        constants[2].i = bottom_blob.h;
-        constants[3].i = bottom_blob.d;
-        constants[4].i = bottom_blob.c;
-        constants[5].i = bottom_blob.cstep;
-        constants[6].i = bottom_blob.n;
-        constants[7].i = bottom_blob.nstep;
-        constants[8].i = top_blob.dims;
-        constants[9].i = top_blob.w;
-        constants[10].i = top_blob.h;
-        constants[11].i = top_blob.d;
-        constants[12].i = top_blob.c;
-        constants[13].i = top_blob.cstep;
-        constants[14].i = top_blob.n;
-        constants[15].i = top_blob.nstep;
-        constants[16].i = batch_mode;
-        constants[17].i = suffix;
-        constants[18].i = batch;
-
-        const Pipeline* pipeline = pipeline_reshape_batch_reorder;
-        if (elempack == 4 && out_elempack == 4)
-            pipeline = pipeline_reshape_batch_reorder_pack4;
-        if (elempack == 1 && out_elempack == 4)
-            pipeline = pipeline_reshape_batch_reorder_pack1to4;
-        if (elempack == 4 && out_elempack == 1)
-            pipeline = pipeline_reshape_batch_reorder_pack4to1;
-
-        if (batch_mode == 2)
-        {
-            Mat dispatcher(top_blob.w, top_blob.h, top_blob.d, top_blob.c * batch, (void*)0);
-            cmd.record_pipeline(pipeline, bindings, std::vector<VkImageMat>(), constants, dispatcher);
-        }
-        else
-        {
-            cmd.record_pipeline(pipeline, bindings, std::vector<VkImageMat>(), constants, top_blob);
-        }
-
-        return 0;
-    }
-#endif // NCNN_BATCH
 
     if (ndim == 1)
     {

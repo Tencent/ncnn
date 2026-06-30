@@ -20,7 +20,7 @@ int count_expression_blobs(const std::string& expr)
         {
             if (!t.empty())
             {
-                if (t.size() == 2 && (t[0] >= '0' && t[0] <= '9') && (t[1] == 'w' || t[1] == 'h' || t[1] == 'd' || t[1] == 'c'))
+                if (t.size() == 2 && (t[0] >= '0' && t[0] <= '9') && (t[1] == 'w' || t[1] == 'h' || t[1] == 'd' || t[1] == 'c' || t[1] == 'n'))
                 {
                     int blob_index = t[0] - '0';
                     count = std::max(count, blob_index + 1);
@@ -42,7 +42,7 @@ int count_expression_blobs(const std::string& expr)
 
     if (!t.empty())
     {
-        if (t.size() == 2 && (t[0] >= '0' && t[0] <= '9') && (t[1] == 'w' || t[1] == 'h' || t[1] == 'd' || t[1] == 'c'))
+        if (t.size() == 2 && (t[0] >= '0' && t[0] <= '9') && (t[1] == 'w' || t[1] == 'h' || t[1] == 'd' || t[1] == 'c' || t[1] == 'n'))
         {
             int blob_index = t[0] - '0';
             count = std::max(count, blob_index + 1);
@@ -146,9 +146,9 @@ int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs,
 
         // NCNN_LOGE("t = %s", t.c_str());
 
-        // + - * / 0w 0h 0d 0c 12345
+        // + - * / 0w 0h 0d 0c 0n 12345
 
-        if (t.size() == 2 && (t[0] >= '0' && t[0] <= '9') && (t[1] == 'w' || t[1] == 'h' || t[1] == 'd' || t[1] == 'c'))
+        if (t.size() == 2 && (t[0] >= '0' && t[0] <= '9') && (t[1] == 'w' || t[1] == 'h' || t[1] == 'd' || t[1] == 'c' || t[1] == 'n'))
         {
             size_t blob_index = t[0] - '0';
             if (blob_index >= blobs.size())
@@ -165,8 +165,10 @@ int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs,
                 size = blob.h;
             else if (t[1] == 'd')
                 size = blob.d;
-            else // if (t[1] == 'c')
+            else if (t[1] == 'c')
                 size = blob.c;
+            else // if (t[1] == 'n')
+                size = blobs[blob_index].n;
 
             // NCNN_LOGE("t = %s  =>  %d", t.c_str(), size);
 

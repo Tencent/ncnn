@@ -19,8 +19,7 @@ void convert_torch_chunk(Graph& graph)
         op->type = "Slice";
         op->name = std::string("chunk_") + std::to_string(op_index++);
 
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
-        const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
         int axis = op->params.at("dim").i;
         if (axis < 0)
@@ -30,10 +29,11 @@ void convert_torch_chunk(Graph& graph)
                 axis = input_rank + axis;
         }
 
-        if (batch_index != 233 && batch_in_shape == 0 && axis == batch_index)
+        if (axis == ncnn_batch_axis)
         {
-            fprintf(stderr, "chunk along batch axis %d is not supported\n", batch_index);
-            axis = 0;
+            fprintf(stderr, "chunk along batch axis %d is not supported\n", ncnn_batch_axis);
+            op->params.clear();
+            continue;
         }
 
         int chunks = op->params.at("chunks").i;
@@ -47,7 +47,7 @@ void convert_torch_chunk(Graph& graph)
             }
         }
 
-        if (batch_index != 233 && batch_in_shape == 0 && axis > batch_index)
+        if (ncnn_batch_axis != 233 && axis > ncnn_batch_axis)
             axis -= 1;
 
         op->params["0"].type = 5;

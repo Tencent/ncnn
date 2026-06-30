@@ -21,7 +21,7 @@ void convert_Tensor_select(Graph& graph)
                 continue;
 
             const int batch_index = op->inputs[0]->params["__batch_index"].i;
-            const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
+            const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
             int axis = op->params.at("dim").i;
             if (axis < 0)
@@ -31,13 +31,19 @@ void convert_Tensor_select(Graph& graph)
                     axis = input_rank + axis;
             }
 
-            if (batch_index != 233 && batch_in_shape == 0 && axis == batch_index)
+            if (axis == ncnn_batch_axis)
             {
-                fprintf(stderr, "select along batch axis %d is not supported\n", batch_index);
-                axis = 0;
+                fprintf(stderr, "select along batch axis %d is not supported\n", ncnn_batch_axis);
+                matched = true;
+
+                op->type = "Crop";
+                op->name = std::string("select_") + std::to_string(op_index++);
+                op->params.clear();
+
+                break;
             }
 
-            if (batch_index != 233 && batch_in_shape == 0 && axis > batch_index)
+            if (ncnn_batch_axis != 233 && axis > ncnn_batch_axis)
                 axis -= 1;
 
             int dim;
@@ -45,7 +51,7 @@ void convert_Tensor_select(Graph& graph)
             if (op->has_param("dim"))
             {
                 dim = axis;
-                if (batch_index != 233 && batch_in_shape == 0 && dim >= batch_index)
+                if (ncnn_batch_axis != 233 && dim >= ncnn_batch_axis)
                     dim += 1;
             }
             else
@@ -96,7 +102,7 @@ void convert_Tensor_select(Graph& graph)
                 squeeze->params["dim"] = dim;
 
                 squeeze_in->params["__batch_index"] = batch_index;
-                squeeze_in->params["__ncnn_batch_in_shape"] = batch_in_shape;
+                squeeze_in->params["__ncnn_batch_axis"] = ncnn_batch_axis;
             }
 
             break;

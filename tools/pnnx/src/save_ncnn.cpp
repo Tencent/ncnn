@@ -65,7 +65,7 @@ static int32_t safe_int64_to_int32(int64_t value)
 {
     if (value > INT32_MAX || value < INT32_MIN)
     {
-        fprintf(stderr, "Warning: int64 value %lld exceeds int32 range\n", value);
+        fprintf(stderr, "Warning: int64 value %lld exceeds int32 range\n", (long long)value);
         return (value > INT32_MAX) ? INT32_MAX : INT32_MIN;
     }
     return static_cast<int32_t>(value);
@@ -419,10 +419,10 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 break;
 
             int batch_index = 233;
-            if (r->params.find("__ncnn_batch_in_shape") != r->params.end() && r->params.at("__ncnn_batch_in_shape").i == 0)
+            if (r->params.find("__ncnn_batch_axis") != r->params.end())
             {
-                batch_index = r->params.at("__batch_index").i;
-                if (r->producer->params.find("__torch_batch_index") != r->producer->params.end())
+                batch_index = r->params.at("__ncnn_batch_axis").i;
+                if (batch_index != 233 && r->producer->params.find("__torch_batch_index") != r->producer->params.end())
                     batch_index = r->producer->params.at("__torch_batch_index").i;
                 if (r->shape.size() < 2)
                     batch_index = 233;
@@ -443,8 +443,8 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             fprintf(pyfp, "            _, %s = ex.extract(\"%s\")\n", output_name.c_str(), output_name.c_str());
 
             int batch_index = 233;
-            if (r->params.find("__ncnn_batch_in_shape") != r->params.end() && r->params.at("__ncnn_batch_in_shape").i == 0)
-                batch_index = r->params.at("__batch_index").i;
+            if (r->params.find("__ncnn_batch_axis") != r->params.end())
+                batch_index = r->params.at("__ncnn_batch_axis").i;
             fprintf(pyfp, "            out.append(torch.from_numpy(%s.numpy(batch_index=%d)))\n", output_name.c_str(), batch_index);
         }
 

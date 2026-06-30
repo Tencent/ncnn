@@ -32,14 +32,13 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
-        const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
+        const int input_ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
         int input_rank = op->inputs[0]->shape.size();
         if (input_rank == 0 && op->outputs[0]->shape.size() != 0)
             input_rank = (int)op->outputs[0]->shape.size() - 1;
 
         int inner_rank = input_rank;
-        if (batch_index >= 0 && batch_index < input_rank && batch_in_shape == 0)
+        if (input_ncnn_batch_axis >= 0 && input_ncnn_batch_axis < input_rank)
             inner_rank -= 1;
 
         if (inner_rank > 4)
@@ -54,9 +53,8 @@ pnnx.Output             output      1 0 out
             if (dim < 0 && input_rank > 0)
                 dim += input_rank + 1;
 
-            const int output_batch_index = op->outputs[0]->params["__batch_index"].i;
-            const int output_batch_in_shape = op->outputs[0]->params["__ncnn_batch_in_shape"].i;
-            if (output_batch_index != 233 && output_batch_in_shape == 0 && dim > output_batch_index)
+            const int output_ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
+            if (output_ncnn_batch_axis != 233 && dim > output_ncnn_batch_axis)
                 dim -= 1;
 
             std::vector<int> axes = {dim};
@@ -69,8 +67,7 @@ pnnx.Output             output      1 0 out
             if (output_rank == 0)
                 output_rank = input_rank + axes.size();
 
-            const int output_batch_index = op->outputs[0]->params["__batch_index"].i;
-            const int output_batch_in_shape = op->outputs[0]->params["__ncnn_batch_in_shape"].i;
+            const int output_ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
             std::vector<int> new_axes;
             for (size_t i = 0; i < axes.size(); i++)
             {
@@ -78,17 +75,22 @@ pnnx.Output             output      1 0 out
                 if (axis < 0 && output_rank > 0)
                     axis += output_rank;
 
-                if (output_batch_index >= 0 && output_batch_index < output_rank && output_batch_in_shape == 0)
+                if (output_ncnn_batch_axis >= 0 && output_ncnn_batch_axis < output_rank)
                 {
-                    if (axis == output_batch_index)
+                    if (axis == output_ncnn_batch_axis)
                         continue;
-                    if (axis > output_batch_index)
+                    if (axis > output_ncnn_batch_axis)
                         axis -= 1;
                 }
-                else if (batch_index != 233 && batch_in_shape == 0 && axis > batch_index)
+                else if (input_ncnn_batch_axis != 233 && axis > input_ncnn_batch_axis)
                     axis -= 1;
 
                 new_axes.push_back(axis);
+            }
+            if (new_axes.empty())
+            {
+                op->type = "Noop";
+                return;
             }
             op->params["3"] = new_axes;
         }

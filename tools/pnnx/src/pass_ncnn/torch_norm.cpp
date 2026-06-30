@@ -48,12 +48,11 @@ pnnx.Output             output      1 0 out
 
         op->params["0"] = (p == 1.f) ? 7 : 8;
 
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
-        const int batch_in_shape = op->inputs[0]->params["__ncnn_batch_in_shape"].i;
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
         if (captured_params.at("dim").type == 0)
         {
-            if (batch_index != 233 && batch_in_shape == 0)
+            if (ncnn_batch_axis != 233)
             {
                 fprintf(stderr, "norm along batch axis is not supported yet\n");
             }
@@ -76,13 +75,13 @@ pnnx.Output             output      1 0 out
                 if (dim < 0 && input_rank > 0)
                     dim += input_rank;
 
-                if (batch_index != 233 && batch_in_shape == 0 && dim == batch_index)
+                if (ncnn_batch_axis != 233 && dim == ncnn_batch_axis)
                 {
                     fprintf(stderr, "norm along batch axis is not supported yet\n");
                     continue;
                 }
 
-                int new_dim = batch_index != 233 && batch_in_shape == 0 && dim > batch_index ? dim - 1 : dim;
+                int new_dim = ncnn_batch_axis != 233 && dim > ncnn_batch_axis ? dim - 1 : dim;
                 new_dims.push_back(new_dim);
             }
 
