@@ -9,7 +9,7 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z, q, r):
+    def forward(self, x, y, z, q, r, s, t):
         x = x.reshape_as(y)
         y = y.reshape_as(z)
         z = z.reshape_as(x)
@@ -17,12 +17,17 @@ class Model(nn.Module):
         r = F.max_pool1d(r, 1)
         q0 = q.reshape_as(r)
         q1 = r.reshape_as(q)
+        s = F.max_pool2d(s, 1)
+        t = F.max_pool2d(t, 1)
+        t = t.permute(1, 0, 2, 3)
+        s = s.reshape_as(t)
         x = x + 1
         y = y - 1
         z = z * 2
         q0 = q0 + 1
         q1 = q1 - 1
-        return x, y, z, q0, q1
+        s = s + 2
+        return x, y, z, q0, q1, s
 
 def test():
     net = Model()
@@ -34,16 +39,18 @@ def test():
     z = torch.rand(48)
     q = torch.rand(2, 3, 5, 7)
     r = torch.rand(2, 3, 35)
+    s = torch.rand(2, 3, 5, 7)
+    t = torch.rand(2, 3, 5, 7)
 
-    a = net(x, y, z, q, r)
+    a = net(x, y, z, q, r, s, t)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, q, r))
+    mod = torch.jit.trace(net, (x, y, z, q, r, s, t))
     mod.save("test_Tensor_reshape_as.pt")
 
     # torchscript to ncnn
     import os
-    os.system("../../src/pnnx test_Tensor_reshape_as.pt inputshape=[1,3,16],[6,2,2,2],[48],[2,3,5,7],[2,3,35]")
+    os.system("../../src/pnnx test_Tensor_reshape_as.pt inputshape=[1,3,16],[6,2,2,2],[48],[2,3,5,7],[2,3,35],[2,3,5,7],[2,3,5,7]")
 
     # ncnn inference
     import test_Tensor_reshape_as_ncnn

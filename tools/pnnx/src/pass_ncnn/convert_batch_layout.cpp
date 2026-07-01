@@ -142,7 +142,7 @@ static bool is_axis_op(const Operator* op)
 
 static bool is_reshape_op(const Operator* op)
 {
-    return op->type == "Tensor.reshape" || op->type == "torch.flatten" || op->type == "Tensor.unflatten";
+    return op->type == "Tensor.reshape" || op->type == "Tensor.reshape_as" || op->type == "torch.flatten" || op->type == "Tensor.unflatten";
 }
 
 static bool is_recurrent_op(const Operator* op)
@@ -168,7 +168,7 @@ static int get_consumer_ncnn_batch_axis(const Operator* op, int input_index, con
     if (op->type == "pnnx.Expression" || op->type == "pnnx.SliceIndexes")
         return get_ncnn_batch_axis(r);
 
-    if (op->type == "Tensor.reshape" && input_index != 0)
+    if ((op->type == "Tensor.reshape" || op->type == "Tensor.reshape_as") && input_index != 0)
         return get_ncnn_batch_axis(r);
 
     if ((op->type == "Tensor.slice" || op->type == "Tensor.select") && input_index != 0)

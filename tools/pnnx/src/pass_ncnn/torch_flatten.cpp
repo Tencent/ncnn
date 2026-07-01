@@ -163,100 +163,55 @@ pnnx.Output             output      1 0 out
             int in_shape_rank = op->inputs[0]->shape.size();
 
             std::string shape_expr;
-            if (shape_rank == 1)
+            for (int i = shape_rank - 1; i >= 0; i--)
             {
-                // flatten style
-                shape_expr = "-1";
-            }
-            if (shape_rank == 2)
-            {
-                if (flattened_index == 0)
-                {
-                    shape_expr = "0w,-1";
-                }
-                if (flattened_index == 1)
-                {
-                    if (in_shape_rank == 2)
-                        shape_expr = "-1,0h";
-                    else // if (in_shape_rank == 3 || in_shape_rank == 4)
-                        shape_expr = "-1,0c";
-                }
-            }
-            if (shape_rank == 3)
-            {
-                if (flattened_index == 0)
-                {
-                    shape_expr = "0w,0h,-1";
-                }
-                if (flattened_index == 1)
-                {
-                    shape_expr = "0w,-1,0c";
-                }
-                if (flattened_index == 2)
-                {
-                    if (in_shape_rank == 3)
-                        shape_expr = "-1,0h,0c";
-                    else // if (in_shape_rank == 4)
-                        shape_expr = "-1,0d,0c";
-                }
-            }
-            if (shape_rank == 4)
-            {
-                // noop style
-                shape_expr = "0w,0h,0d,0c";
-            }
-            if (shape_rank == 5)
-            {
-                for (int i = shape_rank - 1; i >= 0; i--)
-                {
-                    if (!shape_expr.empty())
-                        shape_expr += ",";
+                if (!shape_expr.empty())
+                    shape_expr += ",";
 
-                    if (i == flattened_index)
-                    {
-                        shape_expr += "-1";
-                        continue;
-                    }
-
-                    int input_axis = i;
-                    if (i > flattened_index)
-                        input_axis += end_dim - start_dim;
-
-                    if (input_axis == input_ncnn_batch_axis)
-                    {
-                        shape_expr += "0n";
-                        continue;
-                    }
-
-                    int rank = in_shape_rank;
-                    if (input_ncnn_batch_axis != 233)
-                    {
-                        rank -= 1;
-                        if (input_axis > input_ncnn_batch_axis)
-                            input_axis -= 1;
-                    }
-
-                    if (rank == 1 && input_axis == 0)
-                        shape_expr += "0w";
-                    else if (rank == 2 && input_axis == 0)
-                        shape_expr += "0h";
-                    else if (rank == 2 && input_axis == 1)
-                        shape_expr += "0w";
-                    else if (rank == 3 && input_axis == 0)
-                        shape_expr += "0c";
-                    else if (rank == 3 && input_axis == 1)
-                        shape_expr += "0h";
-                    else if (rank == 3 && input_axis == 2)
-                        shape_expr += "0w";
-                    else if (rank == 4 && input_axis == 0)
-                        shape_expr += "0c";
-                    else if (rank == 4 && input_axis == 1)
-                        shape_expr += "0d";
-                    else if (rank == 4 && input_axis == 2)
-                        shape_expr += "0h";
-                    else if (rank == 4 && input_axis == 3)
-                        shape_expr += "0w";
+                if (i == flattened_index)
+                {
+                    shape_expr += "-1";
+                    continue;
                 }
+
+                int input_axis = i;
+                if (i > flattened_index)
+                    input_axis += end_dim - start_dim;
+
+                if (input_axis == input_ncnn_batch_axis)
+                {
+                    shape_expr += "0n";
+                    continue;
+                }
+
+                int rank = in_shape_rank;
+                if (input_ncnn_batch_axis != 233)
+                {
+                    rank -= 1;
+                    if (input_axis > input_ncnn_batch_axis)
+                        input_axis -= 1;
+                }
+
+                if (rank == 1 && input_axis == 0)
+                    shape_expr += "0w";
+                else if (rank == 2 && input_axis == 0)
+                    shape_expr += "0h";
+                else if (rank == 2 && input_axis == 1)
+                    shape_expr += "0w";
+                else if (rank == 3 && input_axis == 0)
+                    shape_expr += "0c";
+                else if (rank == 3 && input_axis == 1)
+                    shape_expr += "0h";
+                else if (rank == 3 && input_axis == 2)
+                    shape_expr += "0w";
+                else if (rank == 4 && input_axis == 0)
+                    shape_expr += "0c";
+                else if (rank == 4 && input_axis == 1)
+                    shape_expr += "0d";
+                else if (rank == 4 && input_axis == 2)
+                    shape_expr += "0h";
+                else if (rank == 4 && input_axis == 3)
+                    shape_expr += "0w";
             }
 
             if (shape_expr.empty())

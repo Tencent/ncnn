@@ -268,13 +268,17 @@ static void solve_batch_index_forward(Operand* operand)
                 solve_batch_index_backward(r);
             }
         }
-        else if (op->type == "Tensor.reshape")
+        else if (op->type == "Tensor.reshape" || op->type == "Tensor.reshape_as")
         {
             if (operand != op->inputs[0])
                 continue;
 
             std::vector<int> shape;
-            if (op->params.find("shape") == op->params.end())
+            if (op->type == "Tensor.reshape_as")
+            {
+                shape = op->outputs[0]->shape;
+            }
+            else if (op->params.find("shape") == op->params.end())
             {
                 // dynamic reshape
                 const Operator* op_expr = op->inputs[1]->producer;
@@ -730,13 +734,17 @@ static void solve_batch_index_backward(Operand* operand)
             solve_batch_index_forward(r);
         }
     }
-    else if (op->type == "Tensor.reshape")
+    else if (op->type == "Tensor.reshape" || op->type == "Tensor.reshape_as")
     {
         if (operand != op->outputs[0])
             return;
 
         std::vector<int> shape;
-        if (op->params.find("shape") == op->params.end())
+        if (op->type == "Tensor.reshape_as")
+        {
+            shape = op->outputs[0]->shape;
+        }
+        else if (op->params.find("shape") == op->params.end())
         {
             // dynamic reshape
             const Operator* op_expr = op->inputs[1]->producer;

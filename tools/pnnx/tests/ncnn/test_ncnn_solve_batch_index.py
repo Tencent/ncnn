@@ -45,6 +45,17 @@ class ModelBatch2(nn.Module):
         return x
 
 
+class ModelFlattenDynamicExpr(nn.Module):
+    def __init__(self):
+        super(ModelFlattenDynamicExpr, self).__init__()
+
+    def forward(self, x):
+        x = F.max_pool2d(x, 1)
+        x = torch.flatten(x, 1, 2)
+        x = x.relu()
+        return x
+
+
 def run_model(name, net, x0, x1):
     net.eval()
 
@@ -122,6 +133,18 @@ def test():
     x1 = torch.rand(2, 3, 64, 64)
 
     if not run_model("test_ncnn_solve_batch_index_batch2", net, x0, x1):
+        return False
+
+    torch.manual_seed(0)
+
+    net = ModelFlattenDynamicExpr()
+
+    torch.manual_seed(0)
+    x0 = torch.rand(2, 3, 5, 7)
+
+    x1 = torch.rand(2, 3, 9, 11)
+
+    if not run_model("test_ncnn_solve_batch_index_flatten_dynamic_expr", net, x0, x1):
         return False
 
     return True

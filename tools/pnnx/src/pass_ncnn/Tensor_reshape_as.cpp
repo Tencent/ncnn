@@ -35,65 +35,65 @@ pnnx.Output             output      1 0 out
     {
         const int shape_rank = (int)op->outputs[0]->shape.size();
 
-        const int ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
+        const int input_ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
+        const int other_ncnn_batch_axis = op->inputs[1]->params["__ncnn_batch_axis"].i;
+        const int output_ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
 
-        if (ncnn_batch_axis > 0)
-        {
-            if (shape_rank == 0 || op->outputs[0]->shape[ncnn_batch_axis] != 1)
-                fprintf(stderr, "reshape_as tensor with batch index %d is not supported yet!\n", ncnn_batch_axis);
-        }
-
-        if (shape_rank == 1)
-        {
-            op->params["0"] = -1;
-        }
-        else if (shape_rank == 2)
-        {
-            if (ncnn_batch_axis == 233)
-            {
-                op->params["6"] = "1w,1h";
-            }
-            else
-            {
-                op->params["0"] = -1;
-            }
-        }
-        else if (shape_rank == 3)
-        {
-            if (ncnn_batch_axis == 233)
-            {
-                op->params["6"] = "1w,1h,1c";
-            }
-            else
-            {
-                op->params["6"] = "1w,1h";
-            }
-        }
-        else if (shape_rank == 4)
-        {
-            if (ncnn_batch_axis == 233)
-            {
-                op->params["6"] = "1w,1h,1d,1c";
-            }
-            else
-            {
-                op->params["6"] = "1w,1h,1c";
-            }
-        }
-        else if (shape_rank == 5)
-        {
-            if (ncnn_batch_axis == 233)
-            {
-                fprintf(stderr, "reshape_as tensor with unbatched 5 rank tensor is not supported yet!\n");
-            }
-            else
-            {
-                op->params["6"] = "1w,1h,1d,1c";
-            }
-        }
-        else
+        if (shape_rank == 0 || shape_rank > 5 || (shape_rank == 5 && (other_ncnn_batch_axis == 233 || output_ncnn_batch_axis == 233)))
         {
             fprintf(stderr, "reshape_as tensor with over 5 / unknown rank tensor is not supported yet!\n");
+            return;
+        }
+
+        std::string shape_expr;
+        for (int i = shape_rank - 1; i >= 0; i--)
+        {
+            if (!shape_expr.empty())
+                shape_expr += ",";
+
+            if (i == other_ncnn_batch_axis)
+            {
+                shape_expr += "1n";
+                continue;
+            }
+
+            int other_axis = i;
+            int other_rank = shape_rank;
+            if (other_ncnn_batch_axis != 233)
+            {
+                other_rank -= 1;
+                if (other_axis > other_ncnn_batch_axis)
+                    other_axis -= 1;
+            }
+
+            if (other_rank == 1 && other_axis == 0)
+                shape_expr += "1w";
+            else if (other_rank == 2 && other_axis == 0)
+                shape_expr += "1h";
+            else if (other_rank == 2 && other_axis == 1)
+                shape_expr += "1w";
+            else if (other_rank == 3 && other_axis == 0)
+                shape_expr += "1c";
+            else if (other_rank == 3 && other_axis == 1)
+                shape_expr += "1h";
+            else if (other_rank == 3 && other_axis == 2)
+                shape_expr += "1w";
+            else if (other_rank == 4 && other_axis == 0)
+                shape_expr += "1c";
+            else if (other_rank == 4 && other_axis == 1)
+                shape_expr += "1d";
+            else if (other_rank == 4 && other_axis == 2)
+                shape_expr += "1h";
+            else if (other_rank == 4 && other_axis == 3)
+                shape_expr += "1w";
+        }
+
+        op->params["6"] = shape_expr;
+
+        if (input_ncnn_batch_axis != 233 || output_ncnn_batch_axis != 233)
+        {
+            op->params["12"] = input_ncnn_batch_axis;
+            op->params["13"] = output_ncnn_batch_axis;
         }
     }
 };
