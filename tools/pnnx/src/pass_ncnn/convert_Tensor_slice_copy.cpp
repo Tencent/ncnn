@@ -248,7 +248,7 @@ void convert_Tensor_slice_copy(Graph& graph)
                 if (!shape.empty())
                     reshape->params["shape"] = shape;
                 else
-                    reshape->params["shape"] = std::vector<int>{-1};
+                    reshape->params["shape"] = std::vector<int> {-1};
             }
 
             break;

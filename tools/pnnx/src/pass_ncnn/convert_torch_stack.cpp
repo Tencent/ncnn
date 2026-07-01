@@ -94,7 +94,7 @@ void convert_torch_stack(Graph& graph)
                     }
                     else
                     {
-                        reshape->params["shape"] = std::vector<int>{-1, 1};
+                        reshape->params["shape"] = std::vector<int> {-1, 1};
                     }
                     reshape_out->shape = shape;
                 }
@@ -130,7 +130,7 @@ void convert_torch_stack(Graph& graph)
                 if (!out->shape.empty())
                     reshape->params["shape"] = out->shape;
                 else
-                    reshape->params["shape"] = std::vector<int>{-1};
+                    reshape->params["shape"] = std::vector<int> {-1};
             }
 
             op->params.erase("dim");

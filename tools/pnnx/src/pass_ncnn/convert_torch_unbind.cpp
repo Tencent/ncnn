@@ -89,7 +89,7 @@ void convert_torch_unbind(Graph& graph)
                 if (!out->shape.empty())
                     reshape->params["shape"] = out->shape;
                 else
-                    reshape->params["shape"] = std::vector<int>{-1};
+                    reshape->params["shape"] = std::vector<int> {-1};
             }
 
             break;
