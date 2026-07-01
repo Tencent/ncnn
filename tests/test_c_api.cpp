@@ -485,9 +485,9 @@ static int test_c_api_batch()
 
 int main()
 {
-    return test_c_api_0() || test_c_api_1() || test_c_api_2() || test_c_api_3()
+    int ret = test_c_api_0() || test_c_api_1() || test_c_api_2() || test_c_api_3();
 #if NCNN_BATCH
-           || test_c_api_batch()
+    ret = ret || test_c_api_batch();
 #endif
-           ;
+    return ret;
 }

@@ -317,11 +317,9 @@ void Mat::create(int _w, size_t _elemsize, Allocator* _allocator)
     d = 1;
     c = 1;
 
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 #if NCNN_BATCH
-    cstep = alignSize(w * elemsize, 16) / elemsize;
     nstep = total();
-#else
-    cstep = alignSize(w * elemsize, 16) / elemsize;
 #endif
 
     size_t totalsize = alignSize(total() * elemsize, 4);
@@ -361,11 +359,9 @@ void Mat::create(int _w, int _h, size_t _elemsize, Allocator* _allocator)
     d = 1;
     c = 1;
 
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #if NCNN_BATCH
-    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
     nstep = total();
-#else
-    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #endif
 
     size_t totalsize = alignSize(total() * elemsize, 4);
@@ -405,11 +401,9 @@ void Mat::create(int _w, int _h, int _c, size_t _elemsize, Allocator* _allocator
     d = 1;
     c = _c;
 
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #if NCNN_BATCH
-    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
     nstep = total();
-#else
-    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #endif
 
     size_t totalsize = alignSize(total() * elemsize, 4);
@@ -449,11 +443,9 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, Allocator* _a
     d = _d;
     c = _c;
 
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 #if NCNN_BATCH
-    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
     nstep = total();
-#else
-    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 #endif
 
     size_t totalsize = alignSize(total() * elemsize, 4);
@@ -493,11 +485,9 @@ void Mat::create(int _w, size_t _elemsize, int _elempack, Allocator* _allocator)
     d = 1;
     c = 1;
 
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 #if NCNN_BATCH
-    cstep = alignSize(w * elemsize, 16) / elemsize;
     nstep = total();
-#else
-    cstep = alignSize(w * elemsize, 16) / elemsize;
 #endif
 
     size_t totalsize = alignSize(total() * elemsize, 4);
@@ -537,11 +527,9 @@ void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, Allocator* _al
     d = 1;
     c = 1;
 
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #if NCNN_BATCH
-    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
     nstep = total();
-#else
-    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #endif
 
     size_t totalsize = alignSize(total() * elemsize, 4);
@@ -581,11 +569,9 @@ void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, Alloca
     d = 1;
     c = _c;
 
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #if NCNN_BATCH
-    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
     nstep = total();
-#else
-    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #endif
 
     size_t totalsize = alignSize(total() * elemsize, 4);
@@ -625,11 +611,9 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack
     d = _d;
     c = _c;
 
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 #if NCNN_BATCH
-    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
     nstep = total();
-#else
-    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 #endif
 
     size_t totalsize = alignSize(total() * elemsize, 4);
@@ -957,11 +941,9 @@ void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
     d = 1;
     c = 1;
 
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 #if NCNN_BATCH
-    cstep = alignSize(w * elemsize, 16) / elemsize;
     nstep = total();
-#else
-    cstep = alignSize(w * elemsize, 16) / elemsize;
 #endif
 
     if (total() > 0)
@@ -999,11 +981,9 @@ void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
     d = 1;
     c = 1;
 
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #if NCNN_BATCH
-    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
     nstep = total();
-#else
-    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #endif
 
     if (total() > 0)
@@ -1041,11 +1021,9 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _alloc
     d = 1;
     c = _c;
 
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #if NCNN_BATCH
-    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
     nstep = total();
-#else
-    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #endif
 
     if (total() > 0)
@@ -1083,11 +1061,9 @@ void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, VkAllocator
     d = _d;
     c = _c;
 
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 #if NCNN_BATCH
-    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
     nstep = total();
-#else
-    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 #endif
 
     if (total() > 0)
@@ -1125,11 +1101,9 @@ void VkMat::create(int _w, size_t _elemsize, int _elempack, VkAllocator* _alloca
     d = 1;
     c = 1;
 
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 #if NCNN_BATCH
-    cstep = alignSize(w * elemsize, 16) / elemsize;
     nstep = total();
-#else
-    cstep = alignSize(w * elemsize, 16) / elemsize;
 #endif
 
     if (total() > 0)
@@ -1167,11 +1141,9 @@ void VkMat::create(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator*
     d = 1;
     c = 1;
 
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #if NCNN_BATCH
-    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
     nstep = total();
-#else
-    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #endif
 
     if (total() > 0)
@@ -1209,11 +1181,9 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAl
     d = 1;
     c = _c;
 
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #if NCNN_BATCH
-    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
     nstep = total();
-#else
-    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 #endif
 
     if (total() > 0)
@@ -1251,11 +1221,9 @@ void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempa
     d = _d;
     c = _c;
 
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 #if NCNN_BATCH
-    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
     nstep = total();
-#else
-    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 #endif
 
     if (total() > 0)

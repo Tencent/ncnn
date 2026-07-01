@@ -1261,7 +1261,6 @@ void solve_batch_index(Graph& graph)
     {
         if (r->shape.size() == 1)
         {
-            fprintf(stderr, "force batch axis 233 for operand %s\n", r->name.c_str());
             r->params["__batch_index"] = 233;
         }
     }
@@ -1271,7 +1270,6 @@ void solve_batch_index(Graph& graph)
     {
         if (r->params.find("__batch_index") == r->params.end())
         {
-            fprintf(stderr, "fallback batch axis 233 for operand %s\n", r->name.c_str());
             r->params["__batch_index"] = 233;
         }
     }

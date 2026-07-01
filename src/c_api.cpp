@@ -510,30 +510,22 @@ ncnn_mat_t ncnn_mat_create_4d(int w, int h, int d, int c, ncnn_allocator_t alloc
 #if NCNN_BATCH
 ncnn_mat_t ncnn_mat_create_1d_batch(int w, int n, ncnn_allocator_t allocator)
 {
-    Mat* m = new Mat();
-    m->create(w, (size_t)4u, 1, n, allocator ? (Allocator*)allocator->pthis : NULL);
-    return (ncnn_mat_t)m;
+    return (ncnn_mat_t)(new Mat(w, (size_t)4u, 1, n, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_2d_batch(int w, int h, int n, ncnn_allocator_t allocator)
 {
-    Mat* m = new Mat();
-    m->create(w, h, (size_t)4u, 1, n, allocator ? (Allocator*)allocator->pthis : NULL);
-    return (ncnn_mat_t)m;
+    return (ncnn_mat_t)(new Mat(w, h, (size_t)4u, 1, n, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_3d_batch(int w, int h, int c, int n, ncnn_allocator_t allocator)
 {
-    Mat* m = new Mat();
-    m->create(w, h, c, (size_t)4u, 1, n, allocator ? (Allocator*)allocator->pthis : NULL);
-    return (ncnn_mat_t)m;
+    return (ncnn_mat_t)(new Mat(w, h, c, (size_t)4u, 1, n, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_4d_batch(int w, int h, int d, int c, int n, ncnn_allocator_t allocator)
 {
-    Mat* m = new Mat();
-    m->create(w, h, d, c, (size_t)4u, 1, n, allocator ? (Allocator*)allocator->pthis : NULL);
-    return (ncnn_mat_t)m;
+    return (ncnn_mat_t)(new Mat(w, h, d, c, (size_t)4u, 1, n, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 #endif // NCNN_BATCH
 
@@ -580,30 +572,22 @@ ncnn_mat_t ncnn_mat_create_4d_elem(int w, int h, int d, int c, size_t elemsize, 
 #if NCNN_BATCH
 ncnn_mat_t ncnn_mat_create_1d_elem_batch(int w, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator)
 {
-    Mat* m = new Mat();
-    m->create(w, elemsize, elempack, n, allocator ? (Allocator*)allocator->pthis : NULL);
-    return (ncnn_mat_t)m;
+    return (ncnn_mat_t)(new Mat(w, elemsize, elempack, n, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_2d_elem_batch(int w, int h, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator)
 {
-    Mat* m = new Mat();
-    m->create(w, h, elemsize, elempack, n, allocator ? (Allocator*)allocator->pthis : NULL);
-    return (ncnn_mat_t)m;
+    return (ncnn_mat_t)(new Mat(w, h, elemsize, elempack, n, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_3d_elem_batch(int w, int h, int c, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator)
 {
-    Mat* m = new Mat();
-    m->create(w, h, c, elemsize, elempack, n, allocator ? (Allocator*)allocator->pthis : NULL);
-    return (ncnn_mat_t)m;
+    return (ncnn_mat_t)(new Mat(w, h, c, elemsize, elempack, n, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_4d_elem_batch(int w, int h, int d, int c, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator)
 {
-    Mat* m = new Mat();
-    m->create(w, h, d, c, elemsize, elempack, n, allocator ? (Allocator*)allocator->pthis : NULL);
-    return (ncnn_mat_t)m;
+    return (ncnn_mat_t)(new Mat(w, h, d, c, elemsize, elempack, n, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 #endif // NCNN_BATCH
 

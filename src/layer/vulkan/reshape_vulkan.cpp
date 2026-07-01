@@ -38,6 +38,7 @@ int Reshape_vulkan::create_pipeline(const Option& opt)
         specializations[0].i = input_batch_axis;
         specializations[1].i = output_batch_axis;
 
+        // batch reshape may choose output packing at runtime
         pipeline_reshape_batch_reorder = new Pipeline(vkdev);
         pipeline_reshape_batch_reorder->set_optimal_local_size_xyz(Mat(4, 4, 4, (void*)0));
         pipeline_reshape_batch_reorder->create(LayerShaderType::reshape_batch_reorder, opt, specializations);
@@ -315,12 +316,14 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         const Pipeline* pipeline = 0;
         if (elempack == 1 && out_elempack == 1)
             pipeline = pipeline_reshape_batch_reorder;
-        if (elempack == 4 && out_elempack == 4)
+        else if (elempack == 4 && out_elempack == 4)
             pipeline = pipeline_reshape_batch_reorder_pack4;
-        if (elempack == 1 && out_elempack == 4)
+        else if (elempack == 1 && out_elempack == 4)
             pipeline = pipeline_reshape_batch_reorder_pack1to4;
-        if (elempack == 4 && out_elempack == 1)
+        else if (elempack == 4 && out_elempack == 1)
             pipeline = pipeline_reshape_batch_reorder_pack4to1;
+        else
+            return -1;
 
         Mat dispatcher(top_blob.w, top_blob.h, top_blob.d, top_blob.c * top_blob.n, (void*)0);
         cmd.record_pipeline(pipeline, bindings, std::vector<VkImageMat>(), constants, dispatcher);

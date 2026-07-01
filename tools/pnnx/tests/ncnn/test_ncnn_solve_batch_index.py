@@ -70,7 +70,8 @@ def run_model(name, net, x0, x1):
     import os
     inputshape = str(list(x0.shape)).replace(" ", "")
     inputshape2 = str(list(x1.shape)).replace(" ", "")
-    os.system("../../src/pnnx " + name + ".pt inputshape=" + inputshape + " inputshape2=" + inputshape2)
+    if os.system("../../src/pnnx " + name + ".pt inputshape=" + inputshape + " inputshape2=" + inputshape2) != 0:
+        return False
 
     # ncnn inference
     import ncnn

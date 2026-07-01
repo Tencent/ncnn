@@ -257,7 +257,7 @@ static Operator* insert_batch_to_dim(Graph& graph, Operator* op, int input_index
     reshape_out->producer = reshape;
     reshape_out->type = in->type;
     reshape_out->shape = in->shape;
-    reshape_out->params["__batch_index"] = in->params["__batch_index"];
+    reshape_out->params["__batch_index"] = in->params.at("__batch_index");
 
     set_ncnn_batch_axis(reshape_out, 233);
 
@@ -293,7 +293,7 @@ static Operator* insert_dim_to_batch(Graph& graph, Operator* op, int input_index
     reshape_out->producer = reshape;
     reshape_out->type = in->type;
     reshape_out->shape = in->shape;
-    reshape_out->params["__batch_index"] = in->params["__batch_index"];
+    reshape_out->params["__batch_index"] = in->params.at("__batch_index");
 
     set_ncnn_batch_axis(reshape_out, get_batch_index(batch_indices, in));
 

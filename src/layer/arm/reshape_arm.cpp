@@ -965,41 +965,7 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
         }
     }
 
-    const unsigned char* ptr = (const unsigned char*)bottom_blob;
-    unsigned char* outptr = (unsigned char*)top_blob;
-    const size_t block = (size_t)1 << 30;
-    for (size_t i0 = 0; i0 < input_total; i0 += block)
-    {
-        const int nn = (int)(input_total - i0 > block ? block : input_total - i0);
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int t = 0; t < nn; t++)
-        {
-            const size_t i = i0 + t;
-            const size_t srcoff = get_batch_reshape_offset(bottom_blob, input_shape, input_axis, i, scalar_elemsize);
-            const size_t dstoff = get_batch_reshape_offset(top_blob, output_shape, output_axis, i, scalar_elemsize);
-
-            if (i != 0)
-            {
-                const size_t srcoff0 = get_batch_reshape_offset(bottom_blob, input_shape, input_axis, i - 1, scalar_elemsize);
-                const size_t dstoff0 = get_batch_reshape_offset(top_blob, output_shape, output_axis, i - 1, scalar_elemsize);
-                if (srcoff == srcoff0 + scalar_elemsize && dstoff == dstoff0 + scalar_elemsize)
-                    continue;
-            }
-
-            size_t size = 1;
-            while (i + size < input_total)
-            {
-                const size_t srcoff1 = get_batch_reshape_offset(bottom_blob, input_shape, input_axis, i + size, scalar_elemsize);
-                const size_t dstoff1 = get_batch_reshape_offset(top_blob, output_shape, output_axis, i + size, scalar_elemsize);
-                if (srcoff1 != srcoff + size * scalar_elemsize || dstoff1 != dstoff + size * scalar_elemsize)
-                    break;
-
-                size++;
-            }
-
-            memcpy(outptr + dstoff, ptr + srcoff, size * scalar_elemsize);
-        }
-    }
+    copy_batch_reshape(bottom_blob, top_blob, input_shape, input_axis, output_shape, output_axis, input_total, scalar_elemsize, opt);
 
     return 0;
 }

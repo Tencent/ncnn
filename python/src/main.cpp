@@ -24,6 +24,8 @@ using namespace ncnn;
 
 namespace py = pybind11;
 
+static const int batch_index_none = 233;
+
 class DataReaderFromMemoryCopy : public DataReaderFromMemory
 {
 public:
@@ -253,14 +255,14 @@ PYBIND11_MODULE(ncnn, m)
     .def(py::init([](py::buffer const b, int batch_index) {
         py::buffer_info info = b.request();
 #if !NCNN_BATCH
-        if (batch_index != 233)
+        if (batch_index != batch_index_none)
         {
             std::stringstream ss;
             ss << "ncnn batch support disabled";
             pybind11::pybind11_fail(ss.str());
         }
 #endif
-        if (batch_index == 233 && info.ndim > 4)
+        if (batch_index == batch_index_none && info.ndim > 4)
         {
             std::stringstream ss;
             ss << "convert numpy.ndarray to ncnn.Mat only dims <=4 support now, but given " << info.ndim;
@@ -269,7 +271,7 @@ PYBIND11_MODULE(ncnn, m)
 
         size_t elemsize = info.itemsize;
 
-        if (batch_index != 233)
+        if (batch_index != batch_index_none)
         {
             if (info.ndim > 5)
             {
@@ -377,14 +379,14 @@ PYBIND11_MODULE(ncnn, m)
         }
         return std::unique_ptr<Mat>(v);
     }),
-    py::arg("array"), py::arg("batch_index") = 233)
+    py::arg("array"), py::arg("batch_index") = batch_index_none)
     .def_buffer([](Mat& m) -> py::buffer_info {
         return to_buffer_info(m);
     })
     .def(
-    "numpy", [](py::object obj, const std::string& format = "", int batch_index = 233) -> py::array {
+    "numpy", [](py::object obj, const std::string& format = "", int batch_index = batch_index_none) -> py::array {
         auto* m = obj.cast<Mat*>();
-        if (batch_index != 233)
+        if (batch_index != batch_index_none)
         {
 #if !NCNN_BATCH
             std::stringstream ss;
@@ -402,7 +404,7 @@ PYBIND11_MODULE(ncnn, m)
         }
         return py::array(to_buffer_info(*m, format), obj);
     },
-    py::arg("format") = "", py::arg("batch_index") = 233, "i for int32, f for float32, d for double")
+    py::arg("format") = "", py::arg("batch_index") = batch_index_none, "i for int32, f for float32, d for double")
     //.def("fill", (void (Mat::*)(int))(&Mat::fill), py::arg("v"))
     .def("fill", (void (Mat::*)(float))(&Mat::fill), py::arg("v"))
     .def("clone", &Mat::clone, py::arg("allocator") = nullptr)
@@ -588,7 +590,11 @@ PYBIND11_MODULE(ncnn, m)
     .def("__repr__", [](const Mat& m) {
         std::stringstream ss;
         ss << "<ncnn.Mat w=" << m.w << " h=" << m.h << " d=" << m.d << " c=" << m.c << " dims=" << m.dims
-           << " cstep=" << m.cstep << " elemsize=" << m.elemsize << " elempack=" << m.elempack << "\n\t"
+           << " n=" << m.n << " cstep=" << m.cstep
+#if NCNN_BATCH
+           << " nstep=" << m.nstep
+#endif
+           << " elemsize=" << m.elemsize << " elempack=" << m.elempack << "\n\t"
            << "refcount=" << (m.refcount ? *m.refcount : 0) << " data=0x" << static_cast<const void*>(m.data)
            << " allocator=0x" << static_cast<const void*>(m.allocator) << ">\n";
 

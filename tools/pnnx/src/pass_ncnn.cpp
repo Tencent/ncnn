@@ -87,8 +87,8 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
 
     ncnn::chain_multi_output(g);
 
+    // solve torch batch axis first, then legalize how ncnn carries it
     ncnn::solve_batch_index(g);
-
     ncnn::convert_batch_layout(g);
 
     ncnn::convert_half_to_float(g);

@@ -49,6 +49,7 @@ void convert_torch_split(Graph& graph)
 
         if (axis_is_batch)
         {
+            // keep Slice op for future across-batch support
             op->params.clear();
             continue;
         }

@@ -276,6 +276,8 @@ class ModelPackedBatchReshapeBetweenConv(nn.Module):
 
 def compare(a, b):
     if isinstance(a, tuple):
+        if not isinstance(b, tuple) or len(a) != len(b):
+            return False
         for a0, b0 in zip(a, b):
             if not torch.allclose(a0, b0, 1e-3, 1e-3):
                 return False
@@ -296,7 +298,8 @@ def run_model(name, net, inputs):
     mod.save(name + ".pt")
 
     inputshape = ",".join([str(list(x.shape)).replace(" ", "") for x in inputs])
-    os.system("../../src/pnnx " + name + ".pt inputshape=" + inputshape)
+    if os.system("../../src/pnnx " + name + ".pt inputshape=" + inputshape) != 0:
+        return False
 
     ncnnpy = __import__(name + "_ncnn")
     b = ncnnpy.test_inference()

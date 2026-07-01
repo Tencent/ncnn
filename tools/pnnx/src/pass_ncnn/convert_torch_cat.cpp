@@ -42,6 +42,7 @@ void convert_torch_cat(Graph& graph)
 
         if (axis_is_batch)
         {
+            // keep Concat op for future across-batch support
             op->params.clear();
             continue;
         }

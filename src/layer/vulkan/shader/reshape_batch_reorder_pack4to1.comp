@@ -7,7 +7,7 @@ layout(constant_id = 0) const int input_batch_axis = 233;
 layout(constant_id = 1) const int output_batch_axis = 233;
 
 layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
-layout(binding = 1) buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 
 layout(push_constant) uniform parameter
 {

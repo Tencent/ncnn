@@ -48,6 +48,7 @@ void convert_torch_unbind(Graph& graph)
 
             if (axis_is_batch)
             {
+                // keep Slice op for future across-batch support
                 op->params.clear();
                 break;
             }

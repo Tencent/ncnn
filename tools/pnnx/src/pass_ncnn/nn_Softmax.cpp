@@ -32,7 +32,6 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
         const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
         int axis = captured_params.at("dim").i;
@@ -44,13 +43,13 @@ pnnx.Output             output      1 0 out
             if (input_rank > 0)
                 axis = input_rank + axis;
             else if (ncnn_batch_axis != 233)
-                fprintf(stderr, "softmax axis around batch axis %d is unknown\n", batch_index);
+                fprintf(stderr, "softmax axis around batch axis %d is unknown\n", ncnn_batch_axis);
         }
 
         bool axis_is_batch = false;
         if (ncnn_batch_axis != 233 && axis == ncnn_batch_axis)
         {
-            fprintf(stderr, "softmax along batch axis %d is not supported\n", batch_index);
+            fprintf(stderr, "softmax along batch axis %d is not supported\n", ncnn_batch_axis);
             axis_is_batch = true;
         }
 

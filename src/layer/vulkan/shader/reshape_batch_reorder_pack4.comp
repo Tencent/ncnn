@@ -7,6 +7,7 @@ layout(constant_id = 0) const int input_batch_axis = 233;
 layout(constant_id = 1) const int output_batch_axis = 233;
 
 #if NCNN_fp16_packed || NCNN_bf16_packed
+// paired load/store avoids scalar fp16 packed access issues
 layout(binding = 0) readonly buffer bottom_blob { sfpvec2 bottom_blob_data[]; };
 #else
 layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };

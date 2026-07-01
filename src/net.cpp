@@ -701,7 +701,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
                 blob_mats[bottom_blob_index].release();
             }
         }
-        else
+        if (bottom_blob.n == 1 || layer->support_batch)
 #endif // NCNN_BATCH
         {
             // forward
@@ -831,7 +831,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
                 }
             }
         }
-        else
+        if (B == 1 || layer->support_batch)
 #endif // NCNN_BATCH
         {
             // forward
@@ -960,7 +960,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
                 blob_mats_gpu[bottom_blob_index].release();
             }
         }
-        else
+        if (bottom_blob.n == 1 || layer->support_batch)
 #endif // NCNN_BATCH
         {
             // forward
@@ -1090,7 +1090,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
                 }
             }
         }
-        else
+        if (B == 1 || layer->support_batch)
 #endif // NCNN_BATCH
         {
             // forward

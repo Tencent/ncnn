@@ -1225,10 +1225,9 @@ NCNN_FORCEINLINE Mat::~Mat()
 
 NCNN_FORCEINLINE void Mat::fill(float _v)
 {
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     float* ptr = (float*)data;
 
@@ -1249,10 +1248,9 @@ NCNN_FORCEINLINE void Mat::fill(float _v)
 
 NCNN_FORCEINLINE void Mat::fill(int _v)
 {
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     int* ptr = (int*)data;
 
@@ -1274,10 +1272,9 @@ NCNN_FORCEINLINE void Mat::fill(int _v)
 #if __ARM_NEON
 NCNN_FORCEINLINE void Mat::fill(float32x4_t _v)
 {
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     float* ptr = (float*)data;
     for (size_t i = 0; i < size; i++)
@@ -1289,10 +1286,9 @@ NCNN_FORCEINLINE void Mat::fill(float32x4_t _v)
 
 NCNN_FORCEINLINE void Mat::fill(uint16x4_t _v)
 {
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     unsigned short* ptr = (unsigned short*)data;
     for (size_t i = 0; i < size; i++)
@@ -1305,10 +1301,9 @@ NCNN_FORCEINLINE void Mat::fill(uint16x4_t _v)
 #if !defined(_MSC_VER)
 NCNN_FORCEINLINE void Mat::fill(int32x4_t _v)
 {
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     int* ptr = (int*)data;
     for (size_t i = 0; i < size; i++)
@@ -1321,10 +1316,9 @@ NCNN_FORCEINLINE void Mat::fill(int32x4_t _v)
 
 NCNN_FORCEINLINE void Mat::fill(int32x4_t _v0, int32x4_t _v1)
 {
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     int* ptr = (int*)data;
     for (size_t i = 0; i < size; i++)
@@ -1338,10 +1332,9 @@ NCNN_FORCEINLINE void Mat::fill(int32x4_t _v0, int32x4_t _v1)
 #if !defined(_MSC_VER)
 NCNN_FORCEINLINE void Mat::fill(float16x4_t _v)
 {
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     __fp16* ptr = (__fp16*)data;
     for (size_t i = 0; i < size; i++)
@@ -1353,10 +1346,9 @@ NCNN_FORCEINLINE void Mat::fill(float16x4_t _v)
 
 NCNN_FORCEINLINE void Mat::fill(float16x8_t _v)
 {
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     __fp16* ptr = (__fp16*)data;
     for (size_t i = 0; i < size; i++)
@@ -1374,10 +1366,9 @@ NCNN_FORCEINLINE void Mat::fill(float16x8_t _v)
 #if __AVX512F__
 NCNN_FORCEINLINE void Mat::fill(const __m512& _v)
 {
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     float* ptr = (float*)data;
     for (size_t i = 0; i < size; i++)
@@ -1392,10 +1383,9 @@ NCNN_FORCEINLINE void Mat::fill(const __m256& _v, int _i)
     // old gcc cannot overload __m128 and __m256 type
     // add a dummy int parameter for different mangled function symbol
     (void)_i;
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     float* ptr = (float*)data;
     for (size_t i = 0; i < size; i++)
@@ -1407,10 +1397,9 @@ NCNN_FORCEINLINE void Mat::fill(const __m256& _v, int _i)
 #endif // __AVX__
 NCNN_FORCEINLINE void Mat::fill(const __m128& _v)
 {
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     float* ptr = (float*)data;
     for (size_t i = 0; i < size; i++)
@@ -1421,10 +1410,9 @@ NCNN_FORCEINLINE void Mat::fill(const __m128& _v)
 }
 NCNN_FORCEINLINE void Mat::fill(const __m128i& _v)
 {
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     unsigned short* ptr = (unsigned short*)data;
     for (size_t i = 0; i < size; i++)
@@ -1438,10 +1426,9 @@ NCNN_FORCEINLINE void Mat::fill(const __m128i& _v)
 #if __mips_msa
 NCNN_FORCEINLINE void Mat::fill(v4f32 _v)
 {
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     float* ptr = (float*)data;
     for (size_t i = 0; i < size; i++)
@@ -1455,10 +1442,9 @@ NCNN_FORCEINLINE void Mat::fill(v4f32 _v)
 #if __loongarch_sx
 NCNN_FORCEINLINE void Mat::fill(__m128 _v)
 {
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     float* ptr = (float*)data;
     for (size_t i = 0; i < size; i++)
@@ -1475,10 +1461,9 @@ NCNN_FORCEINLINE void Mat::fill(vfloat32m1_t _v)
     const int packn = cpu_riscv_vlenb() / 4;
     const size_t vl = __riscv_vsetvl_e32m1(packn);
 
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     float* ptr = (float*)data;
     for (size_t i = 0; i < size; i++)
@@ -1493,10 +1478,9 @@ NCNN_FORCEINLINE void Mat::fill(vuint16m1_t _v)
     const int packn = cpu_riscv_vlenb() / 2;
     const size_t vl = __riscv_vsetvl_e16m1(packn);
 
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     unsigned short* ptr = (unsigned short*)data;
     for (size_t i = 0; i < size; i++)
@@ -1511,10 +1495,9 @@ NCNN_FORCEINLINE void Mat::fill(vint8m1_t _v)
     const int packn = cpu_riscv_vlenb() / 1;
     const size_t vl = __riscv_vsetvl_e8m1(packn);
 
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     signed char* ptr = (signed char*)data;
     for (size_t i = 0; i < size; i++)
@@ -1529,10 +1512,9 @@ NCNN_FORCEINLINE void Mat::fill(vfloat16m1_t _v)
     const int packn = cpu_riscv_vlenb() / 2;
     const size_t vl = __riscv_vsetvl_e16m1(packn);
 
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     __fp16* ptr = (__fp16*)data;
     for (size_t i = 0; i < size; i++)
@@ -1547,10 +1529,9 @@ NCNN_FORCEINLINE void Mat::fill(vfloat16m1_t _v)
 template<typename T>
 NCNN_FORCEINLINE void Mat::fill(T _v)
 {
-#if NCNN_BATCH
-    size_t size = nstep * n;
-#else
     size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
 #endif
     T* ptr = (T*)data;
     for (size_t i = 0; i < size; i++)

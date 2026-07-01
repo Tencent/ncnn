@@ -5862,71 +5862,118 @@ static int test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1()
 
 #endif // NCNN_VULKAN
 
+static int test_mat_batch_cpu()
+{
+    return 0
+           || test_create_batch_basic()
+           || test_nstep_alignment()
+           || test_batch_subview_zero_copy()
+           || test_batch_range()
+           || test_batch_data_isolation()
+           || test_batch_clone()
+           || test_batch_release()
+           || test_batch_create_reset()
+           || test_batch_reshape()
+           || test_batch_reshape_zero_copy()
+           || test_batch_reshape_batch_to_dim_flatten()
+           || test_batch_reshape_batch_to_dim_4d()
+           || test_batch_reshape_batch_to_dim_negative_axis()
+           || test_batch_reshape_batch_to_dim_shape_expr()
+           || test_batch_reshape_dim_to_batch()
+           || test_batch_reshape_dim_to_batch_negative_axis()
+           || test_batch_reshape_output_batch_axis_negative_tail()
+           || test_batch_reshape_dim_to_batch_axis1()
+           || test_batch_reshape_batch_to_dim_axis1()
+           || test_batch_reshape_batch_to_dim_axis1_negative_axis()
+           || test_batch_reshape_input_batch_axis_negative_tail()
+           || test_batch_reshape_packed_batch_to_dim_axis0()
+           || test_batch_reshape_packed_same_axis_reorder()
+           || test_batch_reshape_packed_batch_to_dim_axis0_2d()
+           || test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked()
+           || test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked_nstep_padding()
+           || test_batch_reshape_packed_batch_to_dim_axis1()
+           || test_batch_reshape_packed_batch_to_dim_axis1_2d()
+           || test_batch_reshape_batch_to_dim_axis1_pack1topacked()
+           || test_batch_reshape_batch_to_dim_axis1_cstep_padding()
+           || test_batch_reshape_packed_dim_to_batch_axis0()
+           || test_batch_reshape_packed_dim_to_batch_axis0_2d()
+           || test_batch_reshape_dim_to_batch_axis0_2d_pack1topacked()
+           || test_batch_reshape_dim_to_batch_axis0_2d_pack4topack1_nstep_padding()
+           || test_batch_reshape_packed_dim_to_batch_axis1()
+           || test_batch_reshape_packed_dim_to_batch_axis1_2d()
+           || test_batch_reshape_packed_dim_to_batch_axis1_4d()
+           || test_batch_reshape_dim_to_batch_axis1_negative_axis()
+           || test_batch_reshape_dim_to_batch_axis1_pack1topacked()
+           || test_batch_reshape_batch_to_dim_pack1topacked()
+           || test_batch_reshape_batch_to_dim_pack1tohighpack()
+           || test_batch_reshape_batch_to_dim_pack4topack1()
+           || test_batch_reshape_dim_to_batch_pack1topacked()
+           || test_batch_reshape_dim_to_batch_pack1tohighpack()
+           || test_batch_reshape_dim_to_batch_pack4topack1()
+#if NCNN_BF16
+           || test_batch_reshape_bf16_storage_packed()
+           || test_batch_reshape_bf16_storage_dim_to_batch_packed()
+           || test_batch_reshape_bf16_storage_axis1_packed()
+#endif // NCNN_BF16
+           || test_batch_reshape_dim_to_batch_no_infer()
+           || test_batch_reshape_roundtrip_axis1()
+           || test_batch_reshape_roundtrip_axis2()
+           || test_batch_reshape_roundtrip()
+           || test_batch_reshape_permute_fold()
+           || test_batch_reshape_permute_extract()
+           || test_batch_fill()
+           || test_batch_substract_mean_normalize()
+           || test_backward_compatibility()
+           || test_create_batch_single()
+           || test_create_batch_1d()
+           || test_create_batch_2d();
+}
+
+static int test_batch_forward()
+{
+    return 0
+           || test_batch_forward_binaryop_same_batch()
+           || test_batch_forward_binaryop_broadcast()
+           || test_batch_forward_scale_external()
+           || test_batch_forward_binaryop_mismatch()
+           || test_batch_forward_split()
+           || test_batch_forward_flatten()
+           || test_batch_forward_shape_ops()
+           || test_batch_forward_relu()
+           || test_batch_forward_pooling();
+}
+
+#if NCNN_VULKAN
+static int test_vkmat_batch()
+{
+    return 0
+           || test_vkmat_create_batch_basic()
+           || test_vkmat_nstep_alignment()
+           || test_vkmat_batch_subview()
+           || test_vkmat_batch_range()
+           || test_vkmat_batch_release()
+           || test_vkmat_create_reset()
+           || test_vkimage_batch_not_supported()
+           || test_vkmat_batch_upload_download()
+           || test_vkmat_batch_upload_download_whole()
+           || test_vktransfer_batch_upload()
+           || test_vkmat_batch_forward_reshape_batch_to_dim()
+           || test_vkmat_batch_forward_reshape_dim_to_batch()
+           || test_vkmat_batch_forward_reshape_negative_axis()
+           || test_vkmat_batch_forward_reshape_shape_expr()
+           || test_vkmat_batch_forward_reshape_same_axis_relu()
+           || test_vkmat_batch_forward_reshape_dim_to_batch_axis1()
+           || test_vkmat_batch_forward_reshape_batch_to_dim_axis1()
+           || test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4()
+           || test_vkmat_batch_forward_reshape_packed_batch_to_dim_axis1()
+           || test_vkmat_batch_forward_reshape_dim_to_batch_pack4to1()
+           || test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1();
+}
+#endif // NCNN_VULKAN
+
 int main()
 {
-    int ret = 0
-              || test_create_batch_basic()
-              || test_nstep_alignment()
-              || test_batch_subview_zero_copy()
-              || test_batch_range()
-              || test_batch_data_isolation()
-              || test_batch_clone()
-              || test_batch_release()
-              || test_batch_create_reset()
-              || test_batch_reshape()
-              || test_batch_reshape_zero_copy()
-              || test_batch_reshape_batch_to_dim_flatten()
-              || test_batch_reshape_batch_to_dim_4d()
-              || test_batch_reshape_batch_to_dim_negative_axis()
-              || test_batch_reshape_batch_to_dim_shape_expr()
-              || test_batch_reshape_dim_to_batch()
-              || test_batch_reshape_dim_to_batch_negative_axis()
-              || test_batch_reshape_output_batch_axis_negative_tail()
-              || test_batch_reshape_dim_to_batch_axis1()
-              || test_batch_reshape_batch_to_dim_axis1()
-              || test_batch_reshape_batch_to_dim_axis1_negative_axis()
-              || test_batch_reshape_input_batch_axis_negative_tail()
-              || test_batch_reshape_packed_batch_to_dim_axis0()
-              || test_batch_reshape_packed_same_axis_reorder()
-              || test_batch_reshape_packed_batch_to_dim_axis0_2d()
-              || test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked()
-              || test_batch_reshape_batch_to_dim_axis0_2d_pack1topacked_nstep_padding()
-              || test_batch_reshape_packed_batch_to_dim_axis1()
-              || test_batch_reshape_packed_batch_to_dim_axis1_2d()
-              || test_batch_reshape_batch_to_dim_axis1_pack1topacked()
-              || test_batch_reshape_batch_to_dim_axis1_cstep_padding()
-              || test_batch_reshape_packed_dim_to_batch_axis0()
-              || test_batch_reshape_packed_dim_to_batch_axis0_2d()
-              || test_batch_reshape_dim_to_batch_axis0_2d_pack1topacked()
-              || test_batch_reshape_dim_to_batch_axis0_2d_pack4topack1_nstep_padding()
-              || test_batch_reshape_packed_dim_to_batch_axis1()
-              || test_batch_reshape_packed_dim_to_batch_axis1_2d()
-              || test_batch_reshape_packed_dim_to_batch_axis1_4d()
-              || test_batch_reshape_dim_to_batch_axis1_negative_axis()
-              || test_batch_reshape_dim_to_batch_axis1_pack1topacked()
-              || test_batch_reshape_batch_to_dim_pack1topacked()
-              || test_batch_reshape_batch_to_dim_pack1tohighpack()
-              || test_batch_reshape_batch_to_dim_pack4topack1()
-              || test_batch_reshape_dim_to_batch_pack1topacked()
-              || test_batch_reshape_dim_to_batch_pack1tohighpack()
-              || test_batch_reshape_dim_to_batch_pack4topack1()
-#if NCNN_BF16
-              || test_batch_reshape_bf16_storage_packed()
-              || test_batch_reshape_bf16_storage_dim_to_batch_packed()
-              || test_batch_reshape_bf16_storage_axis1_packed()
-#endif // NCNN_BF16
-              || test_batch_reshape_dim_to_batch_no_infer()
-              || test_batch_reshape_roundtrip_axis1()
-              || test_batch_reshape_roundtrip_axis2()
-              || test_batch_reshape_roundtrip()
-              || test_batch_reshape_permute_fold()
-              || test_batch_reshape_permute_extract()
-              || test_batch_fill()
-              || test_batch_substract_mean_normalize()
-              || test_backward_compatibility()
-              || test_create_batch_single()
-              || test_create_batch_1d()
-              || test_create_batch_2d();
+    int ret = test_mat_batch_cpu();
     if (ret != 0)
         return ret;
 
@@ -5934,16 +5981,7 @@ int main()
     ncnn::create_gpu_instance();
 #endif // NCNN_VULKAN
 
-    ret = 0
-          || test_batch_forward_binaryop_same_batch()
-          || test_batch_forward_binaryop_broadcast()
-          || test_batch_forward_scale_external()
-          || test_batch_forward_binaryop_mismatch()
-          || test_batch_forward_split()
-          || test_batch_forward_flatten()
-          || test_batch_forward_shape_ops()
-          || test_batch_forward_relu()
-          || test_batch_forward_pooling();
+    ret = test_batch_forward();
     if (ret != 0)
     {
 #if NCNN_VULKAN
@@ -5955,28 +5993,7 @@ int main()
 #if NCNN_VULKAN
     if (ncnn::get_gpu_count() > 0)
     {
-        ret = 0
-              || test_vkmat_create_batch_basic()
-              || test_vkmat_nstep_alignment()
-              || test_vkmat_batch_subview()
-              || test_vkmat_batch_range()
-              || test_vkmat_batch_release()
-              || test_vkmat_create_reset()
-              || test_vkimage_batch_not_supported()
-              || test_vkmat_batch_upload_download()
-              || test_vkmat_batch_upload_download_whole()
-              || test_vktransfer_batch_upload()
-              || test_vkmat_batch_forward_reshape_batch_to_dim()
-              || test_vkmat_batch_forward_reshape_dim_to_batch()
-              || test_vkmat_batch_forward_reshape_negative_axis()
-              || test_vkmat_batch_forward_reshape_shape_expr()
-              || test_vkmat_batch_forward_reshape_same_axis_relu()
-              || test_vkmat_batch_forward_reshape_dim_to_batch_axis1()
-              || test_vkmat_batch_forward_reshape_batch_to_dim_axis1()
-              || test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4()
-              || test_vkmat_batch_forward_reshape_packed_batch_to_dim_axis1()
-              || test_vkmat_batch_forward_reshape_dim_to_batch_pack4to1()
-              || test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1();
+        ret = test_vkmat_batch();
     }
     else
     {

@@ -20,7 +20,7 @@ void convert_Tensor_select(Graph& graph)
             if (op->type != "Tensor.select")
                 continue;
 
-            const int batch_index = op->inputs[0]->params["__batch_index"].i;
+            const int batch_index = op->inputs[0]->params.at("__batch_index").i;
             const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
             int axis = op->params.at("dim").i;
@@ -32,7 +32,7 @@ void convert_Tensor_select(Graph& graph)
                 if (input_rank > 0)
                     axis = input_rank + axis;
                 else if (ncnn_batch_axis != 233)
-                    fprintf(stderr, "select axis around batch axis %d is unknown\n", batch_index);
+                    fprintf(stderr, "select axis around batch axis %d is unknown\n", ncnn_batch_axis);
             }
 
             bool axis_is_batch = false;
@@ -50,6 +50,7 @@ void convert_Tensor_select(Graph& graph)
 
                 op->type = "Crop";
                 op->name = std::string("select_") + std::to_string(op_index++);
+                // keep Crop op for future across-batch support
                 op->params.clear();
 
                 break;

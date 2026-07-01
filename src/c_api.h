@@ -116,7 +116,7 @@ NCNN_EXPORT ncnn_mat_t ncnn_mat_create_1d_batch(int w, int n, ncnn_allocator_t a
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d_batch(int w, int h, int n, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d_batch(int w, int h, int c, int n, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_4d_batch(int w, int h, int d, int c, int n, ncnn_allocator_t allocator);
-#endif
+#endif /* NCNN_BATCH */
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_1d(int w, void* data, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_2d(int w, int h, void* data, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_3d(int w, int h, int c, void* data, ncnn_allocator_t allocator);
@@ -130,7 +130,7 @@ NCNN_EXPORT ncnn_mat_t ncnn_mat_create_1d_elem_batch(int w, size_t elemsize, int
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d_elem_batch(int w, int h, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d_elem_batch(int w, int h, int c, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_4d_elem_batch(int w, int h, int d, int c, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator);
-#endif
+#endif /* NCNN_BATCH */
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_1d_elem(int w, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_2d_elem(int w, int h, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_3d_elem(int w, int h, int c, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator);
@@ -156,12 +156,12 @@ NCNN_EXPORT int ncnn_mat_get_elempack(const ncnn_mat_t mat);
 NCNN_EXPORT size_t ncnn_mat_get_cstep(const ncnn_mat_t mat);
 #if NCNN_BATCH
 NCNN_EXPORT size_t ncnn_mat_get_nstep(const ncnn_mat_t mat);
-#endif
+#endif /* NCNN_BATCH */
 NCNN_EXPORT void* ncnn_mat_get_data(const ncnn_mat_t mat);
 
 #if NCNN_BATCH
 NCNN_EXPORT void* ncnn_mat_get_batch_data(const ncnn_mat_t mat, int b);
-#endif
+#endif /* NCNN_BATCH */
 NCNN_EXPORT void* ncnn_mat_get_channel_data(const ncnn_mat_t mat, int c);
 
 #if NCNN_PIXEL
