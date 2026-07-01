@@ -25,6 +25,7 @@ void convert_torch_unbind(Graph& graph)
             op->type = "Slice";
             op->name = std::string("unbind_") + std::to_string(op_index++);
 
+            const int batch_index = op->inputs[0]->params.at("__batch_index").i;
             const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
             int axis = op->params.at("dim").i;
@@ -38,6 +39,8 @@ void convert_torch_unbind(Graph& graph)
                 else if (ncnn_batch_axis != 233)
                     fprintf(stderr, "unbind axis around batch axis %d is unknown\n", ncnn_batch_axis);
             }
+
+            const int axis0 = axis;
 
             bool axis_is_batch = false;
             if (ncnn_batch_axis != 233 && axis == ncnn_batch_axis)
@@ -57,6 +60,14 @@ void convert_torch_unbind(Graph& graph)
 
             if (ncnn_batch_axis != 233 && axis > ncnn_batch_axis)
                 axis -= 1;
+
+            int output_batch_index = batch_index;
+            if (batch_index != 233 && axis0 >= 0 && axis0 < batch_index)
+                output_batch_index -= 1;
+
+            int output_ncnn_batch_axis = ncnn_batch_axis;
+            if (ncnn_batch_axis != 233 && axis0 >= 0 && axis0 < ncnn_batch_axis)
+                output_ncnn_batch_axis -= 1;
 
             op->params["0"].type = 5;
             op->params["0"].ai.resize(output_size, -233);
@@ -84,8 +95,10 @@ void convert_torch_unbind(Graph& graph)
                 reshape_in->consumers.push_back(reshape);
                 reshape_in->type = out->type;
                 reshape_in->shape = out->shape;
-                reshape_in->params["__batch_index"] = out->params["__batch_index"];
+                reshape_in->params["__batch_index"] = batch_index;
                 reshape_in->params["__ncnn_batch_axis"] = ncnn_batch_axis;
+                out->params["__batch_index"] = output_batch_index;
+                out->params["__ncnn_batch_axis"] = output_ncnn_batch_axis;
 
                 if (!out->shape.empty())
                     reshape->params["shape"] = out->shape;

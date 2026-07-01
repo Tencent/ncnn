@@ -63,7 +63,7 @@ pnnx.Output             output      1 0 out
 
         const int shape_rank = (int)new_shape.size();
         if (shape_rank > 5 || (shape_rank == 5 && output_ncnn_batch_axis == 233))
-            fprintf(stderr, "reshape to %d-rank tensor is not supported yet\n", shape_rank);
+            fprintf(stderr, "reshape to %d-rank physical tensor is not supported by ncnn runtime yet\n", shape_rank);
 
         if (shape_rank == 1)
         {

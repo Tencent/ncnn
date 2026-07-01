@@ -241,6 +241,16 @@ class ModelBinaryLayoutAgreement(nn.Module):
         return out0, out1, out2
 
 
+class ModelDuplicateInputLayout(nn.Module):
+    def __init__(self):
+        super(ModelDuplicateInputLayout, self).__init__()
+
+    def forward(self, x):
+        x = F.max_pool2d(x, 1)
+        x = x.permute(1, 0, 2, 3)
+        return x + x
+
+
 class ModelCatStackSplitLayout(nn.Module):
     def __init__(self):
         super(ModelCatStackSplitLayout, self).__init__()
@@ -257,6 +267,34 @@ class ModelCatStackSplitLayout(nn.Module):
         out6, out7 = torch.tensor_split(x, (1,), dim=0)
         out8, out9, out10 = torch.unbind(x, dim=0)
         return out0, out1, out2, out3, out4, out5, out6, out7, out8, out9, out10
+
+
+class ModelUnbindBeforeBatchLayout(nn.Module):
+    def __init__(self):
+        super(ModelUnbindBeforeBatchLayout, self).__init__()
+
+    def forward(self, x):
+        x = F.max_pool2d(x, 1)
+        x = x.permute(1, 0, 2, 3)
+        return torch.unbind(x, dim=0)
+
+
+class ModelSliceMultiSelectLayout(nn.Module):
+    def __init__(self):
+        super(ModelSliceMultiSelectLayout, self).__init__()
+
+    def forward(self, x):
+        x = F.max_pool2d(x, 1)
+        x = x.permute(1, 0, 2, 3)
+        return x[:, :, 1, 2]
+
+
+class ModelPhysical5DReshape(nn.Module):
+    def __init__(self):
+        super(ModelPhysical5DReshape, self).__init__()
+
+    def forward(self, x):
+        return x.reshape(2, 3, 4, 5, 6)
 
 
 class ModelPackedBatchReshapeBetweenConv(nn.Module):
@@ -305,6 +343,22 @@ def run_model(name, net, inputs):
     b = ncnnpy.test_inference()
 
     return compare(a, b)
+
+
+def run_convert_only(name, net, inputs):
+    net.eval()
+
+    if not isinstance(inputs, tuple):
+        inputs = (inputs,)
+
+    mod = torch.jit.trace(net, inputs)
+    mod.save(name + ".pt")
+
+    inputshape = ",".join([str(list(x.shape)).replace(" ", "") for x in inputs])
+    if os.system("../../src/pnnx " + name + ".pt inputshape=" + inputshape) != 0:
+        return False
+
+    return True
 
 
 def test():
@@ -415,9 +469,29 @@ def test():
         return False
 
     torch.manual_seed(0)
+    x = torch.rand(2, 3, 5, 7)
+    if not run_model("test_ncnn_batch_layout_duplicate_input", ModelDuplicateInputLayout(), x):
+        return False
+
+    torch.manual_seed(0)
     x = torch.rand(2, 3, 8)
     y = torch.rand(2, 3, 8)
     if not run_model("test_ncnn_batch_layout_cat_stack_split", ModelCatStackSplitLayout(), (x, y)):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 3, 5, 7)
+    if not run_model("test_ncnn_batch_layout_unbind_before_batch", ModelUnbindBeforeBatchLayout(), x):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 3, 5, 7)
+    if not run_model("test_ncnn_batch_layout_slice_multi_select", ModelSliceMultiSelectLayout(), x):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(720)
+    if not run_convert_only("test_ncnn_batch_layout_physical5d_reshape", ModelPhysical5DReshape(), x):
         return False
 
     torch.manual_seed(0)

@@ -225,7 +225,19 @@ static int get_consumer_ncnn_batch_axis(const Operator* op, int input_index, con
 
 static void replace_consumer_input(Operator* op, int input_index, Operand* old_operand, Operand* new_operand)
 {
-    old_operand->remove_consumer(op);
+    bool still_consume_old_operand = false;
+    for (int i = 0; i < (int)op->inputs.size(); i++)
+    {
+        if (i != input_index && op->inputs[i] == old_operand)
+        {
+            still_consume_old_operand = true;
+            break;
+        }
+    }
+
+    if (!still_consume_old_operand)
+        old_operand->remove_consumer(op);
+
     new_operand->consumers.push_back(op);
     op->inputs[input_index] = new_operand;
 }
@@ -245,6 +257,7 @@ static Operator* insert_batch_to_dim(Graph& graph, Operator* op, int input_index
 
     reshape->inputs.push_back(in);
     reshape->outputs.push_back(reshape_out);
+    in->consumers.push_back(reshape);
 
     std::vector<int> shape = in->shape;
     for (int& s : shape)
@@ -281,6 +294,7 @@ static Operator* insert_dim_to_batch(Graph& graph, Operator* op, int input_index
 
     reshape->inputs.push_back(in);
     reshape->outputs.push_back(reshape_out);
+    in->consumers.push_back(reshape);
 
     std::vector<int> shape = in->shape;
     for (int& s : shape)

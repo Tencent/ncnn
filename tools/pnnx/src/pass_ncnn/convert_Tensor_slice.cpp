@@ -102,7 +102,7 @@ void convert_Tensor_slice(Graph& graph)
 
             const int axes_rank = axes.size();
 
-            bool has_select = false;
+            int select_count = 0;
             bool unsupported = false;
             for (int i = 0; i < axes_rank; i++)
             {
@@ -112,7 +112,7 @@ void convert_Tensor_slice(Graph& graph)
                     starts[i] = selects[i];
                     ends[i] = selects[i] + 1;
                     steps[i] = 1;
-                    has_select = true;
+                    select_count += 1;
                 }
                 else if (steps[i] != 1)
                 {
@@ -130,7 +130,7 @@ void convert_Tensor_slice(Graph& graph)
             {
                 int input_rank = op->inputs[0]->shape.size();
                 if (input_rank == 0 && !op->outputs.empty())
-                    input_rank = op->outputs[0]->shape.size() + (has_select ? 1 : 0);
+                    input_rank = op->outputs[0]->shape.size() + select_count;
 
                 if (ncnn_batch_axis >= 0 && ncnn_batch_axis < input_rank)
                     input_rank -= 1;
@@ -143,7 +143,7 @@ void convert_Tensor_slice(Graph& graph)
 
             int input_rank0 = op->inputs[0]->shape.size();
             if (input_rank0 == 0 && !op->outputs.empty())
-                input_rank0 = op->outputs[0]->shape.size() + (has_select ? 1 : 0);
+                input_rank0 = op->outputs[0]->shape.size() + select_count;
             for (int i = 0; i < axes_rank; i++)
             {
                 if (axes[i] < 0 && input_rank0 > 0)
@@ -204,7 +204,7 @@ void convert_Tensor_slice(Graph& graph)
             op->params.erase("selects");
 
             // reshape for output, squeezing the slice dim
-            if (has_select)
+            if (select_count > 0)
             {
                 Operand* out = op->outputs[0];
 

@@ -105,7 +105,7 @@ pnnx.Output             output      1 0 out
         if (shape_rank >= 5)
         {
             if (shape_rank > 5 || (shape_rank == 5 && output_ncnn_batch_axis == 233))
-                fprintf(stderr, "reshape to %d-rank tensor is not supported yet\n", shape_rank);
+                fprintf(stderr, "reshape to %d-rank physical tensor is not supported by ncnn runtime yet\n", shape_rank);
 
             std::string shape_expr = std::to_string(new_shape[shape_rank - 1]);
             for (int i = shape_rank - 2; i >= 0; i--)

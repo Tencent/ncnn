@@ -55,7 +55,7 @@ pnnx.Output             output      1 0 out
 
         if (shape_rank > 5 || (shape_rank == 5 && (other_ncnn_batch_axis == 233 || output_ncnn_batch_axis == 233)))
         {
-            fprintf(stderr, "reshape_as tensor with %d-rank tensor is not supported yet\n", shape_rank);
+            fprintf(stderr, "reshape_as to %d-rank physical tensor is not supported by ncnn runtime yet\n", shape_rank);
             if (!op->outputs[0]->shape.empty())
             {
                 const std::vector<int>& shape = op->outputs[0]->shape;
