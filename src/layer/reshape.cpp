@@ -641,7 +641,6 @@ int Reshape::resolve_batch_shape(const std::vector<Mat>& bottom_blobs,
     return 0;
 }
 
-
 #endif // NCNN_BATCH
 
 } // namespace ncnn
