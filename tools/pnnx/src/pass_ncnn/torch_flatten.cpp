@@ -86,49 +86,62 @@ pnnx.Output             output      1 0 out
         int end_dim = captured_params.at("end_dim").i;
 
         const int input_rank = op->inputs[0]->shape.size();
-
-        if (start_dim < 0)
-            start_dim += input_rank;
-
-        if (end_dim < 0)
-            end_dim += input_rank;
-
-        if (input_rank <= start_dim || input_rank <= end_dim)
-        {
-            fprintf(stderr, "flatten %d to %d not possible for %d-rank tensor\n", start_dim, end_dim, input_rank);
-            return;
-        }
-
-        std::vector<int> shape_flattened;
-        for (int i = 0; i < start_dim; i++)
-        {
-            shape_flattened.push_back(op->inputs[0]->shape[i]);
-        }
-        int flattened_dimsize = 1;
-        for (int i = start_dim; i <= end_dim; i++)
-        {
-            if (op->inputs[0]->shape[i] == -1)
-            {
-                // flatten includes dynamic axis
-                flattened_dimsize = -1;
-                break;
-            }
-
-            flattened_dimsize *= op->inputs[0]->shape[i];
-        }
-        shape_flattened.push_back(flattened_dimsize);
-        for (int i = end_dim + 1; i < input_rank; i++)
-        {
-            shape_flattened.push_back(op->inputs[0]->shape[i]);
-        }
-
         const int input_ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
         const int output_ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
 
-        std::vector<int> new_shape;
-        for (int i = 0; i < (int)shape_flattened.size(); i++)
+        std::vector<int> new_shape = op->outputs[0]->shape;
+
+        if (new_shape.empty())
         {
-            new_shape.push_back(shape_flattened[i]);
+            if (input_rank == 0)
+            {
+                fprintf(stderr, "flatten unknown-rank tensor is not supported yet, fallback to flatten all\n");
+                new_shape.push_back(-1);
+            }
+            else
+            {
+                if (start_dim < 0)
+                    start_dim += input_rank;
+
+                if (end_dim < 0)
+                    end_dim += input_rank;
+
+                if (input_rank <= start_dim || input_rank <= end_dim)
+                {
+                    fprintf(stderr, "flatten %d to %d not possible for %d-rank tensor, fallback to flatten all\n", start_dim, end_dim, input_rank);
+                    new_shape.push_back(-1);
+                }
+                else
+                {
+                    std::vector<int> shape_flattened;
+                    for (int i = 0; i < start_dim; i++)
+                    {
+                        shape_flattened.push_back(op->inputs[0]->shape[i]);
+                    }
+                    int flattened_dimsize = 1;
+                    for (int i = start_dim; i <= end_dim; i++)
+                    {
+                        if (op->inputs[0]->shape[i] == -1)
+                        {
+                            // flatten includes dynamic axis
+                            flattened_dimsize = -1;
+                            break;
+                        }
+
+                        flattened_dimsize *= op->inputs[0]->shape[i];
+                    }
+                    shape_flattened.push_back(flattened_dimsize);
+                    for (int i = end_dim + 1; i < input_rank; i++)
+                    {
+                        shape_flattened.push_back(op->inputs[0]->shape[i]);
+                    }
+
+                    for (int i = 0; i < (int)shape_flattened.size(); i++)
+                    {
+                        new_shape.push_back(shape_flattened[i]);
+                    }
+                }
+            }
         }
 
         if (new_shape.size() == 5 && output_ncnn_batch_axis == 233)
@@ -140,12 +153,12 @@ pnnx.Output             output      1 0 out
             }
         }
 
-        const int shape_rank = (int)new_shape.size();
-
-        if (shape_rank > 5 || (shape_rank == 5 && output_ncnn_batch_axis == 233))
+        int shape_rank = (int)new_shape.size();
+        if (shape_rank == 0)
         {
-            fprintf(stderr, "reshape to %d-rank tensor is not supported yet!\n", shape_rank);
-            return;
+            fprintf(stderr, "flatten to unknown-rank tensor is not supported yet, fallback to flatten all\n");
+            new_shape.push_back(-1);
+            shape_rank = 1;
         }
 
         // handle multiple dynamic dimension
@@ -216,8 +229,8 @@ pnnx.Output             output      1 0 out
 
             if (shape_expr.empty())
             {
-                fprintf(stderr, "flatten dynamic shape is not supported yet!\n");
-                return;
+                fprintf(stderr, "flatten dynamic shape is not supported yet, fallback to flatten all\n");
+                shape_expr = "-1";
             }
 
             op->params["6"] = shape_expr;
@@ -251,10 +264,13 @@ pnnx.Output             output      1 0 out
             op->params["11"] = new_shape[1];
             op->params["2"] = new_shape[0];
         }
-        if (shape_rank == 5)
+        if (shape_rank >= 5)
         {
-            std::string shape_expr = std::to_string(new_shape[4]);
-            for (int i = 3; i >= 0; i--)
+            if (shape_rank > 5 || (shape_rank == 5 && output_ncnn_batch_axis == 233))
+                fprintf(stderr, "reshape to %d-rank tensor is not supported yet\n", shape_rank);
+
+            std::string shape_expr = std::to_string(new_shape[shape_rank - 1]);
+            for (int i = shape_rank - 2; i >= 0; i--)
             {
                 shape_expr += ",";
                 shape_expr += std::to_string(new_shape[i]);

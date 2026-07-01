@@ -83,6 +83,11 @@ void insert_reshape_linear(Graph& graph)
             int reshape_h = 1;
             for (size_t j = 0; j < linear_in->shape.size() - 1; j++)
             {
+                if (linear_in->shape[j] == -1)
+                {
+                    reshape_h = -1;
+                    break;
+                }
                 reshape_h *= linear_in->shape[j];
             }
 

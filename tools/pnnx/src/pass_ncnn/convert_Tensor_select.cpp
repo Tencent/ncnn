@@ -27,13 +27,25 @@ void convert_Tensor_select(Graph& graph)
             if (axis < 0)
             {
                 int input_rank = op->inputs[0]->shape.size();
+                if (input_rank == 0 && !op->outputs.empty())
+                    input_rank = op->outputs[0]->shape.size() + 1;
                 if (input_rank > 0)
                     axis = input_rank + axis;
+                else if (ncnn_batch_axis != 233)
+                    fprintf(stderr, "select axis around batch axis %d is unknown\n", batch_index);
             }
 
-            if (axis == ncnn_batch_axis)
+            bool axis_is_batch = false;
+            if (ncnn_batch_axis != 233 && axis == ncnn_batch_axis)
             {
                 fprintf(stderr, "select along batch axis %d is not supported\n", ncnn_batch_axis);
+                axis_is_batch = true;
+            }
+
+            const int axis_in_shape = axis;
+
+            if (axis_is_batch)
+            {
                 matched = true;
 
                 op->type = "Crop";
@@ -50,9 +62,7 @@ void convert_Tensor_select(Graph& graph)
             int index;
             if (op->has_param("dim"))
             {
-                dim = axis;
-                if (ncnn_batch_axis != 233 && dim >= ncnn_batch_axis)
-                    dim += 1;
+                dim = axis_in_shape;
             }
             else
             {

@@ -37,16 +37,25 @@ pnnx.Output             output      1 0 out
 
         const int input_rank = op->inputs[0]->shape.size();
 
-        if (dim < 0)
+        if (dim < 0 && input_rank > 0)
             dim += input_rank;
 
-        if (input_rank <= dim)
+        std::vector<int> shape = op->outputs[0]->shape;
+        if (shape.empty())
         {
-            fprintf(stderr, "unflatten %d not possible for %d-rank tensor\n", dim, input_rank);
-            return;
+            const std::vector<int>& input_shape = op->inputs[0]->shape;
+            if (input_shape.empty())
+            {
+                fprintf(stderr, "unflatten tensor with unknown input shape is not supported yet, fallback to sizes\n");
+                shape = sizes;
+            }
+            else
+            {
+                shape.insert(shape.end(), input_shape.begin(), input_shape.begin() + dim);
+                shape.insert(shape.end(), sizes.begin(), sizes.end());
+                shape.insert(shape.end(), input_shape.begin() + dim + 1, input_shape.end());
+            }
         }
-
-        const std::vector<int> shape = op->outputs[0]->shape;
 
         const int input_ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
         const int output_ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
@@ -62,12 +71,13 @@ pnnx.Output             output      1 0 out
             }
         }
 
-        const int shape_rank = (int)new_shape.size();
+        int shape_rank = (int)new_shape.size();
 
-        if (shape_rank > 5 || (shape_rank == 5 && output_ncnn_batch_axis == 233))
+        if (shape_rank == 0)
         {
-            fprintf(stderr, "reshape to %d-rank tensor is not supported yet!\n", shape_rank);
-            return;
+            fprintf(stderr, "unflatten to unknown-rank tensor is not supported yet, fallback to flatten\n");
+            new_shape.push_back(-1);
+            shape_rank = 1;
         }
 
         if (shape_rank == 1)
@@ -92,10 +102,13 @@ pnnx.Output             output      1 0 out
             op->params["11"] = new_shape[1];
             op->params["2"] = new_shape[0];
         }
-        if (shape_rank == 5)
+        if (shape_rank >= 5)
         {
-            std::string shape_expr = std::to_string(new_shape[4]);
-            for (int i = 3; i >= 0; i--)
+            if (shape_rank > 5 || (shape_rank == 5 && output_ncnn_batch_axis == 233))
+                fprintf(stderr, "reshape to %d-rank tensor is not supported yet\n", shape_rank);
+
+            std::string shape_expr = std::to_string(new_shape[shape_rank - 1]);
+            for (int i = shape_rank - 2; i >= 0; i--)
             {
                 shape_expr += ",";
                 shape_expr += std::to_string(new_shape[i]);

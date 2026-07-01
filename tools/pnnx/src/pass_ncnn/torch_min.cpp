@@ -37,7 +37,11 @@ pnnx.Output             output      2 0 out indices
         const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
         int input_rank = op->inputs[0]->shape.size();
         if (input_rank == 0)
+        {
             input_rank = op->outputs[0]->shape.size();
+            if (!captured_params.at("keepdim").b && input_rank > 0)
+                input_rank += 1;
+        }
         if (dim < 0 && input_rank > 0)
             dim += input_rank;
 

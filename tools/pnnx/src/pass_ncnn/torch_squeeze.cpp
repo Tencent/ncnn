@@ -39,7 +39,6 @@ pnnx.Output             output      1 0 out
         if (input_rank > 5)
         {
             fprintf(stderr, "squeeze %d-rank tensor is not supported yet!\n", input_rank);
-            return;
         }
 
         if (captured_params.at("dim").type == 2)
@@ -56,7 +55,17 @@ pnnx.Output             output      1 0 out
                 if (output_ncnn_batch_axis == ncnn_batch_axis)
                 {
                     op->inputs[0]->params["__ncnn_batch_axis"] = output_ncnn_batch_axis;
+                    op->outputs[0]->params["__ncnn_batch_axis"] = output_ncnn_batch_axis;
+                    op->type = "Noop";
+                    return;
                 }
+                if (op->inputs[0]->shape.empty())
+                {
+                    fprintf(stderr, "squeeze along batch axis %d with unknown shape is not supported yet\n", ncnn_batch_axis);
+                    op->params["3"] = std::vector<int>{dim};
+                    return;
+                }
+
                 op->outputs[0]->params["__ncnn_batch_axis"] = output_ncnn_batch_axis;
                 op->type = "Noop";
                 return;
@@ -91,7 +100,8 @@ pnnx.Output             output      1 0 out
 
             if (new_axes.empty())
             {
-                op->type = "Noop";
+                fprintf(stderr, "squeeze along batch axis %d is not supported yet\n", ncnn_batch_axis);
+                op->params["3"] = axes;
                 return;
             }
 

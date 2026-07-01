@@ -36,10 +36,20 @@ void convert_torch_stack(Graph& graph)
             {
                 axis = input_rank + 1 + axis;
             }
+            else if (axis < 0 && ncnn_batch_axis != 233)
+            {
+                fprintf(stderr, "stack axis around batch axis %d is unknown\n", ncnn_batch_axis);
+            }
 
-            if (axis == ncnn_batch_axis)
+            bool axis_is_batch = false;
+            if (ncnn_batch_axis != 233 && axis == ncnn_batch_axis)
             {
                 fprintf(stderr, "stack along batch axis %d is not supported\n", ncnn_batch_axis);
+                axis_is_batch = true;
+            }
+
+            if (axis_is_batch)
+            {
                 op->params.clear();
                 break;
             }
@@ -82,6 +92,10 @@ void convert_torch_stack(Graph& graph)
                         shape.push_back(1);
                         reshape->params["shape"] = shape;
                     }
+                    else
+                    {
+                        reshape->params["shape"] = std::vector<int>{-1, 1};
+                    }
                     reshape_out->shape = shape;
                 }
             }
@@ -97,7 +111,8 @@ void convert_torch_stack(Graph& graph)
                 std::vector<int> shape = op->inputs[0]->shape;
                 if (shape.size() != 0)
                 {
-                    shape[axis0] *= op->inputs.size();
+                    if (axis0 >= 0 && axis0 < (int)shape.size() && shape[axis0] != -1)
+                        shape[axis0] *= op->inputs.size();
                     reshape_in->shape = shape;
                 }
                 reshape_in->params["__batch_index"] = batch_index;
@@ -112,7 +127,10 @@ void convert_torch_stack(Graph& graph)
                 reshape_in->producer = op;
                 reshape_in->consumers.push_back(reshape);
 
-                reshape->params["shape"] = out->shape;
+                if (!out->shape.empty())
+                    reshape->params["shape"] = out->shape;
+                else
+                    reshape->params["shape"] = std::vector<int>{-1};
             }
 
             op->params.erase("dim");

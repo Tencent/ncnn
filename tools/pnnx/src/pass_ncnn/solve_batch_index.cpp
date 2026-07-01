@@ -346,7 +346,7 @@ static void solve_batch_index_forward(Operand* operand)
             }
 
             const int batch_size = op->inputs[0]->shape[batch_index];
-            const int batch_axis_size = batch_size > 1 ? batch_size : 1;
+            const int batch_axis_size = batch_size > 0 ? batch_size : -1;
             bool keep_batch_index = false;
             int batch_index_reshaped = batch_index;
             if (batch_index == 0 && ((batch_size == 1 && shape[0] == 1) || (batch_size > 1 && output_rank0 > 0 && output_shape[0] == batch_size)))
@@ -532,7 +532,7 @@ static void solve_batch_index_forward(Operand* operand)
                     if (dim < 0 && input_rank0 > 0)
                         dim += input_rank0;
 
-                    bool squeezed = input_shape.empty() || (dim >= 0 && dim < input_rank0 && input_shape[dim] == 1);
+                    bool squeezed = dim >= 0 && dim < input_rank0 && input_shape[dim] == 1;
                     if (squeezed && dim >= 0 && dim == batch_index)
                     {
                         batch_index_squeezed = 233;
@@ -551,7 +551,7 @@ static void solve_batch_index_forward(Operand* operand)
                         if (dim < 0 && input_rank0 > 0)
                             dim += input_rank0;
 
-                        bool squeezed = input_shape.empty() || (dim >= 0 && dim < input_rank0 && input_shape[dim] == 1);
+                        bool squeezed = dim >= 0 && dim < input_rank0 && input_shape[dim] == 1;
                         if (squeezed && dim >= 0 && dim == batch_index)
                         {
                             batch_index_squeezed = 233;
@@ -571,7 +571,7 @@ static void solve_batch_index_forward(Operand* operand)
                 // squeeze all
                 if (input_shape.empty())
                 {
-                    batch_index_squeezed = 233;
+                    // unknown rank, keep batch axis as-is
                 }
                 else if (batch_index >= 0 && batch_index < input_rank0 && input_shape[batch_index] == 1)
                 {
@@ -812,7 +812,7 @@ static void solve_batch_index_backward(Operand* operand)
         }
 
         const int batch_size = output_shape[batch_index];
-        const int batch_axis_size = batch_size > 1 ? batch_size : 1;
+        const int batch_axis_size = batch_size > 0 ? batch_size : -1;
         bool keep_batch_index = false;
         int batch_index_unreshaped = batch_index;
         if (input_rank0 > 0)

@@ -66,7 +66,6 @@ pnnx.Output             output      1 0 out
         if (sizes_rank > 5)
         {
             fprintf(stderr, "repeat to %d-rank tensor is not supported yet!\n", sizes_rank);
-            return;
         }
 
         op->params["2"] = new_sizes;

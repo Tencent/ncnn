@@ -31,13 +31,23 @@ void convert_torch_unbind(Graph& graph)
             if (axis < 0)
             {
                 int input_rank = op->inputs[0]->shape.size();
+                if (input_rank == 0 && !op->outputs.empty())
+                    input_rank = op->outputs[0]->shape.size() + 1;
                 if (input_rank > 0)
                     axis = input_rank + axis;
+                else if (ncnn_batch_axis != 233)
+                    fprintf(stderr, "unbind axis around batch axis %d is unknown\n", ncnn_batch_axis);
             }
 
-            if (axis == ncnn_batch_axis)
+            bool axis_is_batch = false;
+            if (ncnn_batch_axis != 233 && axis == ncnn_batch_axis)
             {
                 fprintf(stderr, "unbind along batch axis %d is not supported\n", ncnn_batch_axis);
+                axis_is_batch = true;
+            }
+
+            if (axis_is_batch)
+            {
                 op->params.clear();
                 break;
             }
@@ -76,7 +86,10 @@ void convert_torch_unbind(Graph& graph)
                 reshape_in->params["__batch_index"] = out->params["__batch_index"];
                 reshape_in->params["__ncnn_batch_axis"] = ncnn_batch_axis;
 
-                reshape->params["shape"] = out->shape;
+                if (!out->shape.empty())
+                    reshape->params["shape"] = out->shape;
+                else
+                    reshape->params["shape"] = std::vector<int>{-1};
             }
 
             break;

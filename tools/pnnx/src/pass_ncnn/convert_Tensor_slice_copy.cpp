@@ -131,6 +131,8 @@ void convert_Tensor_slice_copy(Graph& graph)
 
             {
                 int input_rank = op->inputs[0]->shape.size();
+                if (input_rank == 0 && !op->outputs.empty())
+                    input_rank = op->outputs[0]->shape.size();
 
                 if (ncnn_batch_axis >= 0 && ncnn_batch_axis < input_rank)
                     input_rank -= 1;
@@ -138,11 +140,12 @@ void convert_Tensor_slice_copy(Graph& graph)
                 if (input_rank > 4)
                 {
                     fprintf(stderr, "slice_copy %d-rank tensor with %d-rank axes is not possible!\n", input_rank, axes_rank);
-                    continue;
                 }
             }
 
             int input_rank0 = op->inputs[0]->shape.size();
+            if (input_rank0 == 0 && !op->outputs.empty())
+                input_rank0 = op->outputs[0]->shape.size();
             std::vector<int> axes_in_shape = axes;
             for (int i = 0; i < axes_rank; i++)
             {
@@ -157,8 +160,6 @@ void convert_Tensor_slice_copy(Graph& graph)
                     if (starts[i] != 0 || ends[i] != INT_MAX)
                     {
                         fprintf(stderr, "slice_copy along batch axis is not supported\n");
-                        unsupported = true;
-                        break;
                     }
                     axes[i] = -233;
                     continue;
@@ -170,9 +171,6 @@ void convert_Tensor_slice_copy(Graph& graph)
                 if (ends[i] == INT_MAX)
                     ends[i] = -233;
             }
-            if (unsupported)
-                continue;
-
             {
                 std::vector<int> axes2;
                 std::vector<int> starts2;
@@ -247,7 +245,10 @@ void convert_Tensor_slice_copy(Graph& graph)
                     shape.insert(shape.begin() + sa, 1);
                 }
 
-                reshape->params["shape"] = shape;
+                if (!shape.empty())
+                    reshape->params["shape"] = shape;
+                else
+                    reshape->params["shape"] = std::vector<int>{-1};
             }
 
             break;

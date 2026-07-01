@@ -36,19 +36,18 @@ pnnx.Output             output      1 0 out
 
         const int ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
 
-        const std::vector<int> shape = op->inputs[0]->shape;
+        std::vector<int> shape = op->inputs[0]->shape;
         if (shape.empty())
         {
-            fprintf(stderr, "expand tensor with unknown input shape is not supported yet!\n");
-            return;
+            fprintf(stderr, "expand tensor with unknown input shape is not supported yet, fallback to repeat 1\n");
+            shape = sizes;
         }
 
         const int input_rank = (int)shape.size();
         const int output_rank = (int)sizes.size();
         if (input_rank > output_rank)
         {
-            fprintf(stderr, "expand %d-rank tensor to %d-rank tensor is not supported yet!\n", input_rank, output_rank);
-            return;
+            fprintf(stderr, "expand %d-rank tensor to %d-rank tensor is not supported yet, fallback to repeat 1\n", input_rank, output_rank);
         }
 
         const int rank_offset = output_rank - input_rank;
@@ -58,14 +57,13 @@ pnnx.Output             output      1 0 out
         for (int i = 0; i < output_rank; i++)
         {
             const int shape_index = i - rank_offset;
-            const int shape_dim = shape_index >= 0 ? shape[shape_index] : 1;
+            const int shape_dim = shape_index >= 0 && shape_index < input_rank ? shape[shape_index] : 1;
 
             if (i == ncnn_batch_axis)
             {
                 if (sizes[i] != -1 && sizes[i] != shape_dim)
                 {
                     fprintf(stderr, "expand tensor along batch index %d is not supported yet!\n", ncnn_batch_axis);
-                    return;
                 }
                 continue;
             }
@@ -93,7 +91,6 @@ pnnx.Output             output      1 0 out
         if (repeats_rank > 5)
         {
             fprintf(stderr, "expand to %d-rank tensor is not supported yet!\n", repeats_rank);
-            return;
         }
 
         op->params["2"] = repeats;

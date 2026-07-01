@@ -232,6 +232,12 @@ static void replace_consumer_input(Operator* op, int input_index, Operand* old_o
 
 static Operator* insert_batch_to_dim(Graph& graph, Operator* op, int input_index, Operand* in)
 {
+    if (in->shape.empty())
+    {
+        fprintf(stderr, "skip batch-to-dim layout rewrite for unknown-rank tensor\n");
+        return 0;
+    }
+
     const std::string name = op->name + "_ncnnbatch2dim_" + std::to_string(input_index);
 
     Operator* reshape = graph.new_operator_before("Tensor.reshape", name, op);
@@ -262,6 +268,12 @@ static Operator* insert_batch_to_dim(Graph& graph, Operator* op, int input_index
 
 static Operator* insert_dim_to_batch(Graph& graph, Operator* op, int input_index, Operand* in, const std::map<Operand*, int>& batch_indices)
 {
+    if (in->shape.empty())
+    {
+        fprintf(stderr, "skip dim-to-batch layout rewrite for unknown-rank tensor\n");
+        return 0;
+    }
+
     const std::string name = op->name + "_ncnndim2batch_" + std::to_string(input_index);
 
     Operator* reshape = graph.new_operator_before("Tensor.reshape", name, op);
@@ -404,7 +416,7 @@ void convert_batch_layout(Graph& graph)
                         if (dim < 0 && input_rank > 0)
                             dim += input_rank;
 
-                        const bool squeezed = input_shape.empty() || (dim >= 0 && dim < input_rank && input_shape[dim] == 1);
+                        const bool squeezed = dim >= 0 && dim < input_rank && input_shape[dim] == 1;
                         if (squeezed && dim == batch_axis)
                             batch_axis = 233;
                         else if (squeezed && dim >= 0 && dim < batch_axis)
@@ -418,7 +430,7 @@ void convert_batch_layout(Graph& graph)
                             if (dim < 0 && input_rank > 0)
                                 dim += input_rank;
 
-                            const bool squeezed = input_shape.empty() || (dim >= 0 && dim < input_rank && input_shape[dim] == 1);
+                            const bool squeezed = dim >= 0 && dim < input_rank && input_shape[dim] == 1;
                             if (squeezed && dim == batch_axis)
                             {
                                 batch_axis = 233;
@@ -435,7 +447,7 @@ void convert_batch_layout(Graph& graph)
                 {
                     if (input_shape.empty())
                     {
-                        batch_axis = 233;
+                        fprintf(stderr, "skip squeeze batch axis rewrite for unknown-rank tensor\n");
                     }
                     else if (batch_axis >= 0 && batch_axis < input_rank && input_shape[batch_axis] == 1)
                     {

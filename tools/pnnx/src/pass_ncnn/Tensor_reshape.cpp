@@ -55,13 +55,15 @@ pnnx.Output             output      1 0 out
             }
         }
 
-        const int shape_rank = (int)new_shape.size();
-
-        if (shape_rank == 0 || shape_rank > 5 || (shape_rank == 5 && output_ncnn_batch_axis == 233))
+        if (new_shape.empty())
         {
-            fprintf(stderr, "reshape to %d-rank tensor is not supported yet!\n", shape_rank);
-            return;
+            fprintf(stderr, "reshape to unknown-rank tensor is not supported yet, fallback to flatten\n");
+            new_shape.push_back(-1);
         }
+
+        const int shape_rank = (int)new_shape.size();
+        if (shape_rank > 5 || (shape_rank == 5 && output_ncnn_batch_axis == 233))
+            fprintf(stderr, "reshape to %d-rank tensor is not supported yet\n", shape_rank);
 
         if (shape_rank == 1)
         {
@@ -85,10 +87,10 @@ pnnx.Output             output      1 0 out
             op->params["11"] = new_shape[1];
             op->params["2"] = new_shape[0];
         }
-        if (shape_rank == 5)
+        if (shape_rank >= 5)
         {
-            std::string shape_expr = std::to_string(new_shape[4]);
-            for (int i = 3; i >= 0; i--)
+            std::string shape_expr = std::to_string(new_shape[shape_rank - 1]);
+            for (int i = shape_rank - 2; i >= 0; i--)
             {
                 shape_expr += ",";
                 shape_expr += std::to_string(new_shape[i]);

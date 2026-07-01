@@ -39,19 +39,26 @@ pnnx.Output             output      1 0 out
         if (axis < 0)
         {
             int input_rank = op->inputs[0]->shape.size();
+            if (input_rank == 0)
+                input_rank = op->outputs[0]->shape.size();
             if (input_rank > 0)
                 axis = input_rank + axis;
+            else if (ncnn_batch_axis != 233)
+                fprintf(stderr, "softmax axis around batch axis %d is unknown\n", batch_index);
         }
 
+        bool axis_is_batch = false;
         if (ncnn_batch_axis != 233 && axis == ncnn_batch_axis)
         {
             fprintf(stderr, "softmax along batch axis %d is not supported\n", batch_index);
+            axis_is_batch = true;
         }
 
-        if (ncnn_batch_axis != 233 && axis > ncnn_batch_axis)
+        if (!axis_is_batch && ncnn_batch_axis != 233 && axis > ncnn_batch_axis)
             axis -= 1;
 
-        op->params["0"] = axis;
+        if (!axis_is_batch)
+            op->params["0"] = axis;
         op->params["1"] = 1;
     }
 };

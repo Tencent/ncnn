@@ -25,20 +25,30 @@ void convert_torch_chunk(Graph& graph)
         if (axis < 0)
         {
             int input_rank = op->inputs[0]->shape.size();
+            if (input_rank == 0 && !op->outputs.empty())
+                input_rank = op->outputs[0]->shape.size();
             if (input_rank > 0)
                 axis = input_rank + axis;
+            else if (ncnn_batch_axis != 233)
+                fprintf(stderr, "chunk axis around batch axis %d is unknown\n", ncnn_batch_axis);
         }
 
-        if (axis == ncnn_batch_axis)
+        bool axis_is_batch = false;
+        if (ncnn_batch_axis != 233 && axis == ncnn_batch_axis)
         {
             fprintf(stderr, "chunk along batch axis %d is not supported\n", ncnn_batch_axis);
+            axis_is_batch = true;
+        }
+
+        if (axis_is_batch)
+        {
             op->params.clear();
             continue;
         }
 
         int chunks = op->params.at("chunks").i;
 
-        if (!op->inputs[0]->shape.empty())
+        if (!op->inputs[0]->shape.empty() && axis >= 0 && axis < (int)op->inputs[0]->shape.size())
         {
             int size = op->inputs[0]->shape[axis];
             if (size % chunks != 0)

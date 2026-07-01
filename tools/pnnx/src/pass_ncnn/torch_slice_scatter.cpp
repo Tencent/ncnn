@@ -42,10 +42,11 @@ pnnx.Output             output      1 0 out
         if (dim < 0 && input_rank > 0)
             dim += input_rank;
 
-        if (dim == ncnn_batch_axis)
+        bool axis_is_batch = false;
+        if (ncnn_batch_axis != 233 && dim == ncnn_batch_axis)
         {
             fprintf(stderr, "slice_scatter batch dim %d is not supported yet!\n", ncnn_batch_axis);
-            return;
+            axis_is_batch = true;
         }
 
         int start = captured_params.at("start").type == 2 ? captured_params.at("start").i : 0;
@@ -59,15 +60,15 @@ pnnx.Output             output      1 0 out
         if (input_rank > 5)
         {
             fprintf(stderr, "slice_scatter %d-rank tensor is not supported yet!\n", input_rank);
-            return;
         }
 
-        if (ncnn_batch_axis != 233 && dim > ncnn_batch_axis)
+        if (!axis_is_batch && ncnn_batch_axis != 233 && dim > ncnn_batch_axis)
             dim -= 1;
 
         op->params["9"] = std::vector<int>{start};
         // op->params["10"] = ends; // ncnn always resolve ends from src blob
-        op->params["11"] = std::vector<int>{dim};
+        if (!axis_is_batch)
+            op->params["11"] = std::vector<int>{dim};
     }
 };
 

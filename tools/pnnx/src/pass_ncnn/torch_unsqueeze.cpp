@@ -44,7 +44,6 @@ pnnx.Output             output      1 0 out
         if (inner_rank > 4)
         {
             fprintf(stderr, "unsqueeze %d-rank tensor is not supported yet!\n", inner_rank);
-            return;
         }
 
         if (captured_params.at("dim").type == 2)

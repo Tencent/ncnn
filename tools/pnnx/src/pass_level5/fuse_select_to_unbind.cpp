@@ -35,6 +35,8 @@ void fuse_select_to_unbind(Graph& graph)
             int dim = op->params.at("dim").i;
             if (dim < 0)
                 dim = input_rank + dim;
+            if (dim < 0 || dim >= input_rank)
+                continue;
 
             const int select_dimsize = op_in->shape[dim];
             if (select_dimsize == -1)

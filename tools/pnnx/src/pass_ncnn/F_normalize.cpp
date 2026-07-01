@@ -39,17 +39,22 @@ pnnx.Output             output      1 0 out
         if (axis < 0)
         {
             int input_rank = op->inputs[0]->shape.size();
+            if (input_rank == 0)
+                input_rank = op->outputs[0]->shape.size();
             if (input_rank > 0)
                 axis = input_rank + axis;
+            else if (ncnn_batch_axis != 233)
+                fprintf(stderr, "normalize axis around batch axis %d is unknown\n", batch_index);
         }
 
+        bool axis_is_batch = false;
         if (ncnn_batch_axis != 233 && axis == ncnn_batch_axis)
         {
             fprintf(stderr, "normalize along batch axis %d is not supported\n", batch_index);
-            return;
+            axis_is_batch = true;
         }
 
-        if (ncnn_batch_axis != 233 && axis > ncnn_batch_axis)
+        if (!axis_is_batch && ncnn_batch_axis != 233 && axis > ncnn_batch_axis)
             axis -= 1;
 
         float p = 0.f;
@@ -61,10 +66,11 @@ pnnx.Output             output      1 0 out
         if (p != 2.f)
         {
             fprintf(stderr, "unsupported normalize p=%f\n", p);
-            return;
         }
 
         int input_rank = op->inputs[0]->shape.size();
+        if (input_rank == 0)
+            input_rank = op->outputs[0]->shape.size();
 
         if (ncnn_batch_axis >= 0 && ncnn_batch_axis < input_rank)
             input_rank -= 1;
@@ -72,7 +78,6 @@ pnnx.Output             output      1 0 out
         if (input_rank == 2 || input_rank > 4 || axis != 0)
         {
             fprintf(stderr, "unsupported normalize for %d-rank tensor with axis %d\n", input_rank, axis);
-            return;
         }
 
         if (input_rank == 1 && axis == 0)
@@ -85,6 +90,11 @@ pnnx.Output             output      1 0 out
         {
             op->params["0"] = 0; // across_spatial
             op->params["4"] = 1; // across_channel
+        }
+        if (!op->has_param("0"))
+        {
+            op->params["0"] = 0;
+            op->params["4"] = 1;
         }
 
         op->params["1"] = 1; // channel_shared
