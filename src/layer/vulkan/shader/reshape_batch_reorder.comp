@@ -7,11 +7,7 @@ layout(constant_id = 0) const int input_batch_axis = 233;
 layout(constant_id = 1) const int output_batch_axis = 233;
 
 layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
-#if NCNN_fp16_packed || NCNN_bf16_packed
-layout(binding = 1) writeonly buffer top_blob { sfpvec2 top_blob_data[]; };
-#else
-layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
-#endif
+layout(binding = 1) buffer top_blob { sfp top_blob_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -40,17 +36,8 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-#if NCNN_fp16_packed || NCNN_bf16_packed
-    int out_index0 = gx * 2;
-    if (out_index0 >= p.outw * p.outh * p.outd || gz >= p.outc * p.outn)
-        return;
-
-    gx = out_index0 % p.outw;
-    gy = out_index0 / p.outw;
-#else
     if (gx >= p.outw || gy >= p.outh * p.outd || gz >= p.outc * p.outn)
         return;
-#endif
 
     int output_axis = output_batch_axis;
     int output_dims = p.outdims + (output_axis == 233 ? 0 : 1);
@@ -132,7 +119,6 @@ void main()
     int src_i = 0;
     for (int i = 0; i < output_dims; i++)
         src_i = src_i * out_shape[i] + out_coord[i];
-    int src_i0 = src_i;
 
     int in_pshape[4];
     if (p.dims == 1)
@@ -202,49 +188,5 @@ void main()
     if (p.outdims == 3 || p.outdims == 4)
         dst_offset += out_q * p.outcstep + gy * p.outw + gx;
 
-#if NCNN_fp16_packed || NCNN_bf16_packed
-    afp v0 = buffer_ld1(bottom_blob_data, src_offset);
-    afp v1 = afp(0.f);
-
-    int out_index = gy * p.outw + gx;
-    int out_size = p.outw * p.outh * p.outd;
-    if (out_index + 1 < out_size)
-    {
-        int src_i1 = src_i0 + 1;
-
-        int in_coord1[5];
-        for (int i = input_dims - 1; i >= 0; i--)
-        {
-            in_coord1[i] = src_i1 % in_shape[i];
-            src_i1 = src_i1 / in_shape[i];
-        }
-
-        int src_b1 = 0;
-        int in_pcoord1[4];
-        pi = 0;
-        for (int i = 0; i < input_dims; i++)
-        {
-            if (i == input_axis)
-                src_b1 = in_coord1[i];
-            else
-                in_pcoord1[pi++] = in_coord1[i];
-        }
-
-        int src_offset1 = src_b1 * p.nstep;
-        if (p.dims == 1)
-            src_offset1 += in_pcoord1[0];
-        if (p.dims == 2)
-            src_offset1 += in_pcoord1[0] * p.w + in_pcoord1[1];
-        if (p.dims == 3)
-            src_offset1 += in_pcoord1[0] * p.cstep + in_pcoord1[1] * p.w + in_pcoord1[2];
-        if (p.dims == 4)
-            src_offset1 += in_pcoord1[0] * p.cstep + (in_pcoord1[1] * p.h + in_pcoord1[2]) * p.w + in_pcoord1[3];
-
-        v1 = buffer_ld1(bottom_blob_data, src_offset1);
-    }
-
-    buffer_st2(top_blob_data, dst_offset / 2, vec2(v0, v1));
-#else
     buffer_cp1(top_blob_data, dst_offset, bottom_blob_data, src_offset);
-#endif
 }
