@@ -322,7 +322,12 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         if (elempack == 4 && out_elempack == 1)
             pipeline = pipeline_reshape_batch_reorder_pack4to1;
 
+        const bool use_packed_storage = (opt.use_bf16_packed && !opt.use_bf16_storage) || (opt.use_fp16_packed && !opt.use_fp16_storage && !opt.use_bf16_storage && !opt.use_bf16_packed);
+
         Mat dispatcher(top_blob.w, top_blob.h, top_blob.d, top_blob.c * top_blob.n, (void*)0);
+        if (out_elempack == 1 && use_packed_storage)
+            dispatcher = Mat(((top_blob.w * top_blob.h * top_blob.d + 1) / 2), 1, 1, top_blob.c * top_blob.n, (void*)0);
+
         cmd.record_pipeline(pipeline, bindings, std::vector<VkImageMat>(), constants, dispatcher);
 
         return 0;
