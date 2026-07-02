@@ -43,6 +43,18 @@ class Model(nn.Module):
 
         return x0, y0, y1, y2, z0, z1, z2, z3, z4, z5, z6, w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14
 
+class ModelBatch(nn.Module):
+    def __init__(self):
+        super(ModelBatch, self).__init__()
+
+    def forward(self, x):
+        x0 = torch.flip(x, [1])
+        x1 = torch.flip(x, [2])
+        x2 = torch.flip(x, [-1])
+        x3 = torch.flip(x, [1, 3])
+
+        return x0, x1, x2, x3
+
 def test():
     net = Model()
     net.eval()
@@ -66,6 +78,32 @@ def test():
     # ncnn inference
     import test_torch_flip_ncnn
     b = test_torch_flip_ncnn.test_inference()
+
+    for a0, b0 in zip(a, b):
+        if not torch.equal(a0, b0):
+            return False
+    return test_batch()
+
+def test_batch():
+    net = ModelBatch()
+    net.eval()
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 3, 5, 7)
+
+    a = net(x)
+
+    # export torchscript
+    mod = torch.jit.trace(net, x)
+    mod.save("test_torch_flip_batch.pt")
+
+    # torchscript to pnnx
+    import os
+    os.system("../../src/pnnx test_torch_flip_batch.pt inputshape=[2,3,5,7]")
+
+    # ncnn inference
+    import test_torch_flip_batch_ncnn
+    b = test_torch_flip_batch_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):

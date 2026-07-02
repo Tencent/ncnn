@@ -404,6 +404,7 @@ static int test_squeezenet_overwrite_softmax(const ncnn::Option& opt, int load_m
     return check_top2(cls_scores, epsilon);
 }
 
+#if NCNN_BATCH
 static int test_squeezenet_batch(const ncnn::Option& opt, float epsilon = 0.001)
 {
     ncnn::Net squeezenet;
@@ -457,10 +458,10 @@ static int test_squeezenet_batch(const ncnn::Option& opt, float epsilon = 0.001)
 
     // create batch input
     ncnn::Mat in_batch;
-    in_batch.create_batch(in.w, in.h, in.c, B, in.elemsize, in.elempack);
+    in_batch.create(in.w, in.h, in.c, in.elemsize, in.elempack, B);
     if (in_batch.empty())
     {
-        fprintf(stderr, "test_squeezenet_batch create_batch failed\n");
+        fprintf(stderr, "test_squeezenet_batch create failed\n");
         return -1;
     }
 
@@ -514,6 +515,7 @@ static int test_squeezenet_batch(const ncnn::Option& opt, float epsilon = 0.001)
 
     return 0;
 }
+#endif // NCNN_BATCH
 
 int main()
 {
@@ -619,6 +621,7 @@ int main()
 #endif // NCNN_VULKAN
     }
 
+#if NCNN_BATCH
     // batch inference tests
     for (int i = 0; i < 4; i++)
     {
@@ -656,6 +659,7 @@ int main()
         }
 #endif // NCNN_VULKAN
     }
+#endif // NCNN_BATCH
 
     return 0;
 }

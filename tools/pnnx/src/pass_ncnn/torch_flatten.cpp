@@ -34,10 +34,10 @@ pnnx.Output             output      1 0 out
     {
         const Operator* op = matched_operators.at("op_0");
         const int input_rank = op->inputs[0]->shape.size();
-        const int batch_index = op->outputs[0]->params["__batch_index"].i;
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
         const int start_dim = captured_params.at("start_dim").i;
-        if (start_dim == 0 || (start_dim == 1 && batch_index == 0))
+        if ((start_dim == 0 && ncnn_batch_axis == 233) || (start_dim == 1 && ncnn_batch_axis == 0))
         {
             const int end_dim = captured_params.at("end_dim").i;
             if (end_dim == -1)
@@ -86,54 +86,65 @@ pnnx.Output             output      1 0 out
         int end_dim = captured_params.at("end_dim").i;
 
         const int input_rank = op->inputs[0]->shape.size();
+        const int input_ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
+        const int output_ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
 
-        if (start_dim < 0)
-            start_dim += input_rank;
+        std::vector<int> new_shape = op->outputs[0]->shape;
 
-        if (end_dim < 0)
-            end_dim += input_rank;
-
-        if (input_rank <= start_dim || input_rank <= end_dim)
+        if (new_shape.empty())
         {
-            fprintf(stderr, "flatten %d to %d not possible for %d-rank tensor\n", start_dim, end_dim, input_rank);
-            return;
-        }
-
-        std::vector<int> shape_flattened;
-        for (int i = 0; i < start_dim; i++)
-        {
-            shape_flattened.push_back(op->inputs[0]->shape[i]);
-        }
-        int flattened_dimsize = 1;
-        for (int i = start_dim; i <= end_dim; i++)
-        {
-            if (op->inputs[0]->shape[i] == -1)
+            if (input_rank == 0)
             {
-                // flatten includes dynamic axis
-                flattened_dimsize = -1;
-                break;
+                fprintf(stderr, "flatten unknown-rank tensor is not supported yet, fallback to flatten all\n");
+                new_shape.push_back(-1);
             }
+            else
+            {
+                if (start_dim < 0)
+                    start_dim += input_rank;
 
-            flattened_dimsize *= op->inputs[0]->shape[i];
+                if (end_dim < 0)
+                    end_dim += input_rank;
+
+                if (input_rank <= start_dim || input_rank <= end_dim)
+                {
+                    fprintf(stderr, "flatten %d to %d not possible for %d-rank tensor, fallback to flatten all\n", start_dim, end_dim, input_rank);
+                    new_shape.push_back(-1);
+                }
+                else
+                {
+                    std::vector<int> shape_flattened;
+                    for (int i = 0; i < start_dim; i++)
+                    {
+                        shape_flattened.push_back(op->inputs[0]->shape[i]);
+                    }
+                    int flattened_dimsize = 1;
+                    for (int i = start_dim; i <= end_dim; i++)
+                    {
+                        if (op->inputs[0]->shape[i] == -1)
+                        {
+                            // flatten includes dynamic axis
+                            flattened_dimsize = -1;
+                            break;
+                        }
+
+                        flattened_dimsize *= op->inputs[0]->shape[i];
+                    }
+                    shape_flattened.push_back(flattened_dimsize);
+                    for (int i = end_dim + 1; i < input_rank; i++)
+                    {
+                        shape_flattened.push_back(op->inputs[0]->shape[i]);
+                    }
+
+                    for (int i = 0; i < (int)shape_flattened.size(); i++)
+                    {
+                        new_shape.push_back(shape_flattened[i]);
+                    }
+                }
+            }
         }
-        shape_flattened.push_back(flattened_dimsize);
-        for (int i = end_dim + 1; i < input_rank; i++)
-        {
-            shape_flattened.push_back(op->inputs[0]->shape[i]);
-        }
 
-        const int batch_index = op->outputs[0]->params["__batch_index"].i;
-
-        std::vector<int> new_shape;
-        for (int i = 0; i < (int)shape_flattened.size(); i++)
-        {
-            if (i == batch_index && shape_flattened[i] == 1)
-                continue;
-
-            new_shape.push_back(shape_flattened[i]);
-        }
-
-        if (new_shape.size() == 5 && batch_index == 233)
+        if (new_shape.size() == 5 && output_ncnn_batch_axis == 233)
         {
             if (new_shape[0] == 1)
             {
@@ -142,12 +153,12 @@ pnnx.Output             output      1 0 out
             }
         }
 
-        const int shape_rank = (int)new_shape.size();
-
-        if (shape_rank > 5)
+        int shape_rank = (int)new_shape.size();
+        if (shape_rank == 0)
         {
-            fprintf(stderr, "reshape to %d-rank tensor is not supported yet!\n", shape_rank);
-            return;
+            fprintf(stderr, "flatten to unknown-rank tensor is not supported yet, fallback to flatten all\n");
+            new_shape.push_back(-1);
+            shape_rank = 1;
         }
 
         // handle multiple dynamic dimension
@@ -160,58 +171,74 @@ pnnx.Output             output      1 0 out
 
         if (dynamic_dimension_count > 1)
         {
-            const int flattened_index = start_dim > batch_index ? start_dim - 1 : start_dim;
+            const int flattened_index = start_dim;
 
-            int in_batch_index = op->inputs[0]->params["__batch_index"].i;
             int in_shape_rank = op->inputs[0]->shape.size();
-            if (in_batch_index != 233)
-                in_shape_rank -= 1;
 
             std::string shape_expr;
-            if (shape_rank == 1)
+            for (int i = shape_rank - 1; i >= 0; i--)
             {
-                // flatten style
+                if (!shape_expr.empty())
+                    shape_expr += ",";
+
+                if (i == flattened_index)
+                {
+                    shape_expr += "-1";
+                    continue;
+                }
+
+                int input_axis = i;
+                if (i > flattened_index)
+                    input_axis += end_dim - start_dim;
+
+                if (input_axis == input_ncnn_batch_axis)
+                {
+                    shape_expr += "0n";
+                    continue;
+                }
+
+                int rank = in_shape_rank;
+                if (input_ncnn_batch_axis != 233)
+                {
+                    rank -= 1;
+                    if (input_axis > input_ncnn_batch_axis)
+                        input_axis -= 1;
+                }
+
+                if (rank == 1 && input_axis == 0)
+                    shape_expr += "0w";
+                else if (rank == 2 && input_axis == 0)
+                    shape_expr += "0h";
+                else if (rank == 2 && input_axis == 1)
+                    shape_expr += "0w";
+                else if (rank == 3 && input_axis == 0)
+                    shape_expr += "0c";
+                else if (rank == 3 && input_axis == 1)
+                    shape_expr += "0h";
+                else if (rank == 3 && input_axis == 2)
+                    shape_expr += "0w";
+                else if (rank == 4 && input_axis == 0)
+                    shape_expr += "0c";
+                else if (rank == 4 && input_axis == 1)
+                    shape_expr += "0d";
+                else if (rank == 4 && input_axis == 2)
+                    shape_expr += "0h";
+                else if (rank == 4 && input_axis == 3)
+                    shape_expr += "0w";
+            }
+
+            if (shape_expr.empty())
+            {
+                fprintf(stderr, "flatten dynamic shape is not supported yet, fallback to flatten all\n");
                 shape_expr = "-1";
-            }
-            if (shape_rank == 2)
-            {
-                if (flattened_index == 0)
-                {
-                    shape_expr = "0w,-1";
-                }
-                if (flattened_index == 1)
-                {
-                    if (in_shape_rank == 2)
-                        shape_expr = "-1,0h";
-                    else // if (in_shape_rank == 3 || in_shape_rank == 4)
-                        shape_expr = "-1,0c";
-                }
-            }
-            if (shape_rank == 3)
-            {
-                if (flattened_index == 0)
-                {
-                    shape_expr = "0w,0h,-1";
-                }
-                if (flattened_index == 1)
-                {
-                    shape_expr = "0w,-1,0c";
-                }
-                if (flattened_index == 2)
-                {
-                    if (in_shape_rank == 3)
-                        shape_expr = "-1,0h,0c";
-                    else // if (in_shape_rank == 4)
-                        shape_expr = "-1,0d,0c";
-                }
-            }
-            if (shape_rank == 4)
-            {
-                // noop style
-                shape_expr = "0w,0h,0d,0c";
             }
 
             op->params["6"] = shape_expr;
+            if (input_ncnn_batch_axis != 233 || output_ncnn_batch_axis != 233)
+            {
+                op->params["12"] = input_ncnn_batch_axis;
+                op->params["13"] = output_ncnn_batch_axis;
+            }
             return;
         }
 
@@ -236,6 +263,25 @@ pnnx.Output             output      1 0 out
             op->params["1"] = new_shape[2];
             op->params["11"] = new_shape[1];
             op->params["2"] = new_shape[0];
+        }
+        if (shape_rank >= 5)
+        {
+            if (shape_rank > 5 || (shape_rank == 5 && output_ncnn_batch_axis == 233))
+                fprintf(stderr, "reshape to %d-rank physical tensor is not supported by ncnn runtime yet\n", shape_rank);
+
+            std::string shape_expr = std::to_string(new_shape[shape_rank - 1]);
+            for (int i = shape_rank - 2; i >= 0; i--)
+            {
+                shape_expr += ",";
+                shape_expr += std::to_string(new_shape[i]);
+            }
+            op->params["6"] = shape_expr;
+        }
+
+        if (input_ncnn_batch_axis != 233 || output_ncnn_batch_axis != 233)
+        {
+            op->params["12"] = input_ncnn_batch_axis;
+            op->params["13"] = output_ncnn_batch_axis;
         }
     }
 };

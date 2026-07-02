@@ -212,6 +212,7 @@ static int insert_reshape_global_pooling_forward(Operand* operand, int pooled_ra
         reshape0_out->consumers.push_back(op);
 
         reshape0_out->params["__batch_index"] = 0;
+        reshape0_out->params["__ncnn_batch_axis"] = 0;
 
         if (pooled_rank == 3)
             reshape0->params["shape"] = std::vector<int> {1, -1, 1, 1};

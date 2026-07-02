@@ -14,6 +14,7 @@
 #cmakedefine01 NCNN_BENCHMARK
 #cmakedefine01 NCNN_C_API
 #cmakedefine01 NCNN_PLATFORM_API
+#cmakedefine01 NCNN_BATCH
 #cmakedefine01 NCNN_WINXP
 #cmakedefine01 NCNN_PIXEL
 #cmakedefine01 NCNN_PIXEL_ROTATE

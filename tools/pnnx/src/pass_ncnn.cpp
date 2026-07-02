@@ -4,6 +4,7 @@
 #include "pass_ncnn.h"
 
 #include "pass_ncnn/convert_attribute.h"
+#include "pass_ncnn/convert_batch_layout.h"
 #include "pass_ncnn/convert_custom_op.h"
 #include "pass_ncnn/convert_module_op.h"
 #include "pass_ncnn/convert_half_to_float.h"
@@ -86,7 +87,9 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
 
     ncnn::chain_multi_output(g);
 
+    // solve torch batch axis first, then legalize how ncnn carries it
     ncnn::solve_batch_index(g);
+    ncnn::convert_batch_layout(g);
 
     ncnn::convert_half_to_float(g);
 

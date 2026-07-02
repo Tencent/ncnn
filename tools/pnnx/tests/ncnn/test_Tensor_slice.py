@@ -9,7 +9,7 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w):
         x = x[:12,1:14:1]
         x = x[...,1:]
         x = x[:,:x.size(1)-1]
@@ -19,7 +19,10 @@ class Model(nn.Module):
         z = z[4:]
         z = z[:2,:,:,2:-2:1]
         z = z[:,:,z.size(2)-3:,:]
-        return x, y, z
+        w = F.max_pool2d(w, 1)
+        w = w[:,1:,:,:]
+        w = w[:,:,1:w.size(2)-1,2:-1]
+        return x, y, z, w
 
 def test():
     net = Model()
@@ -29,16 +32,17 @@ def test():
     x = torch.rand(13, 26)
     y = torch.rand(15, 19, 21)
     z = torch.rand(18, 15, 19, 20)
+    w = torch.rand(2, 3, 6, 8)
 
-    a = net(x, y, z)
+    a = net(x, y, z, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w))
     mod.save("test_Tensor_slice.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_Tensor_slice.pt inputshape=[13,26],[15,19,21],[18,15,19,20]")
+    os.system("../../src/pnnx test_Tensor_slice.pt inputshape=[13,26],[15,19,21],[18,15,19,20],[2,3,6,8]")
 
     # ncnn inference
     import test_Tensor_slice_ncnn

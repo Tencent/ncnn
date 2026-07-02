@@ -10,11 +10,12 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z, w):
+    def forward(self, x, y, z, w, q):
         x = torch.view_as_complex(x)
         y = torch.view_as_complex(y)
         z = torch.view_as_complex(z)
         w = torch.view_as_complex(w)
+        q = torch.view_as_complex(q)
         out0 = torch.istft(x, n_fft=64, window=torch.hann_window(44), win_length=44, center=True, normalized=True, return_complex=False)
         if version.parse(torch.__version__) < version.parse('1.13'):
             # https://github.com/pytorch/pytorch/commit/4906a956181fb337e99860fa3e6071473c0e30e6
@@ -22,13 +23,14 @@ class Model(nn.Module):
         else:
             out1 = torch.istft(y, n_fft=128, center=False, onesided=True, return_complex=False)
         out2 = torch.istft(z, n_fft=512, window=torch.hamming_window(256), win_length=256, hop_length=128, center=True, onesided=True, return_complex=False)
+        out4 = torch.istft(q, n_fft=64, window=torch.hann_window(44), win_length=44, center=True, normalized=True, return_complex=False)
         if version.parse(torch.__version__) < version.parse('1.13'):
             # https://github.com/pytorch/pytorch/commit/4906a956181fb337e99860fa3e6071473c0e30e6
             out3 = torch.istft(w, n_fft=512, center=True, onesided=False, return_complex=True)
         else:
             out3 = torch.istft(w, n_fft=512, center=False, onesided=False, return_complex=True)
         out3 = torch.view_as_real(out3)
-        return out0, out1, out2, out3
+        return out0, out1, out2, out3, out4
 
 def test():
     net = Model()
@@ -39,16 +41,17 @@ def test():
     y = torch.rand(65, 77, 2)
     z = torch.rand(257, 8, 2)
     w = torch.rand(512, 4, 2)
+    q = torch.rand(2, 33, 161, 2)
 
-    a = net(x, y, z, w)
+    a = net(x, y, z, w, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
+    mod = torch.jit.trace(net, (x, y, z, w, q))
     mod.save("test_torch_istft.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_istft.pt inputshape=[33,161,2],[65,77,2],[257,8,2],[512,4,2]")
+    os.system("../../src/pnnx test_torch_istft.pt inputshape=[33,161,2],[65,77,2],[257,8,2],[512,4,2],[2,33,161,2]")
 
     # ncnn inference
     import test_torch_istft_ncnn

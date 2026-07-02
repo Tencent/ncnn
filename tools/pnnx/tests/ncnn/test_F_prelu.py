@@ -14,16 +14,18 @@ class Model(nn.Module):
         self.w6 = nn.Parameter(torch.rand(3))
         self.w7 = nn.Parameter(torch.rand(5))
 
-    def forward(self, x, y, z, w):
+    def forward(self, x, y, z, w, q):
         x = x * 2 - 1
         y = y * 2 - 1
         z = z * 2 - 1
         w = w * 2 - 1
+        q = q * 2 - 1
         x = F.prelu(x, self.w4)
         y = F.prelu(y, self.w5)
         z = F.prelu(z, self.w6)
         w = F.prelu(w, self.w7)
-        return x, y, z, w
+        q = F.prelu(q, self.w7)
+        return x, y, z, w, q
 
 def test():
     net = Model()
@@ -34,16 +36,17 @@ def test():
     y = torch.rand(1, 2, 16)
     z = torch.rand(1, 3, 12, 16)
     w = torch.rand(1, 5, 7, 9, 11)
+    q = torch.rand(2, 5, 7, 9)
 
-    a = net(x, y, z, w)
+    a = net(x, y, z, w, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
+    mod = torch.jit.trace(net, (x, y, z, w, q))
     mod.save("test_F_prelu.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_prelu.pt inputshape=[1,16],[1,2,16],[1,3,12,16],[1,5,7,9,11]")
+    os.system("../../src/pnnx test_F_prelu.pt inputshape=[1,16],[1,2,16],[1,3,12,16],[1,5,7,9,11],[2,5,7,9]")
 
     # ncnn inference
     import test_F_prelu_ncnn

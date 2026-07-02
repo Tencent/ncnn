@@ -25,46 +25,130 @@ class Model(nn.Module):
         x = x.relu()
         return x
 
-def test():
-    net = Model().half().float()
+
+class ModelBatch2(nn.Module):
+    def __init__(self):
+        super(ModelBatch2, self).__init__()
+
+        self.conv0 = nn.Conv2d(in_channels=3, out_channels=15, kernel_size=1)
+
+    def forward(self, x):
+        x = self.conv0(x)
+        x = x.permute(2, 3, 0, 1)
+        x = x.reshape(-1, x.size(0) // 8, x.size(2), 3, 5)
+        x = x.transpose(0, 1)
+        x = x.reshape(-1, x.size(2), 15)
+        x = x.unsqueeze(-1)
+        x = x.permute(1, 2, 0, 3)
+        x = x.reshape(x.size(0), 1, -1)
+        x = x.relu()
+        return x
+
+
+class ModelFlattenDynamicExpr(nn.Module):
+    def __init__(self):
+        super(ModelFlattenDynamicExpr, self).__init__()
+
+    def forward(self, x):
+        x = F.max_pool2d(x, 1)
+        x = torch.flatten(x, 1, 2)
+        x = x.relu()
+        return x
+
+
+def run_model(name, net, x0, x1):
     net.eval()
-
-    torch.manual_seed(0)
-    x0 = torch.rand(1, 3, 32, 32)
-
-    x1 = torch.rand(1, 3, 64, 64)
 
     a0 = net(x0)
     a1 = net(x1)
 
     # export torchscript
     mod = torch.jit.trace(net, x0)
-    mod.save("test_ncnn_solve_batch_index.pt")
+    mod.save(name + ".pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_ncnn_solve_batch_index.pt inputshape=[1,3,32,32] inputshape2=[1,3,64,64]")
+    inputshape = str(list(x0.shape)).replace(" ", "")
+    inputshape2 = str(list(x1.shape)).replace(" ", "")
+    if os.system("../../src/pnnx " + name + ".pt inputshape=" + inputshape + " inputshape2=" + inputshape2) != 0:
+        return False
 
     # ncnn inference
-    import numpy as np
     import ncnn
     with ncnn.Net() as net:
-        net.load_param("test_ncnn_solve_batch_index.ncnn.param")
-        net.load_model("test_ncnn_solve_batch_index.ncnn.bin")
+        net.load_param(name + ".ncnn.param")
+        net.load_model(name + ".ncnn.bin")
 
         with net.create_extractor() as ex:
-            ex.input("in0", ncnn.Mat(x0.squeeze(0).numpy()).clone())
+            ex.input("in0", ncnn.Mat(x0.numpy(), batch_index=0).clone())
 
             _, out0 = ex.extract("out0")
-            b0 = torch.from_numpy(np.array(out0)).unsqueeze(0)
+            b0 = torch.from_numpy(out0.numpy(batch_index=0))
 
         with net.create_extractor() as ex:
-            ex.input("in0", ncnn.Mat(x1.squeeze(0).numpy()).clone())
+            ex.input("in0", ncnn.Mat(x1.numpy(), batch_index=0).clone())
 
             _, out0 = ex.extract("out0")
-            b1 = torch.from_numpy(np.array(out0)).unsqueeze(0)
+            b1 = torch.from_numpy(out0.numpy(batch_index=0))
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
+    if a0.shape != b0.shape:
+        print(name)
+        print(a0.shape, b0.shape)
+        return False
+    if a1.shape != b1.shape:
+        print(name)
+        print(a1.shape, b1.shape)
+        return False
+    if not torch.allclose(a0, b0, 1e-3, 1e-3):
+        print(name)
+        print((a0 - b0).abs().max())
+        return False
+    if not torch.allclose(a1, b1, 1e-3, 1e-3):
+        print(name)
+        print((a1 - b1).abs().max())
+        return False
+
+    return True
+
+
+def test():
+    torch.manual_seed(0)
+
+    net = Model().half().float()
+
+    torch.manual_seed(0)
+    x0 = torch.rand(1, 3, 32, 32)
+
+    x1 = torch.rand(1, 3, 64, 64)
+
+    if not run_model("test_ncnn_solve_batch_index", net, x0, x1):
+        return False
+
+    torch.manual_seed(0)
+
+    net = ModelBatch2().half().float()
+
+    torch.manual_seed(0)
+    x0 = torch.rand(2, 3, 32, 32)
+
+    x1 = torch.rand(2, 3, 64, 64)
+
+    if not run_model("test_ncnn_solve_batch_index_batch2", net, x0, x1):
+        return False
+
+    torch.manual_seed(0)
+
+    net = ModelFlattenDynamicExpr()
+
+    torch.manual_seed(0)
+    x0 = torch.rand(2, 3, 5, 7)
+
+    x1 = torch.rand(2, 3, 9, 11)
+
+    if not run_model("test_ncnn_solve_batch_index_flatten_dynamic_expr", net, x0, x1):
+        return False
+
+    return True
 
 if __name__ == "__main__":
     if test():

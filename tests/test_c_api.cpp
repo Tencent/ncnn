@@ -403,6 +403,7 @@ static int test_c_api_3()
     return 0;
 }
 
+#if NCNN_BATCH
 static int test_c_api_batch()
 {
     const int W = 4;
@@ -425,16 +426,15 @@ static int test_c_api_batch()
 
     for (int bi = 0; bi < B; bi++)
     {
-        ncnn_mat_t a0 = ncnn_mat_get_batch(a, bi);
+        float* data = (float*)ncnn_mat_get_batch_data(a, bi);
         for (int q = 0; q < C; q++)
         {
-            float* ptr = (float*)ncnn_mat_get_channel_data(a0, q);
+            float* ptr = data + q * ncnn_mat_get_cstep(a);
             for (int i = 0; i < W * H; i++)
             {
                 ptr[i] = (float)(bi * 100 + q * 10 + i);
             }
         }
-        ncnn_mat_destroy(a0);
     }
 
     b = ncnn_mat_clone(a, NULL);
@@ -447,13 +447,12 @@ static int test_c_api_batch()
 
     for (int bi = 0; bi < B; bi++)
     {
-        ncnn_mat_t b0 = ncnn_mat_get_batch(b, bi);
-        ncnn_mat_t c0 = ncnn_mat_get_batch(c, bi);
-        const float* cptr = (const float*)ncnn_mat_get_data(c0);
+        const float* bdata = (const float*)ncnn_mat_get_batch_data(b, bi);
+        const float* cptr = (const float*)ncnn_mat_get_batch_data(c, bi);
 
         for (int q = 0; q < C; q++)
         {
-            const float* bptr = (const float*)ncnn_mat_get_channel_data(b0, q);
+            const float* bptr = bdata + q * ncnn_mat_get_cstep(b);
             for (int i = 0; i < W * H; i++)
             {
                 float expected = (float)(bi * 100 + q * 10 + i);
@@ -461,12 +460,9 @@ static int test_c_api_batch()
                     success = false;
             }
         }
-
-        ncnn_mat_destroy(b0);
-        ncnn_mat_destroy(c0);
     }
 
-    d = ncnn_mat_create_2d_batch_elem(5, 6, 2, (size_t)2u, 1, NULL);
+    d = ncnn_mat_create_2d_elem_batch(5, 6, (size_t)2u, 1, 2, NULL);
     success = success && ncnn_mat_get_dims(d) == 2;
     success = success && ncnn_mat_get_w(d) == 5;
     success = success && ncnn_mat_get_h(d) == 6;
@@ -485,8 +481,13 @@ static int test_c_api_batch()
 
     return success ? 0 : -1;
 }
+#endif // NCNN_BATCH
 
 int main()
 {
-    return test_c_api_0() || test_c_api_1() || test_c_api_2() || test_c_api_3() || test_c_api_batch();
+    int ret = test_c_api_0() || test_c_api_1() || test_c_api_2() || test_c_api_3();
+#if NCNN_BATCH
+    ret = ret || test_c_api_batch();
+#endif
+    return ret;
 }

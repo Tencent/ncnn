@@ -231,6 +231,7 @@ pnnx.Output             output      1 0 out
         GraphRewriterPass::write(ops, captured_params, captured_attrs);
 
         const int batch_index = ops.at("linear")->inputs[0]->params["__batch_index"].i;
+        const int ncnn_batch_axis = ops.at("linear")->inputs[0]->params["__ncnn_batch_axis"].i;
 
         ops.at("linear")->params["0"] = captured_params.at("out_features");
         ops.at("linear")->params["1"] = 0;
@@ -241,6 +242,7 @@ pnnx.Output             output      1 0 out
         ops.at("linear")->attrs["1"] = captured_attrs.at("op_0.weight");
 
         ops.at("linear")->outputs[0]->params["__batch_index"] = batch_index;
+        ops.at("linear")->outputs[0]->params["__ncnn_batch_axis"] = ncnn_batch_axis;
     }
 };
 
