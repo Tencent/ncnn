@@ -3,6 +3,8 @@
 
 #include "convert_batch_layout.h"
 
+#include <algorithm>
+
 namespace pnnx {
 
 namespace ncnn {
@@ -32,6 +34,92 @@ static int get_ncnn_batch_axis(const Operand* r)
 static void set_ncnn_batch_axis(Operand* r, int batch_axis)
 {
     r->params["__ncnn_batch_axis"] = batch_axis;
+}
+
+static int normalize_axis(int axis, int rank)
+{
+    if (axis < 0 && rank > 0)
+        axis += rank;
+
+    return axis;
+}
+
+static int solve_select_batch_axis(const Operator* op, int batch_axis, int input_rank)
+{
+    if (batch_axis == 233)
+        return 233;
+
+    int dim = normalize_axis(op->params.at("dim").i, input_rank);
+    if (dim < 0)
+        return batch_axis;
+
+    if (dim == batch_axis)
+        return 233;
+
+    if (dim < batch_axis)
+        return batch_axis - 1;
+
+    return batch_axis;
+}
+
+static std::vector<int> get_slice_selected_axes(const Operator* op, int input_rank)
+{
+    std::vector<int> axes;
+    if (op->has_param("dims"))
+        axes = op->params.at("dims").ai;
+    else if (op->has_param("dim"))
+        axes = std::vector<int> {op->params.at("dim").i};
+    else
+        return std::vector<int>();
+
+    std::vector<int> steps;
+    if (op->has_param("steps"))
+        steps = op->params.at("steps").ai;
+    else if (op->has_param("step"))
+        steps = std::vector<int> {op->params.at("step").i};
+    else
+        return std::vector<int>();
+
+    if (axes.size() != steps.size())
+        return std::vector<int>();
+
+    std::vector<int> selected_axes;
+    for (int i = 0; i < (int)axes.size(); i++)
+    {
+        if (steps[i] != 0)
+            continue;
+
+        int axis = normalize_axis(axes[i], input_rank);
+        if (axis < 0)
+            continue;
+
+        selected_axes.push_back(axis);
+    }
+
+    std::sort(selected_axes.begin(), selected_axes.end());
+    selected_axes.erase(std::unique(selected_axes.begin(), selected_axes.end()), selected_axes.end());
+
+    return selected_axes;
+}
+
+static int solve_slice_batch_axis(const Operator* op, int batch_axis, int input_rank)
+{
+    if (batch_axis == 233)
+        return 233;
+
+    std::vector<int> selected_axes = get_slice_selected_axes(op, input_rank);
+
+    int select_before_batch = 0;
+    for (int axis : selected_axes)
+    {
+        if (axis == batch_axis)
+            return 233;
+
+        if (axis < batch_axis)
+            select_before_batch += 1;
+    }
+
+    return batch_axis - select_before_batch;
 }
 
 static bool is_identity_op(const Operator* op)
@@ -413,6 +501,26 @@ void convert_batch_layout(Graph& graph)
             }
 
             set_reshape_batch_axis(op, batch_indices);
+        }
+        else if (op->type == "Tensor.select")
+        {
+            int batch_axis = op->inputs.empty() ? default_ncnn_batch_axis(get_batch_index(batch_indices, op->outputs[0])) : get_ncnn_batch_axis(op->inputs[0]);
+            int input_rank = op->inputs.empty() ? 0 : (int)op->inputs[0]->shape.size();
+            int output_rank = op->outputs.empty() ? 0 : (int)op->outputs[0]->shape.size();
+            if (input_rank == 0 && output_rank > 0)
+                input_rank = output_rank + 1;
+
+            batch_axis = solve_select_batch_axis(op, batch_axis, input_rank);
+            for (Operand* r : op->outputs)
+                set_ncnn_batch_axis(r, batch_axis);
+        }
+        else if (op->type == "Tensor.slice")
+        {
+            int batch_axis = op->inputs.empty() ? default_ncnn_batch_axis(get_batch_index(batch_indices, op->outputs[0])) : get_ncnn_batch_axis(op->inputs[0]);
+            int input_rank = op->inputs.empty() ? 0 : (int)op->inputs[0]->shape.size();
+            batch_axis = solve_slice_batch_axis(op, batch_axis, input_rank);
+            for (Operand* r : op->outputs)
+                set_ncnn_batch_axis(r, batch_axis);
         }
         else if (op->type == "torch.squeeze")
         {

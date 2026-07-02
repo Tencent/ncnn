@@ -52,7 +52,14 @@ void convert_torch_unbind(Graph& graph)
             if (axis_is_batch)
             {
                 // keep Slice op for future across-batch support
-                op->params.clear();
+                int output_size = (int)op->outputs.size();
+
+                op->params["0"].type = 5;
+                op->params["0"].ai.resize(output_size, -233);
+
+                op->params["1"] = -233;
+
+                op->params.erase("dim");
                 break;
             }
 

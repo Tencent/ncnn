@@ -40,14 +40,20 @@ void convert_torch_chunk(Graph& graph)
             axis_is_batch = true;
         }
 
+        int chunks = op->params.at("chunks").i;
+
         if (axis_is_batch)
         {
             // keep Slice op for future across-batch support
-            op->params.clear();
+            op->params["0"].type = 5;
+            op->params["0"].ai.resize(chunks, -233);
+
+            op->params["1"] = -233;
+
+            op->params.erase("chunks");
+            op->params.erase("dim");
             continue;
         }
-
-        int chunks = op->params.at("chunks").i;
 
         if (!op->inputs[0]->shape.empty() && axis >= 0 && axis < (int)op->inputs[0]->shape.size())
         {

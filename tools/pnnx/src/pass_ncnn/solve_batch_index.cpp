@@ -165,6 +165,124 @@ static bool is_known_operator_with_batch_first_param(const Operator* op)
     return op->type == "nn.RNN" || op->type == "nn.LSTM" || op->type == "nn.GRU" || op->type == "nn.MultiheadAttention";
 }
 
+static int normalize_axis(int axis, int rank)
+{
+    if (axis < 0 && rank > 0)
+        axis += rank;
+
+    return axis;
+}
+
+static int solve_select_batch_index_forward(const Operator* op, int batch_index, int input_rank)
+{
+    int dim = normalize_axis(op->params.at("dim").i, input_rank);
+    if (dim < 0)
+        return batch_index;
+
+    if (dim == batch_index)
+        return 233;
+
+    if (dim < batch_index)
+        return batch_index - 1;
+
+    return batch_index;
+}
+
+static int solve_select_batch_index_backward(const Operator* op, int batch_index, int input_rank)
+{
+    int dim = normalize_axis(op->params.at("dim").i, input_rank);
+    if (dim < 0)
+        return batch_index;
+
+    if (dim <= batch_index)
+        return batch_index + 1;
+
+    return batch_index;
+}
+
+static std::vector<int> get_slice_selected_axes(const Operator* op, int input_rank)
+{
+    std::vector<int> axes;
+    if (op->has_param("dims"))
+        axes = op->params.at("dims").ai;
+    else if (op->has_param("dim"))
+        axes = std::vector<int> {op->params.at("dim").i};
+    else
+        return std::vector<int>();
+
+    std::vector<int> steps;
+    if (op->has_param("steps"))
+        steps = op->params.at("steps").ai;
+    else if (op->has_param("step"))
+        steps = std::vector<int> {op->params.at("step").i};
+    else
+        return std::vector<int>();
+
+    if (axes.size() != steps.size())
+        return std::vector<int>();
+
+    std::vector<int> selected_axes;
+    for (int i = 0; i < (int)axes.size(); i++)
+    {
+        if (steps[i] != 0)
+            continue;
+
+        int axis = normalize_axis(axes[i], input_rank);
+        if (axis < 0)
+            continue;
+
+        selected_axes.push_back(axis);
+    }
+
+    std::sort(selected_axes.begin(), selected_axes.end());
+    selected_axes.erase(std::unique(selected_axes.begin(), selected_axes.end()), selected_axes.end());
+
+    return selected_axes;
+}
+
+static int solve_slice_batch_index_forward(const Operator* op, int batch_index, int input_rank)
+{
+    std::vector<int> selected_axes = get_slice_selected_axes(op, input_rank);
+
+    int select_before_batch = 0;
+    for (int axis : selected_axes)
+    {
+        if (axis == batch_index)
+            return 233;
+
+        if (axis < batch_index)
+            select_before_batch += 1;
+    }
+
+    return batch_index - select_before_batch;
+}
+
+static int solve_slice_batch_index_backward(const Operator* op, int batch_index, int input_rank, int output_rank)
+{
+    std::vector<int> selected_axes = get_slice_selected_axes(op, input_rank);
+    if (selected_axes.empty())
+        return batch_index;
+
+    if (input_rank == 0 && output_rank > 0)
+        input_rank = output_rank + selected_axes.size();
+    if (input_rank == 0)
+        return batch_index;
+
+    int output_axis = 0;
+    for (int i = 0; i < input_rank; i++)
+    {
+        if (std::find(selected_axes.begin(), selected_axes.end(), i) != selected_axes.end())
+            continue;
+
+        if (output_axis == batch_index)
+            return i;
+
+        output_axis += 1;
+    }
+
+    return batch_index;
+}
+
 static void solve_batch_index_backward(Operand* operand);
 static void solve_batch_index_forward(Operand* operand)
 {
@@ -503,12 +621,27 @@ static void solve_batch_index_forward(Operand* operand)
                 solve_batch_index_backward(r);
             }
         }
-        else if (op->type == "Tensor.slice" || op->type == "Tensor.select")
+        else if (op->type == "Tensor.slice")
         {
+            int batch_index_sliced = solve_slice_batch_index_forward(op, batch_index, input_rank0);
+
             Operand* r = op->outputs[0];
             if (r->params.find("__batch_index") == r->params.end())
             {
-                r->params["__batch_index"] = batch_index;
+                r->params["__batch_index"] = batch_index_sliced;
+
+                solve_batch_index_forward(r);
+                solve_batch_index_backward(r);
+            }
+        }
+        else if (op->type == "Tensor.select")
+        {
+            int batch_index_selected = solve_select_batch_index_forward(op, batch_index, input_rank0);
+
+            Operand* r = op->outputs[0];
+            if (r->params.find("__batch_index") == r->params.end())
+            {
+                r->params["__batch_index"] = batch_index_selected;
 
                 solve_batch_index_forward(r);
                 solve_batch_index_backward(r);
@@ -973,12 +1106,31 @@ static void solve_batch_index_backward(Operand* operand)
             solve_batch_index_forward(r);
         }
     }
-    else if (op->type == "Tensor.slice" || op->type == "Tensor.select")
+    else if (op->type == "Tensor.slice")
     {
+        int batch_index_sliced = solve_slice_batch_index_backward(op, batch_index, input_rank0, output_rank0);
+
         Operand* r = op->inputs[0];
         if (r->params.find("__batch_index") == r->params.end())
         {
-            r->params["__batch_index"] = batch_index;
+            r->params["__batch_index"] = batch_index_sliced;
+
+            solve_batch_index_backward(r);
+            solve_batch_index_forward(r);
+        }
+    }
+    else if (op->type == "Tensor.select")
+    {
+        int input_rank = input_rank0;
+        if (input_rank == 0 && output_rank0 > 0)
+            input_rank = output_rank0 + 1;
+
+        int batch_index_selected = solve_select_batch_index_backward(op, batch_index, input_rank);
+
+        Operand* r = op->inputs[0];
+        if (r->params.find("__batch_index") == r->params.end())
+        {
+            r->params["__batch_index"] = batch_index_selected;
 
             solve_batch_index_backward(r);
             solve_batch_index_forward(r);

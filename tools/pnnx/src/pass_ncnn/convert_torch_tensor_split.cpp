@@ -40,16 +40,22 @@ void convert_torch_tensor_split(Graph& graph)
             axis_is_batch = true;
         }
 
-        if (axis_is_batch)
-        {
-            // keep Slice op for future across-batch support
-            op->params.clear();
-            continue;
-        }
-
         if (op->params.find("sections") != op->params.end())
         {
             int sections = op->params.at("sections").i;
+
+            if (axis_is_batch)
+            {
+                // keep Slice op for future across-batch support
+                op->params["0"].type = 5;
+                op->params["0"].ai.resize(sections, -233);
+
+                op->params["1"] = -233;
+
+                op->params.erase("sections");
+                op->params.erase("dim");
+                continue;
+            }
 
             if (!op->inputs[0]->shape.empty() && axis >= 0 && axis < (int)op->inputs[0]->shape.size())
             {
@@ -68,6 +74,17 @@ void convert_torch_tensor_split(Graph& graph)
         else
         {
             const std::vector<int>& indices = op->params.at("indices").ai;
+
+            if (axis_is_batch)
+            {
+                // keep Slice op for future across-batch support
+                op->params["2"] = indices;
+                op->params["1"] = -233;
+
+                op->params.erase("indices");
+                op->params.erase("dim");
+                continue;
+            }
 
             bool has_negative_indice = false;
             for (auto x : indices)

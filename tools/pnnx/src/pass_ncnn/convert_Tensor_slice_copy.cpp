@@ -3,6 +3,8 @@
 
 #include "convert_Tensor_slice_copy.h"
 
+#include <algorithm>
+
 namespace pnnx {
 
 namespace ncnn {
@@ -102,9 +104,8 @@ void convert_Tensor_slice_copy(Graph& graph)
 
             const int axes_rank = axes.size();
 
-            bool has_select = false;
             bool unsupported = false;
-            std::vector<int> selected_axis_indices;
+            std::vector<int> select_axis_indices;
             for (int i = 0; i < axes_rank; i++)
             {
                 if (steps[i] == 0)
@@ -113,8 +114,7 @@ void convert_Tensor_slice_copy(Graph& graph)
                     starts[i] = selects[i];
                     ends[i] = selects[i] + 1;
                     steps[i] = 1;
-                    has_select = true;
-                    selected_axis_indices.push_back(i);
+                    select_axis_indices.push_back(i);
                 }
                 else if (steps[i] != 1)
                 {
@@ -147,6 +147,8 @@ void convert_Tensor_slice_copy(Graph& graph)
             if (input_rank0 == 0 && !op->outputs.empty())
                 input_rank0 = op->outputs[0]->shape.size();
             std::vector<int> axes_in_shape = axes;
+            bool has_select = false;
+            std::vector<int> selected_axis_indices;
             for (int i = 0; i < axes_rank; i++)
             {
                 if (axes[i] < 0 && input_rank0 > 0)
@@ -163,6 +165,12 @@ void convert_Tensor_slice_copy(Graph& graph)
                     }
                     axes[i] = -233;
                     continue;
+                }
+
+                if (std::find(select_axis_indices.begin(), select_axis_indices.end(), i) != select_axis_indices.end())
+                {
+                    has_select = true;
+                    selected_axis_indices.push_back(i);
                 }
 
                 if (ncnn_batch_axis != 233 && axes[i] > ncnn_batch_axis)
@@ -184,6 +192,12 @@ void convert_Tensor_slice_copy(Graph& graph)
                 }
                 axes = axes2;
                 starts = starts2;
+            }
+
+            if (axes.empty())
+            {
+                axes = std::vector<int> {0};
+                starts = std::vector<int> {0};
             }
 
             matched = true;

@@ -50,7 +50,22 @@ void convert_torch_split(Graph& graph)
         if (axis_is_batch)
         {
             // keep Slice op for future across-batch support
-            op->params.clear();
+            if (split_size_or_sections.type == 2)
+            {
+                const size_t output_size = op->outputs.size();
+                op->params["0"].type = 5;
+                op->params["0"].ai.resize(output_size, split_size_or_sections.i);
+                op->params["0"].ai[output_size - 1] = -233;
+            }
+            else
+            {
+                op->params["0"] = split_size_or_sections;
+            }
+
+            op->params["1"] = -233;
+
+            op->params.erase("split_size_or_sections");
+            op->params.erase("dim");
             continue;
         }
 

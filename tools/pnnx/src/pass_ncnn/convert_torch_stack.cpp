@@ -51,7 +51,9 @@ void convert_torch_stack(Graph& graph)
             if (axis_is_batch)
             {
                 // keep Concat op for future across-batch support
-                op->params.clear();
+                op->params["0"] = -233;
+
+                op->params.erase("dim");
                 break;
             }
 

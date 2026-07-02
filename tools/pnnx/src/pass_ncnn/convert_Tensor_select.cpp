@@ -50,8 +50,13 @@ void convert_Tensor_select(Graph& graph)
 
                 op->type = "Crop";
                 op->name = std::string("select_") + std::to_string(op_index++);
-                // keep Crop op for future across-batch support
-                op->params.clear();
+                // ignore batch-axis select for now
+                op->params["9"] = std::vector<int> {0};
+                op->params["10"] = std::vector<int> {-233};
+                op->params["11"] = std::vector<int> {0};
+
+                op->params.erase("dim");
+                op->params.erase("index");
 
                 break;
             }

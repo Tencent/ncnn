@@ -3,6 +3,8 @@
 
 #include "convert_Tensor_slice.h"
 
+#include <algorithm>
+
 namespace pnnx {
 
 namespace ncnn {
@@ -104,6 +106,7 @@ void convert_Tensor_slice(Graph& graph)
 
             int select_count = 0;
             bool unsupported = false;
+            std::vector<int> select_axis_indices;
             for (int i = 0; i < axes_rank; i++)
             {
                 if (steps[i] == 0)
@@ -112,7 +115,7 @@ void convert_Tensor_slice(Graph& graph)
                     starts[i] = selects[i];
                     ends[i] = selects[i] + 1;
                     steps[i] = 1;
-                    select_count += 1;
+                    select_axis_indices.push_back(i);
                 }
                 else if (steps[i] != 1)
                 {
@@ -130,7 +133,7 @@ void convert_Tensor_slice(Graph& graph)
             {
                 int input_rank = op->inputs[0]->shape.size();
                 if (input_rank == 0 && !op->outputs.empty())
-                    input_rank = op->outputs[0]->shape.size() + select_count;
+                    input_rank = op->outputs[0]->shape.size() + select_axis_indices.size();
 
                 if (ncnn_batch_axis >= 0 && ncnn_batch_axis < input_rank)
                     input_rank -= 1;
@@ -143,7 +146,7 @@ void convert_Tensor_slice(Graph& graph)
 
             int input_rank0 = op->inputs[0]->shape.size();
             if (input_rank0 == 0 && !op->outputs.empty())
-                input_rank0 = op->outputs[0]->shape.size() + select_count;
+                input_rank0 = op->outputs[0]->shape.size() + select_axis_indices.size();
             for (int i = 0; i < axes_rank; i++)
             {
                 if (axes[i] < 0 && input_rank0 > 0)
@@ -158,6 +161,9 @@ void convert_Tensor_slice(Graph& graph)
                     axes[i] = -233;
                     continue;
                 }
+
+                if (std::find(select_axis_indices.begin(), select_axis_indices.end(), i) != select_axis_indices.end())
+                    select_count += 1;
 
                 if (ncnn_batch_axis != 233 && axes[i] > ncnn_batch_axis)
                     axes[i] -= 1;
@@ -186,6 +192,13 @@ void convert_Tensor_slice(Graph& graph)
                 axes = axes2;
                 starts = starts2;
                 ends = ends2;
+            }
+
+            if (axes.empty())
+            {
+                axes = std::vector<int> {0};
+                starts = std::vector<int> {0};
+                ends = std::vector<int> {-233};
             }
 
             op->params["9"] = starts;
