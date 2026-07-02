@@ -15,9 +15,6 @@ int Concat::load_param(const ParamDict& pd)
 {
     axis = pd.get(0, 0);
 
-    if (axis == -233)
-        return -1;
-
     return 0;
 }
 

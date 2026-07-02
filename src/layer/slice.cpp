@@ -15,9 +15,6 @@ int Slice::load_param(const ParamDict& pd)
     axis = pd.get(1, 0);
     indices = pd.get(2, Mat());
 
-    if (axis == -233)
-        return -1;
-
     return 0;
 }
 
