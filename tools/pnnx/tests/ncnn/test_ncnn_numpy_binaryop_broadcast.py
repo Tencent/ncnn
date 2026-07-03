@@ -9,7 +9,7 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x0, x1, y0, y1, y2, y3, z0, z1, z2, z3, z4, z5, z6, z7, w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, q0, q1):
+    def forward(self, x0, x1, y0, y1, y2, y3, z0, z1, z2, z3, z4, z5, z6, z7, w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, q0, q1, t0, t1):
         q0 = F.max_pool2d(q0, 1)
         q1 = F.max_pool2d(q1, 1)
 
@@ -174,7 +174,8 @@ class Model(nn.Module):
                 y0 - z0, z0 - y0,
                 y0 - w0, w0 - y0,
                 z0 - w0, w0 - z0,
-                q0 - q1, q1 - q0)
+                q0 - q1, q1 - q0,
+                t0 - t1, t1 - t0)
 
 def test():
     net = Model()
@@ -213,16 +214,18 @@ def test():
     w15 = torch.rand(1, 1, 1, 1)
     q0 = torch.rand(2, 4, 7, 5)
     q1 = torch.rand(2, 1, 7, 5)
+    t0 = torch.rand(4)
+    t1 = torch.rand(4, 5, 4)
 
-    a = net(x0, x1, y0, y1, y2, y3, z0, z1, z2, z3, z4, z5, z6, z7, w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, q0, q1)
+    a = net(x0, x1, y0, y1, y2, y3, z0, z1, z2, z3, z4, z5, z6, z7, w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, q0, q1, t0, t1)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x0, x1, y0, y1, y2, y3, z0, z1, z2, z3, z4, z5, z6, z7, w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, q0, q1))
+    mod = torch.jit.trace(net, (x0, x1, y0, y1, y2, y3, z0, z1, z2, z3, z4, z5, z6, z7, w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, q0, q1, t0, t1))
     mod.save("test_ncnn_numpy_binaryop_broadcast.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_ncnn_numpy_binaryop_broadcast.pt inputshape=[5],[1],[7,5],[1,5],[7,1],[1,1],[4,7,5],[1,7,5],[4,1,5],[4,7,1],[1,1,5],[1,7,1],[4,1,1],[1,1,1],[6,4,7,5],[1,4,7,5],[6,1,7,5],[6,4,1,5],[6,4,7,1],[1,1,7,5],[1,4,1,5],[1,4,7,1],[6,1,1,5],[6,1,7,1],[6,4,1,1],[1,1,1,5],[1,1,7,1],[1,4,1,1],[6,1,1,1],[1,1,1,1],[2,4,7,5],[2,1,7,5]")
+    os.system("../../src/pnnx test_ncnn_numpy_binaryop_broadcast.pt inputshape=[5],[1],[7,5],[1,5],[7,1],[1,1],[4,7,5],[1,7,5],[4,1,5],[4,7,1],[1,1,5],[1,7,1],[4,1,1],[1,1,1],[6,4,7,5],[1,4,7,5],[6,1,7,5],[6,4,1,5],[6,4,7,1],[1,1,7,5],[1,4,1,5],[1,4,7,1],[6,1,1,5],[6,1,7,1],[6,4,1,1],[1,1,1,5],[1,1,7,1],[1,4,1,1],[6,1,1,1],[1,1,1,1],[2,4,7,5],[2,1,7,5],[4],[4,5,4]")
 
     # ncnn inference
     import test_ncnn_numpy_binaryop_broadcast_ncnn
