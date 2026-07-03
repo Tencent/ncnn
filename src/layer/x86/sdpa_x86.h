@@ -18,11 +18,21 @@ public:
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
-public:
-    Layer* qk_gemm;
-    Layer* qkv_gemm;
-
-    Layer* qk_softmax;
+private:
+#if NCNN_BF16
+    mutable Mat cached_key_bf16;
+    mutable Mat cached_value_bf16;
+#endif
+#if NCNN_INT8
+    mutable Mat cached_key_int8;
+    mutable Mat cached_key_scales;
+    mutable Mat cached_value_int8;
+    mutable Mat cached_value_scales;
+#endif
+    mutable int cached_kv_seqlen;
+    mutable int cached_num_group;
+    mutable int cached_embed_dim;
+    mutable int cached_out_embed_dim;
 };
 
 } // namespace ncnn

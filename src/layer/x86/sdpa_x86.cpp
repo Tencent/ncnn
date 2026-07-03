@@ -5,6 +5,26 @@
 
 #include "layer_type.h"
 
+#include "cpu.h"
+#include "x86_usability.h"
+
+#if __SSE2__
+#include <emmintrin.h>
+#include "sse_mathfun.h"
+#if __AVX__
+#include <immintrin.h>
+#include "avx_mathfun.h"
+#if __AVX512F__
+#include "avx512_mathfun.h"
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+
+#include <float.h>
+#include <chrono>
+#include <math.h>
+#include <string.h>
+
 namespace ncnn {
 
 SDPA_x86::SDPA_x86()
@@ -12,120 +32,6145 @@ SDPA_x86::SDPA_x86()
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
-
-    qk_gemm = 0;
-    qkv_gemm = 0;
-    qk_softmax = 0;
+    cached_kv_seqlen = -1;
+    cached_num_group = 0;
+    cached_embed_dim = 0;
+    cached_out_embed_dim = 0;
 }
 
-int SDPA_x86::create_pipeline(const Option& _opt)
+int SDPA_x86::create_pipeline(const Option& /*_opt*/)
 {
-    Option opt = _opt;
     if (int8_scale_term)
     {
-        opt.use_packing_layout = false; // TODO enable packing
         support_bf16_storage = false;
-    }
-
-    {
-        qk_softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
-        ncnn::ParamDict pd;
-        pd.set(0, -1); // axis
-        pd.set(1, 1);
-        qk_softmax->load_param(pd);
-        qk_softmax->load_model(ModelBinFromMatArray(0));
-        qk_softmax->create_pipeline(opt);
-    }
-
-    // Q * K^T
-    if (scale != 0.f)
-    {
-        qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
-        ncnn::ParamDict pd;
-
-        pd.set(0, scale);               // alpha
-        pd.set(1, 1.f / scale);         // beta
-        pd.set(2, 0);                   // transA (Q: Seq x Embed)
-        pd.set(3, 1);                   // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
-        pd.set(4, 0);                   // constantA
-        pd.set(5, 0);                   // constantB
-        pd.set(6, attn_mask ? 0 : 1);   // constantC (if mask exists, use it)
-        pd.set(7, 0);                   // M
-        pd.set(8, 0);                   // N
-        pd.set(9, 0);                   // K
-        pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C (MxN)
-        pd.set(11, 0);                  // output_N1M
-        pd.set(12, 1);                  // output_elempack
-        pd.set(13, 1);                  // output_elemtype = fp32
-#if NCNN_INT8
-        pd.set(18, int8_scale_term);
-#endif
-        qk_gemm->load_param(pd);
-        qk_gemm->load_model(ModelBinFromMatArray(0));
-        Option opt1 = opt;
-        opt1.num_threads = 1;
-        qk_gemm->create_pipeline(opt1);
-    }
-
-    // Attn * V
-    {
-        qkv_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
-        ncnn::ParamDict pd;
-        pd.set(0, 1.f); // alpha
-        pd.set(1, 1.f); // beta
-        pd.set(2, 0);   // transA (Attn: Seq x Seq)
-        pd.set(3, 0);   // transB (V: Seq x Embed) => Attn * V
-        pd.set(4, 0);   // constantA
-        pd.set(5, 0);   // constantB
-        pd.set(6, 1);   // constantC (None)
-        pd.set(7, 0);   // M
-        pd.set(8, 0);   // N
-        pd.set(9, 0);   // K
-        pd.set(10, -1); // constant_broadcast_type_C
-        pd.set(11, 0);  // output_N1M
-        pd.set(12, 1);  // output_elempack
-        pd.set(13, 1);  // output_elemtype = fp32
-        pd.set(14, 0);  // output_transpose
-#if NCNN_INT8
-        pd.set(18, int8_scale_term);
-#endif
-        qkv_gemm->load_param(pd);
-        qkv_gemm->load_model(ModelBinFromMatArray(0));
-        Option opt1 = opt;
-        opt1.num_threads = 1;
-        qkv_gemm->create_pipeline(opt1);
     }
 
     return 0;
 }
 
-int SDPA_x86::destroy_pipeline(const Option& _opt)
+int SDPA_x86::destroy_pipeline(const Option& /*_opt*/)
 {
-    Option opt = _opt;
-    if (int8_scale_term)
+    return 0;
+}
+
+#include "sdpa_x86_int8.h"
+
+#if NCNN_BF16
+#include "sdpa_x86_bf16s.h"
+#endif
+
+static inline void qk_gemm_scalar(float* S, const float* Q, const float* K,
+                                  int m, int n, int d, float scale)
+{
+    for (int i = 0; i < m; i++)
     {
-        opt.use_packing_layout = false; // TODO enable packing
+        const float* qptr = Q + i * d;
+        for (int j = 0; j < n; j++)
+        {
+            const float* kptr = K + j * d;
+            float sum = 0.f;
+            for (int k = 0; k < d; k++)
+                sum += qptr[k] * kptr[k];
+            S[i * n + j] = sum * scale;
+        }
+    }
+}
+
+static inline void vec_scale(float* x, float s, int n)
+{
+#if __AVX512F__
+    __m512 vscale512 = _mm512_set1_ps(s);
+    int i = 0;
+    for (; i + 15 < n; i += 16)
+        _mm512_storeu_ps(x + i, _mm512_mul_ps(_mm512_loadu_ps(x + i), vscale512));
+    if (i < n)
+    {
+        __mmask16 mask = (__mmask16)((1u << (n - i)) - 1);
+        _mm512_mask_storeu_ps(x + i, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, x + i), vscale512));
+    }
+#else
+    int i = 0;
+#if __SSE2__
+#if __AVX__
+    __m256 vscale256 = _mm256_set1_ps(s);
+    for (; i + 7 < n; i += 8)
+        _mm256_storeu_ps(x + i, _mm256_mul_ps(_mm256_loadu_ps(x + i), vscale256));
+#endif // __AVX__
+    __m128 vscale128 = _mm_set1_ps(s);
+    for (; i + 3 < n; i += 4)
+        _mm_storeu_ps(x + i, _mm_mul_ps(_mm_loadu_ps(x + i), vscale128));
+#endif // __SSE2__
+    for (; i < n; i++)
+        x[i] *= s;
+#endif // __AVX512F__
+}
+
+static inline void vec_zero(float* x, int n)
+{
+#if __AVX512F__
+    __m512 zero512 = _mm512_setzero_ps();
+    int i = 0;
+    for (; i + 15 < n; i += 16)
+        _mm512_storeu_ps(x + i, zero512);
+    if (i < n)
+    {
+        __mmask16 mask = (__mmask16)((1u << (n - i)) - 1);
+        _mm512_mask_storeu_ps(x + i, mask, zero512);
+    }
+#else
+    int i = 0;
+#if __SSE2__
+#if __AVX__
+    __m256 zero256 = _mm256_setzero_ps();
+    for (; i + 7 < n; i += 8)
+        _mm256_storeu_ps(x + i, zero256);
+#endif // __AVX__
+    __m128 zero128 = _mm_setzero_ps();
+    for (; i + 3 < n; i += 4)
+        _mm_storeu_ps(x + i, zero128);
+#endif // __SSE2__
+    for (; i < n; i++)
+        x[i] = 0.f;
+#endif // __AVX512F__
+}
+
+static inline void softmax_tile(float* P, const float* S,
+                                float* m_vec, float* l_vec, float* scale_out, unsigned char* changed_out, int m, int n)
+{
+    for (int i = 0; i < m; i++)
+    {
+        const float* sptr = S + i * n;
+        float* pptr = P + i * n;
+
+#if __AVX512F__
+        __m512 vmax = _mm512_set1_ps(m_vec[i]);
+        int j = 0;
+        for (; j + 15 < n; j += 16)
+            vmax = _mm512_max_ps(vmax, _mm512_loadu_ps(sptr + j));
+        if (j < n)
+        {
+            __mmask16 mask = (__mmask16)((1u << (n - j)) - 1);
+            __m512 tail = _mm512_mask_loadu_ps(_mm512_set1_ps(-FLT_MAX), mask, sptr + j);
+            vmax = _mm512_max_ps(vmax, tail);
+        }
+        float m_new = _mm512_comp_reduce_max_ps(vmax);
+
+        float scale_factor = expf(m_vec[i] - m_new);
+        scale_out[i] = scale_factor;
+        changed_out[i] = m_vec[i] != -FLT_MAX && m_vec[i] != m_new;
+        l_vec[i] *= scale_factor;
+
+        __m512 vm_new = _mm512_set1_ps(m_new);
+        __m512 vsum = _mm512_setzero_ps();
+        j = 0;
+        for (; j + 15 < n; j += 16)
+        {
+            __m512 svec = _mm512_loadu_ps(sptr + j);
+            __m512 evec = exp512_ps(_mm512_sub_ps(svec, vm_new));
+            _mm512_storeu_ps(pptr + j, evec);
+            vsum = _mm512_add_ps(vsum, evec);
+        }
+        if (j < n)
+        {
+            __mmask16 mask = (__mmask16)((1u << (n - j)) - 1);
+            __m512 svec = _mm512_maskz_loadu_ps(mask, sptr + j);
+            __m512 evec = exp512_ps(_mm512_sub_ps(svec, vm_new));
+            _mm512_mask_storeu_ps(pptr + j, mask, evec);
+            vsum = _mm512_mask_add_ps(vsum, mask, vsum, evec);
+        }
+        float l_add = _mm512_comp_reduce_add_ps(vsum);
+        l_vec[i] += l_add;
+        m_vec[i] = m_new;
+#elif __AVX__
+        __m256 vmax = _mm256_set1_ps(m_vec[i]);
+        int j = 0;
+        for (; j + 7 < n; j += 8)
+            vmax = _mm256_max_ps(vmax, _mm256_loadu_ps(sptr + j));
+        float m_new = _mm256_reduce_max_ps(vmax);
+        for (; j < n; j++)
+            m_new = std::max(m_new, sptr[j]);
+
+        float scale_factor = expf(m_vec[i] - m_new);
+        scale_out[i] = scale_factor;
+        changed_out[i] = m_vec[i] != -FLT_MAX && m_vec[i] != m_new;
+        l_vec[i] *= scale_factor;
+
+        __m256 vm_new = _mm256_set1_ps(m_new);
+        __m256 vsum = _mm256_setzero_ps();
+        j = 0;
+        for (; j + 7 < n; j += 8)
+        {
+            __m256 svec = _mm256_loadu_ps(sptr + j);
+            __m256 evec = exp256_ps(_mm256_sub_ps(svec, vm_new));
+            _mm256_storeu_ps(pptr + j, evec);
+            vsum = _mm256_add_ps(vsum, evec);
+        }
+        float l_add = _mm256_reduce_add_ps(vsum);
+        for (; j < n; j++)
+        {
+            pptr[j] = expf(sptr[j] - m_new);
+            l_add += pptr[j];
+        }
+        l_vec[i] += l_add;
+        m_vec[i] = m_new;
+#elif __SSE2__
+        __m128 vmax = _mm_set1_ps(m_vec[i]);
+        int j = 0;
+        for (; j + 3 < n; j += 4)
+            vmax = _mm_max_ps(vmax, _mm_loadu_ps(sptr + j));
+        float m_new = _mm_reduce_max_ps(vmax);
+        for (; j < n; j++)
+            m_new = std::max(m_new, sptr[j]);
+
+        float scale_factor = expf(m_vec[i] - m_new);
+        scale_out[i] = scale_factor;
+        changed_out[i] = m_vec[i] != -FLT_MAX && m_vec[i] != m_new;
+        l_vec[i] *= scale_factor;
+
+        __m128 vm_new = _mm_set1_ps(m_new);
+        __m128 vsum = _mm_setzero_ps();
+        j = 0;
+        for (; j + 3 < n; j += 4)
+        {
+            __m128 svec = _mm_loadu_ps(sptr + j);
+            __m128 evec = exp_ps(_mm_sub_ps(svec, vm_new));
+            _mm_storeu_ps(pptr + j, evec);
+            vsum = _mm_add_ps(vsum, evec);
+        }
+        float l_add = _mm_reduce_add_ps(vsum);
+        for (; j < n; j++)
+        {
+            pptr[j] = expf(sptr[j] - m_new);
+            l_add += pptr[j];
+        }
+        l_vec[i] += l_add;
+        m_vec[i] = m_new;
+#else
+        float m_new = m_vec[i];
+        for (int j = 0; j < n; j++)
+            m_new = std::max(m_new, sptr[j]);
+        float scale_factor = expf(m_vec[i] - m_new);
+        scale_out[i] = scale_factor;
+        changed_out[i] = m_vec[i] != -FLT_MAX && m_vec[i] != m_new;
+        l_vec[i] *= scale_factor;
+        float l_add = 0.f;
+        for (int j = 0; j < n; j++)
+        {
+            pptr[j] = expf(sptr[j] - m_new);
+            l_add += pptr[j];
+        }
+        l_vec[i] += l_add;
+        m_vec[i] = m_new;
+#endif
+    }
+}
+
+static inline void pv_gemm_scalar(float* O, const float* P, const float* V,
+                                  int m, int n, int d)
+{
+    for (int i = 0; i < m; i++)
+    {
+        float* optr = O + i * d;
+        const float* pptr = P + i * n;
+        for (int j = 0; j < n; j++)
+        {
+            float p = pptr[j];
+            const float* vptr = V + j * d;
+            for (int k = 0; k < d; k++)
+                optr[k] += p * vptr[k];
+        }
+    }
+}
+
+static inline void decode_pv_gemv(float* out, const float* s, const float* V, int n_start, int block_n, int out_d)
+{
+#if __AVX512F__
+    int j = 0;
+    for (; j + 1 < block_n; j += 2)
+    {
+        if (j + 6 < block_n)
+            _mm_prefetch((const char*)(V + (n_start + j + 6) * out_d), _MM_HINT_T1);
+
+        __m512 pvec0 = _mm512_set1_ps(s[j]);
+        __m512 pvec1 = _mm512_set1_ps(s[j + 1]);
+        int k = 0;
+        for (; k + 31 < out_d; k += 32)
+        {
+            __m512 oval0 = _mm512_loadu_ps(out + k);
+            __m512 oval1 = _mm512_loadu_ps(out + k + 16);
+            __m512 v00 = _mm512_loadu_ps(V + (n_start + j) * out_d + k);
+            __m512 v01 = _mm512_loadu_ps(V + (n_start + j) * out_d + k + 16);
+            __m512 v10 = _mm512_loadu_ps(V + (n_start + j + 1) * out_d + k);
+            __m512 v11 = _mm512_loadu_ps(V + (n_start + j + 1) * out_d + k + 16);
+            oval0 = _mm512_fmadd_ps(pvec0, v00, oval0);
+            oval1 = _mm512_fmadd_ps(pvec0, v01, oval1);
+            oval0 = _mm512_fmadd_ps(pvec1, v10, oval0);
+            oval1 = _mm512_fmadd_ps(pvec1, v11, oval1);
+            _mm512_storeu_ps(out + k, oval0);
+            _mm512_storeu_ps(out + k + 16, oval1);
+        }
+        if (k + 15 < out_d)
+        {
+            __m512 oval = _mm512_loadu_ps(out + k);
+            __m512 v0 = _mm512_loadu_ps(V + (n_start + j) * out_d + k);
+            __m512 v1 = _mm512_loadu_ps(V + (n_start + j + 1) * out_d + k);
+            oval = _mm512_fmadd_ps(pvec0, v0, oval);
+            oval = _mm512_fmadd_ps(pvec1, v1, oval);
+            _mm512_storeu_ps(out + k, oval);
+            k += 16;
+        }
+        if (k < out_d)
+        {
+            __mmask16 mask_d = (__mmask16)((1u << (out_d - k)) - 1);
+            __m512 oval = _mm512_maskz_loadu_ps(mask_d, out + k);
+            __m512 v0 = _mm512_maskz_loadu_ps(mask_d, V + (n_start + j) * out_d + k);
+            __m512 v1 = _mm512_maskz_loadu_ps(mask_d, V + (n_start + j + 1) * out_d + k);
+            oval = _mm512_fmadd_ps(pvec0, v0, oval);
+            oval = _mm512_fmadd_ps(pvec1, v1, oval);
+            _mm512_mask_storeu_ps(out + k, mask_d, oval);
+        }
+    }
+    for (; j < block_n; j++)
+    {
+        __m512 pvec512 = _mm512_set1_ps(s[j]);
+        int k = 0;
+        for (; k + 31 < out_d; k += 32)
+        {
+            __m512 oval0 = _mm512_loadu_ps(out + k);
+            __m512 oval1 = _mm512_loadu_ps(out + k + 16);
+            __m512 v0 = _mm512_loadu_ps(V + (n_start + j) * out_d + k);
+            __m512 v1 = _mm512_loadu_ps(V + (n_start + j) * out_d + k + 16);
+            oval0 = _mm512_fmadd_ps(pvec512, v0, oval0);
+            oval1 = _mm512_fmadd_ps(pvec512, v1, oval1);
+            _mm512_storeu_ps(out + k, oval0);
+            _mm512_storeu_ps(out + k + 16, oval1);
+        }
+        if (k + 15 < out_d)
+        {
+            __m512 oval = _mm512_loadu_ps(out + k);
+            __m512 vval = _mm512_loadu_ps(V + (n_start + j) * out_d + k);
+            _mm512_storeu_ps(out + k, _mm512_fmadd_ps(pvec512, vval, oval));
+            k += 16;
+        }
+        if (k < out_d)
+        {
+            __mmask16 mask_d = (__mmask16)((1u << (out_d - k)) - 1);
+            __m512 oval = _mm512_maskz_loadu_ps(mask_d, out + k);
+            __m512 vval = _mm512_maskz_loadu_ps(mask_d, V + (n_start + j) * out_d + k);
+            _mm512_mask_storeu_ps(out + k, mask_d, _mm512_fmadd_ps(pvec512, vval, oval));
+        }
+    }
+#else
+    int j = 0;
+    for (; j < block_n; j++)
+    {
+        if (j + 4 < block_n)
+            _mm_prefetch((const char*)(V + (n_start + j + 4) * out_d), _MM_HINT_T1);
+
+        int k = 0;
+#if __SSE2__
+#if __AVX__
+        __m256 pvec256 = _mm256_set1_ps(s[j]);
+        for (; k + 7 < out_d; k += 8)
+        {
+            __m256 oval = _mm256_loadu_ps(out + k);
+            __m256 vval = _mm256_loadu_ps(V + (n_start + j) * out_d + k);
+            _mm256_storeu_ps(out + k, _mm256_comp_fmadd_ps(pvec256, vval, oval));
+        }
+#endif // __AVX__
+        __m128 pvec128 = _mm_set1_ps(s[j]);
+        for (; k + 3 < out_d; k += 4)
+        {
+            __m128 oval = _mm_loadu_ps(out + k);
+            __m128 vval = _mm_loadu_ps(V + (n_start + j) * out_d + k);
+            _mm_storeu_ps(out + k, _mm_comp_fmadd_ps(pvec128, vval, oval));
+        }
+#endif // __SSE2__
+        for (; k < out_d; k++)
+            out[k] += s[j] * V[(n_start + j) * out_d + k];
+    }
+#endif // __AVX512F__
+}
+
+static inline void decode_qk_dot(float* s, const float* q, const float* K, int n_start, int block_n, int d, float scale)
+{
+#if __AVX512F__
+    int j = 0;
+    if (d >= 256)
+    {
+        for (; j + 7 < block_n; j += 8)
+        {
+            const float* k0 = K + (n_start + j + 0) * d;
+            const float* k1 = K + (n_start + j + 1) * d;
+            const float* k2 = K + (n_start + j + 2) * d;
+            const float* k3 = K + (n_start + j + 3) * d;
+            const float* k4 = K + (n_start + j + 4) * d;
+            const float* k5 = K + (n_start + j + 5) * d;
+            const float* k6 = K + (n_start + j + 6) * d;
+            const float* k7 = K + (n_start + j + 7) * d;
+
+            if (j + 15 < block_n)
+            {
+                _mm_prefetch((const char*)(K + (n_start + j + 8) * d), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (n_start + j + 9) * d), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (n_start + j + 10) * d), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (n_start + j + 11) * d), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (n_start + j + 12) * d), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (n_start + j + 13) * d), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (n_start + j + 14) * d), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (n_start + j + 15) * d), _MM_HINT_T1);
+            }
+
+            __m512 acc0 = _mm512_setzero_ps();
+            __m512 acc1 = _mm512_setzero_ps();
+            __m512 acc2 = _mm512_setzero_ps();
+            __m512 acc3 = _mm512_setzero_ps();
+            __m512 acc4 = _mm512_setzero_ps();
+            __m512 acc5 = _mm512_setzero_ps();
+            __m512 acc6 = _mm512_setzero_ps();
+            __m512 acc7 = _mm512_setzero_ps();
+
+            int k = 0;
+            for (; k + 15 < d; k += 16)
+            {
+                __m512 qv = _mm512_loadu_ps(q + k);
+                acc0 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k0 + k), acc0);
+                acc1 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k1 + k), acc1);
+                acc2 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k2 + k), acc2);
+                acc3 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k3 + k), acc3);
+                acc4 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k4 + k), acc4);
+                acc5 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k5 + k), acc5);
+                acc6 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k6 + k), acc6);
+                acc7 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k7 + k), acc7);
+            }
+            if (k < d)
+            {
+                __mmask16 mask_d = (__mmask16)((1u << (d - k)) - 1);
+                __m512 qv = _mm512_maskz_loadu_ps(mask_d, q + k);
+                acc0 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k0 + k), acc0);
+                acc1 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k1 + k), acc1);
+                acc2 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k2 + k), acc2);
+                acc3 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k3 + k), acc3);
+                acc4 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k4 + k), acc4);
+                acc5 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k5 + k), acc5);
+                acc6 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k6 + k), acc6);
+                acc7 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k7 + k), acc7);
+            }
+
+            s[j + 0] = _mm512_comp_reduce_add_ps(acc0) * scale;
+            s[j + 1] = _mm512_comp_reduce_add_ps(acc1) * scale;
+            s[j + 2] = _mm512_comp_reduce_add_ps(acc2) * scale;
+            s[j + 3] = _mm512_comp_reduce_add_ps(acc3) * scale;
+            s[j + 4] = _mm512_comp_reduce_add_ps(acc4) * scale;
+            s[j + 5] = _mm512_comp_reduce_add_ps(acc5) * scale;
+            s[j + 6] = _mm512_comp_reduce_add_ps(acc6) * scale;
+            s[j + 7] = _mm512_comp_reduce_add_ps(acc7) * scale;
+        }
     }
 
-    if (qk_softmax)
+    for (; j + 3 < block_n; j += 4)
     {
-        qk_softmax->destroy_pipeline(opt);
-        delete qk_softmax;
-        qk_softmax = 0;
+        const float* k0 = K + (n_start + j + 0) * d;
+        const float* k1 = K + (n_start + j + 1) * d;
+        const float* k2 = K + (n_start + j + 2) * d;
+        const float* k3 = K + (n_start + j + 3) * d;
+
+        if (j + 7 < block_n)
+        {
+            _mm_prefetch((const char*)(K + (n_start + j + 4) * d), _MM_HINT_T1);
+            _mm_prefetch((const char*)(K + (n_start + j + 5) * d), _MM_HINT_T1);
+            _mm_prefetch((const char*)(K + (n_start + j + 6) * d), _MM_HINT_T1);
+            _mm_prefetch((const char*)(K + (n_start + j + 7) * d), _MM_HINT_T1);
+        }
+
+        __m512 acc0 = _mm512_setzero_ps();
+        __m512 acc1 = _mm512_setzero_ps();
+        __m512 acc2 = _mm512_setzero_ps();
+        __m512 acc3 = _mm512_setzero_ps();
+
+        int k = 0;
+        for (; k + 15 < d; k += 16)
+        {
+            __m512 qv = _mm512_loadu_ps(q + k);
+            acc0 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k0 + k), acc0);
+            acc1 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k1 + k), acc1);
+            acc2 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k2 + k), acc2);
+            acc3 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k3 + k), acc3);
+        }
+        if (k < d)
+        {
+            __mmask16 mask_d = (__mmask16)((1u << (d - k)) - 1);
+            __m512 qv = _mm512_maskz_loadu_ps(mask_d, q + k);
+            acc0 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k0 + k), acc0);
+            acc1 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k1 + k), acc1);
+            acc2 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k2 + k), acc2);
+            acc3 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k3 + k), acc3);
+        }
+
+        s[j + 0] = _mm512_comp_reduce_add_ps(acc0) * scale;
+        s[j + 1] = _mm512_comp_reduce_add_ps(acc1) * scale;
+        s[j + 2] = _mm512_comp_reduce_add_ps(acc2) * scale;
+        s[j + 3] = _mm512_comp_reduce_add_ps(acc3) * scale;
     }
 
-    if (qk_gemm)
+    for (; j < block_n; j++)
     {
-        qk_gemm->destroy_pipeline(opt);
-        delete qk_gemm;
-        qk_gemm = 0;
+        if (j + 4 < block_n)
+            _mm_prefetch((const char*)(K + (n_start + j + 4) * d), _MM_HINT_T1);
+
+        __m512 acc = _mm512_setzero_ps();
+        int k = 0;
+        for (; k + 15 < d; k += 16)
+            acc = _mm512_fmadd_ps(_mm512_loadu_ps(q + k), _mm512_loadu_ps(K + (n_start + j) * d + k), acc);
+        if (k < d)
+        {
+            __mmask16 mask_d = (__mmask16)((1u << (d - k)) - 1);
+            acc = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(mask_d, q + k), _mm512_maskz_loadu_ps(mask_d, K + (n_start + j) * d + k), acc);
+        }
+        s[j] = _mm512_comp_reduce_add_ps(acc) * scale;
+    }
+#elif __AVX__
+    int j = 0;
+    for (; j + 1 < block_n; j += 2)
+    {
+        const float* k0 = K + (n_start + j + 0) * d;
+        const float* k1 = K + (n_start + j + 1) * d;
+
+        if (j + 5 < block_n)
+        {
+            _mm_prefetch((const char*)(K + (n_start + j + 2) * d), _MM_HINT_T1);
+            _mm_prefetch((const char*)(K + (n_start + j + 3) * d), _MM_HINT_T1);
+        }
+
+        __m256 acc0 = _mm256_setzero_ps();
+        __m256 acc1 = _mm256_setzero_ps();
+
+        int k = 0;
+        for (; k + 7 < d; k += 8)
+        {
+            __m256 qv = _mm256_loadu_ps(q + k);
+            acc0 = _mm256_comp_fmadd_ps(qv, _mm256_loadu_ps(k0 + k), acc0);
+            acc1 = _mm256_comp_fmadd_ps(qv, _mm256_loadu_ps(k1 + k), acc1);
+        }
+
+        float sum0 = _mm256_reduce_add_ps(acc0);
+        float sum1 = _mm256_reduce_add_ps(acc1);
+
+        for (; k < d; k++)
+        {
+            sum0 += q[k] * k0[k];
+            sum1 += q[k] * k1[k];
+        }
+
+        s[j + 0] = sum0 * scale;
+        s[j + 1] = sum1 * scale;
     }
 
-    if (qkv_gemm)
+    for (; j < block_n; j++)
     {
-        qkv_gemm->destroy_pipeline(opt);
-        delete qkv_gemm;
-        qkv_gemm = 0;
+        if (j + 2 < block_n)
+            _mm_prefetch((const char*)(K + (n_start + j + 2) * d), _MM_HINT_T1);
+
+        const float* kptr = K + (n_start + j) * d;
+        __m256 acc = _mm256_setzero_ps();
+        int k = 0;
+        for (; k + 7 < d; k += 8)
+            acc = _mm256_comp_fmadd_ps(_mm256_loadu_ps(q + k), _mm256_loadu_ps(kptr + k), acc);
+        float sum = _mm256_reduce_add_ps(acc);
+        for (; k < d; k++)
+            sum += q[k] * kptr[k];
+        s[j] = sum * scale;
+    }
+#elif __SSE2__
+    for (int j = 0; j < block_n; j++)
+    {
+        if (j + 4 < block_n)
+            _mm_prefetch((const char*)(K + (n_start + j + 4) * d), _MM_HINT_T1);
+
+        __m128 acc = _mm_setzero_ps();
+        int k = 0;
+        for (; k + 3 < d; k += 4)
+            acc = _mm_comp_fmadd_ps(_mm_loadu_ps(q + k), _mm_loadu_ps(K + (n_start + j) * d + k), acc);
+        float sum = _mm_reduce_add_ps(acc);
+        for (; k < d; k++)
+            sum += q[k] * K[(n_start + j) * d + k];
+        s[j] = sum * scale;
+    }
+#else
+    for (int j = 0; j < block_n; j++)
+    {
+        if (j + 4 < block_n)
+            _mm_prefetch((const char*)(K + (n_start + j + 4) * d), _MM_HINT_T1);
+
+        float sum = 0.f;
+        for (int k = 0; k < d; k++)
+            sum += q[k] * K[(n_start + j) * d + k];
+        s[j] = sum * scale;
+    }
+#endif
+}
+
+static inline void decode_mask_vec(float* s, const float* mask, int block_n)
+{
+#if __AVX512F__
+    int j = 0;
+    for (; j + 15 < block_n; j += 16)
+        _mm512_storeu_ps(s + j, _mm512_add_ps(_mm512_loadu_ps(s + j), _mm512_loadu_ps(mask + j)));
+    if (j < block_n)
+    {
+        __mmask16 mask_n = (__mmask16)((1u << (block_n - j)) - 1);
+        _mm512_mask_storeu_ps(s + j, mask_n,
+                              _mm512_add_ps(_mm512_maskz_loadu_ps(mask_n, s + j), _mm512_maskz_loadu_ps(mask_n, mask + j)));
+    }
+#elif __AVX__
+    int j = 0;
+    for (; j + 7 < block_n; j += 8)
+        _mm256_storeu_ps(s + j, _mm256_add_ps(_mm256_loadu_ps(s + j), _mm256_loadu_ps(mask + j)));
+    for (; j < block_n; j++)
+        s[j] += mask[j];
+#elif __SSE2__
+    int j = 0;
+    for (; j + 3 < block_n; j += 4)
+        _mm_storeu_ps(s + j, _mm_add_ps(_mm_loadu_ps(s + j), _mm_loadu_ps(mask + j)));
+    for (; j < block_n; j++)
+        s[j] += mask[j];
+#else
+    for (int j = 0; j < block_n; j++)
+        s[j] += mask[j];
+#endif
+}
+
+static inline float decode_max_vec(const float* s, int block_n)
+{
+#if __AVX512F__
+    __m512 vmax = _mm512_set1_ps(-FLT_MAX);
+    int j = 0;
+    for (; j + 15 < block_n; j += 16)
+        vmax = _mm512_max_ps(vmax, _mm512_loadu_ps(s + j));
+    if (j < block_n)
+    {
+        __mmask16 mask = (__mmask16)((1u << (block_n - j)) - 1);
+        vmax = _mm512_max_ps(vmax, _mm512_mask_loadu_ps(_mm512_set1_ps(-FLT_MAX), mask, s + j));
+    }
+    return _mm512_comp_reduce_max_ps(vmax);
+#elif __AVX__
+    __m256 vmax = _mm256_set1_ps(-FLT_MAX);
+    int j = 0;
+    for (; j + 7 < block_n; j += 8)
+        vmax = _mm256_max_ps(vmax, _mm256_loadu_ps(s + j));
+    float m = _mm256_reduce_max_ps(vmax);
+    for (; j < block_n; j++)
+        m = std::max(m, s[j]);
+    return m;
+#elif __SSE2__
+    __m128 vmax = _mm_set1_ps(-FLT_MAX);
+    int j = 0;
+    for (; j + 3 < block_n; j += 4)
+        vmax = _mm_max_ps(vmax, _mm_loadu_ps(s + j));
+    float m = _mm_reduce_max_ps(vmax);
+    for (; j < block_n; j++)
+        m = std::max(m, s[j]);
+    return m;
+#else
+    float m = -FLT_MAX;
+    for (int j = 0; j < block_n; j++)
+        m = std::max(m, s[j]);
+    return m;
+#endif
+}
+
+static inline void decode_exp_sum_vec(float* s, int block_n, float new_m, float* l_add)
+{
+#if __AVX512F__
+    __m512 vm_new = _mm512_set1_ps(new_m);
+    __m512 vsum = _mm512_setzero_ps();
+    int j = 0;
+    for (; j + 15 < block_n; j += 16)
+    {
+        __m512 pvec = exp512_ps(_mm512_sub_ps(_mm512_loadu_ps(s + j), vm_new));
+        _mm512_storeu_ps(s + j, pvec);
+        vsum = _mm512_add_ps(vsum, pvec);
+    }
+    if (j < block_n)
+    {
+        __mmask16 mask_n = (__mmask16)((1u << (block_n - j)) - 1);
+        __m512 pvec = exp512_ps(_mm512_sub_ps(_mm512_maskz_loadu_ps(mask_n, s + j), vm_new));
+        _mm512_mask_storeu_ps(s + j, mask_n, pvec);
+        vsum = _mm512_mask_add_ps(vsum, mask_n, vsum, pvec);
+    }
+    *l_add = _mm512_comp_reduce_add_ps(vsum);
+#elif __AVX__
+    __m256 vm_new = _mm256_set1_ps(new_m);
+    __m256 vsum = _mm256_setzero_ps();
+    int j = 0;
+    for (; j + 7 < block_n; j += 8)
+    {
+        __m256 pvec = exp256_ps(_mm256_sub_ps(_mm256_loadu_ps(s + j), vm_new));
+        _mm256_storeu_ps(s + j, pvec);
+        vsum = _mm256_add_ps(vsum, pvec);
+    }
+    float l = _mm256_reduce_add_ps(vsum);
+    for (; j < block_n; j++)
+    {
+        s[j] = expf(s[j] - new_m);
+        l += s[j];
+    }
+    *l_add = l;
+#elif __SSE2__
+    __m128 vm_new = _mm_set1_ps(new_m);
+    __m128 vsum = _mm_setzero_ps();
+    int j = 0;
+    for (; j + 3 < block_n; j += 4)
+    {
+        __m128 pvec = exp_ps(_mm_sub_ps(_mm_loadu_ps(s + j), vm_new));
+        _mm_storeu_ps(s + j, pvec);
+        vsum = _mm_add_ps(vsum, pvec);
+    }
+    float l = _mm_reduce_add_ps(vsum);
+    for (; j < block_n; j++)
+    {
+        s[j] = expf(s[j] - new_m);
+        l += s[j];
+    }
+    *l_add = l;
+#else
+    float l = 0.f;
+    for (int j = 0; j < block_n; j++)
+    {
+        s[j] = expf(s[j] - new_m);
+        l += s[j];
+    }
+    *l_add = l;
+#endif
+}
+
+static void sdpa_decode_chunk(
+    float* out, float* m_out, float* l_out,
+    const float* q, const float* K, const float* V, const float* mask,
+    int n_start, int n_end, int d, int out_d, float scale);
+
+static void sdpa_decode(float* out, const float* q,
+                        const float* K, const float* V, const float* mask,
+                        int n, int d, int out_d, float scale)
+{
+    float m, l;
+    sdpa_decode_chunk(out, &m, &l, q, K, V, mask, 0, n, d, out_d, scale);
+    float inv_l = 1.f / l;
+    vec_scale(out, inv_l, out_d);
+}
+
+static void sdpa_decode_chunk(
+    float* out, float* m_out, float* l_out,
+    const float* q, const float* K, const float* V, const float* mask,
+    int n_start, int n_end, int d, int out_d, float scale)
+{
+    const int BLOCK_N = 128;
+#if __AVX512F__
+    __attribute__((aligned(64))) float s[BLOCK_N];
+#elif __AVX__
+    __attribute__((aligned(32))) float s[BLOCK_N];
+#elif __SSE2__
+    __attribute__((aligned(16))) float s[BLOCK_N];
+#else
+    float s[BLOCK_N];
+#endif
+
+    vec_zero(out, out_d);
+
+    float m = -FLT_MAX;
+    float l = 0.f;
+
+    for (int n = n_start; n < n_end; n += BLOCK_N)
+    {
+        int block_n = std::min(BLOCK_N, n_end - n);
+
+        decode_qk_dot(s, q, K, n, block_n, d, scale);
+
+        if (mask)
+            decode_mask_vec(s, mask + n, block_n);
+
+        float tile_m = decode_max_vec(s, block_n);
+        float new_m = std::max(m, tile_m);
+        if (m != new_m)
+        {
+            float scale_factor = expf(m - new_m);
+            l *= scale_factor;
+            vec_scale(out, scale_factor, out_d);
+        }
+
+        float l_add;
+        decode_exp_sum_vec(s, block_n, new_m, &l_add);
+        l += l_add;
+
+        decode_pv_gemv(out, s, V, n, block_n, out_d);
+
+        m = new_m;
+    }
+
+    *m_out = m;
+    *l_out = l;
+}
+
+static void sdpa_decode_reduce(
+    float* out, int out_d,
+    const float* partials, int num_chunks, int partial_stride)
+{
+    float M_final = -FLT_MAX;
+    float S_final = 0.f;
+    vec_zero(out, out_d);
+
+    for (int c = 0; c < num_chunks; c++)
+    {
+        const float* p = partials + c * partial_stride;
+        float M_chunk = p[0];
+        float S_chunk = p[1];
+        if (S_chunk == 0.f) continue;
+
+        const float* VKQ_chunk = p + 2;
+
+        float M_new = std::max(M_final, M_chunk);
+        float scale_final = expf(M_final - M_new);
+        float scale_chunk = expf(M_chunk - M_new);
+
+        for (int k = 0; k < out_d; k++)
+        {
+            out[k] = out[k] * scale_final + VKQ_chunk[k] * scale_chunk;
+        }
+
+        S_final = S_final * scale_final + S_chunk * scale_chunk;
+        M_final = M_new;
+    }
+
+    if (S_final != 0.f)
+    {
+        float inv_s = 1.f / S_final;
+        vec_scale(out, inv_s, out_d);
+    }
+}
+
+static inline void sdpa_int8_decode_core(
+    float* s, float* out, float* m, float* l,
+    const signed char* q_int8, const float* q_scale,
+    const signed char* key_int8, const float* key_scales,
+    const signed char* value_int8, const float* value_scales,
+    const float* mask_ptr,
+    int n_start, int block_n, int embed_dim, int out_embed_dim, float scale)
+{
+    decode_qk_dot_int8(s, q_int8, key_int8, q_scale, key_scales, n_start, block_n, embed_dim, scale);
+    if (mask_ptr)
+        decode_mask_vec(s, mask_ptr + n_start, block_n);
+    float tile_m = decode_max_vec(s, block_n);
+    float new_m = std::max(*m, tile_m);
+    if (*m != new_m)
+    {
+        float scale_factor = expf(*m - new_m);
+        *l *= scale_factor;
+        vec_scale(out, scale_factor, out_embed_dim);
+    }
+    float l_add;
+    decode_exp_sum_vec(s, block_n, new_m, &l_add);
+    *l += l_add;
+    decode_pv_gemv_int8(out, s, value_int8, value_scales, n_start, block_n, out_embed_dim);
+    *m = new_m;
+}
+
+#if __AVX512F__
+
+static void qk_gemm_avx512(float* S, const float* Q, const float* K,
+                           int m, int n, int d, float scale)
+{
+    const int tail = d & 15;
+    const __mmask16 tail_mask = (__mmask16)((1u << tail) - 1);
+    int i = 0;
+    for (; i + 8 <= m; i += 8)
+    {
+        int j = 0;
+        for (; j + 2 <= n; j += 2)
+        {
+            const float* k0 = K + (j + 0) * d;
+            const float* k1 = K + (j + 1) * d;
+
+            __m512 acc[8][2];
+            for (int mi = 0; mi < 8; mi++)
+            {
+                acc[mi][0] = _mm512_setzero_ps();
+                acc[mi][1] = _mm512_setzero_ps();
+            }
+
+            int k = 0;
+            for (; k + 15 < d; k += 16)
+            {
+                __m512 kv0 = _mm512_loadu_ps(k0 + k);
+                __m512 kv1 = _mm512_loadu_ps(k1 + k);
+
+                for (int mi = 0; mi < 8; mi++)
+                {
+                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * d + k);
+                    acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
+                    acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
+                }
+            }
+
+            if (tail)
+            {
+                __m512 kv0 = _mm512_maskz_loadu_ps(tail_mask, k0 + k);
+                __m512 kv1 = _mm512_maskz_loadu_ps(tail_mask, k1 + k);
+
+                for (int mi = 0; mi < 8; mi++)
+                {
+                    __m512 qvec = _mm512_maskz_loadu_ps(tail_mask, Q + (i + mi) * d + k);
+                    acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
+                    acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
+                }
+            }
+
+            for (int mi = 0; mi < 8; mi++)
+            {
+                S[(i + mi) * n + j + 0] = _mm512_comp_reduce_add_ps(acc[mi][0]) * scale;
+                S[(i + mi) * n + j + 1] = _mm512_comp_reduce_add_ps(acc[mi][1]) * scale;
+            }
+        }
+
+        for (; j < n; j++)
+        {
+            const float* kptr = K + j * d;
+
+            __m512 acc[8];
+            for (int mi = 0; mi < 8; mi++)
+                acc[mi] = _mm512_setzero_ps();
+
+            int k = 0;
+            for (; k + 15 < d; k += 16)
+            {
+                __m512 kvec = _mm512_loadu_ps(kptr + k);
+                for (int mi = 0; mi < 8; mi++)
+                {
+                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * d + k);
+                    acc[mi] = _mm512_fmadd_ps(qvec, kvec, acc[mi]);
+                }
+            }
+
+            if (tail)
+            {
+                __m512 kvec = _mm512_maskz_loadu_ps(tail_mask, kptr + k);
+                for (int mi = 0; mi < 8; mi++)
+                {
+                    __m512 qvec = _mm512_maskz_loadu_ps(tail_mask, Q + (i + mi) * d + k);
+                    acc[mi] = _mm512_fmadd_ps(qvec, kvec, acc[mi]);
+                }
+            }
+
+            for (int mi = 0; mi < 8; mi++)
+                S[(i + mi) * n + j] = _mm512_comp_reduce_add_ps(acc[mi]) * scale;
+        }
+    }
+
+    for (; i + 4 <= m; i += 4)
+    {
+        int j = 0;
+        for (; j + 2 <= n; j += 2)
+        {
+            const float* k0 = K + (j + 0) * d;
+            const float* k1 = K + (j + 1) * d;
+
+            __m512 acc[4][2];
+            for (int mi = 0; mi < 4; mi++)
+            {
+                acc[mi][0] = _mm512_setzero_ps();
+                acc[mi][1] = _mm512_setzero_ps();
+            }
+
+            int k = 0;
+            for (; k + 15 < d; k += 16)
+            {
+                __m512 kv0 = _mm512_loadu_ps(k0 + k);
+                __m512 kv1 = _mm512_loadu_ps(k1 + k);
+
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * d + k);
+                    acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
+                    acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
+                }
+            }
+
+            if (tail)
+            {
+                __m512 kv0 = _mm512_maskz_loadu_ps(tail_mask, k0 + k);
+                __m512 kv1 = _mm512_maskz_loadu_ps(tail_mask, k1 + k);
+
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    __m512 qvec = _mm512_maskz_loadu_ps(tail_mask, Q + (i + mi) * d + k);
+                    acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
+                    acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
+                }
+            }
+
+            for (int mi = 0; mi < 4; mi++)
+            {
+                S[(i + mi) * n + j + 0] = _mm512_comp_reduce_add_ps(acc[mi][0]) * scale;
+                S[(i + mi) * n + j + 1] = _mm512_comp_reduce_add_ps(acc[mi][1]) * scale;
+            }
+        }
+
+        for (; j < n; j++)
+        {
+            const float* kptr = K + j * d;
+
+            __m512 acc[4];
+            for (int mi = 0; mi < 4; mi++)
+                acc[mi] = _mm512_setzero_ps();
+
+            int k = 0;
+            for (; k + 15 < d; k += 16)
+            {
+                __m512 kvec = _mm512_loadu_ps(kptr + k);
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * d + k);
+                    acc[mi] = _mm512_fmadd_ps(qvec, kvec, acc[mi]);
+                }
+            }
+
+            if (tail)
+            {
+                __m512 kvec = _mm512_maskz_loadu_ps(tail_mask, kptr + k);
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    __m512 qvec = _mm512_maskz_loadu_ps(tail_mask, Q + (i + mi) * d + k);
+                    acc[mi] = _mm512_fmadd_ps(qvec, kvec, acc[mi]);
+                }
+            }
+
+            for (int mi = 0; mi < 4; mi++)
+                S[(i + mi) * n + j] = _mm512_comp_reduce_add_ps(acc[mi]) * scale;
+        }
+    }
+
+    for (; i < m; i++)
+    {
+        int j = 0;
+        for (; j + 3 < n; j += 4)
+        {
+            const float* qptr = Q + i * d;
+            const float* k0 = K + (j + 0) * d;
+            const float* k1 = K + (j + 1) * d;
+            const float* k2 = K + (j + 2) * d;
+            const float* k3 = K + (j + 3) * d;
+
+            __m512 acc0 = _mm512_setzero_ps();
+            __m512 acc1 = _mm512_setzero_ps();
+            __m512 acc2 = _mm512_setzero_ps();
+            __m512 acc3 = _mm512_setzero_ps();
+
+            int k = 0;
+            for (; k + 15 < d; k += 16)
+            {
+                __m512 qvec = _mm512_loadu_ps(qptr + k);
+                acc0 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k0 + k), acc0);
+                acc1 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k1 + k), acc1);
+                acc2 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k2 + k), acc2);
+                acc3 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k3 + k), acc3);
+            }
+
+            if (tail)
+            {
+                __m512 qvec = _mm512_maskz_loadu_ps(tail_mask, qptr + k);
+                acc0 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(tail_mask, k0 + k), acc0);
+                acc1 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(tail_mask, k1 + k), acc1);
+                acc2 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(tail_mask, k2 + k), acc2);
+                acc3 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(tail_mask, k3 + k), acc3);
+            }
+
+            S[i * n + j + 0] = _mm512_comp_reduce_add_ps(acc0) * scale;
+            S[i * n + j + 1] = _mm512_comp_reduce_add_ps(acc1) * scale;
+            S[i * n + j + 2] = _mm512_comp_reduce_add_ps(acc2) * scale;
+            S[i * n + j + 3] = _mm512_comp_reduce_add_ps(acc3) * scale;
+        }
+
+        for (; j < n; j++)
+        {
+            const float* qptr = Q + i * d;
+            const float* kptr = K + j * d;
+            int k = 0;
+            __m512 vacc = _mm512_setzero_ps();
+            for (; k + 15 < d; k += 16)
+                vacc = _mm512_fmadd_ps(_mm512_loadu_ps(qptr + k), _mm512_loadu_ps(kptr + k), vacc);
+            if (tail)
+            {
+                vacc = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(tail_mask, qptr + k), _mm512_maskz_loadu_ps(tail_mask, kptr + k), vacc);
+            }
+            S[i * n + j] = _mm512_comp_reduce_add_ps(vacc) * scale;
+        }
+    }
+}
+
+template<int D>
+static inline void qk_gemm_specialized_avx512(float* S, const float* Q, const float* K,
+        int m, int n, float scale)
+{
+    int i = 0;
+    for (; i + 8 <= m; i += 8)
+    {
+        int j = 0;
+        for (; j + 2 <= n; j += 2)
+        {
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+
+            __m512 acc[8][2];
+            for (int mi = 0; mi < 8; mi++)
+            {
+                acc[mi][0] = _mm512_setzero_ps();
+                acc[mi][1] = _mm512_setzero_ps();
+            }
+
+            for (int k = 0; k < D; k += 16)
+            {
+                __m512 kv0 = _mm512_loadu_ps(k0 + k);
+                __m512 kv1 = _mm512_loadu_ps(k1 + k);
+
+                for (int mi = 0; mi < 8; mi++)
+                {
+                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * D + k);
+                    acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
+                    acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
+                }
+            }
+
+            for (int mi = 0; mi < 8; mi++)
+            {
+                S[(i + mi) * n + j + 0] = _mm512_comp_reduce_add_ps(acc[mi][0]) * scale;
+                S[(i + mi) * n + j + 1] = _mm512_comp_reduce_add_ps(acc[mi][1]) * scale;
+            }
+        }
+
+        for (; j < n; j++)
+        {
+            const float* kptr = K + j * D;
+
+            __m512 acc[8];
+            for (int mi = 0; mi < 8; mi++)
+                acc[mi] = _mm512_setzero_ps();
+
+            for (int k = 0; k < D; k += 16)
+            {
+                __m512 kvec = _mm512_loadu_ps(kptr + k);
+                for (int mi = 0; mi < 8; mi++)
+                {
+                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * D + k);
+                    acc[mi] = _mm512_fmadd_ps(qvec, kvec, acc[mi]);
+                }
+            }
+
+            for (int mi = 0; mi < 8; mi++)
+                S[(i + mi) * n + j] = _mm512_comp_reduce_add_ps(acc[mi]) * scale;
+        }
+    }
+
+    for (; i + 4 <= m; i += 4)
+    {
+        int j = 0;
+        for (; j + 2 <= n; j += 2)
+        {
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+
+            __m512 acc[4][2];
+            for (int mi = 0; mi < 4; mi++)
+            {
+                acc[mi][0] = _mm512_setzero_ps();
+                acc[mi][1] = _mm512_setzero_ps();
+            }
+
+            for (int k = 0; k < D; k += 16)
+            {
+                __m512 kv0 = _mm512_loadu_ps(k0 + k);
+                __m512 kv1 = _mm512_loadu_ps(k1 + k);
+
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * D + k);
+                    acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
+                    acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
+                }
+            }
+
+            for (int mi = 0; mi < 4; mi++)
+            {
+                S[(i + mi) * n + j + 0] = _mm512_comp_reduce_add_ps(acc[mi][0]) * scale;
+                S[(i + mi) * n + j + 1] = _mm512_comp_reduce_add_ps(acc[mi][1]) * scale;
+            }
+        }
+
+        for (; j < n; j++)
+        {
+            __m512 acc[4];
+            for (int mi = 0; mi < 4; mi++)
+                acc[mi] = _mm512_setzero_ps();
+
+            const float* kptr = K + j * D;
+            for (int k = 0; k < D; k += 16)
+            {
+                __m512 kvec = _mm512_loadu_ps(kptr + k);
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * D + k);
+                    acc[mi] = _mm512_fmadd_ps(qvec, kvec, acc[mi]);
+                }
+            }
+
+            for (int mi = 0; mi < 4; mi++)
+                S[(i + mi) * n + j] = _mm512_comp_reduce_add_ps(acc[mi]) * scale;
+        }
+    }
+
+    for (; i < m; i++)
+    {
+        int j = 0;
+        for (; j + 3 < n; j += 4)
+        {
+            const float* qptr = Q + i * D;
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+            const float* k2 = K + (j + 2) * D;
+            const float* k3 = K + (j + 3) * D;
+
+            __m512 acc0 = _mm512_setzero_ps();
+            __m512 acc1 = _mm512_setzero_ps();
+            __m512 acc2 = _mm512_setzero_ps();
+            __m512 acc3 = _mm512_setzero_ps();
+
+            for (int k = 0; k < D; k += 16)
+            {
+                __m512 qvec = _mm512_loadu_ps(qptr + k);
+                acc0 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k0 + k), acc0);
+                acc1 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k1 + k), acc1);
+                acc2 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k2 + k), acc2);
+                acc3 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k3 + k), acc3);
+            }
+
+            S[i * n + j + 0] = _mm512_comp_reduce_add_ps(acc0) * scale;
+            S[i * n + j + 1] = _mm512_comp_reduce_add_ps(acc1) * scale;
+            S[i * n + j + 2] = _mm512_comp_reduce_add_ps(acc2) * scale;
+            S[i * n + j + 3] = _mm512_comp_reduce_add_ps(acc3) * scale;
+        }
+
+        for (; j < n; j++)
+        {
+            const float* qptr = Q + i * D;
+            const float* kptr = K + j * D;
+            __m512 vacc = _mm512_setzero_ps();
+            for (int k = 0; k < D; k += 16)
+                vacc = _mm512_fmadd_ps(_mm512_loadu_ps(qptr + k), _mm512_loadu_ps(kptr + k), vacc);
+            S[i * n + j] = _mm512_comp_reduce_add_ps(vacc) * scale;
+        }
+    }
+}
+
+template<int D, int M_BLOCK1, int M_BLOCK2>
+static inline void qk_gemm_specialized_tiled_avx512(float* S, const float* Q, const float* K,
+        int m, int n, float scale)
+{
+    int i = 0;
+    if (M_BLOCK2 > 0)
+    {
+        for (; i + M_BLOCK2 <= m; i += M_BLOCK2)
+        {
+            int j = 0;
+            for (; j + 4 <= n; j += 4)
+            {
+                if (D >= 512 && n >= 128 && j + 8 <= n)
+                {
+                    _mm_prefetch((const char*)(K + (j + 4) * D), _MM_HINT_T1);
+                    _mm_prefetch((const char*)(K + (j + 5) * D), _MM_HINT_T1);
+                    _mm_prefetch((const char*)(K + (j + 6) * D), _MM_HINT_T1);
+                    _mm_prefetch((const char*)(K + (j + 7) * D), _MM_HINT_T1);
+                }
+                const float* k0 = K + (j + 0) * D;
+                const float* k1 = K + (j + 1) * D;
+                const float* k2 = K + (j + 2) * D;
+                const float* k3 = K + (j + 3) * D;
+
+                __m512 acc[M_BLOCK2][4];
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                {
+                    acc[mi][0] = _mm512_setzero_ps();
+                    acc[mi][1] = _mm512_setzero_ps();
+                    acc[mi][2] = _mm512_setzero_ps();
+                    acc[mi][3] = _mm512_setzero_ps();
+                }
+
+                for (int k = 0; k < D; k += 16)
+                {
+                    __m512 kv0 = _mm512_loadu_ps(k0 + k);
+                    __m512 kv1 = _mm512_loadu_ps(k1 + k);
+                    __m512 kv2 = _mm512_loadu_ps(k2 + k);
+                    __m512 kv3 = _mm512_loadu_ps(k3 + k);
+
+                    for (int mi = 0; mi < M_BLOCK2; mi++)
+                    {
+                        __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * D + k);
+                        acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
+                        acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
+                        acc[mi][2] = _mm512_fmadd_ps(qvec, kv2, acc[mi][2]);
+                        acc[mi][3] = _mm512_fmadd_ps(qvec, kv3, acc[mi][3]);
+                    }
+                }
+
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                {
+                    S[(i + mi) * n + j + 0] = _mm512_comp_reduce_add_ps(acc[mi][0]) * scale;
+                    S[(i + mi) * n + j + 1] = _mm512_comp_reduce_add_ps(acc[mi][1]) * scale;
+                    S[(i + mi) * n + j + 2] = _mm512_comp_reduce_add_ps(acc[mi][2]) * scale;
+                    S[(i + mi) * n + j + 3] = _mm512_comp_reduce_add_ps(acc[mi][3]) * scale;
+                }
+            }
+
+            for (; j + 2 <= n; j += 2)
+            {
+                const float* k0 = K + (j + 0) * D;
+                const float* k1 = K + (j + 1) * D;
+
+                __m512 acc[M_BLOCK2][2];
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                {
+                    acc[mi][0] = _mm512_setzero_ps();
+                    acc[mi][1] = _mm512_setzero_ps();
+                }
+
+                for (int k = 0; k < D; k += 16)
+                {
+                    __m512 kv0 = _mm512_loadu_ps(k0 + k);
+                    __m512 kv1 = _mm512_loadu_ps(k1 + k);
+
+                    for (int mi = 0; mi < M_BLOCK2; mi++)
+                    {
+                        __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * D + k);
+                        acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
+                        acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
+                    }
+                }
+
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                {
+                    S[(i + mi) * n + j + 0] = _mm512_comp_reduce_add_ps(acc[mi][0]) * scale;
+                    S[(i + mi) * n + j + 1] = _mm512_comp_reduce_add_ps(acc[mi][1]) * scale;
+                }
+            }
+
+            for (; j < n; j++)
+            {
+                const float* kptr = K + j * D;
+
+                __m512 acc[M_BLOCK2];
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                    acc[mi] = _mm512_setzero_ps();
+
+                for (int k = 0; k < D; k += 16)
+                {
+                    __m512 kvec = _mm512_loadu_ps(kptr + k);
+                    for (int mi = 0; mi < M_BLOCK2; mi++)
+                    {
+                        __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * D + k);
+                        acc[mi] = _mm512_fmadd_ps(qvec, kvec, acc[mi]);
+                    }
+                }
+
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                    S[(i + mi) * n + j] = _mm512_comp_reduce_add_ps(acc[mi]) * scale;
+            }
+        }
+    }
+
+    for (; i + M_BLOCK1 <= m; i += M_BLOCK1)
+    {
+        int j = 0;
+        for (; j + 4 <= n; j += 4)
+        {
+            if (D >= 512 && n >= 128 && j + 8 <= n)
+            {
+                _mm_prefetch((const char*)(K + (j + 4) * D), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (j + 5) * D), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (j + 6) * D), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (j + 7) * D), _MM_HINT_T1);
+            }
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+            const float* k2 = K + (j + 2) * D;
+            const float* k3 = K + (j + 3) * D;
+
+            __m512 acc[M_BLOCK1][4];
+            for (int mi = 0; mi < M_BLOCK1; mi++)
+            {
+                acc[mi][0] = _mm512_setzero_ps();
+                acc[mi][1] = _mm512_setzero_ps();
+                acc[mi][2] = _mm512_setzero_ps();
+                acc[mi][3] = _mm512_setzero_ps();
+            }
+
+            for (int k = 0; k < D; k += 16)
+            {
+                __m512 kv0 = _mm512_loadu_ps(k0 + k);
+                __m512 kv1 = _mm512_loadu_ps(k1 + k);
+                __m512 kv2 = _mm512_loadu_ps(k2 + k);
+                __m512 kv3 = _mm512_loadu_ps(k3 + k);
+
+                for (int mi = 0; mi < M_BLOCK1; mi++)
+                {
+                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * D + k);
+                    acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
+                    acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
+                    acc[mi][2] = _mm512_fmadd_ps(qvec, kv2, acc[mi][2]);
+                    acc[mi][3] = _mm512_fmadd_ps(qvec, kv3, acc[mi][3]);
+                }
+            }
+
+            for (int mi = 0; mi < M_BLOCK1; mi++)
+            {
+                S[(i + mi) * n + j + 0] = _mm512_comp_reduce_add_ps(acc[mi][0]) * scale;
+                S[(i + mi) * n + j + 1] = _mm512_comp_reduce_add_ps(acc[mi][1]) * scale;
+                S[(i + mi) * n + j + 2] = _mm512_comp_reduce_add_ps(acc[mi][2]) * scale;
+                S[(i + mi) * n + j + 3] = _mm512_comp_reduce_add_ps(acc[mi][3]) * scale;
+            }
+        }
+
+        for (; j + 2 <= n; j += 2)
+        {
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+
+            __m512 acc[M_BLOCK1][2];
+            for (int mi = 0; mi < M_BLOCK1; mi++)
+            {
+                acc[mi][0] = _mm512_setzero_ps();
+                acc[mi][1] = _mm512_setzero_ps();
+            }
+
+            for (int k = 0; k < D; k += 16)
+            {
+                __m512 kv0 = _mm512_loadu_ps(k0 + k);
+                __m512 kv1 = _mm512_loadu_ps(k1 + k);
+
+                for (int mi = 0; mi < M_BLOCK1; mi++)
+                {
+                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * D + k);
+                    acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
+                    acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
+                }
+            }
+
+            for (int mi = 0; mi < M_BLOCK1; mi++)
+            {
+                S[(i + mi) * n + j + 0] = _mm512_comp_reduce_add_ps(acc[mi][0]) * scale;
+                S[(i + mi) * n + j + 1] = _mm512_comp_reduce_add_ps(acc[mi][1]) * scale;
+            }
+        }
+
+        for (; j < n; j++)
+        {
+            const float* kptr = K + j * D;
+
+            __m512 acc[M_BLOCK1];
+            for (int mi = 0; mi < M_BLOCK1; mi++)
+                acc[mi] = _mm512_setzero_ps();
+
+            for (int k = 0; k < D; k += 16)
+            {
+                __m512 kvec = _mm512_loadu_ps(kptr + k);
+                for (int mi = 0; mi < M_BLOCK1; mi++)
+                {
+                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * D + k);
+                    acc[mi] = _mm512_fmadd_ps(qvec, kvec, acc[mi]);
+                }
+            }
+
+            for (int mi = 0; mi < M_BLOCK1; mi++)
+                S[(i + mi) * n + j] = _mm512_comp_reduce_add_ps(acc[mi]) * scale;
+        }
+    }
+
+    for (; i < m; i++)
+    {
+        int j = 0;
+        for (; j + 4 <= n; j += 4)
+        {
+            const float* qptr = Q + i * D;
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+            const float* k2 = K + (j + 2) * D;
+            const float* k3 = K + (j + 3) * D;
+
+            __m512 acc0 = _mm512_setzero_ps();
+            __m512 acc1 = _mm512_setzero_ps();
+            __m512 acc2 = _mm512_setzero_ps();
+            __m512 acc3 = _mm512_setzero_ps();
+
+            for (int k = 0; k < D; k += 16)
+            {
+                __m512 qvec = _mm512_loadu_ps(qptr + k);
+                acc0 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k0 + k), acc0);
+                acc1 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k1 + k), acc1);
+                acc2 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k2 + k), acc2);
+                acc3 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k3 + k), acc3);
+            }
+
+            S[i * n + j + 0] = _mm512_comp_reduce_add_ps(acc0) * scale;
+            S[i * n + j + 1] = _mm512_comp_reduce_add_ps(acc1) * scale;
+            S[i * n + j + 2] = _mm512_comp_reduce_add_ps(acc2) * scale;
+            S[i * n + j + 3] = _mm512_comp_reduce_add_ps(acc3) * scale;
+        }
+
+        for (; j + 2 <= n; j += 2)
+        {
+            const float* qptr = Q + i * D;
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+
+            __m512 acc0 = _mm512_setzero_ps();
+            __m512 acc1 = _mm512_setzero_ps();
+
+            for (int k = 0; k < D; k += 16)
+            {
+                __m512 qvec = _mm512_loadu_ps(qptr + k);
+                acc0 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k0 + k), acc0);
+                acc1 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k1 + k), acc1);
+            }
+
+            S[i * n + j + 0] = _mm512_comp_reduce_add_ps(acc0) * scale;
+            S[i * n + j + 1] = _mm512_comp_reduce_add_ps(acc1) * scale;
+        }
+
+        for (; j < n; j++)
+        {
+            const float* qptr = Q + i * D;
+            const float* kptr = K + j * D;
+            __m512 vacc = _mm512_setzero_ps();
+            for (int k = 0; k < D; k += 16)
+                vacc = _mm512_fmadd_ps(_mm512_loadu_ps(qptr + k), _mm512_loadu_ps(kptr + k), vacc);
+            S[i * n + j] = _mm512_comp_reduce_add_ps(vacc) * scale;
+        }
+    }
+}
+
+template<>
+void qk_gemm_specialized_avx512<128>(float* S, const float* Q, const float* K,
+                                     int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_avx512<128, 4, 6>(S, Q, K, m, n, scale);
+}
+template<>
+void qk_gemm_specialized_avx512<512>(float* S, const float* Q, const float* K,
+                                     int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_avx512<512, 4, 8>(S, Q, K, m, n, scale);
+}
+template<>
+void qk_gemm_specialized_avx512<2048>(float* S, const float* Q, const float* K,
+                                      int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_avx512<2048, 2, 0>(S, Q, K, m, n, scale);
+}
+template<>
+void qk_gemm_specialized_avx512<1024>(float* S, const float* Q, const float* K,
+                                      int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_avx512<1024, 4, 4>(S, Q, K, m, n, scale);
+}
+
+template<>
+void qk_gemm_specialized_avx512<4096>(float* S, const float* Q, const float* K,
+                                      int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_avx512<4096, 2, 2>(S, Q, K, m, n, scale);
+}
+
+template<int D>
+static inline void qk_gemm_specialized_avx512_large_m(float* S, const float* Q, const float* K,
+        int m, int n, float scale)
+{
+}
+
+template<>
+void qk_gemm_specialized_avx512_large_m<4096>(float* S, const float* Q, const float* K,
+        int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_avx512<4096, 4, 6>(S, Q, K, m, n, scale);
+}
+
+template<int M_BLOCK, int D_UNROLL, bool INIT_ZERO = false>
+static inline void pv_gemm_avx512(float* O, const float* P, const float* V, int m, int n, int d)
+{
+    const int VEC_PER_UNROLL = D_UNROLL / 16;
+    const bool prefetch_v = d >= 512 && n >= 256;
+    int dd = 0;
+    for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
+    {
+        int i = 0;
+        for (; i + M_BLOCK <= m; i += M_BLOCK)
+        {
+            float* op[M_BLOCK];
+            const float* pptr[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                op[mi] = O + (i + mi) * d + dd;
+                pptr[mi] = P + (i + mi) * n;
+            }
+
+            __m512 acc[M_BLOCK][VEC_PER_UNROLL];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    acc[mi][vi] = INIT_ZERO ? _mm512_setzero_ps() : _mm512_loadu_ps(op[mi] + vi * 16);
+
+            for (int j = 0; j < n; j++)
+            {
+                if (prefetch_v && j + 4 < n)
+                    _mm_prefetch((const char*)(V + (j + 4) * d + dd), _MM_HINT_T1);
+                __m512 vvec[VEC_PER_UNROLL];
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    vvec[vi] = _mm512_loadu_ps(V + j * d + dd + vi * 16);
+
+                for (int mi = 0; mi < M_BLOCK; mi++)
+                {
+                    __m512 pvec = _mm512_set1_ps(pptr[mi][j]);
+                    for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                        acc[mi][vi] = _mm512_fmadd_ps(pvec, vvec[vi], acc[mi][vi]);
+                }
+            }
+
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    _mm512_storeu_ps(op[mi] + vi * 16, acc[mi][vi]);
+        }
+
+        for (; i < m; i++)
+        {
+            float* optr = O + i * d + dd;
+            const float* pptr = P + i * n;
+
+            __m512 acc[VEC_PER_UNROLL];
+            for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                acc[vi] = INIT_ZERO ? _mm512_setzero_ps() : _mm512_loadu_ps(optr + vi * 16);
+
+            for (int j = 0; j < n; j++)
+            {
+                if (prefetch_v && j + 4 < n)
+                    _mm_prefetch((const char*)(V + (j + 4) * d + dd), _MM_HINT_T1);
+                __m512 pvec = _mm512_set1_ps(pptr[j]);
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    acc[vi] = _mm512_fmadd_ps(pvec, _mm512_loadu_ps(V + j * d + dd + vi * 16), acc[vi]);
+            }
+
+            for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                _mm512_storeu_ps(optr + vi * 16, acc[vi]);
+        }
+    }
+
+    for (; dd + 15 < d; dd += 16)
+    {
+        int i = 0;
+        for (; i + M_BLOCK <= m; i += M_BLOCK)
+        {
+            float* op[M_BLOCK];
+            const float* pptr[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                op[mi] = O + (i + mi) * d + dd;
+                pptr[mi] = P + (i + mi) * n;
+            }
+
+            __m512 acc[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                acc[mi] = INIT_ZERO ? _mm512_setzero_ps() : _mm512_loadu_ps(op[mi]);
+
+            for (int j = 0; j < n; j++)
+            {
+                __m512 vvec = _mm512_loadu_ps(V + j * d + dd);
+                for (int mi = 0; mi < M_BLOCK; mi++)
+                    acc[mi] = _mm512_fmadd_ps(_mm512_set1_ps(pptr[mi][j]), vvec, acc[mi]);
+            }
+
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                _mm512_storeu_ps(op[mi], acc[mi]);
+        }
+
+        for (; i < m; i++)
+        {
+            float* optr = O + i * d + dd;
+            const float* pptr = P + i * n;
+            __m512 acc = INIT_ZERO ? _mm512_setzero_ps() : _mm512_loadu_ps(optr);
+            for (int j = 0; j < n; j++)
+                acc = _mm512_fmadd_ps(_mm512_set1_ps(pptr[j]), _mm512_loadu_ps(V + j * d + dd), acc);
+            _mm512_storeu_ps(optr, acc);
+        }
+    }
+
+    for (; dd < d; dd++)
+    {
+        int i = 0;
+        for (; i + M_BLOCK <= m; i += M_BLOCK)
+        {
+            float* op[M_BLOCK];
+            const float* pptr[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                op[mi] = O + (i + mi) * d + dd;
+                pptr[mi] = P + (i + mi) * n;
+            }
+            if (INIT_ZERO)
+            {
+                for (int mi = 0; mi < M_BLOCK; mi++)
+                    op[mi][0] = 0.f;
+            }
+            for (int j = 0; j < n; j++)
+            {
+                for (int mi = 0; mi < M_BLOCK; mi++)
+                    op[mi][0] += pptr[mi][j] * V[j * d + dd];
+            }
+        }
+        for (; i < m; i++)
+        {
+            float* optr = O + i * d + dd;
+            const float* pptr = P + i * n;
+            if (INIT_ZERO)
+                optr[0] = 0.f;
+            for (int j = 0; j < n; j++)
+                optr[0] += pptr[j] * V[j * d + dd];
+        }
+    }
+}
+
+template<int M_BLOCK, int D_UNROLL, bool INIT_ZERO = false>
+static inline void pv_gemm_2heads_4096_avx512(float* O0, float* O1, const float* P0, const float* P1, const float* V, int m, int n)
+{
+    const int d = 4096;
+    const int VEC_PER_UNROLL = D_UNROLL / 16;
+    int dd = 0;
+    for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
+    {
+        int i = 0;
+        for (; i + M_BLOCK <= m; i += M_BLOCK)
+        {
+            float* op0[M_BLOCK];
+            float* op1[M_BLOCK];
+            const float* pptr0[M_BLOCK];
+            const float* pptr1[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                op0[mi] = O0 + (i + mi) * d + dd;
+                op1[mi] = O1 + (i + mi) * d + dd;
+                pptr0[mi] = P0 + (i + mi) * n;
+                pptr1[mi] = P1 + (i + mi) * n;
+            }
+
+            __m512 acc0[M_BLOCK][VEC_PER_UNROLL];
+            __m512 acc1[M_BLOCK][VEC_PER_UNROLL];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                {
+                    acc0[mi][vi] = INIT_ZERO ? _mm512_setzero_ps() : _mm512_loadu_ps(op0[mi] + vi * 16);
+                    acc1[mi][vi] = INIT_ZERO ? _mm512_setzero_ps() : _mm512_loadu_ps(op1[mi] + vi * 16);
+                }
+            }
+
+            for (int j = 0; j < n; j++)
+            {
+                __m512 vvec[VEC_PER_UNROLL];
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    vvec[vi] = _mm512_loadu_ps(V + j * d + dd + vi * 16);
+
+                for (int mi = 0; mi < M_BLOCK; mi++)
+                {
+                    __m512 pvec0 = _mm512_set1_ps(pptr0[mi][j]);
+                    __m512 pvec1 = _mm512_set1_ps(pptr1[mi][j]);
+                    for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    {
+                        acc0[mi][vi] = _mm512_fmadd_ps(pvec0, vvec[vi], acc0[mi][vi]);
+                        acc1[mi][vi] = _mm512_fmadd_ps(pvec1, vvec[vi], acc1[mi][vi]);
+                    }
+                }
+            }
+
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                {
+                    _mm512_storeu_ps(op0[mi] + vi * 16, acc0[mi][vi]);
+                    _mm512_storeu_ps(op1[mi] + vi * 16, acc1[mi][vi]);
+                }
+            }
+        }
+
+        for (; i < m; i++)
+        {
+            float* optr0 = O0 + i * d + dd;
+            float* optr1 = O1 + i * d + dd;
+            const float* pptr0 = P0 + i * n;
+            const float* pptr1 = P1 + i * n;
+
+            __m512 acc0[VEC_PER_UNROLL];
+            __m512 acc1[VEC_PER_UNROLL];
+            for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+            {
+                acc0[vi] = INIT_ZERO ? _mm512_setzero_ps() : _mm512_loadu_ps(optr0 + vi * 16);
+                acc1[vi] = INIT_ZERO ? _mm512_setzero_ps() : _mm512_loadu_ps(optr1 + vi * 16);
+            }
+
+            for (int j = 0; j < n; j++)
+            {
+                __m512 pvec0 = _mm512_set1_ps(pptr0[j]);
+                __m512 pvec1 = _mm512_set1_ps(pptr1[j]);
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                {
+                    __m512 vvec = _mm512_loadu_ps(V + j * d + dd + vi * 16);
+                    acc0[vi] = _mm512_fmadd_ps(pvec0, vvec, acc0[vi]);
+                    acc1[vi] = _mm512_fmadd_ps(pvec1, vvec, acc1[vi]);
+                }
+            }
+
+            for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+            {
+                _mm512_storeu_ps(optr0 + vi * 16, acc0[vi]);
+                _mm512_storeu_ps(optr1 + vi * 16, acc1[vi]);
+            }
+        }
+    }
+}
+
+template<int M_BLOCK, int D_UNROLL, bool INIT_ZERO = false>
+static inline void pv_gemm_4heads_4096_avx512(float* O0, float* O1, float* O2, float* O3, const float* P0, const float* P1, const float* P2, const float* P3, const float* V, int m, int n)
+{
+    const int d = 4096;
+    const int VEC_PER_UNROLL = D_UNROLL / 16;
+    int dd = 0;
+    for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
+    {
+        int i = 0;
+        for (; i + M_BLOCK <= m; i += M_BLOCK)
+        {
+            float* op0[M_BLOCK];
+            float* op1[M_BLOCK];
+            float* op2[M_BLOCK];
+            float* op3[M_BLOCK];
+            const float* pptr0[M_BLOCK];
+            const float* pptr1[M_BLOCK];
+            const float* pptr2[M_BLOCK];
+            const float* pptr3[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                op0[mi] = O0 + (i + mi) * d + dd;
+                op1[mi] = O1 + (i + mi) * d + dd;
+                op2[mi] = O2 + (i + mi) * d + dd;
+                op3[mi] = O3 + (i + mi) * d + dd;
+                pptr0[mi] = P0 + (i + mi) * n;
+                pptr1[mi] = P1 + (i + mi) * n;
+                pptr2[mi] = P2 + (i + mi) * n;
+                pptr3[mi] = P3 + (i + mi) * n;
+            }
+
+            __m512 acc0[M_BLOCK][VEC_PER_UNROLL];
+            __m512 acc1[M_BLOCK][VEC_PER_UNROLL];
+            __m512 acc2[M_BLOCK][VEC_PER_UNROLL];
+            __m512 acc3[M_BLOCK][VEC_PER_UNROLL];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                {
+                    acc0[mi][vi] = INIT_ZERO ? _mm512_setzero_ps() : _mm512_loadu_ps(op0[mi] + vi * 16);
+                    acc1[mi][vi] = INIT_ZERO ? _mm512_setzero_ps() : _mm512_loadu_ps(op1[mi] + vi * 16);
+                    acc2[mi][vi] = INIT_ZERO ? _mm512_setzero_ps() : _mm512_loadu_ps(op2[mi] + vi * 16);
+                    acc3[mi][vi] = INIT_ZERO ? _mm512_setzero_ps() : _mm512_loadu_ps(op3[mi] + vi * 16);
+                }
+            }
+
+            for (int j = 0; j < n; j++)
+            {
+                __m512 vvec[VEC_PER_UNROLL];
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    vvec[vi] = _mm512_loadu_ps(V + j * d + dd + vi * 16);
+
+                for (int mi = 0; mi < M_BLOCK; mi++)
+                {
+                    __m512 pvec0 = _mm512_set1_ps(pptr0[mi][j]);
+                    __m512 pvec1 = _mm512_set1_ps(pptr1[mi][j]);
+                    __m512 pvec2 = _mm512_set1_ps(pptr2[mi][j]);
+                    __m512 pvec3 = _mm512_set1_ps(pptr3[mi][j]);
+                    for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    {
+                        acc0[mi][vi] = _mm512_fmadd_ps(pvec0, vvec[vi], acc0[mi][vi]);
+                        acc1[mi][vi] = _mm512_fmadd_ps(pvec1, vvec[vi], acc1[mi][vi]);
+                        acc2[mi][vi] = _mm512_fmadd_ps(pvec2, vvec[vi], acc2[mi][vi]);
+                        acc3[mi][vi] = _mm512_fmadd_ps(pvec3, vvec[vi], acc3[mi][vi]);
+                    }
+                }
+            }
+
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                {
+                    _mm512_storeu_ps(op0[mi] + vi * 16, acc0[mi][vi]);
+                    _mm512_storeu_ps(op1[mi] + vi * 16, acc1[mi][vi]);
+                    _mm512_storeu_ps(op2[mi] + vi * 16, acc2[mi][vi]);
+                    _mm512_storeu_ps(op3[mi] + vi * 16, acc3[mi][vi]);
+                }
+            }
+        }
+
+        for (; i < m; i++)
+        {
+            float* optr0 = O0 + i * d + dd;
+            float* optr1 = O1 + i * d + dd;
+            float* optr2 = O2 + i * d + dd;
+            float* optr3 = O3 + i * d + dd;
+            const float* pptr0 = P0 + i * n;
+            const float* pptr1 = P1 + i * n;
+            const float* pptr2 = P2 + i * n;
+            const float* pptr3 = P3 + i * n;
+
+            __m512 acc0[VEC_PER_UNROLL];
+            __m512 acc1[VEC_PER_UNROLL];
+            __m512 acc2[VEC_PER_UNROLL];
+            __m512 acc3[VEC_PER_UNROLL];
+            for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+            {
+                acc0[vi] = INIT_ZERO ? _mm512_setzero_ps() : _mm512_loadu_ps(optr0 + vi * 16);
+                acc1[vi] = INIT_ZERO ? _mm512_setzero_ps() : _mm512_loadu_ps(optr1 + vi * 16);
+                acc2[vi] = INIT_ZERO ? _mm512_setzero_ps() : _mm512_loadu_ps(optr2 + vi * 16);
+                acc3[vi] = INIT_ZERO ? _mm512_setzero_ps() : _mm512_loadu_ps(optr3 + vi * 16);
+            }
+
+            for (int j = 0; j < n; j++)
+            {
+                __m512 pvec0 = _mm512_set1_ps(pptr0[j]);
+                __m512 pvec1 = _mm512_set1_ps(pptr1[j]);
+                __m512 pvec2 = _mm512_set1_ps(pptr2[j]);
+                __m512 pvec3 = _mm512_set1_ps(pptr3[j]);
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                {
+                    __m512 vvec = _mm512_loadu_ps(V + j * d + dd + vi * 16);
+                    acc0[vi] = _mm512_fmadd_ps(pvec0, vvec, acc0[vi]);
+                    acc1[vi] = _mm512_fmadd_ps(pvec1, vvec, acc1[vi]);
+                    acc2[vi] = _mm512_fmadd_ps(pvec2, vvec, acc2[vi]);
+                    acc3[vi] = _mm512_fmadd_ps(pvec3, vvec, acc3[vi]);
+                }
+            }
+
+            for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+            {
+                _mm512_storeu_ps(optr0 + vi * 16, acc0[vi]);
+                _mm512_storeu_ps(optr1 + vi * 16, acc1[vi]);
+                _mm512_storeu_ps(optr2 + vi * 16, acc2[vi]);
+                _mm512_storeu_ps(optr3 + vi * 16, acc3[vi]);
+            }
+        }
+    }
+}
+
+template<int M_BLOCK, int D>
+static void pv_gemm_avx512(float* O, const float* P, const float* V, int m, int n)
+{
+    int i = 0;
+    for (; i + M_BLOCK <= m; i += M_BLOCK)
+    {
+        float* op[M_BLOCK];
+        const float* pptr[M_BLOCK];
+        for (int mi = 0; mi < M_BLOCK; mi++)
+        {
+            op[mi] = O + (i + mi) * D;
+            pptr[mi] = P + (i + mi) * n;
+        }
+
+        int dd = 0;
+        for (; dd + 127 < D; dd += 128)
+        {
+            __m512 acc[M_BLOCK][8];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                acc[mi][0] = _mm512_loadu_ps(op[mi] + dd + 0 * 16);
+                acc[mi][1] = _mm512_loadu_ps(op[mi] + dd + 1 * 16);
+                acc[mi][2] = _mm512_loadu_ps(op[mi] + dd + 2 * 16);
+                acc[mi][3] = _mm512_loadu_ps(op[mi] + dd + 3 * 16);
+                acc[mi][4] = _mm512_loadu_ps(op[mi] + dd + 4 * 16);
+                acc[mi][5] = _mm512_loadu_ps(op[mi] + dd + 5 * 16);
+                acc[mi][6] = _mm512_loadu_ps(op[mi] + dd + 6 * 16);
+                acc[mi][7] = _mm512_loadu_ps(op[mi] + dd + 7 * 16);
+            }
+
+            for (int j = 0; j < n; j++)
+            {
+                __m512 v0 = _mm512_loadu_ps(V + j * D + dd + 0 * 16);
+                __m512 v1 = _mm512_loadu_ps(V + j * D + dd + 1 * 16);
+                __m512 v2 = _mm512_loadu_ps(V + j * D + dd + 2 * 16);
+                __m512 v3 = _mm512_loadu_ps(V + j * D + dd + 3 * 16);
+                __m512 v4 = _mm512_loadu_ps(V + j * D + dd + 4 * 16);
+                __m512 v5 = _mm512_loadu_ps(V + j * D + dd + 5 * 16);
+                __m512 v6 = _mm512_loadu_ps(V + j * D + dd + 6 * 16);
+                __m512 v7 = _mm512_loadu_ps(V + j * D + dd + 7 * 16);
+
+                for (int mi = 0; mi < M_BLOCK; mi++)
+                {
+                    __m512 pvec = _mm512_set1_ps(pptr[mi][j]);
+                    acc[mi][0] = _mm512_fmadd_ps(pvec, v0, acc[mi][0]);
+                    acc[mi][1] = _mm512_fmadd_ps(pvec, v1, acc[mi][1]);
+                    acc[mi][2] = _mm512_fmadd_ps(pvec, v2, acc[mi][2]);
+                    acc[mi][3] = _mm512_fmadd_ps(pvec, v3, acc[mi][3]);
+                    acc[mi][4] = _mm512_fmadd_ps(pvec, v4, acc[mi][4]);
+                    acc[mi][5] = _mm512_fmadd_ps(pvec, v5, acc[mi][5]);
+                    acc[mi][6] = _mm512_fmadd_ps(pvec, v6, acc[mi][6]);
+                    acc[mi][7] = _mm512_fmadd_ps(pvec, v7, acc[mi][7]);
+                }
+            }
+
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                _mm512_storeu_ps(op[mi] + dd + 0 * 16, acc[mi][0]);
+                _mm512_storeu_ps(op[mi] + dd + 1 * 16, acc[mi][1]);
+                _mm512_storeu_ps(op[mi] + dd + 2 * 16, acc[mi][2]);
+                _mm512_storeu_ps(op[mi] + dd + 3 * 16, acc[mi][3]);
+                _mm512_storeu_ps(op[mi] + dd + 4 * 16, acc[mi][4]);
+                _mm512_storeu_ps(op[mi] + dd + 5 * 16, acc[mi][5]);
+                _mm512_storeu_ps(op[mi] + dd + 6 * 16, acc[mi][6]);
+                _mm512_storeu_ps(op[mi] + dd + 7 * 16, acc[mi][7]);
+            }
+        }
+
+        for (; dd + 15 < D; dd += 16)
+        {
+            __m512 acc[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                acc[mi] = _mm512_loadu_ps(op[mi] + dd);
+
+            for (int j = 0; j < n; j++)
+            {
+                __m512 vvec = _mm512_loadu_ps(V + j * D + dd);
+                for (int mi = 0; mi < M_BLOCK; mi++)
+                    acc[mi] = _mm512_fmadd_ps(_mm512_set1_ps(pptr[mi][j]), vvec, acc[mi]);
+            }
+
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                _mm512_storeu_ps(op[mi] + dd, acc[mi]);
+        }
+
+        for (; dd < D; dd++)
+        {
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                float acc = op[mi][dd];
+                for (int j = 0; j < n; j++)
+                    acc += pptr[mi][j] * V[j * D + dd];
+                op[mi][dd] = acc;
+            }
+        }
+    }
+
+    for (; i < m; i++)
+    {
+        float* optr = O + i * D;
+        const float* pptr = P + i * n;
+
+        int dd = 0;
+        for (; dd + 127 < D; dd += 128)
+        {
+            __m512 acc0 = _mm512_loadu_ps(optr + dd + 0 * 16);
+            __m512 acc1 = _mm512_loadu_ps(optr + dd + 1 * 16);
+            __m512 acc2 = _mm512_loadu_ps(optr + dd + 2 * 16);
+            __m512 acc3 = _mm512_loadu_ps(optr + dd + 3 * 16);
+            __m512 acc4 = _mm512_loadu_ps(optr + dd + 4 * 16);
+            __m512 acc5 = _mm512_loadu_ps(optr + dd + 5 * 16);
+            __m512 acc6 = _mm512_loadu_ps(optr + dd + 6 * 16);
+            __m512 acc7 = _mm512_loadu_ps(optr + dd + 7 * 16);
+
+            for (int j = 0; j < n; j++)
+            {
+                __m512 pvec = _mm512_set1_ps(pptr[j]);
+                acc0 = _mm512_fmadd_ps(pvec, _mm512_loadu_ps(V + j * D + dd + 0 * 16), acc0);
+                acc1 = _mm512_fmadd_ps(pvec, _mm512_loadu_ps(V + j * D + dd + 1 * 16), acc1);
+                acc2 = _mm512_fmadd_ps(pvec, _mm512_loadu_ps(V + j * D + dd + 2 * 16), acc2);
+                acc3 = _mm512_fmadd_ps(pvec, _mm512_loadu_ps(V + j * D + dd + 3 * 16), acc3);
+                acc4 = _mm512_fmadd_ps(pvec, _mm512_loadu_ps(V + j * D + dd + 4 * 16), acc4);
+                acc5 = _mm512_fmadd_ps(pvec, _mm512_loadu_ps(V + j * D + dd + 5 * 16), acc5);
+                acc6 = _mm512_fmadd_ps(pvec, _mm512_loadu_ps(V + j * D + dd + 6 * 16), acc6);
+                acc7 = _mm512_fmadd_ps(pvec, _mm512_loadu_ps(V + j * D + dd + 7 * 16), acc7);
+            }
+
+            _mm512_storeu_ps(optr + dd + 0 * 16, acc0);
+            _mm512_storeu_ps(optr + dd + 1 * 16, acc1);
+            _mm512_storeu_ps(optr + dd + 2 * 16, acc2);
+            _mm512_storeu_ps(optr + dd + 3 * 16, acc3);
+            _mm512_storeu_ps(optr + dd + 4 * 16, acc4);
+            _mm512_storeu_ps(optr + dd + 5 * 16, acc5);
+            _mm512_storeu_ps(optr + dd + 6 * 16, acc6);
+            _mm512_storeu_ps(optr + dd + 7 * 16, acc7);
+        }
+
+        for (; dd + 15 < D; dd += 16)
+        {
+            __m512 acc = _mm512_loadu_ps(optr + dd);
+            for (int j = 0; j < n; j++)
+                acc = _mm512_fmadd_ps(_mm512_set1_ps(pptr[j]), _mm512_loadu_ps(V + j * D + dd), acc);
+            _mm512_storeu_ps(optr + dd, acc);
+        }
+
+        for (; dd < D; dd++)
+        {
+            float acc = optr[dd];
+            for (int j = 0; j < n; j++)
+                acc += pptr[j] * V[j * D + dd];
+            optr[dd] = acc;
+        }
+    }
+}
+
+#endif // __AVX512F__
+
+#if __AVX__
+
+static void qk_gemm_avx(float* S, const float* Q, const float* K,
+                        int m, int n, int d, float scale)
+{
+    int i = 0;
+    for (; i + 6 <= m; i += 6)
+    {
+        int j = 0;
+        for (; j + 2 <= n; j += 2)
+        {
+            const float* k0 = K + (j + 0) * d;
+            const float* k1 = K + (j + 1) * d;
+
+            __m256 acc[6][2];
+            for (int mi = 0; mi < 6; mi++)
+            {
+                acc[mi][0] = _mm256_setzero_ps();
+                acc[mi][1] = _mm256_setzero_ps();
+            }
+
+            int k = 0;
+            for (; k + 7 < d; k += 8)
+            {
+                __m256 kv0 = _mm256_loadu_ps(k0 + k);
+                __m256 kv1 = _mm256_loadu_ps(k1 + k);
+
+                for (int mi = 0; mi < 6; mi++)
+                {
+                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * d + k);
+                    acc[mi][0] = _mm256_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
+                    acc[mi][1] = _mm256_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
+                }
+            }
+
+            for (int mi = 0; mi < 6; mi++)
+            {
+                float sum0 = _mm256_reduce_add_ps(acc[mi][0]);
+                float sum1 = _mm256_reduce_add_ps(acc[mi][1]);
+
+                for (; k < d; k++)
+                {
+                    float qv = Q[(i + mi) * d + k];
+                    sum0 += qv * k0[k];
+                    sum1 += qv * k1[k];
+                }
+
+                S[(i + mi) * n + j + 0] = sum0 * scale;
+                S[(i + mi) * n + j + 1] = sum1 * scale;
+            }
+        }
+
+        for (; j < n; j++)
+        {
+            const float* kptr = K + j * d;
+
+            __m256 acc[6];
+            for (int mi = 0; mi < 6; mi++)
+                acc[mi] = _mm256_setzero_ps();
+
+            int k = 0;
+            for (; k + 7 < d; k += 8)
+            {
+                __m256 kvec = _mm256_loadu_ps(kptr + k);
+                for (int mi = 0; mi < 6; mi++)
+                {
+                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * d + k);
+                    acc[mi] = _mm256_comp_fmadd_ps(qvec, kvec, acc[mi]);
+                }
+            }
+
+            for (int mi = 0; mi < 6; mi++)
+            {
+                float sum = _mm256_reduce_add_ps(acc[mi]);
+                for (; k < d; k++)
+                    sum += Q[(i + mi) * d + k] * kptr[k];
+                S[(i + mi) * n + j] = sum * scale;
+            }
+        }
+    }
+
+    for (; i < m; i++)
+    {
+        int j = 0;
+        for (; j + 1 < n; j += 2)
+        {
+            const float* qptr = Q + i * d;
+            const float* k0 = K + (j + 0) * d;
+            const float* k1 = K + (j + 1) * d;
+
+            __m256 acc0 = _mm256_setzero_ps();
+            __m256 acc1 = _mm256_setzero_ps();
+
+            int k = 0;
+            for (; k + 7 < d; k += 8)
+            {
+                __m256 qvec = _mm256_loadu_ps(qptr + k);
+                acc0 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k0 + k), acc0);
+                acc1 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k1 + k), acc1);
+            }
+
+            float sum0 = _mm256_reduce_add_ps(acc0);
+            float sum1 = _mm256_reduce_add_ps(acc1);
+
+            for (; k < d; k++)
+            {
+                float qv = qptr[k];
+                sum0 += qv * k0[k];
+                sum1 += qv * k1[k];
+            }
+
+            S[i * n + j + 0] = sum0 * scale;
+            S[i * n + j + 1] = sum1 * scale;
+        }
+
+        for (; j < n; j++)
+        {
+            const float* qptr = Q + i * d;
+            const float* kptr = K + j * d;
+            float sum = 0.f;
+            int k = 0;
+            __m256 vacc = _mm256_setzero_ps();
+            for (; k + 7 < d; k += 8)
+                vacc = _mm256_comp_fmadd_ps(_mm256_loadu_ps(qptr + k), _mm256_loadu_ps(kptr + k), vacc);
+            sum = _mm256_reduce_add_ps(vacc);
+            for (; k < d; k++)
+                sum += qptr[k] * kptr[k];
+            S[i * n + j] = sum * scale;
+        }
+    }
+}
+
+template<int D>
+static inline void qk_gemm_specialized_avx(float* S, const float* Q, const float* K,
+        int m, int n, float scale)
+{
+    int i = 0;
+    for (; i + 6 <= m; i += 6)
+    {
+        int j = 0;
+        for (; j + 2 <= n; j += 2)
+        {
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+
+            __m256 acc[6][2];
+            for (int mi = 0; mi < 6; mi++)
+            {
+                acc[mi][0] = _mm256_setzero_ps();
+                acc[mi][1] = _mm256_setzero_ps();
+            }
+
+            for (int k = 0; k < D; k += 8)
+            {
+                __m256 kv0 = _mm256_loadu_ps(k0 + k);
+                __m256 kv1 = _mm256_loadu_ps(k1 + k);
+
+                for (int mi = 0; mi < 6; mi++)
+                {
+                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
+                    acc[mi][0] = _mm256_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
+                    acc[mi][1] = _mm256_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
+                }
+            }
+
+            for (int mi = 0; mi < 6; mi++)
+            {
+                S[(i + mi) * n + j + 0] = _mm256_reduce_add_ps(acc[mi][0]) * scale;
+                S[(i + mi) * n + j + 1] = _mm256_reduce_add_ps(acc[mi][1]) * scale;
+            }
+        }
+
+        for (; j < n; j++)
+        {
+            const float* kptr = K + j * D;
+
+            __m256 acc[6];
+            for (int mi = 0; mi < 6; mi++)
+                acc[mi] = _mm256_setzero_ps();
+
+            for (int k = 0; k < D; k += 8)
+            {
+                __m256 kvec = _mm256_loadu_ps(kptr + k);
+                for (int mi = 0; mi < 6; mi++)
+                {
+                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
+                    acc[mi] = _mm256_comp_fmadd_ps(qvec, kvec, acc[mi]);
+                }
+            }
+
+            for (int mi = 0; mi < 6; mi++)
+                S[(i + mi) * n + j] = _mm256_reduce_add_ps(acc[mi]) * scale;
+        }
+    }
+
+    for (; i < m; i++)
+    {
+        int j = 0;
+        for (; j + 1 < n; j += 2)
+        {
+            const float* qptr = Q + i * D;
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+
+            __m256 acc0 = _mm256_setzero_ps();
+            __m256 acc1 = _mm256_setzero_ps();
+
+            for (int k = 0; k < D; k += 8)
+            {
+                __m256 qvec = _mm256_loadu_ps(qptr + k);
+                acc0 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k0 + k), acc0);
+                acc1 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k1 + k), acc1);
+            }
+
+            S[i * n + j + 0] = _mm256_reduce_add_ps(acc0) * scale;
+            S[i * n + j + 1] = _mm256_reduce_add_ps(acc1) * scale;
+        }
+
+        for (; j < n; j++)
+        {
+            const float* qptr = Q + i * D;
+            const float* kptr = K + j * D;
+            __m256 vacc = _mm256_setzero_ps();
+            for (int k = 0; k < D; k += 8)
+                vacc = _mm256_comp_fmadd_ps(_mm256_loadu_ps(qptr + k), _mm256_loadu_ps(kptr + k), vacc);
+            S[i * n + j] = _mm256_reduce_add_ps(vacc) * scale;
+        }
+    }
+}
+
+template<int D, int M_BLOCK1, int M_BLOCK2>
+static inline void qk_gemm_specialized_tiled_avx(float* S, const float* Q, const float* K,
+        int m, int n, float scale)
+{
+    int i = 0;
+    if (M_BLOCK2 > 0)
+    {
+        for (; i + M_BLOCK2 <= m; i += M_BLOCK2)
+        {
+            int j = 0;
+            for (; j + 4 <= n; j += 4)
+            {
+                const float* k0 = K + (j + 0) * D;
+                const float* k1 = K + (j + 1) * D;
+                const float* k2 = K + (j + 2) * D;
+                const float* k3 = K + (j + 3) * D;
+
+                __m256 acc[M_BLOCK2][4];
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                {
+                    acc[mi][0] = _mm256_setzero_ps();
+                    acc[mi][1] = _mm256_setzero_ps();
+                    acc[mi][2] = _mm256_setzero_ps();
+                    acc[mi][3] = _mm256_setzero_ps();
+                }
+
+                for (int k = 0; k < D; k += 8)
+                {
+                    __m256 kv0 = _mm256_loadu_ps(k0 + k);
+                    __m256 kv1 = _mm256_loadu_ps(k1 + k);
+                    __m256 kv2 = _mm256_loadu_ps(k2 + k);
+                    __m256 kv3 = _mm256_loadu_ps(k3 + k);
+
+                    for (int mi = 0; mi < M_BLOCK2; mi++)
+                    {
+                        __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
+                        acc[mi][0] = _mm256_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
+                        acc[mi][1] = _mm256_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
+                        acc[mi][2] = _mm256_comp_fmadd_ps(qvec, kv2, acc[mi][2]);
+                        acc[mi][3] = _mm256_comp_fmadd_ps(qvec, kv3, acc[mi][3]);
+                    }
+                }
+
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                {
+                    S[(i + mi) * n + j + 0] = _mm256_reduce_add_ps(acc[mi][0]) * scale;
+                    S[(i + mi) * n + j + 1] = _mm256_reduce_add_ps(acc[mi][1]) * scale;
+                    S[(i + mi) * n + j + 2] = _mm256_reduce_add_ps(acc[mi][2]) * scale;
+                    S[(i + mi) * n + j + 3] = _mm256_reduce_add_ps(acc[mi][3]) * scale;
+                }
+            }
+
+            for (; j + 2 <= n; j += 2)
+            {
+                const float* k0 = K + (j + 0) * D;
+                const float* k1 = K + (j + 1) * D;
+
+                __m256 acc[M_BLOCK2][2];
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                {
+                    acc[mi][0] = _mm256_setzero_ps();
+                    acc[mi][1] = _mm256_setzero_ps();
+                }
+
+                for (int k = 0; k < D; k += 8)
+                {
+                    __m256 kv0 = _mm256_loadu_ps(k0 + k);
+                    __m256 kv1 = _mm256_loadu_ps(k1 + k);
+
+                    for (int mi = 0; mi < M_BLOCK2; mi++)
+                    {
+                        __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
+                        acc[mi][0] = _mm256_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
+                        acc[mi][1] = _mm256_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
+                    }
+                }
+
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                {
+                    S[(i + mi) * n + j + 0] = _mm256_reduce_add_ps(acc[mi][0]) * scale;
+                    S[(i + mi) * n + j + 1] = _mm256_reduce_add_ps(acc[mi][1]) * scale;
+                }
+            }
+
+            for (; j < n; j++)
+            {
+                const float* kptr = K + j * D;
+
+                __m256 acc[M_BLOCK2];
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                    acc[mi] = _mm256_setzero_ps();
+
+                for (int k = 0; k < D; k += 8)
+                {
+                    __m256 kvec = _mm256_loadu_ps(kptr + k);
+                    for (int mi = 0; mi < M_BLOCK2; mi++)
+                    {
+                        __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
+                        acc[mi] = _mm256_comp_fmadd_ps(qvec, kvec, acc[mi]);
+                    }
+                }
+
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                    S[(i + mi) * n + j] = _mm256_reduce_add_ps(acc[mi]) * scale;
+            }
+        }
+    }
+
+    for (; i + M_BLOCK1 <= m; i += M_BLOCK1)
+    {
+        int j = 0;
+        for (; j + 4 <= n; j += 4)
+        {
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+            const float* k2 = K + (j + 2) * D;
+            const float* k3 = K + (j + 3) * D;
+
+            __m256 acc[M_BLOCK1][4];
+            for (int mi = 0; mi < M_BLOCK1; mi++)
+            {
+                acc[mi][0] = _mm256_setzero_ps();
+                acc[mi][1] = _mm256_setzero_ps();
+                acc[mi][2] = _mm256_setzero_ps();
+                acc[mi][3] = _mm256_setzero_ps();
+            }
+
+            for (int k = 0; k < D; k += 8)
+            {
+                __m256 kv0 = _mm256_loadu_ps(k0 + k);
+                __m256 kv1 = _mm256_loadu_ps(k1 + k);
+                __m256 kv2 = _mm256_loadu_ps(k2 + k);
+                __m256 kv3 = _mm256_loadu_ps(k3 + k);
+
+                for (int mi = 0; mi < M_BLOCK1; mi++)
+                {
+                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
+                    acc[mi][0] = _mm256_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
+                    acc[mi][1] = _mm256_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
+                    acc[mi][2] = _mm256_comp_fmadd_ps(qvec, kv2, acc[mi][2]);
+                    acc[mi][3] = _mm256_comp_fmadd_ps(qvec, kv3, acc[mi][3]);
+                }
+            }
+
+            for (int mi = 0; mi < M_BLOCK1; mi++)
+            {
+                S[(i + mi) * n + j + 0] = _mm256_reduce_add_ps(acc[mi][0]) * scale;
+                S[(i + mi) * n + j + 1] = _mm256_reduce_add_ps(acc[mi][1]) * scale;
+                S[(i + mi) * n + j + 2] = _mm256_reduce_add_ps(acc[mi][2]) * scale;
+                S[(i + mi) * n + j + 3] = _mm256_reduce_add_ps(acc[mi][3]) * scale;
+            }
+        }
+
+        for (; j + 2 <= n; j += 2)
+        {
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+
+            __m256 acc[M_BLOCK1][2];
+            for (int mi = 0; mi < M_BLOCK1; mi++)
+            {
+                acc[mi][0] = _mm256_setzero_ps();
+                acc[mi][1] = _mm256_setzero_ps();
+            }
+
+            for (int k = 0; k < D; k += 8)
+            {
+                __m256 kv0 = _mm256_loadu_ps(k0 + k);
+                __m256 kv1 = _mm256_loadu_ps(k1 + k);
+
+                for (int mi = 0; mi < M_BLOCK1; mi++)
+                {
+                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
+                    acc[mi][0] = _mm256_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
+                    acc[mi][1] = _mm256_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
+                }
+            }
+
+            for (int mi = 0; mi < M_BLOCK1; mi++)
+            {
+                S[(i + mi) * n + j + 0] = _mm256_reduce_add_ps(acc[mi][0]) * scale;
+                S[(i + mi) * n + j + 1] = _mm256_reduce_add_ps(acc[mi][1]) * scale;
+            }
+        }
+
+        for (; j < n; j++)
+        {
+            const float* kptr = K + j * D;
+
+            __m256 acc[M_BLOCK1];
+            for (int mi = 0; mi < M_BLOCK1; mi++)
+                acc[mi] = _mm256_setzero_ps();
+
+            for (int k = 0; k < D; k += 8)
+            {
+                __m256 kvec = _mm256_loadu_ps(kptr + k);
+                for (int mi = 0; mi < M_BLOCK1; mi++)
+                {
+                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
+                    acc[mi] = _mm256_comp_fmadd_ps(qvec, kvec, acc[mi]);
+                }
+            }
+
+            for (int mi = 0; mi < M_BLOCK1; mi++)
+                S[(i + mi) * n + j] = _mm256_reduce_add_ps(acc[mi]) * scale;
+        }
+    }
+
+    for (; i < m; i++)
+    {
+        int j = 0;
+        for (; j + 4 <= n; j += 4)
+        {
+            const float* qptr = Q + i * D;
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+            const float* k2 = K + (j + 2) * D;
+            const float* k3 = K + (j + 3) * D;
+
+            __m256 acc0 = _mm256_setzero_ps();
+            __m256 acc1 = _mm256_setzero_ps();
+            __m256 acc2 = _mm256_setzero_ps();
+            __m256 acc3 = _mm256_setzero_ps();
+
+            for (int k = 0; k < D; k += 8)
+            {
+                __m256 qvec = _mm256_loadu_ps(qptr + k);
+                acc0 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k0 + k), acc0);
+                acc1 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k1 + k), acc1);
+                acc2 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k2 + k), acc2);
+                acc3 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k3 + k), acc3);
+            }
+
+            S[i * n + j + 0] = _mm256_reduce_add_ps(acc0) * scale;
+            S[i * n + j + 1] = _mm256_reduce_add_ps(acc1) * scale;
+            S[i * n + j + 2] = _mm256_reduce_add_ps(acc2) * scale;
+            S[i * n + j + 3] = _mm256_reduce_add_ps(acc3) * scale;
+        }
+
+        for (; j + 2 <= n; j += 2)
+        {
+            const float* qptr = Q + i * D;
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+
+            __m256 acc0 = _mm256_setzero_ps();
+            __m256 acc1 = _mm256_setzero_ps();
+
+            for (int k = 0; k < D; k += 8)
+            {
+                __m256 qvec = _mm256_loadu_ps(qptr + k);
+                acc0 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k0 + k), acc0);
+                acc1 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k1 + k), acc1);
+            }
+
+            S[i * n + j + 0] = _mm256_reduce_add_ps(acc0) * scale;
+            S[i * n + j + 1] = _mm256_reduce_add_ps(acc1) * scale;
+        }
+
+        for (; j < n; j++)
+        {
+            const float* qptr = Q + i * D;
+            const float* kptr = K + j * D;
+            __m256 vacc = _mm256_setzero_ps();
+            for (int k = 0; k < D; k += 8)
+                vacc = _mm256_comp_fmadd_ps(_mm256_loadu_ps(qptr + k), _mm256_loadu_ps(kptr + k), vacc);
+            S[i * n + j] = _mm256_reduce_add_ps(vacc) * scale;
+        }
+    }
+}
+
+template<>
+void qk_gemm_specialized_avx<512>(float* S, const float* Q, const float* K,
+                                  int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_avx<512, 2, 4>(S, Q, K, m, n, scale);
+}
+template<>
+void qk_gemm_specialized_avx<1024>(float* S, const float* Q, const float* K,
+                                   int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_avx<1024, 4, 2>(S, Q, K, m, n, scale);
+}
+
+template<>
+void qk_gemm_specialized_avx<2048>(float* S, const float* Q, const float* K,
+                                   int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_avx<2048, 2, 0>(S, Q, K, m, n, scale);
+}
+
+template<>
+void qk_gemm_specialized_avx<4096>(float* S, const float* Q, const float* K,
+                                   int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_avx<4096, 2, 2>(S, Q, K, m, n, scale);
+}
+
+template<int M_BLOCK, int D_UNROLL>
+static inline void pv_gemm_avx(float* O, const float* P, const float* V, int m, int n, int d)
+{
+    const int VEC_PER_UNROLL = D_UNROLL / 8;
+    int i = 0;
+    for (; i + M_BLOCK <= m; i += M_BLOCK)
+    {
+        float* op[M_BLOCK];
+        const float* pptr[M_BLOCK];
+        for (int mi = 0; mi < M_BLOCK; mi++)
+        {
+            op[mi] = O + (i + mi) * d;
+            pptr[mi] = P + (i + mi) * n;
+        }
+
+        int dd = 0;
+        for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
+        {
+            __m256 acc[M_BLOCK][VEC_PER_UNROLL];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    acc[mi][vi] = _mm256_loadu_ps(op[mi] + dd + vi * 8);
+
+            for (int j = 0; j < n; j++)
+            {
+                __m256 vvec[VEC_PER_UNROLL];
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    vvec[vi] = _mm256_loadu_ps(V + j * d + dd + vi * 8);
+
+                for (int mi = 0; mi < M_BLOCK; mi++)
+                {
+                    __m256 pvec = _mm256_set1_ps(pptr[mi][j]);
+                    for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                        acc[mi][vi] = _mm256_comp_fmadd_ps(pvec, vvec[vi], acc[mi][vi]);
+                }
+            }
+
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    _mm256_storeu_ps(op[mi] + dd + vi * 8, acc[mi][vi]);
+        }
+
+        for (; dd + 7 < d; dd += 8)
+        {
+            __m256 acc[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                acc[mi] = _mm256_loadu_ps(op[mi] + dd);
+
+            for (int j = 0; j < n; j++)
+            {
+                __m256 vvec = _mm256_loadu_ps(V + j * d + dd);
+                for (int mi = 0; mi < M_BLOCK; mi++)
+                    acc[mi] = _mm256_comp_fmadd_ps(_mm256_set1_ps(pptr[mi][j]), vvec, acc[mi]);
+            }
+
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                _mm256_storeu_ps(op[mi] + dd, acc[mi]);
+        }
+
+        for (; dd < d; dd++)
+        {
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                float acc = op[mi][dd];
+                for (int j = 0; j < n; j++)
+                    acc += pptr[mi][j] * V[j * d + dd];
+                op[mi][dd] = acc;
+            }
+        }
+    }
+
+    for (; i < m; i++)
+    {
+        float* optr = O + i * d;
+        const float* pptr = P + i * n;
+
+        int dd = 0;
+        for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
+        {
+            __m256 acc[VEC_PER_UNROLL];
+            for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                acc[vi] = _mm256_loadu_ps(optr + dd + vi * 8);
+
+            for (int j = 0; j < n; j++)
+            {
+                __m256 pvec = _mm256_set1_ps(pptr[j]);
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    acc[vi] = _mm256_comp_fmadd_ps(pvec, _mm256_loadu_ps(V + j * d + dd + vi * 8), acc[vi]);
+            }
+
+            for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                _mm256_storeu_ps(optr + dd + vi * 8, acc[vi]);
+        }
+
+        for (; dd + 7 < d; dd += 8)
+        {
+            __m256 acc = _mm256_loadu_ps(optr + dd);
+            for (int j = 0; j < n; j++)
+                acc = _mm256_comp_fmadd_ps(_mm256_set1_ps(pptr[j]), _mm256_loadu_ps(V + j * d + dd), acc);
+            _mm256_storeu_ps(optr + dd, acc);
+        }
+
+        for (; dd < d; dd++)
+        {
+            float acc = optr[dd];
+            for (int j = 0; j < n; j++)
+                acc += pptr[j] * V[j * d + dd];
+            optr[dd] = acc;
+        }
+    }
+}
+
+template<int M_BLOCK, int D>
+static inline void pv_gemm_avx(float* O, const float* P, const float* V, int m, int n)
+{
+    const int VEC_PER_D = D / 8;
+    int i = 0;
+    for (; i + M_BLOCK <= m; i += M_BLOCK)
+    {
+        float* op[M_BLOCK];
+        const float* pptr[M_BLOCK];
+        for (int mi = 0; mi < M_BLOCK; mi++)
+        {
+            op[mi] = O + (i + mi) * D;
+            pptr[mi] = P + (i + mi) * n;
+        }
+
+        for (int mi = 0; mi < M_BLOCK; mi++)
+        {
+            __m256 acc[VEC_PER_D];
+            for (int vi = 0; vi < VEC_PER_D; vi++)
+                acc[vi] = _mm256_loadu_ps(op[mi] + vi * 8);
+
+            for (int j = 0; j < n; j++)
+            {
+                __m256 pvec = _mm256_set1_ps(pptr[mi][j]);
+                for (int vi = 0; vi < VEC_PER_D; vi++)
+                    acc[vi] = _mm256_comp_fmadd_ps(pvec, _mm256_loadu_ps(V + j * D + vi * 8), acc[vi]);
+            }
+
+            for (int vi = 0; vi < VEC_PER_D; vi++)
+                _mm256_storeu_ps(op[mi] + vi * 8, acc[vi]);
+        }
+    }
+
+    for (; i < m; i++)
+    {
+        float* optr = O + i * D;
+        const float* pptr = P + i * n;
+
+        __m256 acc[VEC_PER_D];
+        for (int vi = 0; vi < VEC_PER_D; vi++)
+            acc[vi] = _mm256_loadu_ps(optr + vi * 8);
+
+        for (int j = 0; j < n; j++)
+        {
+            __m256 pvec = _mm256_set1_ps(pptr[j]);
+            for (int vi = 0; vi < VEC_PER_D; vi++)
+                acc[vi] = _mm256_comp_fmadd_ps(pvec, _mm256_loadu_ps(V + j * D + vi * 8), acc[vi]);
+        }
+
+        for (int vi = 0; vi < VEC_PER_D; vi++)
+            _mm256_storeu_ps(optr + vi * 8, acc[vi]);
+    }
+}
+
+#endif // __AVX__
+
+#if __SSE2__
+
+static void qk_gemm_sse2(float* S, const float* Q, const float* K,
+                         int m, int n, int d, float scale)
+{
+    int i = 0;
+    for (; i + 4 <= m; i += 4)
+    {
+        int j = 0;
+        for (; j < n; j++)
+        {
+            const float* kptr = K + j * d;
+
+            __m128 acc[4];
+            for (int mi = 0; mi < 4; mi++)
+                acc[mi] = _mm_setzero_ps();
+
+            int k = 0;
+            for (; k + 3 < d; k += 4)
+            {
+                __m128 kvec = _mm_loadu_ps(kptr + k);
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    __m128 qvec = _mm_loadu_ps(Q + (i + mi) * d + k);
+                    acc[mi] = _mm_comp_fmadd_ps(qvec, kvec, acc[mi]);
+                }
+            }
+
+            for (int mi = 0; mi < 4; mi++)
+            {
+                float sum = _mm_reduce_add_ps(acc[mi]);
+                for (; k < d; k++)
+                    sum += Q[(i + mi) * d + k] * kptr[k];
+                S[(i + mi) * n + j] = sum * scale;
+            }
+        }
+    }
+
+    for (; i < m; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            const float* qptr = Q + i * d;
+            const float* kptr = K + j * d;
+            float sum = 0.f;
+            int k = 0;
+            __m128 vacc = _mm_setzero_ps();
+            for (; k + 3 < d; k += 4)
+                vacc = _mm_comp_fmadd_ps(_mm_loadu_ps(qptr + k), _mm_loadu_ps(kptr + k), vacc);
+            sum = _mm_reduce_add_ps(vacc);
+            for (; k < d; k++)
+                sum += qptr[k] * kptr[k];
+            S[i * n + j] = sum * scale;
+        }
+    }
+}
+
+template<int D>
+static inline void qk_gemm_specialized_sse2(float* S, const float* Q, const float* K,
+        int m, int n, float scale)
+{
+    int i = 0;
+    for (; i + 4 <= m; i += 4)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            const float* kptr = K + j * D;
+
+            const float* q0 = Q + (i + 0) * D;
+            const float* q1 = Q + (i + 1) * D;
+            const float* q2 = Q + (i + 2) * D;
+            const float* q3 = Q + (i + 3) * D;
+
+            __m128 acc0 = _mm_setzero_ps();
+            __m128 acc1 = _mm_setzero_ps();
+            __m128 acc2 = _mm_setzero_ps();
+            __m128 acc3 = _mm_setzero_ps();
+
+            for (int k = 0; k < D; k += 4)
+            {
+                __m128 kvec = _mm_loadu_ps(kptr + k);
+
+                __m128 qvec = _mm_loadu_ps(q0 + k);
+                acc0 = _mm_comp_fmadd_ps(qvec, kvec, acc0);
+
+                qvec = _mm_loadu_ps(q1 + k);
+                acc1 = _mm_comp_fmadd_ps(qvec, kvec, acc1);
+
+                qvec = _mm_loadu_ps(q2 + k);
+                acc2 = _mm_comp_fmadd_ps(qvec, kvec, acc2);
+
+                qvec = _mm_loadu_ps(q3 + k);
+                acc3 = _mm_comp_fmadd_ps(qvec, kvec, acc3);
+            }
+
+            S[(i + 0) * n + j] = _mm_reduce_add_ps(acc0) * scale;
+            S[(i + 1) * n + j] = _mm_reduce_add_ps(acc1) * scale;
+            S[(i + 2) * n + j] = _mm_reduce_add_ps(acc2) * scale;
+            S[(i + 3) * n + j] = _mm_reduce_add_ps(acc3) * scale;
+        }
+    }
+
+    for (; i < m; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            const float* qptr = Q + i * D;
+            const float* kptr = K + j * D;
+            __m128 vacc = _mm_setzero_ps();
+            for (int k = 0; k < D; k += 4)
+                vacc = _mm_comp_fmadd_ps(_mm_loadu_ps(qptr + k), _mm_loadu_ps(kptr + k), vacc);
+            S[i * n + j] = _mm_reduce_add_ps(vacc) * scale;
+        }
+    }
+}
+
+template<int D, int M_BLOCK1, int M_BLOCK2>
+static inline void qk_gemm_specialized_tiled_sse2(float* S, const float* Q, const float* K,
+        int m, int n, float scale)
+{
+    int i = 0;
+    if (M_BLOCK2 > 0)
+    {
+        for (; i + M_BLOCK2 <= m; i += M_BLOCK2)
+        {
+            int j = 0;
+            for (; j + 4 <= n; j += 4)
+            {
+                const float* k0 = K + (j + 0) * D;
+                const float* k1 = K + (j + 1) * D;
+                const float* k2 = K + (j + 2) * D;
+                const float* k3 = K + (j + 3) * D;
+
+                __m128 acc[M_BLOCK2][4];
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                {
+                    acc[mi][0] = _mm_setzero_ps();
+                    acc[mi][1] = _mm_setzero_ps();
+                    acc[mi][2] = _mm_setzero_ps();
+                    acc[mi][3] = _mm_setzero_ps();
+                }
+
+                for (int k = 0; k < D; k += 4)
+                {
+                    __m128 kv0 = _mm_loadu_ps(k0 + k);
+                    __m128 kv1 = _mm_loadu_ps(k1 + k);
+                    __m128 kv2 = _mm_loadu_ps(k2 + k);
+                    __m128 kv3 = _mm_loadu_ps(k3 + k);
+
+                    for (int mi = 0; mi < M_BLOCK2; mi++)
+                    {
+                        __m128 qvec = _mm_loadu_ps(Q + (i + mi) * D + k);
+                        acc[mi][0] = _mm_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
+                        acc[mi][1] = _mm_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
+                        acc[mi][2] = _mm_comp_fmadd_ps(qvec, kv2, acc[mi][2]);
+                        acc[mi][3] = _mm_comp_fmadd_ps(qvec, kv3, acc[mi][3]);
+                    }
+                }
+
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                {
+                    S[(i + mi) * n + j + 0] = _mm_reduce_add_ps(acc[mi][0]) * scale;
+                    S[(i + mi) * n + j + 1] = _mm_reduce_add_ps(acc[mi][1]) * scale;
+                    S[(i + mi) * n + j + 2] = _mm_reduce_add_ps(acc[mi][2]) * scale;
+                    S[(i + mi) * n + j + 3] = _mm_reduce_add_ps(acc[mi][3]) * scale;
+                }
+            }
+
+            for (; j + 2 <= n; j += 2)
+            {
+                const float* k0 = K + (j + 0) * D;
+                const float* k1 = K + (j + 1) * D;
+
+                __m128 acc[M_BLOCK2][2];
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                {
+                    acc[mi][0] = _mm_setzero_ps();
+                    acc[mi][1] = _mm_setzero_ps();
+                }
+
+                for (int k = 0; k < D; k += 4)
+                {
+                    __m128 kv0 = _mm_loadu_ps(k0 + k);
+                    __m128 kv1 = _mm_loadu_ps(k1 + k);
+
+                    for (int mi = 0; mi < M_BLOCK2; mi++)
+                    {
+                        __m128 qvec = _mm_loadu_ps(Q + (i + mi) * D + k);
+                        acc[mi][0] = _mm_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
+                        acc[mi][1] = _mm_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
+                    }
+                }
+
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                {
+                    S[(i + mi) * n + j + 0] = _mm_reduce_add_ps(acc[mi][0]) * scale;
+                    S[(i + mi) * n + j + 1] = _mm_reduce_add_ps(acc[mi][1]) * scale;
+                }
+            }
+
+            for (; j < n; j++)
+            {
+                const float* kptr = K + j * D;
+
+                __m128 acc[M_BLOCK2];
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                    acc[mi] = _mm_setzero_ps();
+
+                for (int k = 0; k < D; k += 4)
+                {
+                    __m128 kvec = _mm_loadu_ps(kptr + k);
+                    for (int mi = 0; mi < M_BLOCK2; mi++)
+                    {
+                        __m128 qvec = _mm_loadu_ps(Q + (i + mi) * D + k);
+                        acc[mi] = _mm_comp_fmadd_ps(qvec, kvec, acc[mi]);
+                    }
+                }
+
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                    S[(i + mi) * n + j] = _mm_reduce_add_ps(acc[mi]) * scale;
+            }
+        }
+    }
+
+    for (; i + M_BLOCK1 <= m; i += M_BLOCK1)
+    {
+        int j = 0;
+        for (; j + 4 <= n; j += 4)
+        {
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+            const float* k2 = K + (j + 2) * D;
+            const float* k3 = K + (j + 3) * D;
+
+            __m128 acc[M_BLOCK1][4];
+            for (int mi = 0; mi < M_BLOCK1; mi++)
+            {
+                acc[mi][0] = _mm_setzero_ps();
+                acc[mi][1] = _mm_setzero_ps();
+                acc[mi][2] = _mm_setzero_ps();
+                acc[mi][3] = _mm_setzero_ps();
+            }
+
+            for (int k = 0; k < D; k += 4)
+            {
+                __m128 kv0 = _mm_loadu_ps(k0 + k);
+                __m128 kv1 = _mm_loadu_ps(k1 + k);
+                __m128 kv2 = _mm_loadu_ps(k2 + k);
+                __m128 kv3 = _mm_loadu_ps(k3 + k);
+
+                for (int mi = 0; mi < M_BLOCK1; mi++)
+                {
+                    __m128 qvec = _mm_loadu_ps(Q + (i + mi) * D + k);
+                    acc[mi][0] = _mm_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
+                    acc[mi][1] = _mm_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
+                    acc[mi][2] = _mm_comp_fmadd_ps(qvec, kv2, acc[mi][2]);
+                    acc[mi][3] = _mm_comp_fmadd_ps(qvec, kv3, acc[mi][3]);
+                }
+            }
+
+            for (int mi = 0; mi < M_BLOCK1; mi++)
+            {
+                S[(i + mi) * n + j + 0] = _mm_reduce_add_ps(acc[mi][0]) * scale;
+                S[(i + mi) * n + j + 1] = _mm_reduce_add_ps(acc[mi][1]) * scale;
+                S[(i + mi) * n + j + 2] = _mm_reduce_add_ps(acc[mi][2]) * scale;
+                S[(i + mi) * n + j + 3] = _mm_reduce_add_ps(acc[mi][3]) * scale;
+            }
+        }
+
+        for (; j + 2 <= n; j += 2)
+        {
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+
+            __m128 acc[M_BLOCK1][2];
+            for (int mi = 0; mi < M_BLOCK1; mi++)
+            {
+                acc[mi][0] = _mm_setzero_ps();
+                acc[mi][1] = _mm_setzero_ps();
+            }
+
+            for (int k = 0; k < D; k += 4)
+            {
+                __m128 kv0 = _mm_loadu_ps(k0 + k);
+                __m128 kv1 = _mm_loadu_ps(k1 + k);
+
+                for (int mi = 0; mi < M_BLOCK1; mi++)
+                {
+                    __m128 qvec = _mm_loadu_ps(Q + (i + mi) * D + k);
+                    acc[mi][0] = _mm_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
+                    acc[mi][1] = _mm_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
+                }
+            }
+
+            for (int mi = 0; mi < M_BLOCK1; mi++)
+            {
+                S[(i + mi) * n + j + 0] = _mm_reduce_add_ps(acc[mi][0]) * scale;
+                S[(i + mi) * n + j + 1] = _mm_reduce_add_ps(acc[mi][1]) * scale;
+            }
+        }
+
+        for (; j < n; j++)
+        {
+            const float* kptr = K + j * D;
+
+            __m128 acc[M_BLOCK1];
+            for (int mi = 0; mi < M_BLOCK1; mi++)
+                acc[mi] = _mm_setzero_ps();
+
+            for (int k = 0; k < D; k += 4)
+            {
+                __m128 kvec = _mm_loadu_ps(kptr + k);
+                for (int mi = 0; mi < M_BLOCK1; mi++)
+                {
+                    __m128 qvec = _mm_loadu_ps(Q + (i + mi) * D + k);
+                    acc[mi] = _mm_comp_fmadd_ps(qvec, kvec, acc[mi]);
+                }
+            }
+
+            for (int mi = 0; mi < M_BLOCK1; mi++)
+                S[(i + mi) * n + j] = _mm_reduce_add_ps(acc[mi]) * scale;
+        }
+    }
+
+    for (; i < m; i++)
+    {
+        int j = 0;
+        for (; j + 4 <= n; j += 4)
+        {
+            const float* qptr = Q + i * D;
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+            const float* k2 = K + (j + 2) * D;
+            const float* k3 = K + (j + 3) * D;
+
+            __m128 acc0 = _mm_setzero_ps();
+            __m128 acc1 = _mm_setzero_ps();
+            __m128 acc2 = _mm_setzero_ps();
+            __m128 acc3 = _mm_setzero_ps();
+
+            for (int k = 0; k < D; k += 4)
+            {
+                __m128 qvec = _mm_loadu_ps(qptr + k);
+                acc0 = _mm_comp_fmadd_ps(qvec, _mm_loadu_ps(k0 + k), acc0);
+                acc1 = _mm_comp_fmadd_ps(qvec, _mm_loadu_ps(k1 + k), acc1);
+                acc2 = _mm_comp_fmadd_ps(qvec, _mm_loadu_ps(k2 + k), acc2);
+                acc3 = _mm_comp_fmadd_ps(qvec, _mm_loadu_ps(k3 + k), acc3);
+            }
+
+            S[i * n + j + 0] = _mm_reduce_add_ps(acc0) * scale;
+            S[i * n + j + 1] = _mm_reduce_add_ps(acc1) * scale;
+            S[i * n + j + 2] = _mm_reduce_add_ps(acc2) * scale;
+            S[i * n + j + 3] = _mm_reduce_add_ps(acc3) * scale;
+        }
+
+        for (; j + 2 <= n; j += 2)
+        {
+            const float* qptr = Q + i * D;
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+
+            __m128 acc0 = _mm_setzero_ps();
+            __m128 acc1 = _mm_setzero_ps();
+
+            for (int k = 0; k < D; k += 4)
+            {
+                __m128 qvec = _mm_loadu_ps(qptr + k);
+                acc0 = _mm_comp_fmadd_ps(qvec, _mm_loadu_ps(k0 + k), acc0);
+                acc1 = _mm_comp_fmadd_ps(qvec, _mm_loadu_ps(k1 + k), acc1);
+            }
+
+            S[i * n + j + 0] = _mm_reduce_add_ps(acc0) * scale;
+            S[i * n + j + 1] = _mm_reduce_add_ps(acc1) * scale;
+        }
+
+        for (; j < n; j++)
+        {
+            const float* qptr = Q + i * D;
+            const float* kptr = K + j * D;
+            __m128 vacc = _mm_setzero_ps();
+            for (int k = 0; k < D; k += 4)
+                vacc = _mm_comp_fmadd_ps(_mm_loadu_ps(qptr + k), _mm_loadu_ps(kptr + k), vacc);
+            S[i * n + j] = _mm_reduce_add_ps(vacc) * scale;
+        }
+    }
+}
+
+template<>
+void qk_gemm_specialized_sse2<512>(float* S, const float* Q, const float* K,
+                                   int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_sse2<512, 2, 4>(S, Q, K, m, n, scale);
+}
+template<>
+void qk_gemm_specialized_sse2<1024>(float* S, const float* Q, const float* K,
+                                    int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_sse2<1024, 2, 4>(S, Q, K, m, n, scale);
+}
+
+template<>
+void qk_gemm_specialized_sse2<2048>(float* S, const float* Q, const float* K,
+                                    int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_sse2<2048, 2, 0>(S, Q, K, m, n, scale);
+}
+
+template<>
+void qk_gemm_specialized_sse2<4096>(float* S, const float* Q, const float* K,
+                                    int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_sse2<4096, 2, 2>(S, Q, K, m, n, scale);
+}
+
+template<int M_BLOCK, int D_UNROLL>
+static inline void pv_gemm_sse2(float* O, const float* P, const float* V, int m, int n, int d)
+{
+    const int VEC_PER_UNROLL = D_UNROLL / 4;
+    int i = 0;
+    for (; i + M_BLOCK <= m; i += M_BLOCK)
+    {
+        float* op[M_BLOCK];
+        const float* pptr[M_BLOCK];
+        for (int mi = 0; mi < M_BLOCK; mi++)
+        {
+            op[mi] = O + (i + mi) * d;
+            pptr[mi] = P + (i + mi) * n;
+        }
+
+        int dd = 0;
+        for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
+        {
+            __m128 acc[M_BLOCK][VEC_PER_UNROLL];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    acc[mi][vi] = _mm_loadu_ps(op[mi] + dd + vi * 4);
+
+            for (int j = 0; j < n; j++)
+            {
+                __m128 vvec[VEC_PER_UNROLL];
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    vvec[vi] = _mm_loadu_ps(V + j * d + dd + vi * 4);
+
+                for (int mi = 0; mi < M_BLOCK; mi++)
+                {
+                    __m128 pvec = _mm_set1_ps(pptr[mi][j]);
+                    for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                        acc[mi][vi] = _mm_comp_fmadd_ps(pvec, vvec[vi], acc[mi][vi]);
+                }
+            }
+
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    _mm_storeu_ps(op[mi] + dd + vi * 4, acc[mi][vi]);
+        }
+
+        for (; dd + 3 < d; dd += 4)
+        {
+            __m128 acc[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                acc[mi] = _mm_loadu_ps(op[mi] + dd);
+
+            for (int j = 0; j < n; j++)
+            {
+                __m128 vvec = _mm_loadu_ps(V + j * d + dd);
+                for (int mi = 0; mi < M_BLOCK; mi++)
+                    acc[mi] = _mm_comp_fmadd_ps(_mm_set1_ps(pptr[mi][j]), vvec, acc[mi]);
+            }
+
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                _mm_storeu_ps(op[mi] + dd, acc[mi]);
+        }
+
+        for (; dd < d; dd++)
+        {
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                float acc = op[mi][dd];
+                for (int j = 0; j < n; j++)
+                    acc += pptr[mi][j] * V[j * d + dd];
+                op[mi][dd] = acc;
+            }
+        }
+    }
+
+    for (; i < m; i++)
+    {
+        float* optr = O + i * d;
+        const float* pptr = P + i * n;
+
+        int dd = 0;
+        for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
+        {
+            __m128 acc[VEC_PER_UNROLL];
+            for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                acc[vi] = _mm_loadu_ps(optr + dd + vi * 4);
+
+            for (int j = 0; j < n; j++)
+            {
+                __m128 pvec = _mm_set1_ps(pptr[j]);
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    acc[vi] = _mm_comp_fmadd_ps(pvec, _mm_loadu_ps(V + j * d + dd + vi * 4), acc[vi]);
+            }
+
+            for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                _mm_storeu_ps(optr + dd + vi * 4, acc[vi]);
+        }
+
+        for (; dd + 3 < d; dd += 4)
+        {
+            __m128 acc = _mm_loadu_ps(optr + dd);
+            for (int j = 0; j < n; j++)
+                acc = _mm_comp_fmadd_ps(_mm_set1_ps(pptr[j]), _mm_loadu_ps(V + j * d + dd), acc);
+            _mm_storeu_ps(optr + dd, acc);
+        }
+
+        for (; dd < d; dd++)
+        {
+            float acc = optr[dd];
+            for (int j = 0; j < n; j++)
+                acc += pptr[j] * V[j * d + dd];
+            optr[dd] = acc;
+        }
+    }
+}
+
+template<int M_BLOCK, int D>
+static inline void pv_gemm_sse2(float* O, const float* P, const float* V, int m, int n)
+{
+    const int VEC_PER_D = D / 4;
+    int i = 0;
+    for (; i + M_BLOCK <= m; i += M_BLOCK)
+    {
+        float* op[M_BLOCK];
+        const float* pptr[M_BLOCK];
+        for (int mi = 0; mi < M_BLOCK; mi++)
+        {
+            op[mi] = O + (i + mi) * D;
+            pptr[mi] = P + (i + mi) * n;
+        }
+
+        for (int mi = 0; mi < M_BLOCK; mi++)
+        {
+            __m128 acc[VEC_PER_D];
+            for (int vi = 0; vi < VEC_PER_D; vi++)
+                acc[vi] = _mm_loadu_ps(op[mi] + vi * 4);
+
+            for (int j = 0; j < n; j++)
+            {
+                __m128 pvec = _mm_set1_ps(pptr[mi][j]);
+                for (int vi = 0; vi < VEC_PER_D; vi++)
+                    acc[vi] = _mm_comp_fmadd_ps(pvec, _mm_loadu_ps(V + j * D + vi * 4), acc[vi]);
+            }
+
+            for (int vi = 0; vi < VEC_PER_D; vi++)
+                _mm_storeu_ps(op[mi] + vi * 4, acc[vi]);
+        }
+    }
+
+    for (; i < m; i++)
+    {
+        float* optr = O + i * D;
+        const float* pptr = P + i * n;
+
+        __m128 acc[VEC_PER_D];
+        for (int vi = 0; vi < VEC_PER_D; vi++)
+            acc[vi] = _mm_loadu_ps(optr + vi * 4);
+
+        for (int j = 0; j < n; j++)
+        {
+            __m128 pvec = _mm_set1_ps(pptr[j]);
+            for (int vi = 0; vi < VEC_PER_D; vi++)
+                acc[vi] = _mm_comp_fmadd_ps(pvec, _mm_loadu_ps(V + j * D + vi * 4), acc[vi]);
+        }
+
+        for (int vi = 0; vi < VEC_PER_D; vi++)
+            _mm_storeu_ps(optr + vi * 4, acc[vi]);
+    }
+}
+
+#endif // __SSE2__
+
+// Timing instrumentation removed
+
+static int sdpa_forward_prefill(
+    const Mat& query_ref,
+    const Mat& query_bf16_ref,
+    const Mat& attn_mask_ref,
+    Mat& key,
+    Mat& value,
+    Mat& top_blob,
+    std::vector<Mat>& top_blobs,
+    const Option& opt,
+    int embed_dim,
+    int src_seqlen,
+    int num_heads,
+    int num_group,
+    int out_embed_dim,
+    int dst_seqlen,
+    int num_heads_per_group,
+    float _scale,
+    int kv_cache,
+    int attn_mask,
+    bool use_bf16_path)
+{
+    (void)num_heads;
+    (void)query_bf16_ref;
+    const int BLOCK_M = 64;
+    const int BLOCK_N = 128;
+    Mat s_vec(BLOCK_N * BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
+    Mat o_accum(out_embed_dim, BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
+    const bool large_dim = embed_dim > 512 && (src_seqlen > 16 || num_heads_per_group > 1);
+    const bool pack_q = !large_dim && num_heads_per_group > 1;
+    Mat q_batch;
+    if (pack_q)
+        q_batch.create(embed_dim, BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
+
+    if (s_vec.empty() || o_accum.empty() || (pack_q && q_batch.empty()))
+        return -100;
+
+#if __AVX512F__
+#if NCNN_BF16 && NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
+    const bool bf16_init_zero_path = use_bf16_path && out_embed_dim == 4096 && ncnn::cpu_support_x86_avx512_bf16();
+#else
+    const bool bf16_init_zero_path = false;
+#endif
+    const bool skip_o_accum_zero = out_embed_dim == 4096 && (!use_bf16_path || bf16_init_zero_path);
+#else
+    const bool skip_o_accum_zero = false;
+#endif
+
+    int num_m_tiles = (src_seqlen + BLOCK_M - 1) / BLOCK_M;
+
+    // Per-head per-M-tile softmax state for cross-N-tile accumulation
+    Mat m_state(BLOCK_M, num_heads_per_group, num_group * num_m_tiles, 4u, opt.workspace_allocator);
+    Mat l_state(BLOCK_M, num_heads_per_group, num_group * num_m_tiles, 4u, opt.workspace_allocator);
+
+    if (m_state.empty() || l_state.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(opt.num_threads) if (num_group * num_m_tiles > 1)
+    for (int idx = 0; idx < num_group * num_m_tiles; idx++)
+    {
+        int g = idx / num_m_tiles;
+        int m_tile = idx % num_m_tiles;
+        int m_start = m_tile * BLOCK_M;
+        int block_m = m_start + BLOCK_M < src_seqlen ? BLOCK_M : src_seqlen - m_start;
+
+        const Mat key_head = key.channel(g);
+        const Mat value_head = value.channel(g);
+
+        Mat s_vec_thread = s_vec.channel(get_omp_thread_num());
+        Mat o_accum_thread = o_accum.channel(get_omp_thread_num());
+        Mat q_batch_thread;
+        if (pack_q)
+            q_batch_thread = q_batch.channel(get_omp_thread_num());
+
+        // Pre-resolve mask pointers for all heads in this group
+        const float* mask_data[num_heads_per_group];
+        int mask_stride[num_heads_per_group];
+        for (int hq = 0; hq < num_heads_per_group; hq++)
+        {
+            int q = g * num_heads_per_group + hq;
+            mask_data[hq] = nullptr;
+            mask_stride[hq] = 0;
+            if (attn_mask)
+            {
+                const Mat& maskm = attn_mask_ref;
+                Mat mh = (maskm.dims == 3 && maskm.c > 1) ? maskm.channel(q)
+                         : (maskm.dims == 3 ? maskm.channel(0) : maskm);
+                mask_data[hq] = mh;
+                mask_stride[hq] = mh.w;
+            }
+        }
+
+        Mat m_state_tile = m_state.channel(idx);
+        Mat l_state_tile = l_state.channel(idx);
+
+        Mat query_head_unpacked;
+        const float* q_data = 0;
+        if (!large_dim && !pack_q)
+        {
+            query_head_unpacked = query_ref.channel(g * num_heads_per_group);
+            q_data = query_head_unpacked.row(m_start);
+        }
+
+        if (pack_q)
+        {
+            for (int hq = 0; hq < num_heads_per_group; hq++)
+            {
+                int q = g * num_heads_per_group + hq;
+                const Mat query_head = query_ref.channel(q);
+                float* q_dst = q_batch_thread.row(hq * block_m);
+                for (int i = 0; i < block_m; i++)
+                {
+                    memcpy(q_dst + i * embed_dim, query_head.row(m_start + i), embed_dim * sizeof(float));
+                }
+            }
+        }
+
+        // Initialize softmax state and zero output accumulator for all Q heads in this group
+        for (int hq = 0; hq < num_heads_per_group; hq++)
+        {
+            float* m_vec = m_state_tile.row(hq);
+            float* l_vec = l_state_tile.row(hq);
+            for (int i = 0; i < block_m; i++)
+            {
+                m_vec[i] = -FLT_MAX;
+                l_vec[i] = 0.f;
+            }
+
+            float* o_ptr = o_accum_thread.row(hq * block_m);
+            if (!skip_o_accum_zero)
+                vec_zero(o_ptr, out_embed_dim * block_m);
+        }
+
+        // N-outer loop: K/V N-tile is loaded once and reused by all Q heads in this group.
+        // The large-dim path below has its own N loop over all tiles.
+        const int n_loop_end = large_dim ? 1 : dst_seqlen;
+        for (int n_start = 0; n_start < n_loop_end; n_start += BLOCK_N)
+        {
+            int n_end = n_start + BLOCK_N < dst_seqlen ? n_start + BLOCK_N : dst_seqlen;
+            int block_n = n_end - n_start;
+
+            float* s_ptr = s_vec_thread.row(0);
+
+            if (!large_dim)
+            {
+                if (pack_q)
+                    q_data = q_batch_thread.row(0);
+#if NCNN_BF16
+                if (use_bf16_path)
+                {
+#if __AVX512F__
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
+                    if (ncnn::cpu_support_x86_avx512_bf16())
+                    {
+                        qk_gemm_bf16s_avx512bf16(s_ptr,
+                                                 q_data,
+                                                 key_head.row<const unsigned short>(n_start),
+                                                 block_m * num_heads_per_group, block_n, embed_dim, _scale);
+                    }
+                    else
+#endif
+                    {
+                        qk_gemm_bf16s_avx512_kernel(s_ptr,
+                                                    q_data,
+                                                    key_head.row<const unsigned short>(n_start),
+                                                    block_m * num_heads_per_group, block_n, embed_dim, _scale);
+                    }
+#elif __AVX__
+                    qk_gemm_bf16s_avx_kernel(s_ptr,
+                                             q_data,
+                                             key_head.row<const unsigned short>(n_start),
+                                             block_m * num_heads_per_group, block_n, embed_dim, _scale);
+#elif __SSE2__
+                    qk_gemm_bf16s_sse2_kernel(s_ptr,
+                                              q_data,
+                                              key_head.row<const unsigned short>(n_start),
+                                              block_m * num_heads_per_group, block_n, embed_dim, _scale);
+#else
+                    qk_gemm_bf16s_scalar_kernel(s_ptr,
+                                                q_data,
+                                                key_head.row<const unsigned short>(n_start),
+                                                block_m * num_heads_per_group, block_n, embed_dim, _scale);
+#endif
+                }
+                else
+#endif
+                {
+                    switch (embed_dim)
+                    {
+                    case 128:
+#if __AVX512F__
+                        qk_gemm_specialized_avx512<128>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __AVX__
+                        qk_gemm_specialized_avx<128>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __SSE2__
+                        qk_gemm_specialized_sse2<128>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#endif
+                    case 64:
+#if __AVX512F__
+                        qk_gemm_specialized_avx512<64>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __AVX__
+                        qk_gemm_specialized_avx<64>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __SSE2__
+                        qk_gemm_specialized_sse2<64>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#endif
+                    case 512:
+#if __AVX512F__
+                        qk_gemm_specialized_avx512<512>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __AVX__
+                        qk_gemm_specialized_avx<512>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __SSE2__
+                        qk_gemm_specialized_sse2<512>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#endif
+                    case 256:
+#if __AVX512F__
+                        qk_gemm_specialized_avx512<256>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __AVX__
+                        qk_gemm_specialized_avx<256>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __SSE2__
+                        qk_gemm_specialized_sse2<256>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#endif
+                    case 32:
+#if __AVX512F__
+                        qk_gemm_specialized_avx512<32>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __AVX__
+                        qk_gemm_specialized_avx<32>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __SSE2__
+                        qk_gemm_specialized_sse2<32>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#endif
+                    case 80:
+#if __AVX512F__
+                        qk_gemm_specialized_avx512<80>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __AVX__
+                        qk_gemm_specialized_avx<80>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __SSE2__
+                        qk_gemm_specialized_sse2<80>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#endif
+                    case 96:
+#if __AVX512F__
+                        qk_gemm_specialized_avx512<96>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __AVX__
+                        qk_gemm_specialized_avx<96>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __SSE2__
+                        qk_gemm_specialized_sse2<96>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#endif
+                    case 160:
+#if __AVX512F__
+                        qk_gemm_specialized_avx512<160>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __AVX__
+                        qk_gemm_specialized_avx<160>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __SSE2__
+                        qk_gemm_specialized_sse2<160>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#endif
+                    case 1024:
+#if __AVX512F__
+                        qk_gemm_specialized_avx512<1024>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __AVX__
+                        qk_gemm_specialized_avx<1024>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __SSE2__
+                        qk_gemm_specialized_sse2<1024>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#endif
+                    case 2048:
+#if __AVX512F__
+                        qk_gemm_specialized_avx512<2048>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __AVX__
+                        qk_gemm_specialized_avx<2048>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __SSE2__
+                        qk_gemm_specialized_sse2<2048>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#endif
+                    case 4096:
+#if __AVX512F__
+                        qk_gemm_specialized_avx512<4096>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __AVX__
+                        qk_gemm_specialized_avx<4096>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __SSE2__
+                        qk_gemm_specialized_sse2<4096>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#endif
+                    case 768:
+#if __AVX512F__
+                        qk_gemm_specialized_avx512<768>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __AVX__
+                        qk_gemm_specialized_avx<768>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __SSE2__
+                        qk_gemm_specialized_sse2<768>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#endif
+                    case 1536:
+#if __AVX512F__
+                        qk_gemm_specialized_avx512<1536>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __AVX__
+                        qk_gemm_specialized_avx<1536>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __SSE2__
+                        qk_gemm_specialized_sse2<1536>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#endif
+                    case 3072:
+#if __AVX512F__
+                        qk_gemm_specialized_avx512<3072>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __AVX__
+                        qk_gemm_specialized_avx<3072>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#elif __SSE2__
+                        qk_gemm_specialized_sse2<3072>(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, _scale);
+                        break;
+#endif
+                    default:
+#if __AVX512F__
+                        qk_gemm_avx512(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, embed_dim, _scale);
+#elif __AVX__
+                        qk_gemm_avx(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, embed_dim, _scale);
+#elif __SSE2__
+                        qk_gemm_sse2(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, embed_dim, _scale);
+#else
+                        qk_gemm_scalar(s_ptr, q_data, key_head.row(n_start), block_m * num_heads_per_group, block_n, embed_dim, _scale);
+#endif
+                        break;
+                    }
+                }
+
+                for (int hq = 0; hq < num_heads_per_group; hq++)
+                {
+                    float* s_head = s_ptr + hq * block_m * block_n;
+
+                    if (attn_mask && mask_data[hq])
+                    {
+                        for (int i = 0; i < block_m; i++)
+                        {
+                            const float* mptr = mask_data[hq] + (m_start + i) * mask_stride[hq] + n_start;
+                            float* sptr = s_head + i * block_n;
+                            decode_mask_vec(sptr, mptr, block_n);
+                        }
+                    }
+
+                    float* m_vec = m_state_tile.row(hq);
+                    float* l_vec = l_state_tile.row(hq);
+                    float* o_ptr = o_accum_thread.row(hq * block_m);
+
+                    float scale_factors[BLOCK_M];
+                    unsigned char changed[BLOCK_M];
+                    softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, changed, block_m, block_n);
+
+                    for (int i = 0; i < block_m; i++)
+                    {
+                        if (changed[i])
+                        {
+                            vec_scale(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
+                        }
+                    }
+                }
+
+#if NCNN_BF16
+                if (use_bf16_path)
+                {
+#if __AVX512F__
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
+                    if (ncnn::cpu_support_x86_avx512_bf16())
+                    {
+                        pv_gemm_bf16s_avx512bf16(o_accum_thread.row(0), s_ptr, value_head.row<const unsigned short>(n_start),
+                                                 block_m * num_heads_per_group, block_n, out_embed_dim, n_start == 0 && out_embed_dim == 4096);
+                    }
+                    else
+#endif
+                    {
+                        pv_gemm_bf16s_avx512_kernel(o_accum_thread.row(0), s_ptr, value_head.row<const unsigned short>(n_start),
+                                                    block_m * num_heads_per_group, block_n, out_embed_dim);
+                    }
+#elif __AVX__
+                    pv_gemm_bf16s_avx_kernel(o_accum_thread.row(0), s_ptr, value_head.row<const unsigned short>(n_start),
+                                             block_m * num_heads_per_group, block_n, out_embed_dim);
+#elif __SSE2__
+                    pv_gemm_bf16s_sse2_kernel(o_accum_thread.row(0), s_ptr, value_head.row<const unsigned short>(n_start),
+                                              block_m * num_heads_per_group, block_n, out_embed_dim);
+#else
+                    pv_gemm_bf16s_scalar_kernel(o_accum_thread.row(0), s_ptr, value_head.row<const unsigned short>(n_start),
+                                                block_m * num_heads_per_group, block_n, out_embed_dim);
+#endif
+                }
+                else
+#endif
+                {
+                    switch (out_embed_dim)
+                    {
+                    case 128:
+#if __AVX512F__
+                        pv_gemm_avx512<2, 128>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<2, 128>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<2, 128>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n);
+                        break;
+#endif
+                    case 64:
+#if __AVX512F__
+                        pv_gemm_avx512<4, 64>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<4, 64>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<4, 64>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n);
+                        break;
+#endif
+                    case 256:
+#if __AVX512F__
+                        pv_gemm_avx512<2, 128>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 256);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<2, 64>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 256);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<2, 32>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 256);
+                        break;
+#endif
+                    case 512:
+#if __AVX512F__
+                        pv_gemm_avx512<2, 128>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 512);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<2, 64>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 512);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<2, 32>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 512);
+                        break;
+#endif
+                    case 1024:
+#if __AVX512F__
+                        pv_gemm_avx512<2, 128>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 1024);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<2, 64>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 1024);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<2, 32>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 1024);
+                        break;
+#endif
+                    case 2048:
+#if __AVX512F__
+                        pv_gemm_avx512<2, 128>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 2048);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<2, 64>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 2048);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<2, 32>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 2048);
+                        break;
+#endif
+                    case 4096:
+#if __AVX512F__
+                        if (n_start == 0)
+                            pv_gemm_avx512<2, 128, true>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 4096);
+                        else
+                            pv_gemm_avx512<2, 128>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 4096);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<2, 64>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 4096);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<2, 32>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 4096);
+                        break;
+#endif
+                    case 768:
+#if __AVX512F__
+                        pv_gemm_avx512<2, 128>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 768);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<2, 64>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 768);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<2, 32>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 768);
+                        break;
+#endif
+                    case 1536:
+#if __AVX512F__
+                        pv_gemm_avx512<2, 128>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 1536);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<2, 64>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 1536);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<2, 32>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 1536);
+                        break;
+#endif
+                    case 3072:
+#if __AVX512F__
+                        pv_gemm_avx512<2, 128>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 3072);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<2, 64>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 3072);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<2, 32>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, 3072);
+                        break;
+#endif
+                    default:
+#if __AVX512F__
+                        pv_gemm_avx512<4, 64>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, out_embed_dim);
+#elif __AVX__
+                        pv_gemm_avx<2, 32>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, out_embed_dim);
+#elif __SSE2__
+                        pv_gemm_sse2<2, 16>(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, out_embed_dim);
+#else
+                        pv_gemm_scalar(o_accum_thread.row(0), s_ptr, value_head.row(n_start), block_m * num_heads_per_group, block_n, out_embed_dim);
+#endif
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                // large_dim: N-outer loop, head-inner loop to reuse K/V tiles across heads
+                for (int n_start2 = 0; n_start2 < dst_seqlen; n_start2 += BLOCK_N)
+                {
+                    int n_end2 = n_start2 + BLOCK_N < dst_seqlen ? n_start2 + BLOCK_N : dst_seqlen;
+                    int block_n2 = n_end2 - n_start2;
+
+#if __AVX512F__
+                    if (!use_bf16_path && !attn_mask && num_heads_per_group == 1 && embed_dim == 4096 && out_embed_dim == 4096)
+                    {
+                        const Mat query_head = query_ref.channel(g);
+                        const float* q_ptr = query_head.row(m_start);
+                        float* s_head = s_ptr;
+
+                        qk_gemm_specialized_avx512_large_m<4096>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+
+                        float* m_vec = m_state_tile.row(0);
+                        float* l_vec = l_state_tile.row(0);
+                        float* o_ptr = o_accum_thread.row(0);
+
+                        float scale_factors[BLOCK_M];
+                        unsigned char changed[BLOCK_M];
+                        softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, changed, block_m, block_n2);
+
+                        for (int i = 0; i < block_m; i++)
+                        {
+                            if (changed[i])
+                            {
+                                vec_scale(o_ptr + i * 4096, scale_factors[i], 4096);
+                            }
+                        }
+
+                        if (n_start2 == 0)
+                            pv_gemm_avx512<4, 64, true>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
+                        else
+                            pv_gemm_avx512<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
+
+                        continue;
+                    }
+#endif
+
+                    if (num_group * num_m_tiles == 1)
+                    {
+                        #pragma omp parallel for num_threads(opt.num_threads) if (opt.num_threads > 1)
+                        for (int hq = 0; hq < num_heads_per_group; hq++)
+                        {
+                            int q = g * num_heads_per_group + hq;
+                            const Mat query_head = query_ref.channel(q);
+
+                            const float* q_ptr = query_head.row(m_start);
+                            float* s_head = s_ptr + hq * block_m * block_n2;
+
+#if NCNN_BF16
+                            if (use_bf16_path)
+                            {
+#if __AVX512F__
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
+                                if (ncnn::cpu_support_x86_avx512_bf16())
+                                {
+                                    const Mat query_bf16_head = query_bf16_ref.channel(q);
+                                    qk_gemm_bf16s_avx512bf16_qbf16(s_head,
+                                                                   query_bf16_head.row<const unsigned short>(m_start),
+                                                                   key_head.row<const unsigned short>(n_start2),
+                                                                   block_m, block_n2, embed_dim, _scale);
+                                }
+                                else
+#endif
+                                {
+                                    qk_gemm_bf16s_avx512_kernel(s_head,
+                                                                q_ptr,
+                                                                key_head.row<const unsigned short>(n_start2),
+                                                                block_m, block_n2, embed_dim, _scale);
+                                }
+#elif __AVX__
+                                qk_gemm_bf16s_avx_kernel(s_head,
+                                                         q_ptr,
+                                                         key_head.row<const unsigned short>(n_start2),
+                                                         block_m, block_n2, embed_dim, _scale);
+#elif __SSE2__
+                                qk_gemm_bf16s_sse2_kernel(s_head,
+                                                          q_ptr,
+                                                          key_head.row<const unsigned short>(n_start2),
+                                                          block_m, block_n2, embed_dim, _scale);
+#else
+                                qk_gemm_bf16s_scalar_kernel(s_head,
+                                                            q_ptr,
+                                                            key_head.row<const unsigned short>(n_start2),
+                                                            block_m, block_n2, embed_dim, _scale);
+#endif
+                            }
+                            else
+#endif
+                            {
+                                switch (embed_dim)
+                                {
+                                case 128:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<128>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<128>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<128>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 64:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<64>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<64>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<64>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 512:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<512>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<512>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<512>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 256:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<256>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<256>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<256>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 32:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<32>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<32>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<32>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 80:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<80>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<80>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<80>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 96:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<96>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<96>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<96>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 160:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<160>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<160>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<160>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 1024:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<1024>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<1024>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<1024>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 2048:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<2048>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<2048>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<2048>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 4096:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512_large_m<4096>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_avx(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, 4096, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_sse2(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, 4096, _scale);
+                                    break;
+#endif
+                                case 768:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<768>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<768>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<768>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 1536:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<1536>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<1536>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<1536>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 3072:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<3072>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<3072>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<3072>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                default:
+#if __AVX512F__
+                                    qk_gemm_avx512(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
+#elif __AVX__
+                                    qk_gemm_avx(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
+#elif __SSE2__
+                                    qk_gemm_sse2(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
+#else
+                                    qk_gemm_scalar(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
+#endif
+                                    break;
+                                }
+                            }
+
+                            if (attn_mask && mask_data[hq])
+                            {
+                                for (int i = 0; i < block_m; i++)
+                                {
+                                    const float* mptr = mask_data[hq] + (m_start + i) * mask_stride[hq] + n_start2;
+                                    float* sptr = s_head + i * block_n2;
+                                    decode_mask_vec(sptr, mptr, block_n2);
+                                }
+                            }
+
+                            float* m_vec = m_state_tile.row(hq);
+                            float* l_vec = l_state_tile.row(hq);
+                            float* o_ptr = o_accum_thread.row(hq * block_m);
+
+                            float scale_factors[BLOCK_M];
+                            unsigned char changed[BLOCK_M];
+                            softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, changed, block_m, block_n2);
+
+                            for (int i = 0; i < block_m; i++)
+                            {
+                                if (changed[i])
+                                {
+                                    vec_scale(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
+                                }
+                            }
+
+#if NCNN_BF16
+                            if (use_bf16_path)
+                            {
+#if __AVX512F__
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
+                                if (ncnn::cpu_support_x86_avx512_bf16())
+                                {
+                                    pv_gemm_bf16s_avx512bf16(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                             block_m, block_n2, out_embed_dim, n_start2 == 0 && out_embed_dim == 4096);
+                                }
+                                else
+#endif
+                                {
+                                    pv_gemm_bf16s_avx512_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                                block_m, block_n2, out_embed_dim);
+                                }
+#elif __AVX__
+                                pv_gemm_bf16s_avx_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                         block_m, block_n2, out_embed_dim);
+#elif __SSE2__
+                                pv_gemm_bf16s_sse2_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                          block_m, block_n2, out_embed_dim);
+#else
+                                pv_gemm_bf16s_scalar_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                            block_m, block_n2, out_embed_dim);
+#endif
+                            }
+                            else
+#endif
+                            {
+                                switch (out_embed_dim)
+                                {
+                                case 128:
+#if __AVX512F__
+                                    pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                                    break;
+#endif
+                                case 64:
+#if __AVX512F__
+                                    pv_gemm_avx512<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                                    break;
+#endif
+                                case 256:
+#if __AVX512F__
+                                    pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 256);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 256);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 256);
+                                    break;
+#endif
+                                case 512:
+#if __AVX512F__
+                                    pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 512);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 512);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 512);
+                                    break;
+#endif
+                                case 1024:
+#if __AVX512F__
+                                    pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1024);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1024);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1024);
+                                    break;
+#endif
+                                case 2048:
+#if __AVX512F__
+                                    pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 2048);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 2048);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 2048);
+                                    break;
+#endif
+                                case 4096:
+#if __AVX512F__
+                                    if (n_start2 == 0)
+                                        pv_gemm_avx512<4, 64, true>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
+                                    else
+                                        pv_gemm_avx512<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
+                                    break;
+#endif
+                                case 768:
+#if __AVX512F__
+                                    pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 768);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 768);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 768);
+                                    break;
+#endif
+                                case 1536:
+#if __AVX512F__
+                                    pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1536);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1536);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1536);
+                                    break;
+#endif
+                                case 3072:
+#if __AVX512F__
+                                    pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 3072);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 3072);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 3072);
+                                    break;
+#endif
+                                default:
+#if __AVX512F__
+                                    pv_gemm_avx512<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
+#elif __AVX__
+                                    pv_gemm_avx<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 16>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
+#else
+                                    pv_gemm_scalar(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
+#endif
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+#if __AVX512F__
+                        if (!use_bf16_path && !attn_mask && embed_dim == 4096 && out_embed_dim == 4096 && num_heads_per_group >= 4)
+                        {
+                            int hq = 0;
+                            for (; hq + 3 < num_heads_per_group; hq += 4)
+                            {
+                                int q0 = g * num_heads_per_group + hq;
+                                int q1 = q0 + 1;
+                                int q2 = q0 + 2;
+                                int q3 = q0 + 3;
+                                const Mat query_head0 = query_ref.channel(q0);
+                                const Mat query_head1 = query_ref.channel(q1);
+                                const Mat query_head2 = query_ref.channel(q2);
+                                const Mat query_head3 = query_ref.channel(q3);
+
+                                const float* q_ptr0 = query_head0.row(m_start);
+                                const float* q_ptr1 = query_head1.row(m_start);
+                                const float* q_ptr2 = query_head2.row(m_start);
+                                const float* q_ptr3 = query_head3.row(m_start);
+                                float* s_head0 = s_ptr + hq * block_m * block_n2;
+                                float* s_head1 = s_head0 + block_m * block_n2;
+                                float* s_head2 = s_head1 + block_m * block_n2;
+                                float* s_head3 = s_head2 + block_m * block_n2;
+
+                                qk_gemm_specialized_avx512_large_m<4096>(s_head0, q_ptr0, key_head.row(n_start2), block_m, block_n2, _scale);
+                                qk_gemm_specialized_avx512_large_m<4096>(s_head1, q_ptr1, key_head.row(n_start2), block_m, block_n2, _scale);
+                                qk_gemm_specialized_avx512_large_m<4096>(s_head2, q_ptr2, key_head.row(n_start2), block_m, block_n2, _scale);
+                                qk_gemm_specialized_avx512_large_m<4096>(s_head3, q_ptr3, key_head.row(n_start2), block_m, block_n2, _scale);
+
+                                float* m_vec0 = m_state_tile.row(hq);
+                                float* l_vec0 = l_state_tile.row(hq);
+                                float* o_ptr0 = o_accum_thread.row(hq * block_m);
+                                float* m_vec1 = m_state_tile.row(hq + 1);
+                                float* l_vec1 = l_state_tile.row(hq + 1);
+                                float* o_ptr1 = o_accum_thread.row((hq + 1) * block_m);
+                                float* m_vec2 = m_state_tile.row(hq + 2);
+                                float* l_vec2 = l_state_tile.row(hq + 2);
+                                float* o_ptr2 = o_accum_thread.row((hq + 2) * block_m);
+                                float* m_vec3 = m_state_tile.row(hq + 3);
+                                float* l_vec3 = l_state_tile.row(hq + 3);
+                                float* o_ptr3 = o_accum_thread.row((hq + 3) * block_m);
+
+                                float scale_factors0[BLOCK_M];
+                                float scale_factors1[BLOCK_M];
+                                float scale_factors2[BLOCK_M];
+                                float scale_factors3[BLOCK_M];
+                                unsigned char changed0[BLOCK_M];
+                                unsigned char changed1[BLOCK_M];
+                                unsigned char changed2[BLOCK_M];
+                                unsigned char changed3[BLOCK_M];
+                                softmax_tile(s_head0, s_head0, m_vec0, l_vec0, scale_factors0, changed0, block_m, block_n2);
+                                softmax_tile(s_head1, s_head1, m_vec1, l_vec1, scale_factors1, changed1, block_m, block_n2);
+                                softmax_tile(s_head2, s_head2, m_vec2, l_vec2, scale_factors2, changed2, block_m, block_n2);
+                                softmax_tile(s_head3, s_head3, m_vec3, l_vec3, scale_factors3, changed3, block_m, block_n2);
+
+                                for (int i = 0; i < block_m; i++)
+                                {
+                                    if (changed0[i])
+                                    {
+                                        vec_scale(o_ptr0 + i * out_embed_dim, scale_factors0[i], out_embed_dim);
+                                    }
+                                    if (changed1[i])
+                                    {
+                                        vec_scale(o_ptr1 + i * out_embed_dim, scale_factors1[i], out_embed_dim);
+                                    }
+                                    if (changed2[i])
+                                    {
+                                        vec_scale(o_ptr2 + i * out_embed_dim, scale_factors2[i], out_embed_dim);
+                                    }
+                                    if (changed3[i])
+                                    {
+                                        vec_scale(o_ptr3 + i * out_embed_dim, scale_factors3[i], out_embed_dim);
+                                    }
+                                }
+
+                                if (block_n2 < 128)
+                                {
+                                    if (n_start2 == 0)
+                                        pv_gemm_4heads_4096_avx512<2, 32, true>(o_ptr0, o_ptr1, o_ptr2, o_ptr3, s_head0, s_head1, s_head2, s_head3, value_head.row(n_start2), block_m, block_n2);
+                                    else
+                                        pv_gemm_4heads_4096_avx512<2, 32>(o_ptr0, o_ptr1, o_ptr2, o_ptr3, s_head0, s_head1, s_head2, s_head3, value_head.row(n_start2), block_m, block_n2);
+                                }
+                                else
+                                {
+                                    if (n_start2 == 0)
+                                        pv_gemm_4heads_4096_avx512<4, 16, true>(o_ptr0, o_ptr1, o_ptr2, o_ptr3, s_head0, s_head1, s_head2, s_head3, value_head.row(n_start2), block_m, block_n2);
+                                    else
+                                        pv_gemm_4heads_4096_avx512<4, 16>(o_ptr0, o_ptr1, o_ptr2, o_ptr3, s_head0, s_head1, s_head2, s_head3, value_head.row(n_start2), block_m, block_n2);
+                                }
+                            }
+
+                            for (; hq + 1 < num_heads_per_group; hq += 2)
+                            {
+                                int q0 = g * num_heads_per_group + hq;
+                                int q1 = q0 + 1;
+                                const Mat query_head0 = query_ref.channel(q0);
+                                const Mat query_head1 = query_ref.channel(q1);
+
+                                const float* q_ptr0 = query_head0.row(m_start);
+                                const float* q_ptr1 = query_head1.row(m_start);
+                                float* s_head0 = s_ptr + hq * block_m * block_n2;
+                                float* s_head1 = s_head0 + block_m * block_n2;
+
+                                qk_gemm_specialized_avx512_large_m<4096>(s_head0, q_ptr0, key_head.row(n_start2), block_m, block_n2, _scale);
+                                qk_gemm_specialized_avx512_large_m<4096>(s_head1, q_ptr1, key_head.row(n_start2), block_m, block_n2, _scale);
+
+                                float* m_vec0 = m_state_tile.row(hq);
+                                float* l_vec0 = l_state_tile.row(hq);
+                                float* o_ptr0 = o_accum_thread.row(hq * block_m);
+                                float* m_vec1 = m_state_tile.row(hq + 1);
+                                float* l_vec1 = l_state_tile.row(hq + 1);
+                                float* o_ptr1 = o_accum_thread.row((hq + 1) * block_m);
+
+                                float scale_factors0[BLOCK_M];
+                                float scale_factors1[BLOCK_M];
+                                unsigned char changed0[BLOCK_M];
+                                unsigned char changed1[BLOCK_M];
+                                softmax_tile(s_head0, s_head0, m_vec0, l_vec0, scale_factors0, changed0, block_m, block_n2);
+                                softmax_tile(s_head1, s_head1, m_vec1, l_vec1, scale_factors1, changed1, block_m, block_n2);
+
+                                for (int i = 0; i < block_m; i++)
+                                {
+                                    if (changed0[i])
+                                    {
+                                        vec_scale(o_ptr0 + i * out_embed_dim, scale_factors0[i], out_embed_dim);
+                                    }
+                                    if (changed1[i])
+                                    {
+                                        vec_scale(o_ptr1 + i * out_embed_dim, scale_factors1[i], out_embed_dim);
+                                    }
+                                }
+
+                                if (n_start2 == 0)
+                                    pv_gemm_2heads_4096_avx512<4, 32, true>(o_ptr0, o_ptr1, s_head0, s_head1, value_head.row(n_start2), block_m, block_n2);
+                                else
+                                    pv_gemm_2heads_4096_avx512<4, 32>(o_ptr0, o_ptr1, s_head0, s_head1, value_head.row(n_start2), block_m, block_n2);
+                            }
+
+                            for (; hq < num_heads_per_group; hq++)
+                            {
+                                int q = g * num_heads_per_group + hq;
+                                const Mat query_head = query_ref.channel(q);
+                                const float* q_ptr = query_head.row(m_start);
+                                float* s_head = s_ptr + hq * block_m * block_n2;
+
+                                qk_gemm_specialized_avx512_large_m<4096>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+
+                                float* m_vec = m_state_tile.row(hq);
+                                float* l_vec = l_state_tile.row(hq);
+                                float* o_ptr = o_accum_thread.row(hq * block_m);
+
+                                float scale_factors[BLOCK_M];
+                                unsigned char changed[BLOCK_M];
+                                softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, changed, block_m, block_n2);
+
+                                for (int i = 0; i < block_m; i++)
+                                {
+                                    if (changed[i])
+                                    {
+                                        vec_scale(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
+                                    }
+                                }
+
+                                if (n_start2 == 0)
+                                    pv_gemm_avx512<4, 64, true>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
+                                else
+                                    pv_gemm_avx512<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
+                            }
+
+                            continue;
+                        }
+#endif
+
+                        for (int hq = 0; hq < num_heads_per_group; hq++)
+                        {
+                            int q = g * num_heads_per_group + hq;
+                            const Mat query_head = query_ref.channel(q);
+
+                            const float* q_ptr = query_head.row(m_start);
+                            float* s_head = s_ptr + hq * block_m * block_n2;
+
+#if NCNN_BF16
+                            if (use_bf16_path)
+                            {
+#if __AVX512F__
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
+                                if (ncnn::cpu_support_x86_avx512_bf16())
+                                {
+                                    const Mat query_bf16_head = query_bf16_ref.channel(q);
+                                    qk_gemm_bf16s_avx512bf16_qbf16(s_head,
+                                                                   query_bf16_head.row<const unsigned short>(m_start),
+                                                                   key_head.row<const unsigned short>(n_start2),
+                                                                   block_m, block_n2, embed_dim, _scale);
+                                }
+                                else
+#endif
+                                {
+                                    qk_gemm_bf16s_avx512_kernel(s_head,
+                                                                q_ptr,
+                                                                key_head.row<const unsigned short>(n_start2),
+                                                                block_m, block_n2, embed_dim, _scale);
+                                }
+#elif __AVX__
+                                qk_gemm_bf16s_avx_kernel(s_head,
+                                                         q_ptr,
+                                                         key_head.row<const unsigned short>(n_start2),
+                                                         block_m, block_n2, embed_dim, _scale);
+#elif __SSE2__
+                                qk_gemm_bf16s_sse2_kernel(s_head,
+                                                          q_ptr,
+                                                          key_head.row<const unsigned short>(n_start2),
+                                                          block_m, block_n2, embed_dim, _scale);
+#else
+                                qk_gemm_bf16s_scalar_kernel(s_head,
+                                                            q_ptr,
+                                                            key_head.row<const unsigned short>(n_start2),
+                                                            block_m, block_n2, embed_dim, _scale);
+#endif
+                            }
+                            else
+#endif
+                            {
+                                switch (embed_dim)
+                                {
+                                case 128:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<128>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<128>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<128>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 64:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<64>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<64>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<64>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 512:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<512>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<512>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<512>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 256:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<256>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<256>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<256>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 32:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<32>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<32>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<32>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 80:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<80>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<80>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<80>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 96:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<96>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<96>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<96>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 160:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<160>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<160>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<160>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 1024:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<1024>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<1024>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<1024>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 2048:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<2048>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<2048>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<2048>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 4096:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512_large_m<4096>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_avx(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, 4096, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_sse2(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, 4096, _scale);
+                                    break;
+#endif
+                                case 768:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<768>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<768>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<768>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 1536:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<1536>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<1536>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<1536>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                case 3072:
+#if __AVX512F__
+                                    qk_gemm_specialized_avx512<3072>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __AVX__
+                                    qk_gemm_specialized_avx<3072>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#elif __SSE2__
+                                    qk_gemm_specialized_sse2<3072>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                                    break;
+#endif
+                                default:
+#if __AVX512F__
+                                    qk_gemm_avx512(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
+#elif __AVX__
+                                    qk_gemm_avx(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
+#elif __SSE2__
+                                    qk_gemm_sse2(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
+#else
+                                    qk_gemm_scalar(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
+#endif
+                                    break;
+                                }
+                            }
+
+                            if (attn_mask && mask_data[hq])
+                            {
+                                for (int i = 0; i < block_m; i++)
+                                {
+                                    const float* mptr = mask_data[hq] + (m_start + i) * mask_stride[hq] + n_start2;
+                                    float* sptr = s_head + i * block_n2;
+                                    decode_mask_vec(sptr, mptr, block_n2);
+                                }
+                            }
+
+                            float* m_vec = m_state_tile.row(hq);
+                            float* l_vec = l_state_tile.row(hq);
+                            float* o_ptr = o_accum_thread.row(hq * block_m);
+
+                            float scale_factors[BLOCK_M];
+                            unsigned char changed[BLOCK_M];
+                            softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, changed, block_m, block_n2);
+
+                            for (int i = 0; i < block_m; i++)
+                            {
+                                if (changed[i])
+                                {
+                                    vec_scale(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
+                                }
+                            }
+
+#if NCNN_BF16
+                            if (use_bf16_path)
+                            {
+#if __AVX512F__
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
+                                if (ncnn::cpu_support_x86_avx512_bf16())
+                                {
+                                    pv_gemm_bf16s_avx512bf16(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                             block_m, block_n2, out_embed_dim, n_start2 == 0 && out_embed_dim == 4096);
+                                }
+                                else
+#endif
+                                {
+                                    pv_gemm_bf16s_avx512_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                                block_m, block_n2, out_embed_dim);
+                                }
+#elif __AVX__
+                                pv_gemm_bf16s_avx_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                         block_m, block_n2, out_embed_dim);
+#elif __SSE2__
+                                pv_gemm_bf16s_sse2_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                          block_m, block_n2, out_embed_dim);
+#else
+                                pv_gemm_bf16s_scalar_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                            block_m, block_n2, out_embed_dim);
+#endif
+                            }
+                            else
+#endif
+                            {
+                                switch (out_embed_dim)
+                                {
+                                case 128:
+#if __AVX512F__
+                                    pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                                    break;
+#endif
+                                case 64:
+#if __AVX512F__
+                                    pv_gemm_avx512<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                                    break;
+#endif
+                                case 256:
+#if __AVX512F__
+                                    pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 256);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 256);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 256);
+                                    break;
+#endif
+                                case 512:
+#if __AVX512F__
+                                    pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 512);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 512);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 512);
+                                    break;
+#endif
+                                case 1024:
+#if __AVX512F__
+                                    pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1024);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1024);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1024);
+                                    break;
+#endif
+                                case 2048:
+#if __AVX512F__
+                                    pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 2048);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 2048);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 2048);
+                                    break;
+#endif
+                                case 4096:
+#if __AVX512F__
+                                    if (n_start2 == 0)
+                                        pv_gemm_avx512<4, 64, true>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
+                                    else
+                                        pv_gemm_avx512<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
+                                    break;
+#endif
+                                case 768:
+#if __AVX512F__
+                                    pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 768);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 768);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 768);
+                                    break;
+#endif
+                                case 1536:
+#if __AVX512F__
+                                    pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1536);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1536);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1536);
+                                    break;
+#endif
+                                case 3072:
+#if __AVX512F__
+                                    pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 3072);
+                                    break;
+#elif __AVX__
+                                    pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 3072);
+                                    break;
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 3072);
+                                    break;
+#endif
+                                default:
+#if __AVX512F__
+                                    pv_gemm_avx512<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
+#elif __AVX__
+                                    pv_gemm_avx<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
+#elif __SSE2__
+                                    pv_gemm_sse2<2, 16>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
+#else
+                                    pv_gemm_scalar(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
+#endif
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Normalize all Q heads for this M tile and write back to top_blob
+        for (int hq = 0; hq < num_heads_per_group; hq++)
+        {
+            int q = g * num_heads_per_group + hq;
+            Mat top_blob_head = top_blob.channel(q);
+            float* l_vec = l_state_tile.row(hq);
+            float* o_ptr = o_accum_thread.row(hq * block_m);
+
+            for (int i = 0; i < block_m; i++)
+            {
+                float* outptr = top_blob_head.row(m_start + i);
+                float inv_l = 1.f / l_vec[i];
+                int k = 0;
+#if __AVX512F__
+                __m512 vinv_l = _mm512_set1_ps(inv_l);
+                for (; k + 15 < out_embed_dim; k += 16)
+                {
+                    _mm512_storeu_ps(outptr + k, _mm512_mul_ps(_mm512_loadu_ps(o_ptr + i * out_embed_dim + k), vinv_l));
+                }
+                if (k < out_embed_dim)
+                {
+                    __mmask16 mask = (__mmask16)((1u << (out_embed_dim - k)) - 1);
+                    _mm512_mask_storeu_ps(outptr + k, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, o_ptr + i * out_embed_dim + k), vinv_l));
+                    k = out_embed_dim;
+                }
+#elif __AVX__
+                __m256 vinv_l = _mm256_set1_ps(inv_l);
+                for (; k + 7 < out_embed_dim; k += 8)
+                {
+                    _mm256_storeu_ps(outptr + k, _mm256_mul_ps(_mm256_loadu_ps(o_ptr + i * out_embed_dim + k), vinv_l));
+                }
+#elif __SSE2__
+                __m128 vinv_l = _mm_set1_ps(inv_l);
+                for (; k + 3 < out_embed_dim; k += 4)
+                {
+                    _mm_storeu_ps(outptr + k, _mm_mul_ps(_mm_loadu_ps(o_ptr + i * out_embed_dim + k), vinv_l));
+                }
+#endif
+                for (; k < out_embed_dim; k++)
+                {
+                    outptr[k] = o_ptr[i * out_embed_dim + k] * inv_l;
+                }
+            }
+        }
+    }
+
+    if (kv_cache)
+    {
+        top_blobs[1] = key;
+        top_blobs[2] = value;
+    }
+
+    return 0;
+}
+
+static int sdpa_quantize_key_value_int8_x86(const Mat& key, const Mat& value,
+        Mat& key_int8, Mat& key_scales, Mat& value_int8, Mat& value_scales,
+        int num_group, int dst_seqlen, int embed_dim, int out_embed_dim, int v_num_blocks,
+        bool cache_valid, int past_seqlen, bool kv_cache,
+        const Option& opt)
+{
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int g = 0; g < num_group; g++)
+    {
+        const Mat key_head = key.channel(g);
+        Mat key_int8_head = key_int8.channel(g);
+        Mat key_scales_head = key_scales.channel(g);
+        int j_start = cache_valid ? past_seqlen : 0;
+        for (int j = j_start; j < dst_seqlen; j++)
+        {
+            dynamic_quantize_rowwise(key_head.row(j), key_int8_head.row<signed char>(j), key_scales_head.row(j), embed_dim);
+            key_scales_head.row(j)[0] = 1.f / key_scales_head.row(j)[0];
+        }
+
+        if (kv_cache)
+        {
+            const Mat value_head = value.channel(g);
+            Mat value_int8_head = value_int8.channel(g);
+            Mat value_scales_head = value_scales.channel(g);
+            for (int j = j_start; j < dst_seqlen; j++)
+            {
+                dynamic_quantize_blockwise(value_head.row(j), value_int8_head.row<signed char>(j), value_scales_head.row(j), out_embed_dim);
+                for (int vb = 0; vb < v_num_blocks; vb++)
+                {
+                    value_scales_head.row(j)[vb] = 1.f / value_scales_head.row(j)[vb];
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+static int sdpa_decode_int8_x86(
+    const Mat& query,
+    const Mat& key_int8,
+    const Mat& key_scales,
+    const Mat& value_int8,
+    const Mat& value_scales,
+    Mat& top_blob,
+    const Mat& attn_mask_ref,
+    const Option& opt,
+    int embed_dim,
+    int num_heads,
+    int num_group,
+    int out_embed_dim,
+    int dst_seqlen,
+    int num_heads_per_group,
+    float _scale,
+    int attn_mask,
+    Mat& o_accum,
+    Mat& s_vec,
+    Mat& q_int8_tile,
+    Mat& q_scales_tile)
+{
+    const int BLOCK_N = 128;
+    // Decode path with dedicated int8 GEMV kernels
+    // For GQA/MQA, group-parallel reduces KV cache contention
+    const bool group_parallel = num_group >= opt.num_threads;
+
+    if (group_parallel)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int g = 0; g < num_group; g++)
+        {
+            const Mat key_int8_head = key_int8.channel(g);
+            const Mat key_scales_head = key_scales.channel(g);
+            const Mat value_int8_head = value_int8.channel(g);
+            const Mat value_scales_head = value_scales.channel(g);
+
+            for (int hq = 0; hq < num_heads_per_group; hq++)
+            {
+                int q = g * num_heads_per_group + hq;
+                const Mat query_head = query.channel(q);
+                Mat top_blob_head = top_blob.channel(q);
+
+                signed char* q_int8 = q_int8_tile.channel(get_omp_thread_num());
+                float* q_scale = q_scales_tile.channel(get_omp_thread_num());
+                dynamic_quantize_rowwise(query_head.row(0), q_int8, q_scale, embed_dim);
+                q_scale[0] = 1.f / q_scale[0];
+
+                float* s = s_vec.channel(get_omp_thread_num());
+                float* out = o_accum.channel(get_omp_thread_num());
+                vec_zero(out, out_embed_dim);
+
+                const float* mask_ptr = nullptr;
+                if (attn_mask)
+                {
+                    const Mat& maskm = attn_mask_ref;
+                    Mat mask_head;
+                    if (maskm.dims == 3)
+                    {
+                        mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
+                    }
+                    else
+                    {
+                        mask_head = maskm;
+                    }
+                    mask_ptr = mask_head.row(0);
+                }
+
+                float m = -FLT_MAX;
+                float l = 0.f;
+
+                for (int n_start = 0; n_start < dst_seqlen; n_start += BLOCK_N)
+                {
+                    int block_n = std::min(BLOCK_N, dst_seqlen - n_start);
+
+                    sdpa_int8_decode_core(s, out, &m, &l,
+                                          q_int8, q_scale,
+                                          key_int8_head.row<const signed char>(0),
+                                          key_scales_head.row(0),
+                                          value_int8_head.row<const signed char>(0),
+                                          value_scales_head.row(0),
+                                          mask_ptr,
+                                          n_start, block_n, embed_dim, out_embed_dim, _scale);
+                }
+
+                float* outptr = top_blob_head.row(0);
+                float inv_l = 1.f / l;
+                memcpy(outptr, out, out_embed_dim * sizeof(float));
+                vec_scale(outptr, inv_l, out_embed_dim);
+            }
+        }
+    }
+    else
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_heads; q++)
+        {
+            const Mat query_head = query.channel(q);
+            const Mat key_int8_head = key_int8.channel(q / num_heads_per_group);
+            const Mat key_scales_head = key_scales.channel(q / num_heads_per_group);
+            const Mat value_int8_head = value_int8.channel(q / num_heads_per_group);
+            const Mat value_scales_head = value_scales.channel(q / num_heads_per_group);
+            Mat top_blob_head = top_blob.channel(q);
+
+            signed char* q_int8 = q_int8_tile.channel(get_omp_thread_num());
+            float* q_scale = q_scales_tile.channel(get_omp_thread_num());
+            dynamic_quantize_rowwise(query_head.row(0), q_int8, q_scale, embed_dim);
+            q_scale[0] = 1.f / q_scale[0];
+
+            float* s = s_vec.channel(get_omp_thread_num());
+            float* out = o_accum.channel(get_omp_thread_num());
+            vec_zero(out, out_embed_dim);
+
+            const float* mask_ptr = nullptr;
+            if (attn_mask)
+            {
+                const Mat& maskm = attn_mask_ref;
+                Mat mask_head;
+                if (maskm.dims == 3)
+                {
+                    mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
+                }
+                else
+                {
+                    mask_head = maskm;
+                }
+                mask_ptr = mask_head.row(0);
+            }
+
+            float m = -FLT_MAX;
+            float l = 0.f;
+
+            for (int n_start = 0; n_start < dst_seqlen; n_start += BLOCK_N)
+            {
+                int block_n = std::min(BLOCK_N, dst_seqlen - n_start);
+
+                sdpa_int8_decode_core(s, out, &m, &l,
+                                      q_int8, q_scale,
+                                      key_int8_head.row<const signed char>(0),
+                                      key_scales_head.row(0),
+                                      value_int8_head.row<const signed char>(0),
+                                      value_scales_head.row(0),
+                                      mask_ptr,
+                                      n_start, block_n, embed_dim, out_embed_dim, _scale);
+            }
+
+            float* outptr = top_blob_head.row(0);
+            float inv_l = 1.f / l;
+            memcpy(outptr, out, out_embed_dim * sizeof(float));
+            vec_scale(outptr, inv_l, out_embed_dim);
+        }
+    }
+
+    return 0;
+}
+
+static int sdpa_prefill_int8_x86(
+    const Mat& query,
+    const Mat& key_int8,
+    const Mat& key_scales,
+    const Mat& value_int8,
+    const Mat& value_scales,
+    Mat& top_blob,
+    const Mat& attn_mask_ref,
+    const Option& opt,
+    int embed_dim,
+    int num_heads,
+    int out_embed_dim,
+    int src_seqlen,
+    int dst_seqlen,
+    int num_heads_per_group,
+    float _scale,
+    int attn_mask,
+    int kv_cache,
+    Mat& o_accum,
+    Mat& s_vec,
+    Mat& p_vec,
+    Mat& q_int8_tile,
+    Mat& q_scales_tile,
+    const Mat& value)
+{
+    const int BLOCK_M = 64;
+    const int BLOCK_N = 128;
+#if __AVX512F__
+    const bool skip_o_accum_zero = !kv_cache && out_embed_dim == 4096;
+#else
+    const bool skip_o_accum_zero = false;
+#endif
+
+#if __AVX512F__
+    if (!kv_cache && !attn_mask && out_embed_dim == 4096 && num_heads_per_group >= 2)
+    {
+        const int num_group = num_heads / num_heads_per_group;
+        const int num_m_tiles = (src_seqlen + BLOCK_M - 1) / BLOCK_M;
+        const int num_head_pairs = (num_heads_per_group + 1) / 2;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int task = 0; task < num_group * num_m_tiles * num_head_pairs; task++)
+        {
+            int pair_idx = task % num_head_pairs;
+            int tmp = task / num_head_pairs;
+            int m_tile = tmp % num_m_tiles;
+            int g = tmp / num_m_tiles;
+
+            int hq0 = pair_idx * 2;
+            int hq1 = hq0 + 1;
+            int q0 = g * num_heads_per_group + hq0;
+            int q1 = q0 + 1;
+            bool has_q1 = hq1 < num_heads_per_group;
+
+            const Mat query_head0 = query.channel(q0);
+            const Mat query_head1 = has_q1 ? query.channel(q1) : Mat();
+            const Mat key_int8_head = key_int8.channel(g);
+            const Mat key_scales_head = key_scales.channel(g);
+            const Mat value_head = value.channel(g);
+            Mat top_blob_head0 = top_blob.channel(q0);
+            Mat top_blob_head1 = has_q1 ? top_blob.channel(q1) : Mat();
+
+            Mat o_accum_head = o_accum.channel(get_omp_thread_num());
+            float* s_vec_ptr0 = s_vec.row(get_omp_thread_num());
+            float* s_vec_ptr1 = s_vec_ptr0 + BLOCK_M * BLOCK_N;
+            float* p_vec_ptr0 = p_vec.row(get_omp_thread_num());
+            float* p_vec_ptr1 = p_vec_ptr0 + BLOCK_M * BLOCK_N;
+            Mat q_int8_tile_head = q_int8_tile.channel(get_omp_thread_num());
+            Mat q_scales_tile_head = q_scales_tile.channel(get_omp_thread_num());
+
+            int m_start = m_tile * BLOCK_M;
+            int m_end = m_start + BLOCK_M < src_seqlen ? m_start + BLOCK_M : src_seqlen;
+            int block_m = m_end - m_start;
+
+            for (int i = 0; i < block_m; i++)
+            {
+                dynamic_quantize_rowwise(query_head0.row(m_start + i), q_int8_tile_head.row<signed char>(i), q_scales_tile_head.row(i), embed_dim);
+                q_scales_tile_head.row(i)[0] = 1.f / q_scales_tile_head.row(i)[0];
+
+                if (has_q1)
+                {
+                    dynamic_quantize_rowwise(query_head1.row(m_start + i), q_int8_tile_head.row<signed char>(BLOCK_M + i), q_scales_tile_head.row(BLOCK_M + i), embed_dim);
+                    q_scales_tile_head.row(BLOCK_M + i)[0] = 1.f / q_scales_tile_head.row(BLOCK_M + i)[0];
+                }
+            }
+
+            float m_vec0[BLOCK_M];
+            float l_vec0[BLOCK_M];
+            float m_vec1[BLOCK_M];
+            float l_vec1[BLOCK_M];
+            for (int i = 0; i < block_m; i++)
+            {
+                m_vec0[i] = -FLT_MAX;
+                l_vec0[i] = 0.f;
+                m_vec1[i] = -FLT_MAX;
+                l_vec1[i] = 0.f;
+            }
+
+            float* o_ptr0 = o_accum_head.row(0);
+            float* o_ptr1 = o_accum_head.row(BLOCK_M);
+
+            for (int n_start = 0; n_start < dst_seqlen; n_start += BLOCK_N)
+            {
+                int n_end = n_start + BLOCK_N < dst_seqlen ? n_start + BLOCK_N : dst_seqlen;
+                int block_n = n_end - n_start;
+
+                qk_int8_gemm_tiled(s_vec_ptr0,
+                                   q_int8_tile_head.row<const signed char>(0),
+                                   key_int8_head.row<const signed char>(n_start),
+                                   q_scales_tile_head.row(0),
+                                   key_scales_head.row(n_start),
+                                   block_m, block_n, embed_dim, _scale);
+
+                if (has_q1)
+                {
+                    qk_int8_gemm_tiled(s_vec_ptr1,
+                                       q_int8_tile_head.row<const signed char>(BLOCK_M),
+                                       key_int8_head.row<const signed char>(n_start),
+                                       q_scales_tile_head.row(BLOCK_M),
+                                       key_scales_head.row(n_start),
+                                       block_m, block_n, embed_dim, _scale);
+                }
+
+                float scale_factors0[BLOCK_M];
+                unsigned char changed0[BLOCK_M];
+                softmax_tile(p_vec_ptr0, s_vec_ptr0, m_vec0, l_vec0, scale_factors0, changed0, block_m, block_n);
+
+                float scale_factors1[BLOCK_M];
+                unsigned char changed1[BLOCK_M];
+                if (has_q1)
+                    softmax_tile(p_vec_ptr1, s_vec_ptr1, m_vec1, l_vec1, scale_factors1, changed1, block_m, block_n);
+
+                for (int i = 0; i < block_m; i++)
+                {
+                    if (changed0[i])
+                        vec_scale(o_ptr0 + i * 4096, scale_factors0[i], 4096);
+                    if (has_q1 && changed1[i])
+                        vec_scale(o_ptr1 + i * 4096, scale_factors1[i], 4096);
+                }
+
+                if (has_q1)
+                {
+                    if (n_start == 0)
+                        pv_gemm_2heads_4096_avx512<16, 16, true>(o_ptr0, o_ptr1, p_vec_ptr0, p_vec_ptr1, value_head.row(n_start), block_m, block_n);
+                    else
+                        pv_gemm_2heads_4096_avx512<8, 16>(o_ptr0, o_ptr1, p_vec_ptr0, p_vec_ptr1, value_head.row(n_start), block_m, block_n);
+                }
+                else
+                {
+                    if (n_start == 0)
+                        pv_gemm_avx512<4, 64, true>(o_ptr0, p_vec_ptr0, value_head.row(n_start), block_m, block_n, 4096);
+                    else
+                        pv_gemm_avx512<4, 64>(o_ptr0, p_vec_ptr0, value_head.row(n_start), block_m, block_n, 4096);
+                }
+            }
+
+            for (int i = 0; i < block_m; i++)
+            {
+                const float* optr0 = o_ptr0 + i * 4096;
+                float* outptr0 = top_blob_head0.row(m_start + i);
+                __m512 vinv_l0 = _mm512_set1_ps(1.f / l_vec0[i]);
+                for (int k = 0; k < 4096; k += 16)
+                    _mm512_storeu_ps(outptr0 + k, _mm512_mul_ps(_mm512_loadu_ps(optr0 + k), vinv_l0));
+
+                if (has_q1)
+                {
+                    const float* optr1 = o_ptr1 + i * 4096;
+                    float* outptr1 = top_blob_head1.row(m_start + i);
+                    __m512 vinv_l1 = _mm512_set1_ps(1.f / l_vec1[i]);
+                    for (int k = 0; k < 4096; k += 16)
+                        _mm512_storeu_ps(outptr1 + k, _mm512_mul_ps(_mm512_loadu_ps(optr1 + k), vinv_l1));
+                }
+            }
+        }
+
+        return 0;
+    }
+#endif
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < num_heads; q++)
+    {
+        const Mat query_head = query.channel(q);
+        const Mat key_int8_head = key_int8.channel(q / num_heads_per_group);
+        const Mat key_scales_head = key_scales.channel(q / num_heads_per_group);
+        const Mat value_int8_head = value_int8.channel(q / num_heads_per_group);
+        const Mat value_scales_head = value_scales.channel(q / num_heads_per_group);
+        Mat top_blob_head = top_blob.channel(q);
+
+        Mat mask_head;
+        if (attn_mask)
+        {
+            const Mat& maskm = attn_mask_ref;
+            if (maskm.dims == 3)
+            {
+                mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
+            }
+            else
+            {
+                mask_head = maskm;
+            }
+        }
+
+        Mat o_accum_head = o_accum.channel(get_omp_thread_num());
+        float* s_vec_ptr = s_vec.row(get_omp_thread_num());
+        float* p_vec_ptr = p_vec.row(get_omp_thread_num());
+        Mat q_int8_tile_head = q_int8_tile.channel(get_omp_thread_num());
+        Mat q_scales_tile_head = q_scales_tile.channel(get_omp_thread_num());
+
+        for (int m_start = 0; m_start < src_seqlen; m_start += BLOCK_M)
+        {
+            int m_end = m_start + BLOCK_M < src_seqlen ? m_start + BLOCK_M : src_seqlen;
+            int block_m = m_end - m_start;
+
+            for (int i = 0; i < block_m; i++)
+            {
+                dynamic_quantize_rowwise(query_head.row(m_start + i), q_int8_tile_head.row<signed char>(i), q_scales_tile_head.row(i), embed_dim);
+                q_scales_tile_head.row(i)[0] = 1.f / q_scales_tile_head.row(i)[0];
+            }
+
+            for (int i = 0; i < block_m; i++)
+            {
+                float* optr = o_accum_head.row(i);
+                if (!skip_o_accum_zero)
+                    vec_zero(optr, out_embed_dim);
+            }
+
+            float m_vec[BLOCK_M];
+            float l_vec[BLOCK_M];
+            for (int i = 0; i < block_m; i++)
+            {
+                m_vec[i] = -FLT_MAX;
+                l_vec[i] = 0.f;
+            }
+
+            for (int n_start = 0; n_start < dst_seqlen; n_start += BLOCK_N)
+            {
+                int n_end = n_start + BLOCK_N < dst_seqlen ? n_start + BLOCK_N : dst_seqlen;
+                int block_n = n_end - n_start;
+
+                if (block_m == 1)
+                {
+                    qk_int8_gemm_row(s_vec_ptr,
+                                     q_int8_tile_head.row<const signed char>(0),
+                                     key_int8_head.row<const signed char>(n_start),
+                                     q_scales_tile_head.row(0)[0],
+                                     key_scales_head.row(n_start),
+                                     block_n, embed_dim, _scale);
+                }
+                else
+                {
+                    qk_int8_gemm_tiled(s_vec_ptr,
+                                       q_int8_tile_head.row<const signed char>(0),
+                                       key_int8_head.row<const signed char>(n_start),
+                                       q_scales_tile_head.row(0),
+                                       key_scales_head.row(n_start),
+                                       block_m, block_n, embed_dim, _scale);
+                }
+
+                if (attn_mask)
+                {
+                    for (int i = 0; i < block_m; i++)
+                    {
+                        float* s_row = s_vec_ptr + i * block_n;
+                        decode_mask_vec(s_row, mask_head.row(m_start + i) + n_start, block_n);
+                    }
+                }
+
+                float scale_factors[BLOCK_M];
+                unsigned char changed[BLOCK_M];
+                softmax_tile(p_vec_ptr, s_vec_ptr, m_vec, l_vec, scale_factors, changed, block_m, block_n);
+
+                for (int i = 0; i < block_m; i++)
+                {
+                    if (changed[i])
+                        vec_scale(o_accum_head.row(i), scale_factors[i], out_embed_dim);
+                }
+
+                if (kv_cache)
+                {
+                    pv_float_int8_gemm_tile(o_accum_head.row(0), p_vec_ptr,
+                                            value_int8_head.row<const signed char>(n_start),
+                                            value_scales_head.row(n_start),
+                                            block_m, block_n, out_embed_dim);
+                }
+                else
+                {
+                    switch (out_embed_dim)
+                    {
+                    case 128:
+#if __AVX512F__
+                        pv_gemm_avx512<2, 128>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<2, 128>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<2, 128>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n);
+                        break;
+#endif
+                    case 64:
+#if __AVX512F__
+                        pv_gemm_avx512<4, 64>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<4, 64>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<4, 64>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n);
+                        break;
+#endif
+                    case 256:
+#if __AVX512F__
+                        pv_gemm_avx512<2, 128>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 256);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<2, 64>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 256);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<2, 32>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 256);
+                        break;
+#endif
+                    case 512:
+#if __AVX512F__
+                        pv_gemm_avx512<2, 128>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 512);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<2, 64>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 512);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<2, 32>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 512);
+                        break;
+#endif
+                    case 1024:
+#if __AVX512F__
+                        pv_gemm_avx512<2, 128>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 1024);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<2, 64>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 1024);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<2, 32>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 1024);
+                        break;
+#endif
+                    case 2048:
+#if __AVX512F__
+                        pv_gemm_avx512<2, 128>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 2048);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<2, 64>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 2048);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<2, 32>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 2048);
+                        break;
+#endif
+                    case 4096:
+#if __AVX512F__
+                        if (n_start == 0)
+                            pv_gemm_avx512<4, 64, true>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 4096);
+                        else
+                            pv_gemm_avx512<4, 64>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 4096);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<2, 64>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 4096);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<2, 32>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 4096);
+                        break;
+#endif
+                    case 768:
+#if __AVX512F__
+                        pv_gemm_avx512<2, 128>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 768);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<2, 64>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 768);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<2, 32>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 768);
+                        break;
+#endif
+                    case 1536:
+#if __AVX512F__
+                        pv_gemm_avx512<2, 128>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 1536);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<2, 64>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 1536);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<2, 32>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 1536);
+                        break;
+#endif
+                    case 3072:
+#if __AVX512F__
+                        pv_gemm_avx512<2, 128>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 3072);
+                        break;
+#elif __AVX__
+                        pv_gemm_avx<2, 64>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 3072);
+                        break;
+#elif __SSE2__
+                        pv_gemm_sse2<2, 32>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, 3072);
+                        break;
+#endif
+                    default:
+#if __AVX512F__
+                        pv_gemm_avx512<4, 64>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, out_embed_dim);
+#elif __AVX__
+                        pv_gemm_avx<2, 32>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, out_embed_dim);
+#elif __SSE2__
+                        pv_gemm_sse2<2, 16>(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, out_embed_dim);
+#else
+                        pv_gemm_scalar(o_accum_head.row(0), p_vec_ptr, value.channel(q / num_heads_per_group).row(n_start), block_m, block_n, out_embed_dim);
+#endif
+                        break;
+                    }
+                }
+            }
+
+            for (int i = 0; i < block_m; i++)
+            {
+                float* optr = o_accum_head.row(i);
+                float* outptr = top_blob_head.row(m_start + i);
+                float inv_l = 1.f / l_vec[i];
+                int k = 0;
+#if __AVX512F__
+                __m512 vinv_l = _mm512_set1_ps(inv_l);
+                for (; k + 15 < out_embed_dim; k += 16)
+                    _mm512_storeu_ps(outptr + k, _mm512_mul_ps(_mm512_loadu_ps(optr + k), vinv_l));
+                if (k < out_embed_dim)
+                {
+                    __mmask16 mask = (__mmask16)((1u << (out_embed_dim - k)) - 1);
+                    _mm512_mask_storeu_ps(outptr + k, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, optr + k), vinv_l));
+                }
+#elif __AVX__
+                __m256 vinv_l256 = _mm256_set1_ps(inv_l);
+                for (; k + 7 < out_embed_dim; k += 8)
+                    _mm256_storeu_ps(outptr + k, _mm256_mul_ps(_mm256_loadu_ps(optr + k), vinv_l256));
+#elif __SSE2__
+                __m128 vinv_l128 = _mm_set1_ps(inv_l);
+                for (; k + 3 < out_embed_dim; k += 4)
+                    _mm_storeu_ps(outptr + k, _mm_mul_ps(_mm_loadu_ps(optr + k), vinv_l128));
+#endif
+                for (; k < out_embed_dim; k++)
+                    outptr[k] = optr[k] * inv_l;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int sdpa_decode_bf16s_x86(
+    const Mat& query_ref,
+    const Mat& key,
+    const Mat& value,
+    Mat& top_blob,
+    const Mat& attn_mask_ref,
+    const Option& opt,
+    int embed_dim,
+    int num_heads,
+    int num_group,
+    int out_embed_dim,
+    int dst_seqlen,
+    int num_heads_per_group,
+    float _scale,
+    int attn_mask)
+{
+    const int BLOCK_N = 128;
+    const bool use_split_kv = opt.num_threads > 1 && dst_seqlen >= BLOCK_N * 2;
+    if (use_split_kv)
+    {
+        const int num_kv_chunks = opt.num_threads;
+        Mat partials(2 + out_embed_dim, num_kv_chunks, num_heads, 4u, opt.workspace_allocator);
+        if (partials.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int task = 0; task < num_heads * num_kv_chunks; task++)
+        {
+            int q = task / num_kv_chunks;
+            int chunk = task % num_kv_chunks;
+
+            int n_start = chunk * dst_seqlen / num_kv_chunks;
+            int n_end = (chunk + 1 == num_kv_chunks) ? dst_seqlen : (chunk + 1) * dst_seqlen / num_kv_chunks;
+
+            int g = q / num_heads_per_group;
+            const Mat key_head = key.channel(g);
+            const Mat value_head = value.channel(g);
+            const Mat query_head = query_ref.channel(q);
+
+            const float* qptr = query_head.row(0);
+            const unsigned short* Kptr = key_head.row<const unsigned short>(0);
+            const unsigned short* Vptr = value_head.row<const unsigned short>(0);
+
+            const float* mask_ptr = nullptr;
+            if (attn_mask)
+            {
+                const Mat& maskm = attn_mask_ref;
+                Mat mask_head;
+                if (maskm.dims == 3)
+                {
+                    mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
+                }
+                else
+                {
+                    mask_head = maskm;
+                }
+                mask_ptr = mask_head.row(0);
+            }
+
+            float* p = partials.channel(q).row(chunk);
+            float* out = p + 2;
+            float* m_out = p;
+            float* l_out = p + 1;
+            const int BLOCK_N = 128;
+#if __AVX512F__
+            __attribute__((aligned(64))) float s[BLOCK_N];
+#elif __AVX__
+            __attribute__((aligned(32))) float s[BLOCK_N];
+#elif __SSE2__
+            __attribute__((aligned(16))) float s[BLOCK_N];
+#else
+            float s[BLOCK_N];
+#endif
+
+            vec_zero(out, out_embed_dim);
+            float m = -FLT_MAX;
+            float l = 0.f;
+
+            for (int n = n_start; n < n_end; n += BLOCK_N)
+            {
+                int block_n = std::min(BLOCK_N, n_end - n);
+
+#if __AVX512F__
+                decode_qk_dot_bf16s_avx512_kernel(s, qptr, Kptr, n, block_n, embed_dim, _scale);
+#elif __AVX__
+                decode_qk_dot_bf16s_avx_kernel(s, qptr, Kptr, n, block_n, embed_dim, _scale);
+#elif __SSE2__
+                decode_qk_dot_bf16s_sse2_kernel(s, qptr, Kptr, n, block_n, embed_dim, _scale);
+#else
+                decode_qk_dot_bf16s_scalar_kernel(s, qptr, Kptr, n, block_n, embed_dim, _scale);
+#endif
+
+                if (mask_ptr)
+                    decode_mask_vec(s, mask_ptr + n, block_n);
+
+                float tile_m = decode_max_vec(s, block_n);
+                float new_m = std::max(m, tile_m);
+                if (m != new_m)
+                {
+                    float scale_factor = expf(m - new_m);
+                    l *= scale_factor;
+                    vec_scale(out, scale_factor, out_embed_dim);
+                }
+
+                float l_add;
+                decode_exp_sum_vec(s, block_n, new_m, &l_add);
+                l += l_add;
+
+#if __AVX512F__
+                decode_pv_gemv_bf16s_avx512_kernel(out, s, Vptr, n, block_n, out_embed_dim);
+#elif __AVX__
+                decode_pv_gemv_bf16s_avx_kernel(out, s, Vptr, n, block_n, out_embed_dim);
+#elif __SSE2__
+                decode_pv_gemv_bf16s_sse2_kernel(out, s, Vptr, n, block_n, out_embed_dim);
+#else
+                decode_pv_gemv_bf16s_scalar_kernel(out, s, Vptr, n, block_n, out_embed_dim);
+#endif
+
+                m = new_m;
+            }
+
+            *m_out = m;
+            *l_out = l;
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_heads; q++)
+        {
+            Mat top_blob_head = top_blob.channel(q);
+            float* outptr = top_blob_head.row(0);
+            sdpa_decode_reduce_bf16s(outptr, out_embed_dim,
+                                     partials.channel(q), num_kv_chunks, 2 + out_embed_dim);
+        }
+    }
+    else
+    {
+        const bool group_parallel = num_group >= opt.num_threads;
+
+        if (group_parallel)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int g = 0; g < num_group; g++)
+            {
+                const Mat key_head = key.channel(g);
+                const Mat value_head = value.channel(g);
+
+                for (int hq = 0; hq < num_heads_per_group; hq++)
+                {
+                    int q = g * num_heads_per_group + hq;
+                    const Mat query_head = query_ref.channel(q);
+                    Mat top_blob_head = top_blob.channel(q);
+
+                    const float* qptr = query_head.row(0);
+                    float* outptr = top_blob_head.row(0);
+                    const unsigned short* Kptr = key_head.row<const unsigned short>(0);
+                    const unsigned short* Vptr = value_head.row<const unsigned short>(0);
+
+                    const float* mask_ptr = nullptr;
+                    if (attn_mask)
+                    {
+                        const Mat& maskm = attn_mask_ref;
+                        Mat mask_head;
+                        if (maskm.dims == 3)
+                        {
+                            mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
+                        }
+                        else
+                        {
+                            mask_head = maskm;
+                        }
+                        mask_ptr = mask_head.row(0);
+                    }
+
+                    const int BLOCK_N = 128;
+#if __AVX512F__
+                    __attribute__((aligned(64))) float s[BLOCK_N];
+#elif __AVX__
+                    __attribute__((aligned(32))) float s[BLOCK_N];
+#elif __SSE2__
+                    __attribute__((aligned(16))) float s[BLOCK_N];
+#else
+                    float s[BLOCK_N];
+#endif
+
+                    vec_zero(outptr, out_embed_dim);
+                    float m = -FLT_MAX;
+                    float l = 0.f;
+
+                    for (int n_start = 0; n_start < dst_seqlen; n_start += BLOCK_N)
+                    {
+                        int block_n = std::min(BLOCK_N, dst_seqlen - n_start);
+
+#if __AVX512F__
+                        decode_qk_dot_bf16s_avx512_kernel(s, qptr, Kptr, n_start, block_n, embed_dim, _scale);
+#elif __AVX__
+                        decode_qk_dot_bf16s_avx_kernel(s, qptr, Kptr, n_start, block_n, embed_dim, _scale);
+#elif __SSE2__
+                        decode_qk_dot_bf16s_sse2_kernel(s, qptr, Kptr, n_start, block_n, embed_dim, _scale);
+#else
+                        decode_qk_dot_bf16s_scalar_kernel(s, qptr, Kptr, n_start, block_n, embed_dim, _scale);
+#endif
+
+                        if (mask_ptr)
+                            decode_mask_vec(s, mask_ptr + n_start, block_n);
+
+                        float tile_m = decode_max_vec(s, block_n);
+                        float new_m = std::max(m, tile_m);
+                        if (m != new_m)
+                        {
+                            float scale_factor = expf(m - new_m);
+                            l *= scale_factor;
+                            vec_scale(outptr, scale_factor, out_embed_dim);
+                        }
+
+                        float l_add;
+                        decode_exp_sum_vec(s, block_n, new_m, &l_add);
+                        l += l_add;
+
+#if __AVX512F__
+                        decode_pv_gemv_bf16s_avx512_kernel(outptr, s, Vptr, n_start, block_n, out_embed_dim);
+#elif __AVX__
+                        decode_pv_gemv_bf16s_avx_kernel(outptr, s, Vptr, n_start, block_n, out_embed_dim);
+#elif __SSE2__
+                        decode_pv_gemv_bf16s_sse2_kernel(outptr, s, Vptr, n_start, block_n, out_embed_dim);
+#else
+                        decode_pv_gemv_bf16s_scalar_kernel(outptr, s, Vptr, n_start, block_n, out_embed_dim);
+#endif
+
+                        m = new_m;
+                    }
+
+                    float inv_l = 1.f / l;
+                    vec_scale(outptr, inv_l, out_embed_dim);
+                }
+            }
+        }
+        else
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < num_heads; q++)
+            {
+                int g = q / num_heads_per_group;
+                const Mat key_head = key.channel(g);
+                const Mat value_head = value.channel(g);
+                const Mat query_head = query_ref.channel(q);
+                Mat top_blob_head = top_blob.channel(q);
+
+                const float* qptr = query_head.row(0);
+                float* outptr = top_blob_head.row(0);
+                const unsigned short* Kptr = key_head.row<const unsigned short>(0);
+                const unsigned short* Vptr = value_head.row<const unsigned short>(0);
+
+                const float* mask_ptr = nullptr;
+                if (attn_mask)
+                {
+                    const Mat& maskm = attn_mask_ref;
+                    Mat mask_head;
+                    if (maskm.dims == 3)
+                    {
+                        mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
+                    }
+                    else
+                    {
+                        mask_head = maskm;
+                    }
+                    mask_ptr = mask_head.row(0);
+                }
+
+                const int BLOCK_N = 128;
+#if __AVX512F__
+                __attribute__((aligned(64))) float s[BLOCK_N];
+#elif __AVX__
+                __attribute__((aligned(32))) float s[BLOCK_N];
+#elif __SSE2__
+                __attribute__((aligned(16))) float s[BLOCK_N];
+#else
+                float s[BLOCK_N];
+#endif
+
+                vec_zero(outptr, out_embed_dim);
+                float m = -FLT_MAX;
+                float l = 0.f;
+
+                for (int n_start = 0; n_start < dst_seqlen; n_start += BLOCK_N)
+                {
+                    int block_n = std::min(BLOCK_N, dst_seqlen - n_start);
+
+#if __AVX512F__
+                    decode_qk_dot_bf16s_avx512_kernel(s, qptr, Kptr, n_start, block_n, embed_dim, _scale);
+#elif __AVX__
+                    decode_qk_dot_bf16s_avx_kernel(s, qptr, Kptr, n_start, block_n, embed_dim, _scale);
+#elif __SSE2__
+                    decode_qk_dot_bf16s_sse2_kernel(s, qptr, Kptr, n_start, block_n, embed_dim, _scale);
+#else
+                    decode_qk_dot_bf16s_scalar_kernel(s, qptr, Kptr, n_start, block_n, embed_dim, _scale);
+#endif
+
+                    if (mask_ptr)
+                        decode_mask_vec(s, mask_ptr + n_start, block_n);
+
+                    float tile_m = decode_max_vec(s, block_n);
+                    float new_m = std::max(m, tile_m);
+                    if (m != new_m)
+                    {
+                        float scale_factor = expf(m - new_m);
+                        l *= scale_factor;
+                        vec_scale(outptr, scale_factor, out_embed_dim);
+                    }
+
+                    float l_add;
+                    decode_exp_sum_vec(s, block_n, new_m, &l_add);
+                    l += l_add;
+
+#if __AVX512F__
+                    decode_pv_gemv_bf16s_avx512_kernel(outptr, s, Vptr, n_start, block_n, out_embed_dim);
+#elif __AVX__
+                    decode_pv_gemv_bf16s_avx_kernel(outptr, s, Vptr, n_start, block_n, out_embed_dim);
+#elif __SSE2__
+                    decode_pv_gemv_bf16s_sse2_kernel(outptr, s, Vptr, n_start, block_n, out_embed_dim);
+#else
+                    decode_pv_gemv_bf16s_scalar_kernel(outptr, s, Vptr, n_start, block_n, out_embed_dim);
+#endif
+
+                    m = new_m;
+                }
+
+                float inv_l = 1.f / l;
+                vec_scale(outptr, inv_l, out_embed_dim);
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int sdpa_decode_x86(
+    const Mat& query_ref,
+    const Mat& key,
+    const Mat& value,
+    Mat& top_blob,
+    const Mat& attn_mask_ref,
+    const Option& opt,
+    int embed_dim,
+    int num_heads,
+    int num_group,
+    int out_embed_dim,
+    int dst_seqlen,
+    int num_heads_per_group,
+    float _scale,
+    int attn_mask)
+{
+    const int BLOCK_N = 128;
+    const bool use_split_kv = opt.num_threads > 1 && dst_seqlen >= BLOCK_N * 2;
+    if (use_split_kv)
+    {
+        const int num_kv_chunks = opt.num_threads;
+        Mat partials(2 + out_embed_dim, num_kv_chunks, num_heads, 4u, opt.workspace_allocator);
+        if (partials.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int task = 0; task < num_heads * num_kv_chunks; task++)
+        {
+            int q = task / num_kv_chunks;
+            int chunk = task % num_kv_chunks;
+
+            int n_start = chunk * dst_seqlen / num_kv_chunks;
+            int n_end = (chunk + 1 == num_kv_chunks) ? dst_seqlen : (chunk + 1) * dst_seqlen / num_kv_chunks;
+
+            int g = q / num_heads_per_group;
+            const Mat key_head = key.channel(g);
+            const Mat value_head = value.channel(g);
+            const Mat query_head = query_ref.channel(q);
+
+            const float* qptr = query_head.row(0);
+            const float* Kptr = key_head;
+            const float* Vptr = value_head;
+
+            const float* mask_ptr = nullptr;
+            if (attn_mask)
+            {
+                const Mat& maskm = attn_mask_ref;
+                Mat mask_head;
+                if (maskm.dims == 3)
+                {
+                    mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
+                }
+                else
+                {
+                    mask_head = maskm;
+                }
+                mask_ptr = mask_head.row(0);
+            }
+
+            float* p = partials.channel(q).row(chunk);
+            sdpa_decode_chunk(p + 2, p, p + 1, qptr, Kptr, Vptr, mask_ptr,
+                              n_start, n_end, embed_dim, out_embed_dim, _scale);
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_heads; q++)
+        {
+            Mat top_blob_head = top_blob.channel(q);
+            float* outptr = top_blob_head.row(0);
+            sdpa_decode_reduce(outptr, out_embed_dim,
+                               partials.channel(q), num_kv_chunks, 2 + out_embed_dim);
+        }
+    }
+    else
+    {
+        // Decode path: fused GEMV kernel for single-query attention
+        const bool group_parallel = num_group >= opt.num_threads;
+
+        if (group_parallel)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int g = 0; g < num_group; g++)
+            {
+                const Mat key_head = key.channel(g);
+                const Mat value_head = value.channel(g);
+
+                for (int hq = 0; hq < num_heads_per_group; hq++)
+                {
+                    int q = g * num_heads_per_group + hq;
+                    const Mat query_head = query_ref.channel(q);
+                    Mat top_blob_head = top_blob.channel(q);
+
+                    const float* qptr = query_head.row(0);
+                    float* outptr = top_blob_head.row(0);
+                    const float* Kptr = key_head;
+                    const float* Vptr = value_head;
+
+                    const float* mask_ptr = nullptr;
+                    if (attn_mask)
+                    {
+                        const Mat& maskm = attn_mask_ref;
+                        Mat mask_head;
+                        if (maskm.dims == 3)
+                        {
+                            mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
+                        }
+                        else
+                        {
+                            mask_head = maskm;
+                        }
+                        mask_ptr = mask_head.row(0);
+                    }
+
+                    sdpa_decode(outptr, qptr, Kptr, Vptr, mask_ptr, dst_seqlen, embed_dim, out_embed_dim, _scale);
+                }
+            }
+        }
+        else
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < num_heads; q++)
+            {
+                int g = q / num_heads_per_group;
+                const Mat key_head = key.channel(g);
+                const Mat value_head = value.channel(g);
+                const Mat query_head = query_ref.channel(q);
+                Mat top_blob_head = top_blob.channel(q);
+
+                const float* qptr = query_head.row(0);
+                float* outptr = top_blob_head.row(0);
+                const float* Kptr = key_head;
+                const float* Vptr = value_head;
+
+                const float* mask_ptr = nullptr;
+                if (attn_mask)
+                {
+                    const Mat& maskm = attn_mask_ref;
+                    Mat mask_head;
+                    if (maskm.dims == 3)
+                    {
+                        mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
+                    }
+                    else
+                    {
+                        mask_head = maskm;
+                    }
+                    mask_ptr = mask_head.row(0);
+                }
+
+                sdpa_decode(outptr, qptr, Kptr, Vptr, mask_ptr, dst_seqlen, embed_dim, out_embed_dim, _scale);
+            }
+        }
     }
 
     return 0;
@@ -204,146 +6249,215 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     }
 
     const int num_heads_per_group = num_heads / num_group;
+    const float _scale = scale == 0.f ? 1.f / sqrtf((float)embed_dim) : scale;
 
-    Mat qk_cross(dst_seqlen, src_seqlen, num_heads, 4u, opt.workspace_allocator);
-    if (qk_cross.empty())
-        return -100;
-
-    std::vector<int> retqks(num_heads);
-
-    // Dynamic Scale Calculation and Beta Correction
-    Layer* _qk_gemm = qk_gemm;
-    if (scale == 0.f)
-    {
-        float _scale = 1.f / sqrt(embed_dim);
-
-        _qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
-        ncnn::ParamDict pd;
-
-        pd.set(0, _scale);              // alpha
-        pd.set(1, 1.f / _scale);        // beta
-        pd.set(2, 0);                   // transA (Q: Seq x Embed)
-        pd.set(3, 1);                   // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
-        pd.set(4, 0);                   // constantA
-        pd.set(5, 0);                   // constantB
-        pd.set(6, attn_mask ? 0 : 1);   // constantC (if mask exists, use it)
-        pd.set(7, 0);                   // M
-        pd.set(8, 0);                   // N
-        pd.set(9, 0);                   // K
-        pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C (MxN)
-        pd.set(11, 0);                  // output_N1M
-        pd.set(12, 1);                  // output_elempack
-        pd.set(13, 1);                  // output_elemtype = fp32
-#if NCNN_INT8
-        pd.set(18, int8_scale_term);
-#endif
-        _qk_gemm->load_param(pd);
-        _qk_gemm->load_model(ModelBinFromMatArray(0));
-
-        Option opt1 = opt;
-        opt1.num_threads = 1;
-        _qk_gemm->create_pipeline(opt1);
-    }
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < num_heads; i++)
-    {
-        // 1. Q * K^T
-        std::vector<Mat> qk_bottom_blobs;
-        qk_bottom_blobs.push_back(query.channel(i));                     // Q: [Seq, Embed]
-        qk_bottom_blobs.push_back(key.channel(i / num_heads_per_group)); // K: [DstSeq, Embed]
-
-        if (attn_mask)
-        {
-            // Ensure mask is 2D for Gemm auto-broadcast detection
-            Mat maskm = attn_mask_blob;
-            if (maskm.dims == 3)
-            {
-                // If c > 1, pick i-th head mask. If c == 1, pick 0-th (broadcast)
-                maskm = maskm.channel(maskm.c > 1 ? i : 0);
-            }
-            qk_bottom_blobs.push_back(maskm);
-        }
-
-        std::vector<Mat> qk_top_blobs(1);
-        qk_top_blobs[0] = qk_cross.channel(i);
-
-        Option opt1 = opt;
-        opt1.num_threads = 1;
-        opt1.blob_allocator = qk_cross.allocator;
-        retqks[i] = _qk_gemm->forward(qk_bottom_blobs, qk_top_blobs, opt1);
-    }
-
-    if (scale == 0.f)
-    {
-        Option opt1 = opt;
-        opt1.num_threads = 1;
-        _qk_gemm->destroy_pipeline(opt1);
-
-        delete _qk_gemm;
-        _qk_gemm = 0;
-    }
-
-    for (int i = 0; i < num_heads; i++)
-    {
-        if (retqks[i] != 0)
-            return retqks[i];
-    }
-
-    // 2. Softmax
-    int retqk = qk_softmax->forward_inplace(qk_cross, opt);
-    if (retqk != 0)
-        return retqk;
-
-    Mat value_fp32 = value;
-#if NCNN_BF16
-    if (opt.use_bf16_storage && value.elembits() == 16)
-    {
-        // qkv_gemm need fp32 inputs
-        cast_bfloat16_to_float32(value, value_fp32, opt);
-        if (value_fp32.empty())
-            return -100;
-    }
-#endif
+    const int BLOCK_M = 64;
+    const int BLOCK_N = 128;
 
     Mat& top_blob = top_blobs[0];
     top_blob.create(out_embed_dim, src_seqlen, num_heads, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
-    // 3. Attn * V
-    std::vector<int> retqkvs(num_heads);
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < num_heads; i++)
+#if NCNN_BF16
+    bool use_bf16_path = opt.use_bf16_storage && query.elembits() == 16;
+    bool use_qbf16_prefill = false;
+#if __AVX512F__
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
+    use_qbf16_prefill = use_bf16_path && src_seqlen > 1 && embed_dim > 512
+                        && (src_seqlen > 16 || num_heads_per_group > 1)
+                        && ncnn::cpu_support_x86_avx512_bf16();
+#endif
+#endif
+    Mat query_fp32;
+    Mat attn_mask_fp32;
+    if (use_bf16_path)
     {
-        std::vector<Mat> qkv_bottom_blobs(2);
-        qkv_bottom_blobs[0] = qk_cross.channel(i);                         // Attn: [DstSeq, Seq]
-        qkv_bottom_blobs[1] = value_fp32.channel(i / num_heads_per_group); // V: [DstSeq, OutEmbed]
+        if (!use_qbf16_prefill)
+        {
+            cast_bfloat16_to_float32(query, query_fp32, opt);
+            if (query_fp32.empty())
+                return -100;
+        }
+        if (attn_mask && !attn_mask_blob.empty())
+        {
+            cast_bfloat16_to_float32(attn_mask_blob, attn_mask_fp32, opt);
+            if (attn_mask_fp32.empty())
+                return -100;
+        }
+    }
+    const Mat& query_ref = use_bf16_path && !use_qbf16_prefill ? query_fp32 : query;
+    const Mat& attn_mask_ref = (use_bf16_path && attn_mask) ? attn_mask_fp32 : attn_mask_blob;
+#else
+    const Mat& query_ref = query;
+    const Mat& attn_mask_ref = attn_mask_blob;
+    (void)query_ref;
+    (void)attn_mask_ref;
+#endif
 
-        std::vector<Mat> qkv_top_blobs(1);
-        qkv_top_blobs[0] = top_blob.channel(i); // Output
-
-        Option opt1 = opt;
-        opt1.num_threads = 1;
-        retqkvs[i] = qkv_gemm->forward(qkv_bottom_blobs, qkv_top_blobs, opt1);
+#if NCNN_INT8
+    bool use_int8_path = int8_scale_term;
+    if (use_int8_path && src_seqlen == 1)
+    {
+        // Adaptive threshold: int8 decode is faster only when compute is large enough
+        // to amortize quantization overhead. For small problems, fall back to fp32.
+        if (embed_dim <= 128)
+            use_int8_path = (dst_seqlen >= 64);
+        else if (embed_dim <= 512)
+            use_int8_path = (dst_seqlen >= 512);
+        else
+            use_int8_path = (dst_seqlen >= 32);
     }
 
-    for (int i = 0; i < num_heads; i++)
+    if (use_int8_path)
     {
-        if (retqkvs[i] != 0)
-            return retqkvs[i];
+        const int qk_num_blocks = (embed_dim + 31) / 32;
+        (void)qk_num_blocks;
+        const int v_num_blocks = (out_embed_dim + 31) / 32;
+
+        Mat key_int8(embed_dim, dst_seqlen, num_group, 1u, opt.blob_allocator);
+        Mat key_scales(1, dst_seqlen, num_group, 4u, opt.blob_allocator);
+        Mat value_int8(out_embed_dim, dst_seqlen, num_group, 1u, opt.blob_allocator);
+        Mat value_scales(v_num_blocks, dst_seqlen, num_group, 4u, opt.blob_allocator);
+
+        if (key_int8.empty() || key_scales.empty() || value_int8.empty() || value_scales.empty())
+            return -100;
+
+        bool use_kv_cache = kv_cache && past_seqlen > 0;
+        bool cache_valid = false;
+        if (use_kv_cache
+                && cached_kv_seqlen == past_seqlen
+                && cached_num_group == num_group
+                && cached_embed_dim == embed_dim
+                && cached_out_embed_dim == out_embed_dim
+                && !cached_key_int8.empty()
+                && !cached_key_scales.empty()
+                && !cached_value_int8.empty()
+                && !cached_value_scales.empty())
+        {
+            cache_valid = true;
+            for (int g = 0; g < num_group; g++)
+            {
+                memcpy(key_int8.channel(g), cached_key_int8.channel(g), embed_dim * past_seqlen);
+                memcpy(key_scales.channel(g), cached_key_scales.channel(g), past_seqlen * sizeof(float));
+                memcpy(value_int8.channel(g), cached_value_int8.channel(g), out_embed_dim * past_seqlen);
+                memcpy(value_scales.channel(g), cached_value_scales.channel(g), v_num_blocks * past_seqlen * sizeof(float));
+            }
+        }
+
+        sdpa_quantize_key_value_int8_x86(key, value, key_int8, key_scales, value_int8, value_scales,
+                                         num_group, dst_seqlen, embed_dim, out_embed_dim, v_num_blocks,
+                                         cache_valid, past_seqlen, kv_cache, opt);
+
+        const bool use_int8_prefill_2heads_workspace = src_seqlen > 1 && !kv_cache && !attn_mask && out_embed_dim == 4096 && num_heads_per_group >= 2;
+        const int int8_prefill_workspace_heads = use_int8_prefill_2heads_workspace ? 2 : 1;
+
+        Mat o_accum(out_embed_dim, BLOCK_M * int8_prefill_workspace_heads, opt.num_threads, 4u, opt.workspace_allocator);
+        Mat s_vec(BLOCK_N * BLOCK_M * int8_prefill_workspace_heads, opt.num_threads, 4u, opt.workspace_allocator);
+        Mat p_vec(BLOCK_N * BLOCK_M * int8_prefill_workspace_heads, opt.num_threads, 4u, opt.workspace_allocator);
+        Mat q_int8_tile(embed_dim, BLOCK_M * int8_prefill_workspace_heads, opt.num_threads, 1u, opt.workspace_allocator);
+        Mat q_scales_tile(1, BLOCK_M * int8_prefill_workspace_heads, opt.num_threads, 4u, opt.workspace_allocator);
+
+        if (o_accum.empty() || s_vec.empty() || p_vec.empty() || q_int8_tile.empty() || q_scales_tile.empty())
+            return -100;
+
+        if (src_seqlen == 1)
+        {
+            int ret = sdpa_decode_int8_x86(query, key_int8, key_scales, value_int8, value_scales,
+                                           top_blob, attn_mask_ref, opt, embed_dim, num_heads, num_group, out_embed_dim,
+                                           dst_seqlen, num_heads_per_group, _scale, attn_mask,
+                                           o_accum, s_vec, q_int8_tile, q_scales_tile);
+            if (ret != 0)
+                return ret;
+
+            if (kv_cache && dst_seqlen > 0)
+            {
+                cached_key_int8 = key_int8;
+                cached_key_scales = key_scales;
+                cached_value_int8 = value_int8;
+                cached_value_scales = value_scales;
+                cached_kv_seqlen = dst_seqlen;
+                cached_num_group = num_group;
+                cached_embed_dim = embed_dim;
+                cached_out_embed_dim = out_embed_dim;
+            }
+
+            return 0;
+        }
+        else
+        {
+            int ret = sdpa_prefill_int8_x86(query, key_int8, key_scales, value_int8, value_scales,
+                                            top_blob, attn_mask_ref, opt, embed_dim, num_heads, out_embed_dim, src_seqlen,
+                                            dst_seqlen, num_heads_per_group, _scale, attn_mask, kv_cache,
+                                            o_accum, s_vec, p_vec, q_int8_tile, q_scales_tile, value);
+            if (ret != 0)
+                return ret;
+        }
+
+        if (kv_cache)
+        {
+            top_blobs[1] = key;
+            top_blobs[2] = value;
+        }
+
+        if (kv_cache && dst_seqlen > 0)
+        {
+            cached_key_int8 = key_int8;
+            cached_key_scales = key_scales;
+            cached_value_int8 = value_int8;
+            cached_value_scales = value_scales;
+            cached_kv_seqlen = dst_seqlen;
+            cached_num_group = num_group;
+            cached_embed_dim = embed_dim;
+            cached_out_embed_dim = out_embed_dim;
+        }
+
+        return 0;
+    }
+#endif // NCNN_INT8
+
+    // FP32 optimized path using tiled GEMM + online softmax
+    if (src_seqlen == 1)
+    {
+#if NCNN_BF16
+        if (use_bf16_path)
+        {
+            int ret = sdpa_decode_bf16s_x86(query_ref, key, value, top_blob, attn_mask_ref, opt,
+                                            embed_dim, num_heads, num_group, out_embed_dim, dst_seqlen,
+                                            num_heads_per_group, _scale, attn_mask);
+            if (ret != 0)
+                return ret;
+
+            if (kv_cache)
+            {
+                top_blobs[1] = key;
+                top_blobs[2] = value;
+            }
+
+            return 0;
+        }
+#endif // NCNN_BF16
+
+        int ret = sdpa_decode_x86(query_ref, key, value, top_blob, attn_mask_ref, opt,
+                                  embed_dim, num_heads, num_group, out_embed_dim, dst_seqlen,
+                                  num_heads_per_group, _scale, attn_mask);
+        if (ret != 0)
+            return ret;
+
+        if (kv_cache)
+        {
+            top_blobs[1] = key;
+            top_blobs[2] = value;
+        }
+
+        return 0;
     }
 
-    value_fp32.release();
-
-    if (kv_cache)
-    {
-        top_blobs[1] = key;
-        top_blobs[2] = value;
-    }
-
-    return 0;
+    return sdpa_forward_prefill(query_ref, query, attn_mask_ref, key, value, top_blob,
+                                top_blobs, opt, embed_dim, src_seqlen, num_heads,
+                                num_group, out_embed_dim, dst_seqlen,
+                                num_heads_per_group, _scale, kv_cache, attn_mask,
+                                use_bf16_path);
 }
 
 } // namespace ncnn

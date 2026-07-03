@@ -28,4 +28,10 @@ void perf_layer(const char* layer_type, const ncnn::ParamDict& pd,
                 const std::vector<ncnn::Mat>& inputs, int top_blob_count,
                 const char* param_fmt, ...);
 
+// int8-only benchmark (does not test fp16/bf16 variants)
+void perf_layer_int8(const char* layer_type, const ncnn::ParamDict& pd,
+                     const std::vector<ncnn::Mat>& weights,
+                     const std::vector<ncnn::Mat>& inputs, int top_blob_count,
+                     const char* param_fmt, ...);
+
 #endif // PERFUTIL_H

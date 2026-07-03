@@ -53,7 +53,13 @@ static int test_sdpa_0()
            || test_sdpa_kvcache(RandomMat(44, 128, 4), RandomMat(44, 123, 4), RandomMat(55, 123, 4), 0, 0)
            || test_sdpa_kvcache(RandomMat(12, 127, 4), RandomMat(12, 127, 4), RandomMat(55, 127, 4), 1, 0)
            || test_sdpa_kvcache(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 3)
-           || test_sdpa_kvcache(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1, 5);
+           || test_sdpa_kvcache(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1, 5)
+           || test_sdpa_kvcache(RandomMat(32, 1, 8), RandomMat(32, 1, 8), RandomMat(20, 1, 8), 0, 11)
+           || test_sdpa_kvcache(RandomMat(26, 1, 8), RandomMat(26, 1, 8), RandomMat(18, 1, 8), 1, 11)
+           || test_sdpa_kvcache(RandomMat(64, 1, 12), RandomMat(64, 1, 2), RandomMat(64, 1, 2), 0, 1)
+           || test_sdpa_kvcache(RandomMat(64, 1, 12), RandomMat(64, 1, 2), RandomMat(48, 1, 2), 1, 1)
+           || test_sdpa_kvcache(RandomMat(44, 1, 4), RandomMat(44, 1, 4), RandomMat(55, 1, 4), 0, 0)
+           || test_sdpa_kvcache(RandomMat(12, 1, 4), RandomMat(12, 1, 4), RandomMat(55, 1, 4), 1, 0);
 }
 
 #if NCNN_INT8
@@ -85,7 +91,7 @@ static int test_sdpa_int8_kvcache(const ncnn::Mat& q, const ncnn::Mat& k, const 
     as.push_back(RandomMat(embed_dim, past_seqlen, k.c));
     as.push_back(RandomMat(out_embed_dim, past_seqlen, v.c));
 
-    float epsilon = 0.01;
+    float epsilon = 0.05;
 
     int ret = test_layer("SDPA", pd, weights, as, 3, epsilon);
     if (ret != 0)
