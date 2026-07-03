@@ -1,0 +1,193 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_KHR_shader_subgroup_basic : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_subgroup_extended_types_float16 : require
+#endif
+
+layout(binding = 0) readonly buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
+layout(binding = 1) writeonly buffer mean_blob { float mean_data[]; };
+layout(binding = 2) writeonly buffer var_blob { float var_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int group_size;
+    int num_groups_per_channel;
+    int cstep;
+} p;
+
+shared float sdata_sum[256];
+shared float sdata_sqsum[256];
+
+void main()
+{
+    const int tid = int(gl_LocalInvocationID.x);
+    const int group_id = int(gl_WorkGroupID.y);
+
+    const int gz = group_id / p.num_groups_per_channel;
+    const int gy = group_id % p.num_groups_per_channel;
+    const int offset = gz * p.cstep + gy * p.group_size;
+
+    float sum = 0.f;
+    float sqsum = 0.f;
+
+    for (int t = tid; t < p.group_size; t += 256)
+    {
+        float v = float(buffer_ld1(bottom_top_blob_data, offset + t));
+        sum += v;
+        sqsum += v * v;
+    }
+
+    float sg_sum = subgroupAdd(sum);
+    float sg_sqsum = subgroupAdd(sqsum);
+
+    if (subgroupElect())
+    {
+        sdata_sum[int(gl_SubgroupID)] = float(sg_sum);
+        sdata_sqsum[int(gl_SubgroupID)] = float(sg_sqsum);
+    }
+
+    barrier();
+
+#if ncnn_subgroupSize >= 16
+    if (int(gl_SubgroupID) == 0)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+        const int num_sg = int(gl_NumSubgroups);
+
+        float v_sum = lane < num_sg ? sdata_sum[lane] : 0.f;
+        float v_sqsum = lane < num_sg ? sdata_sqsum[lane] : 0.f;
+        float r_sum = subgroupAdd(v_sum);
+        float r_sqsum = subgroupAdd(v_sqsum);
+
+        if (subgroupElect())
+        {
+            float mean = r_sum / float(p.group_size);
+            float var = r_sqsum / float(p.group_size) - mean * mean;
+            mean_data[group_id] = mean;
+            var_data[group_id] = var;
+        }
+    }
+#elif ncnn_subgroupSize == 8
+    if (int(gl_SubgroupID) < 4)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+        const int base = int(gl_SubgroupID) * 8;
+
+        float v_sum = sdata_sum[base + lane];
+        float v_sqsum = sdata_sqsum[base + lane];
+        float r_sum = subgroupAdd(v_sum);
+        float r_sqsum = subgroupAdd(v_sqsum);
+
+        if (subgroupElect())
+        {
+            sdata_sum[int(gl_SubgroupID)] = r_sum;
+            sdata_sqsum[int(gl_SubgroupID)] = r_sqsum;
+        }
+    }
+
+    barrier();
+
+    if (int(gl_SubgroupID) == 0)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+
+        float v_sum = lane < 4 ? sdata_sum[lane] : 0.f;
+        float v_sqsum = lane < 4 ? sdata_sqsum[lane] : 0.f;
+        float r_sum = subgroupAdd(v_sum);
+        float r_sqsum = subgroupAdd(v_sqsum);
+
+        if (subgroupElect())
+        {
+            float mean = r_sum / float(p.group_size);
+            float var = r_sqsum / float(p.group_size) - mean * mean;
+            mean_data[group_id] = mean;
+            var_data[group_id] = var;
+        }
+    }
+#elif ncnn_subgroupSize == 4
+    if (int(gl_SubgroupID) < 16)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+        const int base = int(gl_SubgroupID) * 4;
+
+        float v_sum = sdata_sum[base + lane];
+        float v_sqsum = sdata_sqsum[base + lane];
+        float r_sum = subgroupAdd(v_sum);
+        float r_sqsum = subgroupAdd(v_sqsum);
+
+        if (subgroupElect())
+        {
+            sdata_sum[int(gl_SubgroupID)] = r_sum;
+            sdata_sqsum[int(gl_SubgroupID)] = r_sqsum;
+        }
+    }
+
+    barrier();
+
+    if (int(gl_SubgroupID) < 4)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+        const int base = int(gl_SubgroupID) * 4;
+
+        float v_sum = sdata_sum[base + lane];
+        float v_sqsum = sdata_sqsum[base + lane];
+        float r_sum = subgroupAdd(v_sum);
+        float r_sqsum = subgroupAdd(v_sqsum);
+
+        if (subgroupElect())
+        {
+            sdata_sum[int(gl_SubgroupID)] = r_sum;
+            sdata_sqsum[int(gl_SubgroupID)] = r_sqsum;
+        }
+    }
+
+    barrier();
+
+    if (int(gl_SubgroupID) == 0)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+
+        float v_sum = sdata_sum[lane];
+        float v_sqsum = sdata_sqsum[lane];
+        float r_sum = subgroupAdd(v_sum);
+        float r_sqsum = subgroupAdd(v_sqsum);
+
+        if (subgroupElect())
+        {
+            float mean = r_sum / float(p.group_size);
+            float var = r_sqsum / float(p.group_size) - mean * mean;
+            mean_data[group_id] = mean;
+            var_data[group_id] = var;
+        }
+    }
+#else
+    {
+        const int num_sg = 256 / ncnn_subgroupSize;
+
+        for (int stride = num_sg / 2; stride > 0; stride >>= 1)
+        {
+            if (tid < stride)
+            {
+                sdata_sum[tid] = sdata_sum[tid] + sdata_sum[tid + stride];
+                sdata_sqsum[tid] = sdata_sqsum[tid] + sdata_sqsum[tid + stride];
+            }
+            barrier();
+        }
+
+        if (tid == 0)
+        {
+            float r_sum = sdata_sum[0];
+            float r_sqsum = sdata_sqsum[0];
+            float mean = r_sum / float(p.group_size);
+            float var = r_sqsum / float(p.group_size) - mean * mean;
+            mean_data[group_id] = mean;
+            var_data[group_id] = var;
+        }
+    }
+#endif
+}
