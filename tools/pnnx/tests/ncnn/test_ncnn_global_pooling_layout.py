@@ -17,6 +17,17 @@ class ModelDirectPool(nn.Module):
         return self.pool(x)
 
 
+class ModelDirectLinear(nn.Module):
+    def __init__(self):
+        super(ModelDirectLinear, self).__init__()
+        self.pool = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Linear(1, 3)
+
+    def forward(self, x):
+        x = self.pool(x)
+        return self.fc(x)
+
+
 class ModelFlattenLinear(nn.Module):
     def __init__(self):
         super(ModelFlattenLinear, self).__init__()
@@ -267,6 +278,8 @@ def test():
     z = torch.rand(2, 4, 3, 5, 7)
 
     if not run_model("test_ncnn_global_pooling_layout_direct", ModelDirectPool(), x, "[2,4,5,7]"):
+        return False
+    if not run_model("test_ncnn_global_pooling_layout_direct_linear", ModelDirectLinear(), x, "[2,4,5,7]"):
         return False
     if not run_model("test_ncnn_global_pooling_layout_direct_unbatched", ModelDirectPool(), y, "[4,5,7]"):
         return False

@@ -402,24 +402,6 @@ void legalize_global_pooling_layout(Graph& graph)
                 continue;
             }
 
-            if (op->type == "nn.Linear" && op->outputs.size() == 1)
-            {
-                std::vector<int> out_restore_shape = op->outputs[0]->shape;
-                if (out_restore_shape.empty())
-                {
-                    out_restore_shape = r->shape;
-                    out_restore_shape[out_restore_shape.size() - 1] = op->params.at("out_features").i;
-                }
-
-                std::vector<int> out_shape = r->shape;
-                out_shape[out_shape.size() - 1] = op->params.at("out_features").i;
-                op->outputs[0]->shape = out_shape;
-
-                compact_operands.push_back(op->outputs[0]);
-                restore_shapes.push_back(out_restore_shape);
-                continue;
-            }
-
             if (is_1x1_conv(op) && op->outputs.size() == 1)
             {
                 const Attribute& weight = op->attrs.at("weight");
