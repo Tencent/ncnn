@@ -1,0 +1,137 @@
+#version 450
+
+layout(constant_id = 0) const int returns = 0;
+layout(constant_id = 1) const int out_elempack = 1;
+
+layout(binding = 0) readonly buffer yre_blob { sfp yre_blob_data[]; };
+layout(binding = 1) readonly buffer yim_blob { sfp yim_blob_data[]; };
+layout(binding = 2) readonly buffer window2_blob { sfp window2_blob_data[]; };
+layout(binding = 3) writeonly buffer top_blob_1 { sfp top_blob_data_1[]; };
+layout(binding = 4) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
+
+layout(push_constant) uniform parameter
+{
+    int frames;
+    int n_fft;
+    int hoplen;
+    int outsize;
+    int center;
+    int y_row_stride;
+} p;
+
+void main()
+{
+    int t4 = int(gl_GlobalInvocationID.x);
+    int t0 = t4 * 4;
+
+    if (t0 >= p.outsize)
+        return;
+
+    afpvec4 re4 = afpvec4(0.0f);
+    afpvec4 im4 = afpvec4(0.0f);
+    afpvec4 wsum4 = afpvec4(0.0f);
+
+    for (int lane = 0; lane < 4; lane++)
+    {
+        int t = t0 + lane;
+        if (t >= p.outsize)
+        {
+            re4[lane] = 0.0f;
+            im4[lane] = 0.0f;
+            wsum4[lane] = 1.0f;
+            continue;
+        }
+
+        int src = t;
+        if (p.center != 0)
+            src += p.n_fft / 2;
+
+        int j0 = (src - (p.n_fft - 1) + p.hoplen - 1) / p.hoplen;
+        int j1 = src / p.hoplen;
+
+        if (j0 < 0)
+            j0 = 0;
+        if (j1 > p.frames - 1)
+            j1 = p.frames - 1;
+
+        afp re = 0.0f;
+        afp im = 0.0f;
+        afp wsum = 0.0f;
+
+        for (int j = j0; j <= j1; j++)
+        {
+            int i = src - j * p.hoplen;
+            afp w2 = buffer_ld1(window2_blob_data, i);
+
+            int yidx = j * p.y_row_stride + i;
+            re += buffer_ld1(yre_blob_data, yidx);
+            im += buffer_ld1(yim_blob_data, yidx);
+            wsum += w2;
+        }
+
+        if (wsum != 0.0f)
+        {
+            re /= wsum;
+            im /= wsum;
+        }
+
+        re4[lane] = re;
+        im4[lane] = im;
+        wsum4[lane] = wsum;
+    }
+
+    if (out_elempack == 4)
+    {
+        if (returns == 0)
+        {
+            int base = t4 * 2;
+            buffer_st4(top_blob_data_4, base + 0, re4);
+            buffer_st4(top_blob_data_4, base + 1, im4);
+        }
+        else if (returns == 1)
+        {
+            buffer_st4(top_blob_data_4, t4, re4);
+        }
+        else // returns == 2
+        {
+            buffer_st4(top_blob_data_4, t4, im4);
+        }
+    }
+    else
+    {
+        if (returns == 0)
+        {
+            for (int lane = 0; lane < 4; lane++)
+            {
+                int t = t0 + lane;
+                if (t >= p.outsize)
+                    break;
+
+                buffer_st1(top_blob_data_1, t * 2 + 0, re4[lane]);
+                buffer_st1(top_blob_data_1, t * 2 + 1, im4[lane]);
+            }
+        }
+        else if (returns == 1)
+        {
+            for (int lane = 0; lane < 4; lane++)
+            {
+                int t = t0 + lane;
+                if (t >= p.outsize)
+                    break;
+
+                buffer_st1(top_blob_data_1, t, re4[lane]);
+            }
+        }
+        else // returns == 2
+        {
+            for (int lane = 0; lane < 4; lane++)
+            {
+                int t = t0 + lane;
+                if (t >= p.outsize)
+                    break;
+
+                buffer_st1(top_blob_data_1, t, im4[lane]);
+            }
+        }
+    }
+}
