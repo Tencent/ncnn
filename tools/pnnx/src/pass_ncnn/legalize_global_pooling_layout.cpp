@@ -38,7 +38,7 @@ static bool is_global_pooling(const Operator* op)
             return false;
 
         const std::vector<int>& output_size = op->params.at("output_size").ai;
-        return output_size == std::vector<int>{1, 1} || output_size == std::vector<int>{1, 1, 1};
+        return output_size == std::vector<int> {1, 1} || output_size == std::vector<int> {1, 1, 1};
     }
 
     return false;
