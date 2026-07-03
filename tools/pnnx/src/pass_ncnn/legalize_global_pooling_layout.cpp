@@ -250,12 +250,31 @@ static bool insert_restore_reshape(Graph& graph, Operator* op, int input_index, 
 {
     const std::string name = op->name + "_ncnnglobalpoolreshape_" + std::to_string(input_index);
 
+    std::vector<int> reshape_shape = shape;
+    const int ncnn_batch_axis = get_ncnn_batch_axis(in);
+    if (ncnn_batch_axis == 0 && shape.size() == 4 && shape[2] == 1 && shape[3] == 1)
+    {
+        reshape_shape = {0, -1, 1, 1};
+    }
+    if (ncnn_batch_axis == 0 && shape.size() == 5 && shape[2] == 1 && shape[3] == 1 && shape[4] == 1)
+    {
+        reshape_shape = {0, -1, 1, 1, 1};
+    }
+    if (ncnn_batch_axis == 233 && shape.size() == 3 && shape[1] == 1 && shape[2] == 1)
+    {
+        reshape_shape = {-1, 1, 1};
+    }
+    if (ncnn_batch_axis == 233 && shape.size() == 4 && shape[1] == 1 && shape[2] == 1 && shape[3] == 1)
+    {
+        reshape_shape = {-1, 1, 1, 1};
+    }
+
     Operator* reshape = graph.new_operator_before("Tensor.reshape", name, op);
     Operand* reshape_out = graph.new_operand(name + "_out");
 
     reshape->inputs.push_back(in);
     reshape->outputs.push_back(reshape_out);
-    reshape->params["shape"] = shape;
+    reshape->params["shape"] = reshape_shape;
     in->consumers.push_back(reshape);
 
     reshape_out->producer = reshape;

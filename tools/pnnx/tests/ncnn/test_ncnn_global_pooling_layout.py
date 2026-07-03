@@ -53,6 +53,15 @@ class ModelPool3dLinear(nn.Module):
         return self.fc(x)
 
 
+class ModelDirectPool3d(nn.Module):
+    def __init__(self):
+        super(ModelDirectPool3d, self).__init__()
+        self.pool = nn.AdaptiveAvgPool3d(1)
+
+    def forward(self, x):
+        return self.pool(x)
+
+
 class ModelFLinear(nn.Module):
     def __init__(self):
         super(ModelFLinear, self).__init__()
@@ -199,6 +208,23 @@ def run_model(name, net, x, inputshape):
     return compare(a, b)
 
 
+def run_model_dynamic(name, net, x, inputshape, inputshape2):
+    net.eval()
+
+    a = net(x)
+
+    mod = torch.jit.trace(net, x)
+    mod.save(name + ".pt")
+
+    if os.system("../../src/pnnx " + name + ".pt inputshape=" + inputshape + " inputshape2=" + inputshape2) != 0:
+        return False
+
+    ncnn = __import__(name + "_ncnn")
+    b = ncnn.test_inference()
+
+    return compare(a, b)
+
+
 def run_pnnx_without_inputshape(name, net, x):
     net.eval()
 
@@ -249,6 +275,8 @@ def test():
     if not run_model("test_ncnn_global_pooling_layout_maxpool_linear", ModelMaxPoolLinear(), x, "[2,4,5,7]"):
         return False
     if not run_model("test_ncnn_global_pooling_layout_3d_linear", ModelPool3dLinear(), z, "[2,4,3,5,7]"):
+        return False
+    if not run_model_dynamic("test_ncnn_global_pooling_layout_3d_direct_dynamic", ModelDirectPool3d(), z, "[2,4,3,5,7]", "[3,6,4,6,8]"):
         return False
     if not run_model("test_ncnn_global_pooling_layout_f_linear", ModelFLinear(), x, "[2,4,5,7]"):
         return False
