@@ -7,15 +7,15 @@ namespace pnnx {
 
 namespace ncnn {
 
-static bool input_has_ncnn_batch(const Operator* op)
+static int input_ncnn_batch_axis(const Operator* op)
 {
     if (op->inputs.empty())
-        return false;
+        return 233;
 
     if (op->inputs[0]->params.find("__ncnn_batch_axis") == op->inputs[0]->params.end())
-        return false;
+        return 233;
 
-    return op->inputs[0]->params.at("__ncnn_batch_axis").i != 233;
+    return op->inputs[0]->params.at("__ncnn_batch_axis").i;
 }
 
 class nn_Linear_0 : public GraphRewriterPass
@@ -43,7 +43,8 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
-        return !input_has_ncnn_batch(matched_operators.at("op_0"));
+        const int ncnn_batch_axis = input_ncnn_batch_axis(matched_operators.at("op_0"));
+        return ncnn_batch_axis == 233 || ncnn_batch_axis == 0;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -101,7 +102,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
-        if (input_has_ncnn_batch(matched_operators.at("op_0")))
+        if (input_ncnn_batch_axis(matched_operators.at("op_0")) != 233)
             return false;
 
         return match(captured_params);
@@ -136,7 +137,8 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
-        return !input_has_ncnn_batch(matched_operators.at("op_0"));
+        const int ncnn_batch_axis = input_ncnn_batch_axis(matched_operators.at("op_0"));
+        return ncnn_batch_axis == 233 || ncnn_batch_axis == 0;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -189,7 +191,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
-        if (input_has_ncnn_batch(matched_operators.at("op_0")))
+        if (input_ncnn_batch_axis(matched_operators.at("op_0")) != 233)
             return false;
 
         return match(captured_params);

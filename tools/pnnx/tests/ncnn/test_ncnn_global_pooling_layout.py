@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import os
+import ncnn
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -198,7 +199,7 @@ def run_model(name, net, x, inputshape):
     return compare(a, b)
 
 
-def run_model_without_inputshape(name, net, x):
+def run_pnnx_without_inputshape(name, net, x):
     net.eval()
 
     a = net(x)
@@ -209,8 +210,22 @@ def run_model_without_inputshape(name, net, x):
     if os.system("../../src/pnnx " + name + ".pt") != 0:
         return False
 
-    ncnn = __import__(name + "_ncnn")
-    b = ncnn.test_inference()
+    with ncnn.Net() as ncnn_net:
+        ncnn_net.load_param(name + ".ncnn.param")
+        ncnn_net.load_model(name + ".ncnn.bin")
+
+        with ncnn_net.create_extractor() as ex:
+            ex.input("in0", ncnn.Mat(x.numpy(), batch_index=0).clone())
+
+            if isinstance(a, tuple):
+                out = []
+                for i in range(len(a)):
+                    _, out0 = ex.extract("out%d" % i)
+                    out.append(torch.from_numpy(out0.numpy(batch_index=0)))
+                b = tuple(out)
+            else:
+                _, out0 = ex.extract("out0")
+                b = torch.from_numpy(out0.numpy(batch_index=0))
 
     return compare(a, b)
 
@@ -255,7 +270,7 @@ def test():
         return False
     if not run_model("test_ncnn_global_pooling_layout_non1x1_conv", ModelNon1x1ConvFallback(), x, "[2,4,5,7]"):
         return False
-    if not run_model_without_inputshape("test_ncnn_global_pooling_layout_no_inputshape", ModelSE(), x):
+    if not run_pnnx_without_inputshape("test_ncnn_global_pooling_layout_no_inputshape", ModelSE(), x):
         return False
 
     return True
