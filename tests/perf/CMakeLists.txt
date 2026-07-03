@@ -38,6 +38,7 @@ ncnn_add_layer_perf(BinaryOp)
 ncnn_add_layer_perf(Concat)
 ncnn_add_layer_perf(Sigmoid)
 ncnn_add_layer_perf(BatchNorm)
+ncnn_add_layer_perf(InstanceNorm)
 
 # SDPA perf tests (decode and prefill phases)
 if(WITH_LAYER_sdpa)

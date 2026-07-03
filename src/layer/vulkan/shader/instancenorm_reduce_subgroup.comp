@@ -1,0 +1,301 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_KHR_shader_subgroup_basic : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_subgroup_extended_types_float16 : require
+#endif
+
+layout(binding = 0) readonly buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
+layout(binding = 1) writeonly buffer mean_blob { float mean_data[]; };
+layout(binding = 2) writeonly buffer var_blob { float var_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int cstep;
+    int size;
+} p;
+
+shared float sdata[256];
+
+void main()
+{
+    const int tid = int(gl_LocalInvocationID.x);
+    const int channel_id = int(gl_WorkGroupID.y);
+
+    const float area = float(p.size);
+    const int base_offset = channel_id * p.cstep;
+
+    // Phase 1: compute sum -> mean
+    afp sum = afp(0.f);
+    for (int t = tid; t < p.size; t += 256)
+    {
+        int v_offset = base_offset + t;
+        afp v = buffer_ld1(bottom_top_blob_data, v_offset);
+        sum += v;
+    }
+
+    afp sg_sum = subgroupAdd(sum);
+    if (subgroupElect())
+    {
+        sdata[int(gl_SubgroupID)] = float(sg_sum);
+    }
+
+    barrier();
+
+#if ncnn_subgroupSize >= 16
+    if (int(gl_SubgroupID) == 0)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+        const int num_sg = int(gl_NumSubgroups);
+
+        afp v = lane < num_sg ? afp(sdata[lane]) : afp(0.f);
+        afp r_sum = subgroupAdd(v);
+
+        if (subgroupElect())
+        {
+            sdata[0] = float(r_sum);
+        }
+    }
+#elif ncnn_subgroupSize == 8
+    if (int(gl_SubgroupID) < 4)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+        const int base = int(gl_SubgroupID) * 8;
+
+        afp v = afp(sdata[base + lane]);
+        afp r = subgroupAdd(v);
+
+        if (subgroupElect())
+        {
+            sdata[int(gl_SubgroupID)] = float(r);
+        }
+    }
+
+    barrier();
+
+    if (int(gl_SubgroupID) == 0)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+
+        afp v = lane < 4 ? afp(sdata[lane]) : afp(0.f);
+        afp r = subgroupAdd(v);
+
+        if (subgroupElect())
+        {
+            sdata[0] = float(r);
+        }
+    }
+#elif ncnn_subgroupSize == 4
+    if (int(gl_SubgroupID) < 16)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+        const int base = int(gl_SubgroupID) * 4;
+
+        afp v = afp(sdata[base + lane]);
+        afp r = subgroupAdd(v);
+
+        if (subgroupElect())
+        {
+            sdata[int(gl_SubgroupID)] = float(r);
+        }
+    }
+
+    barrier();
+
+    if (int(gl_SubgroupID) < 4)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+        const int base = int(gl_SubgroupID) * 4;
+
+        afp v = afp(sdata[base + lane]);
+        afp r = subgroupAdd(v);
+
+        if (subgroupElect())
+        {
+            sdata[int(gl_SubgroupID)] = float(r);
+        }
+    }
+
+    barrier();
+
+    if (int(gl_SubgroupID) == 0)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+
+        afp v = afp(sdata[lane]);
+        afp r = subgroupAdd(v);
+
+        if (subgroupElect())
+        {
+            sdata[0] = float(r);
+        }
+    }
+#else
+    {
+        const int num_sg = 256 / ncnn_subgroupSize;
+
+        for (int stride = num_sg / 2; stride > 0; stride >>= 1)
+        {
+            if (tid < stride)
+            {
+                sdata[tid] = sdata[tid] + sdata[tid + stride];
+            }
+            barrier();
+        }
+
+        if (tid == 0)
+        {
+            sdata[0] = sdata[0];
+        }
+    }
+#endif
+
+    barrier();
+
+    float mean_val = sdata[0] / area;
+    if (tid == 0)
+    {
+        sdata[0] = mean_val;
+        mean_data[channel_id] = mean_val;
+    }
+    barrier();
+    mean_val = sdata[0];
+
+    // Phase 2: compute sqsum -> var
+    afp sqsum = afp(0.f);
+    for (int t = tid; t < p.size; t += 256)
+    {
+        int v_offset = base_offset + t;
+        afp v = buffer_ld1(bottom_top_blob_data, v_offset);
+        afp d = v - afp(mean_val);
+        sqsum += d * d;
+    }
+
+    afp sg_sqsum = subgroupAdd(sqsum);
+    if (subgroupElect())
+    {
+        sdata[int(gl_SubgroupID)] = float(sg_sqsum);
+    }
+
+    barrier();
+
+#if ncnn_subgroupSize >= 16
+    if (int(gl_SubgroupID) == 0)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+        const int num_sg = int(gl_NumSubgroups);
+
+        afp v = lane < num_sg ? afp(sdata[lane]) : afp(0.f);
+        afp r_sqsum = subgroupAdd(v);
+
+        if (subgroupElect())
+        {
+            sdata[0] = float(r_sqsum);
+        }
+    }
+#elif ncnn_subgroupSize == 8
+    if (int(gl_SubgroupID) < 4)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+        const int base = int(gl_SubgroupID) * 8;
+
+        afp v = afp(sdata[base + lane]);
+        afp r = subgroupAdd(v);
+
+        if (subgroupElect())
+        {
+            sdata[int(gl_SubgroupID)] = float(r);
+        }
+    }
+
+    barrier();
+
+    if (int(gl_SubgroupID) == 0)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+
+        afp v = lane < 4 ? afp(sdata[lane]) : afp(0.f);
+        afp r = subgroupAdd(v);
+
+        if (subgroupElect())
+        {
+            sdata[0] = float(r);
+        }
+    }
+#elif ncnn_subgroupSize == 4
+    if (int(gl_SubgroupID) < 16)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+        const int base = int(gl_SubgroupID) * 4;
+
+        afp v = afp(sdata[base + lane]);
+        afp r = subgroupAdd(v);
+
+        if (subgroupElect())
+        {
+            sdata[int(gl_SubgroupID)] = float(r);
+        }
+    }
+
+    barrier();
+
+    if (int(gl_SubgroupID) < 4)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+        const int base = int(gl_SubgroupID) * 4;
+
+        afp v = afp(sdata[base + lane]);
+        afp r = subgroupAdd(v);
+
+        if (subgroupElect())
+        {
+            sdata[int(gl_SubgroupID)] = float(r);
+        }
+    }
+
+    barrier();
+
+    if (int(gl_SubgroupID) == 0)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+
+        afp v = afp(sdata[lane]);
+        afp r = subgroupAdd(v);
+
+        if (subgroupElect())
+        {
+            sdata[0] = float(r);
+        }
+    }
+#else
+    {
+        const int num_sg = 256 / ncnn_subgroupSize;
+
+        for (int stride = num_sg / 2; stride > 0; stride >>= 1)
+        {
+            if (tid < stride)
+            {
+                sdata[tid] = sdata[tid] + sdata[tid + stride];
+            }
+            barrier();
+        }
+
+        if (tid == 0)
+        {
+            sdata[0] = sdata[0];
+        }
+    }
+#endif
+
+    barrier();
+
+    float var_val = sdata[0] / area;
+    if (tid == 0)
+    {
+        var_data[channel_id] = var_val;
+    }
+}
