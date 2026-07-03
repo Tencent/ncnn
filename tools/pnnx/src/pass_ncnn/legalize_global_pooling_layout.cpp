@@ -331,10 +331,11 @@ void legalize_global_pooling_layout(Graph& graph)
     {
         Operand* r = compact_operands[i];
         const std::vector<int> restore_shape = restore_shapes[i];
+        const std::vector<Operator*> consumers = r->consumers;
 
-        for (size_t j = 0; j < r->consumers.size();)
+        for (size_t j = 0; j < consumers.size(); j++)
         {
-            Operator* op = r->consumers[j];
+            Operator* op = consumers[j];
 
             int input_index = -1;
             for (int k = 0; k < (int)op->inputs.size(); k++)
@@ -346,21 +347,14 @@ void legalize_global_pooling_layout(Graph& graph)
                 }
             }
             if (input_index == -1)
-            {
-                j++;
                 continue;
-            }
 
             if (op->type == "pnnx.Output")
             {
                 if (restore_shape == r->shape)
-                {
-                    j++;
                     continue;
-                }
 
-                if (!insert_restore_reshape(graph, op, input_index, r, restore_shape))
-                    j++;
+                insert_restore_reshape(graph, op, input_index, r, restore_shape);
                 continue;
             }
 
@@ -373,7 +367,6 @@ void legalize_global_pooling_layout(Graph& graph)
                 op->outputs[0]->shape = r->shape;
                 compact_operands.push_back(op->outputs[0]);
                 restore_shapes.push_back(out_restore_shape);
-                j++;
                 continue;
             }
 
@@ -387,7 +380,6 @@ void legalize_global_pooling_layout(Graph& graph)
                 op->outputs[0]->shape = r->shape;
                 compact_operands.push_back(op->outputs[0]);
                 restore_shapes.push_back(out_restore_shape);
-                j++;
                 continue;
             }
 
@@ -406,7 +398,6 @@ void legalize_global_pooling_layout(Graph& graph)
 
                 compact_operands.push_back(op->outputs[0]);
                 restore_shapes.push_back(out_restore_shape);
-                j++;
                 continue;
             }
 
@@ -434,7 +425,6 @@ void legalize_global_pooling_layout(Graph& graph)
 
                 compact_operands.push_back(op->outputs[0]);
                 restore_shapes.push_back(out_restore_shape);
-                j++;
                 continue;
             }
 
@@ -447,19 +437,14 @@ void legalize_global_pooling_layout(Graph& graph)
                     op->outputs[0]->shape = other->shape;
                     op->outputs[0]->params["__batch_index"] = other->params.at("__batch_index");
                     op->outputs[0]->params["__ncnn_batch_axis"] = other->params.at("__ncnn_batch_axis");
-                    j++;
                     continue;
                 }
             }
 
             if (restore_shape == r->shape)
-            {
-                j++;
                 continue;
-            }
 
-            if (!insert_restore_reshape(graph, op, input_index, r, restore_shape))
-                j++;
+            insert_restore_reshape(graph, op, input_index, r, restore_shape);
         }
     }
 }

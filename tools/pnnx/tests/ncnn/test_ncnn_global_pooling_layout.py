@@ -113,6 +113,37 @@ class ModelReshapeFallback(nn.Module):
         return x.reshape(x.size(0), 1, x.size(1), 1)
 
 
+class ModelMultiFallback(nn.Module):
+    def __init__(self):
+        super(ModelMultiFallback, self).__init__()
+        self.pool = nn.AdaptiveAvgPool2d(1)
+
+    def forward(self, x):
+        x = self.pool(x)
+        return x.permute(0, 2, 3, 1), x[:, :, 0, :]
+
+
+class ModelOutputFallback(nn.Module):
+    def __init__(self):
+        super(ModelOutputFallback, self).__init__()
+        self.pool = nn.AdaptiveAvgPool2d(1)
+
+    def forward(self, x):
+        x = self.pool(x)
+        return x, x.permute(0, 2, 3, 1)
+
+
+class ModelMultiConvFallback(nn.Module):
+    def __init__(self):
+        super(ModelMultiConvFallback, self).__init__()
+        self.pool = nn.AdaptiveAvgPool2d(1)
+        self.conv = nn.Conv2d(4, 5, 3, padding=1)
+
+    def forward(self, x):
+        x = self.pool(x)
+        return x.permute(0, 2, 3, 1), self.conv(x)
+
+
 class ModelDepthWiseFallback(nn.Module):
     def __init__(self):
         super(ModelDepthWiseFallback, self).__init__()
@@ -213,6 +244,12 @@ def test():
     if not run_model("test_ncnn_global_pooling_layout_slice", ModelSliceFallback(), x, "[2,4,5,7]"):
         return False
     if not run_model("test_ncnn_global_pooling_layout_reshape", ModelReshapeFallback(), x, "[2,4,5,7]"):
+        return False
+    if not run_model("test_ncnn_global_pooling_layout_multi_fallback", ModelMultiFallback(), x, "[2,4,5,7]"):
+        return False
+    if not run_model("test_ncnn_global_pooling_layout_multi_conv_fallback", ModelMultiConvFallback(), x, "[2,4,5,7]"):
+        return False
+    if not run_model("test_ncnn_global_pooling_layout_output_fallback", ModelOutputFallback(), x, "[2,4,5,7]"):
         return False
     if not run_model("test_ncnn_global_pooling_layout_depthwise", ModelDepthWiseFallback(), x, "[2,4,5,7]"):
         return False
