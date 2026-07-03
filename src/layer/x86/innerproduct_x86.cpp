@@ -113,6 +113,9 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         {
             Mat bottom_blob_fp32;
             cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+            if (bottom_blob_fp32.empty())
+                return -100;
+
             return forward_int8_x86(bottom_blob_fp32, top_blob, opt);
         }
 #endif
@@ -464,9 +467,12 @@ int InnerProduct_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, co
                     int i = 0;
                     for (; i < num_input; i++)
                     {
-                        // TODO use _mm_cvtepi8_epi16 on sse4.1
+#if __SSE4_1__
+                        __m128i _w = _mm_cvtepi8_epi16(_mm_loadl_epi64((const __m128i*)kptr));
+#else
                         __m128i _w = _mm_loadl_epi64((const __m128i*)kptr);
                         _w = _mm_unpacklo_epi8(_w, _mm_cmpgt_epi8(_mm_setzero_si128(), _w));
+#endif
 
                         __m128i _val0 = _mm_set1_epi16((short)m0[0]);
                         __m128i _val1 = _mm_set1_epi16((short)m1[0]);
@@ -643,9 +649,12 @@ int InnerProduct_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, co
                     {
                         __m128i _val = _mm_set1_epi16((short)m[0]);
 
-                        // TODO use _mm_cvtepi8_epi16 on sse4.1
+#if __SSE4_1__
+                        __m128i _w = _mm_cvtepi8_epi16(_mm_loadl_epi64((const __m128i*)kptr));
+#else
                         __m128i _w = _mm_loadl_epi64((const __m128i*)kptr);
                         _w = _mm_unpacklo_epi8(_w, _mm_cmpgt_epi8(_mm_setzero_si128(), _w));
+#endif
 
                         __m128i _sl = _mm_mullo_epi16(_val, _w);
                         __m128i _sh = _mm_mulhi_epi16(_val, _w);
@@ -767,9 +776,12 @@ int InnerProduct_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, co
             {
                 __m128i _val = _mm_set1_epi16((short)sptr[0]);
 
-                // TODO use _mm_cvtepi8_epi16 on sse4.1
+#if __SSE4_1__
+                __m128i _w = _mm_cvtepi8_epi16(_mm_loadl_epi64((const __m128i*)kptr));
+#else
                 __m128i _w = _mm_loadl_epi64((const __m128i*)kptr);
                 _w = _mm_unpacklo_epi8(_w, _mm_cmpgt_epi8(_mm_setzero_si128(), _w));
+#endif
 
                 __m128i _sl = _mm_mullo_epi16(_val, _w);
                 __m128i _sh = _mm_mulhi_epi16(_val, _w);

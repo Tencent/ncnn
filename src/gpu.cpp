@@ -102,6 +102,29 @@ static const layer_shader_registry_entry layer_shader_registry[] = {
 
 static const int layer_shader_registry_entry_count = sizeof(layer_shader_registry) / sizeof(layer_shader_registry_entry);
 
+static uint64_t fnv1a_64_update(uint64_t h, const unsigned char* data, int size)
+{
+    for (int i = 0; i < size; i++)
+    {
+        h ^= (uint64_t)data[i];
+        h *= 0x00000100000001b3ull;
+    }
+
+    return h;
+}
+
+uint64_t get_shader_source_hash(int shader_type_index)
+{
+    if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count)
+        return 0;
+
+    const layer_shader_registry_entry& entry = layer_shader_registry[shader_type_index];
+    uint64_t h = 0xcbf29ce484222325ull;
+    h = fnv1a_64_update(h, (const unsigned char*)&entry.comp_data_size, sizeof(entry.comp_data_size));
+    h = fnv1a_64_update(h, (const unsigned char*)entry.comp_data, entry.comp_data_size);
+    return h;
+}
+
 // vulkan core
 PFN_vkAllocateCommandBuffers vkAllocateCommandBuffers = 0;
 PFN_vkAllocateDescriptorSets vkAllocateDescriptorSets = 0;
@@ -200,6 +223,7 @@ PFN_vkUpdateDescriptorSets vkUpdateDescriptorSets = 0;
 PFN_vkWaitForFences vkWaitForFences = 0;
 
 int support_VK_KHR_external_memory_capabilities = 0;
+int support_VK_KHR_device_group_creation = 0;
 int support_VK_KHR_get_physical_device_properties2 = 0;
 int support_VK_KHR_get_surface_capabilities2 = 0;
 int support_VK_KHR_portability_enumeration = 0;
@@ -313,6 +337,9 @@ public:
     bool support_cooperative_matrix_16_8_16;
     bool support_cooperative_matrix_16_16_16;
 
+    // int8 cooperative matrix feature
+    bool support_int8_cooperative_matrix;
+
     // bf16 cooperative matrix feature
     bool support_bf16_cooperative_matrix;
 
@@ -325,6 +352,7 @@ public:
     int support_VK_KHR_cooperative_matrix;
     int support_VK_KHR_dedicated_allocation;
     int support_VK_KHR_descriptor_update_template;
+    int support_VK_KHR_device_group;
     int support_VK_KHR_driver_properties;
     int support_VK_KHR_external_memory;
     int support_VK_KHR_get_memory_requirements2;
@@ -383,6 +411,7 @@ public:
     VkPhysicalDeviceShaderFloatControls2FeaturesKHR queryShaderFloatControls2Features;
     VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR queryShaderIntegerDotProductFeatures;
     VkPhysicalDeviceSubgroupSizeControlFeaturesEXT querySubgroupSizeControlFeatures;
+    VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR queryShaderSubgroupExtendedTypesFeatures;
     VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR queryShaderSubgroupRotateFeatures;
     VkPhysicalDeviceShaderAtomicFloatFeaturesEXT queryShaderAtomicFloatFeatures;
     VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT queryShaderAtomicFloat2Features;
@@ -693,6 +722,7 @@ int GpuInfoPrivate::query_extensions()
     support_VK_KHR_cooperative_matrix = 0;
     support_VK_KHR_dedicated_allocation = 0;
     support_VK_KHR_descriptor_update_template = 0;
+    support_VK_KHR_device_group = 0;
     support_VK_KHR_driver_properties = 0;
     support_VK_KHR_external_memory = 0;
     support_VK_KHR_get_memory_requirements2 = 0;
@@ -755,6 +785,8 @@ int GpuInfoPrivate::query_extensions()
             support_VK_KHR_dedicated_allocation = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_descriptor_update_template") == 0)
             support_VK_KHR_descriptor_update_template = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_KHR_device_group") == 0)
+            support_VK_KHR_device_group = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_driver_properties") == 0)
             support_VK_KHR_driver_properties = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_external_memory") == 0)
@@ -836,6 +868,88 @@ int GpuInfoPrivate::query_extensions()
         else if (strcmp(exp.extensionName, "VK_NV_cooperative_vector") == 0)
             support_VK_NV_cooperative_vector = exp.specVersion;
     }
+
+    const bool support_VK_VERSION_1_1 = physicalDeviceProperties.apiVersion >= VK_MAKE_VERSION(1, 1, 0);
+
+    // filter out extensions with unmet dependencies
+    // later extensions may depend on earlier ones
+
+    if (!support_VK_VERSION_1_1 && !support_VK_KHR_device_group_creation)
+        support_VK_KHR_device_group = 0;
+
+    if (!support_VK_VERSION_1_1)
+    {
+        if (!support_VK_KHR_get_physical_device_properties2)
+        {
+            support_VK_AMD_device_coherent_memory = 0;
+            support_VK_EXT_buffer_device_address = 0;
+            support_VK_EXT_memory_budget = 0;
+            support_VK_EXT_memory_priority = 0;
+            support_VK_EXT_robustness2 = 0;
+            support_VK_EXT_shader_atomic_float = 0;
+            support_VK_EXT_shader_float8 = 0;
+            support_VK_KHR_cooperative_matrix = 0;
+            support_VK_KHR_driver_properties = 0;
+            support_VK_KHR_maintenance3 = 0;
+            support_VK_KHR_multiview = 0;
+            support_VK_KHR_portability_subset = 0;
+            support_VK_KHR_push_descriptor = 0;
+            support_VK_KHR_robustness2 = 0;
+            support_VK_KHR_shader_bfloat16 = 0;
+            support_VK_KHR_shader_float16_int8 = 0;
+            support_VK_KHR_shader_float_controls = 0;
+            support_VK_KHR_shader_integer_dot_product = 0;
+            support_VK_KHR_shader_subgroup_rotate = 0;
+            support_VK_KHR_vulkan_memory_model = 0;
+            support_VK_KHR_zero_initialize_workgroup_memory = 0;
+            support_VK_NV_cooperative_matrix = 0;
+            support_VK_NV_cooperative_vector = 0;
+        }
+
+        if (!support_VK_KHR_external_memory_capabilities)
+            support_VK_KHR_external_memory = 0;
+        if (!support_VK_KHR_external_memory)
+        {
+            support_VK_EXT_external_memory_host = 0;
+            support_VK_EXT_queue_family_foreign = 0;
+        }
+        if (!support_VK_KHR_get_memory_requirements2)
+            support_VK_KHR_dedicated_allocation = 0;
+        if (!support_VK_KHR_get_physical_device_properties2 || !support_VK_KHR_storage_buffer_storage_class)
+        {
+            support_VK_KHR_8bit_storage = 0;
+            support_VK_KHR_16bit_storage = 0;
+        }
+        if (!support_VK_KHR_get_physical_device_properties2 || !support_VK_KHR_device_group)
+            support_VK_KHR_buffer_device_address = 0;
+        if (!support_VK_KHR_get_physical_device_properties2 || !support_VK_KHR_maintenance3)
+            support_VK_EXT_descriptor_indexing = 0;
+        if (!support_VK_KHR_multiview || !support_VK_KHR_maintenance2)
+            support_VK_KHR_create_renderpass2 = 0;
+        if (!support_VK_KHR_maintenance1 || !support_VK_KHR_bind_memory2 || !support_VK_KHR_get_memory_requirements2 || !support_VK_KHR_get_physical_device_properties2)
+            support_VK_KHR_sampler_ycbcr_conversion = 0;
+        support_VK_EXT_subgroup_size_control = 0;
+        support_VK_KHR_shader_float_controls2 = 0;
+        support_VK_KHR_shader_subgroup_extended_types = 0;
+    }
+    else if (!support_VK_KHR_shader_float_controls)
+    {
+        support_VK_KHR_shader_float_controls2 = 0;
+    }
+
+    if (!support_VK_EXT_shader_atomic_float)
+        support_VK_EXT_shader_atomic_float2 = 0;
+    if (!support_VK_KHR_cooperative_matrix)
+        support_VK_NV_cooperative_matrix2 = 0;
+    if (!support_VK_KHR_surface)
+        support_VK_KHR_swapchain = 0;
+
+#if __ANDROID_API__ >= 26
+    if (!support_VK_EXT_queue_family_foreign)
+        support_VK_ANDROID_external_memory_android_hardware_buffer = 0;
+    if (!support_VK_VERSION_1_1 && (!support_VK_KHR_sampler_ycbcr_conversion || !support_VK_KHR_external_memory || !support_VK_KHR_dedicated_allocation))
+        support_VK_ANDROID_external_memory_android_hardware_buffer = 0;
+#endif // __ANDROID_API__ >= 26
 
     if (support_VK_KHR_buffer_device_address)
     {
@@ -1002,6 +1116,16 @@ void GpuInfoPrivate::query_extension_features()
         queryExtensionFeatures = &querySubgroupSizeControlFeatures;
     }
 
+    // query subgroup extended types
+    memset(&queryShaderSubgroupExtendedTypesFeatures, 0, sizeof(queryShaderSubgroupExtendedTypesFeatures));
+    queryShaderSubgroupExtendedTypesFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_EXTENDED_TYPES_FEATURES_KHR;
+    queryShaderSubgroupExtendedTypesFeatures.pNext = 0;
+    if (support_VK_KHR_shader_subgroup_extended_types)
+    {
+        queryShaderSubgroupExtendedTypesFeatures.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryShaderSubgroupExtendedTypesFeatures;
+    }
+
     // query subgroup rotate
     memset(&queryShaderSubgroupRotateFeatures, 0, sizeof(queryShaderSubgroupRotateFeatures));
     queryShaderSubgroupRotateFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_ROTATE_FEATURES_KHR;
@@ -1112,6 +1236,14 @@ void GpuInfoPrivate::query_extension_features()
         default:
             break;
         }
+    }
+
+    if (physicalDeviceProperties.vendorID == 0x5143)
+    {
+        // adreno drivers break on the ncnn cm kernel tile unrolls, which exceed hardware limitations
+        // TODO special unroll strategy needs to be designed for adreno
+        queryCooperativeMatrixFeatures.cooperativeMatrix = VK_FALSE;
+        queryCooperativeMatrixFeaturesNV.cooperativeMatrix = VK_FALSE;
     }
 }
 
@@ -1318,6 +1450,7 @@ void GpuInfoPrivate::query_extension_properties()
     support_cooperative_matrix_16_8_8 = false;
     support_cooperative_matrix_16_8_16 = false;
     support_cooperative_matrix_16_16_16 = false;
+    support_int8_cooperative_matrix = false;
     support_bf16_cooperative_matrix = false;
     if (support_VK_KHR_cooperative_matrix && queryCooperativeMatrixFeatures.cooperativeMatrix)
     {
@@ -1373,6 +1506,13 @@ void GpuInfoPrivate::query_extension_properties()
                     && cmp.scope == VK_SCOPE_SUBGROUP_KHR)
             {
                 support_cooperative_matrix_16_16_16 = true;
+            }
+
+            if (cmp.AType == VK_COMPONENT_TYPE_SINT8_KHR && cmp.BType == VK_COMPONENT_TYPE_SINT8_KHR
+                    && cmp.CType == VK_COMPONENT_TYPE_SINT32_KHR && cmp.ResultType == VK_COMPONENT_TYPE_SINT32_KHR
+                    && cmp.scope == VK_SCOPE_SUBGROUP_KHR)
+            {
+                support_int8_cooperative_matrix = true;
             }
 
             if (cmp.AType == VK_COMPONENT_TYPE_BFLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_BFLOAT16_KHR
@@ -1438,6 +1578,13 @@ void GpuInfoPrivate::query_extension_properties()
             {
                 support_cooperative_matrix_16_16_16 = true;
             }
+
+            if (cmp.AType == VK_COMPONENT_TYPE_SINT8_NV && cmp.BType == VK_COMPONENT_TYPE_SINT8_NV
+                    && cmp.CType == VK_COMPONENT_TYPE_SINT32_NV && cmp.DType == VK_COMPONENT_TYPE_SINT32_NV
+                    && cmp.scope == VK_SCOPE_SUBGROUP_NV)
+            {
+                support_int8_cooperative_matrix = true;
+            }
         }
     }
 
@@ -1464,12 +1611,6 @@ void GpuInfoPrivate::query_extension_properties()
         {
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV failed %d", ret);
         }
-
-        for (uint32_t j = 0; j < propertyCount; j++)
-        {
-            const VkCooperativeMatrixFlexibleDimensionsPropertiesNV& cmfdp = queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV[j];
-            // NCNN_LOGE("cmfdp %2d %2d %2d  %d %d %d %d  %d %d %d", cmfdp.MGranularity, cmfdp.NGranularity, cmfdp.KGranularity, cmfdp.AType, cmfdp.BType, cmfdp.CType, cmfdp.ResultType, cmfdp.saturatingAccumulation, cmfdp.scope, cmfdp.workgroupInvocations);
-        }
     }
 
     // query supported cooperative vector types and operations
@@ -1494,12 +1635,6 @@ void GpuInfoPrivate::query_extension_properties()
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeVectorPropertiesNV failed %d", ret);
-        }
-
-        for (uint32_t j = 0; j < propertyCount; j++)
-        {
-            const VkCooperativeVectorPropertiesNV& cvp = queryCooperativeVectorSubPropertiesNV[j];
-            // NCNN_LOGE("cvp %d %d %d %d %d  %d", cvp.inputType, cvp.inputInterpretation, cvp.matrixInterpretation, cvp.biasInterpretation, cvp.resultType, cvp.transpose);
         }
     }
 
@@ -1825,6 +1960,21 @@ bool GpuInfo::support_int8_arithmetic() const
     return d->queryFloat16Int8Features.shaderInt8;
 }
 
+bool GpuInfo::support_int16_packed() const
+{
+    return true;
+}
+
+bool GpuInfo::support_int16_storage() const
+{
+    return d->query16BitStorageFeatures.storageBuffer16BitAccess;
+}
+
+bool GpuInfo::support_int16_arithmetic() const
+{
+    return d->physicalDevicefeatures.shaderInt16;
+}
+
 bool GpuInfo::support_bf16_packed() const
 {
     return true;
@@ -1880,6 +2030,11 @@ bool GpuInfo::support_cooperative_matrix_16_16_16() const
     return d->support_cooperative_matrix_16_16_16;
 }
 
+bool GpuInfo::support_int8_cooperative_matrix() const
+{
+    return d->support_int8_cooperative_matrix && support_int8_arithmetic();
+}
+
 bool GpuInfo::support_bf16_cooperative_matrix() const
 {
     return d->support_bf16_cooperative_matrix;
@@ -1923,6 +2078,11 @@ int GpuInfo::support_VK_KHR_dedicated_allocation() const
 int GpuInfo::support_VK_KHR_descriptor_update_template() const
 {
     return d->support_VK_KHR_descriptor_update_template;
+}
+
+int GpuInfo::support_VK_KHR_device_group() const
+{
+    return d->support_VK_KHR_device_group;
 }
 
 int GpuInfo::support_VK_KHR_driver_properties() const
@@ -2195,6 +2355,11 @@ const VkPhysicalDeviceShaderFloatControls2FeaturesKHR& GpuInfo::queryShaderFloat
 const VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR& GpuInfo::queryShaderIntegerDotProductFeatures() const
 {
     return d->queryShaderIntegerDotProductFeatures;
+}
+
+const VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR& GpuInfo::queryShaderSubgroupExtendedTypesFeatures() const
+{
+    return d->queryShaderSubgroupExtendedTypesFeatures;
 }
 
 const VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR& GpuInfo::queryShaderSubgroupRotateFeatures() const
@@ -2665,6 +2830,8 @@ int create_gpu_instance(const char* driver_path)
         return -1;
     }
 
+    support_VK_KHR_external_memory_capabilities = 0;
+    support_VK_KHR_device_group_creation = 0;
     support_VK_KHR_get_physical_device_properties2 = 0;
     support_VK_KHR_get_surface_capabilities2 = 0;
     support_VK_KHR_portability_enumeration = 0;
@@ -2682,6 +2849,8 @@ int create_gpu_instance(const char* driver_path)
 
         if (strcmp(exp.extensionName, "VK_KHR_external_memory_capabilities") == 0)
             support_VK_KHR_external_memory_capabilities = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_KHR_device_group_creation") == 0)
+            support_VK_KHR_device_group_creation = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_get_physical_device_properties2") == 0)
             support_VK_KHR_get_physical_device_properties2 = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_get_surface_capabilities2") == 0)
@@ -2708,8 +2877,35 @@ int create_gpu_instance(const char* driver_path)
         support_VK_EXT_validation_flags = 0;
     }
 
+    uint32_t instance_api_version = VK_MAKE_VERSION(1, 0, 0);
+    typedef VkResult(VKAPI_PTR * PFN_vkEnumerateInstanceVersion)(uint32_t * pApiVersion);
+    PFN_vkEnumerateInstanceVersion vkEnumerateInstanceVersion = (PFN_vkEnumerateInstanceVersion)vkGetInstanceProcAddr(0, "vkEnumerateInstanceVersion");
+    if (vkEnumerateInstanceVersion)
+    {
+        ret = vkEnumerateInstanceVersion(&instance_api_version);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkEnumerateInstanceVersion failed %d", ret);
+            return -1;
+        }
+    }
+
+    // NCNN_LOGE("instance apiVersion = %u.%u.%u", VK_VERSION_MAJOR(instance_api_version), VK_VERSION_MINOR(instance_api_version), VK_VERSION_PATCH(instance_api_version));
+
+    const bool instance_support_VK_VERSION_1_1 = instance_api_version >= VK_MAKE_VERSION(1, 1, 0);
+    if (!instance_support_VK_VERSION_1_1 && !support_VK_KHR_get_physical_device_properties2)
+        support_VK_KHR_external_memory_capabilities = 0;
+    if (!support_VK_KHR_surface)
+        support_VK_KHR_get_surface_capabilities2 = 0;
+#if __ANDROID_API__ >= 26
+    if (!support_VK_KHR_surface)
+        support_VK_KHR_android_surface = 0;
+#endif // __ANDROID_API__ >= 26
+
     if (support_VK_KHR_external_memory_capabilities)
         enabledExtensions.push_back("VK_KHR_external_memory_capabilities");
+    if (support_VK_KHR_device_group_creation)
+        enabledExtensions.push_back("VK_KHR_device_group_creation");
     if (support_VK_KHR_get_physical_device_properties2)
         enabledExtensions.push_back("VK_KHR_get_physical_device_properties2");
     if (support_VK_KHR_get_surface_capabilities2)
@@ -2730,21 +2926,6 @@ int create_gpu_instance(const char* driver_path)
     if (support_VK_KHR_android_surface)
         enabledExtensions.push_back("VK_KHR_android_surface");
 #endif // __ANDROID_API__ >= 26
-
-    uint32_t instance_api_version = VK_MAKE_VERSION(1, 0, 0);
-    typedef VkResult(VKAPI_PTR * PFN_vkEnumerateInstanceVersion)(uint32_t * pApiVersion);
-    PFN_vkEnumerateInstanceVersion vkEnumerateInstanceVersion = (PFN_vkEnumerateInstanceVersion)vkGetInstanceProcAddr(0, "vkEnumerateInstanceVersion");
-    if (vkEnumerateInstanceVersion)
-    {
-        ret = vkEnumerateInstanceVersion(&instance_api_version);
-        if (ret != VK_SUCCESS)
-        {
-            NCNN_LOGE("vkEnumerateInstanceVersion failed %d", ret);
-            return -1;
-        }
-    }
-
-    // NCNN_LOGE("instance apiVersion = %u.%u.%u", VK_VERSION_MAJOR(instance_api_version), VK_VERSION_MINOR(instance_api_version), VK_VERSION_PATCH(instance_api_version));
 
     VkApplicationInfo applicationInfo;
     applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -3415,6 +3596,8 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
     opt.use_fp16_storage = use_fp16 && vkdev->info.support_fp16_storage();
     opt.use_int8_packed = use_int8; // int8p is always supported
     opt.use_int8_storage = use_int8 && vkdev->info.support_int8_storage();
+    opt.use_int16_packed = false;
+    opt.use_int16_storage = false;
     opt.use_bf16_packed = use_bf16; // bf16p is always supported
     opt.use_bf16_storage = use_bf16 && vkdev->info.support_bf16_storage();
 
@@ -3494,6 +3677,8 @@ void VulkanDevicePrivate::destroy_utility_operator()
             opt.use_fp16_storage = use_fp16 && vkdev->info.support_fp16_storage();
             opt.use_int8_packed = false;
             opt.use_int8_storage = false;
+            opt.use_int16_packed = false;
+            opt.use_int16_storage = false;
             opt.use_bf16_packed = false;
             opt.use_bf16_storage = false;
 
@@ -3521,6 +3706,8 @@ void VulkanDevicePrivate::destroy_utility_operator()
         opt.use_fp16_storage = false;
         opt.use_int8_packed = use_int8;
         opt.use_int8_storage = use_int8 && vkdev->info.support_int8_storage();
+        opt.use_int16_packed = false;
+        opt.use_int16_storage = false;
         opt.use_bf16_packed = false;
         opt.use_bf16_storage = false;
 
@@ -3550,6 +3737,8 @@ void VulkanDevicePrivate::destroy_utility_operator()
         opt.use_fp16_storage = false;
         opt.use_int8_packed = false;
         opt.use_int8_storage = false;
+        opt.use_int16_packed = false;
+        opt.use_int16_storage = false;
         opt.use_bf16_packed = use_bf16;
         opt.use_bf16_storage = use_bf16 && vkdev->info.support_bf16_storage();
 
@@ -3591,6 +3780,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_dedicated_allocation");
     if (info.support_VK_KHR_descriptor_update_template())
         enabledExtensions.push_back("VK_KHR_descriptor_update_template");
+    if (info.support_VK_KHR_device_group())
+        enabledExtensions.push_back("VK_KHR_device_group");
     if (info.support_VK_KHR_driver_properties())
         enabledExtensions.push_back("VK_KHR_driver_properties");
     if (info.support_VK_KHR_external_memory())
@@ -4078,6 +4269,11 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
 
 int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipeline* pipeline) const
 {
+    return create_pipeline(shader_module, pipeline_layout, specializations, subgroup_size, 0, pipeline);
+}
+
+int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipelineCache pipeline_cache, VkPipeline* pipeline) const
+{
     const int specialization_count = specializations.size();
 
     std::vector<VkSpecializationMapEntry> specializationMapEntries(specialization_count);
@@ -4134,7 +4330,7 @@ int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout
     computePipelineCreateInfo.basePipelineHandle = 0;
     computePipelineCreateInfo.basePipelineIndex = 0;
 
-    VkResult ret = vkCreateComputePipelines(d->device, 0, 1, &computePipelineCreateInfo, 0, pipeline);
+    VkResult ret = vkCreateComputePipelines(d->device, pipeline_cache, 1, &computePipelineCreateInfo, 0, pipeline);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkCreateComputePipelines failed %d", ret);
@@ -4951,6 +5147,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     const GpuInfo& info = get_gpu_info(device_index);
     const bool support_fp16_storage = info.support_fp16_storage();
     const bool support_fp16_uniform = info.support_fp16_uniform();
+    const bool support_int16_arithmetic = info.physicalDevicefeatures().shaderInt16;
 
     if (opt.use_bf16_storage)
     {
@@ -5302,6 +5499,42 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("sint8", "int");
     }
 
+    if (opt.use_int16_storage)
+    {
+        custom_defines.append("NCNN_int16_storage", 1);
+        custom_defines.append("sint16", "int16_t");
+        custom_defines.append("sint16vec4", "i16vec4");
+        custom_defines.append("lint16", "int16_t");
+        custom_defines.append("lint16vec4", "i16vec4");
+        custom_defines.append("aint16", support_int16_arithmetic ? "int16_t" : "int");
+        custom_defines.append("aint16vec4", support_int16_arithmetic ? "i16vec4" : "ivec4");
+        custom_defines.append("lint162aint16(v)", support_int16_arithmetic ? "v" : "int(v)");
+        custom_defines.append("lint162aint16vec4(v)", support_int16_arithmetic ? "v" : "ivec4(v)");
+    }
+    else if (opt.use_int16_packed)
+    {
+        custom_defines.append("NCNN_int16_packed", 1);
+        custom_defines.append("sint16", "int");
+        custom_defines.append("sint16vec4", "ivec2");
+        custom_defines.append("lint16", "int");
+        custom_defines.append("lint16vec4", "ivec2");
+        custom_defines.append("aint16", support_int16_arithmetic ? "int16_t" : "int");
+        custom_defines.append("aint16vec4", support_int16_arithmetic ? "i16vec4" : "ivec4");
+        custom_defines.append("lint162aint16(v)", support_int16_arithmetic ? "int16_t(v)" : "int(v)");
+        custom_defines.append("lint162aint16vec4(v)", support_int16_arithmetic ? "i16vec4(unpack16(v.r),unpack16(v.g))" : "ivec4(unpackInt2x16(v.r),unpackInt2x16(v.g))");
+    }
+    else
+    {
+        custom_defines.append("sint16", "int");
+        custom_defines.append("sint16vec4", "ivec4");
+        custom_defines.append("lint16", "int");
+        custom_defines.append("lint16vec4", "ivec4");
+        custom_defines.append("aint16", "int");
+        custom_defines.append("aint16vec4", "ivec4");
+        custom_defines.append("lint162aint16(v)", "v");
+        custom_defines.append("lint162aint16vec4(v)", "v");
+    }
+
     custom_defines.append("sint8vec4", "int");
 
     custom_defines.append("aint8", "int");
@@ -5309,6 +5542,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     custom_defines.append("unpackInt4x8(v)", "ivec4((v<<24)>>24,(v<<16)>>24,(v<<8)>>24,v>>24)");
     custom_defines.append("packInt4x8(v)", "int((uint(v.r)&0xFFu)|((uint(v.g)&0xFFu)<<8)|((uint(v.b)&0xFFu)<<16)|((uint(v.a)&0xFFu)<<24))");
+    custom_defines.append("unpackInt2x16(v)", "ivec2((int(v)<<16)>>16,int(v)>>16)");
+    custom_defines.append("packInt2x16(v)", "int((uint(v.r)&0xFFFFu)|((uint(v.g)&0xFFFFu)<<16))");
+    custom_defines.append("float2int8(v)", "int(clamp(float(v)+(float(v)>=0.f?0.5f:-0.5f),-127.f,127.f))");
+    custom_defines.append("float2int8vec4(v)", "ivec4(clamp(vec4(v)+mix(vec4(-0.5f),vec4(0.5f),greaterThanEqual(vec4(v),vec4(0.f))),vec4(-127.f),vec4(127.f)))");
 
     if (opt.use_int8_storage)
     {
@@ -5324,8 +5561,49 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     }
 
     custom_defines.append("i8buffer_ld4(buf,i)", "unpackInt4x8(buf[i])");
+    custom_defines.append("i8buffer_sm4(buf,i)", "buf[i]");
     custom_defines.append("i8buffer_st4(buf,i,v)", "{buf[i]=packInt4x8(v);}");
     custom_defines.append("i8buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
+    custom_defines.append("i8buffer_cp1to4(buf,i,sbuf,si)", "{ivec4 _v=ivec4(i8buffer_ld1(sbuf,si.r),i8buffer_ld1(sbuf,si.g),i8buffer_ld1(sbuf,si.b),i8buffer_ld1(sbuf,si.a));i8buffer_st4(buf,i,_v);}");
+    custom_defines.append("i8buffer_cp4to1(buf,i4,sbuf,si)", "{ivec4 _v=i8buffer_ld4(sbuf,si);i8buffer_st1(buf,i4.r,_v.r);i8buffer_st1(buf,i4.g,_v.g);i8buffer_st1(buf,i4.b,_v.b);i8buffer_st1(buf,i4.a,_v.a);}");
+
+    if (opt.use_int16_storage)
+    {
+        custom_defines.append("i16buffer_ld1(buf,i)", "int(buf[i])");
+        custom_defines.append("i16buffer_st1(buf,i,v)", "{buf[i]=int16_t(v);}");
+    }
+    else if (opt.use_int16_packed)
+    {
+        custom_defines.append("i16buffer_ld1(buf,i)", "unpackInt2x16(buf[(i)/2])[(i)%2]");
+        custom_defines.append("i16buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;int _vs=int(v);int _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);ivec2 _v=unpackInt2x16(_old_v);_v[_im2]=_vs;_new_v=packInt2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
+    }
+    else
+    {
+        custom_defines.append("i16buffer_ld1(buf,i)", "int(buf[i])");
+        custom_defines.append("i16buffer_st1(buf,i,v)", "{buf[i]=int(v);}");
+    }
+    custom_defines.append("i16buffer_ld2(buf,i)", "ivec2(i16buffer_ld1(buf,i),i16buffer_ld1(buf,(i)+1))");
+    if (opt.use_int16_storage)
+    {
+        custom_defines.append("i16buffer_st2(buf,i,v)", "{ivec2 _v=ivec2(v);buf[i]=int16_t(_v.r);buf[(i)+1]=int16_t(_v.g);}");
+        custom_defines.append("i16buffer_sm4(buf,i)", "buf[i]");
+        custom_defines.append("i16buffer_ld4(buf,i)", support_int16_arithmetic ? "buf[i]" : "ivec4(buf[i])");
+        custom_defines.append("i16buffer_st4(buf,i,v)", "{buf[i]=i16vec4(v);}");
+    }
+    else if (opt.use_int16_packed)
+    {
+        custom_defines.append("i16buffer_st2(buf,i,v)", "{uint _i=uint(i);ivec2 _v=ivec2(v);if((_i&1u)==0u){buf[_i/2]=packInt2x16(_v);}else{i16buffer_st1(buf,int(_i),_v.r);i16buffer_st1(buf,int(_i)+1,_v.g);}}");
+        custom_defines.append("i16buffer_sm4(buf,i)", "buf[i]");
+        custom_defines.append("i16buffer_ld4(buf,i)", support_int16_arithmetic ? "i16vec4(unpack16(buf[i].r),unpack16(buf[i].g))" : "ivec4(unpackInt2x16(buf[i].r),unpackInt2x16(buf[i].g))");
+        custom_defines.append("i16buffer_st4(buf,i,v)", "{ivec4 _v=ivec4(v);buf[i]=ivec2(packInt2x16(ivec2(_v.r,_v.g)),packInt2x16(ivec2(_v.b,_v.a)));}");
+    }
+    else
+    {
+        custom_defines.append("i16buffer_st2(buf,i,v)", "{ivec2 _v=ivec2(v);buf[i]=int(_v.r);buf[(i)+1]=int(_v.g);}");
+        custom_defines.append("i16buffer_sm4(buf,i)", "buf[i]");
+        custom_defines.append("i16buffer_ld4(buf,i)", "ivec4(buf[i])");
+        custom_defines.append("i16buffer_st4(buf,i,v)", "{buf[i]=ivec4(v);}");
+    }
 
     custom_defines.append("psc(x)", "(x==0?p.x:x)");
 
@@ -5553,6 +5831,11 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         {
             const VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR& features = info.queryShaderIntegerDotProductFeatures();
             DD_APPEND_FEATURE(shaderIntegerDotProduct)
+        }
+        if (info.support_VK_KHR_shader_subgroup_extended_types())
+        {
+            const VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR& features = info.queryShaderSubgroupExtendedTypesFeatures();
+            DD_APPEND_FEATURE(shaderSubgroupExtendedTypes)
         }
         if (info.support_VK_KHR_shader_subgroup_rotate())
         {
@@ -5957,7 +6240,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     {
         custom_exts += "#extension GL_EXT_bfloat16: require\n";
     }
-    if (opt.use_fp16_storage || opt.use_bf16_storage)
+    if (opt.use_fp16_storage || opt.use_bf16_storage || opt.use_int16_storage)
     {
         custom_exts += "#extension GL_EXT_shader_16bit_storage: require\n";
     }

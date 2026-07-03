@@ -1032,8 +1032,13 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                 }
                 if (out_elempack == 1)
                 {
+#ifdef _MSC_VER
+                    __declspec(align(64))
+#else
+                    __attribute__((aligned(64)))
+#endif
                     float sum[16];
-                    _mm512_storeu_ps(sum, _sum0);
+                    _mm512_store_ps(sum, _sum0);
 
                     outptr[0] = sum[0];
                     outptr[M] = sum[1];
@@ -1517,8 +1522,13 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                 }
                 if (out_elempack == 1)
                 {
+#ifdef _MSC_VER
+                    __declspec(align(32))
+#else
+                    __attribute__((aligned(32)))
+#endif
                     float sum[8];
-                    _mm256_storeu_ps(sum, _sum0);
+                    _mm256_store_ps(sum, _sum0);
 
                     outptr[0] = sum[0];
                     outptr[M] = sum[1];
@@ -1958,8 +1968,13 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                 }
                 if (out_elempack == 1)
                 {
+#ifdef _MSC_VER
+                    __declspec(align(16))
+#else
+                    __attribute__((aligned(16)))
+#endif
                     float sum[4];
-                    _mm_storeu_ps(sum, _sum0);
+                    _mm_store_ps(sum, _sum0);
 
                     outptr[0] = sum[0];
                     outptr[M] = sum[1];
@@ -2067,13 +2082,18 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                             }
                             if (elempack == 1)
                             {
+#ifdef _MSC_VER
+                                __declspec(align(64))
+#else
+                                __attribute__((aligned(64)))
+#endif
                                 float tmp[16];
                                 for (int qi = 0; qi < 16; qi++)
                                 {
                                     const float* sptr = bottom_blob.channel(q + qi).row(sy) + sx;
                                     tmp[qi] = sptr[0];
                                 }
-                                __m512 _r0 = _mm512_loadu_ps(tmp);
+                                __m512 _r0 = _mm512_load_ps(tmp);
                                 _sum0_avx512 = _mm512_fmadd_ps(_r0, _mm512_load_ps(kptr0), _sum0_avx512);
                                 _sum1_avx512 = _mm512_fmadd_ps(_r0, _mm512_load_ps(kptr0 + 16), _sum1_avx512);
                             }
@@ -2124,13 +2144,18 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                             }
                             if (elempack == 1)
                             {
+#ifdef _MSC_VER
+                                __declspec(align(32))
+#else
+                                __attribute__((aligned(32)))
+#endif
                                 float tmp[8];
                                 for (int qi = 0; qi < 8; qi++)
                                 {
                                     const float* sptr = bottom_blob.channel(q + qi).row(sy) + sx;
                                     tmp[qi] = sptr[0];
                                 }
-                                __m256 _r0 = _mm256_loadu_ps(tmp);
+                                __m256 _r0 = _mm256_load_ps(tmp);
                                 _sum0_avx = _mm256_comp_fmadd_ps(_r0, _mm256_load_ps(kptr0), _sum0_avx);
                                 _sum1_avx = _mm256_comp_fmadd_ps(_r0, _mm256_load_ps(kptr0 + 8), _sum1_avx);
                             }
@@ -2173,13 +2198,18 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                             }
                             if (elempack == 1)
                             {
+#ifdef _MSC_VER
+                                __declspec(align(16))
+#else
+                                __attribute__((aligned(16)))
+#endif
                                 float tmp[4];
                                 for (int qi = 0; qi < 4; qi++)
                                 {
                                     const float* sptr = bottom_blob.channel(q + qi).row(sy) + sx;
                                     tmp[qi] = sptr[0];
                                 }
-                                __m128 _r0 = _mm_loadu_ps(tmp);
+                                __m128 _r0 = _mm_load_ps(tmp);
                                 _sum0_sse = _mm_comp_fmadd_ps(_r0, _mm_load_ps(kptr0), _sum0_sse);
                                 _sum1_sse = _mm_comp_fmadd_ps(_r0, _mm_load_ps(kptr0 + 4), _sum1_sse);
                             }
@@ -2342,13 +2372,18 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                             }
                             if (elempack == 1)
                             {
+#ifdef _MSC_VER
+                                __declspec(align(64))
+#else
+                                __attribute__((aligned(64)))
+#endif
                                 float tmp[16];
                                 for (int qi = 0; qi < 16; qi++)
                                 {
                                     const float* sptr = bottom_blob.channel(q + qi).row(sy) + sx;
                                     tmp[qi] = sptr[0];
                                 }
-                                __m512 _r0 = _mm512_loadu_ps(tmp);
+                                __m512 _r0 = _mm512_load_ps(tmp);
                                 _sum_avx512 = _mm512_fmadd_ps(_r0, _mm512_load_ps(kptr0), _sum_avx512);
                             }
                         }
@@ -2393,13 +2428,18 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                             }
                             if (elempack == 1)
                             {
+#ifdef _MSC_VER
+                                __declspec(align(32))
+#else
+                                __attribute__((aligned(32)))
+#endif
                                 float tmp[8];
                                 for (int qi = 0; qi < 8; qi++)
                                 {
                                     const float* sptr = bottom_blob.channel(q + qi).row(sy) + sx;
                                     tmp[qi] = sptr[0];
                                 }
-                                __m256 _r0 = _mm256_loadu_ps(tmp);
+                                __m256 _r0 = _mm256_load_ps(tmp);
                                 _sum_avx = _mm256_comp_fmadd_ps(_r0, _mm256_load_ps(kptr0), _sum_avx);
                             }
                         }
@@ -2437,13 +2477,18 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                             }
                             if (elempack == 1)
                             {
+#ifdef _MSC_VER
+                                __declspec(align(16))
+#else
+                                __attribute__((aligned(16)))
+#endif
                                 float tmp[4];
                                 for (int qi = 0; qi < 4; qi++)
                                 {
                                     const float* sptr = bottom_blob.channel(q + qi).row(sy) + sx;
                                     tmp[qi] = sptr[0];
                                 }
-                                __m128 _r0 = _mm_loadu_ps(tmp);
+                                __m128 _r0 = _mm_load_ps(tmp);
                                 _sum_sse = _mm_comp_fmadd_ps(_r0, _mm_load_ps(kptr0), _sum_sse);
                             }
                         }

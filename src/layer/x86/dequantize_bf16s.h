@@ -210,6 +210,7 @@ static int dequantize_forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
     const int dims = bottom_blob.dims;
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
 
@@ -226,6 +227,10 @@ static int dequantize_forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
     else if (dims == 3)
     {
         top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_allocator);
+    }
+    else if (dims == 4)
+    {
+        top_blob.create(w, h, d, channels, out_elemsize, elempack, opt.blob_allocator);
     }
     if (top_blob.empty())
         return -100;
@@ -267,7 +272,7 @@ static int dequantize_forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -278,7 +283,7 @@ static int dequantize_forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
             const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
             const Mat bias_data_q = bias_data_size > 1 ? bias_data.range(q * elempack, elempack) : bias_data;
 
-            dequantize_bf16(intptr, ptr, scale_data_q, bias_data_q, w * h, elempack);
+            dequantize_bf16(intptr, ptr, scale_data_q, bias_data_q, w * h * d, elempack);
         }
     }
 

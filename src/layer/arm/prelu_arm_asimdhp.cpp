@@ -83,12 +83,13 @@ int PReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) co
             }
         }
 
-        if (dims == 3)
+        if (dims == 3 || dims == 4)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
+            int d = bottom_top_blob.d;
             int channels = bottom_top_blob.c;
-            int size = w * h;
+            int size = w * h * d;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -181,12 +182,13 @@ int PReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) co
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
+        int d = bottom_top_blob.d;
         int channels = bottom_top_blob.c;
-        int size = w * h;
+        int size = w * h * d;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -300,12 +302,13 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             }
         }
 
-        if (dims == 3)
+        if (dims == 3 || dims == 4)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
+            int d = bottom_top_blob.d;
             int channels = bottom_top_blob.c;
-            int size = w * h;
+            int size = w * h * d;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -333,11 +336,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
     {
         if (dims == 1)
         {
-#if defined(_MSC_VER) && !defined(__clang__)
-            float16x8_t _zero = vdupq_n_f16(0.f);
-#else
             float16x4_t _zero = vdup_n_f16(0.f);
-#endif
 
             int w = bottom_top_blob.w;
 
@@ -352,11 +351,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
 
                     float16x4_t _p = vld1_f16(ptr);
                     float16x4_t _slope = vcvt_f16_f32(vld1q_f32(slope + i * 4));
-#if defined(_MSC_VER) && !defined(__clang__)
-                    uint16x4_t _lemask = vcle_f16(_p, vget_low_f16(_zero));
-#else
                     uint16x4_t _lemask = vcle_f16(_p, _zero);
-#endif
                     float16x4_t _ps = vmul_f16(_p, _slope);
                     _p = vbsl_f16(_lemask, _ps, _p);
                     vst1_f16(ptr, _p);
@@ -364,11 +359,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             }
             else
             {
-#if defined(_MSC_VER) && !defined(__clang__)
-                float16x8_t _slope = vdupq_n_f16((__fp16)slope_data[0]);
-#else
                 float16x4_t _slope = vdup_n_f16((__fp16)slope_data[0]);
-#endif
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
@@ -376,13 +367,8 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
                     __fp16* ptr = (__fp16*)bottom_top_blob + i * 4;
 
                     float16x4_t _p = vld1_f16(ptr);
-#if defined(_MSC_VER) && !defined(__clang__)
-                    uint16x4_t _lemask = vcle_f16(_p, vget_low_f16(_zero));
-                    float16x4_t _ps = vmul_f16(_p, vget_low_f16(_slope));
-#else
                     uint16x4_t _lemask = vcle_f16(_p, _zero);
                     float16x4_t _ps = vmul_f16(_p, _slope);
-#endif
                     _p = vbsl_f16(_lemask, _ps, _p);
                     vst1_f16(ptr, _p);
                 }
@@ -414,12 +400,13 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             }
         }
 
-        if (dims == 3)
+        if (dims == 3 || dims == 4)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
+            int d = bottom_top_blob.d;
             int channels = bottom_top_blob.c;
-            int size = w * h;
+            int size = w * h * d;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -517,12 +504,13 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
+        int d = bottom_top_blob.d;
         int channels = bottom_top_blob.c;
-        int size = w * h;
+        int size = w * h * d;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)

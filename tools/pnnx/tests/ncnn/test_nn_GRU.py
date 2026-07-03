@@ -42,6 +42,22 @@ class Model(nn.Module):
 
         return x2, x3, x4, y2, y3, y4
 
+class ModelBatch(nn.Module):
+    def __init__(self):
+        super(ModelBatch, self).__init__()
+
+        self.gru_0 = nn.GRU(input_size=8, hidden_size=6)
+        self.gru_1 = nn.GRU(input_size=7, hidden_size=5, batch_first=True)
+
+    def forward(self, x, y):
+        x = x.permute(1, 0, 2)
+        x, _ = self.gru_0(x)
+        x = x.permute(1, 0, 2)
+
+        y, _ = self.gru_1(y)
+
+        return x, y
+
 def test():
     net = Model().half().float()
     net.eval()
@@ -63,6 +79,33 @@ def test():
     # ncnn inference
     import test_nn_GRU_ncnn
     b = test_nn_GRU_ncnn.test_inference()
+
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-3, 1e-3):
+            return False
+    return test_batch()
+
+def test_batch():
+    net = ModelBatch().half().float()
+    net.eval()
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 4, 8)
+    y = torch.rand(2, 5, 7)
+
+    a = net(x, y)
+
+    # export torchscript
+    mod = torch.jit.trace(net, (x, y))
+    mod.save("test_nn_GRU_batch.pt")
+
+    # torchscript to pnnx
+    import os
+    os.system("../../src/pnnx test_nn_GRU_batch.pt inputshape=[2,4,8],[2,5,7]")
+
+    # ncnn inference
+    import test_nn_GRU_batch_ncnn
+    b = test_nn_GRU_batch_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-3, 1e-3):

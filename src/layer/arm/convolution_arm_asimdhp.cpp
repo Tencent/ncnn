@@ -20,7 +20,6 @@ namespace ncnn {
 
 #include "convolution_3x3_winograd_fp16s.h"
 
-#include "convolution_im2col_gemm_bf16s_fp16s.h"
 #include "convolution_im2col_gemm_fp16s.h"
 
 #if NCNN_GNU_INLINE_ASM

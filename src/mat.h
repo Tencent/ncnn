@@ -68,6 +68,14 @@ public:
     Mat(int w, int h, int c, size_t elemsize, int elempack, Allocator* allocator = 0);
     // packed cube
     Mat(int w, int h, int d, int c, size_t elemsize, int elempack, Allocator* allocator = 0);
+    // packed vec with batch count
+    Mat(int w, size_t elemsize, int elempack, int n, Allocator* allocator = 0);
+    // packed image with batch count
+    Mat(int w, int h, size_t elemsize, int elempack, int n, Allocator* allocator = 0);
+    // packed dim with batch count
+    Mat(int w, int h, int c, size_t elemsize, int elempack, int n, Allocator* allocator = 0);
+    // packed cube with batch count
+    Mat(int w, int h, int d, int c, size_t elemsize, int elempack, int n, Allocator* allocator = 0);
     // copy
     Mat(const Mat& m);
     // external vec
@@ -86,6 +94,14 @@ public:
     Mat(int w, int h, int c, void* data, size_t elemsize, int elempack, Allocator* allocator = 0);
     // external packed cube
     Mat(int w, int h, int d, int c, void* data, size_t elemsize, int elempack, Allocator* allocator = 0);
+    // external packed vec with batch count
+    Mat(int w, void* data, size_t elemsize, int elempack, int n, Allocator* allocator = 0);
+    // external packed image with batch count
+    Mat(int w, int h, void* data, size_t elemsize, int elempack, int n, Allocator* allocator = 0);
+    // external packed dim with batch count
+    Mat(int w, int h, int c, void* data, size_t elemsize, int elempack, int n, Allocator* allocator = 0);
+    // external packed cube with batch count
+    Mat(int w, int h, int d, int c, void* data, size_t elemsize, int elempack, int n, Allocator* allocator = 0);
     // release
     ~Mat();
     // assign
@@ -163,9 +179,23 @@ public:
     void create(int w, int h, int d, int c, size_t elemsize, int elempack, Allocator* allocator = 0);
     // allocate like
     void create_like(const Mat& m, Allocator* allocator = 0);
+    // allocate like with batch count
+    void create_like(const Mat& m, int n, Allocator* allocator = 0);
 #if NCNN_VULKAN
     // allocate like
     void create_like(const VkMat& m, Allocator* allocator = 0);
+    // allocate like with batch count
+    void create_like(const VkMat& m, int n, Allocator* allocator = 0);
+#endif // NCNN_VULKAN
+    // allocate packed vec with batch count
+    void create(int w, size_t elemsize, int elempack, int n, Allocator* allocator = 0);
+    // allocate packed image with batch count
+    void create(int w, int h, size_t elemsize, int elempack, int n, Allocator* allocator = 0);
+    // allocate packed dim with batch count
+    void create(int w, int h, int c, size_t elemsize, int elempack, int n, Allocator* allocator = 0);
+    // allocate packed cube with batch count
+    void create(int w, int h, int d, int c, size_t elemsize, int elempack, int n, Allocator* allocator = 0);
+#if NCNN_VULKAN
     // allocate like
     void create_like(const VkImageMat& im, Allocator* allocator = 0);
 #endif // NCNN_VULKAN
@@ -204,6 +234,12 @@ public:
     const Mat row_range(int y, int rows) const;
     Mat range(int x, int n);
     const Mat range(int x, int n) const;
+
+    // batch reference
+    Mat batch(int b);
+    const Mat batch(int b) const;
+    Mat batch_range(int b, int batches);
+    const Mat batch_range(int b, int batches) const;
 
     // access raw data
     template<typename T>
@@ -333,6 +369,16 @@ public:
     int c;
 
     size_t cstep;
+
+#if NCNN_BATCH
+    // batch count, default 1
+    int n;
+    // element step from one batch to the next
+    // for non-batch Mat, equals total()
+    size_t nstep;
+#else
+    static const int n = 1;
+#endif // NCNN_BATCH
 };
 
 #if NCNN_VULKAN
@@ -359,6 +405,14 @@ public:
     VkMat(int w, int h, int c, size_t elemsize, int elempack, VkAllocator* allocator);
     // packed cube
     VkMat(int w, int h, int d, int c, size_t elemsize, int elempack, VkAllocator* allocator);
+    // packed vec with batch count
+    VkMat(int w, size_t elemsize, int elempack, int n, VkAllocator* allocator);
+    // packed image with batch count
+    VkMat(int w, int h, size_t elemsize, int elempack, int n, VkAllocator* allocator);
+    // packed dim with batch count
+    VkMat(int w, int h, int c, size_t elemsize, int elempack, int n, VkAllocator* allocator);
+    // packed cube with batch count
+    VkMat(int w, int h, int d, int c, size_t elemsize, int elempack, int n, VkAllocator* allocator);
     // copy
     VkMat(const VkMat& m);
     // external vec
@@ -377,6 +431,14 @@ public:
     VkMat(int w, int h, int c, VkBufferMemory* data, size_t elemsize, int elempack, VkAllocator* allocator);
     // external packed cube
     VkMat(int w, int h, int d, int c, VkBufferMemory* data, size_t elemsize, int elempack, VkAllocator* allocator);
+    // external packed vec with batch count
+    VkMat(int w, VkBufferMemory* data, size_t elemsize, int elempack, int n, VkAllocator* allocator);
+    // external packed image with batch count
+    VkMat(int w, int h, VkBufferMemory* data, size_t elemsize, int elempack, int n, VkAllocator* allocator);
+    // external packed dim with batch count
+    VkMat(int w, int h, int c, VkBufferMemory* data, size_t elemsize, int elempack, int n, VkAllocator* allocator);
+    // external packed cube with batch count
+    VkMat(int w, int h, int d, int c, VkBufferMemory* data, size_t elemsize, int elempack, int n, VkAllocator* allocator);
     // release
     ~VkMat();
     // assign
@@ -401,8 +463,26 @@ public:
     void create_like(const Mat& m, VkAllocator* allocator);
     // allocate like
     void create_like(const VkMat& m, VkAllocator* allocator);
+    // allocate like with batch count
+    void create_like(const Mat& m, int n, VkAllocator* allocator);
+    // allocate like with batch count
+    void create_like(const VkMat& m, int n, VkAllocator* allocator);
     // allocate like
     void create_like(const VkImageMat& im, VkAllocator* allocator);
+    // allocate packed vec with batch count
+    void create(int w, size_t elemsize, int elempack, int n, VkAllocator* allocator);
+    // allocate packed image with batch count
+    void create(int w, int h, size_t elemsize, int elempack, int n, VkAllocator* allocator);
+    // allocate packed dim with batch count
+    void create(int w, int h, int c, size_t elemsize, int elempack, int n, VkAllocator* allocator);
+    // allocate packed cube with batch count
+    void create(int w, int h, int d, int c, size_t elemsize, int elempack, int n, VkAllocator* allocator);
+
+    // batch reference
+    VkMat batch(int b);
+    const VkMat batch(int b) const;
+    VkMat batch_range(int b, int batches);
+    const VkMat batch_range(int b, int batches) const;
 
     // mapped
     Mat mapped() const;
@@ -459,6 +539,19 @@ public:
     int c;
 
     size_t cstep;
+
+#if NCNN_BATCH
+    // batch count, default 1
+    int n;
+    // element step from one batch to the next
+    // for non-batch VkMat, equals total()
+    size_t nstep;
+    // byte offset relative to data->offset (for batch sub-views)
+    size_t offset;
+#else
+    static const int n = 1;
+    static const size_t offset = 0;
+#endif // NCNN_BATCH
 };
 
 class NCNN_EXPORT VkImageMat
@@ -798,109 +891,331 @@ NCNN_EXPORT void requantize_from_int32_to_int8(const Mat& src, Mat& dst, const M
 
 NCNN_FORCEINLINE Mat::Mat()
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
 {
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, size_t _elemsize, Allocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
 {
     create(_w, _elemsize, _allocator);
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, size_t _elemsize, Allocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
 {
     create(_w, _h, _elemsize, _allocator);
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _c, size_t _elemsize, Allocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
 {
     create(_w, _h, _c, _elemsize, _allocator);
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _d, int _c, size_t _elemsize, Allocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
 {
     create(_w, _h, _d, _c, _elemsize, _allocator);
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
 {
     create(_w, _elemsize, _elempack, _allocator);
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
 {
     create(_w, _h, _elemsize, _elempack, _allocator);
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _c, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
 {
     create(_w, _h, _c, _elemsize, _elempack, _allocator);
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
 {
     create(_w, _h, _d, _c, _elemsize, _elempack, _allocator);
 }
 
+NCNN_FORCEINLINE Mat::Mat(int _w, size_t _elemsize, int _elempack, int _n, Allocator* _allocator)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
+{
+    create(_w, _elemsize, _elempack, _n, _allocator);
+}
+
+NCNN_FORCEINLINE Mat::Mat(int _w, int _h, size_t _elemsize, int _elempack, int _n, Allocator* _allocator)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
+{
+    create(_w, _h, _elemsize, _elempack, _n, _allocator);
+}
+
+NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _c, size_t _elemsize, int _elempack, int _n, Allocator* _allocator)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
+{
+    create(_w, _h, _c, _elemsize, _elempack, _n, _allocator);
+}
+
+NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, int _n, Allocator* _allocator)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
+{
+    create(_w, _h, _d, _c, _elemsize, _elempack, _n, _allocator);
+}
+
 NCNN_FORCEINLINE Mat::Mat(const Mat& m)
     : data(m.data), refcount(m.refcount), elemsize(m.elemsize), elempack(m.elempack), allocator(m.allocator), dims(m.dims), w(m.w), h(m.h), d(m.d), c(m.c), cstep(m.cstep)
+#if NCNN_BATCH
+    ,
+      n(m.n),
+      nstep(m.nstep)
+#endif
 {
     addref();
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, void* _data, size_t _elemsize, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
 {
     cstep = alignSize(w * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = total();
+#endif
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = total();
+#endif
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = total();
+#endif
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _d, int _c, void* _data, size_t _elemsize, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
 {
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = total();
+#endif
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
 {
     cstep = alignSize(w * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = total();
+#endif
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = total();
+#endif
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = total();
+#endif
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _d, int _c, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0)
+#endif
 {
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = total();
+#endif
+}
+
+NCNN_FORCEINLINE Mat::Mat(int _w, void* _data, size_t _elemsize, int _elempack, int _n, Allocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
+#if NCNN_BATCH
+    ,
+      n(_n > 1 ? _n : 1),
+      nstep(0)
+#endif
+{
+    cstep = alignSize(w * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = n > 1 ? alignSize(total() * elemsize, 4096) / elemsize : total();
+#else
+    (void)_n;
+#endif
+}
+
+NCNN_FORCEINLINE Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, int _elempack, int _n, Allocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
+#if NCNN_BATCH
+    ,
+      n(_n > 1 ? _n : 1),
+      nstep(0)
+#endif
+{
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = n > 1 ? alignSize(total() * elemsize, 4096) / elemsize : total();
+#else
+    (void)_n;
+#endif
+}
+
+NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, int _elempack, int _n, Allocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c)
+#if NCNN_BATCH
+    ,
+      n(_n > 1 ? _n : 1),
+      nstep(0)
+#endif
+{
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = n > 1 ? alignSize(total() * elemsize, 4096) / elemsize : total();
+#else
+    (void)_n;
+#endif
+}
+
+NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _d, int _c, void* _data, size_t _elemsize, int _elempack, int _n, Allocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c)
+#if NCNN_BATCH
+    ,
+      n(_n > 1 ? _n : 1),
+      nstep(0)
+#endif
+{
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = n > 1 ? alignSize(total() * elemsize, 4096) / elemsize : total();
+#else
+    (void)_n;
+#endif
 }
 
 NCNN_FORCEINLINE Mat::~Mat()
@@ -910,10 +1225,13 @@ NCNN_FORCEINLINE Mat::~Mat()
 
 NCNN_FORCEINLINE void Mat::fill(float _v)
 {
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     float* ptr = (float*)data;
 
-    int i = 0;
+    size_t i = 0;
 #if __ARM_NEON
     float32x4_t _c = vdupq_n_f32(_v);
     for (; i + 3 < size; i += 4)
@@ -930,10 +1248,13 @@ NCNN_FORCEINLINE void Mat::fill(float _v)
 
 NCNN_FORCEINLINE void Mat::fill(int _v)
 {
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     int* ptr = (int*)data;
 
-    int i = 0;
+    size_t i = 0;
 #if __ARM_NEON
     int32x4_t _c = vdupq_n_s32(_v);
     for (; i + 3 < size; i += 4)
@@ -951,9 +1272,12 @@ NCNN_FORCEINLINE void Mat::fill(int _v)
 #if __ARM_NEON
 NCNN_FORCEINLINE void Mat::fill(float32x4_t _v)
 {
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     float* ptr = (float*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         vst1q_f32(ptr, _v);
         ptr += 4;
@@ -962,9 +1286,12 @@ NCNN_FORCEINLINE void Mat::fill(float32x4_t _v)
 
 NCNN_FORCEINLINE void Mat::fill(uint16x4_t _v)
 {
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     unsigned short* ptr = (unsigned short*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         vst1_u16(ptr, _v);
         ptr += 4;
@@ -974,9 +1301,12 @@ NCNN_FORCEINLINE void Mat::fill(uint16x4_t _v)
 #if !defined(_MSC_VER)
 NCNN_FORCEINLINE void Mat::fill(int32x4_t _v)
 {
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     int* ptr = (int*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         vst1q_s32(ptr, _v);
         ptr += 4;
@@ -986,9 +1316,12 @@ NCNN_FORCEINLINE void Mat::fill(int32x4_t _v)
 
 NCNN_FORCEINLINE void Mat::fill(int32x4_t _v0, int32x4_t _v1)
 {
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     int* ptr = (int*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         vst1q_s32(ptr, _v0);
         vst1q_s32(ptr + 4, _v1);
@@ -999,9 +1332,12 @@ NCNN_FORCEINLINE void Mat::fill(int32x4_t _v0, int32x4_t _v1)
 #if !defined(_MSC_VER)
 NCNN_FORCEINLINE void Mat::fill(float16x4_t _v)
 {
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     __fp16* ptr = (__fp16*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         vst1_f16(ptr, _v);
         ptr += 4;
@@ -1010,9 +1346,12 @@ NCNN_FORCEINLINE void Mat::fill(float16x4_t _v)
 
 NCNN_FORCEINLINE void Mat::fill(float16x8_t _v)
 {
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     __fp16* ptr = (__fp16*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         vst1q_f16(ptr, _v);
         ptr += 8;
@@ -1027,9 +1366,12 @@ NCNN_FORCEINLINE void Mat::fill(float16x8_t _v)
 #if __AVX512F__
 NCNN_FORCEINLINE void Mat::fill(const __m512& _v)
 {
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     float* ptr = (float*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         _mm512_storeu_ps(ptr, _v);
         ptr += 16;
@@ -1041,9 +1383,12 @@ NCNN_FORCEINLINE void Mat::fill(const __m256& _v, int _i)
     // old gcc cannot overload __m128 and __m256 type
     // add a dummy int parameter for different mangled function symbol
     (void)_i;
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     float* ptr = (float*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         _mm256_storeu_ps(ptr, _v);
         ptr += 8;
@@ -1052,9 +1397,12 @@ NCNN_FORCEINLINE void Mat::fill(const __m256& _v, int _i)
 #endif // __AVX__
 NCNN_FORCEINLINE void Mat::fill(const __m128& _v)
 {
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     float* ptr = (float*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         _mm_storeu_ps(ptr, _v);
         ptr += 4;
@@ -1062,9 +1410,12 @@ NCNN_FORCEINLINE void Mat::fill(const __m128& _v)
 }
 NCNN_FORCEINLINE void Mat::fill(const __m128i& _v)
 {
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     unsigned short* ptr = (unsigned short*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         _mm_store_si128((__m128i*)ptr, _v);
         ptr += 8;
@@ -1075,9 +1426,12 @@ NCNN_FORCEINLINE void Mat::fill(const __m128i& _v)
 #if __mips_msa
 NCNN_FORCEINLINE void Mat::fill(v4f32 _v)
 {
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     float* ptr = (float*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         __msa_st_w((v4i32)_v, ptr, 0);
         ptr += 4;
@@ -1088,9 +1442,12 @@ NCNN_FORCEINLINE void Mat::fill(v4f32 _v)
 #if __loongarch_sx
 NCNN_FORCEINLINE void Mat::fill(__m128 _v)
 {
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     float* ptr = (float*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         __lsx_vst(_v, ptr, 0);
         ptr += 4;
@@ -1104,9 +1461,12 @@ NCNN_FORCEINLINE void Mat::fill(vfloat32m1_t _v)
     const int packn = cpu_riscv_vlenb() / 4;
     const size_t vl = __riscv_vsetvl_e32m1(packn);
 
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     float* ptr = (float*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         __riscv_vse32_v_f32m1(ptr, _v, vl);
         ptr += packn;
@@ -1118,9 +1478,12 @@ NCNN_FORCEINLINE void Mat::fill(vuint16m1_t _v)
     const int packn = cpu_riscv_vlenb() / 2;
     const size_t vl = __riscv_vsetvl_e16m1(packn);
 
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     unsigned short* ptr = (unsigned short*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         __riscv_vse16_v_u16m1(ptr, _v, vl);
         ptr += packn;
@@ -1132,9 +1495,12 @@ NCNN_FORCEINLINE void Mat::fill(vint8m1_t _v)
     const int packn = cpu_riscv_vlenb() / 1;
     const size_t vl = __riscv_vsetvl_e8m1(packn);
 
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     signed char* ptr = (signed char*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         __riscv_vse8_v_i8m1(ptr, _v, vl);
         ptr += packn;
@@ -1146,9 +1512,12 @@ NCNN_FORCEINLINE void Mat::fill(vfloat16m1_t _v)
     const int packn = cpu_riscv_vlenb() / 2;
     const size_t vl = __riscv_vsetvl_e16m1(packn);
 
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     __fp16* ptr = (__fp16*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         __riscv_vse16_v_f16m1(ptr, _v, vl);
         ptr += packn;
@@ -1160,9 +1529,12 @@ NCNN_FORCEINLINE void Mat::fill(vfloat16m1_t _v)
 template<typename T>
 NCNN_FORCEINLINE void Mat::fill(T _v)
 {
-    int size = (int)total();
+    size_t size = total();
+#if NCNN_BATCH
+    size = nstep * n;
+#endif
     T* ptr = (T*)data;
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         ptr[i] = _v;
     }
@@ -1191,6 +1563,11 @@ NCNN_FORCEINLINE Mat& Mat::operator=(const Mat& m)
     c = m.c;
 
     cstep = m.cstep;
+
+#if NCNN_BATCH
+    n = m.n;
+    nstep = m.nstep;
+#endif
 
     return *this;
 }
@@ -1224,6 +1601,11 @@ NCNN_FORCEINLINE void Mat::release()
 
     cstep = 0;
 
+#if NCNN_BATCH
+    n = 1;
+    nstep = 0;
+#endif
+
     refcount = 0;
 }
 
@@ -1245,13 +1627,13 @@ NCNN_FORCEINLINE int Mat::elembits() const
 NCNN_FORCEINLINE Mat Mat::shape() const
 {
     if (dims == 1)
-        return Mat(w * elempack, (void*)0);
+        return Mat(w * elempack, (void*)0, 4u, 1, n);
     if (dims == 2)
-        return Mat(w, h * elempack, (void*)0);
+        return Mat(w, h * elempack, (void*)0, 4u, 1, n);
     if (dims == 3)
-        return Mat(w, h, c * elempack, (void*)0);
+        return Mat(w, h, c * elempack, (void*)0, 4u, 1, n);
     if (dims == 4)
-        return Mat(w, h, d, c * elempack, (void*)0);
+        return Mat(w, h, d, c * elempack, (void*)0, 4u, 1, n);
 
     return Mat();
 }
@@ -1261,7 +1643,12 @@ NCNN_FORCEINLINE Mat Mat::channel(int _c)
     Mat m(w, h, d, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
     m.dims = dims - 1;
     if (dims == 4)
+    {
         m.cstep = (size_t)w * h;
+#if NCNN_BATCH
+        m.nstep = m.total();
+#endif
+    }
     return m;
 }
 
@@ -1270,7 +1657,12 @@ NCNN_FORCEINLINE const Mat Mat::channel(int _c) const
     Mat m(w, h, d, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
     m.dims = dims - 1;
     if (dims == 4)
+    {
         m.cstep = (size_t)w * h;
+#if NCNN_BATCH
+        m.nstep = m.total();
+#endif
+    }
     return m;
 }
 
@@ -1278,6 +1670,9 @@ NCNN_FORCEINLINE Mat Mat::depth(int z)
 {
     Mat m(w, h, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
     m.cstep = (size_t)w * h;
+#if NCNN_BATCH
+    m.nstep = m.total();
+#endif
     return m;
 }
 
@@ -1285,6 +1680,9 @@ NCNN_FORCEINLINE const Mat Mat::depth(int z) const
 {
     Mat m(w, h, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
     m.cstep = (size_t)w * h;
+#if NCNN_BATCH
+    m.nstep = m.total();
+#endif
     return m;
 }
 
@@ -1328,6 +1726,9 @@ NCNN_FORCEINLINE Mat Mat::depth_range(int z, int depths)
 {
     Mat m(w, h, depths, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
     m.cstep = (size_t)w * h;
+#if NCNN_BATCH
+    m.nstep = m.total();
+#endif
     return m;
 }
 
@@ -1335,6 +1736,9 @@ NCNN_FORCEINLINE const Mat Mat::depth_range(int z, int depths) const
 {
     Mat m(w, h, depths, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
     m.cstep = (size_t)w * h;
+#if NCNN_BATCH
+    m.nstep = m.total();
+#endif
     return m;
 }
 
@@ -1342,6 +1746,9 @@ NCNN_FORCEINLINE Mat Mat::row_range(int y, int rows)
 {
     Mat m(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
     m.cstep = (size_t)w * rows;
+#if NCNN_BATCH
+    m.nstep = m.total();
+#endif
     return m;
 }
 
@@ -1349,6 +1756,9 @@ NCNN_FORCEINLINE const Mat Mat::row_range(int y, int rows) const
 {
     Mat m(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
     m.cstep = (size_t)w * rows;
+#if NCNN_BATCH
+    m.nstep = m.total();
+#endif
     return m;
 }
 
@@ -1356,6 +1766,9 @@ NCNN_FORCEINLINE Mat Mat::range(int x, int n)
 {
     Mat m(n, (unsigned char*)data + x * elemsize, elemsize, elempack, allocator);
     m.cstep = (size_t)n;
+#if NCNN_BATCH
+    m.nstep = m.total();
+#endif
     return m;
 }
 
@@ -1363,8 +1776,81 @@ NCNN_FORCEINLINE const Mat Mat::range(int x, int n) const
 {
     Mat m(n, (unsigned char*)data + x * elemsize, elemsize, elempack, allocator);
     m.cstep = (size_t)n;
+#if NCNN_BATCH
+    m.nstep = m.total();
+#endif
     return m;
 }
+
+#if NCNN_BATCH
+NCNN_FORCEINLINE Mat Mat::batch(int b)
+{
+    Mat m(w, h, d, c, (unsigned char*)data + nstep * b * elemsize, elemsize, elempack, allocator);
+    m.dims = dims;
+    m.cstep = cstep;
+    m.nstep = nstep;
+    return m;
+}
+
+NCNN_FORCEINLINE const Mat Mat::batch(int b) const
+{
+    Mat m(w, h, d, c, (unsigned char*)data + nstep * b * elemsize, elemsize, elempack, allocator);
+    m.dims = dims;
+    m.cstep = cstep;
+    m.nstep = nstep;
+    return m;
+}
+
+NCNN_FORCEINLINE Mat Mat::batch_range(int b, int batches)
+{
+    Mat m(w, h, d, c, (unsigned char*)data + nstep * b * elemsize, elemsize, elempack, batches, allocator);
+    m.dims = dims;
+    m.cstep = cstep;
+    m.nstep = nstep;
+    return m;
+}
+
+NCNN_FORCEINLINE const Mat Mat::batch_range(int b, int batches) const
+{
+    Mat m(w, h, d, c, (unsigned char*)data + nstep * b * elemsize, elemsize, elempack, batches, allocator);
+    m.dims = dims;
+    m.cstep = cstep;
+    m.nstep = nstep;
+    return m;
+}
+#else
+NCNN_FORCEINLINE Mat Mat::batch(int)
+{
+    Mat m(w, h, d, c, data, elemsize, elempack, allocator);
+    m.dims = dims;
+    m.cstep = cstep;
+    return m;
+}
+
+NCNN_FORCEINLINE const Mat Mat::batch(int) const
+{
+    Mat m(w, h, d, c, data, elemsize, elempack, allocator);
+    m.dims = dims;
+    m.cstep = cstep;
+    return m;
+}
+
+NCNN_FORCEINLINE Mat Mat::batch_range(int, int)
+{
+    Mat m(w, h, d, c, data, elemsize, elempack, allocator);
+    m.dims = dims;
+    m.cstep = cstep;
+    return m;
+}
+
+NCNN_FORCEINLINE const Mat Mat::batch_range(int, int) const
+{
+    Mat m(w, h, d, c, data, elemsize, elempack, allocator);
+    m.dims = dims;
+    m.cstep = cstep;
+    return m;
+}
+#endif // NCNN_BATCH
 
 template<typename T>
 NCNN_FORCEINLINE Mat::operator T*()
@@ -1392,55 +1878,157 @@ NCNN_FORCEINLINE const float& Mat::operator[](size_t i) const
 
 NCNN_FORCEINLINE VkMat::VkMat()
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
 {
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, size_t _elemsize, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
 {
     create(_w, _elemsize, _allocator);
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
 {
     create(_w, _h, _elemsize, _allocator);
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
 {
     create(_w, _h, _c, _elemsize, _allocator);
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, size_t _elemsize, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
 {
     create(_w, _h, _d, _c, _elemsize, _allocator);
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
 {
     create(_w, _elemsize, _elempack, _allocator);
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
 {
     create(_w, _h, _elemsize, _elempack, _allocator);
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
 {
     create(_w, _h, _c, _elemsize, _elempack, _allocator);
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
 {
     create(_w, _h, _d, _c, _elemsize, _elempack, _allocator);
+}
+
+NCNN_FORCEINLINE VkMat::VkMat(int _w, size_t _elemsize, int _elempack, int _n, VkAllocator* _allocator)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
+{
+    create(_w, _elemsize, _elempack, _n, _allocator);
+}
+
+NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, size_t _elemsize, int _elempack, int _n, VkAllocator* _allocator)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
+{
+    create(_w, _h, _elemsize, _elempack, _n, _allocator);
+}
+
+NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, int _elempack, int _n, VkAllocator* _allocator)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
+{
+    create(_w, _h, _c, _elemsize, _elempack, _n, _allocator);
+}
+
+NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, int _n, VkAllocator* _allocator)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
+{
+    create(_w, _h, _d, _c, _elemsize, _elempack, _n, _allocator);
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(const VkMat& m)
@@ -1449,54 +2037,199 @@ NCNN_FORCEINLINE VkMat::VkMat(const VkMat& m)
     addref();
 
     cstep = m.cstep;
+#if NCNN_BATCH
+    n = m.n;
+    nstep = m.nstep;
+    offset = m.offset;
+#endif
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
 {
     cstep = alignSize(w * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = total();
+#endif
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = total();
+#endif
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = total();
+#endif
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
 {
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = total();
+#endif
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
 {
     cstep = alignSize(w * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = total();
+#endif
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = total();
+#endif
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = total();
+#endif
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c)
+#if NCNN_BATCH
+    ,
+      n(1),
+      nstep(0),
+      offset(0)
+#endif
 {
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = total();
+#endif
+}
+
+NCNN_FORCEINLINE VkMat::VkMat(int _w, VkBufferMemory* _data, size_t _elemsize, int _elempack, int _n, VkAllocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(_n > 1 ? _n : 1),
+      nstep(0),
+      offset(0)
+#endif
+{
+    cstep = alignSize(w * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = n > 1 ? alignSize(total() * elemsize, 4096) / elemsize : total();
+#else
+    (void)_n;
+#endif
+}
+
+NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, VkBufferMemory* _data, size_t _elemsize, int _elempack, int _n, VkAllocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(_n > 1 ? _n : 1),
+      nstep(0),
+      offset(0)
+#endif
+{
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = n > 1 ? alignSize(total() * elemsize, 4096) / elemsize : total();
+#else
+    (void)_n;
+#endif
+}
+
+NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, VkBufferMemory* _data, size_t _elemsize, int _elempack, int _n, VkAllocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(_n > 1 ? _n : 1),
+      nstep(0),
+      offset(0)
+#endif
+{
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = n > 1 ? alignSize(total() * elemsize, 4096) / elemsize : total();
+#else
+    (void)_n;
+#endif
+}
+
+NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, VkBufferMemory* _data, size_t _elemsize, int _elempack, int _n, VkAllocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c), cstep(0)
+#if NCNN_BATCH
+    ,
+      n(_n > 1 ? _n : 1),
+      nstep(0),
+      offset(0)
+#endif
+{
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
+#if NCNN_BATCH
+    nstep = n > 1 ? alignSize(total() * elemsize, 4096) / elemsize : total();
+#else
+    (void)_n;
+#endif
 }
 
 NCNN_FORCEINLINE VkMat::~VkMat()
@@ -1528,6 +2261,12 @@ NCNN_FORCEINLINE VkMat& VkMat::operator=(const VkMat& m)
 
     cstep = m.cstep;
 
+#if NCNN_BATCH
+    n = m.n;
+    nstep = m.nstep;
+    offset = m.offset;
+#endif
+
     return *this;
 }
 
@@ -1536,19 +2275,20 @@ NCNN_FORCEINLINE Mat VkMat::mapped() const
     if (!allocator->mappable)
         return Mat();
 
+    Mat m;
     if (dims == 1)
-        return Mat(w, mapped_ptr(), elemsize, elempack, 0);
+        m = Mat(w, mapped_ptr(), elemsize, elempack, n);
+    else if (dims == 2)
+        m = Mat(w, h, mapped_ptr(), elemsize, elempack, n);
+    else if (dims == 3)
+        m = Mat(w, h, c, mapped_ptr(), elemsize, elempack, n);
+    else if (dims == 4)
+        m = Mat(w, h, d, c, mapped_ptr(), elemsize, elempack, n);
 
-    if (dims == 2)
-        return Mat(w, h, mapped_ptr(), elemsize, elempack, 0);
-
-    if (dims == 3)
-        return Mat(w, h, c, mapped_ptr(), elemsize, elempack, 0);
-
-    if (dims == 4)
-        return Mat(w, h, d, c, mapped_ptr(), elemsize, elempack, 0);
-
-    return Mat();
+#if NCNN_BATCH
+    m.nstep = nstep;
+#endif
+    return m;
 }
 
 NCNN_FORCEINLINE void* VkMat::mapped_ptr() const
@@ -1556,7 +2296,7 @@ NCNN_FORCEINLINE void* VkMat::mapped_ptr() const
     if (!allocator->mappable)
         return 0;
 
-    return (unsigned char*)data->mapped_ptr + data->offset;
+    return (unsigned char*)data->mapped_ptr + data->offset + offset;
 }
 
 NCNN_FORCEINLINE void VkMat::addref()
@@ -1588,6 +2328,12 @@ NCNN_FORCEINLINE void VkMat::release()
 
     cstep = 0;
 
+#if NCNN_BATCH
+    n = 1;
+    nstep = 0;
+    offset = 0;
+#endif
+
     refcount = 0;
 }
 
@@ -1609,13 +2355,13 @@ NCNN_FORCEINLINE int VkMat::elembits() const
 NCNN_FORCEINLINE Mat VkMat::shape() const
 {
     if (dims == 1)
-        return Mat(w * elempack, (void*)0);
+        return Mat(w * elempack, (void*)0, 4u, 1, n);
     if (dims == 2)
-        return Mat(w, h * elempack, (void*)0);
+        return Mat(w, h * elempack, (void*)0, 4u, 1, n);
     if (dims == 3)
-        return Mat(w, h, c * elempack, (void*)0);
+        return Mat(w, h, c * elempack, (void*)0, 4u, 1, n);
     if (dims == 4)
-        return Mat(w, h, d, c * elempack, (void*)0);
+        return Mat(w, h, d, c * elempack, (void*)0, 4u, 1, n);
 
     return Mat();
 }
@@ -1627,13 +2373,127 @@ NCNN_FORCEINLINE VkBuffer VkMat::buffer() const
 
 NCNN_FORCEINLINE size_t VkMat::buffer_offset() const
 {
-    return data->offset;
+    return data->offset + offset;
 }
 
 NCNN_FORCEINLINE size_t VkMat::buffer_capacity() const
 {
-    return data->capacity;
+#if NCNN_BATCH
+    return nstep * n * elemsize;
+#else
+    return total() * elemsize;
+#endif
 }
+
+#if NCNN_BATCH
+NCNN_FORCEINLINE VkMat VkMat::batch(int b)
+{
+    VkMat m(w, h, d, c, data, elemsize, elempack, 1, allocator);
+    m.dims = dims;
+    m.cstep = cstep;
+    m.nstep = nstep;
+    m.offset = offset + nstep * b * elemsize;
+    return m;
+}
+
+NCNN_FORCEINLINE const VkMat VkMat::batch(int b) const
+{
+    VkMat m(w, h, d, c, data, elemsize, elempack, 1, allocator);
+    m.dims = dims;
+    m.cstep = cstep;
+    m.nstep = nstep;
+    m.offset = offset + nstep * b * elemsize;
+    return m;
+}
+
+NCNN_FORCEINLINE VkMat VkMat::batch_range(int b, int batches)
+{
+    VkMat m(w, h, d, c, data, elemsize, elempack, batches, allocator);
+    m.dims = dims;
+    m.cstep = cstep;
+    m.nstep = nstep;
+    m.offset = offset + nstep * b * elemsize;
+    return m;
+}
+
+NCNN_FORCEINLINE const VkMat VkMat::batch_range(int b, int batches) const
+{
+    VkMat m(w, h, d, c, data, elemsize, elempack, batches, allocator);
+    m.dims = dims;
+    m.cstep = cstep;
+    m.nstep = nstep;
+    m.offset = offset + nstep * b * elemsize;
+    return m;
+}
+#else
+NCNN_FORCEINLINE VkMat VkMat::batch(int)
+{
+    VkMat m;
+    m.data = data;
+    m.refcount = 0;
+    m.elemsize = elemsize;
+    m.elempack = elempack;
+    m.allocator = allocator;
+    m.dims = dims;
+    m.w = w;
+    m.h = h;
+    m.d = d;
+    m.c = c;
+    m.cstep = cstep;
+    return m;
+}
+
+NCNN_FORCEINLINE const VkMat VkMat::batch(int) const
+{
+    VkMat m;
+    m.data = data;
+    m.refcount = 0;
+    m.elemsize = elemsize;
+    m.elempack = elempack;
+    m.allocator = allocator;
+    m.dims = dims;
+    m.w = w;
+    m.h = h;
+    m.d = d;
+    m.c = c;
+    m.cstep = cstep;
+    return m;
+}
+
+NCNN_FORCEINLINE VkMat VkMat::batch_range(int, int)
+{
+    VkMat m;
+    m.data = data;
+    m.refcount = 0;
+    m.elemsize = elemsize;
+    m.elempack = elempack;
+    m.allocator = allocator;
+    m.dims = dims;
+    m.w = w;
+    m.h = h;
+    m.d = d;
+    m.c = c;
+    m.cstep = cstep;
+    return m;
+}
+
+NCNN_FORCEINLINE const VkMat VkMat::batch_range(int, int) const
+{
+    VkMat m;
+    m.data = data;
+    m.refcount = 0;
+    m.elemsize = elemsize;
+    m.elempack = elempack;
+    m.allocator = allocator;
+    m.dims = dims;
+    m.w = w;
+    m.h = h;
+    m.d = d;
+    m.c = c;
+    m.cstep = cstep;
+    return m;
+}
+#endif // NCNN_BATCH
 
 NCNN_FORCEINLINE VkImageMat::VkImageMat()
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0)

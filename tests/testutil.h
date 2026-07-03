@@ -17,6 +17,7 @@
 #define TEST_LAYER_DISABLE_GPU_TESTING        (1 << 2)
 #define TEST_LAYER_ENABLE_FORCE_INPUT_PACK8   (1 << 3)
 #define TEST_LAYER_ENABLE_THREADING           (1 << 4)
+#define TEST_LAYER_DISABLE_CPU_TESTING        (1 << 5)
 
 void SRAND(int seed);
 

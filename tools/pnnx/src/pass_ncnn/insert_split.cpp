@@ -38,7 +38,8 @@ void insert_split(Graph& graph)
                     operand->producer = split;
                     operand->consumers.push_back(op2);
 
-                    operand->params["__batch_index"] = x->params["__batch_index"];
+                    operand->params["__batch_index"] = x->params.at("__batch_index");
+                    operand->params["__ncnn_batch_axis"] = x->params.at("__ncnn_batch_axis");
 
                     split->outputs.push_back(operand);
 

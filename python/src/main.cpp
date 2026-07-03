@@ -6,6 +6,8 @@
 #include <pybind11/numpy.h>
 #include <pybind11/functional.h>
 
+#include <string.h>
+
 #include <cpu.h>
 #include <gpu.h>
 #include <net.h>
@@ -21,6 +23,8 @@
 using namespace ncnn;
 
 namespace py = pybind11;
+
+static const int batch_index_none = 233;
 
 class DataReaderFromMemoryCopy : public DataReaderFromMemory
 {
@@ -248,9 +252,17 @@ PYBIND11_MODULE(ncnn, m)
 
     .def(py::init<const Mat&>(), py::arg("m"))
 
-    .def(py::init([](py::buffer const b) {
+    .def(py::init([](py::buffer const b, int batch_index) {
         py::buffer_info info = b.request();
-        if (info.ndim > 4)
+#if !NCNN_BATCH
+        if (batch_index != batch_index_none)
+        {
+            std::stringstream ss;
+            ss << "ncnn batch support disabled";
+            pybind11::pybind11_fail(ss.str());
+        }
+#endif
+        if (batch_index == batch_index_none && info.ndim > 4)
         {
             std::stringstream ss;
             ss << "convert numpy.ndarray to ncnn.Mat only dims <=4 support now, but given " << info.ndim;
@@ -258,6 +270,85 @@ PYBIND11_MODULE(ncnn, m)
         }
 
         size_t elemsize = info.itemsize;
+
+        if (batch_index != batch_index_none)
+        {
+            if (info.ndim > 5)
+            {
+                std::stringstream ss;
+                ss << "convert numpy.ndarray to ncnn.Mat with batch only dims <=5 support now, but given " << info.ndim;
+                pybind11::pybind11_fail(ss.str());
+            }
+
+            if (info.ndim < 2)
+            {
+                std::stringstream ss;
+                ss << "convert numpy.ndarray to ncnn.Mat with batch only dims >=2 support now, but given " << info.ndim;
+                pybind11::pybind11_fail(ss.str());
+            }
+
+            if (batch_index < 0)
+                batch_index += info.ndim;
+
+            if (batch_index < 0 || batch_index >= info.ndim)
+            {
+                std::stringstream ss;
+                ss << "batch_index out of range";
+                pybind11::pybind11_fail(ss.str());
+            }
+
+            std::vector<int> shape;
+            for (int i = 0; i < info.ndim; i++)
+            {
+                if (i == batch_index)
+                    continue;
+                shape.push_back((int)info.shape[i]);
+            }
+
+            Mat* v = new Mat;
+            if (shape.size() == 1)
+            {
+                v->create(shape[0], elemsize, 1, (int)info.shape[batch_index]);
+            }
+            else if (shape.size() == 2)
+            {
+                v->create(shape[1], shape[0], elemsize, 1, (int)info.shape[batch_index]);
+            }
+            else if (shape.size() == 3)
+            {
+                v->create(shape[2], shape[1], shape[0], elemsize, 1, (int)info.shape[batch_index]);
+            }
+            else if (shape.size() == 4)
+            {
+                v->create(shape[3], shape[2], shape[1], shape[0], elemsize, 1, (int)info.shape[batch_index]);
+            }
+
+            py::object src = py::reinterpret_borrow<py::object>(b);
+            for (int i = 0; i < v->n; i++)
+            {
+                py::array slice = src.attr("take")(i, py::arg("axis") = batch_index).attr("copy")();
+                py::buffer_info slice_info = slice.request();
+
+                Mat mb = v->batch(i);
+                const unsigned char* sptr = (const unsigned char*)slice_info.ptr;
+
+                if (mb.dims <= 2)
+                {
+                    memcpy(mb.data, sptr, (size_t)mb.w * mb.h * elemsize);
+                }
+                else
+                {
+                    size_t channel_size = (size_t)mb.w * mb.h * mb.d * elemsize;
+                    for (int q = 0; q < mb.c; q++)
+                    {
+                        Mat mbq = mb.channel(q);
+                        memcpy(mbq.data, sptr + channel_size * q, channel_size);
+                    }
+                }
+            }
+
+            return std::unique_ptr<Mat>(v);
+        }
 
         Mat* v = nullptr;
         if (info.ndim == 1)
@@ -288,16 +379,32 @@ PYBIND11_MODULE(ncnn, m)
         }
         return std::unique_ptr<Mat>(v);
     }),
-    py::arg("array"))
+    py::arg("array"), py::arg("batch_index") = batch_index_none)
     .def_buffer([](Mat& m) -> py::buffer_info {
         return to_buffer_info(m);
     })
     .def(
-    "numpy", [](py::object obj, const std::string& format = "") -> py::array {
+    "numpy", [](py::object obj, const std::string& format = "", int batch_index = batch_index_none) -> py::array {
         auto* m = obj.cast<Mat*>();
+        if (batch_index != batch_index_none)
+        {
+#if !NCNN_BATCH
+            std::stringstream ss;
+            ss << "ncnn batch support disabled";
+            pybind11::pybind11_fail(ss.str());
+#endif
+            py::object numpy = py::module_::import("numpy");
+            py::list batch_slices;
+            for (int i = 0; i < m->n; i++)
+            {
+                Mat mb = m->batch(i);
+                batch_slices.append(py::array(to_buffer_info(mb, format), obj));
+            }
+            return numpy.attr("stack")(batch_slices, py::arg("axis") = batch_index).cast<py::array>();
+        }
         return py::array(to_buffer_info(*m, format), obj);
     },
-    py::arg("format") = "", "i for int32, f for float32, d for double")
+    py::arg("format") = "", py::arg("batch_index") = batch_index_none, "i for int32, f for float32, d for double")
     //.def("fill", (void (Mat::*)(int))(&Mat::fill), py::arg("v"))
     .def("fill", (void (Mat::*)(float))(&Mat::fill), py::arg("v"))
     .def("clone", &Mat::clone, py::arg("allocator") = nullptr)
@@ -328,17 +435,17 @@ PYBIND11_MODULE(ncnn, m)
     .def("reshape", (Mat(Mat::*)(int, int, int, int, Allocator*) const) & Mat::reshape, py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(), py::arg("allocator") = nullptr)
 
     .def(
-    "create", [](Mat& mat, py::tuple shape, size_t elemsize, int elempack, Allocator* allocator) {
+    "create", [](Mat& mat, py::tuple shape, size_t elemsize, int elempack, int n, Allocator* allocator) {
         switch (shape.size())
         {
         case 1:
-            return mat.create(shape[0].cast<int>(), elemsize, elempack, allocator);
+            return mat.create(shape[0].cast<int>(), elemsize, elempack, n, allocator);
         case 2:
-            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), elemsize, elempack, allocator);
+            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), elemsize, elempack, n, allocator);
         case 3:
-            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), elemsize, elempack, allocator);
+            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), elemsize, elempack, n, allocator);
         case 4:
-            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), shape[3].cast<int>(), elemsize, elempack, allocator);
+            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), shape[3].cast<int>(), elemsize, elempack, n, allocator);
         default:
             std::stringstream ss;
             ss << "shape must be 1, 2, 3 or 4 dims, not " << shape.size();
@@ -346,18 +453,20 @@ PYBIND11_MODULE(ncnn, m)
         }
         return;
     },
-    py::arg("shape"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, int, int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, int, int, int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    py::arg("shape"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("n") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, size_t, int, int, Allocator*)) & Mat::create, py::arg("w"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("n") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, int, size_t, int, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("n") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, int, int, size_t, int, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("n") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, int, int, int, size_t, int, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("n") = 1, py::arg("allocator") = nullptr)
     .def("create_like", (void (Mat::*)(const Mat&, Allocator*)) & Mat::create_like, py::arg("m"), py::arg("allocator") = nullptr)
+    .def("create_like", (void (Mat::*)(const Mat&, int, Allocator*)) & Mat::create_like, py::arg("m"), py::arg("n"), py::arg("allocator") = nullptr)
     .def("addref", &Mat::addref)
     .def("release", &Mat::release)
     .def("empty", &Mat::empty)
     .def("total", &Mat::total)
     .def("elembits", &Mat::elembits)
     .def("shape", &Mat::shape)
+    .def("batch", (Mat(Mat::*)(int)) & Mat::batch, py::arg("b"))
     .def("channel", (Mat(Mat::*)(int)) & Mat::channel, py::arg("c"))
     //.def("channel", (const Mat (Mat::*)(int) const) & Mat::channel, py::arg("c"))
     .def("depth", (Mat(Mat::*)(int)) & Mat::depth, py::arg("z"))
@@ -471,10 +580,21 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("d", &Mat::d)
     .def_readwrite("c", &Mat::c)
     .def_readwrite("cstep", &Mat::cstep)
+#if NCNN_BATCH
+    .def_readwrite("n", &Mat::n)
+#else
+    .def_property_readonly("n", [](const Mat&) {
+        return 1;
+    })
+#endif
     .def("__repr__", [](const Mat& m) {
         std::stringstream ss;
         ss << "<ncnn.Mat w=" << m.w << " h=" << m.h << " d=" << m.d << " c=" << m.c << " dims=" << m.dims
-           << " cstep=" << m.cstep << " elemsize=" << m.elemsize << " elempack=" << m.elempack << "\n\t"
+           << " n=" << m.n << " cstep=" << m.cstep
+#if NCNN_BATCH
+           << " nstep=" << m.nstep
+#endif
+           << " elemsize=" << m.elemsize << " elempack=" << m.elempack << "\n\t"
            << "refcount=" << (m.refcount ? *m.refcount : 0) << " data=0x" << static_cast<const void*>(m.data)
            << " allocator=0x" << static_cast<const void*>(m.allocator) << ">\n";
 

@@ -19,26 +19,45 @@ void convert_torch_tensor_split(Graph& graph)
         op->type = "Slice";
         op->name = std::string("tensor_split_") + std::to_string(op_index++);
 
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
         int axis = op->params.at("dim").i;
-        if (axis == batch_index)
-        {
-            fprintf(stderr, "tensor_split along batch axis %d is not supported\n", batch_index);
-            continue;
-        }
-
         if (axis < 0)
         {
             int input_rank = op->inputs[0]->shape.size();
-            axis = input_rank + axis;
+            if (input_rank == 0 && !op->outputs.empty())
+                input_rank = op->outputs[0]->shape.size();
+            if (input_rank > 0)
+                axis = input_rank + axis;
+            else if (ncnn_batch_axis != 233)
+                fprintf(stderr, "tensor_split axis around batch axis %d is unknown\n", ncnn_batch_axis);
+        }
+
+        bool axis_is_batch = false;
+        if (ncnn_batch_axis != 233 && axis == ncnn_batch_axis)
+        {
+            fprintf(stderr, "tensor_split along batch axis %d is not supported\n", ncnn_batch_axis);
+            axis_is_batch = true;
         }
 
         if (op->params.find("sections") != op->params.end())
         {
             int sections = op->params.at("sections").i;
 
-            if (!op->inputs[0]->shape.empty())
+            if (axis_is_batch)
+            {
+                // keep Slice op for future across-batch support
+                op->params["0"].type = 5;
+                op->params["0"].ai.resize(sections, -233);
+
+                op->params["1"] = -233;
+
+                op->params.erase("sections");
+                op->params.erase("dim");
+                continue;
+            }
+
+            if (!op->inputs[0]->shape.empty() && axis >= 0 && axis < (int)op->inputs[0]->shape.size())
             {
                 int size = op->inputs[0]->shape[axis];
                 if (size % sections != 0)
@@ -55,6 +74,17 @@ void convert_torch_tensor_split(Graph& graph)
         else
         {
             const std::vector<int>& indices = op->params.at("indices").ai;
+
+            if (axis_is_batch)
+            {
+                // keep Slice op for future across-batch support
+                op->params["2"] = indices;
+                op->params["1"] = -233;
+
+                op->params.erase("indices");
+                op->params.erase("dim");
+                continue;
+            }
 
             bool has_negative_indice = false;
             for (auto x : indices)
@@ -96,7 +126,7 @@ void convert_torch_tensor_split(Graph& graph)
             op->params.erase("indices");
         }
 
-        if (axis > batch_index)
+        if (ncnn_batch_axis != 233 && axis > ncnn_batch_axis)
             axis -= 1;
 
         op->params["1"] = axis;

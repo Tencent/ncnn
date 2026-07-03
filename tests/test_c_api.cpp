@@ -355,6 +355,8 @@ static int test_c_api_3()
     TEST_OPTION_SET_GET(use_int8_packed, 1, 0)
     TEST_OPTION_SET_GET(use_int8_storage, 1, 0)
     TEST_OPTION_SET_GET(use_int8_arithmetic, 1, 0)
+    TEST_OPTION_SET_GET(use_int16_packed, 1, 0)
+    TEST_OPTION_SET_GET(use_int16_storage, 1, 0)
     TEST_OPTION_SET_GET(use_bf16_packed, 1, 0)
     TEST_OPTION_SET_GET(use_bf16_storage, 1, 0)
 
@@ -401,7 +403,91 @@ static int test_c_api_3()
     return 0;
 }
 
+#if NCNN_BATCH
+static int test_c_api_batch()
+{
+    const int W = 4;
+    const int H = 3;
+    const int C = 2;
+    const int B = 3;
+
+    ncnn_mat_t a = ncnn_mat_create_3d_batch(W, H, C, B, NULL);
+    ncnn_mat_t b = 0;
+    ncnn_mat_t c = 0;
+    ncnn_mat_t d = 0;
+
+    bool success = true;
+    success = success && ncnn_mat_get_dims(a) == 3;
+    success = success && ncnn_mat_get_w(a) == W;
+    success = success && ncnn_mat_get_h(a) == H;
+    success = success && ncnn_mat_get_c(a) == C;
+    success = success && ncnn_mat_get_n(a) == B;
+    success = success && ncnn_mat_get_nstep(a) != 0;
+
+    for (int bi = 0; bi < B; bi++)
+    {
+        float* data = (float*)ncnn_mat_get_batch_data(a, bi);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = data + q * ncnn_mat_get_cstep(a);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(bi * 100 + q * 10 + i);
+            }
+        }
+    }
+
+    b = ncnn_mat_clone(a, NULL);
+    success = success && ncnn_mat_get_n(b) == B;
+
+    c = ncnn_mat_reshape_1d(a, W * H * C, NULL);
+    success = success && ncnn_mat_get_dims(c) == 1;
+    success = success && ncnn_mat_get_w(c) == W * H * C;
+    success = success && ncnn_mat_get_n(c) == B;
+
+    for (int bi = 0; bi < B; bi++)
+    {
+        const float* bdata = (const float*)ncnn_mat_get_batch_data(b, bi);
+        const float* cptr = (const float*)ncnn_mat_get_batch_data(c, bi);
+
+        for (int q = 0; q < C; q++)
+        {
+            const float* bptr = bdata + q * ncnn_mat_get_cstep(b);
+            for (int i = 0; i < W * H; i++)
+            {
+                float expected = (float)(bi * 100 + q * 10 + i);
+                if (bptr[i] != expected || cptr[q * W * H + i] != expected)
+                    success = false;
+            }
+        }
+    }
+
+    d = ncnn_mat_create_2d_elem_batch(5, 6, (size_t)2u, 1, 2, NULL);
+    success = success && ncnn_mat_get_dims(d) == 2;
+    success = success && ncnn_mat_get_w(d) == 5;
+    success = success && ncnn_mat_get_h(d) == 6;
+    success = success && ncnn_mat_get_n(d) == 2;
+    success = success && ncnn_mat_get_elemsize(d) == 2u;
+
+    ncnn_mat_destroy(a);
+    ncnn_mat_destroy(b);
+    ncnn_mat_destroy(c);
+    ncnn_mat_destroy(d);
+
+    if (!success)
+    {
+        fprintf(stderr, "test_c_api_batch failed\n");
+    }
+
+    return success ? 0 : -1;
+}
+#endif // NCNN_BATCH
+
 int main()
 {
-    return test_c_api_0() || test_c_api_1() || test_c_api_2() || test_c_api_3();
+    int ret = test_c_api_0() || test_c_api_1() || test_c_api_2() || test_c_api_3();
+#if NCNN_BATCH
+    ret = ret || test_c_api_batch();
+#endif
+    return ret;
 }

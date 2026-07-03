@@ -21,11 +21,11 @@ permissions:
   contents: read
 
 env:
-  LIBTORCH_VERSION: 2.10.0
-  TORCHVISION_VERSION: 0.25.0
+  LIBTORCH_VERSION: 2.11.0
+  TORCHVISION_VERSION: 0.26.0
   PROTOBUF_VERSION: 21.12
-  ONNXRUNTIME_VERSION: 1.24.3
-  CACHE_DATE: 20260309
+  ONNXRUNTIME_VERSION: 1.25.1
+  CACHE_DATE: 20260509
   SEGMENT_DOWNLOAD_TIMEOUT_MINS: 15
 
 jobs:
@@ -40,7 +40,7 @@ jobs:
       PYTHONUSERBASE: ${{ github.workspace }}/torch
       UseMultiToolTask: true
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - uses: actions/setup-python@v6
       with:
@@ -69,7 +69,7 @@ jobs:
     runs-on: [self-hosted, linux, ubuntu25]
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: local-cache-libtorch
       id: local-cache-libtorch
@@ -94,28 +94,28 @@ jobs:
 
     - name: cache-libtorch
       id: cache-libtorch
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: libtorch-${{ env.LIBTORCH_VERSION }}-install
         key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
     - name: cache-torchvision
       id: cache-torchvision
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: torchvision-${{ env.TORCHVISION_VERSION }}-install
         key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
     - name: cache-onnxruntime
       id: cache-onnxruntime
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
         key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
     - name: pnnx-patches
       if: (steps.local-cache-libtorch.outputs.cache-hit != 'true' && steps.cache-libtorch.outputs.cache-hit != 'true') || (steps.local-cache-torchvision.outputs.cache-hit != 'true' && steps.cache-torchvision.outputs.cache-hit != 'true') || (steps.local-cache-onnxruntime.outputs.cache-hit != 'true' && steps.cache-onnxruntime.outputs.cache-hit != 'true')
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
         repository: pnnx/pnnx
         path: pnnx-patches
@@ -256,6 +256,7 @@ jobs:
           - { python: '3.13', numpy: '2.2.5',  opencv: '4.12.*', torch: '2.8.0',  torchvision: '0.23.0', torchaudio: '2.8.0+cpu',  transformers: '4.56.2' }
           - { python: '3.13', numpy: '2.2.5',  opencv: '4.12.*', torch: '2.9.0',  torchvision: '0.24.0', torchaudio: '2.9.0+cpu',  transformers: '4.56.2' }
           - { python: '3.13', numpy: '2.2.5',  opencv: '4.12.*', torch: '2.10.0', torchvision: '0.25.0', torchaudio: '2.10.0+cpu', transformers: '4.56.2' }
+          - { python: '3.14', numpy: '2.3.5',  opencv: '4.13.*', torch: '2.11.0', torchvision: '0.26.0', torchaudio: '2.11.0+cpu', transformers: '4.57.6' }
 
     name: test-${{ matrix.torch }}-py${{ matrix.python }}
 
@@ -263,7 +264,7 @@ jobs:
       PYTHONUSERBASE: ${{ github.workspace }}/python-${{ matrix.python }}
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: true
 
@@ -291,7 +292,7 @@ jobs:
     - name: cache-libtorch
       if: steps.local-cache-libtorch.outputs.cache-hit != 'true'
       id: cache-libtorch
-      uses: actions/cache/restore@v5
+      uses: actions/cache/restore@v6
       with:
         path: libtorch-${{ env.LIBTORCH_VERSION }}-install
         key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
@@ -300,7 +301,7 @@ jobs:
     - name: cache-torchvision
       if: steps.local-cache-torchvision.outputs.cache-hit != 'true'
       id: cache-torchvision
-      uses: actions/cache/restore@v5
+      uses: actions/cache/restore@v6
       with:
         path: torchvision-${{ env.TORCHVISION_VERSION }}-install
         key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
@@ -309,7 +310,7 @@ jobs:
     - name: cache-onnxruntime
       if: steps.local-cache-onnxruntime.outputs.cache-hit != 'true'
       id: cache-onnxruntime
-      uses: actions/cache/restore@v5
+      uses: actions/cache/restore@v6
       with:
         path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
         key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}

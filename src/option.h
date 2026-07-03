@@ -145,8 +145,9 @@ public:
     bool use_fp16_uniform;
     bool use_int8_uniform;
 
-    bool use_reserved_9;
-    bool use_reserved_10;
+    // enable int16 layout options for vulkan int8 shader intermediate data
+    bool use_int16_packed;
+    bool use_int16_storage;
     bool use_reserved_11;
 };
 
