@@ -39,8 +39,12 @@ pnnx.Output             output      1 0 out
         const bool batch_reshape = input_ncnn_batch_axis != output_ncnn_batch_axis;
 
         std::vector<int> shape = op->outputs[0]->shape;
+        int shape_ncnn_batch_axis = output_ncnn_batch_axis;
         if (shape.empty())
+        {
             shape = op->inputs[1]->shape;
+            shape_ncnn_batch_axis = other_ncnn_batch_axis;
+        }
 
         if (shape.empty())
         {
@@ -55,8 +59,8 @@ pnnx.Output             output      1 0 out
         }
 
         std::vector<int> new_shape = shape;
-        if (!batch_reshape && output_ncnn_batch_axis != 233 && output_ncnn_batch_axis >= 0 && output_ncnn_batch_axis < (int)new_shape.size())
-            new_shape.erase(new_shape.begin() + output_ncnn_batch_axis);
+        if (!batch_reshape && shape_ncnn_batch_axis != 233 && shape_ncnn_batch_axis >= 0 && shape_ncnn_batch_axis < (int)new_shape.size())
+            new_shape.erase(new_shape.begin() + shape_ncnn_batch_axis);
 
         const int shape_rank = (int)shape.size();
         const int new_shape_rank = (int)new_shape.size();
