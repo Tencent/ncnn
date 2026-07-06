@@ -312,6 +312,27 @@ class ModelPackedBatchReshapeBetweenConv(nn.Module):
         return x
 
 
+class ModelSameBatchAxisReshapeCompat(nn.Module):
+    def __init__(self):
+        super(ModelSameBatchAxisReshapeCompat, self).__init__()
+
+    def forward(self, x, y):
+        out0 = x.reshape(x.size(0), x.size(1), -1)
+        out1 = x.reshape_as(y)
+        out2 = torch.flatten(x, 1, 2)
+        return F.max_pool1d(out0, 1), F.max_pool1d(out1, 1), F.max_pool1d(out2, 1)
+
+
+class ModelSameBatchAxisUnflattenCompat(nn.Module):
+    def __init__(self):
+        super(ModelSameBatchAxisUnflattenCompat, self).__init__()
+
+    def forward(self, x):
+        x = x.unflatten(dim=1, sizes=(3, 4))
+        x = F.max_pool2d(x, 1)
+        return x
+
+
 def compare(a, b):
     if isinstance(a, tuple):
         if not isinstance(b, tuple) or len(a) != len(b):
@@ -322,6 +343,15 @@ def compare(a, b):
         return True
 
     return torch.allclose(a, b, 1e-3, 1e-3)
+
+
+def no_batch_reshape_param(name):
+    with open(name + ".ncnn.param") as f:
+        for line in f:
+            if line.startswith("Reshape ") and (" 12=" in line or " 13=" in line):
+                return False
+
+    return True
 
 
 def run_model(name, net, inputs):
@@ -498,6 +528,24 @@ def test():
     x = torch.rand(2, 3, 5, 7)
     if not run_model("test_ncnn_batch_layout_packed_between_conv", ModelPackedBatchReshapeBetweenConv(), x):
         return False
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 3, 4, 5)
+    y = torch.rand(2, 3, 20)
+    name = "test_ncnn_batch_layout_same_batch_axis_reshape_compat"
+    if not run_model(name, ModelSameBatchAxisReshapeCompat(), (x, y)):
+        return False
+    if not no_batch_reshape_param(name):
+        return False
+
+    if version.parse(torch.__version__) >= version.parse('1.13'):
+        torch.manual_seed(0)
+        x = torch.rand(2, 12, 5)
+        name = "test_ncnn_batch_layout_same_batch_axis_unflatten_compat"
+        if not run_model(name, ModelSameBatchAxisUnflattenCompat(), x):
+            return False
+        if not no_batch_reshape_param(name):
+            return False
 
     return True
 
