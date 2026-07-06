@@ -774,17 +774,17 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
                 break;
             }
         }
-        for (size_t i = 0; i < bottom_blobs.size(); i++)
-        {
-            if (bottom_blobs[i].n > 1 && bottom_blobs[i].n != B)
-            {
-                NCNN_LOGE("layer %d batch size mismatch, bottom %d has batch %d but expected %d", layer->typeindex, (int)i, bottom_blobs[i].n, B);
-                return -1;
-            }
-        }
-
         if (B > 1 && !layer->support_batch)
         {
+            for (size_t i = 0; i < bottom_blobs.size(); i++)
+            {
+                if (bottom_blobs[i].n > 1 && bottom_blobs[i].n != B)
+                {
+                    NCNN_LOGE("layer %d batch size mismatch, bottom %d has batch %d but expected %d", layer->typeindex, (int)i, bottom_blobs[i].n, B);
+                    return -1;
+                }
+            }
+
             std::vector<Mat> top_batches(layer->tops.size());
             for (int b = 0; b < B; b++)
             {
@@ -1033,17 +1033,17 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
                 break;
             }
         }
-        for (size_t i = 0; i < bottom_blobs.size(); i++)
-        {
-            if (bottom_blobs[i].n > 1 && bottom_blobs[i].n != B)
-            {
-                NCNN_LOGE("layer %d batch size mismatch, bottom %d has batch %d but expected %d", layer->typeindex, (int)i, bottom_blobs[i].n, B);
-                return -1;
-            }
-        }
-
         if (B > 1 && !layer->support_batch)
         {
+            for (size_t i = 0; i < bottom_blobs.size(); i++)
+            {
+                if (bottom_blobs[i].n > 1 && bottom_blobs[i].n != B)
+                {
+                    NCNN_LOGE("layer %d batch size mismatch, bottom %d has batch %d but expected %d", layer->typeindex, (int)i, bottom_blobs[i].n, B);
+                    return -1;
+                }
+            }
+
             std::vector<VkMat> top_batches(layer->tops.size());
             for (int b = 0; b < B; b++)
             {

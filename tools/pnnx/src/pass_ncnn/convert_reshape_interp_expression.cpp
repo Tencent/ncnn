@@ -195,6 +195,7 @@ void convert_reshape_interp_expression(Graph& graph)
                 output_ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
             }
             const bool batch_reshape = input_ncnn_batch_axis != output_ncnn_batch_axis;
+            bool shape_expr_reference_batch = false;
 
             // change nchw annotation to w,h,c / w,h,d,c with batch index dropped
 
@@ -431,10 +432,25 @@ void convert_reshape_interp_expression(Graph& graph)
                     }
 
                     // reverse order
-                    std::string r;
                     for (int j = (int)elements.size() - 1; j >= 0; j--)
                     {
                         if (is_tensor_reshape && !batch_reshape && j == output_ncnn_batch_axis)
+                            continue;
+
+                        for (size_t k = 0; k + 1 < elements[j].size(); k++)
+                        {
+                            if (elements[j][k] >= '0' && elements[j][k] <= '9' && elements[j][k + 1] == 'n')
+                            {
+                                shape_expr_reference_batch = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    std::string r;
+                    for (int j = (int)elements.size() - 1; j >= 0; j--)
+                    {
+                        if (is_tensor_reshape && !batch_reshape && !shape_expr_reference_batch && j == output_ncnn_batch_axis)
                             continue;
 
                         if (!r.empty())
@@ -473,7 +489,7 @@ void convert_reshape_interp_expression(Graph& graph)
                 op->params.clear();
                 op->params["6"] = r;
 
-                if (batch_reshape)
+                if (batch_reshape || (shape_expr_reference_batch && (input_ncnn_batch_axis != 233 || output_ncnn_batch_axis != 233)))
                 {
                     op->params["12"] = input_ncnn_batch_axis;
                     op->params["13"] = output_ncnn_batch_axis;

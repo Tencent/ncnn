@@ -57,7 +57,7 @@ def test():
 
     # torchscript to ncnn
     import os
-    os.system("../../src/pnnx test_Tensor_reshape_as.pt inputshape=[1,3,16],[6,2,2,2],[48],[2,3,5,7],[2,3,35],[2,3,5,7],[2,3,5,7],[2,3,5,7],[3,2,5,7]")
+    os.system("../../src/pnnx test_Tensor_reshape_as.pt inputshape=[1,3,16],[6,2,2,2],[48],[2,3,5,7],[2,3,35],[2,3,5,7],[2,3,5,7],[2,3,5,7],[3,2,5,7] inputshape2=[1,3,16],[6,2,2,2],[48],[2,3,5,7],[2,3,35],[2,3,5,7],[2,3,5,7],[4,6,8,10],[6,4,8,10]")
 
     # ncnn inference
     import test_Tensor_reshape_as_ncnn

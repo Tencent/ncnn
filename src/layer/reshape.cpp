@@ -56,6 +56,27 @@ int Reshape::load_param(const ParamDict& pd)
     // count reference blobs
     if (!shape_expr.empty())
     {
+        bool shape_expr_reference_batch = false;
+        for (size_t i = 0; i + 1 < shape_expr.size(); i++)
+        {
+            if (shape_expr[i] >= '0' && shape_expr[i] <= '9' && shape_expr[i + 1] == 'n')
+            {
+                shape_expr_reference_batch = true;
+                break;
+            }
+        }
+
+#if NCNN_BATCH
+        if (shape_expr_reference_batch)
+            support_batch = true;
+#else
+        if (shape_expr_reference_batch)
+        {
+            NCNN_LOGE("please build ncnn with NCNN_BATCH enabled for batch inference");
+            return -1;
+        }
+#endif
+
         const int blob_count = count_expression_blobs(shape_expr);
         if (blob_count > 1)
             one_blob_only = false;

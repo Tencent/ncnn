@@ -323,6 +323,17 @@ class ModelSameBatchAxisReshapeCompat(nn.Module):
         return F.max_pool1d(out0, 1), F.max_pool1d(out1, 1), F.max_pool1d(out2, 1)
 
 
+class ModelDynamicReshapeReuseBatch(nn.Module):
+    def __init__(self):
+        super(ModelDynamicReshapeReuseBatch, self).__init__()
+
+    def forward(self, x):
+        x = F.max_pool2d(x, 1)
+        x = x.reshape(x.size(0), x.size(0), -1)
+        x = F.max_pool1d(x, 1)
+        return x
+
+
 class ModelSameBatchAxisUnflattenCompat(nn.Module):
     def __init__(self):
         super(ModelSameBatchAxisUnflattenCompat, self).__init__()
@@ -354,11 +365,13 @@ def no_batch_reshape_param(name):
     return True
 
 
-def run_model(name, net, inputs):
+def run_model(name, net, inputs, inputs2=None):
     net.eval()
 
     if not isinstance(inputs, tuple):
         inputs = (inputs,)
+    if inputs2 is not None and not isinstance(inputs2, tuple):
+        inputs2 = (inputs2,)
 
     a = net(*inputs)
 
@@ -366,7 +379,11 @@ def run_model(name, net, inputs):
     mod.save(name + ".pt")
 
     inputshape = ",".join([str(list(x.shape)).replace(" ", "") for x in inputs])
-    if os.system("../../src/pnnx " + name + ".pt inputshape=" + inputshape) != 0:
+    pnnxcmd = "../../src/pnnx " + name + ".pt inputshape=" + inputshape
+    if inputs2 is not None:
+        inputshape2 = ",".join([str(list(x.shape)).replace(" ", "") for x in inputs2])
+        pnnxcmd += " inputshape2=" + inputshape2
+    if os.system(pnnxcmd) != 0:
         return False
 
     ncnnpy = __import__(name + "_ncnn")
@@ -532,10 +549,18 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(2, 3, 4, 5)
     y = torch.rand(2, 3, 20)
+    x2 = torch.rand(4, 3, 6, 7)
+    y2 = torch.rand(4, 3, 42)
     name = "test_ncnn_batch_layout_same_batch_axis_reshape_compat"
-    if not run_model(name, ModelSameBatchAxisReshapeCompat(), (x, y)):
+    if not run_model(name, ModelSameBatchAxisReshapeCompat(), (x, y), (x2, y2)):
         return False
     if not no_batch_reshape_param(name):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 4, 5, 7)
+    x2 = torch.rand(4, 4, 5, 7)
+    if not run_model("test_ncnn_batch_layout_dynamic_reshape_reuse_batch", ModelDynamicReshapeReuseBatch(), x, x2):
         return False
 
     if version.parse(torch.__version__) >= version.parse('1.13'):
