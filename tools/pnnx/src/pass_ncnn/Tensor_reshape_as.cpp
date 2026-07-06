@@ -88,6 +88,54 @@ pnnx.Output             output      1 0 out
             return;
         }
 
+        // use static output shape when other only serves as shape reference
+        if (!batch_reshape && other_ncnn_batch_axis != output_ncnn_batch_axis && !op->outputs[0]->shape.empty())
+        {
+            op->inputs[1]->remove_consumer(op);
+            op->inputs.resize(1);
+            op->inputnames.resize(1);
+
+            std::vector<int> shape = op->outputs[0]->shape;
+            if (output_ncnn_batch_axis != 233 && output_ncnn_batch_axis >= 0 && output_ncnn_batch_axis < (int)shape.size())
+                shape.erase(shape.begin() + output_ncnn_batch_axis);
+
+            const int rank = (int)shape.size();
+            if (rank == 1)
+            {
+                op->params["0"] = shape[0];
+            }
+            if (rank == 2)
+            {
+                op->params["0"] = shape[1];
+                op->params["1"] = shape[0];
+            }
+            if (rank == 3)
+            {
+                op->params["0"] = shape[2];
+                op->params["1"] = shape[1];
+                op->params["2"] = shape[0];
+            }
+            if (rank == 4)
+            {
+                op->params["0"] = shape[3];
+                op->params["1"] = shape[2];
+                op->params["11"] = shape[1];
+                op->params["2"] = shape[0];
+            }
+            if (rank >= 5)
+            {
+                std::string shape_expr = std::to_string(shape[rank - 1]);
+                for (int i = rank - 2; i >= 0; i--)
+                {
+                    shape_expr += ",";
+                    shape_expr += std::to_string(shape[i]);
+                }
+                op->params["6"] = shape_expr;
+            }
+
+            return;
+        }
+
         std::string shape_expr;
         for (int i = shape_rank - 1; i >= 0; i--)
         {

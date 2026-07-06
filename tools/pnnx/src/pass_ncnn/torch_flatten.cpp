@@ -86,6 +86,15 @@ pnnx.Output             output      1 0 out
         int end_dim = captured_params.at("end_dim").i;
 
         const int input_rank = op->inputs[0]->shape.size();
+        if (input_rank != 0)
+        {
+            if (start_dim < 0)
+                start_dim += input_rank;
+
+            if (end_dim < 0)
+                end_dim += input_rank;
+        }
+
         const int input_ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
         const int output_ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
         const bool batch_reshape = input_ncnn_batch_axis != output_ncnn_batch_axis;
@@ -101,12 +110,6 @@ pnnx.Output             output      1 0 out
             }
             else
             {
-                if (start_dim < 0)
-                    start_dim += input_rank;
-
-                if (end_dim < 0)
-                    end_dim += input_rank;
-
                 if (input_rank <= start_dim || input_rank <= end_dim)
                 {
                     fprintf(stderr, "flatten %d to %d not possible for %d-rank tensor, fallback to flatten all\n", start_dim, end_dim, input_rank);
