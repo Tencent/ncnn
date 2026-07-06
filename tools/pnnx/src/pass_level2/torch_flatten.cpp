@@ -58,7 +58,7 @@ pnnx.Output             output      1 0 out
         if (axis < 0 && input_rank != 0)
             axis += input_rank;
 
-        if (axis == 1)
+        if (axis == 1 && input_rank != 1)
             return true;
 
         return input_rank != 0 && axis > 1 && axis == input_rank - 1;
