@@ -56,6 +56,26 @@ class ModelFlattenDynamicExpr(nn.Module):
         return x
 
 
+class ModelReshapeDynamicExprCompat(nn.Module):
+    def __init__(self):
+        super(ModelReshapeDynamicExprCompat, self).__init__()
+
+    def forward(self, x):
+        x = F.max_pool2d(x, 1)
+        x = x.reshape(x.size(0), x.size(2), x.size(3), x.size(1))
+        x = x.relu()
+        return x
+
+
+def no_batch_reshape_param(name):
+    with open(name + ".ncnn.param") as f:
+        for line in f:
+            if line.startswith("Reshape ") and (" 12=" in line or " 13=" in line):
+                return False
+
+    return True
+
+
 def run_model(name, net, x0, x1):
     net.eval()
 
@@ -146,6 +166,22 @@ def test():
     x1 = torch.rand(2, 3, 9, 11)
 
     if not run_model("test_ncnn_solve_batch_index_flatten_dynamic_expr", net, x0, x1):
+        return False
+    if not no_batch_reshape_param("test_ncnn_solve_batch_index_flatten_dynamic_expr"):
+        return False
+
+    torch.manual_seed(0)
+
+    net = ModelReshapeDynamicExprCompat()
+
+    torch.manual_seed(0)
+    x0 = torch.rand(2, 3, 5, 7)
+
+    x1 = torch.rand(2, 3, 9, 11)
+
+    if not run_model("test_ncnn_solve_batch_index_reshape_dynamic_expr_compat", net, x0, x1):
+        return False
+    if not no_batch_reshape_param("test_ncnn_solve_batch_index_reshape_dynamic_expr_compat"):
         return False
 
     return True

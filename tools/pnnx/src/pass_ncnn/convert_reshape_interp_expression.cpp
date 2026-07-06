@@ -186,6 +186,17 @@ void convert_reshape_interp_expression(Graph& graph)
                 ordered_references[x.second] = x.first;
             }
 
+            const bool is_tensor_reshape = op->type == "Tensor.reshape";
+            int input_ncnn_batch_axis = 233;
+            int output_ncnn_batch_axis = 233;
+            if (is_tensor_reshape)
+            {
+                input_ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
+                output_ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
+            }
+            const bool batch_reshape = input_ncnn_batch_axis != output_ncnn_batch_axis;
+            bool shape_expr_reference_batch = false;
+
             // change nchw annotation to w,h,c / w,h,d,c with batch index dropped
 
             struct typed_value
@@ -421,12 +432,31 @@ void convert_reshape_interp_expression(Graph& graph)
                     }
 
                     // reverse order
+                    for (int j = (int)elements.size() - 1; j >= 0; j--)
+                    {
+                        if (is_tensor_reshape && !batch_reshape && j == output_ncnn_batch_axis)
+                            continue;
+
+                        for (size_t k = 0; k + 1 < elements[j].size(); k++)
+                        {
+                            if (elements[j][k] >= '0' && elements[j][k] <= '9' && elements[j][k + 1] == 'n')
+                            {
+                                shape_expr_reference_batch = true;
+                                break;
+                            }
+                        }
+                    }
+
                     std::string r;
                     for (int j = (int)elements.size() - 1; j >= 0; j--)
                     {
-                        r += elements[j];
-                        if (j != 0)
+                        if (is_tensor_reshape && !batch_reshape && !shape_expr_reference_batch && j == output_ncnn_batch_axis)
+                            continue;
+
+                        if (!r.empty())
                             r += ",";
+
+                        r += elements[j];
                     }
 
                     exprstack.push(r);
@@ -450,7 +480,7 @@ void convert_reshape_interp_expression(Graph& graph)
                 exprstack.pop();
             }
 
-            if (op->type == "Tensor.reshape")
+            if (is_tensor_reshape)
             {
                 fprintf(stderr, "convert reshape expression %s => %s\n", expr.c_str(), r.c_str());
 
@@ -459,9 +489,7 @@ void convert_reshape_interp_expression(Graph& graph)
                 op->params.clear();
                 op->params["6"] = r;
 
-                const int input_ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
-                const int output_ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
-                if (input_ncnn_batch_axis != 233 || output_ncnn_batch_axis != 233)
+                if (batch_reshape || (shape_expr_reference_batch && (input_ncnn_batch_axis != 233 || output_ncnn_batch_axis != 233)))
                 {
                     op->params["12"] = input_ncnn_batch_axis;
                     op->params["13"] = output_ncnn_batch_axis;

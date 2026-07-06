@@ -86,8 +86,18 @@ pnnx.Output             output      1 0 out
         int end_dim = captured_params.at("end_dim").i;
 
         const int input_rank = op->inputs[0]->shape.size();
+        if (input_rank != 0)
+        {
+            if (start_dim < 0)
+                start_dim += input_rank;
+
+            if (end_dim < 0)
+                end_dim += input_rank;
+        }
+
         const int input_ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
         const int output_ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
+        const bool batch_reshape = input_ncnn_batch_axis != output_ncnn_batch_axis;
 
         std::vector<int> new_shape = op->outputs[0]->shape;
 
@@ -100,12 +110,6 @@ pnnx.Output             output      1 0 out
             }
             else
             {
-                if (start_dim < 0)
-                    start_dim += input_rank;
-
-                if (end_dim < 0)
-                    end_dim += input_rank;
-
                 if (input_rank <= start_dim || input_rank <= end_dim)
                 {
                     fprintf(stderr, "flatten %d to %d not possible for %d-rank tensor, fallback to flatten all\n", start_dim, end_dim, input_rank);
@@ -153,6 +157,11 @@ pnnx.Output             output      1 0 out
             }
         }
 
+        if (!batch_reshape && output_ncnn_batch_axis != 233 && output_ncnn_batch_axis >= 0 && output_ncnn_batch_axis < (int)new_shape.size())
+        {
+            new_shape.erase(new_shape.begin() + output_ncnn_batch_axis);
+        }
+
         int shape_rank = (int)new_shape.size();
         if (shape_rank == 0)
         {
@@ -176,24 +185,30 @@ pnnx.Output             output      1 0 out
             int in_shape_rank = op->inputs[0]->shape.size();
 
             std::string shape_expr;
+            bool shape_expr_reference_batch = false;
             for (int i = shape_rank - 1; i >= 0; i--)
             {
                 if (!shape_expr.empty())
                     shape_expr += ",";
 
-                if (i == flattened_index)
+                int output_axis = i;
+                if (!batch_reshape && output_ncnn_batch_axis != 233 && output_axis >= output_ncnn_batch_axis)
+                    output_axis += 1;
+
+                if (output_axis == flattened_index)
                 {
                     shape_expr += "-1";
                     continue;
                 }
 
-                int input_axis = i;
-                if (i > flattened_index)
+                int input_axis = output_axis;
+                if (output_axis > flattened_index)
                     input_axis += end_dim - start_dim;
 
                 if (input_axis == input_ncnn_batch_axis)
                 {
                     shape_expr += "0n";
+                    shape_expr_reference_batch = true;
                     continue;
                 }
 
@@ -234,7 +249,7 @@ pnnx.Output             output      1 0 out
             }
 
             op->params["6"] = shape_expr;
-            if (input_ncnn_batch_axis != 233 || output_ncnn_batch_axis != 233)
+            if (batch_reshape || (shape_expr_reference_batch && (input_ncnn_batch_axis != 233 || output_ncnn_batch_axis != 233)))
             {
                 op->params["12"] = input_ncnn_batch_axis;
                 op->params["13"] = output_ncnn_batch_axis;
@@ -266,7 +281,7 @@ pnnx.Output             output      1 0 out
         }
         if (shape_rank >= 5)
         {
-            if (shape_rank > 5 || (shape_rank == 5 && output_ncnn_batch_axis == 233))
+            if (shape_rank > 5 || (shape_rank == 5 && (output_ncnn_batch_axis == 233 || !batch_reshape)))
                 fprintf(stderr, "reshape to %d-rank physical tensor is not supported by ncnn runtime yet\n", shape_rank);
 
             std::string shape_expr = std::to_string(new_shape[shape_rank - 1]);
@@ -278,7 +293,7 @@ pnnx.Output             output      1 0 out
             op->params["6"] = shape_expr;
         }
 
-        if (input_ncnn_batch_axis != 233 || output_ncnn_batch_axis != 233)
+        if (batch_reshape)
         {
             op->params["12"] = input_ncnn_batch_axis;
             op->params["13"] = output_ncnn_batch_axis;

@@ -61,8 +61,14 @@ pnnx.Output             output      1 0 out
             new_shape.push_back(-1);
         }
 
+        const bool batch_reshape = input_ncnn_batch_axis != output_ncnn_batch_axis;
+        if (!batch_reshape && output_ncnn_batch_axis != 233 && output_ncnn_batch_axis >= 0 && output_ncnn_batch_axis < (int)new_shape.size())
+        {
+            new_shape.erase(new_shape.begin() + output_ncnn_batch_axis);
+        }
+
         const int shape_rank = (int)new_shape.size();
-        if (shape_rank > 5 || (shape_rank == 5 && output_ncnn_batch_axis == 233))
+        if (shape_rank > 5 || (shape_rank == 5 && (output_ncnn_batch_axis == 233 || !batch_reshape)))
             fprintf(stderr, "reshape to %d-rank physical tensor is not supported by ncnn runtime yet\n", shape_rank);
 
         if (shape_rank == 1)
@@ -98,7 +104,7 @@ pnnx.Output             output      1 0 out
             op->params["6"] = shape_expr;
         }
 
-        if (input_ncnn_batch_axis != 233 || output_ncnn_batch_axis != 233)
+        if (batch_reshape)
         {
             op->params["12"] = input_ncnn_batch_axis;
             op->params["13"] = output_ncnn_batch_axis;
