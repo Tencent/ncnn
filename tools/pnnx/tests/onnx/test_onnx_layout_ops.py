@@ -28,6 +28,8 @@ def Model(x: FLOAT["N",12,"H","W"], y: FLOAT["N",3,"W2"]):
 
         op.Flatten(x),
         op.Flatten(x, axis=-2),
+        op.Flatten(x, axis=0),
+        op.Flatten(x, axis=4),
         op.Flatten(y, axis=2),
 
         op.Pad(x, pads=[0, 0, 0, 0, 0, 1, 1, 1], mode='constant', constant_value=0.0),

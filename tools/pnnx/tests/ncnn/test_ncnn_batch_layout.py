@@ -334,6 +334,19 @@ class ModelDynamicReshapeReuseBatch(nn.Module):
         return x
 
 
+class ModelDynamicReshapeAsReference(nn.Module):
+    def __init__(self):
+        super(ModelDynamicReshapeAsReference, self).__init__()
+
+    def forward(self, x, y):
+        x = F.max_pool2d(x, 1)
+        y = F.max_pool2d(y, 1)
+        y = y.permute(1, 0, 2, 3)
+        x = x.reshape_as(y)
+        x = F.max_pool2d(x, 1)
+        return x
+
+
 class ModelSameBatchAxisUnflattenCompat(nn.Module):
     def __init__(self):
         super(ModelSameBatchAxisUnflattenCompat, self).__init__()
@@ -561,6 +574,14 @@ def test():
     x = torch.rand(2, 4, 5, 7)
     x2 = torch.rand(4, 4, 5, 7)
     if not run_model("test_ncnn_batch_layout_dynamic_reshape_reuse_batch", ModelDynamicReshapeReuseBatch(), x, x2):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 3, 5, 7)
+    y = torch.rand(3, 2, 5, 7)
+    x2 = torch.rand(4, 6, 8, 10)
+    y2 = torch.rand(6, 4, 8, 10)
+    if not run_model("test_ncnn_batch_layout_dynamic_reshape_as_reference", ModelDynamicReshapeAsReference(), (x, y), (x2, y2)):
         return False
 
     if version.parse(torch.__version__) >= version.parse('1.13'):

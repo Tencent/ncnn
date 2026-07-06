@@ -185,6 +185,7 @@ pnnx.Output             output      1 0 out
             int in_shape_rank = op->inputs[0]->shape.size();
 
             std::string shape_expr;
+            bool shape_expr_reference_batch = false;
             for (int i = shape_rank - 1; i >= 0; i--)
             {
                 if (!shape_expr.empty())
@@ -207,6 +208,7 @@ pnnx.Output             output      1 0 out
                 if (input_axis == input_ncnn_batch_axis)
                 {
                     shape_expr += "0n";
+                    shape_expr_reference_batch = true;
                     continue;
                 }
 
@@ -247,7 +249,7 @@ pnnx.Output             output      1 0 out
             }
 
             op->params["6"] = shape_expr;
-            if (batch_reshape)
+            if (batch_reshape || (shape_expr_reference_batch && (input_ncnn_batch_axis != 233 || output_ncnn_batch_axis != 233)))
             {
                 op->params["12"] = input_ncnn_batch_axis;
                 op->params["13"] = output_ncnn_batch_axis;

@@ -50,18 +50,18 @@ pnnx.Output             output      1 0 out
     {
         const Operator* op = matched_operators.at("op_0");
 
-        const int input_rank = op->inputs[0]->shape.size();
-        if (input_rank == 0)
-            return false;
-
         int axis = 1;
         if (captured_params.find("op_0.axis") != captured_params.end())
             axis = captured_params.at("op_0.axis").i;
 
-        if (axis < 0)
+        const int input_rank = op->inputs[0]->shape.size();
+        if (axis < 0 && input_rank != 0)
             axis += input_rank;
 
-        return axis > 1 && axis == input_rank - 1;
+        if (axis == 1)
+            return true;
+
+        return input_rank != 0 && axis > 1 && axis == input_rank - 1;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
@@ -71,11 +71,19 @@ pnnx.Output             output      1 0 out
             axis = captured_params.at("op_0.axis").i;
 
         const int input_rank = op->inputs[0]->shape.size();
-        if (axis < 0)
+        if (axis < 0 && input_rank != 0)
             axis += input_rank;
 
-        op->params["start_dim"] = 0;
-        op->params["end_dim"] = axis - 1;
+        if (axis == 1)
+        {
+            op->params["start_dim"] = 1;
+            op->params["end_dim"] = -1;
+        }
+        else
+        {
+            op->params["start_dim"] = 0;
+            op->params["end_dim"] = axis - 1;
+        }
     }
 };
 
@@ -109,9 +117,15 @@ pnnx.Output             output      1 0 out
         if (axis < 0 && input_rank != 0)
             axis += input_rank;
 
-        if (axis == 1)
+        if (axis == 0)
         {
-            op->params["shape"] = std::vector<int>{0, -1};
+            op->params["shape"] = std::vector<int>{1, -1};
+            return;
+        }
+
+        if (input_rank != 0 && axis == input_rank)
+        {
+            op->params["shape"] = std::vector<int>{-1, 1};
             return;
         }
 

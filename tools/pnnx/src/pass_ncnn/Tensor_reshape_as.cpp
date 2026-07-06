@@ -91,56 +91,76 @@ pnnx.Output             output      1 0 out
         // use static output shape when other only serves as shape reference
         if (!batch_reshape && other_ncnn_batch_axis != output_ncnn_batch_axis && !op->outputs[0]->shape.empty())
         {
-            op->inputs[1]->remove_consumer(op);
-            op->inputs.resize(1);
-            op->inputnames.resize(1);
-
             std::vector<int> shape = op->outputs[0]->shape;
             if (output_ncnn_batch_axis != 233 && output_ncnn_batch_axis >= 0 && output_ncnn_batch_axis < (int)shape.size())
                 shape.erase(shape.begin() + output_ncnn_batch_axis);
 
-            const int rank = (int)shape.size();
-            if (rank == 1)
+            int dynamic_count = 0;
+            for (int x : shape)
             {
-                op->params["0"] = shape[0];
-            }
-            if (rank == 2)
-            {
-                op->params["0"] = shape[1];
-                op->params["1"] = shape[0];
-            }
-            if (rank == 3)
-            {
-                op->params["0"] = shape[2];
-                op->params["1"] = shape[1];
-                op->params["2"] = shape[0];
-            }
-            if (rank == 4)
-            {
-                op->params["0"] = shape[3];
-                op->params["1"] = shape[2];
-                op->params["11"] = shape[1];
-                op->params["2"] = shape[0];
-            }
-            if (rank >= 5)
-            {
-                std::string shape_expr = std::to_string(shape[rank - 1]);
-                for (int i = rank - 2; i >= 0; i--)
-                {
-                    shape_expr += ",";
-                    shape_expr += std::to_string(shape[i]);
-                }
-                op->params["6"] = shape_expr;
+                if (x == -1)
+                    dynamic_count++;
             }
 
-            return;
+            if (dynamic_count <= 1)
+            {
+                op->inputs[1]->remove_consumer(op);
+                op->inputs.resize(1);
+                op->inputnames.resize(1);
+
+                const int rank = (int)shape.size();
+                if (rank == 1)
+                {
+                    op->params["0"] = shape[0];
+                }
+                if (rank == 2)
+                {
+                    op->params["0"] = shape[1];
+                    op->params["1"] = shape[0];
+                }
+                if (rank == 3)
+                {
+                    op->params["0"] = shape[2];
+                    op->params["1"] = shape[1];
+                    op->params["2"] = shape[0];
+                }
+                if (rank == 4)
+                {
+                    op->params["0"] = shape[3];
+                    op->params["1"] = shape[2];
+                    op->params["11"] = shape[1];
+                    op->params["2"] = shape[0];
+                }
+                if (rank >= 5)
+                {
+                    std::string shape_expr = std::to_string(shape[rank - 1]);
+                    for (int i = rank - 2; i >= 0; i--)
+                    {
+                        shape_expr += ",";
+                        shape_expr += std::to_string(shape[i]);
+                    }
+                    op->params["6"] = shape_expr;
+                }
+
+                return;
+            }
         }
 
         std::string shape_expr;
+        bool shape_expr_reference_batch = false;
         for (int i = shape_rank - 1; i >= 0; i--)
         {
             if (!batch_reshape && i == output_ncnn_batch_axis)
+            {
+                if (other_ncnn_batch_axis == output_ncnn_batch_axis)
+                    continue;
+
+                if (!shape_expr.empty())
+                    shape_expr += ",";
+                shape_expr += "0n";
+                shape_expr_reference_batch = true;
                 continue;
+            }
 
             if (!shape_expr.empty())
                 shape_expr += ",";
@@ -148,6 +168,7 @@ pnnx.Output             output      1 0 out
             if (i == other_ncnn_batch_axis)
             {
                 shape_expr += "1n";
+                shape_expr_reference_batch = true;
                 continue;
             }
 
@@ -184,7 +205,7 @@ pnnx.Output             output      1 0 out
 
         op->params["6"] = shape_expr;
 
-        if (batch_reshape)
+        if (batch_reshape || (shape_expr_reference_batch && (input_ncnn_batch_axis != 233 || output_ncnn_batch_axis != 233)))
         {
             op->params["12"] = input_ncnn_batch_axis;
             op->params["13"] = output_ncnn_batch_axis;
