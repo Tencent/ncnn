@@ -43,20 +43,61 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "torch.flatten";
+        return "Tensor.reshape";
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
+        int axis = 1;
         if (captured_params.find("op_0.axis") != captured_params.end())
+            axis = captured_params.at("op_0.axis").i;
+
+        const int input_rank = op->inputs[0]->shape.size();
+        if (axis < 0 && input_rank != 0)
+            axis += input_rank;
+
+        if (axis == 1)
         {
-            op->params["start_dim"] = captured_params.at("op_0.axis");
+            op->params["shape"] = std::vector<int>{0, -1};
+            return;
         }
-        else
+
+        if (!op->outputs[0]->shape.empty())
         {
-            op->params["start_dim"] = 1;
+            op->params["shape"] = op->outputs[0]->shape;
+            return;
         }
-        op->params["end_dim"] = -1;
+
+        if (input_rank != 0 && 0 <= axis && axis <= input_rank)
+        {
+            int size0 = 1;
+            for (int i = 0; i < axis; i++)
+            {
+                if (op->inputs[0]->shape[i] == -1)
+                {
+                    size0 = -1;
+                    break;
+                }
+                size0 *= op->inputs[0]->shape[i];
+            }
+
+            int size1 = 1;
+            for (int i = axis; i < input_rank; i++)
+            {
+                if (op->inputs[0]->shape[i] == -1)
+                {
+                    size1 = -1;
+                    break;
+                }
+                size1 *= op->inputs[0]->shape[i];
+            }
+
+            op->params["shape"] = std::vector<int>{size0, size1};
+            return;
+        }
+
+        fprintf(stderr, "onnx Flatten with unknown output shape is not supported yet, fallback to flatten all\n");
+        op->params["shape"] = std::vector<int>{-1};
     }
 };
 
