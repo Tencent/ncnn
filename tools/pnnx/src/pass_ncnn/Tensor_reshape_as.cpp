@@ -38,11 +38,11 @@ pnnx.Output             output      1 0 out
         const int output_ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
         const bool batch_reshape = input_ncnn_batch_axis != output_ncnn_batch_axis;
 
-        int shape_rank = (int)op->outputs[0]->shape.size();
-        if (shape_rank == 0)
-            shape_rank = (int)op->inputs[1]->shape.size();
+        std::vector<int> shape = op->outputs[0]->shape;
+        if (shape.empty())
+            shape = op->inputs[1]->shape;
 
-        if (shape_rank == 0)
+        if (shape.empty())
         {
             fprintf(stderr, "reshape_as tensor with unknown rank is not supported yet, fallback to other width\n");
             op->params["6"] = "1w";
@@ -54,24 +54,22 @@ pnnx.Output             output      1 0 out
             return;
         }
 
-        int physical_shape_rank = shape_rank;
-        if (!batch_reshape && output_ncnn_batch_axis != 233 && output_ncnn_batch_axis >= 0 && output_ncnn_batch_axis < physical_shape_rank)
-            physical_shape_rank -= 1;
+        std::vector<int> new_shape = shape;
+        if (!batch_reshape && output_ncnn_batch_axis != 233 && output_ncnn_batch_axis >= 0 && output_ncnn_batch_axis < (int)new_shape.size())
+            new_shape.erase(new_shape.begin() + output_ncnn_batch_axis);
 
-        if (physical_shape_rank > 5 || (physical_shape_rank == 5 && (!batch_reshape || other_ncnn_batch_axis == 233 || output_ncnn_batch_axis == 233)))
+        const int shape_rank = (int)shape.size();
+        const int new_shape_rank = (int)new_shape.size();
+        if (new_shape_rank > 5 || (new_shape_rank == 5 && (!batch_reshape || other_ncnn_batch_axis == 233 || output_ncnn_batch_axis == 233)))
         {
-            fprintf(stderr, "reshape_as to %d-rank physical tensor is not supported by ncnn runtime yet\n", physical_shape_rank);
-            if (!op->outputs[0]->shape.empty())
+            fprintf(stderr, "reshape_as to %d-rank physical tensor is not supported by ncnn runtime yet\n", new_shape_rank);
+            if (!new_shape.empty())
             {
-                std::vector<int> shape = op->outputs[0]->shape;
-                if (!batch_reshape && output_ncnn_batch_axis != 233 && output_ncnn_batch_axis >= 0 && output_ncnn_batch_axis < (int)shape.size())
-                    shape.erase(shape.begin() + output_ncnn_batch_axis);
-
-                std::string shape_expr = std::to_string(shape[shape.size() - 1]);
-                for (int i = (int)shape.size() - 2; i >= 0; i--)
+                std::string shape_expr = std::to_string(new_shape[new_shape_rank - 1]);
+                for (int i = new_shape_rank - 2; i >= 0; i--)
                 {
                     shape_expr += ",";
-                    shape_expr += std::to_string(shape[i]);
+                    shape_expr += std::to_string(new_shape[i]);
                 }
                 op->params["6"] = shape_expr;
             }
@@ -91,12 +89,8 @@ pnnx.Output             output      1 0 out
         // use static output shape when other only serves as shape reference
         if (!batch_reshape && other_ncnn_batch_axis != output_ncnn_batch_axis && !op->outputs[0]->shape.empty())
         {
-            std::vector<int> shape = op->outputs[0]->shape;
-            if (output_ncnn_batch_axis != 233 && output_ncnn_batch_axis >= 0 && output_ncnn_batch_axis < (int)shape.size())
-                shape.erase(shape.begin() + output_ncnn_batch_axis);
-
             int dynamic_count = 0;
-            for (int x : shape)
+            for (int x : new_shape)
             {
                 if (x == -1)
                     dynamic_count++;
@@ -108,36 +102,36 @@ pnnx.Output             output      1 0 out
                 op->inputs.resize(1);
                 op->inputnames.resize(1);
 
-                const int rank = (int)shape.size();
+                const int rank = (int)new_shape.size();
                 if (rank == 1)
                 {
-                    op->params["0"] = shape[0];
+                    op->params["0"] = new_shape[0];
                 }
                 if (rank == 2)
                 {
-                    op->params["0"] = shape[1];
-                    op->params["1"] = shape[0];
+                    op->params["0"] = new_shape[1];
+                    op->params["1"] = new_shape[0];
                 }
                 if (rank == 3)
                 {
-                    op->params["0"] = shape[2];
-                    op->params["1"] = shape[1];
-                    op->params["2"] = shape[0];
+                    op->params["0"] = new_shape[2];
+                    op->params["1"] = new_shape[1];
+                    op->params["2"] = new_shape[0];
                 }
                 if (rank == 4)
                 {
-                    op->params["0"] = shape[3];
-                    op->params["1"] = shape[2];
-                    op->params["11"] = shape[1];
-                    op->params["2"] = shape[0];
+                    op->params["0"] = new_shape[3];
+                    op->params["1"] = new_shape[2];
+                    op->params["11"] = new_shape[1];
+                    op->params["2"] = new_shape[0];
                 }
                 if (rank >= 5)
                 {
-                    std::string shape_expr = std::to_string(shape[rank - 1]);
+                    std::string shape_expr = std::to_string(new_shape[rank - 1]);
                     for (int i = rank - 2; i >= 0; i--)
                     {
                         shape_expr += ",";
-                        shape_expr += std::to_string(shape[i]);
+                        shape_expr += std::to_string(new_shape[i]);
                     }
                     op->params["6"] = shape_expr;
                 }
