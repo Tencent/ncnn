@@ -3,6 +3,7 @@
 
 #include "multiheadattention_x86.h"
 
+#include "gemm.h"
 #include "layer_type.h"
 
 namespace ncnn {
@@ -31,6 +32,9 @@ MultiHeadAttention_x86::MultiHeadAttention_x86()
 
 int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
 {
+    if (gemm_is_weight_block_quantize(quantize_term))
+        return 0;
+
     Option opt = _opt;
     if (int8_scale_term)
     {
@@ -257,6 +261,9 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
 
 int MultiHeadAttention_x86::destroy_pipeline(const Option& _opt)
 {
+    if (gemm_is_weight_block_quantize(quantize_term))
+        return 0;
+
     Option opt = _opt;
     if (int8_scale_term)
     {
@@ -316,6 +323,9 @@ int MultiHeadAttention_x86::destroy_pipeline(const Option& _opt)
 
 int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
+    if (gemm_is_weight_block_quantize(quantize_term))
+        return MultiHeadAttention::forward(bottom_blobs, top_blobs, _opt);
+
     int q_blob_i = 0;
     int k_blob_i = 0;
     int v_blob_i = 0;

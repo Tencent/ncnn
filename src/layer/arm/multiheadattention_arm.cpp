@@ -4,6 +4,7 @@
 #include "multiheadattention_arm.h"
 
 #include "cpu.h"
+#include "gemm.h"
 #include "layer_type.h"
 
 namespace ncnn {
@@ -34,6 +35,9 @@ MultiHeadAttention_arm::MultiHeadAttention_arm()
 
 int MultiHeadAttention_arm::create_pipeline(const Option& _opt)
 {
+    if (gemm_is_weight_block_quantize(quantize_term))
+        return 0;
+
     Option opt = _opt;
     if (int8_scale_term)
     {
@@ -265,6 +269,9 @@ int MultiHeadAttention_arm::create_pipeline(const Option& _opt)
 
 int MultiHeadAttention_arm::destroy_pipeline(const Option& _opt)
 {
+    if (gemm_is_weight_block_quantize(quantize_term))
+        return 0;
+
     Option opt = _opt;
     if (int8_scale_term)
     {
@@ -330,6 +337,9 @@ int MultiHeadAttention_arm::destroy_pipeline(const Option& _opt)
 
 int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
+    if (gemm_is_weight_block_quantize(quantize_term))
+        return MultiHeadAttention::forward(bottom_blobs, top_blobs, _opt);
+
     int q_blob_i = 0;
     int k_blob_i = 0;
     int v_blob_i = 0;

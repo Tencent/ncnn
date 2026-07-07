@@ -4,10 +4,10 @@
 #include "gemm.h"
 
 #include <math.h>
-#include <stdint.h>
 
 namespace ncnn {
 
+#if NCNN_WEIGHT_QUANT
 static inline int gemm_weight_block_quantize_sign_extend(int v, int bits)
 {
     const int sign_bit = 1 << (bits - 1);
@@ -29,6 +29,7 @@ static inline int gemm_weight_block_quantize_unpack(const unsigned char* ptr, in
     const int mask = (1 << bits) - 1;
     return gemm_weight_block_quantize_sign_extend((v >> bit_shift) & mask, bits);
 }
+#endif // NCNN_WEIGHT_QUANT
 
 Gemm::Gemm()
 {
@@ -72,6 +73,7 @@ int Gemm::load_param(const ParamDict& pd)
 
     if (gemm_is_weight_block_quantize(quantize_term))
     {
+#if NCNN_WEIGHT_QUANT
         if (constantA != 0 || constantB != 1 || transA != 0 || transB != 1)
         {
             NCNN_LOGE("Gemm weight block quantization only supports constantA=0 constantB=1 transA=0 transB=1");
@@ -89,6 +91,10 @@ int Gemm::load_param(const ParamDict& pd)
         support_fp16_storage = false;
         support_vulkan = false;
         support_vulkan_packing = false;
+#else
+        NCNN_LOGE("please build ncnn with NCNN_WEIGHT_QUANT enabled for weight quantized inference");
+        return -1;
+#endif
     }
     else if (quantize_term)
     {
@@ -144,12 +150,14 @@ int Gemm::load_model(const ModelBin& mb)
     {
         if (transB == 0)
             B_data = mb.load(constantN, constantK, 0);
+#if NCNN_WEIGHT_QUANT
         else if (gemm_is_weight_block_quantize(quantize_term))
         {
             const int weight_bits = gemm_weight_quantize_bits(quantize_term);
             const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(constantK, weight_bits);
             B_data = mb.load(packed_k_bytes, constantN, 0);
         }
+#endif // NCNN_WEIGHT_QUANT
         else
             B_data = mb.load(constantK, constantN, 0);
         if (B_data.empty())
@@ -172,6 +180,7 @@ int Gemm::load_model(const ModelBin& mb)
             return -100;
     }
 
+#if NCNN_WEIGHT_QUANT
     if (gemm_is_weight_block_quantize(quantize_term))
     {
         const int weight_bits = gemm_weight_quantize_bits(quantize_term);
@@ -239,6 +248,7 @@ int Gemm::load_model(const ModelBin& mb)
             }
         }
     }
+#endif // NCNN_WEIGHT_QUANT
 
 #if NCNN_INT8
     if (quantize_term && !gemm_is_weight_block_quantize(quantize_term))
@@ -325,6 +335,7 @@ static void gemm_transB(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob
     }
 }
 
+#if NCNN_WEIGHT_QUANT
 int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     if (constantA != 0 || constantB != 1 || transA != 0 || transB != 1)
@@ -484,6 +495,7 @@ int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, st
 
     return 0;
 }
+#endif // NCNN_WEIGHT_QUANT
 
 #if NCNN_INT8
 static inline signed char float2int8(float v)
@@ -581,10 +593,18 @@ int Gemm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
 int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_WEIGHT_QUANT
     if (gemm_is_weight_block_quantize(quantize_term))
     {
         return forward_weight_block_quantize(bottom_blobs, top_blobs, opt);
     }
+#else
+    if (gemm_is_weight_block_quantize(quantize_term))
+    {
+        NCNN_LOGE("please build ncnn with NCNN_WEIGHT_QUANT enabled for weight quantized inference");
+        return -1;
+    }
+#endif
 
 #if NCNN_INT8
     if (quantize_term)

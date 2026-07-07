@@ -2,8 +2,13 @@
 add_executable(ncnnllm2int468 ncnnllm2int468.cpp)
 target_link_libraries(ncnnllm2int468 PRIVATE ncnn)
 
+add_executable(ncnnllm2table ncnnllm2table.cpp)
+target_link_libraries(ncnnllm2table PRIVATE ncnn)
+
 set_property(TARGET ncnnllm2int468 PROPERTY FOLDER "tools/optimization")
+set_property(TARGET ncnnllm2table PROPERTY FOLDER "tools/optimization")
 ncnn_install_tool(ncnnllm2int468)
+ncnn_install_tool(ncnnllm2table)
 
 if(NCNN_INT8)
     if(NCNN_PIXEL)

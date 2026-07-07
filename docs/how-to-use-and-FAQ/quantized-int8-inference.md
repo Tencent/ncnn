@@ -105,23 +105,43 @@ ncnn2table can generate static weight scales without a calibration dataset for R
 
 LLM-oriented `Gemm` weight-only block quantization is separate from the post training int8 activation/weight inference flow above. It stores constant transposed `Gemm` B weights as signed symmetric int4/int6/int8 blocks with one fp32 scale per K block and output remains fp32.
 
-Use `ncnnllm2int468` for this format:
+The recommended workflow mirrors `ncnn2table` and `ncnn2int8`:
 
 ```shell
-./ncnnllm2int468 in.param in.bin out.param out.bin method=minmax bits=6 block=64
+./ncnnllm2table in.param in.bin model.llm.table method=minmax bits=6 block=64
+./ncnnllm2int468 in.param in.bin out.param out.bin model.llm.table
 ```
 
-Optional key-value arguments follow the same style as `ncnn2table`:
+`ncnnllm2table` options follow the same trailing key-value style as `ncnn2table`:
 
 | key | values | default | description |
 | --- | ------ | ------- | ----------- |
 | `method` | `minmax`, `mseclip` | `minmax` | weight quantization scale search method |
 | `bits` | `4`, `6`, `8` | `6` | signed weight bit width |
 | `block` | `32`, `64`, `128` | `64` | K block size |
+| `thread` | positive integer | `1` | worker threads |
 
 `method=minmax` uses per-block absmax scaling.
 
 `method=mseclip` searches clipped absmax candidates and picks the scale with the smallest block weight reconstruction error. It is calibration-free and still exports the same symmetric scale-only runtime format. It is not AWQ and does not add activation rescaling metadata.
+
+The llm table uses one line for each quantized `Gemm` B weight:
+
+```text
+gemm_name_param_1 format=block_symmetric dtype=int4 block=64 scale_dtype=fp32 scale_encoding=quant method=mseclip scale0 scale1 ...
+```
+
+`format`, `dtype`, `block`, `scale_dtype`, and `scale_encoding` are required for rows consumed by `ncnnllm2int468`. `dtype` and `block` are row-local, so one table can mix int4/int6/int8 and block32/block64/block128 for different layers. `ncnnllm2table` writes `method`, but `ncnnllm2int468` only logs it as offline provenance and does not require or validate it. Unused rows and unknown metadata are ignored with a warning, leaving room for future table extensions.
+
+The first table format supports only `format=block_symmetric` with `dtype=int4/int6/int8`, `block=32/64/128`, `scale_dtype=fp32`, and `scale_encoding=quant`.
+
+For quick conversion without saving a table, `ncnnllm2int468` can still compute scales directly:
+
+```shell
+./ncnnllm2int468 in.param in.bin out.param out.bin method=minmax bits=6 block=64
+```
+
+The scale-only `format=block_symmetric` table does not claim exact GPTQ import support. Exact GPTQ qweight import needs a separate qweight payload design. AWQ and SmoothQuant must remain offline tooling or graph rewrite steps and must not become `Gemm` runtime `quantize_term` values.
 
 This format does not use zero point or asymmetric dequantization metadata.
 

@@ -1867,7 +1867,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             }
 #if NCNN_INT8
             // write int8_scale data
-            else if (op->quantize_term)
+            if (op->quantize_term && !ncnn::gemm_is_weight_block_quantize(op->quantize_term))
             {
                 if (op->constantA == 1)
                 {
@@ -2132,7 +2132,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 5=%d", attn_mask)
             fprintf_param_value(" 6=%e", scale)
             fprintf_param_value(" 7=%d", kv_cache)
-            fprintf_param_value(" 18=%d", int8_scale_term)
+            fprintf_param_value(" 18=%d", quantize_term)
 
             fwrite_weight_tag_data(op->q_weight_data, bp);
             fwrite_weight_data(op->q_bias_data, bp);
@@ -2143,9 +2143,16 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fwrite_weight_tag_data(op->out_weight_data, bp);
             fwrite_weight_data(op->out_bias_data, bp);
 
+            if (ncnn::gemm_is_weight_block_quantize(op->quantize_term))
+            {
+                fwrite_weight_data(op->q_weight_data_quantize_scales, bp);
+                fwrite_weight_data(op->k_weight_data_quantize_scales, bp);
+                fwrite_weight_data(op->v_weight_data_quantize_scales, bp);
+                fwrite_weight_data(op->out_weight_data_quantize_scales, bp);
+            }
 #if NCNN_INT8
             // write int8_scale data
-            if (op->int8_scale_term)
+            else if (op->quantize_term)
             {
                 fwrite_weight_data(op->q_weight_data_int8_scales, bp, 90, 100);
                 fwrite_weight_data(op->k_weight_data_int8_scales, bp, 90, 100);

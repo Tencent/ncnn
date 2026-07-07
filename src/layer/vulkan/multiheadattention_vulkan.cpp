@@ -3,6 +3,7 @@
 
 #include "multiheadattention_vulkan.h"
 
+#include "gemm.h"
 #include "layer_shader_type.h"
 #include "layer_type.h"
 
@@ -48,6 +49,9 @@ int MultiHeadAttention_vulkan::load_param(const ParamDict& pd)
 
 int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
 {
+    if (gemm_is_weight_block_quantize(quantize_term))
+        return 0;
+
     // const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = weight_data_size / embed_dim;
     {
@@ -255,6 +259,9 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
 
 int MultiHeadAttention_vulkan::destroy_pipeline(const Option& opt)
 {
+    if (gemm_is_weight_block_quantize(quantize_term))
+        return 0;
+
     if (q_gemm)
     {
         q_gemm->destroy_pipeline(opt);
@@ -351,6 +358,9 @@ int MultiHeadAttention_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
+    if (gemm_is_weight_block_quantize(quantize_term))
+        return -1;
+
     int q_blob_i = 0;
     int k_blob_i = 0;
     int v_blob_i = 0;
