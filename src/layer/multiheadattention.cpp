@@ -3,7 +3,9 @@
 
 #include "multiheadattention.h"
 
+#include <algorithm>
 #include <float.h>
+#include <limits.h>
 #include <math.h>
 
 namespace ncnn {
@@ -50,7 +52,14 @@ static int mha_weight_quantize_block_size(int quantize_term)
 
 static int mha_weight_quantize_packed_k_bytes(int constantK, int weight_bits)
 {
-    return (constantK * weight_bits + 7) / 8;
+    if (constantK <= 0 || weight_bits <= 0)
+        return -1;
+
+    const size_t packed_k_bytes = ((size_t)constantK * weight_bits + 7) / 8;
+    if (packed_k_bytes > (size_t)INT_MAX)
+        return -1;
+
+    return (int)packed_k_bytes;
 }
 
 #if NCNN_WEIGHT_QUANT
@@ -79,6 +88,8 @@ static inline int mha_weight_block_quantize_unpack(const unsigned char* ptr, int
 static int mha_check_weight_block_quantize_model(const Mat& weight_data, const Mat& weight_data_quantize_scales, int K, int N, int weight_bits, int block_size, const char* name)
 {
     const int packed_k_bytes = mha_weight_quantize_packed_k_bytes(K, weight_bits);
+    if (packed_k_bytes <= 0)
+        return -100;
     const int block_count = (K + block_size - 1) / block_size;
 
     if (weight_data.elemsize != 1u || weight_data.w != packed_k_bytes || weight_data.h != N)
@@ -87,31 +98,16 @@ static int mha_check_weight_block_quantize_model(const Mat& weight_data, const M
         return -100;
     }
 
-    if ((K * weight_bits) % 8 != 0)
+    const int used_bits = (int)(((size_t)K * weight_bits) % 8);
+    if (used_bits != 0)
     {
-        const int valid_bits_in_last_byte = (K * weight_bits) % 8;
-        const unsigned char padding_mask = (unsigned char)(0xffu << valid_bits_in_last_byte);
+        const unsigned char padding_mask = (unsigned char)(0xffu << used_bits);
         for (int i = 0; i < N; i++)
         {
             const unsigned char* wptr = weight_data.row<const unsigned char>(i);
             if ((wptr[packed_k_bytes - 1] & padding_mask) != 0)
             {
                 NCNN_LOGE("MultiHeadAttention weight block quantized %s_data tail padding bits must be zero", name);
-                return -100;
-            }
-        }
-    }
-
-    const int qmin = -(1 << (weight_bits - 1));
-    for (int i = 0; i < N; i++)
-    {
-        const unsigned char* wptr = weight_data.row<const unsigned char>(i);
-        for (int k = 0; k < K; k++)
-        {
-            const int q = mha_weight_block_quantize_unpack(wptr, k, weight_bits, packed_k_bytes);
-            if (q == qmin)
-            {
-                NCNN_LOGE("MultiHeadAttention weight block quantized %s_data contains out-of-range value %d", name, q);
                 return -100;
             }
         }
@@ -237,6 +233,8 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
         const int k_packed_k_bytes = mha_weight_quantize_packed_k_bytes(kdim, weight_bits);
         const int v_packed_k_bytes = mha_weight_quantize_packed_k_bytes(vdim, weight_bits);
         const int out_packed_k_bytes = mha_weight_quantize_packed_k_bytes(embed_dim, weight_bits);
+        if (q_packed_k_bytes <= 0 || k_packed_k_bytes <= 0 || v_packed_k_bytes <= 0 || out_packed_k_bytes <= 0)
+            return -100;
 
         q_weight_data = mb.load(q_packed_k_bytes, embed_dim, 0);
         if (q_weight_data.empty())
@@ -732,14 +730,20 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
                 const float* scale_ptr = q_weight_data_quantize_scales.row(j);
 
                 float sum = q_bias_data[j];
-                for (int k = 0; k < qdim; k++)
+                for (int k0 = 0; k0 < qdim; k0 += block_size)
                 {
-                    const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
-                    const float w = q / scale_ptr[k / block_size];
-                    float v = *ptr++;
-                    if (q_input_scale_ptr)
-                        v *= q_input_scale_ptr[k];
-                    sum += v * w;
+                    const int max_kk = std::min(block_size, qdim - k0);
+                    const float descale = 1.f / scale_ptr[k0 / block_size];
+
+                    for (int kk = 0; kk < max_kk; kk++)
+                    {
+                        const int k = k0 + kk;
+                        const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
+                        float v = ptr[k];
+                        if (q_input_scale_ptr)
+                            v *= q_input_scale_ptr[k];
+                        sum += v * (q * descale);
+                    }
                 }
 
                 q_affine.row(j)[i] = sum * scale;
@@ -780,14 +784,20 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
                 const float* scale_ptr = k_weight_data_quantize_scales.row(j);
 
                 float sum = k_bias_data[j];
-                for (int k = 0; k < kdim; k++)
+                for (int k0 = 0; k0 < kdim; k0 += block_size)
                 {
-                    const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
-                    const float w = q / scale_ptr[k / block_size];
-                    float v = *ptr++;
-                    if (k_input_scale_ptr)
-                        v *= k_input_scale_ptr[k];
-                    sum += v * w;
+                    const int max_kk = std::min(block_size, kdim - k0);
+                    const float descale = 1.f / scale_ptr[k0 / block_size];
+
+                    for (int kk = 0; kk < max_kk; kk++)
+                    {
+                        const int k = k0 + kk;
+                        const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
+                        float v = ptr[k];
+                        if (k_input_scale_ptr)
+                            v *= k_input_scale_ptr[k];
+                        sum += v * (q * descale);
+                    }
                 }
 
                 k_affine.row(j)[past_seqlen + i] = sum;
@@ -828,14 +838,20 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
                 const float* scale_ptr = v_weight_data_quantize_scales.row(j);
 
                 float sum = v_bias_data[j];
-                for (int k = 0; k < vdim; k++)
+                for (int k0 = 0; k0 < vdim; k0 += block_size)
                 {
-                    const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
-                    const float w = q / scale_ptr[k / block_size];
-                    float v = *ptr++;
-                    if (v_input_scale_ptr)
-                        v *= v_input_scale_ptr[k];
-                    sum += v * w;
+                    const int max_kk = std::min(block_size, vdim - k0);
+                    const float descale = 1.f / scale_ptr[k0 / block_size];
+
+                    for (int kk = 0; kk < max_kk; kk++)
+                    {
+                        const int k = k0 + kk;
+                        const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
+                        float v = ptr[k];
+                        if (v_input_scale_ptr)
+                            v *= v_input_scale_ptr[k];
+                        sum += v * (q * descale);
+                    }
                 }
 
                 v_affine.row(j)[past_seqlen + i] = sum;
@@ -978,14 +994,20 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
                 const float* scale_ptr = out_weight_data_quantize_scales.row(j);
 
                 float sum = out_bias_data[j];
-                for (int k = 0; k < embed_dim; k++)
+                for (int k0 = 0; k0 < embed_dim; k0 += block_size)
                 {
-                    const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
-                    const float w = q / scale_ptr[k / block_size];
-                    float v = qkv_cross.row(k)[i];
-                    if (out_input_scale_ptr)
-                        v *= out_input_scale_ptr[k];
-                    sum += v * w;
+                    const int max_kk = std::min(block_size, embed_dim - k0);
+                    const float descale = 1.f / scale_ptr[k0 / block_size];
+
+                    for (int kk = 0; kk < max_kk; kk++)
+                    {
+                        const int k = k0 + kk;
+                        const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
+                        float v = qkv_cross.row(k)[i];
+                        if (out_input_scale_ptr)
+                            v *= out_input_scale_ptr[k];
+                        sum += v * (q * descale);
+                    }
                 }
 
                 outptr[j] = sum;

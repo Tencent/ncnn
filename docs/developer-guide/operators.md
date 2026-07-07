@@ -1151,7 +1151,7 @@ y = (gemm(a, b) + c * beta) * alpha
 | 12        | output_elempack | int | 0         |                   |
 | 13        | output_elemtype | int | 0         |                   |
 | 14        | output_transpose | int| 0         |                   |
-| 18        | quantize_term | int | 0         | 0=no quant, 2=legacy Gemm int8, 400/401/402=int4 block32/64/128, 600/601/602=int6 block32/64/128, 800/801/802=int8 block32/64/128 |
+| 18        | quantize_term | int | 0         | 0=no quant, 2=legacy Gemm int8, 400/401/402=int4 block32/64/128, 410/411/412=int4 block32/64/128 with input scale, 600/601/602=int6 block32/64/128, 610/611/612=int6 block32/64/128 with input scale, 800/801/802=int8 block32/64/128, 810/811/812=int8 block32/64/128 with input scale |
 | 20        | constant_TILE_M | int | 0         |                   |
 | 21        | constant_TILE_N | int | 0         |                   |
 | 22        | constant_TILE_K | int | 0         |                   |
@@ -1164,6 +1164,7 @@ y = (gemm(a, b) + c * beta) * alpha
 | A_data_int8_scales| float | [M]               |
 | B_data_int8_scales| float | [1]               |
 | B_data_quantize_scales| float | [ceil(K / block_size), N] for block quantized constant B |
+| B_data_input_scales| float | [K] for block quantized constant B with input scale |
 
 For weight-only block quantized Gemm, only constant transposed B is supported in the initial runtime path:
 
@@ -1171,6 +1172,7 @@ For weight-only block quantized Gemm, only constant transposed B is supported in
 * output is fp32 pack1 with `output_N1M=0`, `output_elempack=0`, `output_transpose=0`
 * `B_data` is tagged int8 bytes with shape `[ceil(K * weight_bits / 8), N]`
 * `B_data_quantize_scales` is raw fp32 data stored after optional `C_data`
+* `B_data_input_scales` is raw fp32 data stored after `B_data_quantize_scales` for input-scale terms
 * quantization is signed symmetric scale-only: `q = round(fp32 * scale)`, dequantization uses `fp32 = q / scale`
 * no zero point or asymmetric dequantization metadata is used
 
@@ -1585,7 +1587,7 @@ y = affine(out)
 | 5         | attn_mask     | int   | 0         |                   |
 | 6         | scale         | float | 1.f / sqrt(embed_dim / num_heads) | |
 | 7         | kv_cache      | int   | 0         |                   |
-| 18        | int8_scale_term | int | 0         |                   |
+| 18        | int8_scale_term | int | 0         | 0=no quant, 2=legacy MultiHeadAttention int8, 400/401/402=int4 block32/64/128, 410/411/412=int4 block32/64/128 with input scale, 600/601/602=int6 block32/64/128, 610/611/612=int6 block32/64/128 with input scale, 800/801/802=int8 block32/64/128, 810/811/812=int8 block32/64/128 with input scale |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -1601,6 +1603,16 @@ y = affine(out)
 | k_weight_data_int8_scales| float | [embed_dim] |
 | v_weight_data_int8_scales| float | [embed_dim] |
 | out_weight_data_int8_scales| float | [1]      |
+| q_weight_data_quantize_scales| float | [ceil(qdim / block_size), embed_dim] for block quantized weight |
+| k_weight_data_quantize_scales| float | [ceil(kdim / block_size), embed_dim] for block quantized weight |
+| v_weight_data_quantize_scales| float | [ceil(vdim / block_size), embed_dim] for block quantized weight |
+| out_weight_data_quantize_scales| float | [ceil(embed_dim / block_size), qdim] for block quantized weight |
+| q_weight_data_input_scales| float | [qdim] for block quantized weight with input scale |
+| k_weight_data_input_scales| float | [kdim] for block quantized weight with input scale |
+| v_weight_data_input_scales| float | [vdim] for block quantized weight with input scale |
+| out_weight_data_input_scales| float | [embed_dim] for block quantized weight with input scale |
+
+For weight-only block quantized MultiHeadAttention, q/k/v/out weights are tagged int8 bytes with signed symmetric int4/int6/int8 packing. The runtime keeps fp32 activations and output. Input-scale terms store per-input-channel multipliers for all four q/k/v/out projections.
 
 # MVN
 ```

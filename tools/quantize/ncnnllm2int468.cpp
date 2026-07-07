@@ -425,11 +425,11 @@ static int llm_table_row_to_scales(const char* key, const LLMWeightScale& scale,
     }
 
     const int block_count = (K + block_size - 1) / block_size;
-    const int weight_scale_count = N * block_count;
+    const size_t weight_scale_count = (size_t)N * block_count;
 
-    if (scale.scales.w != weight_scale_count)
+    if ((size_t)scale.scales.w != weight_scale_count)
     {
-        fprintf(stderr, "%s coefficient count mismatch expected=%d got=%d\n", key, weight_scale_count, scale.scales.w);
+        fprintf(stderr, "%s coefficient count mismatch expected=%zu got=%d\n", key, weight_scale_count, scale.scales.w);
         return -1;
     }
 
@@ -445,6 +445,11 @@ static int llm_table_row_to_scales(const char* key, const LLMWeightScale& scale,
 static int read_qweight_file(const char* key, const LLMWeightScale& scale, int K, int N, int weight_bits, ncnn::Mat& weight_data_quantized)
 {
     const int packed_k_bytes = llm_weight_quantize_packed_k_bytes(K, weight_bits);
+    if (packed_k_bytes <= 0)
+    {
+        fprintf(stderr, "%s qweight packed byte count is invalid K=%d bits=%d\n", key, K, weight_bits);
+        return -1;
+    }
     const size_t qweight_bytes = (size_t)N * packed_k_bytes;
 
     FILE* fp = fopen(scale.qweight.c_str(), "rb");
@@ -481,7 +486,7 @@ static int read_qweight_file(const char* key, const LLMWeightScale& scale, int K
 
     fclose(fp);
 
-    const int used_bits = (K * weight_bits) % 8;
+    const int used_bits = (int)(((size_t)K * weight_bits) % 8);
     const unsigned char tail_mask = used_bits == 0 ? 0 : (unsigned char)(0xffu << used_bits);
     const int qmin = -(1 << (weight_bits - 1));
 
@@ -569,11 +574,11 @@ static int llm_table_row_to_qweight(const char* key, const LLMWeightScale& scale
     }
 
     const int block_count = (K + block_size - 1) / block_size;
-    const int weight_scale_count = N * block_count;
+    const size_t weight_scale_count = (size_t)N * block_count;
 
-    if (scale.scales.w != weight_scale_count)
+    if ((size_t)scale.scales.w != weight_scale_count)
     {
-        fprintf(stderr, "%s coefficient count mismatch expected=%d got=%d\n", key, weight_scale_count, scale.scales.w);
+        fprintf(stderr, "%s coefficient count mismatch expected=%zu got=%d\n", key, weight_scale_count, scale.scales.w);
         return -1;
     }
 

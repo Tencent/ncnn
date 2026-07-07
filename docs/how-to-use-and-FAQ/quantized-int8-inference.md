@@ -128,7 +128,6 @@ The recommended workflow mirrors `ncnn2table` and `ncnn2int8`:
 | `awq_inner` | `minmax`, `mseclip` | `minmax` | weight scale method used inside AWQ |
 | `gptq_samples` | positive integer | `128` | max activation rows used by GPTQ |
 | `gptq_damp` | non-negative float | `0.01` | GPTQ Hessian damping ratio |
-| `gptq_group` | `block` | `block` | GPTQ group size follows `block` |
 
 `method=minmax` uses per-block absmax scaling.
 
@@ -141,7 +140,7 @@ The recommended workflow mirrors `ncnn2table` and `ncnn2int8`:
 ./ncnnllm2int468 in.param in.bin awq.param awq.bin awq.llm.table
 ```
 
-`method=gptq` requires calibration data. It writes `format=block_symmetric_qweight` rows and qweight sidecar files, so the converter imports GPTQ qvalues directly instead of requantizing fp32 weights.
+`method=gptq` requires calibration data. It uses Fixed-Scale GPTQ: the runtime block scale is chosen from the original weight block, then block-local Hessian error compensation writes exact qweight sidecar files. The converter imports those qvalues directly instead of requantizing fp32 weights.
 
 ```shell
 ./ncnnllm2table in.param in.bin calib.list gptq.llm.table method=gptq bits=4 block=128 type=1 shape=[...]

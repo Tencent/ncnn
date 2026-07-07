@@ -118,7 +118,6 @@ static void show_usage(const char* argv0)
     fprintf(stderr, "  awq_inner=minmax/mseclip\n");
     fprintf(stderr, "  gptq_samples=128\n");
     fprintf(stderr, "  gptq_damp=0.01\n");
-    fprintf(stderr, "  gptq_group=block\n");
     fprintf(stderr, "Sample usage:\n");
     fprintf(stderr, "  %s model.param model.bin model.llm.table method=mseclip bits=4 block=64\n", argv0);
     fprintf(stderr, "  %s model.param model.bin calib.list model.llm.table method=awq bits=4 block=64 shape=[4096]\n", argv0);
@@ -1023,6 +1022,8 @@ static int make_gptq_qweight(const ncnn::Mat& weight_data, const QuantActStat& s
     const int N = weight_data.h;
     const int block_count = (K + block_size - 1) / block_size;
     const int packed_k_bytes = llm_weight_quantize_packed_k_bytes(K, weight_bits);
+    if (packed_k_bytes <= 0)
+        return -1;
     const int sample_count = (int)(stat.samples.size() / K);
 
     if (stat.width != K || sample_count == 0)
@@ -1085,6 +1086,7 @@ static int make_gptq_qweight(const ncnn::Mat& weight_data, const QuantActStat& s
         {
             const float* ptr = weight_data.row(n) + k0;
             float* scale_ptr = weight_data_quantize_scales.row(n);
+            // fixed-scale gptq keeps the runtime block scale tied to the original weight block
             scale_ptr[b] = choose_weight_scale(ptr, B, weight_bits, LLM_QUANT_METHOD_MINMAX);
         }
 
@@ -1648,7 +1650,6 @@ int main(int argc, char** argv)
     int block_size = 64;
     const char* method = "minmax";
     const char* awq_inner = "minmax";
-    const char* gptq_group = "block";
     int thread = 1;
 
     QuantNet table;
@@ -1694,8 +1695,6 @@ int main(int argc, char** argv)
             table.gptq_samples = atoi(value);
         else if (strcmp(key, "gptq_damp") == 0)
             table.gptq_damp = (float)atof(value);
-        else if (strcmp(key, "gptq_group") == 0)
-            gptq_group = value;
         else
         {
             fprintf(stderr, "unrecognized arg %s\n", key);
@@ -1774,12 +1773,6 @@ int main(int argc, char** argv)
     if (!(table.gptq_damp >= 0.f) || !std::isfinite(table.gptq_damp))
     {
         fprintf(stderr, "malformed gptq_damp %f\n", table.gptq_damp);
-        return -1;
-    }
-
-    if (strcmp(gptq_group, "block") != 0)
-    {
-        fprintf(stderr, "unsupported gptq_group=%s\n", gptq_group);
         return -1;
     }
 

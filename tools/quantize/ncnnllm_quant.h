@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <limits.h>
 
 enum
 {
@@ -80,13 +81,20 @@ static inline int llm_weight_block_quantize_term(int weight_bits, int block_size
 
 static inline int llm_weight_quantize_packed_k_bytes(int constantK, int weight_bits)
 {
-    return (constantK * weight_bits + 7) / 8;
+    if (constantK <= 0 || weight_bits <= 0)
+        return -1;
+
+    const size_t packed_k_bytes = ((size_t)constantK * weight_bits + 7) / 8;
+    if (packed_k_bytes > (size_t)INT_MAX)
+        return -1;
+
+    return (int)packed_k_bytes;
 }
 
 static inline int float2int_weight(float v, int weight_bits)
 {
     const int qmax = (1 << (weight_bits - 1)) - 1;
-    int q = static_cast<int>(round(v));
+    int q = static_cast<int>(roundf(v));
     if (q > qmax)
         q = qmax;
     if (q < -qmax)
@@ -257,7 +265,7 @@ static inline float choose_weight_scale(const float* ptr, int size, int weight_b
         return 1.f;
 
     const int qmax = (1 << (weight_bits - 1)) - 1;
-    if (method == LLM_QUANT_METHOD_MINMAX)
+    if (method != LLM_QUANT_METHOD_MSECLIP)
         return (float)qmax / absmax;
 
     float best_scale = (float)qmax / absmax;
@@ -349,6 +357,9 @@ static inline int pack_gemm_B_from_scales(const ncnn::Mat& B_data, const ncnn::M
     }
 
     const int packed_k_bytes = llm_weight_quantize_packed_k_bytes(constantK, weight_bits);
+    if (packed_k_bytes <= 0)
+        return -1;
+
     B_data_quantized.create(packed_k_bytes, constantN, (size_t)1u);
     if (B_data_quantized.empty())
         return -100;

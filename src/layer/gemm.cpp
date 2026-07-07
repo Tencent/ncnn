@@ -3,6 +3,8 @@
 
 #include "gemm.h"
 
+#include <algorithm>
+#include <limits.h>
 #include <math.h>
 
 namespace ncnn {
@@ -49,7 +51,14 @@ static int gemm_weight_quantize_block_size(int quantize_term)
 
 static int gemm_weight_quantize_packed_k_bytes(int constantK, int weight_bits)
 {
-    return (constantK * weight_bits + 7) / 8;
+    if (constantK <= 0 || weight_bits <= 0)
+        return -1;
+
+    const size_t packed_k_bytes = ((size_t)constantK * weight_bits + 7) / 8;
+    if (packed_k_bytes > (size_t)INT_MAX)
+        return -1;
+
+    return (int)packed_k_bytes;
 }
 
 #if NCNN_WEIGHT_QUANT
@@ -203,6 +212,8 @@ int Gemm::load_model(const ModelBin& mb)
         {
             const int weight_bits = gemm_weight_quantize_bits(quantize_term);
             const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(constantK, weight_bits);
+            if (packed_k_bytes <= 0)
+                return -100;
             B_data = mb.load(packed_k_bytes, constantN, 0);
         }
 #endif // NCNN_WEIGHT_QUANT
@@ -234,6 +245,8 @@ int Gemm::load_model(const ModelBin& mb)
         const int weight_bits = gemm_weight_quantize_bits(quantize_term);
         const int block_size = gemm_weight_quantize_block_size(quantize_term);
         const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(constantK, weight_bits);
+        if (packed_k_bytes <= 0)
+            return -100;
         const int block_count = (constantK + block_size - 1) / block_size;
 
         if (B_data.elemsize != 1u || B_data.w != packed_k_bytes || B_data.h != constantN)
@@ -242,31 +255,16 @@ int Gemm::load_model(const ModelBin& mb)
             return -100;
         }
 
-        if ((constantK * weight_bits) % 8 != 0)
+        const int used_bits = (int)(((size_t)constantK * weight_bits) % 8);
+        if (used_bits != 0)
         {
             for (int i = 0; i < constantN; i++)
             {
                 const unsigned char* bptr = B_data.row<const unsigned char>(i);
-                const int valid_bits_in_last_byte = (constantK * weight_bits) % 8;
-                const unsigned char padding_mask = (unsigned char)(0xffu << valid_bits_in_last_byte);
+                const unsigned char padding_mask = (unsigned char)(0xffu << used_bits);
                 if ((bptr[packed_k_bytes - 1] & padding_mask) != 0)
                 {
                     NCNN_LOGE("Gemm weight block quantized B_data tail padding bits must be zero");
-                    return -100;
-                }
-            }
-        }
-
-        const int qmin = -(1 << (weight_bits - 1));
-        for (int i = 0; i < constantN; i++)
-        {
-            const unsigned char* bptr = B_data.row<const unsigned char>(i);
-            for (int k = 0; k < constantK; k++)
-            {
-                const int q = gemm_weight_block_quantize_unpack(bptr, k, weight_bits, packed_k_bytes);
-                if (q == qmin)
-                {
-                    NCNN_LOGE("Gemm weight block quantized B_data contains out-of-range value %d", q);
                     return -100;
                 }
             }
@@ -439,6 +437,8 @@ int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, st
     const int weight_bits = gemm_weight_quantize_bits(quantize_term);
     const int block_size = gemm_weight_quantize_block_size(quantize_term);
     const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(constantK, weight_bits);
+    if (packed_k_bytes <= 0)
+        return -1;
     const int block_count = (constantK + block_size - 1) / block_size;
 
     if (weight_bits == 0 || block_size == 0 || B_data.empty() || B_data_quantize_scales.empty())
@@ -563,15 +563,20 @@ int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, st
             const unsigned char* ptrB = B_data.row<const unsigned char>(j);
             const float* scale_ptr = B_data_quantize_scales.row(j);
 
-            for (int k = 0; k < K; k++)
+            for (int k0 = 0; k0 < K; k0 += block_size)
             {
-                const int q = gemm_weight_block_quantize_unpack(ptrB, k, weight_bits, packed_k_bytes);
-                const float scale = scale_ptr[k / block_size];
-                const float w = q / scale;
-                float v = ptrA[k];
-                if (input_scale_ptr)
-                    v *= input_scale_ptr[k];
-                sum += v * w;
+                const int max_kk = std::min(block_size, K - k0);
+                const float descale = 1.f / scale_ptr[k0 / block_size];
+
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    const int k = k0 + kk;
+                    const int q = gemm_weight_block_quantize_unpack(ptrB, k, weight_bits, packed_k_bytes);
+                    float v = ptrA[k];
+                    if (input_scale_ptr)
+                        v *= input_scale_ptr[k];
+                    sum += v * (q * descale);
+                }
             }
 
             outptr[j] = sum * alpha;
