@@ -1840,7 +1840,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 12=%d", output_elempack)
             fprintf_param_value(" 13=%d", output_elemtype)
             fprintf_param_value(" 14=%d", output_transpose)
-            fprintf_param_value(" 18=%d", int8_scale_term)
+            fprintf_param_value(" 18=%d", quantize_term)
             fprintf_param_value(" 20=%d", constant_TILE_M)
             fprintf_param_value(" 21=%d", constant_TILE_N)
             fprintf_param_value(" 22=%d", constant_TILE_K)
@@ -1858,9 +1858,16 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 fwrite_weight_tag_data(op->C_data, bp);
             }
 
+            if (ncnn::gemm_is_weight_block_quantize(op->quantize_term))
+            {
+                if (op->constantB == 1)
+                {
+                    fwrite_weight_data(op->B_data_quantize_scales, bp);
+                }
+            }
 #if NCNN_INT8
             // write int8_scale data
-            if (op->int8_scale_term)
+            else if (op->quantize_term)
             {
                 if (op->constantA == 1)
                 {
@@ -1868,16 +1875,9 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 }
                 if (op->constantB == 1)
                 {
-                    if (op->int8_scale_term == 4 || op->int8_scale_term == 5 || op->int8_scale_term == 6)
-                    {
-                        fwrite_weight_tag_data(op->B_data_quantize_scales, bp);
-                    }
-                    else
-                    {
-                        ncnn::Mat B_data_int8_scales(1);
-                        B_data_int8_scales[0] = op->B_data_int8_scale;
-                        fwrite_weight_data(B_data_int8_scales, bp, 90, 100);
-                    }
+                    ncnn::Mat B_data_int8_scales(1);
+                    B_data_int8_scales[0] = op->B_data_int8_scale;
+                    fwrite_weight_data(B_data_int8_scales, bp, 90, 100);
                 }
             }
 #endif // NCNN_INT8

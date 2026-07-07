@@ -101,6 +101,30 @@ ncnn2table can generate static weight scales without a calibration dataset for R
 ./ncnn2int8 mobilenet-opt.param mobilenet-opt.bin mobilenet-int8.param mobilenet-int8.bin mobilenet.table
 ```
 
+## Weight-only block quantized Gemm
+
+LLM-oriented `Gemm` weight-only block quantization is separate from the post training int8 activation/weight inference flow above. It stores constant transposed `Gemm` B weights as signed symmetric int4/int6/int8 blocks with one fp32 scale per K block and output remains fp32.
+
+Use `ncnnllm2int468` for this format:
+
+```shell
+./ncnnllm2int468 in.param in.bin out.param out.bin method=minmax bits=6 block=64
+```
+
+Optional key-value arguments follow the same style as `ncnn2table`:
+
+| key | values | default | description |
+| --- | ------ | ------- | ----------- |
+| `method` | `minmax`, `mseclip` | `minmax` | weight quantization scale search method |
+| `bits` | `4`, `6`, `8` | `6` | signed weight bit width |
+| `block` | `32`, `64`, `128` | `64` | K block size |
+
+`method=minmax` uses per-block absmax scaling.
+
+`method=mseclip` searches clipped absmax candidates and picks the scale with the smallest block weight reconstruction error. It is calibration-free and still exports the same symmetric scale-only runtime format. It is not AWQ and does not add activation rescaling metadata.
+
+This format does not use zero point or asymmetric dequantization metadata.
+
 ## use ncnn int8 inference
 
 the ncnn library would use int8 inference automatically, nothing changed in your code

@@ -697,7 +697,7 @@ int NetQuantize::quantize_gemm()
             gemm->B_data = B_data_int8;
         }
 
-        gemm->int8_scale_term = 2;
+        gemm->quantize_term = 2;
     }
 
     return 0;

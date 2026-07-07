@@ -1151,7 +1151,7 @@ y = (gemm(a, b) + c * beta) * alpha
 | 12        | output_elempack | int | 0         |                   |
 | 13        | output_elemtype | int | 0         |                   |
 | 14        | output_transpose | int| 0         |                   |
-| 18        | int8_scale_term | int | 0         |                   |
+| 18        | quantize_term | int | 0         | 0=no quant, 2=legacy Gemm int8, 400/401/402=int4 block32/64/128, 600/601/602=int6 block32/64/128, 800/801/802=int8 block32/64/128 |
 | 20        | constant_TILE_M | int | 0         |                   |
 | 21        | constant_TILE_N | int | 0         |                   |
 | 22        | constant_TILE_K | int | 0         |                   |
@@ -1163,6 +1163,16 @@ y = (gemm(a, b) + c * beta) * alpha
 | C_data        | float | [1], [M] or [N] or [1, M] or [N,1] or [N, M] |
 | A_data_int8_scales| float | [M]               |
 | B_data_int8_scales| float | [1]               |
+| B_data_quantize_scales| float | [ceil(K / block_size), N] for block quantized constant B |
+
+For weight-only block quantized Gemm, only constant transposed B is supported in the initial runtime path:
+
+* `constantA=0`, `constantB=1`, `transA=0`, `transB=1`
+* output is fp32 pack1 with `output_N1M=0`, `output_elempack=0`, `output_transpose=0`
+* `B_data` is tagged int8 bytes with shape `[ceil(K * weight_bits / 8), N]`
+* `B_data_quantize_scales` is raw fp32 data stored after optional `C_data`
+* quantization is signed symmetric scale-only: `q = round(fp32 * scale)`, dequantization uses `fp32 = q / scale`
+* no zero point or asymmetric dequantization metadata is used
 
 # GridSample
 ```

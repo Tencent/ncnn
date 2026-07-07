@@ -1,15 +1,16 @@
 // Copyright 2019 BUG1989
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #ifdef _MSC_VER
 #define _CRT_SECURE_NO_DEPRECATE
 #endif
 
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
-#include <map>
-#include <set>
-#include <vector>
 
 // ncnn public header
 #include "datareader.h"
@@ -23,7 +24,7 @@
 class DataReaderFromEmpty : public ncnn::DataReader
 {
 public:
-    virtual int scan(const char* format, void* p) const
+    virtual int scan(const char* /*format*/, void* /*p*/) const
     {
         return 0;
     }
@@ -39,11 +40,8 @@ class NetQuantize : public ModelWriter
 public:
     NetQuantize();
 
-    std::map<std::string, ncnn::Mat> blob_int8scale_table;
-    std::map<std::string, ncnn::Mat> weight_int8scale_table;
-
 public:
-    int quantize_gemm(int block_size, int nbits);
+    int quantize_gemm(int block_size, int weight_bits, int method);
 };
 
 NetQuantize::NetQuantize()
@@ -51,253 +49,244 @@ NetQuantize::NetQuantize()
 {
 }
 
-static inline signed char float2int8(float v)
+static void print_usage(const char* argv0)
 {
-    int int32 = static_cast<int>(round(v));
-    if (int32 > 127) return 127;
-    if (int32 < -127) return -127;
-    return (signed char)int32;
+    fprintf(stderr, "Usage: %s [inparam] [inbin] [outparam] [outbin] [(key=value)...]\n", argv0);
+    fprintf(stderr, "  method=minmax/mseclip\n");
+    fprintf(stderr, "  bits=4/6/8\n");
+    fprintf(stderr, "  block=32/64/128\n");
+    fprintf(stderr, "Sample usage:\n");
+    fprintf(stderr, "  %s model.param model.bin model-int4.param model-int4.bin method=mseclip bits=4 block=64\n", argv0);
 }
 
-static inline signed char float2int6(float v)
+enum
 {
-    int int32 = static_cast<int>(round(v));
-    if (int32 > 31) return 31;
-    if (int32 < -31) return -31;
-    return (signed char)int32;
+    METHOD_MINMAX = 0,
+    METHOD_MSECLIP = 1
+};
+
+static inline int float2int_weight(float v, int weight_bits)
+{
+    const int qmax = (1 << (weight_bits - 1)) - 1;
+    int q = static_cast<int>(round(v));
+    if (q > qmax) q = qmax;
+    if (q < -qmax) q = -qmax;
+    return q;
 }
 
-static inline signed char float2int4(float v)
+static inline void pack_signed_weight(unsigned char* ptr, int k, int weight_bits, int q)
 {
-    int int32 = static_cast<int>(round(v));
-    if (int32 > 7) return 7;
-    if (int32 < -7) return -7;
-    return (signed char)int32;
+    const unsigned int mask = (1u << weight_bits) - 1u;
+    const unsigned int v = (unsigned int)q & mask;
+    const int bit_offset = k * weight_bits;
+
+    for (int b = 0; b < weight_bits; b++)
+    {
+        if (v & (1u << b))
+        {
+            const int out_bit = bit_offset + b;
+            ptr[out_bit / 8] |= (unsigned char)(1u << (out_bit % 8));
+        }
+    }
 }
 
-int NetQuantize::quantize_gemm(int block_size, int nbits)
+static const char* gemm_name(const ncnn::Gemm* gemm)
 {
+#if NCNN_STRING
+    return gemm->name.c_str();
+#else
+    (void)gemm;
+    return "";
+#endif
+}
+
+static void print_skip_gemm(const ncnn::Gemm* gemm, const char* reason)
+{
+    fprintf(stderr, "skip_gemm %s %s\n", gemm_name(gemm), reason);
+}
+
+static float choose_weight_scale(const float* ptr, int size, int weight_bits, int method)
+{
+    float absmax = 0.f;
+    for (int i = 0; i < size; i++)
+    {
+        absmax = std::max(absmax, (float)fabs(ptr[i]));
+    }
+
+    if (absmax == 0.f)
+        return 1.f;
+
+    const int qmax = (1 << (weight_bits - 1)) - 1;
+    if (method == METHOD_MINMAX)
+        return (float)qmax / absmax;
+
+    // Calibration-free weight clipping search. This keeps the runtime format
+    // symmetric scale-only while improving block reconstruction MSE.
+    float best_scale = (float)qmax / absmax;
+    float best_error = 0.f;
+    for (int i = 0; i < size; i++)
+    {
+        const int q = float2int_weight(ptr[i] * best_scale, weight_bits);
+        const float deq = q / best_scale;
+        const float diff = ptr[i] - deq;
+        best_error += diff * diff;
+    }
+
+    const int search_steps = 20;
+    for (int s = 1; s <= search_steps; s++)
+    {
+        const float shrink = 1.f - 0.5f * s / search_steps;
+        const float scale = (float)qmax / (absmax * shrink);
+
+        float error = 0.f;
+        for (int i = 0; i < size; i++)
+        {
+            const int q = float2int_weight(ptr[i] * scale, weight_bits);
+            const float deq = q / scale;
+            const float diff = ptr[i] - deq;
+            error += diff * diff;
+        }
+
+        if (error < best_error)
+        {
+            best_error = error;
+            best_scale = scale;
+        }
+    }
+
+    return best_scale;
+}
+
+int NetQuantize::quantize_gemm(int block_size, int weight_bits, int method)
+{
+    const int quantize_term = ncnn::gemm_weight_block_quantize_term(weight_bits, block_size);
+    if (quantize_term == 0)
+    {
+        fprintf(stderr, "unsupported bits=%d or block=%d\n", weight_bits, block_size);
+        return -1;
+    }
+
+    int quantized_count = 0;
+
     for (size_t i = 0; i < layers.size(); i++)
     {
         if (layers[i]->type != "Gemm")
             continue;
 
-        // Gemm - quantize weight from fp32 to int8
         ncnn::Gemm* gemm = (ncnn::Gemm*)layers[i];
 
-        // quantize gemm layers in llm decoder
-        // 2=0 3=1 4=0 5=1 6=1 7=0 8=N 9=K 10=-1
         if (gemm->alpha != 1.f || gemm->beta != 1.f)
+        {
+            print_skip_gemm(gemm, "alpha/beta is not 1");
             continue;
+        }
 
         if (gemm->transA != 0 || gemm->transB != 1)
+        {
+            print_skip_gemm(gemm, "requires transA=0 transB=1");
             continue;
+        }
 
         if (gemm->constantA != 0 || gemm->constantB != 1 || gemm->constantC != 1 || gemm->constant_broadcast_type_C != -1)
+        {
+            print_skip_gemm(gemm, "requires constantA=0 constantB=1 constantC=1 broadcastC=-1");
             continue;
+        }
 
         if (gemm->constantM != 0)
+        {
+            print_skip_gemm(gemm, "requires dynamic M");
             continue;
+        }
 
         if (gemm->output_N1M != 0 || gemm->output_elempack != 0 || gemm->output_elemtype != 0 || gemm->output_transpose != 0)
+        {
+            print_skip_gemm(gemm, "unsupported output layout");
             continue;
+        }
 
-        if (gemm->int8_scale_term != 0)
+        if (gemm->quantize_term != 0)
+        {
+            print_skip_gemm(gemm, "already quantized");
             continue;
+        }
 
         if (gemm->constant_TILE_M != 0 || gemm->constant_TILE_N != 0 || gemm->constant_TILE_K != 0)
+        {
+            print_skip_gemm(gemm, "tiled Gemm is not supported");
             continue;
-
-        fprintf(stderr, "quantize_gemm block_size=%d nbits=%d %s\n", block_size, nbits, gemm->name.c_str());
-
-        // TODO move to ncnn2table
+        }
 
         const int constantN = gemm->constantN;
         const int constantK = gemm->constantK;
 
-        // assert gemm->B_data.w == constantK
-        // assert gemm->B_data.h == constantN
+        if (constantN <= 0 || constantK <= 0 || gemm->B_data.w != constantK || gemm->B_data.h != constantN || gemm->B_data.elemsize != 4u)
+        {
+            print_skip_gemm(gemm, "B weight shape or storage is unsupported");
+            continue;
+        }
 
+        fprintf(stderr, "quantize_gemm bits=%d block_size=%d term=%d %s\n", weight_bits, block_size, quantize_term, gemm_name(gemm));
+
+        const int packed_k_bytes = ncnn::gemm_weight_quantize_packed_k_bytes(constantK, weight_bits);
         const int block_count = (constantK + block_size - 1) / block_size;
 
-        if (nbits == 8)
+        ncnn::Mat B_data_quantized(packed_k_bytes, constantN, (size_t)1u);
+        ncnn::Mat B_data_quantize_scales(block_count, constantN);
+        if (B_data_quantized.empty() || B_data_quantize_scales.empty())
+            return -100;
+
+        memset(B_data_quantized.data, 0, B_data_quantized.total() * B_data_quantized.elemsize);
+
+        for (int n = 0; n < constantN; n++)
         {
-            ncnn::Mat B_data_int8(constantK, constantN, (size_t)1u);
-            ncnn::Mat B_data_int8_scales(block_count, constantN);
+            const float* ptr = gemm->B_data.row(n);
+            unsigned char* qptr = B_data_quantized.row<unsigned char>(n);
+            float* scale_ptr = B_data_quantize_scales.row(n);
 
-            for (int i = 0; i < constantN; i++)
+            for (int b = 0; b < block_count; b++)
             {
-                const float* ptr = gemm->B_data.row(i);
-                signed char* i8ptr = B_data_int8.row<signed char>(i);
-                float* scale_ptr = B_data_int8_scales.row(i);
+                const int k0 = b * block_size;
+                const int max_kk = std::min(block_size, constantK - k0);
 
-                for (int j = 0; j < block_count; j++)
+                const float scale = choose_weight_scale(ptr + k0, max_kk, weight_bits, method);
+                scale_ptr[b] = scale;
+
+                for (int k = 0; k < max_kk; k++)
                 {
-                    // block quantize
-                    const float* ptr1 = ptr + j * block_size;
-                    signed char* i8ptr1 = i8ptr + j * block_size;
-                    const int block_size1 = std::min(block_size, constantK - j * block_size);
-
-                    float absmax = 0.f;
-                    for (int k = 0; k < block_size1; k++)
-                    {
-                        absmax = std::max(absmax, (float)fabs(ptr1[k]));
-                    }
-
-                    const float scale = absmax == 0.f ? 1.f : 127 / absmax;
-
-                    for (int k = 0; k < block_size1; k++)
-                    {
-                        i8ptr1[k] = float2int8(ptr1[k] * scale);
-                    }
-
-                    scale_ptr[j] = scale;
+                    const int q = float2int_weight(ptr[k0 + k] * scale, weight_bits);
+                    pack_signed_weight(qptr, k0 + k, weight_bits, q);
                 }
             }
-
-            gemm->B_data = B_data_int8;
-            gemm->B_data_quantize_scales = B_data_int8_scales;
-
-            gemm->int8_scale_term = 4;
         }
-        if (nbits == 6)
-        {
-            ncnn::Mat B_data_int6((constantK + 3) / 4 * 3, constantN, (size_t)1u);
-            ncnn::Mat B_data_int6_scales(block_count, constantN);
 
-            union i6x4_t
-            {
-                signed char i6[3];
-                struct
-                {
-                    signed char i6_a : 6;
-                    signed char i6_b : 6;
-                    signed char i6_c : 6;
-                    signed char i6_d : 6;
-                } __attribute__((packed));
-            };
+        gemm->B_data = B_data_quantized;
+        gemm->B_data_quantize_scales = B_data_quantize_scales;
+        gemm->quantize_term = quantize_term;
 
-            for (int i = 0; i < constantN; i++)
-            {
-                const float* ptr = gemm->B_data.row(i);
-                i6x4_t* i6ptr = B_data_int6.row<i6x4_t>(i);
-                float* scale_ptr = B_data_int6_scales.row(i);
-
-                for (int j = 0; j < block_count; j++)
-                {
-                    // block quantize
-                    const float* ptr1 = ptr + j * block_size;
-                    i6x4_t* i6ptr1 = i6ptr + j * block_size / 4;
-                    const int block_size1 = std::min(block_size, constantK - j * block_size);
-
-                    float absmax = 0.f;
-                    for (int k = 0; k < block_size1; k++)
-                    {
-                        absmax = std::max(absmax, (float)fabs(ptr1[k]));
-                    }
-
-                    const float scale = absmax == 0.f ? 1.f : 31 / absmax;
-
-                    int k = 0;
-                    for (; k + 3 < block_size1; k += 4)
-                    {
-                        i6ptr1[k / 4].i6_a = float2int6(ptr1[k] * scale);
-                        i6ptr1[k / 4].i6_b = float2int6(ptr1[k + 1] * scale);
-                        i6ptr1[k / 4].i6_c = float2int6(ptr1[k + 2] * scale);
-                        i6ptr1[k / 4].i6_d = float2int6(ptr1[k + 3] * scale);
-                    }
-                    for (; k + 2 < block_size1; k += 3)
-                    {
-                        i6ptr1[k / 4].i6_a = float2int6(ptr1[k] * scale);
-                        i6ptr1[k / 4].i6_b = float2int6(ptr1[k + 1] * scale);
-                        i6ptr1[k / 4].i6_c = float2int6(ptr1[k + 2] * scale);
-                    }
-                    for (; k + 1 < block_size1; k += 2)
-                    {
-                        i6ptr1[k / 4].i6_a = float2int6(ptr1[k] * scale);
-                        i6ptr1[k / 4].i6_b = float2int6(ptr1[k + 1] * scale);
-                    }
-                    for (; k < block_size1; k++)
-                    {
-                        i6ptr1[k / 4].i6_a = float2int6(ptr1[k] * scale);
-                    }
-
-                    scale_ptr[j] = scale;
-                }
-            }
-
-            gemm->B_data = B_data_int6;
-            gemm->B_data_quantize_scales = B_data_int6_scales;
-
-            gemm->int8_scale_term = 5;
-        }
-        if (nbits == 4)
-        {
-            ncnn::Mat B_data_int4((constantK + 1) / 2, constantN, (size_t)1u);
-            ncnn::Mat B_data_int4_scales(block_count, constantN);
-
-            union i4x2_t
-            {
-                signed char i4;
-                struct
-                {
-                    signed char i4_low : 4;
-                    signed char i4_high : 4;
-                } __attribute__((packed));
-            };
-
-            for (int i = 0; i < constantN; i++)
-            {
-                const float* ptr = gemm->B_data.row(i);
-                i4x2_t* i4ptr = B_data_int4.row<i4x2_t>(i);
-                float* scale_ptr = B_data_int4_scales.row(i);
-
-                for (int j = 0; j < block_count; j++)
-                {
-                    // block quantize
-                    const float* ptr1 = ptr + j * block_size;
-                    i4x2_t* i4ptr1 = i4ptr + j * block_size / 2;
-                    const int block_size1 = std::min(block_size, constantK - j * block_size);
-
-                    float absmax = 0.f;
-                    for (int k = 0; k < block_size1; k++)
-                    {
-                        absmax = std::max(absmax, (float)fabs(ptr1[k]));
-                    }
-
-                    const float scale = absmax == 0.f ? 1.f : 7 / absmax;
-
-                    int k = 0;
-                    for (; k + 1 < block_size1; k += 2)
-                    {
-                        i4ptr1[k / 2].i4_low = float2int4(ptr1[k] * scale);
-                        i4ptr1[k / 2].i4_high = float2int4(ptr1[k + 1] * scale);
-                    }
-                    for (; k < block_size1; k++)
-                    {
-                        i4ptr1[k / 2].i4_low = float2int4(ptr1[k] * scale);
-                    }
-
-                    scale_ptr[j] = scale;
-                }
-            }
-
-            gemm->B_data = B_data_int4;
-            gemm->B_data_quantize_scales = B_data_int4_scales;
-
-            gemm->int8_scale_term = 6;
-        }
+        quantized_count++;
     }
+
+    fprintf(stderr, "quantized %d Gemm layers\n", quantized_count);
 
     return 0;
 }
 
 int main(int argc, char** argv)
 {
-    if (argc != 5)
+    if (argc < 5)
     {
-        fprintf(stderr, "usage: %s [inparam] [inbin] [outparam] [outbin]\n", argv[0]);
+        print_usage(argv[0]);
         return -1;
+    }
+
+    for (int i = 1; i < argc; i++)
+    {
+        if (argv[i][0] == '-')
+        {
+            print_usage(argv[0]);
+            return -1;
+        }
     }
 
     const char* inparam = argv[1];
@@ -305,25 +294,84 @@ int main(int argc, char** argv)
     const char* outparam = argv[3];
     const char* outbin = argv[4];
 
-    const int block_size = 64; // FIXME hardcode
-    // const int nbits = 8; // FIXME hardcode
-    const int nbits = 6; // FIXME hardcode
-    // const int nbits = 4; // FIXME hardcode
+    int weight_bits = 6;
+    int block_size = 64;
+    const char* method = "minmax";
+
+    for (int i = 5; i < argc; i++)
+    {
+        // key=value
+        char* kv = argv[i];
+        char* eqs = strchr(kv, '=');
+        if (eqs == NULL)
+        {
+            fprintf(stderr, "unrecognized arg %s\n", kv);
+            return -1;
+        }
+
+        eqs[0] = '\0';
+        const char* key = kv;
+        const char* value = eqs + 1;
+
+        if (strcmp(key, "method") == 0)
+            method = value;
+        else if (strcmp(key, "bits") == 0)
+            weight_bits = atoi(value);
+        else if (strcmp(key, "block") == 0)
+            block_size = atoi(value);
+        else
+        {
+            fprintf(stderr, "unrecognized arg %s\n", key);
+            return -1;
+        }
+    }
+
+    int quantize_method = METHOD_MINMAX;
+    if (strcmp(method, "minmax") == 0)
+    {
+        quantize_method = METHOD_MINMAX;
+    }
+    else if (strcmp(method, "mseclip") == 0)
+    {
+        quantize_method = METHOD_MSECLIP;
+    }
+    else if (strcmp(method, "gptq-import") == 0)
+    {
+        fprintf(stderr, "unsupported method=gptq-import, explicit qweight/scales import format is not implemented\n");
+        return -1;
+    }
+    else
+    {
+        fprintf(stderr, "unsupported method=%s\n", method);
+        return -1;
+    }
+
+    if (ncnn::gemm_weight_block_quantize_term(weight_bits, block_size) == 0)
+    {
+        print_usage(argv[0]);
+        return -1;
+    }
 
     NetQuantize quantizer;
-    quantizer.storage_type = 1; // use fp16 where int8 not applied
+    quantizer.storage_type = 1; // keep existing prototype behavior for unrelated fp32 weights
 
-    quantizer.load_param(inparam);
+    if (quantizer.load_param(inparam) != 0)
+        return -1;
+
     if (strcmp(inbin, "null") == 0)
     {
         DataReaderFromEmpty dr;
-        quantizer.load_model(dr);
-        quantizer.gen_random_weight = true;
+        if (quantizer.load_model(dr) != 0)
+            return -1;
     }
     else
-        quantizer.load_model(inbin);
+    {
+        if (quantizer.load_model(inbin) != 0)
+            return -1;
+    }
 
-    quantizer.quantize_gemm(block_size, nbits);
+    if (quantizer.quantize_gemm(block_size, weight_bits, quantize_method) != 0)
+        return -1;
 
     quantizer.save(outparam, outbin);
 

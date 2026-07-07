@@ -3,7 +3,32 @@
 
 #include "gemm.h"
 
+#include <math.h>
+#include <stdint.h>
+
 namespace ncnn {
+
+static inline int gemm_weight_block_quantize_sign_extend(int v, int bits)
+{
+    const int sign_bit = 1 << (bits - 1);
+    return (v ^ sign_bit) - sign_bit;
+}
+
+static inline int gemm_weight_block_quantize_unpack(const unsigned char* ptr, int k, int bits, int packed_k_bytes)
+{
+    const int bit_offset = k * bits;
+    const int byte_offset = bit_offset / 8;
+    const int bit_shift = bit_offset % 8;
+
+    unsigned int v = ptr[byte_offset];
+    if (byte_offset + 1 < packed_k_bytes)
+        v |= (unsigned int)ptr[byte_offset + 1] << 8;
+    if (byte_offset + 2 < packed_k_bytes)
+        v |= (unsigned int)ptr[byte_offset + 2] << 16;
+
+    const int mask = (1 << bits) - 1;
+    return gemm_weight_block_quantize_sign_extend((v >> bit_shift) & mask, bits);
+}
 
 Gemm::Gemm()
 {
@@ -28,12 +53,44 @@ int Gemm::load_param(const ParamDict& pd)
     output_elempack = pd.get(12, 0);
     output_elemtype = pd.get(13, 0);
     output_transpose = pd.get(14, 0);
-    int8_scale_term = pd.get(18, 0);
+    quantize_term = pd.get(18, 0);
     constant_TILE_M = pd.get(20, 0);
     constant_TILE_N = pd.get(21, 0);
     constant_TILE_K = pd.get(22, 0);
 
-    if (int8_scale_term)
+    if (quantize_term == 4 || quantize_term == 5 || quantize_term == 6)
+    {
+        NCNN_LOGE("Gemm quantize_term %d is an obsolete block quantization prototype value, use 400/401/402/600/601/602/800/801/802", quantize_term);
+        return -1;
+    }
+
+    if (quantize_term >= 400 && !gemm_is_weight_block_quantize(quantize_term))
+    {
+        NCNN_LOGE("Gemm unsupported quantize_term %d", quantize_term);
+        return -1;
+    }
+
+    if (gemm_is_weight_block_quantize(quantize_term))
+    {
+        if (constantA != 0 || constantB != 1 || transA != 0 || transB != 1)
+        {
+            NCNN_LOGE("Gemm weight block quantization only supports constantA=0 constantB=1 transA=0 transB=1");
+            return -1;
+        }
+
+        if (output_N1M != 0 || output_elempack != 0 || (output_elemtype != 0 && output_elemtype != 1) || output_transpose != 0)
+        {
+            NCNN_LOGE("Gemm weight block quantization only supports fp32 pack1 non-transposed output");
+            return -1;
+        }
+
+        support_packing = false;
+        support_bf16_storage = false;
+        support_fp16_storage = false;
+        support_vulkan = false;
+        support_vulkan_packing = false;
+    }
+    else if (quantize_term)
     {
 #if !NCNN_INT8
         NCNN_LOGE("please build ncnn with NCNN_INT8 enabled for int8 inference");
@@ -87,25 +144,14 @@ int Gemm::load_model(const ModelBin& mb)
     {
         if (transB == 0)
             B_data = mb.load(constantN, constantK, 0);
-        else
+        else if (gemm_is_weight_block_quantize(quantize_term))
         {
-            if (int8_scale_term == 5)
-            {
-                // int6 block quantize
-                // TODO auto type for int6 storage
-                B_data = mb.load((constantK + 3) / 4 * 3, constantN, 0);
-            }
-            else if (int8_scale_term == 6)
-            {
-                // int4 block quantize
-                // TODO auto type for int4 storage
-                B_data = mb.load((constantK + 1) / 2, constantN, 0);
-            }
-            else
-            {
-                B_data = mb.load(constantK, constantN, 0);
-            }
+            const int weight_bits = gemm_weight_quantize_bits(quantize_term);
+            const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(constantK, weight_bits);
+            B_data = mb.load(packed_k_bytes, constantN, 0);
         }
+        else
+            B_data = mb.load(constantK, constantN, 0);
         if (B_data.empty())
             return -100;
     }
@@ -126,8 +172,76 @@ int Gemm::load_model(const ModelBin& mb)
             return -100;
     }
 
+    if (gemm_is_weight_block_quantize(quantize_term))
+    {
+        const int weight_bits = gemm_weight_quantize_bits(quantize_term);
+        const int block_size = gemm_weight_quantize_block_size(quantize_term);
+        const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(constantK, weight_bits);
+        const int block_count = (constantK + block_size - 1) / block_size;
+
+        if (B_data.elemsize != 1u || B_data.w != packed_k_bytes || B_data.h != constantN)
+        {
+            NCNN_LOGE("Gemm weight block quantized B_data shape mismatch, expected w=%d h=%d elemsize=1 but got w=%d h=%d elemsize=%zu", packed_k_bytes, constantN, B_data.w, B_data.h, B_data.elemsize);
+            return -100;
+        }
+
+        if ((constantK * weight_bits) % 8 != 0)
+        {
+            for (int i = 0; i < constantN; i++)
+            {
+                const unsigned char* bptr = B_data.row<const unsigned char>(i);
+                const int valid_bits_in_last_byte = (constantK * weight_bits) % 8;
+                const unsigned char padding_mask = (unsigned char)(0xffu << valid_bits_in_last_byte);
+                if ((bptr[packed_k_bytes - 1] & padding_mask) != 0)
+                {
+                    NCNN_LOGE("Gemm weight block quantized B_data tail padding bits must be zero");
+                    return -100;
+                }
+            }
+        }
+
+        const int qmin = -(1 << (weight_bits - 1));
+        for (int i = 0; i < constantN; i++)
+        {
+            const unsigned char* bptr = B_data.row<const unsigned char>(i);
+            for (int k = 0; k < constantK; k++)
+            {
+                const int q = gemm_weight_block_quantize_unpack(bptr, k, weight_bits, packed_k_bytes);
+                if (q == qmin)
+                {
+                    NCNN_LOGE("Gemm weight block quantized B_data contains out-of-range value %d", q);
+                    return -100;
+                }
+            }
+        }
+
+        B_data_quantize_scales = mb.load(block_count, constantN, 1);
+        if (B_data_quantize_scales.empty())
+            return -100;
+
+        if (B_data_quantize_scales.elemsize != 4u || B_data_quantize_scales.w != block_count || B_data_quantize_scales.h != constantN)
+        {
+            NCNN_LOGE("Gemm weight block quantize scale shape mismatch, expected w=%d h=%d elemsize=4 but got w=%d h=%d elemsize=%zu", block_count, constantN, B_data_quantize_scales.w, B_data_quantize_scales.h, B_data_quantize_scales.elemsize);
+            return -100;
+        }
+
+        for (int i = 0; i < constantN; i++)
+        {
+            const float* scale_ptr = B_data_quantize_scales.row(i);
+            for (int j = 0; j < block_count; j++)
+            {
+                const float scale = scale_ptr[j];
+                if (!(scale > 0.f) || !isfinite(scale))
+                {
+                    NCNN_LOGE("Gemm weight block quantize scale must be finite and positive");
+                    return -100;
+                }
+            }
+        }
+    }
+
 #if NCNN_INT8
-    if (int8_scale_term)
+    if (quantize_term && !gemm_is_weight_block_quantize(quantize_term))
     {
         if (constantA == 1)
         {
@@ -136,186 +250,7 @@ int Gemm::load_model(const ModelBin& mb)
 
         if (constantB == 1)
         {
-            if (int8_scale_term == 4)
-            {
-                // int8 block quantize
-                // assert transB == 1 // FIXME hardcode
-                const int block_size = 64; // FIXME hardcode
-                const int block_count = (constantK + block_size - 1) / block_size;
-
-                B_data_quantize_scales = mb.load(block_count, constantN, 0);
-
-                // dequantize B_data to fp32
-                Mat B_data_fp32(constantK, constantN);
-                if (B_data_fp32.empty())
-                    return -100;
-
-                for (int i = 0; i < constantN; i++)
-                {
-                    const signed char* i8ptr = B_data.row<const signed char>(i);
-                    float* ptr = B_data_fp32.row(i);
-                    float* scale_ptr = B_data_quantize_scales.row(i);
-
-                    for (int j = 0; j < block_count; j++)
-                    {
-                        // block dequantize
-                        const signed char* i8ptr1 = i8ptr + j * block_size;
-                        float scale = scale_ptr[j];
-                        if (scale == 0.f)
-                            scale = 1.f;
-                        const float inv_scale = 1.f / scale;
-                        float* ptr1 = ptr + j * block_size;
-                        const int block_size1 = std::min(block_size, constantK - j * block_size);
-
-                        for (int k = 0; k < block_size1; k++)
-                        {
-                            ptr1[k] = i8ptr1[k] * inv_scale;
-                        }
-                    }
-                }
-
-                B_data = B_data_fp32;
-
-                // reset int8_scale_term to use fp32 path
-                int8_scale_term = 0;
-            }
-            else if (int8_scale_term == 5)
-            {
-                // int6 block quantize
-                // assert transB == 1 // FIXME hardcode
-                const int block_size = 64; // FIXME hardcode
-                const int block_count = (constantK + block_size - 1) / block_size;
-
-                B_data_quantize_scales = mb.load(block_count, constantN, 0);
-
-                // dequantize B_data to fp32
-                Mat B_data_fp32(constantK, constantN);
-                if (B_data_fp32.empty())
-                    return -100;
-
-                union i6x4_t
-                {
-                    signed char i6[3];
-                    struct
-                    {
-                        signed char i6_a : 6;
-                        signed char i6_b : 6;
-                        signed char i6_c : 6;
-                        signed char i6_d : 6;
-                    } __attribute__((packed));
-                };
-
-                for (int i = 0; i < constantN; i++)
-                {
-                    const i6x4_t* i6ptr = B_data.row<const i6x4_t>(i);
-                    float* ptr = B_data_fp32.row(i);
-                    float* scale_ptr = B_data_quantize_scales.row(i);
-
-                    for (int j = 0; j < block_count; j++)
-                    {
-                        // block dequantize
-                        const i6x4_t* i6ptr1 = i6ptr + j * block_size / 4;
-                        // Prevent division by zero: if scale_ptr[j] == 0, use 1.0 as safe default
-                        const float safe_scale = (scale_ptr[j] == 0.f) ? 1.f : scale_ptr[j];
-                        const float inv_scale = 1.f / safe_scale;
-                        float* ptr1 = ptr + j * block_size;
-                        const int block_size1 = std::min(block_size, constantK - j * block_size);
-
-                        int k = 0;
-                        for (; k + 3 < block_size1; k += 4)
-                        {
-                            ptr1[k] = i6ptr1[k / 4].i6_a * inv_scale;
-                            ptr1[k + 1] = i6ptr1[k / 4].i6_b * inv_scale;
-                            ptr1[k + 2] = i6ptr1[k / 4].i6_c * inv_scale;
-                            ptr1[k + 3] = i6ptr1[k / 4].i6_d * inv_scale;
-                        }
-                        for (; k + 2 < block_size1; k += 3)
-                        {
-                            ptr1[k] = i6ptr1[k / 4].i6_a * inv_scale;
-                            ptr1[k + 1] = i6ptr1[k / 4].i6_b * inv_scale;
-                            ptr1[k + 2] = i6ptr1[k / 4].i6_c * inv_scale;
-                        }
-                        for (; k + 1 < block_size1; k += 2)
-                        {
-                            ptr1[k] = i6ptr1[k / 4].i6_a * inv_scale;
-                            ptr1[k + 1] = i6ptr1[k / 4].i6_b * inv_scale;
-                        }
-                        for (; k < block_size1; k++)
-                        {
-                            ptr1[k] = i6ptr1[k / 4].i6_a * inv_scale;
-                        }
-                    }
-                }
-
-                B_data = B_data_fp32;
-
-                // reset int8_scale_term to use fp32 path
-                int8_scale_term = 0;
-            }
-            else if (int8_scale_term == 6)
-            {
-                // int4 block quantize
-                // assert transB == 1 // FIXME hardcode
-                const int block_size = 64; // FIXME hardcode
-                const int block_count = (constantK + block_size - 1) / block_size;
-
-                B_data_quantize_scales = mb.load(block_count, constantN, 0);
-
-                // dequantize B_data to fp32
-                Mat B_data_fp32(constantK, constantN);
-                if (B_data_fp32.empty())
-                    return -100;
-
-                union i4x2_t
-                {
-                    signed char i4;
-                    struct
-                    {
-                        signed char i4_low : 4;
-                        signed char i4_high : 4;
-                    } __attribute__((packed));
-                };
-
-                for (int i = 0; i < constantN; i++)
-                {
-                    const i4x2_t* i4ptr = B_data.row<const i4x2_t>(i);
-                    float* ptr = B_data_fp32.row(i);
-                    float* scale_ptr = B_data_quantize_scales.row(i);
-
-                    for (int j = 0; j < block_count; j++)
-                    {
-                        // block dequantize
-                        const i4x2_t* i4ptr1 = i4ptr + j * block_size / 2;
-                        // Defensive: avoid division by zero
-                        float scale = scale_ptr[j];
-                        if (scale == 0.f)
-                            scale = 1.f;
-                        const float inv_scale = 1.f / scale;
-                        float* ptr1 = ptr + j * block_size;
-                        const int block_size1 = std::min(block_size, constantK - j * block_size);
-
-                        int k = 0;
-                        for (; k + 1 < block_size1; k += 2)
-                        {
-                            ptr1[k] = i4ptr1[k / 2].i4_low * inv_scale;
-                            ptr1[k + 1] = i4ptr1[k / 2].i4_high * inv_scale;
-                        }
-                        for (; k < block_size1; k++)
-                        {
-                            ptr1[k] = i4ptr1[k / 2].i4_low * inv_scale;
-                        }
-                    }
-                }
-
-                B_data = B_data_fp32;
-
-                // reset int8_scale_term to use fp32 path
-                int8_scale_term = 0;
-            }
-            else
-            {
-                B_data_int8_scale = mb.load(1, 1)[0];
-            }
+            B_data_int8_scale = mb.load(1, 1)[0];
         }
     }
 #endif // NCNN_INT8
@@ -388,6 +323,166 @@ static void gemm_transB(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob
             }
         }
     }
+}
+
+int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    if (constantA != 0 || constantB != 1 || transA != 0 || transB != 1)
+    {
+        NCNN_LOGE("Gemm weight block quantization only supports dynamic A and constant transposed B");
+        return -1;
+    }
+
+    if (output_N1M != 0 || output_elempack != 0 || (output_elemtype != 0 && output_elemtype != 1) || output_transpose != 0)
+    {
+        NCNN_LOGE("Gemm weight block quantization only supports fp32 pack1 non-transposed output");
+        return -1;
+    }
+
+    const Mat& A = bottom_blobs[0];
+    if (A.elemsize != 4u || A.elempack != 1)
+    {
+        NCNN_LOGE("Gemm weight block quantization only supports fp32 pack1 input");
+        return -1;
+    }
+
+    const int K = A.w;
+    if (K != constantK)
+    {
+        NCNN_LOGE("Gemm weight block quantization K mismatch, expected %d but got %d", constantK, K);
+        return -1;
+    }
+
+    const int weight_bits = gemm_weight_quantize_bits(quantize_term);
+    const int block_size = gemm_weight_quantize_block_size(quantize_term);
+    const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(constantK, weight_bits);
+    const int block_count = (constantK + block_size - 1) / block_size;
+
+    if (weight_bits == 0 || block_size == 0 || B_data.empty() || B_data_quantize_scales.empty())
+    {
+        NCNN_LOGE("Gemm weight block quantization model data is missing or invalid term=%d bits=%d block_size=%d B_empty=%d scale_empty=%d", quantize_term, weight_bits, block_size, B_data.empty(), B_data_quantize_scales.empty());
+        return -1;
+    }
+
+    if (B_data.elemsize != 1u || B_data.w != packed_k_bytes || B_data.h != constantN || B_data_quantize_scales.w != block_count || B_data_quantize_scales.h != constantN)
+    {
+        NCNN_LOGE("Gemm weight block quantization model shape mismatch");
+        return -1;
+    }
+
+    const int M = A.dims == 3 ? A.c : A.h;
+    const int N = constantN;
+
+    Mat C;
+    int broadcast_type_C = -1;
+    if (constantC)
+    {
+        C = C_data;
+        broadcast_type_C = constant_broadcast_type_C;
+    }
+    else
+    {
+        if (bottom_blobs.size() == 2)
+        {
+            C = bottom_blobs[1];
+        }
+
+        if (!C.empty())
+        {
+            bool matched = false;
+            if (C.dims == 1 && C.w == 1)
+            {
+                broadcast_type_C = 0;
+                matched = true;
+            }
+            if (C.dims == 1 && C.w == M)
+            {
+                broadcast_type_C = 1;
+                matched = true;
+            }
+            if (C.dims == 1 && C.w == N)
+            {
+                broadcast_type_C = 4;
+                matched = true;
+            }
+            if (C.dims == 2 && C.w == 1 && C.h == M)
+            {
+                broadcast_type_C = 2;
+                matched = true;
+            }
+            if (C.dims == 2 && C.w == N && C.h == M)
+            {
+                broadcast_type_C = 3;
+                matched = true;
+            }
+            if (C.dims == 2 && C.w == N && C.h == 1)
+            {
+                broadcast_type_C = 4;
+                matched = true;
+            }
+
+            if (!matched || C.elemsize != 4u || C.elempack != 1)
+            {
+                NCNN_LOGE("Gemm weight block quantization unsupported C shape or storage");
+                return -1;
+            }
+        }
+    }
+
+    if (!C.empty() && (C.elemsize != 4u || C.elempack != 1))
+    {
+        NCNN_LOGE("Gemm weight block quantization only supports fp32 pack1 C");
+        return -1;
+    }
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create(N, M, (size_t)4u, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
+    const float* ptrC = C;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int i = 0; i < M; i++)
+    {
+        const float* ptrA = (const float*)A + i * A_hstep;
+        float* outptr = top_blob.row(i);
+
+        for (int j = 0; j < N; j++)
+        {
+            float sum = 0.f;
+            if (ptrC)
+            {
+                if (broadcast_type_C == 0)
+                    sum = ptrC[0];
+                if (broadcast_type_C == 1)
+                    sum = ptrC[i];
+                if (broadcast_type_C == 2)
+                    sum = ptrC[i];
+                if (broadcast_type_C == 3)
+                    sum = ptrC[i * N + j];
+                if (broadcast_type_C == 4)
+                    sum = ptrC[j];
+
+                sum *= beta;
+            }
+
+            const unsigned char* ptrB = B_data.row<const unsigned char>(j);
+            const float* scale_ptr = B_data_quantize_scales.row(j);
+
+            for (int k = 0; k < K; k++)
+            {
+                const int q = gemm_weight_block_quantize_unpack(ptrB, k, weight_bits, packed_k_bytes);
+                const float scale = scale_ptr[k / block_size];
+                sum += ptrA[k] * (q / scale);
+            }
+
+            outptr[j] = sum * alpha;
+        }
+    }
+
+    return 0;
 }
 
 #if NCNN_INT8
@@ -486,10 +581,21 @@ int Gemm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
 int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    if (gemm_is_weight_block_quantize(quantize_term))
+    {
+        return forward_weight_block_quantize(bottom_blobs, top_blobs, opt);
+    }
+
 #if NCNN_INT8
-    if (int8_scale_term)
+    if (quantize_term)
     {
         return forward_int8(bottom_blobs, top_blobs, opt);
+    }
+#else
+    if (quantize_term)
+    {
+        NCNN_LOGE("please build ncnn with NCNN_INT8 enabled for int8 inference");
+        return -1;
     }
 #endif // NCNN_INT8
 
