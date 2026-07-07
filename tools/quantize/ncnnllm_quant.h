@@ -12,7 +12,9 @@
 enum
 {
     LLM_QUANT_METHOD_MINMAX = 0,
-    LLM_QUANT_METHOD_MSECLIP = 1
+    LLM_QUANT_METHOD_MSECLIP = 1,
+    LLM_QUANT_METHOD_AWQ = 2,
+    LLM_QUANT_METHOD_GPTQ = 3
 };
 
 static inline const char* llm_quant_method_to_string(int method)
@@ -21,6 +23,10 @@ static inline const char* llm_quant_method_to_string(int method)
         return "minmax";
     if (method == LLM_QUANT_METHOD_MSECLIP)
         return "mseclip";
+    if (method == LLM_QUANT_METHOD_AWQ)
+        return "awq";
+    if (method == LLM_QUANT_METHOD_GPTQ)
+        return "gptq";
 
     return "";
 }
@@ -31,6 +37,10 @@ static inline int llm_quant_method_from_string(const char* method)
         return LLM_QUANT_METHOD_MINMAX;
     if (strcmp(method, "mseclip") == 0)
         return LLM_QUANT_METHOD_MSECLIP;
+    if (strcmp(method, "awq") == 0)
+        return LLM_QUANT_METHOD_AWQ;
+    if (strcmp(method, "gptq") == 0)
+        return LLM_QUANT_METHOD_GPTQ;
 
     return -1;
 }
@@ -384,6 +394,40 @@ static inline int write_llm_table_row(FILE* fp, const char* key, int weight_bits
         return -1;
 
     fprintf(fp, "%s format=block_symmetric dtype=%s block=%d scale_dtype=fp32 scale_encoding=quant method=%s ", key, dtype, block_size, llm_quant_method_to_string(method));
+
+    const float* ptr = scales;
+    const size_t size = (size_t)scales.w * scales.h * scales.d * scales.c;
+    for (size_t i = 0; i < size; i++)
+    {
+        fprintf(fp, "%f ", ptr[i]);
+    }
+    fprintf(fp, "\n");
+
+    return 0;
+}
+
+static inline int write_llm_input_scale_row(FILE* fp, const char* key, int method, const ncnn::Mat& scales)
+{
+    fprintf(fp, "%s format=input_scale scale_dtype=fp32 scale_encoding=mul method=%s ", key, llm_quant_method_to_string(method));
+
+    const float* ptr = scales;
+    const size_t size = (size_t)scales.w * scales.h * scales.d * scales.c;
+    for (size_t i = 0; i < size; i++)
+    {
+        fprintf(fp, "%f ", ptr[i]);
+    }
+    fprintf(fp, "\n");
+
+    return 0;
+}
+
+static inline int write_llm_qweight_table_row(FILE* fp, const char* key, int weight_bits, int block_size, int method, const char* qweight, const ncnn::Mat& scales)
+{
+    const char* dtype = llm_quant_bits_to_dtype(weight_bits);
+    if (dtype[0] == '\0')
+        return -1;
+
+    fprintf(fp, "%s format=block_symmetric_qweight dtype=%s block=%d scale_dtype=fp32 scale_encoding=quant qweight=%s qweight_encoding=sint%d_packed layout=nk method=%s ", key, dtype, block_size, qweight, weight_bits, llm_quant_method_to_string(method));
 
     const float* ptr = scales;
     const size_t size = (size_t)scales.w * scales.h * scales.d * scales.c;

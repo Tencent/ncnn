@@ -52,10 +52,66 @@ public:
     std::string block;
     std::string scale_dtype;
     std::string scale_encoding;
+    std::string qweight;
+    std::string qweight_encoding;
+    std::string layout;
     std::string method;
     ncnn::Mat scales;
     bool used;
 };
+
+static bool qweight_path_is_absolute(const char* path)
+{
+    if (path[0] == '/')
+        return true;
+
+#ifdef _WIN32
+    if (strlen(path) >= 3 && path[1] == ':' && (path[2] == '\\' || path[2] == '/'))
+        return true;
+#endif
+
+    return false;
+}
+
+static std::string resolve_qweight_path(const char* tablepath, const char* path)
+{
+    if (qweight_path_is_absolute(path))
+        return std::string(path);
+
+    const char* slash = strrchr(tablepath, '/');
+#ifdef _WIN32
+    const char* backslash = strrchr(tablepath, '\\');
+    if (backslash && (!slash || backslash > slash))
+        slash = backslash;
+#endif
+
+    if (!slash)
+        return std::string(path);
+
+    return std::string(tablepath, slash - tablepath + 1) + path;
+}
+
+static inline int sign_extend(int v, int bits)
+{
+    const int sign_bit = 1 << (bits - 1);
+    return (v ^ sign_bit) - sign_bit;
+}
+
+static inline int unpack_signed_weight(const unsigned char* ptr, int k, int bits, int packed_k_bytes)
+{
+    const int bit_offset = k * bits;
+    const int byte_offset = bit_offset / 8;
+    const int bit_shift = bit_offset % 8;
+
+    unsigned int v = ptr[byte_offset];
+    if (byte_offset + 1 < packed_k_bytes)
+        v |= (unsigned int)ptr[byte_offset + 1] << 8;
+    if (byte_offset + 2 < packed_k_bytes)
+        v |= (unsigned int)ptr[byte_offset + 2] << 16;
+
+    const int mask = (1 << bits) - 1;
+    return sign_extend((v >> bit_shift) & mask, bits);
+}
 
 static bool parse_int_string(const char* s, int& v)
 {
@@ -128,6 +184,9 @@ static bool read_llm_scale_table(const char* filepath, std::map<std::string, LLM
         bool has_block = false;
         bool has_scale_dtype = false;
         bool has_scale_encoding = false;
+        bool has_qweight = false;
+        bool has_qweight_encoding = false;
+        bool has_layout = false;
 
         while ((pch = strtok(NULL, " \t")) != NULL)
         {
@@ -205,9 +264,51 @@ static bool read_llm_scale_table(const char* filepath, std::map<std::string, LLM
                     has_scale_encoding = true;
                     scale.scale_encoding = v;
                 }
+                else if (strcmp(k, "qweight") == 0)
+                {
+                    if (has_qweight)
+                    {
+                        fprintf(stderr, "%s:%d duplicate metadata %s\n", filepath, lineno, k);
+                        fclose(fp);
+                        return false;
+                    }
+
+                    has_qweight = true;
+                    scale.qweight = resolve_qweight_path(filepath, v);
+                }
+                else if (strcmp(k, "qweight_encoding") == 0)
+                {
+                    if (has_qweight_encoding)
+                    {
+                        fprintf(stderr, "%s:%d duplicate metadata %s\n", filepath, lineno, k);
+                        fclose(fp);
+                        return false;
+                    }
+
+                    has_qweight_encoding = true;
+                    scale.qweight_encoding = v;
+                }
+                else if (strcmp(k, "layout") == 0)
+                {
+                    if (has_layout)
+                    {
+                        fprintf(stderr, "%s:%d duplicate metadata %s\n", filepath, lineno, k);
+                        fclose(fp);
+                        return false;
+                    }
+
+                    has_layout = true;
+                    scale.layout = v;
+                }
                 else if (strcmp(k, "method") == 0)
                 {
                     scale.method = v;
+                }
+                else if (strcmp(k, "zero_point") == 0 || strcmp(k, "zp") == 0 || strcmp(k, "g_idx") == 0)
+                {
+                    fprintf(stderr, "%s:%d unsupported metadata %s\n", filepath, lineno, k);
+                    fclose(fp);
+                    return false;
                 }
             }
             else
@@ -339,6 +440,150 @@ static int llm_table_row_to_scales(const char* key, const LLMWeightScale& scale,
     memcpy(weight_data_quantize_scales.data, scale.scales.data, weight_scale_count * sizeof(float));
 
     return 0;
+}
+
+static int read_qweight_file(const char* key, const LLMWeightScale& scale, int K, int N, int weight_bits, ncnn::Mat& weight_data_quantized)
+{
+    const int packed_k_bytes = llm_weight_quantize_packed_k_bytes(K, weight_bits);
+    const size_t qweight_bytes = (size_t)N * packed_k_bytes;
+
+    FILE* fp = fopen(scale.qweight.c_str(), "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "%s fopen qweight %s failed\n", key, scale.qweight.c_str());
+        return -1;
+    }
+
+    fseek(fp, 0, SEEK_END);
+    const long file_size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    if (file_size != (long)qweight_bytes)
+    {
+        fprintf(stderr, "%s qweight byte count mismatch expected=%zu got=%ld\n", key, qweight_bytes, file_size);
+        fclose(fp);
+        return -1;
+    }
+
+    weight_data_quantized.create(packed_k_bytes, N, (size_t)1u);
+    if (weight_data_quantized.empty())
+    {
+        fclose(fp);
+        return -100;
+    }
+
+    if (fread(weight_data_quantized.data, 1, qweight_bytes, fp) != qweight_bytes)
+    {
+        fprintf(stderr, "%s fread qweight %s failed\n", key, scale.qweight.c_str());
+        fclose(fp);
+        return -1;
+    }
+
+    fclose(fp);
+
+    const int used_bits = (K * weight_bits) % 8;
+    const unsigned char tail_mask = used_bits == 0 ? 0 : (unsigned char)(0xffu << used_bits);
+    const int qmin = -(1 << (weight_bits - 1));
+
+    for (int n = 0; n < N; n++)
+    {
+        const unsigned char* qptr = weight_data_quantized.row<const unsigned char>(n);
+
+        if (tail_mask && (qptr[packed_k_bytes - 1] & tail_mask))
+        {
+            fprintf(stderr, "%s qweight tail padding bits are not zero row=%d\n", key, n);
+            return -1;
+        }
+
+        for (int k = 0; k < K; k++)
+        {
+            const int q = unpack_signed_weight(qptr, k, weight_bits, packed_k_bytes);
+            if (q == qmin)
+            {
+                fprintf(stderr, "%s qweight contains unsupported value row=%d k=%d q=%d\n", key, n, k, q);
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int llm_table_row_to_qweight(const char* key, const LLMWeightScale& scale, int K, int N, int& weight_bits, int& block_size, ncnn::Mat& weight_data_quantize_scales, ncnn::Mat& weight_data_quantized)
+{
+    if (scale.format.empty() || scale.dtype.empty() || scale.block.empty() || scale.scale_dtype.empty() || scale.scale_encoding.empty() || scale.qweight.empty() || scale.qweight_encoding.empty() || scale.layout.empty())
+    {
+        fprintf(stderr, "%s missing mandatory metadata\n", key);
+        return -1;
+    }
+
+    if (scale.format != "block_symmetric_qweight")
+    {
+        fprintf(stderr, "%s unsupported format=%s\n", key, scale.format.c_str());
+        return -1;
+    }
+
+    weight_bits = llm_quant_dtype_to_bits(scale.dtype.c_str());
+    if (weight_bits == 0)
+    {
+        fprintf(stderr, "%s unsupported dtype=%s\n", key, scale.dtype.c_str());
+        return -1;
+    }
+
+    if (!parse_int_string(scale.block.c_str(), block_size))
+    {
+        fprintf(stderr, "%s malformed block=%s\n", key, scale.block.c_str());
+        return -1;
+    }
+
+    if (llm_weight_block_quantize_term(weight_bits, block_size) == 0)
+    {
+        fprintf(stderr, "%s unsupported dtype=%s block=%d\n", key, scale.dtype.c_str(), block_size);
+        return -1;
+    }
+
+    if (scale.scale_dtype != "fp32")
+    {
+        fprintf(stderr, "%s unsupported scale_dtype=%s\n", key, scale.scale_dtype.c_str());
+        return -1;
+    }
+
+    if (scale.scale_encoding != "quant")
+    {
+        fprintf(stderr, "%s unsupported scale_encoding=%s\n", key, scale.scale_encoding.c_str());
+        return -1;
+    }
+
+    char expected_qweight_encoding[32];
+    snprintf(expected_qweight_encoding, sizeof(expected_qweight_encoding), "sint%d_packed", weight_bits);
+    if (scale.qweight_encoding != expected_qweight_encoding)
+    {
+        fprintf(stderr, "%s unsupported qweight_encoding=%s\n", key, scale.qweight_encoding.c_str());
+        return -1;
+    }
+
+    if (scale.layout != "nk")
+    {
+        fprintf(stderr, "%s unsupported layout=%s\n", key, scale.layout.c_str());
+        return -1;
+    }
+
+    const int block_count = (K + block_size - 1) / block_size;
+    const int weight_scale_count = N * block_count;
+
+    if (scale.scales.w != weight_scale_count)
+    {
+        fprintf(stderr, "%s coefficient count mismatch expected=%d got=%d\n", key, weight_scale_count, scale.scales.w);
+        return -1;
+    }
+
+    weight_data_quantize_scales.create(block_count, N);
+    if (weight_data_quantize_scales.empty())
+        return -100;
+
+    memcpy(weight_data_quantize_scales.data, scale.scales.data, weight_scale_count * sizeof(float));
+
+    return read_qweight_file(key, scale, K, N, weight_bits, weight_data_quantized);
 }
 
 static int llm_table_row_to_input_scales(const char* key, const LLMWeightScale& scale, int K, ncnn::Mat& input_scales)
@@ -489,12 +734,25 @@ int NetQuantize::quantize_gemm_from_table(std::map<std::string, LLMWeightScale>&
         int weight_bits = 0;
         int block_size = 0;
         ncnn::Mat B_data_quantize_scales;
-        int ret = llm_table_row_to_scales(key, scale, constantK, constantN, weight_bits, block_size, B_data_quantize_scales);
+        ncnn::Mat B_data_quantized;
+        const bool qweight_row = scale.format == "block_symmetric_qweight";
+        int ret = 0;
+        if (qweight_row)
+            ret = llm_table_row_to_qweight(key, scale, constantK, constantN, weight_bits, block_size, B_data_quantize_scales, B_data_quantized);
+        else
+            ret = llm_table_row_to_scales(key, scale, constantK, constantN, weight_bits, block_size, B_data_quantize_scales);
         if (ret != 0)
             return ret;
 
         std::map<std::string, LLMWeightScale>::iterator input_scale_iter = llm_scale_table.find(input_scale_key);
         const bool has_input_scale = input_scale_iter != llm_scale_table.end();
+
+        if (qweight_row && has_input_scale)
+        {
+            input_scale_iter->second.used = true;
+            fprintf(stderr, "%s does not support input_scale with qweight yet\n", key);
+            return -1;
+        }
 
         ncnn::Mat B_data_input_scales;
         if (has_input_scale)
@@ -509,10 +767,12 @@ int NetQuantize::quantize_gemm_from_table(std::map<std::string, LLMWeightScale>&
         const int quantize_term = llm_weight_block_quantize_term(weight_bits, block_size, has_input_scale);
         fprintf(stderr, "quantize_gemm table dtype=%s block_size=%d term=%d method=%s %s\n", scale.dtype.c_str(), block_size, quantize_term, scale.method.c_str(), gemm_name(gemm));
 
-        ncnn::Mat B_data_quantized;
-        ret = pack_gemm_B_from_scales(gemm->B_data, B_data_quantize_scales, block_size, weight_bits, B_data_quantized);
-        if (ret != 0)
-            return ret;
+        if (!qweight_row)
+        {
+            ret = pack_gemm_B_from_scales(gemm->B_data, B_data_quantize_scales, block_size, weight_bits, B_data_quantized);
+            if (ret != 0)
+                return ret;
+        }
 
         gemm->B_data = B_data_quantized;
         gemm->B_data_quantize_scales = B_data_quantize_scales;
@@ -682,10 +942,18 @@ int NetQuantize::quantize_multiheadattention_from_table(std::map<std::string, LL
 
         int weight_bits[4];
         int block_size[4];
+        bool qweight_rows[4];
         ncnn::Mat weight_data_quantize_scales[4];
+        ncnn::Mat weight_data_quantized[4];
         for (int j = 0; j < 4; j++)
         {
-            int ret = llm_table_row_to_scales(keys[j], iters[j]->second, Ks[j], Ns[j], weight_bits[j], block_size[j], weight_data_quantize_scales[j]);
+            qweight_rows[j] = iters[j]->second.format == "block_symmetric_qweight";
+
+            int ret = 0;
+            if (qweight_rows[j])
+                ret = llm_table_row_to_qweight(keys[j], iters[j]->second, Ks[j], Ns[j], weight_bits[j], block_size[j], weight_data_quantize_scales[j], weight_data_quantized[j]);
+            else
+                ret = llm_table_row_to_scales(keys[j], iters[j]->second, Ks[j], Ns[j], weight_bits[j], block_size[j], weight_data_quantize_scales[j]);
             if (ret != 0)
                 return ret;
         }
@@ -697,10 +965,27 @@ int NetQuantize::quantize_multiheadattention_from_table(std::map<std::string, LL
                 fprintf(stderr, "MultiHeadAttention %s table rows require same dtype/block for q/k/v/out\n", multiheadattention_name(mha));
                 return -1;
             }
+
+            if (qweight_rows[j] != qweight_rows[0])
+            {
+                fprintf(stderr, "MultiHeadAttention %s table rows require same format for q/k/v/out\n", multiheadattention_name(mha));
+                return -1;
+            }
         }
 
         ncnn::Mat input_scales[4];
         const bool has_input_scale = input_scale_present_count == 4;
+        if (has_input_scale)
+        {
+            for (int j = 0; j < 4; j++)
+            {
+                if (qweight_rows[j])
+                {
+                    fprintf(stderr, "MultiHeadAttention %s does not support input_scale with qweight yet\n", multiheadattention_name(mha));
+                    return -1;
+                }
+            }
+        }
         if (has_input_scale)
         {
             for (int j = 0; j < 4; j++)
@@ -719,28 +1004,21 @@ int NetQuantize::quantize_multiheadattention_from_table(std::map<std::string, LL
         const ncnn::Mat v_weight_data = mha->v_weight_data.reshape(mha->vdim, mha->embed_dim);
         const ncnn::Mat out_weight_data = mha->out_weight_data.reshape(mha->embed_dim, qdim);
 
-        ncnn::Mat q_weight_data_quantized;
-        ncnn::Mat k_weight_data_quantized;
-        ncnn::Mat v_weight_data_quantized;
-        ncnn::Mat out_weight_data_quantized;
+        const ncnn::Mat weights[4] = {q_weight_data, k_weight_data, v_weight_data, out_weight_data};
+        for (int j = 0; j < 4; j++)
+        {
+            if (qweight_rows[j])
+                continue;
 
-        int ret = pack_gemm_B_from_scales(q_weight_data, weight_data_quantize_scales[0], block_size[0], weight_bits[0], q_weight_data_quantized);
-        if (ret != 0)
-            return ret;
-        ret = pack_gemm_B_from_scales(k_weight_data, weight_data_quantize_scales[1], block_size[0], weight_bits[0], k_weight_data_quantized);
-        if (ret != 0)
-            return ret;
-        ret = pack_gemm_B_from_scales(v_weight_data, weight_data_quantize_scales[2], block_size[0], weight_bits[0], v_weight_data_quantized);
-        if (ret != 0)
-            return ret;
-        ret = pack_gemm_B_from_scales(out_weight_data, weight_data_quantize_scales[3], block_size[0], weight_bits[0], out_weight_data_quantized);
-        if (ret != 0)
-            return ret;
+            int ret = pack_gemm_B_from_scales(weights[j], weight_data_quantize_scales[j], block_size[0], weight_bits[0], weight_data_quantized[j]);
+            if (ret != 0)
+                return ret;
+        }
 
-        mha->q_weight_data = q_weight_data_quantized;
-        mha->k_weight_data = k_weight_data_quantized;
-        mha->v_weight_data = v_weight_data_quantized;
-        mha->out_weight_data = out_weight_data_quantized;
+        mha->q_weight_data = weight_data_quantized[0];
+        mha->k_weight_data = weight_data_quantized[1];
+        mha->v_weight_data = weight_data_quantized[2];
+        mha->out_weight_data = weight_data_quantized[3];
         mha->q_weight_data_quantize_scales = weight_data_quantize_scales[0];
         mha->k_weight_data_quantize_scales = weight_data_quantize_scales[1];
         mha->v_weight_data_quantize_scales = weight_data_quantize_scales[2];
@@ -828,6 +1106,12 @@ int main(int argc, char** argv)
         if (quantize_method < 0)
         {
             fprintf(stderr, "unsupported method=%s\n", method);
+            return -1;
+        }
+
+        if (quantize_method == LLM_QUANT_METHOD_AWQ || quantize_method == LLM_QUANT_METHOD_GPTQ)
+        {
+            fprintf(stderr, "method=%s requires llm.table\n", method);
             return -1;
         }
 

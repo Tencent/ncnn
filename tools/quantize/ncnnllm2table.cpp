@@ -5,9 +5,18 @@
 #define _CRT_SECURE_NO_DEPRECATE
 #endif
 
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
+#include <float.h>
+#include <string>
+#include <vector>
+
+// npy format header
+#include "npy.hpp"
 
 // ncnn public header
 #include "datareader.h"
@@ -33,13 +42,49 @@ public:
     }
 };
 
+class QuantActStat
+{
+public:
+    QuantActStat()
+    {
+        width = 0;
+        count = 0;
+        max_sample_count = 0;
+    }
+
+public:
+    int width;
+    int count;
+    int max_sample_count;
+    ncnn::Mat sum_abs;
+    ncnn::Mat max_abs;
+    std::vector<float> samples;
+};
+
 class QuantNet : public ModelWriter
 {
 public:
     QuantNet();
 
+public:
+    std::vector<std::vector<std::string> > listspaths;
+    std::vector<std::vector<int> > shapes;
+    std::vector<int> input_blobs;
+    std::vector<QuantActStat> gemm_act_stats;
+    std::vector<QuantActStat> mha_act_stats;
     int quantize_num_threads;
+    int file_type;
+    int awq_steps;
+    int awq_samples;
+    int awq_inner_method;
+    float awq_max_scale;
+    int gptq_samples;
+    float gptq_damp;
+    bool use_calibration_dataset;
 
+public:
+    int init();
+    int collect_activation_stats();
     int save_table(const char* tablepath, int block_size, int weight_bits, int method) const;
 };
 
@@ -47,17 +92,1303 @@ QuantNet::QuantNet()
     : ModelWriter()
 {
     quantize_num_threads = 1;
+    file_type = 1;
+    awq_steps = 20;
+    awq_samples = 128;
+    awq_inner_method = LLM_QUANT_METHOD_MINMAX;
+    awq_max_scale = 16.f;
+    gptq_samples = 128;
+    gptq_damp = 0.01f;
+    use_calibration_dataset = false;
 }
 
 static void show_usage(const char* argv0)
 {
     fprintf(stderr, "Usage: %s [inparam] [inbin] [outtable] [(key=value)...]\n", argv0);
-    fprintf(stderr, "  method=minmax/mseclip\n");
+    fprintf(stderr, "       %s [inparam] [inbin] [caliblist] [outtable] [(key=value)...]\n", argv0);
+    fprintf(stderr, "  method=minmax/mseclip/awq/gptq\n");
     fprintf(stderr, "  bits=4/6/8\n");
     fprintf(stderr, "  block=32/64/128\n");
     fprintf(stderr, "  thread=8\n");
+    fprintf(stderr, "  type=1\n");
+    fprintf(stderr, "  shape=[w,h,...]\n");
+    fprintf(stderr, "  awq_steps=20\n");
+    fprintf(stderr, "  awq_samples=128\n");
+    fprintf(stderr, "  awq_max_scale=16\n");
+    fprintf(stderr, "  awq_inner=minmax/mseclip\n");
+    fprintf(stderr, "  gptq_samples=128\n");
+    fprintf(stderr, "  gptq_damp=0.01\n");
+    fprintf(stderr, "  gptq_group=block\n");
     fprintf(stderr, "Sample usage:\n");
     fprintf(stderr, "  %s model.param model.bin model.llm.table method=mseclip bits=4 block=64\n", argv0);
+    fprintf(stderr, "  %s model.param model.bin calib.list model.llm.table method=awq bits=4 block=64 shape=[4096]\n", argv0);
+    fprintf(stderr, "  %s model.param model.bin calib.list model.llm.table method=gptq bits=4 block=64 shape=[4096]\n", argv0);
+}
+
+static ncnn::Mat read_npy(const std::vector<int>& shape, const std::string& npypath)
+{
+    npy::npy_data<float> d;
+    try
+    {
+        d = npy::read_npy<float>(npypath);
+    }
+    catch (const std::exception& e)
+    {
+        fprintf(stderr, "npy::read_npy %s exception: %s\n", npypath.c_str(), e.what());
+        return ncnn::Mat();
+    }
+
+    const std::vector<unsigned long>& npy_shape = d.shape;
+    const size_t dims = shape.size();
+
+    if (dims != npy_shape.size())
+    {
+        fprintf(stderr, "%s expect %d dims, but got %d\n", npypath.c_str(), (int)dims, (int)npy_shape.size());
+        return ncnn::Mat();
+    }
+
+    for (size_t i = 0; i < dims; i++)
+    {
+        if ((unsigned long)shape[i] != npy_shape[dims - 1 - i])
+        {
+            fprintf(stderr, "%s shape mismatch\n", npypath.c_str());
+            return ncnn::Mat();
+        }
+    }
+
+    if (dims == 1)
+        return ncnn::Mat(shape[0], (void*)d.data.data()).reshape(shape[0]).clone();
+    if (dims == 2)
+        return ncnn::Mat(shape[0] * shape[1], (void*)d.data.data()).reshape(shape[0], shape[1]).clone();
+    if (dims == 3)
+        return ncnn::Mat(shape[0] * shape[1] * shape[2], (void*)d.data.data()).reshape(shape[0], shape[1], shape[2]).clone();
+    if (dims == 4)
+        return ncnn::Mat(shape[0] * shape[1] * shape[2] * shape[3], (void*)d.data.data()).reshape(shape[0], shape[1], shape[2], shape[3]).clone();
+
+    fprintf(stderr, "%s dims %d is unsupported\n", npypath.c_str(), (int)dims);
+    return ncnn::Mat();
+}
+
+static std::vector<std::vector<std::string> > parse_comma_path_list(char* s)
+{
+    std::vector<std::vector<std::string> > aps;
+
+    char* pch = strtok(s, ",");
+    while (pch != NULL)
+    {
+        FILE* fp = fopen(pch, "rb");
+        if (!fp)
+        {
+            fprintf(stderr, "fopen %s failed\n", pch);
+            break;
+        }
+
+        std::vector<std::string> paths;
+
+        char line[1024];
+        while (!feof(fp))
+        {
+            char* ss = fgets(line, 1024, fp);
+            if (!ss)
+                break;
+
+            char filepath[256];
+            int nscan = sscanf(line, "%255s", filepath);
+            if (nscan != 1)
+                continue;
+
+            paths.push_back(std::string(filepath));
+        }
+
+        fclose(fp);
+
+        aps.push_back(paths);
+
+        pch = strtok(NULL, ",");
+    }
+
+    return aps;
+}
+
+static std::vector<std::vector<int> > parse_comma_int_array_list(char* s)
+{
+    std::vector<std::vector<int> > aai;
+
+    char* pch = strtok(s, "[]");
+    while (pch != NULL)
+    {
+        int v;
+        int nconsumed = 0;
+        int nscan = sscanf(pch, "%d%n", &v, &nconsumed);
+        if (nscan == 1)
+        {
+            pch += nconsumed;
+
+            std::vector<int> ai;
+            ai.push_back(v);
+
+            nscan = sscanf(pch, ",%d%n", &v, &nconsumed);
+            while (nscan == 1)
+            {
+                pch += nconsumed;
+
+                ai.push_back(v);
+
+                nscan = sscanf(pch, ",%d%n", &v, &nconsumed);
+            }
+
+            aai.push_back(ai);
+        }
+
+        pch = strtok(NULL, "[]");
+    }
+
+    return aai;
+}
+
+static std::string make_qweight_filename(const char* tablepath, const char* key, std::string& qweight_path)
+{
+    const char* slash = strrchr(tablepath, '/');
+#ifdef _WIN32
+    const char* backslash = strrchr(tablepath, '\\');
+    if (backslash && (!slash || backslash > slash))
+        slash = backslash;
+#endif
+
+    const char* table_base = slash ? slash + 1 : tablepath;
+    std::string qweight_name = std::string(table_base) + "." + key + ".qweight";
+    for (size_t i = 0; i < qweight_name.size(); i++)
+    {
+        if (qweight_name[i] == '/' || qweight_name[i] == '\\' || qweight_name[i] == ':' || qweight_name[i] == ' ')
+            qweight_name[i] = '_';
+    }
+
+    qweight_path = qweight_name;
+    if (slash)
+        qweight_path = std::string(tablepath, slash - tablepath + 1) + qweight_name;
+
+    return qweight_name;
+}
+
+static int write_raw_mat_file(const char* path, const ncnn::Mat& m)
+{
+    FILE* fp = fopen(path, "wb");
+    if (!fp)
+    {
+        fprintf(stderr, "fopen %s failed\n", path);
+        return -1;
+    }
+
+    const size_t logical_count = (size_t)m.w * m.h * m.d * m.c;
+    if (fwrite(m.data, m.elemsize, logical_count, fp) != logical_count)
+    {
+        fprintf(stderr, "fwrite %s failed\n", path);
+        fclose(fp);
+        return -1;
+    }
+
+    fclose(fp);
+
+    return 0;
+}
+
+static int init_act_stat(QuantActStat& stat, int width, int max_sample_count)
+{
+    stat.width = width;
+    stat.count = 0;
+    stat.max_sample_count = max_sample_count;
+
+    stat.sum_abs.create(width);
+    stat.max_abs.create(width);
+    if (stat.sum_abs.empty() || stat.max_abs.empty())
+        return -100;
+
+    stat.sum_abs.fill(0.f);
+    stat.max_abs.fill(0.f);
+    stat.samples.clear();
+    stat.samples.reserve((size_t)width * max_sample_count);
+
+    return 0;
+}
+
+static int collect_act_row(QuantActStat& stat, const float* ptr)
+{
+    const int width = stat.width;
+    float* sum_abs_ptr = stat.sum_abs;
+    float* max_abs_ptr = stat.max_abs;
+
+    for (int k = 0; k < width; k++)
+    {
+        const float v = (float)fabs(ptr[k]);
+        sum_abs_ptr[k] += v;
+        max_abs_ptr[k] = std::max(max_abs_ptr[k], v);
+    }
+
+    if ((int)(stat.samples.size() / width) < stat.max_sample_count)
+    {
+        for (int k = 0; k < width; k++)
+            stat.samples.push_back(ptr[k]);
+    }
+
+    stat.count++;
+
+    return 0;
+}
+
+static int collect_act_rows(QuantActStat& stat, const ncnn::Mat& m, int width, const char* key)
+{
+    if (m.empty())
+    {
+        fprintf(stderr, "%s activation blob is empty\n", key);
+        return -1;
+    }
+
+    if (m.elemsize != 4u)
+    {
+        fprintf(stderr, "%s activation elemsize %d is unsupported\n", key, (int)m.elemsize);
+        return -1;
+    }
+
+    if (stat.width != width)
+    {
+        fprintf(stderr, "%s activation width mismatch expected=%d got=%d\n", key, stat.width, width);
+        return -1;
+    }
+
+    if (m.dims == 2 && m.w == width)
+    {
+        for (int i = 0; i < m.h; i++)
+            collect_act_row(stat, m.row(i));
+        return 0;
+    }
+
+    if (m.dims == 1 && m.w == width)
+    {
+        collect_act_row(stat, (const float*)m);
+        return 0;
+    }
+
+    const int total = (int)m.total();
+    if (total % width != 0)
+    {
+        fprintf(stderr, "%s activation size %d is not divisible by width %d\n", key, total, width);
+        return -1;
+    }
+
+    const float* ptr = m;
+    const int sample_count = total / width;
+    for (int i = 0; i < sample_count; i++)
+        collect_act_row(stat, ptr + i * width);
+
+    return 0;
+}
+
+static int resolve_mha_bottom_blob_index(const ncnn::MultiHeadAttention* mha, int bottom_blob_count, int& q_blob_i, int& k_blob_i, int& v_blob_i, int& attn_mask_i, int& cached_xk_i, int& cached_xv_i)
+{
+    q_blob_i = 0;
+    k_blob_i = 0;
+    v_blob_i = 0;
+    attn_mask_i = 0;
+    cached_xk_i = 0;
+    cached_xv_i = 0;
+
+    if (mha->kv_cache)
+    {
+        if (mha->attn_mask)
+        {
+            if (bottom_blob_count == 4)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+                attn_mask_i = 1;
+                cached_xk_i = 2;
+                cached_xv_i = 3;
+                return 0;
+            }
+            if (bottom_blob_count == 5)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+                attn_mask_i = 2;
+                cached_xk_i = 3;
+                cached_xv_i = 4;
+                return 0;
+            }
+            if (bottom_blob_count == 6)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+                attn_mask_i = 3;
+                cached_xk_i = 4;
+                cached_xv_i = 5;
+                return 0;
+            }
+        }
+        else
+        {
+            if (bottom_blob_count == 3)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+                cached_xk_i = 1;
+                cached_xv_i = 2;
+                return 0;
+            }
+            if (bottom_blob_count == 4)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+                cached_xk_i = 2;
+                cached_xv_i = 3;
+                return 0;
+            }
+            if (bottom_blob_count == 5)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+                cached_xk_i = 3;
+                cached_xv_i = 4;
+                return 0;
+            }
+        }
+    }
+    else
+    {
+        if (mha->attn_mask)
+        {
+            if (bottom_blob_count == 2)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+                attn_mask_i = 1;
+                return 0;
+            }
+            if (bottom_blob_count == 3)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+                attn_mask_i = 2;
+                return 0;
+            }
+            if (bottom_blob_count == 4)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+                attn_mask_i = 3;
+                return 0;
+            }
+        }
+        else
+        {
+            if (bottom_blob_count == 1)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+                return 0;
+            }
+            if (bottom_blob_count == 2)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+                return 0;
+            }
+            if (bottom_blob_count == 3)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+                return 0;
+            }
+        }
+    }
+
+    fprintf(stderr, "MultiHeadAttention %s unsupported bottom blob count %d\n", multiheadattention_name(mha), bottom_blob_count);
+    return -1;
+}
+
+static int collect_mha_out_act_rows(const ncnn::MultiHeadAttention* mha, const ncnn::Mat& q_blob, const ncnn::Mat& k_blob, const ncnn::Mat& v_blob, const ncnn::Mat& attn_mask_blob, const ncnn::Mat& cached_xk_blob, const ncnn::Mat& cached_xv_blob, int q_blob_i, int k_blob_i, int v_blob_i, QuantActStat& stat, const char* key, int num_threads)
+{
+    const int src_seqlen = q_blob.h;
+    const int cur_seqlen = k_blob.h;
+    const int past_seqlen = mha->kv_cache && !cached_xk_blob.empty() ? cached_xk_blob.w : 0;
+    const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
+
+    const int embed_dim = mha->embed_dim;
+    const int num_heads = mha->num_heads;
+    const int embed_dim_per_head = embed_dim / num_heads;
+    const int qdim = mha->weight_data_size / embed_dim;
+
+    ncnn::Mat q_affine;
+    q_affine.create(src_seqlen, embed_dim);
+    if (q_affine.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(num_threads)
+    for (int i = 0; i < src_seqlen; i++)
+    {
+        const float* kptr = (const float*)mha->q_weight_data;
+
+        for (int j = 0; j < embed_dim; j++)
+        {
+            const float* ptr = q_blob.row(i);
+
+            float sum = mha->q_bias_data[j];
+            for (int k = 0; k < qdim; k++)
+                sum += *ptr++ * *kptr++;
+
+            q_affine.row(j)[i] = sum * mha->scale;
+        }
+    }
+
+    ncnn::Mat k_affine;
+    if (past_seqlen > 0 && q_blob_i != k_blob_i)
+    {
+        k_affine = cached_xk_blob;
+    }
+    else
+    {
+        k_affine.create(dst_seqlen, embed_dim);
+        if (k_affine.empty())
+            return -100;
+
+        if (past_seqlen > 0)
+        {
+            #pragma omp parallel for num_threads(num_threads)
+            for (int i = 0; i < embed_dim; i++)
+                memcpy(k_affine.row(i), cached_xk_blob.row(i), dst_seqlen * sizeof(float));
+        }
+
+        #pragma omp parallel for num_threads(num_threads)
+        for (int i = 0; i < cur_seqlen; i++)
+        {
+            const float* kptr = (const float*)mha->k_weight_data;
+
+            for (int j = 0; j < embed_dim; j++)
+            {
+                const float* ptr = k_blob.row(i);
+
+                float sum = mha->k_bias_data[j];
+                for (int k = 0; k < mha->kdim; k++)
+                    sum += *ptr++ * *kptr++;
+
+                k_affine.row(j)[past_seqlen + i] = sum;
+            }
+        }
+    }
+
+    ncnn::Mat v_affine;
+    if (past_seqlen > 0 && q_blob_i != v_blob_i)
+    {
+        v_affine = cached_xv_blob;
+    }
+    else
+    {
+        v_affine.create(dst_seqlen, embed_dim);
+        if (v_affine.empty())
+            return -100;
+
+        if (past_seqlen > 0)
+        {
+            #pragma omp parallel for num_threads(num_threads)
+            for (int i = 0; i < embed_dim; i++)
+                memcpy(v_affine.row(i), cached_xv_blob.row(i), dst_seqlen * sizeof(float));
+        }
+
+        #pragma omp parallel for num_threads(num_threads)
+        for (int i = 0; i < cur_seqlen; i++)
+        {
+            const float* kptr = (const float*)mha->v_weight_data;
+
+            for (int j = 0; j < embed_dim; j++)
+            {
+                const float* ptr = v_blob.row(i);
+
+                float sum = mha->v_bias_data[j];
+                for (int k = 0; k < mha->vdim; k++)
+                    sum += *ptr++ * *kptr++;
+
+                v_affine.row(j)[past_seqlen + i] = sum;
+            }
+        }
+    }
+
+    ncnn::Mat qk_cross;
+    qk_cross.create(dst_seqlen, src_seqlen, num_heads);
+    if (qk_cross.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(num_threads)
+    for (int q = 0; q < num_heads; q++)
+    {
+        const ncnn::Mat q_affine_head = q_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
+        const ncnn::Mat k_affine_head = k_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
+        ncnn::Mat qk_cross_head = qk_cross.channel(q);
+
+        for (int i = 0; i < src_seqlen; i++)
+        {
+            float* outptr = qk_cross_head.row(i);
+
+            for (int j = 0; j < dst_seqlen; j++)
+            {
+                float sum = 0.f;
+                for (int l = 0; l < embed_dim_per_head; l++)
+                    sum += q_affine_head.row(l)[i] * k_affine_head.row(l)[j];
+
+                outptr[j] = sum;
+            }
+        }
+    }
+
+    if (mha->attn_mask)
+    {
+        #pragma omp parallel for num_threads(num_threads)
+        for (int q = 0; q < num_heads; q++)
+        {
+            const ncnn::Mat& maskm = attn_mask_blob.dims == 3 ? attn_mask_blob.channel(q) : attn_mask_blob;
+            ncnn::Mat qk_cross_head = qk_cross.channel(q);
+
+            for (int i = 0; i < src_seqlen; i++)
+            {
+                const float* mptr = maskm.row(i);
+                float* outptr = qk_cross_head.row(i);
+
+                for (int j = 0; j < dst_seqlen; j++)
+                    outptr[j] += mptr[j];
+            }
+        }
+    }
+
+    #pragma omp parallel for num_threads(num_threads)
+    for (int q = 0; q < num_heads; q++)
+    {
+        ncnn::Mat qk_cross_head = qk_cross.channel(q);
+
+        for (int i = 0; i < src_seqlen; i++)
+        {
+            float* ptr = qk_cross_head.row(i);
+
+            float max = -FLT_MAX;
+            for (int j = 0; j < dst_seqlen; j++)
+                max = std::max(max, ptr[j]);
+
+            float sum = 0.f;
+            for (int j = 0; j < dst_seqlen; j++)
+            {
+                ptr[j] = (float)expf(ptr[j] - max);
+                sum += ptr[j];
+            }
+
+            for (int j = 0; j < dst_seqlen; j++)
+                ptr[j] /= sum;
+        }
+    }
+
+    ncnn::Mat qkv_cross;
+    qkv_cross.create(src_seqlen, embed_dim);
+    if (qkv_cross.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(num_threads)
+    for (int q = 0; q < num_heads; q++)
+    {
+        const ncnn::Mat qk_cross_head = qk_cross.channel(q);
+        const ncnn::Mat v_affine_head = v_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
+        ncnn::Mat qkv_cross_head = qkv_cross.row_range(q * embed_dim_per_head, embed_dim_per_head);
+
+        for (int i = 0; i < src_seqlen; i++)
+        {
+            for (int j = 0; j < embed_dim_per_head; j++)
+            {
+                const float* qkptr = qk_cross_head.row(i);
+                const float* vptr = v_affine_head.row(j);
+
+                float sum = 0.f;
+                for (int k = 0; k < dst_seqlen; k++)
+                    sum += *qkptr++ * *vptr++;
+
+                qkv_cross_head.row(j)[i] = sum;
+            }
+        }
+    }
+
+    if (embed_dim != stat.width)
+    {
+        fprintf(stderr, "%s out activation width mismatch expected=%d got=%d\n", key, stat.width, embed_dim);
+        return -1;
+    }
+
+    std::vector<float> row(embed_dim);
+    for (int i = 0; i < src_seqlen; i++)
+    {
+        for (int k = 0; k < embed_dim; k++)
+            row[k] = qkv_cross.row(k)[i];
+
+        collect_act_row(stat, row.data());
+    }
+
+    return 0;
+}
+
+static int make_input_scaled_weight(const ncnn::Mat& weight_data, const ncnn::Mat& input_scales, ncnn::Mat& weight_data_scaled)
+{
+    const int K = weight_data.w;
+    const int N = weight_data.h;
+
+    if (input_scales.w != K)
+    {
+        fprintf(stderr, "input scale count mismatch expected=%d got=%d\n", K, input_scales.w);
+        return -1;
+    }
+
+    weight_data_scaled.create(K, N);
+    if (weight_data_scaled.empty())
+        return -100;
+
+    const float* input_scale_ptr = input_scales;
+    for (int n = 0; n < N; n++)
+    {
+        const float* ptr = weight_data.row(n);
+        float* outptr = weight_data_scaled.row(n);
+
+        for (int k = 0; k < K; k++)
+        {
+            const float s = input_scale_ptr[k];
+            if (!(s > 0.f) || !std::isfinite(s))
+            {
+                fprintf(stderr, "invalid input scale k=%d scale=%f\n", k, s);
+                return -1;
+            }
+
+            outptr[k] = ptr[k] / s;
+        }
+    }
+
+    return 0;
+}
+
+static int make_dequant_weight(const ncnn::Mat& weight_data, const ncnn::Mat& weight_data_quantize_scales, int block_size, int weight_bits, ncnn::Mat& weight_data_dequantized)
+{
+    const int K = weight_data.w;
+    const int N = weight_data.h;
+    const int block_count = (K + block_size - 1) / block_size;
+
+    if (weight_data_quantize_scales.w != block_count || weight_data_quantize_scales.h != N)
+    {
+        fprintf(stderr, "weight scale shape mismatch expected=%d,%d got=%d,%d\n", block_count, N, weight_data_quantize_scales.w, weight_data_quantize_scales.h);
+        return -1;
+    }
+
+    weight_data_dequantized.create(K, N);
+    if (weight_data_dequantized.empty())
+        return -100;
+
+    for (int n = 0; n < N; n++)
+    {
+        const float* ptr = weight_data.row(n);
+        const float* scale_ptr = weight_data_quantize_scales.row(n);
+        float* outptr = weight_data_dequantized.row(n);
+
+        for (int b = 0; b < block_count; b++)
+        {
+            const int k0 = b * block_size;
+            const int max_kk = std::min(block_size, K - k0);
+            const float scale = scale_ptr[b];
+
+            for (int k = 0; k < max_kk; k++)
+            {
+                const int q = float2int_weight(ptr[k0 + k] * scale, weight_bits);
+                outptr[k0 + k] = q / scale;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static double calc_awq_reconstruction_error(const ncnn::Mat& weight_data, const ncnn::Mat& input_scales, const ncnn::Mat& weight_data_dequantized, const QuantActStat& stat)
+{
+    const int K = weight_data.w;
+    const int N = weight_data.h;
+    const int sample_count = (int)(stat.samples.size() / K);
+
+    const float* input_scale_ptr = input_scales;
+    double error = 0.0;
+
+    for (int i = 0; i < sample_count; i++)
+    {
+        const float* sample_ptr = &stat.samples[(size_t)i * K];
+
+        for (int n = 0; n < N; n++)
+        {
+            const float* wptr = weight_data.row(n);
+            const float* deqptr = weight_data_dequantized.row(n);
+
+            double ref = 0.0;
+            double out = 0.0;
+            for (int k = 0; k < K; k++)
+            {
+                const float x = sample_ptr[k];
+                ref += (double)x * wptr[k];
+                out += (double)(x * input_scale_ptr[k]) * deqptr[k];
+            }
+
+            const double diff = ref - out;
+            error += diff * diff;
+        }
+    }
+
+    return error;
+}
+
+static int make_awq_input_scales(const ncnn::Mat& weight_data, const QuantActStat& stat, int block_size, int weight_bits, int inner_method, int awq_steps, float awq_max_scale, ncnn::Mat& input_scales, ncnn::Mat& weight_data_quantize_scales, int num_threads)
+{
+    const int K = weight_data.w;
+    const int N = weight_data.h;
+
+    if (stat.width != K || stat.count == 0 || stat.samples.empty())
+    {
+        fprintf(stderr, "awq activation stat is empty or shape mismatch K=%d stat_width=%d count=%d samples=%d\n", K, stat.width, stat.count, (int)(stat.samples.size() / std::max(K, 1)));
+        return -1;
+    }
+
+    ncnn::Mat act_mean(K);
+    ncnn::Mat weight_mean(K);
+    if (act_mean.empty() || weight_mean.empty())
+        return -100;
+
+    const float* sum_abs_ptr = stat.sum_abs;
+    float* act_mean_ptr = act_mean;
+    for (int k = 0; k < K; k++)
+        act_mean_ptr[k] = sum_abs_ptr[k] / stat.count;
+
+    weight_mean.fill(0.f);
+    float* weight_mean_ptr = weight_mean;
+    for (int n = 0; n < N; n++)
+    {
+        const float* ptr = weight_data.row(n);
+        for (int k = 0; k < K; k++)
+            weight_mean_ptr[k] += (float)fabs(ptr[k]);
+    }
+    for (int k = 0; k < K; k++)
+        weight_mean_ptr[k] /= N;
+
+    ncnn::Mat best_input_scales;
+    ncnn::Mat best_quantize_scales;
+    double best_error = DBL_MAX;
+
+    const int search_steps = std::max(awq_steps, 0);
+    for (int s = 0; s <= search_steps; s++)
+    {
+        ncnn::Mat input_scales1(K);
+        if (input_scales1.empty())
+            return -100;
+
+        float* input_scale_ptr = input_scales1;
+        if (s == 0 || search_steps == 0)
+        {
+            for (int k = 0; k < K; k++)
+                input_scale_ptr[k] = 1.f;
+        }
+        else
+        {
+            const float alpha = (float)s / search_steps;
+            double logsum = 0.0;
+            for (int k = 0; k < K; k++)
+            {
+                const float raw = powf((weight_mean_ptr[k] + 1e-6f) / (act_mean_ptr[k] + 1e-6f), alpha);
+                input_scale_ptr[k] = raw;
+                logsum += log((double)raw);
+            }
+
+            const float geomean = (float)exp(logsum / K);
+            for (int k = 0; k < K; k++)
+            {
+                float v = input_scale_ptr[k] / geomean;
+                if (v < 1.f / awq_max_scale)
+                    v = 1.f / awq_max_scale;
+                if (v > awq_max_scale)
+                    v = awq_max_scale;
+
+                input_scale_ptr[k] = v;
+            }
+        }
+
+        ncnn::Mat weight_data_scaled;
+        int ret = make_input_scaled_weight(weight_data, input_scales1, weight_data_scaled);
+        if (ret != 0)
+            return ret;
+
+        ncnn::Mat quantize_scales1;
+        ret = make_gemm_B_scales(weight_data_scaled, block_size, weight_bits, inner_method, quantize_scales1, num_threads);
+        if (ret != 0)
+            return ret;
+
+        ncnn::Mat weight_data_dequantized;
+        ret = make_dequant_weight(weight_data_scaled, quantize_scales1, block_size, weight_bits, weight_data_dequantized);
+        if (ret != 0)
+            return ret;
+
+        const double error = calc_awq_reconstruction_error(weight_data, input_scales1, weight_data_dequantized, stat);
+        if (error < best_error)
+        {
+            best_error = error;
+            best_input_scales = input_scales1;
+            best_quantize_scales = quantize_scales1;
+        }
+    }
+
+    input_scales = best_input_scales.clone();
+    weight_data_quantize_scales = best_quantize_scales.clone();
+    if (input_scales.empty() || weight_data_quantize_scales.empty())
+        return -100;
+
+    return 0;
+}
+
+static int invert_gptq_hessian(std::vector<double>& m, int n)
+{
+    std::vector<double> inv((size_t)n * n, 0.0);
+    for (int i = 0; i < n; i++)
+        inv[(size_t)i * n + i] = 1.0;
+
+    for (int i = 0; i < n; i++)
+    {
+        int pivot = i;
+        double pivot_abs = fabs(m[(size_t)i * n + i]);
+        for (int j = i + 1; j < n; j++)
+        {
+            const double v = fabs(m[(size_t)j * n + i]);
+            if (v > pivot_abs)
+            {
+                pivot_abs = v;
+                pivot = j;
+            }
+        }
+
+        if (pivot_abs < 1e-12)
+            return -1;
+
+        if (pivot != i)
+        {
+            for (int j = 0; j < n; j++)
+            {
+                std::swap(m[(size_t)i * n + j], m[(size_t)pivot * n + j]);
+                std::swap(inv[(size_t)i * n + j], inv[(size_t)pivot * n + j]);
+            }
+        }
+
+        const double diag = m[(size_t)i * n + i];
+        for (int j = 0; j < n; j++)
+        {
+            m[(size_t)i * n + j] /= diag;
+            inv[(size_t)i * n + j] /= diag;
+        }
+
+        for (int r = 0; r < n; r++)
+        {
+            if (r == i)
+                continue;
+
+            const double f = m[(size_t)r * n + i];
+            if (f == 0.0)
+                continue;
+
+            for (int c = 0; c < n; c++)
+            {
+                m[(size_t)r * n + c] -= f * m[(size_t)i * n + c];
+                inv[(size_t)r * n + c] -= f * inv[(size_t)i * n + c];
+            }
+        }
+    }
+
+    m.swap(inv);
+
+    return 0;
+}
+
+static int make_gptq_qweight(const ncnn::Mat& weight_data, const QuantActStat& stat, int block_size, int weight_bits, float damp, ncnn::Mat& weight_data_quantize_scales, ncnn::Mat& weight_data_quantized)
+{
+    const int K = weight_data.w;
+    const int N = weight_data.h;
+    const int block_count = (K + block_size - 1) / block_size;
+    const int packed_k_bytes = llm_weight_quantize_packed_k_bytes(K, weight_bits);
+    const int sample_count = (int)(stat.samples.size() / K);
+
+    if (stat.width != K || sample_count == 0)
+    {
+        fprintf(stderr, "gptq activation stat is empty or shape mismatch K=%d stat_width=%d samples=%d\n", K, stat.width, sample_count);
+        return -1;
+    }
+
+    weight_data_quantize_scales.create(block_count, N);
+    weight_data_quantized.create(packed_k_bytes, N, (size_t)1u);
+    if (weight_data_quantize_scales.empty() || weight_data_quantized.empty())
+        return -100;
+
+    memset(weight_data_quantized.data, 0, weight_data_quantized.total() * weight_data_quantized.elemsize);
+
+    for (int b = 0; b < block_count; b++)
+    {
+        const int k0 = b * block_size;
+        const int B = std::min(block_size, K - k0);
+
+        std::vector<double> H((size_t)B * B, 0.0);
+        for (int s = 0; s < sample_count; s++)
+        {
+            const float* x = &stat.samples[(size_t)s * K + k0];
+            for (int i = 0; i < B; i++)
+            {
+                for (int j = 0; j < B; j++)
+                    H[(size_t)i * B + j] += (double)x[i] * x[j];
+            }
+        }
+
+        double diag_mean = 0.0;
+        for (int i = 0; i < B; i++)
+            diag_mean += H[(size_t)i * B + i];
+        diag_mean /= B;
+        if (!(diag_mean > 0.0) || !std::isfinite(diag_mean))
+            diag_mean = 1.0;
+
+        for (int i = 0; i < B; i++)
+            H[(size_t)i * B + i] += damp * diag_mean;
+
+        if (invert_gptq_hessian(H, B) != 0)
+        {
+            fprintf(stderr, "gptq hessian inverse failed block=%d, use identity hessian inverse\n", b);
+            for (int i = 0; i < B * B; i++)
+                H[i] = 0.0;
+            for (int i = 0; i < B; i++)
+                H[(size_t)i * B + i] = 1.0;
+        }
+
+        std::vector<double> work((size_t)N * B);
+        for (int n = 0; n < N; n++)
+        {
+            const float* ptr = weight_data.row(n) + k0;
+            for (int k = 0; k < B; k++)
+                work[(size_t)n * B + k] = ptr[k];
+        }
+
+        for (int n = 0; n < N; n++)
+        {
+            const float* ptr = weight_data.row(n) + k0;
+            float* scale_ptr = weight_data_quantize_scales.row(n);
+            scale_ptr[b] = choose_weight_scale(ptr, B, weight_bits, LLM_QUANT_METHOD_MINMAX);
+        }
+
+        for (int k = 0; k < B; k++)
+        {
+            double hdiag = H[(size_t)k * B + k];
+            if (fabs(hdiag) < 1e-12)
+                hdiag = hdiag < 0.0 ? -1e-12 : 1e-12;
+
+            for (int n = 0; n < N; n++)
+            {
+                const float scale = weight_data_quantize_scales.row(n)[b];
+                const double w = work[(size_t)n * B + k];
+                const int q = float2int_weight((float)(w * scale), weight_bits);
+                const double deq = (double)q / scale;
+                const double err = (w - deq) / hdiag;
+
+                unsigned char* qptr = weight_data_quantized.row<unsigned char>(n);
+                pack_signed_weight(qptr, k0 + k, weight_bits, q);
+
+                for (int j = k + 1; j < B; j++)
+                    work[(size_t)n * B + j] -= err * H[(size_t)k * B + j];
+            }
+        }
+    }
+
+    return 0;
+}
+
+int QuantNet::init()
+{
+    const int max_sample_count = std::max(awq_samples, gptq_samples);
+
+    for (size_t i = 0; i < layers.size(); i++)
+    {
+        const ncnn::Layer* layer = layers[i];
+        if (layer->type == "Input")
+            input_blobs.push_back(layer->tops[0]);
+    }
+
+    for (size_t i = 0; i < layers.size(); i++)
+    {
+        if (layers[i]->type == "Gemm")
+        {
+            const ncnn::Gemm* gemm = (const ncnn::Gemm*)layers[i];
+
+            const char* reason = 0;
+            if (!is_supported_llm_gemm(gemm, &reason))
+                continue;
+
+            QuantActStat stat;
+            int ret = init_act_stat(stat, gemm->constantK, max_sample_count);
+            if (ret != 0)
+                return ret;
+
+            gemm_act_stats.push_back(stat);
+        }
+        else if (layers[i]->type == "MultiHeadAttention")
+        {
+            const ncnn::MultiHeadAttention* mha = (const ncnn::MultiHeadAttention*)layers[i];
+
+            const char* reason = 0;
+            if (!is_supported_llm_multiheadattention(mha, &reason))
+                continue;
+
+            const size_t mha_act_offset = mha_act_stats.size();
+            mha_act_stats.resize(mha_act_offset + 4);
+
+            const int qdim = mha->weight_data_size / mha->embed_dim;
+            const int Ks[4] = {qdim, mha->kdim, mha->vdim, mha->embed_dim};
+
+            for (int j = 0; j < 4; j++)
+            {
+                int ret = init_act_stat(mha_act_stats[mha_act_offset + j], Ks[j], max_sample_count);
+                if (ret != 0)
+                    return ret;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int check_calibration_input(const QuantNet& table)
+{
+    const int input_blob_count = (int)table.input_blobs.size();
+    if (input_blob_count == 0)
+    {
+        fprintf(stderr, "no input blob found\n");
+        return -1;
+    }
+
+    if ((int)table.listspaths.size() != input_blob_count)
+    {
+        fprintf(stderr, "calibration list count mismatch expected=%d got=%d\n", input_blob_count, (int)table.listspaths.size());
+        return -1;
+    }
+
+    if ((int)table.shapes.size() != input_blob_count)
+    {
+        fprintf(stderr, "shape count mismatch expected=%d got=%d\n", input_blob_count, (int)table.shapes.size());
+        return -1;
+    }
+
+    if (table.file_type != 1)
+    {
+        fprintf(stderr, "ncnnllm2table calibration supports type=1 only\n");
+        return -1;
+    }
+
+    if (table.listspaths[0].empty())
+    {
+        fprintf(stderr, "calibration list is empty\n");
+        return -1;
+    }
+
+    const int file_count = (int)table.listspaths[0].size();
+    for (int i = 1; i < input_blob_count; i++)
+    {
+        if ((int)table.listspaths[i].size() != file_count)
+        {
+            fprintf(stderr, "calibration list size mismatch input=%d expected=%d got=%d\n", i, file_count, (int)table.listspaths[i].size());
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+int QuantNet::collect_activation_stats()
+{
+    int ret = check_calibration_input(*this);
+    if (ret != 0)
+        return ret;
+
+    const int input_blob_count = (int)input_blobs.size();
+    const int file_count = (int)listspaths[0].size();
+
+    for (int i = 0; i < file_count; i++)
+    {
+        if (i % 100 == 0)
+            fprintf(stderr, "collect_activation_stats %.2f%% [ %d / %d ]\n", i * 100.f / file_count, i, file_count);
+
+        ncnn::Extractor ex = create_extractor();
+        ex.set_light_mode(false);
+
+        for (int j = 0; j < input_blob_count; j++)
+        {
+            ncnn::Mat in = read_npy(shapes[j], listspaths[j][i]);
+            if (in.empty())
+                return -1;
+
+            ret = ex.input(input_blobs[j], in);
+            if (ret != 0)
+            {
+                fprintf(stderr, "input blob %d failed ret=%d\n", input_blobs[j], ret);
+                return ret;
+            }
+        }
+
+        size_t gemm_act_index = 0;
+        size_t mha_act_index = 0;
+
+        for (size_t j = 0; j < layers.size(); j++)
+        {
+            if (layers[j]->type == "Gemm")
+            {
+                const ncnn::Gemm* gemm = (const ncnn::Gemm*)layers[j];
+
+                const char* reason = 0;
+                if (!is_supported_llm_gemm(gemm, &reason))
+                    continue;
+
+                char key[256];
+                snprintf(key, 256, "%s_param_1", gemm_name(gemm));
+
+                if (gemm_act_index >= gemm_act_stats.size())
+                {
+                    fprintf(stderr, "%s activation stat is missing\n", key);
+                    return -1;
+                }
+
+                ncnn::Mat bottom_blob;
+                ret = ex.extract(gemm->bottoms[0], bottom_blob);
+                if (ret != 0)
+                {
+                    fprintf(stderr, "extract %s bottom failed ret=%d\n", gemm_name(gemm), ret);
+                    return ret;
+                }
+
+                ret = collect_act_rows(gemm_act_stats[gemm_act_index], bottom_blob, gemm->constantK, key);
+                if (ret != 0)
+                    return ret;
+
+                gemm_act_index++;
+            }
+            else if (layers[j]->type == "MultiHeadAttention")
+            {
+                const ncnn::MultiHeadAttention* mha = (const ncnn::MultiHeadAttention*)layers[j];
+
+                const char* reason = 0;
+                if (!is_supported_llm_multiheadattention(mha, &reason))
+                    continue;
+
+                int q_blob_i = 0;
+                int k_blob_i = 0;
+                int v_blob_i = 0;
+                int attn_mask_i = 0;
+                int cached_xk_i = 0;
+                int cached_xv_i = 0;
+                ret = resolve_mha_bottom_blob_index(mha, (int)mha->bottoms.size(), q_blob_i, k_blob_i, v_blob_i, attn_mask_i, cached_xk_i, cached_xv_i);
+                if (ret != 0)
+                    return ret;
+
+                ncnn::Mat q_blob;
+                ncnn::Mat k_blob;
+                ncnn::Mat v_blob;
+                ncnn::Mat attn_mask_blob;
+                ncnn::Mat cached_xk_blob;
+                ncnn::Mat cached_xv_blob;
+
+                ret = ex.extract(mha->bottoms[q_blob_i], q_blob);
+                if (ret != 0)
+                {
+                    fprintf(stderr, "extract %s q bottom failed ret=%d\n", multiheadattention_name(mha), ret);
+                    return ret;
+                }
+                ret = ex.extract(mha->bottoms[k_blob_i], k_blob);
+                if (ret != 0)
+                {
+                    fprintf(stderr, "extract %s k bottom failed ret=%d\n", multiheadattention_name(mha), ret);
+                    return ret;
+                }
+                ret = ex.extract(mha->bottoms[v_blob_i], v_blob);
+                if (ret != 0)
+                {
+                    fprintf(stderr, "extract %s v bottom failed ret=%d\n", multiheadattention_name(mha), ret);
+                    return ret;
+                }
+                if (mha->attn_mask)
+                {
+                    ret = ex.extract(mha->bottoms[attn_mask_i], attn_mask_blob);
+                    if (ret != 0)
+                    {
+                        fprintf(stderr, "extract %s attn_mask bottom failed ret=%d\n", multiheadattention_name(mha), ret);
+                        return ret;
+                    }
+                }
+                if (mha->kv_cache)
+                {
+                    ret = ex.extract(mha->bottoms[cached_xk_i], cached_xk_blob);
+                    if (ret != 0)
+                    {
+                        fprintf(stderr, "extract %s cached_xk bottom failed ret=%d\n", multiheadattention_name(mha), ret);
+                        return ret;
+                    }
+                    ret = ex.extract(mha->bottoms[cached_xv_i], cached_xv_blob);
+                    if (ret != 0)
+                    {
+                        fprintf(stderr, "extract %s cached_xv bottom failed ret=%d\n", multiheadattention_name(mha), ret);
+                        return ret;
+                    }
+                }
+
+                const int qdim = mha->weight_data_size / mha->embed_dim;
+
+                char q_key[256];
+                char k_key[256];
+                char v_key[256];
+                char out_key[256];
+                snprintf(q_key, 256, "%s_param_0", multiheadattention_name(mha));
+                snprintf(k_key, 256, "%s_param_1", multiheadattention_name(mha));
+                snprintf(v_key, 256, "%s_param_2", multiheadattention_name(mha));
+                snprintf(out_key, 256, "%s_param_3", multiheadattention_name(mha));
+
+                const size_t mha_act_offset = mha_act_index * 4;
+                if (mha_act_offset + 3 >= mha_act_stats.size())
+                {
+                    fprintf(stderr, "%s activation stat is missing\n", multiheadattention_name(mha));
+                    return -1;
+                }
+
+                ret = collect_act_rows(mha_act_stats[mha_act_offset], q_blob, qdim, q_key);
+                if (ret != 0)
+                    return ret;
+                ret = collect_act_rows(mha_act_stats[mha_act_offset + 1], k_blob, mha->kdim, k_key);
+                if (ret != 0)
+                    return ret;
+                ret = collect_act_rows(mha_act_stats[mha_act_offset + 2], v_blob, mha->vdim, v_key);
+                if (ret != 0)
+                    return ret;
+
+                ret = collect_mha_out_act_rows(mha, q_blob, k_blob, v_blob, attn_mask_blob, cached_xk_blob, cached_xv_blob, q_blob_i, k_blob_i, v_blob_i, mha_act_stats[mha_act_offset + 3], out_key, quantize_num_threads);
+                if (ret != 0)
+                    return ret;
+
+                mha_act_index++;
+            }
+        }
+    }
+
+    fprintf(stderr, "collect_activation_stats 100.00%% [ %d / %d ]\n", file_count, file_count);
+
+    return 0;
 }
 
 int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits, int method) const
@@ -70,6 +1401,8 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
     }
 
     int table_count = 0;
+    size_t gemm_act_index = 0;
+    size_t mha_act_index = 0;
 
     for (size_t i = 0; i < layers.size(); i++)
     {
@@ -84,18 +1417,62 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
                 continue;
             }
 
+            char key[256];
+            snprintf(key, 256, "%s_param_1", gemm_name(gemm));
+
+            const QuantActStat* act_stat = 0;
+            if (method == LLM_QUANT_METHOD_AWQ || method == LLM_QUANT_METHOD_GPTQ)
+            {
+                if (gemm_act_index >= gemm_act_stats.size())
+                {
+                    fprintf(stderr, "%s activation stat is missing\n", key);
+                    fclose(fp);
+                    return -1;
+                }
+
+                act_stat = &gemm_act_stats[gemm_act_index];
+            }
+
             ncnn::Mat B_data_quantize_scales;
-            const int ret = make_gemm_B_scales(gemm->B_data, block_size, weight_bits, method, B_data_quantize_scales, quantize_num_threads);
+            ncnn::Mat B_data_input_scales;
+            ncnn::Mat B_data_quantized;
+            int ret = 0;
+            if (method == LLM_QUANT_METHOD_AWQ)
+            {
+                ret = make_awq_input_scales(gemm->B_data, *act_stat, block_size, weight_bits, awq_inner_method, awq_steps, awq_max_scale, B_data_input_scales, B_data_quantize_scales, quantize_num_threads);
+            }
+            else if (method == LLM_QUANT_METHOD_GPTQ)
+            {
+                ret = make_gptq_qweight(gemm->B_data, *act_stat, block_size, weight_bits, gptq_damp, B_data_quantize_scales, B_data_quantized);
+            }
+            else
+            {
+                ret = make_gemm_B_scales(gemm->B_data, block_size, weight_bits, method, B_data_quantize_scales, quantize_num_threads);
+            }
             if (ret != 0)
             {
                 fclose(fp);
                 return ret;
             }
 
-            char key[256];
-            snprintf(key, 256, "%s_param_1", gemm_name(gemm));
+            if (method == LLM_QUANT_METHOD_GPTQ)
+            {
+                std::string qweight_path;
+                const std::string qweight_name = make_qweight_filename(tablepath, key, qweight_path);
+                ret = write_raw_mat_file(qweight_path.c_str(), B_data_quantized);
+                if (ret != 0)
+                {
+                    fclose(fp);
+                    return ret;
+                }
 
-            if (write_llm_table_row(fp, key, weight_bits, block_size, method, B_data_quantize_scales) != 0)
+                if (write_llm_qweight_table_row(fp, key, weight_bits, block_size, method, qweight_name.c_str(), B_data_quantize_scales) != 0)
+                {
+                    fclose(fp);
+                    return -1;
+                }
+            }
+            else if (write_llm_table_row(fp, key, weight_bits, block_size, method, B_data_quantize_scales) != 0)
             {
                 fclose(fp);
                 return -1;
@@ -103,6 +1480,23 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
 
             fprintf(stderr, "write_llm_table %s dtype=%s block=%d method=%s\n", key, llm_quant_bits_to_dtype(weight_bits), block_size, llm_quant_method_to_string(method));
             table_count++;
+
+            if (method == LLM_QUANT_METHOD_AWQ)
+            {
+                char input_scale_key[512];
+                snprintf(input_scale_key, 512, "%s_input_scale", key);
+
+                if (write_llm_input_scale_row(fp, input_scale_key, method, B_data_input_scales) != 0)
+                {
+                    fclose(fp);
+                    return -1;
+                }
+
+                fprintf(stderr, "write_llm_table %s method=%s\n", input_scale_key, llm_quant_method_to_string(method));
+                table_count++;
+            }
+
+            gemm_act_index++;
         }
         else if (layers[i]->type == "MultiHeadAttention")
         {
@@ -123,22 +1517,63 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
             const ncnn::Mat out_weight_data = mha->out_weight_data.reshape(mha->embed_dim, qdim);
 
             const ncnn::Mat weights[4] = {q_weight_data, k_weight_data, v_weight_data, out_weight_data};
-            const int param_ids[4] = {0, 1, 2, 3};
+
+            const size_t mha_act_offset = mha_act_index * 4;
+            if (method == LLM_QUANT_METHOD_AWQ || method == LLM_QUANT_METHOD_GPTQ)
+            {
+                if (mha_act_offset + 3 >= mha_act_stats.size())
+                {
+                    fprintf(stderr, "%s activation stat is missing\n", multiheadattention_name(mha));
+                    fclose(fp);
+                    return -1;
+                }
+            }
 
             for (int j = 0; j < 4; j++)
             {
+                char key[256];
+                snprintf(key, 256, "%s_param_%d", multiheadattention_name(mha), j);
+
                 ncnn::Mat weight_data_quantize_scales;
-                const int ret = make_gemm_B_scales(weights[j], block_size, weight_bits, method, weight_data_quantize_scales, quantize_num_threads);
+                ncnn::Mat weight_data_input_scales;
+                ncnn::Mat weight_data_quantized;
+                int ret = 0;
+                if (method == LLM_QUANT_METHOD_AWQ)
+                {
+                    ret = make_awq_input_scales(weights[j], mha_act_stats[mha_act_offset + j], block_size, weight_bits, awq_inner_method, awq_steps, awq_max_scale, weight_data_input_scales, weight_data_quantize_scales, quantize_num_threads);
+                }
+                else if (method == LLM_QUANT_METHOD_GPTQ)
+                {
+                    ret = make_gptq_qweight(weights[j], mha_act_stats[mha_act_offset + j], block_size, weight_bits, gptq_damp, weight_data_quantize_scales, weight_data_quantized);
+                }
+                else
+                {
+                    ret = make_gemm_B_scales(weights[j], block_size, weight_bits, method, weight_data_quantize_scales, quantize_num_threads);
+                }
                 if (ret != 0)
                 {
                     fclose(fp);
                     return ret;
                 }
 
-                char key[256];
-                snprintf(key, 256, "%s_param_%d", multiheadattention_name(mha), param_ids[j]);
+                if (method == LLM_QUANT_METHOD_GPTQ)
+                {
+                    std::string qweight_path;
+                    const std::string qweight_name = make_qweight_filename(tablepath, key, qweight_path);
+                    ret = write_raw_mat_file(qweight_path.c_str(), weight_data_quantized);
+                    if (ret != 0)
+                    {
+                        fclose(fp);
+                        return ret;
+                    }
 
-                if (write_llm_table_row(fp, key, weight_bits, block_size, method, weight_data_quantize_scales) != 0)
+                    if (write_llm_qweight_table_row(fp, key, weight_bits, block_size, method, qweight_name.c_str(), weight_data_quantize_scales) != 0)
+                    {
+                        fclose(fp);
+                        return -1;
+                    }
+                }
+                else if (write_llm_table_row(fp, key, weight_bits, block_size, method, weight_data_quantize_scales) != 0)
                 {
                     fclose(fp);
                     return -1;
@@ -146,7 +1581,24 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
 
                 fprintf(stderr, "write_llm_table %s dtype=%s block=%d method=%s\n", key, llm_quant_bits_to_dtype(weight_bits), block_size, llm_quant_method_to_string(method));
                 table_count++;
+
+                if (method == LLM_QUANT_METHOD_AWQ)
+                {
+                    char input_scale_key[512];
+                    snprintf(input_scale_key, 512, "%s_input_scale", key);
+
+                    if (write_llm_input_scale_row(fp, input_scale_key, method, weight_data_input_scales) != 0)
+                    {
+                        fclose(fp);
+                        return -1;
+                    }
+
+                    fprintf(stderr, "write_llm_table %s method=%s\n", input_scale_key, llm_quant_method_to_string(method));
+                    table_count++;
+                }
             }
+
+            mha_act_index++;
         }
     }
 
@@ -174,18 +1626,38 @@ int main(int argc, char** argv)
         }
     }
 
-    const char* inparam = argv[1];
-    const char* inbin = argv[2];
-    const char* outtable = argv[3];
+    char* inparam = argv[1];
+    char* inbin = argv[2];
+    char* caliblist = 0;
+    char* outtable = 0;
+    int kv_start = 4;
+
+    if (argc >= 5 && strchr(argv[3], '=') == NULL && strchr(argv[4], '=') == NULL)
+    {
+        caliblist = argv[3];
+        outtable = argv[4];
+        kv_start = 5;
+    }
+    else
+    {
+        outtable = argv[3];
+        kv_start = 4;
+    }
 
     int weight_bits = 6;
     int block_size = 64;
     const char* method = "minmax";
+    const char* awq_inner = "minmax";
+    const char* gptq_group = "block";
     int thread = 1;
 
-    for (int i = 4; i < argc; i++)
+    QuantNet table;
+    table.use_calibration_dataset = caliblist != 0;
+    if (caliblist)
+        table.listspaths = parse_comma_path_list(caliblist);
+
+    for (int i = kv_start; i < argc; i++)
     {
-        // key=value
         char* kv = argv[i];
         char* eqs = strchr(kv, '=');
         if (eqs == NULL)
@@ -196,7 +1668,7 @@ int main(int argc, char** argv)
 
         eqs[0] = '\0';
         const char* key = kv;
-        const char* value = eqs + 1;
+        char* value = eqs + 1;
 
         if (strcmp(key, "method") == 0)
             method = value;
@@ -206,6 +1678,24 @@ int main(int argc, char** argv)
             block_size = atoi(value);
         else if (strcmp(key, "thread") == 0)
             thread = atoi(value);
+        else if (strcmp(key, "type") == 0)
+            table.file_type = atoi(value);
+        else if (strcmp(key, "shape") == 0)
+            table.shapes = parse_comma_int_array_list(value);
+        else if (strcmp(key, "awq_steps") == 0)
+            table.awq_steps = atoi(value);
+        else if (strcmp(key, "awq_samples") == 0)
+            table.awq_samples = atoi(value);
+        else if (strcmp(key, "awq_max_scale") == 0)
+            table.awq_max_scale = (float)atof(value);
+        else if (strcmp(key, "awq_inner") == 0)
+            awq_inner = value;
+        else if (strcmp(key, "gptq_samples") == 0)
+            table.gptq_samples = atoi(value);
+        else if (strcmp(key, "gptq_damp") == 0)
+            table.gptq_damp = (float)atof(value);
+        else if (strcmp(key, "gptq_group") == 0)
+            gptq_group = value;
         else
         {
             fprintf(stderr, "unrecognized arg %s\n", key);
@@ -217,6 +1707,31 @@ int main(int argc, char** argv)
     if (quantize_method < 0)
     {
         fprintf(stderr, "unsupported method=%s\n", method);
+        return -1;
+    }
+
+    if (quantize_method == LLM_QUANT_METHOD_AWQ && !table.use_calibration_dataset)
+    {
+        fprintf(stderr, "method=awq requires calibration list\n");
+        return -1;
+    }
+
+    if (quantize_method == LLM_QUANT_METHOD_GPTQ && !table.use_calibration_dataset)
+    {
+        fprintf(stderr, "method=gptq requires calibration list\n");
+        return -1;
+    }
+
+    if (quantize_method != LLM_QUANT_METHOD_AWQ && quantize_method != LLM_QUANT_METHOD_GPTQ && table.use_calibration_dataset)
+    {
+        fprintf(stderr, "calibration list is only used by method=awq/gptq\n");
+        return -1;
+    }
+
+    table.awq_inner_method = llm_quant_method_from_string(awq_inner);
+    if (table.awq_inner_method != LLM_QUANT_METHOD_MINMAX && table.awq_inner_method != LLM_QUANT_METHOD_MSECLIP)
+    {
+        fprintf(stderr, "unsupported awq_inner=%s\n", awq_inner);
         return -1;
     }
 
@@ -232,7 +1747,42 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    QuantNet table;
+    if (table.awq_steps < 0)
+    {
+        fprintf(stderr, "malformed awq_steps %d\n", table.awq_steps);
+        return -1;
+    }
+
+    if (table.awq_samples < 1)
+    {
+        fprintf(stderr, "malformed awq_samples %d\n", table.awq_samples);
+        return -1;
+    }
+
+    if (table.gptq_samples < 1)
+    {
+        fprintf(stderr, "malformed gptq_samples %d\n", table.gptq_samples);
+        return -1;
+    }
+
+    if (!(table.awq_max_scale > 1.f) || !std::isfinite(table.awq_max_scale))
+    {
+        fprintf(stderr, "malformed awq_max_scale %f\n", table.awq_max_scale);
+        return -1;
+    }
+
+    if (!(table.gptq_damp >= 0.f) || !std::isfinite(table.gptq_damp))
+    {
+        fprintf(stderr, "malformed gptq_damp %f\n", table.gptq_damp);
+        return -1;
+    }
+
+    if (strcmp(gptq_group, "block") != 0)
+    {
+        fprintf(stderr, "unsupported gptq_group=%s\n", gptq_group);
+        return -1;
+    }
+
     table.storage_type = 1;
     table.quantize_num_threads = thread;
     table.opt.num_threads = thread;
@@ -249,6 +1799,15 @@ int main(int argc, char** argv)
     else
     {
         if (table.load_model(inbin) != 0)
+            return -1;
+    }
+
+    if (table.init() != 0)
+        return -1;
+
+    if (quantize_method == LLM_QUANT_METHOD_AWQ || quantize_method == LLM_QUANT_METHOD_GPTQ)
+    {
+        if (table.collect_activation_stats() != 0)
             return -1;
     }
 
