@@ -341,7 +341,7 @@ static int llm_table_row_to_scales(const char* key, const LLMWeightScale& scale,
     return 0;
 }
 
-static int llm_table_row_to_input_scales(const char* key, const LLMWeightScale& scale, int K, ncnn::Mat& weight_data_input_scales)
+static int llm_table_row_to_input_scales(const char* key, const LLMWeightScale& scale, int K, ncnn::Mat& input_scales)
 {
     if (scale.format.empty() || scale.scale_dtype.empty() || scale.scale_encoding.empty())
     {
@@ -383,8 +383,8 @@ static int llm_table_row_to_input_scales(const char* key, const LLMWeightScale& 
         }
     }
 
-    weight_data_input_scales = scale.scales.clone();
-    if (weight_data_input_scales.empty())
+    input_scales = scale.scales.clone();
+    if (input_scales.empty())
         return -100;
 
     return 0;
@@ -699,18 +699,19 @@ int NetQuantize::quantize_multiheadattention_from_table(std::map<std::string, LL
             }
         }
 
-        ncnn::Mat weight_data_input_scales[4];
-        if (input_scale_present_count == 4)
+        ncnn::Mat input_scales[4];
+        const bool has_input_scale = input_scale_present_count == 4;
+        if (has_input_scale)
         {
             for (int j = 0; j < 4; j++)
             {
-                int ret = llm_table_row_to_input_scales(input_scale_keys[j], input_scale_iters[j]->second, Ks[j], weight_data_input_scales[j]);
+                int ret = llm_table_row_to_input_scales(input_scale_keys[j], input_scale_iters[j]->second, Ks[j], input_scales[j]);
                 if (ret != 0)
                     return ret;
             }
         }
 
-        const int quantize_term = llm_weight_block_quantize_term(weight_bits[0], block_size[0], input_scale_present_count == 4);
+        const int quantize_term = llm_weight_block_quantize_term(weight_bits[0], block_size[0], has_input_scale);
         fprintf(stderr, "quantize_multiheadattention table dtype=%s block_size=%d term=%d %s\n", iters[0]->second.dtype.c_str(), block_size[0], quantize_term, multiheadattention_name(mha));
 
         const ncnn::Mat q_weight_data = mha->q_weight_data.reshape(qdim, mha->embed_dim);
@@ -744,10 +745,10 @@ int NetQuantize::quantize_multiheadattention_from_table(std::map<std::string, LL
         mha->k_weight_data_quantize_scales = weight_data_quantize_scales[1];
         mha->v_weight_data_quantize_scales = weight_data_quantize_scales[2];
         mha->out_weight_data_quantize_scales = weight_data_quantize_scales[3];
-        mha->q_weight_data_input_scales = weight_data_input_scales[0];
-        mha->k_weight_data_input_scales = weight_data_input_scales[1];
-        mha->v_weight_data_input_scales = weight_data_input_scales[2];
-        mha->out_weight_data_input_scales = weight_data_input_scales[3];
+        mha->q_weight_data_input_scales = input_scales[0];
+        mha->k_weight_data_input_scales = input_scales[1];
+        mha->v_weight_data_input_scales = input_scales[2];
+        mha->out_weight_data_input_scales = input_scales[3];
         mha->quantize_term = quantize_term;
 
         quantized_count++;

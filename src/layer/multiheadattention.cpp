@@ -3,14 +3,12 @@
 
 #include "multiheadattention.h"
 
-#include "gemm.h"
-
 #include <float.h>
 #include <math.h>
 
 namespace ncnn {
 
-static bool gemm_is_weight_block_quantize(int quantize_term)
+static bool mha_is_weight_block_quantize(int quantize_term)
 {
     const int weight_bits = quantize_term / 100;
     const int format_code = quantize_term % 100 / 10;
@@ -28,29 +26,29 @@ static bool gemm_is_weight_block_quantize(int quantize_term)
     return true;
 }
 
-static bool gemm_weight_quantize_has_input_scale(int quantize_term)
+static bool mha_weight_quantize_has_input_scale(int quantize_term)
 {
-    if (!gemm_is_weight_block_quantize(quantize_term))
+    if (!mha_is_weight_block_quantize(quantize_term))
         return false;
 
     return quantize_term % 100 / 10 == 1;
 }
 
-static int gemm_weight_quantize_bits(int quantize_term)
+static int mha_weight_quantize_bits(int quantize_term)
 {
-    return gemm_is_weight_block_quantize(quantize_term) ? quantize_term / 100 : 0;
+    return mha_is_weight_block_quantize(quantize_term) ? quantize_term / 100 : 0;
 }
 
-static int gemm_weight_quantize_block_size(int quantize_term)
+static int mha_weight_quantize_block_size(int quantize_term)
 {
-    if (!gemm_is_weight_block_quantize(quantize_term))
+    if (!mha_is_weight_block_quantize(quantize_term))
         return 0;
 
     const int block_size_code = quantize_term % 10;
     return block_size_code == 0 ? 32 : block_size_code == 1 ? 64 : 128;
 }
 
-static int gemm_weight_quantize_packed_k_bytes(int constantK, int weight_bits)
+static int mha_weight_quantize_packed_k_bytes(int constantK, int weight_bits)
 {
     return (constantK * weight_bits + 7) / 8;
 }
@@ -80,7 +78,7 @@ static inline int mha_weight_block_quantize_unpack(const unsigned char* ptr, int
 
 static int mha_check_weight_block_quantize_model(const Mat& weight_data, const Mat& weight_data_quantize_scales, int K, int N, int weight_bits, int block_size, const char* name)
 {
-    const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(K, weight_bits);
+    const int packed_k_bytes = mha_weight_quantize_packed_k_bytes(K, weight_bits);
     const int block_count = (K + block_size - 1) / block_size;
 
     if (weight_data.elemsize != 1u || weight_data.w != packed_k_bytes || weight_data.h != N)
@@ -181,7 +179,7 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
     scale = pd.get(6, 1.f / sqrtf(embed_dim / num_heads));
     kv_cache = pd.get(7, 0);
     quantize_term = pd.get(18, 0);
-    weight_block_quantize = gemm_is_weight_block_quantize(quantize_term);
+    weight_block_quantize = mha_is_weight_block_quantize(quantize_term);
 
     if (quantize_term == 4 || quantize_term == 5 || quantize_term == 6)
     {
@@ -232,13 +230,13 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
 #if NCNN_WEIGHT_QUANT
     if (weight_block_quantize)
     {
-        const int weight_bits = gemm_weight_quantize_bits(quantize_term);
-        const int block_size = gemm_weight_quantize_block_size(quantize_term);
+        const int weight_bits = mha_weight_quantize_bits(quantize_term);
+        const int block_size = mha_weight_quantize_block_size(quantize_term);
 
-        const int q_packed_k_bytes = gemm_weight_quantize_packed_k_bytes(qdim, weight_bits);
-        const int k_packed_k_bytes = gemm_weight_quantize_packed_k_bytes(kdim, weight_bits);
-        const int v_packed_k_bytes = gemm_weight_quantize_packed_k_bytes(vdim, weight_bits);
-        const int out_packed_k_bytes = gemm_weight_quantize_packed_k_bytes(embed_dim, weight_bits);
+        const int q_packed_k_bytes = mha_weight_quantize_packed_k_bytes(qdim, weight_bits);
+        const int k_packed_k_bytes = mha_weight_quantize_packed_k_bytes(kdim, weight_bits);
+        const int v_packed_k_bytes = mha_weight_quantize_packed_k_bytes(vdim, weight_bits);
+        const int out_packed_k_bytes = mha_weight_quantize_packed_k_bytes(embed_dim, weight_bits);
 
         q_weight_data = mb.load(q_packed_k_bytes, embed_dim, 0);
         if (q_weight_data.empty())
@@ -292,7 +290,7 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
         if (ret != 0)
             return ret;
 
-        if (gemm_weight_quantize_has_input_scale(quantize_term))
+        if (mha_weight_quantize_has_input_scale(quantize_term))
         {
             q_weight_data_input_scales = mb.load(qdim, 1);
             k_weight_data_input_scales = mb.load(kdim, 1);
@@ -699,9 +697,9 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
 
     const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = weight_data_size / embed_dim;
-    const int weight_bits = gemm_weight_quantize_bits(quantize_term);
-    const int block_size = gemm_weight_quantize_block_size(quantize_term);
-    const bool has_input_scale = gemm_weight_quantize_has_input_scale(quantize_term);
+    const int weight_bits = mha_weight_quantize_bits(quantize_term);
+    const int block_size = mha_weight_quantize_block_size(quantize_term);
+    const bool has_input_scale = mha_weight_quantize_has_input_scale(quantize_term);
 
     if (has_input_scale && (q_weight_data_input_scales.empty() || k_weight_data_input_scales.empty() || v_weight_data_input_scales.empty() || out_weight_data_input_scales.empty()))
     {
@@ -722,7 +720,7 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
         if (q_affine.empty())
             return -100;
 
-        const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(qdim, weight_bits);
+        const int packed_k_bytes = mha_weight_quantize_packed_k_bytes(qdim, weight_bits);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < src_seqlen; i++)
@@ -770,7 +768,7 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
             }
         }
 
-        const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(kdim, weight_bits);
+        const int packed_k_bytes = mha_weight_quantize_packed_k_bytes(kdim, weight_bits);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < cur_seqlen; i++)
@@ -818,7 +816,7 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
             }
         }
 
-        const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(vdim, weight_bits);
+        const int packed_k_bytes = mha_weight_quantize_packed_k_bytes(vdim, weight_bits);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < cur_seqlen; i++)
@@ -967,7 +965,7 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
         if (top_blob.empty())
             return -100;
 
-        const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(embed_dim, weight_bits);
+        const int packed_k_bytes = mha_weight_quantize_packed_k_bytes(embed_dim, weight_bits);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < src_seqlen; i++)
