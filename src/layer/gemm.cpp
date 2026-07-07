@@ -7,6 +7,51 @@
 
 namespace ncnn {
 
+static bool gemm_is_weight_block_quantize(int quantize_term)
+{
+    const int weight_bits = quantize_term / 100;
+    const int format_code = quantize_term % 100 / 10;
+    const int block_size_code = quantize_term % 10;
+
+    if (weight_bits != 4 && weight_bits != 6 && weight_bits != 8)
+        return false;
+
+    if (format_code != 0 && format_code != 1)
+        return false;
+
+    if (block_size_code < 0 || block_size_code > 2)
+        return false;
+
+    return true;
+}
+
+static bool gemm_weight_quantize_has_input_scale(int quantize_term)
+{
+    if (!gemm_is_weight_block_quantize(quantize_term))
+        return false;
+
+    return quantize_term % 100 / 10 == 1;
+}
+
+static int gemm_weight_quantize_bits(int quantize_term)
+{
+    return gemm_is_weight_block_quantize(quantize_term) ? quantize_term / 100 : 0;
+}
+
+static int gemm_weight_quantize_block_size(int quantize_term)
+{
+    if (!gemm_is_weight_block_quantize(quantize_term))
+        return 0;
+
+    const int block_size_code = quantize_term % 10;
+    return block_size_code == 0 ? 32 : block_size_code == 1 ? 64 : 128;
+}
+
+static int gemm_weight_quantize_packed_k_bytes(int constantK, int weight_bits)
+{
+    return (constantK * weight_bits + 7) / 8;
+}
+
 #if NCNN_WEIGHT_QUANT
 static inline int gemm_weight_block_quantize_sign_extend(int v, int bits)
 {
@@ -35,6 +80,8 @@ Gemm::Gemm()
 {
     one_blob_only = false;
     support_inplace = false;
+
+    weight_block_quantize = 0;
 }
 
 int Gemm::load_param(const ParamDict& pd)
@@ -55,23 +102,24 @@ int Gemm::load_param(const ParamDict& pd)
     output_elemtype = pd.get(13, 0);
     output_transpose = pd.get(14, 0);
     quantize_term = pd.get(18, 0);
+    weight_block_quantize = gemm_is_weight_block_quantize(quantize_term);
     constant_TILE_M = pd.get(20, 0);
     constant_TILE_N = pd.get(21, 0);
     constant_TILE_K = pd.get(22, 0);
 
     if (quantize_term == 4 || quantize_term == 5 || quantize_term == 6)
     {
-        NCNN_LOGE("Gemm quantize_term %d is an obsolete block quantization prototype value, use 400/401/402/600/601/602/800/801/802", quantize_term);
+        NCNN_LOGE("Gemm quantize_term %d is an obsolete block quantization prototype value", quantize_term);
         return -1;
     }
 
-    if (quantize_term >= 400 && !gemm_is_weight_block_quantize(quantize_term))
+    if (quantize_term >= 400 && !weight_block_quantize)
     {
         NCNN_LOGE("Gemm unsupported quantize_term %d", quantize_term);
         return -1;
     }
 
-    if (gemm_is_weight_block_quantize(quantize_term))
+    if (weight_block_quantize)
     {
 #if NCNN_WEIGHT_QUANT
         if (constantA != 0 || constantB != 1 || transA != 0 || transB != 1)
@@ -151,7 +199,7 @@ int Gemm::load_model(const ModelBin& mb)
         if (transB == 0)
             B_data = mb.load(constantN, constantK, 0);
 #if NCNN_WEIGHT_QUANT
-        else if (gemm_is_weight_block_quantize(quantize_term))
+        else if (weight_block_quantize)
         {
             const int weight_bits = gemm_weight_quantize_bits(quantize_term);
             const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(constantK, weight_bits);
@@ -181,7 +229,7 @@ int Gemm::load_model(const ModelBin& mb)
     }
 
 #if NCNN_WEIGHT_QUANT
-    if (gemm_is_weight_block_quantize(quantize_term))
+    if (weight_block_quantize)
     {
         const int weight_bits = gemm_weight_quantize_bits(quantize_term);
         const int block_size = gemm_weight_quantize_block_size(quantize_term);
@@ -247,11 +295,35 @@ int Gemm::load_model(const ModelBin& mb)
                 }
             }
         }
+
+        if (gemm_weight_quantize_has_input_scale(quantize_term))
+        {
+            B_data_input_scales = mb.load(constantK, 1);
+            if (B_data_input_scales.empty())
+                return -100;
+
+            if (B_data_input_scales.elemsize != 4u || B_data_input_scales.w != constantK)
+            {
+                NCNN_LOGE("Gemm weight block quantize input scale shape mismatch, expected w=%d elemsize=4 but got w=%d elemsize=%zu", constantK, B_data_input_scales.w, B_data_input_scales.elemsize);
+                return -100;
+            }
+
+            const float* input_scale_ptr = B_data_input_scales;
+            for (int k = 0; k < constantK; k++)
+            {
+                const float s = input_scale_ptr[k];
+                if (!(s > 0.f) || !isfinite(s))
+                {
+                    NCNN_LOGE("Gemm weight block quantize input scale must be finite and positive");
+                    return -100;
+                }
+            }
+        }
     }
 #endif // NCNN_WEIGHT_QUANT
 
 #if NCNN_INT8
-    if (quantize_term && !gemm_is_weight_block_quantize(quantize_term))
+    if (quantize_term && !weight_block_quantize)
     {
         if (constantA == 1)
         {
@@ -381,6 +453,15 @@ int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, st
         return -1;
     }
 
+    const bool has_input_scale = gemm_weight_quantize_has_input_scale(quantize_term);
+    if (has_input_scale && (B_data_input_scales.empty() || B_data_input_scales.w != constantK || B_data_input_scales.elemsize != 4u))
+    {
+        NCNN_LOGE("Gemm weight block quantization input scale is missing or invalid");
+        return -1;
+    }
+
+    const float* input_scale_ptr = has_input_scale ? (const float*)B_data_input_scales : 0;
+
     const int M = A.dims == 3 ? A.c : A.h;
     const int N = constantN;
 
@@ -486,7 +567,11 @@ int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, st
             {
                 const int q = gemm_weight_block_quantize_unpack(ptrB, k, weight_bits, packed_k_bytes);
                 const float scale = scale_ptr[k / block_size];
-                sum += ptrA[k] * (q / scale);
+                const float w = q / scale;
+                float v = ptrA[k];
+                if (input_scale_ptr)
+                    v *= input_scale_ptr[k];
+                sum += v * w;
             }
 
             outptr[j] = sum * alpha;
@@ -594,12 +679,12 @@ int Gemm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
 #if NCNN_WEIGHT_QUANT
-    if (gemm_is_weight_block_quantize(quantize_term))
+    if (weight_block_quantize)
     {
         return forward_weight_block_quantize(bottom_blobs, top_blobs, opt);
     }
 #else
-    if (gemm_is_weight_block_quantize(quantize_term))
+    if (weight_block_quantize)
     {
         NCNN_LOGE("please build ncnn with NCNN_WEIGHT_QUANT enabled for weight quantized inference");
         return -1;

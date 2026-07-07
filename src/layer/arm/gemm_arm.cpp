@@ -4584,7 +4584,7 @@ static int gemm_AT_BT_arm(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_b
 
 int Gemm_arm::create_pipeline(const Option& opt)
 {
-    if (gemm_is_weight_block_quantize(quantize_term))
+    if (weight_block_quantize)
     {
         return 0;
     }
@@ -4747,7 +4747,7 @@ int Gemm_arm::create_pipeline(const Option& opt)
 
 int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    if (gemm_is_weight_block_quantize(quantize_term))
+    if (weight_block_quantize)
     {
         return Gemm::forward(bottom_blobs, top_blobs, opt);
     }

@@ -10,6 +10,51 @@
 
 namespace ncnn {
 
+static bool gemm_is_weight_block_quantize(int quantize_term)
+{
+    const int weight_bits = quantize_term / 100;
+    const int format_code = quantize_term % 100 / 10;
+    const int block_size_code = quantize_term % 10;
+
+    if (weight_bits != 4 && weight_bits != 6 && weight_bits != 8)
+        return false;
+
+    if (format_code != 0 && format_code != 1)
+        return false;
+
+    if (block_size_code < 0 || block_size_code > 2)
+        return false;
+
+    return true;
+}
+
+static bool gemm_weight_quantize_has_input_scale(int quantize_term)
+{
+    if (!gemm_is_weight_block_quantize(quantize_term))
+        return false;
+
+    return quantize_term % 100 / 10 == 1;
+}
+
+static int gemm_weight_quantize_bits(int quantize_term)
+{
+    return gemm_is_weight_block_quantize(quantize_term) ? quantize_term / 100 : 0;
+}
+
+static int gemm_weight_quantize_block_size(int quantize_term)
+{
+    if (!gemm_is_weight_block_quantize(quantize_term))
+        return 0;
+
+    const int block_size_code = quantize_term % 10;
+    return block_size_code == 0 ? 32 : block_size_code == 1 ? 64 : 128;
+}
+
+static int gemm_weight_quantize_packed_k_bytes(int constantK, int weight_bits)
+{
+    return (constantK * weight_bits + 7) / 8;
+}
+
 #if NCNN_WEIGHT_QUANT
 static inline int mha_weight_block_quantize_sign_extend(int v, int bits)
 {
@@ -97,15 +142,32 @@ static int mha_check_weight_block_quantize_model(const Mat& weight_data, const M
     return 0;
 }
 
-static inline float mha_weight_block_quantize_get_weight(const unsigned char* wptr, const float* scale_ptr, int k, int weight_bits, int block_size, int packed_k_bytes)
+static int mha_check_weight_block_quantize_input_scales(const Mat& input_scales, int K, const char* name)
 {
-    const int q = mha_weight_block_quantize_unpack(wptr, k, weight_bits, packed_k_bytes);
-    return q / scale_ptr[k / block_size];
+    if (input_scales.elemsize != 4u || input_scales.w != K)
+    {
+        NCNN_LOGE("MultiHeadAttention weight block quantize %s_input_scale shape mismatch, expected w=%d elemsize=4 but got w=%d elemsize=%zu", name, K, input_scales.w, input_scales.elemsize);
+        return -100;
+    }
+
+    const float* input_scale_ptr = input_scales;
+    for (int k = 0; k < K; k++)
+    {
+        const float s = input_scale_ptr[k];
+        if (!(s > 0.f) || !isfinite(s))
+        {
+            NCNN_LOGE("MultiHeadAttention weight block quantize %s_input_scale must be finite and positive", name);
+            return -100;
+        }
+    }
+
+    return 0;
 }
 #endif // NCNN_WEIGHT_QUANT
 
 MultiHeadAttention::MultiHeadAttention()
 {
+    weight_block_quantize = 0;
 }
 
 int MultiHeadAttention::load_param(const ParamDict& pd)
@@ -119,20 +181,21 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
     scale = pd.get(6, 1.f / sqrtf(embed_dim / num_heads));
     kv_cache = pd.get(7, 0);
     quantize_term = pd.get(18, 0);
+    weight_block_quantize = gemm_is_weight_block_quantize(quantize_term);
 
     if (quantize_term == 4 || quantize_term == 5 || quantize_term == 6)
     {
-        NCNN_LOGE("MultiHeadAttention quantize_term %d is an obsolete block quantization prototype value, use 400/401/402/600/601/602/800/801/802", quantize_term);
+        NCNN_LOGE("MultiHeadAttention quantize_term %d is an obsolete block quantization prototype value", quantize_term);
         return -1;
     }
 
-    if (quantize_term >= 400 && !gemm_is_weight_block_quantize(quantize_term))
+    if (quantize_term >= 400 && !weight_block_quantize)
     {
         NCNN_LOGE("MultiHeadAttention unsupported quantize_term %d", quantize_term);
         return -1;
     }
 
-    if (gemm_is_weight_block_quantize(quantize_term))
+    if (weight_block_quantize)
     {
 #if NCNN_WEIGHT_QUANT
         if (embed_dim <= 0 || num_heads <= 0 || embed_dim % num_heads != 0 || weight_data_size <= 0 || weight_data_size % embed_dim != 0 || kdim <= 0 || vdim <= 0)
@@ -167,7 +230,7 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
     const int qdim = weight_data_size / embed_dim;
 
 #if NCNN_WEIGHT_QUANT
-    if (gemm_is_weight_block_quantize(quantize_term))
+    if (weight_block_quantize)
     {
         const int weight_bits = gemm_weight_quantize_bits(quantize_term);
         const int block_size = gemm_weight_quantize_block_size(quantize_term);
@@ -229,6 +292,29 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
         if (ret != 0)
             return ret;
 
+        if (gemm_weight_quantize_has_input_scale(quantize_term))
+        {
+            q_weight_data_input_scales = mb.load(qdim, 1);
+            k_weight_data_input_scales = mb.load(kdim, 1);
+            v_weight_data_input_scales = mb.load(vdim, 1);
+            out_weight_data_input_scales = mb.load(embed_dim, 1);
+            if (q_weight_data_input_scales.empty() || k_weight_data_input_scales.empty() || v_weight_data_input_scales.empty() || out_weight_data_input_scales.empty())
+                return -100;
+
+            ret = mha_check_weight_block_quantize_input_scales(q_weight_data_input_scales, qdim, "q_weight");
+            if (ret != 0)
+                return ret;
+            ret = mha_check_weight_block_quantize_input_scales(k_weight_data_input_scales, kdim, "k_weight");
+            if (ret != 0)
+                return ret;
+            ret = mha_check_weight_block_quantize_input_scales(v_weight_data_input_scales, vdim, "v_weight");
+            if (ret != 0)
+                return ret;
+            ret = mha_check_weight_block_quantize_input_scales(out_weight_data_input_scales, embed_dim, "out_weight");
+            if (ret != 0)
+                return ret;
+        }
+
         return 0;
     }
 #endif // NCNN_WEIGHT_QUANT
@@ -282,7 +368,7 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
 int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
 #if NCNN_WEIGHT_QUANT
-    if (gemm_is_weight_block_quantize(quantize_term))
+    if (weight_block_quantize)
     {
         return forward_weight_block_quantize(bottom_blobs, top_blobs, opt);
     }
@@ -615,6 +701,18 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
     const int qdim = weight_data_size / embed_dim;
     const int weight_bits = gemm_weight_quantize_bits(quantize_term);
     const int block_size = gemm_weight_quantize_block_size(quantize_term);
+    const bool has_input_scale = gemm_weight_quantize_has_input_scale(quantize_term);
+
+    if (has_input_scale && (q_weight_data_input_scales.empty() || k_weight_data_input_scales.empty() || v_weight_data_input_scales.empty() || out_weight_data_input_scales.empty()))
+    {
+        NCNN_LOGE("MultiHeadAttention weight block quantization input scale is missing");
+        return -1;
+    }
+
+    const float* q_input_scale_ptr = has_input_scale ? (const float*)q_weight_data_input_scales : 0;
+    const float* k_input_scale_ptr = has_input_scale ? (const float*)k_weight_data_input_scales : 0;
+    const float* v_input_scale_ptr = has_input_scale ? (const float*)v_weight_data_input_scales : 0;
+    const float* out_input_scale_ptr = has_input_scale ? (const float*)out_weight_data_input_scales : 0;
 
     // assert k_blob.h == v_blob.h
 
@@ -638,7 +736,12 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
                 float sum = q_bias_data[j];
                 for (int k = 0; k < qdim; k++)
                 {
-                    sum += *ptr++ * mha_weight_block_quantize_get_weight(kptr, scale_ptr, k, weight_bits, block_size, packed_k_bytes);
+                    const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
+                    const float w = q / scale_ptr[k / block_size];
+                    float v = *ptr++;
+                    if (q_input_scale_ptr)
+                        v *= q_input_scale_ptr[k];
+                    sum += v * w;
                 }
 
                 q_affine.row(j)[i] = sum * scale;
@@ -681,7 +784,12 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
                 float sum = k_bias_data[j];
                 for (int k = 0; k < kdim; k++)
                 {
-                    sum += *ptr++ * mha_weight_block_quantize_get_weight(kptr, scale_ptr, k, weight_bits, block_size, packed_k_bytes);
+                    const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
+                    const float w = q / scale_ptr[k / block_size];
+                    float v = *ptr++;
+                    if (k_input_scale_ptr)
+                        v *= k_input_scale_ptr[k];
+                    sum += v * w;
                 }
 
                 k_affine.row(j)[past_seqlen + i] = sum;
@@ -724,7 +832,12 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
                 float sum = v_bias_data[j];
                 for (int k = 0; k < vdim; k++)
                 {
-                    sum += *ptr++ * mha_weight_block_quantize_get_weight(kptr, scale_ptr, k, weight_bits, block_size, packed_k_bytes);
+                    const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
+                    const float w = q / scale_ptr[k / block_size];
+                    float v = *ptr++;
+                    if (v_input_scale_ptr)
+                        v *= v_input_scale_ptr[k];
+                    sum += v * w;
                 }
 
                 v_affine.row(j)[past_seqlen + i] = sum;
@@ -869,7 +982,12 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
                 float sum = out_bias_data[j];
                 for (int k = 0; k < embed_dim; k++)
                 {
-                    sum += qkv_cross.row(k)[i] * mha_weight_block_quantize_get_weight(kptr, scale_ptr, k, weight_bits, block_size, packed_k_bytes);
+                    const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
+                    const float w = q / scale_ptr[k / block_size];
+                    float v = qkv_cross.row(k)[i];
+                    if (out_input_scale_ptr)
+                        v *= out_input_scale_ptr[k];
+                    sum += v * w;
                 }
 
                 outptr[j] = sum;

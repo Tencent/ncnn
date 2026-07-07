@@ -49,7 +49,7 @@ int MultiHeadAttention_vulkan::load_param(const ParamDict& pd)
 
 int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
 {
-    if (gemm_is_weight_block_quantize(quantize_term))
+    if (weight_block_quantize)
         return 0;
 
     // const int embed_dim_per_head = embed_dim / num_heads;
@@ -259,7 +259,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
 
 int MultiHeadAttention_vulkan::destroy_pipeline(const Option& opt)
 {
-    if (gemm_is_weight_block_quantize(quantize_term))
+    if (weight_block_quantize)
         return 0;
 
     if (q_gemm)
@@ -358,7 +358,7 @@ int MultiHeadAttention_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
-    if (gemm_is_weight_block_quantize(quantize_term))
+    if (weight_block_quantize)
         return -1;
 
     int q_blob_i = 0;

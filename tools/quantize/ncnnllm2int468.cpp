@@ -305,7 +305,7 @@ static int llm_table_row_to_scales(const char* key, const LLMWeightScale& scale,
         return -1;
     }
 
-    if (ncnn::gemm_weight_block_quantize_term(weight_bits, block_size) == 0)
+    if (llm_weight_block_quantize_term(weight_bits, block_size) == 0)
     {
         fprintf(stderr, "%s unsupported dtype=%s block=%d\n", key, scale.dtype.c_str(), block_size);
         return -1;
@@ -341,6 +341,55 @@ static int llm_table_row_to_scales(const char* key, const LLMWeightScale& scale,
     return 0;
 }
 
+static int llm_table_row_to_input_scales(const char* key, const LLMWeightScale& scale, int K, ncnn::Mat& weight_data_input_scales)
+{
+    if (scale.format.empty() || scale.scale_dtype.empty() || scale.scale_encoding.empty())
+    {
+        fprintf(stderr, "%s missing mandatory metadata\n", key);
+        return -1;
+    }
+
+    if (scale.format != "input_scale")
+    {
+        fprintf(stderr, "%s unsupported format=%s\n", key, scale.format.c_str());
+        return -1;
+    }
+
+    if (scale.scale_dtype != "fp32")
+    {
+        fprintf(stderr, "%s unsupported scale_dtype=%s\n", key, scale.scale_dtype.c_str());
+        return -1;
+    }
+
+    if (scale.scale_encoding != "mul")
+    {
+        fprintf(stderr, "%s unsupported scale_encoding=%s\n", key, scale.scale_encoding.c_str());
+        return -1;
+    }
+
+    if (scale.scales.w != K)
+    {
+        fprintf(stderr, "%s coefficient count mismatch expected=%d got=%d\n", key, K, scale.scales.w);
+        return -1;
+    }
+
+    const float* ptr = scale.scales;
+    for (int k = 0; k < K; k++)
+    {
+        if (!(ptr[k] > 0.f) || !std::isfinite(ptr[k]))
+        {
+            fprintf(stderr, "%s invalid input scale index=%d coeff=%f\n", key, k, ptr[k]);
+            return -1;
+        }
+    }
+
+    weight_data_input_scales = scale.scales.clone();
+    if (weight_data_input_scales.empty())
+        return -100;
+
+    return 0;
+}
+
 static void print_unused_llm_table_rows(const std::map<std::string, LLMWeightScale>& llm_scale_table)
 {
     for (std::map<std::string, LLMWeightScale>::const_iterator it = llm_scale_table.begin(); it != llm_scale_table.end(); ++it)
@@ -352,7 +401,7 @@ static void print_unused_llm_table_rows(const std::map<std::string, LLMWeightSca
 
 int NetQuantize::quantize_gemm(int block_size, int weight_bits, int method)
 {
-    const int quantize_term = ncnn::gemm_weight_block_quantize_term(weight_bits, block_size);
+    const int quantize_term = llm_weight_block_quantize_term(weight_bits, block_size);
     if (quantize_term == 0)
     {
         fprintf(stderr, "unsupported bits=%d or block=%d\n", weight_bits, block_size);
@@ -407,6 +456,8 @@ int NetQuantize::quantize_gemm_from_table(std::map<std::string, LLMWeightScale>&
         ncnn::Gemm* gemm = (ncnn::Gemm*)layers[i];
         char key[256];
         snprintf(key, 256, "%s_param_1", gemm_name(gemm));
+        char input_scale_key[256];
+        snprintf(input_scale_key, 256, "%s_param_1_input_scale", gemm_name(gemm));
 
         const char* reason = 0;
         if (!is_supported_llm_gemm(gemm, &reason))
@@ -442,7 +493,20 @@ int NetQuantize::quantize_gemm_from_table(std::map<std::string, LLMWeightScale>&
         if (ret != 0)
             return ret;
 
-        const int quantize_term = ncnn::gemm_weight_block_quantize_term(weight_bits, block_size);
+        std::map<std::string, LLMWeightScale>::iterator input_scale_iter = llm_scale_table.find(input_scale_key);
+        const bool has_input_scale = input_scale_iter != llm_scale_table.end();
+
+        ncnn::Mat B_data_input_scales;
+        if (has_input_scale)
+        {
+            input_scale_iter->second.used = true;
+
+            ret = llm_table_row_to_input_scales(input_scale_key, input_scale_iter->second, constantK, B_data_input_scales);
+            if (ret != 0)
+                return ret;
+        }
+
+        const int quantize_term = llm_weight_block_quantize_term(weight_bits, block_size, has_input_scale);
         fprintf(stderr, "quantize_gemm table dtype=%s block_size=%d term=%d method=%s %s\n", scale.dtype.c_str(), block_size, quantize_term, scale.method.c_str(), gemm_name(gemm));
 
         ncnn::Mat B_data_quantized;
@@ -452,6 +516,7 @@ int NetQuantize::quantize_gemm_from_table(std::map<std::string, LLMWeightScale>&
 
         gemm->B_data = B_data_quantized;
         gemm->B_data_quantize_scales = B_data_quantize_scales;
+        gemm->B_data_input_scales = B_data_input_scales;
         gemm->quantize_term = quantize_term;
 
         quantized_count++;
@@ -464,7 +529,7 @@ int NetQuantize::quantize_gemm_from_table(std::map<std::string, LLMWeightScale>&
 
 int NetQuantize::quantize_multiheadattention(int block_size, int weight_bits, int method)
 {
-    const int quantize_term = ncnn::gemm_weight_block_quantize_term(weight_bits, block_size);
+    const int quantize_term = llm_weight_block_quantize_term(weight_bits, block_size);
     if (quantize_term == 0)
     {
         fprintf(stderr, "unsupported bits=%d or block=%d\n", weight_bits, block_size);
@@ -548,9 +613,11 @@ int NetQuantize::quantize_multiheadattention_from_table(std::map<std::string, LL
         ncnn::MultiHeadAttention* mha = (ncnn::MultiHeadAttention*)layers[i];
 
         char keys[4][256];
+        char input_scale_keys[4][256];
         for (int j = 0; j < 4; j++)
         {
             snprintf(keys[j], 256, "%s_param_%d", multiheadattention_name(mha), j);
+            snprintf(input_scale_keys[j], 256, "%s_param_%d_input_scale", multiheadattention_name(mha), j);
         }
 
         std::map<std::string, LLMWeightScale>::iterator iters[4];
@@ -589,6 +656,30 @@ int NetQuantize::quantize_multiheadattention_from_table(std::map<std::string, LL
         const int Ks[4] = {qdim, mha->kdim, mha->vdim, mha->embed_dim};
         const int Ns[4] = {mha->embed_dim, mha->embed_dim, mha->embed_dim, qdim};
 
+        std::map<std::string, LLMWeightScale>::iterator input_scale_iters[4];
+        int input_scale_present_count = 0;
+        for (int j = 0; j < 4; j++)
+        {
+            input_scale_iters[j] = llm_scale_table.find(input_scale_keys[j]);
+            if (input_scale_iters[j] != llm_scale_table.end())
+                input_scale_present_count++;
+        }
+
+        if (input_scale_present_count != 0)
+        {
+            for (int j = 0; j < 4; j++)
+            {
+                if (input_scale_iters[j] != llm_scale_table.end())
+                    input_scale_iters[j]->second.used = true;
+            }
+
+            if (input_scale_present_count != 4)
+            {
+                fprintf(stderr, "MultiHeadAttention %s requires all input scale table rows %s %s %s %s\n", multiheadattention_name(mha), input_scale_keys[0], input_scale_keys[1], input_scale_keys[2], input_scale_keys[3]);
+                return -1;
+            }
+        }
+
         int weight_bits[4];
         int block_size[4];
         ncnn::Mat weight_data_quantize_scales[4];
@@ -608,7 +699,18 @@ int NetQuantize::quantize_multiheadattention_from_table(std::map<std::string, LL
             }
         }
 
-        const int quantize_term = ncnn::gemm_weight_block_quantize_term(weight_bits[0], block_size[0]);
+        ncnn::Mat weight_data_input_scales[4];
+        if (input_scale_present_count == 4)
+        {
+            for (int j = 0; j < 4; j++)
+            {
+                int ret = llm_table_row_to_input_scales(input_scale_keys[j], input_scale_iters[j]->second, Ks[j], weight_data_input_scales[j]);
+                if (ret != 0)
+                    return ret;
+            }
+        }
+
+        const int quantize_term = llm_weight_block_quantize_term(weight_bits[0], block_size[0], input_scale_present_count == 4);
         fprintf(stderr, "quantize_multiheadattention table dtype=%s block_size=%d term=%d %s\n", iters[0]->second.dtype.c_str(), block_size[0], quantize_term, multiheadattention_name(mha));
 
         const ncnn::Mat q_weight_data = mha->q_weight_data.reshape(qdim, mha->embed_dim);
@@ -642,6 +744,10 @@ int NetQuantize::quantize_multiheadattention_from_table(std::map<std::string, LL
         mha->k_weight_data_quantize_scales = weight_data_quantize_scales[1];
         mha->v_weight_data_quantize_scales = weight_data_quantize_scales[2];
         mha->out_weight_data_quantize_scales = weight_data_quantize_scales[3];
+        mha->q_weight_data_input_scales = weight_data_input_scales[0];
+        mha->k_weight_data_input_scales = weight_data_input_scales[1];
+        mha->v_weight_data_input_scales = weight_data_input_scales[2];
+        mha->out_weight_data_input_scales = weight_data_input_scales[3];
         mha->quantize_term = quantize_term;
 
         quantized_count++;
@@ -724,7 +830,7 @@ int main(int argc, char** argv)
             return -1;
         }
 
-        if (ncnn::gemm_weight_block_quantize_term(weight_bits, block_size) == 0)
+        if (llm_weight_block_quantize_term(weight_bits, block_size) == 0)
         {
             print_usage(argv[0]);
             return -1;

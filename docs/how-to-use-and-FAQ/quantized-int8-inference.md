@@ -101,9 +101,9 @@ ncnn2table can generate static weight scales without a calibration dataset for R
 ./ncnn2int8 mobilenet-opt.param mobilenet-opt.bin mobilenet-int8.param mobilenet-int8.bin mobilenet.table
 ```
 
-## Weight-only block quantized Gemm
+## Weight-only block quantized Gemm and MultiHeadAttention
 
-LLM-oriented `Gemm` weight-only block quantization is separate from the post training int8 activation/weight inference flow above. It stores constant transposed `Gemm` B weights as signed symmetric int4/int6/int8 blocks with one fp32 scale per K block and output remains fp32.
+LLM-oriented `Gemm` and `MultiHeadAttention` weight-only block quantization is separate from the post training int8 activation/weight inference flow above. It stores weights as signed symmetric int4/int6/int8 blocks with one fp32 scale per K block and output remains fp32.
 
 The recommended workflow mirrors `ncnn2table` and `ncnn2int8`:
 
@@ -125,15 +125,47 @@ The recommended workflow mirrors `ncnn2table` and `ncnn2int8`:
 
 `method=mseclip` searches clipped absmax candidates and picks the scale with the smallest block weight reconstruction error. It is calibration-free and still exports the same symmetric scale-only runtime format. It is not AWQ and does not add activation rescaling metadata.
 
-The llm table uses one line for each quantized `Gemm` B weight:
+The llm table uses one line for each quantized weight:
 
 ```text
 gemm_name_param_1 format=block_symmetric dtype=int4 block=64 scale_dtype=fp32 scale_encoding=quant method=mseclip scale0 scale1 ...
+mha_name_param_0  format=block_symmetric dtype=int4 block=64 scale_dtype=fp32 scale_encoding=quant method=mseclip scale0 scale1 ...
+mha_name_param_1  format=block_symmetric dtype=int4 block=64 scale_dtype=fp32 scale_encoding=quant method=mseclip scale0 scale1 ...
+mha_name_param_2  format=block_symmetric dtype=int4 block=64 scale_dtype=fp32 scale_encoding=quant method=mseclip scale0 scale1 ...
+mha_name_param_3  format=block_symmetric dtype=int4 block=64 scale_dtype=fp32 scale_encoding=quant method=mseclip scale0 scale1 ...
 ```
+
+For `MultiHeadAttention`, `_param_0/_param_1/_param_2/_param_3` are q/k/v/out weights. All four rows must use the same dtype and block size.
 
 `format`, `dtype`, `block`, `scale_dtype`, and `scale_encoding` are required for rows consumed by `ncnnllm2int468`. `dtype` and `block` are row-local, so one table can mix int4/int6/int8 and block32/block64/block128 for different layers. `ncnnllm2table` writes `method`, but `ncnnllm2int468` only logs it as offline provenance and does not require or validate it. Unused rows and unknown metadata are ignored with a warning, leaving room for future table extensions.
 
 The first table format supports only `format=block_symmetric` with `dtype=int4/int6/int8`, `block=32/64/128`, `scale_dtype=fp32`, and `scale_encoding=quant`.
+
+The runtime quantize term is stored in param id `18`.
+
+```text
+400/401/402  int4 block=32/64/128
+600/601/602  int6 block=32/64/128
+800/801/802  int8 block=32/64/128
+```
+
+Optional per-input-channel multipliers can be stored by adding separate `_input_scale` rows. They are applied to the current input channel inside the dot product:
+
+```text
+sum += (x[k] * input_scale[k]) * (qweight[n,k] / block_scale[n,k/block])
+```
+
+```text
+gemm_name_param_1_input_scale format=input_scale scale_dtype=fp32 scale_encoding=mul method=awq coeff0 coeff1 ...
+mha_name_param_0_input_scale  format=input_scale scale_dtype=fp32 scale_encoding=mul method=awq coeff0 coeff1 ...
+mha_name_param_1_input_scale  format=input_scale scale_dtype=fp32 scale_encoding=mul method=awq coeff0 coeff1 ...
+mha_name_param_2_input_scale  format=input_scale scale_dtype=fp32 scale_encoding=mul method=awq coeff0 coeff1 ...
+mha_name_param_3_input_scale  format=input_scale scale_dtype=fp32 scale_encoding=mul method=awq coeff0 coeff1 ...
+```
+
+For `Gemm`, the input scale count is `constantK`. For `MultiHeadAttention`, q/k/v/out input scale counts are qdim/kdim/vdim/embed_dim, and either all four rows exist or none exist. `ncnnllm2table` does not write input scale rows by default.
+
+Input-scale models use the same bits/block terms with tens digit `1`: `410/411/412`, `610/611/612`, and `810/811/812`.
 
 For quick conversion without saving a table, `ncnnllm2int468` can still compute scales directly:
 
@@ -141,7 +173,7 @@ For quick conversion without saving a table, `ncnnllm2int468` can still compute 
 ./ncnnllm2int468 in.param in.bin out.param out.bin method=minmax bits=6 block=64
 ```
 
-The scale-only `format=block_symmetric` table does not claim exact GPTQ import support. Exact GPTQ qweight import needs a separate qweight payload design. AWQ and SmoothQuant must remain offline tooling or graph rewrite steps and must not become `Gemm` runtime `quantize_term` values.
+The scale-only `format=block_symmetric` table does not claim exact GPTQ import support. Exact GPTQ qweight import needs a separate qweight payload design. AWQ and SmoothQuant must remain offline tooling or graph rewrite steps and must not become runtime `quantize_term` values. If offline tooling emits pre-scaled weights such as `W / s`, it may write `_input_scale` rows so runtime computes `x * s * dequant(W / s)`, which is equivalent to `x * dequant(W / s) * s`.
 
 This format does not use zero point or asymmetric dequantization metadata.
 

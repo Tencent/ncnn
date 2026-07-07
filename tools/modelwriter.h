@@ -108,6 +108,23 @@
 #include "layer/yolodetectionoutput.h"
 #include "layer/yolov3detectionoutput.h"
 
+static bool modelwriter_gemm_is_weight_block_quantize(int quantize_term)
+{
+    const int weight_bits = quantize_term / 100;
+    const int format_code = quantize_term % 100 / 10;
+    const int block_size_code = quantize_term % 10;
+
+    return (weight_bits == 4 || weight_bits == 6 || weight_bits == 8) && (format_code == 0 || format_code == 1) && block_size_code >= 0 && block_size_code <= 2;
+}
+
+static bool modelwriter_gemm_weight_quantize_has_input_scale(int quantize_term)
+{
+    if (!modelwriter_gemm_is_weight_block_quantize(quantize_term))
+        return false;
+
+    return quantize_term % 100 / 10 == 1;
+}
+
 // for gen_random_weight
 #include "../tests/prng.h"
 
@@ -1858,16 +1875,20 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 fwrite_weight_tag_data(op->C_data, bp);
             }
 
-            if (ncnn::gemm_is_weight_block_quantize(op->quantize_term))
+            if (modelwriter_gemm_is_weight_block_quantize(op->quantize_term))
             {
                 if (op->constantB == 1)
                 {
                     fwrite_weight_data(op->B_data_quantize_scales, bp);
+                    if (modelwriter_gemm_weight_quantize_has_input_scale(op->quantize_term))
+                    {
+                        fwrite_weight_data(op->B_data_input_scales, bp);
+                    }
                 }
             }
 #if NCNN_INT8
             // write int8_scale data
-            if (op->quantize_term && !ncnn::gemm_is_weight_block_quantize(op->quantize_term))
+            if (op->quantize_term && !modelwriter_gemm_is_weight_block_quantize(op->quantize_term))
             {
                 if (op->constantA == 1)
                 {
@@ -2143,12 +2164,19 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fwrite_weight_tag_data(op->out_weight_data, bp);
             fwrite_weight_data(op->out_bias_data, bp);
 
-            if (ncnn::gemm_is_weight_block_quantize(op->quantize_term))
+            if (modelwriter_gemm_is_weight_block_quantize(op->quantize_term))
             {
                 fwrite_weight_data(op->q_weight_data_quantize_scales, bp);
                 fwrite_weight_data(op->k_weight_data_quantize_scales, bp);
                 fwrite_weight_data(op->v_weight_data_quantize_scales, bp);
                 fwrite_weight_data(op->out_weight_data_quantize_scales, bp);
+                if (modelwriter_gemm_weight_quantize_has_input_scale(op->quantize_term))
+                {
+                    fwrite_weight_data(op->q_weight_data_input_scales, bp);
+                    fwrite_weight_data(op->k_weight_data_input_scales, bp);
+                    fwrite_weight_data(op->v_weight_data_input_scales, bp);
+                    fwrite_weight_data(op->out_weight_data_input_scales, bp);
+                }
             }
 #if NCNN_INT8
             // write int8_scale data

@@ -220,7 +220,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if (ncnn::gemm_weight_block_quantize_term(weight_bits, block_size) == 0)
+    if (llm_weight_block_quantize_term(weight_bits, block_size) == 0)
     {
         show_usage(argv[0]);
         return -1;

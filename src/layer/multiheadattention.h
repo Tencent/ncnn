@@ -45,6 +45,7 @@ public:
         int quantize_term;
         int int8_scale_term;
     };
+    int weight_block_quantize;
 
     Mat q_weight_data;
     Mat q_bias_data;
@@ -65,6 +66,10 @@ public:
     Mat k_weight_data_quantize_scales;
     Mat v_weight_data_quantize_scales;
     Mat out_weight_data_quantize_scales;
+    Mat q_weight_data_input_scales;
+    Mat k_weight_data_input_scales;
+    Mat v_weight_data_input_scales;
+    Mat out_weight_data_input_scales;
 };
 
 } // namespace ncnn

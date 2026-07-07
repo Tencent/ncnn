@@ -32,7 +32,7 @@ MultiHeadAttention_x86::MultiHeadAttention_x86()
 
 int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
 {
-    if (gemm_is_weight_block_quantize(quantize_term))
+    if (weight_block_quantize)
         return 0;
 
     Option opt = _opt;
@@ -261,7 +261,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
 
 int MultiHeadAttention_x86::destroy_pipeline(const Option& _opt)
 {
-    if (gemm_is_weight_block_quantize(quantize_term))
+    if (weight_block_quantize)
         return 0;
 
     Option opt = _opt;
@@ -323,7 +323,7 @@ int MultiHeadAttention_x86::destroy_pipeline(const Option& _opt)
 
 int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
-    if (gemm_is_weight_block_quantize(quantize_term))
+    if (weight_block_quantize)
         return MultiHeadAttention::forward(bottom_blobs, top_blobs, _opt);
 
     int q_blob_i = 0;

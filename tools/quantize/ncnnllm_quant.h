@@ -59,6 +59,20 @@ static inline int llm_quant_dtype_to_bits(const char* dtype)
     return 0;
 }
 
+static inline int llm_weight_block_quantize_term(int weight_bits, int block_size, bool input_scale = false)
+{
+    const int block_size_code = block_size == 32 ? 0 : block_size == 64 ? 1 : block_size == 128 ? 2 : -1;
+    if ((weight_bits != 4 && weight_bits != 6 && weight_bits != 8) || block_size_code < 0)
+        return 0;
+
+    return weight_bits * 100 + (input_scale ? 10 : 0) + block_size_code;
+}
+
+static inline int llm_weight_quantize_packed_k_bytes(int constantK, int weight_bits)
+{
+    return (constantK * weight_bits + 7) / 8;
+}
+
 static inline int float2int_weight(float v, int weight_bits)
 {
     const int qmax = (1 << (weight_bits - 1)) - 1;
@@ -324,7 +338,7 @@ static inline int pack_gemm_B_from_scales(const ncnn::Mat& B_data, const ncnn::M
         }
     }
 
-    const int packed_k_bytes = ncnn::gemm_weight_quantize_packed_k_bytes(constantK, weight_bits);
+    const int packed_k_bytes = llm_weight_quantize_packed_k_bytes(constantK, weight_bits);
     B_data_quantized.create(packed_k_bytes, constantN, (size_t)1u);
     if (B_data_quantized.empty())
         return -100;

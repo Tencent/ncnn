@@ -7372,7 +7372,7 @@ int Gemm_loongarch::create_pipeline(const Option& opt)
     CT_data.release();
     nT = 0;
 
-    if (gemm_is_weight_block_quantize(quantize_term))
+    if (weight_block_quantize)
     {
         return 0;
     }
@@ -7527,7 +7527,7 @@ int Gemm_loongarch::create_pipeline(const Option& opt)
 
 int Gemm_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    if (gemm_is_weight_block_quantize(quantize_term))
+    if (weight_block_quantize)
     {
         return Gemm::forward(bottom_blobs, top_blobs, opt);
     }
