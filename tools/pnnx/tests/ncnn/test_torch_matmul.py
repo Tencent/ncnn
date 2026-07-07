@@ -9,7 +9,7 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1, m0, m1, n0, n1, o0, o1, p0, p1):
+    def forward(self, a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1, m0, m1, n0, n1, o0, o1, p0, p1, q0, q1):
         a = torch.matmul(a0, a1)
         b = torch.matmul(b0, b1)
         c = torch.matmul(c0, c1)
@@ -26,7 +26,10 @@ class Model(nn.Module):
         n = torch.matmul(n0, n1)
         o = torch.matmul(o0, o1)
         p = torch.matmul(p0, p1)
-        return a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p
+        q0 = F.max_pool2d(q0, 1)
+        q1 = F.max_pool2d(q1, 1)
+        q = torch.matmul(q0, q1)
+        return a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q
 
 def test():
     net = Model()
@@ -65,16 +68,18 @@ def test():
     o1 = torch.rand(8, 1, 11, 9)
     p0 = torch.rand(6, 9, 13, 14)
     p1 = torch.rand(6, 9, 14, 15)
+    q0 = torch.rand(2, 3, 4, 5)
+    q1 = torch.rand(2, 3, 5, 6)
 
-    a = net(a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1, m0, m1, n0, n1, o0, o1, p0, p1)
+    a = net(a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1, m0, m1, n0, n1, o0, o1, p0, p1, q0, q1)
 
     # export torchscript
-    mod = torch.jit.trace(net, (a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1, m0, m1, n0, n1, o0, o1, p0, p1))
+    mod = torch.jit.trace(net, (a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1, m0, m1, n0, n1, o0, o1, p0, p1, q0, q1))
     mod.save("test_torch_matmul.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_matmul.pt inputshape=[13],[13],[14],[14,6],[13],[7,13,4],[15],[5,7,15,9],[5,12],[12],[10,3,4],[4],[6,3,7,14],[14],[23,14],[14,25],[4,5],[10,5,40],[14,6],[2,4,6,20],[10,23,14],[14,5],[7,8,13,14],[14,35],[10,23,14],[10,14,5],[10,13,18],[3,1,18,8],[1,5,23,11],[8,1,11,9],[6,9,13,14],[6,9,14,15]")
+    os.system("../../src/pnnx test_torch_matmul.pt inputshape=[13],[13],[14],[14,6],[13],[7,13,4],[15],[5,7,15,9],[5,12],[12],[10,3,4],[4],[6,3,7,14],[14],[23,14],[14,25],[4,5],[10,5,40],[14,6],[2,4,6,20],[10,23,14],[14,5],[7,8,13,14],[14,35],[10,23,14],[10,14,5],[10,13,18],[3,1,18,8],[1,5,23,11],[8,1,11,9],[6,9,13,14],[6,9,14,15],[2,3,4,5],[2,3,5,6]")
 
     # ncnn inference
     import test_torch_matmul_ncnn

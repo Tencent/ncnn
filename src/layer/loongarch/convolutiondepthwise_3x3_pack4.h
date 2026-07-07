@@ -45,6 +45,147 @@ static void convdw3x3s1_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
         for (; i + 1 < outh; i += 2)
         {
             int j = 0;
+            for (; j + 3 < outw; j += 4)
+            {
+                __builtin_prefetch(r0 + 64);
+                __builtin_prefetch(r1 + 64);
+                __builtin_prefetch(r2 + 64);
+                __builtin_prefetch(r3 + 64);
+
+                __m128 _sum00 = _bias0;
+                __m128 _sum01 = _bias0;
+                __m128 _sum02 = _bias0;
+                __m128 _sum03 = _bias0;
+                __m128 _sum10 = _bias0;
+                __m128 _sum11 = _bias0;
+                __m128 _sum12 = _bias0;
+                __m128 _sum13 = _bias0;
+
+                __m128 _r00 = (__m128)__lsx_vld(r0, 0);
+                __m128 _r01 = (__m128)__lsx_vld(r0 + 4, 0);
+                __m128 _r02 = (__m128)__lsx_vld(r0 + 4 * 2, 0);
+                __m128 _r03 = (__m128)__lsx_vld(r0 + 4 * 3, 0);
+                __m128 _r04 = (__m128)__lsx_vld(r0 + 4 * 4, 0);
+                __m128 _r05 = (__m128)__lsx_vld(r0 + 4 * 5, 0);
+
+                _sum00 = __lsx_vfmadd_s(_r00, _k00, _sum00);
+                _sum01 = __lsx_vfmadd_s(_r01, _k00, _sum01);
+                _sum02 = __lsx_vfmadd_s(_r02, _k00, _sum02);
+                _sum03 = __lsx_vfmadd_s(_r03, _k00, _sum03);
+                _sum00 = __lsx_vfmadd_s(_r01, _k01, _sum00);
+                _sum01 = __lsx_vfmadd_s(_r02, _k01, _sum01);
+                _sum02 = __lsx_vfmadd_s(_r03, _k01, _sum02);
+                _sum03 = __lsx_vfmadd_s(_r04, _k01, _sum03);
+                _sum00 = __lsx_vfmadd_s(_r02, _k02, _sum00);
+                _sum01 = __lsx_vfmadd_s(_r03, _k02, _sum01);
+                _sum02 = __lsx_vfmadd_s(_r04, _k02, _sum02);
+                _sum03 = __lsx_vfmadd_s(_r05, _k02, _sum03);
+
+                __m128 _r10 = (__m128)__lsx_vld(r1, 0);
+                __m128 _r11 = (__m128)__lsx_vld(r1 + 4, 0);
+                __m128 _r12 = (__m128)__lsx_vld(r1 + 4 * 2, 0);
+                __m128 _r13 = (__m128)__lsx_vld(r1 + 4 * 3, 0);
+                __m128 _r14 = (__m128)__lsx_vld(r1 + 4 * 4, 0);
+                __m128 _r15 = (__m128)__lsx_vld(r1 + 4 * 5, 0);
+
+                _sum10 = __lsx_vfmadd_s(_r10, _k00, _sum10);
+                _sum11 = __lsx_vfmadd_s(_r11, _k00, _sum11);
+                _sum12 = __lsx_vfmadd_s(_r12, _k00, _sum12);
+                _sum13 = __lsx_vfmadd_s(_r13, _k00, _sum13);
+                _sum00 = __lsx_vfmadd_s(_r10, _k10, _sum00);
+                _sum01 = __lsx_vfmadd_s(_r11, _k10, _sum01);
+                _sum02 = __lsx_vfmadd_s(_r12, _k10, _sum02);
+                _sum03 = __lsx_vfmadd_s(_r13, _k10, _sum03);
+
+                _sum10 = __lsx_vfmadd_s(_r11, _k01, _sum10);
+                _sum11 = __lsx_vfmadd_s(_r12, _k01, _sum11);
+                _sum12 = __lsx_vfmadd_s(_r13, _k01, _sum12);
+                _sum13 = __lsx_vfmadd_s(_r14, _k01, _sum13);
+                _sum00 = __lsx_vfmadd_s(_r11, _k11, _sum00);
+                _sum01 = __lsx_vfmadd_s(_r12, _k11, _sum01);
+                _sum02 = __lsx_vfmadd_s(_r13, _k11, _sum02);
+                _sum03 = __lsx_vfmadd_s(_r14, _k11, _sum03);
+
+                _sum10 = __lsx_vfmadd_s(_r12, _k02, _sum10);
+                _sum11 = __lsx_vfmadd_s(_r13, _k02, _sum11);
+                _sum12 = __lsx_vfmadd_s(_r14, _k02, _sum12);
+                _sum13 = __lsx_vfmadd_s(_r15, _k02, _sum13);
+                _sum00 = __lsx_vfmadd_s(_r12, _k12, _sum00);
+                _sum01 = __lsx_vfmadd_s(_r13, _k12, _sum01);
+                _sum02 = __lsx_vfmadd_s(_r14, _k12, _sum02);
+                _sum03 = __lsx_vfmadd_s(_r15, _k12, _sum03);
+
+                __m128 _r20 = (__m128)__lsx_vld(r2, 0);
+                __m128 _r21 = (__m128)__lsx_vld(r2 + 4, 0);
+                __m128 _r22 = (__m128)__lsx_vld(r2 + 4 * 2, 0);
+                __m128 _r23 = (__m128)__lsx_vld(r2 + 4 * 3, 0);
+                __m128 _r24 = (__m128)__lsx_vld(r2 + 4 * 4, 0);
+                __m128 _r25 = (__m128)__lsx_vld(r2 + 4 * 5, 0);
+
+                _sum10 = __lsx_vfmadd_s(_r20, _k10, _sum10);
+                _sum11 = __lsx_vfmadd_s(_r21, _k10, _sum11);
+                _sum12 = __lsx_vfmadd_s(_r22, _k10, _sum12);
+                _sum13 = __lsx_vfmadd_s(_r23, _k10, _sum13);
+                _sum00 = __lsx_vfmadd_s(_r20, _k20, _sum00);
+                _sum01 = __lsx_vfmadd_s(_r21, _k20, _sum01);
+                _sum02 = __lsx_vfmadd_s(_r22, _k20, _sum02);
+                _sum03 = __lsx_vfmadd_s(_r23, _k20, _sum03);
+
+                _sum10 = __lsx_vfmadd_s(_r21, _k11, _sum10);
+                _sum11 = __lsx_vfmadd_s(_r22, _k11, _sum11);
+                _sum12 = __lsx_vfmadd_s(_r23, _k11, _sum12);
+                _sum13 = __lsx_vfmadd_s(_r24, _k11, _sum13);
+                _sum00 = __lsx_vfmadd_s(_r21, _k21, _sum00);
+                _sum01 = __lsx_vfmadd_s(_r22, _k21, _sum01);
+                _sum02 = __lsx_vfmadd_s(_r23, _k21, _sum02);
+                _sum03 = __lsx_vfmadd_s(_r24, _k21, _sum03);
+
+                _sum10 = __lsx_vfmadd_s(_r22, _k12, _sum10);
+                _sum11 = __lsx_vfmadd_s(_r23, _k12, _sum11);
+                _sum12 = __lsx_vfmadd_s(_r24, _k12, _sum12);
+                _sum13 = __lsx_vfmadd_s(_r25, _k12, _sum13);
+                _sum00 = __lsx_vfmadd_s(_r22, _k22, _sum00);
+                _sum01 = __lsx_vfmadd_s(_r23, _k22, _sum01);
+                _sum02 = __lsx_vfmadd_s(_r24, _k22, _sum02);
+                _sum03 = __lsx_vfmadd_s(_r25, _k22, _sum03);
+
+                __m128 _r30 = (__m128)__lsx_vld(r3, 0);
+                __m128 _r31 = (__m128)__lsx_vld(r3 + 4, 0);
+                __m128 _r32 = (__m128)__lsx_vld(r3 + 4 * 2, 0);
+                __m128 _r33 = (__m128)__lsx_vld(r3 + 4 * 3, 0);
+                __m128 _r34 = (__m128)__lsx_vld(r3 + 4 * 4, 0);
+                __m128 _r35 = (__m128)__lsx_vld(r3 + 4 * 5, 0);
+
+                _sum10 = __lsx_vfmadd_s(_r30, _k20, _sum10);
+                _sum11 = __lsx_vfmadd_s(_r31, _k20, _sum11);
+                _sum12 = __lsx_vfmadd_s(_r32, _k20, _sum12);
+                _sum13 = __lsx_vfmadd_s(_r33, _k20, _sum13);
+                _sum10 = __lsx_vfmadd_s(_r31, _k21, _sum10);
+                _sum11 = __lsx_vfmadd_s(_r32, _k21, _sum11);
+                _sum12 = __lsx_vfmadd_s(_r33, _k21, _sum12);
+                _sum13 = __lsx_vfmadd_s(_r34, _k21, _sum13);
+                _sum10 = __lsx_vfmadd_s(_r32, _k22, _sum10);
+                _sum11 = __lsx_vfmadd_s(_r33, _k22, _sum11);
+                _sum12 = __lsx_vfmadd_s(_r34, _k22, _sum12);
+                _sum13 = __lsx_vfmadd_s(_r35, _k22, _sum13);
+
+                __lsx_vst(_sum00, outptr0, 0);
+                __lsx_vst(_sum01, outptr0 + 4, 0);
+                __lsx_vst(_sum02, outptr0 + 4 * 2, 0);
+                __lsx_vst(_sum03, outptr0 + 4 * 3, 0);
+                __lsx_vst(_sum10, outptr1, 0);
+                __lsx_vst(_sum11, outptr1 + 4, 0);
+                __lsx_vst(_sum12, outptr1 + 4 * 2, 0);
+                __lsx_vst(_sum13, outptr1 + 4 * 3, 0);
+
+                outptr0 += 4 * 4;
+                outptr1 += 4 * 4;
+
+                r0 += 4 * 4;
+                r1 += 4 * 4;
+                r2 += 4 * 4;
+                r3 += 4 * 4;
+            }
             for (; j + 1 < outw; j += 2)
             {
                 __builtin_prefetch(r0 + 32);
@@ -201,6 +342,88 @@ static void convdw3x3s1_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
         for (; i < outh; i++)
         {
             int j = 0;
+            for (; j + 3 < outw; j += 4)
+            {
+                __builtin_prefetch(r0 + 64);
+                __builtin_prefetch(r1 + 64);
+                __builtin_prefetch(r2 + 64);
+
+                __m128 _sum0 = _bias0;
+                __m128 _sum1 = _bias0;
+                __m128 _sum2 = _bias0;
+                __m128 _sum3 = _bias0;
+
+                __m128 _r00 = (__m128)__lsx_vld(r0, 0);
+                __m128 _r01 = (__m128)__lsx_vld(r0 + 4, 0);
+                __m128 _r02 = (__m128)__lsx_vld(r0 + 4 * 2, 0);
+                __m128 _r03 = (__m128)__lsx_vld(r0 + 4 * 3, 0);
+                __m128 _r04 = (__m128)__lsx_vld(r0 + 4 * 4, 0);
+                __m128 _r05 = (__m128)__lsx_vld(r0 + 4 * 5, 0);
+
+                _sum0 = __lsx_vfmadd_s(_r00, _k00, _sum0);
+                _sum1 = __lsx_vfmadd_s(_r01, _k00, _sum1);
+                _sum2 = __lsx_vfmadd_s(_r02, _k00, _sum2);
+                _sum3 = __lsx_vfmadd_s(_r03, _k00, _sum3);
+                _sum0 = __lsx_vfmadd_s(_r01, _k01, _sum0);
+                _sum1 = __lsx_vfmadd_s(_r02, _k01, _sum1);
+                _sum2 = __lsx_vfmadd_s(_r03, _k01, _sum2);
+                _sum3 = __lsx_vfmadd_s(_r04, _k01, _sum3);
+                _sum0 = __lsx_vfmadd_s(_r02, _k02, _sum0);
+                _sum1 = __lsx_vfmadd_s(_r03, _k02, _sum1);
+                _sum2 = __lsx_vfmadd_s(_r04, _k02, _sum2);
+                _sum3 = __lsx_vfmadd_s(_r05, _k02, _sum3);
+
+                __m128 _r10 = (__m128)__lsx_vld(r1, 0);
+                __m128 _r11 = (__m128)__lsx_vld(r1 + 4, 0);
+                __m128 _r12 = (__m128)__lsx_vld(r1 + 4 * 2, 0);
+                __m128 _r13 = (__m128)__lsx_vld(r1 + 4 * 3, 0);
+                __m128 _r14 = (__m128)__lsx_vld(r1 + 4 * 4, 0);
+                __m128 _r15 = (__m128)__lsx_vld(r1 + 4 * 5, 0);
+
+                _sum0 = __lsx_vfmadd_s(_r10, _k10, _sum0);
+                _sum1 = __lsx_vfmadd_s(_r11, _k10, _sum1);
+                _sum2 = __lsx_vfmadd_s(_r12, _k10, _sum2);
+                _sum3 = __lsx_vfmadd_s(_r13, _k10, _sum3);
+                _sum0 = __lsx_vfmadd_s(_r11, _k11, _sum0);
+                _sum1 = __lsx_vfmadd_s(_r12, _k11, _sum1);
+                _sum2 = __lsx_vfmadd_s(_r13, _k11, _sum2);
+                _sum3 = __lsx_vfmadd_s(_r14, _k11, _sum3);
+                _sum0 = __lsx_vfmadd_s(_r12, _k12, _sum0);
+                _sum1 = __lsx_vfmadd_s(_r13, _k12, _sum1);
+                _sum2 = __lsx_vfmadd_s(_r14, _k12, _sum2);
+                _sum3 = __lsx_vfmadd_s(_r15, _k12, _sum3);
+
+                __m128 _r20 = (__m128)__lsx_vld(r2, 0);
+                __m128 _r21 = (__m128)__lsx_vld(r2 + 4, 0);
+                __m128 _r22 = (__m128)__lsx_vld(r2 + 4 * 2, 0);
+                __m128 _r23 = (__m128)__lsx_vld(r2 + 4 * 3, 0);
+                __m128 _r24 = (__m128)__lsx_vld(r2 + 4 * 4, 0);
+                __m128 _r25 = (__m128)__lsx_vld(r2 + 4 * 5, 0);
+
+                _sum0 = __lsx_vfmadd_s(_r20, _k20, _sum0);
+                _sum1 = __lsx_vfmadd_s(_r21, _k20, _sum1);
+                _sum2 = __lsx_vfmadd_s(_r22, _k20, _sum2);
+                _sum3 = __lsx_vfmadd_s(_r23, _k20, _sum3);
+                _sum0 = __lsx_vfmadd_s(_r21, _k21, _sum0);
+                _sum1 = __lsx_vfmadd_s(_r22, _k21, _sum1);
+                _sum2 = __lsx_vfmadd_s(_r23, _k21, _sum2);
+                _sum3 = __lsx_vfmadd_s(_r24, _k21, _sum3);
+                _sum0 = __lsx_vfmadd_s(_r22, _k22, _sum0);
+                _sum1 = __lsx_vfmadd_s(_r23, _k22, _sum1);
+                _sum2 = __lsx_vfmadd_s(_r24, _k22, _sum2);
+                _sum3 = __lsx_vfmadd_s(_r25, _k22, _sum3);
+
+                __lsx_vst(_sum0, outptr0, 0);
+                __lsx_vst(_sum1, outptr0 + 4, 0);
+                __lsx_vst(_sum2, outptr0 + 4 * 2, 0);
+                __lsx_vst(_sum3, outptr0 + 4 * 3, 0);
+
+                outptr0 += 4 * 4;
+
+                r0 += 4 * 4;
+                r1 += 4 * 4;
+                r2 += 4 * 4;
+            }
             for (; j + 1 < outw; j += 2)
             {
                 __builtin_prefetch(r0 + 32);
@@ -347,6 +570,97 @@ static void convdw3x3s2_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
         for (; i < outh; i++)
         {
             int j = 0;
+            for (; j + 3 < outw; j += 4)
+            {
+                __builtin_prefetch(r0 + 128);
+                __builtin_prefetch(r1 + 128);
+                __builtin_prefetch(r2 + 128);
+
+                __m128 _sum00 = _bias0;
+                __m128 _sum01 = _bias0;
+                __m128 _sum02 = _bias0;
+                __m128 _sum03 = _bias0;
+
+                __m128 _r00 = (__m128)__lsx_vld(r0, 0);
+                __m128 _r01 = (__m128)__lsx_vld(r0 + 4, 0);
+                __m128 _r02 = (__m128)__lsx_vld(r0 + 4 * 2, 0);
+                __m128 _r03 = (__m128)__lsx_vld(r0 + 4 * 3, 0);
+                __m128 _r04 = (__m128)__lsx_vld(r0 + 4 * 4, 0);
+                __m128 _r05 = (__m128)__lsx_vld(r0 + 4 * 5, 0);
+                __m128 _r06 = (__m128)__lsx_vld(r0 + 4 * 6, 0);
+                __m128 _r07 = (__m128)__lsx_vld(r0 + 4 * 7, 0);
+                __m128 _r08 = (__m128)__lsx_vld(r0 + 4 * 8, 0);
+
+                _sum00 = __lsx_vfmadd_s(_r00, _k00, _sum00);
+                _sum01 = __lsx_vfmadd_s(_r02, _k00, _sum01);
+                _sum02 = __lsx_vfmadd_s(_r04, _k00, _sum02);
+                _sum03 = __lsx_vfmadd_s(_r06, _k00, _sum03);
+                _sum00 = __lsx_vfmadd_s(_r01, _k01, _sum00);
+                _sum01 = __lsx_vfmadd_s(_r03, _k01, _sum01);
+                _sum02 = __lsx_vfmadd_s(_r05, _k01, _sum02);
+                _sum03 = __lsx_vfmadd_s(_r07, _k01, _sum03);
+                _sum00 = __lsx_vfmadd_s(_r02, _k02, _sum00);
+                _sum01 = __lsx_vfmadd_s(_r04, _k02, _sum01);
+                _sum02 = __lsx_vfmadd_s(_r06, _k02, _sum02);
+                _sum03 = __lsx_vfmadd_s(_r08, _k02, _sum03);
+
+                __m128 _r10 = (__m128)__lsx_vld(r1, 0);
+                __m128 _r11 = (__m128)__lsx_vld(r1 + 4, 0);
+                __m128 _r12 = (__m128)__lsx_vld(r1 + 4 * 2, 0);
+                __m128 _r13 = (__m128)__lsx_vld(r1 + 4 * 3, 0);
+                __m128 _r14 = (__m128)__lsx_vld(r1 + 4 * 4, 0);
+                __m128 _r15 = (__m128)__lsx_vld(r1 + 4 * 5, 0);
+                __m128 _r16 = (__m128)__lsx_vld(r1 + 4 * 6, 0);
+                __m128 _r17 = (__m128)__lsx_vld(r1 + 4 * 7, 0);
+                __m128 _r18 = (__m128)__lsx_vld(r1 + 4 * 8, 0);
+
+                _sum00 = __lsx_vfmadd_s(_r10, _k10, _sum00);
+                _sum01 = __lsx_vfmadd_s(_r12, _k10, _sum01);
+                _sum02 = __lsx_vfmadd_s(_r14, _k10, _sum02);
+                _sum03 = __lsx_vfmadd_s(_r16, _k10, _sum03);
+                _sum00 = __lsx_vfmadd_s(_r11, _k11, _sum00);
+                _sum01 = __lsx_vfmadd_s(_r13, _k11, _sum01);
+                _sum02 = __lsx_vfmadd_s(_r15, _k11, _sum02);
+                _sum03 = __lsx_vfmadd_s(_r17, _k11, _sum03);
+                _sum00 = __lsx_vfmadd_s(_r12, _k12, _sum00);
+                _sum01 = __lsx_vfmadd_s(_r14, _k12, _sum01);
+                _sum02 = __lsx_vfmadd_s(_r16, _k12, _sum02);
+                _sum03 = __lsx_vfmadd_s(_r18, _k12, _sum03);
+
+                __m128 _r20 = (__m128)__lsx_vld(r2, 0);
+                __m128 _r21 = (__m128)__lsx_vld(r2 + 4, 0);
+                __m128 _r22 = (__m128)__lsx_vld(r2 + 4 * 2, 0);
+                __m128 _r23 = (__m128)__lsx_vld(r2 + 4 * 3, 0);
+                __m128 _r24 = (__m128)__lsx_vld(r2 + 4 * 4, 0);
+                __m128 _r25 = (__m128)__lsx_vld(r2 + 4 * 5, 0);
+                __m128 _r26 = (__m128)__lsx_vld(r2 + 4 * 6, 0);
+                __m128 _r27 = (__m128)__lsx_vld(r2 + 4 * 7, 0);
+                __m128 _r28 = (__m128)__lsx_vld(r2 + 4 * 8, 0);
+
+                _sum00 = __lsx_vfmadd_s(_r20, _k20, _sum00);
+                _sum01 = __lsx_vfmadd_s(_r22, _k20, _sum01);
+                _sum02 = __lsx_vfmadd_s(_r24, _k20, _sum02);
+                _sum03 = __lsx_vfmadd_s(_r26, _k20, _sum03);
+                _sum00 = __lsx_vfmadd_s(_r21, _k21, _sum00);
+                _sum01 = __lsx_vfmadd_s(_r23, _k21, _sum01);
+                _sum02 = __lsx_vfmadd_s(_r25, _k21, _sum02);
+                _sum03 = __lsx_vfmadd_s(_r27, _k21, _sum03);
+                _sum00 = __lsx_vfmadd_s(_r22, _k22, _sum00);
+                _sum01 = __lsx_vfmadd_s(_r24, _k22, _sum01);
+                _sum02 = __lsx_vfmadd_s(_r26, _k22, _sum02);
+                _sum03 = __lsx_vfmadd_s(_r28, _k22, _sum03);
+
+                __lsx_vst(_sum00, outptr0, 0);
+                __lsx_vst(_sum01, outptr0 + 4, 0);
+                __lsx_vst(_sum02, outptr0 + 4 * 2, 0);
+                __lsx_vst(_sum03, outptr0 + 4 * 3, 0);
+
+                outptr0 += 4 * 4;
+
+                r0 += 4 * 8;
+                r1 += 4 * 8;
+                r2 += 4 * 8;
+            }
             for (; j + 1 < outw; j += 2)
             {
                 __builtin_prefetch(r0 + 64);

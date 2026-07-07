@@ -413,6 +413,7 @@ set(pnnx_pass_level5_SRCS
 
 set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_attribute.cpp
+    pass_ncnn/convert_batch_layout.cpp
     pass_ncnn/convert_custom_op.cpp
     pass_ncnn/convert_module_op.cpp
     pass_ncnn/convert_half_to_float.cpp
@@ -449,10 +450,11 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/fuse_padding_convolutiondepthwise.cpp
     pass_ncnn/fuse_transpose_matmul.cpp
     pass_ncnn/fuse_binaryop_eltwise.cpp
+    pass_ncnn/eliminate_reshape_binaryop_broadcast.cpp
     pass_ncnn/insert_reshape_numpy_binaryop_broadcast.cpp
     pass_ncnn/insert_reshape_linear.cpp
     pass_ncnn/insert_reshape_pooling.cpp
-    pass_ncnn/insert_reshape_global_pooling.cpp
+    pass_ncnn/legalize_global_pooling_layout.cpp
 
     pass_ncnn/F_adaptive_avg_pool1d.cpp
     pass_ncnn/F_adaptive_avg_pool2d.cpp
@@ -549,6 +551,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_Hardswish.cpp
     pass_ncnn/nn_Hardtanh.cpp
     pass_ncnn/nn_InstanceNorm2d.cpp
+    pass_ncnn/nn_InstanceNorm3d.cpp
     pass_ncnn/nn_LayerNorm.cpp
     pass_ncnn/nn_LeakyReLU.cpp
     pass_ncnn/nn_Linear.cpp
@@ -757,6 +760,7 @@ endif()
 set(pnnx_SRCS
     main.cpp
     ir.cpp
+    model_stat.cpp
     storezip.cpp
     utils.cpp
 

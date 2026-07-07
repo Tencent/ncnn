@@ -14,6 +14,8 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
+    - 'benchmark/**'
+    - '!benchmark/README.md'
     - 'glslang'
   pull_request:
     branches: [master]
@@ -29,6 +31,8 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
+    - 'benchmark/**'
+    - '!benchmark/README.md'
     - 'glslang'
 concurrency:
   group: windows-${{ github.ref }}
@@ -59,7 +63,7 @@ jobs:
     env:
       UseMultiToolTask: true
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: true
         
@@ -84,13 +88,13 @@ jobs:
         echo "INCLUDE=$($lines[1])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
         echo "LIB=$($lines[2])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2.4
+    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2.5
       with:
         sdk-version: ${{ matrix.windows-sdk-version }}
 
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: "protobuf-install"
         key: protobuf-${{ matrix.vs-version }}-x64-install-3
@@ -107,13 +111,13 @@ jobs:
     - name: cache-swiftshader
       if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017'
       id: cache-swiftshader
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: swiftshader-install
         key: swiftshader-${{ matrix.vs-version }}-x64-install-20251010
     - name: checkout-swiftshader
       if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017' && steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
         repository: google/swiftshader
         path: swiftshader

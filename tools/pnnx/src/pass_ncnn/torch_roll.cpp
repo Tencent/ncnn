@@ -54,26 +54,35 @@ pnnx.Output             output      1 0 out
 
         const Operand* in = ops.at("slice")->inputs[0];
 
-        const int batch_index = in->params.at("__batch_index").i;
+        const int ncnn_batch_axis = in->params.at("__ncnn_batch_axis").i;
 
         int axis = captured_params.at("dims").ai[0];
-        if (axis == batch_index)
-        {
-            fprintf(stderr, "roll along batch axis %d is not supported\n", batch_index);
-        }
-
         if (axis < 0)
         {
             int input_rank = in->shape.size();
-            axis = input_rank + axis;
+            if (input_rank == 0 && !ops.at("concat")->outputs.empty())
+                input_rank = ops.at("concat")->outputs[0]->shape.size();
+            if (input_rank > 0)
+                axis = input_rank + axis;
+            else if (ncnn_batch_axis != 233)
+                fprintf(stderr, "roll axis around batch axis %d is unknown\n", ncnn_batch_axis);
         }
 
-        if (axis > batch_index)
+        bool axis_is_batch = false;
+        if (axis == ncnn_batch_axis)
+        {
+            fprintf(stderr, "roll along batch axis %d is not supported\n", ncnn_batch_axis);
+            axis_is_batch = true;
+        }
+
+        if (!axis_is_batch && ncnn_batch_axis != 233 && axis > ncnn_batch_axis)
             axis -= 1;
 
-        ops.at("slice")->params["1"] = axis;
-
-        ops.at("concat")->params["0"] = axis;
+        if (!axis_is_batch)
+        {
+            ops.at("slice")->params["1"] = axis;
+            ops.at("concat")->params["0"] = axis;
+        }
 
         const int shift = captured_params.at("shifts").ai[0];
         ops.at("slice")->params["2"] = std::vector<int>{-shift};
@@ -133,39 +142,62 @@ pnnx.Output             output      1 0 out
 
         const Operand* in = ops.at("slice")->inputs[0];
 
-        const int batch_index = in->params.at("__batch_index").i;
+        const int ncnn_batch_axis = in->params.at("__ncnn_batch_axis").i;
 
         int axis0 = captured_params.at("dims").ai[0];
         int axis1 = captured_params.at("dims").ai[1];
-        if (axis0 == batch_index || axis1 == batch_index)
-        {
-            fprintf(stderr, "roll along batch axis %d is not supported\n", batch_index);
-        }
-
         if (axis0 < 0)
         {
             int input_rank = in->shape.size();
-            axis0 = input_rank + axis0;
+            if (input_rank == 0 && !ops.at("concat")->outputs.empty())
+                input_rank = ops.at("concat")->outputs[0]->shape.size();
+            if (input_rank > 0)
+                axis0 = input_rank + axis0;
+            else if (ncnn_batch_axis != 233)
+                fprintf(stderr, "roll axis around batch axis %d is unknown\n", ncnn_batch_axis);
         }
-
-        if (axis0 > batch_index)
-            axis0 -= 1;
 
         if (axis1 < 0)
         {
             int input_rank = in->shape.size();
-            axis1 = input_rank + axis1;
+            if (input_rank == 0 && !ops.at("concat")->outputs.empty())
+                input_rank = ops.at("concat")->outputs[0]->shape.size();
+            if (input_rank > 0)
+                axis1 = input_rank + axis1;
+            else if (ncnn_batch_axis != 233)
+                fprintf(stderr, "roll axis around batch axis %d is unknown\n", ncnn_batch_axis);
         }
-        if (axis1 > batch_index)
+
+        bool axis0_is_batch = false;
+        bool axis1_is_batch = false;
+        if (axis0 == ncnn_batch_axis || axis1 == ncnn_batch_axis)
+        {
+            fprintf(stderr, "roll along batch axis %d is not supported\n", ncnn_batch_axis);
+            axis0_is_batch = axis0 == ncnn_batch_axis;
+            axis1_is_batch = axis1 == ncnn_batch_axis;
+        }
+
+        if (!axis0_is_batch && ncnn_batch_axis != 233 && axis0 > ncnn_batch_axis)
+            axis0 -= 1;
+
+        if (!axis1_is_batch && ncnn_batch_axis != 233 && axis1 > ncnn_batch_axis)
             axis1 -= 1;
 
-        ops.at("slice")->params["1"] = axis0;
-        ops.at("slice_a")->params["1"] = axis1;
-        ops.at("slice_b")->params["1"] = axis1;
+        if (!axis0_is_batch)
+            ops.at("slice")->params["1"] = axis0;
+        if (!axis1_is_batch)
+        {
+            ops.at("slice_a")->params["1"] = axis1;
+            ops.at("slice_b")->params["1"] = axis1;
+        }
 
-        ops.at("concat_a")->params["0"] = axis1;
-        ops.at("concat_b")->params["0"] = axis1;
-        ops.at("concat")->params["0"] = axis0;
+        if (!axis1_is_batch)
+        {
+            ops.at("concat_a")->params["0"] = axis1;
+            ops.at("concat_b")->params["0"] = axis1;
+        }
+        if (!axis0_is_batch)
+            ops.at("concat")->params["0"] = axis0;
 
         const int shift0 = captured_params.at("shifts").ai[0];
         const int shift1 = captured_params.at("shifts").ai[1];

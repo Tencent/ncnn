@@ -16,6 +16,8 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
+    - 'benchmark/**'
+    - '!benchmark/README.md'
     - 'glslang'
   pull_request:
     branches: [master]
@@ -33,6 +35,8 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
+    - 'benchmark/**'
+    - '!benchmark/README.md'
     - 'glslang'
 concurrency:
   group: macos-${{ github.ref }}
@@ -77,13 +81,13 @@ jobs:
         -DNCNN_VULKAN=ON \
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: true
 
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: openmp-install
         key: openmp-macos-install-20251004
@@ -134,13 +138,13 @@ jobs:
 
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: swiftshader-install
         key: swiftshader-macos-install-20251004
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
         repository: google/swiftshader
         path: swiftshader

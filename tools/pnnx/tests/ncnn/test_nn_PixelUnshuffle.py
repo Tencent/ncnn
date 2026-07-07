@@ -12,10 +12,12 @@ class Model(nn.Module):
         self.down_0 = nn.PixelUnshuffle(2)
         self.down_1 = nn.PixelUnshuffle(4)
 
-    def forward(self, x):
+    def forward(self, x, q):
         x = self.down_0(x)
         x = self.down_1(x)
-        return x
+        q = self.down_0(q)
+        q = self.down_1(q)
+        return x, q
 
 def test():
     net = Model()
@@ -23,22 +25,23 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(1, 3, 128, 128)
+    q = torch.rand(2, 3, 128, 128)
 
-    a0 = net(x)
+    a0, a1 = net(x, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, x)
+    mod = torch.jit.trace(net, (x, q))
     mod.save("test_nn_PixelUnshuffle.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_PixelUnshuffle.pt inputshape=[1,3,128,128]")
+    os.system("../../src/pnnx test_nn_PixelUnshuffle.pt inputshape=[1,3,128,128],[2,3,128,128]")
 
     # ncnn inference
     import test_nn_PixelUnshuffle_ncnn
-    b0 = test_nn_PixelUnshuffle_ncnn.test_inference()
+    b0, b1 = test_nn_PixelUnshuffle_ncnn.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4)
+    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():

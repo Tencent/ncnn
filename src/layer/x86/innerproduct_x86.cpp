@@ -29,11 +29,20 @@ namespace ncnn {
 #undef NCNN_IMPL_FP16S
 #endif
 
+#if NCNN_BF16
+#include "innerproduct_bf16s.h"
+#include "innerproduct_gemm_bf16s.h"
+#endif
+
 InnerProduct_x86::InnerProduct_x86()
 {
 #if __SSE2__
     support_packing = true;
 #endif // __SSE2__
+
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 
     flatten = 0;
 }
@@ -55,6 +64,13 @@ int InnerProduct_x86::create_pipeline(const Option& opt)
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return create_pipeline_int8_x86(opt);
+    }
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage)
+    {
+        return create_pipeline_bf16s(opt);
     }
 #endif
 
@@ -92,7 +108,25 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 #if NCNN_INT8
     if (opt.use_int8_inference && int8_scale_term)
     {
+#if NCNN_BF16
+        if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
+        {
+            Mat bottom_blob_fp32;
+            cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+            if (bottom_blob_fp32.empty())
+                return -100;
+
+            return forward_int8_x86(bottom_blob_fp32, top_blob, opt);
+        }
+#endif
         return forward_int8_x86(bottom_blob, top_blob, opt);
+    }
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
+    {
+        return forward_bf16s(bottom_blob, top_blob, opt);
     }
 #endif
 
@@ -159,6 +193,79 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     return 0;
 }
+
+#if NCNN_BF16
+int InnerProduct_x86::create_pipeline_bf16s(const Option& opt)
+{
+    const int num_input = weight_data_size / num_output;
+
+    innerproduct_transform_kernel_bf16s_sse(weight_data, weight_data_tm, num_input, num_output, opt);
+
+    if (opt.lightmode)
+        weight_data.release();
+
+    return 0;
+}
+
+int InnerProduct_x86::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int num_input = weight_data_size / num_output;
+
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input)
+    {
+        // gemm
+        int h = bottom_blob.h;
+        size_t elemsize = bottom_blob.elemsize;
+        int elempack = bottom_blob.elempack;
+
+        top_blob.create(num_output, h, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        innerproduct_gemm_bf16s_sse(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+
+        return 0;
+    }
+
+    // flatten
+    Mat bottom_blob_flattened = bottom_blob;
+    if (bottom_blob.dims != 1)
+    {
+        Option opt_flatten = opt;
+        opt_flatten.blob_allocator = opt.workspace_allocator;
+
+        flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        if (bottom_blob_flattened.empty())
+            return -100;
+    }
+
+    size_t elemsize = bottom_blob_flattened.elemsize;
+    int elempack = bottom_blob_flattened.elempack;
+
+    int out_elempack = 1;
+#if __SSE2__
+    if (opt.use_packing_layout)
+    {
+#if __AVX512F__
+        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#elif __AVX__
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+#endif
+    }
+#endif // __SSE2__
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    innerproduct_bf16s_sse(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 #if NCNN_F16C && __AVX__
 int InnerProduct_x86::create_pipeline_fp16s(const Option& opt)
@@ -360,9 +467,12 @@ int InnerProduct_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, co
                     int i = 0;
                     for (; i < num_input; i++)
                     {
-                        // TODO use _mm_cvtepi8_epi16 on sse4.1
+#if __SSE4_1__
+                        __m128i _w = _mm_cvtepi8_epi16(_mm_loadl_epi64((const __m128i*)kptr));
+#else
                         __m128i _w = _mm_loadl_epi64((const __m128i*)kptr);
                         _w = _mm_unpacklo_epi8(_w, _mm_cmpgt_epi8(_mm_setzero_si128(), _w));
+#endif
 
                         __m128i _val0 = _mm_set1_epi16((short)m0[0]);
                         __m128i _val1 = _mm_set1_epi16((short)m1[0]);
@@ -539,9 +649,12 @@ int InnerProduct_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, co
                     {
                         __m128i _val = _mm_set1_epi16((short)m[0]);
 
-                        // TODO use _mm_cvtepi8_epi16 on sse4.1
+#if __SSE4_1__
+                        __m128i _w = _mm_cvtepi8_epi16(_mm_loadl_epi64((const __m128i*)kptr));
+#else
                         __m128i _w = _mm_loadl_epi64((const __m128i*)kptr);
                         _w = _mm_unpacklo_epi8(_w, _mm_cmpgt_epi8(_mm_setzero_si128(), _w));
+#endif
 
                         __m128i _sl = _mm_mullo_epi16(_val, _w);
                         __m128i _sh = _mm_mulhi_epi16(_val, _w);
@@ -663,9 +776,12 @@ int InnerProduct_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, co
             {
                 __m128i _val = _mm_set1_epi16((short)sptr[0]);
 
-                // TODO use _mm_cvtepi8_epi16 on sse4.1
+#if __SSE4_1__
+                __m128i _w = _mm_cvtepi8_epi16(_mm_loadl_epi64((const __m128i*)kptr));
+#else
                 __m128i _w = _mm_loadl_epi64((const __m128i*)kptr);
                 _w = _mm_unpacklo_epi8(_w, _mm_cmpgt_epi8(_mm_setzero_si128(), _w));
+#endif
 
                 __m128i _sl = _mm_mullo_epi16(_val, _w);
                 __m128i _sh = _mm_mulhi_epi16(_val, _w);

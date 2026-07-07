@@ -66,13 +66,21 @@ pnnx.Output             output      1 0 out
 
         if (axis < 0)
         {
-            axis = input_rank + axis;
+            if (input_rank > 0)
+                axis = input_rank + axis;
         }
 
         std::vector<int> normalized_shape;
-        for (int i = axis; i < input_rank; i++)
+        if (axis < 0 || axis > input_rank)
         {
-            normalized_shape.push_back(op->inputs[0]->shape[i]);
+            fprintf(stderr, "rms_norm with unknown input rank is not supported yet\n");
+        }
+        else
+        {
+            for (int i = axis; i < input_rank; i++)
+            {
+                normalized_shape.push_back(op->inputs[0]->shape[i]);
+            }
         }
 
         op->params["normalized_shape"] = normalized_shape;

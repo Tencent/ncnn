@@ -61,13 +61,19 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
     use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
 
     bool use_bf16_cooperative_matrix = false;
-    if (vkdev->info.support_bf16_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_bf16_storage || opt.use_bf16_packed))
+    if (vkdev->info.support_bf16_cooperative_matrix() && opt.use_cooperative_matrix && opt.use_bf16_storage)
     {
         use_cooperative_matrix = true;
         use_bf16_cooperative_matrix = true;
     }
 
     use_flash_attention = (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed);
+    if (use_flash_attention && use_cooperative_matrix)
+    {
+        const uint32_t support_subgroup_ops = vkdev->info.support_subgroup_ops();
+        const uint32_t required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+        use_flash_attention = ((support_subgroup_ops & required_subgroup_ops) == required_subgroup_ops);
+    }
 
     if (use_flash_attention)
     {

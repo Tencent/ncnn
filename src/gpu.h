@@ -128,6 +128,7 @@ extern PFN_vkWaitForFences vkWaitForFences;
 
 // instance extension capability
 extern int support_VK_KHR_external_memory_capabilities;
+extern int support_VK_KHR_device_group_creation;
 extern int support_VK_KHR_get_physical_device_properties2;
 extern int support_VK_KHR_get_surface_capabilities2;
 extern int support_VK_KHR_surface;
@@ -277,7 +278,7 @@ public:
     // but sometimes bug is a feature
     bool bug_implicit_fp16_arithmetic() const;
 
-    // fp16 and int8 feature
+    // fp16/int8/int16 feature
     bool support_fp16_packed() const;
     bool support_fp16_storage() const;
     bool support_fp16_uniform() const;
@@ -286,6 +287,10 @@ public:
     bool support_int8_storage() const;
     bool support_int8_uniform() const;
     bool support_int8_arithmetic() const;
+    bool support_int16_packed() const;
+    // storage only; pair with support_int16_arithmetic() for shader int16 type
+    bool support_int16_storage() const;
+    bool support_int16_arithmetic() const;
 
     // bf16 feature
     bool support_bf16_packed() const;
@@ -308,6 +313,9 @@ public:
     bool support_cooperative_matrix_16_8_16() const;
     bool support_cooperative_matrix_16_16_16() const;
 
+    // int8 cooperative matrix feature
+    bool support_int8_cooperative_matrix() const;
+
     // bf16 cooperative matrix feature
     bool support_bf16_cooperative_matrix() const;
 
@@ -320,6 +328,7 @@ public:
     int support_VK_KHR_cooperative_matrix() const;
     int support_VK_KHR_dedicated_allocation() const;
     int support_VK_KHR_descriptor_update_template() const;
+    int support_VK_KHR_device_group() const;
     int support_VK_KHR_driver_properties() const;
     int support_VK_KHR_external_memory() const;
     int support_VK_KHR_get_memory_requirements2() const;
@@ -378,6 +387,7 @@ public:
     const VkPhysicalDeviceShaderFloat8FeaturesEXT& queryShaderFloat8Features() const;
     const VkPhysicalDeviceShaderFloatControls2FeaturesKHR& queryShaderFloatControls2Features() const;
     const VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR& queryShaderIntegerDotProductFeatures() const;
+    const VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR& queryShaderSubgroupExtendedTypesFeatures() const;
     const VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR& queryShaderSubgroupRotateFeatures() const;
     const VkPhysicalDeviceShaderAtomicFloatFeaturesEXT& queryShaderAtomicFloatFeatures() const;
     const VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT& queryShaderAtomicFloat2Features() const;
@@ -440,6 +450,7 @@ public:
     int create_descriptorset_layout(int binding_count, const int* binding_types, VkDescriptorSetLayout* descriptorset_layout) const;
     int create_pipeline_layout(int push_constant_count, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const;
     int create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipeline* pipeline) const;
+    int create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipelineCache pipeline_cache, VkPipeline* pipeline) const;
     int create_descriptor_update_template(int binding_count, const int* binding_types, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplateKHR* descriptor_update_template) const;
 
     uint32_t find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const;

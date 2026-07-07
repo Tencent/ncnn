@@ -34,29 +34,42 @@ pnnx.Output             output      1 0 out
     {
         const std::vector<int>& sizes = captured_params.at("sizes").ai;
 
-        const int batch_index = op->outputs[0]->params["__batch_index"].i;
+        const int ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
 
-        const std::vector<int> shape = op->inputs[0]->shape;
+        std::vector<int> shape = op->inputs[0]->shape;
         if (shape.empty())
         {
-            fprintf(stderr, "expand tensor with unknown input shape is not supported yet!\n");
-            return;
+            fprintf(stderr, "expand tensor with unknown input shape is not supported yet, fallback to repeat 1\n");
+            shape = sizes;
         }
+
+        const int input_rank = (int)shape.size();
+        const int output_rank = (int)sizes.size();
+        if (input_rank > output_rank)
+        {
+            fprintf(stderr, "expand %d-rank tensor to %d-rank tensor is not supported yet, fallback to repeat 1\n", input_rank, output_rank);
+        }
+
+        const int rank_offset = output_rank - input_rank;
 
         // drop sizes batch index
         std::vector<int> repeats;
-        for (int i = 0; i < (int)sizes.size(); i++)
+        for (int i = 0; i < output_rank; i++)
         {
-            if (i == batch_index)
-            {
-                if (sizes[i] == 1)
-                    continue;
+            const int shape_index = i - rank_offset;
+            const int shape_dim = shape_index >= 0 && shape_index < input_rank ? shape[shape_index] : 1;
 
-                fprintf(stderr, "expand tensor along batch index %d is not supported yet!\n", batch_index);
+            if (i == ncnn_batch_axis)
+            {
+                if (sizes[i] != -1 && sizes[i] != shape_dim)
+                {
+                    fprintf(stderr, "expand tensor along batch index %d is not supported yet!\n", ncnn_batch_axis);
+                }
+                continue;
             }
 
             int repeat = 1;
-            if (sizes[i] != -1 && shape[i] == 1)
+            if (sizes[i] != -1 && shape_dim == 1)
             {
                 repeat = sizes[i];
             }
@@ -64,7 +77,7 @@ pnnx.Output             output      1 0 out
             repeats.push_back(repeat);
         }
 
-        if (repeats.size() == 5 && batch_index == 233)
+        if (repeats.size() == 5 && ncnn_batch_axis == 233)
         {
             if (repeats[0] == 1)
             {
@@ -78,7 +91,6 @@ pnnx.Output             output      1 0 out
         if (repeats_rank > 5)
         {
             fprintf(stderr, "expand to %d-rank tensor is not supported yet!\n", repeats_rank);
-            return;
         }
 
         op->params["2"] = repeats;

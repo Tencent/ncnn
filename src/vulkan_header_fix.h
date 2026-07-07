@@ -1311,6 +1311,19 @@ typedef VkPhysicalDeviceSubgroupSizeControlProperties VkPhysicalDeviceSubgroupSi
 typedef VkPipelineShaderStageRequiredSubgroupSizeCreateInfo VkPipelineShaderStageRequiredSubgroupSizeCreateInfoEXT;
 #endif // VK_EXT_subgroup_size_control
 
+#ifndef VK_KHR_shader_subgroup_extended_types
+#define VK_KHR_shader_subgroup_extended_types                                         1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_EXTENDED_TYPES_FEATURES     (VkStructureType)1000175000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_EXTENDED_TYPES_FEATURES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_EXTENDED_TYPES_FEATURES
+typedef struct VkPhysicalDeviceShaderSubgroupExtendedTypesFeatures
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 shaderSubgroupExtendedTypes;
+} VkPhysicalDeviceShaderSubgroupExtendedTypesFeatures;
+typedef VkPhysicalDeviceShaderSubgroupExtendedTypesFeatures VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR;
+#endif // VK_KHR_shader_subgroup_extended_types
+
 #ifndef VK_KHR_shader_subgroup_rotate
 #define VK_KHR_shader_subgroup_rotate                                         1
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_ROTATE_FEATURES     (VkStructureType)1000416000
