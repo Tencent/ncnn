@@ -6,7 +6,6 @@
 #include "gemm.h"
 #include "layer_type.h"
 
-#include <math.h>
 #include <string.h>
 
 static void pack_signed_weight(unsigned char* ptr, int k, int bits, int q)

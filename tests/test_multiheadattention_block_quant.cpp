@@ -6,7 +6,6 @@
 #include "layer_type.h"
 #include "multiheadattention.h"
 
-#include <math.h>
 #include <string.h>
 
 static void pack_signed_weight(unsigned char* ptr, int k, int bits, int q)
