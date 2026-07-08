@@ -1023,8 +1023,6 @@ static int make_gptq_qweight(const ncnn::Mat& weight_data, const QuantActStat& s
     const int N = weight_data.h;
     const int block_count = (K + block_size - 1) / block_size;
     const int packed_k_bytes = llm_weight_quantize_packed_k_bytes(K, weight_bits);
-    if (packed_k_bytes <= 0)
-        return -1;
     const int sample_count = (int)(stat.samples.size() / K);
 
     if (stat.width != K || sample_count == 0)

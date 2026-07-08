@@ -333,8 +333,6 @@ static inline int pack_gemm_B_from_scales(const ncnn::Mat& B_data, const ncnn::M
     }
 
     const int packed_k_bytes = llm_weight_quantize_packed_k_bytes(constantK, weight_bits);
-    if (packed_k_bytes <= 0)
-        return -1;
 
     B_data_quantized.create(packed_k_bytes, constantN, (size_t)1u);
     if (B_data_quantized.empty())

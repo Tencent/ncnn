@@ -119,9 +119,6 @@ static bool modelwriter_is_weight_block_quantize(int quantize_term)
 
 static bool modelwriter_weight_block_quantize_has_input_scale(int quantize_term)
 {
-    if (!modelwriter_is_weight_block_quantize(quantize_term))
-        return false;
-
     return quantize_term % 100 / 10 == 1;
 }
 

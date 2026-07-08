@@ -28,22 +28,16 @@ static bool mha_is_weight_block_quantize(int quantize_term)
 
 static bool mha_weight_quantize_has_input_scale(int quantize_term)
 {
-    if (!mha_is_weight_block_quantize(quantize_term))
-        return false;
-
     return quantize_term % 100 / 10 == 1;
 }
 
 static int mha_weight_quantize_bits(int quantize_term)
 {
-    return mha_is_weight_block_quantize(quantize_term) ? quantize_term / 100 : 0;
+    return quantize_term / 100;
 }
 
 static int mha_weight_quantize_block_size(int quantize_term)
 {
-    if (!mha_is_weight_block_quantize(quantize_term))
-        return 0;
-
     const int block_size_code = quantize_term % 10;
     return block_size_code == 0 ? 32 : block_size_code == 1 ? 64 : 128;
 }
@@ -76,8 +70,6 @@ static inline int mha_weight_block_quantize_unpack(const unsigned char* ptr, int
     unsigned int v = ptr[byte_offset];
     if (byte_offset + 1 < packed_k_bytes)
         v |= (unsigned int)ptr[byte_offset + 1] << 8;
-    if (byte_offset + 2 < packed_k_bytes)
-        v |= (unsigned int)ptr[byte_offset + 2] << 16;
 
     const int mask = (1 << bits) - 1;
     return mha_weight_block_quantize_sign_extend((v >> bit_shift) & mask, bits);
@@ -158,8 +150,6 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
         const int k_packed_k_bytes = mha_weight_quantize_packed_k_bytes(kdim, weight_bits);
         const int v_packed_k_bytes = mha_weight_quantize_packed_k_bytes(vdim, weight_bits);
         const int out_packed_k_bytes = mha_weight_quantize_packed_k_bytes(embed_dim, weight_bits);
-        if (q_packed_k_bytes <= 0 || k_packed_k_bytes <= 0 || v_packed_k_bytes <= 0 || out_packed_k_bytes <= 0)
-            return -100;
 
         q_weight_data = mb.load(q_packed_k_bytes, embed_dim, 0);
         if (q_weight_data.empty())

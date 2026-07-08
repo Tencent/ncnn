@@ -103,8 +103,6 @@ static inline int unpack_signed_weight(const unsigned char* ptr, int k, int bits
     unsigned int v = ptr[byte_offset];
     if (byte_offset + 1 < packed_k_bytes)
         v |= (unsigned int)ptr[byte_offset + 1] << 8;
-    if (byte_offset + 2 < packed_k_bytes)
-        v |= (unsigned int)ptr[byte_offset + 2] << 16;
 
     const int mask = (1 << bits) - 1;
     return sign_extend((v >> bit_shift) & mask, bits);
@@ -411,11 +409,6 @@ static int llm_table_row_to_scales(const char* key, const LLMWeightScale& scale,
 static int read_qweight_file(const char* key, const LLMWeightScale& scale, int K, int N, int weight_bits, ncnn::Mat& weight_data_quantized)
 {
     const int packed_k_bytes = llm_weight_quantize_packed_k_bytes(K, weight_bits);
-    if (packed_k_bytes <= 0)
-    {
-        fprintf(stderr, "%s qweight packed byte count is invalid K=%d bits=%d\n", key, K, weight_bits);
-        return -1;
-    }
     const size_t qweight_bytes = (size_t)N * packed_k_bytes;
 
     FILE* fp = fopen(scale.qweight.c_str(), "rb");
