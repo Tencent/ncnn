@@ -26,8 +26,6 @@ if(NCNN_INT8)
             endif()
         endif()
 
-        set(OpenCV_FOUND FALSE)
-
         if(OpenCV_FOUND)
             add_executable(ncnn2table ncnn2table.cpp)
             target_include_directories(ncnn2table PRIVATE ${OpenCV_INCLUDE_DIRS})
