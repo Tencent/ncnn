@@ -565,7 +565,7 @@ static int collect_mha_out_act_rows(const ncnn::MultiHeadAttention* mha, const n
         {
             #pragma omp parallel for num_threads(num_threads)
             for (int i = 0; i < embed_dim; i++)
-                memcpy(k_affine.row(i), cached_xk_blob.row(i), dst_seqlen * sizeof(float));
+                memcpy(k_affine.row(i), cached_xk_blob.row(i), past_seqlen * sizeof(float));
         }
 
         #pragma omp parallel for num_threads(num_threads)
@@ -601,7 +601,7 @@ static int collect_mha_out_act_rows(const ncnn::MultiHeadAttention* mha, const n
         {
             #pragma omp parallel for num_threads(num_threads)
             for (int i = 0; i < embed_dim; i++)
-                memcpy(v_affine.row(i), cached_xv_blob.row(i), dst_seqlen * sizeof(float));
+                memcpy(v_affine.row(i), cached_xv_blob.row(i), past_seqlen * sizeof(float));
         }
 
         #pragma omp parallel for num_threads(num_threads)
