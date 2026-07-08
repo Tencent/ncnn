@@ -131,6 +131,26 @@ static bool parse_float_string(const char* s, float& v)
     return true;
 }
 
+static bool read_line(FILE* fp, std::vector<char>& line)
+{
+    line.clear();
+
+    char buf[4096];
+    while (fgets(buf, sizeof(buf), fp))
+    {
+        const size_t len = strlen(buf);
+        line.insert(line.end(), buf, buf + len);
+        if (len > 0 && buf[len - 1] == '\n')
+            break;
+    }
+
+    if (line.empty())
+        return false;
+
+    line.push_back('\0');
+    return true;
+}
+
 static bool read_llm_scale_table(const char* filepath, std::map<std::string, LLMWeightScale>& llm_scale_table)
 {
     llm_scale_table.clear();
@@ -145,16 +165,12 @@ static bool read_llm_scale_table(const char* filepath, std::map<std::string, LLM
     std::string key_str;
     std::vector<float> scales;
 
-    std::vector<char> line(10240000);
+    std::vector<char> line;
     char* pch = NULL;
     int lineno = 0;
 
-    while (!feof(fp))
+    while (read_line(fp, line))
     {
-        char* s = fgets(line.data(), (int)line.size(), fp);
-        if (!s)
-            break;
-
         lineno++;
         line[strcspn(line.data(), "\r\n")] = 0;
 
@@ -348,6 +364,34 @@ static bool read_llm_scale_table(const char* filepath, std::map<std::string, LLM
     fclose(fp);
 
     return true;
+}
+
+static int make_input_scaled_weight(const ncnn::Mat& weight_data, const ncnn::Mat& input_scales, ncnn::Mat& weight_data_scaled)
+{
+    const int K = weight_data.w;
+    const int N = weight_data.h;
+
+    if (input_scales.w != K)
+    {
+        fprintf(stderr, "input scale count mismatch expected=%d got=%d\n", K, input_scales.w);
+        return -1;
+    }
+
+    weight_data_scaled.create(K, N);
+    if (weight_data_scaled.empty())
+        return -100;
+
+    const float* input_scale_ptr = input_scales;
+    for (int n = 0; n < N; n++)
+    {
+        const float* ptr = weight_data.row(n);
+        float* outptr = weight_data_scaled.row(n);
+
+        for (int k = 0; k < K; k++)
+            outptr[k] = ptr[k] / input_scale_ptr[k];
+    }
+
+    return 0;
 }
 
 class NetQuantize : public ModelWriter
@@ -774,7 +818,19 @@ int NetQuantize::quantize_gemm_from_table(std::map<std::string, LLMWeightScale>&
 
         if (!qweight_row)
         {
-            ret = pack_gemm_B_from_scales(gemm->B_data, B_data_quantize_scales, block_size, weight_bits, B_data_quantized);
+            if (has_input_scale)
+            {
+                ncnn::Mat B_data_scaled;
+                ret = make_input_scaled_weight(gemm->B_data, B_data_input_scales, B_data_scaled);
+                if (ret != 0)
+                    return ret;
+
+                ret = pack_gemm_B_from_scales(B_data_scaled, B_data_quantize_scales, block_size, weight_bits, B_data_quantized);
+            }
+            else
+            {
+                ret = pack_gemm_B_from_scales(gemm->B_data, B_data_quantize_scales, block_size, weight_bits, B_data_quantized);
+            }
             if (ret != 0)
                 return ret;
         }
@@ -1015,7 +1071,20 @@ int NetQuantize::quantize_multiheadattention_from_table(std::map<std::string, LL
             if (qweight_rows[j])
                 continue;
 
-            int ret = pack_gemm_B_from_scales(weights[j], weight_data_quantize_scales[j], block_size[0], weight_bits[0], weight_data_quantized[j]);
+            int ret = 0;
+            if (has_input_scale)
+            {
+                ncnn::Mat weight_data_scaled;
+                ret = make_input_scaled_weight(weights[j], input_scales[j], weight_data_scaled);
+                if (ret != 0)
+                    return ret;
+
+                ret = pack_gemm_B_from_scales(weight_data_scaled, weight_data_quantize_scales[j], block_size[0], weight_bits[0], weight_data_quantized[j]);
+            }
+            else
+            {
+                ret = pack_gemm_B_from_scales(weights[j], weight_data_quantize_scales[j], block_size[0], weight_bits[0], weight_data_quantized[j]);
+            }
             if (ret != 0)
                 return ret;
         }

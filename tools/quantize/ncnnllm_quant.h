@@ -410,7 +410,7 @@ static inline int write_llm_table_row(FILE* fp, const char* key, int weight_bits
     const size_t size = (size_t)scales.w * scales.h * scales.d * scales.c;
     for (size_t i = 0; i < size; i++)
     {
-        fprintf(fp, "%f ", ptr[i]);
+        fprintf(fp, "%.9g ", ptr[i]);
     }
     fprintf(fp, "\n");
 
@@ -425,7 +425,7 @@ static inline int write_llm_input_scale_row(FILE* fp, const char* key, int metho
     const size_t size = (size_t)scales.w * scales.h * scales.d * scales.c;
     for (size_t i = 0; i < size; i++)
     {
-        fprintf(fp, "%f ", ptr[i]);
+        fprintf(fp, "%.9g ", ptr[i]);
     }
     fprintf(fp, "\n");
 
@@ -444,7 +444,7 @@ static inline int write_llm_qweight_table_row(FILE* fp, const char* key, int wei
     const size_t size = (size_t)scales.w * scales.h * scales.d * scales.c;
     for (size_t i = 0; i < size; i++)
     {
-        fprintf(fp, "%f ", ptr[i]);
+        fprintf(fp, "%.9g ", ptr[i]);
     }
     fprintf(fp, "\n");
 
