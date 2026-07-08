@@ -447,7 +447,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < embed_dim; i++)
             {
-                memcpy(k_affine.row(i), cached_xk_blob.row(i), dst_seqlen * sizeof(float));
+                memcpy(k_affine.row(i), cached_xk_blob.row(i), past_seqlen * sizeof(float));
             }
         }
 
@@ -488,7 +488,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < embed_dim; i++)
             {
-                memcpy(v_affine.row(i), cached_xv_blob.row(i), dst_seqlen * sizeof(float));
+                memcpy(v_affine.row(i), cached_xv_blob.row(i), past_seqlen * sizeof(float));
             }
         }
 
@@ -1318,7 +1318,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < embed_dim; i++)
             {
-                memcpy(k_affine.row(i), cached_xk_blob.row(i), dst_seqlen * sizeof(float));
+                memcpy(k_affine.row(i), cached_xk_blob.row(i), past_seqlen * sizeof(float));
             }
         }
 
@@ -1366,7 +1366,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < embed_dim; i++)
             {
-                memcpy(v_affine.row(i), cached_xv_blob.row(i), dst_seqlen * sizeof(float));
+                memcpy(v_affine.row(i), cached_xv_blob.row(i), past_seqlen * sizeof(float));
             }
         }
 

@@ -120,11 +120,10 @@ static int test_multiheadattention_self_kvcache_prefill(const ncnn::Mat& q, int 
     return ret;
 }
 
-static int test_multiheadattention_self_kvcache_decode(const ncnn::Mat& q, int embed_dim, int num_heads)
+static int test_multiheadattention_self_kvcache_decode(const ncnn::Mat& q, int embed_dim, int num_heads, int cur_seqlen)
 {
     const int qdim = q.w;
     const int past_seqlen = q.h;
-    const int cur_seqlen = 1;
 
     ncnn::ParamDict pd;
     pd.set(0, embed_dim);
@@ -156,7 +155,7 @@ static int test_multiheadattention_self_kvcache_decode(const ncnn::Mat& q, int e
     int ret = test_layer("MultiHeadAttention", pd, weights, as, 3, epsilon);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention_self_kvcache_decode failed q=(%d %d) embed_dim=%d num_heads=%d\n", q.w, q.h, embed_dim, num_heads);
+        fprintf(stderr, "test_multiheadattention_self_kvcache_decode failed q=(%d %d) embed_dim=%d num_heads=%d cur_seqlen=%d\n", q.w, q.h, embed_dim, num_heads, cur_seqlen);
     }
 
     return ret;
@@ -186,8 +185,9 @@ static int test_multiheadattention_1()
 static int test_multiheadattention_2()
 {
     return 0
-           || test_multiheadattention_self_kvcache_decode(RandomMat(64, 128), 64, 4)
-           || test_multiheadattention_self_kvcache_decode(RandomMat(48, 127), 64, 8);
+           || test_multiheadattention_self_kvcache_decode(RandomMat(64, 128), 64, 4, 1)
+           || test_multiheadattention_self_kvcache_decode(RandomMat(48, 127), 64, 8, 1)
+           || test_multiheadattention_self_kvcache_decode(RandomMat(64, 128), 64, 4, 32);
 }
 
 #if NCNN_INT8
@@ -316,11 +316,10 @@ static int test_multiheadattention_int8_self_kvcache_prefill(const ncnn::Mat& q,
     return ret;
 }
 
-static int test_multiheadattention_int8_self_kvcache_decode(const ncnn::Mat& q, int embed_dim, int num_heads)
+static int test_multiheadattention_int8_self_kvcache_decode(const ncnn::Mat& q, int embed_dim, int num_heads, int cur_seqlen)
 {
     const int qdim = q.w;
     const int past_seqlen = q.h;
-    const int cur_seqlen = 1;
 
     ncnn::ParamDict pd;
     pd.set(0, embed_dim);
@@ -357,7 +356,7 @@ static int test_multiheadattention_int8_self_kvcache_decode(const ncnn::Mat& q, 
     int ret = test_layer("MultiHeadAttention", pd, weights, as, 3, epsilon);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention_int8_self_kvcache_decode failed q=(%d %d) embed_dim=%d num_heads=%d\n", q.w, q.h, embed_dim, num_heads);
+        fprintf(stderr, "test_multiheadattention_int8_self_kvcache_decode failed q=(%d %d) embed_dim=%d num_heads=%d cur_seqlen=%d\n", q.w, q.h, embed_dim, num_heads, cur_seqlen);
     }
 
     return ret;
@@ -386,8 +385,9 @@ static int test_multiheadattention_4()
 static int test_multiheadattention_5()
 {
     return 0
-           || test_multiheadattention_int8_self_kvcache_decode(RandomMat(64, 128), 64, 4)
-           || test_multiheadattention_int8_self_kvcache_decode(RandomMat(48, 127), 64, 8);
+           || test_multiheadattention_int8_self_kvcache_decode(RandomMat(64, 128), 64, 4, 1)
+           || test_multiheadattention_int8_self_kvcache_decode(RandomMat(48, 127), 64, 8, 1)
+           || test_multiheadattention_int8_self_kvcache_decode(RandomMat(64, 128), 64, 4, 32);
 }
 #endif
 
