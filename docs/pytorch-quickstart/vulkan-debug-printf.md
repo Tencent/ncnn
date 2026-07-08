@@ -70,15 +70,19 @@ khronos_validation.debug_printf_preserve = true
 layout(local_size_x_id = 0) in;
 
 void main() {
-    // Debug input dimensions
+    // Debug input dimensions (only active when ncnn is built with validation layers)
+#if ncnn_enable_validation_layer
     NCNN_LOGE("matmul layer: M=%d N=%d K=%d", M, N, K);
+#endif
 
     float sum = 0.0;
     for (int k = 0; k < K; k++) {
         sum += A[...] * B[...];
     }
 
+#if ncnn_enable_validation_layer
     NCNN_LOGE("partial sum[%d][%d] = %f", row, col, sum);
+#endif
     // ...
 }
 ```

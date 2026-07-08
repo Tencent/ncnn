@@ -55,11 +55,13 @@ int main() {
     net.load_param("resnet18.ncnn.param");
     net.load_model("resnet18.ncnn.bin");
 
-    // Preprocess image
+    // Preprocess image (ImageNet normalization)
     cv::Mat img = cv::imread("cat.jpg");
     ncnn::Mat in = ncnn::Mat::from_pixels_resize(
         img.data, ncnn::Mat::PIXEL_BGR2RGB, img.cols, img.rows, 224, 224
     );
+    const float mean_vals[3] = {0.485f * 255.f, 0.456f * 255.f, 0.406f * 255.f};
+    const float norm_vals[3] = {1.f / (0.229f * 255.f), 1.f / (0.224f * 255.f), 1.f / (0.225f * 255.f)};
     in.substract_mean_normalize(mean_vals, norm_vals);
 
     // Inference
@@ -68,9 +70,13 @@ int main() {
     ncnn::Mat out;
     ex.extract("output", out);
 
-    // Post-process
-    int predicted = out.argmax();
-    printf("Predicted class: %d\n", predicted);
+    // Post-process: find class with highest score
+    int predicted = 0;
+    float max_score = out[0];
+    for (int c = 1; c < out.w; c++) {
+        if (out[c] > max_score) { max_score = out[c]; predicted = c; }
+    }
+    printf("Predicted class: %d (score: %.4f)\n", predicted, max_score);
     return 0;
 }
 ```
