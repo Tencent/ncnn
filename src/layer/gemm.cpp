@@ -117,7 +117,7 @@ int Gemm::load_param(const ParamDict& pd)
 
     if (quantize_term == 4 || quantize_term == 5 || quantize_term == 6)
     {
-        NCNN_LOGE("Gemm quantize_term %d is an obsolete block quantization prototype value", quantize_term);
+        NCNN_LOGE("Gemm unsupported quantize_term %d", quantize_term);
         return -1;
     }
 
@@ -132,13 +132,13 @@ int Gemm::load_param(const ParamDict& pd)
 #if NCNN_WEIGHT_QUANT
         if (constantA != 0 || constantB != 1 || transA != 0 || transB != 1)
         {
-            NCNN_LOGE("Gemm weight block quantization only supports constantA=0 constantB=1 transA=0 transB=1");
+            NCNN_LOGE("Gemm unsupported weight block quantize");
             return -1;
         }
 
         if (output_N1M != 0 || output_elempack != 0 || (output_elemtype != 0 && output_elemtype != 1) || output_transpose != 0)
         {
-            NCNN_LOGE("Gemm weight block quantization only supports fp32 pack1 non-transposed output");
+            NCNN_LOGE("Gemm unsupported weight block quantize");
             return -1;
         }
 
@@ -248,33 +248,15 @@ int Gemm::load_model(const ModelBin& mb)
             return -100;
         const int block_count = (constantK + block_size - 1) / block_size;
 
-        if (B_data.elemsize != 1u || B_data.w != packed_k_bytes || B_data.h != constantN)
-        {
-            NCNN_LOGE("Gemm weight block quantized B_data shape mismatch");
-            return -100;
-        }
-
         B_data_quantize_scales = mb.load(block_count, constantN, 1);
         if (B_data_quantize_scales.empty())
             return -100;
-
-        if (B_data_quantize_scales.elemsize != 4u || B_data_quantize_scales.w != block_count || B_data_quantize_scales.h != constantN)
-        {
-            NCNN_LOGE("Gemm weight block quantize scale shape mismatch");
-            return -100;
-        }
 
         if (gemm_weight_quantize_has_input_scale(quantize_term))
         {
             B_data_input_scales = mb.load(constantK, 1);
             if (B_data_input_scales.empty())
                 return -100;
-
-            if (B_data_input_scales.elemsize != 4u || B_data_input_scales.w != constantK)
-            {
-                NCNN_LOGE("Gemm weight block quantize input scale shape mismatch");
-                return -100;
-            }
         }
     }
 #endif // NCNN_WEIGHT_QUANT
@@ -370,7 +352,7 @@ int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, st
     const Mat& A = bottom_blobs[0];
     if (A.elemsize != 4u || A.elempack != 1)
     {
-        NCNN_LOGE("Gemm weight block quantize only supports fp32 input");
+        NCNN_LOGE("Gemm unsupported input");
         return -1;
     }
 
@@ -443,7 +425,7 @@ int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, st
 
             if (!matched || C.elemsize != 4u || C.elempack != 1)
             {
-                NCNN_LOGE("Gemm weight block quantize unsupported C");
+                NCNN_LOGE("Gemm unsupported C");
                 return -1;
             }
         }
@@ -451,7 +433,7 @@ int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, st
 
     if (!C.empty() && (C.elemsize != 4u || C.elempack != 1))
     {
-        NCNN_LOGE("Gemm weight block quantize only supports fp32 C");
+        NCNN_LOGE("Gemm unsupported C");
         return -1;
     }
 

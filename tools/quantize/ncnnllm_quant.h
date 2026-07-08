@@ -9,7 +9,6 @@
 #include <cstring>
 #include <float.h>
 #include <limits.h>
-#include <math.h>
 
 enum
 {
@@ -136,25 +135,25 @@ static inline bool is_supported_llm_gemm(const ncnn::Gemm* gemm, const char** re
 
     if (gemm->transA != 0 || gemm->transB != 1)
     {
-        *reason = "requires transA=0 transB=1";
+        *reason = "transA/transB";
         return false;
     }
 
     if (gemm->constantA != 0 || gemm->constantB != 1 || gemm->constantC != 1 || gemm->constant_broadcast_type_C != -1)
     {
-        *reason = "requires constantA=0 constantB=1 constantC=1 broadcastC=-1";
+        *reason = "constantA/B/C";
         return false;
     }
 
     if (gemm->constantM != 0)
     {
-        *reason = "requires dynamic M";
+        *reason = "constantM";
         return false;
     }
 
     if (gemm->output_N1M != 0 || gemm->output_elempack != 0 || gemm->output_elemtype != 0 || gemm->output_transpose != 0)
     {
-        *reason = "unsupported output layout";
+        *reason = "output layout";
         return false;
     }
 
@@ -175,7 +174,7 @@ static inline bool is_supported_llm_gemm(const ncnn::Gemm* gemm, const char** re
 
     if (constantN <= 0 || constantK <= 0 || gemm->B_data.w != constantK || gemm->B_data.h != constantN || gemm->B_data.elemsize != 4u)
     {
-        *reason = "B weight shape or storage is unsupported";
+        *reason = "B_data";
         return false;
     }
 
@@ -192,38 +191,38 @@ static inline bool is_supported_llm_multiheadattention(const ncnn::MultiHeadAtte
 
     if (mha->embed_dim <= 0 || mha->num_heads <= 0 || mha->embed_dim % mha->num_heads != 0 || mha->weight_data_size <= 0 || mha->weight_data_size % mha->embed_dim != 0 || mha->kdim <= 0 || mha->vdim <= 0)
     {
-        *reason = "requires valid embed_dim/num_heads/weight_data_size/kdim/vdim";
+        *reason = "shape";
         return false;
     }
 
     const int qdim = mha->weight_data_size / mha->embed_dim;
     if (mha->q_weight_data.elemsize != 4u || mha->q_weight_data.w != mha->embed_dim * qdim)
     {
-        *reason = "q weight shape or storage is unsupported";
+        *reason = "q_weight";
         return false;
     }
 
     if (mha->k_weight_data.elemsize != 4u || mha->k_weight_data.w != mha->embed_dim * mha->kdim)
     {
-        *reason = "k weight shape or storage is unsupported";
+        *reason = "k_weight";
         return false;
     }
 
     if (mha->v_weight_data.elemsize != 4u || mha->v_weight_data.w != mha->embed_dim * mha->vdim)
     {
-        *reason = "v weight shape or storage is unsupported";
+        *reason = "v_weight";
         return false;
     }
 
     if (mha->out_weight_data.elemsize != 4u || mha->out_weight_data.w != qdim * mha->embed_dim)
     {
-        *reason = "out weight shape or storage is unsupported";
+        *reason = "out_weight";
         return false;
     }
 
     if (mha->q_bias_data.elemsize != 4u || mha->q_bias_data.w != mha->embed_dim || mha->k_bias_data.elemsize != 4u || mha->k_bias_data.w != mha->embed_dim || mha->v_bias_data.elemsize != 4u || mha->v_bias_data.w != mha->embed_dim || mha->out_bias_data.elemsize != 4u || mha->out_bias_data.w != qdim)
     {
-        *reason = "bias shape or storage is unsupported";
+        *reason = "bias";
         return false;
     }
 
@@ -315,7 +314,7 @@ static inline int pack_gemm_B_from_scales(const ncnn::Mat& B_data, const ncnn::M
 
     if (B_data_quantize_scales.w != block_count || B_data_quantize_scales.h != constantN)
     {
-        fprintf(stderr, "Gemm B scale shape mismatch expected=%d,%d got=%d,%d\n", block_count, constantN, B_data_quantize_scales.w, B_data_quantize_scales.h);
+        fprintf(stderr, "Gemm B scale shape mismatch\n");
         return -1;
     }
 

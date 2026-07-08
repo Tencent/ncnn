@@ -11,7 +11,6 @@
 #include <cstring>
 #include <exception>
 #include <float.h>
-#include <math.h>
 #include <string>
 #include <vector>
 

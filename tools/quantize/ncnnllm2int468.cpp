@@ -10,7 +10,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <float.h>
-#include <math.h>
 #include <map>
 #include <string>
 #include <vector>
@@ -1029,9 +1028,21 @@ int main(int argc, char** argv)
         if (strcmp(key, "method") == 0)
             method = value;
         else if (strcmp(key, "bits") == 0)
-            weight_bits = atoi(value);
+        {
+            if (!parse_int_string(value, weight_bits))
+            {
+                fprintf(stderr, "malformed bits=%s\n", value);
+                return -1;
+            }
+        }
         else if (strcmp(key, "block") == 0)
-            block_size = atoi(value);
+        {
+            if (!parse_int_string(value, block_size))
+            {
+                fprintf(stderr, "malformed block=%s\n", value);
+                return -1;
+            }
+        }
         else
         {
             fprintf(stderr, "unrecognized arg %s\n", key);
