@@ -254,21 +254,6 @@ int Gemm::load_model(const ModelBin& mb)
             return -100;
         }
 
-        const int used_bits = (int)(((size_t)constantK * weight_bits) % 8);
-        if (used_bits != 0)
-        {
-            for (int i = 0; i < constantN; i++)
-            {
-                const unsigned char* bptr = B_data.row<const unsigned char>(i);
-                const unsigned char padding_mask = (unsigned char)(0xffu << used_bits);
-                if ((bptr[packed_k_bytes - 1] & padding_mask) != 0)
-                {
-                    NCNN_LOGE("Gemm weight block quantized B_data padding bits not zero");
-                    return -100;
-                }
-            }
-        }
-
         B_data_quantize_scales = mb.load(block_count, constantN, 1);
         if (B_data_quantize_scales.empty())
             return -100;
@@ -277,20 +262,6 @@ int Gemm::load_model(const ModelBin& mb)
         {
             NCNN_LOGE("Gemm weight block quantize scale shape mismatch");
             return -100;
-        }
-
-        for (int i = 0; i < constantN; i++)
-        {
-            const float* scale_ptr = B_data_quantize_scales.row(i);
-            for (int j = 0; j < block_count; j++)
-            {
-                const float scale = scale_ptr[j];
-                if (!(scale > 0.f) || scale > FLT_MAX)
-                {
-                    NCNN_LOGE("Gemm weight block quantize scale invalid");
-                    return -100;
-                }
-            }
         }
 
         if (gemm_weight_quantize_has_input_scale(quantize_term))
@@ -303,17 +274,6 @@ int Gemm::load_model(const ModelBin& mb)
             {
                 NCNN_LOGE("Gemm weight block quantize input scale shape mismatch");
                 return -100;
-            }
-
-            const float* input_scale_ptr = B_data_input_scales;
-            for (int k = 0; k < constantK; k++)
-            {
-                const float s = input_scale_ptr[k];
-                if (!(s > 0.f) || s > FLT_MAX)
-                {
-                    NCNN_LOGE("Gemm weight block quantize input scale invalid");
-                    return -100;
-                }
             }
         }
     }

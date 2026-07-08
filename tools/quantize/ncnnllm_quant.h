@@ -47,30 +47,6 @@ static inline int llm_quant_method_from_string(const char* method)
     return -1;
 }
 
-static inline const char* llm_quant_bits_to_dtype(int weight_bits)
-{
-    if (weight_bits == 4)
-        return "int4";
-    if (weight_bits == 6)
-        return "int6";
-    if (weight_bits == 8)
-        return "int8";
-
-    return "";
-}
-
-static inline int llm_quant_dtype_to_bits(const char* dtype)
-{
-    if (strcmp(dtype, "int4") == 0)
-        return 4;
-    if (strcmp(dtype, "int6") == 0)
-        return 6;
-    if (strcmp(dtype, "int8") == 0)
-        return 8;
-
-    return 0;
-}
-
 static inline int llm_weight_block_quantize_term(int weight_bits, int block_size, bool input_scale = false)
 {
     const int block_size_code = block_size == 32 ? 0 : block_size == 64 ? 1 : block_size == 128 ? 2 : -1;
@@ -401,11 +377,10 @@ static inline int make_and_pack_gemm_B(const ncnn::Mat& B_data, int block_size, 
 
 static inline int write_llm_table_row(FILE* fp, const char* key, int weight_bits, int block_size, int method, const ncnn::Mat& scales)
 {
-    const char* dtype = llm_quant_bits_to_dtype(weight_bits);
-    if (dtype[0] == '\0')
+    if (weight_bits != 4 && weight_bits != 6 && weight_bits != 8)
         return -1;
 
-    fprintf(fp, "%s format=block_symmetric dtype=%s block=%d scale_dtype=fp32 scale_encoding=quant method=%s ", key, dtype, block_size, llm_quant_method_to_string(method));
+    fprintf(fp, "%s bits=%d block=%d method=%s ", key, weight_bits, block_size, llm_quant_method_to_string(method));
 
     const float* ptr = scales;
     const size_t size = (size_t)scales.w * scales.h * scales.d * scales.c;
@@ -420,7 +395,7 @@ static inline int write_llm_table_row(FILE* fp, const char* key, int weight_bits
 
 static inline int write_llm_input_scale_row(FILE* fp, const char* key, int method, const ncnn::Mat& scales)
 {
-    fprintf(fp, "%s format=input_scale scale_dtype=fp32 scale_encoding=mul method=%s ", key, llm_quant_method_to_string(method));
+    fprintf(fp, "%s method=%s ", key, llm_quant_method_to_string(method));
 
     const float* ptr = scales;
     const size_t size = (size_t)scales.w * scales.h * scales.d * scales.c;
@@ -435,11 +410,10 @@ static inline int write_llm_input_scale_row(FILE* fp, const char* key, int metho
 
 static inline int write_llm_qweight_table_row(FILE* fp, const char* key, int weight_bits, int block_size, int method, const char* qweight, const ncnn::Mat& scales)
 {
-    const char* dtype = llm_quant_bits_to_dtype(weight_bits);
-    if (dtype[0] == '\0')
+    if (weight_bits != 4 && weight_bits != 6 && weight_bits != 8)
         return -1;
 
-    fprintf(fp, "%s format=block_symmetric_qweight dtype=%s block=%d scale_dtype=fp32 scale_encoding=quant qweight=%s qweight_encoding=sint%d_packed layout=nk method=%s ", key, dtype, block_size, qweight, weight_bits, llm_quant_method_to_string(method));
+    fprintf(fp, "%s bits=%d block=%d method=%s qweight=%s ", key, weight_bits, block_size, llm_quant_method_to_string(method), qweight);
 
     const float* ptr = scales;
     const size_t size = (size_t)scales.w * scales.h * scales.d * scales.c;

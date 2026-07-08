@@ -1480,7 +1480,7 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
                 return -1;
             }
 
-            fprintf(stderr, "write_llm_table %s dtype=%s block=%d method=%s\n", key, llm_quant_bits_to_dtype(weight_bits), block_size, llm_quant_method_to_string(method));
+            fprintf(stderr, "write_llm_table %s bits=%d block=%d method=%s\n", key, weight_bits, block_size, llm_quant_method_to_string(method));
             table_count++;
 
             if (method == LLM_QUANT_METHOD_AWQ)
@@ -1581,7 +1581,7 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
                     return -1;
                 }
 
-                fprintf(stderr, "write_llm_table %s dtype=%s block=%d method=%s\n", key, llm_quant_bits_to_dtype(weight_bits), block_size, llm_quant_method_to_string(method));
+                fprintf(stderr, "write_llm_table %s bits=%d block=%d method=%s\n", key, weight_bits, block_size, llm_quant_method_to_string(method));
                 table_count++;
 
                 if (method == LLM_QUANT_METHOD_AWQ)

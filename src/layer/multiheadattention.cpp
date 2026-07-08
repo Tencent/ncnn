@@ -83,7 +83,7 @@ static inline int mha_weight_block_quantize_unpack(const unsigned char* ptr, int
     return mha_weight_block_quantize_sign_extend((v >> bit_shift) & mask, bits);
 }
 
-static int mha_check_weight_block_quantize_model(const Mat& weight_data, const Mat& weight_data_quantize_scales, int K, int N, int weight_bits, int block_size, const char* name)
+static int mha_check_weight_block_quantize_shape(const Mat& weight_data, const Mat& weight_data_quantize_scales, int K, int N, int weight_bits, int block_size, const char* name)
 {
     const int packed_k_bytes = mha_weight_quantize_packed_k_bytes(K, weight_bits);
     if (packed_k_bytes <= 0)
@@ -96,39 +96,10 @@ static int mha_check_weight_block_quantize_model(const Mat& weight_data, const M
         return -100;
     }
 
-    const int used_bits = (int)(((size_t)K * weight_bits) % 8);
-    if (used_bits != 0)
-    {
-        const unsigned char padding_mask = (unsigned char)(0xffu << used_bits);
-        for (int i = 0; i < N; i++)
-        {
-            const unsigned char* wptr = weight_data.row<const unsigned char>(i);
-            if ((wptr[packed_k_bytes - 1] & padding_mask) != 0)
-            {
-                NCNN_LOGE("MultiHeadAttention weight block quantized %s_data padding bits not zero", name);
-                return -100;
-            }
-        }
-    }
-
     if (weight_data_quantize_scales.elemsize != 4u || weight_data_quantize_scales.w != block_count || weight_data_quantize_scales.h != N)
     {
         NCNN_LOGE("MultiHeadAttention weight block quantize %s_scale shape mismatch", name);
         return -100;
-    }
-
-    for (int i = 0; i < N; i++)
-    {
-        const float* scale_ptr = weight_data_quantize_scales.row(i);
-        for (int j = 0; j < block_count; j++)
-        {
-            const float s = scale_ptr[j];
-            if (!(s > 0.f) || s > FLT_MAX)
-            {
-                NCNN_LOGE("MultiHeadAttention weight block quantize %s_scale invalid", name);
-                return -100;
-            }
-        }
     }
 
     return 0;
@@ -140,17 +111,6 @@ static int mha_check_weight_block_quantize_input_scales(const Mat& input_scales,
     {
         NCNN_LOGE("MultiHeadAttention weight block quantize %s_input_scale shape mismatch", name);
         return -100;
-    }
-
-    const float* input_scale_ptr = input_scales;
-    for (int k = 0; k < K; k++)
-    {
-        const float s = input_scale_ptr[k];
-        if (!(s > 0.f) || s > FLT_MAX)
-        {
-            NCNN_LOGE("MultiHeadAttention weight block quantize %s_input_scale invalid", name);
-            return -100;
-        }
     }
 
     return 0;
@@ -273,16 +233,16 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
         if (q_weight_data_quantize_scales.empty() || k_weight_data_quantize_scales.empty() || v_weight_data_quantize_scales.empty() || out_weight_data_quantize_scales.empty())
             return -100;
 
-        int ret = mha_check_weight_block_quantize_model(q_weight_data, q_weight_data_quantize_scales, qdim, embed_dim, weight_bits, block_size, "q_weight");
+        int ret = mha_check_weight_block_quantize_shape(q_weight_data, q_weight_data_quantize_scales, qdim, embed_dim, weight_bits, block_size, "q_weight");
         if (ret != 0)
             return ret;
-        ret = mha_check_weight_block_quantize_model(k_weight_data, k_weight_data_quantize_scales, kdim, embed_dim, weight_bits, block_size, "k_weight");
+        ret = mha_check_weight_block_quantize_shape(k_weight_data, k_weight_data_quantize_scales, kdim, embed_dim, weight_bits, block_size, "k_weight");
         if (ret != 0)
             return ret;
-        ret = mha_check_weight_block_quantize_model(v_weight_data, v_weight_data_quantize_scales, vdim, embed_dim, weight_bits, block_size, "v_weight");
+        ret = mha_check_weight_block_quantize_shape(v_weight_data, v_weight_data_quantize_scales, vdim, embed_dim, weight_bits, block_size, "v_weight");
         if (ret != 0)
             return ret;
-        ret = mha_check_weight_block_quantize_model(out_weight_data, out_weight_data_quantize_scales, embed_dim, qdim, weight_bits, block_size, "out_weight");
+        ret = mha_check_weight_block_quantize_shape(out_weight_data, out_weight_data_quantize_scales, embed_dim, qdim, weight_bits, block_size, "out_weight");
         if (ret != 0)
             return ret;
 

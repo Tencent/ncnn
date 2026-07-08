@@ -44,18 +44,15 @@ class LLMWeightScale
 public:
     LLMWeightScale()
     {
+        bits = 0;
+        block_size = 0;
         used = false;
     }
 
 public:
-    std::string format;
-    std::string dtype;
-    std::string block;
-    std::string scale_dtype;
-    std::string scale_encoding;
+    int bits;
+    int block_size;
     std::string qweight;
-    std::string qweight_encoding;
-    std::string layout;
     std::string method;
     ncnn::Mat scales;
     bool used;
@@ -196,14 +193,10 @@ static bool read_llm_scale_table(const char* filepath, std::map<std::string, LLM
         scales.clear();
 
         bool coeff_started = false;
-        bool has_format = false;
-        bool has_dtype = false;
+        bool has_bits = false;
         bool has_block = false;
-        bool has_scale_dtype = false;
-        bool has_scale_encoding = false;
         bool has_qweight = false;
-        bool has_qweight_encoding = false;
-        bool has_layout = false;
+        bool has_method = false;
 
         while ((pch = strtok(NULL, " \t")) != NULL)
         {
@@ -221,29 +214,22 @@ static bool read_llm_scale_table(const char* filepath, std::map<std::string, LLM
                     return false;
                 }
 
-                if (strcmp(k, "format") == 0)
+                if (strcmp(k, "bits") == 0)
                 {
-                    if (has_format)
+                    if (has_bits)
                     {
                         fprintf(stderr, "%s:%d duplicate metadata %s\n", filepath, lineno, k);
                         fclose(fp);
                         return false;
                     }
 
-                    has_format = true;
-                    scale.format = v;
-                }
-                else if (strcmp(k, "dtype") == 0)
-                {
-                    if (has_dtype)
+                    has_bits = true;
+                    if (!parse_int_string(v, scale.bits))
                     {
-                        fprintf(stderr, "%s:%d duplicate metadata %s\n", filepath, lineno, k);
+                        fprintf(stderr, "%s:%d malformed bits=%s\n", filepath, lineno, v);
                         fclose(fp);
                         return false;
                     }
-
-                    has_dtype = true;
-                    scale.dtype = v;
                 }
                 else if (strcmp(k, "block") == 0)
                 {
@@ -255,31 +241,12 @@ static bool read_llm_scale_table(const char* filepath, std::map<std::string, LLM
                     }
 
                     has_block = true;
-                    scale.block = v;
-                }
-                else if (strcmp(k, "scale_dtype") == 0)
-                {
-                    if (has_scale_dtype)
+                    if (!parse_int_string(v, scale.block_size))
                     {
-                        fprintf(stderr, "%s:%d duplicate metadata %s\n", filepath, lineno, k);
+                        fprintf(stderr, "%s:%d malformed block=%s\n", filepath, lineno, v);
                         fclose(fp);
                         return false;
                     }
-
-                    has_scale_dtype = true;
-                    scale.scale_dtype = v;
-                }
-                else if (strcmp(k, "scale_encoding") == 0)
-                {
-                    if (has_scale_encoding)
-                    {
-                        fprintf(stderr, "%s:%d duplicate metadata %s\n", filepath, lineno, k);
-                        fclose(fp);
-                        return false;
-                    }
-
-                    has_scale_encoding = true;
-                    scale.scale_encoding = v;
                 }
                 else if (strcmp(k, "qweight") == 0)
                 {
@@ -293,35 +260,25 @@ static bool read_llm_scale_table(const char* filepath, std::map<std::string, LLM
                     has_qweight = true;
                     scale.qweight = resolve_qweight_path(filepath, v);
                 }
-                else if (strcmp(k, "qweight_encoding") == 0)
-                {
-                    if (has_qweight_encoding)
-                    {
-                        fprintf(stderr, "%s:%d duplicate metadata %s\n", filepath, lineno, k);
-                        fclose(fp);
-                        return false;
-                    }
-
-                    has_qweight_encoding = true;
-                    scale.qweight_encoding = v;
-                }
-                else if (strcmp(k, "layout") == 0)
-                {
-                    if (has_layout)
-                    {
-                        fprintf(stderr, "%s:%d duplicate metadata %s\n", filepath, lineno, k);
-                        fclose(fp);
-                        return false;
-                    }
-
-                    has_layout = true;
-                    scale.layout = v;
-                }
                 else if (strcmp(k, "method") == 0)
                 {
+                    if (has_method)
+                    {
+                        fprintf(stderr, "%s:%d duplicate metadata %s\n", filepath, lineno, k);
+                        fclose(fp);
+                        return false;
+                    }
+
+                    has_method = true;
                     scale.method = v;
                 }
                 else if (strcmp(k, "zero_point") == 0 || strcmp(k, "zp") == 0 || strcmp(k, "g_idx") == 0)
+                {
+                    fprintf(stderr, "%s:%d unsupported metadata %s\n", filepath, lineno, k);
+                    fclose(fp);
+                    return false;
+                }
+                else
                 {
                     fprintf(stderr, "%s:%d unsupported metadata %s\n", filepath, lineno, k);
                     fclose(fp);
@@ -426,46 +383,18 @@ static void print_usage(const char* argv0)
 
 static int llm_table_row_to_scales(const char* key, const LLMWeightScale& scale, int K, int N, int& weight_bits, int& block_size, ncnn::Mat& weight_data_quantize_scales)
 {
-    if (scale.format.empty() || scale.dtype.empty() || scale.block.empty() || scale.scale_dtype.empty() || scale.scale_encoding.empty())
+    if (scale.bits == 0 || scale.block_size == 0)
     {
         fprintf(stderr, "%s missing mandatory metadata\n", key);
         return -1;
     }
 
-    if (scale.format != "block_symmetric")
-    {
-        fprintf(stderr, "%s unsupported format=%s\n", key, scale.format.c_str());
-        return -1;
-    }
-
-    weight_bits = llm_quant_dtype_to_bits(scale.dtype.c_str());
-    if (weight_bits == 0)
-    {
-        fprintf(stderr, "%s unsupported dtype=%s\n", key, scale.dtype.c_str());
-        return -1;
-    }
-
-    if (!parse_int_string(scale.block.c_str(), block_size))
-    {
-        fprintf(stderr, "%s malformed block=%s\n", key, scale.block.c_str());
-        return -1;
-    }
+    weight_bits = scale.bits;
+    block_size = scale.block_size;
 
     if (llm_weight_block_quantize_term(weight_bits, block_size) == 0)
     {
-        fprintf(stderr, "%s unsupported dtype=%s block=%d\n", key, scale.dtype.c_str(), block_size);
-        return -1;
-    }
-
-    if (scale.scale_dtype != "fp32")
-    {
-        fprintf(stderr, "%s unsupported scale_dtype=%s\n", key, scale.scale_dtype.c_str());
-        return -1;
-    }
-
-    if (scale.scale_encoding != "quant")
-    {
-        fprintf(stderr, "%s unsupported scale_encoding=%s\n", key, scale.scale_encoding.c_str());
+        fprintf(stderr, "%s unsupported bits=%d block=%d\n", key, weight_bits, block_size);
         return -1;
     }
 
@@ -561,60 +490,18 @@ static int read_qweight_file(const char* key, const LLMWeightScale& scale, int K
 
 static int llm_table_row_to_qweight(const char* key, const LLMWeightScale& scale, int K, int N, int& weight_bits, int& block_size, ncnn::Mat& weight_data_quantize_scales, ncnn::Mat& weight_data_quantized)
 {
-    if (scale.format.empty() || scale.dtype.empty() || scale.block.empty() || scale.scale_dtype.empty() || scale.scale_encoding.empty() || scale.qweight.empty() || scale.qweight_encoding.empty() || scale.layout.empty())
+    if (scale.bits == 0 || scale.block_size == 0 || scale.qweight.empty())
     {
         fprintf(stderr, "%s missing mandatory metadata\n", key);
         return -1;
     }
 
-    if (scale.format != "block_symmetric_qweight")
-    {
-        fprintf(stderr, "%s unsupported format=%s\n", key, scale.format.c_str());
-        return -1;
-    }
-
-    weight_bits = llm_quant_dtype_to_bits(scale.dtype.c_str());
-    if (weight_bits == 0)
-    {
-        fprintf(stderr, "%s unsupported dtype=%s\n", key, scale.dtype.c_str());
-        return -1;
-    }
-
-    if (!parse_int_string(scale.block.c_str(), block_size))
-    {
-        fprintf(stderr, "%s malformed block=%s\n", key, scale.block.c_str());
-        return -1;
-    }
+    weight_bits = scale.bits;
+    block_size = scale.block_size;
 
     if (llm_weight_block_quantize_term(weight_bits, block_size) == 0)
     {
-        fprintf(stderr, "%s unsupported dtype=%s block=%d\n", key, scale.dtype.c_str(), block_size);
-        return -1;
-    }
-
-    if (scale.scale_dtype != "fp32")
-    {
-        fprintf(stderr, "%s unsupported scale_dtype=%s\n", key, scale.scale_dtype.c_str());
-        return -1;
-    }
-
-    if (scale.scale_encoding != "quant")
-    {
-        fprintf(stderr, "%s unsupported scale_encoding=%s\n", key, scale.scale_encoding.c_str());
-        return -1;
-    }
-
-    char expected_qweight_encoding[32];
-    snprintf(expected_qweight_encoding, sizeof(expected_qweight_encoding), "sint%d_packed", weight_bits);
-    if (scale.qweight_encoding != expected_qweight_encoding)
-    {
-        fprintf(stderr, "%s unsupported qweight_encoding=%s\n", key, scale.qweight_encoding.c_str());
-        return -1;
-    }
-
-    if (scale.layout != "nk")
-    {
-        fprintf(stderr, "%s unsupported layout=%s\n", key, scale.layout.c_str());
+        fprintf(stderr, "%s unsupported bits=%d block=%d\n", key, weight_bits, block_size);
         return -1;
     }
 
@@ -638,30 +525,6 @@ static int llm_table_row_to_qweight(const char* key, const LLMWeightScale& scale
 
 static int llm_table_row_to_input_scales(const char* key, const LLMWeightScale& scale, int K, ncnn::Mat& input_scales)
 {
-    if (scale.format.empty() || scale.scale_dtype.empty() || scale.scale_encoding.empty())
-    {
-        fprintf(stderr, "%s missing mandatory metadata\n", key);
-        return -1;
-    }
-
-    if (scale.format != "input_scale")
-    {
-        fprintf(stderr, "%s unsupported format=%s\n", key, scale.format.c_str());
-        return -1;
-    }
-
-    if (scale.scale_dtype != "fp32")
-    {
-        fprintf(stderr, "%s unsupported scale_dtype=%s\n", key, scale.scale_dtype.c_str());
-        return -1;
-    }
-
-    if (scale.scale_encoding != "mul")
-    {
-        fprintf(stderr, "%s unsupported scale_encoding=%s\n", key, scale.scale_encoding.c_str());
-        return -1;
-    }
-
     if (scale.scales.w != K)
     {
         fprintf(stderr, "%s coefficient count mismatch expected=%d got=%d\n", key, K, scale.scales.w);
@@ -785,7 +648,7 @@ int NetQuantize::quantize_gemm_from_table(std::map<std::string, LLMWeightScale>&
         int block_size = 0;
         ncnn::Mat B_data_quantize_scales;
         ncnn::Mat B_data_quantized;
-        const bool qweight_row = scale.format == "block_symmetric_qweight";
+        const bool qweight_row = !scale.qweight.empty();
         int ret = 0;
         if (qweight_row)
             ret = llm_table_row_to_qweight(key, scale, constantK, constantN, weight_bits, block_size, B_data_quantize_scales, B_data_quantized);
@@ -815,7 +678,7 @@ int NetQuantize::quantize_gemm_from_table(std::map<std::string, LLMWeightScale>&
         }
 
         const int quantize_term = llm_weight_block_quantize_term(weight_bits, block_size, has_input_scale);
-        fprintf(stderr, "quantize_gemm table dtype=%s block_size=%d term=%d method=%s %s\n", scale.dtype.c_str(), block_size, quantize_term, scale.method.c_str(), gemm_name(gemm));
+        fprintf(stderr, "quantize_gemm table bits=%d block_size=%d term=%d method=%s %s\n", weight_bits, block_size, quantize_term, scale.method.c_str(), gemm_name(gemm));
 
         if (!qweight_row)
         {
@@ -1009,7 +872,7 @@ int NetQuantize::quantize_multiheadattention_from_table(std::map<std::string, LL
         ncnn::Mat weight_data_quantized[4];
         for (int j = 0; j < 4; j++)
         {
-            qweight_rows[j] = iters[j]->second.format == "block_symmetric_qweight";
+            qweight_rows[j] = !iters[j]->second.qweight.empty();
 
             int ret = 0;
             if (qweight_rows[j])
@@ -1024,7 +887,7 @@ int NetQuantize::quantize_multiheadattention_from_table(std::map<std::string, LL
         {
             if (weight_bits[j] != weight_bits[0] || block_size[j] != block_size[0])
             {
-                fprintf(stderr, "MultiHeadAttention %s table rows require same dtype/block for q/k/v/out\n", multiheadattention_name(mha));
+                fprintf(stderr, "MultiHeadAttention %s table rows require same bits/block for q/k/v/out\n", multiheadattention_name(mha));
                 return -1;
             }
 
@@ -1059,7 +922,7 @@ int NetQuantize::quantize_multiheadattention_from_table(std::map<std::string, LL
         }
 
         const int quantize_term = llm_weight_block_quantize_term(weight_bits[0], block_size[0], has_input_scale);
-        fprintf(stderr, "quantize_multiheadattention table dtype=%s block_size=%d term=%d %s\n", iters[0]->second.dtype.c_str(), block_size[0], quantize_term, multiheadattention_name(mha));
+        fprintf(stderr, "quantize_multiheadattention table bits=%d block_size=%d term=%d %s\n", weight_bits[0], block_size[0], quantize_term, multiheadattention_name(mha));
 
         const ncnn::Mat q_weight_data = mha->q_weight_data.reshape(qdim, mha->embed_dim);
         const ncnn::Mat k_weight_data = mha->k_weight_data.reshape(mha->kdim, mha->embed_dim);
