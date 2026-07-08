@@ -3,9 +3,8 @@
 
 #include "gemm.h"
 
-#include <algorithm>
+#include <float.h>
 #include <limits.h>
-#include <math.h>
 
 namespace ncnn {
 
@@ -286,7 +285,7 @@ int Gemm::load_model(const ModelBin& mb)
             for (int j = 0; j < block_count; j++)
             {
                 const float scale = scale_ptr[j];
-                if (!(scale > 0.f) || !isfinite(scale))
+                if (!(scale > 0.f) || scale > FLT_MAX)
                 {
                     NCNN_LOGE("Gemm weight block quantize scale must be finite and positive");
                     return -100;
@@ -310,7 +309,7 @@ int Gemm::load_model(const ModelBin& mb)
             for (int k = 0; k < constantK; k++)
             {
                 const float s = input_scale_ptr[k];
-                if (!(s > 0.f) || !isfinite(s))
+                if (!(s > 0.f) || s > FLT_MAX)
                 {
                     NCNN_LOGE("Gemm weight block quantize input scale must be finite and positive");
                     return -100;
@@ -565,7 +564,7 @@ int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, st
 
             for (int k0 = 0; k0 < K; k0 += block_size)
             {
-                const int max_kk = std::min(block_size, K - k0);
+                const int max_kk = block_size < K - k0 ? block_size : K - k0;
                 const float descale = 1.f / scale_ptr[k0 / block_size];
 
                 for (int kk = 0; kk < max_kk; kk++)

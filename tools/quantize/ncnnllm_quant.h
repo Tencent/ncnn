@@ -5,10 +5,11 @@
 #define NCNNLLM_QUANT_H
 
 #include <algorithm>
-#include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <float.h>
 #include <limits.h>
+#include <math.h>
 
 enum
 {
@@ -348,7 +349,7 @@ static inline int pack_gemm_B_from_scales(const ncnn::Mat& B_data, const ncnn::M
         for (int b = 0; b < block_count; b++)
         {
             const float scale = scale_ptr[b];
-            if (!(scale > 0.f) || !std::isfinite(scale))
+            if (!(scale > 0.f) || scale > FLT_MAX)
             {
                 fprintf(stderr, "Gemm B scale is invalid n=%d block=%d scale=%f\n", n, b, scale);
                 return -1;

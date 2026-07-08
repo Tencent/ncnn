@@ -6,10 +6,11 @@
 #define _CRT_SECURE_NO_DEPRECATE
 #endif
 
-#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <float.h>
+#include <math.h>
 #include <map>
 #include <string>
 #include <vector>
@@ -346,7 +347,7 @@ static bool read_llm_scale_table(const char* filepath, std::map<std::string, LLM
                     return false;
                 }
 
-                if (!(coeff > 0.f) || !std::isfinite(coeff))
+                if (!(coeff > 0.f) || coeff > FLT_MAX)
                 {
                     fprintf(stderr, "%s invalid coefficient index=%d coeff=%f\n", key, (int)scales.size(), coeff);
                     fclose(fp);
@@ -670,7 +671,7 @@ static int llm_table_row_to_input_scales(const char* key, const LLMWeightScale& 
     const float* ptr = scale.scales;
     for (int k = 0; k < K; k++)
     {
-        if (!(ptr[k] > 0.f) || !std::isfinite(ptr[k]))
+        if (!(ptr[k] > 0.f) || ptr[k] > FLT_MAX)
         {
             fprintf(stderr, "%s invalid input scale index=%d coeff=%f\n", key, k, ptr[k]);
             return -1;

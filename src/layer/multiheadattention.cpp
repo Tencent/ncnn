@@ -3,10 +3,8 @@
 
 #include "multiheadattention.h"
 
-#include <algorithm>
 #include <float.h>
 #include <limits.h>
-#include <math.h>
 
 namespace ncnn {
 
@@ -125,7 +123,7 @@ static int mha_check_weight_block_quantize_model(const Mat& weight_data, const M
         for (int j = 0; j < block_count; j++)
         {
             const float s = scale_ptr[j];
-            if (!(s > 0.f) || !isfinite(s))
+            if (!(s > 0.f) || s > FLT_MAX)
             {
                 NCNN_LOGE("MultiHeadAttention weight block quantize %s_scale must be finite and positive", name);
                 return -100;
@@ -148,7 +146,7 @@ static int mha_check_weight_block_quantize_input_scales(const Mat& input_scales,
     for (int k = 0; k < K; k++)
     {
         const float s = input_scale_ptr[k];
-        if (!(s > 0.f) || !isfinite(s))
+        if (!(s > 0.f) || s > FLT_MAX)
         {
             NCNN_LOGE("MultiHeadAttention weight block quantize %s_input_scale must be finite and positive", name);
             return -100;
@@ -732,7 +730,7 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
                 float sum = q_bias_data[j];
                 for (int k0 = 0; k0 < qdim; k0 += block_size)
                 {
-                    const int max_kk = std::min(block_size, qdim - k0);
+                    const int max_kk = block_size < qdim - k0 ? block_size : qdim - k0;
                     const float descale = 1.f / scale_ptr[k0 / block_size];
 
                     for (int kk = 0; kk < max_kk; kk++)
@@ -786,7 +784,7 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
                 float sum = k_bias_data[j];
                 for (int k0 = 0; k0 < kdim; k0 += block_size)
                 {
-                    const int max_kk = std::min(block_size, kdim - k0);
+                    const int max_kk = block_size < kdim - k0 ? block_size : kdim - k0;
                     const float descale = 1.f / scale_ptr[k0 / block_size];
 
                     for (int kk = 0; kk < max_kk; kk++)
@@ -840,7 +838,7 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
                 float sum = v_bias_data[j];
                 for (int k0 = 0; k0 < vdim; k0 += block_size)
                 {
-                    const int max_kk = std::min(block_size, vdim - k0);
+                    const int max_kk = block_size < vdim - k0 ? block_size : vdim - k0;
                     const float descale = 1.f / scale_ptr[k0 / block_size];
 
                     for (int kk = 0; kk < max_kk; kk++)
@@ -996,7 +994,7 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
                 float sum = out_bias_data[j];
                 for (int k0 = 0; k0 < embed_dim; k0 += block_size)
                 {
-                    const int max_kk = std::min(block_size, embed_dim - k0);
+                    const int max_kk = block_size < embed_dim - k0 ? block_size : embed_dim - k0;
                     const float descale = 1.f / scale_ptr[k0 / block_size];
 
                     for (int kk = 0; kk < max_kk; kk++)

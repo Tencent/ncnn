@@ -6,12 +6,12 @@
 #endif
 
 #include <algorithm>
-#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <exception>
 #include <float.h>
+#include <math.h>
 #include <string>
 #include <vector>
 
@@ -763,7 +763,7 @@ static int make_input_scaled_weight(const ncnn::Mat& weight_data, const ncnn::Ma
         for (int k = 0; k < K; k++)
         {
             const float s = input_scale_ptr[k];
-            if (!(s > 0.f) || !std::isfinite(s))
+            if (!(s > 0.f) || s > FLT_MAX)
             {
                 fprintf(stderr, "invalid input scale k=%d scale=%f\n", k, s);
                 return -1;
@@ -907,10 +907,10 @@ static int make_awq_input_scales(const ncnn::Mat& weight_data, const QuantActSta
             {
                 const float raw = powf((weight_mean_ptr[k] + 1e-6f) / (act_mean_ptr[k] + 1e-6f), alpha);
                 input_scale_ptr[k] = raw;
-                logsum += log((double)raw);
+                logsum += ::log((double)raw);
             }
 
-            const float geomean = (float)exp(logsum / K);
+            const float geomean = (float)::exp(logsum / K);
             for (int k = 0; k < K; k++)
             {
                 float v = input_scale_ptr[k] / geomean;
@@ -1059,7 +1059,7 @@ static int make_gptq_qweight(const ncnn::Mat& weight_data, const QuantActStat& s
         for (int i = 0; i < B; i++)
             diag_mean += H[(size_t)i * B + i];
         diag_mean /= B;
-        if (!(diag_mean > 0.0) || !std::isfinite(diag_mean))
+        if (!(diag_mean > 0.0) || diag_mean > DBL_MAX)
             diag_mean = 1.0;
 
         for (int i = 0; i < B; i++)
@@ -1764,13 +1764,13 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if (!(table.awq_max_scale > 1.f) || !std::isfinite(table.awq_max_scale))
+    if (!(table.awq_max_scale > 1.f) || table.awq_max_scale > FLT_MAX)
     {
         fprintf(stderr, "malformed awq_max_scale %f\n", table.awq_max_scale);
         return -1;
     }
 
-    if (!(table.gptq_damp >= 0.f) || !std::isfinite(table.gptq_damp))
+    if (!(table.gptq_damp >= 0.f) || table.gptq_damp > FLT_MAX)
     {
         fprintf(stderr, "malformed gptq_damp %f\n", table.gptq_damp);
         return -1;
