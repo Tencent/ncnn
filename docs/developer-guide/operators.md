@@ -1151,7 +1151,7 @@ y = (gemm(a, b) + c * beta) * alpha
 | 12        | output_elempack | int | 0         |                   |
 | 13        | output_elemtype | int | 0         |                   |
 | 14        | output_transpose | int| 0         |                   |
-| 18        | quantize_term | int | 0         | 0=no quant, 2=legacy Gemm int8, 400/401/402=int4 block32/64/128, 410/411/412=int4 block32/64/128 with input scale, 600/601/602=int6 block32/64/128, 610/611/612=int6 block32/64/128 with input scale, 800/801/802=int8 block32/64/128, 810/811/812=int8 block32/64/128 with input scale |
+| 18        | quantize_term | int | 0         | 0=no quant, nonzero non-block value below 400 is legacy Gemm int8 except obsolete 4/5/6, 400/401/402=int4 block32/64/128, 410/411/412=int4 block32/64/128 with input scale, 600/601/602=int6 block32/64/128, 610/611/612=int6 block32/64/128 with input scale, 800/801/802=int8 block32/64/128, 810/811/812=int8 block32/64/128 with input scale |
 | 20        | constant_TILE_M | int | 0         |                   |
 | 21        | constant_TILE_N | int | 0         |                   |
 | 22        | constant_TILE_K | int | 0         |                   |
@@ -1585,7 +1585,7 @@ y = affine(out)
 | 5         | attn_mask     | int   | 0         |                   |
 | 6         | scale         | float | 1.f / sqrt(embed_dim / num_heads) | |
 | 7         | kv_cache      | int   | 0         |                   |
-| 18        | quantize_term | int | 0         | 0=no quant, 2=legacy MultiHeadAttention int8, 400/401/402=int4 block32/64/128, 410/411/412=int4 block32/64/128 with input scale, 600/601/602=int6 block32/64/128, 610/611/612=int6 block32/64/128 with input scale, 800/801/802=int8 block32/64/128, 810/811/812=int8 block32/64/128 with input scale |
+| 18        | quantize_term | int | 0         | 0=no quant, nonzero non-block value below 400 is legacy MultiHeadAttention int8 except obsolete 4/5/6, 400/401/402=int4 block32/64/128, 410/411/412=int4 block32/64/128 with input scale, 600/601/602=int6 block32/64/128, 610/611/612=int6 block32/64/128 with input scale, 800/801/802=int8 block32/64/128, 810/811/812=int8 block32/64/128 with input scale |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |

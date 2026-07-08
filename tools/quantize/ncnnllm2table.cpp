@@ -905,7 +905,9 @@ static int make_awq_input_scales(const ncnn::Mat& weight_data, const QuantActSta
             double logsum = 0.0;
             for (int k = 0; k < K; k++)
             {
-                const float raw = powf((weight_mean_ptr[k] + 1e-6f) / (act_mean_ptr[k] + 1e-6f), alpha);
+                float raw = powf((weight_mean_ptr[k] + 1e-6f) / (act_mean_ptr[k] + 1e-6f), alpha);
+                if (raw < 1e-12f)
+                    raw = 1e-12f;
                 input_scale_ptr[k] = raw;
                 logsum += ::log((double)raw);
             }

@@ -304,7 +304,7 @@ static int test_multiheadattention_block_quant(int qdim, int kdim, int vdim, int
     return 0;
 }
 
-static int test_multiheadattention_block_quant_kvcache(int input_scale = 0)
+static int test_multiheadattention_block_quant_kvcache(int attn_mask = 0, int input_scale = 0)
 {
     const int qdim = 10;
     const int embed_dim = 8;
@@ -318,35 +318,44 @@ static int test_multiheadattention_block_quant_kvcache(int input_scale = 0)
     if (ret != 0)
         return ret;
 
-    std::vector<ncnn::Mat> inputs(3);
+    std::vector<ncnn::Mat> inputs(attn_mask ? 4 : 3);
     inputs[0] = RandomMat(qdim, 3, -1.f, 1.f);
-    inputs[1] = RandomMat(5, embed_dim, -1.f, 1.f);
-    inputs[2] = RandomMat(5, embed_dim, -1.f, 1.f);
+    if (attn_mask)
+    {
+        inputs[1] = RandomMat(8, 3, -1.f, 0.f);
+        inputs[2] = RandomMat(5, embed_dim, -1.f, 1.f);
+        inputs[3] = RandomMat(5, embed_dim, -1.f, 1.f);
+    }
+    else
+    {
+        inputs[1] = RandomMat(5, embed_dim, -1.f, 1.f);
+        inputs[2] = RandomMat(5, embed_dim, -1.f, 1.f);
+    }
 
     const int quantize_term = weight_block_quantize_term(bits, block_size, input_scale);
-    const ncnn::ParamDict pd = make_mha_param(qdim, qdim, qdim, embed_dim, num_heads, 0, 1, quantize_term);
-    const ncnn::ParamDict ref_pd = make_mha_param(qdim, qdim, qdim, embed_dim, num_heads, 0, 1, 0);
+    const ncnn::ParamDict pd = make_mha_param(qdim, qdim, qdim, embed_dim, num_heads, attn_mask, 1, quantize_term);
+    const ncnn::ParamDict ref_pd = make_mha_param(qdim, qdim, qdim, embed_dim, num_heads, attn_mask, 1, 0);
 
     std::vector<ncnn::Mat> outputs;
     std::vector<ncnn::Mat> refs;
     ret = run_mha_layer(pd, weights, inputs, 3, outputs);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention_block_quant_kvcache failed ret=%d input_scale=%d\n", ret, input_scale);
+        fprintf(stderr, "test_multiheadattention_block_quant_kvcache failed ret=%d attn_mask=%d input_scale=%d\n", ret, attn_mask, input_scale);
         return ret;
     }
 
     ret = run_mha_layer(ref_pd, ref_weights, inputs, 3, refs);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention_block_quant_kvcache reference failed ret=%d input_scale=%d\n", ret, input_scale);
+        fprintf(stderr, "test_multiheadattention_block_quant_kvcache reference failed ret=%d attn_mask=%d input_scale=%d\n", ret, attn_mask, input_scale);
         return ret;
     }
 
     ret = CompareMat(outputs, refs, 0.001f);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention_block_quant_kvcache compare failed input_scale=%d\n", input_scale);
+        fprintf(stderr, "test_multiheadattention_block_quant_kvcache compare failed attn_mask=%d input_scale=%d\n", attn_mask, input_scale);
         return ret;
     }
 
@@ -375,6 +384,8 @@ int main()
            || test_multiheadattention_block_quant(12, 7, 9, 8, 2, 8, 128, 0)
            || test_multiheadattention_block_quant(13, 9, 11, 8, 2, 4, 64, 1, 1)
            || test_multiheadattention_block_quant_kvcache()
-           || test_multiheadattention_block_quant_kvcache(1);
+           || test_multiheadattention_block_quant_kvcache(0, 1)
+           || test_multiheadattention_block_quant_kvcache(1)
+           || test_multiheadattention_block_quant_kvcache(1, 1);
 #endif
 }

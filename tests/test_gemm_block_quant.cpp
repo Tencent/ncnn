@@ -240,8 +240,11 @@ int main()
 #else
     return 0
            || test_gemm_block_quant(3, 5, 65, 4, 64, -1)
+           || test_gemm_block_quant(3, 4, 33, 4, 32, 0)
            || test_gemm_block_quant(4, 7, 67, 6, 64, 3)
+           || test_gemm_block_quant(3, 4, 33, 6, 32, 2)
            || test_gemm_block_quant(2, 3, 5, 8, 32, 4)
+           || test_gemm_block_quant(2, 5, 65, 8, 32, -1)
            || test_gemm_block_quant(3, 4, 129, 6, 128, -1)
            || test_gemm_block_quant(3, 5, 65, 4, 64, -1, 1)
            || test_gemm_block_quant(2, 4, 31, 6, 32, 1, 1);

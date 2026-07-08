@@ -4624,12 +4624,10 @@ int Gemm_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     }
 
 #if NCNN_INT8
-#if NCNN_INT8
     if (quantize_term)
     {
         return forward_int8(bottom_blobs, top_blobs, opt);
     }
-#endif
 #endif
 
     const Mat& bottom_blob = bottom_blobs.empty() ? AT_data : bottom_blobs[0];

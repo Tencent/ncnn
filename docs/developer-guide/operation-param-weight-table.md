@@ -131,7 +131,7 @@
 ||2|expand_c|0|
 ||3|axes|[ ]|
 |Flatten|||
-|Gemm|0|alpha|1.f|A_data B_data C_data A_data_int8_scales B_data_int8_scales/B_data_quantize_scales|
+|Gemm|0|alpha|1.f|A_data B_data C_data A_data_int8_scales B_data_int8_scales/B_data_quantize_scales B_data_input_scales|
 ||1|beta|1.f|
 ||2|transA|0|
 ||3|transB|0|

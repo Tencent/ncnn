@@ -50,7 +50,10 @@ int MultiHeadAttention_vulkan::load_param(const ParamDict& pd)
 int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
 {
     if (weight_block_quantize)
-        return 0;
+    {
+        NCNN_LOGE("MultiHeadAttention weight block quantization is not supported by Vulkan");
+        return -1;
+    }
 
     // const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = weight_data_size / embed_dim;
@@ -333,6 +336,12 @@ int MultiHeadAttention_vulkan::destroy_pipeline(const Option& opt)
 
 int MultiHeadAttention_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
+    if (weight_block_quantize)
+    {
+        NCNN_LOGE("MultiHeadAttention weight block quantization is not supported by Vulkan");
+        return -1;
+    }
+
     if (q_gemm)
     {
         q_gemm->upload_model(cmd, opt);
@@ -359,7 +368,10 @@ int MultiHeadAttention_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     if (weight_block_quantize)
+    {
+        NCNN_LOGE("MultiHeadAttention weight block quantization is not supported by Vulkan");
         return -1;
+    }
 
     int q_blob_i = 0;
     int k_blob_i = 0;

@@ -304,13 +304,6 @@ static bool read_llm_scale_table(const char* filepath, std::map<std::string, LLM
                     return false;
                 }
 
-                if (!(coeff > 0.f) || coeff > FLT_MAX)
-                {
-                    fprintf(stderr, "%s invalid coefficient index=%d coeff=%f\n", key, (int)scales.size(), coeff);
-                    fclose(fp);
-                    return false;
-                }
-
                 scales.push_back(coeff);
             }
         }
@@ -519,6 +512,15 @@ static int llm_table_row_to_qweight(const char* key, const LLMWeightScale& scale
         return -100;
 
     memcpy(weight_data_quantize_scales.data, scale.scales.data, weight_scale_count * sizeof(float));
+    const float* scale_ptr = weight_data_quantize_scales;
+    for (size_t i = 0; i < weight_scale_count; i++)
+    {
+        if (!(scale_ptr[i] > 0.f) || scale_ptr[i] > FLT_MAX)
+        {
+            fprintf(stderr, "%s invalid weight scale index=%zu coeff=%f\n", key, i, scale_ptr[i]);
+            return -1;
+        }
+    }
 
     return read_qweight_file(key, scale, K, N, weight_bits, weight_data_quantized);
 }
