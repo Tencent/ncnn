@@ -92,7 +92,7 @@ static int mha_check_weight_block_quantize_model(const Mat& weight_data, const M
 
     if (weight_data.elemsize != 1u || weight_data.w != packed_k_bytes || weight_data.h != N)
     {
-        NCNN_LOGE("MultiHeadAttention weight block quantized %s_data shape mismatch, expected w=%d h=%d elemsize=1 but got w=%d h=%d elemsize=%zu", name, packed_k_bytes, N, weight_data.w, weight_data.h, weight_data.elemsize);
+        NCNN_LOGE("MultiHeadAttention weight block quantized %s_data shape mismatch", name);
         return -100;
     }
 
@@ -105,7 +105,7 @@ static int mha_check_weight_block_quantize_model(const Mat& weight_data, const M
             const unsigned char* wptr = weight_data.row<const unsigned char>(i);
             if ((wptr[packed_k_bytes - 1] & padding_mask) != 0)
             {
-                NCNN_LOGE("MultiHeadAttention weight block quantized %s_data tail padding bits must be zero", name);
+                NCNN_LOGE("MultiHeadAttention weight block quantized %s_data padding bits not zero", name);
                 return -100;
             }
         }
@@ -113,7 +113,7 @@ static int mha_check_weight_block_quantize_model(const Mat& weight_data, const M
 
     if (weight_data_quantize_scales.elemsize != 4u || weight_data_quantize_scales.w != block_count || weight_data_quantize_scales.h != N)
     {
-        NCNN_LOGE("MultiHeadAttention weight block quantize %s_scale shape mismatch, expected w=%d h=%d elemsize=4 but got w=%d h=%d elemsize=%zu", name, block_count, N, weight_data_quantize_scales.w, weight_data_quantize_scales.h, weight_data_quantize_scales.elemsize);
+        NCNN_LOGE("MultiHeadAttention weight block quantize %s_scale shape mismatch", name);
         return -100;
     }
 
@@ -125,7 +125,7 @@ static int mha_check_weight_block_quantize_model(const Mat& weight_data, const M
             const float s = scale_ptr[j];
             if (!(s > 0.f) || s > FLT_MAX)
             {
-                NCNN_LOGE("MultiHeadAttention weight block quantize %s_scale must be finite and positive", name);
+                NCNN_LOGE("MultiHeadAttention weight block quantize %s_scale invalid", name);
                 return -100;
             }
         }
@@ -138,7 +138,7 @@ static int mha_check_weight_block_quantize_input_scales(const Mat& input_scales,
 {
     if (input_scales.elemsize != 4u || input_scales.w != K)
     {
-        NCNN_LOGE("MultiHeadAttention weight block quantize %s_input_scale shape mismatch, expected w=%d elemsize=4 but got w=%d elemsize=%zu", name, K, input_scales.w, input_scales.elemsize);
+        NCNN_LOGE("MultiHeadAttention weight block quantize %s_input_scale shape mismatch", name);
         return -100;
     }
 
@@ -148,7 +148,7 @@ static int mha_check_weight_block_quantize_input_scales(const Mat& input_scales,
         const float s = input_scale_ptr[k];
         if (!(s > 0.f) || s > FLT_MAX)
         {
-            NCNN_LOGE("MultiHeadAttention weight block quantize %s_input_scale must be finite and positive", name);
+            NCNN_LOGE("MultiHeadAttention weight block quantize %s_input_scale invalid", name);
             return -100;
         }
     }
@@ -696,12 +696,6 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
     const int weight_bits = mha_weight_quantize_bits(quantize_term);
     const int block_size = mha_weight_quantize_block_size(quantize_term);
     const bool has_input_scale = mha_weight_quantize_has_input_scale(quantize_term);
-
-    if (has_input_scale && (q_weight_data_input_scales.empty() || k_weight_data_input_scales.empty() || v_weight_data_input_scales.empty() || out_weight_data_input_scales.empty()))
-    {
-        NCNN_LOGE("MultiHeadAttention weight block quantization input scale is missing");
-        return -1;
-    }
 
     const float* q_input_scale_ptr = has_input_scale ? (const float*)q_weight_data_input_scales : 0;
     const float* k_input_scale_ptr = has_input_scale ? (const float*)k_weight_data_input_scales : 0;

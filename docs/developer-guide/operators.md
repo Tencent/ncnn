@@ -1166,15 +1166,13 @@ y = (gemm(a, b) + c * beta) * alpha
 | B_data_quantize_scales| float | [ceil(K / block_size), N] for block quantized constant B |
 | B_data_input_scales| float | [K] for block quantized constant B with input scale |
 
-For weight-only block quantized Gemm, only constant transposed B is supported in the initial runtime path:
+For weight-only block quantized Gemm:
 
 * `constantA=0`, `constantB=1`, `transA=0`, `transB=1`
 * output is fp32 pack1 with `output_N1M=0`, `output_elempack=0`, `output_transpose=0`
 * `B_data` is tagged int8 bytes with shape `[ceil(K * weight_bits / 8), N]`
-* `B_data_quantize_scales` is raw fp32 data stored after optional `C_data`
-* `B_data_input_scales` is raw fp32 data stored after `B_data_quantize_scales` for input-scale terms
-* quantization is signed symmetric scale-only: `q = round(fp32 * scale)`, dequantization uses `fp32 = q / scale`
-* no zero point or asymmetric dequantization metadata is used
+* scales and optional input scales are raw fp32 data
+* packing is signed symmetric scale-only, no zero point
 
 # GridSample
 ```
@@ -1612,7 +1610,7 @@ y = affine(out)
 | v_weight_data_input_scales| float | [vdim] for block quantized weight with input scale |
 | out_weight_data_input_scales| float | [embed_dim] for block quantized weight with input scale |
 
-For weight-only block quantized MultiHeadAttention, q/k/v/out weights are tagged int8 bytes with signed symmetric int4/int6/int8 packing. The runtime keeps fp32 activations and output. Input-scale terms store per-input-channel multipliers for all four q/k/v/out projections.
+Weight-only block quantized MultiHeadAttention stores q/k/v/out weights as tagged int8 bytes with signed symmetric int4/int6/int8 packing. Activations and output are fp32. Input-scale terms add per-input-channel multipliers for q/k/v/out.
 
 # MVN
 ```

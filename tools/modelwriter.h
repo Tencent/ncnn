@@ -108,7 +108,7 @@
 #include "layer/yolodetectionoutput.h"
 #include "layer/yolov3detectionoutput.h"
 
-static bool modelwriter_gemm_is_weight_block_quantize(int quantize_term)
+static bool modelwriter_is_weight_block_quantize(int quantize_term)
 {
     const int weight_bits = quantize_term / 100;
     const int format_code = quantize_term % 100 / 10;
@@ -117,9 +117,9 @@ static bool modelwriter_gemm_is_weight_block_quantize(int quantize_term)
     return (weight_bits == 4 || weight_bits == 6 || weight_bits == 8) && (format_code == 0 || format_code == 1) && block_size_code >= 0 && block_size_code <= 2;
 }
 
-static bool modelwriter_gemm_weight_quantize_has_input_scale(int quantize_term)
+static bool modelwriter_weight_block_quantize_has_input_scale(int quantize_term)
 {
-    if (!modelwriter_gemm_is_weight_block_quantize(quantize_term))
+    if (!modelwriter_is_weight_block_quantize(quantize_term))
         return false;
 
     return quantize_term % 100 / 10 == 1;
@@ -1873,8 +1873,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 21=%d", constant_TILE_N)
             fprintf_param_value(" 22=%d", constant_TILE_K)
 
-            const bool weight_block_quantize
-                = modelwriter_gemm_is_weight_block_quantize(op->quantize_term);
+            const bool weight_block_quantize = modelwriter_is_weight_block_quantize(op->quantize_term);
 
             if (op->constantA == 1)
             {
@@ -1901,7 +1900,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 if (op->constantB == 1)
                 {
                     fwrite_weight_data(op->B_data_quantize_scales, bp, 0.001, 1);
-                    if (modelwriter_gemm_weight_quantize_has_input_scale(op->quantize_term))
+                    if (modelwriter_weight_block_quantize_has_input_scale(op->quantize_term))
                     {
                         fwrite_weight_data(op->B_data_input_scales, bp, 0.001, 1);
                     }
@@ -2176,8 +2175,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 7=%d", kv_cache)
             fprintf_param_value(" 18=%d", quantize_term)
 
-            const bool weight_block_quantize
-                = modelwriter_gemm_is_weight_block_quantize(op->quantize_term);
+            const bool weight_block_quantize = modelwriter_is_weight_block_quantize(op->quantize_term);
 
             if (weight_block_quantize)
             {
@@ -2222,7 +2220,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 fwrite_weight_data(op->k_weight_data_quantize_scales, bp, 0.001, 1);
                 fwrite_weight_data(op->v_weight_data_quantize_scales, bp, 0.001, 1);
                 fwrite_weight_data(op->out_weight_data_quantize_scales, bp, 0.001, 1);
-                if (modelwriter_gemm_weight_quantize_has_input_scale(op->quantize_term))
+                if (modelwriter_weight_block_quantize_has_input_scale(op->quantize_term))
                 {
                     fwrite_weight_data(op->q_weight_data_input_scales, bp, 0.001, 1);
                     fwrite_weight_data(op->k_weight_data_input_scales, bp, 0.001, 1);
