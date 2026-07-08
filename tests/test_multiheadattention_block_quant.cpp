@@ -6,10 +6,8 @@
 #include "layer_type.h"
 #include "multiheadattention.h"
 
-#include <algorithm>
 #include <math.h>
 #include <string.h>
-#include <vector>
 
 static void pack_signed_weight(unsigned char* ptr, int k, int bits, int q)
 {
@@ -106,11 +104,15 @@ static int quantize_weight(const ncnn::Mat& weight_data, int bits, int block_siz
         for (int b = 0; b < block_count; b++)
         {
             const int k0 = b * block_size;
-            const int max_kk = std::min(block_size, K - k0);
+            const int max_kk = block_size < K - k0 ? block_size : K - k0;
 
             float absmax = 0.f;
             for (int k = 0; k < max_kk; k++)
-                absmax = std::max(absmax, (float)fabs(ptr[k0 + k]));
+            {
+                const float v = (float)fabs(ptr[k0 + k]);
+                if (v > absmax)
+                    absmax = v;
+            }
 
             const float scale = absmax == 0.f ? 1.f : (float)qmax / absmax;
             scale_ptr[b] = scale;
