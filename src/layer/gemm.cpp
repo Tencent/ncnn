@@ -26,6 +26,7 @@ static bool gemm_is_weight_block_quantize(int quantize_term)
     return true;
 }
 
+#if NCNN_WEIGHT_QUANT
 static bool gemm_weight_quantize_has_input_scale(int quantize_term)
 {
     return quantize_term % 100 / 10 == 1;
@@ -52,27 +53,6 @@ static int gemm_weight_quantize_packed_k_bytes(int constantK, int weight_bits)
         return -1;
 
     return (int)packed_k_bytes;
-}
-
-#if NCNN_WEIGHT_QUANT
-static inline int gemm_weight_block_quantize_sign_extend(int v, int bits)
-{
-    const int sign_bit = 1 << (bits - 1);
-    return (v ^ sign_bit) - sign_bit;
-}
-
-static inline int gemm_weight_block_quantize_unpack(const unsigned char* ptr, int k, int bits, int packed_k_bytes)
-{
-    const int bit_offset = k * bits;
-    const int byte_offset = bit_offset / 8;
-    const int bit_shift = bit_offset % 8;
-
-    unsigned int v = ptr[byte_offset];
-    if (byte_offset + 1 < packed_k_bytes)
-        v |= (unsigned int)ptr[byte_offset + 1] << 8;
-
-    const int mask = (1 << bits) - 1;
-    return gemm_weight_block_quantize_sign_extend((v >> bit_shift) & mask, bits);
 }
 #endif // NCNN_WEIGHT_QUANT
 
@@ -335,6 +315,26 @@ static void gemm_transB(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob
 }
 
 #if NCNN_WEIGHT_QUANT
+static inline int gemm_weight_block_quantize_sign_extend(int v, int bits)
+{
+    const int sign_bit = 1 << (bits - 1);
+    return (v ^ sign_bit) - sign_bit;
+}
+
+static inline int gemm_weight_block_quantize_unpack(const unsigned char* ptr, int k, int bits, int packed_k_bytes)
+{
+    const int bit_offset = k * bits;
+    const int byte_offset = bit_offset / 8;
+    const int bit_shift = bit_offset % 8;
+
+    unsigned int v = ptr[byte_offset];
+    if (byte_offset + 1 < packed_k_bytes)
+        v |= (unsigned int)ptr[byte_offset + 1] << 8;
+
+    const int mask = (1 << bits) - 1;
+    return gemm_weight_block_quantize_sign_extend((v >> bit_shift) & mask, bits);
+}
+
 int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& A = bottom_blobs[0];
