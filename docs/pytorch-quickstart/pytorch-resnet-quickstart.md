@@ -95,11 +95,17 @@ target_link_libraries(resnet_ncnn ncnn opencv_core opencv_imgproc opencv_imgcode
 Build on Linux/Windows/macOS:
 
 ```bash
-# Linux/macOS
-mkdir build && cd build && cmake .. && make
+# Linux/macOS — set ncnn_DIR to the build directory
+mkdir build && cd build
+cmake .. -DCMAKE_PREFIX_PATH=/path/to/ncnn/build/install
+
+# Or: install ncnn first, then build
+# cd /path/to/ncnn/build && cmake --install .
+# mkdir build && cd build && cmake ..
 
 # Windows (MSVC)
-mkdir build && cd build && cmake .. -G "Visual Studio 17 2022"
+mkdir build && cd build
+cmake .. -G "Visual Studio 17 2022" -DCMAKE_PREFIX_PATH=C:/path/to/ncnn/build/install
 cmake --build . --config Release
 ```
 
