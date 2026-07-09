@@ -9,7 +9,8 @@ layer output. In ncnn, this is accessible through `NCNN_LOGE` in shader code.
 
 ## Prerequisites
 
-- ncnn built with Vulkan support (`-DNCNN_VULKAN=ON`)
+- ncnn built with Vulkan support AND validation layers enabled:
+  `cmake .. -DNCNN_VULKAN=ON -DNCNN_ENABLE_VALIDATION_LAYER=ON`
 - Vulkan SDK installed (1.3+)
 - Validation layers enabled
 - GPU supporting `VK_KHR_shader_non_semantic_info`
@@ -90,8 +91,10 @@ void main() {
 ### Filter Debug Output
 
 ```bash
-# Run ncnn benchmark with Vulkan, filter output
-./benchncnn 1 1 0 0 resnet 0 | grep "NCNN_LOGE"
+# Run ncnn benchmark with Vulkan, filter debug printf output.
+# NCNN_LOGE expands to debugPrintfEXT; the validation layer emits the
+# format strings directly (e.g. "matmul layer..."), not the macro name.
+./benchncnn 1 1 0 0 resnet 0 2>&1 | grep "matmul layer"
 ```
 
 ## Verifying Output
