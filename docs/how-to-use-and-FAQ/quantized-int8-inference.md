@@ -149,7 +149,7 @@ mha_name_param_0_input_scale  method=awq scale0 scale1 ...
 gemm_name_param_1 bits=4 block=128 method=gptq qweight=gemm.qweight scale0 scale1 ...
 ```
 
-The table is text and may be edited before conversion. Missing `Gemm` rows are skipped. `MultiHeadAttention` q/k/v/out rows must exist together.
+The table is text and may be edited before conversion. Missing `Gemm` rows are skipped. `MultiHeadAttention` q/k/v/out rows must exist together. Unused rows are rejected and at least one layer must be quantized.
 
 The generated layer `quantize_term` is `bits * 100 + input_scale * 10 + block_code`, and block_code 0/1/2 means block 32/64/128.
 

@@ -317,6 +317,12 @@
 |RNN|0|num_output|0|
 ||1|weight_data_size|0|
 ||2|direction|0|
-|MultiHeadAttention|0|embed_dim|0|
+|MultiHeadAttention|0|embed_dim|0|q_weight_data q_bias_data k_weight_data k_bias_data v_weight_data v_bias_data out_weight_data out_bias_data q_weight_data_int8_scales k_weight_data_int8_scales v_weight_data_int8_scales out_weight_data_int8_scales q_weight_data_quantize_scales k_weight_data_quantize_scales v_weight_data_quantize_scales out_weight_data_quantize_scales q_weight_data_input_scales k_weight_data_input_scales v_weight_data_input_scales out_weight_data_input_scales|
 ||1|num_head|1|
 ||2|weight_data_size|0|
+||3|kdim|embed_dim|
+||4|vdim|embed_dim|
+||5|attn_mask|0|
+||6|scale|1.f / sqrt(embed_dim / num_heads)|
+||7|kv_cache|0|
+||18|quantize_term|0|

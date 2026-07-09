@@ -82,7 +82,7 @@ public:
     bool use_calibration_dataset;
 
 public:
-    int init();
+    int init(int method);
     int collect_activation_stats();
     int save_table(const char* tablepath, int block_size, int weight_bits, int method) const;
 };
@@ -1112,16 +1112,19 @@ static int make_gptq_qweight(const ncnn::Mat& weight_data, const QuantActStat& s
     return 0;
 }
 
-int QuantNet::init()
+int QuantNet::init(int method)
 {
-    const int max_sample_count = std::max(awq_samples, gptq_samples);
-
     for (size_t i = 0; i < layers.size(); i++)
     {
         const ncnn::Layer* layer = layers[i];
         if (layer->type == "Input")
             input_blobs.push_back(layer->tops[0]);
     }
+
+    if (method != LLM_QUANT_METHOD_AWQ && method != LLM_QUANT_METHOD_GPTQ)
+        return 0;
+
+    const int max_sample_count = method == LLM_QUANT_METHOD_AWQ ? awq_samples : gptq_samples;
 
     for (size_t i = 0; i < layers.size(); i++)
     {
@@ -1786,7 +1789,7 @@ int main(int argc, char** argv)
             return -1;
     }
 
-    if (table.init() != 0)
+    if (table.init(quantize_method) != 0)
         return -1;
 
     if (quantize_method == LLM_QUANT_METHOD_AWQ || quantize_method == LLM_QUANT_METHOD_GPTQ)

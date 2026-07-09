@@ -128,29 +128,33 @@ static int quantize_weight(const ncnn::Mat& weight_data, int bits, int block_siz
     return 0;
 }
 
-static ncnn::ParamDict make_gemm_param(int M, int N, int K, int quantize_term)
+static ncnn::ParamDict make_gemm_param(int M, int N, int K, int quantize_term, float alpha = 1.f, float beta = 1.f, int constantC = 0, int broadcast_type_C = 0)
 {
     ncnn::ParamDict pd;
+    pd.set(0, alpha);
+    pd.set(1, beta);
     pd.set(2, 0); // transA
     pd.set(3, 1); // transB
     pd.set(4, 0); // constantA
     pd.set(5, 1); // constantB
-    pd.set(6, 0); // constantC
+    pd.set(6, constantC);
     pd.set(7, M);
     pd.set(8, N);
     pd.set(9, K);
+    pd.set(10, broadcast_type_C);
     if (quantize_term)
         pd.set(18, quantize_term);
 
     return pd;
 }
 
-static int test_gemm_block_quant(int M, int N, int K, int bits, int block_size, int broadcast_type_C, int input_scale = 0)
+static int test_gemm_block_quant(int M, int N, int K, int bits, int block_size, int broadcast_type_C, int input_scale = 0, float alpha = 1.f, float beta = 1.f, int constantC = 0, int dims3 = 0)
 {
     const int quantize_term = weight_block_quantize_term(bits, block_size, input_scale);
 
-    ncnn::Mat A = RandomMat(K, M, -2.f, 2.f);
+    ncnn::Mat A = dims3 ? RandomMat(K, 1, M, -2.f, 2.f) : RandomMat(K, M, -2.f, 2.f);
     ncnn::Mat B = RandomMat(K, N, -2.f, 2.f);
+    ncnn::Mat C;
 
     ncnn::Mat B_input_scales;
     if (input_scale)
@@ -169,23 +173,30 @@ static int test_gemm_block_quant(int M, int N, int K, int bits, int block_size, 
     if (input_scale)
         B_dequantized = scale_weight_by_input_scales(B_dequantized, B_input_scales, 0);
 
-    std::vector<ncnn::Mat> weights(2);
-    weights[0] = B_quantized;
-    weights[1] = B_quantize_scales;
+    if (broadcast_type_C == 0) C = RandomMat(1);
+    if (broadcast_type_C == 1) C = RandomMat(M);
+    if (broadcast_type_C == 2) C = RandomMat(1, M);
+    if (broadcast_type_C == 3) C = RandomMat(N, M);
+    if (broadcast_type_C == 4) C = RandomMat(N);
+
+    std::vector<ncnn::Mat> weights;
+    weights.push_back(B_quantized);
+    if (constantC)
+        weights.push_back(C);
+    weights.push_back(B_quantize_scales);
     if (input_scale)
         weights.push_back(B_input_scales);
 
-    std::vector<ncnn::Mat> ref_weights(1);
-    ref_weights[0] = B_dequantized;
+    std::vector<ncnn::Mat> ref_weights;
+    ref_weights.push_back(B_dequantized);
+    if (constantC)
+        ref_weights.push_back(C);
 
     std::vector<ncnn::Mat> inputs;
     inputs.push_back(A);
 
-    if (broadcast_type_C == 0) inputs.push_back(RandomMat(1));
-    if (broadcast_type_C == 1) inputs.push_back(RandomMat(M));
-    if (broadcast_type_C == 2) inputs.push_back(RandomMat(1, M));
-    if (broadcast_type_C == 3) inputs.push_back(RandomMat(N, M));
-    if (broadcast_type_C == 4) inputs.push_back(RandomMat(N));
+    if (!constantC && !C.empty())
+        inputs.push_back(C);
 
     ncnn::Option opt;
     opt.num_threads = 2;
@@ -197,14 +208,14 @@ static int test_gemm_block_quant(int M, int N, int K, int bits, int block_size, 
 
     std::vector<ncnn::Mat> outputs;
     std::vector<ncnn::Mat> refs;
-    ret = test_layer_cpu(ncnn::LayerType::Gemm, make_gemm_param(M, N, K, quantize_term), weights, opt, inputs, 1, outputs, std::vector<ncnn::Mat>(), TEST_LAYER_DISABLE_GPU_TESTING);
+    ret = test_layer_cpu(ncnn::LayerType::Gemm, make_gemm_param(M, N, K, quantize_term, alpha, beta, constantC, broadcast_type_C), weights, opt, inputs, 1, outputs, std::vector<ncnn::Mat>(), TEST_LAYER_DISABLE_GPU_TESTING);
     if (ret != 0)
     {
-        fprintf(stderr, "test_gemm_block_quant failed ret=%d M=%d N=%d K=%d bits=%d block_size=%d broadcast_type_C=%d input_scale=%d\n", ret, M, N, K, bits, block_size, broadcast_type_C, input_scale);
+        fprintf(stderr, "test_gemm_block_quant failed ret=%d M=%d N=%d K=%d bits=%d block_size=%d broadcast_type_C=%d input_scale=%d constantC=%d dims3=%d\n", ret, M, N, K, bits, block_size, broadcast_type_C, input_scale, constantC, dims3);
         return ret;
     }
 
-    ret = test_layer_cpu(ncnn::LayerType::Gemm, make_gemm_param(M, N, K, 0), ref_weights, opt, inputs, 1, refs, std::vector<ncnn::Mat>(), TEST_LAYER_DISABLE_GPU_TESTING);
+    ret = test_layer_cpu(ncnn::LayerType::Gemm, make_gemm_param(M, N, K, 0, alpha, beta, constantC, broadcast_type_C), ref_weights, opt, inputs, 1, refs, std::vector<ncnn::Mat>(), TEST_LAYER_DISABLE_GPU_TESTING);
     if (ret != 0)
     {
         fprintf(stderr, "test_gemm_block_quant reference failed ret=%d M=%d N=%d K=%d\n", ret, M, N, K);
@@ -214,7 +225,7 @@ static int test_gemm_block_quant(int M, int N, int K, int bits, int block_size, 
     ret = CompareMat(outputs, refs, 0.001f);
     if (ret != 0)
     {
-        fprintf(stderr, "test_gemm_block_quant compare failed M=%d N=%d K=%d bits=%d block_size=%d broadcast_type_C=%d input_scale=%d\n", M, N, K, bits, block_size, broadcast_type_C, input_scale);
+        fprintf(stderr, "test_gemm_block_quant compare failed M=%d N=%d K=%d bits=%d block_size=%d broadcast_type_C=%d input_scale=%d constantC=%d dims3=%d\n", M, N, K, bits, block_size, broadcast_type_C, input_scale, constantC, dims3);
         return ret;
     }
 
@@ -246,6 +257,9 @@ int main()
            || test_gemm_block_quant(2, 5, 65, 8, 32, -1)
            || test_gemm_block_quant(3, 4, 129, 6, 128, -1)
            || test_gemm_block_quant(3, 5, 65, 4, 64, -1, 1)
-           || test_gemm_block_quant(2, 4, 31, 6, 32, 1, 1);
+           || test_gemm_block_quant(2, 4, 31, 6, 32, 1, 1)
+           || test_gemm_block_quant(3, 4, 32, 4, 32, -1)
+           || test_gemm_block_quant(3, 4, 33, 4, 32, 4, 0, 1.7f, 0.3f, 1)
+           || test_gemm_block_quant(5, 3, 65, 6, 64, -1, 0, 1.f, 1.f, 0, 1);
 #endif
 }

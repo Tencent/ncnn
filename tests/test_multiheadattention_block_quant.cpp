@@ -361,6 +361,68 @@ static int test_multiheadattention_block_quant_kvcache(int attn_mask = 0, int in
     return 0;
 }
 
+static int test_multiheadattention_block_quant_cross_kvcache(int attn_mask = 0, int input_scale = 0)
+{
+    const int qdim = 65;
+    const int kdim = 33;
+    const int vdim = 49;
+    const int embed_dim = 64;
+    const int num_heads = 4;
+    const int bits = 6;
+    const int block_size = 32;
+
+    std::vector<ncnn::Mat> weights;
+    std::vector<ncnn::Mat> ref_weights;
+    int ret = make_mha_weights(qdim, kdim, vdim, embed_dim, bits, block_size, weights, ref_weights, input_scale);
+    if (ret != 0)
+        return ret;
+
+    std::vector<ncnn::Mat> inputs(attn_mask ? 6 : 5);
+    inputs[0] = RandomMat(qdim, 3, -1.f, 1.f);
+    inputs[1] = RandomMat(kdim, 2, -1.f, 1.f);
+    inputs[2] = RandomMat(vdim, 2, -1.f, 1.f);
+    if (attn_mask)
+    {
+        inputs[3] = RandomMat(5, 3, -1.f, 0.f);
+        inputs[4] = RandomMat(5, embed_dim, -1.f, 1.f);
+        inputs[5] = RandomMat(5, embed_dim, -1.f, 1.f);
+    }
+    else
+    {
+        inputs[3] = RandomMat(5, embed_dim, -1.f, 1.f);
+        inputs[4] = RandomMat(5, embed_dim, -1.f, 1.f);
+    }
+
+    const int quantize_term = weight_block_quantize_term(bits, block_size, input_scale);
+    const ncnn::ParamDict pd = make_mha_param(qdim, kdim, vdim, embed_dim, num_heads, attn_mask, 1, quantize_term);
+    const ncnn::ParamDict ref_pd = make_mha_param(qdim, kdim, vdim, embed_dim, num_heads, attn_mask, 1, 0);
+
+    std::vector<ncnn::Mat> outputs;
+    std::vector<ncnn::Mat> refs;
+    ret = run_mha_layer(pd, weights, inputs, 3, outputs);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_multiheadattention_block_quant_cross_kvcache failed ret=%d attn_mask=%d input_scale=%d\n", ret, attn_mask, input_scale);
+        return ret;
+    }
+
+    ret = run_mha_layer(ref_pd, ref_weights, inputs, 3, refs);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_multiheadattention_block_quant_cross_kvcache reference failed ret=%d attn_mask=%d input_scale=%d\n", ret, attn_mask, input_scale);
+        return ret;
+    }
+
+    ret = CompareMat(outputs, refs, 0.001f);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_multiheadattention_block_quant_cross_kvcache compare failed attn_mask=%d input_scale=%d\n", attn_mask, input_scale);
+        return ret;
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -382,9 +444,14 @@ int main()
            || test_multiheadattention_block_quant(10, 10, 10, 8, 2, 6, 64, 1)
            || test_multiheadattention_block_quant(12, 7, 9, 8, 2, 8, 128, 0)
            || test_multiheadattention_block_quant(13, 9, 11, 8, 2, 4, 64, 1, 1)
+           || test_multiheadattention_block_quant(65, 65, 65, 64, 4, 6, 64, 1)
+           || test_multiheadattention_block_quant(65, 33, 49, 64, 4, 4, 32, 0, 1)
            || test_multiheadattention_block_quant_kvcache()
            || test_multiheadattention_block_quant_kvcache(0, 1)
            || test_multiheadattention_block_quant_kvcache(1)
-           || test_multiheadattention_block_quant_kvcache(1, 1);
+           || test_multiheadattention_block_quant_kvcache(1, 1)
+           || test_multiheadattention_block_quant_cross_kvcache()
+           || test_multiheadattention_block_quant_cross_kvcache(1)
+           || test_multiheadattention_block_quant_cross_kvcache(0, 1);
 #endif
 }

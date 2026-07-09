@@ -625,12 +625,16 @@ int NetQuantize::quantize_gemm_from_table(std::map<std::string, LLMWeightScale>&
         gemm->B_data_input_scales = B_data_input_scales;
         gemm->quantize_term = quantize_term;
 
+        if (has_input_scale)
+            llm_scale_table.erase(input_scale_iter);
+        llm_scale_table.erase(iter);
+
         quantized_count++;
     }
 
     fprintf(stderr, "quantized %d Gemm layers\n", quantized_count);
 
-    return 0;
+    return quantized_count;
 }
 
 int NetQuantize::quantize_multiheadattention(int block_size, int weight_bits, int method)
@@ -874,12 +878,19 @@ int NetQuantize::quantize_multiheadattention_from_table(std::map<std::string, LL
         mha->out_weight_data_input_scales = input_scales[3];
         mha->quantize_term = quantize_term;
 
+        for (int j = 0; j < 4; j++)
+        {
+            if (has_input_scale)
+                llm_scale_table.erase(input_scale_iters[j]);
+            llm_scale_table.erase(iters[j]);
+        }
+
         quantized_count++;
     }
 
     fprintf(stderr, "quantized %d MultiHeadAttention layers\n", quantized_count);
 
-    return 0;
+    return quantized_count;
 }
 
 int main(int argc, char** argv)
@@ -1006,10 +1017,27 @@ int main(int argc, char** argv)
 
     if (tablepath)
     {
-        if (quantizer.quantize_gemm_from_table(llm_scale_table) != 0)
+        int quantized_count = quantizer.quantize_gemm_from_table(llm_scale_table);
+        if (quantized_count < 0)
             return -1;
-        if (quantizer.quantize_multiheadattention_from_table(llm_scale_table) != 0)
+        int quantized_count_mha = quantizer.quantize_multiheadattention_from_table(llm_scale_table);
+        if (quantized_count_mha < 0)
             return -1;
+
+        quantized_count += quantized_count_mha;
+
+        if (!llm_scale_table.empty())
+        {
+            for (std::map<std::string, LLMWeightScale>::const_iterator it = llm_scale_table.begin(); it != llm_scale_table.end(); ++it)
+                fprintf(stderr, "unused table row %s\n", it->first.c_str());
+            return -1;
+        }
+
+        if (quantized_count == 0)
+        {
+            fprintf(stderr, "no layer quantized\n");
+            return -1;
+        }
     }
     else if (quantizer.quantize_gemm(block_size, weight_bits, quantize_method) != 0)
     {

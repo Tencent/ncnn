@@ -150,6 +150,8 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
         const int k_packed_k_bytes = mha_weight_quantize_packed_k_bytes(kdim, weight_bits);
         const int v_packed_k_bytes = mha_weight_quantize_packed_k_bytes(vdim, weight_bits);
         const int out_packed_k_bytes = mha_weight_quantize_packed_k_bytes(embed_dim, weight_bits);
+        if (q_packed_k_bytes < 0 || k_packed_k_bytes < 0 || v_packed_k_bytes < 0 || out_packed_k_bytes < 0)
+            return -100;
 
         q_weight_data = mb.load(q_packed_k_bytes, embed_dim, 0);
         if (q_weight_data.empty())

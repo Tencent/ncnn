@@ -203,6 +203,8 @@ int Gemm::load_model(const ModelBin& mb)
         {
             const int weight_bits = gemm_weight_quantize_bits(quantize_term);
             const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(constantK, weight_bits);
+            if (packed_k_bytes < 0)
+                return -100;
             B_data = mb.load(packed_k_bytes, constantN, 0);
         }
 #endif // NCNN_WEIGHT_QUANT
