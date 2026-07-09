@@ -111,12 +111,6 @@ static void show_usage(const char* argv0)
     fprintf(stderr, "  thread=8\n");
     fprintf(stderr, "  type=1\n");
     fprintf(stderr, "  shape=[w,h,...]\n");
-    fprintf(stderr, "  awq_steps=20\n");
-    fprintf(stderr, "  awq_samples=128\n");
-    fprintf(stderr, "  awq_max_scale=16\n");
-    fprintf(stderr, "  awq_inner=minmax/mseclip\n");
-    fprintf(stderr, "  gptq_samples=128\n");
-    fprintf(stderr, "  gptq_damp=0.01\n");
     fprintf(stderr, "Sample usage:\n");
     fprintf(stderr, "  %s model.param model.bin model.llm.table method=mseclip bits=4 block=64\n", argv0);
     fprintf(stderr, "  %s model.param model.bin calib.list model.llm.table method=awq bits=4 block=64 shape=[4096]\n", argv0);

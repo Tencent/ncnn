@@ -1151,7 +1151,7 @@ y = (gemm(a, b) + c * beta) * alpha
 | 12        | output_elempack | int | 0         |                   |
 | 13        | output_elemtype | int | 0         |                   |
 | 14        | output_transpose | int| 0         |                   |
-| 18        | quantize_term | int | 0         | 0=no quant, nonzero non-block value below 400 is legacy Gemm int8 except obsolete 4/5/6, 400/401/402=int4 block32/64/128, 410/411/412=int4 block32/64/128 with input scale, 600/601/602=int6 block32/64/128, 610/611/612=int6 block32/64/128 with input scale, 800/801/802=int8 block32/64/128, 810/811/812=int8 block32/64/128 with input scale |
+| 18        | quantize_term | int | 0         | 0=no quant, nonzero below 400=legacy int8, 4xx/6xx/8xx=weight block quant |
 | 20        | constant_TILE_M | int | 0         |                   |
 | 21        | constant_TILE_N | int | 0         |                   |
 | 22        | constant_TILE_K | int | 0         |                   |
@@ -1171,8 +1171,8 @@ For weight-only block quantized Gemm:
 * `constantA=0`, `constantB=1`, `transA=0`, `transB=1`
 * output is fp32 pack1 with `output_N1M=0`, `output_elempack=0`, `output_transpose=0`
 * `B_data` is tagged int8 bytes with shape `[ceil(K * weight_bits / 8), N]`
-* scales and optional input scales are raw fp32 data
-* packing is signed symmetric scale-only, no zero point
+* `quantize_term = bits * 100 + input_scale * 10 + block_code`
+* `block_code`: 0=32, 1=64, 2=128
 
 # GridSample
 ```
@@ -1585,7 +1585,7 @@ y = affine(out)
 | 5         | attn_mask     | int   | 0         |                   |
 | 6         | scale         | float | 1.f / sqrt(embed_dim / num_heads) | |
 | 7         | kv_cache      | int   | 0         |                   |
-| 18        | quantize_term | int | 0         | 0=no quant, nonzero non-block value below 400 is legacy MultiHeadAttention int8 except obsolete 4/5/6, 400/401/402=int4 block32/64/128, 410/411/412=int4 block32/64/128 with input scale, 600/601/602=int6 block32/64/128, 610/611/612=int6 block32/64/128 with input scale, 800/801/802=int8 block32/64/128, 810/811/812=int8 block32/64/128 with input scale |
+| 18        | quantize_term | int | 0         | 0=no quant, nonzero below 400=legacy int8, 4xx/6xx/8xx=weight block quant |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -1610,7 +1610,7 @@ y = affine(out)
 | v_weight_data_input_scales| float | [vdim] for block quantized weight with input scale |
 | out_weight_data_input_scales| float | [embed_dim] for block quantized weight with input scale |
 
-Weight-only block quantized MultiHeadAttention stores q/k/v/out weights as tagged int8 bytes with signed symmetric int4/int6/int8 packing. Activations and output are fp32. Input-scale terms add per-input-channel multipliers for q/k/v/out.
+Weight-only block quantized MultiHeadAttention stores q/k/v/out weights as tagged int8 bytes. The `quantize_term` rule is same as Gemm.
 
 # MVN
 ```

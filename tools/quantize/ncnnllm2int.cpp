@@ -45,16 +45,13 @@ public:
     {
         bits = 0;
         block_size = 0;
-        used = false;
     }
 
 public:
     int bits;
     int block_size;
     std::string qweight;
-    std::string method;
     ncnn::Mat scales;
-    bool used;
 };
 
 static bool qweight_path_is_absolute(const char* path)
@@ -117,15 +114,6 @@ static bool parse_int_string(const char* s, int& v)
     return true;
 }
 
-static bool parse_float_string(const char* s, float& v)
-{
-    int nconsumed = 0;
-    if (sscanf(s, "%f%n", &v, &nconsumed) != 1 || s[nconsumed] != '\0')
-        return false;
-
-    return true;
-}
-
 static bool read_line(FILE* fp, std::vector<char>& line)
 {
     line.clear();
@@ -162,11 +150,9 @@ static bool read_llm_scale_table(const char* filepath, std::map<std::string, LLM
 
     std::vector<char> line;
     char* pch = NULL;
-    int lineno = 0;
 
     while (read_line(fp, line))
     {
-        lineno++;
         line[strcspn(line.data(), "\r\n")] = 0;
 
         pch = strtok(line.data(), " \t");
@@ -179,22 +165,10 @@ static bool read_llm_scale_table(const char* filepath, std::map<std::string, LLM
         sscanf(pch, "%255s", key);
         key_str = key;
 
-        if (llm_scale_table.find(key_str) != llm_scale_table.end())
-        {
-            fprintf(stderr, "%s:%d duplicate key %s\n", filepath, lineno, key);
-            fclose(fp);
-            return false;
-        }
-
         LLMWeightScale scale;
         scales.clear();
 
         bool coeff_started = false;
-        bool has_bits = false;
-        bool has_block = false;
-        bool has_qweight = false;
-        bool has_method = false;
-
         while ((pch = strtok(NULL, " \t")) != NULL)
         {
             char* eqs = strchr(pch, '=');
@@ -206,78 +180,39 @@ static bool read_llm_scale_table(const char* filepath, std::map<std::string, LLM
 
                 if (v[0] == '\0')
                 {
-                    fprintf(stderr, "%s:%d malformed metadata %s=\n", filepath, lineno, k);
+                    fprintf(stderr, "%s malformed metadata %s=\n", filepath, k);
                     fclose(fp);
                     return false;
                 }
 
                 if (strcmp(k, "bits") == 0)
                 {
-                    if (has_bits)
-                    {
-                        fprintf(stderr, "%s:%d duplicate metadata %s\n", filepath, lineno, k);
-                        fclose(fp);
-                        return false;
-                    }
-
-                    has_bits = true;
                     if (!parse_int_string(v, scale.bits))
                     {
-                        fprintf(stderr, "%s:%d malformed bits=%s\n", filepath, lineno, v);
+                        fprintf(stderr, "%s malformed bits=%s\n", filepath, v);
                         fclose(fp);
                         return false;
                     }
                 }
                 else if (strcmp(k, "block") == 0)
                 {
-                    if (has_block)
-                    {
-                        fprintf(stderr, "%s:%d duplicate metadata %s\n", filepath, lineno, k);
-                        fclose(fp);
-                        return false;
-                    }
-
-                    has_block = true;
                     if (!parse_int_string(v, scale.block_size))
                     {
-                        fprintf(stderr, "%s:%d malformed block=%s\n", filepath, lineno, v);
+                        fprintf(stderr, "%s malformed block=%s\n", filepath, v);
                         fclose(fp);
                         return false;
                     }
                 }
                 else if (strcmp(k, "qweight") == 0)
                 {
-                    if (has_qweight)
-                    {
-                        fprintf(stderr, "%s:%d duplicate metadata %s\n", filepath, lineno, k);
-                        fclose(fp);
-                        return false;
-                    }
-
-                    has_qweight = true;
                     scale.qweight = resolve_qweight_path(filepath, v);
                 }
                 else if (strcmp(k, "method") == 0)
                 {
-                    if (has_method)
-                    {
-                        fprintf(stderr, "%s:%d duplicate metadata %s\n", filepath, lineno, k);
-                        fclose(fp);
-                        return false;
-                    }
-
-                    has_method = true;
-                    scale.method = v;
-                }
-                else if (strcmp(k, "zero_point") == 0 || strcmp(k, "zp") == 0 || strcmp(k, "g_idx") == 0)
-                {
-                    fprintf(stderr, "%s:%d unsupported metadata %s\n", filepath, lineno, k);
-                    fclose(fp);
-                    return false;
                 }
                 else
                 {
-                    fprintf(stderr, "%s:%d unsupported metadata %s\n", filepath, lineno, k);
+                    fprintf(stderr, "%s unsupported metadata %s\n", filepath, k);
                     fclose(fp);
                     return false;
                 }
@@ -286,7 +221,7 @@ static bool read_llm_scale_table(const char* filepath, std::map<std::string, LLM
             {
                 if (eqs && coeff_started)
                 {
-                    fprintf(stderr, "%s:%d key=value token after coefficients started\n", filepath, lineno);
+                    fprintf(stderr, "%s key=value token after coefficients started\n", filepath);
                     fclose(fp);
                     return false;
                 }
@@ -294,9 +229,9 @@ static bool read_llm_scale_table(const char* filepath, std::map<std::string, LLM
                 coeff_started = true;
 
                 float coeff = 0.f;
-                if (!parse_float_string(pch, coeff))
+                if (sscanf(pch, "%f", &coeff) != 1)
                 {
-                    fprintf(stderr, "%s:%d malformed coefficient %s\n", filepath, lineno, pch);
+                    fprintf(stderr, "%s malformed coefficient %s\n", filepath, pch);
                     fclose(fp);
                     return false;
                 }
@@ -542,15 +477,6 @@ static int llm_table_row_to_input_scales(const char* key, const LLMWeightScale& 
     return 0;
 }
 
-static void print_unused_llm_table_rows(const std::map<std::string, LLMWeightScale>& llm_scale_table)
-{
-    for (std::map<std::string, LLMWeightScale>::const_iterator it = llm_scale_table.begin(); it != llm_scale_table.end(); ++it)
-    {
-        if (!it->second.used)
-            fprintf(stderr, "warning: unused llm table row %s\n", it->first.c_str());
-    }
-}
-
 int NetQuantize::quantize_gemm(int block_size, int weight_bits, int method)
 {
     const int quantize_term = llm_weight_block_quantize_term(weight_bits, block_size);
@@ -617,7 +543,6 @@ int NetQuantize::quantize_gemm_from_table(std::map<std::string, LLMWeightScale>&
             std::map<std::string, LLMWeightScale>::iterator iter = llm_scale_table.find(key);
             if (iter != llm_scale_table.end())
             {
-                iter->second.used = true;
                 fprintf(stderr, "table row %s targets unsupported Gemm %s\n", key, reason);
                 return -1;
             }
@@ -634,7 +559,6 @@ int NetQuantize::quantize_gemm_from_table(std::map<std::string, LLMWeightScale>&
         }
 
         LLMWeightScale& scale = iter->second;
-        scale.used = true;
 
         const int constantN = gemm->constantN;
         const int constantK = gemm->constantK;
@@ -656,7 +580,6 @@ int NetQuantize::quantize_gemm_from_table(std::map<std::string, LLMWeightScale>&
 
         if (qweight_row && has_input_scale)
         {
-            input_scale_iter->second.used = true;
             fprintf(stderr, "%s does not support input_scale with qweight yet\n", key);
             return -1;
         }
@@ -664,15 +587,13 @@ int NetQuantize::quantize_gemm_from_table(std::map<std::string, LLMWeightScale>&
         ncnn::Mat B_data_input_scales;
         if (has_input_scale)
         {
-            input_scale_iter->second.used = true;
-
             ret = llm_table_row_to_input_scales(input_scale_key, input_scale_iter->second, constantK, B_data_input_scales);
             if (ret != 0)
                 return ret;
         }
 
         const int quantize_term = llm_weight_block_quantize_term(weight_bits, block_size, has_input_scale);
-        fprintf(stderr, "quantize_gemm table bits=%d block_size=%d term=%d method=%s %s\n", weight_bits, block_size, quantize_term, scale.method.c_str(), gemm_name(gemm));
+        fprintf(stderr, "quantize_gemm table bits=%d block_size=%d term=%d %s\n", weight_bits, block_size, quantize_term, gemm_name(gemm));
 
         if (!qweight_row)
         {
@@ -811,12 +732,6 @@ int NetQuantize::quantize_multiheadattention_from_table(std::map<std::string, LL
         if (present_count == 0)
             continue;
 
-        for (int j = 0; j < 4; j++)
-        {
-            if (iters[j] != llm_scale_table.end())
-                iters[j]->second.used = true;
-        }
-
         if (present_count != 4)
         {
             fprintf(stderr, "MultiHeadAttention %s requires all table rows %s %s %s %s\n", multiheadattention_name(mha), keys[0], keys[1], keys[2], keys[3]);
@@ -846,12 +761,6 @@ int NetQuantize::quantize_multiheadattention_from_table(std::map<std::string, LL
 
         if (input_scale_present_count != 0)
         {
-            for (int j = 0; j < 4; j++)
-            {
-                if (input_scale_iters[j] != llm_scale_table.end())
-                    input_scale_iters[j]->second.used = true;
-            }
-
             if (input_scale_present_count != 4)
             {
                 fprintf(stderr, "MultiHeadAttention %s requires all input scale table rows %s %s %s %s\n", multiheadattention_name(mha), input_scale_keys[0], input_scale_keys[1], input_scale_keys[2], input_scale_keys[3]);
@@ -1097,7 +1006,6 @@ int main(int argc, char** argv)
             return -1;
         if (quantizer.quantize_multiheadattention_from_table(llm_scale_table) != 0)
             return -1;
-        print_unused_llm_table_rows(llm_scale_table);
     }
     else if (quantizer.quantize_gemm(block_size, weight_bits, quantize_method) != 0)
     {

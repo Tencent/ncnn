@@ -252,9 +252,10 @@ public:
     int fprintf_param_int_array(int id, const ncnn::Mat& m, FILE* pp);
     int fprintf_param_float_array(int id, const ncnn::Mat& m, FILE* pp);
 
-    int fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a = -1.2f, float b = 1.2f);
-    int fwrite_weight_tag_data_no_random(const ncnn::Mat& data, FILE* bp);
-    int fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a = -1.2f, float b = 1.2f);
+    int fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a = -1.2f, float b = 1.2f, bool randomize = true);
+    int fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, bool randomize);
+    int fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a = -1.2f, float b = 1.2f, bool randomize = true);
+    int fwrite_weight_data(const ncnn::Mat& data, FILE* bp, bool randomize);
 
     int save(const char* parampath, const char* binpath);
 };
@@ -628,12 +629,12 @@ static void Randomize(ncnn::Mat& m, float a = -1.2f, float b = 1.2f)
     }
 }
 
-int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a, float b)
+int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a, float b, bool randomize)
 {
     int p0 = ftell(bp);
 
     ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.d * data.c);
-    if (gen_random_weight)
+    if (gen_random_weight && randomize)
         Randomize(data_flattened, a, b);
 
     if (data_flattened.elemsize == 4)
@@ -680,22 +681,17 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a
     return 0;
 }
 
-int ModelWriter::fwrite_weight_tag_data_no_random(const ncnn::Mat& data, FILE* bp)
+int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, bool randomize)
 {
-    const int old_gen_random_weight = gen_random_weight;
-    gen_random_weight = false;
-    int ret = fwrite_weight_tag_data(data, bp);
-    gen_random_weight = old_gen_random_weight;
-
-    return ret;
+    return fwrite_weight_tag_data(data, bp, -1.2f, 1.2f, randomize);
 }
 
-int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a, float b)
+int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a, float b, bool randomize)
 {
     int p0 = ftell(bp);
 
     ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.d * data.c);
-    if (gen_random_weight)
+    if (gen_random_weight && randomize)
         Randomize(data_flattened, a, b);
 
     if (data_flattened.elemsize == 4) // fp32
@@ -712,6 +708,11 @@ int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a, fl
     fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
 
     return 0;
+}
+
+int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp, bool randomize)
+{
+    return fwrite_weight_data(data, bp, -1.2f, 1.2f, randomize);
 }
 
 int ModelWriter::save(const char* parampath, const char* binpath)
@@ -1881,7 +1882,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (weight_block_quantize)
                 {
-                    fwrite_weight_tag_data_no_random(op->B_data, bp);
+                    fwrite_weight_tag_data(op->B_data, bp, false);
                 }
                 else
                 {
@@ -1897,10 +1898,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (op->constantB == 1)
                 {
-                    fwrite_weight_data(op->B_data_quantize_scales, bp, 0.001, 1);
+                    fwrite_weight_data(op->B_data_quantize_scales, bp, false);
                     if (modelwriter_weight_block_quantize_has_input_scale(op->quantize_term))
                     {
-                        fwrite_weight_data(op->B_data_input_scales, bp, 0.001, 1);
+                        fwrite_weight_data(op->B_data_input_scales, bp, false);
                     }
                 }
             }
@@ -2178,7 +2179,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (weight_block_quantize)
             {
-                fwrite_weight_tag_data_no_random(op->q_weight_data, bp);
+                fwrite_weight_tag_data(op->q_weight_data, bp, false);
             }
             else
             {
@@ -2187,7 +2188,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fwrite_weight_data(op->q_bias_data, bp);
             if (weight_block_quantize)
             {
-                fwrite_weight_tag_data_no_random(op->k_weight_data, bp);
+                fwrite_weight_tag_data(op->k_weight_data, bp, false);
             }
             else
             {
@@ -2196,7 +2197,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fwrite_weight_data(op->k_bias_data, bp);
             if (weight_block_quantize)
             {
-                fwrite_weight_tag_data_no_random(op->v_weight_data, bp);
+                fwrite_weight_tag_data(op->v_weight_data, bp, false);
             }
             else
             {
@@ -2205,7 +2206,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fwrite_weight_data(op->v_bias_data, bp);
             if (weight_block_quantize)
             {
-                fwrite_weight_tag_data_no_random(op->out_weight_data, bp);
+                fwrite_weight_tag_data(op->out_weight_data, bp, false);
             }
             else
             {
@@ -2215,16 +2216,16 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (weight_block_quantize)
             {
-                fwrite_weight_data(op->q_weight_data_quantize_scales, bp, 0.001, 1);
-                fwrite_weight_data(op->k_weight_data_quantize_scales, bp, 0.001, 1);
-                fwrite_weight_data(op->v_weight_data_quantize_scales, bp, 0.001, 1);
-                fwrite_weight_data(op->out_weight_data_quantize_scales, bp, 0.001, 1);
+                fwrite_weight_data(op->q_weight_data_quantize_scales, bp, false);
+                fwrite_weight_data(op->k_weight_data_quantize_scales, bp, false);
+                fwrite_weight_data(op->v_weight_data_quantize_scales, bp, false);
+                fwrite_weight_data(op->out_weight_data_quantize_scales, bp, false);
                 if (modelwriter_weight_block_quantize_has_input_scale(op->quantize_term))
                 {
-                    fwrite_weight_data(op->q_weight_data_input_scales, bp, 0.001, 1);
-                    fwrite_weight_data(op->k_weight_data_input_scales, bp, 0.001, 1);
-                    fwrite_weight_data(op->v_weight_data_input_scales, bp, 0.001, 1);
-                    fwrite_weight_data(op->out_weight_data_input_scales, bp, 0.001, 1);
+                    fwrite_weight_data(op->q_weight_data_input_scales, bp, false);
+                    fwrite_weight_data(op->k_weight_data_input_scales, bp, false);
+                    fwrite_weight_data(op->v_weight_data_input_scales, bp, false);
+                    fwrite_weight_data(op->out_weight_data_input_scales, bp, false);
                 }
             }
 #if NCNN_INT8

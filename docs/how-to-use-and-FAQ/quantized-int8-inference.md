@@ -103,53 +103,39 @@ ncnn2table can generate static weight scales without a calibration dataset for R
 
 ## Weight-only block quantized Gemm and MultiHeadAttention
 
-LLM-oriented `Gemm` and `MultiHeadAttention` weight-only block quantization is separate from the post training int8 activation/weight inference flow above. It stores weights as signed symmetric int4/int6/int8 blocks with one fp32 scale per K block and output remains fp32.
+LLM-oriented `Gemm` and `MultiHeadAttention` weight-only block quantization is separate from the post training int8 flow above. It stores weight as signed int4/int6/int8 blocks and keeps activation/output in fp32.
 
-The recommended workflow mirrors `ncnn2table` and `ncnn2int8`:
+The workflow is similar to `ncnn2table` and `ncnn2int8`:
 
 ```shell
 ./ncnnllm2table in.param in.bin model.llm.table method=minmax bits=6 block=64
-./ncnnllm2int468 in.param in.bin out.param out.bin model.llm.table
+./ncnnllm2int in.param in.bin out.param out.bin model.llm.table
 ```
 
-`ncnnllm2table` options follow the same trailing key-value style as `ncnn2table`:
+`ncnnllm2table` options:
 
 | key | values | default | description |
 | --- | ------ | ------- | ----------- |
-| `method` | `minmax`, `mseclip`, `awq`, `gptq` | `minmax` | offline quantization method |
-| `bits` | `4`, `6`, `8` | `6` | signed weight bit width |
-| `block` | `32`, `64`, `128` | `64` | K block size |
-| `thread` | positive integer | `1` | worker threads |
-| `type` | `1` | `1` | calibration input file type, npy only |
-| `shape` | `[w,h,...]` | none | calibration input shape in ncnn order |
-| `awq_steps` | non-negative integer | `20` | AWQ input-scale search steps |
-| `awq_samples` | positive integer | `128` | max activation rows used by AWQ search |
-| `awq_max_scale` | float > 1 | `16` | AWQ input scale clamp |
-| `awq_inner` | `minmax`, `mseclip` | `minmax` | weight scale method used inside AWQ |
-| `gptq_samples` | positive integer | `128` | max activation rows used by GPTQ |
-| `gptq_damp` | non-negative float | `0.01` | GPTQ Hessian damping ratio |
+| `method` | `minmax`, `mseclip`, `awq`, `gptq` | `minmax` | quant method |
+| `bits` | `4`, `6`, `8` | `6` | weight bits |
+| `block` | `32`, `64`, `128` | `64` | block size |
+| `thread` | positive integer | `1` | thread count |
+| `type` | `1` | `1` | calibration data type, npy only |
+| `shape` | `[w,h,...]` | none | calibration input shape |
 
-`method=minmax` uses per-block absmax scaling.
-
-`method=mseclip` searches clipped absmax candidates and picks the scale with the smallest block weight reconstruction error. It is calibration-free and still exports the same symmetric scale-only runtime format. It is not AWQ and does not add activation rescaling metadata.
-
-`method=awq` requires calibration data. It exports block scale rows plus `_input_scale` rows. Runtime still computes signed symmetric block dequantization; `method=awq` is only table provenance.
+`method=awq` and `method=gptq` need calibration data.
 
 ```shell
 ./ncnnllm2table in.param in.bin calib.list awq.llm.table method=awq bits=4 block=64 type=1 shape=[...]
-./ncnnllm2int468 in.param in.bin awq.param awq.bin awq.llm.table
+./ncnnllm2int in.param in.bin awq.param awq.bin awq.llm.table
 ```
-
-`method=gptq` requires calibration data. It uses Fixed-Scale GPTQ: the runtime block scale is chosen from the original weight block, then block-local Hessian error compensation writes exact qweight sidecar files. The converter imports those qvalues directly instead of requantizing fp32 weights.
 
 ```shell
 ./ncnnllm2table in.param in.bin calib.list gptq.llm.table method=gptq bits=4 block=128 type=1 shape=[...]
-./ncnnllm2int468 in.param in.bin gptq.param gptq.bin gptq.llm.table
+./ncnnllm2int in.param in.bin gptq.param gptq.bin gptq.llm.table
 ```
 
-The calibration list format follows `ncnn2table`: one npy path per line for one input, or comma-separated list files for multiple inputs. All input lists must have the same sample count.
-
-The llm table uses one line for each quantized weight:
+The calibration list format follows `ncnn2table`.
 
 ```text
 gemm_name_param_1 bits=4 block=64 method=mseclip scale0 scale1 ...
@@ -159,61 +145,37 @@ mha_name_param_2  bits=4 block=64 method=mseclip scale0 scale1 ...
 mha_name_param_3  bits=4 block=64 method=mseclip scale0 scale1 ...
 ```
 
-For `MultiHeadAttention`, `_param_0/_param_1/_param_2/_param_3` are q/k/v/out weights. All four rows must use the same bits and block size.
-
-`bits` and `block` are row-local, so one table can mix int4/int6/int8 and block32/block64/block128 for different layers. `method` is written for readability and logging. Unknown `key=value` fields are rejected.
-
-`out.llm.table` is a text file and may be edited before conversion. A missing Gemm row skips that Gemm. For `MultiHeadAttention`, all four q/k/v/out rows must exist together; deleting all four skips the layer.
-
-The scale-only table format is:
+For `MultiHeadAttention`, `_param_0/_param_1/_param_2/_param_3` are q/k/v/out weights.
 
 ```text
-layer_param_x bits=4/6/8 block=32/64/128 method=minmax/mseclip/awq scale0 scale1 ...
+gemm_name_param_1_input_scale method=awq scale0 scale1 ...
+mha_name_param_0_input_scale  method=awq scale0 scale1 ...
 ```
 
-Exact qweight import uses:
+`method=gptq` writes packed qweight files and records them in the table.
 
 ```text
 gemm_name_param_1 bits=4 block=128 method=gptq qweight=gemm.qweight scale0 scale1 ...
 ```
 
-The `qweight` path is relative to the table directory unless absolute. qweight data is packed in runtime layout: output rows `N`, input columns `K`, signed int4/int6/int8. The converter validates qweight byte count, tail padding bits, unsupported negative sentinel values, and scale coefficient count.
-
-The runtime quantize term is stored in param id `18`.
+The table is text and may be edited before conversion. Missing `Gemm` rows are skipped. `MultiHeadAttention` q/k/v/out rows must exist together.
 
 ```text
 400/401/402  int4 block=32/64/128
+410/411/412  int4 block=32/64/128 with input scale
 600/601/602  int6 block=32/64/128
+610/611/612  int6 block=32/64/128 with input scale
 800/801/802  int8 block=32/64/128
+810/811/812  int8 block=32/64/128 with input scale
 ```
 
-Optional per-input-channel multipliers can be stored by adding separate `_input_scale` rows. They are applied to the current input channel inside the dot product:
-
-```text
-sum += (x[k] * input_scale[k]) * (qweight[n,k] / block_scale[n,k/block])
-```
-
-```text
-gemm_name_param_1_input_scale method=awq coeff0 coeff1 ...
-mha_name_param_0_input_scale  method=awq coeff0 coeff1 ...
-mha_name_param_1_input_scale  method=awq coeff0 coeff1 ...
-mha_name_param_2_input_scale  method=awq coeff0 coeff1 ...
-mha_name_param_3_input_scale  method=awq coeff0 coeff1 ...
-```
-
-For `Gemm`, the input scale count is `constantK`. For `MultiHeadAttention`, q/k/v/out input scale counts are qdim/kdim/vdim/embed_dim, and either all four rows exist or none exist. `ncnnllm2table method=minmax/mseclip` does not write input scale rows; `method=awq` writes them.
-
-Input-scale models use the same bits/block terms with tens digit `1`: `410/411/412`, `610/611/612`, and `810/811/812`.
-
-For quick conversion without saving a table, `ncnnllm2int468` can still compute scales directly:
+For quick conversion without saving a table, `ncnnllm2int` can still compute scales directly:
 
 ```shell
-./ncnnllm2int468 in.param in.bin out.param out.bin method=minmax bits=6 block=64
+./ncnnllm2int in.param in.bin out.param out.bin method=minmax bits=6 block=64
 ```
 
-AWQ and GPTQ are offline tool methods and must not become runtime `quantize_term` values. SmoothQuant is not implemented here; it needs separate offline graph rewrite or scale folding rules.
-
-This format does not use zero point or asymmetric dequantization metadata.
+This format is signed symmetric scale-only. Zero point is not used.
 
 ## use ncnn int8 inference
 
