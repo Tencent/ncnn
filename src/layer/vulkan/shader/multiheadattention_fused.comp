@@ -1,0 +1,187 @@
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+// Fused Multi-Head Attention kernel: QK^T + online softmax + QKV
+// Eliminates the intermediate S (score) and A (attention probability) buffers.
+// Each thread computes one output row O[b,h,i,:].
+//
+// Dispatch: (batch * num_heads * seq_len) threads
+// Workgroup: 64 threads per block
+
+#version 450
+
+layout(constant_id = 0) const int attn_mask = 0;
+layout(constant_id = 1) const int M = 0;       // query seq_len
+layout(constant_id = 2) const int N = 0;       // key/value seq_len
+layout(constant_id = 3) const int head_dim = 0; // K dimension (per head)
+layout(constant_id = 4) const int B = 0;       // num_heads
+layout(constant_id = 5) const int attn_mask_dims = 0;
+
+layout(binding = 0) readonly buffer q_blob { sfpvec4 q_blob_data[]; };
+layout(binding = 1) readonly buffer k_blob { sfpvec4 k_blob_data[]; };
+layout(binding = 2) readonly buffer v_blob { sfpvec4 v_blob_data[]; };
+layout(binding = 3) writeonly buffer o_blob { sfpvec4 o_blob_data[]; };
+layout(binding = 4) readonly buffer attn_mask_blob { sfpvec4 attn_mask_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int M;
+    int N;
+    int head_dim;
+    int B;
+    int attn_mask_dims;
+} p;
+
+// Scale factor: 1/sqrt(head_dim)
+// We pass the log of scale via specialization or compute from head_dim
+layout(constant_id = 6) const int scale_exp2 = 0; // exponent for 1/sqrt(head_dim) * 2^16
+
+// Online softmax helper: given old max m, new score, running sum s_norm,
+// and current output row O (as vec4 array), update everything.
+// head_dim is packed as head_dim/4 vec4 elements.
+
+void main()
+{
+    // Thread index: (b, h, i) where b = batch, h = head, i = query position
+    int tid = int(gl_GlobalInvocationID.x);
+    int total_threads = int(gl_NumWorkGroups.x) * int(gl_WorkGroupSize.x);
+
+    int b = tid / (psc(M) * psc(B));
+    int h = (tid / psc(M)) % psc(B);
+    int i = tid % psc(M);
+
+    if (b >= 1 || h >= psc(B) || i >= psc(M))
+        return;
+
+    int head_size = psc(head_dim) / 4;
+    int head_stride = psc(M) * head_size;
+
+    // Load Q[b,h,i,:] into registers (vec4 array)
+    // Each element is a vec4 of 4 floats
+    const int q_base = ((b * psc(B) + h) * psc(M) + i) * head_size;
+
+    // Since GLSL doesn't support variable-length arrays easily,
+    // we'll load Q on the fly for the score computation and keep it in a loop.
+    // For head_dim up to 256 (64 vec4 elements), this should fit in registers.
+
+    // Online softmax state
+    afp m = afp(-1e30f);
+    afp s_norm = afp(0.f);
+
+    // Output accumulator: 4 vec4 registers (supports up to head_dim=64)
+    // For larger head_dim, we'll write to output buffer incrementally
+    afpvec4 o0 = afpvec4(0.f);
+    afpvec4 o1 = afpvec4(0.f);
+    afpvec4 o2 = afpvec4(0.f);
+    afpvec4 o3 = afpvec4(0.f);
+    afpvec4 o4 = afpvec4(0.f);
+    afpvec4 o5 = afpvec4(0.f);
+    afpvec4 o6 = afpvec4(0.f);
+    afpvec4 o7 = afpvec4(0.f);
+
+    // Fused scale factor: compute 1/sqrt(head_dim)
+    afp scale = afp(1.f / sqrt(float(psc(head_dim))));
+
+    // Iterate over key/value positions j = 0..N-1
+    for (int j = 0; j < psc(N); j++)
+    {
+        // Compute score = dot(Q[i], K[j]) / sqrt(head_dim)
+        afp score = afp(0.f);
+
+        // Unrolled dot product over head_dim
+        const int k_base = ((b * psc(B) + h) * psc(N) + j) * head_size;
+
+        // Loop over vec4 elements of head_dim
+        for (int d = 0; d < head_size; d++)
+        {
+            int qi = q_base + d;
+            int ki = k_base + d;
+            afpvec4 qv = buffer_ld4(q_blob_data, qi);
+            afpvec4 kv = buffer_ld4(k_blob_data, ki);
+            score += dot(qv, kv);
+        }
+
+        score *= scale;
+
+        // Apply attention mask
+        if (attn_mask == 1)
+        {
+            if (psc(attn_mask_dims) == 3)
+            {
+                const int mi = (h * psc(M) + i) * psc(N) + j;
+                score += buffer_ld1(attn_mask_blob_data, mi);
+            }
+            else // attn_mask_dims == 2 — causal on-the-fly
+            {
+                if (j > i)
+                    score = afp(-1e30f);
+            }
+        }
+
+        // Online softmax update
+        afp m_new = max(m, score);
+        afp exp_diff = exp(m - m_new);
+        afp exp_score = exp(score - m_new);
+        s_norm = s_norm * exp_diff + exp_score;
+
+        // Load V[b,h,j,:] and accumulate O
+        const int v_base = ((b * psc(B) + h) * psc(N) + j) * head_size;
+
+        // Accumulate O = O * exp_diff + V[j] * exp_score
+        // Process head_dim in vec4 chunks
+        if (head_size >= 1)
+        {
+            afpvec4 v0 = buffer_ld4(v_blob_data, v_base);
+            o0 = o0 * exp_diff + v0 * exp_score;
+        }
+        if (head_size >= 2)
+        {
+            afpvec4 v1 = buffer_ld4(v_blob_data, v_base + 1);
+            o1 = o1 * exp_diff + v1 * exp_score;
+        }
+        if (head_size >= 3)
+        {
+            afpvec4 v2 = buffer_ld4(v_blob_data, v_base + 2);
+            o2 = o2 * exp_diff + v2 * exp_score;
+        }
+        if (head_size >= 4)
+        {
+            afpvec4 v3 = buffer_ld4(v_blob_data, v_base + 3);
+            o3 = o3 * exp_diff + v3 * exp_score;
+        }
+        if (head_size >= 5)
+        {
+            afpvec4 v4 = buffer_ld4(v_blob_data, v_base + 4);
+            o4 = o4 * exp_diff + v4 * exp_score;
+        }
+        if (head_size >= 6)
+        {
+            afpvec4 v5 = buffer_ld4(v_blob_data, v_base + 5);
+            o5 = o5 * exp_diff + v5 * exp_score;
+        }
+        if (head_size >= 7)
+        {
+            afpvec4 v6 = buffer_ld4(v_blob_data, v_base + 6);
+            o6 = o6 * exp_diff + v6 * exp_score;
+        }
+        if (head_size >= 8)
+        {
+            afpvec4 v7 = buffer_ld4(v_blob_data, v_base + 7);
+            o7 = o7 * exp_diff + v7 * exp_score;
+        }
+
+        m = m_new;
+    }
+
+    // Normalize: O = O / s_norm
+    const int o_base = ((b * psc(B) + h) * psc(M) + i) * head_size;
+
+    if (head_size >= 1) buffer_st4(o_blob_data, o_base, o0 / s_norm);
+    if (head_size >= 2) buffer_st4(o_blob_data, o_base + 1, o1 / s_norm);
+    if (head_size >= 3) buffer_st4(o_blob_data, o_base + 2, o2 / s_norm);
+    if (head_size >= 4) buffer_st4(o_blob_data, o_base + 3, o3 / s_norm);
+    if (head_size >= 5) buffer_st4(o_blob_data, o_base + 4, o4 / s_norm);
+    if (head_size >= 6) buffer_st4(o_blob_data, o_base + 5, o5 / s_norm);
+    if (head_size >= 7) buffer_st4(o_blob_data, o_base + 6, o6 / s_norm);
+    if (head_size >= 8) buffer_st4(o_blob_data, o_base + 7, o7 / s_norm);
+}

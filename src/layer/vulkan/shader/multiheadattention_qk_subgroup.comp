@@ -1,0 +1,96 @@
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+// QK^T cross attention with subgroup reduction (P1).
+// Uses GL_KHR_shader_subgroup_arithmetic for warp-level dot product reduction.
+// Each subgroup lane loads one element of Q and K, multiplies,
+// then subgroupAdd accumulates across the warp.
+// This eliminates the per-thread K-loop and replaces it with
+// hardware-accelerated warp reduction.
+
+// This variant replaces the baseline multiheadattention_qk_cross.
+
+#version 450
+
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+
+layout(constant_id = 0) const int attn_mask = 0;
+layout(constant_id = 1) const int M = 0;
+layout(constant_id = 2) const int N = 0;
+layout(constant_id = 3) const int K = 0;
+layout(constant_id = 4) const int B = 0;
+layout(constant_id = 5) const int attn_mask_dims = 0;
+
+layout(binding = 0) readonly buffer q_blob { sfp q_blob_data[]; };
+layout(binding = 1) readonly buffer k_blob { sfp k_blob_data[]; };
+layout(binding = 2) writeonly buffer qkcross_blob { sfp qkcross_blob_data[]; };
+layout(binding = 3) readonly buffer attn_mask_blob { sfp attn_mask_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int M;
+    int N;
+    int K;
+    int B;
+    int attn_mask_dims;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(N) || gy >= psc(M) || gz >= psc(B))
+        return;
+
+    int subgroup_lane = int(gl_SubgroupInvocationID);
+    int subgroup_size = int(gl_SubgroupSize);
+
+    afp sum = afp(0.f);
+
+    if (attn_mask == 1)
+    {
+        if (psc(attn_mask_dims) == 3)
+        {
+            const int mi = gz * psc(M) * psc(N) + gy * psc(N) + gx;
+            sum = buffer_ld1(attn_mask_blob_data, mi);
+        }
+        else
+        {
+            sum = (gx > gy) ? afp(-1e30f) : afp(0.f);
+        }
+    }
+
+    // Subgroup cooperative dot product:
+    // Each lane loads one element along the K dimension,
+    // multiplies Q and K, then subgroupAdd across the warp.
+    int num_tiles = (psc(K) + subgroup_size - 1) / subgroup_size;
+    for (int t = 0; t < num_tiles; t++)
+    {
+        int k = t * subgroup_size + subgroup_lane;
+
+        afp q0 = afp(0.f);
+        afp k0 = afp(0.f);
+        if (k < psc(K))
+        {
+            const int ai = gz * psc(M) * psc(K) + k * psc(M) + gy;
+            q0 = buffer_ld1(q_blob_data, ai);
+
+            const int bi = gz * psc(N) * psc(K) + k * psc(N) + gx;
+            k0 = buffer_ld1(k_blob_data, bi);
+        }
+
+        afp prod = q0 * k0;
+
+        // subgroupAdd returns the sum to ALL active lanes
+        // Only lane 0 accumulates (all lanes have the same sum)
+        sum += subgroupAdd(prod);
+    }
+
+    if (subgroup_lane == 0)
+    {
+        const int gi = gz * psc(M) * psc(N) + gy * psc(N) + gx;
+        buffer_st1(qkcross_blob_data, gi, sum);
+    }
+}

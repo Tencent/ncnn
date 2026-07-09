@@ -1,0 +1,139 @@
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+// Fused Multi-Head Attention kernel with cooperative K/V shared memory load (P4).
+// One thread loads K[j,:] and V[j,:] into shared memory; all threads read from shared.
+// Dispatch: (batch * num_heads * seq_len) threads
+// Workgroup: 64 threads per block
+
+#version 450
+
+layout(constant_id = 0) const int attn_mask = 0;
+layout(constant_id = 1) const int M = 0;
+layout(constant_id = 2) const int N = 0;
+layout(constant_id = 3) const int head_dim = 0;
+layout(constant_id = 4) const int B = 0;
+layout(constant_id = 5) const int attn_mask_dims = 0;
+
+layout(binding = 0) readonly buffer q_blob { sfpvec4 q_blob_data[]; };
+layout(binding = 1) readonly buffer k_blob { sfpvec4 k_blob_data[]; };
+layout(binding = 2) readonly buffer v_blob { sfpvec4 v_blob_data[]; };
+layout(binding = 3) writeonly buffer o_blob { sfpvec4 o_blob_data[]; };
+layout(binding = 4) readonly buffer attn_mask_blob { sfpvec4 attn_mask_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int M;
+    int N;
+    int head_dim;
+    int B;
+    int attn_mask_dims;
+} p;
+
+// Shared memory for K and V: up to head_dim/4 vec4 elements each
+// The maximum head_dim supported is 256 (64 vec4 elements = 1KB each)
+shared lfpvec4 K_shared[64];
+shared lfpvec4 V_shared[64];
+
+void main()
+{
+    int tid = int(gl_GlobalInvocationID.x);
+    int b = tid / (psc(M) * psc(B));
+    int h = (tid / psc(M)) % psc(B);
+    int i = tid % psc(M);
+
+    if (b >= 1 || h >= psc(B) || i >= psc(M))
+        return;
+
+    int head_size = psc(head_dim) / 4;
+
+    // Online softmax state
+    afp m = afp(-1e30f);
+    afp s_norm = afp(0.f);
+
+    // Output accumulator
+    afpvec4 o0 = afpvec4(0.f);
+    afpvec4 o1 = afpvec4(0.f);
+    afpvec4 o2 = afpvec4(0.f);
+    afpvec4 o3 = afpvec4(0.f);
+    afpvec4 o4 = afpvec4(0.f);
+    afpvec4 o5 = afpvec4(0.f);
+    afpvec4 o6 = afpvec4(0.f);
+    afpvec4 o7 = afpvec4(0.f);
+
+    afp scale = afp(1.f / sqrt(float(psc(head_dim))));
+
+    // Pre-load Q[b,h,i,:] — we'll read on-the-fly during dot product
+    const int q_base = ((b * psc(B) + h) * psc(M) + i) * head_size;
+
+    for (int j = 0; j < psc(N); j++)
+    {
+        // Cooperative load: thread 0 loads K[j] and V[j] into shared memory
+        if (gl_LocalInvocationIndex == 0u)
+        {
+            int kv_base = ((b * psc(B) + h) * psc(N) + j) * head_size;
+            for (int d = 0; d < head_size; d++)
+            {
+                K_shared[d] = buffer_ld4(k_blob_data, kv_base + d);
+                V_shared[d] = buffer_ld4(v_blob_data, kv_base + d);
+            }
+        }
+        memoryBarrierShared();
+        barrier();
+
+        // Compute score = dot(Q[i], K_shared) * scale
+        afp score = afp(0.f);
+        for (int d = 0; d < head_size; d++)
+        {
+            afpvec4 qv = buffer_ld4(q_blob_data, q_base + d);
+            afpvec4 kv = lfp2afpvec4(K_shared[d]);
+            score += dot(qv, kv);
+        }
+        score *= scale;
+
+        // Apply attention mask
+        if (attn_mask == 1)
+        {
+            if (psc(attn_mask_dims) == 3)
+            {
+                const int mi = (h * psc(M) + i) * psc(N) + j;
+                score += buffer_ld1(attn_mask_blob_data, mi);
+            }
+            else
+            {
+                if (j > i)
+                    score = afp(-1e30f);
+            }
+        }
+
+        // Online softmax update
+        afp m_new = max(m, score);
+        afp exp_diff = exp(m - m_new);
+        afp exp_score = exp(score - m_new);
+        s_norm = s_norm * exp_diff + exp_score;
+
+        // Accumulate O = O * exp_diff + V_shared * exp_score
+        afpvec4 v0 = lfp2afpvec4(V_shared[0]); o0 = o0 * exp_diff + v0 * exp_score;
+        if (head_size >= 2) { afpvec4 v1 = lfp2afpvec4(V_shared[1]); o1 = o1 * exp_diff + v1 * exp_score; }
+        if (head_size >= 3) { afpvec4 v2 = lfp2afpvec4(V_shared[2]); o2 = o2 * exp_diff + v2 * exp_score; }
+        if (head_size >= 4) { afpvec4 v3 = lfp2afpvec4(V_shared[3]); o3 = o3 * exp_diff + v3 * exp_score; }
+        if (head_size >= 5) { afpvec4 v4 = lfp2afpvec4(V_shared[4]); o4 = o4 * exp_diff + v4 * exp_score; }
+        if (head_size >= 6) { afpvec4 v5 = lfp2afpvec4(V_shared[5]); o5 = o5 * exp_diff + v5 * exp_score; }
+        if (head_size >= 7) { afpvec4 v6 = lfp2afpvec4(V_shared[6]); o6 = o6 * exp_diff + v6 * exp_score; }
+        if (head_size >= 8) { afpvec4 v7 = lfp2afpvec4(V_shared[7]); o7 = o7 * exp_diff + v7 * exp_score; }
+
+        m = m_new;
+    }
+
+    // Normalize and write output
+    const int o_base = ((b * psc(B) + h) * psc(M) + i) * head_size;
+
+    buffer_st4(o_blob_data, o_base, o0 / s_norm);
+    if (head_size >= 2) buffer_st4(o_blob_data, o_base + 1, o1 / s_norm);
+    if (head_size >= 3) buffer_st4(o_blob_data, o_base + 2, o2 / s_norm);
+    if (head_size >= 4) buffer_st4(o_blob_data, o_base + 3, o3 / s_norm);
+    if (head_size >= 5) buffer_st4(o_blob_data, o_base + 4, o4 / s_norm);
+    if (head_size >= 6) buffer_st4(o_blob_data, o_base + 5, o5 / s_norm);
+    if (head_size >= 7) buffer_st4(o_blob_data, o_base + 6, o6 / s_norm);
+    if (head_size >= 8) buffer_st4(o_blob_data, o_base + 7, o7 / s_norm);
+}

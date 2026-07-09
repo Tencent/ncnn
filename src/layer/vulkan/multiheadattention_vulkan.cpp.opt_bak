@@ -192,12 +192,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_multiheadattention_qk_subgroup = new Pipeline(vkdev);
             pipeline_multiheadattention_qk_subgroup->set_local_size_xyz(8, 8, 1);
-            int ret = pipeline_multiheadattention_qk_subgroup->create(LayerShaderType::multiheadattention_qk_subgroup, opt, specializations);
-            if (ret != 0)
-            {
-                delete pipeline_multiheadattention_qk_subgroup;
-                pipeline_multiheadattention_qk_subgroup = 0;
-            }
+            pipeline_multiheadattention_qk_subgroup->create(LayerShaderType::multiheadattention_qk_subgroup, opt, specializations);
         }
     }
 

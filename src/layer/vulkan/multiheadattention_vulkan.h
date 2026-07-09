@@ -33,6 +33,7 @@ public:
 
     Layer* kvcache_concat;
 
+    // Original QK^T and QKV pipelines
     Pipeline* pipeline_multiheadattention_qk_cross;
     Pipeline* pipeline_multiheadattention_qk_cross_pack4;
     Pipeline* pipeline_multiheadattention_qk_cross_pack1to4;
@@ -42,6 +43,15 @@ public:
     Pipeline* pipeline_multiheadattention_qkv_cross_pack4;
     Pipeline* pipeline_multiheadattention_qkv_cross_pack1to4;
     Pipeline* pipeline_multiheadattention_qkv_cross_pack4to1;
+
+    // P1: Subgroup-optimized QK^T pipeline (standalone)
+    Pipeline* pipeline_multiheadattention_qk_subgroup;
+
+    // P3/P4: Fused online softmax pipelines (QK^T + softmax + QKV in one kernel)
+    Pipeline* pipeline_multiheadattention_fused;
+    Pipeline* pipeline_multiheadattention_fused_coopload;    // P4: cooperative K/V shared load
+    Pipeline* pipeline_multiheadattention_fused_subgroup;    // P1: subgroup reduction variant
+    Pipeline* pipeline_multiheadattention_fused_coopmat;     // P5: cooperative matrix variant
 };
 
 } // namespace ncnn

@@ -1,0 +1,151 @@
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+// Fused Multi-Head Attention with subgroup reduction for dot product (P1).
+// Uses GL_KHR_shader_subgroup_arithmetic for warp-level dot product.
+// Each warp/subgroup of 32 threads cooperatively computes the dot product,
+// then each thread independently handles online softmax and output accumulation.
+//
+// Dispatch: (batch * num_heads * seq_len) threads
+// Workgroup: 128 threads per block (4 warps)
+
+#version 450
+
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+
+layout(constant_id = 0) const int attn_mask = 0;
+layout(constant_id = 1) const int M = 0;
+layout(constant_id = 2) const int N = 0;
+layout(constant_id = 3) const int head_dim = 0;
+layout(constant_id = 4) const int B = 0;
+layout(constant_id = 5) const int attn_mask_dims = 0;
+
+layout(binding = 0) readonly buffer q_blob { sfpvec4 q_blob_data[]; };
+layout(binding = 1) readonly buffer k_blob { sfpvec4 k_blob_data[]; };
+layout(binding = 2) readonly buffer v_blob { sfpvec4 v_blob_data[]; };
+layout(binding = 3) writeonly buffer o_blob { sfpvec4 o_blob_data[]; };
+layout(binding = 4) readonly buffer attn_mask_blob { sfpvec4 attn_mask_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int M;
+    int N;
+    int head_dim;
+    int B;
+    int attn_mask_dims;
+} p;
+
+// Subgroup cooperative dot product:
+// Each lane loads one element of Q and K, multiplies them,
+// then subgroupAdd reduces across the warp.
+// subgroupAdd returns the same result to ALL active lanes,
+// so no broadcast is needed.
+
+void main()
+{
+    int tid = int(gl_GlobalInvocationID.x);
+    int b = tid / (psc(M) * psc(B));
+    int h = (tid / psc(M)) % psc(B);
+    int i = tid % psc(M);
+
+    if (b >= 1 || h >= psc(B) || i >= psc(M))
+        return;
+
+    int head_size = psc(head_dim) / 4;
+    int subgroup_lane = int(gl_SubgroupInvocationID);
+    int subgroup_size = int(gl_SubgroupSize);
+
+    afp m = afp(-1e30f);
+    afp s_norm = afp(0.f);
+
+    afpvec4 o0 = afpvec4(0.f);
+    afpvec4 o1 = afpvec4(0.f);
+    afpvec4 o2 = afpvec4(0.f);
+    afpvec4 o3 = afpvec4(0.f);
+    afpvec4 o4 = afpvec4(0.f);
+    afpvec4 o5 = afpvec4(0.f);
+    afpvec4 o6 = afpvec4(0.f);
+    afpvec4 o7 = afpvec4(0.f);
+
+    afp scale = afp(1.f / sqrt(float(psc(head_dim))));
+
+    const int q_base = ((b * psc(B) + h) * psc(M) + i) * head_size;
+
+    for (int j = 0; j < psc(N); j++)
+    {
+        // Subgroup cooperative dot product:
+        // Distribute the head_dim/4 vec4 elements across subgroup lanes.
+        afp score = afp(0.f);
+
+        int k_base = ((b * psc(B) + h) * psc(N) + j) * head_size;
+
+        // Tile over head_dim in subgroup-sized chunks
+        int num_tiles = (head_size + subgroup_size - 1) / subgroup_size;
+        for (int t = 0; t < num_tiles; t++)
+        {
+            int d = t * subgroup_size + subgroup_lane;
+
+            afpvec4 qv = afpvec4(0.f);
+            afpvec4 kv = afpvec4(0.f);
+            if (d < head_size)
+            {
+                qv = buffer_ld4(q_blob_data, q_base + d);
+                kv = buffer_ld4(k_blob_data, k_base + d);
+            }
+
+            afp partial_dot = dot(qv, kv);
+
+            // subgroupAdd returns the sum to ALL active lanes
+            score += subgroupAdd(partial_dot);
+        }
+
+        score *= scale;
+
+        // Apply attention mask
+        if (attn_mask == 1)
+        {
+            if (psc(attn_mask_dims) == 3)
+            {
+                const int mi = (h * psc(M) + i) * psc(N) + j;
+                score += buffer_ld1(attn_mask_blob_data, mi);
+            }
+            else
+            {
+                if (j > i)
+                    score = afp(-1e30f);
+            }
+        }
+
+        // Online softmax update
+        afp m_new = max(m, score);
+        afp exp_diff = exp(m - m_new);
+        afp exp_score = exp(score - m_new);
+        s_norm = s_norm * exp_diff + exp_score;
+
+        // Accumulate O
+        const int v_base = ((b * psc(B) + h) * psc(N) + j) * head_size;
+
+        if (head_size >= 1) { afpvec4 v0 = buffer_ld4(v_blob_data, v_base); o0 = o0 * exp_diff + v0 * exp_score; }
+        if (head_size >= 2) { afpvec4 v1 = buffer_ld4(v_blob_data, v_base + 1); o1 = o1 * exp_diff + v1 * exp_score; }
+        if (head_size >= 3) { afpvec4 v2 = buffer_ld4(v_blob_data, v_base + 2); o2 = o2 * exp_diff + v2 * exp_score; }
+        if (head_size >= 4) { afpvec4 v3 = buffer_ld4(v_blob_data, v_base + 3); o3 = o3 * exp_diff + v3 * exp_score; }
+        if (head_size >= 5) { afpvec4 v4 = buffer_ld4(v_blob_data, v_base + 4); o4 = o4 * exp_diff + v4 * exp_score; }
+        if (head_size >= 6) { afpvec4 v5 = buffer_ld4(v_blob_data, v_base + 5); o5 = o5 * exp_diff + v5 * exp_score; }
+        if (head_size >= 7) { afpvec4 v6 = buffer_ld4(v_blob_data, v_base + 6); o6 = o6 * exp_diff + v6 * exp_score; }
+        if (head_size >= 8) { afpvec4 v7 = buffer_ld4(v_blob_data, v_base + 7); o7 = o7 * exp_diff + v7 * exp_score; }
+
+        m = m_new;
+    }
+
+    // Normalize and write output
+    const int o_base = ((b * psc(B) + h) * psc(M) + i) * head_size;
+
+    buffer_st4(o_blob_data, o_base, o0 / s_norm);
+    if (head_size >= 2) buffer_st4(o_blob_data, o_base + 1, o1 / s_norm);
+    if (head_size >= 3) buffer_st4(o_blob_data, o_base + 2, o2 / s_norm);
+    if (head_size >= 4) buffer_st4(o_blob_data, o_base + 3, o3 / s_norm);
+    if (head_size >= 5) buffer_st4(o_blob_data, o_base + 4, o4 / s_norm);
+    if (head_size >= 6) buffer_st4(o_blob_data, o_base + 5, o5 / s_norm);
+    if (head_size >= 7) buffer_st4(o_blob_data, o_base + 6, o6 / s_norm);
+    if (head_size >= 8) buffer_st4(o_blob_data, o_base + 7, o7 / s_norm);
+}
