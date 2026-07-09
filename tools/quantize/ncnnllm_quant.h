@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
-#include <float.h>
 #include <limits.h>
 
 enum
@@ -105,9 +104,9 @@ static inline const char* gemm_name(const ncnn::Gemm* gemm)
 #endif
 }
 
-static inline void print_skip_gemm(const ncnn::Gemm* gemm, const char* reason)
+static inline void print_skip_gemm(const ncnn::Gemm* gemm)
 {
-    fprintf(stderr, "skip_gemm %s %s\n", gemm_name(gemm), reason);
+    fprintf(stderr, "skip_gemm %s\n", gemm_name(gemm));
 }
 
 static inline const char* multiheadattention_name(const ncnn::MultiHeadAttention* mha)
@@ -120,111 +119,69 @@ static inline const char* multiheadattention_name(const ncnn::MultiHeadAttention
 #endif
 }
 
-static inline void print_skip_multiheadattention(const ncnn::MultiHeadAttention* mha, const char* reason)
+static inline void print_skip_multiheadattention(const ncnn::MultiHeadAttention* mha)
 {
-    fprintf(stderr, "skip_multiheadattention %s %s\n", multiheadattention_name(mha), reason);
+    fprintf(stderr, "skip_multiheadattention %s\n", multiheadattention_name(mha));
 }
 
-static inline bool is_supported_llm_gemm(const ncnn::Gemm* gemm, const char** reason)
+static inline bool is_supported_llm_gemm(const ncnn::Gemm* gemm)
 {
     if (gemm->alpha != 1.f || gemm->beta != 1.f)
-    {
-        *reason = "alpha/beta is not 1";
         return false;
-    }
 
     if (gemm->transA != 0 || gemm->transB != 1)
-    {
-        *reason = "transA/transB";
         return false;
-    }
 
-    if (gemm->constantA != 0 || gemm->constantB != 1 || gemm->constantC != 1 || gemm->constant_broadcast_type_C != -1)
-    {
-        *reason = "constantA/B/C";
+    if (gemm->constantA != 0 || gemm->constantB != 1)
         return false;
-    }
 
-    if (gemm->constantM != 0)
-    {
-        *reason = "constantM";
+    if (gemm->constantC != 0 && gemm->constantC != 1)
         return false;
-    }
 
-    if (gemm->output_N1M != 0 || gemm->output_elempack != 0 || gemm->output_elemtype != 0 || gemm->output_transpose != 0)
-    {
-        *reason = "output layout";
+    if (gemm->constantC == 1 && (gemm->constant_broadcast_type_C < -1 || gemm->constant_broadcast_type_C > 4))
         return false;
-    }
+
+    if (gemm->output_N1M != 0 || gemm->output_elempack != 0 || (gemm->output_elemtype != 0 && gemm->output_elemtype != 1) || gemm->output_transpose != 0)
+        return false;
 
     if (gemm->quantize_term != 0)
-    {
-        *reason = "already quantized";
         return false;
-    }
 
     if (gemm->constant_TILE_M != 0 || gemm->constant_TILE_N != 0 || gemm->constant_TILE_K != 0)
-    {
-        *reason = "tiled Gemm is not supported";
         return false;
-    }
 
     const int constantN = gemm->constantN;
     const int constantK = gemm->constantK;
 
     if (constantN <= 0 || constantK <= 0 || gemm->B_data.w != constantK || gemm->B_data.h != constantN || gemm->B_data.elemsize != 4u)
-    {
-        *reason = "B_data";
         return false;
-    }
 
     return true;
 }
 
-static inline bool is_supported_llm_multiheadattention(const ncnn::MultiHeadAttention* mha, const char** reason)
+static inline bool is_supported_llm_multiheadattention(const ncnn::MultiHeadAttention* mha)
 {
     if (mha->quantize_term != 0)
-    {
-        *reason = "already quantized";
         return false;
-    }
 
     if (mha->embed_dim <= 0 || mha->num_heads <= 0 || mha->embed_dim % mha->num_heads != 0 || mha->weight_data_size <= 0 || mha->weight_data_size % mha->embed_dim != 0 || mha->kdim <= 0 || mha->vdim <= 0)
-    {
-        *reason = "shape";
         return false;
-    }
 
     const int qdim = mha->weight_data_size / mha->embed_dim;
     if (mha->q_weight_data.elemsize != 4u || mha->q_weight_data.w != mha->embed_dim * qdim)
-    {
-        *reason = "q_weight";
         return false;
-    }
 
     if (mha->k_weight_data.elemsize != 4u || mha->k_weight_data.w != mha->embed_dim * mha->kdim)
-    {
-        *reason = "k_weight";
         return false;
-    }
 
     if (mha->v_weight_data.elemsize != 4u || mha->v_weight_data.w != mha->embed_dim * mha->vdim)
-    {
-        *reason = "v_weight";
         return false;
-    }
 
     if (mha->out_weight_data.elemsize != 4u || mha->out_weight_data.w != qdim * mha->embed_dim)
-    {
-        *reason = "out_weight";
         return false;
-    }
 
     if (mha->q_bias_data.elemsize != 4u || mha->q_bias_data.w != mha->embed_dim || mha->k_bias_data.elemsize != 4u || mha->k_bias_data.w != mha->embed_dim || mha->v_bias_data.elemsize != 4u || mha->v_bias_data.w != mha->embed_dim || mha->out_bias_data.elemsize != 4u || mha->out_bias_data.w != qdim)
-    {
-        *reason = "bias";
         return false;
-    }
 
     return true;
 }
@@ -279,21 +236,21 @@ static inline float choose_weight_scale(const float* ptr, int size, int weight_b
     return best_scale;
 }
 
-static inline int make_gemm_B_scales(const ncnn::Mat& B_data, int block_size, int weight_bits, int method, ncnn::Mat& B_data_quantize_scales, int num_threads = 1)
+static inline int make_weight_scales(const ncnn::Mat& weight_data, int block_size, int weight_bits, int method, ncnn::Mat& weight_data_quantize_scales, int num_threads = 1)
 {
-    const int constantN = B_data.h;
-    const int constantK = B_data.w;
+    const int constantN = weight_data.h;
+    const int constantK = weight_data.w;
     const int block_count = (constantK + block_size - 1) / block_size;
 
-    B_data_quantize_scales.create(block_count, constantN);
-    if (B_data_quantize_scales.empty())
+    weight_data_quantize_scales.create(block_count, constantN);
+    if (weight_data_quantize_scales.empty())
         return -100;
 
     #pragma omp parallel for num_threads(num_threads)
     for (int n = 0; n < constantN; n++)
     {
-        const float* ptr = B_data.row(n);
-        float* scale_ptr = B_data_quantize_scales.row(n);
+        const float* ptr = weight_data.row(n);
+        float* scale_ptr = weight_data_quantize_scales.row(n);
 
         for (int b = 0; b < block_count; b++)
         {
@@ -306,45 +263,31 @@ static inline int make_gemm_B_scales(const ncnn::Mat& B_data, int block_size, in
     return 0;
 }
 
-static inline int pack_gemm_B_from_scales(const ncnn::Mat& B_data, const ncnn::Mat& B_data_quantize_scales, int block_size, int weight_bits, ncnn::Mat& B_data_quantized)
+static inline int pack_weight_data(const ncnn::Mat& weight_data, const ncnn::Mat& weight_data_quantize_scales, int block_size, int weight_bits, ncnn::Mat& weight_data_quantized)
 {
-    const int constantN = B_data.h;
-    const int constantK = B_data.w;
+    const int constantN = weight_data.h;
+    const int constantK = weight_data.w;
     const int block_count = (constantK + block_size - 1) / block_size;
 
-    if (B_data_quantize_scales.w != block_count || B_data_quantize_scales.h != constantN)
+    if (weight_data_quantize_scales.w != block_count || weight_data_quantize_scales.h != constantN)
     {
-        fprintf(stderr, "Gemm B scale shape mismatch\n");
+        fprintf(stderr, "weight scale shape mismatch\n");
         return -1;
-    }
-
-    for (int n = 0; n < constantN; n++)
-    {
-        const float* scale_ptr = B_data_quantize_scales.row(n);
-        for (int b = 0; b < block_count; b++)
-        {
-            const float scale = scale_ptr[b];
-            if (!(scale > 0.f) || scale > FLT_MAX)
-            {
-                fprintf(stderr, "Gemm B scale is invalid n=%d block=%d scale=%f\n", n, b, scale);
-                return -1;
-            }
-        }
     }
 
     const int packed_k_bytes = llm_weight_quantize_packed_k_bytes(constantK, weight_bits);
 
-    B_data_quantized.create(packed_k_bytes, constantN, (size_t)1u);
-    if (B_data_quantized.empty())
+    weight_data_quantized.create(packed_k_bytes, constantN, (size_t)1u);
+    if (weight_data_quantized.empty())
         return -100;
 
-    memset(B_data_quantized.data, 0, B_data_quantized.total() * B_data_quantized.elemsize);
+    memset(weight_data_quantized.data, 0, weight_data_quantized.total() * weight_data_quantized.elemsize);
 
     for (int n = 0; n < constantN; n++)
     {
-        const float* ptr = B_data.row(n);
-        const float* scale_ptr = B_data_quantize_scales.row(n);
-        unsigned char* qptr = B_data_quantized.row<unsigned char>(n);
+        const float* ptr = weight_data.row(n);
+        const float* scale_ptr = weight_data_quantize_scales.row(n);
+        unsigned char* qptr = weight_data_quantized.row<unsigned char>(n);
 
         for (int b = 0; b < block_count; b++)
         {
@@ -363,13 +306,13 @@ static inline int pack_gemm_B_from_scales(const ncnn::Mat& B_data, const ncnn::M
     return 0;
 }
 
-static inline int make_and_pack_gemm_B(const ncnn::Mat& B_data, int block_size, int weight_bits, int method, ncnn::Mat& B_data_quantized, ncnn::Mat& B_data_quantize_scales)
+static inline int quantize_weight_data(const ncnn::Mat& weight_data, int block_size, int weight_bits, int method, ncnn::Mat& weight_data_quantized, ncnn::Mat& weight_data_quantize_scales)
 {
-    int ret = make_gemm_B_scales(B_data, block_size, weight_bits, method, B_data_quantize_scales);
+    int ret = make_weight_scales(weight_data, block_size, weight_bits, method, weight_data_quantize_scales);
     if (ret != 0)
         return ret;
 
-    return pack_gemm_B_from_scales(B_data, B_data_quantize_scales, block_size, weight_bits, B_data_quantized);
+    return pack_weight_data(weight_data, weight_data_quantize_scales, block_size, weight_bits, weight_data_quantized);
 }
 
 static inline int write_llm_table_row(FILE* fp, const char* key, int weight_bits, int block_size, int method, const ncnn::Mat& scales)

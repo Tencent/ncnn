@@ -6,6 +6,7 @@
 #endif
 
 #include <stdint.h>
+#include <limits.h>
 #include <algorithm>
 #include <map>
 #include <set>
@@ -633,7 +634,14 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a
 {
     int p0 = ftell(bp);
 
-    ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.d * data.c);
+    const size_t data_size = (size_t)data.w * data.h * data.d * data.c;
+    if (data_size > (size_t)INT_MAX)
+    {
+        fprintf(stderr, "weight data is too large\n");
+        return -1;
+    }
+
+    ncnn::Mat data_flattened = data.reshape((int)data_size);
     if (gen_random_weight && randomize)
         Randomize(data_flattened, a, b);
 
@@ -690,7 +698,14 @@ int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a, fl
 {
     int p0 = ftell(bp);
 
-    ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.d * data.c);
+    const size_t data_size = (size_t)data.w * data.h * data.d * data.c;
+    if (data_size > (size_t)INT_MAX)
+    {
+        fprintf(stderr, "weight data is too large\n");
+        return -1;
+    }
+
+    ncnn::Mat data_flattened = data.reshape((int)data_size);
     if (gen_random_weight && randomize)
         Randomize(data_flattened, a, b);
 
@@ -721,6 +736,15 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
     FILE* pp = fopen(parampath, "wb");
     FILE* bp = fopen(binpath, "wb");
+    if (!pp || !bp)
+    {
+        fprintf(stderr, "fopen %s or %s failed\n", parampath, binpath);
+        if (pp)
+            fclose(pp);
+        if (bp)
+            fclose(bp);
+        return -1;
+    }
 
     fprintf(pp, "7767517\n");
 

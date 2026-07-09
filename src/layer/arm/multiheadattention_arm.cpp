@@ -4,7 +4,6 @@
 #include "multiheadattention_arm.h"
 
 #include "cpu.h"
-#include "gemm.h"
 #include "layer_type.h"
 
 namespace ncnn {

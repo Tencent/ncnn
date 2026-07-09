@@ -112,18 +112,9 @@ The workflow is similar to `ncnn2table` and `ncnn2int8`:
 ./ncnnllm2int in.param in.bin out.param out.bin model.llm.table
 ```
 
-`ncnnllm2table` options:
+method can be minmax,mseclip,awq,gptq. bits can be 4,6,8. block can be 32,64,128. thread is the CPU thread count.
 
-| key | values | default | description |
-| --- | ------ | ------- | ----------- |
-| `method` | `minmax`, `mseclip`, `awq`, `gptq` | `minmax` | quant method |
-| `bits` | `4`, `6`, `8` | `6` | weight bits |
-| `block` | `32`, `64`, `128` | `64` | block size |
-| `thread` | positive integer | `1` | thread count |
-| `type` | `1` | `1` | calibration data type, npy only |
-| `shape` | `[w,h,...]` | none | calibration input shape |
-
-`method=awq` and `method=gptq` need calibration data.
+awq and gptq need calibration data, same as npy calibration in ncnn2table.
 
 ```shell
 ./ncnnllm2table in.param in.bin calib.list awq.llm.table method=awq bits=4 block=64 type=1 shape=[...]
@@ -160,14 +151,7 @@ gemm_name_param_1 bits=4 block=128 method=gptq qweight=gemm.qweight scale0 scale
 
 The table is text and may be edited before conversion. Missing `Gemm` rows are skipped. `MultiHeadAttention` q/k/v/out rows must exist together.
 
-```text
-400/401/402  int4 block=32/64/128
-410/411/412  int4 block=32/64/128 with input scale
-600/601/602  int6 block=32/64/128
-610/611/612  int6 block=32/64/128 with input scale
-800/801/802  int8 block=32/64/128
-810/811/812  int8 block=32/64/128 with input scale
-```
+The generated layer `quantize_term` is `bits * 100 + input_scale * 10 + block_code`, and block_code 0/1/2 means block 32/64/128.
 
 For quick conversion without saving a table, `ncnnllm2int` can still compute scales directly:
 

@@ -3,7 +3,6 @@
 
 #include "multiheadattention_loongarch.h"
 
-#include "gemm.h"
 #include "layer_type.h"
 
 namespace ncnn {

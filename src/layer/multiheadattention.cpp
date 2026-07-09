@@ -328,7 +328,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     }
     else
     {
-        k_affine.create(dst_seqlen, embed_dim, 4u, opt.workspace_allocator);
+        k_affine.create(dst_seqlen, embed_dim, 4u, kv_cache ? opt.blob_allocator : opt.workspace_allocator);
         if (k_affine.empty())
             return -100;
 
@@ -369,7 +369,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     }
     else
     {
-        v_affine.create(dst_seqlen, embed_dim, 4u, opt.workspace_allocator);
+        v_affine.create(dst_seqlen, embed_dim, 4u, kv_cache ? opt.blob_allocator : opt.workspace_allocator);
         if (v_affine.empty())
             return -100;
 
@@ -641,7 +641,7 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
     }
     else
     {
-        k_affine.create(dst_seqlen, embed_dim, 4u, opt.workspace_allocator);
+        k_affine.create(dst_seqlen, embed_dim, 4u, kv_cache ? opt.blob_allocator : opt.workspace_allocator);
         if (k_affine.empty())
             return -100;
 
@@ -695,7 +695,7 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
     }
     else
     {
-        v_affine.create(dst_seqlen, embed_dim, 4u, opt.workspace_allocator);
+        v_affine.create(dst_seqlen, embed_dim, 4u, kv_cache ? opt.blob_allocator : opt.workspace_allocator);
         if (v_affine.empty())
             return -100;
 
@@ -1193,7 +1193,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     }
     else
     {
-        k_affine.create(dst_seqlen, embed_dim, 4u, opt.workspace_allocator);
+        k_affine.create(dst_seqlen, embed_dim, 4u, kv_cache ? opt.blob_allocator : opt.workspace_allocator);
         if (k_affine.empty())
             return -100;
 
@@ -1241,7 +1241,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     }
     else
     {
-        v_affine.create(dst_seqlen, embed_dim, 4u, opt.workspace_allocator);
+        v_affine.create(dst_seqlen, embed_dim, 4u, kv_cache ? opt.blob_allocator : opt.workspace_allocator);
         if (v_affine.empty())
             return -100;
 

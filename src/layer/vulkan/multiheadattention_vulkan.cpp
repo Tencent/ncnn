@@ -3,7 +3,6 @@
 
 #include "multiheadattention_vulkan.h"
 
-#include "gemm.h"
 #include "layer_shader_type.h"
 #include "layer_type.h"
 

@@ -327,52 +327,61 @@ static int collect_act_row(QuantActStat& stat, const float* ptr)
     return 0;
 }
 
-static int collect_act_rows(QuantActStat& stat, const ncnn::Mat& m, int width, const char* key)
+static int collect_act_rows(QuantActStat& stat, const ncnn::Mat& m, const char* key)
 {
-    if (m.empty())
+    const int width = stat.width;
+
+    if (m.w != width)
     {
-        fprintf(stderr, "%s activation blob is empty\n", key);
+        fprintf(stderr, "%s activation shape is unsupported\n", key);
         return -1;
     }
 
-    if (m.elemsize != 4u)
-    {
-        fprintf(stderr, "%s activation elemsize %d is unsupported\n", key, (int)m.elemsize);
-        return -1;
-    }
-
-    if (stat.width != width)
-    {
-        fprintf(stderr, "%s activation width mismatch expected=%d got=%d\n", key, stat.width, width);
-        return -1;
-    }
-
-    if (m.dims == 2 && m.w == width)
-    {
-        for (int i = 0; i < m.h; i++)
-            collect_act_row(stat, m.row(i));
-        return 0;
-    }
-
-    if (m.dims == 1 && m.w == width)
+    if (m.dims == 1)
     {
         collect_act_row(stat, (const float*)m);
         return 0;
     }
 
-    const int total = (int)m.total();
-    if (total % width != 0)
+    if (m.dims == 2)
     {
-        fprintf(stderr, "%s activation size %d is not divisible by width %d\n", key, total, width);
-        return -1;
+        for (int y = 0; y < m.h; y++)
+            collect_act_row(stat, m.row(y));
+        return 0;
     }
 
-    const float* ptr = m;
-    const int sample_count = total / width;
-    for (int i = 0; i < sample_count; i++)
-        collect_act_row(stat, ptr + i * width);
+    if (m.dims == 3)
+    {
+        for (int q = 0; q < m.c; q++)
+        {
+            const ncnn::Mat m0 = m.channel(q);
+            for (int y = 0; y < m.h; y++)
+            {
+                collect_act_row(stat, m0.row(y));
+            }
+        }
+        return 0;
+    }
 
-    return 0;
+    if (m.dims == 4)
+    {
+        for (int q = 0; q < m.c; q++)
+        {
+            const ncnn::Mat m0 = m.channel(q);
+            for (int z = 0; z < m.d; z++)
+            {
+                const ncnn::Mat m1 = m0.depth(z);
+                for (int y = 0; y < m.h; y++)
+                {
+                    collect_act_row(stat, m1.row(y));
+                }
+            }
+        }
+        return 0;
+    }
+
+    fprintf(stderr, "%s activation shape is unsupported\n", key);
+    return -1;
 }
 
 static int resolve_mha_bottom_blob_index(const ncnn::MultiHeadAttention* mha, int bottom_blob_count, int& q_blob_i, int& k_blob_i, int& v_blob_i, int& attn_mask_i, int& cached_xk_i, int& cached_xv_i)
@@ -509,17 +518,17 @@ static int resolve_mha_bottom_blob_index(const ncnn::MultiHeadAttention* mha, in
     return -1;
 }
 
-static int collect_mha_out_act_rows(const ncnn::MultiHeadAttention* mha, const ncnn::Mat& q_blob, const ncnn::Mat& k_blob, const ncnn::Mat& v_blob, const ncnn::Mat& attn_mask_blob, const ncnn::Mat& cached_xk_blob, const ncnn::Mat& cached_xv_blob, int q_blob_i, int k_blob_i, int v_blob_i, QuantActStat& stat, const char* key, int num_threads)
+static int collect_mha_out_act_rows(const ncnn::MultiHeadAttention* mha, const ncnn::Mat& q_blob, const ncnn::Mat& k_blob, const ncnn::Mat& v_blob, const ncnn::Mat& attn_mask_blob, const ncnn::Mat& cached_xk_blob, const ncnn::Mat& cached_xv_blob, int q_blob_i, int k_blob_i, int v_blob_i, QuantActStat& stat, int num_threads)
 {
-    const int src_seqlen = q_blob.h;
-    const int cur_seqlen = k_blob.h;
-    const int past_seqlen = mha->kv_cache && !cached_xk_blob.empty() ? cached_xk_blob.w : 0;
-    const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
-
     const int embed_dim = mha->embed_dim;
     const int num_heads = mha->num_heads;
     const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = mha->weight_data_size / embed_dim;
+
+    const int src_seqlen = q_blob.h;
+    const int cur_seqlen = k_blob.h;
+    const int past_seqlen = mha->kv_cache && !cached_xk_blob.empty() ? cached_xk_blob.w : 0;
+    const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
 
     ncnn::Mat q_affine;
     q_affine.create(src_seqlen, embed_dim);
@@ -714,12 +723,6 @@ static int collect_mha_out_act_rows(const ncnn::MultiHeadAttention* mha, const n
         }
     }
 
-    if (embed_dim != stat.width)
-    {
-        fprintf(stderr, "%s out activation width mismatch expected=%d got=%d\n", key, stat.width, embed_dim);
-        return -1;
-    }
-
     std::vector<float> row(embed_dim);
     for (int i = 0; i < src_seqlen; i++)
     {
@@ -756,7 +759,7 @@ static int make_input_scaled_weight(const ncnn::Mat& weight_data, const ncnn::Ma
         for (int k = 0; k < K; k++)
         {
             const float s = input_scale_ptr[k];
-            if (!(s > 0.f) || s > FLT_MAX)
+            if (!(s > 0.f))
             {
                 fprintf(stderr, "invalid input scale k=%d scale=%f\n", k, s);
                 return -1;
@@ -924,7 +927,7 @@ static int make_awq_input_scales(const ncnn::Mat& weight_data, const QuantActSta
             return ret;
 
         ncnn::Mat quantize_scales1;
-        ret = make_gemm_B_scales(weight_data_scaled, block_size, weight_bits, inner_method, quantize_scales1, num_threads);
+        ret = make_weight_scales(weight_data_scaled, block_size, weight_bits, inner_method, quantize_scales1, num_threads);
         if (ret != 0)
             return ret;
 
@@ -1126,8 +1129,7 @@ int QuantNet::init()
         {
             const ncnn::Gemm* gemm = (const ncnn::Gemm*)layers[i];
 
-            const char* reason = 0;
-            if (!is_supported_llm_gemm(gemm, &reason))
+            if (!is_supported_llm_gemm(gemm))
                 continue;
 
             QuantActStat stat;
@@ -1141,8 +1143,7 @@ int QuantNet::init()
         {
             const ncnn::MultiHeadAttention* mha = (const ncnn::MultiHeadAttention*)layers[i];
 
-            const char* reason = 0;
-            if (!is_supported_llm_multiheadattention(mha, &reason))
+            if (!is_supported_llm_multiheadattention(mha))
                 continue;
 
             const size_t mha_act_offset = mha_act_stats.size();
@@ -1249,8 +1250,7 @@ int QuantNet::collect_activation_stats()
             {
                 const ncnn::Gemm* gemm = (const ncnn::Gemm*)layers[j];
 
-                const char* reason = 0;
-                if (!is_supported_llm_gemm(gemm, &reason))
+                if (!is_supported_llm_gemm(gemm))
                     continue;
 
                 char key[256];
@@ -1270,7 +1270,7 @@ int QuantNet::collect_activation_stats()
                     return ret;
                 }
 
-                ret = collect_act_rows(gemm_act_stats[gemm_act_index], bottom_blob, gemm->constantK, key);
+                ret = collect_act_rows(gemm_act_stats[gemm_act_index], bottom_blob, key);
                 if (ret != 0)
                     return ret;
 
@@ -1280,8 +1280,7 @@ int QuantNet::collect_activation_stats()
             {
                 const ncnn::MultiHeadAttention* mha = (const ncnn::MultiHeadAttention*)layers[j];
 
-                const char* reason = 0;
-                if (!is_supported_llm_multiheadattention(mha, &reason))
+                if (!is_supported_llm_multiheadattention(mha))
                     continue;
 
                 int q_blob_i = 0;
@@ -1344,16 +1343,12 @@ int QuantNet::collect_activation_stats()
                     }
                 }
 
-                const int qdim = mha->weight_data_size / mha->embed_dim;
-
                 char q_key[256];
                 char k_key[256];
                 char v_key[256];
-                char out_key[256];
                 snprintf(q_key, 256, "%s_param_0", multiheadattention_name(mha));
                 snprintf(k_key, 256, "%s_param_1", multiheadattention_name(mha));
                 snprintf(v_key, 256, "%s_param_2", multiheadattention_name(mha));
-                snprintf(out_key, 256, "%s_param_3", multiheadattention_name(mha));
 
                 const size_t mha_act_offset = mha_act_index * 4;
                 if (mha_act_offset + 3 >= mha_act_stats.size())
@@ -1362,17 +1357,17 @@ int QuantNet::collect_activation_stats()
                     return -1;
                 }
 
-                ret = collect_act_rows(mha_act_stats[mha_act_offset], q_blob, qdim, q_key);
+                ret = collect_act_rows(mha_act_stats[mha_act_offset], q_blob, q_key);
                 if (ret != 0)
                     return ret;
-                ret = collect_act_rows(mha_act_stats[mha_act_offset + 1], k_blob, mha->kdim, k_key);
+                ret = collect_act_rows(mha_act_stats[mha_act_offset + 1], k_blob, k_key);
                 if (ret != 0)
                     return ret;
-                ret = collect_act_rows(mha_act_stats[mha_act_offset + 2], v_blob, mha->vdim, v_key);
+                ret = collect_act_rows(mha_act_stats[mha_act_offset + 2], v_blob, v_key);
                 if (ret != 0)
                     return ret;
 
-                ret = collect_mha_out_act_rows(mha, q_blob, k_blob, v_blob, attn_mask_blob, cached_xk_blob, cached_xv_blob, q_blob_i, k_blob_i, v_blob_i, mha_act_stats[mha_act_offset + 3], out_key, quantize_num_threads);
+                ret = collect_mha_out_act_rows(mha, q_blob, k_blob, v_blob, attn_mask_blob, cached_xk_blob, cached_xv_blob, q_blob_i, k_blob_i, v_blob_i, mha_act_stats[mha_act_offset + 3], quantize_num_threads);
                 if (ret != 0)
                     return ret;
 
@@ -1405,10 +1400,9 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
         {
             const ncnn::Gemm* gemm = (const ncnn::Gemm*)layers[i];
 
-            const char* reason = 0;
-            if (!is_supported_llm_gemm(gemm, &reason))
+            if (!is_supported_llm_gemm(gemm))
             {
-                print_skip_gemm(gemm, reason);
+                print_skip_gemm(gemm);
                 continue;
             }
 
@@ -1442,7 +1436,7 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
             }
             else
             {
-                ret = make_gemm_B_scales(gemm->B_data, block_size, weight_bits, method, B_data_quantize_scales, quantize_num_threads);
+                ret = make_weight_scales(gemm->B_data, block_size, weight_bits, method, B_data_quantize_scales, quantize_num_threads);
             }
             if (ret != 0)
             {
@@ -1497,10 +1491,9 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
         {
             const ncnn::MultiHeadAttention* mha = (const ncnn::MultiHeadAttention*)layers[i];
 
-            const char* reason = 0;
-            if (!is_supported_llm_multiheadattention(mha, &reason))
+            if (!is_supported_llm_multiheadattention(mha))
             {
-                print_skip_multiheadattention(mha, reason);
+                print_skip_multiheadattention(mha);
                 continue;
             }
 
@@ -1543,7 +1536,7 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
                 }
                 else
                 {
-                    ret = make_gemm_B_scales(weights[j], block_size, weight_bits, method, weight_data_quantize_scales, quantize_num_threads);
+                    ret = make_weight_scales(weights[j], block_size, weight_bits, method, weight_data_quantize_scales, quantize_num_threads);
                 }
                 if (ret != 0)
                 {
@@ -1757,13 +1750,13 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if (!(table.awq_max_scale > 1.f) || table.awq_max_scale > FLT_MAX)
+    if (!(table.awq_max_scale > 1.f))
     {
         fprintf(stderr, "malformed awq_max_scale %f\n", table.awq_max_scale);
         return -1;
     }
 
-    if (!(table.gptq_damp >= 0.f) || table.gptq_damp > FLT_MAX)
+    if (!(table.gptq_damp >= 0.f))
     {
         fprintf(stderr, "malformed gptq_damp %f\n", table.gptq_damp);
         return -1;
@@ -1772,6 +1765,11 @@ int main(int argc, char** argv)
     table.storage_type = 1;
     table.quantize_num_threads = thread;
     table.opt.num_threads = thread;
+    table.opt.use_packing_layout = false;
+    table.opt.use_fp16_packed = false;
+    table.opt.use_fp16_storage = false;
+    table.opt.use_fp16_arithmetic = false;
+    table.opt.use_bf16_storage = false;
 
     if (table.load_param(inparam) != 0)
         return -1;
