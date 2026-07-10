@@ -109,6 +109,7 @@
 #include "layer/yolodetectionoutput.h"
 #include "layer/yolov3detectionoutput.h"
 
+#if NCNN_WEIGHT_QUANT
 static bool modelwriter_is_weight_block_quantize(int quantize_term)
 {
     const int weight_bits = quantize_term / 100;
@@ -122,6 +123,7 @@ static bool modelwriter_weight_block_quantize_has_input_scale(int quantize_term)
 {
     return quantize_term % 100 / 10 == 1;
 }
+#endif // NCNN_WEIGHT_QUANT
 
 // for gen_random_weight
 #include "../tests/prng.h"
@@ -1895,8 +1897,11 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 21=%d", constant_TILE_N)
             fprintf_param_value(" 22=%d", constant_TILE_K)
 
-            const bool weight_block_quantize
-                = modelwriter_is_weight_block_quantize(op->quantize_term);
+#if NCNN_WEIGHT_QUANT
+            const bool weight_block_quantize = modelwriter_is_weight_block_quantize(op->quantize_term);
+#else
+            const bool weight_block_quantize = false;
+#endif
 
             if (op->constantA == 1)
             {
@@ -1918,6 +1923,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 fwrite_weight_tag_data(op->C_data, bp);
             }
 
+#if NCNN_WEIGHT_QUANT
             if (weight_block_quantize)
             {
                 if (op->constantB == 1)
@@ -1929,6 +1935,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                     }
                 }
             }
+#endif // NCNN_WEIGHT_QUANT
 #if NCNN_INT8
             // write int8_scale data
             if (op->quantize_term && !weight_block_quantize)
@@ -2198,8 +2205,11 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 7=%d", kv_cache)
             fprintf_param_value(" 18=%d", quantize_term)
 
-            const bool weight_block_quantize
-                = modelwriter_is_weight_block_quantize(op->quantize_term);
+#if NCNN_WEIGHT_QUANT
+            const bool weight_block_quantize = modelwriter_is_weight_block_quantize(op->quantize_term);
+#else
+            const bool weight_block_quantize = false;
+#endif
 
             if (weight_block_quantize)
             {
@@ -2238,6 +2248,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             }
             fwrite_weight_data(op->out_bias_data, bp);
 
+#if NCNN_WEIGHT_QUANT
             if (weight_block_quantize)
             {
                 fwrite_weight_data(op->q_weight_data_quantize_scales, bp, false);
@@ -2252,9 +2263,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                     fwrite_weight_data(op->out_weight_data_input_scales, bp, false);
                 }
             }
+#endif // NCNN_WEIGHT_QUANT
 #if NCNN_INT8
             // write int8_scale data
-            else if (op->quantize_term)
+            if (op->quantize_term && !weight_block_quantize)
             {
                 fwrite_weight_data(op->q_weight_data_int8_scales, bp, 90, 100);
                 fwrite_weight_data(op->k_weight_data_int8_scales, bp, 90, 100);

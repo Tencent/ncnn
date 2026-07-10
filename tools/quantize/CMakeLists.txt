@@ -1,14 +1,16 @@
 
-add_executable(ncnnllm2int ncnnllm2int.cpp)
-target_link_libraries(ncnnllm2int PRIVATE ncnn)
+if(NCNN_WEIGHT_QUANT)
+    add_executable(ncnnllm2int ncnnllm2int.cpp)
+    target_link_libraries(ncnnllm2int PRIVATE ncnn)
 
-add_executable(ncnnllm2table ncnnllm2table.cpp)
-target_link_libraries(ncnnllm2table PRIVATE ncnn)
+    add_executable(ncnnllm2table ncnnllm2table.cpp)
+    target_link_libraries(ncnnllm2table PRIVATE ncnn)
 
-set_property(TARGET ncnnllm2int PROPERTY FOLDER "tools/optimization")
-set_property(TARGET ncnnllm2table PROPERTY FOLDER "tools/optimization")
-ncnn_install_tool(ncnnllm2int)
-ncnn_install_tool(ncnnllm2table)
+    set_property(TARGET ncnnllm2int PROPERTY FOLDER "tools/optimization")
+    set_property(TARGET ncnnllm2table PROPERTY FOLDER "tools/optimization")
+    ncnn_install_tool(ncnnllm2int)
+    ncnn_install_tool(ncnnllm2table)
+endif()
 
 if(NCNN_INT8)
     if(NCNN_PIXEL)

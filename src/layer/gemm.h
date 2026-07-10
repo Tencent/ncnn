@@ -68,8 +68,11 @@ public:
     Mat A_data_int8_scales;
     float B_data_int8_scale;
 #endif
+
+#if NCNN_WEIGHT_QUANT
     Mat B_data_quantize_scales;
     Mat B_data_input_scales;
+#endif
 };
 
 } // namespace ncnn

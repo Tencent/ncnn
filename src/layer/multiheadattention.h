@@ -62,6 +62,8 @@ public:
     Mat v_weight_data_int8_scales;
     float out_weight_data_int8_scale;
 #endif
+
+#if NCNN_WEIGHT_QUANT
     Mat q_weight_data_quantize_scales;
     Mat k_weight_data_quantize_scales;
     Mat v_weight_data_quantize_scales;
@@ -70,6 +72,7 @@ public:
     Mat k_weight_data_input_scales;
     Mat v_weight_data_input_scales;
     Mat out_weight_data_input_scales;
+#endif
 };
 
 } // namespace ncnn
