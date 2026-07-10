@@ -1898,9 +1898,11 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 22=%d", constant_TILE_K)
 
 #if NCNN_WEIGHT_QUANT
-            const bool weight_block_quantize = modelwriter_is_weight_block_quantize(op->quantize_term);
+            const bool weight_block_quantize
+                = modelwriter_is_weight_block_quantize(op->quantize_term);
 #else
-            const bool weight_block_quantize = false;
+            const bool weight_block_quantize
+                = false;
 #endif
 
             if (op->constantA == 1)
@@ -2206,9 +2208,11 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 18=%d", quantize_term)
 
 #if NCNN_WEIGHT_QUANT
-            const bool weight_block_quantize = modelwriter_is_weight_block_quantize(op->quantize_term);
+            const bool weight_block_quantize
+                = modelwriter_is_weight_block_quantize(op->quantize_term);
 #else
-            const bool weight_block_quantize = false;
+            const bool weight_block_quantize
+                = false;
 #endif
 
             if (weight_block_quantize)
