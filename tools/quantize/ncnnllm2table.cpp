@@ -953,68 +953,50 @@ static int make_awq_input_scales(const ncnn::Mat& weight_data, const QuantActSta
     return 0;
 }
 
-static int invert_gptq_hessian(std::vector<double>& m, int n)
+static int cholesky_inverse_gptq_hessian(std::vector<double>& h, int n)
 {
-    std::vector<double> inv((size_t)n * n, 0.0);
-    for (int i = 0; i < n; i++)
-        inv[(size_t)i * n + i] = 1.0;
-
-    for (int i = 0; i < n; i++)
+    for (int i = n - 1; i >= 0; i--)
     {
-        int pivot = i;
-        double pivot_abs = fabs(m[(size_t)i * n + i]);
-        for (int j = i + 1; j < n; j++)
-        {
-            const double v = fabs(m[(size_t)j * n + i]);
-            if (v > pivot_abs)
-            {
-                pivot_abs = v;
-                pivot = j;
-            }
-        }
+        double diag = h[(size_t)i * n + i];
+        for (int k = i + 1; k < n; k++)
+            diag -= h[(size_t)i * n + k] * h[(size_t)i * n + k];
 
-        if (pivot_abs < 1e-12)
+        if (!(diag > 0.0))
             return -1;
 
-        if (pivot != i)
+        diag = sqrt(diag);
+        h[(size_t)i * n + i] = diag;
+
+        for (int j = 0; j < i; j++)
         {
-            for (int j = 0; j < n; j++)
-            {
-                std::swap(m[(size_t)i * n + j], m[(size_t)pivot * n + j]);
-                std::swap(inv[(size_t)i * n + j], inv[(size_t)pivot * n + j]);
-            }
-        }
+            double v = h[(size_t)j * n + i];
+            for (int k = i + 1; k < n; k++)
+                v -= h[(size_t)j * n + k] * h[(size_t)i * n + k];
 
-        const double diag = m[(size_t)i * n + i];
-        for (int j = 0; j < n; j++)
-        {
-            m[(size_t)i * n + j] /= diag;
-            inv[(size_t)i * n + j] /= diag;
-        }
-
-        for (int r = 0; r < n; r++)
-        {
-            if (r == i)
-                continue;
-
-            const double f = m[(size_t)r * n + i];
-            if (f == 0.0)
-                continue;
-
-            for (int c = 0; c < n; c++)
-            {
-                m[(size_t)r * n + c] -= f * m[(size_t)i * n + c];
-                inv[(size_t)r * n + c] -= f * inv[(size_t)i * n + c];
-            }
+            h[(size_t)j * n + i] = v / diag;
         }
     }
 
-    m.swap(inv);
+    for (int i = n - 1; i >= 0; i--)
+    {
+        const double diag = h[(size_t)i * n + i];
+
+        for (int j = n - 1; j > i; j--)
+        {
+            double v = 0.0;
+            for (int k = i + 1; k <= j; k++)
+                v += h[(size_t)i * n + k] * h[(size_t)k * n + j];
+
+            h[(size_t)i * n + j] = -v / diag;
+        }
+
+        h[(size_t)i * n + i] = 1.0 / diag;
+    }
 
     return 0;
 }
 
-static int make_gptq_qweight(const ncnn::Mat& weight_data, const QuantActStat& stat, int block_size, int weight_bits, float damp, ncnn::Mat& weight_data_quantize_scales, ncnn::Mat& weight_data_quantized)
+static int make_gptq_qweight(const ncnn::Mat& weight_data, const QuantActStat& stat, int block_size, int weight_bits, float damp, ncnn::Mat& weight_data_quantize_scales, ncnn::Mat& weight_data_quantized, int num_threads)
 {
     const int K = weight_data.w;
     const int N = weight_data.h;
@@ -1035,76 +1017,96 @@ static int make_gptq_qweight(const ncnn::Mat& weight_data, const QuantActStat& s
 
     memset(weight_data_quantized.data, 0, weight_data_quantized.total() * weight_data_quantized.elemsize);
 
-    for (int b = 0; b < block_count; b++)
+    #pragma omp parallel for num_threads(num_threads)
+    for (int n = 0; n < N; n++)
     {
-        const int k0 = b * block_size;
-        const int B = std::min(block_size, K - k0);
-
-        std::vector<double> H((size_t)B * B, 0.0);
-        for (int s = 0; s < sample_count; s++)
+        const float* ptr = weight_data.row(n);
+        float* scale_ptr = weight_data_quantize_scales.row(n);
+        for (int b = 0; b < block_count; b++)
         {
-            const float* x = &stat.samples[(size_t)s * K + k0];
-            for (int i = 0; i < B; i++)
+            const int k0 = b * block_size;
+            const int max_kk = std::min(block_size, K - k0);
+            scale_ptr[b] = choose_weight_scale(ptr + k0, max_kk, weight_bits, LLM_QUANT_METHOD_MINMAX);
+        }
+    }
+
+    std::vector<double> H((size_t)K * K, 0.0);
+
+    #pragma omp parallel for num_threads(num_threads)
+    for (int i = 0; i < K; i++)
+    {
+        for (int j = i; j < K; j++)
+        {
+            double v = 0.0;
+            for (int s = 0; s < sample_count; s++)
             {
-                for (int j = 0; j < B; j++)
-                    H[(size_t)i * B + j] += (double)x[i] * x[j];
+                const float* x = &stat.samples[(size_t)s * K];
+                v += (double)x[i] * x[j];
             }
+
+            H[(size_t)i * K + j] = v;
         }
+    }
 
-        double diag_mean = 0.0;
-        for (int i = 0; i < B; i++)
-            diag_mean += H[(size_t)i * B + i];
-        diag_mean /= B;
-        if (!(diag_mean > 0.0) || diag_mean > DBL_MAX)
-            diag_mean = 1.0;
+    double diag_mean = 0.0;
+    for (int i = 0; i < K; i++)
+        diag_mean += H[(size_t)i * K + i];
+    diag_mean /= K;
 
-        for (int i = 0; i < B; i++)
-            H[(size_t)i * B + i] += damp * diag_mean;
+    for (int i = 0; i < K; i++)
+        H[(size_t)i * K + i] += damp * diag_mean;
 
-        if (invert_gptq_hessian(H, B) != 0)
-        {
-            fprintf(stderr, "gptq hessian inverse failed block=%d, use identity hessian inverse\n", b);
-            for (int i = 0; i < B * B; i++)
-                H[i] = 0.0;
-            for (int i = 0; i < B; i++)
-                H[(size_t)i * B + i] = 1.0;
-        }
+    if (cholesky_inverse_gptq_hessian(H, K) != 0)
+    {
+        fprintf(stderr, "gptq hessian decomposition failed\n");
+        return -1;
+    }
 
-        std::vector<double> work((size_t)N * B);
+    // H is the upper cholesky factor of the inverse hessian
+    #pragma omp parallel num_threads(num_threads)
+    {
+        std::vector<double> work(K);
+        std::vector<double> error(block_size);
+
+        #pragma omp for
         for (int n = 0; n < N; n++)
         {
-            const float* ptr = weight_data.row(n) + k0;
-            for (int k = 0; k < B; k++)
-                work[(size_t)n * B + k] = ptr[k];
-        }
+            const float* ptr = weight_data.row(n);
+            for (int k = 0; k < K; k++)
+                work[k] = ptr[k];
 
-        for (int n = 0; n < N; n++)
-        {
-            const float* ptr = weight_data.row(n) + k0;
-            float* scale_ptr = weight_data_quantize_scales.row(n);
-            // fixed-scale gptq keeps the runtime block scale tied to the original weight block
-            scale_ptr[b] = choose_weight_scale(ptr, B, weight_bits, LLM_QUANT_METHOD_MINMAX);
-        }
+            const float* scale_ptr = weight_data_quantize_scales.row(n);
+            unsigned char* qptr = weight_data_quantized.row<unsigned char>(n);
 
-        for (int k = 0; k < B; k++)
-        {
-            double hdiag = H[(size_t)k * B + k];
-            if (fabs(hdiag) < 1e-12)
-                hdiag = hdiag < 0.0 ? -1e-12 : 1e-12;
-
-            for (int n = 0; n < N; n++)
+            for (int k0 = 0; k0 < K; k0 += block_size)
             {
-                const float scale = weight_data_quantize_scales.row(n)[b];
-                const double w = work[(size_t)n * B + k];
-                const int q = float2int_weight((float)(w * scale), weight_bits);
-                const double deq = (double)q / scale;
-                const double err = (w - deq) / hdiag;
+                const int max_kk = std::min(block_size, K - k0);
+                const int k1 = k0 + max_kk;
 
-                unsigned char* qptr = weight_data_quantized.row<unsigned char>(n);
-                pack_signed_weight(qptr, k0 + k, weight_bits, q);
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    const int k = k0 + kk;
+                    const float scale = scale_ptr[k / block_size];
+                    const double w = work[k];
+                    const int q = float2int_weight((float)(w * scale), weight_bits);
+                    const double deq = (double)q / scale;
+                    const double err = (w - deq) / H[(size_t)k * K + k];
 
-                for (int j = k + 1; j < B; j++)
-                    work[(size_t)n * B + j] -= err * H[(size_t)k * B + j];
+                    pack_signed_weight(qptr, k, weight_bits, q);
+                    error[kk] = err;
+
+                    for (int j = k; j < k1; j++)
+                        work[j] -= err * H[(size_t)k * K + j];
+                }
+
+                for (int j = k1; j < K; j++)
+                {
+                    double err = 0.0;
+                    for (int kk = 0; kk < max_kk; kk++)
+                        err += error[kk] * H[(size_t)(k0 + kk) * K + j];
+
+                    work[j] -= err;
+                }
             }
         }
     }
@@ -1435,7 +1437,7 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
             }
             else if (method == LLM_QUANT_METHOD_GPTQ)
             {
-                ret = make_gptq_qweight(gemm->B_data, *act_stat, block_size, weight_bits, gptq_damp, B_data_quantize_scales, B_data_quantized);
+                ret = make_gptq_qweight(gemm->B_data, *act_stat, block_size, weight_bits, gptq_damp, B_data_quantize_scales, B_data_quantized, quantize_num_threads);
             }
             else
             {
@@ -1535,7 +1537,7 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
                 }
                 else if (method == LLM_QUANT_METHOD_GPTQ)
                 {
-                    ret = make_gptq_qweight(weights[j], mha_act_stats[mha_act_offset + j], block_size, weight_bits, gptq_damp, weight_data_quantize_scales, weight_data_quantized);
+                    ret = make_gptq_qweight(weights[j], mha_act_stats[mha_act_offset + j], block_size, weight_bits, gptq_damp, weight_data_quantize_scales, weight_data_quantized, quantize_num_threads);
                 }
                 else
                 {
