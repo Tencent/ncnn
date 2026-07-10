@@ -56,7 +56,6 @@ public:
     int count;
     int max_sample_count;
     ncnn::Mat sum_abs;
-    ncnn::Mat max_abs;
     std::vector<float> samples;
 };
 
@@ -291,29 +290,25 @@ static int init_act_stat(QuantActStat& stat, int width, int max_sample_count)
     stat.max_sample_count = max_sample_count;
 
     stat.sum_abs.create(width);
-    stat.max_abs.create(width);
-    if (stat.sum_abs.empty() || stat.max_abs.empty())
+    if (stat.sum_abs.empty())
         return -100;
 
     stat.sum_abs.fill(0.f);
-    stat.max_abs.fill(0.f);
     stat.samples.clear();
     stat.samples.reserve((size_t)width * max_sample_count);
 
     return 0;
 }
 
-static int collect_act_row(QuantActStat& stat, const float* ptr)
+static void collect_act_row(QuantActStat& stat, const float* ptr)
 {
     const int width = stat.width;
     float* sum_abs_ptr = stat.sum_abs;
-    float* max_abs_ptr = stat.max_abs;
 
     for (int k = 0; k < width; k++)
     {
         const float v = (float)fabs(ptr[k]);
         sum_abs_ptr[k] += v;
-        max_abs_ptr[k] = std::max(max_abs_ptr[k], v);
     }
 
     if ((int)(stat.samples.size() / width) < stat.max_sample_count)
@@ -323,31 +318,21 @@ static int collect_act_row(QuantActStat& stat, const float* ptr)
     }
 
     stat.count++;
-
-    return 0;
 }
 
-static int collect_act_rows(QuantActStat& stat, const ncnn::Mat& m, const char* key)
+static void collect_act_rows(QuantActStat& stat, const ncnn::Mat& m)
 {
-    const int width = stat.width;
-
-    if (m.w != width)
-    {
-        fprintf(stderr, "%s activation shape is unsupported\n", key);
-        return -1;
-    }
-
     if (m.dims == 1)
     {
         collect_act_row(stat, (const float*)m);
-        return 0;
+        return;
     }
 
     if (m.dims == 2)
     {
         for (int y = 0; y < m.h; y++)
             collect_act_row(stat, m.row(y));
-        return 0;
+        return;
     }
 
     if (m.dims == 3)
@@ -360,7 +345,7 @@ static int collect_act_rows(QuantActStat& stat, const ncnn::Mat& m, const char* 
                 collect_act_row(stat, m0.row(y));
             }
         }
-        return 0;
+        return;
     }
 
     if (m.dims == 4)
@@ -377,26 +362,17 @@ static int collect_act_rows(QuantActStat& stat, const ncnn::Mat& m, const char* 
                 }
             }
         }
-        return 0;
+        return;
     }
-
-    fprintf(stderr, "%s activation shape is unsupported\n", key);
-    return -1;
 }
 
-static int resolve_mha_bottom_blob_index(const ncnn::MultiHeadAttention* mha, int bottom_blob_count, int& q_blob_i, int& k_blob_i, int& v_blob_i, int& attn_mask_i, int& cached_xk_i, int& cached_xv_i)
+static void resolve_mha_bottom_blob_index(const ncnn::MultiHeadAttention* mha, int bottom_blob_count, int& q_blob_i, int& k_blob_i, int& v_blob_i, int& attn_mask_i, int& cached_xk_i, int& cached_xv_i)
 {
-    q_blob_i = 0;
-    k_blob_i = 0;
-    v_blob_i = 0;
-    attn_mask_i = 0;
-    cached_xk_i = 0;
-    cached_xv_i = 0;
-
     if (mha->kv_cache)
     {
         if (mha->attn_mask)
         {
+            // assert bottom_blob_count == 4/5/6
             if (bottom_blob_count == 4)
             {
                 q_blob_i = 0;
@@ -405,7 +381,6 @@ static int resolve_mha_bottom_blob_index(const ncnn::MultiHeadAttention* mha, in
                 attn_mask_i = 1;
                 cached_xk_i = 2;
                 cached_xv_i = 3;
-                return 0;
             }
             if (bottom_blob_count == 5)
             {
@@ -415,7 +390,6 @@ static int resolve_mha_bottom_blob_index(const ncnn::MultiHeadAttention* mha, in
                 attn_mask_i = 2;
                 cached_xk_i = 3;
                 cached_xv_i = 4;
-                return 0;
             }
             if (bottom_blob_count == 6)
             {
@@ -425,11 +399,11 @@ static int resolve_mha_bottom_blob_index(const ncnn::MultiHeadAttention* mha, in
                 attn_mask_i = 3;
                 cached_xk_i = 4;
                 cached_xv_i = 5;
-                return 0;
             }
         }
         else
         {
+            // assert bottom_blob_count == 3/4/5
             if (bottom_blob_count == 3)
             {
                 q_blob_i = 0;
@@ -437,7 +411,6 @@ static int resolve_mha_bottom_blob_index(const ncnn::MultiHeadAttention* mha, in
                 v_blob_i = 0;
                 cached_xk_i = 1;
                 cached_xv_i = 2;
-                return 0;
             }
             if (bottom_blob_count == 4)
             {
@@ -446,7 +419,6 @@ static int resolve_mha_bottom_blob_index(const ncnn::MultiHeadAttention* mha, in
                 v_blob_i = 1;
                 cached_xk_i = 2;
                 cached_xv_i = 3;
-                return 0;
             }
             if (bottom_blob_count == 5)
             {
@@ -455,7 +427,6 @@ static int resolve_mha_bottom_blob_index(const ncnn::MultiHeadAttention* mha, in
                 v_blob_i = 2;
                 cached_xk_i = 3;
                 cached_xv_i = 4;
-                return 0;
             }
         }
     }
@@ -463,13 +434,13 @@ static int resolve_mha_bottom_blob_index(const ncnn::MultiHeadAttention* mha, in
     {
         if (mha->attn_mask)
         {
+            // assert bottom_blob_count == 2/3/4
             if (bottom_blob_count == 2)
             {
                 q_blob_i = 0;
                 k_blob_i = 0;
                 v_blob_i = 0;
                 attn_mask_i = 1;
-                return 0;
             }
             if (bottom_blob_count == 3)
             {
@@ -477,7 +448,6 @@ static int resolve_mha_bottom_blob_index(const ncnn::MultiHeadAttention* mha, in
                 k_blob_i = 1;
                 v_blob_i = 1;
                 attn_mask_i = 2;
-                return 0;
             }
             if (bottom_blob_count == 4)
             {
@@ -485,37 +455,31 @@ static int resolve_mha_bottom_blob_index(const ncnn::MultiHeadAttention* mha, in
                 k_blob_i = 1;
                 v_blob_i = 2;
                 attn_mask_i = 3;
-                return 0;
             }
         }
         else
         {
+            // assert bottom_blob_count == 1/2/3
             if (bottom_blob_count == 1)
             {
                 q_blob_i = 0;
                 k_blob_i = 0;
                 v_blob_i = 0;
-                return 0;
             }
             if (bottom_blob_count == 2)
             {
                 q_blob_i = 0;
                 k_blob_i = 1;
                 v_blob_i = 1;
-                return 0;
             }
             if (bottom_blob_count == 3)
             {
                 q_blob_i = 0;
                 k_blob_i = 1;
                 v_blob_i = 2;
-                return 0;
             }
         }
     }
-
-    fprintf(stderr, "MultiHeadAttention %s unsupported bottom blob count %d\n", multiheadattention_name(mha), bottom_blob_count);
-    return -1;
 }
 
 static int collect_mha_out_act_rows(const ncnn::MultiHeadAttention* mha, const ncnn::Mat& q_blob, const ncnn::Mat& k_blob, const ncnn::Mat& v_blob, const ncnn::Mat& attn_mask_blob, const ncnn::Mat& cached_xk_blob, const ncnn::Mat& cached_xv_blob, int q_blob_i, int k_blob_i, int v_blob_i, QuantActStat& stat, int num_threads)
@@ -740,12 +704,6 @@ static int make_input_scaled_weight(const ncnn::Mat& weight_data, const ncnn::Ma
     const int K = weight_data.w;
     const int N = weight_data.h;
 
-    if (input_scales.w != K)
-    {
-        fprintf(stderr, "input scale count mismatch expected=%d got=%d\n", K, input_scales.w);
-        return -1;
-    }
-
     weight_data_scaled.create(K, N);
     if (weight_data_scaled.empty())
         return -100;
@@ -757,16 +715,7 @@ static int make_input_scaled_weight(const ncnn::Mat& weight_data, const ncnn::Ma
         float* outptr = weight_data_scaled.row(n);
 
         for (int k = 0; k < K; k++)
-        {
-            const float s = input_scale_ptr[k];
-            if (!(s > 0.f))
-            {
-                fprintf(stderr, "invalid input scale k=%d scale=%f\n", k, s);
-                return -1;
-            }
-
-            outptr[k] = ptr[k] / s;
-        }
+            outptr[k] = ptr[k] / input_scale_ptr[k];
     }
 
     return 0;
@@ -777,12 +726,6 @@ static int make_dequant_weight(const ncnn::Mat& weight_data, const ncnn::Mat& we
     const int K = weight_data.w;
     const int N = weight_data.h;
     const int block_count = (K + block_size - 1) / block_size;
-
-    if (weight_data_quantize_scales.w != block_count || weight_data_quantize_scales.h != N)
-    {
-        fprintf(stderr, "weight scale shape mismatch expected=%d,%d got=%d,%d\n", block_count, N, weight_data_quantize_scales.w, weight_data_quantize_scales.h);
-        return -1;
-    }
 
     weight_data_dequantized.create(K, N);
     if (weight_data_dequantized.empty())
@@ -851,12 +794,6 @@ static int make_awq_input_scales(const ncnn::Mat& weight_data, const QuantActSta
     const int K = weight_data.w;
     const int N = weight_data.h;
 
-    if (stat.width != K || stat.count == 0 || stat.samples.empty())
-    {
-        fprintf(stderr, "awq activation stat is empty or shape mismatch K=%d stat_width=%d count=%d samples=%d\n", K, stat.width, stat.count, (int)(stat.samples.size() / std::max(K, 1)));
-        return -1;
-    }
-
     ncnn::Mat act_mean(K);
     ncnn::Mat weight_mean(K);
     if (act_mean.empty() || weight_mean.empty())
@@ -882,7 +819,7 @@ static int make_awq_input_scales(const ncnn::Mat& weight_data, const QuantActSta
     ncnn::Mat best_quantize_scales;
     double best_error = DBL_MAX;
 
-    const int search_steps = std::max(awq_steps, 0);
+    const int search_steps = awq_steps;
     for (int s = 0; s <= search_steps; s++)
     {
         ncnn::Mat input_scales1(K);
@@ -890,7 +827,7 @@ static int make_awq_input_scales(const ncnn::Mat& weight_data, const QuantActSta
             return -100;
 
         float* input_scale_ptr = input_scales1;
-        if (s == 0 || search_steps == 0)
+        if (s == 0)
         {
             for (int k = 0; k < K; k++)
                 input_scale_ptr[k] = 1.f;
@@ -1004,12 +941,6 @@ static int make_gptq_qweight(const ncnn::Mat& weight_data, const QuantActStat& s
     const int packed_k_bytes = llm_weight_quantize_packed_k_bytes(K, weight_bits);
     const int sample_count = (int)(stat.samples.size() / K);
 
-    if (stat.width != K || sample_count == 0)
-    {
-        fprintf(stderr, "gptq activation stat is empty or shape mismatch K=%d stat_width=%d samples=%d\n", K, stat.width, sample_count);
-        return -1;
-    }
-
     weight_data_quantize_scales.create(block_count, N);
     weight_data_quantized.create(packed_k_bytes, N, (size_t)1u);
     if (weight_data_quantize_scales.empty() || weight_data_quantized.empty())
@@ -1116,15 +1047,15 @@ static int make_gptq_qweight(const ncnn::Mat& weight_data, const QuantActStat& s
 
 int QuantNet::init(int method)
 {
+    if (method != LLM_QUANT_METHOD_AWQ && method != LLM_QUANT_METHOD_GPTQ)
+        return 0;
+
     for (size_t i = 0; i < layers.size(); i++)
     {
         const ncnn::Layer* layer = layers[i];
         if (layer->type == "Input")
             input_blobs.push_back(layer->tops[0]);
     }
-
-    if (method != LLM_QUANT_METHOD_AWQ && method != LLM_QUANT_METHOD_GPTQ)
-        return 0;
 
     const int max_sample_count = method == LLM_QUANT_METHOD_AWQ ? awq_samples : gptq_samples;
 
@@ -1217,9 +1148,8 @@ static int check_calibration_input(const QuantNet& table)
 
 int QuantNet::collect_activation_stats()
 {
-    int ret = check_calibration_input(*this);
-    if (ret != 0)
-        return ret;
+    if (check_calibration_input(*this) != 0)
+        return -1;
 
     const int input_blob_count = (int)input_blobs.size();
     const int file_count = (int)listspaths[0].size();
@@ -1238,12 +1168,7 @@ int QuantNet::collect_activation_stats()
             if (in.empty())
                 return -1;
 
-            ret = ex.input(input_blobs[j], in);
-            if (ret != 0)
-            {
-                fprintf(stderr, "input blob %d failed ret=%d\n", input_blobs[j], ret);
-                return ret;
-            }
+            ex.input(input_blobs[j], in);
         }
 
         size_t gemm_act_index = 0;
@@ -1258,26 +1183,10 @@ int QuantNet::collect_activation_stats()
                 if (!is_supported_llm_gemm(gemm))
                     continue;
 
-                char key[256];
-                snprintf(key, 256, "%s_param_1", gemm_name(gemm));
-
-                if (gemm_act_index >= gemm_act_stats.size())
-                {
-                    fprintf(stderr, "%s activation stat is missing\n", key);
-                    return -1;
-                }
-
                 ncnn::Mat bottom_blob;
-                ret = ex.extract(gemm->bottoms[0], bottom_blob);
-                if (ret != 0)
-                {
-                    fprintf(stderr, "extract %s bottom failed ret=%d\n", gemm_name(gemm), ret);
-                    return ret;
-                }
+                ex.extract(gemm->bottoms[0], bottom_blob);
 
-                ret = collect_act_rows(gemm_act_stats[gemm_act_index], bottom_blob, key);
-                if (ret != 0)
-                    return ret;
+                collect_act_rows(gemm_act_stats[gemm_act_index], bottom_blob);
 
                 gemm_act_index++;
             }
@@ -1294,9 +1203,7 @@ int QuantNet::collect_activation_stats()
                 int attn_mask_i = 0;
                 int cached_xk_i = 0;
                 int cached_xv_i = 0;
-                ret = resolve_mha_bottom_blob_index(mha, (int)mha->bottoms.size(), q_blob_i, k_blob_i, v_blob_i, attn_mask_i, cached_xk_i, cached_xv_i);
-                if (ret != 0)
-                    return ret;
+                resolve_mha_bottom_blob_index(mha, (int)mha->bottoms.size(), q_blob_i, k_blob_i, v_blob_i, attn_mask_i, cached_xk_i, cached_xv_i);
 
                 ncnn::Mat q_blob;
                 ncnn::Mat k_blob;
@@ -1305,74 +1212,23 @@ int QuantNet::collect_activation_stats()
                 ncnn::Mat cached_xk_blob;
                 ncnn::Mat cached_xv_blob;
 
-                ret = ex.extract(mha->bottoms[q_blob_i], q_blob);
-                if (ret != 0)
-                {
-                    fprintf(stderr, "extract %s q bottom failed ret=%d\n", multiheadattention_name(mha), ret);
-                    return ret;
-                }
-                ret = ex.extract(mha->bottoms[k_blob_i], k_blob);
-                if (ret != 0)
-                {
-                    fprintf(stderr, "extract %s k bottom failed ret=%d\n", multiheadattention_name(mha), ret);
-                    return ret;
-                }
-                ret = ex.extract(mha->bottoms[v_blob_i], v_blob);
-                if (ret != 0)
-                {
-                    fprintf(stderr, "extract %s v bottom failed ret=%d\n", multiheadattention_name(mha), ret);
-                    return ret;
-                }
+                ex.extract(mha->bottoms[q_blob_i], q_blob);
+                ex.extract(mha->bottoms[k_blob_i], k_blob);
+                ex.extract(mha->bottoms[v_blob_i], v_blob);
                 if (mha->attn_mask)
-                {
-                    ret = ex.extract(mha->bottoms[attn_mask_i], attn_mask_blob);
-                    if (ret != 0)
-                    {
-                        fprintf(stderr, "extract %s attn_mask bottom failed ret=%d\n", multiheadattention_name(mha), ret);
-                        return ret;
-                    }
-                }
+                    ex.extract(mha->bottoms[attn_mask_i], attn_mask_blob);
                 if (mha->kv_cache)
                 {
-                    ret = ex.extract(mha->bottoms[cached_xk_i], cached_xk_blob);
-                    if (ret != 0)
-                    {
-                        fprintf(stderr, "extract %s cached_xk bottom failed ret=%d\n", multiheadattention_name(mha), ret);
-                        return ret;
-                    }
-                    ret = ex.extract(mha->bottoms[cached_xv_i], cached_xv_blob);
-                    if (ret != 0)
-                    {
-                        fprintf(stderr, "extract %s cached_xv bottom failed ret=%d\n", multiheadattention_name(mha), ret);
-                        return ret;
-                    }
+                    ex.extract(mha->bottoms[cached_xk_i], cached_xk_blob);
+                    ex.extract(mha->bottoms[cached_xv_i], cached_xv_blob);
                 }
-
-                char q_key[256];
-                char k_key[256];
-                char v_key[256];
-                snprintf(q_key, 256, "%s_param_0", multiheadattention_name(mha));
-                snprintf(k_key, 256, "%s_param_1", multiheadattention_name(mha));
-                snprintf(v_key, 256, "%s_param_2", multiheadattention_name(mha));
 
                 const size_t mha_act_offset = mha_act_index * 4;
-                if (mha_act_offset + 3 >= mha_act_stats.size())
-                {
-                    fprintf(stderr, "%s activation stat is missing\n", multiheadattention_name(mha));
-                    return -1;
-                }
+                collect_act_rows(mha_act_stats[mha_act_offset], q_blob);
+                collect_act_rows(mha_act_stats[mha_act_offset + 1], k_blob);
+                collect_act_rows(mha_act_stats[mha_act_offset + 2], v_blob);
 
-                ret = collect_act_rows(mha_act_stats[mha_act_offset], q_blob, q_key);
-                if (ret != 0)
-                    return ret;
-                ret = collect_act_rows(mha_act_stats[mha_act_offset + 1], k_blob, k_key);
-                if (ret != 0)
-                    return ret;
-                ret = collect_act_rows(mha_act_stats[mha_act_offset + 2], v_blob, v_key);
-                if (ret != 0)
-                    return ret;
-
-                ret = collect_mha_out_act_rows(mha, q_blob, k_blob, v_blob, attn_mask_blob, cached_xk_blob, cached_xv_blob, q_blob_i, k_blob_i, v_blob_i, mha_act_stats[mha_act_offset + 3], quantize_num_threads);
+                int ret = collect_mha_out_act_rows(mha, q_blob, k_blob, v_blob, attn_mask_blob, cached_xk_blob, cached_xv_blob, q_blob_i, k_blob_i, v_blob_i, mha_act_stats[mha_act_offset + 3], quantize_num_threads);
                 if (ret != 0)
                     return ret;
 
@@ -1414,30 +1270,17 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
             char key[256];
             snprintf(key, 256, "%s_param_1", gemm_name(gemm));
 
-            const QuantActStat* act_stat = 0;
-            if (method == LLM_QUANT_METHOD_AWQ || method == LLM_QUANT_METHOD_GPTQ)
-            {
-                if (gemm_act_index >= gemm_act_stats.size())
-                {
-                    fprintf(stderr, "%s activation stat is missing\n", key);
-                    fclose(fp);
-                    return -1;
-                }
-
-                act_stat = &gemm_act_stats[gemm_act_index];
-            }
-
             ncnn::Mat B_data_quantize_scales;
             ncnn::Mat B_data_input_scales;
             ncnn::Mat B_data_quantized;
             int ret = 0;
             if (method == LLM_QUANT_METHOD_AWQ)
             {
-                ret = make_awq_input_scales(gemm->B_data, *act_stat, block_size, weight_bits, awq_inner_method, awq_steps, awq_max_scale, B_data_input_scales, B_data_quantize_scales, quantize_num_threads);
+                ret = make_awq_input_scales(gemm->B_data, gemm_act_stats[gemm_act_index], block_size, weight_bits, awq_inner_method, awq_steps, awq_max_scale, B_data_input_scales, B_data_quantize_scales, quantize_num_threads);
             }
             else if (method == LLM_QUANT_METHOD_GPTQ)
             {
-                ret = make_gptq_qweight(gemm->B_data, *act_stat, block_size, weight_bits, gptq_damp, B_data_quantize_scales, B_data_quantized, quantize_num_threads);
+                ret = make_gptq_qweight(gemm->B_data, gemm_act_stats[gemm_act_index], block_size, weight_bits, gptq_damp, B_data_quantize_scales, B_data_quantized, quantize_num_threads);
             }
             else
             {
@@ -1472,7 +1315,7 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
                 return -1;
             }
 
-            fprintf(stderr, "write_llm_table %s bits=%d block=%d method=%s\n", key, weight_bits, block_size, llm_quant_method_to_string(method));
+            fprintf(stderr, "write_llm_table %s\n", key);
             table_count++;
 
             if (method == LLM_QUANT_METHOD_AWQ)
@@ -1486,7 +1329,7 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
                     return -1;
                 }
 
-                fprintf(stderr, "write_llm_table %s method=%s\n", input_scale_key, llm_quant_method_to_string(method));
+                fprintf(stderr, "write_llm_table %s\n", input_scale_key);
                 table_count++;
             }
 
@@ -1512,16 +1355,6 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
             const ncnn::Mat weights[4] = {q_weight_data, k_weight_data, v_weight_data, out_weight_data};
 
             const size_t mha_act_offset = mha_act_index * 4;
-            if (method == LLM_QUANT_METHOD_AWQ || method == LLM_QUANT_METHOD_GPTQ)
-            {
-                if (mha_act_offset + 3 >= mha_act_stats.size())
-                {
-                    fprintf(stderr, "%s activation stat is missing\n", multiheadattention_name(mha));
-                    fclose(fp);
-                    return -1;
-                }
-            }
-
             for (int j = 0; j < 4; j++)
             {
                 char key[256];
@@ -1572,7 +1405,7 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
                     return -1;
                 }
 
-                fprintf(stderr, "write_llm_table %s bits=%d block=%d method=%s\n", key, weight_bits, block_size, llm_quant_method_to_string(method));
+                fprintf(stderr, "write_llm_table %s\n", key);
                 table_count++;
 
                 if (method == LLM_QUANT_METHOD_AWQ)
@@ -1586,7 +1419,7 @@ int QuantNet::save_table(const char* tablepath, int block_size, int weight_bits,
                         return -1;
                     }
 
-                    fprintf(stderr, "write_llm_table %s method=%s\n", input_scale_key, llm_quant_method_to_string(method));
+                    fprintf(stderr, "write_llm_table %s\n", input_scale_key);
                     table_count++;
                 }
             }
@@ -1700,28 +1533,15 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if (quantize_method == LLM_QUANT_METHOD_AWQ && !table.use_calibration_dataset)
+    if ((quantize_method == LLM_QUANT_METHOD_AWQ || quantize_method == LLM_QUANT_METHOD_GPTQ) && !table.use_calibration_dataset)
     {
-        fprintf(stderr, "method=awq requires calibration list\n");
-        return -1;
-    }
-
-    if (quantize_method == LLM_QUANT_METHOD_GPTQ && !table.use_calibration_dataset)
-    {
-        fprintf(stderr, "method=gptq requires calibration list\n");
+        fprintf(stderr, "method=%s requires calibration list\n", method);
         return -1;
     }
 
     if (quantize_method != LLM_QUANT_METHOD_AWQ && quantize_method != LLM_QUANT_METHOD_GPTQ && table.use_calibration_dataset)
     {
         fprintf(stderr, "calibration list is only used by method=awq/gptq\n");
-        return -1;
-    }
-
-    table.awq_inner_method = llm_quant_method_from_string(awq_inner);
-    if (table.awq_inner_method != LLM_QUANT_METHOD_MINMAX && table.awq_inner_method != LLM_QUANT_METHOD_MSECLIP)
-    {
-        fprintf(stderr, "unsupported awq_inner=%s\n", awq_inner);
         return -1;
     }
 
@@ -1737,37 +1557,49 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if (table.awq_steps < 0)
+    if (quantize_method == LLM_QUANT_METHOD_AWQ)
     {
-        fprintf(stderr, "malformed awq_steps %d\n", table.awq_steps);
-        return -1;
+        table.awq_inner_method = llm_quant_method_from_string(awq_inner);
+        if (table.awq_inner_method != LLM_QUANT_METHOD_MINMAX && table.awq_inner_method != LLM_QUANT_METHOD_MSECLIP)
+        {
+            fprintf(stderr, "unsupported awq_inner=%s\n", awq_inner);
+            return -1;
+        }
+
+        if (table.awq_steps < 0)
+        {
+            fprintf(stderr, "malformed awq_steps %d\n", table.awq_steps);
+            return -1;
+        }
+
+        if (table.awq_samples < 1)
+        {
+            fprintf(stderr, "malformed awq_samples %d\n", table.awq_samples);
+            return -1;
+        }
+
+        if (!(table.awq_max_scale > 1.f))
+        {
+            fprintf(stderr, "malformed awq_max_scale %f\n", table.awq_max_scale);
+            return -1;
+        }
     }
 
-    if (table.awq_samples < 1)
+    if (quantize_method == LLM_QUANT_METHOD_GPTQ)
     {
-        fprintf(stderr, "malformed awq_samples %d\n", table.awq_samples);
-        return -1;
+        if (table.gptq_samples < 1)
+        {
+            fprintf(stderr, "malformed gptq_samples %d\n", table.gptq_samples);
+            return -1;
+        }
+
+        if (!(table.gptq_damp >= 0.f))
+        {
+            fprintf(stderr, "malformed gptq_damp %f\n", table.gptq_damp);
+            return -1;
+        }
     }
 
-    if (table.gptq_samples < 1)
-    {
-        fprintf(stderr, "malformed gptq_samples %d\n", table.gptq_samples);
-        return -1;
-    }
-
-    if (!(table.awq_max_scale > 1.f))
-    {
-        fprintf(stderr, "malformed awq_max_scale %f\n", table.awq_max_scale);
-        return -1;
-    }
-
-    if (!(table.gptq_damp >= 0.f))
-    {
-        fprintf(stderr, "malformed gptq_damp %f\n", table.gptq_damp);
-        return -1;
-    }
-
-    table.storage_type = 1;
     table.quantize_num_threads = thread;
     table.opt.num_threads = thread;
     table.opt.use_packing_layout = false;
