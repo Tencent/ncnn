@@ -24,6 +24,8 @@ public:
     // 2 = float16
     // 3 = int8
     // 4 = bfloat16
+    // 5 = int64
+    // 6 = int32
     int type_from;
     int type_to;
 };

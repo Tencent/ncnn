@@ -83,7 +83,8 @@ else()
     message(WARNING "Building without TorchVision")
 endif()
 
-include_directories(SYSTEM ${TORCH_INCLUDE_DIRS})
+# Torch includes are added per-target in src/CMakeLists.txt to avoid
+# conflicts with system protobuf headers
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     # test if libtorch and protobuf has the same cxxabi version
@@ -95,7 +96,10 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 endif()
 
 if((PNNX_TORCH_USE_CXX11_ABI AND PNNX_COMPILER_USE_CXX11_ABI) OR (NOT PNNX_TORCH_USE_CXX11_ABI AND NOT PNNX_COMPILER_USE_CXX11_ABI))
-    find_package(protobuf CONFIG)
+    # Torch may have already registered protobuf targets — skip find_package if so
+    if(NOT TARGET protobuf::libprotobuf)
+        find_package(protobuf CONFIG)
+    endif()
 
     if(protobuf_FOUND)
         set(PROTOBUF_FOUND ${protobuf_FOUND})
@@ -109,17 +113,43 @@ if((PNNX_TORCH_USE_CXX11_ABI AND PNNX_COMPILER_USE_CXX11_ABI) OR (NOT PNNX_TORCH
             set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION_RELEASE "${PROTOBUF_PROTOC_EXECUTABLE}")
         endif()
     endif()
+
+    # Homebrew protobuf 34.x depends on Abseil — we need to link it explicitly
+    # because macOS doesn't resolve transitive dylib deps with @rpath properly
+    find_package(PkgConfig QUIET)
+    if(PKG_CONFIG_FOUND)
+        pkg_check_modules(ABSL QUIET absl_log_internal_check_op absl_die_if_null absl_log_internal_conditions absl_log_internal_message absl_examine_stack absl_statusor absl_synchronization absl_time)
+        if(ABSL_FOUND)
+            set(ABSL_LIBRARIES ${ABSL_LINK_LIBRARIES})
+        endif()
+    endif()
 endif()
 
 # https://github.com/supertone-inc/onnxruntime-build
 set(onnxruntime_INSTALL_DIR "/home/nihui/osd/pnnx/install" CACHE STRING "")
-find_library(onnxruntime_LIB NAMES onnxruntime PATHS ${onnxruntime_INSTALL_DIR}/lib64 ${onnxruntime_INSTALL_DIR}/lib)
+find_library(onnxruntime_LIB NAMES onnxruntime
+    PATHS ${onnxruntime_INSTALL_DIR}/lib64 ${onnxruntime_INSTALL_DIR}/lib
+          /opt/homebrew/lib /usr/local/lib)
 if(onnxruntime_LIB)
     set(onnxruntime_FOUND TRUE)
-    add_library(onnxruntime::onnxruntime STATIC IMPORTED)
+    add_library(onnxruntime::onnxruntime SHARED IMPORTED)
     set_target_properties(onnxruntime::onnxruntime PROPERTIES IMPORTED_LOCATION ${onnxruntime_LIB})
-    set_target_properties(onnxruntime::onnxruntime PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${onnxruntime_INSTALL_DIR}/include)
+    # prefer install-dir include, fall back to homebrew
+    if(EXISTS ${onnxruntime_INSTALL_DIR}/include)
+        set_target_properties(onnxruntime::onnxruntime PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${onnxruntime_INSTALL_DIR}/include)
+    else()
+        find_path(onnxruntime_INCLUDE_DIR onnxruntime_c_api.h
+            PATHS /opt/homebrew/include/onnxruntime /usr/local/include/onnxruntime)
+        if(onnxruntime_INCLUDE_DIR)
+            set_target_properties(onnxruntime::onnxruntime PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${onnxruntime_INCLUDE_DIR})
+        endif()
+    endif()
 else()
+    set(onnxruntime_FOUND FALSE)
+endif()
+
+option(PNNX_DISABLE_ONNXRUNTIME "disable onnxruntime support and skip building onnx2pnnx" OFF)
+if(PNNX_DISABLE_ONNXRUNTIME)
     set(onnxruntime_FOUND FALSE)
 endif()
 

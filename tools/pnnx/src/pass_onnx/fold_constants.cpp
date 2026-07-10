@@ -9,7 +9,15 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#if __has_include(<onnxruntime_c_api.h>)
 #include <onnxruntime_c_api.h>
+#elif __has_include(<onnxruntime/onnxruntime_c_api.h>)
+#include <onnxruntime/onnxruntime_c_api.h>
+#elif __has_include(<onnxruntime/core/session/onnxruntime_c_api.h>)
+#include <onnxruntime/core/session/onnxruntime_c_api.h>
+#else
+#error "onnxruntime_c_api.h not found"
+#endif
 
 #include "dead_code_elimination.h"
 
