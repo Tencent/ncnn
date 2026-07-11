@@ -19,7 +19,6 @@ SDPA_vulkan::SDPA_vulkan()
     pipeline_sdpa_qk_cross = 0;
     pipeline_sdpa_qkv_cross = 0;
     pipeline_sdpa_kvcache_update = 0;
-    pipeline_sdpa_kvcache_append = 0;
 
     for (int i = 0; i < 8; i++)
     {
@@ -76,35 +75,21 @@ static void record_kvcache_update(const VkMat& past_blob, const VkMat& cur_blob,
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 }
 
-static void record_kvcache_append(const VkMat& cur_blob, VkMat& top_blob, int width, int past_seqlen, int cur_seqlen, int num_group, const Pipeline* pipeline, VkCompute& cmd)
+static int update_kvcache(const VkMat& past_blob, const VkMat& cur_blob, VkMat& top_blob, int width, int past_seqlen, int cur_seqlen, int num_group, const Pipeline* pipeline_update, VkCompute& cmd, const Option& opt)
 {
-    std::vector<VkMat> bindings(2);
-    bindings[0] = cur_blob;
-    bindings[1] = top_blob;
+    if (past_seqlen == 0)
+    {
+        top_blob = cur_blob;
+        return 0;
+    }
 
-    std::vector<vk_constant_type> constants(6);
-    constants[0].i = width;
-    constants[1].i = past_seqlen;
-    constants[2].i = cur_seqlen;
-    constants[3].i = num_group;
-    constants[4].i = cur_blob.cstep;
-    constants[5].i = top_blob.cstep;
-
-    cmd.record_pipeline(pipeline, bindings, constants, cur_blob);
-}
-
-static int update_kvcache(const VkMat& past_blob, const VkMat& cur_blob, VkMat& top_blob, int width, int past_seqlen, int cur_seqlen, int num_group, const Pipeline* pipeline_update, const Pipeline* pipeline_append, VkCompute& cmd, const Option& opt)
-{
     const int dst_seqlen = past_seqlen + cur_seqlen;
 
     top_blob.create(width, dst_seqlen, num_group, cur_blob.elemsize, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 
-    if (past_seqlen > 0)
-        record_kvcache_update(past_blob, cur_blob, top_blob, width, past_seqlen, cur_seqlen, num_group, pipeline_update, cmd);
-    else
-        record_kvcache_append(cur_blob, top_blob, width, 0, cur_seqlen, num_group, pipeline_append, cmd);
+    record_kvcache_update(past_blob, cur_blob, top_blob, width, past_seqlen, cur_seqlen, num_group, pipeline_update, cmd);
 
     return 0;
 }
@@ -367,15 +352,12 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
         qk_softmax->create_pipeline(opt);
     }
 
+    if (kv_cache)
     {
         std::vector<vk_specialization_type> specializations;
         pipeline_sdpa_kvcache_update = new Pipeline(vkdev);
         pipeline_sdpa_kvcache_update->set_local_size_xyz(8, 8, 1);
         pipeline_sdpa_kvcache_update->create(LayerShaderType::sdpa_kvcache_update, opt, specializations);
-
-        pipeline_sdpa_kvcache_append = new Pipeline(vkdev);
-        pipeline_sdpa_kvcache_append->set_local_size_xyz(8, 8, 1);
-        pipeline_sdpa_kvcache_append->create(LayerShaderType::sdpa_kvcache_append, opt, specializations);
     }
 
     return 0;
@@ -404,9 +386,6 @@ int SDPA_vulkan::destroy_pipeline(const Option& opt)
 
     delete pipeline_sdpa_kvcache_update;
     pipeline_sdpa_kvcache_update = 0;
-
-    delete pipeline_sdpa_kvcache_append;
-    pipeline_sdpa_kvcache_append = 0;
 
     use_flash_attention = false;
     FA_coopmat_M = 0;
@@ -455,7 +434,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     VkMat key;
     if (kv_cache)
     {
-        int ret = update_kvcache(past_key, cur_key, key, embed_dim, past_seqlen, cur_seqlen, num_group, pipeline_sdpa_kvcache_update, pipeline_sdpa_kvcache_append, cmd, opt);
+        int ret = update_kvcache(past_key, cur_key, key, embed_dim, past_seqlen, cur_seqlen, num_group, pipeline_sdpa_kvcache_update, cmd, opt);
         if (ret != 0)
             return ret;
     }
@@ -471,7 +450,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         VkMat value;
         if (kv_cache)
         {
-            int ret = update_kvcache(past_value, cur_value, value, out_embed_dim, past_seqlen, cur_seqlen, num_group, pipeline_sdpa_kvcache_update, pipeline_sdpa_kvcache_append, cmd, opt);
+            int ret = update_kvcache(past_value, cur_value, value, out_embed_dim, past_seqlen, cur_seqlen, num_group, pipeline_sdpa_kvcache_update, cmd, opt);
             if (ret != 0)
                 return ret;
         }
@@ -631,7 +610,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     VkMat value;
     if (kv_cache)
     {
-        int ret = update_kvcache(past_value, cur_value, value, out_embed_dim, past_seqlen, cur_seqlen, num_group, pipeline_sdpa_kvcache_update, pipeline_sdpa_kvcache_append, cmd, opt);
+        int ret = update_kvcache(past_value, cur_value, value, out_embed_dim, past_seqlen, cur_seqlen, num_group, pipeline_sdpa_kvcache_update, cmd, opt);
         if (ret != 0)
             return ret;
     }

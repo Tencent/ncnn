@@ -27,7 +27,6 @@ public:
     Pipeline* pipeline_sdpa_qk_cross;
     Pipeline* pipeline_sdpa_qkv_cross;
     Pipeline* pipeline_sdpa_kvcache_update;
-    Pipeline* pipeline_sdpa_kvcache_append;
 
     // flash attention
     Pipeline* pipeline_sdpa_fa[8];
