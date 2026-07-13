@@ -1432,36 +1432,32 @@ static std::vector<int> get_max_freq_mhz()
 
 static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
 {
-    // Build processor group array for multi-group affinity
-    GROUP_AFFINITY groupAffinities[NCNN_MAX_PROCESSOR_GROUPS];
-    WORD groupCount = 0;
+    // Find the first enabled CPU group and bind this thread to it.
+    // A thread can only belong to one processor group at a time.
+    // For multi-group masks, set_cpu_thread_affinity() calls this
+    // repeatedly per-thread, each bound to a specific group.
     for (int g = 0; g < NCNN_MAX_PROCESSOR_GROUPS; g++)
     {
-        if (thread_affinity_mask.mask[g])
+        if (thread_affinity_mask.mask[g] == 0)
+            continue;
+
+        GROUP_AFFINITY ga;
+        ga.Group = (WORD)g;
+        ga.Mask = thread_affinity_mask.mask[g];
+        ga.Reserved[0] = 0;
+        ga.Reserved[1] = 0;
+        ga.Reserved[2] = 0;
+
+        GROUP_AFFINITY prev;
+        if (!SetThreadGroupAffinity(GetCurrentThread(), &ga, &prev))
         {
-            groupAffinities[groupCount].Group = (WORD)g;
-            groupAffinities[groupCount].Mask = thread_affinity_mask.mask[g];
-            groupAffinities[groupCount].Reserved[0] = 0;
-            groupAffinities[groupCount].Reserved[1] = 0;
-            groupAffinities[groupCount].Reserved[2] = 0;
-            groupCount++;
+            NCNN_LOGE("SetThreadGroupAffinity failed for group %d: %d", g, GetLastError());
+            return -1;
         }
-    }
-
-    if (groupCount == 0)
         return 0;
-
-    // Use SetThreadGroupAffinity for any non-zero group or multi-group case.
-    // SetThreadAffinityMask only targets group 0, so even a single group
-    // must use the group-aware API when the group is not group 0.
-    PROCESSOR_NUMBER procNum;
-    if (!SetThreadGroupAffinity(GetCurrentThread(), groupAffinities, (groupCount > 1) ? &procNum : NULL))
-    {
-        NCNN_LOGE("SetThreadGroupAffinity failed %d", GetLastError());
-        return -1;
     }
 
-    return 0;
+    return 0; // no CPUs enabled
 }
 #endif // defined _WIN32
 
