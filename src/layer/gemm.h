@@ -22,6 +22,10 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 protected:
+#if NCNN_WEIGHT_QUANT
+    int forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+#endif
+
 #if NCNN_INT8
     int forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif
@@ -44,7 +48,12 @@ public:
     int output_elemtype; // 0=auto 1=fp32
     int output_transpose;
 
-    int int8_scale_term;
+    union
+    {
+        int quantize_term;
+        int int8_scale_term;
+    };
+    int weight_block_quantize;
 
     int constant_TILE_M;
     int constant_TILE_N;
@@ -58,6 +67,11 @@ public:
 #if NCNN_INT8
     Mat A_data_int8_scales;
     float B_data_int8_scale;
+#endif
+
+#if NCNN_WEIGHT_QUANT
+    Mat B_data_quantize_scales;
+    Mat B_data_input_scales;
 #endif
 };
 

@@ -1871,8 +1871,13 @@ static int gemm_AT_BT_riscv(const Mat& AT, const Mat& BT, const Mat& C, Mat& top
 
 int Gemm_riscv::create_pipeline(const Option& opt)
 {
+    if (weight_block_quantize)
+    {
+        return 0;
+    }
+
 #if NCNN_INT8
-    if (int8_scale_term)
+    if (quantize_term)
     {
         support_packing = false;
         support_fp16_storage = false;
@@ -2016,8 +2021,13 @@ int Gemm_riscv::create_pipeline(const Option& opt)
 
 int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    if (weight_block_quantize)
+    {
+        return Gemm::forward(bottom_blobs, top_blobs, opt);
+    }
+
 #if NCNN_INT8
-    if (int8_scale_term)
+    if (quantize_term)
     {
         return Gemm::forward_int8(bottom_blobs, top_blobs, opt);
     }

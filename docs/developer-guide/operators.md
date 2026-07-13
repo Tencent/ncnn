@@ -1151,7 +1151,7 @@ y = (gemm(a, b) + c * beta) * alpha
 | 12        | output_elempack | int | 0         |                   |
 | 13        | output_elemtype | int | 0         |                   |
 | 14        | output_transpose | int| 0         |                   |
-| 18        | int8_scale_term | int | 0         |                   |
+| 18        | quantize_term | int | 0         | 0=no quant, nonzero below 400=legacy int8, 4xx/6xx/8xx=weight block quant |
 | 20        | constant_TILE_M | int | 0         |                   |
 | 21        | constant_TILE_N | int | 0         |                   |
 | 22        | constant_TILE_K | int | 0         |                   |
@@ -1163,6 +1163,16 @@ y = (gemm(a, b) + c * beta) * alpha
 | C_data        | float | [1], [M] or [N] or [1, M] or [N,1] or [N, M] |
 | A_data_int8_scales| float | [M]               |
 | B_data_int8_scales| float | [1]               |
+| B_data_quantize_scales| float | [ceil(K / block_size), N] for block quantized constant B |
+| B_data_input_scales| float | [K] for block quantized constant B with input scale |
+
+For weight-only block quantized Gemm:
+
+* `constantA=0`, `constantB=1`, `transA=0`, `transB=1`
+* output is fp32 pack1 with `output_N1M=0`, `output_elempack=0`, `output_transpose=0`
+* `B_data` is tagged int8 bytes with shape `[ceil(K * weight_bits / 8), N]`
+* `quantize_term = bits * 100 + input_scale * 10 + block_code`
+* `block_code`: 0=32, 1=64, 2=128
 
 # GridSample
 ```
@@ -1575,7 +1585,7 @@ y = affine(out)
 | 5         | attn_mask     | int   | 0         |                   |
 | 6         | scale         | float | 1.f / sqrt(embed_dim / num_heads) | |
 | 7         | kv_cache      | int   | 0         |                   |
-| 18        | int8_scale_term | int | 0         |                   |
+| 18        | quantize_term | int | 0         | 0=no quant, nonzero below 400=legacy int8, 4xx/6xx/8xx=weight block quant |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -1591,6 +1601,16 @@ y = affine(out)
 | k_weight_data_int8_scales| float | [embed_dim] |
 | v_weight_data_int8_scales| float | [embed_dim] |
 | out_weight_data_int8_scales| float | [1]      |
+| q_weight_data_quantize_scales| float | [ceil(qdim / block_size), embed_dim] for block quantized weight |
+| k_weight_data_quantize_scales| float | [ceil(kdim / block_size), embed_dim] for block quantized weight |
+| v_weight_data_quantize_scales| float | [ceil(vdim / block_size), embed_dim] for block quantized weight |
+| out_weight_data_quantize_scales| float | [ceil(embed_dim / block_size), qdim] for block quantized weight |
+| q_weight_data_input_scales| float | [qdim] for block quantized weight with input scale |
+| k_weight_data_input_scales| float | [kdim] for block quantized weight with input scale |
+| v_weight_data_input_scales| float | [vdim] for block quantized weight with input scale |
+| out_weight_data_input_scales| float | [embed_dim] for block quantized weight with input scale |
+
+Weight-only block quantized MultiHeadAttention stores q/k/v/out weights as tagged int8 bytes. The `quantize_term` rule is same as Gemm.
 
 # MVN
 ```

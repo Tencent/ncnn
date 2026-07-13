@@ -101,6 +101,66 @@ ncnn2table can generate static weight scales without a calibration dataset for R
 ./ncnn2int8 mobilenet-opt.param mobilenet-opt.bin mobilenet-int8.param mobilenet-int8.bin mobilenet.table
 ```
 
+## Weight-only block quantized Gemm and MultiHeadAttention
+
+LLM-oriented `Gemm` and `MultiHeadAttention` weight-only block quantization is separate from the post training int8 flow above. It stores weight as signed int4/int6/int8 blocks and keeps activation/output in fp32.
+
+The workflow is similar to `ncnn2table` and `ncnn2int8`:
+
+```shell
+./ncnnllm2table in.param in.bin model.llm.table method=minmax bits=6 block=64
+./ncnnllm2int in.param in.bin out.param out.bin model.llm.table
+```
+
+method can be minmax,mseclip,awq,gptq. bits can be 4,6,8. block can be 32,64,128. thread is the CPU thread count.
+
+awq and gptq need calibration data, same as npy calibration in ncnn2table.
+
+```shell
+./ncnnllm2table in.param in.bin calib.list awq.llm.table method=awq bits=4 block=64 type=1 shape=[...]
+./ncnnllm2int in.param in.bin awq.param awq.bin awq.llm.table
+```
+
+```shell
+./ncnnllm2table in.param in.bin calib.list gptq.llm.table method=gptq bits=4 block=128 type=1 shape=[...]
+./ncnnllm2int in.param in.bin gptq.param gptq.bin gptq.llm.table
+```
+
+The calibration list format follows `ncnn2table`.
+
+```text
+gemm_name_param_1 bits=4 block=64 method=mseclip scale0 scale1 ...
+mha_name_param_0  bits=4 block=64 method=mseclip scale0 scale1 ...
+mha_name_param_1  bits=4 block=64 method=mseclip scale0 scale1 ...
+mha_name_param_2  bits=4 block=64 method=mseclip scale0 scale1 ...
+mha_name_param_3  bits=4 block=64 method=mseclip scale0 scale1 ...
+```
+
+For `MultiHeadAttention`, `_param_0/_param_1/_param_2/_param_3` are q/k/v/out weights.
+
+```text
+gemm_name_param_1_input_scale method=awq scale0 scale1 ...
+mha_name_param_0_input_scale  method=awq scale0 scale1 ...
+```
+
+`method=gptq` uses fixed symmetric block scales and standard GPTQ error compensation. It writes packed qweight files and records them in the table.
+
+```text
+gemm_name_param_1 bits=4 block=128 method=gptq qweight=gemm.qweight scale0 scale1 ...
+```
+
+The table is text and may be edited before conversion. Missing `Gemm` rows are skipped. `MultiHeadAttention` q/k/v/out rows must exist together. Unused rows are rejected and at least one layer must be quantized.
+
+The generated layer `quantize_term` is `bits * 100 + input_scale * 10 + block_code`, and block_code 0/1/2 means block 32/64/128.
+
+For quick conversion without saving a table, `ncnnllm2int` can still compute scales directly:
+
+```shell
+./ncnnllm2int in.param in.bin out.param out.bin method=minmax bits=6 block=64
+```
+
+This format is signed symmetric scale-only. Zero point is not used.
+
 ## use ncnn int8 inference
 
 the ncnn library would use int8 inference automatically, nothing changed in your code
