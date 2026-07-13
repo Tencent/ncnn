@@ -884,12 +884,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         return 233;
     }
 
-    // FIXME fp16a may produce large error
-    if (_opt.use_fp16_arithmetic)
-    {
-        return 233;
-    }
-
     ncnn::Layer* op = ncnn::create_layer_vulkan(typeindex);
     if (!op)
     {
@@ -928,6 +922,18 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
     if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
     if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
+
+    // FIXME fp16a may produce large error
+    opt.use_fp16_arithmetic = false;
+
+    // skip test for missed gpu capability
+    if ((_opt.use_fp16_storage && !opt.use_fp16_storage)
+        || (_opt.use_fp16_arithmetic && !opt.use_fp16_arithmetic)
+        || (_opt.use_bf16_storage && !opt.use_bf16_storage))
+    {
+        delete op;
+        return 233;
+    }
 
     if (opt.use_bf16_packed || opt.use_bf16_storage)
     {
@@ -1462,12 +1468,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         return 233;
     }
 
-    // FIXME fp16a may produce large error
-    if (_opt.use_fp16_arithmetic)
-    {
-        return 233;
-    }
-
     ncnn::Layer* op = ncnn::create_layer_vulkan(typeindex);
     if (!op)
     {
@@ -1507,6 +1507,18 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
     if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
     if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
+
+    // FIXME fp16a may produce large error
+    opt.use_fp16_arithmetic = false;
+
+    // skip test for missed gpu capability
+    if ((_opt.use_fp16_storage && !opt.use_fp16_storage)
+        || (_opt.use_fp16_arithmetic && !opt.use_fp16_arithmetic)
+        || (_opt.use_bf16_storage && !opt.use_bf16_storage))
+    {
+        delete op;
+        return 233;
+    }
 
     if (opt.use_bf16_packed || opt.use_bf16_storage)
     {
@@ -2018,20 +2030,21 @@ int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std:
 
 int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const std::vector<ncnn::Mat>& a, int top_blob_count, float epsilon, int flag)
 {
-    // pack fp16p fp16s fp16a bf16p/bf16s flag
-    const int options[][6] = {
-        {0, 0, 0, 0, 0, 0},
-        {0, 0, 1, 0, 0, 0},
-        {0, 0, 1, 1, 0, 0},
-        {0, 0, 0, 0, 1, 0},
-        {1, 0, 0, 0, 0, 0},
+    // pack fp16p fp16s fp16a bf16p bf16s flag
+    const int options[][7] = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 1, 0, 0, 0, 0},
+        {0, 0, 1, 1, 0, 0, 0},
+        {0, 0, 0, 0, 0, 1, 0},
+        {1, 0, 0, 0, 0, 0, 0},
 #if NCNN_VULKAN
-        {1, 1, 0, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
-        {1, 1, 0, 1, 0, TEST_LAYER_DISABLE_CPU_TESTING},
+        {1, 1, 0, 0, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
+        {1, 1, 0, 1, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
+        {1, 0, 0, 0, 1, 0, TEST_LAYER_DISABLE_CPU_TESTING},
 #endif // NCNN_VULKAN
-        {1, 0, 1, 0, 0, 0},
-        {1, 0, 1, 1, 0, 0},
-        {1, 0, 0, 0, 1, 0},
+        {1, 0, 1, 0, 0, 0, 0},
+        {1, 0, 1, 1, 0, 0, 0},
+        {1, 0, 0, 0, 0, 1, 0},
     };
 
     const int opt_count = sizeof(options) / sizeof(options[0]);
@@ -2045,7 +2058,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         opt.use_fp16_storage = options[i][2];
         opt.use_fp16_arithmetic = options[i][3];
         opt.use_bf16_packed = options[i][4];
-        opt.use_bf16_storage = options[i][4];
+        opt.use_bf16_storage = options[i][5];
 
         int ret = test_layer_opt(layer_type, pd, weights, opt, a, top_blob_count, epsilon, flag | options[i][5]);
         if (ret != 0)
@@ -2057,20 +2070,21 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 
 int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Mat& a, float epsilon, int flag)
 {
-    // pack fp16p fp16s fp16a bf16p/bf16s flag
-    const int options[][6] = {
-        {0, 0, 0, 0, 0, 0},
-        {0, 0, 1, 0, 0, 0},
-        {0, 0, 1, 1, 0, 0},
-        {0, 0, 0, 0, 1, 0},
-        {1, 0, 0, 0, 0, 0},
+    // pack fp16p fp16s fp16a bf16p bf16s flag
+    const int options[][7] = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 1, 0, 0, 0, 0},
+        {0, 0, 1, 1, 0, 0, 0},
+        {0, 0, 0, 0, 0, 1, 0},
+        {1, 0, 0, 0, 0, 0, 0},
 #if NCNN_VULKAN
-        {1, 1, 0, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
-        {1, 1, 0, 1, 0, TEST_LAYER_DISABLE_CPU_TESTING},
+        {1, 1, 0, 0, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
+        {1, 1, 0, 1, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
+        {1, 0, 0, 0, 1, 0, TEST_LAYER_DISABLE_CPU_TESTING},
 #endif // NCNN_VULKAN
-        {1, 0, 1, 0, 0, 0},
-        {1, 0, 1, 1, 0, 0},
-        {1, 0, 0, 0, 1, 0},
+        {1, 0, 1, 0, 0, 0, 0},
+        {1, 0, 1, 1, 0, 0, 0},
+        {1, 0, 0, 0, 0, 1, 0},
     };
 
     const int opt_count = sizeof(options) / sizeof(options[0]);
@@ -2084,7 +2098,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         opt.use_fp16_storage = options[i][2];
         opt.use_fp16_arithmetic = options[i][3];
         opt.use_bf16_packed = options[i][4];
-        opt.use_bf16_storage = options[i][4];
+        opt.use_bf16_storage = options[i][5];
 
         int ret = test_layer_opt(layer_type, pd, weights, opt, a, epsilon, flag | options[i][5]);
         if (ret != 0)
