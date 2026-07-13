@@ -19,6 +19,13 @@ Convolution1D_vulkan::Convolution1D_vulkan()
     pipeline_convolution1d_1x1s1d1 = 0;
     pipeline_convolution1d_gemm = 0;
 
+    pipeline_convolution1d_3s1d1_winograd23_transform_input = 0;
+    pipeline_convolution1d_3s1d1_winograd23_gemm = 0;
+    pipeline_convolution1d_3s1d1_winograd23_transform_output = 0;
+    pipeline_convolution1d_3s1d1_winograd43_transform_input = 0;
+    pipeline_convolution1d_3s1d1_winograd43_gemm = 0;
+    pipeline_convolution1d_3s1d1_winograd43_transform_output = 0;
+
     use_cooperative_matrix = false;
     coopmat_M = 0;
     coopmat_N = 0;
@@ -124,6 +131,479 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
             UNROLL_SG_M = 2;
             UNROLL_SG_N = 2;
             UNROLL_SG_K = 2;
+        }
+    }
+
+    bool is_conv3s1d1 = kernel_w == 3 && stride_w == 1 && dilation_w == 1;
+
+    if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3s1d1 && num_input >= 16 && num_output >= 16)
+    {
+        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
+
+        if (use_cooperative_matrix)
+        {
+            int size = 1024;
+            vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+
+            UNROLL_SG_M = std::min((size + coopmat_M - 1) / coopmat_M, 2);
+            UNROLL_SG_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+            UNROLL_SG_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+
+            UNROLL_WG_M = std::min((size + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
+            UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
+        }
+
+        // === F(4,3) ===
+        if (opt.use_winograd43_convolution)
+        {
+            // 1D weight transform: G (6x3) applied once
+            Mat weight_data_tm;
+            weight_data_tm.create(6, num_input, num_output);
+
+            const float sq2 = 1.41421356237f;
+            const float ktm[6][3] = {
+                {1.0f, 0.0f, 0.0f},
+                {-2.0f / 3, -sq2 / 3, -1.0f / 3},
+                {-2.0f / 3, sq2 / 3, -1.0f / 3},
+                {1.0f / 6, sq2 / 6, 1.0f / 3},
+                {1.0f / 6, -sq2 / 6, 1.0f / 3},
+                {0.0f, 0.0f, 1.0f}
+            };
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p = 0; p < num_output; p++)
+            {
+                for (int q = 0; q < num_input; q++)
+                {
+                    const float* kernel0 = (const float*)weight_data + p * num_input * 3 + q * 3;
+                    float* kernel_tm0 = weight_data_tm.channel(p).row(q);
+
+                    for (int i = 0; i < 6; i++)
+                    {
+                        kernel_tm0[i] = kernel0[0] * ktm[i][0] + kernel0[1] * ktm[i][1] + kernel0[2] * ktm[i][2];
+                    }
+                }
+            }
+
+            // Weight packing - follow 2D pattern but with 6 instead of 36
+            if (use_cooperative_matrix)
+            {
+                // from 6-inch-outch to inch-outch-6
+                Mat weight_data_tm_r2(num_input, num_output, 6);
+                for (int k = 0; k < 6; k++)
+                {
+                    float* g00 = weight_data_tm_r2.channel(k);
+                    for (int q = 0; q < num_output; q++)
+                    {
+                        for (int p = 0; p < num_input; p++)
+                        {
+                            *g00++ = weight_data_tm[(q * num_input + p) * 6 + k];
+                        }
+                    }
+                }
+
+                const int blocks_n = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
+                const int kk = (num_input + coopmat_K - 1) / coopmat_K;
+
+                weight_winograd43_data_packed.create(coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n, 6);
+                for (int b = 0; b < 6; b++)
+                {
+                    for (int bn = 0; bn < blocks_n; bn++)
+                    {
+                        float* p = weight_winograd43_data_packed.channel(b).row(bn);
+                        int k = 0;
+                        for (; k + UNROLL_SG_K - 1 < kk; k += UNROLL_SG_K)
+                        {
+                            for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                            {
+                                for (int zk = 0; zk < UNROLL_SG_K; zk++)
+                                {
+                                    for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                                    {
+                                        for (int i = 0; i < coopmat_K; i++)
+                                        {
+                                            for (int j = 0; j < coopmat_N; j++)
+                                            {
+                                                const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                                const int gki = (k + zk) * coopmat_K + i;
+                                                if (gni < num_output && gki < num_input)
+                                                    *p++ = weight_data_tm_r2.channel(b)[gni * num_input + gki];
+                                                else
+                                                    *p++ = 0.f;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        for (; k < kk; k++)
+                        {
+                            for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                            {
+                                for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                                {
+                                    for (int i = 0; i < coopmat_K; i++)
+                                    {
+                                        for (int j = 0; j < coopmat_N; j++)
+                                        {
+                                            const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                            const int gki = k * coopmat_K + i;
+                                            if (gni < num_output && gki < num_input)
+                                                *p++ = weight_data_tm_r2.channel(b)[gni * num_input + gki];
+                                            else
+                                                *p++ = 0.f;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // non-cm packing
+                weight_winograd43_data_packed.create(num_input / elempack, num_output / out_elempack, 6, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+                for (int k = 0; k < 6; k++)
+                {
+                    float* g00 = weight_winograd43_data_packed.channel(k);
+                    for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+                    {
+                        for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
+                        {
+                            for (int i = 0; i < out_elempack; i++)
+                            {
+                                const Mat k0 = weight_data_tm.channel(q + i);
+                                for (int j = 0; j < elempack; j++)
+                                {
+                                    const float* k00 = k0.row(p + j);
+                                    g00[0] = k00[k];
+                                    g00++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Create F(4,3) pipelines
+            // transform_input
+            {
+                std::vector<vk_specialization_type> specializations(1 + 4);
+                specializations[0].i = num_input / elempack;
+                specializations[1 + 0].i = 0; // w
+                specializations[1 + 1].i = 0; // cstep
+                specializations[1 + 2].i = 0; // outcstep
+                specializations[1 + 3].i = 0; // block_x
+
+                int shader_type_index = -1;
+                if (elempack == 1) shader_type_index = LayerShaderType::convolution1d_3s1d1_winograd43_transform_input;
+                if (elempack == 4) shader_type_index = LayerShaderType::convolution1d_packed_3s1d1_winograd43_transform_input;
+
+                pipeline_convolution1d_3s1d1_winograd43_transform_input = new Pipeline(vkdev);
+                pipeline_convolution1d_3s1d1_winograd43_transform_input->set_local_size_xyz(8, 8, 1);
+                pipeline_convolution1d_3s1d1_winograd43_transform_input->create(shader_type_index, opt, specializations);
+            }
+
+            // gemm
+            if (use_cooperative_matrix)
+            {
+                Mat weight_winograd43_data_packed_fp16 = Mat(weight_winograd43_data_packed.w, weight_winograd43_data_packed.h, weight_winograd43_data_packed.c, (void*)0, 2u, 1);
+
+                std::vector<vk_specialization_type> specializations(15 + 3);
+                specializations[0].u32 = 6; // batch = number of transformed positions
+                specializations[1].u32 = coopmat_M;
+                specializations[2].u32 = coopmat_N;
+                specializations[3].u32 = coopmat_K;
+                specializations[4].u32 = UNROLL_SG_M;
+                specializations[5].u32 = UNROLL_SG_N;
+                specializations[6].u32 = UNROLL_SG_K;
+                specializations[7].u32 = UNROLL_WG_M;
+                specializations[8].u32 = UNROLL_WG_N;
+                specializations[9].u32 = coopmat_subgroup_size;
+                specializations[10].u32 = num_input;
+                specializations[11].u32 = num_output;
+                specializations[12].u32 = elempack;
+                specializations[13].u32 = out_elempack;
+                specializations[14].u32 = weight_winograd43_data_packed_fp16.cstep;
+                specializations[15 + 0].u32 = 0; // size
+                specializations[15 + 1].u32 = 0; // cstep
+                specializations[15 + 2].u32 = 0; // outcstep
+
+                pipeline_convolution1d_3s1d1_winograd43_gemm = new Pipeline(vkdev);
+                pipeline_convolution1d_3s1d1_winograd43_gemm->set_subgroup_size(coopmat_subgroup_size);
+                pipeline_convolution1d_3s1d1_winograd43_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+                pipeline_convolution1d_3s1d1_winograd43_gemm->create(LayerShaderType::convolution_winograd_gemm_cm, opt, specializations);
+            }
+            else
+            {
+                std::vector<vk_specialization_type> specializations(3 + 3);
+                specializations[0].i = 6; // batch
+                specializations[1].i = num_input / elempack;
+                specializations[2].i = num_output / out_elempack;
+                specializations[3 + 0].i = 0; // cstep
+                specializations[3 + 1].i = 0; // outw
+                specializations[3 + 2].i = 0; // outcstep
+
+                int shader_type_index = -1;
+                if (elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd_gemm;
+                if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm;
+                if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack1to4_3x3s1d1_winograd_gemm;
+                if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack4to1_3x3s1d1_winograd_gemm;
+
+                pipeline_convolution1d_3s1d1_winograd43_gemm = new Pipeline(vkdev);
+                if (opt.use_shader_local_memory)
+                    pipeline_convolution1d_3s1d1_winograd43_gemm->set_local_size_xyz(8, 8, 1);
+                else
+                    pipeline_convolution1d_3s1d1_winograd43_gemm->set_local_size_xyz(4, std::min(4, num_output / out_elempack), 4);
+                pipeline_convolution1d_3s1d1_winograd43_gemm->create(shader_type_index, opt, specializations);
+            }
+
+            // transform_output
+            {
+                std::vector<vk_specialization_type> specializations(5 + 4);
+                specializations[0].i = bias_term;
+                specializations[1].i = activation_type;
+                specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+                specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+                specializations[4].i = num_output / out_elempack;
+                specializations[5 + 0].i = 0; // cstep
+                specializations[5 + 1].i = 0; // block_x
+                specializations[5 + 2].i = 0; // outw
+                specializations[5 + 3].i = 0; // outcstep
+
+                int shader_type_index = -1;
+                if (out_elempack == 1) shader_type_index = LayerShaderType::convolution1d_3s1d1_winograd43_transform_output;
+                if (out_elempack == 4) shader_type_index = LayerShaderType::convolution1d_packed_3s1d1_winograd43_transform_output;
+
+                pipeline_convolution1d_3s1d1_winograd43_transform_output = new Pipeline(vkdev);
+                pipeline_convolution1d_3s1d1_winograd43_transform_output->set_local_size_xyz(8, 8, 1);
+                pipeline_convolution1d_3s1d1_winograd43_transform_output->create(shader_type_index, opt, specializations);
+            }
+        }
+
+        // === F(2,3) ===
+        if (opt.use_winograd23_convolution)
+        {
+            // 1D weight transform: G (4x3) applied once
+            Mat weight_data_tm;
+            weight_data_tm.create(4, num_input, num_output);
+
+            const float ktm[4][3] = {
+                {1.0f, 0.0f, 0.0f},
+                {1.0f / 2, 1.0f / 2, 1.0f / 2},
+                {1.0f / 2, -1.0f / 2, 1.0f / 2},
+                {0.0f, 0.0f, 1.0f}
+            };
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p = 0; p < num_output; p++)
+            {
+                for (int q = 0; q < num_input; q++)
+                {
+                    const float* kernel0 = (const float*)weight_data + p * num_input * 3 + q * 3;
+                    float* kernel_tm0 = weight_data_tm.channel(p).row(q);
+
+                    for (int i = 0; i < 4; i++)
+                    {
+                        kernel_tm0[i] = kernel0[0] * ktm[i][0] + kernel0[1] * ktm[i][1] + kernel0[2] * ktm[i][2];
+                    }
+                }
+            }
+
+            // Weight packing - same pattern as F(4,3) but with 4 instead of 6
+            if (use_cooperative_matrix)
+            {
+                Mat weight_data_tm_r2(num_input, num_output, 4);
+                for (int k = 0; k < 4; k++)
+                {
+                    float* g00 = weight_data_tm_r2.channel(k);
+                    for (int q = 0; q < num_output; q++)
+                    {
+                        for (int p = 0; p < num_input; p++)
+                        {
+                            *g00++ = weight_data_tm[(q * num_input + p) * 4 + k];
+                        }
+                    }
+                }
+
+                const int blocks_n = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
+                const int kk = (num_input + coopmat_K - 1) / coopmat_K;
+
+                weight_winograd23_data_packed.create(coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n, 4);
+                for (int b = 0; b < 4; b++)
+                {
+                    for (int bn = 0; bn < blocks_n; bn++)
+                    {
+                        float* p = weight_winograd23_data_packed.channel(b).row(bn);
+                        int k = 0;
+                        for (; k + UNROLL_SG_K - 1 < kk; k += UNROLL_SG_K)
+                        {
+                            for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                            {
+                                for (int zk = 0; zk < UNROLL_SG_K; zk++)
+                                {
+                                    for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                                    {
+                                        for (int i = 0; i < coopmat_K; i++)
+                                        {
+                                            for (int j = 0; j < coopmat_N; j++)
+                                            {
+                                                const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                                const int gki = (k + zk) * coopmat_K + i;
+                                                if (gni < num_output && gki < num_input)
+                                                    *p++ = weight_data_tm_r2.channel(b)[gni * num_input + gki];
+                                                else
+                                                    *p++ = 0.f;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        for (; k < kk; k++)
+                        {
+                            for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                            {
+                                for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                                {
+                                    for (int i = 0; i < coopmat_K; i++)
+                                    {
+                                        for (int j = 0; j < coopmat_N; j++)
+                                        {
+                                            const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                            const int gki = k * coopmat_K + i;
+                                            if (gni < num_output && gki < num_input)
+                                                *p++ = weight_data_tm_r2.channel(b)[gni * num_input + gki];
+                                            else
+                                                *p++ = 0.f;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                weight_winograd23_data_packed.create(num_input / elempack, num_output / out_elempack, 4, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+                for (int k = 0; k < 4; k++)
+                {
+                    float* g00 = weight_winograd23_data_packed.channel(k);
+                    for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+                    {
+                        for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
+                        {
+                            for (int i = 0; i < out_elempack; i++)
+                            {
+                                const Mat k0 = weight_data_tm.channel(q + i);
+                                for (int j = 0; j < elempack; j++)
+                                {
+                                    const float* k00 = k0.row(p + j);
+                                    g00[0] = k00[k];
+                                    g00++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Create F(2,3) pipelines (same pattern as F(4,3) but with 4 instead of 6, and winograd23 shader names)
+            // transform_input
+            {
+                std::vector<vk_specialization_type> specializations(1 + 4);
+                specializations[0].i = num_input / elempack;
+                specializations[1 + 0].i = 0;
+                specializations[1 + 1].i = 0;
+                specializations[1 + 2].i = 0;
+                specializations[1 + 3].i = 0;
+
+                int shader_type_index = -1;
+                if (elempack == 1) shader_type_index = LayerShaderType::convolution1d_3s1d1_winograd23_transform_input;
+                if (elempack == 4) shader_type_index = LayerShaderType::convolution1d_packed_3s1d1_winograd23_transform_input;
+
+                pipeline_convolution1d_3s1d1_winograd23_transform_input = new Pipeline(vkdev);
+                pipeline_convolution1d_3s1d1_winograd23_transform_input->set_local_size_xyz(8, 8, 1);
+                pipeline_convolution1d_3s1d1_winograd23_transform_input->create(shader_type_index, opt, specializations);
+            }
+
+            // gemm
+            if (use_cooperative_matrix)
+            {
+                Mat weight_winograd23_data_packed_fp16 = Mat(weight_winograd23_data_packed.w, weight_winograd23_data_packed.h, weight_winograd23_data_packed.c, (void*)0, 2u, 1);
+
+                std::vector<vk_specialization_type> specializations(15 + 3);
+                specializations[0].u32 = 4; // batch
+                specializations[1].u32 = coopmat_M;
+                specializations[2].u32 = coopmat_N;
+                specializations[3].u32 = coopmat_K;
+                specializations[4].u32 = UNROLL_SG_M;
+                specializations[5].u32 = UNROLL_SG_N;
+                specializations[6].u32 = UNROLL_SG_K;
+                specializations[7].u32 = UNROLL_WG_M;
+                specializations[8].u32 = UNROLL_WG_N;
+                specializations[9].u32 = coopmat_subgroup_size;
+                specializations[10].u32 = num_input;
+                specializations[11].u32 = num_output;
+                specializations[12].u32 = elempack;
+                specializations[13].u32 = out_elempack;
+                specializations[14].u32 = weight_winograd23_data_packed_fp16.cstep;
+                specializations[15 + 0].u32 = 0;
+                specializations[15 + 1].u32 = 0;
+                specializations[15 + 2].u32 = 0;
+
+                pipeline_convolution1d_3s1d1_winograd23_gemm = new Pipeline(vkdev);
+                pipeline_convolution1d_3s1d1_winograd23_gemm->set_subgroup_size(coopmat_subgroup_size);
+                pipeline_convolution1d_3s1d1_winograd23_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+                pipeline_convolution1d_3s1d1_winograd23_gemm->create(LayerShaderType::convolution_winograd_gemm_cm, opt, specializations);
+            }
+            else
+            {
+                std::vector<vk_specialization_type> specializations(3 + 3);
+                specializations[0].i = 4;
+                specializations[1].i = num_input / elempack;
+                specializations[2].i = num_output / out_elempack;
+                specializations[3 + 0].i = 0;
+                specializations[3 + 1].i = 0;
+                specializations[3 + 2].i = 0;
+
+                int shader_type_index = -1;
+                if (elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd_gemm;
+                if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm;
+                if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack1to4_3x3s1d1_winograd_gemm;
+                if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack4to1_3x3s1d1_winograd_gemm;
+
+                pipeline_convolution1d_3s1d1_winograd23_gemm = new Pipeline(vkdev);
+                if (opt.use_shader_local_memory)
+                    pipeline_convolution1d_3s1d1_winograd23_gemm->set_local_size_xyz(8, 8, 1);
+                else
+                    pipeline_convolution1d_3s1d1_winograd23_gemm->set_local_size_xyz(4, std::min(4, num_output / out_elempack), 4);
+                pipeline_convolution1d_3s1d1_winograd23_gemm->create(shader_type_index, opt, specializations);
+            }
+
+            // transform_output
+            {
+                std::vector<vk_specialization_type> specializations(5 + 4);
+                specializations[0].i = bias_term;
+                specializations[1].i = activation_type;
+                specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+                specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+                specializations[4].i = num_output / out_elempack;
+                specializations[5 + 0].i = 0;
+                specializations[5 + 1].i = 0;
+                specializations[5 + 2].i = 0;
+                specializations[5 + 3].i = 0;
+
+                int shader_type_index = -1;
+                if (out_elempack == 1) shader_type_index = LayerShaderType::convolution1d_3s1d1_winograd23_transform_output;
+                if (out_elempack == 4) shader_type_index = LayerShaderType::convolution1d_packed_3s1d1_winograd23_transform_output;
+
+                pipeline_convolution1d_3s1d1_winograd23_transform_output = new Pipeline(vkdev);
+                pipeline_convolution1d_3s1d1_winograd23_transform_output->set_local_size_xyz(8, 8, 1);
+                pipeline_convolution1d_3s1d1_winograd23_transform_output->create(shader_type_index, opt, specializations);
+            }
         }
     }
 
@@ -618,6 +1098,20 @@ int Convolution1D_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_convolution1d_gemm;
     pipeline_convolution1d_gemm = 0;
 
+    delete pipeline_convolution1d_3s1d1_winograd23_transform_input;
+    delete pipeline_convolution1d_3s1d1_winograd23_gemm;
+    delete pipeline_convolution1d_3s1d1_winograd23_transform_output;
+    pipeline_convolution1d_3s1d1_winograd23_transform_input = 0;
+    pipeline_convolution1d_3s1d1_winograd23_gemm = 0;
+    pipeline_convolution1d_3s1d1_winograd23_transform_output = 0;
+
+    delete pipeline_convolution1d_3s1d1_winograd43_transform_input;
+    delete pipeline_convolution1d_3s1d1_winograd43_gemm;
+    delete pipeline_convolution1d_3s1d1_winograd43_transform_output;
+    pipeline_convolution1d_3s1d1_winograd43_transform_input = 0;
+    pipeline_convolution1d_3s1d1_winograd43_gemm = 0;
+    pipeline_convolution1d_3s1d1_winograd43_transform_output = 0;
+
     use_cooperative_matrix = false;
     coopmat_M = 0;
     coopmat_N = 0;
@@ -644,6 +1138,18 @@ int Convolution1D_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
 
     weight_data_packed.release();
+
+    if (pipeline_convolution1d_3s1d1_winograd43_gemm)
+    {
+        cmd.record_upload(weight_winograd43_data_packed, weight_data_gpu_tm_winograd43, opt);
+        weight_winograd43_data_packed.release();
+    }
+
+    if (pipeline_convolution1d_3s1d1_winograd23_gemm)
+    {
+        cmd.record_upload(weight_winograd23_data_packed, weight_data_gpu_tm_winograd23, opt);
+        weight_winograd23_data_packed.release();
+    }
 
     if (bias_term)
     {
@@ -734,6 +1240,236 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     const int num_input = bottom_blob_bordered.h * elempack;
+
+    bool is_conv3s1d1 = kernel_w == 3 && stride_w == 1 && dilation_w == 1;
+
+    if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3s1d1 && num_input >= 16 && num_output >= 16)
+    {
+        bool pre_winograd43 = opt.use_winograd43_convolution;
+        if (opt.use_winograd23_convolution)
+        {
+            if (vkdev->info.type() == 0 && w <= 18)
+                pre_winograd43 = false;
+            if (vkdev->info.type() != 0 && w <= 12)
+                pre_winograd43 = false;
+
+            if (use_cooperative_matrix && w <= 18)
+                pre_winograd43 = false;
+        }
+
+        if (pre_winograd43)
+        {
+            // winograd43
+            int block_x = (outw + 3) / 4;
+
+            // transform input
+            VkMat bottom_tm_blob;
+            {
+                bottom_tm_blob.create(block_x, 1, num_input / elempack * 6, elemsize, elempack, opt.workspace_vkallocator);
+                if (bottom_tm_blob.empty())
+                    return -100;
+
+                std::vector<VkMat> bindings(2);
+                bindings[0] = bottom_blob_bordered;
+                bindings[1] = bottom_tm_blob;
+
+                std::vector<vk_constant_type> constants(4);
+                constants[0].i = bottom_blob_bordered.w;
+                constants[1].i = bottom_blob_bordered.cstep;
+                constants[2].i = bottom_tm_blob.cstep;
+                constants[3].i = block_x;
+
+                VkMat dispatcher;
+                dispatcher.w = block_x;
+                dispatcher.h = 1;
+                dispatcher.c = num_input / elempack;
+
+                cmd.record_pipeline(pipeline_convolution1d_3s1d1_winograd43_transform_input, bindings, constants, dispatcher);
+            }
+
+            // gemm
+            VkMat top_tm_blob;
+            {
+                top_tm_blob.create(block_x, 1, num_output / out_elempack * 6, out_elemsize, out_elempack, opt.workspace_vkallocator);
+                if (top_tm_blob.empty())
+                    return -100;
+
+                if (use_cooperative_matrix)
+                {
+                    std::vector<VkMat> bindings(3);
+                    bindings[0] = bottom_tm_blob;
+                    bindings[1] = top_tm_blob;
+                    bindings[2] = weight_data_gpu_tm_winograd43;
+
+                    std::vector<vk_constant_type> constants(3);
+                    constants[0].i = bottom_tm_blob.w;
+                    constants[1].i = bottom_tm_blob.cstep;
+                    constants[2].i = top_tm_blob.cstep;
+
+                    const int blocks_x = (bottom_tm_blob.w + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
+                    const int blocks_y = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
+
+                    VkMat dispatcher;
+                    dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
+                    dispatcher.h = 1;
+                    dispatcher.c = 6;
+
+                    cmd.record_pipeline(pipeline_convolution1d_3s1d1_winograd43_gemm, bindings, constants, dispatcher);
+                }
+                else
+                {
+                    std::vector<VkMat> bindings(3);
+                    bindings[0] = bottom_tm_blob;
+                    bindings[1] = top_tm_blob;
+                    bindings[2] = weight_data_gpu_tm_winograd43;
+
+                    std::vector<vk_constant_type> constants(3);
+                    constants[0].i = bottom_tm_blob.cstep;
+                    constants[1].i = top_tm_blob.w;
+                    constants[2].i = top_tm_blob.cstep;
+
+                    VkMat dispatcher;
+                    dispatcher.w = (top_tm_blob.w + 3) / 4;
+                    dispatcher.h = num_output / out_elempack;
+                    dispatcher.c = 6;
+
+                    cmd.record_pipeline(pipeline_convolution1d_3s1d1_winograd43_gemm, bindings, constants, dispatcher);
+                }
+            }
+
+            // transform output
+            {
+                top_blob.create(outw, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+                if (top_blob.empty())
+                    return -100;
+
+                std::vector<VkMat> bindings(3);
+                bindings[0] = top_tm_blob;
+                bindings[1] = top_blob;
+                bindings[2] = bias_data_gpu;
+
+                std::vector<vk_constant_type> constants(4);
+                constants[0].i = top_tm_blob.cstep;
+                constants[1].i = block_x;
+                constants[2].i = top_blob.w;
+                constants[3].i = top_blob.cstep;
+
+                VkMat dispatcher;
+                dispatcher.w = block_x;
+                dispatcher.h = 1;
+                dispatcher.c = num_output / out_elempack;
+
+                cmd.record_pipeline(pipeline_convolution1d_3s1d1_winograd43_transform_output, bindings, constants, dispatcher);
+            }
+        }
+        else
+        {
+            // winograd23
+            int block_x = (outw + 1) / 2;
+
+            // transform input
+            VkMat bottom_tm_blob;
+            {
+                bottom_tm_blob.create(block_x, 1, num_input / elempack * 4, elemsize, elempack, opt.workspace_vkallocator);
+                if (bottom_tm_blob.empty())
+                    return -100;
+
+                std::vector<VkMat> bindings(2);
+                bindings[0] = bottom_blob_bordered;
+                bindings[1] = bottom_tm_blob;
+
+                std::vector<vk_constant_type> constants(4);
+                constants[0].i = bottom_blob_bordered.w;
+                constants[1].i = bottom_blob_bordered.cstep;
+                constants[2].i = bottom_tm_blob.cstep;
+                constants[3].i = block_x;
+
+                VkMat dispatcher;
+                dispatcher.w = block_x;
+                dispatcher.h = 1;
+                dispatcher.c = num_input / elempack;
+
+                cmd.record_pipeline(pipeline_convolution1d_3s1d1_winograd23_transform_input, bindings, constants, dispatcher);
+            }
+
+            // gemm
+            VkMat top_tm_blob;
+            {
+                top_tm_blob.create(block_x, 1, num_output / out_elempack * 4, out_elemsize, out_elempack, opt.workspace_vkallocator);
+                if (top_tm_blob.empty())
+                    return -100;
+
+                if (use_cooperative_matrix)
+                {
+                    std::vector<VkMat> bindings(3);
+                    bindings[0] = bottom_tm_blob;
+                    bindings[1] = top_tm_blob;
+                    bindings[2] = weight_data_gpu_tm_winograd23;
+
+                    std::vector<vk_constant_type> constants(3);
+                    constants[0].i = bottom_tm_blob.w;
+                    constants[1].i = bottom_tm_blob.cstep;
+                    constants[2].i = top_tm_blob.cstep;
+
+                    const int blocks_x = (bottom_tm_blob.w + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
+                    const int blocks_y = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
+
+                    VkMat dispatcher;
+                    dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
+                    dispatcher.h = 1;
+                    dispatcher.c = 4;
+
+                    cmd.record_pipeline(pipeline_convolution1d_3s1d1_winograd23_gemm, bindings, constants, dispatcher);
+                }
+                else
+                {
+                    std::vector<VkMat> bindings(3);
+                    bindings[0] = bottom_tm_blob;
+                    bindings[1] = top_tm_blob;
+                    bindings[2] = weight_data_gpu_tm_winograd23;
+
+                    std::vector<vk_constant_type> constants(3);
+                    constants[0].i = bottom_tm_blob.cstep;
+                    constants[1].i = top_tm_blob.w;
+                    constants[2].i = top_tm_blob.cstep;
+
+                    VkMat dispatcher;
+                    dispatcher.w = (top_tm_blob.w + 3) / 4;
+                    dispatcher.h = num_output / out_elempack;
+                    dispatcher.c = 4;
+
+                    cmd.record_pipeline(pipeline_convolution1d_3s1d1_winograd23_gemm, bindings, constants, dispatcher);
+                }
+            }
+
+            // transform output
+            {
+                top_blob.create(outw, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+                if (top_blob.empty())
+                    return -100;
+
+                std::vector<VkMat> bindings(3);
+                bindings[0] = top_tm_blob;
+                bindings[1] = top_blob;
+                bindings[2] = bias_data_gpu;
+
+                std::vector<vk_constant_type> constants(4);
+                constants[0].i = top_tm_blob.cstep;
+                constants[1].i = block_x;
+                constants[2].i = top_blob.w;
+                constants[3].i = top_blob.cstep;
+
+                VkMat dispatcher;
+                dispatcher.w = block_x;
+                dispatcher.h = 1;
+                dispatcher.c = num_output / out_elempack;
+
+                cmd.record_pipeline(pipeline_convolution1d_3s1d1_winograd23_transform_output, bindings, constants, dispatcher);
+            }
+        }
+
+        return 0;
+    }
 
     bool is_conv1x1s1d1 = kernel_w == 1 && stride_w == 1 && dilation_w == 1;
 

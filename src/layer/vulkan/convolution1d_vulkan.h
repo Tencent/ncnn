@@ -27,13 +27,26 @@ public:
     ncnn::Layer* padding;
 
     Mat weight_data_packed;
+    Mat weight_winograd23_data_packed;
+    Mat weight_winograd43_data_packed;
 
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
+    VkMat weight_data_gpu_tm_winograd23;
+    VkMat weight_data_gpu_tm_winograd43;
 
     Pipeline* pipeline_convolution1d;
     Pipeline* pipeline_convolution1d_1x1s1d1;
     Pipeline* pipeline_convolution1d_gemm;
+
+    // winograd23 and winograd43
+    Pipeline* pipeline_convolution1d_3s1d1_winograd23_transform_input;
+    Pipeline* pipeline_convolution1d_3s1d1_winograd23_gemm;
+    Pipeline* pipeline_convolution1d_3s1d1_winograd23_transform_output;
+
+    Pipeline* pipeline_convolution1d_3s1d1_winograd43_transform_input;
+    Pipeline* pipeline_convolution1d_3s1d1_winograd43_gemm;
+    Pipeline* pipeline_convolution1d_3s1d1_winograd43_transform_output;
 
     // cooperative matrix
     bool use_cooperative_matrix;
