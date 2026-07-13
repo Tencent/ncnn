@@ -2060,7 +2060,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         opt.use_bf16_packed = options[i][4];
         opt.use_bf16_storage = options[i][5];
 
-        int ret = test_layer_opt(layer_type, pd, weights, opt, a, top_blob_count, epsilon, flag | options[i][5]);
+        int ret = test_layer_opt(layer_type, pd, weights, opt, a, top_blob_count, epsilon, flag | options[i][6]);
         if (ret != 0)
             return ret;
     }
@@ -2100,7 +2100,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         opt.use_bf16_packed = options[i][4];
         opt.use_bf16_storage = options[i][5];
 
-        int ret = test_layer_opt(layer_type, pd, weights, opt, a, epsilon, flag | options[i][5]);
+        int ret = test_layer_opt(layer_type, pd, weights, opt, a, epsilon, flag | options[i][6]);
         if (ret != 0)
             return ret;
     }
