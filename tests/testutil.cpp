@@ -884,6 +884,12 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         return 233;
     }
 
+    // FIXME fp16a may produce large error
+    if (_opt.use_fp16_arithmetic)
+    {
+        return 233;
+    }
+
     ncnn::Layer* op = ncnn::create_layer_vulkan(typeindex);
     if (!op)
     {
@@ -922,9 +928,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
     if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
     if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
-
-    // FIXME fp16a may produce large error
-    opt.use_fp16_arithmetic = false;
 
     if (opt.use_bf16_packed || opt.use_bf16_storage)
     {
@@ -1459,6 +1462,12 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         return 233;
     }
 
+    // FIXME fp16a may produce large error
+    if (_opt.use_fp16_arithmetic)
+    {
+        return 233;
+    }
+
     ncnn::Layer* op = ncnn::create_layer_vulkan(typeindex);
     if (!op)
     {
@@ -1498,9 +1507,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
     if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
     if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
-
-    // FIXME fp16a may produce large error
-    opt.use_fp16_arithmetic = false;
 
     if (opt.use_bf16_packed || opt.use_bf16_storage)
     {
@@ -2463,7 +2469,7 @@ int test_layer_oom_opt(const char* layer_type, const ncnn::ParamDict& pd, const 
 
 int test_layer_oom(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const std::vector<ncnn::Mat>& a, int top_blob_count, int flag)
 {
-    // pack fp16p fp16s fp16a bf16s
+    // pack fp16p fp16s fp16a bf16p/bf16s
     const int options[][5] = {
         {0, 0, 0, 0, 0},
         {0, 0, 1, 0, 0},
@@ -2498,7 +2504,7 @@ int test_layer_oom(const char* layer_type, const ncnn::ParamDict& pd, const std:
 
 int test_layer_oom(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Mat& a, int flag)
 {
-    // pack fp16p fp16s fp16a bf16s
+    // pack fp16p fp16s fp16a bf16p/bf16s
     const int options[][5] = {
         {0, 0, 0, 0, 0},
         {0, 0, 1, 0, 0},
