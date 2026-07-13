@@ -4584,8 +4584,13 @@ static int gemm_AT_BT_arm(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_b
 
 int Gemm_arm::create_pipeline(const Option& opt)
 {
+    if (weight_block_quantize)
+    {
+        return 0;
+    }
+
 #if NCNN_INT8
-    if (int8_scale_term)
+    if (quantize_term)
     {
         return create_pipeline_int8(opt);
     }
@@ -4742,8 +4747,13 @@ int Gemm_arm::create_pipeline(const Option& opt)
 
 int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    if (weight_block_quantize)
+    {
+        return Gemm::forward(bottom_blobs, top_blobs, opt);
+    }
+
 #if NCNN_INT8
-    if (int8_scale_term)
+    if (quantize_term)
     {
         return forward_int8(bottom_blobs, top_blobs, opt);
     }

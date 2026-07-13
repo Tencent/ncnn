@@ -49,8 +49,14 @@ Gemm_vulkan::Gemm_vulkan()
 
 int Gemm_vulkan::create_pipeline(const Option& opt)
 {
+    if (weight_block_quantize)
+    {
+        NCNN_LOGE("Gemm weight block quantization is not supported by Vulkan");
+        return -1;
+    }
+
 #if NCNN_INT8
-    if (int8_scale_term)
+    if (quantize_term)
     {
         return create_pipeline_int8(opt);
     }
@@ -651,8 +657,14 @@ int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int Gemm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
+    if (weight_block_quantize)
+    {
+        NCNN_LOGE("Gemm weight block quantization is not supported by Vulkan");
+        return -1;
+    }
+
 #if NCNN_INT8
-    if (int8_scale_term)
+    if (quantize_term)
     {
         return upload_model_int8(cmd, opt);
     }
@@ -684,8 +696,14 @@ int Gemm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
+    if (weight_block_quantize)
+    {
+        NCNN_LOGE("Gemm weight block quantization is not supported by Vulkan");
+        return -1;
+    }
+
 #if NCNN_INT8
-    if (int8_scale_term)
+    if (quantize_term)
     {
         return forward_int8(bottom_blobs, top_blobs, cmd, opt);
     }

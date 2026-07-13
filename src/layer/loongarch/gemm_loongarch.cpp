@@ -7372,8 +7372,13 @@ int Gemm_loongarch::create_pipeline(const Option& opt)
     CT_data.release();
     nT = 0;
 
+    if (weight_block_quantize)
+    {
+        return 0;
+    }
+
 #if NCNN_INT8
-    if (int8_scale_term)
+    if (quantize_term)
     {
         return create_pipeline_int8(opt);
     }
@@ -7522,13 +7527,16 @@ int Gemm_loongarch::create_pipeline(const Option& opt)
 
 int Gemm_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    if (weight_block_quantize)
+    {
+        return Gemm::forward(bottom_blobs, top_blobs, opt);
+    }
+
 #if NCNN_INT8
-#if NCNN_INT8
-    if (int8_scale_term)
+    if (quantize_term)
     {
         return forward_int8(bottom_blobs, top_blobs, opt);
     }
-#endif
 #endif
 
     const Mat& bottom_blob = bottom_blobs.empty() ? AT_data : bottom_blobs[0];
