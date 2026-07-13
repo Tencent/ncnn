@@ -1441,7 +1441,7 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
         if (thread_affinity_mask.mask[g] == 0)
             continue;
 
-#if _WIN32_WINNT >= 0x0600 // Win7+
+#if _WIN32_WINNT >= 0x0601 // Win7+
         GROUP_AFFINITY ga;
         ga.Group = (WORD)g;
         ga.Mask = thread_affinity_mask.mask[g];
