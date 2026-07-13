@@ -29,6 +29,8 @@ Convolution1D_vulkan::Convolution1D_vulkan()
     UNROLL_SG_K = 1;
     UNROLL_WG_M = 1;
     UNROLL_WG_N = 1;
+
+    use_subgroup_ops = false;
 }
 
 int Convolution1D_vulkan::load_param(const ParamDict& pd)
@@ -68,6 +70,61 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
         padding->load_param(pd);
 
         padding->create_pipeline(opt);
+    }
+
+    const int subgroup_size = vkdev->info.subgroup_size();
+    const uint32_t support_subgroup_ops = vkdev->info.support_subgroup_ops();
+    const uint32_t required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+    use_subgroup_ops = opt.use_subgroup_ops && ((support_subgroup_ops & required_subgroup_ops) == required_subgroup_ops);
+    if (subgroup_size < 4 || subgroup_size > 128)
+    {
+        // sanitize wired subgroup_size
+        use_subgroup_ops = false;
+    }
+    if (opt.use_fp16_arithmetic && !opt.use_bf16_storage && !opt.use_bf16_packed && !vkdev->info.queryShaderSubgroupExtendedTypesFeatures().shaderSubgroupExtendedTypes)
+    {
+        // sg shaders shuffle fp16 vectors, which requires subgroup extended types
+        use_subgroup_ops = false;
+    }
+
+    if (use_subgroup_ops)
+    {
+        if (subgroup_size == 128)
+        {
+            UNROLL_SG_M = 16;
+            UNROLL_SG_N = 8;
+            UNROLL_SG_K = 8;
+        }
+        if (subgroup_size == 64)
+        {
+            UNROLL_SG_M = 8;
+            UNROLL_SG_N = 8;
+            UNROLL_SG_K = 8;
+        }
+        if (subgroup_size == 32)
+        {
+            UNROLL_SG_M = 8;
+            UNROLL_SG_N = 4;
+            UNROLL_SG_K = 4;
+        }
+        if (subgroup_size == 16)
+        {
+            UNROLL_SG_M = 4;
+            UNROLL_SG_N = 4;
+            UNROLL_SG_K = 4;
+        }
+        if (subgroup_size == 8)
+        {
+            UNROLL_SG_M = 4;
+            UNROLL_SG_N = 2;
+            UNROLL_SG_K = 2;
+        }
+        if (subgroup_size == 4)
+        {
+            UNROLL_SG_M = 2;
+            UNROLL_SG_N = 2;
+            UNROLL_SG_K = 2;
+        }
     }
 
     bool is_conv1x1s1d1 = kernel_w == 1 && stride_w == 1 && dilation_w == 1;
@@ -484,25 +541,55 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
             }
         }
 
-        std::vector<vk_specialization_type> specializations(9 + 5);
-        specializations[0].i = kernel_w;
-        specializations[1].i = dilation_w;
-        specializations[2].i = stride_w;
-        specializations[3].i = bias_term;
-        specializations[4].i = activation_type;
-        specializations[5].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
-        specializations[6].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-        specializations[7].i = elempack;
-        specializations[8].i = out_elempack;
-        specializations[9 + 0].i = 0;
-        specializations[9 + 1].i = 0;
-        specializations[9 + 2].i = 0;
-        specializations[9 + 3].i = 0;
-        specializations[9 + 4].i = num_output;
+        if (use_subgroup_ops && opt.use_fp16_arithmetic)
+        {
+            std::vector<vk_specialization_type> specializations(9 + 5 + 4);
+            specializations[0].i = kernel_w;
+            specializations[1].i = dilation_w;
+            specializations[2].i = stride_w;
+            specializations[3].i = bias_term;
+            specializations[4].i = activation_type;
+            specializations[5].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+            specializations[6].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+            specializations[7].i = elempack;
+            specializations[8].i = out_elempack;
+            specializations[9 + 0].i = 0;
+            specializations[9 + 1].i = 0;
+            specializations[9 + 2].i = 0;
+            specializations[9 + 3].i = 0;
+            specializations[9 + 4].i = num_output;
+            specializations[14].i = 0;
+            specializations[15].u32 = UNROLL_SG_M;
+            specializations[16].u32 = UNROLL_SG_N;
+            specializations[17].u32 = UNROLL_SG_K;
 
-        pipeline_convolution1d = new Pipeline(vkdev);
-        pipeline_convolution1d->set_optimal_local_size_xyz(1, 1, 1);
-        pipeline_convolution1d->create(LayerShaderType::convolution1d_packed, opt, specializations);
+            pipeline_convolution1d = new Pipeline(vkdev);
+            pipeline_convolution1d->set_subgroup_size(subgroup_size);
+            pipeline_convolution1d->set_local_size_xyz(subgroup_size, 1, 1);
+            pipeline_convolution1d->create(LayerShaderType::convolution1d_packed_sg, opt, specializations);
+        }
+        else
+        {
+            std::vector<vk_specialization_type> specializations(9 + 5);
+            specializations[0].i = kernel_w;
+            specializations[1].i = dilation_w;
+            specializations[2].i = stride_w;
+            specializations[3].i = bias_term;
+            specializations[4].i = activation_type;
+            specializations[5].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+            specializations[6].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+            specializations[7].i = elempack;
+            specializations[8].i = out_elempack;
+            specializations[9 + 0].i = 0;
+            specializations[9 + 1].i = 0;
+            specializations[9 + 2].i = 0;
+            specializations[9 + 3].i = 0;
+            specializations[9 + 4].i = num_output;
+
+            pipeline_convolution1d = new Pipeline(vkdev);
+            pipeline_convolution1d->set_optimal_local_size_xyz(1, 1, 1);
+            pipeline_convolution1d->create(LayerShaderType::convolution1d_packed, opt, specializations);
+        }
     }
 
     if (opt.lightmode)
@@ -541,6 +628,8 @@ int Convolution1D_vulkan::destroy_pipeline(const Option& opt)
     UNROLL_SG_K = 1;
     UNROLL_WG_M = 1;
     UNROLL_WG_N = 1;
+
+    use_subgroup_ops = false;
 
     return 0;
 }
@@ -644,10 +733,11 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
-    const int maxk = kernel_w;
     const int num_input = bottom_blob_bordered.h * elempack;
 
     bool is_conv1x1s1d1 = kernel_w == 1 && stride_w == 1 && dilation_w == 1;
+
+    const int maxk = kernel_w;
 
     bool use_gemm = opt.use_sgemm_convolution
                     && !is_conv1x1s1d1
@@ -819,9 +909,21 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     constants[4].i = num_output;
 
     VkMat dispatcher;
-    dispatcher.w = (top_blob.w + 1) / 2;
-    dispatcher.h = (outh_pack4 + 1) / 2;
-    dispatcher.c = 1;
+    if (use_subgroup_ops && opt.use_fp16_arithmetic)
+    {
+        const int blocks_x = (top_blob.w + UNROLL_SG_M * 4 - 1) / (UNROLL_SG_M * 4);
+        const int blocks_y = (outh_pack4 + UNROLL_SG_N - 1) / UNROLL_SG_N;
+
+        dispatcher.w = (blocks_x * blocks_y) * vkdev->info.subgroup_size();
+        dispatcher.h = 1;
+        dispatcher.c = 1;
+    }
+    else
+    {
+        dispatcher.w = (top_blob.w + 1) / 2;
+        dispatcher.h = (outh_pack4 + 1) / 2;
+        dispatcher.c = 1;
+    }
 
     cmd.record_pipeline(pipeline_convolution1d, bindings, constants, dispatcher);
 

@@ -1,0 +1,347 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_GOOGLE_include_directive : require
+#include "vulkan_activation.comp"
+
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_shuffle : require
+#if NCNN_fp16_arithmetic && !NCNN_bf16_storage && !NCNN_bf16_packed
+#extension GL_EXT_shader_subgroup_extended_types_float16 : require
+#endif
+
+// direct conv1d with subgroup cooperative loading
+// each workgroup (one subgroup) computes a tile of
+//   (UNROLL_SG_M * 4 spatial positions) x (UNROLL_SG_N * 4 output channels)
+// lane (smi, sni) accumulates 4 spatial positions x 1 output channel pack
+// per k-step, lanes cooperatively load UNROLL_SG_K slices of input/weight
+// and share them via subgroup shuffle
+//
+// weight layout is identical to convolution1d_packed:
+//   elempack == 4: per (out pack, z) there are 4 vec4, vec4 #i holds the
+//                  4 input channel weights of output channel i
+//   elempack == 1: per (out pack, z) there is 1 vec4 of 4 output channels
+//   z = input channel (pack) * kernel_w + kernel pos
+
+layout(constant_id = 0) const int kernel_w = 1;
+layout(constant_id = 1) const int dilation_w = 1;
+layout(constant_id = 2) const int stride_w = 1;
+layout(constant_id = 3) const int bias_term = 0;
+layout(constant_id = 4) const int activation_type = 0;
+layout(constant_id = 5) const float activation_param_0 = 0;
+layout(constant_id = 6) const float activation_param_1 = 0;
+layout(constant_id = 7) const int elempack = 1;
+layout(constant_id = 8) const int out_elempack = 1;
+
+#define shape_constant_id_offset 9
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int h = 0;
+
+layout(constant_id = shape_constant_id_offset + 2) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int outh = 0;
+
+layout(constant_id = shape_constant_id_offset + 4) const int num_output = 0;
+
+layout(constant_id = 15) const uint UNROLL_SG_M = 4;
+layout(constant_id = 16) const uint UNROLL_SG_N = 4;
+layout(constant_id = 17) const uint UNROLL_SG_K = 4;
+
+layout(binding = 0) readonly buffer bottom_blob_1 { sfp bottom_blob_data_1[]; };
+layout(binding = 1) writeonly buffer top_blob_1 { sfp top_blob_data_1[]; };
+
+layout(binding = 2) readonly buffer bottom_blob_4 { sfpvec4 bottom_blob_data_4[]; };
+layout(binding = 3) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
+layout(binding = 4) readonly buffer weight_blob { sfpvec4 weight_data[]; };
+layout(binding = 5) readonly buffer bias_blob { sfpvec4 bias_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int w;
+    int h;
+
+    int outw;
+    int outh;
+
+    int num_output;
+} p;
+
+void main()
+{
+    const uint wgi = gl_WorkGroupID.x;
+    const uint si = gl_SubgroupInvocationID;
+
+    const uint wgnn = (uint(psc(outh)) + UNROLL_SG_N - 1) / UNROLL_SG_N;
+
+    const uint wgmi = wgi / wgnn;
+    const uint wgni = wgi % wgnn;
+
+    const uint smi = si / UNROLL_SG_N;
+    const uint sni = si % UNROLL_SG_N;
+
+    // assert gl_SubgroupID == 0
+    // assert gl_LocalInvocationID.x == si
+
+    const int gy = int(wgni * UNROLL_SG_N + sni);
+
+    afpvec4 sum0;
+    afpvec4 sum1;
+    afpvec4 sum2;
+    afpvec4 sum3;
+
+    if (bias_term == 1 && gy < psc(outh))
+    {
+        afpvec4 b = buffer_ld4(bias_data, gy);
+        sum0 = b;
+        sum1 = b;
+        sum2 = b;
+        sum3 = b;
+    }
+    else
+    {
+        sum0 = afpvec4(0.f);
+        sum1 = afpvec4(0.f);
+        sum2 = afpvec4(0.f);
+        sum3 = afpvec4(0.f);
+    }
+
+    const int maxk = kernel_w;
+    const int N = psc(h) * maxk;
+
+    const uint smni = si / UNROLL_SG_K;
+
+    int z = 0;
+    for (; z + int(UNROLL_SG_K) - 1 < N; z += int(UNROLL_SG_K))
+    {
+        const int slk = z + int(si % UNROLL_SG_K);
+
+        const int sz = slk / maxk;
+        const int kx = slk % maxk;
+
+        const ivec4 am4 = ivec4(int(wgmi * UNROLL_SG_M * 4 + smni * 4)) + ivec4(0, 1, 2, 3);
+        const ivec4 apos4 = min(am4 * stride_w + kx * dilation_w, ivec4(psc(w) - 1));
+
+        afpvec4 a0;
+        afpvec4 a1;
+        afpvec4 a2;
+        afpvec4 a3;
+        if (elempack == 4)
+        {
+            a0 = buffer_ld4(bottom_blob_data_4, sz * psc(w) + apos4.r);
+            a1 = buffer_ld4(bottom_blob_data_4, sz * psc(w) + apos4.g);
+            a2 = buffer_ld4(bottom_blob_data_4, sz * psc(w) + apos4.b);
+            a3 = buffer_ld4(bottom_blob_data_4, sz * psc(w) + apos4.a);
+        }
+        else
+        {
+            a0.r = buffer_ld1(bottom_blob_data_1, sz * psc(w) + apos4.r);
+            a0.g = buffer_ld1(bottom_blob_data_1, sz * psc(w) + apos4.g);
+            a0.b = buffer_ld1(bottom_blob_data_1, sz * psc(w) + apos4.b);
+            a0.a = buffer_ld1(bottom_blob_data_1, sz * psc(w) + apos4.a);
+
+            a1 = afpvec4(0.f);
+            a2 = afpvec4(0.f);
+            a3 = afpvec4(0.f);
+        }
+
+        afpvec4 b0 = afpvec4(0.f);
+        afpvec4 b1 = afpvec4(0.f);
+        afpvec4 b2 = afpvec4(0.f);
+        afpvec4 b3 = afpvec4(0.f);
+        {
+            const int bgy = int(wgni * UNROLL_SG_N + smni);
+
+            if (bgy < psc(outh))
+            {
+                if (elempack == 4)
+                {
+                    const int w_offset = (bgy * N + slk) * 4;
+
+                    b0 = buffer_ld4(weight_data, w_offset + 0);
+                    b1 = buffer_ld4(weight_data, w_offset + 1);
+                    b2 = buffer_ld4(weight_data, w_offset + 2);
+                    b3 = buffer_ld4(weight_data, w_offset + 3);
+                }
+                else
+                {
+                    b0 = buffer_ld4(weight_data, bgy * N + slk);
+                }
+            }
+        }
+
+        for (uint z4 = 0; z4 < UNROLL_SG_K; z4++)
+        {
+            const afpvec4 v0 = subgroupShuffle(a0, smi * UNROLL_SG_K + z4);
+            const afpvec4 b0s = subgroupShuffle(b0, sni * UNROLL_SG_K + z4);
+
+            if (elempack == 4)
+            {
+                const afpvec4 v1 = subgroupShuffle(a1, smi * UNROLL_SG_K + z4);
+                const afpvec4 v2 = subgroupShuffle(a2, smi * UNROLL_SG_K + z4);
+                const afpvec4 v3 = subgroupShuffle(a3, smi * UNROLL_SG_K + z4);
+
+                const afpvec4 k1 = subgroupShuffle(b1, sni * UNROLL_SG_K + z4);
+                const afpvec4 k2 = subgroupShuffle(b2, sni * UNROLL_SG_K + z4);
+                const afpvec4 k3 = subgroupShuffle(b3, sni * UNROLL_SG_K + z4);
+
+                const afpmat4 k = afpmat4(b0s, k1, k2, k3);
+
+                sum0 += v0 * k;
+                sum1 += v1 * k;
+                sum2 += v2 * k;
+                sum3 += v3 * k;
+            }
+            else
+            {
+                sum0 += v0.r * b0s;
+                sum1 += v0.g * b0s;
+                sum2 += v0.b * b0s;
+                sum3 += v0.a * b0s;
+            }
+        }
+    }
+
+    if (z < N)
+    {
+        const int slk = z + int(si % UNROLL_SG_K);
+
+        afpvec4 a0 = afpvec4(0.f);
+        afpvec4 a1 = afpvec4(0.f);
+        afpvec4 a2 = afpvec4(0.f);
+        afpvec4 a3 = afpvec4(0.f);
+        if (slk < N)
+        {
+            const int sz = slk / maxk;
+            const int kx = slk % maxk;
+
+            const ivec4 am4 = ivec4(int(wgmi * UNROLL_SG_M * 4 + smni * 4)) + ivec4(0, 1, 2, 3);
+            const ivec4 apos4 = min(am4 * stride_w + kx * dilation_w, ivec4(psc(w) - 1));
+
+            if (elempack == 4)
+            {
+                a0 = buffer_ld4(bottom_blob_data_4, sz * psc(w) + apos4.r);
+                a1 = buffer_ld4(bottom_blob_data_4, sz * psc(w) + apos4.g);
+                a2 = buffer_ld4(bottom_blob_data_4, sz * psc(w) + apos4.b);
+                a3 = buffer_ld4(bottom_blob_data_4, sz * psc(w) + apos4.a);
+            }
+            else
+            {
+                a0.r = buffer_ld1(bottom_blob_data_1, sz * psc(w) + apos4.r);
+                a0.g = buffer_ld1(bottom_blob_data_1, sz * psc(w) + apos4.g);
+                a0.b = buffer_ld1(bottom_blob_data_1, sz * psc(w) + apos4.b);
+                a0.a = buffer_ld1(bottom_blob_data_1, sz * psc(w) + apos4.a);
+            }
+        }
+
+        afpvec4 b0 = afpvec4(0.f);
+        afpvec4 b1 = afpvec4(0.f);
+        afpvec4 b2 = afpvec4(0.f);
+        afpvec4 b3 = afpvec4(0.f);
+        {
+            const int bgy = int(wgni * UNROLL_SG_N + smni);
+
+            if (slk < N && bgy < psc(outh))
+            {
+                if (elempack == 4)
+                {
+                    const int w_offset = (bgy * N + slk) * 4;
+
+                    b0 = buffer_ld4(weight_data, w_offset + 0);
+                    b1 = buffer_ld4(weight_data, w_offset + 1);
+                    b2 = buffer_ld4(weight_data, w_offset + 2);
+                    b3 = buffer_ld4(weight_data, w_offset + 3);
+                }
+                else
+                {
+                    b0 = buffer_ld4(weight_data, bgy * N + slk);
+                }
+            }
+        }
+
+        for (uint z4 = 0; z4 < UNROLL_SG_K && z + int(z4) < N; z4++)
+        {
+            const afpvec4 v0 = subgroupShuffle(a0, smi * UNROLL_SG_K + z4);
+            const afpvec4 b0s = subgroupShuffle(b0, sni * UNROLL_SG_K + z4);
+
+            if (elempack == 4)
+            {
+                const afpvec4 v1 = subgroupShuffle(a1, smi * UNROLL_SG_K + z4);
+                const afpvec4 v2 = subgroupShuffle(a2, smi * UNROLL_SG_K + z4);
+                const afpvec4 v3 = subgroupShuffle(a3, smi * UNROLL_SG_K + z4);
+
+                const afpvec4 k1 = subgroupShuffle(b1, sni * UNROLL_SG_K + z4);
+                const afpvec4 k2 = subgroupShuffle(b2, sni * UNROLL_SG_K + z4);
+                const afpvec4 k3 = subgroupShuffle(b3, sni * UNROLL_SG_K + z4);
+
+                const afpmat4 k = afpmat4(b0s, k1, k2, k3);
+
+                sum0 += v0 * k;
+                sum1 += v1 * k;
+                sum2 += v2 * k;
+                sum3 += v3 * k;
+            }
+            else
+            {
+                sum0 += v0.r * b0s;
+                sum1 += v0.g * b0s;
+                sum2 += v0.b * b0s;
+                sum3 += v0.a * b0s;
+            }
+        }
+    }
+
+    const ivec4 gx4 = ivec4(int(wgmi * UNROLL_SG_M * 4 + smi * 4)) + ivec4(0, 1, 2, 3);
+
+    if (gx4.r >= psc(outw) || gy >= psc(outh))
+        return;
+
+    sum0 = activation_afpvec4(sum0, activation_type, activation_param_0, activation_param_1);
+    sum1 = activation_afpvec4(sum1, activation_type, activation_param_0, activation_param_1);
+    sum2 = activation_afpvec4(sum2, activation_type, activation_param_0, activation_param_1);
+    sum3 = activation_afpvec4(sum3, activation_type, activation_param_0, activation_param_1);
+
+    if (out_elempack == 4)
+    {
+        const int gi = gy * psc(outw) + gx4.r;
+
+        buffer_st4(top_blob_data_4, gi, sum0);
+        if (gx4.g < psc(outw)) buffer_st4(top_blob_data_4, gi + 1, sum1);
+        if (gx4.b < psc(outw)) buffer_st4(top_blob_data_4, gi + 2, sum2);
+        if (gx4.a < psc(outw)) buffer_st4(top_blob_data_4, gi + 3, sum3);
+    }
+    else
+    {
+        const int base_ch = gy * 4;
+        const int nout = psc(num_output);
+        const int outcstep = psc(outw);
+        const int gi = base_ch * outcstep + gx4.r;
+
+        buffer_st1(top_blob_data_1, gi, sum0.r);
+        if (base_ch + 1 < nout) buffer_st1(top_blob_data_1, gi + outcstep, sum0.g);
+        if (base_ch + 2 < nout) buffer_st1(top_blob_data_1, gi + outcstep * 2, sum0.b);
+        if (base_ch + 3 < nout) buffer_st1(top_blob_data_1, gi + outcstep * 3, sum0.a);
+
+        if (gx4.g < psc(outw))
+        {
+            buffer_st1(top_blob_data_1, gi + 1, sum1.r);
+            if (base_ch + 1 < nout) buffer_st1(top_blob_data_1, gi + 1 + outcstep, sum1.g);
+            if (base_ch + 2 < nout) buffer_st1(top_blob_data_1, gi + 1 + outcstep * 2, sum1.b);
+            if (base_ch + 3 < nout) buffer_st1(top_blob_data_1, gi + 1 + outcstep * 3, sum1.a);
+        }
+        if (gx4.b < psc(outw))
+        {
+            buffer_st1(top_blob_data_1, gi + 2, sum2.r);
+            if (base_ch + 1 < nout) buffer_st1(top_blob_data_1, gi + 2 + outcstep, sum2.g);
+            if (base_ch + 2 < nout) buffer_st1(top_blob_data_1, gi + 2 + outcstep * 2, sum2.b);
+            if (base_ch + 3 < nout) buffer_st1(top_blob_data_1, gi + 2 + outcstep * 3, sum2.a);
+        }
+        if (gx4.a < psc(outw))
+        {
+            buffer_st1(top_blob_data_1, gi + 3, sum3.r);
+            if (base_ch + 1 < nout) buffer_st1(top_blob_data_1, gi + 3 + outcstep, sum3.g);
+            if (base_ch + 2 < nout) buffer_st1(top_blob_data_1, gi + 3 + outcstep * 2, sum3.b);
+            if (base_ch + 3 < nout) buffer_st1(top_blob_data_1, gi + 3 + outcstep * 3, sum3.a);
+        }
+    }
+}

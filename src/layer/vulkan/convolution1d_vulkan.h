@@ -46,6 +46,9 @@ public:
     int UNROLL_SG_K;
     int UNROLL_WG_M;
     int UNROLL_WG_N;
+
+    // subgroup ops (shuffle), UNROLL_SG_M/N/K shared with cooperative matrix
+    bool use_subgroup_ops;
 };
 
 } // namespace ncnn
