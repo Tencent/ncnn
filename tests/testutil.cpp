@@ -928,8 +928,8 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     // skip test for missed gpu capability
     if ((_opt.use_fp16_storage && !opt.use_fp16_storage)
-        || (_opt.use_fp16_arithmetic && !opt.use_fp16_arithmetic)
-        || (_opt.use_bf16_storage && !opt.use_bf16_storage))
+            || (_opt.use_fp16_arithmetic && !opt.use_fp16_arithmetic)
+            || (_opt.use_bf16_storage && !opt.use_bf16_storage))
     {
         delete op;
         return 233;
@@ -1513,8 +1513,8 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     // skip test for missed gpu capability
     if ((_opt.use_fp16_storage && !opt.use_fp16_storage)
-        || (_opt.use_fp16_arithmetic && !opt.use_fp16_arithmetic)
-        || (_opt.use_bf16_storage && !opt.use_bf16_storage))
+            || (_opt.use_fp16_arithmetic && !opt.use_fp16_arithmetic)
+            || (_opt.use_bf16_storage && !opt.use_bf16_storage))
     {
         delete op;
         return 233;
