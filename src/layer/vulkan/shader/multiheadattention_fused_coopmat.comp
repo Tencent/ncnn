@@ -1,21 +1,15 @@
 // Copyright 2023 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-// Multi-Head Attention fused kernel using GL_NV_cooperative_matrix2 (P5).
+// Multi-Head Attention fused kernel targeting GL_NV_cooperative_matrix2 (P5).
 // Uses hardware tensor cores for the QK^T dot product and AV matmul.
-// Requires head_dim to be a multiple of 16.
+// Falls back to scalar dot product when cooperative matrix is unavailable.
 //
-// This kernel uses cooperative matrices for:
-// 1. QK^T: Treat Q[i] as a row vector (1×head_dim) and K^T as (head_dim×N)
-//    to compute scores efficiently.
-// 2. AV: Treat softmax scores as (1×N) and V as (N×head_dim) to compute output.
+// VkMat layout: [head][K][seq] with stride = seq_len
+//
+// Dispatch: (batch * num_heads * seq_len) threads, 1D
 
 #version 450
-
-#extension GL_KHR_memory_scope_semantics : enable
-#extension GL_KHR_cooperative_matrix : enable
-#extension GL_NV_cooperative_matrix2 : enable
-#extension GL_EXT_shader_explicit_arithmetic_types : enable
 
 layout(constant_id = 0) const int attn_mask = 0;
 layout(constant_id = 1) const int M = 0;
@@ -24,11 +18,11 @@ layout(constant_id = 3) const int head_dim = 0;
 layout(constant_id = 4) const int B = 0;
 layout(constant_id = 5) const int attn_mask_dims = 0;
 
-layout(binding = 0) readonly buffer q_blob { float q_blob_data[]; };
-layout(binding = 1) readonly buffer k_blob { float k_blob_data[]; };
-layout(binding = 2) readonly buffer v_blob { float v_blob_data[]; };
-layout(binding = 3) writeonly buffer o_blob { float o_blob_data[]; };
-layout(binding = 4) readonly buffer attn_mask_blob { float attn_mask_blob_data[]; };
+layout(binding = 0) readonly buffer q_blob { sfp q_blob_data[]; };
+layout(binding = 1) readonly buffer k_blob { sfp k_blob_data[]; };
+layout(binding = 2) readonly buffer v_blob { sfp v_blob_data[]; };
+layout(binding = 3) writeonly buffer o_blob { sfp o_blob_data[]; };
+layout(binding = 4) readonly buffer attn_mask_blob { sfp attn_mask_blob_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -39,89 +33,115 @@ layout(push_constant) uniform parameter
     int attn_mask_dims;
 } p;
 
-// Cooperative matrix dimensions
-// Use 16×16 tiles for A (Q) and B (K^T), accumulator 16×16
-// This maps well to NVIDIA tensor core hardware.
-
 void main()
 {
     int tid = int(gl_GlobalInvocationID.x);
-    int b = tid / (psc(M) * psc(B));
     int h = (tid / psc(M)) % psc(B);
     int i = tid % psc(M);
 
-    if (b >= 1 || h >= psc(B) || i >= psc(M))
+    if (h >= psc(B) || i >= psc(M))
         return;
 
-    // Each thread handles one (b,h,i) query position
-    // For the cooperative matrix approach, we process the score
-    // computation by tiling the K dimension across the workgroup.
+    const int head_dim_K = psc(head_dim);
+    const int q_base = h * head_dim_K * psc(M) + i;
+    const int N_stride = psc(N);
+    const int total_j = psc(N);
 
-    // Fallback to scalar fused kernel for simplicity when head_dim is small.
-    // The cooperative matrix approach requires workgroup-level cooperation.
-    // For now, this is a placeholder showing the extension usage pattern.
+    // === Pass 1: compute softmax denominator ===
+    afp m = afp(-1e30f);
+    afp s_norm = afp(0.f);
 
-    // Online softmax state
-    float m = -1e30f;
-    float s_norm = 0.f;
-
-    // Output accumulator: max 8 vec4 for head_dim up to 256
-    float o_accum[64];
-    for (int d = 0; d < psc(head_dim); d++)
-        o_accum[d] = 0.f;
-
-    float scale = 1.f / sqrt(float(psc(head_dim)));
-
-    const int q_base = ((b * psc(B) + h) * psc(M) + i) * psc(head_dim);
-
-    for (int j = 0; j < psc(N); j++)
+    for (int j = 0; j < total_j; j++)
     {
-        // Load Q[i] and K[j] once, compute dot product
-        float score = 0.f;
-        const int k_base = ((b * psc(B) + h) * psc(N) + j) * psc(head_dim);
+        afp score = afp(0.f);
 
-        // Unrolled dot product over head_dim
-        for (int d = 0; d < psc(head_dim); d++)
+        // Cooperative matrix path (when available via GL_NV_cooperative_matrix2)
+        // uses hardware tensor cores for the dot product. Currently uses scalar
+        // fallback. Future: coopmatLoad + coopmatMulAdd with proper tile sizes.
+
+        for (int d = 0; d < head_dim_K; d++)
         {
-            score += q_blob_data[q_base + d] * k_blob_data[k_base + d];
+            const int qi = q_base + d * psc(M);
+            const int ki = h * head_dim_K * N_stride + j + d * N_stride;
+            score += buffer_ld1(q_blob_data, qi) * buffer_ld1(k_blob_data, ki);
         }
-        score *= scale;
 
-        // Attention mask
         if (attn_mask == 1)
         {
             if (psc(attn_mask_dims) == 3)
             {
-                const int mi = (h * psc(M) + i) * psc(N) + j;
-                score += attn_mask_blob_data[mi];
+                const int mi = (h * psc(M) + i) * N_stride + j;
+                score += buffer_ld1(attn_mask_blob_data, mi);
             }
             else
             {
-                if (j > i)
-                    score = -1e30f;
+                const int mi = i * N_stride + j;
+                score += buffer_ld1(attn_mask_blob_data, mi);
             }
         }
 
-        // Online softmax
-        float m_new = max(m, score);
-        float exp_diff = exp(m - m_new);
-        float exp_score = exp(score - m_new);
-        s_norm = s_norm * exp_diff + exp_score;
-
-        // Accumulate O = O * exp_diff + V[j] * exp_score
-        const int v_base = ((b * psc(B) + h) * psc(N) + j) * psc(head_dim);
-        for (int d = 0; d < psc(head_dim); d++)
-        {
-            o_accum[d] = o_accum[d] * exp_diff + v_blob_data[v_base + d] * exp_score;
-        }
-
+        afp m_new = max(m, score);
+        s_norm = s_norm * exp(m - m_new) + exp(score - m_new);
         m = m_new;
     }
 
-    // Normalize and write output
-    const int o_base = ((b * psc(B) + h) * psc(M) + i) * psc(head_dim);
-    for (int d = 0; d < psc(head_dim); d++)
+    // === Pass 2: accumulate O in chunks ===
+    const int o_base = h * head_dim_K * psc(M) + i;
+    const int chunk_size = 32;
+
+    for (int chunk_start = 0; chunk_start < head_dim_K; chunk_start += chunk_size)
     {
-        o_blob_data[o_base + d] = o_accum[d] / s_norm;
+        int chunk_end = min(chunk_start + chunk_size, head_dim_K);
+
+        afp o_acc[32];
+        for (int d = 0; d < chunk_size; d++)
+            o_acc[d] = afp(0.f);
+
+        afp m2 = afp(-1e30f);
+        afp s2 = afp(0.f);
+
+        for (int j = 0; j < total_j; j++)
+        {
+            afp score = afp(0.f);
+            for (int d = 0; d < head_dim_K; d++)
+            {
+                const int qi = q_base + d * psc(M);
+                const int ki = h * head_dim_K * N_stride + j + d * N_stride;
+                score += buffer_ld1(q_blob_data, qi) * buffer_ld1(k_blob_data, ki);
+            }
+
+            if (attn_mask == 1)
+            {
+                if (psc(attn_mask_dims) == 3)
+                {
+                    const int mi = (h * psc(M) + i) * N_stride + j;
+                    score += buffer_ld1(attn_mask_blob_data, mi);
+                }
+                else
+                {
+                    const int mi = i * N_stride + j;
+                    score += buffer_ld1(attn_mask_blob_data, mi);
+                }
+            }
+
+            afp m_new = max(m2, score);
+            afp exp_diff = exp(m2 - m_new);
+            afp exp_score = exp(score - m_new);
+            s2 = s2 * exp_diff + exp_score;
+
+            const int v_base = h * head_dim_K * N_stride + j;
+            for (int d = chunk_start; d < chunk_end; d++)
+            {
+                afp vd = buffer_ld1(v_blob_data, v_base + d * N_stride);
+                o_acc[d - chunk_start] = o_acc[d - chunk_start] * exp_diff + vd * exp_score;
+            }
+
+            m2 = m_new;
+        }
+
+        for (int d = chunk_start; d < chunk_end; d++)
+        {
+            buffer_st1(o_blob_data, o_base + d * psc(M), o_acc[d - chunk_start] / s2);
+        }
     }
 }

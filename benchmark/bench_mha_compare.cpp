@@ -15,13 +15,14 @@
 #include "modelbin.h"
 #include "paramdict.h"
 
+#if !NCNN_SIMPLESTL
 #include <vector>
+#endif
 
 #if NCNN_VULKAN
 static ncnn::VulkanDevice* g_vkdev = 0;
 static ncnn::VkAllocator* g_blob_vkallocator = 0;
 static ncnn::VkAllocator* g_staging_vkallocator = 0;
-#endif // NCNN_VULKAN
 
 static int g_loop_count = 4;
 static int g_warmup_loop_count = 2;
@@ -38,16 +39,10 @@ void benchmark_mha(
     int seq_len,
     const ncnn::Option& opt)
 {
-    // Prepare random inputs
-    ncnn::Mat q(embed_dim, seq_len);
-    ncnn::Mat k(embed_dim, seq_len);
-    ncnn::Mat v(embed_dim, seq_len);
+    // Create layer using vulkan path
+    ncnn::Layer* layer = ncnn::create_layer_vulkan(ncnn::LayerType::MultiHeadAttention);
+    layer->vkdev = g_vkdev;
 
-    for (int i = 0; i < q.total(); i++) q[i] = randf();
-    for (int i = 0; i < k.total(); i++) k[i] = randf();
-    for (int i = 0; i < v.total(); i++) v[i] = randf();
-
-    // Prepare layer parameters
     ncnn::ParamDict pd;
     pd.set(0, embed_dim);
     pd.set(1, num_heads);
@@ -55,6 +50,8 @@ void benchmark_mha(
     pd.set(3, embed_dim);
     pd.set(4, embed_dim);
     pd.set(5, 0);
+
+    layer->load_param(pd);
 
     // Random weights
     std::vector<ncnn::Mat> weights(8);
@@ -66,21 +63,54 @@ void benchmark_mha(
             weights[i][j] = randf() * 0.1f;
     }
 
-    // Create layer
-    ncnn::Layer* layer = ncnn::create_layer(ncnn::LayerType::MultiHeadAttention);
-    layer->load_param(pd);
     ncnn::ModelBinFromMatArray model_bin(weights.data());
     layer->load_model(model_bin);
     layer->create_pipeline(opt);
 
+    // Prepare random inputs on CPU
+    ncnn::Mat q(embed_dim, seq_len);
+    ncnn::Mat k(embed_dim, seq_len);
+    ncnn::Mat v(embed_dim, seq_len);
+    for (int i = 0; i < q.total(); i++) q[i] = randf();
+    for (int i = 0; i < k.total(); i++) k[i] = randf();
+    for (int i = 0; i < v.total(); i++) v[i] = randf();
+
+    // Upload model and inputs to GPU
+    ncnn::VkTransfer upload(g_vkdev);
+
+    ncnn::VkMat vk_q;
+    ncnn::VkMat vk_k;
+    ncnn::VkMat vk_v;
+    upload.record_upload(q, vk_q, opt);
+    upload.record_upload(k, vk_k, opt);
+    upload.record_upload(v, vk_v, opt);
+
+    // Upload model weights
+    layer->upload_model(upload, opt);
+
+    upload.submit_and_wait();
+
+    std::vector<ncnn::VkMat> bottom_blobs;
+    bottom_blobs.push_back(vk_q);
+    bottom_blobs.push_back(vk_k);
+    bottom_blobs.push_back(vk_v);
+
+    std::vector<ncnn::VkMat> top_blobs(1);
+
     // Warm-up
-    std::vector<ncnn::Mat> bottom_blobs;
-    bottom_blobs.push_back(q);
-    bottom_blobs.push_back(k);
-    bottom_blobs.push_back(v);
-    std::vector<ncnn::Mat> top_blobs(1);
     for (int i = 0; i < g_warmup_loop_count; i++)
-        layer->forward(bottom_blobs, top_blobs, opt);
+    {
+        ncnn::VkCompute cmd_warm(g_vkdev);
+        int ret = layer->forward(bottom_blobs, top_blobs, cmd_warm, opt);
+        if (ret != 0)
+        {
+            fprintf(stderr, "ERROR: warm-up forward returned %d\n", ret);
+            layer->destroy_pipeline(opt);
+            delete layer;
+            return;
+        }
+        cmd_warm.submit_and_wait();
+    }
 
     // Benchmark
     double total_ms = 0.0;
@@ -88,8 +118,17 @@ void benchmark_mha(
     double max_ms = 0.0;
     for (int i = 0; i < g_loop_count; i++)
     {
+        ncnn::VkCompute cmd_bench(g_vkdev);
         double start = ncnn::get_current_time();
-        layer->forward(bottom_blobs, top_blobs, opt);
+        int ret = layer->forward(bottom_blobs, top_blobs, cmd_bench, opt);
+        if (ret != 0)
+        {
+            fprintf(stderr, "ERROR: forward returned %d\n", ret);
+            layer->destroy_pipeline(opt);
+            delete layer;
+            return;
+        }
+        cmd_bench.submit_and_wait();
         double end = ncnn::get_current_time();
         double ms = end - start;
         total_ms += ms;
@@ -115,12 +154,17 @@ int main(int argc, char** argv)
     if (argc >= 3) num_threads = atoi(argv[2]);
     if (argc >= 4) gpu_device = atoi(argv[3]);
 
+    if (loop_count <= 0)
+    {
+        fprintf(stderr, "loop_count must be > 0\n");
+        return -1;
+    }
+
     g_loop_count = loop_count;
 
     printf("loop_count = %d, num_threads = %d, gpu_device = %d\n", loop_count, num_threads, gpu_device);
     fflush(stdout);
 
-#if NCNN_VULKAN
     printf("Creating GPU instance...\n");
     fflush(stdout);
     ncnn::create_gpu_instance();
@@ -136,60 +180,48 @@ int main(int argc, char** argv)
     g_blob_vkallocator = new ncnn::VkBlobAllocator(g_vkdev);
     g_staging_vkallocator = new ncnn::VkStagingAllocator(g_vkdev);
 
-    // === GPU Default (pack=1, unoptimized) ===
+    // === GPU pack1 (baseline) ===
     ncnn::Option opt_default;
     opt_default.num_threads = num_threads;
     opt_default.use_vulkan_compute = true;
-    opt_default.use_packing_layout = false;  // forces pack=1 (baseline shaders)
+    opt_default.use_packing_layout = false;
+    opt_default.use_shader_local_memory = true;
     opt_default.blob_vkallocator = g_blob_vkallocator;
     opt_default.workspace_vkallocator = g_blob_vkallocator;
     opt_default.staging_vkallocator = g_staging_vkallocator;
 
-    printf("\n=== GPU Default (pack=1, baseline shaders) ===\n");
-    benchmark_mha("GPU-Default", 64, 2, 16, opt_default);
-    benchmark_mha("GPU-Default", 64, 2, 64, opt_default);
-    benchmark_mha("GPU-Default", 64, 4, 16, opt_default);
-    benchmark_mha("GPU-Default", 64, 4, 64, opt_default);
-    benchmark_mha("GPU-Default", 128, 4, 16, opt_default);
-    benchmark_mha("GPU-Default", 128, 4, 64, opt_default);
-    benchmark_mha("GPU-Default", 128, 8, 16, opt_default);
-    benchmark_mha("GPU-Default", 128, 8, 64, opt_default);
-    benchmark_mha("GPU-Default", 256, 8, 16, opt_default);
-    benchmark_mha("GPU-Default", 256, 8, 64, opt_default);
-    benchmark_mha("GPU-Default", 512, 8, 16, opt_default);
-    benchmark_mha("GPU-Default", 512, 8, 64, opt_default);
+    printf("\n=== GPU pack1 (8x8 tiles, baseline) ===\n");
+    benchmark_mha("GPU-pack1", 64, 2, 16, opt_default);
+    benchmark_mha("GPU-pack1", 64, 2, 64, opt_default);
+    benchmark_mha("GPU-pack1", 64, 4, 16, opt_default);
+    benchmark_mha("GPU-pack1", 64, 4, 64, opt_default);
+    benchmark_mha("GPU-pack1", 128, 4, 16, opt_default);
+    benchmark_mha("GPU-pack1", 128, 4, 64, opt_default);
 
-    // === GPU Optimized (pack4 + P2 larger shared tile) ===
+    // === GPU pack4 (optimized) ===
     ncnn::Option opt_optimized;
     opt_optimized.num_threads = num_threads;
     opt_optimized.use_vulkan_compute = true;
-    opt_optimized.use_packing_layout = true;  // enables pack4 with P2 optimization
+    opt_optimized.use_packing_layout = true;
+    opt_optimized.use_shader_local_memory = true;
     opt_optimized.blob_vkallocator = g_blob_vkallocator;
     opt_optimized.workspace_vkallocator = g_blob_vkallocator;
     opt_optimized.staging_vkallocator = g_staging_vkallocator;
 
-    printf("\n=== GPU Optimized (pack4 + P2 larger tile 16x16) ===\n");
-    benchmark_mha("GPU-Optimized", 64, 2, 16, opt_optimized);
-    benchmark_mha("GPU-Optimized", 64, 2, 64, opt_optimized);
-    benchmark_mha("GPU-Optimized", 64, 4, 16, opt_optimized);
-    benchmark_mha("GPU-Optimized", 64, 4, 64, opt_optimized);
-    benchmark_mha("GPU-Optimized", 128, 4, 16, opt_optimized);
-    benchmark_mha("GPU-Optimized", 128, 4, 64, opt_optimized);
-    benchmark_mha("GPU-Optimized", 128, 8, 16, opt_optimized);
-    benchmark_mha("GPU-Optimized", 128, 8, 64, opt_optimized);
-    benchmark_mha("GPU-Optimized", 256, 8, 16, opt_optimized);
-    benchmark_mha("GPU-Optimized", 256, 8, 64, opt_optimized);
-    benchmark_mha("GPU-Optimized", 512, 8, 16, opt_optimized);
-    benchmark_mha("GPU-Optimized", 512, 8, 64, opt_optimized);
+    printf("\n=== GPU pack4 (16x16 tiles, optimized) ===\n");
+    benchmark_mha("GPU-pack4", 64, 2, 16, opt_optimized);
+    benchmark_mha("GPU-pack4", 64, 2, 64, opt_optimized);
+    benchmark_mha("GPU-pack4", 64, 4, 16, opt_optimized);
+    benchmark_mha("GPU-pack4", 64, 4, 64, opt_optimized);
+    benchmark_mha("GPU-pack4", 128, 4, 16, opt_optimized);
+    benchmark_mha("GPU-pack4", 128, 4, 64, opt_optimized);
 
     delete g_blob_vkallocator;
     delete g_staging_vkallocator;
     ncnn::destroy_gpu_instance();
-#else
-    fprintf(stderr, "Vulkan not enabled\n");
-    return -1;
-#endif
 
     printf("\nDone.\n");
     return 0;
 }
+
+#endif // NCNN_VULKAN

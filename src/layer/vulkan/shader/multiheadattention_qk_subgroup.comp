@@ -13,6 +13,7 @@
 #version 450
 
 #extension GL_KHR_shader_subgroup_arithmetic : enable
+#extension GL_EXT_shader_subgroup_extended_types_float16 : enable
 
 layout(constant_id = 0) const int attn_mask = 0;
 layout(constant_id = 1) const int M = 0;
@@ -58,39 +59,32 @@ void main()
         }
         else
         {
-            sum = (gx > gy) ? afp(-1e30f) : afp(0.f);
+            const int mi = gy * psc(N) + gx;
+            sum = buffer_ld1(attn_mask_blob_data, mi);
         }
     }
 
-    // Subgroup cooperative dot product:
-    // Each lane loads one element along the K dimension,
-    // multiplies Q and K, then subgroupAdd across the warp.
-    int num_tiles = (psc(K) + subgroup_size - 1) / subgroup_size;
-    for (int t = 0; t < num_tiles; t++)
+    // All lanes share the same (gx, gy, gz) output coordinate.
+    // Each lane loads a different element along the K dimension
+    // and computes a partial product. subgroupAdd reduces across
+    // the warp to produce the final dot product visible to all lanes.
+    //
+    // This avoids the per-thread K-loop and replaces it with
+    // hardware-accelerated warp reduction.
+    for (int k = subgroup_lane; k < psc(K); k += subgroup_size)
     {
-        int k = t * subgroup_size + subgroup_lane;
+        const int ai = gz * psc(M) * psc(K) + k * psc(M) + gy;
+        afp q0 = buffer_ld1(q_blob_data, ai);
 
-        afp q0 = afp(0.f);
-        afp k0 = afp(0.f);
-        if (k < psc(K))
-        {
-            const int ai = gz * psc(M) * psc(K) + k * psc(M) + gy;
-            q0 = buffer_ld1(q_blob_data, ai);
+        const int bi = gz * psc(N) * psc(K) + k * psc(N) + gx;
+        afp k0 = buffer_ld1(k_blob_data, bi);
 
-            const int bi = gz * psc(N) * psc(K) + k * psc(N) + gx;
-            k0 = buffer_ld1(k_blob_data, bi);
-        }
-
-        afp prod = q0 * k0;
-
-        // subgroupAdd returns the sum to ALL active lanes
-        // Only lane 0 accumulates (all lanes have the same sum)
-        sum += subgroupAdd(prod);
+        sum += q0 * k0;
     }
 
-    if (subgroup_lane == 0)
-    {
-        const int gi = gz * psc(M) * psc(N) + gy * psc(N) + gx;
-        buffer_st1(qkcross_blob_data, gi, sum);
-    }
+    // subgroupAdd returns the total dot product to ALL active lanes
+    sum = subgroupAdd(sum);
+
+    const int gi = gz * psc(M) * psc(N) + gy * psc(N) + gx;
+    buffer_st1(qkcross_blob_data, gi, sum);
 }

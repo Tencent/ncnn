@@ -69,9 +69,11 @@ add_dependencies(benchncnn ncnn-generate-param)
 # add benchncnn to a virtual project group
 set_property(TARGET benchncnn PROPERTY FOLDER "benchmark")
 
-add_executable(bench_mha_compare bench_mha_compare.cpp)
-target_link_libraries(bench_mha_compare PRIVATE ncnn)
-set_property(TARGET bench_mha_compare PROPERTY FOLDER "benchmark")
+if(NCNN_VULKAN)
+    add_executable(bench_mha_compare bench_mha_compare.cpp)
+    target_link_libraries(bench_mha_compare PRIVATE ncnn)
+    set_property(TARGET bench_mha_compare PROPERTY FOLDER "benchmark")
+endif()
 
 set(benchncnn_llm_PARAMS
     hunyuan_0.5b_instruct_decoder.ncnn.param

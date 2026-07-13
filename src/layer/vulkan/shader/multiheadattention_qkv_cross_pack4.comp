@@ -45,6 +45,9 @@ void main()
     afpvec4 sum3 = afpvec4(0.f);
 
 #if NCNN_shader_local_memory
+    if (gx >= psc(N) || gy >= psc(M) || gz >= psc(B))
+        return;
+
     const int NN = psc(K);
 
     const int lx = int(gl_LocalInvocationID.x);
