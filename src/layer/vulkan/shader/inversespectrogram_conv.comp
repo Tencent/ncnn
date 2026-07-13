@@ -1,0 +1,108 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+// istft as conv (gather form, no atomics):
+// each thread computes one output sample n
+//   re[n] = sum_j sum_k sp_re[j][k] * w_re_re[k][m] + sp_im[j][k] * w_re_im[k][m]
+//   im[n] = sum_j sum_k sp_re[j][k] * w_im_re[k][m] + sp_im[j][k] * w_im_im[k][m]
+// where m = n + pad - j * hoplen covers all frames overlapping n
+// input is complex spectrogram [c=freqs, h=frames, w=2]
+// dispatch: x = output sample n
+
+layout(constant_id = 0) const int n_fft = 0;
+layout(constant_id = 1) const int hoplen = 0;
+layout(constant_id = 2) const int returns = 0;
+layout(constant_id = 3) const int pad = 0;
+
+layout(binding = 0) readonly buffer sp_blob { sfp sp_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfp top_data[]; };
+layout(binding = 2) readonly buffer weight_blob { sfp weight_data[]; };
+layout(binding = 3) readonly buffer win2_blob { sfp win2_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int frames;
+    int outsize;
+    int sp_c;      // input channels (freqs)
+    int sp_cstep;  // input channel stride
+} p;
+
+void main()
+{
+    int n = int(gl_GlobalInvocationID.x);
+
+    if (n >= p.outsize)
+        return;
+
+    // uncropped position: output n comes from deconv position x
+    int x = n + pad;
+
+    // frames j with tap m = x - j*hoplen in [0, n_fft)
+    int j0 = x - n_fft + 1;
+    j0 = j0 > 0 ? (j0 + hoplen - 1) / hoplen : 0;
+    int j1 = x / hoplen;
+    if (j1 > p.frames - 1)
+        j1 = p.frames - 1;
+
+    const int onesided = (p.sp_c == n_fft / 2 + 1) ? 1 : 0;
+
+    float re = 0.f;
+    float im = 0.f;
+    float ws = 0.f;
+
+    for (int j = j0; j <= j1; j++)
+    {
+        int m = x - j * hoplen;
+
+        ws += float(buffer_ld1(win2_data, m));
+
+        float r0 = 0.f;
+        float i0 = 0.f;
+
+        const int sp_off = j * 2;
+
+        for (int k = 0; k < n_fft; k++)
+        {
+            // conjugate mirror for onesided input
+            int srcbin = k;
+            float imsign = 1.f;
+            if (onesided == 1 && k >= p.sp_c)
+            {
+                srcbin = n_fft - k;
+                imsign = -1.f;
+            }
+
+            float sre = float(buffer_ld1(sp_data, srcbin * p.sp_cstep + sp_off));
+            float sim = float(buffer_ld1(sp_data, srcbin * p.sp_cstep + sp_off + 1)) * imsign;
+
+            const int wk = k * n_fft + m;
+            r0 += sre * float(buffer_ld1(weight_data, wk))
+                + sim * float(buffer_ld1(weight_data, n_fft * n_fft + wk));
+            i0 += sre * float(buffer_ld1(weight_data, 2 * n_fft * n_fft + wk))
+                + sim * float(buffer_ld1(weight_data, 3 * n_fft * n_fft + wk));
+        }
+
+        re += r0;
+        im += i0;
+    }
+
+    // square window overlap-add norm (skip division where zero, as reference)
+    if (ws == 0.f)
+        ws = 1.f;
+
+    if (returns == 0)
+    {
+        buffer_st1(top_data, n * 2 + 0, afp(re / ws));
+        buffer_st1(top_data, n * 2 + 1, afp(im / ws));
+    }
+    else if (returns == 1)
+    {
+        buffer_st1(top_data, n, afp(re / ws));
+    }
+    else
+    {
+        buffer_st1(top_data, n, afp(im / ws));
+    }
+}

@@ -1,0 +1,73 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+// stft as conv: kernel=n_fft stride=hoplen, dft basis as weight
+// weight row i = real basis of bin i, row freqs_onesided + i = imag basis
+// input is the (optionally center-padded) 1D signal
+// dispatch: x = frame j, y = freq bin i
+
+layout(constant_id = 0) const int n_fft = 0;
+layout(constant_id = 1) const int hoplen = 0;
+layout(constant_id = 2) const int freqs_onesided = 0;
+layout(constant_id = 3) const int power = 0;
+layout(constant_id = 4) const int onesided = 1;
+layout(constant_id = 5) const int freqs = 0;
+
+layout(binding = 0) readonly buffer bottom_blob { sfp bottom_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfp top_data[]; };
+layout(binding = 2) readonly buffer weight_blob { sfp weight_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int frames;
+    int cstep;  // top channel stride (power == 0 only)
+} p;
+
+void main()
+{
+    int j = int(gl_GlobalInvocationID.x);
+    int i = int(gl_GlobalInvocationID.y);
+
+    if (j >= p.frames || i >= freqs)
+        return;
+
+    // mirrored high bins reuse low bin weights with negated imag
+    int bin = i;
+    float im_sign = 1.f;
+    if (bin >= freqs_onesided)
+    {
+        bin = n_fft - bin;
+        im_sign = -1.f;
+    }
+
+    float re = 0.f;
+    float im = 0.f;
+
+    const int base = j * hoplen;
+    const int wbase = bin * n_fft;
+    const int wbase_im = (freqs_onesided + bin) * n_fft;
+
+    for (int k = 0; k < n_fft; k++)
+    {
+        float v = float(buffer_ld1(bottom_data, base + k));
+        re += v * float(buffer_ld1(weight_data, wbase + k));
+        im += v * float(buffer_ld1(weight_data, wbase_im + k));
+    }
+
+    im *= im_sign;
+
+    if (power == 0)
+    {
+        // complex as real: [c=freqs, h=frames, w=2]
+        int offset = i * p.cstep + j * 2;
+        buffer_st1(top_data, offset + 0, afp(re));
+        buffer_st1(top_data, offset + 1, afp(im));
+    }
+    else
+    {
+        float v = power == 1 ? sqrt(re * re + im * im) : (re * re + im * im);
+        buffer_st1(top_data, i * p.frames + j, afp(v));
+    }
+}
