@@ -1373,11 +1373,11 @@ static ncnn::CpuSet get_smt_cpu_mask()
         if (ptr->Relationship == RelationProcessorCore)
         {
             ncnn::CpuSet smt_set;
-            smt_set.mask = ptr->ProcessorMask;
+            smt_set.mask[0] = ptr->ProcessorMask;
             if (smt_set.num_enabled() > 1)
             {
                 // this core is smt
-                smt_cpu_mask.mask |= smt_set.mask;
+                smt_cpu_mask.mask[0] |= smt_set.mask[0];
             }
         }
 
@@ -1432,11 +1432,43 @@ static std::vector<int> get_max_freq_mhz()
 
 static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
 {
-    DWORD_PTR prev_mask = SetThreadAffinityMask(GetCurrentThread(), thread_affinity_mask.mask);
-    if (prev_mask == 0)
+    // Build processor group array for multi-group affinity
+    GROUP_AFFINITY groupAffinities[NCNN_MAX_PROCESSOR_GROUPS];
+    WORD groupCount = 0;
+    for (int g = 0; g < NCNN_MAX_PROCESSOR_GROUPS; g++)
     {
-        NCNN_LOGE("SetThreadAffinityMask failed %d", GetLastError());
-        return -1;
+        if (thread_affinity_mask.mask[g])
+        {
+            groupAffinities[groupCount].Group = (WORD)g;
+            groupAffinities[groupCount].Mask = thread_affinity_mask.mask[g];
+            groupAffinities[groupCount].Reserved[0] = 0;
+            groupAffinities[groupCount].Reserved[1] = 0;
+            groupAffinities[groupCount].Reserved[2] = 0;
+            groupCount++;
+        }
+    }
+
+    if (groupCount == 0)
+        return 0;
+
+    // Use legacy API if only one group (backward compatible)
+    if (groupCount == 1)
+    {
+        DWORD_PTR prev_mask = SetThreadAffinityMask(GetCurrentThread(), groupAffinities[0].Mask);
+        if (prev_mask == 0)
+        {
+            NCNN_LOGE("SetThreadAffinityMask failed %d", GetLastError());
+            return -1;
+        }
+    }
+    else
+    {
+        PROCESSOR_NUMBER procNum;
+        if (!SetThreadGroupAffinity(GetCurrentThread(), groupAffinities, NULL))
+        {
+            NCNN_LOGE("SetThreadGroupAffinity failed %d", GetLastError());
+            return -1;
+        }
     }
 
     return 0;
@@ -2273,33 +2305,47 @@ CpuSet::CpuSet()
 
 void CpuSet::enable(int cpu)
 {
-    mask |= ((ULONG_PTR)1 << cpu);
+    const int group = cpu / 64;
+    const int bit = cpu % 64;
+    if (group < NCNN_MAX_PROCESSOR_GROUPS)
+        mask[group] |= (KAFFINITY(1) << bit);
 }
 
 void CpuSet::disable(int cpu)
 {
-    mask &= ~((ULONG_PTR)1 << cpu);
+    const int group = cpu / 64;
+    const int bit = cpu % 64;
+    if (group < NCNN_MAX_PROCESSOR_GROUPS)
+        mask[group] &= ~(KAFFINITY(1) << bit);
 }
 
 void CpuSet::disable_all()
 {
-    mask = 0;
+    for (int g = 0; g < NCNN_MAX_PROCESSOR_GROUPS; g++)
+        mask[g] = 0;
 }
 
 bool CpuSet::is_enabled(int cpu) const
 {
-    return mask & ((ULONG_PTR)1 << cpu);
+    const int group = cpu / 64;
+    const int bit = cpu % 64;
+    if (group >= NCNN_MAX_PROCESSOR_GROUPS)
+        return false;
+    return (mask[group] & (KAFFINITY(1) << bit)) != 0;
 }
 
 int CpuSet::num_enabled() const
 {
     int num_enabled = 0;
-    for (int i = 0; i < (int)sizeof(mask) * 8; i++)
+    for (int g = 0; g < NCNN_MAX_PROCESSOR_GROUPS; g++)
     {
-        if (is_enabled(i))
-            num_enabled++;
+        KAFFINITY m = mask[g];
+        while (m)
+        {
+            num_enabled += (int)(m & 1);
+            m >>= 1;
+        }
     }
-
     return num_enabled;
 }
 #elif defined __ANDROID__ || defined __linux__
