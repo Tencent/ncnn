@@ -1373,11 +1373,11 @@ static ncnn::CpuSet get_smt_cpu_mask()
         if (ptr->Relationship == RelationProcessorCore)
         {
             ncnn::CpuSet smt_set;
-            smt_set.mask[0] = ptr->ProcessorMask;
+            smt_set.mask = ptr->ProcessorMask;
             if (smt_set.num_enabled() > 1)
             {
                 // this core is smt
-                smt_cpu_mask.mask[0] |= smt_set.mask[0];
+                smt_cpu_mask.mask |= smt_set.mask;
             }
         }
 
@@ -1451,24 +1451,14 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
     if (groupCount == 0)
         return 0;
 
-    // Use legacy API if only one group (backward compatible)
-    if (groupCount == 1)
+    // Use SetThreadGroupAffinity for any non-zero group or multi-group case.
+    // SetThreadAffinityMask only targets group 0, so even a single group
+    // must use the group-aware API when the group is not group 0.
+    PROCESSOR_NUMBER procNum;
+    if (!SetThreadGroupAffinity(GetCurrentThread(), groupAffinities, (groupCount > 1) ? &procNum : NULL))
     {
-        DWORD_PTR prev_mask = SetThreadAffinityMask(GetCurrentThread(), groupAffinities[0].Mask);
-        if (prev_mask == 0)
-        {
-            NCNN_LOGE("SetThreadAffinityMask failed %d", GetLastError());
-            return -1;
-        }
-    }
-    else
-    {
-        PROCESSOR_NUMBER procNum;
-        if (!SetThreadGroupAffinity(GetCurrentThread(), groupAffinities, NULL))
-        {
-            NCNN_LOGE("SetThreadGroupAffinity failed %d", GetLastError());
-            return -1;
-        }
+        NCNN_LOGE("SetThreadGroupAffinity failed %d", GetLastError());
+        return -1;
     }
 
     return 0;
@@ -2305,47 +2295,33 @@ CpuSet::CpuSet()
 
 void CpuSet::enable(int cpu)
 {
-    const int group = cpu / 64;
-    const int bit = cpu % 64;
-    if (group < NCNN_MAX_PROCESSOR_GROUPS)
-        mask[group] |= (KAFFINITY(1) << bit);
+    mask |= ((ULONG_PTR)1 << cpu);
 }
 
 void CpuSet::disable(int cpu)
 {
-    const int group = cpu / 64;
-    const int bit = cpu % 64;
-    if (group < NCNN_MAX_PROCESSOR_GROUPS)
-        mask[group] &= ~(KAFFINITY(1) << bit);
+    mask &= ~((ULONG_PTR)1 << cpu);
 }
 
 void CpuSet::disable_all()
 {
-    for (int g = 0; g < NCNN_MAX_PROCESSOR_GROUPS; g++)
-        mask[g] = 0;
+    mask = 0;
 }
 
 bool CpuSet::is_enabled(int cpu) const
 {
-    const int group = cpu / 64;
-    const int bit = cpu % 64;
-    if (group >= NCNN_MAX_PROCESSOR_GROUPS)
-        return false;
-    return (mask[group] & (KAFFINITY(1) << bit)) != 0;
+    return mask & ((ULONG_PTR)1 << cpu);
 }
 
 int CpuSet::num_enabled() const
 {
     int num_enabled = 0;
-    for (int g = 0; g < NCNN_MAX_PROCESSOR_GROUPS; g++)
+    for (int i = 0; i < (int)sizeof(mask) * 8; i++)
     {
-        KAFFINITY m = mask[g];
-        while (m)
-        {
-            num_enabled += (int)(m & 1);
-            m >>= 1;
-        }
+        if (is_enabled(i))
+            num_enabled++;
     }
+
     return num_enabled;
 }
 #elif defined __ANDROID__ || defined __linux__
