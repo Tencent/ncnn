@@ -135,17 +135,28 @@ void main()
 #else
     for (int z = 0; z < c; z++)
     {
-        afp v0 = buffer_ld1(bottom_tm_blob_data, v_offset + 0);
-        afp v1 = buffer_ld1(bottom_tm_blob_data, v_offset + 1);
-        afp v2 = buffer_ld1(bottom_tm_blob_data, v_offset + 2);
-        afp v3 = buffer_ld1(bottom_tm_blob_data, v_offset + 3);
-
         afp k = buffer_ld1(weight_tm_data, w_offset);
 
-        sum0 += v0 * k;
-        sum1 += v1 * k;
-        sum2 += v2 * k;
-        sum3 += v3 * k;
+        if (gx + 0 < psc(outw))
+        {
+            afp v0 = buffer_ld1(bottom_tm_blob_data, v_offset + 0);
+            sum0 += v0 * k;
+        }
+        if (gx + 1 < psc(outw))
+        {
+            afp v1 = buffer_ld1(bottom_tm_blob_data, v_offset + 1);
+            sum1 += v1 * k;
+        }
+        if (gx + 2 < psc(outw))
+        {
+            afp v2 = buffer_ld1(bottom_tm_blob_data, v_offset + 2);
+            sum2 += v2 * k;
+        }
+        if (gx + 3 < psc(outw))
+        {
+            afp v3 = buffer_ld1(bottom_tm_blob_data, v_offset + 3);
+            sum3 += v3 * k;
+        }
 
         v_offset += psc(cstep);
         w_offset += 1;
