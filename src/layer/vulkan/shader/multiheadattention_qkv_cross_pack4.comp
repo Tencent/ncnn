@@ -4,7 +4,7 @@
 #version 450
 
 // P2: Increased shared tile size from 8 to 16 for better reuse
-#define LOCAL_MEMORY_UNROLL_INCH 16
+#define LOCAL_MEMORY_UNROLL_INCH 8
 
 layout(constant_id = 0) const int M = 0;
 layout(constant_id = 1) const int N = 0;
