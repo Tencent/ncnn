@@ -1275,7 +1275,7 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
 
                 std::vector<vk_constant_type> constants(4);
                 constants[0].i = bottom_blob_bordered.w;
-                constants[1].i = bottom_blob_bordered.cstep;
+                constants[1].i = bottom_blob_bordered.w;
                 constants[2].i = bottom_tm_blob.cstep;
                 constants[3].i = block_x;
 
@@ -1352,7 +1352,7 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
                 constants[0].i = top_tm_blob.cstep;
                 constants[1].i = block_x;
                 constants[2].i = top_blob.w;
-                constants[3].i = top_blob.cstep;
+                constants[3].i = top_blob.w;
 
                 VkMat dispatcher;
                 dispatcher.w = block_x;
@@ -1380,7 +1380,7 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
 
                 std::vector<vk_constant_type> constants(4);
                 constants[0].i = bottom_blob_bordered.w;
-                constants[1].i = bottom_blob_bordered.cstep;
+                constants[1].i = bottom_blob_bordered.w;
                 constants[2].i = bottom_tm_blob.cstep;
                 constants[3].i = block_x;
 
@@ -1457,7 +1457,7 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
                 constants[0].i = top_tm_blob.cstep;
                 constants[1].i = block_x;
                 constants[2].i = top_blob.w;
-                constants[3].i = top_blob.cstep;
+                constants[3].i = top_blob.w;
 
                 VkMat dispatcher;
                 dispatcher.w = block_x;
