@@ -558,6 +558,127 @@ static inline int mha_weight_block_quantize_unpack(const unsigned char* ptr, int
     return mha_weight_block_quantize_sign_extend((v >> bit_shift) & mask, bits);
 }
 
+static inline signed char mha_weight_block_quantize_float2int8(float v)
+{
+    int int32 = static_cast<int>(round(v));
+    if (int32 > 127) return 127;
+    if (int32 < -127) return -127;
+    return (signed char)int32;
+}
+
+static void mha_weight_block_quantize_activation_row_int8(const Mat& A, int transA, int i, signed char* outptr, float* descale_ptr, int K, int block_size, const float* input_scale_ptr)
+{
+    const int block_count = (K + block_size - 1) / block_size;
+    const size_t A_hstep = (size_t)A.w;
+    const float* ptrA = transA ? 0 : A.row(i);
+
+    for (int g = 0; g < block_count; g++)
+    {
+        const int k0 = g * block_size;
+        const int max_kk = block_size < K - k0 ? block_size : K - k0;
+
+        float absmax = 0.f;
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            const int k = k0 + kk;
+            float v = transA ? ((const float*)A)[k * A_hstep + i] : ptrA[k];
+            if (input_scale_ptr)
+                v *= input_scale_ptr[k];
+            v = fabsf(v);
+            if (v > absmax)
+                absmax = v;
+        }
+
+        if (absmax == 0.f)
+        {
+            descale_ptr[g] = 0.f;
+            for (int kk = 0; kk < max_kk; kk++)
+                outptr[k0 + kk] = 0;
+            continue;
+        }
+
+        volatile double scale_fp64 = 127.0 / (double)absmax;
+        const float scale = (float)scale_fp64;
+        descale_ptr[g] = absmax / 127.f;
+
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            const int k = k0 + kk;
+            float v = transA ? ((const float*)A)[k * A_hstep + i] : ptrA[k];
+            if (input_scale_ptr)
+            {
+                v *= input_scale_ptr[k];
+                volatile float v_ordered = v;
+                v = v_ordered;
+            }
+            outptr[k] = mha_weight_block_quantize_float2int8(v * scale);
+        }
+    }
+}
+
+static int mha_weight_block_quantize_gemm_transB_int8(const Mat& A, int transA, const Mat& BT, const Mat& BT_scales, const Mat& input_scales, const Mat& C, Mat& top_blob, int M, int N, int K, int block_size, float alpha, int output_transpose, int output_m_offset, const Option& opt)
+{
+    const int block_count = (K + block_size - 1) / block_size;
+
+    Mat A_int8;
+    A_int8.create(K, M, (size_t)1u, opt.workspace_allocator);
+    if (A_int8.empty())
+        return -100;
+
+    Mat A_descales;
+    A_descales.create(block_count, M, (size_t)4u, opt.workspace_allocator);
+    if (A_descales.empty())
+        return -100;
+
+    const float* input_scale_ptr = input_scales;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int i = 0; i < M; i++)
+    {
+        signed char* outptr = A_int8.row<signed char>(i);
+        float* descale_ptr = A_descales.row(i);
+        mha_weight_block_quantize_activation_row_int8(A, transA, i, outptr, descale_ptr, K, block_size, input_scale_ptr);
+    }
+
+    const float* bias_ptr = C;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int mn = 0; mn < M * N; mn++)
+    {
+        const int i = mn / N;
+        const int j = mn % N;
+        const signed char* ptrA = A_int8.row<const signed char>(i);
+        const signed char* ptrB = BT.row<const signed char>(j);
+        const float* A_descale_ptr = A_descales.row(i);
+        const float* B_scale_ptr = BT_scales.row(j);
+
+        float sum = bias_ptr[j];
+        for (int g = 0; g < block_count; g++)
+        {
+            const int k0 = g * block_size;
+            const int max_kk = block_size < K - k0 ? block_size : K - k0;
+
+            int sum_int32 = 0;
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                const int k = k0 + kk;
+                sum_int32 += ptrA[k] * ptrB[k];
+            }
+
+            sum += sum_int32 * A_descale_ptr[g] / B_scale_ptr[g];
+        }
+
+        sum *= alpha;
+
+        if (output_transpose)
+            top_blob.row(j)[output_m_offset + i] = sum;
+        else
+            top_blob.row(output_m_offset + i)[j] = sum;
+    }
+
+    return 0;
+}
+
 int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     int q_blob_i = 0;
@@ -603,35 +724,44 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
         if (q_affine.empty())
             return -100;
 
-        const int packed_k_bytes = mha_weight_quantize_packed_k_bytes(qdim, weight_bits);
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < src_seqlen; i++)
+        if (weight_bits == 8)
         {
-            for (int j = 0; j < embed_dim; j++)
+            int ret = mha_weight_block_quantize_gemm_transB_int8(q_blob, 0, q_weight_data, q_weight_data_quantize_scales, q_weight_data_input_scales, q_bias_data, q_affine, src_seqlen, embed_dim, qdim, block_size, scale, 1, 0, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+        {
+            const int packed_k_bytes = mha_weight_quantize_packed_k_bytes(qdim, weight_bits);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < src_seqlen; i++)
             {
-                const float* ptr = q_blob.row(i);
-                const unsigned char* kptr = q_weight_data.row<const unsigned char>(j);
-                const float* scale_ptr = q_weight_data_quantize_scales.row(j);
-
-                float sum = q_bias_data[j];
-                for (int k0 = 0; k0 < qdim; k0 += block_size)
+                for (int j = 0; j < embed_dim; j++)
                 {
-                    const int max_kk = block_size < qdim - k0 ? block_size : qdim - k0;
-                    const float descale = 1.f / scale_ptr[k0 / block_size];
+                    const float* ptr = q_blob.row(i);
+                    const unsigned char* kptr = q_weight_data.row<const unsigned char>(j);
+                    const float* scale_ptr = q_weight_data_quantize_scales.row(j);
 
-                    for (int kk = 0; kk < max_kk; kk++)
+                    float sum = q_bias_data[j];
+                    for (int k0 = 0; k0 < qdim; k0 += block_size)
                     {
-                        const int k = k0 + kk;
-                        const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
-                        float v = ptr[k];
-                        if (q_input_scale_ptr)
-                            v *= q_input_scale_ptr[k];
-                        sum += v * (q * descale);
-                    }
-                }
+                        const int max_kk = block_size < qdim - k0 ? block_size : qdim - k0;
+                        const float descale = 1.f / scale_ptr[k0 / block_size];
 
-                q_affine.row(j)[i] = sum * scale;
+                        for (int kk = 0; kk < max_kk; kk++)
+                        {
+                            const int k = k0 + kk;
+                            const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
+                            float v = ptr[k];
+                            if (q_input_scale_ptr)
+                                v *= q_input_scale_ptr[k];
+                            sum += v * (q * descale);
+                        }
+                    }
+
+                    q_affine.row(j)[i] = sum * scale;
+                }
             }
         }
     }
@@ -657,35 +787,44 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
             }
         }
 
-        const int packed_k_bytes = mha_weight_quantize_packed_k_bytes(kdim, weight_bits);
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < cur_seqlen; i++)
+        if (weight_bits == 8)
         {
-            for (int j = 0; j < embed_dim; j++)
+            int ret = mha_weight_block_quantize_gemm_transB_int8(k_blob, 0, k_weight_data, k_weight_data_quantize_scales, k_weight_data_input_scales, k_bias_data, k_affine, cur_seqlen, embed_dim, kdim, block_size, 1.f, 1, past_seqlen, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+        {
+            const int packed_k_bytes = mha_weight_quantize_packed_k_bytes(kdim, weight_bits);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < cur_seqlen; i++)
             {
-                const float* ptr = k_blob.row(i);
-                const unsigned char* kptr = k_weight_data.row<const unsigned char>(j);
-                const float* scale_ptr = k_weight_data_quantize_scales.row(j);
-
-                float sum = k_bias_data[j];
-                for (int k0 = 0; k0 < kdim; k0 += block_size)
+                for (int j = 0; j < embed_dim; j++)
                 {
-                    const int max_kk = block_size < kdim - k0 ? block_size : kdim - k0;
-                    const float descale = 1.f / scale_ptr[k0 / block_size];
+                    const float* ptr = k_blob.row(i);
+                    const unsigned char* kptr = k_weight_data.row<const unsigned char>(j);
+                    const float* scale_ptr = k_weight_data_quantize_scales.row(j);
 
-                    for (int kk = 0; kk < max_kk; kk++)
+                    float sum = k_bias_data[j];
+                    for (int k0 = 0; k0 < kdim; k0 += block_size)
                     {
-                        const int k = k0 + kk;
-                        const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
-                        float v = ptr[k];
-                        if (k_input_scale_ptr)
-                            v *= k_input_scale_ptr[k];
-                        sum += v * (q * descale);
-                    }
-                }
+                        const int max_kk = block_size < kdim - k0 ? block_size : kdim - k0;
+                        const float descale = 1.f / scale_ptr[k0 / block_size];
 
-                k_affine.row(j)[past_seqlen + i] = sum;
+                        for (int kk = 0; kk < max_kk; kk++)
+                        {
+                            const int k = k0 + kk;
+                            const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
+                            float v = ptr[k];
+                            if (k_input_scale_ptr)
+                                v *= k_input_scale_ptr[k];
+                            sum += v * (q * descale);
+                        }
+                    }
+
+                    k_affine.row(j)[past_seqlen + i] = sum;
+                }
             }
         }
     }
@@ -711,35 +850,44 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
             }
         }
 
-        const int packed_k_bytes = mha_weight_quantize_packed_k_bytes(vdim, weight_bits);
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < cur_seqlen; i++)
+        if (weight_bits == 8)
         {
-            for (int j = 0; j < embed_dim; j++)
+            int ret = mha_weight_block_quantize_gemm_transB_int8(v_blob, 0, v_weight_data, v_weight_data_quantize_scales, v_weight_data_input_scales, v_bias_data, v_affine, cur_seqlen, embed_dim, vdim, block_size, 1.f, 1, past_seqlen, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+        {
+            const int packed_k_bytes = mha_weight_quantize_packed_k_bytes(vdim, weight_bits);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < cur_seqlen; i++)
             {
-                const float* ptr = v_blob.row(i);
-                const unsigned char* kptr = v_weight_data.row<const unsigned char>(j);
-                const float* scale_ptr = v_weight_data_quantize_scales.row(j);
-
-                float sum = v_bias_data[j];
-                for (int k0 = 0; k0 < vdim; k0 += block_size)
+                for (int j = 0; j < embed_dim; j++)
                 {
-                    const int max_kk = block_size < vdim - k0 ? block_size : vdim - k0;
-                    const float descale = 1.f / scale_ptr[k0 / block_size];
+                    const float* ptr = v_blob.row(i);
+                    const unsigned char* kptr = v_weight_data.row<const unsigned char>(j);
+                    const float* scale_ptr = v_weight_data_quantize_scales.row(j);
 
-                    for (int kk = 0; kk < max_kk; kk++)
+                    float sum = v_bias_data[j];
+                    for (int k0 = 0; k0 < vdim; k0 += block_size)
                     {
-                        const int k = k0 + kk;
-                        const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
-                        float v = ptr[k];
-                        if (v_input_scale_ptr)
-                            v *= v_input_scale_ptr[k];
-                        sum += v * (q * descale);
-                    }
-                }
+                        const int max_kk = block_size < vdim - k0 ? block_size : vdim - k0;
+                        const float descale = 1.f / scale_ptr[k0 / block_size];
 
-                v_affine.row(j)[past_seqlen + i] = sum;
+                        for (int kk = 0; kk < max_kk; kk++)
+                        {
+                            const int k = k0 + kk;
+                            const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
+                            float v = ptr[k];
+                            if (v_input_scale_ptr)
+                                v *= v_input_scale_ptr[k];
+                            sum += v * (q * descale);
+                        }
+                    }
+
+                    v_affine.row(j)[past_seqlen + i] = sum;
+                }
             }
         }
     }
@@ -866,36 +1014,45 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
         if (top_blob.empty())
             return -100;
 
-        const int packed_k_bytes = mha_weight_quantize_packed_k_bytes(embed_dim, weight_bits);
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < src_seqlen; i++)
+        if (weight_bits == 8)
         {
-            float* outptr = top_blob.row(i);
+            int ret = mha_weight_block_quantize_gemm_transB_int8(qkv_cross, 1, out_weight_data, out_weight_data_quantize_scales, out_weight_data_input_scales, out_bias_data, top_blob, src_seqlen, qdim, embed_dim, block_size, 1.f, 0, 0, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+        {
+            const int packed_k_bytes = mha_weight_quantize_packed_k_bytes(embed_dim, weight_bits);
 
-            for (int j = 0; j < qdim; j++)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < src_seqlen; i++)
             {
-                const unsigned char* kptr = out_weight_data.row<const unsigned char>(j);
-                const float* scale_ptr = out_weight_data_quantize_scales.row(j);
+                float* outptr = top_blob.row(i);
 
-                float sum = out_bias_data[j];
-                for (int k0 = 0; k0 < embed_dim; k0 += block_size)
+                for (int j = 0; j < qdim; j++)
                 {
-                    const int max_kk = block_size < embed_dim - k0 ? block_size : embed_dim - k0;
-                    const float descale = 1.f / scale_ptr[k0 / block_size];
+                    const unsigned char* kptr = out_weight_data.row<const unsigned char>(j);
+                    const float* scale_ptr = out_weight_data_quantize_scales.row(j);
 
-                    for (int kk = 0; kk < max_kk; kk++)
+                    float sum = out_bias_data[j];
+                    for (int k0 = 0; k0 < embed_dim; k0 += block_size)
                     {
-                        const int k = k0 + kk;
-                        const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
-                        float v = qkv_cross.row(k)[i];
-                        if (out_input_scale_ptr)
-                            v *= out_input_scale_ptr[k];
-                        sum += v * (q * descale);
-                    }
-                }
+                        const int max_kk = block_size < embed_dim - k0 ? block_size : embed_dim - k0;
+                        const float descale = 1.f / scale_ptr[k0 / block_size];
 
-                outptr[j] = sum;
+                        for (int kk = 0; kk < max_kk; kk++)
+                        {
+                            const int k = k0 + kk;
+                            const int q = mha_weight_block_quantize_unpack(kptr, k, weight_bits, packed_k_bytes);
+                            float v = qkv_cross.row(k)[i];
+                            if (out_input_scale_ptr)
+                                v *= out_input_scale_ptr[k];
+                            sum += v * (q * descale);
+                        }
+                    }
+
+                    outptr[j] = sum;
+                }
             }
         }
     }

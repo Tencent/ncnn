@@ -28,10 +28,355 @@ MultiHeadAttention_mips::MultiHeadAttention_mips()
     o_gemm = 0;
 }
 
+#if NCNN_WEIGHT_QUANT
+int MultiHeadAttention_mips::create_pipeline_wq_int8(const Option& _opt)
+{
+    if (q_gemm)
+        return 0;
+
+    Option opt = _opt;
+    Option opt_wq = opt;
+    opt_wq.use_packing_layout = false;
+    opt_wq.use_fp16_packed = false;
+    opt_wq.use_fp16_storage = false;
+    opt_wq.use_fp16_arithmetic = false;
+    opt_wq.use_bf16_packed = false;
+    opt_wq.use_bf16_storage = false;
+
+    {
+        qk_softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
+        if (!qk_softmax)
+            return -100;
+        ncnn::ParamDict pd;
+        pd.set(0, -1);
+        pd.set(1, 1);
+        int ret = qk_softmax->load_param(pd);
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+        ret = qk_softmax->load_model(ModelBinFromMatArray(0));
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+        ret = qk_softmax->create_pipeline(opt);
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+    }
+
+    const int qdim = weight_data_size / embed_dim;
+
+    {
+        q_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
+        if (!q_gemm)
+        {
+            destroy_pipeline(_opt);
+            return -100;
+        }
+        ncnn::ParamDict pd;
+        pd.set(0, scale);
+        pd.set(1, 1.f);
+        pd.set(2, 0);         // transA
+        pd.set(3, 1);         // transB
+        pd.set(4, 0);         // constantA
+        pd.set(5, 1);         // constantB
+        pd.set(6, 1);         // constantC
+        pd.set(7, 0);         // M
+        pd.set(8, embed_dim); // N
+        pd.set(9, qdim);      // K
+        pd.set(10, 4);        // constant_broadcast_type_C
+        pd.set(11, 0);        // output_N1M
+        pd.set(12, 0);        // output_elempack
+        pd.set(14, 1);        // output_transpose
+        pd.set(18, quantize_term);
+        int ret = q_gemm->load_param(pd);
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+        Mat weights[4];
+        weights[0] = q_weight_data;
+        weights[1] = q_bias_data;
+        weights[2] = q_weight_data_quantize_scales;
+        weights[3] = q_weight_data_input_scales;
+        ret = q_gemm->load_model(ModelBinFromMatArray(weights));
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+        ret = q_gemm->create_pipeline(opt_wq);
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+    }
+
+    {
+        k_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
+        if (!k_gemm)
+        {
+            destroy_pipeline(_opt);
+            return -100;
+        }
+        ncnn::ParamDict pd;
+        pd.set(2, 0);         // transA
+        pd.set(3, 1);         // transB
+        pd.set(4, 0);         // constantA
+        pd.set(5, 1);         // constantB
+        pd.set(6, 1);         // constantC
+        pd.set(7, 0);         // M
+        pd.set(8, embed_dim); // N
+        pd.set(9, kdim);      // K
+        pd.set(10, 4);        // constant_broadcast_type_C
+        pd.set(11, 0);        // output_N1M
+        pd.set(12, 0);        // output_elempack
+        pd.set(14, 1);        // output_transpose
+        pd.set(18, quantize_term);
+        int ret = k_gemm->load_param(pd);
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+        Mat weights[4];
+        weights[0] = k_weight_data;
+        weights[1] = k_bias_data;
+        weights[2] = k_weight_data_quantize_scales;
+        weights[3] = k_weight_data_input_scales;
+        ret = k_gemm->load_model(ModelBinFromMatArray(weights));
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+        ret = k_gemm->create_pipeline(opt_wq);
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+    }
+
+    {
+        v_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
+        if (!v_gemm)
+        {
+            destroy_pipeline(_opt);
+            return -100;
+        }
+        ncnn::ParamDict pd;
+        pd.set(2, 0);         // transA
+        pd.set(3, 1);         // transB
+        pd.set(4, 0);         // constantA
+        pd.set(5, 1);         // constantB
+        pd.set(6, 1);         // constantC
+        pd.set(7, 0);         // M
+        pd.set(8, embed_dim); // N
+        pd.set(9, vdim);      // K
+        pd.set(10, 4);        // constant_broadcast_type_C
+        pd.set(11, 0);        // output_N1M
+        pd.set(12, 0);        // output_elempack
+        pd.set(14, 1);        // output_transpose
+        pd.set(18, quantize_term);
+        int ret = v_gemm->load_param(pd);
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+        Mat weights[4];
+        weights[0] = v_weight_data;
+        weights[1] = v_bias_data;
+        weights[2] = v_weight_data_quantize_scales;
+        weights[3] = v_weight_data_input_scales;
+        ret = v_gemm->load_model(ModelBinFromMatArray(weights));
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+        ret = v_gemm->create_pipeline(opt_wq);
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+    }
+
+    {
+        o_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
+        if (!o_gemm)
+        {
+            destroy_pipeline(_opt);
+            return -100;
+        }
+        ncnn::ParamDict pd;
+        pd.set(2, 1);         // transA
+        pd.set(3, 1);         // transB
+        pd.set(4, 0);         // constantA
+        pd.set(5, 1);         // constantB
+        pd.set(6, 1);         // constantC
+        pd.set(7, 0);         // M = outch
+        pd.set(8, qdim);      // N = size
+        pd.set(9, embed_dim); // K = maxk*inch
+        pd.set(10, 4);        // constant_broadcast_type_C
+        pd.set(11, 0);        // output_N1M
+        pd.set(18, quantize_term);
+        int ret = o_gemm->load_param(pd);
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+        Mat weights[4];
+        weights[0] = out_weight_data;
+        weights[1] = out_bias_data;
+        weights[2] = out_weight_data_quantize_scales;
+        weights[3] = out_weight_data_input_scales;
+        ret = o_gemm->load_model(ModelBinFromMatArray(weights));
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+        ret = o_gemm->create_pipeline(opt_wq);
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+    }
+
+    {
+        qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
+        if (!qk_gemm)
+        {
+            destroy_pipeline(_opt);
+            return -100;
+        }
+        ncnn::ParamDict pd;
+        pd.set(2, 1);                   // transA
+        pd.set(3, 0);                   // transB
+        pd.set(4, 0);                   // constantA
+        pd.set(5, 0);                   // constantB
+        pd.set(6, attn_mask ? 0 : 1);   // constantC
+        pd.set(7, 0);                   // M
+        pd.set(8, 0);                   // N
+        pd.set(9, 0);                   // K
+        pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C
+        pd.set(11, 0);                  // output_N1M
+        pd.set(12, 1);                  // output_elempack
+        pd.set(13, 1);                  // output_elemtype = fp32
+        int ret = qk_gemm->load_param(pd);
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+        ret = qk_gemm->load_model(ModelBinFromMatArray(0));
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+        Option opt1 = opt;
+        opt1.use_bf16_packed = false;
+        opt1.use_bf16_storage = false;
+        opt1.num_threads = 1;
+        ret = qk_gemm->create_pipeline(opt1);
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+    }
+
+    {
+        qkv_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
+        if (!qkv_gemm)
+        {
+            destroy_pipeline(_opt);
+            return -100;
+        }
+        ncnn::ParamDict pd;
+        pd.set(2, 0);   // transA
+        pd.set(3, 1);   // transB
+        pd.set(4, 0);   // constantA
+        pd.set(5, 0);   // constantB
+        pd.set(6, 1);   // constantC
+        pd.set(7, 0);   // M
+        pd.set(8, 0);   // N
+        pd.set(9, 0);   // K
+        pd.set(10, -1); // constant_broadcast_type_C
+        pd.set(11, 0);  // output_N1M
+        pd.set(12, 1);  // output_elempack
+        pd.set(13, 1);  // output_elemtype = fp32
+        pd.set(14, 1);  // output_transpose
+        int ret = qkv_gemm->load_param(pd);
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+        ret = qkv_gemm->load_model(ModelBinFromMatArray(0));
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+        Option opt1 = opt;
+        opt1.use_bf16_packed = false;
+        opt1.use_bf16_storage = false;
+        opt1.num_threads = 1;
+        ret = qkv_gemm->create_pipeline(opt1);
+        if (ret != 0)
+        {
+            destroy_pipeline(_opt);
+            return ret;
+        }
+    }
+
+    q_weight_data.release();
+    q_bias_data.release();
+    k_weight_data.release();
+    k_bias_data.release();
+    v_weight_data.release();
+    v_bias_data.release();
+    out_weight_data.release();
+    out_bias_data.release();
+    q_weight_data_quantize_scales.release();
+    k_weight_data_quantize_scales.release();
+    v_weight_data_quantize_scales.release();
+    out_weight_data_quantize_scales.release();
+    q_weight_data_input_scales.release();
+    k_weight_data_input_scales.release();
+    v_weight_data_input_scales.release();
+    out_weight_data_input_scales.release();
+
+    return 0;
+}
+#endif // NCNN_WEIGHT_QUANT
+
 int MultiHeadAttention_mips::create_pipeline(const Option& _opt)
 {
+#if NCNN_WEIGHT_QUANT
     if (weight_block_quantize)
-        return 0;
+    {
+        if (quantize_term / 100 != 8)
+            return MultiHeadAttention::create_pipeline(_opt);
+
+        return create_pipeline_wq_int8(_opt);
+    }
+#endif
 
     Option opt = _opt;
     if (int8_scale_term)
@@ -259,13 +604,23 @@ int MultiHeadAttention_mips::create_pipeline(const Option& _opt)
 
 int MultiHeadAttention_mips::destroy_pipeline(const Option& _opt)
 {
-    if (weight_block_quantize)
-        return 0;
+    if (weight_block_quantize && quantize_term / 100 != 8)
+        return MultiHeadAttention::destroy_pipeline(_opt);
 
     Option opt = _opt;
-    if (int8_scale_term)
+    if (int8_scale_term && !weight_block_quantize)
     {
         opt.use_packing_layout = false; // TODO enable packing
+    }
+    Option opt_wq = opt;
+    if (weight_block_quantize)
+    {
+        opt_wq.use_packing_layout = false;
+        opt_wq.use_fp16_packed = false;
+        opt_wq.use_fp16_storage = false;
+        opt_wq.use_fp16_arithmetic = false;
+        opt_wq.use_bf16_packed = false;
+        opt_wq.use_bf16_storage = false;
     }
 
     if (qk_softmax)
@@ -277,28 +632,28 @@ int MultiHeadAttention_mips::destroy_pipeline(const Option& _opt)
 
     if (q_gemm)
     {
-        q_gemm->destroy_pipeline(opt);
+        q_gemm->destroy_pipeline(opt_wq);
         delete q_gemm;
         q_gemm = 0;
     }
 
     if (k_gemm)
     {
-        k_gemm->destroy_pipeline(opt);
+        k_gemm->destroy_pipeline(opt_wq);
         delete k_gemm;
         k_gemm = 0;
     }
 
     if (v_gemm)
     {
-        v_gemm->destroy_pipeline(opt);
+        v_gemm->destroy_pipeline(opt_wq);
         delete v_gemm;
         v_gemm = 0;
     }
 
     if (o_gemm)
     {
-        o_gemm->destroy_pipeline(opt);
+        o_gemm->destroy_pipeline(opt_wq);
         delete o_gemm;
         o_gemm = 0;
     }
@@ -321,7 +676,7 @@ int MultiHeadAttention_mips::destroy_pipeline(const Option& _opt)
 
 int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
-    if (weight_block_quantize)
+    if (weight_block_quantize && quantize_term / 100 != 8)
         return MultiHeadAttention::forward(bottom_blobs, top_blobs, _opt);
 
     int q_blob_i = 0;
@@ -340,9 +695,19 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
     const Mat& cached_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : Mat();
 
     Option opt = _opt;
-    if (int8_scale_term)
+    if (int8_scale_term && !weight_block_quantize)
     {
         opt.use_packing_layout = false; // TODO enable packing
+    }
+    Option opt_wq = opt;
+    if (weight_block_quantize)
+    {
+        opt_wq.use_packing_layout = false;
+        opt_wq.use_fp16_packed = false;
+        opt_wq.use_fp16_storage = false;
+        opt_wq.use_fp16_arithmetic = false;
+        opt_wq.use_bf16_packed = false;
+        opt_wq.use_bf16_storage = false;
     }
 
     Mat attn_mask_blob_unpacked;
@@ -388,7 +753,7 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
     const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
 
     Mat q_affine;
-    int retq = q_gemm->forward(q_blob, q_affine, opt);
+    int retq = q_gemm->forward(q_blob, q_affine, opt_wq);
     if (retq != 0)
         return retq;
 
@@ -398,7 +763,7 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
         if (q_blob_i == k_blob_i)
         {
             Mat k_affine_q;
-            int retk = k_gemm->forward(q_blob, k_affine_q, opt);
+            int retk = k_gemm->forward(q_blob, k_affine_q, opt_wq);
             if (retk != 0)
                 return retk;
 
@@ -426,7 +791,7 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
     }
     else
     {
-        int retk = k_gemm->forward(k_blob, k_affine, opt);
+        int retk = k_gemm->forward(k_blob, k_affine, opt_wq);
         if (retk != 0)
             return retk;
     }
@@ -477,7 +842,7 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
         if (q_blob_i == v_blob_i)
         {
             Mat v_affine_q;
-            int retk = v_gemm->forward(v_blob, v_affine_q, opt);
+            int retk = v_gemm->forward(v_blob, v_affine_q, opt_wq);
             if (retk != 0)
                 return retk;
 
@@ -505,7 +870,7 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
     }
     else
     {
-        int retv = v_gemm->forward(v_blob, v_affine, opt);
+        int retv = v_gemm->forward(v_blob, v_affine, opt_wq);
         if (retv != 0)
             return retv;
     }
@@ -552,7 +917,7 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
         v_affine.release();
     }
 
-    int reto = o_gemm->forward(qkv_cross, top_blobs[0], opt);
+    int reto = o_gemm->forward(qkv_cross, top_blobs[0], opt_wq);
     if (reto != 0)
         return reto;
 

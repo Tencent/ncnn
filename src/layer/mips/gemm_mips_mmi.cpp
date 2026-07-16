@@ -11,6 +11,9 @@
 namespace ncnn {
 
 #include "gemm_int8.h"
+#if NCNN_WEIGHT_QUANT
+#include "gemm_wq_int8.h"
+#endif
 
 void pack_A_tile_int8_loongson_mmi(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
@@ -56,5 +59,27 @@ void gemm_transB_packed_tile_int8_loongson_mmi(const Mat& AT_tile, const Mat& BT
 {
     gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
 }
+
+#if NCNN_WEIGHT_QUANT
+int pack_B_wq_int8_loongson_mmi(const Mat& B, const Mat& B_scales, Mat& packed_B, Mat& packed_B_descales, int N, int K, int block_size, const Option& opt)
+{
+    return pack_B_wq_int8(B, B_scales, packed_B, packed_B_descales, N, K, block_size, opt);
+}
+
+void quantize_A_tile_wq_int8_loongson_mmi(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int block_size, const float* input_scale_ptr)
+{
+    quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, block_size, input_scale_ptr);
+}
+
+void transpose_quantize_A_tile_wq_int8_loongson_mmi(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int block_size, const float* input_scale_ptr)
+{
+    transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, block_size, input_scale_ptr);
+}
+
+void gemm_transB_packed_tile_wq_int8_loongson_mmi(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int block_size)
+{
+    gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, block_size);
+}
+#endif // NCNN_WEIGHT_QUANT
 
 } // namespace ncnn

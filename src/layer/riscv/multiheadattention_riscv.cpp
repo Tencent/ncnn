@@ -1,22 +1,17 @@
-// Copyright 2023 Tencent
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "multiheadattention_x86.h"
+#include "multiheadattention_riscv.h"
 
 #include "layer_type.h"
 
 namespace ncnn {
 
-MultiHeadAttention_x86::MultiHeadAttention_x86()
+MultiHeadAttention_riscv::MultiHeadAttention_riscv()
 {
-#if __SSE2__
+#if __riscv_vector
     support_packing = true;
-#endif // __SSE2__
-
-#if NCNN_BF16
-    support_bf16_storage = true;
-#endif
-
+#endif // __riscv_vector
     q_gemm = 0;
     k_gemm = 0;
     v_gemm = 0;
@@ -30,7 +25,7 @@ MultiHeadAttention_x86::MultiHeadAttention_x86()
 }
 
 #if NCNN_WEIGHT_QUANT
-int MultiHeadAttention_x86::create_pipeline_wq_int8(const Option& _opt)
+int MultiHeadAttention_riscv::create_pipeline_wq_int8(const Option& _opt)
 {
     if (q_gemm)
         return 0;
@@ -367,7 +362,7 @@ int MultiHeadAttention_x86::create_pipeline_wq_int8(const Option& _opt)
 }
 #endif // NCNN_WEIGHT_QUANT
 
-int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
+int MultiHeadAttention_riscv::create_pipeline(const Option& _opt)
 {
 #if NCNN_WEIGHT_QUANT
     if (weight_block_quantize)
@@ -390,40 +385,18 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
 
     {
         qk_softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
-        if (!qk_softmax)
-            return -100;
         ncnn::ParamDict pd;
         pd.set(0, -1);
         pd.set(1, 1);
-        int ret = qk_softmax->load_param(pd);
-        if (ret != 0)
-        {
-            destroy_pipeline(opt);
-            return ret;
-        }
-        ret = qk_softmax->load_model(ModelBinFromMatArray(0));
-        if (ret != 0)
-        {
-            destroy_pipeline(opt);
-            return ret;
-        }
-        ret = qk_softmax->create_pipeline(opt);
-        if (ret != 0)
-        {
-            destroy_pipeline(opt);
-            return ret;
-        }
+        qk_softmax->load_param(pd);
+        qk_softmax->load_model(ModelBinFromMatArray(0));
+        qk_softmax->create_pipeline(opt);
     }
 
     const int qdim = weight_data_size / embed_dim;
 
     {
         q_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
-        if (!q_gemm)
-        {
-            destroy_pipeline(opt);
-            return -100;
-        }
         ncnn::ParamDict pd;
         pd.set(0, scale);
         pd.set(1, 1.f);
@@ -442,39 +415,25 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
-        int ret = q_gemm->load_param(pd);
-        if (ret != 0)
-        {
-            destroy_pipeline(opt);
-            return ret;
-        }
+        q_gemm->load_param(pd);
         Mat weights[3];
         weights[0] = q_weight_data;
         weights[1] = q_bias_data;
 #if NCNN_INT8
         weights[2] = q_weight_data_int8_scales;
 #endif
-        ret = q_gemm->load_model(ModelBinFromMatArray(weights));
-        if (ret != 0)
+        q_gemm->load_model(ModelBinFromMatArray(weights));
+        q_gemm->create_pipeline(opt);
+
+        if (opt.lightmode)
         {
-            destroy_pipeline(opt);
-            return ret;
-        }
-        ret = q_gemm->create_pipeline(opt);
-        if (ret != 0)
-        {
-            destroy_pipeline(opt);
-            return ret;
+            q_weight_data.release();
+            q_bias_data.release();
         }
     }
 
     {
         k_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
-        if (!k_gemm)
-        {
-            destroy_pipeline(opt);
-            return -100;
-        }
         ncnn::ParamDict pd;
         pd.set(2, 0);         // transA
         pd.set(3, 1);         // transB
@@ -491,39 +450,25 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
-        int ret = k_gemm->load_param(pd);
-        if (ret != 0)
-        {
-            destroy_pipeline(opt);
-            return ret;
-        }
+        k_gemm->load_param(pd);
         Mat weights[3];
         weights[0] = k_weight_data;
         weights[1] = k_bias_data;
 #if NCNN_INT8
         weights[2] = k_weight_data_int8_scales;
 #endif
-        ret = k_gemm->load_model(ModelBinFromMatArray(weights));
-        if (ret != 0)
+        k_gemm->load_model(ModelBinFromMatArray(weights));
+        k_gemm->create_pipeline(opt);
+
+        if (opt.lightmode)
         {
-            destroy_pipeline(opt);
-            return ret;
-        }
-        ret = k_gemm->create_pipeline(opt);
-        if (ret != 0)
-        {
-            destroy_pipeline(opt);
-            return ret;
+            k_weight_data.release();
+            k_bias_data.release();
         }
     }
 
     {
         v_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
-        if (!v_gemm)
-        {
-            destroy_pipeline(opt);
-            return -100;
-        }
         ncnn::ParamDict pd;
         pd.set(2, 0);         // transA
         pd.set(3, 1);         // transB
@@ -540,39 +485,25 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
-        int ret = v_gemm->load_param(pd);
-        if (ret != 0)
-        {
-            destroy_pipeline(opt);
-            return ret;
-        }
+        v_gemm->load_param(pd);
         Mat weights[3];
         weights[0] = v_weight_data;
         weights[1] = v_bias_data;
 #if NCNN_INT8
         weights[2] = v_weight_data_int8_scales;
 #endif
-        ret = v_gemm->load_model(ModelBinFromMatArray(weights));
-        if (ret != 0)
+        v_gemm->load_model(ModelBinFromMatArray(weights));
+        v_gemm->create_pipeline(opt);
+
+        if (opt.lightmode)
         {
-            destroy_pipeline(opt);
-            return ret;
-        }
-        ret = v_gemm->create_pipeline(opt);
-        if (ret != 0)
-        {
-            destroy_pipeline(opt);
-            return ret;
+            v_weight_data.release();
+            v_bias_data.release();
         }
     }
 
     {
         o_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
-        if (!o_gemm)
-        {
-            destroy_pipeline(opt);
-            return -100;
-        }
         ncnn::ParamDict pd;
         pd.set(2, 1);         // transA
         pd.set(3, 1);         // transB
@@ -587,49 +518,30 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
-        int ret = o_gemm->load_param(pd);
-        if (ret != 0)
-        {
-            destroy_pipeline(opt);
-            return ret;
-        }
+        o_gemm->load_param(pd);
         Mat weights[3];
         weights[0] = out_weight_data;
         weights[1] = out_bias_data;
 #if NCNN_INT8
         Mat out_weight_data_int8_scales(1);
-        if (out_weight_data_int8_scales.empty())
-        {
-            destroy_pipeline(opt);
-            return -100;
-        }
         out_weight_data_int8_scales[0] = out_weight_data_int8_scale;
         weights[2] = out_weight_data_int8_scales;
 #endif
-        ret = o_gemm->load_model(ModelBinFromMatArray(weights));
-        if (ret != 0)
-        {
-            destroy_pipeline(opt);
-            return ret;
-        }
+        o_gemm->load_model(ModelBinFromMatArray(weights));
         Option opt_fp32 = opt;
         opt_fp32.use_bf16_packed = false;
         opt_fp32.use_bf16_storage = false;
-        ret = o_gemm->create_pipeline(opt_fp32);
-        if (ret != 0)
+        o_gemm->create_pipeline(opt_fp32);
+
+        if (opt.lightmode)
         {
-            destroy_pipeline(opt);
-            return ret;
+            out_weight_data.release();
+            out_bias_data.release();
         }
     }
 
     {
         qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
-        if (!qk_gemm)
-        {
-            destroy_pipeline(opt);
-            return -100;
-        }
         ncnn::ParamDict pd;
         pd.set(2, 1);                   // transA
         pd.set(3, 0);                   // transB
@@ -646,37 +558,17 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
-        int ret = qk_gemm->load_param(pd);
-        if (ret != 0)
-        {
-            destroy_pipeline(opt);
-            return ret;
-        }
-        ret = qk_gemm->load_model(ModelBinFromMatArray(0));
-        if (ret != 0)
-        {
-            destroy_pipeline(opt);
-            return ret;
-        }
+        qk_gemm->load_param(pd);
+        qk_gemm->load_model(ModelBinFromMatArray(0));
         Option opt1 = opt;
         opt1.use_bf16_packed = false;
         opt1.use_bf16_storage = false;
         opt1.num_threads = 1;
-        ret = qk_gemm->create_pipeline(opt1);
-        if (ret != 0)
-        {
-            destroy_pipeline(opt);
-            return ret;
-        }
+        qk_gemm->create_pipeline(opt1);
     }
 
     {
         qkv_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
-        if (!qkv_gemm)
-        {
-            destroy_pipeline(opt);
-            return -100;
-        }
         ncnn::ParamDict pd;
         pd.set(2, 0);   // transA
         pd.set(3, 1);   // transB
@@ -694,46 +586,19 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
-        int ret = qkv_gemm->load_param(pd);
-        if (ret != 0)
-        {
-            destroy_pipeline(opt);
-            return ret;
-        }
-        ret = qkv_gemm->load_model(ModelBinFromMatArray(0));
-        if (ret != 0)
-        {
-            destroy_pipeline(opt);
-            return ret;
-        }
+        qkv_gemm->load_param(pd);
+        qkv_gemm->load_model(ModelBinFromMatArray(0));
         Option opt1 = opt;
         opt1.use_bf16_packed = false;
         opt1.use_bf16_storage = false;
         opt1.num_threads = 1;
-        ret = qkv_gemm->create_pipeline(opt1);
-        if (ret != 0)
-        {
-            destroy_pipeline(opt);
-            return ret;
-        }
-    }
-
-    if (opt.lightmode)
-    {
-        q_weight_data.release();
-        q_bias_data.release();
-        k_weight_data.release();
-        k_bias_data.release();
-        v_weight_data.release();
-        v_bias_data.release();
-        out_weight_data.release();
-        out_bias_data.release();
+        qkv_gemm->create_pipeline(opt1);
     }
 
     return 0;
 }
 
-int MultiHeadAttention_x86::destroy_pipeline(const Option& _opt)
+int MultiHeadAttention_riscv::destroy_pipeline(const Option& _opt)
 {
     if (weight_block_quantize && quantize_term / 100 != 8)
         return MultiHeadAttention::destroy_pipeline(_opt);
@@ -805,7 +670,7 @@ int MultiHeadAttention_x86::destroy_pipeline(const Option& _opt)
     return 0;
 }
 
-int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
+int MultiHeadAttention_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
     if (weight_block_quantize && quantize_term / 100 != 8)
         return MultiHeadAttention::forward(bottom_blobs, top_blobs, _opt);
@@ -1007,16 +872,6 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
     }
 
     Mat v_affine_fp32 = v_affine;
-#if NCNN_BF16
-    if (opt.use_bf16_storage && v_affine.elembits() == 16)
-    {
-        // qkv_gemm need fp32 inputs
-        cast_bfloat16_to_float32(v_affine, v_affine_fp32, opt);
-        if (v_affine_fp32.empty())
-            return -100;
-    }
-#endif
-
     Mat qkv_cross(src_seqlen, embed_dim_per_head * num_heads, 4u, opt.blob_allocator);
     if (qkv_cross.empty())
         return -100;
@@ -1063,3 +918,4 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
 }
 
 } // namespace ncnn
+

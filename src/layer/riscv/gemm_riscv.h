@@ -14,10 +14,14 @@ public:
     Gemm_riscv();
 
     virtual int create_pipeline(const Option& opt);
+    virtual int destroy_pipeline(const Option& opt);
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 protected:
+#if NCNN_WEIGHT_QUANT
+    int forward_weight_block_quantize_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+#endif
 #if NCNN_ZFH
     int create_pipeline_fp16s(const Option& opt);
     int forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
@@ -28,6 +32,10 @@ public:
     Mat AT_data;
     Mat BT_data;
     Mat CT_data;
+#if NCNN_WEIGHT_QUANT
+    Mat B_data_w8a8_packed;
+    Mat B_data_w8a8_descales;
+#endif
 };
 
 } // namespace ncnn
