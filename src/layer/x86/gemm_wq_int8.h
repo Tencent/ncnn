@@ -170,8 +170,8 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, unsigned char
                 _mm_storel_epi64((__m128i*)(pp + 8), _p23);
                 pp += 16;
             }
-#endif // __AVX512VNNI__ || __AVXVNNI__
-            // K2/K1 are always signed and compact, including classic VNNI.
+#endif // __AVX512VNNI__ || __AVXVNNI__ \
+// K2/K1 are always signed and compact, including classic VNNI.
             for (; kk + 1 < max_kk; kk += 2)
             {
                 const signed char* p0 = B.row<const signed char>(j + jj) + k0 + kk;
@@ -235,8 +235,8 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, unsigned char
                 pp += 8;
             }
 #endif // __SSE2__
-#endif // __AVX512VNNI__ || __AVXVNNI__
-            // K2/K1 are always signed and compact, including classic VNNI.
+#endif // __AVX512VNNI__ || __AVXVNNI__ \
+// K2/K1 are always signed and compact, including classic VNNI.
 #if __SSE2__
             for (; kk + 1 < max_kk; kk += 2)
             {
@@ -289,8 +289,8 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, unsigned char
                 *(int*)pp = *(const int*)p0;
                 pp += 4;
             }
-#endif // __AVX512VNNI__ || __AVXVNNI__
-            // K2/K1 are always signed and compact, including classic VNNI.
+#endif // __AVX512VNNI__ || __AVXVNNI__ \
+// K2/K1 are always signed and compact, including classic VNNI.
             for (; kk + 1 < max_kk; kk += 2)
             {
                 const signed char* p0 = B.row<const signed char>(j + jj) + k0 + kk;
@@ -552,8 +552,10 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     _pe = _mm512_mul_ps(_pe, _s);
                     _pf = _mm512_mul_ps(_pf, _s);
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p0), "+x"(_p1), "+x"(_p2), "+x"(_p3), "+x"(_p4), "+x"(_p5), "+x"(_p6), "+x"(_p7));
-                    asm volatile("" : "+x"(_p8), "+x"(_p9), "+x"(_pa), "+x"(_pb), "+x"(_pc), "+x"(_pd), "+x"(_pe), "+x"(_pf));
+                    asm volatile(""
+                                 : "+x"(_p0), "+x"(_p1), "+x"(_p2), "+x"(_p3), "+x"(_p4), "+x"(_p5), "+x"(_p6), "+x"(_p7));
+                    asm volatile(""
+                                 : "+x"(_p8), "+x"(_p9), "+x"(_pa), "+x"(_pb), "+x"(_pc), "+x"(_pd), "+x"(_pe), "+x"(_pf));
 #else
                     volatile __m512 _p0_ordered = _p0;
                     volatile __m512 _p1_ordered = _p1;
@@ -696,8 +698,10 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     _pe = _mm_mul_ps(_pe, _s);
                     _pf = _mm_mul_ps(_pf, _s);
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p0), "+x"(_p1), "+x"(_p2), "+x"(_p3), "+x"(_p4), "+x"(_p5), "+x"(_p6), "+x"(_p7));
-                    asm volatile("" : "+x"(_p8), "+x"(_p9), "+x"(_pa), "+x"(_pb), "+x"(_pc), "+x"(_pd), "+x"(_pe), "+x"(_pf));
+                    asm volatile(""
+                                 : "+x"(_p0), "+x"(_p1), "+x"(_p2), "+x"(_p3), "+x"(_p4), "+x"(_p5), "+x"(_p6), "+x"(_p7));
+                    asm volatile(""
+                                 : "+x"(_p8), "+x"(_p9), "+x"(_pa), "+x"(_pb), "+x"(_pc), "+x"(_pd), "+x"(_pe), "+x"(_pf));
 #else
                     volatile __m128 _p0_ordered = _p0;
                     volatile __m128 _p1_ordered = _p1;
@@ -778,7 +782,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     _p0 = _mm512_mul_ps(_p0, _mm512_set1_ps(input_scale_ptr[k0 + kk]));
                     _p1 = _mm512_mul_ps(_p1, _mm512_set1_ps(input_scale_ptr[k0 + kk + 1]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p0), "+x"(_p1));
+                    asm volatile(""
+                                 : "+x"(_p0), "+x"(_p1));
 #else
                     volatile __m512 _p0_ordered = _p0;
                     volatile __m512 _p1_ordered = _p1;
@@ -799,7 +804,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 {
                     _p = _mm512_mul_ps(_p, _mm512_set1_ps(input_scale_ptr[k0 + kk]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p));
+                    asm volatile(""
+                                 : "+x"(_p));
 #else
                     volatile __m512 _p_ordered = _p;
                     _p = _p_ordered;
@@ -923,7 +929,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     _p6 = _mm_mul_ps(_p6, _s);
                     _p7 = _mm_mul_ps(_p7, _s);
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p0), "+x"(_p1), "+x"(_p2), "+x"(_p3), "+x"(_p4), "+x"(_p5), "+x"(_p6), "+x"(_p7));
+                    asm volatile(""
+                                 : "+x"(_p0), "+x"(_p1), "+x"(_p2), "+x"(_p3), "+x"(_p4), "+x"(_p5), "+x"(_p6), "+x"(_p7));
 #else
                     volatile __m128 _p0_ordered = _p0;
                     volatile __m128 _p1_ordered = _p1;
@@ -997,7 +1004,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     _p0 = _mm256_mul_ps(_p0, _mm256_set1_ps(input_scale_ptr[k0 + kk]));
                     _p1 = _mm256_mul_ps(_p1, _mm256_set1_ps(input_scale_ptr[k0 + kk + 1]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p0), "+x"(_p1));
+                    asm volatile(""
+                                 : "+x"(_p0), "+x"(_p1));
 #else
                     volatile __m256 _p0_ordered = _p0;
                     volatile __m256 _p1_ordered = _p1;
@@ -1022,7 +1030,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 {
                     _p = _mm256_mul_ps(_p, _mm256_set1_ps(input_scale_ptr[k0 + kk]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p));
+                    asm volatile(""
+                                 : "+x"(_p));
 #else
                     volatile __m256 _p_ordered = _p;
                     _p = _p_ordered;
@@ -1115,7 +1124,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     _p2 = _mm_mul_ps(_p2, _s);
                     _p3 = _mm_mul_ps(_p3, _s);
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p0), "+x"(_p1), "+x"(_p2), "+x"(_p3));
+                    asm volatile(""
+                                 : "+x"(_p0), "+x"(_p1), "+x"(_p2), "+x"(_p3));
 #else
                     volatile __m128 _p0_ordered = _p0;
                     volatile __m128 _p1_ordered = _p1;
@@ -1160,7 +1170,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     _p0 = _mm_mul_ps(_p0, _mm_set1_ps(input_scale_ptr[k0 + kk]));
                     _p1 = _mm_mul_ps(_p1, _mm_set1_ps(input_scale_ptr[k0 + kk + 1]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p0), "+x"(_p1));
+                    asm volatile(""
+                                 : "+x"(_p0), "+x"(_p1));
 #else
                     volatile __m128 _p0_ordered = _p0;
                     volatile __m128 _p1_ordered = _p1;
@@ -1180,7 +1191,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 {
                     _p = _mm_mul_ps(_p, _mm_set1_ps(input_scale_ptr[k0 + kk]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p));
+                    asm volatile(""
+                                 : "+x"(_p));
 #else
                     volatile __m128 _p_ordered = _p;
                     _p = _p_ordered;
@@ -1254,7 +1266,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     _p0 = _mm_mul_ps(_p0, _s);
                     _p1 = _mm_mul_ps(_p1, _s);
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p0), "+x"(_p1));
+                    asm volatile(""
+                                 : "+x"(_p0), "+x"(_p1));
 #else
                     volatile __m128 _p0_ordered = _p0;
                     volatile __m128 _p1_ordered = _p1;
@@ -1291,7 +1304,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     _p0 = _mm_mul_ps(_p0, _mm_set1_ps(input_scale_ptr[k0 + kk]));
                     _p1 = _mm_mul_ps(_p1, _mm_set1_ps(input_scale_ptr[k0 + kk + 1]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p0), "+x"(_p1));
+                    asm volatile(""
+                                 : "+x"(_p0), "+x"(_p1));
 #else
                     volatile __m128 _p0_ordered = _p0;
                     volatile __m128 _p1_ordered = _p1;
@@ -1311,7 +1325,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 {
                     _p = _mm_mul_ps(_p, _mm_set1_ps(input_scale_ptr[k0 + kk]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p));
+                    asm volatile(""
+                                 : "+x"(_p));
 #else
                     volatile __m128 _p_ordered = _p;
                     _p = _p_ordered;
@@ -1474,7 +1489,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 {
                     _p = _mm512_mul_ps(_p, _mm512_loadu_ps(input_scale_ptr + k0 + kk));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p));
+                    asm volatile(""
+                                 : "+x"(_p));
 #else
                     volatile __m512 _p_ordered = _p;
                     _p = _p_ordered;
@@ -1499,7 +1515,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 {
                     _p = _mm256_mul_ps(_p, _mm256_loadu_ps(input_scale_ptr + k0 + kk));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p));
+                    asm volatile(""
+                                 : "+x"(_p));
 #else
                     volatile __m256 _p_ordered = _p;
                     _p = _p_ordered;
@@ -1527,7 +1544,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 {
                     _p = _mm_mul_ps(_p, _mm_loadu_ps(input_scale_ptr + k0 + kk));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p));
+                    asm volatile(""
+                                 : "+x"(_p));
 #else
                     volatile __m128 _p_ordered = _p;
                     _p = _p_ordered;
@@ -1557,7 +1575,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 {
                     v *= input_scale_ptr[k0 + kk];
 #if NCNN_GNU_INLINE_ASM && __SSE2__
-                    asm volatile("" : "+x"(v));
+                    asm volatile(""
+                                 : "+x"(v));
 #else
                     volatile float v_ordered = v;
                     v = v_ordered;
@@ -1664,7 +1683,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     _p2 = _mm512_mul_ps(_p2, _mm512_set1_ps(input_scale_ptr[k0 + kk + 2]));
                     _p3 = _mm512_mul_ps(_p3, _mm512_set1_ps(input_scale_ptr[k0 + kk + 3]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p0), "+x"(_p1), "+x"(_p2), "+x"(_p3));
+                    asm volatile(""
+                                 : "+x"(_p0), "+x"(_p1), "+x"(_p2), "+x"(_p3));
 #else
                     volatile __m512 _p0_ordered = _p0;
                     volatile __m512 _p1_ordered = _p1;
@@ -1703,7 +1723,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     _p0 = _mm512_mul_ps(_p0, _mm512_set1_ps(input_scale_ptr[k0 + kk]));
                     _p1 = _mm512_mul_ps(_p1, _mm512_set1_ps(input_scale_ptr[k0 + kk + 1]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p0), "+x"(_p1));
+                    asm volatile(""
+                                 : "+x"(_p0), "+x"(_p1));
 #else
                     volatile __m512 _p0_ordered = _p0;
                     volatile __m512 _p1_ordered = _p1;
@@ -1724,7 +1745,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 {
                     _p = _mm512_mul_ps(_p, _mm512_set1_ps(input_scale_ptr[k0 + kk]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p));
+                    asm volatile(""
+                                 : "+x"(_p));
 #else
                     volatile __m512 _p_ordered = _p;
                     _p = _p_ordered;
@@ -1784,7 +1806,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     _p2 = _mm256_mul_ps(_p2, _mm256_set1_ps(input_scale_ptr[k0 + kk + 2]));
                     _p3 = _mm256_mul_ps(_p3, _mm256_set1_ps(input_scale_ptr[k0 + kk + 3]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p0), "+x"(_p1), "+x"(_p2), "+x"(_p3));
+                    asm volatile(""
+                                 : "+x"(_p0), "+x"(_p1), "+x"(_p2), "+x"(_p3));
 #else
                     volatile __m256 _p0_ordered = _p0;
                     volatile __m256 _p1_ordered = _p1;
@@ -1835,7 +1858,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     _p0 = _mm256_mul_ps(_p0, _mm256_set1_ps(input_scale_ptr[k0 + kk]));
                     _p1 = _mm256_mul_ps(_p1, _mm256_set1_ps(input_scale_ptr[k0 + kk + 1]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p0), "+x"(_p1));
+                    asm volatile(""
+                                 : "+x"(_p0), "+x"(_p1));
 #else
                     volatile __m256 _p0_ordered = _p0;
                     volatile __m256 _p1_ordered = _p1;
@@ -1858,7 +1882,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 {
                     _p = _mm256_mul_ps(_p, _mm256_set1_ps(input_scale_ptr[k0 + kk]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p));
+                    asm volatile(""
+                                 : "+x"(_p));
 #else
                     volatile __m256 _p_ordered = _p;
                     _p = _p_ordered;
@@ -1919,7 +1944,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     _p2 = _mm_mul_ps(_p2, _mm_set1_ps(input_scale_ptr[k0 + kk + 2]));
                     _p3 = _mm_mul_ps(_p3, _mm_set1_ps(input_scale_ptr[k0 + kk + 3]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p0), "+x"(_p1), "+x"(_p2), "+x"(_p3));
+                    asm volatile(""
+                                 : "+x"(_p0), "+x"(_p1), "+x"(_p2), "+x"(_p3));
 #else
                     volatile __m128 _p0_ordered = _p0;
                     volatile __m128 _p1_ordered = _p1;
@@ -1964,7 +1990,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     _p0 = _mm_mul_ps(_p0, _mm_set1_ps(input_scale_ptr[k0 + kk]));
                     _p1 = _mm_mul_ps(_p1, _mm_set1_ps(input_scale_ptr[k0 + kk + 1]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p0), "+x"(_p1));
+                    asm volatile(""
+                                 : "+x"(_p0), "+x"(_p1));
 #else
                     volatile __m128 _p0_ordered = _p0;
                     volatile __m128 _p1_ordered = _p1;
@@ -1984,7 +2011,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 {
                     _p = _mm_mul_ps(_p, _mm_set1_ps(input_scale_ptr[k0 + kk]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p));
+                    asm volatile(""
+                                 : "+x"(_p));
 #else
                     volatile __m128 _p_ordered = _p;
                     _p = _p_ordered;
@@ -2042,7 +2070,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     _p2 = _mm_mul_ps(_p2, _mm_set1_ps(input_scale_ptr[k0 + kk + 2]));
                     _p3 = _mm_mul_ps(_p3, _mm_set1_ps(input_scale_ptr[k0 + kk + 3]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p0), "+x"(_p1), "+x"(_p2), "+x"(_p3));
+                    asm volatile(""
+                                 : "+x"(_p0), "+x"(_p1), "+x"(_p2), "+x"(_p3));
 #else
                     volatile __m128 _p0_ordered = _p0;
                     volatile __m128 _p1_ordered = _p1;
@@ -2087,7 +2116,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     _p0 = _mm_mul_ps(_p0, _mm_set1_ps(input_scale_ptr[k0 + kk]));
                     _p1 = _mm_mul_ps(_p1, _mm_set1_ps(input_scale_ptr[k0 + kk + 1]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p0), "+x"(_p1));
+                    asm volatile(""
+                                 : "+x"(_p0), "+x"(_p1));
 #else
                     volatile __m128 _p0_ordered = _p0;
                     volatile __m128 _p1_ordered = _p1;
@@ -2107,7 +2137,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 {
                     _p = _mm_mul_ps(_p, _mm_set1_ps(input_scale_ptr[k0 + kk]));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p));
+                    asm volatile(""
+                                 : "+x"(_p));
 #else
                     volatile __m128 _p_ordered = _p;
                     _p = _p_ordered;
@@ -2288,7 +2319,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 {
                     _p = _mm512_mul_ps(_p, _mm512_loadu_ps(input_scale_ptr + k0 + kk));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p));
+                    asm volatile(""
+                                 : "+x"(_p));
 #else
                     volatile __m512 _p_ordered = _p;
                     _p = _p_ordered;
@@ -2314,7 +2346,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 {
                     _p = _mm256_mul_ps(_p, _mm256_loadu_ps(input_scale_ptr + k0 + kk));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p));
+                    asm volatile(""
+                                 : "+x"(_p));
 #else
                     volatile __m256 _p_ordered = _p;
                     _p = _p_ordered;
@@ -2343,7 +2376,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 {
                     _p = _mm_mul_ps(_p, _mm_loadu_ps(input_scale_ptr + k0 + kk));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+x"(_p));
+                    asm volatile(""
+                                 : "+x"(_p));
 #else
                     volatile __m128 _p_ordered = _p;
                     _p = _p_ordered;
@@ -2374,7 +2408,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 {
                     v *= input_scale_ptr[k];
 #if NCNN_GNU_INLINE_ASM && __SSE2__
-                    asm volatile("" : "+x"(v));
+                    asm volatile(""
+                                 : "+x"(v));
 #else
                     volatile float v_ordered = v;
                     v = v_ordered;
@@ -4621,7 +4656,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             _mm256_storeu_ps(p0 + out_hstep * 14, _mm512_castps512_ps256(_f7));
             _mm256_storeu_ps(p0 + out_hstep * 15, _mm512_extractf32x8_ps(_f7, 1));
             p0 += 8;
-
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -4710,7 +4744,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             _mm_storeu_ps(p0 + out_hstep * 14, _mm512_extractf32x4_ps(_f3, 2));
             _mm_storeu_ps(p0 + out_hstep * 15, _mm512_extractf32x4_ps(_f3, 3));
             p0 += 4;
-
         }
 #endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 1 < max_jj; jj += 2)
@@ -4799,7 +4832,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 _mm_storeh_pi((__m64*)(p0 + out_hstep * 15), _r);
             }
             p0 += 2;
-
         }
         for (; jj < max_jj; jj++)
         {
@@ -4835,7 +4867,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32((int)out_hstep));
             _mm512_i32scatter_ps(p0, _vindex, _f0, sizeof(float));
             p0++;
-
         }
     }
 #endif // __AVX512F__
@@ -6658,7 +6689,6 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             _mm512_storeu_ps(p0 + out_hstep * 6, _f6);
             _mm512_storeu_ps(p0 + out_hstep * 7, _f7);
             p0 += out_hstep * 8;
-
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -6734,7 +6764,6 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             _mm512_storeu_ps(p0 + out_hstep * 2, _f2);
             _mm512_storeu_ps(p0 + out_hstep * 3, _f3);
             p0 += out_hstep * 4;
-
         }
 #endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 1 < max_jj; jj += 2)
@@ -6784,7 +6813,6 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             _mm512_storeu_ps(p0, _f0);
             _mm512_storeu_ps(p0 + out_hstep, _f1);
             p0 += out_hstep * 2;
-
         }
         for (; jj < max_jj; jj++)
         {
@@ -6818,7 +6846,6 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             }
             _mm512_storeu_ps(p0, _f0);
             p0 += out_hstep;
-
         }
     }
 #endif // __AVX512F__

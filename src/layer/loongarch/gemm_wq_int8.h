@@ -73,7 +73,7 @@ static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_de
                     nr = 1;
                 }
 #if __loongarch_sx
-        }
+            }
 #endif
 #if __loongarch_asx
         }
@@ -587,7 +587,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 {
                     v *= input_scale_ptr[k];
                     // preserve multiplication order for consistent rounding
-                    asm volatile("" : "+f"(v));
+                    asm volatile(""
+                                 : "+f"(v));
                 }
                 outptr0[k] = float2int8(v * scale);
             }
@@ -963,7 +964,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 {
                     v *= input_scale_ptr[k];
                     // preserve multiplication order for consistent rounding
-                    asm volatile("" : "+f"(v));
+                    asm volatile(""
+                                 : "+f"(v));
                 }
                 outptr0[k] = float2int8(v * scale);
             }

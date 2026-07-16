@@ -328,7 +328,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 {
                     v0 *= input_scale_ptr[k];
                     v1 *= input_scale_ptr[k];
-                    asm volatile("" : "+f"(v0), "+f"(v1));
+                    asm volatile(""
+                                 : "+f"(v0), "+f"(v1));
                 }
                 pp[0] = float2int8(v0 * scale0);
                 pp[1] = float2int8(v1 * scale1);
@@ -395,14 +396,14 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 if (input_scale_ptr)
                 {
                     v *= input_scale_ptr[k];
-                    asm volatile("" : "+f"(v));
+                    asm volatile(""
+                                 : "+f"(v));
                 }
                 *pp++ = float2int8(v * scale);
             }
 #endif
         }
     }
-
 }
 
 // K-major, row-interleaved MR-packn/MR2/MR1
@@ -543,7 +544,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     const float s = input_scale_ptr[k];
                     v0 *= s;
                     v1 *= s;
-                    asm volatile("" : "+f"(v0), "+f"(v1));
+                    asm volatile(""
+                                 : "+f"(v0), "+f"(v1));
                 }
                 pp[0] = float2int8(v0 * scale0);
                 pp[1] = float2int8(v1 * scale1);
@@ -609,7 +611,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 if (input_scale_ptr)
                 {
                     v *= input_scale_ptr[k];
-                    asm volatile("" : "+f"(v));
+                    asm volatile(""
+                                 : "+f"(v));
                 }
                 *pp++ = float2int8(v * scale);
             }

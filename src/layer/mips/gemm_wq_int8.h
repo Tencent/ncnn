@@ -540,10 +540,14 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     v31 *= s1;
                     v32 *= s2;
                     v33 *= s3;
-                    asm volatile("" : "+f"(v00), "+f"(v01), "+f"(v02), "+f"(v03));
-                    asm volatile("" : "+f"(v10), "+f"(v11), "+f"(v12), "+f"(v13));
-                    asm volatile("" : "+f"(v20), "+f"(v21), "+f"(v22), "+f"(v23));
-                    asm volatile("" : "+f"(v30), "+f"(v31), "+f"(v32), "+f"(v33));
+                    asm volatile(""
+                                 : "+f"(v00), "+f"(v01), "+f"(v02), "+f"(v03));
+                    asm volatile(""
+                                 : "+f"(v10), "+f"(v11), "+f"(v12), "+f"(v13));
+                    asm volatile(""
+                                 : "+f"(v20), "+f"(v21), "+f"(v22), "+f"(v23));
+                    asm volatile(""
+                                 : "+f"(v30), "+f"(v31), "+f"(v32), "+f"(v33));
                 }
                 pp[0] = float2int8(v00 * scale0);
                 pp[1] = float2int8(v01 * scale0);
@@ -585,8 +589,10 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     v21 *= s1;
                     v30 *= s0;
                     v31 *= s1;
-                    asm volatile("" : "+f"(v00), "+f"(v01), "+f"(v10), "+f"(v11));
-                    asm volatile("" : "+f"(v20), "+f"(v21), "+f"(v30), "+f"(v31));
+                    asm volatile(""
+                                 : "+f"(v00), "+f"(v01), "+f"(v10), "+f"(v11));
+                    asm volatile(""
+                                 : "+f"(v20), "+f"(v21), "+f"(v30), "+f"(v31));
                 }
                 pp[0] = float2int8(v00 * scale0);
                 pp[1] = float2int8(v01 * scale0);
@@ -613,7 +619,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     v1 *= s;
                     v2 *= s;
                     v3 *= s;
-                    asm volatile("" : "+f"(v0), "+f"(v1), "+f"(v2), "+f"(v3));
+                    asm volatile(""
+                                 : "+f"(v0), "+f"(v1), "+f"(v2), "+f"(v3));
                 }
                 pp[0] = float2int8(v0 * scale0);
                 pp[1] = float2int8(v1 * scale1);
@@ -672,7 +679,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     {
                         v0 *= input_scale_ptr[k];
                         v1 *= input_scale_ptr[k];
-                        asm volatile("" : "+f"(v0), "+f"(v1));
+                        asm volatile(""
+                                     : "+f"(v0), "+f"(v1));
                     }
                     pp[r] = float2int8(v0 * scale0);
                     pp[4 + r] = float2int8(v1 * scale1);
@@ -690,7 +698,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     {
                         v0 *= input_scale_ptr[k];
                         v1 *= input_scale_ptr[k];
-                        asm volatile("" : "+f"(v0), "+f"(v1));
+                        asm volatile(""
+                                     : "+f"(v0), "+f"(v1));
                     }
                     pp[r] = float2int8(v0 * scale0);
                     pp[2 + r] = float2int8(v1 * scale1);
@@ -707,7 +716,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 {
                     v0 *= input_scale_ptr[k];
                     v1 *= input_scale_ptr[k];
-                    asm volatile("" : "+f"(v0), "+f"(v1));
+                    asm volatile(""
+                                 : "+f"(v0), "+f"(v1));
                 }
                 pp[0] = float2int8(v0 * scale0);
                 pp[1] = float2int8(v1 * scale1);
@@ -748,7 +758,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     if (input_scale_ptr)
                     {
                         v0 *= input_scale_ptr[k];
-                        asm volatile("" : "+f"(v0));
+                        asm volatile(""
+                                     : "+f"(v0));
                     }
                     pp[r] = float2int8(v0 * scale0);
                 }
@@ -763,7 +774,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     if (input_scale_ptr)
                     {
                         v0 *= input_scale_ptr[k];
-                        asm volatile("" : "+f"(v0));
+                        asm volatile(""
+                                     : "+f"(v0));
                     }
                     pp[r] = float2int8(v0 * scale0);
                 }
@@ -777,7 +789,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 if (input_scale_ptr)
                 {
                     v0 *= input_scale_ptr[k];
-                    asm volatile("" : "+f"(v0));
+                    asm volatile(""
+                                 : "+f"(v0));
                 }
                 *pp++ = float2int8(v0 * scale0);
             }
@@ -911,8 +924,12 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 const float s1 = input_scale_ptr ? input_scale_ptr[k0 + kk + 1] : 1.f;
                 v4f32 _p0 = __msa_fmul_w((v4f32)__msa_ld_w(p0, 0), __msa_fill_w_f32(s0));
                 v4f32 _p1 = __msa_fmul_w((v4f32)__msa_ld_w(p1, 0), __msa_fill_w_f32(s1));
-                v16i8 _q0 = float2int8(__msa_fmul_w(_p0, (v4f32){scale0, scale1, scale2, scale3}));
-                v16i8 _q1 = float2int8(__msa_fmul_w(_p1, (v4f32){scale0, scale1, scale2, scale3}));
+                v16i8 _q0 = float2int8(__msa_fmul_w(_p0, (v4f32) {
+                    scale0, scale1, scale2, scale3
+                }));
+                v16i8 _q1 = float2int8(__msa_fmul_w(_p1, (v4f32) {
+                    scale0, scale1, scale2, scale3
+                }));
                 pp[0] = __msa_copy_s_b(_q0, 0);
                 pp[1] = __msa_copy_s_b(_q1, 0);
                 pp[2] = __msa_copy_s_b(_q0, 1);
@@ -923,8 +940,12 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pp[7] = __msa_copy_s_b(_q1, 3);
                 _p0 = __msa_fmul_w((v4f32)__msa_ld_w(p0 + 4, 0), __msa_fill_w_f32(s0));
                 _p1 = __msa_fmul_w((v4f32)__msa_ld_w(p1 + 4, 0), __msa_fill_w_f32(s1));
-                _q0 = float2int8(__msa_fmul_w(_p0, (v4f32){scale4, scale5, scale6, scale7}));
-                _q1 = float2int8(__msa_fmul_w(_p1, (v4f32){scale4, scale5, scale6, scale7}));
+                _q0 = float2int8(__msa_fmul_w(_p0, (v4f32) {
+                    scale4, scale5, scale6, scale7
+                }));
+                _q1 = float2int8(__msa_fmul_w(_p1, (v4f32) {
+                    scale4, scale5, scale6, scale7
+                }));
                 pp[8] = __msa_copy_s_b(_q0, 0);
                 pp[9] = __msa_copy_s_b(_q1, 0);
                 pp[10] = __msa_copy_s_b(_q0, 1);
@@ -943,8 +964,12 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 const float s = input_scale_ptr ? input_scale_ptr[k] : 1.f;
                 v4f32 _p0 = __msa_fmul_w((v4f32)__msa_ld_w(p0, 0), __msa_fill_w_f32(s));
                 v4f32 _p1 = __msa_fmul_w((v4f32)__msa_ld_w(p0 + 4, 0), __msa_fill_w_f32(s));
-                const v16i8 _q0 = float2int8(__msa_fmul_w(_p0, (v4f32){scale0, scale1, scale2, scale3}));
-                const v16i8 _q1 = float2int8(__msa_fmul_w(_p1, (v4f32){scale4, scale5, scale6, scale7}));
+                const v16i8 _q0 = float2int8(__msa_fmul_w(_p0, (v4f32) {
+                    scale0, scale1, scale2, scale3
+                }));
+                const v16i8 _q1 = float2int8(__msa_fmul_w(_p1, (v4f32) {
+                    scale4, scale5, scale6, scale7
+                }));
                 ((int*)pp)[0] = __msa_copy_s_w((v4i32)_q0, 0);
                 ((int*)pp)[1] = __msa_copy_s_w((v4i32)_q1, 0);
                 pp += 8;
@@ -1045,8 +1070,10 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     v11 *= s1;
                     v21 *= s1;
                     v31 *= s1;
-                    asm volatile("" : "+f"(v00), "+f"(v01), "+f"(v10), "+f"(v11));
-                    asm volatile("" : "+f"(v20), "+f"(v21), "+f"(v30), "+f"(v31));
+                    asm volatile(""
+                                 : "+f"(v00), "+f"(v01), "+f"(v10), "+f"(v11));
+                    asm volatile(""
+                                 : "+f"(v20), "+f"(v21), "+f"(v30), "+f"(v31));
                 }
                 pp[0] = float2int8(v00 * scale0);
                 pp[1] = float2int8(v01 * scale0);
@@ -1074,7 +1101,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     v1 *= s;
                     v2 *= s;
                     v3 *= s;
-                    asm volatile("" : "+f"(v0), "+f"(v1), "+f"(v2), "+f"(v3));
+                    asm volatile(""
+                                 : "+f"(v0), "+f"(v1), "+f"(v2), "+f"(v3));
                 }
                 pp[0] = float2int8(v0 * scale0);
                 pp[1] = float2int8(v1 * scale1);
@@ -1132,7 +1160,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                         const float s = input_scale_ptr[k];
                         v0 *= s;
                         v1 *= s;
-                        asm volatile("" : "+f"(v0), "+f"(v1));
+                        asm volatile(""
+                                     : "+f"(v0), "+f"(v1));
                     }
                     pp[r] = float2int8(v0 * scale0);
                     pp[4 + r] = float2int8(v1 * scale1);
@@ -1152,7 +1181,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                         const float s = input_scale_ptr[k];
                         v0 *= s;
                         v1 *= s;
-                        asm volatile("" : "+f"(v0), "+f"(v1));
+                        asm volatile(""
+                                     : "+f"(v0), "+f"(v1));
                     }
                     pp[r] = float2int8(v0 * scale0);
                     pp[2 + r] = float2int8(v1 * scale1);
@@ -1171,7 +1201,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     const float s = input_scale_ptr[k];
                     v0 *= s;
                     v1 *= s;
-                    asm volatile("" : "+f"(v0), "+f"(v1));
+                    asm volatile(""
+                                 : "+f"(v0), "+f"(v1));
                 }
                 pp[0] = float2int8(v0 * scale0);
                 pp[1] = float2int8(v1 * scale1);
@@ -1211,7 +1242,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     if (input_scale_ptr)
                     {
                         v0 *= input_scale_ptr[k];
-                        asm volatile("" : "+f"(v0));
+                        asm volatile(""
+                                     : "+f"(v0));
                     }
                     pp[r] = float2int8(v0 * scale0);
                 }
@@ -1226,7 +1258,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     if (input_scale_ptr)
                     {
                         v0 *= input_scale_ptr[k];
-                        asm volatile("" : "+f"(v0));
+                        asm volatile(""
+                                     : "+f"(v0));
                     }
                     pp[r] = float2int8(v0 * scale0);
                 }
@@ -1240,7 +1273,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 if (input_scale_ptr)
                 {
                     v0 *= input_scale_ptr[k];
-                    asm volatile("" : "+f"(v0));
+                    asm volatile(""
+                                 : "+f"(v0));
                 }
                 *pp++ = float2int8(v0 * scale0);
             }
@@ -2048,11 +2082,21 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB0 += 4;
                     pB1 += 4;
                 }
-                const v4f32 _descaleA = (v4f32){pAD[0], pAD[1], pAD[0], pAD[1]};
-                const v4f32 _descaleB0 = (v4f32){pBD0[0], pBD0[0], pBD0[1], pBD0[1]};
-                const v4f32 _descaleB1 = (v4f32){pBD0[2], pBD0[2], pBD0[3], pBD0[3]};
-                const v4f32 _descaleB2 = (v4f32){pBD1[0], pBD1[0], pBD1[1], pBD1[1]};
-                const v4f32 _descaleB3 = (v4f32){pBD1[2], pBD1[2], pBD1[3], pBD1[3]};
+                const v4f32 _descaleA = (v4f32) {
+                    pAD[0], pAD[1], pAD[0], pAD[1]
+                };
+                const v4f32 _descaleB0 = (v4f32) {
+                    pBD0[0], pBD0[0], pBD0[1], pBD0[1]
+                };
+                const v4f32 _descaleB1 = (v4f32) {
+                    pBD0[2], pBD0[2], pBD0[3], pBD0[3]
+                };
+                const v4f32 _descaleB2 = (v4f32) {
+                    pBD1[0], pBD1[0], pBD1[1], pBD1[1]
+                };
+                const v4f32 _descaleB3 = (v4f32) {
+                    pBD1[2], pBD1[2], pBD1[3], pBD1[3]
+                };
                 _fsum0 = __msa_fadd_w(_fsum0, __msa_fmul_w((v4f32)__msa_ffint_s_w(_sum0), __msa_fmul_w(_descaleA, _descaleB0)));
                 _fsum1 = __msa_fadd_w(_fsum1, __msa_fmul_w((v4f32)__msa_ffint_s_w(_sum1), __msa_fmul_w(_descaleA, _descaleB1)));
                 _fsum2 = __msa_fadd_w(_fsum2, __msa_fmul_w((v4f32)__msa_ffint_s_w(_sum2), __msa_fmul_w(_descaleA, _descaleB2)));
@@ -2126,9 +2170,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 2;
                     pB += 4;
                 }
-                const v4f32 _descaleA = (v4f32){pAD[0], pAD[1], pAD[0], pAD[1]};
-                const v4f32 _descaleB0 = (v4f32){pBD[0], pBD[0], pBD[1], pBD[1]};
-                const v4f32 _descaleB1 = (v4f32){pBD[2], pBD[2], pBD[3], pBD[3]};
+                const v4f32 _descaleA = (v4f32) {
+                    pAD[0], pAD[1], pAD[0], pAD[1]
+                };
+                const v4f32 _descaleB0 = (v4f32) {
+                    pBD[0], pBD[0], pBD[1], pBD[1]
+                };
+                const v4f32 _descaleB1 = (v4f32) {
+                    pBD[2], pBD[2], pBD[3], pBD[3]
+                };
                 _fsum0 = __msa_fadd_w(_fsum0, __msa_fmul_w((v4f32)__msa_ffint_s_w(_sum0), __msa_fmul_w(_descaleA, _descaleB0)));
                 _fsum1 = __msa_fadd_w(_fsum1, __msa_fmul_w((v4f32)__msa_ffint_s_w(_sum1), __msa_fmul_w(_descaleA, _descaleB1)));
                 pAD += 2;
@@ -3005,10 +3055,18 @@ static void unpack_output_tile_wq_int8(const float* pp, const Mat& C, Mat& top_b
                 }
                 if (broadcast_type_C == 3)
                 {
-                    v4f32 _c0 = (v4f32){pC0[0], pC1[0], pC2[0], pC3[0]};
-                    v4f32 _c4 = (v4f32){pC4[0], pC5[0], pC6[0], pC7[0]};
-                    v4f32 _c1 = (v4f32){pC0[1], pC1[1], pC2[1], pC3[1]};
-                    v4f32 _c5 = (v4f32){pC4[1], pC5[1], pC6[1], pC7[1]};
+                    v4f32 _c0 = (v4f32) {
+                        pC0[0], pC1[0], pC2[0], pC3[0]
+                    };
+                    v4f32 _c4 = (v4f32) {
+                        pC4[0], pC5[0], pC6[0], pC7[0]
+                    };
+                    v4f32 _c1 = (v4f32) {
+                        pC0[1], pC1[1], pC2[1], pC3[1]
+                    };
+                    v4f32 _c5 = (v4f32) {
+                        pC4[1], pC5[1], pC6[1], pC7[1]
+                    };
                     if (beta != 1.f)
                     {
                         const v4f32 _beta = __msa_fill_w_f32(beta);
@@ -3099,8 +3157,12 @@ static void unpack_output_tile_wq_int8(const float* pp, const Mat& C, Mat& top_b
                 }
                 if (broadcast_type_C == 3)
                 {
-                    v4f32 _c0 = (v4f32){pC0[0], pC1[0], pC2[0], pC3[0]};
-                    v4f32 _c4 = (v4f32){pC4[0], pC5[0], pC6[0], pC7[0]};
+                    v4f32 _c0 = (v4f32) {
+                        pC0[0], pC1[0], pC2[0], pC3[0]
+                    };
+                    v4f32 _c4 = (v4f32) {
+                        pC4[0], pC5[0], pC6[0], pC7[0]
+                    };
                     if (beta != 1.f)
                     {
                         const v4f32 _beta = __msa_fill_w_f32(beta);
@@ -3395,8 +3457,12 @@ static void unpack_output_tile_wq_int8(const float* pp, const Mat& C, Mat& top_b
                 }
                 if (broadcast_type_C == 3)
                 {
-                    v4f32 _c0 = (v4f32){pC0[0], pC1[0], pC2[0], pC3[0]};
-                    v4f32 _c1 = (v4f32){pC0[1], pC1[1], pC2[1], pC3[1]};
+                    v4f32 _c0 = (v4f32) {
+                        pC0[0], pC1[0], pC2[0], pC3[0]
+                    };
+                    v4f32 _c1 = (v4f32) {
+                        pC0[1], pC1[1], pC2[1], pC3[1]
+                    };
                     if (beta != 1.f)
                     {
                         v4f32 _beta = __msa_fill_w_f32(beta);
@@ -3460,7 +3526,9 @@ static void unpack_output_tile_wq_int8(const float* pp, const Mat& C, Mat& top_b
                 }
                 if (broadcast_type_C == 3)
                 {
-                    v4f32 _c0 = (v4f32){pC0[0], pC1[0], pC2[0], pC3[0]};
+                    v4f32 _c0 = (v4f32) {
+                        pC0[0], pC1[0], pC2[0], pC3[0]
+                    };
                     if (beta != 1.f)
                         _c0 = __msa_fmul_w(_c0, __msa_fill_w_f32(beta));
                     _f0 = __msa_fadd_w(_f0, _c0);
@@ -3675,10 +3743,14 @@ static void unpack_output_tile_wq_int8(const float* pp, const Mat& C, Mat& top_b
             if (pC)
             {
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    _f = __msa_fadd_w(_f, (v4f32){c0, c1, c0, c1});
+                    _f = __msa_fadd_w(_f, (v4f32) {
+                    c0, c1, c0, c1
+                });
                 if (broadcast_type_C == 3)
                 {
-                    v4f32 _c = (v4f32){pC0[0], pC1[0], pC0[1], pC1[1]};
+                    v4f32 _c = (v4f32) {
+                        pC0[0], pC1[0], pC0[1], pC1[1]
+                    };
                     if (beta != 1.f)
                         _c = __msa_fmul_w(_c, __msa_fill_w_f32(beta));
                     _f = __msa_fadd_w(_f, _c);
@@ -3692,7 +3764,9 @@ static void unpack_output_tile_wq_int8(const float* pp, const Mat& C, Mat& top_b
                         cc0 *= beta;
                         cc1 *= beta;
                     }
-                    _f = __msa_fadd_w(_f, (v4f32){cc0, cc0, cc1, cc1});
+                    _f = __msa_fadd_w(_f, (v4f32) {
+                        cc0, cc0, cc1, cc1
+                    });
                 }
             }
 
@@ -4135,14 +4209,30 @@ static void transpose_unpack_output_tile_wq_int8(const float* pp, const Mat& C, 
                 }
                 if (broadcast_type_C == 3)
                 {
-                    v4f32 _cl0 = (v4f32){pC0[0], pC1[0], pC2[0], pC3[0]};
-                    v4f32 _ch0 = (v4f32){pC4[0], pC5[0], pC6[0], pC7[0]};
-                    v4f32 _cl1 = (v4f32){pC0[1], pC1[1], pC2[1], pC3[1]};
-                    v4f32 _ch1 = (v4f32){pC4[1], pC5[1], pC6[1], pC7[1]};
-                    v4f32 _cl2 = (v4f32){pC0[2], pC1[2], pC2[2], pC3[2]};
-                    v4f32 _ch2 = (v4f32){pC4[2], pC5[2], pC6[2], pC7[2]};
-                    v4f32 _cl3 = (v4f32){pC0[3], pC1[3], pC2[3], pC3[3]};
-                    v4f32 _ch3 = (v4f32){pC4[3], pC5[3], pC6[3], pC7[3]};
+                    v4f32 _cl0 = (v4f32) {
+                        pC0[0], pC1[0], pC2[0], pC3[0]
+                    };
+                    v4f32 _ch0 = (v4f32) {
+                        pC4[0], pC5[0], pC6[0], pC7[0]
+                    };
+                    v4f32 _cl1 = (v4f32) {
+                        pC0[1], pC1[1], pC2[1], pC3[1]
+                    };
+                    v4f32 _ch1 = (v4f32) {
+                        pC4[1], pC5[1], pC6[1], pC7[1]
+                    };
+                    v4f32 _cl2 = (v4f32) {
+                        pC0[2], pC1[2], pC2[2], pC3[2]
+                    };
+                    v4f32 _ch2 = (v4f32) {
+                        pC4[2], pC5[2], pC6[2], pC7[2]
+                    };
+                    v4f32 _cl3 = (v4f32) {
+                        pC0[3], pC1[3], pC2[3], pC3[3]
+                    };
+                    v4f32 _ch3 = (v4f32) {
+                        pC4[3], pC5[3], pC6[3], pC7[3]
+                    };
                     if (beta != 1.f)
                     {
                         const v4f32 _beta = __msa_fill_w_f32(beta);
@@ -4234,10 +4324,18 @@ static void transpose_unpack_output_tile_wq_int8(const float* pp, const Mat& C, 
                 }
                 if (broadcast_type_C == 3)
                 {
-                    v4f32 _c0 = (v4f32){pC0[0], pC1[0], pC2[0], pC3[0]};
-                    v4f32 _c4 = (v4f32){pC4[0], pC5[0], pC6[0], pC7[0]};
-                    v4f32 _c1 = (v4f32){pC0[1], pC1[1], pC2[1], pC3[1]};
-                    v4f32 _c5 = (v4f32){pC4[1], pC5[1], pC6[1], pC7[1]};
+                    v4f32 _c0 = (v4f32) {
+                        pC0[0], pC1[0], pC2[0], pC3[0]
+                    };
+                    v4f32 _c4 = (v4f32) {
+                        pC4[0], pC5[0], pC6[0], pC7[0]
+                    };
+                    v4f32 _c1 = (v4f32) {
+                        pC0[1], pC1[1], pC2[1], pC3[1]
+                    };
+                    v4f32 _c5 = (v4f32) {
+                        pC4[1], pC5[1], pC6[1], pC7[1]
+                    };
                     if (beta != 1.f)
                     {
                         const v4f32 _beta = __msa_fill_w_f32(beta);
@@ -4309,8 +4407,12 @@ static void transpose_unpack_output_tile_wq_int8(const float* pp, const Mat& C, 
                 }
                 if (broadcast_type_C == 3)
                 {
-                    v4f32 _c0 = (v4f32){pC0[0], pC1[0], pC2[0], pC3[0]};
-                    v4f32 _c4 = (v4f32){pC4[0], pC5[0], pC6[0], pC7[0]};
+                    v4f32 _c0 = (v4f32) {
+                        pC0[0], pC1[0], pC2[0], pC3[0]
+                    };
+                    v4f32 _c4 = (v4f32) {
+                        pC4[0], pC5[0], pC6[0], pC7[0]
+                    };
                     if (beta != 1.f)
                     {
                         const v4f32 _beta = __msa_fill_w_f32(beta);
@@ -4580,8 +4682,12 @@ static void transpose_unpack_output_tile_wq_int8(const float* pp, const Mat& C, 
                 }
                 if (broadcast_type_C == 3)
                 {
-                    v4f32 _c0 = (v4f32){pC0[0], pC1[0], pC2[0], pC3[0]};
-                    v4f32 _c1 = (v4f32){pC0[1], pC1[1], pC2[1], pC3[1]};
+                    v4f32 _c0 = (v4f32) {
+                        pC0[0], pC1[0], pC2[0], pC3[0]
+                    };
+                    v4f32 _c1 = (v4f32) {
+                        pC0[1], pC1[1], pC2[1], pC3[1]
+                    };
                     if (beta != 1.f)
                     {
                         v4f32 _beta = __msa_fill_w_f32(beta);
@@ -4637,7 +4743,9 @@ static void transpose_unpack_output_tile_wq_int8(const float* pp, const Mat& C, 
                 }
                 if (broadcast_type_C == 3)
                 {
-                    v4f32 _c0 = (v4f32){pC0[0], pC1[0], pC2[0], pC3[0]};
+                    v4f32 _c0 = (v4f32) {
+                        pC0[0], pC1[0], pC2[0], pC3[0]
+                    };
                     if (beta != 1.f)
                         _c0 = __msa_fmul_w(_c0, __msa_fill_w_f32(beta));
                     _f0 = __msa_fadd_w(_f0, _c0);
@@ -4710,7 +4818,9 @@ static void transpose_unpack_output_tile_wq_int8(const float* pp, const Mat& C, 
             {
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    v4f32 _c = (v4f32){c0, c1, c0, c1};
+                    v4f32 _c = (v4f32) {
+                        c0, c1, c0, c1
+                    };
                     _f0 = __msa_fadd_w(_f0, _c);
                     _f1 = __msa_fadd_w(_f1, _c);
                     _f2 = __msa_fadd_w(_f2, _c);
@@ -4718,10 +4828,18 @@ static void transpose_unpack_output_tile_wq_int8(const float* pp, const Mat& C, 
                 }
                 if (broadcast_type_C == 3)
                 {
-                    v4f32 _c0 = (v4f32){pC0[0], pC1[0], pC0[1], pC1[1]};
-                    v4f32 _c1 = (v4f32){pC0[2], pC1[2], pC0[3], pC1[3]};
-                    v4f32 _c2 = (v4f32){pC0[4], pC1[4], pC0[5], pC1[5]};
-                    v4f32 _c3 = (v4f32){pC0[6], pC1[6], pC0[7], pC1[7]};
+                    v4f32 _c0 = (v4f32) {
+                        pC0[0], pC1[0], pC0[1], pC1[1]
+                    };
+                    v4f32 _c1 = (v4f32) {
+                        pC0[2], pC1[2], pC0[3], pC1[3]
+                    };
+                    v4f32 _c2 = (v4f32) {
+                        pC0[4], pC1[4], pC0[5], pC1[5]
+                    };
+                    v4f32 _c3 = (v4f32) {
+                        pC0[6], pC1[6], pC0[7], pC1[7]
+                    };
                     if (beta != 1.f)
                     {
                         v4f32 _beta = __msa_fill_w_f32(beta);
@@ -4756,10 +4874,18 @@ static void transpose_unpack_output_tile_wq_int8(const float* pp, const Mat& C, 
                         c06 *= beta;
                         c07 *= beta;
                     }
-                    _f0 = __msa_fadd_w(_f0, (v4f32){c00, c00, c01, c01});
-                    _f1 = __msa_fadd_w(_f1, (v4f32){c02, c02, c03, c03});
-                    _f2 = __msa_fadd_w(_f2, (v4f32){c04, c04, c05, c05});
-                    _f3 = __msa_fadd_w(_f3, (v4f32){c06, c06, c07, c07});
+                    _f0 = __msa_fadd_w(_f0, (v4f32) {
+                        c00, c00, c01, c01
+                    });
+                    _f1 = __msa_fadd_w(_f1, (v4f32) {
+                        c02, c02, c03, c03
+                    });
+                    _f2 = __msa_fadd_w(_f2, (v4f32) {
+                        c04, c04, c05, c05
+                    });
+                    _f3 = __msa_fadd_w(_f3, (v4f32) {
+                        c06, c06, c07, c07
+                    });
                 }
             }
 
@@ -4799,14 +4925,20 @@ static void transpose_unpack_output_tile_wq_int8(const float* pp, const Mat& C, 
             {
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    v4f32 _c = (v4f32){c0, c1, c0, c1};
+                    v4f32 _c = (v4f32) {
+                        c0, c1, c0, c1
+                    };
                     _f0 = __msa_fadd_w(_f0, _c);
                     _f1 = __msa_fadd_w(_f1, _c);
                 }
                 if (broadcast_type_C == 3)
                 {
-                    v4f32 _c0 = (v4f32){pC0[0], pC1[0], pC0[1], pC1[1]};
-                    v4f32 _c1 = (v4f32){pC0[2], pC1[2], pC0[3], pC1[3]};
+                    v4f32 _c0 = (v4f32) {
+                        pC0[0], pC1[0], pC0[1], pC1[1]
+                    };
+                    v4f32 _c1 = (v4f32) {
+                        pC0[2], pC1[2], pC0[3], pC1[3]
+                    };
                     if (beta != 1.f)
                     {
                         v4f32 _beta = __msa_fill_w_f32(beta);
@@ -4829,8 +4961,12 @@ static void transpose_unpack_output_tile_wq_int8(const float* pp, const Mat& C, 
                         c02 *= beta;
                         c03 *= beta;
                     }
-                    _f0 = __msa_fadd_w(_f0, (v4f32){c00, c00, c01, c01});
-                    _f1 = __msa_fadd_w(_f1, (v4f32){c02, c02, c03, c03});
+                    _f0 = __msa_fadd_w(_f0, (v4f32) {
+                        c00, c00, c01, c01
+                    });
+                    _f1 = __msa_fadd_w(_f1, (v4f32) {
+                        c02, c02, c03, c03
+                    });
                 }
             }
 
@@ -4862,10 +4998,14 @@ static void transpose_unpack_output_tile_wq_int8(const float* pp, const Mat& C, 
             if (pC)
             {
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    _f = __msa_fadd_w(_f, (v4f32){c0, c1, c0, c1});
+                    _f = __msa_fadd_w(_f, (v4f32) {
+                    c0, c1, c0, c1
+                });
                 if (broadcast_type_C == 3)
                 {
-                    v4f32 _c = (v4f32){pC0[0], pC1[0], pC0[1], pC1[1]};
+                    v4f32 _c = (v4f32) {
+                        pC0[0], pC1[0], pC0[1], pC1[1]
+                    };
                     if (beta != 1.f)
                         _c = __msa_fmul_w(_c, __msa_fill_w_f32(beta));
                     _f = __msa_fadd_w(_f, _c);
@@ -4879,7 +5019,9 @@ static void transpose_unpack_output_tile_wq_int8(const float* pp, const Mat& C, 
                         cc0 *= beta;
                         cc1 *= beta;
                     }
-                    _f = __msa_fadd_w(_f, (v4f32){cc0, cc0, cc1, cc1});
+                    _f = __msa_fadd_w(_f, (v4f32) {
+                        cc0, cc0, cc1, cc1
+                    });
                 }
             }
 

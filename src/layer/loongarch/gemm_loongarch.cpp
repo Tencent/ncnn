@@ -7461,8 +7461,10 @@ static int gemm_BT_loongarch_wq_int8(const Mat& A, const Mat& packed_B, const Ma
                 Mat BT_tile = BT.row_range(j, max_jj);
                 Mat BT_descales_tile = BT_descales.row_range(j, max_jj);
                 gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, K, block_size);
-                if (output_transpose) transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, M, alpha, beta);
-                else unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, N, alpha, beta);
+                if (output_transpose)
+                    transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, M, alpha, beta);
+                else
+                    unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, N, alpha, beta);
             }
         }
     }

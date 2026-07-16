@@ -4635,12 +4635,36 @@ int Gemm_mips::forward_weight_block_quantize_int8(const std::vector<Mat>& bottom
         if (!C.empty())
         {
             bool matched = false;
-            if (C.dims == 1 && C.w == 1) { broadcast_type_C = 0; matched = true; }
-            if (C.dims == 1 && C.w == M) { broadcast_type_C = 1; matched = true; }
-            if (C.dims == 1 && C.w == N) { broadcast_type_C = 4; matched = true; }
-            if (C.dims == 2 && C.w == 1 && C.h == M) { broadcast_type_C = 2; matched = true; }
-            if (C.dims == 2 && C.w == N && C.h == M) { broadcast_type_C = 3; matched = true; }
-            if (C.dims == 2 && C.w == N && C.h == 1) { broadcast_type_C = 4; matched = true; }
+            if (C.dims == 1 && C.w == 1)
+            {
+                broadcast_type_C = 0;
+                matched = true;
+            }
+            if (C.dims == 1 && C.w == M)
+            {
+                broadcast_type_C = 1;
+                matched = true;
+            }
+            if (C.dims == 1 && C.w == N)
+            {
+                broadcast_type_C = 4;
+                matched = true;
+            }
+            if (C.dims == 2 && C.w == 1 && C.h == M)
+            {
+                broadcast_type_C = 2;
+                matched = true;
+            }
+            if (C.dims == 2 && C.w == N && C.h == M)
+            {
+                broadcast_type_C = 3;
+                matched = true;
+            }
+            if (C.dims == 2 && C.w == N && C.h == 1)
+            {
+                broadcast_type_C = 4;
+                matched = true;
+            }
 
             if (!matched || C.elemsize != 4u || C.elempack != 1)
             {

@@ -918,4 +918,3 @@ int MultiHeadAttention_riscv::forward(const std::vector<Mat>& bottom_blobs, std:
 }
 
 } // namespace ncnn
-

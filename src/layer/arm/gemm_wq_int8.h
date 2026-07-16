@@ -111,7 +111,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                         _v10 = vmulq_f32(_v10, _s0);
                         _v11 = vmulq_f32(_v11, _s1);
 #if NCNN_GNU_INLINE_ASM
-                        asm volatile("" : "+w"(_v00), "+w"(_v01), "+w"(_v10), "+w"(_v11));
+                        asm volatile(""
+                                     : "+w"(_v00), "+w"(_v01), "+w"(_v10), "+w"(_v11));
 #endif
                     }
                     const float32x4_t _scale0 = vdupq_n_f32(scales[r]);
@@ -134,7 +135,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     {
                         _v = vmulq_f32(_v, vld1q_f32(input_scale_ptr + k0 + kk));
 #if NCNN_GNU_INLINE_ASM
-                        asm volatile("" : "+w"(_v));
+                        asm volatile(""
+                                     : "+w"(_v));
 #endif
                     }
                     const float32x4_t _scale = vdupq_n_f32(scales[r]);
@@ -156,7 +158,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                         v0 *= input_scale_ptr[k0 + kk];
                         v1 *= input_scale_ptr[k0 + kk + 1];
 #if NCNN_GNU_INLINE_ASM
-                        asm volatile("" : "+w"(v0), "+w"(v1));
+                        asm volatile(""
+                                     : "+w"(v0), "+w"(v1));
 #endif
                     }
                     *pp++ = float2int8(v0 * scales[r]);
@@ -173,7 +176,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     {
                         v *= input_scale_ptr[k0 + kk];
 #if NCNN_GNU_INLINE_ASM
-                        asm volatile("" : "+w"(v));
+                        asm volatile(""
+                                     : "+w"(v));
 #endif
                     }
                     *pp++ = float2int8(v * scales[r]);
@@ -251,7 +255,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                         _v10 = vmulq_f32(_v10, _s0);
                         _v11 = vmulq_f32(_v11, _s1);
 #if NCNN_GNU_INLINE_ASM
-                        asm volatile("" : "+w"(_v00), "+w"(_v01), "+w"(_v10), "+w"(_v11));
+                        asm volatile(""
+                                     : "+w"(_v00), "+w"(_v01), "+w"(_v10), "+w"(_v11));
 #endif
                     }
                     const float32x4_t _scale0 = vdupq_n_f32(scales[r]);
@@ -274,7 +279,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     {
                         _v = vmulq_f32(_v, vld1q_f32(input_scale_ptr + k0 + kk));
 #if NCNN_GNU_INLINE_ASM
-                        asm volatile("" : "+w"(_v));
+                        asm volatile(""
+                                     : "+w"(_v));
 #endif
                     }
                     const int8x8_t _q = float2int8(vmulq_n_f32(_v, scales[r]), vmulq_n_f32(_v, scales[r]));
@@ -295,7 +301,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                         v0 *= input_scale_ptr[k0 + kk];
                         v1 *= input_scale_ptr[k0 + kk + 1];
 #if NCNN_GNU_INLINE_ASM
-                        asm volatile("" : "+w"(v0), "+w"(v1));
+                        asm volatile(""
+                                     : "+w"(v0), "+w"(v1));
 #endif
                     }
                     *pp++ = float2int8(v0 * scales[r]);
@@ -312,7 +319,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     {
                         v *= input_scale_ptr[k0 + kk];
 #if NCNN_GNU_INLINE_ASM
-                        asm volatile("" : "+w"(v));
+                        asm volatile(""
+                                     : "+w"(v));
 #endif
                     }
                     *pp++ = float2int8(v * scales[r]);
@@ -382,7 +390,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     _v10 = vmulq_f32(_v10, _s0);
                     _v11 = vmulq_f32(_v11, _s1);
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+w"(_v00), "+w"(_v01), "+w"(_v10), "+w"(_v11));
+                    asm volatile(""
+                                 : "+w"(_v00), "+w"(_v01), "+w"(_v10), "+w"(_v11));
 #endif
                 }
                 const int8x8_t _q0 = float2int8(vmulq_n_f32(_v00, scales[0]), vmulq_n_f32(_v01, scales[0]));
@@ -403,7 +412,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     {
                         _v = vmulq_f32(_v, vld1q_f32(input_scale_ptr + k0 + kk));
 #if NCNN_GNU_INLINE_ASM
-                        asm volatile("" : "+w"(_v));
+                        asm volatile(""
+                                     : "+w"(_v));
 #endif
                     }
                     const int8x8_t _q = float2int8(vmulq_n_f32(_v, scales[r]), vmulq_n_f32(_v, scales[r]));
@@ -485,7 +495,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 {
                     v0 *= input_scale_ptr[k0 + kk];
                     v1 *= input_scale_ptr[k0 + kk];
-                    asm volatile("" : "+w"(v0), "+w"(v1));
+                    asm volatile(""
+                                 : "+w"(v0), "+w"(v1));
                 }
                 *pp++ = float2int8(v0 * scale0);
                 *pp++ = float2int8(v1 * scale1);
@@ -556,7 +567,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     _v0 = vmulq_f32(_v0, vld1q_f32(input_scale_ptr + k0 + kk));
                     _v1 = vmulq_f32(_v1, vld1q_f32(input_scale_ptr + k0 + kk + 4));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+w"(_v0), "+w"(_v1));
+                    asm volatile(""
+                                 : "+w"(_v0), "+w"(_v1));
 #else
                     volatile float32x4_t _v0_ordered = _v0;
                     volatile float32x4_t _v1_ordered = _v1;
@@ -573,7 +585,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 {
                     _v = vmulq_f32(_v, vld1q_f32(input_scale_ptr + k0 + kk));
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+w"(_v));
+                    asm volatile(""
+                                 : "+w"(_v));
 #else
                     volatile float32x4_t _v_ordered = _v;
                     _v = _v_ordered;
@@ -591,7 +604,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 {
                     v *= input_scale_ptr[k];
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+w"(v));
+                    asm volatile(""
+                                 : "+w"(v));
 #else
                     volatile float v_ordered = v;
                     v = v_ordered;
@@ -690,7 +704,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                         _v0 = vmulq_n_f32(_v0, input_scale_ptr[k]);
                         _v1 = vmulq_n_f32(_v1, input_scale_ptr[k]);
 #if NCNN_GNU_INLINE_ASM
-                        asm volatile("" : "+w"(_v0), "+w"(_v1));
+                        asm volatile(""
+                                     : "+w"(_v0), "+w"(_v1));
 #endif
                     }
                     _q[t] = float2int8(vmulq_f32(_v0, _scale0), vmulq_f32(_v1, _scale1));
@@ -728,7 +743,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                         _v0 = vmulq_n_f32(_v0, input_scale_ptr[k]);
                         _v1 = vmulq_n_f32(_v1, input_scale_ptr[k]);
 #if NCNN_GNU_INLINE_ASM
-                        asm volatile("" : "+w"(_v0), "+w"(_v1));
+                        asm volatile(""
+                                     : "+w"(_v0), "+w"(_v1));
 #endif
                     }
                     _q.val[t] = float2int8(vmulq_f32(_v0, _scale0), vmulq_f32(_v1, _scale1));
@@ -750,7 +766,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                         _v0 = vmulq_n_f32(_v0, input_scale_ptr[k]);
                         _v1 = vmulq_n_f32(_v1, input_scale_ptr[k]);
 #if NCNN_GNU_INLINE_ASM
-                        asm volatile("" : "+w"(_v0), "+w"(_v1));
+                        asm volatile(""
+                                     : "+w"(_v0), "+w"(_v1));
 #endif
                     }
                     _q.val[t] = float2int8(vmulq_f32(_v0, _scale0), vmulq_f32(_v1, _scale1));
@@ -768,7 +785,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     _v0 = vmulq_n_f32(_v0, input_scale_ptr[k]);
                     _v1 = vmulq_n_f32(_v1, input_scale_ptr[k]);
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+w"(_v0), "+w"(_v1));
+                    asm volatile(""
+                                 : "+w"(_v0), "+w"(_v1));
 #endif
                 }
                 vst1_s8(pp, float2int8(vmulq_f32(_v0, _scale0), vmulq_f32(_v1, _scale1)));
@@ -827,7 +845,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     {
                         _v = vmulq_n_f32(_v, input_scale_ptr[k]);
 #if NCNN_GNU_INLINE_ASM
-                        asm volatile("" : "+w"(_v));
+                        asm volatile(""
+                                     : "+w"(_v));
 #else
                         volatile float32x4_t _v_ordered = _v;
                         _v = _v_ordered;
@@ -860,7 +879,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     {
                         _v = vmulq_n_f32(_v, input_scale_ptr[k]);
 #if NCNN_GNU_INLINE_ASM
-                        asm volatile("" : "+w"(_v));
+                        asm volatile(""
+                                     : "+w"(_v));
 #else
                         volatile float32x4_t _v_ordered = _v;
                         _v = _v_ordered;
@@ -886,7 +906,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     {
                         _v = vmulq_n_f32(_v, input_scale_ptr[k]);
 #if NCNN_GNU_INLINE_ASM
-                        asm volatile("" : "+w"(_v));
+                        asm volatile(""
+                                     : "+w"(_v));
 #else
                         volatile float32x4_t _v_ordered = _v;
                         _v = _v_ordered;
@@ -908,7 +929,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 {
                     _v = vmulq_n_f32(_v, input_scale_ptr[k]);
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+w"(_v));
+                    asm volatile(""
+                                 : "+w"(_v));
 #else
                     volatile float32x4_t _v_ordered = _v;
                     _v = _v_ordered;
@@ -1071,7 +1093,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 {
                     v0 *= input_scale_ptr[k0 + kk];
                     v1 *= input_scale_ptr[k0 + kk];
-                    asm volatile("" : "+w"(v0), "+w"(v1));
+                    asm volatile(""
+                                 : "+w"(v0), "+w"(v1));
                 }
                 *pp++ = float2int8(v0 * scale0);
                 *pp++ = float2int8(v1 * scale1);
@@ -1121,7 +1144,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 {
                     v *= input_scale_ptr[k];
 #if NCNN_GNU_INLINE_ASM
-                    asm volatile("" : "+w"(v));
+                    asm volatile(""
+                                 : "+w"(v));
 #else
                     volatile float v_ordered = v;
                     v = v_ordered;
@@ -1845,14 +1869,22 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     const int8x16_t _a67 = vld1q_s8(pA + 48);
                     const int8x16_t _b0 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)pB)), vdup_n_s8(0));
                     const int8x16_t _b1 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB + 4))), vdup_n_s8(0));
-                    _sum0 = vdotq_laneq_s32(_sum0, _b0, _a01, 0); _sum0 = vdotq_laneq_s32(_sum0, _b1, _a01, 1);
-                    _sum1 = vdotq_laneq_s32(_sum1, _b0, _a01, 2); _sum1 = vdotq_laneq_s32(_sum1, _b1, _a01, 3);
-                    _sum2 = vdotq_laneq_s32(_sum2, _b0, _a23, 0); _sum2 = vdotq_laneq_s32(_sum2, _b1, _a23, 1);
-                    _sum3 = vdotq_laneq_s32(_sum3, _b0, _a23, 2); _sum3 = vdotq_laneq_s32(_sum3, _b1, _a23, 3);
-                    _sum4 = vdotq_laneq_s32(_sum4, _b0, _a45, 0); _sum4 = vdotq_laneq_s32(_sum4, _b1, _a45, 1);
-                    _sum5 = vdotq_laneq_s32(_sum5, _b0, _a45, 2); _sum5 = vdotq_laneq_s32(_sum5, _b1, _a45, 3);
-                    _sum6 = vdotq_laneq_s32(_sum6, _b0, _a67, 0); _sum6 = vdotq_laneq_s32(_sum6, _b1, _a67, 1);
-                    _sum7 = vdotq_laneq_s32(_sum7, _b0, _a67, 2); _sum7 = vdotq_laneq_s32(_sum7, _b1, _a67, 3);
+                    _sum0 = vdotq_laneq_s32(_sum0, _b0, _a01, 0);
+                    _sum0 = vdotq_laneq_s32(_sum0, _b1, _a01, 1);
+                    _sum1 = vdotq_laneq_s32(_sum1, _b0, _a01, 2);
+                    _sum1 = vdotq_laneq_s32(_sum1, _b1, _a01, 3);
+                    _sum2 = vdotq_laneq_s32(_sum2, _b0, _a23, 0);
+                    _sum2 = vdotq_laneq_s32(_sum2, _b1, _a23, 1);
+                    _sum3 = vdotq_laneq_s32(_sum3, _b0, _a23, 2);
+                    _sum3 = vdotq_laneq_s32(_sum3, _b1, _a23, 3);
+                    _sum4 = vdotq_laneq_s32(_sum4, _b0, _a45, 0);
+                    _sum4 = vdotq_laneq_s32(_sum4, _b1, _a45, 1);
+                    _sum5 = vdotq_laneq_s32(_sum5, _b0, _a45, 2);
+                    _sum5 = vdotq_laneq_s32(_sum5, _b1, _a45, 3);
+                    _sum6 = vdotq_laneq_s32(_sum6, _b0, _a67, 0);
+                    _sum6 = vdotq_laneq_s32(_sum6, _b1, _a67, 1);
+                    _sum7 = vdotq_laneq_s32(_sum7, _b0, _a67, 2);
+                    _sum7 = vdotq_laneq_s32(_sum7, _b1, _a67, 3);
                     pA += 64;
                     pB += 8;
                 }
@@ -1863,10 +1895,14 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     const int8x16_t _b = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)pB)), vdup_n_s8(0));
                     const int8x16_t _a0 = vld1q_s8(pA);
                     const int8x16_t _a1 = vld1q_s8(pA + 16);
-                    _sum0 = vdotq_laneq_s32(_sum0, _b, _a0, 0); _sum1 = vdotq_laneq_s32(_sum1, _b, _a0, 1);
-                    _sum2 = vdotq_laneq_s32(_sum2, _b, _a0, 2); _sum3 = vdotq_laneq_s32(_sum3, _b, _a0, 3);
-                    _sum4 = vdotq_laneq_s32(_sum4, _b, _a1, 0); _sum5 = vdotq_laneq_s32(_sum5, _b, _a1, 1);
-                    _sum6 = vdotq_laneq_s32(_sum6, _b, _a1, 2); _sum7 = vdotq_laneq_s32(_sum7, _b, _a1, 3);
+                    _sum0 = vdotq_laneq_s32(_sum0, _b, _a0, 0);
+                    _sum1 = vdotq_laneq_s32(_sum1, _b, _a0, 1);
+                    _sum2 = vdotq_laneq_s32(_sum2, _b, _a0, 2);
+                    _sum3 = vdotq_laneq_s32(_sum3, _b, _a0, 3);
+                    _sum4 = vdotq_laneq_s32(_sum4, _b, _a1, 0);
+                    _sum5 = vdotq_laneq_s32(_sum5, _b, _a1, 1);
+                    _sum6 = vdotq_laneq_s32(_sum6, _b, _a1, 2);
+                    _sum7 = vdotq_laneq_s32(_sum7, _b, _a1, 3);
                     pA += 32;
                     pB += 4;
                 }
@@ -1892,14 +1928,22 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 {
                     const int8x8_t _b = vset_lane_s8(pB[0], vdup_n_s8(0), 0);
                     const int8x8_t _a = vld1_s8(pA);
-                    const int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a, 0)); const int16x8_t _p1 = vmull_s8(_b, vdup_lane_s8(_a, 1));
-                    const int16x8_t _p2 = vmull_s8(_b, vdup_lane_s8(_a, 2)); const int16x8_t _p3 = vmull_s8(_b, vdup_lane_s8(_a, 3));
-                    const int16x8_t _p4 = vmull_s8(_b, vdup_lane_s8(_a, 4)); const int16x8_t _p5 = vmull_s8(_b, vdup_lane_s8(_a, 5));
-                    const int16x8_t _p6 = vmull_s8(_b, vdup_lane_s8(_a, 6)); const int16x8_t _p7 = vmull_s8(_b, vdup_lane_s8(_a, 7));
-                    _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p0))); _sum1 = vaddq_s32(_sum1, vmovl_s16(vget_low_s16(_p1)));
-                    _sum2 = vaddq_s32(_sum2, vmovl_s16(vget_low_s16(_p2))); _sum3 = vaddq_s32(_sum3, vmovl_s16(vget_low_s16(_p3)));
-                    _sum4 = vaddq_s32(_sum4, vmovl_s16(vget_low_s16(_p4))); _sum5 = vaddq_s32(_sum5, vmovl_s16(vget_low_s16(_p5)));
-                    _sum6 = vaddq_s32(_sum6, vmovl_s16(vget_low_s16(_p6))); _sum7 = vaddq_s32(_sum7, vmovl_s16(vget_low_s16(_p7)));
+                    const int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a, 0));
+                    const int16x8_t _p1 = vmull_s8(_b, vdup_lane_s8(_a, 1));
+                    const int16x8_t _p2 = vmull_s8(_b, vdup_lane_s8(_a, 2));
+                    const int16x8_t _p3 = vmull_s8(_b, vdup_lane_s8(_a, 3));
+                    const int16x8_t _p4 = vmull_s8(_b, vdup_lane_s8(_a, 4));
+                    const int16x8_t _p5 = vmull_s8(_b, vdup_lane_s8(_a, 5));
+                    const int16x8_t _p6 = vmull_s8(_b, vdup_lane_s8(_a, 6));
+                    const int16x8_t _p7 = vmull_s8(_b, vdup_lane_s8(_a, 7));
+                    _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p0)));
+                    _sum1 = vaddq_s32(_sum1, vmovl_s16(vget_low_s16(_p1)));
+                    _sum2 = vaddq_s32(_sum2, vmovl_s16(vget_low_s16(_p2)));
+                    _sum3 = vaddq_s32(_sum3, vmovl_s16(vget_low_s16(_p3)));
+                    _sum4 = vaddq_s32(_sum4, vmovl_s16(vget_low_s16(_p4)));
+                    _sum5 = vaddq_s32(_sum5, vmovl_s16(vget_low_s16(_p5)));
+                    _sum6 = vaddq_s32(_sum6, vmovl_s16(vget_low_s16(_p6)));
+                    _sum7 = vaddq_s32(_sum7, vmovl_s16(vget_low_s16(_p7)));
                     pA += 8;
                     pB++;
                 }
@@ -1919,14 +1963,22 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 pB_descales++;
             }
 
-            vst1q_lane_f32(outptr, _fsum0, 0); outptr++;
-            vst1q_lane_f32(outptr, _fsum1, 0); outptr++;
-            vst1q_lane_f32(outptr, _fsum2, 0); outptr++;
-            vst1q_lane_f32(outptr, _fsum3, 0); outptr++;
-            vst1q_lane_f32(outptr, _fsum4, 0); outptr++;
-            vst1q_lane_f32(outptr, _fsum5, 0); outptr++;
-            vst1q_lane_f32(outptr, _fsum6, 0); outptr++;
-            vst1q_lane_f32(outptr, _fsum7, 0); outptr++;
+            vst1q_lane_f32(outptr, _fsum0, 0);
+            outptr++;
+            vst1q_lane_f32(outptr, _fsum1, 0);
+            outptr++;
+            vst1q_lane_f32(outptr, _fsum2, 0);
+            outptr++;
+            vst1q_lane_f32(outptr, _fsum3, 0);
+            outptr++;
+            vst1q_lane_f32(outptr, _fsum4, 0);
+            outptr++;
+            vst1q_lane_f32(outptr, _fsum5, 0);
+            outptr++;
+            vst1q_lane_f32(outptr, _fsum6, 0);
+            outptr++;
+            vst1q_lane_f32(outptr, _fsum7, 0);
+            outptr++;
         }
     }
 #endif // __aarch64__
@@ -3652,61 +3704,111 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 if (broadcast_type_C == 4)
                 {
                     const float32x2_t _c = beta == 1.f ? vld1_f32(pC) : vmul_n_f32(vld1_f32(pC), beta);
-                    _out0 = vadd_f32(_out0, _c); _out1 = vadd_f32(_out1, _c);
-                    _out2 = vadd_f32(_out2, _c); _out3 = vadd_f32(_out3, _c);
-                    _out4 = vadd_f32(_out4, _c); _out5 = vadd_f32(_out5, _c);
-                    _out6 = vadd_f32(_out6, _c); _out7 = vadd_f32(_out7, _c);
+                    _out0 = vadd_f32(_out0, _c);
+                    _out1 = vadd_f32(_out1, _c);
+                    _out2 = vadd_f32(_out2, _c);
+                    _out3 = vadd_f32(_out3, _c);
+                    _out4 = vadd_f32(_out4, _c);
+                    _out5 = vadd_f32(_out5, _c);
+                    _out6 = vadd_f32(_out6, _c);
+                    _out7 = vadd_f32(_out7, _c);
                     pC += 2;
                 }
             }
             if (alpha != 1.f)
             {
-                _out0 = vmul_n_f32(_out0, alpha); _out1 = vmul_n_f32(_out1, alpha);
-                _out2 = vmul_n_f32(_out2, alpha); _out3 = vmul_n_f32(_out3, alpha);
-                _out4 = vmul_n_f32(_out4, alpha); _out5 = vmul_n_f32(_out5, alpha);
-                _out6 = vmul_n_f32(_out6, alpha); _out7 = vmul_n_f32(_out7, alpha);
+                _out0 = vmul_n_f32(_out0, alpha);
+                _out1 = vmul_n_f32(_out1, alpha);
+                _out2 = vmul_n_f32(_out2, alpha);
+                _out3 = vmul_n_f32(_out3, alpha);
+                _out4 = vmul_n_f32(_out4, alpha);
+                _out5 = vmul_n_f32(_out5, alpha);
+                _out6 = vmul_n_f32(_out6, alpha);
+                _out7 = vmul_n_f32(_out7, alpha);
             }
-            vst1_f32(outptr0, _out0); vst1_f32(outptr1, _out1);
-            vst1_f32(outptr2, _out2); vst1_f32(outptr3, _out3);
-            vst1_f32(outptr4, _out4); vst1_f32(outptr5, _out5);
-            vst1_f32(outptr6, _out6); vst1_f32(outptr7, _out7);
-            outptr0 += 2; outptr1 += 2; outptr2 += 2; outptr3 += 2;
-            outptr4 += 2; outptr5 += 2; outptr6 += 2; outptr7 += 2;
+            vst1_f32(outptr0, _out0);
+            vst1_f32(outptr1, _out1);
+            vst1_f32(outptr2, _out2);
+            vst1_f32(outptr3, _out3);
+            vst1_f32(outptr4, _out4);
+            vst1_f32(outptr5, _out5);
+            vst1_f32(outptr6, _out6);
+            vst1_f32(outptr7, _out7);
+            outptr0 += 2;
+            outptr1 += 2;
+            outptr2 += 2;
+            outptr3 += 2;
+            outptr4 += 2;
+            outptr5 += 2;
+            outptr6 += 2;
+            outptr7 += 2;
             pp += 16;
         }
         for (; jj < max_jj; jj++)
         {
-            float f0 = pp[0]; float f1 = pp[1]; float f2 = pp[2]; float f3 = pp[3];
-            float f4 = pp[4]; float f5 = pp[5]; float f6 = pp[6]; float f7 = pp[7];
+            float f0 = pp[0];
+            float f1 = pp[1];
+            float f2 = pp[2];
+            float f3 = pp[3];
+            float f4 = pp[4];
+            float f5 = pp[5];
+            float f6 = pp[6];
+            float f7 = pp[7];
             if (pC)
             {
                 if (broadcast_type_C <= 2)
                 {
-                    f0 += c0; f1 += c1; f2 += c2; f3 += c3;
-                    f4 += c4; f5 += c5; f6 += c6; f7 += c7;
+                    f0 += c0;
+                    f1 += c1;
+                    f2 += c2;
+                    f3 += c3;
+                    f4 += c4;
+                    f5 += c5;
+                    f6 += c6;
+                    f7 += c7;
                 }
                 if (broadcast_type_C == 3)
                 {
-                    f0 += pC[0] * beta; f1 += pC[c_hstep] * beta;
-                    f2 += pC[c_hstep * 2] * beta; f3 += pC[c_hstep * 3] * beta;
-                    f4 += pC[c_hstep * 4] * beta; f5 += pC[c_hstep * 5] * beta;
-                    f6 += pC[c_hstep * 6] * beta; f7 += pC[c_hstep * 7] * beta;
+                    f0 += pC[0] * beta;
+                    f1 += pC[c_hstep] * beta;
+                    f2 += pC[c_hstep * 2] * beta;
+                    f3 += pC[c_hstep * 3] * beta;
+                    f4 += pC[c_hstep * 4] * beta;
+                    f5 += pC[c_hstep * 5] * beta;
+                    f6 += pC[c_hstep * 6] * beta;
+                    f7 += pC[c_hstep * 7] * beta;
                     pC++;
                 }
                 if (broadcast_type_C == 4)
                 {
                     const float c = pC[0] * beta;
-                    f0 += c; f1 += c; f2 += c; f3 += c;
-                    f4 += c; f5 += c; f6 += c; f7 += c;
+                    f0 += c;
+                    f1 += c;
+                    f2 += c;
+                    f3 += c;
+                    f4 += c;
+                    f5 += c;
+                    f6 += c;
+                    f7 += c;
                     pC++;
                 }
             }
-            outptr0[0] = f0 * alpha; outptr1[0] = f1 * alpha;
-            outptr2[0] = f2 * alpha; outptr3[0] = f3 * alpha;
-            outptr4[0] = f4 * alpha; outptr5[0] = f5 * alpha;
-            outptr6[0] = f6 * alpha; outptr7[0] = f7 * alpha;
-            outptr0++; outptr1++; outptr2++; outptr3++;
-            outptr4++; outptr5++; outptr6++; outptr7++;
+            outptr0[0] = f0 * alpha;
+            outptr1[0] = f1 * alpha;
+            outptr2[0] = f2 * alpha;
+            outptr3[0] = f3 * alpha;
+            outptr4[0] = f4 * alpha;
+            outptr5[0] = f5 * alpha;
+            outptr6[0] = f6 * alpha;
+            outptr7[0] = f7 * alpha;
+            outptr0++;
+            outptr1++;
+            outptr2++;
+            outptr3++;
+            outptr4++;
+            outptr5++;
+            outptr6++;
+            outptr7++;
             pp += 8;
         }
     }
@@ -4826,10 +4928,14 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             {
                 if (broadcast_type_C <= 2)
                 {
-                    _out0 = vadd_f32(_out0, vdup_n_f32(c0)); _out1 = vadd_f32(_out1, vdup_n_f32(c1));
-                    _out2 = vadd_f32(_out2, vdup_n_f32(c2)); _out3 = vadd_f32(_out3, vdup_n_f32(c3));
-                    _out4 = vadd_f32(_out4, vdup_n_f32(c4)); _out5 = vadd_f32(_out5, vdup_n_f32(c5));
-                    _out6 = vadd_f32(_out6, vdup_n_f32(c6)); _out7 = vadd_f32(_out7, vdup_n_f32(c7));
+                    _out0 = vadd_f32(_out0, vdup_n_f32(c0));
+                    _out1 = vadd_f32(_out1, vdup_n_f32(c1));
+                    _out2 = vadd_f32(_out2, vdup_n_f32(c2));
+                    _out3 = vadd_f32(_out3, vdup_n_f32(c3));
+                    _out4 = vadd_f32(_out4, vdup_n_f32(c4));
+                    _out5 = vadd_f32(_out5, vdup_n_f32(c5));
+                    _out6 = vadd_f32(_out6, vdup_n_f32(c6));
+                    _out7 = vadd_f32(_out7, vdup_n_f32(c7));
                 }
                 if (broadcast_type_C == 3)
                 {
@@ -4846,24 +4952,34 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 if (broadcast_type_C == 4)
                 {
                     const float32x2_t _c = beta == 1.f ? vld1_f32(pC) : vmul_n_f32(vld1_f32(pC), beta);
-                    _out0 = vadd_f32(_out0, _c); _out1 = vadd_f32(_out1, _c);
-                    _out2 = vadd_f32(_out2, _c); _out3 = vadd_f32(_out3, _c);
-                    _out4 = vadd_f32(_out4, _c); _out5 = vadd_f32(_out5, _c);
-                    _out6 = vadd_f32(_out6, _c); _out7 = vadd_f32(_out7, _c);
+                    _out0 = vadd_f32(_out0, _c);
+                    _out1 = vadd_f32(_out1, _c);
+                    _out2 = vadd_f32(_out2, _c);
+                    _out3 = vadd_f32(_out3, _c);
+                    _out4 = vadd_f32(_out4, _c);
+                    _out5 = vadd_f32(_out5, _c);
+                    _out6 = vadd_f32(_out6, _c);
+                    _out7 = vadd_f32(_out7, _c);
                     pC += 2;
                 }
             }
             if (alpha != 1.f)
             {
-                _out0 = vmul_n_f32(_out0, alpha); _out1 = vmul_n_f32(_out1, alpha);
-                _out2 = vmul_n_f32(_out2, alpha); _out3 = vmul_n_f32(_out3, alpha);
-                _out4 = vmul_n_f32(_out4, alpha); _out5 = vmul_n_f32(_out5, alpha);
-                _out6 = vmul_n_f32(_out6, alpha); _out7 = vmul_n_f32(_out7, alpha);
+                _out0 = vmul_n_f32(_out0, alpha);
+                _out1 = vmul_n_f32(_out1, alpha);
+                _out2 = vmul_n_f32(_out2, alpha);
+                _out3 = vmul_n_f32(_out3, alpha);
+                _out4 = vmul_n_f32(_out4, alpha);
+                _out5 = vmul_n_f32(_out5, alpha);
+                _out6 = vmul_n_f32(_out6, alpha);
+                _out7 = vmul_n_f32(_out7, alpha);
             }
             float32x4x2_t _t0 = vuzpq_f32(vcombine_f32(_out0, _out1), vcombine_f32(_out2, _out3));
             float32x4x2_t _t1 = vuzpq_f32(vcombine_f32(_out4, _out5), vcombine_f32(_out6, _out7));
-            vst1q_f32(outptr0, _t0.val[0]); vst1q_f32(outptr0 + 4, _t1.val[0]);
-            vst1q_f32(outptr1, _t0.val[1]); vst1q_f32(outptr1 + 4, _t1.val[1]);
+            vst1q_f32(outptr0, _t0.val[0]);
+            vst1q_f32(outptr0 + 4, _t1.val[0]);
+            vst1q_f32(outptr1, _t0.val[1]);
+            vst1q_f32(outptr1 + 4, _t1.val[1]);
             outptr0 += out_hstep * 2;
             outptr1 += out_hstep * 2;
             pp += 16;
