@@ -101,8 +101,12 @@ int RotaryEmbed_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
             }
             else
             {
+                // full-width cache => independent cos/sin per half (2D rope); half-width => reuse.
+                const int cw = cos_cache.w == embed_dim ? half : 0;
                 const __fp16* ptr0 = head.row<const __fp16>(i);
                 const __fp16* ptr1 = ptr0 + half;
+                const __fp16* cos_ptr1 = cos_ptr + cw;
+                const __fp16* sin_ptr1 = sin_ptr + cw;
                 __fp16* outptr0 = out_head.row<__fp16>(i);
                 __fp16* outptr1 = outptr0 + half;
 
@@ -113,6 +117,8 @@ int RotaryEmbed_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
                     float16x8_t _x18 = vld1q_f16(ptr1);
                     float16x8_t _c8 = vld1q_f16(cos_ptr);
                     float16x8_t _s8 = vld1q_f16(sin_ptr);
+                    float16x8_t _c18 = vld1q_f16(cos_ptr1);
+                    float16x8_t _s18 = vld1q_f16(sin_ptr1);
 
                     float32x4_t _x0l = vcvt_f32_f16(vget_low_f16(_x08));
                     float32x4_t _x0h = vcvt_f32_f16(vget_high_f16(_x08));
@@ -122,11 +128,15 @@ int RotaryEmbed_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
                     float32x4_t _ch = vcvt_f32_f16(vget_high_f16(_c8));
                     float32x4_t _sl = vcvt_f32_f16(vget_low_f16(_s8));
                     float32x4_t _sh = vcvt_f32_f16(vget_high_f16(_s8));
+                    float32x4_t _cl1 = vcvt_f32_f16(vget_low_f16(_c18));
+                    float32x4_t _ch1 = vcvt_f32_f16(vget_high_f16(_c18));
+                    float32x4_t _sl1 = vcvt_f32_f16(vget_low_f16(_s18));
+                    float32x4_t _sh1 = vcvt_f32_f16(vget_high_f16(_s18));
 
-                    float32x4_t _y0l = vmlsq_f32(vmulq_f32(_x0l, _cl), _x1l, _sl); // x0*c - x1*s
+                    float32x4_t _y0l = vmlsq_f32(vmulq_f32(_x0l, _cl), _x1l, _sl); // x0*c0 - x1*s0
                     float32x4_t _y0h = vmlsq_f32(vmulq_f32(_x0h, _ch), _x1h, _sh);
-                    float32x4_t _y1l = vmlaq_f32(vmulq_f32(_x1l, _cl), _x0l, _sl); // x1*c + x0*s
-                    float32x4_t _y1h = vmlaq_f32(vmulq_f32(_x1h, _ch), _x0h, _sh);
+                    float32x4_t _y1l = vmlaq_f32(vmulq_f32(_x1l, _cl1), _x0l, _sl1); // x1*c1 + x0*s1
+                    float32x4_t _y1h = vmlaq_f32(vmulq_f32(_x1h, _ch1), _x0h, _sh1);
 
                     vst1q_f16(outptr0, vcombine_f16(vcvt_f16_f32(_y0l), vcvt_f16_f32(_y0h)));
                     vst1q_f16(outptr1, vcombine_f16(vcvt_f16_f32(_y1l), vcvt_f16_f32(_y1h)));
@@ -135,6 +145,8 @@ int RotaryEmbed_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
                     ptr1 += 8;
                     cos_ptr += 8;
                     sin_ptr += 8;
+                    cos_ptr1 += 8;
+                    sin_ptr1 += 8;
                     outptr0 += 8;
                     outptr1 += 8;
                 }
@@ -142,11 +154,13 @@ int RotaryEmbed_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
                 {
                     float32x4_t _x0 = vcvt_f32_f16(vld1_f16(ptr0));
                     float32x4_t _x1 = vcvt_f32_f16(vld1_f16(ptr1));
-                    float32x4_t _c = vcvt_f32_f16(vld1_f16(cos_ptr));
-                    float32x4_t _s = vcvt_f32_f16(vld1_f16(sin_ptr));
+                    float32x4_t _c0 = vcvt_f32_f16(vld1_f16(cos_ptr));
+                    float32x4_t _s0 = vcvt_f32_f16(vld1_f16(sin_ptr));
+                    float32x4_t _c1 = vcvt_f32_f16(vld1_f16(cos_ptr1));
+                    float32x4_t _s1 = vcvt_f32_f16(vld1_f16(sin_ptr1));
 
-                    float32x4_t _y0 = vmlsq_f32(vmulq_f32(_x0, _c), _x1, _s); // x0*c - x1*s
-                    float32x4_t _y1 = vmlaq_f32(vmulq_f32(_x1, _c), _x0, _s); // x1*c + x0*s
+                    float32x4_t _y0 = vmlsq_f32(vmulq_f32(_x0, _c0), _x1, _s0); // x0*c0 - x1*s0
+                    float32x4_t _y1 = vmlaq_f32(vmulq_f32(_x1, _c1), _x0, _s1); // x1*c1 + x0*s1
 
                     vst1_f16(outptr0, vcvt_f16_f32(_y0));
                     vst1_f16(outptr1, vcvt_f16_f32(_y1));
@@ -155,6 +169,8 @@ int RotaryEmbed_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
                     ptr1 += 4;
                     cos_ptr += 4;
                     sin_ptr += 4;
+                    cos_ptr1 += 4;
+                    sin_ptr1 += 4;
                     outptr0 += 4;
                     outptr1 += 4;
                 }
@@ -162,10 +178,8 @@ int RotaryEmbed_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
                 {
                     const float x0 = (float)*ptr0++;
                     const float x1 = (float)*ptr1++;
-                    const float cos_val = (float)*cos_ptr++;
-                    const float sin_val = (float)*sin_ptr++;
-                    *outptr0++ = (__fp16)(x0 * cos_val - x1 * sin_val);
-                    *outptr1++ = (__fp16)(x0 * sin_val + x1 * cos_val);
+                    *outptr0++ = (__fp16)(x0 * (float)*cos_ptr++ - x1 * (float)*sin_ptr++);
+                    *outptr1++ = (__fp16)(x0 * (float)*sin_ptr1++ + x1 * (float)*cos_ptr1++);
                 }
             }
         }
@@ -237,8 +251,12 @@ int RotaryEmbed_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::v
             }
             else
             {
+                // full-width cache => independent cos/sin per half (2D rope); half-width => reuse.
+                const int cw = cos_cache.w == embed_dim ? half : 0;
                 const __fp16* ptr0 = head.row<const __fp16>(i);
                 const __fp16* ptr1 = ptr0 + half;
+                const __fp16* cos_ptr1 = cos_ptr + cw;
+                const __fp16* sin_ptr1 = sin_ptr + cw;
                 __fp16* outptr0 = out_head.row<__fp16>(i);
                 __fp16* outptr1 = outptr0 + half;
 
@@ -247,11 +265,13 @@ int RotaryEmbed_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::v
                 {
                     float16x8_t _x0 = vld1q_f16(ptr0);
                     float16x8_t _x1 = vld1q_f16(ptr1);
-                    float16x8_t _c = vld1q_f16(cos_ptr);
-                    float16x8_t _s = vld1q_f16(sin_ptr);
+                    float16x8_t _c0 = vld1q_f16(cos_ptr);
+                    float16x8_t _s0 = vld1q_f16(sin_ptr);
+                    float16x8_t _c1 = vld1q_f16(cos_ptr1);
+                    float16x8_t _s1 = vld1q_f16(sin_ptr1);
 
-                    float16x8_t _y0 = vfmsq_f16(vmulq_f16(_x0, _c), _x1, _s); // x0*c - x1*s
-                    float16x8_t _y1 = vfmaq_f16(vmulq_f16(_x1, _c), _x0, _s); // x1*c + x0*s
+                    float16x8_t _y0 = vfmsq_f16(vmulq_f16(_x0, _c0), _x1, _s0); // x0*c0 - x1*s0
+                    float16x8_t _y1 = vfmaq_f16(vmulq_f16(_x1, _c1), _x0, _s1); // x1*c1 + x0*s1
 
                     vst1q_f16(outptr0, _y0);
                     vst1q_f16(outptr1, _y1);
@@ -260,6 +280,8 @@ int RotaryEmbed_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::v
                     ptr1 += 8;
                     cos_ptr += 8;
                     sin_ptr += 8;
+                    cos_ptr1 += 8;
+                    sin_ptr1 += 8;
                     outptr0 += 8;
                     outptr1 += 8;
                 }
@@ -267,10 +289,8 @@ int RotaryEmbed_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::v
                 {
                     const float x0 = (float)*ptr0++;
                     const float x1 = (float)*ptr1++;
-                    const float cos_val = (float)*cos_ptr++;
-                    const float sin_val = (float)*sin_ptr++;
-                    *outptr0++ = (__fp16)(x0 * cos_val - x1 * sin_val);
-                    *outptr1++ = (__fp16)(x0 * sin_val + x1 * cos_val);
+                    *outptr0++ = (__fp16)(x0 * (float)*cos_ptr++ - x1 * (float)*sin_ptr++);
+                    *outptr1++ = (__fp16)(x0 * (float)*sin_ptr1++ + x1 * (float)*cos_ptr1++);
                 }
             }
         }
