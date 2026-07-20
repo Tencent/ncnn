@@ -16,9 +16,9 @@ static inline void interpolate_cubic_fp16sa(float fx, __fp16* coeffs)
     coeffs[3] = (__fp16)((__fp16)1.f - coeffs[0] - coeffs[1] - coeffs[2]);
 }
 
-static void cubic_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha, int align_corner)
+static void cubic_coeffs_fp16sa(int w, int outw, float coord_scale, int* xofs, __fp16* alpha, int align_corner)
 {
-    double scale = (double)w / outw;
+    double scale = coord_scale;
     if (align_corner)
     {
         scale = (double)(w - 1) / (outw - 1);
@@ -72,6 +72,11 @@ static void cubic_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha, int a
 
         xofs[dx] = sx;
     }
+}
+
+static void cubic_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha, int align_corner)
+{
+    cubic_coeffs_fp16sa(w, outw, (float)((double)w / outw), xofs, alpha, align_corner);
 }
 
 static void resize_bicubic_image_fp16s(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)

@@ -5,9 +5,11 @@
 void resize_bilinear_image_avx2(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs);
 #endif
 
-static void linear_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner)
+static void linear_coeffs(int w, int outw, float coord_scale, int* xofs, float* alpha, int align_corner)
 {
-    double scale = (double)w / outw;
+    // coord_scale is w/outw for an explicit output size, or 1/scale_factor when derived from a
+    // scale factor (matching the nearest path / PyTorch default / ONNX half_pixel).
+    double scale = coord_scale;
     if (align_corner)
     {
         scale = (double)(w - 1) / (outw - 1);
@@ -40,6 +42,11 @@ static void linear_coeffs(int w, int outw, int* xofs, float* alpha, int align_co
         alpha[dx * 2] = 1.f - fx;
         alpha[dx * 2 + 1] = fx;
     }
+}
+
+static void linear_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner)
+{
+    linear_coeffs(w, outw, (float)((double)w / outw), xofs, alpha, align_corner);
 }
 
 static void vresize_bilinear(const float* rows0, const float* rows1, float* Dp, int n, float b0, float b1)

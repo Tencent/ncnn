@@ -16,9 +16,9 @@ static inline void interpolate_cubic(float fx, float* coeffs)
     coeffs[3] = 1.f - coeffs[0] - coeffs[1] - coeffs[2];
 }
 
-static void cubic_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner)
+static void cubic_coeffs(int w, int outw, float coord_scale, int* xofs, float* alpha, int align_corner)
 {
-    double scale = (double)w / outw;
+    double scale = coord_scale;
     if (align_corner)
     {
         scale = (double)(w - 1) / (outw - 1);
@@ -72,6 +72,11 @@ static void cubic_coeffs(int w, int outw, int* xofs, float* alpha, int align_cor
 
         xofs[dx] = sx;
     }
+}
+
+static void cubic_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner)
+{
+    cubic_coeffs(w, outw, (float)((double)w / outw), xofs, alpha, align_corner);
 }
 
 static void resize_bicubic_image(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
