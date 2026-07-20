@@ -94,8 +94,7 @@ static void weight_block_quantize_activation_row_int8(const Mat& A, int transA, 
             continue;
         }
 
-        volatile double scale_fp64 = 127.0 / (double)absmax;
-        const float scale = (float)scale_fp64;
+        const float scale = 127.f / absmax;
         descale_ptr[g] = absmax / 127.f;
 
         for (int kk = 0; kk < max_kk; kk++)
@@ -103,11 +102,7 @@ static void weight_block_quantize_activation_row_int8(const Mat& A, int transA, 
             const int k = k0 + kk;
             float v = transA ? ((const float*)A)[k * A_hstep + i] : ptrA[k];
             if (input_scale_ptr)
-            {
                 v *= input_scale_ptr[k];
-                volatile float v_ordered = v;
-                v = v_ordered;
-            }
             outptr[k] = weight_block_quantize_float2int8(v * scale);
         }
     }

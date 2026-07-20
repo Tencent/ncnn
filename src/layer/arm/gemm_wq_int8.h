@@ -4,22 +4,24 @@
 #include <math.h>
 
 #if NCNN_RUNTIME_CPU && NCNN_ARM86SVEI8MM && __aarch64__ && !__ARM_FEATURE_SVE_MATMUL_INT8
+// The svei8mm translation unit reuses the aarch64 i8mm v-register kernel and
+// its persistent B layout. There is no SVE z-register WQ kernel layout yet.
 int pack_B_wq_int8_svei8mm(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_descales, int N, int K, int block_size, int num_threads);
-void gemm_transB_packed_tile_wq_int8_svei8mm(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int K, int block_size);
+void gemm_transB_packed_tile_wq_int8_svei8mm(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int K, int k, int max_kk, int block_size);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8
 int pack_B_wq_int8_i8mm(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_descales, int N, int K, int block_size, int num_threads);
 void quantize_A_tile_wq_int8_i8mm(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int K, int block_size, const float* input_scale_ptr);
 void transpose_quantize_A_tile_wq_int8_i8mm(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int K, int block_size, const float* input_scale_ptr);
-void gemm_transB_packed_tile_wq_int8_i8mm(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int K, int block_size);
+void gemm_transB_packed_tile_wq_int8_i8mm(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int K, int k, int max_kk, int block_size);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD && !__ARM_FEATURE_MATMUL_INT8
 int pack_B_wq_int8_asimddp(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_descales, int N, int K, int block_size, int num_threads);
 void quantize_A_tile_wq_int8_asimddp(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int K, int block_size, const float* input_scale_ptr);
 void transpose_quantize_A_tile_wq_int8_asimddp(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int K, int block_size, const float* input_scale_ptr);
-void gemm_transB_packed_tile_wq_int8_asimddp(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int K, int block_size);
+void gemm_transB_packed_tile_wq_int8_asimddp(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int K, int k, int max_kk, int block_size);
 #endif
 
 static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int K, int block_size, const float* input_scale_ptr)
@@ -46,101 +48,98 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
     const int block_count = (K + block_size - 1) / block_size;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
-#if __ARM_NEON && __aarch64__
+    int ii = 0;
+#if __ARM_NEON
+#if __aarch64__
     if (max_ii >= 8)
     {
         signed char* pp = AT_tile;
+        const float* pA0 = (const float*)A + i * A_hstep;
+        const float* ps = input_scale_ptr;
+        float* pd = descales;
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
+            const int max_kk = std::min(K - g * block_size, block_size);
             float absmax[8];
             float scales[8];
 
             for (int r = 0; r < 8; r++)
             {
-                const float* ptrA = (const float*)A + (i + r) * A_hstep + k0;
+                const float* ptrA = pA0 + r * A_hstep;
                 float32x4_t _absmax = vdupq_n_f32(0.f);
                 int kk = 0;
                 for (; kk + 3 < max_kk; kk += 4)
                 {
                     float32x4_t _v = vld1q_f32(ptrA + kk);
-                    if (input_scale_ptr)
-                        _v = vmulq_f32(_v, vld1q_f32(input_scale_ptr + k0 + kk));
+                    if (ps)
+                        _v = vmulq_f32(_v, vld1q_f32(ps + kk));
                     _absmax = vmaxq_f32(_absmax, vabsq_f32(_v));
                 }
-#if __aarch64__
                 absmax[r] = vmaxvq_f32(_absmax);
-#else
-                float32x2_t _max2 = vmax_f32(vget_low_f32(_absmax), vget_high_f32(_absmax));
-                _max2 = vpmax_f32(_max2, _max2);
-                absmax[r] = vget_lane_f32(_max2, 0);
-#endif
                 for (; kk < max_kk; kk++)
                 {
                     float v = ptrA[kk];
-                    if (input_scale_ptr)
-                        v *= input_scale_ptr[k0 + kk];
+                    if (ps)
+                        v *= ps[kk];
                     absmax[r] = std::max(absmax[r], fabsf(v));
                 }
 
-                descales[g * 8 + r] = absmax[r] / 127.f;
-                volatile double scale_fp64 = absmax[r] == 0.f ? 0.0 : 127.0 / (double)absmax[r];
-                scales[r] = (float)scale_fp64;
+                pd[r] = absmax[r] / 127.f;
+                scales[r] = absmax[r] == 0.f ? 0.f : 127.f / absmax[r];
             }
 
             int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
             for (; kk + 7 < max_kk; kk += 8)
             {
+                float32x4_t _s0;
+                float32x4_t _s1;
+                if (ps)
+                {
+                    _s0 = vld1q_f32(ps + kk);
+                    _s1 = vld1q_f32(ps + kk + 4);
+                }
                 for (int r = 0; r < 8; r += 2)
                 {
-                    const float* ptrA0 = (const float*)A + (i + r) * A_hstep + k0 + kk;
+                    const float* ptrA0 = pA0 + r * A_hstep + kk;
                     const float* ptrA1 = ptrA0 + A_hstep;
                     float32x4_t _v00 = vld1q_f32(ptrA0);
                     float32x4_t _v01 = vld1q_f32(ptrA0 + 4);
                     float32x4_t _v10 = vld1q_f32(ptrA1);
                     float32x4_t _v11 = vld1q_f32(ptrA1 + 4);
-                    if (input_scale_ptr)
+                    if (ps)
                     {
-                        const float32x4_t _s0 = vld1q_f32(input_scale_ptr + k0 + kk);
-                        const float32x4_t _s1 = vld1q_f32(input_scale_ptr + k0 + kk + 4);
                         _v00 = vmulq_f32(_v00, _s0);
                         _v01 = vmulq_f32(_v01, _s1);
                         _v10 = vmulq_f32(_v10, _s0);
                         _v11 = vmulq_f32(_v11, _s1);
-#if NCNN_GNU_INLINE_ASM
-                        asm volatile(""
-                                     : "+w"(_v00), "+w"(_v01), "+w"(_v10), "+w"(_v11));
-#endif
                     }
-                    const float32x4_t _scale0 = vdupq_n_f32(scales[r]);
-                    const float32x4_t _scale1 = vdupq_n_f32(scales[r + 1]);
-                    const int8x8_t _q0 = float2int8(vmulq_f32(_v00, _scale0), vmulq_f32(_v01, _scale0));
-                    const int8x8_t _q1 = float2int8(vmulq_f32(_v10, _scale1), vmulq_f32(_v11, _scale1));
+                    float32x4_t _scale0 = vdupq_n_f32(scales[r]);
+                    float32x4_t _scale1 = vdupq_n_f32(scales[r + 1]);
+                    int8x8_t _q0 = float2int8(vmulq_f32(_v00, _scale0), vmulq_f32(_v01, _scale0));
+                    int8x8_t _q1 = float2int8(vmulq_f32(_v10, _scale1), vmulq_f32(_v11, _scale1));
                     vst1q_s8(pp, vcombine_s8(_q0, _q1));
                     pp += 16;
                 }
             }
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
             for (; kk + 3 < max_kk; kk += 4)
             {
+                float32x4_t _s;
+                if (ps)
+                    _s = vld1q_f32(ps + kk);
                 for (int r = 0; r < 8; r++)
                 {
-                    const float* ptrA = (const float*)A + (i + r) * A_hstep + k0 + kk;
+                    const float* ptrA = pA0 + r * A_hstep + kk;
                     float32x4_t _v = vld1q_f32(ptrA);
-                    if (input_scale_ptr)
+                    if (ps)
                     {
-                        _v = vmulq_f32(_v, vld1q_f32(input_scale_ptr + k0 + kk));
-#if NCNN_GNU_INLINE_ASM
-                        asm volatile(""
-                                     : "+w"(_v));
-#endif
+                        _v = vmulq_f32(_v, _s);
                     }
-                    const float32x4_t _scale = vdupq_n_f32(scales[r]);
-                    const int8x8_t _q = float2int8(vmulq_f32(_v, _scale), vmulq_f32(_v, _scale));
+                    float32x4_t _scale = vdupq_n_f32(scales[r]);
+                    int8x8_t _q = float2int8(vmulq_f32(_v, _scale), vmulq_f32(_v, _scale));
                     vst1_lane_s32((int*)pp, vreinterpret_s32_s8(_q), 0);
                     pp += 4;
                 }
@@ -148,19 +147,22 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #endif // __ARM_FEATURE_DOTPROD
             for (; kk + 1 < max_kk; kk += 2)
             {
+                float s0 = 0.f;
+                float s1 = 0.f;
+                if (ps)
+                {
+                    s0 = ps[kk];
+                    s1 = ps[kk + 1];
+                }
                 for (int r = 0; r < 8; r++)
                 {
-                    const float* ptrA = (const float*)A + (i + r) * A_hstep + k0 + kk;
+                    const float* ptrA = pA0 + r * A_hstep + kk;
                     float v0 = ptrA[0];
                     float v1 = ptrA[1];
-                    if (input_scale_ptr)
+                    if (ps)
                     {
-                        v0 *= input_scale_ptr[k0 + kk];
-                        v1 *= input_scale_ptr[k0 + kk + 1];
-#if NCNN_GNU_INLINE_ASM
-                        asm volatile(""
-                                     : "+w"(v0), "+w"(v1));
-#endif
+                        v0 *= s0;
+                        v1 *= s1;
                     }
                     *pp++ = float2int8(v0 * scales[r]);
                     *pp++ = float2int8(v1 * scales[r]);
@@ -168,51 +170,52 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             }
             if (kk < max_kk)
             {
+                float s = 0.f;
+                if (ps)
+                    s = ps[kk];
                 for (int r = 0; r < 8; r++)
                 {
-                    const float* ptrA = (const float*)A + (i + r) * A_hstep + k0 + kk;
+                    const float* ptrA = pA0 + r * A_hstep + kk;
                     float v = ptrA[0];
-                    if (input_scale_ptr)
+                    if (ps)
                     {
-                        v *= input_scale_ptr[k0 + kk];
-#if NCNN_GNU_INLINE_ASM
-                        asm volatile(""
-                                     : "+w"(v));
-#endif
+                        v *= s;
                     }
                     *pp++ = float2int8(v * scales[r]);
                 }
             }
+            pA0 += max_kk;
+            if (ps)
+                ps += max_kk;
+            pd += 8;
         }
 
         return;
     }
-#endif // __ARM_NEON && __aarch64__
-
-    int ii = 0;
-#if __ARM_NEON
+#endif // __aarch64__
     for (; ii + 3 < max_ii; ii += 4)
     {
         signed char* pp = outptr + ii * out_hstep;
         float* descale_ptr = descales + ii * descales_hstep;
+        const float* pA0 = (const float*)A + (i + ii) * A_hstep;
+        const float* ps = input_scale_ptr;
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
+            const int max_kk = std::min(K - g * block_size, block_size);
             float absmax[4];
             float scales[4];
 
             for (int r = 0; r < 4; r++)
             {
-                const float* ptrA = (const float*)A + (i + ii + r) * A_hstep + k0;
+                const float* ptrA = pA0 + r * A_hstep;
                 float32x4_t _absmax = vdupq_n_f32(0.f);
                 int kk = 0;
                 for (; kk + 3 < max_kk; kk += 4)
                 {
                     float32x4_t _v = vld1q_f32(ptrA + kk);
-                    if (input_scale_ptr)
-                        _v = vmulq_f32(_v, vld1q_f32(input_scale_ptr + k0 + kk));
+                    if (ps)
+                        _v = vmulq_f32(_v, vld1q_f32(ps + kk));
                     _absmax = vmaxq_f32(_absmax, vabsq_f32(_v));
                 }
 #if __aarch64__
@@ -225,65 +228,64 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 for (; kk < max_kk; kk++)
                 {
                     float v = ptrA[kk];
-                    if (input_scale_ptr)
-                        v *= input_scale_ptr[k0 + kk];
+                    if (ps)
+                        v *= ps[kk];
                     absmax[r] = std::max(absmax[r], fabsf(v));
                 }
-                descale_ptr[g * 4 + r] = absmax[r] / 127.f;
-                volatile double scale_fp64 = absmax[r] == 0.f ? 0.0 : 127.0 / (double)absmax[r];
-                scales[r] = (float)scale_fp64;
+                descale_ptr[r] = absmax[r] / 127.f;
+                scales[r] = absmax[r] == 0.f ? 0.f : 127.f / absmax[r];
             }
 
             int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
             for (; kk + 7 < max_kk; kk += 8)
             {
+                float32x4_t _s0;
+                float32x4_t _s1;
+                if (ps)
+                {
+                    _s0 = vld1q_f32(ps + kk);
+                    _s1 = vld1q_f32(ps + kk + 4);
+                }
                 for (int r = 0; r < 4; r += 2)
                 {
-                    const float* ptrA0 = (const float*)A + (i + ii + r) * A_hstep + k0 + kk;
+                    const float* ptrA0 = pA0 + r * A_hstep + kk;
                     const float* ptrA1 = ptrA0 + A_hstep;
                     float32x4_t _v00 = vld1q_f32(ptrA0);
                     float32x4_t _v01 = vld1q_f32(ptrA0 + 4);
                     float32x4_t _v10 = vld1q_f32(ptrA1);
                     float32x4_t _v11 = vld1q_f32(ptrA1 + 4);
-                    if (input_scale_ptr)
+                    if (ps)
                     {
-                        const float32x4_t _s0 = vld1q_f32(input_scale_ptr + k0 + kk);
-                        const float32x4_t _s1 = vld1q_f32(input_scale_ptr + k0 + kk + 4);
                         _v00 = vmulq_f32(_v00, _s0);
                         _v01 = vmulq_f32(_v01, _s1);
                         _v10 = vmulq_f32(_v10, _s0);
                         _v11 = vmulq_f32(_v11, _s1);
-#if NCNN_GNU_INLINE_ASM
-                        asm volatile(""
-                                     : "+w"(_v00), "+w"(_v01), "+w"(_v10), "+w"(_v11));
-#endif
                     }
-                    const float32x4_t _scale0 = vdupq_n_f32(scales[r]);
-                    const float32x4_t _scale1 = vdupq_n_f32(scales[r + 1]);
-                    const int8x8_t _q0 = float2int8(vmulq_f32(_v00, _scale0), vmulq_f32(_v01, _scale0));
-                    const int8x8_t _q1 = float2int8(vmulq_f32(_v10, _scale1), vmulq_f32(_v11, _scale1));
+                    float32x4_t _scale0 = vdupq_n_f32(scales[r]);
+                    float32x4_t _scale1 = vdupq_n_f32(scales[r + 1]);
+                    int8x8_t _q0 = float2int8(vmulq_f32(_v00, _scale0), vmulq_f32(_v01, _scale0));
+                    int8x8_t _q1 = float2int8(vmulq_f32(_v10, _scale1), vmulq_f32(_v11, _scale1));
                     vst1q_s8(pp, vcombine_s8(_q0, _q1));
                     pp += 16;
                 }
             }
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
             for (; kk + 3 < max_kk; kk += 4)
             {
+                float32x4_t _s;
+                if (ps)
+                    _s = vld1q_f32(ps + kk);
                 for (int r = 0; r < 4; r++)
                 {
-                    const float* ptrA = (const float*)A + (i + ii + r) * A_hstep + k0 + kk;
+                    const float* ptrA = pA0 + r * A_hstep + kk;
                     float32x4_t _v = vld1q_f32(ptrA);
-                    if (input_scale_ptr)
+                    if (ps)
                     {
-                        _v = vmulq_f32(_v, vld1q_f32(input_scale_ptr + k0 + kk));
-#if NCNN_GNU_INLINE_ASM
-                        asm volatile(""
-                                     : "+w"(_v));
-#endif
+                        _v = vmulq_f32(_v, _s);
                     }
-                    const int8x8_t _q = float2int8(vmulq_n_f32(_v, scales[r]), vmulq_n_f32(_v, scales[r]));
+                    int8x8_t _q = float2int8(vmulq_n_f32(_v, scales[r]), vmulq_n_f32(_v, scales[r]));
                     vst1_lane_s32((int*)pp, vreinterpret_s32_s8(_q), 0);
                     pp += 4;
                 }
@@ -291,19 +293,22 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #endif // __ARM_FEATURE_DOTPROD
             for (; kk + 1 < max_kk; kk += 2)
             {
+                float s0 = 0.f;
+                float s1 = 0.f;
+                if (ps)
+                {
+                    s0 = ps[kk];
+                    s1 = ps[kk + 1];
+                }
                 for (int r = 0; r < 4; r++)
                 {
-                    const float* ptrA = (const float*)A + (i + ii + r) * A_hstep + k0 + kk;
+                    const float* ptrA = pA0 + r * A_hstep + kk;
                     float v0 = ptrA[0];
                     float v1 = ptrA[1];
-                    if (input_scale_ptr)
+                    if (ps)
                     {
-                        v0 *= input_scale_ptr[k0 + kk];
-                        v1 *= input_scale_ptr[k0 + kk + 1];
-#if NCNN_GNU_INLINE_ASM
-                        asm volatile(""
-                                     : "+w"(v0), "+w"(v1));
-#endif
+                        v0 *= s0;
+                        v1 *= s1;
                     }
                     *pp++ = float2int8(v0 * scales[r]);
                     *pp++ = float2int8(v1 * scales[r]);
@@ -311,45 +316,49 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             }
             if (kk < max_kk)
             {
+                float s = 0.f;
+                if (ps)
+                    s = ps[kk];
                 for (int r = 0; r < 4; r++)
                 {
-                    const float* ptrA = (const float*)A + (i + ii + r) * A_hstep + k0 + kk;
+                    const float* ptrA = pA0 + r * A_hstep + kk;
                     float v = ptrA[0];
-                    if (input_scale_ptr)
+                    if (ps)
                     {
-                        v *= input_scale_ptr[k0 + kk];
-#if NCNN_GNU_INLINE_ASM
-                        asm volatile(""
-                                     : "+w"(v));
-#endif
+                        v *= s;
                     }
                     *pp++ = float2int8(v * scales[r]);
                 }
             }
+            pA0 += max_kk;
+            if (ps)
+                ps += max_kk;
+            descale_ptr += 4;
         }
     }
     for (; ii + 1 < max_ii; ii += 2)
     {
         signed char* pp = outptr + ii * out_hstep;
         float* descale_ptr = descales + ii * descales_hstep;
+        const float* pA0 = (const float*)A + (i + ii) * A_hstep;
+        const float* ps = input_scale_ptr;
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
+            const int max_kk = std::min(K - g * block_size, block_size);
             float absmax[2];
             float scales[2];
 
             for (int r = 0; r < 2; r++)
             {
-                const float* ptrA = (const float*)A + (i + ii + r) * A_hstep + k0;
+                const float* ptrA = pA0 + r * A_hstep;
                 float32x4_t _absmax = vdupq_n_f32(0.f);
                 int kk = 0;
                 for (; kk + 3 < max_kk; kk += 4)
                 {
                     float32x4_t _v = vld1q_f32(ptrA + kk);
-                    if (input_scale_ptr)
-                        _v = vmulq_f32(_v, vld1q_f32(input_scale_ptr + k0 + kk));
+                    if (ps)
+                        _v = vmulq_f32(_v, vld1q_f32(ps + kk));
                     _absmax = vmaxq_f32(_absmax, vabsq_f32(_v));
                 }
 #if __aarch64__
@@ -362,61 +371,55 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 for (; kk < max_kk; kk++)
                 {
                     float v = ptrA[kk];
-                    if (input_scale_ptr)
-                        v *= input_scale_ptr[k0 + kk];
+                    if (ps)
+                        v *= ps[kk];
                     absmax[r] = std::max(absmax[r], fabsf(v));
                 }
-                descale_ptr[g * 2 + r] = absmax[r] / 127.f;
-                volatile double scale_fp64 = absmax[r] == 0.f ? 0.0 : 127.0 / (double)absmax[r];
-                scales[r] = (float)scale_fp64;
+                descale_ptr[r] = absmax[r] / 127.f;
+                scales[r] = absmax[r] == 0.f ? 0.f : 127.f / absmax[r];
             }
 
             int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
             for (; kk + 7 < max_kk; kk += 8)
             {
-                const float* ptrA0 = (const float*)A + (i + ii) * A_hstep + k0 + kk;
+                const float* ptrA0 = pA0 + kk;
                 const float* ptrA1 = ptrA0 + A_hstep;
                 float32x4_t _v00 = vld1q_f32(ptrA0);
                 float32x4_t _v01 = vld1q_f32(ptrA0 + 4);
                 float32x4_t _v10 = vld1q_f32(ptrA1);
                 float32x4_t _v11 = vld1q_f32(ptrA1 + 4);
-                if (input_scale_ptr)
+                if (ps)
                 {
-                    const float32x4_t _s0 = vld1q_f32(input_scale_ptr + k0 + kk);
-                    const float32x4_t _s1 = vld1q_f32(input_scale_ptr + k0 + kk + 4);
+                    float32x4_t _s0 = vld1q_f32(ps + kk);
+                    float32x4_t _s1 = vld1q_f32(ps + kk + 4);
                     _v00 = vmulq_f32(_v00, _s0);
                     _v01 = vmulq_f32(_v01, _s1);
                     _v10 = vmulq_f32(_v10, _s0);
                     _v11 = vmulq_f32(_v11, _s1);
-#if NCNN_GNU_INLINE_ASM
-                    asm volatile(""
-                                 : "+w"(_v00), "+w"(_v01), "+w"(_v10), "+w"(_v11));
-#endif
                 }
-                const int8x8_t _q0 = float2int8(vmulq_n_f32(_v00, scales[0]), vmulq_n_f32(_v01, scales[0]));
-                const int8x8_t _q1 = float2int8(vmulq_n_f32(_v10, scales[1]), vmulq_n_f32(_v11, scales[1]));
+                int8x8_t _q0 = float2int8(vmulq_n_f32(_v00, scales[0]), vmulq_n_f32(_v01, scales[0]));
+                int8x8_t _q1 = float2int8(vmulq_n_f32(_v10, scales[1]), vmulq_n_f32(_v11, scales[1]));
                 vst1q_s8(pp, vcombine_s8(_q0, _q1));
                 pp += 16;
             }
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
             for (; kk + 3 < max_kk; kk += 4)
             {
                 int32x2_t _q01 = vdup_n_s32(0);
+                float32x4_t _s;
+                if (ps)
+                    _s = vld1q_f32(ps + kk);
                 for (int r = 0; r < 2; r++)
                 {
-                    const float* ptrA = (const float*)A + (i + ii + r) * A_hstep + k0 + kk;
+                    const float* ptrA = pA0 + r * A_hstep + kk;
                     float32x4_t _v = vld1q_f32(ptrA);
-                    if (input_scale_ptr)
+                    if (ps)
                     {
-                        _v = vmulq_f32(_v, vld1q_f32(input_scale_ptr + k0 + kk));
-#if NCNN_GNU_INLINE_ASM
-                        asm volatile(""
-                                     : "+w"(_v));
-#endif
+                        _v = vmulq_f32(_v, _s);
                     }
-                    const int8x8_t _q = float2int8(vmulq_n_f32(_v, scales[r]), vmulq_n_f32(_v, scales[r]));
+                    int8x8_t _q = float2int8(vmulq_n_f32(_v, scales[r]), vmulq_n_f32(_v, scales[r]));
                     _q01 = vset_lane_s32(vget_lane_s32(vreinterpret_s32_s8(_q), 0), _q01, r);
                 }
                 vst1_s8(pp, vreinterpret_s8_s32(_q01));
@@ -425,15 +428,22 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #endif // __ARM_FEATURE_DOTPROD
             for (; kk + 1 < max_kk; kk += 2)
             {
+                float s0 = 0.f;
+                float s1 = 0.f;
+                if (ps)
+                {
+                    s0 = ps[kk];
+                    s1 = ps[kk + 1];
+                }
                 for (int r = 0; r < 2; r++)
                 {
-                    const float* ptrA = (const float*)A + (i + ii + r) * A_hstep + k0 + kk;
+                    const float* ptrA = pA0 + r * A_hstep + kk;
                     float v0 = ptrA[0];
                     float v1 = ptrA[1];
-                    if (input_scale_ptr)
+                    if (ps)
                     {
-                        v0 *= input_scale_ptr[k0 + kk];
-                        v1 *= input_scale_ptr[k0 + kk + 1];
+                        v0 *= s0;
+                        v1 *= s1;
                     }
                     *pp++ = float2int8(v0 * scales[r]);
                     *pp++ = float2int8(v1 * scales[r]);
@@ -441,15 +451,22 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             }
             if (kk < max_kk)
             {
+                float s = 0.f;
+                if (ps)
+                    s = ps[kk];
                 for (int r = 0; r < 2; r++)
                 {
-                    const float* ptrA = (const float*)A + (i + ii + r) * A_hstep + k0 + kk;
+                    const float* ptrA = pA0 + r * A_hstep + kk;
                     float v = ptrA[0];
-                    if (input_scale_ptr)
-                        v *= input_scale_ptr[k0 + kk];
+                    if (ps)
+                        v *= s;
                     *pp++ = float2int8(v * scales[r]);
                 }
             }
+            pA0 += max_kk;
+            if (ps)
+                ps += max_kk;
+            descale_ptr += 2;
         }
     }
 #elif __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
@@ -457,63 +474,75 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
     {
         signed char* pp = outptr + ii * out_hstep;
         float* descale_ptr = descales + ii * descales_hstep;
+        const float* pA0g = (const float*)A + (i + ii) * A_hstep;
+        const float* pA1g = pA0g + A_hstep;
+        const float* ps = input_scale_ptr;
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
-            const float* ptrA0 = (const float*)A + (i + ii) * A_hstep + k0;
-            const float* ptrA1 = ptrA0 + A_hstep;
+            const int max_kk = std::min(K - g * block_size, block_size);
+            const float* pA0 = pA0g;
+            const float* pA1 = pA1g;
+            const float* pscale = ps;
             float absmax0 = 0.f;
             float absmax1 = 0.f;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
-                float v0 = ptrA0[kk];
-                float v1 = ptrA1[kk];
-                if (input_scale_ptr)
+                float v0 = *pA0++;
+                float v1 = *pA1++;
+                if (pscale)
                 {
-                    v0 *= input_scale_ptr[k0 + kk];
-                    v1 *= input_scale_ptr[k0 + kk];
+                    const float s = *pscale++;
+                    v0 *= s;
+                    v1 *= s;
                 }
                 absmax0 = std::max(absmax0, fabsf(v0));
                 absmax1 = std::max(absmax1, fabsf(v1));
             }
 
-            descale_ptr[g * 2] = absmax0 / 127.f;
-            descale_ptr[g * 2 + 1] = absmax1 / 127.f;
-            volatile double scale0_fp64 = absmax0 == 0.f ? 0.0 : 127.0 / (double)absmax0;
-            volatile double scale1_fp64 = absmax1 == 0.f ? 0.0 : 127.0 / (double)absmax1;
-            const float scale0 = (float)scale0_fp64;
-            const float scale1 = (float)scale1_fp64;
+            descale_ptr[0] = absmax0 / 127.f;
+            descale_ptr[1] = absmax1 / 127.f;
+            const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
+            const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
 
+            pA0 = pA0g;
+            pA1 = pA1g;
+            pscale = ps;
             for (int kk = 0; kk < max_kk; kk++)
             {
-                float v0 = ptrA0[kk];
-                float v1 = ptrA1[kk];
-                if (input_scale_ptr)
+                float v0 = *pA0++;
+                float v1 = *pA1++;
+                if (pscale)
                 {
-                    v0 *= input_scale_ptr[k0 + kk];
-                    v1 *= input_scale_ptr[k0 + kk];
-                    asm volatile(""
-                                 : "+w"(v0), "+w"(v1));
+                    const float s = *pscale++;
+                    v0 *= s;
+                    v1 *= s;
                 }
                 *pp++ = float2int8(v0 * scale0);
                 *pp++ = float2int8(v1 * scale1);
             }
+
+            pA0g += max_kk;
+            pA1g += max_kk;
+            if (ps)
+                ps += max_kk;
+            descale_ptr += 2;
         }
     }
 #endif // __ARM_NEON
     for (; ii < max_ii; ii++)
     {
-        const float* ptrA = (const float*)A + (i + ii) * A_hstep;
-        signed char* outptr0 = outptr + ii * out_hstep;
-        float* descale_ptr = descales + ii * descales_hstep;
+        const float* pAg = (const float*)A + (i + ii) * A_hstep;
+        const float* ps = input_scale_ptr;
+        signed char* pp = outptr + ii * out_hstep;
+        float* pd = descales + ii * descales_hstep;
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
+            const int max_kk = std::min(K - g * block_size, block_size);
+            const float* pA = pAg;
+            const float* pscale = ps;
 
             float absmax = 0.f;
             int kk = 0;
@@ -521,9 +550,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             float32x4_t _absmax = vdupq_n_f32(0.f);
             for (; kk + 3 < max_kk; kk += 4)
             {
-                float32x4_t _v = vld1q_f32(ptrA + k0 + kk);
-                if (input_scale_ptr)
-                    _v = vmulq_f32(_v, vld1q_f32(input_scale_ptr + k0 + kk));
+                float32x4_t _v = vld1q_f32(pA);
+                pA += 4;
+                if (pscale)
+                {
+                    _v = vmulq_f32(_v, vld1q_f32(pscale));
+                    pscale += 4;
+                }
                 _absmax = vmaxq_f32(_absmax, vabsq_f32(_v));
             }
 #if __aarch64__
@@ -536,83 +569,70 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
-                const int k = k0 + kk;
-                float v = ptrA[k];
-                if (input_scale_ptr)
-                    v *= input_scale_ptr[k];
+                float v = *pA++;
+                if (pscale)
+                    v *= *pscale++;
                 absmax = std::max(absmax, fabsf(v));
             }
 
             if (absmax == 0.f)
             {
-                descale_ptr[g] = 0.f;
+                *pd++ = 0.f;
                 for (int k = 0; k < max_kk; k++)
-                    outptr0[k0 + k] = 0;
+                    *pp++ = 0;
+                pAg += max_kk;
+                if (ps)
+                    ps += max_kk;
                 continue;
             }
 
-            volatile double scale_fp64 = 127.0 / (double)absmax;
-            const float scale = (float)scale_fp64;
-            descale_ptr[g] = absmax / 127.f;
+            const float scale = 127.f / absmax;
+            *pd++ = absmax / 127.f;
 
             kk = 0;
+            pA = pAg;
+            pscale = ps;
 #if __ARM_NEON
-            const float32x4_t _scale = vdupq_n_f32(scale);
+            float32x4_t _scale = vdupq_n_f32(scale);
             for (; kk + 7 < max_kk; kk += 8)
             {
-                float32x4_t _v0 = vld1q_f32(ptrA + k0 + kk);
-                float32x4_t _v1 = vld1q_f32(ptrA + k0 + kk + 4);
-                if (input_scale_ptr)
+                float32x4_t _v0 = vld1q_f32(pA);
+                float32x4_t _v1 = vld1q_f32(pA + 4);
+                pA += 8;
+                if (pscale)
                 {
-                    _v0 = vmulq_f32(_v0, vld1q_f32(input_scale_ptr + k0 + kk));
-                    _v1 = vmulq_f32(_v1, vld1q_f32(input_scale_ptr + k0 + kk + 4));
-#if NCNN_GNU_INLINE_ASM
-                    asm volatile(""
-                                 : "+w"(_v0), "+w"(_v1));
-#else
-                    volatile float32x4_t _v0_ordered = _v0;
-                    volatile float32x4_t _v1_ordered = _v1;
-                    _v0 = _v0_ordered;
-                    _v1 = _v1_ordered;
-#endif
+                    _v0 = vmulq_f32(_v0, vld1q_f32(pscale));
+                    _v1 = vmulq_f32(_v1, vld1q_f32(pscale + 4));
+                    pscale += 8;
                 }
-                vst1_s8(outptr0 + k0 + kk, float2int8(vmulq_f32(_v0, _scale), vmulq_f32(_v1, _scale)));
+                vst1_s8(pp, float2int8(vmulq_f32(_v0, _scale), vmulq_f32(_v1, _scale)));
+                pp += 8;
             }
             for (; kk + 3 < max_kk; kk += 4)
             {
-                float32x4_t _v = vld1q_f32(ptrA + k0 + kk);
-                if (input_scale_ptr)
+                float32x4_t _v = vld1q_f32(pA);
+                pA += 4;
+                if (pscale)
                 {
-                    _v = vmulq_f32(_v, vld1q_f32(input_scale_ptr + k0 + kk));
-#if NCNN_GNU_INLINE_ASM
-                    asm volatile(""
-                                 : "+w"(_v));
-#else
-                    volatile float32x4_t _v_ordered = _v;
-                    _v = _v_ordered;
-#endif
+                    _v = vmulq_f32(_v, vld1q_f32(pscale));
+                    pscale += 4;
                 }
-                const int8x8_t _q = float2int8(vmulq_f32(_v, _scale), vmulq_f32(_v, _scale));
-                vst1_lane_s32((int*)(outptr0 + k0 + kk), vreinterpret_s32_s8(_q), 0);
+                int8x8_t _q = float2int8(vmulq_f32(_v, _scale), vmulq_f32(_v, _scale));
+                vst1_lane_s32((int*)pp, vreinterpret_s32_s8(_q), 0);
+                pp += 4;
             }
 #endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
-                const int k = k0 + kk;
-                float v = ptrA[k];
-                if (input_scale_ptr)
-                {
-                    v *= input_scale_ptr[k];
-#if NCNN_GNU_INLINE_ASM
-                    asm volatile(""
-                                 : "+w"(v));
-#else
-                    volatile float v_ordered = v;
-                    v = v_ordered;
-#endif
-                }
-                outptr0[k] = float2int8(v * scale);
+                float v = *pA++;
+                if (pscale)
+                    v *= *pscale++;
+                *pp++ = float2int8(v * scale);
             }
+
+            pAg += max_kk;
+            if (ps)
+                ps += max_kk;
         }
     }
 }
@@ -648,67 +668,67 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
     {
         const float* ptrA = (const float*)A + i + ii;
         signed char* pp = outptr + ii * out_hstep;
+        const float* ptrAg = ptrA;
+        const float* ps = input_scale_ptr;
+        float* pd = descales;
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
+            const int max_kk = std::min(K - g * block_size, block_size);
             float32x4_t _absmax0 = vdupq_n_f32(0.f);
             float32x4_t _absmax1 = vdupq_n_f32(0.f);
+            const float* ptrAk = ptrAg;
             for (int kk = 0; kk < max_kk; kk++)
             {
-                const int k = k0 + kk;
-                float32x4_t _v0 = vld1q_f32(ptrA + (size_t)k * A_hstep);
-                float32x4_t _v1 = vld1q_f32(ptrA + (size_t)k * A_hstep + 4);
-                if (input_scale_ptr)
+                float32x4_t _v0 = vld1q_f32(ptrAk);
+                float32x4_t _v1 = vld1q_f32(ptrAk + 4);
+                if (ps)
                 {
-                    _v0 = vmulq_n_f32(_v0, input_scale_ptr[k]);
-                    _v1 = vmulq_n_f32(_v1, input_scale_ptr[k]);
+                    _v0 = vmulq_n_f32(_v0, ps[kk]);
+                    _v1 = vmulq_n_f32(_v1, ps[kk]);
                 }
                 _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_v0));
                 _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_v1));
+                ptrAk += A_hstep;
             }
 
             float absmax[8];
             vst1q_f32(absmax, _absmax0);
             vst1q_f32(absmax + 4, _absmax1);
-            descales[g * 8] = absmax[0] / 127.f;
-            descales[g * 8 + 1] = absmax[1] / 127.f;
-            descales[g * 8 + 2] = absmax[2] / 127.f;
-            descales[g * 8 + 3] = absmax[3] / 127.f;
-            descales[g * 8 + 4] = absmax[4] / 127.f;
-            descales[g * 8 + 5] = absmax[5] / 127.f;
-            descales[g * 8 + 6] = absmax[6] / 127.f;
-            descales[g * 8 + 7] = absmax[7] / 127.f;
+            pd[0] = absmax[0] / 127.f;
+            pd[1] = absmax[1] / 127.f;
+            pd[2] = absmax[2] / 127.f;
+            pd[3] = absmax[3] / 127.f;
+            pd[4] = absmax[4] / 127.f;
+            pd[5] = absmax[5] / 127.f;
+            pd[6] = absmax[6] / 127.f;
+            pd[7] = absmax[7] / 127.f;
 
             float scales[8];
             for (int r = 0; r < 8; r++)
             {
-                volatile double scale_fp64 = absmax[r] == 0.f ? 0.0 : 127.0 / (double)absmax[r];
-                scales[r] = (float)scale_fp64;
+                scales[r] = absmax[r] == 0.f ? 0.f : 127.f / absmax[r];
             }
-            const float32x4_t _scale0 = vld1q_f32(scales);
-            const float32x4_t _scale1 = vld1q_f32(scales + 4);
+            float32x4_t _scale0 = vld1q_f32(scales);
+            float32x4_t _scale1 = vld1q_f32(scales + 4);
 
             int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
             for (; kk + 7 < max_kk; kk += 8)
             {
                 int8x8_t _q[8];
+                ptrAk = ptrAg + (size_t)kk * A_hstep;
                 for (int t = 0; t < 8; t++)
                 {
-                    const int k = k0 + kk + t;
-                    float32x4_t _v0 = vld1q_f32(ptrA + (size_t)k * A_hstep);
-                    float32x4_t _v1 = vld1q_f32(ptrA + (size_t)k * A_hstep + 4);
-                    if (input_scale_ptr)
+                    float32x4_t _v0 = vld1q_f32(ptrAk);
+                    float32x4_t _v1 = vld1q_f32(ptrAk + 4);
+                    if (ps)
                     {
-                        _v0 = vmulq_n_f32(_v0, input_scale_ptr[k]);
-                        _v1 = vmulq_n_f32(_v1, input_scale_ptr[k]);
-#if NCNN_GNU_INLINE_ASM
-                        asm volatile(""
-                                     : "+w"(_v0), "+w"(_v1));
-#endif
+                        _v0 = vmulq_n_f32(_v0, ps[kk + t]);
+                        _v1 = vmulq_n_f32(_v1, ps[kk + t]);
                     }
                     _q[t] = float2int8(vmulq_f32(_v0, _scale0), vmulq_f32(_v1, _scale1));
+                    ptrAk += A_hstep;
                 }
                 int8x8x2_t _r04 = vzip_s8(_q[0], _q[4]);
                 int8x8x2_t _r15 = vzip_s8(_q[1], _q[5]);
@@ -729,25 +749,21 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pp += 64;
             }
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
             for (; kk + 3 < max_kk; kk += 4)
             {
                 int8x8x4_t _q;
+                ptrAk = ptrAg + (size_t)kk * A_hstep;
                 for (int t = 0; t < 4; t++)
                 {
-                    const int k = k0 + kk + t;
-                    float32x4_t _v0 = vld1q_f32(ptrA + (size_t)k * A_hstep);
-                    float32x4_t _v1 = vld1q_f32(ptrA + (size_t)k * A_hstep + 4);
-                    if (input_scale_ptr)
+                    float32x4_t _v0 = vld1q_f32(ptrAk);
+                    float32x4_t _v1 = vld1q_f32(ptrAk + 4);
+                    if (ps)
                     {
-                        _v0 = vmulq_n_f32(_v0, input_scale_ptr[k]);
-                        _v1 = vmulq_n_f32(_v1, input_scale_ptr[k]);
-#if NCNN_GNU_INLINE_ASM
-                        asm volatile(""
-                                     : "+w"(_v0), "+w"(_v1));
-#endif
+                        _v0 = vmulq_n_f32(_v0, ps[kk + t]);
+                        _v1 = vmulq_n_f32(_v1, ps[kk + t]);
                     }
                     _q.val[t] = float2int8(vmulq_f32(_v0, _scale0), vmulq_f32(_v1, _scale1));
+                    ptrAk += A_hstep;
                 }
                 vst4_s8(pp, _q);
                 pp += 32;
@@ -756,42 +772,39 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             for (; kk + 1 < max_kk; kk += 2)
             {
                 int8x8x2_t _q;
+                ptrAk = ptrAg + (size_t)kk * A_hstep;
                 for (int t = 0; t < 2; t++)
                 {
-                    const int k = k0 + kk + t;
-                    float32x4_t _v0 = vld1q_f32(ptrA + (size_t)k * A_hstep);
-                    float32x4_t _v1 = vld1q_f32(ptrA + (size_t)k * A_hstep + 4);
-                    if (input_scale_ptr)
+                    float32x4_t _v0 = vld1q_f32(ptrAk);
+                    float32x4_t _v1 = vld1q_f32(ptrAk + 4);
+                    if (ps)
                     {
-                        _v0 = vmulq_n_f32(_v0, input_scale_ptr[k]);
-                        _v1 = vmulq_n_f32(_v1, input_scale_ptr[k]);
-#if NCNN_GNU_INLINE_ASM
-                        asm volatile(""
-                                     : "+w"(_v0), "+w"(_v1));
-#endif
+                        _v0 = vmulq_n_f32(_v0, ps[kk + t]);
+                        _v1 = vmulq_n_f32(_v1, ps[kk + t]);
                     }
                     _q.val[t] = float2int8(vmulq_f32(_v0, _scale0), vmulq_f32(_v1, _scale1));
+                    ptrAk += A_hstep;
                 }
                 vst2_s8(pp, _q);
                 pp += 16;
             }
             if (kk < max_kk)
             {
-                const int k = k0 + kk;
-                float32x4_t _v0 = vld1q_f32(ptrA + (size_t)k * A_hstep);
-                float32x4_t _v1 = vld1q_f32(ptrA + (size_t)k * A_hstep + 4);
-                if (input_scale_ptr)
+                ptrAk = ptrAg + (size_t)kk * A_hstep;
+                float32x4_t _v0 = vld1q_f32(ptrAk);
+                float32x4_t _v1 = vld1q_f32(ptrAk + 4);
+                if (ps)
                 {
-                    _v0 = vmulq_n_f32(_v0, input_scale_ptr[k]);
-                    _v1 = vmulq_n_f32(_v1, input_scale_ptr[k]);
-#if NCNN_GNU_INLINE_ASM
-                    asm volatile(""
-                                 : "+w"(_v0), "+w"(_v1));
-#endif
+                    _v0 = vmulq_n_f32(_v0, ps[kk]);
+                    _v1 = vmulq_n_f32(_v1, ps[kk]);
                 }
                 vst1_s8(pp, float2int8(vmulq_f32(_v0, _scale0), vmulq_f32(_v1, _scale1)));
                 pp += 8;
             }
+            ptrAg += (size_t)max_kk * A_hstep;
+            if (ps)
+                ps += max_kk;
+            pd += 8;
         }
     }
 #endif // __aarch64__
@@ -800,59 +813,52 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
         const float* ptrA = (const float*)A + i + ii;
         signed char* pp = outptr + ii * out_hstep;
         float* descale_ptr = descales + ii * descales_hstep;
+        const float* ptrAg = ptrA;
+        const float* ps = input_scale_ptr;
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
+            const int max_kk = std::min(K - g * block_size, block_size);
 
             float32x4_t _absmax = vdupq_n_f32(0.f);
+            const float* ptrAk = ptrAg;
             for (int kk = 0; kk < max_kk; kk++)
             {
-                const int k = k0 + kk;
-                float32x4_t _v = vld1q_f32(ptrA + (size_t)k * A_hstep);
-                if (input_scale_ptr)
-                    _v = vmulq_f32(_v, vdupq_n_f32(input_scale_ptr[k]));
+                float32x4_t _v = vld1q_f32(ptrAk);
+                if (ps)
+                    _v = vmulq_f32(_v, vdupq_n_f32(ps[kk]));
                 _absmax = vmaxq_f32(_absmax, vabsq_f32(_v));
+                ptrAk += A_hstep;
             }
 
             float absmax[4];
             vst1q_f32(absmax, _absmax);
-            vst1q_f32(descale_ptr + g * 4, vmulq_n_f32(_absmax, 1.f / 127.f));
+            vst1q_f32(descale_ptr, vmulq_n_f32(_absmax, 1.f / 127.f));
 
-            volatile double scale0_fp64 = absmax[0] == 0.f ? 0.0 : 127.0 / (double)absmax[0];
-            volatile double scale1_fp64 = absmax[1] == 0.f ? 0.0 : 127.0 / (double)absmax[1];
-            volatile double scale2_fp64 = absmax[2] == 0.f ? 0.0 : 127.0 / (double)absmax[2];
-            volatile double scale3_fp64 = absmax[3] == 0.f ? 0.0 : 127.0 / (double)absmax[3];
             const float scales[4] = {
-                (float)scale0_fp64,
-                (float)scale1_fp64,
-                (float)scale2_fp64,
-                (float)scale3_fp64
+                absmax[0] == 0.f ? 0.f : 127.f / absmax[0],
+                absmax[1] == 0.f ? 0.f : 127.f / absmax[1],
+                absmax[2] == 0.f ? 0.f : 127.f / absmax[2],
+                absmax[3] == 0.f ? 0.f : 127.f / absmax[3]
             };
-            const float32x4_t _scale = vld1q_f32(scales);
+            float32x4_t _scale = vld1q_f32(scales);
 
             int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
             for (; kk + 7 < max_kk; kk += 8)
             {
                 int8x8_t _q[8];
+                ptrAk = ptrAg + (size_t)kk * A_hstep;
                 for (int t = 0; t < 8; t++)
                 {
-                    const int k = k0 + kk + t;
-                    float32x4_t _v = vld1q_f32(ptrA + (size_t)k * A_hstep);
-                    if (input_scale_ptr)
+                    float32x4_t _v = vld1q_f32(ptrAk);
+                    if (ps)
                     {
-                        _v = vmulq_n_f32(_v, input_scale_ptr[k]);
-#if NCNN_GNU_INLINE_ASM
-                        asm volatile(""
-                                     : "+w"(_v));
-#else
-                        volatile float32x4_t _v_ordered = _v;
-                        _v = _v_ordered;
-#endif
+                        _v = vmulq_n_f32(_v, ps[kk + t]);
                     }
                     _q[t] = float2int8(vmulq_f32(_v, _scale), vmulq_f32(_v, _scale));
+                    ptrAk += A_hstep;
                 }
                 int8x8x2_t _r04 = vzip_s8(_q[0], _q[4]);
                 int8x8x2_t _r15 = vzip_s8(_q[1], _q[5]);
@@ -867,26 +873,19 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pp += 32;
             }
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
             for (; kk + 3 < max_kk; kk += 4)
             {
                 int8x8x4_t _q;
+                ptrAk = ptrAg + (size_t)kk * A_hstep;
                 for (int t = 0; t < 4; t++)
                 {
-                    const int k = k0 + kk + t;
-                    float32x4_t _v = vld1q_f32(ptrA + (size_t)k * A_hstep);
-                    if (input_scale_ptr)
+                    float32x4_t _v = vld1q_f32(ptrAk);
+                    if (ps)
                     {
-                        _v = vmulq_n_f32(_v, input_scale_ptr[k]);
-#if NCNN_GNU_INLINE_ASM
-                        asm volatile(""
-                                     : "+w"(_v));
-#else
-                        volatile float32x4_t _v_ordered = _v;
-                        _v = _v_ordered;
-#endif
+                        _v = vmulq_n_f32(_v, ps[kk + t]);
                     }
                     _q.val[t] = float2int8(vmulq_f32(_v, _scale), vmulq_f32(_v, _scale));
+                    ptrAk += A_hstep;
                 }
                 vst4_lane_s8(pp, _q, 0);
                 vst4_lane_s8(pp + 4, _q, 1);
@@ -898,22 +897,16 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             for (; kk + 1 < max_kk; kk += 2)
             {
                 int8x8x2_t _q;
+                ptrAk = ptrAg + (size_t)kk * A_hstep;
                 for (int t = 0; t < 2; t++)
                 {
-                    const int k = k0 + kk + t;
-                    float32x4_t _v = vld1q_f32(ptrA + (size_t)k * A_hstep);
-                    if (input_scale_ptr)
+                    float32x4_t _v = vld1q_f32(ptrAk);
+                    if (ps)
                     {
-                        _v = vmulq_n_f32(_v, input_scale_ptr[k]);
-#if NCNN_GNU_INLINE_ASM
-                        asm volatile(""
-                                     : "+w"(_v));
-#else
-                        volatile float32x4_t _v_ordered = _v;
-                        _v = _v_ordered;
-#endif
+                        _v = vmulq_n_f32(_v, ps[kk + t]);
                     }
                     _q.val[t] = float2int8(vmulq_f32(_v, _scale), vmulq_f32(_v, _scale));
+                    ptrAk += A_hstep;
                 }
                 vst2_lane_s8(pp, _q, 0);
                 vst2_lane_s8(pp + 2, _q, 1);
@@ -923,22 +916,19 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             }
             if (kk < max_kk)
             {
-                const int k = k0 + kk;
-                float32x4_t _v = vld1q_f32(ptrA + (size_t)k * A_hstep);
-                if (input_scale_ptr)
+                ptrAk = ptrAg + (size_t)kk * A_hstep;
+                float32x4_t _v = vld1q_f32(ptrAk);
+                if (ps)
                 {
-                    _v = vmulq_n_f32(_v, input_scale_ptr[k]);
-#if NCNN_GNU_INLINE_ASM
-                    asm volatile(""
-                                 : "+w"(_v));
-#else
-                    volatile float32x4_t _v_ordered = _v;
-                    _v = _v_ordered;
-#endif
+                    _v = vmulq_n_f32(_v, ps[kk]);
                 }
                 vst1_lane_s32((int*)pp, vreinterpret_s32_s8(float2int8(vmulq_f32(_v, _scale), vmulq_f32(_v, _scale))), 0);
                 pp += 4;
             }
+            ptrAg += (size_t)max_kk * A_hstep;
+            if (ps)
+                ps += max_kk;
+            descale_ptr += 4;
         }
     }
     for (; ii + 1 < max_ii; ii += 2)
@@ -946,54 +936,58 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
         const float* ptrA = (const float*)A + i + ii;
         signed char* pp = outptr + ii * out_hstep;
         float* descale_ptr = descales + ii * descales_hstep;
+        const float* ptrAg = ptrA;
+        const float* ps = input_scale_ptr;
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
+            const int max_kk = std::min(K - g * block_size, block_size);
             float32x2_t _absmax = vdup_n_f32(0.f);
+            const float* ptrAk = ptrAg;
             for (int kk = 0; kk < max_kk; kk++)
             {
-                const int k = k0 + kk;
-                float32x2_t _v = vld1_f32(ptrA + (size_t)k * A_hstep);
-                if (input_scale_ptr)
-                    _v = vmul_n_f32(_v, input_scale_ptr[k]);
+                float32x2_t _v = vld1_f32(ptrAk);
+                if (ps)
+                    _v = vmul_n_f32(_v, ps[kk]);
                 _absmax = vmax_f32(_absmax, vabs_f32(_v));
+                ptrAk += A_hstep;
             }
 
-            vst1_f32(descale_ptr + g * 2, vmul_n_f32(_absmax, 1.f / 127.f));
+            vst1_f32(descale_ptr, vmul_n_f32(_absmax, 1.f / 127.f));
             float absmax[2];
             vst1_f32(absmax, _absmax);
             float scales[2];
             for (int r = 0; r < 2; r++)
             {
-                volatile double scale_fp64 = absmax[r] == 0.f ? 0.0 : 127.0 / (double)absmax[r];
-                scales[r] = (float)scale_fp64;
+                scales[r] = absmax[r] == 0.f ? 0.f : 127.f / absmax[r];
             }
-            const float32x2_t _scale = vld1_f32(scales);
+            float32x2_t _scale = vld1_f32(scales);
 
             int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
             for (; kk + 7 < max_kk; kk += 8)
             {
                 int8x8x4_t _q0;
                 int8x8x4_t _q1;
+                const float* ptrAk0 = ptrAg + (size_t)kk * A_hstep;
+                const float* ptrAk1 = ptrAk0 + (size_t)4 * A_hstep;
                 for (int t = 0; t < 4; t++)
                 {
-                    const int k0t = k0 + kk + t;
-                    const int k1t = k0 + kk + 4 + t;
-                    float32x2_t _v0 = vld1_f32(ptrA + (size_t)k0t * A_hstep);
-                    float32x2_t _v1 = vld1_f32(ptrA + (size_t)k1t * A_hstep);
-                    if (input_scale_ptr)
+                    float32x2_t _v0 = vld1_f32(ptrAk0);
+                    float32x2_t _v1 = vld1_f32(ptrAk1);
+                    if (ps)
                     {
-                        _v0 = vmul_n_f32(_v0, input_scale_ptr[k0t]);
-                        _v1 = vmul_n_f32(_v1, input_scale_ptr[k1t]);
+                        _v0 = vmul_n_f32(_v0, ps[kk + t]);
+                        _v1 = vmul_n_f32(_v1, ps[kk + 4 + t]);
                     }
-                    const float32x4_t _s = vcombine_f32(_scale, _scale);
-                    const float32x4_t _v0q = vmulq_f32(vcombine_f32(_v0, _v0), _s);
-                    const float32x4_t _v1q = vmulq_f32(vcombine_f32(_v1, _v1), _s);
+                    float32x4_t _s = vcombine_f32(_scale, _scale);
+                    float32x4_t _v0q = vmulq_f32(vcombine_f32(_v0, _v0), _s);
+                    float32x4_t _v1q = vmulq_f32(vcombine_f32(_v1, _v1), _s);
                     _q0.val[t] = float2int8(_v0q, _v0q);
                     _q1.val[t] = float2int8(_v1q, _v1q);
+                    ptrAk0 += A_hstep;
+                    ptrAk1 += A_hstep;
                 }
                 vst4_lane_s8(pp, _q0, 0);
                 vst4_lane_s8(pp + 4, _q1, 0);
@@ -1002,18 +996,18 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pp += 16;
             }
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
             for (; kk + 3 < max_kk; kk += 4)
             {
                 int8x8x4_t _q;
+                ptrAk = ptrAg + (size_t)kk * A_hstep;
                 for (int t = 0; t < 4; t++)
                 {
-                    const int k = k0 + kk + t;
-                    float32x2_t _v = vld1_f32(ptrA + (size_t)k * A_hstep);
-                    if (input_scale_ptr)
-                        _v = vmul_n_f32(_v, input_scale_ptr[k]);
-                    const float32x4_t _vq = vmulq_f32(vcombine_f32(_v, _v), vcombine_f32(_scale, _scale));
+                    float32x2_t _v = vld1_f32(ptrAk);
+                    if (ps)
+                        _v = vmul_n_f32(_v, ps[kk + t]);
+                    float32x4_t _vq = vmulq_f32(vcombine_f32(_v, _v), vcombine_f32(_scale, _scale));
                     _q.val[t] = float2int8(_vq, _vq);
+                    ptrAk += A_hstep;
                 }
                 vst4_lane_s8(pp, _q, 0);
                 vst4_lane_s8(pp + 4, _q, 1);
@@ -1023,14 +1017,15 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             for (; kk + 1 < max_kk; kk += 2)
             {
                 int8x8x2_t _q;
+                ptrAk = ptrAg + (size_t)kk * A_hstep;
                 for (int t = 0; t < 2; t++)
                 {
-                    const int k = k0 + kk + t;
-                    float32x2_t _v = vld1_f32(ptrA + (size_t)k * A_hstep);
-                    if (input_scale_ptr)
-                        _v = vmul_n_f32(_v, input_scale_ptr[k]);
-                    const float32x4_t _vq = vmulq_f32(vcombine_f32(_v, _v), vcombine_f32(_scale, _scale));
+                    float32x2_t _v = vld1_f32(ptrAk);
+                    if (ps)
+                        _v = vmul_n_f32(_v, ps[kk + t]);
+                    float32x4_t _vq = vmulq_f32(vcombine_f32(_v, _v), vcombine_f32(_scale, _scale));
                     _q.val[t] = float2int8(_vq, _vq);
+                    ptrAk += A_hstep;
                 }
                 vst2_lane_s8(pp, _q, 0);
                 vst2_lane_s8(pp + 2, _q, 1);
@@ -1038,14 +1033,18 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             }
             if (kk < max_kk)
             {
-                const int k = k0 + kk;
-                float32x2_t _v = vld1_f32(ptrA + (size_t)k * A_hstep);
-                if (input_scale_ptr)
-                    _v = vmul_n_f32(_v, input_scale_ptr[k]);
-                const float32x4_t _vq = vmulq_f32(vcombine_f32(_v, _v), vcombine_f32(_scale, _scale));
+                ptrAk = ptrAg + (size_t)kk * A_hstep;
+                float32x2_t _v = vld1_f32(ptrAk);
+                if (ps)
+                    _v = vmul_n_f32(_v, ps[kk]);
+                float32x4_t _vq = vmulq_f32(vcombine_f32(_v, _v), vcombine_f32(_scale, _scale));
                 vst1_lane_s16((short*)pp, vreinterpret_s16_s8(float2int8(_vq, _vq)), 0);
                 pp += 2;
             }
+            ptrAg += (size_t)max_kk * A_hstep;
+            if (ps)
+                ps += max_kk;
+            descale_ptr += 2;
         }
     }
 #elif __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
@@ -1054,12 +1053,13 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
         const float* ptrA = (const float*)A + i + ii;
         signed char* pp = outptr + ii * out_hstep;
         float* descale_ptr = descales + ii * descales_hstep;
+        const float* ptrAg = ptrA;
+        const float* ps = input_scale_ptr;
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
-            const float* ptrAk = ptrA + (size_t)k0 * A_hstep;
+            const int max_kk = std::min(K - g * block_size, block_size);
+            const float* ptrAk = ptrAg;
             float absmax0 = 0.f;
             float absmax1 = 0.f;
 
@@ -1067,92 +1067,93 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             {
                 float v0 = ptrAk[0];
                 float v1 = ptrAk[1];
-                if (input_scale_ptr)
+                if (ps)
                 {
-                    v0 *= input_scale_ptr[k0 + kk];
-                    v1 *= input_scale_ptr[k0 + kk];
+                    v0 *= ps[kk];
+                    v1 *= ps[kk];
                 }
                 absmax0 = std::max(absmax0, fabsf(v0));
                 absmax1 = std::max(absmax1, fabsf(v1));
                 ptrAk += A_hstep;
             }
 
-            descale_ptr[g * 2] = absmax0 / 127.f;
-            descale_ptr[g * 2 + 1] = absmax1 / 127.f;
-            volatile double scale0_fp64 = absmax0 == 0.f ? 0.0 : 127.0 / (double)absmax0;
-            volatile double scale1_fp64 = absmax1 == 0.f ? 0.0 : 127.0 / (double)absmax1;
-            const float scale0 = (float)scale0_fp64;
-            const float scale1 = (float)scale1_fp64;
+            descale_ptr[0] = absmax0 / 127.f;
+            descale_ptr[1] = absmax1 / 127.f;
+            const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
+            const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
 
-            ptrAk = ptrA + (size_t)k0 * A_hstep;
+            ptrAk = ptrAg;
             for (int kk = 0; kk < max_kk; kk++)
             {
                 float v0 = ptrAk[0];
                 float v1 = ptrAk[1];
-                if (input_scale_ptr)
+                if (ps)
                 {
-                    v0 *= input_scale_ptr[k0 + kk];
-                    v1 *= input_scale_ptr[k0 + kk];
-                    asm volatile(""
-                                 : "+w"(v0), "+w"(v1));
+                    v0 *= ps[kk];
+                    v1 *= ps[kk];
                 }
                 *pp++ = float2int8(v0 * scale0);
                 *pp++ = float2int8(v1 * scale1);
                 ptrAk += A_hstep;
             }
+            ptrAg += (size_t)max_kk * A_hstep;
+            if (ps)
+                ps += max_kk;
+            descale_ptr += 2;
         }
     }
 #endif // __ARM_NEON
     for (; ii < max_ii; ii++)
     {
         const float* ptrA = (const float*)A + i + ii;
-        signed char* outptr0 = outptr + ii * out_hstep;
+        signed char* pp = outptr + ii * out_hstep;
         float* descale_ptr = descales + ii * descales_hstep;
+        const float* ptrAg = ptrA;
+        const float* ps = input_scale_ptr;
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
+            const int max_kk = std::min(K - g * block_size, block_size);
 
             float absmax = 0.f;
+            const float* ptrAk = ptrAg;
             for (int kk = 0; kk < max_kk; kk++)
             {
-                const int k = k0 + kk;
-                float v = ptrA[(size_t)k * A_hstep];
-                if (input_scale_ptr)
-                    v *= input_scale_ptr[k];
+                float v = *ptrAk;
+                if (ps)
+                    v *= ps[kk];
                 absmax = std::max(absmax, fabsf(v));
+                ptrAk += A_hstep;
             }
 
             if (absmax == 0.f)
             {
-                descale_ptr[g] = 0.f;
+                *descale_ptr++ = 0.f;
                 for (int k = 0; k < max_kk; k++)
-                    outptr0[k0 + k] = 0;
+                    *pp++ = 0;
+                ptrAg += (size_t)max_kk * A_hstep;
+                if (ps)
+                    ps += max_kk;
                 continue;
             }
 
-            volatile double scale_fp64 = 127.0 / (double)absmax;
-            const float scale = (float)scale_fp64;
-            descale_ptr[g] = absmax / 127.f;
+            const float scale = 127.f / absmax;
+            *descale_ptr++ = absmax / 127.f;
 
+            ptrAk = ptrAg;
             for (int kk = 0; kk < max_kk; kk++)
             {
-                const int k = k0 + kk;
-                float v = ptrA[(size_t)k * A_hstep];
-                if (input_scale_ptr)
+                float v = *ptrAk;
+                if (ps)
                 {
-                    v *= input_scale_ptr[k];
-#if NCNN_GNU_INLINE_ASM
-                    asm volatile(""
-                                 : "+w"(v));
-#else
-                    volatile float v_ordered = v;
-                    v = v_ordered;
-#endif
+                    v *= ps[kk];
                 }
-                outptr0[k] = float2int8(v * scale);
+                *pp++ = float2int8(v * scale);
+                ptrAk += A_hstep;
             }
+            ptrAg += (size_t)max_kk * A_hstep;
+            if (ps)
+                ps += max_kk;
         }
     }
 }
@@ -1205,22 +1206,26 @@ static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_de
             const int j = panel_start4 + p * 4;
             signed char* pp = (signed char*)BT_packed + j * K;
             float* pd = (float*)BT_packed_descales + j * block_count;
+            const signed char* p0 = B.row<const signed char>(j);
+            const signed char* p1 = B.row<const signed char>(j + 1);
+            const signed char* p2 = B.row<const signed char>(j + 2);
+            const signed char* p3 = B.row<const signed char>(j + 3);
+            const float* ps0 = B_scales.row(j);
+            const float* ps1 = B_scales.row(j + 1);
+            const float* ps2 = B_scales.row(j + 2);
+            const float* ps3 = B_scales.row(j + 3);
 
             for (int g = 0; g < block_count; g++)
             {
                 const int k0 = g * block_size;
                 const int max_kk = std::min(K - k0, block_size);
-                const signed char* p0 = B.row<const signed char>(j) + k0;
-                const signed char* p1 = B.row<const signed char>(j + 1) + k0;
-                const signed char* p2 = B.row<const signed char>(j + 2) + k0;
-                const signed char* p3 = B.row<const signed char>(j + 3) + k0;
                 int kk = 0;
                 for (; kk + 15 < max_kk; kk += 16)
                 {
-                    const int8x16_t _p0 = vld1q_s8(p0);
-                    const int8x16_t _p1 = vld1q_s8(p1);
-                    const int8x16_t _p2 = vld1q_s8(p2);
-                    const int8x16_t _p3 = vld1q_s8(p3);
+                    int8x16_t _p0 = vld1q_s8(p0);
+                    int8x16_t _p1 = vld1q_s8(p1);
+                    int8x16_t _p2 = vld1q_s8(p2);
+                    int8x16_t _p3 = vld1q_s8(p3);
 #if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
                     int64x2x4_t _r0123;
@@ -1253,10 +1258,10 @@ static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_de
                 }
                 for (; kk + 7 < max_kk; kk += 8)
                 {
-                    const int8x8_t _p0 = vld1_s8(p0);
-                    const int8x8_t _p1 = vld1_s8(p1);
-                    const int8x8_t _p2 = vld1_s8(p2);
-                    const int8x8_t _p3 = vld1_s8(p3);
+                    int8x8_t _p0 = vld1_s8(p0);
+                    int8x8_t _p1 = vld1_s8(p1);
+                    int8x8_t _p2 = vld1_s8(p2);
+                    int8x8_t _p3 = vld1_s8(p3);
 #if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
                     vst1q_s8(pp, vcombine_s8(_p0, _p1));
@@ -1332,10 +1337,16 @@ static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_de
                     pp[2] = p2[0];
                     pp[3] = p3[0];
                     pp += 4;
+                    p0++;
+                    p1++;
+                    p2++;
+                    p3++;
                 }
 
-                for (int jj = 0; jj < 4; jj++)
-                    pd[g * 4 + jj] = 1.f / B_scales.row(j + jj)[g];
+                *pd++ = 1.f / *ps0++;
+                *pd++ = 1.f / *ps1++;
+                *pd++ = 1.f / *ps2++;
+                *pd++ = 1.f / *ps3++;
             }
         }
 #endif
@@ -1345,19 +1356,21 @@ static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_de
             const int j = panel_start2 + p * 2;
             signed char* pp = (signed char*)BT_packed + j * K;
             float* pd = (float*)BT_packed_descales + j * block_count;
+            const signed char* p0 = B.row<const signed char>(j);
+            const signed char* p1 = B.row<const signed char>(j + 1);
+            const float* ps0 = B_scales.row(j);
+            const float* ps1 = B_scales.row(j + 1);
 
             for (int g = 0; g < block_count; g++)
             {
                 const int k0 = g * block_size;
                 const int max_kk = std::min(K - k0, block_size);
-                const signed char* p0 = B.row<const signed char>(j) + k0;
-                const signed char* p1 = B.row<const signed char>(j + 1) + k0;
                 int kk = 0;
 #if __ARM_NEON
                 for (; kk + 15 < max_kk; kk += 16)
                 {
-                    const int8x16_t _p0 = vld1q_s8(p0);
-                    const int8x16_t _p1 = vld1q_s8(p1);
+                    int8x16_t _p0 = vld1q_s8(p0);
+                    int8x16_t _p1 = vld1q_s8(p1);
 #if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
                     int64x2x2_t _r01;
@@ -1382,8 +1395,8 @@ static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_de
                 }
                 for (; kk + 7 < max_kk; kk += 8)
                 {
-                    const int8x8_t _p0 = vld1_s8(p0);
-                    const int8x8_t _p1 = vld1_s8(p1);
+                    int8x8_t _p0 = vld1_s8(p0);
+                    int8x8_t _p1 = vld1_s8(p1);
 #if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
                     vst1q_s8(pp, vcombine_s8(_p0, _p1));
@@ -1403,7 +1416,6 @@ static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_de
                     p0 += 8;
                     p1 += 8;
                 }
-#endif // __ARM_NEON
 #if __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
@@ -1420,6 +1432,7 @@ static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_de
                     p1 += 4;
                 }
 #endif // __ARM_FEATURE_DOTPROD
+#endif // __ARM_NEON
                 for (; kk + 1 < max_kk; kk += 2)
                 {
 #if !__ARM_NEON && __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
@@ -1443,10 +1456,12 @@ static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_de
                     pp[0] = p0[0];
                     pp[1] = p1[0];
                     pp += 2;
+                    p0++;
+                    p1++;
                 }
 
-                for (int jj = 0; jj < 2; jj++)
-                    pd[g * 2 + jj] = 1.f / B_scales.row(j + jj)[g];
+                *pd++ = 1.f / *ps0++;
+                *pd++ = 1.f / *ps1++;
             }
         }
         #pragma omp for
@@ -1455,12 +1470,13 @@ static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_de
             const int j = panel_start1 + p * 1;
             signed char* pp = (signed char*)BT_packed + j * K;
             float* pd = (float*)BT_packed_descales + j * block_count;
+            const signed char* p0 = B.row<const signed char>(j);
+            const float* ps0 = B_scales.row(j);
 
             for (int g = 0; g < block_count; g++)
             {
                 const int k0 = g * block_size;
                 const int max_kk = std::min(K - k0, block_size);
-                const signed char* p0 = B.row<const signed char>(j) + k0;
                 int kk = 0;
 #if __ARM_NEON
                 for (; kk + 15 < max_kk; kk += 16)
@@ -1475,7 +1491,6 @@ static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_de
                     pp += 8;
                     p0 += 8;
                 }
-#endif // __ARM_NEON
 #if __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
@@ -1487,6 +1502,7 @@ static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_de
                     p0 += 4;
                 }
 #endif // __ARM_FEATURE_DOTPROD
+#endif // __ARM_NEON
                 for (; kk + 1 < max_kk; kk += 2)
                 {
                     pp[0] = p0[0];
@@ -1495,10 +1511,9 @@ static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_de
                     p0 += 2;
                 }
                 if (kk < max_kk)
-                    *pp++ = p0[0];
+                    *pp++ = *p0++;
 
-                for (int jj = 0; jj < 1; jj++)
-                    pd[g * 1 + jj] = 1.f / B_scales.row(j + jj)[g];
+                *pd++ = 1.f / *ps0++;
             }
         }
     }
@@ -1508,26 +1523,26 @@ static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_de
     return 0;
 }
 
-static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int K, int block_size)
+static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int full_K, int k, int max_kk, int block_size)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ARM86SVEI8MM && __aarch64__ && !__ARM_FEATURE_SVE_MATMUL_INT8
     if (ncnn::cpu_support_arm_svei8mm())
     {
-        gemm_transB_packed_tile_wq_int8_svei8mm(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, K, block_size);
+        gemm_transB_packed_tile_wq_int8_svei8mm(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, full_K, k, max_kk, block_size);
         return;
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8
     if (ncnn::cpu_support_arm_i8mm())
     {
-        gemm_transB_packed_tile_wq_int8_i8mm(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, K, block_size);
+        gemm_transB_packed_tile_wq_int8_i8mm(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, full_K, k, max_kk, block_size);
         return;
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD && !__ARM_FEATURE_MATMUL_INT8
     if (ncnn::cpu_support_arm_asimddp())
     {
-        gemm_transB_packed_tile_wq_int8_asimddp(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, K, block_size);
+        gemm_transB_packed_tile_wq_int8_asimddp(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, full_K, k, max_kk, block_size);
         return;
     }
 #endif
@@ -1538,6 +1553,10 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
     const int A_descales_hstep = AT_descales_tile.w;
     const signed char* pBT = BT_tile;
     const float* pBT_descales = BT_descales_tile;
+    const int block_count = (full_K + block_size - 1) / block_size;
+    const int block_start = k / block_size;
+    const int k0 = k;
+    const int K = max_kk;
 
     float* outptr = topT_tile;
 
@@ -1548,22 +1567,23 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
     {
         const signed char* pA_block = pAT;
         const float* pA_descales_block = pAT_descales;
-        const signed char* pB = pBT;
-        const float* pB_descales = pBT_descales;
-
         int jj = 0;
+        const signed char* pB4 = pBT + 4 * k0;
+        const float* pB_descales4 = pBT_descales + 4 * block_start;
         for (; jj + 3 < max_jj; jj += 4)
         {
+            const signed char* pB = pB4;
+            const float* pB_descales = pB_descales4;
             const signed char* pA = pA_block;
             const float* pA_descales = pA_descales_block;
-            float32x4_t _fsum0 = vdupq_n_f32(0.f);
-            float32x4_t _fsum1 = vdupq_n_f32(0.f);
-            float32x4_t _fsum2 = vdupq_n_f32(0.f);
-            float32x4_t _fsum3 = vdupq_n_f32(0.f);
-            float32x4_t _fsum4 = vdupq_n_f32(0.f);
-            float32x4_t _fsum5 = vdupq_n_f32(0.f);
-            float32x4_t _fsum6 = vdupq_n_f32(0.f);
-            float32x4_t _fsum7 = vdupq_n_f32(0.f);
+            float32x4_t _fsum0 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr);
+            float32x4_t _fsum1 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 4);
+            float32x4_t _fsum2 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 8);
+            float32x4_t _fsum3 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 12);
+            float32x4_t _fsum4 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 16);
+            float32x4_t _fsum5 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 20);
+            float32x4_t _fsum6 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 24);
+            float32x4_t _fsum7 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 28);
 
             for (int k = 0; k < K; k += block_size)
             {
@@ -1577,6 +1597,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _sum7 = vdupq_n_s32(0);
                 const int max_kk = std::min(K - k, block_size);
                 int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
                 int32x4_t _msum0 = vdupq_n_s32(0);
                 int32x4_t _msum1 = vdupq_n_s32(0);
@@ -1588,12 +1609,12 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _msum7 = vdupq_n_s32(0);
                 for (; kk + 7 < max_kk; kk += 8)
                 {
-                    const int8x16_t _b0 = vld1q_s8(pB);
-                    const int8x16_t _b1 = vld1q_s8(pB + 16);
-                    const int8x16_t _a01 = vld1q_s8(pA);
-                    const int8x16_t _a23 = vld1q_s8(pA + 16);
-                    const int8x16_t _a45 = vld1q_s8(pA + 32);
-                    const int8x16_t _a67 = vld1q_s8(pA + 48);
+                    int8x16_t _b0 = vld1q_s8(pB);
+                    int8x16_t _b1 = vld1q_s8(pB + 16);
+                    int8x16_t _a01 = vld1q_s8(pA);
+                    int8x16_t _a23 = vld1q_s8(pA + 16);
+                    int8x16_t _a45 = vld1q_s8(pA + 32);
+                    int8x16_t _a67 = vld1q_s8(pA + 48);
                     _msum0 = vmmlaq_s32(_msum0, _a01, _b0);
                     _msum1 = vmmlaq_s32(_msum1, _a23, _b0);
                     _msum2 = vmmlaq_s32(_msum2, _a01, _b1);
@@ -1614,12 +1635,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _sum6 = vcombine_s32(vget_low_s32(_msum5), vget_low_s32(_msum7));
                 _sum7 = vcombine_s32(vget_high_s32(_msum5), vget_high_s32(_msum7));
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
-                    const int8x16_t _b0 = vld1q_s8(pB);
-                    const int8x16_t _a0 = vld1q_s8(pA);
-                    const int8x16_t _a1 = vld1q_s8(pA + 16);
+                    int8x16_t _b0 = vld1q_s8(pB);
+                    int8x16_t _a0 = vld1q_s8(pA);
+                    int8x16_t _a1 = vld1q_s8(pA + 16);
                     _sum0 = vdotq_laneq_s32(_sum0, _b0, _a0, 0);
                     _sum1 = vdotq_laneq_s32(_sum1, _b0, _a0, 1);
                     _sum2 = vdotq_laneq_s32(_sum2, _b0, _a0, 2);
@@ -1631,13 +1651,112 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 32;
                     pB += 16;
                 }
+#else  // __ARM_FEATURE_DOTPROD
+#if NCNN_GNU_INLINE_ASM
+                {
+                    int nn = (max_kk - kk) >> 2;
+                    const int remain = nn;
+                    asm volatile(
+                        "cmp    %w2, #0              \n"
+                        "beq    1f                   \n"
+                        "0:                          \n"
+                        "ld1    {v0.16b, v1.16b}, [%0], #32 \n"
+                        "ld1    {v2.16b}, [%1], #16  \n"
+                        "dup    v3.8h, v0.h[0]       \n"
+                        "smull  v4.8h, v2.8b, v3.8b \n"
+                        "dup    v3.8h, v1.h[0]       \n"
+                        "smlal2 v4.8h, v2.16b, v3.16b \n"
+                        "sadalp %3.4s, v4.8h         \n"
+                        "dup    v3.8h, v0.h[1]       \n"
+                        "smull  v4.8h, v2.8b, v3.8b \n"
+                        "dup    v3.8h, v1.h[1]       \n"
+                        "smlal2 v4.8h, v2.16b, v3.16b \n"
+                        "sadalp %4.4s, v4.8h         \n"
+                        "dup    v3.8h, v0.h[2]       \n"
+                        "smull  v4.8h, v2.8b, v3.8b \n"
+                        "dup    v3.8h, v1.h[2]       \n"
+                        "smlal2 v4.8h, v2.16b, v3.16b \n"
+                        "sadalp %5.4s, v4.8h         \n"
+                        "dup    v3.8h, v0.h[3]       \n"
+                        "smull  v4.8h, v2.8b, v3.8b \n"
+                        "dup    v3.8h, v1.h[3]       \n"
+                        "smlal2 v4.8h, v2.16b, v3.16b \n"
+                        "sadalp %6.4s, v4.8h         \n"
+                        "dup    v3.8h, v0.h[4]       \n"
+                        "smull  v4.8h, v2.8b, v3.8b \n"
+                        "dup    v3.8h, v1.h[4]       \n"
+                        "smlal2 v4.8h, v2.16b, v3.16b \n"
+                        "sadalp %7.4s, v4.8h         \n"
+                        "dup    v3.8h, v0.h[5]       \n"
+                        "smull  v4.8h, v2.8b, v3.8b \n"
+                        "dup    v3.8h, v1.h[5]       \n"
+                        "smlal2 v4.8h, v2.16b, v3.16b \n"
+                        "sadalp %8.4s, v4.8h         \n"
+                        "dup    v3.8h, v0.h[6]       \n"
+                        "smull  v4.8h, v2.8b, v3.8b \n"
+                        "dup    v3.8h, v1.h[6]       \n"
+                        "smlal2 v4.8h, v2.16b, v3.16b \n"
+                        "sadalp %9.4s, v4.8h         \n"
+                        "dup    v3.8h, v0.h[7]       \n"
+                        "smull  v4.8h, v2.8b, v3.8b \n"
+                        "dup    v3.8h, v1.h[7]       \n"
+                        "smlal2 v4.8h, v2.16b, v3.16b \n"
+                        "subs   %w2, %w2, #1         \n"
+                        "sadalp %10.4s, v4.8h        \n"
+                        "bne    0b                   \n"
+                        "1:                          \n"
+                        : "+r"(pA), "+r"(pB), "+r"(nn), "+w"(_sum0), "+w"(_sum1), "+w"(_sum2), "+w"(_sum3), "+w"(_sum4), "+w"(_sum5), "+w"(_sum6), "+w"(_sum7)
+                        :
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4");
+                    kk += remain * 4;
+                }
+#else  // NCNN_GNU_INLINE_ASM
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int16x8_t _a01 = vreinterpretq_s16_s8(vld1q_s8(pA));
+                    int16x8_t _a23 = vreinterpretq_s16_s8(vld1q_s8(pA + 16));
+                    int8x16_t _b = vld1q_s8(pB);
+                    int8x8_t _b01 = vget_low_s8(_b);
+                    int8x8_t _b23 = vget_high_s8(_b);
+                    int16x4_t _a010 = vget_low_s16(_a01);
+                    int16x4_t _a011 = vget_high_s16(_a01);
+                    int16x4_t _a230 = vget_low_s16(_a23);
+                    int16x4_t _a231 = vget_high_s16(_a23);
+                    int16x8_t _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a010, 0)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a230, 0)));
+                    _sum0 = vpadalq_s16(_sum0, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a010, 1)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a230, 1)));
+                    _sum1 = vpadalq_s16(_sum1, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a010, 2)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a230, 2)));
+                    _sum2 = vpadalq_s16(_sum2, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a010, 3)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a230, 3)));
+                    _sum3 = vpadalq_s16(_sum3, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a011, 0)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a231, 0)));
+                    _sum4 = vpadalq_s16(_sum4, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a011, 1)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a231, 1)));
+                    _sum5 = vpadalq_s16(_sum5, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a011, 2)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a231, 2)));
+                    _sum6 = vpadalq_s16(_sum6, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a011, 3)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a231, 3)));
+                    _sum7 = vpadalq_s16(_sum7, _s);
+                    pA += 32;
+                    pB += 16;
+                }
+#endif // NCNN_GNU_INLINE_ASM
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    const int8x8_t _b0 = vld1_s8(pB);
-                    const int16x8_t _a = vreinterpretq_s16_s8(vld1q_s8(pA));
-                    const int16x4_t _a0 = vget_low_s16(_a);
-                    const int16x4_t _a1 = vget_high_s16(_a);
+                    int8x8_t _b0 = vld1_s8(pB);
+                    int16x8_t _a = vreinterpretq_s16_s8(vld1q_s8(pA));
+                    int16x4_t _a0 = vget_low_s16(_a);
+                    int16x4_t _a1 = vget_high_s16(_a);
                     _sum0 = vaddq_s32(_sum0, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a0, 0)))));
                     _sum1 = vaddq_s32(_sum1, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a0, 1)))));
                     _sum2 = vaddq_s32(_sum2, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a0, 2)))));
@@ -1651,31 +1770,31 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
                 if (kk < max_kk)
                 {
-                    const int8x8_t _b0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB));
-                    const int8x8_t _a = vld1_s8(pA);
-                    const int16x8_t _p0 = vmull_s8(_b0, vdup_lane_s8(_a, 0));
-                    const int16x8_t _p1 = vmull_s8(_b0, vdup_lane_s8(_a, 1));
+                    int8x8_t _b0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB));
+                    int8x8_t _a = vld1_s8(pA);
+                    int16x8_t _p0 = vmull_s8(_b0, vdup_lane_s8(_a, 0));
+                    int16x8_t _p1 = vmull_s8(_b0, vdup_lane_s8(_a, 1));
                     _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p0)));
                     _sum1 = vaddq_s32(_sum1, vmovl_s16(vget_low_s16(_p1)));
-                    const int16x8_t _p2 = vmull_s8(_b0, vdup_lane_s8(_a, 2));
-                    const int16x8_t _p3 = vmull_s8(_b0, vdup_lane_s8(_a, 3));
+                    int16x8_t _p2 = vmull_s8(_b0, vdup_lane_s8(_a, 2));
+                    int16x8_t _p3 = vmull_s8(_b0, vdup_lane_s8(_a, 3));
                     _sum2 = vaddq_s32(_sum2, vmovl_s16(vget_low_s16(_p2)));
                     _sum3 = vaddq_s32(_sum3, vmovl_s16(vget_low_s16(_p3)));
-                    const int16x8_t _p4 = vmull_s8(_b0, vdup_lane_s8(_a, 4));
-                    const int16x8_t _p5 = vmull_s8(_b0, vdup_lane_s8(_a, 5));
+                    int16x8_t _p4 = vmull_s8(_b0, vdup_lane_s8(_a, 4));
+                    int16x8_t _p5 = vmull_s8(_b0, vdup_lane_s8(_a, 5));
                     _sum4 = vaddq_s32(_sum4, vmovl_s16(vget_low_s16(_p4)));
                     _sum5 = vaddq_s32(_sum5, vmovl_s16(vget_low_s16(_p5)));
-                    const int16x8_t _p6 = vmull_s8(_b0, vdup_lane_s8(_a, 6));
-                    const int16x8_t _p7 = vmull_s8(_b0, vdup_lane_s8(_a, 7));
+                    int16x8_t _p6 = vmull_s8(_b0, vdup_lane_s8(_a, 6));
+                    int16x8_t _p7 = vmull_s8(_b0, vdup_lane_s8(_a, 7));
                     _sum6 = vaddq_s32(_sum6, vmovl_s16(vget_low_s16(_p6)));
                     _sum7 = vaddq_s32(_sum7, vmovl_s16(vget_low_s16(_p7)));
                     pA += 8;
                     pB += 4;
                 }
 
-                const float32x4_t _bd0 = vld1q_f32(pB_descales);
-                const float32x4_t _ad0 = vld1q_f32(pA_descales);
-                const float32x4_t _ad1 = vld1q_f32(pA_descales + 4);
+                float32x4_t _bd0 = vld1q_f32(pB_descales);
+                float32x4_t _ad0 = vld1q_f32(pA_descales);
+                float32x4_t _ad1 = vld1q_f32(pA_descales + 4);
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_laneq_f32(_bd0, _ad0, 0));
                 _fsum1 = vmlaq_f32(_fsum1, vcvtq_f32_s32(_sum1), vmulq_laneq_f32(_bd0, _ad0, 1));
                 _fsum2 = vmlaq_f32(_fsum2, vcvtq_f32_s32(_sum2), vmulq_laneq_f32(_bd0, _ad0, 2));
@@ -1697,19 +1816,25 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             vst1q_f32(outptr + 24, _fsum6);
             vst1q_f32(outptr + 28, _fsum7);
             outptr += 32;
+            pB4 += (size_t)4 * full_K;
+            pB_descales4 += (size_t)4 * block_count;
         }
+        const signed char* pB2 = pB4 - 2 * k0;
+        const float* pB_descales2 = pB_descales4 - 2 * block_start;
         for (; jj + 1 < max_jj; jj += 2)
         {
+            const signed char* pB = pB2;
+            const float* pB_descales = pB_descales2;
             const signed char* pA = pA_block;
             const float* pA_descales = pA_descales_block;
-            float32x4_t _fsum0 = vdupq_n_f32(0.f);
-            float32x4_t _fsum1 = vdupq_n_f32(0.f);
-            float32x4_t _fsum2 = vdupq_n_f32(0.f);
-            float32x4_t _fsum3 = vdupq_n_f32(0.f);
-            float32x4_t _fsum4 = vdupq_n_f32(0.f);
-            float32x4_t _fsum5 = vdupq_n_f32(0.f);
-            float32x4_t _fsum6 = vdupq_n_f32(0.f);
-            float32x4_t _fsum7 = vdupq_n_f32(0.f);
+            float32x4_t _fsum0 = k0 == 0 ? vdupq_n_f32(0.f) : vcombine_f32(vld1_f32(outptr), vdup_n_f32(0.f));
+            float32x4_t _fsum1 = k0 == 0 ? vdupq_n_f32(0.f) : vcombine_f32(vld1_f32(outptr + 2), vdup_n_f32(0.f));
+            float32x4_t _fsum2 = k0 == 0 ? vdupq_n_f32(0.f) : vcombine_f32(vld1_f32(outptr + 4), vdup_n_f32(0.f));
+            float32x4_t _fsum3 = k0 == 0 ? vdupq_n_f32(0.f) : vcombine_f32(vld1_f32(outptr + 6), vdup_n_f32(0.f));
+            float32x4_t _fsum4 = k0 == 0 ? vdupq_n_f32(0.f) : vcombine_f32(vld1_f32(outptr + 8), vdup_n_f32(0.f));
+            float32x4_t _fsum5 = k0 == 0 ? vdupq_n_f32(0.f) : vcombine_f32(vld1_f32(outptr + 10), vdup_n_f32(0.f));
+            float32x4_t _fsum6 = k0 == 0 ? vdupq_n_f32(0.f) : vcombine_f32(vld1_f32(outptr + 12), vdup_n_f32(0.f));
+            float32x4_t _fsum7 = k0 == 0 ? vdupq_n_f32(0.f) : vcombine_f32(vld1_f32(outptr + 14), vdup_n_f32(0.f));
 
             for (int k = 0; k < K; k += block_size)
             {
@@ -1723,6 +1848,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _sum7 = vdupq_n_s32(0);
                 const int max_kk = std::min(K - k, block_size);
                 int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
                 int32x4_t _msum0 = vdupq_n_s32(0);
                 int32x4_t _msum1 = vdupq_n_s32(0);
@@ -1730,11 +1856,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _msum3 = vdupq_n_s32(0);
                 for (; kk + 7 < max_kk; kk += 8)
                 {
-                    const int8x16_t _b0 = vld1q_s8(pB);
-                    const int8x16_t _a01 = vld1q_s8(pA);
-                    const int8x16_t _a23 = vld1q_s8(pA + 16);
-                    const int8x16_t _a45 = vld1q_s8(pA + 32);
-                    const int8x16_t _a67 = vld1q_s8(pA + 48);
+                    int8x16_t _b0 = vld1q_s8(pB);
+                    int8x16_t _a01 = vld1q_s8(pA);
+                    int8x16_t _a23 = vld1q_s8(pA + 16);
+                    int8x16_t _a45 = vld1q_s8(pA + 32);
+                    int8x16_t _a67 = vld1q_s8(pA + 48);
                     _msum0 = vmmlaq_s32(_msum0, _a01, _b0);
                     _msum1 = vmmlaq_s32(_msum1, _a23, _b0);
                     _msum2 = vmmlaq_s32(_msum2, _a45, _b0);
@@ -1751,12 +1877,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _sum6 = vcombine_s32(vget_low_s32(_msum3), vdup_n_s32(0));
                 _sum7 = vcombine_s32(vget_high_s32(_msum3), vdup_n_s32(0));
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
-                    const int8x16_t _b0 = vcombine_s8(vld1_s8(pB), vdup_n_s8(0));
-                    const int8x16_t _a0 = vld1q_s8(pA);
-                    const int8x16_t _a1 = vld1q_s8(pA + 16);
+                    int8x16_t _b0 = vcombine_s8(vld1_s8(pB), vdup_n_s8(0));
+                    int8x16_t _a0 = vld1q_s8(pA);
+                    int8x16_t _a1 = vld1q_s8(pA + 16);
                     _sum0 = vdotq_laneq_s32(_sum0, _b0, _a0, 0);
                     _sum1 = vdotq_laneq_s32(_sum1, _b0, _a0, 1);
                     _sum2 = vdotq_laneq_s32(_sum2, _b0, _a0, 2);
@@ -1768,13 +1893,115 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 32;
                     pB += 8;
                 }
+#else  // __ARM_FEATURE_DOTPROD
+#if NCNN_GNU_INLINE_ASM
+                {
+                    int nn = (max_kk - kk) >> 2;
+                    const int remain = nn;
+                    asm volatile(
+                        "cmp    %w2, #0              \n"
+                        "beq    1f                   \n"
+                        "0:                          \n"
+                        "ld1    {v0.16b, v1.16b}, [%0], #32 \n"
+                        "ld1    {v2.8b}, [%1], #8    \n"
+                        "dup    v3.2s, v2.s[0]       \n"
+                        "dup    v4.2s, v2.s[1]       \n"
+                        "dup    v5.8h, v0.h[0]       \n"
+                        "smull  v6.8h, v3.8b, v5.8b \n"
+                        "dup    v5.8h, v1.h[0]       \n"
+                        "smlal  v6.8h, v4.8b, v5.8b \n"
+                        "sadalp %3.4s, v6.8h         \n"
+                        "dup    v5.8h, v0.h[1]       \n"
+                        "smull  v6.8h, v3.8b, v5.8b \n"
+                        "dup    v5.8h, v1.h[1]       \n"
+                        "smlal  v6.8h, v4.8b, v5.8b \n"
+                        "sadalp %4.4s, v6.8h         \n"
+                        "dup    v5.8h, v0.h[2]       \n"
+                        "smull  v6.8h, v3.8b, v5.8b \n"
+                        "dup    v5.8h, v1.h[2]       \n"
+                        "smlal  v6.8h, v4.8b, v5.8b \n"
+                        "sadalp %5.4s, v6.8h         \n"
+                        "dup    v5.8h, v0.h[3]       \n"
+                        "smull  v6.8h, v3.8b, v5.8b \n"
+                        "dup    v5.8h, v1.h[3]       \n"
+                        "smlal  v6.8h, v4.8b, v5.8b \n"
+                        "sadalp %6.4s, v6.8h         \n"
+                        "dup    v5.8h, v0.h[4]       \n"
+                        "smull  v6.8h, v3.8b, v5.8b \n"
+                        "dup    v5.8h, v1.h[4]       \n"
+                        "smlal  v6.8h, v4.8b, v5.8b \n"
+                        "sadalp %7.4s, v6.8h         \n"
+                        "dup    v5.8h, v0.h[5]       \n"
+                        "smull  v6.8h, v3.8b, v5.8b \n"
+                        "dup    v5.8h, v1.h[5]       \n"
+                        "smlal  v6.8h, v4.8b, v5.8b \n"
+                        "sadalp %8.4s, v6.8h         \n"
+                        "dup    v5.8h, v0.h[6]       \n"
+                        "smull  v6.8h, v3.8b, v5.8b \n"
+                        "dup    v5.8h, v1.h[6]       \n"
+                        "smlal  v6.8h, v4.8b, v5.8b \n"
+                        "sadalp %9.4s, v6.8h         \n"
+                        "dup    v5.8h, v0.h[7]       \n"
+                        "smull  v6.8h, v3.8b, v5.8b \n"
+                        "dup    v5.8h, v1.h[7]       \n"
+                        "smlal  v6.8h, v4.8b, v5.8b \n"
+                        "subs   %w2, %w2, #1         \n"
+                        "sadalp %10.4s, v6.8h        \n"
+                        "bne    0b                   \n"
+                        "1:                          \n"
+                        : "+r"(pA), "+r"(pB), "+r"(nn), "+w"(_sum0), "+w"(_sum1), "+w"(_sum2), "+w"(_sum3), "+w"(_sum4), "+w"(_sum5), "+w"(_sum6), "+w"(_sum7)
+                        :
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6");
+                    kk += remain * 4;
+                }
+#else  // NCNN_GNU_INLINE_ASM
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int16x8_t _a01 = vreinterpretq_s16_s8(vld1q_s8(pA));
+                    int16x8_t _a23 = vreinterpretq_s16_s8(vld1q_s8(pA + 16));
+                    int8x8_t _b = vld1_s8(pB);
+                    int32x2_t _b02 = vreinterpret_s32_s8(_b);
+                    int8x8_t _b01 = vreinterpret_s8_s32(vdup_lane_s32(_b02, 0));
+                    int8x8_t _b23 = vreinterpret_s8_s32(vdup_lane_s32(_b02, 1));
+                    int16x4_t _a010 = vget_low_s16(_a01);
+                    int16x4_t _a011 = vget_high_s16(_a01);
+                    int16x4_t _a230 = vget_low_s16(_a23);
+                    int16x4_t _a231 = vget_high_s16(_a23);
+                    int16x8_t _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a010, 0)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a230, 0)));
+                    _sum0 = vpadalq_s16(_sum0, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a010, 1)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a230, 1)));
+                    _sum1 = vpadalq_s16(_sum1, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a010, 2)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a230, 2)));
+                    _sum2 = vpadalq_s16(_sum2, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a010, 3)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a230, 3)));
+                    _sum3 = vpadalq_s16(_sum3, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a011, 0)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a231, 0)));
+                    _sum4 = vpadalq_s16(_sum4, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a011, 1)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a231, 1)));
+                    _sum5 = vpadalq_s16(_sum5, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a011, 2)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a231, 2)));
+                    _sum6 = vpadalq_s16(_sum6, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a011, 3)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a231, 3)));
+                    _sum7 = vpadalq_s16(_sum7, _s);
+                    pA += 32;
+                    pB += 8;
+                }
+#endif // NCNN_GNU_INLINE_ASM
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    const int8x8_t _b0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB));
-                    const int16x8_t _a = vreinterpretq_s16_s8(vld1q_s8(pA));
-                    const int16x4_t _a0 = vget_low_s16(_a);
-                    const int16x4_t _a1 = vget_high_s16(_a);
+                    int8x8_t _b0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB));
+                    int16x8_t _a = vreinterpretq_s16_s8(vld1q_s8(pA));
+                    int16x4_t _a0 = vget_low_s16(_a);
+                    int16x4_t _a1 = vget_high_s16(_a);
                     _sum0 = vaddq_s32(_sum0, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a0, 0)))));
                     _sum1 = vaddq_s32(_sum1, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a0, 1)))));
                     _sum2 = vaddq_s32(_sum2, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a0, 2)))));
@@ -1788,16 +2015,16 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
                 if (kk < max_kk)
                 {
-                    const int8x8_t _b0 = vreinterpret_s8_s16(vld1_dup_s16((const short*)pB));
-                    const int8x8_t _a = vld1_s8(pA);
-                    const int16x8_t _p0 = vmull_s8(_b0, vdup_lane_s8(_a, 0));
-                    const int16x8_t _p1 = vmull_s8(_b0, vdup_lane_s8(_a, 1));
-                    const int16x8_t _p2 = vmull_s8(_b0, vdup_lane_s8(_a, 2));
-                    const int16x8_t _p3 = vmull_s8(_b0, vdup_lane_s8(_a, 3));
-                    const int16x8_t _p4 = vmull_s8(_b0, vdup_lane_s8(_a, 4));
-                    const int16x8_t _p5 = vmull_s8(_b0, vdup_lane_s8(_a, 5));
-                    const int16x8_t _p6 = vmull_s8(_b0, vdup_lane_s8(_a, 6));
-                    const int16x8_t _p7 = vmull_s8(_b0, vdup_lane_s8(_a, 7));
+                    int8x8_t _b0 = vreinterpret_s8_s16(vld1_dup_s16((const short*)pB));
+                    int8x8_t _a = vld1_s8(pA);
+                    int16x8_t _p0 = vmull_s8(_b0, vdup_lane_s8(_a, 0));
+                    int16x8_t _p1 = vmull_s8(_b0, vdup_lane_s8(_a, 1));
+                    int16x8_t _p2 = vmull_s8(_b0, vdup_lane_s8(_a, 2));
+                    int16x8_t _p3 = vmull_s8(_b0, vdup_lane_s8(_a, 3));
+                    int16x8_t _p4 = vmull_s8(_b0, vdup_lane_s8(_a, 4));
+                    int16x8_t _p5 = vmull_s8(_b0, vdup_lane_s8(_a, 5));
+                    int16x8_t _p6 = vmull_s8(_b0, vdup_lane_s8(_a, 6));
+                    int16x8_t _p7 = vmull_s8(_b0, vdup_lane_s8(_a, 7));
                     _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p0)));
                     _sum1 = vaddq_s32(_sum1, vmovl_s16(vget_low_s16(_p1)));
                     _sum2 = vaddq_s32(_sum2, vmovl_s16(vget_low_s16(_p2)));
@@ -1810,9 +2037,9 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 2;
                 }
 
-                const float32x4_t _bd = vcombine_f32(vld1_f32(pB_descales), vdup_n_f32(0.f));
-                const float32x4_t _ad0 = vld1q_f32(pA_descales);
-                const float32x4_t _ad1 = vld1q_f32(pA_descales + 4);
+                float32x4_t _bd = vcombine_f32(vld1_f32(pB_descales), vdup_n_f32(0.f));
+                float32x4_t _ad0 = vld1q_f32(pA_descales);
+                float32x4_t _ad1 = vld1q_f32(pA_descales + 4);
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_laneq_f32(_bd, _ad0, 0));
                 _fsum1 = vmlaq_f32(_fsum1, vcvtq_f32_s32(_sum1), vmulq_laneq_f32(_bd, _ad0, 1));
                 _fsum2 = vmlaq_f32(_fsum2, vcvtq_f32_s32(_sum2), vmulq_laneq_f32(_bd, _ad0, 2));
@@ -1834,19 +2061,25 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             vst1_f32(outptr + 12, vget_low_f32(_fsum6));
             vst1_f32(outptr + 14, vget_low_f32(_fsum7));
             outptr += 16;
+            pB2 += (size_t)2 * full_K;
+            pB_descales2 += (size_t)2 * block_count;
         }
+        const signed char* pB1 = pB2 - k0;
+        const float* pB_descales1 = pB_descales2 - block_start;
         for (; jj < max_jj; jj++)
         {
+            const signed char* pB = pB1;
+            const float* pB_descales = pB_descales1;
             const signed char* pA = pA_block;
             const float* pA_descales = pA_descales_block;
-            float32x4_t _fsum0 = vdupq_n_f32(0.f);
-            float32x4_t _fsum1 = vdupq_n_f32(0.f);
-            float32x4_t _fsum2 = vdupq_n_f32(0.f);
-            float32x4_t _fsum3 = vdupq_n_f32(0.f);
-            float32x4_t _fsum4 = vdupq_n_f32(0.f);
-            float32x4_t _fsum5 = vdupq_n_f32(0.f);
-            float32x4_t _fsum6 = vdupq_n_f32(0.f);
-            float32x4_t _fsum7 = vdupq_n_f32(0.f);
+            float32x4_t _fsum0 = k0 == 0 ? vdupq_n_f32(0.f) : vsetq_lane_f32(outptr[0], vdupq_n_f32(0.f), 0);
+            float32x4_t _fsum1 = k0 == 0 ? vdupq_n_f32(0.f) : vsetq_lane_f32(outptr[1], vdupq_n_f32(0.f), 0);
+            float32x4_t _fsum2 = k0 == 0 ? vdupq_n_f32(0.f) : vsetq_lane_f32(outptr[2], vdupq_n_f32(0.f), 0);
+            float32x4_t _fsum3 = k0 == 0 ? vdupq_n_f32(0.f) : vsetq_lane_f32(outptr[3], vdupq_n_f32(0.f), 0);
+            float32x4_t _fsum4 = k0 == 0 ? vdupq_n_f32(0.f) : vsetq_lane_f32(outptr[4], vdupq_n_f32(0.f), 0);
+            float32x4_t _fsum5 = k0 == 0 ? vdupq_n_f32(0.f) : vsetq_lane_f32(outptr[5], vdupq_n_f32(0.f), 0);
+            float32x4_t _fsum6 = k0 == 0 ? vdupq_n_f32(0.f) : vsetq_lane_f32(outptr[6], vdupq_n_f32(0.f), 0);
+            float32x4_t _fsum7 = k0 == 0 ? vdupq_n_f32(0.f) : vsetq_lane_f32(outptr[7], vdupq_n_f32(0.f), 0);
 
             for (int k = 0; k < K; k += block_size)
             {
@@ -1860,15 +2093,16 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _sum7 = vdupq_n_s32(0);
                 const int max_kk = std::min(K - k, block_size);
                 int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
                 for (; kk + 7 < max_kk; kk += 8)
                 {
-                    const int8x16_t _a01 = vld1q_s8(pA);
-                    const int8x16_t _a23 = vld1q_s8(pA + 16);
-                    const int8x16_t _a45 = vld1q_s8(pA + 32);
-                    const int8x16_t _a67 = vld1q_s8(pA + 48);
-                    const int8x16_t _b0 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)pB)), vdup_n_s8(0));
-                    const int8x16_t _b1 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB + 4))), vdup_n_s8(0));
+                    int8x16_t _a01 = vld1q_s8(pA);
+                    int8x16_t _a23 = vld1q_s8(pA + 16);
+                    int8x16_t _a45 = vld1q_s8(pA + 32);
+                    int8x16_t _a67 = vld1q_s8(pA + 48);
+                    int8x16_t _b0 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)pB)), vdup_n_s8(0));
+                    int8x16_t _b1 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB + 4))), vdup_n_s8(0));
                     _sum0 = vdotq_laneq_s32(_sum0, _b0, _a01, 0);
                     _sum0 = vdotq_laneq_s32(_sum0, _b1, _a01, 1);
                     _sum1 = vdotq_laneq_s32(_sum1, _b0, _a01, 2);
@@ -1889,12 +2123,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 8;
                 }
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
-                    const int8x16_t _b = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)pB)), vdup_n_s8(0));
-                    const int8x16_t _a0 = vld1q_s8(pA);
-                    const int8x16_t _a1 = vld1q_s8(pA + 16);
+                    int8x16_t _b = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)pB)), vdup_n_s8(0));
+                    int8x16_t _a0 = vld1q_s8(pA);
+                    int8x16_t _a1 = vld1q_s8(pA + 16);
                     _sum0 = vdotq_laneq_s32(_sum0, _b, _a0, 0);
                     _sum1 = vdotq_laneq_s32(_sum1, _b, _a0, 1);
                     _sum2 = vdotq_laneq_s32(_sum2, _b, _a0, 2);
@@ -1906,13 +2139,112 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 32;
                     pB += 4;
                 }
+#else  // __ARM_FEATURE_DOTPROD
+#if NCNN_GNU_INLINE_ASM
+                {
+                    int nn = (max_kk - kk) >> 2;
+                    const int remain = nn;
+                    asm volatile(
+                        "cmp    %w2, #0              \n"
+                        "beq    1f                   \n"
+                        "0:                          \n"
+                        "ld1    {v0.16b, v1.16b}, [%0], #32 \n"
+                        "ld1r   {v3.2s}, [%1], #4    \n"
+                        "ext    v4.8b, v3.8b, v3.8b, #2 \n"
+                        "dup    v5.8h, v0.h[0]       \n"
+                        "smull  v6.8h, v3.8b, v5.8b \n"
+                        "dup    v5.8h, v1.h[0]       \n"
+                        "smlal  v6.8h, v4.8b, v5.8b \n"
+                        "sadalp %3.4s, v6.8h         \n"
+                        "dup    v5.8h, v0.h[1]       \n"
+                        "smull  v6.8h, v3.8b, v5.8b \n"
+                        "dup    v5.8h, v1.h[1]       \n"
+                        "smlal  v6.8h, v4.8b, v5.8b \n"
+                        "sadalp %4.4s, v6.8h         \n"
+                        "dup    v5.8h, v0.h[2]       \n"
+                        "smull  v6.8h, v3.8b, v5.8b \n"
+                        "dup    v5.8h, v1.h[2]       \n"
+                        "smlal  v6.8h, v4.8b, v5.8b \n"
+                        "sadalp %5.4s, v6.8h         \n"
+                        "dup    v5.8h, v0.h[3]       \n"
+                        "smull  v6.8h, v3.8b, v5.8b \n"
+                        "dup    v5.8h, v1.h[3]       \n"
+                        "smlal  v6.8h, v4.8b, v5.8b \n"
+                        "sadalp %6.4s, v6.8h         \n"
+                        "dup    v5.8h, v0.h[4]       \n"
+                        "smull  v6.8h, v3.8b, v5.8b \n"
+                        "dup    v5.8h, v1.h[4]       \n"
+                        "smlal  v6.8h, v4.8b, v5.8b \n"
+                        "sadalp %7.4s, v6.8h         \n"
+                        "dup    v5.8h, v0.h[5]       \n"
+                        "smull  v6.8h, v3.8b, v5.8b \n"
+                        "dup    v5.8h, v1.h[5]       \n"
+                        "smlal  v6.8h, v4.8b, v5.8b \n"
+                        "sadalp %8.4s, v6.8h         \n"
+                        "dup    v5.8h, v0.h[6]       \n"
+                        "smull  v6.8h, v3.8b, v5.8b \n"
+                        "dup    v5.8h, v1.h[6]       \n"
+                        "smlal  v6.8h, v4.8b, v5.8b \n"
+                        "sadalp %9.4s, v6.8h         \n"
+                        "dup    v5.8h, v0.h[7]       \n"
+                        "smull  v6.8h, v3.8b, v5.8b \n"
+                        "dup    v5.8h, v1.h[7]       \n"
+                        "smlal  v6.8h, v4.8b, v5.8b \n"
+                        "subs   %w2, %w2, #1         \n"
+                        "sadalp %10.4s, v6.8h        \n"
+                        "bne    0b                   \n"
+                        "1:                          \n"
+                        : "+r"(pA), "+r"(pB), "+r"(nn), "+w"(_sum0), "+w"(_sum1), "+w"(_sum2), "+w"(_sum3), "+w"(_sum4), "+w"(_sum5), "+w"(_sum6), "+w"(_sum7)
+                        :
+                        : "cc", "memory", "v0", "v1", "v3", "v4", "v5", "v6");
+                    kk += remain * 4;
+                }
+#else  // NCNN_GNU_INLINE_ASM
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int16x8_t _a01 = vreinterpretq_s16_s8(vld1q_s8(pA));
+                    int16x8_t _a23 = vreinterpretq_s16_s8(vld1q_s8(pA + 16));
+                    int8x8_t _b01 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB));
+                    int8x8_t _b23 = vext_s8(_b01, _b01, 2);
+                    int16x4_t _a010 = vget_low_s16(_a01);
+                    int16x4_t _a011 = vget_high_s16(_a01);
+                    int16x4_t _a230 = vget_low_s16(_a23);
+                    int16x4_t _a231 = vget_high_s16(_a23);
+                    int16x8_t _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a010, 0)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a230, 0)));
+                    _sum0 = vpadalq_s16(_sum0, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a010, 1)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a230, 1)));
+                    _sum1 = vpadalq_s16(_sum1, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a010, 2)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a230, 2)));
+                    _sum2 = vpadalq_s16(_sum2, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a010, 3)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a230, 3)));
+                    _sum3 = vpadalq_s16(_sum3, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a011, 0)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a231, 0)));
+                    _sum4 = vpadalq_s16(_sum4, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a011, 1)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a231, 1)));
+                    _sum5 = vpadalq_s16(_sum5, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a011, 2)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a231, 2)));
+                    _sum6 = vpadalq_s16(_sum6, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a011, 3)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a231, 3)));
+                    _sum7 = vpadalq_s16(_sum7, _s);
+                    pA += 32;
+                    pB += 4;
+                }
+#endif // NCNN_GNU_INLINE_ASM
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    const int8x8_t _b = vreinterpret_s8_s16(vld1_dup_s16((const short*)pB));
-                    const int16x8_t _a = vreinterpretq_s16_s8(vld1q_s8(pA));
-                    const int16x4_t _a0 = vget_low_s16(_a);
-                    const int16x4_t _a1 = vget_high_s16(_a);
+                    int8x8_t _b = vreinterpret_s8_s16(vld1_dup_s16((const short*)pB));
+                    int16x8_t _a = vreinterpretq_s16_s8(vld1q_s8(pA));
+                    int16x4_t _a0 = vget_low_s16(_a);
+                    int16x4_t _a1 = vget_high_s16(_a);
                     _sum0 = vaddq_s32(_sum0, vpaddlq_s16(vmull_s8(_b, vreinterpret_s8_s16(vdup_lane_s16(_a0, 0)))));
                     _sum1 = vaddq_s32(_sum1, vpaddlq_s16(vmull_s8(_b, vreinterpret_s8_s16(vdup_lane_s16(_a0, 1)))));
                     _sum2 = vaddq_s32(_sum2, vpaddlq_s16(vmull_s8(_b, vreinterpret_s8_s16(vdup_lane_s16(_a0, 2)))));
@@ -1926,16 +2258,16 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
                 if (kk < max_kk)
                 {
-                    const int8x8_t _b = vset_lane_s8(pB[0], vdup_n_s8(0), 0);
-                    const int8x8_t _a = vld1_s8(pA);
-                    const int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a, 0));
-                    const int16x8_t _p1 = vmull_s8(_b, vdup_lane_s8(_a, 1));
-                    const int16x8_t _p2 = vmull_s8(_b, vdup_lane_s8(_a, 2));
-                    const int16x8_t _p3 = vmull_s8(_b, vdup_lane_s8(_a, 3));
-                    const int16x8_t _p4 = vmull_s8(_b, vdup_lane_s8(_a, 4));
-                    const int16x8_t _p5 = vmull_s8(_b, vdup_lane_s8(_a, 5));
-                    const int16x8_t _p6 = vmull_s8(_b, vdup_lane_s8(_a, 6));
-                    const int16x8_t _p7 = vmull_s8(_b, vdup_lane_s8(_a, 7));
+                    int8x8_t _b = vset_lane_s8(pB[0], vdup_n_s8(0), 0);
+                    int8x8_t _a = vld1_s8(pA);
+                    int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a, 0));
+                    int16x8_t _p1 = vmull_s8(_b, vdup_lane_s8(_a, 1));
+                    int16x8_t _p2 = vmull_s8(_b, vdup_lane_s8(_a, 2));
+                    int16x8_t _p3 = vmull_s8(_b, vdup_lane_s8(_a, 3));
+                    int16x8_t _p4 = vmull_s8(_b, vdup_lane_s8(_a, 4));
+                    int16x8_t _p5 = vmull_s8(_b, vdup_lane_s8(_a, 5));
+                    int16x8_t _p6 = vmull_s8(_b, vdup_lane_s8(_a, 6));
+                    int16x8_t _p7 = vmull_s8(_b, vdup_lane_s8(_a, 7));
                     _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p0)));
                     _sum1 = vaddq_s32(_sum1, vmovl_s16(vget_low_s16(_p1)));
                     _sum2 = vaddq_s32(_sum2, vmovl_s16(vget_low_s16(_p2)));
@@ -1948,9 +2280,9 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB++;
                 }
 
-                const float32x4_t _bd = vdupq_n_f32(pB_descales[0]);
-                const float32x4_t _ad0 = vld1q_f32(pA_descales);
-                const float32x4_t _ad1 = vld1q_f32(pA_descales + 4);
+                float32x4_t _bd = vdupq_n_f32(pB_descales[0]);
+                float32x4_t _ad0 = vld1q_f32(pA_descales);
+                float32x4_t _ad1 = vld1q_f32(pA_descales + 4);
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_laneq_f32(_bd, _ad0, 0));
                 _fsum1 = vmlaq_f32(_fsum1, vcvtq_f32_s32(_sum1), vmulq_laneq_f32(_bd, _ad0, 1));
                 _fsum2 = vmlaq_f32(_fsum2, vcvtq_f32_s32(_sum2), vmulq_laneq_f32(_bd, _ad0, 2));
@@ -1979,6 +2311,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr++;
             vst1q_lane_f32(outptr, _fsum7, 0);
             outptr++;
+            pB1 += full_K;
+            pB_descales1 += block_count;
         }
     }
 #endif // __aarch64__
@@ -1986,25 +2320,24 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
     {
         const signed char* pA0_block = pAT + ii * A_hstep;
         const float* pA_descales0_block = pAT_descales + ii * A_descales_hstep;
-        const signed char* pB = pBT;
-        const float* pB_descales = pBT_descales;
-
         int jj = 0;
+        const signed char* pB8 = pBT + 4 * k0;
+        const float* pB_descales8 = pBT_descales + 4 * block_start;
 #if __aarch64__
         for (; jj + 7 < max_jj; jj += 8)
         {
-            const signed char* pB0 = pB;
-            const signed char* pB1 = pB + 4 * K;
-            const float* pB_descales0 = pB_descales;
-            const float* pB_descales1 = pB_descales + 4 * ((K + block_size - 1) / block_size);
-            float32x4_t _fsum0 = vdupq_n_f32(0.f);
-            float32x4_t _fsum1 = vdupq_n_f32(0.f);
-            float32x4_t _fsum2 = vdupq_n_f32(0.f);
-            float32x4_t _fsum3 = vdupq_n_f32(0.f);
-            float32x4_t _fsum4 = vdupq_n_f32(0.f);
-            float32x4_t _fsum5 = vdupq_n_f32(0.f);
-            float32x4_t _fsum6 = vdupq_n_f32(0.f);
-            float32x4_t _fsum7 = vdupq_n_f32(0.f);
+            const signed char* pB0 = pB8;
+            const signed char* pB1 = pB8 + (size_t)4 * full_K;
+            const float* pB_descales0 = pB_descales8;
+            const float* pB_descales1 = pB_descales8 + (size_t)4 * block_count;
+            float32x4_t _fsum0 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr);
+            float32x4_t _fsum1 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 4);
+            float32x4_t _fsum2 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 8);
+            float32x4_t _fsum3 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 12);
+            float32x4_t _fsum4 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 16);
+            float32x4_t _fsum5 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 20);
+            float32x4_t _fsum6 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 24);
+            float32x4_t _fsum7 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 28);
 
             const signed char* pA = pA0_block;
             const float* pA_descales = pA_descales0_block;
@@ -2020,6 +2353,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _sum7 = vdupq_n_s32(0);
                 const int max_kk = std::min(K - k, block_size);
                 int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
                 int32x4_t _msum0 = vdupq_n_s32(0);
                 int32x4_t _msum1 = vdupq_n_s32(0);
@@ -2031,12 +2365,12 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _msum7 = vdupq_n_s32(0);
                 for (; kk + 7 < max_kk; kk += 8)
                 {
-                    const int8x16_t _a01 = vld1q_s8(pA);
-                    const int8x16_t _a23 = vld1q_s8(pA + 16);
-                    const int8x16_t _b00 = vld1q_s8(pB0);
-                    const int8x16_t _b01 = vld1q_s8(pB0 + 16);
-                    const int8x16_t _b10 = vld1q_s8(pB1);
-                    const int8x16_t _b11 = vld1q_s8(pB1 + 16);
+                    int8x16_t _a01 = vld1q_s8(pA);
+                    int8x16_t _a23 = vld1q_s8(pA + 16);
+                    int8x16_t _b00 = vld1q_s8(pB0);
+                    int8x16_t _b01 = vld1q_s8(pB0 + 16);
+                    int8x16_t _b10 = vld1q_s8(pB1);
+                    int8x16_t _b11 = vld1q_s8(pB1 + 16);
                     _msum0 = vmmlaq_s32(_msum0, _a01, _b00);
                     _msum1 = vmmlaq_s32(_msum1, _a01, _b01);
                     _msum2 = vmmlaq_s32(_msum2, _a23, _b00);
@@ -2058,12 +2392,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _sum6 = vcombine_s32(vget_high_s32(_msum2), vget_high_s32(_msum3));
                 _sum7 = vcombine_s32(vget_high_s32(_msum6), vget_high_s32(_msum7));
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
-                    const int8x16_t _a = vld1q_s8(pA);
-                    const int8x16_t _b0 = vld1q_s8(pB0);
-                    const int8x16_t _b1 = vld1q_s8(pB1);
+                    int8x16_t _a = vld1q_s8(pA);
+                    int8x16_t _b0 = vld1q_s8(pB0);
+                    int8x16_t _b1 = vld1q_s8(pB1);
                     _sum0 = vdotq_laneq_s32(_sum0, _b0, _a, 0);
                     _sum1 = vdotq_laneq_s32(_sum1, _b1, _a, 0);
                     _sum2 = vdotq_laneq_s32(_sum2, _b0, _a, 1);
@@ -2076,12 +2409,57 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB0 += 16;
                     pB1 += 16;
                 }
+#else  // __ARM_FEATURE_DOTPROD
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int16x8_t _a = vreinterpretq_s16_s8(vld1q_s8(pA));
+                    int16x4_t _a01 = vget_low_s16(_a);
+                    int16x4_t _a23 = vget_high_s16(_a);
+#if NCNN_GNU_INLINE_ASM && __aarch64__
+                    asm volatile(""
+                                 :
+                                 : "w"(_a));
+#endif
+                    int8x16_t _b0 = vld1q_s8(pB0);
+                    int8x16_t _b1 = vld1q_s8(pB1);
+                    int8x8_t _b001 = vget_low_s8(_b0);
+                    int8x8_t _b023 = vget_high_s8(_b0);
+                    int8x8_t _b101 = vget_low_s8(_b1);
+                    int8x8_t _b123 = vget_high_s8(_b1);
+                    int16x8_t _s = vmull_s8(_b001, vreinterpret_s8_s16(vdup_lane_s16(_a01, 0)));
+                    _s = vmlal_s8(_s, _b023, vreinterpret_s8_s16(vdup_lane_s16(_a23, 0)));
+                    _sum0 = vpadalq_s16(_sum0, _s);
+                    _s = vmull_s8(_b101, vreinterpret_s8_s16(vdup_lane_s16(_a01, 0)));
+                    _s = vmlal_s8(_s, _b123, vreinterpret_s8_s16(vdup_lane_s16(_a23, 0)));
+                    _sum1 = vpadalq_s16(_sum1, _s);
+                    _s = vmull_s8(_b001, vreinterpret_s8_s16(vdup_lane_s16(_a01, 1)));
+                    _s = vmlal_s8(_s, _b023, vreinterpret_s8_s16(vdup_lane_s16(_a23, 1)));
+                    _sum2 = vpadalq_s16(_sum2, _s);
+                    _s = vmull_s8(_b101, vreinterpret_s8_s16(vdup_lane_s16(_a01, 1)));
+                    _s = vmlal_s8(_s, _b123, vreinterpret_s8_s16(vdup_lane_s16(_a23, 1)));
+                    _sum3 = vpadalq_s16(_sum3, _s);
+                    _s = vmull_s8(_b001, vreinterpret_s8_s16(vdup_lane_s16(_a01, 2)));
+                    _s = vmlal_s8(_s, _b023, vreinterpret_s8_s16(vdup_lane_s16(_a23, 2)));
+                    _sum4 = vpadalq_s16(_sum4, _s);
+                    _s = vmull_s8(_b101, vreinterpret_s8_s16(vdup_lane_s16(_a01, 2)));
+                    _s = vmlal_s8(_s, _b123, vreinterpret_s8_s16(vdup_lane_s16(_a23, 2)));
+                    _sum5 = vpadalq_s16(_sum5, _s);
+                    _s = vmull_s8(_b001, vreinterpret_s8_s16(vdup_lane_s16(_a01, 3)));
+                    _s = vmlal_s8(_s, _b023, vreinterpret_s8_s16(vdup_lane_s16(_a23, 3)));
+                    _sum6 = vpadalq_s16(_sum6, _s);
+                    _s = vmull_s8(_b101, vreinterpret_s8_s16(vdup_lane_s16(_a01, 3)));
+                    _s = vmlal_s8(_s, _b123, vreinterpret_s8_s16(vdup_lane_s16(_a23, 3)));
+                    _sum7 = vpadalq_s16(_sum7, _s);
+                    pA += 16;
+                    pB0 += 16;
+                    pB1 += 16;
+                }
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    const int16x4_t _a = vreinterpret_s16_s8(vld1_s8(pA));
-                    const int8x8_t _b0 = vld1_s8(pB0);
-                    const int8x8_t _b1 = vld1_s8(pB1);
+                    int16x4_t _a = vreinterpret_s16_s8(vld1_s8(pA));
+                    int8x8_t _b0 = vld1_s8(pB0);
+                    int8x8_t _b1 = vld1_s8(pB1);
                     _sum0 = vaddq_s32(_sum0, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)))));
                     _sum1 = vaddq_s32(_sum1, vpaddlq_s16(vmull_s8(_b1, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)))));
                     _sum2 = vaddq_s32(_sum2, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 1)))));
@@ -2096,17 +2474,17 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
                 if (kk < max_kk)
                 {
-                    const int8x8_t _a = vreinterpret_s8_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
-                    const int8x8_t _b0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB0));
-                    const int8x8_t _b1 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB1));
-                    const int16x8_t _p00 = vmull_s8(_b0, vdup_lane_s8(_a, 0));
-                    const int16x8_t _p01 = vmull_s8(_b1, vdup_lane_s8(_a, 0));
-                    const int16x8_t _p10 = vmull_s8(_b0, vdup_lane_s8(_a, 1));
-                    const int16x8_t _p11 = vmull_s8(_b1, vdup_lane_s8(_a, 1));
-                    const int16x8_t _p20 = vmull_s8(_b0, vdup_lane_s8(_a, 2));
-                    const int16x8_t _p21 = vmull_s8(_b1, vdup_lane_s8(_a, 2));
-                    const int16x8_t _p30 = vmull_s8(_b0, vdup_lane_s8(_a, 3));
-                    const int16x8_t _p31 = vmull_s8(_b1, vdup_lane_s8(_a, 3));
+                    int8x8_t _a = vreinterpret_s8_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
+                    int8x8_t _b0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB0));
+                    int8x8_t _b1 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB1));
+                    int16x8_t _p00 = vmull_s8(_b0, vdup_lane_s8(_a, 0));
+                    int16x8_t _p01 = vmull_s8(_b1, vdup_lane_s8(_a, 0));
+                    int16x8_t _p10 = vmull_s8(_b0, vdup_lane_s8(_a, 1));
+                    int16x8_t _p11 = vmull_s8(_b1, vdup_lane_s8(_a, 1));
+                    int16x8_t _p20 = vmull_s8(_b0, vdup_lane_s8(_a, 2));
+                    int16x8_t _p21 = vmull_s8(_b1, vdup_lane_s8(_a, 2));
+                    int16x8_t _p30 = vmull_s8(_b0, vdup_lane_s8(_a, 3));
+                    int16x8_t _p31 = vmull_s8(_b1, vdup_lane_s8(_a, 3));
                     _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p00)));
                     _sum1 = vaddq_s32(_sum1, vmovl_s16(vget_low_s16(_p01)));
                     _sum2 = vaddq_s32(_sum2, vmovl_s16(vget_low_s16(_p10)));
@@ -2120,9 +2498,9 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB1 += 4;
                 }
 
-                const float32x4_t _bd0 = vld1q_f32(pB_descales0);
-                const float32x4_t _bd1 = vld1q_f32(pB_descales1);
-                const float32x4_t _ad = vld1q_f32(pA_descales);
+                float32x4_t _bd0 = vld1q_f32(pB_descales0);
+                float32x4_t _bd1 = vld1q_f32(pB_descales1);
+                float32x4_t _ad = vld1q_f32(pA_descales);
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_laneq_f32(_bd0, _ad, 0));
                 _fsum1 = vmlaq_f32(_fsum1, vcvtq_f32_s32(_sum1), vmulq_laneq_f32(_bd1, _ad, 0));
                 _fsum2 = vmlaq_f32(_fsum2, vcvtq_f32_s32(_sum2), vmulq_laneq_f32(_bd0, _ad, 1));
@@ -2136,9 +2514,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 pB_descales0 += 4;
                 pB_descales1 += 4;
             }
-
-            pB = pB1;
-            pB_descales = pB_descales1;
 
             vst1q_f32(outptr, _fsum0);
             outptr += 4;
@@ -2156,14 +2531,20 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr += 4;
             vst1q_f32(outptr, _fsum7);
             outptr += 4;
+            pB8 += (size_t)8 * full_K;
+            pB_descales8 += (size_t)8 * block_count;
         }
 #endif // __aarch64__
+        const signed char* pB4 = pB8;
+        const float* pB_descales4 = pB_descales8;
         for (; jj + 3 < max_jj; jj += 4)
         {
-            float32x4_t _fsum0 = vdupq_n_f32(0.f);
-            float32x4_t _fsum1 = vdupq_n_f32(0.f);
-            float32x4_t _fsum2 = vdupq_n_f32(0.f);
-            float32x4_t _fsum3 = vdupq_n_f32(0.f);
+            const signed char* pB = pB4;
+            const float* pB_descales = pB_descales4;
+            float32x4_t _fsum0 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr);
+            float32x4_t _fsum1 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 4);
+            float32x4_t _fsum2 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 8);
+            float32x4_t _fsum3 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 12);
 
             const signed char* pA = pA0_block;
             const float* pA_descales = pA_descales0_block;
@@ -2175,6 +2556,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _sum3 = vdupq_n_s32(0);
                 const int max_kk = std::min(K - k, block_size);
                 int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
                 int32x4_t _msum0 = vdupq_n_s32(0);
                 int32x4_t _msum1 = vdupq_n_s32(0);
@@ -2182,10 +2564,10 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _msum3 = vdupq_n_s32(0);
                 for (; kk + 7 < max_kk; kk += 8)
                 {
-                    const int8x16_t _b0 = vld1q_s8(pB);
-                    const int8x16_t _b1 = vld1q_s8(pB + 16);
-                    const int8x16_t _a01 = vld1q_s8(pA);
-                    const int8x16_t _a23 = vld1q_s8(pA + 16);
+                    int8x16_t _b0 = vld1q_s8(pB);
+                    int8x16_t _b1 = vld1q_s8(pB + 16);
+                    int8x16_t _a01 = vld1q_s8(pA);
+                    int8x16_t _a23 = vld1q_s8(pA + 16);
                     _msum0 = vmmlaq_s32(_msum0, _a01, _b0);
                     _msum1 = vmmlaq_s32(_msum1, _a23, _b0);
                     _msum2 = vmmlaq_s32(_msum2, _a01, _b1);
@@ -2198,11 +2580,10 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _sum2 = vcombine_s32(vget_low_s32(_msum1), vget_low_s32(_msum3));
                 _sum3 = vcombine_s32(vget_high_s32(_msum1), vget_high_s32(_msum3));
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
-                    const int8x16_t _b0 = vld1q_s8(pB);
-                    const int8x16_t _a = vld1q_s8(pA);
+                    int8x16_t _b0 = vld1q_s8(pB);
+                    int8x16_t _a = vld1q_s8(pA);
                     _sum0 = vdotq_laneq_s32(_sum0, _b0, _a, 0);
                     _sum1 = vdotq_laneq_s32(_sum1, _b0, _a, 1);
                     _sum2 = vdotq_laneq_s32(_sum2, _b0, _a, 2);
@@ -2210,11 +2591,80 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                     pB += 16;
                 }
+#else  // __ARM_FEATURE_DOTPROD
+#if NCNN_GNU_INLINE_ASM && !__aarch64__
+                {
+                    int nn = (max_kk - kk) >> 2;
+                    const int remain = nn;
+                    asm volatile(
+                        "cmp        %2, #0              \n"
+                        "beq        1f                  \n"
+                        "0:                             \n"
+                        "vld1.s8    {d0-d1}, [%0]!      \n"
+                        "vld1.s8    {d2-d3}, [%1]!      \n"
+                        "vdup.16    q2, d0[0]           \n"
+                        "vmull.s8   q3, d2, d4          \n"
+                        "vdup.16    q2, d1[0]           \n"
+                        "vmlal.s8   q3, d3, d4          \n"
+                        "vpadal.s16 %q3, q3             \n"
+                        "vdup.16    q2, d0[1]           \n"
+                        "vmull.s8   q3, d2, d4          \n"
+                        "vdup.16    q2, d1[1]           \n"
+                        "vmlal.s8   q3, d3, d4          \n"
+                        "vpadal.s16 %q4, q3             \n"
+                        "vdup.16    q2, d0[2]           \n"
+                        "vmull.s8   q3, d2, d4          \n"
+                        "vdup.16    q2, d1[2]           \n"
+                        "vmlal.s8   q3, d3, d4          \n"
+                        "vpadal.s16 %q5, q3             \n"
+                        "vdup.16    q2, d0[3]           \n"
+                        "vmull.s8   q3, d2, d4          \n"
+                        "vdup.16    q2, d1[3]           \n"
+                        "vmlal.s8   q3, d3, d4          \n"
+                        "subs       %2, %2, #1          \n"
+                        "vpadal.s16 %q6, q3             \n"
+                        "bne        0b                  \n"
+                        "1:                             \n"
+                        : "+r"(pA), "+r"(pB), "+r"(nn), "+w"(_sum0), "+w"(_sum1), "+w"(_sum2), "+w"(_sum3)
+                        :
+                        : "cc", "memory", "q0", "q1", "q2", "q3");
+                    kk += remain * 4;
+                }
+#else  // NCNN_GNU_INLINE_ASM && !__aarch64__
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int16x8_t _a = vreinterpretq_s16_s8(vld1q_s8(pA));
+                    int16x4_t _a01 = vget_low_s16(_a);
+                    int16x4_t _a23 = vget_high_s16(_a);
+#if NCNN_GNU_INLINE_ASM && __aarch64__
+                    asm volatile(""
+                                 :
+                                 : "w"(_a));
+#endif
+                    int8x16_t _b = vld1q_s8(pB);
+                    int8x8_t _b01 = vget_low_s8(_b);
+                    int8x8_t _b23 = vget_high_s8(_b);
+                    int16x8_t _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a01, 0)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a23, 0)));
+                    _sum0 = vpadalq_s16(_sum0, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a01, 1)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a23, 1)));
+                    _sum1 = vpadalq_s16(_sum1, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a01, 2)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a23, 2)));
+                    _sum2 = vpadalq_s16(_sum2, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a01, 3)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a23, 3)));
+                    _sum3 = vpadalq_s16(_sum3, _s);
+                    pA += 16;
+                    pB += 16;
+                }
+#endif // NCNN_GNU_INLINE_ASM && !__aarch64__
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    const int8x8_t _b0 = vld1_s8(pB);
-                    const int16x4_t _a = vreinterpret_s16_s8(vld1_s8(pA));
+                    int8x8_t _b0 = vld1_s8(pB);
+                    int16x4_t _a = vreinterpret_s16_s8(vld1_s8(pA));
                     _sum0 = vaddq_s32(_sum0, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)))));
                     _sum1 = vaddq_s32(_sum1, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 1)))));
                     _sum2 = vaddq_s32(_sum2, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 2)))));
@@ -2224,12 +2674,12 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
                 if (kk < max_kk)
                 {
-                    const int8x8_t _b = vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB)));
-                    const int8x8_t _a = vreinterpret_s8_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
-                    const int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a, 0));
-                    const int16x8_t _p1 = vmull_s8(_b, vdup_lane_s8(_a, 1));
-                    const int16x8_t _p2 = vmull_s8(_b, vdup_lane_s8(_a, 2));
-                    const int16x8_t _p3 = vmull_s8(_b, vdup_lane_s8(_a, 3));
+                    int8x8_t _b = vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB)));
+                    int8x8_t _a = vreinterpret_s8_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
+                    int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a, 0));
+                    int16x8_t _p1 = vmull_s8(_b, vdup_lane_s8(_a, 1));
+                    int16x8_t _p2 = vmull_s8(_b, vdup_lane_s8(_a, 2));
+                    int16x8_t _p3 = vmull_s8(_b, vdup_lane_s8(_a, 3));
                     _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p0)));
                     _sum1 = vaddq_s32(_sum1, vmovl_s16(vget_low_s16(_p1)));
                     _sum2 = vaddq_s32(_sum2, vmovl_s16(vget_low_s16(_p2)));
@@ -2238,8 +2688,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 4;
                 }
 
-                const float32x4_t _bd0 = vld1q_f32(pB_descales);
-                const float32x4_t _ad = vld1q_f32(pA_descales);
+                float32x4_t _bd0 = vld1q_f32(pB_descales);
+                float32x4_t _ad = vld1q_f32(pA_descales);
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_n_f32(_bd0, vgetq_lane_f32(_ad, 0)));
                 _fsum1 = vmlaq_f32(_fsum1, vcvtq_f32_s32(_sum1), vmulq_n_f32(_bd0, vgetq_lane_f32(_ad, 1)));
                 _fsum2 = vmlaq_f32(_fsum2, vcvtq_f32_s32(_sum2), vmulq_n_f32(_bd0, vgetq_lane_f32(_ad, 2)));
@@ -2257,13 +2707,19 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr += 4;
             vst1q_f32(outptr, _fsum3);
             outptr += 4;
+            pB4 += (size_t)4 * full_K;
+            pB_descales4 += (size_t)4 * block_count;
         }
+        const signed char* pB2 = pB4 - 2 * k0;
+        const float* pB_descales2 = pB_descales4 - 2 * block_start;
         for (; jj + 1 < max_jj; jj += 2)
         {
-            float32x4_t _fsum0 = vdupq_n_f32(0.f);
-            float32x4_t _fsum1 = vdupq_n_f32(0.f);
-            float32x4_t _fsum2 = vdupq_n_f32(0.f);
-            float32x4_t _fsum3 = vdupq_n_f32(0.f);
+            const signed char* pB = pB2;
+            const float* pB_descales = pB_descales2;
+            float32x4_t _fsum0 = k0 == 0 ? vdupq_n_f32(0.f) : vcombine_f32(vld1_f32(outptr), vdup_n_f32(0.f));
+            float32x4_t _fsum1 = k0 == 0 ? vdupq_n_f32(0.f) : vcombine_f32(vld1_f32(outptr + 2), vdup_n_f32(0.f));
+            float32x4_t _fsum2 = k0 == 0 ? vdupq_n_f32(0.f) : vcombine_f32(vld1_f32(outptr + 4), vdup_n_f32(0.f));
+            float32x4_t _fsum3 = k0 == 0 ? vdupq_n_f32(0.f) : vcombine_f32(vld1_f32(outptr + 6), vdup_n_f32(0.f));
 
             const signed char* pA = pA0_block;
             const float* pA_descales = pA_descales0_block;
@@ -2275,14 +2731,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _sum3 = vdupq_n_s32(0);
                 const int max_kk = std::min(K - k, block_size);
                 int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
                 int32x4_t _msum0 = vdupq_n_s32(0);
                 int32x4_t _msum1 = vdupq_n_s32(0);
                 for (; kk + 7 < max_kk; kk += 8)
                 {
-                    const int8x16_t _b0 = vld1q_s8(pB);
-                    const int8x16_t _a01 = vld1q_s8(pA);
-                    const int8x16_t _a23 = vld1q_s8(pA + 16);
+                    int8x16_t _b0 = vld1q_s8(pB);
+                    int8x16_t _a01 = vld1q_s8(pA);
+                    int8x16_t _a23 = vld1q_s8(pA + 16);
                     _msum0 = vmmlaq_s32(_msum0, _a01, _b0);
                     _msum1 = vmmlaq_s32(_msum1, _a23, _b0);
                     pA += 32;
@@ -2293,11 +2750,10 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _sum2 = vcombine_s32(vget_low_s32(_msum1), vdup_n_s32(0));
                 _sum3 = vcombine_s32(vget_high_s32(_msum1), vdup_n_s32(0));
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
-                    const int8x16_t _b0 = vcombine_s8(vld1_s8(pB), vdup_n_s8(0));
-                    const int8x16_t _a = vld1q_s8(pA);
+                    int8x16_t _b0 = vcombine_s8(vld1_s8(pB), vdup_n_s8(0));
+                    int8x16_t _a = vld1q_s8(pA);
                     _sum0 = vdotq_laneq_s32(_sum0, _b0, _a, 0);
                     _sum1 = vdotq_laneq_s32(_sum1, _b0, _a, 1);
                     _sum2 = vdotq_laneq_s32(_sum2, _b0, _a, 2);
@@ -2305,11 +2761,83 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                     pB += 8;
                 }
+#else  // __ARM_FEATURE_DOTPROD
+#if NCNN_GNU_INLINE_ASM && !__aarch64__
+                {
+                    int nn = (max_kk - kk) >> 2;
+                    const int remain = nn;
+                    asm volatile(
+                        "cmp        %2, #0              \n"
+                        "beq        1f                  \n"
+                        "0:                             \n"
+                        "vld1.s8    {d0-d1}, [%0]!      \n"
+                        "vld1.s8    {d2}, [%1]!         \n"
+                        "vdup.32    d3, d2[0]           \n"
+                        "vdup.32    d4, d2[1]           \n"
+                        "vdup.16    q3, d0[0]           \n"
+                        "vmull.s8   q4, d3, d6          \n"
+                        "vdup.16    q3, d1[0]           \n"
+                        "vmlal.s8   q4, d4, d6          \n"
+                        "vpadal.s16 %q3, q4             \n"
+                        "vdup.16    q3, d0[1]           \n"
+                        "vmull.s8   q4, d3, d6          \n"
+                        "vdup.16    q3, d1[1]           \n"
+                        "vmlal.s8   q4, d4, d6          \n"
+                        "vpadal.s16 %q4, q4             \n"
+                        "vdup.16    q3, d0[2]           \n"
+                        "vmull.s8   q4, d3, d6          \n"
+                        "vdup.16    q3, d1[2]           \n"
+                        "vmlal.s8   q4, d4, d6          \n"
+                        "vpadal.s16 %q5, q4             \n"
+                        "vdup.16    q3, d0[3]           \n"
+                        "vmull.s8   q4, d3, d6          \n"
+                        "vdup.16    q3, d1[3]           \n"
+                        "vmlal.s8   q4, d4, d6          \n"
+                        "subs       %2, %2, #1          \n"
+                        "vpadal.s16 %q6, q4             \n"
+                        "bne        0b                  \n"
+                        "1:                             \n"
+                        : "+r"(pA), "+r"(pB), "+r"(nn), "+w"(_sum0), "+w"(_sum1), "+w"(_sum2), "+w"(_sum3)
+                        :
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4");
+                    kk += remain * 4;
+                }
+#else  // NCNN_GNU_INLINE_ASM && !__aarch64__
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int16x8_t _a = vreinterpretq_s16_s8(vld1q_s8(pA));
+                    int16x4_t _a01 = vget_low_s16(_a);
+                    int16x4_t _a23 = vget_high_s16(_a);
+#if NCNN_GNU_INLINE_ASM && __aarch64__
+                    asm volatile(""
+                                 :
+                                 : "w"(_a));
+#endif
+                    int8x8_t _b = vld1_s8(pB);
+                    int32x2_t _b02 = vreinterpret_s32_s8(_b);
+                    int8x8_t _b01 = vreinterpret_s8_s32(vdup_lane_s32(_b02, 0));
+                    int8x8_t _b23 = vreinterpret_s8_s32(vdup_lane_s32(_b02, 1));
+                    int16x8_t _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a01, 0)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a23, 0)));
+                    _sum0 = vpadalq_s16(_sum0, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a01, 1)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a23, 1)));
+                    _sum1 = vpadalq_s16(_sum1, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a01, 2)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a23, 2)));
+                    _sum2 = vpadalq_s16(_sum2, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a01, 3)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a23, 3)));
+                    _sum3 = vpadalq_s16(_sum3, _s);
+                    pA += 16;
+                    pB += 8;
+                }
+#endif // NCNN_GNU_INLINE_ASM && !__aarch64__
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    const int8x8_t _b0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB)));
-                    const int16x4_t _a = vreinterpret_s16_s8(vld1_s8(pA));
+                    int8x8_t _b0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB)));
+                    int16x4_t _a = vreinterpret_s16_s8(vld1_s8(pA));
                     _sum0 = vaddq_s32(_sum0, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)))));
                     _sum1 = vaddq_s32(_sum1, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 1)))));
                     _sum2 = vaddq_s32(_sum2, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 2)))));
@@ -2319,12 +2847,12 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
                 if (kk < max_kk)
                 {
-                    const int8x8_t _b = vreinterpret_s8_s16(vld1_dup_s16((const short*)(pB)));
-                    const int8x8_t _a = vreinterpret_s8_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
-                    const int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a, 0));
-                    const int16x8_t _p1 = vmull_s8(_b, vdup_lane_s8(_a, 1));
-                    const int16x8_t _p2 = vmull_s8(_b, vdup_lane_s8(_a, 2));
-                    const int16x8_t _p3 = vmull_s8(_b, vdup_lane_s8(_a, 3));
+                    int8x8_t _b = vreinterpret_s8_s16(vld1_dup_s16((const short*)(pB)));
+                    int8x8_t _a = vreinterpret_s8_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
+                    int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a, 0));
+                    int16x8_t _p1 = vmull_s8(_b, vdup_lane_s8(_a, 1));
+                    int16x8_t _p2 = vmull_s8(_b, vdup_lane_s8(_a, 2));
+                    int16x8_t _p3 = vmull_s8(_b, vdup_lane_s8(_a, 3));
                     _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p0)));
                     _sum1 = vaddq_s32(_sum1, vmovl_s16(vget_low_s16(_p1)));
                     _sum2 = vaddq_s32(_sum2, vmovl_s16(vget_low_s16(_p2)));
@@ -2333,8 +2861,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 2;
                 }
 
-                const float32x4_t _bd0 = vcombine_f32(vld1_f32(pB_descales), vdup_n_f32(0.f));
-                const float32x4_t _ad = vld1q_f32(pA_descales);
+                float32x4_t _bd0 = vcombine_f32(vld1_f32(pB_descales), vdup_n_f32(0.f));
+                float32x4_t _ad = vld1q_f32(pA_descales);
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_n_f32(_bd0, vgetq_lane_f32(_ad, 0)));
                 _fsum1 = vmlaq_f32(_fsum1, vcvtq_f32_s32(_sum1), vmulq_n_f32(_bd0, vgetq_lane_f32(_ad, 1)));
                 _fsum2 = vmlaq_f32(_fsum2, vcvtq_f32_s32(_sum2), vmulq_n_f32(_bd0, vgetq_lane_f32(_ad, 2)));
@@ -2352,13 +2880,19 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr += 2;
             vst1_f32(outptr, vget_low_f32(_fsum3));
             outptr += 2;
+            pB2 += (size_t)2 * full_K;
+            pB_descales2 += (size_t)2 * block_count;
         }
+        const signed char* pB1 = pB2 - k0;
+        const float* pB_descales1 = pB_descales2 - block_start;
         for (; jj < max_jj; jj++)
         {
-            float32x4_t _fsum0 = vdupq_n_f32(0.f);
-            float32x4_t _fsum1 = vdupq_n_f32(0.f);
-            float32x4_t _fsum2 = vdupq_n_f32(0.f);
-            float32x4_t _fsum3 = vdupq_n_f32(0.f);
+            const signed char* pB = pB1;
+            const float* pB_descales = pB_descales1;
+            float32x4_t _fsum0 = k0 == 0 ? vdupq_n_f32(0.f) : vsetq_lane_f32(outptr[0], vdupq_n_f32(0.f), 0);
+            float32x4_t _fsum1 = k0 == 0 ? vdupq_n_f32(0.f) : vsetq_lane_f32(outptr[1], vdupq_n_f32(0.f), 0);
+            float32x4_t _fsum2 = k0 == 0 ? vdupq_n_f32(0.f) : vsetq_lane_f32(outptr[2], vdupq_n_f32(0.f), 0);
+            float32x4_t _fsum3 = k0 == 0 ? vdupq_n_f32(0.f) : vsetq_lane_f32(outptr[3], vdupq_n_f32(0.f), 0);
 
             const signed char* pA = pA0_block;
             const float* pA_descales = pA_descales0_block;
@@ -2370,13 +2904,14 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _sum3 = vdupq_n_s32(0);
                 const int max_kk = std::min(K - k, block_size);
                 int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
                 for (; kk + 7 < max_kk; kk += 8)
                 {
-                    const int8x16_t _a01 = vld1q_s8(pA);
-                    const int8x16_t _a23 = vld1q_s8(pA + 16);
-                    const int8x16_t _b0 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)pB)), vdup_n_s8(0));
-                    const int8x16_t _b1 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB + 4))), vdup_n_s8(0));
+                    int8x16_t _a01 = vld1q_s8(pA);
+                    int8x16_t _a23 = vld1q_s8(pA + 16);
+                    int8x16_t _b0 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)pB)), vdup_n_s8(0));
+                    int8x16_t _b1 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB + 4))), vdup_n_s8(0));
                     _sum0 = vdotq_laneq_s32(_sum0, _b0, _a01, 0);
                     _sum0 = vdotq_laneq_s32(_sum0, _b1, _a01, 1);
                     _sum1 = vdotq_laneq_s32(_sum1, _b0, _a01, 2);
@@ -2389,11 +2924,10 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 8;
                 }
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
-                    const int8x16_t _b0 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)pB)), vdup_n_s8(0));
-                    const int8x16_t _a = vld1q_s8(pA);
+                    int8x16_t _b0 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)pB)), vdup_n_s8(0));
+                    int8x16_t _a = vld1q_s8(pA);
                     _sum0 = vdotq_laneq_s32(_sum0, _b0, _a, 0);
                     _sum1 = vdotq_laneq_s32(_sum1, _b0, _a, 1);
                     _sum2 = vdotq_laneq_s32(_sum2, _b0, _a, 2);
@@ -2401,11 +2935,80 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                     pB += 4;
                 }
+#else  // __ARM_FEATURE_DOTPROD
+#if NCNN_GNU_INLINE_ASM && !__aarch64__
+                {
+                    int nn = (max_kk - kk) >> 2;
+                    const int remain = nn;
+                    asm volatile(
+                        "cmp        %2, #0              \n"
+                        "beq        1f                  \n"
+                        "0:                             \n"
+                        "vld1.s8    {d0-d1}, [%0]!      \n"
+                        "vld1.32    {d2[]}, [%1]!       \n"
+                        "vext.8     d3, d2, d2, #2      \n"
+                        "vdup.16    q2, d0[0]           \n"
+                        "vmull.s8   q3, d2, d4          \n"
+                        "vdup.16    q2, d1[0]           \n"
+                        "vmlal.s8   q3, d3, d4          \n"
+                        "vpadal.s16 %q3, q3             \n"
+                        "vdup.16    q2, d0[1]           \n"
+                        "vmull.s8   q3, d2, d4          \n"
+                        "vdup.16    q2, d1[1]           \n"
+                        "vmlal.s8   q3, d3, d4          \n"
+                        "vpadal.s16 %q4, q3             \n"
+                        "vdup.16    q2, d0[2]           \n"
+                        "vmull.s8   q3, d2, d4          \n"
+                        "vdup.16    q2, d1[2]           \n"
+                        "vmlal.s8   q3, d3, d4          \n"
+                        "vpadal.s16 %q5, q3             \n"
+                        "vdup.16    q2, d0[3]           \n"
+                        "vmull.s8   q3, d2, d4          \n"
+                        "vdup.16    q2, d1[3]           \n"
+                        "vmlal.s8   q3, d3, d4          \n"
+                        "subs       %2, %2, #1          \n"
+                        "vpadal.s16 %q6, q3             \n"
+                        "bne        0b                  \n"
+                        "1:                             \n"
+                        : "+r"(pA), "+r"(pB), "+r"(nn), "+w"(_sum0), "+w"(_sum1), "+w"(_sum2), "+w"(_sum3)
+                        :
+                        : "cc", "memory", "q0", "q1", "q2", "q3");
+                    kk += remain * 4;
+                }
+#else  // NCNN_GNU_INLINE_ASM && !__aarch64__
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int16x8_t _a = vreinterpretq_s16_s8(vld1q_s8(pA));
+                    int16x4_t _a01 = vget_low_s16(_a);
+                    int16x4_t _a23 = vget_high_s16(_a);
+#if NCNN_GNU_INLINE_ASM && __aarch64__
+                    asm volatile(""
+                                 :
+                                 : "w"(_a));
+#endif
+                    int8x8_t _b01 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB));
+                    int8x8_t _b23 = vext_s8(_b01, _b01, 2);
+                    int16x8_t _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a01, 0)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a23, 0)));
+                    _sum0 = vpadalq_s16(_sum0, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a01, 1)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a23, 1)));
+                    _sum1 = vpadalq_s16(_sum1, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a01, 2)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a23, 2)));
+                    _sum2 = vpadalq_s16(_sum2, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a01, 3)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a23, 3)));
+                    _sum3 = vpadalq_s16(_sum3, _s);
+                    pA += 16;
+                    pB += 4;
+                }
+#endif // NCNN_GNU_INLINE_ASM && !__aarch64__
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    const int8x8_t _b0 = vreinterpret_s8_s16(vld1_dup_s16((const short*)(pB)));
-                    const int16x4_t _a = vreinterpret_s16_s8(vld1_s8(pA));
+                    int8x8_t _b0 = vreinterpret_s8_s16(vld1_dup_s16((const short*)(pB)));
+                    int16x4_t _a = vreinterpret_s16_s8(vld1_s8(pA));
                     _sum0 = vaddq_s32(_sum0, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)))));
                     _sum1 = vaddq_s32(_sum1, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 1)))));
                     _sum2 = vaddq_s32(_sum2, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 2)))));
@@ -2415,12 +3018,12 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
                 if (kk < max_kk)
                 {
-                    const int8x8_t _b = vset_lane_s8(pB[0], vdup_n_s8(0), 0);
-                    const int8x8_t _a = vreinterpret_s8_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
-                    const int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a, 0));
-                    const int16x8_t _p1 = vmull_s8(_b, vdup_lane_s8(_a, 1));
-                    const int16x8_t _p2 = vmull_s8(_b, vdup_lane_s8(_a, 2));
-                    const int16x8_t _p3 = vmull_s8(_b, vdup_lane_s8(_a, 3));
+                    int8x8_t _b = vset_lane_s8(pB[0], vdup_n_s8(0), 0);
+                    int8x8_t _a = vreinterpret_s8_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
+                    int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a, 0));
+                    int16x8_t _p1 = vmull_s8(_b, vdup_lane_s8(_a, 1));
+                    int16x8_t _p2 = vmull_s8(_b, vdup_lane_s8(_a, 2));
+                    int16x8_t _p3 = vmull_s8(_b, vdup_lane_s8(_a, 3));
                     _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p0)));
                     _sum1 = vaddq_s32(_sum1, vmovl_s16(vget_low_s16(_p1)));
                     _sum2 = vaddq_s32(_sum2, vmovl_s16(vget_low_s16(_p2)));
@@ -2429,8 +3032,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 1;
                 }
 
-                const float32x4_t _bd0 = vdupq_n_f32(pB_descales[0]);
-                const float32x4_t _ad = vld1q_f32(pA_descales);
+                float32x4_t _bd0 = vdupq_n_f32(pB_descales[0]);
+                float32x4_t _ad = vld1q_f32(pA_descales);
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_n_f32(_bd0, vgetq_lane_f32(_ad, 0)));
                 _fsum1 = vmlaq_f32(_fsum1, vcvtq_f32_s32(_sum1), vmulq_n_f32(_bd0, vgetq_lane_f32(_ad, 1)));
                 _fsum2 = vmlaq_f32(_fsum2, vcvtq_f32_s32(_sum2), vmulq_n_f32(_bd0, vgetq_lane_f32(_ad, 2)));
@@ -2448,27 +3051,28 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr++;
             vst1q_lane_f32(outptr, _fsum3, 0);
             outptr++;
+            pB1 += full_K;
+            pB_descales1 += block_count;
         }
     }
     for (; ii + 1 < max_ii; ii += 2)
     {
         const signed char* pA0_block = pAT + ii * A_hstep;
         const float* pA_descales0_block = pAT_descales + ii * A_descales_hstep;
-        const signed char* pB = pBT;
-        const float* pB_descales = pBT_descales;
-
         int jj = 0;
+        const signed char* pB8 = pBT + 4 * k0;
+        const float* pB_descales8 = pBT_descales + 4 * block_start;
 #if __aarch64__
         for (; jj + 7 < max_jj; jj += 8)
         {
-            const signed char* pB0 = pB;
-            const signed char* pB1 = pB + 4 * K;
-            const float* pB_descales0 = pB_descales;
-            const float* pB_descales1 = pB_descales + 4 * ((K + block_size - 1) / block_size);
-            float32x4_t _fsum0 = vdupq_n_f32(0.f);
-            float32x4_t _fsum1 = vdupq_n_f32(0.f);
-            float32x4_t _fsum2 = vdupq_n_f32(0.f);
-            float32x4_t _fsum3 = vdupq_n_f32(0.f);
+            const signed char* pB0 = pB8;
+            const signed char* pB1 = pB8 + (size_t)4 * full_K;
+            const float* pB_descales0 = pB_descales8;
+            const float* pB_descales1 = pB_descales8 + (size_t)4 * block_count;
+            float32x4_t _fsum0 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr);
+            float32x4_t _fsum1 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 4);
+            float32x4_t _fsum2 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 8);
+            float32x4_t _fsum3 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 12);
 
             const signed char* pA = pA0_block;
             const float* pA_descales = pA_descales0_block;
@@ -2480,6 +3084,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _sum3 = vdupq_n_s32(0);
                 const int max_kk = std::min(K - k, block_size);
                 int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
                 int32x4_t _msum0 = vdupq_n_s32(0);
                 int32x4_t _msum1 = vdupq_n_s32(0);
@@ -2487,11 +3092,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _msum3 = vdupq_n_s32(0);
                 for (; kk + 7 < max_kk; kk += 8)
                 {
-                    const int8x16_t _b0 = vld1q_s8(pB0);
-                    const int8x16_t _b1 = vld1q_s8(pB0 + 16);
-                    const int8x16_t _b2 = vld1q_s8(pB1);
-                    const int8x16_t _b3 = vld1q_s8(pB1 + 16);
-                    const int8x16_t _a0 = vld1q_s8(pA);
+                    int8x16_t _b0 = vld1q_s8(pB0);
+                    int8x16_t _b1 = vld1q_s8(pB0 + 16);
+                    int8x16_t _b2 = vld1q_s8(pB1);
+                    int8x16_t _b3 = vld1q_s8(pB1 + 16);
+                    int8x16_t _a0 = vld1q_s8(pA);
                     _msum0 = vmmlaq_s32(_msum0, _a0, _b0);
                     _msum1 = vmmlaq_s32(_msum1, _a0, _b1);
                     _msum2 = vmmlaq_s32(_msum2, _a0, _b2);
@@ -2505,12 +3110,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _sum2 = vcombine_s32(vget_high_s32(_msum0), vget_high_s32(_msum1));
                 _sum3 = vcombine_s32(vget_high_s32(_msum2), vget_high_s32(_msum3));
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
-                    const int8x16_t _b0 = vld1q_s8(pB0);
-                    const int8x16_t _b1 = vld1q_s8(pB1);
-                    const int8x16_t _a = vcombine_s8(vld1_s8(pA), vdup_n_s8(0));
+                    int8x16_t _b0 = vld1q_s8(pB0);
+                    int8x16_t _b1 = vld1q_s8(pB1);
+                    int8x16_t _a = vcombine_s8(vld1_s8(pA), vdup_n_s8(0));
                     _sum0 = vdotq_laneq_s32(_sum0, _b0, _a, 0);
                     _sum1 = vdotq_laneq_s32(_sum1, _b1, _a, 0);
                     _sum2 = vdotq_laneq_s32(_sum2, _b0, _a, 1);
@@ -2519,13 +3123,44 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB0 += 16;
                     pB1 += 16;
                 }
+#else  // __ARM_FEATURE_DOTPROD
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int16x4_t _a = vreinterpret_s16_s8(vld1_s8(pA));
+#if NCNN_GNU_INLINE_ASM && __aarch64__
+                    asm volatile(""
+                                 :
+                                 : "w"(_a));
+#endif
+                    int8x16_t _b0 = vld1q_s8(pB0);
+                    int8x16_t _b1 = vld1q_s8(pB1);
+                    int8x8_t _b001 = vget_low_s8(_b0);
+                    int8x8_t _b023 = vget_high_s8(_b0);
+                    int8x8_t _b101 = vget_low_s8(_b1);
+                    int8x8_t _b123 = vget_high_s8(_b1);
+                    int16x8_t _s = vmull_s8(_b001, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)));
+                    _s = vmlal_s8(_s, _b023, vreinterpret_s8_s16(vdup_lane_s16(_a, 2)));
+                    _sum0 = vpadalq_s16(_sum0, _s);
+                    _s = vmull_s8(_b101, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)));
+                    _s = vmlal_s8(_s, _b123, vreinterpret_s8_s16(vdup_lane_s16(_a, 2)));
+                    _sum1 = vpadalq_s16(_sum1, _s);
+                    _s = vmull_s8(_b001, vreinterpret_s8_s16(vdup_lane_s16(_a, 1)));
+                    _s = vmlal_s8(_s, _b023, vreinterpret_s8_s16(vdup_lane_s16(_a, 3)));
+                    _sum2 = vpadalq_s16(_sum2, _s);
+                    _s = vmull_s8(_b101, vreinterpret_s8_s16(vdup_lane_s16(_a, 1)));
+                    _s = vmlal_s8(_s, _b123, vreinterpret_s8_s16(vdup_lane_s16(_a, 3)));
+                    _sum3 = vpadalq_s16(_sum3, _s);
+                    pA += 8;
+                    pB0 += 16;
+                    pB1 += 16;
+                }
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    const int8x16_t _b = vcombine_s8(vld1_s8(pB0), vld1_s8(pB1));
-                    const int8x8_t _b0 = vget_low_s8(_b);
-                    const int8x8_t _b1 = vget_high_s8(_b);
-                    const int16x4_t _a = vreinterpret_s16_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
+                    int8x16_t _b = vcombine_s8(vld1_s8(pB0), vld1_s8(pB1));
+                    int8x8_t _b0 = vget_low_s8(_b);
+                    int8x8_t _b1 = vget_high_s8(_b);
+                    int16x4_t _a = vreinterpret_s16_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
                     _sum0 = vaddq_s32(_sum0, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)))));
                     _sum1 = vaddq_s32(_sum1, vpaddlq_s16(vmull_s8(_b1, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)))));
                     _sum2 = vaddq_s32(_sum2, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 1)))));
@@ -2536,10 +3171,10 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
                 if (kk < max_kk)
                 {
-                    const int8x8_t _b = vreinterpret_s8_s32(vld1_lane_s32((const int*)pB1, vld1_dup_s32((const int*)pB0), 1));
-                    const int8x8_t _a = vreinterpret_s8_s16(vld1_lane_s16((const short*)pA, vdup_n_s16(0), 0));
-                    const int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a, 0));
-                    const int16x8_t _p1 = vmull_s8(_b, vdup_lane_s8(_a, 1));
+                    int8x8_t _b = vreinterpret_s8_s32(vld1_lane_s32((const int*)pB1, vld1_dup_s32((const int*)pB0), 1));
+                    int8x8_t _a = vreinterpret_s8_s16(vld1_lane_s16((const short*)pA, vdup_n_s16(0), 0));
+                    int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a, 0));
+                    int16x8_t _p1 = vmull_s8(_b, vdup_lane_s8(_a, 1));
                     _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p0)));
                     _sum1 = vaddq_s32(_sum1, vmovl_s16(vget_high_s16(_p0)));
                     _sum2 = vaddq_s32(_sum2, vmovl_s16(vget_low_s16(_p1)));
@@ -2549,9 +3184,9 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB1 += 4;
                 }
 
-                const float32x4_t _bd0 = vld1q_f32(pB_descales0);
-                const float32x4_t _bd1 = vld1q_f32(pB_descales1);
-                const float32x2_t _ad = vld1_f32(pA_descales);
+                float32x4_t _bd0 = vld1q_f32(pB_descales0);
+                float32x4_t _bd1 = vld1q_f32(pB_descales1);
+                float32x2_t _ad = vld1_f32(pA_descales);
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_lane_f32(_bd0, _ad, 0));
                 _fsum1 = vmlaq_f32(_fsum1, vcvtq_f32_s32(_sum1), vmulq_lane_f32(_bd1, _ad, 0));
                 _fsum2 = vmlaq_f32(_fsum2, vcvtq_f32_s32(_sum2), vmulq_lane_f32(_bd0, _ad, 1));
@@ -2562,9 +3197,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 pB_descales1 += 4;
             }
 
-            pB = pB1;
-            pB_descales = pB_descales1;
-
             vst1q_f32(outptr, _fsum0);
             outptr += 4;
             vst1q_f32(outptr, _fsum1);
@@ -2573,12 +3205,18 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr += 4;
             vst1q_f32(outptr, _fsum3);
             outptr += 4;
+            pB8 += (size_t)8 * full_K;
+            pB_descales8 += (size_t)8 * block_count;
         }
 #endif // __aarch64__
+        const signed char* pB4 = pB8;
+        const float* pB_descales4 = pB_descales8;
         for (; jj + 3 < max_jj; jj += 4)
         {
-            float32x4_t _fsum0 = vdupq_n_f32(0.f);
-            float32x4_t _fsum1 = vdupq_n_f32(0.f);
+            const signed char* pB = pB4;
+            const float* pB_descales = pB_descales4;
+            float32x4_t _fsum0 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr);
+            float32x4_t _fsum1 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 4);
 
             const signed char* pA = pA0_block;
             const float* pA_descales = pA_descales0_block;
@@ -2588,14 +3226,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _sum1 = vdupq_n_s32(0);
                 const int max_kk = std::min(K - k, block_size);
                 int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
                 int32x4_t _msum0 = vdupq_n_s32(0);
                 int32x4_t _msum1 = vdupq_n_s32(0);
                 for (; kk + 7 < max_kk; kk += 8)
                 {
-                    const int8x16_t _b0 = vld1q_s8(pB + 0);
-                    const int8x16_t _b1 = vld1q_s8(pB + 16);
-                    const int8x16_t _a0 = vld1q_s8(pA);
+                    int8x16_t _b0 = vld1q_s8(pB + 0);
+                    int8x16_t _b1 = vld1q_s8(pB + 16);
+                    int8x16_t _a0 = vld1q_s8(pA);
                     _msum0 = vmmlaq_s32(_msum0, _a0, _b0);
                     _msum1 = vmmlaq_s32(_msum1, _a0, _b1);
                     pA += 16;
@@ -2604,21 +3243,41 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _sum0 = vcombine_s32(vget_low_s32(_msum0), vget_low_s32(_msum1));
                 _sum1 = vcombine_s32(vget_high_s32(_msum0), vget_high_s32(_msum1));
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
-                    const int8x16_t _b0 = vld1q_s8(pB);
-                    const int8x16_t _a = vcombine_s8(vld1_s8(pA), vdup_n_s8(0));
+                    int8x16_t _b0 = vld1q_s8(pB);
+                    int8x16_t _a = vcombine_s8(vld1_s8(pA), vdup_n_s8(0));
                     _sum0 = vdotq_laneq_s32(_sum0, _b0, _a, 0);
                     _sum1 = vdotq_laneq_s32(_sum1, _b0, _a, 1);
+                    pA += 8;
+                    pB += 16;
+                }
+#else  // __ARM_FEATURE_DOTPROD
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int16x4_t _a = vreinterpret_s16_s8(vld1_s8(pA));
+#if NCNN_GNU_INLINE_ASM && __aarch64__
+                    asm volatile(""
+                                 :
+                                 : "w"(_a));
+#endif
+                    int8x16_t _b = vld1q_s8(pB);
+                    int8x8_t _b01 = vget_low_s8(_b);
+                    int8x8_t _b23 = vget_high_s8(_b);
+                    int16x8_t _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a, 2)));
+                    _sum0 = vpadalq_s16(_sum0, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a, 1)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a, 3)));
+                    _sum1 = vpadalq_s16(_sum1, _s);
                     pA += 8;
                     pB += 16;
                 }
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    const int8x8_t _b0 = vld1_s8(pB);
-                    const int16x4_t _a = vreinterpret_s16_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
+                    int8x8_t _b0 = vld1_s8(pB);
+                    int16x4_t _a = vreinterpret_s16_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
                     _sum0 = vaddq_s32(_sum0, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)))));
                     _sum1 = vaddq_s32(_sum1, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 1)))));
                     pA += 4;
@@ -2626,18 +3285,18 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
                 if (kk < max_kk)
                 {
-                    const int8x8_t _b = vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB)));
-                    const int8x8_t _a = vreinterpret_s8_s16(vld1_lane_s16((const short*)pA, vdup_n_s16(0), 0));
-                    const int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a, 0));
-                    const int16x8_t _p1 = vmull_s8(_b, vdup_lane_s8(_a, 1));
+                    int8x8_t _b = vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB)));
+                    int8x8_t _a = vreinterpret_s8_s16(vld1_lane_s16((const short*)pA, vdup_n_s16(0), 0));
+                    int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a, 0));
+                    int16x8_t _p1 = vmull_s8(_b, vdup_lane_s8(_a, 1));
                     _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p0)));
                     _sum1 = vaddq_s32(_sum1, vmovl_s16(vget_low_s16(_p1)));
                     pA += 2;
                     pB += 4;
                 }
 
-                const float32x4_t _bd0 = vld1q_f32(pB_descales);
-                const float32x2_t _ad = vld1_f32(pA_descales);
+                float32x4_t _bd0 = vld1q_f32(pB_descales);
+                float32x2_t _ad = vld1_f32(pA_descales);
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_lane_f32(_bd0, _ad, 0));
                 _fsum1 = vmlaq_f32(_fsum1, vcvtq_f32_s32(_sum1), vmulq_lane_f32(_bd0, _ad, 1));
 
@@ -2649,11 +3308,17 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr += 4;
             vst1q_f32(outptr, _fsum1);
             outptr += 4;
+            pB4 += (size_t)4 * full_K;
+            pB_descales4 += (size_t)4 * block_count;
         }
+        const signed char* pB2 = pB4 - 2 * k0;
+        const float* pB_descales2 = pB_descales4 - 2 * block_start;
         for (; jj + 1 < max_jj; jj += 2)
         {
-            float32x4_t _fsum0 = vdupq_n_f32(0.f);
-            float32x4_t _fsum1 = vdupq_n_f32(0.f);
+            const signed char* pB = pB2;
+            const float* pB_descales = pB_descales2;
+            float32x4_t _fsum0 = k0 == 0 ? vdupq_n_f32(0.f) : vcombine_f32(vld1_f32(outptr), vdup_n_f32(0.f));
+            float32x4_t _fsum1 = k0 == 0 ? vdupq_n_f32(0.f) : vcombine_f32(vld1_f32(outptr + 2), vdup_n_f32(0.f));
 
             const signed char* pA = pA0_block;
             const float* pA_descales = pA_descales0_block;
@@ -2663,12 +3328,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _sum1 = vdupq_n_s32(0);
                 const int max_kk = std::min(K - k, block_size);
                 int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
                 int32x4_t _msum0 = vdupq_n_s32(0);
                 for (; kk + 7 < max_kk; kk += 8)
                 {
-                    const int8x16_t _b0 = vld1q_s8(pB + 0);
-                    const int8x16_t _a0 = vld1q_s8(pA);
+                    int8x16_t _b0 = vld1q_s8(pB + 0);
+                    int8x16_t _a0 = vld1q_s8(pA);
                     _msum0 = vmmlaq_s32(_msum0, _a0, _b0);
                     pA += 16;
                     pB += 16;
@@ -2676,21 +3342,42 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _sum0 = vcombine_s32(vget_low_s32(_msum0), vdup_n_s32(0));
                 _sum1 = vcombine_s32(vget_high_s32(_msum0), vdup_n_s32(0));
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
-                    const int8x16_t _b0 = vcombine_s8(vld1_s8(pB), vdup_n_s8(0));
-                    const int8x16_t _a = vcombine_s8(vld1_s8(pA), vdup_n_s8(0));
+                    int8x16_t _b0 = vcombine_s8(vld1_s8(pB), vdup_n_s8(0));
+                    int8x16_t _a = vcombine_s8(vld1_s8(pA), vdup_n_s8(0));
                     _sum0 = vdotq_laneq_s32(_sum0, _b0, _a, 0);
                     _sum1 = vdotq_laneq_s32(_sum1, _b0, _a, 1);
+                    pA += 8;
+                    pB += 8;
+                }
+#else  // __ARM_FEATURE_DOTPROD
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int16x4_t _a = vreinterpret_s16_s8(vld1_s8(pA));
+#if NCNN_GNU_INLINE_ASM && __aarch64__
+                    asm volatile(""
+                                 :
+                                 : "w"(_a));
+#endif
+                    int8x8_t _b = vld1_s8(pB);
+                    int32x2_t _b02 = vreinterpret_s32_s8(_b);
+                    int8x8_t _b01 = vreinterpret_s8_s32(vdup_lane_s32(_b02, 0));
+                    int8x8_t _b23 = vreinterpret_s8_s32(vdup_lane_s32(_b02, 1));
+                    int16x8_t _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a, 2)));
+                    _sum0 = vpadalq_s16(_sum0, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a, 1)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a, 3)));
+                    _sum1 = vpadalq_s16(_sum1, _s);
                     pA += 8;
                     pB += 8;
                 }
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    const int8x8_t _b0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB)));
-                    const int16x4_t _a = vreinterpret_s16_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
+                    int8x8_t _b0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB)));
+                    int16x4_t _a = vreinterpret_s16_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
                     _sum0 = vaddq_s32(_sum0, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)))));
                     _sum1 = vaddq_s32(_sum1, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 1)))));
                     pA += 4;
@@ -2698,18 +3385,18 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
                 if (kk < max_kk)
                 {
-                    const int8x8_t _b = vreinterpret_s8_s16(vld1_dup_s16((const short*)(pB)));
-                    const int8x8_t _a = vreinterpret_s8_s16(vld1_lane_s16((const short*)pA, vdup_n_s16(0), 0));
-                    const int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a, 0));
-                    const int16x8_t _p1 = vmull_s8(_b, vdup_lane_s8(_a, 1));
+                    int8x8_t _b = vreinterpret_s8_s16(vld1_dup_s16((const short*)(pB)));
+                    int8x8_t _a = vreinterpret_s8_s16(vld1_lane_s16((const short*)pA, vdup_n_s16(0), 0));
+                    int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a, 0));
+                    int16x8_t _p1 = vmull_s8(_b, vdup_lane_s8(_a, 1));
                     _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p0)));
                     _sum1 = vaddq_s32(_sum1, vmovl_s16(vget_low_s16(_p1)));
                     pA += 2;
                     pB += 2;
                 }
 
-                const float32x4_t _bd0 = vcombine_f32(vld1_f32(pB_descales), vdup_n_f32(0.f));
-                const float32x2_t _ad = vld1_f32(pA_descales);
+                float32x4_t _bd0 = vcombine_f32(vld1_f32(pB_descales), vdup_n_f32(0.f));
+                float32x2_t _ad = vld1_f32(pA_descales);
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_lane_f32(_bd0, _ad, 0));
                 _fsum1 = vmlaq_f32(_fsum1, vcvtq_f32_s32(_sum1), vmulq_lane_f32(_bd0, _ad, 1));
 
@@ -2721,11 +3408,17 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr += 2;
             vst1_f32(outptr, vget_low_f32(_fsum1));
             outptr += 2;
+            pB2 += (size_t)2 * full_K;
+            pB_descales2 += (size_t)2 * block_count;
         }
+        const signed char* pB1 = pB2 - k0;
+        const float* pB_descales1 = pB_descales2 - block_start;
         for (; jj < max_jj; jj++)
         {
-            float32x4_t _fsum0 = vdupq_n_f32(0.f);
-            float32x4_t _fsum1 = vdupq_n_f32(0.f);
+            const signed char* pB = pB1;
+            const float* pB_descales = pB_descales1;
+            float32x4_t _fsum0 = k0 == 0 ? vdupq_n_f32(0.f) : vsetq_lane_f32(outptr[0], vdupq_n_f32(0.f), 0);
+            float32x4_t _fsum1 = k0 == 0 ? vdupq_n_f32(0.f) : vsetq_lane_f32(outptr[1], vdupq_n_f32(0.f), 0);
 
             const signed char* pA = pA0_block;
             const float* pA_descales = pA_descales0_block;
@@ -2735,12 +3428,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _sum1 = vdupq_n_s32(0);
                 const int max_kk = std::min(K - k, block_size);
                 int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
                 for (; kk + 7 < max_kk; kk += 8)
                 {
-                    const int8x16_t _a = vld1q_s8(pA);
-                    const int8x16_t _b0 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)pB)), vdup_n_s8(0));
-                    const int8x16_t _b1 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB + 4))), vdup_n_s8(0));
+                    int8x16_t _a = vld1q_s8(pA);
+                    int8x16_t _b0 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)pB)), vdup_n_s8(0));
+                    int8x16_t _b1 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB + 4))), vdup_n_s8(0));
                     _sum0 = vdotq_laneq_s32(_sum0, _b0, _a, 0);
                     _sum0 = vdotq_laneq_s32(_sum0, _b1, _a, 1);
                     _sum1 = vdotq_laneq_s32(_sum1, _b0, _a, 2);
@@ -2749,21 +3443,40 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 8;
                 }
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
-                    const int8x16_t _b0 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)pB)), vdup_n_s8(0));
-                    const int8x16_t _a = vcombine_s8(vld1_s8(pA), vdup_n_s8(0));
+                    int8x16_t _b0 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)pB)), vdup_n_s8(0));
+                    int8x16_t _a = vcombine_s8(vld1_s8(pA), vdup_n_s8(0));
                     _sum0 = vdotq_laneq_s32(_sum0, _b0, _a, 0);
                     _sum1 = vdotq_laneq_s32(_sum1, _b0, _a, 1);
+                    pA += 8;
+                    pB += 4;
+                }
+#else  // __ARM_FEATURE_DOTPROD
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int16x4_t _a = vreinterpret_s16_s8(vld1_s8(pA));
+#if NCNN_GNU_INLINE_ASM && __aarch64__
+                    asm volatile(""
+                                 :
+                                 : "w"(_a));
+#endif
+                    int8x8_t _b01 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB));
+                    int8x8_t _b23 = vext_s8(_b01, _b01, 2);
+                    int16x8_t _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a, 2)));
+                    _sum0 = vpadalq_s16(_sum0, _s);
+                    _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a, 1)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a, 3)));
+                    _sum1 = vpadalq_s16(_sum1, _s);
                     pA += 8;
                     pB += 4;
                 }
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    const int8x8_t _b0 = vreinterpret_s8_s16(vld1_dup_s16((const short*)(pB)));
-                    const int16x4_t _a = vreinterpret_s16_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
+                    int8x8_t _b0 = vreinterpret_s8_s16(vld1_dup_s16((const short*)(pB)));
+                    int16x4_t _a = vreinterpret_s16_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
                     _sum0 = vaddq_s32(_sum0, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)))));
                     _sum1 = vaddq_s32(_sum1, vpaddlq_s16(vmull_s8(_b0, vreinterpret_s8_s16(vdup_lane_s16(_a, 1)))));
                     pA += 4;
@@ -2771,18 +3484,18 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
                 if (kk < max_kk)
                 {
-                    const int8x8_t _b = vset_lane_s8(pB[0], vdup_n_s8(0), 0);
-                    const int8x8_t _a = vreinterpret_s8_s16(vld1_lane_s16((const short*)pA, vdup_n_s16(0), 0));
-                    const int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a, 0));
-                    const int16x8_t _p1 = vmull_s8(_b, vdup_lane_s8(_a, 1));
+                    int8x8_t _b = vset_lane_s8(pB[0], vdup_n_s8(0), 0);
+                    int8x8_t _a = vreinterpret_s8_s16(vld1_lane_s16((const short*)pA, vdup_n_s16(0), 0));
+                    int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a, 0));
+                    int16x8_t _p1 = vmull_s8(_b, vdup_lane_s8(_a, 1));
                     _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p0)));
                     _sum1 = vaddq_s32(_sum1, vmovl_s16(vget_low_s16(_p1)));
                     pA += 2;
                     pB += 1;
                 }
 
-                const float32x4_t _bd0 = vdupq_n_f32(pB_descales[0]);
-                const float32x2_t _ad = vld1_f32(pA_descales);
+                float32x4_t _bd0 = vdupq_n_f32(pB_descales[0]);
+                float32x2_t _ad = vld1_f32(pA_descales);
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_lane_f32(_bd0, _ad, 0));
                 _fsum1 = vmlaq_f32(_fsum1, vcvtq_f32_s32(_sum1), vmulq_lane_f32(_bd0, _ad, 1));
 
@@ -2794,25 +3507,26 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr++;
             vst1q_lane_f32(outptr, _fsum1, 0);
             outptr++;
+            pB1 += full_K;
+            pB_descales1 += block_count;
         }
     }
     for (; ii < max_ii; ii++)
     {
         const signed char* pA0_block = pAT + ii * A_hstep;
         const float* pA_descales0_block = pAT_descales + ii * A_descales_hstep;
-        const signed char* pB = pBT;
-        const float* pB_descales = pBT_descales;
-
         int jj = 0;
+        const signed char* pB8 = pBT + 4 * k0;
+        const float* pB_descales8 = pBT_descales + 4 * block_start;
 #if __aarch64__
         for (; jj + 7 < max_jj; jj += 8)
         {
-            const signed char* pB0 = pB;
-            const signed char* pB1 = pB + 4 * K;
-            const float* pB_descales0 = pB_descales;
-            const float* pB_descales1 = pB_descales + 4 * ((K + block_size - 1) / block_size);
-            float32x4_t _fsum0 = vdupq_n_f32(0.f);
-            float32x4_t _fsum1 = vdupq_n_f32(0.f);
+            const signed char* pB0 = pB8;
+            const signed char* pB1 = pB8 + (size_t)4 * full_K;
+            const float* pB_descales0 = pB_descales8;
+            const float* pB_descales1 = pB_descales8 + (size_t)4 * block_count;
+            float32x4_t _fsum0 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr);
+            float32x4_t _fsum1 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr + 4);
 
             const signed char* pA0 = pA0_block;
             const float* pA_descales0 = pA_descales0_block;
@@ -2822,6 +3536,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _sum1 = vdupq_n_s32(0);
                 const int max_kk = std::min(K - k, block_size);
                 int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
                 int32x4_t _msum0 = vdupq_n_s32(0);
                 int32x4_t _msum1 = vdupq_n_s32(0);
@@ -2829,11 +3544,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _msum3 = vdupq_n_s32(0);
                 for (; kk + 7 < max_kk; kk += 8)
                 {
-                    const int8x16_t _b0 = vld1q_s8(pB0);
-                    const int8x16_t _b1 = vld1q_s8(pB0 + 16);
-                    const int8x16_t _b2 = vld1q_s8(pB1);
-                    const int8x16_t _b3 = vld1q_s8(pB1 + 16);
-                    const int8x16_t _a0 = vcombine_s8(vld1_s8(pA0 + kk), vdup_n_s8(0));
+                    int8x16_t _b0 = vld1q_s8(pB0);
+                    int8x16_t _b1 = vld1q_s8(pB0 + 16);
+                    int8x16_t _b2 = vld1q_s8(pB1);
+                    int8x16_t _b3 = vld1q_s8(pB1 + 16);
+                    int8x16_t _a0 = vcombine_s8(vld1_s8(pA0 + kk), vdup_n_s8(0));
                     _msum0 = vmmlaq_s32(_msum0, _a0, _b0);
                     _msum1 = vmmlaq_s32(_msum1, _a0, _b1);
                     _msum2 = vmmlaq_s32(_msum2, _a0, _b2);
@@ -2844,24 +3559,38 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _sum0 = vcombine_s32(vget_low_s32(_msum0), vget_low_s32(_msum1));
                 _sum1 = vcombine_s32(vget_low_s32(_msum2), vget_low_s32(_msum3));
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
-                    const int8x16_t _b0 = vld1q_s8(pB0);
-                    const int8x16_t _b1 = vld1q_s8(pB1);
-                    const int8x16_t _a0 = vreinterpretq_s8_s32(vdupq_lane_s32(vld1_lane_s32((const int*)(pA0 + kk), vdup_n_s32(0), 0), 0));
+                    int8x16_t _b0 = vld1q_s8(pB0);
+                    int8x16_t _b1 = vld1q_s8(pB1);
+                    int8x16_t _a0 = vreinterpretq_s8_s32(vdupq_lane_s32(vld1_lane_s32((const int*)(pA0 + kk), vdup_n_s32(0), 0), 0));
                     _sum0 = vdotq_s32(_sum0, _b0, _a0);
                     _sum1 = vdotq_s32(_sum1, _b1, _a0);
+                    pB0 += 16;
+                    pB1 += 16;
+                }
+#else  // __ARM_FEATURE_DOTPROD
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int16x4_t _a = vreinterpret_s16_s32(vld1_lane_s32((const int*)(pA0 + kk), vdup_n_s32(0), 0));
+                    int8x16_t _b0 = vld1q_s8(pB0);
+                    int8x16_t _b1 = vld1q_s8(pB1);
+                    int16x8_t _s = vmull_s8(vget_low_s8(_b0), vreinterpret_s8_s16(vdup_lane_s16(_a, 0)));
+                    _s = vmlal_s8(_s, vget_high_s8(_b0), vreinterpret_s8_s16(vdup_lane_s16(_a, 1)));
+                    _sum0 = vpadalq_s16(_sum0, _s);
+                    _s = vmull_s8(vget_low_s8(_b1), vreinterpret_s8_s16(vdup_lane_s16(_a, 0)));
+                    _s = vmlal_s8(_s, vget_high_s8(_b1), vreinterpret_s8_s16(vdup_lane_s16(_a, 1)));
+                    _sum1 = vpadalq_s16(_sum1, _s);
                     pB0 += 16;
                     pB1 += 16;
                 }
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    const int8x16_t _b = vcombine_s8(vld1_s8(pB0), vld1_s8(pB1));
-                    const int8x8_t _b0 = vget_low_s8(_b);
-                    const int8x8_t _b1 = vget_high_s8(_b);
-                    const int8x8_t _a0 = vreinterpret_s8_s16(vdup_lane_s16(vld1_lane_s16((const short*)(pA0 + kk), vdup_n_s16(0), 0), 0));
+                    int8x16_t _b = vcombine_s8(vld1_s8(pB0), vld1_s8(pB1));
+                    int8x8_t _b0 = vget_low_s8(_b);
+                    int8x8_t _b1 = vget_high_s8(_b);
+                    int8x8_t _a0 = vreinterpret_s8_s16(vdup_lane_s16(vld1_lane_s16((const short*)(pA0 + kk), vdup_n_s16(0), 0), 0));
                     _sum0 = vaddq_s32(_sum0, vpaddlq_s16(vmull_s8(_b0, _a0)));
                     _sum1 = vaddq_s32(_sum1, vpaddlq_s16(vmull_s8(_b1, _a0)));
                     pB0 += 8;
@@ -2869,17 +3598,17 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
                 if (kk < max_kk)
                 {
-                    const int8x8_t _b = vreinterpret_s8_s32(vld1_lane_s32((const int*)pB1, vld1_dup_s32((const int*)pB0), 1));
-                    const int8x8_t _a0 = vld1_lane_s8(pA0 + kk, vdup_n_s8(0), 0);
-                    const int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a0, 0));
+                    int8x8_t _b = vreinterpret_s8_s32(vld1_lane_s32((const int*)pB1, vld1_dup_s32((const int*)pB0), 1));
+                    int8x8_t _a0 = vld1_lane_s8(pA0 + kk, vdup_n_s8(0), 0);
+                    int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a0, 0));
                     _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p0)));
                     _sum1 = vaddq_s32(_sum1, vmovl_s16(vget_high_s16(_p0)));
                     pB0 += 4;
                     pB1 += 4;
                 }
 
-                const float32x4_t _bd0 = vld1q_f32(pB_descales0);
-                const float32x4_t _bd1 = vld1q_f32(pB_descales1);
+                float32x4_t _bd0 = vld1q_f32(pB_descales0);
+                float32x4_t _bd1 = vld1q_f32(pB_descales1);
                 const float _ad0 = pA_descales0[0];
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_n_f32(_bd0, _ad0));
                 _fsum1 = vmlaq_f32(_fsum1, vcvtq_f32_s32(_sum1), vmulq_n_f32(_bd1, _ad0));
@@ -2890,18 +3619,21 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 pB_descales1 += 4;
             }
 
-            pB = pB1;
-            pB_descales = pB_descales1;
-
             vst1q_f32(outptr, _fsum0);
             outptr += 4;
             vst1q_f32(outptr, _fsum1);
             outptr += 4;
+            pB8 += (size_t)8 * full_K;
+            pB_descales8 += (size_t)8 * block_count;
         }
 #endif // __aarch64__
+        const signed char* pB4 = pB8;
+        const float* pB_descales4 = pB_descales8;
         for (; jj + 3 < max_jj; jj += 4)
         {
-            float32x4_t _fsum0 = vdupq_n_f32(0.f);
+            const signed char* pB = pB4;
+            const float* pB_descales = pB_descales4;
+            float32x4_t _fsum0 = k0 == 0 ? vdupq_n_f32(0.f) : vld1q_f32(outptr);
 
             const signed char* pA0 = pA0_block;
             const float* pA_descales0 = pA_descales0_block;
@@ -2910,46 +3642,56 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _sum0 = vdupq_n_s32(0);
                 const int max_kk = std::min(K - k, block_size);
                 int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
                 int32x4_t _msum0 = vdupq_n_s32(0);
                 int32x4_t _msum1 = vdupq_n_s32(0);
                 for (; kk + 7 < max_kk; kk += 8)
                 {
-                    const int8x16_t _b0 = vld1q_s8(pB + 0);
-                    const int8x16_t _b1 = vld1q_s8(pB + 16);
-                    const int8x16_t _a0 = vcombine_s8(vld1_s8(pA0 + kk), vdup_n_s8(0));
+                    int8x16_t _b0 = vld1q_s8(pB + 0);
+                    int8x16_t _b1 = vld1q_s8(pB + 16);
+                    int8x16_t _a0 = vcombine_s8(vld1_s8(pA0 + kk), vdup_n_s8(0));
                     _msum0 = vmmlaq_s32(_msum0, _a0, _b0);
                     _msum1 = vmmlaq_s32(_msum1, _a0, _b1);
                     pB += 32;
                 }
                 _sum0 = vcombine_s32(vget_low_s32(_msum0), vget_low_s32(_msum1));
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
-                    const int8x16_t _b0 = vld1q_s8(pB);
-                    const int8x16_t _a0 = vreinterpretq_s8_s32(vdupq_lane_s32(vld1_lane_s32((const int*)(pA0 + kk), vdup_n_s32(0), 0), 0));
+                    int8x16_t _b0 = vld1q_s8(pB);
+                    int8x16_t _a0 = vreinterpretq_s8_s32(vdupq_lane_s32(vld1_lane_s32((const int*)(pA0 + kk), vdup_n_s32(0), 0), 0));
                     _sum0 = vdotq_s32(_sum0, _b0, _a0);
+                    pB += 16;
+                }
+#else  // __ARM_FEATURE_DOTPROD
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int16x4_t _a = vreinterpret_s16_s32(vld1_lane_s32((const int*)(pA0 + kk), vdup_n_s32(0), 0));
+                    int8x16_t _b = vld1q_s8(pB);
+                    int16x8_t _s = vmull_s8(vget_low_s8(_b), vreinterpret_s8_s16(vdup_lane_s16(_a, 0)));
+                    _s = vmlal_s8(_s, vget_high_s8(_b), vreinterpret_s8_s16(vdup_lane_s16(_a, 1)));
+                    _sum0 = vpadalq_s16(_sum0, _s);
                     pB += 16;
                 }
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    const int8x8_t _b0 = vld1_s8(pB);
-                    const int8x8_t _a0 = vreinterpret_s8_s16(vdup_lane_s16(vld1_lane_s16((const short*)(pA0 + kk), vdup_n_s16(0), 0), 0));
+                    int8x8_t _b0 = vld1_s8(pB);
+                    int8x8_t _a0 = vreinterpret_s8_s16(vdup_lane_s16(vld1_lane_s16((const short*)(pA0 + kk), vdup_n_s16(0), 0), 0));
                     _sum0 = vaddq_s32(_sum0, vpaddlq_s16(vmull_s8(_b0, _a0)));
                     pB += 8;
                 }
                 if (kk < max_kk)
                 {
-                    const int8x8_t _b = vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB)));
-                    const int8x8_t _a0 = vld1_lane_s8(pA0 + kk, vdup_n_s8(0), 0);
-                    const int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a0, 0));
+                    int8x8_t _b = vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB)));
+                    int8x8_t _a0 = vld1_lane_s8(pA0 + kk, vdup_n_s8(0), 0);
+                    int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a0, 0));
                     _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p0)));
                     pB += 4;
                 }
 
-                const float32x4_t _bd0 = vld1q_f32(pB_descales);
+                float32x4_t _bd0 = vld1q_f32(pB_descales);
                 const float _ad0 = pA_descales0[0];
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_n_f32(_bd0, _ad0));
 
@@ -2960,10 +3702,16 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             vst1q_f32(outptr, _fsum0);
             outptr += 4;
+            pB4 += (size_t)4 * full_K;
+            pB_descales4 += (size_t)4 * block_count;
         }
+        const signed char* pB2 = pB4 - 2 * k0;
+        const float* pB_descales2 = pB_descales4 - 2 * block_start;
         for (; jj + 1 < max_jj; jj += 2)
         {
-            float32x4_t _fsum0 = vdupq_n_f32(0.f);
+            const signed char* pB = pB2;
+            const float* pB_descales = pB_descales2;
+            float32x4_t _fsum0 = k0 == 0 ? vdupq_n_f32(0.f) : vcombine_f32(vld1_f32(outptr), vdup_n_f32(0.f));
 
             const signed char* pA0 = pA0_block;
             const float* pA_descales0 = pA_descales0_block;
@@ -2972,43 +3720,56 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int32x4_t _sum0 = vdupq_n_s32(0);
                 const int max_kk = std::min(K - k, block_size);
                 int kk = 0;
+#if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
                 int32x4_t _msum0 = vdupq_n_s32(0);
                 for (; kk + 7 < max_kk; kk += 8)
                 {
-                    const int8x16_t _b0 = vld1q_s8(pB + 0);
-                    const int8x16_t _a0 = vcombine_s8(vld1_s8(pA0 + kk), vdup_n_s8(0));
+                    int8x16_t _b0 = vld1q_s8(pB + 0);
+                    int8x16_t _a0 = vcombine_s8(vld1_s8(pA0 + kk), vdup_n_s8(0));
                     _msum0 = vmmlaq_s32(_msum0, _a0, _b0);
                     pB += 16;
                 }
                 _sum0 = vcombine_s32(vget_low_s32(_msum0), vdup_n_s32(0));
 #endif // __ARM_FEATURE_MATMUL_INT8
-#if __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
-                    const int8x16_t _b0 = vcombine_s8(vld1_s8(pB), vdup_n_s8(0));
-                    const int8x16_t _a0 = vreinterpretq_s8_s32(vdupq_lane_s32(vld1_lane_s32((const int*)(pA0 + kk), vdup_n_s32(0), 0), 0));
+                    int8x16_t _b0 = vcombine_s8(vld1_s8(pB), vdup_n_s8(0));
+                    int8x16_t _a0 = vreinterpretq_s8_s32(vdupq_lane_s32(vld1_lane_s32((const int*)(pA0 + kk), vdup_n_s32(0), 0), 0));
                     _sum0 = vdotq_s32(_sum0, _b0, _a0);
+                    pB += 8;
+                }
+#else  // __ARM_FEATURE_DOTPROD
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int16x4_t _a = vreinterpret_s16_s32(vld1_lane_s32((const int*)(pA0 + kk), vdup_n_s32(0), 0));
+                    int8x8_t _b = vld1_s8(pB);
+                    int32x2_t _b02 = vreinterpret_s32_s8(_b);
+                    int8x8_t _b01 = vreinterpret_s8_s32(vdup_lane_s32(_b02, 0));
+                    int8x8_t _b23 = vreinterpret_s8_s32(vdup_lane_s32(_b02, 1));
+                    int16x8_t _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a, 1)));
+                    _sum0 = vpadalq_s16(_sum0, _s);
                     pB += 8;
                 }
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    const int8x8_t _b0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB)));
-                    const int8x8_t _a0 = vreinterpret_s8_s16(vdup_lane_s16(vld1_lane_s16((const short*)(pA0 + kk), vdup_n_s16(0), 0), 0));
+                    int8x8_t _b0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB)));
+                    int8x8_t _a0 = vreinterpret_s8_s16(vdup_lane_s16(vld1_lane_s16((const short*)(pA0 + kk), vdup_n_s16(0), 0), 0));
                     _sum0 = vaddq_s32(_sum0, vpaddlq_s16(vmull_s8(_b0, _a0)));
                     pB += 4;
                 }
                 if (kk < max_kk)
                 {
-                    const int8x8_t _b = vreinterpret_s8_s16(vld1_dup_s16((const short*)(pB)));
-                    const int8x8_t _a0 = vld1_lane_s8(pA0 + kk, vdup_n_s8(0), 0);
-                    const int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a0, 0));
+                    int8x8_t _b = vreinterpret_s8_s16(vld1_dup_s16((const short*)(pB)));
+                    int8x8_t _a0 = vld1_lane_s8(pA0 + kk, vdup_n_s8(0), 0);
+                    int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a0, 0));
                     _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p0)));
                     pB += 2;
                 }
 
-                const float32x4_t _bd0 = vcombine_f32(vld1_f32(pB_descales), vdup_n_f32(0.f));
+                float32x4_t _bd0 = vcombine_f32(vld1_f32(pB_descales), vdup_n_f32(0.f));
                 const float _ad0 = pA_descales0[0];
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_n_f32(_bd0, _ad0));
 
@@ -3019,10 +3780,16 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             vst1_f32(outptr, vget_low_f32(_fsum0));
             outptr += 2;
+            pB2 += (size_t)2 * full_K;
+            pB_descales2 += (size_t)2 * block_count;
         }
+        const signed char* pB1 = pB2 - k0;
+        const float* pB_descales1 = pB_descales2 - block_start;
         for (; jj < max_jj; jj++)
         {
-            float32x4_t _fsum0 = vdupq_n_f32(0.f);
+            const signed char* pB = pB1;
+            const float* pB_descales = pB_descales1;
+            float32x4_t _fsum0 = k0 == 0 ? vdupq_n_f32(0.f) : vsetq_lane_f32(outptr[0], vdupq_n_f32(0.f), 0);
 
             const signed char* pA0 = pA0_block;
             const float* pA_descales0 = pA_descales0_block;
@@ -3034,29 +3801,40 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #if __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
-                    const int8x16_t _b0 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)pB)), vdup_n_s8(0));
-                    const int8x16_t _a0 = vreinterpretq_s8_s32(vdupq_lane_s32(vld1_lane_s32((const int*)(pA0 + kk), vdup_n_s32(0), 0), 0));
+                    int8x16_t _b0 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)pB)), vdup_n_s8(0));
+                    int8x16_t _a0 = vreinterpretq_s8_s32(vdupq_lane_s32(vld1_lane_s32((const int*)(pA0 + kk), vdup_n_s32(0), 0), 0));
                     _sum0 = vdotq_s32(_sum0, _b0, _a0);
+                    pB += 4;
+                }
+#else  // __ARM_FEATURE_DOTPROD
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int16x4_t _a = vreinterpret_s16_s32(vld1_lane_s32((const int*)(pA0 + kk), vdup_n_s32(0), 0));
+                    int8x8_t _b01 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB));
+                    int8x8_t _b23 = vext_s8(_b01, _b01, 2);
+                    int16x8_t _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)));
+                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a, 1)));
+                    _sum0 = vpadalq_s16(_sum0, _s);
                     pB += 4;
                 }
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    const int8x8_t _b0 = vreinterpret_s8_s16(vld1_dup_s16((const short*)(pB)));
-                    const int8x8_t _a0 = vreinterpret_s8_s16(vdup_lane_s16(vld1_lane_s16((const short*)(pA0 + kk), vdup_n_s16(0), 0), 0));
+                    int8x8_t _b0 = vreinterpret_s8_s16(vld1_dup_s16((const short*)(pB)));
+                    int8x8_t _a0 = vreinterpret_s8_s16(vdup_lane_s16(vld1_lane_s16((const short*)(pA0 + kk), vdup_n_s16(0), 0), 0));
                     _sum0 = vaddq_s32(_sum0, vpaddlq_s16(vmull_s8(_b0, _a0)));
                     pB += 2;
                 }
                 if (kk < max_kk)
                 {
-                    const int8x8_t _b = vset_lane_s8(pB[0], vdup_n_s8(0), 0);
-                    const int8x8_t _a0 = vld1_lane_s8(pA0 + kk, vdup_n_s8(0), 0);
-                    const int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a0, 0));
+                    int8x8_t _b = vset_lane_s8(pB[0], vdup_n_s8(0), 0);
+                    int8x8_t _a0 = vld1_lane_s8(pA0 + kk, vdup_n_s8(0), 0);
+                    int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a0, 0));
                     _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p0)));
                     pB += 1;
                 }
 
-                const float32x4_t _bd0 = vdupq_n_f32(pB_descales[0]);
+                float32x4_t _bd0 = vdupq_n_f32(pB_descales[0]);
                 const float _ad0 = pA_descales0[0];
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_n_f32(_bd0, _ad0));
 
@@ -3067,6 +3845,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             vst1q_lane_f32(outptr, _fsum0, 0);
             outptr++;
+            pB1 += full_K;
+            pB_descales1 += block_count;
         }
     }
 #else
@@ -3075,16 +3855,17 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
     {
         const signed char* pA_block = pAT + ii * A_hstep;
         const float* pA_descales_block = pAT_descales + ii * A_descales_hstep;
-        const signed char* pB = pBT;
-        const float* pB_descales = pBT_descales;
-
         int jj = 0;
+        const signed char* pB2 = pBT + 2 * k0;
+        const float* pB_descales2 = pBT_descales + 2 * block_start;
         for (; jj + 1 < max_jj; jj += 2)
         {
-            float fsum00 = 0.f;
-            float fsum01 = 0.f;
-            float fsum10 = 0.f;
-            float fsum11 = 0.f;
+            const signed char* pB = pB2;
+            const float* pB_descales = pB_descales2;
+            float fsum00 = k0 == 0 ? 0.f : outptr[0];
+            float fsum01 = k0 == 0 ? 0.f : outptr[1];
+            float fsum10 = k0 == 0 ? 0.f : outptr[2];
+            float fsum11 = k0 == 0 ? 0.f : outptr[3];
 
             const signed char* pA = pA_block;
             const float* pA_descales = pA_descales_block;
@@ -3201,11 +3982,17 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             *outptr++ = fsum01;
             *outptr++ = fsum10;
             *outptr++ = fsum11;
+            pB2 += (size_t)2 * full_K;
+            pB_descales2 += (size_t)2 * block_count;
         }
+        const signed char* pB1 = pB2 - k0;
+        const float* pB_descales1 = pB_descales2 - block_start;
         for (; jj < max_jj; jj++)
         {
-            float fsum00 = 0.f;
-            float fsum10 = 0.f;
+            const signed char* pB = pB1;
+            const float* pB_descales = pB_descales1;
+            float fsum00 = k0 == 0 ? 0.f : outptr[0];
+            float fsum10 = k0 == 0 ? 0.f : outptr[1];
 
             const signed char* pA = pA_block;
             const float* pA_descales = pA_descales_block;
@@ -3234,6 +4021,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             *outptr++ = fsum00;
             *outptr++ = fsum10;
+            pB1 += full_K;
+            pB_descales1 += block_count;
         }
     }
 #else
@@ -3243,16 +4032,17 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         const signed char* pA1_block = pA0_block + A_hstep;
         const float* pA_descales0_block = pAT_descales + ii * A_descales_hstep;
         const float* pA_descales1_block = pA_descales0_block + A_descales_hstep;
-        const signed char* pB = pBT;
-        const float* pB_descales = pBT_descales;
-
         int jj = 0;
+        const signed char* pB2 = pBT + 2 * k0;
+        const float* pB_descales2 = pBT_descales + 2 * block_start;
         for (; jj + 1 < max_jj; jj += 2)
         {
-            float fsum00 = 0.f;
-            float fsum01 = 0.f;
-            float fsum10 = 0.f;
-            float fsum11 = 0.f;
+            const signed char* pB = pB2;
+            const float* pB_descales = pB_descales2;
+            float fsum00 = k0 == 0 ? 0.f : outptr[0];
+            float fsum01 = k0 == 0 ? 0.f : outptr[1];
+            float fsum10 = k0 == 0 ? 0.f : outptr[2];
+            float fsum11 = k0 == 0 ? 0.f : outptr[3];
 
             const signed char* pA0 = pA0_block;
             const signed char* pA1 = pA1_block;
@@ -3313,11 +4103,17 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr++;
             outptr[0] = fsum11;
             outptr++;
+            pB2 += (size_t)2 * full_K;
+            pB_descales2 += (size_t)2 * block_count;
         }
+        const signed char* pB1 = pB2 - k0;
+        const float* pB_descales1 = pB_descales2 - block_start;
         for (; jj < max_jj; jj++)
         {
-            float fsum00 = 0.f;
-            float fsum10 = 0.f;
+            const signed char* pB = pB1;
+            const float* pB_descales = pB_descales1;
+            float fsum00 = k0 == 0 ? 0.f : outptr[0];
+            float fsum10 = k0 == 0 ? 0.f : outptr[1];
 
             const signed char* pA0 = pA0_block;
             const signed char* pA1 = pA1_block;
@@ -3362,6 +4158,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr++;
             outptr[0] = fsum10;
             outptr++;
+            pB1 += full_K;
+            pB_descales1 += block_count;
         }
     }
 #endif // __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
@@ -3369,14 +4167,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
     {
         const signed char* pA0_block = pAT + ii * A_hstep;
         const float* pA_descales0_block = pAT_descales + ii * A_descales_hstep;
-        const signed char* pB = pBT;
-        const float* pB_descales = pBT_descales;
-
         int jj = 0;
+        const signed char* pB2 = pBT + 2 * k0;
+        const float* pB_descales2 = pBT_descales + 2 * block_start;
         for (; jj + 1 < max_jj; jj += 2)
         {
-            float fsum00 = 0.f;
-            float fsum01 = 0.f;
+            const signed char* pB = pB2;
+            const float* pB_descales = pB_descales2;
+            float fsum00 = k0 == 0 ? 0.f : outptr[0];
+            float fsum01 = k0 == 0 ? 0.f : outptr[1];
 
             const signed char* pA0 = pA0_block;
             const float* pA_descales0 = pA_descales0_block;
@@ -3425,10 +4224,16 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr++;
             outptr[0] = fsum01;
             outptr++;
+            pB2 += (size_t)2 * full_K;
+            pB_descales2 += (size_t)2 * block_count;
         }
+        const signed char* pB1 = pB2 - k0;
+        const float* pB_descales1 = pB_descales2 - block_start;
         for (; jj < max_jj; jj++)
         {
-            float fsum00 = 0.f;
+            const signed char* pB = pB1;
+            const float* pB_descales = pB_descales1;
+            float fsum00 = k0 == 0 ? 0.f : outptr[0];
 
             const signed char* pA0 = pA0_block;
             const float* pA_descales0 = pA_descales0_block;
@@ -3462,12 +4267,14 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             outptr[0] = fsum00;
             outptr++;
+            pB1 += full_K;
+            pB_descales1 += block_count;
         }
     }
 #endif // __ARM_NEON
 }
 
-static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
+static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
     const size_t l2_cache_size = get_cpu_level2_cache_size();
@@ -3475,7 +4282,16 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int constant_TILE_
     if (nT == 0)
         nT = get_physical_big_cpu_count();
 
-    const int tile_size = std::max(1, (int)((float)l2_cache_size / 2 / sizeof(signed char) / std::max(1, K)));
+    int tile_size = (int)sqrtf((float)l2_cache_size / (2 * sizeof(signed char) + sizeof(float)));
+
+    TILE_K = std::max(8, tile_size / 8 * 8);
+    if (TILE_K < block_size)
+        TILE_K = block_size;
+    else
+        TILE_K = TILE_K / block_size * block_size;
+    TILE_K = std::min(TILE_K, K);
+
+    tile_size = std::max(1, (int)((float)l2_cache_size / 2 / sizeof(signed char) / std::max(1, TILE_K)));
 
 #if __aarch64__
     TILE_M = M >= nT * 8 ? 8 : M >= nT * 4 ? 4 : M >= nT * 2 ? 2 : 1;
@@ -3487,8 +4303,6 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int constant_TILE_
     TILE_M = M >= nT * 2 ? 2 : 1;
     TILE_N = std::max(2, tile_size / 2 * 2);
 #endif
-    TILE_K = K;
-
     if (N > 0)
     {
         const int nn_N = (N + TILE_N - 1) / TILE_N;
@@ -3524,6 +4338,15 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int constant_TILE_
 #endif
     }
 
+    if (constant_TILE_K > 0)
+    {
+        if (constant_TILE_K < block_size)
+            TILE_K = block_size;
+        else
+            TILE_K = constant_TILE_K / block_size * block_size;
+        TILE_K = std::min(TILE_K, K);
+    }
+
     // one driver M tile follows the natural producer slab
 #if __aarch64__
     TILE_M = std::min(TILE_M, 8);
@@ -3533,7 +4356,6 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int constant_TILE_
     TILE_M = std::min(TILE_M, 2);
 #endif
 
-    (void)constant_TILE_K;
 }
 
 static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, int N, float alpha, float beta)
@@ -3625,7 +4447,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float32x4_t _c = beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta);
+                    float32x4_t _c = beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta);
                     _out0 = vaddq_f32(_out0, _c);
                     _out1 = vaddq_f32(_out1, _c);
                     _out2 = vaddq_f32(_out2, _c);
@@ -3703,7 +4525,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float32x2_t _c = beta == 1.f ? vld1_f32(pC) : vmul_n_f32(vld1_f32(pC), beta);
+                    float32x2_t _c = beta == 1.f ? vld1_f32(pC) : vmul_n_f32(vld1_f32(pC), beta);
                     _out0 = vadd_f32(_out0, _c);
                     _out1 = vadd_f32(_out1, _c);
                     _out2 = vadd_f32(_out2, _c);
@@ -3871,7 +4693,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             {
                 if (broadcast_type_C == 0)
                 {
-                    const float32x4_t _c = vdupq_n_f32(c0);
+                    float32x4_t _c = vdupq_n_f32(c0);
                     _out0 = vaddq_f32(_out0, _c);
                     _out1 = vaddq_f32(_out1, _c);
                     _out2 = vaddq_f32(_out2, _c);
@@ -3902,19 +4724,21 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     _out5 = vaddq_f32(_out5, (beta == 1.f ? vld1q_f32(pC + c_hstep * 2 + 4) : vmulq_n_f32(vld1q_f32(pC + c_hstep * 2 + 4), beta)));
                     _out6 = vaddq_f32(_out6, (beta == 1.f ? vld1q_f32(pC + c_hstep * 3) : vmulq_n_f32(vld1q_f32(pC + c_hstep * 3), beta)));
                     _out7 = vaddq_f32(_out7, (beta == 1.f ? vld1q_f32(pC + c_hstep * 3 + 4) : vmulq_n_f32(vld1q_f32(pC + c_hstep * 3 + 4), beta)));
+                    pC += 8;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float32x4_t _cc0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
+                    float32x4_t _cc0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
                     _out0 = vaddq_f32(_out0, _cc0);
                     _out2 = vaddq_f32(_out2, _cc0);
                     _out4 = vaddq_f32(_out4, _cc0);
                     _out6 = vaddq_f32(_out6, _cc0);
-                    const float32x4_t _cc1 = (beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta));
+                    float32x4_t _cc1 = (beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta));
                     _out1 = vaddq_f32(_out1, _cc1);
                     _out3 = vaddq_f32(_out3, _cc1);
                     _out5 = vaddq_f32(_out5, _cc1);
                     _out7 = vaddq_f32(_out7, _cc1);
+                    pC += 8;
                 }
             }
 
@@ -3943,8 +4767,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             outptr1 += 8;
             outptr2 += 8;
             outptr3 += 8;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 8;
             pp += 32;
         }
 #endif // __aarch64__
@@ -3959,7 +4781,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             {
                 if (broadcast_type_C == 0)
                 {
-                    const float32x4_t _c = vdupq_n_f32(c0);
+                    float32x4_t _c = vdupq_n_f32(c0);
                     _out0 = vaddq_f32(_out0, _c);
                     _out1 = vaddq_f32(_out1, _c);
                     _out2 = vaddq_f32(_out2, _c);
@@ -3978,14 +4800,16 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     _out1 = vaddq_f32(_out1, (beta == 1.f ? vld1q_f32(pC + c_hstep) : vmulq_n_f32(vld1q_f32(pC + c_hstep), beta)));
                     _out2 = vaddq_f32(_out2, (beta == 1.f ? vld1q_f32(pC + c_hstep * 2) : vmulq_n_f32(vld1q_f32(pC + c_hstep * 2), beta)));
                     _out3 = vaddq_f32(_out3, (beta == 1.f ? vld1q_f32(pC + c_hstep * 3) : vmulq_n_f32(vld1q_f32(pC + c_hstep * 3), beta)));
+                    pC += 4;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float32x4_t _cc0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
+                    float32x4_t _cc0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
                     _out0 = vaddq_f32(_out0, _cc0);
                     _out1 = vaddq_f32(_out1, _cc0);
                     _out2 = vaddq_f32(_out2, _cc0);
                     _out3 = vaddq_f32(_out3, _cc0);
+                    pC += 4;
                 }
             }
 
@@ -4006,8 +4830,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             outptr1 += 4;
             outptr2 += 4;
             outptr3 += 4;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 4;
             pp += 16;
         }
         for (; jj + 1 < max_jj; jj += 2)
@@ -4019,32 +4841,34 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             {
                 if (broadcast_type_C == 0)
                 {
-                    const float32x4_t _c = vdupq_n_f32(c0);
+                    float32x4_t _c = vdupq_n_f32(c0);
                     _out0 = vaddq_f32(_out0, _c);
                     _out1 = vaddq_f32(_out1, _c);
                 }
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    const float32x4_t _c01 = vcombine_f32(vdup_n_f32(c0), vdup_n_f32(c1));
-                    const float32x4_t _c23 = vcombine_f32(vdup_n_f32(c2), vdup_n_f32(c3));
+                    float32x4_t _c01 = vcombine_f32(vdup_n_f32(c0), vdup_n_f32(c1));
+                    float32x4_t _c23 = vcombine_f32(vdup_n_f32(c2), vdup_n_f32(c3));
                     _out0 = vaddq_f32(_out0, _c01);
                     _out1 = vaddq_f32(_out1, _c23);
                 }
                 if (broadcast_type_C == 3)
                 {
-                    const float32x4_t _c01 = vcombine_f32(vld1_f32(pC), vld1_f32(pC + c_hstep));
-                    const float32x4_t _c23 = vcombine_f32(vld1_f32(pC + c_hstep * 2), vld1_f32(pC + c_hstep * 3));
+                    float32x4_t _c01 = vcombine_f32(vld1_f32(pC), vld1_f32(pC + c_hstep));
+                    float32x4_t _c23 = vcombine_f32(vld1_f32(pC + c_hstep * 2), vld1_f32(pC + c_hstep * 3));
                     _out0 = beta == 1.f ? vaddq_f32(_out0, _c01) : vmlaq_n_f32(_out0, _c01, beta);
                     _out1 = beta == 1.f ? vaddq_f32(_out1, _c23) : vmlaq_n_f32(_out1, _c23, beta);
+                    pC += 2;
                 }
                 if (broadcast_type_C == 4)
                 {
                     float32x2_t _c = vld1_f32(pC);
                     if (beta != 1.f)
                         _c = vmul_n_f32(_c, beta);
-                    const float32x4_t _cc0 = vcombine_f32(_c, _c);
+                    float32x4_t _cc0 = vcombine_f32(_c, _c);
                     _out0 = vaddq_f32(_out0, _cc0);
                     _out1 = vaddq_f32(_out1, _cc0);
+                    pC += 2;
                 }
             }
 
@@ -4063,8 +4887,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             outptr1 += 2;
             outptr2 += 2;
             outptr3 += 2;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 2;
             pp += 8;
         }
         for (; jj < max_jj; jj += 1)
@@ -4092,11 +4914,13 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     _c = vsetq_lane_f32(pC[c_hstep * 2], _c, 2);
                     _c = vsetq_lane_f32(pC[c_hstep * 3], _c, 3);
                     _out0 = beta == 1.f ? vaddq_f32(_out0, _c) : vmlaq_n_f32(_out0, _c, beta);
+                    pC++;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float32x4_t _cc0 = vdupq_n_f32(beta == 1.f ? pC[0] : pC[0] * beta);
+                    float32x4_t _cc0 = vdupq_n_f32(beta == 1.f ? pC[0] : pC[0] * beta);
                     _out0 = vaddq_f32(_out0, _cc0);
+                    pC++;
                 }
             }
 
@@ -4114,18 +4938,19 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             outptr1++;
             outptr2++;
             outptr3++;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC++;
             pp += 4;
         }
     }
+#endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
         pC = (const float*)C;
         float* outptr0 = (float*)top_blob + (size_t)(i + ii) * out_hstep + j;
         float* outptr1 = outptr0 + out_hstep;
+#if __ARM_NEON
         float32x4_t _c0;
         float32x4_t _c1;
+#endif
         float c0 = 0.f;
         float c1 = 0.f;
         if (pC)
@@ -4135,18 +4960,23 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 c0 = pC[0];
                 if (beta != 1.f)
                     c0 *= beta;
+                c1 = c0;
+#if __ARM_NEON
                 _c0 = vdupq_n_f32(c0);
+#endif
             }
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
                 c0 = pC[i + ii];
                 if (beta != 1.f)
                     c0 *= beta;
-                _c0 = vdupq_n_f32(c0);
                 c1 = pC[i + ii + 1];
                 if (beta != 1.f)
                     c1 *= beta;
+#if __ARM_NEON
+                _c0 = vdupq_n_f32(c0);
                 _c1 = vdupq_n_f32(c1);
+#endif
             }
             if (broadcast_type_C == 3)
                 pC = (const float*)C + (i + ii) * c_hstep + j;
@@ -4155,6 +4985,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
         }
 
         int jj = 0;
+#if __ARM_NEON
 #if __aarch64__
         for (; jj + 7 < max_jj; jj += 8)
         {
@@ -4185,15 +5016,17 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     _out1 = vaddq_f32(_out1, (beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta)));
                     _out2 = vaddq_f32(_out2, (beta == 1.f ? vld1q_f32(pC + c_hstep) : vmulq_n_f32(vld1q_f32(pC + c_hstep), beta)));
                     _out3 = vaddq_f32(_out3, (beta == 1.f ? vld1q_f32(pC + c_hstep + 4) : vmulq_n_f32(vld1q_f32(pC + c_hstep + 4), beta)));
+                    pC += 8;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float32x4_t _c0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
+                    float32x4_t _c0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
                     _out0 = vaddq_f32(_out0, _c0);
                     _out2 = vaddq_f32(_out2, _c0);
-                    const float32x4_t _c1 = (beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta));
+                    float32x4_t _c1 = (beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta));
                     _out1 = vaddq_f32(_out1, _c1);
                     _out3 = vaddq_f32(_out3, _c1);
+                    pC += 8;
                 }
             }
 
@@ -4212,8 +5045,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 
             outptr0 += 8;
             outptr1 += 8;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 8;
             pp += 16;
         }
 #endif // __aarch64__
@@ -4238,12 +5069,14 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 {
                     _out0 = vaddq_f32(_out0, (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta)));
                     _out1 = vaddq_f32(_out1, (beta == 1.f ? vld1q_f32(pC + c_hstep) : vmulq_n_f32(vld1q_f32(pC + c_hstep), beta)));
+                    pC += 4;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float32x4_t _c0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
+                    float32x4_t _c0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
                     _out0 = vaddq_f32(_out0, _c0);
                     _out1 = vaddq_f32(_out1, _c0);
+                    pC += 4;
                 }
             }
 
@@ -4258,8 +5091,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 
             outptr0 += 4;
             outptr1 += 4;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 4;
             pp += 8;
         }
         for (; jj + 1 < max_jj; jj += 2)
@@ -4271,7 +5102,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             {
                 if (broadcast_type_C == 0)
                 {
-                    const float32x2_t _c = vdup_n_f32(c0);
+                    float32x2_t _c = vdup_n_f32(c0);
                     _out0 = vadd_f32(_out0, _c);
                     _out1 = vadd_f32(_out1, _c);
                 }
@@ -4282,16 +5113,18 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 }
                 if (broadcast_type_C == 3)
                 {
-                    const float32x2_t _c0 = vld1_f32(pC);
-                    const float32x2_t _c1 = vld1_f32(pC + c_hstep);
+                    float32x2_t _c0 = vld1_f32(pC);
+                    float32x2_t _c1 = vld1_f32(pC + c_hstep);
                     _out0 = beta == 1.f ? vadd_f32(_out0, _c0) : vmla_n_f32(_out0, _c0, beta);
                     _out1 = beta == 1.f ? vadd_f32(_out1, _c1) : vmla_n_f32(_out1, _c1, beta);
+                    pC += 2;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float32x2_t _c0 = beta == 1.f ? vld1_f32(pC) : vmul_n_f32(vld1_f32(pC), beta);
+                    float32x2_t _c0 = beta == 1.f ? vld1_f32(pC) : vmul_n_f32(vld1_f32(pC), beta);
                     _out0 = vadd_f32(_out0, _c0);
                     _out1 = vadd_f32(_out1, _c0);
+                    pC += 2;
                 }
             }
 
@@ -4306,8 +5139,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 
             outptr0 += 2;
             outptr1 += 2;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 2;
             pp += 4;
         }
         for (; jj < max_jj; jj += 1)
@@ -4331,10 +5162,12 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     float32x2_t _c = vdup_n_f32(pC[0]);
                     _c = vset_lane_f32(pC[c_hstep], _c, 1);
                     _out0 = beta == 1.f ? vadd_f32(_out0, _c) : vmla_n_f32(_out0, _c, beta);
+                    pC++;
                 }
                 if (broadcast_type_C == 4)
                 {
                     _out0 = vadd_f32(_out0, vdup_n_f32(beta == 1.f ? pC[0] : pC[0] * beta));
+                    pC++;
                 }
             }
 
@@ -4348,233 +5181,9 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 
             outptr0++;
             outptr1++;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC++;
             pp += 2;
         }
-    }
-    for (; ii < max_ii; ii++)
-    {
-        pC = (const float*)C;
-        float* outptr0 = (float*)top_blob + (size_t)(i + ii) * out_hstep + j;
-        float32x4_t _c0;
-        float c0 = 0.f;
-        if (pC)
-        {
-            if (broadcast_type_C == 0)
-            {
-                c0 = pC[0];
-                if (beta != 1.f)
-                    c0 *= beta;
-                _c0 = vdupq_n_f32(c0);
-            }
-            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-            {
-                c0 = pC[i + ii];
-                if (beta != 1.f)
-                    c0 *= beta;
-                _c0 = vdupq_n_f32(c0);
-            }
-            if (broadcast_type_C == 3)
-                pC = (const float*)C + (i + ii) * c_hstep + j;
-            if (broadcast_type_C == 4)
-                pC = (const float*)C + j;
-        }
-
-        int jj = 0;
-#if __aarch64__
-        for (; jj + 7 < max_jj; jj += 8)
-        {
-            float32x4_t _out0 = vld1q_f32(pp + 0);
-            float32x4_t _out1 = vld1q_f32(pp + 4);
-
-            if (pC)
-            {
-                if (broadcast_type_C == 0)
-                {
-                    _out0 = vaddq_f32(_out0, _c0);
-                    _out1 = vaddq_f32(_out1, _c0);
-                }
-                if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    _out0 = vaddq_f32(_out0, _c0);
-                    _out1 = vaddq_f32(_out1, _c0);
-                }
-                if (broadcast_type_C == 3)
-                {
-                    _out0 = vaddq_f32(_out0, (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta)));
-                    _out1 = vaddq_f32(_out1, (beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta)));
-                }
-                if (broadcast_type_C == 4)
-                {
-                    const float32x4_t _c0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
-                    _out0 = vaddq_f32(_out0, _c0);
-                    const float32x4_t _c1 = (beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta));
-                    _out1 = vaddq_f32(_out1, _c1);
-                }
-            }
-
-            if (alpha != 1.f)
-            {
-                _out0 = vmulq_n_f32(_out0, alpha);
-                _out1 = vmulq_n_f32(_out1, alpha);
-            }
-
-            vst1q_f32(outptr0, _out0);
-            vst1q_f32(outptr0 + 4, _out1);
-
-            outptr0 += 8;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 8;
-            pp += 8;
-        }
-#endif // __aarch64__
-        for (; jj + 3 < max_jj; jj += 4)
-        {
-            float32x4_t _out0 = vld1q_f32(pp + 0);
-
-            if (pC)
-            {
-                if (broadcast_type_C == 0)
-                {
-                    _out0 = vaddq_f32(_out0, _c0);
-                }
-                if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    _out0 = vaddq_f32(_out0, _c0);
-                }
-                if (broadcast_type_C == 3)
-                {
-                    _out0 = vaddq_f32(_out0, (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta)));
-                }
-                if (broadcast_type_C == 4)
-                {
-                    const float32x4_t _c0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
-                    _out0 = vaddq_f32(_out0, _c0);
-                }
-            }
-
-            if (alpha != 1.f)
-            {
-                _out0 = vmulq_n_f32(_out0, alpha);
-            }
-
-            vst1q_f32(outptr0, _out0);
-
-            outptr0 += 4;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 4;
-            pp += 4;
-        }
-        for (; jj + 1 < max_jj; jj += 2)
-        {
-            float32x2_t _out0 = vld1_f32(pp);
-
-            if (pC)
-            {
-                if (broadcast_type_C == 0)
-                {
-                    _out0 = vadd_f32(_out0, vdup_n_f32(c0));
-                }
-                if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    _out0 = vadd_f32(_out0, vdup_n_f32(c0));
-                }
-                if (broadcast_type_C == 3)
-                {
-                    const float32x2_t _c0 = vld1_f32(pC);
-                    _out0 = beta == 1.f ? vadd_f32(_out0, _c0) : vmla_n_f32(_out0, _c0, beta);
-                }
-                if (broadcast_type_C == 4)
-                {
-                    const float32x2_t _c0 = beta == 1.f ? vld1_f32(pC) : vmul_n_f32(vld1_f32(pC), beta);
-                    _out0 = vadd_f32(_out0, _c0);
-                }
-            }
-
-            if (alpha != 1.f)
-            {
-                _out0 = vmul_n_f32(_out0, alpha);
-            }
-
-            vst1_f32(outptr0, _out0);
-
-            outptr0 += 2;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 2;
-            pp += 2;
-        }
-        for (; jj < max_jj; jj += 1)
-        {
-            float out0 = pp[0];
-
-            if (pC)
-            {
-                if (broadcast_type_C == 0)
-                {
-                    out0 += c0;
-                }
-                if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    out0 += c0;
-                }
-                if (broadcast_type_C == 3)
-                {
-                    out0 += beta == 1.f ? pC[0] : pC[0] * beta;
-                }
-                if (broadcast_type_C == 4)
-                {
-                    out0 += beta == 1.f ? pC[0] : pC[0] * beta;
-                }
-            }
-
-            if (alpha != 1.f)
-            {
-                out0 *= alpha;
-            }
-
-            outptr0[0] = out0;
-
-            outptr0++;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC++;
-            pp += 1;
-        }
-    }
-#else
-    for (; ii + 1 < max_ii; ii += 2)
-    {
-        pC = (const float*)C;
-        float* outptr0 = (float*)top_blob + (size_t)(i + ii) * out_hstep + j;
-        float* outptr1 = outptr0 + out_hstep;
-        float c0 = 0.f;
-        float c1 = 0.f;
-        if (pC)
-        {
-            if (broadcast_type_C == 0)
-            {
-                float c = pC[0];
-                if (beta != 1.f)
-                    c *= beta;
-                c0 = c;
-                c1 = c;
-            }
-            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-            {
-                c0 = pC[i + ii];
-                if (beta != 1.f)
-                    c0 *= beta;
-                c1 = pC[i + ii + 1];
-                if (beta != 1.f)
-                    c1 *= beta;
-            }
-            if (broadcast_type_C == 3)
-                pC = (const float*)C + (i + ii) * c_hstep + j;
-            if (broadcast_type_C == 4)
-                pC = (const float*)C + j;
-        }
-
-        int jj = 0;
+#endif // __ARM_NEON
         for (; jj + 1 < max_jj; jj += 2)
         {
             float out00 = pp[0];
@@ -4604,6 +5213,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     out01 += beta == 1.f ? pC[1] : pC[1] * beta;
                     out10 += beta == 1.f ? pC[c_hstep] : pC[c_hstep] * beta;
                     out11 += beta == 1.f ? pC[c_hstep + 1] : pC[c_hstep + 1] * beta;
+                    pC += 2;
                 }
                 if (broadcast_type_C == 4)
                 {
@@ -4611,6 +5221,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     out01 += beta == 1.f ? pC[1] : pC[1] * beta;
                     out10 += beta == 1.f ? pC[0] : pC[0] * beta;
                     out11 += beta == 1.f ? pC[1] : pC[1] * beta;
+                    pC += 2;
                 }
             }
 
@@ -4629,8 +5240,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 
             outptr0 += 2;
             outptr1 += 2;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 2;
             pp += 4;
         }
         for (; jj < max_jj; jj += 1)
@@ -4654,11 +5263,13 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 {
                     out00 += beta == 1.f ? pC[0] : pC[0] * beta;
                     out10 += beta == 1.f ? pC[c_hstep] : pC[c_hstep] * beta;
+                    pC++;
                 }
                 if (broadcast_type_C == 4)
                 {
                     out00 += beta == 1.f ? pC[0] : pC[0] * beta;
                     out10 += beta == 1.f ? pC[0] : pC[0] * beta;
+                    pC++;
                 }
             }
 
@@ -4673,8 +5284,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 
             outptr0++;
             outptr1++;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC++;
             pp += 2;
         }
     }
@@ -4682,21 +5291,29 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
     {
         pC = (const float*)C;
         float* outptr0 = (float*)top_blob + (size_t)(i + ii) * out_hstep + j;
+#if __ARM_NEON
+        float32x4_t _c0;
+#endif
         float c0 = 0.f;
         if (pC)
         {
             if (broadcast_type_C == 0)
             {
-                float c = pC[0];
+                c0 = pC[0];
                 if (beta != 1.f)
-                    c *= beta;
-                c0 = c;
+                    c0 *= beta;
+#if __ARM_NEON
+                _c0 = vdupq_n_f32(c0);
+#endif
             }
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
                 c0 = pC[i + ii];
                 if (beta != 1.f)
                     c0 *= beta;
+#if __ARM_NEON
+                _c0 = vdupq_n_f32(c0);
+#endif
             }
             if (broadcast_type_C == 3)
                 pC = (const float*)C + (i + ii) * c_hstep + j;
@@ -4705,6 +5322,176 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
         }
 
         int jj = 0;
+#if __ARM_NEON
+#if __aarch64__
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            float32x4_t _out0 = vld1q_f32(pp);
+            float32x4_t _out1 = vld1q_f32(pp + 4);
+            float32x4_t _out2 = vld1q_f32(pp + 8);
+            float32x4_t _out3 = vld1q_f32(pp + 12);
+
+            if (pC)
+            {
+                if (broadcast_type_C <= 2)
+                {
+                    _out0 = vaddq_f32(_out0, _c0);
+                    _out1 = vaddq_f32(_out1, _c0);
+                    _out2 = vaddq_f32(_out2, _c0);
+                    _out3 = vaddq_f32(_out3, _c0);
+                }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta);
+                    float32x4_t _c1 = beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta);
+                    float32x4_t _c2 = beta == 1.f ? vld1q_f32(pC + 8) : vmulq_n_f32(vld1q_f32(pC + 8), beta);
+                    float32x4_t _c3 = beta == 1.f ? vld1q_f32(pC + 12) : vmulq_n_f32(vld1q_f32(pC + 12), beta);
+                    _out0 = vaddq_f32(_out0, _c0);
+                    _out1 = vaddq_f32(_out1, _c1);
+                    _out2 = vaddq_f32(_out2, _c2);
+                    _out3 = vaddq_f32(_out3, _c3);
+                    pC += 16;
+                }
+            }
+
+            if (alpha != 1.f)
+            {
+                _out0 = vmulq_n_f32(_out0, alpha);
+                _out1 = vmulq_n_f32(_out1, alpha);
+                _out2 = vmulq_n_f32(_out2, alpha);
+                _out3 = vmulq_n_f32(_out3, alpha);
+            }
+
+            vst1q_f32(outptr0, _out0);
+            vst1q_f32(outptr0 + 4, _out1);
+            vst1q_f32(outptr0 + 8, _out2);
+            vst1q_f32(outptr0 + 12, _out3);
+
+            outptr0 += 16;
+            pp += 16;
+        }
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            float32x4_t _out0 = vld1q_f32(pp + 0);
+            float32x4_t _out1 = vld1q_f32(pp + 4);
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    _out0 = vaddq_f32(_out0, _c0);
+                    _out1 = vaddq_f32(_out1, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _out0 = vaddq_f32(_out0, _c0);
+                    _out1 = vaddq_f32(_out1, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    _out0 = vaddq_f32(_out0, (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta)));
+                    _out1 = vaddq_f32(_out1, (beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta)));
+                    pC += 8;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
+                    _out0 = vaddq_f32(_out0, _c0);
+                    float32x4_t _c1 = (beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta));
+                    _out1 = vaddq_f32(_out1, _c1);
+                    pC += 8;
+                }
+            }
+
+            if (alpha != 1.f)
+            {
+                _out0 = vmulq_n_f32(_out0, alpha);
+                _out1 = vmulq_n_f32(_out1, alpha);
+            }
+
+            vst1q_f32(outptr0, _out0);
+            vst1q_f32(outptr0 + 4, _out1);
+
+            outptr0 += 8;
+            pp += 8;
+        }
+#endif // __aarch64__
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            float32x4_t _out0 = vld1q_f32(pp + 0);
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    _out0 = vaddq_f32(_out0, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _out0 = vaddq_f32(_out0, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    _out0 = vaddq_f32(_out0, (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta)));
+                    pC += 4;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
+                    _out0 = vaddq_f32(_out0, _c0);
+                    pC += 4;
+                }
+            }
+
+            if (alpha != 1.f)
+            {
+                _out0 = vmulq_n_f32(_out0, alpha);
+            }
+
+            vst1q_f32(outptr0, _out0);
+
+            outptr0 += 4;
+            pp += 4;
+        }
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            float32x2_t _out0 = vld1_f32(pp);
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    _out0 = vadd_f32(_out0, vdup_n_f32(c0));
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _out0 = vadd_f32(_out0, vdup_n_f32(c0));
+                }
+                if (broadcast_type_C == 3)
+                {
+                    float32x2_t _c0 = vld1_f32(pC);
+                    _out0 = beta == 1.f ? vadd_f32(_out0, _c0) : vmla_n_f32(_out0, _c0, beta);
+                    pC += 2;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x2_t _c0 = beta == 1.f ? vld1_f32(pC) : vmul_n_f32(vld1_f32(pC), beta);
+                    _out0 = vadd_f32(_out0, _c0);
+                    pC += 2;
+                }
+            }
+
+            if (alpha != 1.f)
+            {
+                _out0 = vmul_n_f32(_out0, alpha);
+            }
+
+            vst1_f32(outptr0, _out0);
+
+            outptr0 += 2;
+            pp += 2;
+        }
+#endif // __ARM_NEON
         for (; jj + 1 < max_jj; jj += 2)
         {
             float out00 = pp[0];
@@ -4726,11 +5513,13 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 {
                     out00 += beta == 1.f ? pC[0] : pC[0] * beta;
                     out01 += beta == 1.f ? pC[1] : pC[1] * beta;
+                    pC += 2;
                 }
                 if (broadcast_type_C == 4)
                 {
                     out00 += beta == 1.f ? pC[0] : pC[0] * beta;
                     out01 += beta == 1.f ? pC[1] : pC[1] * beta;
+                    pC += 2;
                 }
             }
 
@@ -4744,8 +5533,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             outptr0[1] = out01;
 
             outptr0 += 2;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 2;
             pp += 2;
         }
         for (; jj < max_jj; jj += 1)
@@ -4765,10 +5552,12 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 if (broadcast_type_C == 3)
                 {
                     out00 += beta == 1.f ? pC[0] : pC[0] * beta;
+                    pC++;
                 }
                 if (broadcast_type_C == 4)
                 {
                     out00 += beta == 1.f ? pC[0] : pC[0] * beta;
+                    pC++;
                 }
             }
 
@@ -4780,12 +5569,9 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             outptr0[0] = out00;
 
             outptr0++;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC++;
             pp += 1;
         }
     }
-#endif // __ARM_NEON
 }
 
 static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, int N, float alpha, float beta)
@@ -4875,7 +5661,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float32x4_t _c = beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta);
+                    float32x4_t _c = beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta);
                     _out0 = vaddq_f32(_out0, _c);
                     _out1 = vaddq_f32(_out1, _c);
                     _out2 = vaddq_f32(_out2, _c);
@@ -4951,7 +5737,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float32x2_t _c = beta == 1.f ? vld1_f32(pC) : vmul_n_f32(vld1_f32(pC), beta);
+                    float32x2_t _c = beta == 1.f ? vld1_f32(pC) : vmul_n_f32(vld1_f32(pC), beta);
                     _out0 = vadd_f32(_out0, _c);
                     _out1 = vadd_f32(_out1, _c);
                     _out2 = vadd_f32(_out2, _c);
@@ -4992,8 +5778,8 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             {
                 if (broadcast_type_C <= 2)
                 {
-                    const float32x4_t _c0 = {c0, c1, c2, c3};
-                    const float32x4_t _c1 = {c4, c5, c6, c7};
+                    float32x4_t _c0 = {c0, c1, c2, c3};
+                    float32x4_t _c1 = {c4, c5, c6, c7};
                     _out0 = vaddq_f32(_out0, _c0);
                     _out1 = vaddq_f32(_out1, _c1);
                 }
@@ -5007,7 +5793,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float32x4_t _c = vdupq_n_f32(beta == 1.f ? pC[0] : pC[0] * beta);
+                    float32x4_t _c = vdupq_n_f32(beta == 1.f ? pC[0] : pC[0] * beta);
                     _out0 = vaddq_f32(_out0, _c);
                     _out1 = vaddq_f32(_out1, _c);
                     pC++;
@@ -5076,19 +5862,21 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     _out5 = vaddq_f32(_out5, (beta == 1.f ? vld1q_f32(pC + c_hstep * 2 + 4) : vmulq_n_f32(vld1q_f32(pC + c_hstep * 2 + 4), beta)));
                     _out6 = vaddq_f32(_out6, (beta == 1.f ? vld1q_f32(pC + c_hstep * 3) : vmulq_n_f32(vld1q_f32(pC + c_hstep * 3), beta)));
                     _out7 = vaddq_f32(_out7, (beta == 1.f ? vld1q_f32(pC + c_hstep * 3 + 4) : vmulq_n_f32(vld1q_f32(pC + c_hstep * 3 + 4), beta)));
+                    pC += 8;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float32x4_t _cc0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
+                    float32x4_t _cc0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
                     _out0 = vaddq_f32(_out0, _cc0);
                     _out2 = vaddq_f32(_out2, _cc0);
                     _out4 = vaddq_f32(_out4, _cc0);
                     _out6 = vaddq_f32(_out6, _cc0);
-                    const float32x4_t _cc1 = (beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta));
+                    float32x4_t _cc1 = (beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta));
                     _out1 = vaddq_f32(_out1, _cc1);
                     _out3 = vaddq_f32(_out3, _cc1);
                     _out5 = vaddq_f32(_out5, _cc1);
                     _out7 = vaddq_f32(_out7, _cc1);
+                    pC += 8;
                 }
             }
 
@@ -5109,10 +5897,10 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        const float32x4_t _c0 = vdupq_lane_f32(vget_low_f32(_c0123), 0);
-                        const float32x4_t _c1 = vdupq_lane_f32(vget_low_f32(_c0123), 1);
-                        const float32x4_t _c2 = vdupq_lane_f32(vget_high_f32(_c0123), 0);
-                        const float32x4_t _c3 = vdupq_lane_f32(vget_high_f32(_c0123), 1);
+                        float32x4_t _c0 = vdupq_lane_f32(vget_low_f32(_c0123), 0);
+                        float32x4_t _c1 = vdupq_lane_f32(vget_low_f32(_c0123), 1);
+                        float32x4_t _c2 = vdupq_lane_f32(vget_high_f32(_c0123), 0);
+                        float32x4_t _c3 = vdupq_lane_f32(vget_high_f32(_c0123), 1);
                         _out0 = vaddq_f32(_out0, _c0);
                         _out1 = vaddq_f32(_out1, _c0);
                         _out2 = vaddq_f32(_out2, _c1);
@@ -5189,8 +5977,6 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             }
 
             outptr0 += out_hstep * 8;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 8;
             pp += 32;
         }
 #endif // __aarch64__
@@ -5209,14 +5995,16 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     _out1 = vaddq_f32(_out1, (beta == 1.f ? vld1q_f32(pC + c_hstep) : vmulq_n_f32(vld1q_f32(pC + c_hstep), beta)));
                     _out2 = vaddq_f32(_out2, (beta == 1.f ? vld1q_f32(pC + c_hstep * 2) : vmulq_n_f32(vld1q_f32(pC + c_hstep * 2), beta)));
                     _out3 = vaddq_f32(_out3, (beta == 1.f ? vld1q_f32(pC + c_hstep * 3) : vmulq_n_f32(vld1q_f32(pC + c_hstep * 3), beta)));
+                    pC += 4;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float32x4_t _cc0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
+                    float32x4_t _cc0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
                     _out0 = vaddq_f32(_out0, _cc0);
                     _out1 = vaddq_f32(_out1, _cc0);
                     _out2 = vaddq_f32(_out2, _cc0);
                     _out3 = vaddq_f32(_out3, _cc0);
+                    pC += 4;
                 }
             }
 
@@ -5282,8 +6070,6 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             }
 
             outptr0 += out_hstep * 4;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 4;
             pp += 16;
         }
         for (; jj + 1 < max_jj; jj += 2)
@@ -5295,19 +6081,21 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             {
                 if (broadcast_type_C == 3)
                 {
-                    const float32x4_t _c01 = vcombine_f32(vld1_f32(pC), vld1_f32(pC + c_hstep));
-                    const float32x4_t _c23 = vcombine_f32(vld1_f32(pC + c_hstep * 2), vld1_f32(pC + c_hstep * 3));
+                    float32x4_t _c01 = vcombine_f32(vld1_f32(pC), vld1_f32(pC + c_hstep));
+                    float32x4_t _c23 = vcombine_f32(vld1_f32(pC + c_hstep * 2), vld1_f32(pC + c_hstep * 3));
                     _out0 = beta == 1.f ? vaddq_f32(_out0, _c01) : vmlaq_n_f32(_out0, _c01, beta);
                     _out1 = beta == 1.f ? vaddq_f32(_out1, _c23) : vmlaq_n_f32(_out1, _c23, beta);
+                    pC += 2;
                 }
                 if (broadcast_type_C == 4)
                 {
                     float32x2_t _c = vld1_f32(pC);
                     if (beta != 1.f)
                         _c = vmul_n_f32(_c, beta);
-                    const float32x4_t _cc0 = vcombine_f32(_c, _c);
+                    float32x4_t _cc0 = vcombine_f32(_c, _c);
                     _out0 = vaddq_f32(_out0, _cc0);
                     _out1 = vaddq_f32(_out1, _cc0);
+                    pC += 2;
                 }
             }
 
@@ -5362,8 +6150,6 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             }
 
             outptr0 += out_hstep * 2;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 2;
             pp += 8;
         }
         for (; jj < max_jj; jj += 1)
@@ -5387,11 +6173,13 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     _c = vsetq_lane_f32(pC[c_hstep * 2], _c, 2);
                     _c = vsetq_lane_f32(pC[c_hstep * 3], _c, 3);
                     _out0 = beta == 1.f ? vaddq_f32(_out0, _c) : vmlaq_n_f32(_out0, _c, beta);
+                    pC++;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float32x4_t _cc0 = vdupq_n_f32(beta == 1.f ? pC[0] : pC[0] * beta);
+                    float32x4_t _cc0 = vdupq_n_f32(beta == 1.f ? pC[0] : pC[0] * beta);
                     _out0 = vaddq_f32(_out0, _cc0);
+                    pC++;
                 }
             }
 
@@ -5403,16 +6191,19 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             vst1q_f32(outptr0, _out0);
 
             outptr0 += out_hstep;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC++;
             pp += 4;
         }
     }
+#endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
         pC = (const float*)C;
         float* outptr0 = (float*)top_blob + (size_t)j * out_hstep + i + ii;
+#if __ARM_NEON
         float32x4_t _c01 = vdupq_n_f32(0.f);
+#endif
+        float c0 = 0.f;
+        float c1 = 0.f;
         if (pC)
         {
             if (broadcast_type_C == 0)
@@ -5420,14 +6211,26 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 float c = pC[0];
                 if (beta != 1.f)
                     c *= beta;
+                c0 = c;
+                c1 = c;
+#if __ARM_NEON
                 _c01 = vdupq_n_f32(c);
+#endif
             }
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
+                c0 = pC[i + ii];
+                if (beta != 1.f)
+                    c0 *= beta;
+                c1 = pC[i + ii + 1];
+                if (beta != 1.f)
+                    c1 *= beta;
+#if __ARM_NEON
                 float32x2_t _c = vld1_f32(pC + i + ii);
                 if (beta != 1.f)
                     _c = vmul_n_f32(_c, beta);
                 _c01 = vcombine_f32(_c, _c);
+#endif
             }
             if (broadcast_type_C == 3)
                 pC = (const float*)C + (i + ii) * c_hstep + j;
@@ -5436,6 +6239,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
         }
 
         int jj = 0;
+#if __ARM_NEON
 #if __aarch64__
         for (; jj + 7 < max_jj; jj += 8)
         {
@@ -5452,15 +6256,17 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     _out1 = vaddq_f32(_out1, (beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta)));
                     _out2 = vaddq_f32(_out2, (beta == 1.f ? vld1q_f32(pC + c_hstep) : vmulq_n_f32(vld1q_f32(pC + c_hstep), beta)));
                     _out3 = vaddq_f32(_out3, (beta == 1.f ? vld1q_f32(pC + c_hstep + 4) : vmulq_n_f32(vld1q_f32(pC + c_hstep + 4), beta)));
+                    pC += 8;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float32x4_t _c0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
+                    float32x4_t _c0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
                     _out0 = vaddq_f32(_out0, _c0);
                     _out2 = vaddq_f32(_out2, _c0);
-                    const float32x4_t _c1 = (beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta));
+                    float32x4_t _c1 = (beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta));
                     _out1 = vaddq_f32(_out1, _c1);
                     _out3 = vaddq_f32(_out3, _c1);
+                    pC += 8;
                 }
             }
 
@@ -5477,8 +6283,8 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        const float32x4_t _c0 = vdupq_lane_f32(vget_low_f32(_c01), 0);
-                        const float32x4_t _c1 = vdupq_lane_f32(vget_low_f32(_c01), 1);
+                        float32x4_t _c0 = vdupq_lane_f32(vget_low_f32(_c01), 0);
+                        float32x4_t _c1 = vdupq_lane_f32(vget_low_f32(_c01), 1);
                         _out0 = vaddq_f32(_out0, _c0);
                         _out1 = vaddq_f32(_out1, _c0);
                         _out2 = vaddq_f32(_out2, _c1);
@@ -5568,8 +6374,6 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             }
 
             outptr0 += out_hstep * 8;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 8;
             pp += 16;
         }
 #endif // __aarch64__
@@ -5584,12 +6388,14 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 {
                     _out0 = vaddq_f32(_out0, (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta)));
                     _out1 = vaddq_f32(_out1, (beta == 1.f ? vld1q_f32(pC + c_hstep) : vmulq_n_f32(vld1q_f32(pC + c_hstep), beta)));
+                    pC += 4;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float32x4_t _c0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
+                    float32x4_t _c0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
                     _out0 = vaddq_f32(_out0, _c0);
                     _out1 = vaddq_f32(_out1, _c0);
+                    pC += 4;
                 }
             }
 
@@ -5664,8 +6470,6 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             }
 
             outptr0 += out_hstep * 4;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 4;
             pp += 8;
         }
         for (; jj + 1 < max_jj; jj += 2)
@@ -5677,16 +6481,18 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             {
                 if (broadcast_type_C == 3)
                 {
-                    const float32x2_t _c0 = vld1_f32(pC);
-                    const float32x2_t _c1 = vld1_f32(pC + c_hstep);
+                    float32x2_t _c0 = vld1_f32(pC);
+                    float32x2_t _c1 = vld1_f32(pC + c_hstep);
                     _out0 = beta == 1.f ? vadd_f32(_out0, _c0) : vmla_n_f32(_out0, _c0, beta);
                     _out1 = beta == 1.f ? vadd_f32(_out1, _c1) : vmla_n_f32(_out1, _c1, beta);
+                    pC += 2;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float32x2_t _c0 = beta == 1.f ? vld1_f32(pC) : vmul_n_f32(vld1_f32(pC), beta);
+                    float32x2_t _c0 = beta == 1.f ? vld1_f32(pC) : vmul_n_f32(vld1_f32(pC), beta);
                     _out0 = vadd_f32(_out0, _c0);
                     _out1 = vadd_f32(_out1, _c0);
+                    pC += 2;
                 }
             }
 
@@ -5743,8 +6549,6 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             }
 
             outptr0 += out_hstep * 2;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 2;
             pp += 4;
         }
         for (; jj < max_jj; jj += 1)
@@ -5766,10 +6570,12 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     float32x2_t _c = vdup_n_f32(pC[0]);
                     _c = vset_lane_f32(pC[c_hstep], _c, 1);
                     _out0 = beta == 1.f ? vadd_f32(_out0, _c) : vmla_n_f32(_out0, _c, beta);
+                    pC++;
                 }
                 if (broadcast_type_C == 4)
                 {
                     _out0 = vadd_f32(_out0, vdup_n_f32(beta == 1.f ? pC[0] : pC[0] * beta));
+                    pC++;
                 }
             }
 
@@ -5781,264 +6587,9 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             vst1_f32(outptr0, _out0);
 
             outptr0 += out_hstep;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC++;
             pp += 2;
         }
-    }
-    for (; ii < max_ii; ii++)
-    {
-        pC = (const float*)C;
-        float* outptr0 = (float*)top_blob + (size_t)j * out_hstep + i + ii;
-        float32x4_t _c0;
-        float c0 = 0.f;
-        if (pC)
-        {
-            if (broadcast_type_C == 0)
-            {
-                c0 = pC[0];
-                if (beta != 1.f)
-                    c0 *= beta;
-                _c0 = vdupq_n_f32(c0);
-            }
-            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-            {
-                c0 = pC[i + ii];
-                if (beta != 1.f)
-                    c0 *= beta;
-                _c0 = vdupq_n_f32(c0);
-            }
-            if (broadcast_type_C == 3)
-                pC = (const float*)C + (i + ii) * c_hstep + j;
-            if (broadcast_type_C == 4)
-                pC = (const float*)C + j;
-        }
-
-        int jj = 0;
-#if __aarch64__
-        for (; jj + 7 < max_jj; jj += 8)
-        {
-            float32x4_t _out0 = vld1q_f32(pp + 0);
-            float32x4_t _out1 = vld1q_f32(pp + 4);
-
-            if (pC)
-            {
-                if (broadcast_type_C == 0)
-                {
-                    _out0 = vaddq_f32(_out0, _c0);
-                    _out1 = vaddq_f32(_out1, _c0);
-                }
-                if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    _out0 = vaddq_f32(_out0, _c0);
-                    _out1 = vaddq_f32(_out1, _c0);
-                }
-                if (broadcast_type_C == 3)
-                {
-                    _out0 = vaddq_f32(_out0, (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta)));
-                    _out1 = vaddq_f32(_out1, (beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta)));
-                }
-                if (broadcast_type_C == 4)
-                {
-                    const float32x4_t _c0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
-                    _out0 = vaddq_f32(_out0, _c0);
-                    const float32x4_t _c1 = (beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta));
-                    _out1 = vaddq_f32(_out1, _c1);
-                }
-            }
-
-            if (alpha != 1.f)
-            {
-                _out0 = vmulq_n_f32(_out0, alpha);
-                _out1 = vmulq_n_f32(_out1, alpha);
-            }
-
-            if (out_hstep == 1)
-            {
-                vst1q_f32(outptr0, _out0);
-                vst1q_f32(outptr0 + 4, _out1);
-            }
-            else
-            {
-                vst1q_lane_f32(outptr0, _out0, 0);
-                vst1q_lane_f32(outptr0 + out_hstep, _out0, 1);
-                vst1q_lane_f32(outptr0 + out_hstep * 2, _out0, 2);
-                vst1q_lane_f32(outptr0 + out_hstep * 3, _out0, 3);
-                vst1q_lane_f32(outptr0 + out_hstep * 4, _out1, 0);
-                vst1q_lane_f32(outptr0 + out_hstep * 5, _out1, 1);
-                vst1q_lane_f32(outptr0 + out_hstep * 6, _out1, 2);
-                vst1q_lane_f32(outptr0 + out_hstep * 7, _out1, 3);
-            }
-
-            outptr0 += out_hstep * 8;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 8;
-            pp += 8;
-        }
-#endif // __aarch64__
-        for (; jj + 3 < max_jj; jj += 4)
-        {
-            float32x4_t _out0 = vld1q_f32(pp + 0);
-
-            if (pC)
-            {
-                if (broadcast_type_C == 0)
-                {
-                    _out0 = vaddq_f32(_out0, _c0);
-                }
-                if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    _out0 = vaddq_f32(_out0, _c0);
-                }
-                if (broadcast_type_C == 3)
-                {
-                    _out0 = vaddq_f32(_out0, (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta)));
-                }
-                if (broadcast_type_C == 4)
-                {
-                    const float32x4_t _c0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
-                    _out0 = vaddq_f32(_out0, _c0);
-                }
-            }
-
-            if (alpha != 1.f)
-            {
-                _out0 = vmulq_n_f32(_out0, alpha);
-            }
-
-            if (out_hstep == 1)
-            {
-                vst1q_f32(outptr0, _out0);
-            }
-            else
-            {
-                vst1q_lane_f32(outptr0, _out0, 0);
-                vst1q_lane_f32(outptr0 + out_hstep, _out0, 1);
-                vst1q_lane_f32(outptr0 + out_hstep * 2, _out0, 2);
-                vst1q_lane_f32(outptr0 + out_hstep * 3, _out0, 3);
-            }
-
-            outptr0 += out_hstep * 4;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 4;
-            pp += 4;
-        }
-        for (; jj + 1 < max_jj; jj += 2)
-        {
-            float32x2_t _out0 = vld1_f32(pp);
-
-            if (pC)
-            {
-                if (broadcast_type_C == 0)
-                {
-                    _out0 = vadd_f32(_out0, vdup_n_f32(c0));
-                }
-                if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    _out0 = vadd_f32(_out0, vdup_n_f32(c0));
-                }
-                if (broadcast_type_C == 3)
-                {
-                    const float32x2_t _c0 = vld1_f32(pC);
-                    _out0 = beta == 1.f ? vadd_f32(_out0, _c0) : vmla_n_f32(_out0, _c0, beta);
-                }
-                if (broadcast_type_C == 4)
-                {
-                    const float32x2_t _c0 = beta == 1.f ? vld1_f32(pC) : vmul_n_f32(vld1_f32(pC), beta);
-                    _out0 = vadd_f32(_out0, _c0);
-                }
-            }
-
-            if (alpha != 1.f)
-            {
-                _out0 = vmul_n_f32(_out0, alpha);
-            }
-
-            if (out_hstep == 1)
-            {
-                vst1_f32(outptr0, _out0);
-            }
-            else
-            {
-                vst1_lane_f32(outptr0, _out0, 0);
-                vst1_lane_f32(outptr0 + out_hstep, _out0, 1);
-            }
-
-            outptr0 += out_hstep * 2;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 2;
-            pp += 2;
-        }
-        for (; jj < max_jj; jj += 1)
-        {
-            float out0 = pp[0];
-
-            if (pC)
-            {
-                if (broadcast_type_C == 0)
-                {
-                    out0 += c0;
-                }
-                if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    out0 += c0;
-                }
-                if (broadcast_type_C == 3)
-                {
-                    out0 += beta == 1.f ? pC[0] : pC[0] * beta;
-                }
-                if (broadcast_type_C == 4)
-                {
-                    out0 += beta == 1.f ? pC[0] : pC[0] * beta;
-                }
-            }
-
-            if (alpha != 1.f)
-            {
-                out0 *= alpha;
-            }
-
-            outptr0[0] = out0;
-
-            outptr0 += out_hstep;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC++;
-            pp += 1;
-        }
-    }
-#else
-    for (; ii + 1 < max_ii; ii += 2)
-    {
-        pC = (const float*)C;
-        float* outptr0 = (float*)top_blob + (size_t)j * out_hstep + i + ii;
-        float c0 = 0.f;
-        float c1 = 0.f;
-        if (pC)
-        {
-            if (broadcast_type_C == 0)
-            {
-                float c = pC[0];
-                if (beta != 1.f)
-                    c *= beta;
-                c0 = c;
-                c1 = c;
-            }
-            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-            {
-                c0 = pC[i + ii];
-                if (beta != 1.f)
-                    c0 *= beta;
-                c1 = pC[i + ii + 1];
-                if (beta != 1.f)
-                    c1 *= beta;
-            }
-            if (broadcast_type_C == 3)
-                pC = (const float*)C + (i + ii) * c_hstep + j;
-            if (broadcast_type_C == 4)
-                pC = (const float*)C + j;
-        }
-
-        int jj = 0;
+#endif // __ARM_NEON
         for (; jj + 1 < max_jj; jj += 2)
         {
             float out00 = pp[0];
@@ -6068,6 +6619,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     out01 += beta == 1.f ? pC[1] : pC[1] * beta;
                     out10 += beta == 1.f ? pC[c_hstep] : pC[c_hstep] * beta;
                     out11 += beta == 1.f ? pC[c_hstep + 1] : pC[c_hstep + 1] * beta;
+                    pC += 2;
                 }
                 if (broadcast_type_C == 4)
                 {
@@ -6075,6 +6627,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     out01 += beta == 1.f ? pC[1] : pC[1] * beta;
                     out10 += beta == 1.f ? pC[0] : pC[0] * beta;
                     out11 += beta == 1.f ? pC[1] : pC[1] * beta;
+                    pC += 2;
                 }
             }
 
@@ -6092,8 +6645,6 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             outptr0[out_hstep + 1] = out11;
 
             outptr0 += out_hstep * 2;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 2;
             pp += 4;
         }
         for (; jj < max_jj; jj += 1)
@@ -6117,11 +6668,13 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 {
                     out00 += beta == 1.f ? pC[0] : pC[0] * beta;
                     out10 += beta == 1.f ? pC[c_hstep] : pC[c_hstep] * beta;
+                    pC++;
                 }
                 if (broadcast_type_C == 4)
                 {
                     out00 += beta == 1.f ? pC[0] : pC[0] * beta;
                     out10 += beta == 1.f ? pC[0] : pC[0] * beta;
+                    pC++;
                 }
             }
 
@@ -6135,8 +6688,6 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             outptr0[1] = out10;
 
             outptr0 += out_hstep;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC++;
             pp += 2;
         }
     }
@@ -6144,21 +6695,29 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
     {
         pC = (const float*)C;
         float* outptr0 = (float*)top_blob + (size_t)j * out_hstep + i + ii;
+#if __ARM_NEON
+        float32x4_t _c0;
+#endif
         float c0 = 0.f;
         if (pC)
         {
             if (broadcast_type_C == 0)
             {
-                float c = pC[0];
+                c0 = pC[0];
                 if (beta != 1.f)
-                    c *= beta;
-                c0 = c;
+                    c0 *= beta;
+#if __ARM_NEON
+                _c0 = vdupq_n_f32(c0);
+#endif
             }
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
                 c0 = pC[i + ii];
                 if (beta != 1.f)
                     c0 *= beta;
+#if __ARM_NEON
+                _c0 = vdupq_n_f32(c0);
+#endif
             }
             if (broadcast_type_C == 3)
                 pC = (const float*)C + (i + ii) * c_hstep + j;
@@ -6167,6 +6726,230 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
         }
 
         int jj = 0;
+#if __ARM_NEON
+#if __aarch64__
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            float32x4_t _out0 = vld1q_f32(pp);
+            float32x4_t _out1 = vld1q_f32(pp + 4);
+            float32x4_t _out2 = vld1q_f32(pp + 8);
+            float32x4_t _out3 = vld1q_f32(pp + 12);
+
+            if (pC)
+            {
+                if (broadcast_type_C <= 2)
+                {
+                    _out0 = vaddq_f32(_out0, _c0);
+                    _out1 = vaddq_f32(_out1, _c0);
+                    _out2 = vaddq_f32(_out2, _c0);
+                    _out3 = vaddq_f32(_out3, _c0);
+                }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta);
+                    float32x4_t _c1 = beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta);
+                    float32x4_t _c2 = beta == 1.f ? vld1q_f32(pC + 8) : vmulq_n_f32(vld1q_f32(pC + 8), beta);
+                    float32x4_t _c3 = beta == 1.f ? vld1q_f32(pC + 12) : vmulq_n_f32(vld1q_f32(pC + 12), beta);
+                    _out0 = vaddq_f32(_out0, _c0);
+                    _out1 = vaddq_f32(_out1, _c1);
+                    _out2 = vaddq_f32(_out2, _c2);
+                    _out3 = vaddq_f32(_out3, _c3);
+                    pC += 16;
+                }
+            }
+
+            if (alpha != 1.f)
+            {
+                _out0 = vmulq_n_f32(_out0, alpha);
+                _out1 = vmulq_n_f32(_out1, alpha);
+                _out2 = vmulq_n_f32(_out2, alpha);
+                _out3 = vmulq_n_f32(_out3, alpha);
+            }
+
+            if (out_hstep == 1)
+            {
+                vst1q_f32(outptr0, _out0);
+                vst1q_f32(outptr0 + 4, _out1);
+                vst1q_f32(outptr0 + 8, _out2);
+                vst1q_f32(outptr0 + 12, _out3);
+            }
+            else
+            {
+                vst1q_lane_f32(outptr0, _out0, 0);
+                vst1q_lane_f32(outptr0 + out_hstep, _out0, 1);
+                vst1q_lane_f32(outptr0 + out_hstep * 2, _out0, 2);
+                vst1q_lane_f32(outptr0 + out_hstep * 3, _out0, 3);
+                vst1q_lane_f32(outptr0 + out_hstep * 4, _out1, 0);
+                vst1q_lane_f32(outptr0 + out_hstep * 5, _out1, 1);
+                vst1q_lane_f32(outptr0 + out_hstep * 6, _out1, 2);
+                vst1q_lane_f32(outptr0 + out_hstep * 7, _out1, 3);
+                vst1q_lane_f32(outptr0 + out_hstep * 8, _out2, 0);
+                vst1q_lane_f32(outptr0 + out_hstep * 9, _out2, 1);
+                vst1q_lane_f32(outptr0 + out_hstep * 10, _out2, 2);
+                vst1q_lane_f32(outptr0 + out_hstep * 11, _out2, 3);
+                vst1q_lane_f32(outptr0 + out_hstep * 12, _out3, 0);
+                vst1q_lane_f32(outptr0 + out_hstep * 13, _out3, 1);
+                vst1q_lane_f32(outptr0 + out_hstep * 14, _out3, 2);
+                vst1q_lane_f32(outptr0 + out_hstep * 15, _out3, 3);
+            }
+
+            outptr0 += out_hstep * 16;
+            pp += 16;
+        }
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            float32x4_t _out0 = vld1q_f32(pp + 0);
+            float32x4_t _out1 = vld1q_f32(pp + 4);
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    _out0 = vaddq_f32(_out0, _c0);
+                    _out1 = vaddq_f32(_out1, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _out0 = vaddq_f32(_out0, _c0);
+                    _out1 = vaddq_f32(_out1, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    _out0 = vaddq_f32(_out0, (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta)));
+                    _out1 = vaddq_f32(_out1, (beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta)));
+                    pC += 8;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
+                    _out0 = vaddq_f32(_out0, _c0);
+                    float32x4_t _c1 = (beta == 1.f ? vld1q_f32(pC + 4) : vmulq_n_f32(vld1q_f32(pC + 4), beta));
+                    _out1 = vaddq_f32(_out1, _c1);
+                    pC += 8;
+                }
+            }
+
+            if (alpha != 1.f)
+            {
+                _out0 = vmulq_n_f32(_out0, alpha);
+                _out1 = vmulq_n_f32(_out1, alpha);
+            }
+
+            if (out_hstep == 1)
+            {
+                vst1q_f32(outptr0, _out0);
+                vst1q_f32(outptr0 + 4, _out1);
+            }
+            else
+            {
+                vst1q_lane_f32(outptr0, _out0, 0);
+                vst1q_lane_f32(outptr0 + out_hstep, _out0, 1);
+                vst1q_lane_f32(outptr0 + out_hstep * 2, _out0, 2);
+                vst1q_lane_f32(outptr0 + out_hstep * 3, _out0, 3);
+                vst1q_lane_f32(outptr0 + out_hstep * 4, _out1, 0);
+                vst1q_lane_f32(outptr0 + out_hstep * 5, _out1, 1);
+                vst1q_lane_f32(outptr0 + out_hstep * 6, _out1, 2);
+                vst1q_lane_f32(outptr0 + out_hstep * 7, _out1, 3);
+            }
+
+            outptr0 += out_hstep * 8;
+            pp += 8;
+        }
+#endif // __aarch64__
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            float32x4_t _out0 = vld1q_f32(pp + 0);
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    _out0 = vaddq_f32(_out0, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _out0 = vaddq_f32(_out0, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    _out0 = vaddq_f32(_out0, (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta)));
+                    pC += 4;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c0 = (beta == 1.f ? vld1q_f32(pC) : vmulq_n_f32(vld1q_f32(pC), beta));
+                    _out0 = vaddq_f32(_out0, _c0);
+                    pC += 4;
+                }
+            }
+
+            if (alpha != 1.f)
+            {
+                _out0 = vmulq_n_f32(_out0, alpha);
+            }
+
+            if (out_hstep == 1)
+            {
+                vst1q_f32(outptr0, _out0);
+            }
+            else
+            {
+                vst1q_lane_f32(outptr0, _out0, 0);
+                vst1q_lane_f32(outptr0 + out_hstep, _out0, 1);
+                vst1q_lane_f32(outptr0 + out_hstep * 2, _out0, 2);
+                vst1q_lane_f32(outptr0 + out_hstep * 3, _out0, 3);
+            }
+
+            outptr0 += out_hstep * 4;
+            pp += 4;
+        }
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            float32x2_t _out0 = vld1_f32(pp);
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    _out0 = vadd_f32(_out0, vdup_n_f32(c0));
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _out0 = vadd_f32(_out0, vdup_n_f32(c0));
+                }
+                if (broadcast_type_C == 3)
+                {
+                    float32x2_t _c0 = vld1_f32(pC);
+                    _out0 = beta == 1.f ? vadd_f32(_out0, _c0) : vmla_n_f32(_out0, _c0, beta);
+                    pC += 2;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x2_t _c0 = beta == 1.f ? vld1_f32(pC) : vmul_n_f32(vld1_f32(pC), beta);
+                    _out0 = vadd_f32(_out0, _c0);
+                    pC += 2;
+                }
+            }
+
+            if (alpha != 1.f)
+            {
+                _out0 = vmul_n_f32(_out0, alpha);
+            }
+
+            if (out_hstep == 1)
+            {
+                vst1_f32(outptr0, _out0);
+            }
+            else
+            {
+                vst1_lane_f32(outptr0, _out0, 0);
+                vst1_lane_f32(outptr0 + out_hstep, _out0, 1);
+            }
+
+            outptr0 += out_hstep * 2;
+            pp += 2;
+        }
+#endif // __ARM_NEON
         for (; jj + 1 < max_jj; jj += 2)
         {
             float out00 = pp[0];
@@ -6188,11 +6971,13 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 {
                     out00 += beta == 1.f ? pC[0] : pC[0] * beta;
                     out01 += beta == 1.f ? pC[1] : pC[1] * beta;
+                    pC += 2;
                 }
                 if (broadcast_type_C == 4)
                 {
                     out00 += beta == 1.f ? pC[0] : pC[0] * beta;
                     out01 += beta == 1.f ? pC[1] : pC[1] * beta;
+                    pC += 2;
                 }
             }
 
@@ -6206,8 +6991,6 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             outptr0[out_hstep] = out01;
 
             outptr0 += out_hstep * 2;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 2;
             pp += 2;
         }
         for (; jj < max_jj; jj += 1)
@@ -6227,10 +7010,12 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 if (broadcast_type_C == 3)
                 {
                     out00 += beta == 1.f ? pC[0] : pC[0] * beta;
+                    pC++;
                 }
                 if (broadcast_type_C == 4)
                 {
                     out00 += beta == 1.f ? pC[0] : pC[0] * beta;
+                    pC++;
                 }
             }
 
@@ -6242,10 +7027,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             outptr0[0] = out00;
 
             outptr0 += out_hstep;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC++;
             pp += 1;
         }
     }
-#endif // __ARM_NEON
 }
