@@ -581,7 +581,7 @@ int Interp_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
             return -100;
     }
 
-    interp_forward_bf16s_sse(bottom_blobs, top_blobs, opt, resize_type, align_corner, height_scale, width_scale, output_height, output_width, !size_expr.empty());
+    interp_forward_bf16s_sse(bottom_blobs, top_blobs, opt, resize_type, align_corner, height_scale, width_scale, output_height, output_width, !size_expr.empty(), dynamic_target_size);
 
     return 0;
 }
