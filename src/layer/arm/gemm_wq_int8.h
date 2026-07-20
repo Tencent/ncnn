@@ -1651,7 +1651,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 32;
                     pB += 16;
                 }
-#else  // __ARM_FEATURE_DOTPROD
+#else // __ARM_FEATURE_DOTPROD
 #if NCNN_GNU_INLINE_ASM
                 {
                     int nn = (max_kk - kk) >> 2;
@@ -1893,7 +1893,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 32;
                     pB += 8;
                 }
-#else  // __ARM_FEATURE_DOTPROD
+#else // __ARM_FEATURE_DOTPROD
 #if NCNN_GNU_INLINE_ASM
                 {
                     int nn = (max_kk - kk) >> 2;
@@ -2139,7 +2139,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 32;
                     pB += 4;
                 }
-#else  // __ARM_FEATURE_DOTPROD
+#else // __ARM_FEATURE_DOTPROD
 #if NCNN_GNU_INLINE_ASM
                 {
                     int nn = (max_kk - kk) >> 2;
@@ -2409,7 +2409,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB0 += 16;
                     pB1 += 16;
                 }
-#else  // __ARM_FEATURE_DOTPROD
+#else // __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
                     int16x8_t _a = vreinterpretq_s16_s8(vld1q_s8(pA));
@@ -2591,7 +2591,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                     pB += 16;
                 }
-#else  // __ARM_FEATURE_DOTPROD
+#else // __ARM_FEATURE_DOTPROD
 #if NCNN_GNU_INLINE_ASM && !__aarch64__
                 {
                     int nn = (max_kk - kk) >> 2;
@@ -2630,7 +2630,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                         : "cc", "memory", "q0", "q1", "q2", "q3");
                     kk += remain * 4;
                 }
-#else  // NCNN_GNU_INLINE_ASM && !__aarch64__
+#else // NCNN_GNU_INLINE_ASM && !__aarch64__
                 for (; kk + 3 < max_kk; kk += 4)
                 {
                     int16x8_t _a = vreinterpretq_s16_s8(vld1q_s8(pA));
@@ -2761,7 +2761,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                     pB += 8;
                 }
-#else  // __ARM_FEATURE_DOTPROD
+#else // __ARM_FEATURE_DOTPROD
 #if NCNN_GNU_INLINE_ASM && !__aarch64__
                 {
                     int nn = (max_kk - kk) >> 2;
@@ -2802,7 +2802,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                         : "cc", "memory", "q0", "q1", "q2", "q3", "q4");
                     kk += remain * 4;
                 }
-#else  // NCNN_GNU_INLINE_ASM && !__aarch64__
+#else // NCNN_GNU_INLINE_ASM && !__aarch64__
                 for (; kk + 3 < max_kk; kk += 4)
                 {
                     int16x8_t _a = vreinterpretq_s16_s8(vld1q_s8(pA));
@@ -2935,7 +2935,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                     pB += 4;
                 }
-#else  // __ARM_FEATURE_DOTPROD
+#else // __ARM_FEATURE_DOTPROD
 #if NCNN_GNU_INLINE_ASM && !__aarch64__
                 {
                     int nn = (max_kk - kk) >> 2;
@@ -2975,7 +2975,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                         : "cc", "memory", "q0", "q1", "q2", "q3");
                     kk += remain * 4;
                 }
-#else  // NCNN_GNU_INLINE_ASM && !__aarch64__
+#else // NCNN_GNU_INLINE_ASM && !__aarch64__
                 for (; kk + 3 < max_kk; kk += 4)
                 {
                     int16x8_t _a = vreinterpretq_s16_s8(vld1q_s8(pA));
@@ -3123,7 +3123,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB0 += 16;
                     pB1 += 16;
                 }
-#else  // __ARM_FEATURE_DOTPROD
+#else // __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
                     int16x4_t _a = vreinterpret_s16_s8(vld1_s8(pA));
@@ -3252,7 +3252,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     pB += 16;
                 }
-#else  // __ARM_FEATURE_DOTPROD
+#else // __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
                     int16x4_t _a = vreinterpret_s16_s8(vld1_s8(pA));
@@ -3351,7 +3351,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     pB += 8;
                 }
-#else  // __ARM_FEATURE_DOTPROD
+#else // __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
                     int16x4_t _a = vreinterpret_s16_s8(vld1_s8(pA));
@@ -3452,7 +3452,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     pB += 4;
                 }
-#else  // __ARM_FEATURE_DOTPROD
+#else // __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk; kk += 4)
                 {
                     int16x4_t _a = vreinterpret_s16_s8(vld1_s8(pA));
@@ -4355,7 +4355,6 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
 #else
     TILE_M = std::min(TILE_M, 2);
 #endif
-
 }
 
 static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, int N, float alpha, float beta)

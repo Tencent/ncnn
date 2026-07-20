@@ -181,8 +181,8 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, unsigned char
                 p2 += 4;
                 p3 += 4;
             }
-#endif // __AVX512VNNI__ || __AVXVNNI__
-            // K2/K1 are always signed and compact, including classic VNNI.
+#endif // __AVX512VNNI__ || __AVXVNNI__ \
+// K2/K1 are always signed and compact, including classic VNNI.
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _p = _mm_setr_epi16((short)_mm_cvtsi128_si32(_mm_loadu_si16(p0)), (short)_mm_cvtsi128_si32(_mm_loadu_si16(p1)), (short)_mm_cvtsi128_si32(_mm_loadu_si16(p2)), (short)_mm_cvtsi128_si32(_mm_loadu_si16(p3)), 0, 0, 0, 0);
@@ -250,8 +250,8 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, unsigned char
                 p1 += 4;
             }
 #endif // __SSE2__
-#endif // __AVX512VNNI__ || __AVXVNNI__
-            // K2/K1 are always signed and compact, including classic VNNI.
+#endif // __AVX512VNNI__ || __AVXVNNI__ \
+// K2/K1 are always signed and compact, including classic VNNI.
 #if __SSE2__
             for (; kk + 1 < max_kk; kk += 2)
             {
@@ -313,8 +313,8 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, unsigned char
                 pp += 4;
                 p0 += 4;
             }
-#endif // __AVX512VNNI__ || __AVXVNNI__
-            // K2/K1 are always signed and compact, including classic VNNI.
+#endif // __AVX512VNNI__ || __AVXVNNI__ \
+// K2/K1 are always signed and compact, including classic VNNI.
             for (; kk + 1 < max_kk; kk += 2)
             {
 #if __SSE2__
