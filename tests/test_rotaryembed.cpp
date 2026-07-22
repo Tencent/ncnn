@@ -44,9 +44,48 @@ static int test_rotaryembed_0()
            || test_rotaryembed(RandomMat(28, 17, 15), 1);
 }
 
+// non-interleaved with a FULL-WIDTH (embed_dim) cos/sin cache whose two halves differ
+// (2D / vision rope). A half-width cache has identical halves; this exercises the path
+// where the second half must rotate with its own cos/sin.
+static int test_rotaryembed_fullcos(const ncnn::Mat& a)
+{
+    const int embed_dim = a.w;
+    const int seqlen = a.h;
+
+    ncnn::Mat cos_cache = RandomMat(embed_dim, seqlen);
+    ncnn::Mat sin_cache = RandomMat(embed_dim, seqlen);
+
+    ncnn::ParamDict pd;
+    pd.set(0, 0); // non-interleaved
+
+    std::vector<ncnn::Mat> weights(0);
+
+    std::vector<ncnn::Mat> as(3);
+    as[0] = a;
+    as[1] = cos_cache;
+    as[2] = sin_cache;
+
+    int ret = test_layer("RotaryEmbed", pd, weights, as, 1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_rotaryembed_fullcos failed a=(%d %d %d)\n", a.w, a.h, a.c);
+    }
+
+    return ret;
+}
+
+static int test_rotaryembed_1()
+{
+    return 0
+           || test_rotaryembed_fullcos(RandomMat(32, 66, 8))
+           || test_rotaryembed_fullcos(RandomMat(64, 28, 12))
+           || test_rotaryembed_fullcos(RandomMat(44, 28, 64))
+           || test_rotaryembed_fullcos(RandomMat(28, 17, 15));
+}
+
 int main()
 {
     SRAND(7767517);
 
-    return test_rotaryembed_0();
+    return test_rotaryembed_0() || test_rotaryembed_1();
 }
