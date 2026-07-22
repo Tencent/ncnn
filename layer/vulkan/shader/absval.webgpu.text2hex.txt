@@ -1,0 +1,17 @@
+#version 450
+layout (constant_id = 0) const uint n = 0;
+layout (binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
+struct parameter
+{
+uint n;
+};
+layout (binding = 1) uniform parameter_blob { parameter p; };
+void main()
+{
+const uint gi = gl_GlobalInvocationID.x;
+if (gi >= psc(n))
+return;
+afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
+v = abs(v);
+buffer_st4(bottom_top_blob_data, gi, v);
+}
