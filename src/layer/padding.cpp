@@ -286,6 +286,12 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
 
+    if (type == 2)
+    {
+        if (top >= h || bottom >= h || left >= w || right >= w || front >= channels || behind >= channels)
+            return -100;
+    }
+
     int outw = w + left + right;
 
     if (dims == 1)
