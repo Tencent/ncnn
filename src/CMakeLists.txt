@@ -42,6 +42,7 @@ set(ncnn_SRCS
     simplestl.cpp
     simplemath.cpp
     simplevk.cpp
+    webgpu.cpp
 )
 
 if(ANDROID)
@@ -309,7 +310,9 @@ if(NCNN_VULKAN)
                 target_link_libraries(ncnn PRIVATE "-Wl,-weak_library,${SIMPLEVK_TBD}")
             endif()
         endif()
-        target_link_libraries(ncnn PRIVATE ${CMAKE_DL_LIBS})
+        if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+            target_link_libraries(ncnn PRIVATE ${CMAKE_DL_LIBS})
+        endif()
     else()
         find_package(Vulkan QUIET)
         if(NOT Vulkan_FOUND)
