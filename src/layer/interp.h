@@ -22,6 +22,26 @@ public:
 protected:
     int eval_size_expr(const std::vector<Mat>& bottom_blobs, int& outw, int& outh) const;
 
+    float get_resize_scale_x(int w, int outw) const
+    {
+        return (output_width || dynamic_target_size || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
+    }
+
+    float get_resize_scale_y(int h, int outh) const
+    {
+        return (output_height || dynamic_target_size || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
+    }
+
+    bool is_identity_resize_x(int w, int outw) const
+    {
+        return outw == w && (output_width || dynamic_target_size || !size_expr.empty() || width_scale == 1.f);
+    }
+
+    bool is_identity_resize_y(int h, int outh) const
+    {
+        return outh == h && (output_height || dynamic_target_size || !size_expr.empty() || height_scale == 1.f);
+    }
+
 public:
     // param
     int resize_type; //1=nearest  2=bilinear  3=bicubic

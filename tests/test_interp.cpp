@@ -142,11 +142,9 @@ static float cubic_weight(float x)
     return 0.f;
 }
 
-static int test_interp_noninteger_scale_factor(int resize_type)
+static int test_interp_scale_factor(int resize_type, float scale_factor, int output_width)
 {
     const int input_width = 7;
-    const int output_width = 10;
-    const float scale_factor = 1.5f;
 
     ncnn::Mat a(input_width, 1);
     for (int x = 0; x < input_width; x++)
@@ -202,7 +200,7 @@ static int test_interp_noninteger_scale_factor(int resize_type)
 
         if (!NearlyEqual(expected, b[x], 0.0001f))
         {
-            fprintf(stderr, "test_interp_noninteger_scale_factor failed resize_type=%d x=%d expected=%f actual=%f\n", resize_type, x, expected, b[x]);
+            fprintf(stderr, "test_interp_scale_factor failed resize_type=%d scale_factor=%f x=%d expected=%f actual=%f\n", resize_type, scale_factor, x, expected, b[x]);
             return -1;
         }
     }
@@ -241,6 +239,28 @@ static int test_interp_dynamic_target_size(int resize_type)
     if (ret != 0)
     {
         fprintf(stderr, "test_interp_dynamic_target_size failed resize_type=%d\n", resize_type);
+    }
+
+    return ret;
+}
+
+static int test_interp_inferred_fractional_scale(int resize_type)
+{
+    ncnn::Mat a = RandomMat(7, 7);
+
+    ncnn::ParamDict pd;
+    pd.set(0, resize_type);
+    pd.set(1, 1.1f);
+    pd.set(2, 1.1f);
+    pd.set(3, 0);
+    pd.set(4, 0);
+
+    std::vector<ncnn::Mat> weights(0);
+
+    int ret = test_layer("Interp", pd, weights, a);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_interp_inferred_fractional_scale failed resize_type=%d\n", resize_type);
     }
 
     return ret;
@@ -827,8 +847,12 @@ int main()
            || test_interp_9()
            || test_interp_10()
            || test_interp_11()
-           || test_interp_noninteger_scale_factor(2)
-           || test_interp_noninteger_scale_factor(3)
+           || test_interp_scale_factor(2, 1.5f, 10)
+           || test_interp_scale_factor(3, 1.5f, 10)
+           || test_interp_scale_factor(2, 1.1f, 7)
+           || test_interp_scale_factor(3, 1.1f, 7)
            || test_interp_dynamic_target_size(2)
-           || test_interp_dynamic_target_size(3);
+           || test_interp_dynamic_target_size(3)
+           || test_interp_inferred_fractional_scale(2)
+           || test_interp_inferred_fractional_scale(3);
 }
