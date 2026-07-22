@@ -23,10 +23,10 @@ public:
 
 public:
     Layer* qk_softmax;
-    Layer* kvcache_concat;
 
     Pipeline* pipeline_sdpa_qk_cross;
     Pipeline* pipeline_sdpa_qkv_cross;
+    Pipeline* pipeline_sdpa_kvcache_update;
 
     // flash attention
     Pipeline* pipeline_sdpa_fa[8];
