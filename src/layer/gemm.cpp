@@ -50,7 +50,7 @@ static inline signed char weight_block_quantize_float2int8(float v)
     return (signed char)int32;
 }
 
-static void weight_block_quantize_activation_row_int8(const Mat& A, int transA, int i, signed char* outptr, float* descale_ptr, int K, int block_size, const float* input_scale_ptr)
+static void weight_block_quantize_activation_row_int8(const Mat& A, int transA, int i, signed char* outptr, float* descale_ptr, int K, int block_size)
 {
     const int block_count = (K + block_size - 1) / block_size;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
@@ -66,8 +66,6 @@ static void weight_block_quantize_activation_row_int8(const Mat& A, int transA, 
         {
             const int k = k0 + kk;
             float v = transA ? ((const float*)A)[k * A_hstep + i] : ptrA[k];
-            if (input_scale_ptr)
-                v *= input_scale_ptr[k];
             v = fabsf(v);
             if (v > absmax)
                 absmax = v;
@@ -88,8 +86,48 @@ static void weight_block_quantize_activation_row_int8(const Mat& A, int transA, 
         {
             const int k = k0 + kk;
             float v = transA ? ((const float*)A)[k * A_hstep + i] : ptrA[k];
-            if (input_scale_ptr)
-                v *= input_scale_ptr[k];
+            outptr[k] = weight_block_quantize_float2int8(v * scale);
+        }
+    }
+}
+
+static void weight_block_scale_quantize_activation_row_int8(const Mat& A, int transA, int i, signed char* outptr, float* descale_ptr, int K, int block_size, const float* input_scale_ptr)
+{
+    const int block_count = (K + block_size - 1) / block_size;
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
+    const float* ptrA = (const float*)A + i * A_hstep;
+
+    for (int g = 0; g < block_count; g++)
+    {
+        const int k0 = g * block_size;
+        const int max_kk = block_size < K - k0 ? block_size : K - k0;
+
+        float absmax = 0.f;
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            const int k = k0 + kk;
+            float v = transA ? ((const float*)A)[k * A_hstep + i] : ptrA[k];
+            v = fabsf(v) * input_scale_ptr[k];
+            if (v > absmax)
+                absmax = v;
+        }
+
+        if (absmax == 0.f)
+        {
+            descale_ptr[g] = 0.f;
+            for (int kk = 0; kk < max_kk; kk++)
+                outptr[k0 + kk] = 0;
+            continue;
+        }
+
+        const float scale = 127.f / absmax;
+        descale_ptr[g] = absmax / 127.f;
+
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            const int k = k0 + kk;
+            float v = transA ? ((const float*)A)[k * A_hstep + i] : ptrA[k];
+            v *= input_scale_ptr[k];
             outptr[k] = weight_block_quantize_float2int8(v * scale);
         }
     }
@@ -109,14 +147,27 @@ static int weight_block_quantize_gemm_transB_int8(const Mat& A, int transA, cons
     if (A_descales.empty())
         return -100;
 
-    const float* input_scale_ptr = input_scales;
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < M; i++)
+    if (input_scales.empty())
     {
-        signed char* outptr = A_int8.row<signed char>(i);
-        float* descale_ptr = A_descales.row(i);
-        weight_block_quantize_activation_row_int8(A, transA, i, outptr, descale_ptr, K, block_size, input_scale_ptr);
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < M; i++)
+        {
+            signed char* outptr = A_int8.row<signed char>(i);
+            float* descale_ptr = A_descales.row(i);
+            weight_block_quantize_activation_row_int8(A, transA, i, outptr, descale_ptr, K, block_size);
+        }
+    }
+    else
+    {
+        const float* input_scale_ptr = input_scales;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < M; i++)
+        {
+            signed char* outptr = A_int8.row<signed char>(i);
+            float* descale_ptr = A_descales.row(i);
+            weight_block_scale_quantize_activation_row_int8(A, transA, i, outptr, descale_ptr, K, block_size, input_scale_ptr);
+        }
     }
 
     const float* ptrC = C;

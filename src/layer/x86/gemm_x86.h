@@ -19,10 +19,6 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 protected:
-#if NCNN_WEIGHT_QUANT
-    int create_pipeline_wq_int8(const Option& opt);
-    int forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
-#endif
 #if NCNN_BF16
     int create_pipeline_bf16s(const Option& opt);
     int forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
@@ -30,6 +26,10 @@ protected:
 #if NCNN_INT8
     int create_pipeline_int8(const Option& opt);
     int forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+#endif
+#if NCNN_WEIGHT_QUANT
+    int create_pipeline_wq_int8(const Option& opt);
+    int forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif
 
 public:
