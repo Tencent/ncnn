@@ -7,6 +7,7 @@
 
 #include "option.h"
 #include "pipeline.h"
+#include "simplevk_printf.h"
 
 namespace ncnn {
 
@@ -111,8 +112,10 @@ public:
             {
                 VkPipelineBindPoint bind_point;
                 VkPipelineLayout pipeline_layout;
+                uint32_t first_set;
                 uint32_t descriptorset_count;
                 uint32_t descriptorset_offset;
+                VkDescriptorSet descriptorset;
             } bind_descriptorsets;
             struct
             {
@@ -186,6 +189,10 @@ public:
     uint32_t query_count;
     VkQueryPool query_pool;
 #endif // NCNN_BENCHMARK
+
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+    SimplevkPrintfCommand* simplevk_printf;
+#endif // NCNN_SIMPLEVK_DEBUG_PRINTF
 };
 
 VkComputePrivate::VkComputePrivate(const VulkanDevice* _vkdev)
@@ -201,6 +208,10 @@ VkComputePrivate::VkComputePrivate(const VulkanDevice* _vkdev)
     query_count = 0;
     query_pool = 0;
 #endif // NCNN_BENCHMARK
+
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+    simplevk_printf = simplevk_printf_command_create(vkdev);
+#endif // NCNN_SIMPLEVK_DEBUG_PRINTF
 
     init();
 }
@@ -245,6 +256,10 @@ VkComputePrivate::~VkComputePrivate()
         vkDestroyQueryPool(vkdev->vkdevice(), query_pool, 0);
     }
 #endif // NCNN_BENCHMARK
+
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+    simplevk_printf_command_destroy(simplevk_printf);
+#endif // NCNN_SIMPLEVK_DEBUG_PRINTF
 
     vkDestroyFence(vkdev->vkdevice(), compute_command_fence, 0);
 
@@ -1532,11 +1547,44 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             r.command_buffer = d->compute_command_buffer;
             r.bind_descriptorsets.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
             r.bind_descriptorsets.pipeline_layout = pipeline->pipeline_layout();
+            r.bind_descriptorsets.first_set = 0;
             r.bind_descriptorsets.descriptorset_count = 1;
             r.bind_descriptorsets.descriptorset_offset = d->descriptorsets.size() - 1;
+            r.bind_descriptorsets.descriptorset = descriptorset;
             d->delayed_records.push_back(r);
         }
     }
+
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+    if (simplevk_printf_shader_info_has_printf(shader_info))
+    {
+        if (vkdev->info.support_VK_KHR_push_descriptor())
+        {
+            if (simplevk_printf_command_record_reset(d->simplevk_printf, d->compute_command_buffer) != 0)
+                return;
+
+            if (simplevk_printf_command_record_bind(d->simplevk_printf, d->compute_command_buffer, pipeline->pipeline_layout()) != 0)
+                return;
+        }
+        else
+        {
+            VkDescriptorSet descriptorset = simplevk_printf_command_descriptorset(d->simplevk_printf);
+            if (!descriptorset)
+                return;
+
+            VkComputePrivate::record r;
+            r.type = VkComputePrivate::record::TYPE_bind_descriptorsets;
+            r.command_buffer = d->compute_command_buffer;
+            r.bind_descriptorsets.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
+            r.bind_descriptorsets.pipeline_layout = pipeline->pipeline_layout();
+            r.bind_descriptorsets.first_set = NCNN_SIMPLEVK_PRINTF_SET;
+            r.bind_descriptorsets.descriptorset_count = 1;
+            r.bind_descriptorsets.descriptorset_offset = 0;
+            r.bind_descriptorsets.descriptorset = descriptorset;
+            d->delayed_records.push_back(r);
+        }
+    }
+#endif // NCNN_SIMPLEVK_DEBUG_PRINTF
 
     // record push constants
     if (constant_count > 0)
@@ -1800,11 +1848,44 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
             r.command_buffer = d->compute_command_buffer;
             r.bind_descriptorsets.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
             r.bind_descriptorsets.pipeline_layout = pipeline->pipeline_layout();
+            r.bind_descriptorsets.first_set = 0;
             r.bind_descriptorsets.descriptorset_count = 1;
             r.bind_descriptorsets.descriptorset_offset = d->descriptorsets.size() - 1;
+            r.bind_descriptorsets.descriptorset = descriptorset;
             d->delayed_records.push_back(r);
         }
     }
+
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+    if (simplevk_printf_shader_info_has_printf(pipeline->shader_info()))
+    {
+        if (vkdev->info.support_VK_KHR_push_descriptor())
+        {
+            if (simplevk_printf_command_record_reset(d->simplevk_printf, d->compute_command_buffer) != 0)
+                return;
+
+            if (simplevk_printf_command_record_bind(d->simplevk_printf, d->compute_command_buffer, pipeline->pipeline_layout()) != 0)
+                return;
+        }
+        else
+        {
+            VkDescriptorSet descriptorset = simplevk_printf_command_descriptorset(d->simplevk_printf);
+            if (!descriptorset)
+                return;
+
+            VkComputePrivate::record r;
+            r.type = VkComputePrivate::record::TYPE_bind_descriptorsets;
+            r.command_buffer = d->compute_command_buffer;
+            r.bind_descriptorsets.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
+            r.bind_descriptorsets.pipeline_layout = pipeline->pipeline_layout();
+            r.bind_descriptorsets.first_set = NCNN_SIMPLEVK_PRINTF_SET;
+            r.bind_descriptorsets.descriptorset_count = 1;
+            r.bind_descriptorsets.descriptorset_offset = 0;
+            r.bind_descriptorsets.descriptorset = descriptorset;
+            d->delayed_records.push_back(r);
+        }
+    }
+#endif // NCNN_SIMPLEVK_DEBUG_PRINTF
 
     // record dispatch
     {
@@ -1843,6 +1924,13 @@ int VkCompute::submit_and_wait()
         if (d->query_pool)
             vkCmdResetQueryPool(d->compute_command_buffer, d->query_pool, 0, d->query_count);
 #endif // NCNN_BENCHMARK
+
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+        if (simplevk_printf_command_used(d->simplevk_printf))
+        {
+            simplevk_printf_command_record_reset(d->simplevk_printf, d->compute_command_buffer);
+        }
+#endif // NCNN_SIMPLEVK_DEBUG_PRINTF
 
         const size_t record_count = d->delayed_records.size();
 
@@ -1884,7 +1972,7 @@ int VkCompute::submit_and_wait()
             }
             case VkComputePrivate::record::TYPE_bind_descriptorsets:
             {
-                vkCmdBindDescriptorSets(r.command_buffer, r.bind_descriptorsets.bind_point, r.bind_descriptorsets.pipeline_layout, 0, r.bind_descriptorsets.descriptorset_count, &d->descriptorsets[r.bind_descriptorsets.descriptorset_offset], 0, 0);
+                vkCmdBindDescriptorSets(r.command_buffer, r.bind_descriptorsets.bind_point, r.bind_descriptorsets.pipeline_layout, r.bind_descriptorsets.first_set, r.bind_descriptorsets.descriptorset_count, &r.bind_descriptorsets.descriptorset, 0, 0);
                 break;
             }
             case VkComputePrivate::record::TYPE_push_constants:
@@ -1935,6 +2023,10 @@ int VkCompute::submit_and_wait()
 
     // end command buffer
     {
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+        simplevk_printf_command_record_readback(d->simplevk_printf, d->compute_command_buffer);
+#endif // NCNN_SIMPLEVK_DEBUG_PRINTF
+
         d->end_command_buffer();
     }
 
@@ -1981,6 +2073,10 @@ int VkCompute::submit_and_wait()
     }
 
     // handle delayed post records
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+    simplevk_printf_command_readback(d->simplevk_printf);
+#endif // NCNN_SIMPLEVK_DEBUG_PRINTF
+
     for (size_t i = 0; i < d->delayed_records.size(); i++)
     {
         const VkComputePrivate::record& r = d->delayed_records[i];
@@ -2082,6 +2178,10 @@ int VkCompute::reset()
     d->delayed_records.clear();
 
     d->pending_dispatch_total = 0;
+
+#if NCNN_SIMPLEVK_DEBUG_PRINTF
+    simplevk_printf_command_reset(d->simplevk_printf);
+#endif // NCNN_SIMPLEVK_DEBUG_PRINTF
 
     // reset command buffer and fence
     {
