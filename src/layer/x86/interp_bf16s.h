@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
-void interp_forward_bf16s_sse_avx512bf16(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr);
+void interp_forward_bf16s_sse_avx512bf16(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_dynamic_output_size);
 #endif
 
-static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr);
+static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_dynamic_output_size);
 
 static void vresize_bilinear_bf16s(const float* rows0, const float* rows1, unsigned short* Dp, int n, float b0, float b1)
 {
@@ -1407,12 +1407,12 @@ static void resize_bicubic_image_bf16s(const Mat& src, Mat& dst, float* alpha, i
     }
 }
 
-static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr)
+static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_dynamic_output_size)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        interp_forward_bf16s_sse_avx512bf16(bottom_blobs, top_blobs, opt, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr);
+        interp_forward_bf16s_sse_avx512bf16(bottom_blobs, top_blobs, opt, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_dynamic_output_size);
         return;
     }
 #endif
@@ -1455,7 +1455,7 @@ static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::
     {
         if (resize_type == 1) // nearest
         {
-            const float ws = (output_width || has_size_expr) ? w / (float)outw : 1.f / width_scale;
+            const float ws = (output_width || has_dynamic_output_size) ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -1481,7 +1481,7 @@ static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::
             int* xofs = buf;
             float* alpha = (float*)(buf + outw);
 
-            linear_coeffs(w, outw, xofs, alpha, align_corner);
+            linear_coeffs_impl(w, outw, xofs, alpha, align_corner, (output_width || has_dynamic_output_size) ? w / (float)outw : 1.f / width_scale);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -1554,7 +1554,7 @@ static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::
             int* xofs = buf;
             float* alpha = (float*)(buf + outw);
 
-            cubic_coeffs(w, outw, xofs, alpha, align_corner);
+            cubic_coeffs_impl(w, outw, xofs, alpha, align_corner, (output_width || has_dynamic_output_size) ? w / (float)outw : 1.f / width_scale);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -1645,8 +1645,8 @@ static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::
 
     if (resize_type == 1) // nearest
     {
-        const float hs = (output_height || has_size_expr) ? h / (float)outh : 1.f / height_scale;
-        const float ws = (output_width || has_size_expr) ? w / (float)outw : 1.f / width_scale;
+        const float hs = (output_height || has_dynamic_output_size) ? h / (float)outh : 1.f / height_scale;
+        const float ws = (output_width || has_dynamic_output_size) ? w / (float)outw : 1.f / width_scale;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -1683,8 +1683,8 @@ static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::
         float* alpha = (float*)(buf + outw + outh);           //new float[outw * 2];
         float* beta = (float*)(buf + outw + outh + outw * 2); //new float[outh * 2];
 
-        linear_coeffs(w, outw, xofs, alpha, align_corner);
-        linear_coeffs(h, outh, yofs, beta, align_corner);
+        linear_coeffs_impl(w, outw, xofs, alpha, align_corner, (output_width || has_dynamic_output_size) ? w / (float)outw : 1.f / width_scale);
+        linear_coeffs_impl(h, outh, yofs, beta, align_corner, (output_height || has_dynamic_output_size) ? h / (float)outh : 1.f / height_scale);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -1729,8 +1729,8 @@ static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::
         float* alpha = (float*)(buf + outw + outh);           //new float[outw * 4];
         float* beta = (float*)(buf + outw + outh + outw * 4); //new float[outh * 4];
 
-        cubic_coeffs(w, outw, xofs, alpha, align_corner);
-        cubic_coeffs(h, outh, yofs, beta, align_corner);
+        cubic_coeffs_impl(w, outw, xofs, alpha, align_corner, (output_width || has_dynamic_output_size) ? w / (float)outw : 1.f / width_scale);
+        cubic_coeffs_impl(h, outh, yofs, beta, align_corner, (output_height || has_dynamic_output_size) ? h / (float)outh : 1.f / height_scale);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)

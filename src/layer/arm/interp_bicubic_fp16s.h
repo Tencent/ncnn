@@ -16,9 +16,9 @@ static inline void interpolate_cubic_fp16sa(float fx, __fp16* coeffs)
     coeffs[3] = (__fp16)((__fp16)1.f - coeffs[0] - coeffs[1] - coeffs[2]);
 }
 
-static void cubic_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha, int align_corner)
+static void cubic_coeffs_fp16sa_impl(int w, int outw, int* xofs, __fp16* alpha, int align_corner, float scale_factor)
 {
-    double scale = (double)w / outw;
+    double scale = scale_factor;
     if (align_corner)
     {
         scale = (double)(w - 1) / (outw - 1);

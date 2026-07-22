@@ -3,6 +3,8 @@
 
 #include "testutil.h"
 
+#include <math.h>
+
 static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, float width_scale, int output_height, int output_width)
 {
     ncnn::ParamDict pd;
@@ -122,6 +124,187 @@ static int test_interp_align_corner(const ncnn::Mat& a, int resize_type, float w
     if (ret != 0)
     {
         fprintf(stderr, "test_interp failed a.dims=%d a=(%d %d %d) resize_type=%d width_scale=%f output_width=%d align_corner=%d\n", a.dims, a.w, a.h, a.c, resize_type, width_scale, output_width, align_corner);
+    }
+
+    return ret;
+}
+
+static float cubic_weight(float x)
+{
+    const float A = -0.75f;
+    x = fabs(x);
+
+    if (x <= 1.f)
+        return (A + 2) * x * x * x - (A + 3) * x * x + 1;
+    if (x < 2.f)
+        return A * x * x * x - 5 * A * x * x + 8 * A * x - 4 * A;
+
+    return 0.f;
+}
+
+static int test_interp_scale_factor(int resize_type, float scale_factor, int output_width)
+{
+    const int input_width = 7;
+
+    ncnn::Mat a(input_width, 1);
+    for (int x = 0; x < input_width; x++)
+    {
+        a[x] = (float)x;
+    }
+
+    ncnn::ParamDict pd;
+    pd.set(0, resize_type);
+    pd.set(1, 1.f);
+    pd.set(2, scale_factor);
+    pd.set(3, 0);
+    pd.set(4, 0);
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+
+    ncnn::Layer* op = ncnn::create_layer_naive("Interp");
+    op->load_param(pd);
+    op->create_pipeline(opt);
+
+    ncnn::Mat b;
+    int ret = op->forward(a, b, opt);
+
+    op->destroy_pipeline(opt);
+    delete op;
+
+    if (ret != 0)
+        return ret;
+
+    for (int x = 0; x < output_width; x++)
+    {
+        const float sample_x = (x + 0.5f) / scale_factor - 0.5f;
+        float expected = 0.f;
+
+        if (resize_type == 2)
+        {
+            const int source_x = (int)floor(sample_x);
+            const int x0 = std::max(source_x, 0);
+            const int x1 = std::min(source_x + 1, input_width - 1);
+            const float weight = sample_x - source_x;
+            expected = a[x0] * (1.f - weight) + a[x1] * weight;
+        }
+        else
+        {
+            const int x0 = (int)floor(sample_x);
+            for (int k = -1; k <= 2; k++)
+            {
+                const int source_x = std::max(0, std::min(x0 + k, input_width - 1));
+                expected += a[source_x] * cubic_weight(sample_x - (x0 + k));
+            }
+        }
+
+        if (!NearlyEqual(expected, b[x], 0.0001f))
+        {
+            fprintf(stderr, "test_interp_scale_factor failed resize_type=%d scale_factor=%f x=%d expected=%f actual=%f\n", resize_type, scale_factor, x, expected, b[x]);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int test_interp_dynamic_target_size(int resize_type)
+{
+    const int input_width = 7;
+    const int input_height = 7;
+    const int output_width = 10;
+    const int output_height = 10;
+
+    ncnn::Mat a(input_width, input_height);
+    for (int y = 0; y < input_height; y++)
+    {
+        float* ptr = a.row(y);
+        for (int x = 0; x < input_width; x++)
+        {
+            ptr[x] = (float)(y * input_width + x);
+        }
+    }
+
+    ncnn::ParamDict pd;
+    pd.set(0, resize_type);
+    pd.set(5, 1);
+
+    std::vector<ncnn::Mat> as(2);
+    as[0] = a;
+    as[1] = ncnn::Mat(output_width, output_height);
+
+    std::vector<ncnn::Mat> weights(0);
+
+    int ret = test_layer("Interp", pd, weights, as);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_interp_dynamic_target_size failed resize_type=%d\n", resize_type);
+    }
+
+    return ret;
+}
+
+static int test_interp_inferred_fractional_scale(int resize_type)
+{
+    ncnn::Mat a = RandomMat(7, 7);
+
+    ncnn::ParamDict pd;
+    pd.set(0, resize_type);
+    pd.set(1, 1.1f);
+    pd.set(2, 1.1f);
+    pd.set(3, 0);
+    pd.set(4, 0);
+
+    std::vector<ncnn::Mat> weights(0);
+
+    int ret = test_layer("Interp", pd, weights, a);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_interp_inferred_fractional_scale failed resize_type=%d\n", resize_type);
+    }
+
+    return ret;
+}
+
+static int test_interp_small_axis(int resize_type, int input_width)
+{
+    ncnn::Mat a = RandomMat(input_width, 1);
+
+    ncnn::ParamDict pd;
+    pd.set(0, resize_type);
+    pd.set(1, 1.1f);
+    pd.set(2, 1.1f);
+    pd.set(3, 0);
+    pd.set(4, 0);
+
+    std::vector<ncnn::Mat> weights(0);
+
+    int ret = test_layer("Interp", pd, weights, a);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_interp_small_axis failed resize_type=%d input_width=%d\n", resize_type, input_width);
+    }
+
+    return ret;
+}
+
+static int test_interp_small_axis_3d(int resize_type, int input_width, int input_height)
+{
+    ncnn::Mat a = RandomMat(input_width, input_height, 1);
+
+    ncnn::ParamDict pd;
+    pd.set(0, resize_type);
+    pd.set(1, 1.1f);
+    pd.set(2, 1.1f);
+    pd.set(3, 0);
+    pd.set(4, 0);
+
+    std::vector<ncnn::Mat> weights(0);
+
+    int ret = test_layer("Interp", pd, weights, a);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_interp_small_axis_3d failed resize_type=%d input_width=%d input_height=%d\n", resize_type, input_width, input_height);
     }
 
     return ret;
@@ -707,5 +890,18 @@ int main()
            || test_interp_8()
            || test_interp_9()
            || test_interp_10()
-           || test_interp_11();
+           || test_interp_11()
+           || test_interp_scale_factor(2, 1.5f, 10)
+           || test_interp_scale_factor(3, 1.5f, 10)
+           || test_interp_scale_factor(2, 1.1f, 7)
+           || test_interp_scale_factor(3, 1.1f, 7)
+           || test_interp_dynamic_target_size(2)
+           || test_interp_dynamic_target_size(3)
+           || test_interp_inferred_fractional_scale(2)
+           || test_interp_inferred_fractional_scale(3)
+           || test_interp_small_axis(2, 1)
+           || test_interp_small_axis(3, 1)
+           || test_interp_small_axis(3, 3)
+           || test_interp_small_axis_3d(2, 3, 1)
+           || test_interp_small_axis_3d(3, 4, 3);
 }

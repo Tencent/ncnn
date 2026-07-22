@@ -5,9 +5,9 @@
 void resize_bilinear_image_avx2(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs);
 #endif
 
-static void linear_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner)
+static void linear_coeffs_impl(int w, int outw, int* xofs, float* alpha, int align_corner, float scale_factor)
 {
-    double scale = (double)w / outw;
+    double scale = scale_factor;
     if (align_corner)
     {
         scale = (double)(w - 1) / (outw - 1);
