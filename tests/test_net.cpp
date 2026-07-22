@@ -6,11 +6,10 @@
 #if NCNN_STDIO && NCNN_STRING
 static int test_external_input_lightmode()
 {
-    const char param[] =
-        "7767517\n"
-        "2 2\n"
-        "Input input 0 1 in\n"
-        "ReLU relu 1 1 in out\n";
+    const char param[] = "7767517\n"
+                         "2 2\n"
+                         "Input input 0 1 in\n"
+                         "ReLU relu 1 1 in out\n";
 
     ncnn::Net net;
     if (net.load_param_mem(param) != 0)
