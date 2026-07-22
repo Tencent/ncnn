@@ -1952,9 +1952,9 @@ static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& packed_B, const Mat& p
             }
 
             if (output_transpose)
-                transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, N, alpha, beta);
+                transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
             else
-                unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, N, alpha, beta);
+                unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
         }
     }
     else
@@ -1998,9 +1998,9 @@ static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& packed_B, const Mat& p
                 }
 
                 if (output_transpose)
-                    transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, N, alpha, beta);
+                    transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
                 else
-                    unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, N, alpha, beta);
+                    unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
             }
         }
     }
@@ -2107,9 +2107,19 @@ int Gemm_riscv::forward_weight_block_quantize_int8(const std::vector<Mat>& botto
 
     Mat& top_blob = top_blobs[0];
     if (output_transpose)
-        top_blob.create(M, N, (size_t)4u, opt.blob_allocator);
+    {
+        if (output_N1M)
+            top_blob.create(M, 1, N, (size_t)4u, opt.blob_allocator);
+        else
+            top_blob.create(M, N, (size_t)4u, opt.blob_allocator);
+    }
     else
-        top_blob.create(N, M, (size_t)4u, opt.blob_allocator);
+    {
+        if (output_N1M)
+            top_blob.create(N, 1, M, (size_t)4u, opt.blob_allocator);
+        else
+            top_blob.create(N, M, (size_t)4u, opt.blob_allocator);
+    }
     if (top_blob.empty())
         return -100;
 

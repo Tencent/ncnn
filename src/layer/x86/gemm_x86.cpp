@@ -7445,9 +7445,12 @@ static int gemm_weight_quantize_bits_x86(int quantize_term)
 static int gemm_weight_quantize_block_size_x86(int quantize_term)
 {
     const int block_size_code = quantize_term % 10;
-    if (block_size_code == 0) return 32;
-    if (block_size_code == 1) return 64;
-    if (block_size_code == 2) return 128;
+    if (block_size_code == 0)
+        return 32;
+    if (block_size_code == 1)
+        return 64;
+    if (block_size_code == 2)
+        return 128;
     return 0;
 }
 
@@ -7466,10 +7469,7 @@ static int pack_B_wq_int8_x86(const Mat& B, const Mat& B_scales, Mat& packed_B, 
         return -100;
     packed_B_descales.cstep = (size_t)N * block_count;
 
-    unsigned char* packed_B_ptr = packed_B;
-    float* packed_B_descales_ptr = packed_B_descales;
-
-    pack_B_tile_wq_int8(B, B_scales, packed_B_ptr, packed_B_descales_ptr, 0, N, K, block_size);
+    pack_B_tile_wq_int8(B, B_scales, packed_B, packed_B_descales, 0, N, K, block_size);
 
     return 0;
 }
@@ -7588,9 +7588,9 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
             }
 
             if (output_transpose)
-                transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, N, alpha, beta);
+                transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
             else
-                unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, N, alpha, beta);
+                unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
         }
     }
     else
@@ -7668,9 +7668,9 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
                 }
 
                 if (output_transpose)
-                    transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, N, alpha, beta);
+                    transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
                 else
-                    unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, N, alpha, beta);
+                    unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
             }
         }
     }
@@ -7766,9 +7766,19 @@ int Gemm_x86::forward_weight_block_quantize_int8(const std::vector<Mat>& bottom_
 
     Mat& top_blob = top_blobs[0];
     if (output_transpose)
-        top_blob.create(M, N, (size_t)4u, opt.blob_allocator);
+    {
+        if (output_N1M)
+            top_blob.create(M, 1, N, (size_t)4u, opt.blob_allocator);
+        else
+            top_blob.create(M, N, (size_t)4u, opt.blob_allocator);
+    }
     else
-        top_blob.create(N, M, (size_t)4u, opt.blob_allocator);
+    {
+        if (output_N1M)
+            top_blob.create(N, 1, M, (size_t)4u, opt.blob_allocator);
+        else
+            top_blob.create(N, M, (size_t)4u, opt.blob_allocator);
+    }
     if (top_blob.empty())
         return -100;
 

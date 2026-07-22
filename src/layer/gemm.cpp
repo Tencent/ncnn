@@ -133,6 +133,7 @@ static int weight_block_quantize_gemm_transB_int8(const Mat& A, int transA, cons
     }
 
     const float* ptrC = C;
+    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int mn = 0; mn < M * N; mn++)
@@ -180,9 +181,9 @@ static int weight_block_quantize_gemm_transB_int8(const Mat& A, int transA, cons
         sum *= alpha;
 
         if (output_transpose)
-            top_blob.row(j)[output_m_offset + i] = sum;
+            ((float*)top_blob)[(size_t)j * out_hstep + output_m_offset + i] = sum;
         else
-            top_blob.row(output_m_offset + i)[j] = sum;
+            ((float*)top_blob)[(size_t)(output_m_offset + i) * out_hstep + j] = sum;
     }
 
     return 0;
@@ -243,7 +244,7 @@ int Gemm::load_param(const ParamDict& pd)
             return -1;
         }
 
-        if (output_N1M != 0 || output_elempack != 0 || (output_elemtype != 0 && output_elemtype != 1) || (output_transpose != 0 && (weight_bits != 8 || output_transpose != 1)))
+        if ((output_N1M != 0 && weight_bits != 8) || output_elempack != 0 || (output_elemtype != 0 && output_elemtype != 1) || (output_transpose != 0 && (weight_bits != 8 || output_transpose != 1)))
         {
             NCNN_LOGE("Gemm unsupported weight block quantize");
             return -1;
@@ -566,9 +567,19 @@ int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, st
 
     Mat& top_blob = top_blobs[0];
     if (output_transpose)
-        top_blob.create(M, N, (size_t)4u, opt.blob_allocator);
+    {
+        if (output_N1M)
+            top_blob.create(M, 1, N, (size_t)4u, opt.blob_allocator);
+        else
+            top_blob.create(M, N, (size_t)4u, opt.blob_allocator);
+    }
     else
-        top_blob.create(N, M, (size_t)4u, opt.blob_allocator);
+    {
+        if (output_N1M)
+            top_blob.create(N, 1, M, (size_t)4u, opt.blob_allocator);
+        else
+            top_blob.create(N, M, (size_t)4u, opt.blob_allocator);
+    }
     if (top_blob.empty())
         return -100;
 

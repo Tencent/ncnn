@@ -5,6 +5,7 @@
 
 #include "cpu.h"
 #include "mat.h"
+#include "layer.h"
 #include "arm_usability.h"
 
 namespace ncnn {
@@ -12,9 +13,9 @@ namespace ncnn {
 #if NCNN_WEIGHT_QUANT
 #include "gemm_wq_int8.h"
 
-int pack_B_wq_int8_svei8mm(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_descales, int N, int K, int block_size, int num_threads)
+int pack_B_wq_int8_svei8mm(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_descales, int N, int K, int block_size, const Option& opt)
 {
-    return pack_B_wq_int8(B, B_scales, BT, BT_descales, N, K, block_size, num_threads);
+    return pack_B_wq_int8(B, B_scales, BT, BT_descales, N, K, block_size, opt);
 }
 
 void gemm_transB_packed_tile_wq_int8_svei8mm(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int K, int k, int max_kk, int block_size)

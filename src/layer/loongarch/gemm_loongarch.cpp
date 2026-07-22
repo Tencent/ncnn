@@ -7444,9 +7444,9 @@ static int gemm_BT_loongarch_wq_int8(const Mat& A, const Mat& packed_B, const Ma
                 gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, K, k, max_kk, block_size);
             }
             if (output_transpose)
-                transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, M, alpha, beta);
+                transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
             else
-                unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, N, alpha, beta);
+                unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
         }
     }
     else
@@ -7489,9 +7489,9 @@ static int gemm_BT_loongarch_wq_int8(const Mat& A, const Mat& packed_B, const Ma
                     gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, K, k, max_kk, block_size);
                 }
                 if (output_transpose)
-                    transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, M, alpha, beta);
+                    transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
                 else
-                    unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, N, alpha, beta);
+                    unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
             }
         }
     }
@@ -7698,7 +7698,7 @@ int Gemm_loongarch::create_pipeline_wq_int8(const Option& opt)
 
     Mat BT_data_packed;
     Mat BT_data_packed_descales;
-    int ret = pack_B_wq_int8(B_data, B_data_quantize_scales, BT_data_packed, BT_data_packed_descales, constantN, constantK, block_size, opt.num_threads);
+    int ret = pack_B_wq_int8(B_data, B_data_quantize_scales, BT_data_packed, BT_data_packed_descales, constantN, constantK, block_size, opt);
     if (ret != 0)
         return ret;
 
@@ -7776,9 +7776,19 @@ int Gemm_loongarch::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::v
 
     Mat& top_blob = top_blobs[0];
     if (output_transpose)
-        top_blob.create(M, N, (size_t)4u, opt.blob_allocator);
+    {
+        if (output_N1M)
+            top_blob.create(M, 1, N, (size_t)4u, opt.blob_allocator);
+        else
+            top_blob.create(M, N, (size_t)4u, opt.blob_allocator);
+    }
     else
-        top_blob.create(N, M, (size_t)4u, opt.blob_allocator);
+    {
+        if (output_N1M)
+            top_blob.create(N, 1, M, (size_t)4u, opt.blob_allocator);
+        else
+            top_blob.create(N, M, (size_t)4u, opt.blob_allocator);
+    }
     if (top_blob.empty())
         return -100;
 

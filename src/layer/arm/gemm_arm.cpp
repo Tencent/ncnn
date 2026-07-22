@@ -4602,7 +4602,6 @@ static int gemm_BT_arm_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
     const int nn_N = (N + TILE_N - 1) / TILE_N;
     const int nn_K = (K + TILE_K - 1) / TILE_K;
     const float* input_scale_ptr = input_scales;
-    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     Mat topT(nr * mr, 1, nT, (size_t)4u, opt.workspace_allocator);
     if (topT.empty())
@@ -4632,14 +4631,10 @@ static int gemm_BT_arm_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
             Mat AT_tile(max_kk, max_ii, (signed char*)AT_channel + (size_t)k * mr, (size_t)1u);
             Mat AT_descales_tile(max_block_count, max_ii, (float*)AT_descales_channel + (size_t)(k / block_size) * mr, (size_t)4u);
 
-            Mat A_tile = A;
-            A_tile.data = (unsigned char*)A_tile.data + (transA ? (size_t)k * A_hstep : (size_t)k) * sizeof(float);
-            const float* input_scale_tile = input_scale_ptr ? input_scale_ptr + k : 0;
-
             if (transA)
-                transpose_quantize_A_tile_wq_int8(A_tile, AT_tile, AT_descales_tile, i, max_ii, max_kk, block_size, input_scale_tile);
+                transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scale_ptr);
             else
-                quantize_A_tile_wq_int8(A_tile, AT_tile, AT_descales_tile, i, max_ii, max_kk, block_size, input_scale_tile);
+                quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scale_ptr);
         }
 
         const int nn_MN = nn_M * nn_N;
@@ -4671,9 +4666,9 @@ static int gemm_BT_arm_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
                 gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, K, k, max_kk, block_size);
             }
             if (output_transpose)
-                transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, N, alpha, beta);
+                transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
             else
-                unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, N, alpha, beta);
+                unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
         }
     }
     else
@@ -4708,22 +4703,18 @@ static int gemm_BT_arm_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
 
                     if (j == 0)
                     {
-                        Mat A_tile = A;
-                        A_tile.data = (unsigned char*)A_tile.data + (transA ? (size_t)k * A_hstep : (size_t)k) * sizeof(float);
-                        const float* input_scale_tile = input_scale_ptr ? input_scale_ptr + k : 0;
-
                         if (transA)
-                            transpose_quantize_A_tile_wq_int8(A_tile, AT_tile_k, AT_descales_tile_k, i, max_ii, max_kk, block_size, input_scale_tile);
+                            transpose_quantize_A_tile_wq_int8(A, AT_tile_k, AT_descales_tile_k, i, max_ii, k, max_kk, block_size, input_scale_ptr);
                         else
-                            quantize_A_tile_wq_int8(A_tile, AT_tile_k, AT_descales_tile_k, i, max_ii, max_kk, block_size, input_scale_tile);
+                            quantize_A_tile_wq_int8(A, AT_tile_k, AT_descales_tile_k, i, max_ii, k, max_kk, block_size, input_scale_ptr);
                     }
 
                     gemm_transB_packed_tile_wq_int8(AT_tile_k, AT_descales_tile_k, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, K, k, max_kk, block_size);
                 }
                 if (output_transpose)
-                    transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, N, alpha, beta);
+                    transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
                 else
-                    unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, N, alpha, beta);
+                    unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
             }
         }
     }
@@ -4923,7 +4914,7 @@ int Gemm_arm::create_pipeline_wq_int8(const Option& opt)
 
     Mat BT_data_packed;
     Mat BT_data_packed_descales;
-    int ret = pack_B_wq_int8(B_data, B_data_quantize_scales, BT_data_packed, BT_data_packed_descales, constantN, constantK, block_size, opt.num_threads);
+    int ret = pack_B_wq_int8(B_data, B_data_quantize_scales, BT_data_packed, BT_data_packed_descales, constantN, constantK, block_size, opt);
     if (ret != 0)
         return ret;
 
@@ -5023,9 +5014,19 @@ int Gemm_arm::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
 
     Mat& top_blob = top_blobs[0];
     if (output_transpose)
-        top_blob.create(M, N, (size_t)4u, opt.blob_allocator);
+    {
+        if (output_N1M)
+            top_blob.create(M, 1, N, (size_t)4u, opt.blob_allocator);
+        else
+            top_blob.create(M, N, (size_t)4u, opt.blob_allocator);
+    }
     else
-        top_blob.create(N, M, (size_t)4u, opt.blob_allocator);
+    {
+        if (output_N1M)
+            top_blob.create(N, 1, M, (size_t)4u, opt.blob_allocator);
+        else
+            top_blob.create(N, M, (size_t)4u, opt.blob_allocator);
+    }
     if (top_blob.empty())
         return -100;
 
