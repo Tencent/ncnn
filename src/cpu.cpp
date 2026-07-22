@@ -1373,11 +1373,11 @@ static ncnn::CpuSet get_smt_cpu_mask()
         if (ptr->Relationship == RelationProcessorCore)
         {
             ncnn::CpuSet smt_set;
-            smt_set.mask = ptr->ProcessorMask;
+            smt_set.mask[0] = ptr->ProcessorMask;
             if (smt_set.num_enabled() > 1)
             {
                 // this core is smt
-                smt_cpu_mask.mask |= smt_set.mask;
+                smt_cpu_mask.mask[0] |= smt_set.mask[0];
             }
         }
 
@@ -1432,14 +1432,43 @@ static std::vector<int> get_max_freq_mhz()
 
 static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
 {
-    DWORD_PTR prev_mask = SetThreadAffinityMask(GetCurrentThread(), thread_affinity_mask.mask);
-    if (prev_mask == 0)
+    // Find the first enabled CPU group and bind this thread to it.
+    // A thread can only belong to one processor group at a time.
+    // For multi-group masks, set_cpu_thread_affinity() calls this
+    // repeatedly per-thread, each bound to a specific group.
+    for (int g = 0; g < NCNN_MAX_PROCESSOR_GROUPS; g++)
     {
-        NCNN_LOGE("SetThreadAffinityMask failed %d", GetLastError());
-        return -1;
+        if (thread_affinity_mask.mask[g] == 0)
+            continue;
+
+#if _WIN32_WINNT >= 0x0601 // Win7+
+        GROUP_AFFINITY ga;
+        ga.Group = (WORD)g;
+        ga.Mask = thread_affinity_mask.mask[g];
+        ga.Reserved[0] = 0;
+        ga.Reserved[1] = 0;
+        ga.Reserved[2] = 0;
+
+        GROUP_AFFINITY prev;
+        if (!SetThreadGroupAffinity(GetCurrentThread(), &ga, &prev))
+        {
+            NCNN_LOGE("SetThreadGroupAffinity failed for group %d: %d", g, GetLastError());
+            return -1;
+        }
+#else // XP: only group 0 supported, use legacy API
+        if (g != 0)
+            continue; // XP cannot bind beyond group 0
+        DWORD_PTR prev = SetThreadAffinityMask(GetCurrentThread(), thread_affinity_mask.mask[0]);
+        if (prev == 0)
+        {
+            NCNN_LOGE("SetThreadAffinityMask failed %d", GetLastError());
+            return -1;
+        }
+#endif
+        return 0;
     }
 
-    return 0;
+    return 0; // no CPUs enabled
 }
 #endif // defined _WIN32
 
