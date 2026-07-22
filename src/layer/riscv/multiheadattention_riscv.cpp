@@ -43,9 +43,9 @@ int MultiHeadAttention_riscv::create_pipeline_wq_int8(const Option& _opt)
         return -100;
 
     if (q_weight_data.empty() || q_bias_data.empty() || q_weight_data_quantize_scales.empty()
-        || k_weight_data.empty() || k_bias_data.empty() || k_weight_data_quantize_scales.empty()
-        || v_weight_data.empty() || v_bias_data.empty() || v_weight_data_quantize_scales.empty()
-        || out_weight_data.empty() || out_bias_data.empty() || out_weight_data_quantize_scales.empty())
+            || k_weight_data.empty() || k_bias_data.empty() || k_weight_data_quantize_scales.empty()
+            || v_weight_data.empty() || v_bias_data.empty() || v_weight_data_quantize_scales.empty()
+            || out_weight_data.empty() || out_bias_data.empty() || out_weight_data_quantize_scales.empty())
         return -100;
 
     if (has_input_scale && (q_weight_data_input_scales.empty() || k_weight_data_input_scales.empty() || v_weight_data_input_scales.empty() || out_weight_data_input_scales.empty()))
