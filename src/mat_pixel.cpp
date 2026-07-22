@@ -197,6 +197,190 @@ static void to_rgb(const Mat& m, unsigned char* rgb, int stride)
     }
 }
 
+static int from_hsl(const unsigned char* hsl, int w, int h, int stride, Mat& m, Allocator* allocator)
+{
+    m.create(w, h, 3, 4u, allocator);
+    if (m.empty())
+        return -100;
+
+    const int wgap = stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
+    float* ptr0 = m.channel(0);
+    float* ptr1 = m.channel(1);
+    float* ptr2 = m.channel(2);
+
+    for (int y = 0; y < h; y++)
+    {
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
+        int remain = w;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+        #if __aarch64__
+        for (; nn > 0; nn--)
+        {
+            uint8x8x3_t _hsl = vld3_u8(hsl);
+            uint16x8_t _h16 = vmovl_u8(_hsl.val[0]);
+            uint16x8_t _s16 = vmovl_u8(_hsl.val[1]);
+            uint16x8_t _l16 = vmovl_u8(_hsl.val[2]);
+
+            float32x4_t _hlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_h16)));
+            float32x4_t _hhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_h16)));
+            float32x4_t _slow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_s16)));
+            float32x4_t _shigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_s16)));
+            float32x4_t _llow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_l16)));
+            float32x4_t _lhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_l16)));
+
+            vst1q_f32(ptr0, _hlow);
+            vst1q_f32(ptr0 + 4, _hhigh);
+            vst1q_f32(ptr1, _slow);
+            vst1q_f32(ptr1 + 4, _shigh);
+            vst1q_f32(ptr2, _llow);
+            vst1q_f32(ptr2 + 4, _lhigh);
+
+            hsl += 3 * 8;
+            ptr0 += 8;
+            ptr1 += 8;
+            ptr2 += 8;
+        }
+#else
+        if (nn > 0)
+        {
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld3.u8    {d0-d2}, [%1]!      \n"
+                "vmovl.u8   q8, d0              \n"
+                "vmovl.u8   q9, d1              \n"
+                "vmovl.u8   q10, d2             \n"
+                "vmovl.u16  q0, d16             \n"
+                "vmovl.u16  q1, d17             \n"
+                "vmovl.u16  q2, d18             \n"
+                "vmovl.u16  q3, d19             \n"
+                "vmovl.u16  q8, d20             \n"
+                "vmovl.u16  q9, d21             \n"
+                "vcvt.f32.u32   q0, q0          \n"
+                "vcvt.f32.u32   q1, q1          \n"
+                "vcvt.f32.u32   q2, q2          \n"
+                "vcvt.f32.u32   q3, q3          \n"
+                "vcvt.f32.u32   q8, q8          \n"
+                "subs       %0, #1              \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
+                "vcvt.f32.u32   q9, q9          \n"
+                "vst1.f32   {d4-d7}, [%3]!      \n"
+                "vst1.f32   {d16-d19}, [%4]!    \n"
+                "bne        0b                  \n"
+                : "=r"(nn),   // %0
+                "=r"(hsl),  // %1
+                "=r"(ptr0), // %2
+                "=r"(ptr1), // %3
+                "=r"(ptr2)  // %4
+                : "0"(nn),
+                "1"(hsl),
+                "2"(ptr0),
+                "3"(ptr1),
+                "4"(ptr2)
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10");
+        }
+#endif // __aarch64__
+#endif // __ARM_NEON
+        for (; remain > 0; remain--)
+        {
+            *ptr0 = hsl[0];
+            *ptr1 = hsl[1];
+            *ptr2 = hsl[2];
+
+            hsl += 3;
+            ptr0++;
+            ptr1++;
+            ptr2++;
+        }
+
+        hsl += wgap;
+    }
+
+    return 0;
+}
+
+static void to_hsl(const Mat& m, unsigned char* hsl, int stride)
+{
+    int w = m.w;
+    int h = m.h;
+
+    const int wgap = stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
+    const float* ptr0 = m.channel(0);
+    const float* ptr1 = m.channel(1);
+    const float* ptr2 = m.channel(2);
+
+    for (int y = 0; y < h; y++)
+    {
+#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
+
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
+        int remain = w;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+        for (; nn > 0; nn--)
+        {
+            float32x4_t _hlow = vld1q_f32(ptr0);
+            float32x4_t _hhigh = vld1q_f32(ptr0 + 4);
+            float32x4_t _slow = vld1q_f32(ptr1);
+            float32x4_t _shigh = vld1q_f32(ptr1 + 4);
+            float32x4_t _llow = vld1q_f32(ptr2);
+            float32x4_t _lhigh = vld1q_f32(ptr2 + 4);
+
+            int16x8_t _h16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_hlow)), vmovn_s32(vcvtq_s32_f32(_hhigh)));
+            int16x8_t _s16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_slow)), vmovn_s32(vcvtq_s32_f32(_shigh)));
+            int16x8_t _l16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_llow)), vmovn_s32(vcvtq_s32_f32(_lhigh)));
+
+            uint8x8x3_t _hsl;
+            _hsl.val[0] = vqmovun_s16(_h16);
+            _hsl.val[1] = vqmovun_s16(_s16);
+            _hsl.val[2] = vqmovun_s16(_l16);
+
+            vst3_u8(hsl, _hsl);
+
+            hsl += 3 * 8;
+            ptr0 += 8;
+            ptr1 += 8;
+            ptr2 += 8;
+        }
+#endif // __ARM_NEON
+        for (; remain > 0; remain--)
+        {
+            hsl[0] = SATURATE_CAST_UCHAR(*ptr0);
+            hsl[1] = SATURATE_CAST_UCHAR(*ptr1);
+            hsl[2] = SATURATE_CAST_UCHAR(*ptr2);
+
+            hsl += 3;
+            ptr0++;
+            ptr1++;
+            ptr2++;
+        }
+
+#undef SATURATE_CAST_UCHAR
+        hsl += wgap;
+    }
+}
+
 static int from_gray(const unsigned char* gray, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     m.create(w, h, 1, 4u, allocator);
@@ -1947,6 +2131,670 @@ static int from_bgra2gray(const unsigned char* bgra, int w, int h, int stride, M
     return 0;
 }
 
+
+static int from_hsl2rgb(const unsigned char* hsl, int w, int h, int stride, Mat& m, Allocator* allocator)
+{
+    m.create(w, h, 3, 4u, allocator);
+    if (m.empty())
+        return -100;
+
+    const int wgap = stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
+    float* ptr0 = m.channel(0);
+    float* ptr1 = m.channel(1);
+    float* ptr2 = m.channel(2);
+
+#if __ARM_NEON
+    float32x4_t _v1 = vdupq_n_f32(1.f);
+    float32x4_t _v2 = vdupq_n_f32(2.f);
+    float32x4_t _v4 = vdupq_n_f32(4.f);
+    float32x4_t _v255 = vdupq_n_f32(255.f);
+    float32x4_t _v_1_30 = vdupq_n_f32(1.f / 30.f);
+    float32x4_t _v_1_255 = vdupq_n_f32(1.f / 255.f);
+#endif // __ARM_NEON
+
+    for (int y = 0; y < h; ++y)
+    {
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+
+#else
+        int remain = w;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+        for (; nn > 0; nn--)
+        {
+            uint8x8x3_t _hsl = vld3_u8(hsl);
+            uint16x8_t _h16 = vmovl_u8(_hsl.val[0]);
+            uint16x8_t _s16 = vmovl_u8(_hsl.val[1]);
+            uint16x8_t _l16 = vmovl_u8(_hsl.val[2]);
+
+            float32x4_t _hlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_h16)));
+            float32x4_t _hhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_h16)));
+            float32x4_t _slow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_s16)));
+            float32x4_t _shigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_s16)));
+            float32x4_t _llow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_l16)));
+            float32x4_t _lhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_l16)));
+
+            _hlow = vmulq_f32(_hlow, _v_1_30);
+            _hhigh = vmulq_f32(_hhigh, _v_1_30);
+            _slow = vmulq_f32(_slow, _v_1_255);
+            _shigh = vmulq_f32(_shigh, _v_1_255);
+            _llow = vmulq_f32(_llow, _v_1_255);
+            _lhigh = vmulq_f32(_lhigh, _v_1_255);
+
+            float32x4_t _tmplow = vmulq_f32(_llow, _slow);      // l * s
+            float32x4_t _tmphigh = vmulq_f32(_lhigh, _shigh);
+
+            float32x4_t _elem0low = vbslq_f32(vcleq_f32(_llow, vdupq_n_f32(0.5f)), _tmplow, vsubq_f32(_slow, _tmplow));
+            float32x4_t _elem0high = vbslq_f32(vcleq_f32(_lhigh, vdupq_n_f32(0.5f)), _tmphigh, vsubq_f32(_shigh, _tmphigh));
+
+            _tmplow = vcvtq_f32_s32(vcvtq_s32_f32(_hlow));      // floor(h)
+            _tmphigh = vcvtq_f32_s32(vcvtq_s32_f32(_hhigh));
+
+            _hlow = vsubq_f32(_hlow, _tmplow);                  // h - floor(h)
+            _hhigh = vsubq_f32(_hhigh, _tmphigh);
+
+            float32x4_t _elem1low = vaddq_f32(_hlow, _hlow);
+            float32x4_t _elem1high = vaddq_f32(_hhigh, _hhigh);
+
+            _hlow = _tmplow;
+            _hhigh = _tmphigh;
+
+            _tmplow = vmulq_f32(_elem0low, _elem1low);          // elem0 * elem1
+            _tmphigh = vmulq_f32(_elem0high, _elem1high);
+
+            float32x4_t _tab0low = vaddq_f32(_llow, _elem0low);
+            float32x4_t _tab0high = vaddq_f32(_lhigh, _elem0high);
+            float32x4_t _tab1low = vsubq_f32(_llow, _elem0low);
+            float32x4_t _tab1high = vsubq_f32(_lhigh, _elem0high);
+            float32x4_t _tab2low = vsubq_f32(_tab0low, _tmplow);
+            float32x4_t _tab2high = vsubq_f32(_tab0high, _tmphigh);
+            float32x4_t _tab3low = vaddq_f32(_tab1low, _tmplow);
+            float32x4_t _tab3high = vaddq_f32(_tab1high, _tmphigh);
+
+            float32x4_t _blow = vbslq_f32(vcltq_f32(_hlow, _v2), _tab1low,
+                                vbslq_f32(vcleq_f32(_hlow, _v2), _tab3low,
+                                vbslq_f32(vcleq_f32(_hlow, _v4), _tab0low, _tab2low)));
+            float32x4_t _bhigh = vbslq_f32(vcltq_f32(_hhigh, _v2), _tab1high,
+                                 vbslq_f32(vcleq_f32(_hhigh, _v2), _tab3high,
+                                 vbslq_f32(vcleq_f32(_hhigh, _v4), _tab0high, _tab2high)));
+            float32x4_t _glow = vbslq_f32(vcltq_f32(_hlow, _v1), _tab3low,
+                                vbslq_f32(vcleq_f32(_hlow, _v2), _tab0low,
+                                vbslq_f32(vcltq_f32(_hlow, _v4), _tab2low, _tab1low)));
+            float32x4_t _ghigh = vbslq_f32(vcltq_f32(_hhigh, _v1), _tab3high,
+                                 vbslq_f32(vcleq_f32(_hhigh, _v2), _tab0high,
+                                 vbslq_f32(vcltq_f32(_hhigh, _v4), _tab2high, _tab1high)));
+            float32x4_t _rlow = vbslq_f32(vcltq_f32(_hlow, _v1), _tab0low,
+                                vbslq_f32(vcltq_f32(_hlow, _v2), _tab2low,
+                                vbslq_f32(vcltq_f32(_hlow, _v4), _tab1low,
+                                vbslq_f32(vcleq_f32(_hlow, _v4), _tab3low, _tab0low))));
+            float32x4_t _rhigh = vbslq_f32(vcltq_f32(_hhigh, _v1), _tab0high,
+                                 vbslq_f32(vcltq_f32(_hhigh, _v2), _tab2high,
+                                 vbslq_f32(vcltq_f32(_hhigh, _v4), _tab1high,
+                                 vbslq_f32(vcleq_f32(_hhigh, _v4), _tab3high, _tab0high))));
+
+            _rlow = vmulq_f32(_rlow, _v255);
+            _rhigh = vmulq_f32(_rhigh, _v255);
+            _glow = vmulq_f32(_glow, _v255);
+            _ghigh = vmulq_f32(_ghigh, _v255);
+            _blow = vmulq_f32(_blow, _v255);
+            _bhigh = vmulq_f32(_bhigh, _v255);
+
+            vst1q_f32(ptr0, _rlow);
+            vst1q_f32(ptr0 + 4, _rhigh);
+            vst1q_f32(ptr1, _glow);
+            vst1q_f32(ptr1 + 4, _ghigh);
+            vst1q_f32(ptr2, _blow);
+            vst1q_f32(ptr2 + 4, _bhigh);
+
+            hsl += 3 * 8;
+            ptr0 += 8;
+            ptr1 += 8;
+            ptr2 += 8;
+        }
+#endif // __ARM_NEON
+        for (; remain > 0; --remain)
+        {
+            float H = hsl[0], S = hsl[1], L = hsl[2];
+
+            if (S == 0)
+            {
+               *ptr0 = *ptr1 = *ptr2 = L;
+            }
+            else
+            {
+                H /= 30.f, S /= 255.f, L /= 255.f;
+                static const int sector_data[6][3]=
+                      {{0,3,1}, {2,0,1}, {1,0,3}, {1,2,0}, {3,1,0}, {0,1,2}};
+                float tab[4];
+                int sector;
+
+                float p2 = L <= 0.5f ? L * (1 + S) : L + S - L * S;
+                float p1 = 2 * L - p2;
+
+                sector = floor(H);
+                H -= sector;
+
+                tab[0] = p2;
+                tab[1] = p1;
+                tab[2] = p1 + (p2 - p1) * (1 - H);
+                tab[3] = p1 + (p2 - p1) * H;
+
+                *ptr0 = tab[sector_data[sector][0]] * 255;
+                *ptr1 = tab[sector_data[sector][1]] * 255;
+                *ptr2 = tab[sector_data[sector][2]] * 255;
+            }
+
+            hsl += 3;
+            ptr0++;
+            ptr1++;
+            ptr2++;
+        }
+        hsl += wgap;
+    }
+
+    return 0;
+}
+
+static int from_rgb2hsl(const unsigned char* rgb, int w, int h, int stride, Mat& m, Allocator* allocator)
+{
+    m.create(w, h, 3, 4u, allocator);
+    if (m.empty())
+        return -100;
+
+    const int wgap = stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
+    float* ptr0 = m.channel(0);
+    float* ptr1 = m.channel(1);
+    float* ptr2 = m.channel(2);
+
+#if __ARM_NEON
+    float32x4_t _v_1_255 = vdupq_n_f32(1.f / 255.f);
+    float32x4_t _v_1_2 = vdupq_n_f32(1.f / 2.f);
+    float32x4_t _v_60 = vdupq_n_f32(60.f);
+    float32x4_t _v_255 = vdupq_n_f32(255.f);
+#endif //  __ARM_NEON
+
+    for (int y = 0; y < h; y++)
+    {
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
+        int remain = w;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+        for (; nn > 0; nn--)
+        {
+            uint8x8x3_t _rgb = vld3_u8(rgb);
+            uint16x8_t _r16 = vmovl_u8(_rgb.val[0]);
+            uint16x8_t _g16 = vmovl_u8(_rgb.val[1]);
+            uint16x8_t _b16 = vmovl_u8(_rgb.val[2]);
+
+            float32x4_t _rlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_r16)));
+            float32x4_t _rhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_r16)));
+            float32x4_t _glow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_g16)));
+            float32x4_t _ghigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_g16)));
+            float32x4_t _blow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_b16)));
+            float32x4_t _bhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_b16)));
+
+            _rlow = vmulq_f32(_rlow, _v_1_255);
+            _rhigh = vmulq_f32(_rhigh, _v_1_255);
+            _glow = vmulq_f32(_glow, _v_1_255);
+            _ghigh = vmulq_f32(_ghigh, _v_1_255);
+            _blow = vmulq_f32(_blow, _v_1_255);
+            _bhigh = vmulq_f32(_bhigh, _v_1_255);
+
+            float32x4_t _maxlow = vmaxq_f32(vmaxq_f32(_rlow, _glow), _blow);
+            float32x4_t _maxhigh = vmaxq_f32(vmaxq_f32(_rhigh, _ghigh), _bhigh);
+            float32x4_t _minlow = vminq_f32(vminq_f32(_rlow, _glow), _blow);
+            float32x4_t _minhigh = vminq_f32(vminq_f32(_rhigh, _ghigh), _bhigh);
+
+            float32x4_t _difflow = vsubq_f32(_maxlow, _minlow);
+            float32x4_t _diffhigh = vsubq_f32(_maxhigh, _minhigh);
+            float32x4_t _sumlow = vaddq_f32(_maxlow, _minlow);
+            float32x4_t _sumhigh = vaddq_f32(_maxhigh, _minhigh);
+
+            float32x4_t _llow = vmulq_f32(_v_1_2, _sumlow);
+            float32x4_t _lhigh = vmulq_f32(_v_1_2, _sumhigh);
+
+            float32x4_t _slow = vmulq_f32(_difflow, vrecpeq_f32(vbslq_f32(vcltq_f32(_llow, _v_1_2), _sumlow, vsubq_f32(vdupq_n_f32(2.f), _sumlow))));
+            float32x4_t _shigh = vmulq_f32(_diffhigh, vrecpeq_f32(vbslq_f32(vcltq_f32(_lhigh, _v_1_2), _sumhigh, vsubq_f32(vdupq_n_f32(2.f), _sumhigh))));
+
+            uint32x4_t _maxrlow = vceqq_f32(_maxlow, _rlow);            // max == r
+            uint32x4_t _maxrhigh = vceqq_f32(_maxhigh, _rhigh);
+            uint32x4_t _maxglow = vceqq_f32(_maxlow, _glow);            // max == g
+            uint32x4_t _maxghigh = vceqq_f32(_maxhigh, _ghigh);
+
+            float32x4_t _hlow = vbslq_f32(_maxrlow, vsubq_f32(_glow, _blow),
+                                vbslq_f32(_maxglow, vsubq_f32(_blow, _rlow), vsubq_f32(_rlow, _glow)));
+            float32x4_t _hhigh = vbslq_f32(_maxrhigh, vsubq_f32(_ghigh, _bhigh),
+                                 vbslq_f32(_maxghigh, vsubq_f32(_bhigh, _rhigh), vsubq_f32(_rhigh, _ghigh)));
+
+            float32x4_t _hpartlow = vbslq_f32(_maxrlow, vbslq_f32(vcltq_f32(_glow, _blow), vdupq_n_f32(360.f), vdupq_n_f32(0.f)),
+                                    vbslq_f32(_maxglow, vdupq_n_f32(120.f), vdupq_n_f32(240.f)));
+            float32x4_t _hparthigh = vbslq_f32(_maxrhigh, vbslq_f32(vcltq_f32(_ghigh, _bhigh), vdupq_n_f32(360.f), vdupq_n_f32(0.f)),
+                                     vbslq_f32(_maxghigh, vdupq_n_f32(120.f), vdupq_n_f32(240.f)));
+
+            _difflow = vbslq_f32(vceqq_f32(_difflow, vdupq_n_f32(0.f)), _difflow, vmulq_f32(_v_60, vrecpeq_f32(_difflow)));
+            _diffhigh = vbslq_f32(vceqq_f32(_diffhigh, vdupq_n_f32(0.f)), _difflow, vmulq_f32(_v_60, vrecpeq_f32(_diffhigh)));
+
+            _hlow = vaddq_f32(vmulq_f32(_hlow, _difflow), _hpartlow);
+            _hhigh = vaddq_f32(vmulq_f32(_hhigh, _diffhigh), _hparthigh);
+
+            _hlow = vmulq_f32(_hlow, _v_1_2);
+            _hhigh = vmulq_f32(_hhigh, _v_1_2);
+            _slow = vmulq_f32(_slow, _v_255);
+            _shigh = vmulq_f32(_shigh, _v_255);
+            _llow = vmulq_f32(_llow, _v_255);
+            _lhigh = vmulq_f32(_lhigh, _v_255);
+
+            vst1q_f32(ptr0, _hlow);
+            vst1q_f32(ptr0 + 4, _hhigh);
+            vst1q_f32(ptr1, _slow);
+            vst1q_f32(ptr1 + 4, _shigh);
+            vst1q_f32(ptr2, _llow);
+            vst1q_f32(ptr2 + 4, _lhigh);
+
+            rgb += 3 * 8;
+            ptr0 += 8;
+            ptr1 += 8;
+            ptr2 += 8;
+        }
+#endif // __ARM_NEON
+
+        for (; remain > 0; remain--)
+        {
+            float r = rgb[0] / 255.f, g = rgb[1] / 255.f, b = rgb[2] / 255.f;
+            float maxVal = fmax(r, fmax(g, b)), minVal = fmin(r, fmin(g, b));
+            float diff = maxVal - minVal;
+            float H = 0.f, S = 0.f, L = 0.5f * (maxVal + minVal);
+
+            if (diff > 1.192092896e-07f)
+            {
+                S = L < 0.5f ? diff / (maxVal + minVal) : diff / (2 - maxVal - minVal);
+                diff = 60.f / diff;
+
+                if (maxVal == r)
+                {
+                    H = (g - b) * diff;
+                }
+                else if (maxVal == g)
+                {
+                    H = (b - r) * diff + 120.f;
+                }
+                else
+                {
+                    H = (r - g) * diff + 240.f;
+                }
+                if (H < 0.f)
+                {
+                    H += 360.f;
+                }
+            }
+
+            *ptr0 = H / 2.f;
+            *ptr1 = S * 255.f;
+            *ptr2 = L * 255.f;
+
+            rgb += 3;
+            ptr0++;
+            ptr1++;
+            ptr2++;
+        }
+
+        rgb += wgap;
+    }
+
+    return 0;
+}
+
+static void to_hsl2rgb(const Mat& m, unsigned char* rgb, int stride)
+{
+    int w = m.w;
+    int h = m.h;
+
+    const int wgap = stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
+    const float* ptr0 = m.channel(0);
+    const float* ptr1 = m.channel(1);
+    const float* ptr2 = m.channel(2);
+
+#if __ARM_NEON
+    float32x4_t _v1 = vdupq_n_f32(1.f);
+    float32x4_t _v2 = vdupq_n_f32(2.f);
+    float32x4_t _v4 = vdupq_n_f32(4.f);
+    float32x4_t _v255 = vdupq_n_f32(255.f);
+    float32x4_t _v_1_30 = vdupq_n_f32(1.f / 30.f);
+    float32x4_t _v_1_255 = vdupq_n_f32(1.f / 255.f);
+#endif // __ARM_NEON
+
+    for (int y = 0; y < h; y++)
+    {
+#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
+
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
+        int remain = w;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+        for (; nn > 0; nn--)
+        {
+            float32x4_t _hlow = vld1q_f32(ptr0);
+            float32x4_t _hhigh = vld1q_f32(ptr0 + 4);
+            float32x4_t _slow = vld1q_f32(ptr1);
+            float32x4_t _shigh = vld1q_f32(ptr1 + 4);
+            float32x4_t _llow = vld1q_f32(ptr2);
+            float32x4_t _lhigh = vld1q_f32(ptr2 + 4);
+
+            _hlow = vmulq_f32(_hlow, _v_1_30);
+            _hhigh = vmulq_f32(_hhigh, _v_1_30);
+            _slow = vmulq_f32(_slow, _v_1_255);
+            _shigh = vmulq_f32(_shigh, _v_1_255);
+            _llow = vmulq_f32(_llow, _v_1_255);
+            _lhigh = vmulq_f32(_lhigh, _v_1_255);
+
+            float32x4_t _tmplow = vmulq_f32(_llow, _slow);      // l * s
+            float32x4_t _tmphigh = vmulq_f32(_lhigh, _shigh);
+
+            float32x4_t _elem0low = vbslq_f32(vcleq_f32(_llow, vdupq_n_f32(0.5f)), _tmplow, vsubq_f32(_slow, _tmplow));
+            float32x4_t _elem0high = vbslq_f32(vcleq_f32(_lhigh, vdupq_n_f32(0.5f)), _tmphigh, vsubq_f32(_shigh, _tmphigh));
+
+            _tmplow = vcvtq_f32_s32(vcvtq_s32_f32(_hlow));      // floor(h)
+            _tmphigh = vcvtq_f32_s32(vcvtq_s32_f32(_hhigh));
+
+            _hlow = vsubq_f32(_hlow, _tmplow);                  // h - floor(h)
+            _hhigh = vsubq_f32(_hhigh, _tmphigh);
+
+            float32x4_t _elem1low = vaddq_f32(_hlow, _hlow);
+            float32x4_t _elem1high = vaddq_f32(_hhigh, _hhigh);
+
+            _hlow = _tmplow;
+            _hhigh = _tmphigh;
+
+            _tmplow = vmulq_f32(_elem0low, _elem1low);          // elem0 * elem1
+            _tmphigh = vmulq_f32(_elem0high, _elem1high);
+
+            float32x4_t _tab0low = vaddq_f32(_llow, _elem0low);
+            float32x4_t _tab0high = vaddq_f32(_lhigh, _elem0high);
+            float32x4_t _tab1low = vsubq_f32(_llow, _elem0low);
+            float32x4_t _tab1high = vsubq_f32(_lhigh, _elem0high);
+            float32x4_t _tab2low = vsubq_f32(_tab0low, _tmplow);
+            float32x4_t _tab2high = vsubq_f32(_tab0high, _tmphigh);
+            float32x4_t _tab3low = vaddq_f32(_tab1low, _tmplow);
+            float32x4_t _tab3high = vaddq_f32(_tab1high, _tmphigh);
+
+            float32x4_t _blow = vbslq_f32(vcltq_f32(_hlow, _v2), _tab1low,
+                                vbslq_f32(vcleq_f32(_hlow, _v2), _tab3low,
+                                vbslq_f32(vcleq_f32(_hlow, _v4), _tab0low, _tab2low)));
+            float32x4_t _bhigh = vbslq_f32(vcltq_f32(_hhigh, _v2), _tab1high,
+                                 vbslq_f32(vcleq_f32(_hhigh, _v2), _tab3high,
+                                 vbslq_f32(vcleq_f32(_hhigh, _v4), _tab0high, _tab2high)));
+            float32x4_t _glow = vbslq_f32(vcltq_f32(_hlow, _v1), _tab3low,
+                                vbslq_f32(vcleq_f32(_hlow, _v2), _tab0low,
+                                vbslq_f32(vcltq_f32(_hlow, _v4), _tab2low, _tab1low)));
+            float32x4_t _ghigh = vbslq_f32(vcltq_f32(_hhigh, _v1), _tab3high,
+                                 vbslq_f32(vcleq_f32(_hhigh, _v2), _tab0high,
+                                 vbslq_f32(vcltq_f32(_hhigh, _v4), _tab2high, _tab1high)));
+            float32x4_t _rlow = vbslq_f32(vcltq_f32(_hlow, _v1), _tab0low,
+                                vbslq_f32(vcltq_f32(_hlow, _v2), _tab2low,
+                                vbslq_f32(vcltq_f32(_hlow, _v4), _tab1low,
+                                vbslq_f32(vcleq_f32(_hlow, _v4), _tab3low, _tab0low))));
+            float32x4_t _rhigh = vbslq_f32(vcltq_f32(_hhigh, _v1), _tab0high,
+                                 vbslq_f32(vcltq_f32(_hhigh, _v2), _tab2high,
+                                 vbslq_f32(vcltq_f32(_hhigh, _v4), _tab1high,
+                                 vbslq_f32(vcleq_f32(_hhigh, _v4), _tab3high, _tab0high))));
+
+            _rlow = vmulq_f32(_rlow, _v255);
+            _rhigh = vmulq_f32(_rhigh, _v255);
+            _glow = vmulq_f32(_glow, _v255);
+            _ghigh = vmulq_f32(_ghigh, _v255);
+            _blow = vmulq_f32(_blow, _v255);
+            _bhigh = vmulq_f32(_bhigh, _v255);
+
+            int16x8_t _r16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_rlow)), vmovn_s32(vcvtq_s32_f32(_rhigh)));
+            int16x8_t _g16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_glow)), vmovn_s32(vcvtq_s32_f32(_ghigh)));
+            int16x8_t _b16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_blow)), vmovn_s32(vcvtq_s32_f32(_bhigh)));
+
+            uint8x8x3_t _rgb;
+            _rgb.val[0] = vqmovun_s16(_r16);
+            _rgb.val[1] = vqmovun_s16(_g16);
+            _rgb.val[2] = vqmovun_s16(_b16);
+
+            vst3_u8(rgb, _rgb);
+
+            rgb += 3 * 8;
+            ptr0 += 8;
+            ptr1 += 8;
+            ptr2 += 8;
+        }
+#endif // __ARM_NEON
+        for (; remain > 0; remain--)
+        {
+            float H = *ptr0;
+            float S = *ptr1;
+            float L = *ptr2;
+
+            if (S == 0)
+            {
+                rgb[0] = rgb[1] = rgb[2] = SATURATE_CAST_UCHAR(L);
+            }
+            else
+            {
+                H /= 30.f, S /= 255.f, L /= 255.f;
+                static const int sector_data[6][3]=
+                    {{0,3,1}, {2,0,1}, {1,0,3}, {1,2,0}, {3,1,0}, {0,1,2}};
+                float tab[4];
+                int sector;
+
+                float p2 = L <= 0.5f ? L * (1 + S) : L + S - L * S;
+                float p1 = 2 * L - p2;
+
+                sector = floor(H);
+                H -= sector;
+
+                tab[0] = p2;
+                tab[1] = p1;
+                tab[2] = p1 + (p2 - p1) * (1 - H);
+                tab[3] = p1 + (p2 - p1) * H;
+
+                rgb[0] = SATURATE_CAST_UCHAR(tab[sector_data[sector][0]] * 255);
+                rgb[1] = SATURATE_CAST_UCHAR(tab[sector_data[sector][1]] * 255);
+                rgb[2] = SATURATE_CAST_UCHAR(tab[sector_data[sector][2]] * 255);
+            }
+
+            rgb += 3;
+            ptr0++;
+            ptr1++;
+            ptr2++;
+        }
+
+#undef SATURATE_CAST_UCHAR
+        rgb += wgap;
+    }
+}
+
+static void to_rgb2hsl(const Mat& m, unsigned char* hsl, int stride)
+{
+    int w = m.w;
+    int h = m.h;
+
+    const int wgap = stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
+    const float* ptr0 = m.channel(0);
+    const float* ptr1 = m.channel(1);
+    const float* ptr2 = m.channel(2);
+
+
+#if __ARM_NEON
+    float32x4_t _v_1_255 = vdupq_n_f32(1.f / 255.f);
+    float32x4_t _v_1_2 = vdupq_n_f32(1.f / 2.f);
+    float32x4_t _v_60 = vdupq_n_f32(60.f);
+    float32x4_t _v_255 = vdupq_n_f32(255.f);
+#endif //  __ARM_NEON
+
+    for (int y = 0; y < h; y++)
+    {
+#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
+
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
+        int remain = w;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+        for (; nn > 0; nn--)
+        {
+            float32x4_t _rlow = vld1q_f32(ptr0);
+            float32x4_t _rhigh = vld1q_f32(ptr0 + 4);
+            float32x4_t _glow = vld1q_f32(ptr1);
+            float32x4_t _ghigh = vld1q_f32(ptr1 + 4);
+            float32x4_t _blow = vld1q_f32(ptr2);
+            float32x4_t _bhigh = vld1q_f32(ptr2 + 4);
+
+            _rlow = vmulq_f32(_rlow, _v_1_255);
+            _rhigh = vmulq_f32(_rhigh, _v_1_255);
+            _glow = vmulq_f32(_glow, _v_1_255);
+            _ghigh = vmulq_f32(_ghigh, _v_1_255);
+            _blow = vmulq_f32(_blow, _v_1_255);
+            _bhigh = vmulq_f32(_bhigh, _v_1_255);
+
+            float32x4_t _maxlow = vmaxq_f32(vmaxq_f32(_rlow, _glow), _blow);
+            float32x4_t _maxhigh = vmaxq_f32(vmaxq_f32(_rhigh, _ghigh), _bhigh);
+            float32x4_t _minlow = vminq_f32(vminq_f32(_rlow, _glow), _blow);
+            float32x4_t _minhigh = vminq_f32(vminq_f32(_rhigh, _ghigh), _bhigh);
+
+            float32x4_t _difflow = vsubq_f32(_maxlow, _minlow);
+            float32x4_t _diffhigh = vsubq_f32(_maxhigh, _minhigh);
+            float32x4_t _sumlow = vaddq_f32(_maxlow, _minlow);
+            float32x4_t _sumhigh = vaddq_f32(_maxhigh, _minhigh);
+
+            float32x4_t _llow = vmulq_f32(_v_1_2, _sumlow);
+            float32x4_t _lhigh = vmulq_f32(_v_1_2, _sumhigh);
+
+            float32x4_t _slow = vmulq_f32(_difflow, vrecpeq_f32(vbslq_f32(vcltq_f32(_llow, _v_1_2), _sumlow, vsubq_f32(vdupq_n_f32(2.f), _sumlow))));
+            float32x4_t _shigh = vmulq_f32(_diffhigh, vrecpeq_f32(vbslq_f32(vcltq_f32(_lhigh, _v_1_2), _sumhigh, vsubq_f32(vdupq_n_f32(2.f), _sumhigh))));
+
+            uint32x4_t _maxrlow = vceqq_f32(_maxlow, _rlow);            // max == r
+            uint32x4_t _maxrhigh = vceqq_f32(_maxhigh, _rhigh);
+            uint32x4_t _maxglow = vceqq_f32(_maxlow, _glow);            // max == g
+            uint32x4_t _maxghigh = vceqq_f32(_maxhigh, _ghigh);
+
+            float32x4_t _hlow = vbslq_f32(_maxrlow, vsubq_f32(_glow, _blow),
+                                          vbslq_f32(_maxglow, vsubq_f32(_blow, _rlow), vsubq_f32(_rlow, _glow)));
+            float32x4_t _hhigh = vbslq_f32(_maxrhigh, vsubq_f32(_ghigh, _bhigh),
+                                           vbslq_f32(_maxghigh, vsubq_f32(_bhigh, _rhigh), vsubq_f32(_rhigh, _ghigh)));
+
+            float32x4_t _hpartlow = vbslq_f32(_maxrlow, vbslq_f32(vcltq_f32(_glow, _blow), vdupq_n_f32(360.f), vdupq_n_f32(0.f)),
+                                              vbslq_f32(_maxglow, vdupq_n_f32(120.f), vdupq_n_f32(240.f)));
+            float32x4_t _hparthigh = vbslq_f32(_maxrhigh, vbslq_f32(vcltq_f32(_ghigh, _bhigh), vdupq_n_f32(360.f), vdupq_n_f32(0.f)),
+                                               vbslq_f32(_maxghigh, vdupq_n_f32(120.f), vdupq_n_f32(240.f)));
+
+            _difflow = vmulq_f32(_v_60, vrecpeq_f32(_difflow));
+            _diffhigh = vmulq_f32(_v_60, vrecpeq_f32(_diffhigh));
+
+            _hlow = vaddq_f32(vmulq_f32(_hlow, _difflow), _hpartlow);
+            _hhigh = vaddq_f32(vmulq_f32(_hhigh, _diffhigh), _hparthigh);
+
+            _hlow = vmulq_f32(_hlow, _v_1_2);
+            _hhigh = vmulq_f32(_hhigh, _v_1_2);
+            _slow = vmulq_f32(_slow, _v_255);
+            _shigh = vmulq_f32(_shigh, _v_255);
+            _llow = vmulq_f32(_llow, _v_255);
+            _lhigh = vmulq_f32(_lhigh, _v_255);
+
+            int16x8_t _h16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_hlow)), vmovn_s32(vcvtq_s32_f32(_hhigh)));
+            int16x8_t _s16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_slow)), vmovn_s32(vcvtq_s32_f32(_shigh)));
+            int16x8_t _l16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_llow)), vmovn_s32(vcvtq_s32_f32(_lhigh)));
+
+            uint8x8x3_t _hsl;
+            _hsl.val[0] = vqmovun_s16(_h16);
+            _hsl.val[1] = vqmovun_s16(_s16);
+            _hsl.val[2] = vqmovun_s16(_l16);
+
+            vst3_u8(hsl, _hsl);
+
+            hsl += 3 * 8;
+            ptr0 += 8;
+            ptr1 += 8;
+            ptr2 += 8;
+        }
+#endif // __ARM_NEON
+        for (; remain > 0; remain--)
+        {
+            float r = *ptr0, g = *ptr1, b = *ptr2;
+            r /= 255.0f, g /= 255.0f, b /= 255.0f;
+            float maxVal = fmax(r, fmax(g, b)), minVal = fmin(r, fmin(g, b));
+            float diff = maxVal - minVal;
+            float H = 0.f, S = 0.f, L = 0.5f * (maxVal + minVal);
+
+            if (diff > 1.192092896e-07f)
+            {
+                S = L < 0.5f ? diff / (maxVal + minVal) : diff / (2 - maxVal - minVal);
+                diff = 60.f / diff;
+
+                if (maxVal == r)
+                {
+                    H = (g - b) * diff;
+                }
+                else if (maxVal == g)
+                {
+                    H = (b - r) * diff + 120.f;
+                }
+                else
+                {
+                    H = (r - g) * diff + 240.f;
+                }
+                if (H < 0.f)
+                {
+                    H += 360.f;
+                }
+            }
+
+            hsl[0] = SATURATE_CAST_UCHAR(H / 2.f);
+            hsl[1] = SATURATE_CAST_UCHAR(S * 255.f);
+            hsl[2] = SATURATE_CAST_UCHAR(L * 255.f);
+
+            hsl += 3;
+            ptr0++;
+            ptr1++;
+            ptr2++;
+        }
+
+#undef SATURATE_CAST_UCHAR
+        hsl += wgap;
+    }
+}
+
 void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb)
 {
     const unsigned char* yptr = yuv420sp;
@@ -2430,7 +3278,7 @@ Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, Alloca
 {
     int type_from = type & PIXEL_FORMAT_MASK;
 
-    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR || type_from == PIXEL_HSL)
     {
         return Mat::from_pixels(pixels, type, w, h, w * 3, allocator);
     }
@@ -2500,6 +3348,12 @@ Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, int st
         case PIXEL_BGRA2GRAY:
             from_bgra2gray(pixels, w, h, stride, m, allocator);
             break;
+        case PIXEL_HSL2RGB:
+            from_hsl2rgb(pixels, w, h, stride, m, allocator);
+            break;
+        case PIXEL_RGB2HSL:
+            from_rgb2hsl(pixels, w, h, stride, m, allocator);
+            break;
         default:
             // unimplemented convert type
             NCNN_LOGE("unimplemented convert type %d", type);
@@ -2516,6 +3370,9 @@ Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, int st
 
         if (type == PIXEL_RGBA || type == PIXEL_BGRA)
             from_rgba(pixels, w, h, stride, m, allocator);
+
+        if (type == PIXEL_HSL)
+            from_hsl(pixels, w, h, stride, m, allocator);
     }
 
     return m;
@@ -2587,7 +3444,7 @@ Mat Mat::from_pixels_roi(const unsigned char* pixels, int type, int w, int h, in
 
     int type_from = type & PIXEL_FORMAT_MASK;
 
-    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR || type_from == PIXEL_HSL)
     {
         return from_pixels(pixels + (roiy * w + roix) * 3, type, roiw, roih, w * 3, allocator);
     }
@@ -2615,7 +3472,7 @@ Mat Mat::from_pixels_roi(const unsigned char* pixels, int type, int w, int h, in
 
     int type_from = type & PIXEL_FORMAT_MASK;
 
-    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR || type_from == PIXEL_HSL)
     {
         return from_pixels(pixels + roiy * stride + roix * 3, type, roiw, roih, stride, allocator);
     }
@@ -2693,7 +3550,7 @@ void Mat::to_pixels(unsigned char* pixels, int type) const
 {
     int type_to = (type & PIXEL_CONVERT_MASK) ? (type >> PIXEL_CONVERT_SHIFT) : (type & PIXEL_FORMAT_MASK);
 
-    if (type_to == PIXEL_RGB || type_to == PIXEL_BGR)
+    if (type_to == PIXEL_RGB || type_to == PIXEL_BGR || type_to == PIXEL_HSL)
     {
         to_pixels(pixels, type, w * 3);
     }
@@ -2733,6 +3590,12 @@ void Mat::to_pixels(unsigned char* pixels, int type, int stride) const
         case PIXEL_BGRA2RGBA:
             to_rgba2bgra(*this, pixels, stride);
             break;
+        case PIXEL_HSL2RGB:
+            to_hsl2rgb(*this, pixels, stride);
+            break;
+        case PIXEL_RGB2HSL:
+            to_rgb2hsl(*this, pixels, stride);
+            break;
         default:
             // unimplemented convert type
             NCNN_LOGE("unimplemented convert type %d", type);
@@ -2749,6 +3612,9 @@ void Mat::to_pixels(unsigned char* pixels, int type, int stride) const
 
         if (type == PIXEL_RGBA || type == PIXEL_BGRA)
             to_rgba(*this, pixels, stride);
+
+        if (type == PIXEL_HSL)
+            to_hsl(*this, pixels, stride);
     }
 }
 
