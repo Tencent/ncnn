@@ -210,6 +210,42 @@ static int test_interp_noninteger_scale_factor(int resize_type)
     return 0;
 }
 
+static int test_interp_dynamic_target_size(int resize_type)
+{
+    const int input_width = 7;
+    const int input_height = 7;
+    const int output_width = 10;
+    const int output_height = 10;
+
+    ncnn::Mat a(input_width, input_height);
+    for (int y = 0; y < input_height; y++)
+    {
+        float* ptr = a.row(y);
+        for (int x = 0; x < input_width; x++)
+        {
+            ptr[x] = (float)(y * input_width + x);
+        }
+    }
+
+    ncnn::ParamDict pd;
+    pd.set(0, resize_type);
+    pd.set(5, 1);
+
+    std::vector<ncnn::Mat> as(2);
+    as[0] = a;
+    as[1] = ncnn::Mat(output_width, output_height);
+
+    std::vector<ncnn::Mat> weights(0);
+
+    int ret = test_layer("Interp", pd, weights, as);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_interp_dynamic_target_size failed resize_type=%d\n", resize_type);
+    }
+
+    return ret;
+}
+
 static int test_interp_0()
 {
     ncnn::Mat a = RandomMat(15, 16, 7);
@@ -792,5 +828,7 @@ int main()
            || test_interp_10()
            || test_interp_11()
            || test_interp_noninteger_scale_factor(2)
-           || test_interp_noninteger_scale_factor(3);
+           || test_interp_noninteger_scale_factor(3)
+           || test_interp_dynamic_target_size(2)
+           || test_interp_dynamic_target_size(3);
 }
