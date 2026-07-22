@@ -4910,15 +4910,8 @@ int Gemm_arm::destroy_pipeline(const Option& /*opt*/)
 #if NCNN_WEIGHT_QUANT
 int Gemm_arm::create_pipeline_wq_int8(const Option& opt)
 {
-    if (!BT_data_wq_int8.empty() && !BT_data_wq_int8_descales.empty())
+    if (!BT_data_wq_int8.empty())
         return 0;
-
-    if (!BT_data_wq_int8.empty() || !BT_data_wq_int8_descales.empty())
-    {
-        BT_data_wq_int8.release();
-        BT_data_wq_int8_descales.release();
-        return -100;
-    }
 
     if (B_data.empty() || B_data_quantize_scales.empty())
         return -100;
@@ -4976,8 +4969,6 @@ int Gemm_arm::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
     if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0 || weight_bits != 8)
         return -1;
 
-    if (BT_data_wq_int8.empty() || BT_data_wq_int8_descales.empty())
-        return -100;
     if (has_input_scale && B_data_input_scales.empty())
         return -100;
 

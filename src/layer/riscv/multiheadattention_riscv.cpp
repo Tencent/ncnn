@@ -24,32 +24,8 @@ MultiHeadAttention_riscv::MultiHeadAttention_riscv()
 #if NCNN_WEIGHT_QUANT
 int MultiHeadAttention_riscv::create_pipeline_wq_int8(const Option& _opt)
 {
-    if (q_gemm && k_gemm && v_gemm && o_gemm && qk_gemm && qkv_gemm && qk_softmax)
+    if (q_gemm)
         return 0;
-
-    if (q_gemm || k_gemm || v_gemm || o_gemm || qk_gemm || qkv_gemm || qk_softmax)
-    {
-        destroy_pipeline(_opt);
-        return -100;
-    }
-
-    int weight_bits;
-    int block_size;
-    bool has_input_scale;
-    if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0 || weight_bits != 8 || block_size <= 0)
-        return -1;
-
-    if (embed_dim <= 0 || num_heads <= 0 || embed_dim % num_heads != 0 || weight_data_size <= 0 || weight_data_size % embed_dim != 0 || kdim <= 0 || vdim <= 0)
-        return -100;
-
-    if (q_weight_data.empty() || q_bias_data.empty() || q_weight_data_quantize_scales.empty()
-            || k_weight_data.empty() || k_bias_data.empty() || k_weight_data_quantize_scales.empty()
-            || v_weight_data.empty() || v_bias_data.empty() || v_weight_data_quantize_scales.empty()
-            || out_weight_data.empty() || out_bias_data.empty() || out_weight_data_quantize_scales.empty())
-        return -100;
-
-    if (has_input_scale && (q_weight_data_input_scales.empty() || k_weight_data_input_scales.empty() || v_weight_data_input_scales.empty() || out_weight_data_input_scales.empty()))
-        return -100;
 
     Option opt = _opt;
     Option opt_wq = opt;
@@ -497,9 +473,6 @@ int MultiHeadAttention_riscv::forward(const std::vector<Mat>& bottom_blobs, std:
 #else
     return MultiHeadAttention::forward(bottom_blobs, top_blobs, _opt);
 #endif
-
-    if (!q_gemm || !k_gemm || !v_gemm || !o_gemm || !qk_gemm || !qkv_gemm || !qk_softmax)
-        return -100;
 
     int q_blob_i = 0;
     int k_blob_i = 0;

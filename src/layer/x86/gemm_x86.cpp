@@ -7459,15 +7459,8 @@ static int pack_B_wq_int8_x86(const Mat& B, const Mat& B_scales, Mat& packed_B, 
 
 int Gemm_x86::create_pipeline_wq_int8(const Option& opt)
 {
-    if (!BT_data_wq_int8.empty() && !BT_data_wq_int8_descales.empty())
+    if (!BT_data_wq_int8.empty())
         return 0;
-
-    if (!BT_data_wq_int8.empty() || !BT_data_wq_int8_descales.empty())
-    {
-        BT_data_wq_int8.release();
-        BT_data_wq_int8_descales.release();
-        return -100;
-    }
 
     if (B_data.empty() || B_data_quantize_scales.empty())
         return -100;
@@ -7727,8 +7720,6 @@ int Gemm_x86::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
     bool has_input_scale;
     if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0 || weight_bits != 8)
         return -1;
-    if (BT_data_wq_int8.empty() || BT_data_wq_int8_descales.empty())
-        return -100;
     if (has_input_scale && B_data_input_scales.empty())
         return -100;
 
@@ -7831,7 +7822,7 @@ int Gemm_x86::create_pipeline(const Option& opt)
             return create_pipeline_wq_int8(opt);
 #endif // NCNN_WEIGHT_QUANT
 
-        return Gemm::create_pipeline(opt);
+        return 0;
     }
 
 #if NCNN_INT8

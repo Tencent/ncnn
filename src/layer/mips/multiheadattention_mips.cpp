@@ -31,14 +31,8 @@ MultiHeadAttention_mips::MultiHeadAttention_mips()
 #if NCNN_WEIGHT_QUANT
 int MultiHeadAttention_mips::create_pipeline_wq_int8(const Option& _opt)
 {
-    if (q_gemm && k_gemm && v_gemm && o_gemm && qk_gemm && qkv_gemm && qk_softmax)
+    if (q_gemm)
         return 0;
-
-    if (q_gemm || k_gemm || v_gemm || o_gemm || qk_gemm || qkv_gemm || qk_softmax)
-    {
-        destroy_pipeline(_opt);
-        return -100;
-    }
 
     Option opt = _opt;
     Option opt_wq = opt;
@@ -711,8 +705,6 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
         if (weight_bits != 8)
             return MultiHeadAttention::forward(bottom_blobs, top_blobs, _opt);
 
-        if (!q_gemm || !k_gemm || !v_gemm || !o_gemm || !qk_gemm || !qkv_gemm || !qk_softmax)
-            return -100;
     }
 
     int q_blob_i = 0;

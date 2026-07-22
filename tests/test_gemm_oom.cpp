@@ -149,6 +149,45 @@ static int test_gemm_1(int M, int N, int K)
            || test_gemm_bias_oom(M, N, K, RandomMat(N, M), 5.1f, 0.8f, 1, 1, 1, 1, 1, 1);
 }
 
+#if NCNN_WEIGHT_QUANT
+static int test_gemm_w8a8_oom(int M, int N, int K, int block_size, int input_scale, int output_transpose)
+{
+    const int block_count = (K + block_size - 1) / block_size;
+    const int block_size_code = block_size == 32 ? 0 : block_size == 64 ? 1 : 2;
+
+    ncnn::ParamDict pd;
+    pd.set(0, 1.7f);
+    pd.set(1, 0.3f);
+    pd.set(2, 0);
+    pd.set(3, 1);
+    pd.set(4, 0);
+    pd.set(5, 1);
+    pd.set(6, 1);
+    pd.set(7, M);
+    pd.set(8, N);
+    pd.set(9, K);
+    pd.set(10, 4);
+    pd.set(14, output_transpose);
+    pd.set(18, 800 + input_scale * 10 + block_size_code);
+
+    std::vector<ncnn::Mat> weights;
+    weights.push_back(RandomS8Mat(K, N));
+    weights.push_back(RandomMat(N));
+    weights.push_back(RandomMat(block_count, N, 10.f, 20.f));
+    if (input_scale)
+        weights.push_back(RandomMat(K, 0.5f, 1.5f));
+
+    const ncnn::Mat A = RandomMat(K, M);
+    int ret = test_layer_oom("Gemm", pd, weights, A, TEST_LAYER_ENABLE_THREADING);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_gemm_w8a8_oom failed M=%d N=%d K=%d block_size=%d input_scale=%d output_transpose=%d\n", M, N, K, block_size, input_scale, output_transpose);
+    }
+
+    return ret;
+}
+#endif // NCNN_WEIGHT_QUANT
+
 #if NCNN_INT8
 static int test_gemm_int8_oom(int M, int N, int K, int transA, int transB, int output_elemtype, int output_transpose, int constantA, int constantB, int output_N1M)
 {
@@ -462,5 +501,11 @@ int main()
             return ret3;
     }
 
+#if NCNN_WEIGHT_QUANT
+    return 0
+           || test_gemm_w8a8_oom(3, 5, 65, 32, 0, 0)
+           || test_gemm_w8a8_oom(8, 17, 129, 128, 1, 1);
+#else
     return 0;
+#endif
 }
