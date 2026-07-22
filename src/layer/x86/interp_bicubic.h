@@ -20,9 +20,11 @@ static inline void interpolate_cubic(float fx, float* coeffs)
     coeffs[3] = 1.f - coeffs[0] - coeffs[1] - coeffs[2];
 }
 
-static void cubic_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner)
+static void cubic_coeffs(int w, int outw, float coord_scale, int* xofs, float* alpha, int align_corner)
 {
-    double scale = (double)w / outw;
+    // coord_scale is w/outw for an explicit output size, or 1/scale_factor when derived from a
+    // scale factor (matching the nearest path / PyTorch default / ONNX half_pixel).
+    double scale = coord_scale;
     if (align_corner)
     {
         scale = (double)(w - 1) / (outw - 1);
@@ -76,6 +78,11 @@ static void cubic_coeffs(int w, int outw, int* xofs, float* alpha, int align_cor
 
         xofs[dx] = sx;
     }
+}
+
+static void cubic_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner)
+{
+    cubic_coeffs(w, outw, (float)((double)w / outw), xofs, alpha, align_corner);
 }
 
 static void vresize_bicubic(const float* rows0, const float* rows1, const float* rows2, const float* rows3, float* Dp, int n, float b0, float b1, float b2, float b3)

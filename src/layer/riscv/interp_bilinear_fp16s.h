@@ -1,9 +1,9 @@
 // Copyright 2020 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-static void linear_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha, int align_corner)
+static void linear_coeffs_fp16sa(int w, int outw, float coord_scale, int* xofs, __fp16* alpha, int align_corner)
 {
-    double scale = (double)w / outw;
+    double scale = coord_scale;
     if (align_corner)
     {
         scale = (double)(w - 1) / (outw - 1);
@@ -36,6 +36,11 @@ static void linear_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha, int 
         alpha[dx * 2] = (__fp16)(1.f - fx);
         alpha[dx * 2 + 1] = (__fp16)fx;
     }
+}
+
+static void linear_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha, int align_corner)
+{
+    linear_coeffs_fp16sa(w, outw, (float)((double)w / outw), xofs, alpha, align_corner);
 }
 
 static void resize_bilinear_image_fp16s(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
