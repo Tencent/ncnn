@@ -670,6 +670,9 @@ For operator-level detail, see [supported PyTorch operator status](tools/pnnx#su
 | FAQ | [deepwiki](https://deepwiki.com/Tencent/ncnn), [throw error](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-throw-error), [wrong result](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result), [Vulkan](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-vulkan) |
 | Legacy beginner material | [use ncnn with AlexNet](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet), [AlexNet Chinese tutorial](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet.zh) |
 
+    - Speech recognition demo (Chinese + English): https://user-images.githubusercontent.com/5284924/208226257-aaa8d62f-d339-4cfa-9db7-9b0de48ac70b.mp4
+    - Speech recognition demo (Chinese): https://user-images.githubusercontent.com/5284924/208226272-02b80b15-cafc-4fc1-83ea-21fec6906335.mp4
+
 ---
 
 ## License
