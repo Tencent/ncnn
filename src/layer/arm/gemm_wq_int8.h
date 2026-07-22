@@ -357,7 +357,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 ps += max_kk0;
             pd += 8;
         }
-
     }
 #endif // __aarch64__
     for (; ii + 3 < max_ii; ii += 4)
@@ -2496,7 +2495,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB0 += 16;
                     pB1 += 16;
                 }
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
                     int16x8_t _a = vreinterpretq_s16_s8(vld1q_s8(pA));
@@ -2725,7 +2724,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                         : "cc", "memory", "q0", "q1", "q2", "q3");
                     kk += remain * 4;
                 }
-#else // NCNN_GNU_INLINE_ASM && !__aarch64__
+#else  // NCNN_GNU_INLINE_ASM && !__aarch64__
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
                     int16x8_t _a = vreinterpretq_s16_s8(vld1q_s8(pA));
@@ -3083,7 +3082,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB0 += 16;
                     pB1 += 16;
                 }
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
                     int16x4_t _a = vreinterpret_s16_s8(vld1_s8(pA));
@@ -3216,7 +3215,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     pB += 16;
                 }
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
                     int16x4_t _a = vreinterpret_s16_s8(vld1_s8(pA));
@@ -4095,7 +4094,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr += 2;
             pB_panel += (size_t)2 * full_K;
             pB_descales_panel += (size_t)2 * block_count;
-#else  // __ARM_NEON
+#else // __ARM_NEON
             const signed char* pB = pB_panel + (size_t)2 * k;
             const float* pB_descales = pB_descales_panel + (size_t)2 * block_start;
             float fsum00;
