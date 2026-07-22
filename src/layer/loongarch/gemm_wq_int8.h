@@ -4,16 +4,14 @@
 static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile, Mat& BT_descales_tile, int j, int max_jj, int K, int block_size)
 {
     const int block_count = (K + block_size - 1) / block_size;
-    signed char* outptr = BT_tile;
-    float* descales = BT_descales_tile;
+    signed char* pp = BT_tile;
+    float* pd = BT_descales_tile;
 
     int jj = 0;
 #if __loongarch_sx
 #if __loongarch_asx
     for (; jj + 7 < max_jj; jj += 8)
     {
-        signed char* pp = outptr + (size_t)jj * K;
-        float* pd = descales + (size_t)jj * block_count;
         const signed char* p0 = B.row<const signed char>(j + jj);
         const signed char* p1 = B.row<const signed char>(j + jj + 1);
         const signed char* p2 = B.row<const signed char>(j + jj + 2);
@@ -118,8 +116,6 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
 #endif // __loongarch_asx
     for (; jj + 3 < max_jj; jj += 4)
     {
-        signed char* pp = outptr + (size_t)jj * K;
-        float* pd = descales + (size_t)jj * block_count;
         const signed char* p0 = B.row<const signed char>(j + jj);
         const signed char* p1 = B.row<const signed char>(j + jj + 1);
         const signed char* p2 = B.row<const signed char>(j + jj + 2);
@@ -185,8 +181,6 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
 
     for (; jj + 1 < max_jj; jj += 2)
     {
-        signed char* pp = outptr + (size_t)jj * K;
-        float* pd = descales + (size_t)jj * block_count;
         const signed char* p0 = B.row<const signed char>(j + jj);
         const signed char* p1 = B.row<const signed char>(j + jj + 1);
         const float* s0 = B_scales.row(j + jj);
@@ -236,8 +230,6 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
 
     for (; jj < max_jj; jj++)
     {
-        signed char* pp = outptr + (size_t)jj * K;
-        float* pd = descales + (size_t)jj * block_count;
         const signed char* p0 = B.row<const signed char>(j + jj);
         const float* s0 = B_scales.row(j + jj);
         for (int g = 0; g < block_count; g++)
@@ -272,10 +264,8 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
 
 static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
 {
-    signed char* outptr = AT_tile;
-    const int out_hstep = AT_tile.w;
-    float* descales = AT_descales_tile;
-    const int descales_hstep = AT_descales_tile.w;
+    signed char* pp = AT_tile;
+    float* pd = AT_descales_tile;
     const int block_count = (max_kk + block_size - 1) / block_size;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
     const float* A_data = (const float*)A + k;
@@ -294,9 +284,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             const float* p5 = p4 + A_hstep;
             const float* p6 = p5 + A_hstep;
             const float* p7 = p6 + A_hstep;
-
-            signed char* pp = outptr + ii * out_hstep;
-            float* pd = descales + ii * descales_hstep;
 
             for (int g = 0; g < block_count; g++)
             {
@@ -454,8 +441,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             const float* p1 = p0 + A_hstep;
             const float* p2 = p1 + A_hstep;
             const float* p3 = p2 + A_hstep;
-            signed char* pp = outptr + ii * out_hstep;
-            float* pd = descales + ii * descales_hstep;
             const __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
 
             for (int g = 0; g < block_count; g++)
@@ -564,8 +549,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         {
             const float* p0 = A_data + (i + ii) * A_hstep;
             const float* p1 = p0 + A_hstep;
-            signed char* pp = outptr + ii * out_hstep;
-            float* pd = descales + ii * descales_hstep;
             const __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
 
             for (int g = 0; g < block_count; g++)
@@ -638,9 +621,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         {
             const float* p0 = A_data + (i + ii) * A_hstep;
             const float* p1 = p0 + A_hstep;
-            signed char* pp = outptr + ii * out_hstep;
-            float* pd = descales + ii * descales_hstep;
-
             for (int g = 0; g < block_count; g++)
             {
                 const int kk0 = g * block_size;
@@ -700,9 +680,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         for (; ii < max_ii; ii++)
         {
             const float* p0 = A_data + (i + ii) * A_hstep;
-            signed char* pp = outptr + ii * out_hstep;
-            float* pd = descales + ii * descales_hstep;
-
             for (int g = 0; g < block_count; g++)
             {
                 const int kk0 = g * block_size;
@@ -801,9 +778,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         const float* p5 = p4 + A_hstep;
         const float* p6 = p5 + A_hstep;
         const float* p7 = p6 + A_hstep;
-
-        signed char* pp = outptr + ii * out_hstep;
-        float* pd = descales + ii * descales_hstep;
 
         for (int g = 0; g < block_count; g++)
         {
@@ -986,8 +960,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         const float* p1 = p0 + A_hstep;
         const float* p2 = p1 + A_hstep;
         const float* p3 = p2 + A_hstep;
-        signed char* pp = outptr + ii * out_hstep;
-        float* pd = descales + ii * descales_hstep;
         const __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
 
         for (int g = 0; g < block_count; g++)
@@ -1116,8 +1088,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
     {
         const float* p0 = A_data + (i + ii) * A_hstep;
         const float* p1 = p0 + A_hstep;
-        signed char* pp = outptr + ii * out_hstep;
-        float* pd = descales + ii * descales_hstep;
         const __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
 
         for (int g = 0; g < block_count; g++)
@@ -1206,9 +1176,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
     {
         const float* p0 = A_data + (i + ii) * A_hstep;
         const float* p1 = p0 + A_hstep;
-        signed char* pp = outptr + ii * out_hstep;
-        float* pd = descales + ii * descales_hstep;
-
         for (int g = 0; g < block_count; g++)
         {
             const int kk0 = g * block_size;
@@ -1281,9 +1248,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
     for (; ii < max_ii; ii++)
     {
         const float* p0 = A_data + (i + ii) * A_hstep;
-        signed char* pp = outptr + ii * out_hstep;
-        float* pd = descales + ii * descales_hstep;
-
         for (int g = 0; g < block_count; g++)
         {
             const int kk0 = g * block_size;
@@ -1378,10 +1342,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 
 static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
 {
-    signed char* outptr = AT_tile;
-    const int out_hstep = AT_tile.w;
-    float* descales = AT_descales_tile;
-    const int descales_hstep = AT_descales_tile.w;
+    signed char* pp = AT_tile;
+    float* pd = AT_descales_tile;
     const int block_count = (max_kk + block_size - 1) / block_size;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
     const float* A_data = (const float*)A + (size_t)k * A_hstep;
@@ -1393,9 +1355,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
         for (; ii + 7 < max_ii; ii += 8)
         {
             const float* ptrA = A_data + i + ii;
-            signed char* pp = outptr + ii * out_hstep;
-            float* pd = descales + ii * descales_hstep;
-
             for (int g = 0; g < block_count; g++)
             {
                 const int kk0 = g * block_size;
@@ -1497,9 +1456,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
         for (; ii + 3 < max_ii; ii += 4)
         {
             const float* ptrA = A_data + i + ii;
-            signed char* pp = outptr + ii * out_hstep;
-            float* pd = descales + ii * descales_hstep;
-
             for (int g = 0; g < block_count; g++)
             {
                 const int kk0 = g * block_size;
@@ -1584,8 +1540,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
         for (; ii + 1 < max_ii; ii += 2)
         {
             const float* ptrA = A_data + i + ii;
-            signed char* pp = outptr + ii * out_hstep;
-            float* pd = descales + ii * descales_hstep;
             const __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
 
             for (int g = 0; g < block_count; g++)
@@ -1651,9 +1605,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
         for (; ii + 1 < max_ii; ii += 2)
         {
             const float* ptrA = A_data + i + ii;
-            signed char* pp = outptr + ii * out_hstep;
-            float* pd = descales + ii * descales_hstep;
-
             for (int g = 0; g < block_count; g++)
             {
                 const int kk0 = g * block_size;
@@ -1715,9 +1666,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
         for (; ii < max_ii; ii++)
         {
             const float* p0 = A_data + i + ii;
-            signed char* pp = outptr + ii * out_hstep;
-            float* pd = descales + ii * descales_hstep;
-
             for (int g = 0; g < block_count; g++)
             {
                 const int kk0 = g * block_size;
@@ -1765,9 +1713,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
     for (; ii + 7 < max_ii; ii += 8)
     {
         const float* ptrA = A_data + i + ii;
-        signed char* pp = outptr + ii * out_hstep;
-        float* pd = descales + ii * descales_hstep;
-
         for (int g = 0; g < block_count; g++)
         {
             const int kk0 = g * block_size;
@@ -1891,9 +1836,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
     for (; ii + 3 < max_ii; ii += 4)
     {
         const float* ptrA = A_data + i + ii;
-        signed char* pp = outptr + ii * out_hstep;
-        float* pd = descales + ii * descales_hstep;
-
         for (int g = 0; g < block_count; g++)
         {
             const int kk0 = g * block_size;
@@ -1990,8 +1932,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
     for (; ii + 1 < max_ii; ii += 2)
     {
         const float* ptrA = A_data + i + ii;
-        signed char* pp = outptr + ii * out_hstep;
-        float* pd = descales + ii * descales_hstep;
         const __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
 
         for (int g = 0; g < block_count; g++)
@@ -2070,9 +2010,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
     for (; ii + 1 < max_ii; ii += 2)
     {
         const float* ptrA = A_data + i + ii;
-        signed char* pp = outptr + ii * out_hstep;
-        float* pd = descales + ii * descales_hstep;
-
         for (int g = 0; g < block_count; g++)
         {
             const int kk0 = g * block_size;
@@ -2147,9 +2084,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
     for (; ii < max_ii; ii++)
     {
         const float* p0 = A_data + i + ii;
-        signed char* pp = outptr + ii * out_hstep;
-        float* pd = descales + ii * descales_hstep;
-
         for (int g = 0; g < block_count; g++)
         {
             const int kk0 = g * block_size;
@@ -5575,7 +5509,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 }
                 if (broadcast_type_C == 4)
                 {
-                    __m128 _c = __lsx_vreplfr2vr_s(beta == 1.f ? pC[0] : pC[0] * beta);
+                    __m128 _c = __lsx_vreplfr2vr_s(pC[0] * beta);
                     _f0 = __lsx_vfadd_s(_f0, _c);
                     _f4 = __lsx_vfadd_s(_f4, _c);
                     pC++;
@@ -6127,7 +6061,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 }
                 if (broadcast_type_C == 4)
                 {
-                    _f0 = __lsx_vfadd_s(_f0, __lsx_vreplfr2vr_s(beta == 1.f ? pC[0] : pC[0] * beta));
+                    _f0 = __lsx_vfadd_s(_f0, __lsx_vreplfr2vr_s(pC[0] * beta));
                     pC++;
                 }
             }
@@ -6555,8 +6489,8 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float cc0 = beta == 1.f ? pC[0] : pC[0] * beta;
-                    const float cc1 = beta == 1.f ? pC[1] : pC[1] * beta;
+                    const float cc0 = pC[0] * beta;
+                    const float cc1 = pC[1] * beta;
                     f00 += cc0;
                     f01 += cc1;
                     f10 += cc0;
@@ -6610,7 +6544,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 }
                 if (broadcast_type_C == 4)
                 {
-                    float c = beta == 1.f ? pC[0] : pC[0] * beta;
+                    float c = pC[0] * beta;
                     f0 += c;
                     f1 += c;
                     pC++;
@@ -6831,7 +6765,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     f0 += c0;
                 if (broadcast_type_C == 3 || broadcast_type_C == 4)
                 {
-                    f0 += beta == 1.f ? pC[0] : pC[0] * beta;
+                    f0 += pC[0] * beta;
                     pC++;
                 }
             }
@@ -6857,27 +6791,34 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
 
         __m128 _c0 = __lsx_vreplfr2vr_s(0.f);
         __m128 _c1 = __lsx_vreplfr2vr_s(0.f);
-        if (pC && broadcast_type_C == 0)
+        if (pC)
         {
-            _c0 = __lsx_vreplfr2vr_s(pC[0] * beta);
-            _c1 = _c0;
-        }
-        if (pC && (broadcast_type_C == 1 || broadcast_type_C == 2))
-        {
-            _c0 = (__m128)__lsx_vld(pC + i + ii, 0);
-            _c1 = (__m128)__lsx_vld(pC + i + ii + 4, 0);
-            if (beta != 1.f)
+            if (broadcast_type_C == 0)
             {
-                __m128 _beta = __lsx_vreplfr2vr_s(beta);
-                _c0 = __lsx_vfmul_s(_c0, _beta);
-                _c1 = __lsx_vfmul_s(_c1, _beta);
+                _c0 = __lsx_vreplfr2vr_s(pC[0] * beta);
+                _c1 = _c0;
+            }
+            if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
+                _c0 = (__m128)__lsx_vld(pC + i + ii, 0);
+                _c1 = (__m128)__lsx_vld(pC + i + ii + 4, 0);
+                if (beta != 1.f)
+                {
+                    __m128 _beta = __lsx_vreplfr2vr_s(beta);
+                    _c0 = __lsx_vfmul_s(_c0, _beta);
+                    _c1 = __lsx_vfmul_s(_c1, _beta);
+                }
+            }
+
+            if (broadcast_type_C == 3)
+            {
+                pC += (size_t)(i + ii) * c_hstep + j;
+            }
+            if (broadcast_type_C == 4)
+            {
+                pC += j;
             }
         }
-
-        if (pC && broadcast_type_C == 3)
-            pC += (size_t)(i + ii) * c_hstep + j;
-        if (pC && broadcast_type_C == 4)
-            pC += j;
 
         int jj = 0;
 #if __loongarch_asx
@@ -7791,19 +7732,26 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
         const float* pC = C;
 
         __m128 _c = __lsx_vreplfr2vr_s(0.f);
-        if (pC && broadcast_type_C == 0)
-            _c = __lsx_vreplfr2vr_s(pC[0] * beta);
-        if (pC && (broadcast_type_C == 1 || broadcast_type_C == 2))
+        if (pC)
         {
-            _c = (__m128)__lsx_vld(pC + i + ii, 0);
-            if (beta != 1.f)
-                _c = __lsx_vfmul_s(_c, __lsx_vreplfr2vr_s(beta));
-        }
+            if (broadcast_type_C == 0)
+                _c = __lsx_vreplfr2vr_s(pC[0] * beta);
+            if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
+                _c = (__m128)__lsx_vld(pC + i + ii, 0);
+                if (beta != 1.f)
+                    _c = __lsx_vfmul_s(_c, __lsx_vreplfr2vr_s(beta));
+            }
 
-        if (pC && broadcast_type_C == 3)
-            pC += (size_t)(i + ii) * c_hstep + j;
-        if (pC && broadcast_type_C == 4)
-            pC += j;
+            if (broadcast_type_C == 3)
+            {
+                pC += (size_t)(i + ii) * c_hstep + j;
+            }
+            if (broadcast_type_C == 4)
+            {
+                pC += j;
+            }
+        }
 
         int jj = 0;
 #if __loongarch_asx
@@ -8349,13 +8297,16 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
         int jj = 0;
 #if __loongarch_sx
         __m128 _c = __lsx_vreplfr2vr_s(0.f);
-        if (pC && broadcast_type_C == 0)
-            _c = __lsx_vreplfr2vr_s(c0);
-        if (pC && (broadcast_type_C == 1 || broadcast_type_C == 2))
+        if (pC)
         {
-            __m128 _c0 = __lsx_vreplfr2vr_s(c0);
-            __m128 _c1 = __lsx_vreplfr2vr_s(c1);
-            _c = (__m128)__lsx_vilvl_w((__m128i)_c1, (__m128i)_c0);
+            if (broadcast_type_C == 0)
+                _c = __lsx_vreplfr2vr_s(c0);
+            if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
+                __m128 _c0 = __lsx_vreplfr2vr_s(c0);
+                __m128 _c1 = __lsx_vreplfr2vr_s(c1);
+                _c = (__m128)__lsx_vilvl_w((__m128i)_c1, (__m128i)_c0);
+            }
         }
 #if __loongarch_asx
         for (; jj + 15 < max_jj; jj += 16)
@@ -8798,8 +8749,8 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float cc0 = beta == 1.f ? pC[0] : pC[0] * beta;
-                    const float cc1 = beta == 1.f ? pC[1] : pC[1] * beta;
+                    const float cc0 = pC[0] * beta;
+                    const float cc1 = pC[1] * beta;
                     f00 += cc0;
                     f01 += cc1;
                     f10 += cc0;
@@ -8848,7 +8799,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    float c = beta == 1.f ? pC[0] : pC[0] * beta;
+                    float c = pC[0] * beta;
                     f0 += c;
                     f1 += c;
                     pC++;
@@ -9131,7 +9082,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     f0 += c0;
                 if (broadcast_type_C == 3 || broadcast_type_C == 4)
                 {
-                    f0 += beta == 1.f ? pC[0] : pC[0] * beta;
+                    f0 += pC[0] * beta;
                     pC++;
                 }
             }

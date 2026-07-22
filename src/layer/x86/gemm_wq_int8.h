@@ -172,20 +172,6 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 p2 += 4;
                 p3 += 4;
             }
-#else
-            // AVX2/SSE2 consumes two K2 vectors for each real K4 region.
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                __m128i _p01 = _mm_setr_epi16(((const short*)p0)[0], ((const short*)p1)[0], ((const short*)p2)[0], ((const short*)p3)[0], 0, 0, 0, 0);
-                __m128i _p23 = _mm_setr_epi16(((const short*)(p0 + 2))[0], ((const short*)(p1 + 2))[0], ((const short*)(p2 + 2))[0], ((const short*)(p3 + 2))[0], 0, 0, 0, 0);
-                _mm_storel_epi64((__m128i*)pp, _p01);
-                _mm_storel_epi64((__m128i*)(pp + 8), _p23);
-                pp += 16;
-                p0 += 4;
-                p1 += 4;
-                p2 += 4;
-                p3 += 4;
-            }
 #endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
@@ -227,6 +213,7 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
             const int max_kk = std::min(K - g * block_size, block_size);
 
             int kk = 0;
+#if __SSE2__
 #if __AVX512VNNI__ || __AVXVNNI__
             // VNNI consumes one contiguous K4 dword per output lane.
             for (; kk + 3 < max_kk; kk += 4)
@@ -240,22 +227,7 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 p0 += 4;
                 p1 += 4;
             }
-#else
-#if __SSE2__
-            // AVX2/SSE2 consumes two K2 vectors for each real K4 region.
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                ((short*)pp)[0] = ((const short*)p0)[0];
-                ((short*)(pp + 2))[0] = ((const short*)p1)[0];
-                ((short*)(pp + 4))[0] = ((const short*)(p0 + 2))[0];
-                ((short*)(pp + 6))[0] = ((const short*)(p1 + 2))[0];
-                pp += 8;
-                p0 += 4;
-                p1 += 4;
-            }
-#endif // __SSE2__
 #endif // __AVX512VNNI__ || __AVXVNNI__
-#if __SSE2__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 ((short*)pp)[0] = ((const short*)p0)[0];
@@ -287,6 +259,7 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
             const int max_kk = std::min(K - g * block_size, block_size);
 
             int kk = 0;
+#if __SSE2__
 #if __AVX512VNNI__ || __AVXVNNI__
             // VNNI consumes one contiguous K4 dword per output lane.
             for (; kk + 3 < max_kk; kk += 4)
@@ -301,33 +274,14 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 pp += 4;
                 p0 += 4;
             }
-#else
-            // AVX2/SSE2 consumes two K2 vectors for each real K4 region.
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-#if __SSE2__
-                ((int*)pp)[0] = ((const int*)p0)[0];
-#else
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
-#endif // __SSE2__
-                pp += 4;
-                p0 += 4;
-            }
 #endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
-#if __SSE2__
                 ((short*)pp)[0] = ((const short*)p0)[0];
-#else
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-#endif // __SSE2__
                 pp += 2;
                 p0 += 2;
             }
+#endif // __SSE2__
             for (; kk < max_kk; kk++)
             {
                 *pp++ = (unsigned char)*p0++;
@@ -398,7 +352,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             for (int g = 0; g < block_count; g++)
             {
                 const int k0 = g * block_size;
-                const int max_kk = std::min(K - k0, block_size);
+                const int max_kk0 = std::min(K - k0, block_size);
 
                 __m512 _absmax0 = _mm512_setzero_ps();
                 __m512 _absmax1 = _mm512_setzero_ps();
@@ -417,7 +371,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 __m512 _absmaxe = _mm512_setzero_ps();
                 __m512 _absmaxf = _mm512_setzero_ps();
                 int kk_absmax = 0;
-                for (; kk_absmax + 15 < max_kk; kk_absmax += 16)
+                for (; kk_absmax + 15 < max_kk0; kk_absmax += 16)
                 {
                     __m512 _p = _mm512_loadu_ps(p0 + kk_absmax);
                     _absmax0 = _mm512_max_ps(_absmax0, abs512_ps(_p));
@@ -469,7 +423,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 float absmaxd = _mm512_reduce_max_ps(_absmaxd);
                 float absmaxe = _mm512_reduce_max_ps(_absmaxe);
                 float absmaxf = _mm512_reduce_max_ps(_absmaxf);
-                for (; kk_absmax + 3 < max_kk; kk_absmax += 4)
+                for (; kk_absmax + 3 < max_kk0; kk_absmax += 4)
                 {
                     absmax0 = std::max(absmax0, _mm_reduce_max_ps(abs_ps(_mm_loadu_ps(p0 + kk_absmax))));
                     absmax1 = std::max(absmax1, _mm_reduce_max_ps(abs_ps(_mm_loadu_ps(p0 + A_hstep + kk_absmax))));
@@ -488,7 +442,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     absmaxe = std::max(absmaxe, _mm_reduce_max_ps(abs_ps(_mm_loadu_ps(p0 + A_hstep * 14 + kk_absmax))));
                     absmaxf = std::max(absmaxf, _mm_reduce_max_ps(abs_ps(_mm_loadu_ps(p0 + A_hstep * 15 + kk_absmax))));
                 }
-                for (; kk_absmax < max_kk; kk_absmax++)
+                for (; kk_absmax < max_kk0; kk_absmax++)
                 {
                     absmax0 = std::max(absmax0, fabsf(p0[kk_absmax]));
                     absmax1 = std::max(absmax1, fabsf(p0[A_hstep + kk_absmax]));
@@ -520,7 +474,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #endif
                 signed char* pp = pp0;
                 int kk = 0;
-                for (; kk + 15 < max_kk; kk += 16)
+                for (; kk + 15 < max_kk0; kk += 16)
                 {
                     {
                         __m256 _p0 = _mm256_loadu_ps(p0 + kk);
@@ -647,7 +601,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                         pp += 64;
                     }
                 }
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128 _p0 = _mm_loadu_ps(p0 + kk);
                     __m128 _p1 = _mm_loadu_ps(p0 + A_hstep + kk);
@@ -695,13 +649,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     pp += 64;
                 }
 #if __AVX512VNNI__
-                if (max_kk >= 4)
+                if (max_kk0 >= 4)
                 {
                     _mm512_storeu_si512((__m512i*)pp, _w_shift);
                     pp += 64;
                 }
 #endif // __AVX512VNNI__
-                for (; kk + 1 < max_kk; kk += 2)
+                for (; kk + 1 < max_kk0; kk += 2)
                 {
                     __m512 _p0 = _mm512_i32gather_ps(_vindex, p0 + kk, sizeof(float));
                     __m512 _p1 = _mm512_i32gather_ps(_vindex, p0 + kk + 1, sizeof(float));
@@ -711,18 +665,18 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     _mm_storeu_si128((__m128i*)(pp + 16), _mm_unpackhi_epi8(_q0, _q1));
                     pp += 32;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m512 _p = _mm512_i32gather_ps(_vindex, p0 + kk, sizeof(float));
                     _mm_storeu_si128((__m128i*)pp, float2int8_avx512(_mm512_mul_ps(_p, _scale)));
                 }
 
-                p0 += max_kk;
+                p0 += max_kk0;
                 pd += 16;
 #if __AVX512VNNI__
-                pp0 += (max_kk + (max_kk >= 4 ? 4 : 0)) * 16;
+                pp0 += (max_kk0 + (max_kk0 >= 4 ? 4 : 0)) * 16;
 #else
-                pp0 += max_kk * 16;
+                pp0 += max_kk0 * 16;
 #endif
             }
         }
@@ -736,7 +690,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             for (int g = 0; g < block_count; g++)
             {
                 const int k0 = g * block_size;
-                const int max_kk = std::min(K - k0, block_size);
+                const int max_kk0 = std::min(K - k0, block_size);
 
                 __m256 _absmax0 = _mm256_setzero_ps();
                 __m256 _absmax1 = _mm256_setzero_ps();
@@ -747,7 +701,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 __m256 _absmax6 = _mm256_setzero_ps();
                 __m256 _absmax7 = _mm256_setzero_ps();
                 int kk = 0;
-                for (; kk + 7 < max_kk; kk += 8)
+                for (; kk + 7 < max_kk0; kk += 8)
                 {
                     __m256 _p = _mm256_loadu_ps(p0 + kk);
                     _absmax0 = _mm256_max_ps(_absmax0, abs256_ps(_p));
@@ -775,7 +729,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 float absmax5 = _mm256_reduce_max_ps(_absmax5);
                 float absmax6 = _mm256_reduce_max_ps(_absmax6);
                 float absmax7 = _mm256_reduce_max_ps(_absmax7);
-                for (; kk < max_kk; kk++)
+                for (; kk < max_kk0; kk++)
                 {
                     absmax0 = std::max(absmax0, fabsf(p0[kk]));
                     absmax1 = std::max(absmax1, fabsf(p0[A_hstep + kk]));
@@ -799,7 +753,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 __m256i _w_shift = _mm256_setzero_si256();
 #endif
                 kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128 _p0 = _mm_loadu_ps(p0 + kk);
                     __m128 _p1 = _mm_loadu_ps(p0 + A_hstep + kk);
@@ -846,13 +800,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     pp += 32;
                 }
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                if (max_kk >= 4)
+                if (max_kk0 >= 4)
                 {
                     _mm256_storeu_si256((__m256i*)pp, _w_shift);
                     pp += 32;
                 }
 #endif
-                for (; kk + 1 < max_kk; kk += 2)
+                for (; kk + 1 < max_kk0; kk += 2)
                 {
                     __m256i _vindex = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
                     _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32((int)A_hstep));
@@ -866,7 +820,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     _mm_storeu_si128((__m128i*)pp, _q);
                     pp += 16;
                 }
-                for (; kk < max_kk; kk++)
+                for (; kk < max_kk0; kk++)
                 {
                     __m256i _vindex = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
                     _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32((int)A_hstep));
@@ -875,12 +829,12 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     pp += 8;
                 }
 
-                p0 += max_kk;
+                p0 += max_kk0;
                 pd += 8;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                pp0 += (max_kk + (max_kk >= 4 ? 4 : 0)) * 8;
+                pp0 += (max_kk0 + (max_kk0 >= 4 ? 4 : 0)) * 8;
 #else
-                pp0 += max_kk * 8;
+                pp0 += max_kk0 * 8;
 #endif
             }
         }
@@ -894,14 +848,14 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             for (int g = 0; g < block_count; g++)
             {
                 const int k0 = g * block_size;
-                const int max_kk = std::min(K - k0, block_size);
+                const int max_kk0 = std::min(K - k0, block_size);
 
                 __m128 _absmax0 = _mm_setzero_ps();
                 __m128 _absmax1 = _mm_setzero_ps();
                 __m128 _absmax2 = _mm_setzero_ps();
                 __m128 _absmax3 = _mm_setzero_ps();
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128 _p0 = _mm_loadu_ps(p0 + kk);
                     __m128 _p1 = _mm_loadu_ps(p0 + A_hstep + kk);
@@ -917,7 +871,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 float absmax1 = _mm_reduce_max_ps(_absmax1);
                 float absmax2 = _mm_reduce_max_ps(_absmax2);
                 float absmax3 = _mm_reduce_max_ps(_absmax3);
-                for (; kk < max_kk; kk++)
+                for (; kk < max_kk0; kk++)
                 {
                     absmax0 = std::max(absmax0, fabsf(p0[kk]));
                     absmax1 = std::max(absmax1, fabsf(p0[A_hstep + kk]));
@@ -937,7 +891,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 __m128i _w_shift = _mm_setzero_si128();
 #endif
                 kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128 _p0 = _mm_loadu_ps(p0 + kk);
                     __m128 _p1 = _mm_loadu_ps(p0 + A_hstep + kk);
@@ -961,13 +915,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     pp += 16;
                 }
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                if (max_kk >= 4)
+                if (max_kk0 >= 4)
                 {
                     _mm_storeu_si128((__m128i*)pp, _w_shift);
                     pp += 16;
                 }
 #endif
-                for (; kk + 1 < max_kk; kk += 2)
+                for (; kk + 1 < max_kk0; kk += 2)
                 {
                     __m128 _p0 = _mm_setr_ps(p0[kk], p0[A_hstep + kk], p0[A_hstep * 2 + kk], p0[A_hstep * 3 + kk]);
                     __m128 _p1 = _mm_setr_ps(p0[kk + 1], p0[A_hstep + kk + 1], p0[A_hstep * 2 + kk + 1], p0[A_hstep * 3 + kk + 1]);
@@ -976,24 +930,23 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     _mm_storel_epi64((__m128i*)pp, _mm_unpacklo_epi8(_q0, _q1));
                     pp += 8;
                 }
-                for (; kk < max_kk; kk++)
+                for (; kk < max_kk0; kk++)
                 {
                     __m128 _p = _mm_setr_ps(p0[kk], p0[A_hstep + kk], p0[A_hstep * 2 + kk], p0[A_hstep * 3 + kk]);
                     ((int*)pp)[0] = float2int8_sse(_mm_mul_ps(_p, _scale));
                     pp += 4;
                 }
 
-                p0 += max_kk;
+                p0 += max_kk0;
                 pd += 4;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                pp0 += (max_kk + (max_kk >= 4 ? 4 : 0)) * 4;
+                pp0 += (max_kk0 + (max_kk0 >= 4 ? 4 : 0)) * 4;
 #else
-                pp0 += max_kk * 4;
+                pp0 += max_kk0 * 4;
 #endif
             }
         }
 #endif // __SSE2__
-#if __SSE2__
         for (; ii + 1 < max_ii; ii += 2)
         {
             const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
@@ -1003,12 +956,15 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             for (int g = 0; g < block_count; g++)
             {
                 const int k0 = g * block_size;
-                const int max_kk = std::min(K - k0, block_size);
+                const int max_kk0 = std::min(K - k0, block_size);
 
+                float absmax0 = 0.f;
+                float absmax1 = 0.f;
+                int kk = 0;
+#if __SSE2__
                 __m128 _absmax0 = _mm_setzero_ps();
                 __m128 _absmax1 = _mm_setzero_ps();
-                int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128 _p0 = _mm_loadu_ps(p0 + kk);
                     __m128 _p1 = _mm_loadu_ps(p0 + A_hstep + kk);
@@ -1016,27 +972,36 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     _absmax1 = _mm_max_ps(_absmax1, abs_ps(_p1));
                 }
 
-                float absmax0 = _mm_reduce_max_ps(_absmax0);
-                float absmax1 = _mm_reduce_max_ps(_absmax1);
-                for (; kk < max_kk; kk++)
+                absmax0 = _mm_reduce_max_ps(_absmax0);
+                absmax1 = _mm_reduce_max_ps(_absmax1);
+#endif // __SSE2__
+                for (; kk < max_kk0; kk++)
                 {
                     absmax0 = std::max(absmax0, fabsf(p0[kk]));
                     absmax1 = std::max(absmax1, fabsf(p0[A_hstep + kk]));
                 }
 
-                __m128 _absmax = _mm_setr_ps(absmax0, absmax1, 0.f, 0.f);
-                __m128 _descale = _mm_div_ps(_absmax, _mm_set1_ps(127.f));
-                __m128 _nonzero = _mm_cmpneq_ps(_absmax, _mm_setzero_ps());
-                __m128 _absmax_nonzero = _mm_or_ps(_mm_and_ps(_absmax, _nonzero), _mm_andnot_ps(_nonzero, _mm_set1_ps(1.f)));
-                __m128 _scale = _mm_and_ps(_mm_div_ps(_mm_set1_ps(127.f), _absmax_nonzero), _nonzero);
-                _mm_storel_pi((__m64*)pd, _descale);
+                float scale0 = 0.f;
+                float scale1 = 0.f;
+                if (absmax0 != 0.f)
+                {
+                    scale0 = 127.f / absmax0;
+                }
+                if (absmax1 != 0.f)
+                {
+                    scale1 = 127.f / absmax1;
+                }
+                pd[0] = absmax0 / 127.f;
+                pd[1] = absmax1 / 127.f;
 
                 signed char* pp = pp0;
+                kk = 0;
+#if __SSE2__
+                __m128 _scale = _mm_setr_ps(scale0, scale1, 0.f, 0.f);
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
                 __m128i _w_shift = _mm_setzero_si128();
 #endif
-                kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128 _p0 = _mm_loadu_ps(p0 + kk);
                     __m128 _p1 = _mm_loadu_ps(p0 + A_hstep + kk);
@@ -1054,13 +1019,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     pp += 8;
                 }
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                if (max_kk >= 4)
+                if (max_kk0 >= 4)
                 {
                     _mm_storel_epi64((__m128i*)pp, _w_shift);
                     pp += 8;
                 }
 #endif
-                for (; kk + 1 < max_kk; kk += 2)
+                for (; kk + 1 < max_kk0; kk += 2)
                 {
                     __m128 _p0 = _mm_setr_ps(p0[kk], p0[A_hstep + kk], 0.f, 0.f);
                     __m128 _p1 = _mm_setr_ps(p0[kk + 1], p0[A_hstep + kk + 1], 0.f, 0.f);
@@ -1069,57 +1034,14 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     ((int*)pp)[0] = _mm_cvtsi128_si32(_mm_unpacklo_epi8(_q0, _q1));
                     pp += 4;
                 }
-                for (; kk < max_kk; kk++)
+                for (; kk < max_kk0; kk++)
                 {
                     __m128 _p = _mm_setr_ps(p0[kk], p0[A_hstep + kk], 0.f, 0.f);
                     ((short*)pp)[0] = (short)float2int8_sse(_mm_mul_ps(_p, _scale));
                     pp += 2;
                 }
-
-                p0 += max_kk;
-                pd += 2;
-#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                pp0 += (max_kk + (max_kk >= 4 ? 4 : 0)) * 2;
-#else
-                pp0 += max_kk * 2;
-#endif
-            }
-        }
 #endif // __SSE2__
-        for (; ii + 1 < max_ii; ii += 2)
-        {
-            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
-            signed char* pp0 = outptr + ii * out_hstep;
-            float* pd = descale_ptr + ii * block_count;
-            for (int g = 0; g < block_count; g++)
-            {
-                const int k0 = g * block_size;
-                const int max_kk = std::min(K - k0, block_size);
-                float absmax0 = 0.f;
-                float absmax1 = 0.f;
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    float v0 = p0[kk];
-                    float v1 = p0[A_hstep + kk];
-                    absmax0 = std::max(absmax0, (float)fabsf(v0));
-                    absmax1 = std::max(absmax1, (float)fabsf(v1));
-                }
-
-                float scale0 = 0.f;
-                float scale1 = 0.f;
-                if (absmax0 != 0.f)
-                {
-                    scale0 = 127.f / absmax0;
-                }
-                if (absmax1 != 0.f)
-                {
-                    scale1 = 127.f / absmax1;
-                }
-                pd[0] = absmax0 / 127.f;
-                pd[1] = absmax1 / 127.f;
-
-                signed char* pp = pp0;
-                for (int kk = 0; kk < max_kk; kk++)
+                for (; kk < max_kk0; kk++)
                 {
                     float v0 = p0[kk];
                     float v1 = p0[A_hstep + kk];
@@ -1128,9 +1050,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     pp += 2;
                 }
 
-                p0 += max_kk;
-                pp0 += max_kk * 2;
+                p0 += max_kk0;
                 pd += 2;
+#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
+                pp0 += (max_kk0 + (max_kk0 >= 4 ? 4 : 0)) * 2;
+#else
+                pp0 += max_kk0 * 2;
+#endif
             }
         }
         for (; ii < max_ii; ii++)
@@ -1142,7 +1068,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             for (int g = 0; g < block_count; g++)
             {
                 const int k0 = g * block_size;
-                const int max_kk = std::min(K - k0, block_size);
+                const int max_kk0 = std::min(K - k0, block_size);
                 signed char* pp = pp0;
                 float absmax = 0.f;
 
@@ -1151,7 +1077,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #if __AVX__
 #if __AVX512F__
                 __m512 _absmax512 = _mm512_setzero_ps();
-                for (; kk + 15 < max_kk; kk += 16)
+                for (; kk + 15 < max_kk0; kk += 16)
                 {
                     __m512 _p = _mm512_loadu_ps(p0 + kk);
                     _absmax512 = _mm512_max_ps(_absmax512, abs512_ps(_p));
@@ -1159,7 +1085,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 absmax = std::max(absmax, _mm512_comp_reduce_max_ps(_absmax512));
 #endif // __AVX512F__
                 __m256 _absmax256 = _mm256_setzero_ps();
-                for (; kk + 7 < max_kk; kk += 8)
+                for (; kk + 7 < max_kk0; kk += 8)
                 {
                     __m256 _p = _mm256_loadu_ps(p0 + kk);
                     _absmax256 = _mm256_max_ps(_absmax256, abs256_ps(_p));
@@ -1167,14 +1093,14 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 absmax = std::max(absmax, _mm256_reduce_max_ps(_absmax256));
 #endif // __AVX__
                 __m128 _absmax128 = _mm_setzero_ps();
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128 _p = _mm_loadu_ps(p0 + kk);
                     _absmax128 = _mm_max_ps(_absmax128, abs_ps(_p));
                 }
                 absmax = std::max(absmax, _mm_reduce_max_ps(_absmax128));
 #endif // __SSE2__
-                for (; kk < max_kk; kk++)
+                for (; kk < max_kk0; kk++)
                 {
                     float v = p0[kk];
                     absmax = std::max(absmax, (float)fabsf(v));
@@ -1184,13 +1110,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 {
                     pd[0] = 0.f;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                    memset(pp, 0, max_kk >= 4 ? max_kk + 4 : max_kk);
-                    pp0 += max_kk + (max_kk >= 4 ? 4 : 0);
+                    memset(pp, 0, max_kk0 >= 4 ? max_kk0 + 4 : max_kk0);
+                    pp0 += max_kk0 + (max_kk0 >= 4 ? 4 : 0);
 #else
-                    memset(pp, 0, max_kk);
-                    pp0 += max_kk;
+                    memset(pp, 0, max_kk0);
+                    pp0 += max_kk0;
 #endif
-                    p0 += max_kk;
+                    p0 += max_kk0;
                     pd++;
                     continue;
                 }
@@ -1205,7 +1131,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #if __AVX__
 #if __AVX512F__
                 __m512 _scale512 = _mm512_set1_ps(scale);
-                for (; kk + 15 < max_kk; kk += 16)
+                for (; kk + 15 < max_kk0; kk += 16)
                 {
                     __m512 _p = _mm512_loadu_ps(p0 + kk);
                     __m128i _q = float2int8_avx512(_mm512_mul_ps(_p, _scale512));
@@ -1220,7 +1146,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 }
 #endif // __AVX512F__
                 __m256 _scale256 = _mm256_set1_ps(scale);
-                for (; kk + 7 < max_kk; kk += 8)
+                for (; kk + 7 < max_kk0; kk += 8)
                 {
                     __m256 _p = _mm256_loadu_ps(p0 + kk);
                     const int64_t q = float2int8_avx(_mm256_mul_ps(_p, _scale256));
@@ -1238,7 +1164,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 }
 #endif // __AVX__
                 __m128 _scale128 = _mm_set1_ps(scale);
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128 _p = _mm_loadu_ps(p0 + kk);
                     const int32_t q = float2int8_sse(_mm_mul_ps(_p, _scale128));
@@ -1252,24 +1178,24 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 }
 #endif // __SSE2__
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                if (max_kk >= 4)
+                if (max_kk0 >= 4)
                 {
                     ((int*)pp)[0] = w_shift * 127;
                     pp += 4;
                 }
 #endif
-                for (; kk < max_kk; kk++)
+                for (; kk < max_kk0; kk++)
                 {
                     float v = p0[kk];
                     *pp++ = float2int8(v * scale);
                 }
 
-                p0 += max_kk;
+                p0 += max_kk0;
                 pd++;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                pp0 += max_kk + (max_kk >= 4 ? 4 : 0);
+                pp0 += max_kk0 + (max_kk0 >= 4 ? 4 : 0);
 #else
-                pp0 += max_kk;
+                pp0 += max_kk0;
 #endif
             }
         }
@@ -1300,7 +1226,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         for (int g = 0; g < block_count; g++)
         {
             const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
+            const int max_kk0 = std::min(K - k0, block_size);
 
             __m512 _absmax0 = _mm512_setzero_ps();
             __m512 _absmax1 = _mm512_setzero_ps();
@@ -1319,7 +1245,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             __m512 _absmaxe = _mm512_setzero_ps();
             __m512 _absmaxf = _mm512_setzero_ps();
             int kk_absmax = 0;
-            for (; kk_absmax + 15 < max_kk; kk_absmax += 16)
+            for (; kk_absmax + 15 < max_kk0; kk_absmax += 16)
             {
                 __m512 _s;
                 _s = _mm512_loadu_ps(input_scale_ptr + k0 + kk_absmax);
@@ -1374,7 +1300,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             float absmaxd = _mm512_reduce_max_ps(_absmaxd);
             float absmaxe = _mm512_reduce_max_ps(_absmaxe);
             float absmaxf = _mm512_reduce_max_ps(_absmaxf);
-            for (; kk_absmax + 3 < max_kk; kk_absmax += 4)
+            for (; kk_absmax + 3 < max_kk0; kk_absmax += 4)
             {
                 __m128 _s = _mm_loadu_ps(input_scale_ptr + k0 + kk_absmax);
                 absmax0 = std::max(absmax0, _mm_reduce_max_ps(abs_ps(_mm_mul_ps(_mm_loadu_ps(p0 + kk_absmax), _s))));
@@ -1394,7 +1320,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 absmaxe = std::max(absmaxe, _mm_reduce_max_ps(abs_ps(_mm_mul_ps(_mm_loadu_ps(p0 + A_hstep * 14 + kk_absmax), _s))));
                 absmaxf = std::max(absmaxf, _mm_reduce_max_ps(abs_ps(_mm_mul_ps(_mm_loadu_ps(p0 + A_hstep * 15 + kk_absmax), _s))));
             }
-            for (; kk_absmax < max_kk; kk_absmax++)
+            for (; kk_absmax < max_kk0; kk_absmax++)
             {
                 const float s = input_scale_ptr[k0 + kk_absmax];
                 absmax0 = std::max(absmax0, fabsf(p0[kk_absmax]) * s);
@@ -1427,7 +1353,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #endif
             signed char* pp = pp0;
             int kk = 0;
-            for (; kk + 15 < max_kk; kk += 16)
+            for (; kk + 15 < max_kk0; kk += 16)
             {
                 {
                     __m256 _p0 = _mm256_loadu_ps(p0 + kk);
@@ -1588,7 +1514,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     pp += 64;
                 }
             }
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m128 _p0 = _mm_loadu_ps(p0 + kk);
                 __m128 _p1 = _mm_loadu_ps(p0 + A_hstep + kk);
@@ -1653,13 +1579,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 pp += 64;
             }
 #if __AVX512VNNI__
-            if (max_kk >= 4)
+            if (max_kk0 >= 4)
             {
                 _mm512_storeu_si512((__m512i*)pp, _w_shift);
                 pp += 64;
             }
 #endif // __AVX512VNNI__
-            for (; kk + 1 < max_kk; kk += 2)
+            for (; kk + 1 < max_kk0; kk += 2)
             {
                 __m512 _p0 = _mm512_i32gather_ps(_vindex, p0 + kk, sizeof(float));
                 __m512 _p1 = _mm512_i32gather_ps(_vindex, p0 + kk + 1, sizeof(float));
@@ -1671,19 +1597,19 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 _mm_storeu_si128((__m128i*)(pp + 16), _mm_unpackhi_epi8(_q0, _q1));
                 pp += 32;
             }
-            if (kk < max_kk)
+            if (kk < max_kk0)
             {
                 __m512 _p = _mm512_i32gather_ps(_vindex, p0 + kk, sizeof(float));
                 _p = _mm512_mul_ps(_p, _mm512_set1_ps(input_scale_ptr[k0 + kk]));
                 _mm_storeu_si128((__m128i*)pp, float2int8_avx512(_mm512_mul_ps(_p, _scale)));
             }
 
-            p0 += max_kk;
+            p0 += max_kk0;
             pd += 16;
 #if __AVX512VNNI__
-            pp0 += (max_kk + (max_kk >= 4 ? 4 : 0)) * 16;
+            pp0 += (max_kk0 + (max_kk0 >= 4 ? 4 : 0)) * 16;
 #else
-            pp0 += max_kk * 16;
+            pp0 += max_kk0 * 16;
 #endif
         }
     }
@@ -1697,7 +1623,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         for (int g = 0; g < block_count; g++)
         {
             const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
+            const int max_kk0 = std::min(K - k0, block_size);
 
             __m256 _absmax0 = _mm256_setzero_ps();
             __m256 _absmax1 = _mm256_setzero_ps();
@@ -1708,7 +1634,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             __m256 _absmax6 = _mm256_setzero_ps();
             __m256 _absmax7 = _mm256_setzero_ps();
             int kk = 0;
-            for (; kk + 7 < max_kk; kk += 8)
+            for (; kk + 7 < max_kk0; kk += 8)
             {
                 __m256 _s;
                 _s = _mm256_loadu_ps(input_scale_ptr + k0 + kk);
@@ -1739,7 +1665,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             float absmax5 = _mm256_reduce_max_ps(_absmax5);
             float absmax6 = _mm256_reduce_max_ps(_absmax6);
             float absmax7 = _mm256_reduce_max_ps(_absmax7);
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 const float s = input_scale_ptr[k0 + kk];
                 absmax0 = std::max(absmax0, fabsf(p0[kk]) * s);
@@ -1764,7 +1690,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             __m256i _w_shift = _mm256_setzero_si256();
 #endif
             kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m128 _p0 = _mm_loadu_ps(p0 + kk);
                 __m128 _p1 = _mm_loadu_ps(p0 + A_hstep + kk);
@@ -1820,13 +1746,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 pp += 32;
             }
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-            if (max_kk >= 4)
+            if (max_kk0 >= 4)
             {
                 _mm256_storeu_si256((__m256i*)pp, _w_shift);
                 pp += 32;
             }
 #endif
-            for (; kk + 1 < max_kk; kk += 2)
+            for (; kk + 1 < max_kk0; kk += 2)
             {
                 __m256i _vindex = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
                 _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32((int)A_hstep));
@@ -1842,7 +1768,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 _mm_storeu_si128((__m128i*)pp, _q);
                 pp += 16;
             }
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 __m256i _vindex = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
                 _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32((int)A_hstep));
@@ -1852,12 +1778,12 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 pp += 8;
             }
 
-            p0 += max_kk;
+            p0 += max_kk0;
             pd += 8;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-            pp0 += (max_kk + (max_kk >= 4 ? 4 : 0)) * 8;
+            pp0 += (max_kk0 + (max_kk0 >= 4 ? 4 : 0)) * 8;
 #else
-            pp0 += max_kk * 8;
+            pp0 += max_kk0 * 8;
 #endif
         }
     }
@@ -1871,14 +1797,14 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         for (int g = 0; g < block_count; g++)
         {
             const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
+            const int max_kk0 = std::min(K - k0, block_size);
 
             __m128 _absmax0 = _mm_setzero_ps();
             __m128 _absmax1 = _mm_setzero_ps();
             __m128 _absmax2 = _mm_setzero_ps();
             __m128 _absmax3 = _mm_setzero_ps();
             int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m128 _p0 = _mm_loadu_ps(p0 + kk);
                 __m128 _p1 = _mm_loadu_ps(p0 + A_hstep + kk);
@@ -1895,7 +1821,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             float absmax1 = _mm_reduce_max_ps(_absmax1);
             float absmax2 = _mm_reduce_max_ps(_absmax2);
             float absmax3 = _mm_reduce_max_ps(_absmax3);
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 const float s = input_scale_ptr[k0 + kk];
                 absmax0 = std::max(absmax0, fabsf(p0[kk]) * s);
@@ -1916,7 +1842,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             __m128i _w_shift = _mm_setzero_si128();
 #endif
             kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m128 _p0 = _mm_loadu_ps(p0 + kk);
                 __m128 _p1 = _mm_loadu_ps(p0 + A_hstep + kk);
@@ -1945,13 +1871,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 pp += 16;
             }
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-            if (max_kk >= 4)
+            if (max_kk0 >= 4)
             {
                 _mm_storeu_si128((__m128i*)pp, _w_shift);
                 pp += 16;
             }
 #endif
-            for (; kk + 1 < max_kk; kk += 2)
+            for (; kk + 1 < max_kk0; kk += 2)
             {
                 __m128 _p0 = _mm_setr_ps(p0[kk], p0[A_hstep + kk], p0[A_hstep * 2 + kk], p0[A_hstep * 3 + kk]);
                 __m128 _p1 = _mm_setr_ps(p0[kk + 1], p0[A_hstep + kk + 1], p0[A_hstep * 2 + kk + 1], p0[A_hstep * 3 + kk + 1]);
@@ -1962,7 +1888,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 _mm_storel_epi64((__m128i*)pp, _mm_unpacklo_epi8(_q0, _q1));
                 pp += 8;
             }
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 __m128 _p = _mm_setr_ps(p0[kk], p0[A_hstep + kk], p0[A_hstep * 2 + kk], p0[A_hstep * 3 + kk]);
                 _p = _mm_mul_ps(_p, _mm_set1_ps(input_scale_ptr[k0 + kk]));
@@ -1970,17 +1896,16 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 pp += 4;
             }
 
-            p0 += max_kk;
+            p0 += max_kk0;
             pd += 4;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-            pp0 += (max_kk + (max_kk >= 4 ? 4 : 0)) * 4;
+            pp0 += (max_kk0 + (max_kk0 >= 4 ? 4 : 0)) * 4;
 #else
-            pp0 += max_kk * 4;
+            pp0 += max_kk0 * 4;
 #endif
         }
     }
 #endif // __SSE2__
-#if __SSE2__
     for (; ii + 1 < max_ii; ii += 2)
     {
         const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
@@ -1990,12 +1915,15 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         for (int g = 0; g < block_count; g++)
         {
             const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
+            const int max_kk0 = std::min(K - k0, block_size);
 
+            float absmax0 = 0.f;
+            float absmax1 = 0.f;
+            int kk = 0;
+#if __SSE2__
             __m128 _absmax0 = _mm_setzero_ps();
             __m128 _absmax1 = _mm_setzero_ps();
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m128 _p0 = _mm_loadu_ps(p0 + kk);
                 __m128 _p1 = _mm_loadu_ps(p0 + A_hstep + kk);
@@ -2004,28 +1932,37 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 _absmax1 = _mm_max_ps(_absmax1, _mm_mul_ps(abs_ps(_p1), _s));
             }
 
-            float absmax0 = _mm_reduce_max_ps(_absmax0);
-            float absmax1 = _mm_reduce_max_ps(_absmax1);
-            for (; kk < max_kk; kk++)
+            absmax0 = _mm_reduce_max_ps(_absmax0);
+            absmax1 = _mm_reduce_max_ps(_absmax1);
+#endif // __SSE2__
+            for (; kk < max_kk0; kk++)
             {
                 const float s = input_scale_ptr[k0 + kk];
                 absmax0 = std::max(absmax0, fabsf(p0[kk]) * s);
                 absmax1 = std::max(absmax1, fabsf(p0[A_hstep + kk]) * s);
             }
 
-            __m128 _absmax = _mm_setr_ps(absmax0, absmax1, 0.f, 0.f);
-            __m128 _descale = _mm_div_ps(_absmax, _mm_set1_ps(127.f));
-            __m128 _nonzero = _mm_cmpneq_ps(_absmax, _mm_setzero_ps());
-            __m128 _absmax_nonzero = _mm_or_ps(_mm_and_ps(_absmax, _nonzero), _mm_andnot_ps(_nonzero, _mm_set1_ps(1.f)));
-            __m128 _scale = _mm_and_ps(_mm_div_ps(_mm_set1_ps(127.f), _absmax_nonzero), _nonzero);
-            _mm_storel_pi((__m64*)pd, _descale);
+            float scale0 = 0.f;
+            float scale1 = 0.f;
+            if (absmax0 != 0.f)
+            {
+                scale0 = 127.f / absmax0;
+            }
+            if (absmax1 != 0.f)
+            {
+                scale1 = 127.f / absmax1;
+            }
+            pd[0] = absmax0 / 127.f;
+            pd[1] = absmax1 / 127.f;
 
             signed char* pp = pp0;
+            kk = 0;
+#if __SSE2__
+            __m128 _scale = _mm_setr_ps(scale0, scale1, 0.f, 0.f);
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
             __m128i _w_shift = _mm_setzero_si128();
 #endif
-            kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m128 _p0 = _mm_loadu_ps(p0 + kk);
                 __m128 _p1 = _mm_loadu_ps(p0 + A_hstep + kk);
@@ -2046,13 +1983,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 pp += 8;
             }
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-            if (max_kk >= 4)
+            if (max_kk0 >= 4)
             {
                 _mm_storel_epi64((__m128i*)pp, _w_shift);
                 pp += 8;
             }
 #endif
-            for (; kk + 1 < max_kk; kk += 2)
+            for (; kk + 1 < max_kk0; kk += 2)
             {
                 __m128 _p0 = _mm_setr_ps(p0[kk], p0[A_hstep + kk], 0.f, 0.f);
                 __m128 _p1 = _mm_setr_ps(p0[kk + 1], p0[A_hstep + kk + 1], 0.f, 0.f);
@@ -2063,59 +2000,15 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 ((int*)pp)[0] = _mm_cvtsi128_si32(_mm_unpacklo_epi8(_q0, _q1));
                 pp += 4;
             }
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 __m128 _p = _mm_setr_ps(p0[kk], p0[A_hstep + kk], 0.f, 0.f);
                 _p = _mm_mul_ps(_p, _mm_set1_ps(input_scale_ptr[k0 + kk]));
                 ((short*)pp)[0] = (short)float2int8_sse(_mm_mul_ps(_p, _scale));
                 pp += 2;
             }
-
-            p0 += max_kk;
-            pd += 2;
-#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-            pp0 += (max_kk + (max_kk >= 4 ? 4 : 0)) * 2;
-#else
-            pp0 += max_kk * 2;
-#endif
-        }
-    }
 #endif // __SSE2__
-    for (; ii + 1 < max_ii; ii += 2)
-    {
-        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
-        signed char* pp0 = outptr + ii * out_hstep;
-        float* pd = descale_ptr + ii * block_count;
-        for (int g = 0; g < block_count; g++)
-        {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
-            float absmax0 = 0.f;
-            float absmax1 = 0.f;
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                float v0 = p0[kk];
-                float v1 = p0[A_hstep + kk];
-                const float s = input_scale_ptr[k0 + kk];
-                absmax0 = std::max(absmax0, (float)fabsf(v0) * s);
-                absmax1 = std::max(absmax1, (float)fabsf(v1) * s);
-            }
-
-            float scale0 = 0.f;
-            float scale1 = 0.f;
-            if (absmax0 != 0.f)
-            {
-                scale0 = 127.f / absmax0;
-            }
-            if (absmax1 != 0.f)
-            {
-                scale1 = 127.f / absmax1;
-            }
-            pd[0] = absmax0 / 127.f;
-            pd[1] = absmax1 / 127.f;
-
-            signed char* pp = pp0;
-            for (int kk = 0; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 float v0 = p0[kk];
                 float v1 = p0[A_hstep + kk];
@@ -2127,9 +2020,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 pp += 2;
             }
 
-            p0 += max_kk;
-            pp0 += max_kk * 2;
+            p0 += max_kk0;
             pd += 2;
+#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
+            pp0 += (max_kk0 + (max_kk0 >= 4 ? 4 : 0)) * 2;
+#else
+            pp0 += max_kk0 * 2;
+#endif
         }
     }
     for (; ii < max_ii; ii++)
@@ -2141,7 +2038,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         for (int g = 0; g < block_count; g++)
         {
             const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
+            const int max_kk0 = std::min(K - k0, block_size);
             signed char* pp = pp0;
             float absmax = 0.f;
 
@@ -2150,7 +2047,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #if __AVX__
 #if __AVX512F__
             __m512 _absmax512 = _mm512_setzero_ps();
-            for (; kk + 15 < max_kk; kk += 16)
+            for (; kk + 15 < max_kk0; kk += 16)
             {
                 __m512 _p = _mm512_loadu_ps(p0 + kk);
                 _absmax512 = _mm512_max_ps(_absmax512, _mm512_mul_ps(abs512_ps(_p), _mm512_loadu_ps(input_scale_ptr + k0 + kk)));
@@ -2158,7 +2055,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             absmax = std::max(absmax, _mm512_comp_reduce_max_ps(_absmax512));
 #endif // __AVX512F__
             __m256 _absmax256 = _mm256_setzero_ps();
-            for (; kk + 7 < max_kk; kk += 8)
+            for (; kk + 7 < max_kk0; kk += 8)
             {
                 __m256 _p = _mm256_loadu_ps(p0 + kk);
                 _absmax256 = _mm256_max_ps(_absmax256, _mm256_mul_ps(abs256_ps(_p), _mm256_loadu_ps(input_scale_ptr + k0 + kk)));
@@ -2166,14 +2063,14 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             absmax = std::max(absmax, _mm256_reduce_max_ps(_absmax256));
 #endif // __AVX__
             __m128 _absmax128 = _mm_setzero_ps();
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m128 _p = _mm_loadu_ps(p0 + kk);
                 _absmax128 = _mm_max_ps(_absmax128, _mm_mul_ps(abs_ps(_p), _mm_loadu_ps(input_scale_ptr + k0 + kk)));
             }
             absmax = std::max(absmax, _mm_reduce_max_ps(_absmax128));
 #endif // __SSE2__
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 absmax = std::max(absmax, fabsf(p0[kk]) * input_scale_ptr[k0 + kk]);
             }
@@ -2182,13 +2079,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             {
                 pd[0] = 0.f;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                memset(pp, 0, max_kk >= 4 ? max_kk + 4 : max_kk);
-                pp0 += max_kk + (max_kk >= 4 ? 4 : 0);
+                memset(pp, 0, max_kk0 >= 4 ? max_kk0 + 4 : max_kk0);
+                pp0 += max_kk0 + (max_kk0 >= 4 ? 4 : 0);
 #else
-                memset(pp, 0, max_kk);
-                pp0 += max_kk;
+                memset(pp, 0, max_kk0);
+                pp0 += max_kk0;
 #endif
-                p0 += max_kk;
+                p0 += max_kk0;
                 pd++;
                 continue;
             }
@@ -2203,7 +2100,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #if __AVX__
 #if __AVX512F__
             __m512 _scale512 = _mm512_set1_ps(scale);
-            for (; kk + 15 < max_kk; kk += 16)
+            for (; kk + 15 < max_kk0; kk += 16)
             {
                 __m512 _p = _mm512_loadu_ps(p0 + kk);
                 _p = _mm512_mul_ps(_p, _mm512_loadu_ps(input_scale_ptr + k0 + kk));
@@ -2219,7 +2116,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             }
 #endif // __AVX512F__
             __m256 _scale256 = _mm256_set1_ps(scale);
-            for (; kk + 7 < max_kk; kk += 8)
+            for (; kk + 7 < max_kk0; kk += 8)
             {
                 __m256 _p = _mm256_loadu_ps(p0 + kk);
                 _p = _mm256_mul_ps(_p, _mm256_loadu_ps(input_scale_ptr + k0 + kk));
@@ -2238,7 +2135,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             }
 #endif // __AVX__
             __m128 _scale128 = _mm_set1_ps(scale);
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m128 _p = _mm_loadu_ps(p0 + kk);
                 _p = _mm_mul_ps(_p, _mm_loadu_ps(input_scale_ptr + k0 + kk));
@@ -2253,25 +2150,25 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             }
 #endif // __SSE2__
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-            if (max_kk >= 4)
+            if (max_kk0 >= 4)
             {
                 ((int*)pp)[0] = w_shift * 127;
                 pp += 4;
             }
 #endif
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 float v = p0[kk];
                 v *= input_scale_ptr[k0 + kk];
                 *pp++ = float2int8(v * scale);
             }
 
-            p0 += max_kk;
+            p0 += max_kk0;
             pd++;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-            pp0 += max_kk + (max_kk >= 4 ? 4 : 0);
+            pp0 += max_kk0 + (max_kk0 >= 4 ? 4 : 0);
 #else
-            pp0 += max_kk;
+            pp0 += max_kk0;
 #endif
         }
     }
@@ -2334,10 +2231,10 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             for (int g = 0; g < block_count; g++)
             {
                 const int k0 = g * block_size;
-                const int max_kk = std::min(K - k0, block_size);
+                const int max_kk0 = std::min(K - k0, block_size);
 
                 __m512 _absmax = _mm512_setzero_ps();
-                for (int kk = 0; kk < max_kk; kk++)
+                for (int kk = 0; kk < max_kk0; kk++)
                 {
                     __m512 _p = _mm512_loadu_ps(p0 + kk * A_hstep);
                     _absmax = _mm512_max_ps(_absmax, abs512_ps(_p));
@@ -2355,7 +2252,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 signed char* pp = pp0;
                 int kk = 0;
 #if __AVX512VNNI__
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m512 _p0 = _mm512_loadu_ps(p0 + kk * A_hstep);
                     __m512 _p1 = _mm512_loadu_ps(p0 + (kk + 1) * A_hstep);
@@ -2373,13 +2270,13 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 }
 #endif // __AVX512VNNI__
 #if __AVX512VNNI__
-                if (max_kk >= 4)
+                if (max_kk0 >= 4)
                 {
                     _mm512_storeu_si512((__m512i*)pp, _w_shift);
                     pp += 64;
                 }
 #endif // __AVX512VNNI__
-                for (; kk + 1 < max_kk; kk += 2)
+                for (; kk + 1 < max_kk0; kk += 2)
                 {
                     __m512 _p0 = _mm512_loadu_ps(p0 + kk * A_hstep);
                     __m512 _p1 = _mm512_loadu_ps(p0 + (kk + 1) * A_hstep);
@@ -2389,18 +2286,18 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     _mm_storeu_si128((__m128i*)(pp + 16), _mm_unpackhi_epi8(_q0, _q1));
                     pp += 32;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m512 _p = _mm512_loadu_ps(p0 + kk * A_hstep);
                     _mm_storeu_si128((__m128i*)pp, float2int8_avx512(_mm512_mul_ps(_p, _scale)));
                 }
 
-                p0 += max_kk * A_hstep;
+                p0 += max_kk0 * A_hstep;
                 pd += 16;
 #if __AVX512VNNI__
-                pp0 += (max_kk + (max_kk >= 4 ? 4 : 0)) * 16;
+                pp0 += (max_kk0 + (max_kk0 >= 4 ? 4 : 0)) * 16;
 #else
-                pp0 += max_kk * 16;
+                pp0 += max_kk0 * 16;
 #endif
             }
         }
@@ -2414,10 +2311,10 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             for (int g = 0; g < block_count; g++)
             {
                 const int k0 = g * block_size;
-                const int max_kk = std::min(K - k0, block_size);
+                const int max_kk0 = std::min(K - k0, block_size);
 
                 __m256 _absmax = _mm256_setzero_ps();
-                for (int kk = 0; kk < max_kk; kk++)
+                for (int kk = 0; kk < max_kk0; kk++)
                 {
                     __m256 _p = _mm256_loadu_ps(p0 + kk * A_hstep);
                     _absmax = _mm256_max_ps(_absmax, abs256_ps(_p));
@@ -2434,7 +2331,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 __m256i _w_shift = _mm256_setzero_si256();
 #endif
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m256 _p0 = _mm256_loadu_ps(p0 + kk * A_hstep);
                     __m256 _p1 = _mm256_loadu_ps(p0 + (kk + 1) * A_hstep);
@@ -2464,13 +2361,13 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     pp += 32;
                 }
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                if (max_kk >= 4)
+                if (max_kk0 >= 4)
                 {
                     _mm256_storeu_si256((__m256i*)pp, _w_shift);
                     pp += 32;
                 }
 #endif
-                for (; kk + 1 < max_kk; kk += 2)
+                for (; kk + 1 < max_kk0; kk += 2)
                 {
                     __m256 _p0 = _mm256_loadu_ps(p0 + kk * A_hstep);
                     __m256 _p1 = _mm256_loadu_ps(p0 + (kk + 1) * A_hstep);
@@ -2482,19 +2379,19 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     _mm_storeu_si128((__m128i*)pp, _q);
                     pp += 16;
                 }
-                for (; kk < max_kk; kk++)
+                for (; kk < max_kk0; kk++)
                 {
                     __m256 _p = _mm256_loadu_ps(p0 + kk * A_hstep);
                     *(int64_t*)pp = float2int8_avx(_mm256_mul_ps(_p, _scale));
                     pp += 8;
                 }
 
-                p0 += max_kk * A_hstep;
+                p0 += max_kk0 * A_hstep;
                 pd += 8;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                pp0 += (max_kk + (max_kk >= 4 ? 4 : 0)) * 8;
+                pp0 += (max_kk0 + (max_kk0 >= 4 ? 4 : 0)) * 8;
 #else
-                pp0 += max_kk * 8;
+                pp0 += max_kk0 * 8;
 #endif
             }
         }
@@ -2508,10 +2405,10 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             for (int g = 0; g < block_count; g++)
             {
                 const int k0 = g * block_size;
-                const int max_kk = std::min(K - k0, block_size);
+                const int max_kk0 = std::min(K - k0, block_size);
 
                 __m128 _absmax = _mm_setzero_ps();
-                for (int kk = 0; kk < max_kk; kk++)
+                for (int kk = 0; kk < max_kk0; kk++)
                 {
                     __m128 _p = _mm_loadu_ps(p0 + kk * A_hstep);
                     _absmax = _mm_max_ps(_absmax, abs_ps(_p));
@@ -2528,7 +2425,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 __m128i _w_shift = _mm_setzero_si128();
 #endif
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128 _p0 = _mm_loadu_ps(p0 + kk * A_hstep);
                     __m128 _p1 = _mm_loadu_ps(p0 + (kk + 1) * A_hstep);
@@ -2552,13 +2449,13 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     pp += 16;
                 }
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                if (max_kk >= 4)
+                if (max_kk0 >= 4)
                 {
                     _mm_storeu_si128((__m128i*)pp, _w_shift);
                     pp += 16;
                 }
 #endif
-                for (; kk + 1 < max_kk; kk += 2)
+                for (; kk + 1 < max_kk0; kk += 2)
                 {
                     __m128 _p0 = _mm_loadu_ps(p0 + kk * A_hstep);
                     __m128 _p1 = _mm_loadu_ps(p0 + (kk + 1) * A_hstep);
@@ -2567,24 +2464,23 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     _mm_storel_epi64((__m128i*)pp, _mm_unpacklo_epi8(_q0, _q1));
                     pp += 8;
                 }
-                for (; kk < max_kk; kk++)
+                for (; kk < max_kk0; kk++)
                 {
                     __m128 _p = _mm_loadu_ps(p0 + kk * A_hstep);
                     ((int*)pp)[0] = float2int8_sse(_mm_mul_ps(_p, _scale));
                     pp += 4;
                 }
 
-                p0 += max_kk * A_hstep;
+                p0 += max_kk0 * A_hstep;
                 pd += 4;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                pp0 += (max_kk + (max_kk >= 4 ? 4 : 0)) * 4;
+                pp0 += (max_kk0 + (max_kk0 >= 4 ? 4 : 0)) * 4;
 #else
-                pp0 += max_kk * 4;
+                pp0 += max_kk0 * 4;
 #endif
             }
         }
 #endif // __SSE2__
-#if __SSE2__
         for (; ii + 1 < max_ii; ii += 2)
         {
             const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
@@ -2594,27 +2490,50 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             for (int g = 0; g < block_count; g++)
             {
                 const int k0 = g * block_size;
-                const int max_kk = std::min(K - k0, block_size);
+                const int max_kk0 = std::min(K - k0, block_size);
 
+                float absmax0 = 0.f;
+                float absmax1 = 0.f;
+                int kk = 0;
+#if __SSE2__
                 __m128 _absmax = _mm_setzero_ps();
-                for (int kk = 0; kk < max_kk; kk++)
+                for (; kk < max_kk0; kk++)
                 {
                     __m128 _p = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)(p0 + kk * A_hstep));
                     _absmax = _mm_max_ps(_absmax, abs_ps(_p));
                 }
 
-                __m128 _descale = _mm_div_ps(_absmax, _mm_set1_ps(127.f));
-                __m128 _nonzero = _mm_cmpneq_ps(_absmax, _mm_setzero_ps());
-                __m128 _absmax_nonzero = _mm_or_ps(_mm_and_ps(_absmax, _nonzero), _mm_andnot_ps(_nonzero, _mm_set1_ps(1.f)));
-                __m128 _scale = _mm_and_ps(_mm_div_ps(_mm_set1_ps(127.f), _absmax_nonzero), _nonzero);
-                _mm_storel_pi((__m64*)pd, _descale);
+                absmax0 = _mm_cvtss_f32(_absmax);
+                absmax1 = _mm_cvtss_f32(_mm_shuffle_ps(_absmax, _absmax, _MM_SHUFFLE(1, 1, 1, 1)));
+#endif // __SSE2__
+                for (; kk < max_kk0; kk++)
+                {
+                    const float* ptrA = p0 + kk * A_hstep;
+                    absmax0 = std::max(absmax0, (float)fabsf(ptrA[0]));
+                    absmax1 = std::max(absmax1, (float)fabsf(ptrA[1]));
+                }
+
+                float scale0 = 0.f;
+                float scale1 = 0.f;
+                if (absmax0 != 0.f)
+                {
+                    scale0 = 127.f / absmax0;
+                }
+                if (absmax1 != 0.f)
+                {
+                    scale1 = 127.f / absmax1;
+                }
+                pd[0] = absmax0 / 127.f;
+                pd[1] = absmax1 / 127.f;
 
                 signed char* pp = pp0;
+                kk = 0;
+#if __SSE2__
+                __m128 _scale = _mm_setr_ps(scale0, scale1, 0.f, 0.f);
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
                 __m128i _w_shift = _mm_setzero_si128();
 #endif
-                int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128 _p0 = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)(p0 + kk * A_hstep));
                     __m128 _p1 = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)(p0 + (kk + 1) * A_hstep));
@@ -2638,13 +2557,13 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     pp += 8;
                 }
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                if (max_kk >= 4)
+                if (max_kk0 >= 4)
                 {
                     _mm_storel_epi64((__m128i*)pp, _w_shift);
                     pp += 8;
                 }
 #endif
-                for (; kk + 1 < max_kk; kk += 2)
+                for (; kk + 1 < max_kk0; kk += 2)
                 {
                     __m128 _p0 = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)(p0 + kk * A_hstep));
                     __m128 _p1 = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)(p0 + (kk + 1) * A_hstep));
@@ -2653,59 +2572,14 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     ((int*)pp)[0] = _mm_cvtsi128_si32(_mm_unpacklo_epi8(_q0, _q1));
                     pp += 4;
                 }
-                for (; kk < max_kk; kk++)
+                for (; kk < max_kk0; kk++)
                 {
                     __m128 _p = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)(p0 + kk * A_hstep));
                     ((short*)pp)[0] = (short)float2int8_sse(_mm_mul_ps(_p, _scale));
                     pp += 2;
                 }
-
-                p0 += max_kk * A_hstep;
-                pd += 2;
-#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                pp0 += (max_kk + (max_kk >= 4 ? 4 : 0)) * 2;
-#else
-                pp0 += max_kk * 2;
-#endif
-            }
-        }
 #endif // __SSE2__
-        for (; ii + 1 < max_ii; ii += 2)
-        {
-            const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
-            signed char* pp0 = outptr + ii * out_hstep;
-            float* pd = descale_ptr + ii * block_count;
-
-            for (int g = 0; g < block_count; g++)
-            {
-                const int k0 = g * block_size;
-                const int max_kk = std::min(K - k0, block_size);
-                float absmax0 = 0.f;
-                float absmax1 = 0.f;
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    const float* ptrA = p0 + kk * A_hstep;
-                    float v0 = ptrA[0];
-                    float v1 = ptrA[1];
-                    absmax0 = std::max(absmax0, (float)fabsf(v0));
-                    absmax1 = std::max(absmax1, (float)fabsf(v1));
-                }
-
-                float scale0 = 0.f;
-                float scale1 = 0.f;
-                if (absmax0 != 0.f)
-                {
-                    scale0 = 127.f / absmax0;
-                }
-                if (absmax1 != 0.f)
-                {
-                    scale1 = 127.f / absmax1;
-                }
-                pd[0] = absmax0 / 127.f;
-                pd[1] = absmax1 / 127.f;
-
-                signed char* pp = pp0;
-                for (int kk = 0; kk < max_kk; kk++)
+                for (; kk < max_kk0; kk++)
                 {
                     const float* ptrA = p0 + kk * A_hstep;
                     float v0 = ptrA[0];
@@ -2715,9 +2589,13 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     pp += 2;
                 }
 
-                p0 += max_kk * A_hstep;
-                pp0 += max_kk * 2;
+                p0 += max_kk0 * A_hstep;
                 pd += 2;
+#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
+                pp0 += (max_kk0 + (max_kk0 >= 4 ? 4 : 0)) * 2;
+#else
+                pp0 += max_kk0 * 2;
+#endif
             }
         }
 
@@ -2741,7 +2619,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             for (int g = 0; g < block_count; g++)
             {
                 const int k0 = g * block_size;
-                const int max_kk = std::min(K - k0, block_size);
+                const int max_kk0 = std::min(K - k0, block_size);
                 signed char* pp = pp0;
                 float absmax = 0.f;
 
@@ -2750,7 +2628,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __AVX2__
 #if __AVX512F__
                 __m512 _absmax512 = _mm512_setzero_ps();
-                for (; kk + 15 < max_kk; kk += 16)
+                for (; kk + 15 < max_kk0; kk += 16)
                 {
                     const float* ptrA = p0 + kk * A_hstep;
                     __m512 _p = _mm512_i32gather_ps(_vindex512, ptrA, sizeof(float));
@@ -2759,7 +2637,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 absmax = std::max(absmax, _mm512_comp_reduce_max_ps(_absmax512));
 #endif // __AVX512F__
                 __m256 _absmax256 = _mm256_setzero_ps();
-                for (; kk + 7 < max_kk; kk += 8)
+                for (; kk + 7 < max_kk0; kk += 8)
                 {
                     const float* ptrA = p0 + kk * A_hstep;
                     __m256 _p = _mm256_i32gather_ps(ptrA, _vindex256, sizeof(float));
@@ -2768,7 +2646,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 absmax = std::max(absmax, _mm256_reduce_max_ps(_absmax256));
 #endif // __AVX2__
                 __m128 _absmax128 = _mm_setzero_ps();
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     const float* ptrA = p0 + kk * A_hstep;
                     __m128 _p = _mm_setr_ps(ptrA[0], ptrA[A_hstep], ptrA[A_hstep * 2], ptrA[A_hstep * 3]);
@@ -2776,7 +2654,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 }
                 absmax = std::max(absmax, _mm_reduce_max_ps(_absmax128));
 #endif // __SSE2__
-                for (; kk < max_kk; kk++)
+                for (; kk < max_kk0; kk++)
                 {
                     float v = p0[kk * A_hstep];
                     absmax = std::max(absmax, (float)fabsf(v));
@@ -2786,13 +2664,13 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 {
                     pd[0] = 0.f;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                    memset(pp, 0, max_kk >= 4 ? max_kk + 4 : max_kk);
-                    pp0 += max_kk + (max_kk >= 4 ? 4 : 0);
+                    memset(pp, 0, max_kk0 >= 4 ? max_kk0 + 4 : max_kk0);
+                    pp0 += max_kk0 + (max_kk0 >= 4 ? 4 : 0);
 #else
-                    memset(pp, 0, max_kk);
-                    pp0 += max_kk;
+                    memset(pp, 0, max_kk0);
+                    pp0 += max_kk0;
 #endif
-                    p0 += max_kk * A_hstep;
+                    p0 += max_kk0 * A_hstep;
                     pd++;
                     continue;
                 }
@@ -2807,7 +2685,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __AVX2__
 #if __AVX512F__
                 __m512 _scale512 = _mm512_set1_ps(scale);
-                for (; kk + 15 < max_kk; kk += 16)
+                for (; kk + 15 < max_kk0; kk += 16)
                 {
                     const float* ptrA = p0 + kk * A_hstep;
                     __m512 _p = _mm512_i32gather_ps(_vindex512, ptrA, sizeof(float));
@@ -2823,7 +2701,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 }
 #endif // __AVX512F__
                 __m256 _scale256 = _mm256_set1_ps(scale);
-                for (; kk + 7 < max_kk; kk += 8)
+                for (; kk + 7 < max_kk0; kk += 8)
                 {
                     const float* ptrA = p0 + kk * A_hstep;
                     __m256 _p = _mm256_i32gather_ps(ptrA, _vindex256, sizeof(float));
@@ -2842,7 +2720,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 }
 #endif // __AVX2__
                 __m128 _scale128 = _mm_set1_ps(scale);
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     const float* ptrA = p0 + kk * A_hstep;
                     __m128 _p = _mm_setr_ps(ptrA[0], ptrA[A_hstep], ptrA[A_hstep * 2], ptrA[A_hstep * 3]);
@@ -2857,24 +2735,24 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 }
 #endif // __SSE2__
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                if (max_kk >= 4)
+                if (max_kk0 >= 4)
                 {
                     ((int*)pp)[0] = w_shift * 127;
                     pp += 4;
                 }
 #endif
-                for (; kk < max_kk; kk++)
+                for (; kk < max_kk0; kk++)
                 {
                     float v = p0[kk * A_hstep];
                     *pp++ = float2int8(v * scale);
                 }
 
-                p0 += max_kk * A_hstep;
+                p0 += max_kk0 * A_hstep;
                 pd++;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                pp0 += max_kk + (max_kk >= 4 ? 4 : 0);
+                pp0 += max_kk0 + (max_kk0 >= 4 ? 4 : 0);
 #else
-                pp0 += max_kk;
+                pp0 += max_kk0;
 #endif
             }
         }
@@ -2903,10 +2781,10 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
         for (int g = 0; g < block_count; g++)
         {
             const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
+            const int max_kk0 = std::min(K - k0, block_size);
 
             __m512 _absmax = _mm512_setzero_ps();
-            for (int kk = 0; kk < max_kk; kk++)
+            for (int kk = 0; kk < max_kk0; kk++)
             {
                 __m512 _p = _mm512_loadu_ps(p0 + kk * A_hstep);
                 _absmax = _mm512_max_ps(_absmax, _mm512_mul_ps(abs512_ps(_p), _mm512_set1_ps(input_scale_ptr[k0 + kk])));
@@ -2924,7 +2802,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             signed char* pp = pp0;
             int kk = 0;
 #if __AVX512VNNI__
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m512 _p0 = _mm512_loadu_ps(p0 + kk * A_hstep);
                 __m512 _p1 = _mm512_loadu_ps(p0 + (kk + 1) * A_hstep);
@@ -2946,13 +2824,13 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             }
 #endif // __AVX512VNNI__
 #if __AVX512VNNI__
-            if (max_kk >= 4)
+            if (max_kk0 >= 4)
             {
                 _mm512_storeu_si512((__m512i*)pp, _w_shift);
                 pp += 64;
             }
 #endif // __AVX512VNNI__
-            for (; kk + 1 < max_kk; kk += 2)
+            for (; kk + 1 < max_kk0; kk += 2)
             {
                 __m512 _p0 = _mm512_loadu_ps(p0 + kk * A_hstep);
                 __m512 _p1 = _mm512_loadu_ps(p0 + (kk + 1) * A_hstep);
@@ -2964,19 +2842,19 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 _mm_storeu_si128((__m128i*)(pp + 16), _mm_unpackhi_epi8(_q0, _q1));
                 pp += 32;
             }
-            if (kk < max_kk)
+            if (kk < max_kk0)
             {
                 __m512 _p = _mm512_loadu_ps(p0 + kk * A_hstep);
                 _p = _mm512_mul_ps(_p, _mm512_set1_ps(input_scale_ptr[k0 + kk]));
                 _mm_storeu_si128((__m128i*)pp, float2int8_avx512(_mm512_mul_ps(_p, _scale)));
             }
 
-            p0 += max_kk * A_hstep;
+            p0 += max_kk0 * A_hstep;
             pd += 16;
 #if __AVX512VNNI__
-            pp0 += (max_kk + (max_kk >= 4 ? 4 : 0)) * 16;
+            pp0 += (max_kk0 + (max_kk0 >= 4 ? 4 : 0)) * 16;
 #else
-            pp0 += max_kk * 16;
+            pp0 += max_kk0 * 16;
 #endif
         }
     }
@@ -2990,10 +2868,10 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
         for (int g = 0; g < block_count; g++)
         {
             const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
+            const int max_kk0 = std::min(K - k0, block_size);
 
             __m256 _absmax = _mm256_setzero_ps();
-            for (int kk = 0; kk < max_kk; kk++)
+            for (int kk = 0; kk < max_kk0; kk++)
             {
                 __m256 _p = _mm256_loadu_ps(p0 + kk * A_hstep);
                 _absmax = _mm256_max_ps(_absmax, _mm256_mul_ps(abs256_ps(_p), _mm256_set1_ps(input_scale_ptr[k0 + kk])));
@@ -3010,7 +2888,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             __m256i _w_shift = _mm256_setzero_si256();
 #endif
             int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m256 _p0 = _mm256_loadu_ps(p0 + kk * A_hstep);
                 __m256 _p1 = _mm256_loadu_ps(p0 + (kk + 1) * A_hstep);
@@ -3044,13 +2922,13 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pp += 32;
             }
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-            if (max_kk >= 4)
+            if (max_kk0 >= 4)
             {
                 _mm256_storeu_si256((__m256i*)pp, _w_shift);
                 pp += 32;
             }
 #endif
-            for (; kk + 1 < max_kk; kk += 2)
+            for (; kk + 1 < max_kk0; kk += 2)
             {
                 __m256 _p0 = _mm256_loadu_ps(p0 + kk * A_hstep);
                 __m256 _p1 = _mm256_loadu_ps(p0 + (kk + 1) * A_hstep);
@@ -3064,7 +2942,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 _mm_storeu_si128((__m128i*)pp, _q);
                 pp += 16;
             }
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 __m256 _p = _mm256_loadu_ps(p0 + kk * A_hstep);
                 _p = _mm256_mul_ps(_p, _mm256_set1_ps(input_scale_ptr[k0 + kk]));
@@ -3072,12 +2950,12 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pp += 8;
             }
 
-            p0 += max_kk * A_hstep;
+            p0 += max_kk0 * A_hstep;
             pd += 8;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-            pp0 += (max_kk + (max_kk >= 4 ? 4 : 0)) * 8;
+            pp0 += (max_kk0 + (max_kk0 >= 4 ? 4 : 0)) * 8;
 #else
-            pp0 += max_kk * 8;
+            pp0 += max_kk0 * 8;
 #endif
         }
     }
@@ -3091,10 +2969,10 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
         for (int g = 0; g < block_count; g++)
         {
             const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
+            const int max_kk0 = std::min(K - k0, block_size);
 
             __m128 _absmax = _mm_setzero_ps();
-            for (int kk = 0; kk < max_kk; kk++)
+            for (int kk = 0; kk < max_kk0; kk++)
             {
                 __m128 _p = _mm_loadu_ps(p0 + kk * A_hstep);
                 _absmax = _mm_max_ps(_absmax, _mm_mul_ps(abs_ps(_p), _mm_set1_ps(input_scale_ptr[k0 + kk])));
@@ -3111,7 +2989,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             __m128i _w_shift = _mm_setzero_si128();
 #endif
             int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m128 _p0 = _mm_loadu_ps(p0 + kk * A_hstep);
                 __m128 _p1 = _mm_loadu_ps(p0 + (kk + 1) * A_hstep);
@@ -3139,13 +3017,13 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pp += 16;
             }
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-            if (max_kk >= 4)
+            if (max_kk0 >= 4)
             {
                 _mm_storeu_si128((__m128i*)pp, _w_shift);
                 pp += 16;
             }
 #endif
-            for (; kk + 1 < max_kk; kk += 2)
+            for (; kk + 1 < max_kk0; kk += 2)
             {
                 __m128 _p0 = _mm_loadu_ps(p0 + kk * A_hstep);
                 __m128 _p1 = _mm_loadu_ps(p0 + (kk + 1) * A_hstep);
@@ -3156,7 +3034,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 _mm_storel_epi64((__m128i*)pp, _mm_unpacklo_epi8(_q0, _q1));
                 pp += 8;
             }
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 __m128 _p = _mm_loadu_ps(p0 + kk * A_hstep);
                 _p = _mm_mul_ps(_p, _mm_set1_ps(input_scale_ptr[k0 + kk]));
@@ -3164,17 +3042,16 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pp += 4;
             }
 
-            p0 += max_kk * A_hstep;
+            p0 += max_kk0 * A_hstep;
             pd += 4;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-            pp0 += (max_kk + (max_kk >= 4 ? 4 : 0)) * 4;
+            pp0 += (max_kk0 + (max_kk0 >= 4 ? 4 : 0)) * 4;
 #else
-            pp0 += max_kk * 4;
+            pp0 += max_kk0 * 4;
 #endif
         }
     }
 #endif // __SSE2__
-#if __SSE2__
     for (; ii + 1 < max_ii; ii += 2)
     {
         const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
@@ -3184,27 +3061,51 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
         for (int g = 0; g < block_count; g++)
         {
             const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
+            const int max_kk0 = std::min(K - k0, block_size);
 
+            float absmax0 = 0.f;
+            float absmax1 = 0.f;
+            int kk = 0;
+#if __SSE2__
             __m128 _absmax = _mm_setzero_ps();
-            for (int kk = 0; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 __m128 _p = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)(p0 + kk * A_hstep));
                 _absmax = _mm_max_ps(_absmax, _mm_mul_ps(abs_ps(_p), _mm_set1_ps(input_scale_ptr[k0 + kk])));
             }
 
-            __m128 _descale = _mm_div_ps(_absmax, _mm_set1_ps(127.f));
-            __m128 _nonzero = _mm_cmpneq_ps(_absmax, _mm_setzero_ps());
-            __m128 _absmax_nonzero = _mm_or_ps(_mm_and_ps(_absmax, _nonzero), _mm_andnot_ps(_nonzero, _mm_set1_ps(1.f)));
-            __m128 _scale = _mm_and_ps(_mm_div_ps(_mm_set1_ps(127.f), _absmax_nonzero), _nonzero);
-            _mm_storel_pi((__m64*)pd, _descale);
+            absmax0 = _mm_cvtss_f32(_absmax);
+            absmax1 = _mm_cvtss_f32(_mm_shuffle_ps(_absmax, _absmax, _MM_SHUFFLE(1, 1, 1, 1)));
+#endif // __SSE2__
+            for (; kk < max_kk0; kk++)
+            {
+                const float* ptrA = p0 + kk * A_hstep;
+                const float s = input_scale_ptr[k0 + kk];
+                absmax0 = std::max(absmax0, (float)fabsf(ptrA[0]) * s);
+                absmax1 = std::max(absmax1, (float)fabsf(ptrA[1]) * s);
+            }
+
+            float scale0 = 0.f;
+            float scale1 = 0.f;
+            if (absmax0 != 0.f)
+            {
+                scale0 = 127.f / absmax0;
+            }
+            if (absmax1 != 0.f)
+            {
+                scale1 = 127.f / absmax1;
+            }
+            pd[0] = absmax0 / 127.f;
+            pd[1] = absmax1 / 127.f;
 
             signed char* pp = pp0;
+            kk = 0;
+#if __SSE2__
+            __m128 _scale = _mm_setr_ps(scale0, scale1, 0.f, 0.f);
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
             __m128i _w_shift = _mm_setzero_si128();
 #endif
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m128 _p0 = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)(p0 + kk * A_hstep));
                 __m128 _p1 = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)(p0 + (kk + 1) * A_hstep));
@@ -3232,13 +3133,13 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pp += 8;
             }
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-            if (max_kk >= 4)
+            if (max_kk0 >= 4)
             {
                 _mm_storel_epi64((__m128i*)pp, _w_shift);
                 pp += 8;
             }
 #endif
-            for (; kk + 1 < max_kk; kk += 2)
+            for (; kk + 1 < max_kk0; kk += 2)
             {
                 __m128 _p0 = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)(p0 + kk * A_hstep));
                 __m128 _p1 = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)(p0 + (kk + 1) * A_hstep));
@@ -3249,61 +3150,15 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 ((int*)pp)[0] = _mm_cvtsi128_si32(_mm_unpacklo_epi8(_q0, _q1));
                 pp += 4;
             }
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 __m128 _p = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)(p0 + kk * A_hstep));
                 _p = _mm_mul_ps(_p, _mm_set1_ps(input_scale_ptr[k0 + kk]));
                 ((short*)pp)[0] = (short)float2int8_sse(_mm_mul_ps(_p, _scale));
                 pp += 2;
             }
-
-            p0 += max_kk * A_hstep;
-            pd += 2;
-#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-            pp0 += (max_kk + (max_kk >= 4 ? 4 : 0)) * 2;
-#else
-            pp0 += max_kk * 2;
-#endif
-        }
-    }
 #endif // __SSE2__
-    for (; ii + 1 < max_ii; ii += 2)
-    {
-        const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
-        signed char* pp0 = outptr + ii * out_hstep;
-        float* pd = descale_ptr + ii * block_count;
-
-        for (int g = 0; g < block_count; g++)
-        {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
-            float absmax0 = 0.f;
-            float absmax1 = 0.f;
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                const float* ptrA = p0 + kk * A_hstep;
-                float v0 = ptrA[0];
-                float v1 = ptrA[1];
-                const float s = input_scale_ptr[k0 + kk];
-                absmax0 = std::max(absmax0, (float)fabsf(v0) * s);
-                absmax1 = std::max(absmax1, (float)fabsf(v1) * s);
-            }
-
-            float scale0 = 0.f;
-            float scale1 = 0.f;
-            if (absmax0 != 0.f)
-            {
-                scale0 = 127.f / absmax0;
-            }
-            if (absmax1 != 0.f)
-            {
-                scale1 = 127.f / absmax1;
-            }
-            pd[0] = absmax0 / 127.f;
-            pd[1] = absmax1 / 127.f;
-
-            signed char* pp = pp0;
-            for (int kk = 0; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 const float* ptrA = p0 + kk * A_hstep;
                 float v0 = ptrA[0];
@@ -3316,9 +3171,13 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pp += 2;
             }
 
-            p0 += max_kk * A_hstep;
-            pp0 += max_kk * 2;
+            p0 += max_kk0 * A_hstep;
             pd += 2;
+#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
+            pp0 += (max_kk0 + (max_kk0 >= 4 ? 4 : 0)) * 2;
+#else
+            pp0 += max_kk0 * 2;
+#endif
         }
     }
 
@@ -3342,7 +3201,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
         for (int g = 0; g < block_count; g++)
         {
             const int k0 = g * block_size;
-            const int max_kk = std::min(K - k0, block_size);
+            const int max_kk0 = std::min(K - k0, block_size);
             signed char* pp = pp0;
             float absmax = 0.f;
 
@@ -3351,7 +3210,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __AVX2__
 #if __AVX512F__
             __m512 _absmax512 = _mm512_setzero_ps();
-            for (; kk + 15 < max_kk; kk += 16)
+            for (; kk + 15 < max_kk0; kk += 16)
             {
                 const float* ptrA = p0 + kk * A_hstep;
                 __m512 _p = _mm512_i32gather_ps(_vindex512, ptrA, sizeof(float));
@@ -3360,7 +3219,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             absmax = std::max(absmax, _mm512_comp_reduce_max_ps(_absmax512));
 #endif // __AVX512F__
             __m256 _absmax256 = _mm256_setzero_ps();
-            for (; kk + 7 < max_kk; kk += 8)
+            for (; kk + 7 < max_kk0; kk += 8)
             {
                 const float* ptrA = p0 + kk * A_hstep;
                 __m256 _p = _mm256_i32gather_ps(ptrA, _vindex256, sizeof(float));
@@ -3369,7 +3228,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             absmax = std::max(absmax, _mm256_reduce_max_ps(_absmax256));
 #endif // __AVX2__
             __m128 _absmax128 = _mm_setzero_ps();
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 const float* ptrA = p0 + kk * A_hstep;
                 __m128 _p = _mm_setr_ps(ptrA[0], ptrA[A_hstep], ptrA[A_hstep * 2], ptrA[A_hstep * 3]);
@@ -3377,7 +3236,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             }
             absmax = std::max(absmax, _mm_reduce_max_ps(_absmax128));
 #endif // __SSE2__
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 absmax = std::max(absmax, fabsf(p0[kk * A_hstep]) * input_scale_ptr[k0 + kk]);
             }
@@ -3386,13 +3245,13 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             {
                 pd[0] = 0.f;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                memset(pp, 0, max_kk >= 4 ? max_kk + 4 : max_kk);
-                pp0 += max_kk + (max_kk >= 4 ? 4 : 0);
+                memset(pp, 0, max_kk0 >= 4 ? max_kk0 + 4 : max_kk0);
+                pp0 += max_kk0 + (max_kk0 >= 4 ? 4 : 0);
 #else
-                memset(pp, 0, max_kk);
-                pp0 += max_kk;
+                memset(pp, 0, max_kk0);
+                pp0 += max_kk0;
 #endif
-                p0 += max_kk * A_hstep;
+                p0 += max_kk0 * A_hstep;
                 pd++;
                 continue;
             }
@@ -3407,7 +3266,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __AVX2__
 #if __AVX512F__
             __m512 _scale512 = _mm512_set1_ps(scale);
-            for (; kk + 15 < max_kk; kk += 16)
+            for (; kk + 15 < max_kk0; kk += 16)
             {
                 const float* ptrA = p0 + kk * A_hstep;
                 __m512 _p = _mm512_i32gather_ps(_vindex512, ptrA, sizeof(float));
@@ -3424,7 +3283,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             }
 #endif // __AVX512F__
             __m256 _scale256 = _mm256_set1_ps(scale);
-            for (; kk + 7 < max_kk; kk += 8)
+            for (; kk + 7 < max_kk0; kk += 8)
             {
                 const float* ptrA = p0 + kk * A_hstep;
                 __m256 _p = _mm256_i32gather_ps(ptrA, _vindex256, sizeof(float));
@@ -3444,7 +3303,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             }
 #endif // __AVX2__
             __m128 _scale128 = _mm_set1_ps(scale);
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 const float* ptrA = p0 + kk * A_hstep;
                 __m128 _p = _mm_setr_ps(ptrA[0], ptrA[A_hstep], ptrA[A_hstep * 2], ptrA[A_hstep * 3]);
@@ -3460,25 +3319,25 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             }
 #endif // __SSE2__
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-            if (max_kk >= 4)
+            if (max_kk0 >= 4)
             {
                 ((int*)pp)[0] = w_shift * 127;
                 pp += 4;
             }
 #endif
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 float v = p0[kk * A_hstep];
                 v *= input_scale_ptr[k0 + kk];
                 *pp++ = float2int8(v * scale);
             }
 
-            p0 += max_kk * A_hstep;
+            p0 += max_kk0 * A_hstep;
             pd++;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-            pp0 += max_kk + (max_kk >= 4 ? 4 : 0);
+            pp0 += max_kk0 + (max_kk0 >= 4 ? 4 : 0);
 #else
-            pp0 += max_kk;
+            pp0 += max_kk0;
 #endif
         }
     }
@@ -5107,11 +4966,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         }
 #endif // defined(__x86_64__) || defined(_M_X64)
 #endif // __SSE2__
+#if __SSE2__
         for (; jj + 1 < max_jj; jj += 2)
         {
             const signed char* pB = pB_panel + (size_t)k * 2;
             const float* pB_descales = pB_descales_panel + (size_t)block_start * 2;
-#if __SSE2__
             __m128 _fsum;
 
             if (k == 0)
@@ -5193,8 +5052,14 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             _mm_storeu_ps(outptr, _fsum);
             outptr += 4;
-
-#else
+            pB_panel += (size_t)2 * K;
+            pB_descales_panel += (size_t)2 * block_count;
+        }
+#endif // __SSE2__
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            const signed char* pB = pB_panel + (size_t)k * 2;
+            const float* pB_descales = pB_descales_panel + (size_t)block_start * 2;
             float fsum00;
             float fsum01;
             float fsum10;
@@ -5280,15 +5145,14 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr[2] = fsum10;
             outptr[3] = fsum11;
             outptr += 4;
-#endif // __SSE2__
             pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
         }
+#if __SSE2__
         for (; jj < max_jj; jj++)
         {
             const signed char* pB = pB_panel + (size_t)k;
             const float* pB_descales = pB_descales_panel + (size_t)block_start;
-#if __SSE2__
             __m128 _fsum;
 
             if (k == 0)
@@ -5362,8 +5226,14 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             _mm_storel_pi((__m64*)outptr, _fsum);
             outptr += 2;
-
-#else
+            pB_panel += K;
+            pB_descales_panel += block_count;
+        }
+#endif // __SSE2__
+        for (; jj < max_jj; jj++)
+        {
+            const signed char* pB = pB_panel + (size_t)k;
+            const float* pB_descales = pB_descales_panel + (size_t)block_start;
             float fsum0;
             float fsum1;
 
@@ -5420,7 +5290,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr[0] = fsum0;
             outptr[1] = fsum1;
             outptr += 2;
-#endif // __SSE2__
             pB_panel += K;
             pB_descales_panel += block_count;
         }
@@ -5618,11 +5487,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         }
 #endif // defined(__x86_64__) || defined(_M_X64)
 #endif // __SSE2__
+#if __SSE2__
         for (; jj + 1 < max_jj; jj += 2)
         {
             const signed char* pB = pB_panel + (size_t)k * 2;
             const float* pB_descales = pB_descales_panel + (size_t)block_start * 2;
-#if __SSE2__
             __m128 _fsum;
 
             if (k == 0)
@@ -5710,7 +5579,14 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             _mm_storel_pi((__m64*)outptr, _fsum);
             outptr += 2;
-#else
+            pB_panel += (size_t)2 * K;
+            pB_descales_panel += (size_t)2 * block_count;
+        }
+#endif // __SSE2__
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            const signed char* pB = pB_panel + (size_t)k * 2;
+            const float* pB_descales = pB_descales_panel + (size_t)block_start * 2;
             float fsum0;
             float fsum1;
 
@@ -5763,15 +5639,14 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr[0] = fsum0;
             outptr[1] = fsum1;
             outptr += 2;
-#endif // __SSE2__
             pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
         }
+#if __SSE2__
         for (; jj < max_jj; jj++)
         {
             const signed char* pB = pB_panel + (size_t)k;
             const float* pB_descales = pB_descales_panel + (size_t)block_start;
-#if __SSE2__
             float fsum;
 
             if (k == 0)
@@ -5848,7 +5723,14 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             outptr[0] = fsum;
             outptr++;
-#else
+            pB_panel += K;
+            pB_descales_panel += block_count;
+        }
+#endif // __SSE2__
+        for (; jj < max_jj; jj++)
+        {
+            const signed char* pB = pB_panel + (size_t)k;
+            const float* pB_descales = pB_descales_panel + (size_t)block_start;
             float fsum;
 
             if (k == 0)
@@ -5889,7 +5771,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             outptr[0] = fsum;
             outptr++;
-#endif // __SSE2__
             pB_panel += K;
             pB_descales_panel += block_count;
         }
@@ -7512,95 +7393,95 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 #endif // __SSE2__
         for (; jj + 1 < max_jj; jj += 2)
         {
-            float f0_0 = pp[0];
-            float f0_1 = pp[1];
-            float f1_0 = pp[2];
-            float f1_1 = pp[3];
+            float f00 = pp[0];
+            float f01 = pp[1];
+            float f10 = pp[2];
+            float f11 = pp[3];
+            pp += 4;
             if (pC)
             {
                 if (broadcast_type_C == 0)
                 {
-                    f0_0 += c0;
-                    f0_1 += c0;
-                    f1_0 += c0;
-                    f1_1 += c0;
+                    f00 += c0;
+                    f01 += c0;
+                    f10 += c0;
+                    f11 += c0;
                 }
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    f0_0 += c0;
-                    f0_1 += c0;
-                    f1_0 += c1;
-                    f1_1 += c1;
+                    f00 += c0;
+                    f01 += c0;
+                    f10 += c1;
+                    f11 += c1;
                 }
                 if (broadcast_type_C == 3)
                 {
-                    f0_0 += pC[0] * beta;
-                    f0_1 += pC[1] * beta;
-                    f1_0 += pC[c_hstep] * beta;
-                    f1_1 += pC[c_hstep + 1] * beta;
+                    f00 += pC[0] * beta;
+                    f01 += pC[1] * beta;
+                    f10 += pC[c_hstep] * beta;
+                    f11 += pC[c_hstep + 1] * beta;
+                    pC += 2;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    f0_0 += pC[0] * beta;
-                    f0_1 += pC[1] * beta;
-                    f1_0 += pC[0] * beta;
-                    f1_1 += pC[1] * beta;
+                    f00 += pC[0] * beta;
+                    f01 += pC[1] * beta;
+                    f10 += pC[0] * beta;
+                    f11 += pC[1] * beta;
+                    pC += 2;
                 }
             }
             if (alpha != 1.f)
             {
-                f0_0 *= alpha;
-                f0_1 *= alpha;
-                f1_0 *= alpha;
-                f1_1 *= alpha;
+                f00 *= alpha;
+                f01 *= alpha;
+                f10 *= alpha;
+                f11 *= alpha;
             }
-            p0[0] = f0_0;
-            p0[1] = f0_1;
-            p0[out_hstep] = f1_0;
-            p0[out_hstep + 1] = f1_1;
+            p0[0] = f00;
+            p0[1] = f01;
+            p0[out_hstep] = f10;
+            p0[out_hstep + 1] = f11;
 
-            pp += 4;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 2;
             p0 += 2;
         }
         for (; jj < max_jj; jj += 1)
         {
-            float f0_0 = pp[0];
-            float f1_0 = pp[1];
+            float f00 = pp[0];
+            float f10 = pp[1];
             pp += 2;
             if (pC)
             {
                 if (broadcast_type_C == 0)
                 {
-                    f0_0 += c0;
-                    f1_0 += c0;
+                    f00 += c0;
+                    f10 += c0;
                 }
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    f0_0 += c0;
-                    f1_0 += c1;
+                    f00 += c0;
+                    f10 += c1;
                 }
                 if (broadcast_type_C == 3)
                 {
-                    f0_0 += pC[0] * beta;
-                    f1_0 += pC[c_hstep] * beta;
+                    f00 += pC[0] * beta;
+                    f10 += pC[c_hstep] * beta;
                     pC++;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    f0_0 += pC[0] * beta;
-                    f1_0 += pC[0] * beta;
+                    f00 += pC[0] * beta;
+                    f10 += pC[0] * beta;
                     pC++;
                 }
             }
             if (alpha != 1.f)
             {
-                f0_0 *= alpha;
-                f1_0 *= alpha;
+                f00 *= alpha;
+                f10 *= alpha;
             }
-            p0[0] = f0_0;
-            p0[out_hstep] = f1_0;
+            p0[0] = f00;
+            p0[out_hstep] = f10;
 
             p0++;
         }
@@ -7770,49 +7651,49 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 #endif // __SSE2__
         for (; jj + 1 < max_jj; jj += 2)
         {
-            float f0_0 = pp[0];
-            float f0_1 = pp[1];
+            float f00 = pp[0];
+            float f01 = pp[1];
             pp += 2;
             if (pC)
             {
                 if (broadcast_type_C == 3 || broadcast_type_C == 4)
                 {
-                    f0_0 += pC[0] * beta;
-                    f0_1 += pC[1] * beta;
+                    f00 += pC[0] * beta;
+                    f01 += pC[1] * beta;
                     pC += 2;
                 }
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    f0_0 += c0;
-                    f0_1 += c0;
+                    f00 += c0;
+                    f01 += c0;
                 }
             }
             if (alpha != 1.f)
             {
-                f0_0 *= alpha;
-                f0_1 *= alpha;
+                f00 *= alpha;
+                f01 *= alpha;
             }
-            p0[0] = f0_0;
-            p0[1] = f0_1;
+            p0[0] = f00;
+            p0[1] = f01;
             p0 += 2;
         }
         for (; jj < max_jj; jj += 1)
         {
-            float f0_0 = pp[0];
+            float f00 = pp[0];
             pp += 1;
             if (pC)
             {
                 if (broadcast_type_C == 3 || broadcast_type_C == 4)
                 {
-                    f0_0 += pC[0] * beta;
+                    f00 += pC[0] * beta;
                     pC++;
                 }
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    f0_0 += c0;
+                    f00 += c0;
             }
             if (alpha != 1.f)
-                f0_0 *= alpha;
-            p0[0] = f0_0;
+                f00 *= alpha;
+            p0[0] = f00;
             p0++;
         }
     }
@@ -9335,98 +9216,98 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
 #endif // __SSE2__
         for (; jj + 1 < max_jj; jj += 2)
         {
-            float f0_0 = pp[0];
-            float f0_1 = pp[1];
-            float f1_0 = pp[2];
-            float f1_1 = pp[3];
+            float f00 = pp[0];
+            float f01 = pp[1];
+            float f10 = pp[2];
+            float f11 = pp[3];
+            pp += 4;
             if (pC)
             {
                 if (broadcast_type_C == 0)
                 {
-                    f0_0 += c0;
-                    f0_1 += c0;
-                    f1_0 += c0;
-                    f1_1 += c0;
+                    f00 += c0;
+                    f01 += c0;
+                    f10 += c0;
+                    f11 += c0;
                 }
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    f0_0 += c0;
-                    f0_1 += c0;
-                    f1_0 += c1;
-                    f1_1 += c1;
+                    f00 += c0;
+                    f01 += c0;
+                    f10 += c1;
+                    f11 += c1;
                 }
                 if (broadcast_type_C == 3)
                 {
-                    f0_0 += pC[0] * beta;
-                    f0_1 += pC[1] * beta;
-                    f1_0 += pC[c_hstep] * beta;
-                    f1_1 += pC[c_hstep + 1] * beta;
+                    f00 += pC[0] * beta;
+                    f01 += pC[1] * beta;
+                    f10 += pC[c_hstep] * beta;
+                    f11 += pC[c_hstep + 1] * beta;
+                    pC += 2;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    f0_0 += pC[0] * beta;
-                    f0_1 += pC[1] * beta;
-                    f1_0 += pC[0] * beta;
-                    f1_1 += pC[1] * beta;
+                    f00 += pC[0] * beta;
+                    f01 += pC[1] * beta;
+                    f10 += pC[0] * beta;
+                    f11 += pC[1] * beta;
+                    pC += 2;
                 }
             }
             if (alpha != 1.f)
             {
-                f0_0 *= alpha;
-                f0_1 *= alpha;
-                f1_0 *= alpha;
-                f1_1 *= alpha;
+                f00 *= alpha;
+                f01 *= alpha;
+                f10 *= alpha;
+                f11 *= alpha;
             }
 
-            p0[0] = f0_0;
-            p0[1] = f1_0;
-            p0[out_hstep] = f0_1;
-            p0[out_hstep + 1] = f1_1;
+            p0[0] = f00;
+            p0[1] = f10;
+            p0[out_hstep] = f01;
+            p0[out_hstep + 1] = f11;
 
-            pp += 4;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC += 2;
             p0 += out_hstep * 2;
         }
         for (; jj < max_jj; jj += 1)
         {
-            float f0_0 = pp[0];
-            float f1_0 = pp[1];
+            float f00 = pp[0];
+            float f10 = pp[1];
+            pp += 2;
             if (pC)
             {
                 if (broadcast_type_C == 0)
                 {
-                    f0_0 += c0;
-                    f1_0 += c0;
+                    f00 += c0;
+                    f10 += c0;
                 }
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    f0_0 += c0;
-                    f1_0 += c1;
+                    f00 += c0;
+                    f10 += c1;
                 }
                 if (broadcast_type_C == 3)
                 {
-                    f0_0 += pC[0] * beta;
-                    f1_0 += pC[c_hstep] * beta;
+                    f00 += pC[0] * beta;
+                    f10 += pC[c_hstep] * beta;
+                    pC++;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    f0_0 += pC[0] * beta;
-                    f1_0 += pC[0] * beta;
+                    f00 += pC[0] * beta;
+                    f10 += pC[0] * beta;
+                    pC++;
                 }
             }
             if (alpha != 1.f)
             {
-                f0_0 *= alpha;
-                f1_0 *= alpha;
+                f00 *= alpha;
+                f10 *= alpha;
             }
 
-            p0[0] = f0_0;
-            p0[1] = f1_0;
+            p0[0] = f00;
+            p0[1] = f10;
 
-            pp += 2;
-            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-                pC++;
             p0 += out_hstep;
         }
     }
@@ -9600,49 +9481,49 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
 #endif // __SSE2__
         for (; jj + 1 < max_jj; jj += 2)
         {
-            float f0_0 = pp[0];
-            float f0_1 = pp[1];
+            float f00 = pp[0];
+            float f01 = pp[1];
             pp += 2;
             if (pC)
             {
                 if (broadcast_type_C == 3 || broadcast_type_C == 4)
                 {
-                    f0_0 += pC[0] * beta;
-                    f0_1 += pC[1] * beta;
+                    f00 += pC[0] * beta;
+                    f01 += pC[1] * beta;
                     pC += 2;
                 }
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    f0_0 += c0;
-                    f0_1 += c0;
+                    f00 += c0;
+                    f01 += c0;
                 }
             }
             if (alpha != 1.f)
             {
-                f0_0 *= alpha;
-                f0_1 *= alpha;
+                f00 *= alpha;
+                f01 *= alpha;
             }
-            p0[0] = f0_0;
-            p0[out_hstep] = f0_1;
+            p0[0] = f00;
+            p0[out_hstep] = f01;
             p0 += out_hstep * 2;
         }
         for (; jj < max_jj; jj += 1)
         {
-            float f0_0 = pp[0];
+            float f00 = pp[0];
             pp += 1;
             if (pC)
             {
                 if (broadcast_type_C == 3 || broadcast_type_C == 4)
                 {
-                    f0_0 += beta == 1.f ? pC[0] : pC[0] * beta;
+                    f00 += pC[0] * beta;
                     pC++;
                 }
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    f0_0 += c0;
+                    f00 += c0;
             }
             if (alpha != 1.f)
-                f0_0 *= alpha;
-            p0[0] = f0_0;
+                f00 *= alpha;
+            p0[0] = f00;
             p0 += out_hstep;
         }
     }

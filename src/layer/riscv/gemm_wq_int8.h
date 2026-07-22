@@ -2233,19 +2233,28 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC += i + ii;
+            }
             if (broadcast_type_C == 3)
+            {
                 pC += (size_t)(i + ii) * c_hstep + j;
+            }
             if (broadcast_type_C == 4)
+            {
                 pC += j;
+            }
         }
 
         float c0 = 0.f;
         vfloat32m1_t _c = __riscv_vfmv_v_f_f32m1(0.f, vl_packn);
-        if (pC && broadcast_type_C == 0)
-            c0 = pC[0] * beta;
-        if (pC && (broadcast_type_C == 1 || broadcast_type_C == 2))
-            _c = __riscv_vfmul_vf_f32m1(__riscv_vle32_v_f32m1(pC, vl_packn), beta, vl_packn);
+        if (pC)
+        {
+            if (broadcast_type_C == 0)
+                c0 = pC[0] * beta;
+            if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                _c = __riscv_vfmul_vf_f32m1(__riscv_vle32_v_f32m1(pC, vl_packn), beta, vl_packn);
+        }
 
         float* out0 = outptr;
         for (int jj = 0; jj < max_jj; jj++)
@@ -2290,21 +2299,35 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC += i + ii;
+            }
             if (broadcast_type_C == 3)
+            {
                 pC += (size_t)(i + ii) * c_hstep + j;
+            }
             if (broadcast_type_C == 4)
+            {
                 pC += j;
+            }
         }
 
         float* out0 = outptr;
         float* out1 = out0 + out_hstep;
         float c0 = 0.f;
         float c1 = 0.f;
-        if (pC && (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2))
+        if (pC)
         {
-            c0 = pC[0] * beta;
-            c1 = pC[broadcast_type_C == 0 ? 0 : 1] * beta;
+            if (broadcast_type_C == 0)
+            {
+                c0 = pC[0] * beta;
+                c1 = c0;
+            }
+            if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
+                c0 = pC[0] * beta;
+                c1 = pC[1] * beta;
+            }
         }
         int jj = 0;
 #if __riscv_vector
@@ -2404,7 +2427,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     sum11 += pC[c_hstep + 1] * beta;
                     sum12 += pC[c_hstep + 2] * beta;
                     sum13 += pC[c_hstep + 3] * beta;
-                    pC += 4;
                 }
                 if (broadcast_type_C == 4)
                 {
@@ -2416,8 +2438,9 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     sum11 += pC[1] * beta;
                     sum12 += pC[2] * beta;
                     sum13 += pC[3] * beta;
-                    pC += 4;
                 }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                    pC += 4;
             }
 
             if (alpha != 1.f)
@@ -2466,7 +2489,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     sum01 += pC[1] * beta;
                     sum10 += pC[c_hstep] * beta;
                     sum11 += pC[c_hstep + 1] * beta;
-                    pC += 2;
                 }
                 if (broadcast_type_C == 4)
                 {
@@ -2474,8 +2496,9 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     sum01 += pC[1] * beta;
                     sum10 += pC[0] * beta;
                     sum11 += pC[1] * beta;
-                    pC += 2;
                 }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                    pC += 2;
             }
 
             if (alpha != 1.f)
@@ -2509,14 +2532,14 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 {
                     sum0 += pC[0] * beta;
                     sum1 += pC[c_hstep] * beta;
-                    pC++;
                 }
                 if (broadcast_type_C == 4)
                 {
                     sum0 += pC[0] * beta;
                     sum1 += pC[0] * beta;
-                    pC++;
                 }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                    pC++;
             }
             if (alpha != 1.f)
             {
@@ -2536,17 +2559,26 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC += i + ii;
+            }
             if (broadcast_type_C == 3)
+            {
                 pC += (size_t)(i + ii) * c_hstep + j;
+            }
             if (broadcast_type_C == 4)
+            {
                 pC += j;
+            }
         }
 
         float* out0 = outptr;
         float c0 = 0.f;
-        if (pC && (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2))
-            c0 = pC[0] * beta;
+        if (pC)
+        {
+            if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                c0 = pC[0] * beta;
+        }
         int jj = 0;
 #if __riscv_vector
         while (jj < max_jj)
@@ -2600,7 +2632,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     sum1 += pC[1] * beta;
                     sum2 += pC[2] * beta;
                     sum3 += pC[3] * beta;
-                    pC += 4;
                 }
                 if (broadcast_type_C == 4)
                 {
@@ -2608,8 +2639,9 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     sum1 += pC[1] * beta;
                     sum2 += pC[2] * beta;
                     sum3 += pC[3] * beta;
-                    pC += 4;
                 }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                    pC += 4;
             }
             if (alpha != 1.f)
             {
@@ -2640,14 +2672,14 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 {
                     sum0 += pC[0] * beta;
                     sum1 += pC[1] * beta;
-                    pC += 2;
                 }
                 if (broadcast_type_C == 4)
                 {
                     sum0 += pC[0] * beta;
                     sum1 += pC[1] * beta;
-                    pC += 2;
                 }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                    pC += 2;
             }
             if (alpha != 1.f)
             {
@@ -2699,19 +2731,28 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC += i + ii;
+            }
             if (broadcast_type_C == 3)
+            {
                 pC += (size_t)(i + ii) * c_hstep + j;
+            }
             if (broadcast_type_C == 4)
+            {
                 pC += j;
+            }
         }
 
         float c0 = 0.f;
         vfloat32m1_t _c = __riscv_vfmv_v_f_f32m1(0.f, vl_packn);
-        if (pC && broadcast_type_C == 0)
-            c0 = pC[0] * beta;
-        if (pC && (broadcast_type_C == 1 || broadcast_type_C == 2))
-            _c = __riscv_vfmul_vf_f32m1(__riscv_vle32_v_f32m1(pC, vl_packn), beta, vl_packn);
+        if (pC)
+        {
+            if (broadcast_type_C == 0)
+                c0 = pC[0] * beta;
+            if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                _c = __riscv_vfmul_vf_f32m1(__riscv_vle32_v_f32m1(pC, vl_packn), beta, vl_packn);
+        }
 
         float* out0 = outptr;
         for (int jj = 0; jj < max_jj; jj++)
@@ -2756,20 +2797,34 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC += i + ii;
+            }
             if (broadcast_type_C == 3)
+            {
                 pC += (size_t)(i + ii) * c_hstep + j;
+            }
             if (broadcast_type_C == 4)
+            {
                 pC += j;
+            }
         }
 
         float* out0 = outptr;
         float c0 = 0.f;
         float c1 = 0.f;
-        if (pC && (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2))
+        if (pC)
         {
-            c0 = pC[0] * beta;
-            c1 = pC[broadcast_type_C == 0 ? 0 : 1] * beta;
+            if (broadcast_type_C == 0)
+            {
+                c0 = pC[0] * beta;
+                c1 = c0;
+            }
+            if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
+                c0 = pC[0] * beta;
+                c1 = pC[1] * beta;
+            }
         }
         int jj = 0;
 #if __riscv_vector
@@ -2995,17 +3050,26 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC += i + ii;
+            }
             if (broadcast_type_C == 3)
+            {
                 pC += (size_t)(i + ii) * c_hstep + j;
+            }
             if (broadcast_type_C == 4)
+            {
                 pC += j;
+            }
         }
 
         float* out0 = outptr;
         float c0 = 0.f;
-        if (pC && (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2))
-            c0 = pC[0] * beta;
+        if (pC)
+        {
+            if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                c0 = pC[0] * beta;
+        }
         int jj = 0;
 #if __riscv_vector
         while (jj < max_jj)

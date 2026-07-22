@@ -20,111 +20,21 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
 #endif
 
     const int block_count = (K + block_size - 1) / block_size;
-    const int N = max_jj;
-    signed char* BT = BT_tile;
-    float* BT_descales = BT_descales_tile;
+    signed char* pp = BT_tile;
+    float* pd = BT_descales_tile;
 
     int jj = 0;
 #if __mips_msa
-    const int nn8 = N / 8;
-    const int j8 = jj;
-    jj += nn8 * 8;
-    const int nn4 = (N - jj) / 4;
-    const int j4 = jj;
-    jj += nn4 * 4;
-#endif
-    const int nn2 = (N - jj) / 2;
-    const int j2 = jj;
-    jj += nn2 * 2;
-    const int nn1 = N - jj;
-    const int j1 = jj;
-
-#if __mips_msa
-    for (int ppj = 0; ppj < nn8; ppj++)
+    for (; jj + 3 < max_jj; jj += 4)
     {
-        const int jj0 = j8 + ppj * 8;
-        const int j0 = j + jj0;
-        signed char* pp = BT + (size_t)jj0 * K;
-        float* pd = BT_descales + (size_t)jj0 * block_count;
-
-        for (int jj = 0; jj < 8; jj += 4)
-        {
-            const signed char* p0 = B.row<const signed char>(j0 + jj);
-            const signed char* p1 = B.row<const signed char>(j0 + jj + 1);
-            const signed char* p2 = B.row<const signed char>(j0 + jj + 2);
-            const signed char* p3 = B.row<const signed char>(j0 + jj + 3);
-            const float* s0 = B_scales.row(j0 + jj);
-            const float* s1 = B_scales.row(j0 + jj + 1);
-            const float* s2 = B_scales.row(j0 + jj + 2);
-            const float* s3 = B_scales.row(j0 + jj + 3);
-
-            for (int g = 0; g < block_count; g++)
-            {
-                const int k0 = g * block_size;
-                const int max_kk = std::min(K - k0, block_size);
-                int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
-                {
-                    v16i8 _p = (v16i8)__msa_set_w(__msa_load_w(p0), __msa_load_w(p1), __msa_load_w(p2), __msa_load_w(p3));
-                    __msa_st_b(_p, pp, 0);
-                    pp += 16;
-                    p0 += 4;
-                    p1 += 4;
-                    p2 += 4;
-                    p3 += 4;
-                }
-                if (kk + 1 < max_kk)
-                {
-                    pp[0] = p0[0];
-                    pp[1] = p0[1];
-                    pp[2] = p1[0];
-                    pp[3] = p1[1];
-                    pp[4] = p2[0];
-                    pp[5] = p2[1];
-                    pp[6] = p3[0];
-                    pp[7] = p3[1];
-                    pp += 8;
-                    p0 += 2;
-                    p1 += 2;
-                    p2 += 2;
-                    p3 += 2;
-                    kk += 2;
-                }
-                if (kk < max_kk)
-                {
-                    pp[0] = p0[0];
-                    pp[1] = p1[0];
-                    pp[2] = p2[0];
-                    pp[3] = p3[0];
-                    pp += 4;
-                    p0++;
-                    p1++;
-                    p2++;
-                    p3++;
-                }
-
-                pd[0] = 1.f / *s0++;
-                pd[1] = 1.f / *s1++;
-                pd[2] = 1.f / *s2++;
-                pd[3] = 1.f / *s3++;
-                pd += 4;
-            }
-        }
-    }
-    for (int ppj = 0; ppj < nn4; ppj++)
-    {
-        const int jj0 = j4 + ppj * 4;
-        const int j0 = j + jj0;
-        signed char* pp = BT + (size_t)jj0 * K;
-        float* pd = BT_descales + (size_t)jj0 * block_count;
-        const signed char* p0 = B.row<const signed char>(j0);
-        const signed char* p1 = B.row<const signed char>(j0 + 1);
-        const signed char* p2 = B.row<const signed char>(j0 + 2);
-        const signed char* p3 = B.row<const signed char>(j0 + 3);
-        const float* s0 = B_scales.row(j0);
-        const float* s1 = B_scales.row(j0 + 1);
-        const float* s2 = B_scales.row(j0 + 2);
-        const float* s3 = B_scales.row(j0 + 3);
+        const signed char* p0 = B.row<const signed char>(j + jj);
+        const signed char* p1 = B.row<const signed char>(j + jj + 1);
+        const signed char* p2 = B.row<const signed char>(j + jj + 2);
+        const signed char* p3 = B.row<const signed char>(j + jj + 3);
+        const float* s0 = B_scales.row(j + jj);
+        const float* s1 = B_scales.row(j + jj + 1);
+        const float* s2 = B_scales.row(j + jj + 2);
+        const float* s3 = B_scales.row(j + jj + 3);
 
         for (int g = 0; g < block_count; g++)
         {
@@ -180,16 +90,12 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
     }
 #endif // __mips_msa
 
-    for (int ppj = 0; ppj < nn2; ppj++)
+    for (; jj + 1 < max_jj; jj += 2)
     {
-        const int jj0 = j2 + ppj * 2;
-        const int j0 = j + jj0;
-        signed char* pp = BT + (size_t)jj0 * K;
-        float* pd = BT_descales + (size_t)jj0 * block_count;
-        const signed char* p0 = B.row<const signed char>(j0);
-        const signed char* p1 = B.row<const signed char>(j0 + 1);
-        const float* s0 = B_scales.row(j0);
-        const float* s1 = B_scales.row(j0 + 1);
+        const signed char* p0 = B.row<const signed char>(j + jj);
+        const signed char* p1 = B.row<const signed char>(j + jj + 1);
+        const float* s0 = B_scales.row(j + jj);
+        const float* s1 = B_scales.row(j + jj + 1);
 
         for (int g = 0; g < block_count; g++)
         {
@@ -234,14 +140,10 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
             *pd++ = 1.f / *s1++;
         }
     }
-    for (int ppj = 0; ppj < nn1; ppj++)
+    for (; jj < max_jj; jj++)
     {
-        const int jj0 = j1 + ppj;
-        const int j0 = j + jj0;
-        signed char* pp = BT + (size_t)jj0 * K;
-        float* pd = BT_descales + (size_t)jj0 * block_count;
-        const signed char* p0 = B.row<const signed char>(j0);
-        const float* s0 = B_scales.row(j0);
+        const signed char* p0 = B.row<const signed char>(j + jj);
+        const float* s0 = B_scales.row(j + jj);
 
         for (int g = 0; g < block_count; g++)
         {
@@ -2242,7 +2144,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
     {
         const signed char* pB_panel = pBT;
         const float* pB_descales_panel = pBT_descales;
-        v8i16 _one = __msa_fill_h(1);
+        const v8i16 _one = __msa_fill_h(1);
 
         int jj = 0;
         for (; jj + 3 < max_jj; jj += 4)
@@ -2624,7 +2526,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
     {
         const signed char* pB_panel = pBT;
         const float* pB_descales_panel = pBT_descales;
-        v8i16 _one = __msa_fill_h(1);
+        const v8i16 _one = __msa_fill_h(1);
 
         int jj = 0;
         for (; jj + 7 < max_jj; jj += 8)
@@ -3090,7 +2992,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
         int jj = 0;
 #if __mips_msa
-        v8i16 _one = __msa_fill_h(1);
+        const v8i16 _one = __msa_fill_h(1);
         for (; jj + 7 < max_jj; jj += 8)
         {
             const signed char* pA = pAT;
@@ -3795,7 +3697,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
         int jj = 0;
 #if __mips_msa
-        v8i16 _one = __msa_fill_h(1);
+        const v8i16 _one = __msa_fill_h(1);
         for (; jj + 7 < max_jj; jj += 8)
         {
             const signed char* pA = pAT;
@@ -4389,11 +4291,17 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC += i + ii;
+            }
             if (broadcast_type_C == 3)
+            {
                 pC += (size_t)(i + ii) * c_hstep + j;
+            }
             if (broadcast_type_C == 4)
+            {
                 pC += j;
+            }
         }
 
         v4f32 _c0123 = (v4f32)__msa_fill_w(0);
@@ -4420,8 +4328,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 }
             }
         }
-
-        const float* pC0 = pC && broadcast_type_C == 3 ? pC : 0;
 
         int jj = 0;
         for (; jj + 7 < max_jj; jj += 8)
@@ -4454,14 +4360,14 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 if (broadcast_type_C == 3)
                 {
                     v4f32 _beta = __msa_fill_w_f32(beta);
-                    _f0 = __msa_fadd_w(_f0, __msa_fmul_w((v4f32)__msa_ld_w(pC0 + jj, 0), _beta));
-                    _f1 = __msa_fadd_w(_f1, __msa_fmul_w((v4f32)__msa_ld_w(pC0 + jj + c_hstep, 0), _beta));
-                    _f2 = __msa_fadd_w(_f2, __msa_fmul_w((v4f32)__msa_ld_w(pC0 + jj + c_hstep * 2, 0), _beta));
-                    _f3 = __msa_fadd_w(_f3, __msa_fmul_w((v4f32)__msa_ld_w(pC0 + jj + c_hstep * 3, 0), _beta));
-                    _f4 = __msa_fadd_w(_f4, __msa_fmul_w((v4f32)__msa_ld_w(pC0 + jj + c_hstep * 4, 0), _beta));
-                    _f5 = __msa_fadd_w(_f5, __msa_fmul_w((v4f32)__msa_ld_w(pC0 + jj + c_hstep * 5, 0), _beta));
-                    _f6 = __msa_fadd_w(_f6, __msa_fmul_w((v4f32)__msa_ld_w(pC0 + jj + c_hstep * 6, 0), _beta));
-                    _f7 = __msa_fadd_w(_f7, __msa_fmul_w((v4f32)__msa_ld_w(pC0 + jj + c_hstep * 7, 0), _beta));
+                    _f0 = __msa_fadd_w(_f0, __msa_fmul_w((v4f32)__msa_ld_w(pC, 0), _beta));
+                    _f1 = __msa_fadd_w(_f1, __msa_fmul_w((v4f32)__msa_ld_w(pC + c_hstep, 0), _beta));
+                    _f2 = __msa_fadd_w(_f2, __msa_fmul_w((v4f32)__msa_ld_w(pC + c_hstep * 2, 0), _beta));
+                    _f3 = __msa_fadd_w(_f3, __msa_fmul_w((v4f32)__msa_ld_w(pC + c_hstep * 3, 0), _beta));
+                    _f4 = __msa_fadd_w(_f4, __msa_fmul_w((v4f32)__msa_ld_w(pC + c_hstep * 4, 0), _beta));
+                    _f5 = __msa_fadd_w(_f5, __msa_fmul_w((v4f32)__msa_ld_w(pC + c_hstep * 5, 0), _beta));
+                    _f6 = __msa_fadd_w(_f6, __msa_fmul_w((v4f32)__msa_ld_w(pC + c_hstep * 6, 0), _beta));
+                    _f7 = __msa_fadd_w(_f7, __msa_fmul_w((v4f32)__msa_ld_w(pC + c_hstep * 7, 0), _beta));
                 }
                 if (broadcast_type_C == 4)
                 {
@@ -4528,14 +4434,15 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 if (broadcast_type_C == 3)
                 {
                     v4f32 _beta = __msa_fill_w_f32(beta);
-                    _g0 = __msa_fadd_w(_g0, __msa_fmul_w((v4f32)__msa_ld_w(pC0 + jj + 4, 0), _beta));
-                    _g1 = __msa_fadd_w(_g1, __msa_fmul_w((v4f32)__msa_ld_w(pC0 + jj + c_hstep + 4, 0), _beta));
-                    _g2 = __msa_fadd_w(_g2, __msa_fmul_w((v4f32)__msa_ld_w(pC0 + jj + c_hstep * 2 + 4, 0), _beta));
-                    _g3 = __msa_fadd_w(_g3, __msa_fmul_w((v4f32)__msa_ld_w(pC0 + jj + c_hstep * 3 + 4, 0), _beta));
-                    _g4 = __msa_fadd_w(_g4, __msa_fmul_w((v4f32)__msa_ld_w(pC0 + jj + c_hstep * 4 + 4, 0), _beta));
-                    _g5 = __msa_fadd_w(_g5, __msa_fmul_w((v4f32)__msa_ld_w(pC0 + jj + c_hstep * 5 + 4, 0), _beta));
-                    _g6 = __msa_fadd_w(_g6, __msa_fmul_w((v4f32)__msa_ld_w(pC0 + jj + c_hstep * 6 + 4, 0), _beta));
-                    _g7 = __msa_fadd_w(_g7, __msa_fmul_w((v4f32)__msa_ld_w(pC0 + jj + c_hstep * 7 + 4, 0), _beta));
+                    _g0 = __msa_fadd_w(_g0, __msa_fmul_w((v4f32)__msa_ld_w(pC + 4, 0), _beta));
+                    _g1 = __msa_fadd_w(_g1, __msa_fmul_w((v4f32)__msa_ld_w(pC + c_hstep + 4, 0), _beta));
+                    _g2 = __msa_fadd_w(_g2, __msa_fmul_w((v4f32)__msa_ld_w(pC + c_hstep * 2 + 4, 0), _beta));
+                    _g3 = __msa_fadd_w(_g3, __msa_fmul_w((v4f32)__msa_ld_w(pC + c_hstep * 3 + 4, 0), _beta));
+                    _g4 = __msa_fadd_w(_g4, __msa_fmul_w((v4f32)__msa_ld_w(pC + c_hstep * 4 + 4, 0), _beta));
+                    _g5 = __msa_fadd_w(_g5, __msa_fmul_w((v4f32)__msa_ld_w(pC + c_hstep * 5 + 4, 0), _beta));
+                    _g6 = __msa_fadd_w(_g6, __msa_fmul_w((v4f32)__msa_ld_w(pC + c_hstep * 6 + 4, 0), _beta));
+                    _g7 = __msa_fadd_w(_g7, __msa_fmul_w((v4f32)__msa_ld_w(pC + c_hstep * 7 + 4, 0), _beta));
+                    pC += 8;
                 }
                 if (broadcast_type_C == 4)
                 {
@@ -4606,22 +4513,23 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 if (broadcast_type_C == 3)
                 {
                     v4f32 _beta = __msa_fill_w_f32(beta);
-                    v4f32 _c = (v4f32)__msa_ld_w((pC0 + jj), 0);
-                    _f0 = __msa_fadd_w(_f0, beta == 1.f ? _c : __msa_fmul_w(_c, _beta));
-                    _c = (v4f32)__msa_ld_w((pC0 + jj + c_hstep), 0);
-                    _f1 = __msa_fadd_w(_f1, beta == 1.f ? _c : __msa_fmul_w(_c, _beta));
-                    _c = (v4f32)__msa_ld_w((pC0 + jj + c_hstep * 2), 0);
-                    _f2 = __msa_fadd_w(_f2, beta == 1.f ? _c : __msa_fmul_w(_c, _beta));
-                    _c = (v4f32)__msa_ld_w((pC0 + jj + c_hstep * 3), 0);
-                    _f3 = __msa_fadd_w(_f3, beta == 1.f ? _c : __msa_fmul_w(_c, _beta));
-                    _c = (v4f32)__msa_ld_w((pC0 + jj + c_hstep * 4), 0);
-                    _f4 = __msa_fadd_w(_f4, beta == 1.f ? _c : __msa_fmul_w(_c, _beta));
-                    _c = (v4f32)__msa_ld_w((pC0 + jj + c_hstep * 5), 0);
-                    _f5 = __msa_fadd_w(_f5, beta == 1.f ? _c : __msa_fmul_w(_c, _beta));
-                    _c = (v4f32)__msa_ld_w((pC0 + jj + c_hstep * 6), 0);
-                    _f6 = __msa_fadd_w(_f6, beta == 1.f ? _c : __msa_fmul_w(_c, _beta));
-                    _c = (v4f32)__msa_ld_w((pC0 + jj + c_hstep * 7), 0);
-                    _f7 = __msa_fadd_w(_f7, beta == 1.f ? _c : __msa_fmul_w(_c, _beta));
+                    v4f32 _c = (v4f32)__msa_ld_w(pC, 0);
+                    _f0 = __msa_fadd_w(_f0, __msa_fmul_w(_c, _beta));
+                    _c = (v4f32)__msa_ld_w(pC + c_hstep, 0);
+                    _f1 = __msa_fadd_w(_f1, __msa_fmul_w(_c, _beta));
+                    _c = (v4f32)__msa_ld_w(pC + c_hstep * 2, 0);
+                    _f2 = __msa_fadd_w(_f2, __msa_fmul_w(_c, _beta));
+                    _c = (v4f32)__msa_ld_w(pC + c_hstep * 3, 0);
+                    _f3 = __msa_fadd_w(_f3, __msa_fmul_w(_c, _beta));
+                    _c = (v4f32)__msa_ld_w(pC + c_hstep * 4, 0);
+                    _f4 = __msa_fadd_w(_f4, __msa_fmul_w(_c, _beta));
+                    _c = (v4f32)__msa_ld_w(pC + c_hstep * 5, 0);
+                    _f5 = __msa_fadd_w(_f5, __msa_fmul_w(_c, _beta));
+                    _c = (v4f32)__msa_ld_w(pC + c_hstep * 6, 0);
+                    _f6 = __msa_fadd_w(_f6, __msa_fmul_w(_c, _beta));
+                    _c = (v4f32)__msa_ld_w(pC + c_hstep * 7, 0);
+                    _f7 = __msa_fadd_w(_f7, __msa_fmul_w(_c, _beta));
+                    pC += 4;
                 }
                 if (broadcast_type_C == 4)
                 {
@@ -4681,10 +4589,11 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 }
                 if (broadcast_type_C == 3)
                 {
-                    v4f32 _c0 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj)), __msa_load_w((pC0 + jj + c_hstep)), __msa_load_w((pC0 + jj + c_hstep * 2)), __msa_load_w((pC0 + jj + c_hstep * 3)));
-                    v4f32 _c4 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj + c_hstep * 4)), __msa_load_w((pC0 + jj + c_hstep * 5)), __msa_load_w((pC0 + jj + c_hstep * 6)), __msa_load_w((pC0 + jj + c_hstep * 7)));
-                    v4f32 _c1 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj) + 1), __msa_load_w((pC0 + jj + c_hstep) + 1), __msa_load_w((pC0 + jj + c_hstep * 2) + 1), __msa_load_w((pC0 + jj + c_hstep * 3) + 1));
-                    v4f32 _c5 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj + c_hstep * 4) + 1), __msa_load_w((pC0 + jj + c_hstep * 5) + 1), __msa_load_w((pC0 + jj + c_hstep * 6) + 1), __msa_load_w((pC0 + jj + c_hstep * 7) + 1));
+                    v4f32 _c0 = (v4f32)__msa_set_w(__msa_load_w(pC), __msa_load_w(pC + c_hstep), __msa_load_w(pC + c_hstep * 2), __msa_load_w(pC + c_hstep * 3));
+                    v4f32 _c4 = (v4f32)__msa_set_w(__msa_load_w(pC + c_hstep * 4), __msa_load_w(pC + c_hstep * 5), __msa_load_w(pC + c_hstep * 6), __msa_load_w(pC + c_hstep * 7));
+                    v4f32 _c1 = (v4f32)__msa_set_w(__msa_load_w(pC + 1), __msa_load_w(pC + c_hstep + 1), __msa_load_w(pC + c_hstep * 2 + 1), __msa_load_w(pC + c_hstep * 3 + 1));
+                    v4f32 _c5 = (v4f32)__msa_set_w(__msa_load_w(pC + c_hstep * 4 + 1), __msa_load_w(pC + c_hstep * 5 + 1), __msa_load_w(pC + c_hstep * 6 + 1), __msa_load_w(pC + c_hstep * 7 + 1));
+                    pC += 2;
                     if (beta != 1.f)
                     {
                         v4f32 _beta = __msa_fill_w_f32(beta);
@@ -4756,8 +4665,9 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 }
                 if (broadcast_type_C == 3)
                 {
-                    v4f32 _c0 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj)), __msa_load_w((pC0 + jj + c_hstep)), __msa_load_w((pC0 + jj + c_hstep * 2)), __msa_load_w((pC0 + jj + c_hstep * 3)));
-                    v4f32 _c4 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj + c_hstep * 4)), __msa_load_w((pC0 + jj + c_hstep * 5)), __msa_load_w((pC0 + jj + c_hstep * 6)), __msa_load_w((pC0 + jj + c_hstep * 7)));
+                    v4f32 _c0 = (v4f32)__msa_set_w(__msa_load_w(pC), __msa_load_w(pC + c_hstep), __msa_load_w(pC + c_hstep * 2), __msa_load_w(pC + c_hstep * 3));
+                    v4f32 _c4 = (v4f32)__msa_set_w(__msa_load_w(pC + c_hstep * 4), __msa_load_w(pC + c_hstep * 5), __msa_load_w(pC + c_hstep * 6), __msa_load_w(pC + c_hstep * 7));
+                    pC++;
                     if (beta != 1.f)
                     {
                         v4f32 _beta = __msa_fill_w_f32(beta);
@@ -4798,20 +4708,23 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
     }
     for (; ii + 3 < max_ii; ii += 4)
     {
-        float* outptr0 = outptr;
-        float* outptr1 = outptr0 + out_hstep;
-        float* outptr2 = outptr0 + out_hstep * 2;
-        float* outptr3 = outptr0 + out_hstep * 3;
+        float* p0 = outptr;
 
         const float* pC = C;
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC += i + ii;
+            }
             if (broadcast_type_C == 3)
+            {
                 pC += (size_t)(i + ii) * c_hstep + j;
+            }
             if (broadcast_type_C == 4)
+            {
                 pC += j;
+            }
         }
 
         v4f32 _c0123 = (v4f32)__msa_fill_w(0);
@@ -4938,18 +4851,15 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 
             transpose4x4_ps(_f0, _f1, _f2, _f3);
             transpose4x4_ps(_f4, _f5, _f6, _f7);
-            __msa_st_w((v4i32)_f0, outptr0, 0);
-            __msa_st_w((v4i32)_f4, outptr0 + 4, 0);
-            __msa_st_w((v4i32)_f1, outptr1, 0);
-            __msa_st_w((v4i32)_f5, outptr1 + 4, 0);
-            __msa_st_w((v4i32)_f2, outptr2, 0);
-            __msa_st_w((v4i32)_f6, outptr2 + 4, 0);
-            __msa_st_w((v4i32)_f3, outptr3, 0);
-            __msa_st_w((v4i32)_f7, outptr3 + 4, 0);
-            outptr0 += 8;
-            outptr1 += 8;
-            outptr2 += 8;
-            outptr3 += 8;
+            __msa_st_w((v4i32)_f0, p0, 0);
+            __msa_st_w((v4i32)_f4, p0 + 4, 0);
+            __msa_st_w((v4i32)_f1, p0 + out_hstep, 0);
+            __msa_st_w((v4i32)_f5, p0 + out_hstep + 4, 0);
+            __msa_st_w((v4i32)_f2, p0 + out_hstep * 2, 0);
+            __msa_st_w((v4i32)_f6, p0 + out_hstep * 2 + 4, 0);
+            __msa_st_w((v4i32)_f3, p0 + out_hstep * 3, 0);
+            __msa_st_w((v4i32)_f7, p0 + out_hstep * 3 + 4, 0);
+            p0 += 8;
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -5015,14 +4925,11 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             }
 
             transpose4x4_ps(_f0, _f1, _f2, _f3);
-            __msa_st_w((v4i32)_f0, outptr0, 0);
-            __msa_st_w((v4i32)_f1, outptr1, 0);
-            __msa_st_w((v4i32)_f2, outptr2, 0);
-            __msa_st_w((v4i32)_f3, outptr3, 0);
-            outptr0 += 4;
-            outptr1 += 4;
-            outptr2 += 4;
-            outptr3 += 4;
+            __msa_st_w((v4i32)_f0, p0, 0);
+            __msa_st_w((v4i32)_f1, p0 + out_hstep, 0);
+            __msa_st_w((v4i32)_f2, p0 + out_hstep * 2, 0);
+            __msa_st_w((v4i32)_f3, p0 + out_hstep * 3, 0);
+            p0 += 4;
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
@@ -5079,14 +4986,11 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             v4f32 _f2 = (v4f32)__msa_fill_w(0);
             v4f32 _f3 = (v4f32)__msa_fill_w(0);
             transpose4x4_ps(_f0, _f1, _f2, _f3);
-            *(int64_t*)outptr0 = __msa_copy_s_d((v2i64)_f0, 0);
-            *(int64_t*)outptr1 = __msa_copy_s_d((v2i64)_f1, 0);
-            *(int64_t*)outptr2 = __msa_copy_s_d((v2i64)_f2, 0);
-            *(int64_t*)outptr3 = __msa_copy_s_d((v2i64)_f3, 0);
-            outptr0 += 2;
-            outptr1 += 2;
-            outptr2 += 2;
-            outptr3 += 2;
+            *(int64_t*)p0 = __msa_copy_s_d((v2i64)_f0, 0);
+            *(int64_t*)(p0 + out_hstep) = __msa_copy_s_d((v2i64)_f1, 0);
+            *(int64_t*)(p0 + out_hstep * 2) = __msa_copy_s_d((v2i64)_f2, 0);
+            *(int64_t*)(p0 + out_hstep * 3) = __msa_copy_s_d((v2i64)_f3, 0);
+            p0 += 2;
         }
         for (; jj < max_jj; jj++)
         {
@@ -5120,45 +5024,50 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             }
             if (alpha != 1.f)
                 _f0 = __msa_fmul_w(_f0, __msa_fill_w_f32(alpha));
-            outptr0[0] = _f0[0];
-            outptr1[0] = _f0[1];
-            outptr2[0] = _f0[2];
-            outptr3[0] = _f0[3];
-            outptr0++;
-            outptr1++;
-            outptr2++;
-            outptr3++;
+            p0[0] = _f0[0];
+            p0[out_hstep] = _f0[1];
+            p0[out_hstep * 2] = _f0[2];
+            p0[out_hstep * 3] = _f0[3];
+            p0++;
         }
         outptr += out_hstep * 4;
     }
 #endif // __mips_msa
     for (; ii + 1 < max_ii; ii += 2)
     {
-        float* outptr0 = outptr;
-        float* outptr1 = outptr0 + out_hstep;
+        float* p0 = outptr;
         const float* pC = C;
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC += i + ii;
+            }
             if (broadcast_type_C == 3)
+            {
                 pC += (size_t)(i + ii) * c_hstep + j;
+            }
             if (broadcast_type_C == 4)
+            {
                 pC += j;
+            }
         }
         const float* pC0 = pC && broadcast_type_C == 3 ? pC : 0;
         const float* pC1 = pC0 ? pC0 + c_hstep : 0;
 
         float c0 = 0.f;
         float c1 = 0.f;
-        if (pC && (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2))
+        if (pC)
         {
-            c0 = pC[0];
-            c1 = pC[broadcast_type_C == 0 ? 0 : 1];
-            if (beta != 1.f)
+            if (broadcast_type_C == 0)
             {
-                c0 *= beta;
-                c1 *= beta;
+                c0 = pC[0] * beta;
+                c1 = c0;
+            }
+            if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
+                c0 = pC[0] * beta;
+                c1 = pC[1] * beta;
             }
         }
 
@@ -5235,12 +5144,11 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 _f3 = __msa_fmul_w(_f3, _alpha);
             }
 
-            __msa_st_w((v4i32)_f0, outptr0, 0);
-            __msa_st_w((v4i32)_f1, outptr0 + 4, 0);
-            __msa_st_w((v4i32)_f2, outptr1, 0);
-            __msa_st_w((v4i32)_f3, outptr1 + 4, 0);
-            outptr0 += 8;
-            outptr1 += 8;
+            __msa_st_w((v4i32)_f0, p0, 0);
+            __msa_st_w((v4i32)_f1, p0 + 4, 0);
+            __msa_st_w((v4i32)_f2, p0 + out_hstep, 0);
+            __msa_st_w((v4i32)_f3, p0 + out_hstep + 4, 0);
+            p0 += 8;
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -5291,10 +5199,9 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 _f1 = __msa_fmul_w(_f1, _alpha);
             }
 
-            __msa_st_w((v4i32)_f0, outptr0, 0);
-            __msa_st_w((v4i32)_f1, outptr1, 0);
-            outptr0 += 4;
-            outptr1 += 4;
+            __msa_st_w((v4i32)_f0, p0, 0);
+            __msa_st_w((v4i32)_f1, p0 + out_hstep, 0);
+            p0 += 4;
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
@@ -5333,10 +5240,9 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 
             v4i32 _f0 = __msa_pckev_w((v4i32)_f, (v4i32)_f);
             v4i32 _f1 = __msa_pckod_w((v4i32)_f, (v4i32)_f);
-            __msa_storel_d(_f0, outptr0);
-            __msa_storel_d(_f1, outptr1);
-            outptr0 += 2;
-            outptr1 += 2;
+            __msa_storel_d(_f0, p0);
+            __msa_storel_d(_f1, p0 + out_hstep);
+            p0 += 2;
         }
 #endif // __mips_msa
         for (; jj + 1 < max_jj; jj += 2)
@@ -5408,12 +5314,11 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 sum11 *= alpha;
             }
 
-            outptr0[0] = sum00;
-            outptr1[0] = sum01;
-            outptr0[1] = sum10;
-            outptr1[1] = sum11;
-            outptr0 += 2;
-            outptr1 += 2;
+            p0[0] = sum00;
+            p0[out_hstep] = sum01;
+            p0[1] = sum10;
+            p0[out_hstep + 1] = sum11;
+            p0 += 2;
         }
         for (; jj < max_jj; jj++)
         {
@@ -5461,34 +5366,42 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 sum0 *= alpha;
                 sum1 *= alpha;
             }
-            outptr0[0] = sum0;
-            outptr1[0] = sum1;
-            outptr0++;
-            outptr1++;
+            p0[0] = sum0;
+            p0[out_hstep] = sum1;
+            p0++;
         }
         outptr += out_hstep * 2;
     }
     for (; ii < max_ii; ii++)
     {
-        float* outptr0 = outptr;
+        float* p0 = outptr;
         const float* pC = C;
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC += i + ii;
+            }
             if (broadcast_type_C == 3)
+            {
                 pC += (size_t)(i + ii) * c_hstep + j;
+            }
             if (broadcast_type_C == 4)
+            {
                 pC += j;
+            }
         }
         const float* pC0 = pC && (broadcast_type_C == 3 || broadcast_type_C == 4) ? pC : 0;
 
         float c0 = 0.f;
-        if (pC && (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2))
+        if (pC)
         {
-            c0 = pC[0];
-            if (beta != 1.f)
-                c0 *= beta;
+            if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
+                c0 = pC[0];
+                if (beta != 1.f)
+                    c0 *= beta;
+            }
         }
 
         int jj = 0;
@@ -5531,9 +5444,9 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 _f1 = __msa_fmul_w(_f1, _alpha);
             }
 
-            __msa_st_w((v4i32)_f0, outptr0, 0);
-            __msa_st_w((v4i32)_f1, outptr0 + 4, 0);
-            outptr0 += 8;
+            __msa_st_w((v4i32)_f0, p0, 0);
+            __msa_st_w((v4i32)_f1, p0 + 4, 0);
+            p0 += 8;
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -5557,8 +5470,8 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             if (alpha != 1.f)
                 _f0 = __msa_fmul_w(_f0, __msa_fill_w_f32(alpha));
 
-            __msa_st_w((v4i32)_f0, outptr0, 0);
-            outptr0 += 4;
+            __msa_st_w((v4i32)_f0, p0, 0);
+            p0 += 4;
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
@@ -5588,8 +5501,8 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             if (alpha != 1.f)
                 _f = __msa_fmul_w(_f, __msa_fill_w_f32(alpha));
 
-            __msa_storel_d((v4i32)_f, outptr0);
-            outptr0 += 2;
+            __msa_storel_d((v4i32)_f, p0);
+            p0 += 2;
         }
 #endif // __mips_msa
         for (; jj + 1 < max_jj; jj += 2)
@@ -5641,9 +5554,9 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 sum0 *= alpha;
                 sum1 *= alpha;
             }
-            outptr0[0] = sum0;
-            outptr0[1] = sum1;
-            outptr0 += 2;
+            p0[0] = sum0;
+            p0[1] = sum1;
+            p0 += 2;
         }
         for (; jj < max_jj; jj++)
         {
@@ -5664,8 +5577,8 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             }
             if (alpha != 1.f)
                 sum0 *= alpha;
-            outptr0[0] = sum0;
-            outptr0++;
+            p0[0] = sum0;
+            p0++;
         }
         outptr += out_hstep;
     }
@@ -5676,23 +5589,29 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
     const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
     const size_t c_hstep = C.dims == 3 ? C.cstep : (size_t)C.w;
     const float* pp = topT;
-    float* outptr0 = (float*)top_blob + (size_t)j * out_hstep + i;
+    float* outptr = (float*)top_blob + (size_t)j * out_hstep + i;
 
     int ii = 0;
 #if __mips_msa
     for (; ii + 7 < max_ii; ii += 8)
     {
-        float* p0 = outptr0;
+        float* p0 = outptr;
 
         const float* pC = C;
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC += i + ii;
+            }
             if (broadcast_type_C == 3)
+            {
                 pC += (size_t)(i + ii) * c_hstep + j;
+            }
             if (broadcast_type_C == 4)
+            {
                 pC += j;
+            }
         }
 
         v4f32 _c0123 = (v4f32)__msa_fill_w(0);
@@ -5719,8 +5638,6 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 }
             }
         }
-
-        const float* pC0 = pC && broadcast_type_C == 3 ? pC : 0;
 
         int jj = 0;
         for (; jj + 7 < max_jj; jj += 8)
@@ -5768,38 +5685,39 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 if (broadcast_type_C == 3)
                 {
                     v4f32 _beta = __msa_fill_w_f32(beta);
-                    v4f32 _cl = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj)), __msa_load_w((pC0 + jj + c_hstep)), __msa_load_w((pC0 + jj + c_hstep * 2)), __msa_load_w((pC0 + jj + c_hstep * 3)));
-                    v4f32 _ch = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj + c_hstep * 4)), __msa_load_w((pC0 + jj + c_hstep * 5)), __msa_load_w((pC0 + jj + c_hstep * 6)), __msa_load_w((pC0 + jj + c_hstep * 7)));
-                    _f0 = __msa_fadd_w(_f0, beta == 1.f ? _cl : __msa_fmul_w(_cl, _beta));
-                    _f4 = __msa_fadd_w(_f4, beta == 1.f ? _ch : __msa_fmul_w(_ch, _beta));
-                    _cl = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj) + 1), __msa_load_w((pC0 + jj + c_hstep) + 1), __msa_load_w((pC0 + jj + c_hstep * 2) + 1), __msa_load_w((pC0 + jj + c_hstep * 3) + 1));
-                    _ch = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj + c_hstep * 4) + 1), __msa_load_w((pC0 + jj + c_hstep * 5) + 1), __msa_load_w((pC0 + jj + c_hstep * 6) + 1), __msa_load_w((pC0 + jj + c_hstep * 7) + 1));
-                    _f1 = __msa_fadd_w(_f1, beta == 1.f ? _cl : __msa_fmul_w(_cl, _beta));
-                    _f5 = __msa_fadd_w(_f5, beta == 1.f ? _ch : __msa_fmul_w(_ch, _beta));
-                    _cl = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj) + 2), __msa_load_w((pC0 + jj + c_hstep) + 2), __msa_load_w((pC0 + jj + c_hstep * 2) + 2), __msa_load_w((pC0 + jj + c_hstep * 3) + 2));
-                    _ch = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj + c_hstep * 4) + 2), __msa_load_w((pC0 + jj + c_hstep * 5) + 2), __msa_load_w((pC0 + jj + c_hstep * 6) + 2), __msa_load_w((pC0 + jj + c_hstep * 7) + 2));
-                    _f2 = __msa_fadd_w(_f2, beta == 1.f ? _cl : __msa_fmul_w(_cl, _beta));
-                    _f6 = __msa_fadd_w(_f6, beta == 1.f ? _ch : __msa_fmul_w(_ch, _beta));
-                    _cl = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj) + 3), __msa_load_w((pC0 + jj + c_hstep) + 3), __msa_load_w((pC0 + jj + c_hstep * 2) + 3), __msa_load_w((pC0 + jj + c_hstep * 3) + 3));
-                    _ch = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj + c_hstep * 4) + 3), __msa_load_w((pC0 + jj + c_hstep * 5) + 3), __msa_load_w((pC0 + jj + c_hstep * 6) + 3), __msa_load_w((pC0 + jj + c_hstep * 7) + 3));
-                    _f3 = __msa_fadd_w(_f3, beta == 1.f ? _cl : __msa_fmul_w(_cl, _beta));
-                    _f7 = __msa_fadd_w(_f7, beta == 1.f ? _ch : __msa_fmul_w(_ch, _beta));
-                    _cl = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj) + 4), __msa_load_w((pC0 + jj + c_hstep) + 4), __msa_load_w((pC0 + jj + c_hstep * 2) + 4), __msa_load_w((pC0 + jj + c_hstep * 3) + 4));
-                    _ch = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj + c_hstep * 4) + 4), __msa_load_w((pC0 + jj + c_hstep * 5) + 4), __msa_load_w((pC0 + jj + c_hstep * 6) + 4), __msa_load_w((pC0 + jj + c_hstep * 7) + 4));
-                    _g0 = __msa_fadd_w(_g0, beta == 1.f ? _cl : __msa_fmul_w(_cl, _beta));
-                    _g4 = __msa_fadd_w(_g4, beta == 1.f ? _ch : __msa_fmul_w(_ch, _beta));
-                    _cl = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj) + 5), __msa_load_w((pC0 + jj + c_hstep) + 5), __msa_load_w((pC0 + jj + c_hstep * 2) + 5), __msa_load_w((pC0 + jj + c_hstep * 3) + 5));
-                    _ch = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj + c_hstep * 4) + 5), __msa_load_w((pC0 + jj + c_hstep * 5) + 5), __msa_load_w((pC0 + jj + c_hstep * 6) + 5), __msa_load_w((pC0 + jj + c_hstep * 7) + 5));
-                    _g1 = __msa_fadd_w(_g1, beta == 1.f ? _cl : __msa_fmul_w(_cl, _beta));
-                    _g5 = __msa_fadd_w(_g5, beta == 1.f ? _ch : __msa_fmul_w(_ch, _beta));
-                    _cl = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj) + 6), __msa_load_w((pC0 + jj + c_hstep) + 6), __msa_load_w((pC0 + jj + c_hstep * 2) + 6), __msa_load_w((pC0 + jj + c_hstep * 3) + 6));
-                    _ch = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj + c_hstep * 4) + 6), __msa_load_w((pC0 + jj + c_hstep * 5) + 6), __msa_load_w((pC0 + jj + c_hstep * 6) + 6), __msa_load_w((pC0 + jj + c_hstep * 7) + 6));
-                    _g2 = __msa_fadd_w(_g2, beta == 1.f ? _cl : __msa_fmul_w(_cl, _beta));
-                    _g6 = __msa_fadd_w(_g6, beta == 1.f ? _ch : __msa_fmul_w(_ch, _beta));
-                    _cl = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj) + 7), __msa_load_w((pC0 + jj + c_hstep) + 7), __msa_load_w((pC0 + jj + c_hstep * 2) + 7), __msa_load_w((pC0 + jj + c_hstep * 3) + 7));
-                    _ch = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj + c_hstep * 4) + 7), __msa_load_w((pC0 + jj + c_hstep * 5) + 7), __msa_load_w((pC0 + jj + c_hstep * 6) + 7), __msa_load_w((pC0 + jj + c_hstep * 7) + 7));
-                    _g3 = __msa_fadd_w(_g3, beta == 1.f ? _cl : __msa_fmul_w(_cl, _beta));
-                    _g7 = __msa_fadd_w(_g7, beta == 1.f ? _ch : __msa_fmul_w(_ch, _beta));
+                    v4f32 _cl = (v4f32)__msa_set_w(__msa_load_w(pC), __msa_load_w(pC + c_hstep), __msa_load_w(pC + c_hstep * 2), __msa_load_w(pC + c_hstep * 3));
+                    v4f32 _ch = (v4f32)__msa_set_w(__msa_load_w(pC + c_hstep * 4), __msa_load_w(pC + c_hstep * 5), __msa_load_w(pC + c_hstep * 6), __msa_load_w(pC + c_hstep * 7));
+                    _f0 = __msa_fadd_w(_f0, __msa_fmul_w(_cl, _beta));
+                    _f4 = __msa_fadd_w(_f4, __msa_fmul_w(_ch, _beta));
+                    _cl = (v4f32)__msa_set_w(__msa_load_w(pC + 1), __msa_load_w(pC + c_hstep + 1), __msa_load_w(pC + c_hstep * 2 + 1), __msa_load_w(pC + c_hstep * 3 + 1));
+                    _ch = (v4f32)__msa_set_w(__msa_load_w(pC + c_hstep * 4 + 1), __msa_load_w(pC + c_hstep * 5 + 1), __msa_load_w(pC + c_hstep * 6 + 1), __msa_load_w(pC + c_hstep * 7 + 1));
+                    _f1 = __msa_fadd_w(_f1, __msa_fmul_w(_cl, _beta));
+                    _f5 = __msa_fadd_w(_f5, __msa_fmul_w(_ch, _beta));
+                    _cl = (v4f32)__msa_set_w(__msa_load_w(pC + 2), __msa_load_w(pC + c_hstep + 2), __msa_load_w(pC + c_hstep * 2 + 2), __msa_load_w(pC + c_hstep * 3 + 2));
+                    _ch = (v4f32)__msa_set_w(__msa_load_w(pC + c_hstep * 4 + 2), __msa_load_w(pC + c_hstep * 5 + 2), __msa_load_w(pC + c_hstep * 6 + 2), __msa_load_w(pC + c_hstep * 7 + 2));
+                    _f2 = __msa_fadd_w(_f2, __msa_fmul_w(_cl, _beta));
+                    _f6 = __msa_fadd_w(_f6, __msa_fmul_w(_ch, _beta));
+                    _cl = (v4f32)__msa_set_w(__msa_load_w(pC + 3), __msa_load_w(pC + c_hstep + 3), __msa_load_w(pC + c_hstep * 2 + 3), __msa_load_w(pC + c_hstep * 3 + 3));
+                    _ch = (v4f32)__msa_set_w(__msa_load_w(pC + c_hstep * 4 + 3), __msa_load_w(pC + c_hstep * 5 + 3), __msa_load_w(pC + c_hstep * 6 + 3), __msa_load_w(pC + c_hstep * 7 + 3));
+                    _f3 = __msa_fadd_w(_f3, __msa_fmul_w(_cl, _beta));
+                    _f7 = __msa_fadd_w(_f7, __msa_fmul_w(_ch, _beta));
+                    _cl = (v4f32)__msa_set_w(__msa_load_w(pC + 4), __msa_load_w(pC + c_hstep + 4), __msa_load_w(pC + c_hstep * 2 + 4), __msa_load_w(pC + c_hstep * 3 + 4));
+                    _ch = (v4f32)__msa_set_w(__msa_load_w(pC + c_hstep * 4 + 4), __msa_load_w(pC + c_hstep * 5 + 4), __msa_load_w(pC + c_hstep * 6 + 4), __msa_load_w(pC + c_hstep * 7 + 4));
+                    _g0 = __msa_fadd_w(_g0, __msa_fmul_w(_cl, _beta));
+                    _g4 = __msa_fadd_w(_g4, __msa_fmul_w(_ch, _beta));
+                    _cl = (v4f32)__msa_set_w(__msa_load_w(pC + 5), __msa_load_w(pC + c_hstep + 5), __msa_load_w(pC + c_hstep * 2 + 5), __msa_load_w(pC + c_hstep * 3 + 5));
+                    _ch = (v4f32)__msa_set_w(__msa_load_w(pC + c_hstep * 4 + 5), __msa_load_w(pC + c_hstep * 5 + 5), __msa_load_w(pC + c_hstep * 6 + 5), __msa_load_w(pC + c_hstep * 7 + 5));
+                    _g1 = __msa_fadd_w(_g1, __msa_fmul_w(_cl, _beta));
+                    _g5 = __msa_fadd_w(_g5, __msa_fmul_w(_ch, _beta));
+                    _cl = (v4f32)__msa_set_w(__msa_load_w(pC + 6), __msa_load_w(pC + c_hstep + 6), __msa_load_w(pC + c_hstep * 2 + 6), __msa_load_w(pC + c_hstep * 3 + 6));
+                    _ch = (v4f32)__msa_set_w(__msa_load_w(pC + c_hstep * 4 + 6), __msa_load_w(pC + c_hstep * 5 + 6), __msa_load_w(pC + c_hstep * 6 + 6), __msa_load_w(pC + c_hstep * 7 + 6));
+                    _g2 = __msa_fadd_w(_g2, __msa_fmul_w(_cl, _beta));
+                    _g6 = __msa_fadd_w(_g6, __msa_fmul_w(_ch, _beta));
+                    _cl = (v4f32)__msa_set_w(__msa_load_w(pC + 7), __msa_load_w(pC + c_hstep + 7), __msa_load_w(pC + c_hstep * 2 + 7), __msa_load_w(pC + c_hstep * 3 + 7));
+                    _ch = (v4f32)__msa_set_w(__msa_load_w(pC + c_hstep * 4 + 7), __msa_load_w(pC + c_hstep * 5 + 7), __msa_load_w(pC + c_hstep * 6 + 7), __msa_load_w(pC + c_hstep * 7 + 7));
+                    _g3 = __msa_fadd_w(_g3, __msa_fmul_w(_cl, _beta));
+                    _g7 = __msa_fadd_w(_g7, __msa_fmul_w(_ch, _beta));
+                    pC += 8;
                 }
                 if (broadcast_type_C == 4)
                 {
@@ -5897,14 +5815,14 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 }
                 if (broadcast_type_C == 3)
                 {
-                    v4f32 _cl0 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj)), __msa_load_w((pC0 + jj + c_hstep)), __msa_load_w((pC0 + jj + c_hstep * 2)), __msa_load_w((pC0 + jj + c_hstep * 3)));
-                    v4f32 _ch0 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj + c_hstep * 4)), __msa_load_w((pC0 + jj + c_hstep * 5)), __msa_load_w((pC0 + jj + c_hstep * 6)), __msa_load_w((pC0 + jj + c_hstep * 7)));
-                    v4f32 _cl1 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj) + 1), __msa_load_w((pC0 + jj + c_hstep) + 1), __msa_load_w((pC0 + jj + c_hstep * 2) + 1), __msa_load_w((pC0 + jj + c_hstep * 3) + 1));
-                    v4f32 _ch1 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj + c_hstep * 4) + 1), __msa_load_w((pC0 + jj + c_hstep * 5) + 1), __msa_load_w((pC0 + jj + c_hstep * 6) + 1), __msa_load_w((pC0 + jj + c_hstep * 7) + 1));
-                    v4f32 _cl2 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj) + 2), __msa_load_w((pC0 + jj + c_hstep) + 2), __msa_load_w((pC0 + jj + c_hstep * 2) + 2), __msa_load_w((pC0 + jj + c_hstep * 3) + 2));
-                    v4f32 _ch2 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj + c_hstep * 4) + 2), __msa_load_w((pC0 + jj + c_hstep * 5) + 2), __msa_load_w((pC0 + jj + c_hstep * 6) + 2), __msa_load_w((pC0 + jj + c_hstep * 7) + 2));
-                    v4f32 _cl3 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj) + 3), __msa_load_w((pC0 + jj + c_hstep) + 3), __msa_load_w((pC0 + jj + c_hstep * 2) + 3), __msa_load_w((pC0 + jj + c_hstep * 3) + 3));
-                    v4f32 _ch3 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj + c_hstep * 4) + 3), __msa_load_w((pC0 + jj + c_hstep * 5) + 3), __msa_load_w((pC0 + jj + c_hstep * 6) + 3), __msa_load_w((pC0 + jj + c_hstep * 7) + 3));
+                    v4f32 _cl0 = (v4f32)__msa_set_w(__msa_load_w(pC), __msa_load_w(pC + c_hstep), __msa_load_w(pC + c_hstep * 2), __msa_load_w(pC + c_hstep * 3));
+                    v4f32 _ch0 = (v4f32)__msa_set_w(__msa_load_w(pC + c_hstep * 4), __msa_load_w(pC + c_hstep * 5), __msa_load_w(pC + c_hstep * 6), __msa_load_w(pC + c_hstep * 7));
+                    v4f32 _cl1 = (v4f32)__msa_set_w(__msa_load_w(pC + 1), __msa_load_w(pC + c_hstep + 1), __msa_load_w(pC + c_hstep * 2 + 1), __msa_load_w(pC + c_hstep * 3 + 1));
+                    v4f32 _ch1 = (v4f32)__msa_set_w(__msa_load_w(pC + c_hstep * 4 + 1), __msa_load_w(pC + c_hstep * 5 + 1), __msa_load_w(pC + c_hstep * 6 + 1), __msa_load_w(pC + c_hstep * 7 + 1));
+                    v4f32 _cl2 = (v4f32)__msa_set_w(__msa_load_w(pC + 2), __msa_load_w(pC + c_hstep + 2), __msa_load_w(pC + c_hstep * 2 + 2), __msa_load_w(pC + c_hstep * 3 + 2));
+                    v4f32 _ch2 = (v4f32)__msa_set_w(__msa_load_w(pC + c_hstep * 4 + 2), __msa_load_w(pC + c_hstep * 5 + 2), __msa_load_w(pC + c_hstep * 6 + 2), __msa_load_w(pC + c_hstep * 7 + 2));
+                    v4f32 _cl3 = (v4f32)__msa_set_w(__msa_load_w(pC + 3), __msa_load_w(pC + c_hstep + 3), __msa_load_w(pC + c_hstep * 2 + 3), __msa_load_w(pC + c_hstep * 3 + 3));
+                    v4f32 _ch3 = (v4f32)__msa_set_w(__msa_load_w(pC + c_hstep * 4 + 3), __msa_load_w(pC + c_hstep * 5 + 3), __msa_load_w(pC + c_hstep * 6 + 3), __msa_load_w(pC + c_hstep * 7 + 3));
                     if (beta != 1.f)
                     {
                         v4f32 _beta = __msa_fill_w_f32(beta);
@@ -5925,6 +5843,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     _f6 = __msa_fadd_w(_f6, _ch2);
                     _f3 = __msa_fadd_w(_f3, _cl3);
                     _f7 = __msa_fadd_w(_f7, _ch3);
+                    pC += 4;
                 }
                 if (broadcast_type_C == 4)
                 {
@@ -5984,10 +5903,10 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 }
                 if (broadcast_type_C == 3)
                 {
-                    v4f32 _c0 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj)), __msa_load_w((pC0 + jj + c_hstep)), __msa_load_w((pC0 + jj + c_hstep * 2)), __msa_load_w((pC0 + jj + c_hstep * 3)));
-                    v4f32 _c4 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj + c_hstep * 4)), __msa_load_w((pC0 + jj + c_hstep * 5)), __msa_load_w((pC0 + jj + c_hstep * 6)), __msa_load_w((pC0 + jj + c_hstep * 7)));
-                    v4f32 _c1 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj) + 1), __msa_load_w((pC0 + jj + c_hstep) + 1), __msa_load_w((pC0 + jj + c_hstep * 2) + 1), __msa_load_w((pC0 + jj + c_hstep * 3) + 1));
-                    v4f32 _c5 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj + c_hstep * 4) + 1), __msa_load_w((pC0 + jj + c_hstep * 5) + 1), __msa_load_w((pC0 + jj + c_hstep * 6) + 1), __msa_load_w((pC0 + jj + c_hstep * 7) + 1));
+                    v4f32 _c0 = (v4f32)__msa_set_w(__msa_load_w(pC), __msa_load_w(pC + c_hstep), __msa_load_w(pC + c_hstep * 2), __msa_load_w(pC + c_hstep * 3));
+                    v4f32 _c4 = (v4f32)__msa_set_w(__msa_load_w(pC + c_hstep * 4), __msa_load_w(pC + c_hstep * 5), __msa_load_w(pC + c_hstep * 6), __msa_load_w(pC + c_hstep * 7));
+                    v4f32 _c1 = (v4f32)__msa_set_w(__msa_load_w(pC + 1), __msa_load_w(pC + c_hstep + 1), __msa_load_w(pC + c_hstep * 2 + 1), __msa_load_w(pC + c_hstep * 3 + 1));
+                    v4f32 _c5 = (v4f32)__msa_set_w(__msa_load_w(pC + c_hstep * 4 + 1), __msa_load_w(pC + c_hstep * 5 + 1), __msa_load_w(pC + c_hstep * 6 + 1), __msa_load_w(pC + c_hstep * 7 + 1));
                     if (beta != 1.f)
                     {
                         v4f32 _beta = __msa_fill_w_f32(beta);
@@ -6000,6 +5919,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     _f4 = __msa_fadd_w(_f4, _c4);
                     _f1 = __msa_fadd_w(_f1, _c1);
                     _f5 = __msa_fadd_w(_f5, _c5);
+                    pC += 2;
                 }
                 if (broadcast_type_C == 4)
                 {
@@ -6047,8 +5967,8 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 }
                 if (broadcast_type_C == 3)
                 {
-                    v4f32 _c0 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj)), __msa_load_w((pC0 + jj + c_hstep)), __msa_load_w((pC0 + jj + c_hstep * 2)), __msa_load_w((pC0 + jj + c_hstep * 3)));
-                    v4f32 _c4 = (v4f32)__msa_set_w(__msa_load_w((pC0 + jj + c_hstep * 4)), __msa_load_w((pC0 + jj + c_hstep * 5)), __msa_load_w((pC0 + jj + c_hstep * 6)), __msa_load_w((pC0 + jj + c_hstep * 7)));
+                    v4f32 _c0 = (v4f32)__msa_set_w(__msa_load_w(pC), __msa_load_w(pC + c_hstep), __msa_load_w(pC + c_hstep * 2), __msa_load_w(pC + c_hstep * 3));
+                    v4f32 _c4 = (v4f32)__msa_set_w(__msa_load_w(pC + c_hstep * 4), __msa_load_w(pC + c_hstep * 5), __msa_load_w(pC + c_hstep * 6), __msa_load_w(pC + c_hstep * 7));
                     if (beta != 1.f)
                     {
                         v4f32 _beta = __msa_fill_w_f32(beta);
@@ -6057,6 +5977,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     }
                     _f0 = __msa_fadd_w(_f0, _c0);
                     _f4 = __msa_fadd_w(_f4, _c4);
+                    pC++;
                 }
                 if (broadcast_type_C == 4)
                 {
@@ -6079,21 +6000,27 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             __msa_st_w((v4i32)_f4, p0 + 4, 0);
             p0 += out_hstep;
         }
-        outptr0 += 8;
+        outptr += 8;
     }
     for (; ii + 3 < max_ii; ii += 4)
     {
-        float* outptr = outptr0;
+        float* p0 = outptr;
 
         const float* pC = C;
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC += i + ii;
+            }
             if (broadcast_type_C == 3)
+            {
                 pC += (size_t)(i + ii) * c_hstep + j;
+            }
             if (broadcast_type_C == 4)
+            {
                 pC += j;
+            }
         }
 
         v4f32 _c0123 = (v4f32)__msa_fill_w(0);
@@ -6218,15 +6145,15 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 _f7 = __msa_fmul_w(_f7, _alpha);
             }
 
-            __msa_st_w((v4i32)_f0, outptr, 0);
-            __msa_st_w((v4i32)_f1, outptr + out_hstep, 0);
-            __msa_st_w((v4i32)_f2, outptr + out_hstep * 2, 0);
-            __msa_st_w((v4i32)_f3, outptr + out_hstep * 3, 0);
-            __msa_st_w((v4i32)_f4, outptr + out_hstep * 4, 0);
-            __msa_st_w((v4i32)_f5, outptr + out_hstep * 5, 0);
-            __msa_st_w((v4i32)_f6, outptr + out_hstep * 6, 0);
-            __msa_st_w((v4i32)_f7, outptr + out_hstep * 7, 0);
-            outptr += out_hstep * 8;
+            __msa_st_w((v4i32)_f0, p0, 0);
+            __msa_st_w((v4i32)_f1, p0 + out_hstep, 0);
+            __msa_st_w((v4i32)_f2, p0 + out_hstep * 2, 0);
+            __msa_st_w((v4i32)_f3, p0 + out_hstep * 3, 0);
+            __msa_st_w((v4i32)_f4, p0 + out_hstep * 4, 0);
+            __msa_st_w((v4i32)_f5, p0 + out_hstep * 5, 0);
+            __msa_st_w((v4i32)_f6, p0 + out_hstep * 6, 0);
+            __msa_st_w((v4i32)_f7, p0 + out_hstep * 7, 0);
+            p0 += out_hstep * 8;
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -6291,11 +6218,11 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 _f3 = __msa_fmul_w(_f3, _alpha);
             }
 
-            __msa_st_w((v4i32)_f0, outptr, 0);
-            __msa_st_w((v4i32)_f1, outptr + out_hstep, 0);
-            __msa_st_w((v4i32)_f2, outptr + out_hstep * 2, 0);
-            __msa_st_w((v4i32)_f3, outptr + out_hstep * 3, 0);
-            outptr += out_hstep * 4;
+            __msa_st_w((v4i32)_f0, p0, 0);
+            __msa_st_w((v4i32)_f1, p0 + out_hstep, 0);
+            __msa_st_w((v4i32)_f2, p0 + out_hstep * 2, 0);
+            __msa_st_w((v4i32)_f3, p0 + out_hstep * 3, 0);
+            p0 += out_hstep * 4;
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
@@ -6349,9 +6276,9 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 _f1 = __msa_fmul_w(_f1, _alpha);
             }
 
-            __msa_st_w((v4i32)_f0, outptr, 0);
-            __msa_st_w((v4i32)_f1, outptr + out_hstep, 0);
-            outptr += out_hstep * 2;
+            __msa_st_w((v4i32)_f0, p0, 0);
+            __msa_st_w((v4i32)_f1, p0 + out_hstep, 0);
+            p0 += out_hstep * 2;
         }
         for (; jj < max_jj; jj++)
         {
@@ -6385,38 +6312,47 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             }
             if (alpha != 1.f)
                 _f0 = __msa_fmul_w(_f0, __msa_fill_w_f32(alpha));
-            __msa_st_w((v4i32)_f0, outptr, 0);
-            outptr += out_hstep;
+            __msa_st_w((v4i32)_f0, p0, 0);
+            p0 += out_hstep;
         }
-        outptr0 += 4;
+        outptr += 4;
     }
 #endif // __mips_msa
     for (; ii + 1 < max_ii; ii += 2)
     {
-        float* outptr = outptr0;
+        float* p0 = outptr;
         const float* pC = C;
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC += i + ii;
+            }
             if (broadcast_type_C == 3)
+            {
                 pC += (size_t)(i + ii) * c_hstep + j;
+            }
             if (broadcast_type_C == 4)
+            {
                 pC += j;
+            }
         }
         const float* pC0 = pC && broadcast_type_C == 3 ? pC : 0;
         const float* pC1 = pC0 ? pC0 + c_hstep : 0;
 
         float c0 = 0.f;
         float c1 = 0.f;
-        if (pC && (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2))
+        if (pC)
         {
-            c0 = pC[0];
-            c1 = pC[broadcast_type_C == 0 ? 0 : 1];
-            if (beta != 1.f)
+            if (broadcast_type_C == 0)
             {
-                c0 *= beta;
-                c1 *= beta;
+                c0 = pC[0] * beta;
+                c1 = c0;
+            }
+            if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
+                c0 = pC[0] * beta;
+                c1 = pC[1] * beta;
             }
         }
 
@@ -6500,15 +6436,15 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 _f3 = __msa_fmul_w(_f3, _alpha);
             }
 
-            __msa_storel_d((v4i32)_f0, outptr);
-            __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_f0, (v16i8)_f0, 8), outptr + out_hstep);
-            __msa_storel_d((v4i32)_f1, outptr + out_hstep * 2);
-            __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_f1, (v16i8)_f1, 8), outptr + out_hstep * 3);
-            __msa_storel_d((v4i32)_f2, outptr + out_hstep * 4);
-            __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_f2, (v16i8)_f2, 8), outptr + out_hstep * 5);
-            __msa_storel_d((v4i32)_f3, outptr + out_hstep * 6);
-            __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_f3, (v16i8)_f3, 8), outptr + out_hstep * 7);
-            outptr += out_hstep * 8;
+            __msa_storel_d((v4i32)_f0, p0);
+            __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_f0, (v16i8)_f0, 8), p0 + out_hstep);
+            __msa_storel_d((v4i32)_f1, p0 + out_hstep * 2);
+            __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_f1, (v16i8)_f1, 8), p0 + out_hstep * 3);
+            __msa_storel_d((v4i32)_f2, p0 + out_hstep * 4);
+            __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_f2, (v16i8)_f2, 8), p0 + out_hstep * 5);
+            __msa_storel_d((v4i32)_f3, p0 + out_hstep * 6);
+            __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_f3, (v16i8)_f3, 8), p0 + out_hstep * 7);
+            p0 += out_hstep * 8;
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -6565,11 +6501,11 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 _f1 = __msa_fmul_w(_f1, _alpha);
             }
 
-            __msa_storel_d((v4i32)_f0, outptr);
-            __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_f0, (v16i8)_f0, 8), outptr + out_hstep);
-            __msa_storel_d((v4i32)_f1, outptr + out_hstep * 2);
-            __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_f1, (v16i8)_f1, 8), outptr + out_hstep * 3);
-            outptr += out_hstep * 4;
+            __msa_storel_d((v4i32)_f0, p0);
+            __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_f0, (v16i8)_f0, 8), p0 + out_hstep);
+            __msa_storel_d((v4i32)_f1, p0 + out_hstep * 2);
+            __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_f1, (v16i8)_f1, 8), p0 + out_hstep * 3);
+            p0 += out_hstep * 4;
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
@@ -6606,9 +6542,9 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             if (alpha != 1.f)
                 _f = __msa_fmul_w(_f, __msa_fill_w_f32(alpha));
 
-            __msa_storel_d((v4i32)_f, outptr);
-            __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_f, (v16i8)_f, 8), outptr + out_hstep);
-            outptr += out_hstep * 2;
+            __msa_storel_d((v4i32)_f, p0);
+            __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_f, (v16i8)_f, 8), p0 + out_hstep);
+            p0 += out_hstep * 2;
         }
 #endif // __mips_msa
         for (; jj + 1 < max_jj; jj += 2)
@@ -6677,11 +6613,11 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 sum10 *= alpha;
                 sum11 *= alpha;
             }
-            outptr[0] = sum00;
-            outptr[1] = sum01;
-            outptr[out_hstep] = sum10;
-            outptr[out_hstep + 1] = sum11;
-            outptr += out_hstep * 2;
+            p0[0] = sum00;
+            p0[1] = sum01;
+            p0[out_hstep] = sum10;
+            p0[out_hstep + 1] = sum11;
+            p0 += out_hstep * 2;
         }
         for (; jj < max_jj; jj++)
         {
@@ -6729,32 +6665,41 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 sum0 *= alpha;
                 sum1 *= alpha;
             }
-            outptr[0] = sum0;
-            outptr[1] = sum1;
-            outptr += out_hstep;
+            p0[0] = sum0;
+            p0[1] = sum1;
+            p0 += out_hstep;
         }
-        outptr0 += 2;
+        outptr += 2;
     }
     for (; ii < max_ii; ii++)
     {
-        float* outptr = outptr0;
+        float* p0 = outptr;
         const float* pC = C;
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC += i + ii;
+            }
             if (broadcast_type_C == 3)
+            {
                 pC += (size_t)(i + ii) * c_hstep + j;
+            }
             if (broadcast_type_C == 4)
+            {
                 pC += j;
+            }
         }
         const float* pC0 = pC && (broadcast_type_C == 3 || broadcast_type_C == 4) ? pC : 0;
         float c0 = 0.f;
-        if (pC && (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2))
+        if (pC)
         {
-            c0 = pC[0];
-            if (beta != 1.f)
-                c0 *= beta;
+            if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
+                c0 = pC[0];
+                if (beta != 1.f)
+                    c0 *= beta;
+            }
         }
         int jj = 0;
 #if __mips_msa
@@ -6796,21 +6741,21 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             }
             if (out_hstep == 1)
             {
-                __msa_st_w((v4i32)_f0, outptr, 0);
-                __msa_st_w((v4i32)_f1, outptr + 4, 0);
+                __msa_st_w((v4i32)_f0, p0, 0);
+                __msa_st_w((v4i32)_f1, p0 + 4, 0);
             }
             else
             {
-                *(int*)outptr = __msa_copy_s_w((v4i32)_f0, 0);
-                *(int*)(outptr + out_hstep) = __msa_copy_s_w((v4i32)_f0, 1);
-                *(int*)(outptr + out_hstep * 2) = __msa_copy_s_w((v4i32)_f0, 2);
-                *(int*)(outptr + out_hstep * 3) = __msa_copy_s_w((v4i32)_f0, 3);
-                *(int*)(outptr + out_hstep * 4) = __msa_copy_s_w((v4i32)_f1, 0);
-                *(int*)(outptr + out_hstep * 5) = __msa_copy_s_w((v4i32)_f1, 1);
-                *(int*)(outptr + out_hstep * 6) = __msa_copy_s_w((v4i32)_f1, 2);
-                *(int*)(outptr + out_hstep * 7) = __msa_copy_s_w((v4i32)_f1, 3);
+                *(int*)p0 = __msa_copy_s_w((v4i32)_f0, 0);
+                *(int*)(p0 + out_hstep) = __msa_copy_s_w((v4i32)_f0, 1);
+                *(int*)(p0 + out_hstep * 2) = __msa_copy_s_w((v4i32)_f0, 2);
+                *(int*)(p0 + out_hstep * 3) = __msa_copy_s_w((v4i32)_f0, 3);
+                *(int*)(p0 + out_hstep * 4) = __msa_copy_s_w((v4i32)_f1, 0);
+                *(int*)(p0 + out_hstep * 5) = __msa_copy_s_w((v4i32)_f1, 1);
+                *(int*)(p0 + out_hstep * 6) = __msa_copy_s_w((v4i32)_f1, 2);
+                *(int*)(p0 + out_hstep * 7) = __msa_copy_s_w((v4i32)_f1, 3);
             }
-            outptr += out_hstep * 8;
+            p0 += out_hstep * 8;
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -6833,16 +6778,16 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 _f0 = __msa_fmul_w(_f0, __msa_fill_w_f32(alpha));
             if (out_hstep == 1)
             {
-                __msa_st_w((v4i32)_f0, outptr, 0);
+                __msa_st_w((v4i32)_f0, p0, 0);
             }
             else
             {
-                *(int*)outptr = __msa_copy_s_w((v4i32)_f0, 0);
-                *(int*)(outptr + out_hstep) = __msa_copy_s_w((v4i32)_f0, 1);
-                *(int*)(outptr + out_hstep * 2) = __msa_copy_s_w((v4i32)_f0, 2);
-                *(int*)(outptr + out_hstep * 3) = __msa_copy_s_w((v4i32)_f0, 3);
+                *(int*)p0 = __msa_copy_s_w((v4i32)_f0, 0);
+                *(int*)(p0 + out_hstep) = __msa_copy_s_w((v4i32)_f0, 1);
+                *(int*)(p0 + out_hstep * 2) = __msa_copy_s_w((v4i32)_f0, 2);
+                *(int*)(p0 + out_hstep * 3) = __msa_copy_s_w((v4i32)_f0, 3);
             }
-            outptr += out_hstep * 4;
+            p0 += out_hstep * 4;
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
@@ -6871,14 +6816,14 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 _f0 = __msa_fmul_w(_f0, __msa_fill_w_f32(alpha));
             if (out_hstep == 1)
             {
-                *(int64_t*)outptr = __msa_copy_s_d((v2i64)_f0, 0);
+                *(int64_t*)p0 = __msa_copy_s_d((v2i64)_f0, 0);
             }
             else
             {
-                *(int*)outptr = __msa_copy_s_w((v4i32)_f0, 0);
-                *(int*)(outptr + out_hstep) = __msa_copy_s_w((v4i32)_f0, 1);
+                *(int*)p0 = __msa_copy_s_w((v4i32)_f0, 0);
+                *(int*)(p0 + out_hstep) = __msa_copy_s_w((v4i32)_f0, 1);
             }
-            outptr += out_hstep * 2;
+            p0 += out_hstep * 2;
         }
 #endif // __mips_msa
         for (; jj + 1 < max_jj; jj += 2)
@@ -6912,9 +6857,9 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 sum0 *= alpha;
                 sum1 *= alpha;
             }
-            outptr[0] = sum0;
-            outptr[out_hstep] = sum1;
-            outptr += out_hstep * 2;
+            p0[0] = sum0;
+            p0[out_hstep] = sum1;
+            p0 += out_hstep * 2;
         }
         for (; jj < max_jj; jj++)
         {
@@ -6935,10 +6880,10 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             }
             if (alpha != 1.f)
                 sum0 *= alpha;
-            outptr[0] = sum0;
-            outptr += out_hstep;
+            p0[0] = sum0;
+            p0 += out_hstep;
         }
-        outptr0++;
+        outptr++;
     }
 }
 
