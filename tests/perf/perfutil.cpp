@@ -11,6 +11,7 @@
 #include <float.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #if NCNN_VULKAN
@@ -24,6 +25,40 @@
 #define PERF_GPU_WARMUP_BATCH 100
 #define PERF_RUN_COUNT        20
 #define PERF_TARGET_MIN_MS    5.0
+
+int perf_env_int(const char* name, int default_value, int min_value)
+{
+    const char* s = getenv(name);
+    if (!s || !s[0])
+        return default_value;
+
+    int v = atoi(s);
+    return v < min_value ? min_value : v;
+}
+
+bool perf_has_env(const char* name)
+{
+    const char* s = getenv(name);
+    return s && s[0];
+}
+
+bool perf_match_env_int(const char* name, int value)
+{
+    const char* s = getenv(name);
+    if (!s || !s[0])
+        return true;
+
+    return atoi(s) == value;
+}
+
+bool perf_match_env_string(const char* name, const char* value)
+{
+    const char* s = getenv(name);
+    if (!s || !s[0])
+        return true;
+
+    return strcmp(s, value) == 0;
+}
 
 // benchmark result for a single test case
 struct PerfResult
@@ -219,6 +254,25 @@ static void convert_input_layout(const ncnn::Mat& src, ncnn::Mat& dst, const ncn
     }
 }
 
+static void convert_input_layout_persistent_view(const ncnn::Mat& src, ncnn::Mat& dst, const ncnn::Option& opt, const ncnn::Layer* op)
+{
+    ncnn::Mat src_full = src;
+    const int capacity = src.w == 0 ? src.h : (int)(src.cstep / src.w);
+    src_full.h = capacity;
+
+    convert_input_layout(src_full, dst, opt, op);
+    dst.h = src.h;
+}
+
+static bool is_sdpa_persistent_kvcache_input(const char* layer_type, const ncnn::ParamDict& pd, size_t input_index)
+{
+    if (strcmp(layer_type, "SDPA") != 0 || pd.get(7, 0) != 2)
+        return false;
+
+    const int blob_offset = pd.get(5, 0) ? 4 : 3;
+    return input_index == (size_t)blob_offset || input_index == (size_t)(blob_offset + 1);
+}
+
 // run a single forward pass (pure compute, no conversion)
 static int run_layer_forward_cpu(ncnn::Layer* op,
                                  const std::vector<ncnn::Mat>& converted_inputs,
@@ -285,7 +339,10 @@ static int perf_layer_cpu(const char* layer_type, const ncnn::ParamDict& pd,
     std::vector<ncnn::Mat> converted(inputs.size());
     for (size_t i = 0; i < inputs.size(); i++)
     {
-        convert_input_layout(inputs[i], converted[i], opt, op);
+        if (is_sdpa_persistent_kvcache_input(layer_type, pd, i))
+            convert_input_layout_persistent_view(inputs[i], converted[i], opt, op);
+        else
+            convert_input_layout(inputs[i], converted[i], opt, op);
     }
 
     // warmup and calibrate inner loop count from warmup min time

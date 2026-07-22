@@ -3,9 +3,17 @@
 
 #include "sdpa_x86.h"
 
+#include "cpu.h"
 #include "layer_type.h"
 
 namespace ncnn {
+
+static Mat make_persistent_kvcache_view_x86(const Mat& cache, int seqlen)
+{
+    Mat view = cache;
+    view.h = seqlen;
+    return view;
+}
 
 SDPA_x86::SDPA_x86()
 {
@@ -143,8 +151,11 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     const Mat& cur_key = bottom_blobs[1];
     const Mat& cur_value = bottom_blobs[2];
     const Mat& attn_mask_blob = attn_mask ? bottom_blobs[3] : Mat();
-    const Mat& past_key = kv_cache ? bottom_blobs[attn_mask ? 4 : 3] : Mat();
-    const Mat& past_value = kv_cache ? bottom_blobs[attn_mask ? 5 : 4] : Mat();
+    const int blob_offset = attn_mask ? 4 : 3;
+    if (kv_cache == 2 && (int)bottom_blobs.size() <= blob_offset + 1)
+        return -1;
+    const Mat& past_key = kv_cache ? bottom_blobs[blob_offset] : Mat();
+    const Mat& past_value = kv_cache ? bottom_blobs[blob_offset + 1] : Mat();
 
     const int embed_dim = query.w;
     const int src_seqlen = query.h;
@@ -152,13 +163,58 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     const int cur_seqlen = cur_key.h;
     const int num_group = cur_key.c;
     const int out_embed_dim = cur_value.w;
-    const int past_seqlen = kv_cache ? past_key.h : 0;
+    int past_seqlen = 0;
+    if (kv_cache == 2)
+    {
+        if (past_key.dims == 0 || past_value.dims == 0)
+            return -1;
+        past_seqlen = past_key.h;
+    }
+    else if (kv_cache == 1 && past_key.dims > 0)
+        past_seqlen = past_key.h;
+
+    if (kv_cache == 2 && past_value.h != past_seqlen)
+        return -1;
+
     const int dst_seqlen = past_seqlen + cur_seqlen;
 
     const size_t elemsize = query.elemsize;
 
     Mat key;
-    if (past_seqlen > 0)
+    Mat value;
+    if (kv_cache == 2 && past_key.dims > 0)
+    {
+        const int key_capacity = (int)(past_key.cstep / embed_dim);
+        const int value_capacity = (int)(past_value.cstep / out_embed_dim);
+        if (dst_seqlen > key_capacity || dst_seqlen > value_capacity)
+            return -1;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_group; q++)
+        {
+            unsigned char* pk = (unsigned char*)past_key.channel(q).data;
+            unsigned char* pv = (unsigned char*)past_value.channel(q).data;
+            memcpy(pk + (size_t)past_seqlen * embed_dim * elemsize,
+                   cur_key.channel(q).data, embed_dim * cur_seqlen * elemsize);
+            memcpy(pv + (size_t)past_seqlen * out_embed_dim * elemsize,
+                   cur_value.channel(q).data, out_embed_dim * cur_seqlen * elemsize);
+        }
+
+        key.create(embed_dim, dst_seqlen, num_group, elemsize, opt.blob_allocator);
+        if (key.empty())
+            return -100;
+        value.create(out_embed_dim, dst_seqlen, num_group, elemsize, opt.blob_allocator);
+        if (value.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_group; q++)
+        {
+            memcpy(key.channel(q), past_key.channel(q), embed_dim * dst_seqlen * elemsize);
+            memcpy(value.channel(q), past_value.channel(q), out_embed_dim * dst_seqlen * elemsize);
+        }
+    }
+    else if (past_seqlen > 0)
     {
         key.create(embed_dim, dst_seqlen, num_group, elemsize, opt.blob_allocator);
         if (key.empty())
@@ -180,8 +236,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         key = cur_key;
     }
 
-    Mat value;
-    if (past_seqlen > 0)
+    if (kv_cache != 2 && past_seqlen > 0)
     {
         value.create(out_embed_dim, dst_seqlen, num_group, elemsize, opt.blob_allocator);
         if (value.empty())
@@ -198,7 +253,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             memcpy(value_head.row(past_seqlen), cur_value_head, out_embed_dim * cur_seqlen * elemsize);
         }
     }
-    else
+    else if (kv_cache != 2)
     {
         value = cur_value;
     }
@@ -337,7 +392,12 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     value_fp32.release();
 
-    if (kv_cache)
+    if (kv_cache == 2)
+    {
+        top_blobs[1] = make_persistent_kvcache_view_x86(past_key, dst_seqlen);
+        top_blobs[2] = make_persistent_kvcache_view_x86(past_value, dst_seqlen);
+    }
+    else if (kv_cache)
     {
         top_blobs[1] = key;
         top_blobs[2] = value;
