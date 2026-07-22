@@ -4971,7 +4971,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     if (beta != 1.f)
                     {
                         __m256 _beta256 = (__m256)__lasx_xvreplfr2vr_s(beta);
-                            _c = __lasx_xvfmul_s(_c, _beta256);
+                        _c = __lasx_xvfmul_s(_c, _beta256);
                     }
                     _f0 = __lasx_xvfadd_s(_f0, _c);
                     _f1 = __lasx_xvfadd_s(_f1, _c);
@@ -5104,7 +5104,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         if (beta != 1.f)
                         {
                             __m128 _beta128 = __lsx_vreplfr2vr_s(beta);
-                                _c = __lsx_vfmul_s(_c, _beta128);
+                            _c = __lsx_vfmul_s(_c, _beta128);
                         }
                         _f0 = __lsx_vfadd_s(_f0, _c);
                         _f1 = __lsx_vfadd_s(_f1, _c);
@@ -5234,7 +5234,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         if (beta != 1.f)
                         {
                             __m128 _beta128 = __lsx_vreplfr2vr_s(beta);
-                                _c = __lsx_vfmul_s(_c, _beta128);
+                            _c = __lsx_vfmul_s(_c, _beta128);
                         }
                         _f0 = __lsx_vfadd_s(_f0, _c);
                         _f1 = __lsx_vfadd_s(_f1, _c);
@@ -5368,7 +5368,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     if (beta != 1.f)
                     {
                         __m128 _beta128 = __lsx_vreplfr2vr_s(beta);
-                            _c = __lsx_vfmul_s(_c, _beta128);
+                        _c = __lsx_vfmul_s(_c, _beta128);
                     }
                     _f0 = __lsx_vfadd_s(_f0, _c);
                     _f1 = __lsx_vfadd_s(_f1, _c);
@@ -5496,7 +5496,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     if (beta != 1.f)
                     {
                         __m128 _beta128 = __lsx_vreplfr2vr_s(beta);
-                            _c = __lsx_vfmul_s(_c, _beta128);
+                        _c = __lsx_vfmul_s(_c, _beta128);
                     }
                     _f0 = __lsx_vfadd_s(_f0, _c);
                     _f1 = __lsx_vfadd_s(_f1, _c);
@@ -5806,7 +5806,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     if (beta != 1.f)
                     {
                         __m256 _beta256 = (__m256)__lasx_xvreplfr2vr_s(beta);
-                            _c = __lasx_xvfmul_s(_c, _beta256);
+                        _c = __lasx_xvfmul_s(_c, _beta256);
                     }
                     _f0 = __lasx_xvfadd_s(_f0, _c);
                     _f1 = __lasx_xvfadd_s(_f1, _c);
@@ -6001,7 +6001,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     if (beta != 1.f)
                     {
                         __m128 _beta128 = __lsx_vreplfr2vr_s(beta);
-                            _c = __lsx_vfmul_s(_c, _beta128);
+                        _c = __lsx_vfmul_s(_c, _beta128);
                     }
                     _f0 = __lsx_vfadd_s(_f0, _c);
                     _f1 = __lsx_vfadd_s(_f1, _c);
@@ -6077,7 +6077,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     if (beta != 1.f)
                     {
                         __m128 _beta128 = __lsx_vreplfr2vr_s(beta);
-                            _c = __lsx_vfmul_s(_c, _beta128);
+                        _c = __lsx_vfmul_s(_c, _beta128);
                     }
                     _f0 = __lsx_vfadd_s(_f0, _c);
                     _f1 = __lsx_vfadd_s(_f1, _c);
@@ -6297,7 +6297,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     if (beta != 1.f)
                     {
                         __m256 _beta256 = (__m256)__lasx_xvreplfr2vr_s(beta);
-                            _c = __lasx_xvfmul_s(_c, _beta256);
+                        _c = __lasx_xvfmul_s(_c, _beta256);
                     }
                     _f0 = __lasx_xvfadd_s(_f0, _c);
                     _f1 = __lasx_xvfadd_s(_f1, _c);
@@ -6436,7 +6436,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     if (beta != 1.f)
                     {
                         __m128 _beta128 = __lsx_vreplfr2vr_s(beta);
-                            _c = __lsx_vfmul_s(_c, _beta128);
+                        _c = __lsx_vfmul_s(_c, _beta128);
                     }
                     _f0 = __lsx_vfadd_s(_f0, _c);
                     _f1 = __lsx_vfadd_s(_f1, _c);
@@ -6494,7 +6494,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     if (beta != 1.f)
                     {
                         __m128 _beta128 = __lsx_vreplfr2vr_s(beta);
-                            _c = __lsx_vfmul_s(_c, _beta128);
+                        _c = __lsx_vfmul_s(_c, _beta128);
                     }
                     _f0 = __lsx_vfadd_s(_f0, _c);
                     _f1 = __lsx_vfadd_s(_f1, _c);
@@ -7370,7 +7370,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                         if (beta != 1.f)
                         {
                             __m128 _beta = __lsx_vreplfr2vr_s(beta);
-                                _cc = __lsx_vfmul_s(_cc, _beta);
+                            _cc = __lsx_vfmul_s(_cc, _beta);
                         }
                         _f0 = __lsx_vfadd_s(_f0, (__m128)__lsx_vreplvei_w((__m128i)_cc, 0));
                         _f1 = __lsx_vfadd_s(_f1, (__m128)__lsx_vreplvei_w((__m128i)_cc, 1));
@@ -7492,7 +7492,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                         if (beta != 1.f)
                         {
                             __m128 _beta = __lsx_vreplfr2vr_s(beta);
-                                _cc = __lsx_vfmul_s(_cc, _beta);
+                            _cc = __lsx_vfmul_s(_cc, _beta);
                         }
                         _f0 = __lsx_vfadd_s(_f0, (__m128)__lsx_vreplvei_w((__m128i)_cc, 0));
                         _f1 = __lsx_vfadd_s(_f1, (__m128)__lsx_vreplvei_w((__m128i)_cc, 1));
@@ -7618,7 +7618,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     if (beta != 1.f)
                     {
                         __m128 _beta = __lsx_vreplfr2vr_s(beta);
-                            _cc = __lsx_vfmul_s(_cc, _beta);
+                        _cc = __lsx_vfmul_s(_cc, _beta);
                     }
                     _f0 = __lsx_vfadd_s(_f0, (__m128)__lsx_vreplvei_w((__m128i)_cc, 0));
                     _f1 = __lsx_vfadd_s(_f1, (__m128)__lsx_vreplvei_w((__m128i)_cc, 1));
@@ -8001,7 +8001,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     if (beta != 1.f)
                     {
                         __m256 _beta256 = (__m256)__lasx_xvreplfr2vr_s(beta);
-                            _c4 = __lasx_xvfmul_s(_c4, _beta256);
+                        _c4 = __lasx_xvfmul_s(_c4, _beta256);
                     }
                     _f0 = __lasx_xvfadd_s(_f0, _c4);
                     _f1 = __lasx_xvfadd_s(_f1, _c4);
@@ -8193,7 +8193,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     if (beta != 1.f)
                     {
                         __m128 _beta = __lsx_vreplfr2vr_s(beta);
-                            _c4 = __lsx_vfmul_s(_c4, _beta);
+                        _c4 = __lsx_vfmul_s(_c4, _beta);
                     }
                     _f0 = __lsx_vfadd_s(_f0, (__m128)__lsx_vreplvei_w((__m128i)_c4, 0));
                     _f1 = __lsx_vfadd_s(_f1, (__m128)__lsx_vreplvei_w((__m128i)_c4, 1));
@@ -8494,7 +8494,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     if (beta != 1.f)
                     {
                         __m256 _beta256 = (__m256)__lasx_xvreplfr2vr_s(beta);
-                            _c4 = __lasx_xvfmul_s(_c4, _beta256);
+                        _c4 = __lasx_xvfmul_s(_c4, _beta256);
                     }
                     _f0 = __lasx_xvfadd_s(_f0, _c4);
                     _f1 = __lasx_xvfadd_s(_f1, _c4);
@@ -8651,7 +8651,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     if (beta != 1.f)
                     {
                         __m128 _beta = __lsx_vreplfr2vr_s(beta);
-                            _c4 = __lsx_vfmul_s(_c4, _beta);
+                        _c4 = __lsx_vfmul_s(_c4, _beta);
                     }
                     _f0 = __lsx_vfadd_s(_f0, _c4);
                     _f1 = __lsx_vfadd_s(_f1, _c4);

@@ -119,7 +119,6 @@ static void quantize_weight(const ncnn::Mat& weight_data, int bits, int block_si
             }
         }
     }
-
 }
 
 static void make_mha_weights(int qdim, int kdim, int vdim, int embed_dim, int bits, int block_size, int has_input_scale, std::vector<ncnn::Mat>& weights, std::vector<ncnn::Mat>& ref_weights)
@@ -248,7 +247,6 @@ static void make_mha_weights(int qdim, int kdim, int vdim, int embed_dim, int bi
     ref_weights[5] = v_bias;
     ref_weights[6] = out_weight_dequantized.reshape(qdim * embed_dim);
     ref_weights[7] = out_bias;
-
 }
 
 static int test_multiheadattention_block_quant(const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const std::vector<ncnn::Mat>& ref_weights, const std::vector<ncnn::Mat>& inputs, int top_blob_count, int bits)

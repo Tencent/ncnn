@@ -4474,7 +4474,6 @@ static int gemm_AT_BT_mips(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_
     return 0;
 }
 
-
 int Gemm_mips::create_pipeline(const Option& opt)
 {
     AT_data.release();

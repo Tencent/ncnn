@@ -137,7 +137,6 @@ static void quantize_weight(const ncnn::Mat& weight_data, int bits, int block_si
             }
         }
     }
-
 }
 
 static ncnn::ParamDict make_gemm_param(int M, int N, int K, int quantize_term)
@@ -145,17 +144,17 @@ static ncnn::ParamDict make_gemm_param(int M, int N, int K, int quantize_term)
     ncnn::ParamDict pd;
     pd.set(0, 1.f); // alpha
     pd.set(1, 1.f); // beta
-    pd.set(2, 0); // transA
-    pd.set(3, 1); // transB
-    pd.set(4, 0); // constantA
-    pd.set(5, 1); // constantB
-    pd.set(6, 0); // constantC
+    pd.set(2, 0);   // transA
+    pd.set(3, 1);   // transB
+    pd.set(4, 0);   // constantA
+    pd.set(5, 1);   // constantB
+    pd.set(6, 0);   // constantC
     pd.set(7, M);
     pd.set(8, N);
     pd.set(9, K);
     pd.set(10, -1); // broadcast_type_C
-    pd.set(11, 0); // output_N1M
-    pd.set(14, 0); // output_transpose
+    pd.set(11, 0);  // output_N1M
+    pd.set(14, 0);  // output_transpose
     pd.set(18, quantize_term);
 
     return pd;

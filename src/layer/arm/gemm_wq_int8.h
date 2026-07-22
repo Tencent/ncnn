@@ -132,7 +132,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #if __ARM_FEATURE_MATMUL_INT8
                 for (; kk + 7 < max_kk0; kk += 8)
                 {
-
                     float32x4_t _v00 = vld1q_f32(pA0 + kk);
                     float32x4_t _v01 = vld1q_f32(pA0 + kk + 4);
                     float32x4_t _v10 = vld1q_f32(pA0 + A_hstep + kk);
@@ -317,7 +316,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #if __ARM_FEATURE_MATMUL_INT8
                 for (; kk + 7 < max_kk0; kk += 8)
                 {
-
                     float32x4_t _v00 = vld1q_f32(pA0 + kk);
                     float32x4_t _v01 = vld1q_f32(pA0 + kk + 4);
                     float32x4_t _v10 = vld1q_f32(pA0 + A_hstep + kk);
