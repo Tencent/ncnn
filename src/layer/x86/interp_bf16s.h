@@ -1481,7 +1481,7 @@ static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::
             int* xofs = buf;
             float* alpha = (float*)(buf + outw);
 
-            linear_coeffs(w, outw, xofs, alpha, align_corner);
+            linear_coeffs_impl(w, outw, xofs, alpha, align_corner, (output_width || has_size_expr) ? w / (float)outw : 1.f / width_scale);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -1554,7 +1554,7 @@ static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::
             int* xofs = buf;
             float* alpha = (float*)(buf + outw);
 
-            cubic_coeffs(w, outw, xofs, alpha, align_corner);
+            cubic_coeffs_impl(w, outw, xofs, alpha, align_corner, (output_width || has_size_expr) ? w / (float)outw : 1.f / width_scale);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -1683,8 +1683,8 @@ static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::
         float* alpha = (float*)(buf + outw + outh);           //new float[outw * 2];
         float* beta = (float*)(buf + outw + outh + outw * 2); //new float[outh * 2];
 
-        linear_coeffs(w, outw, xofs, alpha, align_corner);
-        linear_coeffs(h, outh, yofs, beta, align_corner);
+        linear_coeffs_impl(w, outw, xofs, alpha, align_corner, (output_width || has_size_expr) ? w / (float)outw : 1.f / width_scale);
+        linear_coeffs_impl(h, outh, yofs, beta, align_corner, (output_height || has_size_expr) ? h / (float)outh : 1.f / height_scale);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -1729,8 +1729,8 @@ static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::
         float* alpha = (float*)(buf + outw + outh);           //new float[outw * 4];
         float* beta = (float*)(buf + outw + outh + outw * 4); //new float[outh * 4];
 
-        cubic_coeffs(w, outw, xofs, alpha, align_corner);
-        cubic_coeffs(h, outh, yofs, beta, align_corner);
+        cubic_coeffs_impl(w, outw, xofs, alpha, align_corner, (output_width || has_size_expr) ? w / (float)outw : 1.f / width_scale);
+        cubic_coeffs_impl(h, outh, yofs, beta, align_corner, (output_height || has_size_expr) ? h / (float)outh : 1.f / height_scale);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)

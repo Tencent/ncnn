@@ -3,6 +3,8 @@
 
 #include "testutil.h"
 
+#include <math.h>
+
 static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, float width_scale, int output_height, int output_width)
 {
     ncnn::ParamDict pd;
@@ -125,6 +127,87 @@ static int test_interp_align_corner(const ncnn::Mat& a, int resize_type, float w
     }
 
     return ret;
+}
+
+static float cubic_weight(float x)
+{
+    const float A = -0.75f;
+    x = fabs(x);
+
+    if (x <= 1.f)
+        return (A + 2) * x * x * x - (A + 3) * x * x + 1;
+    if (x < 2.f)
+        return A * x * x * x - 5 * A * x * x + 8 * A * x - 4 * A;
+
+    return 0.f;
+}
+
+static int test_interp_noninteger_scale_factor(int resize_type)
+{
+    const int input_width = 7;
+    const int output_width = 10;
+    const float scale_factor = 1.5f;
+
+    ncnn::Mat a(input_width, 1);
+    for (int x = 0; x < input_width; x++)
+    {
+        a[x] = (float)x;
+    }
+
+    ncnn::ParamDict pd;
+    pd.set(0, resize_type);
+    pd.set(1, 1.f);
+    pd.set(2, scale_factor);
+    pd.set(3, 0);
+    pd.set(4, 0);
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+
+    ncnn::Layer* op = ncnn::create_layer_naive("Interp");
+    op->load_param(pd);
+    op->create_pipeline(opt);
+
+    ncnn::Mat b;
+    int ret = op->forward(a, b, opt);
+
+    op->destroy_pipeline(opt);
+    delete op;
+
+    if (ret != 0)
+        return ret;
+
+    for (int x = 0; x < output_width; x++)
+    {
+        const float sample_x = (x + 0.5f) / scale_factor - 0.5f;
+        float expected = 0.f;
+
+        if (resize_type == 2)
+        {
+            const int source_x = (int)floor(sample_x);
+            const int x0 = std::max(source_x, 0);
+            const int x1 = std::min(source_x + 1, input_width - 1);
+            const float weight = sample_x - source_x;
+            expected = a[x0] * (1.f - weight) + a[x1] * weight;
+        }
+        else
+        {
+            const int x0 = (int)floor(sample_x);
+            for (int k = -1; k <= 2; k++)
+            {
+                const int source_x = std::max(0, std::min(x0 + k, input_width - 1));
+                expected += a[source_x] * cubic_weight(sample_x - (x0 + k));
+            }
+        }
+
+        if (!NearlyEqual(expected, b[x], 0.0001f))
+        {
+            fprintf(stderr, "test_interp_noninteger_scale_factor failed resize_type=%d x=%d expected=%f actual=%f\n", resize_type, x, expected, b[x]);
+            return -1;
+        }
+    }
+
+    return 0;
 }
 
 static int test_interp_0()
@@ -707,5 +790,7 @@ int main()
            || test_interp_8()
            || test_interp_9()
            || test_interp_10()
-           || test_interp_11();
+           || test_interp_11()
+           || test_interp_noninteger_scale_factor(2)
+           || test_interp_noninteger_scale_factor(3);
 }
