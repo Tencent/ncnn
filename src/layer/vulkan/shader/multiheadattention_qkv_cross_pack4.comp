@@ -3,6 +3,7 @@
 
 #version 450
 
+// P2: Increased shared tile size from 8 to 16 for better reuse
 #define LOCAL_MEMORY_UNROLL_INCH 8
 
 layout(constant_id = 0) const int M = 0;
@@ -23,8 +24,8 @@ layout(push_constant) uniform parameter
 } p;
 
 #if NCNN_shader_local_memory
-shared lfpvec4 tmp_qk[8][LOCAL_MEMORY_UNROLL_INCH];
-shared lfpvec4 tmp_v[8][LOCAL_MEMORY_UNROLL_INCH];
+shared lfpvec4 tmp_qk[16][LOCAL_MEMORY_UNROLL_INCH];
+shared lfpvec4 tmp_v[16][LOCAL_MEMORY_UNROLL_INCH];
 #endif
 
 void main()
@@ -44,6 +45,9 @@ void main()
     afpvec4 sum3 = afpvec4(0.f);
 
 #if NCNN_shader_local_memory
+    if (gx >= psc(N) || gy >= psc(M) || gz >= psc(B))
+        return;
+
     const int NN = psc(K);
 
     const int lx = int(gl_LocalInvocationID.x);

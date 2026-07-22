@@ -32,6 +32,13 @@ MultiHeadAttention_vulkan::MultiHeadAttention_vulkan()
     pipeline_multiheadattention_qkv_cross_pack4 = 0;
     pipeline_multiheadattention_qkv_cross_pack1to4 = 0;
     pipeline_multiheadattention_qkv_cross_pack4to1 = 0;
+
+    pipeline_multiheadattention_qk_subgroup = 0;
+
+    pipeline_multiheadattention_fused = 0;
+    pipeline_multiheadattention_fused_coopload = 0;
+    pipeline_multiheadattention_fused_subgroup = 0;
+    pipeline_multiheadattention_fused_coopmat = 0;
 }
 
 int MultiHeadAttention_vulkan::load_param(const ParamDict& pd)
@@ -148,6 +155,24 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         }
     }
 
+    // Detect supported Vulkan extensions at runtime
+    const uint32_t support_subgroup_ops = vkdev->info.support_subgroup_ops();
+    bool has_subgroup_arithmetic = (support_subgroup_ops & VK_SUBGROUP_FEATURE_ARITHMETIC_BIT) != 0;
+    bool has_cooperative_matrix = vkdev->info.support_VK_NV_cooperative_matrix2() != 0;
+    bool has_cooperative_vector = vkdev->info.support_VK_NV_cooperative_vector() != 0;
+    const int embed_dim_per_head = embed_dim / num_heads;
+
+    // Check device capabilities for large workgroups and shared memory
+    // 16x16 = 256 invocations, Vulkan Core only guarantees 128
+    // pack4 shared memory: tmp_q[16][16][4] + tmp_k[16][16] = 1280 fp32 = 20480 bytes, Vulkan Core guarantees 16384
+    const int max_invocations = (int)vkdev->info.max_workgroup_invocations();
+    const uint32_t max_shared_mem = vkdev->info.max_shared_memory_size();
+    const bool can_16x16 = (max_invocations >= 256)
+                           && opt.use_shader_local_memory
+                           && (max_shared_mem >= 20480);
+    const int local_size_pack4 = can_16x16 ? 16 : 8;
+
+    // Create original QK^T pipelines (always)
     {
         std::vector<vk_specialization_type> specializations(6);
         specializations[0].i = attn_mask;
@@ -164,8 +189,13 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         }
         {
             pipeline_multiheadattention_qk_cross_pack4 = new Pipeline(vkdev);
-            pipeline_multiheadattention_qk_cross_pack4->set_local_size_xyz(8, 8, 1);
-            pipeline_multiheadattention_qk_cross_pack4->create(LayerShaderType::multiheadattention_qk_cross_pack4, opt, specializations);
+            pipeline_multiheadattention_qk_cross_pack4->set_local_size_xyz(local_size_pack4, local_size_pack4, 1);
+            int ret = pipeline_multiheadattention_qk_cross_pack4->create(LayerShaderType::multiheadattention_qk_cross_pack4, opt, specializations);
+            if (ret != 0)
+            {
+                delete pipeline_multiheadattention_qk_cross_pack4;
+                pipeline_multiheadattention_qk_cross_pack4 = 0;
+            }
         }
         {
             pipeline_multiheadattention_qk_cross_pack1to4 = new Pipeline(vkdev);
@@ -177,7 +207,22 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
             pipeline_multiheadattention_qk_cross_pack4to1->set_local_size_xyz(8, 8, 1);
             pipeline_multiheadattention_qk_cross_pack4to1->create(LayerShaderType::multiheadattention_qk_cross_pack4to1, opt, specializations);
         }
+
+        // P1: Subgroup-optimized QK^T pipeline (if supported)
+        if (has_subgroup_arithmetic)
+        {
+            pipeline_multiheadattention_qk_subgroup = new Pipeline(vkdev);
+            pipeline_multiheadattention_qk_subgroup->set_local_size_xyz(8, 8, 1);
+            int ret = pipeline_multiheadattention_qk_subgroup->create(LayerShaderType::multiheadattention_qk_subgroup, opt, specializations);
+            if (ret != 0)
+            {
+                delete pipeline_multiheadattention_qk_subgroup;
+                pipeline_multiheadattention_qk_subgroup = 0;
+            }
+        }
     }
+
+    // Create original QKV pipelines (always)
     {
         std::vector<vk_specialization_type> specializations(4);
         specializations[0].i = 0; //constantM;
@@ -192,8 +237,13 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         }
         {
             pipeline_multiheadattention_qkv_cross_pack4 = new Pipeline(vkdev);
-            pipeline_multiheadattention_qkv_cross_pack4->set_local_size_xyz(8, 8, 1);
-            pipeline_multiheadattention_qkv_cross_pack4->create(LayerShaderType::multiheadattention_qkv_cross_pack4, opt, specializations);
+            pipeline_multiheadattention_qkv_cross_pack4->set_local_size_xyz(local_size_pack4, local_size_pack4, 1);
+            int ret = pipeline_multiheadattention_qkv_cross_pack4->create(LayerShaderType::multiheadattention_qkv_cross_pack4, opt, specializations);
+            if (ret != 0)
+            {
+                delete pipeline_multiheadattention_qkv_cross_pack4;
+                pipeline_multiheadattention_qkv_cross_pack4 = 0;
+            }
         }
         {
             pipeline_multiheadattention_qkv_cross_pack1to4 = new Pipeline(vkdev);
@@ -207,6 +257,68 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         }
     }
 
+    // Fused MHA pipelines (single-kernel QK^T + softmax + QKV)
+    // Created when subgroup ops are available
+    if (has_subgroup_arithmetic && opt.use_shader_local_memory && embed_dim_per_head <= 256)
+    {
+        std::vector<vk_specialization_type> fused_spec(6);
+        fused_spec[0].i = attn_mask;
+        fused_spec[1].i = 0; // M
+        fused_spec[2].i = 0; // N
+        fused_spec[3].i = 0; // head_dim
+        fused_spec[4].i = num_heads;
+        fused_spec[5].i = 0; // attn_mask_dims
+
+        {
+            pipeline_multiheadattention_fused = new Pipeline(vkdev);
+            pipeline_multiheadattention_fused->set_local_size_xyz(64, 1, 1);
+            int ret = pipeline_multiheadattention_fused->create(
+                          LayerShaderType::multiheadattention_fused, opt, fused_spec);
+            if (ret != 0)
+            {
+                delete pipeline_multiheadattention_fused;
+                pipeline_multiheadattention_fused = 0;
+            }
+        }
+
+        {
+            pipeline_multiheadattention_fused_coopload = new Pipeline(vkdev);
+            pipeline_multiheadattention_fused_coopload->set_local_size_xyz(64, 1, 1);
+            int ret = pipeline_multiheadattention_fused_coopload->create(
+                          LayerShaderType::multiheadattention_fused_coopload, opt, fused_spec);
+            if (ret != 0)
+            {
+                delete pipeline_multiheadattention_fused_coopload;
+                pipeline_multiheadattention_fused_coopload = 0;
+            }
+        }
+
+        {
+            pipeline_multiheadattention_fused_subgroup = new Pipeline(vkdev);
+            pipeline_multiheadattention_fused_subgroup->set_local_size_xyz(128, 1, 1);
+            int ret = pipeline_multiheadattention_fused_subgroup->create(
+                          LayerShaderType::multiheadattention_fused_subgroup, opt, fused_spec);
+            if (ret != 0)
+            {
+                delete pipeline_multiheadattention_fused_subgroup;
+                pipeline_multiheadattention_fused_subgroup = 0;
+            }
+        }
+
+        // Cooperative matrix variant (requires NV extension)
+        if (has_cooperative_matrix)
+        {
+            pipeline_multiheadattention_fused_coopmat = new Pipeline(vkdev);
+            pipeline_multiheadattention_fused_coopmat->set_local_size_xyz(64, 1, 1);
+            int ret = pipeline_multiheadattention_fused_coopmat->create(
+                          LayerShaderType::multiheadattention_fused_coopmat, opt, fused_spec);
+            if (ret != 0)
+            {
+                delete pipeline_multiheadattention_fused_coopmat;
+                pipeline_multiheadattention_fused_coopmat = 0;
+            }
+        }
+    }
     {
         qk_softmax = ncnn::create_layer_vulkan(ncnn::LayerType::Softmax);
         qk_softmax->vkdev = vkdev;
@@ -308,6 +420,22 @@ int MultiHeadAttention_vulkan::destroy_pipeline(const Option& opt)
 
     delete pipeline_multiheadattention_qkv_cross_pack4to1;
     pipeline_multiheadattention_qkv_cross_pack4to1 = 0;
+
+    // Destroy new pipelines
+    delete pipeline_multiheadattention_qk_subgroup;
+    pipeline_multiheadattention_qk_subgroup = 0;
+
+    delete pipeline_multiheadattention_fused;
+    pipeline_multiheadattention_fused = 0;
+
+    delete pipeline_multiheadattention_fused_coopload;
+    pipeline_multiheadattention_fused_coopload = 0;
+
+    delete pipeline_multiheadattention_fused_subgroup;
+    pipeline_multiheadattention_fused_subgroup = 0;
+
+    delete pipeline_multiheadattention_fused_coopmat;
+    pipeline_multiheadattention_fused_coopmat = 0;
 
     if (qk_softmax)
     {
@@ -425,6 +553,10 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
     {
         k_gemm->forward(k_blob, k_affine, cmd, opt);
     }
+    // Check whether to use fused single-kernel path (QK^T + softmax + QKV)
+    // Fused path uses pack1 (sfp) data. Currently disabled - pipelines are
+    // created and compiled successfully, but dispatch needs VkMat adapter.
+    bool use_fused = false;
 
     VkMat qk_cross;
     {
@@ -494,7 +626,21 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         if (K_elempack == 4 && M_elempack == 4)
         {
             pipeline = pipeline_multiheadattention_qk_cross_pack4;
+            // Fall back to pack4to1 if pack4 pipeline creation failed
+            if (!pipeline && pipeline_multiheadattention_qk_cross_pack4to1)
+                pipeline = pipeline_multiheadattention_qk_cross_pack4to1;
         }
+
+        // Try subgroup-optimized pipeline if supported and requested
+        // Subgroup shader uses pack1 (sfp) types, so only for K_elempack==1 && M_elempack==1
+        if (pipeline && K_elempack == 1 && M_elempack == 1
+                && opt.use_subgroup_ops && pipeline_multiheadattention_qk_subgroup)
+        {
+            pipeline = pipeline_multiheadattention_qk_subgroup;
+        }
+
+        if (!pipeline)
+            return -100;
 
         cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
@@ -529,6 +675,7 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         // cmd.record_image_to_buffer(qk_cross2, qk_cross, opt);
     }
 
+    // Compute v_affine (original position, after QK+softmax+submit-and-wait)
     VkMat v_affine;
     if (past_seqlen > 0)
     {
@@ -536,28 +683,15 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         {
             VkMat v_affine_q;
             int retk = v_gemm->forward(v_blob, v_affine_q, cmd, opt);
-            if (retk != 0)
-                return retk;
-
-            // assert dst_seqlen == cached_xv_blob.w + v_affine_q.w
-
-            // merge cached_xv_blob and v_affine_q
-            std::vector<VkMat> inputs(2);
-            inputs[0] = cached_xv_blob;
-            inputs[1] = v_affine_q;
-            std::vector<VkMat> outputs(1);
+            if (retk != 0) return retk;
+            std::vector<VkMat> inputs(2), outputs(1);
+            inputs[0] = cached_xv_blob; inputs[1] = v_affine_q;
             kvcache_concat->forward(inputs, outputs, cmd, opt);
             v_affine = outputs[0];
         }
-        else
-        {
-            v_affine = cached_xv_blob;
-        }
+        else { v_affine = cached_xv_blob; }
     }
-    else
-    {
-        v_gemm->forward(v_blob, v_affine, cmd, opt);
-    }
+    else { v_gemm->forward(v_blob, v_affine, cmd, opt); }
 
     VkMat qkv_cross;
     {
@@ -621,7 +755,12 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         if (M_elempack == 4 && N_elempack == 4)
         {
             pipeline = pipeline_multiheadattention_qkv_cross_pack4;
+            if (!pipeline && pipeline_multiheadattention_qkv_cross_pack4to1)
+                pipeline = pipeline_multiheadattention_qkv_cross_pack4to1;
         }
+
+        if (!pipeline)
+            return -100;
 
         cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
