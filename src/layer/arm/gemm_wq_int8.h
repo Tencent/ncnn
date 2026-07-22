@@ -1,27 +1,25 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include <math.h>
-
 #if NCNN_RUNTIME_CPU && NCNN_ARM86SVEI8MM && __aarch64__ && !__ARM_FEATURE_SVE_MATMUL_INT8
 // The svei8mm translation unit reuses the aarch64 i8mm v-register kernel and
 // its persistent B layout. There is no SVE z-register WQ kernel layout yet.
 int pack_B_wq_int8_svei8mm(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_descales, int N, int K, int block_size, const Option& opt);
-void gemm_transB_packed_tile_wq_int8_svei8mm(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int K, int k, int max_kk, int block_size);
+void gemm_transB_packed_tile_wq_int8_svei8mm(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int k, int max_kk, int K, int block_size);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8
 int pack_B_wq_int8_i8mm(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_descales, int N, int K, int block_size, const Option& opt);
 void quantize_A_tile_wq_int8_i8mm(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const float* input_scale_ptr);
 void transpose_quantize_A_tile_wq_int8_i8mm(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const float* input_scale_ptr);
-void gemm_transB_packed_tile_wq_int8_i8mm(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int K, int k, int max_kk, int block_size);
+void gemm_transB_packed_tile_wq_int8_i8mm(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int k, int max_kk, int K, int block_size);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD && !__ARM_FEATURE_MATMUL_INT8
 int pack_B_wq_int8_asimddp(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_descales, int N, int K, int block_size, const Option& opt);
 void quantize_A_tile_wq_int8_asimddp(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const float* input_scale_ptr);
 void transpose_quantize_A_tile_wq_int8_asimddp(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const float* input_scale_ptr);
-void gemm_transB_packed_tile_wq_int8_asimddp(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int K, int k, int max_kk, int block_size);
+void gemm_transB_packed_tile_wq_int8_asimddp(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int k, int max_kk, int K, int block_size);
 #endif
 
 static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const float* input_scale_ptr)
@@ -1440,15 +1438,23 @@ static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_de
 {
 #if NCNN_RUNTIME_CPU && NCNN_ARM86SVEI8MM && __aarch64__ && !__ARM_FEATURE_SVE_MATMUL_INT8
     if (ncnn::cpu_support_arm_svei8mm())
+    {
         return pack_B_wq_int8_svei8mm(B, B_scales, BT, BT_descales, N, K, block_size, opt);
+    }
 #endif
+
 #if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8
     if (ncnn::cpu_support_arm_i8mm())
+    {
         return pack_B_wq_int8_i8mm(B, B_scales, BT, BT_descales, N, K, block_size, opt);
+    }
 #endif
+
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD && !__ARM_FEATURE_MATMUL_INT8
     if (ncnn::cpu_support_arm_asimddp())
+    {
         return pack_B_wq_int8_asimddp(B, B_scales, BT, BT_descales, N, K, block_size, opt);
+    }
 #endif
 
     const int block_count = (K + block_size - 1) / block_size;
@@ -1628,7 +1634,7 @@ static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_de
                 *pd++ = 1.f / *ps3++;
             }
         }
-#endif
+#endif // __ARM_NEON
         #pragma omp for
         for (int p = 0; p < nn2; p++)
         {
@@ -1802,26 +1808,26 @@ static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_de
     return 0;
 }
 
-static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int full_K, int k, int max_kk, int block_size)
+static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int k, int max_kk, int K, int block_size)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ARM86SVEI8MM && __aarch64__ && !__ARM_FEATURE_SVE_MATMUL_INT8
     if (ncnn::cpu_support_arm_svei8mm())
     {
-        gemm_transB_packed_tile_wq_int8_svei8mm(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, full_K, k, max_kk, block_size);
+        gemm_transB_packed_tile_wq_int8_svei8mm(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
         return;
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8
     if (ncnn::cpu_support_arm_i8mm())
     {
-        gemm_transB_packed_tile_wq_int8_i8mm(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, full_K, k, max_kk, block_size);
+        gemm_transB_packed_tile_wq_int8_i8mm(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
         return;
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD && !__ARM_FEATURE_MATMUL_INT8
     if (ncnn::cpu_support_arm_asimddp())
     {
-        gemm_transB_packed_tile_wq_int8_asimddp(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, full_K, k, max_kk, block_size);
+        gemm_transB_packed_tile_wq_int8_asimddp(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
         return;
     }
 #endif
@@ -1832,7 +1838,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
     const int A_descales_hstep = AT_descales_tile.w;
     const signed char* pBT = BT_tile;
     const float* pBT_descales = BT_descales_tile;
-    const int block_count = (full_K + block_size - 1) / block_size;
+    const int block_count = (K + block_size - 1) / block_size;
     const int block_start = k / block_size;
 
     float* outptr = topT_tile;
@@ -2116,7 +2122,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             vst1q_f32(outptr + 24, _fsum6);
             vst1q_f32(outptr + 28, _fsum7);
             outptr += 32;
-            pB_panel += (size_t)4 * full_K;
+            pB_panel += (size_t)4 * K;
             pB_descales_panel += (size_t)4 * block_count;
         }
         for (; jj + 1 < max_jj; jj += 2)
@@ -2268,7 +2274,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             vst1q_f32(outptr + 8, _fsum2);
             vst1q_f32(outptr + 12, _fsum3);
             outptr += 16;
-            pB_panel += (size_t)2 * full_K;
+            pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
         }
         for (; jj < max_jj; jj++)
@@ -2372,7 +2378,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             vst1q_f32(outptr, _fsum0);
             vst1q_f32(outptr + 4, _fsum1);
             outptr += 8;
-            pB_panel += full_K;
+            pB_panel += K;
             pB_descales_panel += block_count;
         }
         pAT += (size_t)8 * A_hstep;
@@ -2390,7 +2396,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         for (; jj + 7 < max_jj; jj += 8)
         {
             const signed char* pB0 = pB_panel + (size_t)4 * k;
-            const signed char* pB1 = pB_panel + (size_t)4 * full_K + (size_t)4 * k;
+            const signed char* pB1 = pB_panel + (size_t)4 * K + (size_t)4 * k;
             const float* pB_descales0 = pB_descales_panel + (size_t)4 * block_start;
             const float* pB_descales1 = pB_descales_panel + (size_t)4 * block_count + (size_t)4 * block_start;
             float32x4_t _fsum0;
@@ -2612,7 +2618,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr += 4;
             vst1q_f32(outptr, _fsum7);
             outptr += 4;
-            pB_panel += (size_t)8 * full_K;
+            pB_panel += (size_t)8 * K;
             pB_descales_panel += (size_t)8 * block_count;
         }
 #endif // __aarch64__
@@ -2796,7 +2802,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr += 4;
             vst1q_f32(outptr, _fsum3);
             outptr += 4;
-            pB_panel += (size_t)4 * full_K;
+            pB_panel += (size_t)4 * K;
             pB_descales_panel += (size_t)4 * block_count;
         }
         for (; jj + 1 < max_jj; jj += 2)
@@ -2909,7 +2915,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             vst1q_f32(outptr, _fsum0);
             vst1q_f32(outptr + 4, _fsum1);
             outptr += 8;
-            pB_panel += (size_t)2 * full_K;
+            pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
         }
         for (; jj < max_jj; jj++)
@@ -2991,7 +2997,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             vst1q_f32(outptr, _fsum);
             outptr += 4;
-            pB_panel += full_K;
+            pB_panel += K;
             pB_descales_panel += block_count;
         }
         pAT += (size_t)4 * A_hstep;
@@ -3010,7 +3016,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         for (; jj + 7 < max_jj; jj += 8)
         {
             const signed char* pB0 = pB_panel + (size_t)4 * k;
-            const signed char* pB1 = pB_panel + (size_t)4 * full_K + (size_t)4 * k;
+            const signed char* pB1 = pB_panel + (size_t)4 * K + (size_t)4 * k;
             const float* pB_descales0 = pB_descales_panel + (size_t)4 * block_start;
             const float* pB_descales1 = pB_descales_panel + (size_t)4 * block_count + (size_t)4 * block_start;
             float32x4_t _fsum0;
@@ -3159,7 +3165,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr += 4;
             vst1q_f32(outptr, _fsum3);
             outptr += 4;
-            pB_panel += (size_t)8 * full_K;
+            pB_panel += (size_t)8 * K;
             pB_descales_panel += (size_t)8 * block_count;
         }
 #endif // __aarch64__
@@ -3266,7 +3272,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr += 4;
             vst1q_f32(outptr, _fsum1);
             outptr += 4;
-            pB_panel += (size_t)4 * full_K;
+            pB_panel += (size_t)4 * K;
             pB_descales_panel += (size_t)4 * block_count;
         }
 #endif // __ARM_NEON
@@ -3361,7 +3367,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             vst1q_f32(outptr, _fsum);
             outptr += 4;
-            pB_panel += (size_t)2 * full_K;
+            pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
 #elif __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
             const signed char* pB = pB_panel + (size_t)2 * k;
@@ -3501,7 +3507,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             *outptr++ = fsum01;
             *outptr++ = fsum10;
             *outptr++ = fsum11;
-            pB_panel += (size_t)2 * full_K;
+            pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
 #else
             const signed char* pB = pB_panel + (size_t)2 * k;
@@ -3582,7 +3588,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr++;
             outptr[0] = fsum11;
             outptr++;
-            pB_panel += (size_t)2 * full_K;
+            pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
 #endif // __ARM_NEON
         }
@@ -3665,7 +3671,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             vst1_f32(outptr, vget_low_f32(_fsum));
             outptr += 2;
-            pB_panel += full_K;
+            pB_panel += K;
             pB_descales_panel += block_count;
 #elif __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
             const signed char* pB = pB_panel + k;
@@ -3711,7 +3717,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             *outptr++ = fsum00;
             *outptr++ = fsum10;
-            pB_panel += full_K;
+            pB_panel += K;
             pB_descales_panel += block_count;
 #else
             const signed char* pB = pB_panel + k;
@@ -3770,7 +3776,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr++;
             outptr[0] = fsum10;
             outptr++;
-            pB_panel += full_K;
+            pB_panel += K;
             pB_descales_panel += block_count;
 #endif // __ARM_NEON
         }
@@ -3789,7 +3795,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         for (; jj + 7 < max_jj; jj += 8)
         {
             const signed char* pB0 = pB_panel + (size_t)4 * k;
-            const signed char* pB1 = pB_panel + (size_t)4 * full_K + (size_t)4 * k;
+            const signed char* pB1 = pB_panel + (size_t)4 * K + (size_t)4 * k;
             const float* pB_descales0 = pB_descales_panel + (size_t)4 * block_start;
             const float* pB_descales1 = pB_descales_panel + (size_t)4 * block_count + (size_t)4 * block_start;
             float32x4_t _fsum0;
@@ -3907,7 +3913,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr += 4;
             vst1q_f32(outptr, _fsum1);
             outptr += 4;
-            pB_panel += (size_t)8 * full_K;
+            pB_panel += (size_t)8 * K;
             pB_descales_panel += (size_t)8 * block_count;
         }
 #endif // __aarch64__
@@ -3999,7 +4005,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             vst1q_f32(outptr, _fsum0);
             outptr += 4;
-            pB_panel += (size_t)4 * full_K;
+            pB_panel += (size_t)4 * K;
             pB_descales_panel += (size_t)4 * block_count;
         }
 #endif // __ARM_NEON
@@ -4092,7 +4098,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             vst1_f32(outptr, vget_low_f32(_fsum0));
             outptr += 2;
-            pB_panel += (size_t)2 * full_K;
+            pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
 #else // __ARM_NEON
             const signed char* pB = pB_panel + (size_t)2 * k;
@@ -4159,7 +4165,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr++;
             outptr[0] = fsum01;
             outptr++;
-            pB_panel += (size_t)2 * full_K;
+            pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
 #endif // __ARM_NEON
         }
@@ -4238,7 +4244,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             vst1q_lane_f32(outptr, _fsum0, 0);
             outptr++;
-            pB_panel += full_K;
+            pB_panel += K;
             pB_descales_panel += block_count;
 #else  // __ARM_NEON
             const signed char* pB = pB_panel + k;
@@ -4287,7 +4293,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             outptr[0] = fsum00;
             outptr++;
-            pB_panel += full_K;
+            pB_panel += K;
             pB_descales_panel += block_count;
 #endif // __ARM_NEON
         }

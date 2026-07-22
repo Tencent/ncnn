@@ -4624,12 +4624,12 @@ static int gemm_BT_arm_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
             const int k = ppk * TILE_K;
             const int max_ii = std::min(M - i, TILE_M);
             const int max_kk = std::min(K - k, TILE_K);
-            const int max_block_count = (max_kk + block_size - 1) / block_size;
+            const int local_block_count = (max_kk + block_size - 1) / block_size;
 
             Mat AT_channel = AT.channel(i / TILE_M);
             Mat AT_descales_channel = AT_descales.channel(i / TILE_M);
             Mat AT_tile(max_kk, max_ii, (signed char*)AT_channel + (size_t)k * mr, (size_t)1u);
-            Mat AT_descales_tile(max_block_count, max_ii, (float*)AT_descales_channel + (size_t)(k / block_size) * mr, (size_t)4u);
+            Mat AT_descales_tile(local_block_count, max_ii, (float*)AT_descales_channel + (size_t)(k / block_size) * mr, (size_t)4u);
 
             if (transA)
                 transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scale_ptr);
@@ -4659,11 +4659,11 @@ static int gemm_BT_arm_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
             for (int k = 0; k < K; k += TILE_K)
             {
                 const int max_kk = std::min(K - k, TILE_K);
-                const int max_block_count = (max_kk + block_size - 1) / block_size;
+                const int local_block_count = (max_kk + block_size - 1) / block_size;
                 Mat AT_tile(max_kk, max_ii, (signed char*)AT_channel + (size_t)k * mr, (size_t)1u);
-                Mat AT_descales_tile(max_block_count, max_ii, (float*)AT_descales_channel + (size_t)(k / block_size) * mr, (size_t)4u);
+                Mat AT_descales_tile(local_block_count, max_ii, (float*)AT_descales_channel + (size_t)(k / block_size) * mr, (size_t)4u);
 
-                gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, K, k, max_kk, block_size);
+                gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
             }
             if (output_transpose)
                 transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
@@ -4697,9 +4697,9 @@ static int gemm_BT_arm_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
                 for (int k = 0; k < K; k += TILE_K)
                 {
                     const int max_kk = std::min(K - k, TILE_K);
-                    const int max_block_count = (max_kk + block_size - 1) / block_size;
+                    const int local_block_count = (max_kk + block_size - 1) / block_size;
                     Mat AT_tile_k(max_kk, max_ii, (signed char*)AT_tile + (size_t)k * mr, (size_t)1u);
-                    Mat AT_descales_tile_k(max_block_count, max_ii, (float*)AT_descales_tile + (size_t)(k / block_size) * mr, (size_t)4u);
+                    Mat AT_descales_tile_k(local_block_count, max_ii, (float*)AT_descales_tile + (size_t)(k / block_size) * mr, (size_t)4u);
 
                     if (j == 0)
                     {
@@ -4709,7 +4709,7 @@ static int gemm_BT_arm_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
                             quantize_A_tile_wq_int8(A, AT_tile_k, AT_descales_tile_k, i, max_ii, k, max_kk, block_size, input_scale_ptr);
                     }
 
-                    gemm_transB_packed_tile_wq_int8(AT_tile_k, AT_descales_tile_k, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, K, k, max_kk, block_size);
+                    gemm_transB_packed_tile_wq_int8(AT_tile_k, AT_descales_tile_k, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
                 }
                 if (output_transpose)
                     transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
@@ -4728,7 +4728,14 @@ int Gemm_arm::create_pipeline(const Option& opt)
     if (weight_block_quantize)
     {
 #if NCNN_WEIGHT_QUANT
-        if (quantize_term / 100 == 8)
+        int weight_bits;
+        int block_size;
+        bool has_input_scale;
+        int ret = get_weight_block_quantize_params(weight_bits, block_size, has_input_scale);
+        if (ret != 0)
+            return ret;
+
+        if (weight_bits == 8)
             return create_pipeline_wq_int8(opt);
 #endif
         return 0;
@@ -4903,20 +4910,34 @@ int Gemm_arm::destroy_pipeline(const Option& /*opt*/)
 #if NCNN_WEIGHT_QUANT
 int Gemm_arm::create_pipeline_wq_int8(const Option& opt)
 {
-    if (!BT_data_wq_int8.empty())
+    if (!BT_data_wq_int8.empty() && !BT_data_wq_int8_descales.empty())
         return 0;
+
+    if (!BT_data_wq_int8.empty() || !BT_data_wq_int8_descales.empty())
+    {
+        BT_data_wq_int8.release();
+        BT_data_wq_int8_descales.release();
+        return -100;
+    }
 
     if (B_data.empty() || B_data_quantize_scales.empty())
         return -100;
 
-    const int block_size_code = quantize_term % 10;
-    const int block_size = block_size_code == 0 ? 32 : block_size_code == 1 ? 64 : 128;
+    int weight_bits;
+    int block_size;
+    bool has_input_scale;
+    if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0 || weight_bits != 8)
+        return -1;
+    if (has_input_scale && B_data_input_scales.empty())
+        return -100;
 
     Mat BT_data_packed;
     Mat BT_data_packed_descales;
     int ret = pack_B_wq_int8(B_data, B_data_quantize_scales, BT_data_packed, BT_data_packed_descales, constantN, constantK, block_size, opt);
     if (ret != 0)
         return ret;
+    if (BT_data_packed.empty() || BT_data_packed_descales.empty())
+        return -100;
 
     BT_data_wq_int8 = BT_data_packed;
     BT_data_wq_int8_descales = BT_data_packed_descales;
@@ -4948,6 +4969,17 @@ int Gemm_arm::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
         NCNN_LOGE("Gemm weight block quantize K mismatch");
         return -1;
     }
+
+    int weight_bits;
+    int block_size;
+    bool has_input_scale;
+    if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0 || weight_bits != 8)
+        return -1;
+
+    if (BT_data_wq_int8.empty() || BT_data_wq_int8_descales.empty())
+        return -100;
+    if (has_input_scale && B_data_input_scales.empty())
+        return -100;
 
     const int M = transA ? A.w : A.dims == 3 ? A.c : A.h;
     const int N = constantN;
@@ -5030,8 +5062,6 @@ int Gemm_arm::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
     if (top_blob.empty())
         return -100;
 
-    const int block_size_code = quantize_term % 10;
-    const int block_size = block_size_code == 0 ? 32 : block_size_code == 1 ? 64 : 128;
     return gemm_BT_arm_wq_int8(A, BT_data_wq_int8, BT_data_wq_int8_descales, B_data_input_scales, C, top_blob, broadcast_type_C, N, K, block_size, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, opt.num_threads, opt);
 }
 #endif // NCNN_WEIGHT_QUANT
@@ -5041,7 +5071,14 @@ int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (weight_block_quantize)
     {
 #if NCNN_WEIGHT_QUANT
-        if (quantize_term / 100 == 8 && !BT_data_wq_int8.empty())
+        int weight_bits;
+        int block_size;
+        bool has_input_scale;
+        int ret = get_weight_block_quantize_params(weight_bits, block_size, has_input_scale);
+        if (ret != 0)
+            return ret;
+
+        if (weight_bits == 8)
             return forward_wq_int8(bottom_blobs, top_blobs, opt);
 #endif
         return Gemm::forward(bottom_blobs, top_blobs, opt);

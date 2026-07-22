@@ -22,6 +22,8 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 protected:
+    int get_weight_block_quantize_params(int& weight_bits, int& block_size, bool& has_input_scale) const;
+
 #if NCNN_WEIGHT_QUANT
     int forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif

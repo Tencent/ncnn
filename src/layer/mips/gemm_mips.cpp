@@ -4609,24 +4609,47 @@ static int gemm_BT_mips_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pa
     return 0;
 }
 
-static int gemm_weight_quantize_bits_mips(int quantize_term)
+int Gemm_mips::create_pipeline_wq_int8(const Option& opt)
 {
-    return quantize_term / 100;
-}
+    if (!BT_data_wq_int8.empty() && !BT_data_wq_int8_descales.empty())
+        return 0;
 
-static int gemm_weight_quantize_block_size_mips(int quantize_term)
-{
-    const int block_size_code = quantize_term % 10;
-    if (block_size_code == 0)
-        return 32;
-    if (block_size_code == 1)
-        return 64;
-    if (block_size_code == 2)
-        return 128;
+    if (!BT_data_wq_int8.empty() || !BT_data_wq_int8_descales.empty())
+    {
+        BT_data_wq_int8.release();
+        BT_data_wq_int8_descales.release();
+        return -100;
+    }
+
+    if (B_data.empty() || B_data_quantize_scales.empty())
+        return -100;
+
+    int weight_bits;
+    int block_size;
+    bool has_input_scale;
+    if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0 || weight_bits != 8)
+        return -1;
+    if (has_input_scale && B_data_input_scales.empty())
+        return -100;
+
+    Mat BT_data_packed;
+    Mat BT_data_packed_descales;
+    int ret = pack_B_wq_int8(B_data, B_data_quantize_scales, BT_data_packed, BT_data_packed_descales, constantN, constantK, block_size, opt);
+    if (ret != 0)
+        return ret;
+    if (BT_data_packed.empty() || BT_data_packed_descales.empty())
+        return -100;
+
+    BT_data_wq_int8 = BT_data_packed;
+    BT_data_wq_int8_descales = BT_data_packed_descales;
+
+    B_data.release();
+    B_data_quantize_scales.release();
+
     return 0;
 }
 
-int Gemm_mips::forward_weight_block_quantize_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int Gemm_mips::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& A = bottom_blobs[0];
     if (A.elemsize != 4u || A.elempack != 1 || (transA && A.dims != 2))
@@ -4642,9 +4665,19 @@ int Gemm_mips::forward_weight_block_quantize_int8(const std::vector<Mat>& bottom
         return -1;
     }
 
+    int weight_bits;
+    int block_size;
+    bool has_input_scale;
+    if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0 || weight_bits != 8)
+        return -1;
+
+    if (BT_data_wq_int8.empty() || BT_data_wq_int8_descales.empty())
+        return -100;
+    if (has_input_scale && B_data_input_scales.empty())
+        return -100;
+
     const int M = transA ? A.w : A.dims == 3 ? A.c : A.h;
     const int N = constantN;
-    const int block_size = gemm_weight_quantize_block_size_mips(quantize_term);
 
     Mat C;
     int broadcast_type_C = -1;
@@ -4724,7 +4757,7 @@ int Gemm_mips::forward_weight_block_quantize_int8(const std::vector<Mat>& bottom
     if (top_blob.empty())
         return -100;
 
-    return gemm_BT_mips_wq_int8(A, B_data_w8a8_packed, B_data_w8a8_descales, B_data_input_scales, C, top_blob, broadcast_type_C, N, K, block_size, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, opt.num_threads, opt);
+    return gemm_BT_mips_wq_int8(A, BT_data_wq_int8, BT_data_wq_int8_descales, B_data_input_scales, C, top_blob, broadcast_type_C, N, K, block_size, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, opt.num_threads, opt);
 }
 #endif // NCNN_WEIGHT_QUANT
 
@@ -4738,25 +4771,15 @@ int Gemm_mips::create_pipeline(const Option& opt)
     if (weight_block_quantize)
     {
 #if NCNN_WEIGHT_QUANT
-        if (gemm_weight_quantize_bits_mips(quantize_term) == 8)
-        {
-            if (!B_data_w8a8_packed.empty())
-                return 0;
-            if (B_data.empty() || B_data_quantize_scales.empty())
-                return -1;
+        int weight_bits;
+        int block_size;
+        bool has_input_scale;
+        int ret = get_weight_block_quantize_params(weight_bits, block_size, has_input_scale);
+        if (ret != 0)
+            return ret;
 
-            Mat B_data_packed;
-            Mat B_data_descales;
-            int ret = pack_B_wq_int8(B_data, B_data_quantize_scales, B_data_packed, B_data_descales, constantN, constantK, gemm_weight_quantize_block_size_mips(quantize_term), opt);
-            if (ret != 0)
-                return ret;
-
-            B_data_w8a8_packed = B_data_packed;
-            B_data_w8a8_descales = B_data_descales;
-
-            B_data.release();
-            B_data_quantize_scales.release();
-        }
+        if (weight_bits == 8)
+            return create_pipeline_wq_int8(opt);
 #endif
 
         return 0;
@@ -4896,14 +4919,14 @@ int Gemm_mips::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Gemm_mips::destroy_pipeline(const Option& opt)
+int Gemm_mips::destroy_pipeline(const Option& /*opt*/)
 {
 #if NCNN_WEIGHT_QUANT
-    B_data_w8a8_packed.release();
-    B_data_w8a8_descales.release();
+    BT_data_wq_int8.release();
+    BT_data_wq_int8_descales.release();
 #endif
 
-    return Gemm::destroy_pipeline(opt);
+    return 0;
 }
 
 int Gemm_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -4911,8 +4934,15 @@ int Gemm_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     if (weight_block_quantize)
     {
 #if NCNN_WEIGHT_QUANT
-        if (gemm_weight_quantize_bits_mips(quantize_term) == 8 && !B_data_w8a8_packed.empty())
-            return forward_weight_block_quantize_int8(bottom_blobs, top_blobs, opt);
+        int weight_bits;
+        int block_size;
+        bool has_input_scale;
+        int ret = get_weight_block_quantize_params(weight_bits, block_size, has_input_scale);
+        if (ret != 0)
+            return ret;
+
+        if (weight_bits == 8)
+            return forward_wq_int8(bottom_blobs, top_blobs, opt);
 #endif
 
         return Gemm::forward(bottom_blobs, top_blobs, opt);

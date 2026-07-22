@@ -8,41 +8,28 @@
 
 namespace ncnn {
 
-static bool mha_is_weight_block_quantize(int quantize_term)
+int MultiHeadAttention::get_weight_block_quantize_params(int& weight_bits, int& block_size, bool& has_input_scale) const
 {
-    const int weight_bits = quantize_term / 100;
+    weight_bits = quantize_term / 100;
     const int format_code = quantize_term % 100 / 10;
     const int block_size_code = quantize_term % 10;
 
     if (weight_bits != 4 && weight_bits != 6 && weight_bits != 8)
-        return false;
+        return -1;
 
     if (format_code != 0 && format_code != 1)
-        return false;
+        return -1;
 
     if (block_size_code < 0 || block_size_code > 2)
-        return false;
+        return -1;
 
-    return true;
+    block_size = block_size_code == 0 ? 32 : block_size_code == 1 ? 64 : 128;
+    has_input_scale = format_code == 1;
+
+    return 0;
 }
 
 #if NCNN_WEIGHT_QUANT
-static bool mha_weight_quantize_has_input_scale(int quantize_term)
-{
-    return quantize_term % 100 / 10 == 1;
-}
-
-static int mha_weight_quantize_bits(int quantize_term)
-{
-    return quantize_term / 100;
-}
-
-static int mha_weight_quantize_block_size(int quantize_term)
-{
-    const int block_size_code = quantize_term % 10;
-    return block_size_code == 0 ? 32 : block_size_code == 1 ? 64 : 128;
-}
-
 static int mha_weight_quantize_packed_k_bytes(int constantK, int weight_bits)
 {
     if (constantK <= 0 || weight_bits <= 0)
@@ -72,7 +59,10 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
     scale = pd.get(6, 1.f / sqrtf(embed_dim / num_heads));
     kv_cache = pd.get(7, 0);
     quantize_term = pd.get(18, 0);
-    weight_block_quantize = mha_is_weight_block_quantize(quantize_term);
+    int weight_bits;
+    int block_size;
+    bool has_input_scale;
+    weight_block_quantize = get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) == 0;
 
     if (quantize_term == 4 || quantize_term == 5 || quantize_term == 6)
     {
@@ -121,11 +111,14 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
     const int qdim = weight_data_size / embed_dim;
 
 #if NCNN_WEIGHT_QUANT
+    int weight_bits = 0;
+    int block_size = 0;
+    bool has_input_scale = false;
+    if (weight_block_quantize && get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0)
+        return -1;
+
     if (weight_block_quantize)
     {
-        const int weight_bits = mha_weight_quantize_bits(quantize_term);
-        const int block_size = mha_weight_quantize_block_size(quantize_term);
-
         const int q_packed_k_bytes = mha_weight_quantize_packed_k_bytes(qdim, weight_bits);
         const int k_packed_k_bytes = mha_weight_quantize_packed_k_bytes(kdim, weight_bits);
         const int v_packed_k_bytes = mha_weight_quantize_packed_k_bytes(vdim, weight_bits);
@@ -172,7 +165,7 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
         if (q_weight_data_quantize_scales.empty() || k_weight_data_quantize_scales.empty() || v_weight_data_quantize_scales.empty() || out_weight_data_quantize_scales.empty())
             return -100;
 
-        if (mha_weight_quantize_has_input_scale(quantize_term))
+        if (has_input_scale)
         {
             q_weight_data_input_scales = mb.load(qdim, 1);
             k_weight_data_input_scales = mb.load(kdim, 1);
@@ -702,9 +695,11 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
 
     const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = weight_data_size / embed_dim;
-    const int weight_bits = mha_weight_quantize_bits(quantize_term);
-    const int block_size = mha_weight_quantize_block_size(quantize_term);
-    const bool has_input_scale = mha_weight_quantize_has_input_scale(quantize_term);
+    int weight_bits;
+    int block_size;
+    bool has_input_scale;
+    if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0)
+        return -1;
 
     const float* q_input_scale_ptr = has_input_scale ? (const float*)q_weight_data_input_scales : 0;
     const float* k_input_scale_ptr = has_input_scale ? (const float*)k_weight_data_input_scales : 0;

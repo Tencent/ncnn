@@ -1,8 +1,6 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include <math.h>
-
 static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_descales, int N, int K, int block_size, const Option& opt)
 {
     const int block_count = (K + block_size - 1) / block_size;
@@ -311,13 +309,13 @@ static int pack_B_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT, Mat& BT_de
     return 0;
 }
 
-static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk0, int block_size, const float* input_scale_ptr)
+static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const float* input_scale_ptr)
 {
     signed char* outptr = AT_tile;
     const int out_hstep = AT_tile.w;
     float* descales = AT_descales_tile;
     const int descales_hstep = AT_descales_tile.w;
-    const int block_count = (max_kk0 + block_size - 1) / block_size;
+    const int block_count = (max_kk + block_size - 1) / block_size;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
     const float* A_data = (const float*)A + k;
     input_scale_ptr = input_scale_ptr ? input_scale_ptr + k : 0;
@@ -340,18 +338,18 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(max_kk0 - k0, block_size);
-            const float* p0g = p0 + k0;
-            const float* p1g = p1 + k0;
-            const float* p2g = p2 + k0;
-            const float* p3g = p3 + k0;
-            const float* p4g = p4 + k0;
-            const float* p5g = p5 + k0;
-            const float* p6g = p6 + k0;
-            const float* p7g = p7 + k0;
-            const float* sg = input_scale_ptr ? input_scale_ptr + k0 : 0;
-            __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
+            const int kk0 = g * block_size;
+            const int max_kk0 = std::min(max_kk - kk0, block_size);
+            const float* p0g = p0 + kk0;
+            const float* p1g = p1 + kk0;
+            const float* p2g = p2 + kk0;
+            const float* p3g = p3 + kk0;
+            const float* p4g = p4 + kk0;
+            const float* p5g = p5 + kk0;
+            const float* p6g = p6 + kk0;
+            const float* p7g = p7 + kk0;
+            const float* sg = input_scale_ptr ? input_scale_ptr + kk0 : 0;
+            const __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
             __m128 _absmax0 = (__m128)__lsx_vldi(0);
             __m128 _absmax1 = (__m128)__lsx_vldi(0);
             __m128 _absmax2 = (__m128)__lsx_vldi(0);
@@ -370,7 +368,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             const float* p7a = p7g;
             const float* psa = sg;
             int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m128 _v0 = (__m128)__lsx_vld(p0a, 0);
                 __m128 _v1 = (__m128)__lsx_vld(p1a, 0);
@@ -419,7 +417,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             float absmax5 = __lsx_reduce_fmax_s(_absmax5);
             float absmax6 = __lsx_reduce_fmax_s(_absmax6);
             float absmax7 = __lsx_reduce_fmax_s(_absmax7);
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 const float s = psa ? *psa++ : 1.f;
                 absmax0 = std::max(absmax0, fabsf(*p0a++ * s));
@@ -468,7 +466,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             const float* p7q = p7g;
             const float* psq = sg;
             kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m128 _v0 = (__m128)__lsx_vld(p0q, 0);
                 __m128 _v1 = (__m128)__lsx_vld(p1q, 0);
@@ -506,7 +504,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 if (psq)
                     psq += 4;
             }
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 const float s = psq ? *psq++ : 1.f;
                 pp[0] = float2int8(*p0q++ * s * scale0);
@@ -529,17 +527,17 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         const float* p3 = p2 + A_hstep;
         signed char* pp = outptr + ii * out_hstep;
         float* pd = descales + ii * descales_hstep;
-        __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
+        const __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(max_kk0 - k0, block_size);
-            const float* p0g = p0 + k0;
-            const float* p1g = p1 + k0;
-            const float* p2g = p2 + k0;
-            const float* p3g = p3 + k0;
-            const float* sg = input_scale_ptr ? input_scale_ptr + k0 : 0;
+            const int kk0 = g * block_size;
+            const int max_kk0 = std::min(max_kk - kk0, block_size);
+            const float* p0g = p0 + kk0;
+            const float* p1g = p1 + kk0;
+            const float* p2g = p2 + kk0;
+            const float* p3g = p3 + kk0;
+            const float* sg = input_scale_ptr ? input_scale_ptr + kk0 : 0;
             __m128 _absmax0 = (__m128)__lsx_vldi(0);
             __m128 _absmax1 = (__m128)__lsx_vldi(0);
             __m128 _absmax2 = (__m128)__lsx_vldi(0);
@@ -550,7 +548,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             const float* p3a = p3g;
             const float* psa = sg;
             int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m128 _v0 = (__m128)__lsx_vld(p0a, 0);
                 __m128 _v1 = (__m128)__lsx_vld(p1a, 0);
@@ -579,7 +577,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             float absmax1 = __lsx_reduce_fmax_s(_absmax1);
             float absmax2 = __lsx_reduce_fmax_s(_absmax2);
             float absmax3 = __lsx_reduce_fmax_s(_absmax3);
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 const float s = psa ? *psa++ : 1.f;
                 absmax0 = std::max(absmax0, fabsf(*p0a++ * s));
@@ -606,7 +604,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             const float* p3q = p3g;
             const float* psq = sg;
             kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m128 _v0 = (__m128)__lsx_vld(p0q, 0);
                 __m128 _v1 = (__m128)__lsx_vld(p1q, 0);
@@ -630,7 +628,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 if (psq)
                     psq += 4;
             }
-            if (kk + 1 < max_kk)
+            if (kk + 1 < max_kk0)
             {
                 const float s0 = psq ? psq[0] : 1.f;
                 const float s1 = psq ? psq[1] : 1.f;
@@ -651,7 +649,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     psq += 2;
                 kk += 2;
             }
-            if (kk < max_kk)
+            if (kk < max_kk0)
             {
                 const float s = psq ? *psq : 1.f;
                 pp[0] = float2int8(*p0q * s * scale0);
@@ -668,22 +666,22 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         const float* p1 = p0 + A_hstep;
         signed char* pp = outptr + ii * out_hstep;
         float* pd = descales + ii * descales_hstep;
-        __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
+        const __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(max_kk0 - k0, block_size);
-            const float* p0g = p0 + k0;
-            const float* p1g = p1 + k0;
-            const float* sg = input_scale_ptr ? input_scale_ptr + k0 : 0;
+            const int kk0 = g * block_size;
+            const int max_kk0 = std::min(max_kk - kk0, block_size);
+            const float* p0g = p0 + kk0;
+            const float* p1g = p1 + kk0;
+            const float* sg = input_scale_ptr ? input_scale_ptr + kk0 : 0;
             __m128 _absmax0 = (__m128)__lsx_vldi(0);
             __m128 _absmax1 = (__m128)__lsx_vldi(0);
             const float* p0a = p0g;
             const float* p1a = p1g;
             const float* psa = sg;
             int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m128 _v0 = (__m128)__lsx_vld(p0a, 0);
                 __m128 _v1 = (__m128)__lsx_vld(p1a, 0);
@@ -702,7 +700,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             }
             float absmax0 = __lsx_reduce_fmax_s(_absmax0);
             float absmax1 = __lsx_reduce_fmax_s(_absmax1);
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 const float s = psa ? *psa++ : 1.f;
                 absmax0 = std::max(absmax0, fabsf(*p0a++ * s));
@@ -719,7 +717,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             const float* p1q = p1g;
             const float* psq = sg;
             kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m128 _v0 = (__m128)__lsx_vld(p0q, 0);
                 __m128 _v1 = (__m128)__lsx_vld(p1q, 0);
@@ -736,7 +734,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 if (psq)
                     psq += 4;
             }
-            if (kk + 1 < max_kk)
+            if (kk + 1 < max_kk0)
             {
                 const float s0 = psq ? psq[0] : 1.f;
                 const float s1 = psq ? psq[1] : 1.f;
@@ -751,7 +749,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     psq += 2;
                 kk += 2;
             }
-            if (kk < max_kk)
+            if (kk < max_kk0)
             {
                 const float s = psq ? *psq : 1.f;
                 pp[0] = float2int8(*p0q * s * scale0);
@@ -770,17 +768,17 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(max_kk0 - k0, block_size);
-            const float* p0g = p0 + k0;
-            const float* p1g = p1 + k0;
-            const float* sg = input_scale_ptr ? input_scale_ptr + k0 : 0;
+            const int kk0 = g * block_size;
+            const int max_kk0 = std::min(max_kk - kk0, block_size);
+            const float* p0g = p0 + kk0;
+            const float* p1g = p1 + kk0;
+            const float* sg = input_scale_ptr ? input_scale_ptr + kk0 : 0;
             float absmax0 = 0.f;
             float absmax1 = 0.f;
             const float* p0a = p0g;
             const float* p1a = p1g;
             const float* psa = sg;
-            for (int kk = 0; kk < max_kk; kk++)
+            for (int kk = 0; kk < max_kk0; kk++)
             {
                 const float s = psa ? *psa++ : 1.f;
                 absmax0 = std::max(absmax0, fabsf(*p0a++ * s));
@@ -795,7 +793,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             const float* p1q = p1g;
             const float* psq = sg;
             int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 const float s0 = psq ? psq[0] : 1.f;
                 const float s1 = psq ? psq[1] : 1.f;
@@ -815,7 +813,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 if (psq)
                     psq += 4;
             }
-            if (kk + 1 < max_kk)
+            if (kk + 1 < max_kk0)
             {
                 const float s0 = psq ? psq[0] : 1.f;
                 const float s1 = psq ? psq[1] : 1.f;
@@ -830,7 +828,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     psq += 2;
                 kk += 2;
             }
-            if (kk < max_kk)
+            if (kk < max_kk0)
             {
                 const float s = psq ? *psq : 1.f;
                 pp[0] = float2int8(*p0q * s * scale0);
@@ -847,20 +845,20 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(max_kk0 - k0, block_size);
-            const float* p0g = p0 + k0;
-            const float* sg = input_scale_ptr ? input_scale_ptr + k0 : 0;
+            const int kk0 = g * block_size;
+            const int max_kk0 = std::min(max_kk - kk0, block_size);
+            const float* p0g = p0 + kk0;
+            const float* sg = input_scale_ptr ? input_scale_ptr + kk0 : 0;
             float absmax = 0.f;
             const float* p0a = p0g;
             const float* psa = sg;
             int kk = 0;
 #if __loongarch_sx
-            __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
+            const __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
 #if __loongarch_asx
-            __m256i _abs_mask256 = __lasx_xvreplgr2vr_w(0x7fffffff);
+            const __m256i _abs_mask256 = __lasx_xvreplgr2vr_w(0x7fffffff);
             __m256 _absmax256 = (__m256)__lasx_xvldi(0);
-            for (; kk + 7 < max_kk; kk += 8)
+            for (; kk + 7 < max_kk0; kk += 8)
             {
                 __m256 _v = (__m256)__lasx_xvld(p0a, 0);
                 if (psa)
@@ -874,7 +872,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             absmax = __lasx_reduce_fmax_s(_absmax256);
 #endif // __loongarch_asx
             __m128 _absmax128 = __lsx_vreplfr2vr_s(absmax);
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m128 _v = (__m128)__lsx_vld(p0a, 0);
                 if (psa)
@@ -887,7 +885,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             }
             absmax = __lsx_reduce_fmax_s(_absmax128);
 #endif // __loongarch_sx
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 float v = *p0a++;
                 if (psa)
@@ -898,7 +896,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             if (absmax == 0.f)
             {
                 *pd++ = 0.f;
-                for (int kk = 0; kk < max_kk; kk++)
+                for (int kk = 0; kk < max_kk0; kk++)
                     *pp++ = 0;
                 continue;
             }
@@ -911,7 +909,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #if __loongarch_sx
 #if __loongarch_asx
             __m256 _scale256 = (__m256)__lasx_xvreplfr2vr_s(scale);
-            for (; kk + 7 < max_kk; kk += 8)
+            for (; kk + 7 < max_kk0; kk += 8)
             {
                 __m256 _v = (__m256)__lasx_xvld(p0q, 0);
                 if (psq)
@@ -925,7 +923,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             }
 #endif // __loongarch_asx
             __m128 _scale128 = __lsx_vreplfr2vr_s(scale);
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 __m128 _v = (__m128)__lsx_vld(p0q, 0);
                 if (psq)
@@ -938,7 +936,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     psq += 4;
             }
 #endif // __loongarch_sx
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 float v = *p0q++;
                 if (psq)
@@ -949,13 +947,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
     }
 }
 
-static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk0, int block_size, const float* input_scale_ptr)
+static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const float* input_scale_ptr)
 {
     signed char* outptr = AT_tile;
     const int out_hstep = AT_tile.w;
     float* descales = AT_descales_tile;
     const int descales_hstep = AT_descales_tile.w;
-    const int block_count = (max_kk0 + block_size - 1) / block_size;
+    const int block_count = (max_kk + block_size - 1) / block_size;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
     const float* A_data = (const float*)A + (size_t)k * A_hstep;
     input_scale_ptr = input_scale_ptr ? input_scale_ptr + k : 0;
@@ -970,16 +968,16 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(max_kk0 - k0, block_size);
-            const float* p0g = ptrA + (size_t)k0 * A_hstep;
-            const float* sg = input_scale_ptr ? input_scale_ptr + k0 : 0;
-            __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
+            const int kk0 = g * block_size;
+            const int max_kk0 = std::min(max_kk - kk0, block_size);
+            const float* p0g = ptrA + (size_t)kk0 * A_hstep;
+            const float* sg = input_scale_ptr ? input_scale_ptr + kk0 : 0;
+            const __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
             __m128 _absmax0 = (__m128)__lsx_vldi(0);
             __m128 _absmax1 = (__m128)__lsx_vldi(0);
             const float* p0a = p0g;
             const float* psa = sg;
-            for (int kk = 0; kk < max_kk; kk++)
+            for (int kk = 0; kk < max_kk0; kk++)
             {
                 __m128 _v0 = (__m128)__lsx_vld(p0a, 0);
                 __m128 _v1 = (__m128)__lsx_vld(p0a + 4, 0);
@@ -1040,7 +1038,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             const float* p0q = p0g;
             const float* psq = sg;
             int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 const float* p0 = p0q;
                 const float* p1 = p0 + A_hstep;
@@ -1080,7 +1078,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 if (psq)
                     psq += 4;
             }
-            for (; kk < max_kk; kk++)
+            for (; kk < max_kk0; kk++)
             {
                 __m128 _p0 = (__m128)__lsx_vld(p0q, 0);
                 __m128 _p1 = (__m128)__lsx_vld(p0q + 4, 0);
@@ -1106,16 +1104,16 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(max_kk0 - k0, block_size);
-            const float* p0g = ptrA + (size_t)k0 * A_hstep;
-            const float* sg = input_scale_ptr ? input_scale_ptr + k0 : 0;
+            const int kk0 = g * block_size;
+            const int max_kk0 = std::min(max_kk - kk0, block_size);
+            const float* p0g = ptrA + (size_t)kk0 * A_hstep;
+            const float* sg = input_scale_ptr ? input_scale_ptr + kk0 : 0;
 
-            __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
+            const __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
             __m128 _absmax = (__m128)__lsx_vldi(0);
             const float* p0a = p0g;
             const float* psa = sg;
-            for (int kk = 0; kk < max_kk; kk++)
+            for (int kk = 0; kk < max_kk0; kk++)
             {
                 __m128 _v = (__m128)__lsx_vld(p0a, 0);
                 if (psa)
@@ -1144,7 +1142,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             const float* p0q = p0g;
             const float* psq = sg;
             int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 const float* p0 = p0q;
                 const float* p1 = p0 + A_hstep;
@@ -1169,7 +1167,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 if (psq)
                     psq += 4;
             }
-            if (kk + 1 < max_kk)
+            if (kk + 1 < max_kk0)
             {
                 __m128 _v0 = (__m128)__lsx_vld(p0q, 0);
                 __m128 _v1 = (__m128)__lsx_vld(p0q + A_hstep, 0);
@@ -1194,7 +1192,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     psq += 2;
                 kk += 2;
             }
-            if (kk < max_kk)
+            if (kk < max_kk0)
             {
                 __m128 _v = (__m128)__lsx_vld(p0q, 0);
                 if (psq)
@@ -1213,18 +1211,18 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
         const float* ptrA = A_data + i + ii;
         signed char* pp = outptr + ii * out_hstep;
         float* pd = descales + ii * descales_hstep;
-        __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
+        const __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(max_kk0 - k0, block_size);
-            const float* p0g = ptrA + (size_t)k0 * A_hstep;
-            const float* sg = input_scale_ptr ? input_scale_ptr + k0 : 0;
+            const int kk0 = g * block_size;
+            const int max_kk0 = std::min(max_kk - kk0, block_size);
+            const float* p0g = ptrA + (size_t)kk0 * A_hstep;
+            const float* sg = input_scale_ptr ? input_scale_ptr + kk0 : 0;
             __m128 _absmax = (__m128)__lsx_vldi(0);
             const float* p0a = p0g;
             const float* psa = sg;
-            for (int kk = 0; kk < max_kk; kk++)
+            for (int kk = 0; kk < max_kk0; kk++)
             {
                 __m128 _v = (__m128)__lsx_vldrepl_d(p0a, 0);
                 if (psa)
@@ -1242,7 +1240,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             const float* p0q = p0g;
             const float* psq = sg;
             int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 const float* p0 = p0q;
                 const float* p1 = p0 + A_hstep;
@@ -1265,7 +1263,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 if (psq)
                     psq += 4;
             }
-            if (kk + 1 < max_kk)
+            if (kk + 1 < max_kk0)
             {
                 const float* p0 = p0q;
                 const float* p1 = p0 + A_hstep;
@@ -1281,7 +1279,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     psq += 2;
                 kk += 2;
             }
-            if (kk < max_kk)
+            if (kk < max_kk0)
             {
                 const float s = psq ? *psq : 1.f;
                 pp[0] = float2int8(p0q[0] * s * scale0);
@@ -1299,15 +1297,15 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(max_kk0 - k0, block_size);
-            const float* p0g = ptrA + (size_t)k0 * A_hstep;
-            const float* sg = input_scale_ptr ? input_scale_ptr + k0 : 0;
+            const int kk0 = g * block_size;
+            const int max_kk0 = std::min(max_kk - kk0, block_size);
+            const float* p0g = ptrA + (size_t)kk0 * A_hstep;
+            const float* sg = input_scale_ptr ? input_scale_ptr + kk0 : 0;
             float absmax0 = 0.f;
             float absmax1 = 0.f;
             const float* p0a = p0g;
             const float* psa = sg;
-            for (int kk = 0; kk < max_kk; kk++)
+            for (int kk = 0; kk < max_kk0; kk++)
             {
                 const float s = psa ? *psa++ : 1.f;
                 absmax0 = std::max(absmax0, fabsf(p0a[0] * s));
@@ -1322,7 +1320,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             const float* p0q = p0g;
             const float* psq = sg;
             int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 3 < max_kk0; kk += 4)
             {
                 const float* p0 = p0q;
                 const float* p1 = p0 + A_hstep;
@@ -1345,7 +1343,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 if (psq)
                     psq += 4;
             }
-            if (kk + 1 < max_kk)
+            if (kk + 1 < max_kk0)
             {
                 const float* p0 = p0q;
                 const float* p1 = p0 + A_hstep;
@@ -1361,7 +1359,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     psq += 2;
                 kk += 2;
             }
-            if (kk < max_kk)
+            if (kk < max_kk0)
             {
                 const float s = psq ? *psq : 1.f;
                 pp[0] = float2int8(p0q[0] * s * scale0);
@@ -1378,15 +1376,15 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk = std::min(max_kk0 - k0, block_size);
-            const float* p0g = p0 + (size_t)k0 * A_hstep;
-            const float* sg = input_scale_ptr ? input_scale_ptr + k0 : 0;
+            const int kk0 = g * block_size;
+            const int max_kk0 = std::min(max_kk - kk0, block_size);
+            const float* p0g = p0 + (size_t)kk0 * A_hstep;
+            const float* sg = input_scale_ptr ? input_scale_ptr + kk0 : 0;
 
             float absmax = 0.f;
             const float* p0a = p0g;
             const float* psa = sg;
-            for (int kk = 0; kk < max_kk; kk++)
+            for (int kk = 0; kk < max_kk0; kk++)
             {
                 float v = *p0a;
                 if (psa)
@@ -1398,7 +1396,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             if (absmax == 0.f)
             {
                 *pd++ = 0.f;
-                for (int kk = 0; kk < max_kk; kk++)
+                for (int kk = 0; kk < max_kk0; kk++)
                     *pp++ = 0;
                 continue;
             }
@@ -1408,7 +1406,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
             const float* p0q = p0g;
             const float* psq = sg;
-            for (int kk = 0; kk < max_kk; kk++)
+            for (int kk = 0; kk < max_kk0; kk++)
             {
                 float v = *p0q;
                 if (psq)
@@ -1420,17 +1418,17 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
     }
 }
 
-static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int full_K, int k0, int max_kk0, int block_size)
+static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int k, int max_kk, int K, int block_size)
 {
     const signed char* pAT = AT_tile;
-    const int A_hstep = max_kk0;
+    const int A_hstep = max_kk;
     const float* pAT_descales = AT_descales_tile;
-    const int A_descales_hstep = (max_kk0 + block_size - 1) / block_size;
+    const int A_descales_hstep = (max_kk + block_size - 1) / block_size;
     const signed char* pBT = BT_tile;
     const float* pBT_descales = BT_descales_tile;
     float* outptr = topT_tile;
-    const int block_count = (full_K + block_size - 1) / block_size;
-    const int block_start = k0 / block_size;
+    const int block_count = (K + block_size - 1) / block_size;
+    const int block_start = k / block_size;
 
     int ii = 0;
 #if __loongarch_sx
@@ -1443,7 +1441,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #if __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
-            const signed char* pB = pB_panel + (size_t)8 * k0;
+            const signed char* pB = pB_panel + (size_t)8 * k;
             const float* pB_descales = pB_descales_panel + (size_t)8 * block_start;
             __m256 _out0;
             __m256 _out1;
@@ -1453,7 +1451,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __m256 _out5;
             __m256 _out6;
             __m256 _out7;
-            if (k0 == 0)
+            if (k == 0)
             {
                 _out0 = (__m256)__lasx_xvldi(0);
                 _out1 = (__m256)__lasx_xvldi(0);
@@ -1477,7 +1475,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 __m256i _sum0 = __lasx_xvreplgr2vr_w(0);
                 __m256i _sum1 = __lasx_xvreplgr2vr_w(0);
@@ -1487,9 +1485,9 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 __m256i _sum5 = __lasx_xvreplgr2vr_w(0);
                 __m256i _sum6 = __lasx_xvreplgr2vr_w(0);
                 __m256i _sum7 = __lasx_xvreplgr2vr_w(0);
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m256i _pA = __lasx_xvld(pA, 0);
                     __m256i _pA1 = __lasx_xvshuf4i_w(_pA, _LSX_SHUFFLE(0, 3, 2, 1));
@@ -1525,7 +1523,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 32;
                     pA += 32;
                 }
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     __m128i _pAs = __lsx_vld(pA, 0);
                     __m128i _pA8 = __lsx_vbsrl_v(_pAs, 8);
@@ -1556,7 +1554,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m256i _pA = __lasx_xvldrepl_d(pA, 0);
                     _pA = __lasx_xvilvl_b(__lasx_xvslti_b(_pA, 0), _pA);
@@ -1612,13 +1610,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __lasx_xvst(_out6, outptr + 48, 0);
             __lasx_xvst(_out7, outptr + 56, 0);
             outptr += 64;
-            pB_panel += (size_t)8 * full_K;
+            pB_panel += (size_t)8 * K;
             pB_descales_panel += (size_t)8 * block_count;
         }
 #endif // __loongarch_asx
         for (; jj + 3 < max_jj; jj += 4)
         {
-            const signed char* pB = pB_panel + (size_t)4 * k0;
+            const signed char* pB = pB_panel + (size_t)4 * k;
             const float* pB_descales = pB_descales_panel + (size_t)4 * block_start;
             __m128 _out00;
             __m128 _out01;
@@ -1628,7 +1626,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __m128 _out21;
             __m128 _out30;
             __m128 _out31;
-            if (k0 == 0)
+            if (k == 0)
             {
                 _out00 = (__m128)__lsx_vldi(0);
                 _out01 = (__m128)__lsx_vldi(0);
@@ -1652,7 +1650,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 __m128i _sum00 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum01 = __lsx_vreplgr2vr_w(0);
@@ -1662,9 +1660,9 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 __m128i _sum21 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum30 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum31 = __lsx_vreplgr2vr_w(0);
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128i _pA0 = __lsx_vld(pA, 0);
                     __m128i _pA1 = __lsx_vld(pA + 16, 0);
@@ -1703,7 +1701,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 16;
                     pA += 32;
                 }
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     __m128i _pAs = __lsx_vld(pA, 0);
                     __m128i _pA8 = __lsx_vbsrl_v(_pAs, 8);
@@ -1734,7 +1732,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m128i _pA0 = __lsx_vldrepl_w(pA, 0);
                     _pA0 = __lsx_vilvl_b(__lsx_vslti_b(_pA0, 0), _pA0);
@@ -1791,19 +1789,19 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __lsx_vst((__m128i)_out30, outptr + 24, 0);
             __lsx_vst((__m128i)_out31, outptr + 28, 0);
             outptr += 32;
-            pB_panel += (size_t)4 * full_K;
+            pB_panel += (size_t)4 * K;
             pB_descales_panel += (size_t)4 * block_count;
         }
 
         for (; jj + 1 < max_jj; jj += 2)
         {
-            const signed char* pB = pB_panel + (size_t)2 * k0;
+            const signed char* pB = pB_panel + (size_t)2 * k;
             const float* pB_descales = pB_descales_panel + (size_t)2 * block_start;
             __m128 _out00;
             __m128 _out01;
             __m128 _out10;
             __m128 _out11;
-            if (k0 == 0)
+            if (k == 0)
             {
                 _out00 = (__m128)__lsx_vldi(0);
                 _out01 = (__m128)__lsx_vldi(0);
@@ -1819,15 +1817,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 __m128i _sum00 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum01 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum10 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum11 = __lsx_vreplgr2vr_w(0);
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128i _pA0 = __lsx_vld(pA, 0);
                     __m128i _pA1 = __lsx_vld(pA + 16, 0);
@@ -1845,7 +1843,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 32;
                     pB += 8;
                 }
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     __m128i _pAs = __lsx_vld(pA, 0);
                     __m128i _pA8 = __lsx_vbsrl_v(_pAs, 8);
@@ -1867,7 +1865,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 4;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m128i _pA = __lsx_vldrepl_d(pA, 0);
                     _pA = __lsx_vilvl_b(__lsx_vslti_b(_pA, 0), _pA);
@@ -1904,16 +1902,16 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __lsx_vst((__m128i)_out10, outptr + 8, 0);
             __lsx_vst((__m128i)_out11, outptr + 12, 0);
             outptr += 16;
-            pB_panel += (size_t)2 * full_K;
+            pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
         }
         for (; jj < max_jj; jj++)
         {
-            const signed char* pB = pB_panel + k0;
+            const signed char* pB = pB_panel + k;
             const float* pB_descales = pB_descales_panel + block_start;
             __m128 _out0;
             __m128 _out1;
-            if (k0 == 0)
+            if (k == 0)
             {
                 _out0 = (__m128)__lsx_vldi(0);
                 _out1 = (__m128)__lsx_vldi(0);
@@ -1925,13 +1923,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 __m128i _sum0 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum1 = __lsx_vreplgr2vr_w(0);
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128i _pA0 = __lsx_vld(pA, 0);
                     __m128i _pA1 = __lsx_vld(pA + 16, 0);
@@ -1943,7 +1941,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 32;
                     pB += 4;
                 }
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     __m128i _pAs = __lsx_vld(pA, 0);
                     __m128i _pA8 = __lsx_vbsrl_v(_pAs, 8);
@@ -1959,7 +1957,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 2;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m128i _pA = __lsx_vldrepl_d(pA, 0);
                     _pA = __lsx_vilvl_b(__lsx_vslti_b(_pA, 0), _pA);
@@ -1981,7 +1979,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __lsx_vst((__m128i)_out0, outptr, 0);
             __lsx_vst((__m128i)_out1, outptr + 4, 0);
             outptr += 8;
-            pB_panel += full_K;
+            pB_panel += K;
             pB_descales_panel += block_count;
         }
 
@@ -1997,8 +1995,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #if __loongarch_asx
         for (; jj + 15 < max_jj; jj += 16)
         {
-            const signed char* pB0 = pB_panel + (size_t)8 * k0;
-            const signed char* pB1 = pB_panel + (size_t)8 * full_K + (size_t)8 * k0;
+            const signed char* pB0 = pB_panel + (size_t)8 * k;
+            const signed char* pB1 = pB_panel + (size_t)8 * K + (size_t)8 * k;
             const float* pB_descales0 = pB_descales_panel + (size_t)8 * block_start;
             const float* pB_descales1 = pB_descales_panel + (size_t)8 * block_count + (size_t)8 * block_start;
             __m256 _out00;
@@ -2009,7 +2007,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __m256 _out21;
             __m256 _out30;
             __m256 _out31;
-            if (k0 == 0)
+            if (k == 0)
             {
                 _out00 = (__m256)__lasx_xvldi(0);
                 _out01 = (__m256)__lasx_xvldi(0);
@@ -2034,7 +2032,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 __m256i _sum00 = __lasx_xvreplgr2vr_w(0);
                 __m256i _sum01 = __lasx_xvreplgr2vr_w(0);
@@ -2044,9 +2042,9 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 __m256i _sum21 = __lasx_xvreplgr2vr_w(0);
                 __m256i _sum30 = __lasx_xvreplgr2vr_w(0);
                 __m256i _sum31 = __lasx_xvreplgr2vr_w(0);
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128i _pA4 = __lsx_vld(pA, 0);
                     __m256i _pA = __lasx_concat_128(_pA4, _pA4);
@@ -2106,7 +2104,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _sum11 = __lasx_xvshuf4i_w(_sum11, _LSX_SHUFFLE(2, 1, 0, 3));
                 _sum21 = __lasx_xvshuf4i_w(_sum21, _LSX_SHUFFLE(1, 0, 3, 2));
                 _sum31 = __lasx_xvshuf4i_w(_sum31, _LSX_SHUFFLE(0, 3, 2, 1));
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     __m128i _pB0 = __lsx_vld(pB0, 0);
                     __m128i _pB1 = __lsx_vld(pB1, 0);
@@ -2136,7 +2134,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m128i _pB0 = __lsx_vldrepl_d(pB0, 0);
                     __m128i _pB1 = __lsx_vldrepl_d(pB1, 0);
@@ -2197,18 +2195,18 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __lasx_xvst(_out30, outptr + 48, 0);
             __lasx_xvst(_out31, outptr + 56, 0);
             outptr += 64;
-            pB_panel += (size_t)16 * full_K;
+            pB_panel += (size_t)16 * K;
             pB_descales_panel += (size_t)16 * block_count;
         }
         for (; jj + 7 < max_jj; jj += 8)
         {
-            const signed char* pB = pB_panel + (size_t)8 * k0;
+            const signed char* pB = pB_panel + (size_t)8 * k;
             const float* pB_descales = pB_descales_panel + (size_t)8 * block_start;
             __m256 _out0;
             __m256 _out1;
             __m256 _out2;
             __m256 _out3;
-            if (k0 == 0)
+            if (k == 0)
             {
                 _out0 = (__m256)__lasx_xvldi(0);
                 _out1 = (__m256)__lasx_xvldi(0);
@@ -2225,15 +2223,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 __m256i _sum0 = __lasx_xvreplgr2vr_w(0);
                 __m256i _sum1 = __lasx_xvreplgr2vr_w(0);
                 __m256i _sum2 = __lasx_xvreplgr2vr_w(0);
                 __m256i _sum3 = __lasx_xvreplgr2vr_w(0);
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128i _pA4 = __lsx_vld(pA, 0);
                     __m256i _pA = __lasx_concat_128(_pA4, _pA4);
@@ -2266,7 +2264,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _sum1 = __lasx_xvshuf4i_w(_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
                 _sum2 = __lasx_xvshuf4i_w(_sum2, _LSX_SHUFFLE(1, 0, 3, 2));
                 _sum3 = __lasx_xvshuf4i_w(_sum3, _LSX_SHUFFLE(0, 3, 2, 1));
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     __m128i _pB = __lsx_vld(pB, 0);
                     __m128i _pA = __lsx_vldrepl_d(pA, 0);
@@ -2290,7 +2288,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m128i _pB = __lsx_vldrepl_d(pB, 0);
                     _pB = __lsx_vilvl_b(__lsx_vslti_b(_pB, 0), _pB);
@@ -2326,14 +2324,14 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __lasx_xvst(_out2, outptr + 16, 0);
             __lasx_xvst(_out3, outptr + 24, 0);
             outptr += 32;
-            pB_panel += (size_t)8 * full_K;
+            pB_panel += (size_t)8 * K;
             pB_descales_panel += (size_t)8 * block_count;
         }
 #endif // __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
-            const signed char* pB0 = pB_panel + (size_t)4 * k0;
-            const signed char* pB1 = pB_panel + (size_t)4 * full_K + (size_t)4 * k0;
+            const signed char* pB0 = pB_panel + (size_t)4 * k;
+            const signed char* pB1 = pB_panel + (size_t)4 * K + (size_t)4 * k;
             const float* pB_descales0 = pB_descales_panel + (size_t)4 * block_start;
             const float* pB_descales1 = pB_descales_panel + (size_t)4 * block_count + (size_t)4 * block_start;
             __m128 _out00;
@@ -2344,7 +2342,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __m128 _out21;
             __m128 _out30;
             __m128 _out31;
-            if (k0 == 0)
+            if (k == 0)
             {
                 _out00 = (__m128)__lsx_vldi(0);
                 _out01 = (__m128)__lsx_vldi(0);
@@ -2368,7 +2366,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 __m128i _sum00 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum01 = __lsx_vreplgr2vr_w(0);
@@ -2378,9 +2376,9 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 __m128i _sum21 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum30 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum31 = __lsx_vreplgr2vr_w(0);
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128i _pA = __lsx_vld(pA, 0);
                     __m128i _pA1 = __lsx_vshuf4i_w(_pA, _LSX_SHUFFLE(1, 0, 3, 2));
@@ -2421,7 +2419,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _sum11 = __lsx_vshuf4i_w(_sum11, _LSX_SHUFFLE(2, 1, 0, 3));
                 _sum21 = __lsx_vshuf4i_w(_sum21, _LSX_SHUFFLE(1, 0, 3, 2));
                 _sum31 = __lsx_vshuf4i_w(_sum31, _LSX_SHUFFLE(0, 3, 2, 1));
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     __m128i _pB0 = __lsx_vldrepl_d(pB0, 0);
                     __m128i _pB1 = __lsx_vldrepl_d(pB1, 0);
@@ -2451,7 +2449,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m128i _pB0 = __lsx_vldrepl_w(pB0, 0);
                     __m128i _pB1 = __lsx_vldrepl_w(pB1, 0);
@@ -2510,18 +2508,18 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __lsx_vst((__m128i)_out30, outptr + 24, 0);
             __lsx_vst((__m128i)_out31, outptr + 28, 0);
             outptr += 32;
-            pB_panel += (size_t)8 * full_K;
+            pB_panel += (size_t)8 * K;
             pB_descales_panel += (size_t)8 * block_count;
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
-            const signed char* pB = pB_panel + (size_t)4 * k0;
+            const signed char* pB = pB_panel + (size_t)4 * k;
             const float* pB_descales = pB_descales_panel + (size_t)4 * block_start;
             __m128 _out0;
             __m128 _out1;
             __m128 _out2;
             __m128 _out3;
-            if (k0 == 0)
+            if (k == 0)
             {
                 _out0 = (__m128)__lsx_vldi(0);
                 _out1 = (__m128)__lsx_vldi(0);
@@ -2537,15 +2535,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 __m128i _sum0 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum1 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum2 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum3 = __lsx_vreplgr2vr_w(0);
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128i _pA = __lsx_vld(pA, 0);
                     __m128i _pA1 = __lsx_vshuf4i_w(_pA, _LSX_SHUFFLE(1, 0, 3, 2));
@@ -2568,7 +2566,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _sum1 = __lsx_vshuf4i_w(_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
                 _sum2 = __lsx_vshuf4i_w(_sum2, _LSX_SHUFFLE(1, 0, 3, 2));
                 _sum3 = __lsx_vshuf4i_w(_sum3, _LSX_SHUFFLE(0, 3, 2, 1));
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     __m128i _pB = __lsx_vldrepl_d(pB, 0);
                     __m128i _pA = __lsx_vldrepl_d(pA, 0);
@@ -2592,7 +2590,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m128i _pB = __lsx_vldrepl_w(pB, 0);
                     _pB = __lsx_vilvl_b(__lsx_vslti_b(_pB, 0), _pB);
@@ -2622,16 +2620,16 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __lsx_vst((__m128i)_out2, outptr + 8, 0);
             __lsx_vst((__m128i)_out3, outptr + 12, 0);
             outptr += 16;
-            pB_panel += (size_t)4 * full_K;
+            pB_panel += (size_t)4 * K;
             pB_descales_panel += (size_t)4 * block_count;
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
-            const signed char* pB = pB_panel + (size_t)2 * k0;
+            const signed char* pB = pB_panel + (size_t)2 * k;
             const float* pB_descales = pB_descales_panel + (size_t)2 * block_start;
             __m128 _out0;
             __m128 _out1;
-            if (k0 == 0)
+            if (k == 0)
             {
                 _out0 = (__m128)__lsx_vldi(0);
                 _out1 = (__m128)__lsx_vldi(0);
@@ -2645,13 +2643,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 __m128i _sum0 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum1 = __lsx_vreplgr2vr_w(0);
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128i _pA = __lsx_vld(pA, 0);
                     __m128i _pB0 = __lsx_vldrepl_d(pB, 0);
@@ -2663,7 +2661,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                     pB += 8;
                 }
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     __m128i _pA = __lsx_vldrepl_d(pA, 0);
                     __m128i _pA0 = __lsx_vreplvei_w(__lsx_vpickev_b(_pA, _pA), 0);
@@ -2691,7 +2689,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 4;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m128i _pA = __lsx_vldrepl_w(pA, 0);
                     _pA = __lsx_vilvl_b(__lsx_vslti_b(_pA, 0), _pA);
@@ -2726,15 +2724,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __lsx_vstelm_w((__m128i)_out0, outptr + 6, 0, 3);
             __lsx_vstelm_w((__m128i)_out1, outptr + 7, 0, 3);
             outptr += 8;
-            pB_panel += (size_t)2 * full_K;
+            pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
         }
         for (; jj < max_jj; jj++)
         {
-            const signed char* pB = pB_panel + k0;
+            const signed char* pB = pB_panel + k;
             const float* pB_descales = pB_descales_panel + block_start;
             __m128 _out0;
-            if (k0 == 0)
+            if (k == 0)
             {
                 _out0 = (__m128)__lsx_vldi(0);
             }
@@ -2744,12 +2742,12 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 __m128i _sum0 = __lsx_vreplgr2vr_w(0);
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128i _pA = __lsx_vld(pA, 0);
                     __m128i _pB = __lsx_vldrepl_w(pB, 0);
@@ -2758,7 +2756,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                     pB += 4;
                 }
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     __m128i _pA = __lsx_vldrepl_d(pA, 0);
                     __m128i _pB = __lsx_vldrepl_h(pB, 0);
@@ -2768,7 +2766,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 2;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m128i _pA = __lsx_vldrepl_w(pA, 0);
                     _pA = __lsx_vilvl_b(__lsx_vslti_b(_pA, 0), _pA);
@@ -2783,7 +2781,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             __lsx_vst((__m128i)_out0, outptr, 0);
             outptr += 4;
-            pB_panel += full_K;
+            pB_panel += K;
             pB_descales_panel += block_count;
         }
         pAT += A_hstep * 4;
@@ -2800,15 +2798,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #if __loongarch_asx
         for (; jj + 15 < max_jj; jj += 16)
         {
-            const signed char* pB0 = pB_panel + (size_t)8 * k0;
-            const signed char* pB1 = pB_panel + (size_t)8 * full_K + (size_t)8 * k0;
+            const signed char* pB0 = pB_panel + (size_t)8 * k;
+            const signed char* pB1 = pB_panel + (size_t)8 * K + (size_t)8 * k;
             const float* pB_descales0 = pB_descales_panel + (size_t)8 * block_start;
             const float* pB_descales1 = pB_descales_panel + (size_t)8 * block_count + (size_t)8 * block_start;
             __m256 _out00;
             __m256 _out01;
             __m256 _out10;
             __m256 _out11;
-            if (k0 == 0)
+            if (k == 0)
             {
                 _out00 = (__m256)__lasx_xvldi(0);
                 _out01 = (__m256)__lasx_xvldi(0);
@@ -2824,15 +2822,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 __m256i _sum00 = __lasx_xvreplgr2vr_w(0);
                 __m256i _sum01 = __lasx_xvreplgr2vr_w(0);
                 __m256i _sum10 = __lasx_xvreplgr2vr_w(0);
                 __m256i _sum11 = __lasx_xvreplgr2vr_w(0);
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m256i _pB0 = __lasx_xvld(pB0, 0);
                     __m256i _pB1 = __lasx_xvld(pB1, 0);
@@ -2850,7 +2848,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB1 += 32;
                     pA += 8;
                 }
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     __m128i _pB0 = __lsx_vld(pB0, 0);
                     __m128i _pB1 = __lsx_vld(pB1, 0);
@@ -2870,7 +2868,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m128i _pB0 = __lsx_vldrepl_d(pB0, 0);
                     __m128i _pB1 = __lsx_vldrepl_d(pB1, 0);
@@ -2909,16 +2907,16 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __lasx_xvst(_out10, outptr + 16, 0);
             __lasx_xvst(_out11, outptr + 24, 0);
             outptr += 32;
-            pB_panel += (size_t)16 * full_K;
+            pB_panel += (size_t)16 * K;
             pB_descales_panel += (size_t)16 * block_count;
         }
         for (; jj + 7 < max_jj; jj += 8)
         {
-            const signed char* pB = pB_panel + (size_t)8 * k0;
+            const signed char* pB = pB_panel + (size_t)8 * k;
             const float* pB_descales = pB_descales_panel + (size_t)8 * block_start;
             __m256 _out0;
             __m256 _out1;
-            if (k0 == 0)
+            if (k == 0)
             {
                 _out0 = (__m256)__lasx_xvldi(0);
                 _out1 = (__m256)__lasx_xvldi(0);
@@ -2930,13 +2928,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 __m256i _sum0 = __lasx_xvreplgr2vr_w(0);
                 __m256i _sum1 = __lasx_xvreplgr2vr_w(0);
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m256i _pB = __lasx_xvld(pB, 0);
                     __m256i _pA0 = __lasx_xvldrepl_w(pA, 0);
@@ -2948,7 +2946,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 32;
                     pA += 8;
                 }
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     __m128i _pB = __lsx_vld(pB, 0);
                     __m128i _pAs = __lsx_vldrepl_w(pA, 0);
@@ -2962,7 +2960,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m128i _pB = __lsx_vldrepl_d(pB, 0);
                     _pB = __lsx_vilvl_b(__lsx_vslti_b(_pB, 0), _pB);
@@ -2984,21 +2982,21 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __lasx_xvst(_out0, outptr, 0);
             __lasx_xvst(_out1, outptr + 8, 0);
             outptr += 16;
-            pB_panel += (size_t)8 * full_K;
+            pB_panel += (size_t)8 * K;
             pB_descales_panel += (size_t)8 * block_count;
         }
 #endif // __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
-            const signed char* pB0 = pB_panel + (size_t)4 * k0;
-            const signed char* pB1 = pB_panel + (size_t)4 * full_K + (size_t)4 * k0;
+            const signed char* pB0 = pB_panel + (size_t)4 * k;
+            const signed char* pB1 = pB_panel + (size_t)4 * K + (size_t)4 * k;
             const float* pB_descales0 = pB_descales_panel + (size_t)4 * block_start;
             const float* pB_descales1 = pB_descales_panel + (size_t)4 * block_count + (size_t)4 * block_start;
             __m128 _out00;
             __m128 _out01;
             __m128 _out10;
             __m128 _out11;
-            if (k0 == 0)
+            if (k == 0)
             {
                 _out00 = (__m128)__lsx_vldi(0);
                 _out01 = (__m128)__lsx_vldi(0);
@@ -3014,15 +3012,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 __m128i _sum00 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum01 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum10 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum11 = __lsx_vreplgr2vr_w(0);
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128i _pB0 = __lsx_vld(pB0, 0);
                     __m128i _pB1 = __lsx_vld(pB1, 0);
@@ -3040,7 +3038,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB1 += 16;
                     pA += 8;
                 }
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     __m128i _pB0 = __lsx_vldrepl_d(pB0, 0);
                     __m128i _pB1 = __lsx_vldrepl_d(pB1, 0);
@@ -3060,7 +3058,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m128i _pB0 = __lsx_vldrepl_w(pB0, 0);
                     __m128i _pB1 = __lsx_vldrepl_w(pB1, 0);
@@ -3099,16 +3097,16 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __lsx_vst((__m128i)_out10, outptr + 8, 0);
             __lsx_vst((__m128i)_out11, outptr + 12, 0);
             outptr += 16;
-            pB_panel += (size_t)8 * full_K;
+            pB_panel += (size_t)8 * K;
             pB_descales_panel += (size_t)8 * block_count;
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
-            const signed char* pB = pB_panel + (size_t)4 * k0;
+            const signed char* pB = pB_panel + (size_t)4 * k;
             const float* pB_descales = pB_descales_panel + (size_t)4 * block_start;
             __m128 _out0;
             __m128 _out1;
-            if (k0 == 0)
+            if (k == 0)
             {
                 _out0 = (__m128)__lsx_vldi(0);
                 _out1 = (__m128)__lsx_vldi(0);
@@ -3120,13 +3118,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 __m128i _sum0 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum1 = __lsx_vreplgr2vr_w(0);
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128i _pB = __lsx_vld(pB, 0);
                     __m128i _pA0 = __lsx_vldrepl_w(pA, 0);
@@ -3138,7 +3136,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 16;
                     pA += 8;
                 }
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     __m128i _pB = __lsx_vldrepl_d(pB, 0);
                     __m128i _pAs = __lsx_vldrepl_w(pA, 0);
@@ -3152,7 +3150,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m128i _pB = __lsx_vldrepl_w(pB, 0);
                     _pB = __lsx_vilvl_b(__lsx_vslti_b(_pB, 0), _pB);
@@ -3174,19 +3172,19 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __lsx_vst((__m128i)_out0, outptr, 0);
             __lsx_vst((__m128i)_out1, outptr + 4, 0);
             outptr += 8;
-            pB_panel += (size_t)4 * full_K;
+            pB_panel += (size_t)4 * K;
             pB_descales_panel += (size_t)4 * block_count;
         }
 #endif // __loongarch_sx
         for (; jj + 1 < max_jj; jj += 2)
         {
-            const signed char* pB = pB_panel + (size_t)2 * k0;
+            const signed char* pB = pB_panel + (size_t)2 * k;
             const float* pB_descales = pB_descales_panel + (size_t)2 * block_start;
             float out00;
             float out01;
             float out10;
             float out11;
-            if (k0 == 0)
+            if (k == 0)
             {
                 out00 = 0.f;
                 out01 = 0.f;
@@ -3202,15 +3200,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 int sum00 = 0;
                 int sum01 = 0;
                 int sum10 = 0;
                 int sum11 = 0;
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     asm volatile(""
                                  :
@@ -3224,7 +3222,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 8;
                     pA += 8;
                 }
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     sum00 += pA[0] * pB[0] + pA[1] * pB[1];
                     sum01 += pA[0] * pB[2] + pA[1] * pB[3];
@@ -3234,7 +3232,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     sum00 += pA[0] * pB[0];
                     sum01 += pA[0] * pB[1];
@@ -3259,16 +3257,16 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr[2] = out10;
             outptr[3] = out11;
             outptr += 4;
-            pB_panel += (size_t)2 * full_K;
+            pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
         }
         for (; jj < max_jj; jj++)
         {
-            const signed char* pB = pB_panel + k0;
+            const signed char* pB = pB_panel + k;
             const float* pB_descales = pB_descales_panel + block_start;
             float out0;
             float out1;
-            if (k0 == 0)
+            if (k == 0)
             {
                 out0 = 0.f;
                 out1 = 0.f;
@@ -3280,13 +3278,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 int sum0 = 0;
                 int sum1 = 0;
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     asm volatile(""
                                  :
@@ -3298,7 +3296,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 4;
                     pA += 8;
                 }
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     sum0 += pA[0] * pB[0] + pA[1] * pB[1];
                     sum1 += pA[2] * pB[0] + pA[3] * pB[1];
@@ -3306,7 +3304,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     sum0 += pA[0] * pB[0];
                     sum1 += pA[1] * pB[0];
@@ -3321,7 +3319,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr[0] = out0;
             outptr[1] = out1;
             outptr += 2;
-            pB_panel += full_K;
+            pB_panel += K;
             pB_descales_panel += block_count;
         }
         pAT += A_hstep * 2;
@@ -3337,13 +3335,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #if __loongarch_asx
         for (; jj + 15 < max_jj; jj += 16)
         {
-            const signed char* pB0 = pB_panel + (size_t)8 * k0;
-            const signed char* pB1 = pB_panel + (size_t)8 * full_K + (size_t)8 * k0;
+            const signed char* pB0 = pB_panel + (size_t)8 * k;
+            const signed char* pB1 = pB_panel + (size_t)8 * K + (size_t)8 * k;
             const float* pB_descales0 = pB_descales_panel + (size_t)8 * block_start;
             const float* pB_descales1 = pB_descales_panel + (size_t)8 * block_count + (size_t)8 * block_start;
             __m256 _out00;
             __m256 _out01;
-            if (k0 == 0)
+            if (k == 0)
             {
                 _out00 = (__m256)__lasx_xvldi(0);
                 _out01 = (__m256)__lasx_xvldi(0);
@@ -3355,13 +3353,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 __m256i _sum00 = __lasx_xvreplgr2vr_w(0);
                 __m256i _sum01 = __lasx_xvreplgr2vr_w(0);
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m256i _pB0 = __lasx_xvld(pB0, 0);
                     __m256i _pB1 = __lasx_xvld(pB1, 0);
@@ -3374,7 +3372,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB1 += 32;
                     pA += 4;
                 }
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     __m128i _pB0 = __lsx_vld(pB0, 0);
                     __m128i _pB1 = __lsx_vld(pB1, 0);
@@ -3388,7 +3386,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 2;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m128i _pB0 = __lsx_vldrepl_d(pB0, 0);
                     __m128i _pB1 = __lsx_vldrepl_d(pB1, 0);
@@ -3414,15 +3412,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __lasx_xvst(_out00, outptr, 0);
             __lasx_xvst(_out01, outptr + 8, 0);
             outptr += 16;
-            pB_panel += (size_t)16 * full_K;
+            pB_panel += (size_t)16 * K;
             pB_descales_panel += (size_t)16 * block_count;
         }
         for (; jj + 7 < max_jj; jj += 8)
         {
-            const signed char* pB = pB_panel + (size_t)8 * k0;
+            const signed char* pB = pB_panel + (size_t)8 * k;
             const float* pB_descales = pB_descales_panel + (size_t)8 * block_start;
             __m256 _out0;
-            if (k0 == 0)
+            if (k == 0)
             {
                 _out0 = (__m256)__lasx_xvldi(0);
             }
@@ -3432,12 +3430,12 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 __m256i _sum0 = __lasx_xvreplgr2vr_w(0);
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m256i _pB = __lasx_xvld(pB, 0);
                     __m256i _pA0 = __lasx_xvldrepl_w(pA, 0);
@@ -3446,7 +3444,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 32;
                     pA += 4;
                 }
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     __m128i _pB = __lsx_vld(pB, 0);
                     __m128i _pA0 = __lsx_vreplgr2vr_h((unsigned char)pA[0] | ((unsigned char)pA[1] << 8));
@@ -3456,7 +3454,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 2;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m128i _pB = __lsx_vldrepl_d(pB, 0);
                     _pB = __lsx_vilvl_b(__lsx_vslti_b(_pB, 0), _pB);
@@ -3471,19 +3469,19 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             __lasx_xvst(_out0, outptr, 0);
             outptr += 8;
-            pB_panel += (size_t)8 * full_K;
+            pB_panel += (size_t)8 * K;
             pB_descales_panel += (size_t)8 * block_count;
         }
 #endif // __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
-            const signed char* pB0 = pB_panel + (size_t)4 * k0;
-            const signed char* pB1 = pB_panel + (size_t)4 * full_K + (size_t)4 * k0;
+            const signed char* pB0 = pB_panel + (size_t)4 * k;
+            const signed char* pB1 = pB_panel + (size_t)4 * K + (size_t)4 * k;
             const float* pB_descales0 = pB_descales_panel + (size_t)4 * block_start;
             const float* pB_descales1 = pB_descales_panel + (size_t)4 * block_count + (size_t)4 * block_start;
             __m128 _out00;
             __m128 _out01;
-            if (k0 == 0)
+            if (k == 0)
             {
                 _out00 = (__m128)__lsx_vldi(0);
                 _out01 = (__m128)__lsx_vldi(0);
@@ -3495,13 +3493,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 __m128i _sum00 = __lsx_vreplgr2vr_w(0);
                 __m128i _sum01 = __lsx_vreplgr2vr_w(0);
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128i _pB0 = __lsx_vld(pB0, 0);
                     __m128i _pB1 = __lsx_vld(pB1, 0);
@@ -3514,7 +3512,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB1 += 16;
                     pA += 4;
                 }
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     __m128i _pB0 = __lsx_vldrepl_d(pB0, 0);
                     __m128i _pB1 = __lsx_vldrepl_d(pB1, 0);
@@ -3528,7 +3526,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 2;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m128i _pB0 = __lsx_vldrepl_w(pB0, 0);
                     __m128i _pB1 = __lsx_vldrepl_w(pB1, 0);
@@ -3554,15 +3552,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             __lsx_vst((__m128i)_out00, outptr, 0);
             __lsx_vst((__m128i)_out01, outptr + 4, 0);
             outptr += 8;
-            pB_panel += (size_t)8 * full_K;
+            pB_panel += (size_t)8 * K;
             pB_descales_panel += (size_t)8 * block_count;
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
-            const signed char* pB = pB_panel + (size_t)4 * k0;
+            const signed char* pB = pB_panel + (size_t)4 * k;
             const float* pB_descales = pB_descales_panel + (size_t)4 * block_start;
             __m128 _out0;
-            if (k0 == 0)
+            if (k == 0)
             {
                 _out0 = (__m128)__lsx_vldi(0);
             }
@@ -3572,12 +3570,12 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 __m128i _sum0 = __lsx_vreplgr2vr_w(0);
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128i _pB = __lsx_vld(pB, 0);
                     __m128i _pA0 = __lsx_vldrepl_w(pA, 0);
@@ -3586,7 +3584,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 16;
                     pA += 4;
                 }
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     __m128i _pB = __lsx_vldrepl_d(pB, 0);
                     __m128i _pA0 = __lsx_vreplgr2vr_h((unsigned char)pA[0] | ((unsigned char)pA[1] << 8));
@@ -3596,7 +3594,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 2;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     __m128i _pB = __lsx_vldrepl_w(pB, 0);
                     _pB = __lsx_vilvl_b(__lsx_vslti_b(_pB, 0), _pB);
@@ -3611,17 +3609,17 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             __lsx_vst((__m128i)_out0, outptr, 0);
             outptr += 4;
-            pB_panel += (size_t)4 * full_K;
+            pB_panel += (size_t)4 * K;
             pB_descales_panel += (size_t)4 * block_count;
         }
 #endif // __loongarch_sx
         for (; jj + 1 < max_jj; jj += 2)
         {
-            const signed char* pB = pB_panel + (size_t)2 * k0;
+            const signed char* pB = pB_panel + (size_t)2 * k;
             const float* pB_descales = pB_descales_panel + (size_t)2 * block_start;
             float out0;
             float out1;
-            if (k0 == 0)
+            if (k == 0)
             {
                 out0 = 0.f;
                 out1 = 0.f;
@@ -3633,13 +3631,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 int sum0 = 0;
                 int sum1 = 0;
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     asm volatile(""
                                  :
@@ -3651,7 +3649,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 8;
                     pA += 4;
                 }
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     sum0 += pA[0] * pB[0] + pA[1] * pB[1];
                     sum1 += pA[0] * pB[2] + pA[1] * pB[3];
@@ -3659,7 +3657,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 2;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     sum0 += pA[0] * pB[0];
                     sum1 += pA[0] * pB[1];
@@ -3674,15 +3672,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr[0] = out0;
             outptr[1] = out1;
             outptr += 2;
-            pB_panel += (size_t)2 * full_K;
+            pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
         }
         for (; jj < max_jj; jj++)
         {
-            const signed char* pB = pB_panel + k0;
+            const signed char* pB = pB_panel + k;
             const float* pB_descales = pB_descales_panel + block_start;
             float out0;
-            if (k0 == 0)
+            if (k == 0)
             {
                 out0 = 0.f;
             }
@@ -3692,12 +3690,12 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk0; kk0 += block_size)
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 int sum0 = 0;
-                const int max_kk = std::min(max_kk0 - kk0, block_size);
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
-                for (; kk + 3 < max_kk; kk += 4)
+                for (; kk + 3 < max_kk0; kk += 4)
                 {
                     asm volatile(""
                                  :
@@ -3708,14 +3706,14 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 4;
                     pA += 4;
                 }
-                if (kk + 1 < max_kk)
+                if (kk + 1 < max_kk0)
                 {
                     sum0 += pA[0] * pB[0] + pA[1] * pB[1];
                     pB += 2;
                     pA += 2;
                     kk += 2;
                 }
-                if (kk < max_kk)
+                if (kk < max_kk0)
                 {
                     sum0 += pA[0] * pB[0];
                     pB++;
@@ -3724,7 +3722,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 out0 += sum0 * *pA_descales++ * *pB_descales++;
             }
             *outptr++ = out0;
-            pB_panel += full_K;
+            pB_panel += K;
             pB_descales_panel += block_count;
         }
         pAT += A_hstep;

@@ -32,8 +32,14 @@ MultiHeadAttention_x86::MultiHeadAttention_x86()
 #if NCNN_WEIGHT_QUANT
 int MultiHeadAttention_x86::create_pipeline_wq_int8(const Option& _opt)
 {
-    if (q_gemm)
+    if (q_gemm && k_gemm && v_gemm && o_gemm && qk_gemm && qkv_gemm && qk_softmax)
         return 0;
+
+    if (q_gemm || k_gemm || v_gemm || o_gemm || qk_gemm || qkv_gemm || qk_softmax)
+    {
+        destroy_pipeline(_opt);
+        return -100;
+    }
 
     Option opt = _opt;
     Option opt_wq = opt;
@@ -372,7 +378,14 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
 #if NCNN_WEIGHT_QUANT
     if (weight_block_quantize)
     {
-        if (quantize_term / 100 != 8)
+        int weight_bits;
+        int block_size;
+        bool has_input_scale;
+        const int ret = get_weight_block_quantize_params(weight_bits, block_size, has_input_scale);
+        if (ret != 0)
+            return ret;
+
+        if (weight_bits != 8)
             return MultiHeadAttention::create_pipeline(_opt);
 
         return create_pipeline_wq_int8(_opt);
@@ -735,8 +748,18 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
 
 int MultiHeadAttention_x86::destroy_pipeline(const Option& _opt)
 {
-    if (weight_block_quantize && quantize_term / 100 != 8)
-        return MultiHeadAttention::destroy_pipeline(_opt);
+    if (weight_block_quantize)
+    {
+        int weight_bits;
+        int block_size;
+        bool has_input_scale;
+        const int ret = get_weight_block_quantize_params(weight_bits, block_size, has_input_scale);
+        if (ret != 0)
+            return ret;
+
+        if (weight_bits != 8)
+            return MultiHeadAttention::destroy_pipeline(_opt);
+    }
 
     Option opt = _opt;
     if (int8_scale_term && !weight_block_quantize)
@@ -807,8 +830,21 @@ int MultiHeadAttention_x86::destroy_pipeline(const Option& _opt)
 
 int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
-    if (weight_block_quantize && quantize_term / 100 != 8)
-        return MultiHeadAttention::forward(bottom_blobs, top_blobs, _opt);
+    if (weight_block_quantize)
+    {
+        int weight_bits;
+        int block_size;
+        bool has_input_scale;
+        const int ret = get_weight_block_quantize_params(weight_bits, block_size, has_input_scale);
+        if (ret != 0)
+            return ret;
+
+        if (weight_bits != 8)
+            return MultiHeadAttention::forward(bottom_blobs, top_blobs, _opt);
+
+        if (!q_gemm || !k_gemm || !v_gemm || !o_gemm || !qk_gemm || !qkv_gemm || !qk_softmax)
+            return -100;
+    }
 
     int q_blob_i = 0;
     int k_blob_i = 0;

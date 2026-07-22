@@ -21,7 +21,8 @@ public:
 
 protected:
 #if NCNN_WEIGHT_QUANT
-    int forward_weight_block_quantize_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+    int create_pipeline_wq_int8(const Option& opt);
+    int forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif
 #if NCNN_INT8
     int create_pipeline_int8(const Option& opt);
@@ -39,8 +40,8 @@ public:
     Mat BT_data;
     Mat CT_data;
 #if NCNN_WEIGHT_QUANT
-    Mat B_data_w8a8_packed;
-    Mat B_data_w8a8_descales;
+    Mat BT_data_wq_int8;
+    Mat BT_data_wq_int8_descales;
 #endif
 };
 
