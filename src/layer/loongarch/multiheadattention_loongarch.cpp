@@ -704,7 +704,6 @@ int MultiHeadAttention_loongarch::forward(const std::vector<Mat>& bottom_blobs, 
 
         if (weight_bits != 8)
             return MultiHeadAttention::forward(bottom_blobs, top_blobs, _opt);
-
     }
 
     int q_blob_i = 0;

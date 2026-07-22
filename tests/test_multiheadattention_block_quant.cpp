@@ -180,9 +180,9 @@ static int make_mha_weights(int qdim, int kdim, int vdim, int embed_dim, int bit
     ncnn::Mat out_weight_dequantized;
 
     if (quantize_weight(q_weight, bits, block_size, q_input_scales, q_weight_quantized, q_weight_scales, q_weight_dequantized) != 0
-        || quantize_weight(k_weight, bits, block_size, k_input_scales, k_weight_quantized, k_weight_scales, k_weight_dequantized) != 0
-        || quantize_weight(v_weight, bits, block_size, v_input_scales, v_weight_quantized, v_weight_scales, v_weight_dequantized) != 0
-        || quantize_weight(out_weight, bits, block_size, out_input_scales, out_weight_quantized, out_weight_scales, out_weight_dequantized) != 0)
+            || quantize_weight(k_weight, bits, block_size, k_input_scales, k_weight_quantized, k_weight_scales, k_weight_dequantized) != 0
+            || quantize_weight(v_weight, bits, block_size, v_input_scales, v_weight_quantized, v_weight_scales, v_weight_dequantized) != 0
+            || quantize_weight(out_weight, bits, block_size, out_input_scales, out_weight_quantized, out_weight_scales, out_weight_dequantized) != 0)
         return -100;
 
     ncnn::Mat q_bias = RandomMat(embed_dim, -1.f, 1.f);

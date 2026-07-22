@@ -835,7 +835,6 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
 
         if (weight_bits != 8)
             return MultiHeadAttention::forward(bottom_blobs, top_blobs, _opt);
-
     }
 
     int q_blob_i = 0;

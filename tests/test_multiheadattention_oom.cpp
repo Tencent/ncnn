@@ -116,5 +116,5 @@ int main()
            || test_multiheadattention_w8a8_oom(33, 35, 37, 8, 2, 32, 0)
            || test_multiheadattention_w8a8_oom(65, 67, 69, 8, 2, 64, 1)
 #endif
-        ;
+           ;
 }
