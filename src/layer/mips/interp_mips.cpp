@@ -296,7 +296,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         return 0;
     }
 
-    if (is_identity_resize_x(w, outw) && is_identity_resize_y(h, outh))
+    if (is_identity_resize(w, h, outw, outh))
     {
         top_blob = bottom_blob;
         return 0;
@@ -1932,7 +1932,7 @@ int Interp_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
 
     if (dims == 3)
     {
-        if (is_identity_resize_x(w, outw) && is_identity_resize_y(h, outh))
+        if (is_identity_resize(w, h, outw, outh))
         {
             top_blob = bottom_blob;
             return 0;

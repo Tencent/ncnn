@@ -310,7 +310,7 @@ int Interp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
         return 0;
     }
 
-    if (is_identity_resize_x(w, outw) && is_identity_resize_y(h, outh))
+    if (is_identity_resize(w, h, outw, outh))
     {
         top_blob = bottom_blob;
         return 0;

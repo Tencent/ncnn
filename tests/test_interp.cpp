@@ -266,6 +266,50 @@ static int test_interp_inferred_fractional_scale(int resize_type)
     return ret;
 }
 
+static int test_interp_small_axis(int resize_type, int input_width)
+{
+    ncnn::Mat a = RandomMat(input_width, 1);
+
+    ncnn::ParamDict pd;
+    pd.set(0, resize_type);
+    pd.set(1, 1.1f);
+    pd.set(2, 1.1f);
+    pd.set(3, 0);
+    pd.set(4, 0);
+
+    std::vector<ncnn::Mat> weights(0);
+
+    int ret = test_layer("Interp", pd, weights, a);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_interp_small_axis failed resize_type=%d input_width=%d\n", resize_type, input_width);
+    }
+
+    return ret;
+}
+
+static int test_interp_small_axis_3d(int resize_type, int input_width, int input_height)
+{
+    ncnn::Mat a = RandomMat(input_width, input_height, 1);
+
+    ncnn::ParamDict pd;
+    pd.set(0, resize_type);
+    pd.set(1, 1.1f);
+    pd.set(2, 1.1f);
+    pd.set(3, 0);
+    pd.set(4, 0);
+
+    std::vector<ncnn::Mat> weights(0);
+
+    int ret = test_layer("Interp", pd, weights, a);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_interp_small_axis_3d failed resize_type=%d input_width=%d input_height=%d\n", resize_type, input_width, input_height);
+    }
+
+    return ret;
+}
+
 static int test_interp_0()
 {
     ncnn::Mat a = RandomMat(15, 16, 7);
@@ -854,5 +898,10 @@ int main()
            || test_interp_dynamic_target_size(2)
            || test_interp_dynamic_target_size(3)
            || test_interp_inferred_fractional_scale(2)
-           || test_interp_inferred_fractional_scale(3);
+           || test_interp_inferred_fractional_scale(3)
+           || test_interp_small_axis(2, 1)
+           || test_interp_small_axis(3, 1)
+           || test_interp_small_axis(3, 3)
+           || test_interp_small_axis_3d(2, 3, 1)
+           || test_interp_small_axis_3d(3, 4, 3);
 }

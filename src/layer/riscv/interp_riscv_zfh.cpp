@@ -287,7 +287,7 @@ int Interp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
         return 0;
     }
 
-    if (is_identity_resize_x(w, outw) && is_identity_resize_y(h, outh))
+    if (is_identity_resize(w, h, outw, outh))
     {
         top_blob = bottom_blob;
         return 0;
@@ -660,7 +660,7 @@ int Interp_riscv::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vect
         return 0;
     }
 
-    if (is_identity_resize_x(w, outw) && is_identity_resize_y(h, outh))
+    if (is_identity_resize(w, h, outw, outh))
     {
         top_blob = bottom_blob;
         return 0;

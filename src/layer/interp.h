@@ -34,12 +34,41 @@ protected:
 
     bool is_identity_resize_x(int w, int outw) const
     {
-        return outw == w && (output_width || dynamic_target_size || !size_expr.empty() || width_scale == 1.f);
+        if (outw != w)
+            return false;
+
+        if (resize_type == 2 && w <= 1)
+            return true;
+        if (resize_type == 3 && w <= 3)
+            return true;
+
+        return output_width || dynamic_target_size || !size_expr.empty() || width_scale == 1.f;
     }
 
     bool is_identity_resize_y(int h, int outh) const
     {
-        return outh == h && (output_height || dynamic_target_size || !size_expr.empty() || height_scale == 1.f);
+        if (outh != h)
+            return false;
+
+        if (resize_type == 2 && h <= 1)
+            return true;
+        if (resize_type == 3 && h <= 3)
+            return true;
+
+        return output_height || dynamic_target_size || !size_expr.empty() || height_scale == 1.f;
+    }
+
+    bool is_identity_resize(int w, int h, int outw, int outh) const
+    {
+        if (outw != w || outh != h)
+            return false;
+
+        if (resize_type == 2 && (w <= 1 || h <= 1))
+            return true;
+        if (resize_type == 3 && (w <= 3 || h <= 3))
+            return true;
+
+        return is_identity_resize_x(w, outw) && is_identity_resize_y(h, outh);
     }
 
 public:
