@@ -28,9 +28,21 @@ public:
     bool is_enabled(int cpu) const;
     int num_enabled() const;
 
+#if defined _WIN32
+    int get_max_cpus() const
+    {
+        return max_cpus;
+    }
+    ULONG_PTR get_group_mask(int group) const;
+    int get_active_group_count() const;
+#endif
+
 public:
 #if defined _WIN32
-    ULONG_PTR mask;
+    static const int MAX_CPU_GROUPS = 20;
+    ULONG_PTR masks[MAX_CPU_GROUPS];
+    int max_cpus;
+    int active_groups;
 #endif
 #if defined __ANDROID__ || defined __linux__
     cpu_set_t cpu_set;
@@ -118,7 +130,6 @@ NCNN_EXPORT int cpu_support_riscv_xtheadvector();
 // vlenb = riscv vector length in bytes
 NCNN_EXPORT int cpu_riscv_vlenb();
 
-// cpu info
 NCNN_EXPORT int get_cpu_count();
 NCNN_EXPORT int get_little_cpu_count();
 NCNN_EXPORT int get_big_cpu_count();
