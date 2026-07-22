@@ -26,17 +26,16 @@ model.eval()
 
 # Trace with a dummy input
 dummy_input = torch.randn(1, 3, 224, 224)
-torch.onnx.export(model, dummy_input, "resnet18.onnx",
-                  input_names=["input"], output_names=["output"],
-                  dynamic_axes={"input": {0: "batch"}, "output": {0: "batch"}})
-print("ONNX exported: resnet18.onnx")
+traced = torch.jit.trace(model, dummy_input)
+traced.save("resnet18.pt")
+print("TorchScript model saved: resnet18.pt")
 ```
 
-## Step 2: Convert ONNX to ncnn with pnnx
+## Step 2: Convert to ncnn with pnnx
 
 ```bash
-# pnnx performs operator fusion and optimization beyond basic onnx2ncnn
-pnnx resnet18.onnx inputshape=[1,3,224,224]
+# pnnx directly converts TorchScript models — no ONNX intermediate step needed
+pnnx resnet18.pt inputshape=[1,3,224,224]
 ```
 
 This produces:
@@ -114,8 +113,8 @@ cmake --build . --config Release
 | Issue | Solution |
 |-------|----------|
 | pnnx not found | Build from source: `cd ncnn/tools/pnnx && mkdir build && cd build && cmake .. && make` |
-| ONNX opset mismatch | Export with `opset_version=11` for maximum compatibility |
-| Shape mismatch | Use `inputshape` parameter in pnnx: `pnnx model.onnx inputshape=[1,3,224,224]` |
+| Shape mismatch | Use `inputshape` parameter in pnnx: `pnnx model.pt inputshape=[1,3,224,224]` |
+| TorchScript trace issues | For dynamic control flow, use `torch.jit.script()` instead of `torch.jit.trace()` |
 
 ## References
 
