@@ -569,7 +569,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     float v = *p0++;
                     *pp++ = float2int8(v * scale);
                 }
-
             }
         }
 
@@ -1197,7 +1196,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 v *= *ps++;
                 *pp++ = float2int8(v * scale);
             }
-
         }
     }
 }
@@ -5856,7 +5854,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 32;
                     pB += 16;
                 }
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
                     int16x8_t _a01 = vreinterpretq_s16_s8(vld1q_s8(pA));
@@ -6525,7 +6523,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                     pB += 16;
                 }
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
                     int16x8_t _a = vreinterpretq_s16_s8(vld1q_s8(pA));
@@ -7702,7 +7700,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr += 2;
             pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
-#else // __ARM_NEON
+#else  // __ARM_NEON
             const signed char* pB = pB_panel + (size_t)2 * k;
             const float* pB_descales = pB_descales_panel + (size_t)2 * block_start;
             float fsum00;

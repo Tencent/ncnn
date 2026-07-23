@@ -329,7 +329,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 
     if (input_scales.empty())
     {
-
         signed char* pp = AT_tile;
         float* pd = AT_descales_tile;
         const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
@@ -691,7 +690,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 }
 
                 pd += 16;
-
             }
         }
 #endif // __AVX512F__
@@ -897,7 +895,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 pd += 4;
                 pd1 += 4;
 #endif
-
             }
 #if !__AVX2__
             pp = pp1;
@@ -1007,7 +1004,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 }
 
                 pd += 4;
-
             }
         }
 #endif // __SSE2__
@@ -1117,7 +1113,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 }
 
                 pd += 2;
-
             }
         }
         for (; ii < max_ii; ii++)
@@ -1687,7 +1682,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             }
 
             pd += 16;
-
         }
     }
 #endif // __AVX512F__
@@ -1913,7 +1907,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             pd += 4;
             pd1 += 4;
 #endif
-
         }
 #if !__AVX2__
         pp = pp1;
@@ -2040,7 +2033,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             }
 
             pd += 4;
-
         }
     }
 #endif // __SSE2__
@@ -2169,7 +2161,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             }
 
             pd += 2;
-
         }
     }
     for (; ii < max_ii; ii++)
@@ -2363,7 +2354,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
     if (input_scales.empty())
     {
-
         signed char* pp = AT_tile;
         float* pd = AT_descales_tile;
         const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
@@ -2446,7 +2436,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 }
 
                 pd += 16;
-
             }
         }
 #endif // __AVX512F__
@@ -2572,7 +2561,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pd += 4;
                 pd1 += 4;
 #endif
-
             }
 #if !__AVX2__
             pp = pp1;
@@ -2658,7 +2646,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 }
 
                 pd += 4;
-
             }
         }
 #endif // __SSE2__
@@ -2771,7 +2758,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 }
 
                 pd += 2;
-
             }
         }
 
@@ -3030,7 +3016,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             }
 
             pd += 16;
-
         }
     }
 #endif // __AVX512F__
@@ -3169,7 +3154,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             pd += 4;
             pd1 += 4;
 #endif
-
         }
 #if !__AVX2__
         pp = pp1;
@@ -3268,7 +3252,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             }
 
             pd += 4;
-
         }
     }
 #endif // __SSE2__
@@ -3400,7 +3383,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             }
 
             pd += 2;
-
         }
     }
 
