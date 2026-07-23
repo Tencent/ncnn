@@ -402,8 +402,8 @@ static int test_gemm_wq_int8_tile(int M, int N, int K, int block_size, int TILE_
 
 static int test_gemm_wq_int8_exact_weight_tail(int K)
 {
-    const int M = 3;
-    const int N = 8;
+    const int M = 4;
+    const int N = 6;
     const int block_size = 32;
     const int block_count = (K + block_size - 1) / block_size;
 
@@ -420,7 +420,12 @@ static int test_gemm_wq_int8_exact_weight_tail(int K)
 
     ncnn::Mat B_quantized(K, N, (void*)&B_storage[0], (size_t)1u);
     ncnn::Mat B_quantize_scales(block_count, N);
-    B_quantize_scales.fill(32.f);
+    for (int n = 0; n < N; n++)
+    {
+        float* scales = B_quantize_scales.row(n);
+        for (int b = 0; b < block_count; b++)
+            scales[b] = 16.f + n * 3 + b;
+    }
 
     std::vector<ncnn::Mat> weights(2);
     weights[0] = B_quantized;

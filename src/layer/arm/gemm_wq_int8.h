@@ -225,7 +225,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     *pp++ = float2int8(v71 * scale7);
                     p0 += 2;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     float v0 = p0[0];
                     float v1 = p0[A_hstep];
@@ -376,7 +376,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     *pp++ = float2int8(v31 * scale3);
                     p0 += 2;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     float v0 = p0[0];
                     float v1 = p0[A_hstep];
@@ -790,7 +790,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 p0 += 2;
                 ps += 2;
             }
-            if (kk < max_kk0)
+            for (; kk < max_kk0; kk++)
             {
                 const float s = ps[0];
                 float v0 = p0[0];
@@ -972,7 +972,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 p0 += 2;
                 ps += 2;
             }
-            if (kk < max_kk0)
+            for (; kk < max_kk0; kk++)
             {
                 const float s = ps[0];
                 float v0 = p0[0];
@@ -1373,7 +1373,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     pp += 16;
                     p0 += A_hstep * 2;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     float32x4_t _p0 = vld1q_f32(p0);
                     float32x4_t _p1 = vld1q_f32(p0 + 4);
@@ -1472,7 +1472,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     pp += 8;
                     p0 += A_hstep * 2;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     float32x4_t _p = vld1q_f32(p0);
                     vst1_lane_s32((int*)pp, vreinterpret_s32_s8(float2int8(vmulq_f32(_p, _scale), vmulq_f32(_p, _scale))), 0);
@@ -1566,7 +1566,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     pp += 4;
                     p0 += A_hstep * 2;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     float32x2_t _p0 = vld1_f32(p0);
                     float32x4_t _p01 = vmulq_f32(vcombine_f32(_p0, _p0), vcombine_f32(_scale, _scale));
@@ -1837,7 +1837,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pp += 16;
                 p0 += A_hstep * 2;
             }
-            if (kk < max_kk0)
+            for (; kk < max_kk0; kk++)
             {
                 float32x4_t _p0 = vld1q_f32(p0);
                 float32x4_t _p1 = vld1q_f32(p0 + 4);
@@ -1953,7 +1953,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pp += 8;
                 p0 += A_hstep * 2;
             }
-            if (kk < max_kk0)
+            for (; kk < max_kk0; kk++)
             {
                 float32x4_t _p = vmulq_n_f32(vld1q_f32(p0), *ps++);
                 vst1_lane_s32((int*)pp, vreinterpret_s32_s8(float2int8(vmulq_f32(_p, _scale), vmulq_f32(_p, _scale))), 0);
@@ -2049,7 +2049,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pp += 4;
                 p0 += A_hstep * 2;
             }
-            if (kk < max_kk0)
+            for (; kk < max_kk0; kk++)
             {
                 float32x2_t _p0 = vmul_n_f32(vld1_f32(p0), *ps++);
                 float32x4_t _p01 = vmulq_f32(vcombine_f32(_p0, _p0), vcombine_f32(_scale, _scale));
@@ -2248,9 +2248,9 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 p2 += 8;
                 p3 += 8;
             }
-#if __ARM_FEATURE_DOTPROD
             for (; kk + 3 < max_kk; kk += 4)
             {
+#if __ARM_FEATURE_DOTPROD
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
@@ -2267,13 +2267,30 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 pp[13] = p3[1];
                 pp[14] = p3[2];
                 pp[15] = p3[3];
+#else  // __ARM_FEATURE_DOTPROD
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p1[0];
+                pp[3] = p1[1];
+                pp[4] = p2[0];
+                pp[5] = p2[1];
+                pp[6] = p3[0];
+                pp[7] = p3[1];
+                pp[8] = p0[2];
+                pp[9] = p0[3];
+                pp[10] = p1[2];
+                pp[11] = p1[3];
+                pp[12] = p2[2];
+                pp[13] = p2[3];
+                pp[14] = p3[2];
+                pp[15] = p3[3];
+#endif // __ARM_FEATURE_DOTPROD
                 pp += 16;
                 p0 += 4;
                 p1 += 4;
                 p2 += 4;
                 p3 += 4;
             }
-#endif // __ARM_FEATURE_DOTPROD
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = p0[0];
@@ -2290,7 +2307,7 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 p2 += 2;
                 p3 += 2;
             }
-            if (kk < max_kk)
+            for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
                 pp[1] = p1[0];
@@ -2372,9 +2389,9 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 p0 += 8;
                 p1 += 8;
             }
-#if __ARM_FEATURE_DOTPROD
             for (; kk + 3 < max_kk; kk += 4)
             {
+#if __ARM_FEATURE_DOTPROD
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
@@ -2383,31 +2400,32 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 pp[5] = p1[1];
                 pp[6] = p1[2];
                 pp[7] = p1[3];
-                pp += 8;
-                p0 += 4;
-                p1 += 4;
-            }
-#endif // __ARM_FEATURE_DOTPROD
-#endif // __ARM_NEON
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-#if !__ARM_NEON && __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
-                // per-k order for the simd32 smlad consumer
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp[2] = p0[1];
-                pp[3] = p1[1];
-#else
+#else  // __ARM_FEATURE_DOTPROD
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p1[0];
                 pp[3] = p1[1];
-#endif
+                pp[4] = p0[2];
+                pp[5] = p0[3];
+                pp[6] = p1[2];
+                pp[7] = p1[3];
+#endif // __ARM_FEATURE_DOTPROD
+                pp += 8;
+                p0 += 4;
+                p1 += 4;
+            }
+#endif // __ARM_NEON
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p1[0];
+                pp[3] = p1[1];
                 pp += 4;
                 p0 += 2;
                 p1 += 2;
             }
-            if (kk < max_kk)
+            for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
                 pp[1] = p1[0];
@@ -2462,7 +2480,7 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 pp += 2;
                 p0 += 2;
             }
-            if (kk < max_kk)
+            for (; kk < max_kk; kk++)
                 *pp++ = *p0++;
 
             *pd++ = 1.f / *ps0++;
@@ -2788,14 +2806,20 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
-            float32x2_t _out0 = vld1_f32(pp);
-            float32x2_t _out1 = vld1_f32(pp + 2);
-            float32x2_t _out2 = vld1_f32(pp + 4);
-            float32x2_t _out3 = vld1_f32(pp + 6);
-            float32x2_t _out4 = vld1_f32(pp + 8);
-            float32x2_t _out5 = vld1_f32(pp + 10);
-            float32x2_t _out6 = vld1_f32(pp + 12);
-            float32x2_t _out7 = vld1_f32(pp + 14);
+            float32x4_t _p0 = vld1q_f32(pp);
+            float32x4_t _p1 = vld1q_f32(pp + 4);
+            float32x4_t _p2 = vld1q_f32(pp + 8);
+            float32x4_t _p3 = vld1q_f32(pp + 12);
+            float32x4x2_t _r01 = vzipq_f32(_p0, _p1);
+            float32x4x2_t _r23 = vzipq_f32(_p2, _p3);
+            float32x2_t _out0 = vget_low_f32(_r01.val[0]);
+            float32x2_t _out1 = vget_high_f32(_r01.val[0]);
+            float32x2_t _out2 = vget_low_f32(_r01.val[1]);
+            float32x2_t _out3 = vget_high_f32(_r01.val[1]);
+            float32x2_t _out4 = vget_low_f32(_r23.val[0]);
+            float32x2_t _out5 = vget_high_f32(_r23.val[0]);
+            float32x2_t _out6 = vget_low_f32(_r23.val[1]);
+            float32x2_t _out7 = vget_high_f32(_r23.val[1]);
             if (pC)
             {
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
@@ -4278,14 +4302,20 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
-            float32x2_t _out0 = vld1_f32(pp);
-            float32x2_t _out1 = vld1_f32(pp + 2);
-            float32x2_t _out2 = vld1_f32(pp + 4);
-            float32x2_t _out3 = vld1_f32(pp + 6);
-            float32x2_t _out4 = vld1_f32(pp + 8);
-            float32x2_t _out5 = vld1_f32(pp + 10);
-            float32x2_t _out6 = vld1_f32(pp + 12);
-            float32x2_t _out7 = vld1_f32(pp + 14);
+            float32x4_t _p0 = vld1q_f32(pp);
+            float32x4_t _p1 = vld1q_f32(pp + 4);
+            float32x4_t _p2 = vld1q_f32(pp + 8);
+            float32x4_t _p3 = vld1q_f32(pp + 12);
+            float32x4x2_t _r01 = vzipq_f32(_p0, _p1);
+            float32x4x2_t _r23 = vzipq_f32(_p2, _p3);
+            float32x2_t _out0 = vget_low_f32(_r01.val[0]);
+            float32x2_t _out1 = vget_high_f32(_r01.val[0]);
+            float32x2_t _out2 = vget_low_f32(_r01.val[1]);
+            float32x2_t _out3 = vget_high_f32(_r01.val[1]);
+            float32x2_t _out4 = vget_low_f32(_r23.val[0]);
+            float32x2_t _out5 = vget_high_f32(_r23.val[0]);
+            float32x2_t _out6 = vget_low_f32(_r23.val[1]);
+            float32x2_t _out7 = vget_high_f32(_r23.val[1]);
             if (pC)
             {
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
@@ -5827,65 +5857,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 16;
                 }
 #else // __ARM_FEATURE_DOTPROD
-#if NCNN_GNU_INLINE_ASM
-                {
-                    int nn = (max_kk0 - kk) >> 2;
-                    const int remain = nn;
-                    asm volatile(
-                        "cmp    %w2, #0              \n"
-                        "beq    1f                   \n"
-                        "0:                          \n"
-                        "ld1    {v0.16b, v1.16b}, [%0], #32 \n"
-                        "ld1    {v2.16b}, [%1], #16  \n"
-                        "dup    v3.8h, v0.h[0]       \n"
-                        "smull  v4.8h, v2.8b, v3.8b \n"
-                        "dup    v3.8h, v1.h[0]       \n"
-                        "smlal2 v4.8h, v2.16b, v3.16b \n"
-                        "sadalp %3.4s, v4.8h         \n"
-                        "dup    v3.8h, v0.h[1]       \n"
-                        "smull  v4.8h, v2.8b, v3.8b \n"
-                        "dup    v3.8h, v1.h[1]       \n"
-                        "smlal2 v4.8h, v2.16b, v3.16b \n"
-                        "sadalp %4.4s, v4.8h         \n"
-                        "dup    v3.8h, v0.h[2]       \n"
-                        "smull  v4.8h, v2.8b, v3.8b \n"
-                        "dup    v3.8h, v1.h[2]       \n"
-                        "smlal2 v4.8h, v2.16b, v3.16b \n"
-                        "sadalp %5.4s, v4.8h         \n"
-                        "dup    v3.8h, v0.h[3]       \n"
-                        "smull  v4.8h, v2.8b, v3.8b \n"
-                        "dup    v3.8h, v1.h[3]       \n"
-                        "smlal2 v4.8h, v2.16b, v3.16b \n"
-                        "sadalp %6.4s, v4.8h         \n"
-                        "dup    v3.8h, v0.h[4]       \n"
-                        "smull  v4.8h, v2.8b, v3.8b \n"
-                        "dup    v3.8h, v1.h[4]       \n"
-                        "smlal2 v4.8h, v2.16b, v3.16b \n"
-                        "sadalp %7.4s, v4.8h         \n"
-                        "dup    v3.8h, v0.h[5]       \n"
-                        "smull  v4.8h, v2.8b, v3.8b \n"
-                        "dup    v3.8h, v1.h[5]       \n"
-                        "smlal2 v4.8h, v2.16b, v3.16b \n"
-                        "sadalp %8.4s, v4.8h         \n"
-                        "dup    v3.8h, v0.h[6]       \n"
-                        "smull  v4.8h, v2.8b, v3.8b \n"
-                        "dup    v3.8h, v1.h[6]       \n"
-                        "smlal2 v4.8h, v2.16b, v3.16b \n"
-                        "sadalp %9.4s, v4.8h         \n"
-                        "dup    v3.8h, v0.h[7]       \n"
-                        "smull  v4.8h, v2.8b, v3.8b \n"
-                        "dup    v3.8h, v1.h[7]       \n"
-                        "smlal2 v4.8h, v2.16b, v3.16b \n"
-                        "subs   %w2, %w2, #1         \n"
-                        "sadalp %10.4s, v4.8h        \n"
-                        "bne    0b                   \n"
-                        "1:                          \n"
-                        : "+r"(pA), "+r"(pB), "+r"(nn), "+w"(_sum0), "+w"(_sum1), "+w"(_sum2), "+w"(_sum3), "+w"(_sum4), "+w"(_sum5), "+w"(_sum6), "+w"(_sum7)
-                        :
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4");
-                    kk += remain * 4;
-                }
-#else  // NCNN_GNU_INLINE_ASM
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
                     int16x8_t _a01 = vreinterpretq_s16_s8(vld1q_s8(pA));
@@ -5924,7 +5895,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 32;
                     pB += 16;
                 }
-#endif // NCNN_GNU_INLINE_ASM
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 1 < max_kk0; kk += 2)
                 {
@@ -5943,7 +5913,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                     pB += 8;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     int8x8_t _b0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB));
                     int8x8_t _a = vld1_s8(pA);
@@ -6107,7 +6077,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                     pB += 4;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     int8x8_t _a = vld1_s8(pA);
                     int8x8_t _b = vreinterpret_s8_s16(vld1_dup_s16((const short*)pB));
@@ -6122,18 +6092,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 2;
                 }
 
-                int32x4x2_t _s01 = vzipq_s32(_sum0, _sum1);
-                int32x4x2_t _s23 = vzipq_s32(_sum2, _sum3);
                 float32x2_t _bd = vld1_f32(pB_descales);
-                float32x4_t _bdbd = vcombine_f32(_bd, _bd);
                 float32x4_t _ad0 = vld1q_f32(pA_descales);
                 float32x4_t _ad1 = vld1q_f32(pA_descales + 4);
-                float32x4x2_t _ad01 = vzipq_f32(_ad0, _ad0);
-                float32x4x2_t _ad23 = vzipq_f32(_ad1, _ad1);
-                _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_s01.val[0]), vmulq_f32(_bdbd, _ad01.val[0]));
-                _fsum1 = vmlaq_f32(_fsum1, vcvtq_f32_s32(_s01.val[1]), vmulq_f32(_bdbd, _ad01.val[1]));
-                _fsum2 = vmlaq_f32(_fsum2, vcvtq_f32_s32(_s23.val[0]), vmulq_f32(_bdbd, _ad23.val[0]));
-                _fsum3 = vmlaq_f32(_fsum3, vcvtq_f32_s32(_s23.val[1]), vmulq_f32(_bdbd, _ad23.val[1]));
+                _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_lane_f32(_ad0, _bd, 0));
+                _fsum1 = vmlaq_f32(_fsum1, vcvtq_f32_s32(_sum1), vmulq_lane_f32(_ad0, _bd, 1));
+                _fsum2 = vmlaq_f32(_fsum2, vcvtq_f32_s32(_sum2), vmulq_lane_f32(_ad1, _bd, 0));
+                _fsum3 = vmlaq_f32(_fsum3, vcvtq_f32_s32(_sum3), vmulq_lane_f32(_ad1, _bd, 1));
                 pA_descales += 8;
                 pB_descales += 2;
             }
@@ -6227,7 +6192,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                     pB += 2;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     int8x8_t _a = vld1_s8(pA);
                     int16x8_t _s = vmull_s8(_a, vld1_dup_s8(pB));
@@ -6428,7 +6393,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB0 += 8;
                     pB1 += 8;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     int8x8_t _a = vreinterpret_s8_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
                     int8x8_t _b0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB0));
@@ -6561,45 +6526,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 16;
                 }
 #else // __ARM_FEATURE_DOTPROD
-#if NCNN_GNU_INLINE_ASM && !__aarch64__
-                {
-                    int nn = (max_kk0 - kk) >> 2;
-                    const int remain = nn;
-                    asm volatile(
-                        "cmp        %2, #0              \n"
-                        "beq        1f                  \n"
-                        "0:                             \n"
-                        "vld1.s8    {d0-d1}, [%0]!      \n"
-                        "vld1.s8    {d2-d3}, [%1]!      \n"
-                        "vdup.16    q2, d0[0]           \n"
-                        "vmull.s8   q3, d2, d4          \n"
-                        "vdup.16    q2, d1[0]           \n"
-                        "vmlal.s8   q3, d3, d4          \n"
-                        "vpadal.s16 %q3, q3             \n"
-                        "vdup.16    q2, d0[1]           \n"
-                        "vmull.s8   q3, d2, d4          \n"
-                        "vdup.16    q2, d1[1]           \n"
-                        "vmlal.s8   q3, d3, d4          \n"
-                        "vpadal.s16 %q4, q3             \n"
-                        "vdup.16    q2, d0[2]           \n"
-                        "vmull.s8   q3, d2, d4          \n"
-                        "vdup.16    q2, d1[2]           \n"
-                        "vmlal.s8   q3, d3, d4          \n"
-                        "vpadal.s16 %q5, q3             \n"
-                        "vdup.16    q2, d0[3]           \n"
-                        "vmull.s8   q3, d2, d4          \n"
-                        "vdup.16    q2, d1[3]           \n"
-                        "vmlal.s8   q3, d3, d4          \n"
-                        "subs       %2, %2, #1          \n"
-                        "vpadal.s16 %q6, q3             \n"
-                        "bne        0b                  \n"
-                        "1:                             \n"
-                        : "+r"(pA), "+r"(pB), "+r"(nn), "+w"(_sum0), "+w"(_sum1), "+w"(_sum2), "+w"(_sum3)
-                        :
-                        : "cc", "memory", "q0", "q1", "q2", "q3");
-                    kk += remain * 4;
-                }
-#else  // NCNN_GNU_INLINE_ASM && !__aarch64__
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
                     int16x8_t _a = vreinterpretq_s16_s8(vld1q_s8(pA));
@@ -6623,7 +6549,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                     pB += 16;
                 }
-#endif // NCNN_GNU_INLINE_ASM && !__aarch64__
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 1 < max_kk0; kk += 2)
                 {
@@ -6636,7 +6561,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     pB += 8;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     int8x8_t _b = vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB)));
                     int8x8_t _a = vreinterpret_s8_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
@@ -6759,7 +6684,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     pB += 4;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     int8x8_t _a = vld1_s8(pA);
                     int32x4_t _s0 = vmovl_s16(vget_low_s16(vmull_s8(_a, vdup_n_s8(pB[0]))));
@@ -6850,7 +6775,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     pB += 2;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     int8x8_t _a = vld1_s8(pA);
                     int16x8_t _s = vmull_s8(_a, vld1_dup_s8(pB));
@@ -6998,7 +6923,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB0 += 8;
                     pB1 += 8;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     int8x8_t _b = vreinterpret_s8_s32(vld1_lane_s32((const int*)pB1, vld1_dup_s32((const int*)pB0), 1));
                     int8x8_t _a = vreinterpret_s8_s16(vld1_lane_s16((const short*)pA, vdup_n_s16(0), 0));
@@ -7116,7 +7041,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     pB += 8;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     int8x8_t _b = vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB)));
                     int8x8_t _a = vreinterpret_s8_s16(vld1_lane_s16((const short*)pA, vdup_n_s16(0), 0));
@@ -7215,7 +7140,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     pB += 4;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     int8x8_t _a = vreinterpret_s8_s16(vld1_dup_s16((const short*)pA));
                     int8x8_t _b = vreinterpret_s8_s16(vld1_dup_s16((const short*)pB));
@@ -7236,146 +7161,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             vst1q_f32(outptr, _fsum);
             outptr += 4;
-            pB_panel += (size_t)2 * K;
-            pB_descales_panel += (size_t)2 * block_count;
-#elif __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
-            const signed char* pB = pB_panel + (size_t)2 * k;
-            const float* pB_descales = pB_descales_panel + (size_t)2 * block_start;
-            float fsum00;
-            float fsum01;
-            float fsum10;
-            float fsum11;
-
-            if (k == 0)
-            {
-                fsum00 = 0.f;
-                fsum01 = 0.f;
-                fsum10 = 0.f;
-                fsum11 = 0.f;
-            }
-            else
-            {
-                fsum00 = outptr[0];
-                fsum01 = outptr[1];
-                fsum10 = outptr[2];
-                fsum11 = outptr[3];
-            }
-
-            const signed char* pA = pAT;
-            const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
-            {
-                int sum00 = 0;
-                int sum01 = 0;
-                int sum10 = 0;
-                int sum11 = 0;
-                const int max_kk0 = std::min(max_kk - kk0, block_size);
-                int kk = 0;
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-#if __OPTIMIZE__
-                    asm volatile(
-                        "ldr    r2, [%0], #4    \n"
-                        "ldr    r4, [%1], #4    \n"
-                        "ror    r3, r2, #8      \n"
-                        "ror    r5, r4, #8      \n"
-                        "sxtb16 r2, r2          \n"
-                        "sxtb16 r4, r4          \n"
-                        "sxtb16 r3, r3          \n"
-                        "sxtb16 r5, r5          \n"
-                        "smlad  %2, r2, r4, %2  \n"
-                        "smlad  %3, r3, r4, %3  \n"
-                        "smlad  %4, r2, r5, %4  \n"
-                        "smlad  %5, r3, r5, %5  \n"
-                        : "=r"(pA),
-                        "=r"(pB),
-                        "=r"(sum00),
-                        "=r"(sum10),
-                        "=r"(sum01),
-                        "=r"(sum11)
-                        : "0"(pA),
-                        "1"(pB),
-                        "2"(sum00),
-                        "3"(sum10),
-                        "4"(sum01),
-                        "5"(sum11)
-                        : "memory", "r2", "r3", "r4", "r5");
-#else
-                    int _pA0 = *((int*)pA);
-                    int _pB0 = *((int*)pB);
-                    int _pA1;
-                    int _pB1;
-                    asm volatile("ror %0, %1, #8"
-                                 : "=r"(_pA1)
-                                 : "r"(_pA0)
-                                 :);
-                    asm volatile("ror %0, %1, #8"
-                                 : "=r"(_pB1)
-                                 : "r"(_pB0)
-                                 :);
-                    asm volatile("sxtb16 %0, %0"
-                                 : "=r"(_pA0)
-                                 : "0"(_pA0)
-                                 :);
-                    asm volatile("sxtb16 %0, %0"
-                                 : "=r"(_pA1)
-                                 : "0"(_pA1)
-                                 :);
-                    asm volatile("sxtb16 %0, %0"
-                                 : "=r"(_pB0)
-                                 : "0"(_pB0)
-                                 :);
-                    asm volatile("sxtb16 %0, %0"
-                                 : "=r"(_pB1)
-                                 : "0"(_pB1)
-                                 :);
-                    asm volatile("smlad %0, %2, %3, %0"
-                                 : "=r"(sum00)
-                                 : "0"(sum00), "r"(_pA0), "r"(_pB0)
-                                 :);
-                    asm volatile("smlad %0, %2, %3, %0"
-                                 : "=r"(sum10)
-                                 : "0"(sum10), "r"(_pA1), "r"(_pB0)
-                                 :);
-                    asm volatile("smlad %0, %2, %3, %0"
-                                 : "=r"(sum01)
-                                 : "0"(sum01), "r"(_pA0), "r"(_pB1)
-                                 :);
-                    asm volatile("smlad %0, %2, %3, %0"
-                                 : "=r"(sum11)
-                                 : "0"(sum11), "r"(_pA1), "r"(_pB1)
-                                 :);
-                    pA += 4;
-                    pB += 4;
-#endif
-                }
-                if (kk < max_kk0)
-                {
-                    sum00 += pA[0] * pB[0];
-                    sum10 += pA[1] * pB[0];
-                    sum01 += pA[0] * pB[1];
-                    sum11 += pA[1] * pB[1];
-                    pA += 2;
-                    pB += 2;
-                }
-
-                const float bd0 = pB_descales[0];
-                const float bd1 = pB_descales[1];
-                const float ad0 = pA_descales[0];
-                const float ad1 = pA_descales[1];
-                fsum00 += sum00 * ad0 * bd0;
-                fsum01 += sum01 * ad0 * bd1;
-                fsum10 += sum10 * ad1 * bd0;
-                fsum11 += sum11 * ad1 * bd1;
-
-                pA_descales += 2;
-                pB_descales += 2;
-            }
-
-            *outptr++ = fsum00;
-            *outptr++ = fsum01;
-            *outptr++ = fsum10;
-            *outptr++ = fsum11;
             pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
 #else
@@ -7424,7 +7209,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     pB += 4;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     const int b0 = pB[0];
                     const int b1 = pB[1];
@@ -7524,7 +7309,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     pB += 2;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     int8x8_t _a = vreinterpret_s8_s16(vld1_dup_s16((const short*)pA));
                     int16x8_t _s = vmull_s8(_a, vld1_dup_s8(pB));
@@ -7542,52 +7327,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
             vst1_f32(outptr, vget_low_f32(_fsum));
             outptr += 2;
-            pB_panel += K;
-            pB_descales_panel += block_count;
-#elif __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
-            const signed char* pB = pB_panel + k;
-            const float* pB_descales = pB_descales_panel + block_start;
-            float fsum00;
-            float fsum10;
-
-            if (k == 0)
-            {
-                fsum00 = 0.f;
-                fsum10 = 0.f;
-            }
-            else
-            {
-                fsum00 = outptr[0];
-                fsum10 = outptr[1];
-            }
-
-            const signed char* pA = pAT;
-            const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
-            {
-                int sum00 = 0;
-                int sum10 = 0;
-                const int max_kk0 = std::min(max_kk - kk0, block_size);
-                for (int kk = 0; kk < max_kk0; kk++)
-                {
-                    sum00 += pA[0] * pB[0];
-                    sum10 += pA[1] * pB[0];
-                    pA += 2;
-                    pB++;
-                }
-
-                const float bd0 = pB_descales[0];
-                const float ad0 = pA_descales[0];
-                const float ad1 = pA_descales[1];
-                fsum00 += sum00 * ad0 * bd0;
-                fsum10 += sum10 * ad1 * bd0;
-
-                pA_descales += 2;
-                pB_descales++;
-            }
-
-            *outptr++ = fsum00;
-            *outptr++ = fsum10;
             pB_panel += K;
             pB_descales_panel += block_count;
 #else
@@ -7624,7 +7363,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     pB += 2;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     const int b0 = pB[0];
                     sum00 += pA[0] * b0;
@@ -7753,7 +7492,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB0 += 8;
                     pB1 += 8;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     int8x8_t _b = vreinterpret_s8_s32(vld1_lane_s32((const int*)pB1, vld1_dup_s32((const int*)pB0), 1));
                     int8x8_t _a0 = vld1_lane_s8(pA, vdup_n_s8(0), 0);
@@ -7850,7 +7589,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 2;
                     pB += 8;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     int8x8_t _b = vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB)));
                     int8x8_t _a0 = vld1_lane_s8(pA, vdup_n_s8(0), 0);
@@ -7941,7 +7680,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 2;
                     pB += 4;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     int8x8_t _b = vreinterpret_s8_s16(vld1_dup_s16((const short*)(pB)));
                     int8x8_t _a0 = vld1_lane_s8(pA, vdup_n_s8(0), 0);
@@ -7991,20 +7730,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 for (; kk + 1 < max_kk0; kk += 2)
                 {
                     const int b00 = pB[0];
-#if __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
-                    const int b01 = pB[2];
-                    const int b10 = pB[1];
-#else
                     const int b01 = pB[1];
                     const int b10 = pB[2];
-#endif
                     const int b11 = pB[3];
                     sum00 += pA[0] * b00 + pA[1] * b01;
                     sum01 += pA[0] * b10 + pA[1] * b11;
                     pA += 2;
                     pB += 4;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     const int b0 = pB[0];
                     const int b1 = pB[1];
@@ -8077,15 +7811,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 4;
                 }
 #endif // __ARM_FEATURE_DOTPROD
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    int8x8_t _b0 = vreinterpret_s8_s16(vld1_dup_s16((const short*)(pB)));
-                    int8x8_t _a0 = vreinterpret_s8_s16(vdup_lane_s16(vld1_lane_s16((const short*)pA, vdup_n_s16(0), 0), 0));
-                    _sum0 = vaddq_s32(_sum0, vpaddlq_s16(vmull_s8(_b0, _a0)));
-                    pA += 2;
-                    pB += 2;
-                }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     int8x8_t _b = vset_lane_s8(pB[0], vdup_n_s8(0), 0);
                     int8x8_t _a0 = vld1_lane_s8(pA, vdup_n_s8(0), 0);
@@ -8127,16 +7853,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             {
                 int sum00 = 0;
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
-                int kk = 0;
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    const int b00 = pB[0];
-                    const int b01 = pB[1];
-                    sum00 += pA[0] * b00 + pA[1] * b01;
-                    pA += 2;
-                    pB += 2;
-                }
-                if (kk < max_kk0)
+                for (int kk = 0; kk < max_kk0; kk++)
                 {
                     const int b0 = pB[0];
                     sum00 += pA[0] * b0;

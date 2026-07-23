@@ -57,24 +57,6 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 p0 += 4;
                 pp += 16;
             }
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-#if __riscv_vector
-                __riscv_vse8_v_i8m1(pp, __riscv_vlse8_v_i8m1(p0, B_stride, vl4), vl4);
-                __riscv_vse8_v_i8m1(pp + 4, __riscv_vlse8_v_i8m1(p0 + 1, B_stride, vl4), vl4);
-#else
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[B_hstep];
-                pp[3] = p0[B_hstep + 1];
-                pp[4] = p0[B_hstep * 2];
-                pp[5] = p0[B_hstep * 2 + 1];
-                pp[6] = p0[B_hstep * 3];
-                pp[7] = p0[B_hstep * 3 + 1];
-#endif // __riscv_vector
-                p0 += 2;
-                pp += 8;
-            }
             for (; kk < max_kk; kk++)
             {
 #if __riscv_vector
@@ -127,20 +109,6 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
 #endif // __riscv_vector
                 p0 += 4;
                 pp += 8;
-            }
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-#if __riscv_vector
-                __riscv_vse8_v_i8m1(pp, __riscv_vlse8_v_i8m1(p0, B_stride, vl2), vl2);
-                __riscv_vse8_v_i8m1(pp + 2, __riscv_vlse8_v_i8m1(p0 + 1, B_stride, vl2), vl2);
-#else
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[B_hstep];
-                pp[3] = p0[B_hstep + 1];
-#endif // __riscv_vector
-                p0 += 2;
-                pp += 4;
             }
             for (; kk < max_kk; kk++)
             {
@@ -919,7 +887,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
     int ii = 0;
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    const size_t vl4 = __riscv_vsetvl_e8m1(4);
     for (; ii + (packn - 1) < max_ii; ii += packn)
     {
         const signed char* pB_panel = pBT;
@@ -997,27 +964,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
                     pA += packn * 4;
                     pB += 16;
-                }
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA, vl), 0, vl);
-                    vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    uint32_t b = *(const uint32_t*)pB;
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
-                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
-                    _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn, vl), 0, vl);
-                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    b = *(const uint32_t*)(pB + 4);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
-                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
-                    pA += packn * 2;
-                    pB += 8;
                 }
                 for (; kk < max_kk0; kk++)
                 {
@@ -1109,23 +1055,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += packn * 4;
                     pB += 8;
                 }
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA, vl), 0, vl);
-                    vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    uint16_t b = *(const uint16_t*)pB;
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                    _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn, vl), 0, vl);
-                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    b = *(const uint16_t*)(pB + 2);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                    pA += packn * 2;
-                    pB += 4;
-                }
                 for (; kk < max_kk0; kk++)
                 {
                     vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA, vl), 0, vl);
@@ -1173,36 +1102,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    vint8m1_t _b = __riscv_vle8_v_i8m1(pB, vl4);
-                    const signed char b0 = __riscv_vmv_x_s_i8m1_i8(_b);
-                    _b = __riscv_vslidedown_vx_i8m1(_b, 1, vl4);
-                    const signed char b1 = __riscv_vmv_x_s_i8m1_i8(_b);
-                    _b = __riscv_vslidedown_vx_i8m1(_b, 1, vl4);
-                    const signed char b2 = __riscv_vmv_x_s_i8m1_i8(_b);
-                    _b = __riscv_vslidedown_vx_i8m1(_b, 1, vl4);
-                    const signed char b3 = __riscv_vmv_x_s_i8m1_i8(_b);
-                    vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA, vl), 0, vl);
-                    vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, b0, _a, vl);
-                    _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn, vl), 0, vl);
-                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, b1, _a, vl);
-                    _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn * 2, vl), 0, vl);
-                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, b2, _a, vl);
-                    _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn * 3, vl), 0, vl);
-                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, b3, _a, vl);
-                    pA += packn * 4;
-                    pB += 4;
-                }
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    const uint16_t b = *(const uint16_t*)pB;
+                    const uint32_t b = *(const uint32_t*)pB;
                     vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA, vl), 0, vl);
                     vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
                     vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
@@ -1211,8 +1111,16 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
                     _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
                     _sum = __riscv_vmacc_vx_i32m1(_sum, (signed char)(b >> 8), _a, vl);
-                    pA += packn * 2;
-                    pB += 2;
+                    _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn * 2, vl), 0, vl);
+                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
+                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
+                    _sum = __riscv_vmacc_vx_i32m1(_sum, (signed char)(b >> 16), _a, vl);
+                    _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn * 3, vl), 0, vl);
+                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
+                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
+                    _sum = __riscv_vmacc_vx_i32m1(_sum, (signed char)(b >> 24), _a, vl);
+                    pA += packn * 4;
+                    pB += 4;
                 }
                 for (; kk < max_kk0; kk++)
                 {
@@ -1299,21 +1207,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     pB += 16;
                 }
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
-                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    vint32m1_t _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[0], _b0, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[1], _b0, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 4, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[2], _b0, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[3], _b0, vl);
-                    pA += 4;
-                    pB += 8;
-                }
                 for (; kk < max_kk0; kk++)
                 {
                     vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
@@ -1392,21 +1285,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     pB += 8;
                 }
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
-                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    vint32m1_t _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[0], _b0, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[1], _b0, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 2, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[2], _b0, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[3], _b0, vl);
-                    pA += 4;
-                    pB += 4;
-                }
                 for (; kk < max_kk0; kk++)
                 {
                     vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
@@ -1485,21 +1363,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     pB += 4;
                 }
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
-                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    vint32m1_t _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[0], _b0, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[1], _b0, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 1, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[2], _b0, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[3], _b0, vl);
-                    pA += 4;
-                    pB += 2;
-                }
                 for (; kk < max_kk0; kk++)
                 {
                     vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
@@ -1575,19 +1438,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     pB += 16;
                 }
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
-                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    vint32m1_t _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[0], _b0, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 4, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[1], _b0, vl);
-                    pA += 2;
-                    pB += 8;
-                }
                 for (; kk < max_kk0; kk++)
                 {
                     vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
@@ -1650,19 +1500,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     pB += 8;
                 }
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
-                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    vint32m1_t _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[0], _b0, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 2, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[1], _b0, vl);
-                    pA += 2;
-                    pB += 4;
-                }
                 for (; kk < max_kk0; kk++)
                 {
                     vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
@@ -1724,19 +1561,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     _sum = __riscv_vmacc_vx_i32m1(_sum, pA[3], _b0, vl);
                     pA += 4;
                     pB += 4;
-                }
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
-                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    vint32m1_t _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[0], _b0, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 1, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[1], _b0, vl);
-                    pA += 2;
-                    pB += 2;
                 }
                 for (; kk < max_kk0; kk++)
                 {
@@ -1831,23 +1655,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     pB += 16;
                 }
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    const signed char* b0 = pB;
-                    const signed char* b1 = b0 + 2;
-                    const signed char* b2 = b1 + 2;
-                    const signed char* b3 = b2 + 2;
-                    s00 += pA[0] * b0[0] + pA[2] * b0[1];
-                    s01 += pA[0] * b1[0] + pA[2] * b1[1];
-                    s02 += pA[0] * b2[0] + pA[2] * b2[1];
-                    s03 += pA[0] * b3[0] + pA[2] * b3[1];
-                    s10 += pA[1] * b0[0] + pA[3] * b0[1];
-                    s11 += pA[1] * b1[0] + pA[3] * b1[1];
-                    s12 += pA[1] * b2[0] + pA[3] * b2[1];
-                    s13 += pA[1] * b3[0] + pA[3] * b3[1];
-                    pA += 4;
-                    pB += 8;
-                }
                 for (; kk < max_kk0; kk++)
                 {
                     s00 += pA[0] * pB[0];
@@ -1929,17 +1736,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     pB += 8;
                 }
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    const signed char* b0 = pB;
-                    const signed char* b1 = b0 + 2;
-                    s00 += pA[0] * b0[0] + pA[2] * b0[1];
-                    s01 += pA[0] * b1[0] + pA[2] * b1[1];
-                    s10 += pA[1] * b0[0] + pA[3] * b0[1];
-                    s11 += pA[1] * b1[0] + pA[3] * b1[1];
-                    pA += 4;
-                    pB += 4;
-                }
                 for (; kk < max_kk0; kk++)
                 {
                     s00 += pA[0] * pB[0];
@@ -1997,14 +1793,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     s1 += pA[1] * b[0] + pA[3] * b[1] + pA[5] * b[2] + pA[7] * b[3];
                     pA += 8;
                     pB += 4;
-                }
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    const signed char* b = pB;
-                    s0 += pA[0] * b[0] + pA[2] * b[1];
-                    s1 += pA[1] * b[0] + pA[3] * b[1];
-                    pA += 4;
-                    pB += 2;
                 }
                 for (; kk < max_kk0; kk++)
                 {
@@ -2075,19 +1863,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     pB += 16;
                 }
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    const signed char* b0 = pB;
-                    const signed char* b1 = b0 + 2;
-                    const signed char* b2 = b1 + 2;
-                    const signed char* b3 = b2 + 2;
-                    s0 += pA[0] * b0[0] + pA[1] * b0[1];
-                    s1 += pA[0] * b1[0] + pA[1] * b1[1];
-                    s2 += pA[0] * b2[0] + pA[1] * b2[1];
-                    s3 += pA[0] * b3[0] + pA[1] * b3[1];
-                    pA += 2;
-                    pB += 8;
-                }
                 for (; kk < max_kk0; kk++)
                 {
                     s0 += pA[0] * pB[0];
@@ -2146,15 +1921,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     pB += 8;
                 }
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    const signed char* b0 = pB;
-                    const signed char* b1 = b0 + 2;
-                    s0 += pA[0] * b0[0] + pA[1] * b0[1];
-                    s1 += pA[0] * b1[0] + pA[1] * b1[1];
-                    pA += 2;
-                    pB += 4;
-                }
                 for (; kk < max_kk0; kk++)
                 {
                     s0 += pA[0] * pB[0];
@@ -2197,13 +1963,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     s += pA[0] * b[0] + pA[1] * b[1] + pA[2] * b[2] + pA[3] * b[3];
                     pA += 4;
                     pB += 4;
-                }
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    const signed char* b = pB;
-                    s += pA[0] * b[0] + pA[1] * b[1];
-                    pA += 2;
-                    pB += 2;
                 }
                 for (; kk < max_kk0; kk++)
                 {

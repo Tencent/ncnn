@@ -682,7 +682,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     pp += 32;
                     p0 += 2;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     __m512 _p = _mm512_i32gather_ps(_vindex, p0, sizeof(float));
                     _mm_storeu_si128((__m128i*)pp, float2int8_avx512(_mm512_mul_ps(_p, _scale)));
@@ -1676,7 +1676,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 p0 += 2;
                 ps += 2;
             }
-            if (kk < max_kk0)
+            for (; kk < max_kk0; kk++)
             {
                 __m512 _p = _mm512_i32gather_ps(_vindex, p0, sizeof(float));
                 _p = _mm512_mul_ps(_p, _mm512_set1_ps(ps[0]));
@@ -2437,7 +2437,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     pp += 32;
                     p0 += A_hstep * 2;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     __m512 _p = _mm512_loadu_ps(p0);
                     _mm_storeu_si128((__m128i*)pp, float2int8_avx512(_mm512_mul_ps(_p, _scale)));
@@ -3019,7 +3019,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 p0 += A_hstep * 2;
                 ps += 2;
             }
-            if (kk < max_kk0)
+            for (; kk < max_kk0; kk++)
             {
                 __m512 _p = _mm512_loadu_ps(p0);
                 _p = _mm512_mul_ps(_p, _mm512_set1_ps(ps[0]));
@@ -4198,7 +4198,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 16;
                     pA += 16;
                 }
-                if (kk < max_kk0)
+                for (; kk < max_kk0; kk++)
                 {
                     __m128i _pA0 = _mm_loadl_epi64((const __m128i*)pA);
                     __m128i _pB0 = _mm_loadl_epi64((const __m128i*)pB);
