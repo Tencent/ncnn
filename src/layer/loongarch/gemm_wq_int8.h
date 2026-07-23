@@ -4468,8 +4468,8 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 }
             }
 #endif // __loongarch_asx
-if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-    pC += 8;
+            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
+                pC += 8;
             pp += 64;
         }
         for (; jj + 3 < max_jj; jj += 4)
@@ -5317,8 +5317,8 @@ if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
                 __lsx_vstelm_d(float2bfloat_lsx((__m128)((__m128i)_f31)), p0 + out_hstep * 3 + 4, 0, 0);
             }
 #endif // __loongarch_asx
-if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-    pC += 8;
+            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
+                pC += 8;
             pp += 32;
             if (output_elemtype == 1)
                 p0f += 8;
@@ -5855,8 +5855,8 @@ if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
                 __lsx_vstelm_d(float2bfloat_lsx((__m128)((__m128i)_f11)), p0 + out_hstep + 4, 0, 0);
             }
 #endif // __loongarch_asx
-if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-    pC += 8;
+            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
+                pC += 8;
             pp += 16;
             if (output_elemtype == 1)
                 p0f += 8;
@@ -6067,8 +6067,8 @@ if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
                 p0[out_hstep + 1] = float32_to_bfloat16(f11);
             }
 #endif // __loongarch_sx
-if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-    pC += 2;
+            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
+                pC += 2;
             pp += 4;
             if (output_elemtype == 1)
                 p0f += 2;
@@ -7169,8 +7169,8 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 }
             }
 #endif // __loongarch_asx
-if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-    pC += 8;
+            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
+                pC += 8;
             pp += 64;
         }
         for (; jj + 3 < max_jj; jj += 4)
@@ -7972,8 +7972,8 @@ if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
                 __lsx_vstelm_d(float2bfloat_lsx((__m128)((__m128i)_f31)), p0 + out_hstep * 7, 0, 0);
             }
 #endif // __loongarch_asx
-if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-    pC += 8;
+            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
+                pC += 8;
             pp += 32;
             if (output_elemtype == 1)
                 p0f += out_hstep * 8;
@@ -8549,8 +8549,8 @@ if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
                 __lsx_vstelm_w(float2bfloat_lsx((__m128)(_tmp1)), p0 + out_hstep * 7, 0, 1);
             }
 #endif // __loongarch_asx
-if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-    pC += 8;
+            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
+                pC += 8;
             pp += 16;
             if (output_elemtype == 1)
                 p0f += out_hstep * 8;
@@ -8753,8 +8753,8 @@ if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
                 p0[out_hstep + 1] = float32_to_bfloat16(f11);
             }
 #endif // __loongarch_sx
-if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
-    pC += 2;
+            if (pC && (broadcast_type_C == 3 || broadcast_type_C == 4))
+                pC += 2;
             pp += 4;
             if (output_elemtype == 1)
                 p0f += out_hstep * 2;

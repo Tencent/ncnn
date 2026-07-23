@@ -1360,8 +1360,8 @@ static void transpose_unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Ma
             }
 
             vfloat16m2x2_t _sum = __riscv_vcreate_v_f16m2x2(
-                __riscv_vfncvt_f_f_w_f16m2(_sum0, vl),
-                __riscv_vfncvt_f_f_w_f16m2(_sum1, vl));
+                                      __riscv_vfncvt_f_f_w_f16m2(_sum0, vl),
+                                      __riscv_vfncvt_f_f_w_f16m2(_sum1, vl));
             if (out_hstep == 2)
                 __riscv_vsseg2e16_v_f16m2x2(out0, _sum, vl);
             else

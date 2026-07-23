@@ -2904,7 +2904,7 @@ static void unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Mat& C, Mat&
                     if (beta == 1.f)
                         _out0 = vaddq_f32(_out0, _c);
                     else
-                    _out0 = vmlaq_n_f32(_out0, _c, beta);
+                        _out0 = vmlaq_n_f32(_out0, _c, beta);
                     pC++;
                 }
                 if (broadcast_type_C == 4)
@@ -3508,7 +3508,7 @@ static void unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Mat& C, Mat&
                     if (beta == 1.f)
                         _out0 = vadd_f32(_out0, _c);
                     else
-                    _out0 = vmla_n_f32(_out0, _c, beta);
+                        _out0 = vmla_n_f32(_out0, _c, beta);
                     pC += 2;
                 }
                 if (broadcast_type_C == 4)
@@ -4525,7 +4525,7 @@ static void transpose_unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Ma
                     if (beta == 1.f)
                         _out0 = vaddq_f32(_out0, _c);
                     else
-                    _out0 = vmlaq_n_f32(_out0, _c, beta);
+                        _out0 = vmlaq_n_f32(_out0, _c, beta);
                     pC++;
                 }
                 if (broadcast_type_C == 4)
@@ -5291,7 +5291,7 @@ static void transpose_unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Ma
                     if (beta == 1.f)
                         _out0 = vadd_f32(_out0, _c);
                     else
-                    _out0 = vmla_n_f32(_out0, _c, beta);
+                        _out0 = vmla_n_f32(_out0, _c, beta);
                     pC += 2;
                 }
                 if (broadcast_type_C == 4)
