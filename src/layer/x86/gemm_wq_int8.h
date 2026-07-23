@@ -4490,12 +4490,21 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #if __AVX512VNNI__ || __AVXVNNI__
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    __m256i _pA0 = _mm256_loadu_si256((const __m256i*)pA);
-                    __m256i _pB0 = _mm256_castps_si256(_mm256_broadcast_ss((const float*)pB));
+                    __m256i _pA = _mm256_loadu_si256((const __m256i*)pA);
+                    __m256i _pB = _mm256_castps_si256(_mm256_broadcast_ss((const float*)pB));
 #if __AVXVNNIINT8__
-                    _sum0 = _mm256_dpbssd_epi32(_sum0, _pB0, _pA0);
+                    _sum0 = _mm256_dpbssd_epi32(_sum0, _pB, _pA);
 #else  // __AVXVNNIINT8__
-                    _sum0 = _mm256_comp_dpbusd_epi32(_sum0, _pB0, _pA0);
+#if __AVX512VNNI__ && _MSC_VER < 1932
+                    // old msvc crash here  --- nihui
+                    __m512i _pA0 = _mm512_cvtepi8_epi16(_pA);
+                    __m512i _pB0 = _mm512_cvtepu8_epi16(_pB);
+                    __m512i _s0 = _mm512_madd_epi16(_pA0, _pB0);
+                    __m256i _s1 = _mm256_hadd_epi32(_mm512_extracti32x8_epi32(_s0, 0), _mm512_extracti32x8_epi32(_s0, 1));
+                    _sum0 = _mm256_add_epi32(_sum0, _mm256_permute4x64_epi64(_s1, _MM_SHUFFLE(3, 1, 2, 0)));
+#else
+                    _sum0 = _mm256_comp_dpbusd_epi32(_sum0, _pB, _pA);
+#endif
 #endif // __AVXVNNIINT8__
                     pB += 4;
                     pA += 32;
@@ -4926,7 +4935,16 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #if __AVXVNNIINT8__
                     _sum = _mm_dpbssd_epi32(_sum, _pB, _pA);
 #else  // __AVXVNNIINT8__
+#if __AVX512VNNI__ && _MSC_VER < 1932
+                    // old msvc crash here  --- nihui
+                    __m256i _pA0 = _mm256_cvtepi8_epi16(_pA);
+                    __m256i _pB0 = _mm256_cvtepu8_epi16(_pB);
+                    __m256i _s0 = _mm256_madd_epi16(_pA0, _pB0);
+                    __m128i _s1 = _mm_hadd_epi32(_mm256_extracti128_si256(_s0, 0), _mm256_extracti128_si256(_s0, 1));
+                    _sum = _mm_add_epi32(_sum, _s1);
+#else
                     _sum = _mm_comp_dpbusd_epi32(_sum, _pB, _pA);
+#endif
 #endif // __AVXVNNIINT8__
                     pA += 16;
                     pB += 4;
