@@ -9618,7 +9618,7 @@ int Gemm_x86::create_pipeline_wq_int8(const Option& opt)
         const int j = ppj * TILE_N;
         const int max_jj = std::min(N - j, TILE_N);
 
-        Mat BT_tile(K * max_jj, (unsigned char*)BT_data_wq_int8 + (size_t)j * K, (size_t)1u);
+        Mat BT_tile(K * max_jj, (signed char*)BT_data_wq_int8 + (size_t)j * K, (size_t)1u);
         Mat BT_descales_tile(block_count * max_jj, (float*)BT_data_wq_int8_descales + (size_t)j * block_count, (size_t)4u);
 
         pack_B_tile_wq_int8(B_data, B_data_quantize_scales, BT_tile, BT_descales_tile, j, max_jj, K, block_size);
@@ -9690,7 +9690,7 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
                 AT_tile_offset += (size_t)4 * (k / block_size);
 #endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
 
-            Mat AT_tile(AT_tile_hstep, mr, (unsigned char*)AT.channel(ppi) + AT_tile_offset * mr, (size_t)1u);
+            Mat AT_tile(AT_tile_hstep, mr, (signed char*)AT.channel(ppi) + AT_tile_offset * mr, (size_t)1u);
             Mat AT_descales_tile(local_block_count, mr, (float*)AT_descales.channel(ppi) + (size_t)(k / block_size) * mr, (size_t)4u);
             if (transA)
                 transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
@@ -9711,7 +9711,7 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
             const int max_ii = std::min(M - i, TILE_M);
             const int max_jj = std::min(N - j, TILE_N);
 
-            Mat BT_tile(K * max_jj, (unsigned char*)packed_B.data + (size_t)j * K, (size_t)1u);
+            Mat BT_tile(K * max_jj, (signed char*)packed_B.data + (size_t)j * K, (size_t)1u);
             Mat BT_descales_tile(block_count * max_jj, (float*)packed_B_descales.data + (size_t)j * block_count, (size_t)4u);
             Mat topT_tile = topT.channel(get_omp_thread_num());
 
@@ -9731,7 +9731,7 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
                     AT_tile_offset += (size_t)4 * (k / block_size);
 #endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
 
-                Mat AT_tile(AT_tile_hstep, mr, (unsigned char*)AT.channel(ppi) + AT_tile_offset * mr, (size_t)1u);
+                Mat AT_tile(AT_tile_hstep, mr, (signed char*)AT.channel(ppi) + AT_tile_offset * mr, (size_t)1u);
                 Mat AT_descales_tile(local_block_count, mr, (float*)AT_descales.channel(ppi) + (size_t)(k / block_size) * mr, (size_t)4u);
 
                 gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
@@ -9776,7 +9776,7 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
                     AT_tile_offset += (size_t)4 * (k / block_size);
 #endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
 
-                Mat AT_tile(AT_tile_hstep, mr, (unsigned char*)ATX_tile + AT_tile_offset * mr, (size_t)1u);
+                Mat AT_tile(AT_tile_hstep, mr, (signed char*)ATX_tile + AT_tile_offset * mr, (size_t)1u);
                 Mat AT_descales_tile(local_block_count, mr, (float*)ATX_descales_tile + (size_t)(k / block_size) * mr, (size_t)4u);
                 if (transA)
                     transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
@@ -9788,7 +9788,7 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
             {
                 const int max_jj = std::min(N - j, TILE_N);
 
-                Mat BT_tile(K * max_jj, (unsigned char*)packed_B.data + (size_t)j * K, (size_t)1u);
+                Mat BT_tile(K * max_jj, (signed char*)packed_B.data + (size_t)j * K, (size_t)1u);
                 Mat BT_descales_tile(block_count * max_jj, (float*)packed_B_descales.data + (size_t)j * block_count, (size_t)4u);
 
                 for (int k = 0; k < K; k += TILE_K)
@@ -9807,7 +9807,7 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
                         AT_tile_offset += (size_t)4 * (k / block_size);
 #endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
 
-                    Mat AT_tile(AT_tile_hstep, mr, (unsigned char*)ATX_tile + AT_tile_offset * mr, (size_t)1u);
+                    Mat AT_tile(AT_tile_hstep, mr, (signed char*)ATX_tile + AT_tile_offset * mr, (size_t)1u);
                     Mat AT_descales_tile(local_block_count, mr, (float*)ATX_descales_tile + (size_t)(k / block_size) * mr, (size_t)4u);
 
                     gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);

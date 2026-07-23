@@ -33,23 +33,19 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
     }
 #endif
 
+    signed char* pp = AT_tile;
+    float* pd = AT_descales_tile;
+    const int block_count = (max_kk + block_size - 1) / block_size;
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
+
     if (input_scales.empty())
     {
-        signed char* outptr = AT_tile;
-        const int out_hstep = AT_tile.w;
-        float* descales = AT_descales_tile;
-        const int descales_hstep = AT_descales_tile.w;
-        const int block_count = (max_kk + block_size - 1) / block_size;
-        const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
-
         int ii = 0;
 #if __ARM_NEON
 #if __aarch64__
         for (; ii + 7 < max_ii; ii += 8)
         {
-            signed char* pp = outptr + ii * out_hstep;
-            const float* pA0 = (const float*)A + (i + ii) * A_hstep + k;
-            float* pd = descales + ii * descales_hstep;
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
 
             for (int g = 0; g < block_count; g++)
             {
@@ -62,25 +58,27 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 float32x4_t _absmax5 = vdupq_n_f32(0.f);
                 float32x4_t _absmax6 = vdupq_n_f32(0.f);
                 float32x4_t _absmax7 = vdupq_n_f32(0.f);
+                const float* p0a = p0;
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    float32x4_t _v0 = vld1q_f32(pA0 + kk);
-                    float32x4_t _v1 = vld1q_f32(pA0 + A_hstep + kk);
-                    float32x4_t _v2 = vld1q_f32(pA0 + A_hstep * 2 + kk);
-                    float32x4_t _v3 = vld1q_f32(pA0 + A_hstep * 3 + kk);
-                    float32x4_t _v4 = vld1q_f32(pA0 + A_hstep * 4 + kk);
-                    float32x4_t _v5 = vld1q_f32(pA0 + A_hstep * 5 + kk);
-                    float32x4_t _v6 = vld1q_f32(pA0 + A_hstep * 6 + kk);
-                    float32x4_t _v7 = vld1q_f32(pA0 + A_hstep * 7 + kk);
-                    _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_v0));
-                    _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_v1));
-                    _absmax2 = vmaxq_f32(_absmax2, vabsq_f32(_v2));
-                    _absmax3 = vmaxq_f32(_absmax3, vabsq_f32(_v3));
-                    _absmax4 = vmaxq_f32(_absmax4, vabsq_f32(_v4));
-                    _absmax5 = vmaxq_f32(_absmax5, vabsq_f32(_v5));
-                    _absmax6 = vmaxq_f32(_absmax6, vabsq_f32(_v6));
-                    _absmax7 = vmaxq_f32(_absmax7, vabsq_f32(_v7));
+                    float32x4_t _p0 = vld1q_f32(p0a);
+                    _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p0));
+                    float32x4_t _p1 = vld1q_f32(p0a + A_hstep);
+                    _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
+                    float32x4_t _p2 = vld1q_f32(p0a + A_hstep * 2);
+                    _absmax2 = vmaxq_f32(_absmax2, vabsq_f32(_p2));
+                    float32x4_t _p3 = vld1q_f32(p0a + A_hstep * 3);
+                    _absmax3 = vmaxq_f32(_absmax3, vabsq_f32(_p3));
+                    float32x4_t _p4 = vld1q_f32(p0a + A_hstep * 4);
+                    _absmax4 = vmaxq_f32(_absmax4, vabsq_f32(_p4));
+                    float32x4_t _p5 = vld1q_f32(p0a + A_hstep * 5);
+                    _absmax5 = vmaxq_f32(_absmax5, vabsq_f32(_p5));
+                    float32x4_t _p6 = vld1q_f32(p0a + A_hstep * 6);
+                    _absmax6 = vmaxq_f32(_absmax6, vabsq_f32(_p6));
+                    float32x4_t _p7 = vld1q_f32(p0a + A_hstep * 7);
+                    _absmax7 = vmaxq_f32(_absmax7, vabsq_f32(_p7));
+                    p0a += 4;
                 }
                 float absmax0 = vmaxvq_f32(_absmax0);
                 float absmax1 = vmaxvq_f32(_absmax1);
@@ -92,14 +90,14 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 float absmax7 = vmaxvq_f32(_absmax7);
                 for (; kk < max_kk0; kk++)
                 {
-                    float v0 = pA0[kk];
-                    float v1 = pA0[A_hstep + kk];
-                    float v2 = pA0[A_hstep * 2 + kk];
-                    float v3 = pA0[A_hstep * 3 + kk];
-                    float v4 = pA0[A_hstep * 4 + kk];
-                    float v5 = pA0[A_hstep * 5 + kk];
-                    float v6 = pA0[A_hstep * 6 + kk];
-                    float v7 = pA0[A_hstep * 7 + kk];
+                    float v0 = p0a[0];
+                    float v1 = p0a[A_hstep];
+                    float v2 = p0a[A_hstep * 2];
+                    float v3 = p0a[A_hstep * 3];
+                    float v4 = p0a[A_hstep * 4];
+                    float v5 = p0a[A_hstep * 5];
+                    float v6 = p0a[A_hstep * 6];
+                    float v7 = p0a[A_hstep * 7];
                     absmax0 = std::max(absmax0, fabsf(v0));
                     absmax1 = std::max(absmax1, fabsf(v1));
                     absmax2 = std::max(absmax2, fabsf(v2));
@@ -108,6 +106,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     absmax5 = std::max(absmax5, fabsf(v5));
                     absmax6 = std::max(absmax6, fabsf(v6));
                     absmax7 = std::max(absmax7, fabsf(v7));
+                    p0a++;
                 }
 
                 pd[0] = absmax0 / 127.f;
@@ -132,80 +131,82 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #if __ARM_FEATURE_MATMUL_INT8
                 for (; kk + 7 < max_kk0; kk += 8)
                 {
-                    float32x4_t _v00 = vld1q_f32(pA0 + kk);
-                    float32x4_t _v01 = vld1q_f32(pA0 + kk + 4);
-                    float32x4_t _v10 = vld1q_f32(pA0 + A_hstep + kk);
-                    float32x4_t _v11 = vld1q_f32(pA0 + A_hstep + kk + 4);
-                    float32x4_t _v20 = vld1q_f32(pA0 + A_hstep * 2 + kk);
-                    float32x4_t _v21 = vld1q_f32(pA0 + A_hstep * 2 + kk + 4);
-                    float32x4_t _v30 = vld1q_f32(pA0 + A_hstep * 3 + kk);
-                    float32x4_t _v31 = vld1q_f32(pA0 + A_hstep * 3 + kk + 4);
-                    float32x4_t _v40 = vld1q_f32(pA0 + A_hstep * 4 + kk);
-                    float32x4_t _v41 = vld1q_f32(pA0 + A_hstep * 4 + kk + 4);
-                    float32x4_t _v50 = vld1q_f32(pA0 + A_hstep * 5 + kk);
-                    float32x4_t _v51 = vld1q_f32(pA0 + A_hstep * 5 + kk + 4);
-                    float32x4_t _v60 = vld1q_f32(pA0 + A_hstep * 6 + kk);
-                    float32x4_t _v61 = vld1q_f32(pA0 + A_hstep * 6 + kk + 4);
-                    float32x4_t _v70 = vld1q_f32(pA0 + A_hstep * 7 + kk);
-                    float32x4_t _v71 = vld1q_f32(pA0 + A_hstep * 7 + kk + 4);
-                    int8x8_t _q0 = float2int8(vmulq_n_f32(_v00, scale0), vmulq_n_f32(_v01, scale0));
-                    int8x8_t _q1 = float2int8(vmulq_n_f32(_v10, scale1), vmulq_n_f32(_v11, scale1));
-                    int8x8_t _q2 = float2int8(vmulq_n_f32(_v20, scale2), vmulq_n_f32(_v21, scale2));
-                    int8x8_t _q3 = float2int8(vmulq_n_f32(_v30, scale3), vmulq_n_f32(_v31, scale3));
-                    int8x8_t _q4 = float2int8(vmulq_n_f32(_v40, scale4), vmulq_n_f32(_v41, scale4));
-                    int8x8_t _q5 = float2int8(vmulq_n_f32(_v50, scale5), vmulq_n_f32(_v51, scale5));
-                    int8x8_t _q6 = float2int8(vmulq_n_f32(_v60, scale6), vmulq_n_f32(_v61, scale6));
-                    int8x8_t _q7 = float2int8(vmulq_n_f32(_v70, scale7), vmulq_n_f32(_v71, scale7));
-                    vst1q_s8(pp, vcombine_s8(_q0, _q1));
-                    vst1q_s8(pp + 16, vcombine_s8(_q2, _q3));
-                    vst1q_s8(pp + 32, vcombine_s8(_q4, _q5));
-                    vst1q_s8(pp + 48, vcombine_s8(_q6, _q7));
+                    float32x4_t _p00 = vld1q_f32(p0);
+                    float32x4_t _p01 = vld1q_f32(p0 + 4);
+                    float32x4_t _p10 = vld1q_f32(p0 + A_hstep);
+                    float32x4_t _p11 = vld1q_f32(p0 + A_hstep + 4);
+                    float32x4_t _p20 = vld1q_f32(p0 + A_hstep * 2);
+                    float32x4_t _p21 = vld1q_f32(p0 + A_hstep * 2 + 4);
+                    float32x4_t _p30 = vld1q_f32(p0 + A_hstep * 3);
+                    float32x4_t _p31 = vld1q_f32(p0 + A_hstep * 3 + 4);
+                    float32x4_t _p40 = vld1q_f32(p0 + A_hstep * 4);
+                    float32x4_t _p41 = vld1q_f32(p0 + A_hstep * 4 + 4);
+                    float32x4_t _p50 = vld1q_f32(p0 + A_hstep * 5);
+                    float32x4_t _p51 = vld1q_f32(p0 + A_hstep * 5 + 4);
+                    float32x4_t _p60 = vld1q_f32(p0 + A_hstep * 6);
+                    float32x4_t _p61 = vld1q_f32(p0 + A_hstep * 6 + 4);
+                    float32x4_t _p70 = vld1q_f32(p0 + A_hstep * 7);
+                    float32x4_t _p71 = vld1q_f32(p0 + A_hstep * 7 + 4);
+                    int8x8_t _r0 = float2int8(vmulq_n_f32(_p00, scale0), vmulq_n_f32(_p01, scale0));
+                    int8x8_t _r1 = float2int8(vmulq_n_f32(_p10, scale1), vmulq_n_f32(_p11, scale1));
+                    int8x8_t _r2 = float2int8(vmulq_n_f32(_p20, scale2), vmulq_n_f32(_p21, scale2));
+                    int8x8_t _r3 = float2int8(vmulq_n_f32(_p30, scale3), vmulq_n_f32(_p31, scale3));
+                    int8x8_t _r4 = float2int8(vmulq_n_f32(_p40, scale4), vmulq_n_f32(_p41, scale4));
+                    int8x8_t _r5 = float2int8(vmulq_n_f32(_p50, scale5), vmulq_n_f32(_p51, scale5));
+                    int8x8_t _r6 = float2int8(vmulq_n_f32(_p60, scale6), vmulq_n_f32(_p61, scale6));
+                    int8x8_t _r7 = float2int8(vmulq_n_f32(_p70, scale7), vmulq_n_f32(_p71, scale7));
+                    vst1q_s8(pp, vcombine_s8(_r0, _r1));
+                    vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
+                    vst1q_s8(pp + 32, vcombine_s8(_r4, _r5));
+                    vst1q_s8(pp + 48, vcombine_s8(_r6, _r7));
                     pp += 64;
+                    p0 += 8;
                 }
 #endif // __ARM_FEATURE_MATMUL_INT8
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    float32x4_t _v0 = vld1q_f32(pA0 + kk);
-                    float32x4_t _v1 = vld1q_f32(pA0 + A_hstep + kk);
-                    float32x4_t _v2 = vld1q_f32(pA0 + A_hstep * 2 + kk);
-                    float32x4_t _v3 = vld1q_f32(pA0 + A_hstep * 3 + kk);
-                    float32x4_t _v4 = vld1q_f32(pA0 + A_hstep * 4 + kk);
-                    float32x4_t _v5 = vld1q_f32(pA0 + A_hstep * 5 + kk);
-                    float32x4_t _v6 = vld1q_f32(pA0 + A_hstep * 6 + kk);
-                    float32x4_t _v7 = vld1q_f32(pA0 + A_hstep * 7 + kk);
-                    int8x8_t _q01 = float2int8(vmulq_n_f32(_v0, scale0), vmulq_n_f32(_v1, scale1));
-                    int8x8_t _q23 = float2int8(vmulq_n_f32(_v2, scale2), vmulq_n_f32(_v3, scale3));
-                    int8x8_t _q45 = float2int8(vmulq_n_f32(_v4, scale4), vmulq_n_f32(_v5, scale5));
-                    int8x8_t _q67 = float2int8(vmulq_n_f32(_v6, scale6), vmulq_n_f32(_v7, scale7));
+                    float32x4_t _p0 = vld1q_f32(p0);
+                    float32x4_t _p1 = vld1q_f32(p0 + A_hstep);
+                    float32x4_t _p2 = vld1q_f32(p0 + A_hstep * 2);
+                    float32x4_t _p3 = vld1q_f32(p0 + A_hstep * 3);
+                    float32x4_t _p4 = vld1q_f32(p0 + A_hstep * 4);
+                    float32x4_t _p5 = vld1q_f32(p0 + A_hstep * 5);
+                    float32x4_t _p6 = vld1q_f32(p0 + A_hstep * 6);
+                    float32x4_t _p7 = vld1q_f32(p0 + A_hstep * 7);
+                    int8x8_t _r01 = float2int8(vmulq_n_f32(_p0, scale0), vmulq_n_f32(_p1, scale1));
+                    int8x8_t _r23 = float2int8(vmulq_n_f32(_p2, scale2), vmulq_n_f32(_p3, scale3));
+                    int8x8_t _r45 = float2int8(vmulq_n_f32(_p4, scale4), vmulq_n_f32(_p5, scale5));
+                    int8x8_t _r67 = float2int8(vmulq_n_f32(_p6, scale6), vmulq_n_f32(_p7, scale7));
 #if __ARM_FEATURE_DOTPROD
-                    vst1q_s8(pp, vcombine_s8(_q01, _q23));
-                    vst1q_s8(pp + 16, vcombine_s8(_q45, _q67));
+                    vst1q_s8(pp, vcombine_s8(_r01, _r23));
+                    vst1q_s8(pp + 16, vcombine_s8(_r45, _r67));
 #else
-                    int16x8x2_t _q04 = vuzpq_s16(vreinterpretq_s16_s8(vcombine_s8(_q01, _q23)), vreinterpretq_s16_s8(vcombine_s8(_q45, _q67)));
-                    vst1q_s16((short*)pp, _q04.val[0]);
-                    vst1q_s16((short*)pp + 8, _q04.val[1]);
+                    int16x8x2_t _r04 = vuzpq_s16(vreinterpretq_s16_s8(vcombine_s8(_r01, _r23)), vreinterpretq_s16_s8(vcombine_s8(_r45, _r67)));
+                    vst1q_s16((short*)pp, _r04.val[0]);
+                    vst1q_s16((short*)pp + 8, _r04.val[1]);
 #endif
                     pp += 32;
+                    p0 += 4;
                 }
                 for (; kk + 1 < max_kk0; kk += 2)
                 {
-                    float v00 = pA0[kk];
-                    float v01 = pA0[kk + 1];
-                    float v10 = pA0[A_hstep + kk];
-                    float v11 = pA0[A_hstep + kk + 1];
-                    float v20 = pA0[A_hstep * 2 + kk];
-                    float v21 = pA0[A_hstep * 2 + kk + 1];
-                    float v30 = pA0[A_hstep * 3 + kk];
-                    float v31 = pA0[A_hstep * 3 + kk + 1];
-                    float v40 = pA0[A_hstep * 4 + kk];
-                    float v41 = pA0[A_hstep * 4 + kk + 1];
-                    float v50 = pA0[A_hstep * 5 + kk];
-                    float v51 = pA0[A_hstep * 5 + kk + 1];
-                    float v60 = pA0[A_hstep * 6 + kk];
-                    float v61 = pA0[A_hstep * 6 + kk + 1];
-                    float v70 = pA0[A_hstep * 7 + kk];
-                    float v71 = pA0[A_hstep * 7 + kk + 1];
+                    float v00 = p0[0];
+                    float v01 = p0[1];
+                    float v10 = p0[A_hstep];
+                    float v11 = p0[A_hstep + 1];
+                    float v20 = p0[A_hstep * 2];
+                    float v21 = p0[A_hstep * 2 + 1];
+                    float v30 = p0[A_hstep * 3];
+                    float v31 = p0[A_hstep * 3 + 1];
+                    float v40 = p0[A_hstep * 4];
+                    float v41 = p0[A_hstep * 4 + 1];
+                    float v50 = p0[A_hstep * 5];
+                    float v51 = p0[A_hstep * 5 + 1];
+                    float v60 = p0[A_hstep * 6];
+                    float v61 = p0[A_hstep * 6 + 1];
+                    float v70 = p0[A_hstep * 7];
+                    float v71 = p0[A_hstep * 7 + 1];
                     *pp++ = float2int8(v00 * scale0);
                     *pp++ = float2int8(v01 * scale0);
                     *pp++ = float2int8(v10 * scale1);
@@ -222,17 +223,18 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     *pp++ = float2int8(v61 * scale6);
                     *pp++ = float2int8(v70 * scale7);
                     *pp++ = float2int8(v71 * scale7);
+                    p0 += 2;
                 }
                 if (kk < max_kk0)
                 {
-                    float v0 = pA0[kk];
-                    float v1 = pA0[A_hstep + kk];
-                    float v2 = pA0[A_hstep * 2 + kk];
-                    float v3 = pA0[A_hstep * 3 + kk];
-                    float v4 = pA0[A_hstep * 4 + kk];
-                    float v5 = pA0[A_hstep * 5 + kk];
-                    float v6 = pA0[A_hstep * 6 + kk];
-                    float v7 = pA0[A_hstep * 7 + kk];
+                    float v0 = p0[0];
+                    float v1 = p0[A_hstep];
+                    float v2 = p0[A_hstep * 2];
+                    float v3 = p0[A_hstep * 3];
+                    float v4 = p0[A_hstep * 4];
+                    float v5 = p0[A_hstep * 5];
+                    float v6 = p0[A_hstep * 6];
+                    float v7 = p0[A_hstep * 7];
                     *pp++ = float2int8(v0 * scale0);
                     *pp++ = float2int8(v1 * scale1);
                     *pp++ = float2int8(v2 * scale2);
@@ -241,17 +243,15 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     *pp++ = float2int8(v5 * scale5);
                     *pp++ = float2int8(v6 * scale6);
                     *pp++ = float2int8(v7 * scale7);
+                    p0++;
                 }
-                pA0 += max_kk0;
                 pd += 8;
             }
         }
 #endif // __aarch64__
         for (; ii + 3 < max_ii; ii += 4)
         {
-            signed char* pp = outptr + ii * out_hstep;
-            float* descale_ptr = descales + ii * descales_hstep;
-            const float* pA0 = (const float*)A + (i + ii) * A_hstep + k;
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
 
             for (int g = 0; g < block_count; g++)
             {
@@ -260,17 +260,19 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 float32x4_t _absmax1 = vdupq_n_f32(0.f);
                 float32x4_t _absmax2 = vdupq_n_f32(0.f);
                 float32x4_t _absmax3 = vdupq_n_f32(0.f);
+                const float* p0a = p0;
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    float32x4_t _v0 = vld1q_f32(pA0 + kk);
-                    float32x4_t _v1 = vld1q_f32(pA0 + A_hstep + kk);
-                    float32x4_t _v2 = vld1q_f32(pA0 + A_hstep * 2 + kk);
-                    float32x4_t _v3 = vld1q_f32(pA0 + A_hstep * 3 + kk);
-                    _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_v0));
-                    _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_v1));
-                    _absmax2 = vmaxq_f32(_absmax2, vabsq_f32(_v2));
-                    _absmax3 = vmaxq_f32(_absmax3, vabsq_f32(_v3));
+                    float32x4_t _p0 = vld1q_f32(p0a);
+                    _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p0));
+                    float32x4_t _p1 = vld1q_f32(p0a + A_hstep);
+                    _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
+                    float32x4_t _p2 = vld1q_f32(p0a + A_hstep * 2);
+                    _absmax2 = vmaxq_f32(_absmax2, vabsq_f32(_p2));
+                    float32x4_t _p3 = vld1q_f32(p0a + A_hstep * 3);
+                    _absmax3 = vmaxq_f32(_absmax3, vabsq_f32(_p3));
+                    p0a += 4;
                 }
 #if __aarch64__
                 float absmax0 = vmaxvq_f32(_absmax0);
@@ -293,19 +295,20 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #endif
                 for (; kk < max_kk0; kk++)
                 {
-                    float v0 = pA0[kk];
-                    float v1 = pA0[A_hstep + kk];
-                    float v2 = pA0[A_hstep * 2 + kk];
-                    float v3 = pA0[A_hstep * 3 + kk];
+                    float v0 = p0a[0];
+                    float v1 = p0a[A_hstep];
+                    float v2 = p0a[A_hstep * 2];
+                    float v3 = p0a[A_hstep * 3];
                     absmax0 = std::max(absmax0, fabsf(v0));
                     absmax1 = std::max(absmax1, fabsf(v1));
                     absmax2 = std::max(absmax2, fabsf(v2));
                     absmax3 = std::max(absmax3, fabsf(v3));
+                    p0a++;
                 }
-                descale_ptr[0] = absmax0 / 127.f;
-                descale_ptr[1] = absmax1 / 127.f;
-                descale_ptr[2] = absmax2 / 127.f;
-                descale_ptr[3] = absmax3 / 127.f;
+                pd[0] = absmax0 / 127.f;
+                pd[1] = absmax1 / 127.f;
+                pd[2] = absmax2 / 127.f;
+                pd[3] = absmax3 / 127.f;
                 const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
                 const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
                 const float scale2 = absmax2 == 0.f ? 0.f : 127.f / absmax2;
@@ -316,51 +319,53 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #if __ARM_FEATURE_MATMUL_INT8
                 for (; kk + 7 < max_kk0; kk += 8)
                 {
-                    float32x4_t _v00 = vld1q_f32(pA0 + kk);
-                    float32x4_t _v01 = vld1q_f32(pA0 + kk + 4);
-                    float32x4_t _v10 = vld1q_f32(pA0 + A_hstep + kk);
-                    float32x4_t _v11 = vld1q_f32(pA0 + A_hstep + kk + 4);
-                    float32x4_t _v20 = vld1q_f32(pA0 + A_hstep * 2 + kk);
-                    float32x4_t _v21 = vld1q_f32(pA0 + A_hstep * 2 + kk + 4);
-                    float32x4_t _v30 = vld1q_f32(pA0 + A_hstep * 3 + kk);
-                    float32x4_t _v31 = vld1q_f32(pA0 + A_hstep * 3 + kk + 4);
-                    int8x8_t _q0 = float2int8(vmulq_n_f32(_v00, scale0), vmulq_n_f32(_v01, scale0));
-                    int8x8_t _q1 = float2int8(vmulq_n_f32(_v10, scale1), vmulq_n_f32(_v11, scale1));
-                    int8x8_t _q2 = float2int8(vmulq_n_f32(_v20, scale2), vmulq_n_f32(_v21, scale2));
-                    int8x8_t _q3 = float2int8(vmulq_n_f32(_v30, scale3), vmulq_n_f32(_v31, scale3));
-                    vst1q_s8(pp, vcombine_s8(_q0, _q1));
-                    vst1q_s8(pp + 16, vcombine_s8(_q2, _q3));
+                    float32x4_t _p00 = vld1q_f32(p0);
+                    float32x4_t _p01 = vld1q_f32(p0 + 4);
+                    float32x4_t _p10 = vld1q_f32(p0 + A_hstep);
+                    float32x4_t _p11 = vld1q_f32(p0 + A_hstep + 4);
+                    float32x4_t _p20 = vld1q_f32(p0 + A_hstep * 2);
+                    float32x4_t _p21 = vld1q_f32(p0 + A_hstep * 2 + 4);
+                    float32x4_t _p30 = vld1q_f32(p0 + A_hstep * 3);
+                    float32x4_t _p31 = vld1q_f32(p0 + A_hstep * 3 + 4);
+                    int8x8_t _r0 = float2int8(vmulq_n_f32(_p00, scale0), vmulq_n_f32(_p01, scale0));
+                    int8x8_t _r1 = float2int8(vmulq_n_f32(_p10, scale1), vmulq_n_f32(_p11, scale1));
+                    int8x8_t _r2 = float2int8(vmulq_n_f32(_p20, scale2), vmulq_n_f32(_p21, scale2));
+                    int8x8_t _r3 = float2int8(vmulq_n_f32(_p30, scale3), vmulq_n_f32(_p31, scale3));
+                    vst1q_s8(pp, vcombine_s8(_r0, _r1));
+                    vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
                     pp += 32;
+                    p0 += 8;
                 }
 #endif // __ARM_FEATURE_MATMUL_INT8
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    float32x4_t _v0 = vld1q_f32(pA0 + kk);
-                    float32x4_t _v1 = vld1q_f32(pA0 + A_hstep + kk);
-                    float32x4_t _v2 = vld1q_f32(pA0 + A_hstep * 2 + kk);
-                    float32x4_t _v3 = vld1q_f32(pA0 + A_hstep * 3 + kk);
-                    int8x8_t _q01 = float2int8(vmulq_n_f32(_v0, scale0), vmulq_n_f32(_v1, scale1));
-                    int8x8_t _q23 = float2int8(vmulq_n_f32(_v2, scale2), vmulq_n_f32(_v3, scale3));
+                    float32x4_t _p0 = vld1q_f32(p0);
+                    float32x4_t _p1 = vld1q_f32(p0 + A_hstep);
+                    float32x4_t _p2 = vld1q_f32(p0 + A_hstep * 2);
+                    float32x4_t _p3 = vld1q_f32(p0 + A_hstep * 3);
+                    int8x8_t _r01 = float2int8(vmulq_n_f32(_p0, scale0), vmulq_n_f32(_p1, scale1));
+                    int8x8_t _r23 = float2int8(vmulq_n_f32(_p2, scale2), vmulq_n_f32(_p3, scale3));
 #if __ARM_FEATURE_DOTPROD
-                    vst1q_s8(pp, vcombine_s8(_q01, _q23));
+                    vst1q_s8(pp, vcombine_s8(_r01, _r23));
 #else
-                    int16x8_t _q0123 = vreinterpretq_s16_s8(vcombine_s8(_q01, _q23));
-                    int16x8x2_t _q02 = vuzpq_s16(_q0123, _q0123);
-                    vst1q_s8(pp, vreinterpretq_s8_s16(vcombine_s16(vget_low_s16(_q02.val[0]), vget_low_s16(_q02.val[1]))));
+                    int16x8_t _r0123 = vreinterpretq_s16_s8(vcombine_s8(_r01, _r23));
+                    int16x8x2_t _r02 = vuzpq_s16(_r0123, _r0123);
+                    vst1q_s8(pp, vreinterpretq_s8_s16(vcombine_s16(vget_low_s16(_r02.val[0]), vget_low_s16(_r02.val[1]))));
 #endif
                     pp += 16;
+                    p0 += 4;
                 }
                 for (; kk + 1 < max_kk0; kk += 2)
                 {
-                    float v00 = pA0[kk];
-                    float v01 = pA0[kk + 1];
-                    float v10 = pA0[A_hstep + kk];
-                    float v11 = pA0[A_hstep + kk + 1];
-                    float v20 = pA0[A_hstep * 2 + kk];
-                    float v21 = pA0[A_hstep * 2 + kk + 1];
-                    float v30 = pA0[A_hstep * 3 + kk];
-                    float v31 = pA0[A_hstep * 3 + kk + 1];
+                    float v00 = p0[0];
+                    float v01 = p0[1];
+                    float v10 = p0[A_hstep];
+                    float v11 = p0[A_hstep + 1];
+                    float v20 = p0[A_hstep * 2];
+                    float v21 = p0[A_hstep * 2 + 1];
+                    float v30 = p0[A_hstep * 3];
+                    float v31 = p0[A_hstep * 3 + 1];
                     *pp++ = float2int8(v00 * scale0);
                     *pp++ = float2int8(v01 * scale0);
                     *pp++ = float2int8(v10 * scale1);
@@ -369,45 +374,45 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     *pp++ = float2int8(v21 * scale2);
                     *pp++ = float2int8(v30 * scale3);
                     *pp++ = float2int8(v31 * scale3);
+                    p0 += 2;
                 }
                 if (kk < max_kk0)
                 {
-                    float v0 = pA0[kk];
-                    float v1 = pA0[A_hstep + kk];
-                    float v2 = pA0[A_hstep * 2 + kk];
-                    float v3 = pA0[A_hstep * 3 + kk];
+                    float v0 = p0[0];
+                    float v1 = p0[A_hstep];
+                    float v2 = p0[A_hstep * 2];
+                    float v3 = p0[A_hstep * 3];
                     *pp++ = float2int8(v0 * scale0);
                     *pp++ = float2int8(v1 * scale1);
                     *pp++ = float2int8(v2 * scale2);
                     *pp++ = float2int8(v3 * scale3);
+                    p0++;
                 }
-                pA0 += max_kk0;
-                descale_ptr += 4;
+                pd += 4;
             }
         }
 #endif // __ARM_NEON
         for (; ii + 1 < max_ii; ii += 2)
         {
-            signed char* pp = outptr + ii * out_hstep;
-            float* descale_ptr = descales + ii * descales_hstep;
-            const float* pA0g = (const float*)A + (i + ii) * A_hstep + k;
-            const float* pA1g = pA0g + A_hstep;
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
 
             for (int g = 0; g < block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax0 = 0.f;
                 float absmax1 = 0.f;
+                const float* p0a = p0;
                 int kk = 0;
 #if __ARM_NEON
                 float32x4_t _absmax0 = vdupq_n_f32(0.f);
                 float32x4_t _absmax1 = vdupq_n_f32(0.f);
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    float32x4_t _v0 = vld1q_f32(pA0g + kk);
-                    float32x4_t _v1 = vld1q_f32(pA1g + kk);
-                    _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_v0));
-                    _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_v1));
+                    float32x4_t _p0 = vld1q_f32(p0a);
+                    _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p0));
+                    float32x4_t _p1 = vld1q_f32(p0a + A_hstep);
+                    _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
+                    p0a += 4;
                 }
 #if __aarch64__
                 absmax0 = vmaxvq_f32(_absmax0);
@@ -424,14 +429,15 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 
                 for (; kk < max_kk0; kk++)
                 {
-                    float v0 = pA0g[kk];
-                    float v1 = pA1g[kk];
+                    float v0 = p0a[0];
+                    float v1 = p0a[A_hstep];
                     absmax0 = std::max(absmax0, fabsf(v0));
                     absmax1 = std::max(absmax1, fabsf(v1));
+                    p0a++;
                 }
 
-                descale_ptr[0] = absmax0 / 127.f;
-                descale_ptr[1] = absmax1 / 127.f;
+                pd[0] = absmax0 / 127.f;
+                pd[1] = absmax1 / 127.f;
                 const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
                 const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
 
@@ -441,66 +447,66 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #if __ARM_FEATURE_MATMUL_INT8
                 for (; kk + 7 < max_kk0; kk += 8)
                 {
-                    float32x4_t _v00 = vld1q_f32(pA0g + kk);
-                    float32x4_t _v01 = vld1q_f32(pA0g + kk + 4);
-                    float32x4_t _v10 = vld1q_f32(pA1g + kk);
-                    float32x4_t _v11 = vld1q_f32(pA1g + kk + 4);
-                    int8x8_t _q0 = float2int8(vmulq_n_f32(_v00, scale0), vmulq_n_f32(_v01, scale0));
-                    int8x8_t _q1 = float2int8(vmulq_n_f32(_v10, scale1), vmulq_n_f32(_v11, scale1));
-                    vst1q_s8(pp, vcombine_s8(_q0, _q1));
+                    float32x4_t _p00 = vld1q_f32(p0);
+                    float32x4_t _p01 = vld1q_f32(p0 + 4);
+                    float32x4_t _p10 = vld1q_f32(p0 + A_hstep);
+                    float32x4_t _p11 = vld1q_f32(p0 + A_hstep + 4);
+                    int8x8_t _r0 = float2int8(vmulq_n_f32(_p00, scale0), vmulq_n_f32(_p01, scale0));
+                    int8x8_t _r1 = float2int8(vmulq_n_f32(_p10, scale1), vmulq_n_f32(_p11, scale1));
+                    vst1q_s8(pp, vcombine_s8(_r0, _r1));
                     pp += 16;
+                    p0 += 8;
                 }
 #endif // __ARM_FEATURE_MATMUL_INT8
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    float32x4_t _v0 = vld1q_f32(pA0g + kk);
-                    float32x4_t _v1 = vld1q_f32(pA1g + kk);
-                    int8x8_t _q01 = float2int8(vmulq_n_f32(_v0, scale0), vmulq_n_f32(_v1, scale1));
+                    float32x4_t _p0 = vld1q_f32(p0);
+                    float32x4_t _p1 = vld1q_f32(p0 + A_hstep);
+                    int8x8_t _r01 = float2int8(vmulq_n_f32(_p0, scale0), vmulq_n_f32(_p1, scale1));
 #if __ARM_FEATURE_DOTPROD
-                    vst1_s8(pp, _q01);
+                    vst1_s8(pp, _r01);
 #else
-                    int16x4_t _q01_s16 = vreinterpret_s16_s8(_q01);
-                    int16x4_t _q10_s16 = vext_s16(_q01_s16, _q01_s16, 2);
-                    vst1_s8(pp, vreinterpret_s8_s16(vzip_s16(_q01_s16, _q10_s16).val[0]));
+                    int16x4_t _r01_s16 = vreinterpret_s16_s8(_r01);
+                    int16x4_t _r10_s16 = vext_s16(_r01_s16, _r01_s16, 2);
+                    vst1_s8(pp, vreinterpret_s8_s16(vzip_s16(_r01_s16, _r10_s16).val[0]));
 #endif
                     pp += 8;
+                    p0 += 4;
                 }
                 for (; kk + 1 < max_kk0; kk += 2)
                 {
-                    float v00 = pA0g[kk];
-                    float v01 = pA0g[kk + 1];
-                    float v10 = pA1g[kk];
-                    float v11 = pA1g[kk + 1];
+                    float v00 = p0[0];
+                    float v01 = p0[1];
+                    float v10 = p0[A_hstep];
+                    float v11 = p0[A_hstep + 1];
                     *pp++ = float2int8(v00 * scale0);
                     *pp++ = float2int8(v01 * scale0);
                     *pp++ = float2int8(v10 * scale1);
                     *pp++ = float2int8(v11 * scale1);
+                    p0 += 2;
                 }
 #endif // __ARM_NEON
                 for (; kk < max_kk0; kk++)
                 {
-                    float v0 = pA0g[kk];
-                    float v1 = pA1g[kk];
+                    float v0 = p0[0];
+                    float v1 = p0[A_hstep];
                     *pp++ = float2int8(v0 * scale0);
                     *pp++ = float2int8(v1 * scale1);
+                    p0++;
                 }
 
-                pA0g += max_kk0;
-                pA1g += max_kk0;
-                descale_ptr += 2;
+                pd += 2;
             }
         }
         for (; ii < max_ii; ii++)
         {
-            const float* pAg = (const float*)A + (i + ii) * A_hstep + k;
-            signed char* pp = outptr + ii * out_hstep;
-            float* pd = descales + ii * descales_hstep;
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
 
             for (int g = 0; g < block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
-                const float* pA = pAg;
+                const float* p0a = p0;
 
                 float absmax = 0.f;
                 int kk = 0;
@@ -508,9 +514,9 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 float32x4_t _absmax = vdupq_n_f32(0.f);
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    float32x4_t _v = vld1q_f32(pA);
-                    pA += 4;
-                    _absmax = vmaxq_f32(_absmax, vabsq_f32(_v));
+                    float32x4_t _p = vld1q_f32(p0a);
+                    _absmax = vmaxq_f32(_absmax, vabsq_f32(_p));
+                    p0a += 4;
                 }
 #if __aarch64__
                 absmax = vmaxvq_f32(_absmax);
@@ -522,7 +528,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #endif // __ARM_NEON
                 for (; kk < max_kk0; kk++)
                 {
-                    float v = *pA++;
+                    float v = *p0a++;
                     absmax = std::max(absmax, fabsf(v));
                 }
 
@@ -531,7 +537,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     *pd++ = 0.f;
                     for (int kk0 = 0; kk0 < max_kk0; kk0++)
                         *pp++ = 0;
-                    pAg += max_kk0;
+                    p0 += max_kk0;
                     continue;
                 }
 
@@ -539,55 +545,44 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 *pd++ = absmax / 127.f;
 
                 kk = 0;
-                pA = pAg;
 #if __ARM_NEON
                 float32x4_t _scale = vdupq_n_f32(scale);
                 for (; kk + 7 < max_kk0; kk += 8)
                 {
-                    float32x4_t _v0 = vld1q_f32(pA);
-                    float32x4_t _v1 = vld1q_f32(pA + 4);
-                    pA += 8;
-                    vst1_s8(pp, float2int8(vmulq_f32(_v0, _scale), vmulq_f32(_v1, _scale)));
+                    float32x4_t _p0 = vld1q_f32(p0);
+                    float32x4_t _p1 = vld1q_f32(p0 + 4);
+                    vst1_s8(pp, float2int8(vmulq_f32(_p0, _scale), vmulq_f32(_p1, _scale)));
                     pp += 8;
+                    p0 += 8;
                 }
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    float32x4_t _v = vld1q_f32(pA);
-                    pA += 4;
-                    int8x8_t _q = float2int8(vmulq_f32(_v, _scale), vmulq_f32(_v, _scale));
-                    vst1_lane_s32((int*)pp, vreinterpret_s32_s8(_q), 0);
+                    float32x4_t _p = vld1q_f32(p0);
+                    int8x8_t _r = float2int8(vmulq_f32(_p, _scale), vmulq_f32(_p, _scale));
+                    vst1_lane_s32((int*)pp, vreinterpret_s32_s8(_r), 0);
                     pp += 4;
+                    p0 += 4;
                 }
 #endif // __ARM_NEON
                 for (; kk < max_kk0; kk++)
                 {
-                    float v = *pA++;
+                    float v = *p0++;
                     *pp++ = float2int8(v * scale);
                 }
 
-                pAg += max_kk0;
             }
         }
 
         return;
     }
 
-    signed char* outptr = AT_tile;
-    const int out_hstep = AT_tile.w;
-    float* descales = AT_descales_tile;
-    const int descales_hstep = AT_descales_tile.w;
-    const int block_count = (max_kk + block_size - 1) / block_size;
-    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
-
     int ii = 0;
 #if __ARM_NEON
 #if __aarch64__
     for (; ii + 7 < max_ii; ii += 8)
     {
-        signed char* pp = outptr + ii * out_hstep;
-        const float* pA0 = (const float*)A + (i + ii) * A_hstep + k;
+        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
         const float* ps = (const float*)input_scales + k;
-        float* pd = descales + ii * descales_hstep;
 
         for (int g = 0; g < block_count; g++)
         {
@@ -600,26 +595,30 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             float32x4_t _absmax5 = vdupq_n_f32(0.f);
             float32x4_t _absmax6 = vdupq_n_f32(0.f);
             float32x4_t _absmax7 = vdupq_n_f32(0.f);
+            const float* p0a = p0;
+            const float* psa = ps;
             int kk = 0;
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                float32x4_t _v0 = vld1q_f32(pA0 + kk);
-                float32x4_t _v1 = vld1q_f32(pA0 + A_hstep + kk);
-                float32x4_t _v2 = vld1q_f32(pA0 + A_hstep * 2 + kk);
-                float32x4_t _v3 = vld1q_f32(pA0 + A_hstep * 3 + kk);
-                float32x4_t _v4 = vld1q_f32(pA0 + A_hstep * 4 + kk);
-                float32x4_t _v5 = vld1q_f32(pA0 + A_hstep * 5 + kk);
-                float32x4_t _v6 = vld1q_f32(pA0 + A_hstep * 6 + kk);
-                float32x4_t _v7 = vld1q_f32(pA0 + A_hstep * 7 + kk);
-                float32x4_t _s = vld1q_f32(ps + kk);
-                _absmax0 = vmaxq_f32(_absmax0, vmulq_f32(vabsq_f32(_v0), _s));
-                _absmax1 = vmaxq_f32(_absmax1, vmulq_f32(vabsq_f32(_v1), _s));
-                _absmax2 = vmaxq_f32(_absmax2, vmulq_f32(vabsq_f32(_v2), _s));
-                _absmax3 = vmaxq_f32(_absmax3, vmulq_f32(vabsq_f32(_v3), _s));
-                _absmax4 = vmaxq_f32(_absmax4, vmulq_f32(vabsq_f32(_v4), _s));
-                _absmax5 = vmaxq_f32(_absmax5, vmulq_f32(vabsq_f32(_v5), _s));
-                _absmax6 = vmaxq_f32(_absmax6, vmulq_f32(vabsq_f32(_v6), _s));
-                _absmax7 = vmaxq_f32(_absmax7, vmulq_f32(vabsq_f32(_v7), _s));
+                float32x4_t _s = vld1q_f32(psa);
+                float32x4_t _p0 = vld1q_f32(p0a);
+                _absmax0 = vmaxq_f32(_absmax0, vmulq_f32(vabsq_f32(_p0), _s));
+                float32x4_t _p1 = vld1q_f32(p0a + A_hstep);
+                _absmax1 = vmaxq_f32(_absmax1, vmulq_f32(vabsq_f32(_p1), _s));
+                float32x4_t _p2 = vld1q_f32(p0a + A_hstep * 2);
+                _absmax2 = vmaxq_f32(_absmax2, vmulq_f32(vabsq_f32(_p2), _s));
+                float32x4_t _p3 = vld1q_f32(p0a + A_hstep * 3);
+                _absmax3 = vmaxq_f32(_absmax3, vmulq_f32(vabsq_f32(_p3), _s));
+                float32x4_t _p4 = vld1q_f32(p0a + A_hstep * 4);
+                _absmax4 = vmaxq_f32(_absmax4, vmulq_f32(vabsq_f32(_p4), _s));
+                float32x4_t _p5 = vld1q_f32(p0a + A_hstep * 5);
+                _absmax5 = vmaxq_f32(_absmax5, vmulq_f32(vabsq_f32(_p5), _s));
+                float32x4_t _p6 = vld1q_f32(p0a + A_hstep * 6);
+                _absmax6 = vmaxq_f32(_absmax6, vmulq_f32(vabsq_f32(_p6), _s));
+                float32x4_t _p7 = vld1q_f32(p0a + A_hstep * 7);
+                _absmax7 = vmaxq_f32(_absmax7, vmulq_f32(vabsq_f32(_p7), _s));
+                p0a += 4;
+                psa += 4;
             }
             float absmax0 = vmaxvq_f32(_absmax0);
             float absmax1 = vmaxvq_f32(_absmax1);
@@ -631,15 +630,15 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             float absmax7 = vmaxvq_f32(_absmax7);
             for (; kk < max_kk0; kk++)
             {
-                float v0 = pA0[kk];
-                float v1 = pA0[A_hstep + kk];
-                float v2 = pA0[A_hstep * 2 + kk];
-                float v3 = pA0[A_hstep * 3 + kk];
-                float v4 = pA0[A_hstep * 4 + kk];
-                float v5 = pA0[A_hstep * 5 + kk];
-                float v6 = pA0[A_hstep * 6 + kk];
-                float v7 = pA0[A_hstep * 7 + kk];
-                const float s = ps[kk];
+                float v0 = p0a[0];
+                float v1 = p0a[A_hstep];
+                float v2 = p0a[A_hstep * 2];
+                float v3 = p0a[A_hstep * 3];
+                float v4 = p0a[A_hstep * 4];
+                float v5 = p0a[A_hstep * 5];
+                float v6 = p0a[A_hstep * 6];
+                float v7 = p0a[A_hstep * 7];
+                const float s = *psa++;
                 absmax0 = std::max(absmax0, fabsf(v0) * s);
                 absmax1 = std::max(absmax1, fabsf(v1) * s);
                 absmax2 = std::max(absmax2, fabsf(v2) * s);
@@ -648,6 +647,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 absmax5 = std::max(absmax5, fabsf(v5) * s);
                 absmax6 = std::max(absmax6, fabsf(v6) * s);
                 absmax7 = std::max(absmax7, fabsf(v7) * s);
+                p0a++;
             }
 
             pd[0] = absmax0 / 127.f;
@@ -672,112 +672,89 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #if __ARM_FEATURE_MATMUL_INT8
             for (; kk + 7 < max_kk0; kk += 8)
             {
-                float32x4_t _s0;
-                float32x4_t _s1;
-                _s0 = vld1q_f32(ps + kk);
-                _s1 = vld1q_f32(ps + kk + 4);
-
-                float32x4_t _v00 = vld1q_f32(pA0 + kk);
-                float32x4_t _v01 = vld1q_f32(pA0 + kk + 4);
-                float32x4_t _v10 = vld1q_f32(pA0 + A_hstep + kk);
-                float32x4_t _v11 = vld1q_f32(pA0 + A_hstep + kk + 4);
-                float32x4_t _v20 = vld1q_f32(pA0 + A_hstep * 2 + kk);
-                float32x4_t _v21 = vld1q_f32(pA0 + A_hstep * 2 + kk + 4);
-                float32x4_t _v30 = vld1q_f32(pA0 + A_hstep * 3 + kk);
-                float32x4_t _v31 = vld1q_f32(pA0 + A_hstep * 3 + kk + 4);
-                float32x4_t _v40 = vld1q_f32(pA0 + A_hstep * 4 + kk);
-                float32x4_t _v41 = vld1q_f32(pA0 + A_hstep * 4 + kk + 4);
-                float32x4_t _v50 = vld1q_f32(pA0 + A_hstep * 5 + kk);
-                float32x4_t _v51 = vld1q_f32(pA0 + A_hstep * 5 + kk + 4);
-                float32x4_t _v60 = vld1q_f32(pA0 + A_hstep * 6 + kk);
-                float32x4_t _v61 = vld1q_f32(pA0 + A_hstep * 6 + kk + 4);
-                float32x4_t _v70 = vld1q_f32(pA0 + A_hstep * 7 + kk);
-                float32x4_t _v71 = vld1q_f32(pA0 + A_hstep * 7 + kk + 4);
-                _v00 = vmulq_f32(_v00, _s0);
-                _v01 = vmulq_f32(_v01, _s1);
-                _v10 = vmulq_f32(_v10, _s0);
-                _v11 = vmulq_f32(_v11, _s1);
-                _v20 = vmulq_f32(_v20, _s0);
-                _v21 = vmulq_f32(_v21, _s1);
-                _v30 = vmulq_f32(_v30, _s0);
-                _v31 = vmulq_f32(_v31, _s1);
-                _v40 = vmulq_f32(_v40, _s0);
-                _v41 = vmulq_f32(_v41, _s1);
-                _v50 = vmulq_f32(_v50, _s0);
-                _v51 = vmulq_f32(_v51, _s1);
-                _v60 = vmulq_f32(_v60, _s0);
-                _v61 = vmulq_f32(_v61, _s1);
-                _v70 = vmulq_f32(_v70, _s0);
-                _v71 = vmulq_f32(_v71, _s1);
-                int8x8_t _q0 = float2int8(vmulq_n_f32(_v00, scale0), vmulq_n_f32(_v01, scale0));
-                int8x8_t _q1 = float2int8(vmulq_n_f32(_v10, scale1), vmulq_n_f32(_v11, scale1));
-                int8x8_t _q2 = float2int8(vmulq_n_f32(_v20, scale2), vmulq_n_f32(_v21, scale2));
-                int8x8_t _q3 = float2int8(vmulq_n_f32(_v30, scale3), vmulq_n_f32(_v31, scale3));
-                int8x8_t _q4 = float2int8(vmulq_n_f32(_v40, scale4), vmulq_n_f32(_v41, scale4));
-                int8x8_t _q5 = float2int8(vmulq_n_f32(_v50, scale5), vmulq_n_f32(_v51, scale5));
-                int8x8_t _q6 = float2int8(vmulq_n_f32(_v60, scale6), vmulq_n_f32(_v61, scale6));
-                int8x8_t _q7 = float2int8(vmulq_n_f32(_v70, scale7), vmulq_n_f32(_v71, scale7));
-                vst1q_s8(pp, vcombine_s8(_q0, _q1));
-                vst1q_s8(pp + 16, vcombine_s8(_q2, _q3));
-                vst1q_s8(pp + 32, vcombine_s8(_q4, _q5));
-                vst1q_s8(pp + 48, vcombine_s8(_q6, _q7));
+                float32x4_t _s0 = vld1q_f32(ps);
+                float32x4_t _s1 = vld1q_f32(ps + 4);
+                float32x4_t _p00 = vmulq_f32(vld1q_f32(p0), _s0);
+                float32x4_t _p01 = vmulq_f32(vld1q_f32(p0 + 4), _s1);
+                float32x4_t _p10 = vmulq_f32(vld1q_f32(p0 + A_hstep), _s0);
+                float32x4_t _p11 = vmulq_f32(vld1q_f32(p0 + A_hstep + 4), _s1);
+                float32x4_t _p20 = vmulq_f32(vld1q_f32(p0 + A_hstep * 2), _s0);
+                float32x4_t _p21 = vmulq_f32(vld1q_f32(p0 + A_hstep * 2 + 4), _s1);
+                float32x4_t _p30 = vmulq_f32(vld1q_f32(p0 + A_hstep * 3), _s0);
+                float32x4_t _p31 = vmulq_f32(vld1q_f32(p0 + A_hstep * 3 + 4), _s1);
+                float32x4_t _p40 = vmulq_f32(vld1q_f32(p0 + A_hstep * 4), _s0);
+                float32x4_t _p41 = vmulq_f32(vld1q_f32(p0 + A_hstep * 4 + 4), _s1);
+                float32x4_t _p50 = vmulq_f32(vld1q_f32(p0 + A_hstep * 5), _s0);
+                float32x4_t _p51 = vmulq_f32(vld1q_f32(p0 + A_hstep * 5 + 4), _s1);
+                float32x4_t _p60 = vmulq_f32(vld1q_f32(p0 + A_hstep * 6), _s0);
+                float32x4_t _p61 = vmulq_f32(vld1q_f32(p0 + A_hstep * 6 + 4), _s1);
+                float32x4_t _p70 = vmulq_f32(vld1q_f32(p0 + A_hstep * 7), _s0);
+                float32x4_t _p71 = vmulq_f32(vld1q_f32(p0 + A_hstep * 7 + 4), _s1);
+                int8x8_t _r0 = float2int8(vmulq_n_f32(_p00, scale0), vmulq_n_f32(_p01, scale0));
+                int8x8_t _r1 = float2int8(vmulq_n_f32(_p10, scale1), vmulq_n_f32(_p11, scale1));
+                int8x8_t _r2 = float2int8(vmulq_n_f32(_p20, scale2), vmulq_n_f32(_p21, scale2));
+                int8x8_t _r3 = float2int8(vmulq_n_f32(_p30, scale3), vmulq_n_f32(_p31, scale3));
+                int8x8_t _r4 = float2int8(vmulq_n_f32(_p40, scale4), vmulq_n_f32(_p41, scale4));
+                int8x8_t _r5 = float2int8(vmulq_n_f32(_p50, scale5), vmulq_n_f32(_p51, scale5));
+                int8x8_t _r6 = float2int8(vmulq_n_f32(_p60, scale6), vmulq_n_f32(_p61, scale6));
+                int8x8_t _r7 = float2int8(vmulq_n_f32(_p70, scale7), vmulq_n_f32(_p71, scale7));
+                vst1q_s8(pp, vcombine_s8(_r0, _r1));
+                vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
+                vst1q_s8(pp + 32, vcombine_s8(_r4, _r5));
+                vst1q_s8(pp + 48, vcombine_s8(_r6, _r7));
                 pp += 64;
+                p0 += 8;
+                ps += 8;
             }
 #endif // __ARM_FEATURE_MATMUL_INT8
 #endif // __ARM_FEATURE_DOTPROD
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                float32x4_t _v0 = vld1q_f32(pA0 + kk);
-                float32x4_t _v1 = vld1q_f32(pA0 + A_hstep + kk);
-                float32x4_t _v2 = vld1q_f32(pA0 + A_hstep * 2 + kk);
-                float32x4_t _v3 = vld1q_f32(pA0 + A_hstep * 3 + kk);
-                float32x4_t _v4 = vld1q_f32(pA0 + A_hstep * 4 + kk);
-                float32x4_t _v5 = vld1q_f32(pA0 + A_hstep * 5 + kk);
-                float32x4_t _v6 = vld1q_f32(pA0 + A_hstep * 6 + kk);
-                float32x4_t _v7 = vld1q_f32(pA0 + A_hstep * 7 + kk);
-                float32x4_t _s = vld1q_f32(ps + kk);
-                _v0 = vmulq_f32(_v0, _s);
-                _v1 = vmulq_f32(_v1, _s);
-                _v2 = vmulq_f32(_v2, _s);
-                _v3 = vmulq_f32(_v3, _s);
-                _v4 = vmulq_f32(_v4, _s);
-                _v5 = vmulq_f32(_v5, _s);
-                _v6 = vmulq_f32(_v6, _s);
-                _v7 = vmulq_f32(_v7, _s);
-                int8x8_t _q01 = float2int8(vmulq_n_f32(_v0, scale0), vmulq_n_f32(_v1, scale1));
-                int8x8_t _q23 = float2int8(vmulq_n_f32(_v2, scale2), vmulq_n_f32(_v3, scale3));
-                int8x8_t _q45 = float2int8(vmulq_n_f32(_v4, scale4), vmulq_n_f32(_v5, scale5));
-                int8x8_t _q67 = float2int8(vmulq_n_f32(_v6, scale6), vmulq_n_f32(_v7, scale7));
+                float32x4_t _s = vld1q_f32(ps);
+                float32x4_t _p0 = vmulq_f32(vld1q_f32(p0), _s);
+                float32x4_t _p1 = vmulq_f32(vld1q_f32(p0 + A_hstep), _s);
+                float32x4_t _p2 = vmulq_f32(vld1q_f32(p0 + A_hstep * 2), _s);
+                float32x4_t _p3 = vmulq_f32(vld1q_f32(p0 + A_hstep * 3), _s);
+                float32x4_t _p4 = vmulq_f32(vld1q_f32(p0 + A_hstep * 4), _s);
+                float32x4_t _p5 = vmulq_f32(vld1q_f32(p0 + A_hstep * 5), _s);
+                float32x4_t _p6 = vmulq_f32(vld1q_f32(p0 + A_hstep * 6), _s);
+                float32x4_t _p7 = vmulq_f32(vld1q_f32(p0 + A_hstep * 7), _s);
+                int8x8_t _r01 = float2int8(vmulq_n_f32(_p0, scale0), vmulq_n_f32(_p1, scale1));
+                int8x8_t _r23 = float2int8(vmulq_n_f32(_p2, scale2), vmulq_n_f32(_p3, scale3));
+                int8x8_t _r45 = float2int8(vmulq_n_f32(_p4, scale4), vmulq_n_f32(_p5, scale5));
+                int8x8_t _r67 = float2int8(vmulq_n_f32(_p6, scale6), vmulq_n_f32(_p7, scale7));
 #if __ARM_FEATURE_DOTPROD
-                vst1q_s8(pp, vcombine_s8(_q01, _q23));
-                vst1q_s8(pp + 16, vcombine_s8(_q45, _q67));
+                vst1q_s8(pp, vcombine_s8(_r01, _r23));
+                vst1q_s8(pp + 16, vcombine_s8(_r45, _r67));
 #else
-                int16x8x2_t _q04 = vuzpq_s16(vreinterpretq_s16_s8(vcombine_s8(_q01, _q23)), vreinterpretq_s16_s8(vcombine_s8(_q45, _q67)));
-                vst1q_s16((short*)pp, _q04.val[0]);
-                vst1q_s16((short*)pp + 8, _q04.val[1]);
+                int16x8x2_t _r04 = vuzpq_s16(vreinterpretq_s16_s8(vcombine_s8(_r01, _r23)), vreinterpretq_s16_s8(vcombine_s8(_r45, _r67)));
+                vst1q_s16((short*)pp, _r04.val[0]);
+                vst1q_s16((short*)pp + 8, _r04.val[1]);
 #endif
                 pp += 32;
+                p0 += 4;
+                ps += 4;
             }
             for (; kk + 1 < max_kk0; kk += 2)
             {
-                const float s0 = ps[kk];
-                const float s1 = ps[kk + 1];
-                float v00 = pA0[kk];
-                float v01 = pA0[kk + 1];
-                float v10 = pA0[A_hstep + kk];
-                float v11 = pA0[A_hstep + kk + 1];
-                float v20 = pA0[A_hstep * 2 + kk];
-                float v21 = pA0[A_hstep * 2 + kk + 1];
-                float v30 = pA0[A_hstep * 3 + kk];
-                float v31 = pA0[A_hstep * 3 + kk + 1];
-                float v40 = pA0[A_hstep * 4 + kk];
-                float v41 = pA0[A_hstep * 4 + kk + 1];
-                float v50 = pA0[A_hstep * 5 + kk];
-                float v51 = pA0[A_hstep * 5 + kk + 1];
-                float v60 = pA0[A_hstep * 6 + kk];
-                float v61 = pA0[A_hstep * 6 + kk + 1];
-                float v70 = pA0[A_hstep * 7 + kk];
-                float v71 = pA0[A_hstep * 7 + kk + 1];
+                const float s0 = ps[0];
+                const float s1 = ps[1];
+                float v00 = p0[0];
+                float v01 = p0[1];
+                float v10 = p0[A_hstep];
+                float v11 = p0[A_hstep + 1];
+                float v20 = p0[A_hstep * 2];
+                float v21 = p0[A_hstep * 2 + 1];
+                float v30 = p0[A_hstep * 3];
+                float v31 = p0[A_hstep * 3 + 1];
+                float v40 = p0[A_hstep * 4];
+                float v41 = p0[A_hstep * 4 + 1];
+                float v50 = p0[A_hstep * 5];
+                float v51 = p0[A_hstep * 5 + 1];
+                float v60 = p0[A_hstep * 6];
+                float v61 = p0[A_hstep * 6 + 1];
+                float v70 = p0[A_hstep * 7];
+                float v71 = p0[A_hstep * 7 + 1];
                 v00 *= s0;
                 v01 *= s1;
                 v10 *= s0;
@@ -810,18 +787,20 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 *pp++ = float2int8(v61 * scale6);
                 *pp++ = float2int8(v70 * scale7);
                 *pp++ = float2int8(v71 * scale7);
+                p0 += 2;
+                ps += 2;
             }
             if (kk < max_kk0)
             {
-                const float s = ps[kk];
-                float v0 = pA0[kk];
-                float v1 = pA0[A_hstep + kk];
-                float v2 = pA0[A_hstep * 2 + kk];
-                float v3 = pA0[A_hstep * 3 + kk];
-                float v4 = pA0[A_hstep * 4 + kk];
-                float v5 = pA0[A_hstep * 5 + kk];
-                float v6 = pA0[A_hstep * 6 + kk];
-                float v7 = pA0[A_hstep * 7 + kk];
+                const float s = ps[0];
+                float v0 = p0[0];
+                float v1 = p0[A_hstep];
+                float v2 = p0[A_hstep * 2];
+                float v3 = p0[A_hstep * 3];
+                float v4 = p0[A_hstep * 4];
+                float v5 = p0[A_hstep * 5];
+                float v6 = p0[A_hstep * 6];
+                float v7 = p0[A_hstep * 7];
                 v0 *= s;
                 v1 *= s;
                 v2 *= s;
@@ -838,18 +817,16 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 *pp++ = float2int8(v5 * scale5);
                 *pp++ = float2int8(v6 * scale6);
                 *pp++ = float2int8(v7 * scale7);
+                p0++;
+                ps++;
             }
-            pA0 += max_kk0;
-            ps += max_kk0;
             pd += 8;
         }
     }
 #endif // __aarch64__
     for (; ii + 3 < max_ii; ii += 4)
     {
-        signed char* pp = outptr + ii * out_hstep;
-        float* descale_ptr = descales + ii * descales_hstep;
-        const float* pA0 = (const float*)A + (i + ii) * A_hstep + k;
+        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
         const float* ps = (const float*)input_scales + k;
 
         for (int g = 0; g < block_count; g++)
@@ -859,18 +836,22 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             float32x4_t _absmax1 = vdupq_n_f32(0.f);
             float32x4_t _absmax2 = vdupq_n_f32(0.f);
             float32x4_t _absmax3 = vdupq_n_f32(0.f);
+            const float* p0a = p0;
+            const float* psa = ps;
             int kk = 0;
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                float32x4_t _v0 = vld1q_f32(pA0 + kk);
-                float32x4_t _v1 = vld1q_f32(pA0 + A_hstep + kk);
-                float32x4_t _v2 = vld1q_f32(pA0 + A_hstep * 2 + kk);
-                float32x4_t _v3 = vld1q_f32(pA0 + A_hstep * 3 + kk);
-                float32x4_t _s = vld1q_f32(ps + kk);
-                _absmax0 = vmaxq_f32(_absmax0, vmulq_f32(vabsq_f32(_v0), _s));
-                _absmax1 = vmaxq_f32(_absmax1, vmulq_f32(vabsq_f32(_v1), _s));
-                _absmax2 = vmaxq_f32(_absmax2, vmulq_f32(vabsq_f32(_v2), _s));
-                _absmax3 = vmaxq_f32(_absmax3, vmulq_f32(vabsq_f32(_v3), _s));
+                float32x4_t _s = vld1q_f32(psa);
+                float32x4_t _p0 = vld1q_f32(p0a);
+                _absmax0 = vmaxq_f32(_absmax0, vmulq_f32(vabsq_f32(_p0), _s));
+                float32x4_t _p1 = vld1q_f32(p0a + A_hstep);
+                _absmax1 = vmaxq_f32(_absmax1, vmulq_f32(vabsq_f32(_p1), _s));
+                float32x4_t _p2 = vld1q_f32(p0a + A_hstep * 2);
+                _absmax2 = vmaxq_f32(_absmax2, vmulq_f32(vabsq_f32(_p2), _s));
+                float32x4_t _p3 = vld1q_f32(p0a + A_hstep * 3);
+                _absmax3 = vmaxq_f32(_absmax3, vmulq_f32(vabsq_f32(_p3), _s));
+                p0a += 4;
+                psa += 4;
             }
 #if __aarch64__
             float absmax0 = vmaxvq_f32(_absmax0);
@@ -893,20 +874,21 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #endif
             for (; kk < max_kk0; kk++)
             {
-                float v0 = pA0[kk];
-                float v1 = pA0[A_hstep + kk];
-                float v2 = pA0[A_hstep * 2 + kk];
-                float v3 = pA0[A_hstep * 3 + kk];
-                const float s = ps[kk];
+                float v0 = p0a[0];
+                float v1 = p0a[A_hstep];
+                float v2 = p0a[A_hstep * 2];
+                float v3 = p0a[A_hstep * 3];
+                const float s = *psa++;
                 absmax0 = std::max(absmax0, fabsf(v0) * s);
                 absmax1 = std::max(absmax1, fabsf(v1) * s);
                 absmax2 = std::max(absmax2, fabsf(v2) * s);
                 absmax3 = std::max(absmax3, fabsf(v3) * s);
+                p0a++;
             }
-            descale_ptr[0] = absmax0 / 127.f;
-            descale_ptr[1] = absmax1 / 127.f;
-            descale_ptr[2] = absmax2 / 127.f;
-            descale_ptr[3] = absmax3 / 127.f;
+            pd[0] = absmax0 / 127.f;
+            pd[1] = absmax1 / 127.f;
+            pd[2] = absmax2 / 127.f;
+            pd[3] = absmax3 / 127.f;
             const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
             const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
             const float scale2 = absmax2 == 0.f ? 0.f : 127.f / absmax2;
@@ -917,71 +899,60 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #if __ARM_FEATURE_MATMUL_INT8
             for (; kk + 7 < max_kk0; kk += 8)
             {
-                float32x4_t _s0;
-                float32x4_t _s1;
-                _s0 = vld1q_f32(ps + kk);
-                _s1 = vld1q_f32(ps + kk + 4);
-
-                float32x4_t _v00 = vld1q_f32(pA0 + kk);
-                float32x4_t _v01 = vld1q_f32(pA0 + kk + 4);
-                float32x4_t _v10 = vld1q_f32(pA0 + A_hstep + kk);
-                float32x4_t _v11 = vld1q_f32(pA0 + A_hstep + kk + 4);
-                float32x4_t _v20 = vld1q_f32(pA0 + A_hstep * 2 + kk);
-                float32x4_t _v21 = vld1q_f32(pA0 + A_hstep * 2 + kk + 4);
-                float32x4_t _v30 = vld1q_f32(pA0 + A_hstep * 3 + kk);
-                float32x4_t _v31 = vld1q_f32(pA0 + A_hstep * 3 + kk + 4);
-                _v00 = vmulq_f32(_v00, _s0);
-                _v01 = vmulq_f32(_v01, _s1);
-                _v10 = vmulq_f32(_v10, _s0);
-                _v11 = vmulq_f32(_v11, _s1);
-                _v20 = vmulq_f32(_v20, _s0);
-                _v21 = vmulq_f32(_v21, _s1);
-                _v30 = vmulq_f32(_v30, _s0);
-                _v31 = vmulq_f32(_v31, _s1);
-                int8x8_t _q0 = float2int8(vmulq_n_f32(_v00, scale0), vmulq_n_f32(_v01, scale0));
-                int8x8_t _q1 = float2int8(vmulq_n_f32(_v10, scale1), vmulq_n_f32(_v11, scale1));
-                int8x8_t _q2 = float2int8(vmulq_n_f32(_v20, scale2), vmulq_n_f32(_v21, scale2));
-                int8x8_t _q3 = float2int8(vmulq_n_f32(_v30, scale3), vmulq_n_f32(_v31, scale3));
-                vst1q_s8(pp, vcombine_s8(_q0, _q1));
-                vst1q_s8(pp + 16, vcombine_s8(_q2, _q3));
+                float32x4_t _s0 = vld1q_f32(ps);
+                float32x4_t _s1 = vld1q_f32(ps + 4);
+                float32x4_t _p00 = vmulq_f32(vld1q_f32(p0), _s0);
+                float32x4_t _p01 = vmulq_f32(vld1q_f32(p0 + 4), _s1);
+                float32x4_t _p10 = vmulq_f32(vld1q_f32(p0 + A_hstep), _s0);
+                float32x4_t _p11 = vmulq_f32(vld1q_f32(p0 + A_hstep + 4), _s1);
+                float32x4_t _p20 = vmulq_f32(vld1q_f32(p0 + A_hstep * 2), _s0);
+                float32x4_t _p21 = vmulq_f32(vld1q_f32(p0 + A_hstep * 2 + 4), _s1);
+                float32x4_t _p30 = vmulq_f32(vld1q_f32(p0 + A_hstep * 3), _s0);
+                float32x4_t _p31 = vmulq_f32(vld1q_f32(p0 + A_hstep * 3 + 4), _s1);
+                int8x8_t _r0 = float2int8(vmulq_n_f32(_p00, scale0), vmulq_n_f32(_p01, scale0));
+                int8x8_t _r1 = float2int8(vmulq_n_f32(_p10, scale1), vmulq_n_f32(_p11, scale1));
+                int8x8_t _r2 = float2int8(vmulq_n_f32(_p20, scale2), vmulq_n_f32(_p21, scale2));
+                int8x8_t _r3 = float2int8(vmulq_n_f32(_p30, scale3), vmulq_n_f32(_p31, scale3));
+                vst1q_s8(pp, vcombine_s8(_r0, _r1));
+                vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
                 pp += 32;
+                p0 += 8;
+                ps += 8;
             }
 #endif // __ARM_FEATURE_MATMUL_INT8
 #endif // __ARM_FEATURE_DOTPROD
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                float32x4_t _v0 = vld1q_f32(pA0 + kk);
-                float32x4_t _v1 = vld1q_f32(pA0 + A_hstep + kk);
-                float32x4_t _v2 = vld1q_f32(pA0 + A_hstep * 2 + kk);
-                float32x4_t _v3 = vld1q_f32(pA0 + A_hstep * 3 + kk);
-                float32x4_t _s = vld1q_f32(ps + kk);
-                _v0 = vmulq_f32(_v0, _s);
-                _v1 = vmulq_f32(_v1, _s);
-                _v2 = vmulq_f32(_v2, _s);
-                _v3 = vmulq_f32(_v3, _s);
-                int8x8_t _q01 = float2int8(vmulq_n_f32(_v0, scale0), vmulq_n_f32(_v1, scale1));
-                int8x8_t _q23 = float2int8(vmulq_n_f32(_v2, scale2), vmulq_n_f32(_v3, scale3));
+                float32x4_t _s = vld1q_f32(ps);
+                float32x4_t _p0 = vmulq_f32(vld1q_f32(p0), _s);
+                float32x4_t _p1 = vmulq_f32(vld1q_f32(p0 + A_hstep), _s);
+                float32x4_t _p2 = vmulq_f32(vld1q_f32(p0 + A_hstep * 2), _s);
+                float32x4_t _p3 = vmulq_f32(vld1q_f32(p0 + A_hstep * 3), _s);
+                int8x8_t _r01 = float2int8(vmulq_n_f32(_p0, scale0), vmulq_n_f32(_p1, scale1));
+                int8x8_t _r23 = float2int8(vmulq_n_f32(_p2, scale2), vmulq_n_f32(_p3, scale3));
 #if __ARM_FEATURE_DOTPROD
-                vst1q_s8(pp, vcombine_s8(_q01, _q23));
+                vst1q_s8(pp, vcombine_s8(_r01, _r23));
 #else
-                int16x8_t _q0123 = vreinterpretq_s16_s8(vcombine_s8(_q01, _q23));
-                int16x8x2_t _q02 = vuzpq_s16(_q0123, _q0123);
-                vst1q_s8(pp, vreinterpretq_s8_s16(vcombine_s16(vget_low_s16(_q02.val[0]), vget_low_s16(_q02.val[1]))));
+                int16x8_t _r0123 = vreinterpretq_s16_s8(vcombine_s8(_r01, _r23));
+                int16x8x2_t _r02 = vuzpq_s16(_r0123, _r0123);
+                vst1q_s8(pp, vreinterpretq_s8_s16(vcombine_s16(vget_low_s16(_r02.val[0]), vget_low_s16(_r02.val[1]))));
 #endif
                 pp += 16;
+                p0 += 4;
+                ps += 4;
             }
             for (; kk + 1 < max_kk0; kk += 2)
             {
-                const float s0 = ps[kk];
-                const float s1 = ps[kk + 1];
-                float v00 = pA0[kk];
-                float v01 = pA0[kk + 1];
-                float v10 = pA0[A_hstep + kk];
-                float v11 = pA0[A_hstep + kk + 1];
-                float v20 = pA0[A_hstep * 2 + kk];
-                float v21 = pA0[A_hstep * 2 + kk + 1];
-                float v30 = pA0[A_hstep * 3 + kk];
-                float v31 = pA0[A_hstep * 3 + kk + 1];
+                const float s0 = ps[0];
+                const float s1 = ps[1];
+                float v00 = p0[0];
+                float v01 = p0[1];
+                float v10 = p0[A_hstep];
+                float v11 = p0[A_hstep + 1];
+                float v20 = p0[A_hstep * 2];
+                float v21 = p0[A_hstep * 2 + 1];
+                float v30 = p0[A_hstep * 3];
+                float v31 = p0[A_hstep * 3 + 1];
                 v00 *= s0;
                 v01 *= s1;
                 v10 *= s0;
@@ -998,14 +969,16 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 *pp++ = float2int8(v21 * scale2);
                 *pp++ = float2int8(v30 * scale3);
                 *pp++ = float2int8(v31 * scale3);
+                p0 += 2;
+                ps += 2;
             }
             if (kk < max_kk0)
             {
-                const float s = ps[kk];
-                float v0 = pA0[kk];
-                float v1 = pA0[A_hstep + kk];
-                float v2 = pA0[A_hstep * 2 + kk];
-                float v3 = pA0[A_hstep * 3 + kk];
+                const float s = ps[0];
+                float v0 = p0[0];
+                float v1 = p0[A_hstep];
+                float v2 = p0[A_hstep * 2];
+                float v3 = p0[A_hstep * 3];
                 v0 *= s;
                 v1 *= s;
                 v2 *= s;
@@ -1014,19 +987,16 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 *pp++ = float2int8(v1 * scale1);
                 *pp++ = float2int8(v2 * scale2);
                 *pp++ = float2int8(v3 * scale3);
+                p0++;
+                ps++;
             }
-            pA0 += max_kk0;
-            ps += max_kk0;
-            descale_ptr += 4;
+            pd += 4;
         }
     }
 #endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
-        signed char* pp = outptr + ii * out_hstep;
-        float* descale_ptr = descales + ii * descales_hstep;
-        const float* pA0g = (const float*)A + (i + ii) * A_hstep + k;
-        const float* pA1g = pA0g + A_hstep;
+        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
         const float* ps = (const float*)input_scales + k;
 
         for (int g = 0; g < block_count; g++)
@@ -1034,17 +1004,21 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             float absmax0 = 0.f;
             float absmax1 = 0.f;
+            const float* p0a = p0;
+            const float* psa = ps;
             int kk = 0;
 #if __ARM_NEON
             float32x4_t _absmax0 = vdupq_n_f32(0.f);
             float32x4_t _absmax1 = vdupq_n_f32(0.f);
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                float32x4_t _v0 = vld1q_f32(pA0g + kk);
-                float32x4_t _v1 = vld1q_f32(pA1g + kk);
-                float32x4_t _s = vld1q_f32(ps + kk);
-                _absmax0 = vmaxq_f32(_absmax0, vmulq_f32(vabsq_f32(_v0), _s));
-                _absmax1 = vmaxq_f32(_absmax1, vmulq_f32(vabsq_f32(_v1), _s));
+                float32x4_t _s = vld1q_f32(psa);
+                float32x4_t _p0 = vld1q_f32(p0a);
+                _absmax0 = vmaxq_f32(_absmax0, vmulq_f32(vabsq_f32(_p0), _s));
+                float32x4_t _p1 = vld1q_f32(p0a + A_hstep);
+                _absmax1 = vmaxq_f32(_absmax1, vmulq_f32(vabsq_f32(_p1), _s));
+                p0a += 4;
+                psa += 4;
             }
 #if __aarch64__
             absmax0 = vmaxvq_f32(_absmax0);
@@ -1061,15 +1035,16 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 
             for (; kk < max_kk0; kk++)
             {
-                float v0 = pA0g[kk];
-                float v1 = pA1g[kk];
-                const float s = ps[kk];
+                float v0 = p0a[0];
+                float v1 = p0a[A_hstep];
+                const float s = *psa++;
                 absmax0 = std::max(absmax0, fabsf(v0) * s);
                 absmax1 = std::max(absmax1, fabsf(v1) * s);
+                p0a++;
             }
 
-            descale_ptr[0] = absmax0 / 127.f;
-            descale_ptr[1] = absmax1 / 127.f;
+            pd[0] = absmax0 / 127.f;
+            pd[1] = absmax1 / 127.f;
             const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
             const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
 
@@ -1079,84 +1054,81 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #if __ARM_FEATURE_MATMUL_INT8
             for (; kk + 7 < max_kk0; kk += 8)
             {
-                float32x4_t _v00 = vld1q_f32(pA0g + kk);
-                float32x4_t _v01 = vld1q_f32(pA0g + kk + 4);
-                float32x4_t _v10 = vld1q_f32(pA1g + kk);
-                float32x4_t _v11 = vld1q_f32(pA1g + kk + 4);
-                float32x4_t _s0 = vld1q_f32(ps + kk);
-                float32x4_t _s1 = vld1q_f32(ps + kk + 4);
-                _v00 = vmulq_f32(_v00, _s0);
-                _v01 = vmulq_f32(_v01, _s1);
-                _v10 = vmulq_f32(_v10, _s0);
-                _v11 = vmulq_f32(_v11, _s1);
-                int8x8_t _q0 = float2int8(vmulq_n_f32(_v00, scale0), vmulq_n_f32(_v01, scale0));
-                int8x8_t _q1 = float2int8(vmulq_n_f32(_v10, scale1), vmulq_n_f32(_v11, scale1));
-                vst1q_s8(pp, vcombine_s8(_q0, _q1));
+                float32x4_t _s0 = vld1q_f32(ps);
+                float32x4_t _s1 = vld1q_f32(ps + 4);
+                float32x4_t _p00 = vmulq_f32(vld1q_f32(p0), _s0);
+                float32x4_t _p01 = vmulq_f32(vld1q_f32(p0 + 4), _s1);
+                float32x4_t _p10 = vmulq_f32(vld1q_f32(p0 + A_hstep), _s0);
+                float32x4_t _p11 = vmulq_f32(vld1q_f32(p0 + A_hstep + 4), _s1);
+                int8x8_t _r0 = float2int8(vmulq_n_f32(_p00, scale0), vmulq_n_f32(_p01, scale0));
+                int8x8_t _r1 = float2int8(vmulq_n_f32(_p10, scale1), vmulq_n_f32(_p11, scale1));
+                vst1q_s8(pp, vcombine_s8(_r0, _r1));
                 pp += 16;
+                p0 += 8;
+                ps += 8;
             }
 #endif // __ARM_FEATURE_MATMUL_INT8
 #endif // __ARM_FEATURE_DOTPROD
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                float32x4_t _v0 = vld1q_f32(pA0g + kk);
-                float32x4_t _v1 = vld1q_f32(pA1g + kk);
-                float32x4_t _s = vld1q_f32(ps + kk);
-                _v0 = vmulq_f32(_v0, _s);
-                _v1 = vmulq_f32(_v1, _s);
-                int8x8_t _q01 = float2int8(vmulq_n_f32(_v0, scale0), vmulq_n_f32(_v1, scale1));
+                float32x4_t _s = vld1q_f32(ps);
+                float32x4_t _p0 = vmulq_f32(vld1q_f32(p0), _s);
+                float32x4_t _p1 = vmulq_f32(vld1q_f32(p0 + A_hstep), _s);
+                int8x8_t _r01 = float2int8(vmulq_n_f32(_p0, scale0), vmulq_n_f32(_p1, scale1));
 #if __ARM_FEATURE_DOTPROD
-                vst1_s8(pp, _q01);
+                vst1_s8(pp, _r01);
 #else
-                int16x4_t _q01_s16 = vreinterpret_s16_s8(_q01);
-                int16x4_t _q10_s16 = vext_s16(_q01_s16, _q01_s16, 2);
-                vst1_s8(pp, vreinterpret_s8_s16(vzip_s16(_q01_s16, _q10_s16).val[0]));
+                int16x4_t _r01_s16 = vreinterpret_s16_s8(_r01);
+                int16x4_t _r10_s16 = vext_s16(_r01_s16, _r01_s16, 2);
+                vst1_s8(pp, vreinterpret_s8_s16(vzip_s16(_r01_s16, _r10_s16).val[0]));
 #endif
                 pp += 8;
+                p0 += 4;
+                ps += 4;
             }
             for (; kk + 1 < max_kk0; kk += 2)
             {
-                float v00 = pA0g[kk];
-                float v01 = pA0g[kk + 1];
-                float v10 = pA1g[kk];
-                float v11 = pA1g[kk + 1];
-                v00 *= ps[kk];
-                v01 *= ps[kk + 1];
-                v10 *= ps[kk];
-                v11 *= ps[kk + 1];
+                float v00 = p0[0];
+                float v01 = p0[1];
+                float v10 = p0[A_hstep];
+                float v11 = p0[A_hstep + 1];
+                v00 *= ps[0];
+                v01 *= ps[1];
+                v10 *= ps[0];
+                v11 *= ps[1];
                 *pp++ = float2int8(v00 * scale0);
                 *pp++ = float2int8(v01 * scale0);
                 *pp++ = float2int8(v10 * scale1);
                 *pp++ = float2int8(v11 * scale1);
+                p0 += 2;
+                ps += 2;
             }
 #endif // __ARM_NEON
             for (; kk < max_kk0; kk++)
             {
-                float v0 = pA0g[kk];
-                float v1 = pA1g[kk];
-                v0 *= ps[kk];
-                v1 *= ps[kk];
+                float v0 = p0[0];
+                float v1 = p0[A_hstep];
+                v0 *= ps[0];
+                v1 *= ps[0];
                 *pp++ = float2int8(v0 * scale0);
                 *pp++ = float2int8(v1 * scale1);
+                p0++;
+                ps++;
             }
 
-            pA0g += max_kk0;
-            pA1g += max_kk0;
-            ps += max_kk0;
-            descale_ptr += 2;
+            pd += 2;
         }
     }
     for (; ii < max_ii; ii++)
     {
-        const float* pAg = (const float*)A + (i + ii) * A_hstep + k;
+        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
         const float* ps = (const float*)input_scales + k;
-        signed char* pp = outptr + ii * out_hstep;
-        float* pd = descales + ii * descales_hstep;
 
         for (int g = 0; g < block_count; g++)
         {
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
-            const float* pA = pAg;
-            const float* pscale = ps;
+            const float* p0a = p0;
+            const float* psa = ps;
 
             float absmax = 0.f;
             int kk = 0;
@@ -1164,11 +1136,11 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             float32x4_t _absmax = vdupq_n_f32(0.f);
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                float32x4_t _v = vld1q_f32(pA);
-                pA += 4;
-                float32x4_t _s = vld1q_f32(pscale);
-                pscale += 4;
-                _absmax = vmaxq_f32(_absmax, vmulq_f32(vabsq_f32(_v), _s));
+                float32x4_t _p = vld1q_f32(p0a);
+                float32x4_t _s = vld1q_f32(psa);
+                _absmax = vmaxq_f32(_absmax, vmulq_f32(vabsq_f32(_p), _s));
+                p0a += 4;
+                psa += 4;
             }
 #if __aarch64__
             absmax = vmaxvq_f32(_absmax);
@@ -1180,8 +1152,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #endif // __ARM_NEON
             for (; kk < max_kk0; kk++)
             {
-                float v = *pA++;
-                absmax = std::max(absmax, fabsf(v) * *pscale++);
+                float v = *p0a++;
+                absmax = std::max(absmax, fabsf(v) * *psa++);
             }
 
             if (absmax == 0.f)
@@ -1189,7 +1161,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 *pd++ = 0.f;
                 for (int kk0 = 0; kk0 < max_kk0; kk0++)
                     *pp++ = 0;
-                pAg += max_kk0;
+                p0 += max_kk0;
                 ps += max_kk0;
                 continue;
             }
@@ -1198,41 +1170,34 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             *pd++ = absmax / 127.f;
 
             kk = 0;
-            pA = pAg;
-            pscale = ps;
 #if __ARM_NEON
             float32x4_t _scale = vdupq_n_f32(scale);
             for (; kk + 7 < max_kk0; kk += 8)
             {
-                float32x4_t _v0 = vld1q_f32(pA);
-                float32x4_t _v1 = vld1q_f32(pA + 4);
-                pA += 8;
-                _v0 = vmulq_f32(_v0, vld1q_f32(pscale));
-                _v1 = vmulq_f32(_v1, vld1q_f32(pscale + 4));
-                pscale += 8;
-                vst1_s8(pp, float2int8(vmulq_f32(_v0, _scale), vmulq_f32(_v1, _scale)));
+                float32x4_t _p0 = vmulq_f32(vld1q_f32(p0), vld1q_f32(ps));
+                float32x4_t _p1 = vmulq_f32(vld1q_f32(p0 + 4), vld1q_f32(ps + 4));
+                vst1_s8(pp, float2int8(vmulq_f32(_p0, _scale), vmulq_f32(_p1, _scale)));
                 pp += 8;
+                p0 += 8;
+                ps += 8;
             }
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                float32x4_t _v = vld1q_f32(pA);
-                pA += 4;
-                _v = vmulq_f32(_v, vld1q_f32(pscale));
-                pscale += 4;
-                int8x8_t _q = float2int8(vmulq_f32(_v, _scale), vmulq_f32(_v, _scale));
-                vst1_lane_s32((int*)pp, vreinterpret_s32_s8(_q), 0);
+                float32x4_t _p = vmulq_f32(vld1q_f32(p0), vld1q_f32(ps));
+                int8x8_t _r = float2int8(vmulq_f32(_p, _scale), vmulq_f32(_p, _scale));
+                vst1_lane_s32((int*)pp, vreinterpret_s32_s8(_r), 0);
                 pp += 4;
+                p0 += 4;
+                ps += 4;
             }
 #endif // __ARM_NEON
             for (; kk < max_kk0; kk++)
             {
-                float v = *pA++;
-                v *= *pscale++;
+                float v = *p0++;
+                v *= *ps++;
                 *pp++ = float2int8(v * scale);
             }
 
-            pAg += max_kk0;
-            ps += max_kk0;
         }
     }
 }
@@ -1255,37 +1220,32 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
     }
 #endif
 
+    signed char* pp = AT_tile;
+    float* pd = AT_descales_tile;
+    const int block_count = (max_kk + block_size - 1) / block_size;
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
+
     if (input_scales.empty())
     {
-        signed char* outptr = AT_tile;
-        const int out_hstep = AT_tile.w;
-        float* descales = AT_descales_tile;
-        const int descales_hstep = AT_descales_tile.w;
-        const int block_count = (max_kk + block_size - 1) / block_size;
-        const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
-
         int ii = 0;
 #if __ARM_NEON
 #if __aarch64__
         for (; ii + 7 < max_ii; ii += 8)
         {
-            const float* ptrA = (const float*)A + (size_t)k * A_hstep + i + ii;
-            signed char* pp = outptr + ii * out_hstep;
-            const float* ptrAg = ptrA;
-            float* pd = descales + ii * descales_hstep;
+            const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
             for (int g = 0; g < block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float32x4_t _absmax0 = vdupq_n_f32(0.f);
                 float32x4_t _absmax1 = vdupq_n_f32(0.f);
-                const float* ptrAk = ptrAg;
+                const float* p0a = p0;
                 for (int kk = 0; kk < max_kk0; kk++)
                 {
-                    float32x4_t _v0 = vld1q_f32(ptrAk);
-                    float32x4_t _v1 = vld1q_f32(ptrAk + 4);
-                    _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_v0));
-                    _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_v1));
-                    ptrAk += A_hstep;
+                    float32x4_t _p0 = vld1q_f32(p0a);
+                    _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p0));
+                    float32x4_t _p1 = vld1q_f32(p0a + 4);
+                    _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
+                    p0a += A_hstep;
                 }
 
                 float absmax0 = vgetq_lane_f32(_absmax0, 0);
@@ -1319,35 +1279,34 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __ARM_FEATURE_MATMUL_INT8
                 for (; kk + 7 < max_kk0; kk += 8)
                 {
-                    ptrAk = ptrAg + (size_t)kk * A_hstep;
-                    float32x4_t _v00 = vld1q_f32(ptrAk);
-                    float32x4_t _v01 = vld1q_f32(ptrAk + 4);
-                    float32x4_t _v10 = vld1q_f32(ptrAk + A_hstep);
-                    float32x4_t _v11 = vld1q_f32(ptrAk + A_hstep + 4);
-                    float32x4_t _v20 = vld1q_f32(ptrAk + A_hstep * 2);
-                    float32x4_t _v21 = vld1q_f32(ptrAk + A_hstep * 2 + 4);
-                    float32x4_t _v30 = vld1q_f32(ptrAk + A_hstep * 3);
-                    float32x4_t _v31 = vld1q_f32(ptrAk + A_hstep * 3 + 4);
-                    float32x4_t _v40 = vld1q_f32(ptrAk + A_hstep * 4);
-                    float32x4_t _v41 = vld1q_f32(ptrAk + A_hstep * 4 + 4);
-                    float32x4_t _v50 = vld1q_f32(ptrAk + A_hstep * 5);
-                    float32x4_t _v51 = vld1q_f32(ptrAk + A_hstep * 5 + 4);
-                    float32x4_t _v60 = vld1q_f32(ptrAk + A_hstep * 6);
-                    float32x4_t _v61 = vld1q_f32(ptrAk + A_hstep * 6 + 4);
-                    float32x4_t _v70 = vld1q_f32(ptrAk + A_hstep * 7);
-                    float32x4_t _v71 = vld1q_f32(ptrAk + A_hstep * 7 + 4);
-                    int8x8_t _q0 = float2int8(vmulq_f32(_v00, _scale0), vmulq_f32(_v01, _scale1));
-                    int8x8_t _q1 = float2int8(vmulq_f32(_v10, _scale0), vmulq_f32(_v11, _scale1));
-                    int8x8_t _q2 = float2int8(vmulq_f32(_v20, _scale0), vmulq_f32(_v21, _scale1));
-                    int8x8_t _q3 = float2int8(vmulq_f32(_v30, _scale0), vmulq_f32(_v31, _scale1));
-                    int8x8_t _q4 = float2int8(vmulq_f32(_v40, _scale0), vmulq_f32(_v41, _scale1));
-                    int8x8_t _q5 = float2int8(vmulq_f32(_v50, _scale0), vmulq_f32(_v51, _scale1));
-                    int8x8_t _q6 = float2int8(vmulq_f32(_v60, _scale0), vmulq_f32(_v61, _scale1));
-                    int8x8_t _q7 = float2int8(vmulq_f32(_v70, _scale0), vmulq_f32(_v71, _scale1));
-                    int8x8x2_t _r04 = vzip_s8(_q0, _q4);
-                    int8x8x2_t _r15 = vzip_s8(_q1, _q5);
-                    int8x8x2_t _r26 = vzip_s8(_q2, _q6);
-                    int8x8x2_t _r37 = vzip_s8(_q3, _q7);
+                    float32x4_t _p00 = vld1q_f32(p0);
+                    float32x4_t _p01 = vld1q_f32(p0 + 4);
+                    float32x4_t _p10 = vld1q_f32(p0 + A_hstep);
+                    float32x4_t _p11 = vld1q_f32(p0 + A_hstep + 4);
+                    float32x4_t _p20 = vld1q_f32(p0 + A_hstep * 2);
+                    float32x4_t _p21 = vld1q_f32(p0 + A_hstep * 2 + 4);
+                    float32x4_t _p30 = vld1q_f32(p0 + A_hstep * 3);
+                    float32x4_t _p31 = vld1q_f32(p0 + A_hstep * 3 + 4);
+                    float32x4_t _p40 = vld1q_f32(p0 + A_hstep * 4);
+                    float32x4_t _p41 = vld1q_f32(p0 + A_hstep * 4 + 4);
+                    float32x4_t _p50 = vld1q_f32(p0 + A_hstep * 5);
+                    float32x4_t _p51 = vld1q_f32(p0 + A_hstep * 5 + 4);
+                    float32x4_t _p60 = vld1q_f32(p0 + A_hstep * 6);
+                    float32x4_t _p61 = vld1q_f32(p0 + A_hstep * 6 + 4);
+                    float32x4_t _p70 = vld1q_f32(p0 + A_hstep * 7);
+                    float32x4_t _p71 = vld1q_f32(p0 + A_hstep * 7 + 4);
+                    int8x8_t _r0 = float2int8(vmulq_f32(_p00, _scale0), vmulq_f32(_p01, _scale1));
+                    int8x8_t _r1 = float2int8(vmulq_f32(_p10, _scale0), vmulq_f32(_p11, _scale1));
+                    int8x8_t _r2 = float2int8(vmulq_f32(_p20, _scale0), vmulq_f32(_p21, _scale1));
+                    int8x8_t _r3 = float2int8(vmulq_f32(_p30, _scale0), vmulq_f32(_p31, _scale1));
+                    int8x8_t _r4 = float2int8(vmulq_f32(_p40, _scale0), vmulq_f32(_p41, _scale1));
+                    int8x8_t _r5 = float2int8(vmulq_f32(_p50, _scale0), vmulq_f32(_p51, _scale1));
+                    int8x8_t _r6 = float2int8(vmulq_f32(_p60, _scale0), vmulq_f32(_p61, _scale1));
+                    int8x8_t _r7 = float2int8(vmulq_f32(_p70, _scale0), vmulq_f32(_p71, _scale1));
+                    int8x8x2_t _r04 = vzip_s8(_r0, _r4);
+                    int8x8x2_t _r15 = vzip_s8(_r1, _r5);
+                    int8x8x2_t _r26 = vzip_s8(_r2, _r6);
+                    int8x8x2_t _r37 = vzip_s8(_r3, _r7);
                     int8x8x4_t _r0123;
                     _r0123.val[0] = _r04.val[0];
                     _r0123.val[1] = _r15.val[0];
@@ -1361,92 +1320,89 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     vst4_s8(pp, _r0123);
                     vst4_s8(pp + 32, _r4567);
                     pp += 64;
+                    p0 += A_hstep * 8;
                 }
 #endif // __ARM_FEATURE_MATMUL_INT8
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    ptrAk = ptrAg + (size_t)kk * A_hstep;
-                    float32x4_t _v00 = vld1q_f32(ptrAk);
-                    float32x4_t _v01 = vld1q_f32(ptrAk + 4);
-                    float32x4_t _v10 = vld1q_f32(ptrAk + A_hstep);
-                    float32x4_t _v11 = vld1q_f32(ptrAk + A_hstep + 4);
-                    float32x4_t _v20 = vld1q_f32(ptrAk + A_hstep * 2);
-                    float32x4_t _v21 = vld1q_f32(ptrAk + A_hstep * 2 + 4);
-                    float32x4_t _v30 = vld1q_f32(ptrAk + A_hstep * 3);
-                    float32x4_t _v31 = vld1q_f32(ptrAk + A_hstep * 3 + 4);
-                    int8x8_t _q0 = float2int8(vmulq_f32(_v00, _scale0), vmulq_f32(_v01, _scale1));
-                    int8x8_t _q1 = float2int8(vmulq_f32(_v10, _scale0), vmulq_f32(_v11, _scale1));
-                    int8x8_t _q2 = float2int8(vmulq_f32(_v20, _scale0), vmulq_f32(_v21, _scale1));
-                    int8x8_t _q3 = float2int8(vmulq_f32(_v30, _scale0), vmulq_f32(_v31, _scale1));
+                    float32x4_t _p00 = vld1q_f32(p0);
+                    float32x4_t _p01 = vld1q_f32(p0 + 4);
+                    float32x4_t _p10 = vld1q_f32(p0 + A_hstep);
+                    float32x4_t _p11 = vld1q_f32(p0 + A_hstep + 4);
+                    float32x4_t _p20 = vld1q_f32(p0 + A_hstep * 2);
+                    float32x4_t _p21 = vld1q_f32(p0 + A_hstep * 2 + 4);
+                    float32x4_t _p30 = vld1q_f32(p0 + A_hstep * 3);
+                    float32x4_t _p31 = vld1q_f32(p0 + A_hstep * 3 + 4);
+                    int8x8_t _r0 = float2int8(vmulq_f32(_p00, _scale0), vmulq_f32(_p01, _scale1));
+                    int8x8_t _r1 = float2int8(vmulq_f32(_p10, _scale0), vmulq_f32(_p11, _scale1));
+                    int8x8_t _r2 = float2int8(vmulq_f32(_p20, _scale0), vmulq_f32(_p21, _scale1));
+                    int8x8_t _r3 = float2int8(vmulq_f32(_p30, _scale0), vmulq_f32(_p31, _scale1));
 #if __ARM_FEATURE_DOTPROD
                     int8x8x4_t _r0123;
-                    _r0123.val[0] = _q0;
-                    _r0123.val[1] = _q1;
-                    _r0123.val[2] = _q2;
-                    _r0123.val[3] = _q3;
+                    _r0123.val[0] = _r0;
+                    _r0123.val[1] = _r1;
+                    _r0123.val[2] = _r2;
+                    _r0123.val[3] = _r3;
                     vst4_s8(pp, _r0123);
 #else
                     int8x8x2_t _r01;
-                    _r01.val[0] = _q0;
-                    _r01.val[1] = _q1;
+                    _r01.val[0] = _r0;
+                    _r01.val[1] = _r1;
                     int8x8x2_t _r23;
-                    _r23.val[0] = _q2;
-                    _r23.val[1] = _q3;
+                    _r23.val[0] = _r2;
+                    _r23.val[1] = _r3;
                     vst2_s8(pp, _r01);
                     vst2_s8(pp + 16, _r23);
 #endif
                     pp += 32;
+                    p0 += A_hstep * 4;
                 }
                 for (; kk + 1 < max_kk0; kk += 2)
                 {
-                    ptrAk = ptrAg + (size_t)kk * A_hstep;
-                    float32x4_t _v00 = vld1q_f32(ptrAk);
-                    float32x4_t _v01 = vld1q_f32(ptrAk + 4);
-                    float32x4_t _v10 = vld1q_f32(ptrAk + A_hstep);
-                    float32x4_t _v11 = vld1q_f32(ptrAk + A_hstep + 4);
-                    int8x8_t _q0 = float2int8(vmulq_f32(_v00, _scale0), vmulq_f32(_v01, _scale1));
-                    int8x8_t _q1 = float2int8(vmulq_f32(_v10, _scale0), vmulq_f32(_v11, _scale1));
+                    float32x4_t _p00 = vld1q_f32(p0);
+                    float32x4_t _p01 = vld1q_f32(p0 + 4);
+                    float32x4_t _p10 = vld1q_f32(p0 + A_hstep);
+                    float32x4_t _p11 = vld1q_f32(p0 + A_hstep + 4);
+                    int8x8_t _r0 = float2int8(vmulq_f32(_p00, _scale0), vmulq_f32(_p01, _scale1));
+                    int8x8_t _r1 = float2int8(vmulq_f32(_p10, _scale0), vmulq_f32(_p11, _scale1));
                     int8x8x2_t _r01;
-                    _r01.val[0] = _q0;
-                    _r01.val[1] = _q1;
+                    _r01.val[0] = _r0;
+                    _r01.val[1] = _r1;
                     vst2_s8(pp, _r01);
                     pp += 16;
+                    p0 += A_hstep * 2;
                 }
                 if (kk < max_kk0)
                 {
-                    ptrAk = ptrAg + (size_t)kk * A_hstep;
-                    float32x4_t _v0 = vld1q_f32(ptrAk);
-                    float32x4_t _v1 = vld1q_f32(ptrAk + 4);
-                    vst1_s8(pp, float2int8(vmulq_f32(_v0, _scale0), vmulq_f32(_v1, _scale1)));
+                    float32x4_t _p0 = vld1q_f32(p0);
+                    float32x4_t _p1 = vld1q_f32(p0 + 4);
+                    vst1_s8(pp, float2int8(vmulq_f32(_p0, _scale0), vmulq_f32(_p1, _scale1)));
                     pp += 8;
+                    p0 += A_hstep;
                 }
-                ptrAg += (size_t)max_kk0 * A_hstep;
                 pd += 8;
             }
         }
 #endif // __aarch64__
         for (; ii + 3 < max_ii; ii += 4)
         {
-            const float* ptrA = (const float*)A + (size_t)k * A_hstep + i + ii;
-            signed char* pp = outptr + ii * out_hstep;
-            float* descale_ptr = descales + ii * descales_hstep;
-            const float* ptrAg = ptrA;
+            const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
 
             for (int g = 0; g < block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
 
                 float32x4_t _absmax = vdupq_n_f32(0.f);
-                const float* ptrAk = ptrAg;
+                const float* p0a = p0;
                 for (int kk = 0; kk < max_kk0; kk++)
                 {
-                    float32x4_t _v = vld1q_f32(ptrAk);
-                    _absmax = vmaxq_f32(_absmax, vabsq_f32(_v));
-                    ptrAk += A_hstep;
+                    float32x4_t _p = vld1q_f32(p0a);
+                    _absmax = vmaxq_f32(_absmax, vabsq_f32(_p));
+                    p0a += A_hstep;
                 }
 
-                vst1q_f32(descale_ptr, vmulq_n_f32(_absmax, 1.f / 127.f));
+                vst1q_f32(pd, vmulq_n_f32(_absmax, 1.f / 127.f));
                 float absmax0 = vgetq_lane_f32(_absmax, 0);
                 float absmax1 = vgetq_lane_f32(_absmax, 1);
                 float absmax2 = vgetq_lane_f32(_absmax, 2);
@@ -1461,106 +1417,90 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __ARM_FEATURE_MATMUL_INT8
                 for (; kk + 7 < max_kk0; kk += 8)
                 {
-                    ptrAk = ptrAg + (size_t)kk * A_hstep;
-                    float32x4_t _v0 = vld1q_f32(ptrAk);
-                    float32x4_t _v1 = vld1q_f32(ptrAk + A_hstep);
-                    float32x4_t _v2 = vld1q_f32(ptrAk + A_hstep * 2);
-                    float32x4_t _v3 = vld1q_f32(ptrAk + A_hstep * 3);
-                    float32x4_t _v4 = vld1q_f32(ptrAk + A_hstep * 4);
-                    float32x4_t _v5 = vld1q_f32(ptrAk + A_hstep * 5);
-                    float32x4_t _v6 = vld1q_f32(ptrAk + A_hstep * 6);
-                    float32x4_t _v7 = vld1q_f32(ptrAk + A_hstep * 7);
-                    _v0 = vmulq_f32(_v0, _scale);
-                    _v1 = vmulq_f32(_v1, _scale);
-                    _v2 = vmulq_f32(_v2, _scale);
-                    _v3 = vmulq_f32(_v3, _scale);
-                    _v4 = vmulq_f32(_v4, _scale);
-                    _v5 = vmulq_f32(_v5, _scale);
-                    _v6 = vmulq_f32(_v6, _scale);
-                    _v7 = vmulq_f32(_v7, _scale);
-                    float32x4x2_t _v04 = vzipq_f32(_v0, _v4);
-                    float32x4x2_t _v15 = vzipq_f32(_v1, _v5);
-                    float32x4x2_t _v26 = vzipq_f32(_v2, _v6);
-                    float32x4x2_t _v37 = vzipq_f32(_v3, _v7);
+                    float32x4_t _p0 = vmulq_f32(vld1q_f32(p0), _scale);
+                    float32x4_t _p1 = vmulq_f32(vld1q_f32(p0 + A_hstep), _scale);
+                    float32x4_t _p2 = vmulq_f32(vld1q_f32(p0 + A_hstep * 2), _scale);
+                    float32x4_t _p3 = vmulq_f32(vld1q_f32(p0 + A_hstep * 3), _scale);
+                    float32x4_t _p4 = vmulq_f32(vld1q_f32(p0 + A_hstep * 4), _scale);
+                    float32x4_t _p5 = vmulq_f32(vld1q_f32(p0 + A_hstep * 5), _scale);
+                    float32x4_t _p6 = vmulq_f32(vld1q_f32(p0 + A_hstep * 6), _scale);
+                    float32x4_t _p7 = vmulq_f32(vld1q_f32(p0 + A_hstep * 7), _scale);
+                    float32x4x2_t _p04 = vzipq_f32(_p0, _p4);
+                    float32x4x2_t _p15 = vzipq_f32(_p1, _p5);
+                    float32x4x2_t _p26 = vzipq_f32(_p2, _p6);
+                    float32x4x2_t _p37 = vzipq_f32(_p3, _p7);
                     int8x8x4_t _r0123;
-                    _r0123.val[0] = float2int8(_v04.val[0], _v04.val[1]);
-                    _r0123.val[1] = float2int8(_v15.val[0], _v15.val[1]);
-                    _r0123.val[2] = float2int8(_v26.val[0], _v26.val[1]);
-                    _r0123.val[3] = float2int8(_v37.val[0], _v37.val[1]);
+                    _r0123.val[0] = float2int8(_p04.val[0], _p04.val[1]);
+                    _r0123.val[1] = float2int8(_p15.val[0], _p15.val[1]);
+                    _r0123.val[2] = float2int8(_p26.val[0], _p26.val[1]);
+                    _r0123.val[3] = float2int8(_p37.val[0], _p37.val[1]);
                     vst4_s8(pp, _r0123);
                     pp += 32;
+                    p0 += A_hstep * 8;
                 }
 #endif // __ARM_FEATURE_MATMUL_INT8
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    ptrAk = ptrAg + (size_t)kk * A_hstep;
-                    float32x4_t _v0 = vld1q_f32(ptrAk);
-                    float32x4_t _v1 = vld1q_f32(ptrAk + A_hstep);
-                    float32x4_t _v2 = vld1q_f32(ptrAk + A_hstep * 2);
-                    float32x4_t _v3 = vld1q_f32(ptrAk + A_hstep * 3);
-                    _v0 = vmulq_f32(_v0, _scale);
-                    _v1 = vmulq_f32(_v1, _scale);
-                    _v2 = vmulq_f32(_v2, _scale);
-                    _v3 = vmulq_f32(_v3, _scale);
+                    float32x4_t _p0 = vmulq_f32(vld1q_f32(p0), _scale);
+                    float32x4_t _p1 = vmulq_f32(vld1q_f32(p0 + A_hstep), _scale);
+                    float32x4_t _p2 = vmulq_f32(vld1q_f32(p0 + A_hstep * 2), _scale);
+                    float32x4_t _p3 = vmulq_f32(vld1q_f32(p0 + A_hstep * 3), _scale);
 #if __ARM_FEATURE_DOTPROD
-                    transpose4x4_ps(_v0, _v1, _v2, _v3);
-                    int8x8_t _q01 = float2int8(_v0, _v1);
-                    int8x8_t _q23 = float2int8(_v2, _v3);
-                    vst1q_s8(pp, vcombine_s8(_q01, _q23));
+                    transpose4x4_ps(_p0, _p1, _p2, _p3);
+                    int8x8_t _r01 = float2int8(_p0, _p1);
+                    int8x8_t _r23 = float2int8(_p2, _p3);
+                    vst1q_s8(pp, vcombine_s8(_r01, _r23));
 #else
-                    int8x8_t _q01 = float2int8(_v0, _v1);
-                    int8x8_t _q23 = float2int8(_v2, _v3);
-                    int8x8_t _q10 = vext_s8(_q01, _q01, 4);
-                    int8x8_t _q32 = vext_s8(_q23, _q23, 4);
-                    vst1_s8(pp, vzip_s8(_q01, _q10).val[0]);
-                    vst1_s8(pp + 8, vzip_s8(_q23, _q32).val[0]);
+                    int8x8_t _r01 = float2int8(_p0, _p1);
+                    int8x8_t _r23 = float2int8(_p2, _p3);
+                    int8x8_t _r10 = vext_s8(_r01, _r01, 4);
+                    int8x8_t _r32 = vext_s8(_r23, _r23, 4);
+                    vst1_s8(pp, vzip_s8(_r01, _r10).val[0]);
+                    vst1_s8(pp + 8, vzip_s8(_r23, _r32).val[0]);
 #endif
                     pp += 16;
+                    p0 += A_hstep * 4;
                 }
                 for (; kk + 1 < max_kk0; kk += 2)
                 {
-                    ptrAk = ptrAg + (size_t)kk * A_hstep;
-                    float32x4_t _v0 = vld1q_f32(ptrAk);
-                    float32x4_t _v1 = vld1q_f32(ptrAk + A_hstep);
-                    int8x8_t _q01 = float2int8(vmulq_f32(_v0, _scale), vmulq_f32(_v1, _scale));
-                    int8x8_t _q10 = vext_s8(_q01, _q01, 4);
-                    vst1_s8(pp, vzip_s8(_q01, _q10).val[0]);
+                    float32x4_t _p0 = vld1q_f32(p0);
+                    float32x4_t _p1 = vld1q_f32(p0 + A_hstep);
+                    int8x8_t _r01 = float2int8(vmulq_f32(_p0, _scale), vmulq_f32(_p1, _scale));
+                    int8x8_t _r10 = vext_s8(_r01, _r01, 4);
+                    vst1_s8(pp, vzip_s8(_r01, _r10).val[0]);
                     pp += 8;
+                    p0 += A_hstep * 2;
                 }
                 if (kk < max_kk0)
                 {
-                    ptrAk = ptrAg + (size_t)kk * A_hstep;
-                    float32x4_t _v = vld1q_f32(ptrAk);
-                    vst1_lane_s32((int*)pp, vreinterpret_s32_s8(float2int8(vmulq_f32(_v, _scale), vmulq_f32(_v, _scale))), 0);
+                    float32x4_t _p = vld1q_f32(p0);
+                    vst1_lane_s32((int*)pp, vreinterpret_s32_s8(float2int8(vmulq_f32(_p, _scale), vmulq_f32(_p, _scale))), 0);
                     pp += 4;
+                    p0 += A_hstep;
                 }
-                ptrAg += (size_t)max_kk0 * A_hstep;
-                descale_ptr += 4;
+                pd += 4;
             }
         }
 #endif // __ARM_NEON
         for (; ii + 1 < max_ii; ii += 2)
         {
-            const float* ptrA = (const float*)A + (size_t)k * A_hstep + i + ii;
-            signed char* pp = outptr + ii * out_hstep;
-            float* descale_ptr = descales + ii * descales_hstep;
-            const float* ptrAg = ptrA;
+            const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
 
             for (int g = 0; g < block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
 #if __ARM_NEON
                 float32x2_t _absmax = vdup_n_f32(0.f);
-                const float* ptrAk = ptrAg;
+                const float* p0a = p0;
                 for (int kk = 0; kk < max_kk0; kk++)
                 {
-                    float32x2_t _v = vld1_f32(ptrAk);
-                    _absmax = vmax_f32(_absmax, vabs_f32(_v));
-                    ptrAk += A_hstep;
+                    float32x2_t _p = vld1_f32(p0a);
+                    _absmax = vmax_f32(_absmax, vabs_f32(_p));
+                    p0a += A_hstep;
                 }
 
-                vst1_f32(descale_ptr, vmul_n_f32(_absmax, 1.f / 127.f));
+                vst1_f32(pd, vmul_n_f32(_absmax, 1.f / 127.f));
                 float absmax0 = vget_lane_f32(_absmax, 0);
                 float absmax1 = vget_lane_f32(_absmax, 1);
                 float32x2_t _scale = vdup_n_f32(absmax0 == 0.f ? 0.f : 127.f / absmax0);
@@ -1571,178 +1511,163 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __ARM_FEATURE_MATMUL_INT8
                 for (; kk + 7 < max_kk0; kk += 8)
                 {
-                    ptrAk = ptrAg + (size_t)kk * A_hstep;
-                    float32x2_t _v0 = vld1_f32(ptrAk);
-                    float32x2_t _v1 = vld1_f32(ptrAk + A_hstep);
-                    float32x2_t _v2 = vld1_f32(ptrAk + A_hstep * 2);
-                    float32x2_t _v3 = vld1_f32(ptrAk + A_hstep * 3);
-                    float32x2_t _v4 = vld1_f32(ptrAk + A_hstep * 4);
-                    float32x2_t _v5 = vld1_f32(ptrAk + A_hstep * 5);
-                    float32x2_t _v6 = vld1_f32(ptrAk + A_hstep * 6);
-                    float32x2_t _v7 = vld1_f32(ptrAk + A_hstep * 7);
+                    float32x2_t _p0 = vld1_f32(p0);
+                    float32x2_t _p1 = vld1_f32(p0 + A_hstep);
+                    float32x2_t _p2 = vld1_f32(p0 + A_hstep * 2);
+                    float32x2_t _p3 = vld1_f32(p0 + A_hstep * 3);
+                    float32x2_t _p4 = vld1_f32(p0 + A_hstep * 4);
+                    float32x2_t _p5 = vld1_f32(p0 + A_hstep * 5);
+                    float32x2_t _p6 = vld1_f32(p0 + A_hstep * 6);
+                    float32x2_t _p7 = vld1_f32(p0 + A_hstep * 7);
                     float32x4_t _scale_scale = vcombine_f32(_scale, _scale);
-                    float32x4_t _v01 = vmulq_f32(vcombine_f32(_v0, _v1), _scale_scale);
-                    float32x4_t _v23 = vmulq_f32(vcombine_f32(_v2, _v3), _scale_scale);
-                    float32x4_t _v45 = vmulq_f32(vcombine_f32(_v4, _v5), _scale_scale);
-                    float32x4_t _v67 = vmulq_f32(vcombine_f32(_v6, _v7), _scale_scale);
-                    int8x8_t _q0 = float2int8(_v01, _v23);
-                    int8x8_t _q1 = float2int8(_v45, _v67);
-                    int8x8x2_t _q01 = vuzp_s8(_q0, _q1);
-                    vst1q_s8(pp, vcombine_s8(_q01.val[0], _q01.val[1]));
+                    float32x4_t _p01 = vmulq_f32(vcombine_f32(_p0, _p1), _scale_scale);
+                    float32x4_t _p23 = vmulq_f32(vcombine_f32(_p2, _p3), _scale_scale);
+                    float32x4_t _p45 = vmulq_f32(vcombine_f32(_p4, _p5), _scale_scale);
+                    float32x4_t _p67 = vmulq_f32(vcombine_f32(_p6, _p7), _scale_scale);
+                    int8x8_t _r0 = float2int8(_p01, _p23);
+                    int8x8_t _r1 = float2int8(_p45, _p67);
+                    int8x8x2_t _r01 = vuzp_s8(_r0, _r1);
+                    vst1q_s8(pp, vcombine_s8(_r01.val[0], _r01.val[1]));
                     pp += 16;
+                    p0 += A_hstep * 8;
                 }
 #endif // __ARM_FEATURE_MATMUL_INT8
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    ptrAk = ptrAg + (size_t)kk * A_hstep;
-                    float32x2_t _v0 = vld1_f32(ptrAk);
-                    float32x2_t _v1 = vld1_f32(ptrAk + A_hstep);
-                    float32x2_t _v2 = vld1_f32(ptrAk + A_hstep * 2);
-                    float32x2_t _v3 = vld1_f32(ptrAk + A_hstep * 3);
+                    float32x2_t _p0 = vld1_f32(p0);
+                    float32x2_t _p1 = vld1_f32(p0 + A_hstep);
+                    float32x2_t _p2 = vld1_f32(p0 + A_hstep * 2);
+                    float32x2_t _p3 = vld1_f32(p0 + A_hstep * 3);
                     float32x4_t _scale_scale = vcombine_f32(_scale, _scale);
-                    float32x4_t _v01 = vmulq_f32(vcombine_f32(_v0, _v1), _scale_scale);
-                    float32x4_t _v23 = vmulq_f32(vcombine_f32(_v2, _v3), _scale_scale);
-                    int8x8_t _q0123 = float2int8(_v01, _v23);
+                    float32x4_t _p01 = vmulq_f32(vcombine_f32(_p0, _p1), _scale_scale);
+                    float32x4_t _p23 = vmulq_f32(vcombine_f32(_p2, _p3), _scale_scale);
+                    int8x8_t _r0 = float2int8(_p01, _p23);
 #if __ARM_FEATURE_DOTPROD
-                    int8x8x2_t _q02 = vuzp_s8(_q0123, _q0123);
-                    vst1_s8(pp, vreinterpret_s8_s32(vzip_s32(vreinterpret_s32_s8(_q02.val[0]), vreinterpret_s32_s8(_q02.val[1])).val[0]));
+                    int8x8x2_t _r01 = vuzp_s8(_r0, _r0);
+                    vst1_s8(pp, vreinterpret_s8_s32(vzip_s32(vreinterpret_s32_s8(_r01.val[0]), vreinterpret_s32_s8(_r01.val[1])).val[0]));
 #else
-                    int8x8x2_t _q02 = vuzp_s8(_q0123, _q0123);
-                    vst1_s8(pp, vreinterpret_s8_s16(vzip_s16(vreinterpret_s16_s8(_q02.val[0]), vreinterpret_s16_s8(_q02.val[1])).val[0]));
+                    int8x8x2_t _r01 = vuzp_s8(_r0, _r0);
+                    vst1_s8(pp, vreinterpret_s8_s16(vzip_s16(vreinterpret_s16_s8(_r01.val[0]), vreinterpret_s16_s8(_r01.val[1])).val[0]));
 #endif
                     pp += 8;
+                    p0 += A_hstep * 4;
                 }
                 for (; kk + 1 < max_kk0; kk += 2)
                 {
-                    ptrAk = ptrAg + (size_t)kk * A_hstep;
-                    float32x2_t _v0 = vld1_f32(ptrAk);
-                    float32x2_t _v1 = vld1_f32(ptrAk + A_hstep);
+                    float32x2_t _p0 = vld1_f32(p0);
+                    float32x2_t _p1 = vld1_f32(p0 + A_hstep);
                     float32x4_t _scale_scale = vcombine_f32(_scale, _scale);
-                    float32x4_t _v01 = vmulq_f32(vcombine_f32(_v0, _v1), _scale_scale);
-                    int8x8_t _q01 = float2int8(_v01, _v01);
-                    int8x8x2_t _q02 = vuzp_s8(_q01, _q01);
-                    vst1_lane_s16((short*)pp, vreinterpret_s16_s8(_q02.val[0]), 0);
-                    vst1_lane_s16((short*)pp + 1, vreinterpret_s16_s8(_q02.val[1]), 0);
+                    float32x4_t _p01 = vmulq_f32(vcombine_f32(_p0, _p1), _scale_scale);
+                    int8x8_t _r0 = float2int8(_p01, _p01);
+                    int8x8x2_t _r01 = vuzp_s8(_r0, _r0);
+                    vst1_lane_s16((short*)pp, vreinterpret_s16_s8(_r01.val[0]), 0);
+                    vst1_lane_s16((short*)pp + 1, vreinterpret_s16_s8(_r01.val[1]), 0);
                     pp += 4;
+                    p0 += A_hstep * 2;
                 }
                 if (kk < max_kk0)
                 {
-                    ptrAk = ptrAg + (size_t)kk * A_hstep;
-                    float32x2_t _v = vld1_f32(ptrAk);
-                    float32x4_t _vq = vmulq_f32(vcombine_f32(_v, _v), vcombine_f32(_scale, _scale));
-                    vst1_lane_s16((short*)pp, vreinterpret_s16_s8(float2int8(_vq, _vq)), 0);
+                    float32x2_t _p0 = vld1_f32(p0);
+                    float32x4_t _p01 = vmulq_f32(vcombine_f32(_p0, _p0), vcombine_f32(_scale, _scale));
+                    vst1_lane_s16((short*)pp, vreinterpret_s16_s8(float2int8(_p01, _p01)), 0);
                     pp += 2;
+                    p0 += A_hstep;
                 }
 #else
-                const float* ptrAk = ptrAg;
                 float absmax0 = 0.f;
                 float absmax1 = 0.f;
+                const float* p0a = p0;
 
                 for (int kk = 0; kk < max_kk0; kk++)
                 {
-                    float v0 = ptrAk[0];
-                    float v1 = ptrAk[1];
+                    float v0 = p0a[0];
+                    float v1 = p0a[1];
                     absmax0 = std::max(absmax0, fabsf(v0));
                     absmax1 = std::max(absmax1, fabsf(v1));
-                    ptrAk += A_hstep;
+                    p0a += A_hstep;
                 }
 
-                descale_ptr[0] = absmax0 / 127.f;
-                descale_ptr[1] = absmax1 / 127.f;
+                pd[0] = absmax0 / 127.f;
+                pd[1] = absmax1 / 127.f;
                 const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
                 const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
 
-                ptrAk = ptrAg;
                 for (int kk = 0; kk < max_kk0; kk++)
                 {
-                    float v0 = ptrAk[0];
-                    float v1 = ptrAk[1];
+                    float v0 = p0[0];
+                    float v1 = p0[1];
                     *pp++ = float2int8(v0 * scale0);
                     *pp++ = float2int8(v1 * scale1);
-                    ptrAk += A_hstep;
+                    p0 += A_hstep;
                 }
 #endif // __ARM_NEON
-                ptrAg += (size_t)max_kk0 * A_hstep;
-                descale_ptr += 2;
+                pd += 2;
             }
         }
         for (; ii < max_ii; ii++)
         {
-            const float* ptrA = (const float*)A + (size_t)k * A_hstep + i + ii;
-            signed char* pp = outptr + ii * out_hstep;
-            float* descale_ptr = descales + ii * descales_hstep;
-            const float* ptrAg = ptrA;
+            const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
 
             for (int g = 0; g < block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
 
                 float absmax = 0.f;
-                const float* ptrAk = ptrAg;
+                const float* p0a = p0;
                 for (int kk = 0; kk < max_kk0; kk++)
                 {
-                    float v = *ptrAk;
+                    float v = *p0a;
                     absmax = std::max(absmax, fabsf(v));
-                    ptrAk += A_hstep;
+                    p0a += A_hstep;
                 }
 
                 if (absmax == 0.f)
                 {
-                    *descale_ptr++ = 0.f;
+                    *pd++ = 0.f;
                     for (int kk0 = 0; kk0 < max_kk0; kk0++)
                         *pp++ = 0;
-                    ptrAg += (size_t)max_kk0 * A_hstep;
+                    p0 += (size_t)max_kk0 * A_hstep;
                     continue;
                 }
 
                 const float scale = 127.f / absmax;
-                *descale_ptr++ = absmax / 127.f;
+                *pd++ = absmax / 127.f;
 
-                ptrAk = ptrAg;
                 for (int kk = 0; kk < max_kk0; kk++)
                 {
-                    float v = *ptrAk;
+                    float v = *p0;
                     *pp++ = float2int8(v * scale);
-                    ptrAk += A_hstep;
+                    p0 += A_hstep;
                 }
-                ptrAg += (size_t)max_kk0 * A_hstep;
             }
         }
 
         return;
     }
 
-    signed char* outptr = AT_tile;
-    const int out_hstep = AT_tile.w;
-    float* descales = AT_descales_tile;
-    const int descales_hstep = AT_descales_tile.w;
-    const int block_count = (max_kk + block_size - 1) / block_size;
-    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
-
     int ii = 0;
 #if __ARM_NEON
 #if __aarch64__
     for (; ii + 7 < max_ii; ii += 8)
     {
-        const float* ptrA = (const float*)A + (size_t)k * A_hstep + i + ii;
-        signed char* pp = outptr + ii * out_hstep;
-        const float* ptrAg = ptrA;
+        const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
         const float* ps = (const float*)input_scales + k;
-        float* pd = descales + ii * descales_hstep;
         for (int g = 0; g < block_count; g++)
         {
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             float32x4_t _absmax0 = vdupq_n_f32(0.f);
             float32x4_t _absmax1 = vdupq_n_f32(0.f);
-            const float* ptrAk = ptrAg;
+            const float* p0a = p0;
+            const float* psa = ps;
             for (int kk = 0; kk < max_kk0; kk++)
             {
-                float32x4_t _v0 = vld1q_f32(ptrAk);
-                float32x4_t _v1 = vld1q_f32(ptrAk + 4);
-                _absmax0 = vmaxq_f32(_absmax0, vmulq_n_f32(vabsq_f32(_v0), ps[kk]));
-                _absmax1 = vmaxq_f32(_absmax1, vmulq_n_f32(vabsq_f32(_v1), ps[kk]));
-                ptrAk += A_hstep;
+                const float s = *psa++;
+                float32x4_t _p0 = vld1q_f32(p0a);
+                _absmax0 = vmaxq_f32(_absmax0, vmulq_n_f32(vabsq_f32(_p0), s));
+                float32x4_t _p1 = vld1q_f32(p0a + 4);
+                _absmax1 = vmaxq_f32(_absmax1, vmulq_n_f32(vabsq_f32(_p1), s));
+                p0a += A_hstep;
             }
 
             float absmax0 = vgetq_lane_f32(_absmax0, 0);
@@ -1776,51 +1701,58 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __ARM_FEATURE_MATMUL_INT8
             for (; kk + 7 < max_kk0; kk += 8)
             {
-                ptrAk = ptrAg + (size_t)kk * A_hstep;
-                float32x4_t _v00 = vld1q_f32(ptrAk);
-                float32x4_t _v01 = vld1q_f32(ptrAk + 4);
-                float32x4_t _v10 = vld1q_f32(ptrAk + A_hstep);
-                float32x4_t _v11 = vld1q_f32(ptrAk + A_hstep + 4);
-                float32x4_t _v20 = vld1q_f32(ptrAk + A_hstep * 2);
-                float32x4_t _v21 = vld1q_f32(ptrAk + A_hstep * 2 + 4);
-                float32x4_t _v30 = vld1q_f32(ptrAk + A_hstep * 3);
-                float32x4_t _v31 = vld1q_f32(ptrAk + A_hstep * 3 + 4);
-                float32x4_t _v40 = vld1q_f32(ptrAk + A_hstep * 4);
-                float32x4_t _v41 = vld1q_f32(ptrAk + A_hstep * 4 + 4);
-                float32x4_t _v50 = vld1q_f32(ptrAk + A_hstep * 5);
-                float32x4_t _v51 = vld1q_f32(ptrAk + A_hstep * 5 + 4);
-                float32x4_t _v60 = vld1q_f32(ptrAk + A_hstep * 6);
-                float32x4_t _v61 = vld1q_f32(ptrAk + A_hstep * 6 + 4);
-                float32x4_t _v70 = vld1q_f32(ptrAk + A_hstep * 7);
-                float32x4_t _v71 = vld1q_f32(ptrAk + A_hstep * 7 + 4);
-                _v00 = vmulq_n_f32(_v00, ps[kk]);
-                _v01 = vmulq_n_f32(_v01, ps[kk]);
-                _v10 = vmulq_n_f32(_v10, ps[kk + 1]);
-                _v11 = vmulq_n_f32(_v11, ps[kk + 1]);
-                _v20 = vmulq_n_f32(_v20, ps[kk + 2]);
-                _v21 = vmulq_n_f32(_v21, ps[kk + 2]);
-                _v30 = vmulq_n_f32(_v30, ps[kk + 3]);
-                _v31 = vmulq_n_f32(_v31, ps[kk + 3]);
-                _v40 = vmulq_n_f32(_v40, ps[kk + 4]);
-                _v41 = vmulq_n_f32(_v41, ps[kk + 4]);
-                _v50 = vmulq_n_f32(_v50, ps[kk + 5]);
-                _v51 = vmulq_n_f32(_v51, ps[kk + 5]);
-                _v60 = vmulq_n_f32(_v60, ps[kk + 6]);
-                _v61 = vmulq_n_f32(_v61, ps[kk + 6]);
-                _v70 = vmulq_n_f32(_v70, ps[kk + 7]);
-                _v71 = vmulq_n_f32(_v71, ps[kk + 7]);
-                int8x8_t _q0 = float2int8(vmulq_f32(_v00, _scale0), vmulq_f32(_v01, _scale1));
-                int8x8_t _q1 = float2int8(vmulq_f32(_v10, _scale0), vmulq_f32(_v11, _scale1));
-                int8x8_t _q2 = float2int8(vmulq_f32(_v20, _scale0), vmulq_f32(_v21, _scale1));
-                int8x8_t _q3 = float2int8(vmulq_f32(_v30, _scale0), vmulq_f32(_v31, _scale1));
-                int8x8_t _q4 = float2int8(vmulq_f32(_v40, _scale0), vmulq_f32(_v41, _scale1));
-                int8x8_t _q5 = float2int8(vmulq_f32(_v50, _scale0), vmulq_f32(_v51, _scale1));
-                int8x8_t _q6 = float2int8(vmulq_f32(_v60, _scale0), vmulq_f32(_v61, _scale1));
-                int8x8_t _q7 = float2int8(vmulq_f32(_v70, _scale0), vmulq_f32(_v71, _scale1));
-                int8x8x2_t _r04 = vzip_s8(_q0, _q4);
-                int8x8x2_t _r15 = vzip_s8(_q1, _q5);
-                int8x8x2_t _r26 = vzip_s8(_q2, _q6);
-                int8x8x2_t _r37 = vzip_s8(_q3, _q7);
+                float32x4_t _p00 = vld1q_f32(p0);
+                float32x4_t _p01 = vld1q_f32(p0 + 4);
+                const float s0 = *ps++;
+                _p00 = vmulq_n_f32(_p00, s0);
+                _p01 = vmulq_n_f32(_p01, s0);
+                float32x4_t _p10 = vld1q_f32(p0 + A_hstep);
+                float32x4_t _p11 = vld1q_f32(p0 + A_hstep + 4);
+                const float s1 = *ps++;
+                _p10 = vmulq_n_f32(_p10, s1);
+                _p11 = vmulq_n_f32(_p11, s1);
+                float32x4_t _p20 = vld1q_f32(p0 + A_hstep * 2);
+                float32x4_t _p21 = vld1q_f32(p0 + A_hstep * 2 + 4);
+                const float s2 = *ps++;
+                _p20 = vmulq_n_f32(_p20, s2);
+                _p21 = vmulq_n_f32(_p21, s2);
+                float32x4_t _p30 = vld1q_f32(p0 + A_hstep * 3);
+                float32x4_t _p31 = vld1q_f32(p0 + A_hstep * 3 + 4);
+                const float s3 = *ps++;
+                _p30 = vmulq_n_f32(_p30, s3);
+                _p31 = vmulq_n_f32(_p31, s3);
+                float32x4_t _p40 = vld1q_f32(p0 + A_hstep * 4);
+                float32x4_t _p41 = vld1q_f32(p0 + A_hstep * 4 + 4);
+                const float s4 = *ps++;
+                _p40 = vmulq_n_f32(_p40, s4);
+                _p41 = vmulq_n_f32(_p41, s4);
+                float32x4_t _p50 = vld1q_f32(p0 + A_hstep * 5);
+                float32x4_t _p51 = vld1q_f32(p0 + A_hstep * 5 + 4);
+                const float s5 = *ps++;
+                _p50 = vmulq_n_f32(_p50, s5);
+                _p51 = vmulq_n_f32(_p51, s5);
+                float32x4_t _p60 = vld1q_f32(p0 + A_hstep * 6);
+                float32x4_t _p61 = vld1q_f32(p0 + A_hstep * 6 + 4);
+                const float s6 = *ps++;
+                _p60 = vmulq_n_f32(_p60, s6);
+                _p61 = vmulq_n_f32(_p61, s6);
+                float32x4_t _p70 = vld1q_f32(p0 + A_hstep * 7);
+                float32x4_t _p71 = vld1q_f32(p0 + A_hstep * 7 + 4);
+                const float s7 = *ps++;
+                _p70 = vmulq_n_f32(_p70, s7);
+                _p71 = vmulq_n_f32(_p71, s7);
+                int8x8_t _r0 = float2int8(vmulq_f32(_p00, _scale0), vmulq_f32(_p01, _scale1));
+                int8x8_t _r1 = float2int8(vmulq_f32(_p10, _scale0), vmulq_f32(_p11, _scale1));
+                int8x8_t _r2 = float2int8(vmulq_f32(_p20, _scale0), vmulq_f32(_p21, _scale1));
+                int8x8_t _r3 = float2int8(vmulq_f32(_p30, _scale0), vmulq_f32(_p31, _scale1));
+                int8x8_t _r4 = float2int8(vmulq_f32(_p40, _scale0), vmulq_f32(_p41, _scale1));
+                int8x8_t _r5 = float2int8(vmulq_f32(_p50, _scale0), vmulq_f32(_p51, _scale1));
+                int8x8_t _r6 = float2int8(vmulq_f32(_p60, _scale0), vmulq_f32(_p61, _scale1));
+                int8x8_t _r7 = float2int8(vmulq_f32(_p70, _scale0), vmulq_f32(_p71, _scale1));
+                int8x8x2_t _r04 = vzip_s8(_r0, _r4);
+                int8x8x2_t _r15 = vzip_s8(_r1, _r5);
+                int8x8x2_t _r26 = vzip_s8(_r2, _r6);
+                int8x8x2_t _r37 = vzip_s8(_r3, _r7);
                 int8x8x4_t _r0123;
                 _r0123.val[0] = _r04.val[0];
                 _r0123.val[1] = _r15.val[0];
@@ -1834,92 +1766,95 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 vst4_s8(pp, _r0123);
                 vst4_s8(pp + 32, _r4567);
                 pp += 64;
+                p0 += A_hstep * 8;
             }
 #endif // __ARM_FEATURE_MATMUL_INT8
 #endif // __ARM_FEATURE_DOTPROD
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                ptrAk = ptrAg + (size_t)kk * A_hstep;
-                float32x4_t _v00 = vld1q_f32(ptrAk);
-                float32x4_t _v01 = vld1q_f32(ptrAk + 4);
-                float32x4_t _v10 = vld1q_f32(ptrAk + A_hstep);
-                float32x4_t _v11 = vld1q_f32(ptrAk + A_hstep + 4);
-                float32x4_t _v20 = vld1q_f32(ptrAk + A_hstep * 2);
-                float32x4_t _v21 = vld1q_f32(ptrAk + A_hstep * 2 + 4);
-                float32x4_t _v30 = vld1q_f32(ptrAk + A_hstep * 3);
-                float32x4_t _v31 = vld1q_f32(ptrAk + A_hstep * 3 + 4);
-                _v00 = vmulq_n_f32(_v00, ps[kk]);
-                _v01 = vmulq_n_f32(_v01, ps[kk]);
-                _v10 = vmulq_n_f32(_v10, ps[kk + 1]);
-                _v11 = vmulq_n_f32(_v11, ps[kk + 1]);
-                _v20 = vmulq_n_f32(_v20, ps[kk + 2]);
-                _v21 = vmulq_n_f32(_v21, ps[kk + 2]);
-                _v30 = vmulq_n_f32(_v30, ps[kk + 3]);
-                _v31 = vmulq_n_f32(_v31, ps[kk + 3]);
-                int8x8_t _q0 = float2int8(vmulq_f32(_v00, _scale0), vmulq_f32(_v01, _scale1));
-                int8x8_t _q1 = float2int8(vmulq_f32(_v10, _scale0), vmulq_f32(_v11, _scale1));
-                int8x8_t _q2 = float2int8(vmulq_f32(_v20, _scale0), vmulq_f32(_v21, _scale1));
-                int8x8_t _q3 = float2int8(vmulq_f32(_v30, _scale0), vmulq_f32(_v31, _scale1));
+                float32x4_t _p00 = vld1q_f32(p0);
+                float32x4_t _p01 = vld1q_f32(p0 + 4);
+                const float s0 = *ps++;
+                _p00 = vmulq_n_f32(_p00, s0);
+                _p01 = vmulq_n_f32(_p01, s0);
+                float32x4_t _p10 = vld1q_f32(p0 + A_hstep);
+                float32x4_t _p11 = vld1q_f32(p0 + A_hstep + 4);
+                const float s1 = *ps++;
+                _p10 = vmulq_n_f32(_p10, s1);
+                _p11 = vmulq_n_f32(_p11, s1);
+                float32x4_t _p20 = vld1q_f32(p0 + A_hstep * 2);
+                float32x4_t _p21 = vld1q_f32(p0 + A_hstep * 2 + 4);
+                const float s2 = *ps++;
+                _p20 = vmulq_n_f32(_p20, s2);
+                _p21 = vmulq_n_f32(_p21, s2);
+                float32x4_t _p30 = vld1q_f32(p0 + A_hstep * 3);
+                float32x4_t _p31 = vld1q_f32(p0 + A_hstep * 3 + 4);
+                const float s3 = *ps++;
+                _p30 = vmulq_n_f32(_p30, s3);
+                _p31 = vmulq_n_f32(_p31, s3);
+                int8x8_t _r0 = float2int8(vmulq_f32(_p00, _scale0), vmulq_f32(_p01, _scale1));
+                int8x8_t _r1 = float2int8(vmulq_f32(_p10, _scale0), vmulq_f32(_p11, _scale1));
+                int8x8_t _r2 = float2int8(vmulq_f32(_p20, _scale0), vmulq_f32(_p21, _scale1));
+                int8x8_t _r3 = float2int8(vmulq_f32(_p30, _scale0), vmulq_f32(_p31, _scale1));
 #if __ARM_FEATURE_DOTPROD
                 int8x8x4_t _r0123;
-                _r0123.val[0] = _q0;
-                _r0123.val[1] = _q1;
-                _r0123.val[2] = _q2;
-                _r0123.val[3] = _q3;
+                _r0123.val[0] = _r0;
+                _r0123.val[1] = _r1;
+                _r0123.val[2] = _r2;
+                _r0123.val[3] = _r3;
                 vst4_s8(pp, _r0123);
 #else
                 int8x8x2_t _r01;
-                _r01.val[0] = _q0;
-                _r01.val[1] = _q1;
+                _r01.val[0] = _r0;
+                _r01.val[1] = _r1;
                 int8x8x2_t _r23;
-                _r23.val[0] = _q2;
-                _r23.val[1] = _q3;
+                _r23.val[0] = _r2;
+                _r23.val[1] = _r3;
                 vst2_s8(pp, _r01);
                 vst2_s8(pp + 16, _r23);
 #endif
                 pp += 32;
+                p0 += A_hstep * 4;
             }
             for (; kk + 1 < max_kk0; kk += 2)
             {
-                ptrAk = ptrAg + (size_t)kk * A_hstep;
-                float32x4_t _v00 = vld1q_f32(ptrAk);
-                float32x4_t _v01 = vld1q_f32(ptrAk + 4);
-                float32x4_t _v10 = vld1q_f32(ptrAk + A_hstep);
-                float32x4_t _v11 = vld1q_f32(ptrAk + A_hstep + 4);
-                _v00 = vmulq_n_f32(_v00, ps[kk]);
-                _v01 = vmulq_n_f32(_v01, ps[kk]);
-                _v10 = vmulq_n_f32(_v10, ps[kk + 1]);
-                _v11 = vmulq_n_f32(_v11, ps[kk + 1]);
-                int8x8_t _q0 = float2int8(vmulq_f32(_v00, _scale0), vmulq_f32(_v01, _scale1));
-                int8x8_t _q1 = float2int8(vmulq_f32(_v10, _scale0), vmulq_f32(_v11, _scale1));
+                float32x4_t _p00 = vld1q_f32(p0);
+                float32x4_t _p01 = vld1q_f32(p0 + 4);
+                const float s0 = *ps++;
+                _p00 = vmulq_n_f32(_p00, s0);
+                _p01 = vmulq_n_f32(_p01, s0);
+                float32x4_t _p10 = vld1q_f32(p0 + A_hstep);
+                float32x4_t _p11 = vld1q_f32(p0 + A_hstep + 4);
+                const float s1 = *ps++;
+                _p10 = vmulq_n_f32(_p10, s1);
+                _p11 = vmulq_n_f32(_p11, s1);
+                int8x8_t _r0 = float2int8(vmulq_f32(_p00, _scale0), vmulq_f32(_p01, _scale1));
+                int8x8_t _r1 = float2int8(vmulq_f32(_p10, _scale0), vmulq_f32(_p11, _scale1));
                 int8x8x2_t _r01;
-                _r01.val[0] = _q0;
-                _r01.val[1] = _q1;
+                _r01.val[0] = _r0;
+                _r01.val[1] = _r1;
                 vst2_s8(pp, _r01);
                 pp += 16;
+                p0 += A_hstep * 2;
             }
             if (kk < max_kk0)
             {
-                ptrAk = ptrAg + (size_t)kk * A_hstep;
-                float32x4_t _v0 = vld1q_f32(ptrAk);
-                float32x4_t _v1 = vld1q_f32(ptrAk + 4);
-                _v0 = vmulq_n_f32(_v0, ps[kk]);
-                _v1 = vmulq_n_f32(_v1, ps[kk]);
-                vst1_s8(pp, float2int8(vmulq_f32(_v0, _scale0), vmulq_f32(_v1, _scale1)));
+                float32x4_t _p0 = vld1q_f32(p0);
+                float32x4_t _p1 = vld1q_f32(p0 + 4);
+                const float s = *ps++;
+                _p0 = vmulq_n_f32(_p0, s);
+                _p1 = vmulq_n_f32(_p1, s);
+                vst1_s8(pp, float2int8(vmulq_f32(_p0, _scale0), vmulq_f32(_p1, _scale1)));
                 pp += 8;
+                p0 += A_hstep;
             }
-            ptrAg += (size_t)max_kk0 * A_hstep;
-            ps += max_kk0;
             pd += 8;
         }
     }
 #endif // __aarch64__
     for (; ii + 3 < max_ii; ii += 4)
     {
-        const float* ptrA = (const float*)A + (size_t)k * A_hstep + i + ii;
-        signed char* pp = outptr + ii * out_hstep;
-        float* descale_ptr = descales + ii * descales_hstep;
-        const float* ptrAg = ptrA;
+        const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
         const float* ps = (const float*)input_scales + k;
 
         for (int g = 0; g < block_count; g++)
@@ -1927,15 +1862,16 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
 
             float32x4_t _absmax = vdupq_n_f32(0.f);
-            const float* ptrAk = ptrAg;
+            const float* p0a = p0;
+            const float* psa = ps;
             for (int kk = 0; kk < max_kk0; kk++)
             {
-                float32x4_t _v = vld1q_f32(ptrAk);
-                _absmax = vmaxq_f32(_absmax, vmulq_n_f32(vabsq_f32(_v), ps[kk]));
-                ptrAk += A_hstep;
+                float32x4_t _p = vld1q_f32(p0a);
+                _absmax = vmaxq_f32(_absmax, vmulq_n_f32(vabsq_f32(_p), *psa++));
+                p0a += A_hstep;
             }
 
-            vst1q_f32(descale_ptr, vmulq_n_f32(_absmax, 1.f / 127.f));
+            vst1q_f32(pd, vmulq_n_f32(_absmax, 1.f / 127.f));
             float absmax0 = vgetq_lane_f32(_absmax, 0);
             float absmax1 = vgetq_lane_f32(_absmax, 1);
             float absmax2 = vgetq_lane_f32(_absmax, 2);
@@ -1950,107 +1886,87 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __ARM_FEATURE_MATMUL_INT8
             for (; kk + 7 < max_kk0; kk += 8)
             {
-                ptrAk = ptrAg + (size_t)kk * A_hstep;
-                float32x4_t _v0 = vld1q_f32(ptrAk);
-                float32x4_t _v1 = vld1q_f32(ptrAk + A_hstep);
-                float32x4_t _v2 = vld1q_f32(ptrAk + A_hstep * 2);
-                float32x4_t _v3 = vld1q_f32(ptrAk + A_hstep * 3);
-                float32x4_t _v4 = vld1q_f32(ptrAk + A_hstep * 4);
-                float32x4_t _v5 = vld1q_f32(ptrAk + A_hstep * 5);
-                float32x4_t _v6 = vld1q_f32(ptrAk + A_hstep * 6);
-                float32x4_t _v7 = vld1q_f32(ptrAk + A_hstep * 7);
-                _v0 = vmulq_n_f32(_v0, ps[kk]);
-                _v1 = vmulq_n_f32(_v1, ps[kk + 1]);
-                _v2 = vmulq_n_f32(_v2, ps[kk + 2]);
-                _v3 = vmulq_n_f32(_v3, ps[kk + 3]);
-                _v4 = vmulq_n_f32(_v4, ps[kk + 4]);
-                _v5 = vmulq_n_f32(_v5, ps[kk + 5]);
-                _v6 = vmulq_n_f32(_v6, ps[kk + 6]);
-                _v7 = vmulq_n_f32(_v7, ps[kk + 7]);
-                _v0 = vmulq_f32(_v0, _scale);
-                _v1 = vmulq_f32(_v1, _scale);
-                _v2 = vmulq_f32(_v2, _scale);
-                _v3 = vmulq_f32(_v3, _scale);
-                _v4 = vmulq_f32(_v4, _scale);
-                _v5 = vmulq_f32(_v5, _scale);
-                _v6 = vmulq_f32(_v6, _scale);
-                _v7 = vmulq_f32(_v7, _scale);
-                float32x4x2_t _v04 = vzipq_f32(_v0, _v4);
-                float32x4x2_t _v15 = vzipq_f32(_v1, _v5);
-                float32x4x2_t _v26 = vzipq_f32(_v2, _v6);
-                float32x4x2_t _v37 = vzipq_f32(_v3, _v7);
+                float32x4_t _p0 = vmulq_n_f32(vld1q_f32(p0), *ps++);
+                float32x4_t _p1 = vmulq_n_f32(vld1q_f32(p0 + A_hstep), *ps++);
+                float32x4_t _p2 = vmulq_n_f32(vld1q_f32(p0 + A_hstep * 2), *ps++);
+                float32x4_t _p3 = vmulq_n_f32(vld1q_f32(p0 + A_hstep * 3), *ps++);
+                float32x4_t _p4 = vmulq_n_f32(vld1q_f32(p0 + A_hstep * 4), *ps++);
+                float32x4_t _p5 = vmulq_n_f32(vld1q_f32(p0 + A_hstep * 5), *ps++);
+                float32x4_t _p6 = vmulq_n_f32(vld1q_f32(p0 + A_hstep * 6), *ps++);
+                float32x4_t _p7 = vmulq_n_f32(vld1q_f32(p0 + A_hstep * 7), *ps++);
+                _p0 = vmulq_f32(_p0, _scale);
+                _p1 = vmulq_f32(_p1, _scale);
+                _p2 = vmulq_f32(_p2, _scale);
+                _p3 = vmulq_f32(_p3, _scale);
+                _p4 = vmulq_f32(_p4, _scale);
+                _p5 = vmulq_f32(_p5, _scale);
+                _p6 = vmulq_f32(_p6, _scale);
+                _p7 = vmulq_f32(_p7, _scale);
+                float32x4x2_t _p04 = vzipq_f32(_p0, _p4);
+                float32x4x2_t _p15 = vzipq_f32(_p1, _p5);
+                float32x4x2_t _p26 = vzipq_f32(_p2, _p6);
+                float32x4x2_t _p37 = vzipq_f32(_p3, _p7);
                 int8x8x4_t _r0123;
-                _r0123.val[0] = float2int8(_v04.val[0], _v04.val[1]);
-                _r0123.val[1] = float2int8(_v15.val[0], _v15.val[1]);
-                _r0123.val[2] = float2int8(_v26.val[0], _v26.val[1]);
-                _r0123.val[3] = float2int8(_v37.val[0], _v37.val[1]);
+                _r0123.val[0] = float2int8(_p04.val[0], _p04.val[1]);
+                _r0123.val[1] = float2int8(_p15.val[0], _p15.val[1]);
+                _r0123.val[2] = float2int8(_p26.val[0], _p26.val[1]);
+                _r0123.val[3] = float2int8(_p37.val[0], _p37.val[1]);
                 vst4_s8(pp, _r0123);
                 pp += 32;
+                p0 += A_hstep * 8;
             }
 #endif // __ARM_FEATURE_MATMUL_INT8
 #endif // __ARM_FEATURE_DOTPROD
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                ptrAk = ptrAg + (size_t)kk * A_hstep;
-                float32x4_t _v0 = vld1q_f32(ptrAk);
-                float32x4_t _v1 = vld1q_f32(ptrAk + A_hstep);
-                float32x4_t _v2 = vld1q_f32(ptrAk + A_hstep * 2);
-                float32x4_t _v3 = vld1q_f32(ptrAk + A_hstep * 3);
-                _v0 = vmulq_n_f32(_v0, ps[kk]);
-                _v1 = vmulq_n_f32(_v1, ps[kk + 1]);
-                _v2 = vmulq_n_f32(_v2, ps[kk + 2]);
-                _v3 = vmulq_n_f32(_v3, ps[kk + 3]);
-                _v0 = vmulq_f32(_v0, _scale);
-                _v1 = vmulq_f32(_v1, _scale);
-                _v2 = vmulq_f32(_v2, _scale);
-                _v3 = vmulq_f32(_v3, _scale);
+                float32x4_t _p0 = vmulq_n_f32(vld1q_f32(p0), *ps++);
+                float32x4_t _p1 = vmulq_n_f32(vld1q_f32(p0 + A_hstep), *ps++);
+                float32x4_t _p2 = vmulq_n_f32(vld1q_f32(p0 + A_hstep * 2), *ps++);
+                float32x4_t _p3 = vmulq_n_f32(vld1q_f32(p0 + A_hstep * 3), *ps++);
+                _p0 = vmulq_f32(_p0, _scale);
+                _p1 = vmulq_f32(_p1, _scale);
+                _p2 = vmulq_f32(_p2, _scale);
+                _p3 = vmulq_f32(_p3, _scale);
 #if __ARM_FEATURE_DOTPROD
-                transpose4x4_ps(_v0, _v1, _v2, _v3);
-                int8x8_t _q01 = float2int8(_v0, _v1);
-                int8x8_t _q23 = float2int8(_v2, _v3);
-                vst1q_s8(pp, vcombine_s8(_q01, _q23));
+                transpose4x4_ps(_p0, _p1, _p2, _p3);
+                int8x8_t _r01 = float2int8(_p0, _p1);
+                int8x8_t _r23 = float2int8(_p2, _p3);
+                vst1q_s8(pp, vcombine_s8(_r01, _r23));
 #else
-                int8x8_t _q01 = float2int8(_v0, _v1);
-                int8x8_t _q23 = float2int8(_v2, _v3);
-                int8x8_t _q10 = vext_s8(_q01, _q01, 4);
-                int8x8_t _q32 = vext_s8(_q23, _q23, 4);
-                vst1_s8(pp, vzip_s8(_q01, _q10).val[0]);
-                vst1_s8(pp + 8, vzip_s8(_q23, _q32).val[0]);
+                int8x8_t _r01 = float2int8(_p0, _p1);
+                int8x8_t _r23 = float2int8(_p2, _p3);
+                int8x8_t _r10 = vext_s8(_r01, _r01, 4);
+                int8x8_t _r32 = vext_s8(_r23, _r23, 4);
+                vst1_s8(pp, vzip_s8(_r01, _r10).val[0]);
+                vst1_s8(pp + 8, vzip_s8(_r23, _r32).val[0]);
 #endif
                 pp += 16;
+                p0 += A_hstep * 4;
             }
             for (; kk + 1 < max_kk0; kk += 2)
             {
-                ptrAk = ptrAg + (size_t)kk * A_hstep;
-                float32x4_t _v0 = vld1q_f32(ptrAk);
-                float32x4_t _v1 = vld1q_f32(ptrAk + A_hstep);
-                _v0 = vmulq_n_f32(_v0, ps[kk]);
-                _v1 = vmulq_n_f32(_v1, ps[kk + 1]);
-                int8x8_t _q01 = float2int8(vmulq_f32(_v0, _scale), vmulq_f32(_v1, _scale));
-                int8x8_t _q10 = vext_s8(_q01, _q01, 4);
-                vst1_s8(pp, vzip_s8(_q01, _q10).val[0]);
+                float32x4_t _p0 = vmulq_n_f32(vld1q_f32(p0), *ps++);
+                float32x4_t _p1 = vmulq_n_f32(vld1q_f32(p0 + A_hstep), *ps++);
+                int8x8_t _r01 = float2int8(vmulq_f32(_p0, _scale), vmulq_f32(_p1, _scale));
+                int8x8_t _r10 = vext_s8(_r01, _r01, 4);
+                vst1_s8(pp, vzip_s8(_r01, _r10).val[0]);
                 pp += 8;
+                p0 += A_hstep * 2;
             }
             if (kk < max_kk0)
             {
-                ptrAk = ptrAg + (size_t)kk * A_hstep;
-                float32x4_t _v = vld1q_f32(ptrAk);
-                _v = vmulq_n_f32(_v, ps[kk]);
-                vst1_lane_s32((int*)pp, vreinterpret_s32_s8(float2int8(vmulq_f32(_v, _scale), vmulq_f32(_v, _scale))), 0);
+                float32x4_t _p = vmulq_n_f32(vld1q_f32(p0), *ps++);
+                vst1_lane_s32((int*)pp, vreinterpret_s32_s8(float2int8(vmulq_f32(_p, _scale), vmulq_f32(_p, _scale))), 0);
                 pp += 4;
+                p0 += A_hstep;
             }
-            ptrAg += (size_t)max_kk0 * A_hstep;
-            ps += max_kk0;
-            descale_ptr += 4;
+            pd += 4;
         }
     }
 #endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
-        const float* ptrA = (const float*)A + (size_t)k * A_hstep + i + ii;
-        signed char* pp = outptr + ii * out_hstep;
-        float* descale_ptr = descales + ii * descales_hstep;
-        const float* ptrAg = ptrA;
+        const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
         const float* ps = (const float*)input_scales + k;
 
         for (int g = 0; g < block_count; g++)
@@ -2058,15 +1974,16 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
 #if __ARM_NEON
             float32x2_t _absmax = vdup_n_f32(0.f);
-            const float* ptrAk = ptrAg;
+            const float* p0a = p0;
+            const float* psa = ps;
             for (int kk = 0; kk < max_kk0; kk++)
             {
-                float32x2_t _v = vld1_f32(ptrAk);
-                _absmax = vmax_f32(_absmax, vmul_n_f32(vabs_f32(_v), ps[kk]));
-                ptrAk += A_hstep;
+                float32x2_t _p = vld1_f32(p0a);
+                _absmax = vmax_f32(_absmax, vmul_n_f32(vabs_f32(_p), *psa++));
+                p0a += A_hstep;
             }
 
-            vst1_f32(descale_ptr, vmul_n_f32(_absmax, 1.f / 127.f));
+            vst1_f32(pd, vmul_n_f32(_absmax, 1.f / 127.f));
             float absmax0 = vget_lane_f32(_absmax, 0);
             float absmax1 = vget_lane_f32(_absmax, 1);
             float32x2_t _scale = vdup_n_f32(absmax0 == 0.f ? 0.f : 127.f / absmax0);
@@ -2077,126 +1994,106 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __ARM_FEATURE_MATMUL_INT8
             for (; kk + 7 < max_kk0; kk += 8)
             {
-                ptrAk = ptrAg + (size_t)kk * A_hstep;
-                float32x2_t _v0 = vld1_f32(ptrAk);
-                float32x2_t _v1 = vld1_f32(ptrAk + A_hstep);
-                float32x2_t _v2 = vld1_f32(ptrAk + A_hstep * 2);
-                float32x2_t _v3 = vld1_f32(ptrAk + A_hstep * 3);
-                float32x2_t _v4 = vld1_f32(ptrAk + A_hstep * 4);
-                float32x2_t _v5 = vld1_f32(ptrAk + A_hstep * 5);
-                float32x2_t _v6 = vld1_f32(ptrAk + A_hstep * 6);
-                float32x2_t _v7 = vld1_f32(ptrAk + A_hstep * 7);
-                _v0 = vmul_n_f32(_v0, ps[kk]);
-                _v1 = vmul_n_f32(_v1, ps[kk + 1]);
-                _v2 = vmul_n_f32(_v2, ps[kk + 2]);
-                _v3 = vmul_n_f32(_v3, ps[kk + 3]);
-                _v4 = vmul_n_f32(_v4, ps[kk + 4]);
-                _v5 = vmul_n_f32(_v5, ps[kk + 5]);
-                _v6 = vmul_n_f32(_v6, ps[kk + 6]);
-                _v7 = vmul_n_f32(_v7, ps[kk + 7]);
+                float32x2_t _p0 = vmul_n_f32(vld1_f32(p0), *ps++);
+                float32x2_t _p1 = vmul_n_f32(vld1_f32(p0 + A_hstep), *ps++);
+                float32x2_t _p2 = vmul_n_f32(vld1_f32(p0 + A_hstep * 2), *ps++);
+                float32x2_t _p3 = vmul_n_f32(vld1_f32(p0 + A_hstep * 3), *ps++);
+                float32x2_t _p4 = vmul_n_f32(vld1_f32(p0 + A_hstep * 4), *ps++);
+                float32x2_t _p5 = vmul_n_f32(vld1_f32(p0 + A_hstep * 5), *ps++);
+                float32x2_t _p6 = vmul_n_f32(vld1_f32(p0 + A_hstep * 6), *ps++);
+                float32x2_t _p7 = vmul_n_f32(vld1_f32(p0 + A_hstep * 7), *ps++);
                 float32x4_t _scale_scale = vcombine_f32(_scale, _scale);
-                float32x4_t _v01 = vmulq_f32(vcombine_f32(_v0, _v1), _scale_scale);
-                float32x4_t _v23 = vmulq_f32(vcombine_f32(_v2, _v3), _scale_scale);
-                float32x4_t _v45 = vmulq_f32(vcombine_f32(_v4, _v5), _scale_scale);
-                float32x4_t _v67 = vmulq_f32(vcombine_f32(_v6, _v7), _scale_scale);
-                int8x8_t _q0 = float2int8(_v01, _v23);
-                int8x8_t _q1 = float2int8(_v45, _v67);
-                int8x8x2_t _q01 = vuzp_s8(_q0, _q1);
-                vst1q_s8(pp, vcombine_s8(_q01.val[0], _q01.val[1]));
+                float32x4_t _p01 = vmulq_f32(vcombine_f32(_p0, _p1), _scale_scale);
+                float32x4_t _p23 = vmulq_f32(vcombine_f32(_p2, _p3), _scale_scale);
+                float32x4_t _p45 = vmulq_f32(vcombine_f32(_p4, _p5), _scale_scale);
+                float32x4_t _p67 = vmulq_f32(vcombine_f32(_p6, _p7), _scale_scale);
+                int8x8_t _r0 = float2int8(_p01, _p23);
+                int8x8_t _r1 = float2int8(_p45, _p67);
+                int8x8x2_t _r01 = vuzp_s8(_r0, _r1);
+                vst1q_s8(pp, vcombine_s8(_r01.val[0], _r01.val[1]));
                 pp += 16;
+                p0 += A_hstep * 8;
             }
 #endif // __ARM_FEATURE_MATMUL_INT8
 #endif // __ARM_FEATURE_DOTPROD
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                ptrAk = ptrAg + (size_t)kk * A_hstep;
-                float32x2_t _v0 = vld1_f32(ptrAk);
-                float32x2_t _v1 = vld1_f32(ptrAk + A_hstep);
-                float32x2_t _v2 = vld1_f32(ptrAk + A_hstep * 2);
-                float32x2_t _v3 = vld1_f32(ptrAk + A_hstep * 3);
-                _v0 = vmul_n_f32(_v0, ps[kk]);
-                _v1 = vmul_n_f32(_v1, ps[kk + 1]);
-                _v2 = vmul_n_f32(_v2, ps[kk + 2]);
-                _v3 = vmul_n_f32(_v3, ps[kk + 3]);
+                float32x2_t _p0 = vmul_n_f32(vld1_f32(p0), *ps++);
+                float32x2_t _p1 = vmul_n_f32(vld1_f32(p0 + A_hstep), *ps++);
+                float32x2_t _p2 = vmul_n_f32(vld1_f32(p0 + A_hstep * 2), *ps++);
+                float32x2_t _p3 = vmul_n_f32(vld1_f32(p0 + A_hstep * 3), *ps++);
                 float32x4_t _scale_scale = vcombine_f32(_scale, _scale);
-                float32x4_t _v01 = vmulq_f32(vcombine_f32(_v0, _v1), _scale_scale);
-                float32x4_t _v23 = vmulq_f32(vcombine_f32(_v2, _v3), _scale_scale);
-                int8x8_t _q0123 = float2int8(_v01, _v23);
+                float32x4_t _p01 = vmulq_f32(vcombine_f32(_p0, _p1), _scale_scale);
+                float32x4_t _p23 = vmulq_f32(vcombine_f32(_p2, _p3), _scale_scale);
+                int8x8_t _r0 = float2int8(_p01, _p23);
 #if __ARM_FEATURE_DOTPROD
-                int8x8x2_t _q02 = vuzp_s8(_q0123, _q0123);
-                vst1_s8(pp, vreinterpret_s8_s32(vzip_s32(vreinterpret_s32_s8(_q02.val[0]), vreinterpret_s32_s8(_q02.val[1])).val[0]));
+                int8x8x2_t _r01 = vuzp_s8(_r0, _r0);
+                vst1_s8(pp, vreinterpret_s8_s32(vzip_s32(vreinterpret_s32_s8(_r01.val[0]), vreinterpret_s32_s8(_r01.val[1])).val[0]));
 #else
-                int8x8x2_t _q02 = vuzp_s8(_q0123, _q0123);
-                vst1_s8(pp, vreinterpret_s8_s16(vzip_s16(vreinterpret_s16_s8(_q02.val[0]), vreinterpret_s16_s8(_q02.val[1])).val[0]));
+                int8x8x2_t _r01 = vuzp_s8(_r0, _r0);
+                vst1_s8(pp, vreinterpret_s8_s16(vzip_s16(vreinterpret_s16_s8(_r01.val[0]), vreinterpret_s16_s8(_r01.val[1])).val[0]));
 #endif
                 pp += 8;
+                p0 += A_hstep * 4;
             }
             for (; kk + 1 < max_kk0; kk += 2)
             {
-                ptrAk = ptrAg + (size_t)kk * A_hstep;
-                float32x2_t _v0 = vld1_f32(ptrAk);
-                float32x2_t _v1 = vld1_f32(ptrAk + A_hstep);
-                _v0 = vmul_n_f32(_v0, ps[kk]);
-                _v1 = vmul_n_f32(_v1, ps[kk + 1]);
+                float32x2_t _p0 = vmul_n_f32(vld1_f32(p0), *ps++);
+                float32x2_t _p1 = vmul_n_f32(vld1_f32(p0 + A_hstep), *ps++);
                 float32x4_t _scale_scale = vcombine_f32(_scale, _scale);
-                float32x4_t _v01 = vmulq_f32(vcombine_f32(_v0, _v1), _scale_scale);
-                int8x8_t _q01 = float2int8(_v01, _v01);
-                int8x8x2_t _q02 = vuzp_s8(_q01, _q01);
-                vst1_lane_s16((short*)pp, vreinterpret_s16_s8(_q02.val[0]), 0);
-                vst1_lane_s16((short*)pp + 1, vreinterpret_s16_s8(_q02.val[1]), 0);
+                float32x4_t _p01 = vmulq_f32(vcombine_f32(_p0, _p1), _scale_scale);
+                int8x8_t _r0 = float2int8(_p01, _p01);
+                int8x8x2_t _r01 = vuzp_s8(_r0, _r0);
+                vst1_lane_s16((short*)pp, vreinterpret_s16_s8(_r01.val[0]), 0);
+                vst1_lane_s16((short*)pp + 1, vreinterpret_s16_s8(_r01.val[1]), 0);
                 pp += 4;
+                p0 += A_hstep * 2;
             }
             if (kk < max_kk0)
             {
-                ptrAk = ptrAg + (size_t)kk * A_hstep;
-                float32x2_t _v = vld1_f32(ptrAk);
-                _v = vmul_n_f32(_v, ps[kk]);
-                float32x4_t _vq = vmulq_f32(vcombine_f32(_v, _v), vcombine_f32(_scale, _scale));
-                vst1_lane_s16((short*)pp, vreinterpret_s16_s8(float2int8(_vq, _vq)), 0);
+                float32x2_t _p0 = vmul_n_f32(vld1_f32(p0), *ps++);
+                float32x4_t _p01 = vmulq_f32(vcombine_f32(_p0, _p0), vcombine_f32(_scale, _scale));
+                vst1_lane_s16((short*)pp, vreinterpret_s16_s8(float2int8(_p01, _p01)), 0);
                 pp += 2;
+                p0 += A_hstep;
             }
 #else
-            const float* ptrAk = ptrAg;
             float absmax0 = 0.f;
             float absmax1 = 0.f;
+            const float* p0a = p0;
+            const float* psa = ps;
 
             for (int kk = 0; kk < max_kk0; kk++)
             {
-                float v0 = ptrAk[0];
-                float v1 = ptrAk[1];
-                absmax0 = std::max(absmax0, fabsf(v0) * ps[kk]);
-                absmax1 = std::max(absmax1, fabsf(v1) * ps[kk]);
-                ptrAk += A_hstep;
+                const float s = *psa++;
+                float v0 = p0a[0];
+                absmax0 = std::max(absmax0, fabsf(v0) * s);
+                float v1 = p0a[1];
+                absmax1 = std::max(absmax1, fabsf(v1) * s);
+                p0a += A_hstep;
             }
 
-            descale_ptr[0] = absmax0 / 127.f;
-            descale_ptr[1] = absmax1 / 127.f;
+            pd[0] = absmax0 / 127.f;
+            pd[1] = absmax1 / 127.f;
             const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
             const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
 
-            ptrAk = ptrAg;
             for (int kk = 0; kk < max_kk0; kk++)
             {
-                float v0 = ptrAk[0];
-                float v1 = ptrAk[1];
-                v0 *= ps[kk];
-                v1 *= ps[kk];
+                const float s = *ps++;
+                float v0 = p0[0] * s;
+                float v1 = p0[1] * s;
                 *pp++ = float2int8(v0 * scale0);
                 *pp++ = float2int8(v1 * scale1);
-                ptrAk += A_hstep;
+                p0 += A_hstep;
             }
 #endif // __ARM_NEON
-            ptrAg += (size_t)max_kk0 * A_hstep;
-            ps += max_kk0;
-            descale_ptr += 2;
+            pd += 2;
         }
     }
     for (; ii < max_ii; ii++)
     {
-        const float* ptrA = (const float*)A + (size_t)k * A_hstep + i + ii;
-        signed char* pp = outptr + ii * out_hstep;
-        float* descale_ptr = descales + ii * descales_hstep;
-        const float* ptrAg = ptrA;
+        const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
         const float* ps = (const float*)input_scales + k;
 
         for (int g = 0; g < block_count; g++)
@@ -2204,37 +2101,34 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
 
             float absmax = 0.f;
-            const float* ptrAk = ptrAg;
+            const float* p0a = p0;
+            const float* psa = ps;
             for (int kk = 0; kk < max_kk0; kk++)
             {
-                float v = *ptrAk;
-                absmax = std::max(absmax, fabsf(v) * ps[kk]);
-                ptrAk += A_hstep;
+                float v = *p0a;
+                absmax = std::max(absmax, fabsf(v) * *psa++);
+                p0a += A_hstep;
             }
 
             if (absmax == 0.f)
             {
-                *descale_ptr++ = 0.f;
+                *pd++ = 0.f;
                 for (int kk0 = 0; kk0 < max_kk0; kk0++)
                     *pp++ = 0;
-                ptrAg += (size_t)max_kk0 * A_hstep;
+                p0 += (size_t)max_kk0 * A_hstep;
                 ps += max_kk0;
                 continue;
             }
 
             const float scale = 127.f / absmax;
-            *descale_ptr++ = absmax / 127.f;
+            *pd++ = absmax / 127.f;
 
-            ptrAk = ptrAg;
             for (int kk = 0; kk < max_kk0; kk++)
             {
-                float v = *ptrAk;
-                v *= ps[kk];
+                float v = *p0 * *ps++;
                 *pp++ = float2int8(v * scale);
-                ptrAk += A_hstep;
+                p0 += A_hstep;
             }
-            ptrAg += (size_t)max_kk0 * A_hstep;
-            ps += max_kk0;
         }
     }
 }
@@ -2265,24 +2159,13 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
 #endif
 
     const int block_count = (K + block_size - 1) / block_size;
-    int panel_start = 0;
-#if __ARM_NEON
-    const int nn4 = (max_jj - panel_start) / 4;
-    const int panel_start4 = panel_start;
-    panel_start += nn4 * 4;
-#endif
-    const int nn2 = (max_jj - panel_start) / 2;
-    const int panel_start2 = panel_start;
-    panel_start += nn2 * 2;
-    const int nn1 = max_jj - panel_start;
-    const int panel_start1 = panel_start;
+    signed char* pp = BT_tile;
+    float* pd = BT_descales_tile;
 
+    int jj = 0;
 #if __ARM_NEON
-    for (int p = 0; p < nn4; p++)
+    for (; jj + 3 < max_jj; jj += 4)
     {
-        const int jj = panel_start4 + p * 4;
-        signed char* pp = (signed char*)BT_tile + jj * K;
-        float* pd = (float*)BT_descales_tile + jj * block_count;
         const signed char* p0 = B.row<const signed char>(j + jj);
         const signed char* p1 = B.row<const signed char>(j + jj + 1);
         const signed char* p2 = B.row<const signed char>(j + jj + 2);
@@ -2427,11 +2310,8 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
         }
     }
 #endif // __ARM_NEON
-    for (int p = 0; p < nn2; p++)
+    for (; jj + 1 < max_jj; jj += 2)
     {
-        const int jj = panel_start2 + p * 2;
-        signed char* pp = (signed char*)BT_tile + jj * K;
-        float* pd = (float*)BT_descales_tile + jj * block_count;
         const signed char* p0 = B.row<const signed char>(j + jj);
         const signed char* p1 = B.row<const signed char>(j + jj + 1);
         const float* ps0 = B_scales.row(j + jj);
@@ -2540,11 +2420,8 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
             *pd++ = 1.f / *ps1++;
         }
     }
-    for (int p = 0; p < nn1; p++)
+    for (; jj < max_jj; jj++)
     {
-        const int jj = panel_start1 + p;
-        signed char* pp = (signed char*)BT_tile + jj * K;
-        float* pd = (float*)BT_descales_tile + jj * block_count;
         const signed char* p0 = B.row<const signed char>(j + jj);
         const float* ps0 = B_scales.row(j + jj);
 
@@ -5842,8 +5719,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #if __aarch64__
     for (; ii + 7 < max_ii; ii += 8)
     {
-        const signed char* pA_block = pAT;
-        const float* pA_descales_block = pAT_descales;
         int jj = 0;
         const signed char* pB_panel = pBT;
         const float* pB_descales_panel = pBT_descales;
@@ -5851,8 +5726,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         {
             const signed char* pB = pB_panel + (size_t)4 * k;
             const float* pB_descales = pB_descales_panel + (size_t)4 * block_start;
-            const signed char* pA = pA_block;
-            const float* pA_descales = pA_descales_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             float32x4_t _fsum0;
             float32x4_t _fsum1;
             float32x4_t _fsum2;
@@ -6123,8 +5998,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         {
             const signed char* pB = pB_panel + (size_t)2 * k;
             const float* pB_descales = pB_descales_panel + (size_t)2 * block_start;
-            const signed char* pA = pA_block;
-            const float* pA_descales = pA_descales_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             float32x4_t _fsum0;
             float32x4_t _fsum1;
             float32x4_t _fsum2;
@@ -6275,8 +6150,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         {
             const signed char* pB = pB_panel + k;
             const float* pB_descales = pB_descales_panel + block_start;
-            const signed char* pA = pA_block;
-            const float* pA_descales = pA_descales_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             float32x4_t _fsum0;
             float32x4_t _fsum1;
 
@@ -6383,8 +6258,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #endif // __aarch64__
     for (; ii + 3 < max_ii; ii += 4)
     {
-        const signed char* pA0_block = pAT;
-        const float* pA_descales0_block = pAT_descales;
         int jj = 0;
         const signed char* pB_panel = pBT;
         const float* pB_descales_panel = pBT_descales;
@@ -6427,8 +6300,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _fsum7 = vld1q_f32(outptr + 28);
             }
 
-            const signed char* pA = pA0_block;
-            const float* pA_descales = pA_descales0_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 int32x4_t _sum0 = vdupq_n_s32(0);
@@ -6642,8 +6515,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _fsum3 = vld1q_f32(outptr + 12);
             }
 
-            const signed char* pA = pA0_block;
-            const float* pA_descales = pA_descales0_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 int32x4_t _sum0 = vdupq_n_s32(0);
@@ -6805,8 +6678,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         {
             const signed char* pB = pB_panel + (size_t)2 * k;
             const float* pB_descales = pB_descales_panel + (size_t)2 * block_start;
-            const signed char* pA = pA0_block;
-            const float* pA_descales = pA_descales0_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             float32x4_t _fsum0;
             float32x4_t _fsum1;
 
@@ -6918,8 +6791,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         {
             const signed char* pB = pB_panel + k;
             const float* pB_descales = pB_descales_panel + block_start;
-            const signed char* pA = pA0_block;
-            const float* pA_descales = pA_descales0_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             float32x4_t _fsum;
 
             if (k == 0)
@@ -7004,8 +6877,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
-        const signed char* pA_block = pAT;
-        const float* pA_descales_block = pAT_descales;
         int jj = 0;
         const signed char* pB_panel = pBT;
         const float* pB_descales_panel = pBT_descales;
@@ -7037,8 +6908,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _fsum3 = vld1q_f32(outptr + 12);
             }
 
-            const signed char* pA = pA_block;
-            const float* pA_descales = pA_descales_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 int32x4_t _sum0 = vdupq_n_s32(0);
@@ -7185,8 +7056,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _fsum1 = vld1q_f32(outptr + 4);
             }
 
-            const signed char* pA = pA_block;
-            const float* pA_descales = pA_descales_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 int32x4_t _sum0 = vdupq_n_s32(0);
@@ -7279,8 +7150,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #if __ARM_NEON
             const signed char* pB = pB_panel + (size_t)2 * k;
             const float* pB_descales = pB_descales_panel + (size_t)2 * block_start;
-            const signed char* pA = pA_block;
-            const float* pA_descales = pA_descales_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             float32x4_t _fsum;
 
             if (k == 0)
@@ -7390,8 +7261,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 fsum11 = outptr[3];
             }
 
-            const signed char* pA = pA_block;
-            const float* pA_descales = pA_descales_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 int sum00 = 0;
@@ -7530,8 +7401,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 fsum11 = outptr[3];
             }
 
-            const signed char* pA = pA_block;
-            const float* pA_descales = pA_descales_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 int sum00 = 0;
@@ -7595,8 +7466,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #if __ARM_NEON
             const signed char* pB = pB_panel + k;
             const float* pB_descales = pB_descales_panel + block_start;
-            const signed char* pA = pA_block;
-            const float* pA_descales = pA_descales_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             float32x4_t _fsum;
 
             if (k == 0)
@@ -7690,8 +7561,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 fsum10 = outptr[1];
             }
 
-            const signed char* pA = pA_block;
-            const float* pA_descales = pA_descales_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 int sum00 = 0;
@@ -7736,8 +7607,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 fsum10 = outptr[1];
             }
 
-            const signed char* pA = pA_block;
-            const float* pA_descales = pA_descales_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 int sum00 = 0;
@@ -7785,8 +7656,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
     }
     for (; ii < max_ii; ii++)
     {
-        const signed char* pA0_block = pAT;
-        const float* pA_descales0_block = pAT_descales;
         int jj = 0;
         const signed char* pB_panel = pBT;
         const float* pB_descales_panel = pBT_descales;
@@ -7812,14 +7681,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _fsum1 = vld1q_f32(outptr + 4);
             }
 
-            const signed char* pA0 = pA0_block;
-            const float* pA_descales0 = pA_descales0_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 int32x4_t _sum0 = vdupq_n_s32(0);
                 int32x4_t _sum1 = vdupq_n_s32(0);
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
-                const signed char* pA = pA0;
                 int kk = 0;
 #if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
@@ -7899,12 +7767,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
                 float32x4_t _bd0 = vld1q_f32(pB_descales0);
                 float32x4_t _bd1 = vld1q_f32(pB_descales1);
-                const float _ad0 = pA_descales0[0];
+                const float _ad0 = pA_descales[0];
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_n_f32(_bd0, _ad0));
                 _fsum1 = vmlaq_f32(_fsum1, vcvtq_f32_s32(_sum1), vmulq_n_f32(_bd1, _ad0));
 
-                pA0 = pA;
-                pA_descales0++;
+                pA_descales++;
                 pB_descales0 += 4;
                 pB_descales1 += 4;
             }
@@ -7932,13 +7799,12 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _fsum0 = vld1q_f32(outptr);
             }
 
-            const signed char* pA0 = pA0_block;
-            const float* pA_descales0 = pA_descales0_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 int32x4_t _sum0 = vdupq_n_s32(0);
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
-                const signed char* pA = pA0;
                 int kk = 0;
 #if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
@@ -7995,11 +7861,10 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
 
                 float32x4_t _bd0 = vld1q_f32(pB_descales);
-                const float _ad0 = pA_descales0[0];
+                const float _ad0 = pA_descales[0];
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_n_f32(_bd0, _ad0));
 
-                pA0 = pA;
-                pA_descales0++;
+                pA_descales++;
                 pB_descales += 4;
             }
 
@@ -8025,13 +7890,12 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _fsum0 = vcombine_f32(vld1_f32(outptr), vdup_n_f32(0.f));
             }
 
-            const signed char* pA0 = pA0_block;
-            const float* pA_descales0 = pA_descales0_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 int32x4_t _sum0 = vdupq_n_s32(0);
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
-                const signed char* pA = pA0;
                 int kk = 0;
 #if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
@@ -8088,11 +7952,10 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
 
                 float32x4_t _bd0 = vcombine_f32(vld1_f32(pB_descales), vdup_n_f32(0.f));
-                const float _ad0 = pA_descales0[0];
+                const float _ad0 = pA_descales[0];
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_n_f32(_bd0, _ad0));
 
-                pA0 = pA;
-                pA_descales0++;
+                pA_descales++;
                 pB_descales += 2;
             }
 
@@ -8117,8 +7980,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 fsum01 = outptr[1];
             }
 
-            const signed char* pA0 = pA0_block;
-            const float* pA_descales0 = pA_descales0_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 int sum00 = 0;
@@ -8136,28 +7999,28 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     const int b10 = pB[2];
 #endif
                     const int b11 = pB[3];
-                    sum00 += pA0[0] * b00 + pA0[1] * b01;
-                    sum01 += pA0[0] * b10 + pA0[1] * b11;
-                    pA0 += 2;
+                    sum00 += pA[0] * b00 + pA[1] * b01;
+                    sum01 += pA[0] * b10 + pA[1] * b11;
+                    pA += 2;
                     pB += 4;
                 }
                 if (kk < max_kk0)
                 {
                     const int b0 = pB[0];
                     const int b1 = pB[1];
-                    sum00 += pA0[0] * b0;
-                    sum01 += pA0[0] * b1;
-                    pA0++;
+                    sum00 += pA[0] * b0;
+                    sum01 += pA[0] * b1;
+                    pA++;
                     pB += 2;
                 }
 
                 const float bd0 = pB_descales[0];
                 const float bd1 = pB_descales[1];
-                const float ad0 = pA_descales0[0];
+                const float ad0 = pA_descales[0];
                 fsum00 += sum00 * ad0 * bd0;
                 fsum01 += sum01 * ad0 * bd1;
 
-                pA_descales0++;
+                pA_descales++;
                 pB_descales += 2;
             }
 
@@ -8185,13 +8048,12 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 _fsum0 = vsetq_lane_f32(outptr[0], vdupq_n_f32(0.f), 0);
             }
 
-            const signed char* pA0 = pA0_block;
-            const float* pA_descales0 = pA_descales0_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 int32x4_t _sum0 = vdupq_n_s32(0);
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
-                const signed char* pA = pA0;
                 int kk = 0;
 #if __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk0; kk += 4)
@@ -8234,11 +8096,10 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
 
                 float32x4_t _bd0 = vdupq_n_f32(pB_descales[0]);
-                const float _ad0 = pA_descales0[0];
+                const float _ad0 = pA_descales[0];
                 _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_n_f32(_bd0, _ad0));
 
-                pA0 = pA;
-                pA_descales0++;
+                pA_descales++;
                 pB_descales += 1;
             }
 
@@ -8260,8 +8121,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 fsum00 = outptr[0];
             }
 
-            const signed char* pA0 = pA0_block;
-            const float* pA_descales0 = pA_descales0_block;
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 int sum00 = 0;
@@ -8271,23 +8132,23 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 {
                     const int b00 = pB[0];
                     const int b01 = pB[1];
-                    sum00 += pA0[0] * b00 + pA0[1] * b01;
-                    pA0 += 2;
+                    sum00 += pA[0] * b00 + pA[1] * b01;
+                    pA += 2;
                     pB += 2;
                 }
                 if (kk < max_kk0)
                 {
                     const int b0 = pB[0];
-                    sum00 += pA0[0] * b0;
-                    pA0++;
+                    sum00 += pA[0] * b0;
+                    pA++;
                     pB += 1;
                 }
 
                 const float bd0 = pB_descales[0];
-                const float ad0 = pA_descales0[0];
+                const float ad0 = pA_descales[0];
                 fsum00 += sum00 * ad0 * bd0;
 
-                pA_descales0++;
+                pA_descales++;
                 pB_descales += 1;
             }
 

@@ -31,10 +31,10 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
         const signed char* p1 = B.row<const signed char>(j + jj + 1);
         const signed char* p2 = B.row<const signed char>(j + jj + 2);
         const signed char* p3 = B.row<const signed char>(j + jj + 3);
-        const float* s0 = B_scales.row(j + jj);
-        const float* s1 = B_scales.row(j + jj + 1);
-        const float* s2 = B_scales.row(j + jj + 2);
-        const float* s3 = B_scales.row(j + jj + 3);
+        const float* ps0 = B_scales.row(j + jj);
+        const float* ps1 = B_scales.row(j + jj + 1);
+        const float* ps2 = B_scales.row(j + jj + 2);
+        const float* ps3 = B_scales.row(j + jj + 3);
 
         for (int g = 0; g < block_count; g++)
         {
@@ -81,10 +81,10 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 p3++;
             }
 
-            pd[0] = 1.f / *s0++;
-            pd[1] = 1.f / *s1++;
-            pd[2] = 1.f / *s2++;
-            pd[3] = 1.f / *s3++;
+            pd[0] = 1.f / *ps0++;
+            pd[1] = 1.f / *ps1++;
+            pd[2] = 1.f / *ps2++;
+            pd[3] = 1.f / *ps3++;
             pd += 4;
         }
     }
@@ -94,8 +94,8 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
     {
         const signed char* p0 = B.row<const signed char>(j + jj);
         const signed char* p1 = B.row<const signed char>(j + jj + 1);
-        const float* s0 = B_scales.row(j + jj);
-        const float* s1 = B_scales.row(j + jj + 1);
+        const float* ps0 = B_scales.row(j + jj);
+        const float* ps1 = B_scales.row(j + jj + 1);
 
         for (int g = 0; g < block_count; g++)
         {
@@ -136,14 +136,14 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 p1++;
             }
 
-            *pd++ = 1.f / *s0++;
-            *pd++ = 1.f / *s1++;
+            *pd++ = 1.f / *ps0++;
+            *pd++ = 1.f / *ps1++;
         }
     }
     for (; jj < max_jj; jj++)
     {
         const signed char* p0 = B.row<const signed char>(j + jj);
-        const float* s0 = B_scales.row(j + jj);
+        const float* ps0 = B_scales.row(j + jj);
 
         for (int g = 0; g < block_count; g++)
         {
@@ -172,7 +172,7 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 *pp++ = *p0++;
             }
 
-            *pd++ = 1.f / *s0++;
+            *pd++ = 1.f / *ps0++;
         }
     }
 }
@@ -192,7 +192,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
     float* pd = AT_descales_tile;
     const int block_count = (max_kk + block_size - 1) / block_size;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
-    const float* A_data = (const float*)A + k;
 
     if (input_scales.empty())
     {
@@ -200,27 +199,18 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #if __mips_msa
         for (; ii + 7 < max_ii; ii += 8)
         {
-            const float* p0 = A_data + (size_t)(i + ii) * A_hstep;
-            const float* p1 = A_data + (size_t)(i + ii + 1) * A_hstep;
-            const float* p2 = A_data + (size_t)(i + ii + 2) * A_hstep;
-            const float* p3 = A_data + (size_t)(i + ii + 3) * A_hstep;
-            const float* p4 = A_data + (size_t)(i + ii + 4) * A_hstep;
-            const float* p5 = A_data + (size_t)(i + ii + 5) * A_hstep;
-            const float* p6 = A_data + (size_t)(i + ii + 6) * A_hstep;
-            const float* p7 = A_data + (size_t)(i + ii + 7) * A_hstep;
+            const float* p0 = (const float*)A + (size_t)(i + ii) * A_hstep + k;
+            const float* p1 = p0 + A_hstep;
+            const float* p2 = p1 + A_hstep;
+            const float* p3 = p2 + A_hstep;
+            const float* p4 = p3 + A_hstep;
+            const float* p5 = p4 + A_hstep;
+            const float* p6 = p5 + A_hstep;
+            const float* p7 = p6 + A_hstep;
 
             for (int g = 0; g < block_count; g++)
             {
-                const int k0 = g * block_size;
-                const int max_kk0 = std::min(max_kk - k0, block_size);
-                const float* p0g = p0 + k0;
-                const float* p1g = p1 + k0;
-                const float* p2g = p2 + k0;
-                const float* p3g = p3 + k0;
-                const float* p4g = p4 + k0;
-                const float* p5g = p5 + k0;
-                const float* p6g = p6 + k0;
-                const float* p7g = p7 + k0;
+                const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
                 v4f32 _absmax0 = (v4f32)__msa_fill_w(0);
                 v4f32 _absmax1 = (v4f32)__msa_fill_w(0);
@@ -231,14 +221,14 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 v4f32 _absmax6 = (v4f32)__msa_fill_w(0);
                 v4f32 _absmax7 = (v4f32)__msa_fill_w(0);
 
-                const float* p0a = p0g;
-                const float* p1a = p1g;
-                const float* p2a = p2g;
-                const float* p3a = p3g;
-                const float* p4a = p4g;
-                const float* p5a = p5g;
-                const float* p6a = p6g;
-                const float* p7a = p7g;
+                const float* p0a = p0;
+                const float* p1a = p1;
+                const float* p2a = p2;
+                const float* p3a = p3;
+                const float* p4a = p4;
+                const float* p5a = p5;
+                const float* p6a = p6;
+                const float* p7a = p7;
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
@@ -307,14 +297,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 pd[7] = absmax7 / 127.f;
                 pd += 8;
 
-                const float* p0q = p0g;
-                const float* p1q = p1g;
-                const float* p2q = p2g;
-                const float* p3q = p3g;
-                const float* p4q = p4g;
-                const float* p5q = p5g;
-                const float* p6q = p6g;
-                const float* p7q = p7g;
                 v4f32 _scale0 = __msa_fill_w_f32(scale0);
                 v4f32 _scale1 = __msa_fill_w_f32(scale1);
                 v4f32 _scale2 = __msa_fill_w_f32(scale2);
@@ -326,14 +308,14 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    v4f32 _p0 = (v4f32)__msa_ld_w(p0q, 0);
-                    v4f32 _p1 = (v4f32)__msa_ld_w(p1q, 0);
-                    v4f32 _p2 = (v4f32)__msa_ld_w(p2q, 0);
-                    v4f32 _p3 = (v4f32)__msa_ld_w(p3q, 0);
-                    v4f32 _p4 = (v4f32)__msa_ld_w(p4q, 0);
-                    v4f32 _p5 = (v4f32)__msa_ld_w(p5q, 0);
-                    v4f32 _p6 = (v4f32)__msa_ld_w(p6q, 0);
-                    v4f32 _p7 = (v4f32)__msa_ld_w(p7q, 0);
+                    v4f32 _p0 = (v4f32)__msa_ld_w(p0, 0);
+                    v4f32 _p1 = (v4f32)__msa_ld_w(p1, 0);
+                    v4f32 _p2 = (v4f32)__msa_ld_w(p2, 0);
+                    v4f32 _p3 = (v4f32)__msa_ld_w(p3, 0);
+                    v4f32 _p4 = (v4f32)__msa_ld_w(p4, 0);
+                    v4f32 _p5 = (v4f32)__msa_ld_w(p5, 0);
+                    v4f32 _p6 = (v4f32)__msa_ld_w(p6, 0);
+                    v4f32 _p7 = (v4f32)__msa_ld_w(p7, 0);
                     _p0 = __msa_fmul_w(_p0, _scale0);
                     _p1 = __msa_fmul_w(_p1, _scale1);
                     _p2 = __msa_fmul_w(_p2, _scale2);
@@ -348,77 +330,68 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     ((int64_t*)pp)[2] = float2int8(_p4, _p5);
                     ((int64_t*)pp)[3] = float2int8(_p6, _p7);
                     pp += 32;
-                    p0q += 4;
-                    p1q += 4;
-                    p2q += 4;
-                    p3q += 4;
-                    p4q += 4;
-                    p5q += 4;
-                    p6q += 4;
-                    p7q += 4;
+                    p0 += 4;
+                    p1 += 4;
+                    p2 += 4;
+                    p3 += 4;
+                    p4 += 4;
+                    p5 += 4;
+                    p6 += 4;
+                    p7 += 4;
                 }
                 if (kk + 1 < max_kk0)
                 {
-                    pp[0] = float2int8(p0q[0] * scale0);
-                    pp[1] = float2int8(p0q[1] * scale0);
-                    pp[2] = float2int8(p1q[0] * scale1);
-                    pp[3] = float2int8(p1q[1] * scale1);
-                    pp[4] = float2int8(p2q[0] * scale2);
-                    pp[5] = float2int8(p2q[1] * scale2);
-                    pp[6] = float2int8(p3q[0] * scale3);
-                    pp[7] = float2int8(p3q[1] * scale3);
-                    pp[8] = float2int8(p4q[0] * scale4);
-                    pp[9] = float2int8(p4q[1] * scale4);
-                    pp[10] = float2int8(p5q[0] * scale5);
-                    pp[11] = float2int8(p5q[1] * scale5);
-                    pp[12] = float2int8(p6q[0] * scale6);
-                    pp[13] = float2int8(p6q[1] * scale6);
-                    pp[14] = float2int8(p7q[0] * scale7);
-                    pp[15] = float2int8(p7q[1] * scale7);
+                    pp[0] = float2int8(p0[0] * scale0);
+                    pp[1] = float2int8(p0[1] * scale0);
+                    pp[2] = float2int8(p1[0] * scale1);
+                    pp[3] = float2int8(p1[1] * scale1);
+                    pp[4] = float2int8(p2[0] * scale2);
+                    pp[5] = float2int8(p2[1] * scale2);
+                    pp[6] = float2int8(p3[0] * scale3);
+                    pp[7] = float2int8(p3[1] * scale3);
+                    pp[8] = float2int8(p4[0] * scale4);
+                    pp[9] = float2int8(p4[1] * scale4);
+                    pp[10] = float2int8(p5[0] * scale5);
+                    pp[11] = float2int8(p5[1] * scale5);
+                    pp[12] = float2int8(p6[0] * scale6);
+                    pp[13] = float2int8(p6[1] * scale6);
+                    pp[14] = float2int8(p7[0] * scale7);
+                    pp[15] = float2int8(p7[1] * scale7);
                     pp += 16;
-                    p0q += 2;
-                    p1q += 2;
-                    p2q += 2;
-                    p3q += 2;
-                    p4q += 2;
-                    p5q += 2;
-                    p6q += 2;
-                    p7q += 2;
+                    p0 += 2;
+                    p1 += 2;
+                    p2 += 2;
+                    p3 += 2;
+                    p4 += 2;
+                    p5 += 2;
+                    p6 += 2;
+                    p7 += 2;
                     kk += 2;
                 }
                 if (kk < max_kk0)
                 {
-                    pp[0] = float2int8(*p0q * scale0);
-                    pp[1] = float2int8(*p1q * scale1);
-                    pp[2] = float2int8(*p2q * scale2);
-                    pp[3] = float2int8(*p3q * scale3);
-                    pp[4] = float2int8(*p4q * scale4);
-                    pp[5] = float2int8(*p5q * scale5);
-                    pp[6] = float2int8(*p6q * scale6);
-                    pp[7] = float2int8(*p7q * scale7);
+                    pp[0] = float2int8(*p0 * scale0);
+                    pp[1] = float2int8(*p1 * scale1);
+                    pp[2] = float2int8(*p2 * scale2);
+                    pp[3] = float2int8(*p3 * scale3);
+                    pp[4] = float2int8(*p4 * scale4);
+                    pp[5] = float2int8(*p5 * scale5);
+                    pp[6] = float2int8(*p6 * scale6);
+                    pp[7] = float2int8(*p7 * scale7);
                     pp += 8;
                 }
             }
         }
         for (; ii + 3 < max_ii; ii += 4)
         {
-            const int i0 = i + ii;
-            const int i1 = i + ii + 1;
-            const int i2 = i + ii + 2;
-            const int i3 = i + ii + 3;
-            const float* p0 = A_data + (size_t)i0 * A_hstep;
-            const float* p1 = A_data + (size_t)i1 * A_hstep;
-            const float* p2 = A_data + (size_t)i2 * A_hstep;
-            const float* p3 = A_data + (size_t)i3 * A_hstep;
+            const float* p0 = (const float*)A + (size_t)(i + ii) * A_hstep + k;
+            const float* p1 = p0 + A_hstep;
+            const float* p2 = p1 + A_hstep;
+            const float* p3 = p2 + A_hstep;
 
             for (int g = 0; g < block_count; g++)
             {
-                const int k0 = g * block_size;
-                const int max_kk0 = std::min(max_kk - k0, block_size);
-                const float* p0g = p0 + k0;
-                const float* p1g = p1 + k0;
-                const float* p2g = p2 + k0;
-                const float* p3g = p3 + k0;
+                const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax0 = 0.f;
                 float absmax1 = 0.f;
                 float absmax2 = 0.f;
@@ -430,10 +403,10 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 v4f32 _absmax2 = (v4f32)__msa_fill_w(0);
                 v4f32 _absmax3 = (v4f32)__msa_fill_w(0);
 
-                const float* p0a = p0g;
-                const float* p1a = p1g;
-                const float* p2a = p2g;
-                const float* p3a = p3g;
+                const float* p0a = p0;
+                const float* p1a = p1;
+                const float* p2a = p2;
+                const float* p3a = p3;
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
@@ -477,10 +450,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 pd[3] = absmax3 / 127.f;
                 pd += 4;
 
-                const float* p0q = p0g;
-                const float* p1q = p1g;
-                const float* p2q = p2g;
-                const float* p3q = p3g;
                 v4f32 _scale0 = __msa_fill_w_f32(scale0);
                 v4f32 _scale1 = __msa_fill_w_f32(scale1);
                 v4f32 _scale2 = __msa_fill_w_f32(scale2);
@@ -488,10 +457,10 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    v4f32 _p0 = (v4f32)__msa_ld_w(p0q, 0);
-                    v4f32 _p1 = (v4f32)__msa_ld_w(p1q, 0);
-                    v4f32 _p2 = (v4f32)__msa_ld_w(p2q, 0);
-                    v4f32 _p3 = (v4f32)__msa_ld_w(p3q, 0);
+                    v4f32 _p0 = (v4f32)__msa_ld_w(p0, 0);
+                    v4f32 _p1 = (v4f32)__msa_ld_w(p1, 0);
+                    v4f32 _p2 = (v4f32)__msa_ld_w(p2, 0);
+                    v4f32 _p3 = (v4f32)__msa_ld_w(p3, 0);
                     _p0 = __msa_fmul_w(_p0, _scale0);
                     _p1 = __msa_fmul_w(_p1, _scale1);
                     _p2 = __msa_fmul_w(_p2, _scale2);
@@ -500,21 +469,21 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     ((int64_t*)pp)[0] = float2int8(_p0, _p1);
                     ((int64_t*)pp)[1] = float2int8(_p2, _p3);
                     pp += 16;
-                    p0q += 4;
-                    p1q += 4;
-                    p2q += 4;
-                    p3q += 4;
+                    p0 += 4;
+                    p1 += 4;
+                    p2 += 4;
+                    p3 += 4;
                 }
                 if (kk + 1 < max_kk0)
                 {
-                    float v00 = p0q[0];
-                    float v01 = p0q[1];
-                    float v10 = p1q[0];
-                    float v11 = p1q[1];
-                    float v20 = p2q[0];
-                    float v21 = p2q[1];
-                    float v30 = p3q[0];
-                    float v31 = p3q[1];
+                    float v00 = p0[0];
+                    float v01 = p0[1];
+                    float v10 = p1[0];
+                    float v11 = p1[1];
+                    float v20 = p2[0];
+                    float v21 = p2[1];
+                    float v30 = p3[0];
+                    float v31 = p3[1];
                     pp[0] = float2int8(v00 * scale0);
                     pp[1] = float2int8(v01 * scale0);
                     pp[2] = float2int8(v10 * scale1);
@@ -524,18 +493,18 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     pp[6] = float2int8(v30 * scale3);
                     pp[7] = float2int8(v31 * scale3);
                     pp += 8;
-                    p0q += 2;
-                    p1q += 2;
-                    p2q += 2;
-                    p3q += 2;
+                    p0 += 2;
+                    p1 += 2;
+                    p2 += 2;
+                    p3 += 2;
                     kk += 2;
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    float v0 = *p0q++;
-                    float v1 = *p1q++;
-                    float v2 = *p2q++;
-                    float v3 = *p3q++;
+                    float v0 = *p0++;
+                    float v1 = *p1++;
+                    float v2 = *p2++;
+                    float v3 = *p3++;
                     pp[0] = float2int8(v0 * scale0);
                     pp[1] = float2int8(v1 * scale1);
                     pp[2] = float2int8(v2 * scale2);
@@ -547,21 +516,16 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #endif // __mips_msa
         for (; ii + 1 < max_ii; ii += 2)
         {
-            const int i0 = i + ii;
-            const int i1 = i + ii + 1;
-            const float* p0 = A_data + (size_t)i0 * A_hstep;
-            const float* p1 = A_data + (size_t)i1 * A_hstep;
+            const float* p0 = (const float*)A + (size_t)(i + ii) * A_hstep + k;
+            const float* p1 = p0 + A_hstep;
 
             for (int g = 0; g < block_count; g++)
             {
-                const int k0 = g * block_size;
-                const int max_kk0 = std::min(max_kk - k0, block_size);
-                const float* p0g = p0 + k0;
-                const float* p1g = p1 + k0;
+                const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax0 = 0.f;
                 float absmax1 = 0.f;
-                const float* p0a = p0g;
-                const float* p1a = p1g;
+                const float* p0a = p0;
+                const float* p1a = p1;
                 for (int kk = 0; kk < max_kk0; kk++)
                 {
                     float v0 = *p0a++;
@@ -576,19 +540,17 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 pd[1] = absmax1 / 127.f;
                 pd += 2;
 
-                const float* p0q = p0g;
-                const float* p1q = p1g;
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    float v00 = p0q[0];
-                    float v01 = p0q[1];
-                    float v02 = p0q[2];
-                    float v03 = p0q[3];
-                    float v10 = p1q[0];
-                    float v11 = p1q[1];
-                    float v12 = p1q[2];
-                    float v13 = p1q[3];
+                    float v00 = p0[0];
+                    float v01 = p0[1];
+                    float v02 = p0[2];
+                    float v03 = p0[3];
+                    float v10 = p1[0];
+                    float v11 = p1[1];
+                    float v12 = p1[2];
+                    float v13 = p1[3];
                     pp[0] = float2int8(v00 * scale0);
                     pp[1] = float2int8(v01 * scale0);
                     pp[2] = float2int8(v02 * scale0);
@@ -598,28 +560,28 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     pp[6] = float2int8(v12 * scale1);
                     pp[7] = float2int8(v13 * scale1);
                     pp += 8;
-                    p0q += 4;
-                    p1q += 4;
+                    p0 += 4;
+                    p1 += 4;
                 }
                 if (kk + 1 < max_kk0)
                 {
-                    float v00 = p0q[0];
-                    float v01 = p0q[1];
-                    float v10 = p1q[0];
-                    float v11 = p1q[1];
+                    float v00 = p0[0];
+                    float v01 = p0[1];
+                    float v10 = p1[0];
+                    float v11 = p1[1];
                     pp[0] = float2int8(v00 * scale0);
                     pp[1] = float2int8(v01 * scale0);
                     pp[2] = float2int8(v10 * scale1);
                     pp[3] = float2int8(v11 * scale1);
                     pp += 4;
-                    p0q += 2;
-                    p1q += 2;
+                    p0 += 2;
+                    p1 += 2;
                     kk += 2;
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    float v0 = *p0q++;
-                    float v1 = *p1q++;
+                    float v0 = *p0++;
+                    float v1 = *p1++;
                     pp[0] = float2int8(v0 * scale0);
                     pp[1] = float2int8(v1 * scale1);
                     pp += 2;
@@ -628,16 +590,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         }
         for (; ii < max_ii; ii++)
         {
-            const int i0 = i + ii;
-            const float* p0 = A_data + (size_t)i0 * A_hstep;
+            const float* p0 = (const float*)A + (size_t)(i + ii) * A_hstep + k;
 
             for (int g = 0; g < block_count; g++)
             {
-                const int k0 = g * block_size;
-                const int max_kk0 = std::min(max_kk - k0, block_size);
-                const float* p0g = p0 + k0;
+                const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax0 = 0.f;
-                const float* p0a = p0g;
+                const float* p0a = p0;
                 for (int kk = 0; kk < max_kk0; kk++)
                 {
                     float v0 = *p0a++;
@@ -647,34 +606,33 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
                 *pd++ = absmax0 / 127.f;
 
-                const float* p0q = p0g;
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    float v0 = p0q[0];
-                    float v1 = p0q[1];
-                    float v2 = p0q[2];
-                    float v3 = p0q[3];
+                    float v0 = p0[0];
+                    float v1 = p0[1];
+                    float v2 = p0[2];
+                    float v3 = p0[3];
                     pp[0] = float2int8(v0 * scale0);
                     pp[1] = float2int8(v1 * scale0);
                     pp[2] = float2int8(v2 * scale0);
                     pp[3] = float2int8(v3 * scale0);
                     pp += 4;
-                    p0q += 4;
+                    p0 += 4;
                 }
                 if (kk + 1 < max_kk0)
                 {
-                    float v0 = p0q[0];
-                    float v1 = p0q[1];
+                    float v0 = p0[0];
+                    float v1 = p0[1];
                     pp[0] = float2int8(v0 * scale0);
                     pp[1] = float2int8(v1 * scale0);
                     pp += 2;
-                    p0q += 2;
+                    p0 += 2;
                     kk += 2;
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    float v0 = *p0q++;
+                    float v0 = *p0++;
                     *pp++ = float2int8(v0 * scale0);
                 }
             }
@@ -688,28 +646,20 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #if __mips_msa
     for (; ii + 7 < max_ii; ii += 8)
     {
-        const float* p0 = A_data + (size_t)(i + ii) * A_hstep;
-        const float* p1 = A_data + (size_t)(i + ii + 1) * A_hstep;
-        const float* p2 = A_data + (size_t)(i + ii + 2) * A_hstep;
-        const float* p3 = A_data + (size_t)(i + ii + 3) * A_hstep;
-        const float* p4 = A_data + (size_t)(i + ii + 4) * A_hstep;
-        const float* p5 = A_data + (size_t)(i + ii + 5) * A_hstep;
-        const float* p6 = A_data + (size_t)(i + ii + 6) * A_hstep;
-        const float* p7 = A_data + (size_t)(i + ii + 7) * A_hstep;
+        const float* p0 = (const float*)A + (size_t)(i + ii) * A_hstep + k;
+        const float* p1 = p0 + A_hstep;
+        const float* p2 = p1 + A_hstep;
+        const float* p3 = p2 + A_hstep;
+        const float* p4 = p3 + A_hstep;
+        const float* p5 = p4 + A_hstep;
+        const float* p6 = p5 + A_hstep;
+        const float* p7 = p6 + A_hstep;
+
+        const float* ps = input_scale_ptr;
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk0 = std::min(max_kk - k0, block_size);
-            const float* p0g = p0 + k0;
-            const float* p1g = p1 + k0;
-            const float* p2g = p2 + k0;
-            const float* p3g = p3 + k0;
-            const float* p4g = p4 + k0;
-            const float* p5g = p5 + k0;
-            const float* p6g = p6 + k0;
-            const float* p7g = p7 + k0;
-            const float* sg = input_scale_ptr + k0;
+            const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
             v4f32 _absmax0 = (v4f32)__msa_fill_w(0);
             v4f32 _absmax1 = (v4f32)__msa_fill_w(0);
@@ -720,15 +670,15 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             v4f32 _absmax6 = (v4f32)__msa_fill_w(0);
             v4f32 _absmax7 = (v4f32)__msa_fill_w(0);
 
-            const float* p0a = p0g;
-            const float* p1a = p1g;
-            const float* p2a = p2g;
-            const float* p3a = p3g;
-            const float* p4a = p4g;
-            const float* p5a = p5g;
-            const float* p6a = p6g;
-            const float* p7a = p7g;
-            const float* psa = sg;
+            const float* p0a = p0;
+            const float* p1a = p1;
+            const float* p2a = p2;
+            const float* p3a = p3;
+            const float* p4a = p4;
+            const float* p5a = p5;
+            const float* p6a = p6;
+            const float* p7a = p7;
+            const float* psa = ps;
             int kk = 0;
             for (; kk + 3 < max_kk0; kk += 4)
             {
@@ -816,15 +766,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             pd[7] = absmax7 / 127.f;
             pd += 8;
 
-            const float* p0q = p0g;
-            const float* p1q = p1g;
-            const float* p2q = p2g;
-            const float* p3q = p3g;
-            const float* p4q = p4g;
-            const float* p5q = p5g;
-            const float* p6q = p6g;
-            const float* p7q = p7g;
-            const float* psq = sg;
             v4f32 _scale0 = __msa_fill_w_f32(scale0);
             v4f32 _scale1 = __msa_fill_w_f32(scale1);
             v4f32 _scale2 = __msa_fill_w_f32(scale2);
@@ -836,15 +777,15 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             kk = 0;
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                v4f32 _p0 = (v4f32)__msa_ld_w(p0q, 0);
-                v4f32 _p1 = (v4f32)__msa_ld_w(p1q, 0);
-                v4f32 _p2 = (v4f32)__msa_ld_w(p2q, 0);
-                v4f32 _p3 = (v4f32)__msa_ld_w(p3q, 0);
-                v4f32 _p4 = (v4f32)__msa_ld_w(p4q, 0);
-                v4f32 _p5 = (v4f32)__msa_ld_w(p5q, 0);
-                v4f32 _p6 = (v4f32)__msa_ld_w(p6q, 0);
-                v4f32 _p7 = (v4f32)__msa_ld_w(p7q, 0);
-                v4f32 _s = (v4f32)__msa_ld_w(psq, 0);
+                v4f32 _p0 = (v4f32)__msa_ld_w(p0, 0);
+                v4f32 _p1 = (v4f32)__msa_ld_w(p1, 0);
+                v4f32 _p2 = (v4f32)__msa_ld_w(p2, 0);
+                v4f32 _p3 = (v4f32)__msa_ld_w(p3, 0);
+                v4f32 _p4 = (v4f32)__msa_ld_w(p4, 0);
+                v4f32 _p5 = (v4f32)__msa_ld_w(p5, 0);
+                v4f32 _p6 = (v4f32)__msa_ld_w(p6, 0);
+                v4f32 _p7 = (v4f32)__msa_ld_w(p7, 0);
+                v4f32 _s = (v4f32)__msa_ld_w(ps, 0);
                 _p0 = __msa_fmul_w(_p0, _s);
                 _p1 = __msa_fmul_w(_p1, _s);
                 _p2 = __msa_fmul_w(_p2, _s);
@@ -867,83 +808,75 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 ((int64_t*)pp)[2] = float2int8(_p4, _p5);
                 ((int64_t*)pp)[3] = float2int8(_p6, _p7);
                 pp += 32;
-                p0q += 4;
-                p1q += 4;
-                p2q += 4;
-                p3q += 4;
-                p4q += 4;
-                p5q += 4;
-                p6q += 4;
-                p7q += 4;
-                psq += 4;
+                p0 += 4;
+                p1 += 4;
+                p2 += 4;
+                p3 += 4;
+                p4 += 4;
+                p5 += 4;
+                p6 += 4;
+                p7 += 4;
+                ps += 4;
             }
             if (kk + 1 < max_kk0)
             {
-                const float s0 = psq[0];
-                const float s1 = psq[1];
-                pp[0] = float2int8(p0q[0] * s0 * scale0);
-                pp[1] = float2int8(p0q[1] * s1 * scale0);
-                pp[2] = float2int8(p1q[0] * s0 * scale1);
-                pp[3] = float2int8(p1q[1] * s1 * scale1);
-                pp[4] = float2int8(p2q[0] * s0 * scale2);
-                pp[5] = float2int8(p2q[1] * s1 * scale2);
-                pp[6] = float2int8(p3q[0] * s0 * scale3);
-                pp[7] = float2int8(p3q[1] * s1 * scale3);
-                pp[8] = float2int8(p4q[0] * s0 * scale4);
-                pp[9] = float2int8(p4q[1] * s1 * scale4);
-                pp[10] = float2int8(p5q[0] * s0 * scale5);
-                pp[11] = float2int8(p5q[1] * s1 * scale5);
-                pp[12] = float2int8(p6q[0] * s0 * scale6);
-                pp[13] = float2int8(p6q[1] * s1 * scale6);
-                pp[14] = float2int8(p7q[0] * s0 * scale7);
-                pp[15] = float2int8(p7q[1] * s1 * scale7);
+                const float s0 = ps[0];
+                const float s1 = ps[1];
+                pp[0] = float2int8(p0[0] * s0 * scale0);
+                pp[1] = float2int8(p0[1] * s1 * scale0);
+                pp[2] = float2int8(p1[0] * s0 * scale1);
+                pp[3] = float2int8(p1[1] * s1 * scale1);
+                pp[4] = float2int8(p2[0] * s0 * scale2);
+                pp[5] = float2int8(p2[1] * s1 * scale2);
+                pp[6] = float2int8(p3[0] * s0 * scale3);
+                pp[7] = float2int8(p3[1] * s1 * scale3);
+                pp[8] = float2int8(p4[0] * s0 * scale4);
+                pp[9] = float2int8(p4[1] * s1 * scale4);
+                pp[10] = float2int8(p5[0] * s0 * scale5);
+                pp[11] = float2int8(p5[1] * s1 * scale5);
+                pp[12] = float2int8(p6[0] * s0 * scale6);
+                pp[13] = float2int8(p6[1] * s1 * scale6);
+                pp[14] = float2int8(p7[0] * s0 * scale7);
+                pp[15] = float2int8(p7[1] * s1 * scale7);
                 pp += 16;
-                p0q += 2;
-                p1q += 2;
-                p2q += 2;
-                p3q += 2;
-                p4q += 2;
-                p5q += 2;
-                p6q += 2;
-                p7q += 2;
-                psq += 2;
+                p0 += 2;
+                p1 += 2;
+                p2 += 2;
+                p3 += 2;
+                p4 += 2;
+                p5 += 2;
+                p6 += 2;
+                p7 += 2;
+                ps += 2;
                 kk += 2;
             }
             if (kk < max_kk0)
             {
-                const float s = *psq;
-                pp[0] = float2int8(*p0q * s * scale0);
-                pp[1] = float2int8(*p1q * s * scale1);
-                pp[2] = float2int8(*p2q * s * scale2);
-                pp[3] = float2int8(*p3q * s * scale3);
-                pp[4] = float2int8(*p4q * s * scale4);
-                pp[5] = float2int8(*p5q * s * scale5);
-                pp[6] = float2int8(*p6q * s * scale6);
-                pp[7] = float2int8(*p7q * s * scale7);
+                const float s = *ps;
+                pp[0] = float2int8(*p0 * s * scale0);
+                pp[1] = float2int8(*p1 * s * scale1);
+                pp[2] = float2int8(*p2 * s * scale2);
+                pp[3] = float2int8(*p3 * s * scale3);
+                pp[4] = float2int8(*p4 * s * scale4);
+                pp[5] = float2int8(*p5 * s * scale5);
+                pp[6] = float2int8(*p6 * s * scale6);
+                pp[7] = float2int8(*p7 * s * scale7);
                 pp += 8;
             }
         }
     }
     for (; ii + 3 < max_ii; ii += 4)
     {
-        const int i0 = i + ii;
-        const int i1 = i + ii + 1;
-        const int i2 = i + ii + 2;
-        const int i3 = i + ii + 3;
-        const float* p0 = A_data + (size_t)i0 * A_hstep;
-        const float* p1 = A_data + (size_t)i1 * A_hstep;
-        const float* p2 = A_data + (size_t)i2 * A_hstep;
-        const float* p3 = A_data + (size_t)i3 * A_hstep;
+        const float* p0 = (const float*)A + (size_t)(i + ii) * A_hstep + k;
+        const float* p1 = p0 + A_hstep;
+        const float* p2 = p1 + A_hstep;
+        const float* p3 = p2 + A_hstep;
+
+        const float* ps = input_scale_ptr;
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk0 = std::min(max_kk - k0, block_size);
-            const float* p0g = p0 + k0;
-            const float* p1g = p1 + k0;
-            const float* p2g = p2 + k0;
-            const float* p3g = p3 + k0;
-            const float* sg = input_scale_ptr + k0;
+            const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             float absmax0 = 0.f;
             float absmax1 = 0.f;
             float absmax2 = 0.f;
@@ -955,11 +888,11 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             v4f32 _absmax2 = (v4f32)__msa_fill_w(0);
             v4f32 _absmax3 = (v4f32)__msa_fill_w(0);
 
-            const float* p0a = p0g;
-            const float* p1a = p1g;
-            const float* p2a = p2g;
-            const float* p3a = p3g;
-            const float* psa = sg;
+            const float* p0a = p0;
+            const float* p1a = p1;
+            const float* p2a = p2;
+            const float* p3a = p3;
+            const float* psa = ps;
             int kk = 0;
             for (; kk + 3 < max_kk0; kk += 4)
             {
@@ -1015,11 +948,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             pd[3] = absmax3 / 127.f;
             pd += 4;
 
-            const float* p0q = p0g;
-            const float* p1q = p1g;
-            const float* p2q = p2g;
-            const float* p3q = p3g;
-            const float* psq = sg;
             v4f32 _scale0 = __msa_fill_w_f32(scale0);
             v4f32 _scale1 = __msa_fill_w_f32(scale1);
             v4f32 _scale2 = __msa_fill_w_f32(scale2);
@@ -1027,11 +955,11 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             kk = 0;
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                v4f32 _p0 = (v4f32)__msa_ld_w(p0q, 0);
-                v4f32 _p1 = (v4f32)__msa_ld_w(p1q, 0);
-                v4f32 _p2 = (v4f32)__msa_ld_w(p2q, 0);
-                v4f32 _p3 = (v4f32)__msa_ld_w(p3q, 0);
-                v4f32 _s = (v4f32)__msa_ld_w(psq, 0);
+                v4f32 _p0 = (v4f32)__msa_ld_w(p0, 0);
+                v4f32 _p1 = (v4f32)__msa_ld_w(p1, 0);
+                v4f32 _p2 = (v4f32)__msa_ld_w(p2, 0);
+                v4f32 _p3 = (v4f32)__msa_ld_w(p3, 0);
+                v4f32 _s = (v4f32)__msa_ld_w(ps, 0);
                 _p0 = __msa_fmul_w(_p0, _s);
                 _p1 = __msa_fmul_w(_p1, _s);
                 _p2 = __msa_fmul_w(_p2, _s);
@@ -1044,24 +972,24 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 ((int64_t*)pp)[0] = float2int8(_p0, _p1);
                 ((int64_t*)pp)[1] = float2int8(_p2, _p3);
                 pp += 16;
-                p0q += 4;
-                p1q += 4;
-                p2q += 4;
-                p3q += 4;
-                psq += 4;
+                p0 += 4;
+                p1 += 4;
+                p2 += 4;
+                p3 += 4;
+                ps += 4;
             }
             if (kk + 1 < max_kk0)
             {
-                float v00 = p0q[0];
-                float v01 = p0q[1];
-                float v10 = p1q[0];
-                float v11 = p1q[1];
-                float v20 = p2q[0];
-                float v21 = p2q[1];
-                float v30 = p3q[0];
-                float v31 = p3q[1];
-                const float s0 = psq[0];
-                const float s1 = psq[1];
+                float v00 = p0[0];
+                float v01 = p0[1];
+                float v10 = p1[0];
+                float v11 = p1[1];
+                float v20 = p2[0];
+                float v21 = p2[1];
+                float v30 = p3[0];
+                float v31 = p3[1];
+                const float s0 = ps[0];
+                const float s1 = ps[1];
                 v00 *= s0;
                 v01 *= s1;
                 v10 *= s0;
@@ -1079,20 +1007,20 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 pp[6] = float2int8(v30 * scale3);
                 pp[7] = float2int8(v31 * scale3);
                 pp += 8;
-                p0q += 2;
-                p1q += 2;
-                p2q += 2;
-                p3q += 2;
-                psq += 2;
+                p0 += 2;
+                p1 += 2;
+                p2 += 2;
+                p3 += 2;
+                ps += 2;
                 kk += 2;
             }
             for (; kk < max_kk0; kk++)
             {
-                float v0 = *p0q++;
-                float v1 = *p1q++;
-                float v2 = *p2q++;
-                float v3 = *p3q++;
-                const float s = *psq++;
+                float v0 = *p0++;
+                float v1 = *p1++;
+                float v2 = *p2++;
+                float v3 = *p3++;
+                const float s = *ps++;
                 v0 *= s;
                 v1 *= s;
                 v2 *= s;
@@ -1108,23 +1036,19 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 #endif // __mips_msa
     for (; ii + 1 < max_ii; ii += 2)
     {
-        const int i0 = i + ii;
-        const int i1 = i + ii + 1;
-        const float* p0 = A_data + (size_t)i0 * A_hstep;
-        const float* p1 = A_data + (size_t)i1 * A_hstep;
+        const float* p0 = (const float*)A + (size_t)(i + ii) * A_hstep + k;
+        const float* p1 = p0 + A_hstep;
+
+        const float* ps = input_scale_ptr;
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk0 = std::min(max_kk - k0, block_size);
-            const float* p0g = p0 + k0;
-            const float* p1g = p1 + k0;
-            const float* sg = input_scale_ptr + k0;
+            const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             float absmax0 = 0.f;
             float absmax1 = 0.f;
-            const float* p0a = p0g;
-            const float* p1a = p1g;
-            const float* psa = sg;
+            const float* p0a = p0;
+            const float* p1a = p1;
+            const float* psa = ps;
             for (int kk = 0; kk < max_kk0; kk++)
             {
                 float v0 = *p0a++;
@@ -1141,28 +1065,25 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             pd[1] = absmax1 / 127.f;
             pd += 2;
 
-            const float* p0q = p0g;
-            const float* p1q = p1g;
-            const float* psq = sg;
             int kk = 0;
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                float v00 = p0q[0];
-                float v01 = p0q[1];
-                float v02 = p0q[2];
-                float v03 = p0q[3];
-                float v10 = p1q[0];
-                float v11 = p1q[1];
-                float v12 = p1q[2];
-                float v13 = p1q[3];
-                v00 *= psq[0];
-                v01 *= psq[1];
-                v02 *= psq[2];
-                v03 *= psq[3];
-                v10 *= psq[0];
-                v11 *= psq[1];
-                v12 *= psq[2];
-                v13 *= psq[3];
+                float v00 = p0[0];
+                float v01 = p0[1];
+                float v02 = p0[2];
+                float v03 = p0[3];
+                float v10 = p1[0];
+                float v11 = p1[1];
+                float v12 = p1[2];
+                float v13 = p1[3];
+                v00 *= ps[0];
+                v01 *= ps[1];
+                v02 *= ps[2];
+                v03 *= ps[3];
+                v10 *= ps[0];
+                v11 *= ps[1];
+                v12 *= ps[2];
+                v13 *= ps[3];
                 pp[0] = float2int8(v00 * scale0);
                 pp[1] = float2int8(v01 * scale0);
                 pp[2] = float2int8(v02 * scale0);
@@ -1172,35 +1093,35 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 pp[6] = float2int8(v12 * scale1);
                 pp[7] = float2int8(v13 * scale1);
                 pp += 8;
-                p0q += 4;
-                p1q += 4;
-                psq += 4;
+                p0 += 4;
+                p1 += 4;
+                ps += 4;
             }
             if (kk + 1 < max_kk0)
             {
-                float v00 = p0q[0];
-                float v01 = p0q[1];
-                float v10 = p1q[0];
-                float v11 = p1q[1];
-                v00 *= psq[0];
-                v01 *= psq[1];
-                v10 *= psq[0];
-                v11 *= psq[1];
+                float v00 = p0[0];
+                float v01 = p0[1];
+                float v10 = p1[0];
+                float v11 = p1[1];
+                v00 *= ps[0];
+                v01 *= ps[1];
+                v10 *= ps[0];
+                v11 *= ps[1];
                 pp[0] = float2int8(v00 * scale0);
                 pp[1] = float2int8(v01 * scale0);
                 pp[2] = float2int8(v10 * scale1);
                 pp[3] = float2int8(v11 * scale1);
                 pp += 4;
-                p0q += 2;
-                p1q += 2;
-                psq += 2;
+                p0 += 2;
+                p1 += 2;
+                ps += 2;
                 kk += 2;
             }
             for (; kk < max_kk0; kk++)
             {
-                float v0 = *p0q++;
-                float v1 = *p1q++;
-                const float s = *psq++;
+                float v0 = *p0++;
+                float v1 = *p1++;
+                const float s = *ps++;
                 v0 *= s;
                 v1 *= s;
                 pp[0] = float2int8(v0 * scale0);
@@ -1211,18 +1132,16 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
     }
     for (; ii < max_ii; ii++)
     {
-        const int i0 = i + ii;
-        const float* p0 = A_data + (size_t)i0 * A_hstep;
+        const float* p0 = (const float*)A + (size_t)(i + ii) * A_hstep + k;
+
+        const float* ps = input_scale_ptr;
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk0 = std::min(max_kk - k0, block_size);
-            const float* p0g = p0 + k0;
-            const float* sg = input_scale_ptr + k0;
+            const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             float absmax0 = 0.f;
-            const float* p0a = p0g;
-            const float* psa = sg;
+            const float* p0a = p0;
+            const float* psa = ps;
             for (int kk = 0; kk < max_kk0; kk++)
             {
                 float v0 = *p0a++;
@@ -1233,44 +1152,42 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
             *pd++ = absmax0 / 127.f;
 
-            const float* p0q = p0g;
-            const float* psq = sg;
             int kk = 0;
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                float v0 = p0q[0];
-                float v1 = p0q[1];
-                float v2 = p0q[2];
-                float v3 = p0q[3];
-                v0 *= psq[0];
-                v1 *= psq[1];
-                v2 *= psq[2];
-                v3 *= psq[3];
+                float v0 = p0[0];
+                float v1 = p0[1];
+                float v2 = p0[2];
+                float v3 = p0[3];
+                v0 *= ps[0];
+                v1 *= ps[1];
+                v2 *= ps[2];
+                v3 *= ps[3];
                 pp[0] = float2int8(v0 * scale0);
                 pp[1] = float2int8(v1 * scale0);
                 pp[2] = float2int8(v2 * scale0);
                 pp[3] = float2int8(v3 * scale0);
                 pp += 4;
-                p0q += 4;
-                psq += 4;
+                p0 += 4;
+                ps += 4;
             }
             if (kk + 1 < max_kk0)
             {
-                float v0 = p0q[0];
-                float v1 = p0q[1];
-                v0 *= psq[0];
-                v1 *= psq[1];
+                float v0 = p0[0];
+                float v1 = p0[1];
+                v0 *= ps[0];
+                v1 *= ps[1];
                 pp[0] = float2int8(v0 * scale0);
                 pp[1] = float2int8(v1 * scale0);
                 pp += 2;
-                p0q += 2;
-                psq += 2;
+                p0 += 2;
+                ps += 2;
                 kk += 2;
             }
             for (; kk < max_kk0; kk++)
             {
-                float v0 = *p0q++;
-                v0 *= *psq++;
+                float v0 = *p0++;
+                v0 *= *ps++;
                 *pp++ = float2int8(v0 * scale0);
             }
         }
@@ -1292,7 +1209,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
     float* pd = AT_descales_tile;
     const int block_count = (max_kk + block_size - 1) / block_size;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
-    const float* A_data = (const float*)A + (size_t)k * A_hstep;
 
     if (input_scales.empty())
     {
@@ -1300,18 +1216,16 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __mips_msa
         for (; ii + 7 < max_ii; ii += 8)
         {
-            const int i0 = i + ii;
+            const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
 
             for (int g = 0; g < block_count; g++)
             {
-                const int k0 = g * block_size;
-                const int max_kk0 = std::min(max_kk - k0, block_size);
-                const float* p0g = A_data + (size_t)k0 * A_hstep + i0;
+                const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
                 v4f32 _absmax0 = (v4f32)__msa_fill_w(0);
                 v4f32 _absmax1 = (v4f32)__msa_fill_w(0);
 
-                const float* p0a = p0g;
+                const float* p0a = p0;
                 int kk = 0;
                 for (; kk < max_kk0; kk++)
                 {
@@ -1343,7 +1257,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pd[7] = absmax[7] / 127.f;
                 pd += 8;
 
-                const float* p0q = p0g;
                 v4f32 _scale0 = __msa_fill_w_f32(scale0);
                 v4f32 _scale1 = __msa_fill_w_f32(scale1);
                 v4f32 _scale2 = __msa_fill_w_f32(scale2);
@@ -1355,7 +1268,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    const float* p0 = p0q;
                     const float* p1 = p0 + A_hstep;
                     const float* p2 = p1 + A_hstep;
                     const float* p3 = p2 + A_hstep;
@@ -1384,11 +1296,10 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     ((int64_t*)pp)[2] = float2int8(_p4, _p5);
                     ((int64_t*)pp)[3] = float2int8(_p6, _p7);
                     pp += 32;
-                    p0q = p3 + A_hstep;
+                    p0 = p3 + A_hstep;
                 }
                 if (kk + 1 < max_kk0)
                 {
-                    const float* p0 = p0q;
                     const float* p1 = p0 + A_hstep;
                     v4f32 _p0 = (v4f32)__msa_ld_w(p0, 0);
                     v4f32 _p1 = (v4f32)__msa_ld_w(p1, 0);
@@ -1417,13 +1328,13 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     pp[14] = __msa_copy_s_b(_q0, 3);
                     pp[15] = __msa_copy_s_b(_q1, 3);
                     pp += 16;
-                    p0q = p1 + A_hstep;
+                    p0 = p1 + A_hstep;
                     kk += 2;
                 }
                 if (kk < max_kk0)
                 {
-                    v4f32 _p0 = (v4f32)__msa_ld_w(p0q, 0);
-                    v4f32 _p1 = (v4f32)__msa_ld_w(p0q + 4, 0);
+                    v4f32 _p0 = (v4f32)__msa_ld_w(p0, 0);
+                    v4f32 _p1 = (v4f32)__msa_ld_w(p0 + 4, 0);
                     v4f32 _scale0123 = (v4f32)__msa_set_w(__msa_load_w(&scale0), __msa_load_w(&scale1), __msa_load_w(&scale2), __msa_load_w(&scale3));
                     v4f32 _scale4567 = (v4f32)__msa_set_w(__msa_load_w(&scale4), __msa_load_w(&scale5), __msa_load_w(&scale6), __msa_load_w(&scale7));
                     v16i8 _q0 = float2int8(__msa_fmul_w(_p0, _scale0123));
@@ -1436,17 +1347,15 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
         }
         for (; ii + 3 < max_ii; ii += 4)
         {
-            const int i0 = i + ii;
+            const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
 
             for (int g = 0; g < block_count; g++)
             {
-                const int k0 = g * block_size;
-                const int max_kk0 = std::min(max_kk - k0, block_size);
-                const float* p0g = A_data + (size_t)k0 * A_hstep + i0;
+                const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
                 v4f32 _absmax = (v4f32)__msa_fill_w(0);
 
-                const float* p0a = p0g;
+                const float* p0a = p0;
                 int kk = 0;
                 for (; kk < max_kk0; kk++)
                 {
@@ -1471,11 +1380,9 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 v4f32 _scale1 = __msa_fill_w_f32(scale1);
                 v4f32 _scale2 = __msa_fill_w_f32(scale2);
                 v4f32 _scale3 = __msa_fill_w_f32(scale3);
-                const float* p0q = p0g;
                 kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    const float* p0 = p0q;
                     const float* p1 = p0 + A_hstep;
                     const float* p2 = p1 + A_hstep;
                     const float* p3 = p2 + A_hstep;
@@ -1492,11 +1399,10 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     ((int64_t*)pp)[0] = float2int8(_p0, _p1);
                     ((int64_t*)pp)[1] = float2int8(_p2, _p3);
                     pp += 16;
-                    p0q = p3 + A_hstep;
+                    p0 = p3 + A_hstep;
                 }
                 if (kk + 1 < max_kk0)
                 {
-                    const float* p0 = p0q;
                     const float* p1 = p0 + A_hstep;
                     float v00 = p0[0];
                     float v10 = p0[1];
@@ -1515,36 +1421,34 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     pp[6] = float2int8(v30 * scale3);
                     pp[7] = float2int8(v31 * scale3);
                     pp += 8;
-                    p0q = p1 + A_hstep;
+                    p0 = p1 + A_hstep;
                     kk += 2;
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    float v0 = p0q[0];
-                    float v1 = p0q[1];
-                    float v2 = p0q[2];
-                    float v3 = p0q[3];
+                    float v0 = p0[0];
+                    float v1 = p0[1];
+                    float v2 = p0[2];
+                    float v3 = p0[3];
                     pp[0] = float2int8(v0 * scale0);
                     pp[1] = float2int8(v1 * scale1);
                     pp[2] = float2int8(v2 * scale2);
                     pp[3] = float2int8(v3 * scale3);
                     pp += 4;
-                    p0q += A_hstep;
+                    p0 += A_hstep;
                 }
             }
         }
 #endif // __mips_msa
         for (; ii + 1 < max_ii; ii += 2)
         {
-            const int i0 = i + ii;
+            const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
             for (int g = 0; g < block_count; g++)
             {
-                const int k0 = g * block_size;
-                const int max_kk0 = std::min(max_kk - k0, block_size);
-                const float* p0g = A_data + (size_t)k0 * A_hstep + i0;
+                const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax0 = 0.f;
                 float absmax1 = 0.f;
-                const float* p0a = p0g;
+                const float* p0a = p0;
                 for (int kk = 0; kk < max_kk0; kk++)
                 {
                     float v0 = p0a[0];
@@ -1560,18 +1464,17 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pd[1] = absmax1 / 127.f;
                 pd += 2;
 
-                const float* p0q = p0g;
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    float v00 = p0q[0];
-                    float v10 = p0q[1];
-                    float v01 = p0q[A_hstep];
-                    float v11 = p0q[A_hstep + 1];
-                    float v02 = p0q[A_hstep * 2];
-                    float v12 = p0q[A_hstep * 2 + 1];
-                    float v03 = p0q[A_hstep * 3];
-                    float v13 = p0q[A_hstep * 3 + 1];
+                    float v00 = p0[0];
+                    float v10 = p0[1];
+                    float v01 = p0[A_hstep];
+                    float v11 = p0[A_hstep + 1];
+                    float v02 = p0[A_hstep * 2];
+                    float v12 = p0[A_hstep * 2 + 1];
+                    float v03 = p0[A_hstep * 3];
+                    float v13 = p0[A_hstep * 3 + 1];
                     pp[0] = float2int8(v00 * scale0);
                     pp[1] = float2int8(v01 * scale0);
                     pp[2] = float2int8(v02 * scale0);
@@ -1580,45 +1483,43 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     pp[5] = float2int8(v11 * scale1);
                     pp[6] = float2int8(v12 * scale1);
                     pp[7] = float2int8(v13 * scale1);
-                    p0q += A_hstep * 4;
+                    p0 += A_hstep * 4;
                     pp += 8;
                 }
                 if (kk + 1 < max_kk0)
                 {
-                    float v00 = p0q[0];
-                    float v10 = p0q[1];
-                    float v01 = p0q[A_hstep];
-                    float v11 = p0q[A_hstep + 1];
+                    float v00 = p0[0];
+                    float v10 = p0[1];
+                    float v01 = p0[A_hstep];
+                    float v11 = p0[A_hstep + 1];
                     pp[0] = float2int8(v00 * scale0);
                     pp[1] = float2int8(v01 * scale0);
                     pp[2] = float2int8(v10 * scale1);
                     pp[3] = float2int8(v11 * scale1);
-                    p0q += A_hstep * 2;
+                    p0 += A_hstep * 2;
                     pp += 4;
                     kk += 2;
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    float v0 = p0q[0];
-                    float v1 = p0q[1];
+                    float v0 = p0[0];
+                    float v1 = p0[1];
                     pp[0] = float2int8(v0 * scale0);
                     pp[1] = float2int8(v1 * scale1);
                     pp += 2;
-                    p0q += A_hstep;
+                    p0 += A_hstep;
                 }
             }
         }
         for (; ii < max_ii; ii++)
         {
-            const int i0 = i + ii;
+            const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
 
             for (int g = 0; g < block_count; g++)
             {
-                const int k0 = g * block_size;
-                const int max_kk0 = std::min(max_kk - k0, block_size);
-                const float* p0g = A_data + (size_t)k0 * A_hstep + i0;
+                const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax0 = 0.f;
-                const float* p0a = p0g;
+                const float* p0a = p0;
                 for (int kk = 0; kk < max_kk0; kk++)
                 {
                     float v0 = *p0a;
@@ -1629,36 +1530,35 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
                 *pd++ = absmax0 / 127.f;
 
-                const float* p0q = p0g;
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    float v0 = p0q[0];
-                    float v1 = p0q[A_hstep];
-                    float v2 = p0q[A_hstep * 2];
-                    float v3 = p0q[A_hstep * 3];
+                    float v0 = p0[0];
+                    float v1 = p0[A_hstep];
+                    float v2 = p0[A_hstep * 2];
+                    float v3 = p0[A_hstep * 3];
                     pp[0] = float2int8(v0 * scale0);
                     pp[1] = float2int8(v1 * scale0);
                     pp[2] = float2int8(v2 * scale0);
                     pp[3] = float2int8(v3 * scale0);
-                    p0q += A_hstep * 4;
+                    p0 += A_hstep * 4;
                     pp += 4;
                 }
                 if (kk + 1 < max_kk0)
                 {
-                    float v0 = p0q[0];
-                    float v1 = p0q[A_hstep];
+                    float v0 = p0[0];
+                    float v1 = p0[A_hstep];
                     pp[0] = float2int8(v0 * scale0);
                     pp[1] = float2int8(v1 * scale0);
-                    p0q += A_hstep * 2;
+                    p0 += A_hstep * 2;
                     pp += 2;
                     kk += 2;
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    float v0 = *p0q;
+                    float v0 = *p0;
                     *pp++ = float2int8(v0 * scale0);
-                    p0q += A_hstep;
+                    p0 += A_hstep;
                 }
             }
         }
@@ -1671,20 +1571,19 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __mips_msa
     for (; ii + 7 < max_ii; ii += 8)
     {
-        const int i0 = i + ii;
+        const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
+
+        const float* ps = input_scale_ptr;
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk0 = std::min(max_kk - k0, block_size);
-            const float* p0g = A_data + (size_t)k0 * A_hstep + i0;
-            const float* sg = input_scale_ptr + k0;
+            const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
             v4f32 _absmax0 = (v4f32)__msa_fill_w(0);
             v4f32 _absmax1 = (v4f32)__msa_fill_w(0);
 
-            const float* p0a = p0g;
-            const float* psa = sg;
+            const float* p0a = p0;
+            const float* psa = ps;
             int kk = 0;
             for (; kk < max_kk0; kk++)
             {
@@ -1721,8 +1620,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             pd[7] = absmax[7] / 127.f;
             pd += 8;
 
-            const float* p0q = p0g;
-            const float* psq = sg;
             v4f32 _scale0 = __msa_fill_w_f32(scale0);
             v4f32 _scale1 = __msa_fill_w_f32(scale1);
             v4f32 _scale2 = __msa_fill_w_f32(scale2);
@@ -1734,7 +1631,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             kk = 0;
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                const float* p0 = p0q;
                 const float* p1 = p0 + A_hstep;
                 const float* p2 = p1 + A_hstep;
                 const float* p3 = p2 + A_hstep;
@@ -1749,7 +1645,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 v4f32 _p6 = (v4f32)__msa_ld_w(p2 + 4, 0);
                 v4f32 _p7 = (v4f32)__msa_ld_w(p3 + 4, 0);
                 transpose4x4_ps(_p4, _p5, _p6, _p7);
-                v4f32 _s = (v4f32)__msa_ld_w(psq, 0);
+                v4f32 _s = (v4f32)__msa_ld_w(ps, 0);
                 _p0 = __msa_fmul_w(_p0, _s);
                 _p1 = __msa_fmul_w(_p1, _s);
                 _p2 = __msa_fmul_w(_p2, _s);
@@ -1772,15 +1668,14 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 ((int64_t*)pp)[2] = float2int8(_p4, _p5);
                 ((int64_t*)pp)[3] = float2int8(_p6, _p7);
                 pp += 32;
-                p0q = p3 + A_hstep;
-                psq += 4;
+                p0 = p3 + A_hstep;
+                ps += 4;
             }
             if (kk + 1 < max_kk0)
             {
-                const float* p0 = p0q;
                 const float* p1 = p0 + A_hstep;
-                const float s0 = psq[0];
-                const float s1 = psq[1];
+                const float s0 = ps[0];
+                const float s1 = ps[1];
                 v4f32 _p0 = __msa_fmul_w((v4f32)__msa_ld_w(p0, 0), __msa_fill_w_f32(s0));
                 v4f32 _p1 = __msa_fmul_w((v4f32)__msa_ld_w(p1, 0), __msa_fill_w_f32(s1));
                 v4f32 _scale0123 = (v4f32)__msa_set_w(__msa_load_w(&scale0), __msa_load_w(&scale1), __msa_load_w(&scale2), __msa_load_w(&scale3));
@@ -1808,15 +1703,15 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pp[14] = __msa_copy_s_b(_q0, 3);
                 pp[15] = __msa_copy_s_b(_q1, 3);
                 pp += 16;
-                p0q = p1 + A_hstep;
-                psq += 2;
+                p0 = p1 + A_hstep;
+                ps += 2;
                 kk += 2;
             }
             if (kk < max_kk0)
             {
-                const float s = *psq;
-                v4f32 _p0 = __msa_fmul_w((v4f32)__msa_ld_w(p0q, 0), __msa_fill_w_f32(s));
-                v4f32 _p1 = __msa_fmul_w((v4f32)__msa_ld_w(p0q + 4, 0), __msa_fill_w_f32(s));
+                const float s = *ps;
+                v4f32 _p0 = __msa_fmul_w((v4f32)__msa_ld_w(p0, 0), __msa_fill_w_f32(s));
+                v4f32 _p1 = __msa_fmul_w((v4f32)__msa_ld_w(p0 + 4, 0), __msa_fill_w_f32(s));
                 v4f32 _scale0123 = (v4f32)__msa_set_w(__msa_load_w(&scale0), __msa_load_w(&scale1), __msa_load_w(&scale2), __msa_load_w(&scale3));
                 v4f32 _scale4567 = (v4f32)__msa_set_w(__msa_load_w(&scale4), __msa_load_w(&scale5), __msa_load_w(&scale6), __msa_load_w(&scale7));
                 v16i8 _q0 = float2int8(__msa_fmul_w(_p0, _scale0123));
@@ -1829,19 +1724,18 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
     }
     for (; ii + 3 < max_ii; ii += 4)
     {
-        const int i0 = i + ii;
+        const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
+
+        const float* ps = input_scale_ptr;
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk0 = std::min(max_kk - k0, block_size);
-            const float* p0g = A_data + (size_t)k0 * A_hstep + i0;
-            const float* sg = input_scale_ptr + k0;
+            const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
             v4f32 _absmax = (v4f32)__msa_fill_w(0);
 
-            const float* p0a = p0g;
-            const float* psa = sg;
+            const float* p0a = p0;
+            const float* psa = ps;
             int kk = 0;
             for (; kk < max_kk0; kk++)
             {
@@ -1868,12 +1762,9 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             v4f32 _scale1 = __msa_fill_w_f32(scale1);
             v4f32 _scale2 = __msa_fill_w_f32(scale2);
             v4f32 _scale3 = __msa_fill_w_f32(scale3);
-            const float* p0q = p0g;
-            const float* psq = sg;
             kk = 0;
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                const float* p0 = p0q;
                 const float* p1 = p0 + A_hstep;
                 const float* p2 = p1 + A_hstep;
                 const float* p3 = p2 + A_hstep;
@@ -1882,7 +1773,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 v4f32 _p2 = (v4f32)__msa_ld_w(p2, 0);
                 v4f32 _p3 = (v4f32)__msa_ld_w(p3, 0);
                 transpose4x4_ps(_p0, _p1, _p2, _p3);
-                v4f32 _s = (v4f32)__msa_ld_w(psq, 0);
+                v4f32 _s = (v4f32)__msa_ld_w(ps, 0);
                 _p0 = __msa_fmul_w(_p0, _s);
                 _p1 = __msa_fmul_w(_p1, _s);
                 _p2 = __msa_fmul_w(_p2, _s);
@@ -1895,12 +1786,11 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 ((int64_t*)pp)[0] = float2int8(_p0, _p1);
                 ((int64_t*)pp)[1] = float2int8(_p2, _p3);
                 pp += 16;
-                p0q = p3 + A_hstep;
-                psq += 4;
+                p0 = p3 + A_hstep;
+                ps += 4;
             }
             if (kk + 1 < max_kk0)
             {
-                const float* p0 = p0q;
                 const float* p1 = p0 + A_hstep;
                 float v00 = p0[0];
                 float v10 = p0[1];
@@ -1910,8 +1800,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 float v11 = p1[1];
                 float v21 = p1[2];
                 float v31 = p1[3];
-                const float s0 = psq[0];
-                const float s1 = psq[1];
+                const float s0 = ps[0];
+                const float s1 = ps[1];
                 v00 *= s0;
                 v10 *= s0;
                 v20 *= s0;
@@ -1929,17 +1819,17 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pp[6] = float2int8(v30 * scale3);
                 pp[7] = float2int8(v31 * scale3);
                 pp += 8;
-                p0q = p1 + A_hstep;
-                psq += 2;
+                p0 = p1 + A_hstep;
+                ps += 2;
                 kk += 2;
             }
             for (; kk < max_kk0; kk++)
             {
-                float v0 = p0q[0];
-                float v1 = p0q[1];
-                float v2 = p0q[2];
-                float v3 = p0q[3];
-                const float s = *psq++;
+                float v0 = p0[0];
+                float v1 = p0[1];
+                float v2 = p0[2];
+                float v3 = p0[3];
+                const float s = *ps++;
                 v0 *= s;
                 v1 *= s;
                 v2 *= s;
@@ -1949,24 +1839,23 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pp[2] = float2int8(v2 * scale2);
                 pp[3] = float2int8(v3 * scale3);
                 pp += 4;
-                p0q += A_hstep;
+                p0 += A_hstep;
             }
         }
     }
 #endif // __mips_msa
     for (; ii + 1 < max_ii; ii += 2)
     {
-        const int i0 = i + ii;
+        const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
+        const float* ps = input_scale_ptr;
+
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk0 = std::min(max_kk - k0, block_size);
-            const float* p0g = A_data + (size_t)k0 * A_hstep + i0;
-            const float* sg = input_scale_ptr + k0;
+            const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             float absmax0 = 0.f;
             float absmax1 = 0.f;
-            const float* p0a = p0g;
-            const float* psa = sg;
+            const float* p0a = p0;
+            const float* psa = ps;
             for (int kk = 0; kk < max_kk0; kk++)
             {
                 float v0 = p0a[0];
@@ -1984,28 +1873,26 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             pd[1] = absmax1 / 127.f;
             pd += 2;
 
-            const float* p0q = p0g;
-            const float* psq = sg;
             int kk = 0;
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                float v00 = p0q[0];
-                float v10 = p0q[1];
-                float v01 = p0q[A_hstep];
-                float v11 = p0q[A_hstep + 1];
-                float v02 = p0q[A_hstep * 2];
-                float v12 = p0q[A_hstep * 2 + 1];
-                float v03 = p0q[A_hstep * 3];
-                float v13 = p0q[A_hstep * 3 + 1];
-                v00 *= psq[0];
-                v10 *= psq[0];
-                v01 *= psq[1];
-                v11 *= psq[1];
-                v02 *= psq[2];
-                v12 *= psq[2];
-                v03 *= psq[3];
-                v13 *= psq[3];
-                psq += 4;
+                float v00 = p0[0];
+                float v10 = p0[1];
+                float v01 = p0[A_hstep];
+                float v11 = p0[A_hstep + 1];
+                float v02 = p0[A_hstep * 2];
+                float v12 = p0[A_hstep * 2 + 1];
+                float v03 = p0[A_hstep * 3];
+                float v13 = p0[A_hstep * 3 + 1];
+                v00 *= ps[0];
+                v10 *= ps[0];
+                v01 *= ps[1];
+                v11 *= ps[1];
+                v02 *= ps[2];
+                v12 *= ps[2];
+                v03 *= ps[3];
+                v13 *= ps[3];
+                ps += 4;
                 pp[0] = float2int8(v00 * scale0);
                 pp[1] = float2int8(v01 * scale0);
                 pp[2] = float2int8(v02 * scale0);
@@ -2014,55 +1901,54 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pp[5] = float2int8(v11 * scale1);
                 pp[6] = float2int8(v12 * scale1);
                 pp[7] = float2int8(v13 * scale1);
-                p0q += A_hstep * 4;
+                p0 += A_hstep * 4;
                 pp += 8;
             }
             if (kk + 1 < max_kk0)
             {
-                float v00 = p0q[0];
-                float v10 = p0q[1];
-                float v01 = p0q[A_hstep];
-                float v11 = p0q[A_hstep + 1];
-                v00 *= psq[0];
-                v10 *= psq[0];
-                v01 *= psq[1];
-                v11 *= psq[1];
-                psq += 2;
+                float v00 = p0[0];
+                float v10 = p0[1];
+                float v01 = p0[A_hstep];
+                float v11 = p0[A_hstep + 1];
+                v00 *= ps[0];
+                v10 *= ps[0];
+                v01 *= ps[1];
+                v11 *= ps[1];
+                ps += 2;
                 pp[0] = float2int8(v00 * scale0);
                 pp[1] = float2int8(v01 * scale0);
                 pp[2] = float2int8(v10 * scale1);
                 pp[3] = float2int8(v11 * scale1);
-                p0q += A_hstep * 2;
+                p0 += A_hstep * 2;
                 pp += 4;
                 kk += 2;
             }
             for (; kk < max_kk0; kk++)
             {
-                float v0 = p0q[0];
-                float v1 = p0q[1];
-                const float s = *psq++;
+                float v0 = p0[0];
+                float v1 = p0[1];
+                const float s = *ps++;
                 v0 *= s;
                 v1 *= s;
                 pp[0] = float2int8(v0 * scale0);
                 pp[1] = float2int8(v1 * scale1);
                 pp += 2;
-                p0q += A_hstep;
+                p0 += A_hstep;
             }
         }
     }
     for (; ii < max_ii; ii++)
     {
-        const int i0 = i + ii;
+        const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
+
+        const float* ps = input_scale_ptr;
 
         for (int g = 0; g < block_count; g++)
         {
-            const int k0 = g * block_size;
-            const int max_kk0 = std::min(max_kk - k0, block_size);
-            const float* p0g = A_data + (size_t)k0 * A_hstep + i0;
-            const float* sg = input_scale_ptr + k0;
+            const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             float absmax0 = 0.f;
-            const float* p0a = p0g;
-            const float* psa = sg;
+            const float* p0a = p0;
+            const float* psa = ps;
             for (int kk = 0; kk < max_kk0; kk++)
             {
                 float v0 = *p0a;
@@ -2074,46 +1960,44 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
             *pd++ = absmax0 / 127.f;
 
-            const float* p0q = p0g;
-            const float* psq = sg;
             int kk = 0;
             for (; kk + 3 < max_kk0; kk += 4)
             {
-                float v0 = p0q[0];
-                float v1 = p0q[A_hstep];
-                float v2 = p0q[A_hstep * 2];
-                float v3 = p0q[A_hstep * 3];
-                v0 *= psq[0];
-                v1 *= psq[1];
-                v2 *= psq[2];
-                v3 *= psq[3];
-                psq += 4;
+                float v0 = p0[0];
+                float v1 = p0[A_hstep];
+                float v2 = p0[A_hstep * 2];
+                float v3 = p0[A_hstep * 3];
+                v0 *= ps[0];
+                v1 *= ps[1];
+                v2 *= ps[2];
+                v3 *= ps[3];
+                ps += 4;
                 pp[0] = float2int8(v0 * scale0);
                 pp[1] = float2int8(v1 * scale0);
                 pp[2] = float2int8(v2 * scale0);
                 pp[3] = float2int8(v3 * scale0);
-                p0q += A_hstep * 4;
+                p0 += A_hstep * 4;
                 pp += 4;
             }
             if (kk + 1 < max_kk0)
             {
-                float v0 = p0q[0];
-                float v1 = p0q[A_hstep];
-                v0 *= psq[0];
-                v1 *= psq[1];
-                psq += 2;
+                float v0 = p0[0];
+                float v1 = p0[A_hstep];
+                v0 *= ps[0];
+                v1 *= ps[1];
+                ps += 2;
                 pp[0] = float2int8(v0 * scale0);
                 pp[1] = float2int8(v1 * scale0);
-                p0q += A_hstep * 2;
+                p0 += A_hstep * 2;
                 pp += 2;
                 kk += 2;
             }
             for (; kk < max_kk0; kk++)
             {
-                float v0 = *p0q;
-                v0 *= *psq++;
+                float v0 = *p0;
+                v0 *= *ps++;
                 *pp++ = float2int8(v0 * scale0);
-                p0q += A_hstep;
+                p0 += A_hstep;
             }
         }
     }
@@ -2130,12 +2014,12 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #endif
 
     const signed char* pAT = AT_tile;
-    const int A_hstep = max_kk;
     const float* pAT_descales = AT_descales_tile;
-    const int A_descales_hstep = (max_kk + block_size - 1) / block_size;
     const signed char* pBT = BT_tile;
     const float* pBT_descales = BT_descales_tile;
     float* outptr = topT_tile;
+    const int A_hstep = AT_tile.w;
+    const int A_descales_hstep = AT_descales_tile.w;
     const int block_count = (K + block_size - 1) / block_size;
     const int block_start = k / block_size;
     int ii = 0;
