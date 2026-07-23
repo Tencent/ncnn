@@ -24,6 +24,9 @@ namespace ncnn {
 #endif
 
 #if NCNN_WEIGHT_QUANT
+#if NCNN_BF16
+#include "gemm_wq_int8_bf16s.h"
+#endif
 #include "gemm_wq_int8.h"
 #endif
 
@@ -5796,7 +5799,7 @@ int Gemm_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
 #endif
 
 #if NCNN_WEIGHT_QUANT
-static int gemm_BT_mips_wq_int8(const Mat& A, const Mat& packed_B, const Mat& packed_B_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+static int gemm_BT_mips_wq_int8(const Mat& A, const Mat& packed_B, const Mat& packed_B_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int out_elemtype, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int block_count = (K + block_size - 1) / block_size;
@@ -5874,9 +5877,9 @@ static int gemm_BT_mips_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pa
             }
 
             if (output_transpose)
-                transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+                transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, out_elemtype);
             else
-                unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+                unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, out_elemtype);
         }
     }
     else
@@ -5929,9 +5932,9 @@ static int gemm_BT_mips_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pa
                 }
 
                 if (output_transpose)
-                    transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+                    transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, out_elemtype);
                 else
-                    unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+                    unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, out_elemtype);
             }
         }
     }
@@ -6007,7 +6010,8 @@ int Gemm_mips::create_pipeline_wq_int8(const Option& opt)
 int Gemm_mips::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& A = bottom_blobs[0];
-    if (A.elemsize != 4u || A.elempack != 1 || (transA && A.dims != 2))
+    const bool use_bf16_storage = support_bf16_storage && opt.use_bf16_storage;
+    if ((A.elembits() != 32 && !(A.elembits() == 16 && use_bf16_storage)) || A.elempack != 1 || (transA && A.dims != 2))
     {
         NCNN_LOGE("Gemm unsupported input");
         return -1;
@@ -6078,7 +6082,7 @@ int Gemm_mips::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector
                 matched = true;
             }
 
-            if (!matched || C.elemsize != 4u || C.elempack != 1)
+            if (!matched || C.elempack != 1 || (C.elembits() != 32 && !(C.elembits() == 16 && use_bf16_storage)))
             {
                 NCNN_LOGE("Gemm unsupported C");
                 return -1;
@@ -6086,31 +6090,49 @@ int Gemm_mips::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector
         }
     }
 
-    if (!C.empty() && (C.elemsize != 4u || C.elempack != 1))
+    if (constantC && !C.empty() && (C.elembits() != 32 || C.elempack != 1))
     {
         NCNN_LOGE("Gemm unsupported C");
         return -1;
     }
 
+    Mat C_fp32;
+    if (!constantC && !C.empty() && C.elembits() == 16)
+    {
+        Option opt_cast = opt;
+        opt_cast.blob_allocator = opt.workspace_allocator;
+        cast_bfloat16_to_float32(C, C_fp32, opt_cast);
+        if (C_fp32.empty())
+            return -100;
+
+        C = C_fp32;
+    }
+
+    if (output_elemtype != 0 && output_elemtype != 1)
+        return -1;
+
+    const int out_elemtype = output_elemtype == 1 || !use_bf16_storage ? 1 : 3;
+    const size_t out_elemsize = out_elemtype == 1 ? 4u : 2u;
+
     Mat& top_blob = top_blobs[0];
     if (output_transpose)
     {
         if (output_N1M)
-            top_blob.create(M, 1, N, (size_t)4u, opt.blob_allocator);
+            top_blob.create(M, 1, N, out_elemsize, opt.blob_allocator);
         else
-            top_blob.create(M, N, (size_t)4u, opt.blob_allocator);
+            top_blob.create(M, N, out_elemsize, opt.blob_allocator);
     }
     else
     {
         if (output_N1M)
-            top_blob.create(N, 1, M, (size_t)4u, opt.blob_allocator);
+            top_blob.create(N, 1, M, out_elemsize, opt.blob_allocator);
         else
-            top_blob.create(N, M, (size_t)4u, opt.blob_allocator);
+            top_blob.create(N, M, out_elemsize, opt.blob_allocator);
     }
     if (top_blob.empty())
         return -100;
 
-    return gemm_BT_mips_wq_int8(A, BT_data_wq_int8, BT_data_wq_int8_descales, B_data_input_scales, C, top_blob, broadcast_type_C, N, K, block_size, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, opt.num_threads, opt);
+    return gemm_BT_mips_wq_int8(A, BT_data_wq_int8, BT_data_wq_int8_descales, B_data_input_scales, C, top_blob, broadcast_type_C, N, K, block_size, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, opt.num_threads, out_elemtype, opt);
 }
 #endif // NCNN_WEIGHT_QUANT
 

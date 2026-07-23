@@ -18,6 +18,9 @@ namespace ncnn {
 #include "gemm_int8.h"
 
 #if NCNN_WEIGHT_QUANT
+#if NCNN_BF16
+#include "gemm_wq_int8_bf16s.h"
+#endif
 #include "gemm_wq_int8.h"
 
 void gemm_transB_packed_tile_wq_int8_xop(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int k, int max_kk, int K, int block_size)

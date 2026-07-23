@@ -290,8 +290,11 @@ int Gemm::load_param(const ParamDict& pd)
         }
 
         support_packing = false;
-        support_bf16_storage = false;
-        support_fp16_storage = false;
+        if (weight_bits != 8)
+        {
+            support_bf16_storage = false;
+            support_fp16_storage = false;
+        }
         support_vulkan = false;
         support_vulkan_packing = false;
 #else

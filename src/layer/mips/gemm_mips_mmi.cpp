@@ -58,6 +58,9 @@ void gemm_transB_packed_tile_int8_loongson_mmi(const Mat& AT_tile, const Mat& BT
 }
 
 #if NCNN_WEIGHT_QUANT
+#if NCNN_BF16
+#include "gemm_wq_int8_bf16s.h"
+#endif
 #include "gemm_wq_int8.h"
 
 void pack_B_tile_wq_int8_loongson_mmi(const Mat& B, const Mat& B_scales, Mat& BT_tile, Mat& BT_descales_tile, int j, int max_jj, int K, int block_size)

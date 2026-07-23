@@ -223,7 +223,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     p1a += vl;
                     kk += vl;
                 }
-#endif // __riscv_vector
+#else
                 for (; kk < max_kk0; kk++)
                 {
                     float v0 = *p0a++;
@@ -231,6 +231,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     absmax0 = std::max(absmax0, fabsf(v0));
                     absmax1 = std::max(absmax1, fabsf(v1));
                 }
+#endif // __riscv_vector
 
                 const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
                 const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
@@ -254,7 +255,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     p1 += vl;
                     kk += vl;
                 }
-#endif // __riscv_vector
+#else
                 for (; kk < max_kk0; kk++)
                 {
                     float v0 = *p0++;
@@ -263,6 +264,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     pp[1] = float2int8(v1 * scale1);
                     pp += 2;
                 }
+#endif // __riscv_vector
             }
         }
         for (; ii < max_ii; ii++)
@@ -286,12 +288,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     p0a += vl;
                     kk += vl;
                 }
-#endif // __riscv_vector
+#else
                 for (; kk < max_kk0; kk++)
                 {
                     float v = *p0a++;
                     absmax = std::max(absmax, fabsf(v));
                 }
+#endif // __riscv_vector
 
                 const float scale = absmax == 0.f ? 0.f : 127.f / absmax;
                 *pd++ = absmax / 127.f;
@@ -307,12 +310,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     p0 += vl;
                     kk += vl;
                 }
-#endif // __riscv_vector
+#else
                 for (; kk < max_kk0; kk++)
                 {
                     float v = *p0++;
                     *pp++ = float2int8(v * scale);
                 }
+#endif // __riscv_vector
             }
         }
         return;
@@ -402,13 +406,14 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 psa += vl;
                 kk += vl;
             }
-#endif // __riscv_vector
+#else
             for (; kk < max_kk0; kk++)
             {
                 const float s = *psa++;
                 absmax0 = std::max(absmax0, fabsf(*p0a++) * s);
                 absmax1 = std::max(absmax1, fabsf(*p1a++) * s);
             }
+#endif // __riscv_vector
 
             const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
             const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
@@ -436,7 +441,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 ps += vl;
                 kk += vl;
             }
-#endif // __riscv_vector
+#else
             for (; kk < max_kk0; kk++)
             {
                 float v0 = *p0++;
@@ -448,6 +453,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 pp[1] = float2int8(v1 * scale1);
                 pp += 2;
             }
+#endif // __riscv_vector
         }
     }
     for (; ii < max_ii; ii++)
@@ -475,11 +481,12 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 psa += vl;
                 kk += vl;
             }
-#endif // __riscv_vector
+#else
             for (; kk < max_kk0; kk++)
             {
                 absmax = std::max(absmax, fabsf(*p0a++) * *psa++);
             }
+#endif // __riscv_vector
 
             const float scale = absmax == 0.f ? 0.f : 127.f / absmax;
             *pd++ = absmax / 127.f;
@@ -497,13 +504,14 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 ps += vl;
                 kk += vl;
             }
-#endif // __riscv_vector
+#else
             for (; kk < max_kk0; kk++)
             {
                 float v = *p0++;
                 v *= *ps++;
                 *pp++ = float2int8(v * scale);
             }
+#endif // __riscv_vector
         }
     }
 }
@@ -585,7 +593,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     p0a += vl * A_hstep;
                     kk += vl;
                 }
-#endif // __riscv_vector
+#else
                 for (; kk < max_kk0; kk++)
                 {
                     float v0 = p0a[0];
@@ -594,6 +602,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     absmax1 = std::max(absmax1, fabsf(v1));
                     p0a += A_hstep;
                 }
+#endif // __riscv_vector
 
                 const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
                 const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
@@ -616,7 +625,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     p0 += vl * A_hstep;
                     kk += vl;
                 }
-#endif // __riscv_vector
+#else
                 for (; kk < max_kk0; kk++)
                 {
                     float v0 = p0[0];
@@ -626,6 +635,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     pp += 2;
                     p0 += A_hstep;
                 }
+#endif // __riscv_vector
             }
         }
         for (; ii < max_ii; ii++)
@@ -649,13 +659,14 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     p0a += vl * A_hstep;
                     kk += vl;
                 }
-#endif // __riscv_vector
+#else
                 for (; kk < max_kk0; kk++)
                 {
                     float v = *p0a;
                     absmax = std::max(absmax, fabsf(v));
                     p0a += A_hstep;
                 }
+#endif // __riscv_vector
 
                 const float scale = absmax == 0.f ? 0.f : 127.f / absmax;
                 *pd++ = absmax / 127.f;
@@ -671,13 +682,14 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     p0 += vl * A_hstep;
                     kk += vl;
                 }
-#endif // __riscv_vector
+#else
                 for (; kk < max_kk0; kk++)
                 {
                     float v = *p0;
                     *pp++ = float2int8(v * scale);
                     p0 += A_hstep;
                 }
+#endif // __riscv_vector
             }
         }
         return;
@@ -763,7 +775,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 psa += vl;
                 kk += vl;
             }
-#endif // __riscv_vector
+#else
             for (; kk < max_kk0; kk++)
             {
                 const float s = *psa++;
@@ -771,6 +783,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 absmax1 = std::max(absmax1, fabsf(p0a[1]) * s);
                 p0a += A_hstep;
             }
+#endif // __riscv_vector
 
             const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
             const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
@@ -797,7 +810,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 ps += vl;
                 kk += vl;
             }
-#endif // __riscv_vector
+#else
             for (; kk < max_kk0; kk++)
             {
                 float v0 = p0[0];
@@ -810,6 +823,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 pp += 2;
                 p0 += A_hstep;
             }
+#endif // __riscv_vector
         }
     }
     for (; ii < max_ii; ii++)
@@ -837,12 +851,13 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 psa += vl;
                 kk += vl;
             }
-#endif // __riscv_vector
+#else
             for (; kk < max_kk0; kk++)
             {
                 absmax = std::max(absmax, fabsf(*p0a) * *psa++);
                 p0a += A_hstep;
             }
+#endif // __riscv_vector
 
             const float scale = absmax == 0.f ? 0.f : 127.f / absmax;
             *pd++ = absmax / 127.f;
@@ -860,7 +875,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 ps += vl;
                 kk += vl;
             }
-#endif // __riscv_vector
+#else
             for (; kk < max_kk0; kk++)
             {
                 float v = *p0;
@@ -868,6 +883,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 *pp++ = float2int8(v * scale);
                 p0 += A_hstep;
             }
+#endif // __riscv_vector
         }
     }
 }
@@ -2162,7 +2178,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             out0 += vl;
             out1 += vl;
         }
-#endif // __riscv_vector
+#else
         for (; jj + 3 < max_jj; jj += 4)
         {
             float sum00 = pp[0];
@@ -2322,6 +2338,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             out0++;
             out1++;
         }
+#endif // __riscv_vector
         outptr += out_hstep * 2;
     }
     for (; ii < max_ii; ii++)
@@ -2380,7 +2397,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             jj += (int)vl;
             out0 += vl;
         }
-#endif // __riscv_vector
+#else
         for (; jj + 3 < max_jj; jj += 4)
         {
             float sum0 = pp[0];
@@ -2479,6 +2496,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             out0[0] = sum;
             out0++;
         }
+#endif // __riscv_vector
         outptr += out_hstep;
     }
 }
@@ -2660,7 +2678,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             jj += (int)vl;
             out0 += out_hstep * vl;
         }
-#endif // __riscv_vector
+#else
         for (; jj + 3 < max_jj; jj += 4)
         {
             float sum00 = pp[0];
@@ -2813,6 +2831,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             out0[1] = sum1;
             out0 += out_hstep;
         }
+#endif // __riscv_vector
         outptr += 2;
     }
     for (; ii < max_ii; ii++)
@@ -2874,7 +2893,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             jj += (int)vl;
             out0 += out_hstep * vl;
         }
-#endif // __riscv_vector
+#else
         for (; jj + 3 < max_jj; jj += 4)
         {
             float sum0 = pp[0];
@@ -2973,6 +2992,7 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
             out0[0] = sum;
             out0 += out_hstep;
         }
+#endif // __riscv_vector
         outptr++;
     }
 }

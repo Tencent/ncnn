@@ -150,7 +150,7 @@ static int test_gemm_1(int M, int N, int K)
 }
 
 #if NCNN_WEIGHT_QUANT
-static int test_gemm_w8a8_oom(int M, int N, int K, int block_size, int input_scale, int output_transpose)
+static int test_gemm_wq_int8_oom(int M, int N, int K, int block_size, int input_scale, int output_transpose, int dynamic_C = 0)
 {
     const int block_count = (K + block_size - 1) / block_size;
     const int block_size_code = block_size == 32 ? 0 : block_size == 64 ? 1 : 2;
@@ -162,26 +162,30 @@ static int test_gemm_w8a8_oom(int M, int N, int K, int block_size, int input_sca
     pd.set(3, 1);
     pd.set(4, 0);
     pd.set(5, 1);
-    pd.set(6, 1);
+    pd.set(6, dynamic_C ? 0 : 1);
     pd.set(7, M);
     pd.set(8, N);
     pd.set(9, K);
-    pd.set(10, 4);
+    pd.set(10, dynamic_C ? 3 : 4);
     pd.set(14, output_transpose);
     pd.set(18, 800 + input_scale * 10 + block_size_code);
 
     std::vector<ncnn::Mat> weights;
     weights.push_back(RandomS8Mat(K, N));
-    weights.push_back(RandomMat(N));
+    if (!dynamic_C)
+        weights.push_back(RandomMat(N));
     weights.push_back(RandomMat(block_count, N, 10.f, 20.f));
     if (input_scale)
         weights.push_back(RandomMat(K, 0.5f, 1.5f));
 
-    const ncnn::Mat A = RandomMat(K, M);
-    int ret = test_layer_oom("Gemm", pd, weights, A, TEST_LAYER_ENABLE_THREADING);
+    std::vector<ncnn::Mat> a(1, RandomMat(K, M));
+    if (dynamic_C)
+        a.push_back(RandomMat(N, M));
+
+    int ret = test_layer_oom("Gemm", pd, weights, a, 1, TEST_LAYER_ENABLE_THREADING);
     if (ret != 0)
     {
-        fprintf(stderr, "test_gemm_w8a8_oom failed M=%d N=%d K=%d block_size=%d input_scale=%d output_transpose=%d\n", M, N, K, block_size, input_scale, output_transpose);
+        fprintf(stderr, "test_gemm_wq_int8_oom failed M=%d N=%d K=%d block_size=%d input_scale=%d output_transpose=%d dynamic_C=%d\n", M, N, K, block_size, input_scale, output_transpose, dynamic_C);
     }
 
     return ret;
@@ -503,8 +507,9 @@ int main()
 
 #if NCNN_WEIGHT_QUANT
     return 0
-           || test_gemm_w8a8_oom(3, 5, 65, 32, 0, 0)
-           || test_gemm_w8a8_oom(8, 17, 129, 128, 1, 1);
+           || test_gemm_wq_int8_oom(3, 5, 65, 32, 0, 0)
+           || test_gemm_wq_int8_oom(8, 17, 129, 128, 1, 1)
+           || test_gemm_wq_int8_oom(7, 9, 67, 32, 1, 0, 1);
 #else
     return 0;
 #endif

@@ -17,6 +17,12 @@ namespace ncnn {
 
 #if NCNN_WEIGHT_QUANT
 #include "gemm_wq_int8.h"
+#if NCNN_VFPV4
+#include "gemm_wq_int8_fp16s.h"
+#endif
+#if NCNN_BF16
+#include "gemm_wq_int8_bf16s.h"
+#endif
 #endif
 
 void pack_A_tile_int8_asimddp(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
@@ -142,15 +148,39 @@ void pack_B_tile_wq_int8_asimddp(const Mat& B, const Mat& B_scales, Mat& BT_tile
     pack_B_tile_wq_int8(B, B_scales, BT_tile, BT_descales_tile, j, max_jj, K, block_size);
 }
 
-void quantize_A_tile_wq_int8_asimddp(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
+void quantize_A_tile_wq_int8_fp32_asimddp(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
 {
-    quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+    quantize_A_tile_wq_int8_fp32(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
 }
 
-void transpose_quantize_A_tile_wq_int8_asimddp(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
+void transpose_quantize_A_tile_wq_int8_fp32_asimddp(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
 {
-    transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+    transpose_quantize_A_tile_wq_int8_fp32(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
 }
+
+#if NCNN_VFPV4
+void quantize_A_tile_wq_int8_fp16s_asimddp(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
+{
+    quantize_A_tile_wq_int8_fp16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+}
+
+void transpose_quantize_A_tile_wq_int8_fp16s_asimddp(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
+{
+    transpose_quantize_A_tile_wq_int8_fp16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+}
+#endif // NCNN_VFPV4
+
+#if NCNN_BF16
+void quantize_A_tile_wq_int8_bf16s_asimddp(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
+{
+    quantize_A_tile_wq_int8_bf16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+}
+
+void transpose_quantize_A_tile_wq_int8_bf16s_asimddp(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
+{
+    transpose_quantize_A_tile_wq_int8_bf16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+}
+#endif // NCNN_BF16
 
 void gemm_transB_packed_tile_wq_int8_asimddp(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int k, int max_kk, int K, int block_size)
 {

@@ -27,6 +27,9 @@ namespace ncnn {
 
 #if NCNN_WEIGHT_QUANT
 #include "gemm_wq_int8.h"
+#if NCNN_BF16
+#include "gemm_wq_int8_bf16s.h"
+#endif
 #endif
 
 Gemm_arm::Gemm_arm()
@@ -4587,7 +4590,98 @@ static int gemm_AT_BT_arm(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_b
 }
 
 #if NCNN_WEIGHT_QUANT
-static int gemm_BT_arm_wq_int8(const Mat& A, const Mat& packed_B, const Mat& packed_B_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+#if NCNN_VFPV4
+extern void quantize_A_tile_wq_int8_fp16s_vfpv4(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales);
+extern void transpose_quantize_A_tile_wq_int8_fp16s_vfpv4(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales);
+extern void unpack_output_tile_wq_int8_fp16s_vfpv4(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta);
+extern void transpose_unpack_output_tile_wq_int8_fp16s_vfpv4(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta);
+#endif
+
+static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales, int input_elemtype)
+{
+#if NCNN_VFPV4
+    if (A.elembits() == 16 && input_elemtype == 2)
+    {
+        quantize_A_tile_wq_int8_fp16s_vfpv4(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+        return;
+    }
+#endif
+
+#if NCNN_BF16
+    if (A.elembits() == 16 && input_elemtype == 3)
+    {
+        quantize_A_tile_wq_int8_bf16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+        return;
+    }
+#endif
+
+    quantize_A_tile_wq_int8_fp32(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+}
+
+static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales, int input_elemtype)
+{
+#if NCNN_VFPV4
+    if (A.elembits() == 16 && input_elemtype == 2)
+    {
+        transpose_quantize_A_tile_wq_int8_fp16s_vfpv4(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+        return;
+    }
+#endif
+
+#if NCNN_BF16
+    if (A.elembits() == 16 && input_elemtype == 3)
+    {
+        transpose_quantize_A_tile_wq_int8_bf16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+        return;
+    }
+#endif
+
+    transpose_quantize_A_tile_wq_int8_fp32(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+}
+
+static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_elemtype)
+{
+#if NCNN_VFPV4
+    if (output_elemtype == 2)
+    {
+        unpack_output_tile_wq_int8_fp16s_vfpv4(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+        return;
+    }
+#endif
+
+#if NCNN_BF16
+    if (output_elemtype == 3)
+    {
+        unpack_output_tile_wq_int8_bf16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+        return;
+    }
+#endif
+
+    unpack_output_tile_wq_int8_fp32(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+}
+
+static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_elemtype)
+{
+#if NCNN_VFPV4
+    if (output_elemtype == 2)
+    {
+        transpose_unpack_output_tile_wq_int8_fp16s_vfpv4(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+        return;
+    }
+#endif
+
+#if NCNN_BF16
+    if (output_elemtype == 3)
+    {
+        transpose_unpack_output_tile_wq_int8_bf16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+        return;
+    }
+#endif
+
+    transpose_unpack_output_tile_wq_int8_fp32(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+}
+
+static int gemm_BT_arm_wq_int8(const Mat& A, const Mat& packed_B, const Mat& packed_B_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int input_elemtype, int output_elemtype, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int block_count = (K + block_size - 1) / block_size;
@@ -4630,9 +4724,9 @@ static int gemm_BT_arm_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
             Mat AT_descales_tile(local_block_count, max_ii, (float*)AT_descales_channel + (size_t)(k / block_size) * mr, (size_t)4u);
 
             if (transA)
-                transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+                transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales, input_elemtype);
             else
-                quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+                quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales, input_elemtype);
         }
 
         const int nn_MN = nn_M * nn_N;
@@ -4664,9 +4758,9 @@ static int gemm_BT_arm_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
                 gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
             }
             if (output_transpose)
-                transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+                transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype);
             else
-                unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+                unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype);
         }
     }
     else
@@ -4702,17 +4796,17 @@ static int gemm_BT_arm_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pac
                     if (j == 0)
                     {
                         if (transA)
-                            transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+                            transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales, input_elemtype);
                         else
-                            quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+                            quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales, input_elemtype);
                     }
 
                     gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
                 }
                 if (output_transpose)
-                    transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+                    transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype);
                 else
-                    unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+                    unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype);
             }
         }
     }
@@ -4908,6 +5002,47 @@ int Gemm_arm::destroy_pipeline(const Option& /*opt*/)
 #if NCNN_WEIGHT_QUANT
 int Gemm_arm::create_pipeline_wq_int8(const Option& opt)
 {
+    // finalize input_elemtype from cpu capability and opt
+    {
+        // armv8.2                  + use-fp16              = fp16
+        // armv8.2                  + no-fp16 + use-bf16    = bf16
+        // armv8.2                  + no-fp16 + no-bf16     = fp32
+        // armv8.0/armv7-vfpv4      + use-bf16              = bf16
+        // armv8.0/armv7-vfpv4      + no-bf16 + use-fp16    = fp16
+        // armv8.0/armv7-vfpv4      + no-fp16 + no-bf16     = fp32
+        // armv7                    + use-bf16              = bf16
+        // armv7                    + no-bf16               = fp32
+
+        bool use_fp16 = false;
+        bool use_bf16 = false;
+
+#if NCNN_ARM82
+        if (ncnn::cpu_support_arm_asimdhp())
+        {
+            use_fp16 = support_fp16_storage && opt.use_fp16_storage;
+            use_bf16 = support_bf16_storage && opt.use_bf16_storage && !use_fp16;
+        }
+        else
+#endif
+#if NCNN_VFPV4
+            if (ncnn::cpu_support_arm_vfpv4())
+            {
+                use_bf16 = support_bf16_storage && opt.use_bf16_storage;
+                use_fp16 = support_fp16_storage && opt.use_fp16_storage && !use_bf16;
+            }
+            else
+#endif
+            {
+                use_bf16 = support_bf16_storage && opt.use_bf16_storage;
+            }
+
+        input_elemtype = 1; // fp32
+        if (use_fp16) input_elemtype = 2;
+        if (use_bf16) input_elemtype = 3;
+
+        // NCNN_LOGE("input_elemtype = %d", input_elemtype);
+    }
+
     if (!BT_data_wq_int8.empty() && !BT_data_wq_int8_descales.empty())
         return 0;
 
@@ -4974,11 +5109,24 @@ int Gemm_arm::create_pipeline_wq_int8(const Option& opt)
 int Gemm_arm::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& A = bottom_blobs[0];
-    if (A.elemsize != 4u || A.elempack != 1)
+    if (A.elempack != 1 || (A.elembits() != 16 && A.elembits() != 32))
     {
         NCNN_LOGE("Gemm unsupported input");
         return -1;
     }
+
+    if (A.elembits() == 16 && input_elemtype == 1)
+    {
+        NCNN_LOGE("Gemm unsupported input");
+        return -1;
+    }
+
+    if (output_elemtype != 0 && output_elemtype != 1)
+    {
+        NCNN_LOGE("Gemm unsupported output type");
+        return -1;
+    }
+    const int out_elemtype = output_elemtype == 1 ? 1 : input_elemtype;
 
     if (transA && A.dims != 2)
     {
@@ -5006,6 +5154,7 @@ int Gemm_arm::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
     const int N = constantN;
 
     Mat C;
+    Mat C_fp32;
     int broadcast_type_C = -1;
     if (constantC)
     {
@@ -5051,10 +5200,35 @@ int Gemm_arm::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
                 matched = true;
             }
 
-            if (!matched || C.elemsize != 4u || C.elempack != 1)
+            if (!matched || C.elempack != 1 || (C.elembits() != 16 && C.elembits() != 32))
             {
                 NCNN_LOGE("Gemm unsupported C");
                 return -1;
+            }
+
+            if (C.elembits() == 16)
+            {
+                if (input_elemtype == 1)
+                {
+                    NCNN_LOGE("Gemm unsupported C");
+                    return -1;
+                }
+
+                Option opt_cast = opt;
+                opt_cast.blob_allocator = opt.workspace_allocator;
+
+#if NCNN_VFPV4
+                if (input_elemtype == 2)
+                    cast_float16_to_float32(C, C_fp32, opt_cast);
+#endif
+#if NCNN_BF16
+                if (input_elemtype == 3)
+                    cast_bfloat16_to_float32(C, C_fp32, opt_cast);
+#endif
+                if (C_fp32.empty())
+                    return -100;
+
+                C = C_fp32;
             }
         }
     }
@@ -5066,24 +5240,25 @@ int Gemm_arm::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
     }
 
     Mat& top_blob = top_blobs[0];
+    const size_t out_elemsize = out_elemtype == 1 ? 4u : 2u;
     if (output_transpose)
     {
         if (output_N1M)
-            top_blob.create(M, 1, N, (size_t)4u, opt.blob_allocator);
+            top_blob.create(M, 1, N, out_elemsize, opt.blob_allocator);
         else
-            top_blob.create(M, N, (size_t)4u, opt.blob_allocator);
+            top_blob.create(M, N, out_elemsize, opt.blob_allocator);
     }
     else
     {
         if (output_N1M)
-            top_blob.create(N, 1, M, (size_t)4u, opt.blob_allocator);
+            top_blob.create(N, 1, M, out_elemsize, opt.blob_allocator);
         else
-            top_blob.create(N, M, (size_t)4u, opt.blob_allocator);
+            top_blob.create(N, M, out_elemsize, opt.blob_allocator);
     }
     if (top_blob.empty())
         return -100;
 
-    return gemm_BT_arm_wq_int8(A, BT_data_wq_int8, BT_data_wq_int8_descales, B_data_input_scales, C, top_blob, broadcast_type_C, N, K, block_size, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, opt.num_threads, opt);
+    return gemm_BT_arm_wq_int8(A, BT_data_wq_int8, BT_data_wq_int8_descales, B_data_input_scales, C, top_blob, broadcast_type_C, N, K, block_size, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, opt.num_threads, input_elemtype, out_elemtype, opt);
 }
 #endif // NCNN_WEIGHT_QUANT
 
