@@ -5881,13 +5881,15 @@ static void transpose_unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Ma
                     if (c_elempack == 4)
                     {
                         _c0 = vld1q_f32(pC);
-                        _c1 = vld1q_f32(pC + 4);
-                        _c2 = vld1q_f32(pC + 8);
-                        _c3 = vld1q_f32(pC + 12);
-                        _c4 = vld1q_f32(pC + 16);
-                        _c5 = vld1q_f32(pC + 20);
-                        _c6 = vld1q_f32(pC + 24);
+                        _c2 = vld1q_f32(pC + 4);
+                        _c4 = vld1q_f32(pC + 8);
+                        _c6 = vld1q_f32(pC + 12);
+                        _c1 = vld1q_f32(pC + 16);
+                        _c3 = vld1q_f32(pC + 20);
+                        _c5 = vld1q_f32(pC + 24);
                         _c7 = vld1q_f32(pC + 28);
+                        transpose4x4_ps(_c0, _c2, _c4, _c6);
+                        transpose4x4_ps(_c1, _c3, _c5, _c7);
                         pC += 32;
                     }
                     if (c_elempack == 1)
@@ -5900,7 +5902,6 @@ static void transpose_unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Ma
                         _c5 = vld1q_f32(pC + c_hstep * 2 + 4);
                         _c6 = vld1q_f32(pC + c_hstep * 3);
                         _c7 = vld1q_f32(pC + c_hstep * 3 + 4);
-                        transpose8x4_ps(_c0, _c1, _c2, _c3, _c4, _c5, _c6, _c7);
                         pC += 8;
                     }
                     if (beta == 1.f)

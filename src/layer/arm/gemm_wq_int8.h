@@ -9178,7 +9178,9 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
 #else
     TILE_M = std::max(2, tile_size / 2 * 2);
 #endif
-#if __ARM_NEON
+#if __aarch64__
+    TILE_N = std::max(8, tile_size / 8 * 8);
+#elif __ARM_NEON
     TILE_N = std::max(4, tile_size / 4 * 4);
 #else
     TILE_N = std::max(2, tile_size / 2 * 2);
@@ -9203,7 +9205,9 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
 #else
             TILE_M = std::max(2, tile_size / 2 * 2);
 #endif
-#if __ARM_NEON
+#if __aarch64__
+            TILE_N = std::max(8, tile_size / 8 * 8);
+#elif __ARM_NEON
             TILE_N = std::max(4, tile_size / 4 * 4);
 #else
             TILE_N = std::max(2, tile_size / 2 * 2);
@@ -9228,7 +9232,9 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
     if (N > 0)
     {
         int nn_N = (N + TILE_N - 1) / TILE_N;
-#if __ARM_NEON
+#if __aarch64__
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 7) / 8 * 8);
+#elif __ARM_NEON
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
 #else
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 1) / 2 * 2);
@@ -9260,7 +9266,9 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
 
     if (constant_TILE_N > 0)
     {
-#if __ARM_NEON
+#if __aarch64__
+        TILE_N = (constant_TILE_N + 7) / 8 * 8;
+#elif __ARM_NEON
         TILE_N = (constant_TILE_N + 3) / 4 * 4;
 #else
         TILE_N = (constant_TILE_N + 1) / 2 * 2;

@@ -509,7 +509,8 @@ int main()
     return 0
            || test_gemm_wq_int8_oom(3, 5, 65, 32, 0, 0)
            || test_gemm_wq_int8_oom(8, 17, 129, 128, 1, 1)
-           || test_gemm_wq_int8_oom(7, 9, 67, 32, 1, 0, 1);
+           || test_gemm_wq_int8_oom(7, 9, 67, 32, 1, 0, 1)
+           || test_gemm_wq_int8_oom(16, 16, 35, 32, 1, 1, 1);
 #else
     return 0;
 #endif

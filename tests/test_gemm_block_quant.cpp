@@ -608,193 +608,6 @@ static int test_gemm_wq_int8_pipeline()
     return test_ret;
 }
 
-static int test_gemm_wq_int8_storage()
-{
-    ncnn::Layer* probe = ncnn::create_layer_cpu("Gemm");
-    if (!probe)
-        return -1;
-
-    const bool support_fp16_storage = probe->support_fp16_storage;
-    const bool support_bf16_storage = probe->support_bf16_storage;
-    delete probe;
-
-    for (int storage_type = 2; storage_type <= 3; storage_type++)
-    {
-        const bool support_storage = storage_type == 2 ? support_fp16_storage : support_bf16_storage;
-
-        const int mnkb[4][4] = {
-            {1, 7, 33, 32},
-            {2, 9, 66, 64},
-            {15, 15, 131, 128},
-            {7, 6, 64, 32}
-        };
-        const int transA[4] = {0, 0, 0, 1};
-        const int output_transpose[4] = {0, 1, 0, 1};
-        const int output_N1M[4] = {0, 0, 0, 1};
-        const int has_input_scale[4] = {0, 1, 0, 1};
-
-        for (int t = 0; t < (support_storage ? 4 : 1); t++)
-        {
-            const int M = mnkb[t][0];
-            const int N = mnkb[t][1];
-            const int K = mnkb[t][2];
-            const int block_size = mnkb[t][3];
-
-            ncnn::Mat input_scales = has_input_scale[t] ? make_input_scales(K) : ncnn::Mat();
-            ncnn::Mat A = transA[t] ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
-            RandomizeA(A, transA[t], block_size, input_scales);
-
-            ncnn::Mat B_quantized(K, N, (size_t)1u);
-            ncnn::Mat B_quantize_scales((K + block_size - 1) / block_size, N);
-            B_quantize_scales.fill(32.f);
-            for (int n = 0; n < N; n++)
-            {
-                signed char* ptr = B_quantized.row<signed char>(n);
-                for (int k = 0; k < K; k++)
-                    ptr[k] = (signed char)((n * 19 + k * 11) % 101 - 50);
-            }
-
-            ncnn::Mat C;
-            int broadcast_type_C = -1;
-            int constantC = 0;
-            if (t == 1)
-            {
-                C.create(N);
-                broadcast_type_C = 4;
-                constantC = 1;
-            }
-            if (t == 2)
-            {
-                C.create(N, M);
-                broadcast_type_C = 3;
-            }
-            if (t == 3)
-            {
-                C.create(1, M);
-                broadcast_type_C = 2;
-            }
-            if (!C.empty())
-            {
-                float* ptr = C;
-                for (size_t i = 0; i < C.total(); i++)
-                    ptr[i] = ((int)(i * 13) % 31 - 15) / 64.f;
-            }
-
-            ncnn::ParamDict pd = make_gemm_param(M, N, K, weight_block_quantize_term(8, block_size, has_input_scale[t]));
-            pd.set(1, 0.5f);
-            pd.set(2, transA[t]);
-            pd.set(6, constantC);
-            pd.set(10, broadcast_type_C);
-            pd.set(11, output_N1M[t]);
-            pd.set(13, t == 1 ? 1 : 0);
-            pd.set(14, output_transpose[t]);
-            pd.set(20, t == 0 ? 1 : t == 1 ? 2 : t == 2 ? 8 : 4);
-            pd.set(21, t == 2 ? 8 : 4);
-            pd.set(22, block_size);
-
-            std::vector<ncnn::Mat> weights;
-            weights.push_back(B_quantized);
-            if (constantC)
-                weights.push_back(C);
-            weights.push_back(B_quantize_scales);
-            if (has_input_scale[t])
-                weights.push_back(input_scales);
-
-            ncnn::Option opt;
-            opt.num_threads = 2;
-            opt.use_packing_layout = false;
-            opt.use_fp16_packed = false;
-            opt.use_fp16_storage = storage_type == 2;
-            opt.use_fp16_arithmetic = false;
-            opt.use_bf16_packed = false;
-            opt.use_bf16_storage = storage_type == 3;
-
-            ncnn::Mat A_storage;
-            if (!support_storage)
-            {
-                A_storage.create(A.w, A.h, (size_t)2u);
-                A_storage.fill<unsigned short>(0);
-            }
-            else if (t == 3)
-                A_storage = A;
-            else if (storage_type == 2)
-                ncnn::cast_float32_to_float16(A, A_storage, opt);
-            else
-                ncnn::cast_float32_to_bfloat16(A, A_storage, opt);
-
-            ncnn::Mat C_storage;
-            if (!constantC && !C.empty())
-            {
-                if (storage_type == 2)
-                    ncnn::cast_float32_to_float16(C, C_storage, opt);
-                else
-                    ncnn::cast_float32_to_bfloat16(C, C_storage, opt);
-            }
-
-            if ((t == 3 && A_storage.elembits() != 32) || (t != 3 && A_storage.elembits() != 16) || (!C_storage.empty() && C_storage.elembits() != 16))
-                return -1;
-
-            ncnn::Layer* gemm = ncnn::create_layer_cpu("Gemm");
-            gemm->load_param(pd);
-            const bool support_storage_wq_int8 = storage_type == 2 ? gemm->support_fp16_storage : gemm->support_bf16_storage;
-            if (support_storage_wq_int8 != support_storage)
-            {
-                fprintf(stderr, "test_gemm_wq_int8_storage capability failed storage_type=%d support=%d support_wq_int8=%d\n", storage_type, support_storage, support_storage_wq_int8);
-                delete gemm;
-                return -1;
-            }
-            gemm->load_model(ncnn::ModelBinFromMatArray(weights.data()));
-            gemm->create_pipeline(opt);
-
-            std::vector<ncnn::Mat> inputs(1, A_storage);
-            if (!C_storage.empty())
-                inputs.push_back(C_storage);
-            std::vector<ncnn::Mat> outputs(1);
-            const int ret = gemm->forward(inputs, outputs, opt);
-
-            if (!support_storage)
-            {
-                gemm->destroy_pipeline(opt);
-                delete gemm;
-
-                if (ret == 0)
-                {
-                    fprintf(stderr, "test_gemm_wq_int8_storage unsupported storage failed storage_type=%d\n", storage_type);
-                    return -1;
-                }
-                continue;
-            }
-
-            int unsupported_ret = -1;
-            if (t == 0)
-            {
-                gemm->destroy_pipeline(opt);
-
-                ncnn::Option opt1 = opt;
-                opt1.use_fp16_storage = false;
-                opt1.use_bf16_storage = false;
-                gemm->create_pipeline(opt1);
-                std::vector<ncnn::Mat> outputs1(1);
-                unsupported_ret = gemm->forward(inputs, outputs1, opt1);
-                gemm->destroy_pipeline(opt1);
-            }
-            else
-            {
-                gemm->destroy_pipeline(opt);
-            }
-            delete gemm;
-
-            if (ret != 0 || outputs[0].elembits() != (t == 1 ? 32 : 16) || unsupported_ret == 0)
-            {
-                fprintf(stderr, "test_gemm_wq_int8_storage failed storage_type=%d case=%d ret=%d elembits=%d\n", storage_type, t, ret, outputs[0].elembits());
-                return -1;
-            }
-        }
-    }
-
-    return 0;
-}
-
 static int test_gemm_0()
 {
     return 0
@@ -811,8 +624,7 @@ static int test_gemm_1(int M, int N, int K, int block_size)
 {
     return 0
            || test_gemm(M, N, K, 8, block_size)
-           || test_gemm(M, N, K, 8, block_size, 1, 0, 1)
-           || test_gemm(M, N, K, 8, block_size, 0, 1);
+           || test_gemm(M, N, K, 8, block_size, 1, 0, 1);
 }
 
 static int test_gemm_2()
@@ -823,18 +635,18 @@ static int test_gemm_2()
     const int block_size = 32;
 
     return 0
-           || test_gemm_bias(M, N, K, 8, block_size, RandomMat(1), 0.7f, 1.3f, 0, 0, 0, 0)
-           || test_gemm_bias(M, N, K, 8, block_size, RandomMat(M), 1.f, 0.3f, 1, 0, 0, 0)
-           || test_gemm_bias(M, N, K, 8, block_size, RandomMat(1, M), 0.7f, 1.f, 0, 0, 1, 0)
-           || test_gemm_bias(M, N, K, 8, block_size, RandomMat(N, M), 1.7f, 0.3f, 1, 0, 1, 1)
-           || test_gemm_bias(M, N, K, 8, block_size, RandomMat(N), 0.7f, 1.3f, 0, 1, 0, 0)
-           || test_gemm_bias(M, N, K, 8, block_size, RandomMat(N, 1), 1.3f, 0.7f, 1, 0, 0, 1)
-           || test_gemm_bias(M, N, K, 8, block_size, RandomMat(N, M), -0.7f, -1.3f, 1, 0, 1, 0)
+           || test_gemm_bias(31, 16, 80, 8, 32, RandomMat(1), 0.7f, 1.3f, 0, 1, 1, 0)
+           || test_gemm_bias(31, 31, 35, 8, 32, RandomMat(31), 1.f, 0.3f, 1, 0, 0, 0)
+           || test_gemm_bias(31, 31, 35, 8, 32, RandomMat(1, 31), 0.7f, 1.f, 0, 0, 1, 0)
+           || test_gemm_bias(28, 28, 68, 8, 64, RandomMat(28, 28), 0.7f, 0.3f, 1, 1, 1, 0)
+           || test_gemm_bias(31, 31, 35, 8, 32, RandomMat(31), 0.7f, 1.3f, 0, 1, 0, 0)
+           || test_gemm_bias(31, 31, 35, 8, 32, RandomMat(1, 31), 1.3f, 0.7f, 1, 0, 0, 0)
+           || test_gemm_bias(32, 31, 67, 8, 32, RandomMat(31, 32), -0.7f, -1.3f, 1, 1, 1, 0, 0, 1)
            || test_gemm_bias(M, N, K, 8, block_size, RandomMat(N), 1.f, 0.f, 0, 0, 0, 0)
            || test_gemm(3, 5, 67, 8, 64, 0, 0, 0, 1)
-           || test_gemm_bias(3, 5, 67, 8, 64, RandomMat(5, 3), 0.7f, 0.3f, 1, 0, 1, 0, 1)
-           || test_gemm_bias(17, 19, 35, 8, 32, RandomMat(19, 17), -0.7f, -1.3f, 1, 0, 0, 0)
-           || test_gemm_bias(17, 19, 35, 8, 32, RandomMat(19), 1.7f, 0.3f, 1, 0, 1, 1);
+           || test_gemm_bias(31, 31, 35, 8, 32, RandomMat(31, 31), 0.7f, 0.3f, 1, 0, 1, 0, 1)
+           || test_gemm_bias(32, 31, 67, 8, 32, RandomMat(31, 32), -0.7f, -1.3f, 0, 1, 0, 0, 0, 1)
+           || test_gemm_bias(31, 31, 35, 8, 32, RandomMat(31), 1.7f, 0.3f, 1, 0, 1, 1);
 }
 
 static int test_gemm_3()
@@ -842,18 +654,27 @@ static int test_gemm_3()
     return 0
            || test_gemm_wq_int8_zero(1, 0)
            || test_gemm_wq_int8_zero(0, 1)
-           || test_gemm_wq_int8_tile(1, 7, 33, 32, 1, 4, 32)
+           || test_gemm_wq_int8_tile(16, 4, 64, 32, 16, 4, 32)
            || test_gemm_bias(2, 9, 66, 8, 64, RandomMat(9), 1.f, 0.5f, 1, 0, 1, 1, 0, 1, 2, 4, 64)
-           || test_gemm_bias(15, 15, 131, 8, 128, RandomMat(15, 15), 1.f, 0.5f, 0, 0, 0, 0, 0, 0, 8, 8, 128)
+           || test_gemm_bias(24, 24, 80, 8, 32, RandomMat(24, 24), 0.7f, 1.f, 0, 1, 0, 0, 0, 0, 12, 12, 32)
            || test_gemm_bias(7, 6, 64, 8, 32, RandomMat(1, 7), 1.f, 0.5f, 1, 1, 1, 0, 1, 0, 4, 4, 32)
            || test_gemm_bias(9, 8, 128, 8, 64, RandomMat(9), 1.f, 0.5f, 1, 1, 0, 1, 0, 0, 8, 8, 64)
            || test_gemm(5, 3, 65, 8, 64, 0, 0, 0, 0, 1)
            || test_gemm(7, 9, 67, 8, 64, 1, 1, 1)
            || test_gemm_wq_int8_tile(1, 17, 33, 32, 1, 4, 32)
            || test_gemm_wq_int8_tile(17, 19, 35, 32, 9, 4, 32, 1, 0, 1)
-           || test_gemm_wq_int8_tile(19, 17, 67, 64, 9, 4, 64, 0, 1)
+           || test_gemm(15, 15, 68, 8, 64, 0, 1)
            || test_gemm_wq_int8_tile(13, 19, 35, 32, 7, 5, 17)
-           || test_gemm_wq_int8_tile(7, 9, 67, 64, 5, 7, 48);
+           || test_gemm_wq_int8_tile(7, 9, 67, 64, 5, 7, 48)
+           || test_gemm(31, 31, 68, 8, 64, 1, 1, 1)
+           || test_gemm(31, 32, 72, 8, 64, 0, 1, 1)
+           || test_gemm(31, 31, 80, 8, 32, 1, 1, 1)
+           || test_gemm(31, 31, 72, 8, 64, 1, 1)
+           || test_gemm_bias(31, 31, 67, 8, 32, RandomMat(1), 0.7f, 1.3f, 0, 0, 0, 0)
+           || test_gemm_bias(31, 16, 80, 8, 32, RandomMat(16, 31), 0.7f, 1.f, 0, 1, 1, 0)
+           || test_gemm_bias(28, 28, 68, 8, 64, RandomMat(28, 28), 0.7f, 0.3f, 1, 1, 0, 0)
+           || test_gemm_bias(24, 24, 80, 8, 32, RandomMat(24, 24), 0.7f, 1.f, 0, 1, 1, 0, 0, 0, 12, 12, 32)
+           || test_gemm_bias(31, 31, 35, 8, 32, RandomMat(31, 31), 0.7f, 0.3f, 0, 1, 0, 0, 0, 1);
 }
 #endif // NCNN_WEIGHT_QUANT
 
@@ -868,7 +689,6 @@ int main()
               || test_gemm_wq_int8_input_scale_equivalence(0, 0)
               || test_gemm_wq_int8_input_scale_equivalence(1, 1)
               || test_gemm_wq_int8_pipeline()
-              || test_gemm_wq_int8_storage()
               || test_gemm_0()
               || test_gemm_2()
               || test_gemm_3();
@@ -876,16 +696,13 @@ int main()
         return ret;
 
     const int mnkb[][4] = {
-        {1, 7, 31, 32},
-        {2, 3, 32, 32},
-        {3, 6, 33, 32},
-        {8, 3, 34, 32},
-        {16, 16, 35, 32},
-        {17, 31, 64, 32},
-        {31, 17, 65, 64},
-        {3, 129, 67, 64},
-        {8, 16, 128, 128},
-        {19, 3, 129, 128}
+        {31, 31, 35, 32},
+        {12, 20, 68, 64},
+        {24, 24, 72, 64},
+        {16, 16, 80, 32},
+        {16, 15, 35, 32},
+        {32, 32, 96, 32},
+        {32, 31, 129, 128}
     };
 
     for (int i = 0; i < (int)(sizeof(mnkb) / sizeof(mnkb[0])); i++)

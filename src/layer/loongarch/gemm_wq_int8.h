@@ -8333,11 +8333,7 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
 
 #if __loongarch_sx
     TILE_M = std::max(8, tile_size / 8 * 8);
-#if __loongarch_asx
     TILE_N = std::max(8, tile_size / 8 * 8);
-#else
-    TILE_N = std::max(4, tile_size / 4 * 4);
-#endif
 #else
     TILE_M = std::max(2, tile_size / 2 * 2);
     TILE_N = std::max(2, tile_size / 2 * 2);
@@ -8357,11 +8353,7 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
 
 #if __loongarch_sx
             TILE_M = std::max(8, tile_size / 8 * 8);
-#if __loongarch_asx
             TILE_N = std::max(8, tile_size / 8 * 8);
-#else
-            TILE_N = std::max(4, tile_size / 4 * 4);
-#endif
 #else
             TILE_M = std::max(2, tile_size / 2 * 2);
             TILE_N = std::max(2, tile_size / 2 * 2);
@@ -8385,11 +8377,7 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
     {
         int nn_N = (N + TILE_N - 1) / TILE_N;
 #if __loongarch_sx
-#if __loongarch_asx
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 7) / 8 * 8);
-#else
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
-#endif
 #else
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 1) / 2 * 2);
 #endif
@@ -8417,11 +8405,7 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
     if (constant_TILE_N > 0)
     {
 #if __loongarch_sx
-#if __loongarch_asx
         TILE_N = (constant_TILE_N + 7) / 8 * 8;
-#else
-        TILE_N = (constant_TILE_N + 3) / 4 * 4;
-#endif
 #else
         TILE_N = (constant_TILE_N + 1) / 2 * 2;
 #endif

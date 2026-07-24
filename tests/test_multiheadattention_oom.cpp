@@ -56,7 +56,7 @@ static int test_multiheadattention_0()
 }
 
 #if NCNN_WEIGHT_QUANT
-static int test_multiheadattention_w8a8_oom(int qdim, int kdim, int vdim, int embed_dim, int num_heads, int block_size, int input_scale)
+static int test_multiheadattention_wq_int8_oom(int qdim, int kdim, int vdim, int embed_dim, int num_heads, int block_size, int input_scale)
 {
     const int block_size_code = block_size == 32 ? 0 : block_size == 64 ? 1 : 2;
 
@@ -99,7 +99,7 @@ static int test_multiheadattention_w8a8_oom(int qdim, int kdim, int vdim, int em
     int ret = test_layer_oom("MultiHeadAttention", pd, weights, inputs, 1, TEST_LAYER_ENABLE_THREADING);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention_w8a8_oom failed qdim=%d kdim=%d vdim=%d embed_dim=%d num_heads=%d block_size=%d input_scale=%d\n", qdim, kdim, vdim, embed_dim, num_heads, block_size, input_scale);
+        fprintf(stderr, "test_multiheadattention_wq_int8_oom failed qdim=%d kdim=%d vdim=%d embed_dim=%d num_heads=%d block_size=%d input_scale=%d\n", qdim, kdim, vdim, embed_dim, num_heads, block_size, input_scale);
     }
 
     return ret;
@@ -113,8 +113,8 @@ int main()
     return 0
            || test_multiheadattention_0()
 #if NCNN_WEIGHT_QUANT
-           || test_multiheadattention_w8a8_oom(33, 35, 37, 8, 2, 32, 0)
-           || test_multiheadattention_w8a8_oom(65, 67, 69, 8, 2, 64, 1)
+           || test_multiheadattention_wq_int8_oom(33, 35, 37, 8, 2, 32, 0)
+           || test_multiheadattention_wq_int8_oom(65, 67, 69, 8, 2, 64, 1)
 #endif
            ;
 }

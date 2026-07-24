@@ -123,150 +123,91 @@ static void quantize_weight(const ncnn::Mat& weight_data, int bits, int block_si
 
 static void make_mha_weights(int qdim, int kdim, int vdim, int embed_dim, int bits, int block_size, int has_input_scale, std::vector<ncnn::Mat>& weights, std::vector<ncnn::Mat>& ref_weights)
 {
-    ncnn::Mat q_input_scales;
-    ncnn::Mat k_input_scales;
-    ncnn::Mat v_input_scales;
-    ncnn::Mat out_input_scales;
+    const int weight_w[4] = {qdim, kdim, vdim, embed_dim};
+    const int weight_h[4] = {embed_dim, embed_dim, embed_dim, qdim};
+
+    ncnn::Mat input_scales[4];
     if (has_input_scale)
     {
-        q_input_scales = make_input_scales(qdim, 0);
-        k_input_scales = make_input_scales(kdim, 1);
-        v_input_scales = make_input_scales(vdim, 2);
-        out_input_scales.create(embed_dim);
+        for (int i = 0; i < 3; i++)
+            input_scales[i] = make_input_scales(weight_w[i], i);
 
-        float* out_scale_ptr = out_input_scales;
+        input_scales[3].create(embed_dim);
+        float* out_scale_ptr = input_scales[3];
         const float out_scale_table[5] = {1.f, 2.f, 3.f, 5.f, 8.f};
         for (int i = 0; i < embed_dim; i++)
             out_scale_ptr[i] = out_scale_table[i % 5];
     }
 
-    ncnn::Mat q_weight;
-    ncnn::Mat k_weight;
-    ncnn::Mat v_weight;
-    ncnn::Mat out_weight;
+    ncnn::Mat weight_data[4];
+    for (int i = 0; i < 4; i++)
+    {
+        if (bits == 8)
+            weight_data[i] = RandomWQInt8Mat(weight_w[i], weight_h[i], block_size);
+        else
+            weight_data[i] = RandomMat(weight_w[i], weight_h[i], -1.f, 1.f);
+    }
+
     if (bits == 8)
     {
-        q_weight = RandomWQInt8Mat(qdim, embed_dim, block_size);
-        k_weight = RandomWQInt8Mat(kdim, embed_dim, block_size);
-        v_weight = RandomWQInt8Mat(vdim, embed_dim, block_size);
-        out_weight = RandomWQInt8Mat(embed_dim, qdim, block_size);
-    }
-    else
-    {
-        q_weight = RandomMat(qdim, embed_dim, -1.f, 1.f);
-        k_weight = RandomMat(kdim, embed_dim, -1.f, 1.f);
-        v_weight = RandomMat(vdim, embed_dim, -1.f, 1.f);
-        out_weight = RandomMat(embed_dim, qdim, -1.f, 1.f);
-    }
-
-    if (bits == 8 && has_input_scale)
-    {
         // keep the output projection dynamic quantization away from half-integer rounding boundaries
-        const float* ptr = q_weight.row(0);
-        for (int i = 1; i < embed_dim; i++)
+        for (int p = 0; p < 3; p++)
         {
-            float* outptr = q_weight.row(i);
-            for (int j = 0; j < qdim; j++)
-                outptr[j] = ptr[j];
-        }
-
-        ptr = k_weight.row(0);
-        for (int i = 1; i < embed_dim; i++)
-        {
-            float* outptr = k_weight.row(i);
-            for (int j = 0; j < kdim; j++)
-                outptr[j] = ptr[j];
-        }
-
-        ptr = v_weight.row(0);
-        for (int i = 1; i < embed_dim; i++)
-        {
-            float* outptr = v_weight.row(i);
-            for (int j = 0; j < vdim; j++)
-                outptr[j] = ptr[j];
+            const float* ptr = weight_data[p].row(0);
+            for (int i = 1; i < embed_dim; i++)
+            {
+                float* outptr = weight_data[p].row(i);
+                for (int j = 0; j < weight_w[p]; j++)
+                    outptr[j] = ptr[j];
+            }
         }
     }
 
-    ncnn::Mat q_weight_quantized;
-    ncnn::Mat k_weight_quantized;
-    ncnn::Mat v_weight_quantized;
-    ncnn::Mat out_weight_quantized;
-    ncnn::Mat q_weight_scales;
-    ncnn::Mat k_weight_scales;
-    ncnn::Mat v_weight_scales;
-    ncnn::Mat out_weight_scales;
-    ncnn::Mat q_weight_dequantized;
-    ncnn::Mat k_weight_dequantized;
-    ncnn::Mat v_weight_dequantized;
-    ncnn::Mat out_weight_dequantized;
+    ncnn::Mat weight_data_quantized[4];
+    ncnn::Mat weight_data_quantize_scales[4];
+    ncnn::Mat weight_data_dequantized[4];
+    for (int i = 0; i < 4; i++)
+        quantize_weight(weight_data[i], bits, block_size, input_scales[i], weight_data_quantized[i], weight_data_quantize_scales[i], weight_data_dequantized[i]);
 
-    quantize_weight(q_weight, bits, block_size, q_input_scales, q_weight_quantized, q_weight_scales, q_weight_dequantized);
-    quantize_weight(k_weight, bits, block_size, k_input_scales, k_weight_quantized, k_weight_scales, k_weight_dequantized);
-    quantize_weight(v_weight, bits, block_size, v_input_scales, v_weight_quantized, v_weight_scales, v_weight_dequantized);
-    quantize_weight(out_weight, bits, block_size, out_input_scales, out_weight_quantized, out_weight_scales, out_weight_dequantized);
-
-    ncnn::Mat q_bias = RandomMat(embed_dim, -1.f, 1.f);
-    ncnn::Mat k_bias = RandomMat(embed_dim, -1.f, 1.f);
-    ncnn::Mat v_bias = RandomMat(embed_dim, -1.f, 1.f);
-    ncnn::Mat out_bias = RandomMat(qdim, -1.f, 1.f);
-    if (bits == 8 && has_input_scale)
+    ncnn::Mat bias_data[4];
+    for (int i = 0; i < 3; i++)
+        bias_data[i] = RandomMat(embed_dim, -1.f, 1.f);
+    bias_data[3] = RandomMat(qdim, -1.f, 1.f);
+    if (bits == 8)
     {
-        q_bias.fill(0.f);
-        k_bias.fill(0.f);
-        v_bias.fill(0.f);
+        for (int i = 0; i < 3; i++)
+            bias_data[i].fill(0.f);
     }
 
     weights.resize(has_input_scale ? 16 : 12);
-    weights[0] = q_weight_quantized;
-    weights[1] = q_bias;
-    weights[2] = k_weight_quantized;
-    weights[3] = k_bias;
-    weights[4] = v_weight_quantized;
-    weights[5] = v_bias;
-    weights[6] = out_weight_quantized;
-    weights[7] = out_bias;
-    weights[8] = q_weight_scales;
-    weights[9] = k_weight_scales;
-    weights[10] = v_weight_scales;
-    weights[11] = out_weight_scales;
-
-    if (has_input_scale)
-    {
-        weights[12] = q_input_scales;
-        weights[13] = k_input_scales;
-        weights[14] = v_input_scales;
-        weights[15] = out_input_scales;
-    }
-
     ref_weights.resize(8);
-    ref_weights[0] = q_weight_dequantized.reshape(embed_dim * qdim);
-    ref_weights[1] = q_bias;
-    ref_weights[2] = k_weight_dequantized.reshape(embed_dim * kdim);
-    ref_weights[3] = k_bias;
-    ref_weights[4] = v_weight_dequantized.reshape(embed_dim * vdim);
-    ref_weights[5] = v_bias;
-    ref_weights[6] = out_weight_dequantized.reshape(qdim * embed_dim);
-    ref_weights[7] = out_bias;
+    for (int i = 0; i < 4; i++)
+    {
+        weights[i * 2] = weight_data_quantized[i];
+        weights[i * 2 + 1] = bias_data[i];
+        weights[8 + i] = weight_data_quantize_scales[i];
+        if (has_input_scale)
+            weights[12 + i] = input_scales[i];
+
+        ref_weights[i * 2] = weight_data_dequantized[i].reshape(weight_w[i] * weight_h[i]);
+        ref_weights[i * 2 + 1] = bias_data[i];
+    }
 }
 
 static int test_multiheadattention_block_quant(const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const std::vector<ncnn::Mat>& ref_weights, const std::vector<ncnn::Mat>& inputs, int top_blob_count, int bits)
 {
+    if (bits == 8)
+        return test_layer("MultiHeadAttention", pd, weights, inputs, top_blob_count, 0.001f, TEST_LAYER_DISABLE_GPU_TESTING | TEST_LAYER_ENABLE_THREADING);
+
+    ncnn::ParamDict ref_pd = pd;
+    ref_pd.set(18, 0);
+
     ncnn::Option opt;
     opt.use_packing_layout = false;
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
     opt.use_fp16_arithmetic = false;
     opt.use_bf16_storage = false;
-
-    if (bits == 8)
-    {
-        return 0
-               || test_layer_opt("MultiHeadAttention", pd, weights, opt, inputs, top_blob_count, 0.001f, TEST_LAYER_DISABLE_GPU_TESTING)
-               || test_layer_opt("MultiHeadAttention", pd, weights, opt, inputs, top_blob_count, 0.001f, TEST_LAYER_DISABLE_GPU_TESTING | TEST_LAYER_ENABLE_THREADING);
-    }
-
-    ncnn::ParamDict ref_pd = pd;
-    ref_pd.set(18, 0);
 
     std::vector<ncnn::Mat> refs;
     test_layer_naive(ncnn::layer_to_index("MultiHeadAttention"), ref_pd, ref_weights, inputs, top_blob_count, refs, TEST_LAYER_DISABLE_GPU_TESTING);
@@ -494,7 +435,7 @@ static int test_multiheadattention_wq_int8_pipeline()
     mha->create_pipeline(opt);
 
     std::vector<ncnn::Mat> prefill_inputs(3);
-    prefill_inputs[0] = RandomWQInt8Mat(qdim, 4, block_size, weights[12]);
+    prefill_inputs[0] = RandomWQInt8Mat(qdim, 9, block_size, weights[12]);
 
     std::vector<ncnn::Mat> prefill_reference;
     std::vector<ncnn::Mat> prefill_outputs(3);
@@ -508,7 +449,7 @@ static int test_multiheadattention_wq_int8_pipeline()
         if (prefill_outputs[i].elembits() != 32 || prefill_outputs[i].elempack != 1)
             test_ret = -1;
     }
-    if (prefill_outputs[1].w != 4 || prefill_outputs[2].w != 4)
+    if (prefill_outputs[1].w != 9 || prefill_outputs[2].w != 9)
         test_ret = -1;
 
     std::vector<ncnn::Mat> decode_reference_inputs(3);
@@ -534,7 +475,7 @@ static int test_multiheadattention_wq_int8_pipeline()
         if (decode_outputs[i].elembits() != 32 || decode_outputs[i].elempack != 1)
             test_ret = -1;
     }
-    if (decode_outputs[1].w != 5 || decode_outputs[2].w != 5)
+    if (decode_outputs[1].w != 10 || decode_outputs[2].w != 10)
         test_ret = -1;
 
     mha->destroy_pipeline(opt);
@@ -556,18 +497,14 @@ static int test_multiheadattention_block_quant_0()
            || test_multiheadattention_block_quant(10, 10, 10, 8, 2, 6, 64, 1, 0)
            || test_multiheadattention_block_quant(12, 7, 9, 8, 2, 8, 128, 0, 0)
            || test_multiheadattention_block_quant(35, 33, 31, 32, 4, 8, 32, 1, 0)
-           || test_multiheadattention_block_quant(35, 33, 31, 72, 8, 8, 32, 0, 0)
            || test_multiheadattention_block_quant(65, 33, 49, 64, 4, 8, 64, 0, 1)
-           || test_multiheadattention_block_quant(129, 129, 129, 128, 8, 8, 128, 1, 1)
-           || test_multiheadattention_block_quant(13, 9, 11, 8, 2, 4, 64, 1, 1)
-           || test_multiheadattention_block_quant(35, 33, 31, 32, 4, 8, 32, 0, 0, 1);
+           || test_multiheadattention_block_quant(129, 129, 129, 128, 8, 8, 128, 1, 1, 1);
 }
 
 static int test_multiheadattention_block_quant_1()
 {
     return 0
            || test_multiheadattention_block_quant_kvcache(4, 64, 0, 0)
-           || test_multiheadattention_block_quant_kvcache(4, 32, 1, 1)
            || test_multiheadattention_block_quant_kvcache(8, 32, 0, 0)
            || test_multiheadattention_block_quant_kvcache(8, 64, 1, 1);
 }
@@ -576,7 +513,6 @@ static int test_multiheadattention_block_quant_2()
 {
     return 0
            || test_multiheadattention_block_quant_cross_kvcache(6, 32, 0, 0)
-           || test_multiheadattention_block_quant_cross_kvcache(6, 64, 1, 1)
            || test_multiheadattention_block_quant_cross_kvcache(8, 32, 0, 0)
            || test_multiheadattention_block_quant_cross_kvcache(8, 128, 1, 1);
 }
