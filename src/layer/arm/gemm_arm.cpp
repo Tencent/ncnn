@@ -25,6 +25,13 @@ namespace ncnn {
 #endif
 #endif
 
+#if NCNN_WEIGHT_QUANT
+#include "gemm_wq_int8.h"
+#if NCNN_BF16
+#include "gemm_wq_int8_bf16s.h"
+#endif
+#endif
+
 Gemm_arm::Gemm_arm()
 {
 #if __ARM_NEON
@@ -4586,6 +4593,17 @@ int Gemm_arm::create_pipeline(const Option& opt)
 {
     if (weight_block_quantize)
     {
+#if NCNN_WEIGHT_QUANT
+        int weight_bits;
+        int block_size;
+        bool has_input_scale;
+        int ret = get_weight_block_quantize_params(weight_bits, block_size, has_input_scale);
+        if (ret != 0)
+            return ret;
+
+        if (weight_bits == 8)
+            return create_pipeline_wq_int8(opt);
+#endif
         return 0;
     }
 
@@ -4745,10 +4763,31 @@ int Gemm_arm::create_pipeline(const Option& opt)
     return 0;
 }
 
+int Gemm_arm::destroy_pipeline(const Option& /*opt*/)
+{
+#if NCNN_WEIGHT_QUANT
+    BT_data_wq_int8.release();
+    BT_data_wq_int8_descales.release();
+#endif
+
+    return 0;
+}
+
 int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     if (weight_block_quantize)
     {
+#if NCNN_WEIGHT_QUANT
+        int weight_bits;
+        int block_size;
+        bool has_input_scale;
+        int ret = get_weight_block_quantize_params(weight_bits, block_size, has_input_scale);
+        if (ret != 0)
+            return ret;
+
+        if (weight_bits == 8)
+            return forward_wq_int8(bottom_blobs, top_blobs, opt);
+#endif
         return Gemm::forward(bottom_blobs, top_blobs, opt);
     }
 
@@ -6860,5 +6899,556 @@ int Gemm_arm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat
     return ret;
 }
 #endif
+
+#if NCNN_WEIGHT_QUANT
+#if NCNN_VFPV4
+extern void quantize_A_tile_wq_int8_fp16s_vfpv4(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales);
+extern void transpose_quantize_A_tile_wq_int8_fp16s_vfpv4(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales);
+extern void unpack_output_tile_wq_int8_fp16s_vfpv4(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta);
+extern void transpose_unpack_output_tile_wq_int8_fp16s_vfpv4(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta);
+#endif
+
+static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales, int input_elemtype)
+{
+#if NCNN_VFPV4
+    if (A.elembits() == 16 && input_elemtype == 2)
+    {
+        quantize_A_tile_wq_int8_fp16s_vfpv4(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+        return;
+    }
+#endif
+
+#if NCNN_BF16
+    if (A.elembits() == 16 && input_elemtype == 3)
+    {
+        quantize_A_tile_wq_int8_bf16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+        return;
+    }
+#endif
+
+    quantize_A_tile_wq_int8_fp32(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+}
+
+static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales, int input_elemtype)
+{
+#if NCNN_VFPV4
+    if (A.elembits() == 16 && input_elemtype == 2)
+    {
+        transpose_quantize_A_tile_wq_int8_fp16s_vfpv4(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+        return;
+    }
+#endif
+
+#if NCNN_BF16
+    if (A.elembits() == 16 && input_elemtype == 3)
+    {
+        transpose_quantize_A_tile_wq_int8_bf16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+        return;
+    }
+#endif
+
+    transpose_quantize_A_tile_wq_int8_fp32(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+}
+
+static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_elemtype)
+{
+#if NCNN_VFPV4
+    if (output_elemtype == 2)
+    {
+        unpack_output_tile_wq_int8_fp16s_vfpv4(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+        return;
+    }
+#endif
+
+#if NCNN_BF16
+    if (output_elemtype == 3)
+    {
+        unpack_output_tile_wq_int8_bf16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+        return;
+    }
+#endif
+
+    unpack_output_tile_wq_int8_fp32(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+}
+
+static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_elemtype)
+{
+#if NCNN_VFPV4
+    if (output_elemtype == 2)
+    {
+        transpose_unpack_output_tile_wq_int8_fp16s_vfpv4(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+        return;
+    }
+#endif
+
+#if NCNN_BF16
+    if (output_elemtype == 3)
+    {
+        transpose_unpack_output_tile_wq_int8_bf16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+        return;
+    }
+#endif
+
+    transpose_unpack_output_tile_wq_int8_fp32(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+}
+
+static int gemm_BT_arm_wq_int8(const Mat& A, const Mat& packed_B, const Mat& packed_B_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int input_elemtype, int output_elemtype, const Option& opt)
+{
+    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+    const int block_count = (K + block_size - 1) / block_size;
+    const Mat& BT = packed_B;
+    const Mat& BT_descales = packed_B_descales;
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk_wq_int8(M, N, K, block_size, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
+
+    const int mr = std::min(M, TILE_M);
+    const int nr = std::min(N, TILE_N);
+    const int nn_M = (M + TILE_M - 1) / TILE_M;
+    const int nn_N = (N + TILE_N - 1) / TILE_N;
+    const int nn_K = (K + TILE_K - 1) / TILE_K;
+    Mat topT(nr * mr, 1, nT, (size_t)4u, opt.workspace_allocator);
+    if (topT.empty())
+        return -100;
+
+    if (nT > nn_M)
+    {
+        Mat AT(K, mr, nn_M, (size_t)1u, opt.workspace_allocator);
+        Mat AT_descales(block_count, mr, nn_M, (size_t)4u, opt.workspace_allocator);
+        if (AT.empty() || AT_descales.empty())
+            return -100;
+
+        const int nn_MK = nn_M * nn_K;
+        #pragma omp parallel for num_threads(nT)
+        for (int ppik = 0; ppik < nn_MK; ppik++)
+        {
+            const int ppi = ppik / nn_K;
+            const int ppk = ppik % nn_K;
+            const int i = ppi * TILE_M;
+            const int k = ppk * TILE_K;
+            const int max_ii = std::min(M - i, TILE_M);
+            const int max_kk = std::min(K - k, TILE_K);
+            const int local_block_count = (max_kk + block_size - 1) / block_size;
+
+            Mat AT_channel = AT.channel(i / TILE_M);
+            Mat AT_descales_channel = AT_descales.channel(i / TILE_M);
+            Mat AT_tile(max_kk, max_ii, (signed char*)AT_channel + (size_t)k * mr, (size_t)1u);
+            Mat AT_descales_tile(local_block_count, max_ii, (float*)AT_descales_channel + (size_t)(k / block_size) * mr, (size_t)4u);
+
+            if (transA)
+                transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales, input_elemtype);
+            else
+                quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales, input_elemtype);
+        }
+
+        const int nn_MN = nn_M * nn_N;
+        #pragma omp parallel for num_threads(nT)
+        for (int ppij = 0; ppij < nn_MN; ppij++)
+        {
+            const int ppi = ppij / nn_N;
+            const int ppj = ppij % nn_N;
+
+            const int i = ppi * TILE_M;
+            const int j = ppj * TILE_N;
+
+            const int max_ii = std::min(M - i, TILE_M);
+            const int max_jj = std::min(N - j, TILE_N);
+
+            Mat BT_tile = BT.row_range(j, max_jj);
+            Mat BT_descales_tile = BT_descales.row_range(j, max_jj);
+            Mat topT_tile = topT.channel(get_omp_thread_num());
+
+            Mat AT_channel = AT.channel(i / TILE_M);
+            Mat AT_descales_channel = AT_descales.channel(i / TILE_M);
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_kk = std::min(K - k, TILE_K);
+                const int local_block_count = (max_kk + block_size - 1) / block_size;
+                Mat AT_tile(max_kk, max_ii, (signed char*)AT_channel + (size_t)k * mr, (size_t)1u);
+                Mat AT_descales_tile(local_block_count, max_ii, (float*)AT_descales_channel + (size_t)(k / block_size) * mr, (size_t)4u);
+
+                gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
+            }
+            if (output_transpose)
+                transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype);
+            else
+                unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype);
+        }
+    }
+    else
+    {
+        Mat ATX(K, mr, nT, (size_t)1u, opt.workspace_allocator);
+        Mat ATX_descales(block_count, mr, nT, (size_t)4u, opt.workspace_allocator);
+        if (ATX.empty() || ATX_descales.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(nT)
+        for (int ppi = 0; ppi < nn_M; ppi++)
+        {
+            const int i = ppi * TILE_M;
+            const int max_ii = std::min(M - i, TILE_M);
+
+            Mat AT_channel = ATX.channel(get_omp_thread_num());
+            Mat AT_descales_channel = ATX_descales.channel(get_omp_thread_num());
+            Mat topT_tile = topT.channel(get_omp_thread_num());
+
+            for (int j = 0; j < N; j += TILE_N)
+            {
+                const int max_jj = std::min(N - j, TILE_N);
+
+                Mat BT_tile = BT.row_range(j, max_jj);
+                Mat BT_descales_tile = BT_descales.row_range(j, max_jj);
+                for (int k = 0; k < K; k += TILE_K)
+                {
+                    const int max_kk = std::min(K - k, TILE_K);
+                    const int local_block_count = (max_kk + block_size - 1) / block_size;
+                    Mat AT_tile(max_kk, max_ii, (signed char*)AT_channel + (size_t)k * mr, (size_t)1u);
+                    Mat AT_descales_tile(local_block_count, max_ii, (float*)AT_descales_channel + (size_t)(k / block_size) * mr, (size_t)4u);
+
+                    if (j == 0)
+                    {
+                        if (transA)
+                            transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales, input_elemtype);
+                        else
+                            quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales, input_elemtype);
+                    }
+
+                    gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
+                }
+                if (output_transpose)
+                    transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype);
+                else
+                    unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype);
+            }
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_WEIGHT_QUANT
+
+#if NCNN_WEIGHT_QUANT
+int Gemm_arm::create_pipeline_wq_int8(const Option& opt)
+{
+    // finalize input_elemtype from cpu capability and opt
+    {
+        // armv8.2                  + use-fp16              = fp16
+        // armv8.2                  + no-fp16 + use-bf16    = bf16
+        // armv8.2                  + no-fp16 + no-bf16     = fp32
+        // armv8.0/armv7-vfpv4      + use-bf16              = bf16
+        // armv8.0/armv7-vfpv4      + no-bf16 + use-fp16    = fp16
+        // armv8.0/armv7-vfpv4      + no-fp16 + no-bf16     = fp32
+        // armv7                    + use-bf16              = bf16
+        // armv7                    + no-bf16               = fp32
+
+        bool use_fp16 = false;
+        bool use_bf16 = false;
+
+#if NCNN_ARM82
+        if (ncnn::cpu_support_arm_asimdhp())
+        {
+            use_fp16 = support_fp16_storage && opt.use_fp16_storage;
+            use_bf16 = support_bf16_storage && opt.use_bf16_storage && !use_fp16;
+        }
+        else
+#endif
+#if NCNN_VFPV4
+            if (ncnn::cpu_support_arm_vfpv4())
+            {
+                use_bf16 = support_bf16_storage && opt.use_bf16_storage;
+                use_fp16 = support_fp16_storage && opt.use_fp16_storage && !use_bf16;
+            }
+            else
+#endif
+            {
+                use_bf16 = support_bf16_storage && opt.use_bf16_storage;
+            }
+
+        input_elemtype = 1; // fp32
+        if (use_fp16)
+            input_elemtype = 2;
+        if (use_bf16)
+            input_elemtype = 3;
+
+        // NCNN_LOGE("input_elemtype = %d", input_elemtype);
+    }
+
+    if (!BT_data_wq_int8.empty() && !BT_data_wq_int8_descales.empty())
+        return 0;
+
+    if (!BT_data_wq_int8.empty() || !BT_data_wq_int8_descales.empty())
+    {
+        BT_data_wq_int8.release();
+        BT_data_wq_int8_descales.release();
+        return -100;
+    }
+
+    if (B_data.empty() || B_data_quantize_scales.empty())
+        return -100;
+
+    int weight_bits;
+    int block_size;
+    bool has_input_scale;
+    if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0 || weight_bits != 8)
+        return -1;
+    if (has_input_scale && B_data_input_scales.empty())
+        return -100;
+    if (has_input_scale && (B_data_input_scales.elemsize != 4u || B_data_input_scales.elempack != 1 || B_data_input_scales.total() < (size_t)constantK))
+        return -1;
+
+    const int N = constantN;
+    const int K = constantK;
+    const int block_count = (K + block_size - 1) / block_size;
+
+    BT_data_wq_int8.create(K, N, (size_t)1u, (Allocator*)0);
+    if (BT_data_wq_int8.empty())
+        return -100;
+
+    BT_data_wq_int8_descales.create(block_count, N, (size_t)4u, (Allocator*)0);
+    if (BT_data_wq_int8_descales.empty())
+    {
+        BT_data_wq_int8.release();
+        return -100;
+    }
+
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk_wq_int8(0, N, K, block_size, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+
+    const int nn_N = (N + TILE_N - 1) / TILE_N;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int ppj = 0; ppj < nn_N; ppj++)
+    {
+        const int j = ppj * TILE_N;
+        const int max_jj = std::min(N - j, TILE_N);
+
+        Mat BT_tile = BT_data_wq_int8.row_range(j, max_jj);
+        Mat BT_descales_tile = BT_data_wq_int8_descales.row_range(j, max_jj);
+        pack_B_tile_wq_int8(B_data, B_data_quantize_scales, BT_tile, BT_descales_tile, j, max_jj, K, block_size);
+    }
+
+    if (opt.lightmode)
+    {
+        B_data.release();
+        B_data_quantize_scales.release();
+    }
+
+    return 0;
+}
+
+int Gemm_arm::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& A = bottom_blobs[0];
+
+#if __ARM_NEON
+    bool use_fp16_pack8 = false;
+#if NCNN_ARM82
+    use_fp16_pack8 = ncnn::cpu_support_arm_asimdhp() && support_fp16_storage && opt.use_fp16_storage && opt.use_fp16_arithmetic;
+#endif
+#endif // __ARM_NEON
+
+    bool supported_A_packing = A.elempack == 1;
+#if __ARM_NEON
+    if (A.elempack == 4)
+        supported_A_packing = true;
+    if (A.elembits() == 16 && input_elemtype == 2 && use_fp16_pack8 && A.elempack == 8)
+        supported_A_packing = true;
+#endif
+    if (!supported_A_packing || (A.elembits() != 16 && A.elembits() != 32))
+    {
+        NCNN_LOGE("Gemm unsupported input");
+        return -1;
+    }
+
+    if (A.elembits() == 16 && input_elemtype == 1)
+    {
+        NCNN_LOGE("Gemm unsupported input");
+        return -1;
+    }
+
+    if (output_elemtype != 0 && output_elemtype != 1)
+    {
+        NCNN_LOGE("Gemm unsupported output type");
+        return -1;
+    }
+    const int out_elemtype = output_elemtype == 1 ? 1 : input_elemtype;
+
+    if (transA && A.dims != 2)
+    {
+        NCNN_LOGE("Gemm unsupported input");
+        return -1;
+    }
+    if (!transA && A.dims != 2 && A.dims != 3)
+    {
+        NCNN_LOGE("Gemm unsupported input");
+        return -1;
+    }
+
+    const int K = transA ? A.h * A.elempack : A.w;
+    if (K != constantK)
+    {
+        NCNN_LOGE("Gemm weight block quantize K mismatch");
+        return -1;
+    }
+
+    int weight_bits;
+    int block_size;
+    bool has_input_scale;
+    if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0 || weight_bits != 8)
+        return -1;
+
+    if (has_input_scale && B_data_input_scales.empty())
+        return -100;
+
+    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+    const int N = constantN;
+
+    Mat C;
+    Mat C_fp32;
+    int broadcast_type_C = -1;
+    if (constantC)
+    {
+        C = C_data;
+        broadcast_type_C = constant_broadcast_type_C;
+    }
+    else
+    {
+        if (bottom_blobs.size() == 2)
+            C = bottom_blobs[1];
+
+        if (!C.empty())
+        {
+            if (C.dims == 1 && C.w * C.elempack == 1)
+            {
+                // scalar
+                broadcast_type_C = 0;
+            }
+            if (C.dims == 1 && C.w * C.elempack == M)
+            {
+                // M
+                // auto broadcast from h to w is the ncnn-style convention
+                broadcast_type_C = 1;
+            }
+            if (C.dims == 1 && C.w * C.elempack == N)
+            {
+                // N
+                broadcast_type_C = 4;
+            }
+            if (C.dims == 2 && C.w == 1 && C.h * C.elempack == M)
+            {
+                // Mx1
+                broadcast_type_C = 2;
+            }
+            if (C.dims == 2 && C.w == N && C.h * C.elempack == M)
+            {
+                // MxN
+                broadcast_type_C = 3;
+            }
+            if (C.dims == 2 && C.w == N && C.h * C.elempack == 1)
+            {
+                // 1xN
+                broadcast_type_C = 4;
+            }
+
+            bool supported_C_packing = C.elempack == 1;
+#if __ARM_NEON
+            if (C.elempack == 4)
+                supported_C_packing = true;
+            if (input_elemtype == 2 && use_fp16_pack8 && C.elempack == 8)
+                supported_C_packing = true;
+#endif
+            if (broadcast_type_C == 0 && C.elempack != 1)
+                supported_C_packing = false;
+            if (broadcast_type_C == 4 && C.dims == 2 && C.elempack != 1)
+                supported_C_packing = false;
+
+            if (broadcast_type_C == -1 || !supported_C_packing || (C.elembits() != 16 && C.elembits() != 32))
+            {
+                NCNN_LOGE("Gemm unsupported C");
+                return -1;
+            }
+
+            if (C.elembits() == 16)
+            {
+                if (input_elemtype == 1)
+                {
+                    NCNN_LOGE("Gemm unsupported C");
+                    return -1;
+                }
+
+                Option opt_cast = opt;
+                opt_cast.blob_allocator = opt.workspace_allocator;
+
+#if NCNN_VFPV4
+                if (input_elemtype == 2)
+                    cast_float16_to_float32(C, C_fp32, opt_cast);
+#endif
+#if NCNN_BF16
+                if (input_elemtype == 3)
+                    cast_bfloat16_to_float32(C, C_fp32, opt_cast);
+#endif
+                if (C_fp32.empty())
+                    return -100;
+
+                C = C_fp32;
+            }
+        }
+    }
+
+    if (!C.empty() && C.elembits() != 32)
+    {
+        NCNN_LOGE("Gemm unsupported C");
+        return -1;
+    }
+
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        const int outh = output_transpose ? N : M;
+        out_elempack = outh % 4 == 0 ? 4 : 1;
+        if (out_elemtype == 2 && use_fp16_pack8)
+            out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+    }
+#endif // __ARM_NEON
+
+    if (output_elempack)
+        out_elempack = output_elempack;
+
+    bool supported_output_packing = out_elempack == 1;
+#if __ARM_NEON
+    if (out_elempack == 4)
+        supported_output_packing = true;
+    if (out_elemtype == 2 && use_fp16_pack8 && out_elempack == 8)
+        supported_output_packing = true;
+#endif
+    const int outh = output_transpose ? N : M;
+    if (!supported_output_packing || outh % out_elempack != 0)
+    {
+        NCNN_LOGE("Gemm unsupported output packing");
+        return -1;
+    }
+
+    Mat& top_blob = top_blobs[0];
+    const size_t out_elemsize = (out_elemtype == 1 ? 4u : 2u) * out_elempack;
+    if (output_transpose)
+    {
+        if (output_N1M)
+            top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    else
+    {
+        if (output_N1M)
+            top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    return gemm_BT_arm_wq_int8(A, BT_data_wq_int8, BT_data_wq_int8_descales, B_data_input_scales, C, top_blob, broadcast_type_C, N, K, block_size, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, opt.num_threads, input_elemtype, out_elemtype, opt);
+}
+#endif // NCNN_WEIGHT_QUANT
 
 } // namespace ncnn

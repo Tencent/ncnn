@@ -8,41 +8,28 @@
 
 namespace ncnn {
 
-static bool gemm_is_weight_block_quantize(int quantize_term)
+int Gemm::get_weight_block_quantize_params(int& weight_bits, int& block_size, bool& has_input_scale) const
 {
-    const int weight_bits = quantize_term / 100;
+    weight_bits = quantize_term / 100;
     const int format_code = quantize_term % 100 / 10;
     const int block_size_code = quantize_term % 10;
 
     if (weight_bits != 4 && weight_bits != 6 && weight_bits != 8)
-        return false;
+        return -1;
 
     if (format_code != 0 && format_code != 1)
-        return false;
+        return -1;
 
     if (block_size_code < 0 || block_size_code > 2)
-        return false;
+        return -1;
 
-    return true;
+    block_size = block_size_code == 0 ? 32 : block_size_code == 1 ? 64 : 128;
+    has_input_scale = format_code == 1;
+
+    return 0;
 }
 
 #if NCNN_WEIGHT_QUANT
-static bool gemm_weight_quantize_has_input_scale(int quantize_term)
-{
-    return quantize_term % 100 / 10 == 1;
-}
-
-static int gemm_weight_quantize_bits(int quantize_term)
-{
-    return quantize_term / 100;
-}
-
-static int gemm_weight_quantize_block_size(int quantize_term)
-{
-    const int block_size_code = quantize_term % 10;
-    return block_size_code == 0 ? 32 : block_size_code == 1 ? 64 : 128;
-}
-
 static int gemm_weight_quantize_packed_k_bytes(int constantK, int weight_bits)
 {
     if (constantK <= 0 || weight_bits <= 0)
@@ -53,6 +40,191 @@ static int gemm_weight_quantize_packed_k_bytes(int constantK, int weight_bits)
         return -1;
 
     return (int)packed_k_bytes;
+}
+
+static inline signed char weight_block_quantize_float2int8(float v)
+{
+    int int32 = static_cast<int>(round(v));
+    if (int32 > 127) return 127;
+    if (int32 < -127) return -127;
+    return (signed char)int32;
+}
+
+static void weight_block_quantize_activation_row_int8(const Mat& A, int transA, int i, signed char* outptr, float* descale_ptr, int K, int block_size)
+{
+    const int block_count = (K + block_size - 1) / block_size;
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
+    const float* ptrA = (const float*)A + i * A_hstep;
+
+    for (int g = 0; g < block_count; g++)
+    {
+        const int k0 = g * block_size;
+        const int max_kk = block_size < K - k0 ? block_size : K - k0;
+
+        float absmax = 0.f;
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            const int k = k0 + kk;
+            float v = transA ? ((const float*)A)[k * A_hstep + i] : ptrA[k];
+            v = fabsf(v);
+            if (v > absmax)
+                absmax = v;
+        }
+
+        if (absmax == 0.f)
+        {
+            descale_ptr[g] = 0.f;
+            for (int kk = 0; kk < max_kk; kk++)
+                outptr[k0 + kk] = 0;
+            continue;
+        }
+
+        const float scale = 127.f / absmax;
+        descale_ptr[g] = absmax / 127.f;
+
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            const int k = k0 + kk;
+            float v = transA ? ((const float*)A)[k * A_hstep + i] : ptrA[k];
+            outptr[k] = weight_block_quantize_float2int8(v * scale);
+        }
+    }
+}
+
+static void weight_block_scale_quantize_activation_row_int8(const Mat& A, int transA, int i, signed char* outptr, float* descale_ptr, int K, int block_size, const float* input_scale_ptr)
+{
+    const int block_count = (K + block_size - 1) / block_size;
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
+    const float* ptrA = (const float*)A + i * A_hstep;
+
+    for (int g = 0; g < block_count; g++)
+    {
+        const int k0 = g * block_size;
+        const int max_kk = block_size < K - k0 ? block_size : K - k0;
+
+        float absmax = 0.f;
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            const int k = k0 + kk;
+            float v = transA ? ((const float*)A)[k * A_hstep + i] : ptrA[k];
+            v = fabsf(v) * input_scale_ptr[k];
+            if (v > absmax)
+                absmax = v;
+        }
+
+        if (absmax == 0.f)
+        {
+            descale_ptr[g] = 0.f;
+            for (int kk = 0; kk < max_kk; kk++)
+                outptr[k0 + kk] = 0;
+            continue;
+        }
+
+        const float scale = 127.f / absmax;
+        descale_ptr[g] = absmax / 127.f;
+
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            const int k = k0 + kk;
+            float v = transA ? ((const float*)A)[k * A_hstep + i] : ptrA[k];
+            v *= input_scale_ptr[k];
+            outptr[k] = weight_block_quantize_float2int8(v * scale);
+        }
+    }
+}
+
+static int weight_block_quantize_gemm_transB_int8(const Mat& A, int transA, const Mat& BT, const Mat& BT_scales, const Mat& input_scales, const Mat& C, Mat& top_blob, int M, int N, int K, int block_size, float alpha, float beta, int broadcast_type_C, int output_transpose, int output_m_offset, const Option& opt)
+{
+    const int block_count = (K + block_size - 1) / block_size;
+
+    Mat A_int8;
+    A_int8.create(K, M, (size_t)1u, opt.workspace_allocator);
+    if (A_int8.empty())
+        return -100;
+
+    Mat A_descales;
+    A_descales.create(block_count, M, (size_t)4u, opt.workspace_allocator);
+    if (A_descales.empty())
+        return -100;
+
+    if (input_scales.empty())
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < M; i++)
+        {
+            signed char* outptr = A_int8.row<signed char>(i);
+            float* descale_ptr = A_descales.row(i);
+            weight_block_quantize_activation_row_int8(A, transA, i, outptr, descale_ptr, K, block_size);
+        }
+    }
+    else
+    {
+        const float* input_scale_ptr = input_scales;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < M; i++)
+        {
+            signed char* outptr = A_int8.row<signed char>(i);
+            float* descale_ptr = A_descales.row(i);
+            weight_block_scale_quantize_activation_row_int8(A, transA, i, outptr, descale_ptr, K, block_size, input_scale_ptr);
+        }
+    }
+
+    const float* ptrC = C;
+    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int mn = 0; mn < M * N; mn++)
+    {
+        const int i = mn / N;
+        const int j = mn % N;
+
+        float sum = 0.f;
+        if (ptrC)
+        {
+            if (broadcast_type_C == 0)
+                sum = ptrC[0];
+            if (broadcast_type_C == 1)
+                sum = ptrC[i];
+            if (broadcast_type_C == 2)
+                sum = ptrC[i];
+            if (broadcast_type_C == 3)
+                sum = ptrC[i * N + j];
+            if (broadcast_type_C == 4)
+                sum = ptrC[j];
+
+            sum *= beta;
+        }
+
+        const signed char* ptrA = A_int8.row<const signed char>(i);
+        const signed char* ptrB = BT.row<const signed char>(j);
+        const float* A_descale_ptr = A_descales.row(i);
+        const float* B_scale_ptr = BT_scales.row(j);
+
+        for (int g = 0; g < block_count; g++)
+        {
+            const int k0 = g * block_size;
+            const int max_kk = block_size < K - k0 ? block_size : K - k0;
+
+            int sum_int32 = 0;
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                const int k = k0 + kk;
+                sum_int32 += ptrA[k] * ptrB[k];
+            }
+
+            sum += sum_int32 * A_descale_ptr[g] / B_scale_ptr[g];
+        }
+
+        sum *= alpha;
+
+        if (output_transpose)
+            ((float*)top_blob)[(size_t)j * out_hstep + output_m_offset + i] = sum;
+        else
+            ((float*)top_blob)[(size_t)(output_m_offset + i) * out_hstep + j] = sum;
+    }
+
+    return 0;
 }
 #endif // NCNN_WEIGHT_QUANT
 
@@ -82,10 +254,19 @@ int Gemm::load_param(const ParamDict& pd)
     output_elemtype = pd.get(13, 0);
     output_transpose = pd.get(14, 0);
     quantize_term = pd.get(18, 0);
-    weight_block_quantize = gemm_is_weight_block_quantize(quantize_term);
+    int weight_bits;
+    int block_size;
+    bool has_input_scale;
+    weight_block_quantize = get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) == 0;
     constant_TILE_M = pd.get(20, 0);
     constant_TILE_N = pd.get(21, 0);
     constant_TILE_K = pd.get(22, 0);
+
+    if (output_elempack < 0)
+    {
+        NCNN_LOGE("Gemm invalid output_elempack %d", output_elempack);
+        return -1;
+    }
 
     if (quantize_term == 4 || quantize_term == 5 || quantize_term == 6)
     {
@@ -102,21 +283,24 @@ int Gemm::load_param(const ParamDict& pd)
     if (weight_block_quantize)
     {
 #if NCNN_WEIGHT_QUANT
-        if (constantA != 0 || constantB != 1 || transA != 0 || transB != 1)
+        if (constantA != 0 || constantB != 1 || transB != 1 || (transA != 0 && (weight_bits != 8 || transA != 1)))
         {
             NCNN_LOGE("Gemm unsupported weight block quantize");
             return -1;
         }
 
-        if (output_N1M != 0 || output_elempack != 0 || (output_elemtype != 0 && output_elemtype != 1) || output_transpose != 0)
+        if ((output_N1M != 0 && weight_bits != 8) || (output_elempack != 0 && weight_bits != 8) || (output_elemtype != 0 && output_elemtype != 1) || (output_transpose != 0 && (weight_bits != 8 || output_transpose != 1)))
         {
             NCNN_LOGE("Gemm unsupported weight block quantize");
             return -1;
         }
 
-        support_packing = false;
-        support_bf16_storage = false;
-        support_fp16_storage = false;
+        if (weight_bits != 8)
+        {
+            support_packing = false;
+            support_bf16_storage = false;
+            support_fp16_storage = false;
+        }
         support_vulkan = false;
         support_vulkan_packing = false;
 #else
@@ -164,6 +348,14 @@ int Gemm::load_param(const ParamDict& pd)
 
 int Gemm::load_model(const ModelBin& mb)
 {
+#if NCNN_WEIGHT_QUANT
+    int weight_bits = 0;
+    int block_size = 0;
+    bool has_input_scale = false;
+    if (weight_block_quantize && get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0)
+        return -1;
+#endif
+
     if (constantA == 1)
     {
         if (transA == 0)
@@ -181,7 +373,6 @@ int Gemm::load_model(const ModelBin& mb)
 #if NCNN_WEIGHT_QUANT
         else if (weight_block_quantize)
         {
-            const int weight_bits = gemm_weight_quantize_bits(quantize_term);
             const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(constantK, weight_bits);
             if (packed_k_bytes < 0)
                 return -100;
@@ -213,14 +404,13 @@ int Gemm::load_model(const ModelBin& mb)
 #if NCNN_WEIGHT_QUANT
     if (weight_block_quantize)
     {
-        const int block_size = gemm_weight_quantize_block_size(quantize_term);
         const int block_count = (constantK + block_size - 1) / block_size;
 
         B_data_quantize_scales = mb.load(block_count, constantN, 1);
         if (B_data_quantize_scales.empty())
             return -100;
 
-        if (gemm_weight_quantize_has_input_scale(quantize_term))
+        if (has_input_scale)
         {
             B_data_input_scales = mb.load(constantK, 1);
             if (B_data_input_scales.empty())
@@ -338,27 +528,41 @@ static inline int gemm_weight_block_quantize_unpack(const unsigned char* ptr, in
 int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& A = bottom_blobs[0];
+    if ((!transA && A.dims != 2 && A.dims != 3) || (transA && A.dims != 2))
+    {
+        NCNN_LOGE("Gemm unsupported input");
+        return -1;
+    }
+
     if (A.elemsize != 4u || A.elempack != 1)
     {
         NCNN_LOGE("Gemm unsupported input");
         return -1;
     }
 
-    const int K = A.w;
+    if (output_elempack > 1)
+    {
+        NCNN_LOGE("Gemm unsupported output_elempack %d", output_elempack);
+        return -1;
+    }
+
+    const int K = transA ? A.h : A.w;
     if (K != constantK)
     {
         NCNN_LOGE("Gemm weight block quantize K mismatch");
         return -1;
     }
 
-    const int weight_bits = gemm_weight_quantize_bits(quantize_term);
-    const int block_size = gemm_weight_quantize_block_size(quantize_term);
+    int weight_bits;
+    int block_size;
+    bool has_input_scale;
+    if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0)
+        return -1;
     const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(constantK, weight_bits);
 
-    const bool has_input_scale = gemm_weight_quantize_has_input_scale(quantize_term);
     const float* input_scale_ptr = has_input_scale ? (const float*)B_data_input_scales : 0;
 
-    const int M = A.dims == 3 ? A.c : A.h;
+    const int M = transA ? A.w : A.dims == 3 ? A.c : A.h;
     const int N = constantN;
 
     Mat C;
@@ -377,39 +581,32 @@ int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, st
 
         if (!C.empty())
         {
-            bool matched = false;
             if (C.dims == 1 && C.w == 1)
             {
                 broadcast_type_C = 0;
-                matched = true;
             }
             if (C.dims == 1 && C.w == M)
             {
                 broadcast_type_C = 1;
-                matched = true;
             }
             if (C.dims == 1 && C.w == N)
             {
                 broadcast_type_C = 4;
-                matched = true;
             }
             if (C.dims == 2 && C.w == 1 && C.h == M)
             {
                 broadcast_type_C = 2;
-                matched = true;
             }
             if (C.dims == 2 && C.w == N && C.h == M)
             {
                 broadcast_type_C = 3;
-                matched = true;
             }
             if (C.dims == 2 && C.w == N && C.h == 1)
             {
                 broadcast_type_C = 4;
-                matched = true;
             }
 
-            if (!matched || C.elemsize != 4u || C.elempack != 1)
+            if (broadcast_type_C == -1 || C.elemsize != 4u || C.elempack != 1)
             {
                 NCNN_LOGE("Gemm unsupported C");
                 return -1;
@@ -424,12 +621,30 @@ int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, st
     }
 
     Mat& top_blob = top_blobs[0];
-    top_blob.create(N, M, (size_t)4u, opt.blob_allocator);
+    if (output_transpose)
+    {
+        if (output_N1M)
+            top_blob.create(M, 1, N, (size_t)4u, opt.blob_allocator);
+        else
+            top_blob.create(M, N, (size_t)4u, opt.blob_allocator);
+    }
+    else
+    {
+        if (output_N1M)
+            top_blob.create(N, 1, M, (size_t)4u, opt.blob_allocator);
+        else
+            top_blob.create(N, M, (size_t)4u, opt.blob_allocator);
+    }
     if (top_blob.empty())
         return -100;
 
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
     const float* ptrC = C;
+
+    if (weight_bits == 8)
+    {
+        return weight_block_quantize_gemm_transB_int8(A, transA, B_data, B_data_quantize_scales, B_data_input_scales, C, top_blob, M, N, K, block_size, alpha, beta, broadcast_type_C, output_transpose, 0, opt);
+    }
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < M; i++)

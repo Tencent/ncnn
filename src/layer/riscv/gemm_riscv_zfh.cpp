@@ -16,6 +16,29 @@ namespace ncnn {
 #if NCNN_ZFH
 #include "gemm_bf16s_fp16s.h"
 #include "gemm_fp16s.h"
+#if NCNN_WEIGHT_QUANT
+#include "gemm_wq_int8_fp16s.h"
+
+void Gemm_riscv::quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
+{
+    ncnn::quantize_A_tile_wq_int8_fp16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+}
+
+void Gemm_riscv::transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
+{
+    ncnn::transpose_quantize_A_tile_wq_int8_fp16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+}
+
+void Gemm_riscv::unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta)
+{
+    ncnn::unpack_output_tile_wq_int8_fp16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+}
+
+void Gemm_riscv::transpose_unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta)
+{
+    ncnn::transpose_unpack_output_tile_wq_int8_fp16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+}
+#endif // NCNN_WEIGHT_QUANT
 
 static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {

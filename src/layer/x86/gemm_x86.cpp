@@ -28,6 +28,13 @@ namespace ncnn {
 #include "gemm_bf16s.h"
 #endif
 
+#if NCNN_WEIGHT_QUANT
+#if NCNN_BF16
+#include "gemm_wq_int8_bf16s.h"
+#endif
+#include "gemm_wq_int8.h"
+#endif
+
 Gemm_x86::Gemm_x86()
 {
 #if __SSE2__
@@ -7436,6 +7443,16 @@ int Gemm_x86::create_pipeline(const Option& opt)
 {
     if (weight_block_quantize)
     {
+#if NCNN_WEIGHT_QUANT
+        int weight_bits;
+        int block_size;
+        bool has_input_scale;
+        if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0)
+            return -1;
+        if (weight_bits == 8)
+            return create_pipeline_wq_int8(opt);
+#endif // NCNN_WEIGHT_QUANT
+
         return 0;
     }
 
@@ -7591,10 +7608,30 @@ int Gemm_x86::create_pipeline(const Option& opt)
     return 0;
 }
 
+int Gemm_x86::destroy_pipeline(const Option& /*opt*/)
+{
+#if NCNN_WEIGHT_QUANT
+    BT_data_wq_int8.release();
+    BT_data_wq_int8_descales.release();
+#endif
+
+    return 0;
+}
+
 int Gemm_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     if (weight_block_quantize)
     {
+#if NCNN_WEIGHT_QUANT
+        int weight_bits;
+        int block_size;
+        bool has_input_scale;
+        if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0)
+            return -1;
+        if (weight_bits == 8)
+            return forward_wq_int8(bottom_blobs, top_blobs, opt);
+#endif
+
         return Gemm::forward(bottom_blobs, top_blobs, opt);
     }
 
@@ -9532,5 +9569,450 @@ int Gemm_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     return ret;
 }
 #endif // NCNN_BF16
+
+#if NCNN_WEIGHT_QUANT
+static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int output_elemtype, const Option& opt)
+{
+    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+    const int block_count = (K + block_size - 1) / block_size;
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk_wq_int8(M, N, K, block_size, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
+
+    const int TILE_M0 = TILE_M;
+    const int TILE_N0 = TILE_N;
+    const int c_elempack = C.elempack;
+    const int out_elempack = top_blob.elempack;
+    const int m_elempack = std::max(transA ? 1 : A.elempack, std::max(broadcast_type_C == 3 ? c_elempack : 1, output_transpose ? 1 : out_elempack));
+    const int n_elempack = output_transpose ? out_elempack : 1;
+    while (TILE_M % m_elempack != 0)
+        TILE_M += TILE_M0;
+    while (TILE_N % n_elempack != 0)
+        TILE_N += TILE_N0;
+
+    const int mr = std::min(M, TILE_M);
+    const int nr = std::min(N, TILE_N);
+    const int nn_M = (M + TILE_M - 1) / TILE_M;
+    const int nn_N = (N + TILE_N - 1) / TILE_N;
+    const int nn_K = (K + TILE_K - 1) / TILE_K;
+    int AT_hstep = K;
+#if NCNN_AVX512VNNI || NCNN_AVXVNNI
+    bool has_w_shift = ncnn::cpu_support_x86_avx512_vnni() || ncnn::cpu_support_x86_avx_vnni();
+#if NCNN_AVXVNNIINT8
+    if (ncnn::cpu_support_x86_avx_vnni_int8())
+        has_w_shift = false;
+#endif // NCNN_AVXVNNIINT8
+    if (has_w_shift)
+        AT_hstep += 4 * ((K + block_size - 4) / block_size);
+#endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
+    Mat topT(mr * nr, 1, nT, 4u, opt.workspace_allocator);
+    if (topT.empty())
+        return -100;
+
+    if (nT > nn_M)
+    {
+        Mat AT(AT_hstep * mr, 1, nn_M, 1u, opt.workspace_allocator);
+        Mat AT_descales(block_count * mr, 1, nn_M, 4u, opt.workspace_allocator);
+        if (AT.empty() || AT_descales.empty())
+            return -100;
+
+        const int nn_MK = nn_M * nn_K;
+        #pragma omp parallel for num_threads(nT)
+        for (int ppik = 0; ppik < nn_MK; ppik++)
+        {
+            const int ppi = ppik / nn_K;
+            const int ppk = ppik % nn_K;
+
+            const int i = ppi * TILE_M;
+            const int k = ppk * TILE_K;
+            const int max_ii = std::min(M - i, TILE_M);
+            const int max_kk = std::min(K - k, TILE_K);
+            const int local_block_count = (max_kk + block_size - 1) / block_size;
+            int AT_tile_hstep = max_kk;
+#if NCNN_AVX512VNNI || NCNN_AVXVNNI
+            if (has_w_shift)
+                AT_tile_hstep += 4 * ((max_kk + block_size - 4) / block_size);
+#endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
+
+            size_t AT_tile_offset = k;
+#if NCNN_AVX512VNNI || NCNN_AVXVNNI
+            if (has_w_shift)
+                AT_tile_offset += (size_t)4 * (k / block_size);
+#endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
+
+            Mat AT_tile(AT_tile_hstep, mr, (signed char*)AT.channel(ppi) + AT_tile_offset * mr, (size_t)1u);
+            Mat AT_descales_tile(local_block_count, mr, (float*)AT_descales.channel(ppi) + (size_t)(k / block_size) * mr, (size_t)4u);
+            if (transA)
+                transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+            else
+                quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+        }
+
+        const int nn_MN = nn_M * nn_N;
+        #pragma omp parallel for num_threads(nT)
+        for (int ppij = 0; ppij < nn_MN; ppij++)
+        {
+            const int ppi = ppij / nn_N;
+            const int ppj = ppij % nn_N;
+
+            const int i = ppi * TILE_M;
+            const int j = ppj * TILE_N;
+
+            const int max_ii = std::min(M - i, TILE_M);
+            const int max_jj = std::min(N - j, TILE_N);
+
+            Mat BT_tile(K * max_jj, (signed char*)BT.data + (size_t)j * K, (size_t)1u);
+            Mat BT_descales_tile(block_count * max_jj, (float*)BT_descales.data + (size_t)j * block_count, (size_t)4u);
+            Mat topT_tile = topT.channel(get_omp_thread_num());
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_kk = std::min(K - k, TILE_K);
+                const int local_block_count = (max_kk + block_size - 1) / block_size;
+                int AT_tile_hstep = max_kk;
+#if NCNN_AVX512VNNI || NCNN_AVXVNNI
+                if (has_w_shift)
+                    AT_tile_hstep += 4 * ((max_kk + block_size - 4) / block_size);
+#endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
+
+                size_t AT_tile_offset = k;
+#if NCNN_AVX512VNNI || NCNN_AVXVNNI
+                if (has_w_shift)
+                    AT_tile_offset += (size_t)4 * (k / block_size);
+#endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
+
+                Mat AT_tile(AT_tile_hstep, mr, (signed char*)AT.channel(ppi) + AT_tile_offset * mr, (size_t)1u);
+                Mat AT_descales_tile(local_block_count, mr, (float*)AT_descales.channel(ppi) + (size_t)(k / block_size) * mr, (size_t)4u);
+
+                gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
+            }
+
+            if (output_transpose)
+                transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype);
+            else
+                unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype);
+        }
+    }
+    else
+    {
+        Mat ATX(AT_hstep * mr, 1, nT, 1u, opt.workspace_allocator);
+        Mat ATX_descales(block_count * mr, 1, nT, 4u, opt.workspace_allocator);
+        if (ATX.empty() || ATX_descales.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(nT)
+        for (int ppi = 0; ppi < nn_M; ppi++)
+        {
+            const int i = ppi * TILE_M;
+            const int max_ii = std::min(M - i, TILE_M);
+
+            Mat ATX_tile = ATX.channel(get_omp_thread_num());
+            Mat ATX_descales_tile = ATX_descales.channel(get_omp_thread_num());
+            Mat topT_tile = topT.channel(get_omp_thread_num());
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_kk = std::min(K - k, TILE_K);
+                const int local_block_count = (max_kk + block_size - 1) / block_size;
+                int AT_tile_hstep = max_kk;
+#if NCNN_AVX512VNNI || NCNN_AVXVNNI
+                if (has_w_shift)
+                    AT_tile_hstep += 4 * ((max_kk + block_size - 4) / block_size);
+#endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
+
+                size_t AT_tile_offset = k;
+#if NCNN_AVX512VNNI || NCNN_AVXVNNI
+                if (has_w_shift)
+                    AT_tile_offset += (size_t)4 * (k / block_size);
+#endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
+
+                Mat AT_tile(AT_tile_hstep, mr, (signed char*)ATX_tile + AT_tile_offset * mr, (size_t)1u);
+                Mat AT_descales_tile(local_block_count, mr, (float*)ATX_descales_tile + (size_t)(k / block_size) * mr, (size_t)4u);
+                if (transA)
+                    transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+                else
+                    quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+            }
+
+            for (int j = 0; j < N; j += TILE_N)
+            {
+                const int max_jj = std::min(N - j, TILE_N);
+
+                Mat BT_tile(K * max_jj, (signed char*)BT.data + (size_t)j * K, (size_t)1u);
+                Mat BT_descales_tile(block_count * max_jj, (float*)BT_descales.data + (size_t)j * block_count, (size_t)4u);
+
+                for (int k = 0; k < K; k += TILE_K)
+                {
+                    const int max_kk = std::min(K - k, TILE_K);
+                    const int local_block_count = (max_kk + block_size - 1) / block_size;
+                    int AT_tile_hstep = max_kk;
+#if NCNN_AVX512VNNI || NCNN_AVXVNNI
+                    if (has_w_shift)
+                        AT_tile_hstep += 4 * ((max_kk + block_size - 4) / block_size);
+#endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
+
+                    size_t AT_tile_offset = k;
+#if NCNN_AVX512VNNI || NCNN_AVXVNNI
+                    if (has_w_shift)
+                        AT_tile_offset += (size_t)4 * (k / block_size);
+#endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
+
+                    Mat AT_tile(AT_tile_hstep, mr, (signed char*)ATX_tile + AT_tile_offset * mr, (size_t)1u);
+                    Mat AT_descales_tile(local_block_count, mr, (float*)ATX_descales_tile + (size_t)(k / block_size) * mr, (size_t)4u);
+
+                    gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
+                }
+
+                if (output_transpose)
+                    transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype);
+                else
+                    unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype);
+            }
+        }
+    }
+
+    return 0;
+}
+
+int Gemm_x86::create_pipeline_wq_int8(const Option& opt)
+{
+    if (!BT_data_wq_int8.empty() && !BT_data_wq_int8_descales.empty())
+        return 0;
+
+    if (!BT_data_wq_int8.empty() || !BT_data_wq_int8_descales.empty())
+    {
+        BT_data_wq_int8.release();
+        BT_data_wq_int8_descales.release();
+        return -1;
+    }
+
+    if (B_data.empty() || B_data_quantize_scales.empty())
+        return -100;
+
+    int weight_bits;
+    int block_size;
+    bool has_input_scale;
+    if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0 || weight_bits != 8)
+        return -1;
+    if (has_input_scale && B_data_input_scales.empty())
+        return -100;
+    if (has_input_scale && (B_data_input_scales.elemsize != 4u || B_data_input_scales.elempack != 1 || B_data_input_scales.total() < (size_t)constantK))
+        return -1;
+
+    const int N = constantN;
+    const int K = constantK;
+    const int block_count = (K + block_size - 1) / block_size;
+
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk_wq_int8(0, N, K, block_size, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+
+    BT_data_wq_int8.create(K, N, (size_t)1u, (Allocator*)0);
+    if (BT_data_wq_int8.empty())
+        return -100;
+
+    BT_data_wq_int8_descales.create(block_count, N, (size_t)4u, (Allocator*)0);
+    if (BT_data_wq_int8_descales.empty())
+    {
+        BT_data_wq_int8.release();
+        return -100;
+    }
+
+    const int nn_N = (N + TILE_N - 1) / TILE_N;
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int ppj = 0; ppj < nn_N; ppj++)
+    {
+        const int j = ppj * TILE_N;
+        const int max_jj = std::min(N - j, TILE_N);
+
+        Mat BT_tile(K * max_jj, (signed char*)BT_data_wq_int8 + (size_t)j * K, (size_t)1u);
+        Mat BT_descales_tile(block_count * max_jj, (float*)BT_data_wq_int8_descales + (size_t)j * block_count, (size_t)4u);
+
+        pack_B_tile_wq_int8(B_data, B_data_quantize_scales, BT_tile, BT_descales_tile, j, max_jj, K, block_size);
+    }
+
+    if (opt.lightmode)
+    {
+        B_data.release();
+        B_data_quantize_scales.release();
+    }
+
+    return 0;
+}
+
+int Gemm_x86::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& A = bottom_blobs[0];
+    const bool use_bf16_storage = support_bf16_storage && opt.use_bf16_storage;
+
+    int max_elempack = 1;
+#if __SSE2__
+    max_elempack = 4;
+#if __AVX__
+    max_elempack = 8;
+#if __AVX512F__
+    max_elempack = 16;
+#endif // __AVX512F__
+#else
+#if defined(__x86_64__) || defined(_M_X64)
+#if NCNN_RUNTIME_CPU
+    if (ncnn::cpu_support_x86_avx512())
+        max_elempack = 16;
+    else if (ncnn::cpu_support_x86_avx())
+        max_elempack = 8;
+#endif // NCNN_RUNTIME_CPU
+#endif // defined(__x86_64__) || defined(_M_X64)
+#endif // __AVX__
+#endif // __SSE2__
+
+    if ((A.dims != 2 && (!transA && A.dims != 3)) || (A.elembits() != 32 && !(A.elembits() == 16 && use_bf16_storage)) || (A.elempack != 1 && A.elempack != 4 && A.elempack != 8 && A.elempack != 16) || A.elempack > max_elempack)
+    {
+        NCNN_LOGE("Gemm unsupported input");
+        return -1;
+    }
+
+    if (transA && A.dims != 2)
+    {
+        NCNN_LOGE("Gemm unsupported input");
+        return -1;
+    }
+
+    const int K = transA ? A.h * A.elempack : A.w;
+    if (K != constantK)
+    {
+        NCNN_LOGE("Gemm weight block quantize K mismatch");
+        return -1;
+    }
+
+    int weight_bits;
+    int block_size;
+    bool has_input_scale;
+    if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0 || weight_bits != 8)
+        return -1;
+    if (has_input_scale && B_data_input_scales.empty())
+        return -100;
+
+    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+    const int N = constantN;
+
+    Mat C;
+    int broadcast_type_C = -1;
+    if (constantC)
+    {
+        C = C_data;
+        broadcast_type_C = constant_broadcast_type_C;
+    }
+    else
+    {
+        if (bottom_blobs.size() == 2)
+            C = bottom_blobs[1];
+
+        if (!C.empty())
+        {
+            if (C.dims == 1 && C.w * C.elempack == 1)
+            {
+                broadcast_type_C = 0;
+            }
+            if (C.dims == 1 && C.w * C.elempack == M)
+            {
+                broadcast_type_C = 1;
+            }
+            if (C.dims == 1 && C.w * C.elempack == N)
+            {
+                broadcast_type_C = 4;
+            }
+            if (C.dims == 2 && C.w == 1 && C.h * C.elempack == M)
+            {
+                broadcast_type_C = 2;
+            }
+            if (C.dims == 2 && C.w == N && C.h * C.elempack == M)
+            {
+                broadcast_type_C = 3;
+            }
+            if (C.dims == 2 && C.w == N && C.h * C.elempack == 1)
+            {
+                broadcast_type_C = 4;
+            }
+
+            if (broadcast_type_C == -1 || (C.elembits() != 32 && C.elembits() != 16) || (C.elempack != 1 && C.elempack != 4 && C.elempack != 8 && C.elempack != 16) || C.elempack > max_elempack)
+            {
+                NCNN_LOGE("Gemm unsupported C");
+                return -1;
+            }
+
+            if (C.elembits() == 16)
+            {
+#if NCNN_BF16
+                if (!use_bf16_storage)
+                {
+                    NCNN_LOGE("Gemm unsupported C");
+                    return -1;
+                }
+
+                Option opt_cast = opt;
+                opt_cast.blob_allocator = opt.workspace_allocator;
+
+                Mat C_fp32;
+                cast_bfloat16_to_float32(C, C_fp32, opt_cast);
+                if (C_fp32.empty())
+                    return -100;
+
+                C = C_fp32;
+#else
+                NCNN_LOGE("Gemm unsupported C");
+                return -1;
+#endif
+            }
+        }
+    }
+
+    if (!C.empty() && (C.elembits() != 32 || (C.elempack != 1 && C.elempack != 4 && C.elempack != 8 && C.elempack != 16) || C.elempack > max_elempack))
+    {
+        NCNN_LOGE("Gemm unsupported C");
+        return -1;
+    }
+
+    int out_elemtype = 1;
+#if NCNN_BF16
+    if (output_elemtype == 0 && use_bf16_storage)
+        out_elemtype = 3;
+#endif
+
+    const int outh = output_transpose ? N : M;
+    int out_elempack = 1;
+#if __SSE2__
+    if (opt.use_packing_layout)
+    {
+        out_elempack = outh % max_elempack == 0 ? max_elempack : max_elempack >= 8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+    }
+#endif // __SSE2__
+    if (output_elempack)
+        out_elempack = output_elempack;
+    if ((out_elempack != 1 && out_elempack != 4 && out_elempack != 8 && out_elempack != 16) || out_elempack > max_elempack || outh % out_elempack != 0)
+    {
+        NCNN_LOGE("Gemm unsupported output elempack");
+        return -1;
+    }
+    size_t out_elemsize = (out_elemtype == 1 ? 4u : 2u) * out_elempack;
+
+    Mat& top_blob = top_blobs[0];
+    if (output_transpose)
+    {
+        if (output_N1M)
+            top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    else
+    {
+        if (output_N1M)
+            top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    return gemm_BT_x86_wq_int8(A, BT_data_wq_int8, BT_data_wq_int8_descales, B_data_input_scales, C, top_blob, broadcast_type_C, N, K, block_size, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, opt.num_threads, out_elemtype, opt);
+}
+#endif // NCNN_WEIGHT_QUANT
 
 } // namespace ncnn

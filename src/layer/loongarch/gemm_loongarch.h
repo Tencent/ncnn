@@ -14,6 +14,7 @@ public:
     Gemm_loongarch();
 
     virtual int create_pipeline(const Option& opt);
+    virtual int destroy_pipeline(const Option& opt);
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
@@ -28,11 +29,21 @@ protected:
     int forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif
 
+#if NCNN_WEIGHT_QUANT
+    int create_pipeline_wq_int8(const Option& opt);
+    int forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+#endif
+
 public:
     int nT;
     Mat AT_data;
     Mat BT_data;
     Mat CT_data;
+
+#if NCNN_WEIGHT_QUANT
+    Mat BT_data_wq_int8;
+    Mat BT_data_wq_int8_descales;
+#endif
 };
 
 // expose some gemm internal routines for convolution uses

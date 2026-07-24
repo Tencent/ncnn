@@ -19,6 +19,10 @@ namespace ncnn {
 #include "gemm_int8_fp16s.h"
 #endif
 
+#if NCNN_WEIGHT_QUANT
+#include "gemm_wq_int8_fp16s.h"
+#endif
+
 extern void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
 
 static int gemm_arm_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
@@ -934,5 +938,27 @@ void transpose_unpack_output_tile_int32_to_fp16_vfpv4(const Mat& topT, const Mat
     transpose_unpack_output_tile_int32_to_fp16(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, descales, alpha, beta);
 }
 #endif // NCNN_INT8
+
+#if NCNN_WEIGHT_QUANT
+void quantize_A_tile_wq_int8_fp16s_vfpv4(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
+{
+    quantize_A_tile_wq_int8_fp16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+}
+
+void transpose_quantize_A_tile_wq_int8_fp16s_vfpv4(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
+{
+    transpose_quantize_A_tile_wq_int8_fp16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+}
+
+void unpack_output_tile_wq_int8_fp16s_vfpv4(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta)
+{
+    unpack_output_tile_wq_int8_fp16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+}
+
+void transpose_unpack_output_tile_wq_int8_fp16s_vfpv4(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta)
+{
+    transpose_unpack_output_tile_wq_int8_fp16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+}
+#endif // NCNN_WEIGHT_QUANT
 
 } // namespace ncnn

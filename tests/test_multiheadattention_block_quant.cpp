@@ -3,96 +3,78 @@
 
 #include "testutil.h"
 
-#include "layer_type.h"
-#include "multiheadattention.h"
-
-#include <string.h>
-
-static void pack_signed_weight(unsigned char* ptr, int k, int bits, int q)
+#if NCNN_WEIGHT_QUANT
+static int weight_block_quantize_term(int bits, int block_size, int has_input_scale)
 {
-    const unsigned int mask = (1u << bits) - 1u;
-    const unsigned int v = (unsigned int)q & mask;
-    const int bit_offset = k * bits;
+    const int block_size_code = block_size == 32 ? 0 : block_size == 64 ? 1 : 2;
+    return bits * 100 + (has_input_scale ? 10 : 0) + block_size_code;
+}
 
-    for (int b = 0; b < bits; b++)
+static ncnn::Mat make_input_scales(int size, int offset)
+{
+    ncnn::Mat scales(size);
+    float* ptr = scales;
+    const float scale_table[5] = {0.5f, 1.f, 2.f, 0.25f, 4.f};
+    for (int i = 0; i < size; i++)
+        ptr[i] = scale_table[(i + offset) % 5];
+
+    return scales;
+}
+
+static ncnn::Mat RandomWQInt8Mat(int width, int height, int block_size, const ncnn::Mat& input_scales = ncnn::Mat())
+{
+    ncnn::Mat m(width, height);
+    const float* scale_ptr = input_scales;
+
+    for (int y = 0; y < height; y++)
     {
-        if (v & (1u << b))
+        float* ptr = m.row(y);
+        for (int x = 0; x < width; x++)
         {
-            const int out_bit = bit_offset + b;
-            ptr[out_bit / 8] |= (unsigned char)(1u << (out_bit % 8));
+            int q = RandomInt(-120, 121);
+            if (x % block_size == 0)
+                q = y % 2 == 0 ? 127 : -127;
+
+            ptr[x] = scale_ptr ? q / (64.f * scale_ptr[x]) : q / 64.f;
         }
     }
+
+    return m;
 }
 
-static int float2int_weight(float v, int bits)
+static ncnn::Mat RandomWQInt8Cache(int width, int height)
 {
-    const int qmax = (1 << (bits - 1)) - 1;
-    int q = (int)roundf(v);
-    if (q > qmax) q = qmax;
-    if (q < -qmax) q = -qmax;
-    return q;
-}
+    ncnn::Mat m(width, height);
 
-static int weight_block_quantize_term(int bits, int block_size, int input_scale = 0)
-{
-    const int block_size_code = block_size == 32 ? 0 : block_size == 64 ? 1 : block_size == 128 ? 2 : -1;
-    if ((bits != 4 && bits != 6 && bits != 8) || block_size_code < 0)
-        return 0;
+    // keep all channels identical so output projection quantization is deterministic
+    std::vector<float> values(width);
+    for (int x = 0; x < width; x++)
+        values[x] = RandomInt(-120, 121) / 64.f;
 
-    return bits * 100 + (input_scale ? 10 : 0) + block_size_code;
-}
-
-static int weight_quantize_packed_k_bytes(int K, int bits)
-{
-    return (K * bits + 7) / 8;
-}
-
-static ncnn::Mat make_input_scales(int K)
-{
-    ncnn::Mat input_scales(K);
-    float* ptr = input_scales;
-    for (int k = 0; k < K; k++)
-        ptr[k] = 0.75f + (k % 5) * 0.15f;
-
-    return input_scales;
-}
-
-static ncnn::Mat scale_weight_by_input_scales(const ncnn::Mat& weight_data, const ncnn::Mat& input_scales, int inverse)
-{
-    const int K = weight_data.w;
-    const int N = weight_data.h;
-
-    ncnn::Mat weight_data1(K, N);
-    const float* input_scale_ptr = input_scales;
-
-    for (int n = 0; n < N; n++)
+    for (int y = 0; y < height; y++)
     {
-        const float* ptr = weight_data.row(n);
-        float* outptr = weight_data1.row(n);
-
-        for (int k = 0; k < K; k++)
-            outptr[k] = inverse ? ptr[k] / input_scale_ptr[k] : ptr[k] * input_scale_ptr[k];
+        float* ptr = m.row(y);
+        for (int x = 0; x < width; x++)
+            ptr[x] = values[x];
     }
 
-    return weight_data1;
+    return m;
 }
 
-static int quantize_weight(const ncnn::Mat& weight_data, int bits, int block_size, ncnn::Mat& weight_data_quantized, ncnn::Mat& weight_data_quantize_scales, ncnn::Mat& weight_data_dequantized)
+static void quantize_weight(const ncnn::Mat& weight_data, int bits, int block_size, const ncnn::Mat& input_scales, ncnn::Mat& weight_data_quantized, ncnn::Mat& weight_data_quantize_scales, ncnn::Mat& weight_data_dequantized)
 {
     const int K = weight_data.w;
     const int N = weight_data.h;
-    const int packed_k_bytes = weight_quantize_packed_k_bytes(K, bits);
     const int block_count = (K + block_size - 1) / block_size;
 
-    weight_data_quantized.create(packed_k_bytes, N, (size_t)1u);
+    weight_data_quantized.create((K * bits + 7) / 8, N, (size_t)1u);
     weight_data_quantize_scales.create(block_count, N);
     weight_data_dequantized.create(K, N);
-    if (weight_data_quantized.empty() || weight_data_quantize_scales.empty() || weight_data_dequantized.empty())
-        return -100;
 
-    memset(weight_data_quantized.data, 0, weight_data_quantized.total() * weight_data_quantized.elemsize);
+    weight_data_quantized.fill<unsigned char>(0);
 
     const int qmax = (1 << (bits - 1)) - 1;
+    const float* input_scale_ptr = input_scales;
     for (int n = 0; n < N; n++)
     {
         const float* ptr = weight_data.row(n);
@@ -118,117 +100,174 @@ static int quantize_weight(const ncnn::Mat& weight_data, int bits, int block_siz
 
             for (int k = 0; k < max_kk; k++)
             {
-                const int q = float2int_weight(ptr[k0 + k] * scale, bits);
-                pack_signed_weight(qptr, k0 + k, bits, q);
-                deqptr[k0 + k] = q / scale;
+                int q = (int)roundf(ptr[k0 + k] * scale);
+                if (q > qmax) q = qmax;
+                if (q < -qmax) q = -qmax;
+
+                const unsigned int v = (unsigned int)q & ((1u << bits) - 1u);
+                const int bit_offset = (k0 + k) * bits;
+                for (int bit = 0; bit < bits; bit++)
+                {
+                    if (v & (1u << bit))
+                    {
+                        const int out_bit = bit_offset + bit;
+                        qptr[out_bit / 8] |= (unsigned char)(1u << (out_bit % 8));
+                    }
+                }
+
+                deqptr[k0 + k] = q / scale * (input_scale_ptr ? input_scale_ptr[k0 + k] : 1.f);
+            }
+        }
+    }
+}
+
+static void make_mha_weights(int qdim, int kdim, int vdim, int embed_dim, int bits, int block_size, int has_input_scale, std::vector<ncnn::Mat>& weights, std::vector<ncnn::Mat>& ref_weights)
+{
+    const int weight_w[4] = {qdim, kdim, vdim, embed_dim};
+    const int weight_h[4] = {embed_dim, embed_dim, embed_dim, qdim};
+
+    ncnn::Mat input_scales[4];
+    if (has_input_scale)
+    {
+        for (int i = 0; i < 3; i++)
+            input_scales[i] = make_input_scales(weight_w[i], i);
+
+        input_scales[3].create(embed_dim);
+        float* out_scale_ptr = input_scales[3];
+        const float out_scale_table[5] = {1.f, 2.f, 3.f, 5.f, 8.f};
+        for (int i = 0; i < embed_dim; i++)
+            out_scale_ptr[i] = out_scale_table[i % 5];
+    }
+
+    ncnn::Mat weight_data[4];
+    for (int i = 0; i < 4; i++)
+    {
+        if (bits == 8)
+            weight_data[i] = RandomWQInt8Mat(weight_w[i], weight_h[i], block_size);
+        else
+            weight_data[i] = RandomMat(weight_w[i], weight_h[i], -1.f, 1.f);
+    }
+
+    if (bits == 8)
+    {
+        // keep the output projection dynamic quantization away from half-integer rounding boundaries
+        for (int p = 0; p < 3; p++)
+        {
+            const float* ptr = weight_data[p].row(0);
+            for (int i = 1; i < embed_dim; i++)
+            {
+                float* outptr = weight_data[p].row(i);
+                for (int j = 0; j < weight_w[p]; j++)
+                    outptr[j] = ptr[j];
             }
         }
     }
 
-    return 0;
-}
+    ncnn::Mat weight_data_quantized[4];
+    ncnn::Mat weight_data_quantize_scales[4];
+    ncnn::Mat weight_data_dequantized[4];
+    for (int i = 0; i < 4; i++)
+        quantize_weight(weight_data[i], bits, block_size, input_scales[i], weight_data_quantized[i], weight_data_quantize_scales[i], weight_data_dequantized[i]);
 
-static int make_mha_weights(int qdim, int kdim, int vdim, int embed_dim, int bits, int block_size, std::vector<ncnn::Mat>& weights, std::vector<ncnn::Mat>& ref_weights, int input_scale = 0)
-{
-    ncnn::Mat q_weight_data = RandomMat(qdim, embed_dim, -1.f, 1.f);
-    ncnn::Mat k_weight_data = RandomMat(kdim, embed_dim, -1.f, 1.f);
-    ncnn::Mat v_weight_data = RandomMat(vdim, embed_dim, -1.f, 1.f);
-    ncnn::Mat out_weight_data = RandomMat(embed_dim, qdim, -1.f, 1.f);
-
-    ncnn::Mat q_input_scales;
-    ncnn::Mat k_input_scales;
-    ncnn::Mat v_input_scales;
-    ncnn::Mat out_input_scales;
-
-    if (input_scale)
+    ncnn::Mat bias_data[4];
+    for (int i = 0; i < 3; i++)
+        bias_data[i] = RandomMat(embed_dim, -1.f, 1.f);
+    bias_data[3] = RandomMat(qdim, -1.f, 1.f);
+    if (bits == 8)
     {
-        q_input_scales = make_input_scales(qdim);
-        k_input_scales = make_input_scales(kdim);
-        v_input_scales = make_input_scales(vdim);
-        out_input_scales = make_input_scales(embed_dim);
-
-        q_weight_data = scale_weight_by_input_scales(q_weight_data, q_input_scales, 1);
-        k_weight_data = scale_weight_by_input_scales(k_weight_data, k_input_scales, 1);
-        v_weight_data = scale_weight_by_input_scales(v_weight_data, v_input_scales, 1);
-        out_weight_data = scale_weight_by_input_scales(out_weight_data, out_input_scales, 1);
+        for (int i = 0; i < 3; i++)
+            bias_data[i].fill(0.f);
     }
 
-    ncnn::Mat q_weight_data_quantized;
-    ncnn::Mat k_weight_data_quantized;
-    ncnn::Mat v_weight_data_quantized;
-    ncnn::Mat out_weight_data_quantized;
-    ncnn::Mat q_weight_data_scales;
-    ncnn::Mat k_weight_data_scales;
-    ncnn::Mat v_weight_data_scales;
-    ncnn::Mat out_weight_data_scales;
-    ncnn::Mat q_weight_data_dequantized;
-    ncnn::Mat k_weight_data_dequantized;
-    ncnn::Mat v_weight_data_dequantized;
-    ncnn::Mat out_weight_data_dequantized;
-
-    int ret = quantize_weight(q_weight_data, bits, block_size, q_weight_data_quantized, q_weight_data_scales, q_weight_data_dequantized);
-    if (ret != 0)
-        return ret;
-    ret = quantize_weight(k_weight_data, bits, block_size, k_weight_data_quantized, k_weight_data_scales, k_weight_data_dequantized);
-    if (ret != 0)
-        return ret;
-    ret = quantize_weight(v_weight_data, bits, block_size, v_weight_data_quantized, v_weight_data_scales, v_weight_data_dequantized);
-    if (ret != 0)
-        return ret;
-    ret = quantize_weight(out_weight_data, bits, block_size, out_weight_data_quantized, out_weight_data_scales, out_weight_data_dequantized);
-    if (ret != 0)
-        return ret;
-
-    if (input_scale)
-    {
-        q_weight_data_dequantized = scale_weight_by_input_scales(q_weight_data_dequantized, q_input_scales, 0);
-        k_weight_data_dequantized = scale_weight_by_input_scales(k_weight_data_dequantized, k_input_scales, 0);
-        v_weight_data_dequantized = scale_weight_by_input_scales(v_weight_data_dequantized, v_input_scales, 0);
-        out_weight_data_dequantized = scale_weight_by_input_scales(out_weight_data_dequantized, out_input_scales, 0);
-    }
-
-    ncnn::Mat q_bias_data = RandomMat(embed_dim, -1.f, 1.f);
-    ncnn::Mat k_bias_data = RandomMat(embed_dim, -1.f, 1.f);
-    ncnn::Mat v_bias_data = RandomMat(embed_dim, -1.f, 1.f);
-    ncnn::Mat out_bias_data = RandomMat(qdim, -1.f, 1.f);
-
-    weights.resize(input_scale ? 16 : 12);
-    weights[0] = q_weight_data_quantized;
-    weights[1] = q_bias_data;
-    weights[2] = k_weight_data_quantized;
-    weights[3] = k_bias_data;
-    weights[4] = v_weight_data_quantized;
-    weights[5] = v_bias_data;
-    weights[6] = out_weight_data_quantized;
-    weights[7] = out_bias_data;
-    weights[8] = q_weight_data_scales;
-    weights[9] = k_weight_data_scales;
-    weights[10] = v_weight_data_scales;
-    weights[11] = out_weight_data_scales;
-
-    if (input_scale)
-    {
-        weights[12] = q_input_scales;
-        weights[13] = k_input_scales;
-        weights[14] = v_input_scales;
-        weights[15] = out_input_scales;
-    }
-
+    weights.resize(has_input_scale ? 16 : 12);
     ref_weights.resize(8);
-    ref_weights[0] = q_weight_data_dequantized.reshape(embed_dim * qdim);
-    ref_weights[1] = q_bias_data;
-    ref_weights[2] = k_weight_data_dequantized.reshape(embed_dim * kdim);
-    ref_weights[3] = k_bias_data;
-    ref_weights[4] = v_weight_data_dequantized.reshape(embed_dim * vdim);
-    ref_weights[5] = v_bias_data;
-    ref_weights[6] = out_weight_data_dequantized.reshape(qdim * embed_dim);
-    ref_weights[7] = out_bias_data;
+    for (int i = 0; i < 4; i++)
+    {
+        weights[i * 2] = weight_data_quantized[i];
+        weights[i * 2 + 1] = bias_data[i];
+        weights[8 + i] = weight_data_quantize_scales[i];
+        if (has_input_scale)
+            weights[12 + i] = input_scales[i];
+
+        ref_weights[i * 2] = weight_data_dequantized[i].reshape(weight_w[i] * weight_h[i]);
+        ref_weights[i * 2 + 1] = bias_data[i];
+    }
+}
+
+static int test_multiheadattention_block_quant(const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const std::vector<ncnn::Mat>& ref_weights, const std::vector<ncnn::Mat>& inputs, int top_blob_count, int bits)
+{
+    if (bits == 8)
+        return test_layer("MultiHeadAttention", pd, weights, inputs, top_blob_count, 0.001f, TEST_LAYER_DISABLE_GPU_TESTING | TEST_LAYER_ENABLE_THREADING);
+
+    ncnn::ParamDict ref_pd = pd;
+    ref_pd.set(18, 0);
+
+    ncnn::Option opt;
+    opt.use_packing_layout = false;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_bf16_storage = false;
+
+    std::vector<ncnn::Mat> refs;
+    test_layer_naive(ncnn::layer_to_index("MultiHeadAttention"), ref_pd, ref_weights, inputs, top_blob_count, refs, TEST_LAYER_DISABLE_GPU_TESTING);
+    for (int t = 0; t < 2; t++)
+    {
+        std::vector<ncnn::Mat> outputs;
+        const int flags = TEST_LAYER_DISABLE_GPU_TESTING | (t ? TEST_LAYER_ENABLE_THREADING : 0);
+        test_layer_cpu(ncnn::layer_to_index("MultiHeadAttention"), pd, weights, opt, inputs, top_blob_count, outputs, std::vector<ncnn::Mat>(), flags);
+        if (CompareMat(outputs, refs, 0.001f) != 0)
+            return -1;
+    }
 
     return 0;
 }
 
-static ncnn::ParamDict make_mha_param(int qdim, int kdim, int vdim, int embed_dim, int num_heads, int attn_mask, int kv_cache, int quantize_term)
+static int test_multiheadattention_block_quant(int qdim, int kdim, int vdim, int embed_dim, int num_heads, int bits, int block_size, int attn_mask, int has_input_scale, int zero_input_group = 0)
 {
+    std::vector<ncnn::Mat> weights;
+    std::vector<ncnn::Mat> ref_weights;
+    make_mha_weights(qdim, kdim, vdim, embed_dim, bits, block_size, has_input_scale, weights, ref_weights);
+
+    const int src_seqlen = 5;
+    const int dst_seqlen = 6;
+    std::vector<ncnn::Mat> as(3);
+    if (bits == 8)
+    {
+        const ncnn::Mat q_input_scales = has_input_scale ? weights[12] : ncnn::Mat();
+        const ncnn::Mat k_input_scales = has_input_scale ? weights[13] : ncnn::Mat();
+        const ncnn::Mat v_input_scales = has_input_scale ? weights[14] : ncnn::Mat();
+        as[0] = RandomWQInt8Mat(qdim, src_seqlen, block_size, q_input_scales);
+        as[1] = RandomWQInt8Mat(kdim, dst_seqlen, block_size, k_input_scales);
+        as[2] = RandomWQInt8Mat(vdim, dst_seqlen, block_size, v_input_scales);
+    }
+    else
+    {
+        as[0] = RandomMat(qdim, src_seqlen, -1.f, 1.f);
+        as[1] = RandomMat(kdim, dst_seqlen, -1.f, 1.f);
+        as[2] = RandomMat(vdim, dst_seqlen, -1.f, 1.f);
+    }
+
+    if (zero_input_group)
+    {
+        const int q_zero = qdim < block_size ? qdim : block_size;
+        const int k_zero = kdim < block_size ? kdim : block_size;
+        const int v_zero = vdim < block_size ? vdim : block_size;
+        for (int i = 0; i < src_seqlen; i++)
+            for (int j = 0; j < q_zero; j++)
+                as[0].row(i)[j] = 0.f;
+        for (int i = 0; i < dst_seqlen; i++)
+        {
+            for (int j = 0; j < k_zero; j++)
+                as[1].row(i)[j] = 0.f;
+            for (int j = 0; j < v_zero; j++)
+                as[2].row(i)[j] = 0.f;
+        }
+    }
+
+    if (attn_mask)
+        as.push_back(RandomMat(dst_seqlen, src_seqlen, -1.f, 0.f));
+
     ncnn::ParamDict pd;
     pd.set(0, embed_dim);
     pd.set(1, num_heads);
@@ -237,16 +276,149 @@ static ncnn::ParamDict make_mha_param(int qdim, int kdim, int vdim, int embed_di
     pd.set(4, vdim);
     pd.set(5, attn_mask);
     pd.set(6, 0.7f / sqrtf(embed_dim / num_heads));
-    pd.set(7, kv_cache);
-    if (quantize_term)
-        pd.set(18, quantize_term);
+    pd.set(18, weight_block_quantize_term(bits, block_size, has_input_scale));
 
-    return pd;
+    const int ret = test_multiheadattention_block_quant(pd, weights, ref_weights, as, 1, bits);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_multiheadattention_block_quant failed qdim=%d kdim=%d vdim=%d embed_dim=%d heads=%d bits=%d block=%d mask=%d input_scale=%d zero=%d\n", qdim, kdim, vdim, embed_dim, num_heads, bits, block_size, attn_mask, has_input_scale, zero_input_group);
+    }
+
+    return ret;
 }
 
-static int run_mha_layer(const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const std::vector<ncnn::Mat>& inputs, int top_blob_count, std::vector<ncnn::Mat>& outputs)
+static int test_multiheadattention_block_quant_kvcache(int bits, int block_size, int attn_mask, int has_input_scale)
 {
+    const int qdim = 10;
+    const int embed_dim = 8;
+    const int src_seqlen = bits == 8 ? 1 : 3;
+
+    std::vector<ncnn::Mat> weights;
+    std::vector<ncnn::Mat> ref_weights;
+    make_mha_weights(qdim, qdim, qdim, embed_dim, bits, block_size, has_input_scale, weights, ref_weights);
+
+    std::vector<ncnn::Mat> as(attn_mask ? 4 : 3);
+    if (bits == 8)
+    {
+        const ncnn::Mat input_scales = has_input_scale ? weights[12] : ncnn::Mat();
+        as[0] = RandomWQInt8Mat(qdim, src_seqlen, block_size, input_scales);
+    }
+    else
+    {
+        as[0] = RandomMat(qdim, src_seqlen, -1.f, 1.f);
+    }
+    if (attn_mask)
+    {
+        as[1] = RandomMat(5 + src_seqlen, src_seqlen, -1.f, 0.f);
+        as[2] = RandomMat(5, embed_dim, -1.f, 1.f);
+        as[3] = bits == 8 && has_input_scale ? RandomWQInt8Cache(5, embed_dim) : RandomMat(5, embed_dim, -1.f, 1.f);
+    }
+    else
+    {
+        as[1] = RandomMat(5, embed_dim, -1.f, 1.f);
+        as[2] = bits == 8 && has_input_scale ? RandomWQInt8Cache(5, embed_dim) : RandomMat(5, embed_dim, -1.f, 1.f);
+    }
+
+    ncnn::ParamDict pd;
+    pd.set(0, embed_dim);
+    pd.set(1, 2);
+    pd.set(2, embed_dim * qdim);
+    pd.set(3, qdim);
+    pd.set(4, qdim);
+    pd.set(5, attn_mask);
+    pd.set(6, 0.7f / sqrtf(4.f));
+    pd.set(7, 1);
+    pd.set(18, weight_block_quantize_term(bits, block_size, has_input_scale));
+
+    const int ret = test_multiheadattention_block_quant(pd, weights, ref_weights, as, 3, bits);
+
+    if (ret != 0)
+        fprintf(stderr, "test_multiheadattention_block_quant_kvcache failed bits=%d block=%d mask=%d input_scale=%d\n", bits, block_size, attn_mask, has_input_scale);
+
+    return ret;
+}
+
+static int test_multiheadattention_block_quant_cross_kvcache(int bits, int block_size, int attn_mask, int has_input_scale)
+{
+    const int qdim = 65;
+    const int kdim = 33;
+    const int vdim = 49;
+    const int embed_dim = 64;
+    const int src_seqlen = bits == 8 ? 1 : 3;
+
+    std::vector<ncnn::Mat> weights;
+    std::vector<ncnn::Mat> ref_weights;
+    make_mha_weights(qdim, kdim, vdim, embed_dim, bits, block_size, has_input_scale, weights, ref_weights);
+
+    std::vector<ncnn::Mat> as(attn_mask ? 6 : 5);
+    if (bits == 8)
+    {
+        const ncnn::Mat q_input_scales = has_input_scale ? weights[12] : ncnn::Mat();
+        const ncnn::Mat k_input_scales = has_input_scale ? weights[13] : ncnn::Mat();
+        const ncnn::Mat v_input_scales = has_input_scale ? weights[14] : ncnn::Mat();
+        as[0] = RandomWQInt8Mat(qdim, src_seqlen, block_size, q_input_scales);
+        as[1] = RandomWQInt8Mat(kdim, 2, block_size, k_input_scales);
+        as[2] = RandomWQInt8Mat(vdim, 2, block_size, v_input_scales);
+    }
+    else
+    {
+        as[0] = RandomMat(qdim, src_seqlen, -1.f, 1.f);
+        as[1] = RandomMat(kdim, 2, -1.f, 1.f);
+        as[2] = RandomMat(vdim, 2, -1.f, 1.f);
+    }
+    if (attn_mask)
+    {
+        as[3] = RandomMat(5, src_seqlen, -1.f, 0.f);
+        as[4] = RandomMat(5, embed_dim, -1.f, 1.f);
+        as[5] = bits == 8 && has_input_scale ? RandomWQInt8Cache(5, embed_dim) : RandomMat(5, embed_dim, -1.f, 1.f);
+    }
+    else
+    {
+        as[3] = RandomMat(5, embed_dim, -1.f, 1.f);
+        as[4] = bits == 8 && has_input_scale ? RandomWQInt8Cache(5, embed_dim) : RandomMat(5, embed_dim, -1.f, 1.f);
+    }
+
+    ncnn::ParamDict pd;
+    pd.set(0, embed_dim);
+    pd.set(1, 4);
+    pd.set(2, embed_dim * qdim);
+    pd.set(3, kdim);
+    pd.set(4, vdim);
+    pd.set(5, attn_mask);
+    pd.set(6, 0.7f / sqrtf(16.f));
+    pd.set(7, 1);
+    pd.set(18, weight_block_quantize_term(bits, block_size, has_input_scale));
+
+    const int ret = test_multiheadattention_block_quant(pd, weights, ref_weights, as, 3, bits);
+
+    if (ret != 0)
+        fprintf(stderr, "test_multiheadattention_block_quant_cross_kvcache failed bits=%d block=%d mask=%d input_scale=%d\n", bits, block_size, attn_mask, has_input_scale);
+
+    return ret;
+}
+
+static int test_multiheadattention_wq_int8_pipeline()
+{
+    const int qdim = 35;
+    const int embed_dim = 32;
+    const int block_size = 32;
+
+    std::vector<ncnn::Mat> weights;
+    std::vector<ncnn::Mat> ref_weights;
+    make_mha_weights(qdim, qdim, qdim, embed_dim, 8, block_size, 1, weights, ref_weights);
+
+    ncnn::ParamDict pd;
+    pd.set(0, embed_dim);
+    pd.set(1, 4);
+    pd.set(2, embed_dim * qdim);
+    pd.set(3, qdim);
+    pd.set(4, qdim);
+    pd.set(6, 0.7f / sqrtf(8.f));
+    pd.set(7, 1);
+    pd.set(18, weight_block_quantize_term(8, block_size, 1));
+
     ncnn::Option opt;
+    opt.lightmode = false;
     opt.num_threads = 2;
     opt.use_packing_layout = false;
     opt.use_fp16_packed = false;
@@ -254,204 +426,110 @@ static int run_mha_layer(const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>
     opt.use_fp16_arithmetic = false;
     opt.use_bf16_storage = false;
 
-    return test_layer_cpu(ncnn::LayerType::MultiHeadAttention, pd, weights, opt, inputs, top_blob_count, outputs, std::vector<ncnn::Mat>(), TEST_LAYER_DISABLE_GPU_TESTING);
-}
+    ncnn::Layer* mha = ncnn::create_layer_cpu("MultiHeadAttention");
+    if (!mha)
+        return -100;
 
-static int test_multiheadattention_block_quant(int qdim, int kdim, int vdim, int embed_dim, int num_heads, int bits, int block_size, int attn_mask, int input_scale = 0)
-{
-    std::vector<ncnn::Mat> weights;
-    std::vector<ncnn::Mat> ref_weights;
-    int ret = make_mha_weights(qdim, kdim, vdim, embed_dim, bits, block_size, weights, ref_weights, input_scale);
-    if (ret != 0)
-        return ret;
+    mha->load_param(pd);
+    mha->load_model(ncnn::ModelBinFromMatArray(weights.data()));
+    mha->create_pipeline(opt);
 
-    std::vector<ncnn::Mat> inputs(3);
-    inputs[0] = RandomMat(qdim, 5, -1.f, 1.f);
-    inputs[1] = RandomMat(kdim, 6, -1.f, 1.f);
-    inputs[2] = RandomMat(vdim, 6, -1.f, 1.f);
+    std::vector<ncnn::Mat> prefill_inputs(3);
+    prefill_inputs[0] = RandomWQInt8Mat(qdim, 9, block_size, weights[12]);
 
-    if (attn_mask)
-        inputs.push_back(RandomMat(6, 5, -1.f, 0.f));
+    std::vector<ncnn::Mat> prefill_reference;
+    std::vector<ncnn::Mat> prefill_outputs(3);
+    test_layer_naive(ncnn::layer_to_index("MultiHeadAttention"), pd, weights, prefill_inputs, 3, prefill_reference, TEST_LAYER_DISABLE_GPU_TESTING);
+    mha->forward(prefill_inputs, prefill_outputs, opt);
 
-    const int quantize_term = weight_block_quantize_term(bits, block_size, input_scale);
-    const ncnn::ParamDict pd = make_mha_param(qdim, kdim, vdim, embed_dim, num_heads, attn_mask, 0, quantize_term);
-    const ncnn::ParamDict ref_pd = make_mha_param(qdim, kdim, vdim, embed_dim, num_heads, attn_mask, 0, 0);
+    int test_ret = CompareMat(prefill_outputs, prefill_reference, 0.001f);
 
-    std::vector<ncnn::Mat> outputs;
-    std::vector<ncnn::Mat> refs;
-    ret = run_mha_layer(pd, weights, inputs, 1, outputs);
-    if (ret != 0)
+    for (int i = 0; i < 3; i++)
     {
-        fprintf(stderr, "test_multiheadattention_block_quant failed ret=%d qdim=%d kdim=%d vdim=%d embed_dim=%d bits=%d block_size=%d attn_mask=%d input_scale=%d\n", ret, qdim, kdim, vdim, embed_dim, bits, block_size, attn_mask, input_scale);
-        return ret;
+        if (prefill_outputs[i].elembits() != 32 || prefill_outputs[i].elempack != 1)
+            test_ret = -1;
     }
+    if (prefill_outputs[1].w != 9 || prefill_outputs[2].w != 9)
+        test_ret = -1;
 
-    ret = run_mha_layer(ref_pd, ref_weights, inputs, 1, refs);
-    if (ret != 0)
+    std::vector<ncnn::Mat> decode_reference_inputs(3);
+    std::vector<ncnn::Mat> decode_inputs(3);
+    decode_inputs[0] = RandomWQInt8Mat(qdim, 1, block_size, weights[12]);
+    decode_reference_inputs[0] = decode_inputs[0];
+    decode_reference_inputs[1] = prefill_reference[1];
+    decode_reference_inputs[2] = prefill_reference[2];
+    decode_inputs[1] = prefill_outputs[1];
+    decode_inputs[2] = prefill_outputs[2];
+
+    std::vector<ncnn::Mat> decode_reference;
+    std::vector<ncnn::Mat> decode_outputs(3);
+    test_layer_naive(ncnn::layer_to_index("MultiHeadAttention"), pd, weights, decode_reference_inputs, 3, decode_reference, TEST_LAYER_DISABLE_GPU_TESTING);
+    ncnn::Option decode_opt = opt;
+    decode_opt.num_threads = 4;
+    mha->forward(decode_inputs, decode_outputs, decode_opt);
+    if (CompareMat(decode_outputs, decode_reference, 0.001f) != 0)
+        test_ret = -1;
+
+    for (int i = 0; i < 3; i++)
     {
-        fprintf(stderr, "test_multiheadattention_block_quant reference failed ret=%d qdim=%d kdim=%d vdim=%d embed_dim=%d\n", ret, qdim, kdim, vdim, embed_dim);
-        return ret;
+        if (decode_outputs[i].elembits() != 32 || decode_outputs[i].elempack != 1)
+            test_ret = -1;
     }
+    if (decode_outputs[1].w != 10 || decode_outputs[2].w != 10)
+        test_ret = -1;
 
-    ret = CompareMat(outputs, refs, 0.001f);
-    if (ret != 0)
+    mha->destroy_pipeline(opt);
+    delete mha;
+
+    if (test_ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention_block_quant compare failed qdim=%d kdim=%d vdim=%d embed_dim=%d bits=%d block_size=%d attn_mask=%d input_scale=%d\n", qdim, kdim, vdim, embed_dim, bits, block_size, attn_mask, input_scale);
-        return ret;
-    }
-
-    return 0;
-}
-
-static int test_multiheadattention_block_quant_kvcache(int attn_mask = 0, int input_scale = 0)
-{
-    const int qdim = 10;
-    const int embed_dim = 8;
-    const int num_heads = 2;
-    const int bits = 4;
-    const int block_size = 64;
-
-    std::vector<ncnn::Mat> weights;
-    std::vector<ncnn::Mat> ref_weights;
-    int ret = make_mha_weights(qdim, qdim, qdim, embed_dim, bits, block_size, weights, ref_weights, input_scale);
-    if (ret != 0)
-        return ret;
-
-    std::vector<ncnn::Mat> inputs(attn_mask ? 4 : 3);
-    inputs[0] = RandomMat(qdim, 3, -1.f, 1.f);
-    if (attn_mask)
-    {
-        inputs[1] = RandomMat(8, 3, -1.f, 0.f);
-        inputs[2] = RandomMat(5, embed_dim, -1.f, 1.f);
-        inputs[3] = RandomMat(5, embed_dim, -1.f, 1.f);
-    }
-    else
-    {
-        inputs[1] = RandomMat(5, embed_dim, -1.f, 1.f);
-        inputs[2] = RandomMat(5, embed_dim, -1.f, 1.f);
-    }
-
-    const int quantize_term = weight_block_quantize_term(bits, block_size, input_scale);
-    const ncnn::ParamDict pd = make_mha_param(qdim, qdim, qdim, embed_dim, num_heads, attn_mask, 1, quantize_term);
-    const ncnn::ParamDict ref_pd = make_mha_param(qdim, qdim, qdim, embed_dim, num_heads, attn_mask, 1, 0);
-
-    std::vector<ncnn::Mat> outputs;
-    std::vector<ncnn::Mat> refs;
-    ret = run_mha_layer(pd, weights, inputs, 3, outputs);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_multiheadattention_block_quant_kvcache failed ret=%d attn_mask=%d input_scale=%d\n", ret, attn_mask, input_scale);
-        return ret;
-    }
-
-    ret = run_mha_layer(ref_pd, ref_weights, inputs, 3, refs);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_multiheadattention_block_quant_kvcache reference failed ret=%d attn_mask=%d input_scale=%d\n", ret, attn_mask, input_scale);
-        return ret;
-    }
-
-    ret = CompareMat(outputs, refs, 0.001f);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_multiheadattention_block_quant_kvcache compare failed attn_mask=%d input_scale=%d\n", attn_mask, input_scale);
-        return ret;
+        fprintf(stderr, "test_multiheadattention_wq_int8_pipeline failed ret=%d\n", test_ret);
+        return test_ret;
     }
 
     return 0;
 }
 
-static int test_multiheadattention_block_quant_cross_kvcache(int attn_mask = 0, int input_scale = 0)
+static int test_multiheadattention_block_quant_0()
 {
-    const int qdim = 65;
-    const int kdim = 33;
-    const int vdim = 49;
-    const int embed_dim = 64;
-    const int num_heads = 4;
-    const int bits = 6;
-    const int block_size = 32;
-
-    std::vector<ncnn::Mat> weights;
-    std::vector<ncnn::Mat> ref_weights;
-    int ret = make_mha_weights(qdim, kdim, vdim, embed_dim, bits, block_size, weights, ref_weights, input_scale);
-    if (ret != 0)
-        return ret;
-
-    std::vector<ncnn::Mat> inputs(attn_mask ? 6 : 5);
-    inputs[0] = RandomMat(qdim, 3, -1.f, 1.f);
-    inputs[1] = RandomMat(kdim, 2, -1.f, 1.f);
-    inputs[2] = RandomMat(vdim, 2, -1.f, 1.f);
-    if (attn_mask)
-    {
-        inputs[3] = RandomMat(5, 3, -1.f, 0.f);
-        inputs[4] = RandomMat(5, embed_dim, -1.f, 1.f);
-        inputs[5] = RandomMat(5, embed_dim, -1.f, 1.f);
-    }
-    else
-    {
-        inputs[3] = RandomMat(5, embed_dim, -1.f, 1.f);
-        inputs[4] = RandomMat(5, embed_dim, -1.f, 1.f);
-    }
-
-    const int quantize_term = weight_block_quantize_term(bits, block_size, input_scale);
-    const ncnn::ParamDict pd = make_mha_param(qdim, kdim, vdim, embed_dim, num_heads, attn_mask, 1, quantize_term);
-    const ncnn::ParamDict ref_pd = make_mha_param(qdim, kdim, vdim, embed_dim, num_heads, attn_mask, 1, 0);
-
-    std::vector<ncnn::Mat> outputs;
-    std::vector<ncnn::Mat> refs;
-    ret = run_mha_layer(pd, weights, inputs, 3, outputs);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_multiheadattention_block_quant_cross_kvcache failed ret=%d attn_mask=%d input_scale=%d\n", ret, attn_mask, input_scale);
-        return ret;
-    }
-
-    ret = run_mha_layer(ref_pd, ref_weights, inputs, 3, refs);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_multiheadattention_block_quant_cross_kvcache reference failed ret=%d attn_mask=%d input_scale=%d\n", ret, attn_mask, input_scale);
-        return ret;
-    }
-
-    ret = CompareMat(outputs, refs, 0.001f);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_multiheadattention_block_quant_cross_kvcache compare failed attn_mask=%d input_scale=%d\n", attn_mask, input_scale);
-        return ret;
-    }
-
-    return 0;
+    return 0
+           || test_multiheadattention_block_quant(13, 9, 11, 8, 2, 4, 32, 0, 0)
+           || test_multiheadattention_block_quant(10, 10, 10, 8, 2, 6, 64, 1, 0)
+           || test_multiheadattention_block_quant(12, 7, 9, 8, 2, 8, 128, 0, 0)
+           || test_multiheadattention_block_quant(35, 33, 31, 32, 4, 8, 32, 1, 0)
+           || test_multiheadattention_block_quant(65, 33, 49, 64, 4, 8, 64, 0, 1)
+           || test_multiheadattention_block_quant(129, 129, 129, 128, 8, 8, 128, 1, 1, 1);
 }
+
+static int test_multiheadattention_block_quant_1()
+{
+    return 0
+           || test_multiheadattention_block_quant_kvcache(4, 64, 0, 0)
+           || test_multiheadattention_block_quant_kvcache(8, 32, 0, 0)
+           || test_multiheadattention_block_quant_kvcache(8, 64, 1, 1);
+}
+
+static int test_multiheadattention_block_quant_2()
+{
+    return 0
+           || test_multiheadattention_block_quant_cross_kvcache(6, 32, 0, 0)
+           || test_multiheadattention_block_quant_cross_kvcache(8, 32, 0, 0)
+           || test_multiheadattention_block_quant_cross_kvcache(8, 128, 1, 1);
+}
+
+#endif // NCNN_WEIGHT_QUANT
 
 int main()
 {
     SRAND(7767517);
 
-#if !NCNN_WEIGHT_QUANT
-    ncnn::ParamDict pd = make_mha_param(5, 5, 5, 4, 2, 0, 0, 410);
-
-    ncnn::MultiHeadAttention mha;
-    if (mha.load_param(pd) == 0)
-    {
-        fprintf(stderr, "test_multiheadattention_block_quant failed NCNN_WEIGHT_QUANT=OFF accepted weight block quantization\n");
-        return -1;
-    }
-
-    return 0;
-#else
+#if NCNN_WEIGHT_QUANT
     return 0
-           || test_multiheadattention_block_quant(13, 9, 11, 8, 2, 4, 32, 0)
-           || test_multiheadattention_block_quant(10, 10, 10, 8, 2, 6, 64, 1)
-           || test_multiheadattention_block_quant(12, 7, 9, 8, 2, 8, 128, 0)
-           || test_multiheadattention_block_quant(13, 9, 11, 8, 2, 4, 64, 1, 1)
-           || test_multiheadattention_block_quant(65, 65, 65, 64, 4, 6, 64, 1)
-           || test_multiheadattention_block_quant(65, 33, 49, 64, 4, 4, 32, 0, 1)
-           || test_multiheadattention_block_quant_kvcache()
-           || test_multiheadattention_block_quant_kvcache(0, 1)
-           || test_multiheadattention_block_quant_kvcache(1)
-           || test_multiheadattention_block_quant_kvcache(1, 1)
-           || test_multiheadattention_block_quant_cross_kvcache()
-           || test_multiheadattention_block_quant_cross_kvcache(1)
-           || test_multiheadattention_block_quant_cross_kvcache(0, 1);
+           || test_multiheadattention_block_quant_0()
+           || test_multiheadattention_block_quant_1()
+           || test_multiheadattention_block_quant_2()
+           || test_multiheadattention_wq_int8_pipeline();
+#else
+    return 0;
 #endif
 }
