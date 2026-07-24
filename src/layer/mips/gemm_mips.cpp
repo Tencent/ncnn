@@ -5806,6 +5806,17 @@ static int gemm_BT_mips_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pa
     int TILE_M, TILE_N, TILE_K;
     get_optimal_tile_mnk_wq_int8(M, N, K, block_size, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
 
+    const int TILE_M0 = TILE_M;
+    const int TILE_N0 = TILE_N;
+    const int c_elempack = C.elempack;
+    const int out_elempack = top_blob.elempack;
+    const int m_elempack = std::max(transA ? 1 : A.elempack, std::max(broadcast_type_C == 3 ? c_elempack : 1, output_transpose ? 1 : out_elempack));
+    const int n_elempack = output_transpose ? out_elempack : 1;
+    while (TILE_M % m_elempack != 0)
+        TILE_M += TILE_M0;
+    while (TILE_N % n_elempack != 0)
+        TILE_N += TILE_N0;
+
     const int mr = std::min(M, TILE_M);
     const int nr = std::min(N, TILE_N);
     const int nn_M = (M + TILE_M - 1) / TILE_M;
@@ -6011,13 +6022,26 @@ int Gemm_mips::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector
 {
     const Mat& A = bottom_blobs[0];
     const bool use_bf16_storage = support_bf16_storage && opt.use_bf16_storage;
-    if ((A.elembits() != 32 && !(A.elembits() == 16 && use_bf16_storage)) || A.elempack != 1 || (transA && A.dims != 2))
+    if ((A.elembits() != 32 && !(A.elembits() == 16 && use_bf16_storage)) || (!transA && A.dims != 2 && A.dims != 3) || (transA && A.dims != 2))
     {
         NCNN_LOGE("Gemm unsupported input");
         return -1;
     }
 
-    const int K = transA ? A.h : A.w;
+    bool supported_A_elempack = A.elempack == 1;
+#if __mips_msa
+    if (A.elembits() == 32)
+        supported_A_elempack = A.elempack == 4 || A.elempack == 1;
+    if (A.elembits() == 16)
+        supported_A_elempack = A.elempack == 8 || A.elempack == 4 || A.elempack == 1;
+#endif // __mips_msa
+    if (!supported_A_elempack)
+    {
+        NCNN_LOGE("Gemm unsupported input elempack %d", A.elempack);
+        return -1;
+    }
+
+    const int K = transA ? A.h * A.elempack : A.w;
     if (K != constantK)
     {
         NCNN_LOGE("Gemm weight block quantize K mismatch");
@@ -6033,7 +6057,7 @@ int Gemm_mips::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector
     if (has_input_scale && B_data_input_scales.empty())
         return -100;
 
-    const int M = transA ? A.w : A.dims == 3 ? A.c : A.h;
+    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int N = constantN;
 
     Mat C;
@@ -6050,39 +6074,36 @@ int Gemm_mips::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector
 
         if (!C.empty())
         {
-            bool matched = false;
-            if (C.dims == 1 && C.w == 1)
+            if (C.dims == 1 && C.w * C.elempack == 1)
             {
                 broadcast_type_C = 0;
-                matched = true;
             }
-            if (C.dims == 1 && C.w == M)
+            if (C.dims == 1 && C.w * C.elempack == M)
             {
                 broadcast_type_C = 1;
-                matched = true;
             }
-            if (C.dims == 1 && C.w == N)
+            if (C.dims == 1 && C.w * C.elempack == N)
             {
                 broadcast_type_C = 4;
-                matched = true;
             }
-            if (C.dims == 2 && C.w == 1 && C.h == M)
+            if (C.dims == 2 && C.w == 1 && C.h * C.elempack == M)
             {
                 broadcast_type_C = 2;
-                matched = true;
             }
-            if (C.dims == 2 && C.w == N && C.h == M)
+            if (C.dims == 2 && C.w == N && C.h * C.elempack == M)
             {
                 broadcast_type_C = 3;
-                matched = true;
             }
-            if (C.dims == 2 && C.w == N && C.h == 1)
+            if (C.dims == 2 && C.w == N && C.h * C.elempack == 1)
             {
                 broadcast_type_C = 4;
-                matched = true;
             }
 
-            if (!matched || C.elempack != 1 || (C.elembits() != 32 && !(C.elembits() == 16 && use_bf16_storage)))
+            bool supported_C_elempack = C.elempack == 1;
+#if __mips_msa
+            supported_C_elempack = C.elempack == 8 || C.elempack == 4 || C.elempack == 1;
+#endif // __mips_msa
+            if (broadcast_type_C == -1 || !supported_C_elempack || (C.elembits() != 32 && !(C.elembits() == 16 && use_bf16_storage)))
             {
                 NCNN_LOGE("Gemm unsupported C");
                 return -1;
@@ -6112,22 +6133,50 @@ int Gemm_mips::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector
         return -1;
 
     const int out_elemtype = output_elemtype == 1 || !use_bf16_storage ? 1 : 3;
-    const size_t out_elemsize = out_elemtype == 1 ? 4u : 2u;
+
+    const int outh = output_transpose ? N : M;
+    int out_elempack = 1;
+#if __mips_msa
+    if (opt.use_packing_layout)
+    {
+        if (out_elemtype == 1)
+            out_elempack = outh % 4 == 0 ? 4 : 1;
+        else
+            out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+    }
+#endif // __mips_msa
+    if (output_elempack)
+        out_elempack = output_elempack;
+
+    bool supported_out_elempack = out_elempack == 1;
+#if __mips_msa
+    if (out_elemtype == 1)
+        supported_out_elempack = out_elempack == 4 || out_elempack == 1;
+    else
+        supported_out_elempack = out_elempack == 8 || out_elempack == 4 || out_elempack == 1;
+#endif // __mips_msa
+    if (!supported_out_elempack || outh % out_elempack != 0)
+    {
+        NCNN_LOGE("Gemm unsupported output elempack %d", out_elempack);
+        return -1;
+    }
+
+    const size_t out_elemsize = (out_elemtype == 1 ? 4u : 2u) * out_elempack;
 
     Mat& top_blob = top_blobs[0];
     if (output_transpose)
     {
         if (output_N1M)
-            top_blob.create(M, 1, N, out_elemsize, opt.blob_allocator);
+            top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         else
-            top_blob.create(M, N, out_elemsize, opt.blob_allocator);
+            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     }
     else
     {
         if (output_N1M)
-            top_blob.create(N, 1, M, out_elemsize, opt.blob_allocator);
+            top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         else
-            top_blob.create(N, M, out_elemsize, opt.blob_allocator);
+            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     }
     if (top_blob.empty())
         return -100;

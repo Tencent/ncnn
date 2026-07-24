@@ -262,6 +262,12 @@ int Gemm::load_param(const ParamDict& pd)
     constant_TILE_N = pd.get(21, 0);
     constant_TILE_K = pd.get(22, 0);
 
+    if (output_elempack < 0)
+    {
+        NCNN_LOGE("Gemm invalid output_elempack %d", output_elempack);
+        return -1;
+    }
+
     if (quantize_term == 4 || quantize_term == 5 || quantize_term == 6)
     {
         NCNN_LOGE("Gemm unsupported quantize_term %d", quantize_term);
@@ -283,15 +289,15 @@ int Gemm::load_param(const ParamDict& pd)
             return -1;
         }
 
-        if ((output_N1M != 0 && weight_bits != 8) || output_elempack != 0 || (output_elemtype != 0 && output_elemtype != 1) || (output_transpose != 0 && (weight_bits != 8 || output_transpose != 1)))
+        if ((output_N1M != 0 && weight_bits != 8) || (output_elempack != 0 && weight_bits != 8) || (output_elemtype != 0 && output_elemtype != 1) || (output_transpose != 0 && (weight_bits != 8 || output_transpose != 1)))
         {
             NCNN_LOGE("Gemm unsupported weight block quantize");
             return -1;
         }
 
-        support_packing = false;
         if (weight_bits != 8)
         {
+            support_packing = false;
             support_bf16_storage = false;
             support_fp16_storage = false;
         }
@@ -522,15 +528,21 @@ static inline int gemm_weight_block_quantize_unpack(const unsigned char* ptr, in
 int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& A = bottom_blobs[0];
+    if ((!transA && A.dims != 2 && A.dims != 3) || (transA && A.dims != 2))
+    {
+        NCNN_LOGE("Gemm unsupported input");
+        return -1;
+    }
+
     if (A.elemsize != 4u || A.elempack != 1)
     {
         NCNN_LOGE("Gemm unsupported input");
         return -1;
     }
 
-    if (transA && A.dims != 2)
+    if (output_elempack > 1)
     {
-        NCNN_LOGE("Gemm unsupported input");
+        NCNN_LOGE("Gemm unsupported output_elempack %d", output_elempack);
         return -1;
     }
 
@@ -569,39 +581,32 @@ int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, st
 
         if (!C.empty())
         {
-            bool matched = false;
             if (C.dims == 1 && C.w == 1)
             {
                 broadcast_type_C = 0;
-                matched = true;
             }
             if (C.dims == 1 && C.w == M)
             {
                 broadcast_type_C = 1;
-                matched = true;
             }
             if (C.dims == 1 && C.w == N)
             {
                 broadcast_type_C = 4;
-                matched = true;
             }
             if (C.dims == 2 && C.w == 1 && C.h == M)
             {
                 broadcast_type_C = 2;
-                matched = true;
             }
             if (C.dims == 2 && C.w == N && C.h == M)
             {
                 broadcast_type_C = 3;
-                matched = true;
             }
             if (C.dims == 2 && C.w == N && C.h == 1)
             {
                 broadcast_type_C = 4;
-                matched = true;
             }
 
-            if (!matched || C.elemsize != 4u || C.elempack != 1)
+            if (broadcast_type_C == -1 || C.elemsize != 4u || C.elempack != 1)
             {
                 NCNN_LOGE("Gemm unsupported C");
                 return -1;

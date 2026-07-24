@@ -8944,18 +8944,30 @@ int Gemm_loongarch::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::v
 {
     const Mat& A = bottom_blobs[0];
     const bool use_bf16_storage = support_bf16_storage && opt.use_bf16_storage;
-    if ((A.elembits() != 32 && !(A.elembits() == 16 && use_bf16_storage)) || A.elempack != 1)
-    {
-        NCNN_LOGE("Gemm unsupported input");
-        return -1;
-    }
-    if (transA && A.dims != 2)
+    if ((!transA && A.dims != 2 && A.dims != 3) || (transA && A.dims != 2) || (A.elembits() != 32 && !(A.elembits() == 16 && use_bf16_storage)))
     {
         NCNN_LOGE("Gemm unsupported input");
         return -1;
     }
 
-    const int K = transA ? A.h : A.w;
+    bool supported_A_elempack = A.elempack == 1;
+#if __loongarch_sx
+    if (A.elempack == 4)
+        supported_A_elempack = true;
+    if (A.elembits() == 16 && A.elempack == 8)
+        supported_A_elempack = true;
+#if __loongarch_asx
+    if (A.elembits() == 32 && A.elempack == 8)
+        supported_A_elempack = true;
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+    if (!supported_A_elempack)
+    {
+        NCNN_LOGE("Gemm unsupported input");
+        return -1;
+    }
+
+    const int K = transA ? A.h * A.elempack : A.w;
     if (K != constantK)
     {
         NCNN_LOGE("Gemm weight block quantize K mismatch");
@@ -8971,7 +8983,7 @@ int Gemm_loongarch::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::v
     if (has_input_scale && B_data_input_scales.empty())
         return -100;
 
-    const int M = transA ? A.w : A.dims == 3 ? A.c : A.h;
+    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int N = constantN;
 
     Mat C;
@@ -8988,20 +9000,25 @@ int Gemm_loongarch::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::v
 
         if (!C.empty())
         {
-            bool matched = false;
-            if (C.dims == 1 && C.w == 1)
-                broadcast_type_C = 0, matched = true;
-            if (C.dims == 1 && C.w == M)
-                broadcast_type_C = 1, matched = true;
-            if (C.dims == 1 && C.w == N)
-                broadcast_type_C = 4, matched = true;
-            if (C.dims == 2 && C.w == 1 && C.h == M)
-                broadcast_type_C = 2, matched = true;
-            if (C.dims == 2 && C.w == N && C.h == M)
-                broadcast_type_C = 3, matched = true;
-            if (C.dims == 2 && C.w == N && C.h == 1)
-                broadcast_type_C = 4, matched = true;
-            if (!matched || C.elempack != 1 || (C.elembits() != 32 && !(C.elembits() == 16 && use_bf16_storage)))
+            if (C.dims == 1 && C.w * C.elempack == 1)
+                broadcast_type_C = 0;
+            if (C.dims == 1 && C.w * C.elempack == M)
+                broadcast_type_C = 1;
+            if (C.dims == 1 && C.w * C.elempack == N)
+                broadcast_type_C = 4;
+            if (C.dims == 2 && C.w == 1 && C.h * C.elempack == M)
+                broadcast_type_C = 2;
+            if (C.dims == 2 && C.w == N && C.h * C.elempack == M)
+                broadcast_type_C = 3;
+            if (C.dims == 2 && C.w == N && C.h * C.elempack == 1)
+                broadcast_type_C = 4;
+
+            bool supported_C_elempack = C.elempack == 1;
+#if __loongarch_sx
+            if (C.elempack == 4 || C.elempack == 8)
+                supported_C_elempack = true;
+#endif // __loongarch_sx
+            if (broadcast_type_C == -1 || !supported_C_elempack || (C.elembits() != 32 && !(C.elembits() == 16 && use_bf16_storage)))
             {
                 NCNN_LOGE("Gemm unsupported C");
                 return -1;
@@ -9030,22 +9047,54 @@ int Gemm_loongarch::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::v
         return -1;
 
     const int out_elemtype = output_elemtype == 1 || !use_bf16_storage ? 1 : 3;
-    const size_t out_elemsize = out_elemtype == 1 ? 4u : 2u;
+    const int outh = output_transpose ? N : M;
+    int out_elempack = 1;
+#if __loongarch_sx
+    if (opt.use_packing_layout)
+    {
+#if __loongarch_asx
+        out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+#else
+        out_elempack = out_elemtype == 3 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+#endif // __loongarch_asx
+    }
+#endif // __loongarch_sx
+    if (output_elempack)
+        out_elempack = output_elempack;
+
+    bool supported_out_elempack = out_elempack == 1;
+#if __loongarch_sx
+    if (out_elempack == 4)
+        supported_out_elempack = true;
+    if (out_elemtype == 3 && out_elempack == 8)
+        supported_out_elempack = true;
+#if __loongarch_asx
+    if (out_elemtype == 1 && out_elempack == 8)
+        supported_out_elempack = true;
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+    if (!supported_out_elempack || outh % out_elempack != 0)
+    {
+        NCNN_LOGE("Gemm unsupported output elempack");
+        return -1;
+    }
+
+    const size_t out_elemsize = (out_elemtype == 1 ? 4u : 2u) * out_elempack;
 
     Mat& top_blob = top_blobs[0];
     if (output_transpose)
     {
         if (output_N1M)
-            top_blob.create(M, 1, N, out_elemsize, opt.blob_allocator);
+            top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         else
-            top_blob.create(M, N, out_elemsize, opt.blob_allocator);
+            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     }
     else
     {
         if (output_N1M)
-            top_blob.create(N, 1, M, out_elemsize, opt.blob_allocator);
+            top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         else
-            top_blob.create(N, M, out_elemsize, opt.blob_allocator);
+            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     }
     if (top_blob.empty())
         return -100;
