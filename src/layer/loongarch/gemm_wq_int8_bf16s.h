@@ -1992,22 +1992,22 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         p0a += A_hstep;
                     }
 
-                        float absmax0;
-                        float absmax1;
-                        float absmax2;
-                        float absmax3;
-                        __lsx_vstelm_w((__m128i)_absmax, &absmax0, 0, 0);
-                        __lsx_vstelm_w((__m128i)_absmax, &absmax1, 0, 1);
-                        __lsx_vstelm_w((__m128i)_absmax, &absmax2, 0, 2);
-                        __lsx_vstelm_w((__m128i)_absmax, &absmax3, 0, 3);
-                        const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
-                        const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
-                        const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
-                        const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
-                        pd[0] = absmax0 / 127.f;
-                        pd[1] = absmax1 / 127.f;
-                        pd[2] = absmax2 / 127.f;
-                        pd[3] = absmax3 / 127.f;
+                    float absmax0;
+                    float absmax1;
+                    float absmax2;
+                    float absmax3;
+                    __lsx_vstelm_w((__m128i)_absmax, &absmax0, 0, 0);
+                    __lsx_vstelm_w((__m128i)_absmax, &absmax1, 0, 1);
+                    __lsx_vstelm_w((__m128i)_absmax, &absmax2, 0, 2);
+                    __lsx_vstelm_w((__m128i)_absmax, &absmax3, 0, 3);
+                    const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
+                    const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
+                    const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
+                    const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
+                    pd[0] = absmax0 / 127.f;
+                    pd[1] = absmax1 / 127.f;
+                    pd[2] = absmax2 / 127.f;
+                    pd[3] = absmax3 / 127.f;
                     pd += 4;
 
                     __m128 _scale0 = __lsx_vreplfr2vr_s(scale0);

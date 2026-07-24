@@ -4683,35 +4683,35 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                     p0 += A_hstep;
                 }
 #else
-        float absmax0 = 0.f;
-        float absmax1 = 0.f;
-        const unsigned short* p0a = p0;
-        const float* psa = ps;
+            float absmax0 = 0.f;
+            float absmax1 = 0.f;
+            const unsigned short* p0a = p0;
+            const float* psa = ps;
 
-        for (int kk = 0; kk < max_kk0; kk++)
-        {
-            const float s = *psa++;
-            float v0 = float16_to_float32(p0a[0]);
-            absmax0 = std::max(absmax0, fabsf(v0) * s);
-            float v1 = float16_to_float32(p0a[1]);
-            absmax1 = std::max(absmax1, fabsf(v1) * s);
-            p0a += A_hstep;
-        }
+            for (int kk = 0; kk < max_kk0; kk++)
+            {
+                const float s = *psa++;
+                float v0 = float16_to_float32(p0a[0]);
+                absmax0 = std::max(absmax0, fabsf(v0) * s);
+                float v1 = float16_to_float32(p0a[1]);
+                absmax1 = std::max(absmax1, fabsf(v1) * s);
+                p0a += A_hstep;
+            }
 
-        pd[0] = absmax0 / 127.f;
-        pd[1] = absmax1 / 127.f;
-        const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
-        const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
+            pd[0] = absmax0 / 127.f;
+            pd[1] = absmax1 / 127.f;
+            const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
+            const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
 
-        for (int kk = 0; kk < max_kk0; kk++)
-        {
-            const float s = *ps++;
-            float v0 = float16_to_float32(p0[0]) * s;
-            float v1 = float16_to_float32(p0[1]) * s;
-            *pp++ = float2int8(v0 * scale0);
-            *pp++ = float2int8(v1 * scale1);
-            p0 += A_hstep;
-        }
+            for (int kk = 0; kk < max_kk0; kk++)
+            {
+                const float s = *ps++;
+                float v0 = float16_to_float32(p0[0]) * s;
+                float v1 = float16_to_float32(p0[1]) * s;
+                *pp++ = float2int8(v0 * scale0);
+                *pp++ = float2int8(v1 * scale1);
+                p0 += A_hstep;
+            }
 #endif // __ARM_NEON
                 pd += 2;
             }

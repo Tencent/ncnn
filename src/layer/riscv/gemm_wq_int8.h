@@ -829,8 +829,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                         vint16m2_t _v16_0 = __riscv_vnclip_wx_i16m2(_v32x4_0, 0, __RISCV_VXRM_RNU, vlq);
                         vint16m2_t _v16_1 = __riscv_vnclip_wx_i16m2(_v32x4_1, 0, __RISCV_VXRM_RNU, vlq);
                         vint8m1x2_t _q = __riscv_vcreate_v_i8m1x2(
-                                              __riscv_vnclip_wx_i8m1(_v16_0, 0, __RISCV_VXRM_RNU, vlq),
-                                              __riscv_vnclip_wx_i8m1(_v16_1, 0, __RISCV_VXRM_RNU, vlq));
+                                             __riscv_vnclip_wx_i8m1(_v16_0, 0, __RISCV_VXRM_RNU, vlq),
+                                             __riscv_vnclip_wx_i8m1(_v16_1, 0, __RISCV_VXRM_RNU, vlq));
                         vbool8_t _mask8 = __riscv_vmsltu_vx_u8m1_b8(__riscv_vid_v_u8m1(vlq), n, vlq);
                         __riscv_vsseg2e8_v_i8m1x2_m(_mask8, pp, _q, vlq);
                         pp += n * 2;
@@ -924,8 +924,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                         vint16m2_t _v16_0 = __riscv_vnclip_wx_i16m2(_v32x4_0, 0, __RISCV_VXRM_RNU, vlq);
                         vint16m2_t _v16_1 = __riscv_vnclip_wx_i16m2(_v32x4_1, 0, __RISCV_VXRM_RNU, vlq);
                         vint8m1x2_t _q = __riscv_vcreate_v_i8m1x2(
-                                              __riscv_vnclip_wx_i8m1(_v16_0, 0, __RISCV_VXRM_RNU, vlq),
-                                              __riscv_vnclip_wx_i8m1(_v16_1, 0, __RISCV_VXRM_RNU, vlq));
+                                             __riscv_vnclip_wx_i8m1(_v16_0, 0, __RISCV_VXRM_RNU, vlq),
+                                             __riscv_vnclip_wx_i8m1(_v16_1, 0, __RISCV_VXRM_RNU, vlq));
                         vbool8_t _mask8 = __riscv_vmsltu_vx_u8m1_b8(__riscv_vid_v_u8m1(vlq), n, vlq);
                         __riscv_vsseg2e8_v_i8m1x2_m(_mask8, pp, _q, vlq);
                         pp += n * 2;
@@ -1317,8 +1317,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     vint16m2_t _v16_0 = __riscv_vnclip_wx_i16m2(_v32x4_0, 0, __RISCV_VXRM_RNU, vlq);
                     vint16m2_t _v16_1 = __riscv_vnclip_wx_i16m2(_v32x4_1, 0, __RISCV_VXRM_RNU, vlq);
                     vint8m1x2_t _q = __riscv_vcreate_v_i8m1x2(
-                                          __riscv_vnclip_wx_i8m1(_v16_0, 0, __RISCV_VXRM_RNU, vlq),
-                                          __riscv_vnclip_wx_i8m1(_v16_1, 0, __RISCV_VXRM_RNU, vlq));
+                                         __riscv_vnclip_wx_i8m1(_v16_0, 0, __RISCV_VXRM_RNU, vlq),
+                                         __riscv_vnclip_wx_i8m1(_v16_1, 0, __RISCV_VXRM_RNU, vlq));
                     vbool8_t _mask8 = __riscv_vmsltu_vx_u8m1_b8(__riscv_vid_v_u8m1(vlq), n, vlq);
                     __riscv_vsseg2e8_v_i8m1x2_m(_mask8, pp, _q, vlq);
                     pp += n * 2;
@@ -1424,8 +1424,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     vint16m2_t _v16_0 = __riscv_vnclip_wx_i16m2(_v32x4_0, 0, __RISCV_VXRM_RNU, vlq);
                     vint16m2_t _v16_1 = __riscv_vnclip_wx_i16m2(_v32x4_1, 0, __RISCV_VXRM_RNU, vlq);
                     vint8m1x2_t _q = __riscv_vcreate_v_i8m1x2(
-                                          __riscv_vnclip_wx_i8m1(_v16_0, 0, __RISCV_VXRM_RNU, vlq),
-                                          __riscv_vnclip_wx_i8m1(_v16_1, 0, __RISCV_VXRM_RNU, vlq));
+                                         __riscv_vnclip_wx_i8m1(_v16_0, 0, __RISCV_VXRM_RNU, vlq),
+                                         __riscv_vnclip_wx_i8m1(_v16_1, 0, __RISCV_VXRM_RNU, vlq));
                     vbool8_t _mask8 = __riscv_vmsltu_vx_u8m1_b8(__riscv_vid_v_u8m1(vlq), n, vlq);
                     __riscv_vsseg2e8_v_i8m1x2_m(_mask8, pp, _q, vlq);
                     pp += n * 2;

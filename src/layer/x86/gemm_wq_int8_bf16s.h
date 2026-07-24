@@ -3274,7 +3274,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         _p6 = _mm512_mul_ps(_p6, _scale);
                         _p7 = _mm512_mul_ps(_p7, _scale);
 #if __AVX512VNNI__
-    {
+                        {
                             __m128i _q0 = float2int8_avx512(_p0);
                             __m128i _q1 = float2int8_avx512(_p1);
                             __m128i _q2 = float2int8_avx512(_p2);
@@ -3381,7 +3381,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         _p2 = _mm512_mul_ps(_p2, _scale);
                         _p3 = _mm512_mul_ps(_p3, _scale);
 #if __AVX512VNNI__
-    {
+                        {
                             __m128i _q0 = float2int8_avx512(_p0);
                             __m128i _q1 = float2int8_avx512(_p1);
                             __m128i _q2 = float2int8_avx512(_p2);
@@ -3625,7 +3625,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         _p6 = _mm256_mul_ps(_p6, _scale);
                         _p7 = _mm256_mul_ps(_p7, _scale);
 #if __AVX512VNNI__ || __AVXVNNI__
-    {
+                        {
                             __m128i _q0 = _mm_cvtsi64_si128(float2int8_avx(_p0));
                             __m128i _q1 = _mm_cvtsi64_si128(float2int8_avx(_p1));
                             __m128i _q2 = _mm_cvtsi64_si128(float2int8_avx(_p2));
@@ -5175,7 +5175,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     _p14 = _mm512_mul_ps(_mm512_mul_ps(_p14, _mm512_set1_ps(ps[14])), _scale);
                     _p15 = _mm512_mul_ps(_mm512_mul_ps(_p15, _mm512_set1_ps(ps[15])), _scale);
 #if __AVX512VNNI__
-    {
+                    {
                         __m128i _q0 = float2int8_avx512(_p0);
                         __m128i _q1 = float2int8_avx512(_p1);
                         __m128i _q2 = float2int8_avx512(_p2);
@@ -5352,7 +5352,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     _p6 = _mm512_mul_ps(_mm512_mul_ps(_p6, _mm512_set1_ps(ps[6])), _scale);
                     _p7 = _mm512_mul_ps(_mm512_mul_ps(_p7, _mm512_set1_ps(ps[7])), _scale);
 #if __AVX512VNNI__
-    {
+                    {
                         __m128i _q0 = float2int8_avx512(_p0);
                         __m128i _q1 = float2int8_avx512(_p1);
                         __m128i _q2 = float2int8_avx512(_p2);
@@ -5463,7 +5463,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     _p2 = _mm512_mul_ps(_mm512_mul_ps(_p2, _mm512_set1_ps(ps[2])), _scale);
                     _p3 = _mm512_mul_ps(_mm512_mul_ps(_p3, _mm512_set1_ps(ps[3])), _scale);
 #if __AVX512VNNI__
-    {
+                    {
                         __m128i _q0 = float2int8_avx512(_p0);
                         __m128i _q1 = float2int8_avx512(_p1);
                         __m128i _q2 = float2int8_avx512(_p2);

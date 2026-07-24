@@ -668,8 +668,8 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                         vfloat32m4_t _v0 = __riscv_vfwcvt_f_f_v_f32m4(__riscv_vle16_v_f16m2_m(_mask, p0, vl), vl);
                         vfloat32m4_t _v1 = __riscv_vfwcvt_f_f_v_f32m4(__riscv_vle16_v_f16m2_m(_mask, p0 + packn_fp16, vl), vl);
                         vint8m1x2_t _q = __riscv_vcreate_v_i8m1x2(
-                                              float2int8(__riscv_vfmul_vf_f32m4(_v0, scale0, vl), vl),
-                                              float2int8(__riscv_vfmul_vf_f32m4(_v1, scale1, vl), vl));
+                                             float2int8(__riscv_vfmul_vf_f32m4(_v0, scale0, vl), vl),
+                                             float2int8(__riscv_vfmul_vf_f32m4(_v1, scale1, vl), vl));
                         __riscv_vsseg2e8_v_i8m1x2_m(_mask, pp, _q, vl);
                         pp += n * 2;
                         p0 += n;
@@ -1079,8 +1079,8 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                     _v0 = __riscv_vfmul_vv_f32m4(_v0, _s, vl);
                     _v1 = __riscv_vfmul_vv_f32m4(_v1, _s, vl);
                     vint8m1x2_t _q = __riscv_vcreate_v_i8m1x2(
-                                          float2int8(__riscv_vfmul_vf_f32m4(_v0, scale0, vl), vl),
-                                          float2int8(__riscv_vfmul_vf_f32m4(_v1, scale1, vl), vl));
+                                         float2int8(__riscv_vfmul_vf_f32m4(_v0, scale0, vl), vl),
+                                         float2int8(__riscv_vfmul_vf_f32m4(_v1, scale1, vl), vl));
                     __riscv_vsseg2e8_v_i8m1x2_m(_mask, pp, _q, vl);
                     pp += n * 2;
                     p0 += n;

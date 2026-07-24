@@ -2685,9 +2685,9 @@ int Gemm_riscv::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vecto
 #if __riscv_vector
     if (!C.empty() && C.elempack != 1 && C.elempack != packn
 #if NCNN_ZFH
-        && !(use_fp16_storage && !C_fp32.empty() && C.elempack == packn_fp16)
+            && !(use_fp16_storage && !C_fp32.empty() && C.elempack == packn_fp16)
 #endif // NCNN_ZFH
-    )
+       )
 #else
     if (!C.empty() && C.elempack != 1)
 #endif // __riscv_vector
@@ -2751,6 +2751,5 @@ int Gemm_riscv::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vecto
     return gemm_BT_riscv_wq_int8(A, BT_data_wq_int8, BT_data_wq_int8_descales, B_data_input_scales, C, top_blob, broadcast_type_C, N, K, block_size, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, opt.num_threads, out_elemtype, opt);
 }
 #endif // NCNN_WEIGHT_QUANT
-
 
 } // namespace ncnn
