@@ -3415,7 +3415,6 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
             v8i16 _bf6 = (v8i16)float2bfloat_msa(_f6);
             v8i16 _bf7 = (v8i16)float2bfloat_msa(_f7);
 
-
             v4f32 _g0 = (v4f32)__msa_ld_w(pp + 32, 0);
             v4f32 _g4 = (v4f32)__msa_ld_w(pp + 36, 0);
             v4f32 _g1 = (v4f32)__msa_ld_w(pp + 40, 0);

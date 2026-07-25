@@ -11632,7 +11632,6 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                         _mm256_storeu_ps(p0f + 80, _f5);
                         _mm256_storeu_ps(p0f + 96, _f6);
                         _mm256_storeu_ps(p0f + 112, _f7);
-
                     }
                     if (out_elempack == 8)
                     {
@@ -12303,7 +12302,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
         for (; jj + 15 < max_jj; jj += 16)
         {
             {
-    #if __AVX2__
+#if __AVX2__
                 __m256 _f0 = _mm256_loadu_ps(pp + 0);
                 __m256 _f1 = _mm256_loadu_ps(pp + 8);
                 __m256 _f2 = _mm256_loadu_ps(pp + 16);
@@ -12313,7 +12312,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 __m256 _f6 = _mm256_loadu_ps(pp + 48);
                 __m256 _f7 = _mm256_loadu_ps(pp + 56);
                 pp += 64;
-    #else
+#else
                 __m256 _f0 = combine4x2_ps(_mm_loadu_ps(pp + 0), _mm_loadu_ps(pp1 + 0));
                 __m256 _f1 = combine4x2_ps(_mm_loadu_ps(pp + 4), _mm_loadu_ps(pp1 + 4));
                 __m256 _f2 = combine4x2_ps(_mm_loadu_ps(pp + 8), _mm_loadu_ps(pp1 + 8));
@@ -12324,7 +12323,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 __m256 _f7 = combine4x2_ps(_mm_loadu_ps(pp + 28), _mm_loadu_ps(pp1 + 28));
                 pp += 32;
                 pp1 += 32;
-    #endif
+#endif
 
                 {
                     _f1 = _mm256_shuffle_ps(_f1, _f1, _MM_SHUFFLE(2, 1, 0, 3));
@@ -12494,7 +12493,6 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                         _mm256_storeu_ps(p0f + 80, _f5);
                         _mm256_storeu_ps(p0f + 96, _f6);
                         _mm256_storeu_ps(p0f + 112, _f7);
-
                     }
                     if (out_elempack == 8)
                     {
@@ -12595,7 +12593,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 }
             }
             {
-    #if __AVX2__
+#if __AVX2__
                 __m256 _f0 = _mm256_loadu_ps(pp + 0);
                 __m256 _f1 = _mm256_loadu_ps(pp + 8);
                 __m256 _f2 = _mm256_loadu_ps(pp + 16);
@@ -12605,7 +12603,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 __m256 _f6 = _mm256_loadu_ps(pp + 48);
                 __m256 _f7 = _mm256_loadu_ps(pp + 56);
                 pp += 64;
-    #else
+#else
                 __m256 _f0 = combine4x2_ps(_mm_loadu_ps(pp + 0), _mm_loadu_ps(pp1 + 0));
                 __m256 _f1 = combine4x2_ps(_mm_loadu_ps(pp + 4), _mm_loadu_ps(pp1 + 4));
                 __m256 _f2 = combine4x2_ps(_mm_loadu_ps(pp + 8), _mm_loadu_ps(pp1 + 8));
@@ -12616,7 +12614,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 __m256 _f7 = combine4x2_ps(_mm_loadu_ps(pp + 28), _mm_loadu_ps(pp1 + 28));
                 pp += 32;
                 pp1 += 32;
-    #endif
+#endif
 
                 {
                     _f1 = _mm256_shuffle_ps(_f1, _f1, _MM_SHUFFLE(2, 1, 0, 3));
@@ -15888,7 +15886,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 _f1 = _mm_mul_ps(_f1, _alpha);
             }
 
-#else  // __SSE2__
+#else // __SSE2__
             float f00 = pp[0];
             float f01 = pp[1];
             float f10 = pp[2];
@@ -15997,7 +15995,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
             if (alpha != 1.f)
                 _f = _mm_mul_ps(_f, _mm_set1_ps(alpha));
 
-#else  // __SSE2__
+#else // __SSE2__
             float f00 = pp[0];
             float f10 = pp[1];
             if (pC)
@@ -16296,7 +16294,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
             if (alpha != 1.f)
                 _f = _mm_mul_ps(_f, _mm_set1_ps(alpha));
 
-#else  // __SSE2__
+#else // __SSE2__
             float f00 = pp[0];
             float f01 = pp[1];
             if (pC)
