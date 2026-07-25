@@ -88,15 +88,17 @@ void gemm_transB_packed_tile_wq_int8_avxvnniint8(const Mat& AT_tile, const Mat& 
     gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
 }
 
-void unpack_output_tile_wq_int8_avxvnniint8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_elemtype)
+void unpack_output_tile_wq_int8_fp32_avxvnniint8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_transpose)
 {
-    unpack_output_tile_wq_int8(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype);
+    unpack_output_tile_wq_int8_fp32(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
 }
 
-void transpose_unpack_output_tile_wq_int8_avxvnniint8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_elemtype)
+#if NCNN_BF16
+void unpack_output_tile_wq_int8_bf16s_avxvnniint8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_transpose)
 {
-    transpose_unpack_output_tile_wq_int8(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype);
+    unpack_output_tile_wq_int8_bf16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
 }
+#endif // NCNN_BF16
 #endif // NCNN_WEIGHT_QUANT
 
 } // namespace ncnn

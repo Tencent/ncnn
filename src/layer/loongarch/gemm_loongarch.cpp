@@ -8748,6 +8748,19 @@ int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vec
 #endif
 
 #if NCNN_WEIGHT_QUANT
+static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int out_elemtype, int output_transpose)
+{
+#if NCNN_BF16
+    if (out_elemtype == 3)
+    {
+        unpack_output_tile_wq_int8_bf16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
+        return;
+    }
+#endif
+
+    unpack_output_tile_wq_int8_fp32(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
+}
+
 static int gemm_BT_loongarch_wq_int8(const Mat& A, const Mat& packed_B, const Mat& packed_B_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int out_elemtype, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
@@ -8819,10 +8832,7 @@ static int gemm_BT_loongarch_wq_int8(const Mat& A, const Mat& packed_B, const Ma
 
                 gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
             }
-            if (output_transpose)
-                transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, out_elemtype);
-            else
-                unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, out_elemtype);
+            unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, out_elemtype, output_transpose);
         }
     }
     else
@@ -8864,10 +8874,7 @@ static int gemm_BT_loongarch_wq_int8(const Mat& A, const Mat& packed_B, const Ma
 
                     gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
                 }
-                if (output_transpose)
-                    transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, out_elemtype);
-                else
-                    unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, out_elemtype);
+                unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, out_elemtype, output_transpose);
             }
         }
     }

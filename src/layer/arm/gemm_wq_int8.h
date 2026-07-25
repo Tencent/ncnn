@@ -3255,12 +3255,6 @@ static void transpose_quantize_A_tile_wq_int8_fp32(const Mat& A, Mat& AT_tile, M
     }
 }
 
-// Persistent B uses the baseline gemm_int8 K2/K1 byte order inside each
-// (output-column panel, quantization group). Every panel is exact and the
-// address of the panel starting at output column j is always j * K.
-// The non-neon simd32 nr2 panel follows the ordinary gemm_int8 per-k producer.
-// Its bytes are b0k0 b1k0 b0k1 b1k1 so sxtb16 and ror+sxtb16 extract the two
-// output columns without an extra byte shuffle in the smlad inner loop.
 static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile, Mat& BT_descales_tile, int j, int max_jj, int K, int block_size)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8
@@ -6460,42 +6454,21 @@ static void transpose_unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat
                 }
             }
 
-            if (out_elempack == 1)
-            {
-                transpose4x4_ps(_out0, _out2, _out4, _out6);
-                transpose4x4_ps(_out1, _out3, _out5, _out7);
-            }
+            transpose4x4_ps(_out0, _out2, _out4, _out6);
+            transpose4x4_ps(_out1, _out3, _out5, _out7);
 
             if (pC)
             {
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    if (broadcast_type_C == 0 || out_elempack == 1)
-                    {
-                        _out0 = vaddq_f32(_out0, _c0123);
-                        _out1 = vaddq_f32(_out1, _c0123);
-                        _out2 = vaddq_f32(_out2, _c0123);
-                        _out3 = vaddq_f32(_out3, _c0123);
-                        _out4 = vaddq_f32(_out4, _c0123);
-                        _out5 = vaddq_f32(_out5, _c0123);
-                        _out6 = vaddq_f32(_out6, _c0123);
-                        _out7 = vaddq_f32(_out7, _c0123);
-                    }
-                    else
-                    {
-                        float32x4_t _c = vdupq_lane_f32(vget_low_f32(_c0123), 0);
-                        _out0 = vaddq_f32(_out0, _c);
-                        _out1 = vaddq_f32(_out1, _c);
-                        _c = vdupq_lane_f32(vget_low_f32(_c0123), 1);
-                        _out2 = vaddq_f32(_out2, _c);
-                        _out3 = vaddq_f32(_out3, _c);
-                        _c = vdupq_lane_f32(vget_high_f32(_c0123), 0);
-                        _out4 = vaddq_f32(_out4, _c);
-                        _out5 = vaddq_f32(_out5, _c);
-                        _c = vdupq_lane_f32(vget_high_f32(_c0123), 1);
-                        _out6 = vaddq_f32(_out6, _c);
-                        _out7 = vaddq_f32(_out7, _c);
-                    }
+                    _out0 = vaddq_f32(_out0, _c0123);
+                    _out1 = vaddq_f32(_out1, _c0123);
+                    _out2 = vaddq_f32(_out2, _c0123);
+                    _out3 = vaddq_f32(_out3, _c0123);
+                    _out4 = vaddq_f32(_out4, _c0123);
+                    _out5 = vaddq_f32(_out5, _c0123);
+                    _out6 = vaddq_f32(_out6, _c0123);
+                    _out7 = vaddq_f32(_out7, _c0123);
                 }
             }
 
@@ -6514,14 +6487,18 @@ static void transpose_unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat
 
             if (out_elempack == 4)
             {
-                vst1q_f32(p0, _out0);
-                vst1q_f32(p0 + 4, _out2);
-                vst1q_f32(p0 + 8, _out4);
-                vst1q_f32(p0 + 12, _out6);
-                vst1q_f32(p0 + out_hstep * 4, _out1);
-                vst1q_f32(p0 + out_hstep * 4 + 4, _out3);
-                vst1q_f32(p0 + out_hstep * 4 + 8, _out5);
-                vst1q_f32(p0 + out_hstep * 4 + 12, _out7);
+                float32x4x4_t _outa;
+                float32x4x4_t _outb;
+                _outa.val[0] = _out0;
+                _outa.val[1] = _out2;
+                _outa.val[2] = _out4;
+                _outa.val[3] = _out6;
+                _outb.val[0] = _out1;
+                _outb.val[1] = _out3;
+                _outb.val[2] = _out5;
+                _outb.val[3] = _out7;
+                vst4q_f32(p0, _outa);
+                vst4q_f32(p0 + out_hstep * 4, _outb);
             }
             if (out_elempack == 1)
             {
@@ -6599,29 +6576,16 @@ static void transpose_unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat
                 }
             }
 
-            if (out_elempack == 1)
-            {
-                transpose4x4_ps(_out0, _out1, _out2, _out3);
-            }
+            transpose4x4_ps(_out0, _out1, _out2, _out3);
 
             if (pC)
             {
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    if (broadcast_type_C == 0 || out_elempack == 1)
-                    {
-                        _out0 = vaddq_f32(_out0, _c0123);
-                        _out1 = vaddq_f32(_out1, _c0123);
-                        _out2 = vaddq_f32(_out2, _c0123);
-                        _out3 = vaddq_f32(_out3, _c0123);
-                    }
-                    else
-                    {
-                        _out0 = vaddq_f32(_out0, vdupq_lane_f32(vget_low_f32(_c0123), 0));
-                        _out1 = vaddq_f32(_out1, vdupq_lane_f32(vget_low_f32(_c0123), 1));
-                        _out2 = vaddq_f32(_out2, vdupq_lane_f32(vget_high_f32(_c0123), 0));
-                        _out3 = vaddq_f32(_out3, vdupq_lane_f32(vget_high_f32(_c0123), 1));
-                    }
+                    _out0 = vaddq_f32(_out0, _c0123);
+                    _out1 = vaddq_f32(_out1, _c0123);
+                    _out2 = vaddq_f32(_out2, _c0123);
+                    _out3 = vaddq_f32(_out3, _c0123);
                 }
             }
 
@@ -6636,10 +6600,12 @@ static void transpose_unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat
 
             if (out_elempack == 4)
             {
-                vst1q_f32(p0, _out0);
-                vst1q_f32(p0 + 4, _out1);
-                vst1q_f32(p0 + 8, _out2);
-                vst1q_f32(p0 + 12, _out3);
+                float32x4x4_t _out;
+                _out.val[0] = _out0;
+                _out.val[1] = _out1;
+                _out.val[2] = _out2;
+                _out.val[3] = _out3;
+                vst4q_f32(p0, _out);
             }
             if (out_elempack == 1)
             {
@@ -6699,28 +6665,16 @@ static void transpose_unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat
                 }
             }
 
-            if (out_elempack == 1)
-            {
-                float32x4x2_t _t = vuzpq_f32(_out0, _out1);
-                _out0 = _t.val[0];
-                _out1 = _t.val[1];
-            }
+            float32x4x2_t _t = vuzpq_f32(_out0, _out1);
+            _out0 = _t.val[0];
+            _out1 = _t.val[1];
 
             if (pC)
             {
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    if (broadcast_type_C == 0 || out_elempack == 1)
-                    {
-                        _out0 = vaddq_f32(_out0, _c0123);
-                        _out1 = vaddq_f32(_out1, _c0123);
-                    }
-                    else
-                    {
-                        float32x4x2_t _c = vzipq_f32(_c0123, _c0123);
-                        _out0 = vaddq_f32(_out0, _c.val[0]);
-                        _out1 = vaddq_f32(_out1, _c.val[1]);
-                    }
+                    _out0 = vaddq_f32(_out0, _c0123);
+                    _out1 = vaddq_f32(_out1, _c0123);
                 }
             }
 
@@ -6730,20 +6684,8 @@ static void transpose_unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat
                 _out1 = vmulq_n_f32(_out1, alpha);
             }
 
-            if (out_elempack == 4)
-            {
-                float32x2x4_t _r;
-                _r.val[0] = vget_low_f32(_out0);
-                _r.val[1] = vget_high_f32(_out0);
-                _r.val[2] = vget_low_f32(_out1);
-                _r.val[3] = vget_high_f32(_out1);
-                vst4_f32(p0, _r);
-            }
-            if (out_elempack == 1)
-            {
-                vst1q_f32(p0, _out0);
-                vst1q_f32(p0 + out_hstep, _out1);
-            }
+            vst1q_f32(p0, _out0);
+            vst1q_f32(p0 + out_hstep, _out1);
 
             pp += 8;
             p0 += out_hstep * 2;
@@ -6904,36 +6846,21 @@ static void transpose_unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat
                 }
             }
 
-            if (out_elempack == 1)
-            {
-                float32x4x2_t _t0 = vzipq_f32(_out0, _out2);
-                float32x4x2_t _t1 = vzipq_f32(_out1, _out3);
-                _out0 = _t0.val[0];
-                _out1 = _t0.val[1];
-                _out2 = _t1.val[0];
-                _out3 = _t1.val[1];
-            }
+            float32x4x2_t _t0 = vzipq_f32(_out0, _out2);
+            float32x4x2_t _t1 = vzipq_f32(_out1, _out3);
+            _out0 = _t0.val[0];
+            _out1 = _t0.val[1];
+            _out2 = _t1.val[0];
+            _out3 = _t1.val[1];
 
             if (pC)
             {
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    if (broadcast_type_C == 0 || out_elempack == 1)
-                    {
-                        _out0 = vaddq_f32(_out0, _c01);
-                        _out1 = vaddq_f32(_out1, _c01);
-                        _out2 = vaddq_f32(_out2, _c01);
-                        _out3 = vaddq_f32(_out3, _c01);
-                    }
-                    else
-                    {
-                        float32x4_t _c = vdupq_lane_f32(vget_low_f32(_c01), 0);
-                        _out0 = vaddq_f32(_out0, _c);
-                        _out1 = vaddq_f32(_out1, _c);
-                        _c = vdupq_lane_f32(vget_low_f32(_c01), 1);
-                        _out2 = vaddq_f32(_out2, _c);
-                        _out3 = vaddq_f32(_out3, _c);
-                    }
+                    _out0 = vaddq_f32(_out0, _c01);
+                    _out1 = vaddq_f32(_out1, _c01);
+                    _out2 = vaddq_f32(_out2, _c01);
+                    _out3 = vaddq_f32(_out3, _c01);
                 }
             }
 
@@ -6948,10 +6875,12 @@ static void transpose_unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat
 
             if (out_elempack == 4)
             {
-                vst1q_f32(p0, _out0);
-                vst1q_f32(p0 + 4, _out2);
-                vst1q_f32(p0 + out_hstep * 4, _out1);
-                vst1q_f32(p0 + out_hstep * 4 + 4, _out3);
+                float32x4x2_t _out02 = vuzpq_f32(_out0, _out1);
+                float32x4x2_t _out13 = vuzpq_f32(_out2, _out3);
+                vst1q_f32(p0, _out02.val[0]);
+                vst1q_f32(p0 + 4, _out02.val[1]);
+                vst1q_f32(p0 + out_hstep * 4, _out13.val[0]);
+                vst1q_f32(p0 + out_hstep * 4 + 4, _out13.val[1]);
             }
             if (out_elempack == 1)
             {
@@ -7003,27 +6932,16 @@ static void transpose_unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat
                 }
             }
 
-            if (out_elempack == 1)
-            {
-                float32x4x2_t _t = vzipq_f32(_out0, _out1);
-                _out0 = _t.val[0];
-                _out1 = _t.val[1];
-            }
+            float32x4x2_t _t = vzipq_f32(_out0, _out1);
+            _out0 = _t.val[0];
+            _out1 = _t.val[1];
 
             if (pC)
             {
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    if (broadcast_type_C == 0 || out_elempack == 1)
-                    {
-                        _out0 = vaddq_f32(_out0, _c01);
-                        _out1 = vaddq_f32(_out1, _c01);
-                    }
-                    else
-                    {
-                        _out0 = vaddq_f32(_out0, vdupq_lane_f32(vget_low_f32(_c01), 0));
-                        _out1 = vaddq_f32(_out1, vdupq_lane_f32(vget_low_f32(_c01), 1));
-                    }
+                    _out0 = vaddq_f32(_out0, _c01);
+                    _out1 = vaddq_f32(_out1, _c01);
                 }
             }
 
@@ -7035,8 +6953,9 @@ static void transpose_unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat
 
             if (out_elempack == 4)
             {
-                vst1q_f32(p0, _out0);
-                vst1q_f32(p0 + 4, _out1);
+                float32x4x2_t _out = vuzpq_f32(_out0, _out1);
+                vst1q_f32(p0, _out.val[0]);
+                vst1q_f32(p0 + 4, _out.val[1]);
             }
             if (out_elempack == 1)
             {
@@ -7083,27 +7002,16 @@ static void transpose_unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat
                 }
             }
 
-            if (out_elempack == 1)
-            {
-                float32x2x2_t _t = vzip_f32(_out0, _out1);
-                _out0 = _t.val[0];
-                _out1 = _t.val[1];
-            }
+            float32x2x2_t _t = vzip_f32(_out0, _out1);
+            _out0 = _t.val[0];
+            _out1 = _t.val[1];
 
             if (pC)
             {
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    if (broadcast_type_C == 0 || out_elempack == 1)
-                    {
-                        _out0 = vadd_f32(_out0, vget_low_f32(_c01));
-                        _out1 = vadd_f32(_out1, vget_low_f32(_c01));
-                    }
-                    else
-                    {
-                        _out0 = vadd_f32(_out0, vdup_lane_f32(vget_low_f32(_c01), 0));
-                        _out1 = vadd_f32(_out1, vdup_lane_f32(vget_low_f32(_c01), 1));
-                    }
+                    _out0 = vadd_f32(_out0, vget_low_f32(_c01));
+                    _out1 = vadd_f32(_out1, vget_low_f32(_c01));
                 }
             }
 
@@ -7113,18 +7021,8 @@ static void transpose_unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat
                 _out1 = vmul_n_f32(_out1, alpha);
             }
 
-            if (out_elempack == 4)
-            {
-                float32x2x2_t _r;
-                _r.val[0] = _out0;
-                _r.val[1] = _out1;
-                vst2_f32(p0, _r);
-            }
-            else
-            {
-                vst1_f32(p0, _out0);
-                vst1_f32(p0 + out_hstep, _out1);
-            }
+            vst1_f32(p0, _out0);
+            vst1_f32(p0 + out_hstep, _out1);
 
             pp += 4;
             p0 += out_hstep * 2;

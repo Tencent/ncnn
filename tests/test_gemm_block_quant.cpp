@@ -348,17 +348,18 @@ static int test_gemm_bias(int M, int N, int K, int bits, int block_size, const n
     return ret;
 }
 
-static int test_gemm_wq_int8_zero(int zero_A, int zero_B_block)
+static int test_gemm_wq_int8_zero(int zero_A, int zero_B_block, int has_input_scale = 0, int transA = 0)
 {
     const int M = 31;
     const int N = 16;
     const int K = 67;
     const int block_size = 32;
 
-    ncnn::Mat A(K, M);
+    ncnn::Mat A = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
     ncnn::Mat B(K, N);
-    RandomizeA(A, 0, block_size, ncnn::Mat());
-    RandomizeB(B, block_size, ncnn::Mat());
+    ncnn::Mat input_scales = has_input_scale ? make_input_scales(K) : ncnn::Mat();
+    RandomizeA(A, transA, block_size, input_scales);
+    RandomizeB(B, block_size, input_scales);
 
     if (zero_A)
         A.fill(0.f);
@@ -372,10 +373,11 @@ static int test_gemm_wq_int8_zero(int zero_A, int zero_B_block)
         }
     }
 
-    const ncnn::ParamDict pd = make_gemm_param(M, N, K, weight_block_quantize_term(8, block_size));
-    const int ret = test_gemm_block_quant(A, B, ncnn::Mat(), pd, 8, block_size, 0, 0);
+    ncnn::ParamDict pd = make_gemm_param(M, N, K, weight_block_quantize_term(8, block_size, has_input_scale));
+    pd.set(2, transA);
+    const int ret = test_gemm_block_quant(A, B, ncnn::Mat(), pd, 8, block_size, has_input_scale, 0);
     if (ret != 0)
-        fprintf(stderr, "test_gemm_wq_int8_zero failed zero_A=%d zero_B_block=%d\n", zero_A, zero_B_block);
+        fprintf(stderr, "test_gemm_wq_int8_zero failed zero_A=%d zero_B_block=%d has_input_scale=%d transA=%d\n", zero_A, zero_B_block, has_input_scale, transA);
 
     return ret;
 }
@@ -654,8 +656,14 @@ static int test_gemm_3()
     return 0
            || test_gemm_wq_int8_zero(1, 0)
            || test_gemm_wq_int8_zero(0, 1)
+           || test_gemm_wq_int8_zero(1, 0, 1, 0)
+           || test_gemm_wq_int8_zero(1, 0, 0, 1)
+           || test_gemm_wq_int8_zero(1, 0, 1, 1)
            || test_gemm_wq_int8_tile(16, 4, 64, 32, 16, 4, 32)
-           || test_gemm_bias(2, 9, 66, 8, 64, RandomMat(9), 1.f, 0.5f, 1, 0, 1, 1, 0, 1, 2, 4, 64)
+           || test_gemm_bias(3, 20, 66, 8, 64, RandomMat(20), 1.f, 0.5f, 1, 0, 1, 1, 0, 0, 2, 16, 64)
+           || test_gemm_bias(18, 16, 64, 8, 32, RandomMat(16), 0.7f, 1.f, 0, 1, 1, 0, 0, 0, 18, 16, 17)
+           || test_gemm_bias(18, 16, 64, 8, 32, RandomMat(16), 0.7f, 0.5f, 0, 1, 1, 0, 0, 0, 18, 16, 17)
+           || test_gemm_bias(18, 16, 64, 8, 32, RandomMat(16), 0.7f, 1.f, 0, 1, 0, 0, 0, 0, 18, 16, 17)
            || test_gemm_bias(24, 24, 80, 8, 32, RandomMat(24, 24), 0.7f, 1.f, 0, 1, 0, 0, 0, 0, 12, 12, 32)
            || test_gemm_bias(7, 6, 64, 8, 32, RandomMat(1, 7), 1.f, 0.5f, 1, 1, 1, 0, 1, 0, 4, 4, 32)
            || test_gemm_bias(9, 8, 128, 8, 64, RandomMat(9), 1.f, 0.5f, 1, 1, 0, 1, 0, 0, 8, 8, 64)
@@ -670,9 +678,36 @@ static int test_gemm_3()
            || test_gemm(31, 32, 72, 8, 64, 0, 1, 1)
            || test_gemm(31, 31, 80, 8, 32, 1, 1, 1)
            || test_gemm(31, 31, 72, 8, 64, 1, 1)
+           || test_gemm(28, 28, 68, 8, 64, 0, 1)
+           || test_gemm(2, 3, 64, 8, 32, 0, 1, 1)
+           || test_gemm(1, 3, 64, 8, 32, 0, 1, 1)
            || test_gemm_bias(31, 31, 67, 8, 32, RandomMat(1), 0.7f, 1.3f, 0, 0, 0, 0)
            || test_gemm_bias(31, 16, 80, 8, 32, RandomMat(16, 31), 0.7f, 1.f, 0, 1, 1, 0)
            || test_gemm_bias(28, 28, 68, 8, 64, RandomMat(28, 28), 0.7f, 0.3f, 1, 1, 0, 0)
+           || test_gemm_bias(3, 20, 68, 8, 64, RandomMat(20, 3), 0.7f, 1.f, 1, 1, 0, 0)
+           || test_gemm_bias(3, 32, 68, 8, 64, RandomMat(32, 3), 0.7f, 0.3f, 1, 1, 1, 0)
+           || test_gemm_bias(24, 15, 47, 8, 32, RandomMat(15, 24), 0.7f, 0.3f, 0, 0, 0, 0)
+           || test_gemm_bias(24, 15, 47, 8, 32, RandomMat(15, 24), 0.7f, 1.f, 1, 0, 0, 0)
+           || test_gemm_bias(24, 15, 47, 8, 32, RandomMat(15, 24), 0.7f, 0.3f, 1, 1, 1, 0)
+           || test_gemm_bias(31, 15, 47, 8, 32, RandomMat(15), 0.7f, 1.f, 0, 0, 1, 0, 0, 1)
+           || test_gemm_bias(20, 15, 47, 8, 32, RandomMat(15, 20), 0.7f, 0.3f, 0, 0, 0, 0)
+           || test_gemm_bias(15, 15, 47, 8, 32, RandomMat(15, 15), 0.7f, 0.3f, 0, 0, 0, 0)
+           || test_gemm_bias(31, 15, 47, 8, 32, RandomMat(15, 31), 0.7f, 1.f, 1, 0, 1, 0)
+           || test_gemm_bias(15, 20, 47, 8, 32, RandomMat(15), 0.7f, 1.f, 0, 0, 1, 0)
+           || test_gemm_bias(15, 15, 47, 8, 32, RandomMat(1), 0.7f, 1.f, 0, 0, 1, 0)
+           || test_gemm_bias(28, 16, 47, 8, 32, RandomMat(16), 0.7f, 0.3f, 0, 0, 1, 0)
+           || test_gemm_bias(18, 8, 47, 8, 32, RandomMat(18), 0.7f, 0.3f, 0, 0, 1, 0)
+           || test_gemm_bias(20, 15, 47, 8, 32, RandomMat(15), 0.7f, 1.f, 0, 0, 0, 0, 0, 1)
+           || test_gemm_bias(28, 15, 47, 8, 32, RandomMat(15, 28), 0.7f, 1.f, 1, 0, 1, 0)
+           || test_gemm_bias(31, 3, 47, 8, 32, RandomMat(3, 31), 0.7f, 1.f, 1, 0, 0, 0)
+           || test_gemm_bias(18, 16, 47, 8, 32, RandomMat(18), 0.7f, 0.3f, 0, 0, 1, 0)
+           || test_gemm_bias(28, 16, 47, 8, 32, RandomMat(16, 28), 0.7f, 0.3f, 0, 0, 1, 0)
+           || test_gemm_bias(24, 16, 47, 8, 32, RandomMat(16, 24), 0.7f, 0.3f, 0, 0, 1, 0)
+           || test_gemm_bias(16, 16, 47, 8, 32, RandomMat(16, 16), 0.7f, 0.3f, 0, 0, 1, 0)
+           || test_gemm_bias(12, 3, 33, 8, 32, RandomMat(3, 12), 0.7f, 1.f, 0, 1, 1, 0, 0, 0, 0, 0, 64)
+           || test_gemm(1, 8, 33, 8, 32, 0, 1, 1)
+           || test_gemm_bias(12, 15, 67, 8, 32, RandomMat(15, 12), 0.7f, 1.f, 0, 1, 0, 0, 0, 0, 12, 12, 32)
+           || test_gemm_bias(15, 12, 67, 8, 32, RandomMat(12, 15), 0.7f, 1.f, 0, 1, 1, 0)
            || test_gemm_bias(24, 24, 80, 8, 32, RandomMat(24, 24), 0.7f, 1.f, 0, 1, 1, 0, 0, 0, 12, 12, 32)
            || test_gemm_bias(31, 31, 35, 8, 32, RandomMat(31, 31), 0.7f, 0.3f, 0, 1, 0, 0, 0, 1);
 }
@@ -698,9 +733,11 @@ int main()
     const int mnkb[][4] = {
         {31, 31, 35, 32},
         {12, 20, 68, 64},
+        {12, 20, 67, 64},
         {24, 24, 72, 64},
         {16, 16, 80, 32},
         {16, 15, 35, 32},
+        {20, 20, 35, 32},
         {32, 32, 96, 32},
         {32, 31, 129, 128}
     };
