@@ -1,9 +1,8 @@
 // Copyright 2022 yala <zhaojunchao@loongson.cn>;<junchao82@qq.com>
 // SPDX-License-Identifier: BSD-3-Clause
 
-static void linear_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner)
+static void linear_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner, double scale)
 {
-    double scale = (double)w / outw;
     if (align_corner)
     {
         scale = (double)(w - 1) / (outw - 1);
