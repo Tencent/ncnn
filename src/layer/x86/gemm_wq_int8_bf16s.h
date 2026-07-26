@@ -686,7 +686,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     {
                         __m256 _p = _mm256_mul_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)p0)), _scale);
 #if __AVX2__
-                        _mm_storel_epi64((__m128i*)pp, _mm_cvtsi64_si128(float2int8_avx(_p)));
+                        *(int64_t*)pp = float2int8_avx(_p);
                         pp += 8;
 #else
                         const uint64_t q = (uint64_t)float2int8_avx(_p);
@@ -810,7 +810,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         __m256 _p = combine4x2_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)p0)), bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(p0 + A_hstep * 4))));
                         _p = _mm256_mul_ps(_p, _scale);
 #if __AVX2__
-                        _mm_storel_epi64((__m128i*)pp, _mm_cvtsi64_si128(float2int8_avx(_p)));
+                        *(int64_t*)pp = float2int8_avx(_p);
                         pp += 8;
 #else
                         const uint64_t q = (uint64_t)float2int8_avx(_p);
@@ -1000,7 +1000,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         __m256 _p = combine4x2_ps(_p0, _p1);
 #endif // __AVX2__
 #if __AVX2__
-                        _mm_storel_epi64((__m128i*)pp, _mm_cvtsi64_si128(float2int8_avx(_mm256_mul_ps(_p, _scale))));
+                        *(int64_t*)pp = float2int8_avx(_mm256_mul_ps(_p, _scale));
                         pp += 8;
 #else
                         const uint64_t q = (uint64_t)float2int8_avx(_mm256_mul_ps(_p, _scale));
@@ -1406,15 +1406,11 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                 {
                     __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p0)));
                     const int64_t q = float2int8_avx(_mm256_mul_ps(_p, _scale256));
-                    _mm_storel_epi64((__m128i*)pp, _mm_cvtsi64_si128(q));
+                    *(int64_t*)pp = q;
                     pp += 8;
                     p0 += 8;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-#if defined(__x86_64__) || defined(_M_X64)
-                    __m128i _q8 = _mm_cvtsi64_si128(q);
-#else
                     __m128i _q8 = _mm_loadl_epi64((const __m128i*)(pp - 8));
-#endif
                     __m128i _q16 = _mm_unpacklo_epi8(_q8, _mm_cmpgt_epi8(_mm_setzero_si128(), _q8));
                     w_shift += _mm_reduce_add_epi32(_mm_madd_epi16(_q16, _mm_set1_epi16(1)));
 #endif
@@ -2260,7 +2256,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     __m256 _p = _mm256_mul_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)p0)), _mm256_set1_ps(ps[0]));
                     _p = _mm256_mul_ps(_p, _scale);
 #if __AVX2__
-                    _mm_storel_epi64((__m128i*)pp, _mm_cvtsi64_si128(float2int8_avx(_p)));
+                    *(int64_t*)pp = float2int8_avx(_p);
                     pp += 8;
 #else
                     const uint64_t q = (uint64_t)float2int8_avx(_p);
@@ -2394,7 +2390,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     __m256 _p = combine4x2_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)p0)), bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(p0 + A_hstep * 4))));
                     _p = _mm256_mul_ps(_mm256_mul_ps(_p, _mm256_set1_ps(ps[0])), _scale);
 #if __AVX2__
-                    _mm_storel_epi64((__m128i*)pp, _mm_cvtsi64_si128(float2int8_avx(_p)));
+                    *(int64_t*)pp = float2int8_avx(_p);
                     pp += 8;
 #else
                     const uint64_t q = (uint64_t)float2int8_avx(_p);
@@ -2603,7 +2599,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
 #endif // __AVX2__
                     _p = _mm256_mul_ps(_p, _mm256_set1_ps(ps[0]));
 #if __AVX2__
-                    _mm_storel_epi64((__m128i*)pp, _mm_cvtsi64_si128(float2int8_avx(_mm256_mul_ps(_p, _scale))));
+                    *(int64_t*)pp = float2int8_avx(_mm256_mul_ps(_p, _scale));
                     pp += 8;
 #else
                     const uint64_t q = (uint64_t)float2int8_avx(_mm256_mul_ps(_p, _scale));
@@ -3052,16 +3048,12 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                 __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p0)));
                 _p = _mm256_mul_ps(_p, _mm256_loadu_ps(ps));
                 const int64_t q = float2int8_avx(_mm256_mul_ps(_p, _scale256));
-                _mm_storel_epi64((__m128i*)pp, _mm_cvtsi64_si128(q));
+                *(int64_t*)pp = q;
                 pp += 8;
                 p0 += 8;
                 ps += 8;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-#if defined(__x86_64__) || defined(_M_X64)
-                __m128i _q8 = _mm_cvtsi64_si128(q);
-#else
                 __m128i _q8 = _mm_loadl_epi64((const __m128i*)(pp - 8));
-#endif
                 __m128i _q16 = _mm_unpacklo_epi8(_q8, _mm_cmpgt_epi8(_mm_setzero_si128(), _q8));
                 w_shift += _mm_reduce_add_epi32(_mm_madd_epi16(_q16, _mm_set1_epi16(1)));
 #endif
@@ -3670,10 +3662,12 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         _p7 = _mm256_mul_ps(_p7, _scale);
 #if __AVX512VNNI__ || __AVXVNNI__
                         {
-                            __m128i _q0 = _mm_cvtsi64_si128(float2int8_avx(_p0));
-                            __m128i _q1 = _mm_cvtsi64_si128(float2int8_avx(_p1));
-                            __m128i _q2 = _mm_cvtsi64_si128(float2int8_avx(_p2));
-                            __m128i _q3 = _mm_cvtsi64_si128(float2int8_avx(_p3));
+                            __m128i _q01 = float2int8_avx(_p0, _p1);
+                            __m128i _q23 = float2int8_avx(_p2, _p3);
+                            __m128i _q0 = _q01;
+                            __m128i _q1 = _mm_srli_si128(_q01, 8);
+                            __m128i _q2 = _q23;
+                            __m128i _q3 = _mm_srli_si128(_q23, 8);
                             transpose8x4_epi8(_q0, _q1, _q2, _q3);
                             __m256i _q = combine4x2_epi32(_q0, _q1);
                             _mm256_storeu_si256((__m256i*)pp, _q);
@@ -3683,10 +3677,12 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                             pp += 32;
                         }
                         {
-                            __m128i _q0 = _mm_cvtsi64_si128(float2int8_avx(_p4));
-                            __m128i _q1 = _mm_cvtsi64_si128(float2int8_avx(_p5));
-                            __m128i _q2 = _mm_cvtsi64_si128(float2int8_avx(_p6));
-                            __m128i _q3 = _mm_cvtsi64_si128(float2int8_avx(_p7));
+                            __m128i _q45 = float2int8_avx(_p4, _p5);
+                            __m128i _q67 = float2int8_avx(_p6, _p7);
+                            __m128i _q0 = _q45;
+                            __m128i _q1 = _mm_srli_si128(_q45, 8);
+                            __m128i _q2 = _q67;
+                            __m128i _q3 = _mm_srli_si128(_q67, 8);
                             transpose8x4_epi8(_q0, _q1, _q2, _q3);
                             __m256i _q = combine4x2_epi32(_q0, _q1);
                             _mm256_storeu_si256((__m256i*)pp, _q);
@@ -3699,38 +3695,42 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
 
 #if __AVX2__
                         {
-                            __m128i _q0 = _mm_cvtsi64_si128(float2int8_avx(_p0));
-                            __m128i _q1 = _mm_cvtsi64_si128(float2int8_avx(_p1));
+                            __m128i _q01 = float2int8_avx(_p0, _p1);
+                            __m128i _q0 = _q01;
+                            __m128i _q1 = _mm_srli_si128(_q01, 8);
                             _mm_storeu_si128((__m128i*)pp, _mm_unpacklo_epi8(_q0, _q1));
                             pp += 16;
                         }
                         {
-                            __m128i _q0 = _mm_cvtsi64_si128(float2int8_avx(_p2));
-                            __m128i _q1 = _mm_cvtsi64_si128(float2int8_avx(_p3));
+                            __m128i _q23 = float2int8_avx(_p2, _p3);
+                            __m128i _q0 = _q23;
+                            __m128i _q1 = _mm_srli_si128(_q23, 8);
                             _mm_storeu_si128((__m128i*)pp, _mm_unpacklo_epi8(_q0, _q1));
                             pp += 16;
                         }
                         {
-                            __m128i _q0 = _mm_cvtsi64_si128(float2int8_avx(_p4));
-                            __m128i _q1 = _mm_cvtsi64_si128(float2int8_avx(_p5));
+                            __m128i _q45 = float2int8_avx(_p4, _p5);
+                            __m128i _q0 = _q45;
+                            __m128i _q1 = _mm_srli_si128(_q45, 8);
                             _mm_storeu_si128((__m128i*)pp, _mm_unpacklo_epi8(_q0, _q1));
                             pp += 16;
                         }
                         {
-                            __m128i _q0 = _mm_cvtsi64_si128(float2int8_avx(_p6));
-                            __m128i _q1 = _mm_cvtsi64_si128(float2int8_avx(_p7));
+                            __m128i _q67 = float2int8_avx(_p6, _p7);
+                            __m128i _q0 = _q67;
+                            __m128i _q1 = _mm_srli_si128(_q67, 8);
                             _mm_storeu_si128((__m128i*)pp, _mm_unpacklo_epi8(_q0, _q1));
                             pp += 16;
                         }
 #else
-                        __m128i _q0 = _mm_cvtsi64_si128(float2int8_avx(_p0));
-                        __m128i _q1 = _mm_cvtsi64_si128(float2int8_avx(_p1));
-                        __m128i _q2 = _mm_cvtsi64_si128(float2int8_avx(_p2));
-                        __m128i _q3 = _mm_cvtsi64_si128(float2int8_avx(_p3));
-                        __m128i _q4 = _mm_cvtsi64_si128(float2int8_avx(_p4));
-                        __m128i _q5 = _mm_cvtsi64_si128(float2int8_avx(_p5));
-                        __m128i _q6 = _mm_cvtsi64_si128(float2int8_avx(_p6));
-                        __m128i _q7 = _mm_cvtsi64_si128(float2int8_avx(_p7));
+                        __m128i _q0 = float2int8_avx(_p0, _p1);
+                        __m128i _q1 = _mm_srli_si128(_q0, 8);
+                        __m128i _q2 = float2int8_avx(_p2, _p3);
+                        __m128i _q3 = _mm_srli_si128(_q2, 8);
+                        __m128i _q4 = float2int8_avx(_p4, _p5);
+                        __m128i _q5 = _mm_srli_si128(_q4, 8);
+                        __m128i _q6 = float2int8_avx(_p6, _p7);
+                        __m128i _q7 = _mm_srli_si128(_q6, 8);
                         __m128i _q01 = _mm_unpacklo_epi8(_q0, _q1);
                         __m128i _q23 = _mm_unpacklo_epi8(_q2, _q3);
                         __m128i _q45 = _mm_unpacklo_epi8(_q4, _q5);
@@ -3938,7 +3938,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     {
                         __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p0)));
 #if __AVX2__
-                        _mm_storel_epi64((__m128i*)pp, _mm_cvtsi64_si128(float2int8_avx(_mm256_mul_ps(_p, _scale))));
+                        *(int64_t*)pp = float2int8_avx(_mm256_mul_ps(_p, _scale));
                         pp += 8;
 #else
                         const uint64_t q = (uint64_t)float2int8_avx(_mm256_mul_ps(_p, _scale));
@@ -5055,15 +5055,11 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     {
                         __m256 _p = _mm256_setr_ps(bfloat16_to_float32(p0[0]), bfloat16_to_float32(p0[A_hstep]), bfloat16_to_float32(p0[A_hstep * 2]), bfloat16_to_float32(p0[A_hstep * 3]), bfloat16_to_float32(p0[A_hstep * 4]), bfloat16_to_float32(p0[A_hstep * 5]), bfloat16_to_float32(p0[A_hstep * 6]), bfloat16_to_float32(p0[A_hstep * 7]));
                         const int64_t q = float2int8_avx(_mm256_mul_ps(_p, _scale256));
-                        _mm_storel_epi64((__m128i*)pp, _mm_cvtsi64_si128(q));
+                        *(int64_t*)pp = q;
                         pp += 8;
                         p0 += A_hstep * 8;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-#if defined(__x86_64__) || defined(_M_X64)
-                        __m128i _q8 = _mm_cvtsi64_si128(q);
-#else
                         __m128i _q8 = _mm_loadl_epi64((const __m128i*)(pp - 8));
-#endif
                         __m128i _q16 = _mm_unpacklo_epi8(_q8, _mm_cmpgt_epi8(_mm_setzero_si128(), _q8));
                         w_shift += _mm_reduce_add_epi32(_mm_madd_epi16(_q16, _mm_set1_epi16(1)));
 #endif
@@ -6066,7 +6062,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p0)));
                     _p = _mm256_mul_ps(_p, _mm256_set1_ps(ps[0]));
 #if __AVX2__
-                    _mm_storel_epi64((__m128i*)pp, _mm_cvtsi64_si128(float2int8_avx(_mm256_mul_ps(_p, _scale))));
+                    *(int64_t*)pp = float2int8_avx(_mm256_mul_ps(_p, _scale));
                     pp += 8;
 #else
                     const uint64_t q = (uint64_t)float2int8_avx(_mm256_mul_ps(_p, _scale));
@@ -6781,9 +6777,9 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                 {
                     __m256 _p = _mm256_mul_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)p0)), _mm256_loadu_ps(ps));
                     const int64_t q = float2int8_avx(_mm256_mul_ps(_p, _scale));
-                    _mm_storel_epi64((__m128i*)pp, _mm_cvtsi64_si128(q));
+                    *(int64_t*)pp = q;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-                    __m128i _q8 = _mm_cvtsi64_si128(q);
+                    __m128i _q8 = _mm_loadl_epi64((const __m128i*)pp);
                     __m128i _q16 = _mm_unpacklo_epi8(_q8, _mm_cmpgt_epi8(_mm_setzero_si128(), _q8));
                     w_shift += _mm_reduce_add_epi32(_mm_madd_epi16(_q16, _mm_set1_epi16(1)));
 #endif
@@ -6940,16 +6936,12 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     __m256 _p = _mm256_setr_ps(bfloat16_to_float32(p0[0]), bfloat16_to_float32(p0[A_hstep]), bfloat16_to_float32(p0[A_hstep * 2]), bfloat16_to_float32(p0[A_hstep * 3]), bfloat16_to_float32(p0[A_hstep * 4]), bfloat16_to_float32(p0[A_hstep * 5]), bfloat16_to_float32(p0[A_hstep * 6]), bfloat16_to_float32(p0[A_hstep * 7]));
                     _p = _mm256_mul_ps(_p, _mm256_loadu_ps(ps));
                     const int64_t q = float2int8_avx(_mm256_mul_ps(_p, _scale256));
-                    _mm_storel_epi64((__m128i*)pp, _mm_cvtsi64_si128(q));
+                    *(int64_t*)pp = q;
                     pp += 8;
                     p0 += A_hstep * 8;
                     ps += 8;
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
-#if defined(__x86_64__) || defined(_M_X64)
-                    __m128i _q8 = _mm_cvtsi64_si128(q);
-#else
                     __m128i _q8 = _mm_loadl_epi64((const __m128i*)(pp - 8));
-#endif
                     __m128i _q16 = _mm_unpacklo_epi8(_q8, _mm_cmpgt_epi8(_mm_setzero_si128(), _q8));
                     w_shift += _mm_reduce_add_epi32(_mm_madd_epi16(_q16, _mm_set1_epi16(1)));
 #endif
@@ -8412,6 +8404,7 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
                 p0 += 8 * out_elempack;
             }
         }
+#endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
             __m512 _f0 = _mm512_loadu_ps(pp + 0);
@@ -8530,6 +8523,56 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
             __m256i _bf3 = float2bfloat_avx512(_f3);
             if (output_transpose)
             {
+#if !(defined(__x86_64__) || defined(_M_X64))
+#if __AVX__
+#if __AVX512F__
+                if (out_elempack == 16)
+                {
+                    transpose16x4_epi16(_bf0, _bf1, _bf2, _bf3);
+                    const int jj_m16 = jj % 16;
+                    unsigned short* p1 = p0 - out_hstep * jj_m16 + jj_m16;
+                    _mm_storel_epi64((__m128i*)p1, _mm256_extractf128_si256(_bf0, 0));
+                    _mm_storeh_pd((double*)(p1 + 16), _mm_castsi128_pd(_mm256_extractf128_si256(_bf0, 0)));
+                    _mm_storel_epi64((__m128i*)(p1 + 32), _mm256_extractf128_si256(_bf0, 1));
+                    _mm_storeh_pd((double*)(p1 + 48), _mm_castsi128_pd(_mm256_extractf128_si256(_bf0, 1)));
+                    _mm_storel_epi64((__m128i*)(p1 + 64), _mm256_extractf128_si256(_bf1, 0));
+                    _mm_storeh_pd((double*)(p1 + 80), _mm_castsi128_pd(_mm256_extractf128_si256(_bf1, 0)));
+                    _mm_storel_epi64((__m128i*)(p1 + 96), _mm256_extractf128_si256(_bf1, 1));
+                    _mm_storeh_pd((double*)(p1 + 112), _mm_castsi128_pd(_mm256_extractf128_si256(_bf1, 1)));
+                    _mm_storel_epi64((__m128i*)(p1 + 128), _mm256_extractf128_si256(_bf2, 0));
+                    _mm_storeh_pd((double*)(p1 + 144), _mm_castsi128_pd(_mm256_extractf128_si256(_bf2, 0)));
+                    _mm_storel_epi64((__m128i*)(p1 + 160), _mm256_extractf128_si256(_bf2, 1));
+                    _mm_storeh_pd((double*)(p1 + 176), _mm_castsi128_pd(_mm256_extractf128_si256(_bf2, 1)));
+                    _mm_storel_epi64((__m128i*)(p1 + 192), _mm256_extractf128_si256(_bf3, 0));
+                    _mm_storeh_pd((double*)(p1 + 208), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 0)));
+                    _mm_storel_epi64((__m128i*)(p1 + 224), _mm256_extractf128_si256(_bf3, 1));
+                    _mm_storeh_pd((double*)(p1 + 240), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 1)));
+                }
+#endif // __AVX512F__
+                if (out_elempack == 8)
+                {
+                    transpose16x4_epi16(_bf0, _bf1, _bf2, _bf3);
+                    const int jj_m8 = jj % 8;
+                    unsigned short* p1 = p0 - out_hstep * jj_m8 + jj_m8;
+                    _mm_storel_epi64((__m128i*)p1, _mm256_extractf128_si256(_bf0, 0));
+                    _mm_storeh_pd((double*)(p1 + 8), _mm_castsi128_pd(_mm256_extractf128_si256(_bf0, 0)));
+                    _mm_storel_epi64((__m128i*)(p1 + 16), _mm256_extractf128_si256(_bf0, 1));
+                    _mm_storeh_pd((double*)(p1 + 24), _mm_castsi128_pd(_mm256_extractf128_si256(_bf0, 1)));
+                    _mm_storel_epi64((__m128i*)(p1 + 32), _mm256_extractf128_si256(_bf1, 0));
+                    _mm_storeh_pd((double*)(p1 + 40), _mm_castsi128_pd(_mm256_extractf128_si256(_bf1, 0)));
+                    _mm_storel_epi64((__m128i*)(p1 + 48), _mm256_extractf128_si256(_bf1, 1));
+                    _mm_storeh_pd((double*)(p1 + 56), _mm_castsi128_pd(_mm256_extractf128_si256(_bf1, 1)));
+                    _mm_storel_epi64((__m128i*)(p1 + 64), _mm256_extractf128_si256(_bf2, 0));
+                    _mm_storeh_pd((double*)(p1 + 72), _mm_castsi128_pd(_mm256_extractf128_si256(_bf2, 0)));
+                    _mm_storel_epi64((__m128i*)(p1 + 80), _mm256_extractf128_si256(_bf2, 1));
+                    _mm_storeh_pd((double*)(p1 + 88), _mm_castsi128_pd(_mm256_extractf128_si256(_bf2, 1)));
+                    _mm_storel_epi64((__m128i*)(p1 + 96), _mm256_extractf128_si256(_bf3, 0));
+                    _mm_storeh_pd((double*)(p1 + 104), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 0)));
+                    _mm_storel_epi64((__m128i*)(p1 + 112), _mm256_extractf128_si256(_bf3, 1));
+                    _mm_storeh_pd((double*)(p1 + 120), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 1)));
+                }
+#endif // __AVX__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                 if (out_elempack == 4)
                 {
                     transpose16x4_epi16(_bf0, _bf1, _bf2, _bf3);
@@ -8625,7 +8668,6 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
                 p0 += 4 * out_elempack;
             }
         }
-#endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 1 < max_jj; jj += 2)
         {
             __m512 _f0 = _mm512_loadu_ps(pp + 0);
@@ -10040,6 +10082,7 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
                 p0 += 8 * out_elempack;
             }
         }
+#endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
 #if __AVX2__
@@ -10163,6 +10206,40 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
             __m128i _bf3 = float2bfloat_avx(_f3);
             if (output_transpose)
             {
+#if !(defined(__x86_64__) || defined(_M_X64))
+#if __AVX__
+#if __AVX512F__
+                if (out_elempack == 16)
+                {
+                    transpose8x4_epi16(_bf0, _bf1, _bf2, _bf3);
+                    const int jj_m16 = jj % 16;
+                    unsigned short* p1 = p0 - out_hstep * jj_m16 + jj_m16;
+                    _mm_storel_epi64((__m128i*)p1, _bf0);
+                    _mm_storeh_pd((double*)(p1 + 16), _mm_castsi128_pd(_bf0));
+                    _mm_storel_epi64((__m128i*)(p1 + 32), _bf1);
+                    _mm_storeh_pd((double*)(p1 + 48), _mm_castsi128_pd(_bf1));
+                    _mm_storel_epi64((__m128i*)(p1 + 64), _bf2);
+                    _mm_storeh_pd((double*)(p1 + 80), _mm_castsi128_pd(_bf2));
+                    _mm_storel_epi64((__m128i*)(p1 + 96), _bf3);
+                    _mm_storeh_pd((double*)(p1 + 112), _mm_castsi128_pd(_bf3));
+                }
+#endif // __AVX512F__
+                if (out_elempack == 8)
+                {
+                    transpose8x4_epi16(_bf0, _bf1, _bf2, _bf3);
+                    const int jj_m8 = jj % 8;
+                    unsigned short* p1 = p0 - out_hstep * jj_m8 + jj_m8;
+                    _mm_storel_epi64((__m128i*)p1, _bf0);
+                    _mm_storeh_pd((double*)(p1 + 8), _mm_castsi128_pd(_bf0));
+                    _mm_storel_epi64((__m128i*)(p1 + 16), _bf1);
+                    _mm_storeh_pd((double*)(p1 + 24), _mm_castsi128_pd(_bf1));
+                    _mm_storel_epi64((__m128i*)(p1 + 32), _bf2);
+                    _mm_storeh_pd((double*)(p1 + 40), _mm_castsi128_pd(_bf2));
+                    _mm_storel_epi64((__m128i*)(p1 + 48), _bf3);
+                    _mm_storeh_pd((double*)(p1 + 56), _mm_castsi128_pd(_bf3));
+                }
+#endif // __AVX__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                 if (out_elempack == 4)
                 {
                     __m128i _b0 = _bf0;
@@ -10223,7 +10300,6 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
                 p0 += 4 * out_elempack;
             }
         }
-#endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 1 < max_jj; jj += 2)
         {
 #if __AVX2__
@@ -11591,9 +11667,9 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
             }
         }
 #endif // __AVX__
+#endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
-#if defined(__x86_64__) || defined(_M_X64)
             __m128 _f0 = _mm_loadu_ps(pp + 0);
             __m128 _f1 = _mm_loadu_ps(pp + 4);
             __m128 _f2 = _mm_loadu_ps(pp + 8);
@@ -11613,24 +11689,6 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
                 _f1 = _mm_shuffle_ps(_f1, _f1, _MM_SHUFFLE(2, 1, 0, 3));
                 _f3 = _mm_shuffle_ps(_f3, _f3, _MM_SHUFFLE(2, 1, 0, 3));
             }
-#else
-            __m128 _t0 = _mm_loadu_ps(pp);
-            __m128 _t1 = _mm_loadu_ps(pp + 4);
-            __m128 _t2 = _mm_loadu_ps(pp + 8);
-            __m128 _t3 = _mm_loadu_ps(pp + 12);
-            pp += 16;
-
-            __m128 _tmp0 = _mm_shuffle_ps(_t0, _t0, _MM_SHUFFLE(3, 1, 2, 0));
-            __m128 _tmp1 = _mm_shuffle_ps(_t1, _t1, _MM_SHUFFLE(0, 2, 3, 1));
-            __m128 _f0 = _mm_unpacklo_ps(_tmp0, _tmp1);
-            __m128 _f1 = _mm_unpackhi_ps(_tmp0, _tmp1);
-            _f1 = _mm_shuffle_ps(_f1, _f1, _MM_SHUFFLE(2, 1, 0, 3));
-            _tmp0 = _mm_shuffle_ps(_t2, _t2, _MM_SHUFFLE(3, 1, 2, 0));
-            _tmp1 = _mm_shuffle_ps(_t3, _t3, _MM_SHUFFLE(0, 2, 3, 1));
-            __m128 _f2 = _mm_unpacklo_ps(_tmp0, _tmp1);
-            __m128 _f3 = _mm_unpackhi_ps(_tmp0, _tmp1);
-            _f3 = _mm_shuffle_ps(_f3, _f3, _MM_SHUFFLE(2, 1, 0, 3));
-#endif
             if (pC)
             {
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
@@ -11706,6 +11764,38 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
             __m128i _bf3 = float2bfloat_sse(_f3);
             if (output_transpose)
             {
+#if !(defined(__x86_64__) || defined(_M_X64))
+#if __AVX__
+#if __AVX512F__
+                if (out_elempack == 16)
+                {
+                    __m128i _t0 = _mm_unpacklo_epi16(_bf0, _bf1);
+                    __m128i _t1 = _mm_unpacklo_epi16(_bf2, _bf3);
+                    __m128i _r0 = _mm_unpacklo_epi32(_t0, _t1);
+                    __m128i _r1 = _mm_unpackhi_epi32(_t0, _t1);
+                    const int jj_m16 = jj % 16;
+                    unsigned short* p1 = p0 - out_hstep * jj_m16 + jj_m16;
+                    _mm_storel_epi64((__m128i*)p1, _r0);
+                    _mm_storeh_pd((double*)(p1 + 16), _mm_castsi128_pd(_r0));
+                    _mm_storel_epi64((__m128i*)(p1 + 32), _r1);
+                    _mm_storeh_pd((double*)(p1 + 48), _mm_castsi128_pd(_r1));
+                }
+#endif // __AVX512F__
+                if (out_elempack == 8)
+                {
+                    __m128i _t0 = _mm_unpacklo_epi16(_bf0, _bf1);
+                    __m128i _t1 = _mm_unpacklo_epi16(_bf2, _bf3);
+                    __m128i _r0 = _mm_unpacklo_epi32(_t0, _t1);
+                    __m128i _r1 = _mm_unpackhi_epi32(_t0, _t1);
+                    const int jj_m8 = jj % 8;
+                    unsigned short* p1 = p0 - out_hstep * jj_m8 + jj_m8;
+                    _mm_storel_epi64((__m128i*)p1, _r0);
+                    _mm_storeh_pd((double*)(p1 + 8), _mm_castsi128_pd(_r0));
+                    _mm_storel_epi64((__m128i*)(p1 + 16), _r1);
+                    _mm_storeh_pd((double*)(p1 + 24), _mm_castsi128_pd(_r1));
+                }
+#endif // __AVX__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                 if (out_elempack == 4)
                 {
                     __m128i _t0 = _mm_unpacklo_epi16(_bf0, _bf1);
@@ -11749,7 +11839,6 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
                 p0 += 4 * out_elempack;
             }
         }
-#endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 1 < max_jj; jj += 2)
         {
             __m128 _t0 = _mm_loadu_ps(pp);
@@ -11965,6 +12054,7 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
 
         int jj = 0;
 #if __SSE2__
+#if defined(__x86_64__) || defined(_M_X64)
 #if __AVX512F__
         for (; jj + 15 < max_jj; jj += 16)
         {
@@ -12447,6 +12537,7 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
             }
         }
 #endif // __AVX__
+#endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
             __m128 _f0;
@@ -12455,23 +12546,11 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
                 __m128 _t0 = _mm_loadu_ps(pp + 0);
                 __m128 _t1 = _mm_loadu_ps(pp + 4);
                 pp += 8;
-#if !(defined(__x86_64__) || defined(_M_X64))
-                if (out_elempack == 1)
-#endif
-                {
-                    __m128 _tmp0 = _mm_unpacklo_ps(_t0, _t1);
-                    __m128 _tmp1 = _mm_unpackhi_ps(_t0, _t1);
-                    _f0 = _mm_castpd_ps(_mm_unpacklo_pd(_mm_castps_pd(_tmp0), _mm_castps_pd(_tmp1)));
-                    _f1 = _mm_castpd_ps(_mm_unpackhi_pd(_mm_castps_pd(_tmp1), _mm_castps_pd(_tmp0)));
-                    _f1 = _mm_shuffle_ps(_f1, _f1, _MM_SHUFFLE(0, 3, 2, 1));
-                }
-#if !(defined(__x86_64__) || defined(_M_X64))
-                if (out_elempack == 4)
-                {
-                    _f0 = _mm_movelh_ps(_t0, _t1);
-                    _f1 = _mm_movehl_ps(_t1, _t0);
-                }
-#endif
+                __m128 _tmp0 = _mm_unpacklo_ps(_t0, _t1);
+                __m128 _tmp1 = _mm_unpackhi_ps(_t0, _t1);
+                _f0 = _mm_castpd_ps(_mm_unpacklo_pd(_mm_castps_pd(_tmp0), _mm_castps_pd(_tmp1)));
+                _f1 = _mm_castpd_ps(_mm_unpackhi_pd(_mm_castps_pd(_tmp1), _mm_castps_pd(_tmp0)));
+                _f1 = _mm_shuffle_ps(_f1, _f1, _MM_SHUFFLE(0, 3, 2, 1));
             }
             if (pC)
             {
@@ -12524,6 +12603,26 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
             __m128i _bf1 = float2bfloat_sse(_f1);
             if (output_transpose)
             {
+#if !(defined(__x86_64__) || defined(_M_X64))
+#if __AVX__
+#if __AVX512F__
+                if (out_elempack == 16)
+                {
+                    const int jj_m16 = jj % 16;
+                    unsigned short* p1 = p0 - out_hstep * jj_m16 + jj_m16;
+                    _mm_storel_epi64((__m128i*)p1, _bf0);
+                    _mm_storel_epi64((__m128i*)(p1 + 16), _bf1);
+                }
+#endif // __AVX512F__
+                if (out_elempack == 8)
+                {
+                    const int jj_m8 = jj % 8;
+                    unsigned short* p1 = p0 - out_hstep * jj_m8 + jj_m8;
+                    _mm_storel_epi64((__m128i*)p1, _bf0);
+                    _mm_storel_epi64((__m128i*)(p1 + 8), _bf1);
+                }
+#endif // __AVX__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                 if (out_elempack == 4)
                 {
                     _mm_storel_epi64((__m128i*)p0, _bf0);
@@ -12993,16 +13092,37 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
             __m128i _bf = float2bfloat_sse(_f);
             if (output_transpose)
             {
-                if (out_elempack == 4)
+                if (out_hstep == 1)
                 {
                     _mm_storel_epi64((__m128i*)p0, _bf);
                 }
                 else
                 {
-                    p0[0] = _mm_extract_epi16(_bf, 0);
-                    p0[out_hstep] = _mm_extract_epi16(_bf, 1);
-                    p0[out_hstep * 2] = _mm_extract_epi16(_bf, 2);
-                    p0[out_hstep * 3] = _mm_extract_epi16(_bf, 3);
+#if !(defined(__x86_64__) || defined(_M_X64))
+#if __AVX__
+#if __AVX512F__
+                    if (out_elempack == 16)
+                    {
+                        _mm_storel_epi64((__m128i*)(p0 - (jj % 16) / 4 * out_hstep * 4 + (jj % 16) / 4 * 4), _bf);
+                    }
+#endif // __AVX512F__
+                    if (out_elempack == 8)
+                    {
+                        _mm_storel_epi64((__m128i*)(p0 - (jj % 8) / 4 * out_hstep * 4 + (jj % 8) / 4 * 4), _bf);
+                    }
+#endif // __AVX__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
+                    if (out_elempack == 4)
+                    {
+                        _mm_storel_epi64((__m128i*)p0, _bf);
+                    }
+                    if (out_elempack == 1)
+                    {
+                        p0[0] = _mm_extract_epi16(_bf, 0);
+                        p0[out_hstep] = _mm_extract_epi16(_bf, 1);
+                        p0[out_hstep * 2] = _mm_extract_epi16(_bf, 2);
+                        p0[out_hstep * 3] = _mm_extract_epi16(_bf, 3);
+                    }
                 }
                 p0 += out_hstep * 4;
             }

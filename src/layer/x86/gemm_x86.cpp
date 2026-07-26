@@ -9852,15 +9852,6 @@ int Gemm_x86::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
 #if __AVX512F__
     max_elempack = 16;
 #endif // __AVX512F__
-#else
-#if defined(__x86_64__) || defined(_M_X64)
-#if NCNN_RUNTIME_CPU
-    if (ncnn::cpu_support_x86_avx512())
-        max_elempack = 16;
-    else if (ncnn::cpu_support_x86_avx())
-        max_elempack = 8;
-#endif // NCNN_RUNTIME_CPU
-#endif // defined(__x86_64__) || defined(_M_X64)
 #endif // __AVX__
 #endif // __SSE2__
 
