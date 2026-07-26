@@ -44,6 +44,9 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
         {
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * elempack;
 
+            float32x4_t _v127 = vdupq_n_f32(127.f);
+            float32x4_t _zero = vdupq_n_f32(0.f);
+
             for (int g = 0; g < block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
@@ -60,25 +63,12 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         p0a += 8;
                     }
 
-                    float absmax0 = vgetq_lane_f32(_absmax0, 0);
-                    float absmax1 = vgetq_lane_f32(_absmax0, 1);
-                    float absmax2 = vgetq_lane_f32(_absmax0, 2);
-                    float absmax3 = vgetq_lane_f32(_absmax0, 3);
-                    float absmax4 = vgetq_lane_f32(_absmax1, 0);
-                    float absmax5 = vgetq_lane_f32(_absmax1, 1);
-                    float absmax6 = vgetq_lane_f32(_absmax1, 2);
-                    float absmax7 = vgetq_lane_f32(_absmax1, 3);
-                    pd[0] = absmax0 == 0.f ? 0.f : 127.f / absmax0;
-                    pd[1] = absmax1 == 0.f ? 0.f : 127.f / absmax1;
-                    pd[2] = absmax2 == 0.f ? 0.f : 127.f / absmax2;
-                    pd[3] = absmax3 == 0.f ? 0.f : 127.f / absmax3;
-                    pd[4] = absmax4 == 0.f ? 0.f : 127.f / absmax4;
-                    pd[5] = absmax5 == 0.f ? 0.f : 127.f / absmax5;
-                    pd[6] = absmax6 == 0.f ? 0.f : 127.f / absmax6;
-                    pd[7] = absmax7 == 0.f ? 0.f : 127.f / absmax7;
-
-                    float32x4_t _scale0 = vld1q_f32(pd);
-                    float32x4_t _scale1 = vld1q_f32(pd + 4);
+                    float32x4_t _scale0 = vdivq_f32(_v127, _absmax0);
+                    float32x4_t _scale1 = vdivq_f32(_v127, _absmax1);
+                    _scale0 = vbslq_f32(vceqq_f32(_absmax0, _zero), _zero, _scale0);
+                    _scale1 = vbslq_f32(vceqq_f32(_absmax1, _zero), _zero, _scale1);
+                    vst1q_f32(pd, vmulq_n_f32(_absmax0, 1.f / 127.f));
+                    vst1q_f32(pd + 4, vmulq_n_f32(_absmax1, 1.f / 127.f));
 
                     int kk = 0;
                     for (; kk + 7 < max_kk0; kk += 8)
@@ -245,14 +235,6 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         p0 += 8;
                     }
 
-                    pd[0] = pd[0] == 0.f ? 0.f : 1.f / pd[0];
-                    pd[1] = pd[1] == 0.f ? 0.f : 1.f / pd[1];
-                    pd[2] = pd[2] == 0.f ? 0.f : 1.f / pd[2];
-                    pd[3] = pd[3] == 0.f ? 0.f : 1.f / pd[3];
-                    pd[4] = pd[4] == 0.f ? 0.f : 1.f / pd[4];
-                    pd[5] = pd[5] == 0.f ? 0.f : 1.f / pd[5];
-                    pd[6] = pd[6] == 0.f ? 0.f : 1.f / pd[6];
-                    pd[7] = pd[7] == 0.f ? 0.f : 1.f / pd[7];
                     pd += 8;
                 }
 
@@ -268,25 +250,12 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         p0a += 4;
                     }
 
-                    float absmax0 = vgetq_lane_f32(_absmax0, 0);
-                    float absmax1 = vgetq_lane_f32(_absmax0, 1);
-                    float absmax2 = vgetq_lane_f32(_absmax0, 2);
-                    float absmax3 = vgetq_lane_f32(_absmax0, 3);
-                    float absmax4 = vgetq_lane_f32(_absmax1, 0);
-                    float absmax5 = vgetq_lane_f32(_absmax1, 1);
-                    float absmax6 = vgetq_lane_f32(_absmax1, 2);
-                    float absmax7 = vgetq_lane_f32(_absmax1, 3);
-                    pd[0] = absmax0 == 0.f ? 0.f : 127.f / absmax0;
-                    pd[1] = absmax1 == 0.f ? 0.f : 127.f / absmax1;
-                    pd[2] = absmax2 == 0.f ? 0.f : 127.f / absmax2;
-                    pd[3] = absmax3 == 0.f ? 0.f : 127.f / absmax3;
-                    pd[4] = absmax4 == 0.f ? 0.f : 127.f / absmax4;
-                    pd[5] = absmax5 == 0.f ? 0.f : 127.f / absmax5;
-                    pd[6] = absmax6 == 0.f ? 0.f : 127.f / absmax6;
-                    pd[7] = absmax7 == 0.f ? 0.f : 127.f / absmax7;
-
-                    float32x4_t _scale0 = vld1q_f32(pd);
-                    float32x4_t _scale1 = vld1q_f32(pd + 4);
+                    float32x4_t _scale0 = vdivq_f32(_v127, _absmax0);
+                    float32x4_t _scale1 = vdivq_f32(_v127, _absmax1);
+                    _scale0 = vbslq_f32(vceqq_f32(_absmax0, _zero), _zero, _scale0);
+                    _scale1 = vbslq_f32(vceqq_f32(_absmax1, _zero), _zero, _scale1);
+                    vst1q_f32(pd, vmulq_n_f32(_absmax0, 1.f / 127.f));
+                    vst1q_f32(pd + 4, vmulq_n_f32(_absmax1, 1.f / 127.f));
 
                     int kk = 0;
                     for (; kk + 7 < max_kk0; kk += 8)
@@ -488,14 +457,6 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         p0 += 4;
                     }
 
-                    pd[0] = pd[0] == 0.f ? 0.f : 1.f / pd[0];
-                    pd[1] = pd[1] == 0.f ? 0.f : 1.f / pd[1];
-                    pd[2] = pd[2] == 0.f ? 0.f : 1.f / pd[2];
-                    pd[3] = pd[3] == 0.f ? 0.f : 1.f / pd[3];
-                    pd[4] = pd[4] == 0.f ? 0.f : 1.f / pd[4];
-                    pd[5] = pd[5] == 0.f ? 0.f : 1.f / pd[5];
-                    pd[6] = pd[6] == 0.f ? 0.f : 1.f / pd[6];
-                    pd[7] = pd[7] == 0.f ? 0.f : 1.f / pd[7];
                     pd += 8;
                 }
 
@@ -705,6 +666,11 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
         {
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * elempack;
 
+#if __aarch64__
+            float32x4_t _v127 = vdupq_n_f32(127.f);
+            float32x4_t _zero = vdupq_n_f32(0.f);
+#endif
+
             for (int g = 0; g < block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
@@ -718,16 +684,24 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         p0a += 4;
                     }
 
-                    float absmax0 = vgetq_lane_f32(_absmax, 0);
-                    float absmax1 = vgetq_lane_f32(_absmax, 1);
-                    float absmax2 = vgetq_lane_f32(_absmax, 2);
-                    float absmax3 = vgetq_lane_f32(_absmax, 3);
-                    pd[0] = absmax0 == 0.f ? 0.f : 127.f / absmax0;
-                    pd[1] = absmax1 == 0.f ? 0.f : 127.f / absmax1;
-                    pd[2] = absmax2 == 0.f ? 0.f : 127.f / absmax2;
-                    pd[3] = absmax3 == 0.f ? 0.f : 127.f / absmax3;
-
-                    float32x4_t _scale = vld1q_f32(pd);
+#if __aarch64__
+                    float32x4_t _scale = vdivq_f32(_v127, _absmax);
+                    _scale = vbslq_f32(vceqq_f32(_absmax, _zero), _zero, _scale);
+                    vst1q_f32(pd, vmulq_n_f32(_absmax, 1.f / 127.f));
+#else
+                    float absmax[4];
+                    float scale[4];
+                    vst1q_f32(absmax, _absmax);
+                    scale[0] = absmax[0] == 0.f ? 0.f : 127.f / absmax[0];
+                    scale[1] = absmax[1] == 0.f ? 0.f : 127.f / absmax[1];
+                    scale[2] = absmax[2] == 0.f ? 0.f : 127.f / absmax[2];
+                    scale[3] = absmax[3] == 0.f ? 0.f : 127.f / absmax[3];
+                    float32x4_t _scale = vld1q_f32(scale);
+                    pd[0] = absmax[0] * (1.f / 127.f);
+                    pd[1] = absmax[1] * (1.f / 127.f);
+                    pd[2] = absmax[2] * (1.f / 127.f);
+                    pd[3] = absmax[3] * (1.f / 127.f);
+#endif
 
                     int kk = 0;
                     for (; kk + 7 < max_kk0; kk += 8)
@@ -861,10 +835,6 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         p0 += 4;
                     }
 
-                    pd[0] = pd[0] == 0.f ? 0.f : 1.f / pd[0];
-                    pd[1] = pd[1] == 0.f ? 0.f : 1.f / pd[1];
-                    pd[2] = pd[2] == 0.f ? 0.f : 1.f / pd[2];
-                    pd[3] = pd[3] == 0.f ? 0.f : 1.f / pd[3];
                     pd += 4;
                 }
 

@@ -3971,7 +3971,7 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
 
     if (constant_TILE_K > 0)
     {
-        TILE_K = std::max(block_size, constant_TILE_K / block_size * block_size);
+        TILE_K = std::max(block_size, (constant_TILE_K + block_size - 1) / block_size * block_size);
         if (K > 0)
             TILE_K = std::min(TILE_K, K);
     }

@@ -6992,12 +6992,10 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
     transpose_unpack_output_tile_wq_int8_fp32(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
 }
 
-static int gemm_BT_arm_wq_int8(const Mat& A, const Mat& packed_B, const Mat& packed_B_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int input_elemtype, int output_elemtype, const Option& opt)
+static int gemm_BT_arm_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int input_elemtype, int output_elemtype, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int block_count = (K + block_size - 1) / block_size;
-    const Mat& BT = packed_B;
-    const Mat& BT_descales = packed_B_descales;
     int TILE_M, TILE_N, TILE_K;
     get_optimal_tile_mnk_wq_int8(M, N, K, block_size, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
 

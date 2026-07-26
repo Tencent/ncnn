@@ -23,26 +23,6 @@ namespace ncnn {
 #include "gemm_int8.h"
 #endif
 
-#if NCNN_WEIGHT_QUANT
-#if NCNN_BF16
-#include "gemm_wq_int8_bf16s.h"
-#endif
-#include "gemm_wq_int8.h"
-
-static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_elemtype, int output_transpose)
-{
-#if NCNN_BF16
-    if (output_elemtype == 3)
-    {
-        unpack_output_tile_wq_int8_bf16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
-        return;
-    }
-#endif
-
-    unpack_output_tile_wq_int8_fp32(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
-}
-#endif
-
 Gemm_mips::Gemm_mips()
 {
 #if __mips_msa
@@ -5812,7 +5792,25 @@ int Gemm_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
 #endif
 
 #if NCNN_WEIGHT_QUANT
-static int gemm_BT_mips_wq_int8(const Mat& A, const Mat& packed_B, const Mat& packed_B_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int out_elemtype, const Option& opt)
+#if NCNN_BF16
+#include "gemm_wq_int8_bf16s.h"
+#endif
+#include "gemm_wq_int8.h"
+
+static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_elemtype, int output_transpose)
+{
+#if NCNN_BF16
+    if (output_elemtype == 3)
+    {
+        unpack_output_tile_wq_int8_bf16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
+        return;
+    }
+#endif
+
+    unpack_output_tile_wq_int8_fp32(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
+}
+
+static int gemm_BT_mips_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int out_elemtype, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int block_count = (K + block_size - 1) / block_size;
@@ -5883,8 +5881,8 @@ static int gemm_BT_mips_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pa
             const int max_ii = std::min(M - i, TILE_M);
             const int max_jj = std::min(N - j, TILE_N);
 
-            Mat BT_tile(K * max_jj, (signed char*)packed_B.data + (size_t)j * K, (size_t)1u);
-            Mat BT_descales_tile(block_count * max_jj, (float*)packed_B_descales.data + (size_t)j * block_count, (size_t)4u);
+            Mat BT_tile(K * max_jj, (signed char*)BT.data + (size_t)j * K, (size_t)1u);
+            Mat BT_descales_tile(block_count * max_jj, (float*)BT_descales.data + (size_t)j * block_count, (size_t)4u);
             Mat topT_tile = topT.channel(get_omp_thread_num());
             Mat AT_channel = AT.channel(ppi);
             Mat AT_descales_channel = AT_descales.channel(ppi);
@@ -5938,8 +5936,8 @@ static int gemm_BT_mips_wq_int8(const Mat& A, const Mat& packed_B, const Mat& pa
             {
                 const int max_jj = std::min(N - j, TILE_N);
 
-                Mat BT_tile(K * max_jj, (signed char*)packed_B.data + (size_t)j * K, (size_t)1u);
-                Mat BT_descales_tile(block_count * max_jj, (float*)packed_B_descales.data + (size_t)j * block_count, (size_t)4u);
+                Mat BT_tile(K * max_jj, (signed char*)BT.data + (size_t)j * K, (size_t)1u);
+                Mat BT_descales_tile(block_count * max_jj, (float*)BT_descales.data + (size_t)j * block_count, (size_t)4u);
 
                 for (int k = 0; k < K; k += TILE_K)
                 {

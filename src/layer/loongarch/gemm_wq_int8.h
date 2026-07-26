@@ -207,14 +207,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
     }
 #endif // NCNN_BF16
 
-#if NCNN_RUNTIME_CPU && NCNN_MMI && !__loongarch_sx && !__mips_loongson_mmi
-    if (A.elempack == 1 && ncnn::cpu_support_loongson_mmi())
-    {
-        quantize_A_tile_wq_int8_loongson_mmi(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
-        return;
-    }
-#endif
-
     const int elempack = A.elempack;
     signed char* pp = AT_tile;
     float* pd = AT_descales_tile;
@@ -4209,13 +4201,15 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
 #if __loongarch_sx
     for (; ii + 7 < max_ii; ii += 8)
     {
-        size_t out_offset;
+        float* p0;
         if (output_transpose)
-            out_offset = (size_t)j * out_hstep + (i + ii) * out_elempack;
+        {
+            p0 = (float*)top_blob + (size_t)j * out_hstep + (i + ii) * out_elempack;
+        }
         else
-            out_offset = (size_t)(i + ii) * out_hstep + j * out_elempack;
-
-        float* p0 = (float*)top_blob + out_offset;
+        {
+            p0 = (float*)top_blob + (size_t)(i + ii) * out_hstep + j * out_elempack;
+        }
 
         float c0 = 0.f;
         float c1 = 0.f;
@@ -4265,7 +4259,6 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
 #if __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
-            const float* pC0 = pC;
             __m256i _r0 = __lasx_xvld(pp, 0);
             __m256i _r1 = __lasx_xvld(pp + 8, 0);
             __m256i _r2 = __lasx_xvld(pp + 16, 0);
@@ -4310,7 +4303,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
             __m256 _f5 = (__m256)__lasx_xvpermi_q(_tmp1, _tmp5, _LSX_SHUFFLE(0, 3, 0, 0));
             __m256 _f6 = (__m256)__lasx_xvpermi_q(_tmp2, _tmp6, _LSX_SHUFFLE(0, 3, 0, 0));
             __m256 _f7 = (__m256)__lasx_xvpermi_q(_tmp3, _tmp7, _LSX_SHUFFLE(0, 3, 0, 0));
-            if (pC0)
+            if (pC)
             {
                 if (broadcast_type_C == 0)
                 {
@@ -4347,39 +4340,39 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                     __m256 _c7;
                     if (c_elempack == 8)
                     {
-                        _c0 = (__m256)__lasx_xvld(pC0, 0);
-                        _c1 = (__m256)__lasx_xvld(pC0 + 8, 0);
-                        _c2 = (__m256)__lasx_xvld(pC0 + 16, 0);
-                        _c3 = (__m256)__lasx_xvld(pC0 + 24, 0);
-                        _c4 = (__m256)__lasx_xvld(pC0 + 32, 0);
-                        _c5 = (__m256)__lasx_xvld(pC0 + 40, 0);
-                        _c6 = (__m256)__lasx_xvld(pC0 + 48, 0);
-                        _c7 = (__m256)__lasx_xvld(pC0 + 56, 0);
+                        _c0 = (__m256)__lasx_xvld(pC, 0);
+                        _c1 = (__m256)__lasx_xvld(pC + 8, 0);
+                        _c2 = (__m256)__lasx_xvld(pC + 16, 0);
+                        _c3 = (__m256)__lasx_xvld(pC + 24, 0);
+                        _c4 = (__m256)__lasx_xvld(pC + 32, 0);
+                        _c5 = (__m256)__lasx_xvld(pC + 40, 0);
+                        _c6 = (__m256)__lasx_xvld(pC + 48, 0);
+                        _c7 = (__m256)__lasx_xvld(pC + 56, 0);
                         transpose8x8_ps(_c0, _c1, _c2, _c3, _c4, _c5, _c6, _c7);
                     }
                     else if (c_elempack == 4)
                     {
-                        const float* pC1 = pC0 + c_hstep * 4;
-                        _c0 = __lasx_concat_128_s((__m128)__lsx_vld(pC0, 0), (__m128)__lsx_vld(pC1, 0));
-                        _c1 = __lasx_concat_128_s((__m128)__lsx_vld(pC0 + 4, 0), (__m128)__lsx_vld(pC1 + 4, 0));
-                        _c2 = __lasx_concat_128_s((__m128)__lsx_vld(pC0 + 8, 0), (__m128)__lsx_vld(pC1 + 8, 0));
-                        _c3 = __lasx_concat_128_s((__m128)__lsx_vld(pC0 + 12, 0), (__m128)__lsx_vld(pC1 + 12, 0));
-                        _c4 = __lasx_concat_128_s((__m128)__lsx_vld(pC0 + 16, 0), (__m128)__lsx_vld(pC1 + 16, 0));
-                        _c5 = __lasx_concat_128_s((__m128)__lsx_vld(pC0 + 20, 0), (__m128)__lsx_vld(pC1 + 20, 0));
-                        _c6 = __lasx_concat_128_s((__m128)__lsx_vld(pC0 + 24, 0), (__m128)__lsx_vld(pC1 + 24, 0));
-                        _c7 = __lasx_concat_128_s((__m128)__lsx_vld(pC0 + 28, 0), (__m128)__lsx_vld(pC1 + 28, 0));
+                        const float* pC1 = pC + c_hstep * 4;
+                        _c0 = __lasx_concat_128_s((__m128)__lsx_vld(pC, 0), (__m128)__lsx_vld(pC1, 0));
+                        _c1 = __lasx_concat_128_s((__m128)__lsx_vld(pC + 4, 0), (__m128)__lsx_vld(pC1 + 4, 0));
+                        _c2 = __lasx_concat_128_s((__m128)__lsx_vld(pC + 8, 0), (__m128)__lsx_vld(pC1 + 8, 0));
+                        _c3 = __lasx_concat_128_s((__m128)__lsx_vld(pC + 12, 0), (__m128)__lsx_vld(pC1 + 12, 0));
+                        _c4 = __lasx_concat_128_s((__m128)__lsx_vld(pC + 16, 0), (__m128)__lsx_vld(pC1 + 16, 0));
+                        _c5 = __lasx_concat_128_s((__m128)__lsx_vld(pC + 20, 0), (__m128)__lsx_vld(pC1 + 20, 0));
+                        _c6 = __lasx_concat_128_s((__m128)__lsx_vld(pC + 24, 0), (__m128)__lsx_vld(pC1 + 24, 0));
+                        _c7 = __lasx_concat_128_s((__m128)__lsx_vld(pC + 28, 0), (__m128)__lsx_vld(pC1 + 28, 0));
                         transpose8x8_ps(_c0, _c1, _c2, _c3, _c4, _c5, _c6, _c7);
                     }
                     else
                     {
-                        _c0 = (__m256)__lasx_xvld(pC0, 0);
-                        _c1 = (__m256)__lasx_xvld(pC0 + c_hstep, 0);
-                        _c2 = (__m256)__lasx_xvld(pC0 + c_hstep * 2, 0);
-                        _c3 = (__m256)__lasx_xvld(pC0 + c_hstep * 3, 0);
-                        _c4 = (__m256)__lasx_xvld(pC0 + c_hstep * 4, 0);
-                        _c5 = (__m256)__lasx_xvld(pC0 + c_hstep * 5, 0);
-                        _c6 = (__m256)__lasx_xvld(pC0 + c_hstep * 6, 0);
-                        _c7 = (__m256)__lasx_xvld(pC0 + c_hstep * 7, 0);
+                        _c0 = (__m256)__lasx_xvld(pC, 0);
+                        _c1 = (__m256)__lasx_xvld(pC + c_hstep, 0);
+                        _c2 = (__m256)__lasx_xvld(pC + c_hstep * 2, 0);
+                        _c3 = (__m256)__lasx_xvld(pC + c_hstep * 3, 0);
+                        _c4 = (__m256)__lasx_xvld(pC + c_hstep * 4, 0);
+                        _c5 = (__m256)__lasx_xvld(pC + c_hstep * 5, 0);
+                        _c6 = (__m256)__lasx_xvld(pC + c_hstep * 6, 0);
+                        _c7 = (__m256)__lasx_xvld(pC + c_hstep * 7, 0);
                     }
                     if (beta == 1.f)
                     {
@@ -4408,7 +4401,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    __m256 _c = (__m256)__lasx_xvld(pC0, 0);
+                    __m256 _c = (__m256)__lasx_xvld(pC, 0);
                     if (beta != 1.f)
                     {
                         __m256 _beta = (__m256)__lasx_xvreplfr2vr_s(beta);
@@ -5103,13 +5096,15 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
     }
     for (; ii + 3 < max_ii; ii += 4)
     {
-        size_t out_offset;
+        float* p0;
         if (output_transpose)
-            out_offset = (size_t)j * out_hstep + (i + ii) * out_elempack;
+        {
+            p0 = (float*)top_blob + (size_t)j * out_hstep + (i + ii) * out_elempack;
+        }
         else
-            out_offset = (size_t)(i + ii) * out_hstep + j * out_elempack;
-
-        float* p0 = (float*)top_blob + out_offset;
+        {
+            p0 = (float*)top_blob + (size_t)(i + ii) * out_hstep + j * out_elempack;
+        }
 
         float c0 = 0.f;
         float c1 = 0.f;
@@ -5147,7 +5142,6 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
 #if __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
-            const float* pC0 = pC;
             __m256i _s0 = __lasx_xvld(pp, 0);
             __m256i _s1 = __lasx_xvld(pp + 8, 0);
             __m256i _s2 = __lasx_xvld(pp + 16, 0);
@@ -5173,7 +5167,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
             __m256 _f1 = (__m256)_s1;
             __m256 _f2 = (__m256)_s2;
             __m256 _f3 = (__m256)_s3;
-            if (pC0)
+            if (pC)
             {
                 if (broadcast_type_C == 0)
                 {
@@ -5197,16 +5191,16 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                     __m256 _c3;
                     if (c_elempack == 4)
                     {
-                        __m128 _c00 = (__m128)__lsx_vld(pC0, 0);
-                        __m128 _c10 = (__m128)__lsx_vld(pC0 + 4, 0);
-                        __m128 _c20 = (__m128)__lsx_vld(pC0 + 8, 0);
-                        __m128 _c30 = (__m128)__lsx_vld(pC0 + 12, 0);
+                        __m128 _c00 = (__m128)__lsx_vld(pC, 0);
+                        __m128 _c10 = (__m128)__lsx_vld(pC + 4, 0);
+                        __m128 _c20 = (__m128)__lsx_vld(pC + 8, 0);
+                        __m128 _c30 = (__m128)__lsx_vld(pC + 12, 0);
                         transpose4x4_ps(_c00, _c10, _c20, _c30);
 
-                        __m128 _c01 = (__m128)__lsx_vld(pC0 + 16, 0);
-                        __m128 _c11 = (__m128)__lsx_vld(pC0 + 20, 0);
-                        __m128 _c21 = (__m128)__lsx_vld(pC0 + 24, 0);
-                        __m128 _c31 = (__m128)__lsx_vld(pC0 + 28, 0);
+                        __m128 _c01 = (__m128)__lsx_vld(pC + 16, 0);
+                        __m128 _c11 = (__m128)__lsx_vld(pC + 20, 0);
+                        __m128 _c21 = (__m128)__lsx_vld(pC + 24, 0);
+                        __m128 _c31 = (__m128)__lsx_vld(pC + 28, 0);
                         transpose4x4_ps(_c01, _c11, _c21, _c31);
 
                         _c0 = __lasx_concat_128_s(_c00, _c01);
@@ -5216,10 +5210,10 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                     }
                     else // if (c_elempack == 1)
                     {
-                        _c0 = (__m256)__lasx_xvld(pC0, 0);
-                        _c1 = (__m256)__lasx_xvld(pC0 + c_hstep, 0);
-                        _c2 = (__m256)__lasx_xvld(pC0 + c_hstep * 2, 0);
-                        _c3 = (__m256)__lasx_xvld(pC0 + c_hstep * 3, 0);
+                        _c0 = (__m256)__lasx_xvld(pC, 0);
+                        _c1 = (__m256)__lasx_xvld(pC + c_hstep, 0);
+                        _c2 = (__m256)__lasx_xvld(pC + c_hstep * 2, 0);
+                        _c3 = (__m256)__lasx_xvld(pC + c_hstep * 3, 0);
                     }
                     if (beta == 1.f)
                     {
@@ -5240,7 +5234,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    __m256 _c = (__m256)__lasx_xvld(pC0, 0);
+                    __m256 _c = (__m256)__lasx_xvld(pC, 0);
                     if (beta != 1.f)
                     {
                         __m256 _beta = (__m256)__lasx_xvreplfr2vr_s(beta);
@@ -5665,13 +5659,15 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
 #endif // __loongarch_sx
     for (; ii + 1 < max_ii; ii += 2)
     {
-        size_t out_offset;
+        float* p0;
         if (output_transpose)
-            out_offset = (size_t)j * out_hstep + (i + ii) * out_elempack;
+        {
+            p0 = (float*)top_blob + (size_t)j * out_hstep + (i + ii) * out_elempack;
+        }
         else
-            out_offset = (size_t)(i + ii) * out_hstep + j * out_elempack;
-
-        float* p0 = (float*)top_blob + out_offset;
+        {
+            p0 = (float*)top_blob + (size_t)(i + ii) * out_hstep + j * out_elempack;
+        }
 
         float c0 = 0.f;
         float c1 = 0.f;
@@ -5704,10 +5700,9 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
 #if __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
-            const float* pC0 = pC;
             __m256 _f0 = (__m256)__lasx_xvld(pp, 0);
             __m256 _f1 = (__m256)__lasx_xvld(pp + 8, 0);
-            if (pC0)
+            if (pC)
             {
                 if (broadcast_type_C == 0)
                 {
@@ -5721,8 +5716,8 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 3)
                 {
-                    __m256 _c0 = (__m256)__lasx_xvld(pC0, 0);
-                    __m256 _c1 = (__m256)__lasx_xvld(pC0 + c_hstep, 0);
+                    __m256 _c0 = (__m256)__lasx_xvld(pC, 0);
+                    __m256 _c1 = (__m256)__lasx_xvld(pC + c_hstep, 0);
                     if (beta == 1.f)
                     {
                         _f0 = __lasx_xvfadd_s(_f0, _c0);
@@ -5738,7 +5733,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    __m256 _c = (__m256)__lasx_xvld(pC0, 0);
+                    __m256 _c = (__m256)__lasx_xvld(pC, 0);
                     if (beta != 1.f)
                     {
                         __m256 _beta = (__m256)__lasx_xvreplfr2vr_s(beta);
@@ -5879,11 +5874,10 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
 #endif // __loongarch_sx
         for (; jj + 1 < max_jj; jj += 2)
         {
-            const float* pC0 = pC;
 #if __loongarch_sx
             __m128 _f0 = (__m128)__lsx_vldrepl_d(pp, 0);
             __m128 _f1 = (__m128)__lsx_vldrepl_d(pp + 2, 0);
-            if (pC0)
+            if (pC)
             {
                 if (broadcast_type_C == 0)
                 {
@@ -5898,8 +5892,8 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 3)
                 {
-                    __m128 _c0 = (__m128)__lsx_vldrepl_d(pC0, 0);
-                    __m128 _c1 = (__m128)__lsx_vldrepl_d(pC0 + c_hstep, 0);
+                    __m128 _c0 = (__m128)__lsx_vldrepl_d(pC, 0);
+                    __m128 _c1 = (__m128)__lsx_vldrepl_d(pC + c_hstep, 0);
                     if (beta == 1.f)
                     {
                         _f0 = __lsx_vfadd_s(_f0, _c0);
@@ -5915,7 +5909,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    __m128 _c = (__m128)__lsx_vldrepl_d(pC0, 0);
+                    __m128 _c = (__m128)__lsx_vldrepl_d(pC, 0);
                     if (beta != 1.f)
                     {
                         __m128 _beta = __lsx_vreplfr2vr_s(beta);
@@ -5953,7 +5947,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
             float f01 = pp[1];
             float f10 = pp[2];
             float f11 = pp[3];
-            if (pC0)
+            if (pC)
             {
                 if (broadcast_type_C == 0)
                 {
@@ -5973,24 +5967,24 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 {
                     if (beta == 1.f)
                     {
-                        f00 += pC0[0];
-                        f01 += pC0[1];
-                        f10 += pC0[c_hstep];
-                        f11 += pC0[c_hstep + 1];
+                        f00 += pC[0];
+                        f01 += pC[1];
+                        f10 += pC[c_hstep];
+                        f11 += pC[c_hstep + 1];
                     }
                     else
                     {
-                        f00 += pC0[0] * beta;
-                        f01 += pC0[1] * beta;
-                        f10 += pC0[c_hstep] * beta;
-                        f11 += pC0[c_hstep + 1] * beta;
+                        f00 += pC[0] * beta;
+                        f01 += pC[1] * beta;
+                        f10 += pC[c_hstep] * beta;
+                        f11 += pC[c_hstep + 1] * beta;
                     }
                     pC += 2;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    const float cc0 = pC0[0] * beta;
-                    const float cc1 = pC0[1] * beta;
+                    const float cc0 = pC[0] * beta;
+                    const float cc1 = pC[1] * beta;
                     f00 += cc0;
                     f01 += cc1;
                     f10 += cc0;
@@ -6088,13 +6082,15 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
     }
     for (; ii < max_ii; ii++)
     {
-        size_t out_offset;
+        float* p0;
         if (output_transpose)
-            out_offset = (size_t)j * out_hstep + (i + ii) * out_elempack;
+        {
+            p0 = (float*)top_blob + (size_t)j * out_hstep + (i + ii) * out_elempack;
+        }
         else
-            out_offset = (size_t)(i + ii) * out_hstep + j * out_elempack;
-
-        float* p0 = (float*)top_blob + out_offset;
+        {
+            p0 = (float*)top_blob + (size_t)(i + ii) * out_hstep + j * out_elempack;
+        }
 
         float c0 = 0.f;
         const float* pC = C;
@@ -6387,7 +6383,7 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
 
     if (constant_TILE_K > 0)
     {
-        TILE_K = std::max(block_size, constant_TILE_K / block_size * block_size);
+        TILE_K = std::max(block_size, (constant_TILE_K + block_size - 1) / block_size * block_size);
         if (K > 0)
             TILE_K = std::min(TILE_K, K);
     }

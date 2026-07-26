@@ -28,26 +28,6 @@ namespace ncnn {
 #include "gemm_bf16s.h"
 #endif
 
-#if NCNN_WEIGHT_QUANT
-#if NCNN_BF16
-#include "gemm_wq_int8_bf16s.h"
-#endif
-#include "gemm_wq_int8.h"
-
-static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_elemtype, int output_transpose)
-{
-#if NCNN_BF16
-    if (output_elemtype == 3)
-    {
-        unpack_output_tile_wq_int8_bf16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
-        return;
-    }
-#endif
-
-    unpack_output_tile_wq_int8_fp32(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
-}
-#endif
-
 Gemm_x86::Gemm_x86()
 {
 #if __SSE2__
@@ -9584,6 +9564,24 @@ int Gemm_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 #endif // NCNN_BF16
 
 #if NCNN_WEIGHT_QUANT
+#if NCNN_BF16
+#include "gemm_wq_int8_bf16s.h"
+#endif
+#include "gemm_wq_int8.h"
+
+static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_elemtype, int output_transpose)
+{
+#if NCNN_BF16
+    if (output_elemtype == 3)
+    {
+        unpack_output_tile_wq_int8_bf16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
+        return;
+    }
+#endif
+
+    unpack_output_tile_wq_int8_fp32(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
+}
+
 static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int output_elemtype, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
@@ -9591,16 +9589,12 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descal
     int TILE_M, TILE_N, TILE_K;
     get_optimal_tile_mnk_wq_int8(M, N, K, block_size, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
 
-    const int TILE_M0 = TILE_M;
-    const int TILE_N0 = TILE_N;
     const int c_elempack = C.elempack;
     const int out_elempack = top_blob.elempack;
     const int m_elempack = std::max(transA ? 1 : A.elempack, std::max(broadcast_type_C == 3 ? c_elempack : 1, output_transpose ? 1 : out_elempack));
     const int n_elempack = output_transpose ? out_elempack : 1;
-    while (TILE_M % m_elempack != 0)
-        TILE_M += TILE_M0;
-    while (TILE_N % n_elempack != 0)
-        TILE_N += TILE_N0;
+    TILE_M = (TILE_M + m_elempack - 1) / m_elempack * m_elempack;
+    TILE_N = (TILE_N + n_elempack - 1) / n_elempack * n_elempack;
 
     const int mr = std::min(M, TILE_M);
     const int nr = std::min(N, TILE_N);

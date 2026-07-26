@@ -2262,7 +2262,7 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 #if NCNN_WEIGHT_QUANT
 #include "gemm_wq_int8.h"
 
-static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& packed_B, const Mat& packed_B_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int out_elemtype, const Option& opt)
+static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int out_elemtype, const Option& opt)
 {
 #if !NCNN_ZFH
     (void)out_elemtype;
@@ -2273,16 +2273,12 @@ static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& packed_B, const Mat& p
     int TILE_M, TILE_N, TILE_K;
     get_optimal_tile_mnk_wq_int8(M, N, K, block_size, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
 
-    const int TILE_M0 = TILE_M;
-    const int TILE_N0 = TILE_N;
     const int c_elempack = C.elempack;
     const int out_elempack = top_blob.elempack;
     const int m_elempack = std::max(transA ? 1 : A.elempack, std::max(broadcast_type_C == 3 ? c_elempack : 1, output_transpose ? 1 : out_elempack));
     const int n_elempack = output_transpose ? out_elempack : 1;
-    while (TILE_M % m_elempack != 0)
-        TILE_M += TILE_M0;
-    while (TILE_N % n_elempack != 0)
-        TILE_N += TILE_N0;
+    TILE_M = (TILE_M + m_elempack - 1) / m_elempack * m_elempack;
+    TILE_N = (TILE_N + n_elempack - 1) / n_elempack * n_elempack;
 
     const int mr = std::min(M, TILE_M);
     const int nr = std::min(N, TILE_N);
@@ -2350,8 +2346,8 @@ static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& packed_B, const Mat& p
             const int max_ii = std::min(M - i, TILE_M);
             const int max_jj = std::min(N - j, TILE_N);
 
-            Mat BT_tile(K * max_jj, (signed char*)packed_B.data + (size_t)j * K, (size_t)1u);
-            Mat BT_descales_tile(block_count * max_jj, (float*)packed_B_descales.data + (size_t)j * block_count, (size_t)4u);
+            Mat BT_tile(K * max_jj, (signed char*)BT.data + (size_t)j * K, (size_t)1u);
+            Mat BT_descales_tile(block_count * max_jj, (float*)BT_descales.data + (size_t)j * block_count, (size_t)4u);
             Mat topT_tile = topT.channel(get_omp_thread_num());
             Mat AT_channel = AT.channel(ppi);
             Mat AT_descales_channel = AT_descales.channel(ppi);
@@ -2435,8 +2431,8 @@ static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& packed_B, const Mat& p
             {
                 const int max_jj = std::min(N - j, TILE_N);
 
-                Mat BT_tile(K * max_jj, (signed char*)packed_B.data + (size_t)j * K, (size_t)1u);
-                Mat BT_descales_tile(block_count * max_jj, (float*)packed_B_descales.data + (size_t)j * block_count, (size_t)4u);
+                Mat BT_tile(K * max_jj, (signed char*)BT.data + (size_t)j * K, (size_t)1u);
+                Mat BT_descales_tile(block_count * max_jj, (float*)BT_descales.data + (size_t)j * block_count, (size_t)4u);
 
                 for (int k = 0; k < K; k += TILE_K)
                 {
