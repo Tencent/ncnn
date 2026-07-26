@@ -13,6 +13,7 @@
 #include <fstream>
 
 #include "ir.h"
+#include "utils.h"
 
 namespace pnnx {
 
@@ -1018,6 +1019,19 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
                         {
                             // assert tensor.int32_data().size() == 1
                             op_const->params["value"] = tensor.int32_data().at(0) ? true : false;
+                        }
+                    }
+                    else if (tensor.data_type() == onnx::TensorProto::FLOAT16)
+                    {
+                        if (tensor.has_raw_data())
+                        {
+                            // assert tensor.raw_data().size() == 2
+                            op_const->params["value"] = float16_to_float32(((unsigned short*)tensor.raw_data().data())[0]);
+                        }
+                        else
+                        {
+                            // onnx keeps the float16 bit pattern in the int32_data field
+                            op_const->params["value"] = float16_to_float32((unsigned short)tensor.int32_data().at(0));
                         }
                     }
                     else
