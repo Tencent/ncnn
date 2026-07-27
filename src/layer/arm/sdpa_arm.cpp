@@ -51,19 +51,19 @@ int SDPA_arm::create_pipeline(const Option& _opt)
         qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
 
-        pd.set(0, scale);               // alpha
-        pd.set(1, 1.f / scale);         // beta
-        pd.set(2, 0);                   // transA (Q: Seq x Embed)
-        pd.set(3, 1);                   // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
-        pd.set(4, 0);                   // constantA
-        pd.set(5, 0);                   // constantB
-        pd.set(6, attn_mask ? 0 : 1);   // constantC (if mask exists, use it)
-        pd.set(7, 0);                   // M
-        pd.set(8, 0);                   // N
-        pd.set(9, 0);                   // K
-        pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C (MxN)
-        pd.set(11, 0);                  // output_N1M
-        pd.set(12, 1);                  // output_elempack
+        pd.set(0, scale);                         // alpha
+        pd.set(1, 1.f / scale);                   // beta
+        pd.set(2, 0);                             // transA (Q: Seq x Embed)
+        pd.set(3, 1);                             // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
+        pd.set(4, 0);                             // constantA
+        pd.set(5, 0);                             // constantB
+        pd.set(6, attn_mask ? 0 : 1);             // constantC (if mask exists, use it)
+        pd.set(7, 0);                             // M
+        pd.set(8, 0);                             // N
+        pd.set(9, 0);                             // K
+        pd.set(10, attn_mask ? 3 : -1);           // constant_broadcast_type_C (MxN)
+        pd.set(11, 0);                            // output_N1M
+        pd.set(12, 1);                            // output_elempack
         pd.set(13, opt.use_fp16_storage ? 0 : 1); // output_elemtype = auto/fp32
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
@@ -79,21 +79,21 @@ int SDPA_arm::create_pipeline(const Option& _opt)
     {
         qkv_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
-        pd.set(0, 1.f); // alpha
-        pd.set(1, 1.f); // beta
-        pd.set(2, 0);   // transA (Attn: Seq x Seq)
-        pd.set(3, 0);   // transB (V: Seq x Embed) => Attn * V
-        pd.set(4, 0);   // constantA
-        pd.set(5, 0);   // constantB
-        pd.set(6, 1);   // constantC (None)
-        pd.set(7, 0);   // M
-        pd.set(8, 0);   // N
-        pd.set(9, 0);   // K
-        pd.set(10, -1); // constant_broadcast_type_C
-        pd.set(11, 0);  // output_N1M
-        pd.set(12, 1);  // output_elempack
+        pd.set(0, 1.f);                           // alpha
+        pd.set(1, 1.f);                           // beta
+        pd.set(2, 0);                             // transA (Attn: Seq x Seq)
+        pd.set(3, 0);                             // transB (V: Seq x Embed) => Attn * V
+        pd.set(4, 0);                             // constantA
+        pd.set(5, 0);                             // constantB
+        pd.set(6, 1);                             // constantC (None)
+        pd.set(7, 0);                             // M
+        pd.set(8, 0);                             // N
+        pd.set(9, 0);                             // K
+        pd.set(10, -1);                           // constant_broadcast_type_C
+        pd.set(11, 0);                            // output_N1M
+        pd.set(12, 1);                            // output_elempack
         pd.set(13, opt.use_fp16_storage ? 0 : 1); // output_elemtype = auto/fp32
-        pd.set(14, 0);  // output_transpose
+        pd.set(14, 0);                            // output_transpose
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
@@ -244,19 +244,19 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         _qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
 
-        pd.set(0, _scale);              // alpha
-        pd.set(1, 1.f / _scale);        // beta
-        pd.set(2, 0);                   // transA (Q: Seq x Embed)
-        pd.set(3, 1);                   // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
-        pd.set(4, 0);                   // constantA
-        pd.set(5, 0);                   // constantB
-        pd.set(6, attn_mask ? 0 : 1);   // constantC (if mask exists, use it)
-        pd.set(7, 0);                   // M
-        pd.set(8, 0);                   // N
-        pd.set(9, 0);                   // K
-        pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C (MxN)
-        pd.set(11, 0);                  // output_N1M
-        pd.set(12, 1);                  // output_elempack
+        pd.set(0, _scale);                        // alpha
+        pd.set(1, 1.f / _scale);                  // beta
+        pd.set(2, 0);                             // transA (Q: Seq x Embed)
+        pd.set(3, 1);                             // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
+        pd.set(4, 0);                             // constantA
+        pd.set(5, 0);                             // constantB
+        pd.set(6, attn_mask ? 0 : 1);             // constantC (if mask exists, use it)
+        pd.set(7, 0);                             // M
+        pd.set(8, 0);                             // N
+        pd.set(9, 0);                             // K
+        pd.set(10, attn_mask ? 3 : -1);           // constant_broadcast_type_C (MxN)
+        pd.set(11, 0);                            // output_N1M
+        pd.set(12, 1);                            // output_elempack
         pd.set(13, opt.use_fp16_storage ? 0 : 1); // output_elemtype = auto/fp32
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
