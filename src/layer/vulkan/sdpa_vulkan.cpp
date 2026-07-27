@@ -398,6 +398,8 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     const float _scale = scale == 0.f ? 1.f / sqrt(embed_dim) : scale;
 
     const size_t elemsize = query.elemsize;
+    const int attn_mask_channels = attn_mask_blob.c * attn_mask_blob.elempack;
+    const int attn_mask_dims = attn_mask_blob.dims == 3 && attn_mask_channels == 1 ? 2 : attn_mask_blob.dims;
 
     VkMat key;
     if (past_seqlen > 0)
@@ -462,7 +464,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             constants[3].i = embed_dim;
             constants[4].i = out_embed_dim;
             constants[5].i = num_heads;
-            constants[6].i = attn_mask_blob.dims && attn_mask_blob.c > 1 ? 3 : attn_mask_blob.dims;
+            constants[6].i = attn_mask_dims;
             constants[7].i = num_heads_per_group;
             constants[8].i = query.cstep;
             constants[9].i = key.cstep;
@@ -500,7 +502,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             constants[3].i = embed_dim;
             constants[4].i = out_embed_dim;
             constants[5].i = num_heads;
-            constants[6].i = attn_mask_blob.dims && attn_mask_blob.c > 1 ? 3 : attn_mask_blob.dims;
+            constants[6].i = attn_mask_dims;
             constants[7].i = num_heads_per_group;
             constants[8].i = query.cstep;
             constants[9].i = key.cstep;
@@ -557,7 +559,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         constants[2].i = N;
         constants[3].i = K;
         constants[4].i = B;
-        constants[5].i = attn_mask_blob.dims;
+        constants[5].i = attn_mask_dims;
         constants[6].i = num_heads_per_group;
         constants[7].i = query.cstep;
         constants[8].i = key.cstep;
