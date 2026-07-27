@@ -132,7 +132,7 @@ static int test_multiheadattention_self_kvcache_decode(int qdim, int past_seqlen
     pd.set(4, qdim);
     pd.set(6, 0.7f / sqrtf(embed_dim / num_heads));
     pd.set(5, mask_channels > 0); // attn_mask
-    pd.set(7, 1); // kv_cache
+    pd.set(7, 1);                 // kv_cache
 
     std::vector<ncnn::Mat> weights(8);
     weights[0] = RandomMat(embed_dim * qdim);
@@ -249,10 +249,10 @@ static int test_multiheadattention_self_kvcache_rolling(int qdim, int embed_dim,
 
         const int expected_cache_len = (i + 1) * tokens_per_step;
         if (cpu_tops[1].w != expected_cache_len || cpu_tops[2].w != expected_cache_len
-            || reference_tops[1].allocator != &reference_blob_allocator
-            || reference_tops[2].allocator != &reference_blob_allocator
-            || cpu_tops[1].allocator != &cpu_blob_allocator
-            || cpu_tops[2].allocator != &cpu_blob_allocator)
+                || reference_tops[1].allocator != &reference_blob_allocator
+                || reference_tops[2].allocator != &reference_blob_allocator
+                || cpu_tops[1].allocator != &cpu_blob_allocator
+                || cpu_tops[2].allocator != &cpu_blob_allocator)
         {
             fprintf(stderr, "test_multiheadattention_self_kvcache_rolling invalid cache at step=%d k_w=%d v_w=%d\n", i, cpu_tops[1].w, cpu_tops[2].w);
             ret = -1;
@@ -451,8 +451,8 @@ static int test_multiheadattention_int8_self_kvcache_decode(int qdim, int past_s
     pd.set(4, qdim);
     pd.set(6, 0.7f / sqrtf(embed_dim / num_heads));
     pd.set(5, mask_channels > 0); // attn_mask
-    pd.set(7, 1);  // kv_cache
-    pd.set(18, 2); // int8_scale_term
+    pd.set(7, 1);                 // kv_cache
+    pd.set(18, 2);                // int8_scale_term
 
     std::vector<ncnn::Mat> weights(12);
     weights[0] = RandomS8Mat(embed_dim * qdim);
