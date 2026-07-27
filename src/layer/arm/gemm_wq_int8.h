@@ -8641,8 +8641,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 for (; kk + 1 < max_kk0; kk += 2)
                 {
                     sum0 += pA[0] * pB[0];
-                    sum0 += pA[1] * pB[1];
-                    sum1 += pA[2] * pB[0];
+                    sum0 += pA[2] * pB[1];
+                    sum1 += pA[1] * pB[0];
                     sum1 += pA[3] * pB[1];
                     pA += 4;
                     pB += 2;
