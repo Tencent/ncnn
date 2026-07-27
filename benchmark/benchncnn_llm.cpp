@@ -24,6 +24,11 @@
 class DataReaderFromEmpty : public ncnn::DataReader
 {
 public:
+    DataReaderFromEmpty(int _wq_int8 = 0)
+        : wq_int8(_wq_int8), state(0)
+    {
+    }
+
     virtual int scan(const char* /*format*/, void* /*p*/) const
     {
         return 0;
@@ -31,9 +36,52 @@ public:
 
     virtual size_t read(void* buf, size_t size) const
     {
+#if NCNN_WEIGHT_QUANT
+        // int8 models load rmsnorm gamma and then tagged Gemm B / block scale pairs
+        if (!wq_int8)
+        {
+            memset(buf, 0, size);
+            return size;
+        }
+
+        unsigned char* ptr = (unsigned char*)buf;
+
+        if (state == 0)
+        {
+            if (size == 4)
+            {
+                // int8 weight tag 0x000d4b38
+                ptr[0] = 0x38;
+                ptr[1] = 0x4b;
+                ptr[2] = 0x0d;
+                ptr[3] = 0x00;
+                state = 1;
+            }
+            else
+            {
+                memset(buf, 0, size);
+            }
+        }
+        else if (state == 1)
+        {
+            memset(buf, 0, size);
+            state = 2;
+        }
+        else
+        {
+            memset(buf, 0, size);
+            state = 0;
+        }
+#else
+        (void)wq_int8;
         memset(buf, 0, size);
+#endif
         return size;
     }
+
+private:
+    int wq_int8;
+    mutable int state;
 };
 
 static int g_warmup_loop_count = 8;
@@ -62,47 +110,69 @@ struct ModelConfig
     const char* proj_out_param_data;
     int hidden_size;
     int rope_half_dim;
+    int wq_int8;
 };
 
 namespace minicpm4 {
 
-static const ModelConfig model = {"minicpm4_0.5b", minicpm4_0_5b_decoder_ncnn_param_data, minicpm4_0_5b_proj_out_ncnn_param_data, 1024, 32};
+static const ModelConfig model = {"minicpm4_0.5b", minicpm4_0_5b_decoder_ncnn_param_data, minicpm4_0_5b_proj_out_ncnn_param_data, 1024, 32, 0};
+#if NCNN_WEIGHT_QUANT
+static const ModelConfig model_int8 = {"minicpm4_0.5b_int8", minicpm4_0_5b_int8_decoder_ncnn_param_data, minicpm4_0_5b_int8_proj_out_ncnn_param_data, 1024, 32, 1};
+#endif
 
 } // namespace minicpm4
 
 namespace qwen25 {
 
-static const ModelConfig model = {"qwen2.5_0.5b", qwen2_5_0_5b_decoder_ncnn_param_data, qwen2_5_0_5b_proj_out_ncnn_param_data, 896, 32};
+static const ModelConfig model = {"qwen2.5_0.5b", qwen2_5_0_5b_decoder_ncnn_param_data, qwen2_5_0_5b_proj_out_ncnn_param_data, 896, 32, 0};
+#if NCNN_WEIGHT_QUANT
+static const ModelConfig model_int8 = {"qwen2.5_0.5b_int8", qwen2_5_0_5b_int8_decoder_ncnn_param_data, qwen2_5_0_5b_int8_proj_out_ncnn_param_data, 896, 32, 1};
+#endif
 
 } // namespace qwen25
 
 namespace qwen3 {
 
-static const ModelConfig model = {"qwen3_0.6b", qwen3_0_6b_decoder_ncnn_param_data, qwen3_0_6b_proj_out_ncnn_param_data, 1024, 64};
+static const ModelConfig model = {"qwen3_0.6b", qwen3_0_6b_decoder_ncnn_param_data, qwen3_0_6b_proj_out_ncnn_param_data, 1024, 64, 0};
+#if NCNN_WEIGHT_QUANT
+static const ModelConfig model_int8 = {"qwen3_0.6b_int8", qwen3_0_6b_int8_decoder_ncnn_param_data, qwen3_0_6b_int8_proj_out_ncnn_param_data, 1024, 64, 1};
+#endif
 
 } // namespace qwen3
 
 namespace hunyuan {
 
-static const ModelConfig model = {"hunyuan_0.5b", hunyuan_0_5b_instruct_decoder_ncnn_param_data, hunyuan_0_5b_instruct_proj_out_ncnn_param_data, 1024, 64};
+static const ModelConfig model = {"hunyuan_0.5b", hunyuan_0_5b_instruct_decoder_ncnn_param_data, hunyuan_0_5b_instruct_proj_out_ncnn_param_data, 1024, 64, 0};
+#if NCNN_WEIGHT_QUANT
+static const ModelConfig model_int8 = {"hunyuan_0.5b_int8", hunyuan_0_5b_instruct_int8_decoder_ncnn_param_data, hunyuan_0_5b_instruct_int8_proj_out_ncnn_param_data, 1024, 64, 1};
+#endif
 
 } // namespace hunyuan
 
 namespace tinyllama {
 
-static const ModelConfig model = {"tinyllama_1.1b", tinyllama_1_1b_decoder_ncnn_param_data, tinyllama_1_1b_proj_out_ncnn_param_data, 2048, 32};
+static const ModelConfig model = {"tinyllama_1.1b", tinyllama_1_1b_decoder_ncnn_param_data, tinyllama_1_1b_proj_out_ncnn_param_data, 2048, 32, 0};
+#if NCNN_WEIGHT_QUANT
+static const ModelConfig model_int8 = {"tinyllama_1.1b_int8", tinyllama_1_1b_int8_decoder_ncnn_param_data, tinyllama_1_1b_int8_proj_out_ncnn_param_data, 2048, 32, 1};
+#endif
 
 } // namespace tinyllama
 
 namespace llama32 {
 
-static const ModelConfig model = {"llama3.2_1b", llama3_2_1b_decoder_ncnn_param_data, llama3_2_1b_proj_out_ncnn_param_data, 2048, 32};
+static const ModelConfig model = {"llama3.2_1b", llama3_2_1b_decoder_ncnn_param_data, llama3_2_1b_proj_out_ncnn_param_data, 2048, 32, 0};
+#if NCNN_WEIGHT_QUANT
+static const ModelConfig model_int8 = {"llama3.2_1b_int8", llama3_2_1b_int8_decoder_ncnn_param_data, llama3_2_1b_int8_proj_out_ncnn_param_data, 2048, 32, 1};
+#endif
 
 } // namespace llama32
 
 namespace youtu_llm {
 
-static const ModelConfig model = {"youtu_llm_2b", youtu_llm_2b_decoder_ncnn_param_data, youtu_llm_2b_proj_out_ncnn_param_data, 2048, 64};
+static const ModelConfig model = {"youtu_llm_2b", youtu_llm_2b_decoder_ncnn_param_data, youtu_llm_2b_proj_out_ncnn_param_data, 2048, 64, 0};
+#if NCNN_WEIGHT_QUANT
+static const ModelConfig model_int8 = {"youtu_llm_2b_int8", youtu_llm_2b_int8_decoder_ncnn_param_data, youtu_llm_2b_int8_proj_out_ncnn_param_data, 2048, 64, 1};
+#endif
 
 } // namespace youtu_llm
 
@@ -149,17 +219,9 @@ static void make_rope_cache(int half_dim, int seqlen, ncnn::Mat& cos_cache, ncnn
     sin_cache.fill(0.f);
 }
 
-static int run_decoder_once(ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIndexes& cache_indexes, int hidden_size, int rope_half_dim, int cur_seqlen, int past_seqlen, const std::vector<ncnn::Mat>& cache, std::vector<ncnn::Mat>& out_cache)
+static int run_decoder_once(ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIndexes& cache_indexes, const ncnn::Mat& token_embeds, const ncnn::Mat& attention_mask, const ncnn::Mat& cos_cache, const ncnn::Mat& sin_cache, const std::vector<ncnn::Mat>& cache, std::vector<ncnn::Mat>& out_cache)
 {
-    ncnn::Mat token_embeds(hidden_size, cur_seqlen);
-    token_embeds.fill(0.01f);
-
-    ncnn::Mat attention_mask;
-    make_attention_mask(cur_seqlen, past_seqlen, attention_mask);
-
-    ncnn::Mat cos_cache;
-    ncnn::Mat sin_cache;
-    make_rope_cache(rope_half_dim, cur_seqlen, cos_cache, sin_cache);
+    const int cur_seqlen = token_embeds.h;
 
     ncnn::Extractor ex = decoder.create_extractor();
     ex.input("in0", token_embeds);
@@ -196,13 +258,15 @@ static int run_decoder_once(ncnn::Net& decoder, ncnn::Net& proj_out, const Cache
     return ex2.extract("out0", logits);
 }
 
-static void benchmark_case(const char* name, ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIndexes& cache_indexes, int hidden_size, int rope_half_dim, int cur_seqlen, int past_seqlen, const std::vector<ncnn::Mat>& cache, double rate_scale)
+static int benchmark_case(const char* name, ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIndexes& cache_indexes, const ncnn::Mat& token_embeds, const ncnn::Mat& attention_mask, const ncnn::Mat& cos_cache, const ncnn::Mat& sin_cache, const std::vector<ncnn::Mat>& cache, double rate_scale)
 {
     std::vector<ncnn::Mat> out_cache;
 
     for (int i = 0; i < g_warmup_loop_count; i++)
     {
-        run_decoder_once(decoder, proj_out, cache_indexes, hidden_size, rope_half_dim, cur_seqlen, past_seqlen, cache, out_cache);
+        int ret = run_decoder_once(decoder, proj_out, cache_indexes, token_embeds, attention_mask, cos_cache, sin_cache, cache, out_cache);
+        if (ret != 0)
+            return ret;
     }
 
     double time_min = DBL_MAX;
@@ -212,8 +276,10 @@ static void benchmark_case(const char* name, ncnn::Net& decoder, ncnn::Net& proj
     for (int i = 0; i < g_loop_count; i++)
     {
         double start = ncnn::get_current_time();
-        run_decoder_once(decoder, proj_out, cache_indexes, hidden_size, rope_half_dim, cur_seqlen, past_seqlen, cache, out_cache);
+        int ret = run_decoder_once(decoder, proj_out, cache_indexes, token_embeds, attention_mask, cos_cache, sin_cache, cache, out_cache);
         double end = ncnn::get_current_time();
+        if (ret != 0)
+            return ret;
 
         double time = end - start;
         time_min = std::min(time_min, time);
@@ -225,9 +291,11 @@ static void benchmark_case(const char* name, ncnn::Net& decoder, ncnn::Net& proj
 
     const double tokens_per_second = rate_scale * 1000.0 / time_avg;
     fprintf(stderr, "%30s  min = %7.2f  max = %7.2f  avg = %7.2f  tps = %7.2f\n", name, time_min, time_max, time_avg, tokens_per_second);
+
+    return 0;
 }
 
-static int load_net(ncnn::Net& net, const char* param_data, const ncnn::Option& opt)
+static int load_net(ncnn::Net& net, const char* param_data, int wq_int8, const ncnn::Option& opt)
 {
     net.opt = opt;
 
@@ -242,7 +310,7 @@ static int load_net(ncnn::Net& net, const char* param_data, const ncnn::Option& 
     if (ret != 0)
         return ret;
 
-    DataReaderFromEmpty dr;
+    DataReaderFromEmpty dr(wq_int8);
     return net.load_model(dr);
 }
 
@@ -260,17 +328,36 @@ static int benchmark_model(const ModelConfig& config, const ncnn::Option& opt)
 #endif // NCNN_VULKAN
 
     ncnn::Net decoder;
-    int ret = load_net(decoder, config.decoder_param_data, opt);
+    int ret = load_net(decoder, config.decoder_param_data, config.wq_int8, opt);
     if (ret != 0)
         return ret;
 
     ncnn::Net proj_out;
-    ret = load_net(proj_out, config.proj_out_param_data, opt);
+    ret = load_net(proj_out, config.proj_out_param_data, config.wq_int8, opt);
     if (ret != 0)
         return ret;
 
     CacheIndexes cache_indexes;
     resolve_cache_indexes(decoder, cache_indexes);
+
+    const int prefill_len = 256;
+
+    ncnn::Mat prefill_embeddings(config.hidden_size, prefill_len);
+    ncnn::Mat decode_embedding(config.hidden_size, 1);
+    prefill_embeddings.fill(0.01f);
+    decode_embedding.fill(0.01f);
+
+    ncnn::Mat prefill_attention_mask;
+    make_attention_mask(prefill_len, 0, prefill_attention_mask);
+    ncnn::Mat prefill_cos_cache;
+    ncnn::Mat prefill_sin_cache;
+    make_rope_cache(config.rope_half_dim, prefill_len, prefill_cos_cache, prefill_sin_cache);
+
+    ncnn::Mat decode_attention_mask;
+    make_attention_mask(1, prefill_len, decode_attention_mask);
+    ncnn::Mat decode_cos_cache;
+    ncnn::Mat decode_sin_cache;
+    make_rope_cache(config.rope_half_dim, 1, decode_cos_cache, decode_sin_cache);
 
     if (g_enable_cooling_down)
     {
@@ -279,19 +366,21 @@ static int benchmark_model(const ModelConfig& config, const ncnn::Option& opt)
 
     std::vector<ncnn::Mat> empty_cache;
     std::vector<ncnn::Mat> past_cache;
-    run_decoder_once(decoder, proj_out, cache_indexes, config.hidden_size, config.rope_half_dim, 256, 0, empty_cache, past_cache);
+    ret = run_decoder_once(decoder, proj_out, cache_indexes, prefill_embeddings, prefill_attention_mask, prefill_cos_cache, prefill_sin_cache, empty_cache, past_cache);
+    if (ret != 0)
+        return ret;
 
     char prefill_name[256];
     snprintf(prefill_name, 256, "%s_256_prefill", config.name);
 
-    benchmark_case(prefill_name, decoder, proj_out, cache_indexes, config.hidden_size, config.rope_half_dim, 256, 0, empty_cache, 256.0);
+    ret = benchmark_case(prefill_name, decoder, proj_out, cache_indexes, prefill_embeddings, prefill_attention_mask, prefill_cos_cache, prefill_sin_cache, empty_cache, 256.0);
+    if (ret != 0)
+        return ret;
 
     char decode_name[256];
     snprintf(decode_name, 256, "%s_256_decode", config.name);
 
-    benchmark_case(decode_name, decoder, proj_out, cache_indexes, config.hidden_size, config.rope_half_dim, 1, 256, past_cache, 1.0);
-
-    return 0;
+    return benchmark_case(decode_name, decoder, proj_out, cache_indexes, decode_embedding, decode_attention_mask, decode_cos_cache, decode_sin_cache, past_cache, 1.0);
 }
 
 static void show_usage()
@@ -399,17 +488,46 @@ int main(int argc, char** argv)
 
     const ModelConfig* models[] = {
         &hunyuan::model,
+#if NCNN_WEIGHT_QUANT
+        &hunyuan::model_int8,
+#endif
         &minicpm4::model,
+#if NCNN_WEIGHT_QUANT
+        &minicpm4::model_int8,
+#endif
         &qwen25::model,
+#if NCNN_WEIGHT_QUANT
+        &qwen25::model_int8,
+#endif
         &qwen3::model,
+#if NCNN_WEIGHT_QUANT
+        &qwen3::model_int8,
+#endif
         &llama32::model,
+#if NCNN_WEIGHT_QUANT
+        &llama32::model_int8,
+#endif
         &tinyllama::model,
+#if NCNN_WEIGHT_QUANT
+        &tinyllama::model_int8,
+#endif
         &youtu_llm::model,
+#if NCNN_WEIGHT_QUANT
+        &youtu_llm::model_int8,
+#endif
     };
 
     for (size_t i = 0; i < sizeof(models) / sizeof(models[0]); i++)
     {
-        benchmark_model(*models[i], opt);
+        if (use_vulkan_compute && models[i]->wq_int8)
+            continue;
+
+        int ret = benchmark_model(*models[i], opt);
+        if (ret != 0)
+        {
+            fprintf(stderr, "benchmark %s failed %d\n", models[i]->name, ret);
+            return ret;
+        }
     }
 
 #if NCNN_VULKAN
