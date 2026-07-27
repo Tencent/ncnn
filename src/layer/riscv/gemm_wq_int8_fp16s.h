@@ -1470,7 +1470,7 @@ static void unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Mat& C, Mat&
         }
         int jj = 0;
 #if __riscv_vector
-        while (jj < max_jj)
+        while (jj + 3 < max_jj)
         {
             const size_t vl = __riscv_vsetvl_e32m4(max_jj - jj);
             vfloat32m4x2_t _s = __riscv_vlseg2e32_v_f32m4x2(pp, vl);
@@ -1605,6 +1605,7 @@ static void unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Mat& C, Mat&
             out0 += 4;
             out1 += 4;
         }
+#endif // __riscv_vector
         for (; jj + 1 < max_jj; jj += 2)
         {
             float sum00 = pp[0];
@@ -1691,7 +1692,6 @@ static void unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Mat& C, Mat&
             out0++;
             out1++;
         }
-#endif // __riscv_vector
         outptr += out_hstep * 2;
     }
     for (; ii < max_ii; ii++)
@@ -1722,7 +1722,7 @@ static void unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Mat& C, Mat&
         }
         int jj = 0;
 #if __riscv_vector
-        while (jj < max_jj)
+        while (jj + 3 < max_jj)
         {
             const size_t vl = __riscv_vsetvl_e32m4(max_jj - jj);
             vfloat32m4_t _sum = __riscv_vle32_v_f32m4(pp, vl);
@@ -1798,6 +1798,7 @@ static void unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Mat& C, Mat&
             out0[3] = (__fp16)sum3;
             out0 += 4;
         }
+#endif // __riscv_vector
         for (; jj + 1 < max_jj; jj += 2)
         {
             float sum0 = pp[0];
@@ -1852,7 +1853,6 @@ static void unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Mat& C, Mat&
             out0[0] = (__fp16)sum;
             out0++;
         }
-#endif // __riscv_vector
         outptr += out_hstep;
     }
 }
@@ -2075,7 +2075,7 @@ static void transpose_unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Ma
         }
         if (out_elempack == 1)
         {
-            while (jj < max_jj)
+            while (jj + 3 < max_jj)
             {
                 const size_t vl = __riscv_vsetvl_e32m4(max_jj - jj);
                 vfloat32m4x2_t _s = __riscv_vlseg2e32_v_f32m4x2(pp, vl);
@@ -2212,6 +2212,7 @@ static void transpose_unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Ma
             out0[out_hstep * 3 + 1] = (__fp16)sum13;
             out0 += out_hstep * 4;
         }
+#endif // __riscv_vector
         for (; jj + 1 < max_jj; jj += 2)
         {
             float sum00 = pp[0];
@@ -2295,7 +2296,6 @@ static void transpose_unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Ma
             out0[1] = (__fp16)sum1;
             out0 += out_hstep;
         }
-#endif // __riscv_vector
         outptr += 2 * out_elempack;
     }
     for (; ii < max_ii; ii++)
@@ -2358,7 +2358,7 @@ static void transpose_unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Ma
         }
         if (out_elempack == 1)
         {
-            while (jj < max_jj)
+            while (jj + 3 < max_jj)
             {
                 const size_t vl = __riscv_vsetvl_e32m4(max_jj - jj);
                 vfloat32m4_t _sum = __riscv_vle32_v_f32m4(pp, vl);
@@ -2438,6 +2438,7 @@ static void transpose_unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Ma
             out0[out_hstep * 3] = (__fp16)sum3;
             out0 += out_hstep * 4;
         }
+#endif // __riscv_vector
         for (; jj + 1 < max_jj; jj += 2)
         {
             float sum0 = pp[0];
@@ -2492,7 +2493,6 @@ static void transpose_unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Ma
             out0[0] = (__fp16)sum;
             out0 += out_hstep;
         }
-#endif // __riscv_vector
         outptr += out_elempack;
     }
 }

@@ -8551,90 +8551,16 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         }
         for (; jj < max_jj; jj++)
         {
-#if __ARM_NEON
             const signed char* pB = pB_panel + k;
             const float* pB_descales = pB_descales_panel + block_start;
-            const signed char* pA = pAT;
-            const float* pA_descales = pAT_descales;
-            float32x4_t _fsum;
+#if __ARM_NEON
+            float32x2_t _fsum;
 
             if (k == 0)
-                _fsum = vdupq_n_f32(0.f);
+                _fsum = vdup_n_f32(0.f);
             else
-                _fsum = vcombine_f32(vld1_f32(outptr), vdup_n_f32(0.f));
-
-            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
-            {
-                int32x4_t _sum = vdupq_n_s32(0);
-                const int max_kk0 = std::min(max_kk - kk0, block_size);
-                int kk = 0;
-#if __ARM_FEATURE_DOTPROD
-#if __ARM_FEATURE_MATMUL_INT8
-                for (; kk + 7 < max_kk0; kk += 8)
-                {
-                    int8x16_t _a = vld1q_s8(pA);
-                    int8x8_t _b = vld1_s8(pB);
-                    int8x16_t _bb = vcombine_s8(_b, _b);
-                    int32x4_t _s = vdotq_s32(vdupq_n_s32(0), _a, _bb);
-                    _sum = vaddq_s32(_sum, vpaddq_s32(_s, _s));
-                    pA += 16;
-                    pB += 8;
-                }
-#endif // __ARM_FEATURE_MATMUL_INT8
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    int8x8_t _a = vld1_s8(pA);
-                    int8x16_t _aa = vcombine_s8(_a, vdup_n_s8(0));
-                    int8x16_t _b = vreinterpretq_s8_s32(vld1q_dup_s32((const int*)pB));
-                    _sum = vdotq_s32(_sum, _aa, _b);
-                    pA += 8;
-                    pB += 4;
-                }
-#else  // __ARM_FEATURE_DOTPROD
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    int8x8_t _a0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pA));
-                    int8x8_t _a1 = vreinterpret_s8_s32(vld1_dup_s32((const int*)(pA + 4)));
-                    int16x4_t _b = vreinterpret_s16_s32(vld1_dup_s32((const int*)pB));
-                    int8x8_t _b0 = vreinterpret_s8_s16(vdup_lane_s16(_b, 0));
-                    int8x8_t _b1 = vreinterpret_s8_s16(vdup_lane_s16(_b, 1));
-                    _sum = vaddq_s32(_sum, vpaddlq_s16(vmull_s8(_a0, _b0)));
-                    _sum = vaddq_s32(_sum, vpaddlq_s16(vmull_s8(_a1, _b1)));
-                    pA += 8;
-                    pB += 4;
-                }
-#endif // __ARM_FEATURE_DOTPROD
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    int8x8_t _a = vreinterpret_s8_s32(vld1_dup_s32((const int*)pA));
-                    int8x8_t _b = vreinterpret_s8_s16(vld1_dup_s16((const short*)pB));
-                    _sum = vaddq_s32(_sum, vpaddlq_s16(vmull_s8(_a, _b)));
-                    pA += 4;
-                    pB += 2;
-                }
-                for (; kk < max_kk0; kk++)
-                {
-                    int8x8_t _a = vreinterpret_s8_s16(vld1_dup_s16((const short*)pA));
-                    int16x8_t _s = vmull_s8(_a, vld1_dup_s8(pB));
-                    _sum = vaddw_s16(_sum, vget_low_s16(_s));
-                    pA += 2;
-                    pB++;
-                }
-
-                float32x2_t _ad = vld1_f32(pA_descales);
-                float32x4_t _scale = vmulq_n_f32(vcombine_f32(_ad, _ad), pB_descales[0]);
-                _fsum = vmlaq_f32(_fsum, vcvtq_f32_s32(_sum), _scale);
-                pA_descales += 2;
-                pB_descales++;
-            }
-
-            vst1_f32(outptr, vget_low_f32(_fsum));
-            outptr += 2;
-            pB_panel += K;
-            pB_descales_panel += block_count;
+                _fsum = vld1_f32(outptr);
 #else
-            const signed char* pB = pB_panel + k;
-            const float* pB_descales = pB_descales_panel + block_start;
             float fsum00;
             float fsum10;
 
@@ -8648,50 +8574,113 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 fsum00 = outptr[0];
                 fsum10 = outptr[1];
             }
+#endif // __ARM_NEON
 
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
-                int sum00 = 0;
-                int sum10 = 0;
+                int sum0 = 0;
+                int sum1 = 0;
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
+#if __ARM_NEON
+                int32x2_t _sum = vdup_n_s32(0);
+#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                {
+                    int32x4_t _sum0 = vdupq_n_s32(0);
+                    for (; kk + 7 < max_kk0; kk += 8)
+                    {
+                        int8x16_t _a = vld1q_s8(pA);
+                        int8x8_t _b = vld1_s8(pB);
+                        int8x16_t _bb = vcombine_s8(_b, _b);
+                        _sum0 = vdotq_s32(_sum0, _a, _bb);
+                        pA += 16;
+                        pB += 8;
+                    }
+                    _sum = vadd_s32(_sum, vpadd_s32(vget_low_s32(_sum0), vget_high_s32(_sum0)));
+                }
+#else  // __ARM_FEATURE_MATMUL_INT8
+                for (; kk + 7 < max_kk0; kk += 8)
+                {
+                    int8x16_t _a = vld1q_s8(pA);
+                    int8x8_t _b = vld1_s8(pB);
+                    _sum = vdot_lane_s32(_sum, vget_low_s8(_a), _b, 0);
+                    _sum = vdot_lane_s32(_sum, vget_high_s8(_a), _b, 1);
+                    pA += 16;
+                    pB += 8;
+                }
+#endif // __ARM_FEATURE_MATMUL_INT8
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+                    int8x8_t _a = vld1_s8(pA);
+                    int8x8_t _b = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB));
+                    _sum = vdot_s32(_sum, _a, _b);
+                    pA += 8;
+                    pB += 4;
+                }
+#else  // __ARM_FEATURE_DOTPROD
+                {
+                    int32x4_t _sum0 = vdupq_n_s32(0);
+                    for (; kk + 3 < max_kk0; kk += 4)
+                    {
+                        int8x8_t _a = vld1_s8(pA);
+                        int8x8_t _b = vreinterpret_s8_s32(vdup_lane_s32(vreinterpret_s32_s8(vld1_s8(pB)), 0));
+                        _b = vreinterpret_s8_s16(vzip_s16(vreinterpret_s16_s8(_b), vreinterpret_s16_s8(_b)).val[0]);
+                        _sum0 = vpadalq_s16(_sum0, vmull_s8(_a, _b));
+                        pA += 8;
+                        pB += 4;
+                    }
+                    _sum = vadd_s32(_sum, vadd_s32(vget_low_s32(_sum0), vget_high_s32(_sum0)));
+                }
+#endif // __ARM_FEATURE_DOTPROD
+                sum0 = vget_lane_s32(_sum, 0);
+                sum1 = vget_lane_s32(_sum, 1);
+#endif // __ARM_NEON
                 for (; kk + 1 < max_kk0; kk += 2)
                 {
-                    const int b00 = pB[0];
-                    const int b01 = pB[1];
-                    sum00 += pA[0] * b00 + pA[2] * b01;
-                    sum10 += pA[1] * b00 + pA[3] * b01;
+                    sum0 += pA[0] * pB[0];
+                    sum0 += pA[1] * pB[1];
+                    sum1 += pA[2] * pB[0];
+                    sum1 += pA[3] * pB[1];
                     pA += 4;
                     pB += 2;
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    const int b0 = pB[0];
-                    sum00 += pA[0] * b0;
-                    sum10 += pA[1] * b0;
+                    sum0 += pA[0] * pB[0];
+                    sum1 += pA[1] * pB[0];
                     pA += 2;
-                    pB += 1;
+                    pB++;
                 }
 
+#if __ARM_NEON
+                float32x2_t _ad = vld1_f32(pA_descales);
+                float32x2_t _scale = vmul_n_f32(_ad, pB_descales[0]);
+                _sum = vset_lane_s32(sum0, _sum, 0);
+                _sum = vset_lane_s32(sum1, _sum, 1);
+                _fsum = vmla_f32(_fsum, vcvt_f32_s32(_sum), _scale);
+#else
                 const float bd0 = pB_descales[0];
                 const float ad0 = pA_descales[0];
-                fsum00 += sum00 * ad0 * bd0;
+                fsum00 += sum0 * ad0 * bd0;
                 const float ad1 = pA_descales[1];
-                fsum10 += sum10 * ad1 * bd0;
-
+                fsum10 += sum1 * ad1 * bd0;
+#endif // __ARM_NEON
                 pA_descales += 2;
-                pB_descales += 1;
+                pB_descales++;
             }
 
+#if __ARM_NEON
+            vst1_f32(outptr, _fsum);
+#else
             outptr[0] = fsum00;
-            outptr++;
-            outptr[0] = fsum10;
-            outptr++;
+            outptr[1] = fsum10;
+#endif // __ARM_NEON
+            outptr += 2;
             pB_panel += K;
             pB_descales_panel += block_count;
-#endif // __ARM_NEON
         }
         pAT += (size_t)2 * A_hstep;
         pAT_descales += (size_t)2 * A_descales_hstep;
@@ -8794,96 +8783,20 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #endif // __ARM_NEON
         for (; jj + 1 < max_jj; jj += 2)
         {
-#if __ARM_NEON
             const signed char* pB = pB_panel + (size_t)2 * k;
             const float* pB_descales = pB_descales_panel + (size_t)2 * block_start;
-            float32x4_t _fsum0;
+#if __ARM_NEON
+            float32x2_t _fsum0;
 
             if (k == 0)
             {
-                _fsum0 = vdupq_n_f32(0.f);
+                _fsum0 = vdup_n_f32(0.f);
             }
             else
             {
-                _fsum0 = vcombine_f32(vld1_f32(outptr), vdup_n_f32(0.f));
+                _fsum0 = vld1_f32(outptr);
             }
-
-            const signed char* pA = pAT;
-            const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
-            {
-                int32x4_t _sum0 = vdupq_n_s32(0);
-                const int max_kk0 = std::min(max_kk - kk0, block_size);
-                int kk = 0;
-#if __ARM_FEATURE_DOTPROD
-#if __ARM_FEATURE_MATMUL_INT8
-                int32x4_t _msum0 = vdupq_n_s32(0);
-                for (; kk + 7 < max_kk0; kk += 8)
-                {
-                    int8x16_t _b0 = vld1q_s8(pB + 0);
-                    int8x16_t _a0 = vcombine_s8(vld1_s8(pA), vdup_n_s8(0));
-                    _msum0 = vmmlaq_s32(_msum0, _a0, _b0);
-                    pA += 8;
-                    pB += 16;
-                }
-                _sum0 = vcombine_s32(vget_low_s32(_msum0), vdup_n_s32(0));
-#endif // __ARM_FEATURE_MATMUL_INT8
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    int8x16_t _b0 = vcombine_s8(vld1_s8(pB), vdup_n_s8(0));
-                    int8x16_t _a0 = vreinterpretq_s8_s32(vdupq_lane_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0), 0));
-                    _sum0 = vdotq_s32(_sum0, _b0, _a0);
-                    pA += 4;
-                    pB += 8;
-                }
-#else  // __ARM_FEATURE_DOTPROD
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    int16x4_t _a = vreinterpret_s16_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
-                    int8x8_t _b = vld1_s8(pB);
-                    int32x2_t _b02 = vreinterpret_s32_s8(_b);
-                    int8x8_t _b01 = vreinterpret_s8_s32(vdup_lane_s32(_b02, 0));
-                    int8x8_t _b23 = vreinterpret_s8_s32(vdup_lane_s32(_b02, 1));
-                    int16x8_t _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)));
-                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a, 1)));
-                    _sum0 = vpadalq_s16(_sum0, _s);
-                    pA += 4;
-                    pB += 8;
-                }
-#endif // __ARM_FEATURE_DOTPROD
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    int8x8_t _b0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)(pB)));
-                    int8x8_t _a0 = vreinterpret_s8_s16(vdup_lane_s16(vld1_lane_s16((const short*)pA, vdup_n_s16(0), 0), 0));
-                    _sum0 = vaddq_s32(_sum0, vpaddlq_s16(vmull_s8(_b0, _a0)));
-                    pA += 2;
-                    pB += 4;
-                }
-                for (; kk < max_kk0; kk++)
-                {
-                    int8x8_t _b = vreinterpret_s8_s16(vld1_dup_s16((const short*)(pB)));
-                    int8x8_t _a0 = vld1_lane_s8(pA, vdup_n_s8(0), 0);
-                    int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a0, 0));
-                    _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p0)));
-                    pA++;
-                    pB += 2;
-                }
-
-                float32x4_t _bd0 = vcombine_f32(vld1_f32(pB_descales), vdup_n_f32(0.f));
-                const float _ad0 = pA_descales[0];
-                _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_n_f32(_bd0, _ad0));
-
-                pA_descales++;
-                pB_descales += 2;
-            }
-
-            vst1_f32(outptr, vget_low_f32(_fsum0));
-            outptr += 2;
-            pB_panel += (size_t)2 * K;
-            pB_descales_panel += (size_t)2 * block_count;
-#else  // __ARM_NEON
-            const signed char* pB = pB_panel + (size_t)2 * k;
-            const float* pB_descales = pB_descales_panel + (size_t)2 * block_start;
+#else
             float fsum00;
             float fsum01;
 
@@ -8897,122 +8810,150 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 fsum00 = outptr[0];
                 fsum01 = outptr[1];
             }
+#endif // __ARM_NEON
 
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
-                int sum00 = 0;
-                int sum01 = 0;
+                int sum0 = 0;
+                int sum1 = 0;
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
+#if __ARM_NEON
+                int32x2_t _sum0 = vdup_n_s32(0);
+#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                {
+                    int32x4_t _sum = vdupq_n_s32(0);
+                    for (; kk + 7 < max_kk0; kk += 8)
+                    {
+                        int8x8_t _a = vld1_s8(pA);
+                        int8x16_t _b = vld1q_s8(pB);
+                        int8x16_t _aa = vcombine_s8(_a, _a);
+                        _sum = vdotq_s32(_sum, _aa, _b);
+                        pA += 8;
+                        pB += 16;
+                    }
+                    _sum0 = vadd_s32(_sum0, vpadd_s32(vget_low_s32(_sum), vget_high_s32(_sum)));
+                }
+#else  // __ARM_FEATURE_MATMUL_INT8
+                for (; kk + 7 < max_kk0; kk += 8)
+                {
+                    int8x8_t _a = vld1_s8(pA);
+                    int8x16_t _b = vld1q_s8(pB);
+                    _sum0 = vdot_lane_s32(_sum0, vget_low_s8(_b), _a, 0);
+                    _sum0 = vdot_lane_s32(_sum0, vget_high_s8(_b), _a, 1);
+                    pA += 8;
+                    pB += 16;
+                }
+#endif // __ARM_FEATURE_MATMUL_INT8
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+                    int8x8_t _a = vreinterpret_s8_s32(vld1_dup_s32((const int*)pA));
+                    int8x8_t _b = vld1_s8(pB);
+                    _sum0 = vdot_s32(_sum0, _a, _b);
+                    pA += 4;
+                    pB += 8;
+                }
+#else  // __ARM_FEATURE_DOTPROD
+                {
+                    int32x4_t _sum = vdupq_n_s32(0);
+                    int32x4_t _sum1 = vdupq_n_s32(0);
+                    for (; kk + 15 < max_kk0; kk += 16)
+                    {
+                        int8x16_t _a = vld1q_s8(pA);
+                        int8x16_t _b0 = vld1q_s8(pB);
+                        int8x16_t _b1 = vld1q_s8(pB + 16);
+                        int16x8x2_t _aa = vzipq_s16(vreinterpretq_s16_s8(_a), vreinterpretq_s16_s8(_a));
+                        int8x8_t _a0 = vreinterpret_s8_s16(vget_low_s16(_aa.val[0]));
+                        int8x8_t _a1 = vreinterpret_s8_s16(vget_high_s16(_aa.val[0]));
+                        int8x8_t _a2 = vreinterpret_s8_s16(vget_low_s16(_aa.val[1]));
+                        int8x8_t _a3 = vreinterpret_s8_s16(vget_high_s16(_aa.val[1]));
+                        int16x8_t _s0 = vmull_s8(_a0, vget_low_s8(_b0));
+                        int16x8_t _s1 = vmull_s8(_a2, vget_low_s8(_b1));
+                        _s0 = vmlal_s8(_s0, _a1, vget_high_s8(_b0));
+                        _s1 = vmlal_s8(_s1, _a3, vget_high_s8(_b1));
+                        _sum = vpadalq_s16(_sum, _s0);
+                        _sum1 = vpadalq_s16(_sum1, _s1);
+                        pA += 16;
+                        pB += 32;
+                    }
+                    _sum = vaddq_s32(_sum, _sum1);
+                    for (; kk + 7 < max_kk0; kk += 8)
+                    {
+                        int8x8_t _a = vld1_s8(pA);
+                        int8x16_t _b = vld1q_s8(pB);
+                        int16x4x2_t _aa = vzip_s16(vreinterpret_s16_s8(_a), vreinterpret_s16_s8(_a));
+                        int8x8_t _a0 = vreinterpret_s8_s16(_aa.val[0]);
+                        int8x8_t _a1 = vreinterpret_s8_s16(_aa.val[1]);
+                        int16x8_t _s0 = vmull_s8(_a0, vget_low_s8(_b));
+                        _s0 = vmlal_s8(_s0, _a1, vget_high_s8(_b));
+                        _sum = vpadalq_s16(_sum, _s0);
+                        pA += 8;
+                        pB += 16;
+                    }
+                    for (; kk + 3 < max_kk0; kk += 4)
+                    {
+                        int8x8_t _a = vreinterpret_s8_s32(vdup_lane_s32(vreinterpret_s32_s8(vld1_s8(pA)), 0));
+                        int8x8_t _b = vld1_s8(pB);
+                        _a = vreinterpret_s8_s16(vzip_s16(vreinterpret_s16_s8(_a), vreinterpret_s16_s8(_a)).val[0]);
+                        _sum = vpadalq_s16(_sum, vmull_s8(_a, _b));
+                        pA += 4;
+                        pB += 8;
+                    }
+                    _sum0 = vadd_s32(_sum0, vadd_s32(vget_low_s32(_sum), vget_high_s32(_sum)));
+                }
+#endif // __ARM_FEATURE_DOTPROD
+                sum0 = vget_lane_s32(_sum0, 0);
+                sum1 = vget_lane_s32(_sum0, 1);
+#endif // __ARM_NEON
                 for (; kk + 1 < max_kk0; kk += 2)
                 {
-                    const int b00 = pB[0];
-                    const int b01 = pB[1];
-                    const int b10 = pB[2];
-                    const int b11 = pB[3];
-                    sum00 += pA[0] * b00 + pA[1] * b01;
-                    sum01 += pA[0] * b10 + pA[1] * b11;
+                    sum0 += pA[0] * pB[0];
+                    sum0 += pA[1] * pB[1];
+                    sum1 += pA[0] * pB[2];
+                    sum1 += pA[1] * pB[3];
                     pA += 2;
                     pB += 4;
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    const int b0 = pB[0];
-                    const int b1 = pB[1];
-                    sum00 += pA[0] * b0;
-                    sum01 += pA[0] * b1;
+                    sum0 += pA[0] * pB[0];
+                    sum1 += pA[0] * pB[1];
                     pA++;
                     pB += 2;
                 }
 
+#if __ARM_NEON
+                float32x2_t _bd0 = vld1_f32(pB_descales);
+                float32x2_t _scale = vmul_n_f32(_bd0, pA_descales[0]);
+                _sum0 = vset_lane_s32(sum0, _sum0, 0);
+                _sum0 = vset_lane_s32(sum1, _sum0, 1);
+                _fsum0 = vmla_f32(_fsum0, vcvt_f32_s32(_sum0), _scale);
+#else
                 const float bd0 = pB_descales[0];
                 const float bd1 = pB_descales[1];
                 const float ad0 = pA_descales[0];
-                fsum00 += sum00 * ad0 * bd0;
-                fsum01 += sum01 * ad0 * bd1;
-
+                fsum00 += sum0 * ad0 * bd0;
+                fsum01 += sum1 * ad0 * bd1;
+#endif // __ARM_NEON
                 pA_descales++;
                 pB_descales += 2;
             }
 
+#if __ARM_NEON
+            vst1_f32(outptr, _fsum0);
+#else
             outptr[0] = fsum00;
-            outptr++;
-            outptr[0] = fsum01;
-            outptr++;
+            outptr[1] = fsum01;
+#endif // __ARM_NEON
+            outptr += 2;
             pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
-#endif // __ARM_NEON
         }
         for (; jj < max_jj; jj++)
         {
-#if __ARM_NEON
-            const signed char* pB = pB_panel + k;
-            const float* pB_descales = pB_descales_panel + block_start;
-            float32x4_t _fsum0;
-
-            if (k == 0)
-            {
-                _fsum0 = vdupq_n_f32(0.f);
-            }
-            else
-            {
-                _fsum0 = vsetq_lane_f32(outptr[0], vdupq_n_f32(0.f), 0);
-            }
-
-            const signed char* pA = pAT;
-            const float* pA_descales = pAT_descales;
-            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
-            {
-                int32x4_t _sum0 = vdupq_n_s32(0);
-                const int max_kk0 = std::min(max_kk - kk0, block_size);
-                int kk = 0;
-#if __ARM_FEATURE_DOTPROD
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    int8x16_t _b0 = vcombine_s8(vreinterpret_s8_s32(vld1_dup_s32((const int*)pB)), vdup_n_s8(0));
-                    int8x16_t _a0 = vreinterpretq_s8_s32(vdupq_lane_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0), 0));
-                    _sum0 = vdotq_s32(_sum0, _b0, _a0);
-                    pA += 4;
-                    pB += 4;
-                }
-#else  // __ARM_FEATURE_DOTPROD
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    int16x4_t _a = vreinterpret_s16_s32(vld1_lane_s32((const int*)pA, vdup_n_s32(0), 0));
-                    int8x8_t _b01 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB));
-                    int8x8_t _b23 = vext_s8(_b01, _b01, 2);
-                    int16x8_t _s = vmull_s8(_b01, vreinterpret_s8_s16(vdup_lane_s16(_a, 0)));
-                    _s = vmlal_s8(_s, _b23, vreinterpret_s8_s16(vdup_lane_s16(_a, 1)));
-                    _sum0 = vpadalq_s16(_sum0, _s);
-                    pA += 4;
-                    pB += 4;
-                }
-#endif // __ARM_FEATURE_DOTPROD
-                for (; kk < max_kk0; kk++)
-                {
-                    int8x8_t _b = vset_lane_s8(pB[0], vdup_n_s8(0), 0);
-                    int8x8_t _a0 = vld1_lane_s8(pA, vdup_n_s8(0), 0);
-                    int16x8_t _p0 = vmull_s8(_b, vdup_lane_s8(_a0, 0));
-                    _sum0 = vaddq_s32(_sum0, vmovl_s16(vget_low_s16(_p0)));
-                    pA++;
-                    pB += 1;
-                }
-
-                float32x4_t _bd0 = vdupq_n_f32(pB_descales[0]);
-                const float _ad0 = pA_descales[0];
-                _fsum0 = vmlaq_f32(_fsum0, vcvtq_f32_s32(_sum0), vmulq_n_f32(_bd0, _ad0));
-
-                pA_descales++;
-                pB_descales += 1;
-            }
-
-            vst1q_lane_f32(outptr, _fsum0, 0);
-            outptr++;
-            pB_panel += K;
-            pB_descales_panel += block_count;
-#else  // __ARM_NEON
             const signed char* pB = pB_panel + k;
             const float* pB_descales = pB_descales_panel + block_start;
             float fsum00;
@@ -9032,12 +8973,41 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             {
                 int sum00 = 0;
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
-                for (int kk = 0; kk < max_kk0; kk++)
+                int kk = 0;
+#if __ARM_NEON
+                int32x4_t _sum0 = vdupq_n_s32(0);
+#if __ARM_FEATURE_DOTPROD
+                for (; kk + 15 < max_kk0; kk += 16)
                 {
-                    const int b0 = pB[0];
-                    sum00 += pA[0] * b0;
+                    int8x16_t _a = vld1q_s8(pA);
+                    int8x16_t _b = vld1q_s8(pB);
+                    _sum0 = vdotq_s32(_sum0, _a, _b);
+                    pA += 16;
+                    pB += 16;
+                }
+#else  // __ARM_FEATURE_DOTPROD
+                for (; kk + 7 < max_kk0; kk += 8)
+                {
+                    int8x8_t _a = vld1_s8(pA);
+                    int8x8_t _b = vld1_s8(pB);
+                    _sum0 = vpadalq_s16(_sum0, vmull_s8(_a, _b));
+                    pA += 8;
+                    pB += 8;
+                }
+#endif // __ARM_FEATURE_DOTPROD
+#if __aarch64__
+                sum00 = vaddvq_s32(_sum0);
+#else
+                int32x2_t _ss = vadd_s32(vget_low_s32(_sum0), vget_high_s32(_sum0));
+                _ss = vpadd_s32(_ss, _ss);
+                sum00 = vget_lane_s32(_ss, 0);
+#endif
+#endif // __ARM_NEON
+                for (; kk < max_kk0; kk++)
+                {
+                    sum00 += pA[0] * pB[0];
                     pA++;
-                    pB += 1;
+                    pB++;
                 }
 
                 const float bd0 = pB_descales[0];
@@ -9045,14 +9015,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 fsum00 += sum00 * ad0 * bd0;
 
                 pA_descales++;
-                pB_descales += 1;
+                pB_descales++;
             }
 
             outptr[0] = fsum00;
             outptr++;
             pB_panel += K;
             pB_descales_panel += block_count;
-#endif // __ARM_NEON
         }
         pAT += A_hstep;
         pAT_descales += A_descales_hstep;

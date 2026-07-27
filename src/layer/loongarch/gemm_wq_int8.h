@@ -3966,6 +3966,22 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int sum1 = 0;
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
+#if __loongarch_sx
+                __m128i _sum = __lsx_vreplgr2vr_w(0);
+                for (; kk + 7 < max_kk0; kk += 8)
+                {
+                    __m128i _pA = __lsx_vld(pA, 0);
+                    __m128i _pB0 = __lsx_vldrepl_w(pB, 0);
+                    __m128i _pB1 = __lsx_vldrepl_w(pB + 4, 0);
+                    __m128i _pB = __lsx_vilvl_d(_pB1, _pB0);
+                    __m128i _s = __lsx_vmaddwod_h_b(__lsx_vmulwev_h_b(_pA, _pB), _pA, _pB);
+                    _sum = __lsx_vadd_w(_sum, __lsx_vhaddw_w_h(_s, _s));
+                    pA += 16;
+                    pB += 8;
+                }
+                sum0 = __lsx_vpickve2gr_w(_sum, 0) + __lsx_vpickve2gr_w(_sum, 2);
+                sum1 = __lsx_vpickve2gr_w(_sum, 1) + __lsx_vpickve2gr_w(_sum, 3);
+#endif // __loongarch_sx
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
                     sum0 += pA[0] * pB[0] + pA[1] * pB[1] + pA[2] * pB[2] + pA[3] * pB[3];
@@ -4122,6 +4138,22 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int sum1 = 0;
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int kk = 0;
+#if __loongarch_sx
+                __m128i _sum = __lsx_vreplgr2vr_w(0);
+                for (; kk + 7 < max_kk0; kk += 8)
+                {
+                    __m128i _pA0 = __lsx_vldrepl_w(pA, 0);
+                    __m128i _pA1 = __lsx_vldrepl_w(pA + 4, 0);
+                    __m128i _pA = __lsx_vilvl_d(_pA1, _pA0);
+                    __m128i _pB = __lsx_vld(pB, 0);
+                    __m128i _s = __lsx_vmaddwod_h_b(__lsx_vmulwev_h_b(_pA, _pB), _pA, _pB);
+                    _sum = __lsx_vadd_w(_sum, __lsx_vhaddw_w_h(_s, _s));
+                    pA += 8;
+                    pB += 16;
+                }
+                sum0 = __lsx_vpickve2gr_w(_sum, 0) + __lsx_vpickve2gr_w(_sum, 2);
+                sum1 = __lsx_vpickve2gr_w(_sum, 1) + __lsx_vpickve2gr_w(_sum, 3);
+#endif // __loongarch_sx
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
                     sum0 += pA[0] * pB[0] + pA[1] * pB[1] + pA[2] * pB[2] + pA[3] * pB[3];
@@ -6222,45 +6254,46 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 p0 += 4;
             }
         }
+#endif // __loongarch_sx
         for (; jj + 1 < max_jj; jj += 2)
         {
-            __m128 _f0 = (__m128)__lsx_vldrepl_d(pp, 0);
+            float f0 = pp[0];
+            float f1 = pp[1];
             pp += 2;
             if (pC)
             {
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    _f0 = __lsx_vfadd_s(_f0, __lsx_vreplfr2vr_s(c0));
+                {
+                    f0 += c0;
+                    f1 += c0;
+                }
                 if (broadcast_type_C == 3 || broadcast_type_C == 4)
                 {
-                    __m128 _beta = __lsx_vreplfr2vr_s(beta);
-                    __m128 _c0 = (__m128)__lsx_vldrepl_d(pC, 0);
+                    f0 += pC[0] * beta;
+                    f1 += pC[1] * beta;
                     pC += 2;
-                    if (beta == 1.f)
-                        _f0 = __lsx_vfadd_s(_f0, _c0);
-                    else
-                        _f0 = __lsx_vfmadd_s(_c0, _beta, _f0);
                 }
             }
 
             if (alpha != 1.f)
             {
-                __m128 _alpha = __lsx_vreplfr2vr_s(alpha);
-                _f0 = __lsx_vfmul_s(_f0, _alpha);
+                f0 *= alpha;
+                f1 *= alpha;
             }
 
             if (output_transpose)
             {
-                __lsx_vstelm_w((__m128i)_f0, p0, 0, 0);
-                __lsx_vstelm_w((__m128i)_f0, p0 + out_hstep, 0, 1);
+                p0[0] = f0;
+                p0[out_hstep] = f1;
                 p0 += out_hstep * 2;
             }
             else
             {
-                __lsx_vstelm_d((__m128i)_f0, p0, 0, 0);
+                p0[0] = f0;
+                p0[1] = f1;
                 p0 += 2;
             }
         }
-#endif // __loongarch_sx
         for (; jj < max_jj; jj++)
         {
             float f0 = *pp++;

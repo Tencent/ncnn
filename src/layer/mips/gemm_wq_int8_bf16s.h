@@ -5328,46 +5328,6 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
 #endif // __mips_msa
         for (; jj + 1 < max_jj; jj += 2)
         {
-#if __mips_msa
-            v4i32 _fi = __msa_fill_w(0);
-            _fi = __msa_insert_w(_fi, 0, ((const int*)pp)[0]);
-            _fi = __msa_insert_w(_fi, 1, ((const int*)pp)[1]);
-            v4f32 _f = (v4f32)_fi;
-
-            if (pC)
-            {
-                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    _f = __msa_fadd_w(_f, __msa_fill_w_f32(c0));
-                if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                {
-                    v4i32 _ci = __msa_fill_w(0);
-                    _ci = __msa_insert_w(_ci, 0, ((const int*)pC)[0]);
-                    _ci = __msa_insert_w(_ci, 1, ((const int*)pC)[1]);
-                    v4f32 _c = (v4f32)_ci;
-                    if (beta != 1.f)
-                        _c = __msa_fmul_w(_c, __msa_fill_w_f32(beta));
-                    _f = __msa_fadd_w(_f, _c);
-                    pC += 2;
-                }
-            }
-
-            if (alpha != 1.f)
-                _f = __msa_fmul_w(_f, __msa_fill_w_f32(alpha));
-
-            v8i16 _bf = (v8i16)float2bfloat_msa(_f);
-
-            if (output_transpose)
-            {
-                p0[0] = (unsigned short)__msa_copy_s_h(_bf, 0);
-                p0[out_hstep] = (unsigned short)__msa_copy_s_h(_bf, 1);
-                p0 += out_hstep * 2;
-            }
-            else
-            {
-                ((int*)p0)[0] = __msa_copy_s_w((v4i32)_bf, 0);
-                p0 += 2;
-            }
-#else
             float sum0 = pp[0];
             float sum1 = pp[1];
             if (pC)
@@ -5415,7 +5375,6 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
                 p0[1] = float32_to_bfloat16(sum1);
                 p0 += 2;
             }
-#endif // __mips_msa
             pp += 2;
         }
         for (; jj < max_jj; jj++)

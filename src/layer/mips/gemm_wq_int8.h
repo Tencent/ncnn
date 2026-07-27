@@ -3105,50 +3105,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             const float* pB_descales = pB_descales_panel + block_start;
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-#if __mips_msa
-            v4f32 _fsum;
-            if (k == 0)
-            {
-                _fsum = (v4f32)__msa_fill_w(0);
-            }
-            else
-            {
-                _fsum = (v4f32)__msa_loadl_d(outptr);
-            }
-
-            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
-            {
-                const int max_kk0 = std::min(max_kk - kk0, block_size);
-                v4i32 _sum = __msa_fill_w(0);
-                int kk = 0;
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    __builtin_prefetch(pA + 32);
-                    __builtin_prefetch(pB + 16);
-                    v16i8 _pA = (v16i8)__msa_fill_d_ptr(pA);
-                    v16i8 _pB = (v16i8)__msa_fill_w(*(const int*)pB);
-                    _sum = __msa_dpadd_s_w(_sum, __msa_dotp_s_h(_pA, _pB), _one);
-                    pA += 8;
-                    pB += 4;
-                }
-                int sum0 = __msa_copy_s_w(_sum, 0);
-                int sum1 = __msa_copy_s_w(_sum, 1);
-                for (; kk < max_kk0; kk++)
-                {
-                    sum0 += pA[0] * pB[0];
-                    sum1 += pA[1] * pB[0];
-                    pA += 2;
-                    pB++;
-                }
-                _sum = __msa_set_w(sum0, sum1, 0, 0);
-                v4f32 _descaleA = (v4f32)__msa_fill_d_ptr(pA_descales);
-                v4f32 _scale = __msa_fmul_w(_descaleA, __msa_fill_w_f32(pB_descales[0]));
-                _fsum = __ncnn_msa_fmadd_w(_fsum, (v4f32)__msa_ffint_s_w(_sum), _scale);
-                pA_descales += 2;
-                pB_descales++;
-            }
-            __msa_storel_d((v4i32)_fsum, outptr);
-#else
             float sum0;
             float sum1;
             if (k == 0)
@@ -3168,14 +3124,28 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int sum0_i = 0;
                 int sum1_i = 0;
                 int kk = 0;
+#if __mips_msa
+                v4i32 _sum = __msa_fill_w(0);
+                for (; kk + 7 < max_kk0; kk += 8)
+                {
+                    __builtin_prefetch(pA + 32);
+                    __builtin_prefetch(pB + 16);
+                    v16i8 _pA = __msa_ld_b(pA, 0);
+                    v16i8 _pB = (v16i8)__msa_fill_d_ptr(pB);
+                    _pB = (v16i8)__msa_ilvr_w((v4i32)_pB, (v4i32)_pB);
+                    _sum = __msa_dpadd_s_w(_sum, __msa_dotp_s_h(_pA, _pB), _one);
+                    pA += 16;
+                    pB += 8;
+                }
+                sum0_i = __msa_copy_s_w(_sum, 0) + __msa_copy_s_w(_sum, 2);
+                sum1_i = __msa_copy_s_w(_sum, 1) + __msa_copy_s_w(_sum, 3);
+#else
 #if __mips_loongson_mmi
                 int32x2_t _sum0 = __mmi_pzerow_s();
                 int32x2_t _sum1 = __mmi_pzerow_s();
                 const int8x8_t _zero = __mmi_pzerob_s();
-#endif // __mips_loongson_mmi
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-#if __mips_loongson_mmi
                     __builtin_prefetch(pB + 16);
                     int8x8_t _pA = __mmi_pldb_s(pA);
                     int8x8_t _pB = (int8x8_t)__mmi_pfillw_s(*(const int*)pB);
@@ -3189,20 +3159,21 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     _sum1 = __mmi_paddw_s(_sum1, __mmi_pmaddhw(_pA1, _pB0));
                     pA += 8;
                     pB += 4;
-#else
-                    sum0_i += pA[0] * pB[0] + pA[1] * pB[1] + pA[2] * pB[2] + pA[3] * pB[3];
-                    sum1_i += pA[4] * pB[0] + pA[5] * pB[1] + pA[6] * pB[2] + pA[7] * pB[3];
-                    pA += 8;
-                    pB += 4;
-#endif // __mips_loongson_mmi
                 }
-#if __mips_loongson_mmi
                 int tmp[2];
                 __mmi_pstw_s(tmp, _sum0);
                 sum0_i += tmp[0] + tmp[1];
                 __mmi_pstw_s(tmp, _sum1);
                 sum1_i += tmp[0] + tmp[1];
 #endif // __mips_loongson_mmi
+#endif // __mips_msa
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+                    sum0_i += pA[0] * pB[0] + pA[1] * pB[1] + pA[2] * pB[2] + pA[3] * pB[3];
+                    sum1_i += pA[4] * pB[0] + pA[5] * pB[1] + pA[6] * pB[2] + pA[7] * pB[3];
+                    pA += 8;
+                    pB += 4;
+                }
                 for (; kk < max_kk0; kk++)
                 {
                     sum0_i += pA[0] * pB[0];
@@ -3210,15 +3181,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 2;
                     pB++;
                 }
-                sum0 += sum0_i * pA_descales[0] * pB_descales[0];
-                sum1 += sum1_i * pA_descales[1] * pB_descales[0];
+                const float bscale = *pB_descales++;
+                sum0 += sum0_i * pA_descales[0] * bscale;
+                sum1 += sum1_i * pA_descales[1] * bscale;
                 pA_descales += 2;
-                pB_descales++;
             }
-
             outptr[0] = sum0;
             outptr[1] = sum1;
-#endif // __mips_msa
             outptr += 2;
             pB_panel += K;
             pB_descales_panel += block_count;
@@ -3316,50 +3285,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             const float* pB_descales = pB_descales_panel + (size_t)2 * block_start;
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-#if __mips_msa
-            v4f32 _fsum;
-            if (k == 0)
-            {
-                _fsum = (v4f32)__msa_fill_w(0);
-            }
-            else
-            {
-                _fsum = (v4f32)__msa_loadl_d(outptr);
-            }
-
-            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
-            {
-                const int max_kk0 = std::min(max_kk - kk0, block_size);
-                v4i32 _sum = __msa_fill_w(0);
-                int kk = 0;
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    __builtin_prefetch(pA + 16);
-                    __builtin_prefetch(pB + 32);
-                    v16i8 _pA = (v16i8)__msa_fill_w(*(const int*)pA);
-                    v16i8 _pB = (v16i8)__msa_fill_d_ptr(pB);
-                    _sum = __msa_dpadd_s_w(_sum, __msa_dotp_s_h(_pA, _pB), _one);
-                    pA += 4;
-                    pB += 8;
-                }
-                int sum0 = __msa_copy_s_w(_sum, 0);
-                int sum1 = __msa_copy_s_w(_sum, 1);
-                for (; kk < max_kk0; kk++)
-                {
-                    sum0 += pA[0] * pB[0];
-                    sum1 += pA[0] * pB[1];
-                    pA++;
-                    pB += 2;
-                }
-                _sum = __msa_set_w(sum0, sum1, 0, 0);
-                v4f32 _descaleB = (v4f32)__msa_fill_d_ptr(pB_descales);
-                v4f32 _scale = __msa_fmul_w(_descaleB, __msa_fill_w_f32(pA_descales[0]));
-                _fsum = __ncnn_msa_fmadd_w(_fsum, (v4f32)__msa_ffint_s_w(_sum), _scale);
-                pA_descales++;
-                pB_descales += 2;
-            }
-            __msa_storel_d((v4i32)_fsum, outptr);
-#else
             float sum0;
             float sum1;
             if (k == 0)
@@ -3379,14 +3304,28 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int sum0_i = 0;
                 int sum1_i = 0;
                 int kk = 0;
+#if __mips_msa
+                v4i32 _sum = __msa_fill_w(0);
+                for (; kk + 7 < max_kk0; kk += 8)
+                {
+                    __builtin_prefetch(pA + 16);
+                    __builtin_prefetch(pB + 32);
+                    v16i8 _pA = (v16i8)__msa_fill_d_ptr(pA);
+                    _pA = (v16i8)__msa_ilvr_w((v4i32)_pA, (v4i32)_pA);
+                    v16i8 _pB = __msa_ld_b(pB, 0);
+                    _sum = __msa_dpadd_s_w(_sum, __msa_dotp_s_h(_pA, _pB), _one);
+                    pA += 8;
+                    pB += 16;
+                }
+                sum0_i = __msa_copy_s_w(_sum, 0) + __msa_copy_s_w(_sum, 2);
+                sum1_i = __msa_copy_s_w(_sum, 1) + __msa_copy_s_w(_sum, 3);
+#else
 #if __mips_loongson_mmi
                 int32x2_t _sum0 = __mmi_pzerow_s();
                 int32x2_t _sum1 = __mmi_pzerow_s();
                 const int8x8_t _zero = __mmi_pzerob_s();
-#endif // __mips_loongson_mmi
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-#if __mips_loongson_mmi
                     __builtin_prefetch(pB + 32);
                     int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(*(const int*)pA);
                     int8x8_t _pB = __mmi_pldb_s(pB);
@@ -3400,20 +3339,21 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     _sum1 = __mmi_paddw_s(_sum1, __mmi_pmaddhw(_pA0, _pB1));
                     pA += 4;
                     pB += 8;
-#else
-                    sum0_i += pA[0] * pB[0] + pA[1] * pB[1] + pA[2] * pB[2] + pA[3] * pB[3];
-                    sum1_i += pA[0] * pB[4] + pA[1] * pB[5] + pA[2] * pB[6] + pA[3] * pB[7];
-                    pA += 4;
-                    pB += 8;
-#endif // __mips_loongson_mmi
                 }
-#if __mips_loongson_mmi
                 int tmp[2];
                 __mmi_pstw_s(tmp, _sum0);
                 sum0_i += tmp[0] + tmp[1];
                 __mmi_pstw_s(tmp, _sum1);
                 sum1_i += tmp[0] + tmp[1];
 #endif // __mips_loongson_mmi
+#endif // __mips_msa
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+                    sum0_i += pA[0] * pB[0] + pA[1] * pB[1] + pA[2] * pB[2] + pA[3] * pB[3];
+                    sum1_i += pA[0] * pB[4] + pA[1] * pB[5] + pA[2] * pB[6] + pA[3] * pB[7];
+                    pA += 4;
+                    pB += 8;
+                }
                 for (; kk < max_kk0; kk++)
                 {
                     sum0_i += pA[0] * pB[0];
@@ -3421,15 +3361,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA++;
                     pB += 2;
                 }
-                sum0 += sum0_i * pA_descales[0] * pB_descales[0];
-                sum1 += sum1_i * pA_descales[0] * pB_descales[1];
-                pA_descales++;
+                const float ascale = *pA_descales++;
+                sum0 += sum0_i * ascale * pB_descales[0];
+                sum1 += sum1_i * ascale * pB_descales[1];
                 pB_descales += 2;
             }
-
             outptr[0] = sum0;
             outptr[1] = sum1;
-#endif // __mips_msa
             outptr += 2;
             pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
@@ -3440,36 +3378,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             const float* pB_descales = pB_descales_panel + block_start;
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-#if __mips_msa
-            v4f32 _fsum = (v4f32)__msa_fill_w(0);
-            if (k != 0)
-                _fsum[0] = outptr[0];
-            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
-            {
-                const int max_kk0 = std::min(max_kk - kk0, block_size);
-                v4i32 _sum = __msa_fill_w(0);
-                int kk = 0;
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    __builtin_prefetch(pA + 16);
-                    __builtin_prefetch(pB + 16);
-                    v16i8 _pA = (v16i8)__msa_fill_w(*(const int*)pA);
-                    v16i8 _pB = (v16i8)__msa_fill_w(*(const int*)pB);
-                    _sum = __msa_dpadd_s_w(_sum, __msa_dotp_s_h(_pA, _pB), _one);
-                    pA += 4;
-                    pB += 4;
-                }
-                int sum0 = __msa_copy_s_w(_sum, 0);
-                for (; kk < max_kk0; kk++)
-                    sum0 += *pA++ * *pB++;
-                _sum = __msa_fill_w(sum0);
-                v4f32 _scale = __msa_fill_w_f32(pA_descales[0] * pB_descales[0]);
-                _fsum = __ncnn_msa_fmadd_w(_fsum, (v4f32)__msa_ffint_s_w(_sum), _scale);
-                pA_descales++;
-                pB_descales++;
-            }
-            *outptr++ = _fsum[0];
-#else
             float sum0;
             if (k == 0)
             {
@@ -3485,13 +3393,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
                 int sum0_i = 0;
                 int kk = 0;
-#if __mips_loongson_mmi
+#if __mips_loongson_mmi && !__mips_msa
                 int32x2_t _sum0 = __mmi_pzerow_s();
                 const int8x8_t _zero = __mmi_pzerob_s();
-#endif // __mips_loongson_mmi
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-#if __mips_loongson_mmi
                     int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(*(const int*)pA);
                     int8x8_t _pB = (int8x8_t)__mmi_pfillw_s(*(const int*)pB);
                     int16x4_t _pA0 = (int16x4_t)__mmi_punpcklbh_s(_pA, _zero);
@@ -3501,17 +3407,17 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     _sum0 = __mmi_paddw_s(_sum0, __mmi_pmaddhw(_pA0, _pB0));
                     pA += 4;
                     pB += 4;
-#else
-                    sum0_i += pA[0] * pB[0] + pA[1] * pB[1] + pA[2] * pB[2] + pA[3] * pB[3];
-                    pA += 4;
-                    pB += 4;
-#endif // __mips_loongson_mmi
                 }
-#if __mips_loongson_mmi
                 int tmp[2];
                 __mmi_pstw_s(tmp, _sum0);
                 sum0_i += tmp[0] + tmp[1];
-#endif // __mips_loongson_mmi
+#endif // __mips_loongson_mmi && !__mips_msa
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+                    sum0_i += pA[0] * pB[0] + pA[1] * pB[1] + pA[2] * pB[2] + pA[3] * pB[3];
+                    pA += 4;
+                    pB += 4;
+                }
                 for (; kk < max_kk0; kk++)
                     sum0_i += *pA++ * *pB++;
                 sum0 += sum0_i * pA_descales[0] * pB_descales[0];
@@ -3520,7 +3426,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             }
 
             *outptr++ = sum0;
-#endif // __mips_msa
             pB_panel += K;
             pB_descales_panel += block_count;
         }
@@ -5458,44 +5363,6 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
 #endif // __mips_msa
         for (; jj + 1 < max_jj; jj += 2)
         {
-#if __mips_msa
-            v4i32 _fi = __msa_fill_w(0);
-            _fi = __msa_insert_w(_fi, 0, ((const int*)pp)[0]);
-            _fi = __msa_insert_w(_fi, 1, ((const int*)pp)[1]);
-            v4f32 _f = (v4f32)_fi;
-
-            if (pC)
-            {
-                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    _f = __msa_fadd_w(_f, __msa_fill_w_f32(c0));
-                if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                {
-                    v4i32 _ci = __msa_fill_w(0);
-                    _ci = __msa_insert_w(_ci, 0, ((const int*)pC)[0]);
-                    _ci = __msa_insert_w(_ci, 1, ((const int*)pC)[1]);
-                    v4f32 _c = (v4f32)_ci;
-                    if (beta != 1.f)
-                        _c = __msa_fmul_w(_c, __msa_fill_w_f32(beta));
-                    _f = __msa_fadd_w(_f, _c);
-                    pC += 2;
-                }
-            }
-
-            if (alpha != 1.f)
-                _f = __msa_fmul_w(_f, __msa_fill_w_f32(alpha));
-
-            if (output_transpose)
-            {
-                *(int*)p0f = __msa_copy_s_w((v4i32)_f, 0);
-                *(int*)(p0f + out_hstep) = __msa_copy_s_w((v4i32)_f, 1);
-                p0f += out_hstep * 2;
-            }
-            else
-            {
-                __msa_storel_d((v4i32)_f, p0f);
-                p0f += 2;
-            }
-#else
             float sum0 = pp[0];
             float sum1 = pp[1];
             if (pC)
@@ -5543,7 +5410,6 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 p0f[1] = sum1;
                 p0f += 2;
             }
-#endif // __mips_msa
             pp += 2;
         }
         for (; jj < max_jj; jj++)

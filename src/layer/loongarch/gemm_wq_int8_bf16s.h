@@ -5455,47 +5455,46 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
                 p0 += 4;
             }
         }
+#endif // __loongarch_sx
         for (; jj + 1 < max_jj; jj += 2)
         {
-            __m128 _f0 = (__m128)__lsx_vldrepl_d(pp, 0);
+            float f0 = pp[0];
+            float f1 = pp[1];
             pp += 2;
             if (pC)
             {
                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    _f0 = __lsx_vfadd_s(_f0, __lsx_vreplfr2vr_s(c0));
+                {
+                    f0 += c0;
+                    f1 += c0;
+                }
                 if (broadcast_type_C == 3 || broadcast_type_C == 4)
                 {
-                    __m128 _beta = __lsx_vreplfr2vr_s(beta);
-                    __m128 _c0 = (__m128)__lsx_vldrepl_d(pC, 0);
+                    f0 += pC[0] * beta;
+                    f1 += pC[1] * beta;
                     pC += 2;
-                    if (beta == 1.f)
-                        _f0 = __lsx_vfadd_s(_f0, _c0);
-                    else
-                        _f0 = __lsx_vfmadd_s(_c0, _beta, _f0);
                 }
             }
 
             if (alpha != 1.f)
             {
-                __m128 _alpha = __lsx_vreplfr2vr_s(alpha);
-                _f0 = __lsx_vfmul_s(_f0, _alpha);
+                f0 *= alpha;
+                f1 *= alpha;
             }
-
-            __m128i _bf = float2bfloat_lsx(_f0);
 
             if (output_transpose)
             {
-                __lsx_vstelm_h(_bf, p0, 0, 0);
-                __lsx_vstelm_h(_bf, p0 + out_hstep, 0, 1);
+                p0[0] = float32_to_bfloat16(f0);
+                p0[out_hstep] = float32_to_bfloat16(f1);
                 p0 += out_hstep * 2;
             }
             else
             {
-                __lsx_vstelm_w(_bf, p0, 0, 0);
+                p0[0] = float32_to_bfloat16(f0);
+                p0[1] = float32_to_bfloat16(f1);
                 p0 += 2;
             }
         }
-#endif // __loongarch_sx
         for (; jj < max_jj; jj++)
         {
             float f0 = *pp++;

@@ -12055,6 +12055,7 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
         int jj = 0;
 #if __SSE2__
 #if defined(__x86_64__) || defined(_M_X64)
+#if __AVX__
 #if __AVX512F__
         for (; jj + 15 < max_jj; jj += 16)
         {
@@ -12421,7 +12422,6 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
             }
         }
 #endif // __AVX512F__
-#if __AVX__
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m128 _a0 = _mm_loadu_ps(pp);
@@ -12795,47 +12795,6 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
         }
         for (; jj < max_jj; jj += 1)
         {
-#if __SSE2__
-            __m128 _f = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)pp);
-            if (pC)
-            {
-                if (broadcast_type_C == 0)
-                    _f = _mm_add_ps(_f, _mm_set1_ps(c0));
-                if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    _f = _mm_add_ps(_f, _mm_setr_ps(c0, c1, 0.f, 0.f));
-                if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                {
-                    __m128 _c;
-                    if (broadcast_type_C == 3)
-                        _c = _mm_setr_ps(pC[0], pC[c_hstep], 0.f, 0.f);
-                    if (broadcast_type_C == 4)
-                        _c = _mm_set1_ps(pC[0]);
-                    if (beta == 1.f)
-                    {
-                        _f = _mm_add_ps(_f, _c);
-                    }
-                    else
-                    {
-                        _f = _mm_comp_fmadd_ps(_c, _mm_set1_ps(beta), _f);
-                    }
-                    pC++;
-                }
-            }
-
-            if (alpha != 1.f)
-                _f = _mm_mul_ps(_f, _mm_set1_ps(alpha));
-
-            __m128i _bf = float2bfloat_sse(_f);
-            if (output_transpose)
-            {
-                _mm_store_ss((float*)p0, _mm_castsi128_ps(_bf));
-            }
-            else
-            {
-                p0[0] = _mm_extract_epi16(_bf, 0);
-                p0[out_hstep] = _mm_extract_epi16(_bf, 1);
-            }
-#else  // __SSE2__
             float f00 = pp[0];
             float f10 = pp[1];
             if (pC)
@@ -12883,7 +12842,6 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
                 p0[0] = bf0;
                 p0[out_hstep] = bf1;
             }
-#endif // __SSE2__
             pp += 2;
             if (output_transpose)
             {
@@ -12933,6 +12891,7 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
         int jj = 0;
 #if __SSE2__
 #if defined(__x86_64__) || defined(_M_X64)
+#if __AVX__
 #if __AVX512F__
         for (; jj + 15 < max_jj; jj += 16)
         {
@@ -12999,7 +12958,6 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
             }
         }
 #endif // __AVX512F__
-#if __AVX__
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m256 _f = _mm256_loadu_ps(pp);
@@ -13135,50 +13093,6 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
 #endif // __SSE2__
         for (; jj + 1 < max_jj; jj += 2)
         {
-#if __SSE2__
-            __m128 _f = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)pp);
-            if (pC)
-            {
-                if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                {
-                    __m128 _c = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)pC);
-                    if (beta == 1.f)
-                    {
-                        _f = _mm_add_ps(_f, _c);
-                    }
-                    else
-                    {
-                        _f = _mm_comp_fmadd_ps(_c, _mm_set1_ps(beta), _f);
-                    }
-                    pC += 2;
-                }
-                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    _f = _mm_add_ps(_f, _mm_set1_ps(c0));
-                }
-            }
-
-            if (alpha != 1.f)
-                _f = _mm_mul_ps(_f, _mm_set1_ps(alpha));
-
-            __m128i _bf = float2bfloat_sse(_f);
-            if (output_transpose)
-            {
-                if (out_hstep == 1)
-                {
-                    _mm_store_ss((float*)p0, _mm_castsi128_ps(_bf));
-                }
-                else
-                {
-                    p0[0] = _mm_extract_epi16(_bf, 0);
-                    p0[out_hstep] = _mm_extract_epi16(_bf, 1);
-                }
-            }
-            else
-            {
-                _mm_store_ss((float*)p0, _mm_castsi128_ps(_bf));
-            }
-#else  // __SSE2__
             float f00 = pp[0];
             float f01 = pp[1];
             if (pC)
@@ -13216,7 +13130,6 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
                 p0[0] = bf00;
                 p0[1] = bf01;
             }
-#endif // __SSE2__
             pp += 2;
             if (output_transpose)
             {

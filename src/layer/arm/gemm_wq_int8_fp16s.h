@@ -6707,50 +6707,51 @@ static void unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Mat& C, Mat&
             pp += 4;
             p0 += 4;
         }
+#endif // __ARM_NEON
+
         for (; jj + 1 < max_jj; jj += 2)
         {
-            float32x2_t _out0 = vld1_f32(pp);
+            float out00 = pp[0];
+            float out01 = pp[1];
 
             if (pC)
             {
                 if (broadcast_type_C == 0)
                 {
-                    _out0 = vadd_f32(_out0, vget_low_f32(_c0));
+                    out00 += c0;
+                    out01 += c0;
                 }
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    _out0 = vadd_f32(_out0, vget_low_f32(_c0));
+                    out00 += c0;
+                    out01 += c0;
                 }
                 if (broadcast_type_C == 3)
                 {
-                    float32x2_t _c = vld1_f32(pC);
-                    if (beta == 1.f)
-                        _out0 = vadd_f32(_out0, _c);
-                    else
-                        _out0 = vmla_n_f32(_out0, _c, beta);
+                    out00 += pC[0] * beta;
+                    out01 += pC[1] * beta;
                     pC += 2;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    float32x2_t _c = vld1_f32(pC);
-                    if (beta != 1.f)
-                        _c = vmul_n_f32(_c, beta);
-                    _out0 = vadd_f32(_out0, _c);
+                    out00 += pC[0] * beta;
+                    out01 += pC[1] * beta;
                     pC += 2;
                 }
             }
 
             if (alpha != 1.f)
             {
-                _out0 = vmul_n_f32(_out0, alpha);
+                out00 *= alpha;
+                out01 *= alpha;
             }
 
-            vst1_lane_u32((unsigned int*)p0, vreinterpret_u32_u16((uint16x4_t)vcvt_f16_f32(vcombine_f32(_out0, _out0))), 0);
+            p0[0] = float32_to_float16(out00);
+            p0[1] = float32_to_float16(out01);
 
             pp += 2;
             p0 += 2;
         }
-#endif // __ARM_NEON
         for (; jj < max_jj; jj += 1)
         {
             float out00 = pp[0];
@@ -8650,52 +8651,51 @@ static void transpose_unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Ma
             pp += 4;
             p0 += out_hstep * 4;
         }
+#endif // __ARM_NEON
+
         for (; jj + 1 < max_jj; jj += 2)
         {
-            float32x2_t _out0 = vld1_f32(pp);
+            float out00 = pp[0];
+            float out01 = pp[1];
 
             if (pC)
             {
                 if (broadcast_type_C == 0)
                 {
-                    _out0 = vadd_f32(_out0, vget_low_f32(_c0));
+                    out00 += c0;
+                    out01 += c0;
                 }
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    _out0 = vadd_f32(_out0, vget_low_f32(_c0));
+                    out00 += c0;
+                    out01 += c0;
                 }
                 if (broadcast_type_C == 3)
                 {
-                    float32x2_t _c = vld1_f32(pC);
-                    if (beta == 1.f)
-                        _out0 = vadd_f32(_out0, _c);
-                    else
-                        _out0 = vmla_n_f32(_out0, _c, beta);
+                    out00 += pC[0] * beta;
+                    out01 += pC[1] * beta;
                     pC += 2;
                 }
                 if (broadcast_type_C == 4)
                 {
-                    float32x2_t _c = vld1_f32(pC);
-                    if (beta != 1.f)
-                        _c = vmul_n_f32(_c, beta);
-                    _out0 = vadd_f32(_out0, _c);
+                    out00 += pC[0] * beta;
+                    out01 += pC[1] * beta;
                     pC += 2;
                 }
             }
 
             if (alpha != 1.f)
             {
-                _out0 = vmul_n_f32(_out0, alpha);
+                out00 *= alpha;
+                out01 *= alpha;
             }
 
-            p0[0] = float32_to_float16(vget_lane_f32(_out0, 0));
-            p0[out_hstep] = float32_to_float16(vget_lane_f32(_out0, 1));
+            p0[0] = float32_to_float16(out00);
+            p0[out_hstep] = float32_to_float16(out01);
 
             pp += 2;
             p0 += out_hstep * 2;
         }
-#endif // __ARM_NEON
-
         for (; jj < max_jj; jj += 1)
         {
             float out00 = pp[0];

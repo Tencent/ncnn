@@ -75,6 +75,7 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
     int jj = 0;
 #if __SSE2__
 #if defined(__x86_64__) || defined(_M_X64)
+#if __AVX__
 #if __AVX512F__
     for (; jj + 7 < max_jj; jj += 8)
     {
@@ -134,6 +135,7 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
         }
     }
 #endif // __AVX512F__
+#endif // __AVX__
 #endif // defined(__x86_64__) || defined(_M_X64)
     for (; jj + 3 < max_jj; jj += 4)
     {
@@ -8583,6 +8585,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         int jj = 0;
 #if __SSE2__
 #if defined(__x86_64__) || defined(_M_X64)
+#if __AVX__
 #if __AVX512F__
         for (; jj + 7 < max_jj; jj += 8)
         {
@@ -8679,6 +8682,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             pB_descales_panel += (size_t)8 * block_count;
         }
 #endif // __AVX512F__
+#endif // __AVX__
 #endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -8956,18 +8960,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             const float* pB_descales = pB_descales_panel + (size_t)block_start;
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-#if __SSE2__
-            __m128 _fsum;
-
-            if (k == 0)
-            {
-                _fsum = _mm_setzero_ps();
-            }
-            else
-            {
-                _fsum = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)outptr);
-            }
-#else  // __SSE2__
             float fsum0;
             float fsum1;
 
@@ -8981,23 +8973,54 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 fsum0 = outptr[0];
                 fsum1 = outptr[1];
             }
-#endif // __SSE2__
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
+                int sum0 = 0;
+                int sum1 = 0;
                 int kk = 0;
 #if __SSE2__
                 __m128i _sum = _mm_setzero_si128();
 #if __AVX512VNNI__ || __AVXVNNI__
-                for (; kk + 3 < max_kk0; kk += 4)
+                for (; kk + 7 < max_kk0; kk += 8)
                 {
-                    __m128i _pA = _mm_loadl_epi64((const __m128i*)pA);
-                    __m128i _pB8 = _mm_castps_si128(_mm_load_ss((const float*)pB));
-                    __m128i _pB = _mm_shuffle_epi32(_pB8, _MM_SHUFFLE(0, 0, 0, 0));
+                    __m128i _pA = _mm_loadu_si128((const __m128i*)pA);
+                    __m128i _pB = _mm_loadl_epi64((const __m128i*)pB);
+                    _pB = _mm_unpacklo_epi32(_pB, _pB);
 #if __AVXVNNIINT8__
                     _sum = _mm_dpbssd_epi32(_sum, _pB, _pA);
 #else  // __AVXVNNIINT8__
                     _sum = _mm_comp_dpbusd_epi32(_sum, _pB, _pA);
+#endif // __AVXVNNIINT8__
+                    pA += 16;
+                    pB += 8;
+                }
+#else  // __AVX512VNNI__ || __AVXVNNI__
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+                    __m128i _pA8 = _mm_loadl_epi64((const __m128i*)pA);
+                    __m128i _pA = _mm_unpacklo_epi8(_pA8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA8));
+                    __m128i _pB8 = _mm_castps_si128(_mm_load_ss((const float*)pB));
+                    __m128i _pB = _mm_unpacklo_epi8(_pB8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pB8));
+                    _pB = _mm_shuffle_epi32(_pB, _MM_SHUFFLE(1, 1, 0, 0));
+                    _sum = _mm_comp_dpwssd_epi32(_sum, _pA, _pB);
+                    pA += 8;
+                    pB += 4;
+                }
+#endif // __AVX512VNNI__ || __AVXVNNI__
+
+                _sum = _mm_add_epi32(_sum, _mm_shuffle_epi32(_sum, _MM_SHUFFLE(3, 2, 3, 2)));
+                sum0 = _mm_cvtsi128_si32(_sum);
+                sum1 = _mm_cvtsi128_si32(_mm_shuffle_epi32(_sum, _MM_SHUFFLE(1, 1, 1, 1)));
+#if __AVX512VNNI__ || __AVXVNNI__
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+#if __AVXVNNIINT8__
+                    sum0 += pA[0] * pB[0] + pA[1] * pB[1] + pA[2] * pB[2] + pA[3] * pB[3];
+                    sum1 += pA[4] * pB[0] + pA[5] * pB[1] + pA[6] * pB[2] + pA[7] * pB[3];
+#else  // __AVXVNNIINT8__
+                    sum0 += pA[0] * ((const unsigned char*)pB)[0] + pA[1] * ((const unsigned char*)pB)[1] + pA[2] * ((const unsigned char*)pB)[2] + pA[3] * ((const unsigned char*)pB)[3];
+                    sum1 += pA[4] * ((const unsigned char*)pB)[0] + pA[5] * ((const unsigned char*)pB)[1] + pA[6] * ((const unsigned char*)pB)[2] + pA[7] * ((const unsigned char*)pB)[3];
 #endif // __AVXVNNIINT8__
                     pA += 8;
                     pB += 4;
@@ -9005,57 +9028,20 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
                 if (max_kk0 >= 4)
                 {
-                    _sum = _mm_sub_epi32(_sum, _mm_loadl_epi64((const __m128i*)pA));
+                    sum0 -= ((const int*)pA)[0];
+                    sum1 -= ((const int*)pA)[1];
                     pA += 8;
                 }
-#endif
+#endif // __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
 #endif // __AVX512VNNI__ || __AVXVNNI__
                 for (; kk + 1 < max_kk0; kk += 2)
                 {
-                    __m128i _pA8 = _mm_castps_si128(_mm_load_ss((const float*)pA));
-                    __m128i _pA = _mm_unpacklo_epi8(_pA8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA8));
-                    __m128i _pB8 = _mm_cvtsi32_si128((unsigned char)pB[0] | (unsigned char)pB[1] << 8);
-                    __m128i _pB16 = _mm_unpacklo_epi8(_pB8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pB8));
-                    __m128i _pB = _mm_shuffle_epi32(_pB16, _MM_SHUFFLE(0, 0, 0, 0));
-                    _sum = _mm_comp_dpwssd_epi32(_sum, _pA, _pB);
+                    const int b0 = pB[0];
+                    const int b1 = pB[1];
+                    sum0 += pA[0] * b0 + pA[1] * b1;
+                    sum1 += pA[2] * b0 + pA[3] * b1;
                     pA += 4;
                     pB += 2;
-                }
-                for (; kk < max_kk0; kk++)
-                {
-                    __m128i _pA8 = _mm_cvtsi32_si128((unsigned char)pA[0] | (unsigned char)pA[1] << 8);
-                    __m128i _pA16 = _mm_unpacklo_epi8(_pA8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA8));
-                    __m128i _pA = _mm_unpacklo_epi16(_pA16, _pA16);
-                    __m128i _pB8 = _mm_cvtsi32_si128(pB[0]);
-                    __m128i _pB16 = _mm_unpacklo_epi8(_pB8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pB8));
-                    __m128i _pB32 = _mm_unpacklo_epi16(_pB16, _mm_setzero_si128());
-                    __m128i _pB = _mm_shuffle_epi32(_pB32, _MM_SHUFFLE(0, 0, 0, 0));
-                    _sum = _mm_comp_dpwssd_epi32(_sum, _pA, _pB);
-                    pA += 2;
-                    pB++;
-                }
-
-                __m128 _ad = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)pA_descales);
-                _fsum = _mm_add_ps(_fsum, _mm_mul_ps(_mm_cvtepi32_ps(_sum), _mm_mul_ps(_ad, _mm_set1_ps(pB_descales[0]))));
-#else  // __SSE2__
-                int sum0 = 0;
-                int sum1 = 0;
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    int b0 = pB[0];
-                    sum0 += pA[0] * b0;
-                    sum1 += pA[1] * b0;
-                    b0 = pB[1];
-                    sum0 += pA[2] * b0;
-                    sum1 += pA[3] * b0;
-                    b0 = pB[2];
-                    sum0 += pA[4] * b0;
-                    sum1 += pA[5] * b0;
-                    b0 = pB[3];
-                    sum0 += pA[6] * b0;
-                    sum1 += pA[7] * b0;
-                    pA += 8;
-                    pB += 4;
                 }
                 for (; kk < max_kk0; kk++)
                 {
@@ -9065,20 +9051,25 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 2;
                     pB++;
                 }
+#else  // __SSE2__
+                for (; kk < max_kk0; kk++)
+                {
+                    const int b0 = pB[0];
+                    sum0 += pA[0] * b0;
+                    sum1 += pA[1] * b0;
+                    pA += 2;
+                    pB++;
+                }
+#endif // __SSE2__
 
                 fsum0 += sum0 * pA_descales[0] * pB_descales[0];
                 fsum1 += sum1 * pA_descales[1] * pB_descales[0];
-#endif // __SSE2__
                 pA_descales += 2;
                 pB_descales++;
             }
 
-#if __SSE2__
-            _mm_storel_pi((__m64*)outptr, _fsum);
-#else  // __SSE2__
             outptr[0] = fsum0;
             outptr[1] = fsum1;
-#endif // __SSE2__
             outptr += 2;
             pB_panel += K;
             pB_descales_panel += block_count;
@@ -9095,6 +9086,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         int jj = 0;
 #if __SSE2__
 #if defined(__x86_64__) || defined(_M_X64)
+#if __AVX__
 #if __AVX512F__
         for (; jj + 7 < max_jj; jj += 8)
         {
@@ -9180,6 +9172,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             pB_descales_panel += (size_t)8 * block_count;
         }
 #endif // __AVX512F__
+#endif // __AVX__
 #endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -9283,18 +9276,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             const float* pB_descales = pB_descales_panel + (size_t)block_start * 2;
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
-#if __SSE2__
-            __m128 _fsum;
-
-            if (k == 0)
-            {
-                _fsum = _mm_setzero_ps();
-            }
-            else
-            {
-                _fsum = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)outptr);
-            }
-#else  // __SSE2__
             float fsum0;
             float fsum1;
 
@@ -9308,23 +9289,54 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 fsum0 = outptr[0];
                 fsum1 = outptr[1];
             }
-#endif // __SSE2__
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
+                int sum0 = 0;
+                int sum1 = 0;
                 int kk = 0;
 #if __SSE2__
                 __m128i _sum = _mm_setzero_si128();
 #if __AVX512VNNI__ || __AVXVNNI__
-                for (; kk + 3 < max_kk0; kk += 4)
+                for (; kk + 7 < max_kk0; kk += 8)
                 {
-                    __m128i _pA32 = _mm_castps_si128(_mm_load_ss((const float*)pA));
-                    __m128i _pA = _mm_shuffle_epi32(_pA32, _MM_SHUFFLE(0, 0, 0, 0));
-                    __m128i _pB = _mm_loadl_epi64((const __m128i*)pB);
+                    __m128i _pA = _mm_loadl_epi64((const __m128i*)pA);
+                    _pA = _mm_unpacklo_epi32(_pA, _pA);
+                    __m128i _pB = _mm_loadu_si128((const __m128i*)pB);
 #if __AVXVNNIINT8__
                     _sum = _mm_dpbssd_epi32(_sum, _pB, _pA);
 #else  // __AVXVNNIINT8__
                     _sum = _mm_comp_dpbusd_epi32(_sum, _pB, _pA);
+#endif // __AVXVNNIINT8__
+                    pA += 8;
+                    pB += 16;
+                }
+#else  // __AVX512VNNI__ || __AVXVNNI__
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+                    __m128i _pA8 = _mm_castps_si128(_mm_load_ss((const float*)pA));
+                    __m128i _pA = _mm_unpacklo_epi8(_pA8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA8));
+                    _pA = _mm_shuffle_epi32(_pA, _MM_SHUFFLE(1, 1, 0, 0));
+                    __m128i _pB8 = _mm_loadl_epi64((const __m128i*)pB);
+                    __m128i _pB = _mm_unpacklo_epi8(_pB8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pB8));
+                    _sum = _mm_comp_dpwssd_epi32(_sum, _pA, _pB);
+                    pA += 4;
+                    pB += 8;
+                }
+#endif // __AVX512VNNI__ || __AVXVNNI__
+
+                _sum = _mm_add_epi32(_sum, _mm_shuffle_epi32(_sum, _MM_SHUFFLE(3, 2, 3, 2)));
+                sum0 = _mm_cvtsi128_si32(_sum);
+                sum1 = _mm_cvtsi128_si32(_mm_shuffle_epi32(_sum, _MM_SHUFFLE(1, 1, 1, 1)));
+#if __AVX512VNNI__ || __AVXVNNI__
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+#if __AVXVNNIINT8__
+                    sum0 += pA[0] * pB[0] + pA[1] * pB[1] + pA[2] * pB[2] + pA[3] * pB[3];
+                    sum1 += pA[0] * pB[4] + pA[1] * pB[5] + pA[2] * pB[6] + pA[3] * pB[7];
+#else  // __AVXVNNIINT8__
+                    sum0 += pA[0] * ((const unsigned char*)pB)[0] + pA[1] * ((const unsigned char*)pB)[1] + pA[2] * ((const unsigned char*)pB)[2] + pA[3] * ((const unsigned char*)pB)[3];
+                    sum1 += pA[0] * ((const unsigned char*)pB)[4] + pA[1] * ((const unsigned char*)pB)[5] + pA[2] * ((const unsigned char*)pB)[6] + pA[3] * ((const unsigned char*)pB)[7];
 #endif // __AVXVNNIINT8__
                     pA += 4;
                     pB += 8;
@@ -9332,69 +9344,28 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
                 if (max_kk0 >= 4)
                 {
-                    _sum = _mm_sub_epi32(_sum, _mm_shuffle_epi32(_mm_castps_si128(_mm_load_ss((const float*)pA)), _MM_SHUFFLE(0, 0, 0, 0)));
+                    const int w_shift = ((const int*)pA)[0];
+                    sum0 -= w_shift;
+                    sum1 -= w_shift;
                     pA += 4;
                 }
-#endif
-#else
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    __m128i _pA8 = _mm_castps_si128(_mm_load_ss((const float*)pA));
-                    __m128i _pA16 = _mm_unpacklo_epi8(_pA8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA8));
-                    __m128i _pA01 = _mm_shuffle_epi32(_pA16, _MM_SHUFFLE(0, 0, 0, 0));
-                    __m128i _pA23 = _mm_shuffle_epi32(_pA16, _MM_SHUFFLE(1, 1, 1, 1));
-                    __m128i _pB8 = _mm_loadl_epi64((const __m128i*)pB);
-                    __m128i _pB16 = _mm_unpacklo_epi8(_pB8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pB8));
-                    __m128i _pB23 = _mm_shuffle_epi32(_pB16, _MM_SHUFFLE(3, 2, 3, 2));
-                    _sum = _mm_comp_dpwssd_epi32(_sum, _pA01, _pB16);
-                    _sum = _mm_comp_dpwssd_epi32(_sum, _pA23, _pB23);
-                    pA += 4;
-                    pB += 8;
-                }
+#endif // __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
 #endif // __AVX512VNNI__ || __AVXVNNI__
                 for (; kk + 1 < max_kk0; kk += 2)
                 {
-                    __m128i _pA8 = _mm_cvtsi32_si128((unsigned char)pA[0] | (unsigned char)pA[1] << 8);
-                    __m128i _pA16 = _mm_unpacklo_epi8(_pA8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA8));
-                    __m128i _pA = _mm_shuffle_epi32(_pA16, _MM_SHUFFLE(0, 0, 0, 0));
-                    __m128i _pB8 = _mm_castps_si128(_mm_load_ss((const float*)pB));
-                    __m128i _pB = _mm_unpacklo_epi8(_pB8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pB8));
-                    _sum = _mm_comp_dpwssd_epi32(_sum, _pA, _pB);
+                    sum0 += pA[0] * pB[0] + pA[1] * pB[1];
+                    sum1 += pA[0] * pB[2] + pA[1] * pB[3];
                     pA += 2;
                     pB += 4;
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    __m128i _pA8 = _mm_cvtsi32_si128(pA[0]);
-                    __m128i _pA16 = _mm_unpacklo_epi8(_pA8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA8));
-                    __m128i _pA = _mm_shuffle_epi32(_mm_unpacklo_epi16(_pA16, _pA16), _MM_SHUFFLE(0, 0, 0, 0));
-                    __m128i _pB8 = _mm_cvtsi32_si128((unsigned char)pB[0] | (unsigned char)pB[1] << 8);
-                    __m128i _pB16 = _mm_unpacklo_epi8(_pB8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pB8));
-                    __m128i _pB = _mm_unpacklo_epi16(_pB16, _mm_setzero_si128());
-                    _sum = _mm_comp_dpwssd_epi32(_sum, _pA, _pB);
+                    sum0 += pA[0] * pB[0];
+                    sum1 += pA[0] * pB[1];
                     pA++;
                     pB += 2;
                 }
-                __m128 _ad1 = _mm_load_ss(pA_descales);
-                __m128 _ad = _mm_shuffle_ps(_ad1, _ad1, _MM_SHUFFLE(0, 0, 0, 0));
-                __m128 _bd = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)pB_descales);
-                _fsum = _mm_add_ps(_fsum, _mm_mul_ps(_mm_cvtepi32_ps(_sum), _mm_mul_ps(_ad, _bd)));
 #else  // __SSE2__
-                int sum0 = 0;
-                int sum1 = 0;
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    sum0 += pA[0] * pB[0];
-                    sum0 += pA[1] * pB[2];
-                    sum0 += pA[2] * pB[4];
-                    sum0 += pA[3] * pB[6];
-                    sum1 += pA[0] * pB[1];
-                    sum1 += pA[1] * pB[3];
-                    sum1 += pA[2] * pB[5];
-                    sum1 += pA[3] * pB[7];
-                    pA += 4;
-                    pB += 8;
-                }
                 for (; kk < max_kk0; kk++)
                 {
                     sum0 += pA[0] * pB[0];
@@ -9402,21 +9373,17 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA++;
                     pB += 2;
                 }
+#endif // __SSE2__
 
                 const float ad = pA_descales[0];
                 fsum0 += sum0 * ad * pB_descales[0];
                 fsum1 += sum1 * ad * pB_descales[1];
-#endif // __SSE2__
                 pA_descales += 1;
                 pB_descales += 2;
             }
 
-#if __SSE2__
-            _mm_storel_pi((__m64*)outptr, _fsum);
-#else  // __SSE2__
             outptr[0] = fsum0;
             outptr[1] = fsum1;
-#endif // __SSE2__
             outptr += 2;
             pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
@@ -9440,18 +9407,44 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
+                int sum = 0;
                 int kk = 0;
 #if __SSE2__
                 __m128i _sum = _mm_setzero_si128();
 #if __AVX512VNNI__ || __AVXVNNI__
-                for (; kk + 3 < max_kk0; kk += 4)
+                for (; kk + 15 < max_kk0; kk += 16)
                 {
-                    __m128i _pA = _mm_castps_si128(_mm_load_ss((const float*)pA));
-                    __m128i _pB = _mm_castps_si128(_mm_load_ss((const float*)pB));
+                    __m128i _pA = _mm_loadu_si128((const __m128i*)pA);
+                    __m128i _pB = _mm_loadu_si128((const __m128i*)pB);
 #if __AVXVNNIINT8__
                     _sum = _mm_dpbssd_epi32(_sum, _pB, _pA);
 #else  // __AVXVNNIINT8__
                     _sum = _mm_comp_dpbusd_epi32(_sum, _pB, _pA);
+#endif // __AVXVNNIINT8__
+                    pA += 16;
+                    pB += 16;
+                }
+#else  // __AVX512VNNI__ || __AVXVNNI__
+                for (; kk + 7 < max_kk0; kk += 8)
+                {
+                    __m128i _pA8 = _mm_loadl_epi64((const __m128i*)pA);
+                    __m128i _pB8 = _mm_loadl_epi64((const __m128i*)pB);
+                    __m128i _pA = _mm_unpacklo_epi8(_pA8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA8));
+                    __m128i _pB = _mm_unpacklo_epi8(_pB8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pB8));
+                    _sum = _mm_comp_dpwssd_epi32(_sum, _pA, _pB);
+                    pA += 8;
+                    pB += 8;
+                }
+#endif // __AVX512VNNI__ || __AVXVNNI__
+
+                sum = _mm_reduce_add_epi32(_sum);
+#if __AVX512VNNI__ || __AVXVNNI__
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+#if __AVXVNNIINT8__
+                    sum += pA[0] * pB[0] + pA[1] * pB[1] + pA[2] * pB[2] + pA[3] * pB[3];
+#else  // __AVXVNNIINT8__
+                    sum += pA[0] * ((const unsigned char*)pB)[0] + pA[1] * ((const unsigned char*)pB)[1] + pA[2] * ((const unsigned char*)pB)[2] + pA[3] * ((const unsigned char*)pB)[3];
 #endif // __AVXVNNIINT8__
                     pA += 4;
                     pB += 4;
@@ -9459,63 +9452,33 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
                 if (max_kk0 >= 4)
                 {
-                    _sum = _mm_sub_epi32(_sum, _mm_castps_si128(_mm_load_ss((const float*)pA)));
+                    sum -= ((const int*)pA)[0];
                     pA += 4;
                 }
-#endif
-#else
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    __m128i _pA8 = _mm_castps_si128(_mm_load_ss((const float*)pA));
-                    __m128i _pB8 = _mm_castps_si128(_mm_load_ss((const float*)pB));
-                    __m128i _pA = _mm_unpacklo_epi8(_pA8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA8));
-                    __m128i _pB = _mm_unpacklo_epi8(_pB8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pB8));
-                    _sum = _mm_comp_dpwssd_epi32(_sum, _pA, _pB);
-                    pA += 4;
-                    pB += 4;
-                }
+#endif // __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
 #endif // __AVX512VNNI__ || __AVXVNNI__
                 for (; kk + 1 < max_kk0; kk += 2)
                 {
-                    __m128i _pA8 = _mm_cvtsi32_si128((unsigned char)pA[0] | (unsigned char)pA[1] << 8);
-                    __m128i _pB8 = _mm_cvtsi32_si128((unsigned char)pB[0] | (unsigned char)pB[1] << 8);
-                    __m128i _pA = _mm_unpacklo_epi8(_pA8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA8));
-                    __m128i _pB = _mm_unpacklo_epi8(_pB8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pB8));
-                    _sum = _mm_comp_dpwssd_epi32(_sum, _pA, _pB);
+                    sum += pA[0] * pB[0] + pA[1] * pB[1];
                     pA += 2;
                     pB += 2;
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    __m128i _pA8 = _mm_cvtsi32_si128((unsigned char)pA[0]);
-                    __m128i _pB8 = _mm_cvtsi32_si128((unsigned char)pB[0]);
-                    __m128i _pA16 = _mm_unpacklo_epi8(_pA8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA8));
-                    __m128i _pB16 = _mm_unpacklo_epi8(_pB8, _mm_cmpgt_epi8(_mm_setzero_si128(), _pB8));
-                    _sum = _mm_comp_dpwssd_epi32(_sum, _mm_unpacklo_epi16(_pA16, _pA16), _mm_unpacklo_epi16(_pB16, _mm_setzero_si128()));
+                    sum += pA[0] * pB[0];
                     pA++;
                     pB++;
                 }
-                fsum += _mm_reduce_add_epi32(_sum) * pA_descales[0] * pB_descales[0];
 #else  // __SSE2__
-                int sum = 0;
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    sum += pA[0] * pB[0];
-                    sum += pA[1] * pB[1];
-                    sum += pA[2] * pB[2];
-                    sum += pA[3] * pB[3];
-                    pA += 4;
-                    pB += 4;
-                }
                 for (; kk < max_kk0; kk++)
                 {
                     sum += pA[0] * pB[0];
                     pA++;
                     pB++;
                 }
+#endif // __SSE2__
 
                 fsum += sum * pA_descales[0] * pB_descales[0];
-#endif // __SSE2__
                 pA_descales += 1;
                 pB_descales++;
             }
@@ -15314,6 +15277,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
         int jj = 0;
 #if __SSE2__
 #if defined(__x86_64__) || defined(_M_X64)
+#if __AVX__
 #if __AVX512F__
         for (; jj + 15 < max_jj; jj += 16)
         {
@@ -15670,7 +15634,6 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
             }
         }
 #endif // __AVX512F__
-#if __AVX__
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m128 _a0 = _mm_loadu_ps(pp);
@@ -16022,37 +15985,6 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
         }
         for (; jj < max_jj; jj += 1)
         {
-#if __SSE2__
-            __m128 _f = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)pp);
-            if (pC)
-            {
-                if (broadcast_type_C == 0)
-                    _f = _mm_add_ps(_f, _mm_set1_ps(c0));
-                if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    _f = _mm_add_ps(_f, _mm_setr_ps(c0, c1, 0.f, 0.f));
-                if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                {
-                    __m128 _c;
-                    if (broadcast_type_C == 3)
-                        _c = _mm_setr_ps(pC[0], pC[c_hstep], 0.f, 0.f);
-                    if (broadcast_type_C == 4)
-                        _c = _mm_set1_ps(pC[0]);
-                    if (beta == 1.f)
-                    {
-                        _f = _mm_add_ps(_f, _c);
-                    }
-                    else
-                    {
-                        _f = _mm_comp_fmadd_ps(_c, _mm_set1_ps(beta), _f);
-                    }
-                    pC++;
-                }
-            }
-
-            if (alpha != 1.f)
-                _f = _mm_mul_ps(_f, _mm_set1_ps(alpha));
-
-#else // __SSE2__
             float f00 = pp[0];
             float f10 = pp[1];
             if (pC)
@@ -16087,26 +16019,16 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 f10 *= alpha;
             }
 
-#endif // __SSE2__
             if (output_transpose)
             {
-#if __SSE2__
-                _mm_storel_pi((__m64*)p0f, _f);
-#else
                 p0f[0] = f00;
                 p0f[1] = f10;
-#endif
                 p0f += out_hstep;
             }
             else
             {
-#if __SSE2__
-                _mm_store_ss(p0f, _f);
-                _mm_store_ss(p0f + out_hstep, _mm_shuffle_ps(_f, _f, _MM_SHUFFLE(1, 1, 1, 1)));
-#else
                 p0f[0] = f00;
                 p0f[out_hstep] = f10;
-#endif
                 p0f++;
             }
             pp += 2;
@@ -16150,6 +16072,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
         int jj = 0;
 #if __SSE2__
 #if defined(__x86_64__) || defined(_M_X64)
+#if __AVX__
 #if __AVX512F__
         for (; jj + 15 < max_jj; jj += 16)
         {
@@ -16201,7 +16124,6 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
             }
         }
 #endif // __AVX512F__
-#if __AVX__
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m256 _f = _mm256_loadu_ps(pp);
@@ -16339,33 +16261,6 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
 #endif // __SSE2__
         for (; jj + 1 < max_jj; jj += 2)
         {
-#if __SSE2__
-            __m128 _f = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)pp);
-            if (pC)
-            {
-                if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                {
-                    __m128 _c = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)pC);
-                    if (beta == 1.f)
-                    {
-                        _f = _mm_add_ps(_f, _c);
-                    }
-                    else
-                    {
-                        _f = _mm_comp_fmadd_ps(_c, _mm_set1_ps(beta), _f);
-                    }
-                    pC += 2;
-                }
-                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    _f = _mm_add_ps(_f, _mm_set1_ps(c0));
-                }
-            }
-
-            if (alpha != 1.f)
-                _f = _mm_mul_ps(_f, _mm_set1_ps(alpha));
-
-#else // __SSE2__
             float f00 = pp[0];
             float f01 = pp[1];
             if (pC)
@@ -16390,34 +16285,16 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 f01 *= alpha;
             }
 
-#endif // __SSE2__
             if (output_transpose)
             {
-#if __SSE2__
-                if (out_hstep == 1)
-                {
-                    _mm_storel_pi((__m64*)p0f, _f);
-                }
-                else
-                {
-                    _mm_store_ss(p0f, _f);
-                    _f = _mm_shuffle_ps(_f, _f, _MM_SHUFFLE(0, 3, 2, 1));
-                    _mm_store_ss(p0f + out_hstep, _f);
-                }
-#else
                 p0f[0] = f00;
                 p0f[out_hstep] = f01;
-#endif
                 p0f += out_hstep * 2;
             }
             else
             {
-#if __SSE2__
-                _mm_storel_pi((__m64*)p0f, _f);
-#else
                 p0f[0] = f00;
                 p0f[1] = f01;
-#endif
                 p0f += 2;
             }
             pp += 2;
