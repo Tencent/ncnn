@@ -303,7 +303,7 @@ static int test_multiheadattention_block_quant(int qdim, int kdim, int vdim, int
     return 0;
 }
 
-static int test_multiheadattention_block_quant_kvcache(int attn_mask = 0, int input_scale = 0)
+static int test_multiheadattention_block_quant_kvcache(int attn_mask = 0, int input_scale = 0, int mask_channels = 0)
 {
     const int qdim = 10;
     const int embed_dim = 8;
@@ -321,7 +321,7 @@ static int test_multiheadattention_block_quant_kvcache(int attn_mask = 0, int in
     inputs[0] = RandomMat(qdim, 3, -1.f, 1.f);
     if (attn_mask)
     {
-        inputs[1] = RandomMat(8, 3, -1.f, 0.f);
+        inputs[1] = mask_channels > 0 ? RandomMat(8, 3, mask_channels, -1.f, 0.f) : RandomMat(8, 3, -1.f, 0.f);
         inputs[2] = RandomMat(5, embed_dim, -1.f, 1.f);
         inputs[3] = RandomMat(5, embed_dim, -1.f, 1.f);
     }
@@ -340,21 +340,21 @@ static int test_multiheadattention_block_quant_kvcache(int attn_mask = 0, int in
     ret = run_mha_layer(pd, weights, inputs, 3, outputs);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention_block_quant_kvcache failed ret=%d attn_mask=%d input_scale=%d\n", ret, attn_mask, input_scale);
+        fprintf(stderr, "test_multiheadattention_block_quant_kvcache failed ret=%d attn_mask=%d input_scale=%d mask_channels=%d\n", ret, attn_mask, input_scale, mask_channels);
         return ret;
     }
 
     ret = run_mha_layer(ref_pd, ref_weights, inputs, 3, refs);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention_block_quant_kvcache reference failed ret=%d attn_mask=%d input_scale=%d\n", ret, attn_mask, input_scale);
+        fprintf(stderr, "test_multiheadattention_block_quant_kvcache reference failed ret=%d attn_mask=%d input_scale=%d mask_channels=%d\n", ret, attn_mask, input_scale, mask_channels);
         return ret;
     }
 
     ret = CompareMat(outputs, refs, 0.001f);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention_block_quant_kvcache compare failed attn_mask=%d input_scale=%d\n", attn_mask, input_scale);
+        fprintf(stderr, "test_multiheadattention_block_quant_kvcache compare failed attn_mask=%d input_scale=%d mask_channels=%d\n", attn_mask, input_scale, mask_channels);
         return ret;
     }
 
@@ -450,6 +450,7 @@ int main()
            || test_multiheadattention_block_quant_kvcache(0, 1)
            || test_multiheadattention_block_quant_kvcache(1)
            || test_multiheadattention_block_quant_kvcache(1, 1)
+           || test_multiheadattention_block_quant_kvcache(1, 0, 1)
            || test_multiheadattention_block_quant_cross_kvcache()
            || test_multiheadattention_block_quant_cross_kvcache(1)
            || test_multiheadattention_block_quant_cross_kvcache(0, 1);
