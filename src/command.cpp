@@ -455,8 +455,13 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 
     // gpu cast to fp32 on the fly (integrated gpu)
     Option opt_staging = opt;
-    if (!opt_staging.blob_vkallocator->mappable)
+    if (!opt_staging.blob_vkallocator->mappable || !opt_staging.blob_vkallocator->cached)
     {
+        // On an integrated gpu the blob allocator prefers DEVICE_LOCAL|HOST_VISIBLE
+        // "unified" memory, which is mappable but WRITE-COMBINED, not HOST_CACHED.
+        // Uploading to it is fast, but memcpy'ing OUT of it is uncached-read slow --
+        // measured 0.33 GB/s against 10.3 GB/s for upload on Radeon 8060S. Route the
+        // download through the staging allocator, which requests HOST_CACHED.
         opt_staging.blob_vkallocator = opt.staging_vkallocator;
     }
     int cast_type_to = 0;

@@ -4504,6 +4504,13 @@ bool VulkanDevice::is_coherent(uint32_t memory_type_index) const
     return memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 }
 
+bool VulkanDevice::is_cached(uint32_t memory_type_index) const
+{
+    const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties().memoryTypes[memory_type_index];
+
+    return memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+}
+
 bool VulkanDevice::is_device_local(uint32_t memory_type_index) const
 {
     const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties().memoryTypes[memory_type_index];
