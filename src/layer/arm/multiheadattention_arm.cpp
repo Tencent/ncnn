@@ -430,7 +430,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
             // assert dst_seqlen == cached_xk_blob_unpacked.w + k_affine_q.w
 
             // merge cached_xk_blob_unpacked and k_affine_q
-            k_affine.create(dst_seqlen, embed_dim, k_affine_q.elemsize);
+            k_affine.create(dst_seqlen, embed_dim, k_affine_q.elemsize, opt.blob_allocator);
             if (k_affine.empty())
                 return -100;
 
@@ -470,7 +470,8 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
         qk_bottom_blobs[1] = k_affine.row_range(i * embed_dim_per_head, embed_dim_per_head);
         if (attn_mask)
         {
-            const Mat& maskm = attn_mask_blob_unpacked.dims == 3 ? attn_mask_blob_unpacked.channel(i) : attn_mask_blob_unpacked;
+            const int mask_channel = attn_mask_blob_unpacked.c == 1 ? 0 : i;
+            const Mat maskm = attn_mask_blob_unpacked.dims == 3 ? attn_mask_blob_unpacked.channel(mask_channel) : attn_mask_blob_unpacked;
             qk_bottom_blobs.push_back(maskm);
         }
         std::vector<Mat> qk_top_blobs(1);
@@ -509,7 +510,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
             // assert dst_seqlen == cached_xv_blob_unpacked.w + v_affine_q.w
 
             // merge cached_xv_blob_unpacked and v_affine_q
-            v_affine.create(dst_seqlen, embed_dim, v_affine_q.elemsize);
+            v_affine.create(dst_seqlen, embed_dim, v_affine_q.elemsize, opt.blob_allocator);
             if (v_affine.empty())
                 return -100;
 
