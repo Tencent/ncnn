@@ -214,7 +214,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
 
         if (layer->support_vulkan)
         {
-            if (blob_mats_gpu[bottom_blob_index].dims == 0)
+            if (blob_mats_gpu[bottom_blob_index].dims == 0 && blob_mats[bottom_blob_index].dims != 0)
             {
                 // host to buffer
                 cmd.record_upload(blob_mats[bottom_blob_index], blob_mats_gpu[bottom_blob_index], opt);
@@ -228,7 +228,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
         }
         else
         {
-            if (blob_mats[bottom_blob_index].dims == 0)
+            if (blob_mats[bottom_blob_index].dims == 0 && blob_mats_gpu[bottom_blob_index].dims != 0)
             {
                 Option opt_download = opt;
                 opt_download.use_packing_layout = layer->support_packing;
