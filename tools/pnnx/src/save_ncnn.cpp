@@ -288,6 +288,26 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 continue;
             }
 
+            if (attr.type == 9) // bool --> fp32
+            {
+                // MemoryData is emitted from the tensor SHAPE and ncnn reads
+                // w*h*c float32 (load_type=1, untagged). Writing bools raw is one
+                // byte per element, so the sequential ModelBin reader ends up 3n/4
+                // floats out of step and EVERY later weight-bearing layer loads
+                // shifted data -- silently, with a zero exit status. Widen on write
+                // so what is written matches what will be read.
+                const unsigned char* p = (const unsigned char*)attr.data.data();
+                const size_t len = attr.data.size();
+                std::vector<float> data_fp32(len);
+                for (size_t i = 0; i < len; i++)
+                {
+                    data_fp32[i] = p[i] ? 1.f : 0.f;
+                }
+
+                fwrite(data_fp32.data(), data_fp32.size() * sizeof(float), 1, binfp);
+                continue;
+            }
+
             fwrite(attr.data.data(), attr.data.size(), 1, binfp);
         }
 
