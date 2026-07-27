@@ -329,18 +329,24 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                         v4f32 _p1 = __msa_fmul_w((v4f32)__msa_ld_w(p0 + 4, 0), _scale0);
                         v4f32 _p2 = __msa_fmul_w((v4f32)__msa_ld_w(p0 + 8, 0), _scale0);
                         v4f32 _p3 = __msa_fmul_w((v4f32)__msa_ld_w(p0 + 12, 0), _scale0);
-                        transpose4x4_ps(_p0, _p1, _p2, _p3);
 
                         v4f32 _p4 = __msa_fmul_w((v4f32)__msa_ld_w(p1, 0), _scale1);
                         v4f32 _p5 = __msa_fmul_w((v4f32)__msa_ld_w(p1 + 4, 0), _scale1);
                         v4f32 _p6 = __msa_fmul_w((v4f32)__msa_ld_w(p1 + 8, 0), _scale1);
                         v4f32 _p7 = __msa_fmul_w((v4f32)__msa_ld_w(p1 + 12, 0), _scale1);
-                        transpose4x4_ps(_p4, _p5, _p6, _p7);
 
-                        ((int64_t*)pp)[0] = float2int8(_p0, _p1);
-                        ((int64_t*)pp)[1] = float2int8(_p2, _p3);
-                        ((int64_t*)pp)[2] = float2int8(_p4, _p5);
-                        ((int64_t*)pp)[3] = float2int8(_p6, _p7);
+                        v16i8 _q0 = float2int8(_p0);
+                        v16i8 _q1 = float2int8(_p1);
+                        v16i8 _q2 = float2int8(_p2);
+                        v16i8 _q3 = float2int8(_p3);
+                        transpose16x4_epi8(_q0, _q1, _q2, _q3);
+                        __msa_st_b(_q0, pp, 0);
+                        _q0 = float2int8(_p4);
+                        _q1 = float2int8(_p5);
+                        _q2 = float2int8(_p6);
+                        _q3 = float2int8(_p7);
+                        transpose16x4_epi8(_q0, _q1, _q2, _q3);
+                        __msa_st_b(_q0, pp + 16, 0);
                         pp += 32;
                         p0 += 16;
                         p1 += 16;
@@ -529,10 +535,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                         v4f32 _p1 = __msa_fmul_w((v4f32)__msa_ld_w(p0 + 4, 0), _scale);
                         v4f32 _p2 = __msa_fmul_w((v4f32)__msa_ld_w(p0 + 8, 0), _scale);
                         v4f32 _p3 = __msa_fmul_w((v4f32)__msa_ld_w(p0 + 12, 0), _scale);
-                        transpose4x4_ps(_p0, _p1, _p2, _p3);
 
-                        ((int64_t*)pp)[0] = float2int8(_p0, _p1);
-                        ((int64_t*)pp)[1] = float2int8(_p2, _p3);
+                        v16i8 _q0 = float2int8(_p0);
+                        v16i8 _q1 = float2int8(_p1);
+                        v16i8 _q2 = float2int8(_p2);
+                        v16i8 _q3 = float2int8(_p3);
+                        transpose16x4_epi8(_q0, _q1, _q2, _q3);
+                        __msa_st_b(_q0, pp, 0);
                         pp += 16;
                         p0 += 16;
                     }
@@ -878,18 +887,24 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     v4f32 _p1 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p0 + 4, 0), _s1), _scale0);
                     v4f32 _p2 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p0 + 8, 0), _s2), _scale0);
                     v4f32 _p3 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p0 + 12, 0), _s3), _scale0);
-                    transpose4x4_ps(_p0, _p1, _p2, _p3);
 
                     v4f32 _p4 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p1, 0), _s0), _scale1);
                     v4f32 _p5 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p1 + 4, 0), _s1), _scale1);
                     v4f32 _p6 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p1 + 8, 0), _s2), _scale1);
                     v4f32 _p7 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p1 + 12, 0), _s3), _scale1);
-                    transpose4x4_ps(_p4, _p5, _p6, _p7);
 
-                    ((int64_t*)pp)[0] = float2int8(_p0, _p1);
-                    ((int64_t*)pp)[1] = float2int8(_p2, _p3);
-                    ((int64_t*)pp)[2] = float2int8(_p4, _p5);
-                    ((int64_t*)pp)[3] = float2int8(_p6, _p7);
+                    v16i8 _q0 = float2int8(_p0);
+                    v16i8 _q1 = float2int8(_p1);
+                    v16i8 _q2 = float2int8(_p2);
+                    v16i8 _q3 = float2int8(_p3);
+                    transpose16x4_epi8(_q0, _q1, _q2, _q3);
+                    __msa_st_b(_q0, pp, 0);
+                    _q0 = float2int8(_p4);
+                    _q1 = float2int8(_p5);
+                    _q2 = float2int8(_p6);
+                    _q3 = float2int8(_p7);
+                    transpose16x4_epi8(_q0, _q1, _q2, _q3);
+                    __msa_st_b(_q0, pp + 16, 0);
                     pp += 32;
                     p0 += 16;
                     p1 += 16;
@@ -1111,10 +1126,13 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     v4f32 _p1 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p0 + 4, 0), _s1), _scale);
                     v4f32 _p2 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p0 + 8, 0), _s2), _scale);
                     v4f32 _p3 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p0 + 12, 0), _s3), _scale);
-                    transpose4x4_ps(_p0, _p1, _p2, _p3);
 
-                    ((int64_t*)pp)[0] = float2int8(_p0, _p1);
-                    ((int64_t*)pp)[1] = float2int8(_p2, _p3);
+                    v16i8 _q0 = float2int8(_p0);
+                    v16i8 _q1 = float2int8(_p1);
+                    v16i8 _q2 = float2int8(_p2);
+                    v16i8 _q3 = float2int8(_p3);
+                    transpose16x4_epi8(_q0, _q1, _q2, _q3);
+                    __msa_st_b(_q0, pp, 0);
                     pp += 16;
                     p0 += 16;
                     ps += 4;
@@ -1417,6 +1435,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 v4f32 _scale5 = __msa_fill_w_f32(scale5);
                 v4f32 _scale6 = __msa_fill_w_f32(scale6);
                 v4f32 _scale7 = __msa_fill_w_f32(scale7);
+                v4f32 _scale03 = (v4f32)__msa_set_w(__msa_load_w(&scale0), __msa_load_w(&scale1), __msa_load_w(&scale2), __msa_load_w(&scale3));
+                v4f32 _scale47 = (v4f32)__msa_set_w(__msa_load_w(&scale4), __msa_load_w(&scale5), __msa_load_w(&scale6), __msa_load_w(&scale7));
 
                 if (elempack == 4)
                 {
@@ -1449,30 +1469,27 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                         const float* p1 = p0 + A_hstep;
                         const float* p2 = p1 + A_hstep;
                         const float* p3 = p2 + A_hstep;
-                        v4f32 _p0 = (v4f32)__msa_ld_w(p0, 0);
-                        v4f32 _p1 = (v4f32)__msa_ld_w(p1, 0);
-                        v4f32 _p2 = (v4f32)__msa_ld_w(p2, 0);
-                        v4f32 _p3 = (v4f32)__msa_ld_w(p3, 0);
-                        transpose4x4_ps(_p0, _p1, _p2, _p3);
+                        v4f32 _p0 = __msa_fmul_w((v4f32)__msa_ld_w(p0, 0), _scale03);
+                        v4f32 _p1 = __msa_fmul_w((v4f32)__msa_ld_w(p1, 0), _scale03);
+                        v4f32 _p2 = __msa_fmul_w((v4f32)__msa_ld_w(p2, 0), _scale03);
+                        v4f32 _p3 = __msa_fmul_w((v4f32)__msa_ld_w(p3, 0), _scale03);
+                        v4f32 _p4 = __msa_fmul_w((v4f32)__msa_ld_w(p0 + 4, 0), _scale47);
+                        v4f32 _p5 = __msa_fmul_w((v4f32)__msa_ld_w(p1 + 4, 0), _scale47);
+                        v4f32 _p6 = __msa_fmul_w((v4f32)__msa_ld_w(p2 + 4, 0), _scale47);
+                        v4f32 _p7 = __msa_fmul_w((v4f32)__msa_ld_w(p3 + 4, 0), _scale47);
 
-                        v4f32 _p4 = (v4f32)__msa_ld_w(p0 + 4, 0);
-                        v4f32 _p5 = (v4f32)__msa_ld_w(p1 + 4, 0);
-                        v4f32 _p6 = (v4f32)__msa_ld_w(p2 + 4, 0);
-                        v4f32 _p7 = (v4f32)__msa_ld_w(p3 + 4, 0);
-                        transpose4x4_ps(_p4, _p5, _p6, _p7);
-                        _p0 = __msa_fmul_w(_p0, _scale0);
-                        _p1 = __msa_fmul_w(_p1, _scale1);
-                        _p2 = __msa_fmul_w(_p2, _scale2);
-                        _p3 = __msa_fmul_w(_p3, _scale3);
-                        _p4 = __msa_fmul_w(_p4, _scale4);
-                        _p5 = __msa_fmul_w(_p5, _scale5);
-                        _p6 = __msa_fmul_w(_p6, _scale6);
-                        _p7 = __msa_fmul_w(_p7, _scale7);
-
-                        ((int64_t*)pp)[0] = float2int8(_p0, _p1);
-                        ((int64_t*)pp)[1] = float2int8(_p2, _p3);
-                        ((int64_t*)pp)[2] = float2int8(_p4, _p5);
-                        ((int64_t*)pp)[3] = float2int8(_p6, _p7);
+                        v16i8 _q0 = float2int8(_p0);
+                        v16i8 _q1 = float2int8(_p1);
+                        v16i8 _q2 = float2int8(_p2);
+                        v16i8 _q3 = float2int8(_p3);
+                        transpose16x4_epi8(_q0, _q1, _q2, _q3);
+                        __msa_st_b(_q0, pp, 0);
+                        _q0 = float2int8(_p4);
+                        _q1 = float2int8(_p5);
+                        _q2 = float2int8(_p6);
+                        _q3 = float2int8(_p7);
+                        transpose16x4_epi8(_q0, _q1, _q2, _q3);
+                        __msa_st_b(_q0, pp + 16, 0);
                         pp += 32;
                         p0 = p3 + A_hstep;
                     }
@@ -1547,6 +1564,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 v4f32 _scale1 = __msa_fill_w_f32(scale1);
                 v4f32 _scale2 = __msa_fill_w_f32(scale2);
                 v4f32 _scale3 = __msa_fill_w_f32(scale3);
+                v4f32 _scale = (v4f32)__msa_set_w(__msa_load_w(&scale0), __msa_load_w(&scale1), __msa_load_w(&scale2), __msa_load_w(&scale3));
 
                 if (elempack == 4)
                 {
@@ -1573,18 +1591,17 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                         const float* p1 = p0 + A_hstep;
                         const float* p2 = p1 + A_hstep;
                         const float* p3 = p2 + A_hstep;
-                        v4f32 _p0 = (v4f32)__msa_ld_w(p0, 0);
-                        v4f32 _p1 = (v4f32)__msa_ld_w(p1, 0);
-                        v4f32 _p2 = (v4f32)__msa_ld_w(p2, 0);
-                        v4f32 _p3 = (v4f32)__msa_ld_w(p3, 0);
-                        transpose4x4_ps(_p0, _p1, _p2, _p3);
-                        _p0 = __msa_fmul_w(_p0, _scale0);
-                        _p1 = __msa_fmul_w(_p1, _scale1);
-                        _p2 = __msa_fmul_w(_p2, _scale2);
-                        _p3 = __msa_fmul_w(_p3, _scale3);
+                        v4f32 _p0 = __msa_fmul_w((v4f32)__msa_ld_w(p0, 0), _scale);
+                        v4f32 _p1 = __msa_fmul_w((v4f32)__msa_ld_w(p1, 0), _scale);
+                        v4f32 _p2 = __msa_fmul_w((v4f32)__msa_ld_w(p2, 0), _scale);
+                        v4f32 _p3 = __msa_fmul_w((v4f32)__msa_ld_w(p3, 0), _scale);
 
-                        ((int64_t*)pp)[0] = float2int8(_p0, _p1);
-                        ((int64_t*)pp)[1] = float2int8(_p2, _p3);
+                        v16i8 _q0 = float2int8(_p0);
+                        v16i8 _q1 = float2int8(_p1);
+                        v16i8 _q2 = float2int8(_p2);
+                        v16i8 _q3 = float2int8(_p3);
+                        transpose16x4_epi8(_q0, _q1, _q2, _q3);
+                        __msa_st_b(_q0, pp, 0);
                         pp += 16;
                         p0 = p3 + A_hstep;
                     }
@@ -1871,6 +1888,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             v4f32 _scale5 = __msa_fill_w_f32(scale5);
             v4f32 _scale6 = __msa_fill_w_f32(scale6);
             v4f32 _scale7 = __msa_fill_w_f32(scale7);
+            v4f32 _scale03 = (v4f32)__msa_set_w(__msa_load_w(&scale0), __msa_load_w(&scale1), __msa_load_w(&scale2), __msa_load_w(&scale3));
+            v4f32 _scale47 = (v4f32)__msa_set_w(__msa_load_w(&scale4), __msa_load_w(&scale5), __msa_load_w(&scale6), __msa_load_w(&scale7));
 
             if (elempack == 4)
             {
@@ -1905,39 +1924,27 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     const float* p1 = p0 + A_hstep;
                     const float* p2 = p1 + A_hstep;
                     const float* p3 = p2 + A_hstep;
-                    v4f32 _p0 = (v4f32)__msa_ld_w(p0, 0);
-                    v4f32 _p1 = (v4f32)__msa_ld_w(p1, 0);
-                    v4f32 _p2 = (v4f32)__msa_ld_w(p2, 0);
-                    v4f32 _p3 = (v4f32)__msa_ld_w(p3, 0);
-                    transpose4x4_ps(_p0, _p1, _p2, _p3);
+                    v4f32 _p0 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p0, 0), __msa_fill_w_f32(ps[0])), _scale03);
+                    v4f32 _p1 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p1, 0), __msa_fill_w_f32(ps[1])), _scale03);
+                    v4f32 _p2 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p2, 0), __msa_fill_w_f32(ps[2])), _scale03);
+                    v4f32 _p3 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p3, 0), __msa_fill_w_f32(ps[3])), _scale03);
+                    v4f32 _p4 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p0 + 4, 0), __msa_fill_w_f32(ps[0])), _scale47);
+                    v4f32 _p5 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p1 + 4, 0), __msa_fill_w_f32(ps[1])), _scale47);
+                    v4f32 _p6 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p2 + 4, 0), __msa_fill_w_f32(ps[2])), _scale47);
+                    v4f32 _p7 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p3 + 4, 0), __msa_fill_w_f32(ps[3])), _scale47);
 
-                    v4f32 _p4 = (v4f32)__msa_ld_w(p0 + 4, 0);
-                    v4f32 _p5 = (v4f32)__msa_ld_w(p1 + 4, 0);
-                    v4f32 _p6 = (v4f32)__msa_ld_w(p2 + 4, 0);
-                    v4f32 _p7 = (v4f32)__msa_ld_w(p3 + 4, 0);
-                    transpose4x4_ps(_p4, _p5, _p6, _p7);
-                    v4f32 _s = (v4f32)__msa_ld_w(ps, 0);
-                    _p0 = __msa_fmul_w(_p0, _s);
-                    _p1 = __msa_fmul_w(_p1, _s);
-                    _p2 = __msa_fmul_w(_p2, _s);
-                    _p3 = __msa_fmul_w(_p3, _s);
-                    _p4 = __msa_fmul_w(_p4, _s);
-                    _p5 = __msa_fmul_w(_p5, _s);
-                    _p6 = __msa_fmul_w(_p6, _s);
-                    _p7 = __msa_fmul_w(_p7, _s);
-                    _p0 = __msa_fmul_w(_p0, _scale0);
-                    _p1 = __msa_fmul_w(_p1, _scale1);
-                    _p2 = __msa_fmul_w(_p2, _scale2);
-                    _p3 = __msa_fmul_w(_p3, _scale3);
-                    _p4 = __msa_fmul_w(_p4, _scale4);
-                    _p5 = __msa_fmul_w(_p5, _scale5);
-                    _p6 = __msa_fmul_w(_p6, _scale6);
-                    _p7 = __msa_fmul_w(_p7, _scale7);
-
-                    ((int64_t*)pp)[0] = float2int8(_p0, _p1);
-                    ((int64_t*)pp)[1] = float2int8(_p2, _p3);
-                    ((int64_t*)pp)[2] = float2int8(_p4, _p5);
-                    ((int64_t*)pp)[3] = float2int8(_p6, _p7);
+                    v16i8 _q0 = float2int8(_p0);
+                    v16i8 _q1 = float2int8(_p1);
+                    v16i8 _q2 = float2int8(_p2);
+                    v16i8 _q3 = float2int8(_p3);
+                    transpose16x4_epi8(_q0, _q1, _q2, _q3);
+                    __msa_st_b(_q0, pp, 0);
+                    _q0 = float2int8(_p4);
+                    _q1 = float2int8(_p5);
+                    _q2 = float2int8(_p6);
+                    _q3 = float2int8(_p7);
+                    transpose16x4_epi8(_q0, _q1, _q2, _q3);
+                    __msa_st_b(_q0, pp + 16, 0);
                     pp += 32;
                     p0 = p3 + A_hstep;
                     ps += 4;
@@ -2021,6 +2028,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             v4f32 _scale1 = __msa_fill_w_f32(scale1);
             v4f32 _scale2 = __msa_fill_w_f32(scale2);
             v4f32 _scale3 = __msa_fill_w_f32(scale3);
+            v4f32 _scale = (v4f32)__msa_set_w(__msa_load_w(&scale0), __msa_load_w(&scale1), __msa_load_w(&scale2), __msa_load_w(&scale3));
 
             if (elempack == 4)
             {
@@ -2049,23 +2057,17 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     const float* p1 = p0 + A_hstep;
                     const float* p2 = p1 + A_hstep;
                     const float* p3 = p2 + A_hstep;
-                    v4f32 _p0 = (v4f32)__msa_ld_w(p0, 0);
-                    v4f32 _p1 = (v4f32)__msa_ld_w(p1, 0);
-                    v4f32 _p2 = (v4f32)__msa_ld_w(p2, 0);
-                    v4f32 _p3 = (v4f32)__msa_ld_w(p3, 0);
-                    transpose4x4_ps(_p0, _p1, _p2, _p3);
-                    v4f32 _s = (v4f32)__msa_ld_w(ps, 0);
-                    _p0 = __msa_fmul_w(_p0, _s);
-                    _p1 = __msa_fmul_w(_p1, _s);
-                    _p2 = __msa_fmul_w(_p2, _s);
-                    _p3 = __msa_fmul_w(_p3, _s);
-                    _p0 = __msa_fmul_w(_p0, _scale0);
-                    _p1 = __msa_fmul_w(_p1, _scale1);
-                    _p2 = __msa_fmul_w(_p2, _scale2);
-                    _p3 = __msa_fmul_w(_p3, _scale3);
+                    v4f32 _p0 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p0, 0), __msa_fill_w_f32(ps[0])), _scale);
+                    v4f32 _p1 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p1, 0), __msa_fill_w_f32(ps[1])), _scale);
+                    v4f32 _p2 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p2, 0), __msa_fill_w_f32(ps[2])), _scale);
+                    v4f32 _p3 = __msa_fmul_w(__msa_fmul_w((v4f32)__msa_ld_w(p3, 0), __msa_fill_w_f32(ps[3])), _scale);
 
-                    ((int64_t*)pp)[0] = float2int8(_p0, _p1);
-                    ((int64_t*)pp)[1] = float2int8(_p2, _p3);
+                    v16i8 _q0 = float2int8(_p0);
+                    v16i8 _q1 = float2int8(_p1);
+                    v16i8 _q2 = float2int8(_p2);
+                    v16i8 _q3 = float2int8(_p3);
+                    transpose16x4_epi8(_q0, _q1, _q2, _q3);
+                    __msa_st_b(_q0, pp, 0);
                     pp += 16;
                     p0 = p3 + A_hstep;
                     ps += 4;

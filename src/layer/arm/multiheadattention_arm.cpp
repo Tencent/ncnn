@@ -665,7 +665,7 @@ int MultiHeadAttention_arm::create_pipeline(const Option& _opt)
         pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C
         pd.set(11, 0);                  // output_N1M
         pd.set(12, 1);                  // output_elempack
-        pd.set(13, 1);                  // output_elemtype = fp32
+        pd.set(13, opt.use_fp16_storage ? 0 : 1); // output_elemtype = auto/fp32
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
@@ -712,7 +712,7 @@ int MultiHeadAttention_arm::create_pipeline(const Option& _opt)
         pd.set(10, -1); // constant_broadcast_type_C
         pd.set(11, 0);  // output_N1M
         pd.set(12, 1);  // output_elempack
-        pd.set(13, 1);  // output_elemtype = fp32
+        pd.set(13, opt.use_fp16_storage ? 0 : 1); // output_elemtype = auto/fp32
         pd.set(14, 1);  // output_transpose
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
@@ -896,8 +896,6 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
         opt_wq.use_bf16_packed = false;
         opt_wq.use_bf16_storage = false;
     }
-    Option opt_gemm = opt_wq;
-    opt_gemm.blob_allocator = opt.workspace_allocator;
 
     Mat attn_mask_blob_unpacked;
     if (attn_mask && attn_mask_blob.elempack != 1)
@@ -941,13 +939,11 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
     const int past_seqlen = kv_cache && !cached_xk_blob_unpacked.empty() ? cached_xk_blob_unpacked.w : 0;
     const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
 
-    // const int elembits = q_blob.elembits();
-
     size_t elemsize = q_blob.elemsize / q_blob.elempack;
     size_t workspace_elemsize = opt.use_bf16_storage ? 4u : elemsize;
 
     Mat q_affine;
-    int retq = q_gemm->forward(q_blob, q_affine, opt_gemm);
+    int retq = q_gemm->forward(q_blob, q_affine, opt_wq);
     if (retq != 0)
         return retq;
 
@@ -957,7 +953,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
         if (q_blob_i == k_blob_i)
         {
             Mat k_affine_q;
-            int retk = k_gemm->forward(q_blob, k_affine_q, opt_gemm);
+            int retk = k_gemm->forward(q_blob, k_affine_q, opt_wq);
             if (retk != 0)
                 return retk;
 
@@ -985,12 +981,12 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
     }
     else
     {
-        int retk = k_gemm->forward(k_blob, k_affine, kv_cache ? opt_wq : opt_gemm);
+        int retk = k_gemm->forward(k_blob, k_affine, opt_wq);
         if (retk != 0)
             return retk;
     }
 
-    Mat qk_cross(dst_seqlen, src_seqlen * num_heads, workspace_elemsize, opt.workspace_allocator);
+    Mat qk_cross(dst_seqlen, src_seqlen * num_heads, workspace_elemsize, opt.blob_allocator);
     if (qk_cross.empty())
         return -100;
 
@@ -1036,7 +1032,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
         if (q_blob_i == v_blob_i)
         {
             Mat v_affine_q;
-            int retk = v_gemm->forward(v_blob, v_affine_q, opt_gemm);
+            int retk = v_gemm->forward(v_blob, v_affine_q, opt_wq);
             if (retk != 0)
                 return retk;
 
@@ -1064,7 +1060,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
     }
     else
     {
-        int retv = v_gemm->forward(v_blob, v_affine, kv_cache ? opt_wq : opt_gemm);
+        int retv = v_gemm->forward(v_blob, v_affine, opt_wq);
         if (retv != 0)
             return retv;
     }
@@ -1073,13 +1069,13 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
 #if NCNN_BF16
     if (opt.use_bf16_storage && v_affine.elembits() == 16)
     {
-        cast_bfloat16_to_float32(v_affine, v_affine_fp32, opt_gemm);
+        cast_bfloat16_to_float32(v_affine, v_affine_fp32, opt_wq);
         if (v_affine_fp32.empty())
             return -100;
     }
 #endif
 
-    Mat qkv_cross(src_seqlen, embed_dim_per_head * num_heads, workspace_elemsize, opt.workspace_allocator);
+    Mat qkv_cross(src_seqlen, embed_dim_per_head * num_heads, workspace_elemsize, opt.blob_allocator);
     if (qkv_cross.empty())
         return -100;
 

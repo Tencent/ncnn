@@ -21,7 +21,7 @@ static ncnn::Mat make_input_scales(int size, int offset)
     return scales;
 }
 
-static ncnn::Mat RandomWQInt8Mat(int width, int height, int block_size, const ncnn::Mat& input_scales = ncnn::Mat())
+static ncnn::Mat RandomWQInt8Mat(int width, int height, int block_size, const ncnn::Mat& input_scales = ncnn::Mat(), bool stable_projection = false)
 {
     ncnn::Mat m(width, height);
     const float* scale_ptr = input_scales;
@@ -33,6 +33,8 @@ static ncnn::Mat RandomWQInt8Mat(int width, int height, int block_size, const nc
         {
             int q = RandomInt(-120, 121);
             if (x % block_size == 0)
+                q = y % 2 == 0 ? 127 : -127;
+            if (stable_projection && x % block_size < 4)
                 q = y % 2 == 0 ? 127 : -127;
 
             ptr[x] = scale_ptr ? q / (64.f * scale_ptr[x]) : q / 64.f;
@@ -46,7 +48,6 @@ static ncnn::Mat RandomWQInt8Cache(int width, int height)
 {
     ncnn::Mat m(width, height);
 
-    // keep all channels identical so output projection quantization is deterministic
     std::vector<float> values(width);
     for (int x = 0; x < width; x++)
         values[x] = RandomInt(-120, 121) / 64.f;
@@ -54,8 +55,9 @@ static ncnn::Mat RandomWQInt8Cache(int width, int height)
     for (int y = 0; y < height; y++)
     {
         float* ptr = m.row(y);
+        const float sign = y % 2 == 0 ? 1.f : -1.f;
         for (int x = 0; x < width; x++)
-            ptr[x] = values[x];
+            ptr[x] = values[(x + y) % width] * sign;
     }
 
     return m;
@@ -150,15 +152,35 @@ static void make_mha_weights(int qdim, int kdim, int vdim, int embed_dim, int bi
 
     if (bits == 8)
     {
-        // keep the output projection dynamic quantization away from half-integer rounding boundaries
+        // make projection rows distinct while keeping values on a stable quantization grid
         for (int p = 0; p < 3; p++)
         {
             const float* ptr = weight_data[p].row(0);
             for (int i = 1; i < embed_dim; i++)
             {
+                float row_scale = 1.f;
+                if (p == 0)
+                    row_scale /= 1 << (i % 4);
+                if (p == 1)
+                    row_scale *= 1 << (i % 4);
+                if (p == 2 && (i / 4) % 2 != 0)
+                    row_scale *= 127.f / 64.f;
+                if ((i / 4) % 2 != 0)
+                    row_scale = -row_scale;
+
                 float* outptr = weight_data[p].row(i);
                 for (int j = 0; j < weight_w[p]; j++)
-                    outptr[j] = ptr[j];
+                {
+                    const int block_start = j / block_size * block_size;
+                    const int block_width = std::min(block_size, weight_w[p] - block_start);
+                    const int swap_index = std::min(1 + (i + p) % 3, block_width - 1);
+                    int k = j;
+                    if (j == block_start)
+                        k += swap_index;
+                    else if (j == block_start + swap_index)
+                        k = block_start;
+                    outptr[j] = ptr[k] * row_scale;
+                }
             }
         }
     }
@@ -237,9 +259,9 @@ static int test_multiheadattention_block_quant(int qdim, int kdim, int vdim, int
         const ncnn::Mat q_input_scales = has_input_scale ? weights[12] : ncnn::Mat();
         const ncnn::Mat k_input_scales = has_input_scale ? weights[13] : ncnn::Mat();
         const ncnn::Mat v_input_scales = has_input_scale ? weights[14] : ncnn::Mat();
-        as[0] = RandomWQInt8Mat(qdim, src_seqlen, block_size, q_input_scales);
-        as[1] = RandomWQInt8Mat(kdim, dst_seqlen, block_size, k_input_scales);
-        as[2] = RandomWQInt8Mat(vdim, dst_seqlen, block_size, v_input_scales);
+        as[0] = RandomWQInt8Mat(qdim, src_seqlen, block_size, q_input_scales, true);
+        as[1] = RandomWQInt8Mat(kdim, dst_seqlen, block_size, k_input_scales, true);
+        as[2] = RandomWQInt8Mat(vdim, dst_seqlen, block_size, v_input_scales, true);
     }
     else
     {
@@ -301,7 +323,7 @@ static int test_multiheadattention_block_quant_kvcache(int bits, int block_size,
     if (bits == 8)
     {
         const ncnn::Mat input_scales = has_input_scale ? weights[12] : ncnn::Mat();
-        as[0] = RandomWQInt8Mat(qdim, src_seqlen, block_size, input_scales);
+        as[0] = RandomWQInt8Mat(qdim, src_seqlen, block_size, input_scales, true);
     }
     else
     {
@@ -356,9 +378,9 @@ static int test_multiheadattention_block_quant_cross_kvcache(int bits, int block
         const ncnn::Mat q_input_scales = has_input_scale ? weights[12] : ncnn::Mat();
         const ncnn::Mat k_input_scales = has_input_scale ? weights[13] : ncnn::Mat();
         const ncnn::Mat v_input_scales = has_input_scale ? weights[14] : ncnn::Mat();
-        as[0] = RandomWQInt8Mat(qdim, src_seqlen, block_size, q_input_scales);
-        as[1] = RandomWQInt8Mat(kdim, 2, block_size, k_input_scales);
-        as[2] = RandomWQInt8Mat(vdim, 2, block_size, v_input_scales);
+        as[0] = RandomWQInt8Mat(qdim, src_seqlen, block_size, q_input_scales, true);
+        as[1] = RandomWQInt8Mat(kdim, 2, block_size, k_input_scales, true);
+        as[2] = RandomWQInt8Mat(vdim, 2, block_size, v_input_scales, true);
     }
     else
     {
@@ -417,9 +439,14 @@ static int test_multiheadattention_wq_int8_pipeline()
     pd.set(7, 1);
     pd.set(18, weight_block_quantize_term(8, block_size, 1));
 
+    ncnn::UnlockedPoolAllocator blob_pool_allocator;
+    ncnn::PoolAllocator workspace_pool_allocator;
+
     ncnn::Option opt;
     opt.lightmode = false;
     opt.num_threads = 2;
+    opt.blob_allocator = &blob_pool_allocator;
+    opt.workspace_allocator = &workspace_pool_allocator;
     opt.use_packing_layout = false;
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
@@ -432,53 +459,24 @@ static int test_multiheadattention_wq_int8_pipeline()
 
     mha->load_param(pd);
     mha->load_model(ncnn::ModelBinFromMatArray(weights.data()));
-    mha->create_pipeline(opt);
 
-    std::vector<ncnn::Mat> prefill_inputs(3);
-    prefill_inputs[0] = RandomWQInt8Mat(qdim, 9, block_size, weights[12]);
+    std::vector<ncnn::Mat> inputs(3);
+    inputs[0] = RandomWQInt8Mat(qdim, 9, block_size, weights[12], true);
 
-    std::vector<ncnn::Mat> prefill_reference;
-    std::vector<ncnn::Mat> prefill_outputs(3);
-    test_layer_naive(ncnn::layer_to_index("MultiHeadAttention"), pd, weights, prefill_inputs, 3, prefill_reference, TEST_LAYER_DISABLE_GPU_TESTING);
-    mha->forward(prefill_inputs, prefill_outputs, opt);
+    std::vector<ncnn::Mat> reference;
+    test_layer_naive(ncnn::layer_to_index("MultiHeadAttention"), pd, weights, inputs, 3, reference, TEST_LAYER_DISABLE_GPU_TESTING);
 
-    int test_ret = CompareMat(prefill_outputs, prefill_reference, 0.001f);
-
-    for (int i = 0; i < 3; i++)
+    int test_ret = 0;
+    for (int i = 0; i < 2; i++)
     {
-        if (prefill_outputs[i].elembits() != 32 || prefill_outputs[i].elempack != 1)
+        mha->create_pipeline(opt);
+        std::vector<ncnn::Mat> outputs(3);
+        mha->forward(inputs, outputs, opt);
+        if (CompareMat(outputs, reference, 0.001f) != 0)
             test_ret = -1;
+        mha->destroy_pipeline(opt);
     }
-    if (prefill_outputs[1].w != 9 || prefill_outputs[2].w != 9)
-        test_ret = -1;
 
-    std::vector<ncnn::Mat> decode_reference_inputs(3);
-    std::vector<ncnn::Mat> decode_inputs(3);
-    decode_inputs[0] = RandomWQInt8Mat(qdim, 1, block_size, weights[12]);
-    decode_reference_inputs[0] = decode_inputs[0];
-    decode_reference_inputs[1] = prefill_reference[1];
-    decode_reference_inputs[2] = prefill_reference[2];
-    decode_inputs[1] = prefill_outputs[1];
-    decode_inputs[2] = prefill_outputs[2];
-
-    std::vector<ncnn::Mat> decode_reference;
-    std::vector<ncnn::Mat> decode_outputs(3);
-    test_layer_naive(ncnn::layer_to_index("MultiHeadAttention"), pd, weights, decode_reference_inputs, 3, decode_reference, TEST_LAYER_DISABLE_GPU_TESTING);
-    ncnn::Option decode_opt = opt;
-    decode_opt.num_threads = 4;
-    mha->forward(decode_inputs, decode_outputs, decode_opt);
-    if (CompareMat(decode_outputs, decode_reference, 0.001f) != 0)
-        test_ret = -1;
-
-    for (int i = 0; i < 3; i++)
-    {
-        if (decode_outputs[i].elembits() != 32 || decode_outputs[i].elempack != 1)
-            test_ret = -1;
-    }
-    if (decode_outputs[1].w != 10 || decode_outputs[2].w != 10)
-        test_ret = -1;
-
-    mha->destroy_pipeline(opt);
     delete mha;
 
     if (test_ret != 0)

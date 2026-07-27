@@ -2686,34 +2686,34 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
 #if __ARM_FEATURE_MATMUL_INT8
                     for (; kk + 7 < max_kk0; kk += 8)
                     {
-                        uint16x4x4_t _p = vld4_u16(p0);
-                        uint16x4x4_t _q = vld4_u16(p0 + 16);
-                        uint16x4x4_t _r = vld4_u16(p0 + A_hstep * 4);
-                        uint16x4x4_t _s = vld4_u16(p0 + A_hstep * 4 + 16);
-                        int8x8_t _r0 = float2int8(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[0]), _scale0), vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[0]), _scale1));
-                        int8x8_t _r1 = float2int8(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[1]), _scale0), vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[1]), _scale1));
-                        int8x8_t _r2 = float2int8(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[2]), _scale0), vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[2]), _scale1));
-                        int8x8_t _r3 = float2int8(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[3]), _scale0), vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[3]), _scale1));
-                        int8x8_t _r4 = float2int8(vmulq_f32(vcvt_f32_f16((float16x4_t)_r.val[0]), _scale0), vmulq_f32(vcvt_f32_f16((float16x4_t)_s.val[0]), _scale1));
-                        int8x8_t _r5 = float2int8(vmulq_f32(vcvt_f32_f16((float16x4_t)_r.val[1]), _scale0), vmulq_f32(vcvt_f32_f16((float16x4_t)_s.val[1]), _scale1));
-                        int8x8_t _r6 = float2int8(vmulq_f32(vcvt_f32_f16((float16x4_t)_r.val[2]), _scale0), vmulq_f32(vcvt_f32_f16((float16x4_t)_s.val[2]), _scale1));
-                        int8x8_t _r7 = float2int8(vmulq_f32(vcvt_f32_f16((float16x4_t)_r.val[3]), _scale0), vmulq_f32(vcvt_f32_f16((float16x4_t)_s.val[3]), _scale1));
-                        int8x8x2_t _r04 = vzip_s8(_r0, _r4);
-                        int8x8x2_t _r15 = vzip_s8(_r1, _r5);
-                        int8x8x2_t _r26 = vzip_s8(_r2, _r6);
-                        int8x8x2_t _r37 = vzip_s8(_r3, _r7);
-                        int8x8x4_t _r0123;
-                        _r0123.val[0] = _r04.val[0];
-                        _r0123.val[1] = _r15.val[0];
-                        _r0123.val[2] = _r26.val[0];
-                        _r0123.val[3] = _r37.val[0];
-                        int8x8x4_t _r4567;
-                        _r4567.val[0] = _r04.val[1];
-                        _r4567.val[1] = _r15.val[1];
-                        _r4567.val[2] = _r26.val[1];
-                        _r4567.val[3] = _r37.val[1];
-                        vst4_s8(pp, _r0123);
-                        vst4_s8(pp + 32, _r4567);
+                        float32x4_t _p00 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0)), _scale0, 0);
+                        float32x4_t _p01 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4)), _scale0, 0);
+                        float32x4_t _p10 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 4)), _scale0, 1);
+                        float32x4_t _p11 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 4)), _scale0, 1);
+                        int8x8_t _r0 = float2int8(_p00, _p01);
+                        int8x8_t _r1 = float2int8(_p10, _p11);
+                        vst1q_s8(pp, vcombine_s8(_r0, _r1));
+                        float32x4_t _p20 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 8)), _scale0, 2);
+                        float32x4_t _p21 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 8)), _scale0, 2);
+                        float32x4_t _p30 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 12)), _scale0, 3);
+                        float32x4_t _p31 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 12)), _scale0, 3);
+                        int8x8_t _r2 = float2int8(_p20, _p21);
+                        int8x8_t _r3 = float2int8(_p30, _p31);
+                        vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
+                        float32x4_t _p40 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 16)), _scale1, 0);
+                        float32x4_t _p41 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 16)), _scale1, 0);
+                        float32x4_t _p50 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 20)), _scale1, 1);
+                        float32x4_t _p51 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 20)), _scale1, 1);
+                        int8x8_t _r4 = float2int8(_p40, _p41);
+                        int8x8_t _r5 = float2int8(_p50, _p51);
+                        vst1q_s8(pp + 32, vcombine_s8(_r4, _r5));
+                        float32x4_t _p60 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 24)), _scale1, 2);
+                        float32x4_t _p61 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 24)), _scale1, 2);
+                        float32x4_t _p70 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 28)), _scale1, 3);
+                        float32x4_t _p71 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 28)), _scale1, 3);
+                        int8x8_t _r6 = float2int8(_p60, _p61);
+                        int8x8_t _r7 = float2int8(_p70, _p71);
+                        vst1q_s8(pp + 48, vcombine_s8(_r6, _r7));
                         pp += 64;
                         p0 += A_hstep * 8;
                     }
@@ -2721,28 +2721,27 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
 #endif // __ARM_FEATURE_DOTPROD
                     for (; kk + 3 < max_kk0; kk += 4)
                     {
-                        uint16x4x4_t _p = vld4_u16(p0);
-                        uint16x4x4_t _q = vld4_u16(p0 + 16);
-                        int8x8_t _r0 = float2int8(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[0]), _scale0), vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[0]), _scale1));
-                        int8x8_t _r1 = float2int8(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[1]), _scale0), vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[1]), _scale1));
-                        int8x8_t _r2 = float2int8(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[2]), _scale0), vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[2]), _scale1));
-                        int8x8_t _r3 = float2int8(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[3]), _scale0), vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[3]), _scale1));
+                        float32x4_t _p0 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0)), _scale0, 0);
+                        float32x4_t _p1 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 4)), _scale0, 1);
+                        float32x4_t _p2 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 8)), _scale0, 2);
+                        float32x4_t _p3 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 12)), _scale0, 3);
+                        float32x4_t _p4 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 16)), _scale1, 0);
+                        float32x4_t _p5 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 20)), _scale1, 1);
+                        float32x4_t _p6 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 24)), _scale1, 2);
+                        float32x4_t _p7 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 28)), _scale1, 3);
+                        int8x8_t _r0 = float2int8(_p0, _p1);
+                        int8x8_t _r1 = float2int8(_p2, _p3);
+                        int8x8_t _r2 = float2int8(_p4, _p5);
+                        int8x8_t _r3 = float2int8(_p6, _p7);
 #if __ARM_FEATURE_DOTPROD
-                        int8x8x4_t _r0123;
-                        _r0123.val[0] = _r0;
-                        _r0123.val[1] = _r1;
-                        _r0123.val[2] = _r2;
-                        _r0123.val[3] = _r3;
-                        vst4_s8(pp, _r0123);
+                        vst1q_s8(pp, vcombine_s8(_r0, _r1));
+                        vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
 #else
-                        int8x8x2_t _r01;
-                        _r01.val[0] = _r0;
-                        _r01.val[1] = _r1;
-                        int8x8x2_t _r23;
-                        _r23.val[0] = _r2;
-                        _r23.val[1] = _r3;
-                        vst2_s8(pp, _r01);
-                        vst2_s8(pp + 16, _r23);
+                        int16x8_t _r01 = vreinterpretq_s16_s8(vcombine_s8(_r0, _r1));
+                        int16x8_t _r23 = vreinterpretq_s16_s8(vcombine_s8(_r2, _r3));
+                        int16x8x2_t _rr = vuzpq_s16(_r01, _r23);
+                        vst1q_s8(pp, vreinterpretq_s8_s16(_rr.val[0]));
+                        vst1q_s8(pp + 16, vreinterpretq_s8_s16(_rr.val[1]));
 #endif
                         pp += 32;
                         p0 += A_hstep * 4;
@@ -3059,26 +3058,20 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
 #if __ARM_FEATURE_MATMUL_INT8
                     for (; kk + 7 < max_kk0; kk += 8)
                     {
-                        uint16x4x4_t _p = vld4_u16(p0);
-                        uint16x4x4_t _q = vld4_u16(p0 + A_hstep * 4);
-                        float32x4_t _p0 = vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[0]), _scale);
-                        float32x4_t _p1 = vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[1]), _scale);
-                        float32x4_t _p2 = vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[2]), _scale);
-                        float32x4_t _p3 = vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[3]), _scale);
-                        float32x4_t _p4 = vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[0]), _scale);
-                        float32x4_t _p5 = vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[1]), _scale);
-                        float32x4_t _p6 = vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[2]), _scale);
-                        float32x4_t _p7 = vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[3]), _scale);
-                        float32x4x2_t _p04 = vzipq_f32(_p0, _p4);
-                        float32x4x2_t _p15 = vzipq_f32(_p1, _p5);
-                        float32x4x2_t _p26 = vzipq_f32(_p2, _p6);
-                        float32x4x2_t _p37 = vzipq_f32(_p3, _p7);
-                        int8x8x4_t _r0123;
-                        _r0123.val[0] = float2int8(_p04.val[0], _p04.val[1]);
-                        _r0123.val[1] = float2int8(_p15.val[0], _p15.val[1]);
-                        _r0123.val[2] = float2int8(_p26.val[0], _p26.val[1]);
-                        _r0123.val[3] = float2int8(_p37.val[0], _p37.val[1]);
-                        vst4_s8(pp, _r0123);
+                        float32x4_t _p00 = vmulq_n_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0)), vgetq_lane_f32(_scale, 0));
+                        float32x4_t _p01 = vmulq_n_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4)), vgetq_lane_f32(_scale, 0));
+                        float32x4_t _p10 = vmulq_n_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 4)), vgetq_lane_f32(_scale, 1));
+                        float32x4_t _p11 = vmulq_n_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 4)), vgetq_lane_f32(_scale, 1));
+                        int8x8_t _r0 = float2int8(_p00, _p01);
+                        int8x8_t _r1 = float2int8(_p10, _p11);
+                        vst1q_s8(pp, vcombine_s8(_r0, _r1));
+                        float32x4_t _p20 = vmulq_n_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 8)), vgetq_lane_f32(_scale, 2));
+                        float32x4_t _p21 = vmulq_n_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 8)), vgetq_lane_f32(_scale, 2));
+                        float32x4_t _p30 = vmulq_n_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 12)), vgetq_lane_f32(_scale, 3));
+                        float32x4_t _p31 = vmulq_n_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 12)), vgetq_lane_f32(_scale, 3));
+                        int8x8_t _r2 = float2int8(_p20, _p21);
+                        int8x8_t _r3 = float2int8(_p30, _p31);
+                        vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
                         pp += 32;
                         p0 += A_hstep * 8;
                     }
@@ -3086,23 +3079,18 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
 #endif // __ARM_FEATURE_DOTPROD
                     for (; kk + 3 < max_kk0; kk += 4)
                     {
-                        uint16x4x4_t _p = vld4_u16(p0);
-                        float32x4_t _p0 = vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[0]), _scale);
-                        float32x4_t _p1 = vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[1]), _scale);
-                        float32x4_t _p2 = vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[2]), _scale);
-                        float32x4_t _p3 = vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[3]), _scale);
+                        float32x4_t _p0 = vmulq_n_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0)), vgetq_lane_f32(_scale, 0));
+                        float32x4_t _p1 = vmulq_n_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 4)), vgetq_lane_f32(_scale, 1));
+                        float32x4_t _p2 = vmulq_n_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 8)), vgetq_lane_f32(_scale, 2));
+                        float32x4_t _p3 = vmulq_n_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 12)), vgetq_lane_f32(_scale, 3));
+                        int8x8_t _r0 = float2int8(_p0, _p1);
+                        int8x8_t _r1 = float2int8(_p2, _p3);
 #if __ARM_FEATURE_DOTPROD
-                        transpose4x4_ps(_p0, _p1, _p2, _p3);
-                        int8x8_t _r01 = float2int8(_p0, _p1);
-                        int8x8_t _r23 = float2int8(_p2, _p3);
-                        vst1q_s8(pp, vcombine_s8(_r01, _r23));
+                        vst1q_s8(pp, vcombine_s8(_r0, _r1));
 #else
-                        int8x8_t _r01 = float2int8(_p0, _p1);
-                        int8x8_t _r23 = float2int8(_p2, _p3);
-                        int8x8_t _r10 = vext_s8(_r01, _r01, 4);
-                        int8x8_t _r32 = vext_s8(_r23, _r23, 4);
-                        vst1_s8(pp, vzip_s8(_r01, _r10).val[0]);
-                        vst1_s8(pp + 8, vzip_s8(_r23, _r32).val[0]);
+                        int16x8_t _r01 = vreinterpretq_s16_s8(vcombine_s8(_r0, _r1));
+                        int16x8x2_t _rr = vuzpq_s16(_r01, _r01);
+                        vst1q_s8(pp, vreinterpretq_s8_s16(vcombine_s16(vget_low_s16(_rr.val[0]), vget_low_s16(_rr.val[1]))));
 #endif
                         pp += 16;
                         p0 += A_hstep * 4;
@@ -3825,34 +3813,36 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
 #if __ARM_FEATURE_MATMUL_INT8
                 for (; kk + 7 < max_kk0; kk += 8)
                 {
-                    uint16x4x4_t _p = vld4_u16(p0);
-                    uint16x4x4_t _q = vld4_u16(p0 + 16);
-                    uint16x4x4_t _r = vld4_u16(p0 + A_hstep * 4);
-                    uint16x4x4_t _s = vld4_u16(p0 + A_hstep * 4 + 16);
-                    int8x8_t _r0 = float2int8(vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[0]), _scale0), ps[0]), vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[0]), _scale1), ps[0]));
-                    int8x8_t _r1 = float2int8(vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[1]), _scale0), ps[1]), vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[1]), _scale1), ps[1]));
-                    int8x8_t _r2 = float2int8(vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[2]), _scale0), ps[2]), vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[2]), _scale1), ps[2]));
-                    int8x8_t _r3 = float2int8(vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[3]), _scale0), ps[3]), vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[3]), _scale1), ps[3]));
-                    int8x8_t _r4 = float2int8(vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_r.val[0]), _scale0), ps[4]), vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_s.val[0]), _scale1), ps[4]));
-                    int8x8_t _r5 = float2int8(vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_r.val[1]), _scale0), ps[5]), vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_s.val[1]), _scale1), ps[5]));
-                    int8x8_t _r6 = float2int8(vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_r.val[2]), _scale0), ps[6]), vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_s.val[2]), _scale1), ps[6]));
-                    int8x8_t _r7 = float2int8(vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_r.val[3]), _scale0), ps[7]), vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_s.val[3]), _scale1), ps[7]));
-                    int8x8x2_t _r04 = vzip_s8(_r0, _r4);
-                    int8x8x2_t _r15 = vzip_s8(_r1, _r5);
-                    int8x8x2_t _r26 = vzip_s8(_r2, _r6);
-                    int8x8x2_t _r37 = vzip_s8(_r3, _r7);
-                    int8x8x4_t _r0123;
-                    _r0123.val[0] = _r04.val[0];
-                    _r0123.val[1] = _r15.val[0];
-                    _r0123.val[2] = _r26.val[0];
-                    _r0123.val[3] = _r37.val[0];
-                    int8x8x4_t _r4567;
-                    _r4567.val[0] = _r04.val[1];
-                    _r4567.val[1] = _r15.val[1];
-                    _r4567.val[2] = _r26.val[1];
-                    _r4567.val[3] = _r37.val[1];
-                    vst4_s8(pp, _r0123);
-                    vst4_s8(pp + 32, _r4567);
+                    float32x4_t _s0 = vld1q_f32(ps);
+                    float32x4_t _s1 = vld1q_f32(ps + 4);
+                    float32x4_t _p00 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0)), _s0), _scale0, 0);
+                    float32x4_t _p01 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4)), _s1), _scale0, 0);
+                    float32x4_t _p10 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 4)), _s0), _scale0, 1);
+                    float32x4_t _p11 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 4)), _s1), _scale0, 1);
+                    int8x8_t _r0 = float2int8(_p00, _p01);
+                    int8x8_t _r1 = float2int8(_p10, _p11);
+                    vst1q_s8(pp, vcombine_s8(_r0, _r1));
+                    float32x4_t _p20 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 8)), _s0), _scale0, 2);
+                    float32x4_t _p21 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 8)), _s1), _scale0, 2);
+                    float32x4_t _p30 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 12)), _s0), _scale0, 3);
+                    float32x4_t _p31 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 12)), _s1), _scale0, 3);
+                    int8x8_t _r2 = float2int8(_p20, _p21);
+                    int8x8_t _r3 = float2int8(_p30, _p31);
+                    vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
+                    float32x4_t _p40 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 16)), _s0), _scale1, 0);
+                    float32x4_t _p41 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 16)), _s1), _scale1, 0);
+                    float32x4_t _p50 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 20)), _s0), _scale1, 1);
+                    float32x4_t _p51 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 20)), _s1), _scale1, 1);
+                    int8x8_t _r4 = float2int8(_p40, _p41);
+                    int8x8_t _r5 = float2int8(_p50, _p51);
+                    vst1q_s8(pp + 32, vcombine_s8(_r4, _r5));
+                    float32x4_t _p60 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 24)), _s0), _scale1, 2);
+                    float32x4_t _p61 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 24)), _s1), _scale1, 2);
+                    float32x4_t _p70 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 28)), _s0), _scale1, 3);
+                    float32x4_t _p71 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 28)), _s1), _scale1, 3);
+                    int8x8_t _r6 = float2int8(_p60, _p61);
+                    int8x8_t _r7 = float2int8(_p70, _p71);
+                    vst1q_s8(pp + 48, vcombine_s8(_r6, _r7));
                     pp += 64;
                     p0 += A_hstep * 8;
                     ps += 8;
@@ -3861,28 +3851,28 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    uint16x4x4_t _p = vld4_u16(p0);
-                    uint16x4x4_t _q = vld4_u16(p0 + 16);
-                    int8x8_t _r0 = float2int8(vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[0]), _scale0), ps[0]), vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[0]), _scale1), ps[0]));
-                    int8x8_t _r1 = float2int8(vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[1]), _scale0), ps[1]), vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[1]), _scale1), ps[1]));
-                    int8x8_t _r2 = float2int8(vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[2]), _scale0), ps[2]), vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[2]), _scale1), ps[2]));
-                    int8x8_t _r3 = float2int8(vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[3]), _scale0), ps[3]), vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[3]), _scale1), ps[3]));
+                    float32x4_t _s = vld1q_f32(ps);
+                    float32x4_t _p0 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0)), _s), _scale0, 0);
+                    float32x4_t _p1 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 4)), _s), _scale0, 1);
+                    float32x4_t _p2 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 8)), _s), _scale0, 2);
+                    float32x4_t _p3 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 12)), _s), _scale0, 3);
+                    float32x4_t _p4 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 16)), _s), _scale1, 0);
+                    float32x4_t _p5 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 20)), _s), _scale1, 1);
+                    float32x4_t _p6 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 24)), _s), _scale1, 2);
+                    float32x4_t _p7 = vmulq_laneq_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 28)), _s), _scale1, 3);
+                    int8x8_t _r0 = float2int8(_p0, _p1);
+                    int8x8_t _r1 = float2int8(_p2, _p3);
+                    int8x8_t _r2 = float2int8(_p4, _p5);
+                    int8x8_t _r3 = float2int8(_p6, _p7);
 #if __ARM_FEATURE_DOTPROD
-                    int8x8x4_t _r0123;
-                    _r0123.val[0] = _r0;
-                    _r0123.val[1] = _r1;
-                    _r0123.val[2] = _r2;
-                    _r0123.val[3] = _r3;
-                    vst4_s8(pp, _r0123);
+                    vst1q_s8(pp, vcombine_s8(_r0, _r1));
+                    vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
 #else
-                    int8x8x2_t _r01;
-                    _r01.val[0] = _r0;
-                    _r01.val[1] = _r1;
-                    int8x8x2_t _r23;
-                    _r23.val[0] = _r2;
-                    _r23.val[1] = _r3;
-                    vst2_s8(pp, _r01);
-                    vst2_s8(pp + 16, _r23);
+                    int16x8_t _r01 = vreinterpretq_s16_s8(vcombine_s8(_r0, _r1));
+                    int16x8_t _r23 = vreinterpretq_s16_s8(vcombine_s8(_r2, _r3));
+                    int16x8x2_t _rr = vuzpq_s16(_r01, _r23);
+                    vst1q_s8(pp, vreinterpretq_s8_s16(_rr.val[0]));
+                    vst1q_s8(pp + 16, vreinterpretq_s8_s16(_rr.val[1]));
 #endif
                     pp += 32;
                     p0 += A_hstep * 4;
@@ -4251,26 +4241,22 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
 #if __ARM_FEATURE_MATMUL_INT8
                 for (; kk + 7 < max_kk0; kk += 8)
                 {
-                    uint16x4x4_t _p = vld4_u16(p0);
-                    uint16x4x4_t _q = vld4_u16(p0 + A_hstep * 4);
-                    float32x4_t _p0 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[0]), _scale), ps[0]);
-                    float32x4_t _p1 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[1]), _scale), ps[1]);
-                    float32x4_t _p2 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[2]), _scale), ps[2]);
-                    float32x4_t _p3 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[3]), _scale), ps[3]);
-                    float32x4_t _p4 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[0]), _scale), ps[4]);
-                    float32x4_t _p5 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[1]), _scale), ps[5]);
-                    float32x4_t _p6 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[2]), _scale), ps[6]);
-                    float32x4_t _p7 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[3]), _scale), ps[7]);
-                    float32x4x2_t _p04 = vzipq_f32(_p0, _p4);
-                    float32x4x2_t _p15 = vzipq_f32(_p1, _p5);
-                    float32x4x2_t _p26 = vzipq_f32(_p2, _p6);
-                    float32x4x2_t _p37 = vzipq_f32(_p3, _p7);
-                    int8x8x4_t _r0123;
-                    _r0123.val[0] = float2int8(_p04.val[0], _p04.val[1]);
-                    _r0123.val[1] = float2int8(_p15.val[0], _p15.val[1]);
-                    _r0123.val[2] = float2int8(_p26.val[0], _p26.val[1]);
-                    _r0123.val[3] = float2int8(_p37.val[0], _p37.val[1]);
-                    vst4_s8(pp, _r0123);
+                    float32x4_t _s0 = vld1q_f32(ps);
+                    float32x4_t _s1 = vld1q_f32(ps + 4);
+                    float32x4_t _p00 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0)), _s0), vgetq_lane_f32(_scale, 0));
+                    float32x4_t _p01 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4)), _s1), vgetq_lane_f32(_scale, 0));
+                    float32x4_t _p10 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 4)), _s0), vgetq_lane_f32(_scale, 1));
+                    float32x4_t _p11 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 4)), _s1), vgetq_lane_f32(_scale, 1));
+                    int8x8_t _r0 = float2int8(_p00, _p01);
+                    int8x8_t _r1 = float2int8(_p10, _p11);
+                    vst1q_s8(pp, vcombine_s8(_r0, _r1));
+                    float32x4_t _p20 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 8)), _s0), vgetq_lane_f32(_scale, 2));
+                    float32x4_t _p21 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 8)), _s1), vgetq_lane_f32(_scale, 2));
+                    float32x4_t _p30 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 12)), _s0), vgetq_lane_f32(_scale, 3));
+                    float32x4_t _p31 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4 + 12)), _s1), vgetq_lane_f32(_scale, 3));
+                    int8x8_t _r2 = float2int8(_p20, _p21);
+                    int8x8_t _r3 = float2int8(_p30, _p31);
+                    vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
                     pp += 32;
                     p0 += A_hstep * 8;
                     ps += 8;
@@ -4279,23 +4265,19 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
 #endif // __ARM_FEATURE_DOTPROD
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    uint16x4x4_t _p = vld4_u16(p0);
-                    float32x4_t _p0 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[0]), _scale), ps[0]);
-                    float32x4_t _p1 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[1]), _scale), ps[1]);
-                    float32x4_t _p2 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[2]), _scale), ps[2]);
-                    float32x4_t _p3 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[3]), _scale), ps[3]);
+                    float32x4_t _s = vld1q_f32(ps);
+                    float32x4_t _p0 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0)), _s), vgetq_lane_f32(_scale, 0));
+                    float32x4_t _p1 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 4)), _s), vgetq_lane_f32(_scale, 1));
+                    float32x4_t _p2 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 8)), _s), vgetq_lane_f32(_scale, 2));
+                    float32x4_t _p3 = vmulq_n_f32(vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + 12)), _s), vgetq_lane_f32(_scale, 3));
+                    int8x8_t _r0 = float2int8(_p0, _p1);
+                    int8x8_t _r1 = float2int8(_p2, _p3);
 #if __ARM_FEATURE_DOTPROD
-                    transpose4x4_ps(_p0, _p1, _p2, _p3);
-                    int8x8_t _r01 = float2int8(_p0, _p1);
-                    int8x8_t _r23 = float2int8(_p2, _p3);
-                    vst1q_s8(pp, vcombine_s8(_r01, _r23));
+                    vst1q_s8(pp, vcombine_s8(_r0, _r1));
 #else
-                    int8x8_t _r01 = float2int8(_p0, _p1);
-                    int8x8_t _r23 = float2int8(_p2, _p3);
-                    int8x8_t _r10 = vext_s8(_r01, _r01, 4);
-                    int8x8_t _r32 = vext_s8(_r23, _r23, 4);
-                    vst1_s8(pp, vzip_s8(_r01, _r10).val[0]);
-                    vst1_s8(pp + 8, vzip_s8(_r23, _r32).val[0]);
+                    int16x8_t _r01 = vreinterpretq_s16_s8(vcombine_s8(_r0, _r1));
+                    int16x8x2_t _rr = vuzpq_s16(_r01, _r01);
+                    vst1q_s8(pp, vreinterpretq_s8_s16(vcombine_s16(vget_low_s16(_rr.val[0]), vget_low_s16(_rr.val[1]))));
 #endif
                     pp += 16;
                     p0 += A_hstep * 4;

@@ -73,14 +73,8 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     pd[7] = absmax7 / 127.f;
                     pd += 8;
 
-                    __m128 _scale0 = __lsx_vreplfr2vr_s(scale0);
-                    __m128 _scale1 = __lsx_vreplfr2vr_s(scale1);
-                    __m128 _scale2 = __lsx_vreplfr2vr_s(scale2);
-                    __m128 _scale3 = __lsx_vreplfr2vr_s(scale3);
-                    __m128 _scale4 = __lsx_vreplfr2vr_s(scale4);
-                    __m128 _scale5 = __lsx_vreplfr2vr_s(scale5);
-                    __m128 _scale6 = __lsx_vreplfr2vr_s(scale6);
-                    __m128 _scale7 = __lsx_vreplfr2vr_s(scale7);
+                    __m128 _scale03 = {scale0, scale1, scale2, scale3};
+                    __m128 _scale47 = {scale4, scale5, scale6, scale7};
 
                     int kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
@@ -89,26 +83,24 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         __m128 _p1 = bfloat2float_lsx(p0 + 8);
                         __m128 _p2 = bfloat2float_lsx(p0 + 16);
                         __m128 _p3 = bfloat2float_lsx(p0 + 24);
-                        transpose4x4_ps(_p0, _p1, _p2, _p3);
-                        _p0 = __lsx_vfmul_s(_p0, _scale0);
-                        _p1 = __lsx_vfmul_s(_p1, _scale1);
-                        _p2 = __lsx_vfmul_s(_p2, _scale2);
-                        _p3 = __lsx_vfmul_s(_p3, _scale3);
-
                         __m128 _p4 = bfloat2float_lsx(p0 + 4);
                         __m128 _p5 = bfloat2float_lsx(p0 + 12);
                         __m128 _p6 = bfloat2float_lsx(p0 + 20);
                         __m128 _p7 = bfloat2float_lsx(p0 + 28);
-                        transpose4x4_ps(_p4, _p5, _p6, _p7);
-                        _p4 = __lsx_vfmul_s(_p4, _scale4);
-                        _p5 = __lsx_vfmul_s(_p5, _scale5);
-                        _p6 = __lsx_vfmul_s(_p6, _scale6);
-                        _p7 = __lsx_vfmul_s(_p7, _scale7);
-
-                        ((int64_t*)pp)[0] = float2int8(_p0, _p1);
-                        ((int64_t*)pp)[1] = float2int8(_p2, _p3);
-                        ((int64_t*)pp)[2] = float2int8(_p4, _p5);
-                        ((int64_t*)pp)[3] = float2int8(_p6, _p7);
+                        __m128i _q0 = float2int8(__lsx_vfmul_s(_p0, _scale03));
+                        __m128i _q1 = float2int8(__lsx_vfmul_s(_p1, _scale03));
+                        __m128i _q2 = float2int8(__lsx_vfmul_s(_p2, _scale03));
+                        __m128i _q3 = float2int8(__lsx_vfmul_s(_p3, _scale03));
+                        __m128i _q01 = __lsx_vilvl_b(_q1, _q0);
+                        __m128i _q23 = __lsx_vilvl_b(_q3, _q2);
+                        __lsx_vst(__lsx_vilvl_h(_q23, _q01), pp, 0);
+                        _q0 = float2int8(__lsx_vfmul_s(_p4, _scale47));
+                        _q1 = float2int8(__lsx_vfmul_s(_p5, _scale47));
+                        _q2 = float2int8(__lsx_vfmul_s(_p6, _scale47));
+                        _q3 = float2int8(__lsx_vfmul_s(_p7, _scale47));
+                        _q01 = __lsx_vilvl_b(_q1, _q0);
+                        _q23 = __lsx_vilvl_b(_q3, _q2);
+                        __lsx_vst(__lsx_vilvl_h(_q23, _q01), pp + 16, 0);
                         pp += 32;
                         p0 += 32;
                     }
@@ -116,10 +108,8 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     {
                         __m128 _p0 = bfloat2float_lsx(p0);
                         __m128 _p1 = bfloat2float_lsx(p0 + 4);
-                        __m128 _scale0123 = {scale0, scale1, scale2, scale3};
-                        __m128 _scale4567 = {scale4, scale5, scale6, scale7};
-                        _p0 = __lsx_vfmul_s(_p0, _scale0123);
-                        _p1 = __lsx_vfmul_s(_p1, _scale4567);
+                        _p0 = __lsx_vfmul_s(_p0, _scale03);
+                        _p1 = __lsx_vfmul_s(_p1, _scale47);
                         __m128i _q0 = float2int8(_p0);
                         __m128i _q1 = float2int8(_p1);
                         ((int*)pp)[0] = __lsx_vpickve2gr_w((__m128i)_q0, 0);
@@ -187,14 +177,8 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     pd[7] = absmax7 / 127.f;
                     pd += 8;
 
-                    __m128 _scale0 = __lsx_vreplfr2vr_s(scale0);
-                    __m128 _scale1 = __lsx_vreplfr2vr_s(scale1);
-                    __m128 _scale2 = __lsx_vreplfr2vr_s(scale2);
-                    __m128 _scale3 = __lsx_vreplfr2vr_s(scale3);
-                    __m128 _scale4 = __lsx_vreplfr2vr_s(scale4);
-                    __m128 _scale5 = __lsx_vreplfr2vr_s(scale5);
-                    __m128 _scale6 = __lsx_vreplfr2vr_s(scale6);
-                    __m128 _scale7 = __lsx_vreplfr2vr_s(scale7);
+                    __m128 _scale03 = {scale0, scale1, scale2, scale3};
+                    __m128 _scale47 = {scale4, scale5, scale6, scale7};
 
                     int kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
@@ -203,26 +187,24 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         __m128 _p1 = bfloat2float_lsx(p0 + 4);
                         __m128 _p2 = bfloat2float_lsx(p0 + 8);
                         __m128 _p3 = bfloat2float_lsx(p0 + 12);
-                        transpose4x4_ps(_p0, _p1, _p2, _p3);
-                        _p0 = __lsx_vfmul_s(_p0, _scale0);
-                        _p1 = __lsx_vfmul_s(_p1, _scale1);
-                        _p2 = __lsx_vfmul_s(_p2, _scale2);
-                        _p3 = __lsx_vfmul_s(_p3, _scale3);
-
                         __m128 _p4 = bfloat2float_lsx(p1);
                         __m128 _p5 = bfloat2float_lsx(p1 + 4);
                         __m128 _p6 = bfloat2float_lsx(p1 + 8);
                         __m128 _p7 = bfloat2float_lsx(p1 + 12);
-                        transpose4x4_ps(_p4, _p5, _p6, _p7);
-                        _p4 = __lsx_vfmul_s(_p4, _scale4);
-                        _p5 = __lsx_vfmul_s(_p5, _scale5);
-                        _p6 = __lsx_vfmul_s(_p6, _scale6);
-                        _p7 = __lsx_vfmul_s(_p7, _scale7);
-
-                        ((int64_t*)pp)[0] = float2int8(_p0, _p1);
-                        ((int64_t*)pp)[1] = float2int8(_p2, _p3);
-                        ((int64_t*)pp)[2] = float2int8(_p4, _p5);
-                        ((int64_t*)pp)[3] = float2int8(_p6, _p7);
+                        __m128i _q0 = float2int8(__lsx_vfmul_s(_p0, _scale03));
+                        __m128i _q1 = float2int8(__lsx_vfmul_s(_p1, _scale03));
+                        __m128i _q2 = float2int8(__lsx_vfmul_s(_p2, _scale03));
+                        __m128i _q3 = float2int8(__lsx_vfmul_s(_p3, _scale03));
+                        __m128i _q01 = __lsx_vilvl_b(_q1, _q0);
+                        __m128i _q23 = __lsx_vilvl_b(_q3, _q2);
+                        __lsx_vst(__lsx_vilvl_h(_q23, _q01), pp, 0);
+                        _q0 = float2int8(__lsx_vfmul_s(_p4, _scale47));
+                        _q1 = float2int8(__lsx_vfmul_s(_p5, _scale47));
+                        _q2 = float2int8(__lsx_vfmul_s(_p6, _scale47));
+                        _q3 = float2int8(__lsx_vfmul_s(_p7, _scale47));
+                        _q01 = __lsx_vilvl_b(_q1, _q0);
+                        _q23 = __lsx_vilvl_b(_q3, _q2);
+                        __lsx_vst(__lsx_vilvl_h(_q23, _q01), pp + 16, 0);
                         pp += 32;
                         p0 += 16;
                         p1 += 16;
@@ -231,10 +213,8 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     {
                         __m128 _p0 = bfloat2float_lsx(p0);
                         __m128 _p1 = bfloat2float_lsx(p1);
-                        __m128 _scale0123 = {scale0, scale1, scale2, scale3};
-                        __m128 _scale4567 = {scale4, scale5, scale6, scale7};
-                        _p0 = __lsx_vfmul_s(_p0, _scale0123);
-                        _p1 = __lsx_vfmul_s(_p1, _scale4567);
+                        _p0 = __lsx_vfmul_s(_p0, _scale03);
+                        _p1 = __lsx_vfmul_s(_p1, _scale47);
                         __m128i _q0 = float2int8(_p0);
                         __m128i _q1 = float2int8(_p1);
                         ((int*)pp)[0] = __lsx_vpickve2gr_w((__m128i)_q0, 0);
@@ -511,10 +491,14 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         __m128 _p1 = __lsx_vfmul_s(bfloat2float_lsx(p0 + 4), _scale);
                         __m128 _p2 = __lsx_vfmul_s(bfloat2float_lsx(p0 + 8), _scale);
                         __m128 _p3 = __lsx_vfmul_s(bfloat2float_lsx(p0 + 12), _scale);
-                        transpose4x4_ps(_p0, _p1, _p2, _p3);
 
-                        ((int64_t*)pp)[0] = float2int8(_p0, _p1);
-                        ((int64_t*)pp)[1] = float2int8(_p2, _p3);
+                        __m128i _q0 = float2int8(_p0);
+                        __m128i _q1 = float2int8(_p1);
+                        __m128i _q2 = float2int8(_p2);
+                        __m128i _q3 = float2int8(_p3);
+                        __m128i _q01 = __lsx_vilvl_b(_q1, _q0);
+                        __m128i _q23 = __lsx_vilvl_b(_q3, _q2);
+                        __lsx_vst(__lsx_vilvl_h(_q23, _q01), pp, 0);
                         pp += 16;
                         p0 += 16;
                     }
@@ -734,14 +718,8 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                 pd[7] = absmax7 / 127.f;
                 pd += 8;
 
-                __m128 _scale0 = __lsx_vreplfr2vr_s(scale0);
-                __m128 _scale1 = __lsx_vreplfr2vr_s(scale1);
-                __m128 _scale2 = __lsx_vreplfr2vr_s(scale2);
-                __m128 _scale3 = __lsx_vreplfr2vr_s(scale3);
-                __m128 _scale4 = __lsx_vreplfr2vr_s(scale4);
-                __m128 _scale5 = __lsx_vreplfr2vr_s(scale5);
-                __m128 _scale6 = __lsx_vreplfr2vr_s(scale6);
-                __m128 _scale7 = __lsx_vreplfr2vr_s(scale7);
+                __m128 _scale03 = {scale0, scale1, scale2, scale3};
+                __m128 _scale47 = {scale4, scale5, scale6, scale7};
 
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
@@ -750,26 +728,24 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     __m128 _p1 = __lsx_vfmul_s(bfloat2float_lsx(p0 + 8), __lsx_vreplfr2vr_s(ps[1]));
                     __m128 _p2 = __lsx_vfmul_s(bfloat2float_lsx(p0 + 16), __lsx_vreplfr2vr_s(ps[2]));
                     __m128 _p3 = __lsx_vfmul_s(bfloat2float_lsx(p0 + 24), __lsx_vreplfr2vr_s(ps[3]));
-                    transpose4x4_ps(_p0, _p1, _p2, _p3);
-                    _p0 = __lsx_vfmul_s(_p0, _scale0);
-                    _p1 = __lsx_vfmul_s(_p1, _scale1);
-                    _p2 = __lsx_vfmul_s(_p2, _scale2);
-                    _p3 = __lsx_vfmul_s(_p3, _scale3);
-
                     __m128 _p4 = __lsx_vfmul_s(bfloat2float_lsx(p0 + 4), __lsx_vreplfr2vr_s(ps[0]));
                     __m128 _p5 = __lsx_vfmul_s(bfloat2float_lsx(p0 + 12), __lsx_vreplfr2vr_s(ps[1]));
                     __m128 _p6 = __lsx_vfmul_s(bfloat2float_lsx(p0 + 20), __lsx_vreplfr2vr_s(ps[2]));
                     __m128 _p7 = __lsx_vfmul_s(bfloat2float_lsx(p0 + 28), __lsx_vreplfr2vr_s(ps[3]));
-                    transpose4x4_ps(_p4, _p5, _p6, _p7);
-                    _p4 = __lsx_vfmul_s(_p4, _scale4);
-                    _p5 = __lsx_vfmul_s(_p5, _scale5);
-                    _p6 = __lsx_vfmul_s(_p6, _scale6);
-                    _p7 = __lsx_vfmul_s(_p7, _scale7);
-
-                    ((int64_t*)pp)[0] = float2int8(_p0, _p1);
-                    ((int64_t*)pp)[1] = float2int8(_p2, _p3);
-                    ((int64_t*)pp)[2] = float2int8(_p4, _p5);
-                    ((int64_t*)pp)[3] = float2int8(_p6, _p7);
+                    __m128i _q0 = float2int8(__lsx_vfmul_s(_p0, _scale03));
+                    __m128i _q1 = float2int8(__lsx_vfmul_s(_p1, _scale03));
+                    __m128i _q2 = float2int8(__lsx_vfmul_s(_p2, _scale03));
+                    __m128i _q3 = float2int8(__lsx_vfmul_s(_p3, _scale03));
+                    __m128i _q01 = __lsx_vilvl_b(_q1, _q0);
+                    __m128i _q23 = __lsx_vilvl_b(_q3, _q2);
+                    __lsx_vst(__lsx_vilvl_h(_q23, _q01), pp, 0);
+                    _q0 = float2int8(__lsx_vfmul_s(_p4, _scale47));
+                    _q1 = float2int8(__lsx_vfmul_s(_p5, _scale47));
+                    _q2 = float2int8(__lsx_vfmul_s(_p6, _scale47));
+                    _q3 = float2int8(__lsx_vfmul_s(_p7, _scale47));
+                    _q01 = __lsx_vilvl_b(_q1, _q0);
+                    _q23 = __lsx_vilvl_b(_q3, _q2);
+                    __lsx_vst(__lsx_vilvl_h(_q23, _q01), pp + 16, 0);
                     pp += 32;
                     p0 += 32;
                     ps += 4;
@@ -779,10 +755,8 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     __m128 _s = __lsx_vreplfr2vr_s(*ps++);
                     __m128 _p0 = __lsx_vfmul_s(bfloat2float_lsx(p0), _s);
                     __m128 _p1 = __lsx_vfmul_s(bfloat2float_lsx(p0 + 4), _s);
-                    __m128 _scale0123 = {scale0, scale1, scale2, scale3};
-                    __m128 _scale4567 = {scale4, scale5, scale6, scale7};
-                    __m128i _q0 = float2int8(__lsx_vfmul_s(_p0, _scale0123));
-                    __m128i _q1 = float2int8(__lsx_vfmul_s(_p1, _scale4567));
+                    __m128i _q0 = float2int8(__lsx_vfmul_s(_p0, _scale03));
+                    __m128i _q1 = float2int8(__lsx_vfmul_s(_p1, _scale47));
                     ((int*)pp)[0] = __lsx_vpickve2gr_w((__m128i)_q0, 0);
                     ((int*)pp)[1] = __lsx_vpickve2gr_w((__m128i)_q1, 0);
                     pp += 8;
@@ -851,14 +825,8 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                 pd[7] = absmax7 / 127.f;
                 pd += 8;
 
-                __m128 _scale0 = __lsx_vreplfr2vr_s(scale0);
-                __m128 _scale1 = __lsx_vreplfr2vr_s(scale1);
-                __m128 _scale2 = __lsx_vreplfr2vr_s(scale2);
-                __m128 _scale3 = __lsx_vreplfr2vr_s(scale3);
-                __m128 _scale4 = __lsx_vreplfr2vr_s(scale4);
-                __m128 _scale5 = __lsx_vreplfr2vr_s(scale5);
-                __m128 _scale6 = __lsx_vreplfr2vr_s(scale6);
-                __m128 _scale7 = __lsx_vreplfr2vr_s(scale7);
+                __m128 _scale03 = {scale0, scale1, scale2, scale3};
+                __m128 _scale47 = {scale4, scale5, scale6, scale7};
 
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
@@ -867,26 +835,24 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     __m128 _p1 = __lsx_vfmul_s(bfloat2float_lsx(p0 + 4), __lsx_vreplfr2vr_s(ps[1]));
                     __m128 _p2 = __lsx_vfmul_s(bfloat2float_lsx(p0 + 8), __lsx_vreplfr2vr_s(ps[2]));
                     __m128 _p3 = __lsx_vfmul_s(bfloat2float_lsx(p0 + 12), __lsx_vreplfr2vr_s(ps[3]));
-                    transpose4x4_ps(_p0, _p1, _p2, _p3);
-                    _p0 = __lsx_vfmul_s(_p0, _scale0);
-                    _p1 = __lsx_vfmul_s(_p1, _scale1);
-                    _p2 = __lsx_vfmul_s(_p2, _scale2);
-                    _p3 = __lsx_vfmul_s(_p3, _scale3);
-
                     __m128 _p4 = __lsx_vfmul_s(bfloat2float_lsx(p1), __lsx_vreplfr2vr_s(ps[0]));
                     __m128 _p5 = __lsx_vfmul_s(bfloat2float_lsx(p1 + 4), __lsx_vreplfr2vr_s(ps[1]));
                     __m128 _p6 = __lsx_vfmul_s(bfloat2float_lsx(p1 + 8), __lsx_vreplfr2vr_s(ps[2]));
                     __m128 _p7 = __lsx_vfmul_s(bfloat2float_lsx(p1 + 12), __lsx_vreplfr2vr_s(ps[3]));
-                    transpose4x4_ps(_p4, _p5, _p6, _p7);
-                    _p4 = __lsx_vfmul_s(_p4, _scale4);
-                    _p5 = __lsx_vfmul_s(_p5, _scale5);
-                    _p6 = __lsx_vfmul_s(_p6, _scale6);
-                    _p7 = __lsx_vfmul_s(_p7, _scale7);
-
-                    ((int64_t*)pp)[0] = float2int8(_p0, _p1);
-                    ((int64_t*)pp)[1] = float2int8(_p2, _p3);
-                    ((int64_t*)pp)[2] = float2int8(_p4, _p5);
-                    ((int64_t*)pp)[3] = float2int8(_p6, _p7);
+                    __m128i _q0 = float2int8(__lsx_vfmul_s(_p0, _scale03));
+                    __m128i _q1 = float2int8(__lsx_vfmul_s(_p1, _scale03));
+                    __m128i _q2 = float2int8(__lsx_vfmul_s(_p2, _scale03));
+                    __m128i _q3 = float2int8(__lsx_vfmul_s(_p3, _scale03));
+                    __m128i _q01 = __lsx_vilvl_b(_q1, _q0);
+                    __m128i _q23 = __lsx_vilvl_b(_q3, _q2);
+                    __lsx_vst(__lsx_vilvl_h(_q23, _q01), pp, 0);
+                    _q0 = float2int8(__lsx_vfmul_s(_p4, _scale47));
+                    _q1 = float2int8(__lsx_vfmul_s(_p5, _scale47));
+                    _q2 = float2int8(__lsx_vfmul_s(_p6, _scale47));
+                    _q3 = float2int8(__lsx_vfmul_s(_p7, _scale47));
+                    _q01 = __lsx_vilvl_b(_q1, _q0);
+                    _q23 = __lsx_vilvl_b(_q3, _q2);
+                    __lsx_vst(__lsx_vilvl_h(_q23, _q01), pp + 16, 0);
                     pp += 32;
                     p0 += 16;
                     p1 += 16;
@@ -897,10 +863,8 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     __m128 _s = __lsx_vreplfr2vr_s(*ps++);
                     __m128 _p0 = __lsx_vfmul_s(bfloat2float_lsx(p0), _s);
                     __m128 _p1 = __lsx_vfmul_s(bfloat2float_lsx(p1), _s);
-                    __m128 _scale0123 = {scale0, scale1, scale2, scale3};
-                    __m128 _scale4567 = {scale4, scale5, scale6, scale7};
-                    __m128i _q0 = float2int8(__lsx_vfmul_s(_p0, _scale0123));
-                    __m128i _q1 = float2int8(__lsx_vfmul_s(_p1, _scale4567));
+                    __m128i _q0 = float2int8(__lsx_vfmul_s(_p0, _scale03));
+                    __m128i _q1 = float2int8(__lsx_vfmul_s(_p1, _scale47));
                     ((int*)pp)[0] = __lsx_vpickve2gr_w((__m128i)_q0, 0);
                     ((int*)pp)[1] = __lsx_vpickve2gr_w((__m128i)_q1, 0);
                     pp += 8;
@@ -1147,10 +1111,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                 pd[3] = absmax3 / 127.f;
                 pd += 4;
 
-                __m128 _scale0 = __lsx_vreplfr2vr_s(scale0);
-                __m128 _scale1 = __lsx_vreplfr2vr_s(scale1);
-                __m128 _scale2 = __lsx_vreplfr2vr_s(scale2);
-                __m128 _scale3 = __lsx_vreplfr2vr_s(scale3);
+                __m128 _scale = {scale0, scale1, scale2, scale3};
 
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
@@ -1159,14 +1120,13 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     __m128 _p1 = __lsx_vfmul_s(bfloat2float_lsx(p0 + 4), __lsx_vreplfr2vr_s(ps[1]));
                     __m128 _p2 = __lsx_vfmul_s(bfloat2float_lsx(p0 + 8), __lsx_vreplfr2vr_s(ps[2]));
                     __m128 _p3 = __lsx_vfmul_s(bfloat2float_lsx(p0 + 12), __lsx_vreplfr2vr_s(ps[3]));
-                    transpose4x4_ps(_p0, _p1, _p2, _p3);
-                    _p0 = __lsx_vfmul_s(_p0, _scale0);
-                    _p1 = __lsx_vfmul_s(_p1, _scale1);
-                    _p2 = __lsx_vfmul_s(_p2, _scale2);
-                    _p3 = __lsx_vfmul_s(_p3, _scale3);
-
-                    ((int64_t*)pp)[0] = float2int8(_p0, _p1);
-                    ((int64_t*)pp)[1] = float2int8(_p2, _p3);
+                    __m128i _q0 = float2int8(__lsx_vfmul_s(_p0, _scale));
+                    __m128i _q1 = float2int8(__lsx_vfmul_s(_p1, _scale));
+                    __m128i _q2 = float2int8(__lsx_vfmul_s(_p2, _scale));
+                    __m128i _q3 = float2int8(__lsx_vfmul_s(_p3, _scale));
+                    __m128i _q01 = __lsx_vilvl_b(_q1, _q0);
+                    __m128i _q23 = __lsx_vilvl_b(_q3, _q2);
+                    __lsx_vst(__lsx_vilvl_h(_q23, _q01), pp, 0);
                     pp += 16;
                     p0 += 16;
                     ps += 4;
@@ -1174,8 +1134,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                 for (; kk < max_kk0; kk++)
                 {
                     __m128 _p = __lsx_vfmul_s(bfloat2float_lsx(p0), __lsx_vreplfr2vr_s(*ps++));
-                    __m128 _scale0123 = {scale0, scale1, scale2, scale3};
-                    __m128i _q = float2int8(__lsx_vfmul_s(_p, _scale0123));
+                    __m128i _q = float2int8(__lsx_vfmul_s(_p, _scale));
                     ((int*)pp)[0] = __lsx_vpickve2gr_w((__m128i)_q, 0);
                     pp += 4;
                     p0 += 4;
@@ -1765,14 +1724,8 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     pd[7] = absmax7 / 127.f;
                     pd += 8;
 
-                    __m128 _scale0 = __lsx_vreplfr2vr_s(scale0);
-                    __m128 _scale1 = __lsx_vreplfr2vr_s(scale1);
-                    __m128 _scale2 = __lsx_vreplfr2vr_s(scale2);
-                    __m128 _scale3 = __lsx_vreplfr2vr_s(scale3);
-                    __m128 _scale4 = __lsx_vreplfr2vr_s(scale4);
-                    __m128 _scale5 = __lsx_vreplfr2vr_s(scale5);
-                    __m128 _scale6 = __lsx_vreplfr2vr_s(scale6);
-                    __m128 _scale7 = __lsx_vreplfr2vr_s(scale7);
+                    __m128 _scale03 = {scale0, scale1, scale2, scale3};
+                    __m128 _scale47 = {scale4, scale5, scale6, scale7};
                     kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
                     {
@@ -1783,26 +1736,24 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         __m128 _p1 = bfloat2float_lsx(p1);
                         __m128 _p2 = bfloat2float_lsx(p2);
                         __m128 _p3 = bfloat2float_lsx(p3);
-                        transpose4x4_ps(_p0, _p1, _p2, _p3);
-
                         __m128 _p4 = bfloat2float_lsx(p0 + 4);
                         __m128 _p5 = bfloat2float_lsx(p1 + 4);
                         __m128 _p6 = bfloat2float_lsx(p2 + 4);
                         __m128 _p7 = bfloat2float_lsx(p3 + 4);
-                        transpose4x4_ps(_p4, _p5, _p6, _p7);
-                        _p0 = __lsx_vfmul_s(_p0, _scale0);
-                        _p1 = __lsx_vfmul_s(_p1, _scale1);
-                        _p2 = __lsx_vfmul_s(_p2, _scale2);
-                        _p3 = __lsx_vfmul_s(_p3, _scale3);
-                        _p4 = __lsx_vfmul_s(_p4, _scale4);
-                        _p5 = __lsx_vfmul_s(_p5, _scale5);
-                        _p6 = __lsx_vfmul_s(_p6, _scale6);
-                        _p7 = __lsx_vfmul_s(_p7, _scale7);
-
-                        ((int64_t*)pp)[0] = float2int8(_p0, _p1);
-                        ((int64_t*)pp)[1] = float2int8(_p2, _p3);
-                        ((int64_t*)pp)[2] = float2int8(_p4, _p5);
-                        ((int64_t*)pp)[3] = float2int8(_p6, _p7);
+                        __m128i _q0 = float2int8(__lsx_vfmul_s(_p0, _scale03));
+                        __m128i _q1 = float2int8(__lsx_vfmul_s(_p1, _scale03));
+                        __m128i _q2 = float2int8(__lsx_vfmul_s(_p2, _scale03));
+                        __m128i _q3 = float2int8(__lsx_vfmul_s(_p3, _scale03));
+                        __m128i _q01 = __lsx_vilvl_b(_q1, _q0);
+                        __m128i _q23 = __lsx_vilvl_b(_q3, _q2);
+                        __lsx_vst(__lsx_vilvl_h(_q23, _q01), pp, 0);
+                        _q0 = float2int8(__lsx_vfmul_s(_p4, _scale47));
+                        _q1 = float2int8(__lsx_vfmul_s(_p5, _scale47));
+                        _q2 = float2int8(__lsx_vfmul_s(_p6, _scale47));
+                        _q3 = float2int8(__lsx_vfmul_s(_p7, _scale47));
+                        _q01 = __lsx_vilvl_b(_q1, _q0);
+                        _q23 = __lsx_vilvl_b(_q3, _q2);
+                        __lsx_vst(__lsx_vilvl_h(_q23, _q01), pp + 16, 0);
                         pp += 32;
                         p0 = p3 + A_hstep;
                     }
@@ -1810,10 +1761,8 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     {
                         __m128 _p0 = bfloat2float_lsx(p0);
                         __m128 _p1 = bfloat2float_lsx(p0 + 4);
-                        __m128 _scale0123 = {scale0, scale1, scale2, scale3};
-                        __m128 _scale4567 = {scale4, scale5, scale6, scale7};
-                        __m128i _q0 = float2int8(__lsx_vfmul_s(_p0, _scale0123));
-                        __m128i _q1 = float2int8(__lsx_vfmul_s(_p1, _scale4567));
+                        __m128i _q0 = float2int8(__lsx_vfmul_s(_p0, _scale03));
+                        __m128i _q1 = float2int8(__lsx_vfmul_s(_p1, _scale47));
                         ((int*)pp)[0] = __lsx_vpickve2gr_w((__m128i)_q0, 0);
                         ((int*)pp)[1] = __lsx_vpickve2gr_w((__m128i)_q1, 0);
                         pp += 8;
@@ -2010,10 +1959,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     pd[3] = absmax3 / 127.f;
                     pd += 4;
 
-                    __m128 _scale0 = __lsx_vreplfr2vr_s(scale0);
-                    __m128 _scale1 = __lsx_vreplfr2vr_s(scale1);
-                    __m128 _scale2 = __lsx_vreplfr2vr_s(scale2);
-                    __m128 _scale3 = __lsx_vreplfr2vr_s(scale3);
+                    __m128 _scale = {scale0, scale1, scale2, scale3};
                     kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
                     {
@@ -2024,14 +1970,13 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         __m128 _p1 = bfloat2float_lsx(p1);
                         __m128 _p2 = bfloat2float_lsx(p2);
                         __m128 _p3 = bfloat2float_lsx(p3);
-                        transpose4x4_ps(_p0, _p1, _p2, _p3);
-                        _p0 = __lsx_vfmul_s(_p0, _scale0);
-                        _p1 = __lsx_vfmul_s(_p1, _scale1);
-                        _p2 = __lsx_vfmul_s(_p2, _scale2);
-                        _p3 = __lsx_vfmul_s(_p3, _scale3);
-
-                        ((int64_t*)pp)[0] = float2int8(_p0, _p1);
-                        ((int64_t*)pp)[1] = float2int8(_p2, _p3);
+                        __m128i _q0 = float2int8(__lsx_vfmul_s(_p0, _scale));
+                        __m128i _q1 = float2int8(__lsx_vfmul_s(_p1, _scale));
+                        __m128i _q2 = float2int8(__lsx_vfmul_s(_p2, _scale));
+                        __m128i _q3 = float2int8(__lsx_vfmul_s(_p3, _scale));
+                        __m128i _q01 = __lsx_vilvl_b(_q1, _q0);
+                        __m128i _q23 = __lsx_vilvl_b(_q3, _q2);
+                        __lsx_vst(__lsx_vilvl_h(_q23, _q01), pp, 0);
                         pp += 16;
                         p0 = p3 + A_hstep;
                     }
@@ -2669,14 +2614,8 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     pd[7] = absmax7 / 127.f;
                     pd += 8;
 
-                    __m128 _scale0 = __lsx_vreplfr2vr_s(scale0);
-                    __m128 _scale1 = __lsx_vreplfr2vr_s(scale1);
-                    __m128 _scale2 = __lsx_vreplfr2vr_s(scale2);
-                    __m128 _scale3 = __lsx_vreplfr2vr_s(scale3);
-                    __m128 _scale4 = __lsx_vreplfr2vr_s(scale4);
-                    __m128 _scale5 = __lsx_vreplfr2vr_s(scale5);
-                    __m128 _scale6 = __lsx_vreplfr2vr_s(scale6);
-                    __m128 _scale7 = __lsx_vreplfr2vr_s(scale7);
+                    __m128 _scale03 = {scale0, scale1, scale2, scale3};
+                    __m128 _scale47 = {scale4, scale5, scale6, scale7};
                     kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
                     {
@@ -2687,35 +2626,24 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         __m128 _p1 = bfloat2float_lsx(p1);
                         __m128 _p2 = bfloat2float_lsx(p2);
                         __m128 _p3 = bfloat2float_lsx(p3);
-                        transpose4x4_ps(_p0, _p1, _p2, _p3);
-
                         __m128 _p4 = bfloat2float_lsx(p0 + 4);
                         __m128 _p5 = bfloat2float_lsx(p1 + 4);
                         __m128 _p6 = bfloat2float_lsx(p2 + 4);
                         __m128 _p7 = bfloat2float_lsx(p3 + 4);
-                        transpose4x4_ps(_p4, _p5, _p6, _p7);
-                        __m128 _s = (__m128)__lsx_vld(ps, 0);
-                        _p0 = __lsx_vfmul_s(_p0, _s);
-                        _p1 = __lsx_vfmul_s(_p1, _s);
-                        _p2 = __lsx_vfmul_s(_p2, _s);
-                        _p3 = __lsx_vfmul_s(_p3, _s);
-                        _p4 = __lsx_vfmul_s(_p4, _s);
-                        _p5 = __lsx_vfmul_s(_p5, _s);
-                        _p6 = __lsx_vfmul_s(_p6, _s);
-                        _p7 = __lsx_vfmul_s(_p7, _s);
-                        _p0 = __lsx_vfmul_s(_p0, _scale0);
-                        _p1 = __lsx_vfmul_s(_p1, _scale1);
-                        _p2 = __lsx_vfmul_s(_p2, _scale2);
-                        _p3 = __lsx_vfmul_s(_p3, _scale3);
-                        _p4 = __lsx_vfmul_s(_p4, _scale4);
-                        _p5 = __lsx_vfmul_s(_p5, _scale5);
-                        _p6 = __lsx_vfmul_s(_p6, _scale6);
-                        _p7 = __lsx_vfmul_s(_p7, _scale7);
-
-                        ((int64_t*)pp)[0] = float2int8(_p0, _p1);
-                        ((int64_t*)pp)[1] = float2int8(_p2, _p3);
-                        ((int64_t*)pp)[2] = float2int8(_p4, _p5);
-                        ((int64_t*)pp)[3] = float2int8(_p6, _p7);
+                        __m128i _q0 = float2int8(__lsx_vfmul_s(__lsx_vfmul_s(_p0, __lsx_vreplfr2vr_s(ps[0])), _scale03));
+                        __m128i _q1 = float2int8(__lsx_vfmul_s(__lsx_vfmul_s(_p1, __lsx_vreplfr2vr_s(ps[1])), _scale03));
+                        __m128i _q2 = float2int8(__lsx_vfmul_s(__lsx_vfmul_s(_p2, __lsx_vreplfr2vr_s(ps[2])), _scale03));
+                        __m128i _q3 = float2int8(__lsx_vfmul_s(__lsx_vfmul_s(_p3, __lsx_vreplfr2vr_s(ps[3])), _scale03));
+                        __m128i _q01 = __lsx_vilvl_b(_q1, _q0);
+                        __m128i _q23 = __lsx_vilvl_b(_q3, _q2);
+                        __lsx_vst(__lsx_vilvl_h(_q23, _q01), pp, 0);
+                        _q0 = float2int8(__lsx_vfmul_s(__lsx_vfmul_s(_p4, __lsx_vreplfr2vr_s(ps[0])), _scale47));
+                        _q1 = float2int8(__lsx_vfmul_s(__lsx_vfmul_s(_p5, __lsx_vreplfr2vr_s(ps[1])), _scale47));
+                        _q2 = float2int8(__lsx_vfmul_s(__lsx_vfmul_s(_p6, __lsx_vreplfr2vr_s(ps[2])), _scale47));
+                        _q3 = float2int8(__lsx_vfmul_s(__lsx_vfmul_s(_p7, __lsx_vreplfr2vr_s(ps[3])), _scale47));
+                        _q01 = __lsx_vilvl_b(_q1, _q0);
+                        _q23 = __lsx_vilvl_b(_q3, _q2);
+                        __lsx_vst(__lsx_vilvl_h(_q23, _q01), pp + 16, 0);
                         pp += 32;
                         p0 = p3 + A_hstep;
                         ps += 4;
@@ -2725,10 +2653,8 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         const float s = *ps++;
                         __m128 _p0 = __lsx_vfmul_s(bfloat2float_lsx(p0), __lsx_vreplfr2vr_s(s));
                         __m128 _p1 = __lsx_vfmul_s(bfloat2float_lsx(p0 + 4), __lsx_vreplfr2vr_s(s));
-                        __m128 _scale0123 = {scale0, scale1, scale2, scale3};
-                        __m128 _scale4567 = {scale4, scale5, scale6, scale7};
-                        __m128i _q0 = float2int8(__lsx_vfmul_s(_p0, _scale0123));
-                        __m128i _q1 = float2int8(__lsx_vfmul_s(_p1, _scale4567));
+                        __m128i _q0 = float2int8(__lsx_vfmul_s(_p0, _scale03));
+                        __m128i _q1 = float2int8(__lsx_vfmul_s(_p1, _scale47));
                         ((int*)pp)[0] = __lsx_vpickve2gr_w((__m128i)_q0, 0);
                         ((int*)pp)[1] = __lsx_vpickve2gr_w((__m128i)_q1, 0);
                         pp += 8;
@@ -2944,10 +2870,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     pd[3] = absmax3 / 127.f;
                     pd += 4;
 
-                    __m128 _scale0 = __lsx_vreplfr2vr_s(scale0);
-                    __m128 _scale1 = __lsx_vreplfr2vr_s(scale1);
-                    __m128 _scale2 = __lsx_vreplfr2vr_s(scale2);
-                    __m128 _scale3 = __lsx_vreplfr2vr_s(scale3);
+                    __m128 _scale = {scale0, scale1, scale2, scale3};
                     kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
                     {
@@ -2958,19 +2881,13 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         __m128 _p1 = bfloat2float_lsx(p1);
                         __m128 _p2 = bfloat2float_lsx(p2);
                         __m128 _p3 = bfloat2float_lsx(p3);
-                        transpose4x4_ps(_p0, _p1, _p2, _p3);
-                        __m128 _s = (__m128)__lsx_vld(ps, 0);
-                        _p0 = __lsx_vfmul_s(_p0, _s);
-                        _p1 = __lsx_vfmul_s(_p1, _s);
-                        _p2 = __lsx_vfmul_s(_p2, _s);
-                        _p3 = __lsx_vfmul_s(_p3, _s);
-                        _p0 = __lsx_vfmul_s(_p0, _scale0);
-                        _p1 = __lsx_vfmul_s(_p1, _scale1);
-                        _p2 = __lsx_vfmul_s(_p2, _scale2);
-                        _p3 = __lsx_vfmul_s(_p3, _scale3);
-
-                        ((int64_t*)pp)[0] = float2int8(_p0, _p1);
-                        ((int64_t*)pp)[1] = float2int8(_p2, _p3);
+                        __m128i _q0 = float2int8(__lsx_vfmul_s(__lsx_vfmul_s(_p0, __lsx_vreplfr2vr_s(ps[0])), _scale));
+                        __m128i _q1 = float2int8(__lsx_vfmul_s(__lsx_vfmul_s(_p1, __lsx_vreplfr2vr_s(ps[1])), _scale));
+                        __m128i _q2 = float2int8(__lsx_vfmul_s(__lsx_vfmul_s(_p2, __lsx_vreplfr2vr_s(ps[2])), _scale));
+                        __m128i _q3 = float2int8(__lsx_vfmul_s(__lsx_vfmul_s(_p3, __lsx_vreplfr2vr_s(ps[3])), _scale));
+                        __m128i _q01 = __lsx_vilvl_b(_q1, _q0);
+                        __m128i _q23 = __lsx_vilvl_b(_q3, _q2);
+                        __lsx_vst(__lsx_vilvl_h(_q23, _q01), pp, 0);
                         pp += 16;
                         p0 = p3 + A_hstep;
                         ps += 4;

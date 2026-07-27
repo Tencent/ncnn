@@ -500,8 +500,6 @@ int MultiHeadAttention_riscv::forward(const std::vector<Mat>& bottom_blobs, std:
     opt_wq.use_fp16_arithmetic = false;
     opt_wq.use_bf16_packed = false;
     opt_wq.use_bf16_storage = false;
-    Option opt_gemm = opt_wq;
-    opt_gemm.blob_allocator = opt.workspace_allocator;
 
     Mat attn_mask_blob_unpacked;
     if (attn_mask && attn_mask_blob.elempack != 1)
@@ -546,7 +544,7 @@ int MultiHeadAttention_riscv::forward(const std::vector<Mat>& bottom_blobs, std:
     const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
 
     Mat q_affine;
-    int retq = q_gemm->forward(q_blob, q_affine, opt_gemm);
+    int retq = q_gemm->forward(q_blob, q_affine, opt_wq);
     if (retq != 0)
         return retq;
 
@@ -556,7 +554,7 @@ int MultiHeadAttention_riscv::forward(const std::vector<Mat>& bottom_blobs, std:
         if (q_blob_i == k_blob_i)
         {
             Mat k_affine_q;
-            int retk = k_gemm->forward(q_blob, k_affine_q, opt_gemm);
+            int retk = k_gemm->forward(q_blob, k_affine_q, opt_wq);
             if (retk != 0)
                 return retk;
 
@@ -584,12 +582,12 @@ int MultiHeadAttention_riscv::forward(const std::vector<Mat>& bottom_blobs, std:
     }
     else
     {
-        int retk = k_gemm->forward(k_blob, k_affine, kv_cache ? opt_wq : opt_gemm);
+        int retk = k_gemm->forward(k_blob, k_affine, opt_wq);
         if (retk != 0)
             return retk;
     }
 
-    Mat qk_cross(dst_seqlen, src_seqlen * num_heads, 4u, opt.workspace_allocator);
+    Mat qk_cross(dst_seqlen, src_seqlen * num_heads, 4u, opt.blob_allocator);
     if (qk_cross.empty())
         return -100;
 
@@ -635,7 +633,7 @@ int MultiHeadAttention_riscv::forward(const std::vector<Mat>& bottom_blobs, std:
         if (q_blob_i == v_blob_i)
         {
             Mat v_affine_q;
-            int retk = v_gemm->forward(v_blob, v_affine_q, opt_gemm);
+            int retk = v_gemm->forward(v_blob, v_affine_q, opt_wq);
             if (retk != 0)
                 return retk;
 
@@ -663,12 +661,12 @@ int MultiHeadAttention_riscv::forward(const std::vector<Mat>& bottom_blobs, std:
     }
     else
     {
-        int retv = v_gemm->forward(v_blob, v_affine, kv_cache ? opt_wq : opt_gemm);
+        int retv = v_gemm->forward(v_blob, v_affine, opt_wq);
         if (retv != 0)
             return retv;
     }
 
-    Mat qkv_cross(src_seqlen, embed_dim_per_head * num_heads, 4u, opt.workspace_allocator);
+    Mat qkv_cross(src_seqlen, embed_dim_per_head * num_heads, 4u, opt.blob_allocator);
     if (qkv_cross.empty())
         return -100;
 
