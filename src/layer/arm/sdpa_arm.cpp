@@ -64,7 +64,7 @@ int SDPA_arm::create_pipeline(const Option& _opt)
         pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C (MxN)
         pd.set(11, 0);                  // output_N1M
         pd.set(12, 1);                  // output_elempack
-        pd.set(13, 1);                  // output_elemtype = fp32
+        pd.set(13, opt.use_fp16_storage ? 0 : 1); // output_elemtype = auto/fp32
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
@@ -92,7 +92,7 @@ int SDPA_arm::create_pipeline(const Option& _opt)
         pd.set(10, -1); // constant_broadcast_type_C
         pd.set(11, 0);  // output_N1M
         pd.set(12, 1);  // output_elempack
-        pd.set(13, 1);  // output_elemtype = fp32
+        pd.set(13, opt.use_fp16_storage ? 0 : 1); // output_elemtype = auto/fp32
         pd.set(14, 0);  // output_transpose
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
@@ -257,7 +257,7 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C (MxN)
         pd.set(11, 0);                  // output_N1M
         pd.set(12, 1);                  // output_elempack
-        pd.set(13, 1);                  // output_elemtype = fp32
+        pd.set(13, opt.use_fp16_storage ? 0 : 1); // output_elemtype = auto/fp32
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
