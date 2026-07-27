@@ -3678,30 +3678,30 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
                     else
 #endif // __loongarch_asx
                         if (c_elempack == 4)
-                    {
-                        const float* pC1 = pC + c_hstep * 4;
-                        _c0 = (__m128)__lsx_vld(pC, 0);
-                        _c1 = (__m128)__lsx_vld(pC + 4, 0);
-                        _c2 = (__m128)__lsx_vld(pC + 8, 0);
-                        _c3 = (__m128)__lsx_vld(pC + 12, 0);
-                        _c4 = (__m128)__lsx_vld(pC1, 0);
-                        _c5 = (__m128)__lsx_vld(pC1 + 4, 0);
-                        _c6 = (__m128)__lsx_vld(pC1 + 8, 0);
-                        _c7 = (__m128)__lsx_vld(pC1 + 12, 0);
-                        transpose4x4_ps(_c0, _c1, _c2, _c3);
-                        transpose4x4_ps(_c4, _c5, _c6, _c7);
-                    }
-                    else
-                    {
-                        _c0 = (__m128)__lsx_vld(pC, 0);
-                        _c1 = (__m128)__lsx_vld(pC + c_hstep, 0);
-                        _c2 = (__m128)__lsx_vld(pC + c_hstep * 2, 0);
-                        _c3 = (__m128)__lsx_vld(pC + c_hstep * 3, 0);
-                        _c4 = (__m128)__lsx_vld(pC + c_hstep * 4, 0);
-                        _c5 = (__m128)__lsx_vld(pC + c_hstep * 5, 0);
-                        _c6 = (__m128)__lsx_vld(pC + c_hstep * 6, 0);
-                        _c7 = (__m128)__lsx_vld(pC + c_hstep * 7, 0);
-                    }
+                        {
+                            const float* pC1 = pC + c_hstep * 4;
+                            _c0 = (__m128)__lsx_vld(pC, 0);
+                            _c1 = (__m128)__lsx_vld(pC + 4, 0);
+                            _c2 = (__m128)__lsx_vld(pC + 8, 0);
+                            _c3 = (__m128)__lsx_vld(pC + 12, 0);
+                            _c4 = (__m128)__lsx_vld(pC1, 0);
+                            _c5 = (__m128)__lsx_vld(pC1 + 4, 0);
+                            _c6 = (__m128)__lsx_vld(pC1 + 8, 0);
+                            _c7 = (__m128)__lsx_vld(pC1 + 12, 0);
+                            transpose4x4_ps(_c0, _c1, _c2, _c3);
+                            transpose4x4_ps(_c4, _c5, _c6, _c7);
+                        }
+                        else
+                        {
+                            _c0 = (__m128)__lsx_vld(pC, 0);
+                            _c1 = (__m128)__lsx_vld(pC + c_hstep, 0);
+                            _c2 = (__m128)__lsx_vld(pC + c_hstep * 2, 0);
+                            _c3 = (__m128)__lsx_vld(pC + c_hstep * 3, 0);
+                            _c4 = (__m128)__lsx_vld(pC + c_hstep * 4, 0);
+                            _c5 = (__m128)__lsx_vld(pC + c_hstep * 5, 0);
+                            _c6 = (__m128)__lsx_vld(pC + c_hstep * 6, 0);
+                            _c7 = (__m128)__lsx_vld(pC + c_hstep * 7, 0);
+                        }
                     if (beta == 1.f)
                     {
                         _f0 = __lsx_vfadd_s(_f0, _c0);
@@ -3941,36 +3941,36 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
                     else
 #endif // __loongarch_asx
                         if (c_elempack == 4)
-                    {
-                        const float* pC1 = pC + c_hstep * 4;
-                        _ci0 = __lsx_vldrepl_w(pC, 0);
-                        _ci1 = __lsx_vldrepl_w(pC + 1, 0);
-                        _ci2 = __lsx_vldrepl_w(pC + 2, 0);
-                        _ci3 = __lsx_vldrepl_w(pC + 3, 0);
-                        _ci4 = __lsx_vldrepl_w(pC1, 0);
-                        _ci5 = __lsx_vldrepl_w(pC1 + 1, 0);
-                        _ci6 = __lsx_vldrepl_w(pC1 + 2, 0);
-                        _ci7 = __lsx_vldrepl_w(pC1 + 3, 0);
-                        _ci0 = __lsx_vinsgr2vr_w(_ci0, ((const int*)(pC + 4))[0], 1);
-                        _ci1 = __lsx_vinsgr2vr_w(_ci1, ((const int*)(pC + 5))[0], 1);
-                        _ci2 = __lsx_vinsgr2vr_w(_ci2, ((const int*)(pC + 6))[0], 1);
-                        _ci3 = __lsx_vinsgr2vr_w(_ci3, ((const int*)(pC + 7))[0], 1);
-                        _ci4 = __lsx_vinsgr2vr_w(_ci4, ((const int*)(pC1 + 4))[0], 1);
-                        _ci5 = __lsx_vinsgr2vr_w(_ci5, ((const int*)(pC1 + 5))[0], 1);
-                        _ci6 = __lsx_vinsgr2vr_w(_ci6, ((const int*)(pC1 + 6))[0], 1);
-                        _ci7 = __lsx_vinsgr2vr_w(_ci7, ((const int*)(pC1 + 7))[0], 1);
-                    }
-                    else
-                    {
-                        _ci0 = __lsx_vldrepl_d(pC, 0);
-                        _ci1 = __lsx_vldrepl_d(pC + c_hstep, 0);
-                        _ci2 = __lsx_vldrepl_d(pC + c_hstep * 2, 0);
-                        _ci3 = __lsx_vldrepl_d(pC + c_hstep * 3, 0);
-                        _ci4 = __lsx_vldrepl_d(pC + c_hstep * 4, 0);
-                        _ci5 = __lsx_vldrepl_d(pC + c_hstep * 5, 0);
-                        _ci6 = __lsx_vldrepl_d(pC + c_hstep * 6, 0);
-                        _ci7 = __lsx_vldrepl_d(pC + c_hstep * 7, 0);
-                    }
+                        {
+                            const float* pC1 = pC + c_hstep * 4;
+                            _ci0 = __lsx_vldrepl_w(pC, 0);
+                            _ci1 = __lsx_vldrepl_w(pC + 1, 0);
+                            _ci2 = __lsx_vldrepl_w(pC + 2, 0);
+                            _ci3 = __lsx_vldrepl_w(pC + 3, 0);
+                            _ci4 = __lsx_vldrepl_w(pC1, 0);
+                            _ci5 = __lsx_vldrepl_w(pC1 + 1, 0);
+                            _ci6 = __lsx_vldrepl_w(pC1 + 2, 0);
+                            _ci7 = __lsx_vldrepl_w(pC1 + 3, 0);
+                            _ci0 = __lsx_vinsgr2vr_w(_ci0, ((const int*)(pC + 4))[0], 1);
+                            _ci1 = __lsx_vinsgr2vr_w(_ci1, ((const int*)(pC + 5))[0], 1);
+                            _ci2 = __lsx_vinsgr2vr_w(_ci2, ((const int*)(pC + 6))[0], 1);
+                            _ci3 = __lsx_vinsgr2vr_w(_ci3, ((const int*)(pC + 7))[0], 1);
+                            _ci4 = __lsx_vinsgr2vr_w(_ci4, ((const int*)(pC1 + 4))[0], 1);
+                            _ci5 = __lsx_vinsgr2vr_w(_ci5, ((const int*)(pC1 + 5))[0], 1);
+                            _ci6 = __lsx_vinsgr2vr_w(_ci6, ((const int*)(pC1 + 6))[0], 1);
+                            _ci7 = __lsx_vinsgr2vr_w(_ci7, ((const int*)(pC1 + 7))[0], 1);
+                        }
+                        else
+                        {
+                            _ci0 = __lsx_vldrepl_d(pC, 0);
+                            _ci1 = __lsx_vldrepl_d(pC + c_hstep, 0);
+                            _ci2 = __lsx_vldrepl_d(pC + c_hstep * 2, 0);
+                            _ci3 = __lsx_vldrepl_d(pC + c_hstep * 3, 0);
+                            _ci4 = __lsx_vldrepl_d(pC + c_hstep * 4, 0);
+                            _ci5 = __lsx_vldrepl_d(pC + c_hstep * 5, 0);
+                            _ci6 = __lsx_vldrepl_d(pC + c_hstep * 6, 0);
+                            _ci7 = __lsx_vldrepl_d(pC + c_hstep * 7, 0);
+                        }
                     __m128 _c0 = (__m128)_ci0;
                     __m128 _c1 = (__m128)_ci1;
                     __m128 _c2 = (__m128)_ci2;
@@ -4119,21 +4119,21 @@ static void unpack_output_tile_wq_int8_bf16s(const Mat& topT, const Mat& C, Mat&
                     else
 #endif // __loongarch_asx
                         if (c_elempack == 4)
-                    {
-                        _c0 = __lsx_vld(pC, 0);
-                        _c4 = __lsx_vld(pC + c_hstep * 4, 0);
-                    }
-                    else
-                    {
-                        _c0 = __lsx_vldrepl_w(pC, 0);
-                        _c0 = __lsx_vinsgr2vr_w(_c0, ((const int*)(pC + c_hstep))[0], 1);
-                        _c0 = __lsx_vinsgr2vr_w(_c0, ((const int*)(pC + c_hstep * 2))[0], 2);
-                        _c0 = __lsx_vinsgr2vr_w(_c0, ((const int*)(pC + c_hstep * 3))[0], 3);
-                        _c4 = __lsx_vldrepl_w(pC + c_hstep * 4, 0);
-                        _c4 = __lsx_vinsgr2vr_w(_c4, ((const int*)(pC + c_hstep * 5))[0], 1);
-                        _c4 = __lsx_vinsgr2vr_w(_c4, ((const int*)(pC + c_hstep * 6))[0], 2);
-                        _c4 = __lsx_vinsgr2vr_w(_c4, ((const int*)(pC + c_hstep * 7))[0], 3);
-                    }
+                        {
+                            _c0 = __lsx_vld(pC, 0);
+                            _c4 = __lsx_vld(pC + c_hstep * 4, 0);
+                        }
+                        else
+                        {
+                            _c0 = __lsx_vldrepl_w(pC, 0);
+                            _c0 = __lsx_vinsgr2vr_w(_c0, ((const int*)(pC + c_hstep))[0], 1);
+                            _c0 = __lsx_vinsgr2vr_w(_c0, ((const int*)(pC + c_hstep * 2))[0], 2);
+                            _c0 = __lsx_vinsgr2vr_w(_c0, ((const int*)(pC + c_hstep * 3))[0], 3);
+                            _c4 = __lsx_vldrepl_w(pC + c_hstep * 4, 0);
+                            _c4 = __lsx_vinsgr2vr_w(_c4, ((const int*)(pC + c_hstep * 5))[0], 1);
+                            _c4 = __lsx_vinsgr2vr_w(_c4, ((const int*)(pC + c_hstep * 6))[0], 2);
+                            _c4 = __lsx_vinsgr2vr_w(_c4, ((const int*)(pC + c_hstep * 7))[0], 3);
+                        }
                     if (beta == 1.f)
                     {
                         _f0 = __lsx_vfadd_s(_f0, (__m128)_c0);
