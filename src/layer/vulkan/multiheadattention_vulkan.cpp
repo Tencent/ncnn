@@ -434,7 +434,9 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         int B = num_heads;
 
         int K_elempack = K % 4 == 0 ? 4 : 1;
-        int M_elempack = M % 4 == 0 ? 4 : 1;
+        // A 3d attention mask is packed along heads, while qk output is packed
+        // along query positions. Keep both unpacked to preserve their layout.
+        int M_elempack = attn_mask_blob.dims == 3 ? 1 : (M % 4 == 0 ? 4 : 1);
         int MB_elempack = (M * B) % 4 == 0 ? 4 : 1;
         size_t M_elemsize = q_affine.elemsize / q_affine.elempack * M_elempack;
 
@@ -451,7 +453,7 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
             k_affine = tmp;
         }
         VkMat attn_mask_blob_unpacked = attn_mask_blob;
-        if (M_elempack < attn_mask_blob.elempack)
+        if (attn_mask && M_elempack != attn_mask_blob.elempack)
         {
             vkdev->convert_packing(attn_mask_blob, attn_mask_blob_unpacked, M_elempack, cmd, opt);
         }
@@ -471,7 +473,8 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         constants[1].i = N;
         constants[2].i = K / K_elempack;
         constants[3].i = B;
-        constants[4].i = attn_mask_blob_unpacked.dims;
+        const int attn_mask_channels = attn_mask_blob_unpacked.c * attn_mask_blob_unpacked.elempack;
+        constants[4].i = attn_mask_blob_unpacked.dims == 3 && attn_mask_channels == 1 ? 2 : attn_mask_blob_unpacked.dims;
 
         VkMat dispatcher;
         dispatcher.w = N;
