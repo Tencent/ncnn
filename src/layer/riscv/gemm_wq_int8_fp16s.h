@@ -1331,7 +1331,6 @@ static void unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Mat& C, Mat&
     const float* pC3 = C;
     if (pC3 && broadcast_type_C == 3)
         pC3 += (size_t)i / c_elempack * c_hstep * c_elempack + j * c_elempack + i % c_elempack;
-    bool pC3_high = false;
     bool outptr_high = false;
     for (; ii + (packn - 1) < max_ii; ii += packn)
     {
@@ -1406,20 +1405,7 @@ static void unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Mat& C, Mat&
             out0 += out_elempack;
         }
         if (pC3 && broadcast_type_C == 3)
-        {
-            if (c_elempack == packn_fp16)
-            {
-                if (pC3_high)
-                    pC3 += c_hstep * packn_fp16 - packn;
-                else
-                    pC3 += packn;
-                pC3_high = !pC3_high;
-            }
-            else
-            {
-                pC3 += c_hstep * packn;
-            }
-        }
+            pC3 += c_hstep * packn;
         if (out_elempack == packn_fp16)
         {
             if (outptr_high)
@@ -1876,7 +1862,6 @@ static void transpose_unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Ma
     const float* pC3 = C;
     if (pC3 && broadcast_type_C == 3)
         pC3 += (size_t)i / c_elempack * c_hstep * c_elempack + j * c_elempack + i % c_elempack;
-    bool pC3_high = false;
     for (; ii + (packn - 1) < max_ii; ii += packn)
     {
         const float* pC = C;
@@ -1958,20 +1943,7 @@ static void transpose_unpack_output_tile_wq_int8_fp16s(const Mat& topT, const Ma
             out0 += out_hstep * out_elempack;
         }
         if (pC3 && broadcast_type_C == 3)
-        {
-            if (c_elempack == packn_fp16)
-            {
-                if (pC3_high)
-                    pC3 += c_hstep * packn_fp16 - packn;
-                else
-                    pC3 += packn;
-                pC3_high = !pC3_high;
-            }
-            else
-            {
-                pC3 += c_hstep * packn;
-            }
-        }
+            pC3 += c_hstep * packn;
         outptr += packn * out_elempack;
     }
 #endif // __riscv_vector

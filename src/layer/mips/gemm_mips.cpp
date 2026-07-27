@@ -6106,7 +6106,10 @@ int Gemm_mips::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector
 
             bool supported_C_elempack = C.elempack == 1;
 #if __mips_msa
-            supported_C_elempack = C.elempack == 8 || C.elempack == 4 || C.elempack == 1;
+            if (C.elembits() == 32)
+                supported_C_elempack = C.elempack == 4 || C.elempack == 1;
+            if (C.elembits() == 16)
+                supported_C_elempack = C.elempack == 8 || C.elempack == 4 || C.elempack == 1;
 #endif // __mips_msa
             if (broadcast_type_C == -1 || !supported_C_elempack || (C.elembits() != 32 && !(C.elembits() == 16 && use_bf16_storage)))
             {
@@ -6127,6 +6130,19 @@ int Gemm_mips::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector
     {
         Option opt_cast = opt;
         opt_cast.blob_allocator = opt.workspace_allocator;
+
+#if __mips_msa
+        if (C.elempack == 8)
+        {
+            Mat C_packed;
+            convert_packing(C, C_packed, 4, opt_cast);
+            if (C_packed.empty())
+                return -100;
+
+            C = C_packed;
+        }
+#endif // __mips_msa
+
         cast_bfloat16_to_float32(C, C_fp32, opt_cast);
         if (C_fp32.empty())
             return -100;

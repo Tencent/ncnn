@@ -2664,6 +2664,22 @@ int Gemm_riscv::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vecto
 
                 Option opt_cast = opt;
                 opt_cast.blob_allocator = opt.workspace_allocator;
+
+#if NCNN_ZFH
+#if __riscv_vector
+                if (C.elempack == packn_fp16)
+                {
+                    const int C_h = C.dims == 1 ? C.w * C.elempack : C.h * C.elempack;
+                    const int C_elempack = C_h % packn == 0 ? packn : 1;
+                    Mat C_packed;
+                    convert_packing(C, C_packed, C_elempack, opt_cast);
+                    if (C_packed.empty())
+                        return -100;
+                    C = C_packed;
+                }
+#endif // __riscv_vector
+#endif // NCNN_ZFH
+
                 cast_float16_to_float32(C, C_fp32, opt_cast);
                 if (C_fp32.empty())
                     return -100;
@@ -2679,11 +2695,7 @@ int Gemm_riscv::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vecto
     }
 
 #if __riscv_vector
-    if (!C.empty() && C.elempack != 1 && C.elempack != packn
-#if NCNN_ZFH
-            && !(use_fp16_storage && !C_fp32.empty() && C.elempack == packn_fp16)
-#endif // NCNN_ZFH
-       )
+    if (!C.empty() && C.elempack != 1 && C.elempack != packn)
 #else
     if (!C.empty() && C.elempack != 1)
 #endif // __riscv_vector

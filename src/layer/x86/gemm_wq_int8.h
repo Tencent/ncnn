@@ -7886,7 +7886,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 16;
                     pA += 32;
                 }
-#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
+#if !__AVXVNNIINT8__
                 if (max_kk0 >= 4)
                 {
                     __m256i _w_shift0 = _mm256_loadu_si256((const __m256i*)pA);
@@ -7993,7 +7993,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 8;
                     pA += 32;
                 }
-#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
+#if !__AVXVNNIINT8__
                 if (max_kk0 >= 4)
                 {
                     __m256i _w_shift0 = _mm256_loadu_si256((const __m256i*)pA);
@@ -8105,7 +8105,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 4;
                     pA += 32;
                 }
-#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
+#if !__AVXVNNIINT8__
                 if (max_kk0 >= 4)
                 {
                     __m256i _w_shift0 = _mm256_loadu_si256((const __m256i*)pA);
@@ -8169,6 +8169,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
         int jj = 0;
 #if defined(__x86_64__) || defined(_M_X64)
+#if __AVX__
 #if __AVX512F__
         for (; jj + 7 < max_jj; jj += 8)
         {
@@ -8284,6 +8285,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             pB_descales_panel += (size_t)8 * block_count;
         }
 #endif // __AVX512F__
+#endif // __AVX__
 #endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -8340,7 +8342,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                     pB += 16;
                 }
-#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
+#if !__AVXVNNIINT8__
                 if (max_kk0 >= 4)
                 {
                     __m128i _w_shift0 = _mm_loadu_si128((const __m128i*)pA);
@@ -8449,7 +8451,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                     pB += 8;
                 }
-#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
+#if !__AVXVNNIINT8__
                 if (max_kk0 >= 4)
                 {
                     __m128i _w_shift0 = _mm_loadu_si128((const __m128i*)pA);
@@ -8545,7 +8547,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                     pB += 4;
                 }
-#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
+#if !__AVXVNNIINT8__
                 if (max_kk0 >= 4)
                 {
                     _sum = _mm_sub_epi32(_sum, _mm_loadu_si128((const __m128i*)pA));
@@ -8739,7 +8741,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     pB += 16;
                 }
-#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
+#if !__AVXVNNIINT8__
                 if (max_kk0 >= 4)
                 {
                     __m128i _w_shift64 = _mm_loadl_epi64((const __m128i*)pA);
@@ -8855,7 +8857,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     pB += 8;
                 }
-#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
+#if !__AVXVNNIINT8__
                 if (max_kk0 >= 4)
                 {
                     __m128i _w_shift64 = _mm_loadl_epi64((const __m128i*)pA);
@@ -8902,35 +8904,6 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 int sum01 = 0;
                 int sum10 = 0;
                 int sum11 = 0;
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    int b0 = pB[0];
-                    int b1 = pB[1];
-                    sum00 += pA[0] * b0;
-                    sum01 += pA[0] * b1;
-                    sum10 += pA[1] * b0;
-                    sum11 += pA[1] * b1;
-                    b0 = pB[2];
-                    b1 = pB[3];
-                    sum00 += pA[2] * b0;
-                    sum01 += pA[2] * b1;
-                    sum10 += pA[3] * b0;
-                    sum11 += pA[3] * b1;
-                    b0 = pB[4];
-                    b1 = pB[5];
-                    sum00 += pA[4] * b0;
-                    sum01 += pA[4] * b1;
-                    sum10 += pA[5] * b0;
-                    sum11 += pA[5] * b1;
-                    b0 = pB[6];
-                    b1 = pB[7];
-                    sum00 += pA[6] * b0;
-                    sum01 += pA[6] * b1;
-                    sum10 += pA[7] * b0;
-                    sum11 += pA[7] * b1;
-                    pA += 8;
-                    pB += 8;
-                }
                 for (; kk < max_kk0; kk++)
                 {
                     const int b0 = pB[0];
@@ -9037,7 +9010,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     pB += 4;
                 }
-#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
+#if !__AVXVNNIINT8__
                 if (max_kk0 >= 4)
                 {
                     sum0 -= ((const int*)pA)[0];
@@ -9221,7 +9194,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     pB += 16;
                 }
-#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
+#if !__AVXVNNIINT8__
                 if (max_kk0 >= 4)
                 {
                     _sum = _mm_sub_epi32(_sum, _mm_shuffle_epi32(_mm_castps_si128(_mm_load_ss((const float*)pA)), _MM_SHUFFLE(0, 0, 0, 0)));
@@ -9353,7 +9326,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     pB += 8;
                 }
-#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
+#if !__AVXVNNIINT8__
                 if (max_kk0 >= 4)
                 {
                     const int w_shift = ((const int*)pA)[0];
@@ -9461,7 +9434,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     pB += 4;
                 }
-#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
+#if !__AVXVNNIINT8__
                 if (max_kk0 >= 4)
                 {
                     sum -= ((const int*)pA)[0];

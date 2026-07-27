@@ -4655,6 +4655,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                     __m128 _c5;
                     __m128 _c6;
                     __m128 _c7;
+#if __loongarch_asx
                     if (c_elempack == 8)
                     {
                         _c0 = (__m128)__lsx_vld(pC, 0);
@@ -4668,7 +4669,9 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                         transpose4x4_ps(_c0, _c1, _c2, _c3);
                         transpose4x4_ps(_c4, _c5, _c6, _c7);
                     }
-                    else if (c_elempack == 4)
+                    else
+#endif // __loongarch_asx
+                        if (c_elempack == 4)
                     {
                         const float* pC1 = pC + c_hstep * 4;
                         _c0 = (__m128)__lsx_vld(pC, 0);
@@ -4882,6 +4885,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                     __m128i _ci5;
                     __m128i _ci6;
                     __m128i _ci7;
+#if __loongarch_asx
                     if (c_elempack == 8)
                     {
                         _ci0 = __lsx_vldrepl_w(pC, 0);
@@ -4901,7 +4905,9 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                         _ci6 = __lsx_vinsgr2vr_w(_ci6, ((const int*)(pC + 14))[0], 1);
                         _ci7 = __lsx_vinsgr2vr_w(_ci7, ((const int*)(pC + 15))[0], 1);
                     }
-                    else if (c_elempack == 4)
+                    else
+#endif // __loongarch_asx
+                        if (c_elempack == 4)
                     {
                         const float* pC1 = pC + c_hstep * 4;
                         _ci0 = __lsx_vldrepl_w(pC, 0);
@@ -5072,12 +5078,15 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 {
                     __m128i _c0;
                     __m128i _c4;
+#if __loongarch_asx
                     if (c_elempack == 8)
                     {
                         _c0 = __lsx_vld(pC, 0);
                         _c4 = __lsx_vld(pC + 4, 0);
                     }
-                    else if (c_elempack == 4)
+                    else
+#endif // __loongarch_asx
+                        if (c_elempack == 4)
                     {
                         _c0 = __lsx_vld(pC, 0);
                         _c4 = __lsx_vld(pC + c_hstep * 4, 0);

@@ -9020,8 +9020,14 @@ int Gemm_loongarch::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::v
 
             bool supported_C_elempack = C.elempack == 1;
 #if __loongarch_sx
-            if (C.elempack == 4 || C.elempack == 8)
+            if (C.elempack == 4)
                 supported_C_elempack = true;
+            if (C.elembits() == 16 && C.elempack == 8)
+                supported_C_elempack = true;
+#if __loongarch_asx
+            if (C.elembits() == 32 && C.elempack == 8)
+                supported_C_elempack = true;
+#endif // __loongarch_asx
 #endif // __loongarch_sx
             if (broadcast_type_C == -1 || !supported_C_elempack || (C.elembits() != 32 && !(C.elembits() == 16 && use_bf16_storage)))
             {
@@ -9041,6 +9047,21 @@ int Gemm_loongarch::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::v
     {
         Option opt_cast = opt;
         opt_cast.blob_allocator = opt.workspace_allocator;
+
+#if __loongarch_sx
+#if !__loongarch_asx
+        if (C.elempack == 8)
+        {
+            Mat C_packed;
+            convert_packing(C, C_packed, 4, opt_cast);
+            if (C_packed.empty())
+                return -100;
+
+            C = C_packed;
+        }
+#endif // !__loongarch_asx
+#endif // __loongarch_sx
+
         cast_bfloat16_to_float32(C, C_fp32, opt_cast);
         if (C_fp32.empty())
             return -100;

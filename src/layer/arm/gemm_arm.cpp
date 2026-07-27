@@ -7351,7 +7351,7 @@ int Gemm_arm::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
 #if __ARM_NEON
             if (C.elempack == 4)
                 supported_C_packing = true;
-            if (input_elemtype == 2 && use_fp16_pack8 && C.elempack == 8)
+            if (C.elembits() == 16 && input_elemtype == 2 && use_fp16_pack8 && C.elempack == 8)
                 supported_C_packing = true;
 #endif
             if (broadcast_type_C == 0 && C.elempack != 1)
@@ -7378,7 +7378,19 @@ int Gemm_arm::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
 
 #if NCNN_VFPV4
                 if (input_elemtype == 2)
+                {
+                    if (C.elempack == 8)
+                    {
+                        Mat C_packed;
+                        convert_packing(C, C_packed, 4, opt_cast);
+                        if (C_packed.empty())
+                            return -100;
+
+                        C = C_packed;
+                    }
+
                     cast_float16_to_float32(C, C_fp32, opt_cast);
+                }
 #endif
 #if NCNN_BF16
                 if (input_elemtype == 3)

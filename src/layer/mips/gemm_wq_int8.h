@@ -2905,29 +2905,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     pB += 16;
                 }
-                int sum00 = __msa_copy_s_w(_sum0, 0);
-                int sum01 = __msa_copy_s_w(_sum0, 1);
-                int sum10 = __msa_copy_s_w(_sum0, 2);
-                int sum11 = __msa_copy_s_w(_sum0, 3);
-                int sum20 = __msa_copy_s_w(_sum1, 0);
-                int sum21 = __msa_copy_s_w(_sum1, 1);
-                int sum30 = __msa_copy_s_w(_sum1, 2);
-                int sum31 = __msa_copy_s_w(_sum1, 3);
                 for (; kk < max_kk0; kk++)
                 {
-                    sum00 += pA[0] * pB[0];
-                    sum01 += pA[1] * pB[0];
-                    sum10 += pA[0] * pB[1];
-                    sum11 += pA[1] * pB[1];
-                    sum20 += pA[0] * pB[2];
-                    sum21 += pA[1] * pB[2];
-                    sum30 += pA[0] * pB[3];
-                    sum31 += pA[1] * pB[3];
+                    _sum0 = __msa_addv_w(_sum0, __msa_set_w(pA[0] * pB[0], pA[1] * pB[0], pA[0] * pB[1], pA[1] * pB[1]));
+                    _sum1 = __msa_addv_w(_sum1, __msa_set_w(pA[0] * pB[2], pA[1] * pB[2], pA[0] * pB[3], pA[1] * pB[3]));
                     pA += 2;
                     pB += 4;
                 }
-                _sum0 = __msa_set_w(sum00, sum01, sum10, sum11);
-                _sum1 = __msa_set_w(sum20, sum21, sum30, sum31);
                 v4f32 _descaleA = (v4f32)__msa_fill_d_ptr(pA_descales);
                 v4f32 _descaleB0 = (v4f32)__msa_set_w(__msa_load_w(pB_descales), __msa_load_w(pB_descales), __msa_load_w(pB_descales + 1), __msa_load_w(pB_descales + 1));
                 v4f32 _descaleB1 = (v4f32)__msa_set_w(__msa_load_w(pB_descales + 2), __msa_load_w(pB_descales + 2), __msa_load_w(pB_descales + 3), __msa_load_w(pB_descales + 3));
@@ -2978,20 +2962,12 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                     pB += 8;
                 }
-                int sum00 = __msa_copy_s_w(_sum, 0);
-                int sum01 = __msa_copy_s_w(_sum, 1);
-                int sum10 = __msa_copy_s_w(_sum, 2);
-                int sum11 = __msa_copy_s_w(_sum, 3);
                 for (; kk < max_kk0; kk++)
                 {
-                    sum00 += pA[0] * pB[0];
-                    sum01 += pA[1] * pB[0];
-                    sum10 += pA[0] * pB[1];
-                    sum11 += pA[1] * pB[1];
+                    _sum = __msa_addv_w(_sum, __msa_set_w(pA[0] * pB[0], pA[1] * pB[0], pA[0] * pB[1], pA[1] * pB[1]));
                     pA += 2;
                     pB += 2;
                 }
-                _sum = __msa_set_w(sum00, sum01, sum10, sum11);
                 v4f32 _descaleA = (v4f32)__msa_fill_d_ptr(pA_descales);
                 v4f32 _descaleB = (v4f32)__msa_set_w(__msa_load_w(pB_descales), __msa_load_w(pB_descales), __msa_load_w(pB_descales + 1), __msa_load_w(pB_descales + 1));
                 v4f32 _scale = __msa_fmul_w(_descaleA, _descaleB);
@@ -3255,20 +3231,12 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 4;
                     pB += 16;
                 }
-                int sum0 = __msa_copy_s_w(_sum0, 0);
-                int sum1 = __msa_copy_s_w(_sum0, 1);
-                int sum2 = __msa_copy_s_w(_sum0, 2);
-                int sum3 = __msa_copy_s_w(_sum0, 3);
                 for (; kk < max_kk0; kk++)
                 {
-                    sum0 += pA[0] * pB[0];
-                    sum1 += pA[0] * pB[1];
-                    sum2 += pA[0] * pB[2];
-                    sum3 += pA[0] * pB[3];
+                    _sum0 = __msa_addv_w(_sum0, __msa_set_w(pA[0] * pB[0], pA[0] * pB[1], pA[0] * pB[2], pA[0] * pB[3]));
                     pA++;
                     pB += 4;
                 }
-                _sum0 = __msa_set_w(sum0, sum1, sum2, sum3);
                 v4f32 _descaleB = (v4f32)__msa_ld_w(pB_descales, 0);
                 v4f32 _scale = __msa_fmul_w(_descaleB, __msa_fill_w_f32(pA_descales[0]));
                 _fsum0 = __ncnn_msa_fmadd_w(_fsum0, (v4f32)__msa_ffint_s_w(_sum0), _scale);
@@ -3546,29 +3514,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 if (broadcast_type_C == 3)
                 {
                     v4f32 _beta = __msa_fill_w_f32(beta);
-                    if (c_elempack == 8)
-                    {
-                        v4f32 _c0 = (v4f32)__msa_ld_w(pC, 0);
-                        v4f32 _c1 = (v4f32)__msa_ld_w(pC + 8, 0);
-                        v4f32 _c2 = (v4f32)__msa_ld_w(pC + 16, 0);
-                        v4f32 _c3 = (v4f32)__msa_ld_w(pC + 24, 0);
-                        transpose4x4_ps(_c0, _c1, _c2, _c3);
-                        _f0 = __msa_fadd_w(_f0, __msa_fmul_w(_c0, _beta));
-                        _f1 = __msa_fadd_w(_f1, __msa_fmul_w(_c1, _beta));
-                        _f2 = __msa_fadd_w(_f2, __msa_fmul_w(_c2, _beta));
-                        _f3 = __msa_fadd_w(_f3, __msa_fmul_w(_c3, _beta));
-
-                        _c0 = (v4f32)__msa_ld_w(pC + 4, 0);
-                        _c1 = (v4f32)__msa_ld_w(pC + 12, 0);
-                        _c2 = (v4f32)__msa_ld_w(pC + 20, 0);
-                        _c3 = (v4f32)__msa_ld_w(pC + 28, 0);
-                        transpose4x4_ps(_c0, _c1, _c2, _c3);
-                        _f4 = __msa_fadd_w(_f4, __msa_fmul_w(_c0, _beta));
-                        _f5 = __msa_fadd_w(_f5, __msa_fmul_w(_c1, _beta));
-                        _f6 = __msa_fadd_w(_f6, __msa_fmul_w(_c2, _beta));
-                        _f7 = __msa_fadd_w(_f7, __msa_fmul_w(_c3, _beta));
-                    }
-                    else if (c_elempack == 4)
+                    if (c_elempack == 4)
                     {
                         v4f32 _c0 = (v4f32)__msa_ld_w(pC, 0);
                         v4f32 _c1 = (v4f32)__msa_ld_w(pC + 4, 0);
@@ -3728,30 +3674,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 if (broadcast_type_C == 3)
                 {
                     v4f32 _beta = __msa_fill_w_f32(beta);
-                    if (c_elempack == 8)
-                    {
-                        v4f32 _c0 = (v4f32)__msa_ld_w(pC + 32, 0);
-                        v4f32 _c1 = (v4f32)__msa_ld_w(pC + 40, 0);
-                        v4f32 _c2 = (v4f32)__msa_ld_w(pC + 48, 0);
-                        v4f32 _c3 = (v4f32)__msa_ld_w(pC + 56, 0);
-                        transpose4x4_ps(_c0, _c1, _c2, _c3);
-                        _g0 = __msa_fadd_w(_g0, __msa_fmul_w(_c0, _beta));
-                        _g1 = __msa_fadd_w(_g1, __msa_fmul_w(_c1, _beta));
-                        _g2 = __msa_fadd_w(_g2, __msa_fmul_w(_c2, _beta));
-                        _g3 = __msa_fadd_w(_g3, __msa_fmul_w(_c3, _beta));
-
-                        _c0 = (v4f32)__msa_ld_w(pC + 36, 0);
-                        _c1 = (v4f32)__msa_ld_w(pC + 44, 0);
-                        _c2 = (v4f32)__msa_ld_w(pC + 52, 0);
-                        _c3 = (v4f32)__msa_ld_w(pC + 60, 0);
-                        transpose4x4_ps(_c0, _c1, _c2, _c3);
-                        _g4 = __msa_fadd_w(_g4, __msa_fmul_w(_c0, _beta));
-                        _g5 = __msa_fadd_w(_g5, __msa_fmul_w(_c1, _beta));
-                        _g6 = __msa_fadd_w(_g6, __msa_fmul_w(_c2, _beta));
-                        _g7 = __msa_fadd_w(_g7, __msa_fmul_w(_c3, _beta));
-                        pC += 64;
-                    }
-                    else if (c_elempack == 4)
+                    if (c_elempack == 4)
                     {
                         v4f32 _c0 = (v4f32)__msa_ld_w(pC + 16, 0);
                         v4f32 _c1 = (v4f32)__msa_ld_w(pC + 20, 0);
@@ -3918,30 +3841,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 if (broadcast_type_C == 3)
                 {
                     v4f32 _beta = __msa_fill_w_f32(beta);
-                    if (c_elempack == 8)
-                    {
-                        v4f32 _c0 = (v4f32)__msa_ld_w(pC, 0);
-                        v4f32 _c1 = (v4f32)__msa_ld_w(pC + 8, 0);
-                        v4f32 _c2 = (v4f32)__msa_ld_w(pC + 16, 0);
-                        v4f32 _c3 = (v4f32)__msa_ld_w(pC + 24, 0);
-                        transpose4x4_ps(_c0, _c1, _c2, _c3);
-                        _f0 = __msa_fadd_w(_f0, __msa_fmul_w(_c0, _beta));
-                        _f1 = __msa_fadd_w(_f1, __msa_fmul_w(_c1, _beta));
-                        _f2 = __msa_fadd_w(_f2, __msa_fmul_w(_c2, _beta));
-                        _f3 = __msa_fadd_w(_f3, __msa_fmul_w(_c3, _beta));
-
-                        _c0 = (v4f32)__msa_ld_w(pC + 4, 0);
-                        _c1 = (v4f32)__msa_ld_w(pC + 12, 0);
-                        _c2 = (v4f32)__msa_ld_w(pC + 20, 0);
-                        _c3 = (v4f32)__msa_ld_w(pC + 28, 0);
-                        transpose4x4_ps(_c0, _c1, _c2, _c3);
-                        _f4 = __msa_fadd_w(_f4, __msa_fmul_w(_c0, _beta));
-                        _f5 = __msa_fadd_w(_f5, __msa_fmul_w(_c1, _beta));
-                        _f6 = __msa_fadd_w(_f6, __msa_fmul_w(_c2, _beta));
-                        _f7 = __msa_fadd_w(_f7, __msa_fmul_w(_c3, _beta));
-                        pC += 32;
-                    }
-                    else if (c_elempack == 4)
+                    if (c_elempack == 4)
                     {
                         v4f32 _c0 = (v4f32)__msa_ld_w(pC, 0);
                         v4f32 _c1 = (v4f32)__msa_ld_w(pC + 4, 0);
@@ -4104,15 +4004,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                     v4f32 _c1;
                     v4f32 _c4;
                     v4f32 _c5;
-                    if (c_elempack == 8)
-                    {
-                        _c0 = (v4f32)__msa_ld_w(pC, 0);
-                        _c4 = (v4f32)__msa_ld_w(pC + 4, 0);
-                        _c1 = (v4f32)__msa_ld_w(pC + 8, 0);
-                        _c5 = (v4f32)__msa_ld_w(pC + 12, 0);
-                        pC += 16;
-                    }
-                    else if (c_elempack == 4)
+                    if (c_elempack == 4)
                     {
                         _c0 = (v4f32)__msa_ld_w(pC, 0);
                         _c1 = (v4f32)__msa_ld_w(pC + 4, 0);
@@ -4226,13 +4118,7 @@ static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& 
                 {
                     v4f32 _c0;
                     v4f32 _c4;
-                    if (c_elempack == 8)
-                    {
-                        _c0 = (v4f32)__msa_ld_w(pC, 0);
-                        _c4 = (v4f32)__msa_ld_w(pC + 4, 0);
-                        pC += 8;
-                    }
-                    else if (c_elempack == 4)
+                    if (c_elempack == 4)
                     {
                         _c0 = (v4f32)__msa_ld_w(pC, 0);
                         _c4 = (v4f32)__msa_ld_w(pC + c_hstep * 4, 0);
