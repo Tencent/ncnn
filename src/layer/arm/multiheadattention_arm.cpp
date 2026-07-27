@@ -654,17 +654,17 @@ int MultiHeadAttention_arm::create_pipeline(const Option& _opt)
             return -100;
         }
         ncnn::ParamDict pd;
-        pd.set(2, 1);                   // transA
-        pd.set(3, 0);                   // transB
-        pd.set(4, 0);                   // constantA
-        pd.set(5, 0);                   // constantB
-        pd.set(6, attn_mask ? 0 : 1);   // constantC
-        pd.set(7, 0);                   // M
-        pd.set(8, 0);                   // N
-        pd.set(9, 0);                   // K
-        pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C
-        pd.set(11, 0);                  // output_N1M
-        pd.set(12, 1);                  // output_elempack
+        pd.set(2, 1);                             // transA
+        pd.set(3, 0);                             // transB
+        pd.set(4, 0);                             // constantA
+        pd.set(5, 0);                             // constantB
+        pd.set(6, attn_mask ? 0 : 1);             // constantC
+        pd.set(7, 0);                             // M
+        pd.set(8, 0);                             // N
+        pd.set(9, 0);                             // K
+        pd.set(10, attn_mask ? 3 : -1);           // constant_broadcast_type_C
+        pd.set(11, 0);                            // output_N1M
+        pd.set(12, 1);                            // output_elempack
         pd.set(13, opt.use_fp16_storage ? 0 : 1); // output_elemtype = auto/fp32
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
@@ -701,19 +701,19 @@ int MultiHeadAttention_arm::create_pipeline(const Option& _opt)
             return -100;
         }
         ncnn::ParamDict pd;
-        pd.set(2, 0);   // transA
-        pd.set(3, 1);   // transB
-        pd.set(4, 0);   // constantA
-        pd.set(5, 0);   // constantB
-        pd.set(6, 1);   // constantC
-        pd.set(7, 0);   // M
-        pd.set(8, 0);   // N
-        pd.set(9, 0);   // K
-        pd.set(10, -1); // constant_broadcast_type_C
-        pd.set(11, 0);  // output_N1M
-        pd.set(12, 1);  // output_elempack
+        pd.set(2, 0);                             // transA
+        pd.set(3, 1);                             // transB
+        pd.set(4, 0);                             // constantA
+        pd.set(5, 0);                             // constantB
+        pd.set(6, 1);                             // constantC
+        pd.set(7, 0);                             // M
+        pd.set(8, 0);                             // N
+        pd.set(9, 0);                             // K
+        pd.set(10, -1);                           // constant_broadcast_type_C
+        pd.set(11, 0);                            // output_N1M
+        pd.set(12, 1);                            // output_elempack
         pd.set(13, opt.use_fp16_storage ? 0 : 1); // output_elemtype = auto/fp32
-        pd.set(14, 1);  // output_transpose
+        pd.set(14, 1);                            // output_transpose
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
