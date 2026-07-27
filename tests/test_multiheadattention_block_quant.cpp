@@ -439,11 +439,22 @@ static int test_multiheadattention_wq_int8_pipeline()
     pd.set(7, 1);
     pd.set(18, weight_block_quantize_term(8, block_size, 1));
 
-    ncnn::UnlockedPoolAllocator blob_pool_allocator;
+    std::vector<ncnn::Mat> inputs[2];
+    inputs[0].resize(3);
+    inputs[0][0] = RandomWQInt8Mat(qdim, 9, block_size, weights[12], true);
+    inputs[1].resize(5);
+    inputs[1][0] = RandomWQInt8Mat(qdim, 3, block_size, weights[12], true);
+    inputs[1][1] = RandomWQInt8Mat(qdim, 5, block_size, weights[13], true);
+    inputs[1][2] = RandomWQInt8Mat(qdim, 5, block_size, weights[14], true);
+
+    std::vector<ncnn::Mat> reference[2];
+    for (int i = 0; i < 2; i++)
+        test_layer_naive(ncnn::layer_to_index("MultiHeadAttention"), pd, weights, inputs[i], 3, reference[i], TEST_LAYER_DISABLE_GPU_TESTING);
+
+    ncnn::PoolAllocator blob_pool_allocator;
     ncnn::PoolAllocator workspace_pool_allocator;
 
     ncnn::Option opt;
-    opt.lightmode = false;
     opt.num_threads = 2;
     opt.blob_allocator = &blob_pool_allocator;
     opt.workspace_allocator = &workspace_pool_allocator;
@@ -459,24 +470,26 @@ static int test_multiheadattention_wq_int8_pipeline()
 
     mha->load_param(pd);
     mha->load_model(ncnn::ModelBinFromMatArray(weights.data()));
-
-    std::vector<ncnn::Mat> inputs(3);
-    inputs[0] = RandomWQInt8Mat(qdim, 9, block_size, weights[12], true);
-
-    std::vector<ncnn::Mat> reference;
-    test_layer_naive(ncnn::layer_to_index("MultiHeadAttention"), pd, weights, inputs, 3, reference, TEST_LAYER_DISABLE_GPU_TESTING);
+    mha->create_pipeline(opt);
 
     int test_ret = 0;
     for (int i = 0; i < 2; i++)
     {
-        mha->create_pipeline(opt);
+        ncnn::Option opt_forward = opt;
+        opt_forward.num_threads = i + 1;
+
         std::vector<ncnn::Mat> outputs(3);
-        mha->forward(inputs, outputs, opt);
-        if (CompareMat(outputs, reference, 0.001f) != 0)
+        mha->forward(inputs[i], outputs, opt_forward);
+        if (CompareMat(outputs, reference[i], 0.001f) != 0)
             test_ret = -1;
-        mha->destroy_pipeline(opt);
+        for (int j = 0; j < 3; j++)
+        {
+            if (outputs[j].allocator != &blob_pool_allocator)
+                test_ret = -1;
+        }
     }
 
+    mha->destroy_pipeline(opt);
     delete mha;
 
     if (test_ret != 0)

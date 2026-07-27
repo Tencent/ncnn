@@ -940,7 +940,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
     const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
 
     size_t elemsize = q_blob.elemsize / q_blob.elempack;
-    size_t workspace_elemsize = opt.use_bf16_storage ? 4u : elemsize;
+    size_t workspace_elemsize = weight_block_quantize || opt.use_bf16_storage ? 4u : elemsize;
 
     Mat q_affine;
     int retq = q_gemm->forward(q_blob, q_affine, opt_wq);
