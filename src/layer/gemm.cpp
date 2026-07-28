@@ -234,6 +234,7 @@ Gemm::Gemm()
     support_inplace = false;
 
     weight_block_quantize = 0;
+    weight_block_quantize_block_size = 0;
 }
 
 int Gemm::load_param(const ParamDict& pd)
@@ -255,9 +256,9 @@ int Gemm::load_param(const ParamDict& pd)
     output_transpose = pd.get(14, 0);
     quantize_term = pd.get(18, 0);
     int weight_bits;
-    int block_size;
     bool has_input_scale;
-    weight_block_quantize = get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) == 0;
+    weight_block_quantize_block_size = 0;
+    weight_block_quantize = get_weight_block_quantize_params(weight_bits, weight_block_quantize_block_size, has_input_scale) == 0;
     constant_TILE_M = pd.get(20, 0);
     constant_TILE_N = pd.get(21, 0);
     constant_TILE_K = pd.get(22, 0);
@@ -528,7 +529,7 @@ static inline int gemm_weight_block_quantize_unpack(const unsigned char* ptr, in
 int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& A = bottom_blobs[0];
-    if ((!transA && A.dims != 2 && A.dims != 3) || (transA && A.dims != 2))
+    if (A.dims != 2 && A.dims != 3)
     {
         NCNN_LOGE("Gemm unsupported input");
         return -1;
@@ -546,23 +547,20 @@ int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, st
         return -1;
     }
 
-    const int K = transA ? A.h : A.w;
+    const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
     if (K != constantK)
     {
         NCNN_LOGE("Gemm weight block quantize K mismatch");
         return -1;
     }
 
-    int weight_bits;
-    int block_size;
-    bool has_input_scale;
-    if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0)
-        return -1;
+    const int weight_bits = quantize_term / 100;
+    const int block_size = weight_block_quantize_block_size;
     const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(constantK, weight_bits);
 
-    const float* input_scale_ptr = has_input_scale ? (const float*)B_data_input_scales : 0;
+    const float* input_scale_ptr = B_data_input_scales;
 
-    const int M = transA ? A.w : A.dims == 3 ? A.c : A.h;
+    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int N = constantN;
 
     Mat C;

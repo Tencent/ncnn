@@ -7,7 +7,7 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
     const int elempack = A.elempack;
     signed char* pp = AT_tile;
     float* pd = AT_descales_tile;
-    const int block_count = (max_kk + block_size - 1) / block_size;
+    const int local_block_count = (max_kk + block_size - 1) / block_size;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     if (input_scales.empty())
@@ -29,9 +29,9 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
             signed char* pp0 = pp;
             signed char* pp1 = pp + (size_t)max_kk * packn;
             float* pd0 = pd;
-            float* pd1 = pd + (size_t)block_count * packn;
+            float* pd1 = pd + (size_t)local_block_count * packn;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 vfloat32m4_t _absmax = __riscv_vfmv_v_f_f32m4(0.f, vl);
@@ -103,7 +103,7 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
             }
 
             pp += (size_t)max_kk * packn_a;
-            pd += (size_t)block_count * packn_a;
+            pd += (size_t)local_block_count * packn_a;
         }
 #endif // __riscv_vector && __riscv_zvfh
         for (; ii + 1 < max_ii; ii += 2)
@@ -111,7 +111,7 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
             const __fp16* p0 = (const __fp16*)A + (size_t)(i + ii) * A_hstep + k;
             const __fp16* p1 = p0 + A_hstep;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax0 = 0.f;
@@ -142,21 +142,10 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                 }
 #endif // __riscv_vector && __riscv_zvfh
 
-#if __riscv_vector && __riscv_zvfh
-                vfloat32m4_t _absmax = __riscv_vfmv_v_f_f32m4(absmax0, vl_packn);
-                _absmax = __riscv_vslideup_vx_f32m4(_absmax, __riscv_vfmv_v_f_f32m4(absmax1, vl_packn), 1, vl_packn);
-                vfloat32m4_t _scale = __riscv_vfrdiv_vf_f32m4(_absmax, 127.f, vl_packn);
-                _scale = __riscv_vfmerge_vfm_f32m4(_scale, 0.f, __riscv_vmfeq_vf_f32m4_b8(_absmax, 0.f, vl_packn), vl_packn);
-                vbool8_t _mask2 = __riscv_vmsltu_vx_u32m4_b8(__riscv_vid_v_u32m4(vl_packn), 2, vl_packn);
-                __riscv_vse32_v_f32m4_m(_mask2, pd, __riscv_vfmul_vf_f32m4(_absmax, 1.f / 127.f, vl_packn), vl_packn);
-                const float scale0 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vget_v_f32m4_f32m1(_scale, 0));
-                const float scale1 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vget_v_f32m4_f32m1(__riscv_vslidedown_vx_f32m4(_scale, 1, vl_packn), 0));
-#else
                 const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
                 const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
                 pd[0] = absmax0 / 127.f;
                 pd[1] = absmax1 / 127.f;
-#endif // __riscv_vector && __riscv_zvfh
                 pd += 2;
 
                 kk = 0;
@@ -189,7 +178,7 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
         {
             const __fp16* p0 = (const __fp16*)A + (size_t)(i + ii) * A_hstep + k;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax = 0.f;
@@ -254,9 +243,9 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
         signed char* pp0 = pp;
         signed char* pp1 = pp + (size_t)max_kk * packn;
         float* pd0 = pd;
-        float* pd1 = pd + (size_t)block_count * packn;
+        float* pd1 = pd + (size_t)local_block_count * packn;
 
-        for (int g = 0; g < block_count; g++)
+        for (int g = 0; g < local_block_count; g++)
         {
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             vfloat32m4_t _absmax = __riscv_vfmv_v_f_f32m4(0.f, vl);
@@ -333,7 +322,7 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
         }
 
         pp += (size_t)max_kk * packn_a;
-        pd += (size_t)block_count * packn_a;
+        pd += (size_t)local_block_count * packn_a;
     }
 #endif // __riscv_vector && __riscv_zvfh
     for (; ii + 1 < max_ii; ii += 2)
@@ -342,7 +331,7 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
         const __fp16* p1 = p0 + A_hstep;
         const float* ps = input_scale_ptr;
 
-        for (int g = 0; g < block_count; g++)
+        for (int g = 0; g < local_block_count; g++)
         {
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             float absmax0 = 0.f;
@@ -377,21 +366,10 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
             }
 #endif // __riscv_vector && __riscv_zvfh
 
-#if __riscv_vector && __riscv_zvfh
-            vfloat32m4_t _absmax = __riscv_vfmv_v_f_f32m4(absmax0, vl_packn);
-            _absmax = __riscv_vslideup_vx_f32m4(_absmax, __riscv_vfmv_v_f_f32m4(absmax1, vl_packn), 1, vl_packn);
-            vfloat32m4_t _scale = __riscv_vfrdiv_vf_f32m4(_absmax, 127.f, vl_packn);
-            _scale = __riscv_vfmerge_vfm_f32m4(_scale, 0.f, __riscv_vmfeq_vf_f32m4_b8(_absmax, 0.f, vl_packn), vl_packn);
-            vbool8_t _mask2 = __riscv_vmsltu_vx_u32m4_b8(__riscv_vid_v_u32m4(vl_packn), 2, vl_packn);
-            __riscv_vse32_v_f32m4_m(_mask2, pd, __riscv_vfmul_vf_f32m4(_absmax, 1.f / 127.f, vl_packn), vl_packn);
-            const float scale0 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vget_v_f32m4_f32m1(_scale, 0));
-            const float scale1 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vget_v_f32m4_f32m1(__riscv_vslidedown_vx_f32m4(_scale, 1, vl_packn), 0));
-#else
             const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
             const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
             pd[0] = absmax0 / 127.f;
             pd[1] = absmax1 / 127.f;
-#endif // __riscv_vector && __riscv_zvfh
             pd += 2;
 
             kk = 0;
@@ -430,7 +408,7 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
         const __fp16* p0 = (const __fp16*)A + (size_t)(i + ii) * A_hstep + k;
         const float* ps = input_scale_ptr;
 
-        for (int g = 0; g < block_count; g++)
+        for (int g = 0; g < local_block_count; g++)
         {
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             float absmax = 0.f;
@@ -484,7 +462,7 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
     const int elempack = A.elempack;
     signed char* pp = AT_tile;
     float* pd = AT_descales_tile;
-    const int block_count = (max_kk + block_size - 1) / block_size;
+    const int local_block_count = (max_kk + block_size - 1) / block_size;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     if (input_scales.empty())
@@ -496,7 +474,7 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
         const size_t vl_packn = __riscv_vsetvl_e32m4(packn);
         for (; ii + (packn - 1) < max_ii; ii += packn)
         {
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const int k0 = k + g * block_size;
@@ -612,7 +590,7 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
 #if __riscv_vector && __riscv_zvfh
             if (elempack == packn_fp16)
             {
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const int k0 = k + g * block_size;
@@ -649,14 +627,10 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                         }
                     }
 
-                    vfloat32m4_t _absmax = __riscv_vfmv_v_f_f32m4(absmax0, vl_packn);
-                    _absmax = __riscv_vslideup_vx_f32m4(_absmax, __riscv_vfmv_v_f_f32m4(absmax1, vl_packn), 1, vl_packn);
-                    vfloat32m4_t _scale = __riscv_vfrdiv_vf_f32m4(_absmax, 127.f, vl_packn);
-                    _scale = __riscv_vfmerge_vfm_f32m4(_scale, 0.f, __riscv_vmfeq_vf_f32m4_b8(_absmax, 0.f, vl_packn), vl_packn);
-                    vbool8_t _mask2 = __riscv_vmsltu_vx_u32m4_b8(__riscv_vid_v_u32m4(vl_packn), 2, vl_packn);
-                    __riscv_vse32_v_f32m4_m(_mask2, pd, __riscv_vfmul_vf_f32m4(_absmax, 1.f / 127.f, vl_packn), vl_packn);
-                    const float scale0 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vget_v_f32m4_f32m1(_scale, 0));
-                    const float scale1 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vget_v_f32m4_f32m1(__riscv_vslidedown_vx_f32m4(_scale, 1, vl_packn), 0));
+                    const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
+                    const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
+                    pd[0] = absmax0 / 127.f;
+                    pd[1] = absmax1 / 127.f;
                     pd += 2;
 
                     kk = 0;
@@ -688,7 +662,7 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
             {
                 const __fp16* p0 = (const __fp16*)A + (size_t)k * A_hstep + i + ii;
 
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     float absmax0 = 0.f;
@@ -718,21 +692,10 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                     }
 #endif // __riscv_vector && __riscv_zvfh
 
-#if __riscv_vector && __riscv_zvfh
-                    vfloat32m4_t _absmax = __riscv_vfmv_v_f_f32m4(absmax0, vl_packn);
-                    _absmax = __riscv_vslideup_vx_f32m4(_absmax, __riscv_vfmv_v_f_f32m4(absmax1, vl_packn), 1, vl_packn);
-                    vfloat32m4_t _scale = __riscv_vfrdiv_vf_f32m4(_absmax, 127.f, vl_packn);
-                    _scale = __riscv_vfmerge_vfm_f32m4(_scale, 0.f, __riscv_vmfeq_vf_f32m4_b8(_absmax, 0.f, vl_packn), vl_packn);
-                    vbool8_t _mask2 = __riscv_vmsltu_vx_u32m4_b8(__riscv_vid_v_u32m4(vl_packn), 2, vl_packn);
-                    __riscv_vse32_v_f32m4_m(_mask2, pd, __riscv_vfmul_vf_f32m4(_absmax, 1.f / 127.f, vl_packn), vl_packn);
-                    const float scale0 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vget_v_f32m4_f32m1(_scale, 0));
-                    const float scale1 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vget_v_f32m4_f32m1(__riscv_vslidedown_vx_f32m4(_scale, 1, vl_packn), 0));
-#else
                     const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
                     const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
                     pd[0] = absmax0 / 127.f;
                     pd[1] = absmax1 / 127.f;
-#endif // __riscv_vector && __riscv_zvfh
                     pd += 2;
 
                     kk = 0;
@@ -767,7 +730,7 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
 #if __riscv_vector && __riscv_zvfh
             if (elempack == packn_fp16)
             {
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const int k0 = k + g * block_size;
@@ -827,7 +790,7 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
             {
                 const __fp16* p0 = (const __fp16*)A + (size_t)k * A_hstep + i + ii;
 
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     float absmax = 0.f;
@@ -888,7 +851,7 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
     const size_t vl_packn = __riscv_vsetvl_e32m4(packn);
     for (; ii + (packn - 1) < max_ii; ii += packn)
     {
-        for (int g = 0; g < block_count; g++)
+        for (int g = 0; g < local_block_count; g++)
         {
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             const int k0 = k + g * block_size;
@@ -1016,7 +979,7 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
 #if __riscv_vector && __riscv_zvfh
         if (elempack == packn_fp16)
         {
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const int k0 = k + g * block_size;
@@ -1057,14 +1020,10 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                     }
                 }
 
-                vfloat32m4_t _absmax = __riscv_vfmv_v_f_f32m4(absmax0, vl_packn);
-                _absmax = __riscv_vslideup_vx_f32m4(_absmax, __riscv_vfmv_v_f_f32m4(absmax1, vl_packn), 1, vl_packn);
-                vfloat32m4_t _scale = __riscv_vfrdiv_vf_f32m4(_absmax, 127.f, vl_packn);
-                _scale = __riscv_vfmerge_vfm_f32m4(_scale, 0.f, __riscv_vmfeq_vf_f32m4_b8(_absmax, 0.f, vl_packn), vl_packn);
-                vbool8_t _mask2 = __riscv_vmsltu_vx_u32m4_b8(__riscv_vid_v_u32m4(vl_packn), 2, vl_packn);
-                __riscv_vse32_v_f32m4_m(_mask2, pd, __riscv_vfmul_vf_f32m4(_absmax, 1.f / 127.f, vl_packn), vl_packn);
-                const float scale0 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vget_v_f32m4_f32m1(_scale, 0));
-                const float scale1 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vget_v_f32m4_f32m1(__riscv_vslidedown_vx_f32m4(_scale, 1, vl_packn), 0));
+                const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
+                const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
+                pd[0] = absmax0 / 127.f;
+                pd[1] = absmax1 / 127.f;
                 pd += 2;
 
                 kk = 0;
@@ -1101,7 +1060,7 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
             const __fp16* p0 = (const __fp16*)A + (size_t)k * A_hstep + i + ii;
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax0 = 0.f;
@@ -1135,21 +1094,10 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                 }
 #endif // __riscv_vector && __riscv_zvfh
 
-#if __riscv_vector && __riscv_zvfh
-                vfloat32m4_t _absmax = __riscv_vfmv_v_f_f32m4(absmax0, vl_packn);
-                _absmax = __riscv_vslideup_vx_f32m4(_absmax, __riscv_vfmv_v_f_f32m4(absmax1, vl_packn), 1, vl_packn);
-                vfloat32m4_t _scale = __riscv_vfrdiv_vf_f32m4(_absmax, 127.f, vl_packn);
-                _scale = __riscv_vfmerge_vfm_f32m4(_scale, 0.f, __riscv_vmfeq_vf_f32m4_b8(_absmax, 0.f, vl_packn), vl_packn);
-                vbool8_t _mask2 = __riscv_vmsltu_vx_u32m4_b8(__riscv_vid_v_u32m4(vl_packn), 2, vl_packn);
-                __riscv_vse32_v_f32m4_m(_mask2, pd, __riscv_vfmul_vf_f32m4(_absmax, 1.f / 127.f, vl_packn), vl_packn);
-                const float scale0 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vget_v_f32m4_f32m1(_scale, 0));
-                const float scale1 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vget_v_f32m4_f32m1(__riscv_vslidedown_vx_f32m4(_scale, 1, vl_packn), 0));
-#else
                 const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
                 const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
                 pd[0] = absmax0 / 127.f;
                 pd[1] = absmax1 / 127.f;
-#endif // __riscv_vector && __riscv_zvfh
                 pd += 2;
 
                 kk = 0;
@@ -1189,7 +1137,7 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
 #if __riscv_vector && __riscv_zvfh
         if (elempack == packn_fp16)
         {
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const int k0 = k + g * block_size;
@@ -1257,7 +1205,7 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
             const __fp16* p0 = (const __fp16*)A + (size_t)k * A_hstep + i + ii;
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax = 0.f;

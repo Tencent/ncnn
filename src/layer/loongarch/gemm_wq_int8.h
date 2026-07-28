@@ -210,7 +210,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
     const int elempack = A.elempack;
     signed char* pp = AT_tile;
     float* pd = AT_descales_tile;
-    const int block_count = (max_kk + block_size - 1) / block_size;
+    const int local_block_count = (max_kk + block_size - 1) / block_size;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     if (input_scales.empty())
@@ -237,17 +237,9 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 p7 = p6 + A_hstep;
             }
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
-                float absmax0 = 0.f;
-                float absmax1 = 0.f;
-                float absmax2 = 0.f;
-                float absmax3 = 0.f;
-                float absmax4 = 0.f;
-                float absmax5 = 0.f;
-                float absmax6 = 0.f;
-                float absmax7 = 0.f;
 
                 const __m128i _abs_mask = (__m128i)__lsx_vreplgr2vr_w(0x7fffffff);
                 __m128 _absmax0 = (__m128)__lsx_vreplgr2vr_w(0);
@@ -282,17 +274,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                         _absmax8 = __lasx_xvfmax_s(_absmax8, (__m256)__lasx_xvand_v((__m256i)_p, _abs_mask8));
                         p0a += 8;
                     }
-
-                    float absmax[8];
-                    __lasx_xvst((__m256i)_absmax8, absmax, 0);
-                    absmax0 = absmax[0];
-                    absmax1 = absmax[1];
-                    absmax2 = absmax[2];
-                    absmax3 = absmax[3];
-                    absmax4 = absmax[4];
-                    absmax5 = absmax[5];
-                    absmax6 = absmax[6];
-                    absmax7 = absmax[7];
                 }
 #endif // __loongarch_asx
 
@@ -307,18 +288,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                         p0a += 4;
                         p1a += 4;
                     }
-
-                    float absmax[8];
-                    __lsx_vst((__m128i)_absmax0, absmax, 0);
-                    __lsx_vst((__m128i)_absmax1, absmax + 4, 0);
-                    absmax0 = absmax[0];
-                    absmax1 = absmax[1];
-                    absmax2 = absmax[2];
-                    absmax3 = absmax[3];
-                    absmax4 = absmax[4];
-                    absmax5 = absmax[5];
-                    absmax6 = absmax[6];
-                    absmax7 = absmax[7];
                 }
 
                 if (elempack == 1)
@@ -351,53 +320,43 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                         p7a += 4;
                     }
 
-                    absmax0 = __lsx_reduce_fmax_s(_absmax0);
-                    absmax1 = __lsx_reduce_fmax_s(_absmax1);
-                    absmax2 = __lsx_reduce_fmax_s(_absmax2);
-                    absmax3 = __lsx_reduce_fmax_s(_absmax3);
-                    absmax4 = __lsx_reduce_fmax_s(_absmax4);
-                    absmax5 = __lsx_reduce_fmax_s(_absmax5);
-                    absmax6 = __lsx_reduce_fmax_s(_absmax6);
-                    absmax7 = __lsx_reduce_fmax_s(_absmax7);
+                    transpose4x4_ps(_absmax0, _absmax1, _absmax2, _absmax3);
+                    transpose4x4_ps(_absmax4, _absmax5, _absmax6, _absmax7);
+                    _absmax0 = __lsx_vfmax_s(__lsx_vfmax_s(_absmax0, _absmax1), __lsx_vfmax_s(_absmax2, _absmax3));
+                    _absmax1 = __lsx_vfmax_s(__lsx_vfmax_s(_absmax4, _absmax5), __lsx_vfmax_s(_absmax6, _absmax7));
 
                     for (; kk < max_kk0; kk++)
                     {
-                        absmax0 = std::max(absmax0, fabsf(*p0a++));
-                        absmax1 = std::max(absmax1, fabsf(*p1a++));
-                        absmax2 = std::max(absmax2, fabsf(*p2a++));
-                        absmax3 = std::max(absmax3, fabsf(*p3a++));
-                        absmax4 = std::max(absmax4, fabsf(*p4a++));
-                        absmax5 = std::max(absmax5, fabsf(*p5a++));
-                        absmax6 = std::max(absmax6, fabsf(*p6a++));
-                        absmax7 = std::max(absmax7, fabsf(*p7a++));
+                        __m128i _p0 = (__m128i)__lsx_vldrepl_w(p0a, 0);
+                        _p0 = __lsx_vinsgr2vr_w(_p0, ((const int*)p1a)[0], 1);
+                        _p0 = __lsx_vinsgr2vr_w(_p0, ((const int*)p2a)[0], 2);
+                        _p0 = __lsx_vinsgr2vr_w(_p0, ((const int*)p3a)[0], 3);
+                        __m128i _p1 = (__m128i)__lsx_vldrepl_w(p4a, 0);
+                        _p1 = __lsx_vinsgr2vr_w(_p1, ((const int*)p5a)[0], 1);
+                        _p1 = __lsx_vinsgr2vr_w(_p1, ((const int*)p6a)[0], 2);
+                        _p1 = __lsx_vinsgr2vr_w(_p1, ((const int*)p7a)[0], 3);
+                        _absmax0 = __lsx_vfmax_s(_absmax0, (__m128)__lsx_vand_v(_p0, _abs_mask));
+                        _absmax1 = __lsx_vfmax_s(_absmax1, (__m128)__lsx_vand_v(_p1, _abs_mask));
+                        p0a++;
+                        p1a++;
+                        p2a++;
+                        p3a++;
+                        p4a++;
+                        p5a++;
+                        p6a++;
+                        p7a++;
                     }
                 }
-
-                const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
-                const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
-                const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
-                const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
-                const float scale4 = absmax4 == 0.f ? 1.f : 127.f / absmax4;
-                const float scale5 = absmax5 == 0.f ? 1.f : 127.f / absmax5;
-                const float scale6 = absmax6 == 0.f ? 1.f : 127.f / absmax6;
-                const float scale7 = absmax7 == 0.f ? 1.f : 127.f / absmax7;
-                pd[0] = absmax0 / 127.f;
-                pd[1] = absmax1 / 127.f;
-                pd[2] = absmax2 / 127.f;
-                pd[3] = absmax3 / 127.f;
-                pd[4] = absmax4 / 127.f;
-                pd[5] = absmax5 / 127.f;
-                pd[6] = absmax6 / 127.f;
-                pd[7] = absmax7 / 127.f;
-                pd += 8;
 
 #if __loongarch_asx
                 if (elempack == 8)
                 {
-                    const __m256 _one = __lasx_xvreplfr2vr_s(1.f);
                     const __m256 _v127 = __lasx_xvreplfr2vr_s(127.f);
+                    __lasx_xvst(__lasx_xvfdiv_s(_absmax8, _v127), pd, 0);
+                    pd += 8;
+
                     __m256i _zeromask = (__m256i)__lasx_xvfcmp_ceq_s(_absmax8, (__m256)__lasx_xvreplgr2vr_w(0));
-                    __m256 _absmax_safe = (__m256)__lasx_xvbitsel_v((__m256i)_absmax8, (__m256i)_one, _zeromask);
+                    __m256 _absmax_safe = (__m256)__lasx_xvbitsel_v((__m256i)_absmax8, (__m256i)_v127, _zeromask);
                     __m256 _scale = __lasx_xvfdiv_s(_v127, _absmax_safe);
 
                     kk = 0;
@@ -428,27 +387,37 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 }
 #endif // __loongarch_asx
 
+                const __m128 _v127 = __lsx_vreplfr2vr_s(127.f);
+                __m128 _scale03 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _scale47 = _scale03;
+                if (elempack == 4 || elempack == 1)
+                {
+                    __lsx_vst(__lsx_vfdiv_s(_absmax0, _v127), pd, 0);
+                    __lsx_vst(__lsx_vfdiv_s(_absmax1, _v127), pd + 4, 0);
+                    pd += 8;
+
+                    __m128i _zeromask0 = __lsx_vfcmp_ceq_s(_absmax0, (__m128)__lsx_vreplgr2vr_w(0));
+                    __m128i _zeromask1 = __lsx_vfcmp_ceq_s(_absmax1, (__m128)__lsx_vreplgr2vr_w(0));
+                    _absmax0 = (__m128)__lsx_vbitsel_v((__m128i)_absmax0, (__m128i)_v127, _zeromask0);
+                    _absmax1 = (__m128)__lsx_vbitsel_v((__m128i)_absmax1, (__m128i)_v127, _zeromask1);
+                    _scale03 = __lsx_vfdiv_s(_v127, _absmax0);
+                    _scale47 = __lsx_vfdiv_s(_v127, _absmax1);
+                }
+
                 if (elempack == 4)
                 {
-                    __m128i _scale01 = __lsx_vilvl_w((__m128i)__lsx_vreplfr2vr_s(scale1), (__m128i)__lsx_vreplfr2vr_s(scale0));
-                    __m128i _scale23 = __lsx_vilvl_w((__m128i)__lsx_vreplfr2vr_s(scale3), (__m128i)__lsx_vreplfr2vr_s(scale2));
-                    __m128 _scale0 = (__m128)__lsx_vilvl_d(_scale23, _scale01);
-                    __m128i _scale45 = __lsx_vilvl_w((__m128i)__lsx_vreplfr2vr_s(scale5), (__m128i)__lsx_vreplfr2vr_s(scale4));
-                    __m128i _scale67 = __lsx_vilvl_w((__m128i)__lsx_vreplfr2vr_s(scale7), (__m128i)__lsx_vreplfr2vr_s(scale6));
-                    __m128 _scale1 = (__m128)__lsx_vilvl_d(_scale67, _scale45);
-
                     kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
                     {
-                        __m128 _p0 = __lsx_vfmul_s((__m128)__lsx_vld(p0, 0), _scale0);
-                        __m128 _p1 = __lsx_vfmul_s((__m128)__lsx_vld(p0 + 4, 0), _scale0);
-                        __m128 _p2 = __lsx_vfmul_s((__m128)__lsx_vld(p0 + 8, 0), _scale0);
-                        __m128 _p3 = __lsx_vfmul_s((__m128)__lsx_vld(p0 + 12, 0), _scale0);
+                        __m128 _p0 = __lsx_vfmul_s((__m128)__lsx_vld(p0, 0), _scale03);
+                        __m128 _p1 = __lsx_vfmul_s((__m128)__lsx_vld(p0 + 4, 0), _scale03);
+                        __m128 _p2 = __lsx_vfmul_s((__m128)__lsx_vld(p0 + 8, 0), _scale03);
+                        __m128 _p3 = __lsx_vfmul_s((__m128)__lsx_vld(p0 + 12, 0), _scale03);
 
-                        __m128 _p4 = __lsx_vfmul_s((__m128)__lsx_vld(p1, 0), _scale1);
-                        __m128 _p5 = __lsx_vfmul_s((__m128)__lsx_vld(p1 + 4, 0), _scale1);
-                        __m128 _p6 = __lsx_vfmul_s((__m128)__lsx_vld(p1 + 8, 0), _scale1);
-                        __m128 _p7 = __lsx_vfmul_s((__m128)__lsx_vld(p1 + 12, 0), _scale1);
+                        __m128 _p4 = __lsx_vfmul_s((__m128)__lsx_vld(p1, 0), _scale47);
+                        __m128 _p5 = __lsx_vfmul_s((__m128)__lsx_vld(p1 + 4, 0), _scale47);
+                        __m128 _p6 = __lsx_vfmul_s((__m128)__lsx_vld(p1 + 8, 0), _scale47);
+                        __m128 _p7 = __lsx_vfmul_s((__m128)__lsx_vld(p1 + 12, 0), _scale47);
 
                         __m128i _q0 = float2int8(_p0);
                         __m128i _q1 = float2int8(_p1);
@@ -470,8 +439,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     }
                     for (; kk < max_kk0; kk++)
                     {
-                        __m128 _p0 = __lsx_vfmul_s((__m128)__lsx_vld(p0, 0), _scale0);
-                        __m128 _p1 = __lsx_vfmul_s((__m128)__lsx_vld(p1, 0), _scale1);
+                        __m128 _p0 = __lsx_vfmul_s((__m128)__lsx_vld(p0, 0), _scale03);
+                        __m128 _p1 = __lsx_vfmul_s((__m128)__lsx_vld(p1, 0), _scale47);
                         ((int64_t*)pp)[0] = float2int8(_p0, _p1);
                         pp += 8;
                         p0 += 4;
@@ -481,14 +450,14 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 
                 if (elempack == 1)
                 {
-                    __m128 _scale0 = __lsx_vreplfr2vr_s(scale0);
-                    __m128 _scale1 = __lsx_vreplfr2vr_s(scale1);
-                    __m128 _scale2 = __lsx_vreplfr2vr_s(scale2);
-                    __m128 _scale3 = __lsx_vreplfr2vr_s(scale3);
-                    __m128 _scale4 = __lsx_vreplfr2vr_s(scale4);
-                    __m128 _scale5 = __lsx_vreplfr2vr_s(scale5);
-                    __m128 _scale6 = __lsx_vreplfr2vr_s(scale6);
-                    __m128 _scale7 = __lsx_vreplfr2vr_s(scale7);
+                    __m128 _scale0 = (__m128)__lsx_vreplvei_w((__m128i)_scale03, 0);
+                    __m128 _scale1 = (__m128)__lsx_vreplvei_w((__m128i)_scale03, 1);
+                    __m128 _scale2 = (__m128)__lsx_vreplvei_w((__m128i)_scale03, 2);
+                    __m128 _scale3 = (__m128)__lsx_vreplvei_w((__m128i)_scale03, 3);
+                    __m128 _scale4 = (__m128)__lsx_vreplvei_w((__m128i)_scale47, 0);
+                    __m128 _scale5 = (__m128)__lsx_vreplvei_w((__m128i)_scale47, 1);
+                    __m128 _scale6 = (__m128)__lsx_vreplvei_w((__m128i)_scale47, 2);
+                    __m128 _scale7 = (__m128)__lsx_vreplvei_w((__m128i)_scale47, 3);
                     kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
                     {
@@ -525,14 +494,15 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     }
                     for (; kk < max_kk0; kk++)
                     {
-                        pp[0] = float2int8(*p0 * scale0);
-                        pp[1] = float2int8(*p1 * scale1);
-                        pp[2] = float2int8(*p2 * scale2);
-                        pp[3] = float2int8(*p3 * scale3);
-                        pp[4] = float2int8(*p4 * scale4);
-                        pp[5] = float2int8(*p5 * scale5);
-                        pp[6] = float2int8(*p6 * scale6);
-                        pp[7] = float2int8(*p7 * scale7);
+                        __m128i _p0 = (__m128i)__lsx_vldrepl_w(p0, 0);
+                        _p0 = __lsx_vinsgr2vr_w(_p0, ((const int*)p1)[0], 1);
+                        _p0 = __lsx_vinsgr2vr_w(_p0, ((const int*)p2)[0], 2);
+                        _p0 = __lsx_vinsgr2vr_w(_p0, ((const int*)p3)[0], 3);
+                        __m128i _p1 = (__m128i)__lsx_vldrepl_w(p4, 0);
+                        _p1 = __lsx_vinsgr2vr_w(_p1, ((const int*)p5)[0], 1);
+                        _p1 = __lsx_vinsgr2vr_w(_p1, ((const int*)p6)[0], 2);
+                        _p1 = __lsx_vinsgr2vr_w(_p1, ((const int*)p7)[0], 3);
+                        ((int64_t*)pp)[0] = float2int8(__lsx_vfmul_s((__m128)_p0, _scale03), __lsx_vfmul_s((__m128)_p1, _scale47));
                         pp += 8;
                         p0++;
                         p1++;
@@ -559,14 +529,9 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 p3 = p2 + A_hstep;
             }
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
-                float absmax0 = 0.f;
-                float absmax1 = 0.f;
-                float absmax2 = 0.f;
-                float absmax3 = 0.f;
-
                 const __m128i _abs_mask = (__m128i)__lsx_vreplgr2vr_w(0x7fffffff);
                 __m128 _absmax0 = (__m128)__lsx_vreplgr2vr_w(0);
                 __m128 _absmax1 = (__m128)__lsx_vreplgr2vr_w(0);
@@ -587,13 +552,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                         _absmax0 = __lsx_vfmax_s(_absmax0, (__m128)__lsx_vand_v((__m128i)_p, _abs_mask));
                         p0a += 4;
                     }
-
-                    float absmax[4];
-                    __lsx_vst((__m128i)_absmax0, absmax, 0);
-                    absmax0 = absmax[0];
-                    absmax1 = absmax[1];
-                    absmax2 = absmax[2];
-                    absmax3 = absmax[3];
                 }
 
                 if (elempack == 1)
@@ -613,40 +571,33 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                         p2a += 4;
                         p3a += 4;
                     }
-                    absmax0 = __lsx_reduce_fmax_s(_absmax0);
-                    absmax1 = __lsx_reduce_fmax_s(_absmax1);
-                    absmax2 = __lsx_reduce_fmax_s(_absmax2);
-                    absmax3 = __lsx_reduce_fmax_s(_absmax3);
+                    transpose4x4_ps(_absmax0, _absmax1, _absmax2, _absmax3);
+                    _absmax0 = __lsx_vfmax_s(__lsx_vfmax_s(_absmax0, _absmax1), __lsx_vfmax_s(_absmax2, _absmax3));
 
                     for (; kk < max_kk0; kk++)
                     {
-                        float v0 = *p0a++;
-                        float v1 = *p1a++;
-                        float v2 = *p2a++;
-                        float v3 = *p3a++;
-                        absmax0 = std::max(absmax0, fabsf(v0));
-                        absmax1 = std::max(absmax1, fabsf(v1));
-                        absmax2 = std::max(absmax2, fabsf(v2));
-                        absmax3 = std::max(absmax3, fabsf(v3));
+                        __m128i _p = (__m128i)__lsx_vldrepl_w(p0a, 0);
+                        _p = __lsx_vinsgr2vr_w(_p, ((const int*)p1a)[0], 1);
+                        _p = __lsx_vinsgr2vr_w(_p, ((const int*)p2a)[0], 2);
+                        _p = __lsx_vinsgr2vr_w(_p, ((const int*)p3a)[0], 3);
+                        _absmax0 = __lsx_vfmax_s(_absmax0, (__m128)__lsx_vand_v(_p, _abs_mask));
+                        p0a++;
+                        p1a++;
+                        p2a++;
+                        p3a++;
                     }
                 }
 
-                const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
-                const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
-                const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
-                const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
-                pd[0] = absmax0 / 127.f;
-                pd[1] = absmax1 / 127.f;
-                pd[2] = absmax2 / 127.f;
-                pd[3] = absmax3 / 127.f;
+                const __m128 _v127 = __lsx_vreplfr2vr_s(127.f);
+                __lsx_vst(__lsx_vfdiv_s(_absmax0, _v127), pd, 0);
                 pd += 4;
+
+                __m128i _zeromask = __lsx_vfcmp_ceq_s(_absmax0, (__m128)__lsx_vreplgr2vr_w(0));
+                _absmax0 = (__m128)__lsx_vbitsel_v((__m128i)_absmax0, (__m128i)_v127, _zeromask);
+                __m128 _scale = __lsx_vfdiv_s(_v127, _absmax0);
 
                 if (elempack == 4)
                 {
-                    __m128i _scale01 = __lsx_vilvl_w((__m128i)__lsx_vreplfr2vr_s(scale1), (__m128i)__lsx_vreplfr2vr_s(scale0));
-                    __m128i _scale23 = __lsx_vilvl_w((__m128i)__lsx_vreplfr2vr_s(scale3), (__m128i)__lsx_vreplfr2vr_s(scale2));
-                    __m128 _scale = (__m128)__lsx_vilvl_d(_scale23, _scale01);
-
                     kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
                     {
@@ -676,10 +627,10 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 
                 if (elempack == 1)
                 {
-                    __m128 _scale0 = __lsx_vreplfr2vr_s(scale0);
-                    __m128 _scale1 = __lsx_vreplfr2vr_s(scale1);
-                    __m128 _scale2 = __lsx_vreplfr2vr_s(scale2);
-                    __m128 _scale3 = __lsx_vreplfr2vr_s(scale3);
+                    __m128 _scale0 = (__m128)__lsx_vreplvei_w((__m128i)_scale, 0);
+                    __m128 _scale1 = (__m128)__lsx_vreplvei_w((__m128i)_scale, 1);
+                    __m128 _scale2 = (__m128)__lsx_vreplvei_w((__m128i)_scale, 2);
+                    __m128 _scale3 = (__m128)__lsx_vreplvei_w((__m128i)_scale, 3);
                     kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
                     {
@@ -702,15 +653,16 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     }
                     for (; kk < max_kk0; kk++)
                     {
-                        float v0 = *p0++;
-                        float v1 = *p1++;
-                        float v2 = *p2++;
-                        float v3 = *p3++;
-                        pp[0] = float2int8(v0 * scale0);
-                        pp[1] = float2int8(v1 * scale1);
-                        pp[2] = float2int8(v2 * scale2);
-                        pp[3] = float2int8(v3 * scale3);
+                        __m128i _p = (__m128i)__lsx_vldrepl_w(p0, 0);
+                        _p = __lsx_vinsgr2vr_w(_p, ((const int*)p1)[0], 1);
+                        _p = __lsx_vinsgr2vr_w(_p, ((const int*)p2)[0], 2);
+                        _p = __lsx_vinsgr2vr_w(_p, ((const int*)p3)[0], 3);
+                        ((int*)pp)[0] = __lsx_vpickve2gr_w(float2int8(__lsx_vfmul_s((__m128)_p, _scale)), 0);
                         pp += 4;
+                        p0++;
+                        p1++;
+                        p2++;
+                        p3++;
                     }
                 }
             }
@@ -721,7 +673,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             const float* p0 = (const float*)A + (size_t)(i + ii) * A_hstep + k;
             const float* p1 = p0 + A_hstep;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax0 = 0.f;
@@ -779,7 +731,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         {
             const float* p0 = (const float*)A + (size_t)(i + ii) * A_hstep + k;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax0 = 0.f;
@@ -843,17 +795,9 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 
         const float* ps = input_scale_ptr;
 
-        for (int g = 0; g < block_count; g++)
+        for (int g = 0; g < local_block_count; g++)
         {
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
-            float absmax0 = 0.f;
-            float absmax1 = 0.f;
-            float absmax2 = 0.f;
-            float absmax3 = 0.f;
-            float absmax4 = 0.f;
-            float absmax5 = 0.f;
-            float absmax6 = 0.f;
-            float absmax7 = 0.f;
 
             const __m128i _abs_mask = (__m128i)__lsx_vreplgr2vr_w(0x7fffffff);
             __m128 _absmax0 = (__m128)__lsx_vreplgr2vr_w(0);
@@ -890,17 +834,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     _absmax8 = __lasx_xvfmax_s(_absmax8, _p);
                     p0a += 8;
                 }
-
-                float absmax[8];
-                __lasx_xvst((__m256i)_absmax8, absmax, 0);
-                absmax0 = absmax[0];
-                absmax1 = absmax[1];
-                absmax2 = absmax[2];
-                absmax3 = absmax[3];
-                absmax4 = absmax[4];
-                absmax5 = absmax[5];
-                absmax6 = absmax[6];
-                absmax7 = absmax[7];
             }
 #endif // __loongarch_asx
 
@@ -916,18 +849,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     p0a += 4;
                     p1a += 4;
                 }
-
-                float absmax[8];
-                __lsx_vst((__m128i)_absmax0, absmax, 0);
-                __lsx_vst((__m128i)_absmax1, absmax + 4, 0);
-                absmax0 = absmax[0];
-                absmax1 = absmax[1];
-                absmax2 = absmax[2];
-                absmax3 = absmax[3];
-                absmax4 = absmax[4];
-                absmax5 = absmax[5];
-                absmax6 = absmax[6];
-                absmax7 = absmax[7];
             }
 
             if (elempack == 1)
@@ -978,54 +899,44 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     psa += 4;
                 }
 
-                absmax0 = __lsx_reduce_fmax_s(_absmax0);
-                absmax1 = __lsx_reduce_fmax_s(_absmax1);
-                absmax2 = __lsx_reduce_fmax_s(_absmax2);
-                absmax3 = __lsx_reduce_fmax_s(_absmax3);
-                absmax4 = __lsx_reduce_fmax_s(_absmax4);
-                absmax5 = __lsx_reduce_fmax_s(_absmax5);
-                absmax6 = __lsx_reduce_fmax_s(_absmax6);
-                absmax7 = __lsx_reduce_fmax_s(_absmax7);
+                transpose4x4_ps(_absmax0, _absmax1, _absmax2, _absmax3);
+                transpose4x4_ps(_absmax4, _absmax5, _absmax6, _absmax7);
+                _absmax0 = __lsx_vfmax_s(__lsx_vfmax_s(_absmax0, _absmax1), __lsx_vfmax_s(_absmax2, _absmax3));
+                _absmax1 = __lsx_vfmax_s(__lsx_vfmax_s(_absmax4, _absmax5), __lsx_vfmax_s(_absmax6, _absmax7));
 
                 for (; kk < max_kk0; kk++)
                 {
-                    const float s = *psa++;
-                    absmax0 = std::max(absmax0, fabsf(*p0a++) * s);
-                    absmax1 = std::max(absmax1, fabsf(*p1a++) * s);
-                    absmax2 = std::max(absmax2, fabsf(*p2a++) * s);
-                    absmax3 = std::max(absmax3, fabsf(*p3a++) * s);
-                    absmax4 = std::max(absmax4, fabsf(*p4a++) * s);
-                    absmax5 = std::max(absmax5, fabsf(*p5a++) * s);
-                    absmax6 = std::max(absmax6, fabsf(*p6a++) * s);
-                    absmax7 = std::max(absmax7, fabsf(*p7a++) * s);
+                    __m128i _p0 = (__m128i)__lsx_vldrepl_w(p0a, 0);
+                    _p0 = __lsx_vinsgr2vr_w(_p0, ((const int*)p1a)[0], 1);
+                    _p0 = __lsx_vinsgr2vr_w(_p0, ((const int*)p2a)[0], 2);
+                    _p0 = __lsx_vinsgr2vr_w(_p0, ((const int*)p3a)[0], 3);
+                    __m128i _p1 = (__m128i)__lsx_vldrepl_w(p4a, 0);
+                    _p1 = __lsx_vinsgr2vr_w(_p1, ((const int*)p5a)[0], 1);
+                    _p1 = __lsx_vinsgr2vr_w(_p1, ((const int*)p6a)[0], 2);
+                    _p1 = __lsx_vinsgr2vr_w(_p1, ((const int*)p7a)[0], 3);
+                    __m128 _s = __lsx_vreplfr2vr_s(*psa++);
+                    _absmax0 = __lsx_vfmax_s(_absmax0, __lsx_vfmul_s((__m128)__lsx_vand_v(_p0, _abs_mask), _s));
+                    _absmax1 = __lsx_vfmax_s(_absmax1, __lsx_vfmul_s((__m128)__lsx_vand_v(_p1, _abs_mask), _s));
+                    p0a++;
+                    p1a++;
+                    p2a++;
+                    p3a++;
+                    p4a++;
+                    p5a++;
+                    p6a++;
+                    p7a++;
                 }
             }
-
-            const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
-            const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
-            const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
-            const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
-            const float scale4 = absmax4 == 0.f ? 1.f : 127.f / absmax4;
-            const float scale5 = absmax5 == 0.f ? 1.f : 127.f / absmax5;
-            const float scale6 = absmax6 == 0.f ? 1.f : 127.f / absmax6;
-            const float scale7 = absmax7 == 0.f ? 1.f : 127.f / absmax7;
-            pd[0] = absmax0 / 127.f;
-            pd[1] = absmax1 / 127.f;
-            pd[2] = absmax2 / 127.f;
-            pd[3] = absmax3 / 127.f;
-            pd[4] = absmax4 / 127.f;
-            pd[5] = absmax5 / 127.f;
-            pd[6] = absmax6 / 127.f;
-            pd[7] = absmax7 / 127.f;
-            pd += 8;
 
 #if __loongarch_asx
             if (elempack == 8)
             {
-                const __m256 _one = __lasx_xvreplfr2vr_s(1.f);
                 const __m256 _v127 = __lasx_xvreplfr2vr_s(127.f);
+                __lasx_xvst(__lasx_xvfdiv_s(_absmax8, _v127), pd, 0);
+                pd += 8;
+
                 __m256i _zeromask = (__m256i)__lasx_xvfcmp_ceq_s(_absmax8, (__m256)__lasx_xvreplgr2vr_w(0));
-                __m256 _absmax_safe = (__m256)__lasx_xvbitsel_v((__m256i)_absmax8, (__m256i)_one, _zeromask);
+                __m256 _absmax_safe = (__m256)__lasx_xvbitsel_v((__m256i)_absmax8, (__m256i)_v127, _zeromask);
                 __m256 _scale = __lasx_xvfdiv_s(_v127, _absmax_safe);
 
                 kk = 0;
@@ -1062,15 +973,25 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             }
 #endif // __loongarch_asx
 
+            const __m128 _v127 = __lsx_vreplfr2vr_s(127.f);
+            __m128 _scale03 = (__m128)__lsx_vreplgr2vr_w(0);
+            __m128 _scale47 = _scale03;
+            if (elempack == 4 || elempack == 1)
+            {
+                __lsx_vst(__lsx_vfdiv_s(_absmax0, _v127), pd, 0);
+                __lsx_vst(__lsx_vfdiv_s(_absmax1, _v127), pd + 4, 0);
+                pd += 8;
+
+                __m128i _zeromask0 = __lsx_vfcmp_ceq_s(_absmax0, (__m128)__lsx_vreplgr2vr_w(0));
+                __m128i _zeromask1 = __lsx_vfcmp_ceq_s(_absmax1, (__m128)__lsx_vreplgr2vr_w(0));
+                _absmax0 = (__m128)__lsx_vbitsel_v((__m128i)_absmax0, (__m128i)_v127, _zeromask0);
+                _absmax1 = (__m128)__lsx_vbitsel_v((__m128i)_absmax1, (__m128i)_v127, _zeromask1);
+                _scale03 = __lsx_vfdiv_s(_v127, _absmax0);
+                _scale47 = __lsx_vfdiv_s(_v127, _absmax1);
+            }
+
             if (elempack == 4)
             {
-                __m128i _scale01 = __lsx_vilvl_w((__m128i)__lsx_vreplfr2vr_s(scale1), (__m128i)__lsx_vreplfr2vr_s(scale0));
-                __m128i _scale23 = __lsx_vilvl_w((__m128i)__lsx_vreplfr2vr_s(scale3), (__m128i)__lsx_vreplfr2vr_s(scale2));
-                __m128 _scale0 = (__m128)__lsx_vilvl_d(_scale23, _scale01);
-                __m128i _scale45 = __lsx_vilvl_w((__m128i)__lsx_vreplfr2vr_s(scale5), (__m128i)__lsx_vreplfr2vr_s(scale4));
-                __m128i _scale67 = __lsx_vilvl_w((__m128i)__lsx_vreplfr2vr_s(scale7), (__m128i)__lsx_vreplfr2vr_s(scale6));
-                __m128 _scale1 = (__m128)__lsx_vilvl_d(_scale67, _scale45);
-
                 kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
@@ -1078,15 +999,15 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     __m128 _s1 = __lsx_vreplfr2vr_s(ps[1]);
                     __m128 _s2 = __lsx_vreplfr2vr_s(ps[2]);
                     __m128 _s3 = __lsx_vreplfr2vr_s(ps[3]);
-                    __m128 _p0 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p0, 0), _s0), _scale0);
-                    __m128 _p1 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p0 + 4, 0), _s1), _scale0);
-                    __m128 _p2 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p0 + 8, 0), _s2), _scale0);
-                    __m128 _p3 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p0 + 12, 0), _s3), _scale0);
+                    __m128 _p0 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p0, 0), _s0), _scale03);
+                    __m128 _p1 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p0 + 4, 0), _s1), _scale03);
+                    __m128 _p2 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p0 + 8, 0), _s2), _scale03);
+                    __m128 _p3 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p0 + 12, 0), _s3), _scale03);
 
-                    __m128 _p4 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p1, 0), _s0), _scale1);
-                    __m128 _p5 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p1 + 4, 0), _s1), _scale1);
-                    __m128 _p6 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p1 + 8, 0), _s2), _scale1);
-                    __m128 _p7 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p1 + 12, 0), _s3), _scale1);
+                    __m128 _p4 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p1, 0), _s0), _scale47);
+                    __m128 _p5 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p1 + 4, 0), _s1), _scale47);
+                    __m128 _p6 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p1 + 8, 0), _s2), _scale47);
+                    __m128 _p7 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p1 + 12, 0), _s3), _scale47);
 
                     __m128i _q0 = float2int8(_p0);
                     __m128i _q1 = float2int8(_p1);
@@ -1110,8 +1031,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 for (; kk < max_kk0; kk++)
                 {
                     __m128 _s = __lsx_vreplfr2vr_s(*ps++);
-                    __m128 _p0 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p0, 0), _s), _scale0);
-                    __m128 _p1 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p1, 0), _s), _scale1);
+                    __m128 _p0 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p0, 0), _s), _scale03);
+                    __m128 _p1 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vld(p1, 0), _s), _scale47);
                     ((int64_t*)pp)[0] = float2int8(_p0, _p1);
                     pp += 8;
                     p0 += 4;
@@ -1120,14 +1041,14 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             }
             if (elempack == 1)
             {
-                __m128 _scale0 = __lsx_vreplfr2vr_s(scale0);
-                __m128 _scale1 = __lsx_vreplfr2vr_s(scale1);
-                __m128 _scale2 = __lsx_vreplfr2vr_s(scale2);
-                __m128 _scale3 = __lsx_vreplfr2vr_s(scale3);
-                __m128 _scale4 = __lsx_vreplfr2vr_s(scale4);
-                __m128 _scale5 = __lsx_vreplfr2vr_s(scale5);
-                __m128 _scale6 = __lsx_vreplfr2vr_s(scale6);
-                __m128 _scale7 = __lsx_vreplfr2vr_s(scale7);
+                __m128 _scale0 = (__m128)__lsx_vreplvei_w((__m128i)_scale03, 0);
+                __m128 _scale1 = (__m128)__lsx_vreplvei_w((__m128i)_scale03, 1);
+                __m128 _scale2 = (__m128)__lsx_vreplvei_w((__m128i)_scale03, 2);
+                __m128 _scale3 = (__m128)__lsx_vreplvei_w((__m128i)_scale03, 3);
+                __m128 _scale4 = (__m128)__lsx_vreplvei_w((__m128i)_scale47, 0);
+                __m128 _scale5 = (__m128)__lsx_vreplvei_w((__m128i)_scale47, 1);
+                __m128 _scale6 = (__m128)__lsx_vreplvei_w((__m128i)_scale47, 2);
+                __m128 _scale7 = (__m128)__lsx_vreplvei_w((__m128i)_scale47, 3);
                 kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
@@ -1174,15 +1095,16 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    const float s = *ps++;
-                    pp[0] = float2int8(*p0 * s * scale0);
-                    pp[1] = float2int8(*p1 * s * scale1);
-                    pp[2] = float2int8(*p2 * s * scale2);
-                    pp[3] = float2int8(*p3 * s * scale3);
-                    pp[4] = float2int8(*p4 * s * scale4);
-                    pp[5] = float2int8(*p5 * s * scale5);
-                    pp[6] = float2int8(*p6 * s * scale6);
-                    pp[7] = float2int8(*p7 * s * scale7);
+                    __m128i _p0 = (__m128i)__lsx_vldrepl_w(p0, 0);
+                    _p0 = __lsx_vinsgr2vr_w(_p0, ((const int*)p1)[0], 1);
+                    _p0 = __lsx_vinsgr2vr_w(_p0, ((const int*)p2)[0], 2);
+                    _p0 = __lsx_vinsgr2vr_w(_p0, ((const int*)p3)[0], 3);
+                    __m128i _p1 = (__m128i)__lsx_vldrepl_w(p4, 0);
+                    _p1 = __lsx_vinsgr2vr_w(_p1, ((const int*)p5)[0], 1);
+                    _p1 = __lsx_vinsgr2vr_w(_p1, ((const int*)p6)[0], 2);
+                    _p1 = __lsx_vinsgr2vr_w(_p1, ((const int*)p7)[0], 3);
+                    __m128 _s = __lsx_vreplfr2vr_s(*ps++);
+                    ((int64_t*)pp)[0] = float2int8(__lsx_vfmul_s(__lsx_vfmul_s((__m128)_p0, _s), _scale03), __lsx_vfmul_s(__lsx_vfmul_s((__m128)_p1, _s), _scale47));
                     pp += 8;
                     p0++;
                     p1++;
@@ -1211,13 +1133,9 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 
         const float* ps = input_scale_ptr;
 
-        for (int g = 0; g < block_count; g++)
+        for (int g = 0; g < local_block_count; g++)
         {
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
-            float absmax0 = 0.f;
-            float absmax1 = 0.f;
-            float absmax2 = 0.f;
-            float absmax3 = 0.f;
 
             const __m128i _abs_mask = (__m128i)__lsx_vreplgr2vr_w(0x7fffffff);
             __m128 _absmax0 = (__m128)__lsx_vreplgr2vr_w(0);
@@ -1241,13 +1159,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     _absmax0 = __lsx_vfmax_s(_absmax0, _p);
                     p0a += 4;
                 }
-
-                float absmax[4];
-                __lsx_vst((__m128i)_absmax0, absmax, 0);
-                absmax0 = absmax[0];
-                absmax1 = absmax[1];
-                absmax2 = absmax[2];
-                absmax3 = absmax[3];
             }
 
             if (elempack == 1)
@@ -1277,42 +1188,35 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     p3a += 4;
                     psa += 4;
                 }
-                absmax0 = __lsx_reduce_fmax_s(_absmax0);
-                absmax1 = __lsx_reduce_fmax_s(_absmax1);
-                absmax2 = __lsx_reduce_fmax_s(_absmax2);
-                absmax3 = __lsx_reduce_fmax_s(_absmax3);
+
+                transpose4x4_ps(_absmax0, _absmax1, _absmax2, _absmax3);
+                _absmax0 = __lsx_vfmax_s(__lsx_vfmax_s(_absmax0, _absmax1), __lsx_vfmax_s(_absmax2, _absmax3));
 
                 for (; kk < max_kk0; kk++)
                 {
-                    float v0 = *p0a++;
-                    float v1 = *p1a++;
-                    float v2 = *p2a++;
-                    float v3 = *p3a++;
-                    const float s = *psa++;
-
-                    absmax0 = std::max(absmax0, fabsf(v0) * s);
-                    absmax1 = std::max(absmax1, fabsf(v1) * s);
-                    absmax2 = std::max(absmax2, fabsf(v2) * s);
-                    absmax3 = std::max(absmax3, fabsf(v3) * s);
+                    __m128i _p = (__m128i)__lsx_vldrepl_w(p0a, 0);
+                    _p = __lsx_vinsgr2vr_w(_p, ((const int*)p1a)[0], 1);
+                    _p = __lsx_vinsgr2vr_w(_p, ((const int*)p2a)[0], 2);
+                    _p = __lsx_vinsgr2vr_w(_p, ((const int*)p3a)[0], 3);
+                    __m128 _s = __lsx_vreplfr2vr_s(*psa++);
+                    _absmax0 = __lsx_vfmax_s(_absmax0, __lsx_vfmul_s((__m128)__lsx_vand_v(_p, _abs_mask), _s));
+                    p0a++;
+                    p1a++;
+                    p2a++;
+                    p3a++;
                 }
             }
 
-            const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
-            const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
-            const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
-            const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
-            pd[0] = absmax0 / 127.f;
-            pd[1] = absmax1 / 127.f;
-            pd[2] = absmax2 / 127.f;
-            pd[3] = absmax3 / 127.f;
+            const __m128 _v127 = __lsx_vreplfr2vr_s(127.f);
+            __lsx_vst(__lsx_vfdiv_s(_absmax0, _v127), pd, 0);
             pd += 4;
+
+            __m128i _zeromask = __lsx_vfcmp_ceq_s(_absmax0, (__m128)__lsx_vreplgr2vr_w(0));
+            _absmax0 = (__m128)__lsx_vbitsel_v((__m128i)_absmax0, (__m128i)_v127, _zeromask);
+            __m128 _scale = __lsx_vfdiv_s(_v127, _absmax0);
 
             if (elempack == 4)
             {
-                __m128i _scale01 = __lsx_vilvl_w((__m128i)__lsx_vreplfr2vr_s(scale1), (__m128i)__lsx_vreplfr2vr_s(scale0));
-                __m128i _scale23 = __lsx_vilvl_w((__m128i)__lsx_vreplfr2vr_s(scale3), (__m128i)__lsx_vreplfr2vr_s(scale2));
-                __m128 _scale = (__m128)__lsx_vilvl_d(_scale23, _scale01);
-
                 kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
@@ -1348,10 +1252,10 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 
             if (elempack == 1)
             {
-                __m128 _scale0 = __lsx_vreplfr2vr_s(scale0);
-                __m128 _scale1 = __lsx_vreplfr2vr_s(scale1);
-                __m128 _scale2 = __lsx_vreplfr2vr_s(scale2);
-                __m128 _scale3 = __lsx_vreplfr2vr_s(scale3);
+                __m128 _scale0 = (__m128)__lsx_vreplvei_w((__m128i)_scale, 0);
+                __m128 _scale1 = (__m128)__lsx_vreplvei_w((__m128i)_scale, 1);
+                __m128 _scale2 = (__m128)__lsx_vreplvei_w((__m128i)_scale, 2);
+                __m128 _scale3 = (__m128)__lsx_vreplvei_w((__m128i)_scale, 3);
                 kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
@@ -1380,20 +1284,17 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    float v0 = *p0++;
-                    float v1 = *p1++;
-                    float v2 = *p2++;
-                    float v3 = *p3++;
-                    const float s = *ps++;
-                    v0 *= s;
-                    v1 *= s;
-                    v2 *= s;
-                    v3 *= s;
-                    pp[0] = float2int8(v0 * scale0);
-                    pp[1] = float2int8(v1 * scale1);
-                    pp[2] = float2int8(v2 * scale2);
-                    pp[3] = float2int8(v3 * scale3);
+                    __m128i _p = (__m128i)__lsx_vldrepl_w(p0, 0);
+                    _p = __lsx_vinsgr2vr_w(_p, ((const int*)p1)[0], 1);
+                    _p = __lsx_vinsgr2vr_w(_p, ((const int*)p2)[0], 2);
+                    _p = __lsx_vinsgr2vr_w(_p, ((const int*)p3)[0], 3);
+                    __m128 _s = __lsx_vreplfr2vr_s(*ps++);
+                    ((int*)pp)[0] = __lsx_vpickve2gr_w((__m128i)float2int8(__lsx_vfmul_s(__lsx_vfmul_s((__m128)_p, _s), _scale)), 0);
                     pp += 4;
+                    p0++;
+                    p1++;
+                    p2++;
+                    p3++;
                 }
             }
         }
@@ -1406,7 +1307,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 
         const float* ps = input_scale_ptr;
 
-        for (int g = 0; g < block_count; g++)
+        for (int g = 0; g < local_block_count; g++)
         {
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             float absmax0 = 0.f;
@@ -1481,7 +1382,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 
         const float* ps = input_scale_ptr;
 
-        for (int g = 0; g < block_count; g++)
+        for (int g = 0; g < local_block_count; g++)
         {
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             float absmax0 = 0.f;
@@ -1541,7 +1442,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
     const int elempack = A.elempack;
     signed char* pp = AT_tile;
     float* pd = AT_descales_tile;
-    const int block_count = (max_kk + block_size - 1) / block_size;
+    const int local_block_count = (max_kk + block_size - 1) / block_size;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     if (input_scales.empty())
@@ -1556,7 +1457,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             if (elempack == 8)
             {
                 const __m256i _abs_mask = (__m256i)__lasx_xvreplgr2vr_w(0x7fffffff);
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int k0 = g * block_size;
                     const int max_kk0 = std::min(max_kk - k0, block_size);
@@ -1662,7 +1563,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             if (elempack == 4)
             {
                 const __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int k0 = g * block_size;
                     const int max_kk0 = std::min(max_kk - k0, block_size);
@@ -1754,7 +1655,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
             if (elempack == 1)
             {
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
@@ -1770,40 +1671,16 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                         p0a += A_hstep;
                     }
 
-                    float absmax[8];
-                    __lsx_vst(_absmax0, absmax, 0);
-                    __lsx_vst(_absmax1, absmax + 4, 0);
-                    const float absmax0 = absmax[0];
-                    const float absmax1 = absmax[1];
-                    const float absmax2 = absmax[2];
-                    const float absmax3 = absmax[3];
-                    const float absmax4 = absmax[4];
-                    const float absmax5 = absmax[5];
-                    const float absmax6 = absmax[6];
-                    const float absmax7 = absmax[7];
-
-                    pd[0] = absmax0 / 127.f;
-                    pd[1] = absmax1 / 127.f;
-                    pd[2] = absmax2 / 127.f;
-                    pd[3] = absmax3 / 127.f;
-                    pd[4] = absmax4 / 127.f;
-                    pd[5] = absmax5 / 127.f;
-                    pd[6] = absmax6 / 127.f;
-                    pd[7] = absmax7 / 127.f;
+                    const __m128 _v127 = __lsx_vreplfr2vr_s(127.f);
+                    __lsx_vst(__lsx_vfdiv_s(_absmax0, _v127), pd, 0);
+                    __lsx_vst(__lsx_vfdiv_s(_absmax1, _v127), pd + 4, 0);
                     pd += 8;
 
-                    const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
-                    const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
-                    const float scale2 = absmax2 == 0.f ? 0.f : 127.f / absmax2;
-                    const float scale3 = absmax3 == 0.f ? 0.f : 127.f / absmax3;
-                    const float scale4 = absmax4 == 0.f ? 0.f : 127.f / absmax4;
-                    const float scale5 = absmax5 == 0.f ? 0.f : 127.f / absmax5;
-                    const float scale6 = absmax6 == 0.f ? 0.f : 127.f / absmax6;
-                    const float scale7 = absmax7 == 0.f ? 0.f : 127.f / absmax7;
-                    const float scales0[4] = {scale0, scale1, scale2, scale3};
-                    const float scales1[4] = {scale4, scale5, scale6, scale7};
-                    __m128 _scales0 = (__m128)__lsx_vld(scales0, 0);
-                    __m128 _scales1 = (__m128)__lsx_vld(scales1, 0);
+                    const __m128 _zero = (__m128)__lsx_vldi(0);
+                    __m128 _scales0 = __lsx_vfdiv_s(_v127, _absmax0);
+                    __m128 _scales1 = __lsx_vfdiv_s(_v127, _absmax1);
+                    _scales0 = (__m128)__lsx_vbitsel_v((__m128i)_scales0, (__m128i)_zero, __lsx_vfcmp_ceq_s(_absmax0, _zero));
+                    _scales1 = (__m128)__lsx_vbitsel_v((__m128i)_scales1, (__m128i)_zero, __lsx_vfcmp_ceq_s(_absmax1, _zero));
 
                     int kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
@@ -1856,7 +1733,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __loongarch_asx
             if (elempack == 8)
             {
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const __m256i _abs_mask = (__m256i)__lasx_xvreplgr2vr_w(0x7fffffff);
@@ -1907,7 +1784,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
             if (elempack == 4)
             {
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const __m128i _abs_mask = (__m128i)__lsx_vreplgr2vr_w(0x7fffffff);
@@ -1954,7 +1831,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             }
             if (elempack == 1)
             {
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const __m128i _abs_mask = (__m128i)__lsx_vreplgr2vr_w(0x7fffffff);
@@ -1966,22 +1843,13 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                         p0a += A_hstep;
                     }
 
-                    const float absmax0 = __lsx_reduce_fmax_s((__m128)__lsx_vreplvei_w((__m128i)_absmax, 0));
-                    const float absmax1 = __lsx_reduce_fmax_s((__m128)__lsx_vreplvei_w((__m128i)_absmax, 1));
-                    const float absmax2 = __lsx_reduce_fmax_s((__m128)__lsx_vreplvei_w((__m128i)_absmax, 2));
-                    const float absmax3 = __lsx_reduce_fmax_s((__m128)__lsx_vreplvei_w((__m128i)_absmax, 3));
-                    pd[0] = absmax0 / 127.f;
-                    pd[1] = absmax1 / 127.f;
-                    pd[2] = absmax2 / 127.f;
-                    pd[3] = absmax3 / 127.f;
+                    const __m128 _v127 = __lsx_vreplfr2vr_s(127.f);
+                    __lsx_vst(__lsx_vfdiv_s(_absmax, _v127), pd, 0);
                     pd += 4;
 
-                    const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
-                    const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
-                    const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
-                    const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
-                    const float scales[4] = {scale0, scale1, scale2, scale3};
-                    __m128 _scale = (__m128)__lsx_vld(scales, 0);
+                    __m128i _zeromask = __lsx_vfcmp_ceq_s(_absmax, (__m128)__lsx_vreplgr2vr_w(0));
+                    _absmax = (__m128)__lsx_vbitsel_v((__m128i)_absmax, (__m128i)_v127, _zeromask);
+                    __m128 _scale = __lsx_vfdiv_s(_v127, _absmax);
                     int kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
                     {
@@ -2019,7 +1887,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __loongarch_asx
             if (elempack == 8)
             {
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const __m256i _abs_mask = (__m256i)__lasx_xvreplgr2vr_w(0x7fffffff);
@@ -2054,7 +1922,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
             if (elempack == 4)
             {
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const __m128i _abs_mask = (__m128i)__lsx_vreplgr2vr_w(0x7fffffff);
@@ -2086,7 +1954,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
             if (elempack == 1)
             {
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     float absmax0 = 0.f;
@@ -2137,7 +2005,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __loongarch_asx
             if (elempack == 8)
             {
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const __m256i _abs_mask = (__m256i)__lasx_xvreplgr2vr_w(0x7fffffff);
@@ -2166,7 +2034,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __loongarch_sx
             if (elempack == 4)
             {
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const __m128i _abs_mask = (__m128i)__lsx_vreplgr2vr_w(0x7fffffff);
@@ -2192,7 +2060,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
             if (elempack == 1)
             {
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     float absmax = 0.f;
@@ -2228,7 +2096,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __loongarch_asx
         if (elempack == 8)
         {
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const __m256i _abs_mask = (__m256i)__lasx_xvreplgr2vr_w(0x7fffffff);
@@ -2310,7 +2178,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
         if (elempack == 4)
         {
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const __m128i _abs_mask = (__m128i)__lsx_vreplgr2vr_w(0x7fffffff);
@@ -2387,7 +2255,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
         if (elempack == 1)
         {
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const __m128i _abs_mask = __lsx_vreplgr2vr_w(0x7fffffff);
@@ -2407,40 +2275,16 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     p0a += A_hstep;
                 }
 
-                float absmax[8];
-                __lsx_vst(_absmax0, absmax, 0);
-                __lsx_vst(_absmax1, absmax + 4, 0);
-                const float absmax0 = absmax[0];
-                const float absmax1 = absmax[1];
-                const float absmax2 = absmax[2];
-                const float absmax3 = absmax[3];
-                const float absmax4 = absmax[4];
-                const float absmax5 = absmax[5];
-                const float absmax6 = absmax[6];
-                const float absmax7 = absmax[7];
-
-                pd[0] = absmax0 / 127.f;
-                pd[1] = absmax1 / 127.f;
-                pd[2] = absmax2 / 127.f;
-                pd[3] = absmax3 / 127.f;
-                pd[4] = absmax4 / 127.f;
-                pd[5] = absmax5 / 127.f;
-                pd[6] = absmax6 / 127.f;
-                pd[7] = absmax7 / 127.f;
+                const __m128 _v127 = __lsx_vreplfr2vr_s(127.f);
+                __lsx_vst(__lsx_vfdiv_s(_absmax0, _v127), pd, 0);
+                __lsx_vst(__lsx_vfdiv_s(_absmax1, _v127), pd + 4, 0);
                 pd += 8;
 
-                const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
-                const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
-                const float scale2 = absmax2 == 0.f ? 0.f : 127.f / absmax2;
-                const float scale3 = absmax3 == 0.f ? 0.f : 127.f / absmax3;
-                const float scale4 = absmax4 == 0.f ? 0.f : 127.f / absmax4;
-                const float scale5 = absmax5 == 0.f ? 0.f : 127.f / absmax5;
-                const float scale6 = absmax6 == 0.f ? 0.f : 127.f / absmax6;
-                const float scale7 = absmax7 == 0.f ? 0.f : 127.f / absmax7;
-                const float scales0[4] = {scale0, scale1, scale2, scale3};
-                const float scales1[4] = {scale4, scale5, scale6, scale7};
-                __m128 _scales0 = (__m128)__lsx_vld(scales0, 0);
-                __m128 _scales1 = (__m128)__lsx_vld(scales1, 0);
+                const __m128 _zero = (__m128)__lsx_vldi(0);
+                __m128 _scales0 = __lsx_vfdiv_s(_v127, _absmax0);
+                __m128 _scales1 = __lsx_vfdiv_s(_v127, _absmax1);
+                _scales0 = (__m128)__lsx_vbitsel_v((__m128i)_scales0, (__m128i)_zero, __lsx_vfcmp_ceq_s(_absmax0, _zero));
+                _scales1 = (__m128)__lsx_vbitsel_v((__m128i)_scales1, (__m128i)_zero, __lsx_vfcmp_ceq_s(_absmax1, _zero));
 
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
@@ -2510,7 +2354,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __loongarch_asx
         if (elempack == 8)
         {
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const __m256i _abs_mask = (__m256i)__lasx_xvreplgr2vr_w(0x7fffffff);
@@ -2564,7 +2408,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
         if (elempack == 4)
         {
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const __m128i _abs_mask = (__m128i)__lsx_vreplgr2vr_w(0x7fffffff);
@@ -2615,7 +2459,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
         if (elempack == 1)
         {
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
 
@@ -2631,21 +2475,13 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     p0a += A_hstep;
                 }
 
-                float absmax[4];
-                __lsx_vst(_absmax, absmax, 0);
-                pd[0] = absmax[0] / 127.f;
-                pd[1] = absmax[1] / 127.f;
-                pd[2] = absmax[2] / 127.f;
-                pd[3] = absmax[3] / 127.f;
+                const __m128 _v127 = __lsx_vreplfr2vr_s(127.f);
+                __lsx_vst(__lsx_vfdiv_s(_absmax, _v127), pd, 0);
                 pd += 4;
 
-                const float scales[4] = {
-                    absmax[0] == 0.f ? 0.f : 127.f / absmax[0],
-                    absmax[1] == 0.f ? 0.f : 127.f / absmax[1],
-                    absmax[2] == 0.f ? 0.f : 127.f / absmax[2],
-                    absmax[3] == 0.f ? 0.f : 127.f / absmax[3]
-                };
-                __m128 _scale = (__m128)__lsx_vld(scales, 0);
+                __m128i _zeromask = __lsx_vfcmp_ceq_s(_absmax, (__m128)__lsx_vreplgr2vr_w(0));
+                _absmax = (__m128)__lsx_vbitsel_v((__m128i)_absmax, (__m128i)_v127, _zeromask);
+                __m128 _scale = __lsx_vfdiv_s(_v127, _absmax);
 
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
@@ -2696,7 +2532,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
         if (elempack == 8)
         {
             const float* ps = input_scale_ptr;
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const __m256i _abs_mask = (__m256i)__lasx_xvreplgr2vr_w(0x7fffffff);
@@ -2737,7 +2573,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
         if (elempack == 4)
         {
             const float* ps = input_scale_ptr;
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const __m128i _abs_mask = (__m128i)__lsx_vreplgr2vr_w(0x7fffffff);
@@ -2779,7 +2615,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 __m128 _absmax = (__m128)__lsx_vldi(0);
@@ -2792,40 +2628,37 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     _absmax = __lsx_vfmax_s(_absmax, _p);
                     p0a += A_hstep;
                 }
-                float absmax[2];
-                __lsx_vstelm_d((__m128i)_absmax, absmax, 0, 0);
-                pd[0] = absmax[0] / 127.f;
-                pd[1] = absmax[1] / 127.f;
+
+                const __m128 _v127 = __lsx_vreplfr2vr_s(127.f);
+                __m128 _descale = __lsx_vfdiv_s(_absmax, _v127);
+                __lsx_vstelm_d((__m128i)_descale, pd, 0, 0);
                 pd += 2;
-                const float scale0 = absmax[0] == 0.f ? 0.f : 127.f / absmax[0];
-                const float scale1 = absmax[1] == 0.f ? 0.f : 127.f / absmax[1];
+
+                __m128i _zeromask = __lsx_vfcmp_ceq_s(_absmax, (__m128)__lsx_vreplgr2vr_w(0));
+                _absmax = (__m128)__lsx_vbitsel_v((__m128i)_absmax, (__m128i)_v127, _zeromask);
+                __m128 _scale = __lsx_vfdiv_s(_v127, _absmax);
+
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
                     const float* p1 = p0 + A_hstep;
                     const float* p2 = p1 + A_hstep;
                     const float* p3 = p2 + A_hstep;
-                    const float s0 = ps[0];
-                    const float s1 = ps[1];
-                    const float s2 = ps[2];
-                    const float s3 = ps[3];
-                    pp[0] = float2int8(p0[0] * s0 * scale0);
-                    pp[1] = float2int8(p1[0] * s1 * scale0);
-                    pp[2] = float2int8(p2[0] * s2 * scale0);
-                    pp[3] = float2int8(p3[0] * s3 * scale0);
-                    pp[4] = float2int8(p0[1] * s0 * scale1);
-                    pp[5] = float2int8(p1[1] * s1 * scale1);
-                    pp[6] = float2int8(p2[1] * s2 * scale1);
-                    pp[7] = float2int8(p3[1] * s3 * scale1);
+                    __m128 _p0 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vldrepl_d(p0, 0), __lsx_vreplfr2vr_s(ps[0])), _scale);
+                    __m128 _p1 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vldrepl_d(p1, 0), __lsx_vreplfr2vr_s(ps[1])), _scale);
+                    __m128 _p2 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vldrepl_d(p2, 0), __lsx_vreplfr2vr_s(ps[2])), _scale);
+                    __m128 _p3 = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vldrepl_d(p3, 0), __lsx_vreplfr2vr_s(ps[3])), _scale);
+                    transpose4x4_ps(_p0, _p1, _p2, _p3);
+                    ((int64_t*)pp)[0] = float2int8(_p0, _p1);
                     pp += 8;
                     p0 += (size_t)4 * A_hstep;
                     ps += 4;
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    const float s = *ps++;
-                    pp[0] = float2int8(p0[0] * s * scale0);
-                    pp[1] = float2int8(p0[1] * s * scale1);
+                    __m128 _p = __lsx_vfmul_s(__lsx_vfmul_s((__m128)__lsx_vldrepl_d(p0, 0), __lsx_vreplfr2vr_s(*ps++)), _scale);
+                    __m128i _q = float2int8(_p);
+                    __lsx_vstelm_h(_q, pp, 0, 0);
                     pp += 2;
                     p0 += A_hstep;
                 }
@@ -2833,7 +2666,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #else
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax0 = 0.f;
@@ -2895,7 +2728,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __loongarch_asx
         if (elempack == 8)
         {
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const __m256i _abs_mask = (__m256i)__lasx_xvreplgr2vr_w(0x7fffffff);
@@ -2926,7 +2759,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
         if (elempack == 4)
         {
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const __m128i _abs_mask = (__m128i)__lsx_vreplgr2vr_w(0x7fffffff);
@@ -2956,7 +2789,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
         if (elempack == 1)
         {
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
 

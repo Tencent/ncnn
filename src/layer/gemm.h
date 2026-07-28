@@ -56,6 +56,7 @@ public:
         int int8_scale_term;
     };
     int weight_block_quantize;
+    int weight_block_quantize_block_size;
 
     int constant_TILE_M;
     int constant_TILE_N;

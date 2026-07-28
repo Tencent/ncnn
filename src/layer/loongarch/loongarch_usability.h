@@ -357,7 +357,7 @@ static NCNN_FORCEINLINE int64_t float2int8(__m128 _vlow, __m128 _vhigh)
     __m128i _v16_8 = __lsx_vsat_h(_v16, 7);
     __m128i _v8 = __lsx_vpickev_b(_v16_8, _v16_8);
 
-    return _v8[0];
+    return __lsx_vpickve2gr_d(_v8, 0);
 }
 
 static NCNN_FORCEINLINE __m128i float2int8relu(__m128 _v)
@@ -522,7 +522,7 @@ static NCNN_FORCEINLINE int64_t float2int8(__m256 _vlow, __m256 _vhigh)
     __m256i _v16_8 = __lasx_xvsat_h(_v16, 7);
     __m256i _v8 = __lasx_xvpickev_b(_v16_8, _v16_8);
 
-    return _v8[0];
+    return __lsx_vpickve2gr_d(__lasx_extract_128_lo(_v8), 0);
 }
 
 static NCNN_FORCEINLINE __m256i float2int8relu(__m256 _v)

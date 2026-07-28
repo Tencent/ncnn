@@ -2252,12 +2252,63 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 #if NCNN_WEIGHT_QUANT
 #include "gemm_wq_int8.h"
 
-static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int out_elemtype, const Option& opt)
+static void quantize_A_tile_wq_int8_riscv(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
 {
-#if !NCNN_ZFH
-    (void)out_elemtype;
-#endif
+#if NCNN_ZFH
+    if (A.elembits() == 16)
+    {
+        Gemm_riscv::quantize_A_tile_wq_int8_fp16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+        return;
+    }
+#endif // NCNN_ZFH
 
+    quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+}
+
+static void transpose_quantize_A_tile_wq_int8_riscv(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
+{
+#if NCNN_ZFH
+    if (A.elembits() == 16)
+    {
+        Gemm_riscv::transpose_quantize_A_tile_wq_int8_fp16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+        return;
+    }
+#endif // NCNN_ZFH
+
+    transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+}
+
+static void unpack_output_tile_wq_int8_riscv(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_elemtype, int output_transpose)
+{
+    if (output_transpose)
+    {
+#if NCNN_ZFH
+        if (output_elemtype == 2)
+        {
+            Gemm_riscv::transpose_unpack_output_tile_wq_int8_fp16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+            return;
+        }
+#endif // NCNN_ZFH
+
+        transpose_unpack_output_tile_wq_int8(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+        return;
+    }
+
+#if NCNN_ZFH
+    if (output_elemtype == 2)
+    {
+        Gemm_riscv::unpack_output_tile_wq_int8_fp16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+        return;
+    }
+#else
+    (void)output_elemtype;
+#endif // NCNN_ZFH
+
+    unpack_output_tile_wq_int8(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+}
+
+static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int output_elemtype, const Option& opt)
+{
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int block_count = (K + block_size - 1) / block_size;
     int TILE_M, TILE_N, TILE_K;
@@ -2281,8 +2332,8 @@ static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_desc
 
     if (nT > nn_M)
     {
-        Mat AT(K * mr, 1, nn_M, 1u, opt.workspace_allocator);
-        Mat AT_descales(block_count * mr, 1, nn_M, 4u, opt.workspace_allocator);
+        Mat AT(mr, K, nn_M, 1u, opt.workspace_allocator);
+        Mat AT_descales(mr, block_count, nn_M, 4u, opt.workspace_allocator);
         if (AT.empty() || AT_descales.empty())
             return -100;
 
@@ -2295,32 +2346,23 @@ static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_desc
 
             const int i = ppi * TILE_M;
             const int k = ppk * TILE_K;
+
+            // shadowed variable for less openmp task args
+            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
             const int max_ii = std::min(M - i, TILE_M);
             const int max_kk = std::min(K - k, TILE_K);
             const int local_block_count = (max_kk + block_size - 1) / block_size;
 
             Mat AT_channel = AT.channel(ppi);
             Mat AT_descales_channel = AT_descales.channel(ppi);
-            Mat AT_tile(max_kk, max_ii, (signed char*)AT_channel + (size_t)k * mr, (size_t)1u);
-            Mat AT_descales_tile(local_block_count, max_ii, (float*)AT_descales_channel + (size_t)(k / block_size) * mr, (size_t)4u);
+            Mat AT_tile(max_kk, max_ii, AT_channel.row<signed char>(k), (size_t)1u);
+            Mat AT_descales_tile(local_block_count, max_ii, AT_descales_channel.row<float>(k / block_size), (size_t)4u);
             if (transA)
-            {
-#if NCNN_ZFH
-                if (A.elembits() == 16)
-                    Gemm_riscv::transpose_quantize_A_tile_wq_int8_fp16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
-                else
-#endif // NCNN_ZFH
-                    transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
-            }
+                transpose_quantize_A_tile_wq_int8_riscv(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
             else
-            {
-#if NCNN_ZFH
-                if (A.elembits() == 16)
-                    Gemm_riscv::quantize_A_tile_wq_int8_fp16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
-                else
-#endif // NCNN_ZFH
-                    quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
-            }
+                quantize_A_tile_wq_int8_riscv(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
         }
 
         const int nn_MN = nn_M * nn_N;
@@ -2333,11 +2375,15 @@ static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_desc
             const int i = ppi * TILE_M;
             const int j = ppj * TILE_N;
 
+            // shadowed variable for less openmp task args
+            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
             const int max_ii = std::min(M - i, TILE_M);
             const int max_jj = std::min(N - j, TILE_N);
 
-            Mat BT_tile(K * max_jj, (signed char*)BT.data + (size_t)j * K, (size_t)1u);
-            Mat BT_descales_tile(block_count * max_jj, (float*)BT_descales.data + (size_t)j * block_count, (size_t)4u);
+            Mat BT_tile = BT.row_range(j, max_jj);
+            Mat BT_descales_tile = BT_descales.row_range(j, max_jj);
             Mat topT_tile = topT.channel(get_omp_thread_num());
             Mat AT_channel = AT.channel(ppi);
             Mat AT_descales_channel = AT_descales.channel(ppi);
@@ -2347,36 +2393,19 @@ static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_desc
                 const int max_kk = std::min(K - k, TILE_K);
                 const int local_block_count = (max_kk + block_size - 1) / block_size;
 
-                Mat AT_tile(max_kk, max_ii, (signed char*)AT_channel + (size_t)k * mr, (size_t)1u);
-                Mat AT_descales_tile(local_block_count, max_ii, (float*)AT_descales_channel + (size_t)(k / block_size) * mr, (size_t)4u);
+                Mat AT_tile(max_kk, max_ii, AT_channel.row<signed char>(k), (size_t)1u);
+                Mat AT_descales_tile(local_block_count, max_ii, AT_descales_channel.row<float>(k / block_size), (size_t)4u);
 
                 gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
             }
 
-            if (output_transpose)
-            {
-#if NCNN_ZFH
-                if (out_elemtype == 2)
-                    Gemm_riscv::transpose_unpack_output_tile_wq_int8_fp16s(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
-                else
-#endif // NCNN_ZFH
-                    transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
-            }
-            else
-            {
-#if NCNN_ZFH
-                if (out_elemtype == 2)
-                    Gemm_riscv::unpack_output_tile_wq_int8_fp16s(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
-                else
-#endif // NCNN_ZFH
-                    unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
-            }
+            unpack_output_tile_wq_int8_riscv(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype, output_transpose);
         }
     }
     else
     {
-        Mat ATX(K * mr, 1, nT, 1u, opt.workspace_allocator);
-        Mat ATX_descales(block_count * mr, 1, nT, 4u, opt.workspace_allocator);
+        Mat ATX(mr, K, nT, 1u, opt.workspace_allocator);
+        Mat ATX_descales(mr, block_count, nT, 4u, opt.workspace_allocator);
         if (ATX.empty() || ATX_descales.empty())
             return -100;
 
@@ -2384,6 +2413,11 @@ static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_desc
         for (int ppi = 0; ppi < nn_M; ppi++)
         {
             const int i = ppi * TILE_M;
+
+            // shadowed variable for less openmp task args
+            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
             const int max_ii = std::min(M - i, TILE_M);
 
             Mat ATX_tile = ATX.channel(get_omp_thread_num());
@@ -2395,64 +2429,33 @@ static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_desc
                 const int max_kk = std::min(K - k, TILE_K);
                 const int local_block_count = (max_kk + block_size - 1) / block_size;
 
-                Mat AT_tile(max_kk, max_ii, (signed char*)ATX_tile + (size_t)k * mr, (size_t)1u);
-                Mat AT_descales_tile(local_block_count, max_ii, (float*)ATX_descales_tile + (size_t)(k / block_size) * mr, (size_t)4u);
+                Mat AT_tile(max_kk, max_ii, ATX_tile.row<signed char>(k), (size_t)1u);
+                Mat AT_descales_tile(local_block_count, max_ii, ATX_descales_tile.row<float>(k / block_size), (size_t)4u);
                 if (transA)
-                {
-#if NCNN_ZFH
-                    if (A.elembits() == 16)
-                        Gemm_riscv::transpose_quantize_A_tile_wq_int8_fp16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
-                    else
-#endif // NCNN_ZFH
-                        transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
-                }
+                    transpose_quantize_A_tile_wq_int8_riscv(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
                 else
-                {
-#if NCNN_ZFH
-                    if (A.elembits() == 16)
-                        Gemm_riscv::quantize_A_tile_wq_int8_fp16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
-                    else
-#endif // NCNN_ZFH
-                        quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
-                }
+                    quantize_A_tile_wq_int8_riscv(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
             }
 
             for (int j = 0; j < N; j += TILE_N)
             {
                 const int max_jj = std::min(N - j, TILE_N);
 
-                Mat BT_tile(K * max_jj, (signed char*)BT.data + (size_t)j * K, (size_t)1u);
-                Mat BT_descales_tile(block_count * max_jj, (float*)BT_descales.data + (size_t)j * block_count, (size_t)4u);
+                Mat BT_tile = BT.row_range(j, max_jj);
+                Mat BT_descales_tile = BT_descales.row_range(j, max_jj);
 
                 for (int k = 0; k < K; k += TILE_K)
                 {
                     const int max_kk = std::min(K - k, TILE_K);
                     const int local_block_count = (max_kk + block_size - 1) / block_size;
 
-                    Mat AT_tile(max_kk, max_ii, (signed char*)ATX_tile + (size_t)k * mr, (size_t)1u);
-                    Mat AT_descales_tile(local_block_count, max_ii, (float*)ATX_descales_tile + (size_t)(k / block_size) * mr, (size_t)4u);
+                    Mat AT_tile(max_kk, max_ii, ATX_tile.row<signed char>(k), (size_t)1u);
+                    Mat AT_descales_tile(local_block_count, max_ii, ATX_descales_tile.row<float>(k / block_size), (size_t)4u);
 
                     gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
                 }
 
-                if (output_transpose)
-                {
-#if NCNN_ZFH
-                    if (out_elemtype == 2)
-                        Gemm_riscv::transpose_unpack_output_tile_wq_int8_fp16s(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
-                    else
-#endif // NCNN_ZFH
-                        transpose_unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
-                }
-                else
-                {
-#if NCNN_ZFH
-                    if (out_elemtype == 2)
-                        Gemm_riscv::unpack_output_tile_wq_int8_fp16s(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
-                    else
-#endif // NCNN_ZFH
-                        unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
-                }
+                unpack_output_tile_wq_int8_riscv(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype, output_transpose);
             }
         }
     }
@@ -2462,13 +2465,9 @@ static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_desc
 
 int Gemm_riscv::create_pipeline_wq_int8(const Option& opt)
 {
-    int weight_bits;
-    int block_size;
-    bool has_input_scale;
-    get_weight_block_quantize_params(weight_bits, block_size, has_input_scale);
-
     const int N = constantN;
     const int K = constantK;
+    const int block_size = weight_block_quantize_block_size;
     const int block_count = (K + block_size - 1) / block_size;
 
     int TILE_M, TILE_N, TILE_K;
@@ -2489,8 +2488,8 @@ int Gemm_riscv::create_pipeline_wq_int8(const Option& opt)
         const int j = ppj * TILE_N;
         const int max_jj = std::min(N - j, TILE_N);
 
-        Mat BT_tile(K * max_jj, (signed char*)BT_data_wq_int8 + (size_t)j * K, (size_t)1u);
-        Mat BT_descales_tile(block_count * max_jj, (float*)BT_data_wq_int8_descales + (size_t)j * block_count, (size_t)4u);
+        Mat BT_tile = BT_data_wq_int8.row_range(j, max_jj);
+        Mat BT_descales_tile = BT_data_wq_int8_descales.row_range(j, max_jj);
 
         pack_B_tile_wq_int8(B_data, B_data_quantize_scales, BT_tile, BT_descales_tile, j, max_jj, K, block_size);
     }
@@ -2516,13 +2515,8 @@ int Gemm_riscv::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vecto
 #endif // NCNN_ZFH
 #endif // __riscv_vector
 
-    const int K = transA ? A.h * A.elempack : A.w;
-
-    int weight_bits;
-    int block_size;
-    bool has_input_scale;
-    if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0 || weight_bits != 8)
-        return -1;
+    const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+    const int block_size = weight_block_quantize_block_size;
 
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int N = constantN;
@@ -2595,14 +2589,14 @@ int Gemm_riscv::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vecto
         }
     }
 
-    const int out_elemtype = output_elemtype == 0 && use_fp16_storage ? 2 : 1;
+    const int output_elemtype = this->output_elemtype == 0 && use_fp16_storage ? 2 : 1;
     const int outh = output_transpose ? N : M;
     int out_elempack = 1;
 #if __riscv_vector
     if (opt.use_packing_layout)
     {
 #if NCNN_ZFH
-        if (out_elemtype == 2)
+        if (output_elemtype == 2)
             out_elempack = outh % packn_fp16 == 0 ? packn_fp16 : 1;
         else
 #endif // NCNN_ZFH
@@ -2612,7 +2606,7 @@ int Gemm_riscv::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vecto
     if (output_elempack)
         out_elempack = output_elempack;
 
-    const size_t out_elemsize = (out_elemtype == 2 ? 2u : 4u) * out_elempack;
+    const size_t out_elemsize = (output_elemtype == 2 ? 2u : 4u) * out_elempack;
 
     Mat& top_blob = top_blobs[0];
     if (output_transpose)
@@ -2632,7 +2626,7 @@ int Gemm_riscv::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vecto
     if (top_blob.empty())
         return -100;
 
-    return gemm_BT_riscv_wq_int8(A, BT_data_wq_int8, BT_data_wq_int8_descales, B_data_input_scales, C, top_blob, broadcast_type_C, N, K, block_size, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, opt.num_threads, out_elemtype, opt);
+    return gemm_BT_riscv_wq_int8(A, BT_data_wq_int8, BT_data_wq_int8_descales, B_data_input_scales, C, top_blob, broadcast_type_C, N, K, block_size, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, opt.num_threads, output_elemtype, opt);
 }
 #endif // NCNN_WEIGHT_QUANT
 

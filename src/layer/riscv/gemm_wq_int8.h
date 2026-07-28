@@ -9,6 +9,8 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
 #if __riscv_vector
     const ptrdiff_t B_stride = (ptrdiff_t)B_hstep;
     const ptrdiff_t B_scales_stride = (ptrdiff_t)B_scales_hstep * sizeof(float);
+    const bool use_nr8 = csrr_vlenb() >= 32;
+    const size_t vl8 = __riscv_vsetvl_e8m1(8);
     const size_t vl4 = __riscv_vsetvl_e8m1(4);
     const size_t vl2 = __riscv_vsetvl_e8m1(2);
 #endif // __riscv_vector
@@ -17,6 +19,40 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
     float* pd = BT_descales_tile;
 
     int jj = 0;
+#if __riscv_vector
+    for (; use_nr8 && jj + 7 < max_jj; jj += 8)
+    {
+        const signed char* p0 = B.row<const signed char>(j + jj);
+        const float* ps = B_scales.row(j + jj);
+
+        for (int g = 0; g < block_count; g++)
+        {
+            const int max_kk = std::min(K - g * block_size, block_size);
+
+            int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                __riscv_vse8_v_i8m1(pp, __riscv_vlse8_v_i8m1(p0, B_stride, vl8), vl8);
+                __riscv_vse8_v_i8m1(pp + 8, __riscv_vlse8_v_i8m1(p0 + 1, B_stride, vl8), vl8);
+                __riscv_vse8_v_i8m1(pp + 16, __riscv_vlse8_v_i8m1(p0 + 2, B_stride, vl8), vl8);
+                __riscv_vse8_v_i8m1(pp + 24, __riscv_vlse8_v_i8m1(p0 + 3, B_stride, vl8), vl8);
+                p0 += 4;
+                pp += 32;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                __riscv_vse8_v_i8m1(pp, __riscv_vlse8_v_i8m1(p0, B_stride, vl8), vl8);
+                p0++;
+                pp += 8;
+            }
+
+            vfloat32m1_t _scale = __riscv_vlse32_v_f32m1(ps, B_scales_stride, vl8);
+            __riscv_vse32_v_f32m1(pd, __riscv_vfrdiv_vf_f32m1(_scale, 1.f, vl8), vl8);
+            ps++;
+            pd += 8;
+        }
+    }
+#endif // __riscv_vector
     for (; jj + 3 < max_jj; jj += 4)
     {
         const signed char* p0 = B.row<const signed char>(j + jj);
@@ -153,7 +189,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
     const int elempack = A.elempack;
     signed char* pp = AT_tile;
     float* pd = AT_descales_tile;
-    const int block_count = (max_kk + block_size - 1) / block_size;
+    const int local_block_count = (max_kk + block_size - 1) / block_size;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     if (input_scales.empty())
@@ -167,7 +203,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         {
             const float* p0 = (const float*)A + (size_t)(i + ii) * A_hstep + k * elempack;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 vfloat32m1_t _absmax = __riscv_vfmv_v_f_f32m1(0.f, vl);
@@ -237,7 +273,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             const float* p0 = (const float*)A + (size_t)(i + ii) * A_hstep + k;
             const float* p1 = p0 + A_hstep;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax0 = 0.f;
@@ -270,22 +306,10 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 }
 #endif // __riscv_vector
 
-#if __riscv_vector
-                const size_t vl_scale = packn;
-                vfloat32m1_t _absmax = __riscv_vfmv_v_f_f32m1(absmax0, vl_scale);
-                _absmax = __riscv_vslideup_vx_f32m1(_absmax, __riscv_vfmv_v_f_f32m1(absmax1, vl_scale), 1, vl_scale);
-                vfloat32m1_t _scale = __riscv_vfrdiv_vf_f32m1(_absmax, 127.f, vl_scale);
-                _scale = __riscv_vfmerge_vfm_f32m1(_scale, 0.f, __riscv_vmfeq_vf_f32m1_b32(_absmax, 0.f, vl_scale), vl_scale);
-                __riscv_vse32_v_f32m1(pd, __riscv_vfmul_vf_f32m1(_absmax, 1.f / 127.f, vl_scale), 2);
-                const float scale0 = __riscv_vfmv_f_s_f32m1_f32(_scale);
-                vuint32m1_t _scale1 = __riscv_vslidedown_vx_u32m1(__riscv_vreinterpret_v_f32m1_u32m1(_scale), 1, vl_scale);
-                const float scale1 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vreinterpret_v_u32m1_f32m1(_scale1));
-#else
                 const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
                 const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
                 pd[0] = absmax0 / 127.f;
                 pd[1] = absmax1 / 127.f;
-#endif // __riscv_vector
                 pd += 2;
 
                 kk = 0;
@@ -320,7 +344,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         {
             const float* p0 = (const float*)A + (size_t)(i + ii) * A_hstep + k;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax = 0.f;
@@ -383,7 +407,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         const float* p0 = (const float*)A + (size_t)(i + ii) * A_hstep + k * elempack;
         const float* ps = input_scale_ptr;
 
-        for (int g = 0; g < block_count; g++)
+        for (int g = 0; g < local_block_count; g++)
         {
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             vfloat32m1_t _absmax = __riscv_vfmv_v_f_f32m1(0.f, vl);
@@ -461,7 +485,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         const float* p1 = p0 + A_hstep;
         const float* ps = input_scale_ptr;
 
-        for (int g = 0; g < block_count; g++)
+        for (int g = 0; g < local_block_count; g++)
         {
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             float absmax0 = 0.f;
@@ -498,22 +522,10 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
             }
 #endif // __riscv_vector
 
-#if __riscv_vector
-            const size_t vl_scale = packn;
-            vfloat32m1_t _absmax = __riscv_vfmv_v_f_f32m1(absmax0, vl_scale);
-            _absmax = __riscv_vslideup_vx_f32m1(_absmax, __riscv_vfmv_v_f_f32m1(absmax1, vl_scale), 1, vl_scale);
-            vfloat32m1_t _scale = __riscv_vfrdiv_vf_f32m1(_absmax, 127.f, vl_scale);
-            _scale = __riscv_vfmerge_vfm_f32m1(_scale, 0.f, __riscv_vmfeq_vf_f32m1_b32(_absmax, 0.f, vl_scale), vl_scale);
-            __riscv_vse32_v_f32m1(pd, __riscv_vfmul_vf_f32m1(_absmax, 1.f / 127.f, vl_scale), 2);
-            const float scale0 = __riscv_vfmv_f_s_f32m1_f32(_scale);
-            vuint32m1_t _scale1 = __riscv_vslidedown_vx_u32m1(__riscv_vreinterpret_v_f32m1_u32m1(_scale), 1, vl_scale);
-            const float scale1 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vreinterpret_v_u32m1_f32m1(_scale1));
-#else
             const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
             const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
             pd[0] = absmax0 / 127.f;
             pd[1] = absmax1 / 127.f;
-#endif // __riscv_vector
             pd += 2;
 
             kk = 0;
@@ -556,7 +568,7 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         const float* p0 = (const float*)A + (size_t)(i + ii) * A_hstep + k;
         const float* ps = input_scale_ptr;
 
-        for (int g = 0; g < block_count; g++)
+        for (int g = 0; g < local_block_count; g++)
         {
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             float absmax = 0.f;
@@ -617,7 +629,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
     const int elempack = A.elempack;
     signed char* pp = AT_tile;
     float* pd = AT_descales_tile;
-    const int block_count = (max_kk + block_size - 1) / block_size;
+    const int local_block_count = (max_kk + block_size - 1) / block_size;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     if (input_scales.empty())
@@ -628,7 +640,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
         const size_t vl = __riscv_vsetvl_e32m1(packn);
         for (; ii + (packn - 1) < max_ii; ii += packn)
         {
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const int k0 = k + g * block_size;
@@ -761,7 +773,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __riscv_vector
             if (elempack == packn)
             {
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const int k0 = k + g * block_size;
@@ -797,15 +809,10 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                         }
                     }
 
-                    const size_t vl_scale = packn;
-                    vfloat32m1_t _absmax = __riscv_vfmv_v_f_f32m1(absmax0, vl_scale);
-                    _absmax = __riscv_vslideup_vx_f32m1(_absmax, __riscv_vfmv_v_f_f32m1(absmax1, vl_scale), 1, vl_scale);
-                    vfloat32m1_t _scale = __riscv_vfrdiv_vf_f32m1(_absmax, 127.f, vl_scale);
-                    _scale = __riscv_vfmerge_vfm_f32m1(_scale, 0.f, __riscv_vmfeq_vf_f32m1_b32(_absmax, 0.f, vl_scale), vl_scale);
-                    __riscv_vse32_v_f32m1(pd, __riscv_vfmul_vf_f32m1(_absmax, 1.f / 127.f, vl_scale), 2);
-                    const float scale0 = __riscv_vfmv_f_s_f32m1_f32(_scale);
-                    vuint32m1_t _scale1 = __riscv_vslidedown_vx_u32m1(__riscv_vreinterpret_v_f32m1_u32m1(_scale), 1, vl_scale);
-                    const float scale1 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vreinterpret_v_u32m1_f32m1(_scale1));
+                    const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
+                    const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
+                    pd[0] = absmax0 / 127.f;
+                    pd[1] = absmax1 / 127.f;
                     pd += 2;
 
                     kk = 0;
@@ -850,7 +857,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             {
                 const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
 
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     float absmax0 = 0.f;
@@ -882,55 +889,26 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     }
 #endif // __riscv_vector
 
-#if __riscv_vector
-                    const size_t vl_scale = packn;
-                    vfloat32m1_t _absmax = __riscv_vfmv_v_f_f32m1(absmax0, vl_scale);
-                    _absmax = __riscv_vslideup_vx_f32m1(_absmax, __riscv_vfmv_v_f_f32m1(absmax1, vl_scale), 1, vl_scale);
-                    vfloat32m1_t _scale = __riscv_vfrdiv_vf_f32m1(_absmax, 127.f, vl_scale);
-                    _scale = __riscv_vfmerge_vfm_f32m1(_scale, 0.f, __riscv_vmfeq_vf_f32m1_b32(_absmax, 0.f, vl_scale), vl_scale);
-                    __riscv_vse32_v_f32m1(pd, __riscv_vfmul_vf_f32m1(_absmax, 1.f / 127.f, vl_scale), 2);
-                    const float scale0 = __riscv_vfmv_f_s_f32m1_f32(_scale);
-                    vuint32m1_t _scale1 = __riscv_vslidedown_vx_u32m1(__riscv_vreinterpret_v_f32m1_u32m1(_scale), 1, vl_scale);
-                    const float scale1 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vreinterpret_v_u32m1_f32m1(_scale1));
-#else
                     const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
                     const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
                     pd[0] = absmax0 / 127.f;
                     pd[1] = absmax1 / 127.f;
-#endif // __riscv_vector
                     pd += 2;
 
                     kk = 0;
 #if __riscv_vector
-                    const size_t vl = packn;
-                    const size_t vlq = packn * 4;
-                    vuint32m1_t _idx = __riscv_vid_v_u32m1(vl);
                     while (kk < max_kk0)
                     {
-                        const int n = std::min(max_kk0 - kk, packn);
-                        vbool32_t _mask32 = __riscv_vmsltu_vx_u32m1_b32(_idx, n, vl);
-                        vfloat32m1_t _v0 = __riscv_vlse32_v_f32m1_m(_mask32, p0, (ptrdiff_t)A_hstep * sizeof(float), vl);
-                        vfloat32m1_t _v1 = __riscv_vlse32_v_f32m1_m(_mask32, p0 + 1, (ptrdiff_t)A_hstep * sizeof(float), vl);
-                        vint32m1_t _v32_0 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vf_f32m1(_v0, scale0, vl), __RISCV_FRM_RMM, vl);
-                        vint32m1_t _v32_1 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vf_f32m1(_v1, scale1, vl), __RISCV_FRM_RMM, vl);
-                        _v32_0 = __riscv_vmax_vx_i32m1(_v32_0, -127, vl);
-                        _v32_1 = __riscv_vmax_vx_i32m1(_v32_1, -127, vl);
-                        _v32_0 = __riscv_vmin_vx_i32m1(_v32_0, 127, vl);
-                        _v32_1 = __riscv_vmin_vx_i32m1(_v32_1, 127, vl);
-                        vint32m4_t _v32x4_0 = __riscv_vundefined_i32m4();
-                        vint32m4_t _v32x4_1 = __riscv_vundefined_i32m4();
-                        _v32x4_0 = __riscv_vset_v_i32m1_i32m4(_v32x4_0, 0, _v32_0);
-                        _v32x4_1 = __riscv_vset_v_i32m1_i32m4(_v32x4_1, 0, _v32_1);
-                        vint16m2_t _v16_0 = __riscv_vnclip_wx_i16m2(_v32x4_0, 0, __RISCV_VXRM_RNU, vlq);
-                        vint16m2_t _v16_1 = __riscv_vnclip_wx_i16m2(_v32x4_1, 0, __RISCV_VXRM_RNU, vlq);
-                        vint8m1x2_t _q = __riscv_vcreate_v_i8m1x2(
-                                             __riscv_vnclip_wx_i8m1(_v16_0, 0, __RISCV_VXRM_RNU, vlq),
-                                             __riscv_vnclip_wx_i8m1(_v16_1, 0, __RISCV_VXRM_RNU, vlq));
-                        vbool8_t _mask8 = __riscv_vmsltu_vx_u8m1_b8(__riscv_vid_v_u8m1(vlq), n, vlq);
-                        __riscv_vsseg2e8_v_i8m1x2_m(_mask8, pp, _q, vlq);
-                        pp += n * 2;
-                        p0 += n * A_hstep;
-                        kk += n;
+                        const size_t vl = __riscv_vsetvl_e32m8(max_kk0 - kk);
+                        vfloat32m8_t _v0 = __riscv_vlse32_v_f32m8(p0, (ptrdiff_t)A_hstep * sizeof(float), vl);
+                        vfloat32m8_t _v1 = __riscv_vlse32_v_f32m8(p0 + 1, (ptrdiff_t)A_hstep * sizeof(float), vl);
+                        vint8m2_t _q0 = float2int8(__riscv_vfmul_vf_f32m8(_v0, scale0, vl), vl);
+                        vint8m2_t _q1 = float2int8(__riscv_vfmul_vf_f32m8(_v1, scale1, vl), vl);
+                        vint8m2x2_t _q = __riscv_vcreate_v_i8m2x2(_q0, _q1);
+                        __riscv_vsseg2e8_v_i8m2x2(pp, _q, vl);
+                        pp += vl * 2;
+                        p0 += vl * A_hstep;
+                        kk += vl;
                     }
 #else
                     for (; kk < max_kk0; kk++)
@@ -951,7 +929,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __riscv_vector
             if (elempack == packn)
             {
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const int k0 = k + g * block_size;
@@ -1019,7 +997,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             {
                 const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
 
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     float absmax = 0.f;
@@ -1093,7 +1071,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
     const size_t vl = packn;
     for (; ii + (packn - 1) < max_ii; ii += packn)
     {
-        for (int g = 0; g < block_count; g++)
+        for (int g = 0; g < local_block_count; g++)
         {
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             const int k0 = k + g * block_size;
@@ -1241,7 +1219,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __riscv_vector
         if (elempack == packn)
         {
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const int k0 = k + g * block_size;
@@ -1283,14 +1261,10 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     }
                 }
 
-                vfloat32m1_t _absmax = __riscv_vfmv_v_f_f32m1(absmax0, vl);
-                _absmax = __riscv_vslideup_vx_f32m1(_absmax, __riscv_vfmv_v_f_f32m1(absmax1, vl), 1, vl);
-                vfloat32m1_t _scale = __riscv_vfrdiv_vf_f32m1(_absmax, 127.f, vl);
-                _scale = __riscv_vfmerge_vfm_f32m1(_scale, 0.f, __riscv_vmfeq_vf_f32m1_b32(_absmax, 0.f, vl), vl);
-                __riscv_vse32_v_f32m1(pd, __riscv_vfmul_vf_f32m1(_absmax, 1.f / 127.f, vl), 2);
-                const float scale0 = __riscv_vfmv_f_s_f32m1_f32(_scale);
-                vuint32m1_t _scale1 = __riscv_vslidedown_vx_u32m1(__riscv_vreinterpret_v_f32m1_u32m1(_scale), 1, vl);
-                const float scale1 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vreinterpret_v_u32m1_f32m1(_scale1));
+                const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
+                const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
+                pd[0] = absmax0 / 127.f;
+                pd[1] = absmax1 / 127.f;
                 pd += 2;
 
                 kk = 0;
@@ -1340,7 +1314,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax0 = 0.f;
@@ -1379,22 +1353,10 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 }
 #endif // __riscv_vector
 
-#if __riscv_vector
-                const size_t vl_scale = packn;
-                vfloat32m1_t _absmax = __riscv_vfmv_v_f_f32m1(absmax0, vl_scale);
-                _absmax = __riscv_vslideup_vx_f32m1(_absmax, __riscv_vfmv_v_f_f32m1(absmax1, vl_scale), 1, vl_scale);
-                vfloat32m1_t _scale = __riscv_vfrdiv_vf_f32m1(_absmax, 127.f, vl_scale);
-                _scale = __riscv_vfmerge_vfm_f32m1(_scale, 0.f, __riscv_vmfeq_vf_f32m1_b32(_absmax, 0.f, vl_scale), vl_scale);
-                __riscv_vse32_v_f32m1(pd, __riscv_vfmul_vf_f32m1(_absmax, 1.f / 127.f, vl_scale), 2);
-                const float scale0 = __riscv_vfmv_f_s_f32m1_f32(_scale);
-                vuint32m1_t _scale1 = __riscv_vslidedown_vx_u32m1(__riscv_vreinterpret_v_f32m1_u32m1(_scale), 1, vl_scale);
-                const float scale1 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vreinterpret_v_u32m1_f32m1(_scale1));
-#else
                 const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
                 const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
                 pd[0] = absmax0 / 127.f;
                 pd[1] = absmax1 / 127.f;
-#endif // __riscv_vector
                 pd += 2;
 
                 kk = 0;
@@ -1455,7 +1417,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 #if __riscv_vector
         if (elempack == packn)
         {
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const int k0 = k + g * block_size;
@@ -1532,7 +1494,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax = 0.f;
@@ -1617,6 +1579,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
     int ii = 0;
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
+    const bool use_nr8 = csrr_vlenb() >= 32;
     for (; ii + (packn - 1) < max_ii; ii += packn)
     {
         const signed char* pB_panel = pBT;
@@ -1624,6 +1587,119 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         const size_t vl = __riscv_vsetvl_e32m1(packn);
 
         int jj = 0;
+        for (; use_nr8 && jj + 7 < max_jj; jj += 8)
+        {
+            for (int jj0 = 0; jj0 < 8; jj0 += 4)
+            {
+                const signed char* pB = pB_panel + (size_t)8 * k + jj0;
+                const float* pB_descales = pB_descales_panel + (size_t)8 * block_start + jj0;
+                vfloat32m1_t _fsum0;
+                vfloat32m1_t _fsum1;
+                vfloat32m1_t _fsum2;
+                vfloat32m1_t _fsum3;
+                if (k == 0)
+                {
+                    _fsum0 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                    _fsum1 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                    _fsum2 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                    _fsum3 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                }
+                else
+                {
+                    _fsum0 = __riscv_vle32_v_f32m1(outptr + packn * jj0, vl);
+                    _fsum1 = __riscv_vle32_v_f32m1(outptr + packn * (jj0 + 1), vl);
+                    _fsum2 = __riscv_vle32_v_f32m1(outptr + packn * (jj0 + 2), vl);
+                    _fsum3 = __riscv_vle32_v_f32m1(outptr + packn * (jj0 + 3), vl);
+                }
+
+                const signed char* pA = pAT;
+                const float* pA_descales = pAT_descales;
+                for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
+                {
+                    const int max_kk0 = std::min(max_kk - kk0, block_size);
+                    vint32m1_t _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
+                    vint32m1_t _sum1 = __riscv_vmv_v_x_i32m1(0, vl);
+                    vint32m1_t _sum2 = __riscv_vmv_v_x_i32m1(0, vl);
+                    vint32m1_t _sum3 = __riscv_vmv_v_x_i32m1(0, vl);
+
+                    int kk = 0;
+                    for (; kk + 3 < max_kk0; kk += 4)
+                    {
+                        vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA, vl), 0, vl);
+                        vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
+                        vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
+                        unsigned int b = *(const unsigned int*)pB;
+                        _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
+                        _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
+                        _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
+                        _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
+
+                        _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn, vl), 0, vl);
+                        _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
+                        _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
+                        b = *(const unsigned int*)(pB + 8);
+                        _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
+                        _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
+                        _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
+                        _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
+
+                        _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn * 2, vl), 0, vl);
+                        _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
+                        _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
+                        b = *(const unsigned int*)(pB + 16);
+                        _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
+                        _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
+                        _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
+                        _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
+
+                        _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn * 3, vl), 0, vl);
+                        _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
+                        _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
+                        b = *(const unsigned int*)(pB + 24);
+                        _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
+                        _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
+                        _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
+                        _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
+                        pA += packn * 4;
+                        pB += 32;
+                    }
+                    for (; kk < max_kk0; kk++)
+                    {
+                        vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA, vl), 0, vl);
+                        vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
+                        vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
+                        const unsigned int b = *(const unsigned int*)pB;
+                        _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
+                        _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
+                        _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
+                        _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
+                        pA += packn;
+                        pB += 8;
+                    }
+
+                    vfloat32m1_t _ad = __riscv_vle32_v_f32m1(pA_descales, vl);
+                    vfloat32m1_t _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum0, vl), _ad, vl);
+                    _fsum0 = __riscv_vfmacc_vf_f32m1(_fsum0, pB_descales[0], _v, vl);
+                    _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum1, vl), _ad, vl);
+                    _fsum1 = __riscv_vfmacc_vf_f32m1(_fsum1, pB_descales[1], _v, vl);
+                    _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum2, vl), _ad, vl);
+                    _fsum2 = __riscv_vfmacc_vf_f32m1(_fsum2, pB_descales[2], _v, vl);
+                    _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum3, vl), _ad, vl);
+                    _fsum3 = __riscv_vfmacc_vf_f32m1(_fsum3, pB_descales[3], _v, vl);
+                    pA_descales += packn;
+                    pB_descales += 8;
+                }
+
+                __riscv_vse32_v_f32m1(outptr + packn * jj0, _fsum0, vl);
+                __riscv_vse32_v_f32m1(outptr + packn * (jj0 + 1), _fsum1, vl);
+                __riscv_vse32_v_f32m1(outptr + packn * (jj0 + 2), _fsum2, vl);
+                __riscv_vse32_v_f32m1(outptr + packn * (jj0 + 3), _fsum3, vl);
+            }
+
+            outptr += packn * 8;
+            pB_panel += (size_t)8 * K;
+            pB_descales_panel += (size_t)8 * block_count;
+        }
         for (; jj + 3 < max_jj; jj += 4)
         {
             const signed char* pB = pB_panel + (size_t)4 * k;
@@ -1885,6 +1961,86 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         const float* pB_descales_panel = pBT_descales;
 
         int jj = 0;
+#if __riscv_vector
+        for (; use_nr8 && jj + 7 < max_jj; jj += 8)
+        {
+            const signed char* pB = pB_panel + (size_t)8 * k;
+            const float* pB_descales = pB_descales_panel + (size_t)8 * block_start;
+            const size_t vl = __riscv_vsetvl_e32m1(8);
+            vfloat32m1_t _fsum0;
+            vfloat32m1_t _fsum1;
+            if (k == 0)
+            {
+                _fsum0 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _fsum1 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+            }
+            else
+            {
+                vfloat32m1x2_t _s = __riscv_vlseg2e32_v_f32m1x2(outptr, vl);
+                _fsum0 = __riscv_vget_v_f32m1x2_f32m1(_s, 0);
+                _fsum1 = __riscv_vget_v_f32m1x2_f32m1(_s, 1);
+            }
+
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
+            {
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
+                vint32m1_t _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
+                vint32m1_t _sum1 = __riscv_vmv_v_x_i32m1(0, vl);
+
+                int kk = 0;
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
+                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
+                    vint32m1_t _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
+                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[0], _b, vl);
+                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[1], _b, vl);
+                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 8, vl), 0, vl);
+                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
+                    _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
+                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[2], _b, vl);
+                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[3], _b, vl);
+                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 16, vl), 0, vl);
+                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
+                    _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
+                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[4], _b, vl);
+                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[5], _b, vl);
+                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 24, vl), 0, vl);
+                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
+                    _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
+                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[6], _b, vl);
+                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[7], _b, vl);
+                    pA += 8;
+                    pB += 32;
+                }
+                for (; kk < max_kk0; kk++)
+                {
+                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
+                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
+                    vint32m1_t _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
+                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[0], _b, vl);
+                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[1], _b, vl);
+                    pA += 2;
+                    pB += 8;
+                }
+
+                vfloat32m1_t _bd = __riscv_vle32_v_f32m1(pB_descales, vl);
+                vfloat32m1_t _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum0, vl), pA_descales[0], vl);
+                _fsum0 = __riscv_vfmacc_vv_f32m1(_fsum0, _bd, _v, vl);
+                _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum1, vl), pA_descales[1], vl);
+                _fsum1 = __riscv_vfmacc_vv_f32m1(_fsum1, _bd, _v, vl);
+                pA_descales += 2;
+                pB_descales += 8;
+            }
+
+            __riscv_vsseg2e32_v_f32m1x2(outptr, __riscv_vcreate_v_f32m1x2(_fsum0, _fsum1), vl);
+            outptr += 16;
+            pB_panel += (size_t)8 * K;
+            pB_descales_panel += (size_t)8 * block_count;
+        }
+#endif // __riscv_vector
         for (; jj + 3 < max_jj; jj += 4)
         {
             const signed char* pB = pB_panel + (size_t)4 * k;
@@ -2297,6 +2453,70 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         const float* pB_descales_panel = pBT_descales;
 
         int jj = 0;
+#if __riscv_vector
+        for (; use_nr8 && jj + 7 < max_jj; jj += 8)
+        {
+            const signed char* pB = pB_panel + (size_t)8 * k;
+            const float* pB_descales = pB_descales_panel + (size_t)8 * block_start;
+            const size_t vl = __riscv_vsetvl_e32m1(8);
+            vfloat32m1_t _fsum;
+            if (k == 0)
+                _fsum = __riscv_vfmv_v_f_f32m1(0.f, vl);
+            else
+                _fsum = __riscv_vle32_v_f32m1(outptr, vl);
+
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
+            {
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
+                vint32m1_t _sum = __riscv_vmv_v_x_i32m1(0, vl);
+
+                int kk = 0;
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
+                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
+                    vint32m1_t _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
+                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[0], _b, vl);
+                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 8, vl), 0, vl);
+                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
+                    _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
+                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[1], _b, vl);
+                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 16, vl), 0, vl);
+                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
+                    _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
+                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[2], _b, vl);
+                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 24, vl), 0, vl);
+                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
+                    _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
+                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[3], _b, vl);
+                    pA += 4;
+                    pB += 32;
+                }
+                for (; kk < max_kk0; kk++)
+                {
+                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
+                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
+                    vint32m1_t _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
+                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[0], _b, vl);
+                    pA++;
+                    pB += 8;
+                }
+
+                vfloat32m1_t _bd = __riscv_vle32_v_f32m1(pB_descales, vl);
+                vfloat32m1_t _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum, vl), pA_descales[0], vl);
+                _fsum = __riscv_vfmacc_vv_f32m1(_fsum, _bd, _v, vl);
+                pA_descales++;
+                pB_descales += 8;
+            }
+
+            __riscv_vse32_v_f32m1(outptr, _fsum, vl);
+            outptr += 8;
+            pB_panel += (size_t)8 * K;
+            pB_descales_panel += (size_t)8 * block_count;
+        }
+#endif // __riscv_vector
         for (; jj + 3 < max_jj; jj += 4)
         {
             const signed char* pB = pB_panel + (size_t)4 * k;
@@ -3709,6 +3929,9 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
+    const int nr = csrr_vlenb() >= 32 ? 8 : 4;
+#else
+    const int nr = 4;
 #endif // __riscv_vector
 
     int tile_size = (int)sqrtf((float)l2_cache_size / (2 * sizeof(signed char) + sizeof(float)));
@@ -3717,7 +3940,7 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
 #else
     TILE_M = std::max(2, tile_size / 2 * 2);
 #endif // __riscv_vector
-    TILE_N = std::max(4, tile_size / 4 * 4);
+    TILE_N = std::max(nr, tile_size / nr * nr);
     TILE_K = std::max(block_size, tile_size / block_size * block_size);
 
     if (K > 0)
@@ -3734,7 +3957,7 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
 #else
             TILE_M = std::max(2, tile_size / 2 * 2);
 #endif // __riscv_vector
-            TILE_N = std::max(4, tile_size / 4 * 4);
+            TILE_N = std::max(nr, tile_size / nr * nr);
         }
     }
 
@@ -3753,7 +3976,7 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
     if (N > 0)
     {
         const int nn_N = (N + TILE_N - 1) / TILE_N;
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + nr - 1) / nr * nr);
     }
 
     if (nT > 1)
@@ -3777,7 +4000,7 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
 
     if (constant_TILE_N > 0)
     {
-        TILE_N = (constant_TILE_N + 3) / 4 * 4;
+        TILE_N = (constant_TILE_N + nr - 1) / nr * nr;
     }
 
     if (constant_TILE_K > 0)

@@ -494,51 +494,38 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         _absmax7 = vmaxq_f32(_absmax7, vabsq_f32(_p7));
                         p0a += 4;
                     }
-                    float absmax0 = vmaxvq_f32(_absmax0);
-                    float absmax1 = vmaxvq_f32(_absmax1);
-                    float absmax2 = vmaxvq_f32(_absmax2);
-                    float absmax3 = vmaxvq_f32(_absmax3);
-                    float absmax4 = vmaxvq_f32(_absmax4);
-                    float absmax5 = vmaxvq_f32(_absmax5);
-                    float absmax6 = vmaxvq_f32(_absmax6);
-                    float absmax7 = vmaxvq_f32(_absmax7);
+                    float32x2_t _max0 = vpmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
+                    float32x2_t _max1 = vpmax_f32(vget_low_f32(_absmax1), vget_high_f32(_absmax1));
+                    float32x2_t _max2 = vpmax_f32(vget_low_f32(_absmax2), vget_high_f32(_absmax2));
+                    float32x2_t _max3 = vpmax_f32(vget_low_f32(_absmax3), vget_high_f32(_absmax3));
+                    float32x2_t _max4 = vpmax_f32(vget_low_f32(_absmax4), vget_high_f32(_absmax4));
+                    float32x2_t _max5 = vpmax_f32(vget_low_f32(_absmax5), vget_high_f32(_absmax5));
+                    float32x2_t _max6 = vpmax_f32(vget_low_f32(_absmax6), vget_high_f32(_absmax6));
+                    float32x2_t _max7 = vpmax_f32(vget_low_f32(_absmax7), vget_high_f32(_absmax7));
+                    _absmax0 = vcombine_f32(vpmax_f32(_max0, _max1), vpmax_f32(_max2, _max3));
+                    _absmax1 = vcombine_f32(vpmax_f32(_max4, _max5), vpmax_f32(_max6, _max7));
                     for (; kk < max_kk0; kk++)
                     {
-                        float v0 = float16_to_float32(p0a[0]);
-                        float v1 = float16_to_float32(p0a[A_hstep]);
-                        float v2 = float16_to_float32(p0a[A_hstep * 2]);
-                        float v3 = float16_to_float32(p0a[A_hstep * 3]);
-                        float v4 = float16_to_float32(p0a[A_hstep * 4]);
-                        float v5 = float16_to_float32(p0a[A_hstep * 5]);
-                        float v6 = float16_to_float32(p0a[A_hstep * 6]);
-                        float v7 = float16_to_float32(p0a[A_hstep * 7]);
-                        absmax0 = std::max(absmax0, fabsf(v0));
-                        absmax1 = std::max(absmax1, fabsf(v1));
-                        absmax2 = std::max(absmax2, fabsf(v2));
-                        absmax3 = std::max(absmax3, fabsf(v3));
-                        absmax4 = std::max(absmax4, fabsf(v4));
-                        absmax5 = std::max(absmax5, fabsf(v5));
-                        absmax6 = std::max(absmax6, fabsf(v6));
-                        absmax7 = std::max(absmax7, fabsf(v7));
+                        float32x4_t _p0 = vdupq_n_f32(float16_to_float32(p0a[0]));
+                        _p0 = vsetq_lane_f32(float16_to_float32(p0a[A_hstep]), _p0, 1);
+                        _p0 = vsetq_lane_f32(float16_to_float32(p0a[A_hstep * 2]), _p0, 2);
+                        _p0 = vsetq_lane_f32(float16_to_float32(p0a[A_hstep * 3]), _p0, 3);
+                        float32x4_t _p1 = vdupq_n_f32(float16_to_float32(p0a[A_hstep * 4]));
+                        _p1 = vsetq_lane_f32(float16_to_float32(p0a[A_hstep * 5]), _p1, 1);
+                        _p1 = vsetq_lane_f32(float16_to_float32(p0a[A_hstep * 6]), _p1, 2);
+                        _p1 = vsetq_lane_f32(float16_to_float32(p0a[A_hstep * 7]), _p1, 3);
+                        _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p0));
+                        _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
                         p0a++;
                     }
 
-                    pd[0] = absmax0 / 127.f;
-                    pd[1] = absmax1 / 127.f;
-                    pd[2] = absmax2 / 127.f;
-                    pd[3] = absmax3 / 127.f;
-                    pd[4] = absmax4 / 127.f;
-                    pd[5] = absmax5 / 127.f;
-                    pd[6] = absmax6 / 127.f;
-                    pd[7] = absmax7 / 127.f;
-                    const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
-                    const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
-                    const float scale2 = absmax2 == 0.f ? 0.f : 127.f / absmax2;
-                    const float scale3 = absmax3 == 0.f ? 0.f : 127.f / absmax3;
-                    const float scale4 = absmax4 == 0.f ? 0.f : 127.f / absmax4;
-                    const float scale5 = absmax5 == 0.f ? 0.f : 127.f / absmax5;
-                    const float scale6 = absmax6 == 0.f ? 0.f : 127.f / absmax6;
-                    const float scale7 = absmax7 == 0.f ? 0.f : 127.f / absmax7;
+                    vst1q_f32(pd, vmulq_n_f32(_absmax0, 1.f / 127.f));
+                    vst1q_f32(pd + 4, vmulq_n_f32(_absmax1, 1.f / 127.f));
+
+                    float32x4_t _v127 = vdupq_n_f32(127.f);
+                    float32x4_t _zero = vdupq_n_f32(0.f);
+                    float32x4_t _scale0 = vbslq_f32(vceqq_f32(_absmax0, _zero), _zero, vdivq_f32(_v127, _absmax0));
+                    float32x4_t _scale1 = vbslq_f32(vceqq_f32(_absmax1, _zero), _zero, vdivq_f32(_v127, _absmax1));
 
                     kk = 0;
 #if __ARM_FEATURE_DOTPROD
@@ -561,14 +548,14 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         float32x4_t _p61 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 6 + 4));
                         float32x4_t _p70 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 7));
                         float32x4_t _p71 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 7 + 4));
-                        int8x8_t _r0 = float2int8(vmulq_n_f32(_p00, scale0), vmulq_n_f32(_p01, scale0));
-                        int8x8_t _r1 = float2int8(vmulq_n_f32(_p10, scale1), vmulq_n_f32(_p11, scale1));
-                        int8x8_t _r2 = float2int8(vmulq_n_f32(_p20, scale2), vmulq_n_f32(_p21, scale2));
-                        int8x8_t _r3 = float2int8(vmulq_n_f32(_p30, scale3), vmulq_n_f32(_p31, scale3));
-                        int8x8_t _r4 = float2int8(vmulq_n_f32(_p40, scale4), vmulq_n_f32(_p41, scale4));
-                        int8x8_t _r5 = float2int8(vmulq_n_f32(_p50, scale5), vmulq_n_f32(_p51, scale5));
-                        int8x8_t _r6 = float2int8(vmulq_n_f32(_p60, scale6), vmulq_n_f32(_p61, scale6));
-                        int8x8_t _r7 = float2int8(vmulq_n_f32(_p70, scale7), vmulq_n_f32(_p71, scale7));
+                        int8x8_t _r0 = float2int8(vmulq_laneq_f32(_p00, _scale0, 0), vmulq_laneq_f32(_p01, _scale0, 0));
+                        int8x8_t _r1 = float2int8(vmulq_laneq_f32(_p10, _scale0, 1), vmulq_laneq_f32(_p11, _scale0, 1));
+                        int8x8_t _r2 = float2int8(vmulq_laneq_f32(_p20, _scale0, 2), vmulq_laneq_f32(_p21, _scale0, 2));
+                        int8x8_t _r3 = float2int8(vmulq_laneq_f32(_p30, _scale0, 3), vmulq_laneq_f32(_p31, _scale0, 3));
+                        int8x8_t _r4 = float2int8(vmulq_laneq_f32(_p40, _scale1, 0), vmulq_laneq_f32(_p41, _scale1, 0));
+                        int8x8_t _r5 = float2int8(vmulq_laneq_f32(_p50, _scale1, 1), vmulq_laneq_f32(_p51, _scale1, 1));
+                        int8x8_t _r6 = float2int8(vmulq_laneq_f32(_p60, _scale1, 2), vmulq_laneq_f32(_p61, _scale1, 2));
+                        int8x8_t _r7 = float2int8(vmulq_laneq_f32(_p70, _scale1, 3), vmulq_laneq_f32(_p71, _scale1, 3));
                         vst1q_s8(pp, vcombine_s8(_r0, _r1));
                         vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
                         vst1q_s8(pp + 32, vcombine_s8(_r4, _r5));
@@ -588,10 +575,10 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 5));
                         float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 6));
                         float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 7));
-                        int8x8_t _r01 = float2int8(vmulq_n_f32(_p0, scale0), vmulq_n_f32(_p1, scale1));
-                        int8x8_t _r23 = float2int8(vmulq_n_f32(_p2, scale2), vmulq_n_f32(_p3, scale3));
-                        int8x8_t _r45 = float2int8(vmulq_n_f32(_p4, scale4), vmulq_n_f32(_p5, scale5));
-                        int8x8_t _r67 = float2int8(vmulq_n_f32(_p6, scale6), vmulq_n_f32(_p7, scale7));
+                        int8x8_t _r01 = float2int8(vmulq_laneq_f32(_p0, _scale0, 0), vmulq_laneq_f32(_p1, _scale0, 1));
+                        int8x8_t _r23 = float2int8(vmulq_laneq_f32(_p2, _scale0, 2), vmulq_laneq_f32(_p3, _scale0, 3));
+                        int8x8_t _r45 = float2int8(vmulq_laneq_f32(_p4, _scale1, 0), vmulq_laneq_f32(_p5, _scale1, 1));
+                        int8x8_t _r67 = float2int8(vmulq_laneq_f32(_p6, _scale1, 2), vmulq_laneq_f32(_p7, _scale1, 3));
 #if __ARM_FEATURE_DOTPROD
                         vst1q_s8(pp, vcombine_s8(_r01, _r23));
                         vst1q_s8(pp + 16, vcombine_s8(_r45, _r67));
@@ -621,22 +608,22 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         float v61 = float16_to_float32(p0[A_hstep * 6 + 1]);
                         float v70 = float16_to_float32(p0[A_hstep * 7]);
                         float v71 = float16_to_float32(p0[A_hstep * 7 + 1]);
-                        *pp++ = float2int8(v00 * scale0);
-                        *pp++ = float2int8(v01 * scale0);
-                        *pp++ = float2int8(v10 * scale1);
-                        *pp++ = float2int8(v11 * scale1);
-                        *pp++ = float2int8(v20 * scale2);
-                        *pp++ = float2int8(v21 * scale2);
-                        *pp++ = float2int8(v30 * scale3);
-                        *pp++ = float2int8(v31 * scale3);
-                        *pp++ = float2int8(v40 * scale4);
-                        *pp++ = float2int8(v41 * scale4);
-                        *pp++ = float2int8(v50 * scale5);
-                        *pp++ = float2int8(v51 * scale5);
-                        *pp++ = float2int8(v60 * scale6);
-                        *pp++ = float2int8(v61 * scale6);
-                        *pp++ = float2int8(v70 * scale7);
-                        *pp++ = float2int8(v71 * scale7);
+                        *pp++ = float2int8(v00 * vgetq_lane_f32(_scale0, 0));
+                        *pp++ = float2int8(v01 * vgetq_lane_f32(_scale0, 0));
+                        *pp++ = float2int8(v10 * vgetq_lane_f32(_scale0, 1));
+                        *pp++ = float2int8(v11 * vgetq_lane_f32(_scale0, 1));
+                        *pp++ = float2int8(v20 * vgetq_lane_f32(_scale0, 2));
+                        *pp++ = float2int8(v21 * vgetq_lane_f32(_scale0, 2));
+                        *pp++ = float2int8(v30 * vgetq_lane_f32(_scale0, 3));
+                        *pp++ = float2int8(v31 * vgetq_lane_f32(_scale0, 3));
+                        *pp++ = float2int8(v40 * vgetq_lane_f32(_scale1, 0));
+                        *pp++ = float2int8(v41 * vgetq_lane_f32(_scale1, 0));
+                        *pp++ = float2int8(v50 * vgetq_lane_f32(_scale1, 1));
+                        *pp++ = float2int8(v51 * vgetq_lane_f32(_scale1, 1));
+                        *pp++ = float2int8(v60 * vgetq_lane_f32(_scale1, 2));
+                        *pp++ = float2int8(v61 * vgetq_lane_f32(_scale1, 2));
+                        *pp++ = float2int8(v70 * vgetq_lane_f32(_scale1, 3));
+                        *pp++ = float2int8(v71 * vgetq_lane_f32(_scale1, 3));
                         p0 += 2;
                     }
                     for (; kk < max_kk0; kk++)
@@ -649,14 +636,14 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         float v5 = float16_to_float32(p0[A_hstep * 5]);
                         float v6 = float16_to_float32(p0[A_hstep * 6]);
                         float v7 = float16_to_float32(p0[A_hstep * 7]);
-                        *pp++ = float2int8(v0 * scale0);
-                        *pp++ = float2int8(v1 * scale1);
-                        *pp++ = float2int8(v2 * scale2);
-                        *pp++ = float2int8(v3 * scale3);
-                        *pp++ = float2int8(v4 * scale4);
-                        *pp++ = float2int8(v5 * scale5);
-                        *pp++ = float2int8(v6 * scale6);
-                        *pp++ = float2int8(v7 * scale7);
+                        *pp++ = float2int8(v0 * vgetq_lane_f32(_scale0, 0));
+                        *pp++ = float2int8(v1 * vgetq_lane_f32(_scale0, 1));
+                        *pp++ = float2int8(v2 * vgetq_lane_f32(_scale0, 2));
+                        *pp++ = float2int8(v3 * vgetq_lane_f32(_scale0, 3));
+                        *pp++ = float2int8(v4 * vgetq_lane_f32(_scale1, 0));
+                        *pp++ = float2int8(v5 * vgetq_lane_f32(_scale1, 1));
+                        *pp++ = float2int8(v6 * vgetq_lane_f32(_scale1, 2));
+                        *pp++ = float2int8(v7 * vgetq_lane_f32(_scale1, 3));
                         p0++;
                     }
                     pd += 8;
@@ -668,10 +655,8 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
         {
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * elempack;
 
-#if __aarch64__
             float32x4_t _v127 = vdupq_n_f32(127.f);
             float32x4_t _zero = vdupq_n_f32(0.f);
-#endif
 
             for (int g = 0; g < block_count; g++)
             {
@@ -688,22 +673,11 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
 
 #if __aarch64__
                     float32x4_t _scale = vdivq_f32(_v127, _absmax);
+#else
+                    float32x4_t _scale = div_ps(_v127, _absmax);
+#endif
                     _scale = vbslq_f32(vceqq_f32(_absmax, _zero), _zero, _scale);
                     vst1q_f32(pd, vmulq_n_f32(_absmax, 1.f / 127.f));
-#else
-                    float absmax[4];
-                    float scale[4];
-                    vst1q_f32(absmax, _absmax);
-                    scale[0] = absmax[0] == 0.f ? 0.f : 127.f / absmax[0];
-                    scale[1] = absmax[1] == 0.f ? 0.f : 127.f / absmax[1];
-                    scale[2] = absmax[2] == 0.f ? 0.f : 127.f / absmax[2];
-                    scale[3] = absmax[3] == 0.f ? 0.f : 127.f / absmax[3];
-                    float32x4_t _scale = vld1q_f32(scale);
-                    pd[0] = absmax[0] * (1.f / 127.f);
-                    pd[1] = absmax[1] * (1.f / 127.f);
-                    pd[2] = absmax[2] * (1.f / 127.f);
-                    pd[3] = absmax[3] * (1.f / 127.f);
-#endif
 
                     int kk = 0;
                     for (; kk + 7 < max_kk0; kk += 8)
@@ -860,45 +834,29 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         _absmax3 = vmaxq_f32(_absmax3, vabsq_f32(_p3));
                         p0a += 4;
                     }
-#if __aarch64__
-                    float absmax0 = vmaxvq_f32(_absmax0);
-                    float absmax1 = vmaxvq_f32(_absmax1);
-                    float absmax2 = vmaxvq_f32(_absmax2);
-                    float absmax3 = vmaxvq_f32(_absmax3);
-#else
-                    float32x2_t _max0 = vmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
-                    float32x2_t _max1 = vmax_f32(vget_low_f32(_absmax1), vget_high_f32(_absmax1));
-                    float32x2_t _max2 = vmax_f32(vget_low_f32(_absmax2), vget_high_f32(_absmax2));
-                    float32x2_t _max3 = vmax_f32(vget_low_f32(_absmax3), vget_high_f32(_absmax3));
-                    _max0 = vpmax_f32(_max0, _max0);
-                    _max1 = vpmax_f32(_max1, _max1);
-                    _max2 = vpmax_f32(_max2, _max2);
-                    _max3 = vpmax_f32(_max3, _max3);
-                    float absmax0 = vget_lane_f32(_max0, 0);
-                    float absmax1 = vget_lane_f32(_max1, 0);
-                    float absmax2 = vget_lane_f32(_max2, 0);
-                    float absmax3 = vget_lane_f32(_max3, 0);
-#endif
+                    float32x2_t _max0 = vpmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
+                    float32x2_t _max1 = vpmax_f32(vget_low_f32(_absmax1), vget_high_f32(_absmax1));
+                    float32x2_t _max2 = vpmax_f32(vget_low_f32(_absmax2), vget_high_f32(_absmax2));
+                    float32x2_t _max3 = vpmax_f32(vget_low_f32(_absmax3), vget_high_f32(_absmax3));
+                    _absmax0 = vcombine_f32(vpmax_f32(_max0, _max1), vpmax_f32(_max2, _max3));
                     for (; kk < max_kk0; kk++)
                     {
-                        float v0 = float16_to_float32(p0a[0]);
-                        float v1 = float16_to_float32(p0a[A_hstep]);
-                        float v2 = float16_to_float32(p0a[A_hstep * 2]);
-                        float v3 = float16_to_float32(p0a[A_hstep * 3]);
-                        absmax0 = std::max(absmax0, fabsf(v0));
-                        absmax1 = std::max(absmax1, fabsf(v1));
-                        absmax2 = std::max(absmax2, fabsf(v2));
-                        absmax3 = std::max(absmax3, fabsf(v3));
+                        float32x4_t _p = vdupq_n_f32(float16_to_float32(p0a[0]));
+                        _p = vsetq_lane_f32(float16_to_float32(p0a[A_hstep]), _p, 1);
+                        _p = vsetq_lane_f32(float16_to_float32(p0a[A_hstep * 2]), _p, 2);
+                        _p = vsetq_lane_f32(float16_to_float32(p0a[A_hstep * 3]), _p, 3);
+                        _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p));
                         p0a++;
                     }
-                    pd[0] = absmax0 / 127.f;
-                    pd[1] = absmax1 / 127.f;
-                    pd[2] = absmax2 / 127.f;
-                    pd[3] = absmax3 / 127.f;
-                    const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
-                    const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
-                    const float scale2 = absmax2 == 0.f ? 0.f : 127.f / absmax2;
-                    const float scale3 = absmax3 == 0.f ? 0.f : 127.f / absmax3;
+                    vst1q_f32(pd, vmulq_n_f32(_absmax0, 1.f / 127.f));
+
+                    float32x4_t _zero = vdupq_n_f32(0.f);
+#if __aarch64__
+                    float32x4_t _scale = vdivq_f32(vdupq_n_f32(127.f), _absmax0);
+#else
+                    float32x4_t _scale = div_ps(vdupq_n_f32(127.f), _absmax0);
+#endif
+                    _scale = vbslq_f32(vceqq_f32(_absmax0, _zero), _zero, _scale);
 
                     kk = 0;
 #if __ARM_FEATURE_DOTPROD
@@ -913,10 +871,10 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         float32x4_t _p21 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 2 + 4));
                         float32x4_t _p30 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 3));
                         float32x4_t _p31 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 3 + 4));
-                        int8x8_t _r0 = float2int8(vmulq_n_f32(_p00, scale0), vmulq_n_f32(_p01, scale0));
-                        int8x8_t _r1 = float2int8(vmulq_n_f32(_p10, scale1), vmulq_n_f32(_p11, scale1));
-                        int8x8_t _r2 = float2int8(vmulq_n_f32(_p20, scale2), vmulq_n_f32(_p21, scale2));
-                        int8x8_t _r3 = float2int8(vmulq_n_f32(_p30, scale3), vmulq_n_f32(_p31, scale3));
+                        int8x8_t _r0 = float2int8(vmulq_laneq_f32(_p00, _scale, 0), vmulq_laneq_f32(_p01, _scale, 0));
+                        int8x8_t _r1 = float2int8(vmulq_laneq_f32(_p10, _scale, 1), vmulq_laneq_f32(_p11, _scale, 1));
+                        int8x8_t _r2 = float2int8(vmulq_laneq_f32(_p20, _scale, 2), vmulq_laneq_f32(_p21, _scale, 2));
+                        int8x8_t _r3 = float2int8(vmulq_laneq_f32(_p30, _scale, 3), vmulq_laneq_f32(_p31, _scale, 3));
                         vst1q_s8(pp, vcombine_s8(_r0, _r1));
                         vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
                         pp += 32;
@@ -930,8 +888,13 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep));
                         float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 2));
                         float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 3));
-                        int8x8_t _r01 = float2int8(vmulq_n_f32(_p0, scale0), vmulq_n_f32(_p1, scale1));
-                        int8x8_t _r23 = float2int8(vmulq_n_f32(_p2, scale2), vmulq_n_f32(_p3, scale3));
+#if __aarch64__
+                        int8x8_t _r01 = float2int8(vmulq_laneq_f32(_p0, _scale, 0), vmulq_laneq_f32(_p1, _scale, 1));
+                        int8x8_t _r23 = float2int8(vmulq_laneq_f32(_p2, _scale, 2), vmulq_laneq_f32(_p3, _scale, 3));
+#else
+                        int8x8_t _r01 = float2int8(vmulq_lane_f32(_p0, vget_low_f32(_scale), 0), vmulq_lane_f32(_p1, vget_low_f32(_scale), 1));
+                        int8x8_t _r23 = float2int8(vmulq_lane_f32(_p2, vget_high_f32(_scale), 0), vmulq_lane_f32(_p3, vget_high_f32(_scale), 1));
+#endif
 #if __ARM_FEATURE_DOTPROD
                         vst1q_s8(pp, vcombine_s8(_r01, _r23));
 #else
@@ -952,14 +915,14 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         float v21 = float16_to_float32(p0[A_hstep * 2 + 1]);
                         float v30 = float16_to_float32(p0[A_hstep * 3]);
                         float v31 = float16_to_float32(p0[A_hstep * 3 + 1]);
-                        *pp++ = float2int8(v00 * scale0);
-                        *pp++ = float2int8(v01 * scale0);
-                        *pp++ = float2int8(v10 * scale1);
-                        *pp++ = float2int8(v11 * scale1);
-                        *pp++ = float2int8(v20 * scale2);
-                        *pp++ = float2int8(v21 * scale2);
-                        *pp++ = float2int8(v30 * scale3);
-                        *pp++ = float2int8(v31 * scale3);
+                        *pp++ = float2int8(v00 * vgetq_lane_f32(_scale, 0));
+                        *pp++ = float2int8(v01 * vgetq_lane_f32(_scale, 0));
+                        *pp++ = float2int8(v10 * vgetq_lane_f32(_scale, 1));
+                        *pp++ = float2int8(v11 * vgetq_lane_f32(_scale, 1));
+                        *pp++ = float2int8(v20 * vgetq_lane_f32(_scale, 2));
+                        *pp++ = float2int8(v21 * vgetq_lane_f32(_scale, 2));
+                        *pp++ = float2int8(v30 * vgetq_lane_f32(_scale, 3));
+                        *pp++ = float2int8(v31 * vgetq_lane_f32(_scale, 3));
                         p0 += 2;
                     }
                     for (; kk < max_kk0; kk++)
@@ -968,10 +931,10 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         float v1 = float16_to_float32(p0[A_hstep]);
                         float v2 = float16_to_float32(p0[A_hstep * 2]);
                         float v3 = float16_to_float32(p0[A_hstep * 3]);
-                        *pp++ = float2int8(v0 * scale0);
-                        *pp++ = float2int8(v1 * scale1);
-                        *pp++ = float2int8(v2 * scale2);
-                        *pp++ = float2int8(v3 * scale3);
+                        *pp++ = float2int8(v0 * vgetq_lane_f32(_scale, 0));
+                        *pp++ = float2int8(v1 * vgetq_lane_f32(_scale, 1));
+                        *pp++ = float2int8(v2 * vgetq_lane_f32(_scale, 2));
+                        *pp++ = float2int8(v3 * vgetq_lane_f32(_scale, 3));
                         p0++;
                     }
                     pd += 4;
@@ -1665,52 +1628,37 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     p0a += 4;
                     psa += 4;
                 }
-                float absmax0 = vmaxvq_f32(_absmax0);
-                float absmax1 = vmaxvq_f32(_absmax1);
-                float absmax2 = vmaxvq_f32(_absmax2);
-                float absmax3 = vmaxvq_f32(_absmax3);
-                float absmax4 = vmaxvq_f32(_absmax4);
-                float absmax5 = vmaxvq_f32(_absmax5);
-                float absmax6 = vmaxvq_f32(_absmax6);
-                float absmax7 = vmaxvq_f32(_absmax7);
+                float32x2_t _max0 = vpmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
+                float32x2_t _max1 = vpmax_f32(vget_low_f32(_absmax1), vget_high_f32(_absmax1));
+                float32x2_t _max2 = vpmax_f32(vget_low_f32(_absmax2), vget_high_f32(_absmax2));
+                float32x2_t _max3 = vpmax_f32(vget_low_f32(_absmax3), vget_high_f32(_absmax3));
+                float32x2_t _max4 = vpmax_f32(vget_low_f32(_absmax4), vget_high_f32(_absmax4));
+                float32x2_t _max5 = vpmax_f32(vget_low_f32(_absmax5), vget_high_f32(_absmax5));
+                float32x2_t _max6 = vpmax_f32(vget_low_f32(_absmax6), vget_high_f32(_absmax6));
+                float32x2_t _max7 = vpmax_f32(vget_low_f32(_absmax7), vget_high_f32(_absmax7));
+                _absmax0 = vcombine_f32(vpmax_f32(_max0, _max1), vpmax_f32(_max2, _max3));
+                _absmax1 = vcombine_f32(vpmax_f32(_max4, _max5), vpmax_f32(_max6, _max7));
                 for (; kk < max_kk0; kk++)
                 {
-                    float v0 = float16_to_float32(p0a[0]);
-                    float v1 = float16_to_float32(p0a[A_hstep]);
-                    float v2 = float16_to_float32(p0a[A_hstep * 2]);
-                    float v3 = float16_to_float32(p0a[A_hstep * 3]);
-                    float v4 = float16_to_float32(p0a[A_hstep * 4]);
-                    float v5 = float16_to_float32(p0a[A_hstep * 5]);
-                    float v6 = float16_to_float32(p0a[A_hstep * 6]);
-                    float v7 = float16_to_float32(p0a[A_hstep * 7]);
                     const float s = *psa++;
-                    absmax0 = std::max(absmax0, fabsf(v0) * s);
-                    absmax1 = std::max(absmax1, fabsf(v1) * s);
-                    absmax2 = std::max(absmax2, fabsf(v2) * s);
-                    absmax3 = std::max(absmax3, fabsf(v3) * s);
-                    absmax4 = std::max(absmax4, fabsf(v4) * s);
-                    absmax5 = std::max(absmax5, fabsf(v5) * s);
-                    absmax6 = std::max(absmax6, fabsf(v6) * s);
-                    absmax7 = std::max(absmax7, fabsf(v7) * s);
+                    float32x4_t _p0 = vdupq_n_f32(float16_to_float32(p0a[0]));
+                    _p0 = vsetq_lane_f32(float16_to_float32(p0a[A_hstep]), _p0, 1);
+                    _p0 = vsetq_lane_f32(float16_to_float32(p0a[A_hstep * 2]), _p0, 2);
+                    _p0 = vsetq_lane_f32(float16_to_float32(p0a[A_hstep * 3]), _p0, 3);
+                    float32x4_t _p1 = vdupq_n_f32(float16_to_float32(p0a[A_hstep * 4]));
+                    _p1 = vsetq_lane_f32(float16_to_float32(p0a[A_hstep * 5]), _p1, 1);
+                    _p1 = vsetq_lane_f32(float16_to_float32(p0a[A_hstep * 6]), _p1, 2);
+                    _p1 = vsetq_lane_f32(float16_to_float32(p0a[A_hstep * 7]), _p1, 3);
+                    _absmax0 = vmaxq_f32(_absmax0, vmulq_n_f32(vabsq_f32(_p0), s));
+                    _absmax1 = vmaxq_f32(_absmax1, vmulq_n_f32(vabsq_f32(_p1), s));
                     p0a++;
                 }
 
-                pd[0] = absmax0 / 127.f;
-                pd[1] = absmax1 / 127.f;
-                pd[2] = absmax2 / 127.f;
-                pd[3] = absmax3 / 127.f;
-                pd[4] = absmax4 / 127.f;
-                pd[5] = absmax5 / 127.f;
-                pd[6] = absmax6 / 127.f;
-                pd[7] = absmax7 / 127.f;
-                const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
-                const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
-                const float scale2 = absmax2 == 0.f ? 0.f : 127.f / absmax2;
-                const float scale3 = absmax3 == 0.f ? 0.f : 127.f / absmax3;
-                const float scale4 = absmax4 == 0.f ? 0.f : 127.f / absmax4;
-                const float scale5 = absmax5 == 0.f ? 0.f : 127.f / absmax5;
-                const float scale6 = absmax6 == 0.f ? 0.f : 127.f / absmax6;
-                const float scale7 = absmax7 == 0.f ? 0.f : 127.f / absmax7;
+                vst1q_f32(pd, vmulq_n_f32(_absmax0, 1.f / 127.f));
+                vst1q_f32(pd + 4, vmulq_n_f32(_absmax1, 1.f / 127.f));
+
+                float32x4_t _scale0 = vbslq_f32(vceqq_f32(_absmax0, _zero), _zero, vdivq_f32(_v127, _absmax0));
+                float32x4_t _scale1 = vbslq_f32(vceqq_f32(_absmax1, _zero), _zero, vdivq_f32(_v127, _absmax1));
 
                 kk = 0;
 #if __ARM_FEATURE_DOTPROD
@@ -1735,14 +1683,14 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     float32x4_t _p61 = vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 6 + 4)), _s1);
                     float32x4_t _p70 = vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 7)), _s0);
                     float32x4_t _p71 = vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 7 + 4)), _s1);
-                    int8x8_t _r0 = float2int8(vmulq_n_f32(_p00, scale0), vmulq_n_f32(_p01, scale0));
-                    int8x8_t _r1 = float2int8(vmulq_n_f32(_p10, scale1), vmulq_n_f32(_p11, scale1));
-                    int8x8_t _r2 = float2int8(vmulq_n_f32(_p20, scale2), vmulq_n_f32(_p21, scale2));
-                    int8x8_t _r3 = float2int8(vmulq_n_f32(_p30, scale3), vmulq_n_f32(_p31, scale3));
-                    int8x8_t _r4 = float2int8(vmulq_n_f32(_p40, scale4), vmulq_n_f32(_p41, scale4));
-                    int8x8_t _r5 = float2int8(vmulq_n_f32(_p50, scale5), vmulq_n_f32(_p51, scale5));
-                    int8x8_t _r6 = float2int8(vmulq_n_f32(_p60, scale6), vmulq_n_f32(_p61, scale6));
-                    int8x8_t _r7 = float2int8(vmulq_n_f32(_p70, scale7), vmulq_n_f32(_p71, scale7));
+                    int8x8_t _r0 = float2int8(vmulq_laneq_f32(_p00, _scale0, 0), vmulq_laneq_f32(_p01, _scale0, 0));
+                    int8x8_t _r1 = float2int8(vmulq_laneq_f32(_p10, _scale0, 1), vmulq_laneq_f32(_p11, _scale0, 1));
+                    int8x8_t _r2 = float2int8(vmulq_laneq_f32(_p20, _scale0, 2), vmulq_laneq_f32(_p21, _scale0, 2));
+                    int8x8_t _r3 = float2int8(vmulq_laneq_f32(_p30, _scale0, 3), vmulq_laneq_f32(_p31, _scale0, 3));
+                    int8x8_t _r4 = float2int8(vmulq_laneq_f32(_p40, _scale1, 0), vmulq_laneq_f32(_p41, _scale1, 0));
+                    int8x8_t _r5 = float2int8(vmulq_laneq_f32(_p50, _scale1, 1), vmulq_laneq_f32(_p51, _scale1, 1));
+                    int8x8_t _r6 = float2int8(vmulq_laneq_f32(_p60, _scale1, 2), vmulq_laneq_f32(_p61, _scale1, 2));
+                    int8x8_t _r7 = float2int8(vmulq_laneq_f32(_p70, _scale1, 3), vmulq_laneq_f32(_p71, _scale1, 3));
                     vst1q_s8(pp, vcombine_s8(_r0, _r1));
                     vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
                     vst1q_s8(pp + 32, vcombine_s8(_r4, _r5));
@@ -1764,10 +1712,10 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     float32x4_t _p5 = vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 5)), _s);
                     float32x4_t _p6 = vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 6)), _s);
                     float32x4_t _p7 = vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 7)), _s);
-                    int8x8_t _r01 = float2int8(vmulq_n_f32(_p0, scale0), vmulq_n_f32(_p1, scale1));
-                    int8x8_t _r23 = float2int8(vmulq_n_f32(_p2, scale2), vmulq_n_f32(_p3, scale3));
-                    int8x8_t _r45 = float2int8(vmulq_n_f32(_p4, scale4), vmulq_n_f32(_p5, scale5));
-                    int8x8_t _r67 = float2int8(vmulq_n_f32(_p6, scale6), vmulq_n_f32(_p7, scale7));
+                    int8x8_t _r01 = float2int8(vmulq_laneq_f32(_p0, _scale0, 0), vmulq_laneq_f32(_p1, _scale0, 1));
+                    int8x8_t _r23 = float2int8(vmulq_laneq_f32(_p2, _scale0, 2), vmulq_laneq_f32(_p3, _scale0, 3));
+                    int8x8_t _r45 = float2int8(vmulq_laneq_f32(_p4, _scale1, 0), vmulq_laneq_f32(_p5, _scale1, 1));
+                    int8x8_t _r67 = float2int8(vmulq_laneq_f32(_p6, _scale1, 2), vmulq_laneq_f32(_p7, _scale1, 3));
 #if __ARM_FEATURE_DOTPROD
                     vst1q_s8(pp, vcombine_s8(_r01, _r23));
                     vst1q_s8(pp + 16, vcombine_s8(_r45, _r67));
@@ -1816,22 +1764,22 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     v61 *= s1;
                     v70 *= s0;
                     v71 *= s1;
-                    *pp++ = float2int8(v00 * scale0);
-                    *pp++ = float2int8(v01 * scale0);
-                    *pp++ = float2int8(v10 * scale1);
-                    *pp++ = float2int8(v11 * scale1);
-                    *pp++ = float2int8(v20 * scale2);
-                    *pp++ = float2int8(v21 * scale2);
-                    *pp++ = float2int8(v30 * scale3);
-                    *pp++ = float2int8(v31 * scale3);
-                    *pp++ = float2int8(v40 * scale4);
-                    *pp++ = float2int8(v41 * scale4);
-                    *pp++ = float2int8(v50 * scale5);
-                    *pp++ = float2int8(v51 * scale5);
-                    *pp++ = float2int8(v60 * scale6);
-                    *pp++ = float2int8(v61 * scale6);
-                    *pp++ = float2int8(v70 * scale7);
-                    *pp++ = float2int8(v71 * scale7);
+                    *pp++ = float2int8(v00 * vgetq_lane_f32(_scale0, 0));
+                    *pp++ = float2int8(v01 * vgetq_lane_f32(_scale0, 0));
+                    *pp++ = float2int8(v10 * vgetq_lane_f32(_scale0, 1));
+                    *pp++ = float2int8(v11 * vgetq_lane_f32(_scale0, 1));
+                    *pp++ = float2int8(v20 * vgetq_lane_f32(_scale0, 2));
+                    *pp++ = float2int8(v21 * vgetq_lane_f32(_scale0, 2));
+                    *pp++ = float2int8(v30 * vgetq_lane_f32(_scale0, 3));
+                    *pp++ = float2int8(v31 * vgetq_lane_f32(_scale0, 3));
+                    *pp++ = float2int8(v40 * vgetq_lane_f32(_scale1, 0));
+                    *pp++ = float2int8(v41 * vgetq_lane_f32(_scale1, 0));
+                    *pp++ = float2int8(v50 * vgetq_lane_f32(_scale1, 1));
+                    *pp++ = float2int8(v51 * vgetq_lane_f32(_scale1, 1));
+                    *pp++ = float2int8(v60 * vgetq_lane_f32(_scale1, 2));
+                    *pp++ = float2int8(v61 * vgetq_lane_f32(_scale1, 2));
+                    *pp++ = float2int8(v70 * vgetq_lane_f32(_scale1, 3));
+                    *pp++ = float2int8(v71 * vgetq_lane_f32(_scale1, 3));
                     p0 += 2;
                     ps += 2;
                 }
@@ -1854,14 +1802,14 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     v5 *= s;
                     v6 *= s;
                     v7 *= s;
-                    *pp++ = float2int8(v0 * scale0);
-                    *pp++ = float2int8(v1 * scale1);
-                    *pp++ = float2int8(v2 * scale2);
-                    *pp++ = float2int8(v3 * scale3);
-                    *pp++ = float2int8(v4 * scale4);
-                    *pp++ = float2int8(v5 * scale5);
-                    *pp++ = float2int8(v6 * scale6);
-                    *pp++ = float2int8(v7 * scale7);
+                    *pp++ = float2int8(v0 * vgetq_lane_f32(_scale0, 0));
+                    *pp++ = float2int8(v1 * vgetq_lane_f32(_scale0, 1));
+                    *pp++ = float2int8(v2 * vgetq_lane_f32(_scale0, 2));
+                    *pp++ = float2int8(v3 * vgetq_lane_f32(_scale0, 3));
+                    *pp++ = float2int8(v4 * vgetq_lane_f32(_scale1, 0));
+                    *pp++ = float2int8(v5 * vgetq_lane_f32(_scale1, 1));
+                    *pp++ = float2int8(v6 * vgetq_lane_f32(_scale1, 2));
+                    *pp++ = float2int8(v7 * vgetq_lane_f32(_scale1, 3));
                     p0++;
                     ps++;
                 }
@@ -1892,15 +1840,12 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                 }
 
                 vst1q_f32(pd, vmulq_n_f32(_absmax, 1.f / 127.f));
-                float absmax0 = vgetq_lane_f32(_absmax, 0);
-                float absmax1 = vgetq_lane_f32(_absmax, 1);
-                float absmax2 = vgetq_lane_f32(_absmax, 2);
-                float absmax3 = vgetq_lane_f32(_absmax, 3);
-                float32x4_t _scale = vdupq_n_f32(0.f);
-                _scale = vsetq_lane_f32(absmax0 == 0.f ? 0.f : 127.f / absmax0, _scale, 0);
-                _scale = vsetq_lane_f32(absmax1 == 0.f ? 0.f : 127.f / absmax1, _scale, 1);
-                _scale = vsetq_lane_f32(absmax2 == 0.f ? 0.f : 127.f / absmax2, _scale, 2);
-                _scale = vsetq_lane_f32(absmax3 == 0.f ? 0.f : 127.f / absmax3, _scale, 3);
+#if __aarch64__
+                float32x4_t _scale = vdivq_f32(vdupq_n_f32(127.f), _absmax);
+#else
+                float32x4_t _scale = div_ps(vdupq_n_f32(127.f), _absmax);
+#endif
+                _scale = vbslq_f32(vceqq_f32(_absmax, _zero), _zero, _scale);
 
                 int kk = 0;
                 for (; kk + 7 < max_kk0; kk += 8)
@@ -2080,46 +2025,29 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     p0a += 4;
                     psa += 4;
                 }
-#if __aarch64__
-                float absmax0 = vmaxvq_f32(_absmax0);
-                float absmax1 = vmaxvq_f32(_absmax1);
-                float absmax2 = vmaxvq_f32(_absmax2);
-                float absmax3 = vmaxvq_f32(_absmax3);
-#else
-                float32x2_t _max0 = vmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
-                float32x2_t _max1 = vmax_f32(vget_low_f32(_absmax1), vget_high_f32(_absmax1));
-                float32x2_t _max2 = vmax_f32(vget_low_f32(_absmax2), vget_high_f32(_absmax2));
-                float32x2_t _max3 = vmax_f32(vget_low_f32(_absmax3), vget_high_f32(_absmax3));
-                _max0 = vpmax_f32(_max0, _max0);
-                _max1 = vpmax_f32(_max1, _max1);
-                _max2 = vpmax_f32(_max2, _max2);
-                _max3 = vpmax_f32(_max3, _max3);
-                float absmax0 = vget_lane_f32(_max0, 0);
-                float absmax1 = vget_lane_f32(_max1, 0);
-                float absmax2 = vget_lane_f32(_max2, 0);
-                float absmax3 = vget_lane_f32(_max3, 0);
-#endif
+                float32x2_t _max0 = vpmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
+                float32x2_t _max1 = vpmax_f32(vget_low_f32(_absmax1), vget_high_f32(_absmax1));
+                float32x2_t _max2 = vpmax_f32(vget_low_f32(_absmax2), vget_high_f32(_absmax2));
+                float32x2_t _max3 = vpmax_f32(vget_low_f32(_absmax3), vget_high_f32(_absmax3));
+                _absmax0 = vcombine_f32(vpmax_f32(_max0, _max1), vpmax_f32(_max2, _max3));
                 for (; kk < max_kk0; kk++)
                 {
-                    float v0 = float16_to_float32(p0a[0]);
-                    float v1 = float16_to_float32(p0a[A_hstep]);
-                    float v2 = float16_to_float32(p0a[A_hstep * 2]);
-                    float v3 = float16_to_float32(p0a[A_hstep * 3]);
                     const float s = *psa++;
-                    absmax0 = std::max(absmax0, fabsf(v0) * s);
-                    absmax1 = std::max(absmax1, fabsf(v1) * s);
-                    absmax2 = std::max(absmax2, fabsf(v2) * s);
-                    absmax3 = std::max(absmax3, fabsf(v3) * s);
+                    float32x4_t _p = vdupq_n_f32(float16_to_float32(p0a[0]));
+                    _p = vsetq_lane_f32(float16_to_float32(p0a[A_hstep]), _p, 1);
+                    _p = vsetq_lane_f32(float16_to_float32(p0a[A_hstep * 2]), _p, 2);
+                    _p = vsetq_lane_f32(float16_to_float32(p0a[A_hstep * 3]), _p, 3);
+                    _absmax0 = vmaxq_f32(_absmax0, vmulq_n_f32(vabsq_f32(_p), s));
                     p0a++;
                 }
-                pd[0] = absmax0 / 127.f;
-                pd[1] = absmax1 / 127.f;
-                pd[2] = absmax2 / 127.f;
-                pd[3] = absmax3 / 127.f;
-                const float scale0 = absmax0 == 0.f ? 0.f : 127.f / absmax0;
-                const float scale1 = absmax1 == 0.f ? 0.f : 127.f / absmax1;
-                const float scale2 = absmax2 == 0.f ? 0.f : 127.f / absmax2;
-                const float scale3 = absmax3 == 0.f ? 0.f : 127.f / absmax3;
+                vst1q_f32(pd, vmulq_n_f32(_absmax0, 1.f / 127.f));
+
+#if __aarch64__
+                float32x4_t _scale = vdivq_f32(vdupq_n_f32(127.f), _absmax0);
+#else
+                float32x4_t _scale = div_ps(vdupq_n_f32(127.f), _absmax0);
+#endif
+                _scale = vbslq_f32(vceqq_f32(_absmax0, _zero), _zero, _scale);
 
                 kk = 0;
 #if __ARM_FEATURE_DOTPROD
@@ -2136,10 +2064,10 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     float32x4_t _p21 = vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 2 + 4)), _s1);
                     float32x4_t _p30 = vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 3)), _s0);
                     float32x4_t _p31 = vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 3 + 4)), _s1);
-                    int8x8_t _r0 = float2int8(vmulq_n_f32(_p00, scale0), vmulq_n_f32(_p01, scale0));
-                    int8x8_t _r1 = float2int8(vmulq_n_f32(_p10, scale1), vmulq_n_f32(_p11, scale1));
-                    int8x8_t _r2 = float2int8(vmulq_n_f32(_p20, scale2), vmulq_n_f32(_p21, scale2));
-                    int8x8_t _r3 = float2int8(vmulq_n_f32(_p30, scale3), vmulq_n_f32(_p31, scale3));
+                    int8x8_t _r0 = float2int8(vmulq_laneq_f32(_p00, _scale, 0), vmulq_laneq_f32(_p01, _scale, 0));
+                    int8x8_t _r1 = float2int8(vmulq_laneq_f32(_p10, _scale, 1), vmulq_laneq_f32(_p11, _scale, 1));
+                    int8x8_t _r2 = float2int8(vmulq_laneq_f32(_p20, _scale, 2), vmulq_laneq_f32(_p21, _scale, 2));
+                    int8x8_t _r3 = float2int8(vmulq_laneq_f32(_p30, _scale, 3), vmulq_laneq_f32(_p31, _scale, 3));
                     vst1q_s8(pp, vcombine_s8(_r0, _r1));
                     vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
                     pp += 32;
@@ -2155,8 +2083,13 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     float32x4_t _p1 = vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep)), _s);
                     float32x4_t _p2 = vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 2)), _s);
                     float32x4_t _p3 = vmulq_f32(vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 3)), _s);
-                    int8x8_t _r01 = float2int8(vmulq_n_f32(_p0, scale0), vmulq_n_f32(_p1, scale1));
-                    int8x8_t _r23 = float2int8(vmulq_n_f32(_p2, scale2), vmulq_n_f32(_p3, scale3));
+#if __aarch64__
+                    int8x8_t _r01 = float2int8(vmulq_laneq_f32(_p0, _scale, 0), vmulq_laneq_f32(_p1, _scale, 1));
+                    int8x8_t _r23 = float2int8(vmulq_laneq_f32(_p2, _scale, 2), vmulq_laneq_f32(_p3, _scale, 3));
+#else
+                    int8x8_t _r01 = float2int8(vmulq_lane_f32(_p0, vget_low_f32(_scale), 0), vmulq_lane_f32(_p1, vget_low_f32(_scale), 1));
+                    int8x8_t _r23 = float2int8(vmulq_lane_f32(_p2, vget_high_f32(_scale), 0), vmulq_lane_f32(_p3, vget_high_f32(_scale), 1));
+#endif
 #if __ARM_FEATURE_DOTPROD
                     vst1q_s8(pp, vcombine_s8(_r01, _r23));
 #else
@@ -2188,14 +2121,14 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     v21 *= s1;
                     v30 *= s0;
                     v31 *= s1;
-                    *pp++ = float2int8(v00 * scale0);
-                    *pp++ = float2int8(v01 * scale0);
-                    *pp++ = float2int8(v10 * scale1);
-                    *pp++ = float2int8(v11 * scale1);
-                    *pp++ = float2int8(v20 * scale2);
-                    *pp++ = float2int8(v21 * scale2);
-                    *pp++ = float2int8(v30 * scale3);
-                    *pp++ = float2int8(v31 * scale3);
+                    *pp++ = float2int8(v00 * vgetq_lane_f32(_scale, 0));
+                    *pp++ = float2int8(v01 * vgetq_lane_f32(_scale, 0));
+                    *pp++ = float2int8(v10 * vgetq_lane_f32(_scale, 1));
+                    *pp++ = float2int8(v11 * vgetq_lane_f32(_scale, 1));
+                    *pp++ = float2int8(v20 * vgetq_lane_f32(_scale, 2));
+                    *pp++ = float2int8(v21 * vgetq_lane_f32(_scale, 2));
+                    *pp++ = float2int8(v30 * vgetq_lane_f32(_scale, 3));
+                    *pp++ = float2int8(v31 * vgetq_lane_f32(_scale, 3));
                     p0 += 2;
                     ps += 2;
                 }
@@ -2210,10 +2143,10 @@ static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     v1 *= s;
                     v2 *= s;
                     v3 *= s;
-                    *pp++ = float2int8(v0 * scale0);
-                    *pp++ = float2int8(v1 * scale1);
-                    *pp++ = float2int8(v2 * scale2);
-                    *pp++ = float2int8(v3 * scale3);
+                    *pp++ = float2int8(v0 * vgetq_lane_f32(_scale, 0));
+                    *pp++ = float2int8(v1 * vgetq_lane_f32(_scale, 1));
+                    *pp++ = float2int8(v2 * vgetq_lane_f32(_scale, 2));
+                    *pp++ = float2int8(v3 * vgetq_lane_f32(_scale, 3));
                     p0++;
                     ps++;
                 }
@@ -2504,31 +2437,25 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                         p0a += A_hstep * 8;
                     }
 
-                    float absmax0 = vmaxvq_f32(_absmax0);
-                    float absmax1 = vmaxvq_f32(_absmax1);
-                    float absmax2 = vmaxvq_f32(_absmax2);
-                    float absmax3 = vmaxvq_f32(_absmax3);
-                    float absmax4 = vmaxvq_f32(_absmax4);
-                    float absmax5 = vmaxvq_f32(_absmax5);
-                    float absmax6 = vmaxvq_f32(_absmax6);
-                    float absmax7 = vmaxvq_f32(_absmax7);
-                    pd[0] = absmax0 / 127.f;
-                    pd[1] = absmax1 / 127.f;
-                    pd[2] = absmax2 / 127.f;
-                    pd[3] = absmax3 / 127.f;
-                    pd[4] = absmax4 / 127.f;
-                    pd[5] = absmax5 / 127.f;
-                    pd[6] = absmax6 / 127.f;
-                    pd[7] = absmax7 / 127.f;
+                    float32x2_t _max0 = vpmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
+                    float32x2_t _max1 = vpmax_f32(vget_low_f32(_absmax1), vget_high_f32(_absmax1));
+                    float32x2_t _max2 = vpmax_f32(vget_low_f32(_absmax2), vget_high_f32(_absmax2));
+                    float32x2_t _max3 = vpmax_f32(vget_low_f32(_absmax3), vget_high_f32(_absmax3));
+                    float32x2_t _max4 = vpmax_f32(vget_low_f32(_absmax4), vget_high_f32(_absmax4));
+                    float32x2_t _max5 = vpmax_f32(vget_low_f32(_absmax5), vget_high_f32(_absmax5));
+                    float32x2_t _max6 = vpmax_f32(vget_low_f32(_absmax6), vget_high_f32(_absmax6));
+                    float32x2_t _max7 = vpmax_f32(vget_low_f32(_absmax7), vget_high_f32(_absmax7));
+                    _absmax0 = vcombine_f32(vpmax_f32(_max0, _max1), vpmax_f32(_max2, _max3));
+                    _absmax1 = vcombine_f32(vpmax_f32(_max4, _max5), vpmax_f32(_max6, _max7));
 
-                    float32x4_t _scale0 = vdupq_n_f32(absmax0 == 0.f ? 0.f : 127.f / absmax0);
-                    _scale0 = vsetq_lane_f32(absmax1 == 0.f ? 0.f : 127.f / absmax1, _scale0, 1);
-                    _scale0 = vsetq_lane_f32(absmax2 == 0.f ? 0.f : 127.f / absmax2, _scale0, 2);
-                    _scale0 = vsetq_lane_f32(absmax3 == 0.f ? 0.f : 127.f / absmax3, _scale0, 3);
-                    float32x4_t _scale1 = vdupq_n_f32(absmax4 == 0.f ? 0.f : 127.f / absmax4);
-                    _scale1 = vsetq_lane_f32(absmax5 == 0.f ? 0.f : 127.f / absmax5, _scale1, 1);
-                    _scale1 = vsetq_lane_f32(absmax6 == 0.f ? 0.f : 127.f / absmax6, _scale1, 2);
-                    _scale1 = vsetq_lane_f32(absmax7 == 0.f ? 0.f : 127.f / absmax7, _scale1, 3);
+                    vst1q_f32(pd, vmulq_n_f32(_absmax0, 1.f / 127.f));
+                    vst1q_f32(pd + 4, vmulq_n_f32(_absmax1, 1.f / 127.f));
+
+                    float32x4_t _zero = vdupq_n_f32(0.f);
+                    float32x4_t _scale0 = vdivq_f32(vdupq_n_f32(127.f), _absmax0);
+                    float32x4_t _scale1 = vdivq_f32(vdupq_n_f32(127.f), _absmax1);
+                    _scale0 = vbslq_f32(vceqq_f32(_absmax0, _zero), _zero, _scale0);
+                    _scale1 = vbslq_f32(vceqq_f32(_absmax1, _zero), _zero, _scale1);
 
                     int kk = 0;
                     for (; kk + 7 < max_kk0; kk += 8)
@@ -2657,31 +2584,25 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                         p0a += A_hstep * 4;
                     }
 
-                    float absmax0 = vmaxvq_f32(_absmax0);
-                    float absmax1 = vmaxvq_f32(_absmax1);
-                    float absmax2 = vmaxvq_f32(_absmax2);
-                    float absmax3 = vmaxvq_f32(_absmax3);
-                    float absmax4 = vmaxvq_f32(_absmax4);
-                    float absmax5 = vmaxvq_f32(_absmax5);
-                    float absmax6 = vmaxvq_f32(_absmax6);
-                    float absmax7 = vmaxvq_f32(_absmax7);
-                    pd[0] = absmax0 / 127.f;
-                    pd[1] = absmax1 / 127.f;
-                    pd[2] = absmax2 / 127.f;
-                    pd[3] = absmax3 / 127.f;
-                    pd[4] = absmax4 / 127.f;
-                    pd[5] = absmax5 / 127.f;
-                    pd[6] = absmax6 / 127.f;
-                    pd[7] = absmax7 / 127.f;
+                    float32x2_t _max0 = vpmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
+                    float32x2_t _max1 = vpmax_f32(vget_low_f32(_absmax1), vget_high_f32(_absmax1));
+                    float32x2_t _max2 = vpmax_f32(vget_low_f32(_absmax2), vget_high_f32(_absmax2));
+                    float32x2_t _max3 = vpmax_f32(vget_low_f32(_absmax3), vget_high_f32(_absmax3));
+                    float32x2_t _max4 = vpmax_f32(vget_low_f32(_absmax4), vget_high_f32(_absmax4));
+                    float32x2_t _max5 = vpmax_f32(vget_low_f32(_absmax5), vget_high_f32(_absmax5));
+                    float32x2_t _max6 = vpmax_f32(vget_low_f32(_absmax6), vget_high_f32(_absmax6));
+                    float32x2_t _max7 = vpmax_f32(vget_low_f32(_absmax7), vget_high_f32(_absmax7));
+                    _absmax0 = vcombine_f32(vpmax_f32(_max0, _max1), vpmax_f32(_max2, _max3));
+                    _absmax1 = vcombine_f32(vpmax_f32(_max4, _max5), vpmax_f32(_max6, _max7));
 
-                    float32x4_t _scale0 = vdupq_n_f32(absmax0 == 0.f ? 0.f : 127.f / absmax0);
-                    _scale0 = vsetq_lane_f32(absmax1 == 0.f ? 0.f : 127.f / absmax1, _scale0, 1);
-                    _scale0 = vsetq_lane_f32(absmax2 == 0.f ? 0.f : 127.f / absmax2, _scale0, 2);
-                    _scale0 = vsetq_lane_f32(absmax3 == 0.f ? 0.f : 127.f / absmax3, _scale0, 3);
-                    float32x4_t _scale1 = vdupq_n_f32(absmax4 == 0.f ? 0.f : 127.f / absmax4);
-                    _scale1 = vsetq_lane_f32(absmax5 == 0.f ? 0.f : 127.f / absmax5, _scale1, 1);
-                    _scale1 = vsetq_lane_f32(absmax6 == 0.f ? 0.f : 127.f / absmax6, _scale1, 2);
-                    _scale1 = vsetq_lane_f32(absmax7 == 0.f ? 0.f : 127.f / absmax7, _scale1, 3);
+                    vst1q_f32(pd, vmulq_n_f32(_absmax0, 1.f / 127.f));
+                    vst1q_f32(pd + 4, vmulq_n_f32(_absmax1, 1.f / 127.f));
+
+                    float32x4_t _zero = vdupq_n_f32(0.f);
+                    float32x4_t _scale0 = vdivq_f32(vdupq_n_f32(127.f), _absmax0);
+                    float32x4_t _scale1 = vdivq_f32(vdupq_n_f32(127.f), _absmax1);
+                    _scale0 = vbslq_f32(vceqq_f32(_absmax0, _zero), _zero, _scale0);
+                    _scale1 = vbslq_f32(vceqq_f32(_absmax1, _zero), _zero, _scale1);
 
                     int kk = 0;
 #if __ARM_FEATURE_DOTPROD
@@ -2764,31 +2685,13 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                         p0a += A_hstep;
                     }
 
-                    float absmax0 = vgetq_lane_f32(_absmax0, 0);
-                    float absmax1 = vgetq_lane_f32(_absmax0, 1);
-                    float absmax2 = vgetq_lane_f32(_absmax0, 2);
-                    float absmax3 = vgetq_lane_f32(_absmax0, 3);
-                    float absmax4 = vgetq_lane_f32(_absmax1, 0);
-                    float absmax5 = vgetq_lane_f32(_absmax1, 1);
-                    float absmax6 = vgetq_lane_f32(_absmax1, 2);
-                    float absmax7 = vgetq_lane_f32(_absmax1, 3);
-                    pd[0] = absmax0 / 127.f;
-                    pd[1] = absmax1 / 127.f;
-                    pd[2] = absmax2 / 127.f;
-                    pd[3] = absmax3 / 127.f;
-                    pd[4] = absmax4 / 127.f;
-                    pd[5] = absmax5 / 127.f;
-                    pd[6] = absmax6 / 127.f;
-                    pd[7] = absmax7 / 127.f;
+                    vst1q_f32(pd, vmulq_n_f32(_absmax0, 1.f / 127.f));
+                    vst1q_f32(pd + 4, vmulq_n_f32(_absmax1, 1.f / 127.f));
 
-                    float32x4_t _scale0 = vdupq_n_f32(absmax0 == 0.f ? 0.f : 127.f / absmax0);
-                    _scale0 = vsetq_lane_f32(absmax1 == 0.f ? 0.f : 127.f / absmax1, _scale0, 1);
-                    _scale0 = vsetq_lane_f32(absmax2 == 0.f ? 0.f : 127.f / absmax2, _scale0, 2);
-                    _scale0 = vsetq_lane_f32(absmax3 == 0.f ? 0.f : 127.f / absmax3, _scale0, 3);
-                    float32x4_t _scale1 = vdupq_n_f32(absmax4 == 0.f ? 0.f : 127.f / absmax4);
-                    _scale1 = vsetq_lane_f32(absmax5 == 0.f ? 0.f : 127.f / absmax5, _scale1, 1);
-                    _scale1 = vsetq_lane_f32(absmax6 == 0.f ? 0.f : 127.f / absmax6, _scale1, 2);
-                    _scale1 = vsetq_lane_f32(absmax7 == 0.f ? 0.f : 127.f / absmax7, _scale1, 3);
+                    float32x4_t _v127 = vdupq_n_f32(127.f);
+                    float32x4_t _zero = vdupq_n_f32(0.f);
+                    float32x4_t _scale0 = vbslq_f32(vceqq_f32(_absmax0, _zero), _zero, vdivq_f32(_v127, _absmax0));
+                    float32x4_t _scale1 = vbslq_f32(vceqq_f32(_absmax1, _zero), _zero, vdivq_f32(_v127, _absmax1));
 
                     int kk = 0;
 #if __ARM_FEATURE_DOTPROD
@@ -2935,18 +2838,17 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                         p0a += A_hstep * 8;
                     }
 
-                    float absmax0 = vmaxvq_f32(_absmax0);
-                    float absmax1 = vmaxvq_f32(_absmax1);
-                    float absmax2 = vmaxvq_f32(_absmax2);
-                    float absmax3 = vmaxvq_f32(_absmax3);
-                    pd[0] = absmax0 / 127.f;
-                    pd[1] = absmax1 / 127.f;
-                    pd[2] = absmax2 / 127.f;
-                    pd[3] = absmax3 / 127.f;
-                    float32x4_t _scale = vdupq_n_f32(absmax0 == 0.f ? 0.f : 127.f / absmax0);
-                    _scale = vsetq_lane_f32(absmax1 == 0.f ? 0.f : 127.f / absmax1, _scale, 1);
-                    _scale = vsetq_lane_f32(absmax2 == 0.f ? 0.f : 127.f / absmax2, _scale, 2);
-                    _scale = vsetq_lane_f32(absmax3 == 0.f ? 0.f : 127.f / absmax3, _scale, 3);
+                    float32x2_t _max0 = vpmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
+                    float32x2_t _max1 = vpmax_f32(vget_low_f32(_absmax1), vget_high_f32(_absmax1));
+                    float32x2_t _max2 = vpmax_f32(vget_low_f32(_absmax2), vget_high_f32(_absmax2));
+                    float32x2_t _max3 = vpmax_f32(vget_low_f32(_absmax3), vget_high_f32(_absmax3));
+                    _absmax0 = vcombine_f32(vpmax_f32(_max0, _max1), vpmax_f32(_max2, _max3));
+
+                    vst1q_f32(pd, vmulq_n_f32(_absmax0, 1.f / 127.f));
+
+                    float32x4_t _zero = vdupq_n_f32(0.f);
+                    float32x4_t _scale = vdivq_f32(vdupq_n_f32(127.f), _absmax0);
+                    _scale = vbslq_f32(vceqq_f32(_absmax0, _zero), _zero, _scale);
 
                     int kk = 0;
                     for (; kk + 7 < max_kk0; kk += 8)
@@ -3027,33 +2929,21 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                         p0a += A_hstep * 4;
                     }
 
+                    float32x2_t _max0 = vpmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
+                    float32x2_t _max1 = vpmax_f32(vget_low_f32(_absmax1), vget_high_f32(_absmax1));
+                    float32x2_t _max2 = vpmax_f32(vget_low_f32(_absmax2), vget_high_f32(_absmax2));
+                    float32x2_t _max3 = vpmax_f32(vget_low_f32(_absmax3), vget_high_f32(_absmax3));
+                    _absmax0 = vcombine_f32(vpmax_f32(_max0, _max1), vpmax_f32(_max2, _max3));
+
+                    vst1q_f32(pd, vmulq_n_f32(_absmax0, 1.f / 127.f));
+
+                    float32x4_t _zero = vdupq_n_f32(0.f);
 #if __aarch64__
-                    float absmax0 = vmaxvq_f32(_absmax0);
-                    float absmax1 = vmaxvq_f32(_absmax1);
-                    float absmax2 = vmaxvq_f32(_absmax2);
-                    float absmax3 = vmaxvq_f32(_absmax3);
+                    float32x4_t _scale = vdivq_f32(vdupq_n_f32(127.f), _absmax0);
 #else
-                    float32x2_t _max0 = vmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
-                    float32x2_t _max1 = vmax_f32(vget_low_f32(_absmax1), vget_high_f32(_absmax1));
-                    float32x2_t _max2 = vmax_f32(vget_low_f32(_absmax2), vget_high_f32(_absmax2));
-                    float32x2_t _max3 = vmax_f32(vget_low_f32(_absmax3), vget_high_f32(_absmax3));
-                    _max0 = vpmax_f32(_max0, _max0);
-                    _max1 = vpmax_f32(_max1, _max1);
-                    _max2 = vpmax_f32(_max2, _max2);
-                    _max3 = vpmax_f32(_max3, _max3);
-                    float absmax0 = vget_lane_f32(_max0, 0);
-                    float absmax1 = vget_lane_f32(_max1, 0);
-                    float absmax2 = vget_lane_f32(_max2, 0);
-                    float absmax3 = vget_lane_f32(_max3, 0);
+                    float32x4_t _scale = div_ps(vdupq_n_f32(127.f), _absmax0);
 #endif
-                    pd[0] = absmax0 / 127.f;
-                    pd[1] = absmax1 / 127.f;
-                    pd[2] = absmax2 / 127.f;
-                    pd[3] = absmax3 / 127.f;
-                    float32x4_t _scale = vdupq_n_f32(absmax0 == 0.f ? 0.f : 127.f / absmax0);
-                    _scale = vsetq_lane_f32(absmax1 == 0.f ? 0.f : 127.f / absmax1, _scale, 1);
-                    _scale = vsetq_lane_f32(absmax2 == 0.f ? 0.f : 127.f / absmax2, _scale, 2);
-                    _scale = vsetq_lane_f32(absmax3 == 0.f ? 0.f : 127.f / absmax3, _scale, 3);
+                    _scale = vbslq_f32(vceqq_f32(_absmax0, _zero), _zero, _scale);
 
                     int kk = 0;
 #if __ARM_FEATURE_DOTPROD
@@ -3111,14 +3001,13 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                     }
 
                     vst1q_f32(pd, vmulq_n_f32(_absmax, 1.f / 127.f));
-                    float absmax0 = vgetq_lane_f32(_absmax, 0);
-                    float absmax1 = vgetq_lane_f32(_absmax, 1);
-                    float absmax2 = vgetq_lane_f32(_absmax, 2);
-                    float absmax3 = vgetq_lane_f32(_absmax, 3);
-                    float32x4_t _scale = vdupq_n_f32(absmax0 == 0.f ? 0.f : 127.f / absmax0);
-                    _scale = vsetq_lane_f32(absmax1 == 0.f ? 0.f : 127.f / absmax1, _scale, 1);
-                    _scale = vsetq_lane_f32(absmax2 == 0.f ? 0.f : 127.f / absmax2, _scale, 2);
-                    _scale = vsetq_lane_f32(absmax3 == 0.f ? 0.f : 127.f / absmax3, _scale, 3);
+                    float32x4_t _zero = vdupq_n_f32(0.f);
+#if __aarch64__
+                    float32x4_t _scale = vdivq_f32(vdupq_n_f32(127.f), _absmax);
+#else
+                    float32x4_t _scale = div_ps(vdupq_n_f32(127.f), _absmax);
+#endif
+                    _scale = vbslq_f32(vceqq_f32(_absmax, _zero), _zero, _scale);
 
                     int kk = 0;
 #if __ARM_FEATURE_DOTPROD
@@ -3608,31 +3497,25 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                     psa += 8;
                 }
 
-                float absmax0 = vmaxvq_f32(_absmax0);
-                float absmax1 = vmaxvq_f32(_absmax1);
-                float absmax2 = vmaxvq_f32(_absmax2);
-                float absmax3 = vmaxvq_f32(_absmax3);
-                float absmax4 = vmaxvq_f32(_absmax4);
-                float absmax5 = vmaxvq_f32(_absmax5);
-                float absmax6 = vmaxvq_f32(_absmax6);
-                float absmax7 = vmaxvq_f32(_absmax7);
-                pd[0] = absmax0 / 127.f;
-                pd[1] = absmax1 / 127.f;
-                pd[2] = absmax2 / 127.f;
-                pd[3] = absmax3 / 127.f;
-                pd[4] = absmax4 / 127.f;
-                pd[5] = absmax5 / 127.f;
-                pd[6] = absmax6 / 127.f;
-                pd[7] = absmax7 / 127.f;
+                float32x2_t _max0 = vpmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
+                float32x2_t _max1 = vpmax_f32(vget_low_f32(_absmax1), vget_high_f32(_absmax1));
+                float32x2_t _max2 = vpmax_f32(vget_low_f32(_absmax2), vget_high_f32(_absmax2));
+                float32x2_t _max3 = vpmax_f32(vget_low_f32(_absmax3), vget_high_f32(_absmax3));
+                float32x2_t _max4 = vpmax_f32(vget_low_f32(_absmax4), vget_high_f32(_absmax4));
+                float32x2_t _max5 = vpmax_f32(vget_low_f32(_absmax5), vget_high_f32(_absmax5));
+                float32x2_t _max6 = vpmax_f32(vget_low_f32(_absmax6), vget_high_f32(_absmax6));
+                float32x2_t _max7 = vpmax_f32(vget_low_f32(_absmax7), vget_high_f32(_absmax7));
+                _absmax0 = vcombine_f32(vpmax_f32(_max0, _max1), vpmax_f32(_max2, _max3));
+                _absmax1 = vcombine_f32(vpmax_f32(_max4, _max5), vpmax_f32(_max6, _max7));
 
-                float32x4_t _scale0 = vdupq_n_f32(absmax0 == 0.f ? 0.f : 127.f / absmax0);
-                _scale0 = vsetq_lane_f32(absmax1 == 0.f ? 0.f : 127.f / absmax1, _scale0, 1);
-                _scale0 = vsetq_lane_f32(absmax2 == 0.f ? 0.f : 127.f / absmax2, _scale0, 2);
-                _scale0 = vsetq_lane_f32(absmax3 == 0.f ? 0.f : 127.f / absmax3, _scale0, 3);
-                float32x4_t _scale1 = vdupq_n_f32(absmax4 == 0.f ? 0.f : 127.f / absmax4);
-                _scale1 = vsetq_lane_f32(absmax5 == 0.f ? 0.f : 127.f / absmax5, _scale1, 1);
-                _scale1 = vsetq_lane_f32(absmax6 == 0.f ? 0.f : 127.f / absmax6, _scale1, 2);
-                _scale1 = vsetq_lane_f32(absmax7 == 0.f ? 0.f : 127.f / absmax7, _scale1, 3);
+                vst1q_f32(pd, vmulq_n_f32(_absmax0, 1.f / 127.f));
+                vst1q_f32(pd + 4, vmulq_n_f32(_absmax1, 1.f / 127.f));
+
+                float32x4_t _zero = vdupq_n_f32(0.f);
+                float32x4_t _scale0 = vdivq_f32(vdupq_n_f32(127.f), _absmax0);
+                float32x4_t _scale1 = vdivq_f32(vdupq_n_f32(127.f), _absmax1);
+                _scale0 = vbslq_f32(vceqq_f32(_absmax0, _zero), _zero, _scale0);
+                _scale1 = vbslq_f32(vceqq_f32(_absmax1, _zero), _zero, _scale1);
 
                 int kk = 0;
                 for (; kk + 7 < max_kk0; kk += 8)
@@ -3784,31 +3667,25 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                     psa += 4;
                 }
 
-                float absmax0 = vmaxvq_f32(_absmax0);
-                float absmax1 = vmaxvq_f32(_absmax1);
-                float absmax2 = vmaxvq_f32(_absmax2);
-                float absmax3 = vmaxvq_f32(_absmax3);
-                float absmax4 = vmaxvq_f32(_absmax4);
-                float absmax5 = vmaxvq_f32(_absmax5);
-                float absmax6 = vmaxvq_f32(_absmax6);
-                float absmax7 = vmaxvq_f32(_absmax7);
-                pd[0] = absmax0 / 127.f;
-                pd[1] = absmax1 / 127.f;
-                pd[2] = absmax2 / 127.f;
-                pd[3] = absmax3 / 127.f;
-                pd[4] = absmax4 / 127.f;
-                pd[5] = absmax5 / 127.f;
-                pd[6] = absmax6 / 127.f;
-                pd[7] = absmax7 / 127.f;
+                float32x2_t _max0 = vpmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
+                float32x2_t _max1 = vpmax_f32(vget_low_f32(_absmax1), vget_high_f32(_absmax1));
+                float32x2_t _max2 = vpmax_f32(vget_low_f32(_absmax2), vget_high_f32(_absmax2));
+                float32x2_t _max3 = vpmax_f32(vget_low_f32(_absmax3), vget_high_f32(_absmax3));
+                float32x2_t _max4 = vpmax_f32(vget_low_f32(_absmax4), vget_high_f32(_absmax4));
+                float32x2_t _max5 = vpmax_f32(vget_low_f32(_absmax5), vget_high_f32(_absmax5));
+                float32x2_t _max6 = vpmax_f32(vget_low_f32(_absmax6), vget_high_f32(_absmax6));
+                float32x2_t _max7 = vpmax_f32(vget_low_f32(_absmax7), vget_high_f32(_absmax7));
+                _absmax0 = vcombine_f32(vpmax_f32(_max0, _max1), vpmax_f32(_max2, _max3));
+                _absmax1 = vcombine_f32(vpmax_f32(_max4, _max5), vpmax_f32(_max6, _max7));
 
-                float32x4_t _scale0 = vdupq_n_f32(absmax0 == 0.f ? 0.f : 127.f / absmax0);
-                _scale0 = vsetq_lane_f32(absmax1 == 0.f ? 0.f : 127.f / absmax1, _scale0, 1);
-                _scale0 = vsetq_lane_f32(absmax2 == 0.f ? 0.f : 127.f / absmax2, _scale0, 2);
-                _scale0 = vsetq_lane_f32(absmax3 == 0.f ? 0.f : 127.f / absmax3, _scale0, 3);
-                float32x4_t _scale1 = vdupq_n_f32(absmax4 == 0.f ? 0.f : 127.f / absmax4);
-                _scale1 = vsetq_lane_f32(absmax5 == 0.f ? 0.f : 127.f / absmax5, _scale1, 1);
-                _scale1 = vsetq_lane_f32(absmax6 == 0.f ? 0.f : 127.f / absmax6, _scale1, 2);
-                _scale1 = vsetq_lane_f32(absmax7 == 0.f ? 0.f : 127.f / absmax7, _scale1, 3);
+                vst1q_f32(pd, vmulq_n_f32(_absmax0, 1.f / 127.f));
+                vst1q_f32(pd + 4, vmulq_n_f32(_absmax1, 1.f / 127.f));
+
+                float32x4_t _zero = vdupq_n_f32(0.f);
+                float32x4_t _scale0 = vdivq_f32(vdupq_n_f32(127.f), _absmax0);
+                float32x4_t _scale1 = vdivq_f32(vdupq_n_f32(127.f), _absmax1);
+                _scale0 = vbslq_f32(vceqq_f32(_absmax0, _zero), _zero, _scale0);
+                _scale1 = vbslq_f32(vceqq_f32(_absmax1, _zero), _zero, _scale1);
 
                 int kk = 0;
 #if __ARM_FEATURE_DOTPROD
@@ -3898,31 +3775,14 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                     p0a += A_hstep;
                 }
 
-                float absmax0 = vgetq_lane_f32(_absmax0, 0);
-                float absmax1 = vgetq_lane_f32(_absmax0, 1);
-                float absmax2 = vgetq_lane_f32(_absmax0, 2);
-                float absmax3 = vgetq_lane_f32(_absmax0, 3);
-                float absmax4 = vgetq_lane_f32(_absmax1, 0);
-                float absmax5 = vgetq_lane_f32(_absmax1, 1);
-                float absmax6 = vgetq_lane_f32(_absmax1, 2);
-                float absmax7 = vgetq_lane_f32(_absmax1, 3);
-                pd[0] = absmax0 / 127.f;
-                pd[1] = absmax1 / 127.f;
-                pd[2] = absmax2 / 127.f;
-                pd[3] = absmax3 / 127.f;
-                pd[4] = absmax4 / 127.f;
-                pd[5] = absmax5 / 127.f;
-                pd[6] = absmax6 / 127.f;
-                pd[7] = absmax7 / 127.f;
+                vst1q_f32(pd, vmulq_n_f32(_absmax0, 1.f / 127.f));
+                vst1q_f32(pd + 4, vmulq_n_f32(_absmax1, 1.f / 127.f));
 
-                float32x4_t _scale0 = vdupq_n_f32(absmax0 == 0.f ? 0.f : 127.f / absmax0);
-                _scale0 = vsetq_lane_f32(absmax1 == 0.f ? 0.f : 127.f / absmax1, _scale0, 1);
-                _scale0 = vsetq_lane_f32(absmax2 == 0.f ? 0.f : 127.f / absmax2, _scale0, 2);
-                _scale0 = vsetq_lane_f32(absmax3 == 0.f ? 0.f : 127.f / absmax3, _scale0, 3);
-                float32x4_t _scale1 = vdupq_n_f32(absmax4 == 0.f ? 0.f : 127.f / absmax4);
-                _scale1 = vsetq_lane_f32(absmax5 == 0.f ? 0.f : 127.f / absmax5, _scale1, 1);
-                _scale1 = vsetq_lane_f32(absmax6 == 0.f ? 0.f : 127.f / absmax6, _scale1, 2);
-                _scale1 = vsetq_lane_f32(absmax7 == 0.f ? 0.f : 127.f / absmax7, _scale1, 3);
+                float32x4_t _zero = vdupq_n_f32(0.f);
+                float32x4_t _scale0 = vdivq_f32(vdupq_n_f32(127.f), _absmax0);
+                float32x4_t _scale1 = vdivq_f32(vdupq_n_f32(127.f), _absmax1);
+                _scale0 = vbslq_f32(vceqq_f32(_absmax0, _zero), _zero, _scale0);
+                _scale1 = vbslq_f32(vceqq_f32(_absmax1, _zero), _zero, _scale1);
 
                 int kk = 0;
 #if __ARM_FEATURE_DOTPROD
@@ -4093,10 +3953,10 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
 #if __aarch64__
             if (elempack == 8)
             {
-                float absmax0 = 0.f;
-                float absmax1 = 0.f;
-                float absmax2 = 0.f;
-                float absmax3 = 0.f;
+                float32x4_t _absmax0 = vdupq_n_f32(0.f);
+                float32x4_t _absmax1 = vdupq_n_f32(0.f);
+                float32x4_t _absmax2 = vdupq_n_f32(0.f);
+                float32x4_t _absmax3 = vdupq_n_f32(0.f);
                 const unsigned short* p0a = p0;
                 const float* psa = ps;
                 for (int kk = 0; kk < max_kk0; kk += 8)
@@ -4107,26 +3967,29 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                     uint16x8_t _q = vld1q_u16(p0a + 8);
                     uint16x8_t _r = vld1q_u16(p0a + 16);
                     uint16x8_t _s = vld1q_u16(p0a + 24);
-                    absmax0 = std::max(absmax0, vmaxvq_f32(vmulq_f32(vabsq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_p))), _s0)));
-                    absmax0 = std::max(absmax0, vmaxvq_f32(vmulq_f32(vabsq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_p))), _s1)));
-                    absmax1 = std::max(absmax1, vmaxvq_f32(vmulq_f32(vabsq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_q))), _s0)));
-                    absmax1 = std::max(absmax1, vmaxvq_f32(vmulq_f32(vabsq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_q))), _s1)));
-                    absmax2 = std::max(absmax2, vmaxvq_f32(vmulq_f32(vabsq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_r))), _s0)));
-                    absmax2 = std::max(absmax2, vmaxvq_f32(vmulq_f32(vabsq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_r))), _s1)));
-                    absmax3 = std::max(absmax3, vmaxvq_f32(vmulq_f32(vabsq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_s))), _s0)));
-                    absmax3 = std::max(absmax3, vmaxvq_f32(vmulq_f32(vabsq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_s))), _s1)));
+                    _absmax0 = vmaxq_f32(_absmax0, vmulq_f32(vabsq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_p))), _s0));
+                    _absmax0 = vmaxq_f32(_absmax0, vmulq_f32(vabsq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_p))), _s1));
+                    _absmax1 = vmaxq_f32(_absmax1, vmulq_f32(vabsq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_q))), _s0));
+                    _absmax1 = vmaxq_f32(_absmax1, vmulq_f32(vabsq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_q))), _s1));
+                    _absmax2 = vmaxq_f32(_absmax2, vmulq_f32(vabsq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_r))), _s0));
+                    _absmax2 = vmaxq_f32(_absmax2, vmulq_f32(vabsq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_r))), _s1));
+                    _absmax3 = vmaxq_f32(_absmax3, vmulq_f32(vabsq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_s))), _s0));
+                    _absmax3 = vmaxq_f32(_absmax3, vmulq_f32(vabsq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_s))), _s1));
                     p0a += A_hstep * 8;
                     psa += 8;
                 }
 
-                pd[0] = absmax0 / 127.f;
-                pd[1] = absmax1 / 127.f;
-                pd[2] = absmax2 / 127.f;
-                pd[3] = absmax3 / 127.f;
-                float32x4_t _scale = vdupq_n_f32(absmax0 == 0.f ? 0.f : 127.f / absmax0);
-                _scale = vsetq_lane_f32(absmax1 == 0.f ? 0.f : 127.f / absmax1, _scale, 1);
-                _scale = vsetq_lane_f32(absmax2 == 0.f ? 0.f : 127.f / absmax2, _scale, 2);
-                _scale = vsetq_lane_f32(absmax3 == 0.f ? 0.f : 127.f / absmax3, _scale, 3);
+                float32x2_t _max0 = vpmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
+                float32x2_t _max1 = vpmax_f32(vget_low_f32(_absmax1), vget_high_f32(_absmax1));
+                float32x2_t _max2 = vpmax_f32(vget_low_f32(_absmax2), vget_high_f32(_absmax2));
+                float32x2_t _max3 = vpmax_f32(vget_low_f32(_absmax3), vget_high_f32(_absmax3));
+                _absmax0 = vcombine_f32(vpmax_f32(_max0, _max1), vpmax_f32(_max2, _max3));
+
+                vst1q_f32(pd, vmulq_n_f32(_absmax0, 1.f / 127.f));
+
+                float32x4_t _zero = vdupq_n_f32(0.f);
+                float32x4_t _scale = vdivq_f32(vdupq_n_f32(127.f), _absmax0);
+                _scale = vbslq_f32(vceqq_f32(_absmax0, _zero), _zero, _scale);
 
                 for (int kk = 0; kk < max_kk0; kk += 8)
                 {
@@ -4210,33 +4073,21 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                     psa += 4;
                 }
 
+                float32x2_t _max0 = vpmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
+                float32x2_t _max1 = vpmax_f32(vget_low_f32(_absmax1), vget_high_f32(_absmax1));
+                float32x2_t _max2 = vpmax_f32(vget_low_f32(_absmax2), vget_high_f32(_absmax2));
+                float32x2_t _max3 = vpmax_f32(vget_low_f32(_absmax3), vget_high_f32(_absmax3));
+                _absmax0 = vcombine_f32(vpmax_f32(_max0, _max1), vpmax_f32(_max2, _max3));
+
+                vst1q_f32(pd, vmulq_n_f32(_absmax0, 1.f / 127.f));
+
+                float32x4_t _zero = vdupq_n_f32(0.f);
 #if __aarch64__
-                float absmax0 = vmaxvq_f32(_absmax0);
-                float absmax1 = vmaxvq_f32(_absmax1);
-                float absmax2 = vmaxvq_f32(_absmax2);
-                float absmax3 = vmaxvq_f32(_absmax3);
+                float32x4_t _scale = vdivq_f32(vdupq_n_f32(127.f), _absmax0);
 #else
-                float32x2_t _max0 = vmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
-                float32x2_t _max1 = vmax_f32(vget_low_f32(_absmax1), vget_high_f32(_absmax1));
-                float32x2_t _max2 = vmax_f32(vget_low_f32(_absmax2), vget_high_f32(_absmax2));
-                float32x2_t _max3 = vmax_f32(vget_low_f32(_absmax3), vget_high_f32(_absmax3));
-                _max0 = vpmax_f32(_max0, _max0);
-                _max1 = vpmax_f32(_max1, _max1);
-                _max2 = vpmax_f32(_max2, _max2);
-                _max3 = vpmax_f32(_max3, _max3);
-                float absmax0 = vget_lane_f32(_max0, 0);
-                float absmax1 = vget_lane_f32(_max1, 0);
-                float absmax2 = vget_lane_f32(_max2, 0);
-                float absmax3 = vget_lane_f32(_max3, 0);
+                float32x4_t _scale = div_ps(vdupq_n_f32(127.f), _absmax0);
 #endif
-                pd[0] = absmax0 / 127.f;
-                pd[1] = absmax1 / 127.f;
-                pd[2] = absmax2 / 127.f;
-                pd[3] = absmax3 / 127.f;
-                float32x4_t _scale = vdupq_n_f32(absmax0 == 0.f ? 0.f : 127.f / absmax0);
-                _scale = vsetq_lane_f32(absmax1 == 0.f ? 0.f : 127.f / absmax1, _scale, 1);
-                _scale = vsetq_lane_f32(absmax2 == 0.f ? 0.f : 127.f / absmax2, _scale, 2);
-                _scale = vsetq_lane_f32(absmax3 == 0.f ? 0.f : 127.f / absmax3, _scale, 3);
+                _scale = vbslq_f32(vceqq_f32(_absmax0, _zero), _zero, _scale);
 
                 int kk = 0;
 #if __ARM_FEATURE_DOTPROD
@@ -4300,14 +4151,13 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                 }
 
                 vst1q_f32(pd, vmulq_n_f32(_absmax, 1.f / 127.f));
-                float absmax0 = vgetq_lane_f32(_absmax, 0);
-                float absmax1 = vgetq_lane_f32(_absmax, 1);
-                float absmax2 = vgetq_lane_f32(_absmax, 2);
-                float absmax3 = vgetq_lane_f32(_absmax, 3);
-                float32x4_t _scale = vdupq_n_f32(absmax0 == 0.f ? 0.f : 127.f / absmax0);
-                _scale = vsetq_lane_f32(absmax1 == 0.f ? 0.f : 127.f / absmax1, _scale, 1);
-                _scale = vsetq_lane_f32(absmax2 == 0.f ? 0.f : 127.f / absmax2, _scale, 2);
-                _scale = vsetq_lane_f32(absmax3 == 0.f ? 0.f : 127.f / absmax3, _scale, 3);
+                float32x4_t _zero = vdupq_n_f32(0.f);
+#if __aarch64__
+                float32x4_t _scale = vdivq_f32(vdupq_n_f32(127.f), _absmax);
+#else
+                float32x4_t _scale = div_ps(vdupq_n_f32(127.f), _absmax);
+#endif
+                _scale = vbslq_f32(vceqq_f32(_absmax, _zero), _zero, _scale);
 
                 int kk = 0;
 #if __ARM_FEATURE_DOTPROD

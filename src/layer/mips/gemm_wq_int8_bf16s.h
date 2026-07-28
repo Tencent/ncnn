@@ -3,10 +3,12 @@
 
 static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
 {
+#if __mips_msa
     const int elempack = A.elempack;
+#endif // __mips_msa
     signed char* pp = AT_tile;
     float* pd = AT_descales_tile;
-    const int block_count = (max_kk + block_size - 1) / block_size;
+    const int local_block_count = (max_kk + block_size - 1) / block_size;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     if (input_scales.empty())
@@ -19,7 +21,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
             {
                 const unsigned short* p0 = (const unsigned short*)A + (size_t)(i + ii) * A_hstep + k * 8;
 
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -36,29 +38,16 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         p0a += 8;
                     }
 
-                    float absmax[8];
-                    __msa_st_w((v4i32)_absmax0, absmax, 0);
-                    __msa_st_w((v4i32)_absmax1, absmax + 4, 0);
-                    const float scale0 = absmax[0] == 0.f ? 1.f : 127.f / absmax[0];
-                    const float scale1 = absmax[1] == 0.f ? 1.f : 127.f / absmax[1];
-                    const float scale2 = absmax[2] == 0.f ? 1.f : 127.f / absmax[2];
-                    const float scale3 = absmax[3] == 0.f ? 1.f : 127.f / absmax[3];
-                    const float scale4 = absmax[4] == 0.f ? 1.f : 127.f / absmax[4];
-                    const float scale5 = absmax[5] == 0.f ? 1.f : 127.f / absmax[5];
-                    const float scale6 = absmax[6] == 0.f ? 1.f : 127.f / absmax[6];
-                    const float scale7 = absmax[7] == 0.f ? 1.f : 127.f / absmax[7];
-                    pd[0] = absmax[0] / 127.f;
-                    pd[1] = absmax[1] / 127.f;
-                    pd[2] = absmax[2] / 127.f;
-                    pd[3] = absmax[3] / 127.f;
-                    pd[4] = absmax[4] / 127.f;
-                    pd[5] = absmax[5] / 127.f;
-                    pd[6] = absmax[6] / 127.f;
-                    pd[7] = absmax[7] / 127.f;
+                    const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                    __msa_st_w((v4i32)__msa_fdiv_w(_absmax0, _v127), pd, 0);
+                    __msa_st_w((v4i32)__msa_fdiv_w(_absmax1, _v127), pd + 4, 0);
                     pd += 8;
 
-                    v4f32 _scale03 = (v4f32)__msa_set_w(__msa_load_w(&scale0), __msa_load_w(&scale1), __msa_load_w(&scale2), __msa_load_w(&scale3));
-                    v4f32 _scale47 = (v4f32)__msa_set_w(__msa_load_w(&scale4), __msa_load_w(&scale5), __msa_load_w(&scale6), __msa_load_w(&scale7));
+                    const v4f32 _zero = (v4f32)__msa_fill_w(0);
+                    v4f32 _absmax03 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax0, _zero), (v16u8)_absmax0, (v16u8)_v127);
+                    v4f32 _absmax47 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax1, _zero), (v16u8)_absmax1, (v16u8)_v127);
+                    v4f32 _scale03 = __msa_fdiv_w(_v127, _absmax03);
+                    v4f32 _scale47 = __msa_fdiv_w(_v127, _absmax47);
 
                     int kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
@@ -107,7 +96,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                 const unsigned short* p0 = (const unsigned short*)A + (size_t)(i + ii) * A_hstep + k * 4;
                 const unsigned short* p1 = p0 + A_hstep * 4;
 
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -126,29 +115,16 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         p1a += 4;
                     }
 
-                    float absmax[8];
-                    __msa_st_w((v4i32)_absmax0, absmax, 0);
-                    __msa_st_w((v4i32)_absmax1, absmax + 4, 0);
-                    const float scale0 = absmax[0] == 0.f ? 1.f : 127.f / absmax[0];
-                    const float scale1 = absmax[1] == 0.f ? 1.f : 127.f / absmax[1];
-                    const float scale2 = absmax[2] == 0.f ? 1.f : 127.f / absmax[2];
-                    const float scale3 = absmax[3] == 0.f ? 1.f : 127.f / absmax[3];
-                    const float scale4 = absmax[4] == 0.f ? 1.f : 127.f / absmax[4];
-                    const float scale5 = absmax[5] == 0.f ? 1.f : 127.f / absmax[5];
-                    const float scale6 = absmax[6] == 0.f ? 1.f : 127.f / absmax[6];
-                    const float scale7 = absmax[7] == 0.f ? 1.f : 127.f / absmax[7];
-                    pd[0] = absmax[0] / 127.f;
-                    pd[1] = absmax[1] / 127.f;
-                    pd[2] = absmax[2] / 127.f;
-                    pd[3] = absmax[3] / 127.f;
-                    pd[4] = absmax[4] / 127.f;
-                    pd[5] = absmax[5] / 127.f;
-                    pd[6] = absmax[6] / 127.f;
-                    pd[7] = absmax[7] / 127.f;
+                    const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                    __msa_st_w((v4i32)__msa_fdiv_w(_absmax0, _v127), pd, 0);
+                    __msa_st_w((v4i32)__msa_fdiv_w(_absmax1, _v127), pd + 4, 0);
                     pd += 8;
 
-                    v4f32 _scale03 = (v4f32)__msa_set_w(__msa_load_w(&scale0), __msa_load_w(&scale1), __msa_load_w(&scale2), __msa_load_w(&scale3));
-                    v4f32 _scale47 = (v4f32)__msa_set_w(__msa_load_w(&scale4), __msa_load_w(&scale5), __msa_load_w(&scale6), __msa_load_w(&scale7));
+                    const v4f32 _zero = (v4f32)__msa_fill_w(0);
+                    v4f32 _absmax03 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax0, _zero), (v16u8)_absmax0, (v16u8)_v127);
+                    v4f32 _absmax47 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax1, _zero), (v16u8)_absmax1, (v16u8)_v127);
+                    v4f32 _scale03 = __msa_fdiv_w(_v127, _absmax03);
+                    v4f32 _scale47 = __msa_fdiv_w(_v127, _absmax47);
 
                     int kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
@@ -205,7 +181,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                 const unsigned short* p6 = p5 + A_hstep;
                 const unsigned short* p7 = p6 + A_hstep;
 
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -255,53 +231,54 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         p7a += 4;
                     }
 
-                    float absmax0 = __msa_reduce_fmax_w(_absmax0);
-                    float absmax1 = __msa_reduce_fmax_w(_absmax1);
-                    float absmax2 = __msa_reduce_fmax_w(_absmax2);
-                    float absmax3 = __msa_reduce_fmax_w(_absmax3);
-                    float absmax4 = __msa_reduce_fmax_w(_absmax4);
-                    float absmax5 = __msa_reduce_fmax_w(_absmax5);
-                    float absmax6 = __msa_reduce_fmax_w(_absmax6);
-                    float absmax7 = __msa_reduce_fmax_w(_absmax7);
+                    transpose4x4_ps(_absmax0, _absmax1, _absmax2, _absmax3);
+                    transpose4x4_ps(_absmax4, _absmax5, _absmax6, _absmax7);
+                    _absmax0 = __msa_fmax_w(__msa_fmax_w(_absmax0, _absmax1), __msa_fmax_w(_absmax2, _absmax3));
+                    _absmax1 = __msa_fmax_w(__msa_fmax_w(_absmax4, _absmax5), __msa_fmax_w(_absmax6, _absmax7));
 
                     for (; kk < max_kk0; kk++)
                     {
-                        absmax0 = std::max(absmax0, fabsf(bfloat16_to_float32(*p0a++)));
-                        absmax1 = std::max(absmax1, fabsf(bfloat16_to_float32(*p1a++)));
-                        absmax2 = std::max(absmax2, fabsf(bfloat16_to_float32(*p2a++)));
-                        absmax3 = std::max(absmax3, fabsf(bfloat16_to_float32(*p3a++)));
-                        absmax4 = std::max(absmax4, fabsf(bfloat16_to_float32(*p4a++)));
-                        absmax5 = std::max(absmax5, fabsf(bfloat16_to_float32(*p5a++)));
-                        absmax6 = std::max(absmax6, fabsf(bfloat16_to_float32(*p6a++)));
-                        absmax7 = std::max(absmax7, fabsf(bfloat16_to_float32(*p7a++)));
+                        v8i16 _p0 = (v8i16)__msa_fill_w(0);
+                        _p0 = __msa_insert_h(_p0, 0, p0a[0]);
+                        _p0 = __msa_insert_h(_p0, 1, p1a[0]);
+                        _p0 = __msa_insert_h(_p0, 2, p2a[0]);
+                        _p0 = __msa_insert_h(_p0, 3, p3a[0]);
+                        v8i16 _p1 = (v8i16)__msa_fill_w(0);
+                        _p1 = __msa_insert_h(_p1, 0, p4a[0]);
+                        _p1 = __msa_insert_h(_p1, 1, p5a[0]);
+                        _p1 = __msa_insert_h(_p1, 2, p6a[0]);
+                        _p1 = __msa_insert_h(_p1, 3, p7a[0]);
+                        _absmax0 = __msa_fmax_w(_absmax0, (v4f32)__msa_and_v((v16u8)bfloat2float_msa((v4i32)_p0), _abs_mask));
+                        _absmax1 = __msa_fmax_w(_absmax1, (v4f32)__msa_and_v((v16u8)bfloat2float_msa((v4i32)_p1), _abs_mask));
+                        p0a++;
+                        p1a++;
+                        p2a++;
+                        p3a++;
+                        p4a++;
+                        p5a++;
+                        p6a++;
+                        p7a++;
                     }
 
-                    const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
-                    const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
-                    const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
-                    const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
-                    const float scale4 = absmax4 == 0.f ? 1.f : 127.f / absmax4;
-                    const float scale5 = absmax5 == 0.f ? 1.f : 127.f / absmax5;
-                    const float scale6 = absmax6 == 0.f ? 1.f : 127.f / absmax6;
-                    const float scale7 = absmax7 == 0.f ? 1.f : 127.f / absmax7;
-                    pd[0] = absmax0 / 127.f;
-                    pd[1] = absmax1 / 127.f;
-                    pd[2] = absmax2 / 127.f;
-                    pd[3] = absmax3 / 127.f;
-                    pd[4] = absmax4 / 127.f;
-                    pd[5] = absmax5 / 127.f;
-                    pd[6] = absmax6 / 127.f;
-                    pd[7] = absmax7 / 127.f;
+                    const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                    __msa_st_w((v4i32)__msa_fdiv_w(_absmax0, _v127), pd, 0);
+                    __msa_st_w((v4i32)__msa_fdiv_w(_absmax1, _v127), pd + 4, 0);
                     pd += 8;
 
-                    v4f32 _scale0 = __msa_fill_w_f32(scale0);
-                    v4f32 _scale1 = __msa_fill_w_f32(scale1);
-                    v4f32 _scale2 = __msa_fill_w_f32(scale2);
-                    v4f32 _scale3 = __msa_fill_w_f32(scale3);
-                    v4f32 _scale4 = __msa_fill_w_f32(scale4);
-                    v4f32 _scale5 = __msa_fill_w_f32(scale5);
-                    v4f32 _scale6 = __msa_fill_w_f32(scale6);
-                    v4f32 _scale7 = __msa_fill_w_f32(scale7);
+                    const v4f32 _zero = (v4f32)__msa_fill_w(0);
+                    _absmax0 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax0, _zero), (v16u8)_absmax0, (v16u8)_v127);
+                    _absmax1 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax1, _zero), (v16u8)_absmax1, (v16u8)_v127);
+                    v4f32 _scale03 = __msa_fdiv_w(_v127, _absmax0);
+                    v4f32 _scale47 = __msa_fdiv_w(_v127, _absmax1);
+
+                    v4f32 _scale0 = (v4f32)__msa_splati_w((v4i32)_scale03, 0);
+                    v4f32 _scale1 = (v4f32)__msa_splati_w((v4i32)_scale03, 1);
+                    v4f32 _scale2 = (v4f32)__msa_splati_w((v4i32)_scale03, 2);
+                    v4f32 _scale3 = (v4f32)__msa_splati_w((v4i32)_scale03, 3);
+                    v4f32 _scale4 = (v4f32)__msa_splati_w((v4i32)_scale47, 0);
+                    v4f32 _scale5 = (v4f32)__msa_splati_w((v4i32)_scale47, 1);
+                    v4f32 _scale6 = (v4f32)__msa_splati_w((v4i32)_scale47, 2);
+                    v4f32 _scale7 = (v4f32)__msa_splati_w((v4i32)_scale47, 3);
                     kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
                     {
@@ -338,14 +315,19 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     }
                     for (; kk < max_kk0; kk++)
                     {
-                        pp[0] = float2int8(bfloat16_to_float32(*p0) * scale0);
-                        pp[1] = float2int8(bfloat16_to_float32(*p1) * scale1);
-                        pp[2] = float2int8(bfloat16_to_float32(*p2) * scale2);
-                        pp[3] = float2int8(bfloat16_to_float32(*p3) * scale3);
-                        pp[4] = float2int8(bfloat16_to_float32(*p4) * scale4);
-                        pp[5] = float2int8(bfloat16_to_float32(*p5) * scale5);
-                        pp[6] = float2int8(bfloat16_to_float32(*p6) * scale6);
-                        pp[7] = float2int8(bfloat16_to_float32(*p7) * scale7);
+                        v8i16 _p0 = (v8i16)__msa_fill_w(0);
+                        _p0 = __msa_insert_h(_p0, 0, p0[0]);
+                        _p0 = __msa_insert_h(_p0, 1, p1[0]);
+                        _p0 = __msa_insert_h(_p0, 2, p2[0]);
+                        _p0 = __msa_insert_h(_p0, 3, p3[0]);
+                        v8i16 _p1 = (v8i16)__msa_fill_w(0);
+                        _p1 = __msa_insert_h(_p1, 0, p4[0]);
+                        _p1 = __msa_insert_h(_p1, 1, p5[0]);
+                        _p1 = __msa_insert_h(_p1, 2, p6[0]);
+                        _p1 = __msa_insert_h(_p1, 3, p7[0]);
+                        v4f32 _f0 = __msa_fmul_w(bfloat2float_msa((v4i32)_p0), _scale03);
+                        v4f32 _f1 = __msa_fmul_w(bfloat2float_msa((v4i32)_p1), _scale47);
+                        ((int64_t*)pp)[0] = float2int8(_f0, _f1);
                         pp += 8;
                         p0++;
                         p1++;
@@ -372,14 +354,9 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                 p3 = p2 + A_hstep;
             }
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
-                float absmax0 = 0.f;
-                float absmax1 = 0.f;
-                float absmax2 = 0.f;
-                float absmax3 = 0.f;
-
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
                 v4f32 _absmax0 = (v4f32)__msa_fill_w(0);
                 v4f32 _absmax1 = (v4f32)__msa_fill_w(0);
@@ -400,12 +377,6 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         _absmax0 = __msa_fmax_w(_absmax0, (v4f32)__msa_and_v((v16u8)_p, _abs_mask));
                         p0a += 4;
                     }
-                    float absmax[4];
-                    __msa_st_w((v4i32)_absmax0, absmax, 0);
-                    absmax0 = absmax[0];
-                    absmax1 = absmax[1];
-                    absmax2 = absmax[2];
-                    absmax3 = absmax[3];
                 }
 
                 if (elempack == 1)
@@ -425,36 +396,33 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                         p2a += 4;
                         p3a += 4;
                     }
-                    absmax0 = __msa_reduce_fmax_w(_absmax0);
-                    absmax1 = __msa_reduce_fmax_w(_absmax1);
-                    absmax2 = __msa_reduce_fmax_w(_absmax2);
-                    absmax3 = __msa_reduce_fmax_w(_absmax3);
+                    transpose4x4_ps(_absmax0, _absmax1, _absmax2, _absmax3);
+                    _absmax0 = __msa_fmax_w(__msa_fmax_w(_absmax0, _absmax1), __msa_fmax_w(_absmax2, _absmax3));
+
                     for (; kk < max_kk0; kk++)
                     {
-                        float v0 = bfloat16_to_float32(*p0a++);
-                        float v1 = bfloat16_to_float32(*p1a++);
-                        float v2 = bfloat16_to_float32(*p2a++);
-                        float v3 = bfloat16_to_float32(*p3a++);
-                        absmax0 = std::max(absmax0, fabsf(v0));
-                        absmax1 = std::max(absmax1, fabsf(v1));
-                        absmax2 = std::max(absmax2, fabsf(v2));
-                        absmax3 = std::max(absmax3, fabsf(v3));
+                        v8i16 _p = (v8i16)__msa_fill_w(0);
+                        _p = __msa_insert_h(_p, 0, p0a[0]);
+                        _p = __msa_insert_h(_p, 1, p1a[0]);
+                        _p = __msa_insert_h(_p, 2, p2a[0]);
+                        _p = __msa_insert_h(_p, 3, p3a[0]);
+                        _absmax0 = __msa_fmax_w(_absmax0, (v4f32)__msa_and_v((v16u8)bfloat2float_msa((v4i32)_p), _abs_mask));
+                        p0a++;
+                        p1a++;
+                        p2a++;
+                        p3a++;
                     }
                 }
 
-                const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
-                const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
-                const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
-                const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
-                pd[0] = absmax0 / 127.f;
-                pd[1] = absmax1 / 127.f;
-                pd[2] = absmax2 / 127.f;
-                pd[3] = absmax3 / 127.f;
+                const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                __msa_st_w((v4i32)__msa_fdiv_w(_absmax0, _v127), pd, 0);
                 pd += 4;
+
+                _absmax0 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax0, (v4f32)__msa_fill_w(0)), (v16u8)_absmax0, (v16u8)_v127);
+                v4f32 _scale = __msa_fdiv_w(_v127, _absmax0);
 
                 if (elempack == 4)
                 {
-                    v4f32 _scale = (v4f32)__msa_set_w(__msa_load_w(&scale0), __msa_load_w(&scale1), __msa_load_w(&scale2), __msa_load_w(&scale3));
                     kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
                     {
@@ -483,10 +451,10 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
 
                 if (elempack == 1)
                 {
-                    v4f32 _scale0 = __msa_fill_w_f32(scale0);
-                    v4f32 _scale1 = __msa_fill_w_f32(scale1);
-                    v4f32 _scale2 = __msa_fill_w_f32(scale2);
-                    v4f32 _scale3 = __msa_fill_w_f32(scale3);
+                    v4f32 _scale0 = (v4f32)__msa_splati_w((v4i32)_scale, 0);
+                    v4f32 _scale1 = (v4f32)__msa_splati_w((v4i32)_scale, 1);
+                    v4f32 _scale2 = (v4f32)__msa_splati_w((v4i32)_scale, 2);
+                    v4f32 _scale3 = (v4f32)__msa_splati_w((v4i32)_scale, 3);
                     kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
                     {
@@ -509,15 +477,18 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     }
                     for (; kk < max_kk0; kk++)
                     {
-                        float v0 = bfloat16_to_float32(*p0++);
-                        float v1 = bfloat16_to_float32(*p1++);
-                        float v2 = bfloat16_to_float32(*p2++);
-                        float v3 = bfloat16_to_float32(*p3++);
-                        pp[0] = float2int8(v0 * scale0);
-                        pp[1] = float2int8(v1 * scale1);
-                        pp[2] = float2int8(v2 * scale2);
-                        pp[3] = float2int8(v3 * scale3);
+                        v8i16 _p = (v8i16)__msa_fill_w(0);
+                        _p = __msa_insert_h(_p, 0, p0[0]);
+                        _p = __msa_insert_h(_p, 1, p1[0]);
+                        _p = __msa_insert_h(_p, 2, p2[0]);
+                        _p = __msa_insert_h(_p, 3, p3[0]);
+                        v4f32 _f = __msa_fmul_w(bfloat2float_msa((v4i32)_p), _scale);
+                        ((int*)pp)[0] = __msa_copy_s_w((v4i32)float2int8(_f), 0);
                         pp += 4;
+                        p0++;
+                        p1++;
+                        p2++;
+                        p3++;
                     }
                 }
             }
@@ -528,7 +499,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
             const unsigned short* p0 = (const unsigned short*)A + (size_t)(i + ii) * A_hstep + k;
             const unsigned short* p1 = p0 + A_hstep;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax0 = 0.f;
@@ -586,7 +557,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
         {
             const unsigned short* p0 = (const unsigned short*)A + (size_t)(i + ii) * A_hstep + k;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax0 = 0.f;
@@ -635,7 +606,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
             const unsigned short* p0 = (const unsigned short*)A + (size_t)(i + ii) * A_hstep + k * 8;
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -654,29 +625,16 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     p0a += 8;
                 }
 
-                float absmax[8];
-                __msa_st_w((v4i32)_absmax0, absmax, 0);
-                __msa_st_w((v4i32)_absmax1, absmax + 4, 0);
-                const float scale0 = absmax[0] == 0.f ? 1.f : 127.f / absmax[0];
-                const float scale1 = absmax[1] == 0.f ? 1.f : 127.f / absmax[1];
-                const float scale2 = absmax[2] == 0.f ? 1.f : 127.f / absmax[2];
-                const float scale3 = absmax[3] == 0.f ? 1.f : 127.f / absmax[3];
-                const float scale4 = absmax[4] == 0.f ? 1.f : 127.f / absmax[4];
-                const float scale5 = absmax[5] == 0.f ? 1.f : 127.f / absmax[5];
-                const float scale6 = absmax[6] == 0.f ? 1.f : 127.f / absmax[6];
-                const float scale7 = absmax[7] == 0.f ? 1.f : 127.f / absmax[7];
-                pd[0] = absmax[0] / 127.f;
-                pd[1] = absmax[1] / 127.f;
-                pd[2] = absmax[2] / 127.f;
-                pd[3] = absmax[3] / 127.f;
-                pd[4] = absmax[4] / 127.f;
-                pd[5] = absmax[5] / 127.f;
-                pd[6] = absmax[6] / 127.f;
-                pd[7] = absmax[7] / 127.f;
+                const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                __msa_st_w((v4i32)__msa_fdiv_w(_absmax0, _v127), pd, 0);
+                __msa_st_w((v4i32)__msa_fdiv_w(_absmax1, _v127), pd + 4, 0);
                 pd += 8;
 
-                v4f32 _scale03 = (v4f32)__msa_set_w(__msa_load_w(&scale0), __msa_load_w(&scale1), __msa_load_w(&scale2), __msa_load_w(&scale3));
-                v4f32 _scale47 = (v4f32)__msa_set_w(__msa_load_w(&scale4), __msa_load_w(&scale5), __msa_load_w(&scale6), __msa_load_w(&scale7));
+                const v4f32 _zero = (v4f32)__msa_fill_w(0);
+                v4f32 _absmax03 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax0, _zero), (v16u8)_absmax0, (v16u8)_v127);
+                v4f32 _absmax47 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax1, _zero), (v16u8)_absmax1, (v16u8)_v127);
+                v4f32 _scale03 = __msa_fdiv_w(_v127, _absmax03);
+                v4f32 _scale47 = __msa_fdiv_w(_v127, _absmax47);
 
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
@@ -728,7 +686,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
             const unsigned short* p1 = p0 + A_hstep * 4;
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -749,29 +707,16 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     p1a += 4;
                 }
 
-                float absmax[8];
-                __msa_st_w((v4i32)_absmax0, absmax, 0);
-                __msa_st_w((v4i32)_absmax1, absmax + 4, 0);
-                const float scale0 = absmax[0] == 0.f ? 1.f : 127.f / absmax[0];
-                const float scale1 = absmax[1] == 0.f ? 1.f : 127.f / absmax[1];
-                const float scale2 = absmax[2] == 0.f ? 1.f : 127.f / absmax[2];
-                const float scale3 = absmax[3] == 0.f ? 1.f : 127.f / absmax[3];
-                const float scale4 = absmax[4] == 0.f ? 1.f : 127.f / absmax[4];
-                const float scale5 = absmax[5] == 0.f ? 1.f : 127.f / absmax[5];
-                const float scale6 = absmax[6] == 0.f ? 1.f : 127.f / absmax[6];
-                const float scale7 = absmax[7] == 0.f ? 1.f : 127.f / absmax[7];
-                pd[0] = absmax[0] / 127.f;
-                pd[1] = absmax[1] / 127.f;
-                pd[2] = absmax[2] / 127.f;
-                pd[3] = absmax[3] / 127.f;
-                pd[4] = absmax[4] / 127.f;
-                pd[5] = absmax[5] / 127.f;
-                pd[6] = absmax[6] / 127.f;
-                pd[7] = absmax[7] / 127.f;
+                const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                __msa_st_w((v4i32)__msa_fdiv_w(_absmax0, _v127), pd, 0);
+                __msa_st_w((v4i32)__msa_fdiv_w(_absmax1, _v127), pd + 4, 0);
                 pd += 8;
 
-                v4f32 _scale03 = (v4f32)__msa_set_w(__msa_load_w(&scale0), __msa_load_w(&scale1), __msa_load_w(&scale2), __msa_load_w(&scale3));
-                v4f32 _scale47 = (v4f32)__msa_set_w(__msa_load_w(&scale4), __msa_load_w(&scale5), __msa_load_w(&scale6), __msa_load_w(&scale7));
+                const v4f32 _zero = (v4f32)__msa_fill_w(0);
+                v4f32 _absmax03 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax0, _zero), (v16u8)_absmax0, (v16u8)_v127);
+                v4f32 _absmax47 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax1, _zero), (v16u8)_absmax1, (v16u8)_v127);
+                v4f32 _scale03 = __msa_fdiv_w(_v127, _absmax03);
+                v4f32 _scale47 = __msa_fdiv_w(_v127, _absmax47);
 
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
@@ -832,7 +777,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
 
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -901,54 +846,57 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     psa += 4;
                 }
 
-                float absmax0 = __msa_reduce_fmax_w(_absmax0);
-                float absmax1 = __msa_reduce_fmax_w(_absmax1);
-                float absmax2 = __msa_reduce_fmax_w(_absmax2);
-                float absmax3 = __msa_reduce_fmax_w(_absmax3);
-                float absmax4 = __msa_reduce_fmax_w(_absmax4);
-                float absmax5 = __msa_reduce_fmax_w(_absmax5);
-                float absmax6 = __msa_reduce_fmax_w(_absmax6);
-                float absmax7 = __msa_reduce_fmax_w(_absmax7);
+                transpose4x4_ps(_absmax0, _absmax1, _absmax2, _absmax3);
+                transpose4x4_ps(_absmax4, _absmax5, _absmax6, _absmax7);
+                _absmax0 = __msa_fmax_w(__msa_fmax_w(_absmax0, _absmax1), __msa_fmax_w(_absmax2, _absmax3));
+                _absmax1 = __msa_fmax_w(__msa_fmax_w(_absmax4, _absmax5), __msa_fmax_w(_absmax6, _absmax7));
 
                 for (; kk < max_kk0; kk++)
                 {
-                    const float s = *psa++;
-                    absmax0 = std::max(absmax0, fabsf(bfloat16_to_float32(*p0a++)) * s);
-                    absmax1 = std::max(absmax1, fabsf(bfloat16_to_float32(*p1a++)) * s);
-                    absmax2 = std::max(absmax2, fabsf(bfloat16_to_float32(*p2a++)) * s);
-                    absmax3 = std::max(absmax3, fabsf(bfloat16_to_float32(*p3a++)) * s);
-                    absmax4 = std::max(absmax4, fabsf(bfloat16_to_float32(*p4a++)) * s);
-                    absmax5 = std::max(absmax5, fabsf(bfloat16_to_float32(*p5a++)) * s);
-                    absmax6 = std::max(absmax6, fabsf(bfloat16_to_float32(*p6a++)) * s);
-                    absmax7 = std::max(absmax7, fabsf(bfloat16_to_float32(*p7a++)) * s);
+                    v8i16 _p0 = (v8i16)__msa_fill_w(0);
+                    _p0 = __msa_insert_h(_p0, 0, p0a[0]);
+                    _p0 = __msa_insert_h(_p0, 1, p1a[0]);
+                    _p0 = __msa_insert_h(_p0, 2, p2a[0]);
+                    _p0 = __msa_insert_h(_p0, 3, p3a[0]);
+                    v8i16 _p1 = (v8i16)__msa_fill_w(0);
+                    _p1 = __msa_insert_h(_p1, 0, p4a[0]);
+                    _p1 = __msa_insert_h(_p1, 1, p5a[0]);
+                    _p1 = __msa_insert_h(_p1, 2, p6a[0]);
+                    _p1 = __msa_insert_h(_p1, 3, p7a[0]);
+                    v4f32 _s = __msa_fill_w_f32(*psa++);
+                    v4f32 _f0 = __msa_fmul_w((v4f32)__msa_and_v((v16u8)bfloat2float_msa((v4i32)_p0), _abs_mask), _s);
+                    v4f32 _f1 = __msa_fmul_w((v4f32)__msa_and_v((v16u8)bfloat2float_msa((v4i32)_p1), _abs_mask), _s);
+                    _absmax0 = __msa_fmax_w(_absmax0, _f0);
+                    _absmax1 = __msa_fmax_w(_absmax1, _f1);
+                    p0a++;
+                    p1a++;
+                    p2a++;
+                    p3a++;
+                    p4a++;
+                    p5a++;
+                    p6a++;
+                    p7a++;
                 }
 
-                const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
-                const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
-                const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
-                const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
-                const float scale4 = absmax4 == 0.f ? 1.f : 127.f / absmax4;
-                const float scale5 = absmax5 == 0.f ? 1.f : 127.f / absmax5;
-                const float scale6 = absmax6 == 0.f ? 1.f : 127.f / absmax6;
-                const float scale7 = absmax7 == 0.f ? 1.f : 127.f / absmax7;
-                pd[0] = absmax0 / 127.f;
-                pd[1] = absmax1 / 127.f;
-                pd[2] = absmax2 / 127.f;
-                pd[3] = absmax3 / 127.f;
-                pd[4] = absmax4 / 127.f;
-                pd[5] = absmax5 / 127.f;
-                pd[6] = absmax6 / 127.f;
-                pd[7] = absmax7 / 127.f;
+                const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                __msa_st_w((v4i32)__msa_fdiv_w(_absmax0, _v127), pd, 0);
+                __msa_st_w((v4i32)__msa_fdiv_w(_absmax1, _v127), pd + 4, 0);
                 pd += 8;
 
-                v4f32 _scale0 = __msa_fill_w_f32(scale0);
-                v4f32 _scale1 = __msa_fill_w_f32(scale1);
-                v4f32 _scale2 = __msa_fill_w_f32(scale2);
-                v4f32 _scale3 = __msa_fill_w_f32(scale3);
-                v4f32 _scale4 = __msa_fill_w_f32(scale4);
-                v4f32 _scale5 = __msa_fill_w_f32(scale5);
-                v4f32 _scale6 = __msa_fill_w_f32(scale6);
-                v4f32 _scale7 = __msa_fill_w_f32(scale7);
+                const v4f32 _zero = (v4f32)__msa_fill_w(0);
+                _absmax0 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax0, _zero), (v16u8)_absmax0, (v16u8)_v127);
+                _absmax1 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax1, _zero), (v16u8)_absmax1, (v16u8)_v127);
+                v4f32 _scale03 = __msa_fdiv_w(_v127, _absmax0);
+                v4f32 _scale47 = __msa_fdiv_w(_v127, _absmax1);
+
+                v4f32 _scale0 = (v4f32)__msa_splati_w((v4i32)_scale03, 0);
+                v4f32 _scale1 = (v4f32)__msa_splati_w((v4i32)_scale03, 1);
+                v4f32 _scale2 = (v4f32)__msa_splati_w((v4i32)_scale03, 2);
+                v4f32 _scale3 = (v4f32)__msa_splati_w((v4i32)_scale03, 3);
+                v4f32 _scale4 = (v4f32)__msa_splati_w((v4i32)_scale47, 0);
+                v4f32 _scale5 = (v4f32)__msa_splati_w((v4i32)_scale47, 1);
+                v4f32 _scale6 = (v4f32)__msa_splati_w((v4i32)_scale47, 2);
+                v4f32 _scale7 = (v4f32)__msa_splati_w((v4i32)_scale47, 3);
                 kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
@@ -995,15 +943,20 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    const float s = *ps++;
-                    pp[0] = float2int8(bfloat16_to_float32(*p0) * s * scale0);
-                    pp[1] = float2int8(bfloat16_to_float32(*p1) * s * scale1);
-                    pp[2] = float2int8(bfloat16_to_float32(*p2) * s * scale2);
-                    pp[3] = float2int8(bfloat16_to_float32(*p3) * s * scale3);
-                    pp[4] = float2int8(bfloat16_to_float32(*p4) * s * scale4);
-                    pp[5] = float2int8(bfloat16_to_float32(*p5) * s * scale5);
-                    pp[6] = float2int8(bfloat16_to_float32(*p6) * s * scale6);
-                    pp[7] = float2int8(bfloat16_to_float32(*p7) * s * scale7);
+                    v8i16 _p0 = (v8i16)__msa_fill_w(0);
+                    _p0 = __msa_insert_h(_p0, 0, p0[0]);
+                    _p0 = __msa_insert_h(_p0, 1, p1[0]);
+                    _p0 = __msa_insert_h(_p0, 2, p2[0]);
+                    _p0 = __msa_insert_h(_p0, 3, p3[0]);
+                    v8i16 _p1 = (v8i16)__msa_fill_w(0);
+                    _p1 = __msa_insert_h(_p1, 0, p4[0]);
+                    _p1 = __msa_insert_h(_p1, 1, p5[0]);
+                    _p1 = __msa_insert_h(_p1, 2, p6[0]);
+                    _p1 = __msa_insert_h(_p1, 3, p7[0]);
+                    v4f32 _s = __msa_fill_w_f32(*ps++);
+                    v4f32 _f0 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa((v4i32)_p0), _s), _scale03);
+                    v4f32 _f1 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa((v4i32)_p1), _s), _scale47);
+                    ((int64_t*)pp)[0] = float2int8(_f0, _f1);
                     pp += 8;
                     p0++;
                     p1++;
@@ -1024,7 +977,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
             const unsigned short* p0 = (const unsigned short*)A + (size_t)(i + ii) * A_hstep + k * 4;
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -1039,19 +992,13 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     p0a += 4;
                 }
 
-                float absmax[4];
-                __msa_st_w((v4i32)_absmax, absmax, 0);
-                const float scale0 = absmax[0] == 0.f ? 1.f : 127.f / absmax[0];
-                const float scale1 = absmax[1] == 0.f ? 1.f : 127.f / absmax[1];
-                const float scale2 = absmax[2] == 0.f ? 1.f : 127.f / absmax[2];
-                const float scale3 = absmax[3] == 0.f ? 1.f : 127.f / absmax[3];
-                pd[0] = absmax[0] / 127.f;
-                pd[1] = absmax[1] / 127.f;
-                pd[2] = absmax[2] / 127.f;
-                pd[3] = absmax[3] / 127.f;
+                const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                __msa_st_w((v4i32)__msa_fdiv_w(_absmax, _v127), pd, 0);
                 pd += 4;
 
-                v4f32 _scale = (v4f32)__msa_set_w(__msa_load_w(&scale0), __msa_load_w(&scale1), __msa_load_w(&scale2), __msa_load_w(&scale3));
+                const v4f32 _zero = (v4f32)__msa_fill_w(0);
+                v4f32 _absmax_safe = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax, _zero), (v16u8)_absmax, (v16u8)_v127);
+                v4f32 _scale = __msa_fdiv_w(_v127, _absmax_safe);
 
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
@@ -1090,14 +1037,9 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
 
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
-                float absmax0 = 0.f;
-                float absmax1 = 0.f;
-                float absmax2 = 0.f;
-                float absmax3 = 0.f;
-
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
                 v4f32 _absmax0 = (v4f32)__msa_fill_w(0);
                 v4f32 _absmax1 = (v4f32)__msa_fill_w(0);
@@ -1135,39 +1077,36 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     p3a += 4;
                     psa += 4;
                 }
-                absmax0 = __msa_reduce_fmax_w(_absmax0);
-                absmax1 = __msa_reduce_fmax_w(_absmax1);
-                absmax2 = __msa_reduce_fmax_w(_absmax2);
-                absmax3 = __msa_reduce_fmax_w(_absmax3);
+                transpose4x4_ps(_absmax0, _absmax1, _absmax2, _absmax3);
+                _absmax0 = __msa_fmax_w(__msa_fmax_w(_absmax0, _absmax1), __msa_fmax_w(_absmax2, _absmax3));
 
                 for (; kk < max_kk0; kk++)
                 {
-                    float v0 = bfloat16_to_float32(*p0a++);
-                    float v1 = bfloat16_to_float32(*p1a++);
-                    float v2 = bfloat16_to_float32(*p2a++);
-                    float v3 = bfloat16_to_float32(*p3a++);
-                    const float s = *psa++;
-
-                    absmax0 = std::max(absmax0, fabsf(v0) * s);
-                    absmax1 = std::max(absmax1, fabsf(v1) * s);
-                    absmax2 = std::max(absmax2, fabsf(v2) * s);
-                    absmax3 = std::max(absmax3, fabsf(v3) * s);
+                    v8i16 _p = (v8i16)__msa_fill_w(0);
+                    _p = __msa_insert_h(_p, 0, p0a[0]);
+                    _p = __msa_insert_h(_p, 1, p1a[0]);
+                    _p = __msa_insert_h(_p, 2, p2a[0]);
+                    _p = __msa_insert_h(_p, 3, p3a[0]);
+                    v4f32 _f = (v4f32)__msa_and_v((v16u8)bfloat2float_msa((v4i32)_p), _abs_mask);
+                    _f = __msa_fmul_w(_f, __msa_fill_w_f32(*psa++));
+                    _absmax0 = __msa_fmax_w(_absmax0, _f);
+                    p0a++;
+                    p1a++;
+                    p2a++;
+                    p3a++;
                 }
 
-                const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
-                const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
-                const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
-                const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
-                pd[0] = absmax0 / 127.f;
-                pd[1] = absmax1 / 127.f;
-                pd[2] = absmax2 / 127.f;
-                pd[3] = absmax3 / 127.f;
+                const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                __msa_st_w((v4i32)__msa_fdiv_w(_absmax0, _v127), pd, 0);
                 pd += 4;
 
-                v4f32 _scale0 = __msa_fill_w_f32(scale0);
-                v4f32 _scale1 = __msa_fill_w_f32(scale1);
-                v4f32 _scale2 = __msa_fill_w_f32(scale2);
-                v4f32 _scale3 = __msa_fill_w_f32(scale3);
+                _absmax0 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax0, (v4f32)__msa_fill_w(0)), (v16u8)_absmax0, (v16u8)_v127);
+                v4f32 _scale = __msa_fdiv_w(_v127, _absmax0);
+
+                v4f32 _scale0 = (v4f32)__msa_splati_w((v4i32)_scale, 0);
+                v4f32 _scale1 = (v4f32)__msa_splati_w((v4i32)_scale, 1);
+                v4f32 _scale2 = (v4f32)__msa_splati_w((v4i32)_scale, 2);
+                v4f32 _scale3 = (v4f32)__msa_splati_w((v4i32)_scale, 3);
                 kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
@@ -1196,20 +1135,19 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    float v0 = bfloat16_to_float32(*p0++);
-                    float v1 = bfloat16_to_float32(*p1++);
-                    float v2 = bfloat16_to_float32(*p2++);
-                    float v3 = bfloat16_to_float32(*p3++);
-                    const float s = *ps++;
-                    v0 *= s;
-                    v1 *= s;
-                    v2 *= s;
-                    v3 *= s;
-                    pp[0] = float2int8(v0 * scale0);
-                    pp[1] = float2int8(v1 * scale1);
-                    pp[2] = float2int8(v2 * scale2);
-                    pp[3] = float2int8(v3 * scale3);
+                    v8i16 _p = (v8i16)__msa_fill_w(0);
+                    _p = __msa_insert_h(_p, 0, p0[0]);
+                    _p = __msa_insert_h(_p, 1, p1[0]);
+                    _p = __msa_insert_h(_p, 2, p2[0]);
+                    _p = __msa_insert_h(_p, 3, p3[0]);
+                    v4f32 _f = __msa_fmul_w(bfloat2float_msa((v4i32)_p), __msa_fill_w_f32(*ps++));
+                    _f = __msa_fmul_w(_f, _scale);
+                    ((int*)pp)[0] = __msa_copy_s_w((v4i32)float2int8(_f), 0);
                     pp += 4;
+                    p0++;
+                    p1++;
+                    p2++;
+                    p3++;
                 }
             }
         }
@@ -1222,7 +1160,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
 
         const float* ps = input_scale_ptr;
 
-        for (int g = 0; g < block_count; g++)
+        for (int g = 0; g < local_block_count; g++)
         {
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             float absmax0 = 0.f;
@@ -1297,7 +1235,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
 
         const float* ps = input_scale_ptr;
 
-        for (int g = 0; g < block_count; g++)
+        for (int g = 0; g < local_block_count; g++)
         {
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
             float absmax0 = 0.f;
@@ -1347,7 +1285,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
     const int elempack = A.elempack;
     signed char* pp = AT_tile;
     float* pd = AT_descales_tile;
-    const int block_count = (max_kk + block_size - 1) / block_size;
+    const int local_block_count = (max_kk + block_size - 1) / block_size;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     if (input_scales.empty())
@@ -1360,142 +1298,108 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             {
                 const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + (i + ii) * 8;
 
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
-                    v4f32 _absmax00 = (v4f32)__msa_fill_w(0);
-                    v4f32 _absmax01 = (v4f32)__msa_fill_w(0);
-                    v4f32 _absmax10 = (v4f32)__msa_fill_w(0);
-                    v4f32 _absmax11 = (v4f32)__msa_fill_w(0);
-                    v4f32 _absmax20 = (v4f32)__msa_fill_w(0);
-                    v4f32 _absmax21 = (v4f32)__msa_fill_w(0);
-                    v4f32 _absmax30 = (v4f32)__msa_fill_w(0);
-                    v4f32 _absmax31 = (v4f32)__msa_fill_w(0);
-                    v4f32 _absmax40 = (v4f32)__msa_fill_w(0);
-                    v4f32 _absmax41 = (v4f32)__msa_fill_w(0);
-                    v4f32 _absmax50 = (v4f32)__msa_fill_w(0);
-                    v4f32 _absmax51 = (v4f32)__msa_fill_w(0);
-                    v4f32 _absmax60 = (v4f32)__msa_fill_w(0);
-                    v4f32 _absmax61 = (v4f32)__msa_fill_w(0);
-                    v4f32 _absmax70 = (v4f32)__msa_fill_w(0);
-                    v4f32 _absmax71 = (v4f32)__msa_fill_w(0);
+                    v4f32 _absmax0 = (v4f32)__msa_fill_w(0);
+                    v4f32 _absmax1 = (v4f32)__msa_fill_w(0);
+                    v4f32 _absmax2 = (v4f32)__msa_fill_w(0);
+                    v4f32 _absmax3 = (v4f32)__msa_fill_w(0);
+                    v4f32 _absmax4 = (v4f32)__msa_fill_w(0);
+                    v4f32 _absmax5 = (v4f32)__msa_fill_w(0);
+                    v4f32 _absmax6 = (v4f32)__msa_fill_w(0);
+                    v4f32 _absmax7 = (v4f32)__msa_fill_w(0);
 
                     const unsigned short* p0a = p0;
                     for (int kk = 0; kk < max_kk0; kk += 8)
                     {
                         v4f32 _p00 = bfloat2float_msa(p0a);
-                        _absmax00 = __msa_fmax_w(_absmax00, (v4f32)__msa_and_v((v16u8)_p00, _abs_mask));
+                        _absmax0 = __msa_fmax_w(_absmax0, (v4f32)__msa_and_v((v16u8)_p00, _abs_mask));
                         v4f32 _p01 = bfloat2float_msa(p0a + 4);
-                        _absmax01 = __msa_fmax_w(_absmax01, (v4f32)__msa_and_v((v16u8)_p01, _abs_mask));
+                        _absmax0 = __msa_fmax_w(_absmax0, (v4f32)__msa_and_v((v16u8)_p01, _abs_mask));
                         v4f32 _p10 = bfloat2float_msa(p0a + 8);
-                        _absmax10 = __msa_fmax_w(_absmax10, (v4f32)__msa_and_v((v16u8)_p10, _abs_mask));
+                        _absmax1 = __msa_fmax_w(_absmax1, (v4f32)__msa_and_v((v16u8)_p10, _abs_mask));
                         v4f32 _p11 = bfloat2float_msa(p0a + 12);
-                        _absmax11 = __msa_fmax_w(_absmax11, (v4f32)__msa_and_v((v16u8)_p11, _abs_mask));
+                        _absmax1 = __msa_fmax_w(_absmax1, (v4f32)__msa_and_v((v16u8)_p11, _abs_mask));
                         v4f32 _p20 = bfloat2float_msa(p0a + 16);
-                        _absmax20 = __msa_fmax_w(_absmax20, (v4f32)__msa_and_v((v16u8)_p20, _abs_mask));
+                        _absmax2 = __msa_fmax_w(_absmax2, (v4f32)__msa_and_v((v16u8)_p20, _abs_mask));
                         v4f32 _p21 = bfloat2float_msa(p0a + 20);
-                        _absmax21 = __msa_fmax_w(_absmax21, (v4f32)__msa_and_v((v16u8)_p21, _abs_mask));
+                        _absmax2 = __msa_fmax_w(_absmax2, (v4f32)__msa_and_v((v16u8)_p21, _abs_mask));
                         v4f32 _p30 = bfloat2float_msa(p0a + 24);
-                        _absmax30 = __msa_fmax_w(_absmax30, (v4f32)__msa_and_v((v16u8)_p30, _abs_mask));
+                        _absmax3 = __msa_fmax_w(_absmax3, (v4f32)__msa_and_v((v16u8)_p30, _abs_mask));
                         v4f32 _p31 = bfloat2float_msa(p0a + 28);
-                        _absmax31 = __msa_fmax_w(_absmax31, (v4f32)__msa_and_v((v16u8)_p31, _abs_mask));
+                        _absmax3 = __msa_fmax_w(_absmax3, (v4f32)__msa_and_v((v16u8)_p31, _abs_mask));
                         v4f32 _p40 = bfloat2float_msa(p0a + 32);
-                        _absmax40 = __msa_fmax_w(_absmax40, (v4f32)__msa_and_v((v16u8)_p40, _abs_mask));
+                        _absmax4 = __msa_fmax_w(_absmax4, (v4f32)__msa_and_v((v16u8)_p40, _abs_mask));
                         v4f32 _p41 = bfloat2float_msa(p0a + 36);
-                        _absmax41 = __msa_fmax_w(_absmax41, (v4f32)__msa_and_v((v16u8)_p41, _abs_mask));
+                        _absmax4 = __msa_fmax_w(_absmax4, (v4f32)__msa_and_v((v16u8)_p41, _abs_mask));
                         v4f32 _p50 = bfloat2float_msa(p0a + 40);
-                        _absmax50 = __msa_fmax_w(_absmax50, (v4f32)__msa_and_v((v16u8)_p50, _abs_mask));
+                        _absmax5 = __msa_fmax_w(_absmax5, (v4f32)__msa_and_v((v16u8)_p50, _abs_mask));
                         v4f32 _p51 = bfloat2float_msa(p0a + 44);
-                        _absmax51 = __msa_fmax_w(_absmax51, (v4f32)__msa_and_v((v16u8)_p51, _abs_mask));
+                        _absmax5 = __msa_fmax_w(_absmax5, (v4f32)__msa_and_v((v16u8)_p51, _abs_mask));
                         v4f32 _p60 = bfloat2float_msa(p0a + 48);
-                        _absmax60 = __msa_fmax_w(_absmax60, (v4f32)__msa_and_v((v16u8)_p60, _abs_mask));
+                        _absmax6 = __msa_fmax_w(_absmax6, (v4f32)__msa_and_v((v16u8)_p60, _abs_mask));
                         v4f32 _p61 = bfloat2float_msa(p0a + 52);
-                        _absmax61 = __msa_fmax_w(_absmax61, (v4f32)__msa_and_v((v16u8)_p61, _abs_mask));
+                        _absmax6 = __msa_fmax_w(_absmax6, (v4f32)__msa_and_v((v16u8)_p61, _abs_mask));
                         v4f32 _p70 = bfloat2float_msa(p0a + 56);
-                        _absmax70 = __msa_fmax_w(_absmax70, (v4f32)__msa_and_v((v16u8)_p70, _abs_mask));
+                        _absmax7 = __msa_fmax_w(_absmax7, (v4f32)__msa_and_v((v16u8)_p70, _abs_mask));
                         v4f32 _p71 = bfloat2float_msa(p0a + 60);
-                        _absmax71 = __msa_fmax_w(_absmax71, (v4f32)__msa_and_v((v16u8)_p71, _abs_mask));
+                        _absmax7 = __msa_fmax_w(_absmax7, (v4f32)__msa_and_v((v16u8)_p71, _abs_mask));
                         p0a += A_hstep * 8;
                     }
 
-                    const float absmax0 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax00, _absmax01));
-                    const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
-                    pd[0] = absmax0 / 127.f;
-                    const float absmax1 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax10, _absmax11));
-                    const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
-                    pd[1] = absmax1 / 127.f;
-                    const float absmax2 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax20, _absmax21));
-                    const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
-                    pd[2] = absmax2 / 127.f;
-                    const float absmax3 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax30, _absmax31));
-                    const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
-                    pd[3] = absmax3 / 127.f;
-                    const float absmax4 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax40, _absmax41));
-                    const float scale4 = absmax4 == 0.f ? 1.f : 127.f / absmax4;
-                    pd[4] = absmax4 / 127.f;
-                    const float absmax5 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax50, _absmax51));
-                    const float scale5 = absmax5 == 0.f ? 1.f : 127.f / absmax5;
-                    pd[5] = absmax5 / 127.f;
-                    const float absmax6 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax60, _absmax61));
-                    const float scale6 = absmax6 == 0.f ? 1.f : 127.f / absmax6;
-                    pd[6] = absmax6 / 127.f;
-                    const float absmax7 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax70, _absmax71));
-                    const float scale7 = absmax7 == 0.f ? 1.f : 127.f / absmax7;
-                    pd[7] = absmax7 / 127.f;
+                    transpose4x4_ps(_absmax0, _absmax1, _absmax2, _absmax3);
+                    transpose4x4_ps(_absmax4, _absmax5, _absmax6, _absmax7);
+                    _absmax0 = __msa_fmax_w(__msa_fmax_w(_absmax0, _absmax1), __msa_fmax_w(_absmax2, _absmax3));
+                    _absmax1 = __msa_fmax_w(__msa_fmax_w(_absmax4, _absmax5), __msa_fmax_w(_absmax6, _absmax7));
+
+                    const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                    __msa_st_w((v4i32)__msa_fdiv_w(_absmax0, _v127), pd, 0);
+                    __msa_st_w((v4i32)__msa_fdiv_w(_absmax1, _v127), pd + 4, 0);
                     pd += 8;
 
+                    const v4f32 _zero = (v4f32)__msa_fill_w(0);
+                    _absmax0 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax0, _zero), (v16u8)_absmax0, (v16u8)_v127);
+                    _absmax1 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax1, _zero), (v16u8)_absmax1, (v16u8)_v127);
+                    v4f32 _scale03 = __msa_fdiv_w(_v127, _absmax0);
+                    v4f32 _scale47 = __msa_fdiv_w(_v127, _absmax1);
+
+                    v4f32 _scale0 = (v4f32)__msa_splati_w((v4i32)_scale03, 0);
+                    v4f32 _scale1 = (v4f32)__msa_splati_w((v4i32)_scale03, 1);
+                    v4f32 _scale2 = (v4f32)__msa_splati_w((v4i32)_scale03, 2);
+                    v4f32 _scale3 = (v4f32)__msa_splati_w((v4i32)_scale03, 3);
+                    v4f32 _scale4 = (v4f32)__msa_splati_w((v4i32)_scale47, 0);
+                    v4f32 _scale5 = (v4f32)__msa_splati_w((v4i32)_scale47, 1);
+                    v4f32 _scale6 = (v4f32)__msa_splati_w((v4i32)_scale47, 2);
+                    v4f32 _scale7 = (v4f32)__msa_splati_w((v4i32)_scale47, 3);
                     int kk = 0;
                     for (; kk < max_kk0; kk += 8)
                     {
-                        v4f32 _p00 = bfloat2float_msa(p0);
-                        _p00 = __msa_fmul_w(_p00, __msa_fill_w_f32(scale0));
-                        ((int*)pp)[0] = __msa_copy_s_w((v4i32)float2int8(_p00), 0);
-                        v4f32 _p01 = bfloat2float_msa(p0 + 4);
-                        _p01 = __msa_fmul_w(_p01, __msa_fill_w_f32(scale0));
-                        ((int*)pp)[8] = __msa_copy_s_w((v4i32)float2int8(_p01), 0);
-                        v4f32 _p10 = bfloat2float_msa(p0 + 8);
-                        _p10 = __msa_fmul_w(_p10, __msa_fill_w_f32(scale1));
-                        ((int*)pp)[1] = __msa_copy_s_w((v4i32)float2int8(_p10), 0);
-                        v4f32 _p11 = bfloat2float_msa(p0 + 12);
-                        _p11 = __msa_fmul_w(_p11, __msa_fill_w_f32(scale1));
-                        ((int*)pp)[9] = __msa_copy_s_w((v4i32)float2int8(_p11), 0);
-                        v4f32 _p20 = bfloat2float_msa(p0 + 16);
-                        _p20 = __msa_fmul_w(_p20, __msa_fill_w_f32(scale2));
-                        ((int*)pp)[2] = __msa_copy_s_w((v4i32)float2int8(_p20), 0);
-                        v4f32 _p21 = bfloat2float_msa(p0 + 20);
-                        _p21 = __msa_fmul_w(_p21, __msa_fill_w_f32(scale2));
-                        ((int*)pp)[10] = __msa_copy_s_w((v4i32)float2int8(_p21), 0);
-                        v4f32 _p30 = bfloat2float_msa(p0 + 24);
-                        _p30 = __msa_fmul_w(_p30, __msa_fill_w_f32(scale3));
-                        ((int*)pp)[3] = __msa_copy_s_w((v4i32)float2int8(_p30), 0);
-                        v4f32 _p31 = bfloat2float_msa(p0 + 28);
-                        _p31 = __msa_fmul_w(_p31, __msa_fill_w_f32(scale3));
-                        ((int*)pp)[11] = __msa_copy_s_w((v4i32)float2int8(_p31), 0);
-                        v4f32 _p40 = bfloat2float_msa(p0 + 32);
-                        _p40 = __msa_fmul_w(_p40, __msa_fill_w_f32(scale4));
-                        ((int*)pp)[4] = __msa_copy_s_w((v4i32)float2int8(_p40), 0);
-                        v4f32 _p41 = bfloat2float_msa(p0 + 36);
-                        _p41 = __msa_fmul_w(_p41, __msa_fill_w_f32(scale4));
-                        ((int*)pp)[12] = __msa_copy_s_w((v4i32)float2int8(_p41), 0);
-                        v4f32 _p50 = bfloat2float_msa(p0 + 40);
-                        _p50 = __msa_fmul_w(_p50, __msa_fill_w_f32(scale5));
-                        ((int*)pp)[5] = __msa_copy_s_w((v4i32)float2int8(_p50), 0);
-                        v4f32 _p51 = bfloat2float_msa(p0 + 44);
-                        _p51 = __msa_fmul_w(_p51, __msa_fill_w_f32(scale5));
-                        ((int*)pp)[13] = __msa_copy_s_w((v4i32)float2int8(_p51), 0);
-                        v4f32 _p60 = bfloat2float_msa(p0 + 48);
-                        _p60 = __msa_fmul_w(_p60, __msa_fill_w_f32(scale6));
-                        ((int*)pp)[6] = __msa_copy_s_w((v4i32)float2int8(_p60), 0);
-                        v4f32 _p61 = bfloat2float_msa(p0 + 52);
-                        _p61 = __msa_fmul_w(_p61, __msa_fill_w_f32(scale6));
-                        ((int*)pp)[14] = __msa_copy_s_w((v4i32)float2int8(_p61), 0);
-                        v4f32 _p70 = bfloat2float_msa(p0 + 56);
-                        _p70 = __msa_fmul_w(_p70, __msa_fill_w_f32(scale7));
-                        ((int*)pp)[7] = __msa_copy_s_w((v4i32)float2int8(_p70), 0);
-                        v4f32 _p71 = bfloat2float_msa(p0 + 60);
-                        _p71 = __msa_fmul_w(_p71, __msa_fill_w_f32(scale7));
-                        ((int*)pp)[15] = __msa_copy_s_w((v4i32)float2int8(_p71), 0);
+                        v4f32 _p00 = __msa_fmul_w(bfloat2float_msa(p0), _scale0);
+                        v4f32 _p01 = __msa_fmul_w(bfloat2float_msa(p0 + 4), _scale0);
+                        v4f32 _p10 = __msa_fmul_w(bfloat2float_msa(p0 + 8), _scale1);
+                        v4f32 _p11 = __msa_fmul_w(bfloat2float_msa(p0 + 12), _scale1);
+                        v4f32 _p20 = __msa_fmul_w(bfloat2float_msa(p0 + 16), _scale2);
+                        v4f32 _p21 = __msa_fmul_w(bfloat2float_msa(p0 + 20), _scale2);
+                        v4f32 _p30 = __msa_fmul_w(bfloat2float_msa(p0 + 24), _scale3);
+                        v4f32 _p31 = __msa_fmul_w(bfloat2float_msa(p0 + 28), _scale3);
+                        v4f32 _p40 = __msa_fmul_w(bfloat2float_msa(p0 + 32), _scale4);
+                        v4f32 _p41 = __msa_fmul_w(bfloat2float_msa(p0 + 36), _scale4);
+                        v4f32 _p50 = __msa_fmul_w(bfloat2float_msa(p0 + 40), _scale5);
+                        v4f32 _p51 = __msa_fmul_w(bfloat2float_msa(p0 + 44), _scale5);
+                        v4f32 _p60 = __msa_fmul_w(bfloat2float_msa(p0 + 48), _scale6);
+                        v4f32 _p61 = __msa_fmul_w(bfloat2float_msa(p0 + 52), _scale6);
+                        v4f32 _p70 = __msa_fmul_w(bfloat2float_msa(p0 + 56), _scale7);
+                        v4f32 _p71 = __msa_fmul_w(bfloat2float_msa(p0 + 60), _scale7);
+                        ((int64_t*)pp)[0] = float2int8(_p00, _p10);
+                        ((int64_t*)pp)[1] = float2int8(_p20, _p30);
+                        ((int64_t*)pp)[2] = float2int8(_p40, _p50);
+                        ((int64_t*)pp)[3] = float2int8(_p60, _p70);
+                        ((int64_t*)pp)[4] = float2int8(_p01, _p11);
+                        ((int64_t*)pp)[5] = float2int8(_p21, _p31);
+                        ((int64_t*)pp)[6] = float2int8(_p41, _p51);
+                        ((int64_t*)pp)[7] = float2int8(_p61, _p71);
                         pp += 64;
                         p0 += A_hstep * 8;
                     }
@@ -1505,7 +1409,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             {
                 const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + (i + ii) * 4;
 
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -1540,59 +1444,45 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         p0a += A_hstep * 4;
                     }
 
-                    const float absmax0 = __msa_reduce_fmax_w(_absmax00);
-                    const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
-                    pd[0] = absmax0 / 127.f;
-                    const float absmax1 = __msa_reduce_fmax_w(_absmax10);
-                    const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
-                    pd[1] = absmax1 / 127.f;
-                    const float absmax2 = __msa_reduce_fmax_w(_absmax20);
-                    const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
-                    pd[2] = absmax2 / 127.f;
-                    const float absmax3 = __msa_reduce_fmax_w(_absmax30);
-                    const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
-                    pd[3] = absmax3 / 127.f;
-                    const float absmax4 = __msa_reduce_fmax_w(_absmax40);
-                    const float scale4 = absmax4 == 0.f ? 1.f : 127.f / absmax4;
-                    pd[4] = absmax4 / 127.f;
-                    const float absmax5 = __msa_reduce_fmax_w(_absmax50);
-                    const float scale5 = absmax5 == 0.f ? 1.f : 127.f / absmax5;
-                    pd[5] = absmax5 / 127.f;
-                    const float absmax6 = __msa_reduce_fmax_w(_absmax60);
-                    const float scale6 = absmax6 == 0.f ? 1.f : 127.f / absmax6;
-                    pd[6] = absmax6 / 127.f;
-                    const float absmax7 = __msa_reduce_fmax_w(_absmax70);
-                    const float scale7 = absmax7 == 0.f ? 1.f : 127.f / absmax7;
-                    pd[7] = absmax7 / 127.f;
+                    transpose4x4_ps(_absmax00, _absmax10, _absmax20, _absmax30);
+                    transpose4x4_ps(_absmax40, _absmax50, _absmax60, _absmax70);
+                    _absmax00 = __msa_fmax_w(__msa_fmax_w(_absmax00, _absmax10), __msa_fmax_w(_absmax20, _absmax30));
+                    _absmax10 = __msa_fmax_w(__msa_fmax_w(_absmax40, _absmax50), __msa_fmax_w(_absmax60, _absmax70));
+
+                    const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                    __msa_st_w((v4i32)__msa_fdiv_w(_absmax00, _v127), pd, 0);
+                    __msa_st_w((v4i32)__msa_fdiv_w(_absmax10, _v127), pd + 4, 0);
                     pd += 8;
 
+                    const v4f32 _zero = (v4f32)__msa_fill_w(0);
+                    _absmax00 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax00, _zero), (v16u8)_absmax00, (v16u8)_v127);
+                    _absmax10 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax10, _zero), (v16u8)_absmax10, (v16u8)_v127);
+                    v4f32 _scale03 = __msa_fdiv_w(_v127, _absmax00);
+                    v4f32 _scale47 = __msa_fdiv_w(_v127, _absmax10);
+
+                    v4f32 _scale0 = (v4f32)__msa_splati_w((v4i32)_scale03, 0);
+                    v4f32 _scale1 = (v4f32)__msa_splati_w((v4i32)_scale03, 1);
+                    v4f32 _scale2 = (v4f32)__msa_splati_w((v4i32)_scale03, 2);
+                    v4f32 _scale3 = (v4f32)__msa_splati_w((v4i32)_scale03, 3);
+                    v4f32 _scale4 = (v4f32)__msa_splati_w((v4i32)_scale47, 0);
+                    v4f32 _scale5 = (v4f32)__msa_splati_w((v4i32)_scale47, 1);
+                    v4f32 _scale6 = (v4f32)__msa_splati_w((v4i32)_scale47, 2);
+                    v4f32 _scale7 = (v4f32)__msa_splati_w((v4i32)_scale47, 3);
                     int kk = 0;
                     for (; kk < max_kk0; kk += 4)
                     {
-                        v4f32 _p00 = bfloat2float_msa(p0);
-                        _p00 = __msa_fmul_w(_p00, __msa_fill_w_f32(scale0));
-                        ((int*)pp)[0] = __msa_copy_s_w((v4i32)float2int8(_p00), 0);
-                        v4f32 _p10 = bfloat2float_msa(p0 + 4);
-                        _p10 = __msa_fmul_w(_p10, __msa_fill_w_f32(scale1));
-                        ((int*)pp)[1] = __msa_copy_s_w((v4i32)float2int8(_p10), 0);
-                        v4f32 _p20 = bfloat2float_msa(p0 + 8);
-                        _p20 = __msa_fmul_w(_p20, __msa_fill_w_f32(scale2));
-                        ((int*)pp)[2] = __msa_copy_s_w((v4i32)float2int8(_p20), 0);
-                        v4f32 _p30 = bfloat2float_msa(p0 + 12);
-                        _p30 = __msa_fmul_w(_p30, __msa_fill_w_f32(scale3));
-                        ((int*)pp)[3] = __msa_copy_s_w((v4i32)float2int8(_p30), 0);
-                        v4f32 _p40 = bfloat2float_msa(p0 + 16);
-                        _p40 = __msa_fmul_w(_p40, __msa_fill_w_f32(scale4));
-                        ((int*)pp)[4] = __msa_copy_s_w((v4i32)float2int8(_p40), 0);
-                        v4f32 _p50 = bfloat2float_msa(p0 + 20);
-                        _p50 = __msa_fmul_w(_p50, __msa_fill_w_f32(scale5));
-                        ((int*)pp)[5] = __msa_copy_s_w((v4i32)float2int8(_p50), 0);
-                        v4f32 _p60 = bfloat2float_msa(p0 + 24);
-                        _p60 = __msa_fmul_w(_p60, __msa_fill_w_f32(scale6));
-                        ((int*)pp)[6] = __msa_copy_s_w((v4i32)float2int8(_p60), 0);
-                        v4f32 _p70 = bfloat2float_msa(p0 + 28);
-                        _p70 = __msa_fmul_w(_p70, __msa_fill_w_f32(scale7));
-                        ((int*)pp)[7] = __msa_copy_s_w((v4i32)float2int8(_p70), 0);
+                        v4f32 _p00 = __msa_fmul_w(bfloat2float_msa(p0), _scale0);
+                        v4f32 _p10 = __msa_fmul_w(bfloat2float_msa(p0 + 4), _scale1);
+                        v4f32 _p20 = __msa_fmul_w(bfloat2float_msa(p0 + 8), _scale2);
+                        v4f32 _p30 = __msa_fmul_w(bfloat2float_msa(p0 + 12), _scale3);
+                        v4f32 _p40 = __msa_fmul_w(bfloat2float_msa(p0 + 16), _scale4);
+                        v4f32 _p50 = __msa_fmul_w(bfloat2float_msa(p0 + 20), _scale5);
+                        v4f32 _p60 = __msa_fmul_w(bfloat2float_msa(p0 + 24), _scale6);
+                        v4f32 _p70 = __msa_fmul_w(bfloat2float_msa(p0 + 28), _scale7);
+                        ((int64_t*)pp)[0] = float2int8(_p00, _p10);
+                        ((int64_t*)pp)[1] = float2int8(_p20, _p30);
+                        ((int64_t*)pp)[2] = float2int8(_p40, _p50);
+                        ((int64_t*)pp)[3] = float2int8(_p60, _p70);
                         pp += 32;
                         p0 += A_hstep * 4;
                     }
@@ -1603,7 +1493,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             {
                 const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + i + ii;
 
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -1621,29 +1511,16 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         p0a += A_hstep;
                     }
 
-                    float absmax[8];
-                    __msa_st_w((v4i32)_absmax0, absmax, 0);
-                    __msa_st_w((v4i32)_absmax1, absmax + 4, 0);
-                    const float scale0 = absmax[0] == 0.f ? 1.f : 127.f / absmax[0];
-                    const float scale1 = absmax[1] == 0.f ? 1.f : 127.f / absmax[1];
-                    const float scale2 = absmax[2] == 0.f ? 1.f : 127.f / absmax[2];
-                    const float scale3 = absmax[3] == 0.f ? 1.f : 127.f / absmax[3];
-                    const float scale4 = absmax[4] == 0.f ? 1.f : 127.f / absmax[4];
-                    const float scale5 = absmax[5] == 0.f ? 1.f : 127.f / absmax[5];
-                    const float scale6 = absmax[6] == 0.f ? 1.f : 127.f / absmax[6];
-                    const float scale7 = absmax[7] == 0.f ? 1.f : 127.f / absmax[7];
-                    pd[0] = absmax[0] / 127.f;
-                    pd[1] = absmax[1] / 127.f;
-                    pd[2] = absmax[2] / 127.f;
-                    pd[3] = absmax[3] / 127.f;
-                    pd[4] = absmax[4] / 127.f;
-                    pd[5] = absmax[5] / 127.f;
-                    pd[6] = absmax[6] / 127.f;
-                    pd[7] = absmax[7] / 127.f;
+                    const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                    __msa_st_w((v4i32)__msa_fdiv_w(_absmax0, _v127), pd, 0);
+                    __msa_st_w((v4i32)__msa_fdiv_w(_absmax1, _v127), pd + 4, 0);
                     pd += 8;
 
-                    v4f32 _scale03 = (v4f32)__msa_set_w(__msa_load_w(&scale0), __msa_load_w(&scale1), __msa_load_w(&scale2), __msa_load_w(&scale3));
-                    v4f32 _scale47 = (v4f32)__msa_set_w(__msa_load_w(&scale4), __msa_load_w(&scale5), __msa_load_w(&scale6), __msa_load_w(&scale7));
+                    const v4f32 _zero = (v4f32)__msa_fill_w(0);
+                    v4f32 _absmax03 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax0, _zero), (v16u8)_absmax0, (v16u8)_v127);
+                    v4f32 _absmax47 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax1, _zero), (v16u8)_absmax1, (v16u8)_v127);
+                    v4f32 _scale03 = __msa_fdiv_w(_v127, _absmax03);
+                    v4f32 _scale47 = __msa_fdiv_w(_v127, _absmax47);
                     kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
                     {
@@ -1694,7 +1571,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             {
                 const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + (i + ii) * 8;
 
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -1729,47 +1606,38 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         p0a += A_hstep * 8;
                     }
 
-                    const float absmax0 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax00, _absmax01));
-                    const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
-                    pd[0] = absmax0 / 127.f;
-                    const float absmax1 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax10, _absmax11));
-                    const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
-                    pd[1] = absmax1 / 127.f;
-                    const float absmax2 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax20, _absmax21));
-                    const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
-                    pd[2] = absmax2 / 127.f;
-                    const float absmax3 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax30, _absmax31));
-                    const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
-                    pd[3] = absmax3 / 127.f;
+                    _absmax00 = __msa_fmax_w(_absmax00, _absmax01);
+                    _absmax10 = __msa_fmax_w(_absmax10, _absmax11);
+                    _absmax20 = __msa_fmax_w(_absmax20, _absmax21);
+                    _absmax30 = __msa_fmax_w(_absmax30, _absmax31);
+                    transpose4x4_ps(_absmax00, _absmax10, _absmax20, _absmax30);
+                    _absmax00 = __msa_fmax_w(__msa_fmax_w(_absmax00, _absmax10), __msa_fmax_w(_absmax20, _absmax30));
+
+                    const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                    __msa_st_w((v4i32)__msa_fdiv_w(_absmax00, _v127), pd, 0);
                     pd += 4;
 
+                    _absmax00 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax00, (v4f32)__msa_fill_w(0)), (v16u8)_absmax00, (v16u8)_v127);
+                    v4f32 _scale = __msa_fdiv_w(_v127, _absmax00);
+                    v4f32 _scale0 = (v4f32)__msa_splati_w((v4i32)_scale, 0);
+                    v4f32 _scale1 = (v4f32)__msa_splati_w((v4i32)_scale, 1);
+                    v4f32 _scale2 = (v4f32)__msa_splati_w((v4i32)_scale, 2);
+                    v4f32 _scale3 = (v4f32)__msa_splati_w((v4i32)_scale, 3);
                     int kk = 0;
                     for (; kk < max_kk0; kk += 8)
                     {
-                        v4f32 _p00 = bfloat2float_msa(p0);
-                        _p00 = __msa_fmul_w(_p00, __msa_fill_w_f32(scale0));
-                        ((int*)pp)[0] = __msa_copy_s_w((v4i32)float2int8(_p00), 0);
-                        v4f32 _p01 = bfloat2float_msa(p0 + 4);
-                        _p01 = __msa_fmul_w(_p01, __msa_fill_w_f32(scale0));
-                        ((int*)pp)[4] = __msa_copy_s_w((v4i32)float2int8(_p01), 0);
-                        v4f32 _p10 = bfloat2float_msa(p0 + 8);
-                        _p10 = __msa_fmul_w(_p10, __msa_fill_w_f32(scale1));
-                        ((int*)pp)[1] = __msa_copy_s_w((v4i32)float2int8(_p10), 0);
-                        v4f32 _p11 = bfloat2float_msa(p0 + 12);
-                        _p11 = __msa_fmul_w(_p11, __msa_fill_w_f32(scale1));
-                        ((int*)pp)[5] = __msa_copy_s_w((v4i32)float2int8(_p11), 0);
-                        v4f32 _p20 = bfloat2float_msa(p0 + 16);
-                        _p20 = __msa_fmul_w(_p20, __msa_fill_w_f32(scale2));
-                        ((int*)pp)[2] = __msa_copy_s_w((v4i32)float2int8(_p20), 0);
-                        v4f32 _p21 = bfloat2float_msa(p0 + 20);
-                        _p21 = __msa_fmul_w(_p21, __msa_fill_w_f32(scale2));
-                        ((int*)pp)[6] = __msa_copy_s_w((v4i32)float2int8(_p21), 0);
-                        v4f32 _p30 = bfloat2float_msa(p0 + 24);
-                        _p30 = __msa_fmul_w(_p30, __msa_fill_w_f32(scale3));
-                        ((int*)pp)[3] = __msa_copy_s_w((v4i32)float2int8(_p30), 0);
-                        v4f32 _p31 = bfloat2float_msa(p0 + 28);
-                        _p31 = __msa_fmul_w(_p31, __msa_fill_w_f32(scale3));
-                        ((int*)pp)[7] = __msa_copy_s_w((v4i32)float2int8(_p31), 0);
+                        v4f32 _p00 = __msa_fmul_w(bfloat2float_msa(p0), _scale0);
+                        v4f32 _p01 = __msa_fmul_w(bfloat2float_msa(p0 + 4), _scale0);
+                        v4f32 _p10 = __msa_fmul_w(bfloat2float_msa(p0 + 8), _scale1);
+                        v4f32 _p11 = __msa_fmul_w(bfloat2float_msa(p0 + 12), _scale1);
+                        v4f32 _p20 = __msa_fmul_w(bfloat2float_msa(p0 + 16), _scale2);
+                        v4f32 _p21 = __msa_fmul_w(bfloat2float_msa(p0 + 20), _scale2);
+                        v4f32 _p30 = __msa_fmul_w(bfloat2float_msa(p0 + 24), _scale3);
+                        v4f32 _p31 = __msa_fmul_w(bfloat2float_msa(p0 + 28), _scale3);
+                        ((int64_t*)pp)[0] = float2int8(_p00, _p10);
+                        ((int64_t*)pp)[1] = float2int8(_p20, _p30);
+                        ((int64_t*)pp)[2] = float2int8(_p01, _p11);
+                        ((int64_t*)pp)[3] = float2int8(_p21, _p31);
                         pp += 32;
                         p0 += A_hstep * 8;
                     }
@@ -1779,7 +1647,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             {
                 const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + (i + ii) * 4;
 
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -1802,35 +1670,28 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         p0a += A_hstep * 4;
                     }
 
-                    const float absmax0 = __msa_reduce_fmax_w(_absmax00);
-                    const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
-                    pd[0] = absmax0 / 127.f;
-                    const float absmax1 = __msa_reduce_fmax_w(_absmax10);
-                    const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
-                    pd[1] = absmax1 / 127.f;
-                    const float absmax2 = __msa_reduce_fmax_w(_absmax20);
-                    const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
-                    pd[2] = absmax2 / 127.f;
-                    const float absmax3 = __msa_reduce_fmax_w(_absmax30);
-                    const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
-                    pd[3] = absmax3 / 127.f;
+                    transpose4x4_ps(_absmax00, _absmax10, _absmax20, _absmax30);
+                    _absmax00 = __msa_fmax_w(__msa_fmax_w(_absmax00, _absmax10), __msa_fmax_w(_absmax20, _absmax30));
+
+                    const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                    __msa_st_w((v4i32)__msa_fdiv_w(_absmax00, _v127), pd, 0);
                     pd += 4;
 
+                    _absmax00 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax00, (v4f32)__msa_fill_w(0)), (v16u8)_absmax00, (v16u8)_v127);
+                    v4f32 _scale = __msa_fdiv_w(_v127, _absmax00);
+                    v4f32 _scale0 = (v4f32)__msa_splati_w((v4i32)_scale, 0);
+                    v4f32 _scale1 = (v4f32)__msa_splati_w((v4i32)_scale, 1);
+                    v4f32 _scale2 = (v4f32)__msa_splati_w((v4i32)_scale, 2);
+                    v4f32 _scale3 = (v4f32)__msa_splati_w((v4i32)_scale, 3);
                     int kk = 0;
                     for (; kk < max_kk0; kk += 4)
                     {
-                        v4f32 _p00 = bfloat2float_msa(p0);
-                        _p00 = __msa_fmul_w(_p00, __msa_fill_w_f32(scale0));
-                        ((int*)pp)[0] = __msa_copy_s_w((v4i32)float2int8(_p00), 0);
-                        v4f32 _p10 = bfloat2float_msa(p0 + 4);
-                        _p10 = __msa_fmul_w(_p10, __msa_fill_w_f32(scale1));
-                        ((int*)pp)[1] = __msa_copy_s_w((v4i32)float2int8(_p10), 0);
-                        v4f32 _p20 = bfloat2float_msa(p0 + 8);
-                        _p20 = __msa_fmul_w(_p20, __msa_fill_w_f32(scale2));
-                        ((int*)pp)[2] = __msa_copy_s_w((v4i32)float2int8(_p20), 0);
-                        v4f32 _p30 = bfloat2float_msa(p0 + 12);
-                        _p30 = __msa_fmul_w(_p30, __msa_fill_w_f32(scale3));
-                        ((int*)pp)[3] = __msa_copy_s_w((v4i32)float2int8(_p30), 0);
+                        v4f32 _p00 = __msa_fmul_w(bfloat2float_msa(p0), _scale0);
+                        v4f32 _p10 = __msa_fmul_w(bfloat2float_msa(p0 + 4), _scale1);
+                        v4f32 _p20 = __msa_fmul_w(bfloat2float_msa(p0 + 8), _scale2);
+                        v4f32 _p30 = __msa_fmul_w(bfloat2float_msa(p0 + 12), _scale3);
+                        ((int64_t*)pp)[0] = float2int8(_p00, _p10);
+                        ((int64_t*)pp)[1] = float2int8(_p20, _p30);
                         pp += 16;
                         p0 += A_hstep * 4;
                     }
@@ -1841,7 +1702,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             {
                 const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + i + ii;
 
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -1856,19 +1717,13 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         p0a += A_hstep;
                     }
 
-                    float absmax[4];
-                    __msa_st_w((v4i32)_absmax, absmax, 0);
-                    const float scale0 = absmax[0] == 0.f ? 1.f : 127.f / absmax[0];
-                    const float scale1 = absmax[1] == 0.f ? 1.f : 127.f / absmax[1];
-                    const float scale2 = absmax[2] == 0.f ? 1.f : 127.f / absmax[2];
-                    const float scale3 = absmax[3] == 0.f ? 1.f : 127.f / absmax[3];
-                    pd[0] = absmax[0] / 127.f;
-                    pd[1] = absmax[1] / 127.f;
-                    pd[2] = absmax[2] / 127.f;
-                    pd[3] = absmax[3] / 127.f;
+                    const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                    __msa_st_w((v4i32)__msa_fdiv_w(_absmax, _v127), pd, 0);
                     pd += 4;
 
-                    v4f32 _scale = (v4f32)__msa_set_w(__msa_load_w(&scale0), __msa_load_w(&scale1), __msa_load_w(&scale2), __msa_load_w(&scale3));
+                    const v4f32 _zero = (v4f32)__msa_fill_w(0);
+                    v4f32 _absmax_safe = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax, _zero), (v16u8)_absmax, (v16u8)_v127);
+                    v4f32 _scale = __msa_fdiv_w(_v127, _absmax_safe);
                     kk = 0;
                     for (; kk + 3 < max_kk0; kk += 4)
                     {
@@ -1891,14 +1746,8 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     }
                     for (; kk < max_kk0; kk++)
                     {
-                        float v0 = bfloat16_to_float32(p0[0]);
-                        float v1 = bfloat16_to_float32(p0[1]);
-                        float v2 = bfloat16_to_float32(p0[2]);
-                        float v3 = bfloat16_to_float32(p0[3]);
-                        pp[0] = float2int8(v0 * scale0);
-                        pp[1] = float2int8(v1 * scale1);
-                        pp[2] = float2int8(v2 * scale2);
-                        pp[3] = float2int8(v3 * scale3);
+                        v4f32 _p = __msa_fmul_w(bfloat2float_msa(p0), _scale);
+                        ((int*)pp)[0] = __msa_copy_s_w((v4i32)float2int8(_p), 0);
                         pp += 4;
                         p0 += A_hstep;
                     }
@@ -1913,7 +1762,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             {
                 const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + (i + ii) * 8;
 
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -1968,7 +1817,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             {
                 const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + (i + ii) * 4;
 
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -2011,7 +1860,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             if (elempack == 1)
             {
                 const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + i + ii;
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     float absmax0 = 0.f;
@@ -2073,7 +1922,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             {
                 const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + (i + ii) * 8;
 
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -2113,7 +1962,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             {
                 const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + (i + ii) * 4;
 
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -2148,7 +1997,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             {
                 const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + i + ii;
 
-                for (int g = 0; g < block_count; g++)
+                for (int g = 0; g < local_block_count; g++)
                 {
                     const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                     float absmax0 = 0.f;
@@ -2200,26 +2049,18 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + (i + ii) * 8;
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
-                v4f32 _absmax00 = (v4f32)__msa_fill_w(0);
-                v4f32 _absmax01 = (v4f32)__msa_fill_w(0);
-                v4f32 _absmax10 = (v4f32)__msa_fill_w(0);
-                v4f32 _absmax11 = (v4f32)__msa_fill_w(0);
-                v4f32 _absmax20 = (v4f32)__msa_fill_w(0);
-                v4f32 _absmax21 = (v4f32)__msa_fill_w(0);
-                v4f32 _absmax30 = (v4f32)__msa_fill_w(0);
-                v4f32 _absmax31 = (v4f32)__msa_fill_w(0);
-                v4f32 _absmax40 = (v4f32)__msa_fill_w(0);
-                v4f32 _absmax41 = (v4f32)__msa_fill_w(0);
-                v4f32 _absmax50 = (v4f32)__msa_fill_w(0);
-                v4f32 _absmax51 = (v4f32)__msa_fill_w(0);
-                v4f32 _absmax60 = (v4f32)__msa_fill_w(0);
-                v4f32 _absmax61 = (v4f32)__msa_fill_w(0);
-                v4f32 _absmax70 = (v4f32)__msa_fill_w(0);
-                v4f32 _absmax71 = (v4f32)__msa_fill_w(0);
+                v4f32 _absmax0 = (v4f32)__msa_fill_w(0);
+                v4f32 _absmax1 = (v4f32)__msa_fill_w(0);
+                v4f32 _absmax2 = (v4f32)__msa_fill_w(0);
+                v4f32 _absmax3 = (v4f32)__msa_fill_w(0);
+                v4f32 _absmax4 = (v4f32)__msa_fill_w(0);
+                v4f32 _absmax5 = (v4f32)__msa_fill_w(0);
+                v4f32 _absmax6 = (v4f32)__msa_fill_w(0);
+                v4f32 _absmax7 = (v4f32)__msa_fill_w(0);
 
                 const unsigned short* p0a = p0;
                 const float* psa = ps;
@@ -2228,120 +2069,94 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     v4f32 _s0 = (v4f32)__msa_ld_w(psa, 0);
                     v4f32 _s1 = (v4f32)__msa_ld_w(psa + 4, 0);
                     v4f32 _p00 = __msa_fmul_w(bfloat2float_msa(p0a), _s0);
-                    _absmax00 = __msa_fmax_w(_absmax00, (v4f32)__msa_and_v((v16u8)_p00, _abs_mask));
+                    _absmax0 = __msa_fmax_w(_absmax0, (v4f32)__msa_and_v((v16u8)_p00, _abs_mask));
                     v4f32 _p01 = __msa_fmul_w(bfloat2float_msa(p0a + 4), _s1);
-                    _absmax01 = __msa_fmax_w(_absmax01, (v4f32)__msa_and_v((v16u8)_p01, _abs_mask));
+                    _absmax0 = __msa_fmax_w(_absmax0, (v4f32)__msa_and_v((v16u8)_p01, _abs_mask));
                     v4f32 _p10 = __msa_fmul_w(bfloat2float_msa(p0a + 8), _s0);
-                    _absmax10 = __msa_fmax_w(_absmax10, (v4f32)__msa_and_v((v16u8)_p10, _abs_mask));
+                    _absmax1 = __msa_fmax_w(_absmax1, (v4f32)__msa_and_v((v16u8)_p10, _abs_mask));
                     v4f32 _p11 = __msa_fmul_w(bfloat2float_msa(p0a + 12), _s1);
-                    _absmax11 = __msa_fmax_w(_absmax11, (v4f32)__msa_and_v((v16u8)_p11, _abs_mask));
+                    _absmax1 = __msa_fmax_w(_absmax1, (v4f32)__msa_and_v((v16u8)_p11, _abs_mask));
                     v4f32 _p20 = __msa_fmul_w(bfloat2float_msa(p0a + 16), _s0);
-                    _absmax20 = __msa_fmax_w(_absmax20, (v4f32)__msa_and_v((v16u8)_p20, _abs_mask));
+                    _absmax2 = __msa_fmax_w(_absmax2, (v4f32)__msa_and_v((v16u8)_p20, _abs_mask));
                     v4f32 _p21 = __msa_fmul_w(bfloat2float_msa(p0a + 20), _s1);
-                    _absmax21 = __msa_fmax_w(_absmax21, (v4f32)__msa_and_v((v16u8)_p21, _abs_mask));
+                    _absmax2 = __msa_fmax_w(_absmax2, (v4f32)__msa_and_v((v16u8)_p21, _abs_mask));
                     v4f32 _p30 = __msa_fmul_w(bfloat2float_msa(p0a + 24), _s0);
-                    _absmax30 = __msa_fmax_w(_absmax30, (v4f32)__msa_and_v((v16u8)_p30, _abs_mask));
+                    _absmax3 = __msa_fmax_w(_absmax3, (v4f32)__msa_and_v((v16u8)_p30, _abs_mask));
                     v4f32 _p31 = __msa_fmul_w(bfloat2float_msa(p0a + 28), _s1);
-                    _absmax31 = __msa_fmax_w(_absmax31, (v4f32)__msa_and_v((v16u8)_p31, _abs_mask));
+                    _absmax3 = __msa_fmax_w(_absmax3, (v4f32)__msa_and_v((v16u8)_p31, _abs_mask));
                     v4f32 _p40 = __msa_fmul_w(bfloat2float_msa(p0a + 32), _s0);
-                    _absmax40 = __msa_fmax_w(_absmax40, (v4f32)__msa_and_v((v16u8)_p40, _abs_mask));
+                    _absmax4 = __msa_fmax_w(_absmax4, (v4f32)__msa_and_v((v16u8)_p40, _abs_mask));
                     v4f32 _p41 = __msa_fmul_w(bfloat2float_msa(p0a + 36), _s1);
-                    _absmax41 = __msa_fmax_w(_absmax41, (v4f32)__msa_and_v((v16u8)_p41, _abs_mask));
+                    _absmax4 = __msa_fmax_w(_absmax4, (v4f32)__msa_and_v((v16u8)_p41, _abs_mask));
                     v4f32 _p50 = __msa_fmul_w(bfloat2float_msa(p0a + 40), _s0);
-                    _absmax50 = __msa_fmax_w(_absmax50, (v4f32)__msa_and_v((v16u8)_p50, _abs_mask));
+                    _absmax5 = __msa_fmax_w(_absmax5, (v4f32)__msa_and_v((v16u8)_p50, _abs_mask));
                     v4f32 _p51 = __msa_fmul_w(bfloat2float_msa(p0a + 44), _s1);
-                    _absmax51 = __msa_fmax_w(_absmax51, (v4f32)__msa_and_v((v16u8)_p51, _abs_mask));
+                    _absmax5 = __msa_fmax_w(_absmax5, (v4f32)__msa_and_v((v16u8)_p51, _abs_mask));
                     v4f32 _p60 = __msa_fmul_w(bfloat2float_msa(p0a + 48), _s0);
-                    _absmax60 = __msa_fmax_w(_absmax60, (v4f32)__msa_and_v((v16u8)_p60, _abs_mask));
+                    _absmax6 = __msa_fmax_w(_absmax6, (v4f32)__msa_and_v((v16u8)_p60, _abs_mask));
                     v4f32 _p61 = __msa_fmul_w(bfloat2float_msa(p0a + 52), _s1);
-                    _absmax61 = __msa_fmax_w(_absmax61, (v4f32)__msa_and_v((v16u8)_p61, _abs_mask));
+                    _absmax6 = __msa_fmax_w(_absmax6, (v4f32)__msa_and_v((v16u8)_p61, _abs_mask));
                     v4f32 _p70 = __msa_fmul_w(bfloat2float_msa(p0a + 56), _s0);
-                    _absmax70 = __msa_fmax_w(_absmax70, (v4f32)__msa_and_v((v16u8)_p70, _abs_mask));
+                    _absmax7 = __msa_fmax_w(_absmax7, (v4f32)__msa_and_v((v16u8)_p70, _abs_mask));
                     v4f32 _p71 = __msa_fmul_w(bfloat2float_msa(p0a + 60), _s1);
-                    _absmax71 = __msa_fmax_w(_absmax71, (v4f32)__msa_and_v((v16u8)_p71, _abs_mask));
+                    _absmax7 = __msa_fmax_w(_absmax7, (v4f32)__msa_and_v((v16u8)_p71, _abs_mask));
                     p0a += A_hstep * 8;
                     psa += 8;
                 }
 
-                const float absmax0 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax00, _absmax01));
-                const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
-                pd[0] = absmax0 / 127.f;
-                const float absmax1 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax10, _absmax11));
-                const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
-                pd[1] = absmax1 / 127.f;
-                const float absmax2 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax20, _absmax21));
-                const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
-                pd[2] = absmax2 / 127.f;
-                const float absmax3 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax30, _absmax31));
-                const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
-                pd[3] = absmax3 / 127.f;
-                const float absmax4 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax40, _absmax41));
-                const float scale4 = absmax4 == 0.f ? 1.f : 127.f / absmax4;
-                pd[4] = absmax4 / 127.f;
-                const float absmax5 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax50, _absmax51));
-                const float scale5 = absmax5 == 0.f ? 1.f : 127.f / absmax5;
-                pd[5] = absmax5 / 127.f;
-                const float absmax6 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax60, _absmax61));
-                const float scale6 = absmax6 == 0.f ? 1.f : 127.f / absmax6;
-                pd[6] = absmax6 / 127.f;
-                const float absmax7 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax70, _absmax71));
-                const float scale7 = absmax7 == 0.f ? 1.f : 127.f / absmax7;
-                pd[7] = absmax7 / 127.f;
+                transpose4x4_ps(_absmax0, _absmax1, _absmax2, _absmax3);
+                transpose4x4_ps(_absmax4, _absmax5, _absmax6, _absmax7);
+                _absmax0 = __msa_fmax_w(__msa_fmax_w(_absmax0, _absmax1), __msa_fmax_w(_absmax2, _absmax3));
+                _absmax1 = __msa_fmax_w(__msa_fmax_w(_absmax4, _absmax5), __msa_fmax_w(_absmax6, _absmax7));
+
+                const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                __msa_st_w((v4i32)__msa_fdiv_w(_absmax0, _v127), pd, 0);
+                __msa_st_w((v4i32)__msa_fdiv_w(_absmax1, _v127), pd + 4, 0);
                 pd += 8;
 
+                const v4f32 _zero = (v4f32)__msa_fill_w(0);
+                _absmax0 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax0, _zero), (v16u8)_absmax0, (v16u8)_v127);
+                _absmax1 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax1, _zero), (v16u8)_absmax1, (v16u8)_v127);
+                v4f32 _scale03 = __msa_fdiv_w(_v127, _absmax0);
+                v4f32 _scale47 = __msa_fdiv_w(_v127, _absmax1);
+
+                v4f32 _scale0 = (v4f32)__msa_splati_w((v4i32)_scale03, 0);
+                v4f32 _scale1 = (v4f32)__msa_splati_w((v4i32)_scale03, 1);
+                v4f32 _scale2 = (v4f32)__msa_splati_w((v4i32)_scale03, 2);
+                v4f32 _scale3 = (v4f32)__msa_splati_w((v4i32)_scale03, 3);
+                v4f32 _scale4 = (v4f32)__msa_splati_w((v4i32)_scale47, 0);
+                v4f32 _scale5 = (v4f32)__msa_splati_w((v4i32)_scale47, 1);
+                v4f32 _scale6 = (v4f32)__msa_splati_w((v4i32)_scale47, 2);
+                v4f32 _scale7 = (v4f32)__msa_splati_w((v4i32)_scale47, 3);
                 int kk = 0;
                 for (; kk < max_kk0; kk += 8)
                 {
                     v4f32 _s0 = (v4f32)__msa_ld_w(ps, 0);
                     v4f32 _s1 = (v4f32)__msa_ld_w(ps + 4, 0);
-                    v4f32 _p00 = __msa_fmul_w(bfloat2float_msa(p0), _s0);
-                    _p00 = __msa_fmul_w(_p00, __msa_fill_w_f32(scale0));
-                    ((int*)pp)[0] = __msa_copy_s_w((v4i32)float2int8(_p00), 0);
-                    v4f32 _p01 = __msa_fmul_w(bfloat2float_msa(p0 + 4), _s1);
-                    _p01 = __msa_fmul_w(_p01, __msa_fill_w_f32(scale0));
-                    ((int*)pp)[8] = __msa_copy_s_w((v4i32)float2int8(_p01), 0);
-                    v4f32 _p10 = __msa_fmul_w(bfloat2float_msa(p0 + 8), _s0);
-                    _p10 = __msa_fmul_w(_p10, __msa_fill_w_f32(scale1));
-                    ((int*)pp)[1] = __msa_copy_s_w((v4i32)float2int8(_p10), 0);
-                    v4f32 _p11 = __msa_fmul_w(bfloat2float_msa(p0 + 12), _s1);
-                    _p11 = __msa_fmul_w(_p11, __msa_fill_w_f32(scale1));
-                    ((int*)pp)[9] = __msa_copy_s_w((v4i32)float2int8(_p11), 0);
-                    v4f32 _p20 = __msa_fmul_w(bfloat2float_msa(p0 + 16), _s0);
-                    _p20 = __msa_fmul_w(_p20, __msa_fill_w_f32(scale2));
-                    ((int*)pp)[2] = __msa_copy_s_w((v4i32)float2int8(_p20), 0);
-                    v4f32 _p21 = __msa_fmul_w(bfloat2float_msa(p0 + 20), _s1);
-                    _p21 = __msa_fmul_w(_p21, __msa_fill_w_f32(scale2));
-                    ((int*)pp)[10] = __msa_copy_s_w((v4i32)float2int8(_p21), 0);
-                    v4f32 _p30 = __msa_fmul_w(bfloat2float_msa(p0 + 24), _s0);
-                    _p30 = __msa_fmul_w(_p30, __msa_fill_w_f32(scale3));
-                    ((int*)pp)[3] = __msa_copy_s_w((v4i32)float2int8(_p30), 0);
-                    v4f32 _p31 = __msa_fmul_w(bfloat2float_msa(p0 + 28), _s1);
-                    _p31 = __msa_fmul_w(_p31, __msa_fill_w_f32(scale3));
-                    ((int*)pp)[11] = __msa_copy_s_w((v4i32)float2int8(_p31), 0);
-                    v4f32 _p40 = __msa_fmul_w(bfloat2float_msa(p0 + 32), _s0);
-                    _p40 = __msa_fmul_w(_p40, __msa_fill_w_f32(scale4));
-                    ((int*)pp)[4] = __msa_copy_s_w((v4i32)float2int8(_p40), 0);
-                    v4f32 _p41 = __msa_fmul_w(bfloat2float_msa(p0 + 36), _s1);
-                    _p41 = __msa_fmul_w(_p41, __msa_fill_w_f32(scale4));
-                    ((int*)pp)[12] = __msa_copy_s_w((v4i32)float2int8(_p41), 0);
-                    v4f32 _p50 = __msa_fmul_w(bfloat2float_msa(p0 + 40), _s0);
-                    _p50 = __msa_fmul_w(_p50, __msa_fill_w_f32(scale5));
-                    ((int*)pp)[5] = __msa_copy_s_w((v4i32)float2int8(_p50), 0);
-                    v4f32 _p51 = __msa_fmul_w(bfloat2float_msa(p0 + 44), _s1);
-                    _p51 = __msa_fmul_w(_p51, __msa_fill_w_f32(scale5));
-                    ((int*)pp)[13] = __msa_copy_s_w((v4i32)float2int8(_p51), 0);
-                    v4f32 _p60 = __msa_fmul_w(bfloat2float_msa(p0 + 48), _s0);
-                    _p60 = __msa_fmul_w(_p60, __msa_fill_w_f32(scale6));
-                    ((int*)pp)[6] = __msa_copy_s_w((v4i32)float2int8(_p60), 0);
-                    v4f32 _p61 = __msa_fmul_w(bfloat2float_msa(p0 + 52), _s1);
-                    _p61 = __msa_fmul_w(_p61, __msa_fill_w_f32(scale6));
-                    ((int*)pp)[14] = __msa_copy_s_w((v4i32)float2int8(_p61), 0);
-                    v4f32 _p70 = __msa_fmul_w(bfloat2float_msa(p0 + 56), _s0);
-                    _p70 = __msa_fmul_w(_p70, __msa_fill_w_f32(scale7));
-                    ((int*)pp)[7] = __msa_copy_s_w((v4i32)float2int8(_p70), 0);
-                    v4f32 _p71 = __msa_fmul_w(bfloat2float_msa(p0 + 60), _s1);
-                    _p71 = __msa_fmul_w(_p71, __msa_fill_w_f32(scale7));
-                    ((int*)pp)[15] = __msa_copy_s_w((v4i32)float2int8(_p71), 0);
+                    v4f32 _p00 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0), _s0), _scale0);
+                    v4f32 _p01 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 4), _s1), _scale0);
+                    v4f32 _p10 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 8), _s0), _scale1);
+                    v4f32 _p11 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 12), _s1), _scale1);
+                    v4f32 _p20 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 16), _s0), _scale2);
+                    v4f32 _p21 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 20), _s1), _scale2);
+                    v4f32 _p30 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 24), _s0), _scale3);
+                    v4f32 _p31 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 28), _s1), _scale3);
+                    v4f32 _p40 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 32), _s0), _scale4);
+                    v4f32 _p41 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 36), _s1), _scale4);
+                    v4f32 _p50 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 40), _s0), _scale5);
+                    v4f32 _p51 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 44), _s1), _scale5);
+                    v4f32 _p60 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 48), _s0), _scale6);
+                    v4f32 _p61 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 52), _s1), _scale6);
+                    v4f32 _p70 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 56), _s0), _scale7);
+                    v4f32 _p71 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 60), _s1), _scale7);
+                    ((int64_t*)pp)[0] = float2int8(_p00, _p10);
+                    ((int64_t*)pp)[1] = float2int8(_p20, _p30);
+                    ((int64_t*)pp)[2] = float2int8(_p40, _p50);
+                    ((int64_t*)pp)[3] = float2int8(_p60, _p70);
+                    ((int64_t*)pp)[4] = float2int8(_p01, _p11);
+                    ((int64_t*)pp)[5] = float2int8(_p21, _p31);
+                    ((int64_t*)pp)[6] = float2int8(_p41, _p51);
+                    ((int64_t*)pp)[7] = float2int8(_p61, _p71);
                     pp += 64;
                     p0 += A_hstep * 8;
                     ps += 8;
@@ -2353,7 +2168,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + (i + ii) * 4;
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -2391,60 +2206,46 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     psa += 4;
                 }
 
-                const float absmax0 = __msa_reduce_fmax_w(_absmax00);
-                const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
-                pd[0] = absmax0 / 127.f;
-                const float absmax1 = __msa_reduce_fmax_w(_absmax10);
-                const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
-                pd[1] = absmax1 / 127.f;
-                const float absmax2 = __msa_reduce_fmax_w(_absmax20);
-                const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
-                pd[2] = absmax2 / 127.f;
-                const float absmax3 = __msa_reduce_fmax_w(_absmax30);
-                const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
-                pd[3] = absmax3 / 127.f;
-                const float absmax4 = __msa_reduce_fmax_w(_absmax40);
-                const float scale4 = absmax4 == 0.f ? 1.f : 127.f / absmax4;
-                pd[4] = absmax4 / 127.f;
-                const float absmax5 = __msa_reduce_fmax_w(_absmax50);
-                const float scale5 = absmax5 == 0.f ? 1.f : 127.f / absmax5;
-                pd[5] = absmax5 / 127.f;
-                const float absmax6 = __msa_reduce_fmax_w(_absmax60);
-                const float scale6 = absmax6 == 0.f ? 1.f : 127.f / absmax6;
-                pd[6] = absmax6 / 127.f;
-                const float absmax7 = __msa_reduce_fmax_w(_absmax70);
-                const float scale7 = absmax7 == 0.f ? 1.f : 127.f / absmax7;
-                pd[7] = absmax7 / 127.f;
+                transpose4x4_ps(_absmax00, _absmax10, _absmax20, _absmax30);
+                transpose4x4_ps(_absmax40, _absmax50, _absmax60, _absmax70);
+                _absmax00 = __msa_fmax_w(__msa_fmax_w(_absmax00, _absmax10), __msa_fmax_w(_absmax20, _absmax30));
+                _absmax10 = __msa_fmax_w(__msa_fmax_w(_absmax40, _absmax50), __msa_fmax_w(_absmax60, _absmax70));
+
+                const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                __msa_st_w((v4i32)__msa_fdiv_w(_absmax00, _v127), pd, 0);
+                __msa_st_w((v4i32)__msa_fdiv_w(_absmax10, _v127), pd + 4, 0);
                 pd += 8;
 
+                const v4f32 _zero = (v4f32)__msa_fill_w(0);
+                _absmax00 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax00, _zero), (v16u8)_absmax00, (v16u8)_v127);
+                _absmax10 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax10, _zero), (v16u8)_absmax10, (v16u8)_v127);
+                v4f32 _scale03 = __msa_fdiv_w(_v127, _absmax00);
+                v4f32 _scale47 = __msa_fdiv_w(_v127, _absmax10);
+
+                v4f32 _scale0 = (v4f32)__msa_splati_w((v4i32)_scale03, 0);
+                v4f32 _scale1 = (v4f32)__msa_splati_w((v4i32)_scale03, 1);
+                v4f32 _scale2 = (v4f32)__msa_splati_w((v4i32)_scale03, 2);
+                v4f32 _scale3 = (v4f32)__msa_splati_w((v4i32)_scale03, 3);
+                v4f32 _scale4 = (v4f32)__msa_splati_w((v4i32)_scale47, 0);
+                v4f32 _scale5 = (v4f32)__msa_splati_w((v4i32)_scale47, 1);
+                v4f32 _scale6 = (v4f32)__msa_splati_w((v4i32)_scale47, 2);
+                v4f32 _scale7 = (v4f32)__msa_splati_w((v4i32)_scale47, 3);
                 int kk = 0;
                 for (; kk < max_kk0; kk += 4)
                 {
                     v4f32 _s0 = (v4f32)__msa_ld_w(ps, 0);
-                    v4f32 _p00 = __msa_fmul_w(bfloat2float_msa(p0), _s0);
-                    _p00 = __msa_fmul_w(_p00, __msa_fill_w_f32(scale0));
-                    ((int*)pp)[0] = __msa_copy_s_w((v4i32)float2int8(_p00), 0);
-                    v4f32 _p10 = __msa_fmul_w(bfloat2float_msa(p0 + 4), _s0);
-                    _p10 = __msa_fmul_w(_p10, __msa_fill_w_f32(scale1));
-                    ((int*)pp)[1] = __msa_copy_s_w((v4i32)float2int8(_p10), 0);
-                    v4f32 _p20 = __msa_fmul_w(bfloat2float_msa(p0 + 8), _s0);
-                    _p20 = __msa_fmul_w(_p20, __msa_fill_w_f32(scale2));
-                    ((int*)pp)[2] = __msa_copy_s_w((v4i32)float2int8(_p20), 0);
-                    v4f32 _p30 = __msa_fmul_w(bfloat2float_msa(p0 + 12), _s0);
-                    _p30 = __msa_fmul_w(_p30, __msa_fill_w_f32(scale3));
-                    ((int*)pp)[3] = __msa_copy_s_w((v4i32)float2int8(_p30), 0);
-                    v4f32 _p40 = __msa_fmul_w(bfloat2float_msa(p0 + 16), _s0);
-                    _p40 = __msa_fmul_w(_p40, __msa_fill_w_f32(scale4));
-                    ((int*)pp)[4] = __msa_copy_s_w((v4i32)float2int8(_p40), 0);
-                    v4f32 _p50 = __msa_fmul_w(bfloat2float_msa(p0 + 20), _s0);
-                    _p50 = __msa_fmul_w(_p50, __msa_fill_w_f32(scale5));
-                    ((int*)pp)[5] = __msa_copy_s_w((v4i32)float2int8(_p50), 0);
-                    v4f32 _p60 = __msa_fmul_w(bfloat2float_msa(p0 + 24), _s0);
-                    _p60 = __msa_fmul_w(_p60, __msa_fill_w_f32(scale6));
-                    ((int*)pp)[6] = __msa_copy_s_w((v4i32)float2int8(_p60), 0);
-                    v4f32 _p70 = __msa_fmul_w(bfloat2float_msa(p0 + 28), _s0);
-                    _p70 = __msa_fmul_w(_p70, __msa_fill_w_f32(scale7));
-                    ((int*)pp)[7] = __msa_copy_s_w((v4i32)float2int8(_p70), 0);
+                    v4f32 _p00 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0), _s0), _scale0);
+                    v4f32 _p10 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 4), _s0), _scale1);
+                    v4f32 _p20 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 8), _s0), _scale2);
+                    v4f32 _p30 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 12), _s0), _scale3);
+                    v4f32 _p40 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 16), _s0), _scale4);
+                    v4f32 _p50 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 20), _s0), _scale5);
+                    v4f32 _p60 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 24), _s0), _scale6);
+                    v4f32 _p70 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 28), _s0), _scale7);
+                    ((int64_t*)pp)[0] = float2int8(_p00, _p10);
+                    ((int64_t*)pp)[1] = float2int8(_p20, _p30);
+                    ((int64_t*)pp)[2] = float2int8(_p40, _p50);
+                    ((int64_t*)pp)[3] = float2int8(_p60, _p70);
                     pp += 32;
                     p0 += A_hstep * 4;
                     ps += 4;
@@ -2458,7 +2259,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
 
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -2482,29 +2283,16 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     p0a += A_hstep;
                 }
 
-                float absmax[8];
-                __msa_st_w((v4i32)_absmax0, absmax, 0);
-                __msa_st_w((v4i32)_absmax1, absmax + 4, 0);
-                const float scale0 = absmax[0] == 0.f ? 1.f : 127.f / absmax[0];
-                const float scale1 = absmax[1] == 0.f ? 1.f : 127.f / absmax[1];
-                const float scale2 = absmax[2] == 0.f ? 1.f : 127.f / absmax[2];
-                const float scale3 = absmax[3] == 0.f ? 1.f : 127.f / absmax[3];
-                const float scale4 = absmax[4] == 0.f ? 1.f : 127.f / absmax[4];
-                const float scale5 = absmax[5] == 0.f ? 1.f : 127.f / absmax[5];
-                const float scale6 = absmax[6] == 0.f ? 1.f : 127.f / absmax[6];
-                const float scale7 = absmax[7] == 0.f ? 1.f : 127.f / absmax[7];
-                pd[0] = absmax[0] / 127.f;
-                pd[1] = absmax[1] / 127.f;
-                pd[2] = absmax[2] / 127.f;
-                pd[3] = absmax[3] / 127.f;
-                pd[4] = absmax[4] / 127.f;
-                pd[5] = absmax[5] / 127.f;
-                pd[6] = absmax[6] / 127.f;
-                pd[7] = absmax[7] / 127.f;
+                const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                __msa_st_w((v4i32)__msa_fdiv_w(_absmax0, _v127), pd, 0);
+                __msa_st_w((v4i32)__msa_fdiv_w(_absmax1, _v127), pd + 4, 0);
                 pd += 8;
 
-                v4f32 _scale03 = (v4f32)__msa_set_w(__msa_load_w(&scale0), __msa_load_w(&scale1), __msa_load_w(&scale2), __msa_load_w(&scale3));
-                v4f32 _scale47 = (v4f32)__msa_set_w(__msa_load_w(&scale4), __msa_load_w(&scale5), __msa_load_w(&scale6), __msa_load_w(&scale7));
+                const v4f32 _zero = (v4f32)__msa_fill_w(0);
+                v4f32 _absmax03 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax0, _zero), (v16u8)_absmax0, (v16u8)_v127);
+                v4f32 _absmax47 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax1, _zero), (v16u8)_absmax1, (v16u8)_v127);
+                v4f32 _scale03 = __msa_fdiv_w(_v127, _absmax03);
+                v4f32 _scale47 = __msa_fdiv_w(_v127, _absmax47);
                 kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
@@ -2558,7 +2346,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + (i + ii) * 8;
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -2597,49 +2385,40 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     psa += 8;
                 }
 
-                const float absmax0 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax00, _absmax01));
-                const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
-                pd[0] = absmax0 / 127.f;
-                const float absmax1 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax10, _absmax11));
-                const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
-                pd[1] = absmax1 / 127.f;
-                const float absmax2 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax20, _absmax21));
-                const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
-                pd[2] = absmax2 / 127.f;
-                const float absmax3 = __msa_reduce_fmax_w(__msa_fmax_w(_absmax30, _absmax31));
-                const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
-                pd[3] = absmax3 / 127.f;
+                _absmax00 = __msa_fmax_w(_absmax00, _absmax01);
+                _absmax10 = __msa_fmax_w(_absmax10, _absmax11);
+                _absmax20 = __msa_fmax_w(_absmax20, _absmax21);
+                _absmax30 = __msa_fmax_w(_absmax30, _absmax31);
+                transpose4x4_ps(_absmax00, _absmax10, _absmax20, _absmax30);
+                _absmax00 = __msa_fmax_w(__msa_fmax_w(_absmax00, _absmax10), __msa_fmax_w(_absmax20, _absmax30));
+
+                const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                __msa_st_w((v4i32)__msa_fdiv_w(_absmax00, _v127), pd, 0);
                 pd += 4;
 
+                _absmax00 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax00, (v4f32)__msa_fill_w(0)), (v16u8)_absmax00, (v16u8)_v127);
+                v4f32 _scale = __msa_fdiv_w(_v127, _absmax00);
+                v4f32 _scale0 = (v4f32)__msa_splati_w((v4i32)_scale, 0);
+                v4f32 _scale1 = (v4f32)__msa_splati_w((v4i32)_scale, 1);
+                v4f32 _scale2 = (v4f32)__msa_splati_w((v4i32)_scale, 2);
+                v4f32 _scale3 = (v4f32)__msa_splati_w((v4i32)_scale, 3);
                 int kk = 0;
                 for (; kk < max_kk0; kk += 8)
                 {
                     v4f32 _s0 = (v4f32)__msa_ld_w(ps, 0);
                     v4f32 _s1 = (v4f32)__msa_ld_w(ps + 4, 0);
-                    v4f32 _p00 = __msa_fmul_w(bfloat2float_msa(p0), _s0);
-                    _p00 = __msa_fmul_w(_p00, __msa_fill_w_f32(scale0));
-                    ((int*)pp)[0] = __msa_copy_s_w((v4i32)float2int8(_p00), 0);
-                    v4f32 _p01 = __msa_fmul_w(bfloat2float_msa(p0 + 4), _s1);
-                    _p01 = __msa_fmul_w(_p01, __msa_fill_w_f32(scale0));
-                    ((int*)pp)[4] = __msa_copy_s_w((v4i32)float2int8(_p01), 0);
-                    v4f32 _p10 = __msa_fmul_w(bfloat2float_msa(p0 + 8), _s0);
-                    _p10 = __msa_fmul_w(_p10, __msa_fill_w_f32(scale1));
-                    ((int*)pp)[1] = __msa_copy_s_w((v4i32)float2int8(_p10), 0);
-                    v4f32 _p11 = __msa_fmul_w(bfloat2float_msa(p0 + 12), _s1);
-                    _p11 = __msa_fmul_w(_p11, __msa_fill_w_f32(scale1));
-                    ((int*)pp)[5] = __msa_copy_s_w((v4i32)float2int8(_p11), 0);
-                    v4f32 _p20 = __msa_fmul_w(bfloat2float_msa(p0 + 16), _s0);
-                    _p20 = __msa_fmul_w(_p20, __msa_fill_w_f32(scale2));
-                    ((int*)pp)[2] = __msa_copy_s_w((v4i32)float2int8(_p20), 0);
-                    v4f32 _p21 = __msa_fmul_w(bfloat2float_msa(p0 + 20), _s1);
-                    _p21 = __msa_fmul_w(_p21, __msa_fill_w_f32(scale2));
-                    ((int*)pp)[6] = __msa_copy_s_w((v4i32)float2int8(_p21), 0);
-                    v4f32 _p30 = __msa_fmul_w(bfloat2float_msa(p0 + 24), _s0);
-                    _p30 = __msa_fmul_w(_p30, __msa_fill_w_f32(scale3));
-                    ((int*)pp)[3] = __msa_copy_s_w((v4i32)float2int8(_p30), 0);
-                    v4f32 _p31 = __msa_fmul_w(bfloat2float_msa(p0 + 28), _s1);
-                    _p31 = __msa_fmul_w(_p31, __msa_fill_w_f32(scale3));
-                    ((int*)pp)[7] = __msa_copy_s_w((v4i32)float2int8(_p31), 0);
+                    v4f32 _p00 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0), _s0), _scale0);
+                    v4f32 _p01 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 4), _s1), _scale0);
+                    v4f32 _p10 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 8), _s0), _scale1);
+                    v4f32 _p11 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 12), _s1), _scale1);
+                    v4f32 _p20 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 16), _s0), _scale2);
+                    v4f32 _p21 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 20), _s1), _scale2);
+                    v4f32 _p30 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 24), _s0), _scale3);
+                    v4f32 _p31 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 28), _s1), _scale3);
+                    ((int64_t*)pp)[0] = float2int8(_p00, _p10);
+                    ((int64_t*)pp)[1] = float2int8(_p20, _p30);
+                    ((int64_t*)pp)[2] = float2int8(_p01, _p11);
+                    ((int64_t*)pp)[3] = float2int8(_p21, _p31);
                     pp += 32;
                     p0 += A_hstep * 8;
                     ps += 8;
@@ -2651,7 +2430,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + (i + ii) * 4;
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -2677,36 +2456,29 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     psa += 4;
                 }
 
-                const float absmax0 = __msa_reduce_fmax_w(_absmax00);
-                const float scale0 = absmax0 == 0.f ? 1.f : 127.f / absmax0;
-                pd[0] = absmax0 / 127.f;
-                const float absmax1 = __msa_reduce_fmax_w(_absmax10);
-                const float scale1 = absmax1 == 0.f ? 1.f : 127.f / absmax1;
-                pd[1] = absmax1 / 127.f;
-                const float absmax2 = __msa_reduce_fmax_w(_absmax20);
-                const float scale2 = absmax2 == 0.f ? 1.f : 127.f / absmax2;
-                pd[2] = absmax2 / 127.f;
-                const float absmax3 = __msa_reduce_fmax_w(_absmax30);
-                const float scale3 = absmax3 == 0.f ? 1.f : 127.f / absmax3;
-                pd[3] = absmax3 / 127.f;
+                transpose4x4_ps(_absmax00, _absmax10, _absmax20, _absmax30);
+                _absmax00 = __msa_fmax_w(__msa_fmax_w(_absmax00, _absmax10), __msa_fmax_w(_absmax20, _absmax30));
+
+                const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                __msa_st_w((v4i32)__msa_fdiv_w(_absmax00, _v127), pd, 0);
                 pd += 4;
 
+                _absmax00 = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax00, (v4f32)__msa_fill_w(0)), (v16u8)_absmax00, (v16u8)_v127);
+                v4f32 _scale = __msa_fdiv_w(_v127, _absmax00);
+                v4f32 _scale0 = (v4f32)__msa_splati_w((v4i32)_scale, 0);
+                v4f32 _scale1 = (v4f32)__msa_splati_w((v4i32)_scale, 1);
+                v4f32 _scale2 = (v4f32)__msa_splati_w((v4i32)_scale, 2);
+                v4f32 _scale3 = (v4f32)__msa_splati_w((v4i32)_scale, 3);
                 int kk = 0;
                 for (; kk < max_kk0; kk += 4)
                 {
                     v4f32 _s0 = (v4f32)__msa_ld_w(ps, 0);
-                    v4f32 _p00 = __msa_fmul_w(bfloat2float_msa(p0), _s0);
-                    _p00 = __msa_fmul_w(_p00, __msa_fill_w_f32(scale0));
-                    ((int*)pp)[0] = __msa_copy_s_w((v4i32)float2int8(_p00), 0);
-                    v4f32 _p10 = __msa_fmul_w(bfloat2float_msa(p0 + 4), _s0);
-                    _p10 = __msa_fmul_w(_p10, __msa_fill_w_f32(scale1));
-                    ((int*)pp)[1] = __msa_copy_s_w((v4i32)float2int8(_p10), 0);
-                    v4f32 _p20 = __msa_fmul_w(bfloat2float_msa(p0 + 8), _s0);
-                    _p20 = __msa_fmul_w(_p20, __msa_fill_w_f32(scale2));
-                    ((int*)pp)[2] = __msa_copy_s_w((v4i32)float2int8(_p20), 0);
-                    v4f32 _p30 = __msa_fmul_w(bfloat2float_msa(p0 + 12), _s0);
-                    _p30 = __msa_fmul_w(_p30, __msa_fill_w_f32(scale3));
-                    ((int*)pp)[3] = __msa_copy_s_w((v4i32)float2int8(_p30), 0);
+                    v4f32 _p00 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0), _s0), _scale0);
+                    v4f32 _p10 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 4), _s0), _scale1);
+                    v4f32 _p20 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 8), _s0), _scale2);
+                    v4f32 _p30 = __msa_fmul_w(__msa_fmul_w(bfloat2float_msa(p0 + 12), _s0), _scale3);
+                    ((int64_t*)pp)[0] = float2int8(_p00, _p10);
+                    ((int64_t*)pp)[1] = float2int8(_p20, _p30);
                     pp += 16;
                     p0 += A_hstep * 4;
                     ps += 4;
@@ -2720,7 +2492,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
 
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -2738,19 +2510,13 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     p0a += A_hstep;
                 }
 
-                float absmax[4];
-                __msa_st_w((v4i32)_absmax, absmax, 0);
-                const float scale0 = absmax[0] == 0.f ? 1.f : 127.f / absmax[0];
-                const float scale1 = absmax[1] == 0.f ? 1.f : 127.f / absmax[1];
-                const float scale2 = absmax[2] == 0.f ? 1.f : 127.f / absmax[2];
-                const float scale3 = absmax[3] == 0.f ? 1.f : 127.f / absmax[3];
-                pd[0] = absmax[0] / 127.f;
-                pd[1] = absmax[1] / 127.f;
-                pd[2] = absmax[2] / 127.f;
-                pd[3] = absmax[3] / 127.f;
+                const v4f32 _v127 = __msa_fill_w_f32(127.f);
+                __msa_st_w((v4i32)__msa_fdiv_w(_absmax, _v127), pd, 0);
                 pd += 4;
 
-                v4f32 _scale = (v4f32)__msa_set_w(__msa_load_w(&scale0), __msa_load_w(&scale1), __msa_load_w(&scale2), __msa_load_w(&scale3));
+                const v4f32 _zero = (v4f32)__msa_fill_w(0);
+                v4f32 _absmax_safe = (v4f32)__msa_bsel_v((v16u8)__msa_fceq_w(_absmax, _zero), (v16u8)_absmax, (v16u8)_v127);
+                v4f32 _scale = __msa_fdiv_w(_v127, _absmax_safe);
                 kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
@@ -2774,19 +2540,10 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    float v0 = bfloat16_to_float32(p0[0]);
-                    float v1 = bfloat16_to_float32(p0[1]);
-                    float v2 = bfloat16_to_float32(p0[2]);
-                    float v3 = bfloat16_to_float32(p0[3]);
                     const float s = *ps++;
-                    v0 *= s;
-                    v1 *= s;
-                    v2 *= s;
-                    v3 *= s;
-                    pp[0] = float2int8(v0 * scale0);
-                    pp[1] = float2int8(v1 * scale1);
-                    pp[2] = float2int8(v2 * scale2);
-                    pp[3] = float2int8(v3 * scale3);
+                    v4f32 _p = __msa_fmul_w(bfloat2float_msa(p0), __msa_fill_w_f32(s));
+                    _p = __msa_fmul_w(_p, _scale);
+                    ((int*)pp)[0] = __msa_copy_s_w((v4i32)float2int8(_p), 0);
                     pp += 4;
                     p0 += A_hstep;
                 }
@@ -2802,7 +2559,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + (i + ii) * 8;
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -2865,7 +2622,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + (i + ii) * 4;
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -2915,7 +2672,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + i + ii;
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax0 = 0.f;
@@ -2993,7 +2750,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + (i + ii) * 8;
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -3041,7 +2798,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
             const unsigned short* p0 = (const unsigned short*)A + (size_t)k * A_hstep + (i + ii) * 4;
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 const v16u8 _abs_mask = (v16u8)__msa_fill_w(0x7fffffff);
@@ -3083,7 +2840,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
 
             const float* ps = input_scale_ptr;
 
-            for (int g = 0; g < block_count; g++)
+            for (int g = 0; g < local_block_count; g++)
             {
                 const int max_kk0 = std::min(max_kk - g * block_size, block_size);
                 float absmax0 = 0.f;

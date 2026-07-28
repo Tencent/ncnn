@@ -23,13 +23,8 @@ static ncnn::Mat make_input_scales(int K)
 
 static void RandomizeA(ncnn::Mat& A, int transA, int block_size, const ncnn::Mat& input_scales)
 {
-    int M = A.h;
-    if (transA)
-        M = A.w;
-    if (A.dims == 3)
-        M = A.c;
-
-    const int K = transA ? A.h : A.w;
+    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h);
+    const int K = transA ? (A.dims == 3 ? A.c : A.h) : A.w;
     const float* input_scale_ptr = input_scales;
 
     for (int i = 0; i < M; i++)
@@ -49,7 +44,12 @@ static void RandomizeA(ncnn::Mat& A, int transA, int block_size, const ncnn::Mat
                 v /= input_scale_ptr[k];
 
             if (transA)
-                A.row(k)[i] = v;
+            {
+                if (A.dims == 3)
+                    A.channel(k)[i] = v;
+                else
+                    A.row(k)[i] = v;
+            }
             else
                 ptr[k] = v;
         }
@@ -247,7 +247,7 @@ static int test_gemm_block_quant(const ncnn::Mat& A, const ncnn::Mat& B, const n
 
 static int test_gemm(int M, int N, int K, int bits, int block_size, int has_input_scale = 0, int transA = 0, int output_transpose = 0, int output_N1M = 0, int dims3 = 0)
 {
-    ncnn::Mat A = transA ? ncnn::Mat(M, K) : dims3 || output_N1M ? ncnn::Mat(K, 1, M) : ncnn::Mat(K, M);
+    ncnn::Mat A = transA ? (dims3 ? ncnn::Mat(M, 1, K) : ncnn::Mat(M, K)) : dims3 || output_N1M ? ncnn::Mat(K, 1, M) : ncnn::Mat(K, M);
     ncnn::Mat B(K, N);
     ncnn::Mat input_scales;
     if (bits == 8)
@@ -668,6 +668,7 @@ static int test_gemm_3()
            || test_gemm_bias(7, 6, 64, 8, 32, RandomMat(1, 7), 1.f, 0.5f, 1, 1, 1, 0, 1, 0, 4, 4, 32)
            || test_gemm_bias(9, 8, 128, 8, 64, RandomMat(9), 1.f, 0.5f, 1, 1, 0, 1, 0, 0, 8, 8, 64)
            || test_gemm(5, 3, 65, 8, 64, 0, 0, 0, 0, 1)
+           || test_gemm(7, 9, 67, 8, 32, 0, 1, 0, 0, 1)
            || test_gemm(7, 9, 67, 8, 64, 1, 1, 1)
            || test_gemm_wq_int8_tile(1, 17, 33, 32, 1, 4, 32)
            || test_gemm_wq_int8_tile(17, 19, 35, 32, 9, 4, 32, 1, 0, 1)
@@ -719,7 +720,9 @@ int main()
     SRAND(7767517);
 
 #if NCNN_WEIGHT_QUANT
-    int ret = test_gemm_wq_int8_exact_weight_tail(33)
+    int ret = test_gemm_wq_int8_exact_weight_tail(3)
+              || test_gemm_wq_int8_exact_weight_tail(4)
+              || test_gemm_wq_int8_exact_weight_tail(33)
               || test_gemm_wq_int8_exact_weight_tail(34)
               || test_gemm_wq_int8_exact_weight_tail(35)
               || test_gemm_wq_int8_input_scale_equivalence(0, 0)

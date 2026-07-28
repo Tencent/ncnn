@@ -309,7 +309,7 @@ static NCNN_FORCEINLINE int64_t float2int8(v4f32 _vlow, v4f32 _vhigh)
     v16i8 _v16_8 = (v16i8)__msa_sat_s_h(_v16, 7);
     v2i64 _v8 = (v2i64)__msa_pckev_b(_v16_8, _v16_8);
 
-    return _v8[0];
+    return __msa_copy_s_d(_v8, 0);
 }
 
 static NCNN_FORCEINLINE v16i8 float2int8relu(v4f32 _v)
