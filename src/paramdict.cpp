@@ -294,7 +294,19 @@ int ParamDict::load_param(const DataReader& dr)
                 return -1;
             }
 
+            if (len < 0)
+            {
+                NCNN_LOGE("ParamDict invalid array length %d (id=%d)", len, id);
+                return -1;
+            }
+
             d->params[id].v.create(len);
+
+            if (len > 0 && d->params[id].v.empty())
+            {
+                NCNN_LOGE("ParamDict array allocation failed (id=%d, len=%d)", id, len);
+                return -1;
+            }
 
             for (int j = 0; j < len; j++)
             {
@@ -551,9 +563,9 @@ int ParamDict::load_param_bin(const DataReader& dr)
             swap_endianness_32(&len);
 #endif
 
-            if (len > 255)
+            if (len < 0 || len > 255)
             {
-                NCNN_LOGE("string too long (id=%d)", id);
+                NCNN_LOGE("invalid string length %d (id=%d)", len, id);
                 return -1;
             }
 
@@ -588,7 +600,19 @@ int ParamDict::load_param_bin(const DataReader& dr)
             swap_endianness_32(&len);
 #endif
 
+            if (len < 0)
+            {
+                NCNN_LOGE("ParamDict invalid array length %d (id=%d)", len, id);
+                return -1;
+            }
+
             d->params[id].v.create(len);
+
+            if (len > 0 && d->params[id].v.empty())
+            {
+                NCNN_LOGE("ParamDict array allocation failed (id=%d, len=%d)", id, len);
+                return -1;
+            }
 
             float* ptr = d->params[id].v;
             nread = dr.read(ptr, sizeof(float) * len);

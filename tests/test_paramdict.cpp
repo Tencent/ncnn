@@ -678,6 +678,46 @@ static int test_paramdict_6()
     return 0;
 }
 
+static int test_paramdict_7()
+{
+    // malformed length fields must be rejected rather than reaching Mat::create
+    // with a negative width
+
+    // text array, negative length
+    {
+        ParamDictTest pdt;
+        if (pdt.load_param("-23304=-4") == 0)
+        {
+            fprintf(stderr, "test_paramdict negative text array length not rejected\n");
+            return -1;
+        }
+    }
+
+    // binary array, negative length
+    {
+        const int mem[] = {-23304, -4, 1, 2, 3, 4, -233};
+        ParamDictTest pdt;
+        if (pdt.load_param_bin((const unsigned char*)mem) == 0)
+        {
+            fprintf(stderr, "test_paramdict negative bin array length not rejected\n");
+            return -1;
+        }
+    }
+
+    // binary string, negative length
+    {
+        const int mem[] = {-23404, -8, 0, 0, 0, -233};
+        ParamDictTest pdt;
+        if (pdt.load_param_bin((const unsigned char*)mem) == 0)
+        {
+            fprintf(stderr, "test_paramdict negative bin string length not rejected\n");
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 int main()
 {
     return 0
@@ -687,5 +727,6 @@ int main()
            || test_paramdict_3()
            || test_paramdict_4()
            || test_paramdict_5()
-           || test_paramdict_6();
+           || test_paramdict_6()
+           || test_paramdict_7();
 }
