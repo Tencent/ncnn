@@ -2850,7 +2850,6 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
         {
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
 
-
             const unsigned short* p0a = p0;
             const float* psa = ps;
             float absmax = 0.f;

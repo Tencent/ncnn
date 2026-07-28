@@ -249,7 +249,7 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 p3 += 4;
 #endif
             }
-#else  // __AVXVNNIINT8__
+#else // __AVXVNNIINT8__
 #if __AVX2__
             __m128i _a_shift = _mm_setzero_si128();
 #else
@@ -531,14 +531,12 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
 
     const int elempack = A.elempack;
 
-
     if (input_scales.empty())
     {
         signed char* pp = AT_tile;
         float* pd = AT_descales_tile;
         const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
         const int block_count = (max_kk + block_size - 1) / block_size;
-
 
         int ii = 0;
 #if __SSE2__
@@ -1681,7 +1679,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
     float* pd = AT_descales_tile;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
     const int block_count = (max_kk + block_size - 1) / block_size;
-
 
     int ii = 0;
 #if __SSE2__
@@ -2835,7 +2832,6 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
         for (int g = 0; g < block_count; g++)
         {
             const int max_kk0 = std::min(max_kk - g * block_size, block_size);
-
 
             const float* p0a = p0;
             const float* psa = ps;
@@ -6742,7 +6738,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
             }
         }
     }
-
 }
 
 static void unpack_output_tile_wq_int8_fp32(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_transpose)
@@ -15963,9 +15958,9 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
     }
 #else
 #if __SSE2__
-    TILE_M = std::max(4, tile_size / 4 * 4);
+        TILE_M = std::max(4, tile_size / 4 * 4);
 #else
-    TILE_M = std::max(2, tile_size / 2 * 2);
+        TILE_M = std::max(2, tile_size / 2 * 2);
 #endif // __SSE2__
 #endif // __AVX__
 #endif // __AVX512F__
@@ -16012,9 +16007,9 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
             }
 #else
 #if __SSE2__
-            TILE_M = std::max(4, tile_size / 4 * 4);
+                TILE_M = std::max(4, tile_size / 4 * 4);
 #else
-            TILE_M = std::max(2, tile_size / 2 * 2);
+                TILE_M = std::max(2, tile_size / 2 * 2);
 #endif // __SSE2__
 #endif // __AVX__
 #endif // __AVX512F__
@@ -16053,9 +16048,9 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
             TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
 #else
 #if __SSE2__
-        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
+            TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
 #else
-        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
+            TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
 #endif // __SSE2__
 #endif // __AVX__
 #endif // __AVX512F__
@@ -16094,9 +16089,9 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
             TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
 #else
 #if __SSE2__
-        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 3) / 4 * 4);
+            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 3) / 4 * 4);
 #else
-        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
+            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
 #endif // __SSE2__
 #endif // __AVX__
 #endif // __AVX512F__
@@ -16117,9 +16112,9 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
             TILE_M = (constant_TILE_M + 7) / 8 * 8;
 #else
 #if __SSE2__
-        TILE_M = (constant_TILE_M + 3) / 4 * 4;
+            TILE_M = (constant_TILE_M + 3) / 4 * 4;
 #else
-        TILE_M = (constant_TILE_M + 1) / 2 * 2;
+            TILE_M = (constant_TILE_M + 1) / 2 * 2;
 #endif // __SSE2__
 #endif // __AVX__
 #endif // __AVX512F__
