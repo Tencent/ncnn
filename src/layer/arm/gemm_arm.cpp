@@ -4763,16 +4763,6 @@ int Gemm_arm::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Gemm_arm::destroy_pipeline(const Option& /*opt*/)
-{
-#if NCNN_WEIGHT_QUANT
-    BT_data_wq_int8.release();
-    BT_data_wq_int8_descales.release();
-#endif
-
-    return 0;
-}
-
 int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     if (weight_block_quantize)
@@ -7170,28 +7160,10 @@ int Gemm_arm::create_pipeline_wq_int8(const Option& opt)
         // NCNN_LOGE("input_elemtype = %d", input_elemtype);
     }
 
-    if (!BT_data_wq_int8.empty() && !BT_data_wq_int8_descales.empty())
-        return 0;
-
-    if (!BT_data_wq_int8.empty() || !BT_data_wq_int8_descales.empty())
-    {
-        BT_data_wq_int8.release();
-        BT_data_wq_int8_descales.release();
-        return -100;
-    }
-
-    if (B_data.empty() || B_data_quantize_scales.empty())
-        return -100;
-
     int weight_bits;
     int block_size;
     bool has_input_scale;
-    if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0 || weight_bits != 8)
-        return -1;
-    if (has_input_scale && B_data_input_scales.empty())
-        return -100;
-    if (has_input_scale && (B_data_input_scales.elemsize != 4u || B_data_input_scales.elempack != 1 || B_data_input_scales.total() < (size_t)constantK))
-        return -1;
+    get_weight_block_quantize_params(weight_bits, block_size, has_input_scale);
 
     const int N = constantN;
     const int K = constantK;
@@ -7203,10 +7175,7 @@ int Gemm_arm::create_pipeline_wq_int8(const Option& opt)
 
     BT_data_wq_int8_descales.create(block_count, N, (size_t)4u, (Allocator*)0);
     if (BT_data_wq_int8_descales.empty())
-    {
-        BT_data_wq_int8.release();
         return -100;
-    }
 
     int TILE_M, TILE_N, TILE_K;
     get_optimal_tile_mnk_wq_int8(0, N, K, block_size, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
@@ -7244,49 +7213,9 @@ int Gemm_arm::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
 #endif
 #endif // __ARM_NEON
 
-    bool supported_A_packing = A.elempack == 1;
-#if __ARM_NEON
-    if (A.elempack == 4)
-        supported_A_packing = true;
-    if (A.elembits() == 16 && input_elemtype == 2 && use_fp16_pack8 && A.elempack == 8)
-        supported_A_packing = true;
-#endif
-    if (!supported_A_packing || (A.elembits() != 16 && A.elembits() != 32))
-    {
-        NCNN_LOGE("Gemm unsupported input");
-        return -1;
-    }
-
-    if (A.elembits() == 16 && input_elemtype == 1)
-    {
-        NCNN_LOGE("Gemm unsupported input");
-        return -1;
-    }
-
-    if (output_elemtype != 0 && output_elemtype != 1)
-    {
-        NCNN_LOGE("Gemm unsupported output type");
-        return -1;
-    }
     const int out_elemtype = output_elemtype == 1 ? 1 : input_elemtype;
 
-    if (transA && A.dims != 2)
-    {
-        NCNN_LOGE("Gemm unsupported input");
-        return -1;
-    }
-    if (!transA && A.dims != 2 && A.dims != 3)
-    {
-        NCNN_LOGE("Gemm unsupported input");
-        return -1;
-    }
-
     const int K = transA ? A.h * A.elempack : A.w;
-    if (K != constantK)
-    {
-        NCNN_LOGE("Gemm weight block quantize K mismatch");
-        return -1;
-    }
 
     int weight_bits;
     int block_size;
@@ -7294,15 +7223,12 @@ int Gemm_arm::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
     if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0 || weight_bits != 8)
         return -1;
 
-    if (has_input_scale && B_data_input_scales.empty())
-        return -100;
-
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int N = constantN;
 
     Mat C;
     Mat C_fp32;
-    int broadcast_type_C = -1;
+    int broadcast_type_C = 0;
     if (constantC)
     {
         C = C_data;
@@ -7347,32 +7273,8 @@ int Gemm_arm::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
                 broadcast_type_C = 4;
             }
 
-            bool supported_C_packing = C.elempack == 1;
-#if __ARM_NEON
-            if (C.elempack == 4)
-                supported_C_packing = true;
-            if (C.elembits() == 16 && input_elemtype == 2 && use_fp16_pack8 && C.elempack == 8)
-                supported_C_packing = true;
-#endif
-            if (broadcast_type_C == 0 && C.elempack != 1)
-                supported_C_packing = false;
-            if (broadcast_type_C == 4 && C.dims == 2 && C.elempack != 1)
-                supported_C_packing = false;
-
-            if (broadcast_type_C == -1 || !supported_C_packing || (C.elembits() != 16 && C.elembits() != 32))
-            {
-                NCNN_LOGE("Gemm unsupported C");
-                return -1;
-            }
-
             if (C.elembits() == 16)
             {
-                if (input_elemtype == 1)
-                {
-                    NCNN_LOGE("Gemm unsupported C");
-                    return -1;
-                }
-
                 Option opt_cast = opt;
                 opt_cast.blob_allocator = opt.workspace_allocator;
 
@@ -7404,17 +7306,11 @@ int Gemm_arm::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
         }
     }
 
-    if (!C.empty() && C.elembits() != 32)
-    {
-        NCNN_LOGE("Gemm unsupported C");
-        return -1;
-    }
-
+    const int outh = output_transpose ? N : M;
     int out_elempack = 1;
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
-        const int outh = output_transpose ? N : M;
         out_elempack = outh % 4 == 0 ? 4 : 1;
         if (out_elemtype == 2 && use_fp16_pack8)
             out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
@@ -7423,20 +7319,6 @@ int Gemm_arm::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
 
     if (output_elempack)
         out_elempack = output_elempack;
-
-    bool supported_output_packing = out_elempack == 1;
-#if __ARM_NEON
-    if (out_elempack == 4)
-        supported_output_packing = true;
-    if (out_elemtype == 2 && use_fp16_pack8 && out_elempack == 8)
-        supported_output_packing = true;
-#endif
-    const int outh = output_transpose ? N : M;
-    if (!supported_output_packing || outh % out_elempack != 0)
-    {
-        NCNN_LOGE("Gemm unsupported output packing");
-        return -1;
-    }
 
     Mat& top_blob = top_blobs[0];
     const size_t out_elemsize = (out_elemtype == 1 ? 4u : 2u) * out_elempack;

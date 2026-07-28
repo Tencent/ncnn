@@ -2029,16 +2029,6 @@ int Gemm_riscv::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Gemm_riscv::destroy_pipeline(const Option& /*opt*/)
-{
-#if NCNN_WEIGHT_QUANT
-    BT_data_wq_int8.release();
-    BT_data_wq_int8_descales.release();
-#endif
-
-    return 0;
-}
-
 int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     if (weight_block_quantize)
@@ -2472,28 +2462,10 @@ static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_desc
 
 int Gemm_riscv::create_pipeline_wq_int8(const Option& opt)
 {
-    if (!BT_data_wq_int8.empty() && !BT_data_wq_int8_descales.empty())
-        return 0;
-
-    if (!BT_data_wq_int8.empty() || !BT_data_wq_int8_descales.empty())
-    {
-        BT_data_wq_int8.release();
-        BT_data_wq_int8_descales.release();
-        return -1;
-    }
-
-    if (B_data.empty() || B_data_quantize_scales.empty())
-        return -100;
-
     int weight_bits;
     int block_size;
     bool has_input_scale;
-    if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0 || weight_bits != 8)
-        return -1;
-    if (has_input_scale && B_data_input_scales.empty())
-        return -100;
-    if (has_input_scale && (B_data_input_scales.elemsize != 4u || B_data_input_scales.elempack != 1 || B_data_input_scales.total() < (size_t)constantK))
-        return -1;
+    get_weight_block_quantize_params(weight_bits, block_size, has_input_scale);
 
     const int N = constantN;
     const int K = constantK;
@@ -2508,10 +2480,7 @@ int Gemm_riscv::create_pipeline_wq_int8(const Option& opt)
 
     BT_data_wq_int8_descales.create(block_count, N, (size_t)4u, (Allocator*)0);
     if (BT_data_wq_int8_descales.empty())
-    {
-        BT_data_wq_int8.release();
         return -100;
-    }
 
     const int nn_N = (N + TILE_N - 1) / TILE_N;
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -2547,62 +2516,20 @@ int Gemm_riscv::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vecto
 #endif // NCNN_ZFH
 #endif // __riscv_vector
 
-    if ((!transA && A.dims != 2 && A.dims != 3) || (transA && A.dims != 2) || (A.elembits() != 32 && !(A.elembits() == 16 && use_fp16_storage)))
-    {
-        NCNN_LOGE("Gemm unsupported input");
-        return -1;
-    }
-
-    if (A.elembits() == 32)
-    {
-#if __riscv_vector
-        if (A.elempack != 1 && A.elempack != packn)
-#else
-        if (A.elempack != 1)
-#endif // __riscv_vector
-        {
-            NCNN_LOGE("Gemm unsupported input");
-            return -1;
-        }
-    }
-    else
-    {
-#if NCNN_ZFH
-#if __riscv_vector
-        if (A.elempack != 1 && A.elempack != packn_fp16)
-#else
-        if (A.elempack != 1)
-#endif // __riscv_vector
-#else
-        if (A.elempack != 1)
-#endif // NCNN_ZFH
-        {
-            NCNN_LOGE("Gemm unsupported input");
-            return -1;
-        }
-    }
-
     const int K = transA ? A.h * A.elempack : A.w;
-    if (K != constantK)
-    {
-        NCNN_LOGE("Gemm weight block quantize K mismatch");
-        return -1;
-    }
 
     int weight_bits;
     int block_size;
     bool has_input_scale;
     if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0 || weight_bits != 8)
         return -1;
-    if (has_input_scale && B_data_input_scales.empty())
-        return -100;
 
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int N = constantN;
 
     Mat C;
     Mat C_fp32;
-    int broadcast_type_C = -1;
+    int broadcast_type_C = 0;
     if (constantC)
     {
         C = C_data;
@@ -2640,28 +2567,8 @@ int Gemm_riscv::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vecto
                 broadcast_type_C = 4;
             }
 
-            if (broadcast_type_C == -1 || (C.elembits() != 32 && !(C.elembits() == 16 && use_fp16_storage)))
+            if (C.elembits() == 16)
             {
-                NCNN_LOGE("Gemm unsupported C");
-                return -1;
-            }
-
-            if (C.elembits() == 16 && use_fp16_storage)
-            {
-#if NCNN_ZFH
-#if __riscv_vector
-                if (C.elempack != 1 && C.elempack != packn_fp16)
-#else
-                if (C.elempack != 1)
-#endif // __riscv_vector
-#else
-                if (C.elempack != 1)
-#endif // NCNN_ZFH
-                {
-                    NCNN_LOGE("Gemm unsupported C");
-                    return -1;
-                }
-
                 Option opt_cast = opt;
                 opt_cast.blob_allocator = opt.workspace_allocator;
 
@@ -2688,22 +2595,6 @@ int Gemm_riscv::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vecto
         }
     }
 
-    if (!C.empty() && C.elembits() != 32)
-    {
-        NCNN_LOGE("Gemm unsupported C");
-        return -1;
-    }
-
-#if __riscv_vector
-    if (!C.empty() && C.elempack != 1 && C.elempack != packn)
-#else
-    if (!C.empty() && C.elempack != 1)
-#endif // __riscv_vector
-    {
-        NCNN_LOGE("Gemm unsupported C");
-        return -1;
-    }
-
     const int out_elemtype = output_elemtype == 0 && use_fp16_storage ? 2 : 1;
     const int outh = output_transpose ? N : M;
     int out_elempack = 1;
@@ -2720,21 +2611,6 @@ int Gemm_riscv::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vecto
 #endif // __riscv_vector
     if (output_elempack)
         out_elempack = output_elempack;
-
-    bool supported_out_elempack = out_elempack == 1;
-#if __riscv_vector
-#if NCNN_ZFH
-    if (out_elemtype == 2)
-        supported_out_elempack = out_elempack == 1 || out_elempack == packn_fp16;
-    else
-#endif // NCNN_ZFH
-        supported_out_elempack = out_elempack == 1 || out_elempack == packn;
-#endif // __riscv_vector
-    if (!supported_out_elempack || outh % out_elempack != 0)
-    {
-        NCNN_LOGE("Gemm unsupported output elempack");
-        return -1;
-    }
 
     const size_t out_elemsize = (out_elemtype == 2 ? 2u : 4u) * out_elempack;
 

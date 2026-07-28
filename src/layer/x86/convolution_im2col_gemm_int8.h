@@ -2694,7 +2694,7 @@ static void convolution_im2col_gemm_transform_kernel_int8(const Mat& kernel, Mat
     {
         has_w_shift = ncnn::cpu_support_x86_avx512_vnni() || ncnn::cpu_support_x86_avx_vnni();
 #if NCNN_AVXVNNIINT8
-        if (ncnn::cpu_support_x86_avx_vnni_int8())
+        if (!ncnn::cpu_support_x86_avx512_vnni() && ncnn::cpu_support_x86_avx_vnni_int8())
             has_w_shift = false;
 #endif // NCNN_AVXVNNIINT8
     }

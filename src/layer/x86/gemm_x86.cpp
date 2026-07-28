@@ -7601,16 +7601,6 @@ int Gemm_x86::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Gemm_x86::destroy_pipeline(const Option& /*opt*/)
-{
-#if NCNN_WEIGHT_QUANT
-    BT_data_wq_int8.release();
-    BT_data_wq_int8_descales.release();
-#endif
-
-    return 0;
-}
-
 int Gemm_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     if (weight_block_quantize)
@@ -7911,7 +7901,7 @@ static int gemm_x86_int8(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob
     {
         has_w_shift = ncnn::cpu_support_x86_avx512_vnni() || ncnn::cpu_support_x86_avx_vnni();
 #if NCNN_AVXVNNIINT8
-        if (ncnn::cpu_support_x86_avx_vnni_int8())
+        if (!ncnn::cpu_support_x86_avx512_vnni() && ncnn::cpu_support_x86_avx_vnni_int8())
             has_w_shift = false;
 #endif // NCNN_AVXVNNIINT8
     }
@@ -8286,7 +8276,7 @@ static int gemm_BT_x86_int8(const Mat& A, const Mat& BT, float B_int8_scale, con
     {
         has_w_shift = ncnn::cpu_support_x86_avx512_vnni() || ncnn::cpu_support_x86_avx_vnni();
 #if NCNN_AVXVNNIINT8
-        if (ncnn::cpu_support_x86_avx_vnni_int8())
+        if (!ncnn::cpu_support_x86_avx512_vnni() && ncnn::cpu_support_x86_avx_vnni_int8())
             has_w_shift = false;
 #endif // NCNN_AVXVNNIINT8
     }
@@ -8568,7 +8558,7 @@ int Gemm_x86::create_pipeline_int8(const Option& opt)
         {
             has_w_shift = ncnn::cpu_support_x86_avx512_vnni() || ncnn::cpu_support_x86_avx_vnni();
 #if NCNN_AVXVNNIINT8
-            if (ncnn::cpu_support_x86_avx_vnni_int8())
+            if (!ncnn::cpu_support_x86_avx512_vnni() && ncnn::cpu_support_x86_avx_vnni_int8())
                 has_w_shift = false;
 #endif // NCNN_AVXVNNIINT8
         }
@@ -9605,7 +9595,7 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descal
 #if NCNN_AVX512VNNI || NCNN_AVXVNNI
     bool has_w_shift = ncnn::cpu_support_x86_avx512_vnni() || ncnn::cpu_support_x86_avx_vnni();
 #if NCNN_AVXVNNIINT8
-    if (ncnn::cpu_support_x86_avx_vnni_int8())
+    if (!ncnn::cpu_support_x86_avx512_vnni() && ncnn::cpu_support_x86_avx_vnni_int8())
         has_w_shift = false;
 #endif // NCNN_AVXVNNIINT8
     if (has_w_shift)
@@ -9776,28 +9766,10 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descal
 
 int Gemm_x86::create_pipeline_wq_int8(const Option& opt)
 {
-    if (!BT_data_wq_int8.empty() && !BT_data_wq_int8_descales.empty())
-        return 0;
-
-    if (!BT_data_wq_int8.empty() || !BT_data_wq_int8_descales.empty())
-    {
-        BT_data_wq_int8.release();
-        BT_data_wq_int8_descales.release();
-        return -1;
-    }
-
-    if (B_data.empty() || B_data_quantize_scales.empty())
-        return -100;
-
     int weight_bits;
     int block_size;
     bool has_input_scale;
-    if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0 || weight_bits != 8)
-        return -1;
-    if (has_input_scale && B_data_input_scales.empty())
-        return -100;
-    if (has_input_scale && (B_data_input_scales.elemsize != 4u || B_data_input_scales.elempack != 1 || B_data_input_scales.total() < (size_t)constantK))
-        return -1;
+    get_weight_block_quantize_params(weight_bits, block_size, has_input_scale);
 
     const int N = constantN;
     const int K = constantK;
@@ -9812,10 +9784,7 @@ int Gemm_x86::create_pipeline_wq_int8(const Option& opt)
 
     BT_data_wq_int8_descales.create(block_count, N, (size_t)4u, (Allocator*)0);
     if (BT_data_wq_int8_descales.empty())
-    {
-        BT_data_wq_int8.release();
         return -100;
-    }
 
     const int nn_N = (N + TILE_N - 1) / TILE_N;
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -9844,49 +9813,19 @@ int Gemm_x86::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
     const Mat& A = bottom_blobs[0];
     const bool use_bf16_storage = support_bf16_storage && opt.use_bf16_storage;
 
-    int max_elempack = 1;
-#if __SSE2__
-    max_elempack = 4;
-#if __AVX__
-    max_elempack = 8;
-#if __AVX512F__
-    max_elempack = 16;
-#endif // __AVX512F__
-#endif // __AVX__
-#endif // __SSE2__
-
-    if ((A.dims != 2 && (!transA && A.dims != 3)) || (A.elembits() != 32 && !(A.elembits() == 16 && use_bf16_storage)) || (A.elempack != 1 && A.elempack != 4 && A.elempack != 8 && A.elempack != 16) || A.elempack > max_elempack)
-    {
-        NCNN_LOGE("Gemm unsupported input");
-        return -1;
-    }
-
-    if (transA && A.dims != 2)
-    {
-        NCNN_LOGE("Gemm unsupported input");
-        return -1;
-    }
-
     const int K = transA ? A.h * A.elempack : A.w;
-    if (K != constantK)
-    {
-        NCNN_LOGE("Gemm weight block quantize K mismatch");
-        return -1;
-    }
 
     int weight_bits;
     int block_size;
     bool has_input_scale;
     if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0 || weight_bits != 8)
         return -1;
-    if (has_input_scale && B_data_input_scales.empty())
-        return -100;
 
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int N = constantN;
 
     Mat C;
-    int broadcast_type_C = -1;
+    int broadcast_type_C = 0;
     if (constantC)
     {
         C = C_data;
@@ -9924,21 +9863,9 @@ int Gemm_x86::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
                 broadcast_type_C = 4;
             }
 
-            if (broadcast_type_C == -1 || (C.elembits() != 32 && C.elembits() != 16) || (C.elempack != 1 && C.elempack != 4 && C.elempack != 8 && C.elempack != 16) || C.elempack > max_elempack)
-            {
-                NCNN_LOGE("Gemm unsupported C");
-                return -1;
-            }
-
+#if NCNN_BF16
             if (C.elembits() == 16)
             {
-#if NCNN_BF16
-                if (!use_bf16_storage)
-                {
-                    NCNN_LOGE("Gemm unsupported C");
-                    return -1;
-                }
-
                 Option opt_cast = opt;
                 opt_cast.blob_allocator = opt.workspace_allocator;
 
@@ -9948,18 +9875,9 @@ int Gemm_x86::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
                     return -100;
 
                 C = C_fp32;
-#else
-                NCNN_LOGE("Gemm unsupported C");
-                return -1;
-#endif
             }
+#endif // NCNN_BF16
         }
-    }
-
-    if (!C.empty() && (C.elembits() != 32 || (C.elempack != 1 && C.elempack != 4 && C.elempack != 8 && C.elempack != 16) || C.elempack > max_elempack))
-    {
-        NCNN_LOGE("Gemm unsupported C");
-        return -1;
     }
 
     int out_elemtype = 1;
@@ -9973,16 +9891,17 @@ int Gemm_x86::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
 #if __SSE2__
     if (opt.use_packing_layout)
     {
-        out_elempack = outh % max_elempack == 0 ? max_elempack : max_elempack >= 8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+#if __AVX512F__
+        out_elempack = outh % 16 == 0 ? 16 : outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+#elif __AVX__
+        out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+#else
+        out_elempack = outh % 4 == 0 ? 4 : 1;
+#endif
     }
 #endif // __SSE2__
     if (output_elempack)
         out_elempack = output_elempack;
-    if ((out_elempack != 1 && out_elempack != 4 && out_elempack != 8 && out_elempack != 16) || out_elempack > max_elempack || outh % out_elempack != 0)
-    {
-        NCNN_LOGE("Gemm unsupported output elempack");
-        return -1;
-    }
     size_t out_elemsize = (out_elemtype == 1 ? 4u : 2u) * out_elempack;
 
     Mat& top_blob = top_blobs[0];
