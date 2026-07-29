@@ -9559,19 +9559,6 @@ int Gemm_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 #endif
 #include "gemm_wq_int8.h"
 
-static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_elemtype, int output_transpose)
-{
-#if NCNN_BF16
-    if (output_elemtype == 3)
-    {
-        unpack_output_tile_wq_int8_bf16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
-        return;
-    }
-#endif
-
-    unpack_output_tile_wq_int8_fp32(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
-}
-
 struct gemm_x86_wq_int8_omp_args
 {
     int TILE_M;
@@ -9820,7 +9807,6 @@ int Gemm_x86::create_pipeline_wq_int8(const Option& opt)
 int Gemm_x86::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& A = bottom_blobs[0];
-    const bool use_bf16_storage = support_bf16_storage && opt.use_bf16_storage;
 
     const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
 
@@ -9886,6 +9872,7 @@ int Gemm_x86::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<
 
     int output_elemtype = 1;
 #if NCNN_BF16
+    const bool use_bf16_storage = support_bf16_storage && opt.use_bf16_storage;
     if (this->output_elemtype == 0 && use_bf16_storage)
         output_elemtype = 3;
 #endif
