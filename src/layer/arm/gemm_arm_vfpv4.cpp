@@ -21,6 +21,7 @@ namespace ncnn {
 #endif
 
 #if NCNN_WEIGHT_QUANT
+#include "gemm_wq_int8.h"
 #include "gemm_wq_int8_fp16s.h"
 #endif
 
@@ -970,14 +971,9 @@ void transpose_quantize_A_tile_wq_int8_fp16s_vfpv4(const Mat& A, Mat& AT_tile, M
     transpose_quantize_A_tile_wq_int8_fp16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
 }
 
-void unpack_output_tile_wq_int8_fp16s_vfpv4(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta)
+void unpack_output_tile_wq_int8_vfpv4(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_elemtype, int output_transpose)
 {
-    unpack_output_tile_wq_int8_fp16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
-}
-
-void transpose_unpack_output_tile_wq_int8_fp16s_vfpv4(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta)
-{
-    transpose_unpack_output_tile_wq_int8_fp16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+    unpack_output_tile_wq_int8(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype, output_transpose);
 }
 #endif // NCNN_WEIGHT_QUANT
 

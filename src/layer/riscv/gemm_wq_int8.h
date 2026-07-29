@@ -2776,21 +2776,48 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
     }
 }
 
-static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta)
+static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_elemtype, int output_transpose)
 {
     const float* pp = topT;
     const int out_elempack = top_blob.elempack;
     const size_t c_hstep = C.dims == 3 ? C.cstep : (size_t)C.w;
-    const int c_elempack = C.elempack;
     const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
-    float* outptr = (float*)top_blob + (size_t)i * out_hstep + j * out_elempack;
+    float* outptr = 0;
+    if (output_elemtype == 1)
+    {
+        if (output_transpose)
+            outptr = (float*)top_blob + (size_t)j * out_hstep + i * out_elempack;
+        else
+            outptr = (float*)top_blob + (size_t)i * out_hstep + j * out_elempack;
+    }
+#if __riscv_zfh
+    __fp16* outptr_fp16 = 0;
+    if (output_elemtype == 2)
+    {
+        if (output_transpose)
+            outptr_fp16 = (__fp16*)top_blob + (size_t)j / out_elempack * out_hstep * out_elempack + i * out_elempack + j % out_elempack;
+        else
+            outptr_fp16 = (__fp16*)top_blob + (size_t)i / out_elempack * out_hstep * out_elempack + j * out_elempack + i % out_elempack;
+    }
+#endif
 
     int ii = 0;
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    const size_t vl_packn = __riscv_vsetvl_e32m1(packn);
+    const int c_elempack = C.elempack;
+    const size_t vl_packn = __riscv_vsetvl_e32m2(packn);
     const ptrdiff_t c_stride = (ptrdiff_t)c_hstep * sizeof(float);
     const ptrdiff_t out_stride = (ptrdiff_t)out_hstep * sizeof(float);
+#if __riscv_zvfh
+    const int packn_fp16 = packn * 2;
+    const ptrdiff_t out_stride_fp16 = (ptrdiff_t)out_hstep * sizeof(__fp16);
+    bool outptr_high = false;
+#endif
+    int packn_out = packn;
+#if __riscv_zvfh
+    if (output_elemtype == 2)
+        packn_out = packn_fp16;
+#endif
     const float* pC3 = C;
     if (pC3 && broadcast_type_C == 3)
         pC3 += (size_t)i / c_elempack * c_hstep * c_elempack + j * c_elempack + i % c_elempack;
@@ -2814,42 +2841,43 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
         }
 
         float c0 = 0.f;
-        vfloat32m1_t _c = __riscv_vfmv_v_f_f32m1(0.f, vl_packn);
+        vfloat32m2_t _c = __riscv_vfmv_v_f_f32m2(0.f, vl_packn);
         if (pC)
         {
             if (broadcast_type_C == 0)
                 c0 = pC[0] * beta;
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                _c = __riscv_vfmul_vf_f32m1(__riscv_vle32_v_f32m1(pC, vl_packn), beta, vl_packn);
+                _c = __riscv_vfmul_vf_f32m2(__riscv_vle32_v_f32m2(pC, vl_packn), beta, vl_packn);
         }
 
         float* out0 = outptr;
+#if __riscv_zvfh
+        __fp16* out0_fp16 = outptr_fp16;
+#endif
         for (int jj = 0; jj < max_jj; jj++)
         {
-            vfloat32m1_t _sum = __riscv_vle32_v_f32m1(pp, vl_packn);
+            vfloat32m2_t _sum = __riscv_vle32_v_f32m2(pp, vl_packn);
 
             if (pC)
             {
                 if (broadcast_type_C == 0)
-                    _sum = __riscv_vfadd_vf_f32m1(_sum, c0, vl_packn);
+                    _sum = __riscv_vfadd_vf_f32m2(_sum, c0, vl_packn);
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    _sum = __riscv_vfadd_vv_f32m1(_sum, _c, vl_packn);
+                    _sum = __riscv_vfadd_vv_f32m2(_sum, _c, vl_packn);
                 if (broadcast_type_C == 3)
                 {
-                    vfloat32m1_t _c0;
+                    vfloat32m2_t _c0;
                     if (c_elempack != 1)
-                        _c0 = __riscv_vle32_v_f32m1(pC, vl_packn);
+                        _c0 = __riscv_vle32_v_f32m2(pC, vl_packn);
                     else
-                        _c0 = __riscv_vlse32_v_f32m1(pC, c_stride, vl_packn);
+                        _c0 = __riscv_vlse32_v_f32m2(pC, c_stride, vl_packn);
                     if (beta == 1.f)
-                        _sum = __riscv_vfadd_vv_f32m1(_sum, _c0, vl_packn);
+                        _sum = __riscv_vfadd_vv_f32m2(_sum, _c0, vl_packn);
                     else
-                        _sum = __riscv_vfmacc_vf_f32m1(_sum, beta, _c0, vl_packn);
+                        _sum = __riscv_vfmacc_vf_f32m2(_sum, beta, _c0, vl_packn);
                 }
                 if (broadcast_type_C == 4)
-                {
-                    _sum = __riscv_vfadd_vf_f32m1(_sum, *pC * beta, vl_packn);
-                }
+                    _sum = __riscv_vfadd_vf_f32m2(_sum, *pC * beta, vl_packn);
                 if (broadcast_type_C == 3)
                     pC += c_elempack;
                 if (broadcast_type_C == 4)
@@ -2857,546 +2885,99 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             }
 
             if (alpha != 1.f)
-                _sum = __riscv_vfmul_vf_f32m1(_sum, alpha, vl_packn);
+                _sum = __riscv_vfmul_vf_f32m2(_sum, alpha, vl_packn);
 
-            if (out_elempack == packn)
-                __riscv_vse32_v_f32m1(out0, _sum, vl_packn);
-            if (out_elempack == 1)
-                __riscv_vsse32_v_f32m1(out0, out_stride, _sum, vl_packn);
+            if (output_elemtype == 1)
+            {
+                if (output_transpose)
+                {
+                    if (out_elempack == packn)
+                    {
+                        __riscv_vsse32_v_f32m2(out0, packn * sizeof(float), _sum, vl_packn);
+                        if ((jj + 1) % packn == 0)
+                            out0 += out_hstep * packn - packn + 1;
+                        else
+                            out0++;
+                    }
+                    if (out_elempack == 1)
+                    {
+                        __riscv_vse32_v_f32m2(out0, _sum, vl_packn);
+                        out0 += out_hstep;
+                    }
+                }
+                else
+                {
+                    if (out_elempack == packn)
+                        __riscv_vse32_v_f32m2(out0, _sum, vl_packn);
+                    if (out_elempack == 1)
+                        __riscv_vsse32_v_f32m2(out0, out_stride, _sum, vl_packn);
+                    out0 += out_elempack;
+                }
+            }
+#if __riscv_zvfh
+            else // if (output_elemtype == 2)
+            {
+                vfloat16m1_t _sum_fp16 = __riscv_vfncvt_f_f_w_f16m1(_sum, vl_packn);
+
+                if (output_transpose)
+                {
+                    if (out_elempack == packn_fp16)
+                    {
+                        __riscv_vsse16_v_f16m1(out0_fp16, packn_fp16 * sizeof(__fp16), _sum_fp16, vl_packn);
+                        if ((jj + 1) % packn_fp16 == 0)
+                            out0_fp16 += out_hstep * packn_fp16 - packn_fp16 + 1;
+                        else
+                            out0_fp16++;
+                    }
+                    if (out_elempack == 1)
+                    {
+                        __riscv_vse16_v_f16m1(out0_fp16, _sum_fp16, vl_packn);
+                        out0_fp16 += out_hstep;
+                    }
+                }
+                else
+                {
+                    if (out_elempack == packn_fp16)
+                        __riscv_vse16_v_f16m1(out0_fp16, _sum_fp16, vl_packn);
+                    if (out_elempack == 1)
+                        __riscv_vsse16_v_f16m1(out0_fp16, out_stride_fp16, _sum_fp16, vl_packn);
+                    out0_fp16 += out_elempack;
+                }
+            }
+#endif
             pp += packn;
-            out0 += out_elempack;
         }
         if (pC3 && broadcast_type_C == 3)
             pC3 += c_hstep * packn;
-        outptr += out_hstep * packn;
-    }
-#endif // __riscv_vector
-    for (; ii + 1 < max_ii; ii += 2)
-    {
-        const float* pC = C;
-        if (pC)
+        if (output_elemtype == 1)
         {
-            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-            {
-                pC += i + ii;
-            }
-            if (broadcast_type_C == 3)
-            {
-                pC += (size_t)(i + ii) * c_hstep + j;
-            }
-            if (broadcast_type_C == 4)
-            {
-                pC += j;
-            }
+            if (output_transpose)
+                outptr += packn * out_elempack;
+            else
+                outptr += out_hstep * packn;
         }
-
-        float* out0 = outptr;
-        float* out1 = out0 + out_hstep;
-        float c0 = 0.f;
-        float c1 = 0.f;
-        if (pC)
+#if __riscv_zvfh
+        else // if (output_elemtype == 2)
         {
-            if (broadcast_type_C == 0)
+            if (output_transpose)
             {
-                c0 = pC[0] * beta;
-                c1 = c0;
+                outptr_fp16 += packn * out_elempack;
             }
-            if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            else
             {
-                c0 = pC[0] * beta;
-                c1 = pC[1] * beta;
-            }
-        }
-        int jj = 0;
-#if __riscv_vector
-        while (jj + 3 < max_jj)
-        {
-            const size_t vl = __riscv_vsetvl_e32m4(max_jj - jj);
-            vfloat32m4x2_t _s = __riscv_vlseg2e32_v_f32m4x2(pp, vl);
-            vfloat32m4_t _sum0 = __riscv_vget_v_f32m4x2_f32m4(_s, 0);
-            vfloat32m4_t _sum1 = __riscv_vget_v_f32m4x2_f32m4(_s, 1);
-
-            if (pC)
-            {
-                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                if (out_elempack == packn_fp16)
                 {
-                    _sum0 = __riscv_vfadd_vf_f32m4(_sum0, c0, vl);
-                    _sum1 = __riscv_vfadd_vf_f32m4(_sum1, c1, vl);
-                }
-                if (broadcast_type_C == 3)
-                {
-                    vfloat32m4_t _c0 = __riscv_vle32_v_f32m4(pC, vl);
-                    vfloat32m4_t _c1 = __riscv_vle32_v_f32m4(pC + c_hstep, vl);
-                    if (beta == 1.f)
-                    {
-                        _sum0 = __riscv_vfadd_vv_f32m4(_sum0, _c0, vl);
-                        _sum1 = __riscv_vfadd_vv_f32m4(_sum1, _c1, vl);
-                    }
+                    if (outptr_high)
+                        outptr_fp16 += out_hstep * packn_fp16 - packn;
                     else
-                    {
-                        _sum0 = __riscv_vfmacc_vf_f32m4(_sum0, beta, _c0, vl);
-                        _sum1 = __riscv_vfmacc_vf_f32m4(_sum1, beta, _c1, vl);
-                    }
-                }
-                if (broadcast_type_C == 4)
-                {
-                    vfloat32m4_t _c = __riscv_vle32_v_f32m4(pC, vl);
-                    if (beta == 1.f)
-                    {
-                        _sum0 = __riscv_vfadd_vv_f32m4(_sum0, _c, vl);
-                        _sum1 = __riscv_vfadd_vv_f32m4(_sum1, _c, vl);
-                    }
-                    else
-                    {
-                        _sum0 = __riscv_vfmacc_vf_f32m4(_sum0, beta, _c, vl);
-                        _sum1 = __riscv_vfmacc_vf_f32m4(_sum1, beta, _c, vl);
-                    }
-                }
-                if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    pC += vl;
-            }
-
-            if (alpha != 1.f)
-            {
-                _sum0 = __riscv_vfmul_vf_f32m4(_sum0, alpha, vl);
-                _sum1 = __riscv_vfmul_vf_f32m4(_sum1, alpha, vl);
-            }
-
-            __riscv_vse32_v_f32m4(out0, _sum0, vl);
-            __riscv_vse32_v_f32m4(out1, _sum1, vl);
-            pp += vl * 2;
-            jj += (int)vl;
-            out0 += vl;
-            out1 += vl;
-        }
-#else
-        for (; jj + 3 < max_jj; jj += 4)
-        {
-            float sum00 = pp[0];
-            float sum10 = pp[1];
-            float sum01 = pp[2];
-            float sum11 = pp[3];
-            float sum02 = pp[4];
-            float sum12 = pp[5];
-            float sum03 = pp[6];
-            float sum13 = pp[7];
-            pp += 8;
-
-            if (pC)
-            {
-                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    sum00 += c0;
-                    sum01 += c0;
-                    sum02 += c0;
-                    sum03 += c0;
-                    sum10 += c1;
-                    sum11 += c1;
-                    sum12 += c1;
-                    sum13 += c1;
-                }
-                if (broadcast_type_C == 3)
-                {
-                    sum00 += pC[0] * beta;
-                    sum01 += pC[1] * beta;
-                    sum02 += pC[2] * beta;
-                    sum03 += pC[3] * beta;
-                    sum10 += pC[c_hstep] * beta;
-                    sum11 += pC[c_hstep + 1] * beta;
-                    sum12 += pC[c_hstep + 2] * beta;
-                    sum13 += pC[c_hstep + 3] * beta;
-                }
-                if (broadcast_type_C == 4)
-                {
-                    sum00 += pC[0] * beta;
-                    sum01 += pC[1] * beta;
-                    sum02 += pC[2] * beta;
-                    sum03 += pC[3] * beta;
-                    sum10 += pC[0] * beta;
-                    sum11 += pC[1] * beta;
-                    sum12 += pC[2] * beta;
-                    sum13 += pC[3] * beta;
-                }
-                if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    pC += 4;
-            }
-
-            if (alpha != 1.f)
-            {
-                sum00 *= alpha;
-                sum10 *= alpha;
-                sum01 *= alpha;
-                sum11 *= alpha;
-                sum02 *= alpha;
-                sum12 *= alpha;
-                sum03 *= alpha;
-                sum13 *= alpha;
-            }
-
-            out0[0] = sum00;
-            out0[1] = sum01;
-            out0[2] = sum02;
-            out0[3] = sum03;
-            out1[0] = sum10;
-            out1[1] = sum11;
-            out1[2] = sum12;
-            out1[3] = sum13;
-            out0 += 4;
-            out1 += 4;
-        }
-#endif // __riscv_vector
-        for (; jj + 1 < max_jj; jj += 2)
-        {
-            float sum00 = pp[0];
-            float sum10 = pp[1];
-            float sum01 = pp[2];
-            float sum11 = pp[3];
-            pp += 4;
-
-            if (pC)
-            {
-                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    sum00 += c0;
-                    sum01 += c0;
-                    sum10 += c1;
-                    sum11 += c1;
-                }
-                if (broadcast_type_C == 3)
-                {
-                    sum00 += pC[0] * beta;
-                    sum01 += pC[1] * beta;
-                    sum10 += pC[c_hstep] * beta;
-                    sum11 += pC[c_hstep + 1] * beta;
-                }
-                if (broadcast_type_C == 4)
-                {
-                    sum00 += pC[0] * beta;
-                    sum01 += pC[1] * beta;
-                    sum10 += pC[0] * beta;
-                    sum11 += pC[1] * beta;
-                }
-                if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    pC += 2;
-            }
-
-            if (alpha != 1.f)
-            {
-                sum00 *= alpha;
-                sum10 *= alpha;
-                sum01 *= alpha;
-                sum11 *= alpha;
-            }
-
-            out0[0] = sum00;
-            out0[1] = sum01;
-            out1[0] = sum10;
-            out1[1] = sum11;
-            out0 += 2;
-            out1 += 2;
-        }
-        for (; jj < max_jj; jj++)
-        {
-            float sum0 = pp[0];
-            float sum1 = pp[1];
-            pp += 2;
-            if (pC)
-            {
-                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    sum0 += c0;
-                    sum1 += c1;
-                }
-                if (broadcast_type_C == 3)
-                {
-                    sum0 += pC[0] * beta;
-                    sum1 += pC[c_hstep] * beta;
-                }
-                if (broadcast_type_C == 4)
-                {
-                    sum0 += pC[0] * beta;
-                    sum1 += pC[0] * beta;
-                }
-                if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    pC++;
-            }
-
-            if (alpha != 1.f)
-            {
-                sum0 *= alpha;
-                sum1 *= alpha;
-            }
-            out0[0] = sum0;
-            out1[0] = sum1;
-            out0++;
-            out1++;
-        }
-        outptr += out_hstep * 2;
-    }
-    for (; ii < max_ii; ii++)
-    {
-        const float* pC = C;
-        if (pC)
-        {
-            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-            {
-                pC += i + ii;
-            }
-            if (broadcast_type_C == 3)
-            {
-                pC += (size_t)(i + ii) * c_hstep + j;
-            }
-            if (broadcast_type_C == 4)
-            {
-                pC += j;
-            }
-        }
-
-        float* out0 = outptr;
-        float c0 = 0.f;
-        if (pC)
-        {
-            if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                c0 = pC[0] * beta;
-        }
-        int jj = 0;
-#if __riscv_vector
-        while (jj + 3 < max_jj)
-        {
-            const size_t vl = __riscv_vsetvl_e32m4(max_jj - jj);
-            vfloat32m4_t _sum = __riscv_vle32_v_f32m4(pp, vl);
-
-            if (pC)
-            {
-                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    _sum = __riscv_vfadd_vf_f32m4(_sum, c0, vl);
-                if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                {
-                    vfloat32m4_t _c = __riscv_vle32_v_f32m4(pC, vl);
-                    if (beta == 1.f)
-                        _sum = __riscv_vfadd_vv_f32m4(_sum, _c, vl);
-                    else
-                        _sum = __riscv_vfmacc_vf_f32m4(_sum, beta, _c, vl);
-                    pC += vl;
-                }
-            }
-
-            if (alpha != 1.f)
-                _sum = __riscv_vfmul_vf_f32m4(_sum, alpha, vl);
-
-            __riscv_vse32_v_f32m4(out0, _sum, vl);
-            pp += vl;
-            jj += (int)vl;
-            out0 += vl;
-        }
-#else
-        for (; jj + 3 < max_jj; jj += 4)
-        {
-            float sum0 = pp[0];
-            float sum1 = pp[1];
-            float sum2 = pp[2];
-            float sum3 = pp[3];
-            pp += 4;
-            if (pC)
-            {
-                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    sum0 += c0;
-                    sum1 += c0;
-                    sum2 += c0;
-                    sum3 += c0;
-                }
-                if (broadcast_type_C == 3)
-                {
-                    sum0 += pC[0] * beta;
-                    sum1 += pC[1] * beta;
-                    sum2 += pC[2] * beta;
-                    sum3 += pC[3] * beta;
-                }
-                if (broadcast_type_C == 4)
-                {
-                    sum0 += pC[0] * beta;
-                    sum1 += pC[1] * beta;
-                    sum2 += pC[2] * beta;
-                    sum3 += pC[3] * beta;
-                }
-                if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    pC += 4;
-            }
-
-            if (alpha != 1.f)
-            {
-                sum0 *= alpha;
-                sum1 *= alpha;
-                sum2 *= alpha;
-                sum3 *= alpha;
-            }
-            out0[0] = sum0;
-            out0[1] = sum1;
-            out0[2] = sum2;
-            out0[3] = sum3;
-            out0 += 4;
-        }
-#endif // __riscv_vector
-        for (; jj + 1 < max_jj; jj += 2)
-        {
-            float sum0 = pp[0];
-            float sum1 = pp[1];
-            pp += 2;
-            if (pC)
-            {
-                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    sum0 += c0;
-                    sum1 += c0;
-                }
-                if (broadcast_type_C == 3)
-                {
-                    sum0 += pC[0] * beta;
-                    sum1 += pC[1] * beta;
-                }
-                if (broadcast_type_C == 4)
-                {
-                    sum0 += pC[0] * beta;
-                    sum1 += pC[1] * beta;
-                }
-                if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    pC += 2;
-            }
-
-            if (alpha != 1.f)
-            {
-                sum0 *= alpha;
-                sum1 *= alpha;
-            }
-            out0[0] = sum0;
-            out0[1] = sum1;
-            out0 += 2;
-        }
-        for (; jj < max_jj; jj++)
-        {
-            float sum = *pp++;
-            if (pC)
-            {
-                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    sum += c0;
-                if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                {
-                    sum += pC[0] * beta;
-                    pC++;
-                }
-            }
-
-            if (alpha != 1.f)
-                sum *= alpha;
-            out0[0] = sum;
-            out0++;
-        }
-        outptr += out_hstep;
-    }
-}
-
-static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta)
-{
-    const float* pp = topT;
-    const int out_elempack = top_blob.elempack;
-    const size_t c_hstep = C.dims == 3 ? C.cstep : (size_t)C.w;
-    const int c_elempack = C.elempack;
-    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
-    float* outptr = (float*)top_blob + (size_t)j * out_hstep + i * out_elempack;
-
-    int ii = 0;
-#if __riscv_vector
-    const int packn = csrr_vlenb() / 4;
-    const size_t vl_packn = __riscv_vsetvl_e32m1(packn);
-    const ptrdiff_t c_stride = (ptrdiff_t)c_hstep * sizeof(float);
-    const ptrdiff_t out_stride = (ptrdiff_t)out_hstep * sizeof(float);
-    const float* pC3 = C;
-    if (pC3 && broadcast_type_C == 3)
-        pC3 += (size_t)i / c_elempack * c_hstep * c_elempack + j * c_elempack + i % c_elempack;
-    for (; ii + (packn - 1) < max_ii; ii += packn)
-    {
-        const float* pC = C;
-        if (pC)
-        {
-            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-            {
-                pC += i + ii;
-            }
-            if (broadcast_type_C == 3)
-            {
-                pC = pC3;
-            }
-            if (broadcast_type_C == 4)
-            {
-                pC += j;
-            }
-        }
-
-        float c0 = 0.f;
-        vfloat32m1_t _c = __riscv_vfmv_v_f_f32m1(0.f, vl_packn);
-        if (pC)
-        {
-            if (broadcast_type_C == 0)
-                c0 = pC[0] * beta;
-            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                _c = __riscv_vfmul_vf_f32m1(__riscv_vle32_v_f32m1(pC, vl_packn), beta, vl_packn);
-        }
-
-        float* out0 = outptr;
-        for (int jj = 0; jj < max_jj; jj += out_elempack)
-        {
-            const int max_jj0 = std::min(max_jj - jj, out_elempack);
-            for (int p = 0; p < max_jj0; p++)
-            {
-                vfloat32m1_t _sum = __riscv_vle32_v_f32m1(pp, vl_packn);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                        _sum = __riscv_vfadd_vf_f32m1(_sum, c0, vl_packn);
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                        _sum = __riscv_vfadd_vv_f32m1(_sum, _c, vl_packn);
-                    if (broadcast_type_C == 3)
-                    {
-                        vfloat32m1_t _c0;
-                        if (c_elempack != 1)
-                            _c0 = __riscv_vle32_v_f32m1(pC, vl_packn);
-                        else
-                            _c0 = __riscv_vlse32_v_f32m1(pC, c_stride, vl_packn);
-                        if (beta == 1.f)
-                            _sum = __riscv_vfadd_vv_f32m1(_sum, _c0, vl_packn);
-                        else
-                            _sum = __riscv_vfmacc_vf_f32m1(_sum, beta, _c0, vl_packn);
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _sum = __riscv_vfadd_vf_f32m1(_sum, *pC * beta, vl_packn);
-                    }
-                    if (broadcast_type_C == 3)
-                        pC += c_elempack;
-                    if (broadcast_type_C == 4)
-                        pC++;
-                }
-
-                if (alpha != 1.f)
-                    _sum = __riscv_vfmul_vf_f32m1(_sum, alpha, vl_packn);
-
-                if (out_elempack == packn)
-                {
-                    __riscv_vsse32_v_f32m1(out0 + p, packn * sizeof(float), _sum, vl_packn);
+                        outptr_fp16 += packn;
+                    outptr_high = !outptr_high;
                 }
                 if (out_elempack == 1)
-                {
-                    __riscv_vse32_v_f32m1(out0, _sum, vl_packn);
-                }
-                pp += packn;
+                    outptr_fp16 += out_hstep * packn;
             }
-            out0 += out_hstep * out_elempack;
         }
-        if (pC3 && broadcast_type_C == 3)
-            pC3 += c_hstep * packn;
-        outptr += packn * out_elempack;
+#endif
     }
 #endif // __riscv_vector
     for (; ii + 1 < max_ii; ii += 2)
@@ -3419,6 +3000,9 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
         }
 
         float* out0 = outptr;
+#if __riscv_zfh
+        __fp16* out0_fp16 = outptr_fp16;
+#endif
         float c0 = 0.f;
         float c1 = 0.f;
         if (pC)
@@ -3436,65 +3020,79 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
         }
         int jj = 0;
 #if __riscv_vector
-        if (out_elempack == packn)
+        if (output_transpose && out_elempack == packn_out)
         {
-            for (; jj < max_jj; jj += packn)
+            for (; jj < max_jj; jj += packn_out)
             {
-                const size_t vl = __riscv_vsetvl_e32m1(packn);
-                vfloat32m1x2_t _s = __riscv_vlseg2e32_v_f32m1x2(pp, vl);
-                vfloat32m1_t _sum0 = __riscv_vget_v_f32m1x2_f32m1(_s, 0);
-                vfloat32m1_t _sum1 = __riscv_vget_v_f32m1x2_f32m1(_s, 1);
+                const size_t vl = __riscv_vsetvl_e32m2(packn_out);
+                vfloat32m2x2_t _s = __riscv_vlseg2e32_v_f32m2x2(pp, vl);
+                vfloat32m2_t _sum0 = __riscv_vget_v_f32m2x2_f32m2(_s, 0);
+                vfloat32m2_t _sum1 = __riscv_vget_v_f32m2x2_f32m2(_s, 1);
 
                 if (pC)
                 {
                     if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        _sum0 = __riscv_vfadd_vf_f32m1(_sum0, c0, vl);
-                        _sum1 = __riscv_vfadd_vf_f32m1(_sum1, c1, vl);
+                        _sum0 = __riscv_vfadd_vf_f32m2(_sum0, c0, vl);
+                        _sum1 = __riscv_vfadd_vf_f32m2(_sum1, c1, vl);
                     }
                     if (broadcast_type_C == 3)
                     {
-                        vfloat32m1_t _c0 = __riscv_vle32_v_f32m1(pC, vl);
-                        vfloat32m1_t _c1 = __riscv_vle32_v_f32m1(pC + c_hstep, vl);
+                        vfloat32m2_t _c0 = __riscv_vle32_v_f32m2(pC, vl);
+                        vfloat32m2_t _c1 = __riscv_vle32_v_f32m2(pC + c_hstep, vl);
                         if (beta == 1.f)
                         {
-                            _sum0 = __riscv_vfadd_vv_f32m1(_sum0, _c0, vl);
-                            _sum1 = __riscv_vfadd_vv_f32m1(_sum1, _c1, vl);
+                            _sum0 = __riscv_vfadd_vv_f32m2(_sum0, _c0, vl);
+                            _sum1 = __riscv_vfadd_vv_f32m2(_sum1, _c1, vl);
                         }
                         else
                         {
-                            _sum0 = __riscv_vfmacc_vf_f32m1(_sum0, beta, _c0, vl);
-                            _sum1 = __riscv_vfmacc_vf_f32m1(_sum1, beta, _c1, vl);
+                            _sum0 = __riscv_vfmacc_vf_f32m2(_sum0, beta, _c0, vl);
+                            _sum1 = __riscv_vfmacc_vf_f32m2(_sum1, beta, _c1, vl);
                         }
                     }
                     if (broadcast_type_C == 4)
                     {
-                        vfloat32m1_t _c = __riscv_vle32_v_f32m1(pC, vl);
+                        vfloat32m2_t _c = __riscv_vle32_v_f32m2(pC, vl);
                         if (beta == 1.f)
                         {
-                            _sum0 = __riscv_vfadd_vv_f32m1(_sum0, _c, vl);
-                            _sum1 = __riscv_vfadd_vv_f32m1(_sum1, _c, vl);
+                            _sum0 = __riscv_vfadd_vv_f32m2(_sum0, _c, vl);
+                            _sum1 = __riscv_vfadd_vv_f32m2(_sum1, _c, vl);
                         }
                         else
                         {
-                            _sum0 = __riscv_vfmacc_vf_f32m1(_sum0, beta, _c, vl);
-                            _sum1 = __riscv_vfmacc_vf_f32m1(_sum1, beta, _c, vl);
+                            _sum0 = __riscv_vfmacc_vf_f32m2(_sum0, beta, _c, vl);
+                            _sum1 = __riscv_vfmacc_vf_f32m2(_sum1, beta, _c, vl);
                         }
                     }
                     if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                        pC += packn;
+                        pC += packn_out;
                 }
 
                 if (alpha != 1.f)
                 {
-                    _sum0 = __riscv_vfmul_vf_f32m1(_sum0, alpha, vl);
-                    _sum1 = __riscv_vfmul_vf_f32m1(_sum1, alpha, vl);
+                    _sum0 = __riscv_vfmul_vf_f32m2(_sum0, alpha, vl);
+                    _sum1 = __riscv_vfmul_vf_f32m2(_sum1, alpha, vl);
                 }
 
-                __riscv_vse32_v_f32m1(out0, _sum0, vl);
-                __riscv_vse32_v_f32m1(out0 + packn, _sum1, vl);
-                pp += packn * 2;
-                out0 += out_hstep * packn;
+                if (output_elemtype == 1)
+                {
+                    __riscv_vse32_v_f32m2(out0, _sum0, vl);
+                    __riscv_vse32_v_f32m2(out0 + packn_out, _sum1, vl);
+                    out0 += out_hstep * packn_out;
+                }
+#if __riscv_zvfh
+                else // if (output_elemtype == 2)
+                {
+                    vfloat16m1_t _sum0_fp16 = __riscv_vfncvt_f_f_w_f16m1(_sum0, vl);
+                    vfloat16m1_t _sum1_fp16 = __riscv_vfncvt_f_f_w_f16m1(_sum1, vl);
+
+                    __riscv_vse16_v_f16m1(out0_fp16, _sum0_fp16, vl);
+                    __riscv_vse16_v_f16m1(out0_fp16 + packn_out, _sum1_fp16, vl);
+                    out0_fp16 += out_hstep * packn_out;
+                }
+#endif
+                pp += packn_out * 2;
             }
         }
         if (out_elempack == 1)
@@ -3551,14 +3149,49 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                     _sum1 = __riscv_vfmul_vf_f32m4(_sum1, alpha, vl);
                 }
 
-                vfloat32m4x2_t _sum = __riscv_vcreate_v_f32m4x2(_sum0, _sum1);
-                if (out_hstep == 2)
-                    __riscv_vsseg2e32_v_f32m4x2(out0, _sum, vl);
-                else
-                    __riscv_vssseg2e32_v_f32m4x2(out0, out_stride, _sum, vl);
+                if (output_elemtype == 1)
+                {
+                    if (output_transpose)
+                    {
+                        vfloat32m4x2_t _sum = __riscv_vcreate_v_f32m4x2(_sum0, _sum1);
+                        if (out_hstep == 2)
+                            __riscv_vsseg2e32_v_f32m4x2(out0, _sum, vl);
+                        else
+                            __riscv_vssseg2e32_v_f32m4x2(out0, out_stride, _sum, vl);
+                        out0 += out_hstep * vl;
+                    }
+                    else
+                    {
+                        __riscv_vse32_v_f32m4(out0, _sum0, vl);
+                        __riscv_vse32_v_f32m4(out0 + out_hstep, _sum1, vl);
+                        out0 += vl;
+                    }
+                }
+#if __riscv_zvfh
+                else // if (output_elemtype == 2)
+                {
+                    vfloat16m2_t _sum0_fp16 = __riscv_vfncvt_f_f_w_f16m2(_sum0, vl);
+                    vfloat16m2_t _sum1_fp16 = __riscv_vfncvt_f_f_w_f16m2(_sum1, vl);
+
+                    if (output_transpose)
+                    {
+                        vfloat16m2x2_t _sum = __riscv_vcreate_v_f16m2x2(_sum0_fp16, _sum1_fp16);
+                        if (out_hstep == 2)
+                            __riscv_vsseg2e16_v_f16m2x2(out0_fp16, _sum, vl);
+                        else
+                            __riscv_vssseg2e16_v_f16m2x2(out0_fp16, out_stride_fp16, _sum, vl);
+                        out0_fp16 += out_hstep * vl;
+                    }
+                    else
+                    {
+                        __riscv_vse16_v_f16m2(out0_fp16, _sum0_fp16, vl);
+                        __riscv_vse16_v_f16m2(out0_fp16 + out_hstep, _sum1_fp16, vl);
+                        out0_fp16 += vl;
+                    }
+                }
+#endif
                 pp += vl * 2;
                 jj += (int)vl;
-                out0 += out_hstep * vl;
             }
         }
 #else
@@ -3624,15 +3257,71 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 sum13 *= alpha;
             }
 
-            out0[0] = sum00;
-            out0[1] = sum10;
-            out0[out_hstep] = sum01;
-            out0[out_hstep + 1] = sum11;
-            out0[out_hstep * 2] = sum02;
-            out0[out_hstep * 2 + 1] = sum12;
-            out0[out_hstep * 3] = sum03;
-            out0[out_hstep * 3 + 1] = sum13;
-            out0 += out_hstep * 4;
+            if (output_elemtype == 1)
+            {
+                if (output_transpose)
+                {
+                    out0[0] = sum00;
+                    out0[1] = sum10;
+                    out0[out_hstep] = sum01;
+                    out0[out_hstep + 1] = sum11;
+                    out0[out_hstep * 2] = sum02;
+                    out0[out_hstep * 2 + 1] = sum12;
+                    out0[out_hstep * 3] = sum03;
+                    out0[out_hstep * 3 + 1] = sum13;
+                    out0 += out_hstep * 4;
+                }
+                else
+                {
+                    out0[0] = sum00;
+                    out0[1] = sum01;
+                    out0[2] = sum02;
+                    out0[3] = sum03;
+                    out0[out_hstep] = sum10;
+                    out0[out_hstep + 1] = sum11;
+                    out0[out_hstep + 2] = sum12;
+                    out0[out_hstep + 3] = sum13;
+                    out0 += 4;
+                }
+            }
+#if __riscv_zfh
+            else // if (output_elemtype == 2)
+            {
+                __fp16 sum00_fp16 = (__fp16)sum00;
+                __fp16 sum10_fp16 = (__fp16)sum10;
+                __fp16 sum01_fp16 = (__fp16)sum01;
+                __fp16 sum11_fp16 = (__fp16)sum11;
+                __fp16 sum02_fp16 = (__fp16)sum02;
+                __fp16 sum12_fp16 = (__fp16)sum12;
+                __fp16 sum03_fp16 = (__fp16)sum03;
+                __fp16 sum13_fp16 = (__fp16)sum13;
+
+                if (output_transpose)
+                {
+                    out0_fp16[0] = sum00_fp16;
+                    out0_fp16[1] = sum10_fp16;
+                    out0_fp16[out_hstep] = sum01_fp16;
+                    out0_fp16[out_hstep + 1] = sum11_fp16;
+                    out0_fp16[out_hstep * 2] = sum02_fp16;
+                    out0_fp16[out_hstep * 2 + 1] = sum12_fp16;
+                    out0_fp16[out_hstep * 3] = sum03_fp16;
+                    out0_fp16[out_hstep * 3 + 1] = sum13_fp16;
+                    out0_fp16 += out_hstep * 4;
+                }
+                else
+                {
+                    out0_fp16[0] = sum00_fp16;
+                    out0_fp16[1] = sum01_fp16;
+                    out0_fp16[2] = sum02_fp16;
+                    out0_fp16[3] = sum03_fp16;
+                    out0_fp16[out_hstep] = sum10_fp16;
+                    out0_fp16[out_hstep + 1] = sum11_fp16;
+                    out0_fp16[out_hstep + 2] = sum12_fp16;
+                    out0_fp16[out_hstep + 3] = sum13_fp16;
+                    out0_fp16 += 4;
+                }
+            }
+#endif
         }
 #endif // __riscv_vector
         for (; jj + 1 < max_jj; jj += 2)
@@ -3677,11 +3366,51 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 sum11 *= alpha;
             }
 
-            out0[0] = sum00;
-            out0[1] = sum10;
-            out0[out_hstep] = sum01;
-            out0[out_hstep + 1] = sum11;
-            out0 += out_hstep * 2;
+            if (output_elemtype == 1)
+            {
+                if (output_transpose)
+                {
+                    out0[0] = sum00;
+                    out0[1] = sum10;
+                    out0[out_hstep] = sum01;
+                    out0[out_hstep + 1] = sum11;
+                    out0 += out_hstep * 2;
+                }
+                else
+                {
+                    out0[0] = sum00;
+                    out0[1] = sum01;
+                    out0[out_hstep] = sum10;
+                    out0[out_hstep + 1] = sum11;
+                    out0 += 2;
+                }
+            }
+#if __riscv_zfh
+            else // if (output_elemtype == 2)
+            {
+                __fp16 sum00_fp16 = (__fp16)sum00;
+                __fp16 sum10_fp16 = (__fp16)sum10;
+                __fp16 sum01_fp16 = (__fp16)sum01;
+                __fp16 sum11_fp16 = (__fp16)sum11;
+
+                if (output_transpose)
+                {
+                    out0_fp16[0] = sum00_fp16;
+                    out0_fp16[1] = sum10_fp16;
+                    out0_fp16[out_hstep] = sum01_fp16;
+                    out0_fp16[out_hstep + 1] = sum11_fp16;
+                    out0_fp16 += out_hstep * 2;
+                }
+                else
+                {
+                    out0_fp16[0] = sum00_fp16;
+                    out0_fp16[1] = sum01_fp16;
+                    out0_fp16[out_hstep] = sum10_fp16;
+                    out0_fp16[out_hstep + 1] = sum11_fp16;
+                    out0_fp16 += 2;
+                }
+            }
+#endif
         }
         for (; jj < max_jj; jj++)
         {
@@ -3714,11 +3443,58 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 sum0 *= alpha;
                 sum1 *= alpha;
             }
-            out0[0] = sum0;
-            out0[1] = sum1;
-            out0 += out_hstep;
+            if (output_elemtype == 1)
+            {
+                if (output_transpose)
+                {
+                    out0[0] = sum0;
+                    out0[1] = sum1;
+                    out0 += out_hstep;
+                }
+                else
+                {
+                    out0[0] = sum0;
+                    out0[out_hstep] = sum1;
+                    out0++;
+                }
+            }
+#if __riscv_zfh
+            else // if (output_elemtype == 2)
+            {
+                __fp16 sum0_fp16 = (__fp16)sum0;
+                __fp16 sum1_fp16 = (__fp16)sum1;
+
+                if (output_transpose)
+                {
+                    out0_fp16[0] = sum0_fp16;
+                    out0_fp16[1] = sum1_fp16;
+                    out0_fp16 += out_hstep;
+                }
+                else
+                {
+                    out0_fp16[0] = sum0_fp16;
+                    out0_fp16[out_hstep] = sum1_fp16;
+                    out0_fp16++;
+                }
+            }
+#endif
         }
-        outptr += 2 * out_elempack;
+        if (output_elemtype == 1)
+        {
+            if (output_transpose)
+                outptr += 2 * out_elempack;
+            else
+                outptr += out_hstep * 2;
+        }
+#if __riscv_zfh
+        else // if (output_elemtype == 2)
+        {
+            if (output_transpose)
+                outptr_fp16 += 2 * out_elempack;
+            else
+                outptr_fp16 += out_hstep * 2;
+        }
+#endif
     }
     for (; ii < max_ii; ii++)
     {
@@ -3740,6 +3516,9 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
         }
 
         float* out0 = outptr;
+#if __riscv_zfh
+        __fp16* out0_fp16 = outptr_fp16;
+#endif
         float c0 = 0.f;
         if (pC)
         {
@@ -3748,34 +3527,46 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
         }
         int jj = 0;
 #if __riscv_vector
-        if (out_elempack == packn)
+        if (output_transpose && out_elempack == packn_out)
         {
-            for (; jj < max_jj; jj += packn)
+            for (; jj < max_jj; jj += packn_out)
             {
-                const size_t vl = __riscv_vsetvl_e32m1(packn);
-                vfloat32m1_t _sum = __riscv_vle32_v_f32m1(pp, vl);
+                const size_t vl = __riscv_vsetvl_e32m2(packn_out);
+                vfloat32m2_t _sum = __riscv_vle32_v_f32m2(pp, vl);
 
                 if (pC)
                 {
                     if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                        _sum = __riscv_vfadd_vf_f32m1(_sum, c0, vl);
+                        _sum = __riscv_vfadd_vf_f32m2(_sum, c0, vl);
                     if (broadcast_type_C == 3 || broadcast_type_C == 4)
                     {
-                        vfloat32m1_t _c = __riscv_vle32_v_f32m1(pC, vl);
+                        vfloat32m2_t _c = __riscv_vle32_v_f32m2(pC, vl);
                         if (beta == 1.f)
-                            _sum = __riscv_vfadd_vv_f32m1(_sum, _c, vl);
+                            _sum = __riscv_vfadd_vv_f32m2(_sum, _c, vl);
                         else
-                            _sum = __riscv_vfmacc_vf_f32m1(_sum, beta, _c, vl);
-                        pC += packn;
+                            _sum = __riscv_vfmacc_vf_f32m2(_sum, beta, _c, vl);
+                        pC += packn_out;
                     }
                 }
 
                 if (alpha != 1.f)
-                    _sum = __riscv_vfmul_vf_f32m1(_sum, alpha, vl);
+                    _sum = __riscv_vfmul_vf_f32m2(_sum, alpha, vl);
 
-                __riscv_vse32_v_f32m1(out0, _sum, vl);
-                pp += packn;
-                out0 += out_hstep * packn;
+                if (output_elemtype == 1)
+                {
+                    __riscv_vse32_v_f32m2(out0, _sum, vl);
+                    out0 += out_hstep * packn_out;
+                }
+#if __riscv_zvfh
+                else // if (output_elemtype == 2)
+                {
+                    vfloat16m1_t _sum_fp16 = __riscv_vfncvt_f_f_w_f16m1(_sum, vl);
+
+                    __riscv_vse16_v_f16m1(out0_fp16, _sum_fp16, vl);
+                    out0_fp16 += out_hstep * packn_out;
+                }
+#endif
+                pp += packn_out;
             }
         }
         if (out_elempack == 1)
@@ -3803,13 +3594,34 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 if (alpha != 1.f)
                     _sum = __riscv_vfmul_vf_f32m4(_sum, alpha, vl);
 
-                if (out_hstep == 1)
-                    __riscv_vse32_v_f32m4(out0, _sum, vl);
-                else
-                    __riscv_vsse32_v_f32m4(out0, out_stride, _sum, vl);
+                if (output_elemtype == 1)
+                {
+                    if (!output_transpose || out_hstep == 1)
+                        __riscv_vse32_v_f32m4(out0, _sum, vl);
+                    else
+                        __riscv_vsse32_v_f32m4(out0, out_stride, _sum, vl);
+                    if (output_transpose)
+                        out0 += out_hstep * vl;
+                    else
+                        out0 += vl;
+                }
+#if __riscv_zvfh
+                else // if (output_elemtype == 2)
+                {
+                    vfloat16m2_t _sum_fp16 = __riscv_vfncvt_f_f_w_f16m2(_sum, vl);
+
+                    if (!output_transpose || out_hstep == 1)
+                        __riscv_vse16_v_f16m2(out0_fp16, _sum_fp16, vl);
+                    else
+                        __riscv_vsse16_v_f16m2(out0_fp16, out_stride_fp16, _sum_fp16, vl);
+                    if (output_transpose)
+                        out0_fp16 += out_hstep * vl;
+                    else
+                        out0_fp16 += vl;
+                }
+#endif
                 pp += vl;
                 jj += (int)vl;
-                out0 += out_hstep * vl;
             }
         }
 #else
@@ -3854,11 +3666,51 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 sum2 *= alpha;
                 sum3 *= alpha;
             }
-            out0[0] = sum0;
-            out0[out_hstep] = sum1;
-            out0[out_hstep * 2] = sum2;
-            out0[out_hstep * 3] = sum3;
-            out0 += out_hstep * 4;
+            if (output_elemtype == 1)
+            {
+                if (output_transpose)
+                {
+                    out0[0] = sum0;
+                    out0[out_hstep] = sum1;
+                    out0[out_hstep * 2] = sum2;
+                    out0[out_hstep * 3] = sum3;
+                    out0 += out_hstep * 4;
+                }
+                else
+                {
+                    out0[0] = sum0;
+                    out0[1] = sum1;
+                    out0[2] = sum2;
+                    out0[3] = sum3;
+                    out0 += 4;
+                }
+            }
+#if __riscv_zfh
+            else // if (output_elemtype == 2)
+            {
+                __fp16 sum0_fp16 = (__fp16)sum0;
+                __fp16 sum1_fp16 = (__fp16)sum1;
+                __fp16 sum2_fp16 = (__fp16)sum2;
+                __fp16 sum3_fp16 = (__fp16)sum3;
+
+                if (output_transpose)
+                {
+                    out0_fp16[0] = sum0_fp16;
+                    out0_fp16[out_hstep] = sum1_fp16;
+                    out0_fp16[out_hstep * 2] = sum2_fp16;
+                    out0_fp16[out_hstep * 3] = sum3_fp16;
+                    out0_fp16 += out_hstep * 4;
+                }
+                else
+                {
+                    out0_fp16[0] = sum0_fp16;
+                    out0_fp16[1] = sum1_fp16;
+                    out0_fp16[2] = sum2_fp16;
+                    out0_fp16[3] = sum3_fp16;
+                    out0_fp16 += 4;
+                }
+            }
+#endif
         }
 #endif // __riscv_vector
         for (; jj + 1 < max_jj; jj += 2)
@@ -3892,9 +3744,41 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
                 sum0 *= alpha;
                 sum1 *= alpha;
             }
-            out0[0] = sum0;
-            out0[out_hstep] = sum1;
-            out0 += out_hstep * 2;
+            if (output_elemtype == 1)
+            {
+                if (output_transpose)
+                {
+                    out0[0] = sum0;
+                    out0[out_hstep] = sum1;
+                    out0 += out_hstep * 2;
+                }
+                else
+                {
+                    out0[0] = sum0;
+                    out0[1] = sum1;
+                    out0 += 2;
+                }
+            }
+#if __riscv_zfh
+            else // if (output_elemtype == 2)
+            {
+                __fp16 sum0_fp16 = (__fp16)sum0;
+                __fp16 sum1_fp16 = (__fp16)sum1;
+
+                if (output_transpose)
+                {
+                    out0_fp16[0] = sum0_fp16;
+                    out0_fp16[out_hstep] = sum1_fp16;
+                    out0_fp16 += out_hstep * 2;
+                }
+                else
+                {
+                    out0_fp16[0] = sum0_fp16;
+                    out0_fp16[1] = sum1_fp16;
+                    out0_fp16 += 2;
+                }
+            }
+#endif
         }
         for (; jj < max_jj; jj++)
         {
@@ -3912,12 +3796,45 @@ static void transpose_unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, 
 
             if (alpha != 1.f)
                 sum *= alpha;
-            out0[0] = sum;
-            out0 += out_hstep;
+            if (output_elemtype == 1)
+            {
+                out0[0] = sum;
+                if (output_transpose)
+                    out0 += out_hstep;
+                else
+                    out0++;
+            }
+#if __riscv_zfh
+            else // if (output_elemtype == 2)
+            {
+                out0_fp16[0] = (__fp16)sum;
+                if (output_transpose)
+                    out0_fp16 += out_hstep;
+                else
+                    out0_fp16++;
+            }
+#endif
         }
-        outptr += out_elempack;
+        if (output_elemtype == 1)
+        {
+            if (output_transpose)
+                outptr += out_elempack;
+            else
+                outptr += out_hstep;
+        }
+#if __riscv_zfh
+        else // if (output_elemtype == 2)
+        {
+            if (output_transpose)
+                outptr_fp16 += out_elempack;
+            else
+                outptr_fp16 += out_hstep;
+        }
+#endif
     }
 }
+
+
 
 static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {

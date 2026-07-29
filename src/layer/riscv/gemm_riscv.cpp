@@ -2280,31 +2280,17 @@ static void transpose_quantize_A_tile_wq_int8_riscv(const Mat& A, Mat& AT_tile, 
 
 static void unpack_output_tile_wq_int8_riscv(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_elemtype, int output_transpose)
 {
-    if (output_transpose)
-    {
-#if NCNN_ZFH
-        if (output_elemtype == 2)
-        {
-            Gemm_riscv::transpose_unpack_output_tile_wq_int8_fp16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
-            return;
-        }
-#endif // NCNN_ZFH
-
-        transpose_unpack_output_tile_wq_int8(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
-        return;
-    }
-
 #if NCNN_ZFH
     if (output_elemtype == 2)
     {
-        Gemm_riscv::unpack_output_tile_wq_int8_fp16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+        Gemm_riscv::unpack_output_tile_wq_int8_fp16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
         return;
     }
 #else
     (void)output_elemtype;
 #endif // NCNN_ZFH
 
-    unpack_output_tile_wq_int8(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta);
+    unpack_output_tile_wq_int8(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, 1, output_transpose);
 }
 
 static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int output_elemtype, const Option& opt)

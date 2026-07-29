@@ -5785,19 +5785,6 @@ int Gemm_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
 #endif
 #include "gemm_wq_int8.h"
 
-static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_elemtype, int output_transpose)
-{
-#if NCNN_BF16
-    if (output_elemtype == 3)
-    {
-        unpack_output_tile_wq_int8_bf16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
-        return;
-    }
-#endif
-
-    unpack_output_tile_wq_int8_fp32(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
-}
-
 struct gemm_mips_wq_int8_omp_args
 {
     int TILE_M;
