@@ -266,12 +266,12 @@ void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads)
 
 void ncnn_option_set_blob_allocator(ncnn_option_t opt, ncnn_allocator_t allocator)
 {
-    ((Option*)opt)->blob_allocator = allocator ? (Allocator*)allocator->pthis : NULL;
+    ((Option*)opt)->blob_allocator = allocator ? (Allocator*)allocator->pthis : nullptr;
 }
 
 void ncnn_option_set_workspace_allocator(ncnn_option_t opt, ncnn_allocator_t allocator)
 {
-    ((Option*)opt)->workspace_allocator = allocator ? (Allocator*)allocator->pthis : NULL;
+    ((Option*)opt)->workspace_allocator = allocator ? (Allocator*)allocator->pthis : nullptr;
 }
 
 int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt)
