@@ -3949,36 +3949,29 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
     if (nT == 0)
         nT = get_physical_big_cpu_count();
 
+    int tile_size = (int)sqrtf((float)l2_cache_size / (2 * sizeof(signed char) + sizeof(float)));
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
     const int nr = csrr_vlenb() >= 32 ? 8 : 4;
 #else
+    const int packn = 2;
     const int nr = 4;
 #endif // __riscv_vector
 
-    int tile_size = (int)sqrtf((float)l2_cache_size / (2 * sizeof(signed char) + sizeof(float)));
-#if __riscv_vector
     TILE_M = std::max(packn, tile_size / packn * packn);
-#else
-    TILE_M = std::max(2, tile_size / 2 * 2);
-#endif // __riscv_vector
     TILE_N = std::max(nr, tile_size / nr * nr);
     TILE_K = std::max(block_size, tile_size / block_size * block_size);
 
     if (K > 0)
     {
-        const int nn_K = (K + TILE_K - 1) / TILE_K;
+        int nn_K = (K + TILE_K - 1) / TILE_K;
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + block_size - 1) / block_size * block_size);
         TILE_K = std::min(TILE_K, K);
 
         if (nn_K == 1)
         {
             tile_size = std::max(1, (int)((float)l2_cache_size / 2 / sizeof(signed char) / TILE_K));
-#if __riscv_vector
             TILE_M = std::max(packn, tile_size / packn * packn);
-#else
-            TILE_M = std::max(2, tile_size / 2 * 2);
-#endif // __riscv_vector
             TILE_N = std::max(nr, tile_size / nr * nr);
         }
     }
@@ -3987,37 +3980,25 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
 
     if (M > 0)
     {
-        const int nn_M = (M + TILE_M - 1) / TILE_M;
-#if __riscv_vector
+        int nn_M = (M + TILE_M - 1) / TILE_M;
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + packn - 1) / packn * packn);
-#else
-        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
-#endif // __riscv_vector
     }
 
     if (N > 0)
     {
-        const int nn_N = (N + TILE_N - 1) / TILE_N;
+        int nn_N = (N + TILE_N - 1) / TILE_N;
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + nr - 1) / nr * nr);
     }
 
     if (nT > 1)
     {
-#if __riscv_vector
         TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + packn - 1) / packn * packn);
-#else
-        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
-#endif // __riscv_vector
     }
 
     // always take constant TILE_M/N/K value when provided
     if (constant_TILE_M > 0)
     {
-#if __riscv_vector
         TILE_M = (constant_TILE_M + packn - 1) / packn * packn;
-#else
-        TILE_M = (constant_TILE_M + 1) / 2 * 2;
-#endif // __riscv_vector
     }
 
     if (constant_TILE_N > 0)

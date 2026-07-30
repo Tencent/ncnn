@@ -13658,37 +13658,19 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
 
 #if __AVX512F__
     TILE_M = std::max(16, tile_size / 16 * 16);
+#elif __AVX__
+    TILE_M = std::max(8, tile_size / 8 * 8);
+#elif __SSE2__
+    TILE_M = std::max(4, tile_size / 4 * 4);
 #else
-#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI
-    if (ncnn::cpu_support_x86_avx512_vnni())
-    {
-        TILE_M = std::max(16, tile_size / 16 * 16);
-    }
-    else
-#endif // NCNN_RUNTIME_CPU && NCNN_AVX512VNNI
-#if __AVX__
-    {
-        TILE_M = std::max(8, tile_size / 8 * 8);
-    }
-#else
-#if __SSE2__
-        TILE_M = std::max(4, tile_size / 4 * 4);
-#else
-        TILE_M = std::max(2, tile_size / 2 * 2);
-#endif // __SSE2__
-#endif // __AVX__
+    TILE_M = std::max(2, tile_size / 2 * 2);
 #endif // __AVX512F__
 
 #if defined(__x86_64__) || defined(_M_X64)
 #if __AVX512F__
     TILE_N = std::max(8, tile_size / 8 * 8);
 #else
-#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI
-    if (ncnn::cpu_support_x86_avx512_vnni())
-        TILE_N = std::max(8, tile_size / 8 * 8);
-    else
-#endif // NCNN_RUNTIME_CPU && NCNN_AVX512VNNI
-        TILE_N = std::max(4, tile_size / 4 * 4);
+    TILE_N = std::max(4, tile_size / 4 * 4);
 #endif // __AVX512F__
 #else
     TILE_N = std::max(2, tile_size / 2 * 2);
@@ -13707,37 +13689,19 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
 
 #if __AVX512F__
             TILE_M = std::max(16, tile_size / 16 * 16);
+#elif __AVX__
+            TILE_M = std::max(8, tile_size / 8 * 8);
+#elif __SSE2__
+            TILE_M = std::max(4, tile_size / 4 * 4);
 #else
-#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI
-            if (ncnn::cpu_support_x86_avx512_vnni())
-            {
-                TILE_M = std::max(16, tile_size / 16 * 16);
-            }
-            else
-#endif // NCNN_RUNTIME_CPU && NCNN_AVX512VNNI
-#if __AVX__
-            {
-                TILE_M = std::max(8, tile_size / 8 * 8);
-            }
-#else
-#if __SSE2__
-                TILE_M = std::max(4, tile_size / 4 * 4);
-#else
-                TILE_M = std::max(2, tile_size / 2 * 2);
-#endif // __SSE2__
-#endif // __AVX__
+            TILE_M = std::max(2, tile_size / 2 * 2);
 #endif // __AVX512F__
 
 #if defined(__x86_64__) || defined(_M_X64)
 #if __AVX512F__
             TILE_N = std::max(8, tile_size / 8 * 8);
 #else
-#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI
-            if (ncnn::cpu_support_x86_avx512_vnni())
-                TILE_N = std::max(8, tile_size / 8 * 8);
-            else
-#endif // NCNN_RUNTIME_CPU && NCNN_AVX512VNNI
-                TILE_N = std::max(4, tile_size / 4 * 4);
+            TILE_N = std::max(4, tile_size / 4 * 4);
 #endif // __AVX512F__
 #else
             TILE_N = std::max(2, tile_size / 2 * 2);
@@ -13752,21 +13716,12 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
         int nn_M = (M + TILE_M - 1) / TILE_M;
 #if __AVX512F__
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 15) / 16 * 16);
+#elif __AVX__
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
+#elif __SSE2__
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
 #else
-#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI
-        if (ncnn::cpu_support_x86_avx512_vnni())
-            TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 15) / 16 * 16);
-        else
-#endif // NCNN_RUNTIME_CPU && NCNN_AVX512VNNI
-#if __AVX__
-            TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
-#else
-#if __SSE2__
-            TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
-#else
-            TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
-#endif // __SSE2__
-#endif // __AVX__
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
 #endif // __AVX512F__
     }
 
@@ -13777,12 +13732,7 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
 #if __AVX512F__
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 7) / 8 * 8);
 #else
-#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI
-        if (ncnn::cpu_support_x86_avx512_vnni())
-            TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 7) / 8 * 8);
-        else
-#endif // NCNN_RUNTIME_CPU && NCNN_AVX512VNNI
-            TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
 #endif // __AVX512F__
 #else
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 1) / 2 * 2);
@@ -13793,21 +13743,12 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
     {
 #if __AVX512F__
         TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 15) / 16 * 16);
+#elif __AVX__
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
+#elif __SSE2__
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 3) / 4 * 4);
 #else
-#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI
-        if (ncnn::cpu_support_x86_avx512_vnni())
-            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 15) / 16 * 16);
-        else
-#endif // NCNN_RUNTIME_CPU && NCNN_AVX512VNNI
-#if __AVX__
-            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
-#else
-#if __SSE2__
-            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 3) / 4 * 4);
-#else
-            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
-#endif // __SSE2__
-#endif // __AVX__
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
 #endif // __AVX512F__
     }
 
@@ -13816,21 +13757,12 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
     {
 #if __AVX512F__
         TILE_M = (constant_TILE_M + 15) / 16 * 16;
+#elif __AVX__
+        TILE_M = (constant_TILE_M + 7) / 8 * 8;
+#elif __SSE2__
+        TILE_M = (constant_TILE_M + 3) / 4 * 4;
 #else
-#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI
-        if (ncnn::cpu_support_x86_avx512_vnni())
-            TILE_M = (constant_TILE_M + 15) / 16 * 16;
-        else
-#endif // NCNN_RUNTIME_CPU && NCNN_AVX512VNNI
-#if __AVX__
-            TILE_M = (constant_TILE_M + 7) / 8 * 8;
-#else
-#if __SSE2__
-            TILE_M = (constant_TILE_M + 3) / 4 * 4;
-#else
-            TILE_M = (constant_TILE_M + 1) / 2 * 2;
-#endif // __SSE2__
-#endif // __AVX__
+        TILE_M = (constant_TILE_M + 1) / 2 * 2;
 #endif // __AVX512F__
     }
 
@@ -13840,12 +13772,7 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
 #if __AVX512F__
         TILE_N = (constant_TILE_N + 7) / 8 * 8;
 #else
-#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI
-        if (ncnn::cpu_support_x86_avx512_vnni())
-            TILE_N = (constant_TILE_N + 7) / 8 * 8;
-        else
-#endif // NCNN_RUNTIME_CPU && NCNN_AVX512VNNI
-            TILE_N = (constant_TILE_N + 3) / 4 * 4;
+        TILE_N = (constant_TILE_N + 3) / 4 * 4;
 #endif // __AVX512F__
 #else
         TILE_N = (constant_TILE_N + 1) / 2 * 2;

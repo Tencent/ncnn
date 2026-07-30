@@ -133,7 +133,13 @@ static void weight_block_scale_quantize_activation_row_int8(const Mat& A, int tr
     }
 }
 
-static int weight_block_quantize_gemm_transB_int8(const Mat& A, int transA, const Mat& BT, const Mat& BT_scales, const Mat& input_scales, const Mat& C, Mat& top_blob, int M, int N, int K, int block_size, float alpha, float beta, int broadcast_type_C, int output_transpose, int output_m_offset, const Option& opt)
+#if defined(__GNUC__) && defined(__mips_loongson_mmi)
+// NOTE gcc loongson mmi optimized version produce wrong result
+// so I have to disable vectorize here
+__attribute__((optimize("no-tree-vectorize")))
+#endif
+static int
+weight_block_quantize_gemm_transB_int8(const Mat& A, int transA, const Mat& BT, const Mat& BT_scales, const Mat& input_scales, const Mat& C, Mat& top_blob, int M, int N, int K, int block_size, float alpha, float beta, int broadcast_type_C, int output_transpose, int output_m_offset, const Option& opt)
 {
     const int block_count = (K + block_size - 1) / block_size;
 

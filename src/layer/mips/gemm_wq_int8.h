@@ -5151,22 +5151,26 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
         }
     }
 
-    {
 #if __mips_msa
-        int tile_size = (l2_cache_size_int8 - 8 * TILE_K) / std::max(1, TILE_K + 8);
-        TILE_M = std::max(8, tile_size / 8 * 8);
+    TILE_M = 8;
 #else
-        int tile_size = (l2_cache_size_int8 - 2 * TILE_K) / std::max(1, TILE_K + 2);
-        TILE_M = std::max(2, tile_size / 2 * 2);
+    TILE_M = 2;
 #endif
-
-        if (M > 0)
-        {
-            int nn_M = std::max(std::min(nT, get_physical_cpu_count()), (M + TILE_M - 1) / TILE_M);
+    if (M > 0)
+    {
+        TILE_M *= std::min(nT, get_physical_cpu_count());
+        int nn_M = (M + TILE_M - 1) / TILE_M;
 #if __mips_msa
-            TILE_M = std::max(8, std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8));
+        TILE_M = std::max(8, std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8));
 #else
-            TILE_M = std::max(2, std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2));
+        TILE_M = std::max(2, std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2));
+#endif
+        if (nT > 1)
+        {
+#if __mips_msa
+            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
+#else
+            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
 #endif
         }
     }
