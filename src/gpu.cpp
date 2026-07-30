@@ -698,7 +698,7 @@ int GpuInfoPrivate::query_extensions()
 {
     // get device extension
     uint32_t deviceExtensionPropertyCount = 0;
-    VkResult ret = vkEnumerateDeviceExtensionProperties(physicalDevice, NULL, &deviceExtensionPropertyCount, NULL);
+    VkResult ret = vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionPropertyCount, nullptr);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkEnumerateDeviceExtensionProperties failed %d", ret);
@@ -706,7 +706,7 @@ int GpuInfoPrivate::query_extensions()
     }
 
     deviceExtensionProperties.resize(deviceExtensionPropertyCount);
-    ret = vkEnumerateDeviceExtensionProperties(physicalDevice, NULL, &deviceExtensionPropertyCount, deviceExtensionProperties.data());
+    ret = vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionPropertyCount, deviceExtensionProperties.data());
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkEnumerateDeviceExtensionProperties failed %d", ret);
