@@ -3525,14 +3525,16 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 {
                     if (out_elempack == 8)
                     {
-                        __msa_storel_d((v4i32)_bf0, p0);
-                        __msa_storel_d((v4i32)_bf4, p0 + 4);
-                        __msa_storel_d((v4i32)_bf1, p0 + 8);
-                        __msa_storel_d((v4i32)_bf5, p0 + 12);
-                        __msa_storel_d((v4i32)_bf2, p0 + 16);
-                        __msa_storel_d((v4i32)_bf6, p0 + 20);
-                        __msa_storel_d((v4i32)_bf3, p0 + 24);
-                        __msa_storel_d((v4i32)_bf7, p0 + 28);
+                        const int jj_m8 = jj % 8;
+                        unsigned short* p1 = p0 - out_hstep * jj_m8 + jj_m8;
+                        __msa_storel_d((v4i32)_bf0, p1);
+                        __msa_storel_d((v4i32)_bf1, p1 + 8);
+                        __msa_storel_d((v4i32)_bf2, p1 + 16);
+                        __msa_storel_d((v4i32)_bf3, p1 + 24);
+                        __msa_storel_d((v4i32)_bf4, p1 + 32);
+                        __msa_storel_d((v4i32)_bf5, p1 + 40);
+                        __msa_storel_d((v4i32)_bf6, p1 + 48);
+                        __msa_storel_d((v4i32)_bf7, p1 + 56);
                     }
                     if (out_elempack == 4)
                     {
@@ -4142,16 +4144,12 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 {
                     if (out_elempack == 8)
                     {
-                        transpose4x4_epi16(_bf0, _bf1, _bf2, _bf3);
-                        v8i16 _tmpf0 = _bf0;
-                        v8i16 _tmpf1 = _bf1;
-                        _bf1 = (v8i16)__msa_sldi_b((v16i8)_tmpf0, (v16i8)_tmpf0, 8);
-                        _bf2 = _tmpf1;
-                        _bf3 = (v8i16)__msa_sldi_b((v16i8)_tmpf1, (v16i8)_tmpf1, 8);
-                        __msa_storel_d((v4i32)_bf0, p0);
-                        __msa_storel_d((v4i32)_bf1, p0 + 8);
-                        __msa_storel_d((v4i32)_bf2, p0 + 16);
-                        __msa_storel_d((v4i32)_bf3, p0 + 24);
+                        const int jj_m8 = jj % 8;
+                        unsigned short* p1 = p0 - out_hstep * jj_m8 + jj_m8;
+                        __msa_storel_d((v4i32)_bf0, p1);
+                        __msa_storel_d((v4i32)_bf1, p1 + 8);
+                        __msa_storel_d((v4i32)_bf2, p1 + 16);
+                        __msa_storel_d((v4i32)_bf3, p1 + 24);
                     }
                     if (out_elempack == 4)
                     {
@@ -4564,6 +4562,13 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 
                 if (output_transpose)
                 {
+                    if (out_elempack == 8)
+                    {
+                        const int jj_m8 = jj % 8;
+                        unsigned short* p1 = p0 - out_hstep * jj_m8 + jj_m8;
+                        __msa_storel_d((v4i32)_bf0, p1);
+                        __msa_storel_d((v4i32)_bf1, p1 + 8);
+                    }
                     if (out_elempack == 4)
                     {
                         __msa_storel_d((v4i32)_bf0, p0);
@@ -4970,6 +4975,12 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 
                 if (output_transpose)
                 {
+                    if (out_elempack == 8)
+                    {
+                        const int jj_m8 = jj % 8;
+                        unsigned short* p1 = p0 - out_hstep * jj_m8 + jj_m8;
+                        __msa_storel_d((v4i32)_bf0, p1);
+                    }
                     if (out_elempack == 4)
                         __msa_storel_d((v4i32)_bf0, p0);
                     if (out_elempack == 1)
