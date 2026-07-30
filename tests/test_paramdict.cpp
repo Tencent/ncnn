@@ -695,9 +695,17 @@ static int test_paramdict_7()
 
     // binary array, negative length
     {
-        const int mem[] = {-23304, -4, 1, 2, 3, 4, -233};
+        static const unsigned char mem[] = {
+            0xf8, 0xa4, 0xff, 0xff, // -23304, array id 4
+            0xfc, 0xff, 0xff, 0xff, // length -4
+            0x01, 0x00, 0x00, 0x00,
+            0x02, 0x00, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00,
+            0x17, 0xff, 0xff, 0xff  // -233, end of params
+        };
         ParamDictTest pdt;
-        if (pdt.load_param_bin((const unsigned char*)mem) == 0)
+        if (pdt.load_param_bin(mem) == 0)
         {
             fprintf(stderr, "test_paramdict negative bin array length not rejected\n");
             return -1;
@@ -706,9 +714,16 @@ static int test_paramdict_7()
 
     // binary string, negative length
     {
-        const int mem[] = {-23404, -8, 0, 0, 0, -233};
+        static const unsigned char mem[] = {
+            0x94, 0xa4, 0xff, 0xff, // -23404, string id 4
+            0xf8, 0xff, 0xff, 0xff, // length -8
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x17, 0xff, 0xff, 0xff  // -233, end of params
+        };
         ParamDictTest pdt;
-        if (pdt.load_param_bin((const unsigned char*)mem) == 0)
+        if (pdt.load_param_bin(mem) == 0)
         {
             fprintf(stderr, "test_paramdict negative bin string length not rejected\n");
             return -1;
