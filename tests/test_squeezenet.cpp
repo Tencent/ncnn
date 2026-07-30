@@ -257,9 +257,9 @@ public:
 
     virtual int load_param(const ncnn::ParamDict& pd)
     {
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
         impl->vkdev = vkdev;
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
         return impl->load_param(pd);
     }
@@ -298,7 +298,7 @@ public:
         return impl->forward(bottom_blob, top_blob, opt);
     }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     virtual int upload_model(ncnn::VkTransfer& cmd, const ncnn::Option& opt)
     {
         return impl->upload_model(cmd, opt);
@@ -308,7 +308,7 @@ public:
     {
         return impl->forward(bottom_blob, top_blob, cmd, opt);
     }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
 private:
     ncnn::Layer* impl;
@@ -517,15 +517,51 @@ static int test_squeezenet_batch(const ncnn::Option& opt, float epsilon = 0.001)
 }
 #endif // NCNN_BATCH
 
+#if NCNN_VULKAN || NCNN_WEBGPU
+static int test_squeezenet_gpu_featmask(const ncnn::Option& opt)
+{
+    int ret = test_squeezenet(opt, 0, 0.1f);
+    if (ret != 0)
+        fprintf(stderr, "test_squeezenet gpu failed with feature mask\n");
+
+    return ret;
+}
+#endif // NCNN_VULKAN || NCNN_WEBGPU
+
+#if NCNN_WEBGPU
+static int test_squeezenet_webgpu()
+{
+    ncnn::Option opt;
+    opt.use_vulkan_compute = true;
+
+    int ret = test_squeezenet_gpu_featmask(opt);
+    if (ret != 0)
+        return ret;
+
+    ret = test_squeezenet(opt, 2, 0.1f);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_squeezenet webgpu failed with binary param\n");
+        return ret;
+    }
+
+    return 0;
+}
+#endif // NCNN_WEBGPU
+
 int main()
 {
     SRAND(7767517);
 
-#ifdef __EMSCRIPTEN__
+#if defined(__EMSCRIPTEN__) && !NCNN_WEBGPU
     EM_ASM(
         FS.mkdir('/working');
         FS.mount(NODEFS, {root: '../../examples'}, '/working'););
-#endif // __EMSCRIPTEN__
+#endif // defined(__EMSCRIPTEN__) && !NCNN_WEBGPU
+
+#if NCNN_WEBGPU
+    return test_squeezenet_webgpu();
+#endif // NCNN_WEBGPU
 
     ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
     ncnn::PoolAllocator g_workspace_pool_allocator;
@@ -620,6 +656,16 @@ int main()
         }
 #endif // NCNN_VULKAN
     }
+
+#if NCNN_VULKAN
+    {
+        ncnn::Option opt_gpu = opts[1];
+        opt_gpu.use_vulkan_compute = true;
+        int ret = test_squeezenet_gpu_featmask(opt_gpu);
+        if (ret != 0)
+            return ret;
+    }
+#endif // NCNN_VULKAN
 
 #if NCNN_BATCH
     // batch inference tests

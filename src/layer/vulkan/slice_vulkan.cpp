@@ -10,6 +10,9 @@ namespace ncnn {
 Slice_vulkan::Slice_vulkan()
 {
     support_vulkan = true;
+#if NCNN_WEBGPU
+    support_vulkan = false;
+#endif // NCNN_WEBGPU
     support_vulkan_packing = true;
 
     pipeline_slice[0] = 0;

@@ -21,6 +21,7 @@
 #cmakedefine01 NCNN_PIXEL_AFFINE
 #cmakedefine01 NCNN_PIXEL_DRAWING
 #cmakedefine01 NCNN_VULKAN
+#cmakedefine01 NCNN_WEBGPU
 #cmakedefine01 NCNN_SIMPLEVK
 #cmakedefine01 NCNN_SYSTEM_GLSLANG
 #cmakedefine01 NCNN_RUNTIME_CPU
@@ -448,6 +449,12 @@ static inline void swap_endianness_32(void* x)
 #include <math.h>
 #include <fenv.h>
 #endif
+
+#if NCNN_WEBGPU
+#include "simplevk.h"
+#include "vulkan_header_fix.h"
+#include <webgpu/webgpu.h>
+#endif // NCNN_WEBGPU
 
 #if NCNN_VULKAN
 #if NCNN_SIMPLEVK

@@ -10,6 +10,9 @@ namespace ncnn {
 InstanceNorm_vulkan::InstanceNorm_vulkan()
 {
     support_vulkan = true;
+#if NCNN_WEBGPU
+    support_vulkan = false;
+#endif // NCNN_WEBGPU
     support_vulkan_packing = true;
 
     pipeline_instancenorm_reduce_sum4_fp16_to_fp32 = 0;

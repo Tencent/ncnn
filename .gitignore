@@ -55,6 +55,9 @@ __pycache__
 *.egg-info/
 python/setup.py
 
+# Node.js dependencies
+node_modules/
+
 # Clangd
 .cache/
 

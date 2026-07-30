@@ -19,11 +19,9 @@ set(ncnn_SRCS
     benchmark.cpp
     blob.cpp
     c_api.cpp
-    command.cpp
     cpu.cpp
     datareader.cpp
     expression.cpp
-    gpu.cpp
     layer.cpp
     mat.cpp
     mat_pixel.cpp
@@ -35,14 +33,31 @@ set(ncnn_SRCS
     net.cpp
     option.cpp
     paramdict.cpp
-    pipeline.cpp
-    pipelinecache.cpp
     simpleocv.cpp
     simpleomp.cpp
     simplestl.cpp
     simplemath.cpp
-    simplevk.cpp
 )
+
+if(NCNN_WEBGPU)
+    list(APPEND ncnn_SRCS
+        allocator_webgpu.cpp
+        command_webgpu.cpp
+        gpu_webgpu.cpp
+        pipeline_webgpu.cpp
+        pipelinecache_webgpu.cpp
+    )
+endif()
+
+if(NCNN_VULKAN)
+    list(APPEND ncnn_SRCS
+        command.cpp
+        gpu.cpp
+        pipeline.cpp
+        pipelinecache.cpp
+        simplevk.cpp
+    )
+endif()
 
 if(ANDROID)
     list(APPEND ncnn_SRCS mat_pixel_android.cpp)
@@ -174,7 +189,7 @@ ncnn_add_layer(Flip)
 ncnn_add_layer(SDPA)
 ncnn_add_layer(RotaryEmbed)
 
-if(NCNN_VULKAN)
+if(NCNN_VULKAN OR NCNN_WEBGPU)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/layer/vulkan/shader/vulkan_activation.comp)
 endif()
@@ -270,6 +285,20 @@ if(NCNN_THREADS)
     endif()
 endif()
 
+if(NCNN_WEBGPU)
+    target_compile_features(ncnn PRIVATE cxx_std_20)
+    target_link_libraries(ncnn PRIVATE "$<BUILD_INTERFACE:emdawnwebgpu_c_include>")
+    target_compile_options(ncnn PUBLIC
+        "$<BUILD_INTERFACE:--use-port=${NCNN_EMDAWNWEBGPU_PORT}:cpp_bindings=false>")
+    target_link_options(ncnn PUBLIC
+        "$<BUILD_INTERFACE:--use-port=${NCNN_EMDAWNWEBGPU_PORT}:cpp_bindings=false>"
+        "-sASYNCIFY=1"
+        "-sASYNCIFY_STACK_SIZE=${NCNN_WEBGPU_ASYNCIFY_STACK_SIZE}"
+        "-sSTACK_SIZE=${NCNN_WEBGPU_WASM_STACK_SIZE}"
+        "$<$<CONFIG:Release>:--closure=1>"
+        "$<$<CONFIG:Release>:--closure-args=--externs=${NCNN_WEBGPU_CLOSURE_EXTERNS}>")
+endif()
+
 if(NCNN_VULKAN)
     if(NCNN_SIMPLEVK)
         if(APPLE)
@@ -334,9 +363,18 @@ if(NCNN_VULKAN)
 
         target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
     endif()
+endif()
 
+if(NCNN_VULKAN OR NCNN_WEBGPU)
     # link in-house glslang
     target_include_directories(ncnn PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../>)
+endif()
+
+if(NCNN_WEBGPU)
+    target_link_libraries(ncnn PRIVATE glslang SPIRV glslang-default-resource-limits "$<BUILD_INTERFACE:tint_api>")
+endif()
+
+if(NCNN_VULKAN)
     target_link_libraries(ncnn PRIVATE glslang SPIRV)
 endif()
 
@@ -795,6 +833,24 @@ if(NCNN_INSTALL_SDK)
         ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfig.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfigVersion.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ncnn)
+    if(NCNN_WEBGPU)
+        install(CODE "
+            file(GLOB_RECURSE ncnn_webgpu_archives LIST_DIRECTORIES FALSE
+                \"${CMAKE_BINARY_DIR}/dawn/*.a\"
+                \"${CMAKE_BINARY_DIR}/spirv-tools/*.a\")
+            if(NOT ncnn_webgpu_archives)
+                message(FATAL_ERROR \"No WebGPU dependency archives were built\")
+            endif()
+            file(INSTALL
+                DESTINATION \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/ncnn/webgpu\"
+                TYPE STATIC_LIBRARY
+                FILES \${ncnn_webgpu_archives})
+        ")
+        install(FILES
+            ${NCNN_EMDAWNWEBGPU_PORT}
+            ${NCNN_WEBGPU_CLOSURE_EXTERNS}
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/ncnn/ports)
+    endif()
     # pkgconfig
     configure_file(ncnn.pc.in ${CMAKE_CURRENT_BINARY_DIR}/ncnn.pc @ONLY)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ncnn.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)

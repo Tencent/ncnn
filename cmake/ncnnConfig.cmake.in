@@ -2,6 +2,7 @@ set(NCNN_VERSION @NCNN_VERSION@)
 set(NCNN_OPENMP @NCNN_OPENMP@)
 set(NCNN_THREADS @NCNN_THREADS@)
 set(NCNN_VULKAN @NCNN_VULKAN@)
+set(NCNN_WEBGPU @NCNN_WEBGPU@)
 set(NCNN_SHARED_LIB @NCNN_SHARED_LIB@)
 set(NCNN_SYSTEM_GLSLANG @NCNN_SYSTEM_GLSLANG@)
 set(NCNN_SIMPLEVK @NCNN_SIMPLEVK@)
@@ -44,7 +45,67 @@ if(NCNN_VULKAN)
     endif()
 endif()
 
+if(NCNN_WEBGPU AND NOT NCNN_SHARED_LIB)
+    set(glslang_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../@CMAKE_INSTALL_LIBDIR@/cmake/glslang")
+    find_package(glslang REQUIRED)
+endif()
+
 include(${CMAKE_CURRENT_LIST_DIR}/ncnn.cmake)
+
+if(NCNN_WEBGPU)
+    if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+        message(FATAL_ERROR "This ncnn package was built for Emscripten WebGPU")
+    endif()
+
+    execute_process(
+        COMMAND ${CMAKE_CXX_COMPILER} --version
+        OUTPUT_VARIABLE NCNN_WEBGPU_EMCC_VERSION_OUTPUT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET)
+    string(FIND "${NCNN_WEBGPU_EMCC_VERSION_OUTPUT}" "@NCNN_WEBGPU_EMSDK_VERSION@" NCNN_WEBGPU_EMCC_VERSION_POS)
+    if(NCNN_WEBGPU_EMCC_VERSION_POS EQUAL -1)
+        message(FATAL_ERROR "ncnn WebGPU requires emsdk @NCNN_WEBGPU_EMSDK_VERSION@, but ${CMAKE_CXX_COMPILER} reports:\n${NCNN_WEBGPU_EMCC_VERSION_OUTPUT}")
+    endif()
+
+    get_filename_component(
+        NCNN_EMDAWNWEBGPU_PORT
+        "${CMAKE_CURRENT_LIST_DIR}/../../../@CMAKE_INSTALL_DATADIR@/ncnn/ports/@NCNN_WEBGPU_EMDAWNWEBGPU_PORT_FILENAME@"
+        ABSOLUTE)
+    if(NOT EXISTS "${NCNN_EMDAWNWEBGPU_PORT}")
+        message(FATAL_ERROR "Missing installed ncnn Emdawnwebgpu port: ${NCNN_EMDAWNWEBGPU_PORT}")
+    endif()
+    get_filename_component(
+        NCNN_WEBGPU_CLOSURE_EXTERNS
+        "${CMAKE_CURRENT_LIST_DIR}/../../../@CMAKE_INSTALL_DATADIR@/ncnn/ports/webgpu_immediates.externs.js"
+        ABSOLUTE)
+    if(NOT EXISTS "${NCNN_WEBGPU_CLOSURE_EXTERNS}")
+        message(FATAL_ERROR "Missing installed ncnn WebGPU Closure externs: ${NCNN_WEBGPU_CLOSURE_EXTERNS}")
+    endif()
+
+    get_filename_component(
+        NCNN_WEBGPU_ARCHIVE_DIR
+        "${CMAKE_CURRENT_LIST_DIR}/../../../@CMAKE_INSTALL_LIBDIR@/ncnn/webgpu"
+        ABSOLUTE)
+    file(GLOB_RECURSE NCNN_WEBGPU_ARCHIVES LIST_DIRECTORIES FALSE "${NCNN_WEBGPU_ARCHIVE_DIR}/*.a")
+    if(NOT NCNN_WEBGPU_ARCHIVES)
+        message(FATAL_ERROR "Missing installed ncnn Tint archives: ${NCNN_WEBGPU_ARCHIVE_DIR}")
+    endif()
+    list(SORT NCNN_WEBGPU_ARCHIVES)
+
+    target_link_libraries(ncnn INTERFACE
+        "-Wl,--start-group"
+        ${NCNN_WEBGPU_ARCHIVES}
+        "-Wl,--end-group")
+    target_compile_options(ncnn INTERFACE
+        "--use-port=${NCNN_EMDAWNWEBGPU_PORT}:cpp_bindings=false")
+    target_link_options(ncnn INTERFACE
+        "--use-port=${NCNN_EMDAWNWEBGPU_PORT}:cpp_bindings=false"
+        "-sASYNCIFY=1"
+        "-sASYNCIFY_STACK_SIZE=@NCNN_WEBGPU_ASYNCIFY_STACK_SIZE@"
+        "-sSTACK_SIZE=@NCNN_WEBGPU_WASM_STACK_SIZE@"
+        "$<$<CONFIG:Release>:--closure=1>"
+        "$<$<CONFIG:Release>:--closure-args=--externs=${NCNN_WEBGPU_CLOSURE_EXTERNS}>")
+endif()
 
 if(TARGET ncnn)
     set(ncnn_FOUND TRUE)

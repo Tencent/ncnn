@@ -105,7 +105,7 @@ macro(ncnn_add_layer class)
         endif()
 
         set(LAYER_VULKAN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/layer/vulkan/${name}_vulkan.cpp)
-        if(NCNN_VULKAN AND EXISTS ${LAYER_VULKAN_SRC})
+        if((NCNN_VULKAN OR NCNN_WEBGPU) AND EXISTS ${LAYER_VULKAN_SRC})
             set(WITH_LAYER_${name}_vulkan 1)
             list(APPEND ncnn_SRCS ${LAYER_VULKAN_SRC})
         endif()

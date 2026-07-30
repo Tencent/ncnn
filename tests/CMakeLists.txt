@@ -4,6 +4,72 @@ if(MSVC)
     add_definitions(/wd4996)
 endif()
 
+if(NCNN_WEBGPU)
+    if(NCNN_WEBGPU_NODE_EXECUTABLE)
+        set(ncnn_webgpu_node_command ${NCNN_WEBGPU_NODE_EXECUTABLE})
+    elseif(CMAKE_CROSSCOMPILING_EMULATOR)
+        set(ncnn_webgpu_node_command ${CMAKE_CROSSCOMPILING_EMULATOR})
+    else()
+        find_program(ncnn_webgpu_node_command node REQUIRED)
+    endif()
+
+    add_custom_target(webgpu_tests)
+    set_property(TARGET webgpu_tests PROPERTY FOLDER "tests/webgpu")
+
+    function(ncnn_add_webgpu_browser_test target)
+        set(require_webgpu_argument)
+        if(ARGC GREATER 1 AND "${ARGV1}" STREQUAL "REQUIRE_WEBGPU")
+            list(APPEND require_webgpu_argument --require-webgpu)
+        endif()
+
+        target_link_options(${target} PRIVATE
+            "--no-entry"
+            "-sMODULARIZE=1"
+            "-sEXPORT_ES6=1"
+            "-sENVIRONMENT=worker"
+            "-sEXPORTED_FUNCTIONS=['_main']"
+            "-sEXPORTED_RUNTIME_METHODS=['callMain']")
+        set_target_properties(${target} PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests/webgpu"
+            SUFFIX ".js")
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/webgpu_test.html"
+                "$<TARGET_FILE_DIR:${target}>/webgpu_test.html"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/webgpu_test_worker.mjs"
+                "$<TARGET_FILE_DIR:${target}>/webgpu_test_worker.mjs")
+        add_dependencies(webgpu_tests ${target})
+
+        if(NCNN_TEST_CHROME)
+            set(extra_arguments)
+            if(NCNN_TEST_WEBGPU_ADAPTER STREQUAL "swiftshader")
+                list(APPEND extra_arguments
+                    --expected-adapter swiftshader
+                    --swiftshader
+                    --no-sandbox)
+            else()
+                list(APPEND extra_arguments --hardware)
+            endif()
+
+            add_test(
+                NAME ${target}
+                COMMAND ${ncnn_webgpu_node_command}
+                    "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/run_webgpu_test.mjs"
+                    --chrome "${NCNN_TEST_CHROME}"
+                    --page "$<TARGET_FILE_DIR:${target}>/webgpu_test.html"
+                    --module "$<TARGET_FILE_NAME:${target}>"
+                    --test-name ${target}
+                    --expected-version "${NCNN_WEBGPU_CHROME_VERSION}"
+                    ${require_webgpu_argument}
+                    ${extra_arguments})
+            set_tests_properties(${target} PROPERTIES
+                LABELS webgpu
+                TIMEOUT 600)
+        endif()
+    endfunction()
+endif()
+
 add_library(ncnntestutil STATIC testutil.cpp)
 target_link_libraries(ncnntestutil PUBLIC ncnn)
 
@@ -11,7 +77,13 @@ macro(ncnn_add_test name)
     add_executable(test_${name} test_${name}.cpp)
     target_link_libraries(test_${name} PRIVATE ncnntestutil ncnn)
 
-    add_test(NAME test_${name} COMMAND ${CMAKE_COMMAND} -DTEST_EXECUTABLE=$<TARGET_FILE:test_${name}> -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/run_test.cmake)
+    if(NCNN_WEBGPU)
+        if("${name}" STREQUAL "command" OR "${name}" STREQUAL "squeezenet")
+            ncnn_add_webgpu_browser_test(test_${name} REQUIRE_WEBGPU)
+        endif()
+    else()
+        add_test(NAME test_${name} COMMAND ${CMAKE_COMMAND} -DTEST_EXECUTABLE=$<TARGET_FILE:test_${name}> -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/run_test.cmake)
+    endif()
 
     # add test to a virtual project group
     set_property(TARGET test_${name} PROPERTY FOLDER "tests")
@@ -29,7 +101,11 @@ macro(ncnn_add_layer_test class)
             add_executable(${test_filename} ${test_file})
             target_link_libraries(${test_filename} PRIVATE ncnntestutil ncnn)
 
-            add_test(NAME ${test_filename} COMMAND ${CMAKE_COMMAND} -DTEST_EXECUTABLE=$<TARGET_FILE:${test_filename}> -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/run_test.cmake)
+            if(NCNN_WEBGPU)
+                ncnn_add_webgpu_browser_test(${test_filename})
+            else()
+                add_test(NAME ${test_filename} COMMAND ${CMAKE_COMMAND} -DTEST_EXECUTABLE=$<TARGET_FILE:${test_filename}> -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/run_test.cmake)
+            endif()
 
             # add test to a virtual project group
             set_property(TARGET ${test_filename} PROPERTY FOLDER "tests")
@@ -39,6 +115,16 @@ endmacro()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src/layer)
+
+if(NCNN_WEBGPU)
+    add_executable(webgpu_header_abi_probe webgpu/header_abi_probe.cpp)
+    target_link_libraries(webgpu_header_abi_probe PRIVATE ncnn)
+    set_property(TARGET webgpu_header_abi_probe PROPERTY FOLDER "tests/webgpu")
+
+    if(NOT NCNN_TEST_CHROME)
+        message(STATUS "ncnn WebGPU browser tests are not registered; set NCNN_TEST_CHROME to the frozen Chrome executable")
+    endif()
+endif()
 
 if(NCNN_PIXEL_AFFINE)
     ncnn_add_test(mat_pixel_affine)
@@ -71,8 +157,24 @@ if(NCNN_VULKAN)
     ncnn_add_test(pipeline_cache)
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+if(NCNN_WEBGPU)
+    ncnn_add_test(command)
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NOT NCNN_WEBGPU AND TARGET test_squeezenet)
     target_link_libraries(test_squeezenet PRIVATE nodefs.js)
+endif()
+
+if(NCNN_WEBGPU AND TARGET test_squeezenet)
+    set_property(TARGET test_squeezenet APPEND PROPERTY
+        LINK_DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/../examples/squeezenet_v1.1.param"
+            "${CMAKE_CURRENT_SOURCE_DIR}/../examples/squeezenet_v1.1.param.bin"
+            "${CMAKE_CURRENT_SOURCE_DIR}/../examples/squeezenet_v1.1.bin")
+    target_link_options(test_squeezenet PRIVATE
+        "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/../examples/squeezenet_v1.1.param@/working/squeezenet_v1.1.param"
+        "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/../examples/squeezenet_v1.1.param.bin@/working/squeezenet_v1.1.param.bin"
+        "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/../examples/squeezenet_v1.1.bin@/working/squeezenet_v1.1.bin")
 endif()
 
 ncnn_add_layer_test(AbsVal)

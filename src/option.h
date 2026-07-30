@@ -8,10 +8,10 @@
 
 namespace ncnn {
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
 class VkAllocator;
 class PipelineCache;
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
 class Allocator;
 class NCNN_EXPORT Option
@@ -43,7 +43,7 @@ public:
     // workspace memory allocator
     Allocator* workspace_allocator;
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     // blob memory allocator
     VkAllocator* blob_vkallocator;
 
@@ -55,7 +55,7 @@ public:
 
     // pipeline cache
     PipelineCache* pipeline_cache;
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
     // the time openmp threads busy-wait for more work before going to sleep
     // default value is 20ms to keep the cores enabled

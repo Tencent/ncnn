@@ -13,9 +13,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
 #include "command.h"
 #include "gpu.h"
+#endif // NCNN_VULKAN || NCNN_WEBGPU
+
+#if NCNN_VULKAN
 #include "pipelinecache.h"
 #endif // NCNN_VULKAN
 
@@ -875,7 +878,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     return 0;
 }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
 int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count, std::vector<ncnn::Mat>& d, const std::vector<ncnn::Mat>& top_shapes, int flag)
 {
     if (!_opt.use_packing_layout)
@@ -918,6 +921,8 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
     if (!vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
     if (!vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
+    if (!vkdev->info.support_int16_packed()) opt.use_int16_packed = false;
+    if (!vkdev->info.support_int16_storage() || !vkdev->info.support_int16_arithmetic()) opt.use_int16_storage = false;
     if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
     if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
     if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
@@ -1210,17 +1215,17 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     return 0;
 }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
 int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count, const std::vector<ncnn::Mat>& top_shapes, float epsilon, int flag)
 {
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     if ((flag & TEST_LAYER_DISABLE_CPU_TESTING) && (flag & TEST_LAYER_DISABLE_GPU_TESTING))
         return 0;
 #else
     if (flag & TEST_LAYER_DISABLE_CPU_TESTING)
         return 0;
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
     // naive
     std::vector<ncnn::Mat> b;
@@ -1257,18 +1262,24 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
         }
     }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     // gpu
     if (!(flag & TEST_LAYER_DISABLE_GPU_TESTING))
     {
+#if NCNN_VULKAN
         ncnn::PipelineCache* pipeline_cache = get_gpu_layer_pipeline_cache();
+#endif // NCNN_VULKAN
 
         ncnn::Option opt = _opt;
+#if NCNN_VULKAN
         opt.pipeline_cache = pipeline_cache;
+#endif // NCNN_VULKAN
 
         std::vector<ncnn::Mat> d;
         int ret = test_layer_gpu(typeindex, pd, weights, opt, a, top_blob_count, d, std::vector<ncnn::Mat>(), flag);
+#if NCNN_VULKAN
         clear_gpu_layer_pipeline_cache_if_needed();
+#endif // NCNN_VULKAN
         if (ret != 233 && (ret != 0 || CompareMat(b, d, epsilon) != 0))
         {
             fprintf(stderr, "test_layer_gpu failed\n");
@@ -1279,11 +1290,15 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     // gpu shape hint
     if (!(flag & TEST_LAYER_DISABLE_GPU_TESTING))
     {
+#if NCNN_VULKAN
         ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
         ncnn::PipelineCache pipeline_cache(vkdev);
+#endif // NCNN_VULKAN
 
         ncnn::Option opt = _opt;
+#if NCNN_VULKAN
         opt.pipeline_cache = &pipeline_cache;
+#endif // NCNN_VULKAN
 
         std::vector<ncnn::Mat> d;
         int ret = test_layer_gpu(typeindex, pd, weights, opt, a, top_blob_count, d, b, flag);
@@ -1293,7 +1308,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
             return -1;
         }
     }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
     return 0;
 }
@@ -1459,7 +1474,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     return 0;
 }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
 int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const ncnn::Mat& a, ncnn::Mat& d, const ncnn::Mat& top_shape, int flag)
 {
     if (!_opt.use_packing_layout)
@@ -1503,6 +1518,8 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
     if (!vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
     if (!vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
+    if (!vkdev->info.support_int16_packed()) opt.use_int16_packed = false;
+    if (!vkdev->info.support_int16_storage() || !vkdev->info.support_int16_arithmetic()) opt.use_int16_storage = false;
     if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
     if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
     if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
@@ -1774,17 +1791,17 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     return 0;
 }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
 int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const ncnn::Mat& a, const ncnn::Mat& top_shape, float epsilon, int flag)
 {
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     if ((flag & TEST_LAYER_DISABLE_CPU_TESTING) && (flag & TEST_LAYER_DISABLE_GPU_TESTING))
         return 0;
 #else
     if (flag & TEST_LAYER_DISABLE_CPU_TESTING)
         return 0;
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
     // naive
     ncnn::Mat b;
@@ -1821,18 +1838,24 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
         }
     }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     // gpu
     if (!(flag & TEST_LAYER_DISABLE_GPU_TESTING))
     {
+#if NCNN_VULKAN
         ncnn::PipelineCache* pipeline_cache = get_gpu_layer_pipeline_cache();
+#endif // NCNN_VULKAN
 
         ncnn::Option opt = _opt;
+#if NCNN_VULKAN
         opt.pipeline_cache = pipeline_cache;
+#endif // NCNN_VULKAN
 
         ncnn::Mat d;
         int ret = test_layer_gpu(typeindex, pd, weights, opt, a, d, ncnn::Mat(), flag);
+#if NCNN_VULKAN
         clear_gpu_layer_pipeline_cache_if_needed();
+#endif // NCNN_VULKAN
         if (ret != 233 && (ret != 0 || CompareMat(b, d, epsilon) != 0))
         {
             fprintf(stderr, "test_layer_gpu failed\n");
@@ -1843,11 +1866,15 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     // gpu shape hint
     if (!(flag & TEST_LAYER_DISABLE_GPU_TESTING))
     {
+#if NCNN_VULKAN
         ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
         ncnn::PipelineCache pipeline_cache(vkdev);
+#endif // NCNN_VULKAN
 
         ncnn::Option opt = _opt;
+#if NCNN_VULKAN
         opt.pipeline_cache = &pipeline_cache;
+#endif // NCNN_VULKAN
 
         ncnn::Mat d;
         int ret = test_layer_gpu(typeindex, pd, weights, opt, a, d, b, flag);
@@ -1857,7 +1884,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
             return -1;
         }
     }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
     return 0;
 }
@@ -2037,8 +2064,10 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         {0, 0, 1, 1, 0, 0, 0},
         {0, 0, 0, 0, 0, 1, 0},
         {1, 0, 0, 0, 0, 0, 0},
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
         {1, 1, 0, 0, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
+#endif // NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
         {1, 1, 0, 1, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
         {1, 0, 0, 0, 1, 0, TEST_LAYER_DISABLE_CPU_TESTING},
 #endif // NCNN_VULKAN
@@ -2077,8 +2106,10 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         {0, 0, 1, 1, 0, 0, 0},
         {0, 0, 0, 0, 0, 1, 0},
         {1, 0, 0, 0, 0, 0, 0},
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
         {1, 1, 0, 0, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
+#endif // NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
         {1, 1, 0, 1, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
         {1, 0, 0, 0, 1, 0, TEST_LAYER_DISABLE_CPU_TESTING},
 #endif // NCNN_VULKAN

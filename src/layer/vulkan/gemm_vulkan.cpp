@@ -22,6 +22,9 @@ static inline signed char float2int8(float v)
 Gemm_vulkan::Gemm_vulkan()
 {
     support_vulkan = true;
+#if NCNN_WEBGPU
+    support_vulkan = false;
+#endif // NCNN_WEBGPU
     support_vulkan_packing = true;
     support_vulkan_any_packing = true;
 
@@ -95,11 +98,13 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         // sanitize wired subgroup_size
         use_subgroup_ops = false;
     }
+#if NCNN_VULKAN
     if (opt.use_fp16_arithmetic && !opt.use_bf16_storage && !opt.use_bf16_packed && !vkdev->info.queryShaderSubgroupExtendedTypesFeatures().shaderSubgroupExtendedTypes)
     {
         // gemm_sg shuffles fp16 vectors, which requires subgroup extended types
         use_subgroup_ops = false;
     }
+#endif // NCNN_VULKAN
 
     if (use_cooperative_matrix)
     {
@@ -715,6 +720,7 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     VkMat A = A0;
     VkMat B = B0;
 
+#if NCNN_VULKAN
     if (constantA && !vkdev->is_device_local(A0.data->memory_type_index))
     {
         cmd.record_clone(A0, A, opt);
@@ -723,6 +729,7 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     {
         cmd.record_clone(B0, B, opt);
     }
+#endif // NCNN_VULKAN
 
     const int A_elempack = A.elempack;
     const int B_elempack = B.elempack;

@@ -17,9 +17,9 @@ public:
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
 public:
     int w;

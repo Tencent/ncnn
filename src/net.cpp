@@ -17,12 +17,17 @@
 #include "benchmark.h"
 #endif // NCNN_BENCHMARK
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
 #include "command.h"
 #include "pipelinecache.h"
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
 namespace ncnn {
+
+#if NCNN_WEBGPU
+uint64_t begin_webgpu_sync_operation(const char* operation);
+int finish_webgpu_sync_operation(uint64_t operation_id, int result);
+#endif
 
 class NetPrivate
 {
@@ -34,19 +39,19 @@ public:
     friend class Extractor;
     int forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const;
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, const Option& opt) const;
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
     int convert_layout(Mat& bottom_blob, const Layer* layer, const Option& opt) const;
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     int convert_layout(VkMat& bottom_blob, const Layer* layer, VkCompute& cmd, const Option& opt) const;
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
     int do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats, const Option& opt) const;
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     int do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, const Option& opt) const;
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
     void update_input_output_indexes();
 #if NCNN_STRING
@@ -73,14 +78,14 @@ public:
     MappedFile mapped_model_file;
 #endif
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     const VulkanDevice* vkdev;
 
     VkAllocator* weight_vkallocator;
     VkAllocator* weight_staging_vkallocator;
 
     PipelineCache* pipeline_cache;
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 };
 
 NetPrivate::NetPrivate(Option& _opt)
@@ -89,12 +94,12 @@ NetPrivate::NetPrivate(Option& _opt)
     local_blob_allocator = 0;
     local_workspace_allocator = 0;
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     vkdev = 0;
     weight_vkallocator = 0;
     weight_staging_vkallocator = 0;
     pipeline_cache = 0;
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 }
 
 static Option get_masked_option(const Option& opt, int featmask)
@@ -188,7 +193,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, cons
     return 0;
 }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
 int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, const Option& opt) const
 {
     const Layer* layer = layers[layer_index];
@@ -347,13 +352,18 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
 #endif
     }
     if (ret != 0)
+    {
+#if NCNN_WEBGPU
+        NCNN_LOGE("WebGPU layer %d forward failed %d", layer_index, ret);
+#endif
         return ret;
+    }
 
     //     NCNN_LOGE("forward_layer %d %d %s done", layer->support_vulkan, layer_index, layer->name.c_str());
 
     return 0;
 }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
 int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Option& opt) const
 {
@@ -582,7 +592,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
     return 0;
 }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
 int NetPrivate::convert_layout(VkMat& bottom_blob, const Layer* layer, VkCompute& cmd, const Option& opt) const
 {
     if (bottom_blob.empty())
@@ -608,10 +618,18 @@ int NetPrivate::convert_layout(VkMat& bottom_blob, const Layer* layer, VkCompute
         }
     }
 
-    if (bottom_blob.elempack != dst_elempack)
+    bool need_layout_conversion = bottom_blob.elempack != dst_elempack;
+    int cast_type_to = 0;
+    if (!opt.use_bf16_packed && !opt.use_bf16_storage && (bottom_blob.elembits() == 16 || bottom_blob.elembits() == 32))
+    {
+        cast_type_to = opt.use_fp16_packed || opt.use_fp16_storage ? 2 : 1;
+        need_layout_conversion = need_layout_conversion || bottom_blob.elembits() != (cast_type_to == 2 ? 16 : 32);
+    }
+
+    if (need_layout_conversion)
     {
         VkMat bottom_blob_packed;
-        vkdev->convert_packing(bottom_blob, bottom_blob_packed, dst_elempack, cmd, opt);
+        vkdev->convert_packing(bottom_blob, bottom_blob_packed, dst_elempack, cast_type_to, cmd, opt);
         bottom_blob = bottom_blob_packed;
 
         if (bottom_blob.empty())
@@ -620,7 +638,7 @@ int NetPrivate::convert_layout(VkMat& bottom_blob, const Layer* layer, VkCompute
 
     return 0;
 }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
 int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats, const Option& opt) const
 {
@@ -882,7 +900,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
     return 0;
 }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
 int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, const Option& opt) const
 {
     if (layer->one_blob_only)
@@ -1140,7 +1158,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
 
     return 0;
 }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
 void NetPrivate::update_input_output_indexes()
 {
@@ -1333,7 +1351,7 @@ int Net::load_param(const DataReader& dr)
     d->layers.resize((size_t)layer_count);
     d->blobs.resize((size_t)blob_count);
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     if (opt.use_vulkan_compute)
     {
         if (!d->vkdev)
@@ -1344,13 +1362,23 @@ int Net::load_param(const DataReader& dr)
 
             d->vkdev = get_gpu_device(device_index);
         }
-        if (!d->vkdev || !d->vkdev->is_valid()) opt.use_vulkan_compute = false; // no valid vulkan device, fallback to cpu
+        if (!d->vkdev || !d->vkdev->is_valid())
+        {
+#if NCNN_WEBGPU
+            NCNN_LOGE("WebGPU device initialization failed");
+            return -1;
+#endif
+#if NCNN_VULKAN
+            opt.use_vulkan_compute = false; // no valid vulkan device, fallback to cpu
+#endif
+        }
     }
     if (opt.use_vulkan_compute)
     {
         // sanitize use options
         if (!d->vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
         if (!d->vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+        if (!d->vkdev->info.support_int16_packed()) opt.use_int16_packed = false;
         if (!d->vkdev->info.support_int16_storage() || !d->vkdev->info.support_int16_arithmetic()) opt.use_int16_storage = false;
         if (!d->vkdev->info.support_fp16_uniform()) opt.use_fp16_uniform = false;
         if (!d->vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
@@ -1363,8 +1391,10 @@ int Net::load_param(const DataReader& dr)
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
         if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
+#if NCNN_VULKAN
         // enable local memory optimization on discrete gpu only
         if (d->vkdev->info.type() != 0) opt.use_shader_local_memory = false;
+#endif
 
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
@@ -1380,7 +1410,7 @@ int Net::load_param(const DataReader& dr)
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
     }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
     ParamDict pd;
 
@@ -1397,12 +1427,12 @@ int Net::load_param(const DataReader& dr)
         SCAN_VALUE("%d", top_count)
 
         Layer* layer = create_overwrite_builtin_layer(layer_type);
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
         if (!layer && opt.use_vulkan_compute && d->vkdev)
         {
             layer = create_layer_vulkan(layer_type);
         }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
         if (!layer)
         {
             layer = create_layer_cpu(layer_type);
@@ -1418,10 +1448,10 @@ int Net::load_param(const DataReader& dr)
             return -1;
         }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
         if (opt.use_vulkan_compute)
             layer->vkdev = d->vkdev;
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
         layer->type = std::string(layer_type);
         layer->name = std::string(layer_name);
@@ -1707,7 +1737,7 @@ int Net::load_param_bin(const DataReader& dr)
     d->layers.resize(layer_count);
     d->blobs.resize(blob_count);
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     if (opt.use_vulkan_compute)
     {
         if (!d->vkdev)
@@ -1718,13 +1748,23 @@ int Net::load_param_bin(const DataReader& dr)
 
             d->vkdev = get_gpu_device(device_index);
         }
-        if (!d->vkdev || !d->vkdev->is_valid()) opt.use_vulkan_compute = false; // no valid vulkan device, fallback to cpu
+        if (!d->vkdev || !d->vkdev->is_valid())
+        {
+#if NCNN_WEBGPU
+            NCNN_LOGE("WebGPU device initialization failed");
+            return -1;
+#endif
+#if NCNN_VULKAN
+            opt.use_vulkan_compute = false; // no valid vulkan device, fallback to cpu
+#endif
+        }
     }
     if (opt.use_vulkan_compute)
     {
         // sanitize use options
         if (!d->vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
         if (!d->vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+        if (!d->vkdev->info.support_int16_packed()) opt.use_int16_packed = false;
         if (!d->vkdev->info.support_int16_storage() || !d->vkdev->info.support_int16_arithmetic()) opt.use_int16_storage = false;
         if (!d->vkdev->info.support_fp16_uniform()) opt.use_fp16_uniform = false;
         if (!d->vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
@@ -1737,8 +1777,10 @@ int Net::load_param_bin(const DataReader& dr)
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
         if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
+#if NCNN_VULKAN
         // enable local memory optimization on discrete gpu only
         if (d->vkdev->info.type() != 0) opt.use_shader_local_memory = false;
+#endif
 
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
@@ -1754,7 +1796,7 @@ int Net::load_param_bin(const DataReader& dr)
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
     }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
     ParamDict pd;
 
@@ -1768,12 +1810,12 @@ int Net::load_param_bin(const DataReader& dr)
         READ_VALUE(top_count)
 
         Layer* layer = create_overwrite_builtin_layer(typeindex);
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
         if (!layer && opt.use_vulkan_compute && d->vkdev)
         {
             layer = create_layer_vulkan(typeindex);
         }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
         if (!layer)
         {
             layer = create_layer_cpu(typeindex);
@@ -1790,10 +1832,10 @@ int Net::load_param_bin(const DataReader& dr)
             return -1;
         }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
         if (opt.use_vulkan_compute)
             layer->vkdev = d->vkdev;
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
         //         layer->type = std::string(layer_type);
         //         layer->name = std::string(layer_name);
@@ -2026,12 +2068,22 @@ int Net::load_model(const DataReader& dr)
         return -1;
     }
 
+#if NCNN_WEBGPU
+    uint64_t operation_id = 0;
+    if (opt.use_vulkan_compute)
+    {
+        operation_id = begin_webgpu_sync_operation("net-load-model");
+        if (operation_id == 0)
+            return -1;
+    }
+#endif
+
     int layer_count = (int)d->layers.size();
 
     // load file
     int ret = 0;
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     ncnn::VkTransfer* cmd_upload = 0;
     Option opt_upload = opt;
 
@@ -2062,7 +2114,7 @@ int Net::load_model(const DataReader& dr)
         opt_upload.workspace_vkallocator = d->weight_vkallocator;
         opt_upload.staging_vkallocator = d->weight_staging_vkallocator;
     }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
     ModelBinFromDataReader mb(dr);
     for (int i = 0; i < layer_count; i++)
@@ -2103,7 +2155,7 @@ int Net::load_model(const DataReader& dr)
             break;
         }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
         if (layer->support_vulkan && opt.use_vulkan_compute && cmd_upload)
         {
             int uret = layer->upload_model(*cmd_upload, get_masked_option(opt_upload, layer->featmask));
@@ -2131,7 +2183,7 @@ int Net::load_model(const DataReader& dr)
                 cmd_upload->reset();
             }
         }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
     }
 
     if (opt.use_local_pool_allocator)
@@ -2154,7 +2206,7 @@ int Net::load_model(const DataReader& dr)
         }
     }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     if (ret == 0 && opt.use_vulkan_compute && cmd_upload)
     {
         ret = cmd_upload->submit_and_wait();
@@ -2164,8 +2216,12 @@ int Net::load_model(const DataReader& dr)
     {
         delete cmd_upload;
     }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
+#if NCNN_WEBGPU
+    if (operation_id != 0)
+        ret = finish_webgpu_sync_operation(operation_id, ret);
+#endif
     return ret;
 }
 
@@ -2484,7 +2540,7 @@ void Net::clear()
         d->local_workspace_allocator = 0;
     }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     if (d->weight_vkallocator)
     {
         delete d->weight_vkallocator;
@@ -2501,7 +2557,7 @@ void Net::clear()
         d->pipeline_cache = 0;
         opt.pipeline_cache = 0;
     }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 }
 
 Extractor Net::create_extractor() const
@@ -2551,7 +2607,7 @@ std::vector<Layer*>& Net::mutable_layers()
     return d->layers;
 }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
 void Net::set_vulkan_device(int device_index)
 {
     opt.vulkan_device_index = device_index;
@@ -2568,7 +2624,7 @@ const VulkanDevice* Net::vulkan_device() const
 {
     return d->vkdev;
 }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
 #if NCNN_STRING
 int Net::find_blob_index_by_name(const char* name) const
@@ -2683,12 +2739,12 @@ public:
     std::vector<Mat> blob_mats;
     Option opt;
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     VkAllocator* local_blob_vkallocator;
     VkAllocator* local_staging_vkallocator;
 
     std::vector<VkMat> blob_mats_gpu;
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 };
 
 Extractor::Extractor(const Net* _net, size_t blob_count)
@@ -2697,7 +2753,7 @@ Extractor::Extractor(const Net* _net, size_t blob_count)
     d->blob_mats.resize(blob_count);
     d->opt = d->net->opt;
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     if (d->net->opt.use_vulkan_compute)
     {
         d->local_blob_vkallocator = 0;
@@ -2705,7 +2761,7 @@ Extractor::Extractor(const Net* _net, size_t blob_count)
 
         d->blob_mats_gpu.resize(blob_count);
     }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 }
 
 Extractor::~Extractor()
@@ -2722,12 +2778,12 @@ Extractor::Extractor(const Extractor& rhs)
     d->blob_mats = rhs.d->blob_mats;
     d->opt = rhs.d->opt;
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     d->local_blob_vkallocator = 0;
     d->local_staging_vkallocator = 0;
 
     d->blob_mats_gpu = rhs.d->blob_mats_gpu;
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 }
 
 Extractor& Extractor::operator=(const Extractor& rhs)
@@ -2739,12 +2795,12 @@ Extractor& Extractor::operator=(const Extractor& rhs)
     d->blob_mats = rhs.d->blob_mats;
     d->opt = rhs.d->opt;
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     d->local_blob_vkallocator = 0;
     d->local_staging_vkallocator = 0;
 
     d->blob_mats_gpu = rhs.d->blob_mats_gpu;
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
     return *this;
 }
@@ -2753,7 +2809,7 @@ void Extractor::clear()
 {
     d->blob_mats.clear();
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     if (d->opt.use_vulkan_compute)
     {
         d->blob_mats_gpu.clear();
@@ -2769,7 +2825,7 @@ void Extractor::clear()
             d->local_staging_vkallocator = 0;
         }
     }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 }
 
 void Extractor::set_light_mode(bool enable)
@@ -2787,7 +2843,7 @@ void Extractor::set_workspace_allocator(Allocator* allocator)
     d->opt.workspace_allocator = allocator;
 }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
 void Extractor::set_blob_vkallocator(VkAllocator* allocator)
 {
     d->opt.blob_vkallocator = allocator;
@@ -2802,7 +2858,7 @@ void Extractor::set_staging_vkallocator(VkAllocator* allocator)
 {
     d->opt.staging_vkallocator = allocator;
 }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
 #if NCNN_STRING
 int Extractor::input(const char* blob_name, const Mat& in)
@@ -2857,6 +2913,16 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
     if (blob_index < 0 || blob_index >= (int)d->blob_mats.size())
         return -1;
 
+#if NCNN_WEBGPU
+    uint64_t operation_id = 0;
+    if (d->opt.use_vulkan_compute)
+    {
+        operation_id = begin_webgpu_sync_operation("extractor-extract");
+        if (operation_id == 0)
+            return -1;
+    }
+#endif
+
     int old_blocktime = get_kmp_blocktime();
     set_kmp_blocktime(d->opt.openmp_blocktime);
 
@@ -2882,7 +2948,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
             }
         }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
         if (d->opt.use_vulkan_compute)
         {
             // use local allocator
@@ -2937,7 +3003,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
         }
 #else
         ret = d->net->d->forward_layer(layer_index, d->blob_mats, d->opt);
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
     }
 
     feat = d->blob_mats[blob_index];
@@ -2951,11 +3017,31 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
             convert_packing(feat, feat_unpacked, 1, d->opt);
             feat = feat_unpacked;
             if (feat.empty())
+            {
+#if NCNN_WEBGPU
+                if (operation_id != 0)
+                    finish_webgpu_sync_operation(operation_id, -100);
+#endif
+                set_kmp_blocktime(old_blocktime);
+                set_flush_denormals(old_flush_denormals);
                 return -100;
+            }
         }
 
         // clang-format off
         // *INDENT-OFF*
+#if NCNN_WEBGPU
+        if (d->opt.use_fp16_packed && (type == 0))
+        {
+            if (feat.elembits() == 16)
+            {
+                Mat feat_fp32;
+                cast_float16_to_float32(feat, feat_fp32, d->opt);
+                feat = feat_fp32;
+            }
+        }
+        else
+#endif // NCNN_WEBGPU
 #if NCNN_ARM82
         if (d->opt.use_fp16_storage && cpu_support_arm_asimdhp() && (type == 0))
         {
@@ -3013,7 +3099,15 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
         // *INDENT-ON*
         // clang-format on
         if (feat.empty())
+        {
+#if NCNN_WEBGPU
+            if (operation_id != 0)
+                finish_webgpu_sync_operation(operation_id, -100);
+#endif
+            set_kmp_blocktime(old_blocktime);
+            set_flush_denormals(old_flush_denormals);
             return -100;
+        }
 
         if (d->opt.use_local_pool_allocator && feat.allocator == d->net->d->local_blob_allocator)
         {
@@ -3021,17 +3115,29 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
             // so we could destroy net instance much earlier
             feat = feat.clone();
             if (feat.empty())
+            {
+#if NCNN_WEBGPU
+                if (operation_id != 0)
+                    finish_webgpu_sync_operation(operation_id, -100);
+#endif
+                set_kmp_blocktime(old_blocktime);
+                set_flush_denormals(old_flush_denormals);
                 return -100;
+            }
         }
     }
 
     set_kmp_blocktime(old_blocktime);
     set_flush_denormals(old_flush_denormals);
 
+#if NCNN_WEBGPU
+    if (operation_id != 0)
+        ret = finish_webgpu_sync_operation(operation_id, ret);
+#endif
     return ret;
 }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
 #if NCNN_STRING
 int Extractor::input(const char* blob_name, const VkMat& in)
 {
@@ -3114,6 +3220,6 @@ int Extractor::extract(int blob_index, VkMat& feat, VkCompute& cmd)
 
     return ret;
 }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
 } // namespace ncnn

@@ -4,3 +4,6 @@
 [submodule "python/pybind11"]
 	path = python/pybind11
 	url = https://github.com/pybind/pybind11.git
+[submodule "dawn"]
+	path = dawn
+	url = https://github.com/google/dawn.git

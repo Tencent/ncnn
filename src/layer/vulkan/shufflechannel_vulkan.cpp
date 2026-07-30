@@ -10,6 +10,9 @@ namespace ncnn {
 ShuffleChannel_vulkan::ShuffleChannel_vulkan()
 {
     support_vulkan = true;
+#if NCNN_WEBGPU
+    support_vulkan = false;
+#endif // NCNN_WEBGPU
     support_vulkan_packing = true;
 
     pipeline_shufflechannel = 0;

@@ -10,6 +10,9 @@ namespace ncnn {
 Erf_vulkan::Erf_vulkan()
 {
     support_vulkan = true;
+#if NCNN_WEBGPU
+    support_vulkan = false;
+#endif // NCNN_WEBGPU
     support_vulkan_packing = true;
 
     pipeline_erf = 0;

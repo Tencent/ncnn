@@ -31,9 +31,9 @@ Layer::Layer()
 
     featmask = 0;
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     vkdev = 0;
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
     userdata = 0;
     typeindex = -1;
@@ -101,7 +101,7 @@ int Layer::forward_inplace(Mat& /*bottom_top_blob*/, const Option& /*opt*/) cons
     return -1;
 }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
 int Layer::upload_model(VkTransfer& /*cmd*/, const Option& /*opt*/)
 {
     return 0;
@@ -140,7 +140,7 @@ int Layer::forward_inplace(VkMat& /*bottom_top_blob*/, VkCompute& /*cmd*/, const
 {
     return -1;
 }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
 #include "layer_registry.h"
 
@@ -185,7 +185,7 @@ Layer* create_layer_cpu(const char* type)
     return create_layer_cpu(index);
 }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
 Layer* create_layer_vulkan(const char* type)
 {
     int index = layer_to_index(type);
@@ -194,7 +194,7 @@ Layer* create_layer_vulkan(const char* type)
 
     return create_layer_vulkan(index);
 }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 #endif // NCNN_STRING
 
 // internal wrapper
@@ -202,7 +202,7 @@ class Layer_final : public Layer
 {
 public:
     Layer* layer_cpu;
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     Layer* layer_vulkan;
 #endif
 
@@ -217,7 +217,7 @@ public:
         layer_cpu->top_shapes = top_shapes;
         layer_cpu->featmask = featmask;
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
         if (layer_vulkan)
         {
             layer_vulkan->vkdev = vkdev;
@@ -249,7 +249,7 @@ public:
         support_vulkan_packing = false;
         support_vulkan_any_packing = false;
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
         if (layer_vulkan)
         {
             support_vulkan = layer_vulkan->support_vulkan;
@@ -264,7 +264,7 @@ public:
     Layer_final()
     {
         layer_cpu = 0;
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
         layer_vulkan = 0;
 #endif
     }
@@ -272,7 +272,7 @@ public:
     ~Layer_final()
     {
         delete layer_cpu;
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
         delete layer_vulkan;
 #endif
     }
@@ -280,7 +280,7 @@ public:
     virtual int load_param(const ParamDict& pd)
     {
         set_layer_properties();
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
         if (layer_vulkan)
         {
             if (vkdev)
@@ -296,7 +296,7 @@ public:
             delete layer_vulkan;
             layer_vulkan = 0;
         }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
         int ret = layer_cpu->load_param(pd);
         get_layer_properties();
@@ -305,14 +305,14 @@ public:
 
     virtual int load_model(const ModelBin& mb)
     {
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
         if (layer_vulkan)
         {
             int ret = layer_vulkan->load_model(mb);
             get_layer_properties();
             return ret;
         }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
         int ret = layer_cpu->load_model(mb);
         get_layer_properties();
@@ -322,7 +322,7 @@ public:
     virtual int create_pipeline(const Option& opt)
     {
         set_layer_properties();
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
         if (layer_vulkan)
         {
             if (vkdev)
@@ -336,7 +336,7 @@ public:
             delete layer_vulkan;
             layer_vulkan = 0;
         }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
         int ret = layer_cpu->create_pipeline(opt);
         get_layer_properties();
@@ -345,12 +345,12 @@ public:
 
     virtual int destroy_pipeline(const Option& opt)
     {
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
         if (layer_vulkan)
         {
             return layer_vulkan->destroy_pipeline(opt);
         }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
         return layer_cpu->destroy_pipeline(opt);
     }
@@ -376,7 +376,7 @@ public:
         return layer_cpu->forward_inplace(bottom_top_blob, opt);
     }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
 public:
     virtual int upload_model(VkTransfer& cmd, const Option& opt)
     {
@@ -402,7 +402,7 @@ public:
     {
         return layer_vulkan ? layer_vulkan->forward_inplace(bottom_top_blob, cmd, opt) : -1;
     }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 };
 
 Layer* create_layer(int index)
@@ -414,7 +414,7 @@ Layer* create_layer(int index)
     Layer_final* layer_final = new Layer_final;
     layer_final->layer_cpu = layer_cpu;
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
     layer_final->layer_vulkan = create_layer_vulkan(index);
 #endif
 
@@ -521,7 +521,7 @@ Layer* create_layer_cpu(int index)
     return layer;
 }
 
-#if NCNN_VULKAN
+#if NCNN_VULKAN || NCNN_WEBGPU
 Layer* create_layer_vulkan(int index)
 {
     if (index < 0 || index >= layer_registry_entry_count)
@@ -535,6 +535,6 @@ Layer* create_layer_vulkan(int index)
     layer->typeindex = index;
     return layer;
 }
-#endif // NCNN_VULKAN
+#endif // NCNN_VULKAN || NCNN_WEBGPU
 
 } // namespace ncnn

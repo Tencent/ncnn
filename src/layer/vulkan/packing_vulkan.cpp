@@ -317,11 +317,14 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         const VkMat bottom_b = B > 1 ? bottom_blob.batch(b) : bottom_blob;
         const VkMat top_b = B > 1 ? top_blob.batch(b) : top_blob;
 
+        const bool use_bottom_blob_fp32 = cast_type_from != cast_type_to && cast_type_from == 1;
+        const bool use_top_blob_fp32 = cast_type_from != cast_type_to && cast_type_to == 1;
+
         std::vector<VkMat> buffer_bindings(4);
-        buffer_bindings[0] = bottom_b;
-        buffer_bindings[1] = bottom_b;
-        buffer_bindings[2] = top_b;
-        buffer_bindings[3] = top_b;
+        buffer_bindings[0] = use_bottom_blob_fp32 ? VkMat() : bottom_b;
+        buffer_bindings[1] = use_bottom_blob_fp32 ? bottom_b : VkMat();
+        buffer_bindings[2] = use_top_blob_fp32 ? VkMat() : top_b;
+        buffer_bindings[3] = use_top_blob_fp32 ? top_b : VkMat();
 
         if (elempack == out_elempack)
         {
