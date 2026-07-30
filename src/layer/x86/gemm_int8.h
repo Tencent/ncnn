@@ -13,7 +13,7 @@ void transpose_pack_B_tile_fp32_to_int8_avx512vnni(const Mat& B, Mat& BT, int j,
 void gemm_transB_packed_tile_int8_avx512vnni(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVX512F__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
 void pack_A_tile_int8_avxvnniint8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
 void transpose_pack_A_tile_int8_avxvnniint8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
 void pack_B_tile_int8_avxvnniint8(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk);
@@ -25,7 +25,7 @@ void transpose_pack_B_tile_fp32_to_int8_avxvnniint8(const Mat& B, Mat& BT, int j
 void gemm_transB_packed_tile_int8_avxvnniint8(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
 void pack_A_tile_int8_avxvnni(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
 void transpose_pack_A_tile_int8_avxvnni(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
 void pack_B_tile_int8_avxvnni(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk);
@@ -64,7 +64,7 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVX512F__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni_int8())
     {
         pack_A_tile_int8_avxvnniint8(A, AT, i, max_ii, k, max_kk);
@@ -72,7 +72,7 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         pack_A_tile_int8_avxvnni(A, AT, i, max_ii, k, max_kk);
@@ -387,7 +387,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVX512F__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni_int8())
     {
         transpose_pack_A_tile_int8_avxvnniint8(A, AT, i, max_ii, k, max_kk);
@@ -395,7 +395,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         transpose_pack_A_tile_int8_avxvnni(A, AT, i, max_ii, k, max_kk);
@@ -696,7 +696,7 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVX512F__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni_int8())
     {
         pack_B_tile_int8_avxvnniint8(B, BT, j, max_jj, k, max_kk);
@@ -704,7 +704,7 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         pack_B_tile_int8_avxvnni(B, BT, j, max_jj, k, max_kk);
@@ -1033,7 +1033,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVX512F__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni_int8())
     {
         transpose_pack_B_tile_int8_avxvnniint8(B, BT, j, max_jj, k, max_kk);
@@ -1041,7 +1041,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         transpose_pack_B_tile_int8_avxvnni(B, BT, j, max_jj, k, max_kk);
@@ -1451,7 +1451,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVX512F__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni_int8())
     {
         pack_A_tile_fp32_to_int8_avxvnniint8(A, AT, i, max_ii, k, max_kk, scales);
@@ -1459,7 +1459,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         pack_A_tile_fp32_to_int8_avxvnni(A, AT, i, max_ii, k, max_kk, scales);
@@ -3229,7 +3229,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVX512F__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni_int8())
     {
         transpose_pack_A_tile_fp32_to_int8_avxvnniint8(A, AT, i, max_ii, k, max_kk, scales);
@@ -3237,7 +3237,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         transpose_pack_A_tile_fp32_to_int8_avxvnni(A, AT, i, max_ii, k, max_kk, scales);
@@ -4609,7 +4609,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVX512F__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni_int8())
     {
         pack_B_tile_fp32_to_int8_avxvnniint8(B, BT, j, max_jj, k, max_kk, scale);
@@ -4617,7 +4617,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         pack_B_tile_fp32_to_int8_avxvnni(B, BT, j, max_jj, k, max_kk, scale);
@@ -5682,7 +5682,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVX512F__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni_int8())
     {
         transpose_pack_B_tile_fp32_to_int8_avxvnniint8(B, BT, j, max_jj, k, max_kk, scale);
@@ -5690,7 +5690,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         transpose_pack_B_tile_fp32_to_int8_avxvnni(B, BT, j, max_jj, k, max_kk, scale);
@@ -11882,7 +11882,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVX512F__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni_int8())
     {
         gemm_transB_packed_tile_int8_avxvnniint8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
@@ -11890,7 +11890,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         gemm_transB_packed_tile_int8_avxvnni(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);

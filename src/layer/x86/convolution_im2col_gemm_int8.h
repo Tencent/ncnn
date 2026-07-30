@@ -5,11 +5,11 @@
 void convolution_im2col_input_tile_int8_avx512vnni(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVX512F__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
 void convolution_im2col_input_tile_int8_avxvnniint8(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVX512VNNI__
 void convolution_im2col_input_tile_int8_avxvnni(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h);
 #endif
 
@@ -2601,7 +2601,7 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVX512F__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni_int8())
     {
         convolution_im2col_input_tile_int8_avxvnniint8(bottom_blob, B, j, max_jj, k, max_kk, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h);
@@ -2609,7 +2609,7 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         convolution_im2col_input_tile_int8_avxvnni(bottom_blob, B, j, max_jj, k, max_kk, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h);
@@ -2692,11 +2692,19 @@ static void convolution_im2col_gemm_transform_kernel_int8(const Mat& kernel, Mat
     bool has_w_shift = false;
     if (TILE_K >= 4)
     {
-        has_w_shift = ncnn::cpu_support_x86_avx512_vnni() || ncnn::cpu_support_x86_avx_vnni();
+#if __AVX512F__
+#if NCNN_AVX512VNNI
+        has_w_shift = ncnn::cpu_support_x86_avx512_vnni();
+#endif // NCNN_AVX512VNNI
+#else
+#if NCNN_AVXVNNI
+        has_w_shift = ncnn::cpu_support_x86_avx_vnni();
 #if NCNN_AVXVNNIINT8
-        if (!ncnn::cpu_support_x86_avx512_vnni() && ncnn::cpu_support_x86_avx_vnni_int8())
+        if (ncnn::cpu_support_x86_avx_vnni_int8())
             has_w_shift = false;
 #endif // NCNN_AVXVNNIINT8
+#endif // NCNN_AVXVNNI
+#endif // __AVX512F__
     }
     if (has_w_shift)
     {

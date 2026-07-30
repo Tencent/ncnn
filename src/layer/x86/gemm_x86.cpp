@@ -7899,11 +7899,19 @@ static int gemm_x86_int8(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob
     bool has_w_shift = false;
     if (TILE_K >= 4)
     {
-        has_w_shift = ncnn::cpu_support_x86_avx512_vnni() || ncnn::cpu_support_x86_avx_vnni();
+#if __AVX512F__
+#if NCNN_AVX512VNNI
+        has_w_shift = ncnn::cpu_support_x86_avx512_vnni();
+#endif // NCNN_AVX512VNNI
+#else
+#if NCNN_AVXVNNI
+        has_w_shift = ncnn::cpu_support_x86_avx_vnni();
 #if NCNN_AVXVNNIINT8
-        if (!ncnn::cpu_support_x86_avx512_vnni() && ncnn::cpu_support_x86_avx_vnni_int8())
+        if (ncnn::cpu_support_x86_avx_vnni_int8())
             has_w_shift = false;
 #endif // NCNN_AVXVNNIINT8
+#endif // NCNN_AVXVNNI
+#endif // __AVX512F__
     }
 #endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
 
@@ -8274,11 +8282,19 @@ static int gemm_BT_x86_int8(const Mat& A, const Mat& BT, float B_int8_scale, con
     bool has_w_shift = false;
     if (TILE_K >= 4)
     {
-        has_w_shift = ncnn::cpu_support_x86_avx512_vnni() || ncnn::cpu_support_x86_avx_vnni();
+#if __AVX512F__
+#if NCNN_AVX512VNNI
+        has_w_shift = ncnn::cpu_support_x86_avx512_vnni();
+#endif // NCNN_AVX512VNNI
+#else
+#if NCNN_AVXVNNI
+        has_w_shift = ncnn::cpu_support_x86_avx_vnni();
 #if NCNN_AVXVNNIINT8
-        if (!ncnn::cpu_support_x86_avx512_vnni() && ncnn::cpu_support_x86_avx_vnni_int8())
+        if (ncnn::cpu_support_x86_avx_vnni_int8())
             has_w_shift = false;
 #endif // NCNN_AVXVNNIINT8
+#endif // NCNN_AVXVNNI
+#endif // __AVX512F__
     }
 #endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
 
@@ -8556,11 +8572,19 @@ int Gemm_x86::create_pipeline_int8(const Option& opt)
         bool has_w_shift = false;
         if (TILE_K >= 4)
         {
-            has_w_shift = ncnn::cpu_support_x86_avx512_vnni() || ncnn::cpu_support_x86_avx_vnni();
+#if __AVX512F__
+#if NCNN_AVX512VNNI
+            has_w_shift = ncnn::cpu_support_x86_avx512_vnni();
+#endif // NCNN_AVX512VNNI
+#else
+#if NCNN_AVXVNNI
+            has_w_shift = ncnn::cpu_support_x86_avx_vnni();
 #if NCNN_AVXVNNIINT8
-            if (!ncnn::cpu_support_x86_avx512_vnni() && ncnn::cpu_support_x86_avx_vnni_int8())
+            if (ncnn::cpu_support_x86_avx_vnni_int8())
                 has_w_shift = false;
 #endif // NCNN_AVXVNNIINT8
+#endif // NCNN_AVXVNNI
+#endif // __AVX512F__
         }
         if (has_w_shift)
         {
@@ -9762,11 +9786,20 @@ int Gemm_x86::create_pipeline_wq_int8(const Option& opt)
     const int block_count = (K + block_size - 1) / block_size;
     int BT_hstep = K;
 #if NCNN_AVX512VNNI || NCNN_AVXVNNI
-    bool has_a_shift = ncnn::cpu_support_x86_avx512_vnni() || ncnn::cpu_support_x86_avx_vnni();
+    bool has_a_shift = false;
+#if __AVX512F__
+#if NCNN_AVX512VNNI
+    has_a_shift = ncnn::cpu_support_x86_avx512_vnni();
+#endif // NCNN_AVX512VNNI
+#else
+#if NCNN_AVXVNNI
+    has_a_shift = ncnn::cpu_support_x86_avx_vnni();
 #if NCNN_AVXVNNIINT8
-    if (!ncnn::cpu_support_x86_avx512_vnni() && ncnn::cpu_support_x86_avx_vnni_int8())
+    if (ncnn::cpu_support_x86_avx_vnni_int8())
         has_a_shift = false;
 #endif // NCNN_AVXVNNIINT8
+#endif // NCNN_AVXVNNI
+#endif // __AVX512F__
     if (has_a_shift)
         BT_hstep += 4 * ((K + block_size - 4) / block_size);
 #endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
