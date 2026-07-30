@@ -72,7 +72,6 @@ struct WebGpuTranslatedShader
     WebGpuCompileKey compile_key;
 };
 
-
 static uint32_t get_webgpu_shader_option_bits(const Option& opt)
 {
     uint32_t option_bits = 0;
@@ -89,8 +88,8 @@ static uint32_t get_webgpu_shader_option_bits(const Option& opt)
 static int validate_webgpu_shader_compile_options(const WebGpuShaderCompileOptions& options)
 {
     if (!options.opt
-        || options.shader_type < 0 || options.shader_type >= layer_shader_registry_entry_count
-        || options.local_size_x == 0 || options.local_size_y == 0 || options.local_size_z == 0)
+            || options.shader_type < 0 || options.shader_type >= layer_shader_registry_entry_count
+            || options.local_size_x == 0 || options.local_size_y == 0 || options.local_size_z == 0)
     {
         NCNN_LOGE("WebGPU shader compile options are invalid");
         return -1;
@@ -136,7 +135,6 @@ public:
 };
 
 static WebGpuCompilerContext g_webgpu_compiler;
-
 
 class GpuInfoPrivate
 {
@@ -243,7 +241,7 @@ int finish_webgpu_sync_operation(uint64_t operation_id, int result)
         return -1;
 
     if (g_webgpu.last_error != 0
-        && (g_webgpu.device_lost || g_webgpu.error_operation_id == 0 || g_webgpu.error_operation_id == operation_id))
+            && (g_webgpu.device_lost || g_webgpu.error_operation_id == 0 || g_webgpu.error_operation_id == operation_id))
         result = -1;
 
     g_webgpu.operation_depth--;
@@ -259,7 +257,6 @@ int finish_webgpu_sync_operation(uint64_t operation_id, int result)
 
     return result;
 }
-
 
 static bool g_webgpu_sync_wait_active = false;
 
@@ -697,7 +694,7 @@ int GpuInfo::support_VK_NV_cooperative_matrix() const
 }
 
 void GpuInfo::get_optimal_cooperative_matrix_mnk(int, int, int, VkComponentTypeKHR, VkComponentTypeKHR, VkScopeKHR,
-                                                 int& coopmat_M, int& coopmat_N, int& coopmat_K, int& coopmat_subgroup_size) const
+        int& coopmat_M, int& coopmat_N, int& coopmat_K, int& coopmat_subgroup_size) const
 {
     coopmat_M = 0;
     coopmat_N = 0;
@@ -754,12 +751,11 @@ int create_gpu_instance(const char* driver_path)
         callback_info.callback = request_adapter_callback;
         callback_info.userdata1 = &adapter_result;
 
-
         WGPUFuture future = wgpuInstanceRequestAdapter(g_webgpu.instance, &adapter_options, callback_info);
         WGPUFutureWaitInfo wait_info = WGPU_FUTURE_WAIT_INFO_INIT;
         if (wait_webgpu_future(g_webgpu.instance, future, &wait_info, "request-adapter") != 0
-            || adapter_result.status != WGPURequestAdapterStatus_Success
-            || !adapter_result.adapter)
+                || adapter_result.status != WGPURequestAdapterStatus_Success
+                || !adapter_result.adapter)
             goto fail;
 
         g_webgpu.adapter = adapter_result.adapter;
@@ -775,9 +771,9 @@ int create_gpu_instance(const char* driver_path)
         log_webgpu_limits("adapter", limits);
 
         if (limits.maxImmediateSize < 64
-            || limits.maxStorageBuffersPerShaderStage < 8
-            || limits.maxComputeWorkgroupSizeX < 64
-            || limits.maxComputeInvocationsPerWorkgroup < 64)
+                || limits.maxStorageBuffersPerShaderStage < 8
+                || limits.maxComputeWorkgroupSizeX < 64
+                || limits.maxComputeInvocationsPerWorkgroup < 64)
         {
             NCNN_LOGE("WebGPU adapter limits are insufficient immediate=%u storage-buffers=%u workgroup-x=%u invocations=%u",
                       limits.maxImmediateSize, limits.maxStorageBuffersPerShaderStage,
@@ -844,12 +840,11 @@ int create_gpu_instance(const char* driver_path)
         callback_info.callback = request_device_callback;
         callback_info.userdata1 = &device_result;
 
-
         WGPUFuture future = wgpuAdapterRequestDevice(g_webgpu.adapter, &device_descriptor, callback_info);
         WGPUFutureWaitInfo wait_info = WGPU_FUTURE_WAIT_INFO_INIT;
         if (wait_webgpu_future(g_webgpu.instance, future, &wait_info, "request-device") != 0
-            || device_result.status != WGPURequestDeviceStatus_Success
-            || !device_result.device)
+                || device_result.status != WGPURequestDeviceStatus_Success
+                || !device_result.device)
             goto fail;
 
         g_webgpu.device = device_result.device;
@@ -907,7 +902,6 @@ void destroy_gpu_instance()
     g_webgpu.first_error_reason.clear();
     g_webgpu.state = WEBGPU_INSTANCE_UNINITIALIZED;
 }
-
 
 int get_gpu_count()
 {
@@ -1099,8 +1093,8 @@ void VulkanDevicePrivate::destroy_dummy_buffers()
 const Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const
 {
     if (cast_type_from_index < 0 || cast_type_from_index >= 2
-        || cast_type_to_index < 0 || cast_type_to_index >= 2
-        || packing_type_to_index < 0 || packing_type_to_index >= 2)
+            || cast_type_to_index < 0 || cast_type_to_index >= 2
+            || packing_type_to_index < 0 || packing_type_to_index >= 2)
         return 0;
 
     Layer*& cached_uop = uop_packing[cast_type_from_index][cast_type_to_index][packing_type_to_index];
@@ -1179,10 +1173,8 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
 
 void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, int cast_type_to, VkCompute& cmd, const Option& opt) const
 {
-    const int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1
-                                                                                : -1;
-    const int cast_type_from_index = src.elembits() == 32 ? 0 : src.elembits() == 16 ? 1
-                                                                                     : -1;
+    const int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : -1;
+    const int cast_type_from_index = src.elembits() == 32 ? 0 : src.elembits() == 16 ? 1 : -1;
     const int cast_type_to_index = cast_type_to ? cast_type_to - 1 : cast_type_from_index;
     if (packing_type_to_index < 0 || cast_type_from_index < 0 || cast_type_to_index < 0 || cast_type_to_index >= 2)
     {
@@ -1273,10 +1265,10 @@ public:
 static int build_webgpu_shader_preamble(const Option& opt, std::string& preamble)
 {
     if (opt.use_bf16_storage || opt.use_bf16_packed
-        || opt.use_fp16_storage || opt.use_fp16_uniform || opt.use_fp16_arithmetic
-        || opt.use_int8_storage || opt.use_int8_uniform || opt.use_int8_arithmetic
-        || opt.use_int16_storage || opt.use_int16_packed
-        || opt.use_subgroup_ops || opt.use_cooperative_matrix)
+            || opt.use_fp16_storage || opt.use_fp16_uniform || opt.use_fp16_arithmetic
+            || opt.use_int8_storage || opt.use_int8_uniform || opt.use_int8_arithmetic
+            || opt.use_int16_storage || opt.use_int16_packed
+            || opt.use_subgroup_ops || opt.use_cooperative_matrix)
     {
         NCNN_LOGE("WebGPU M1 shader profile only supports fp32 and fp16-packed bf16s=%d bf16p=%d fp16s=%d fp16u=%d fp16a=%d int8s=%d int8u=%d int8a=%d int16s=%d int16p=%d subgroup=%d coopmat=%d",
                   opt.use_bf16_storage, opt.use_bf16_packed,
@@ -2044,8 +2036,8 @@ static int resolve_webgpu_type_layout(uint32_t type_id, const std::vector<WebGpu
 
     const WebGpuSpirvType& type = types[type_id];
     if (type.opcode == spv::Op::OpTypeBool
-        || type.opcode == spv::Op::OpTypeInt
-        || type.opcode == spv::Op::OpTypeFloat)
+            || type.opcode == spv::Op::OpTypeInt
+            || type.opcode == spv::Op::OpTypeFloat)
     {
         if (type.opcode != spv::Op::OpTypeBool && type.width != 32)
             return -1;
@@ -2060,7 +2052,7 @@ static int resolve_webgpu_type_layout(uint32_t type_id, const std::vector<WebGpu
         uint64_t scalar_size;
         uint64_t scalar_alignment;
         if (resolve_webgpu_type_layout(type.pointee_type, types, constants, constant_known, member_offsets, scalar_size, scalar_alignment) != 0
-            || type.element_count < 2 || type.element_count > 4)
+                || type.element_count < 2 || type.element_count > 4)
             return -1;
 
         size = scalar_size * type.element_count;
@@ -2100,7 +2092,7 @@ static int resolve_webgpu_type_layout(uint32_t type_id, const std::vector<WebGpu
             uint64_t member_size;
             uint64_t member_alignment;
             if (member_offsets[type_id][i] < 0
-                || resolve_webgpu_type_layout(type.member_types[i], types, constants, constant_known, member_offsets, member_size, member_alignment) != 0)
+                    || resolve_webgpu_type_layout(type.member_types[i], types, constants, constant_known, member_offsets, member_size, member_alignment) != 0)
                 return -1;
 
             const uint64_t member_offset = member_offsets[type_id][i];
@@ -2575,9 +2567,9 @@ static int check_webgpu_shader_compilation(const VulkanDevice* vkdev, WGPUShader
     WGPUFuture future = wgpuShaderModuleGetCompilationInfo(shader_module, callback_info);
     WGPUFutureWaitInfo wait_info = WGPU_FUTURE_WAIT_INFO_INIT;
     if (vkdev->wait_webgpu_future(future, &wait_info, "shader-compilation-info") != 0
-        || !result.completed
-        || result.status != WGPUCompilationInfoRequestStatus_Success
-        || result.has_error)
+            || !result.completed
+            || result.status != WGPUCompilationInfoRequestStatus_Success
+            || result.has_error)
         return -1;
 
     return 0;

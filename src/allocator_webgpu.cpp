@@ -15,7 +15,6 @@ namespace ncnn {
 
 static uint64_t g_webgpu_buffer_block_id = 0;
 
-
 static size_t webgpu_buffer_alignment(const VulkanDevice* vkdev)
 {
     return std::max((size_t)vkdev->info.buffer_offset_alignment(), (size_t)4);
@@ -563,7 +562,6 @@ VkImageMemory* VkWeightStagingAllocator::fastMalloc(int, int, int, size_t, int)
 void VkWeightStagingAllocator::fastFree(VkImageMemory*)
 {
 }
-
 
 } // namespace ncnn
 

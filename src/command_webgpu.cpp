@@ -21,7 +21,6 @@ int finish_webgpu_sync_operation(uint64_t operation_id, int result);
 int acquire_webgpu_allocation_in_flight(VkAllocator* allocator, VkBufferMemory* memory);
 void release_webgpu_allocation_in_flight(VkAllocator* allocator, VkBufferMemory* memory);
 
-
 struct WebGpuReadback
 {
     WGPUBuffer buffer;
@@ -192,7 +191,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 
     const size_t size = src_upload.total() * src_upload.elemsize;
     if (size > dst.buffer_capacity()
-        || queue_write_webgpu_buffer(vkdev->wgpu_queue(), dst.buffer(), dst.buffer_offset(), src_upload.data, size) != 0)
+            || queue_write_webgpu_buffer(vkdev->wgpu_queue(), dst.buffer(), dst.buffer_offset(), src_upload.data, size) != 0)
     {
         set_webgpu_record_error(d);
         return;
@@ -313,7 +312,7 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
         wgpuCommandEncoderCopyBufferToBuffer(d->command_encoder, src.buffer(), src.buffer_offset(), dst.buffer(), dst.buffer_offset(), aligned_size);
     }
     if (acquire_webgpu_allocation(d->allocation_references, src) != 0
-        || acquire_webgpu_allocation(d->allocation_references, dst) != 0)
+            || acquire_webgpu_allocation(d->allocation_references, dst) != 0)
         set_webgpu_record_error(d);
 }
 
@@ -352,8 +351,8 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     {
         const WebGpuBindingInfo& binding_info = shader_info.bindings[i];
         const VkMat binding = binding_info.binding < bindings.size() && !bindings[binding_info.binding].empty()
-                                  ? bindings[binding_info.binding]
-                                  : vkdev->get_dummy_buffer(binding_info.binding);
+                              ? bindings[binding_info.binding]
+                              : vkdev->get_dummy_buffer(binding_info.binding);
         if (binding.empty())
         {
             set_webgpu_record_error(d);
@@ -365,7 +364,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             return;
         }
         if (binding.buffer_offset() % vkdev->info.buffer_offset_alignment() != 0
-            || binding.buffer_capacity() < binding_info.min_binding_size)
+                || binding.buffer_capacity() < binding_info.min_binding_size)
         {
             set_webgpu_record_error(d);
             return;
@@ -419,7 +418,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         for (size_t j = 0; j < bind_group_entries.size(); j++)
         {
             if (shader_info.bindings[j].access == NCNN_WEBGPU_BINDING_READ_WRITE
-                && bind_group_entries[i].buffer == bind_group_entries[j].buffer)
+                    && bind_group_entries[i].buffer == bind_group_entries[j].buffer)
             {
                 shares_writable_buffer = true;
                 break;
@@ -454,7 +453,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 
     std::vector<unsigned char> packed_immediate;
     if (pack_webgpu_immediates(shader_info, constants, packed_immediate) != 0
-        || ensure_webgpu_command_encoder(vkdev, d) != 0)
+            || ensure_webgpu_command_encoder(vkdev, d) != 0)
     {
         set_webgpu_record_error(d);
         return;
@@ -487,8 +486,8 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     const uint32_t group_count_y = (dispatcher.h + pipeline->local_size_y() - 1) / pipeline->local_size_y();
     const uint32_t group_count_z = (dispatcher.c + pipeline->local_size_z() - 1) / pipeline->local_size_z();
     if (group_count_x > vkdev->info.max_workgroup_count_x()
-        || group_count_y > vkdev->info.max_workgroup_count_y()
-        || group_count_z > vkdev->info.max_workgroup_count_z())
+            || group_count_y > vkdev->info.max_workgroup_count_y()
+            || group_count_z > vkdev->info.max_workgroup_count_z())
     {
         wgpuBindGroupRelease(bind_group);
         set_webgpu_record_error(d);
@@ -583,8 +582,8 @@ static int wait_webgpu_queue(const VulkanDevice* vkdev, const char* operation)
     WGPUFuture future = wgpuQueueOnSubmittedWorkDone(vkdev->wgpu_queue(), callback_info);
     WGPUFutureWaitInfo wait_info = WGPU_FUTURE_WAIT_INFO_INIT;
     if (vkdev->wait_webgpu_future(future, &wait_info, operation) != 0
-        || !result.completed
-        || result.status != WGPUQueueWorkDoneStatus_Success)
+            || !result.completed
+            || result.status != WGPUQueueWorkDoneStatus_Success)
         return -1;
 
     return 0;
@@ -641,9 +640,9 @@ static int pop_webgpu_command_error_scope(const VulkanDevice* vkdev, VkComputePr
     WGPUFuture future = wgpuDevicePopErrorScope(vkdev->wgpu_device(), callback_info);
     WGPUFutureWaitInfo wait_info = WGPU_FUTURE_WAIT_INFO_INIT;
     if (vkdev->wait_webgpu_future(future, &wait_info, "command-error-scope") != 0
-        || !result.completed
-        || result.status != WGPUPopErrorScopeStatus_Success
-        || result.type != WGPUErrorType_NoError)
+            || !result.completed
+            || result.status != WGPUPopErrorScopeStatus_Success
+            || result.type != WGPUErrorType_NoError)
         return -1;
 
     return 0;
@@ -743,8 +742,8 @@ int VkCompute::submit_and_wait()
         WGPUFuture map_future = wgpuBufferMapAsync(readback.buffer, WGPUMapMode_Read, 0, alignSize(readback.size, 4), map_callback_info);
         WGPUFutureWaitInfo map_wait_info = WGPU_FUTURE_WAIT_INFO_INIT;
         if (vkdev->wait_webgpu_future(map_future, &map_wait_info, "buffer-map") != 0
-            || !map_result.completed
-            || map_result.status != WGPUMapAsyncStatus_Success)
+                || !map_result.completed
+                || map_result.status != WGPUMapAsyncStatus_Success)
         {
             if (map_result.actual_status == WGPUMapAsyncStatus_Success)
                 wgpuBufferUnmap(readback.buffer);
@@ -876,7 +875,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
 
     const size_t size = src_flattened.total() * src_flattened.elemsize;
     if (size > dst.buffer_capacity()
-        || queue_write_webgpu_buffer(vkdev->wgpu_queue(), dst.buffer(), dst.buffer_offset(), src_flattened.data, size) != 0)
+            || queue_write_webgpu_buffer(vkdev->wgpu_queue(), dst.buffer(), dst.buffer_offset(), src_flattened.data, size) != 0)
     {
         d->record_error = -1;
         return;
@@ -941,7 +940,6 @@ uint64_t VkTransfer::pending_upload_total() const
 {
     return d->pending_upload_total;
 }
-
 
 } // namespace ncnn
 

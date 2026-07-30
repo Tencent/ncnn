@@ -9,7 +9,6 @@
 
 #include <string>
 
-
 #include "option.h"
 #include "pipelinecache.h"
 
@@ -21,7 +20,6 @@ int finish_webgpu_sync_operation(uint64_t operation_id, int result);
 int create_webgpu_shader_module(const VulkanDevice* vkdev, int shader_type_index, const Option& opt,
                                 uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
                                 WGPUShaderModule* shader_module, WebGpuShaderInfo* shader_info);
-
 
 class PipelinePrivate
 {
@@ -66,9 +64,9 @@ static int pop_webgpu_validation_error_scope(const VulkanDevice* vkdev, const ch
     WGPUFuture future = wgpuDevicePopErrorScope(vkdev->wgpu_device(), callback_info);
     WGPUFutureWaitInfo wait_info = WGPU_FUTURE_WAIT_INFO_INIT;
     if (vkdev->wait_webgpu_future(future, &wait_info, operation) != 0
-        || !result.completed
-        || result.status != WGPUPopErrorScopeStatus_Success
-        || result.type != WGPUErrorType_NoError)
+            || !result.completed
+            || result.status != WGPUPopErrorScopeStatus_Success
+            || result.type != WGPUErrorType_NoError)
     {
         NCNN_LOGE("WebGPU validation failed operation=%s status=%d type=%d %s",
                   operation, (int)result.status, (int)result.type, result.message.c_str());
@@ -95,7 +93,7 @@ static int get_webgpu_override_value(const WebGpuOverrideInfo& override_info, co
     }
 
     if (override_info.ncnn_specialization_index < 0
-        || (size_t)override_info.ncnn_specialization_index >= specializations.size())
+            || (size_t)override_info.ncnn_specialization_index >= specializations.size())
         return -1;
 
     const vk_specialization_type& specialization = specializations[override_info.ncnn_specialization_index];
@@ -163,7 +161,7 @@ int create_webgpu_pipeline_bundle(const VulkanDevice* vkdev, int shader_type_ind
     if (create_webgpu_shader_module(vkdev, shader_type_index, opt,
                                     local_size_x, local_size_y, local_size_z,
                                     &bundle->shader_module, &bundle->shader_info)
-        != 0)
+            != 0)
     {
         pop_webgpu_validation_error_scope(vkdev, "shader-module-error-scope");
         release_webgpu_pipeline_bundle(*bundle);
@@ -219,7 +217,7 @@ int create_webgpu_pipeline_bundle(const VulkanDevice* vkdev, int shader_type_ind
         constants[i].key.length = constant_keys[i].size();
         if (get_webgpu_override_value(bundle->shader_info.overrides[i], specializations,
                                       local_size_x, local_size_y, local_size_z, constants[i].value)
-            != 0)
+                != 0)
         {
             NCNN_LOGE("WebGPU shader %d specialization id %u has no valid value", shader_type_index, bundle->shader_info.overrides[i].spec_id);
             pop_webgpu_validation_error_scope(vkdev, "pipeline-specialization-error-scope");
@@ -338,8 +336,8 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
         return -1;
 
     const int ret = vkdev->get_pipeline_cache()->get_pipeline(shader_type_index, opt, specializations,
-                                                              d->local_size_x, d->local_size_y, d->local_size_z,
-                                                              &d->bundle);
+                    d->local_size_x, d->local_size_y, d->local_size_z,
+                    &d->bundle);
     return finish_webgpu_sync_operation(operation_id, ret);
 }
 
@@ -367,7 +365,6 @@ uint32_t Pipeline::local_size_z() const
 {
     return d->local_size_z;
 }
-
 
 } // namespace ncnn
 
