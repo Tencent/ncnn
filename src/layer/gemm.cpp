@@ -529,31 +529,8 @@ static inline int gemm_weight_block_quantize_unpack(const unsigned char* ptr, in
 int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& A = bottom_blobs[0];
-    if (A.dims != 2 && A.dims != 3)
-    {
-        NCNN_LOGE("Gemm unsupported input");
-        return -1;
-    }
-
-    if (A.elemsize != 4u || A.elempack != 1)
-    {
-        NCNN_LOGE("Gemm unsupported input");
-        return -1;
-    }
-
-    if (output_elempack > 1)
-    {
-        NCNN_LOGE("Gemm unsupported output_elempack %d", output_elempack);
-        return -1;
-    }
 
     const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
-    if (K != constantK)
-    {
-        NCNN_LOGE("Gemm weight block quantize K mismatch");
-        return -1;
-    }
-
     const int weight_bits = quantize_term / 100;
     const int block_size = weight_block_quantize_block_size;
     const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(constantK, weight_bits);
@@ -564,7 +541,7 @@ int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, st
     const int N = constantN;
 
     Mat C;
-    int broadcast_type_C = -1;
+    int broadcast_type_C = 0;
     if (constantC)
     {
         C = C_data;
@@ -603,19 +580,7 @@ int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, st
             {
                 broadcast_type_C = 4;
             }
-
-            if (broadcast_type_C == -1 || C.elemsize != 4u || C.elempack != 1)
-            {
-                NCNN_LOGE("Gemm unsupported C");
-                return -1;
-            }
         }
-    }
-
-    if (!C.empty() && (C.elemsize != 4u || C.elempack != 1))
-    {
-        NCNN_LOGE("Gemm unsupported C");
-        return -1;
     }
 
     Mat& top_blob = top_blobs[0];
