@@ -3397,7 +3397,9 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
     for (; ii + 7 < max_ii; ii += 8)
     {
         float* p0 = 0;
+#if (__ARM_FP & 2) || NCNN_BF16
         unsigned short* p0s = 0;
+#endif
         if (output_elemtype == 1)
         {
             if (output_transpose)
@@ -3405,6 +3407,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             else
                 p0 = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
         }
+#if (__ARM_FP & 2) || NCNN_BF16
         else
         {
             if (output_transpose)
@@ -3412,6 +3415,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             else
                 p0s = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
         }
+#endif
 
         float32x4_t _c0;
         float32x4_t _c1;
@@ -3704,6 +3708,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     }
                 }
             }
+#if (__ARM_FP & 2) || NCNN_BF16
             else
             {
                 uint16x4_t _out0;
@@ -3714,7 +3719,8 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 uint16x4_t _out5;
                 uint16x4_t _out6;
                 uint16x4_t _out7;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC || (__ARM_FP & 2)
+#if NCNN_BF16
+#if (__ARM_FP & 2)
                 if (output_elemtype == 2)
                 {
                     _out0 = vreinterpret_u16_f16(vcvt_f16_f32(_f0));
@@ -3738,6 +3744,16 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     _out6 = float2bfloat(_f6);
                     _out7 = float2bfloat(_f7);
                 }
+#else
+                _out0 = vreinterpret_u16_f16(vcvt_f16_f32(_f0));
+                _out1 = vreinterpret_u16_f16(vcvt_f16_f32(_f1));
+                _out2 = vreinterpret_u16_f16(vcvt_f16_f32(_f2));
+                _out3 = vreinterpret_u16_f16(vcvt_f16_f32(_f3));
+                _out4 = vreinterpret_u16_f16(vcvt_f16_f32(_f4));
+                _out5 = vreinterpret_u16_f16(vcvt_f16_f32(_f5));
+                _out6 = vreinterpret_u16_f16(vcvt_f16_f32(_f6));
+                _out7 = vreinterpret_u16_f16(vcvt_f16_f32(_f7));
+#endif
 
                 if (output_transpose)
                 {
@@ -3812,6 +3828,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     }
                 }
             }
+#endif
 
             pp += 32;
         }
@@ -3984,13 +4001,15 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     }
                 }
             }
+#if (__ARM_FP & 2) || NCNN_BF16
             else
             {
                 uint16x4_t _out0;
                 uint16x4_t _out1;
                 uint16x4_t _out2;
                 uint16x4_t _out3;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC || (__ARM_FP & 2)
+#if NCNN_BF16
+#if (__ARM_FP & 2)
                 if (output_elemtype == 2)
                 {
                     _out0 = vreinterpret_u16_f16(vcvt_f16_f32(_f0));
@@ -4006,6 +4025,12 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     _out2 = float2bfloat(_f2);
                     _out3 = float2bfloat(_f3);
                 }
+#else
+                _out0 = vreinterpret_u16_f16(vcvt_f16_f32(_f0));
+                _out1 = vreinterpret_u16_f16(vcvt_f16_f32(_f1));
+                _out2 = vreinterpret_u16_f16(vcvt_f16_f32(_f2));
+                _out3 = vreinterpret_u16_f16(vcvt_f16_f32(_f3));
+#endif
 
                 if (output_transpose)
                 {
@@ -4049,6 +4074,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     }
                 }
             }
+#endif
 
             pp += 16;
         }
@@ -4150,11 +4176,13 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     }
                 }
             }
+#if (__ARM_FP & 2) || NCNN_BF16
             else
             {
                 uint16x4_t _out0;
                 uint16x4_t _out1;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC || (__ARM_FP & 2)
+#if NCNN_BF16
+#if (__ARM_FP & 2)
                 if (output_elemtype == 2)
                 {
                     _out0 = vreinterpret_u16_f16(vcvt_f16_f32(_f0));
@@ -4166,6 +4194,10 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     _out0 = float2bfloat(_f0);
                     _out1 = float2bfloat(_f1);
                 }
+#else
+                _out0 = vreinterpret_u16_f16(vcvt_f16_f32(_f0));
+                _out1 = vreinterpret_u16_f16(vcvt_f16_f32(_f1));
+#endif
 
                 if (output_transpose)
                 {
@@ -4199,6 +4231,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     }
                 }
             }
+#endif
 
             pp += 8;
         }
@@ -4207,7 +4240,9 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
     for (; ii + 3 < max_ii; ii += 4)
     {
         float* p0 = 0;
+#if (__ARM_FP & 2) || NCNN_BF16
         unsigned short* p0s = 0;
+#endif
         if (output_elemtype == 1)
         {
             if (output_transpose)
@@ -4215,6 +4250,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             else
                 p0 = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
         }
+#if (__ARM_FP & 2) || NCNN_BF16
         else
         {
             if (output_transpose)
@@ -4222,6 +4258,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             else
                 p0s = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
         }
+#endif
 
         float32x4_t _c0;
         if (pC)
@@ -4422,13 +4459,15 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     }
                 }
             }
+#if (__ARM_FP & 2) || NCNN_BF16
             else
             {
                 uint16x4_t _out0;
                 uint16x4_t _out1;
                 uint16x4_t _out2;
                 uint16x4_t _out3;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC || (__ARM_FP & 2)
+#if NCNN_BF16
+#if (__ARM_FP & 2)
                 if (output_elemtype == 2)
                 {
                     _out0 = vreinterpret_u16_f16(vcvt_f16_f32(_f0));
@@ -4444,6 +4483,12 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     _out2 = float2bfloat(_f2);
                     _out3 = float2bfloat(_f3);
                 }
+#else
+                _out0 = vreinterpret_u16_f16(vcvt_f16_f32(_f0));
+                _out1 = vreinterpret_u16_f16(vcvt_f16_f32(_f1));
+                _out2 = vreinterpret_u16_f16(vcvt_f16_f32(_f2));
+                _out3 = vreinterpret_u16_f16(vcvt_f16_f32(_f3));
+#endif
 
                 if (output_transpose)
                 {
@@ -4498,6 +4543,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     }
                 }
             }
+#endif
 
             pp += 16;
         }
@@ -4622,11 +4668,13 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     }
                 }
             }
+#if (__ARM_FP & 2) || NCNN_BF16
             else
             {
                 uint16x4_t _out0;
                 uint16x4_t _out1;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC || (__ARM_FP & 2)
+#if NCNN_BF16
+#if (__ARM_FP & 2)
                 if (output_elemtype == 2)
                 {
                     _out0 = vreinterpret_u16_f16(vcvt_f16_f32(_f0));
@@ -4638,6 +4686,10 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     _out0 = float2bfloat(_f0);
                     _out1 = float2bfloat(_f1);
                 }
+#else
+                _out0 = vreinterpret_u16_f16(vcvt_f16_f32(_f0));
+                _out1 = vreinterpret_u16_f16(vcvt_f16_f32(_f1));
+#endif
 
                 if (output_transpose)
                 {
@@ -4666,6 +4718,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     }
                 }
             }
+#endif
 
             pp += 8;
         }
@@ -4734,15 +4787,20 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     }
                 }
             }
+#if (__ARM_FP & 2) || NCNN_BF16
             else
             {
                 uint16x4_t _out0;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC || (__ARM_FP & 2)
+#if NCNN_BF16
+#if (__ARM_FP & 2)
                 if (output_elemtype == 2)
                     _out0 = vreinterpret_u16_f16(vcvt_f16_f32(_f0));
                 else
 #endif
                     _out0 = float2bfloat(_f0);
+#else
+                _out0 = vreinterpret_u16_f16(vcvt_f16_f32(_f0));
+#endif
 
                 if (output_transpose)
                 {
@@ -4766,6 +4824,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     }
                 }
             }
+#endif
 
             pp += 4;
         }
@@ -4775,7 +4834,9 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
     {
         // out_elempack == 1
         float* p0 = 0;
+#if (__ARM_FP & 2) || NCNN_BF16
         unsigned short* p0s = 0;
+#endif
         if (output_elemtype == 1)
         {
             if (output_transpose)
@@ -4783,6 +4844,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             else
                 p0 = (float*)top_blob + (i + ii) * out_hstep + j;
         }
+#if (__ARM_FP & 2) || NCNN_BF16
         else
         {
             if (output_transpose)
@@ -4790,6 +4852,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             else
                 p0s = (unsigned short*)top_blob + (i + ii) * out_hstep + j;
         }
+#endif
 
         float c0;
         float c1;
@@ -4910,11 +4973,13 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     p0 += 4;
                 }
             }
+#if (__ARM_FP & 2) || NCNN_BF16
             else
             {
                 uint16x4_t _out0;
                 uint16x4_t _out1;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC || (__ARM_FP & 2)
+#if NCNN_BF16
+#if (__ARM_FP & 2)
                 if (output_elemtype == 2)
                 {
                     _out0 = vreinterpret_u16_f16(vcvt_f16_f32(_f0));
@@ -4926,6 +4991,10 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     _out0 = float2bfloat(_f0);
                     _out1 = float2bfloat(_f1);
                 }
+#else
+                _out0 = vreinterpret_u16_f16(vcvt_f16_f32(_f0));
+                _out1 = vreinterpret_u16_f16(vcvt_f16_f32(_f1));
+#endif
                 if (output_transpose)
                 {
 #if __aarch64__
@@ -4959,6 +5028,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     p0s += 4;
                 }
             }
+#endif
 
             pp += 8;
         }
@@ -5035,15 +5105,20 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 else
                     p0 += 2;
             }
+#if (__ARM_FP & 2) || NCNN_BF16
             else
             {
                 uint16x4_t _out0;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC || (__ARM_FP & 2)
+#if NCNN_BF16
+#if (__ARM_FP & 2)
                 if (output_elemtype == 2)
                     _out0 = vreinterpret_u16_f16(vcvt_f16_f32(_f0));
                 else
 #endif
                     _out0 = float2bfloat(_f0);
+#else
+                _out0 = vreinterpret_u16_f16(vcvt_f16_f32(_f0));
+#endif
                 vst1_lane_u32((unsigned int*)p0s, vreinterpret_u32_u16(_out0), 0);
                 vst1_lane_u32((unsigned int*)(p0s + out_hstep), vreinterpret_u32_u16(_out0), 1);
                 if (output_transpose)
@@ -5051,6 +5126,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 else
                     p0s += 2;
             }
+#endif
 
             pp += 4;
         }
@@ -5105,11 +5181,13 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     p0++;
                 }
             }
+#if (__ARM_FP & 2) || NCNN_BF16
             else
             {
                 unsigned short out0;
                 unsigned short out1;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC || (__ARM_FP & 2)
+#if NCNN_BF16
+#if (__ARM_FP & 2)
                 if (output_elemtype == 2)
                 {
                     out0 = float32_to_float16(f0);
@@ -5121,6 +5199,10 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     out0 = float32_to_bfloat16(f0);
                     out1 = float32_to_bfloat16(f1);
                 }
+#else
+                out0 = float32_to_float16(f0);
+                out1 = float32_to_float16(f1);
+#endif
 
                 if (output_transpose)
                 {
@@ -5135,6 +5217,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     p0s++;
                 }
             }
+#endif
 
             pp += 2;
         }
@@ -5143,7 +5226,9 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
     {
         // out_elempack == 1
         float* p0 = 0;
+#if (__ARM_FP & 2) || NCNN_BF16
         unsigned short* p0s = 0;
+#endif
         if (output_elemtype == 1)
         {
             if (output_transpose)
@@ -5151,6 +5236,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             else
                 p0 = (float*)top_blob + (i + ii) * out_hstep + j;
         }
+#if (__ARM_FP & 2) || NCNN_BF16
         else
         {
             if (output_transpose)
@@ -5158,6 +5244,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             else
                 p0s = (unsigned short*)top_blob + (i + ii) * out_hstep + j;
         }
+#endif
 
         float c0;
 #if __ARM_NEON
@@ -5244,15 +5331,20 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     p0 += 4;
                 }
             }
+#if (__ARM_FP & 2) || NCNN_BF16
             else
             {
                 uint16x4_t _out0;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC || (__ARM_FP & 2)
+#if NCNN_BF16
+#if (__ARM_FP & 2)
                 if (output_elemtype == 2)
                     _out0 = vreinterpret_u16_f16(vcvt_f16_f32(_f0));
                 else
 #endif
                     _out0 = float2bfloat(_f0);
+#else
+                _out0 = vreinterpret_u16_f16(vcvt_f16_f32(_f0));
+#endif
                 if (output_transpose)
                 {
                     if (out_hstep == 1)
@@ -5289,6 +5381,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     p0s += 4;
                 }
             }
+#endif
 
             pp += 4;
         }
@@ -5334,15 +5427,20 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     p0 += 2;
                 }
             }
+#if (__ARM_FP & 2) || NCNN_BF16
             else
             {
                 uint16x4_t _out0;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC || (__ARM_FP & 2)
+#if NCNN_BF16
+#if (__ARM_FP & 2)
                 if (output_elemtype == 2)
                     _out0 = vreinterpret_u16_f16(vcvt_f16_f32(vcombine_f32(_f0, _f0)));
                 else
 #endif
                     _out0 = float2bfloat(vcombine_f32(_f0, _f0));
+#else
+                _out0 = vreinterpret_u16_f16(vcvt_f16_f32(vcombine_f32(_f0, _f0)));
+#endif
                 if (output_transpose)
                 {
                     p0s[0] = vget_lane_u16(_out0, 0);
@@ -5355,6 +5453,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     p0s += 2;
                 }
             }
+#endif
 
             pp += 2;
         }
@@ -5387,19 +5486,25 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 else
                     p0++;
             }
+#if (__ARM_FP & 2) || NCNN_BF16
             else
             {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC || (__ARM_FP & 2)
+#if NCNN_BF16
+#if (__ARM_FP & 2)
                 if (output_elemtype == 2)
                     p0s[0] = float32_to_float16(f0);
                 else
 #endif
                     p0s[0] = float32_to_bfloat16(f0);
+#else
+                p0s[0] = float32_to_float16(f0);
+#endif
                 if (output_transpose)
                     p0s += out_hstep;
                 else
                     p0s++;
             }
+#endif
 
             pp += 1;
         }

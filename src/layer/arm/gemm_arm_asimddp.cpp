@@ -8,21 +8,12 @@
 
 namespace ncnn {
 
+#if NCNN_INT8
 #include "gemm_int8.h"
 #include "gemm_int8_fp16s.h"
 
 #if NCNN_BF16
 #include "gemm_int8_bf16s.h"
-#endif
-
-#if NCNN_WEIGHT_QUANT
-#include "gemm_wq_int8.h"
-#if NCNN_VFPV4
-#include "gemm_wq_int8_fp16s.h"
-#endif
-#if NCNN_BF16
-#include "gemm_wq_int8_bf16s.h"
-#endif
 #endif
 
 void pack_A_tile_int8_asimddp(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
@@ -141,8 +132,17 @@ void transpose_unpack_output_tile_int32_to_bf16_asimddp(const Mat& topT, const M
     transpose_unpack_output_tile_int32_to_bf16(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, descales, alpha, beta);
 }
 #endif // NCNN_BF16
+#endif // NCNN_INT8
 
 #if NCNN_WEIGHT_QUANT
+#include "gemm_wq_int8.h"
+#if NCNN_VFPV4
+#include "gemm_wq_int8_fp16s.h"
+#endif
+#if NCNN_BF16
+#include "gemm_wq_int8_bf16s.h"
+#endif
+
 void pack_B_tile_wq_int8_asimddp(const Mat& B, const Mat& B_scales, Mat& BT_tile, Mat& BT_descales_tile, int j, int max_jj, int K, int block_size)
 {
     pack_B_tile_wq_int8(B, B_scales, BT_tile, BT_descales_tile, j, max_jj, K, block_size);

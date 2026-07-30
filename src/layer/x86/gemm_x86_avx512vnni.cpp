@@ -18,6 +18,7 @@
 
 namespace ncnn {
 
+#if NCNN_INT8
 #include "gemm_int8.h"
 
 void pack_A_tile_int8_avx512vnni(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
@@ -64,6 +65,7 @@ void gemm_transB_packed_tile_int8_avx512vnni(const Mat& AT_tile, const Mat& BT_t
 {
     gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
 }
+#endif // NCNN_INT8
 
 #if NCNN_WEIGHT_QUANT
 #if NCNN_BF16
