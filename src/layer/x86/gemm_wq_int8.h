@@ -7507,8 +7507,8 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             {
                 if (output_transpose)
                 {
-#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX__
+#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX512F__
                     if (out_elempack == 16)
                     {
@@ -7533,6 +7533,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         _mm_storeu_ps(p1 + 240, _mm512_extractf32x4_ps(_f3, 3));
                     }
 #endif // __AVX512F__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 8)
                     {
                         transpose16x4_ps(_f0, _f1, _f2, _f3);
@@ -7556,7 +7557,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         _mm_storeu_ps(p1 + 120, _mm512_extractf32x4_ps(_f3, 3));
                     }
 #endif // __AVX__
-#endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 4)
                     {
                         __m128 _r0 = _mm512_extractf32x4_ps(_f0, 0);
@@ -7676,8 +7676,8 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 __m256i _bf3 = float2bfloat_avx512(_f3);
                 if (output_transpose)
                 {
-#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX__
+#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX512F__
                     if (out_elempack == 16)
                     {
@@ -7702,6 +7702,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         _mm_storeh_pd((double*)(p1 + 240), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 1)));
                     }
 #endif // __AVX512F__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 8)
                     {
                         transpose16x4_epi16(_bf0, _bf1, _bf2, _bf3);
@@ -7725,7 +7726,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         _mm_storeh_pd((double*)(p1 + 120), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 1)));
                     }
 #endif // __AVX__
-#endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 4)
                     {
                         transpose16x4_epi16(_bf0, _bf1, _bf2, _bf3);
@@ -8661,412 +8661,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 #endif // NCNN_BF16
         }
 #endif // __AVX512F__
-        for (; jj + 7 < max_jj; jj += 8)
-        {
-#if __AVX2__
-            __m256 _f0 = _mm256_loadu_ps(pp + 0);
-            __m256 _f1 = _mm256_loadu_ps(pp + 8);
-            __m256 _f2 = _mm256_loadu_ps(pp + 16);
-            __m256 _f3 = _mm256_loadu_ps(pp + 24);
-            __m256 _f4 = _mm256_loadu_ps(pp + 32);
-            __m256 _f5 = _mm256_loadu_ps(pp + 40);
-            __m256 _f6 = _mm256_loadu_ps(pp + 48);
-            __m256 _f7 = _mm256_loadu_ps(pp + 56);
-            pp += 64;
-#else
-            __m256 _f0 = combine4x2_ps(_mm_loadu_ps(pp + 0), _mm_loadu_ps(pp1 + 0));
-            __m256 _f1 = combine4x2_ps(_mm_loadu_ps(pp + 4), _mm_loadu_ps(pp1 + 4));
-            __m256 _f2 = combine4x2_ps(_mm_loadu_ps(pp + 8), _mm_loadu_ps(pp1 + 8));
-            __m256 _f3 = combine4x2_ps(_mm_loadu_ps(pp + 12), _mm_loadu_ps(pp1 + 12));
-            __m256 _f4 = combine4x2_ps(_mm_loadu_ps(pp + 16), _mm_loadu_ps(pp1 + 16));
-            __m256 _f5 = combine4x2_ps(_mm_loadu_ps(pp + 20), _mm_loadu_ps(pp1 + 20));
-            __m256 _f6 = combine4x2_ps(_mm_loadu_ps(pp + 24), _mm_loadu_ps(pp1 + 24));
-            __m256 _f7 = combine4x2_ps(_mm_loadu_ps(pp + 28), _mm_loadu_ps(pp1 + 28));
-            pp += 32;
-            pp1 += 32;
-#endif
-
-            {
-                _f1 = _mm256_shuffle_ps(_f1, _f1, _MM_SHUFFLE(2, 1, 0, 3));
-                _f3 = _mm256_shuffle_ps(_f3, _f3, _MM_SHUFFLE(2, 1, 0, 3));
-                __m256 _tmp0 = _mm256_unpacklo_ps(_f0, _f3);
-                __m256 _tmp1 = _mm256_unpackhi_ps(_f0, _f3);
-                __m256 _tmp2 = _mm256_unpacklo_ps(_f2, _f1);
-                __m256 _tmp3 = _mm256_unpackhi_ps(_f2, _f1);
-                _f0 = _mm256_castpd_ps(_mm256_unpacklo_pd(_mm256_castps_pd(_tmp0), _mm256_castps_pd(_tmp2)));
-                _f1 = _mm256_castpd_ps(_mm256_unpackhi_pd(_mm256_castps_pd(_tmp0), _mm256_castps_pd(_tmp2)));
-                _f2 = _mm256_castpd_ps(_mm256_unpacklo_pd(_mm256_castps_pd(_tmp3), _mm256_castps_pd(_tmp1)));
-                _f3 = _mm256_castpd_ps(_mm256_unpackhi_pd(_mm256_castps_pd(_tmp3), _mm256_castps_pd(_tmp1)));
-                _f1 = _mm256_shuffle_ps(_f1, _f1, _MM_SHUFFLE(2, 1, 0, 3));
-                _f3 = _mm256_shuffle_ps(_f3, _f3, _MM_SHUFFLE(2, 1, 0, 3));
-            }
-            {
-                _f5 = _mm256_shuffle_ps(_f5, _f5, _MM_SHUFFLE(2, 1, 0, 3));
-                _f7 = _mm256_shuffle_ps(_f7, _f7, _MM_SHUFFLE(2, 1, 0, 3));
-                __m256 _tmp0 = _mm256_unpacklo_ps(_f4, _f7);
-                __m256 _tmp1 = _mm256_unpackhi_ps(_f4, _f7);
-                __m256 _tmp2 = _mm256_unpacklo_ps(_f6, _f5);
-                __m256 _tmp3 = _mm256_unpackhi_ps(_f6, _f5);
-                _f4 = _mm256_castpd_ps(_mm256_unpacklo_pd(_mm256_castps_pd(_tmp0), _mm256_castps_pd(_tmp2)));
-                _f5 = _mm256_castpd_ps(_mm256_unpackhi_pd(_mm256_castps_pd(_tmp0), _mm256_castps_pd(_tmp2)));
-                _f6 = _mm256_castpd_ps(_mm256_unpacklo_pd(_mm256_castps_pd(_tmp3), _mm256_castps_pd(_tmp1)));
-                _f7 = _mm256_castpd_ps(_mm256_unpackhi_pd(_mm256_castps_pd(_tmp3), _mm256_castps_pd(_tmp1)));
-                _f5 = _mm256_shuffle_ps(_f5, _f5, _MM_SHUFFLE(2, 1, 0, 3));
-                _f7 = _mm256_shuffle_ps(_f7, _f7, _MM_SHUFFLE(2, 1, 0, 3));
-            }
-            if (pC)
-            {
-                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    _f0 = _mm256_add_ps(_f0, _c0);
-                    _f1 = _mm256_add_ps(_f1, _c0);
-                    _f2 = _mm256_add_ps(_f2, _c0);
-                    _f3 = _mm256_add_ps(_f3, _c0);
-                    _f4 = _mm256_add_ps(_f4, _c0);
-                    _f5 = _mm256_add_ps(_f5, _c0);
-                    _f6 = _mm256_add_ps(_f6, _c0);
-                    _f7 = _mm256_add_ps(_f7, _c0);
-                }
-                if (broadcast_type_C == 3)
-                {
-                    __m256 _c0;
-                    __m256 _c1;
-                    __m256 _c2;
-                    __m256 _c3;
-                    __m256 _c4;
-                    __m256 _c5;
-                    __m256 _c6;
-                    __m256 _c7;
-                    if (c_elempack == 8)
-                    {
-                        _c0 = _mm256_loadu_ps(pC);
-                        _c1 = _mm256_loadu_ps(pC + 8);
-                        _c2 = _mm256_loadu_ps(pC + 16);
-                        _c3 = _mm256_loadu_ps(pC + 24);
-                        _c4 = _mm256_loadu_ps(pC + 32);
-                        _c5 = _mm256_loadu_ps(pC + 40);
-                        _c6 = _mm256_loadu_ps(pC + 48);
-                        _c7 = _mm256_loadu_ps(pC + 56);
-                        pC += 64;
-                    }
-                    else if (c_elempack == 4)
-                    {
-                        __m256 _t0 = _mm256_loadu_ps(pC);
-                        __m256 _t1 = _mm256_loadu_ps(pC + 8);
-                        __m256 _t2 = _mm256_loadu_ps(pC + 16);
-                        __m256 _t3 = _mm256_loadu_ps(pC + 24);
-                        __m256 _t4 = _mm256_loadu_ps(pC + c_hstep * 4);
-                        __m256 _t5 = _mm256_loadu_ps(pC + c_hstep * 4 + 8);
-                        __m256 _t6 = _mm256_loadu_ps(pC + c_hstep * 4 + 16);
-                        __m256 _t7 = _mm256_loadu_ps(pC + c_hstep * 4 + 24);
-                        _c0 = _mm256_permute2f128_ps(_t0, _t4, _MM_SHUFFLE(0, 2, 0, 0));
-                        _c1 = _mm256_permute2f128_ps(_t0, _t4, _MM_SHUFFLE(0, 3, 0, 1));
-                        _c2 = _mm256_permute2f128_ps(_t1, _t5, _MM_SHUFFLE(0, 2, 0, 0));
-                        _c3 = _mm256_permute2f128_ps(_t1, _t5, _MM_SHUFFLE(0, 3, 0, 1));
-                        _c4 = _mm256_permute2f128_ps(_t2, _t6, _MM_SHUFFLE(0, 2, 0, 0));
-                        _c5 = _mm256_permute2f128_ps(_t2, _t6, _MM_SHUFFLE(0, 3, 0, 1));
-                        _c6 = _mm256_permute2f128_ps(_t3, _t7, _MM_SHUFFLE(0, 2, 0, 0));
-                        _c7 = _mm256_permute2f128_ps(_t3, _t7, _MM_SHUFFLE(0, 3, 0, 1));
-                        pC += 32;
-                    }
-                    else // if (c_elempack == 1)
-                    {
-                        _c0 = _mm256_loadu_ps(pC);
-                        _c1 = _mm256_loadu_ps(pC + c_hstep);
-                        _c2 = _mm256_loadu_ps(pC + c_hstep * 2);
-                        _c3 = _mm256_loadu_ps(pC + c_hstep * 3);
-                        _c4 = _mm256_loadu_ps(pC + c_hstep * 4);
-                        _c5 = _mm256_loadu_ps(pC + c_hstep * 5);
-                        _c6 = _mm256_loadu_ps(pC + c_hstep * 6);
-                        _c7 = _mm256_loadu_ps(pC + c_hstep * 7);
-                        transpose8x8_ps(_c0, _c1, _c2, _c3, _c4, _c5, _c6, _c7);
-                        pC += 8;
-                    }
-                    if (beta == 1.f)
-                    {
-                        _f0 = _mm256_add_ps(_f0, _c0);
-                        _f1 = _mm256_add_ps(_f1, _c1);
-                        _f2 = _mm256_add_ps(_f2, _c2);
-                        _f3 = _mm256_add_ps(_f3, _c3);
-                        _f4 = _mm256_add_ps(_f4, _c4);
-                        _f5 = _mm256_add_ps(_f5, _c5);
-                        _f6 = _mm256_add_ps(_f6, _c6);
-                        _f7 = _mm256_add_ps(_f7, _c7);
-                    }
-                    else
-                    {
-                        __m256 _beta = _mm256_set1_ps(beta);
-                        _f0 = _mm256_comp_fmadd_ps(_c0, _beta, _f0);
-                        _f1 = _mm256_comp_fmadd_ps(_c1, _beta, _f1);
-                        _f2 = _mm256_comp_fmadd_ps(_c2, _beta, _f2);
-                        _f3 = _mm256_comp_fmadd_ps(_c3, _beta, _f3);
-                        _f4 = _mm256_comp_fmadd_ps(_c4, _beta, _f4);
-                        _f5 = _mm256_comp_fmadd_ps(_c5, _beta, _f5);
-                        _f6 = _mm256_comp_fmadd_ps(_c6, _beta, _f6);
-                        _f7 = _mm256_comp_fmadd_ps(_c7, _beta, _f7);
-                    }
-                }
-                if (broadcast_type_C == 4)
-                {
-                    __m256 _c0 = _mm256_set1_ps(pC[0] * beta);
-                    __m256 _c1 = _mm256_set1_ps(pC[1] * beta);
-                    __m256 _c2 = _mm256_set1_ps(pC[2] * beta);
-                    __m256 _c3 = _mm256_set1_ps(pC[3] * beta);
-                    __m256 _c4 = _mm256_set1_ps(pC[4] * beta);
-                    __m256 _c5 = _mm256_set1_ps(pC[5] * beta);
-                    __m256 _c6 = _mm256_set1_ps(pC[6] * beta);
-                    __m256 _c7 = _mm256_set1_ps(pC[7] * beta);
-                    _f0 = _mm256_add_ps(_f0, _c0);
-                    _f1 = _mm256_add_ps(_f1, _c1);
-                    _f2 = _mm256_add_ps(_f2, _c2);
-                    _f3 = _mm256_add_ps(_f3, _c3);
-                    _f4 = _mm256_add_ps(_f4, _c4);
-                    _f5 = _mm256_add_ps(_f5, _c5);
-                    _f6 = _mm256_add_ps(_f6, _c6);
-                    _f7 = _mm256_add_ps(_f7, _c7);
-                    pC += 8;
-                }
-            }
-
-            if (alpha != 1.f)
-            {
-                __m256 _alpha = _mm256_set1_ps(alpha);
-                _f0 = _mm256_mul_ps(_f0, _alpha);
-                _f1 = _mm256_mul_ps(_f1, _alpha);
-                _f2 = _mm256_mul_ps(_f2, _alpha);
-                _f3 = _mm256_mul_ps(_f3, _alpha);
-                _f4 = _mm256_mul_ps(_f4, _alpha);
-                _f5 = _mm256_mul_ps(_f5, _alpha);
-                _f6 = _mm256_mul_ps(_f6, _alpha);
-                _f7 = _mm256_mul_ps(_f7, _alpha);
-            }
-
-            if (output_elemtype == 1)
-            {
-                if (output_transpose)
-                {
-                    if (out_elempack == 16)
-                    {
-                        transpose8x8_ps(_f0, _f1, _f2, _f3, _f4, _f5, _f6, _f7);
-                        const int jj_m16 = jj % 16;
-                        float* p1 = p0f - out_hstep * jj_m16 + jj_m16;
-                        _mm256_storeu_ps(p1, _f0);
-                        _mm256_storeu_ps(p1 + 16, _f1);
-                        _mm256_storeu_ps(p1 + 32, _f2);
-                        _mm256_storeu_ps(p1 + 48, _f3);
-                        _mm256_storeu_ps(p1 + 64, _f4);
-                        _mm256_storeu_ps(p1 + 80, _f5);
-                        _mm256_storeu_ps(p1 + 96, _f6);
-                        _mm256_storeu_ps(p1 + 112, _f7);
-                    }
-                    if (out_elempack == 8)
-                    {
-                        transpose8x8_ps(_f0, _f1, _f2, _f3, _f4, _f5, _f6, _f7);
-
-                        _mm256_storeu_ps(p0f, _f0);
-                        _mm256_storeu_ps(p0f + 8, _f1);
-                        _mm256_storeu_ps(p0f + 16, _f2);
-                        _mm256_storeu_ps(p0f + 24, _f3);
-                        _mm256_storeu_ps(p0f + 32, _f4);
-                        _mm256_storeu_ps(p0f + 40, _f5);
-                        _mm256_storeu_ps(p0f + 48, _f6);
-                        _mm256_storeu_ps(p0f + 56, _f7);
-                    }
-                    if (out_elempack == 4)
-                    {
-                        transpose8x8_ps(_f0, _f1, _f2, _f3, _f4, _f5, _f6, _f7);
-
-                        _mm_storeu_ps(p0f, _mm256_castps256_ps128(_f0));
-                        _mm_storeu_ps(p0f + out_hstep * 4, _mm256_extractf128_ps(_f0, 1));
-                        _mm_storeu_ps(p0f + 4, _mm256_castps256_ps128(_f1));
-                        _mm_storeu_ps(p0f + out_hstep * 4 + 4, _mm256_extractf128_ps(_f1, 1));
-                        _mm_storeu_ps(p0f + 8, _mm256_castps256_ps128(_f2));
-                        _mm_storeu_ps(p0f + out_hstep * 4 + 8, _mm256_extractf128_ps(_f2, 1));
-                        _mm_storeu_ps(p0f + 12, _mm256_castps256_ps128(_f3));
-                        _mm_storeu_ps(p0f + out_hstep * 4 + 12, _mm256_extractf128_ps(_f3, 1));
-                        _mm_storeu_ps(p0f + 16, _mm256_castps256_ps128(_f4));
-                        _mm_storeu_ps(p0f + out_hstep * 4 + 16, _mm256_extractf128_ps(_f4, 1));
-                        _mm_storeu_ps(p0f + 20, _mm256_castps256_ps128(_f5));
-                        _mm_storeu_ps(p0f + out_hstep * 4 + 20, _mm256_extractf128_ps(_f5, 1));
-                        _mm_storeu_ps(p0f + 24, _mm256_castps256_ps128(_f6));
-                        _mm_storeu_ps(p0f + out_hstep * 4 + 24, _mm256_extractf128_ps(_f6, 1));
-                        _mm_storeu_ps(p0f + 28, _mm256_castps256_ps128(_f7));
-                        _mm_storeu_ps(p0f + out_hstep * 4 + 28, _mm256_extractf128_ps(_f7, 1));
-                    }
-                    if (out_elempack == 1)
-                    {
-                        _mm256_storeu_ps(p0f, _f0);
-                        _mm256_storeu_ps(p0f + out_hstep, _f1);
-                        _mm256_storeu_ps(p0f + out_hstep * 2, _f2);
-                        _mm256_storeu_ps(p0f + out_hstep * 3, _f3);
-                        _mm256_storeu_ps(p0f + out_hstep * 4, _f4);
-                        _mm256_storeu_ps(p0f + out_hstep * 5, _f5);
-                        _mm256_storeu_ps(p0f + out_hstep * 6, _f6);
-                        _mm256_storeu_ps(p0f + out_hstep * 7, _f7);
-                    }
-                    p0f += out_hstep * 8;
-                }
-                else
-                {
-                    if (out_elempack == 8)
-                    {
-                        _mm256_storeu_ps(p0f, _f0);
-                        _mm256_storeu_ps(p0f + 8, _f1);
-                        _mm256_storeu_ps(p0f + 16, _f2);
-                        _mm256_storeu_ps(p0f + 24, _f3);
-                        _mm256_storeu_ps(p0f + 32, _f4);
-                        _mm256_storeu_ps(p0f + 40, _f5);
-                        _mm256_storeu_ps(p0f + 48, _f6);
-                        _mm256_storeu_ps(p0f + 56, _f7);
-                    }
-                    if (out_elempack == 4)
-                    {
-                        _mm_storeu_ps(p0f, _mm256_castps256_ps128(_f0));
-                        _mm_storeu_ps(p0f + 4, _mm256_castps256_ps128(_f1));
-                        _mm_storeu_ps(p0f + 8, _mm256_castps256_ps128(_f2));
-                        _mm_storeu_ps(p0f + 12, _mm256_castps256_ps128(_f3));
-                        _mm_storeu_ps(p0f + 16, _mm256_castps256_ps128(_f4));
-                        _mm_storeu_ps(p0f + 20, _mm256_castps256_ps128(_f5));
-                        _mm_storeu_ps(p0f + 24, _mm256_castps256_ps128(_f6));
-                        _mm_storeu_ps(p0f + 28, _mm256_castps256_ps128(_f7));
-                        _mm_storeu_ps(p0f + out_hstep * 4, _mm256_extractf128_ps(_f0, 1));
-                        _mm_storeu_ps(p0f + out_hstep * 4 + 4, _mm256_extractf128_ps(_f1, 1));
-                        _mm_storeu_ps(p0f + out_hstep * 4 + 8, _mm256_extractf128_ps(_f2, 1));
-                        _mm_storeu_ps(p0f + out_hstep * 4 + 12, _mm256_extractf128_ps(_f3, 1));
-                        _mm_storeu_ps(p0f + out_hstep * 4 + 16, _mm256_extractf128_ps(_f4, 1));
-                        _mm_storeu_ps(p0f + out_hstep * 4 + 20, _mm256_extractf128_ps(_f5, 1));
-                        _mm_storeu_ps(p0f + out_hstep * 4 + 24, _mm256_extractf128_ps(_f6, 1));
-                        _mm_storeu_ps(p0f + out_hstep * 4 + 28, _mm256_extractf128_ps(_f7, 1));
-                    }
-                    if (out_elempack == 1)
-                    {
-                        transpose8x8_ps(_f0, _f1, _f2, _f3, _f4, _f5, _f6, _f7);
-                        _mm256_storeu_ps(p0f, _f0);
-                        _mm256_storeu_ps(p0f + out_hstep, _f1);
-                        _mm256_storeu_ps(p0f + out_hstep * 2, _f2);
-                        _mm256_storeu_ps(p0f + out_hstep * 3, _f3);
-                        _mm256_storeu_ps(p0f + out_hstep * 4, _f4);
-                        _mm256_storeu_ps(p0f + out_hstep * 5, _f5);
-                        _mm256_storeu_ps(p0f + out_hstep * 6, _f6);
-                        _mm256_storeu_ps(p0f + out_hstep * 7, _f7);
-                    }
-                    p0f += 8 * out_elempack;
-                }
-            }
-#if NCNN_BF16
-            else
-            {
-                __m128i _bf0 = float2bfloat_avx(_f0);
-                __m128i _bf1 = float2bfloat_avx(_f1);
-                __m128i _bf2 = float2bfloat_avx(_f2);
-                __m128i _bf3 = float2bfloat_avx(_f3);
-                __m128i _bf4 = float2bfloat_avx(_f4);
-                __m128i _bf5 = float2bfloat_avx(_f5);
-                __m128i _bf6 = float2bfloat_avx(_f6);
-                __m128i _bf7 = float2bfloat_avx(_f7);
-                if (output_transpose)
-                {
-                    if (out_elempack == 16)
-                    {
-                        transpose8x8_epi16(_bf0, _bf1, _bf2, _bf3, _bf4, _bf5, _bf6, _bf7);
-                        const int jj_m16 = jj % 16;
-                        unsigned short* p1 = p0 - out_hstep * jj_m16 + jj_m16;
-                        _mm_storeu_si128((__m128i*)p1, _bf0);
-                        _mm_storeu_si128((__m128i*)(p1 + 16), _bf1);
-                        _mm_storeu_si128((__m128i*)(p1 + 32), _bf2);
-                        _mm_storeu_si128((__m128i*)(p1 + 48), _bf3);
-                        _mm_storeu_si128((__m128i*)(p1 + 64), _bf4);
-                        _mm_storeu_si128((__m128i*)(p1 + 80), _bf5);
-                        _mm_storeu_si128((__m128i*)(p1 + 96), _bf6);
-                        _mm_storeu_si128((__m128i*)(p1 + 112), _bf7);
-                    }
-                    if (out_elempack == 8)
-                    {
-                        transpose8x8_epi16(_bf0, _bf1, _bf2, _bf3, _bf4, _bf5, _bf6, _bf7);
-                        _mm_storeu_si128((__m128i*)p0, _bf0);
-                        _mm_storeu_si128((__m128i*)(p0 + 8), _bf1);
-                        _mm_storeu_si128((__m128i*)(p0 + 16), _bf2);
-                        _mm_storeu_si128((__m128i*)(p0 + 24), _bf3);
-                        _mm_storeu_si128((__m128i*)(p0 + 32), _bf4);
-                        _mm_storeu_si128((__m128i*)(p0 + 40), _bf5);
-                        _mm_storeu_si128((__m128i*)(p0 + 48), _bf6);
-                        _mm_storeu_si128((__m128i*)(p0 + 56), _bf7);
-                    }
-                    if (out_elempack == 4)
-                    {
-                        transpose8x4_epi16(_bf0, _bf1, _bf2, _bf3);
-                        transpose8x4_epi16(_bf4, _bf5, _bf6, _bf7);
-                        _mm_storeu_si128((__m128i*)(p0), _bf0);
-                        _mm_storeu_si128((__m128i*)(p0 + 8), _bf1);
-                        _mm_storeu_si128((__m128i*)(p0 + 16), _bf2);
-                        _mm_storeu_si128((__m128i*)(p0 + 24), _bf3);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep * 4), _bf4);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep * 4 + 8), _bf5);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep * 4 + 16), _bf6);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep * 4 + 24), _bf7);
-                    }
-                    if (out_elempack == 1)
-                    {
-                        _mm_storeu_si128((__m128i*)p0, _bf0);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep), _bf1);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep * 2), _bf2);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep * 3), _bf3);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep * 4), _bf4);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep * 5), _bf5);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep * 6), _bf6);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep * 7), _bf7);
-                    }
-                    p0 += out_hstep * 8;
-                }
-                else
-                {
-                    if (out_elempack == 8)
-                    {
-                        _mm_storeu_si128((__m128i*)p0, _bf0);
-                        _mm_storeu_si128((__m128i*)(p0 + 8), _bf1);
-                        _mm_storeu_si128((__m128i*)(p0 + 16), _bf2);
-                        _mm_storeu_si128((__m128i*)(p0 + 24), _bf3);
-                        _mm_storeu_si128((__m128i*)(p0 + 32), _bf4);
-                        _mm_storeu_si128((__m128i*)(p0 + 40), _bf5);
-                        _mm_storeu_si128((__m128i*)(p0 + 48), _bf6);
-                        _mm_storeu_si128((__m128i*)(p0 + 56), _bf7);
-                    }
-                    if (out_elempack == 4)
-                    {
-                        _mm_storel_epi64((__m128i*)(p0 + 0), _bf0);
-                        _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 0), _mm_castsi128_pd(_bf0));
-                        _mm_storel_epi64((__m128i*)(p0 + 4), _bf1);
-                        _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 4), _mm_castsi128_pd(_bf1));
-                        _mm_storel_epi64((__m128i*)(p0 + 8), _bf2);
-                        _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 8), _mm_castsi128_pd(_bf2));
-                        _mm_storel_epi64((__m128i*)(p0 + 12), _bf3);
-                        _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 12), _mm_castsi128_pd(_bf3));
-                        _mm_storel_epi64((__m128i*)(p0 + 16), _bf4);
-                        _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 16), _mm_castsi128_pd(_bf4));
-                        _mm_storel_epi64((__m128i*)(p0 + 20), _bf5);
-                        _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 20), _mm_castsi128_pd(_bf5));
-                        _mm_storel_epi64((__m128i*)(p0 + 24), _bf6);
-                        _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 24), _mm_castsi128_pd(_bf6));
-                        _mm_storel_epi64((__m128i*)(p0 + 28), _bf7);
-                        _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 28), _mm_castsi128_pd(_bf7));
-                    }
-                    if (out_elempack == 1)
-                    {
-                        transpose8x8_epi16(_bf0, _bf1, _bf2, _bf3, _bf4, _bf5, _bf6, _bf7);
-                        _mm_storeu_si128((__m128i*)p0, _bf0);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep), _bf1);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep * 2), _bf2);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep * 3), _bf3);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep * 4), _bf4);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep * 5), _bf5);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep * 6), _bf6);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep * 7), _bf7);
-                    }
-                    p0 += 8 * out_elempack;
-                }
-            }
-#endif // NCNN_BF16
-        }
 #endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -9195,8 +8789,8 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             {
                 if (output_transpose)
                 {
-#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX__
+#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX512F__
                     if (out_elempack == 16)
                     {
@@ -9213,6 +8807,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         _mm_store_ps(p1 + 112, _mm256_extractf128_ps(_f3, 1));
                     }
 #endif // __AVX512F__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 8)
                     {
                         transpose8x4_ps(_f0, _f1, _f2, _f3);
@@ -9228,7 +8823,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         _mm_store_ps(p1 + 56, _mm256_extractf128_ps(_f3, 1));
                     }
 #endif // __AVX__
-#endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 4)
                     {
                         transpose8x4_ps(_f0, _f1, _f2, _f3);
@@ -9294,8 +8888,8 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 __m128i _bf3 = float2bfloat_avx(_f3);
                 if (output_transpose)
                 {
-#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX__
+#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX512F__
                     if (out_elempack == 16)
                     {
@@ -9312,6 +8906,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         _mm_storeh_pd((double*)(p1 + 112), _mm_castsi128_pd(_bf3));
                     }
 #endif // __AVX512F__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 8)
                     {
                         transpose8x4_epi16(_bf0, _bf1, _bf2, _bf3);
@@ -9327,7 +8922,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         _mm_storeh_pd((double*)(p1 + 56), _mm_castsi128_pd(_bf3));
                     }
 #endif // __AVX__
-#endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 4)
                     {
                         __m128i _b0 = _bf0;
@@ -10131,351 +9725,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 #endif // NCNN_BF16
         }
 #endif // __AVX512F__
-        for (; jj + 7 < max_jj; jj += 8)
-        {
-            __m128 _f0 = _mm_loadu_ps(pp);
-            __m128 _f1 = _mm_loadu_ps(pp + 4);
-            __m128 _f2 = _mm_loadu_ps(pp + 8);
-            __m128 _f3 = _mm_loadu_ps(pp + 12);
-            __m128 _f4 = _mm_loadu_ps(pp + 16);
-            __m128 _f5 = _mm_loadu_ps(pp + 20);
-            __m128 _f6 = _mm_loadu_ps(pp + 24);
-            __m128 _f7 = _mm_loadu_ps(pp + 28);
-            pp += 32;
-            {
-                _f1 = _mm_shuffle_ps(_f1, _f1, _MM_SHUFFLE(2, 1, 0, 3));
-                _f3 = _mm_shuffle_ps(_f3, _f3, _MM_SHUFFLE(2, 1, 0, 3));
-                __m128 _tmp0 = _mm_unpacklo_ps(_f0, _f3);
-                __m128 _tmp1 = _mm_unpackhi_ps(_f0, _f3);
-                __m128 _tmp2 = _mm_unpacklo_ps(_f2, _f1);
-                __m128 _tmp3 = _mm_unpackhi_ps(_f2, _f1);
-                _f0 = _mm_castpd_ps(_mm_unpacklo_pd(_mm_castps_pd(_tmp0), _mm_castps_pd(_tmp2)));
-                _f1 = _mm_castpd_ps(_mm_unpackhi_pd(_mm_castps_pd(_tmp0), _mm_castps_pd(_tmp2)));
-                _f2 = _mm_castpd_ps(_mm_unpacklo_pd(_mm_castps_pd(_tmp3), _mm_castps_pd(_tmp1)));
-                _f3 = _mm_castpd_ps(_mm_unpackhi_pd(_mm_castps_pd(_tmp3), _mm_castps_pd(_tmp1)));
-                _f1 = _mm_shuffle_ps(_f1, _f1, _MM_SHUFFLE(2, 1, 0, 3));
-                _f3 = _mm_shuffle_ps(_f3, _f3, _MM_SHUFFLE(2, 1, 0, 3));
-            }
-            {
-                _f5 = _mm_shuffle_ps(_f5, _f5, _MM_SHUFFLE(2, 1, 0, 3));
-                _f7 = _mm_shuffle_ps(_f7, _f7, _MM_SHUFFLE(2, 1, 0, 3));
-                __m128 _tmp0 = _mm_unpacklo_ps(_f4, _f7);
-                __m128 _tmp1 = _mm_unpackhi_ps(_f4, _f7);
-                __m128 _tmp2 = _mm_unpacklo_ps(_f6, _f5);
-                __m128 _tmp3 = _mm_unpackhi_ps(_f6, _f5);
-                _f4 = _mm_castpd_ps(_mm_unpacklo_pd(_mm_castps_pd(_tmp0), _mm_castps_pd(_tmp2)));
-                _f5 = _mm_castpd_ps(_mm_unpackhi_pd(_mm_castps_pd(_tmp0), _mm_castps_pd(_tmp2)));
-                _f6 = _mm_castpd_ps(_mm_unpacklo_pd(_mm_castps_pd(_tmp3), _mm_castps_pd(_tmp1)));
-                _f7 = _mm_castpd_ps(_mm_unpackhi_pd(_mm_castps_pd(_tmp3), _mm_castps_pd(_tmp1)));
-                _f5 = _mm_shuffle_ps(_f5, _f5, _MM_SHUFFLE(2, 1, 0, 3));
-                _f7 = _mm_shuffle_ps(_f7, _f7, _MM_SHUFFLE(2, 1, 0, 3));
-            }
-
-            if (pC)
-            {
-                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    _f0 = _mm_add_ps(_f0, _c0);
-                    _f1 = _mm_add_ps(_f1, _c0);
-                    _f2 = _mm_add_ps(_f2, _c0);
-                    _f3 = _mm_add_ps(_f3, _c0);
-                    _f4 = _mm_add_ps(_f4, _c0);
-                    _f5 = _mm_add_ps(_f5, _c0);
-                    _f6 = _mm_add_ps(_f6, _c0);
-                    _f7 = _mm_add_ps(_f7, _c0);
-                }
-                if (broadcast_type_C == 3)
-                {
-                    __m128 _c0 = c_elempack == 4 ? _mm_loadu_ps(pC) : _mm_setr_ps(pC[0], pC[c_hstep], pC[c_hstep * 2], pC[c_hstep * 3]);
-                    __m128 _c1 = c_elempack == 4 ? _mm_loadu_ps(pC + 4) : _mm_setr_ps(pC[1], pC[c_hstep + 1], pC[c_hstep * 2 + 1], pC[c_hstep * 3 + 1]);
-                    __m128 _c2 = c_elempack == 4 ? _mm_loadu_ps(pC + 8) : _mm_setr_ps(pC[2], pC[c_hstep + 2], pC[c_hstep * 2 + 2], pC[c_hstep * 3 + 2]);
-                    __m128 _c3 = c_elempack == 4 ? _mm_loadu_ps(pC + 12) : _mm_setr_ps(pC[3], pC[c_hstep + 3], pC[c_hstep * 2 + 3], pC[c_hstep * 3 + 3]);
-                    __m128 _c4 = c_elempack == 4 ? _mm_loadu_ps(pC + 16) : _mm_setr_ps(pC[4], pC[c_hstep + 4], pC[c_hstep * 2 + 4], pC[c_hstep * 3 + 4]);
-                    __m128 _c5 = c_elempack == 4 ? _mm_loadu_ps(pC + 20) : _mm_setr_ps(pC[5], pC[c_hstep + 5], pC[c_hstep * 2 + 5], pC[c_hstep * 3 + 5]);
-                    __m128 _c6 = c_elempack == 4 ? _mm_loadu_ps(pC + 24) : _mm_setr_ps(pC[6], pC[c_hstep + 6], pC[c_hstep * 2 + 6], pC[c_hstep * 3 + 6]);
-                    __m128 _c7 = c_elempack == 4 ? _mm_loadu_ps(pC + 28) : _mm_setr_ps(pC[7], pC[c_hstep + 7], pC[c_hstep * 2 + 7], pC[c_hstep * 3 + 7]);
-                    if (beta == 1.f)
-                    {
-                        _f0 = _mm_add_ps(_f0, _c0);
-                        _f1 = _mm_add_ps(_f1, _c1);
-                        _f2 = _mm_add_ps(_f2, _c2);
-                        _f3 = _mm_add_ps(_f3, _c3);
-                        _f4 = _mm_add_ps(_f4, _c4);
-                        _f5 = _mm_add_ps(_f5, _c5);
-                        _f6 = _mm_add_ps(_f6, _c6);
-                        _f7 = _mm_add_ps(_f7, _c7);
-                    }
-                    else
-                    {
-                        __m128 _beta = _mm_set1_ps(beta);
-                        _f0 = _mm_comp_fmadd_ps(_c0, _beta, _f0);
-                        _f1 = _mm_comp_fmadd_ps(_c1, _beta, _f1);
-                        _f2 = _mm_comp_fmadd_ps(_c2, _beta, _f2);
-                        _f3 = _mm_comp_fmadd_ps(_c3, _beta, _f3);
-                        _f4 = _mm_comp_fmadd_ps(_c4, _beta, _f4);
-                        _f5 = _mm_comp_fmadd_ps(_c5, _beta, _f5);
-                        _f6 = _mm_comp_fmadd_ps(_c6, _beta, _f6);
-                        _f7 = _mm_comp_fmadd_ps(_c7, _beta, _f7);
-                    }
-                    pC += 8 * c_elempack;
-                }
-                if (broadcast_type_C == 4)
-                {
-                    __m128 _c0 = _mm_set1_ps(pC[0] * beta);
-                    __m128 _c1 = _mm_set1_ps(pC[1] * beta);
-                    __m128 _c2 = _mm_set1_ps(pC[2] * beta);
-                    __m128 _c3 = _mm_set1_ps(pC[3] * beta);
-                    _f0 = _mm_add_ps(_f0, _c0);
-                    _f1 = _mm_add_ps(_f1, _c1);
-                    _f2 = _mm_add_ps(_f2, _c2);
-                    _f3 = _mm_add_ps(_f3, _c3);
-
-                    _c0 = _mm_set1_ps(pC[4] * beta);
-                    _c1 = _mm_set1_ps(pC[5] * beta);
-                    _c2 = _mm_set1_ps(pC[6] * beta);
-                    _c3 = _mm_set1_ps(pC[7] * beta);
-                    _f4 = _mm_add_ps(_f4, _c0);
-                    _f5 = _mm_add_ps(_f5, _c1);
-                    _f6 = _mm_add_ps(_f6, _c2);
-                    _f7 = _mm_add_ps(_f7, _c3);
-                    pC += 8;
-                }
-            }
-
-            if (alpha != 1.f)
-            {
-                __m128 _alpha = _mm_set1_ps(alpha);
-                _f0 = _mm_mul_ps(_f0, _alpha);
-                _f1 = _mm_mul_ps(_f1, _alpha);
-                _f2 = _mm_mul_ps(_f2, _alpha);
-                _f3 = _mm_mul_ps(_f3, _alpha);
-                _f4 = _mm_mul_ps(_f4, _alpha);
-                _f5 = _mm_mul_ps(_f5, _alpha);
-                _f6 = _mm_mul_ps(_f6, _alpha);
-                _f7 = _mm_mul_ps(_f7, _alpha);
-            }
-
-            if (output_elemtype == 1)
-            {
-                if (output_transpose)
-                {
-                    if (out_elempack == 16)
-                    {
-                        _MM_TRANSPOSE4_PS(_f0, _f1, _f2, _f3);
-                        _MM_TRANSPOSE4_PS(_f4, _f5, _f6, _f7);
-                        const int jj_m16 = jj % 16;
-                        float* p1 = p0f - out_hstep * jj_m16 + jj_m16;
-                        _mm256_storeu_ps(p1, combine4x2_ps(_f0, _f4));
-                        _mm256_storeu_ps(p1 + 16, combine4x2_ps(_f1, _f5));
-                        _mm256_storeu_ps(p1 + 32, combine4x2_ps(_f2, _f6));
-                        _mm256_storeu_ps(p1 + 48, combine4x2_ps(_f3, _f7));
-                    }
-                    if (out_elempack == 8)
-                    {
-                        _MM_TRANSPOSE4_PS(_f0, _f1, _f2, _f3);
-                        _MM_TRANSPOSE4_PS(_f4, _f5, _f6, _f7);
-                        _mm256_storeu_ps(p0f, combine4x2_ps(_f0, _f4));
-                        _mm256_storeu_ps(p0f + 8, combine4x2_ps(_f1, _f5));
-                        _mm256_storeu_ps(p0f + 16, combine4x2_ps(_f2, _f6));
-                        _mm256_storeu_ps(p0f + 24, combine4x2_ps(_f3, _f7));
-                    }
-                    if (out_elempack == 4)
-                    {
-                        _MM_TRANSPOSE4_PS(_f0, _f1, _f2, _f3);
-                        _MM_TRANSPOSE4_PS(_f4, _f5, _f6, _f7);
-                        _mm_storeu_ps(p0f, _f0);
-                        _mm_storeu_ps(p0f + 4, _f1);
-                        _mm_storeu_ps(p0f + 8, _f2);
-                        _mm_storeu_ps(p0f + 12, _f3);
-                        _mm_storeu_ps(p0f + out_hstep * 4, _f4);
-                        _mm_storeu_ps(p0f + out_hstep * 4 + 4, _f5);
-                        _mm_storeu_ps(p0f + out_hstep * 4 + 8, _f6);
-                        _mm_storeu_ps(p0f + out_hstep * 4 + 12, _f7);
-                    }
-                    if (out_elempack == 1)
-                    {
-                        _mm_storeu_ps(p0f, _f0);
-                        _mm_storeu_ps(p0f + out_hstep, _f1);
-                        _mm_storeu_ps(p0f + out_hstep * 2, _f2);
-                        _mm_storeu_ps(p0f + out_hstep * 3, _f3);
-                        _mm_storeu_ps(p0f + out_hstep * 4, _f4);
-                        _mm_storeu_ps(p0f + out_hstep * 5, _f5);
-                        _mm_storeu_ps(p0f + out_hstep * 6, _f6);
-                        _mm_storeu_ps(p0f + out_hstep * 7, _f7);
-                    }
-                    p0f += out_hstep * 8;
-                }
-                else
-                {
-                    if (out_elempack == 4)
-                    {
-                        _mm_storeu_ps(p0f, _f0);
-                        _mm_storeu_ps(p0f + 4, _f1);
-                        _mm_storeu_ps(p0f + 8, _f2);
-                        _mm_storeu_ps(p0f + 12, _f3);
-                        _mm_storeu_ps(p0f + 16, _f4);
-                        _mm_storeu_ps(p0f + 20, _f5);
-                        _mm_storeu_ps(p0f + 24, _f6);
-                        _mm_storeu_ps(p0f + 28, _f7);
-                    }
-                    if (out_elempack == 1)
-                    {
-                        _MM_TRANSPOSE4_PS(_f0, _f1, _f2, _f3);
-                        _MM_TRANSPOSE4_PS(_f4, _f5, _f6, _f7);
-                        __m256 _f0x2 = combine4x2_ps(_f0, _f4);
-                        __m256 _f1x2 = combine4x2_ps(_f1, _f5);
-                        __m256 _f2x2 = combine4x2_ps(_f2, _f6);
-                        __m256 _f3x2 = combine4x2_ps(_f3, _f7);
-                        _mm256_storeu_ps(p0f, _f0x2);
-                        _mm256_storeu_ps(p0f + out_hstep, _f1x2);
-                        _mm256_storeu_ps(p0f + out_hstep * 2, _f2x2);
-                        _mm256_storeu_ps(p0f + out_hstep * 3, _f3x2);
-                    }
-                    p0f += 8 * out_elempack;
-                }
-            }
-#if NCNN_BF16
-            else
-            {
-                __m128i _bf0 = float2bfloat_sse(_f0);
-                __m128i _bf1 = float2bfloat_sse(_f1);
-                __m128i _bf2 = float2bfloat_sse(_f2);
-                __m128i _bf3 = float2bfloat_sse(_f3);
-                __m128i _bf4 = float2bfloat_sse(_f4);
-                __m128i _bf5 = float2bfloat_sse(_f5);
-                __m128i _bf6 = float2bfloat_sse(_f6);
-                __m128i _bf7 = float2bfloat_sse(_f7);
-                if (output_transpose)
-                {
-                    if (out_elempack == 16)
-                    {
-                        __m128i _r0;
-                        __m128i _r1;
-                        __m128i _r2;
-                        __m128i _r3;
-                        __m128i _u0 = _mm_unpacklo_epi16(_bf0, _bf1);
-                        __m128i _u1 = _mm_unpacklo_epi16(_bf2, _bf3);
-                        __m128i _u2 = _mm_unpacklo_epi16(_bf4, _bf5);
-                        __m128i _u3 = _mm_unpacklo_epi16(_bf6, _bf7);
-                        __m128i _d0 = _mm_unpacklo_epi32(_u0, _u1);
-                        __m128i _d1 = _mm_unpackhi_epi32(_u0, _u1);
-                        __m128i _d2 = _mm_unpacklo_epi32(_u2, _u3);
-                        __m128i _d3 = _mm_unpackhi_epi32(_u2, _u3);
-                        _r0 = _mm_unpacklo_epi64(_d0, _d2);
-                        _r1 = _mm_unpackhi_epi64(_d0, _d2);
-                        _r2 = _mm_unpacklo_epi64(_d1, _d3);
-                        _r3 = _mm_unpackhi_epi64(_d1, _d3);
-                        const int jj_m16 = jj % 16;
-                        unsigned short* p1 = p0 - out_hstep * jj_m16 + jj_m16;
-                        _mm_storeu_si128((__m128i*)p1, _r0);
-                        _mm_storeu_si128((__m128i*)(p1 + 16), _r1);
-                        _mm_storeu_si128((__m128i*)(p1 + 32), _r2);
-                        _mm_storeu_si128((__m128i*)(p1 + 48), _r3);
-                    }
-                    if (out_elempack == 8)
-                    {
-                        __m128i _r0;
-                        __m128i _r1;
-                        __m128i _r2;
-                        __m128i _r3;
-                        __m128i _u0 = _mm_unpacklo_epi16(_bf0, _bf1);
-                        __m128i _u1 = _mm_unpacklo_epi16(_bf2, _bf3);
-                        __m128i _u2 = _mm_unpacklo_epi16(_bf4, _bf5);
-                        __m128i _u3 = _mm_unpacklo_epi16(_bf6, _bf7);
-                        __m128i _d0 = _mm_unpacklo_epi32(_u0, _u1);
-                        __m128i _d1 = _mm_unpackhi_epi32(_u0, _u1);
-                        __m128i _d2 = _mm_unpacklo_epi32(_u2, _u3);
-                        __m128i _d3 = _mm_unpackhi_epi32(_u2, _u3);
-                        _r0 = _mm_unpacklo_epi64(_d0, _d2);
-                        _r1 = _mm_unpackhi_epi64(_d0, _d2);
-                        _r2 = _mm_unpacklo_epi64(_d1, _d3);
-                        _r3 = _mm_unpackhi_epi64(_d1, _d3);
-                        _mm_storeu_si128((__m128i*)p0, _r0);
-                        _mm_storeu_si128((__m128i*)(p0 + 8), _r1);
-                        _mm_storeu_si128((__m128i*)(p0 + 16), _r2);
-                        _mm_storeu_si128((__m128i*)(p0 + 24), _r3);
-                    }
-                    if (out_elempack == 4)
-                    {
-                        __m128i _r0;
-                        __m128i _r1;
-                        __m128i _r2;
-                        __m128i _r3;
-                        __m128i _u0 = _mm_unpacklo_epi16(_bf0, _bf1);
-                        __m128i _u1 = _mm_unpacklo_epi16(_bf2, _bf3);
-                        __m128i _u2 = _mm_unpacklo_epi16(_bf4, _bf5);
-                        __m128i _u3 = _mm_unpacklo_epi16(_bf6, _bf7);
-                        __m128i _d0 = _mm_unpacklo_epi32(_u0, _u1);
-                        __m128i _d1 = _mm_unpackhi_epi32(_u0, _u1);
-                        __m128i _d2 = _mm_unpacklo_epi32(_u2, _u3);
-                        __m128i _d3 = _mm_unpackhi_epi32(_u2, _u3);
-                        _r0 = _mm_unpacklo_epi64(_d0, _d2);
-                        _r1 = _mm_unpackhi_epi64(_d0, _d2);
-                        _r2 = _mm_unpacklo_epi64(_d1, _d3);
-                        _r3 = _mm_unpackhi_epi64(_d1, _d3);
-                        _mm_storel_epi64((__m128i*)(p0), _r0);
-                        _mm_storeh_pd((double*)(p0 + out_hstep * 4), _mm_castsi128_pd(_r0));
-                        _mm_storel_epi64((__m128i*)(p0 + 4), _r1);
-                        _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 4), _mm_castsi128_pd(_r1));
-                        _mm_storel_epi64((__m128i*)(p0 + 8), _r2);
-                        _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 8), _mm_castsi128_pd(_r2));
-                        _mm_storel_epi64((__m128i*)(p0 + 12), _r3);
-                        _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 12), _mm_castsi128_pd(_r3));
-                    }
-                    if (out_elempack == 1)
-                    {
-                        _mm_storel_epi64((__m128i*)p0, _bf0);
-                        _mm_storel_epi64((__m128i*)(p0 + out_hstep), _bf1);
-                        _mm_storel_epi64((__m128i*)(p0 + out_hstep * 2), _bf2);
-                        _mm_storel_epi64((__m128i*)(p0 + out_hstep * 3), _bf3);
-                        _mm_storel_epi64((__m128i*)(p0 + out_hstep * 4), _bf4);
-                        _mm_storel_epi64((__m128i*)(p0 + out_hstep * 5), _bf5);
-                        _mm_storel_epi64((__m128i*)(p0 + out_hstep * 6), _bf6);
-                        _mm_storel_epi64((__m128i*)(p0 + out_hstep * 7), _bf7);
-                    }
-                    p0 += out_hstep * 8;
-                }
-                else
-                {
-                    if (out_elempack == 4)
-                    {
-                        _mm_storel_epi64((__m128i*)p0, _bf0);
-                        _mm_storel_epi64((__m128i*)(p0 + 4), _bf1);
-                        _mm_storel_epi64((__m128i*)(p0 + 8), _bf2);
-                        _mm_storel_epi64((__m128i*)(p0 + 12), _bf3);
-                        _mm_storel_epi64((__m128i*)(p0 + 16), _bf4);
-                        _mm_storel_epi64((__m128i*)(p0 + 20), _bf5);
-                        _mm_storel_epi64((__m128i*)(p0 + 24), _bf6);
-                        _mm_storel_epi64((__m128i*)(p0 + 28), _bf7);
-                    }
-                    if (out_elempack == 1)
-                    {
-                        __m128i _t0;
-                        __m128i _t1;
-                        __m128i _t2;
-                        __m128i _t3;
-                        __m128i _u0 = _mm_unpacklo_epi16(_bf0, _bf1);
-                        __m128i _u1 = _mm_unpacklo_epi16(_bf2, _bf3);
-                        __m128i _u2 = _mm_unpacklo_epi16(_bf4, _bf5);
-                        __m128i _u3 = _mm_unpacklo_epi16(_bf6, _bf7);
-                        __m128i _d0 = _mm_unpacklo_epi32(_u0, _u1);
-                        __m128i _d1 = _mm_unpackhi_epi32(_u0, _u1);
-                        __m128i _d2 = _mm_unpacklo_epi32(_u2, _u3);
-                        __m128i _d3 = _mm_unpackhi_epi32(_u2, _u3);
-                        _t0 = _mm_unpacklo_epi64(_d0, _d2);
-                        _t1 = _mm_unpackhi_epi64(_d0, _d2);
-                        _t2 = _mm_unpacklo_epi64(_d1, _d3);
-                        _t3 = _mm_unpackhi_epi64(_d1, _d3);
-                        _mm_storeu_si128((__m128i*)p0, _t0);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep), _t1);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep * 2), _t2);
-                        _mm_storeu_si128((__m128i*)(p0 + out_hstep * 3), _t3);
-                    }
-                    p0 += 8 * out_elempack;
-                }
-            }
-#endif // NCNN_BF16
-        }
 #endif // __AVX__
 #endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
@@ -10573,8 +9822,8 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             {
                 if (output_transpose)
                 {
-#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX__
+#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX512F__
                     if (out_elempack == 16)
                     {
@@ -10587,6 +9836,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         _mm_store_ps(p1 + 48, _f3);
                     }
 #endif // __AVX512F__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 8)
                     {
                         _MM_TRANSPOSE4_PS(_f0, _f1, _f2, _f3);
@@ -10598,7 +9848,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         _mm_store_ps(p1 + 24, _f3);
                     }
 #endif // __AVX__
-#endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 4)
                     {
                         _MM_TRANSPOSE4_PS(_f0, _f1, _f2, _f3);
@@ -10645,8 +9894,8 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 __m128i _bf3 = float2bfloat_sse(_f3);
                 if (output_transpose)
                 {
-#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX__
+#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX512F__
                     if (out_elempack == 16)
                     {
@@ -10662,6 +9911,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         _mm_storeh_pd((double*)(p1 + 48), _mm_castsi128_pd(_r1));
                     }
 #endif // __AVX512F__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 8)
                     {
                         __m128i _t0 = _mm_unpacklo_epi16(_bf0, _bf1);
@@ -10676,7 +9926,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         _mm_storeh_pd((double*)(p1 + 24), _mm_castsi128_pd(_r1));
                     }
 #endif // __AVX__
-#endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 4)
                     {
                         __m128i _t0 = _mm_unpacklo_epi16(_bf0, _bf1);
@@ -11211,182 +10460,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 #endif // NCNN_BF16
         }
 #endif // __AVX512F__
-        for (; jj + 7 < max_jj; jj += 8)
-        {
-            __m128 _a0 = _mm_loadu_ps(pp);
-            __m128 _a1 = _mm_loadu_ps(pp + 4);
-            __m128 _b0 = _mm_loadu_ps(pp + 8);
-            __m128 _b1 = _mm_loadu_ps(pp + 12);
-            pp += 16;
-
-            __m128 _tmp0 = _mm_unpacklo_ps(_a0, _a1);
-            __m128 _tmp1 = _mm_unpackhi_ps(_a0, _a1);
-            __m128 _al = _mm_castpd_ps(_mm_unpacklo_pd(_mm_castps_pd(_tmp0), _mm_castps_pd(_tmp1)));
-            __m128 _ah = _mm_castpd_ps(_mm_unpackhi_pd(_mm_castps_pd(_tmp1), _mm_castps_pd(_tmp0)));
-            _ah = _mm_shuffle_ps(_ah, _ah, _MM_SHUFFLE(0, 3, 2, 1));
-
-            _tmp0 = _mm_unpacklo_ps(_b0, _b1);
-            _tmp1 = _mm_unpackhi_ps(_b0, _b1);
-            __m128 _bl = _mm_castpd_ps(_mm_unpacklo_pd(_mm_castps_pd(_tmp0), _mm_castps_pd(_tmp1)));
-            __m128 _bh = _mm_castpd_ps(_mm_unpackhi_pd(_mm_castps_pd(_tmp1), _mm_castps_pd(_tmp0)));
-            _bh = _mm_shuffle_ps(_bh, _bh, _MM_SHUFFLE(0, 3, 2, 1));
-
-            __m256 _f0 = combine4x2_ps(_al, _bl);
-            __m256 _f1 = combine4x2_ps(_ah, _bh);
-            if (pC)
-            {
-                if (broadcast_type_C == 0)
-                {
-                    __m256 _c0 = _mm256_set1_ps(c0);
-                    _f0 = _mm256_add_ps(_f0, _c0);
-                    _f1 = _mm256_add_ps(_f1, _c0);
-                }
-                if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    _f0 = _mm256_add_ps(_f0, _mm256_set1_ps(c0));
-                    _f1 = _mm256_add_ps(_f1, _mm256_set1_ps(c1));
-                }
-                if (broadcast_type_C == 3)
-                {
-                    // c_elempack == 1
-                    __m256 _c0 = _mm256_loadu_ps(pC);
-                    __m256 _c1 = _mm256_loadu_ps(pC + c_hstep);
-                    if (beta == 1.f)
-                    {
-                        _f0 = _mm256_add_ps(_f0, _c0);
-                        _f1 = _mm256_add_ps(_f1, _c1);
-                    }
-                    else
-                    {
-                        __m256 _beta = _mm256_set1_ps(beta);
-                        _f0 = _mm256_comp_fmadd_ps(_c0, _beta, _f0);
-                        _f1 = _mm256_comp_fmadd_ps(_c1, _beta, _f1);
-                    }
-                    pC += 8;
-                }
-                if (broadcast_type_C == 4)
-                {
-                    __m256 _c0 = _mm256_loadu_ps(pC);
-                    if (beta != 1.f)
-                        _c0 = _mm256_mul_ps(_c0, _mm256_set1_ps(beta));
-                    _f0 = _mm256_add_ps(_f0, _c0);
-                    _f1 = _mm256_add_ps(_f1, _c0);
-                    pC += 8;
-                }
-            }
-
-            if (alpha != 1.f)
-            {
-                __m256 _alpha = _mm256_set1_ps(alpha);
-                _f0 = _mm256_mul_ps(_f0, _alpha);
-                _f1 = _mm256_mul_ps(_f1, _alpha);
-            }
-
-            if (output_elemtype == 1)
-            {
-                if (output_transpose)
-                {
-                    if (out_elempack == 16)
-                    {
-                        const int jj_m16 = jj % 16;
-                        float* p1 = p0f - out_hstep * jj_m16 + jj_m16;
-                        _mm256_storeu_ps(p1, _f0);
-                        _mm256_storeu_ps(p1 + 16, _f1);
-                    }
-                    if (out_elempack == 8)
-                    {
-                        _mm256_storeu_ps(p0f, _f0);
-                        _mm256_storeu_ps(p0f + 8, _f1);
-                    }
-                    if (out_elempack == 4)
-                    {
-                        _mm_storeu_ps(p0f, _mm256_castps256_ps128(_f0));
-                        _mm_storeu_ps(p0f + 4, _mm256_castps256_ps128(_f1));
-                        _mm_storeu_ps(p0f + out_hstep * 4, _mm256_extractf128_ps(_f0, 1));
-                        _mm_storeu_ps(p0f + out_hstep * 4 + 4, _mm256_extractf128_ps(_f1, 1));
-                    }
-                    if (out_elempack == 1)
-                    {
-                        __m256 _tmp0 = _mm256_unpacklo_ps(_f0, _f1);
-                        __m256 _tmp1 = _mm256_unpackhi_ps(_f0, _f1);
-                        __m128 _r0 = _mm256_castps256_ps128(_tmp0);
-                        __m128 _r1 = _mm256_castps256_ps128(_tmp1);
-                        _mm_storel_pi((__m64*)p0f, _r0);
-                        _mm_storeh_pi((__m64*)(p0f + out_hstep), _r0);
-                        _mm_storel_pi((__m64*)(p0f + out_hstep * 2), _r1);
-                        _mm_storeh_pi((__m64*)(p0f + out_hstep * 3), _r1);
-                        _r0 = _mm256_extractf128_ps(_tmp0, 1);
-                        _r1 = _mm256_extractf128_ps(_tmp1, 1);
-                        _mm_storel_pi((__m64*)(p0f + out_hstep * 4), _r0);
-                        _mm_storeh_pi((__m64*)(p0f + out_hstep * 5), _r0);
-                        _mm_storel_pi((__m64*)(p0f + out_hstep * 6), _r1);
-                        _mm_storeh_pi((__m64*)(p0f + out_hstep * 7), _r1);
-                    }
-                    p0f += out_hstep * 8;
-                }
-                else
-                {
-                    _mm256_storeu_ps(p0f, _f0);
-                    _mm256_storeu_ps(p0f + out_hstep, _f1);
-                    p0f += 8;
-                }
-            }
-#if NCNN_BF16
-            else
-            {
-                __m128i _bf0 = float2bfloat_avx(_f0);
-                __m128i _bf1 = float2bfloat_avx(_f1);
-                if (output_transpose)
-                {
-                    if (out_elempack == 16)
-                    {
-                        const int jj_m16 = jj % 16;
-                        unsigned short* p1 = p0 - out_hstep * jj_m16 + jj_m16;
-                        _mm_storeu_si128((__m128i*)p1, _bf0);
-                        _mm_storeu_si128((__m128i*)(p1 + 16), _bf1);
-                    }
-                    if (out_elempack == 8)
-                    {
-                        _mm_storeu_si128((__m128i*)p0, _bf0);
-                        _mm_storeu_si128((__m128i*)(p0 + 8), _bf1);
-                    }
-                    if (out_elempack == 4)
-                    {
-                        _mm_storel_epi64((__m128i*)p0, _bf0);
-                        _mm_storel_epi64((__m128i*)(p0 + 4), _bf1);
-                        _mm_storel_epi64((__m128i*)(p0 + out_hstep * 4), _mm_srli_si128(_bf0, 8));
-                        _mm_storel_epi64((__m128i*)(p0 + out_hstep * 4 + 4), _mm_srli_si128(_bf1, 8));
-                    }
-                    if (out_elempack == 1)
-                    {
-                        __m128i _r0 = _mm_unpacklo_epi16(_bf0, _bf1);
-                        __m128i _r1 = _mm_unpackhi_epi16(_bf0, _bf1);
-                        _mm_store_ss((float*)p0, _mm_castsi128_ps(_r0));
-                        _r0 = _mm_srli_si128(_r0, 4);
-                        _mm_store_ss((float*)(p0 + out_hstep), _mm_castsi128_ps(_r0));
-                        _r0 = _mm_srli_si128(_r0, 4);
-                        _mm_store_ss((float*)(p0 + out_hstep * 2), _mm_castsi128_ps(_r0));
-                        _r0 = _mm_srli_si128(_r0, 4);
-                        _mm_store_ss((float*)(p0 + out_hstep * 3), _mm_castsi128_ps(_r0));
-                        _mm_store_ss((float*)(p0 + out_hstep * 4), _mm_castsi128_ps(_r1));
-                        _r1 = _mm_srli_si128(_r1, 4);
-                        _mm_store_ss((float*)(p0 + out_hstep * 5), _mm_castsi128_ps(_r1));
-                        _r1 = _mm_srli_si128(_r1, 4);
-                        _mm_store_ss((float*)(p0 + out_hstep * 6), _mm_castsi128_ps(_r1));
-                        _r1 = _mm_srli_si128(_r1, 4);
-                        _mm_store_ss((float*)(p0 + out_hstep * 7), _mm_castsi128_ps(_r1));
-                    }
-                    p0 += out_hstep * 8;
-                }
-                else
-                {
-                    _mm_storeu_si128((__m128i*)p0, _bf0);
-                    _mm_storeu_si128((__m128i*)(p0 + out_hstep), _bf1);
-                    p0 += 8;
-                }
-            }
-#endif // NCNN_BF16
-        }
 #endif // __AVX__
 #endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
@@ -11455,8 +10528,8 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             {
                 if (output_transpose)
                 {
-#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX__
+#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX512F__
                     if (out_elempack == 16)
                     {
@@ -11466,6 +10539,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         _mm_store_ps(p1 + 16, _f1);
                     }
 #endif // __AVX512F__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 8)
                     {
                         const int jj_m8 = jj % 8;
@@ -11474,7 +10548,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         _mm_store_ps(p1 + 8, _f1);
                     }
 #endif // __AVX__
-#endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 4)
                     {
                         _mm_storeu_ps(p0f, _f0);
@@ -11505,8 +10578,8 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 __m128i _bf1 = float2bfloat_sse(_f1);
                 if (output_transpose)
                 {
-#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX__
+#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX512F__
                     if (out_elempack == 16)
                     {
@@ -11516,6 +10589,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         _mm_storel_epi64((__m128i*)(p1 + 16), _bf1);
                     }
 #endif // __AVX512F__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 8)
                     {
                         const int jj_m8 = jj % 8;
@@ -11524,7 +10598,6 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         _mm_storel_epi64((__m128i*)(p1 + 8), _bf1);
                     }
 #endif // __AVX__
-#endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 4)
                     {
                         _mm_storel_epi64((__m128i*)p0, _bf0);
@@ -11855,6 +10928,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 #if __SSE2__
 #if defined(__x86_64__) || defined(_M_X64)
 #if __AVX__
+#if __AVX512F__
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m256 _f0 = _mm256_loadu_ps(pp);
@@ -11985,6 +11059,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
             }
 #endif // NCNN_BF16
         }
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
@@ -12025,20 +11100,20 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     }
                     else
                     {
-#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX__
+#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX512F__
                         if (out_elempack == 16)
                         {
                             _mm_storeu_ps(p0f - (jj % 16) / 4 * out_hstep * 4 + (jj % 16) / 4 * 4, _f0);
                         }
 #endif // __AVX512F__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                         if (out_elempack == 8)
                         {
                             _mm_storeu_ps(p0f - (jj % 8) / 4 * out_hstep * 4 + (jj % 8) / 4 * 4, _f0);
                         }
 #endif // __AVX__
-#endif // !(defined(__x86_64__) || defined(_M_X64))
                         if (out_elempack == 4)
                         {
                             _mm_storeu_ps(p0f, _f0);
@@ -12074,20 +11149,20 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     }
                     else
                     {
-#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX__
+#if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX512F__
                         if (out_elempack == 16)
                         {
                             _mm_storel_epi64((__m128i*)(p0 - (jj % 16) / 4 * out_hstep * 4 + (jj % 16) / 4 * 4), _bf0);
                         }
 #endif // __AVX512F__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                         if (out_elempack == 8)
                         {
                             _mm_storel_epi64((__m128i*)(p0 - (jj % 8) / 4 * out_hstep * 4 + (jj % 8) / 4 * 4), _bf0);
                         }
 #endif // __AVX__
-#endif // !(defined(__x86_64__) || defined(_M_X64))
                         if (out_elempack == 4)
                         {
                             _mm_storel_epi64((__m128i*)p0, _bf0);

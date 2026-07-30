@@ -2804,6 +2804,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
     int ii = 0;
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
+    const int nr = csrr_vlenb() >= 32 ? 8 : 4;
     const int c_elempack = C.elempack;
     const size_t vl_packn = __riscv_vsetvl_e32m2(packn);
     const ptrdiff_t c_stride = (ptrdiff_t)c_hstep * sizeof(float);
@@ -3022,9 +3023,9 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 #if __riscv_vector
         if (output_transpose && out_elempack == packn_out)
         {
-            for (; jj < max_jj; jj += packn_out)
+            for (; jj < max_jj;)
             {
-                const size_t vl = __riscv_vsetvl_e32m2(packn_out);
+                const size_t vl = __riscv_vsetvl_e32m2(std::min(nr, max_jj - jj));
                 vfloat32m2x2_t _s = __riscv_vlseg2e32_v_f32m2x2(pp, vl);
                 vfloat32m2_t _sum0 = __riscv_vget_v_f32m2x2_f32m2(_s, 0);
                 vfloat32m2_t _sum1 = __riscv_vget_v_f32m2x2_f32m2(_s, 1);
@@ -3066,7 +3067,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                         }
                     }
                     if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                        pC += packn_out;
+                        pC += vl;
                 }
 
                 if (alpha != 1.f)
@@ -3079,7 +3080,10 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 {
                     __riscv_vse32_v_f32m2(out0, _sum0, vl);
                     __riscv_vse32_v_f32m2(out0 + packn_out, _sum1, vl);
-                    out0 += out_hstep * packn_out;
+                    if ((jj + vl) % packn_out == 0)
+                        out0 += out_hstep * packn_out - packn_out + vl;
+                    else
+                        out0 += vl;
                 }
 #if __riscv_zvfh
                 else // if (output_elemtype == 2)
@@ -3089,17 +3093,21 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 
                     __riscv_vse16_v_f16m1(out0_fp16, _sum0_fp16, vl);
                     __riscv_vse16_v_f16m1(out0_fp16 + packn_out, _sum1_fp16, vl);
-                    out0_fp16 += out_hstep * packn_out;
+                    if ((jj + vl) % packn_out == 0)
+                        out0_fp16 += out_hstep * packn_out - packn_out + vl;
+                    else
+                        out0_fp16 += vl;
                 }
 #endif
-                pp += packn_out * 2;
+                pp += vl * 2;
+                jj += (int)vl;
             }
         }
         if (out_elempack == 1)
         {
             while (jj + 3 < max_jj)
             {
-                const size_t vl = __riscv_vsetvl_e32m4(max_jj - jj);
+                const size_t vl = __riscv_vsetvl_e32m4(std::min(nr, max_jj - jj));
                 vfloat32m4x2_t _s = __riscv_vlseg2e32_v_f32m4x2(pp, vl);
                 vfloat32m4_t _sum0 = __riscv_vget_v_f32m4x2_f32m4(_s, 0);
                 vfloat32m4_t _sum1 = __riscv_vget_v_f32m4x2_f32m4(_s, 1);
@@ -3529,9 +3537,9 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
 #if __riscv_vector
         if (output_transpose && out_elempack == packn_out)
         {
-            for (; jj < max_jj; jj += packn_out)
+            for (; jj < max_jj;)
             {
-                const size_t vl = __riscv_vsetvl_e32m2(packn_out);
+                const size_t vl = __riscv_vsetvl_e32m2(std::min(nr, max_jj - jj));
                 vfloat32m2_t _sum = __riscv_vle32_v_f32m2(pp, vl);
 
                 if (pC)
@@ -3545,7 +3553,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                             _sum = __riscv_vfadd_vv_f32m2(_sum, _c, vl);
                         else
                             _sum = __riscv_vfmacc_vf_f32m2(_sum, beta, _c, vl);
-                        pC += packn_out;
+                        pC += vl;
                     }
                 }
 
@@ -3555,7 +3563,10 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                 if (output_elemtype == 1)
                 {
                     __riscv_vse32_v_f32m2(out0, _sum, vl);
-                    out0 += out_hstep * packn_out;
+                    if ((jj + vl) % packn_out == 0)
+                        out0 += out_hstep * packn_out - packn_out + vl;
+                    else
+                        out0 += vl;
                 }
 #if __riscv_zvfh
                 else // if (output_elemtype == 2)
@@ -3563,17 +3574,21 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
                     vfloat16m1_t _sum_fp16 = __riscv_vfncvt_f_f_w_f16m1(_sum, vl);
 
                     __riscv_vse16_v_f16m1(out0_fp16, _sum_fp16, vl);
-                    out0_fp16 += out_hstep * packn_out;
+                    if ((jj + vl) % packn_out == 0)
+                        out0_fp16 += out_hstep * packn_out - packn_out + vl;
+                    else
+                        out0_fp16 += vl;
                 }
 #endif
-                pp += packn_out;
+                pp += vl;
+                jj += (int)vl;
             }
         }
         if (out_elempack == 1)
         {
             while (jj + 3 < max_jj)
             {
-                const size_t vl = __riscv_vsetvl_e32m4(max_jj - jj);
+                const size_t vl = __riscv_vsetvl_e32m4(std::min(nr, max_jj - jj));
                 vfloat32m4_t _sum = __riscv_vle32_v_f32m4(pp, vl);
 
                 if (pC)
