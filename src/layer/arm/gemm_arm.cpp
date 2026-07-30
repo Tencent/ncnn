@@ -4594,12 +4594,7 @@ int Gemm_arm::create_pipeline(const Option& opt)
     if (weight_block_quantize)
     {
 #if NCNN_WEIGHT_QUANT
-        int weight_bits;
-        int block_size;
-        bool has_input_scale;
-        if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0)
-            return -1;
-        if (weight_bits == 8)
+        if (weight_block_quantize_bits == 8)
             return create_pipeline_wq_int8(opt);
 #endif // NCNN_WEIGHT_QUANT
 
@@ -4767,12 +4762,7 @@ int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (weight_block_quantize)
     {
 #if NCNN_WEIGHT_QUANT
-        int weight_bits;
-        int block_size;
-        bool has_input_scale;
-        if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0)
-            return -1;
-        if (weight_bits == 8)
+        if (weight_block_quantize_bits == 8)
             return forward_wq_int8(bottom_blobs, top_blobs, opt);
 #endif // NCNN_WEIGHT_QUANT
 

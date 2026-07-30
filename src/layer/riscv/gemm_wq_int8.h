@@ -1589,113 +1589,205 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         int jj = 0;
         for (; use_nr8 && jj + 7 < max_jj; jj += 8)
         {
-            for (int jj0 = 0; jj0 < 8; jj0 += 4)
+            const signed char* pB = pB_panel + (size_t)8 * k;
+            const float* pB_descales = pB_descales_panel + (size_t)8 * block_start;
+            vfloat32m1_t _fsum0;
+            vfloat32m1_t _fsum1;
+            vfloat32m1_t _fsum2;
+            vfloat32m1_t _fsum3;
+            vfloat32m1_t _fsum4;
+            vfloat32m1_t _fsum5;
+            vfloat32m1_t _fsum6;
+            vfloat32m1_t _fsum7;
+            if (k == 0)
             {
-                const signed char* pB = pB_panel + (size_t)8 * k + jj0;
-                const float* pB_descales = pB_descales_panel + (size_t)8 * block_start + jj0;
-                vfloat32m1_t _fsum0;
-                vfloat32m1_t _fsum1;
-                vfloat32m1_t _fsum2;
-                vfloat32m1_t _fsum3;
-                if (k == 0)
-                {
-                    _fsum0 = __riscv_vfmv_v_f_f32m1(0.f, vl);
-                    _fsum1 = __riscv_vfmv_v_f_f32m1(0.f, vl);
-                    _fsum2 = __riscv_vfmv_v_f_f32m1(0.f, vl);
-                    _fsum3 = __riscv_vfmv_v_f_f32m1(0.f, vl);
-                }
-                else
-                {
-                    _fsum0 = __riscv_vle32_v_f32m1(outptr + packn * jj0, vl);
-                    _fsum1 = __riscv_vle32_v_f32m1(outptr + packn * (jj0 + 1), vl);
-                    _fsum2 = __riscv_vle32_v_f32m1(outptr + packn * (jj0 + 2), vl);
-                    _fsum3 = __riscv_vle32_v_f32m1(outptr + packn * (jj0 + 3), vl);
-                }
-
-                const signed char* pA = pAT;
-                const float* pA_descales = pAT_descales;
-                for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
-                {
-                    const int max_kk0 = std::min(max_kk - kk0, block_size);
-                    vint32m1_t _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
-                    vint32m1_t _sum1 = __riscv_vmv_v_x_i32m1(0, vl);
-                    vint32m1_t _sum2 = __riscv_vmv_v_x_i32m1(0, vl);
-                    vint32m1_t _sum3 = __riscv_vmv_v_x_i32m1(0, vl);
-
-                    int kk = 0;
-                    for (; kk + 3 < max_kk0; kk += 4)
-                    {
-                        vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA, vl), 0, vl);
-                        vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                        vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                        unsigned int b = *(const unsigned int*)pB;
-                        _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                        _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                        _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
-                        _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
-
-                        _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn, vl), 0, vl);
-                        _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                        _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                        b = *(const unsigned int*)(pB + 8);
-                        _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                        _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                        _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
-                        _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
-
-                        _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn * 2, vl), 0, vl);
-                        _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                        _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                        b = *(const unsigned int*)(pB + 16);
-                        _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                        _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                        _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
-                        _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
-
-                        _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn * 3, vl), 0, vl);
-                        _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                        _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                        b = *(const unsigned int*)(pB + 24);
-                        _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                        _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                        _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
-                        _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
-                        pA += packn * 4;
-                        pB += 32;
-                    }
-                    for (; kk < max_kk0; kk++)
-                    {
-                        vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA, vl), 0, vl);
-                        vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                        vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                        const unsigned int b = *(const unsigned int*)pB;
-                        _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                        _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                        _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
-                        _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
-                        pA += packn;
-                        pB += 8;
-                    }
-
-                    vfloat32m1_t _ad = __riscv_vle32_v_f32m1(pA_descales, vl);
-                    vfloat32m1_t _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum0, vl), _ad, vl);
-                    _fsum0 = __riscv_vfmacc_vf_f32m1(_fsum0, pB_descales[0], _v, vl);
-                    _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum1, vl), _ad, vl);
-                    _fsum1 = __riscv_vfmacc_vf_f32m1(_fsum1, pB_descales[1], _v, vl);
-                    _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum2, vl), _ad, vl);
-                    _fsum2 = __riscv_vfmacc_vf_f32m1(_fsum2, pB_descales[2], _v, vl);
-                    _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum3, vl), _ad, vl);
-                    _fsum3 = __riscv_vfmacc_vf_f32m1(_fsum3, pB_descales[3], _v, vl);
-                    pA_descales += packn;
-                    pB_descales += 8;
-                }
-
-                __riscv_vse32_v_f32m1(outptr + packn * jj0, _fsum0, vl);
-                __riscv_vse32_v_f32m1(outptr + packn * (jj0 + 1), _fsum1, vl);
-                __riscv_vse32_v_f32m1(outptr + packn * (jj0 + 2), _fsum2, vl);
-                __riscv_vse32_v_f32m1(outptr + packn * (jj0 + 3), _fsum3, vl);
+                _fsum0 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _fsum1 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _fsum2 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _fsum3 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _fsum4 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _fsum5 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _fsum6 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                _fsum7 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+            }
+            else
+            {
+                _fsum0 = __riscv_vle32_v_f32m1(outptr, vl);
+                _fsum1 = __riscv_vle32_v_f32m1(outptr + packn, vl);
+                _fsum2 = __riscv_vle32_v_f32m1(outptr + packn * 2, vl);
+                _fsum3 = __riscv_vle32_v_f32m1(outptr + packn * 3, vl);
+                _fsum4 = __riscv_vle32_v_f32m1(outptr + packn * 4, vl);
+                _fsum5 = __riscv_vle32_v_f32m1(outptr + packn * 5, vl);
+                _fsum6 = __riscv_vle32_v_f32m1(outptr + packn * 6, vl);
+                _fsum7 = __riscv_vle32_v_f32m1(outptr + packn * 7, vl);
             }
 
+            const signed char* pA = pAT;
+            const float* pA_descales = pAT_descales;
+            for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
+            {
+                const int max_kk0 = std::min(max_kk - kk0, block_size);
+                vint32m1_t _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
+                vint32m1_t _sum1 = __riscv_vmv_v_x_i32m1(0, vl);
+                vint32m1_t _sum2 = __riscv_vmv_v_x_i32m1(0, vl);
+                vint32m1_t _sum3 = __riscv_vmv_v_x_i32m1(0, vl);
+                vint32m1_t _sum4 = __riscv_vmv_v_x_i32m1(0, vl);
+                vint32m1_t _sum5 = __riscv_vmv_v_x_i32m1(0, vl);
+                vint32m1_t _sum6 = __riscv_vmv_v_x_i32m1(0, vl);
+                vint32m1_t _sum7 = __riscv_vmv_v_x_i32m1(0, vl);
+
+                int kk = 0;
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+                    vint8m1_t _a8 = __riscv_vle8_v_i8m1(pA, vl);
+                    vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(_a8, 0, vl);
+                    vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
+                    vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
+                    uint64_t b = *(const uint64_t*)pB;
+                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
+                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
+                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
+                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
+                    _sum4 = __riscv_vmacc_vx_i32m1(_sum4, (signed char)(b >> 32), _a, vl);
+                    _sum5 = __riscv_vmacc_vx_i32m1(_sum5, (signed char)(b >> 40), _a, vl);
+                    _sum6 = __riscv_vmacc_vx_i32m1(_sum6, (signed char)(b >> 48), _a, vl);
+                    _sum7 = __riscv_vmacc_vx_i32m1(_sum7, (signed char)(b >> 56), _a, vl);
+                    pA += packn;
+                    pB += 8;
+
+                    _a8 = __riscv_vle8_v_i8m1(pA, vl);
+                    _a16 = __riscv_vwadd_vx_i16m2(_a8, 0, vl);
+                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
+                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
+                    b = *(const uint64_t*)pB;
+                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
+                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
+                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
+                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
+                    _sum4 = __riscv_vmacc_vx_i32m1(_sum4, (signed char)(b >> 32), _a, vl);
+                    _sum5 = __riscv_vmacc_vx_i32m1(_sum5, (signed char)(b >> 40), _a, vl);
+                    _sum6 = __riscv_vmacc_vx_i32m1(_sum6, (signed char)(b >> 48), _a, vl);
+                    _sum7 = __riscv_vmacc_vx_i32m1(_sum7, (signed char)(b >> 56), _a, vl);
+                    pA += packn;
+                    pB += 8;
+
+                    _a8 = __riscv_vle8_v_i8m1(pA, vl);
+                    _a16 = __riscv_vwadd_vx_i16m2(_a8, 0, vl);
+                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
+                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
+                    b = *(const uint64_t*)pB;
+                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
+                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
+                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
+                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
+                    _sum4 = __riscv_vmacc_vx_i32m1(_sum4, (signed char)(b >> 32), _a, vl);
+                    _sum5 = __riscv_vmacc_vx_i32m1(_sum5, (signed char)(b >> 40), _a, vl);
+                    _sum6 = __riscv_vmacc_vx_i32m1(_sum6, (signed char)(b >> 48), _a, vl);
+                    _sum7 = __riscv_vmacc_vx_i32m1(_sum7, (signed char)(b >> 56), _a, vl);
+                    pA += packn;
+                    pB += 8;
+
+                    _a8 = __riscv_vle8_v_i8m1(pA, vl);
+                    _a16 = __riscv_vwadd_vx_i16m2(_a8, 0, vl);
+                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
+                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
+                    b = *(const uint64_t*)pB;
+                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
+                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
+                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
+                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
+                    _sum4 = __riscv_vmacc_vx_i32m1(_sum4, (signed char)(b >> 32), _a, vl);
+                    _sum5 = __riscv_vmacc_vx_i32m1(_sum5, (signed char)(b >> 40), _a, vl);
+                    _sum6 = __riscv_vmacc_vx_i32m1(_sum6, (signed char)(b >> 48), _a, vl);
+                    _sum7 = __riscv_vmacc_vx_i32m1(_sum7, (signed char)(b >> 56), _a, vl);
+                    pA += packn;
+                    pB += 8;
+                }
+                for (; kk + 1 < max_kk0; kk += 2)
+                {
+                    vint8m1_t _a8 = __riscv_vle8_v_i8m1(pA, vl);
+                    vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(_a8, 0, vl);
+                    vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
+                    vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
+                    uint32_t b0 = *(const uint32_t*)pB;
+                    uint32_t b1 = *(const uint32_t*)(pB + 4);
+                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b0, _a, vl);
+                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b0 >> 8), _a, vl);
+                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b0 >> 16), _a, vl);
+                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b0 >> 24), _a, vl);
+                    _sum4 = __riscv_vmacc_vx_i32m1(_sum4, (signed char)b1, _a, vl);
+                    _sum5 = __riscv_vmacc_vx_i32m1(_sum5, (signed char)(b1 >> 8), _a, vl);
+                    _sum6 = __riscv_vmacc_vx_i32m1(_sum6, (signed char)(b1 >> 16), _a, vl);
+                    _sum7 = __riscv_vmacc_vx_i32m1(_sum7, (signed char)(b1 >> 24), _a, vl);
+                    pA += packn;
+                    pB += 8;
+
+                    _a8 = __riscv_vle8_v_i8m1(pA, vl);
+                    _a16 = __riscv_vwadd_vx_i16m2(_a8, 0, vl);
+                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
+                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
+                    b0 = *(const uint32_t*)pB;
+                    b1 = *(const uint32_t*)(pB + 4);
+                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b0, _a, vl);
+                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b0 >> 8), _a, vl);
+                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b0 >> 16), _a, vl);
+                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b0 >> 24), _a, vl);
+                    _sum4 = __riscv_vmacc_vx_i32m1(_sum4, (signed char)b1, _a, vl);
+                    _sum5 = __riscv_vmacc_vx_i32m1(_sum5, (signed char)(b1 >> 8), _a, vl);
+                    _sum6 = __riscv_vmacc_vx_i32m1(_sum6, (signed char)(b1 >> 16), _a, vl);
+                    _sum7 = __riscv_vmacc_vx_i32m1(_sum7, (signed char)(b1 >> 24), _a, vl);
+                    pA += packn;
+                    pB += 8;
+                }
+                for (; kk < max_kk0; kk++)
+                {
+                    vint8m1_t _a8 = __riscv_vle8_v_i8m1(pA, vl);
+                    vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(_a8, 0, vl);
+                    vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
+                    vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
+                    const uint32_t b0 = *(const uint32_t*)pB;
+                    const uint32_t b1 = *(const uint32_t*)(pB + 4);
+                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b0, _a, vl);
+                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b0 >> 8), _a, vl);
+                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b0 >> 16), _a, vl);
+                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b0 >> 24), _a, vl);
+                    _sum4 = __riscv_vmacc_vx_i32m1(_sum4, (signed char)b1, _a, vl);
+                    _sum5 = __riscv_vmacc_vx_i32m1(_sum5, (signed char)(b1 >> 8), _a, vl);
+                    _sum6 = __riscv_vmacc_vx_i32m1(_sum6, (signed char)(b1 >> 16), _a, vl);
+                    _sum7 = __riscv_vmacc_vx_i32m1(_sum7, (signed char)(b1 >> 24), _a, vl);
+                    pA += packn;
+                    pB += 8;
+                }
+
+                vfloat32m1_t _descaleA = __riscv_vle32_v_f32m1(pA_descales, vl);
+                vfloat32m1_t _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum0, vl), _descaleA, vl);
+                _fsum0 = __riscv_vfmacc_vf_f32m1(_fsum0, pB_descales[0], _v, vl);
+                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum1, vl), _descaleA, vl);
+                _fsum1 = __riscv_vfmacc_vf_f32m1(_fsum1, pB_descales[1], _v, vl);
+                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum2, vl), _descaleA, vl);
+                _fsum2 = __riscv_vfmacc_vf_f32m1(_fsum2, pB_descales[2], _v, vl);
+                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum3, vl), _descaleA, vl);
+                _fsum3 = __riscv_vfmacc_vf_f32m1(_fsum3, pB_descales[3], _v, vl);
+                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum4, vl), _descaleA, vl);
+                _fsum4 = __riscv_vfmacc_vf_f32m1(_fsum4, pB_descales[4], _v, vl);
+                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum5, vl), _descaleA, vl);
+                _fsum5 = __riscv_vfmacc_vf_f32m1(_fsum5, pB_descales[5], _v, vl);
+                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum6, vl), _descaleA, vl);
+                _fsum6 = __riscv_vfmacc_vf_f32m1(_fsum6, pB_descales[6], _v, vl);
+                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum7, vl), _descaleA, vl);
+                _fsum7 = __riscv_vfmacc_vf_f32m1(_fsum7, pB_descales[7], _v, vl);
+                pA_descales += packn;
+                pB_descales += 8;
+            }
+
+            __riscv_vse32_v_f32m1(outptr, _fsum0, vl);
+            __riscv_vse32_v_f32m1(outptr + packn, _fsum1, vl);
+            __riscv_vse32_v_f32m1(outptr + packn * 2, _fsum2, vl);
+            __riscv_vse32_v_f32m1(outptr + packn * 3, _fsum3, vl);
+            __riscv_vse32_v_f32m1(outptr + packn * 4, _fsum4, vl);
+            __riscv_vse32_v_f32m1(outptr + packn * 5, _fsum5, vl);
+            __riscv_vse32_v_f32m1(outptr + packn * 6, _fsum6, vl);
+            __riscv_vse32_v_f32m1(outptr + packn * 7, _fsum7, vl);
             outptr += packn * 8;
             pB_panel += (size_t)8 * K;
             pB_descales_panel += (size_t)8 * block_count;
@@ -1785,14 +1877,14 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 4;
                 }
 
-                vfloat32m1_t _ad = __riscv_vle32_v_f32m1(pA_descales, vl);
-                vfloat32m1_t _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum0, vl), _ad, vl);
+                vfloat32m1_t _descaleA = __riscv_vle32_v_f32m1(pA_descales, vl);
+                vfloat32m1_t _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum0, vl), _descaleA, vl);
                 _fsum0 = __riscv_vfmacc_vf_f32m1(_fsum0, pB_descales[0], _v, vl);
-                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum1, vl), _ad, vl);
+                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum1, vl), _descaleA, vl);
                 _fsum1 = __riscv_vfmacc_vf_f32m1(_fsum1, pB_descales[1], _v, vl);
-                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum2, vl), _ad, vl);
+                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum2, vl), _descaleA, vl);
                 _fsum2 = __riscv_vfmacc_vf_f32m1(_fsum2, pB_descales[2], _v, vl);
-                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum3, vl), _ad, vl);
+                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum3, vl), _descaleA, vl);
                 _fsum3 = __riscv_vfmacc_vf_f32m1(_fsum3, pB_descales[3], _v, vl);
                 pA_descales += packn;
                 pB_descales += 4;
@@ -1873,10 +1965,10 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 2;
                 }
 
-                vfloat32m1_t _ad = __riscv_vle32_v_f32m1(pA_descales, vl);
-                vfloat32m1_t _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum0, vl), _ad, vl);
+                vfloat32m1_t _descaleA = __riscv_vle32_v_f32m1(pA_descales, vl);
+                vfloat32m1_t _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum0, vl), _descaleA, vl);
                 _fsum0 = __riscv_vfmacc_vf_f32m1(_fsum0, pB_descales[0], _v, vl);
-                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum1, vl), _ad, vl);
+                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum1, vl), _descaleA, vl);
                 _fsum1 = __riscv_vfmacc_vf_f32m1(_fsum1, pB_descales[1], _v, vl);
                 pA_descales += packn;
                 pB_descales += 2;
@@ -1938,8 +2030,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB++;
                 }
 
-                vfloat32m1_t _ad = __riscv_vle32_v_f32m1(pA_descales, vl);
-                vfloat32m1_t _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum, vl), _ad, vl);
+                vfloat32m1_t _descaleA = __riscv_vle32_v_f32m1(pA_descales, vl);
+                vfloat32m1_t _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum, vl), _descaleA, vl);
                 _fsum = __riscv_vfmacc_vf_f32m1(_fsum, pB_descales[0], _v, vl);
                 pA_descales += packn;
                 pB_descales++;
@@ -2026,11 +2118,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 8;
                 }
 
-                vfloat32m1_t _bd = __riscv_vle32_v_f32m1(pB_descales, vl);
+                vfloat32m1_t _descaleB = __riscv_vle32_v_f32m1(pB_descales, vl);
                 vfloat32m1_t _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum0, vl), pA_descales[0], vl);
-                _fsum0 = __riscv_vfmacc_vv_f32m1(_fsum0, _bd, _v, vl);
+                _fsum0 = __riscv_vfmacc_vv_f32m1(_fsum0, _descaleB, _v, vl);
                 _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum1, vl), pA_descales[1], vl);
-                _fsum1 = __riscv_vfmacc_vv_f32m1(_fsum1, _bd, _v, vl);
+                _fsum1 = __riscv_vfmacc_vv_f32m1(_fsum1, _descaleB, _v, vl);
                 pA_descales += 2;
                 pB_descales += 8;
             }
@@ -2106,11 +2198,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 4;
                 }
 
-                vfloat32m1_t _bd = __riscv_vle32_v_f32m1(pB_descales, vl);
+                vfloat32m1_t _descaleB = __riscv_vle32_v_f32m1(pB_descales, vl);
                 vfloat32m1_t _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum0, vl), pA_descales[0], vl);
-                _fsum0 = __riscv_vfmacc_vv_f32m1(_fsum0, _bd, _v, vl);
+                _fsum0 = __riscv_vfmacc_vv_f32m1(_fsum0, _descaleB, _v, vl);
                 _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum1, vl), pA_descales[1], vl);
-                _fsum1 = __riscv_vfmacc_vv_f32m1(_fsum1, _bd, _v, vl);
+                _fsum1 = __riscv_vfmacc_vv_f32m1(_fsum1, _descaleB, _v, vl);
                 pA_descales += 2;
                 pB_descales += 4;
             }
@@ -2281,11 +2373,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 2;
                 }
 
-                vfloat32m1_t _bd = __riscv_vle32_v_f32m1(pB_descales, vl);
+                vfloat32m1_t _descaleB = __riscv_vle32_v_f32m1(pB_descales, vl);
                 vfloat32m1_t _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum0, vl), pA_descales[0], vl);
-                _fsum0 = __riscv_vfmacc_vv_f32m1(_fsum0, _bd, _v, vl);
+                _fsum0 = __riscv_vfmacc_vv_f32m1(_fsum0, _descaleB, _v, vl);
                 _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum1, vl), pA_descales[1], vl);
-                _fsum1 = __riscv_vfmacc_vv_f32m1(_fsum1, _bd, _v, vl);
+                _fsum1 = __riscv_vfmacc_vv_f32m1(_fsum1, _descaleB, _v, vl);
                 pA_descales += 2;
                 pB_descales += 2;
             }
@@ -2504,9 +2596,9 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 8;
                 }
 
-                vfloat32m1_t _bd = __riscv_vle32_v_f32m1(pB_descales, vl);
+                vfloat32m1_t _descaleB = __riscv_vle32_v_f32m1(pB_descales, vl);
                 vfloat32m1_t _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum, vl), pA_descales[0], vl);
-                _fsum = __riscv_vfmacc_vv_f32m1(_fsum, _bd, _v, vl);
+                _fsum = __riscv_vfmacc_vv_f32m1(_fsum, _descaleB, _v, vl);
                 pA_descales++;
                 pB_descales += 8;
             }
@@ -2568,9 +2660,9 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 4;
                 }
 
-                vfloat32m1_t _bd = __riscv_vle32_v_f32m1(pB_descales, vl);
+                vfloat32m1_t _descaleB = __riscv_vle32_v_f32m1(pB_descales, vl);
                 vfloat32m1_t _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum, vl), pA_descales[0], vl);
-                _fsum = __riscv_vfmacc_vv_f32m1(_fsum, _bd, _v, vl);
+                _fsum = __riscv_vfmacc_vv_f32m1(_fsum, _descaleB, _v, vl);
                 pA_descales++;
                 pB_descales += 4;
             }

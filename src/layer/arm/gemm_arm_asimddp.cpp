@@ -173,7 +173,6 @@ void transpose_quantize_A_tile_wq_int8_fp16s_asimddp(const Mat& A, Mat& AT_tile,
 {
     transpose_quantize_A_tile_wq_int8_fp16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
 }
-
 #endif // NCNN_VFPV4
 
 #if NCNN_BF16
@@ -186,7 +185,6 @@ void transpose_quantize_A_tile_wq_int8_bf16s_asimddp(const Mat& A, Mat& AT_tile,
 {
     transpose_quantize_A_tile_wq_int8_bf16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
 }
-
 #endif // NCNN_BF16
 
 void gemm_transB_packed_tile_wq_int8_asimddp(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int k, int max_kk, int K, int block_size)

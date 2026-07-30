@@ -11514,21 +11514,21 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                 }
 
-                __m512 _ad0 = _mm512_loadu_ps(pA_descales);
-                __m512 _ad1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_mm512_castps_si512(_ad0), _mm512_castps_si512(_ad0), 8));
-                __m256 _b = _mm256_loadu_ps(pB_descales);
-                __m512 _bd0 = combine8x2_ps(_b, _b);
-                __m512 _bd1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_mm512_castps_si512(_bd0), _mm512_castps_si512(_bd0), 4));
-                __m512 _bd2 = _mm512_castsi512_ps(_mm512_permutex_epi64(_mm512_castps_si512(_bd0), _MM_SHUFFLE(1, 0, 3, 2)));
-                __m512 _bd3 = _mm512_castsi512_ps(_mm512_alignr_epi8(_mm512_castps_si512(_bd2), _mm512_castps_si512(_bd2), 4));
-                _fsum0 = _mm512_add_ps(_fsum0, _mm512_mul_ps(_mm512_cvtepi32_ps(_sum0), _mm512_mul_ps(_ad0, _bd0)));
-                _fsum1 = _mm512_add_ps(_fsum1, _mm512_mul_ps(_mm512_cvtepi32_ps(_sum1), _mm512_mul_ps(_ad0, _bd1)));
-                _fsum2 = _mm512_add_ps(_fsum2, _mm512_mul_ps(_mm512_cvtepi32_ps(_sum2), _mm512_mul_ps(_ad1, _bd0)));
-                _fsum3 = _mm512_add_ps(_fsum3, _mm512_mul_ps(_mm512_cvtepi32_ps(_sum3), _mm512_mul_ps(_ad1, _bd1)));
-                _fsum4 = _mm512_add_ps(_fsum4, _mm512_mul_ps(_mm512_cvtepi32_ps(_sum4), _mm512_mul_ps(_ad0, _bd2)));
-                _fsum5 = _mm512_add_ps(_fsum5, _mm512_mul_ps(_mm512_cvtepi32_ps(_sum5), _mm512_mul_ps(_ad0, _bd3)));
-                _fsum6 = _mm512_add_ps(_fsum6, _mm512_mul_ps(_mm512_cvtepi32_ps(_sum6), _mm512_mul_ps(_ad1, _bd2)));
-                _fsum7 = _mm512_add_ps(_fsum7, _mm512_mul_ps(_mm512_cvtepi32_ps(_sum7), _mm512_mul_ps(_ad1, _bd3)));
+                __m512 _descaleA0 = _mm512_loadu_ps(pA_descales);
+                __m512 _descaleA1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_mm512_castps_si512(_descaleA0), _mm512_castps_si512(_descaleA0), 8));
+                __m256 _descaleB8 = _mm256_loadu_ps(pB_descales);
+                __m512 _descaleB0 = combine8x2_ps(_descaleB8, _descaleB8);
+                __m512 _descaleB1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_mm512_castps_si512(_descaleB0), _mm512_castps_si512(_descaleB0), 4));
+                __m512 _descaleB2 = _mm512_castsi512_ps(_mm512_permutex_epi64(_mm512_castps_si512(_descaleB0), _MM_SHUFFLE(1, 0, 3, 2)));
+                __m512 _descaleB3 = _mm512_castsi512_ps(_mm512_alignr_epi8(_mm512_castps_si512(_descaleB2), _mm512_castps_si512(_descaleB2), 4));
+                _fsum0 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(_sum0), _mm512_mul_ps(_descaleA0, _descaleB0), _fsum0);
+                _fsum1 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(_sum1), _mm512_mul_ps(_descaleA0, _descaleB1), _fsum1);
+                _fsum2 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(_sum2), _mm512_mul_ps(_descaleA1, _descaleB0), _fsum2);
+                _fsum3 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(_sum3), _mm512_mul_ps(_descaleA1, _descaleB1), _fsum3);
+                _fsum4 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(_sum4), _mm512_mul_ps(_descaleA0, _descaleB2), _fsum4);
+                _fsum5 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(_sum5), _mm512_mul_ps(_descaleA0, _descaleB3), _fsum5);
+                _fsum6 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(_sum6), _mm512_mul_ps(_descaleA1, _descaleB2), _fsum6);
+                _fsum7 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(_sum7), _mm512_mul_ps(_descaleA1, _descaleB3), _fsum7);
                 pA_descales += 16;
                 pB_descales += 8;
             }
@@ -11636,14 +11636,14 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                 }
 
-                __m512 _ad0 = _mm512_loadu_ps(pA_descales);
-                __m512 _ad1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_mm512_castps_si512(_ad0), _mm512_castps_si512(_ad0), 8));
-                __m512 _bd0 = _mm512_broadcast_f32x4(_mm_loadu_ps(pB_descales));
-                __m512 _bd1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_mm512_castps_si512(_bd0), _mm512_castps_si512(_bd0), 4));
-                _fsum0 = _mm512_add_ps(_fsum0, _mm512_mul_ps(_mm512_cvtepi32_ps(_sum0), _mm512_mul_ps(_ad0, _bd0)));
-                _fsum1 = _mm512_add_ps(_fsum1, _mm512_mul_ps(_mm512_cvtepi32_ps(_sum1), _mm512_mul_ps(_ad0, _bd1)));
-                _fsum2 = _mm512_add_ps(_fsum2, _mm512_mul_ps(_mm512_cvtepi32_ps(_sum2), _mm512_mul_ps(_ad1, _bd0)));
-                _fsum3 = _mm512_add_ps(_fsum3, _mm512_mul_ps(_mm512_cvtepi32_ps(_sum3), _mm512_mul_ps(_ad1, _bd1)));
+                __m512 _descaleA0 = _mm512_loadu_ps(pA_descales);
+                __m512 _descaleA1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_mm512_castps_si512(_descaleA0), _mm512_castps_si512(_descaleA0), 8));
+                __m512 _descaleB0 = _mm512_broadcast_f32x4(_mm_loadu_ps(pB_descales));
+                __m512 _descaleB1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_mm512_castps_si512(_descaleB0), _mm512_castps_si512(_descaleB0), 4));
+                _fsum0 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(_sum0), _mm512_mul_ps(_descaleA0, _descaleB0), _fsum0);
+                _fsum1 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(_sum1), _mm512_mul_ps(_descaleA0, _descaleB1), _fsum1);
+                _fsum2 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(_sum2), _mm512_mul_ps(_descaleA1, _descaleB0), _fsum2);
+                _fsum3 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(_sum3), _mm512_mul_ps(_descaleA1, _descaleB1), _fsum3);
                 pA_descales += 16;
                 pB_descales += 4;
             }
@@ -11729,11 +11729,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                 }
 
-                __m512 _ad0 = _mm512_loadu_ps(pA_descales);
-                __m512 _bd0 = _mm512_castsi512_ps(_mm512_broadcastq_epi64(_mm_loadl_epi64((const __m128i*)pB_descales)));
-                __m512 _bd1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_mm512_castps_si512(_bd0), _mm512_castps_si512(_bd0), 4));
-                _fsum0 = _mm512_add_ps(_fsum0, _mm512_mul_ps(_mm512_cvtepi32_ps(_sum0), _mm512_mul_ps(_ad0, _bd0)));
-                _fsum1 = _mm512_add_ps(_fsum1, _mm512_mul_ps(_mm512_cvtepi32_ps(_sum1), _mm512_mul_ps(_ad0, _bd1)));
+                __m512 _descaleA0 = _mm512_loadu_ps(pA_descales);
+                __m512 _descaleB0 = _mm512_castsi512_ps(_mm512_broadcastq_epi64(_mm_loadl_epi64((const __m128i*)pB_descales)));
+                __m512 _descaleB1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_mm512_castps_si512(_descaleB0), _mm512_castps_si512(_descaleB0), 4));
+                _fsum0 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(_sum0), _mm512_mul_ps(_descaleA0, _descaleB0), _fsum0);
+                _fsum1 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(_sum1), _mm512_mul_ps(_descaleA0, _descaleB1), _fsum1);
                 pA_descales += 16;
                 pB_descales += 2;
             }
@@ -11798,9 +11798,9 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 16;
                 }
 
-                __m512 _ad0 = _mm512_loadu_ps(pA_descales);
-                __m512 _bd0 = _mm512_set1_ps(pB_descales[0]);
-                _fsum0 = _mm512_add_ps(_fsum0, _mm512_mul_ps(_mm512_cvtepi32_ps(_sum0), _mm512_mul_ps(_ad0, _bd0)));
+                __m512 _descaleA0 = _mm512_loadu_ps(pA_descales);
+                __m512 _descaleB0 = _mm512_set1_ps(pB_descales[0]);
+                _fsum0 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(_sum0), _mm512_mul_ps(_descaleA0, _descaleB0), _fsum0);
                 pA_descales += 16;
                 pB_descales += 1;
             }
@@ -11953,20 +11953,20 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                 }
 
-                __m256 _ad0 = _mm256_loadu_ps(pA_descales);
-                __m256 _ad1 = _mm256_castsi256_ps(_mm256_alignr_epi8(_mm256_castps_si256(_ad0), _mm256_castps_si256(_ad0), 8));
-                __m256 _bd0 = _mm256_loadu_ps(pB_descales);
-                __m256 _bd1 = _mm256_castsi256_ps(_mm256_alignr_epi8(_mm256_castps_si256(_bd0), _mm256_castps_si256(_bd0), 4));
-                __m256 _bd2 = _mm256_castsi256_ps(_mm256_permute4x64_epi64(_mm256_castps_si256(_bd0), _MM_SHUFFLE(1, 0, 3, 2)));
-                __m256 _bd3 = _mm256_castsi256_ps(_mm256_alignr_epi8(_mm256_castps_si256(_bd2), _mm256_castps_si256(_bd2), 4));
-                _fsum0 = _mm256_add_ps(_fsum0, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum0), _mm256_mul_ps(_ad0, _bd0)));
-                _fsum1 = _mm256_add_ps(_fsum1, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum1), _mm256_mul_ps(_ad0, _bd1)));
-                _fsum2 = _mm256_add_ps(_fsum2, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum2), _mm256_mul_ps(_ad1, _bd0)));
-                _fsum3 = _mm256_add_ps(_fsum3, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum3), _mm256_mul_ps(_ad1, _bd1)));
-                _fsum4 = _mm256_add_ps(_fsum4, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum4), _mm256_mul_ps(_ad0, _bd2)));
-                _fsum5 = _mm256_add_ps(_fsum5, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum5), _mm256_mul_ps(_ad0, _bd3)));
-                _fsum6 = _mm256_add_ps(_fsum6, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum6), _mm256_mul_ps(_ad1, _bd2)));
-                _fsum7 = _mm256_add_ps(_fsum7, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum7), _mm256_mul_ps(_ad1, _bd3)));
+                __m256 _descaleA0 = _mm256_loadu_ps(pA_descales);
+                __m256 _descaleA1 = _mm256_castsi256_ps(_mm256_alignr_epi8(_mm256_castps_si256(_descaleA0), _mm256_castps_si256(_descaleA0), 8));
+                __m256 _descaleB0 = _mm256_loadu_ps(pB_descales);
+                __m256 _descaleB1 = _mm256_castsi256_ps(_mm256_alignr_epi8(_mm256_castps_si256(_descaleB0), _mm256_castps_si256(_descaleB0), 4));
+                __m256 _descaleB2 = _mm256_castsi256_ps(_mm256_permute4x64_epi64(_mm256_castps_si256(_descaleB0), _MM_SHUFFLE(1, 0, 3, 2)));
+                __m256 _descaleB3 = _mm256_castsi256_ps(_mm256_alignr_epi8(_mm256_castps_si256(_descaleB2), _mm256_castps_si256(_descaleB2), 4));
+                _fsum0 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum0), _mm256_mul_ps(_descaleA0, _descaleB0), _fsum0);
+                _fsum1 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum1), _mm256_mul_ps(_descaleA0, _descaleB1), _fsum1);
+                _fsum2 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum2), _mm256_mul_ps(_descaleA1, _descaleB0), _fsum2);
+                _fsum3 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum3), _mm256_mul_ps(_descaleA1, _descaleB1), _fsum3);
+                _fsum4 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum4), _mm256_mul_ps(_descaleA0, _descaleB2), _fsum4);
+                _fsum5 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum5), _mm256_mul_ps(_descaleA0, _descaleB3), _fsum5);
+                _fsum6 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum6), _mm256_mul_ps(_descaleA1, _descaleB2), _fsum6);
+                _fsum7 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum7), _mm256_mul_ps(_descaleA1, _descaleB3), _fsum7);
                 pA_descales += 8;
                 pB_descales += 8;
             }
@@ -12086,15 +12086,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                 }
 
-                __m256 _ad0 = _mm256_loadu_ps(pA_descales);
-                __m256 _ad1 = _mm256_castsi256_ps(_mm256_alignr_epi8(_mm256_castps_si256(_ad0), _mm256_castps_si256(_ad0), 8));
-                __m128 _b = _mm_loadu_ps(pB_descales);
-                __m256 _bd0 = combine4x2_ps(_b, _b);
-                __m256 _bd1 = _mm256_castsi256_ps(_mm256_alignr_epi8(_mm256_castps_si256(_bd0), _mm256_castps_si256(_bd0), 4));
-                _fsum0 = _mm256_add_ps(_fsum0, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum0), _mm256_mul_ps(_ad0, _bd0)));
-                _fsum1 = _mm256_add_ps(_fsum1, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum1), _mm256_mul_ps(_ad0, _bd1)));
-                _fsum2 = _mm256_add_ps(_fsum2, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum2), _mm256_mul_ps(_ad1, _bd0)));
-                _fsum3 = _mm256_add_ps(_fsum3, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum3), _mm256_mul_ps(_ad1, _bd1)));
+                __m256 _descaleA0 = _mm256_loadu_ps(pA_descales);
+                __m256 _descaleA1 = _mm256_castsi256_ps(_mm256_alignr_epi8(_mm256_castps_si256(_descaleA0), _mm256_castps_si256(_descaleA0), 8));
+                __m128 _descaleB4 = _mm_loadu_ps(pB_descales);
+                __m256 _descaleB0 = combine4x2_ps(_descaleB4, _descaleB4);
+                __m256 _descaleB1 = _mm256_castsi256_ps(_mm256_alignr_epi8(_mm256_castps_si256(_descaleB0), _mm256_castps_si256(_descaleB0), 4));
+                _fsum0 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum0), _mm256_mul_ps(_descaleA0, _descaleB0), _fsum0);
+                _fsum1 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum1), _mm256_mul_ps(_descaleA0, _descaleB1), _fsum1);
+                _fsum2 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum2), _mm256_mul_ps(_descaleA1, _descaleB0), _fsum2);
+                _fsum3 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum3), _mm256_mul_ps(_descaleA1, _descaleB1), _fsum3);
                 pA_descales += 8;
                 pB_descales += 4;
             }
@@ -12205,11 +12205,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                 }
 
-                __m256 _ad0 = _mm256_loadu_ps(pA_descales);
-                __m256 _bd0 = _mm256_castpd_ps(_mm256_broadcast_sd((const double*)pB_descales));
-                __m256 _bd1 = _mm256_castsi256_ps(_mm256_alignr_epi8(_mm256_castps_si256(_bd0), _mm256_castps_si256(_bd0), 4));
-                _fsum0 = _mm256_add_ps(_fsum0, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum0), _mm256_mul_ps(_ad0, _bd0)));
-                _fsum1 = _mm256_add_ps(_fsum1, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum1), _mm256_mul_ps(_ad0, _bd1)));
+                __m256 _descaleA0 = _mm256_loadu_ps(pA_descales);
+                __m256 _descaleB0 = _mm256_castpd_ps(_mm256_broadcast_sd((const double*)pB_descales));
+                __m256 _descaleB1 = _mm256_castsi256_ps(_mm256_alignr_epi8(_mm256_castps_si256(_descaleB0), _mm256_castps_si256(_descaleB0), 4));
+                _fsum0 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum0), _mm256_mul_ps(_descaleA0, _descaleB0), _fsum0);
+                _fsum1 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum1), _mm256_mul_ps(_descaleA0, _descaleB1), _fsum1);
                 pA_descales += 8;
                 pB_descales += 2;
             }
@@ -12304,8 +12304,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 8;
                 }
 
-                __m256 _ad0 = _mm256_loadu_ps(pA_descales);
-                _fsum0 = _mm256_add_ps(_fsum0, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum0), _mm256_mul_ps(_ad0, _mm256_set1_ps(pB_descales[0]))));
+                __m256 _descaleA0 = _mm256_loadu_ps(pA_descales);
+                _fsum0 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum0), _mm256_mul_ps(_descaleA0, _mm256_set1_ps(pB_descales[0])), _fsum0);
                 pA_descales += 8;
                 pB_descales++;
             }
@@ -12421,15 +12421,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 8;
                 }
 
-                __m128 _ad128 = _mm_loadu_ps(pA_descales);
-                __m256 _ad0 = combine4x2_ps(_ad128, _ad128);
-                __m256 _ad1 = _mm256_shuffle_ps(_ad0, _ad0, _MM_SHUFFLE(1, 0, 3, 2));
-                __m256 _bd0 = _mm256_loadu_ps(pB_descales);
-                __m256 _bd1 = _mm256_shuffle_ps(_bd0, _bd0, _MM_SHUFFLE(0, 3, 2, 1));
-                _fsum0 = _mm256_add_ps(_fsum0, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum0), _mm256_mul_ps(_ad0, _bd0)));
-                _fsum1 = _mm256_add_ps(_fsum1, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum1), _mm256_mul_ps(_ad0, _bd1)));
-                _fsum2 = _mm256_add_ps(_fsum2, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum2), _mm256_mul_ps(_ad1, _bd0)));
-                _fsum3 = _mm256_add_ps(_fsum3, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum3), _mm256_mul_ps(_ad1, _bd1)));
+                __m128 _descaleA128 = _mm_loadu_ps(pA_descales);
+                __m256 _descaleA0 = combine4x2_ps(_descaleA128, _descaleA128);
+                __m256 _descaleA1 = _mm256_shuffle_ps(_descaleA0, _descaleA0, _MM_SHUFFLE(1, 0, 3, 2));
+                __m256 _descaleB0 = _mm256_loadu_ps(pB_descales);
+                __m256 _descaleB1 = _mm256_shuffle_ps(_descaleB0, _descaleB0, _MM_SHUFFLE(0, 3, 2, 1));
+                _fsum0 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum0), _mm256_mul_ps(_descaleA0, _descaleB0), _fsum0);
+                _fsum1 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum1), _mm256_mul_ps(_descaleA0, _descaleB1), _fsum1);
+                _fsum2 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum2), _mm256_mul_ps(_descaleA1, _descaleB0), _fsum2);
+                _fsum3 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum3), _mm256_mul_ps(_descaleA1, _descaleB1), _fsum3);
                 pA_descales += 4;
                 pB_descales += 8;
             }
@@ -12546,14 +12546,14 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 4;
                 }
 
-                __m128 _ad0 = _mm_loadu_ps(pA_descales);
-                __m128 _ad1 = _mm_shuffle_ps(_ad0, _ad0, _MM_SHUFFLE(1, 0, 3, 2));
-                __m128 _bd0 = _mm_loadu_ps(pB_descales);
-                __m128 _bd1 = _mm_shuffle_ps(_bd0, _bd0, _MM_SHUFFLE(0, 3, 2, 1));
-                _fsum0 = _mm_add_ps(_fsum0, _mm_mul_ps(_mm_cvtepi32_ps(_sum0), _mm_mul_ps(_ad0, _bd0)));
-                _fsum1 = _mm_add_ps(_fsum1, _mm_mul_ps(_mm_cvtepi32_ps(_sum1), _mm_mul_ps(_ad0, _bd1)));
-                _fsum2 = _mm_add_ps(_fsum2, _mm_mul_ps(_mm_cvtepi32_ps(_sum2), _mm_mul_ps(_ad1, _bd0)));
-                _fsum3 = _mm_add_ps(_fsum3, _mm_mul_ps(_mm_cvtepi32_ps(_sum3), _mm_mul_ps(_ad1, _bd1)));
+                __m128 _descaleA0 = _mm_loadu_ps(pA_descales);
+                __m128 _descaleA1 = _mm_shuffle_ps(_descaleA0, _descaleA0, _MM_SHUFFLE(1, 0, 3, 2));
+                __m128 _descaleB0 = _mm_loadu_ps(pB_descales);
+                __m128 _descaleB1 = _mm_shuffle_ps(_descaleB0, _descaleB0, _MM_SHUFFLE(0, 3, 2, 1));
+                _fsum0 = _mm_comp_fmadd_ps(_mm_cvtepi32_ps(_sum0), _mm_mul_ps(_descaleA0, _descaleB0), _fsum0);
+                _fsum1 = _mm_comp_fmadd_ps(_mm_cvtepi32_ps(_sum1), _mm_mul_ps(_descaleA0, _descaleB1), _fsum1);
+                _fsum2 = _mm_comp_fmadd_ps(_mm_cvtepi32_ps(_sum2), _mm_mul_ps(_descaleA1, _descaleB0), _fsum2);
+                _fsum3 = _mm_comp_fmadd_ps(_mm_cvtepi32_ps(_sum3), _mm_mul_ps(_descaleA1, _descaleB1), _fsum3);
                 pA_descales += 4;
                 pB_descales += 4;
             }
@@ -12648,11 +12648,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 2;
                 }
 
-                __m128 _ad = _mm_loadu_ps(pA_descales);
-                __m128 _bd0 = _mm_setr_ps(pB_descales[0], pB_descales[1], pB_descales[0], pB_descales[1]);
-                __m128 _bd1 = _mm_shuffle_ps(_bd0, _bd0, _MM_SHUFFLE(0, 3, 2, 1));
-                _fsum0 = _mm_add_ps(_fsum0, _mm_mul_ps(_mm_cvtepi32_ps(_sum0), _mm_mul_ps(_ad, _bd0)));
-                _fsum1 = _mm_add_ps(_fsum1, _mm_mul_ps(_mm_cvtepi32_ps(_sum1), _mm_mul_ps(_ad, _bd1)));
+                __m128 _descaleA = _mm_loadu_ps(pA_descales);
+                __m128 _descaleB0 = _mm_setr_ps(pB_descales[0], pB_descales[1], pB_descales[0], pB_descales[1]);
+                __m128 _descaleB1 = _mm_shuffle_ps(_descaleB0, _descaleB0, _MM_SHUFFLE(0, 3, 2, 1));
+                _fsum0 = _mm_comp_fmadd_ps(_mm_cvtepi32_ps(_sum0), _mm_mul_ps(_descaleA, _descaleB0), _fsum0);
+                _fsum1 = _mm_comp_fmadd_ps(_mm_cvtepi32_ps(_sum1), _mm_mul_ps(_descaleA, _descaleB1), _fsum1);
                 pA_descales += 4;
                 pB_descales += 2;
             }
@@ -12735,8 +12735,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB++;
                 }
 
-                __m128 _ad = _mm_loadu_ps(pA_descales);
-                _fsum = _mm_add_ps(_fsum, _mm_mul_ps(_mm_cvtepi32_ps(_sum), _mm_mul_ps(_ad, _mm_set1_ps(pB_descales[0]))));
+                __m128 _descaleA = _mm_loadu_ps(pA_descales);
+                _fsum = _mm_comp_fmadd_ps(_mm_cvtepi32_ps(_sum), _mm_mul_ps(_descaleA, _mm_set1_ps(pB_descales[0])), _fsum);
                 pA_descales += 4;
                 pB_descales++;
             }
@@ -12835,13 +12835,13 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 8;
                 }
 
-                __m128 _ad2 = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)pA_descales);
-                __m128 _ad128 = _mm_movelh_ps(_ad2, _ad2);
-                __m256 _ad0 = combine4x2_ps(_ad128, _ad128);
-                __m256 _ad1 = _mm256_shuffle_ps(_ad0, _ad0, _MM_SHUFFLE(2, 3, 0, 1));
-                __m256 _bd = _mm256_loadu_ps(pB_descales);
-                _fsum0 = _mm256_add_ps(_fsum0, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum0), _mm256_mul_ps(_ad0, _bd)));
-                _fsum1 = _mm256_add_ps(_fsum1, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum1), _mm256_mul_ps(_ad1, _bd)));
+                __m128 _descaleA2 = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)pA_descales);
+                __m128 _descaleA128 = _mm_movelh_ps(_descaleA2, _descaleA2);
+                __m256 _descaleA0 = combine4x2_ps(_descaleA128, _descaleA128);
+                __m256 _descaleA1 = _mm256_shuffle_ps(_descaleA0, _descaleA0, _MM_SHUFFLE(2, 3, 0, 1));
+                __m256 _descaleB = _mm256_loadu_ps(pB_descales);
+                _fsum0 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum0), _mm256_mul_ps(_descaleA0, _descaleB), _fsum0);
+                _fsum1 = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum1), _mm256_mul_ps(_descaleA1, _descaleB), _fsum1);
                 pA_descales += 2;
                 pB_descales += 8;
             }
@@ -12938,12 +12938,12 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 4;
                 }
 
-                __m128 _ad2 = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)pA_descales);
-                __m128 _ad = _mm_movelh_ps(_ad2, _ad2);
-                __m128 _bd0 = _mm_loadu_ps(pB_descales);
-                __m128 _bd1 = _mm_shuffle_ps(_bd0, _bd0, _MM_SHUFFLE(0, 3, 2, 1));
-                _fsum0 = _mm_add_ps(_fsum0, _mm_mul_ps(_mm_cvtepi32_ps(_sum0), _mm_mul_ps(_ad, _bd0)));
-                _fsum1 = _mm_add_ps(_fsum1, _mm_mul_ps(_mm_cvtepi32_ps(_sum1), _mm_mul_ps(_ad, _bd1)));
+                __m128 _descaleA2 = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)pA_descales);
+                __m128 _descaleA = _mm_movelh_ps(_descaleA2, _descaleA2);
+                __m128 _descaleB0 = _mm_loadu_ps(pB_descales);
+                __m128 _descaleB1 = _mm_shuffle_ps(_descaleB0, _descaleB0, _MM_SHUFFLE(0, 3, 2, 1));
+                _fsum0 = _mm_comp_fmadd_ps(_mm_cvtepi32_ps(_sum0), _mm_mul_ps(_descaleA, _descaleB0), _fsum0);
+                _fsum1 = _mm_comp_fmadd_ps(_mm_cvtepi32_ps(_sum1), _mm_mul_ps(_descaleA, _descaleB1), _fsum1);
                 pA_descales += 2;
                 pB_descales += 4;
             }
@@ -13051,11 +13051,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pB += 2;
                 }
 
-                __m128 _ad2 = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)pA_descales);
-                __m128 _ad = _mm_unpacklo_ps(_ad2, _ad2);
-                __m128 _bd2 = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)pB_descales);
-                __m128 _bd = _mm_movelh_ps(_bd2, _bd2);
-                _fsum = _mm_add_ps(_fsum, _mm_mul_ps(_mm_cvtepi32_ps(_sum), _mm_mul_ps(_ad, _bd)));
+                __m128 _descaleA2 = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)pA_descales);
+                __m128 _descaleA = _mm_unpacklo_ps(_descaleA2, _descaleA2);
+                __m128 _descaleB2 = _mm_loadl_pi(_mm_setzero_ps(), (const __m64*)pB_descales);
+                __m128 _descaleB = _mm_movelh_ps(_descaleB2, _descaleB2);
+                _fsum = _mm_comp_fmadd_ps(_mm_cvtepi32_ps(_sum), _mm_mul_ps(_descaleA, _descaleB), _fsum);
 #else  // __SSE2__
                 int sum00 = 0;
                 int sum01 = 0;
@@ -13311,10 +13311,10 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA++;
                     pB += 8;
                 }
-                __m128 _ad1 = _mm_load_ss(pA_descales);
-                __m256 _ad = _mm256_broadcastss_ps(_ad1);
-                __m256 _descale = _mm256_mul_ps(_ad, _mm256_loadu_ps(pB_descales));
-                _fsum = _mm256_add_ps(_fsum, _mm256_mul_ps(_mm256_cvtepi32_ps(_sum), _descale));
+                __m128 _descaleA1 = _mm_load_ss(pA_descales);
+                __m256 _descaleA = _mm256_broadcastss_ps(_descaleA1);
+                __m256 _descale = _mm256_mul_ps(_descaleA, _mm256_loadu_ps(pB_descales));
+                _fsum = _mm256_comp_fmadd_ps(_mm256_cvtepi32_ps(_sum), _descale, _fsum);
                 pA_descales += 1;
                 pB_descales += 8;
             }
@@ -13410,10 +13410,10 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA++;
                     pB += 4;
                 }
-                __m128 _ad1 = _mm_load_ss(pA_descales);
-                __m128 _ad = _mm_shuffle_ps(_ad1, _ad1, _MM_SHUFFLE(0, 0, 0, 0));
-                __m128 _descale = _mm_mul_ps(_ad, _mm_loadu_ps(pB_descales));
-                _fsum = _mm_add_ps(_fsum, _mm_mul_ps(_mm_cvtepi32_ps(_sum), _descale));
+                __m128 _descaleA1 = _mm_load_ss(pA_descales);
+                __m128 _descaleA = _mm_shuffle_ps(_descaleA1, _descaleA1, _MM_SHUFFLE(0, 0, 0, 0));
+                __m128 _descale = _mm_mul_ps(_descaleA, _mm_loadu_ps(pB_descales));
+                _fsum = _mm_comp_fmadd_ps(_mm_cvtepi32_ps(_sum), _descale, _fsum);
                 pA_descales += 1;
                 pB_descales += 4;
             }

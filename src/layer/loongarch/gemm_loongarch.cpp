@@ -17,13 +17,6 @@ namespace ncnn {
 #include "gemm_bf16s.h"
 #endif
 
-#if NCNN_WEIGHT_QUANT
-#if NCNN_BF16
-#include "gemm_wq_int8_bf16s.h"
-#endif
-#include "gemm_wq_int8.h"
-#endif
-
 Gemm_loongarch::Gemm_loongarch()
 {
 #if __loongarch_sx
@@ -7377,13 +7370,7 @@ int Gemm_loongarch::create_pipeline(const Option& opt)
     if (weight_block_quantize)
     {
 #if NCNN_WEIGHT_QUANT
-        int weight_bits;
-        int block_size;
-        bool has_input_scale;
-        if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0)
-            return -1;
-
-        if (weight_bits == 8)
+        if (weight_block_quantize_bits == 8)
             return create_pipeline_wq_int8(opt);
 #endif
         return 0;
@@ -7547,13 +7534,7 @@ int Gemm_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     if (weight_block_quantize)
     {
 #if NCNN_WEIGHT_QUANT
-        int weight_bits;
-        int block_size;
-        bool has_input_scale;
-        if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0)
-            return -1;
-
-        if (weight_bits == 8)
+        if (weight_block_quantize_bits == 8)
             return forward_wq_int8(bottom_blobs, top_blobs, opt);
 #endif
         return Gemm::forward(bottom_blobs, top_blobs, opt);
@@ -8736,6 +8717,11 @@ int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vec
 #endif
 
 #if NCNN_WEIGHT_QUANT
+#if NCNN_BF16
+#include "gemm_wq_int8_bf16s.h"
+#endif
+#include "gemm_wq_int8.h"
+
 struct gemm_loongarch_wq_int8_omp_args
 {
     int TILE_M;
@@ -8965,20 +8951,7 @@ int Gemm_loongarch::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::v
             C = bottom_blobs[1];
 
         if (!C.empty())
-        {
-            if (C.dims == 1 && C.w * C.elempack == 1)
-                broadcast_type_C = 0;
-            if (C.dims == 1 && C.w * C.elempack == M)
-                broadcast_type_C = 1;
-            if (C.dims == 1 && C.w * C.elempack == N)
-                broadcast_type_C = 4;
-            if (C.dims == 2 && C.w == 1 && C.h * C.elempack == M)
-                broadcast_type_C = 2;
-            if (C.dims == 2 && C.w == N && C.h * C.elempack == M)
-                broadcast_type_C = 3;
-            if (C.dims == 2 && C.w == N && C.h * C.elempack == 1)
-                broadcast_type_C = 4;
-        }
+            broadcast_type_C = resolve_broadcast_type_C(C, M, N);
     }
 
     Mat C_fp32;

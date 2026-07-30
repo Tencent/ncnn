@@ -234,7 +234,9 @@ Gemm::Gemm()
     support_inplace = false;
 
     weight_block_quantize = 0;
+    weight_block_quantize_bits = 0;
     weight_block_quantize_block_size = 0;
+    weight_block_quantize_has_input_scale = false;
 }
 
 int Gemm::load_param(const ParamDict& pd)
@@ -255,10 +257,10 @@ int Gemm::load_param(const ParamDict& pd)
     output_elemtype = pd.get(13, 0);
     output_transpose = pd.get(14, 0);
     quantize_term = pd.get(18, 0);
-    int weight_bits;
-    bool has_input_scale;
+    weight_block_quantize_bits = 0;
     weight_block_quantize_block_size = 0;
-    weight_block_quantize = get_weight_block_quantize_params(weight_bits, weight_block_quantize_block_size, has_input_scale) == 0;
+    weight_block_quantize_has_input_scale = false;
+    weight_block_quantize = get_weight_block_quantize_params(weight_block_quantize_bits, weight_block_quantize_block_size, weight_block_quantize_has_input_scale) == 0;
     constant_TILE_M = pd.get(20, 0);
     constant_TILE_N = pd.get(21, 0);
     constant_TILE_K = pd.get(22, 0);
@@ -284,19 +286,19 @@ int Gemm::load_param(const ParamDict& pd)
     if (weight_block_quantize)
     {
 #if NCNN_WEIGHT_QUANT
-        if (constantA != 0 || constantB != 1 || transB != 1 || (transA != 0 && (weight_bits != 8 || transA != 1)))
+        if (constantA != 0 || constantB != 1 || transB != 1 || (transA != 0 && (weight_block_quantize_bits != 8 || transA != 1)))
         {
             NCNN_LOGE("Gemm unsupported weight block quantize");
             return -1;
         }
 
-        if ((output_N1M != 0 && weight_bits != 8) || (output_elempack != 0 && weight_bits != 8) || (output_elemtype != 0 && output_elemtype != 1) || (output_transpose != 0 && (weight_bits != 8 || output_transpose != 1)))
+        if ((output_N1M != 0 && weight_block_quantize_bits != 8) || (output_elempack != 0 && weight_block_quantize_bits != 8) || (output_elemtype != 0 && output_elemtype != 1) || (output_transpose != 0 && (weight_block_quantize_bits != 8 || output_transpose != 1)))
         {
             NCNN_LOGE("Gemm unsupported weight block quantize");
             return -1;
         }
 
-        if (weight_bits != 8)
+        if (weight_block_quantize_bits != 8)
         {
             support_packing = false;
             support_bf16_storage = false;
@@ -349,14 +351,6 @@ int Gemm::load_param(const ParamDict& pd)
 
 int Gemm::load_model(const ModelBin& mb)
 {
-#if NCNN_WEIGHT_QUANT
-    int weight_bits = 0;
-    int block_size = 0;
-    bool has_input_scale = false;
-    if (weight_block_quantize && get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0)
-        return -1;
-#endif
-
     if (constantA == 1)
     {
         if (transA == 0)
@@ -374,7 +368,7 @@ int Gemm::load_model(const ModelBin& mb)
 #if NCNN_WEIGHT_QUANT
         else if (weight_block_quantize)
         {
-            const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(constantK, weight_bits);
+            const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(constantK, weight_block_quantize_bits);
             if (packed_k_bytes < 0)
                 return -100;
             B_data = mb.load(packed_k_bytes, constantN, 0);
@@ -405,13 +399,13 @@ int Gemm::load_model(const ModelBin& mb)
 #if NCNN_WEIGHT_QUANT
     if (weight_block_quantize)
     {
-        const int block_count = (constantK + block_size - 1) / block_size;
+        const int block_count = (constantK + weight_block_quantize_block_size - 1) / weight_block_quantize_block_size;
 
         B_data_quantize_scales = mb.load(block_count, constantN, 1);
         if (B_data_quantize_scales.empty())
             return -100;
 
-        if (has_input_scale)
+        if (weight_block_quantize_has_input_scale)
         {
             B_data_input_scales = mb.load(constantK, 1);
             if (B_data_input_scales.empty())
@@ -531,7 +525,7 @@ int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, st
     const Mat& A = bottom_blobs[0];
 
     const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
-    const int weight_bits = quantize_term / 100;
+    const int weight_bits = weight_block_quantize_bits;
     const int block_size = weight_block_quantize_block_size;
     const int packed_k_bytes = gemm_weight_quantize_packed_k_bytes(constantK, weight_bits);
 

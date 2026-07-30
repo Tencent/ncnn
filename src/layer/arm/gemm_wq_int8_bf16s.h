@@ -1454,6 +1454,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
         }
     }
 }
+
 static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8
@@ -1472,11 +1473,12 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
     }
 #endif
 
+    const int elempack = A.elempack;
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
+
     signed char* pp = AT_tile;
     float* pd = AT_descales_tile;
     const int block_count = (max_kk + block_size - 1) / block_size;
-    const int elempack = A.elempack;
-    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     if (input_scales.empty())
     {

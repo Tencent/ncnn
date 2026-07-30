@@ -7437,12 +7437,7 @@ int Gemm_x86::create_pipeline(const Option& opt)
     if (weight_block_quantize)
     {
 #if NCNN_WEIGHT_QUANT
-        int weight_bits;
-        int block_size;
-        bool has_input_scale;
-        if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0)
-            return -1;
-        if (weight_bits == 8)
+        if (weight_block_quantize_bits == 8)
             return create_pipeline_wq_int8(opt);
 #endif // NCNN_WEIGHT_QUANT
 
@@ -7606,12 +7601,7 @@ int Gemm_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (weight_block_quantize)
     {
 #if NCNN_WEIGHT_QUANT
-        int weight_bits;
-        int block_size;
-        bool has_input_scale;
-        if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0)
-            return -1;
-        if (weight_bits == 8)
+        if (weight_block_quantize_bits == 8)
             return forward_wq_int8(bottom_blobs, top_blobs, opt);
 #endif
 
@@ -9589,8 +9579,6 @@ struct gemm_x86_wq_int8_omp_args
     int TILE_N;
     int TILE_K;
     int block_size;
-    int AT_hstep;
-    int AT_descales_hstep;
     int BT_hstep;
     int broadcast_type_C;
     int transA;
@@ -9619,14 +9607,12 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descal
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_N = (N + TILE_N - 1) / TILE_N;
     const int nn_K = (K + TILE_K - 1) / TILE_K;
-    const int AT_hstep = K * mr;
-    const int AT_descales_hstep = block_count * mr;
     const int BT_hstep = BT.w;
     Mat topT(mr * nr, 1, nT, 4u, opt.workspace_allocator);
     if (topT.empty())
         return -100;
 
-    const struct gemm_x86_wq_int8_omp_args args = {TILE_M, TILE_N, TILE_K, block_size, AT_hstep, AT_descales_hstep, BT_hstep, broadcast_type_C, transA, output_transpose, alpha, beta, output_elemtype};
+    const struct gemm_x86_wq_int8_omp_args args = {TILE_M, TILE_N, TILE_K, block_size, BT_hstep, broadcast_type_C, transA, output_transpose, alpha, beta, output_elemtype};
 
     if (nT > nn_M)
     {
@@ -9643,8 +9629,6 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descal
             const int TILE_M = args.TILE_M;
             const int TILE_K = args.TILE_K;
             const int block_size = args.block_size;
-            const int AT_hstep = args.AT_hstep;
-            const int AT_descales_hstep = args.AT_descales_hstep;
             const int transA = args.transA;
             const int ppi = ppik / nn_K;
             const int ppk = ppik % nn_K;
@@ -9654,8 +9638,10 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descal
             const int max_ii = std::min(M - i, TILE_M);
             const int max_kk = std::min(K - k, TILE_K);
             const int local_block_count = (max_kk + block_size - 1) / block_size;
-            Mat AT_tile(max_kk, mr, (signed char*)AT + (size_t)ppi * AT_hstep + (size_t)k * mr, (size_t)1u);
-            Mat AT_descales_tile(local_block_count, mr, (float*)AT_descales + (size_t)ppi * AT_descales_hstep + (size_t)(k / block_size) * mr, (size_t)4u);
+            Mat AT_channel = AT.channel(ppi);
+            Mat AT_descales_channel = AT_descales.channel(ppi);
+            Mat AT_tile(max_kk, mr, (signed char*)AT_channel + (size_t)k * mr, (size_t)1u);
+            Mat AT_descales_tile(local_block_count, mr, (float*)AT_descales_channel + (size_t)(k / block_size) * mr, (size_t)4u);
             if (transA)
                 transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
             else
@@ -9671,8 +9657,6 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descal
             const int TILE_N = args.TILE_N;
             const int TILE_K = args.TILE_K;
             const int block_size = args.block_size;
-            const int AT_hstep = args.AT_hstep;
-            const int AT_descales_hstep = args.AT_descales_hstep;
             const int BT_hstep = args.BT_hstep;
             const int broadcast_type_C = args.broadcast_type_C;
             const int output_transpose = args.output_transpose;
@@ -9692,15 +9676,15 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descal
             Mat BT_tile(BT_hstep, max_jj, (signed char*)BT.data + (size_t)j * BT_hstep, (size_t)1u);
             Mat BT_descales_tile(block_count * max_jj, (float*)BT_descales.data + (size_t)j * block_count, (size_t)4u);
             Mat topT_tile = topT.channel(get_omp_thread_num());
-            const signed char* pAT = (const signed char*)AT + (size_t)ppi * AT_hstep;
-            const float* pAT_descales = (const float*)AT_descales + (size_t)ppi * AT_descales_hstep;
+            Mat AT_channel = AT.channel(ppi);
+            Mat AT_descales_channel = AT_descales.channel(ppi);
 
             for (int k = 0; k < K; k += TILE_K)
             {
                 const int max_kk = std::min(K - k, TILE_K);
                 const int local_block_count = (max_kk + block_size - 1) / block_size;
-                Mat AT_tile(max_kk, mr, (signed char*)pAT + (size_t)k * mr, (size_t)1u);
-                Mat AT_descales_tile(local_block_count, mr, (float*)pAT_descales + (size_t)(k / block_size) * mr, (size_t)4u);
+                Mat AT_tile(max_kk, mr, (signed char*)AT_channel + (size_t)k * mr, (size_t)1u);
+                Mat AT_descales_tile(local_block_count, mr, (float*)AT_descales_channel + (size_t)(k / block_size) * mr, (size_t)4u);
 
                 gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
             }
@@ -9723,8 +9707,6 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descal
             const int TILE_N = args.TILE_N;
             const int TILE_K = args.TILE_K;
             const int block_size = args.block_size;
-            const int AT_hstep = args.AT_hstep;
-            const int AT_descales_hstep = args.AT_descales_hstep;
             const int BT_hstep = args.BT_hstep;
             const int broadcast_type_C = args.broadcast_type_C;
             const int transA = args.transA;
@@ -9737,16 +9719,16 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descal
             const int max_ii = std::min(M - i, TILE_M);
 
             const int thread_id = get_omp_thread_num();
-            signed char* pAT = (signed char*)ATX + (size_t)thread_id * AT_hstep;
-            float* pAT_descales = (float*)ATX_descales + (size_t)thread_id * AT_descales_hstep;
+            Mat AT_channel = ATX.channel(thread_id);
+            Mat AT_descales_channel = ATX_descales.channel(thread_id);
             Mat topT_tile = topT.channel(thread_id);
 
             for (int k = 0; k < K; k += TILE_K)
             {
                 const int max_kk = std::min(K - k, TILE_K);
                 const int local_block_count = (max_kk + block_size - 1) / block_size;
-                Mat AT_tile(max_kk, mr, pAT + (size_t)k * mr, (size_t)1u);
-                Mat AT_descales_tile(local_block_count, mr, pAT_descales + (size_t)(k / block_size) * mr, (size_t)4u);
+                Mat AT_tile(max_kk, mr, (signed char*)AT_channel + (size_t)k * mr, (size_t)1u);
+                Mat AT_descales_tile(local_block_count, mr, (float*)AT_descales_channel + (size_t)(k / block_size) * mr, (size_t)4u);
                 if (transA)
                     transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
                 else
@@ -9764,8 +9746,8 @@ static int gemm_BT_x86_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descal
                 {
                     const int max_kk = std::min(K - k, TILE_K);
                     const int local_block_count = (max_kk + block_size - 1) / block_size;
-                    Mat AT_tile(max_kk, mr, pAT + (size_t)k * mr, (size_t)1u);
-                    Mat AT_descales_tile(local_block_count, mr, pAT_descales + (size_t)(k / block_size) * mr, (size_t)4u);
+                    Mat AT_tile(max_kk, mr, (signed char*)AT_channel + (size_t)k * mr, (size_t)1u);
+                    Mat AT_descales_tile(local_block_count, mr, (float*)AT_descales_channel + (size_t)(k / block_size) * mr, (size_t)4u);
 
                     gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
                 }
