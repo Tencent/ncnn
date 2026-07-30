@@ -1,7 +1,6 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,7 +16,6 @@
 #include "benchncnn_llm_param_data.h"
 
 #ifndef NCNN_SIMPLESTL
-#include <algorithm>
 #include <vector>
 #endif
 
@@ -258,7 +256,7 @@ static int run_decoder_once(ncnn::Net& decoder, ncnn::Net& proj_out, const Cache
     return ex2.extract("out0", logits);
 }
 
-static int benchmark_case(const char* name, ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIndexes& cache_indexes, const ncnn::Mat& token_embeds, const ncnn::Mat& attention_mask, const ncnn::Mat& cos_cache, const ncnn::Mat& sin_cache, const std::vector<ncnn::Mat>& cache, double rate_scale)
+static int benchmark_case(ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIndexes& cache_indexes, const ncnn::Mat& token_embeds, const ncnn::Mat& attention_mask, const ncnn::Mat& cos_cache, const ncnn::Mat& sin_cache, const std::vector<ncnn::Mat>& cache, double rate_scale, double& tokens_per_second)
 {
     std::vector<ncnn::Mat> out_cache;
 
@@ -269,8 +267,6 @@ static int benchmark_case(const char* name, ncnn::Net& decoder, ncnn::Net& proj_
             return ret;
     }
 
-    double time_min = DBL_MAX;
-    double time_max = -DBL_MAX;
     double time_avg = 0;
 
     for (int i = 0; i < g_loop_count; i++)
@@ -281,16 +277,12 @@ static int benchmark_case(const char* name, ncnn::Net& decoder, ncnn::Net& proj_
         if (ret != 0)
             return ret;
 
-        double time = end - start;
-        time_min = std::min(time_min, time);
-        time_max = std::max(time_max, time);
-        time_avg += time;
+        time_avg += end - start;
     }
 
     time_avg /= g_loop_count;
 
-    const double tokens_per_second = rate_scale * 1000.0 / time_avg;
-    fprintf(stderr, "%30s  min = %7.2f  max = %7.2f  avg = %7.2f  tps = %7.2f\n", name, time_min, time_max, time_avg, tokens_per_second);
+    tokens_per_second = rate_scale * 1000.0 / time_avg;
 
     return 0;
 }
@@ -370,17 +362,19 @@ static int benchmark_model(const ModelConfig& config, const ncnn::Option& opt)
     if (ret != 0)
         return ret;
 
-    char prefill_name[256];
-    snprintf(prefill_name, 256, "%s_256_prefill", config.name);
-
-    ret = benchmark_case(prefill_name, decoder, proj_out, cache_indexes, prefill_embeddings, prefill_attention_mask, prefill_cos_cache, prefill_sin_cache, empty_cache, 256.0);
+    double prefill_tps;
+    ret = benchmark_case(decoder, proj_out, cache_indexes, prefill_embeddings, prefill_attention_mask, prefill_cos_cache, prefill_sin_cache, empty_cache, 256.0, prefill_tps);
     if (ret != 0)
         return ret;
 
-    char decode_name[256];
-    snprintf(decode_name, 256, "%s_256_decode", config.name);
+    double decode_tps;
+    ret = benchmark_case(decoder, proj_out, cache_indexes, decode_embedding, decode_attention_mask, decode_cos_cache, decode_sin_cache, past_cache, 1.0, decode_tps);
+    if (ret != 0)
+        return ret;
 
-    return benchmark_case(decode_name, decoder, proj_out, cache_indexes, decode_embedding, decode_attention_mask, decode_cos_cache, decode_sin_cache, past_cache, 1.0);
+    fprintf(stderr, "%30s  %12.2f  %12.2f\n", config.name, prefill_tps, decode_tps);
+
+    return 0;
 }
 
 static void show_usage()
@@ -485,6 +479,7 @@ int main(int argc, char** argv)
     fprintf(stderr, "powersave = %d\n", ncnn::get_cpu_powersave());
     fprintf(stderr, "gpu_device = %d\n", gpu_device);
     fprintf(stderr, "cooling_down = %d\n", (int)g_enable_cooling_down);
+    fprintf(stderr, "%30s  %12s  %12s\n", "model", "prefill tps", "decode tps");
 
     const ModelConfig* models[] = {
         &hunyuan::model,
