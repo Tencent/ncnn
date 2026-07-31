@@ -63,8 +63,10 @@ EM_JS(int, vkwebgpu_read_adapter_info,
        char* architecture, uint32_t architecture_size,
        char* device, uint32_t device_size,
        char* description, uint32_t description_size,
-       uint32_t* subgroup_min_size, uint32_t* subgroup_max_size), {
-    try {
+       uint32_t* subgroup_min_size, uint32_t* subgroup_max_size),
+{
+    try
+    {
         var js_adapter = WebGPU.getJsObject(adapter);
         var info = js_adapter && js_adapter.info;
         if (!info)
@@ -77,12 +79,12 @@ EM_JS(int, vkwebgpu_read_adapter_info,
 
         var subgroup_min = Number(info.subgroupMinSize);
         var subgroup_max = Number(info.subgroupMaxSize);
-        HEAPU32[subgroup_min_size >> 2] =
-            Number.isFinite(subgroup_min) && subgroup_min >= 0 ? subgroup_min : 0;
-        HEAPU32[subgroup_max_size >> 2] =
-            Number.isFinite(subgroup_max) && subgroup_max >= 0 ? subgroup_max : 0;
+        HEAPU32[subgroup_min_size >> 2] = Number.isFinite(subgroup_min) && subgroup_min >= 0 ? subgroup_min : 0;
+        HEAPU32[subgroup_max_size >> 2] = Number.isFinite(subgroup_max) && subgroup_max >= 0 ? subgroup_max : 0;
         return info.isFallbackAdapter ? 2 : 1;
-    } catch (error) {
+    }
+    catch (error)
+    {
         return 0;
     }
 });
@@ -127,7 +129,7 @@ static uint64_t monotonic_time_ns()
 {
     return (uint64_t)std::chrono::duration_cast<std::chrono::nanoseconds>(
                std::chrono::steady_clock::now().time_since_epoch())
-        .count();
+           .count();
 }
 
 static uint64_t remaining_timeout_ns(uint64_t begin, uint64_t timeout)
@@ -520,8 +522,8 @@ struct MemoryRange
 };
 
 static bool append_memory_transfer_range(std::vector<MemoryRange>& ranges,
-                                         const std::shared_ptr<DeviceMemory>& memory,
-                                         uint64_t offset, uint64_t size)
+        const std::shared_ptr<DeviceMemory>& memory,
+        uint64_t offset, uint64_t size)
 {
     if (!memory || size == 0)
         return false;
@@ -588,7 +590,7 @@ static bool append_host_upload_ranges(std::vector<MemoryRange>& ranges,
         const uint64_t intersection_end = std::min<uint64_t>(end, mapped_end);
         if (intersection_offset < intersection_end
                 && !append_memory_transfer_range(ranges, memory, intersection_offset,
-                                                 intersection_end - intersection_offset))
+                        intersection_end - intersection_offset))
             return false;
     }
 
@@ -601,7 +603,7 @@ static bool append_host_upload_ranges(std::vector<MemoryRange>& ranges,
         const uint64_t intersection_end = std::min<uint64_t>(end, dirty_end);
         if (intersection_offset < intersection_end
                 && !append_memory_transfer_range(ranges, memory, intersection_offset,
-                                                 intersection_end - intersection_offset))
+                        intersection_end - intersection_offset))
             return false;
     }
 
@@ -1355,9 +1357,9 @@ static bool same_physical_device(const PhysicalDevice& a, const PhysicalDevice& 
 }
 
 static std::shared_ptr<PhysicalDevice> request_physical_device(Instance* instance,
-                                                               WGPUPowerPreference power_preference,
-                                                               bool force_fallback,
-                                                               std::string& error_message)
+        WGPUPowerPreference power_preference,
+        bool force_fallback,
+        std::string& error_message)
 {
     std::shared_ptr<AdapterResult> result = std::make_shared<AdapterResult>();
     WGPURequestAdapterOptions options = WGPU_REQUEST_ADAPTER_OPTIONS_INIT;
@@ -1408,18 +1410,17 @@ static std::shared_ptr<PhysicalDevice> request_physical_device(Instance* instanc
         uint32_t subgroup_min_size = 0;
         uint32_t subgroup_max_size = 0;
         const int info_result = vkwebgpu_read_adapter_info(
-            (uintptr_t)physical_device->adapter,
-            vendor, sizeof(vendor),
-            architecture, sizeof(architecture),
-            device_name, sizeof(device_name),
-            description, sizeof(description),
-            &subgroup_min_size, &subgroup_max_size);
+                                    (uintptr_t)physical_device->adapter,
+                                    vendor, sizeof(vendor),
+                                    architecture, sizeof(architecture),
+                                    device_name, sizeof(device_name),
+                                    description, sizeof(description),
+                                    &subgroup_min_size, &subgroup_max_size);
         adapter_info_available = info_result != 0;
         if (adapter_info_available)
         {
             physical_device->backend_type = WGPUBackendType_WebGPU;
-            physical_device->adapter_type =
-                info_result == 2 ? WGPUAdapterType_CPU : WGPUAdapterType_Unknown;
+            physical_device->adapter_type = info_result == 2 ? WGPUAdapterType_CPU : WGPUAdapterType_Unknown;
             physical_device->device_name = device_name;
             physical_device->driver_name = description;
             physical_device->vendor_name = vendor;
@@ -1458,14 +1459,12 @@ static std::shared_ptr<PhysicalDevice> request_physical_device(Instance* instanc
     if (physical_device->driver_name.empty())
         physical_device->driver_name = physical_device->vendor_name;
 
-    physical_device->subgroup_supported =
-        adapter_info_available
-        && wgpuAdapterHasFeature(physical_device->adapter, WGPUFeatureName_Subgroups) == WGPU_TRUE
-        && physical_device->subgroup_min_size != 0
-        && physical_device->subgroup_max_size >= physical_device->subgroup_min_size;
-    physical_device->subgroup_size_control_supported =
-        physical_device->subgroup_supported
-        && wgpuAdapterHasFeature(physical_device->adapter, WGPUFeatureName_SubgroupSizeControl) == WGPU_TRUE;
+    physical_device->subgroup_supported = adapter_info_available
+                                          && wgpuAdapterHasFeature(physical_device->adapter, WGPUFeatureName_Subgroups) == WGPU_TRUE
+                                          && physical_device->subgroup_min_size != 0
+                                          && physical_device->subgroup_max_size >= physical_device->subgroup_min_size;
+    physical_device->subgroup_size_control_supported = physical_device->subgroup_supported
+            && wgpuAdapterHasFeature(physical_device->adapter, WGPUFeatureName_SubgroupSizeControl) == WGPU_TRUE;
     if (!physical_device->subgroup_supported)
     {
         physical_device->subgroup_size_control_supported = false;
@@ -1497,8 +1496,7 @@ static VkResult ensure_physical_devices(Instance* instance)
     std::string last_error;
     for (size_t i = 0; i < sizeof(power_preferences) / sizeof(power_preferences[0]); i++)
     {
-        std::shared_ptr<PhysicalDevice> physical_device =
-            request_physical_device(instance, power_preferences[i], force_fallback[i], last_error);
+        std::shared_ptr<PhysicalDevice> physical_device = request_physical_device(instance, power_preferences[i], force_fallback[i], last_error);
         if (!physical_device)
             continue;
 
@@ -1866,8 +1864,7 @@ static void collect_storage_access(tint::core::ir::Module& module,
             continue;
         }
 
-        access[binding_key(binding_point->group, binding_point->binding)] =
-            storage_variable_is_written(var->Result()) ? BUFFER_ACCESS_READ_WRITE : BUFFER_ACCESS_READ;
+        access[binding_key(binding_point->group, binding_point->binding)] = storage_variable_is_written(var->Result()) ? BUFFER_ACCESS_READ_WRITE : BUFFER_ACCESS_READ;
     }
 
     for (size_t i = 0; i < inactive.size(); i++)
@@ -1912,7 +1909,9 @@ static int translate_shader(const std::vector<uint32_t>& input_spirv, const char
         return -1;
     }
 
-    std::call_once(g_tint_initialize_once, []() { tint::Initialize(); });
+    std::call_once(g_tint_initialize_once, []() {
+        tint::Initialize();
+    });
 
     tint::Result<tint::core::ir::Module> ir_result = tint::spirv::reader::ReadIR(spirv);
     if (ir_result != tint::Success)
@@ -2000,8 +1999,7 @@ static int translate_shader(const std::vector<uint32_t>& input_spirv, const char
         binding.binding = resource.binding;
         binding.min_binding_size = resource.size;
         binding.internal_uniform = resource.bind_group == 1 && resource.binding == 0 && use_uniform;
-        std::unordered_map<uint64_t, BufferAccess>::const_iterator access_it =
-            storage_access.find(binding_key(resource.bind_group, resource.binding));
+        std::unordered_map<uint64_t, BufferAccess>::const_iterator access_it = storage_access.find(binding_key(resource.bind_group, resource.binding));
 
         if (resource.resource_type == tint::inspector::ResourceBinding::ResourceType::kReadOnlyStorageBuffer)
         {
@@ -2040,8 +2038,7 @@ static int translate_shader(const std::vector<uint32_t>& input_spirv, const char
             if (binding.internal_uniform)
             {
                 translated.push_constant_uniform = true;
-                translated.push_constant_data_size =
-                    (uint32_t)std::min<uint64_t>(pipeline_layout.push_constant_size, resource.size);
+                translated.push_constant_data_size = (uint32_t)std::min<uint64_t>(pipeline_layout.push_constant_size, resource.size);
                 translated.push_constant_uniform_size = (uint32_t)resource.size;
             }
         }
@@ -2267,7 +2264,7 @@ static VkResult impl_create_instance(const VkInstanceCreateInfo* create_info, co
         return VK_ERROR_INITIALIZATION_FAILED;
 
     const auto allow_wgsl_feature = [&](WGPUWGSLLanguageFeatureName webgpu_feature,
-                                        tint::wgsl::LanguageFeature tint_feature) {
+    tint::wgsl::LanguageFeature tint_feature) {
         if (wgpuInstanceHasWGSLLanguageFeature(impl->instance, webgpu_feature) == WGPU_TRUE)
             impl->wgsl_allowed_features.features.insert(tint_feature);
     };
@@ -2383,8 +2380,7 @@ static void impl_get_physical_device_properties(VkPhysicalDevice physical_device
     limits.maxTexelBufferElements = 0;
     limits.maxUniformBufferRange = (uint32_t)std::min<uint64_t>(impl->limits.maxUniformBufferBindingSize, UINT32_MAX);
     limits.maxStorageBufferRange = (uint32_t)std::min<uint64_t>(impl->limits.maxStorageBufferBindingSize, UINT32_MAX);
-    limits.maxPushConstantsSize =
-        (uint32_t)std::max<uint64_t>(128, std::min<uint64_t>(impl->limits.maxUniformBufferBindingSize, 4096));
+    limits.maxPushConstantsSize = (uint32_t)std::max<uint64_t>(128, std::min<uint64_t>(impl->limits.maxUniformBufferBindingSize, 4096));
     limits.maxMemoryAllocationCount = 4096;
     limits.maxSamplerAllocationCount = 0;
     limits.bufferImageGranularity = 1;
@@ -2395,9 +2391,9 @@ static void impl_get_physical_device_properties(VkPhysicalDevice physical_device
     limits.maxPerStageDescriptorUniformBuffers = impl->limits.maxUniformBuffersPerShaderStage;
     limits.maxDescriptorSetUniformBuffers = impl->limits.maxUniformBuffersPerShaderStage;
     limits.maxPerStageResources = (uint32_t)std::min<uint64_t>(
-        impl->limits.maxBindingsPerBindGroup,
-        (uint64_t)limits.maxPerStageDescriptorStorageBuffers
-        + limits.maxPerStageDescriptorUniformBuffers);
+                                      impl->limits.maxBindingsPerBindGroup,
+                                      (uint64_t)limits.maxPerStageDescriptorStorageBuffers
+                                      + limits.maxPerStageDescriptorUniformBuffers);
     limits.maxComputeSharedMemorySize = impl->limits.maxComputeWorkgroupStorageSize;
     limits.maxComputeWorkGroupCount[0] = impl->limits.maxComputeWorkgroupsPerDimension;
     limits.maxComputeWorkGroupCount[1] = impl->limits.maxComputeWorkgroupsPerDimension;
@@ -2414,7 +2410,7 @@ static void impl_get_physical_device_properties(VkPhysicalDevice physical_device
 }
 
 static void impl_get_physical_device_queue_family_properties(VkPhysicalDevice physical_device, uint32_t* property_count,
-                                                              VkQueueFamilyProperties* properties)
+        VkQueueFamilyProperties* properties)
 {
     if (!unwrap(physical_device) || !property_count)
         return;
@@ -2448,8 +2444,7 @@ static void impl_get_physical_device_memory_properties(VkPhysicalDevice physical
     properties->memoryTypeCount = 2;
     properties->memoryTypes[0].propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     properties->memoryTypes[0].heapIndex = 0;
-    properties->memoryTypes[1].propertyFlags =
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+    properties->memoryTypes[1].propertyFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
     properties->memoryTypes[1].heapIndex = 0;
     properties->memoryHeapCount = 1;
     properties->memoryHeaps[0].size = impl->limits.maxBufferSize;
@@ -2465,7 +2460,7 @@ static void impl_get_physical_device_format_properties(VkPhysicalDevice physical
 }
 
 static VkResult impl_get_physical_device_image_format_properties(VkPhysicalDevice, VkFormat, VkImageType, VkImageTiling,
-                                                                  VkImageUsageFlags, VkImageCreateFlags, VkImageFormatProperties*)
+        VkImageUsageFlags, VkImageCreateFlags, VkImageFormatProperties*)
 {
     return VK_ERROR_FORMAT_NOT_SUPPORTED;
 }
@@ -2488,8 +2483,7 @@ static void impl_get_physical_device_features2(VkPhysicalDevice physical_device,
     {
         if (next->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT)
         {
-            VkPhysicalDeviceSubgroupSizeControlFeaturesEXT* subgroup =
-                (VkPhysicalDeviceSubgroupSizeControlFeaturesEXT*)next;
+            VkPhysicalDeviceSubgroupSizeControlFeaturesEXT* subgroup = (VkPhysicalDeviceSubgroupSizeControlFeaturesEXT*)next;
             // Dawn requires workgroup_size.x, not only the total invocation count,
             // to be a multiple of @subgroup_size. ncnn only guarantees the total.
             subgroup->subgroupSizeControl = VK_FALSE;
@@ -2520,30 +2514,28 @@ static void impl_get_physical_device_properties2(VkPhysicalDevice physical_devic
         if (next->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES)
         {
             VkPhysicalDeviceSubgroupProperties* subgroup = (VkPhysicalDeviceSubgroupProperties*)next;
-            subgroup->subgroupSize =
-                impl && impl->subgroup_supported ? impl->subgroup_max_size : 4;
+            subgroup->subgroupSize = impl && impl->subgroup_supported ? impl->subgroup_max_size : 4;
             subgroup->supportedStages = 0;
             subgroup->supportedOperations = 0;
             subgroup->quadOperationsInAllStages = VK_FALSE;
         }
         else if (next->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES_EXT)
         {
-            VkPhysicalDeviceSubgroupSizeControlPropertiesEXT* subgroup =
-                (VkPhysicalDeviceSubgroupSizeControlPropertiesEXT*)next;
+            VkPhysicalDeviceSubgroupSizeControlPropertiesEXT* subgroup = (VkPhysicalDeviceSubgroupSizeControlPropertiesEXT*)next;
             const uint32_t min_subgroup_size = impl && impl->subgroup_size_control_supported
-                                               ? impl->subgroup_min_size : 4;
+                                               ? impl->subgroup_min_size
+                                               : 4;
             const uint32_t max_subgroup_size = impl && impl->subgroup_size_control_supported
-                                               ? impl->subgroup_max_size : 4;
+                                               ? impl->subgroup_max_size
+                                               : 4;
             subgroup->minSubgroupSize = min_subgroup_size;
             subgroup->maxSubgroupSize = max_subgroup_size;
-            subgroup->maxComputeWorkgroupSubgroups =
-                impl ? std::max(impl->limits.maxComputeInvocationsPerWorkgroup / min_subgroup_size, 1u) : 1;
+            subgroup->maxComputeWorkgroupSubgroups = impl ? std::max(impl->limits.maxComputeInvocationsPerWorkgroup / min_subgroup_size, 1u) : 1;
             subgroup->requiredSubgroupSizeStages = 0;
         }
         else if (next->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES)
         {
-            VkPhysicalDeviceMaintenance3Properties* maintenance3 =
-                (VkPhysicalDeviceMaintenance3Properties*)next;
+            VkPhysicalDeviceMaintenance3Properties* maintenance3 = (VkPhysicalDeviceMaintenance3Properties*)next;
             maintenance3->maxPerSetDescriptors = impl ? impl->limits.maxBindingsPerBindGroup : 0;
             maintenance3->maxMemoryAllocationSize = impl ? impl->limits.maxBufferSize : 0;
         }
@@ -2553,7 +2545,7 @@ static void impl_get_physical_device_properties2(VkPhysicalDevice physical_devic
 }
 
 static void impl_get_physical_device_format_properties2(VkPhysicalDevice physical_device, VkFormat format,
-                                                         VkFormatProperties2KHR* properties)
+        VkFormatProperties2KHR* properties)
 {
     if (!properties || properties->sType != VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2_KHR)
         return;
@@ -2570,8 +2562,8 @@ static VkResult impl_get_physical_device_image_format_properties2(
         return VK_ERROR_INITIALIZATION_FAILED;
 
     return impl_get_physical_device_image_format_properties(physical_device, format_info->format, format_info->type,
-                                                             format_info->tiling, format_info->usage, format_info->flags,
-                                                             &properties->imageFormatProperties);
+            format_info->tiling, format_info->usage, format_info->flags,
+            &properties->imageFormatProperties);
 }
 
 static void impl_get_physical_device_queue_family_properties2(
@@ -2617,7 +2609,7 @@ static const VkExtensionProperties g_subgroup_size_control_extension = {
 };
 
 static VkResult impl_enumerate_device_extension_properties(VkPhysicalDevice physical_device, const char* layer_name,
-                                                            uint32_t* property_count, VkExtensionProperties* properties)
+        uint32_t* property_count, VkExtensionProperties* properties)
 {
     if (!unwrap(physical_device))
         return VK_ERROR_INITIALIZATION_FAILED;
@@ -2703,8 +2695,7 @@ static VkResult impl_create_device(VkPhysicalDevice physical_device, const VkDev
     {
         if (next->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT)
         {
-            const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT* subgroup =
-                (const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT*)next;
+            const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT* subgroup = (const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT*)next;
             if (subgroup->subgroupSizeControl == VK_TRUE || subgroup->computeFullSubgroups == VK_TRUE)
                 return VK_ERROR_FEATURE_NOT_PRESENT;
         }
@@ -2949,8 +2940,7 @@ static VkResult impl_flush_mapped_memory_ranges(VkDevice device, uint32_t range_
                 || !impl || impl->owner != device_impl || impl->host_shadow.empty() || !impl->mapped)
             return VK_ERROR_MEMORY_MAP_FAILED;
 
-        const uint64_t range_size =
-            ranges[i].size == VK_WHOLE_SIZE ? impl->size - std::min<uint64_t>(ranges[i].offset, impl->size) : ranges[i].size;
+        const uint64_t range_size = ranges[i].size == VK_WHOLE_SIZE ? impl->size - std::min<uint64_t>(ranges[i].offset, impl->size) : ranges[i].size;
         uint64_t end = 0;
         uint64_t mapped_end = 0;
         if (range_size == 0 || ranges[i].offset >= impl->size
@@ -2979,8 +2969,7 @@ static VkResult impl_invalidate_mapped_memory_ranges(VkDevice device, uint32_t r
                 || !impl || impl->owner != device_impl || impl->host_shadow.empty() || !impl->mapped)
             return VK_ERROR_MEMORY_MAP_FAILED;
 
-        const uint64_t range_size =
-            ranges[i].size == VK_WHOLE_SIZE ? impl->size - std::min<uint64_t>(ranges[i].offset, impl->size) : ranges[i].size;
+        const uint64_t range_size = ranges[i].size == VK_WHOLE_SIZE ? impl->size - std::min<uint64_t>(ranges[i].offset, impl->size) : ranges[i].size;
         uint64_t end = 0;
         uint64_t mapped_end = 0;
         if (range_size == 0 || ranges[i].offset >= impl->size
@@ -3024,9 +3013,8 @@ static VkResult impl_create_buffer(VkDevice device, const VkBufferCreateInfo* cr
     if (create_info->sharingMode != VK_SHARING_MODE_EXCLUSIVE)
         return VK_ERROR_FEATURE_NOT_PRESENT;
 
-    const VkBufferUsageFlags supported_usage =
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT
-        | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    const VkBufferUsageFlags supported_usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT
+            | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
     if (create_info->usage == 0 || (create_info->usage & ~supported_usage) != 0)
         return VK_ERROR_FEATURE_NOT_PRESENT;
 
@@ -3074,8 +3062,8 @@ static void impl_get_buffer_memory_requirements(VkDevice device, VkBuffer buffer
 }
 
 static void impl_get_buffer_memory_requirements2(VkDevice device,
-                                                  const VkBufferMemoryRequirementsInfo2* info,
-                                                  VkMemoryRequirements2* requirements)
+        const VkBufferMemoryRequirementsInfo2* info,
+        VkMemoryRequirements2* requirements)
 {
     Device* device_impl = unwrap(device);
     if (!device_impl || !info || info->sType != VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2
@@ -3109,9 +3097,9 @@ static void impl_get_buffer_memory_requirements2(VkDevice device,
 }
 
 static VkResult validate_buffer_memory_binding(Device* device_impl,
-                                                const std::shared_ptr<Buffer>& buffer_impl,
-                                                const std::shared_ptr<DeviceMemory>& memory_impl,
-                                                VkDeviceSize memory_offset)
+        const std::shared_ptr<Buffer>& buffer_impl,
+        const std::shared_ptr<DeviceMemory>& memory_impl,
+        VkDeviceSize memory_offset)
 {
     if (!device_impl || !buffer_impl || !memory_impl
             || buffer_impl->owner != device_impl || memory_impl->owner != device_impl)
@@ -3146,7 +3134,7 @@ static VkResult impl_bind_buffer_memory(VkDevice device, VkBuffer buffer, VkDevi
 }
 
 static VkResult impl_bind_buffer_memory2(VkDevice device, uint32_t bind_info_count,
-                                         const VkBindBufferMemoryInfo* bind_infos)
+        const VkBindBufferMemoryInfo* bind_infos)
 {
     Device* device_impl = unwrap(device);
     if (!device_impl || (bind_info_count != 0 && !bind_infos))
@@ -3178,7 +3166,7 @@ static VkResult impl_bind_buffer_memory2(VkDevice device, uint32_t bind_info_cou
             return VK_ERROR_INITIALIZATION_FAILED;
 
         const VkResult result = validate_buffer_memory_binding(
-            device_impl, binding.buffer, binding.memory, binding.memory_offset);
+                                    device_impl, binding.buffer, binding.memory, binding.memory_offset);
         if (result != VK_SUCCESS)
             return result;
         pending.push_back(binding);
@@ -3211,8 +3199,7 @@ static VkResult validate_descriptor_set_layout_create_info(
     if (create_info->bindingCount != 0 && !create_info->pBindings)
         return VK_ERROR_INITIALIZATION_FAILED;
 
-    const bool is_push_descriptor =
-        (create_info->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR) != 0;
+    const bool is_push_descriptor = (create_info->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR) != 0;
     if (is_push_descriptor
             && device_impl->enabled_extensions.find("VK_KHR_push_descriptor") == device_impl->enabled_extensions.end())
         return VK_ERROR_EXTENSION_NOT_PRESENT;
@@ -3227,7 +3214,7 @@ static VkResult validate_descriptor_set_layout_create_info(
     {
         const VkDescriptorSetLayoutBinding& source = create_info->pBindings[i];
         if ((source.descriptorType != VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
-             && source.descriptorType != VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+                && source.descriptorType != VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
                 || source.descriptorCount != 1
                 || source.stageFlags != VK_SHADER_STAGE_COMPUTE_BIT
                 || source.pImmutableSamplers
@@ -3261,7 +3248,7 @@ static VkResult validate_descriptor_set_layout_create_info(
 }
 
 static VkResult impl_create_descriptor_set_layout(VkDevice device, const VkDescriptorSetLayoutCreateInfo* create_info,
-                                                   const VkAllocationCallbacks* allocator, VkDescriptorSetLayout* set_layout)
+        const VkAllocationCallbacks* allocator, VkDescriptorSetLayout* set_layout)
 {
     Device* device_impl = unwrap(device);
     if (!device_impl || !set_layout)
@@ -3274,7 +3261,7 @@ static VkResult impl_create_descriptor_set_layout(VkDevice device, const VkDescr
     std::shared_ptr<DescriptorSetLayout> impl = std::make_shared<DescriptorSetLayout>();
     impl->owner = device_impl;
     const VkResult result = validate_descriptor_set_layout_create_info(
-        device_impl, create_info, &impl->bindings, &impl->push_descriptor);
+                                device_impl, create_info, &impl->bindings, &impl->push_descriptor);
     if (result != VK_SUCCESS)
         return result;
 
@@ -3296,12 +3283,13 @@ static void impl_get_descriptor_set_layout_support(
 
     support->supported = validate_descriptor_set_layout_create_info(
                              device_impl, create_info, 0, 0)
-                             == VK_SUCCESS
-                         ? VK_TRUE : VK_FALSE;
+                         == VK_SUCCESS
+                         ? VK_TRUE
+                         : VK_FALSE;
 }
 
 static void impl_destroy_descriptor_set_layout(VkDevice device, VkDescriptorSetLayout set_layout,
-                                               const VkAllocationCallbacks* allocator)
+        const VkAllocationCallbacks* allocator)
 {
     Device* device_impl = unwrap(device);
     std::shared_ptr<DescriptorSetLayout> impl = get_handle(g_descriptor_set_layouts, set_layout);
@@ -3317,7 +3305,7 @@ static void impl_destroy_descriptor_set_layout(VkDevice device, VkDescriptorSetL
 }
 
 static VkResult impl_create_pipeline_layout(VkDevice device, const VkPipelineLayoutCreateInfo* create_info,
-                                            const VkAllocationCallbacks* allocator, VkPipelineLayout* pipeline_layout)
+        const VkAllocationCallbacks* allocator, VkPipelineLayout* pipeline_layout)
 {
     Device* device_impl = unwrap(device);
     if (!device_impl || !create_info || create_info->sType != VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO || !pipeline_layout)
@@ -3335,8 +3323,7 @@ static VkResult impl_create_pipeline_layout(VkDevice device, const VkPipelineLay
     impl->owner = device_impl;
     for (uint32_t i = 0; i < create_info->setLayoutCount; i++)
     {
-        std::shared_ptr<DescriptorSetLayout> set_layout =
-            get_handle(g_descriptor_set_layouts, create_info->pSetLayouts[i]);
+        std::shared_ptr<DescriptorSetLayout> set_layout = get_handle(g_descriptor_set_layouts, create_info->pSetLayouts[i]);
         if (!set_layout || set_layout->owner != device_impl)
             return VK_ERROR_INITIALIZATION_FAILED;
         impl->set_layouts.push_back(set_layout);
@@ -3373,7 +3360,7 @@ static VkResult impl_create_pipeline_layout(VkDevice device, const VkPipelineLay
 }
 
 static void impl_destroy_pipeline_layout(VkDevice device, VkPipelineLayout pipeline_layout,
-                                         const VkAllocationCallbacks* allocator)
+        const VkAllocationCallbacks* allocator)
 {
     Device* device_impl = unwrap(device);
     std::shared_ptr<PipelineLayout> impl = get_handle(g_pipeline_layouts, pipeline_layout);
@@ -3389,7 +3376,7 @@ static void impl_destroy_pipeline_layout(VkDevice device, VkPipelineLayout pipel
 }
 
 static VkResult impl_create_shader_module(VkDevice device, const VkShaderModuleCreateInfo* create_info,
-                                          const VkAllocationCallbacks* allocator, VkShaderModule* shader_module)
+        const VkAllocationCallbacks* allocator, VkShaderModule* shader_module)
 {
     Device* device_impl = unwrap(device);
     if (!device_impl || !create_info || create_info->sType != VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO || !shader_module)
@@ -3458,9 +3445,8 @@ static VkResult create_compute_pipeline(Device* device_impl, const VkComputePipe
 
     TranslatedShader translated;
     const uint64_t translate_begin = monotonic_time_ns();
-    const int translate_result =
-        translate_shader(shader->spirv, create_info.stage.pName, create_info.stage.pSpecializationInfo,
-                         *layout, *device_impl, translated);
+    const int translate_result = translate_shader(shader->spirv, create_info.stage.pName, create_info.stage.pSpecializationInfo,
+                                 *layout, *device_impl, translated);
     device_impl->pipeline_translate_count.fetch_add(1, std::memory_order_relaxed);
     device_impl->pipeline_translate_ns.fetch_add(monotonic_time_ns() - translate_begin, std::memory_order_relaxed);
     if (translate_result != 0)
@@ -3514,7 +3500,8 @@ static VkResult create_compute_pipeline(Device* device_impl, const VkComputePipe
         entry.buffer.type = binding.descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
                             ? WGPUBufferBindingType_Uniform
                             : binding.layout_access == BUFFER_ACCESS_READ
-                              ? WGPUBufferBindingType_ReadOnlyStorage : WGPUBufferBindingType_Storage;
+                            ? WGPUBufferBindingType_ReadOnlyStorage
+                            : WGPUBufferBindingType_Storage;
         entry.buffer.minBindingSize = binding.min_binding_size;
         group_entries.push_back(entry);
     }
@@ -3589,8 +3576,8 @@ static VkResult create_compute_pipeline(Device* device_impl, const VkComputePipe
 }
 
 static VkResult impl_create_compute_pipelines(VkDevice device, VkPipelineCache pipeline_cache, uint32_t create_info_count,
-                                              const VkComputePipelineCreateInfo* create_infos,
-                                              const VkAllocationCallbacks* allocator, VkPipeline* pipelines)
+        const VkComputePipelineCreateInfo* create_infos,
+        const VkAllocationCallbacks* allocator, VkPipeline* pipelines)
 {
     Device* device_impl = unwrap(device);
     if (!device_impl || create_info_count == 0 || !create_infos || !pipelines)
@@ -3656,9 +3643,9 @@ static void impl_destroy_pipeline(VkDevice device, VkPipeline pipeline, const Vk
 }
 
 static VkResult impl_create_descriptor_update_template(VkDevice device,
-                                                        const VkDescriptorUpdateTemplateCreateInfo* create_info,
-                                                        const VkAllocationCallbacks* allocator,
-                                                        VkDescriptorUpdateTemplate* descriptor_update_template)
+        const VkDescriptorUpdateTemplateCreateInfo* create_info,
+        const VkAllocationCallbacks* allocator,
+        VkDescriptorUpdateTemplate* descriptor_update_template)
 {
     Device* device_impl = unwrap(device);
     if (!device_impl || !create_info || !descriptor_update_template
@@ -3698,7 +3685,7 @@ static VkResult impl_create_descriptor_update_template(VkDevice device,
         const VkDescriptorUpdateTemplateEntry& source = create_info->pDescriptorUpdateEntries[i];
         const DescriptorBinding* layout_binding = find_layout_binding(*set_layout, source.dstBinding);
         if ((source.descriptorType != VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
-             && source.descriptorType != VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+                && source.descriptorType != VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
                 || source.descriptorCount != 1
                 || source.dstArrayElement != 0 || !layout_binding
                 || layout_binding->descriptor_type != source.descriptorType
@@ -3715,18 +3702,16 @@ static VkResult impl_create_descriptor_update_template(VkDevice device,
         impl->entries.push_back(entry);
     }
 
-    *descriptor_update_template =
-        make_handle<VkDescriptorUpdateTemplate>(g_descriptor_update_templates, impl);
+    *descriptor_update_template = make_handle<VkDescriptorUpdateTemplate>(g_descriptor_update_templates, impl);
     return VK_SUCCESS;
 }
 
 static void impl_destroy_descriptor_update_template(VkDevice device,
-                                                     VkDescriptorUpdateTemplate descriptor_update_template,
-                                                     const VkAllocationCallbacks* allocator)
+        VkDescriptorUpdateTemplate descriptor_update_template,
+        const VkAllocationCallbacks* allocator)
 {
     Device* device_impl = unwrap(device);
-    std::shared_ptr<DescriptorUpdateTemplate> impl =
-        get_handle(g_descriptor_update_templates, descriptor_update_template);
+    std::shared_ptr<DescriptorUpdateTemplate> impl = get_handle(g_descriptor_update_templates, descriptor_update_template);
     if (!device_impl || !impl || impl->owner != device_impl)
         return;
     if (allocator)
@@ -3768,12 +3753,14 @@ static void release_device_objects(Device* device)
 
     size_t object_count = 0;
 
-    std::vector<std::shared_ptr<Fence> > fences =
-        g_fences.take_if([&](const std::shared_ptr<Fence>& value) { return value->owner == device; });
+    std::vector<std::shared_ptr<Fence> > fences = g_fences.take_if([&](const std::shared_ptr<Fence>& value) {
+        return value->owner == device;
+    });
     object_count += fences.size();
 
-    std::vector<std::shared_ptr<CommandPool> > command_pools =
-        g_command_pools.take_if([&](const std::shared_ptr<CommandPool>& value) { return value->owner == device; });
+    std::vector<std::shared_ptr<CommandPool> > command_pools = g_command_pools.take_if([&](const std::shared_ptr<CommandPool>& value) {
+        return value->owner == device;
+    });
     object_count += command_pools.size();
     for (size_t i = 0; i < command_pools.size(); i++)
     {
@@ -3788,31 +3775,39 @@ static void release_device_objects(Device* device)
             delete command_buffers[j];
     }
 
-    std::vector<std::shared_ptr<PipelineCache> > pipeline_caches =
-        g_pipeline_caches.take_if([&](const std::shared_ptr<PipelineCache>& value) { return value->owner == device; });
+    std::vector<std::shared_ptr<PipelineCache> > pipeline_caches = g_pipeline_caches.take_if([&](const std::shared_ptr<PipelineCache>& value) {
+        return value->owner == device;
+    });
     object_count += pipeline_caches.size();
-    std::vector<std::shared_ptr<ComputePipeline> > compute_pipelines =
-        g_compute_pipelines.take_if([&](const std::shared_ptr<ComputePipeline>& value) { return value->owner == device; });
+    std::vector<std::shared_ptr<ComputePipeline> > compute_pipelines = g_compute_pipelines.take_if([&](const std::shared_ptr<ComputePipeline>& value) {
+        return value->owner == device;
+    });
     object_count += compute_pipelines.size();
-    std::vector<std::shared_ptr<DescriptorUpdateTemplate> > descriptor_update_templates =
-        g_descriptor_update_templates.take_if(
-            [&](const std::shared_ptr<DescriptorUpdateTemplate>& value) { return value->owner == device; });
+    std::vector<std::shared_ptr<DescriptorUpdateTemplate> > descriptor_update_templates = g_descriptor_update_templates.take_if(
+    [&](const std::shared_ptr<DescriptorUpdateTemplate>& value) {
+        return value->owner == device;
+    });
     object_count += descriptor_update_templates.size();
-    std::vector<std::shared_ptr<ShaderModule> > shader_modules =
-        g_shader_modules.take_if([&](const std::shared_ptr<ShaderModule>& value) { return value->owner == device; });
+    std::vector<std::shared_ptr<ShaderModule> > shader_modules = g_shader_modules.take_if([&](const std::shared_ptr<ShaderModule>& value) {
+        return value->owner == device;
+    });
     object_count += shader_modules.size();
-    std::vector<std::shared_ptr<PipelineLayout> > pipeline_layouts =
-        g_pipeline_layouts.take_if([&](const std::shared_ptr<PipelineLayout>& value) { return value->owner == device; });
+    std::vector<std::shared_ptr<PipelineLayout> > pipeline_layouts = g_pipeline_layouts.take_if([&](const std::shared_ptr<PipelineLayout>& value) {
+        return value->owner == device;
+    });
     object_count += pipeline_layouts.size();
-    std::vector<std::shared_ptr<DescriptorSetLayout> > descriptor_set_layouts =
-        g_descriptor_set_layouts.take_if(
-            [&](const std::shared_ptr<DescriptorSetLayout>& value) { return value->owner == device; });
+    std::vector<std::shared_ptr<DescriptorSetLayout> > descriptor_set_layouts = g_descriptor_set_layouts.take_if(
+    [&](const std::shared_ptr<DescriptorSetLayout>& value) {
+        return value->owner == device;
+    });
     object_count += descriptor_set_layouts.size();
-    std::vector<std::shared_ptr<Buffer> > buffers =
-        g_buffers.take_if([&](const std::shared_ptr<Buffer>& value) { return value->owner == device; });
+    std::vector<std::shared_ptr<Buffer> > buffers = g_buffers.take_if([&](const std::shared_ptr<Buffer>& value) {
+        return value->owner == device;
+    });
     object_count += buffers.size();
-    std::vector<std::shared_ptr<DeviceMemory> > memories =
-        g_memories.take_if([&](const std::shared_ptr<DeviceMemory>& value) { return value->owner == device; });
+    std::vector<std::shared_ptr<DeviceMemory> > memories = g_memories.take_if([&](const std::shared_ptr<DeviceMemory>& value) {
+        return value->owner == device;
+    });
     object_count += memories.size();
 
     if (object_count != 0)
@@ -3821,7 +3816,7 @@ static void release_device_objects(Device* device)
 }
 
 static VkResult impl_create_command_pool(VkDevice device, const VkCommandPoolCreateInfo* create_info,
-                                         const VkAllocationCallbacks* allocator, VkCommandPool* command_pool)
+        const VkAllocationCallbacks* allocator, VkCommandPool* command_pool)
 {
     Device* device_impl = unwrap(device);
     if (!device_impl || !create_info || create_info->sType != VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO || !command_pool)
@@ -3835,8 +3830,7 @@ static VkResult impl_create_command_pool(VkDevice device, const VkCommandPoolCre
     if (create_info->queueFamilyIndex != 0)
         return VK_ERROR_INITIALIZATION_FAILED;
 
-    const VkCommandPoolCreateFlags supported_flags =
-        VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    const VkCommandPoolCreateFlags supported_flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     if ((create_info->flags & ~supported_flags) != 0)
         return VK_ERROR_FEATURE_NOT_PRESENT;
 
@@ -3884,7 +3878,7 @@ static void impl_destroy_command_pool(VkDevice device, VkCommandPool command_poo
 }
 
 static VkResult impl_allocate_command_buffers(VkDevice device, const VkCommandBufferAllocateInfo* allocate_info,
-                                              VkCommandBuffer* command_buffers)
+        VkCommandBuffer* command_buffers)
 {
     Device* device_impl = unwrap(device);
     if (!device_impl || !allocate_info || allocate_info->sType != VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
@@ -4077,13 +4071,14 @@ static int update_descriptor(CommandBuffer* command_buffer, const DescriptorSetL
 
     const bool uniform = descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     const VkBufferUsageFlags required_usage = uniform
-                                               ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-                                               : VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+            ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+            : VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
     if ((buffer->usage & required_usage) == 0)
         return -1;
 
     const uint64_t range = buffer_info->range == VK_WHOLE_SIZE
-                           ? buffer->size - buffer_info->offset : buffer_info->range;
+                           ? buffer->size - buffer_info->offset
+                           : buffer_info->range;
     const uint64_t max_binding_size = uniform
                                       ? command_buffer->owner->limits.maxUniformBufferBindingSize
                                       : command_buffer->owner->limits.maxStorageBufferBindingSize;
@@ -4104,13 +4099,12 @@ static int update_descriptor(CommandBuffer* command_buffer, const DescriptorSetL
 }
 
 static void impl_cmd_push_descriptor_set_with_template(VkCommandBuffer command_buffer,
-                                                        VkDescriptorUpdateTemplate descriptor_update_template,
-                                                        VkPipelineLayout pipeline_layout, uint32_t set,
-                                                        const void* data)
+        VkDescriptorUpdateTemplate descriptor_update_template,
+        VkPipelineLayout pipeline_layout, uint32_t set,
+        const void* data)
 {
     CommandBuffer* impl = unwrap(command_buffer);
-    std::shared_ptr<DescriptorUpdateTemplate> template_impl =
-        get_handle(g_descriptor_update_templates, descriptor_update_template);
+    std::shared_ptr<DescriptorUpdateTemplate> template_impl = get_handle(g_descriptor_update_templates, descriptor_update_template);
     std::shared_ptr<PipelineLayout> layout_impl = get_handle(g_pipeline_layouts, pipeline_layout);
     if (!impl || impl->state != COMMAND_BUFFER_RECORDING || !template_impl || !layout_impl
             || (!data && !template_impl->entries.empty())
@@ -4136,7 +4130,8 @@ static void impl_cmd_push_descriptor_set_with_template(VkCommandBuffer command_b
         VkDescriptorBufferInfo buffer_info;
         memcpy(&buffer_info, bytes + entry.offset, sizeof(buffer_info));
         if (update_descriptor(impl, *template_impl->set_layout,
-                              entry.binding, entry.descriptor_type, &buffer_info) != 0)
+                              entry.binding, entry.descriptor_type, &buffer_info)
+                != 0)
         {
             set_command_error(impl, VK_ERROR_INITIALIZATION_FAILED, "push descriptor template value");
             return;
@@ -4145,8 +4140,8 @@ static void impl_cmd_push_descriptor_set_with_template(VkCommandBuffer command_b
 }
 
 static void impl_cmd_push_descriptor_set(VkCommandBuffer command_buffer, VkPipelineBindPoint pipeline_bind_point,
-                                         VkPipelineLayout pipeline_layout, uint32_t set, uint32_t descriptor_write_count,
-                                         const VkWriteDescriptorSet* descriptor_writes)
+        VkPipelineLayout pipeline_layout, uint32_t set, uint32_t descriptor_write_count,
+        const VkWriteDescriptorSet* descriptor_writes)
 {
     CommandBuffer* impl = unwrap(command_buffer);
     std::shared_ptr<PipelineLayout> layout_impl = get_handle(g_pipeline_layouts, pipeline_layout);
@@ -4172,7 +4167,8 @@ static void impl_cmd_push_descriptor_set(VkCommandBuffer command_buffer, VkPipel
         if (write.sType != VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET || write.pNext
                 || write.descriptorCount != 1 || write.dstArrayElement != 0
                 || update_descriptor(impl, *layout_impl->set_layouts[0],
-                                     write.dstBinding, write.descriptorType, write.pBufferInfo) != 0)
+                                     write.dstBinding, write.descriptorType, write.pBufferInfo)
+                != 0)
         {
             set_command_error(impl, VK_ERROR_FEATURE_NOT_PRESENT, "push descriptor set value");
             return;
@@ -4181,8 +4177,8 @@ static void impl_cmd_push_descriptor_set(VkCommandBuffer command_buffer, VkPipel
 }
 
 static bool pipeline_layout_supports_push_constant_range(const PipelineLayout& layout,
-                                                         VkShaderStageFlags stage_flags,
-                                                         uint32_t offset, uint32_t size)
+        VkShaderStageFlags stage_flags,
+        uint32_t offset, uint32_t size)
 {
     if (stage_flags != VK_SHADER_STAGE_COMPUTE_BIT || size == 0)
         return false;
@@ -4239,8 +4235,7 @@ static void impl_cmd_push_constants(VkCommandBuffer command_buffer, VkPipelineLa
 static int resolve_dispatch_binding(CommandBuffer& command_buffer, const ActiveBinding& active,
                                     ResolvedBinding& resolved)
 {
-    std::unordered_map<uint32_t, DescriptorValue>::const_iterator it =
-        command_buffer.descriptors.find(active.binding);
+    std::unordered_map<uint32_t, DescriptorValue>::const_iterator it = command_buffer.descriptors.find(active.binding);
     if (it == command_buffer.descriptors.end())
         return -1;
     if (it->second.descriptor_type != active.descriptor_type)
@@ -4411,23 +4406,21 @@ static void impl_cmd_pipeline_barrier(VkCommandBuffer command_buffer,
                                       uint32_t image_memory_barrier_count, const VkImageMemoryBarrier*)
 {
     CommandBuffer* impl = unwrap(command_buffer);
-    const VkPipelineStageFlags supported_stages =
-        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
-        | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
-        | VK_PIPELINE_STAGE_TRANSFER_BIT
-        | VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
-        | VK_PIPELINE_STAGE_HOST_BIT
-        | VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-    const VkAccessFlags supported_access =
-        VK_ACCESS_UNIFORM_READ_BIT
-        | VK_ACCESS_SHADER_READ_BIT
-        | VK_ACCESS_SHADER_WRITE_BIT
-        | VK_ACCESS_TRANSFER_READ_BIT
-        | VK_ACCESS_TRANSFER_WRITE_BIT
-        | VK_ACCESS_HOST_READ_BIT
-        | VK_ACCESS_HOST_WRITE_BIT
-        | VK_ACCESS_MEMORY_READ_BIT
-        | VK_ACCESS_MEMORY_WRITE_BIT;
+    const VkPipelineStageFlags supported_stages = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
+            | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+            | VK_PIPELINE_STAGE_TRANSFER_BIT
+            | VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
+            | VK_PIPELINE_STAGE_HOST_BIT
+            | VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    const VkAccessFlags supported_access = VK_ACCESS_UNIFORM_READ_BIT
+                                           | VK_ACCESS_SHADER_READ_BIT
+                                           | VK_ACCESS_SHADER_WRITE_BIT
+                                           | VK_ACCESS_TRANSFER_READ_BIT
+                                           | VK_ACCESS_TRANSFER_WRITE_BIT
+                                           | VK_ACCESS_HOST_READ_BIT
+                                           | VK_ACCESS_HOST_WRITE_BIT
+                                           | VK_ACCESS_MEMORY_READ_BIT
+                                           | VK_ACCESS_MEMORY_WRITE_BIT;
     if (!impl || impl->state != COMMAND_BUFFER_RECORDING
             || src_stage_mask == 0 || dst_stage_mask == 0
             || (src_stage_mask & ~supported_stages) != 0
@@ -4472,10 +4465,9 @@ static void impl_cmd_pipeline_barrier(VkCommandBuffer command_buffer,
             return;
         }
 
-        const uint64_t size =
-            barrier.size == VK_WHOLE_SIZE
-            ? buffer->size - std::min<uint64_t>(barrier.offset, buffer->size)
-            : barrier.size;
+        const uint64_t size = barrier.size == VK_WHOLE_SIZE
+                              ? buffer->size - std::min<uint64_t>(barrier.offset, buffer->size)
+                              : barrier.size;
         uint64_t end = 0;
         if (size == 0 || !checked_add(barrier.offset, size, end) || end > buffer->size)
         {
@@ -4550,8 +4542,7 @@ static bool compute_pass_compatible(const ReplayState& replay,
     for (size_t i = 0; i < buffers.size(); i++)
     {
         const uint64_t buffer_id = handle_to_id(buffers[i]);
-        std::unordered_map<uint64_t, BufferAccess>::const_iterator it =
-            replay.compute_pass_buffer_access.find(buffer_id);
+        std::unordered_map<uint64_t, BufferAccess>::const_iterator it = replay.compute_pass_buffer_access.find(buffer_id);
         if (it != replay.compute_pass_buffer_access.end() && it->second != bindings[i].layout_access)
             return false;
     }
@@ -4651,7 +4642,8 @@ static int encode_dispatch(Device* device, ReplayState& replay, const Command& c
         descriptor.size = copy_size;
         descriptor.usage = WGPUBufferUsage_CopyDst
                            | (bindings[i].descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
-                              ? WGPUBufferUsage_Uniform : WGPUBufferUsage_Storage);
+                              ? WGPUBufferUsage_Uniform
+                              : WGPUBufferUsage_Storage);
         WGPUBuffer temporary = wgpuDeviceCreateBuffer(device->device, &descriptor);
         if (!temporary)
             return -1;
@@ -4761,9 +4753,9 @@ static int encode_command_buffer(Device* device, ReplayState& replay,
                 if (command.bindings[j].access == BUFFER_ACCESS_READ_WRITE
                         && !command.bindings[j].memory->host_shadow.empty()
                         && !append_memory_transfer_range(readback_ranges,
-                                                         command.bindings[j].memory,
-                                                         command.bindings[j].offset,
-                                                         command.bindings[j].size))
+                                command.bindings[j].memory,
+                                command.bindings[j].offset,
+                                command.bindings[j].size))
                     return -1;
             }
         }
@@ -4815,9 +4807,9 @@ static int encode_command_buffer(Device* device, ReplayState& replay,
                     if (!checked_add(command.dst_buffer->memory_offset,
                                      command.copy_regions[j].dst_offset, dst_offset)
                             || !append_memory_transfer_range(readback_ranges,
-                                                             command.dst_buffer->memory,
-                                                             dst_offset,
-                                                             command.copy_regions[j].size))
+                                    command.dst_buffer->memory,
+                                    dst_offset,
+                                    command.copy_regions[j].size))
                         return -1;
                 }
             }
@@ -4885,9 +4877,9 @@ static VkResult finish_submission(const std::shared_ptr<Submission>& submission,
             command_buffer.pending_count--;
         if (command_buffer.pending_count == 0)
         {
-            command_buffer.state =
-                (command_buffer.usage_flags & VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT)
-                ? COMMAND_BUFFER_INVALID : COMMAND_BUFFER_EXECUTABLE;
+            command_buffer.state = (command_buffer.usage_flags & VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT)
+                                   ? COMMAND_BUFFER_INVALID
+                                   : COMMAND_BUFFER_EXECUTABLE;
         }
     }
 
@@ -4909,10 +4901,10 @@ static VkResult finish_submission(const std::shared_ptr<Submission>& submission,
         submissions.erase(
             std::remove_if(
                 submissions.begin(), submissions.end(),
-                [&](const std::shared_ptr<Submission>& value) {
-                    return value.get() == submission.get();
-                }),
-            submissions.end());
+        [&](const std::shared_ptr<Submission>& value) {
+            return value.get() == submission.get();
+        }),
+        submissions.end());
     }
 
     return result;
@@ -4951,10 +4943,10 @@ static VkResult abandon_submission(const std::shared_ptr<Submission>& submission
         submissions.erase(
             std::remove_if(
                 submissions.begin(), submissions.end(),
-                [&](const std::shared_ptr<Submission>& value) {
-                    return value.get() == submission.get();
-                }),
-            submissions.end());
+        [&](const std::shared_ptr<Submission>& value) {
+            return value.get() == submission.get();
+        }),
+        submissions.end());
 
         // A failed WaitAny does not prove that WebGPU has stopped using the
         // recorded resources. Keep them alive until the device is destroyed.
@@ -4975,7 +4967,7 @@ static VkResult process_submission(const std::shared_ptr<Submission>& submission
     if (!submission->completed)
     {
         const int wait_result = wait_future(
-            submission->owner->instance.get(), submission->future, timeout, "queue-completion");
+                                    submission->owner->instance.get(), submission->future, timeout, "queue-completion");
         if (wait_result == 1)
             return VK_TIMEOUT;
         if (wait_result != 0)
@@ -4999,14 +4991,12 @@ static VkResult process_submission(const std::shared_ptr<Submission>& submission
         if (!readback.map_started)
         {
             readback.map_result = std::make_shared<MapResult>();
-            std::shared_ptr<MapResult>* callback_context =
-                new std::shared_ptr<MapResult>(readback.map_result);
+            std::shared_ptr<MapResult>* callback_context = new std::shared_ptr<MapResult>(readback.map_result);
             WGPUBufferMapCallbackInfo callback_info = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
             callback_info.mode = WGPUCallbackMode_WaitAnyOnly;
             callback_info.callback = map_callback;
             callback_info.userdata1 = callback_context;
-            readback.future =
-                wgpuBufferMapAsync(readback.buffer, WGPUMapMode_Read, 0, readback.size, callback_info);
+            readback.future = wgpuBufferMapAsync(readback.buffer, WGPUMapMode_Read, 0, readback.size, callback_info);
             if (readback.future.id == 0)
             {
                 delete callback_context;
@@ -5019,8 +5009,7 @@ static VkResult process_submission(const std::shared_ptr<Submission>& submission
         if (!readback.map_result->completed)
         {
             const uint64_t remaining = remaining_timeout_ns(wait_begin, timeout);
-            const int wait_result =
-                wait_future(submission->owner->instance.get(), readback.future, remaining, "readback-map");
+            const int wait_result = wait_future(submission->owner->instance.get(), readback.future, remaining, "readback-map");
             if (wait_result == 1)
                 return VK_TIMEOUT;
             if (wait_result != 0)
@@ -5139,8 +5128,7 @@ static VkResult impl_queue_submit(VkQueue queue, uint32_t submit_count, const Vk
     std::vector<std::shared_ptr<CommandBuffer> > command_buffers;
     std::unordered_set<CommandBuffer*> unique_command_buffers;
     std::vector<unsigned char> push_uniform_data;
-    const uint64_t push_uniform_alignment =
-        std::max<uint64_t>(4, device->limits.minUniformBufferOffsetAlignment);
+    const uint64_t push_uniform_alignment = std::max<uint64_t>(4, device->limits.minUniformBufferOffsetAlignment);
     for (uint32_t i = 0; i < submit_count; i++)
     {
         if (submits[i].sType != VK_STRUCTURE_TYPE_SUBMIT_INFO || submits[i].pNext
@@ -5600,7 +5588,8 @@ static VkResult impl_wait_for_fences(VkDevice device, uint32_t fence_count, cons
 
             WGPUWaitStatus status;
             if (wait_any(device_impl->instance.get(), wait_infos.size(), wait_infos.data(),
-                         remaining, "fence-wait-any", status) != 0)
+                         remaining, "fence-wait-any", status)
+                    != 0)
             {
                 device_impl->lost = true;
                 for (size_t i = 0; i < fence_impls.size(); i++)
@@ -5656,7 +5645,7 @@ static VkResult impl_wait_for_fences(VkDevice device, uint32_t fence_count, cons
 // pipeline cache is an in-memory no-op object in the first phase
 
 static VkResult impl_create_pipeline_cache(VkDevice device, const VkPipelineCacheCreateInfo* create_info,
-                                           const VkAllocationCallbacks* allocator, VkPipelineCache* pipeline_cache)
+        const VkAllocationCallbacks* allocator, VkPipelineCache* pipeline_cache)
 {
     Device* device_impl = unwrap(device);
     if (!device_impl || !create_info || create_info->sType != VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO || !pipeline_cache)
@@ -5703,7 +5692,7 @@ static VkResult impl_get_pipeline_cache_data(VkDevice device, VkPipelineCache pi
 }
 
 static VkResult impl_merge_pipeline_caches(VkDevice device, VkPipelineCache dst_cache,
-                                           uint32_t src_cache_count, const VkPipelineCache* src_caches)
+        uint32_t src_cache_count, const VkPipelineCache* src_caches)
 {
     Device* device_impl = unwrap(device);
     std::shared_ptr<PipelineCache> dst = get_handle(g_pipeline_caches, dst_cache);
