@@ -1080,6 +1080,9 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             std::vector<ncnn::VkMat> ax_gpu(a.size());
             for (size_t i = 0; i < a_gpu.size(); i++)
             {
+                if (a[i].empty())
+                    continue;
+
                 int elemcount = 0;
                 {
                     int dims = a[i].dims;

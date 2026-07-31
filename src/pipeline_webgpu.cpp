@@ -338,6 +338,8 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
     const int ret = vkdev->get_pipeline_cache()->get_pipeline(shader_type_index, opt, specializations,
                     d->local_size_x, d->local_size_y, d->local_size_z,
                     &d->bundle);
+    if (ret != 0)
+        NCNN_LOGE("WebGPU pipeline creation failed shader=%d", shader_type_index);
     return finish_webgpu_sync_operation(operation_id, ret);
 }
 

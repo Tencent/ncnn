@@ -58,6 +58,13 @@ int Convolution_vulkan::load_param(const ParamDict& pd)
     }
 
 #if NCNN_INT8
+#if NCNN_WEBGPU
+    if (int8_scale_term)
+    {
+        support_vulkan = false;
+    }
+#endif // NCNN_WEBGPU
+
     if (int8_scale_term && pad_value != 0.f)
     {
         NCNN_LOGE("Convolution_vulkan int8 nonzero pad value is not supported");

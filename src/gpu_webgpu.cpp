@@ -605,7 +605,7 @@ bool GpuInfo::support_fp16_arithmetic() const
 }
 bool GpuInfo::support_int8_packed() const
 {
-    return true;
+    return false;
 }
 bool GpuInfo::support_int8_storage() const
 {
@@ -954,7 +954,7 @@ public:
     PipelineCache* pipeline_cache;
     VkAllocator* dummy_allocators[8];
     VkMat dummy_buffers[8];
-    mutable Layer* uop_packing[2][2][2];
+    mutable Layer* uop_packing[4][4][2];
 };
 
 VulkanDevice::VulkanDevice(int device_index)
@@ -1092,8 +1092,8 @@ void VulkanDevicePrivate::destroy_dummy_buffers()
 
 const Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const
 {
-    if (cast_type_from_index < 0 || cast_type_from_index >= 2
-            || cast_type_to_index < 0 || cast_type_to_index >= 2
+    if ((cast_type_from_index != 0 && cast_type_from_index != 1 && cast_type_from_index != 3)
+            || (cast_type_to_index != 0 && cast_type_to_index != 1 && cast_type_to_index != 3)
             || packing_type_to_index < 0 || packing_type_to_index >= 2)
         return 0;
 
@@ -1102,12 +1102,13 @@ const Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_index,
         return cached_uop;
 
     const bool use_fp16 = cast_type_from_index == 1 || cast_type_to_index == 1;
+    const bool use_int8 = cast_type_from_index == 3 || cast_type_to_index == 3;
     Option opt;
     opt.use_fp16_packed = use_fp16;
     opt.use_fp16_storage = false;
     opt.use_fp16_uniform = false;
     opt.use_fp16_arithmetic = false;
-    opt.use_int8_packed = false;
+    opt.use_int8_packed = use_int8;
     opt.use_int8_storage = false;
     opt.use_int8_uniform = false;
     opt.use_int8_arithmetic = false;
@@ -1148,9 +1149,9 @@ void VulkanDevicePrivate::destroy_utility_operator()
     opt.pipeline_cache = 0;
     opt.vulkan_device_index = vkdev->info.device_index();
 
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 4; i++)
     {
-        for (int j = 0; j < 2; j++)
+        for (int j = 0; j < 4; j++)
         {
             for (int k = 0; k < 2; k++)
             {
@@ -1174,9 +1175,18 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
 void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, int cast_type_to, VkCompute& cmd, const Option& opt) const
 {
     const int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : -1;
-    const int cast_type_from_index = src.elembits() == 32 ? 0 : src.elembits() == 16 ? 1 : -1;
+    int cast_type_from_index = -1;
+    if (src.elembits() == 32)
+        cast_type_from_index = 0;
+    if (src.elembits() == 16)
+        cast_type_from_index = 1;
+    if (src.elembits() == 8)
+        cast_type_from_index = 3;
     const int cast_type_to_index = cast_type_to ? cast_type_to - 1 : cast_type_from_index;
-    if (packing_type_to_index < 0 || cast_type_from_index < 0 || cast_type_to_index < 0 || cast_type_to_index >= 2)
+    if (packing_type_to_index < 0
+            || (cast_type_from_index != 0 && cast_type_from_index != 1 && cast_type_from_index != 3)
+            || (cast_type_to_index != 0 && cast_type_to_index != 1 && cast_type_to_index != 3)
+            || ((cast_type_from_index == 3) != (cast_type_to_index == 3)))
     {
         NCNN_LOGE("WebGPU convert_packing unsupported elembits=%d out_elempack=%d cast_type_to=%d", src.elembits(), dst_elempack, cast_type_to);
         return;
@@ -1187,7 +1197,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
     opt2.use_fp16_storage = false;
     opt2.use_fp16_uniform = false;
     opt2.use_fp16_arithmetic = false;
-    opt2.use_int8_packed = false;
+    opt2.use_int8_packed = cast_type_from_index == 3 || cast_type_to_index == 3;
     opt2.use_int8_storage = false;
     opt2.use_int8_uniform = false;
     opt2.use_int8_arithmetic = false;
@@ -2507,9 +2517,15 @@ static int translate_webgpu_shader(const WebGpuShaderCompileOptions& options, We
 
     const layer_shader_registry_entry& shader_entry = layer_shader_registry[options.shader_type];
     if (compile_glsl_to_spirv(shader_entry.comp_data, shader_entry.comp_data_size, preamble, translated.spirv) != 0)
+    {
+        NCNN_LOGE("WebGPU shader translation failed type=%d stage=glslang", options.shader_type);
         return -1;
+    }
     if (convert_spirv_to_wgsl(translated.spirv, translated.wgsl, translated.shader_info) != 0)
+    {
+        NCNN_LOGE("WebGPU shader translation failed type=%d stage=spirv-to-wgsl", options.shader_type);
         return -1;
+    }
 
     translated.compile_key.shader_type = options.shader_type;
     translated.compile_key.option_bits = get_webgpu_shader_option_bits(*options.opt);

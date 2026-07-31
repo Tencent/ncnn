@@ -22,9 +22,6 @@ static inline signed char float2int8(float v)
 Gemm_vulkan::Gemm_vulkan()
 {
     support_vulkan = true;
-#if NCNN_WEBGPU
-    support_vulkan = false;
-#endif // NCNN_WEBGPU
     support_vulkan_packing = true;
     support_vulkan_any_packing = true;
 
@@ -835,11 +832,21 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     if (use_cooperative_matrix)
     {
         std::vector<VkMat> bindings(5);
+#if NCNN_WEBGPU
+        bindings[0] = out_elempack == 1 ? top_blob : VkMat();
+#endif // NCNN_WEBGPU
+#if NCNN_VULKAN
         bindings[0] = top_blob;
+#endif // NCNN_VULKAN
         bindings[1] = A;
         bindings[2] = B;
         bindings[3] = C;
+#if NCNN_WEBGPU
+        bindings[4] = out_elempack == 4 ? top_blob : VkMat();
+#endif // NCNN_WEBGPU
+#if NCNN_VULKAN
         bindings[4] = top_blob;
+#endif // NCNN_VULKAN
 
         std::vector<vk_constant_type> constants(13);
         constants[0].i = M;
@@ -869,11 +876,21 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     else
     {
         std::vector<VkMat> bindings(5);
+#if NCNN_WEBGPU
+        bindings[0] = out_elempack == 1 ? top_blob : VkMat();
+#endif // NCNN_WEBGPU
+#if NCNN_VULKAN
         bindings[0] = top_blob;
+#endif // NCNN_VULKAN
         bindings[1] = A;
         bindings[2] = B;
         bindings[3] = C;
+#if NCNN_WEBGPU
+        bindings[4] = out_elempack == 4 ? top_blob : VkMat();
+#endif // NCNN_WEBGPU
+#if NCNN_VULKAN
         bindings[4] = top_blob;
+#endif // NCNN_VULKAN
 
         std::vector<vk_constant_type> constants(13);
         constants[0].i = M;
@@ -1842,11 +1859,21 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
     if (use_cooperative_matrix)
     {
         std::vector<VkMat> bindings(7);
+#if NCNN_WEBGPU
+        bindings[0] = out_elempack == 1 ? top_blob : VkMat();
+#endif // NCNN_WEBGPU
+#if NCNN_VULKAN
         bindings[0] = top_blob;
+#endif // NCNN_VULKAN
         bindings[1] = A_int8;
         bindings[2] = B_int8;
         bindings[3] = C;
+#if NCNN_WEBGPU
+        bindings[4] = out_elempack == 4 ? top_blob : VkMat();
+#endif // NCNN_WEBGPU
+#if NCNN_VULKAN
         bindings[4] = top_blob;
+#endif // NCNN_VULKAN
         bindings[5] = A_int8_descales;
         bindings[6] = B_int8_descale;
 
@@ -1871,11 +1898,21 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
     else
     {
         std::vector<VkMat> bindings(7);
+#if NCNN_WEBGPU
+        bindings[0] = out_elempack == 1 ? top_blob : VkMat();
+#endif // NCNN_WEBGPU
+#if NCNN_VULKAN
         bindings[0] = top_blob;
+#endif // NCNN_VULKAN
         bindings[1] = A_int8;
         bindings[2] = B_int8;
         bindings[3] = C;
+#if NCNN_WEBGPU
+        bindings[4] = out_elempack == 4 ? top_blob : VkMat();
+#endif // NCNN_WEBGPU
+#if NCNN_VULKAN
         bindings[4] = top_blob;
+#endif // NCNN_VULKAN
         bindings[5] = A_int8_descales;
         bindings[6] = B_int8_descale;
 

@@ -11,9 +11,6 @@ namespace ncnn {
 PriorBox_vulkan::PriorBox_vulkan()
 {
     support_vulkan = true;
-#if NCNN_WEBGPU
-    support_vulkan = false;
-#endif // NCNN_WEBGPU
     support_vulkan_packing = true;
 
     pipeline_priorbox = 0;

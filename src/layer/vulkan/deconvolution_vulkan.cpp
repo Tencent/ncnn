@@ -11,9 +11,6 @@ namespace ncnn {
 Deconvolution_vulkan::Deconvolution_vulkan()
 {
     support_vulkan = true;
-#if NCNN_WEBGPU
-    support_vulkan = false;
-#endif // NCNN_WEBGPU
     support_vulkan_packing = true;
 
     crop = 0;
@@ -652,10 +649,18 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
                 const int num_input_packed = (num_input + 3) / 4 * 4;
 
                 std::vector<VkMat> bindings(5);
+#if NCNN_WEBGPU
+                bindings[0] = elempack == 1 ? bottom_blob : VkMat();
+                bindings[1] = out_elempack == 1 ? top_blob_col : VkMat();
+                bindings[2] = elempack == 4 ? bottom_blob : VkMat();
+                bindings[3] = out_elempack == 4 ? top_blob_col : VkMat();
+#endif // NCNN_WEBGPU
+#if NCNN_VULKAN
                 bindings[0] = bottom_blob;
                 bindings[1] = top_blob_col;
                 bindings[2] = bottom_blob;
                 bindings[3] = top_blob_col;
+#endif // NCNN_VULKAN
                 bindings[4] = weight_data_gpu;
 
                 std::vector<vk_constant_type> constants(7);
@@ -723,10 +728,18 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             return -100;
 
         std::vector<VkMat> bindings(6);
+#if NCNN_WEBGPU
+        bindings[0] = elempack == 1 ? bottom_blob : VkMat();
+        bindings[1] = out_elempack == 1 ? top_blob_bordered : VkMat();
+        bindings[2] = elempack == 4 ? bottom_blob : VkMat();
+        bindings[3] = out_elempack == 4 ? top_blob_bordered : VkMat();
+#endif // NCNN_WEBGPU
+#if NCNN_VULKAN
         bindings[0] = bottom_blob;
         bindings[1] = top_blob_bordered;
         bindings[2] = bottom_blob;
         bindings[3] = top_blob_bordered;
+#endif // NCNN_VULKAN
         bindings[4] = weight_data_gpu;
         bindings[5] = bias_data_gpu;
 

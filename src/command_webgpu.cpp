@@ -75,10 +75,14 @@ VkCompute::~VkCompute()
     delete d;
 }
 
-static void set_webgpu_record_error(VkComputePrivate* d)
+static void set_webgpu_record_error(VkComputePrivate* d, const char* reason = 0)
 {
     if (d->record_error == 0)
+    {
+        if (reason)
+            NCNN_LOGE("WebGPU command record failed %s", reason);
         d->record_error = -1;
+    }
 }
 
 static int acquire_webgpu_allocation(std::vector<WebGpuAllocationReference>& references, const VkMat& mat)
@@ -205,22 +209,27 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 {
     if (d->record_error != 0)
         return;
-    if (src.empty() || !opt.blob_allocator || ensure_webgpu_command_encoder(vkdev, d) != 0)
+    if (src.empty())
     {
-        set_webgpu_record_error(d);
+        set_webgpu_record_error(d, "record-download empty source");
+        return;
+    }
+    if (ensure_webgpu_command_encoder(vkdev, d) != 0)
+    {
+        set_webgpu_record_error(d, "record-download command encoder");
         return;
     }
 
     if (src.data->host_shadow_dirty && src.allocator->flush(src.data) != 0)
     {
-        set_webgpu_record_error(d);
+        set_webgpu_record_error(d, "record-download source flush");
         return;
     }
 
     dst.create_like(src, opt.blob_allocator);
     if (dst.empty())
     {
-        set_webgpu_record_error(d);
+        set_webgpu_record_error(d, "record-download destination allocation");
         return;
     }
 
@@ -232,7 +241,7 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
     WGPUBuffer readback_buffer = wgpuDeviceCreateBuffer(vkdev->wgpu_device(), &descriptor);
     if (!readback_buffer)
     {
-        set_webgpu_record_error(d);
+        set_webgpu_record_error(d, "record-download readback buffer allocation");
         return;
     }
 
@@ -243,7 +252,7 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
     readback.size = size;
     d->readbacks.push_back(readback);
     if (acquire_webgpu_allocation(d->allocation_references, src) != 0)
-        set_webgpu_record_error(d);
+        set_webgpu_record_error(d, "record-download source in-flight reference");
 }
 
 void VkCompute::record_clone(const Mat& src, VkMat& dst, const Option& opt)
@@ -272,20 +281,20 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
         return;
     if (src.empty() || !opt.blob_vkallocator || ensure_webgpu_command_encoder(vkdev, d) != 0)
     {
-        set_webgpu_record_error(d);
+        set_webgpu_record_error(d, "record-clone invalid source, allocator, or command encoder");
         return;
     }
 
     if (src.data->host_shadow_dirty && src.allocator->flush(src.data) != 0)
     {
-        set_webgpu_record_error(d);
+        set_webgpu_record_error(d, "record-clone source flush");
         return;
     }
 
     dst.create_like(src, opt.blob_vkallocator);
     if (dst.empty())
     {
-        set_webgpu_record_error(d);
+        set_webgpu_record_error(d, "record-clone destination allocation");
         return;
     }
 
@@ -300,7 +309,7 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
         WGPUBuffer temporary_buffer = wgpuDeviceCreateBuffer(vkdev->wgpu_device(), &descriptor);
         if (!temporary_buffer)
         {
-            set_webgpu_record_error(d);
+            set_webgpu_record_error(d, "record-clone temporary buffer allocation");
             return;
         }
         d->binding_copy_buffers.push_back(temporary_buffer);
@@ -313,7 +322,7 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
     }
     if (acquire_webgpu_allocation(d->allocation_references, src) != 0
             || acquire_webgpu_allocation(d->allocation_references, dst) != 0)
-        set_webgpu_record_error(d);
+        set_webgpu_record_error(d, "record-clone in-flight reference");
 }
 
 void VkCompute::record_clone(const VkImageMat&, VkImageMat&, const Option&)
@@ -339,7 +348,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         return;
     if (!pipeline || !pipeline->webgpu_bundle() || !pipeline->webgpu_bundle()->pipeline)
     {
-        set_webgpu_record_error(d);
+        set_webgpu_record_error(d, "record-pipeline invalid pipeline");
         return;
     }
 
@@ -355,18 +364,18 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
                               : vkdev->get_dummy_buffer(binding_info.binding);
         if (binding.empty())
         {
-            set_webgpu_record_error(d);
+            set_webgpu_record_error(d, "record-pipeline missing binding and dummy buffer");
             return;
         }
         if (binding.data->host_shadow_dirty && binding.allocator->flush(binding.data) != 0)
         {
-            set_webgpu_record_error(d);
+            set_webgpu_record_error(d, "record-pipeline binding flush");
             return;
         }
         if (binding.buffer_offset() % vkdev->info.buffer_offset_alignment() != 0
                 || binding.buffer_capacity() < binding_info.min_binding_size)
         {
-            set_webgpu_record_error(d);
+            set_webgpu_record_error(d, "record-pipeline binding offset or capacity");
             return;
         }
 
@@ -392,18 +401,18 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             const uint64_t b_end = b.offset + b.size;
             if (a_end < a.offset || b_end < b.offset)
             {
-                set_webgpu_record_error(d);
+                set_webgpu_record_error(d, "record-pipeline binding range overflow");
                 return;
             }
 
             const bool overlaps = a.offset < b_end && b.offset < a_end;
-            const bool has_write = shader_info.bindings[i].access == NCNN_WEBGPU_BINDING_READ_WRITE
-                                   || shader_info.bindings[j].access == NCNN_WEBGPU_BINDING_READ_WRITE;
-            if (overlaps && has_write)
+            const bool both_writable = shader_info.bindings[i].access == NCNN_WEBGPU_BINDING_READ_WRITE
+                                       && shader_info.bindings[j].access == NCNN_WEBGPU_BINDING_READ_WRITE;
+            if (overlaps && both_writable)
             {
                 NCNN_LOGE("WebGPU bindings %u and %u overlap writable storage ranges",
                           shader_info.bindings[i].binding, shader_info.bindings[j].binding);
-                set_webgpu_record_error(d);
+                set_webgpu_record_error(d, "record-pipeline writable binding alias");
                 return;
             }
         }
@@ -429,7 +438,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 
         if (ensure_webgpu_command_encoder(vkdev, d) != 0)
         {
-            set_webgpu_record_error(d);
+            set_webgpu_record_error(d, "record-pipeline alias command encoder");
             return;
         }
         end_webgpu_compute_pass(d);
@@ -440,7 +449,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         WGPUBuffer binding_copy_buffer = wgpuDeviceCreateBuffer(vkdev->wgpu_device(), &descriptor);
         if (!binding_copy_buffer)
         {
-            set_webgpu_record_error(d);
+            set_webgpu_record_error(d, "record-pipeline alias snapshot allocation");
             return;
         }
         d->binding_copy_buffers.push_back(binding_copy_buffer);
@@ -452,10 +461,14 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     }
 
     std::vector<unsigned char> packed_immediate;
-    if (pack_webgpu_immediates(shader_info, constants, packed_immediate) != 0
-            || ensure_webgpu_command_encoder(vkdev, d) != 0)
+    if (pack_webgpu_immediates(shader_info, constants, packed_immediate) != 0)
     {
-        set_webgpu_record_error(d);
+        set_webgpu_record_error(d, "record-pipeline immediate packing");
+        return;
+    }
+    if (ensure_webgpu_command_encoder(vkdev, d) != 0)
+    {
+        set_webgpu_record_error(d, "record-pipeline command encoder");
         return;
     }
 
@@ -466,7 +479,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     WGPUBindGroup bind_group = wgpuDeviceCreateBindGroup(vkdev->wgpu_device(), &bind_group_descriptor);
     if (!bind_group)
     {
-        set_webgpu_record_error(d);
+        set_webgpu_record_error(d, "record-pipeline bind group creation");
         return;
     }
 
@@ -478,19 +491,19 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     if (!d->compute_pass)
     {
         wgpuBindGroupRelease(bind_group);
-        set_webgpu_record_error(d);
+        set_webgpu_record_error(d, "record-pipeline compute pass creation");
         return;
     }
 
     const uint32_t group_count_x = (dispatcher.w + pipeline->local_size_x() - 1) / pipeline->local_size_x();
-    const uint32_t group_count_y = (dispatcher.h + pipeline->local_size_y() - 1) / pipeline->local_size_y();
+    const uint32_t group_count_y = (dispatcher.h * (dispatcher.d ? dispatcher.d : 1) + pipeline->local_size_y() - 1) / pipeline->local_size_y();
     const uint32_t group_count_z = (dispatcher.c + pipeline->local_size_z() - 1) / pipeline->local_size_z();
     if (group_count_x > vkdev->info.max_workgroup_count_x()
             || group_count_y > vkdev->info.max_workgroup_count_y()
             || group_count_z > vkdev->info.max_workgroup_count_z())
     {
         wgpuBindGroupRelease(bind_group);
-        set_webgpu_record_error(d);
+        set_webgpu_record_error(d, "record-pipeline dispatch workgroup count");
         return;
     }
 
@@ -506,7 +519,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     {
         if (acquire_webgpu_allocation(d->allocation_references, resolved_bindings[i]) != 0)
         {
-            set_webgpu_record_error(d);
+            set_webgpu_record_error(d, "record-pipeline binding in-flight reference");
             return;
         }
     }

@@ -50,7 +50,7 @@ void main()
     if (gx * 4 >= p.N || gy * 4 >= p.M || gz >= 1)
         return;
 #else
-    if (gz >= 1)
+    if (gl_WorkGroupID.z >= 1)
         return;
 #endif
 

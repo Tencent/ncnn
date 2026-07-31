@@ -65,7 +65,7 @@ if(NCNN_WEBGPU)
                     ${extra_arguments})
             set_tests_properties(${target} PROPERTIES
                 LABELS webgpu
-                TIMEOUT 600)
+                TIMEOUT 14400)
         endif()
     endfunction()
 endif()

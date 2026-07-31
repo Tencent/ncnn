@@ -10,9 +10,6 @@ namespace ncnn {
 Scale_vulkan::Scale_vulkan()
 {
     support_vulkan = true;
-#if NCNN_WEBGPU
-    support_vulkan = false;
-#endif // NCNN_WEBGPU
     support_vulkan_packing = true;
 
     pipeline_scale = 0;

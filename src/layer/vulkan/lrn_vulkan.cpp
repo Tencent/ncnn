@@ -10,9 +10,6 @@ namespace ncnn {
 LRN_vulkan::LRN_vulkan()
 {
     support_vulkan = true;
-#if NCNN_WEBGPU
-    support_vulkan = false;
-#endif // NCNN_WEBGPU
     support_vulkan_packing = true;
 
     pipeline_lrn_square_pad = 0;

@@ -23,8 +23,8 @@ layout(constant_id = shape_constant_id_offset + 1) const int outw = 0;
 layout(binding = 0) readonly buffer bottom_blob { sint8vec4 bottom_blob_int8_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 layout(binding = 2) readonly buffer weight_blob { sint8vec4 weight_data[]; };
-layout(binding = 3) readonly buffer weight_descales_blob { sfpvec4 weight_descales_data[]; };
-layout(binding = 4) readonly buffer bias_blob { sfpvec4 bias_data[]; };
+layout(binding = 3) readonly buffer weight_descales_blob { vec4 weight_descales_data[]; };
+layout(binding = 4) readonly buffer bias_blob { vec4 bias_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -70,13 +70,13 @@ void main()
 #endif
     }
 
-    const vec4 descale = vec4(buffer_ld4(weight_descales_data, gx / 4));
+    const vec4 descale = weight_descales_data[gx / 4];
 
     afpvec4 sumfp32 = afpvec4(vec4(sum) * descale);
 
     if (bias_term == 1)
     {
-        vec4 bias = vec4(buffer_ld4(bias_data, gx / 4));
+        vec4 bias = bias_data[gx / 4];
 
         sumfp32 += afpvec4(bias);
     }

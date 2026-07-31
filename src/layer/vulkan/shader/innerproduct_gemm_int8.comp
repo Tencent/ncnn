@@ -30,8 +30,8 @@ layout(binding = 1) writeonly buffer top_blob_1 { sfp top_blob_data_1[]; };
 layout(binding = 2) readonly buffer bottom_blob_4 { sint8vec4 bottom_blob_int8_data_4[]; };
 layout(binding = 3) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
 layout(binding = 4) readonly buffer weight_blob { sint8vec4 weight_data[]; };
-layout(binding = 5) readonly buffer weight_descales_blob { sfpvec4 weight_descales_data[]; };
-layout(binding = 6) readonly buffer bias_blob { sfpvec4 bias_data[]; };
+layout(binding = 5) readonly buffer weight_descales_blob { vec4 weight_descales_data[]; };
+layout(binding = 6) readonly buffer bias_blob { vec4 bias_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -59,7 +59,7 @@ void main()
     if (gx * 4 >= psc(outw) || gy * 4 >= psc(outh) || gz >= 1)
         return;
 #else
-    if (gz >= 1)
+    if (gl_WorkGroupID.z >= 1)
         return;
 #endif
 
@@ -335,7 +335,7 @@ void main()
     const ivec4 gx4 = gx * 4 + ivec4(0, 1, 2, 3);
     const ivec4 gy4 = gy * 4 + ivec4(0, 1, 2, 3);
 
-    const vec4 descale = vec4(buffer_ld4(weight_descales_data, gx));
+    const vec4 descale = weight_descales_data[gx];
 
     vec4 sumfp0 = vec4(sum0) * descale;
     vec4 sumfp1 = vec4(sum1) * descale;
@@ -344,7 +344,7 @@ void main()
 
     if (bias_term == 1)
     {
-        vec4 bias = vec4(buffer_ld4(bias_data, gx));
+        vec4 bias = bias_data[gx];
 
         sumfp0 += bias;
         sumfp1 += bias;

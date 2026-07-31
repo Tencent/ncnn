@@ -11,9 +11,6 @@ namespace ncnn {
 Convolution1D_vulkan::Convolution1D_vulkan()
 {
     support_vulkan = true;
-#if NCNN_WEBGPU
-    support_vulkan = false;
-#endif // NCNN_WEBGPU
     support_vulkan_packing = true;
 
     padding = 0;
@@ -701,10 +698,18 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
                 return -100;
 
             std::vector<VkMat> bindings(6);
+#if NCNN_WEBGPU
+            bindings[0] = elempack == 1 ? bottom_blob_bordered : VkMat();
+            bindings[1] = out_elempack == 1 ? top_blob : VkMat();
+            bindings[2] = elempack == 4 ? bottom_blob_bordered : VkMat();
+            bindings[3] = out_elempack == 4 ? top_blob : VkMat();
+#endif // NCNN_WEBGPU
+#if NCNN_VULKAN
             bindings[0] = bottom_blob_bordered;
             bindings[1] = top_blob;
             bindings[2] = bottom_blob_bordered;
             bindings[3] = top_blob;
+#endif // NCNN_VULKAN
             bindings[4] = weight_data_gpu;
             bindings[5] = bias_data_gpu;
 
@@ -772,10 +777,18 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             const int outh_pack4 = num_output_packed / 4;
 
             std::vector<VkMat> bindings(6);
+#if NCNN_WEBGPU
+            bindings[0] = elempack == 1 ? bottom_blob_bordered : VkMat();
+            bindings[1] = out_elempack == 1 ? top_blob : VkMat();
+            bindings[2] = elempack == 4 ? bottom_blob_bordered : VkMat();
+            bindings[3] = out_elempack == 4 ? top_blob : VkMat();
+#endif // NCNN_WEBGPU
+#if NCNN_VULKAN
             bindings[0] = bottom_blob_bordered;
             bindings[1] = top_blob;
             bindings[2] = bottom_blob_bordered;
             bindings[3] = top_blob;
+#endif // NCNN_VULKAN
             bindings[4] = weight_data_gpu;
             bindings[5] = bias_data_gpu;
 
@@ -807,10 +820,18 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     const int outh_pack4 = num_output_packed / 4;
 
     std::vector<VkMat> bindings(6);
+#if NCNN_WEBGPU
+    bindings[0] = elempack == 1 ? bottom_blob_bordered : VkMat();
+    bindings[1] = out_elempack == 1 ? top_blob : VkMat();
+    bindings[2] = elempack == 4 ? bottom_blob_bordered : VkMat();
+    bindings[3] = out_elempack == 4 ? top_blob : VkMat();
+#endif // NCNN_WEBGPU
+#if NCNN_VULKAN
     bindings[0] = bottom_blob_bordered;
     bindings[1] = top_blob;
     bindings[2] = bottom_blob_bordered;
     bindings[3] = top_blob;
+#endif // NCNN_VULKAN
     bindings[4] = weight_data_gpu;
     bindings[5] = bias_data_gpu;
 
