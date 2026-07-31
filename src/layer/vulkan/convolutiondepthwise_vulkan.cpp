@@ -41,21 +41,6 @@ int ConvolutionDepthWise_vulkan::load_param(const ParamDict& pd)
     }
 
 #if NCNN_INT8
-#if NCNN_WEBGPU
-    if (int8_scale_term && group > 0 && num_output % group == 0)
-    {
-        const int maxk = kernel_w * kernel_h;
-        const int weight_data_size_g = group * maxk * (num_output / group);
-        const int channels = weight_data_size_g == 0 ? 0 : weight_data_size / weight_data_size_g * group;
-        const bool is_depthwise = channels == group && group == num_output;
-        if (!is_depthwise)
-        {
-            // convolutiondepthwise_group_packed_int8 uses ten storage buffers
-            support_vulkan = false;
-        }
-    }
-#endif // NCNN_WEBGPU
-
     if (int8_scale_term && pad_value != 0.f)
     {
         NCNN_LOGE("ConvolutionDepthWise_vulkan int8 nonzero pad value is not supported");
@@ -640,9 +625,6 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
     }
 
     Option opt_int8 = opt;
-#if NCNN_WEBGPU
-    opt_int8.use_int8_packed = true;
-#endif // NCNN_WEBGPU
     opt_int8.use_fp16_arithmetic = false;
     opt_int8.use_int16_packed = false;
     opt_int8.use_int16_storage = false;
@@ -740,12 +722,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline_int8(const Option& opt)
 
         padding->load_param(pd);
 
-#if NCNN_WEBGPU
-        padding->create_pipeline(opt_int8);
-#endif // NCNN_WEBGPU
-#if NCNN_VULKAN
         padding->create_pipeline(opt);
-#endif // NCNN_VULKAN
     }
 
     if (is_depthwise)
@@ -1340,23 +1317,13 @@ int ConvolutionDepthWise_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& t
     {
         std::vector<VkMat> bindings(7);
         bindings[0] = bottom;
-#if NCNN_WEBGPU
-        bindings[1] = use_int8_requantize ? VkMat() : top_blob_unpacked;
-#endif // NCNN_WEBGPU
-#if NCNN_VULKAN
         bindings[1] = top_blob_unpacked;
-#endif // NCNN_VULKAN
         bindings[2] = weight_data_gpu;
         bindings[3] = bias_data_gpu;
         bindings[4] = weight_data_int8_descales_gpu;
         bindings[5] = top_blob_int8_scales_gpu;
-#if NCNN_WEBGPU
-        bindings[6] = use_int8_requantize ? top_blob_unpacked : VkMat();
-#endif // NCNN_WEBGPU
-#if NCNN_VULKAN
         // binding 6 aliases top with int8 SSBO element type
         bindings[6] = top_blob_unpacked;
-#endif // NCNN_VULKAN
 
         const Pipeline* pipeline = bottom.elempack == 4 ? pipeline_convolutiondepthwise_pack4 : pipeline_convolutiondepthwise;
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);

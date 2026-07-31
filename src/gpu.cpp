@@ -3515,23 +3515,28 @@ int VulkanDevicePrivate::create_dummy_buffer_image()
     dummy_allocator = new VkDummyAllocator(vkdev);
 
     dummy_buffer.create(1, 4u, dummy_allocator);
-    dummy_image.create(1, 4u, dummy_allocator);
+    if (vkdev->info.max_image_dimension_1d() != 0)
+    {
+        dummy_image.create(1, 4u, dummy_allocator);
 #if __APPLE__
-    if (vkdev->info.type() == 0)
-        dummy_image_readonly.create(1, 4u, dummy_allocator);
+        if (vkdev->info.type() == 0)
+            dummy_image_readonly.create(1, 4u, dummy_allocator);
 #else
-    dummy_image_readonly.create(1, 4u, dummy_allocator);
+        dummy_image_readonly.create(1, 4u, dummy_allocator);
 #endif
+    }
 
     VkDummyCompute cmd(vkdev);
 
     cmd.record_dummy(dummy_buffer);
-    cmd.record_dummy(dummy_image);
+    if (!dummy_image.empty())
+        cmd.record_dummy(dummy_image);
 #if __APPLE__
-    if (vkdev->info.type() == 0)
+    if (!dummy_image_readonly.empty() && vkdev->info.type() == 0)
         cmd.record_dummy_readonly(dummy_image_readonly);
 #else
-    cmd.record_dummy_readonly(dummy_image_readonly);
+    if (!dummy_image_readonly.empty())
+        cmd.record_dummy_readonly(dummy_image_readonly);
 #endif
 
     return cmd.submit_and_wait();
@@ -3942,6 +3947,7 @@ VulkanDevice::VulkanDevice(int device_index)
     }
 
     // prepare immutable texelfetch sampler
+    if (info.max_image_dimension_1d() != 0)
     {
         VkSamplerCreateInfo samplerCreateInfo;
         samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;

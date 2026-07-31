@@ -15,54 +15,10 @@
 
 namespace ncnn {
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 
 class VulkanDevice;
-struct WebGpuPipelineBundle;
 class PipelineCachePrivate;
-#if NCNN_WEBGPU
-class NCNN_EXPORT PipelineCache
-{
-public:
-    explicit PipelineCache(const VulkanDevice* _vkdev);
-
-    virtual ~PipelineCache();
-
-    void clear();
-    size_t size() const;
-
-    int save_cache(std::vector<unsigned char>& data) const;
-    int load_cache(const unsigned char* data, size_t size) const;
-    int load_cache(const std::vector<unsigned char>& data) const;
-
-#if NCNN_STDIO
-    int save_cache(FILE* fp) const;
-    int load_cache(FILE* fp) const;
-    int save_cache(const char* path) const;
-    int load_cache(const char* path) const;
-#if _WIN32
-    int save_cache(const wchar_t* path) const;
-    int load_cache(const wchar_t* path) const;
-#endif // _WIN32
-#endif // NCNN_STDIO
-
-    int get_pipeline(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations,
-                     uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
-                     WebGpuPipelineBundle* bundle) const;
-
-protected:
-    const VulkanDevice* vkdev;
-
-private:
-    PipelineCache(const PipelineCache&);
-    PipelineCache& operator=(const PipelineCache&);
-
-private:
-    PipelineCachePrivate* const d;
-};
-#endif // NCNN_WEBGPU
-
-#if NCNN_VULKAN
 class NCNN_EXPORT PipelineCache
 {
 public:
@@ -127,9 +83,8 @@ private:
 private:
     PipelineCachePrivate* const d;
 };
-#endif // NCNN_VULKAN
 
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 } // namespace ncnn
 

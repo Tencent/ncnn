@@ -35,6 +35,8 @@ permissions:
 jobs:
   browser:
     runs-on: ubuntu-24.04
+    env:
+      LDFLAGS: -sERROR_ON_WASM_CHANGES_AFTER_LINK -sWASM_BIGINT -O1
     steps:
       - uses: actions/checkout@v7
         with:
@@ -50,20 +52,20 @@ jobs:
           from pathlib import Path
 
           values = {}
-          pattern = re.compile(r'^set\((NCNN_WEBGPU_[A-Z0-9_]+) "([^"]+)"\)$')
-          for line in Path("cmake/webgpu_versions.cmake").read_text(encoding="utf-8").splitlines():
+          pattern = re.compile(r'^set\((VKWEBGPU_[A-Z0-9_]+) "([^"]+)"\)$')
+          for line in Path("cmake/vkwebgpu_versions.cmake").read_text(encoding="utf-8").splitlines():
               match = pattern.match(line)
               if match:
                   values[match.group(1)] = match.group(2)
 
           outputs = {
-              "chrome_sha256": values["NCNN_WEBGPU_CHROME_LINUX_SHA256"],
-              "chrome_url": values["NCNN_WEBGPU_CHROME_LINUX_URL"],
-              "dawn": values["NCNN_WEBGPU_DAWN_COMMIT"],
-              "deps": values["NCNN_WEBGPU_DAWN_DEPS_SHA256"],
-              "emsdk": values["NCNN_WEBGPU_EMSDK_VERSION"],
-              "node": values["NCNN_WEBGPU_NODE_VERSION"],
-              "port": values["NCNN_WEBGPU_EMDAWNWEBGPU_PORT_FILENAME"],
+              "chrome_sha256": values["VKWEBGPU_CHROME_LINUX_SHA256"],
+              "chrome_url": values["VKWEBGPU_CHROME_LINUX_URL"],
+              "dawn": values["VKWEBGPU_DAWN_COMMIT"],
+              "deps": values["VKWEBGPU_DAWN_DEPS_SHA256"],
+              "emsdk": values["VKWEBGPU_EMSDK_VERSION"],
+              "node": values["VKWEBGPU_NODE_VERSION"],
+              "port": values["VKWEBGPU_EMDAWNWEBGPU_PORT_FILENAME"],
           }
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               for name, value in outputs.items():
@@ -116,8 +118,7 @@ jobs:
           source emsdk/emsdk_env.sh
           emcmake cmake -S . -B build-wasm-webgpu \
             -DCMAKE_BUILD_TYPE=Release \
-            -DNCNN_WEBGPU=ON \
-            -DNCNN_VULKAN=OFF \
+            -DNCNN_VULKAN=ON \
             -DNCNN_BUILD_TESTS=ON \
             -DNCNN_BUILD_TOOLS=OFF \
             -DNCNN_BUILD_EXAMPLES=OFF \
@@ -127,24 +128,15 @@ jobs:
       - name: Build WebGPU tests
         run: |
           cmake --build build-wasm-webgpu \
-            --target webgpu_tests webgpu_header_abi_probe \
-            -j2
-
-      - name: Verify installed package
-        run: |
-          cmake --install build-wasm-webgpu --prefix "$PWD/build-wasm-webgpu/install"
-          source emsdk/emsdk_env.sh
-          emcmake cmake \
-            -S tests/webgpu/install_consumer \
-            -B build-wasm-webgpu/install-consumer \
-            "-Dncnn_DIR=$PWD/build-wasm-webgpu/install/lib/cmake/ncnn"
-          cmake --build build-wasm-webgpu/install-consumer -j2
+            --target test_vkwebgpu_compute test_absval test_command \
+              test_binaryop test_reduction test_squeezenet \
+            --parallel 4
 
       - name: Run WebGPU tests
         run: |
           set -o pipefail
           ctest --test-dir build-wasm-webgpu \
-            -L webgpu \
+            -R '^(test_vkwebgpu_compute|test_absval|test_command|test_binaryop|test_reduction|test_squeezenet)$' \
             --output-on-failure 2>&1 | tee build-wasm-webgpu/webgpu-test.log
 
       - uses: actions/upload-artifact@v7

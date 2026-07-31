@@ -6,13 +6,13 @@
 #include "layer.h"
 #include "layer_type.h"
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>
 #endif // __ANDROID_API__ >= 26
 #endif // NCNN_PLATFORM_API
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 namespace ncnn {
 
@@ -864,7 +864,7 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack
 }
 #endif // NCNN_BATCH
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 void Mat::create_like(const VkMat& m, Allocator* _allocator)
 {
 #if NCNN_BATCH
@@ -917,9 +917,9 @@ void Mat::create_like(const VkImageMat& im, Allocator* _allocator)
     if (_dims == 4)
         create(im.w, im.h, im.d, im.c, im.elemsize, im.elempack, _allocator);
 }
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
 {
 #if NCNN_BATCH
@@ -1799,7 +1799,7 @@ void VkImageMat::create_like(const VkImageMat& im, VkAllocator* _allocator)
     if (_dims == 4)
         create(im.w, im.h, im.d, im.c, im.elemsize, im.elempack, _allocator);
 }
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_vals)
 {
@@ -1898,7 +1898,7 @@ Mat Mat::from_float16(const unsigned short* data, int size)
     return dst;
 }
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
 VkImageMat VkImageMat::from_android_hardware_buffer(VkAndroidHardwareBufferImageAllocator* allocator)
@@ -1911,7 +1911,7 @@ VkImageMat VkImageMat::from_android_hardware_buffer(VkAndroidHardwareBufferImage
 }
 #endif // __ANDROID_API__ >= 26
 #endif // NCNN_PLATFORM_API
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 unsigned short float32_to_float16(float value)
 {

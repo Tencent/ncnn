@@ -10,9 +10,6 @@ namespace ncnn {
 BinaryOp_vulkan::BinaryOp_vulkan()
 {
     support_vulkan = true;
-#if NCNN_WEBGPU
-    support_vulkan = false;
-#endif // NCNN_WEBGPU
     support_vulkan_packing = true;
 
     pipeline_binaryop = 0;

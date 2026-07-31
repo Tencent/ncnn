@@ -26,7 +26,13 @@
 #endif
 #endif
 
-#if __APPLE__
+#if defined(__EMSCRIPTEN__)
+// statically linked vulkan over webgpu bootstrap
+extern "C" VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char* pName);
+extern "C" VKAPI_ATTR VkResult VKAPI_CALL vkEnumerateInstanceExtensionProperties(const char* pLayerName, uint32_t* pPropertyCount, VkExtensionProperties* pProperties);
+extern "C" VKAPI_ATTR VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkInstance* pInstance);
+extern "C" VKAPI_ATTR VkResult VKAPI_CALL vkEnumerateInstanceLayerProperties(uint32_t* pPropertyCount, VkLayerProperties* pProperties);
+#elif __APPLE__
 // static vulkan linkage on apple platform as fallback
 extern "C" VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char* pName) __attribute__((weak_import));
 #endif
@@ -458,6 +464,16 @@ int load_vulkan_driver(const char* driver_path)
 {
     unload_vulkan_driver();
 
+#if defined(__EMSCRIPTEN__)
+    if (driver_path != 0 && driver_path[0] != '\0')
+        return -1;
+
+    vkGetInstanceProcAddr = ::vkGetInstanceProcAddr;
+    vkEnumerateInstanceExtensionProperties = ::vkEnumerateInstanceExtensionProperties;
+    vkCreateInstance = ::vkCreateInstance;
+    vkEnumerateInstanceLayerProperties = ::vkEnumerateInstanceLayerProperties;
+    return 0;
+#else
     int ret = 0;
 
     std::string driver_path_from_icd_env;
@@ -581,6 +597,7 @@ int load_vulkan_driver(const char* driver_path)
 #endif // __APPLE__
 
     return ret;
+#endif // __EMSCRIPTEN__
 }
 
 void unload_vulkan_driver()

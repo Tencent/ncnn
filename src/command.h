@@ -6,7 +6,7 @@
 
 #include "platform.h"
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 
 #include "mat.h"
 
@@ -112,6 +112,6 @@ private:
 
 } // namespace ncnn
 
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 #endif // NCNN_COMMAND_H

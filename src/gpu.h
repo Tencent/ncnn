@@ -6,7 +6,7 @@
 
 #include "platform.h"
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 
 #include "mat.h"
 
@@ -20,18 +20,15 @@ namespace ncnn {
 // Iterates over all supported physical devices, etc.
 NCNN_EXPORT int create_gpu_instance(const char* driver_path = 0);
 
-#if NCNN_VULKAN
 // Get global VkInstance variable
 // Must be called after create_gpu_instance() and before destroy_gpu_instance()
 NCNN_EXPORT VkInstance get_gpu_instance();
-#endif // NCNN_VULKAN
 
 // Destroy VkInstance object and free the memory of the associated object
 // Usually called in the destructor of the main program exit
 // The function will internally ensure that all vulkan devices are idle before proceeding with destruction.
 NCNN_EXPORT void destroy_gpu_instance();
 
-#if NCNN_VULKAN
 // vulkan core
 extern PFN_vkAllocateCommandBuffers vkAllocateCommandBuffers;
 extern PFN_vkAllocateDescriptorSets vkAllocateDescriptorSets;
@@ -180,211 +177,12 @@ extern PFN_vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV vk
 
 // VK_NV_cooperative_vector
 extern PFN_vkGetPhysicalDeviceCooperativeVectorPropertiesNV vkGetPhysicalDeviceCooperativeVectorPropertiesNV;
-#endif // NCNN_VULKAN
 
 // get info
 NCNN_EXPORT int get_gpu_count();
 NCNN_EXPORT int get_default_gpu_index();
 
 class GpuInfoPrivate;
-class VkAllocator;
-class VkCompute;
-class Option;
-class PipelineCache;
-class VulkanDevicePrivate;
-
-// WebGPU backend
-#if NCNN_WEBGPU
-class NCNN_EXPORT GpuInfo
-{
-public:
-    explicit GpuInfo();
-    virtual ~GpuInfo();
-
-    int device_index() const;
-
-    uint32_t api_version() const;
-    uint32_t driver_version() const;
-    uint32_t vendor_id() const;
-    uint32_t device_id() const;
-    const char* device_name() const;
-    const char* driver_name() const;
-
-    int type() const;
-    uint32_t rough_score() const;
-
-    uint32_t max_shared_memory_size() const;
-    uint32_t max_workgroup_count_x() const;
-    uint32_t max_workgroup_count_y() const;
-    uint32_t max_workgroup_count_z() const;
-    uint32_t max_workgroup_invocations() const;
-    uint32_t max_workgroup_size_x() const;
-    uint32_t max_workgroup_size_y() const;
-    uint32_t max_workgroup_size_z() const;
-    size_t memory_map_alignment() const;
-    size_t buffer_offset_alignment() const;
-    size_t non_coherent_atom_size() const;
-    size_t buffer_image_granularity() const;
-    uint32_t max_image_dimension_1d() const;
-    uint32_t max_image_dimension_2d() const;
-    uint32_t max_image_dimension_3d() const;
-    float timestamp_period() const;
-
-    uint32_t compute_queue_family_index() const;
-    uint32_t transfer_queue_family_index() const;
-    uint32_t compute_queue_count() const;
-    uint32_t transfer_queue_count() const;
-    bool unified_compute_transfer_queue() const;
-    bool resizable_bar_enabled() const;
-
-    uint32_t subgroup_size() const;
-    uint32_t min_subgroup_size() const;
-    uint32_t max_subgroup_size() const;
-    uint32_t max_compute_workgroup_subgroups() const;
-    bool support_subgroup_size_control() const;
-    bool support_compute_full_subgroups() const;
-    uint32_t support_subgroup_ops() const;
-
-    bool bug_storage_buffer_no_l1() const;
-    bool bug_corrupted_online_pipeline_cache() const;
-    bool bug_buffer_image_load_zero() const;
-    bool bug_implicit_fp16_arithmetic() const;
-
-    bool support_fp16_packed() const;
-    bool support_fp16_storage() const;
-    bool support_fp16_uniform() const;
-    bool support_fp16_arithmetic() const;
-    bool support_int8_packed() const;
-    bool support_int8_storage() const;
-    bool support_int8_uniform() const;
-    bool support_int8_arithmetic() const;
-    bool support_int16_packed() const;
-    bool support_int16_storage() const;
-    bool support_int16_arithmetic() const;
-    bool support_bf16_packed() const;
-    bool support_bf16_storage() const;
-    bool support_fp16_image() const;
-    bool support_int8_image() const;
-    bool support_fp_fast_math() const;
-    bool support_ycbcr_conversion() const;
-    bool support_cooperative_matrix() const;
-    bool support_cooperative_matrix_8_8_16() const;
-    bool support_cooperative_matrix_16_8_8() const;
-    bool support_cooperative_matrix_16_8_16() const;
-    bool support_cooperative_matrix_16_16_16() const;
-    bool support_int8_cooperative_matrix() const;
-    bool support_bf16_cooperative_matrix() const;
-
-    int support_VK_KHR_cooperative_matrix() const;
-    int support_VK_NV_cooperative_matrix() const;
-    void get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K, int& coopmat_subgroup_size) const;
-
-private:
-    GpuInfo(const GpuInfo&);
-    GpuInfo& operator=(const GpuInfo&);
-
-private:
-    friend int create_gpu_instance(const char* driver_path);
-    GpuInfoPrivate* const d;
-};
-
-class NCNN_EXPORT VulkanDevice
-{
-public:
-    VulkanDevice(int device_index = get_default_gpu_index());
-    ~VulkanDevice();
-
-    const GpuInfo& info;
-
-    WGPUInstance wgpu_instance() const;
-    WGPUDevice wgpu_device() const;
-    WGPUQueue wgpu_queue() const;
-
-    bool is_valid() const;
-    int wait_webgpu_future(WGPUFuture future, WGPUFutureWaitInfo* wait_info, const char* operation) const;
-
-    bool is_device_local(uint32_t memory_type_index) const;
-
-    VkAllocator* acquire_blob_allocator() const;
-    void reclaim_blob_allocator(VkAllocator* allocator) const;
-    VkAllocator* acquire_staging_allocator() const;
-    void reclaim_staging_allocator(VkAllocator* allocator) const;
-
-    VkMat get_dummy_buffer() const;
-    VkMat get_dummy_buffer(int binding_index) const;
-    VkImageMat get_dummy_image() const;
-    VkImageMat get_dummy_image_readonly() const;
-
-    const PipelineCache* get_pipeline_cache() const;
-    bool shape_support_image_storage(const Mat& shape) const;
-    uint32_t get_heap_budget() const;
-
-    void convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const;
-    void convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, int cast_type_to, VkCompute& cmd, const Option& opt) const;
-
-private:
-    VulkanDevice(const VulkanDevice&);
-    VulkanDevice& operator=(const VulkanDevice&);
-
-private:
-    VulkanDevicePrivate* const d;
-};
-
-int get_webgpu_last_error();
-
-enum WebGpuBindingAccess
-{
-    NCNN_WEBGPU_BINDING_READ = 1,
-    NCNN_WEBGPU_BINDING_READ_WRITE = 2
-};
-
-enum WebGpuScalarType
-{
-    NCNN_WEBGPU_SCALAR_BOOL = 1,
-    NCNN_WEBGPU_SCALAR_I32 = 2,
-    NCNN_WEBGPU_SCALAR_U32 = 3,
-    NCNN_WEBGPU_SCALAR_F32 = 4,
-    NCNN_WEBGPU_SCALAR_F16 = 5
-};
-
-struct WebGpuBindingInfo
-{
-    uint32_t binding;
-    WebGpuBindingAccess access;
-    uint64_t min_binding_size;
-};
-
-struct WebGpuOverrideInfo
-{
-    uint32_t spec_id;
-    int32_t ncnn_specialization_index;
-    WebGpuScalarType type;
-    bool is_workgroup_size;
-};
-
-struct WebGpuImmediateMember
-{
-    uint32_t ncnn_constant_index;
-    uint32_t byte_offset;
-    WebGpuScalarType type;
-};
-
-struct WebGpuShaderInfo
-{
-    uint32_t immediate_size;
-    uint32_t workgroup_storage_size;
-    uint32_t required_feature_bits;
-
-    std::vector<WebGpuBindingInfo> bindings;
-    std::vector<WebGpuOverrideInfo> overrides;
-    std::vector<WebGpuImmediateMember> immediate_members;
-};
-
-int pack_webgpu_immediates(const WebGpuShaderInfo& shader_info, const std::vector<vk_constant_type>& constants, std::vector<unsigned char>& packed_immediate);
-#endif // NCNN_WEBGPU
-
-// Vulkan backend
-#if NCNN_VULKAN
 class NCNN_EXPORT GpuInfo
 {
 public:
@@ -624,11 +422,14 @@ private:
     friend int create_gpu_instance(const char* driver_path);
     GpuInfoPrivate* const d;
 };
-#endif // NCNN_VULKAN
 
 NCNN_EXPORT const GpuInfo& get_gpu_info(int device_index = get_default_gpu_index());
 
-#if NCNN_VULKAN
+class VkAllocator;
+class VkCompute;
+class Option;
+class PipelineCache;
+class VulkanDevicePrivate;
 class NCNN_EXPORT VulkanDevice
 {
 public:
@@ -755,7 +556,6 @@ private:
 private:
     VulkanDevicePrivate* const d;
 };
-#endif // NCNN_VULKAN
 
 NCNN_EXPORT VulkanDevice* get_gpu_device(int device_index = get_default_gpu_index());
 
@@ -765,7 +565,6 @@ NCNN_EXPORT int compile_spirv_module(const char* comp_data, int comp_data_size, 
 NCNN_EXPORT int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<uint32_t>& spirv);
 
 // info from spirv
-#if NCNN_VULKAN
 class NCNN_EXPORT ShaderInfo
 {
 public:
@@ -786,10 +585,9 @@ public:
 };
 
 NCNN_EXPORT int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderInfo& shader_info);
-#endif // NCNN_VULKAN
 
 } // namespace ncnn
 
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 #endif // NCNN_GPU_H

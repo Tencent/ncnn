@@ -18,9 +18,9 @@
 
 namespace ncnn {
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 class VkCompute;
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 class DataReader;
 class Extractor;
 class NetPrivate;
@@ -36,7 +36,7 @@ public:
     // option can be changed before loading
     Option opt;
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
     // set gpu device by index
     void set_vulkan_device(int device_index);
 
@@ -44,7 +44,7 @@ public:
     void set_vulkan_device(const VulkanDevice* vkdev);
 
     const VulkanDevice* vulkan_device() const;
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 #if NCNN_STRING
     // register custom layer or overwrite built-in layer by layer type name
@@ -189,13 +189,13 @@ public:
     // set workspace memory allocator
     void set_workspace_allocator(Allocator* allocator);
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
     void set_blob_vkallocator(VkAllocator* allocator);
 
     void set_workspace_vkallocator(VkAllocator* allocator);
 
     void set_staging_vkallocator(VkAllocator* allocator);
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 #if NCNN_STRING
     // set input by blob name
@@ -219,7 +219,7 @@ public:
     // type = 1, do not convert fp16/bf16 or / and packing
     int extract(int blob_index, Mat& feat, int type = 0);
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 #if NCNN_STRING
     // set input by blob name
     // return 0 if success
@@ -237,7 +237,7 @@ public:
     // get result by blob index
     // return 0 if success
     int extract(int blob_index, VkMat& feat, VkCompute& cmd);
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 protected:
     friend Extractor Net::create_extractor() const;

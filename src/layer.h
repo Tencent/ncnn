@@ -10,10 +10,10 @@
 #include "paramdict.h"
 #include "platform.h"
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 #include "command.h"
 #include "pipeline.h"
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 namespace ncnn {
 
@@ -100,7 +100,7 @@ public:
     virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const;
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 public:
     // upload weight blob from host to device
     virtual int upload_model(VkTransfer& cmd, const Option& opt);
@@ -119,7 +119,7 @@ public:
 public:
     // assigned immediately after creating this layer
     const VulkanDevice* vkdev;
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 public:
     // custom user data
@@ -184,17 +184,17 @@ NCNN_EXPORT int layer_to_index(const char* type);
 NCNN_EXPORT Layer* create_layer(const char* type);
 NCNN_EXPORT Layer* create_layer_naive(const char* type);
 NCNN_EXPORT Layer* create_layer_cpu(const char* type);
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 NCNN_EXPORT Layer* create_layer_vulkan(const char* type);
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 #endif // NCNN_STRING
 // create layer from layer type
 NCNN_EXPORT Layer* create_layer(int index);
 NCNN_EXPORT Layer* create_layer_naive(int index);
 NCNN_EXPORT Layer* create_layer_cpu(int index);
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 NCNN_EXPORT Layer* create_layer_vulkan(int index);
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 #define DEFINE_LAYER_CREATOR(name)                          \
     ::ncnn::Layer* name##_layer_creator(void* /*userdata*/) \

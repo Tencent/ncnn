@@ -41,10 +41,10 @@
 
 namespace ncnn {
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 class VkMat;
 class VkImageMat;
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 // the three dimension matrix
 class NCNN_EXPORT Mat
@@ -181,12 +181,12 @@ public:
     void create_like(const Mat& m, Allocator* allocator = 0);
     // allocate like with batch count
     void create_like(const Mat& m, int n, Allocator* allocator = 0);
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
     // allocate like
     void create_like(const VkMat& m, Allocator* allocator = 0);
     // allocate like with batch count
     void create_like(const VkMat& m, int n, Allocator* allocator = 0);
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
     // allocate packed vec with batch count
     void create(int w, size_t elemsize, int elempack, int n, Allocator* allocator = 0);
     // allocate packed image with batch count
@@ -195,10 +195,10 @@ public:
     void create(int w, int h, int c, size_t elemsize, int elempack, int n, Allocator* allocator = 0);
     // allocate packed cube with batch count
     void create(int w, int h, int d, int c, size_t elemsize, int elempack, int n, Allocator* allocator = 0);
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
     // allocate like
     void create_like(const VkImageMat& im, Allocator* allocator = 0);
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
     // refcount++
     void addref();
     // refcount--
@@ -381,7 +381,7 @@ public:
 #endif // NCNN_BATCH
 };
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 
 // the three dimension matrix, vulkan version
 class NCNN_EXPORT VkMat
@@ -503,12 +503,7 @@ public:
     Mat shape() const;
 
     // low-level reference
-#if NCNN_WEBGPU
-    WGPUBuffer buffer() const;
-#endif // NCNN_WEBGPU
-#if NCNN_VULKAN
     VkBuffer buffer() const;
-#endif // NCNN_VULKAN
     size_t buffer_offset() const;
     size_t buffer_capacity() const;
 
@@ -644,10 +639,8 @@ public:
     Mat shape() const;
 
     // low-level reference
-#if NCNN_VULKAN
     VkImage image() const;
     VkImageView imageview() const;
-#endif // NCNN_VULKAN
 
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
@@ -701,7 +694,7 @@ union vk_constant_type
     float f;
     uint32_t u32;
 };
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 // misc function
 #if NCNN_PIXEL
@@ -1881,7 +1874,7 @@ NCNN_FORCEINLINE const float& Mat::operator[](size_t i) const
     return ((const float*)data)[i];
 }
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 
 NCNN_FORCEINLINE VkMat::VkMat()
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
@@ -2303,9 +2296,6 @@ NCNN_FORCEINLINE void* VkMat::mapped_ptr() const
     if (!allocator->mappable)
         return 0;
 
-#if NCNN_WEBGPU
-    data->host_shadow_dirty = true;
-#endif // NCNN_WEBGPU
     return (unsigned char*)data->mapped_ptr + data->offset + offset;
 }
 
@@ -2376,19 +2366,10 @@ NCNN_FORCEINLINE Mat VkMat::shape() const
     return Mat();
 }
 
-#if NCNN_WEBGPU
-NCNN_FORCEINLINE WGPUBuffer VkMat::buffer() const
-{
-    return data->buffer;
-}
-#endif // NCNN_WEBGPU
-
-#if NCNN_VULKAN
 NCNN_FORCEINLINE VkBuffer VkMat::buffer() const
 {
     return data->buffer;
 }
-#endif // NCNN_VULKAN
 
 NCNN_FORCEINLINE size_t VkMat::buffer_offset() const
 {
@@ -2643,19 +2624,6 @@ NCNN_FORCEINLINE VkImageMat& VkImageMat::operator=(const VkImageMat& m)
     return *this;
 }
 
-#if NCNN_WEBGPU
-NCNN_FORCEINLINE Mat VkImageMat::mapped() const
-{
-    return Mat();
-}
-
-NCNN_FORCEINLINE void* VkImageMat::mapped_ptr() const
-{
-    return 0;
-}
-#endif // NCNN_WEBGPU
-
-#if NCNN_VULKAN
 NCNN_FORCEINLINE Mat VkImageMat::mapped() const
 {
     if (!allocator->mappable || !data->mapped_ptr)
@@ -2683,7 +2651,6 @@ NCNN_FORCEINLINE void* VkImageMat::mapped_ptr() const
 
     return (unsigned char*)data->mapped_ptr + data->bind_offset;
 }
-#endif // NCNN_VULKAN
 
 NCNN_FORCEINLINE void VkImageMat::addref()
 {
@@ -2744,7 +2711,6 @@ NCNN_FORCEINLINE Mat VkImageMat::shape() const
     return Mat();
 }
 
-#if NCNN_VULKAN
 NCNN_FORCEINLINE VkImage VkImageMat::image() const
 {
     return data->image;
@@ -2754,9 +2720,8 @@ NCNN_FORCEINLINE VkImageView VkImageMat::imageview() const
 {
     return data->imageview;
 }
-#endif // NCNN_VULKAN
 
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 } // namespace ncnn
 

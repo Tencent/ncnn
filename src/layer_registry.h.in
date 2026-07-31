@@ -58,8 +58,8 @@ static const layer_registry_entry layer_registry_xtheadvector[] = {
 };
 #endif // NCNN_RUNTIME_CPU && NCNN_XTHEADVECTOR
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 static const layer_registry_entry layer_registry_vulkan[] = {
 @layer_registry_vulkan@
 };
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN

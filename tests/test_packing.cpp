@@ -205,7 +205,7 @@ static int test_packing_cpu(const ncnn::Mat& a, int in_elempack, int out_elempac
            || test_packing_cpu_int8(a, in_elempack, out_elempack);
 }
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 static int test_packing_gpu_fp32(const ncnn::Mat& a, int in_elempack, int out_elempack)
 {
     ncnn::ParamDict pd;
@@ -237,18 +237,6 @@ static int test_packing_gpu_fp32(const ncnn::Mat& a, int in_elempack, int out_el
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
-    if (!vkdev->info.support_fp16_uniform()) opt.use_fp16_uniform = false;
-    if (!vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
-    if (!vkdev->info.support_int8_packed()) opt.use_int8_packed = false;
-    if (!vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
-    if (!vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
-    if (!vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
-    if (!vkdev->info.support_int16_packed()) opt.use_int16_packed = false;
-    if (!vkdev->info.support_int16_storage() || !vkdev->info.support_int16_arithmetic()) opt.use_int16_storage = false;
-    if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
-    if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
-    if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
-    if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
     ncnn::Layer* op = ncnn::create_layer_vulkan("Packing");
 
@@ -332,18 +320,6 @@ static int test_packing_gpu_int8(const ncnn::Mat& a, int in_elempack, int out_el
 
     if (!vkdev->info.support_int8_packed()) opt.use_int8_packed = false;
     if (!vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
-    if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
-    if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
-    if (!vkdev->info.support_fp16_uniform()) opt.use_fp16_uniform = false;
-    if (!vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
-    if (!vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
-    if (!vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
-    if (!vkdev->info.support_int16_packed()) opt.use_int16_packed = false;
-    if (!vkdev->info.support_int16_storage() || !vkdev->info.support_int16_arithmetic()) opt.use_int16_storage = false;
-    if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
-    if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
-    if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
-    if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
     ncnn::Layer* op = ncnn::create_layer_vulkan("Packing");
 
@@ -433,7 +409,7 @@ static int test_packing_cpu(const ncnn::Mat& a)
            || test_packing_cpu(a, 16, 8);
 }
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 static int test_packing_gpu(const ncnn::Mat& a)
 {
     return 0
@@ -442,7 +418,7 @@ static int test_packing_gpu(const ncnn::Mat& a)
            || test_packing_gpu(a, 1, 4)
            || test_packing_gpu(a, 4, 1);
 }
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 static int test_packing_0()
 {
@@ -451,7 +427,7 @@ static int test_packing_0()
     return 0
            || test_packing_cpu(a)
            || test_packing_cpu(b)
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
            || test_packing_gpu(a)
 #endif
            ;
@@ -464,7 +440,7 @@ static int test_packing_1()
     return 0
            || test_packing_cpu(a)
            || test_packing_cpu(b)
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
            || test_packing_gpu(a)
 #endif
            ;
@@ -475,7 +451,7 @@ static int test_packing_2()
     ncnn::Mat a = RandomMat(19, 16);
     return 0
            || test_packing_cpu(a)
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
            || test_packing_gpu(a)
 #endif
            ;
@@ -486,7 +462,7 @@ static int test_packing_3()
     ncnn::Mat a = RandomMat(80);
     return 0
            || test_packing_cpu(a)
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
            || test_packing_gpu(a)
 #endif
            ;

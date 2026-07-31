@@ -183,11 +183,6 @@ static int test_gemm_int8_oom(int M, int N, int K, int transA, int transB, int o
         a.push_back(transB ? (output_N1M ? ncnn::Mat(K, 1, N) : ncnn::Mat(K, N)) : (output_N1M ? ncnn::Mat(N, 1, K) : ncnn::Mat(N, K)));
     }
 
-    for (size_t i = 0; i < a.size(); i++)
-    {
-        Randomize(a[i]);
-    }
-
     int ret = test_layer_oom("Gemm", pd, weights, a);
     if (ret != 0)
     {
@@ -266,11 +261,6 @@ static int test_gemm_int8_bias_oom(int M, int N, int K, const ncnn::Mat& C, floa
     }
     if (!constantC) a.push_back(C);
 
-    for (size_t i = 0; i < a.size(); i++)
-    {
-        Randomize(a[i]);
-    }
-
     int ret = test_layer_oom("Gemm", pd, weights, a);
     if (ret != 0)
     {
@@ -311,11 +301,6 @@ static int test_gemm_int8_fp16s_oom(int M, int N, int K, int transA, int transB,
     if (!constantB)
     {
         a.push_back(transB ? (output_N1M ? ncnn::Mat(K, 1, N) : ncnn::Mat(K, N)) : (output_N1M ? ncnn::Mat(N, 1, K) : ncnn::Mat(N, K)));
-    }
-
-    for (size_t i = 0; i < a.size(); i++)
-    {
-        Randomize(a[i]);
     }
 
     ncnn::Option opt;

@@ -205,68 +205,10 @@ private:
     UnlockedPoolAllocatorPrivate* const d;
 };
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 
 class VulkanDevice;
 
-#if NCNN_WEBGPU
-struct WebGpuBufferBlock
-{
-    WGPUBuffer buffer;
-    uint64_t size;
-    uint64_t id;
-    uint32_t live_allocation_count;
-    uint32_t in_flight_refcount;
-};
-
-class NCNN_EXPORT VkBufferMemory
-{
-public:
-    WebGpuBufferBlock* block;
-    WGPUBuffer buffer;
-    size_t offset;
-    size_t capacity;
-    void* mapped_ptr;
-    bool host_shadow;
-    bool host_shadow_dirty;
-    uint32_t in_flight_refcount;
-    bool pending_free;
-    int refcount;
-};
-
-class NCNN_EXPORT VkImageMemory
-{
-public:
-    int refcount;
-};
-
-class NCNN_EXPORT VkAllocator
-{
-public:
-    explicit VkAllocator(const VulkanDevice* _vkdev);
-    virtual ~VkAllocator();
-
-    virtual void clear();
-
-    virtual VkBufferMemory* fastMalloc(size_t size) = 0;
-    virtual void fastFree(VkBufferMemory* ptr) = 0;
-    virtual int flush(VkBufferMemory* ptr);
-    virtual int invalidate(VkBufferMemory* ptr);
-
-    virtual VkImageMemory* fastMalloc(int w, int h, int c, size_t elemsize, int elempack) = 0;
-    virtual void fastFree(VkImageMemory* ptr) = 0;
-
-public:
-    const VulkanDevice* vkdev;
-    uint32_t buffer_memory_type_index;
-    uint32_t image_memory_type_index;
-    uint32_t reserved_type_index;
-    bool mappable;
-    bool coherent;
-};
-#endif // NCNN_WEBGPU
-
-#if NCNN_VULKAN
 class NCNN_EXPORT VkBufferMemory
 {
 public:
@@ -355,7 +297,6 @@ protected:
     VkImage create_image(int width, int height, int depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage);
     VkImageView create_imageview(VkImage image, VkFormat format);
 };
-#endif // NCNN_VULKAN
 
 class VkBlobAllocatorPrivate;
 class NCNN_EXPORT VkBlobAllocator : public VkAllocator
@@ -494,7 +435,7 @@ public:
 #endif // __ANDROID_API__ >= 26
 #endif // NCNN_PLATFORM_API
 
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 } // namespace ncnn
 

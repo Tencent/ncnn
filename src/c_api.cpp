@@ -13,7 +13,7 @@
 #include "allocator.h"
 #include "blob.h"
 #include "datareader.h"
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 #include "gpu.h"
 #include "pipelinecache.h"
 #endif
@@ -34,7 +34,7 @@ using ncnn::ModelBin;
 using ncnn::Net;
 using ncnn::Option;
 using ncnn::ParamDict;
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 using ncnn::PipelineCache;
 #endif
 
@@ -146,7 +146,7 @@ void ncnn_allocator_destroy(ncnn_allocator_t allocator)
     }
 }
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 /* pipelinecache api */
 ncnn_pipelinecache_t ncnn_pipelinecache_create(int device_index)
 {
@@ -241,7 +241,7 @@ int ncnn_pipelinecache_save_w(const ncnn_pipelinecache_t pipelinecache, const wc
 }
 #endif /* _WIN32 */
 #endif /* NCNN_STDIO */
-#endif /* NCNN_VULKAN || NCNN_WEBGPU */
+#endif /* NCNN_VULKAN */
 
 /* option api */
 ncnn_option_t ncnn_option_create()
@@ -276,7 +276,7 @@ void ncnn_option_set_workspace_allocator(ncnn_option_t opt, ncnn_allocator_t all
 
 int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt)
 {
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
     return ((const Option*)opt)->use_vulkan_compute;
 #else
     (void)opt;
@@ -356,7 +356,7 @@ int ncnn_option_get_use_bf16_storage(const ncnn_option_t opt)
 
 int ncnn_option_get_use_shader_local_memory(const ncnn_option_t opt)
 {
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
     return ((const Option*)opt)->use_shader_local_memory;
 #else
     (void)opt;
@@ -366,7 +366,7 @@ int ncnn_option_get_use_shader_local_memory(const ncnn_option_t opt)
 
 int ncnn_option_get_use_cooperative_matrix(const ncnn_option_t opt)
 {
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
     return ((const Option*)opt)->use_cooperative_matrix;
 #else
     (void)opt;
@@ -376,7 +376,7 @@ int ncnn_option_get_use_cooperative_matrix(const ncnn_option_t opt)
 
 void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int enable)
 {
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
     ((Option*)opt)->use_vulkan_compute = enable;
 #else
     (void)opt;
@@ -456,7 +456,7 @@ void ncnn_option_set_use_bf16_storage(ncnn_option_t opt, int enable)
 
 void ncnn_option_set_use_shader_local_memory(ncnn_option_t opt, int enable)
 {
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
     ((Option*)opt)->use_shader_local_memory = enable;
 #else
     (void)opt;
@@ -466,7 +466,7 @@ void ncnn_option_set_use_shader_local_memory(ncnn_option_t opt, int enable)
 
 void ncnn_option_set_use_cooperative_matrix(ncnn_option_t opt, int enable)
 {
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
     ((Option*)opt)->use_cooperative_matrix = enable;
 #else
     (void)opt;
@@ -474,7 +474,7 @@ void ncnn_option_set_use_cooperative_matrix(ncnn_option_t opt, int enable)
 #endif
 }
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 void ncnn_option_set_pipeline_cache(ncnn_option_t opt, ncnn_pipelinecache_t pipelinecache)
 {
     ((Option*)opt)->pipeline_cache = (PipelineCache*)pipelinecache;
@@ -1450,7 +1450,7 @@ int ncnn_layer_get_support_inplace(const ncnn_layer_t layer)
 
 int ncnn_layer_get_support_vulkan(const ncnn_layer_t layer)
 {
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
     return ((const Layer*)layer->pthis)->support_vulkan;
 #else
     (void)layer;
@@ -1475,7 +1475,7 @@ int ncnn_layer_get_support_fp16_storage(const ncnn_layer_t layer)
 
 int ncnn_layer_get_support_vulkan_packing(const ncnn_layer_t layer)
 {
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
     return ((const Layer*)layer->pthis)->support_vulkan_packing;
 #else
     (void)layer;
@@ -1490,7 +1490,7 @@ int ncnn_layer_get_support_any_packing(const ncnn_layer_t layer)
 
 int ncnn_layer_get_support_vulkan_any_packing(const ncnn_layer_t layer)
 {
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
     return ((const Layer*)layer->pthis)->support_vulkan_any_packing;
 #else
     (void)layer;
@@ -1510,7 +1510,7 @@ void ncnn_layer_set_support_inplace(ncnn_layer_t layer, int enable)
 
 void ncnn_layer_set_support_vulkan(ncnn_layer_t layer, int enable)
 {
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
     ((Layer*)layer->pthis)->support_vulkan = enable;
 #else
     (void)layer;
@@ -1535,7 +1535,7 @@ void ncnn_layer_set_support_fp16_storage(ncnn_layer_t layer, int enable)
 
 void ncnn_layer_set_support_vulkan_packing(ncnn_layer_t layer, int enable)
 {
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
     ((Layer*)layer->pthis)->support_vulkan_packing = enable;
 #else
     (void)layer;
@@ -1550,7 +1550,7 @@ void ncnn_layer_set_support_any_packing(ncnn_layer_t layer, int enable)
 
 void ncnn_layer_set_support_vulkan_any_packing(ncnn_layer_t layer, int enable)
 {
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
     ((Layer*)layer->pthis)->support_vulkan_any_packing = enable;
 #else
     (void)layer;
@@ -1628,7 +1628,7 @@ void ncnn_net_set_option(ncnn_net_t net, ncnn_option_t opt)
     ((Net*)net->pthis)->opt = *((Option*)opt);
 }
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 void ncnn_net_set_vulkan_device(ncnn_net_t net, int device_index)
 {
     ((Net*)net->pthis)->set_vulkan_device(device_index);

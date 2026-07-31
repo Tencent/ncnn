@@ -32,7 +32,7 @@ NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_pool_allocator(void);
 NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_unlocked_pool_allocator(void);
 NCNN_EXPORT void ncnn_allocator_destroy(ncnn_allocator_t allocator);
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 /* pipelinecache api */
 typedef struct __ncnn_pipelinecache_t* ncnn_pipelinecache_t;
 
@@ -50,7 +50,7 @@ NCNN_EXPORT int ncnn_pipelinecache_load_w(ncnn_pipelinecache_t pipelinecache, co
 NCNN_EXPORT int ncnn_pipelinecache_save_w(const ncnn_pipelinecache_t pipelinecache, const wchar_t* path);
 #endif /* _WIN32 */
 #endif /* NCNN_STDIO */
-#endif /* NCNN_VULKAN || NCNN_WEBGPU */
+#endif /* NCNN_VULKAN */
 
 /* option api */
 typedef struct __ncnn_option_t* ncnn_option_t;
@@ -99,9 +99,9 @@ NCNN_EXPORT void ncnn_option_set_use_bf16_packed(ncnn_option_t opt, int enable);
 NCNN_EXPORT void ncnn_option_set_use_bf16_storage(ncnn_option_t opt, int enable);
 NCNN_EXPORT void ncnn_option_set_use_shader_local_memory(ncnn_option_t opt, int enable);
 NCNN_EXPORT void ncnn_option_set_use_cooperative_matrix(ncnn_option_t opt, int enable);
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 NCNN_EXPORT void ncnn_option_set_pipeline_cache(ncnn_option_t opt, ncnn_pipelinecache_t pipelinecache);
-#endif /* NCNN_VULKAN || NCNN_WEBGPU */
+#endif /* NCNN_VULKAN */
 
 /* mat api */
 typedef struct __ncnn_mat_t* ncnn_mat_t;
@@ -341,7 +341,7 @@ NCNN_EXPORT void ncnn_net_destroy(ncnn_net_t net);
 NCNN_EXPORT ncnn_option_t ncnn_net_get_option(ncnn_net_t net);
 NCNN_EXPORT void ncnn_net_set_option(ncnn_net_t net, ncnn_option_t opt);
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 NCNN_EXPORT void ncnn_net_set_vulkan_device(ncnn_net_t net, int device_index);
 #endif
 

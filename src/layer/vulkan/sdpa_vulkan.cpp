@@ -68,10 +68,6 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
     }
 
     use_flash_attention = (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed);
-#if NCNN_WEBGPU
-    // tint spir-v reader does not support the specialized workgroup array lengths used by sdpa_fa
-    use_flash_attention = false;
-#endif // NCNN_WEBGPU
     if (use_flash_attention && use_cooperative_matrix)
     {
         const uint32_t support_subgroup_ops = vkdev->info.support_subgroup_ops();

@@ -58,13 +58,6 @@ int Convolution_vulkan::load_param(const ParamDict& pd)
     }
 
 #if NCNN_INT8
-#if NCNN_WEBGPU
-    if (int8_scale_term)
-    {
-        support_vulkan = false;
-    }
-#endif // NCNN_WEBGPU
-
     if (int8_scale_term && pad_value != 0.f)
     {
         NCNN_LOGE("Convolution_vulkan int8 nonzero pad value is not supported");
@@ -2022,10 +2015,10 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             const int num_output_packed = (num_output + 3) / 4 * 4;
 
             std::vector<VkMat> bindings(6);
-            bindings[0] = elempack == 1 ? bottom_blob_bordered : VkMat();
-            bindings[1] = out_elempack == 1 ? top_blob : VkMat();
-            bindings[2] = elempack == 4 ? bottom_blob_bordered : VkMat();
-            bindings[3] = out_elempack == 4 ? top_blob : VkMat();
+            bindings[0] = bottom_blob_bordered;
+            bindings[1] = top_blob;
+            bindings[2] = bottom_blob_bordered;
+            bindings[3] = top_blob;
             bindings[4] = weight_data_gpu;
             bindings[5] = bias_data_gpu;
 
@@ -2130,10 +2123,10 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     const int outcstep_pack4 = (out_elempack == 4) ? top_blob.cstep : (top_blob.cstep * 4);
 
     std::vector<VkMat> bindings(6);
-    bindings[0] = elempack == 1 ? bottom_blob_bordered : VkMat();
-    bindings[1] = out_elempack == 1 ? top_blob : VkMat();
-    bindings[2] = elempack == 4 ? bottom_blob_bordered : VkMat();
-    bindings[3] = out_elempack == 4 ? top_blob : VkMat();
+    bindings[0] = bottom_blob_bordered;
+    bindings[1] = top_blob;
+    bindings[2] = bottom_blob_bordered;
+    bindings[3] = top_blob;
     bindings[4] = weight_data_gpu;
     bindings[5] = bias_data_gpu;
 
@@ -2372,7 +2365,6 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     coopmat_K = 0;
     coopmat_subgroup_size = 0;
 
-#if NCNN_VULKAN
     if (use_winograd && opt.use_cooperative_matrix && opt.use_int8_arithmetic && vkdev->info.support_int8_cooperative_matrix())
     {
         int M = 1024;
@@ -2478,7 +2470,6 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
             UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
         }
     }
-#endif // NCNN_VULKAN
 
     if (is_conv1x1s1d1)
     {

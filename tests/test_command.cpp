@@ -21,18 +21,8 @@ static int test_command_upload_download(const ncnn::Mat& a)
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
-    if (!vkdev->info.support_fp16_uniform()) opt.use_fp16_uniform = false;
-    if (!vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
-    if (!vkdev->info.support_int8_packed()) opt.use_int8_packed = false;
-    if (!vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
-    if (!vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
-    if (!vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
-    if (!vkdev->info.support_int16_packed()) opt.use_int16_packed = false;
-    if (!vkdev->info.support_int16_storage() || !vkdev->info.support_int16_arithmetic()) opt.use_int16_storage = false;
     if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
     if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
-    if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
-    if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
     ncnn::Mat c;
     {
@@ -72,52 +62,32 @@ static int test_command_clone(const ncnn::Mat& a)
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
-    if (!vkdev->info.support_fp16_uniform()) opt.use_fp16_uniform = false;
-    if (!vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
-    if (!vkdev->info.support_int8_packed()) opt.use_int8_packed = false;
-    if (!vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
-    if (!vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
-    if (!vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
-    if (!vkdev->info.support_int16_packed()) opt.use_int16_packed = false;
-    if (!vkdev->info.support_int16_storage() || !vkdev->info.support_int16_arithmetic()) opt.use_int16_storage = false;
     if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
     if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
-    if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
-    if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
     ncnn::Mat d;
-#if NCNN_VULKAN
     ncnn::Mat e;
-#endif // NCNN_VULKAN
     {
         ncnn::VkCompute cmd(vkdev);
 
-#if NCNN_VULKAN
         ncnn::VkMat b1;
         ncnn::VkMat b2;
-        ncnn::VkImageMat b3;
-        ncnn::VkImageMat c1;
-        ncnn::VkImageMat c2;
-        ncnn::VkMat c3;
         cmd.record_clone(a, b1, opt);
-        cmd.record_clone(a, c1, opt);
         cmd.record_clone(b1, b2, opt);
-        cmd.record_clone(c1, c2, opt);
-        cmd.record_clone(b2, b3, opt);
-        cmd.record_clone(c2, c3, opt);
-        cmd.record_clone(b3, d, opt);
-        cmd.record_clone(c3, e, opt);
-#endif // NCNN_VULKAN
-
-#if NCNN_WEBGPU
-        ncnn::VkMat b1;
-        ncnn::VkMat b2;
         ncnn::VkMat b3;
-        cmd.record_clone(a, b1, opt);
-        cmd.record_clone(b1, b2, opt);
         cmd.record_clone(b2, b3, opt);
         cmd.record_clone(b3, d, opt);
-#endif // NCNN_WEBGPU
+
+        if (vkdev->info.max_image_dimension_1d() != 0)
+        {
+            ncnn::VkImageMat c1;
+            ncnn::VkImageMat c2;
+            ncnn::VkMat c3;
+            cmd.record_clone(a, c1, opt);
+            cmd.record_clone(c1, c2, opt);
+            cmd.record_clone(c2, c3, opt);
+            cmd.record_clone(c3, e, opt);
+        }
 
         cmd.submit_and_wait();
     }
@@ -131,13 +101,11 @@ static int test_command_clone(const ncnn::Mat& a)
         return -1;
     }
 
-#if NCNN_VULKAN
-    if (CompareMat(a, e, 0.001) != 0)
+    if (!e.empty() && CompareMat(a, e, 0.001) != 0)
     {
         fprintf(stderr, "test_command_clone image failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
         return -1;
     }
-#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -157,18 +125,8 @@ static int test_command_transfer(const ncnn::Mat& a)
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
-    if (!vkdev->info.support_fp16_uniform()) opt.use_fp16_uniform = false;
-    if (!vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
-    if (!vkdev->info.support_int8_packed()) opt.use_int8_packed = false;
-    if (!vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
-    if (!vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
-    if (!vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
-    if (!vkdev->info.support_int16_packed()) opt.use_int16_packed = false;
-    if (!vkdev->info.support_int16_storage() || !vkdev->info.support_int16_arithmetic()) opt.use_int16_storage = false;
     if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
     if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
-    if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
-    if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
     ncnn::Mat c;
     {

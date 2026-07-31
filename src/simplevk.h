@@ -6,7 +6,7 @@
 
 #include "platform.h"
 
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 #if NCNN_SIMPLEVK
 
 #define VK_VERSION_1_0 1
@@ -2191,6 +2191,6 @@ void unload_vulkan_driver();
 } // namespace ncnn
 
 #endif // NCNN_SIMPLEVK
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 #endif // NCNN_SIMPLEVK_H

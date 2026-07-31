@@ -587,9 +587,6 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
     opt_int8.use_fp16_arithmetic = false;
     opt_int8.use_int16_packed = false;
     opt_int8.use_int16_storage = false;
-#if NCNN_WEBGPU
-    opt_int8.use_int8_packed = true;
-#endif // NCNN_WEBGPU
 
     {
         quantize = ncnn::create_layer_vulkan(ncnn::LayerType::Quantize);
@@ -625,7 +622,7 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
         weights[0] = bottom_blob_int8_scales;
         quantize->load_model(ModelBinFromMatArray(weights));
 
-        Option opt_quantize = opt_int8;
+        Option opt_quantize = opt;
         opt_quantize.use_fp16_arithmetic = false;
 
         quantize->create_pipeline(opt_quantize);
@@ -707,7 +704,7 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
 
         flatten->load_param(pd);
 
-        flatten->create_pipeline(opt_int8);
+        flatten->create_pipeline(opt);
     }
 
     if (num_input_packed / 4 >= 32)
@@ -807,24 +804,18 @@ int InnerProduct_vulkan::create_pipeline_int8(const Option& opt)
 
 int InnerProduct_vulkan::upload_model_int8(VkTransfer& cmd, const Option& opt)
 {
-    Option opt_fp32 = opt;
-    opt_fp32.use_fp16_packed = false;
-    opt_fp32.use_fp16_storage = false;
-    opt_fp32.use_bf16_packed = false;
-    opt_fp32.use_bf16_storage = false;
-
     cmd.record_upload(weight_data_int8_packed, weight_data_gpu, opt);
 
     weight_data_int8_packed.release();
 
-    cmd.record_upload(weight_data_int8_descales, weight_data_int8_descales_gpu, opt_fp32);
+    cmd.record_upload(weight_data_int8_descales, weight_data_int8_descales_gpu, opt);
 
     weight_data_int8_descales.release();
     weight_data_int8_scales.release();
 
     if (bias_term)
     {
-        cmd.record_upload(bias_data_int8_packed, bias_data_gpu, opt_fp32);
+        cmd.record_upload(bias_data_int8_packed, bias_data_gpu, opt);
 
         bias_data_int8_packed.release();
         bias_data.release();
@@ -875,18 +866,10 @@ int InnerProduct_vulkan::forward_int8(const VkMat& bottom_blob, VkMat& top_blob,
             return -100;
 
         std::vector<VkMat> bindings(7);
-#if NCNN_WEBGPU
-        bindings[0] = elempack == 1 ? bottom_blob_quantized : VkMat();
-        bindings[1] = elempack == 1 ? top_blob : VkMat();
-        bindings[2] = elempack == 4 ? bottom_blob_quantized : VkMat();
-        bindings[3] = elempack == 4 ? top_blob : VkMat();
-#endif // NCNN_WEBGPU
-#if NCNN_VULKAN
         bindings[0] = bottom_blob_quantized;
         bindings[1] = top_blob;
         bindings[2] = bottom_blob_quantized;
         bindings[3] = top_blob;
-#endif // NCNN_VULKAN
         bindings[4] = weight_data_gpu;
         bindings[5] = weight_data_int8_descales_gpu;
         bindings[6] = bias_data_gpu;

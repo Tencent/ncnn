@@ -95,13 +95,11 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         // sanitize wired subgroup_size
         use_subgroup_ops = false;
     }
-#if NCNN_VULKAN
     if (opt.use_fp16_arithmetic && !opt.use_bf16_storage && !opt.use_bf16_packed && !vkdev->info.queryShaderSubgroupExtendedTypesFeatures().shaderSubgroupExtendedTypes)
     {
         // gemm_sg shuffles fp16 vectors, which requires subgroup extended types
         use_subgroup_ops = false;
     }
-#endif // NCNN_VULKAN
 
     if (use_cooperative_matrix)
     {
@@ -717,7 +715,6 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     VkMat A = A0;
     VkMat B = B0;
 
-#if NCNN_VULKAN
     if (constantA && !vkdev->is_device_local(A0.data->memory_type_index))
     {
         cmd.record_clone(A0, A, opt);
@@ -726,7 +723,6 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     {
         cmd.record_clone(B0, B, opt);
     }
-#endif // NCNN_VULKAN
 
     const int A_elempack = A.elempack;
     const int B_elempack = B.elempack;
@@ -832,21 +828,11 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     if (use_cooperative_matrix)
     {
         std::vector<VkMat> bindings(5);
-#if NCNN_WEBGPU
-        bindings[0] = out_elempack == 1 ? top_blob : VkMat();
-#endif // NCNN_WEBGPU
-#if NCNN_VULKAN
         bindings[0] = top_blob;
-#endif // NCNN_VULKAN
         bindings[1] = A;
         bindings[2] = B;
         bindings[3] = C;
-#if NCNN_WEBGPU
-        bindings[4] = out_elempack == 4 ? top_blob : VkMat();
-#endif // NCNN_WEBGPU
-#if NCNN_VULKAN
         bindings[4] = top_blob;
-#endif // NCNN_VULKAN
 
         std::vector<vk_constant_type> constants(13);
         constants[0].i = M;
@@ -876,21 +862,11 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     else
     {
         std::vector<VkMat> bindings(5);
-#if NCNN_WEBGPU
-        bindings[0] = out_elempack == 1 ? top_blob : VkMat();
-#endif // NCNN_WEBGPU
-#if NCNN_VULKAN
         bindings[0] = top_blob;
-#endif // NCNN_VULKAN
         bindings[1] = A;
         bindings[2] = B;
         bindings[3] = C;
-#if NCNN_WEBGPU
-        bindings[4] = out_elempack == 4 ? top_blob : VkMat();
-#endif // NCNN_WEBGPU
-#if NCNN_VULKAN
         bindings[4] = top_blob;
-#endif // NCNN_VULKAN
 
         std::vector<vk_constant_type> constants(13);
         constants[0].i = M;
@@ -1859,21 +1835,11 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
     if (use_cooperative_matrix)
     {
         std::vector<VkMat> bindings(7);
-#if NCNN_WEBGPU
-        bindings[0] = out_elempack == 1 ? top_blob : VkMat();
-#endif // NCNN_WEBGPU
-#if NCNN_VULKAN
         bindings[0] = top_blob;
-#endif // NCNN_VULKAN
         bindings[1] = A_int8;
         bindings[2] = B_int8;
         bindings[3] = C;
-#if NCNN_WEBGPU
-        bindings[4] = out_elempack == 4 ? top_blob : VkMat();
-#endif // NCNN_WEBGPU
-#if NCNN_VULKAN
         bindings[4] = top_blob;
-#endif // NCNN_VULKAN
         bindings[5] = A_int8_descales;
         bindings[6] = B_int8_descale;
 
@@ -1898,21 +1864,11 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
     else
     {
         std::vector<VkMat> bindings(7);
-#if NCNN_WEBGPU
-        bindings[0] = out_elempack == 1 ? top_blob : VkMat();
-#endif // NCNN_WEBGPU
-#if NCNN_VULKAN
         bindings[0] = top_blob;
-#endif // NCNN_VULKAN
         bindings[1] = A_int8;
         bindings[2] = B_int8;
         bindings[3] = C;
-#if NCNN_WEBGPU
-        bindings[4] = out_elempack == 4 ? top_blob : VkMat();
-#endif // NCNN_WEBGPU
-#if NCNN_VULKAN
         bindings[4] = top_blob;
-#endif // NCNN_VULKAN
         bindings[5] = A_int8_descales;
         bindings[6] = B_int8_descale;
 

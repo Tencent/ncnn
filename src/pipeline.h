@@ -6,62 +6,14 @@
 
 #include "mat.h"
 #include "platform.h"
-#if NCNN_VULKAN || NCNN_WEBGPU
+#if NCNN_VULKAN
 #include "gpu.h"
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 namespace ncnn {
 
-#if NCNN_VULKAN || NCNN_WEBGPU
-class Option;
-#if NCNN_WEBGPU
-struct WebGpuPipelineBundle
-{
-    WGPUShaderModule shader_module;
-    WGPUBindGroupLayout bind_group_layout;
-    WGPUPipelineLayout pipeline_layout;
-    WGPUComputePipeline pipeline;
-    WebGpuShaderInfo shader_info;
-};
-#endif // NCNN_WEBGPU
-
-#if NCNN_WEBGPU
-class PipelinePrivate;
-class NCNN_EXPORT Pipeline
-{
-public:
-    explicit Pipeline(const VulkanDevice* vkdev);
-    virtual ~Pipeline();
-
-public:
-    void set_optimal_local_size_xyz(int w = 4, int h = 4, int c = 4);
-    void set_optimal_local_size_xyz(const Mat& local_size_xyz);
-    void set_local_size_xyz(int w, int h, int c);
-    void set_subgroup_size(uint32_t subgroup_size);
-
-    int create(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations);
-    int create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations);
-
-    const WebGpuShaderInfo& shader_info() const;
-    const WebGpuPipelineBundle* webgpu_bundle() const;
-
-    uint32_t local_size_x() const;
-    uint32_t local_size_y() const;
-    uint32_t local_size_z() const;
-
-public:
-    const VulkanDevice* vkdev;
-
-private:
-    Pipeline(const Pipeline&);
-    Pipeline& operator=(const Pipeline&);
-
-private:
-    PipelinePrivate* const d;
-};
-#endif // NCNN_WEBGPU
-
 #if NCNN_VULKAN
+class Option;
 class PipelinePrivate;
 class NCNN_EXPORT Pipeline
 {
@@ -111,9 +63,7 @@ private:
 private:
     PipelinePrivate* const d;
 };
-#endif // NCNN_VULKAN
 
-#if NCNN_VULKAN
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
 class VkCompute;
@@ -143,9 +93,8 @@ public:
 };
 #endif // __ANDROID_API__ >= 26
 #endif // NCNN_PLATFORM_API
-#endif // NCNN_VULKAN
 
-#endif // NCNN_VULKAN || NCNN_WEBGPU
+#endif // NCNN_VULKAN
 
 } // namespace ncnn
 
