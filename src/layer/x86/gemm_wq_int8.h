@@ -13356,7 +13356,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     __m128i _pB = _mm_loadu_si128((const __m128i*)pB);
 #if __AVXVNNIINT8__
                     _sum = _mm_dpbssd_epi32(_sum, _pB, _pA);
-#else  // __AVXVNNIINT8__
+#else // __AVXVNNIINT8__
 #if __AVX512VNNI__ && _MSC_VER < 1932
                     // old msvc crash here  --- nihui
                     __m256i _pA0 = _mm256_cvtepu8_epi16(_pA);
