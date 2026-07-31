@@ -3918,7 +3918,12 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     __m128 _scale = _mm_and_ps(_mm_div_ps(_mm_set1_ps(127.f), _absmax_nonzero), _nonzero);
                     _mm_storeu_ps(pd, _descale);
 
+#if defined(_MSC_VER) && _MSC_VER < 1920
+                    // old msvc crash here  --- nihui
+                    __m512 _scale512 = combine4x4_ps(_scale, _scale, _scale, _scale);
+#else
                     __m512 _scale512 = _mm512_broadcast_f32x4(_scale);
+#endif
                     __m512 _scale0 = _mm512_permutexvar_ps(_mm512_set1_epi32(0), _scale512);
                     __m512 _scale1 = _mm512_permutexvar_ps(_mm512_set1_epi32(1), _scale512);
                     __m512 _scale2 = _mm512_permutexvar_ps(_mm512_set1_epi32(2), _scale512);
@@ -5725,7 +5730,12 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 __m128 _scale = _mm_and_ps(_mm_div_ps(_mm_set1_ps(127.f), _absmax_nonzero), _nonzero);
                 _mm_storeu_ps(pd, _descale);
 
+#if defined(_MSC_VER) && _MSC_VER < 1920
+                // old msvc crash here  --- nihui
+                __m512 _scale512 = combine4x4_ps(_scale, _scale, _scale, _scale);
+#else
                 __m512 _scale512 = _mm512_broadcast_f32x4(_scale);
+#endif
                 __m512 _scale0 = _mm512_permutexvar_ps(_mm512_set1_epi32(0), _scale512);
                 __m512 _scale1 = _mm512_permutexvar_ps(_mm512_set1_epi32(1), _scale512);
                 __m512 _scale2 = _mm512_permutexvar_ps(_mm512_set1_epi32(2), _scale512);
@@ -12143,21 +12153,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     _sum0 = _mm256_dpbssd_epi32(_sum0, _pB0, _pA0);
                     _sum1 = _mm256_dpbssd_epi32(_sum1, _pB1, _pA0);
 #else // __AVXVNNIINT8__
-#if __AVX512VNNI__ && _MSC_VER < 1932
-                    // old msvc crash here  --- nihui
-                    __m512i _pA00 = _mm512_cvtepu8_epi16(_pA0);
-                    __m512i _pB00 = _mm512_cvtepi8_epi16(_pB0);
-                    __m512i _pB10 = _mm512_cvtepi8_epi16(_pB1);
-                    __m512i _s0 = _mm512_madd_epi16(_pA00, _pB00);
-                    __m512i _s1 = _mm512_madd_epi16(_pA00, _pB10);
-                    __m256i _s2 = _mm256_hadd_epi32(_mm512_extracti32x8_epi32(_s0, 0), _mm512_extracti32x8_epi32(_s0, 1));
-                    __m256i _s3 = _mm256_hadd_epi32(_mm512_extracti32x8_epi32(_s1, 0), _mm512_extracti32x8_epi32(_s1, 1));
-                    _sum0 = _mm256_add_epi32(_sum0, _mm256_permute4x64_epi64(_s2, _MM_SHUFFLE(3, 1, 2, 0)));
-                    _sum1 = _mm256_add_epi32(_sum1, _mm256_permute4x64_epi64(_s3, _MM_SHUFFLE(3, 1, 2, 0)));
-#else
                     _sum0 = _mm256_comp_dpbusd_epi32(_sum0, _pA0, _pB0);
                     _sum1 = _mm256_comp_dpbusd_epi32(_sum1, _pA0, _pB1);
-#endif
 #endif // __AVXVNNIINT8__
                     pB += 8;
                     pA += 32;
@@ -12616,21 +12613,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     _sum0 = _mm_dpbssd_epi32(_sum0, _pB0, _pA0);
                     _sum1 = _mm_dpbssd_epi32(_sum1, _pB1, _pA0);
 #else // __AVXVNNIINT8__
-#if __AVX512VNNI__ && _MSC_VER < 1932
-                    // old msvc crash here  --- nihui
-                    __m256i _pA00 = _mm256_cvtepu8_epi16(_pA0);
-                    __m256i _pB00 = _mm256_cvtepi8_epi16(_pB0);
-                    __m256i _pB10 = _mm256_cvtepi8_epi16(_pB1);
-                    __m256i _s0 = _mm256_madd_epi16(_pA00, _pB00);
-                    __m256i _s1 = _mm256_madd_epi16(_pA00, _pB10);
-                    __m128i _s2 = _mm_hadd_epi32(_mm256_extracti128_si256(_s0, 0), _mm256_extracti128_si256(_s0, 1));
-                    __m128i _s3 = _mm_hadd_epi32(_mm256_extracti128_si256(_s1, 0), _mm256_extracti128_si256(_s1, 1));
-                    _sum0 = _mm_add_epi32(_sum0, _s2);
-                    _sum1 = _mm_add_epi32(_sum1, _s3);
-#else
                     _sum0 = _mm_comp_dpbusd_epi32(_sum0, _pA0, _pB0);
                     _sum1 = _mm_comp_dpbusd_epi32(_sum1, _pA0, _pB1);
-#endif
 #endif // __AVXVNNIINT8__
                     pA += 16;
                     pB += 8;
@@ -13284,16 +13268,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     __m128i _pA32 = _mm_castps_si128(_mm_load_ss((const float*)pA));
                     __m256i _pA = _mm256_broadcastd_epi32(_pA32);
                     __m256i _pB = _mm256_loadu_si256((const __m256i*)pB);
-#if _MSC_VER < 1932
-                    // old msvc crash here  --- nihui
-                    __m512i _pA0 = _mm512_cvtepu8_epi16(_pA);
-                    __m512i _pB0 = _mm512_cvtepi8_epi16(_pB);
-                    __m512i _s0 = _mm512_madd_epi16(_pA0, _pB0);
-                    __m256i _s1 = _mm256_hadd_epi32(_mm512_extracti32x8_epi32(_s0, 0), _mm512_extracti32x8_epi32(_s0, 1));
-                    _sum = _mm256_add_epi32(_sum, _mm256_permute4x64_epi64(_s1, _MM_SHUFFLE(3, 1, 2, 0)));
-#else
                     _sum = _mm256_comp_dpbusd_epi32(_sum, _pA, _pB);
-#endif
                     pA += 4;
                     pB += 32;
                 }
@@ -13383,16 +13358,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #if __AVXVNNIINT8__
                     _sum = _mm_dpbssd_epi32(_sum, _pB, _pA);
 #else // __AVXVNNIINT8__
-#if __AVX512VNNI__ && _MSC_VER < 1932
-                    // old msvc crash here  --- nihui
-                    __m256i _pA0 = _mm256_cvtepu8_epi16(_pA);
-                    __m256i _pB0 = _mm256_cvtepi8_epi16(_pB);
-                    __m256i _s0 = _mm256_madd_epi16(_pA0, _pB0);
-                    __m128i _s1 = _mm_hadd_epi32(_mm256_extracti128_si256(_s0, 0), _mm256_extracti128_si256(_s0, 1));
-                    _sum = _mm_add_epi32(_sum, _s1);
-#else
                     _sum = _mm_comp_dpbusd_epi32(_sum, _pA, _pB);
-#endif
 #endif // __AVXVNNIINT8__
                     pA += 4;
                     pB += 16;
