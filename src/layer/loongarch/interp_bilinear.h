@@ -40,11 +40,6 @@ static void linear_coeffs(int w, int outw, float coord_scale, int* xofs, float* 
     }
 }
 
-static void linear_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner)
-{
-    linear_coeffs(w, outw, (float)((double)w / outw), xofs, alpha, align_corner);
-}
-
 static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
 {
     int w = dst.w;

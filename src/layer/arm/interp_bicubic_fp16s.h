@@ -74,11 +74,6 @@ static void cubic_coeffs_fp16sa(int w, int outw, float coord_scale, int* xofs, _
     }
 }
 
-static void cubic_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha, int align_corner)
-{
-    cubic_coeffs_fp16sa(w, outw, (float)((double)w / outw), xofs, alpha, align_corner);
-}
-
 static void resize_bicubic_image_fp16s(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
 {
     int w = dst.w;

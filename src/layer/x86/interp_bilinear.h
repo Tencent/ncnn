@@ -44,11 +44,6 @@ static void linear_coeffs(int w, int outw, float coord_scale, int* xofs, float* 
     }
 }
 
-static void linear_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner)
-{
-    linear_coeffs(w, outw, (float)((double)w / outw), xofs, alpha, align_corner);
-}
-
 static void vresize_bilinear(const float* rows0, const float* rows1, float* Dp, int n, float b0, float b1)
 {
     int nn = 0;

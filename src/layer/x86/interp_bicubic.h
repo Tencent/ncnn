@@ -80,11 +80,6 @@ static void cubic_coeffs(int w, int outw, float coord_scale, int* xofs, float* a
     }
 }
 
-static void cubic_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner)
-{
-    cubic_coeffs(w, outw, (float)((double)w / outw), xofs, alpha, align_corner);
-}
-
 static void vresize_bicubic(const float* rows0, const float* rows1, const float* rows2, const float* rows3, float* Dp, int n, float b0, float b1, float b2, float b3)
 {
     int nn = 0;
