@@ -101,9 +101,9 @@ ncnn2table can generate static weight scales without a calibration dataset for R
 ./ncnn2int8 mobilenet-opt.param mobilenet-opt.bin mobilenet-int8.param mobilenet-int8.bin mobilenet.table
 ```
 
-## Weight-only block quantized Gemm and MultiHeadAttention
+## Block quantized Gemm and MultiHeadAttention
 
-LLM-oriented `Gemm` and `MultiHeadAttention` weight-only block quantization is separate from the post training int8 flow above. It stores weight as signed int4/int6/int8 blocks and keeps activation/output in fp32.
+LLM-oriented `Gemm` and `MultiHeadAttention` block quantization is separate from the post training int8 flow above. The 4-bit and 6-bit modes are weight-only: they store weights as signed int4/int6 blocks and keep activation/output in fp32. The 8-bit CPU mode is dynamic W8A8 per-block: it stores constant weights as signed int8, dynamically quantizes each fp32 activation row and block to signed int8 for every forward, accumulates int8 dot products in int32, applies the activation and weight descales at each block boundary, and produces fp32 output. The 8-bit mode has no W8A32 compatibility path.
 
 The workflow is similar to `ncnn2table` and `ncnn2int8`:
 
@@ -112,7 +112,7 @@ The workflow is similar to `ncnn2table` and `ncnn2int8`:
 ./ncnnllm2int in.param in.bin out.param out.bin model.llm.table
 ```
 
-method can be minmax,mseclip,awq,gptq. bits can be 4,6,8. block can be 32,64,128. thread is the CPU thread count.
+method can be minmax,mseclip,awq,gptq. bits can be 4,6,8. `bits=4` and `bits=6` select weight-only execution, while `bits=8` selects dynamic W8A8 per-block execution on CPU. block can be 32,64,128. thread is the CPU thread count.
 
 awq and gptq need calibration data, same as npy calibration in ncnn2table.
 
