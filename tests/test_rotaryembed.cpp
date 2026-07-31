@@ -44,10 +44,15 @@ static int test_rotaryembed_0()
            || test_rotaryembed(RandomMat(28, 17, 15), 1);
 }
 
-// non-interleaved with a FULL-WIDTH (embed_dim) cos/sin cache whose two halves differ
-// (2D / vision rope). A half-width cache has identical halves; this exercises the path
-// where the second half must rotate with its own cos/sin.
-static int test_rotaryembed_fullcos(const ncnn::Mat& a)
+// FULL-WIDTH (embed_dim) cos/sin cache. This is the shape pnnx always emits, because the
+// fused expression multiplies the cache elementwise with the full embed_dim input
+// (tools/pnnx/src/pass_ncnn/fuse_convert_rotaryembed.cpp).
+//
+// non-interleaved: the two halves of the cache carry independent cos/sin (2D / vision rope);
+//                  a half-width cache is the degenerate case where they are identical.
+// interleaved:     only the first embed_dim/2 entries of each row are used, but the row
+//                  stride is embed_dim -- which is what exercises the cache stride handling.
+static int test_rotaryembed_fullcos(const ncnn::Mat& a, int interleaved)
 {
     const int embed_dim = a.w;
     const int seqlen = a.h;
@@ -56,7 +61,7 @@ static int test_rotaryembed_fullcos(const ncnn::Mat& a)
     ncnn::Mat sin_cache = RandomMat(embed_dim, seqlen);
 
     ncnn::ParamDict pd;
-    pd.set(0, 0); // non-interleaved
+    pd.set(0, interleaved);
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -68,7 +73,7 @@ static int test_rotaryembed_fullcos(const ncnn::Mat& a)
     int ret = test_layer("RotaryEmbed", pd, weights, as, 1);
     if (ret != 0)
     {
-        fprintf(stderr, "test_rotaryembed_fullcos failed a=(%d %d %d)\n", a.w, a.h, a.c);
+        fprintf(stderr, "test_rotaryembed_fullcos failed a=(%d %d %d) interleaved=%d\n", a.w, a.h, a.c, interleaved);
     }
 
     return ret;
@@ -77,10 +82,15 @@ static int test_rotaryembed_fullcos(const ncnn::Mat& a)
 static int test_rotaryembed_1()
 {
     return 0
-           || test_rotaryembed_fullcos(RandomMat(32, 66, 8))
-           || test_rotaryembed_fullcos(RandomMat(64, 28, 12))
-           || test_rotaryembed_fullcos(RandomMat(44, 28, 64))
-           || test_rotaryembed_fullcos(RandomMat(28, 17, 15));
+           || test_rotaryembed_fullcos(RandomMat(32, 66, 8), 0)
+           || test_rotaryembed_fullcos(RandomMat(64, 28, 12), 0)
+           || test_rotaryembed_fullcos(RandomMat(44, 28, 64), 0)
+           || test_rotaryembed_fullcos(RandomMat(28, 17, 15), 0)
+           || test_rotaryembed_fullcos(RandomMat(32, 66, 8), 1)
+           || test_rotaryembed_fullcos(RandomMat(26, 64, 8), 1)
+           || test_rotaryembed_fullcos(RandomMat(48, 22, 12), 1)
+           || test_rotaryembed_fullcos(RandomMat(12, 27, 64), 1)
+           || test_rotaryembed_fullcos(RandomMat(28, 17, 15), 1);
 }
 
 int main()
