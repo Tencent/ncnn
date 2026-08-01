@@ -6340,18 +6340,19 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             // print as line_number: code
             {
                 const char* p = comp_datas[3];
+                const char* p_end = p + comp_data_size_2;
                 const char* line_end;
                 int line_number = 1;
 
-                while ((line_end = strchr(p, '\n')) != NULL)
+                while ((line_end = (const char*)memchr(p, '\n', p_end - p)) != NULL)
                 {
                     NCNN_LOGE("%d:\t%.*s", line_number++, (int)(line_end - p), p);
                     p = line_end + 1;
                 }
 
-                if (*p != '\0')
+                if (p != p_end)
                 {
-                    NCNN_LOGE("%d:\t%s", line_number, p);
+                    NCNN_LOGE("%d:\t%.*s", line_number, (int)(p_end - p), p);
                 }
             }
 
