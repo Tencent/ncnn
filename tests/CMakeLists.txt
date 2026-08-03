@@ -4,10 +4,6 @@ if(MSVC)
     add_definitions(/wd4996)
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NCNN_VULKAN)
-    include(${CMAKE_CURRENT_SOURCE_DIR}/webgpu/webgpu_tests.cmake)
-endif()
-
 add_library(ncnntestutil STATIC testutil.cpp)
 target_link_libraries(ncnntestutil PUBLIC ncnn)
 
@@ -15,7 +11,7 @@ macro(ncnn_add_test name)
     add_executable(test_${name} test_${name}.cpp)
     target_link_libraries(test_${name} PRIVATE ncnntestutil ncnn)
 
-    if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NCNN_VULKAN)
+    if(COMMAND ncnn_add_webgpu_browser_test)
         if("${name}" STREQUAL "command" OR "${name}" STREQUAL "squeezenet")
             ncnn_add_webgpu_browser_test(test_${name} REQUIRE_WEBGPU)
         endif()
@@ -39,7 +35,7 @@ macro(ncnn_add_layer_test class)
             add_executable(${test_filename} ${test_file})
             target_link_libraries(${test_filename} PRIVATE ncnntestutil ncnn)
 
-            if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NCNN_VULKAN)
+            if(COMMAND ncnn_add_webgpu_browser_test)
                 ncnn_add_webgpu_browser_test(${test_filename})
             else()
                 add_test(NAME ${test_filename} COMMAND ${CMAKE_COMMAND} -DTEST_EXECUTABLE=$<TARGET_FILE:${test_filename}> -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/run_test.cmake)
@@ -85,11 +81,13 @@ if(NCNN_VULKAN)
     ncnn_add_test(pipeline_cache)
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NOT NCNN_VULKAN AND TARGET test_squeezenet)
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten"
+   AND NOT COMMAND ncnn_add_webgpu_browser_test
+   AND TARGET test_squeezenet)
     target_link_libraries(test_squeezenet PRIVATE nodefs.js)
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NCNN_VULKAN AND TARGET test_squeezenet)
+if(COMMAND ncnn_configure_webgpu_squeezenet_test AND TARGET test_squeezenet)
     ncnn_configure_webgpu_squeezenet_test(test_squeezenet)
 endif()
 

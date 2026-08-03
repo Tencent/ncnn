@@ -103,16 +103,6 @@ if(NCNN_VULKAN AND CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     if(NCNN_SYSTEM_GLSLANG)
         message(FATAL_ERROR "Emscripten Vulkan requires the bundled glslang")
     endif()
-
-    set(VKWEBGPU_NODE_EXECUTABLE "" CACHE FILEPATH "Node.js executable for Emscripten Vulkan tests")
-    set(NCNN_TEST_CHROME "" CACHE FILEPATH "Chrome executable for ncnn WebGPU tests")
-    set(NCNN_TEST_CHROME_VERSION "" CACHE STRING "expected Chrome version for ncnn WebGPU tests")
-    set(NCNN_TEST_WEBGPU_ADAPTER "swiftshader" CACHE STRING "WebGPU browser test adapter (swiftshader or hardware)")
-    set_property(CACHE NCNN_TEST_WEBGPU_ADAPTER PROPERTY STRINGS swiftshader hardware)
-    if(NOT NCNN_TEST_WEBGPU_ADAPTER STREQUAL "swiftshader"
-       AND NOT NCNN_TEST_WEBGPU_ADAPTER STREQUAL "hardware")
-        message(FATAL_ERROR "NCNN_TEST_WEBGPU_ADAPTER must be swiftshader or hardware")
-    endif()
 endif()
 
 if(ANDROID OR IOS OR NCNN_SIMPLESTL)
@@ -924,6 +914,26 @@ if(NCNN_VULKAN)
 
         if(NOT TARGET vkwebgpu::static)
             message(FATAL_ERROR "The external vkwebgpu project did not provide vkwebgpu::static")
+        endif()
+
+        if(NCNN_BUILD_TESTS)
+            if(NOT ncnn_vkwebgpu_source_dir)
+                get_target_property(ncnn_vkwebgpu_static_target
+                    vkwebgpu::static ALIASED_TARGET)
+                if(NOT ncnn_vkwebgpu_static_target)
+                    set(ncnn_vkwebgpu_static_target vkwebgpu::static)
+                endif()
+                get_target_property(ncnn_vkwebgpu_source_dir
+                    ${ncnn_vkwebgpu_static_target} SOURCE_DIR)
+            endif()
+            set(ncnn_vkwebgpu_browser_tests
+                "${ncnn_vkwebgpu_source_dir}/integrations/ncnn/browser/webgpu_tests.cmake")
+            if(NOT EXISTS "${ncnn_vkwebgpu_browser_tests}")
+                message(FATAL_ERROR
+                    "The external vkwebgpu project does not provide its ncnn browser test integration: "
+                    "${ncnn_vkwebgpu_browser_tests}")
+            endif()
+            include("${ncnn_vkwebgpu_browser_tests}")
         endif()
     endif()
 endif()
