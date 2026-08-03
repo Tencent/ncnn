@@ -94,12 +94,6 @@ option(NCNN_WEIGHT_QUANT "weight quantized inference" ON)
 option(NCNN_BF16 "bf16 inference" ON)
 option(NCNN_FORCE_INLINE "force inline some function" ON)
 
-if(NCNN_VULKAN AND CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-    if(NOT NCNN_SIMPLEVK)
-        message(FATAL_ERROR "Emscripten Vulkan requires NCNN_SIMPLEVK")
-    endif()
-endif()
-
 if(ANDROID OR IOS OR NCNN_SIMPLESTL)
     option(NCNN_DISABLE_RTTI "disable rtti" ON)
     option(NCNN_DISABLE_EXCEPTION "disable exception" ON)
@@ -808,6 +802,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
 endif()
 
 if(NCNN_VULKAN)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NOT NCNN_SIMPLEVK)
+        message(FATAL_ERROR "Emscripten Vulkan requires NCNN_SIMPLEVK")
+    endif()
+
     if(NCNN_SYSTEM_GLSLANG)
         find_package(Threads)
         find_package(SPIRV-Tools QUIET)

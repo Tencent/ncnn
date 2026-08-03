@@ -3539,15 +3539,16 @@ int VulkanDevicePrivate::create_dummy_buffer_image()
     VkDummyCompute cmd(vkdev);
 
     cmd.record_dummy(dummy_buffer);
-    if (!dummy_image.empty())
+    if (vkdev->info.support_image_storage())
+    {
         cmd.record_dummy(dummy_image);
 #if __APPLE__
-    if (!dummy_image_readonly.empty() && vkdev->info.type() == 0)
-        cmd.record_dummy_readonly(dummy_image_readonly);
+        if (vkdev->info.type() == 0)
+            cmd.record_dummy_readonly(dummy_image_readonly);
 #else
-    if (!dummy_image_readonly.empty())
         cmd.record_dummy_readonly(dummy_image_readonly);
 #endif
+    }
 
     return cmd.submit_and_wait();
 }

@@ -7,10 +7,6 @@
 
 #include <stdio.h>
 
-#ifdef __EMSCRIPTEN__
-#include <emscripten.h>
-#endif
-
 static ncnn::Mat generate_ncnn_logo(int pixel_type_to, int w, int h)
 {
     // clang-format off
@@ -520,12 +516,6 @@ static int test_squeezenet_batch(const ncnn::Option& opt, float epsilon = 0.001)
 int main()
 {
     SRAND(7767517);
-
-#if defined(__EMSCRIPTEN__) && !defined(NCNN_TEST_PRELOAD_MODEL)
-    EM_ASM(
-        FS.mkdir('/working');
-        FS.mount(NODEFS, {root: '../../examples'}, '/working'););
-#endif // defined(__EMSCRIPTEN__) && !defined(NCNN_TEST_PRELOAD_MODEL)
 
     ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
     ncnn::PoolAllocator g_workspace_pool_allocator;
