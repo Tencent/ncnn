@@ -5166,11 +5166,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     const GpuInfo& info = get_gpu_info(device_index);
     const bool support_fp16_storage = info.support_fp16_storage();
     const bool support_fp16_uniform = info.support_fp16_uniform();
-    const bool support_fp16_arithmetic = info.support_fp16_arithmetic();
     const bool support_int16_arithmetic = info.physicalDevicefeatures().shaderInt16;
-    // Preserve int16 bits in f16 storage when 16-bit integer arithmetic is unavailable.
-    const bool use_int16_as_fp16_storage = opt.use_int16_storage && !support_int16_arithmetic && support_fp16_arithmetic;
-    const bool use_bf16_as_fp16_storage = opt.use_bf16_packed && support_fp16_storage && !support_int16_arithmetic && support_fp16_arithmetic;
 
     if (opt.use_bf16_storage)
     {
@@ -5184,11 +5180,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     }
     else if (opt.use_bf16_packed)
     {
-        if (use_bf16_as_fp16_storage)
-        {
-            custom_defines.append("sfp", "float16_t");
-        }
-        else if (support_fp16_storage)
+        if (support_fp16_storage)
         {
             custom_defines.append("sfp", "uint16_t");
         }
@@ -5306,10 +5298,6 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         {
             custom_defines.append("buffer_sm1(buf,i)", "buf[i]");
         }
-        else if (use_bf16_as_fp16_storage)
-        {
-            custom_defines.append("buffer_sm1(buf,i)", "uintBitsToFloat((packFloat2x16(f16vec2(buf[i],float16_t(0.0)))&0xffffu)<<16)");
-        }
         else if (support_fp16_storage)
         {
             custom_defines.append("buffer_sm1(buf,i)", "uintBitsToFloat(uint(buf[i])<<16)");
@@ -5410,16 +5398,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     }
     else if (opt.use_bf16_packed)
     {
-        if (use_bf16_as_fp16_storage)
-        {
-            custom_defines.append("buffer_ld1(buf,i)", "uintBitsToFloat((packFloat2x16(f16vec2(buf[i],float16_t(0.0)))&0xffffu)<<16)");
-            custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=unpackFloat2x16(floatBitsToUint(v)>>16).x;}");
-            custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-
-            custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i]=uvec2(packFloat2x16(f16vec2(sbuf[si4.r],sbuf[si4.g])),packFloat2x16(f16vec2(sbuf[si4.b],sbuf[si4.a])));}");
-            custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{buf[i4.r]=unpackFloat2x16(sbuf[si].x).x;buf[i4.g]=unpackFloat2x16(sbuf[si].x).y;buf[i4.b]=unpackFloat2x16(sbuf[si].y).x;buf[i4.a]=unpackFloat2x16(sbuf[si].y).y;}");
-        }
-        else if (support_fp16_storage)
+        if (support_fp16_storage)
         {
             custom_defines.append("buffer_ld1(buf,i)", "uintBitsToFloat(uint(buf[i])<<16)");
             custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=uint16_t(floatBitsToUint(v)>>16);}");
@@ -5542,28 +5521,14 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     if (opt.use_int16_storage)
     {
         custom_defines.append("NCNN_int16_storage", 1);
-        if (use_int16_as_fp16_storage)
-        {
-            custom_defines.append("sint16", "float16_t");
-            custom_defines.append("sint16vec4", "f16vec4");
-            custom_defines.append("lint16", "float16_t");
-            custom_defines.append("lint16vec4", "f16vec4");
-            custom_defines.append("aint16", "int");
-            custom_defines.append("aint16vec4", "ivec4");
-            custom_defines.append("lint162aint16(v)", "(int(packFloat2x16(f16vec2(v,float16_t(0.0))))<<16)>>16");
-            custom_defines.append("lint162aint16vec4(v)", "ivec4(unpackInt2x16(int(packFloat2x16((v).rg))),unpackInt2x16(int(packFloat2x16((v).ba))))");
-        }
-        else
-        {
-            custom_defines.append("sint16", "int16_t");
-            custom_defines.append("sint16vec4", "i16vec4");
-            custom_defines.append("lint16", "int16_t");
-            custom_defines.append("lint16vec4", "i16vec4");
-            custom_defines.append("aint16", support_int16_arithmetic ? "int16_t" : "int");
-            custom_defines.append("aint16vec4", support_int16_arithmetic ? "i16vec4" : "ivec4");
-            custom_defines.append("lint162aint16(v)", support_int16_arithmetic ? "v" : "int(v)");
-            custom_defines.append("lint162aint16vec4(v)", support_int16_arithmetic ? "v" : "ivec4(v)");
-        }
+        custom_defines.append("sint16", "int16_t");
+        custom_defines.append("sint16vec4", "i16vec4");
+        custom_defines.append("lint16", "int16_t");
+        custom_defines.append("lint16vec4", "i16vec4");
+        custom_defines.append("aint16", support_int16_arithmetic ? "int16_t" : "int");
+        custom_defines.append("aint16vec4", support_int16_arithmetic ? "i16vec4" : "ivec4");
+        custom_defines.append("lint162aint16(v)", support_int16_arithmetic ? "v" : "int(v)");
+        custom_defines.append("lint162aint16vec4(v)", support_int16_arithmetic ? "v" : "ivec4(v)");
     }
     else if (opt.use_int16_packed)
     {
@@ -5623,16 +5588,8 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     if (opt.use_int16_storage)
     {
-        if (use_int16_as_fp16_storage)
-        {
-            custom_defines.append("i16buffer_ld1(buf,i)", "unpackInt2x16(int(packFloat2x16(f16vec2(buf[uint(i)&~1u],buf[(uint(i)&~1u)+1u]))))[uint(i)&1u]");
-            custom_defines.append("i16buffer_st1(buf,i,v)", "{buf[i]=unpackFloat2x16(uint(int(v))&0xffffu).x;}");
-        }
-        else
-        {
-            custom_defines.append("i16buffer_ld1(buf,i)", "int(buf[i])");
-            custom_defines.append("i16buffer_st1(buf,i,v)", "{buf[i]=int16_t(v);}");
-        }
+        custom_defines.append("i16buffer_ld1(buf,i)", "int(buf[i])");
+        custom_defines.append("i16buffer_st1(buf,i,v)", "{buf[i]=int16_t(v);}");
     }
     else if (opt.use_int16_packed)
     {
@@ -5647,20 +5604,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     custom_defines.append("i16buffer_ld2(buf,i)", "ivec2(i16buffer_ld1(buf,i),i16buffer_ld1(buf,(i)+1))");
     if (opt.use_int16_storage)
     {
-        if (use_int16_as_fp16_storage)
-        {
-            custom_defines.append("i16buffer_st2(buf,i,v)", "{ivec2 _v=ivec2(v);f16vec2 _f=unpackFloat2x16(uint(packInt2x16(_v)));buf[i]=_f.x;buf[(i)+1]=_f.y;}");
-            custom_defines.append("i16buffer_sm4(buf,i)", "buf[i]");
-            custom_defines.append("i16buffer_ld4(buf,i)", "ivec4(unpackInt2x16(int(packFloat2x16(buf[i].rg))),unpackInt2x16(int(packFloat2x16(buf[i].ba))))");
-            custom_defines.append("i16buffer_st4(buf,i,v)", "{ivec4 _v=ivec4(v);buf[i]=f16vec4(unpackFloat2x16(uint(packInt2x16(_v.rg))),unpackFloat2x16(uint(packInt2x16(_v.ba))));}");
-        }
-        else
-        {
-            custom_defines.append("i16buffer_st2(buf,i,v)", "{ivec2 _v=ivec2(v);buf[i]=int16_t(_v.r);buf[(i)+1]=int16_t(_v.g);}");
-            custom_defines.append("i16buffer_sm4(buf,i)", "buf[i]");
-            custom_defines.append("i16buffer_ld4(buf,i)", support_int16_arithmetic ? "buf[i]" : "ivec4(buf[i])");
-            custom_defines.append("i16buffer_st4(buf,i,v)", "{buf[i]=i16vec4(v);}");
-        }
+        custom_defines.append("i16buffer_st2(buf,i,v)", "{ivec2 _v=ivec2(v);buf[i]=int16_t(_v.r);buf[(i)+1]=int16_t(_v.g);}");
+        custom_defines.append("i16buffer_sm4(buf,i)", "buf[i]");
+        custom_defines.append("i16buffer_ld4(buf,i)", support_int16_arithmetic ? "buf[i]" : "ivec4(buf[i])");
+        custom_defines.append("i16buffer_st4(buf,i,v)", "{buf[i]=i16vec4(v);}");
     }
     else if (opt.use_int16_packed)
     {
@@ -6316,7 +6263,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     {
         custom_exts += "#extension GL_EXT_shader_16bit_storage: require\n";
     }
-    if (opt.use_fp16_arithmetic || use_int16_as_fp16_storage || use_bf16_as_fp16_storage)
+    if (opt.use_fp16_arithmetic)
     {
         custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_float16: require\n";
     }
