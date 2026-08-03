@@ -44,10 +44,6 @@ set(ncnn_SRCS
     simplevk.cpp
 )
 
-if(ncnn_vulkan_uses_webgpu)
-    list(APPEND ncnn_SRCS vkwebgpu.cpp)
-endif()
-
 if(ANDROID)
     list(APPEND ncnn_SRCS mat_pixel_android.cpp)
 endif()
@@ -343,7 +339,7 @@ if(NCNN_VULKAN)
     target_include_directories(ncnn PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../>)
     target_link_libraries(ncnn PRIVATE glslang SPIRV)
     if(ncnn_vulkan_uses_webgpu)
-        ncnn_configure_vkwebgpu_target(ncnn)
+        target_link_libraries(ncnn PUBLIC "$<BUILD_INTERFACE:vkwebgpu::static>")
     endif()
 endif()
 
