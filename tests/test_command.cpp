@@ -78,7 +78,7 @@ static int test_command_clone(const ncnn::Mat& a)
         cmd.record_clone(b2, b3, opt);
         cmd.record_clone(b3, d, opt);
 
-        if (vkdev->info.max_image_dimension_1d() != 0)
+        if (vkdev->info.support_image_storage())
         {
             ncnn::VkImageMat c1;
             ncnn::VkImageMat c2;

@@ -322,6 +322,7 @@ public:
     // property
     bool unified_compute_transfer_queue;
     bool resizable_bar_enabled;
+    bool support_image_storage;
 
     // bug is not feature
     bool bug_storage_buffer_no_l1;
@@ -444,6 +445,10 @@ void GpuInfoPrivate::query_features()
 void GpuInfoPrivate::query_properties()
 {
     vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
+
+    VkImageFormatProperties imageFormatProperties;
+    VkResult ret = vkGetPhysicalDeviceImageFormatProperties(physicalDevice, VK_FORMAT_R32_SFLOAT, VK_IMAGE_TYPE_3D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, 0, &imageFormatProperties);
+    support_image_storage = ret == VK_SUCCESS;
 
     // NCNN_LOGE("[%u] apiVersion = %u.%u.%u", i, VK_VERSION_MAJOR(physicalDeviceProperties.apiVersion),
     //     VK_VERSION_MINOR(physicalDeviceProperties.apiVersion), VK_VERSION_PATCH(physicalDeviceProperties.apiVersion));
@@ -1863,6 +1868,11 @@ bool GpuInfo::unified_compute_transfer_queue() const
 bool GpuInfo::resizable_bar_enabled() const
 {
     return d->resizable_bar_enabled;
+}
+
+bool GpuInfo::support_image_storage() const
+{
+    return d->support_image_storage;
 }
 
 uint32_t GpuInfo::subgroup_size() const
@@ -3515,7 +3525,7 @@ int VulkanDevicePrivate::create_dummy_buffer_image()
     dummy_allocator = new VkDummyAllocator(vkdev);
 
     dummy_buffer.create(1, 4u, dummy_allocator);
-    if (vkdev->info.max_image_dimension_1d() != 0)
+    if (vkdev->info.support_image_storage())
     {
         dummy_image.create(1, 4u, dummy_allocator);
 #if __APPLE__
@@ -3947,7 +3957,7 @@ VulkanDevice::VulkanDevice(int device_index)
     }
 
     // prepare immutable texelfetch sampler
-    if (info.max_image_dimension_1d() != 0)
+    if (info.support_image_storage())
     {
         VkSamplerCreateInfo samplerCreateInfo;
         samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -4711,6 +4721,9 @@ const PipelineCache* VulkanDevice::get_pipeline_cache() const
 
 bool VulkanDevice::shape_support_image_storage(const Mat& shape) const
 {
+    if (!info.support_image_storage())
+        return false;
+
     int dims = shape.dims;
     int width = shape.w;
     int height = shape.h;
