@@ -11,13 +11,7 @@ macro(ncnn_add_test name)
     add_executable(test_${name} test_${name}.cpp)
     target_link_libraries(test_${name} PRIVATE ncnntestutil ncnn)
 
-    if(COMMAND ncnn_add_webgpu_browser_test)
-        if("${name}" STREQUAL "command" OR "${name}" STREQUAL "squeezenet")
-            ncnn_add_webgpu_browser_test(test_${name} REQUIRE_WEBGPU)
-        endif()
-    else()
-        add_test(NAME test_${name} COMMAND ${CMAKE_COMMAND} -DTEST_EXECUTABLE=$<TARGET_FILE:test_${name}> -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/run_test.cmake)
-    endif()
+    add_test(NAME test_${name} COMMAND ${CMAKE_COMMAND} -DTEST_EXECUTABLE=$<TARGET_FILE:test_${name}> -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/run_test.cmake)
 
     # add test to a virtual project group
     set_property(TARGET test_${name} PROPERTY FOLDER "tests")
@@ -35,11 +29,7 @@ macro(ncnn_add_layer_test class)
             add_executable(${test_filename} ${test_file})
             target_link_libraries(${test_filename} PRIVATE ncnntestutil ncnn)
 
-            if(COMMAND ncnn_add_webgpu_browser_test)
-                ncnn_add_webgpu_browser_test(${test_filename})
-            else()
-                add_test(NAME ${test_filename} COMMAND ${CMAKE_COMMAND} -DTEST_EXECUTABLE=$<TARGET_FILE:${test_filename}> -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/run_test.cmake)
-            endif()
+            add_test(NAME ${test_filename} COMMAND ${CMAKE_COMMAND} -DTEST_EXECUTABLE=$<TARGET_FILE:${test_filename}> -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/run_test.cmake)
 
             # add test to a virtual project group
             set_property(TARGET ${test_filename} PROPERTY FOLDER "tests")
@@ -81,14 +71,8 @@ if(NCNN_VULKAN)
     ncnn_add_test(pipeline_cache)
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten"
-   AND NOT COMMAND ncnn_add_webgpu_browser_test
-   AND TARGET test_squeezenet)
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     target_link_libraries(test_squeezenet PRIVATE nodefs.js)
-endif()
-
-if(COMMAND ncnn_configure_webgpu_squeezenet_test AND TARGET test_squeezenet)
-    ncnn_configure_webgpu_squeezenet_test(test_squeezenet)
 endif()
 
 ncnn_add_layer_test(AbsVal)

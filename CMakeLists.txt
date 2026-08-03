@@ -96,7 +96,6 @@ option(NCNN_BF16 "bf16 inference" ON)
 option(NCNN_FORCE_INLINE "force inline some function" ON)
 
 if(NCNN_VULKAN AND CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-    set(NCNN_VKWEBGPU_SOURCE_DIR "" CACHE PATH "path to the external vkwebgpu source tree")
     if(NOT NCNN_SIMPLEVK)
         message(FATAL_ERROR "Emscripten Vulkan requires NCNN_SIMPLEVK")
     endif()
@@ -886,54 +885,12 @@ if(NCNN_VULKAN)
     endif()
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-        if(NCNN_VKWEBGPU_SOURCE_DIR)
-            get_filename_component(ncnn_vkwebgpu_source_dir
-                "${NCNN_VKWEBGPU_SOURCE_DIR}" ABSOLUTE
-                BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+        if(NOT TARGET vkwebgpu::static)
+            find_package(vkwebgpu CONFIG REQUIRED)
         endif()
 
         if(NOT TARGET vkwebgpu::static)
-            if(NOT ncnn_vkwebgpu_source_dir)
-                message(FATAL_ERROR
-                    "WebGPU Vulkan support requires the external vkwebgpu project. "
-                    "Set NCNN_VKWEBGPU_SOURCE_DIR to its source directory.")
-            endif()
-            if(NOT EXISTS "${ncnn_vkwebgpu_source_dir}/CMakeLists.txt")
-                message(FATAL_ERROR
-                    "NCNN_VKWEBGPU_SOURCE_DIR does not contain vkwebgpu: "
-                    "${ncnn_vkwebgpu_source_dir}")
-            endif()
-
-            set(VKWEBGPU_BUILD_STATIC ON)
-            set(VKWEBGPU_BUILD_DRIVER OFF)
-            set(VKWEBGPU_BUILD_TESTS OFF)
-            set(VKWEBGPU_INSTALL OFF)
-            add_subdirectory("${ncnn_vkwebgpu_source_dir}"
-                "${CMAKE_BINARY_DIR}/vkwebgpu-external" EXCLUDE_FROM_ALL)
-        endif()
-
-        if(NOT TARGET vkwebgpu::static)
-            message(FATAL_ERROR "The external vkwebgpu project did not provide vkwebgpu::static")
-        endif()
-
-        if(NCNN_BUILD_TESTS)
-            if(NOT ncnn_vkwebgpu_source_dir)
-                get_target_property(ncnn_vkwebgpu_static_target
-                    vkwebgpu::static ALIASED_TARGET)
-                if(NOT ncnn_vkwebgpu_static_target)
-                    set(ncnn_vkwebgpu_static_target vkwebgpu::static)
-                endif()
-                get_target_property(ncnn_vkwebgpu_source_dir
-                    ${ncnn_vkwebgpu_static_target} SOURCE_DIR)
-            endif()
-            set(ncnn_vkwebgpu_browser_tests
-                "${ncnn_vkwebgpu_source_dir}/integrations/ncnn/browser/webgpu_tests.cmake")
-            if(NOT EXISTS "${ncnn_vkwebgpu_browser_tests}")
-                message(FATAL_ERROR
-                    "The external vkwebgpu project does not provide its ncnn browser test integration: "
-                    "${ncnn_vkwebgpu_browser_tests}")
-            endif()
-            include("${ncnn_vkwebgpu_browser_tests}")
+            message(FATAL_ERROR "The vkwebgpu package does not provide vkwebgpu::static")
         endif()
     endif()
 endif()

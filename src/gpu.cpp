@@ -6251,7 +6251,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     {
         custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_int64: require\n";
     }
-    if (support_shader_int16)
+    if (support_shader_int16 || (opt.use_bf16_packed && support_fp16_storage))
     {
         custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_int16: require\n";
     }
