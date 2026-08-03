@@ -1954,16 +1954,8 @@ unsigned short float32_to_float16(float value)
         }
         else if (newexp <= 0)
         {
-            // Some normal fp32 can only be expressed as denormal fp16
-            if (newexp < -9)
-            {
-                fp16 = (sign << 15) | (0x00 << 10) | 0x00;
-            }
-            else
-            {
-                significand |= 0x800000;
-                fp16 = (sign << 15) | (significand >> (14 - newexp));
-            }
+            // Some normal fp32 cannot be expressed as normal fp16
+            fp16 = (sign << 15) | (0x00 << 10) | 0x00;
         }
         else
         {
