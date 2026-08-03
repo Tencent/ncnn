@@ -22,11 +22,6 @@
 class DataReaderFromEmpty : public ncnn::DataReader
 {
 public:
-    DataReaderFromEmpty(int _wq_int8 = 0)
-        : wq_int8(_wq_int8), state(0)
-    {
-    }
-
     virtual int scan(const char* /*format*/, void* /*p*/) const
     {
         return 0;
@@ -34,52 +29,9 @@ public:
 
     virtual size_t read(void* buf, size_t size) const
     {
-#if NCNN_WEIGHT_QUANT
-        // int8 models load rmsnorm gamma and then tagged Gemm B / block scale pairs
-        if (!wq_int8)
-        {
-            memset(buf, 0, size);
-            return size;
-        }
-
-        unsigned char* ptr = (unsigned char*)buf;
-
-        if (state == 0)
-        {
-            if (size == 4)
-            {
-                // int8 weight tag 0x000d4b38
-                ptr[0] = 0x38;
-                ptr[1] = 0x4b;
-                ptr[2] = 0x0d;
-                ptr[3] = 0x00;
-                state = 1;
-            }
-            else
-            {
-                memset(buf, 0, size);
-            }
-        }
-        else if (state == 1)
-        {
-            memset(buf, 0, size);
-            state = 2;
-        }
-        else
-        {
-            memset(buf, 0, size);
-            state = 0;
-        }
-#else
-        (void)wq_int8;
         memset(buf, 0, size);
-#endif
         return size;
     }
-
-private:
-    int wq_int8;
-    mutable int state;
 };
 
 static int g_warmup_loop_count = 8;
@@ -287,7 +239,7 @@ static int benchmark_case(ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIn
     return 0;
 }
 
-static int load_net(ncnn::Net& net, const char* param_data, int wq_int8, const ncnn::Option& opt)
+static int load_net(ncnn::Net& net, const char* param_data, const ncnn::Option& opt)
 {
     net.opt = opt;
 
@@ -302,7 +254,7 @@ static int load_net(ncnn::Net& net, const char* param_data, int wq_int8, const n
     if (ret != 0)
         return ret;
 
-    DataReaderFromEmpty dr(wq_int8);
+    DataReaderFromEmpty dr;
     return net.load_model(dr);
 }
 
@@ -320,12 +272,12 @@ static int benchmark_model(const ModelConfig& config, const ncnn::Option& opt)
 #endif // NCNN_VULKAN
 
     ncnn::Net decoder;
-    int ret = load_net(decoder, config.decoder_param_data, config.wq_int8, opt);
+    int ret = load_net(decoder, config.decoder_param_data, opt);
     if (ret != 0)
         return ret;
 
     ncnn::Net proj_out;
-    ret = load_net(proj_out, config.proj_out_param_data, config.wq_int8, opt);
+    ret = load_net(proj_out, config.proj_out_param_data, opt);
     if (ret != 0)
         return ret;
 

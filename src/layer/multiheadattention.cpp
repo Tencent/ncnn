@@ -126,7 +126,7 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
         if (q_packed_k_bytes < 0 || k_packed_k_bytes < 0 || v_packed_k_bytes < 0 || out_packed_k_bytes < 0)
             return -100;
 
-        q_weight_data = mb.load(q_packed_k_bytes, embed_dim, 0);
+        q_weight_data = mb.load(q_packed_k_bytes, embed_dim, weight_bits);
         if (q_weight_data.empty())
             return -100;
 
@@ -134,7 +134,7 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
         if (q_bias_data.empty())
             return -100;
 
-        k_weight_data = mb.load(k_packed_k_bytes, embed_dim, 0);
+        k_weight_data = mb.load(k_packed_k_bytes, embed_dim, weight_bits);
         if (k_weight_data.empty())
             return -100;
 
@@ -142,7 +142,7 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
         if (k_bias_data.empty())
             return -100;
 
-        v_weight_data = mb.load(v_packed_k_bytes, embed_dim, 0);
+        v_weight_data = mb.load(v_packed_k_bytes, embed_dim, weight_bits);
         if (v_weight_data.empty())
             return -100;
 
@@ -150,7 +150,7 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
         if (v_bias_data.empty())
             return -100;
 
-        out_weight_data = mb.load(out_packed_k_bytes, qdim, 0);
+        out_weight_data = mb.load(out_packed_k_bytes, qdim, weight_bits);
         if (out_weight_data.empty())
             return -100;
 

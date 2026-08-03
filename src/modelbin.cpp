@@ -328,6 +328,39 @@ Mat ModelBinFromDataReader::load(int w, int type) const
 
         return m;
     }
+    else if (type == 4 || type == 6 || type == 8)
+    {
+        size_t align_data_size = alignSize(w, 4);
+
+#if !__BIG_ENDIAN__
+        // try reference data
+        const void* refbuf = 0;
+        size_t nread = d->dr.reference(align_data_size, &refbuf);
+        if (nread == align_data_size)
+        {
+            m = Mat(w, (void*)refbuf, (size_t)1u);
+        }
+        else
+#endif
+        {
+            std::vector<unsigned char> weight_data;
+            weight_data.resize(align_data_size);
+            size_t nread = d->dr.read(&weight_data[0], align_data_size);
+            if (nread != align_data_size)
+            {
+                NCNN_LOGE("ModelBin read weight_data failed %zd", nread);
+                return Mat();
+            }
+
+            m.create(w, (size_t)1u);
+            if (m.empty())
+                return m;
+
+            memcpy(m.data, &weight_data[0], w);
+        }
+
+        return m;
+    }
     else
     {
         NCNN_LOGE("ModelBin load type %d not implemented", type);
