@@ -13266,7 +13266,12 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __m128i _pA32 = _mm_castps_si128(_mm_load_ss((const float*)pA));
+#if defined(_MSC_VER) && _MSC_VER < 1930
+                    // old msvc crash here  --- nihui
+                    __m256i _pA = _mm256_broadcastsi128_si256(_mm_shuffle_epi32(_pA32, _MM_SHUFFLE(0, 0, 0, 0)));
+#else
                     __m256i _pA = _mm256_broadcastd_epi32(_pA32);
+#endif
                     __m256i _pB = _mm256_loadu_si256((const __m256i*)pB);
                     _sum = _mm256_comp_dpbusd_epi32(_sum, _pA, _pB);
                     pA += 4;
