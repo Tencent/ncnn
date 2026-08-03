@@ -1,6 +1,7 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -353,7 +354,7 @@ static int benchmark_case(ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIn
             return ret;
     }
 
-    double time_avg = 0;
+    double time_min = DBL_MAX;
 
     for (int i = 0; i < g_loop_count; i++)
     {
@@ -363,12 +364,12 @@ static int benchmark_case(ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIn
         if (ret != 0)
             return ret;
 
-        time_avg += end - start;
+        const double time = end - start;
+        if (time < time_min)
+            time_min = time;
     }
 
-    time_avg /= g_loop_count;
-
-    tokens_per_second = rate_scale * 1000.0 / time_avg;
+    tokens_per_second = rate_scale * 1000.0 / time_min;
 
     return 0;
 }
