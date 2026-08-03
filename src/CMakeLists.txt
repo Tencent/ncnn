@@ -338,7 +338,7 @@ if(NCNN_VULKAN)
     # link in-house glslang
     target_include_directories(ncnn PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../>)
     target_link_libraries(ncnn PRIVATE glslang SPIRV)
-    if(ncnn_vulkan_uses_webgpu)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
         target_link_libraries(ncnn PUBLIC "$<BUILD_INTERFACE:vkwebgpu::static>")
     endif()
 endif()

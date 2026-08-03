@@ -95,11 +95,8 @@ option(NCNN_WEIGHT_QUANT "weight quantized inference" ON)
 option(NCNN_BF16 "bf16 inference" ON)
 option(NCNN_FORCE_INLINE "force inline some function" ON)
 
-set(ncnn_vulkan_uses_webgpu OFF)
-option(NCNN_TEST_DAWN_NATIVE "build vkwebgpu tests with the Dawn Native backend" OFF)
-set(NCNN_VKWEBGPU_SOURCE_DIR "" CACHE PATH "path to the external vkwebgpu source tree")
-
 if(NCNN_VULKAN AND CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    set(NCNN_VKWEBGPU_SOURCE_DIR "" CACHE PATH "path to the external vkwebgpu source tree")
     if(NOT NCNN_SIMPLEVK)
         message(FATAL_ERROR "Emscripten Vulkan requires NCNN_SIMPLEVK")
     endif()
@@ -107,7 +104,6 @@ if(NCNN_VULKAN AND CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
         message(FATAL_ERROR "Emscripten Vulkan requires the bundled glslang")
     endif()
 
-    set(ncnn_vulkan_uses_webgpu ON)
     set(VKWEBGPU_NODE_EXECUTABLE "" CACHE FILEPATH "Node.js executable for Emscripten Vulkan tests")
     set(NCNN_TEST_CHROME "" CACHE FILEPATH "Chrome executable for ncnn WebGPU tests")
     set(NCNN_TEST_CHROME_VERSION "" CACHE STRING "expected Chrome version for ncnn WebGPU tests")
@@ -116,16 +112,6 @@ if(NCNN_VULKAN AND CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     if(NOT NCNN_TEST_WEBGPU_ADAPTER STREQUAL "swiftshader"
        AND NOT NCNN_TEST_WEBGPU_ADAPTER STREQUAL "hardware")
         message(FATAL_ERROR "NCNN_TEST_WEBGPU_ADAPTER must be swiftshader or hardware")
-    endif()
-endif()
-
-if(NCNN_TEST_DAWN_NATIVE)
-    if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-        message(FATAL_ERROR "NCNN_TEST_DAWN_NATIVE requires a native build")
-    endif()
-    if(NOT NCNN_BUILD_TESTS OR NOT NCNN_VULKAN OR NOT NCNN_SIMPLEVK)
-        message(FATAL_ERROR
-            "NCNN_TEST_DAWN_NATIVE requires NCNN_BUILD_TESTS, NCNN_VULKAN, and NCNN_SIMPLEVK")
     endif()
 endif()
 
@@ -909,14 +895,14 @@ if(NCNN_VULKAN)
         endif()
     endif()
 
-    if(ncnn_vulkan_uses_webgpu OR NCNN_TEST_DAWN_NATIVE)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
         if(NCNN_VKWEBGPU_SOURCE_DIR)
             get_filename_component(ncnn_vkwebgpu_source_dir
                 "${NCNN_VKWEBGPU_SOURCE_DIR}" ABSOLUTE
                 BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
         endif()
 
-        if(NOT TARGET vkwebgpu::static AND NOT TARGET vkwebgpu::driver)
+        if(NOT TARGET vkwebgpu::static)
             if(NOT ncnn_vkwebgpu_source_dir)
                 message(FATAL_ERROR
                     "WebGPU Vulkan support requires the external vkwebgpu project. "
@@ -928,19 +914,16 @@ if(NCNN_VULKAN)
                     "${ncnn_vkwebgpu_source_dir}")
             endif()
 
-            set(VKWEBGPU_BUILD_STATIC ${ncnn_vulkan_uses_webgpu})
-            set(VKWEBGPU_BUILD_DRIVER ${NCNN_TEST_DAWN_NATIVE})
+            set(VKWEBGPU_BUILD_STATIC ON)
+            set(VKWEBGPU_BUILD_DRIVER OFF)
             set(VKWEBGPU_BUILD_TESTS OFF)
             set(VKWEBGPU_INSTALL OFF)
             add_subdirectory("${ncnn_vkwebgpu_source_dir}"
                 "${CMAKE_BINARY_DIR}/vkwebgpu-external" EXCLUDE_FROM_ALL)
         endif()
 
-        if(ncnn_vulkan_uses_webgpu AND NOT TARGET vkwebgpu::static)
+        if(NOT TARGET vkwebgpu::static)
             message(FATAL_ERROR "The external vkwebgpu project did not provide vkwebgpu::static")
-        endif()
-        if(NCNN_TEST_DAWN_NATIVE AND NOT TARGET vkwebgpu::driver)
-            message(FATAL_ERROR "The external vkwebgpu project did not provide vkwebgpu::driver")
         endif()
     endif()
 endif()
