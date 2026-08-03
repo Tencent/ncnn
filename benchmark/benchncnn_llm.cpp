@@ -60,14 +60,142 @@ struct ModelConfig
     const char* proj_out_param_data;
     int hidden_size;
     int rope_half_dim;
-    int wq_int8;
+    int quantize_term;
 };
+
+#if NCNN_WEIGHT_QUANT
+static void make_weight_block_quantize_param(const char* param_data, int quantize_term, std::vector<char>& param_data_wq)
+{
+    const int weight_bits = quantize_term / 100;
+    const int format_code = quantize_term % 100 / 10;
+    const int block_size_code = quantize_term % 10;
+    const bool valid_weight_block_quantize = (weight_bits == 4 || weight_bits == 6 || weight_bits == 8) && (format_code == 0 || format_code == 1) && block_size_code >= 0 && block_size_code <= 2;
+    char quantize_term_param[16];
+    const int quantize_term_param_length = sprintf(quantize_term_param, "18=%d", quantize_term);
+
+    const char* line = param_data;
+
+    while (*line)
+    {
+        const char* line_end = strchr(line, '\n');
+        if (!line_end)
+            line_end = line + strlen(line);
+
+        bool use_weight_block_quantize = false;
+        const char* quantize_term_ptr = 0;
+        const char* quantize_term_end = 0;
+
+        if (line_end - line > 5 && memcmp(line, "Gemm ", 5) == 0)
+        {
+            int transA = 0;
+            int transB = 0;
+            int constantA = 0;
+            int constantB = 0;
+            int constantN = 0;
+            int constantK = 0;
+            int output_N1M = 0;
+            int output_elempack = 0;
+            int output_elemtype = 0;
+            int output_transpose = 0;
+            int gemm_quantize_term = 0;
+            int bottom_count = 0;
+            int top_count = 0;
+            int param_index = -1;
+            int token_index = 0;
+            const char* ptr = line;
+
+            while (ptr < line_end)
+            {
+                const char* token = ptr;
+                while (ptr < line_end && *ptr != ' ')
+                    ptr++;
+
+                if (token_index == 2)
+                    sscanf(token, "%d", &bottom_count);
+                if (token_index == 3)
+                {
+                    sscanf(token, "%d", &top_count);
+                    param_index = 4 + bottom_count + top_count;
+                }
+
+                if (param_index != -1 && token_index >= param_index)
+                {
+                    int id;
+                    int value;
+                    if (sscanf(token, "%d=%d", &id, &value) == 2)
+                    {
+                        if (id == 2) transA = value;
+                        if (id == 3) transB = value;
+                        if (id == 4) constantA = value;
+                        if (id == 5) constantB = value;
+                        if (id == 8) constantN = value;
+                        if (id == 9) constantK = value;
+                        if (id == 11) output_N1M = value;
+                        if (id == 12) output_elempack = value;
+                        if (id == 13) output_elemtype = value;
+                        if (id == 14) output_transpose = value;
+                        if (id == 18)
+                        {
+                            gemm_quantize_term = value;
+                            quantize_term_ptr = token;
+                            quantize_term_end = ptr;
+                        }
+                    }
+                }
+
+                while (ptr < line_end && *ptr == ' ')
+                    ptr++;
+                token_index++;
+            }
+
+            use_weight_block_quantize = valid_weight_block_quantize && constantA == 0 && constantB == 1 && transB == 1 && (transA == 0 || (weight_bits == 8 && transA == 1)) && constantN > 0 && constantK > 0 && (weight_bits == 8 || output_N1M == 0) && output_elempack >= 0 && (weight_bits == 8 || output_elempack == 0) && (output_elemtype == 0 || output_elemtype == 1) && (output_transpose == 0 || (weight_bits == 8 && output_transpose == 1)) && gemm_quantize_term == 0;
+        }
+
+        if (use_weight_block_quantize && quantize_term_ptr)
+        {
+            size_t old_size = param_data_wq.size();
+            param_data_wq.resize(old_size + quantize_term_ptr - line + quantize_term_param_length + line_end - quantize_term_end);
+            char* outptr = param_data_wq.data() + old_size;
+            memcpy(outptr, line, quantize_term_ptr - line);
+            outptr += quantize_term_ptr - line;
+            memcpy(outptr, quantize_term_param, quantize_term_param_length);
+            outptr += quantize_term_param_length;
+            memcpy(outptr, quantize_term_end, line_end - quantize_term_end);
+        }
+        else
+        {
+            size_t old_size = param_data_wq.size();
+            param_data_wq.resize(old_size + line_end - line + (use_weight_block_quantize ? quantize_term_param_length + 1 : 0));
+            char* outptr = param_data_wq.data() + old_size;
+            memcpy(outptr, line, line_end - line);
+            if (use_weight_block_quantize)
+            {
+                outptr[line_end - line] = ' ';
+                memcpy(outptr + (line_end - line) + 1, quantize_term_param, quantize_term_param_length);
+            }
+        }
+
+        if (*line_end == '\n')
+        {
+            param_data_wq.push_back('\n');
+            line = line_end + 1;
+        }
+        else
+        {
+            line = line_end;
+        }
+    }
+
+    param_data_wq.push_back('\0');
+}
+#endif // NCNN_WEIGHT_QUANT
 
 namespace minicpm4 {
 
 static const ModelConfig model = {"minicpm4_0.5b", minicpm4_0_5b_decoder_ncnn_param_data, minicpm4_0_5b_proj_out_ncnn_param_data, 1024, 32, 0};
 #if NCNN_WEIGHT_QUANT
-static const ModelConfig model_int8 = {"minicpm4_0.5b_int8", minicpm4_0_5b_int8_decoder_ncnn_param_data, minicpm4_0_5b_int8_proj_out_ncnn_param_data, 1024, 32, 1};
+static const ModelConfig model_int8g32 = {"minicpm4_0.5b_int8g32", minicpm4_0_5b_decoder_ncnn_param_data, minicpm4_0_5b_proj_out_ncnn_param_data, 1024, 32, 800};
+static const ModelConfig model_int8g128 = {"minicpm4_0.5b_int8g128", minicpm4_0_5b_decoder_ncnn_param_data, minicpm4_0_5b_proj_out_ncnn_param_data, 1024, 32, 802};
 #endif
 
 } // namespace minicpm4
@@ -76,7 +204,8 @@ namespace qwen25 {
 
 static const ModelConfig model = {"qwen2.5_0.5b", qwen2_5_0_5b_decoder_ncnn_param_data, qwen2_5_0_5b_proj_out_ncnn_param_data, 896, 32, 0};
 #if NCNN_WEIGHT_QUANT
-static const ModelConfig model_int8 = {"qwen2.5_0.5b_int8", qwen2_5_0_5b_int8_decoder_ncnn_param_data, qwen2_5_0_5b_int8_proj_out_ncnn_param_data, 896, 32, 1};
+static const ModelConfig model_int8g32 = {"qwen2.5_0.5b_int8g32", qwen2_5_0_5b_decoder_ncnn_param_data, qwen2_5_0_5b_proj_out_ncnn_param_data, 896, 32, 800};
+static const ModelConfig model_int8g128 = {"qwen2.5_0.5b_int8g128", qwen2_5_0_5b_decoder_ncnn_param_data, qwen2_5_0_5b_proj_out_ncnn_param_data, 896, 32, 802};
 #endif
 
 } // namespace qwen25
@@ -85,7 +214,8 @@ namespace qwen3 {
 
 static const ModelConfig model = {"qwen3_0.6b", qwen3_0_6b_decoder_ncnn_param_data, qwen3_0_6b_proj_out_ncnn_param_data, 1024, 64, 0};
 #if NCNN_WEIGHT_QUANT
-static const ModelConfig model_int8 = {"qwen3_0.6b_int8", qwen3_0_6b_int8_decoder_ncnn_param_data, qwen3_0_6b_int8_proj_out_ncnn_param_data, 1024, 64, 1};
+static const ModelConfig model_int8g32 = {"qwen3_0.6b_int8g32", qwen3_0_6b_decoder_ncnn_param_data, qwen3_0_6b_proj_out_ncnn_param_data, 1024, 64, 800};
+static const ModelConfig model_int8g128 = {"qwen3_0.6b_int8g128", qwen3_0_6b_decoder_ncnn_param_data, qwen3_0_6b_proj_out_ncnn_param_data, 1024, 64, 802};
 #endif
 
 } // namespace qwen3
@@ -94,7 +224,8 @@ namespace hunyuan {
 
 static const ModelConfig model = {"hunyuan_0.5b", hunyuan_0_5b_instruct_decoder_ncnn_param_data, hunyuan_0_5b_instruct_proj_out_ncnn_param_data, 1024, 64, 0};
 #if NCNN_WEIGHT_QUANT
-static const ModelConfig model_int8 = {"hunyuan_0.5b_int8", hunyuan_0_5b_instruct_int8_decoder_ncnn_param_data, hunyuan_0_5b_instruct_int8_proj_out_ncnn_param_data, 1024, 64, 1};
+static const ModelConfig model_int8g32 = {"hunyuan_0.5b_int8g32", hunyuan_0_5b_instruct_decoder_ncnn_param_data, hunyuan_0_5b_instruct_proj_out_ncnn_param_data, 1024, 64, 800};
+static const ModelConfig model_int8g128 = {"hunyuan_0.5b_int8g128", hunyuan_0_5b_instruct_decoder_ncnn_param_data, hunyuan_0_5b_instruct_proj_out_ncnn_param_data, 1024, 64, 802};
 #endif
 
 } // namespace hunyuan
@@ -103,7 +234,8 @@ namespace tinyllama {
 
 static const ModelConfig model = {"tinyllama_1.1b", tinyllama_1_1b_decoder_ncnn_param_data, tinyllama_1_1b_proj_out_ncnn_param_data, 2048, 32, 0};
 #if NCNN_WEIGHT_QUANT
-static const ModelConfig model_int8 = {"tinyllama_1.1b_int8", tinyllama_1_1b_int8_decoder_ncnn_param_data, tinyllama_1_1b_int8_proj_out_ncnn_param_data, 2048, 32, 1};
+static const ModelConfig model_int8g32 = {"tinyllama_1.1b_int8g32", tinyllama_1_1b_decoder_ncnn_param_data, tinyllama_1_1b_proj_out_ncnn_param_data, 2048, 32, 800};
+static const ModelConfig model_int8g128 = {"tinyllama_1.1b_int8g128", tinyllama_1_1b_decoder_ncnn_param_data, tinyllama_1_1b_proj_out_ncnn_param_data, 2048, 32, 802};
 #endif
 
 } // namespace tinyllama
@@ -112,7 +244,8 @@ namespace llama32 {
 
 static const ModelConfig model = {"llama3.2_1b", llama3_2_1b_decoder_ncnn_param_data, llama3_2_1b_proj_out_ncnn_param_data, 2048, 32, 0};
 #if NCNN_WEIGHT_QUANT
-static const ModelConfig model_int8 = {"llama3.2_1b_int8", llama3_2_1b_int8_decoder_ncnn_param_data, llama3_2_1b_int8_proj_out_ncnn_param_data, 2048, 32, 1};
+static const ModelConfig model_int8g32 = {"llama3.2_1b_int8g32", llama3_2_1b_decoder_ncnn_param_data, llama3_2_1b_proj_out_ncnn_param_data, 2048, 32, 800};
+static const ModelConfig model_int8g128 = {"llama3.2_1b_int8g128", llama3_2_1b_decoder_ncnn_param_data, llama3_2_1b_proj_out_ncnn_param_data, 2048, 32, 802};
 #endif
 
 } // namespace llama32
@@ -121,7 +254,8 @@ namespace youtu_llm {
 
 static const ModelConfig model = {"youtu_llm_2b", youtu_llm_2b_decoder_ncnn_param_data, youtu_llm_2b_proj_out_ncnn_param_data, 2048, 64, 0};
 #if NCNN_WEIGHT_QUANT
-static const ModelConfig model_int8 = {"youtu_llm_2b_int8", youtu_llm_2b_int8_decoder_ncnn_param_data, youtu_llm_2b_int8_proj_out_ncnn_param_data, 2048, 64, 1};
+static const ModelConfig model_int8g32 = {"youtu_llm_2b_int8g32", youtu_llm_2b_decoder_ncnn_param_data, youtu_llm_2b_proj_out_ncnn_param_data, 2048, 64, 800};
+static const ModelConfig model_int8g128 = {"youtu_llm_2b_int8g128", youtu_llm_2b_decoder_ncnn_param_data, youtu_llm_2b_proj_out_ncnn_param_data, 2048, 64, 802};
 #endif
 
 } // namespace youtu_llm
@@ -239,7 +373,7 @@ static int benchmark_case(ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIn
     return 0;
 }
 
-static int load_net(ncnn::Net& net, const char* param_data, const ncnn::Option& opt)
+static int load_net(ncnn::Net& net, const char* param_data, int quantize_term, const ncnn::Option& opt)
 {
     net.opt = opt;
 
@@ -249,6 +383,17 @@ static int load_net(ncnn::Net& net, const char* param_data, const ncnn::Option& 
         net.set_vulkan_device(g_vkdev);
     }
 #endif // NCNN_VULKAN
+
+#if NCNN_WEIGHT_QUANT
+    std::vector<char> param_data_wq;
+    if (quantize_term)
+    {
+        make_weight_block_quantize_param(param_data, quantize_term, param_data_wq);
+        param_data = param_data_wq.data();
+    }
+#else
+    (void)quantize_term;
+#endif
 
     int ret = net.load_param_mem(param_data);
     if (ret != 0)
@@ -272,12 +417,12 @@ static int benchmark_model(const ModelConfig& config, const ncnn::Option& opt)
 #endif // NCNN_VULKAN
 
     ncnn::Net decoder;
-    int ret = load_net(decoder, config.decoder_param_data, opt);
+    int ret = load_net(decoder, config.decoder_param_data, config.quantize_term, opt);
     if (ret != 0)
         return ret;
 
     ncnn::Net proj_out;
-    ret = load_net(proj_out, config.proj_out_param_data, opt);
+    ret = load_net(proj_out, config.proj_out_param_data, config.quantize_term, opt);
     if (ret != 0)
         return ret;
 
@@ -436,37 +581,44 @@ int main(int argc, char** argv)
     const ModelConfig* models[] = {
         &hunyuan::model,
 #if NCNN_WEIGHT_QUANT
-        &hunyuan::model_int8,
+        &hunyuan::model_int8g32,
+        &hunyuan::model_int8g128,
 #endif
         &minicpm4::model,
 #if NCNN_WEIGHT_QUANT
-        &minicpm4::model_int8,
+        &minicpm4::model_int8g32,
+        &minicpm4::model_int8g128,
 #endif
         &qwen25::model,
 #if NCNN_WEIGHT_QUANT
-        &qwen25::model_int8,
+        &qwen25::model_int8g32,
+        &qwen25::model_int8g128,
 #endif
         &qwen3::model,
 #if NCNN_WEIGHT_QUANT
-        &qwen3::model_int8,
+        &qwen3::model_int8g32,
+        &qwen3::model_int8g128,
 #endif
         &llama32::model,
 #if NCNN_WEIGHT_QUANT
-        &llama32::model_int8,
+        &llama32::model_int8g32,
+        &llama32::model_int8g128,
 #endif
         &tinyllama::model,
 #if NCNN_WEIGHT_QUANT
-        &tinyllama::model_int8,
+        &tinyllama::model_int8g32,
+        &tinyllama::model_int8g128,
 #endif
         &youtu_llm::model,
 #if NCNN_WEIGHT_QUANT
-        &youtu_llm::model_int8,
+        &youtu_llm::model_int8g32,
+        &youtu_llm::model_int8g128,
 #endif
     };
 
     for (size_t i = 0; i < sizeof(models) / sizeof(models[0]); i++)
     {
-        if (use_vulkan_compute && models[i]->wq_int8)
+        if (use_vulkan_compute && models[i]->quantize_term)
             continue;
 
         int ret = benchmark_model(*models[i], opt);

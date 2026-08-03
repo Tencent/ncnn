@@ -86,25 +86,6 @@ set(benchncnn_llm_PARAMS
     youtu_llm_2b_proj_out.ncnn.param
 )
 
-if(NCNN_WEIGHT_QUANT)
-    list(APPEND benchncnn_llm_PARAMS
-        hunyuan_0.5b_instruct_int8_decoder.ncnn.param
-        hunyuan_0.5b_instruct_int8_proj_out.ncnn.param
-        minicpm4_0.5b_int8_decoder.ncnn.param
-        minicpm4_0.5b_int8_proj_out.ncnn.param
-        qwen2.5_0.5b_int8_decoder.ncnn.param
-        qwen2.5_0.5b_int8_proj_out.ncnn.param
-        qwen3_0.6b_int8_decoder.ncnn.param
-        qwen3_0.6b_int8_proj_out.ncnn.param
-        llama3.2_1b_int8_decoder.ncnn.param
-        llama3.2_1b_int8_proj_out.ncnn.param
-        tinyllama_1.1b_int8_decoder.ncnn.param
-        tinyllama_1.1b_int8_proj_out.ncnn.param
-        youtu_llm_2b_int8_decoder.ncnn.param
-        youtu_llm_2b_int8_proj_out.ncnn.param
-    )
-endif()
-
 set(NCNN_PARAM_HEX_FILES)
 set(param_header_data)
 foreach(PARAM_FILE ${benchncnn_llm_PARAMS})
