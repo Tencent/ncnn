@@ -2378,7 +2378,7 @@ int VkTransferPrivate::init()
         VkCommandPoolCreateInfo commandPoolCreateInfo;
         commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         commandPoolCreateInfo.pNext = 0;
-        commandPoolCreateInfo.flags = 0;
+        commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         commandPoolCreateInfo.queueFamilyIndex = vkdev->info.compute_queue_family_index();
 
         VkResult ret = vkCreateCommandPool(vkdev->vkdevice(), &commandPoolCreateInfo, 0, &compute_command_pool);
@@ -2428,7 +2428,7 @@ int VkTransferPrivate::init()
             VkCommandPoolCreateInfo commandPoolCreateInfo;
             commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
             commandPoolCreateInfo.pNext = 0;
-            commandPoolCreateInfo.flags = 0;
+            commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
             commandPoolCreateInfo.queueFamilyIndex = vkdev->info.transfer_queue_family_index();
 
             VkResult ret = vkCreateCommandPool(vkdev->vkdevice(), &commandPoolCreateInfo, 0, &transfer_command_pool);
