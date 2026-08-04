@@ -1151,7 +1151,7 @@ y = (gemm(a, b) + c * beta) * alpha
 | 12        | output_elempack | int | 0         |                   |
 | 13        | output_elemtype | int | 0         |                   |
 | 14        | output_transpose | int| 0         |                   |
-| 18        | quantize_term | int | 0         | 0=no quant, nonzero below 400=legacy int8, 4xx/6xx/8xx=weight block quant |
+| 18        | quantize_term | int | 0         | 0=no quant, nonzero below 400=legacy int8, 4xx/6xx=weight-only block quant, 8xx=dynamic W8A8 per-block |
 | 20        | constant_TILE_M | int | 0         |                   |
 | 21        | constant_TILE_N | int | 0         |                   |
 | 22        | constant_TILE_K | int | 0         |                   |
@@ -1166,13 +1166,15 @@ y = (gemm(a, b) + c * beta) * alpha
 | B_data_quantize_scales| float | [ceil(K / block_size), N] for block quantized constant B |
 | B_data_input_scales| float | [K] for block quantized constant B with input scale |
 
-For weight-only block quantized Gemm:
+For block quantized Gemm:
 
 * `constantA=0`, `constantB=1`, `transA=0`, `transB=1`
 * output is fp32 pack1 with `output_N1M=0`, `output_elempack=0`, `output_transpose=0`
 * `B_data` is tagged int8 bytes with shape `[ceil(K * weight_bits / 8), N]`
 * `quantize_term = bits * 100 + input_scale * 10 + block_code`
 * `block_code`: 0=32, 1=64, 2=128
+* 4xx and 6xx keep A in fp32 and dequantize int4/int6 weights while accumulating
+* 8xx dynamically quantizes A independently for every row and block, computes signed int8 dot products with the constant W8 weights, accumulates in int32, applies the per-block activation and weight descales, and writes fp32 output; there is no W8A32 compatibility path
 
 # GridSample
 ```
@@ -1585,7 +1587,7 @@ y = affine(out)
 | 5         | attn_mask     | int   | 0         |                   |
 | 6         | scale         | float | 1.f / sqrt(embed_dim / num_heads) | |
 | 7         | kv_cache      | int   | 0         |                   |
-| 18        | quantize_term | int | 0         | 0=no quant, nonzero below 400=legacy int8, 4xx/6xx/8xx=weight block quant |
+| 18        | quantize_term | int | 0         | 0=no quant, nonzero below 400=legacy int8, 4xx/6xx=weight-only block quant, 8xx=dynamic W8A8 per-block |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -1610,7 +1612,7 @@ y = affine(out)
 | v_weight_data_input_scales| float | [vdim] for block quantized weight with input scale |
 | out_weight_data_input_scales| float | [embed_dim] for block quantized weight with input scale |
 
-Weight-only block quantized MultiHeadAttention stores q/k/v/out weights as tagged int8 bytes. The `quantize_term` rule is same as Gemm.
+Block quantized MultiHeadAttention stores q/k/v/out weights as tagged int8 bytes. The `quantize_term` rule is the same as Gemm: 4xx and 6xx are weight-only, while 8xx dynamically quantizes the projection activations per row and block and runs W8A8 projection Gemm. The portable base layer computes the complete MHA directly without creating other layers; architecture-derived CPU layers route only the q/k/v/out projections through their persistent optimized Gemm pipelines. QK, softmax, PV, KV-cache storage, and the fp32 output contract are unchanged.
 
 # MVN
 ```

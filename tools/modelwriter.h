@@ -1913,7 +1913,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (weight_block_quantize)
                 {
-                    fwrite_weight_tag_data(op->B_data, bp, false);
+                    fwrite_weight_data(op->B_data, bp, false);
                 }
                 else
                 {
@@ -2217,7 +2217,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (weight_block_quantize)
             {
-                fwrite_weight_tag_data(op->q_weight_data, bp, false);
+                fwrite_weight_data(op->q_weight_data, bp, false);
             }
             else
             {
@@ -2226,7 +2226,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fwrite_weight_data(op->q_bias_data, bp);
             if (weight_block_quantize)
             {
-                fwrite_weight_tag_data(op->k_weight_data, bp, false);
+                fwrite_weight_data(op->k_weight_data, bp, false);
             }
             else
             {
@@ -2235,7 +2235,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fwrite_weight_data(op->k_bias_data, bp);
             if (weight_block_quantize)
             {
-                fwrite_weight_tag_data(op->v_weight_data, bp, false);
+                fwrite_weight_data(op->v_weight_data, bp, false);
             }
             else
             {
@@ -2244,7 +2244,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fwrite_weight_data(op->v_bias_data, bp);
             if (weight_block_quantize)
             {
-                fwrite_weight_tag_data(op->out_weight_data, bp, false);
+                fwrite_weight_data(op->out_weight_data, bp, false);
             }
             else
             {
