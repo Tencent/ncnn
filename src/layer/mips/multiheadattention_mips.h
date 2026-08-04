@@ -20,7 +20,7 @@ public:
 
 protected:
 #if NCNN_WEIGHT_QUANT
-    int create_pipeline_wq_int8(const Option& opt);
+    int create_pipeline_wq(const Option& opt);
 #endif
 
 public:

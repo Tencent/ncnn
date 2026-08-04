@@ -149,7 +149,7 @@ static void make_weight_block_quantize_param(const char* param_data, int quantiz
                 token_index++;
             }
 
-            use_weight_block_quantize = valid_weight_block_quantize && constantA == 0 && constantB == 1 && transB == 1 && (transA == 0 || (weight_bits == 8 && transA == 1)) && constantN > 0 && constantK > 0 && (weight_bits == 8 || output_N1M == 0) && output_elempack >= 0 && (weight_bits == 8 || output_elempack == 0) && (output_elemtype == 0 || output_elemtype == 1) && (output_transpose == 0 || (weight_bits == 8 && output_transpose == 1)) && gemm_quantize_term == 0;
+            use_weight_block_quantize = valid_weight_block_quantize && constantA == 0 && constantB == 1 && transB == 1 && (transA == 0 || (weight_bits != 6 && transA == 1)) && constantN > 0 && constantK > 0 && (weight_bits != 6 || output_N1M == 0) && output_elempack >= 0 && (weight_bits != 6 || output_elempack == 0) && (output_elemtype == 0 || output_elemtype == 1) && (output_transpose == 0 || (weight_bits != 6 && output_transpose == 1)) && gemm_quantize_term == 0;
         }
 
         if (use_weight_block_quantize && quantize_term_ptr)
@@ -197,6 +197,8 @@ static const ModelConfig model = {"minicpm4_0.5b", minicpm4_0_5b_decoder_ncnn_pa
 #if NCNN_WEIGHT_QUANT
 static const ModelConfig model_int8g32 = {"minicpm4_0.5b_int8g32", minicpm4_0_5b_decoder_ncnn_param_data, minicpm4_0_5b_proj_out_ncnn_param_data, 1024, 32, 800};
 static const ModelConfig model_int8g128 = {"minicpm4_0.5b_int8g128", minicpm4_0_5b_decoder_ncnn_param_data, minicpm4_0_5b_proj_out_ncnn_param_data, 1024, 32, 802};
+static const ModelConfig model_int4g32 = {"minicpm4_0.5b_int4g32", minicpm4_0_5b_decoder_ncnn_param_data, minicpm4_0_5b_proj_out_ncnn_param_data, 1024, 32, 400};
+static const ModelConfig model_int4g128 = {"minicpm4_0.5b_int4g128", minicpm4_0_5b_decoder_ncnn_param_data, minicpm4_0_5b_proj_out_ncnn_param_data, 1024, 32, 402};
 #endif
 
 } // namespace minicpm4
@@ -207,6 +209,8 @@ static const ModelConfig model = {"qwen2.5_0.5b", qwen2_5_0_5b_decoder_ncnn_para
 #if NCNN_WEIGHT_QUANT
 static const ModelConfig model_int8g32 = {"qwen2.5_0.5b_int8g32", qwen2_5_0_5b_decoder_ncnn_param_data, qwen2_5_0_5b_proj_out_ncnn_param_data, 896, 32, 800};
 static const ModelConfig model_int8g128 = {"qwen2.5_0.5b_int8g128", qwen2_5_0_5b_decoder_ncnn_param_data, qwen2_5_0_5b_proj_out_ncnn_param_data, 896, 32, 802};
+static const ModelConfig model_int4g32 = {"qwen2.5_0.5b_int4g32", qwen2_5_0_5b_decoder_ncnn_param_data, qwen2_5_0_5b_proj_out_ncnn_param_data, 896, 32, 400};
+static const ModelConfig model_int4g128 = {"qwen2.5_0.5b_int4g128", qwen2_5_0_5b_decoder_ncnn_param_data, qwen2_5_0_5b_proj_out_ncnn_param_data, 896, 32, 402};
 #endif
 
 } // namespace qwen25
@@ -217,6 +221,8 @@ static const ModelConfig model = {"qwen3_0.6b", qwen3_0_6b_decoder_ncnn_param_da
 #if NCNN_WEIGHT_QUANT
 static const ModelConfig model_int8g32 = {"qwen3_0.6b_int8g32", qwen3_0_6b_decoder_ncnn_param_data, qwen3_0_6b_proj_out_ncnn_param_data, 1024, 64, 800};
 static const ModelConfig model_int8g128 = {"qwen3_0.6b_int8g128", qwen3_0_6b_decoder_ncnn_param_data, qwen3_0_6b_proj_out_ncnn_param_data, 1024, 64, 802};
+static const ModelConfig model_int4g32 = {"qwen3_0.6b_int4g32", qwen3_0_6b_decoder_ncnn_param_data, qwen3_0_6b_proj_out_ncnn_param_data, 1024, 64, 400};
+static const ModelConfig model_int4g128 = {"qwen3_0.6b_int4g128", qwen3_0_6b_decoder_ncnn_param_data, qwen3_0_6b_proj_out_ncnn_param_data, 1024, 64, 402};
 #endif
 
 } // namespace qwen3
@@ -227,6 +233,8 @@ static const ModelConfig model = {"hunyuan_0.5b", hunyuan_0_5b_instruct_decoder_
 #if NCNN_WEIGHT_QUANT
 static const ModelConfig model_int8g32 = {"hunyuan_0.5b_int8g32", hunyuan_0_5b_instruct_decoder_ncnn_param_data, hunyuan_0_5b_instruct_proj_out_ncnn_param_data, 1024, 64, 800};
 static const ModelConfig model_int8g128 = {"hunyuan_0.5b_int8g128", hunyuan_0_5b_instruct_decoder_ncnn_param_data, hunyuan_0_5b_instruct_proj_out_ncnn_param_data, 1024, 64, 802};
+static const ModelConfig model_int4g32 = {"hunyuan_0.5b_int4g32", hunyuan_0_5b_instruct_decoder_ncnn_param_data, hunyuan_0_5b_instruct_proj_out_ncnn_param_data, 1024, 64, 400};
+static const ModelConfig model_int4g128 = {"hunyuan_0.5b_int4g128", hunyuan_0_5b_instruct_decoder_ncnn_param_data, hunyuan_0_5b_instruct_proj_out_ncnn_param_data, 1024, 64, 402};
 #endif
 
 } // namespace hunyuan
@@ -237,6 +245,8 @@ static const ModelConfig model = {"tinyllama_1.1b", tinyllama_1_1b_decoder_ncnn_
 #if NCNN_WEIGHT_QUANT
 static const ModelConfig model_int8g32 = {"tinyllama_1.1b_int8g32", tinyllama_1_1b_decoder_ncnn_param_data, tinyllama_1_1b_proj_out_ncnn_param_data, 2048, 32, 800};
 static const ModelConfig model_int8g128 = {"tinyllama_1.1b_int8g128", tinyllama_1_1b_decoder_ncnn_param_data, tinyllama_1_1b_proj_out_ncnn_param_data, 2048, 32, 802};
+static const ModelConfig model_int4g32 = {"tinyllama_1.1b_int4g32", tinyllama_1_1b_decoder_ncnn_param_data, tinyllama_1_1b_proj_out_ncnn_param_data, 2048, 32, 400};
+static const ModelConfig model_int4g128 = {"tinyllama_1.1b_int4g128", tinyllama_1_1b_decoder_ncnn_param_data, tinyllama_1_1b_proj_out_ncnn_param_data, 2048, 32, 402};
 #endif
 
 } // namespace tinyllama
@@ -247,6 +257,8 @@ static const ModelConfig model = {"llama3.2_1b", llama3_2_1b_decoder_ncnn_param_
 #if NCNN_WEIGHT_QUANT
 static const ModelConfig model_int8g32 = {"llama3.2_1b_int8g32", llama3_2_1b_decoder_ncnn_param_data, llama3_2_1b_proj_out_ncnn_param_data, 2048, 32, 800};
 static const ModelConfig model_int8g128 = {"llama3.2_1b_int8g128", llama3_2_1b_decoder_ncnn_param_data, llama3_2_1b_proj_out_ncnn_param_data, 2048, 32, 802};
+static const ModelConfig model_int4g32 = {"llama3.2_1b_int4g32", llama3_2_1b_decoder_ncnn_param_data, llama3_2_1b_proj_out_ncnn_param_data, 2048, 32, 400};
+static const ModelConfig model_int4g128 = {"llama3.2_1b_int4g128", llama3_2_1b_decoder_ncnn_param_data, llama3_2_1b_proj_out_ncnn_param_data, 2048, 32, 402};
 #endif
 
 } // namespace llama32
@@ -257,6 +269,8 @@ static const ModelConfig model = {"youtu_llm_2b", youtu_llm_2b_decoder_ncnn_para
 #if NCNN_WEIGHT_QUANT
 static const ModelConfig model_int8g32 = {"youtu_llm_2b_int8g32", youtu_llm_2b_decoder_ncnn_param_data, youtu_llm_2b_proj_out_ncnn_param_data, 2048, 64, 800};
 static const ModelConfig model_int8g128 = {"youtu_llm_2b_int8g128", youtu_llm_2b_decoder_ncnn_param_data, youtu_llm_2b_proj_out_ncnn_param_data, 2048, 64, 802};
+static const ModelConfig model_int4g32 = {"youtu_llm_2b_int4g32", youtu_llm_2b_decoder_ncnn_param_data, youtu_llm_2b_proj_out_ncnn_param_data, 2048, 64, 400};
+static const ModelConfig model_int4g128 = {"youtu_llm_2b_int4g128", youtu_llm_2b_decoder_ncnn_param_data, youtu_llm_2b_proj_out_ncnn_param_data, 2048, 64, 402};
 #endif
 
 } // namespace youtu_llm
@@ -584,36 +598,50 @@ int main(int argc, char** argv)
 #if NCNN_WEIGHT_QUANT
         &hunyuan::model_int8g32,
         &hunyuan::model_int8g128,
+        &hunyuan::model_int4g32,
+        &hunyuan::model_int4g128,
 #endif
         &minicpm4::model,
 #if NCNN_WEIGHT_QUANT
         &minicpm4::model_int8g32,
         &minicpm4::model_int8g128,
+        &minicpm4::model_int4g32,
+        &minicpm4::model_int4g128,
 #endif
         &qwen25::model,
 #if NCNN_WEIGHT_QUANT
         &qwen25::model_int8g32,
         &qwen25::model_int8g128,
+        &qwen25::model_int4g32,
+        &qwen25::model_int4g128,
 #endif
         &qwen3::model,
 #if NCNN_WEIGHT_QUANT
         &qwen3::model_int8g32,
         &qwen3::model_int8g128,
+        &qwen3::model_int4g32,
+        &qwen3::model_int4g128,
 #endif
         &llama32::model,
 #if NCNN_WEIGHT_QUANT
         &llama32::model_int8g32,
         &llama32::model_int8g128,
+        &llama32::model_int4g32,
+        &llama32::model_int4g128,
 #endif
         &tinyllama::model,
 #if NCNN_WEIGHT_QUANT
         &tinyllama::model_int8g32,
         &tinyllama::model_int8g128,
+        &tinyllama::model_int4g32,
+        &tinyllama::model_int4g128,
 #endif
         &youtu_llm::model,
 #if NCNN_WEIGHT_QUANT
         &youtu_llm::model_int8g32,
         &youtu_llm::model_int8g128,
+        &youtu_llm::model_int4g32,
+        &youtu_llm::model_int4g128,
 #endif
     };
 

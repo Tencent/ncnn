@@ -22,7 +22,7 @@ MultiHeadAttention_riscv::MultiHeadAttention_riscv()
 }
 
 #if NCNN_WEIGHT_QUANT
-int MultiHeadAttention_riscv::create_pipeline_wq_int8(const Option& _opt)
+int MultiHeadAttention_riscv::create_pipeline_wq(const Option& _opt)
 {
     if (q_gemm)
         return 0;
@@ -373,8 +373,8 @@ int MultiHeadAttention_riscv::create_pipeline(const Option& _opt)
         if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0)
             return -1;
 
-        if (weight_bits == 8)
-            return create_pipeline_wq_int8(_opt);
+        if (weight_bits == 4 || weight_bits == 8)
+            return create_pipeline_wq(_opt);
     }
 #endif
 
@@ -393,7 +393,7 @@ int MultiHeadAttention_riscv::destroy_pipeline(const Option& _opt)
     if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0)
         return -1;
 
-    if (weight_bits != 8)
+    if (weight_bits != 4 && weight_bits != 8)
         return MultiHeadAttention::destroy_pipeline(_opt);
 #else
     return MultiHeadAttention::destroy_pipeline(_opt);
@@ -471,7 +471,7 @@ int MultiHeadAttention_riscv::forward(const std::vector<Mat>& bottom_blobs, std:
     if (get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) != 0)
         return -1;
 
-    if (weight_bits != 8)
+    if (weight_bits != 4 && weight_bits != 8)
         return MultiHeadAttention::forward(bottom_blobs, top_blobs, _opt);
 #else
     return MultiHeadAttention::forward(bottom_blobs, top_blobs, _opt);

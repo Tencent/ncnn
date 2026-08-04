@@ -217,7 +217,7 @@ static int test_gemm_block_quant(const ncnn::Mat& A, const ncnn::Mat& B, const n
     opt.use_fp16_arithmetic = false;
     opt.use_bf16_storage = false;
 
-    if (bits != 8)
+    if (bits == 6)
     {
         std::vector<ncnn::Mat> ref_weights;
         ref_weights.push_back(B_dequantized);
@@ -250,7 +250,7 @@ static int test_gemm(int M, int N, int K, int bits, int block_size, int has_inpu
     ncnn::Mat A = transA ? (dims3 ? ncnn::Mat(M, 1, K) : ncnn::Mat(M, K)) : dims3 || output_N1M ? ncnn::Mat(K, 1, M) : ncnn::Mat(K, M);
     ncnn::Mat B(K, N);
     ncnn::Mat input_scales;
-    if (bits == 8)
+    if (bits == 4 || bits == 8)
     {
         if (has_input_scale)
             input_scales = make_input_scales(K);
@@ -314,7 +314,7 @@ static int test_gemm_bias(int M, int N, int K, int bits, int block_size, const n
     ncnn::Mat A = transA ? ncnn::Mat(M, K) : output_N1M ? ncnn::Mat(K, 1, M) : ncnn::Mat(K, M);
     ncnn::Mat B(K, N);
     ncnn::Mat input_scales;
-    if (bits == 8)
+    if (bits == 4 || bits == 8)
     {
         if (has_input_scale)
             input_scales = make_input_scales(K);
@@ -404,46 +404,90 @@ static int test_gemm_wq_int8_tile(int M, int N, int K, int block_size, int TILE_
     return ret;
 }
 
-static int test_gemm_wq_int8_exact_weight_tail(int K)
+static int test_gemm_wq_exact_weight_tail(int bits, int K, int has_input_scale = 0)
 {
     const int M = 4;
-    const int N = 6;
+    const int N = 5;
     const int block_size = 32;
     const int block_count = (K + block_size - 1) / block_size;
 
+    ncnn::Mat input_scales = has_input_scale ? make_input_scales(K) : ncnn::Mat();
+
     ncnn::Mat A(K, M);
-    RandomizeA(A, 0, block_size, ncnn::Mat());
+    RandomizeA(A, 0, block_size, input_scales);
 
-    std::vector<signed char> B_storage((size_t)K * N);
-    for (int n = 0; n < N; n++)
-    {
-        signed char* ptr = &B_storage[(size_t)n * K];
-        for (int k = 0; k < K; k++)
-            ptr[k] = (signed char)((n * 19 + k * 11) % 101 - 50);
-    }
-
-    ncnn::Mat B_quantized(K, N, (void*)&B_storage[0], (size_t)1u);
+    ncnn::Mat B_quantized((K * bits + 7) / 8, N, (size_t)1u);
     ncnn::Mat B_quantize_scales(block_count, N);
+    ncnn::Mat B(K, N);
+    B_quantized.fill<unsigned char>(0);
+
     for (int n = 0; n < N; n++)
     {
-        float* scales = B_quantize_scales.row(n);
-        for (int b = 0; b < block_count; b++)
-            scales[b] = 16.f + n * 3 + b;
+        unsigned char* qptr = B_quantized.row<unsigned char>(n);
+        float* scale_ptr = B_quantize_scales.row(n);
+        float* ptr = B.row(n);
+
+        for (int g = 0; g < block_count; g++)
+            scale_ptr[g] = 8.f + n + g;
+
+        for (int k = 0; k < K; k++)
+        {
+            const int q = bits == 4 ? (n * 19 + k * 11) % 16 - 8 : (n * 19 + k * 11) % 101 - 50;
+            if (bits == 4)
+                qptr[k / 2] |= (unsigned char)(q & 15) << ((k % 2) * 4);
+            else
+                ((signed char*)qptr)[k] = (signed char)q;
+            ptr[k] = q / scale_ptr[k / block_size];
+        }
     }
 
-    std::vector<ncnn::Mat> weights(2);
+    std::vector<ncnn::Mat> weights(has_input_scale ? 3 : 2);
     weights[0] = B_quantized;
     weights[1] = B_quantize_scales;
+    if (has_input_scale)
+        weights[2] = input_scales;
 
-    const ncnn::ParamDict pd = make_gemm_param(M, N, K, weight_block_quantize_term(8, block_size));
-    const int ret = test_layer("Gemm", pd, weights, A, 0.001f, TEST_LAYER_DISABLE_GPU_TESTING | TEST_LAYER_ENABLE_THREADING);
-    if (ret != 0)
-        fprintf(stderr, "test_gemm_wq_int8_exact_weight_tail failed K=%d\n", K);
+    std::vector<ncnn::Mat> ref_weights(1, B);
+    ncnn::ParamDict pd = make_gemm_param(M, N, K, weight_block_quantize_term(bits, block_size, has_input_scale));
+    ncnn::ParamDict ref_pd = pd;
+    ref_pd.set(18, 0);
 
-    return ret;
+    ncnn::Mat A_reference = A;
+    if (has_input_scale)
+    {
+        A_reference = A.clone();
+
+        const float* input_scale_ptr = input_scales;
+        for (int i = 0; i < M; i++)
+        {
+            float* ptr = A_reference.row(i);
+            for (int k = 0; k < K; k++)
+                ptr[k] *= input_scale_ptr[k];
+        }
+    }
+
+    ncnn::Mat reference;
+    test_layer_naive(ncnn::layer_to_index("Gemm"), ref_pd, ref_weights, A_reference, reference, TEST_LAYER_DISABLE_GPU_TESTING);
+
+    ncnn::Option opt;
+    opt.use_packing_layout = false;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_bf16_storage = false;
+
+    ncnn::Mat output;
+    test_layer_cpu(ncnn::layer_to_index("Gemm"), pd, weights, opt, A, output, ncnn::Mat(), TEST_LAYER_DISABLE_GPU_TESTING | TEST_LAYER_ENABLE_THREADING);
+    if (CompareMat(output, reference, 0.001f) != 0)
+    {
+        fprintf(stderr, "test_gemm_wq_exact_weight_tail failed bits=%d K=%d has_input_scale=%d\n", bits, K, has_input_scale);
+        return -1;
+    }
+
+    return 0;
 }
 
-static int test_gemm_wq_int8_input_scale_equivalence(int transA, int output_transpose)
+static int test_gemm_wq_input_scale_equivalence(int bits, int transA, int output_transpose)
 {
     const int M = 17;
     const int N = 19;
@@ -482,12 +526,25 @@ static int test_gemm_wq_int8_input_scale_equivalence(int transA, int output_tran
         }
     }
 
-    ncnn::Mat B_quantized(K, N, (size_t)1u);
+    ncnn::Mat B_quantized((K * bits + 7) / 8, N, (size_t)1u);
+    B_quantized.fill<unsigned char>(0);
     for (int n = 0; n < N; n++)
     {
-        signed char* ptr = B_quantized.row<signed char>(n);
-        for (int k = 0; k < K; k++)
-            ptr[k] = (signed char)((n * 13 + k * 17) % 127 - 63);
+        if (bits == 8)
+        {
+            signed char* ptr = B_quantized.row<signed char>(n);
+            for (int k = 0; k < K; k++)
+                ptr[k] = (signed char)((n * 13 + k * 17) % 127 - 63);
+        }
+        else
+        {
+            unsigned char* ptr = B_quantized.row<unsigned char>(n);
+            for (int k = 0; k < K; k++)
+            {
+                const int q = (n * 13 + k * 17) % 16 - 8;
+                ptr[k / 2] |= (unsigned char)(q & 15) << ((k % 2) * 4);
+            }
+        }
     }
 
     ncnn::Mat B_quantize_scales(block_count, N);
@@ -514,10 +571,10 @@ static int test_gemm_wq_int8_input_scale_equivalence(int transA, int output_tran
     opt.use_fp16_arithmetic = false;
     opt.use_bf16_storage = false;
 
-    ncnn::ParamDict pd = make_gemm_param(M, N, K, weight_block_quantize_term(8, block_size));
+    ncnn::ParamDict pd = make_gemm_param(M, N, K, weight_block_quantize_term(bits, block_size));
     pd.set(2, transA);
     pd.set(14, output_transpose);
-    ncnn::ParamDict scaled_pd = make_gemm_param(M, N, K, weight_block_quantize_term(8, block_size, 1));
+    ncnn::ParamDict scaled_pd = make_gemm_param(M, N, K, weight_block_quantize_term(bits, block_size, 1));
     scaled_pd.set(2, transA);
     scaled_pd.set(14, output_transpose);
 
@@ -530,7 +587,7 @@ static int test_gemm_wq_int8_input_scale_equivalence(int transA, int output_tran
         test_layer_cpu(ncnn::layer_to_index("Gemm"), scaled_pd, scaled_weights, opt, A, scaled_output, ncnn::Mat(), flag);
         if (CompareMat(output, scaled_output, 0.001f) != 0)
         {
-            fprintf(stderr, "test_gemm_wq_int8_input_scale_equivalence failed transA=%d output_transpose=%d threading=%d\n", transA, output_transpose, t);
+            fprintf(stderr, "test_gemm_wq_input_scale_equivalence failed bits=%d transA=%d output_transpose=%d threading=%d\n", bits, transA, output_transpose, t);
             return -1;
         }
     }
@@ -538,21 +595,34 @@ static int test_gemm_wq_int8_input_scale_equivalence(int transA, int output_tran
     return 0;
 }
 
-static int test_gemm_wq_int8_pipeline()
+static int test_gemm_wq_pipeline(int bits)
 {
     const int N = 31;
     const int K = 67;
     const int block_size = 32;
 
     ncnn::Mat B_input_scales = make_input_scales(K);
-    ncnn::Mat B_quantized(K, N, (size_t)1u);
+    ncnn::Mat B_quantized((K * bits + 7) / 8, N, (size_t)1u);
     ncnn::Mat B_quantize_scales(3, N);
+    B_quantized.fill<unsigned char>(0);
     B_quantize_scales.fill(1.f);
     for (int n = 0; n < N; n++)
     {
-        signed char* ptr = B_quantized.row<signed char>(n);
-        for (int k = 0; k < K; k++)
-            ptr[k] = (signed char)((n * 19 + k * 11) % 101 - 50);
+        if (bits == 8)
+        {
+            signed char* ptr = B_quantized.row<signed char>(n);
+            for (int k = 0; k < K; k++)
+                ptr[k] = (signed char)((n * 19 + k * 11) % 101 - 50);
+        }
+        else
+        {
+            unsigned char* ptr = B_quantized.row<unsigned char>(n);
+            for (int k = 0; k < K; k++)
+            {
+                const int q = (n * 19 + k * 11) % 16 - 8;
+                ptr[k / 2] |= (unsigned char)(q & 15) << ((k % 2) * 4);
+            }
+        }
     }
 
     std::vector<ncnn::Mat> weights(3);
@@ -564,7 +634,7 @@ static int test_gemm_wq_int8_pipeline()
     if (!gemm)
         return -1;
 
-    const ncnn::ParamDict pd = make_gemm_param(0, N, K, weight_block_quantize_term(8, block_size, 1));
+    const ncnn::ParamDict pd = make_gemm_param(0, N, K, weight_block_quantize_term(bits, block_size, 1));
     gemm->load_param(pd);
     gemm->load_model(ncnn::ModelBinFromMatArray(weights.data()));
 
@@ -598,7 +668,7 @@ static int test_gemm_wq_int8_pipeline()
         gemm->forward(bottom_blobs, top_blobs, opt1);
         if (CompareMat(top_blobs[0], reference, 0.001f) != 0)
         {
-            fprintf(stderr, "test_gemm_wq_int8_pipeline failed M=%d threads=%d\n", M, opt1.num_threads);
+            fprintf(stderr, "test_gemm_wq_pipeline failed bits=%d M=%d threads=%d\n", bits, M, opt1.num_threads);
             test_ret = -1;
             break;
         }
@@ -616,6 +686,10 @@ static int test_gemm_0()
            || test_gemm(3, 5, 65, 4, 64)
            || test_gemm(3, 4, 33, 4, 32, 1)
            || test_gemm_bias(3, 4, 33, 4, 32, RandomMat(1), 1.7f, 0.3f, 0, 0, 0, 1)
+           || test_gemm(7, 9, 35, 4, 32, 0, 1, 1)
+           || test_gemm(5, 3, 65, 4, 64, 1, 0, 0, 1, 1)
+           || test_gemm(9, 8, 129, 4, 128, 1, 1)
+           || test_gemm_bias(17, 19, 35, 4, 32, RandomMat(19, 17), 0.7f, 1.3f, 1, 0, 1, 0, 0, 0, 9, 5, 17)
            || test_gemm(4, 7, 67, 6, 64)
            || test_gemm(2, 4, 31, 6, 32, 1)
            || test_gemm(3, 4, 129, 6, 128)
@@ -723,14 +797,20 @@ int main()
     SRAND(7767517);
 
 #if NCNN_WEIGHT_QUANT
-    int ret = test_gemm_wq_int8_exact_weight_tail(3)
-              || test_gemm_wq_int8_exact_weight_tail(4)
-              || test_gemm_wq_int8_exact_weight_tail(33)
-              || test_gemm_wq_int8_exact_weight_tail(34)
-              || test_gemm_wq_int8_exact_weight_tail(35)
-              || test_gemm_wq_int8_input_scale_equivalence(0, 0)
-              || test_gemm_wq_int8_input_scale_equivalence(1, 1)
-              || test_gemm_wq_int8_pipeline()
+    int ret = test_gemm_wq_exact_weight_tail(4, 3)
+              || test_gemm_wq_exact_weight_tail(4, 4)
+              || test_gemm_wq_exact_weight_tail(4, 33)
+              || test_gemm_wq_exact_weight_tail(4, 34)
+              || test_gemm_wq_exact_weight_tail(4, 35, 1)
+              || test_gemm_wq_exact_weight_tail(8, 3)
+              || test_gemm_wq_exact_weight_tail(8, 4)
+              || test_gemm_wq_exact_weight_tail(8, 33)
+              || test_gemm_wq_exact_weight_tail(8, 34)
+              || test_gemm_wq_exact_weight_tail(8, 35)
+              || test_gemm_wq_input_scale_equivalence(4, 0, 0)
+              || test_gemm_wq_input_scale_equivalence(8, 1, 1)
+              || test_gemm_wq_pipeline(4)
+              || test_gemm_wq_pipeline(8)
               || test_gemm_0()
               || test_gemm_2()
               || test_gemm_3();

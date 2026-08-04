@@ -30,7 +30,7 @@ MultiHeadAttention_x86::MultiHeadAttention_x86()
 }
 
 #if NCNN_WEIGHT_QUANT
-int MultiHeadAttention_x86::create_pipeline_wq_int8(const Option& _opt)
+int MultiHeadAttention_x86::create_pipeline_wq(const Option& _opt)
 {
     if (q_gemm)
         return 0;
@@ -382,10 +382,10 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
         if (ret != 0)
             return ret;
 
-        if (weight_bits != 8)
+        if (weight_bits != 4 && weight_bits != 8)
             return MultiHeadAttention::create_pipeline(_opt);
 
-        return create_pipeline_wq_int8(_opt);
+        return create_pipeline_wq(_opt);
     }
 #endif
 
@@ -754,7 +754,7 @@ int MultiHeadAttention_x86::destroy_pipeline(const Option& _opt)
         if (ret != 0)
             return ret;
 
-        if (weight_bits != 8)
+        if (weight_bits != 4 && weight_bits != 8)
             return MultiHeadAttention::destroy_pipeline(_opt);
     }
 
@@ -836,7 +836,7 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
         if (ret != 0)
             return ret;
 
-        if (weight_bits != 8)
+        if (weight_bits != 4 && weight_bits != 8)
             return MultiHeadAttention::forward(bottom_blobs, top_blobs, _opt);
     }
 
