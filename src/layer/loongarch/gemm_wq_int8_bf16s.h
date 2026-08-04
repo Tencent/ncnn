@@ -1523,19 +1523,6 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
 
                     transpose8x8_ps(_absmax0, _absmax1, _absmax2, _absmax3, _absmax4, _absmax5, _absmax6, _absmax7);
                     _absmax0 = __lasx_xvfmax_s(__lasx_xvfmax_s(__lasx_xvfmax_s(_absmax0, _absmax1), __lasx_xvfmax_s(_absmax2, _absmax3)), __lasx_xvfmax_s(__lasx_xvfmax_s(_absmax4, _absmax5), __lasx_xvfmax_s(_absmax6, _absmax7)));
-                    for (; kk < max_kk0; kk++)
-                    {
-                        __m128i _p = __lsx_vldrepl_h(p0a, 0);
-                        _p = __lsx_vinsgr2vr_h(_p, p0a[8], 1);
-                        _p = __lsx_vinsgr2vr_h(_p, p0a[16], 2);
-                        _p = __lsx_vinsgr2vr_h(_p, p0a[24], 3);
-                        _p = __lsx_vinsgr2vr_h(_p, p0a[32], 4);
-                        _p = __lsx_vinsgr2vr_h(_p, p0a[40], 5);
-                        _p = __lsx_vinsgr2vr_h(_p, p0a[48], 6);
-                        _p = __lsx_vinsgr2vr_h(_p, p0a[56], 7);
-                        _absmax0 = __lasx_xvfmax_s(_absmax0, (__m256)__lasx_xvand_v((__m256i)bfloat2float_lasx(_p), _abs_mask));
-                        p0a++;
-                    }
 
                     const __m256 _v127 = __lasx_xvreplfr2vr_s(127.f);
                     __lasx_xvst(__lasx_xvfdiv_s(_absmax0, _v127), pd, 0);
@@ -1575,20 +1562,6 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         __lsx_vst(__lsx_vilvh_h(_q23, _q01), pp + 48, 0);
                         pp += 64;
                         p0 += A_hstep * 8;
-                    }
-                    for (; kk < max_kk0; kk++)
-                    {
-                        __m128i _p = __lsx_vldrepl_h(p0, 0);
-                        _p = __lsx_vinsgr2vr_h(_p, p0[8], 1);
-                        _p = __lsx_vinsgr2vr_h(_p, p0[16], 2);
-                        _p = __lsx_vinsgr2vr_h(_p, p0[24], 3);
-                        _p = __lsx_vinsgr2vr_h(_p, p0[32], 4);
-                        _p = __lsx_vinsgr2vr_h(_p, p0[40], 5);
-                        _p = __lsx_vinsgr2vr_h(_p, p0[48], 6);
-                        _p = __lsx_vinsgr2vr_h(_p, p0[56], 7);
-                        __lsx_vstelm_d(__lasx_extract_128_lo(float2int8(__lasx_xvfmul_s(bfloat2float_lasx(_p), _scale))), pp, 0, 0);
-                        pp += 8;
-                        p0++;
                     }
 #else
                     const __m128i _abs_mask = (__m128i)__lsx_vreplgr2vr_w(0x7fffffff);
@@ -2455,20 +2428,6 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
 
                     transpose8x8_ps(_absmax0, _absmax1, _absmax2, _absmax3, _absmax4, _absmax5, _absmax6, _absmax7);
                     _absmax0 = __lasx_xvfmax_s(__lasx_xvfmax_s(__lasx_xvfmax_s(_absmax0, _absmax1), __lasx_xvfmax_s(_absmax2, _absmax3)), __lasx_xvfmax_s(__lasx_xvfmax_s(_absmax4, _absmax5), __lasx_xvfmax_s(_absmax6, _absmax7)));
-                    for (; kk < max_kk0; kk++)
-                    {
-                        __m128i _p = __lsx_vldrepl_h(p0a, 0);
-                        _p = __lsx_vinsgr2vr_h(_p, p0a[8], 1);
-                        _p = __lsx_vinsgr2vr_h(_p, p0a[16], 2);
-                        _p = __lsx_vinsgr2vr_h(_p, p0a[24], 3);
-                        _p = __lsx_vinsgr2vr_h(_p, p0a[32], 4);
-                        _p = __lsx_vinsgr2vr_h(_p, p0a[40], 5);
-                        _p = __lsx_vinsgr2vr_h(_p, p0a[48], 6);
-                        _p = __lsx_vinsgr2vr_h(_p, p0a[56], 7);
-                        __m256 _v = __lasx_xvfmul_s(bfloat2float_lasx(_p), __lasx_xvreplfr2vr_s(*psa++));
-                        _absmax0 = __lasx_xvfmax_s(_absmax0, (__m256)__lasx_xvand_v((__m256i)_v, _abs_mask));
-                        p0a++;
-                    }
 
                     const __m256 _v127 = __lasx_xvreplfr2vr_s(127.f);
                     __lasx_xvst(__lasx_xvfdiv_s(_absmax0, _v127), pd, 0);
@@ -2510,21 +2469,6 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         pp += 64;
                         p0 += A_hstep * 8;
                         ps += 8;
-                    }
-                    for (; kk < max_kk0; kk++)
-                    {
-                        __m128i _p = __lsx_vldrepl_h(p0, 0);
-                        _p = __lsx_vinsgr2vr_h(_p, p0[8], 1);
-                        _p = __lsx_vinsgr2vr_h(_p, p0[16], 2);
-                        _p = __lsx_vinsgr2vr_h(_p, p0[24], 3);
-                        _p = __lsx_vinsgr2vr_h(_p, p0[32], 4);
-                        _p = __lsx_vinsgr2vr_h(_p, p0[40], 5);
-                        _p = __lsx_vinsgr2vr_h(_p, p0[48], 6);
-                        _p = __lsx_vinsgr2vr_h(_p, p0[56], 7);
-                        __m256 _v = __lasx_xvfmul_s(bfloat2float_lasx(_p), __lasx_xvreplfr2vr_s(*ps++));
-                        __lsx_vstelm_d(__lasx_extract_128_lo(float2int8(__lasx_xvfmul_s(_v, _scale))), pp, 0, 0);
-                        pp += 8;
-                        p0++;
                     }
 #else
                     const __m128i _abs_mask = (__m128i)__lsx_vreplgr2vr_w(0x7fffffff);

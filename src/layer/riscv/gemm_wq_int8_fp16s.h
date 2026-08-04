@@ -508,13 +508,6 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                         }
                         p0a += A_hstep * packn_fp16;
                     }
-                    for (; kk < max_kk0; kk++)
-                    {
-                        vfloat16m2_t _p = __riscv_vlse16_v_f16m2(p0a, packn_fp16 * sizeof(__fp16), vl_packn);
-                        vfloat32m4_t _v = __riscv_vfabs_v_f32m4(__riscv_vfwcvt_f_f_v_f32m4(_p, vl_packn), vl_packn);
-                        _absmax = __riscv_vfmax_vv_f32m4(_absmax, _v, vl_packn);
-                        p0a++;
-                    }
                 }
                 if (elempack == 1)
                 {
@@ -559,14 +552,6 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                             pp += packn;
                         }
                         p0 += A_hstep * packn_fp16;
-                    }
-                    for (; kk < max_kk0; kk++)
-                    {
-                        vfloat16m2_t _p = __riscv_vlse16_v_f16m2(p0, packn_fp16 * sizeof(__fp16), vl_packn);
-                        vfloat32m4_t _v = __riscv_vfwcvt_f_f_v_f32m4(_p, vl_packn);
-                        __riscv_vse8_v_i8m1(pp, float2int8(__riscv_vfmul_vv_f32m4(_v, _scale, vl_packn), vl_packn), vl_packn);
-                        pp += packn;
-                        p0++;
                     }
                 }
                 if (elempack == 1)
@@ -888,14 +873,6 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                     }
                     p0 += A_hstep * packn_fp16;
                 }
-                for (; kk < max_kk0; kk++)
-                {
-                    vfloat16m2_t _p = __riscv_vlse16_v_f16m2(p0, packn_fp16 * sizeof(__fp16), vl_packn);
-                    vfloat32m4_t _v = __riscv_vfwcvt_f_f_v_f32m4(_p, vl_packn);
-                    _v = __riscv_vfabs_v_f32m4(__riscv_vfmul_vf_f32m4(_v, *ps++, vl_packn), vl_packn);
-                    _absmax = __riscv_vfmax_vv_f32m4(_absmax, _v, vl_packn);
-                    p0++;
-                }
             }
             if (elempack == 1)
             {
@@ -945,15 +922,6 @@ static void transpose_quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, 
                         pp += packn;
                     }
                     p0 += A_hstep * packn_fp16;
-                }
-                for (; kk < max_kk0; kk++)
-                {
-                    vfloat16m2_t _p = __riscv_vlse16_v_f16m2(p0, packn_fp16 * sizeof(__fp16), vl_packn);
-                    vfloat32m4_t _v = __riscv_vfwcvt_f_f_v_f32m4(_p, vl_packn);
-                    _v = __riscv_vfmul_vf_f32m4(_v, *ps++, vl_packn);
-                    __riscv_vse8_v_i8m1(pp, float2int8(__riscv_vfmul_vv_f32m4(_v, _scale, vl_packn), vl_packn), vl_packn);
-                    pp += packn;
-                    p0++;
                 }
             }
             if (elempack == 1)

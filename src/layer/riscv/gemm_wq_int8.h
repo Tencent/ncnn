@@ -672,12 +672,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                         }
                         p0a += A_hstep * packn;
                     }
-                    for (; kk < max_kk0; kk++)
-                    {
-                        vfloat32m1_t _v = __riscv_vlse32_v_f32m1(p0a, packn * sizeof(float), vl);
-                        _absmax = __riscv_vfmax_vv_f32m1(_absmax, __riscv_vfabs_v_f32m1(_v, vl), vl);
-                        p0a++;
-                    }
                 }
                 if (elempack == 1)
                 {
@@ -732,19 +726,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                             pp += packn;
                         }
                         p0 += A_hstep * packn;
-                    }
-                    for (; kk < max_kk0; kk++)
-                    {
-                        vfloat32m1_t _v = __riscv_vlse32_v_f32m1(p0, packn * sizeof(float), vl);
-                        vint32m1_t _v32 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vv_f32m1(_v, _scale, vl), __RISCV_FRM_RMM, vl);
-                        _v32 = __riscv_vmax_vx_i32m1(_v32, -127, vl);
-                        _v32 = __riscv_vmin_vx_i32m1(_v32, 127, vl);
-                        vint32m4_t _v32x4 = __riscv_vundefined_i32m4();
-                        _v32x4 = __riscv_vset_v_i32m1_i32m4(_v32x4, 0, _v32);
-                        vint16m2_t _v16 = __riscv_vnclip_wx_i16m2(_v32x4, 0, __RISCV_VXRM_RNU, vl);
-                        __riscv_vse8_v_i8m1(pp, __riscv_vnclip_wx_i8m1(_v16, 0, __RISCV_VXRM_RNU, vl), vl);
-                        pp += packn;
-                        p0++;
                     }
                 }
                 if (elempack == 1)
@@ -1108,14 +1089,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     }
                     p0 += A_hstep * packn;
                 }
-                for (; kk < max_kk0; kk++)
-                {
-                    vfloat32m1_t _v = __riscv_vlse32_v_f32m1(p0, packn * sizeof(float), vl);
-                    _v = __riscv_vfabs_v_f32m1(_v, vl);
-                    _v = __riscv_vfmul_vf_f32m1(_v, *ps++, vl);
-                    _absmax = __riscv_vfmax_vv_f32m1(_absmax, _v, vl);
-                    p0++;
-                }
             }
             if (elempack == 1)
             {
@@ -1175,20 +1148,6 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                         pp += packn;
                     }
                     p0 += A_hstep * packn;
-                }
-                for (; kk < max_kk0; kk++)
-                {
-                    vfloat32m1_t _v = __riscv_vlse32_v_f32m1(p0, packn * sizeof(float), vl);
-                    _v = __riscv_vfmul_vf_f32m1(_v, *ps++, vl);
-                    vint32m1_t _v32 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vv_f32m1(_v, _scale, vl), __RISCV_FRM_RMM, vl);
-                    _v32 = __riscv_vmax_vx_i32m1(_v32, -127, vl);
-                    _v32 = __riscv_vmin_vx_i32m1(_v32, 127, vl);
-                    vint32m4_t _v32x4 = __riscv_vundefined_i32m4();
-                    _v32x4 = __riscv_vset_v_i32m1_i32m4(_v32x4, 0, _v32);
-                    vint16m2_t _v16 = __riscv_vnclip_wx_i16m2(_v32x4, 0, __RISCV_VXRM_RNU, vl);
-                    __riscv_vse8_v_i8m1(pp, __riscv_vnclip_wx_i8m1(_v16, 0, __RISCV_VXRM_RNU, vl), vl);
-                    pp += packn;
-                    p0++;
                 }
             }
             if (elempack == 1)
