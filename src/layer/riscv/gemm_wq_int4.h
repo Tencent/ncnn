@@ -16,21 +16,21 @@ static inline signed char get_packed_weight_wq_int4(const unsigned char* p, size
 static inline uint16_t riscv_wq_int4_load_u16(const unsigned char* ptr)
 {
     return (uint16_t)(unsigned char)get_packed_weight_wq_int4(ptr, 0)
-         | (uint16_t)(unsigned char)get_packed_weight_wq_int4(ptr, 1) << 8;
+           | (uint16_t)(unsigned char)get_packed_weight_wq_int4(ptr, 1) << 8;
 }
 
 static inline uint32_t riscv_wq_int4_load_u32(const unsigned char* ptr)
 {
     return (uint32_t)(unsigned char)get_packed_weight_wq_int4(ptr, 0)
-         | (uint32_t)(unsigned char)get_packed_weight_wq_int4(ptr, 1) << 8
-         | (uint32_t)(unsigned char)get_packed_weight_wq_int4(ptr, 2) << 16
-         | (uint32_t)(unsigned char)get_packed_weight_wq_int4(ptr, 3) << 24;
+           | (uint32_t)(unsigned char)get_packed_weight_wq_int4(ptr, 1) << 8
+           | (uint32_t)(unsigned char)get_packed_weight_wq_int4(ptr, 2) << 16
+           | (uint32_t)(unsigned char)get_packed_weight_wq_int4(ptr, 3) << 24;
 }
 
 static inline uint64_t riscv_wq_int4_load_u64(const unsigned char* ptr)
 {
     return (uint64_t)riscv_wq_int4_load_u32(ptr)
-         | (uint64_t)riscv_wq_int4_load_u32(ptr + 2) << 32;
+           | (uint64_t)riscv_wq_int4_load_u32(ptr + 2) << 32;
 }
 
 #if __riscv_vector
@@ -1626,7 +1626,6 @@ static void gemm_transB_packed_tile_wq_int4(const Mat& AT_tile, const Mat& AT_de
         pAT_descales += A_descales_hstep;
     }
 }
-
 
 static void get_optimal_tile_mnk_wq_int4(int M, int N, int K, int block_size, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {

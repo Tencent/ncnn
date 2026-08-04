@@ -23,13 +23,13 @@ static inline void loongarch_wq_int4_pack_pair(unsigned char* ptr, int n)
 static inline unsigned short loongarch_wq_int4_load_u16(const unsigned char* ptr)
 {
     return (unsigned short)(unsigned char)get_packed_weight_wq_int4(ptr, 0)
-         | (unsigned short)(unsigned char)get_packed_weight_wq_int4(ptr, 1) << 8;
+           | (unsigned short)(unsigned char)get_packed_weight_wq_int4(ptr, 1) << 8;
 }
 
 static inline unsigned int loongarch_wq_int4_load_u32(const unsigned char* ptr)
 {
     return (unsigned int)loongarch_wq_int4_load_u16(ptr)
-         | (unsigned int)loongarch_wq_int4_load_u16(ptr + 1) << 16;
+           | (unsigned int)loongarch_wq_int4_load_u16(ptr + 1) << 16;
 }
 
 #if __loongarch_sx

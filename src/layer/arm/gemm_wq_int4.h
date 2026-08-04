@@ -129,12 +129,12 @@ static void pack_B_tile_wq_int4(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 vst4q_u16((unsigned short*)pp, _r0123);
 #endif // __ARM_FEATURE_MATMUL_INT8
 #else  // __ARM_FEATURE_DOTPROD
-                uint8x16x4_t _r0123;
-                _r0123.val[0] = _p0;
-                _r0123.val[1] = _p1;
-                _r0123.val[2] = _p2;
-                _r0123.val[3] = _p3;
-                vst4q_u8(pp, _r0123);
+    uint8x16x4_t _r0123;
+    _r0123.val[0] = _p0;
+    _r0123.val[1] = _p1;
+    _r0123.val[2] = _p2;
+    _r0123.val[3] = _p3;
+    vst4q_u8(pp, _r0123);
 #endif // __ARM_FEATURE_DOTPROD
                 for (int q = 0; q < 64; q += 8)
                     arm_wq_int4_pack_pair(pp + q);
