@@ -802,6 +802,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
 endif()
 
 if(NCNN_VULKAN)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NOT NCNN_SIMPLEVK)
+        message(FATAL_ERROR "Emscripten Vulkan requires NCNN_SIMPLEVK")
+    endif()
+
     if(NCNN_SYSTEM_GLSLANG)
         find_package(Threads)
         find_package(SPIRV-Tools QUIET)
