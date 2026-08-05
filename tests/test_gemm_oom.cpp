@@ -219,11 +219,11 @@ static int test_gemm_int8_oom(int M, int N, int K, int transA, int transB, int o
     std::vector<ncnn::Mat> a;
     if (!constantA)
     {
-        a.push_back(transA ? (output_N1M ? ncnn::Mat(M, 1, K) : ncnn::Mat(M, K)) : (output_N1M ? ncnn::Mat(K, 1, M) : ncnn::Mat(K, M)));
+        a.push_back(transA ? (output_N1M ? RandomMat(M, 1, K) : RandomMat(M, K)) : (output_N1M ? RandomMat(K, 1, M) : RandomMat(K, M)));
     }
     if (!constantB)
     {
-        a.push_back(transB ? (output_N1M ? ncnn::Mat(K, 1, N) : ncnn::Mat(K, N)) : (output_N1M ? ncnn::Mat(N, 1, K) : ncnn::Mat(N, K)));
+        a.push_back(transB ? (output_N1M ? RandomMat(K, 1, N) : RandomMat(K, N)) : (output_N1M ? RandomMat(N, 1, K) : RandomMat(N, K)));
     }
 
     int ret = test_layer_oom("Gemm", pd, weights, a);
@@ -296,11 +296,11 @@ static int test_gemm_int8_bias_oom(int M, int N, int K, const ncnn::Mat& C, floa
     std::vector<ncnn::Mat> a;
     if (!constantA)
     {
-        a.push_back(transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M));
+        a.push_back(transA ? RandomMat(M, K) : RandomMat(K, M));
     }
     if (!constantB)
     {
-        a.push_back(transB ? ncnn::Mat(K, N) : ncnn::Mat(N, K));
+        a.push_back(transB ? RandomMat(K, N) : RandomMat(N, K));
     }
     if (!constantC) a.push_back(C);
 
@@ -339,11 +339,11 @@ static int test_gemm_int8_fp16s_oom(int M, int N, int K, int transA, int transB,
     std::vector<ncnn::Mat> a;
     if (!constantA)
     {
-        a.push_back(transA ? (output_N1M ? ncnn::Mat(M, 1, K) : ncnn::Mat(M, K)) : (output_N1M ? ncnn::Mat(K, 1, M) : ncnn::Mat(K, M)));
+        a.push_back(transA ? (output_N1M ? RandomMat(M, 1, K) : RandomMat(M, K)) : (output_N1M ? RandomMat(K, 1, M) : RandomMat(K, M)));
     }
     if (!constantB)
     {
-        a.push_back(transB ? (output_N1M ? ncnn::Mat(K, 1, N) : ncnn::Mat(K, N)) : (output_N1M ? ncnn::Mat(N, 1, K) : ncnn::Mat(N, K)));
+        a.push_back(transB ? (output_N1M ? RandomMat(K, 1, N) : RandomMat(K, N)) : (output_N1M ? RandomMat(N, 1, K) : RandomMat(N, K)));
     }
 
     ncnn::Option opt;

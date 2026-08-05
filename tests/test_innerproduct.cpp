@@ -105,7 +105,15 @@ static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias, bool 
     const int k = a.w * a.h * a.d * a.c;
     weights[0] = weight_int8 ? RandomS8Mat(outch * k) : RandomMat(outch * k);
     ncnn::Mat weight_scales = weight_int8 ? RandomMat(outch, 10.f, 20.f) : scales_mat(weights[0], outch, k, k);
+    if (!weight_int8)
+    {
+        for (int q = 0; q < outch; q++)
+        {
+            weight_scales[q] = std::min(weight_scales[q], 127.f);
+        }
+    }
     ncnn::Mat input_scales = scales_mat(a, 1, k, k);
+    input_scales[0] = std::min(input_scales[0], 127.f);
 
     ncnn::Mat a_int8 = a;
     if (input_int8)
@@ -250,7 +258,15 @@ static int test_innerproduct_gemm_int8(const ncnn::Mat& a, int outch, int bias, 
     const int k = a.w;
     weights[0] = weight_int8 ? RandomS8Mat(outch * k) : RandomMat(outch * k);
     ncnn::Mat weight_scales = weight_int8 ? RandomMat(outch, 10.f, 20.f) : scales_mat(weights[0], outch, k, k);
+    if (!weight_int8)
+    {
+        for (int q = 0; q < outch; q++)
+        {
+            weight_scales[q] = std::min(weight_scales[q], 127.f);
+        }
+    }
     ncnn::Mat input_scales = scales_mat(a, 1, k, k);
+    input_scales[0] = std::min(input_scales[0], 127.f);
 
     ncnn::Mat a_int8 = a;
     if (input_int8)
