@@ -72,7 +72,13 @@ if(NCNN_VULKAN)
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-    target_link_libraries(test_squeezenet PRIVATE nodefs.js)
+    set(ncnn_squeezenet_model_dir "${CMAKE_CURRENT_SOURCE_DIR}/../examples")
+    set_property(TARGET test_squeezenet APPEND PROPERTY LINK_DEPENDS
+        "${ncnn_squeezenet_model_dir}/squeezenet_v1.1.param"
+        "${ncnn_squeezenet_model_dir}/squeezenet_v1.1.param.bin"
+        "${ncnn_squeezenet_model_dir}/squeezenet_v1.1.bin")
+    set_property(TARGET test_squeezenet APPEND_STRING PROPERTY LINK_FLAGS
+        " --preload-file \"${ncnn_squeezenet_model_dir}/squeezenet_v1.1.param@/working/squeezenet_v1.1.param\" --preload-file \"${ncnn_squeezenet_model_dir}/squeezenet_v1.1.param.bin@/working/squeezenet_v1.1.param.bin\" --preload-file \"${ncnn_squeezenet_model_dir}/squeezenet_v1.1.bin@/working/squeezenet_v1.1.bin\"")
 endif()
 
 ncnn_add_layer_test(AbsVal)

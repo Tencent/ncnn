@@ -5,7 +5,7 @@
 void convolution_packed_int8_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVX512F__ && !__AVXVNNI__ && !__AVX512VNNI__
 void convolution_packed_int8_avxvnni(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt);
 #endif
 
@@ -872,7 +872,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVX512F__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         convolution_packed_int8_avxvnni(bottom_blob, top_blob, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);

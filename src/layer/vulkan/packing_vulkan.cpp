@@ -24,7 +24,7 @@ int Packing_vulkan::create_pipeline(const Option& opt)
 
     const int dims = shape.dims;
 
-    const int local_size_x = vkdev->info.subgroup_size();
+    const int local_size_x = std::max(16, (int)vkdev->info.subgroup_size());
 
     bool use_int8_shader = cast_type_from == 4 || cast_type_to == 4;
 
