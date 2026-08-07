@@ -120,6 +120,9 @@ uint64_t get_shader_source_hash(int shader_type_index)
 
     const layer_shader_registry_entry& entry = layer_shader_registry[shader_type_index];
     uint64_t h = 0xcbf29ce484222325ull;
+    const int ncnn_glsl_ext_comp_data_size = sizeof(ncnn_glsl_ext_comp_data);
+    h = fnv1a_64_update(h, (const unsigned char*)&ncnn_glsl_ext_comp_data_size, sizeof(ncnn_glsl_ext_comp_data_size));
+    h = fnv1a_64_update(h, (const unsigned char*)ncnn_glsl_ext_comp_data, ncnn_glsl_ext_comp_data_size);
     h = fnv1a_64_update(h, (const unsigned char*)&entry.comp_data_size, sizeof(entry.comp_data_size));
     h = fnv1a_64_update(h, (const unsigned char*)entry.comp_data, entry.comp_data_size);
     return h;
@@ -5157,7 +5160,7 @@ int compile_spirv_module(const char* comp_string, const Option& opt, std::vector
 
 int compile_spirv_module(const char* comp_data, int comp_data_size, const Option& opt, std::vector<uint32_t>& spirv)
 {
-    DefinitionCollector custom_defines;
+    DefinitionCollector option_defines;
     DefinitionCollector device_defines;
 
     int device_index = opt.vulkan_device_index;
@@ -5166,538 +5169,72 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     const GpuInfo& info = get_gpu_info(device_index);
     const bool support_fp16_storage = info.support_fp16_storage();
-    const bool support_fp16_uniform = info.support_fp16_uniform();
     const bool support_shader_int64 = info.physicalDevicefeatures().shaderInt64;
-    const bool support_int16_arithmetic = info.physicalDevicefeatures().shaderInt16;
+    const bool support_shader_int16 = info.physicalDevicefeatures().shaderInt16;
 
     if (opt.use_bf16_storage)
     {
-        custom_defines.append("sfp", "bfloat16_t");
-        custom_defines.append("sfpvec2", "bf16vec2");
-        custom_defines.append("sfpvec4", "bf16vec4");
-
-        // define pack and unpack macro for bf16s
-        custom_defines.append("unpackBFloat2x16(v)", "vec2(uintBitsToBFloat16EXT(unpackUint2x16(v)))");
-        custom_defines.append("packBFloat2x16(v)", "packUint2x16(bfloat16BitsToUintEXT(bf16vec2(v)))");
+        option_defines.append("NCNN_bf16_storage", 1);
     }
     else if (opt.use_bf16_packed)
     {
-        if (support_fp16_storage)
-        {
-            custom_defines.append("sfp", "uint16_t");
-        }
-        else
-        {
-            custom_defines.append("sfp", "uint");
-        }
-        custom_defines.append("sfpvec2", "uint");
-        custom_defines.append("sfpvec4", "uvec2");
-
-        // define pack and unpack macro for bf16p
-        custom_defines.append("unpackBFloat2x16(v)", "vec2(uintBitsToFloat(v<<16),uintBitsToFloat(v&0xffff0000u))");
-        custom_defines.append("packBFloat2x16(v)", "uint((floatBitsToUint(v.x)>>16)|(floatBitsToUint(v.y)&0xffff0000u))");
+        option_defines.append("NCNN_bf16_packed", 1);
     }
     else if (opt.use_fp16_storage)
     {
-        custom_defines.append("sfp", "float16_t");
-        custom_defines.append("sfpvec2", "f16vec2");
-        custom_defines.append("sfpvec4", "f16vec4");
-
-        if (opt.use_fp16_arithmetic)
-        {
-            custom_defines.append("sfpmat4", "f16mat4");
-        }
+        option_defines.append("NCNN_fp16_storage", 1);
     }
     else if (opt.use_fp16_packed)
     {
-        custom_defines.append("sfp", "uint");
-        custom_defines.append("sfpvec2", "uint");
-        custom_defines.append("sfpvec4", "uvec2");
-    }
-    else
-    {
-        custom_defines.append("sfp", "float");
-        custom_defines.append("sfpvec2", "vec2");
-        custom_defines.append("sfpvec4", "vec4");
-        custom_defines.append("sfpmat4", "mat4");
-    }
-
-    if (opt.use_bf16_storage || opt.use_bf16_packed)
-    {
-        // bf16 conflicts with fp16a
-        custom_defines.append("afp", "float");
-        custom_defines.append("afpvec2", "vec2");
-        custom_defines.append("afpvec4", "vec4");
-        custom_defines.append("afpmat4", "mat4");
-    }
-    else if (opt.use_fp16_arithmetic)
-    {
-        custom_defines.append("afp", "float16_t");
-        custom_defines.append("afpvec2", "f16vec2");
-        custom_defines.append("afpvec4", "f16vec4");
-        custom_defines.append("afpmat4", "f16mat4");
-    }
-    else
-    {
-        custom_defines.append("afp", "float");
-        custom_defines.append("afpvec2", "vec2");
-        custom_defines.append("afpvec4", "vec4");
-        custom_defines.append("afpmat4", "mat4");
-    }
-
-    if (opt.use_bf16_storage)
-    {
-        // bf16s implies 16bit uniform
-        custom_defines.append("lfp", "bfloat16_t");
-        custom_defines.append("lfpvec4", "bf16vec4");
-    }
-    else if (opt.use_bf16_packed)
-    {
-        if (support_fp16_uniform)
-        {
-            custom_defines.append("lfp", "uint16_t");
-        }
-        else
-        {
-            custom_defines.append("lfp", "float");
-        }
-        custom_defines.append("lfpvec4", "uvec2");
-    }
-    else if (opt.use_fp16_storage && opt.use_fp16_uniform && opt.use_fp16_arithmetic)
-    {
-        custom_defines.append("lfp", "float16_t");
-        custom_defines.append("lfpvec4", "f16vec4");
-    }
-    else if (opt.use_fp16_storage && opt.use_fp16_arithmetic && support_shader_int64)
-    {
-        // use a single 64-bit scalar for four packed fp16 values when available
-        custom_defines.append("lfp", "float");
-        custom_defines.append("lfpvec4", "uint64_t");
-    }
-    else if (opt.use_fp16_storage || opt.use_fp16_packed)
-    {
-        custom_defines.append("lfp", "float");
-        custom_defines.append("lfpvec4", "uvec2");
-    }
-    else
-    {
-        custom_defines.append("lfp", "float");
-        custom_defines.append("lfpvec4", "vec4");
-    }
-
-    if (opt.use_bf16_storage)
-    {
-        custom_defines.append("buffer_sm1(buf,i)", "buf[i]");
-        custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
-
-        custom_defines.append("lfp2afp(v)", "float(v)");
-        custom_defines.append("afp2lfp(v)", "bfloat16_t(v)");
-        custom_defines.append("lfp2afpvec4(v)", "vec4(v)");
-        custom_defines.append("afp2lfpvec4(v)", "bf16vec4(v)");
-    }
-    else if (opt.use_bf16_packed)
-    {
-        if (support_fp16_uniform)
-        {
-            custom_defines.append("buffer_sm1(buf,i)", "buf[i]");
-        }
-        else if (support_fp16_storage)
-        {
-            custom_defines.append("buffer_sm1(buf,i)", "uintBitsToFloat(uint(buf[i])<<16)");
-        }
-        else
-        {
-            custom_defines.append("buffer_sm1(buf,i)", "unpackBFloat2x16(buf[(i)/2])[(i)%2]");
-        }
-        custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
-
-        if (support_fp16_uniform)
-        {
-            custom_defines.append("lfp2afp(v)", "uintBitsToFloat(uint(v)<<16)");
-            custom_defines.append("afp2lfp(v)", "uint16_t(floatBitsToUint(v)>>16)");
-        }
-        else
-        {
-            custom_defines.append("lfp2afp(v)", "v");
-            custom_defines.append("afp2lfp(v)", "v");
-        }
-        custom_defines.append("lfp2afpvec4(v)", "vec4(unpackBFloat2x16(v.x),unpackBFloat2x16(v.y))");
-        custom_defines.append("afp2lfpvec4(v)", "uvec2(packBFloat2x16(v.rg),packBFloat2x16(v.ba))");
-    }
-    else if (opt.use_fp16_storage && opt.use_fp16_uniform && opt.use_fp16_arithmetic)
-    {
-        custom_defines.append("buffer_sm1(buf,i)", "buf[i]");
-        custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
-
-        custom_defines.append("lfp2afp(v)", "v");
-        custom_defines.append("afp2lfp(v)", "v");
-        custom_defines.append("lfp2afpvec4(v)", "v");
-        custom_defines.append("afp2lfpvec4(v)", "v");
-    }
-    else if (opt.use_fp16_storage && opt.use_fp16_arithmetic && support_shader_int64)
-    {
-        custom_defines.append("buffer_sm1(buf,i)", "float(buf[i])");
-        custom_defines.append("buffer_sm4(buf,i)", "pack64(halfBitsToUint16(buf[i]))");
-
-        custom_defines.append("lfp2afp(v)", "float16_t(v)");
-        custom_defines.append("afp2lfp(v)", "float(v)");
-        custom_defines.append("lfp2afpvec4(v)", "uint16BitsToHalf(unpack16(v))");
-        custom_defines.append("afp2lfpvec4(v)", "pack64(halfBitsToUint16(v))");
-    }
-    else if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
-    {
-        // shaderFloat16 and shaderInt64 are independent Vulkan features
-        custom_defines.append("buffer_sm1(buf,i)", "float(buf[i])");
-        custom_defines.append("buffer_sm4(buf,i)", "uvec2(packFloat2x16(buf[i].rg),packFloat2x16(buf[i].ba))");
-
-        custom_defines.append("lfp2afp(v)", "float16_t(v)");
-        custom_defines.append("afp2lfp(v)", "float(v)");
-        custom_defines.append("lfp2afpvec4(v)", "f16vec4(unpackFloat2x16(v.x),unpackFloat2x16(v.y))");
-        custom_defines.append("afp2lfpvec4(v)", "uvec2(packFloat2x16(v.rg),packFloat2x16(v.ba))");
-    }
-    else if (opt.use_fp16_packed && opt.use_fp16_arithmetic)
-    {
-        custom_defines.append("buffer_sm1(buf,i)", "unpackHalf2x16(buf[(i)/2])[(i)%2]");
-        custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
-
-        custom_defines.append("lfp2afp(v)", "float16_t(v)");
-        custom_defines.append("afp2lfp(v)", "float(v)");
-        custom_defines.append("lfp2afpvec4(v)", "f16vec4(unpackFloat2x16(v.x),unpackFloat2x16(v.y))");
-        custom_defines.append("afp2lfpvec4(v)", "uvec2(packFloat2x16(v.rg),packFloat2x16(v.ba))");
-    }
-    else if (opt.use_fp16_storage)
-    {
-        custom_defines.append("buffer_sm1(buf,i)", "float(buf[i])");
-        custom_defines.append("buffer_sm4(buf,i)", "uvec2(packHalf2x16(vec4(buf[i]).rg),packHalf2x16(vec4(buf[i]).ba))");
-
-        custom_defines.append("lfp2afp(v)", "v");
-        custom_defines.append("afp2lfp(v)", "float(v)");
-        custom_defines.append("lfp2afpvec4(v)", "vec4(unpackHalf2x16(v.x),unpackHalf2x16(v.y))");
-        custom_defines.append("afp2lfpvec4(v)", "uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba))");
-    }
-    else if (opt.use_fp16_packed)
-    {
-        custom_defines.append("buffer_sm1(buf,i)", "unpackHalf2x16(buf[(i)/2])[(i)%2]");
-        custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
-
-        custom_defines.append("lfp2afp(v)", "v");
-        custom_defines.append("afp2lfp(v)", "v");
-        custom_defines.append("lfp2afpvec4(v)", "vec4(unpackHalf2x16(v.x),unpackHalf2x16(v.y))");
-        custom_defines.append("afp2lfpvec4(v)", "uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba))");
-    }
-    else
-    {
-        custom_defines.append("buffer_sm1(buf,i)", "buf[i]");
-        custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
-
-        custom_defines.append("lfp2afp(v)", "v");
-        custom_defines.append("afp2lfp(v)", "v");
-        custom_defines.append("lfp2afpvec4(v)", "v");
-        custom_defines.append("afp2lfpvec4(v)", "v");
-    }
-
-    if (opt.use_bf16_storage)
-    {
-        custom_defines.append("buffer_ld1(buf,i)", "float(buf[i])");
-        custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=bfloat16_t(v);}");
-        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i].r=sbuf[si4.r];buf[i].g=sbuf[si4.g];buf[i].b=sbuf[si4.b];buf[i].a=sbuf[si4.a];}");
-        custom_defines.append("buffer_ld2(buf,i)", "vec2(buf[i])");
-        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=bf16vec2(v);}");
-        custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_ld4(buf,i)", "vec4(buf[i])");
-        custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=bf16vec4(v);}");
-        custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{buf[i4.r]=sbuf[si].r;buf[i4.g]=sbuf[si].g;buf[i4.b]=sbuf[si].b;buf[i4.a]=sbuf[si].a;}");
-    }
-    else if (opt.use_bf16_packed)
-    {
-        if (support_fp16_storage)
-        {
-            custom_defines.append("buffer_ld1(buf,i)", "uintBitsToFloat(uint(buf[i])<<16)");
-            custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=uint16_t(floatBitsToUint(v)>>16);}");
-            custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-
-            custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i]=uvec2(pack32(u16vec2(sbuf[si4.r],sbuf[si4.g])),pack32(u16vec2(sbuf[si4.b],sbuf[si4.a])));}");
-            custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{buf[i4.r]=unpack16(sbuf[si].x).x;buf[i4.g]=unpack16(sbuf[si].x).y;buf[i4.b]=unpack16(sbuf[si].y).x;buf[i4.a]=unpack16(sbuf[si].y).y;}");
-        }
-        else
-        {
-            custom_defines.append("buffer_ld1(buf,i)", "unpackBFloat2x16(buf[(i)/2])[(i)%2]");
-            custom_defines.append("buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackBFloat2x16(_old_v);_v[_im2]=_vs;_new_v=packBFloat2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-            custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;uint _si=uint(si);uint _sid2=_si/2;uint _sim2=_si%2;float v=unpackBFloat2x16(sbuf[_sid2])[_sim2];uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackBFloat2x16(_old_v);_v[_im2]=v;_new_v=packBFloat2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-
-            custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{uvec4 _si4d2=uvec4(si4)/2;uvec4 _si4m2=uvec4(si4)%2; buf[i]=uvec2(packBFloat2x16(vec2(unpackBFloat2x16(sbuf[_si4d2.r])[_si4m2.r],unpackBFloat2x16(sbuf[_si4d2.g])[_si4m2.g])),packBFloat2x16(vec2(unpackBFloat2x16(sbuf[_si4d2.b])[_si4m2.b],unpackBFloat2x16(sbuf[_si4d2.a])[_si4m2.a])));}");
-            custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si];vec2 _v0=unpackBFloat2x16(_v.x);vec2 _v1=unpackBFloat2x16(_v.y);buffer_st1(buf,i4.r,_v0.r);buffer_st1(buf,i4.g,_v0.g);buffer_st1(buf,i4.b,_v1.r);buffer_st1(buf,i4.a,_v1.g);}");
-        }
-
-        custom_defines.append("buffer_ld2(buf,i)", "unpackBFloat2x16(buf[i])");
-        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=packBFloat2x16(v);}");
-        custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_ld4(buf,i)", "vec4(unpackBFloat2x16(buf[i].x),unpackBFloat2x16(buf[i].y))");
-        custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=uvec2(packBFloat2x16(v.rg),packBFloat2x16(v.ba));}");
-        custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-    }
-    else if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
-    {
-        custom_defines.append("buffer_ld1(buf,i)", "buf[i]");
-        custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=v;}");
-        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i]=f16vec4(sbuf[si4.r],sbuf[si4.g],sbuf[si4.b],sbuf[si4.a]);}");
-        custom_defines.append("buffer_ld2(buf,i)", "buf[i]");
-        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=v;}");
-        custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_ld4(buf,i)", "buf[i]");
-        custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=v;}");
-        custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{buf[i4.r]=sbuf[si].r;buf[i4.g]=sbuf[si].g;buf[i4.b]=sbuf[si].b;buf[i4.a]=sbuf[si].a;}");
-        custom_defines.append("sfp2afpmat4(v)", "v");
-        custom_defines.append("afp2sfpmat4(v)", "v");
-    }
-    else if (opt.use_fp16_packed && opt.use_fp16_arithmetic)
-    {
-        custom_defines.append("buffer_ld1(buf,i)", "float16_t(unpackHalf2x16(buf[(i)/2])[(i)%2])");
-        custom_defines.append("buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=_vs;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;uint _si=uint(si);uint _sid2=_si/2;uint _sim2=_si%2;float v=unpackHalf2x16(sbuf[_sid2])[_sim2];uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=v;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-
-        custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{uvec4 _si4d2=uvec4(si4)/2;uvec4 _si4m2=uvec4(si4)%2; buf[i]=uvec2(packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.r])[_si4m2.r],unpackHalf2x16(sbuf[_si4d2.g])[_si4m2.g])),packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.b])[_si4m2.b],unpackHalf2x16(sbuf[_si4d2.a])[_si4m2.a])));}");
-
-        custom_defines.append("buffer_ld2(buf,i)", "unpackFloat2x16(buf[i])");
-        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=packFloat2x16(v)}");
-        custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_ld4(buf,i)", "f16vec4(unpackFloat2x16(buf[i].x),unpackFloat2x16(buf[i].y))");
-        custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=uvec2(packFloat2x16(v.rg),packFloat2x16(v.ba));}");
-        custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-
-        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si];vec2 _v0=unpackHalf2x16(_v.x);vec2 _v1=unpackHalf2x16(_v.y);buffer_st1(buf,i4.r,_v0.r);buffer_st1(buf,i4.g,_v0.g);buffer_st1(buf,i4.b,_v1.r);buffer_st1(buf,i4.a,_v1.g);}");
-    }
-    else if (opt.use_fp16_storage)
-    {
-        custom_defines.append("buffer_ld1(buf,i)", "float(buf[i])");
-        custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=float16_t(v);}");
-        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i].r=sbuf[si4.r];buf[i].g=sbuf[si4.g];buf[i].b=sbuf[si4.b];buf[i].a=sbuf[si4.a];}");
-        custom_defines.append("buffer_ld2(buf,i)", "vec2(buf[i])");
-        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=f16vec2(v);}");
-        custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_ld4(buf,i)", "vec4(buf[i])");
-        custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=f16vec4(v);}");
-        custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{buf[i4.r]=sbuf[si].r;buf[i4.g]=sbuf[si].g;buf[i4.b]=sbuf[si].b;buf[i4.a]=sbuf[si].a;}");
-    }
-    else if (opt.use_fp16_packed)
-    {
-        custom_defines.append("buffer_ld1(buf,i)", "unpackHalf2x16(buf[(i)/2])[(i)%2]");
-        custom_defines.append("buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=_vs;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;uint _si=uint(si);uint _sid2=_si/2;uint _sim2=_si%2;float v=unpackHalf2x16(sbuf[_sid2])[_sim2];uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=v;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-
-        custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{uvec4 _si4d2=uvec4(si4)/2;uvec4 _si4m2=uvec4(si4)%2; buf[i]=uvec2(packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.r])[_si4m2.r],unpackHalf2x16(sbuf[_si4d2.g])[_si4m2.g])),packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.b])[_si4m2.b],unpackHalf2x16(sbuf[_si4d2.a])[_si4m2.a])));}");
-
-        custom_defines.append("buffer_ld2(buf,i)", "unpackHalf2x16(buf[i])");
-        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=packHalf2x16(v);}");
-        custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_ld4(buf,i)", "vec4(unpackHalf2x16(buf[i].x),unpackHalf2x16(buf[i].y))");
-        custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba));}");
-        custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-
-        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si];vec2 _v0=unpackHalf2x16(_v.x);vec2 _v1=unpackHalf2x16(_v.y);buffer_st1(buf,i4.r,_v0.r);buffer_st1(buf,i4.g,_v0.g);buffer_st1(buf,i4.b,_v1.r);buffer_st1(buf,i4.a,_v1.g);}");
-    }
-    else
-    {
-        custom_defines.append("buffer_ld1(buf,i)", "buf[i]");
-        custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=v;}");
-        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i]=vec4(sbuf[si4.r],sbuf[si4.g],sbuf[si4.b],sbuf[si4.a]);}");
-        custom_defines.append("buffer_ld2(buf,i)", "buf[i]");
-        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=v;}");
-        custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_ld4(buf,i)", "buf[i]");
-        custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=v;}");
-        custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{vec4 _v=sbuf[si]; buf[i4.r]=_v.r;buf[i4.g]=_v.g;buf[i4.b]=_v.b;buf[i4.a]=_v.a;}");
-        custom_defines.append("sfp2afpmat4(v)", "v");
-        custom_defines.append("afp2sfpmat4(v)", "v");
-    }
-
-    if (opt.use_int8_storage)
-    {
-        custom_defines.append("sint8", "int8_t");
-    }
-    else if (opt.use_int8_packed)
-    {
-        custom_defines.append("sint8", "int");
-    }
-    else
-    {
-        custom_defines.append("sint8", "int");
-    }
-
-    if (opt.use_int16_storage)
-    {
-        custom_defines.append("NCNN_int16_storage", 1);
-        custom_defines.append("sint16", "int16_t");
-        custom_defines.append("sint16vec4", "i16vec4");
-        custom_defines.append("lint16", "int16_t");
-        custom_defines.append("lint16vec4", "i16vec4");
-        custom_defines.append("aint16", support_int16_arithmetic ? "int16_t" : "int");
-        custom_defines.append("aint16vec4", support_int16_arithmetic ? "i16vec4" : "ivec4");
-        custom_defines.append("lint162aint16(v)", support_int16_arithmetic ? "v" : "int(v)");
-        custom_defines.append("lint162aint16vec4(v)", support_int16_arithmetic ? "v" : "ivec4(v)");
-    }
-    else if (opt.use_int16_packed)
-    {
-        custom_defines.append("NCNN_int16_packed", 1);
-        custom_defines.append("sint16", "int");
-        custom_defines.append("sint16vec4", "ivec2");
-        custom_defines.append("lint16", "int");
-        custom_defines.append("lint16vec4", "ivec2");
-        custom_defines.append("aint16", support_int16_arithmetic ? "int16_t" : "int");
-        custom_defines.append("aint16vec4", support_int16_arithmetic ? "i16vec4" : "ivec4");
-        custom_defines.append("lint162aint16(v)", support_int16_arithmetic ? "int16_t(v)" : "int(v)");
-        custom_defines.append("lint162aint16vec4(v)", support_int16_arithmetic ? "i16vec4(unpack16(v.r),unpack16(v.g))" : "ivec4(unpackInt2x16(v.r),unpackInt2x16(v.g))");
-    }
-    else
-    {
-        custom_defines.append("sint16", "int");
-        custom_defines.append("sint16vec4", "ivec4");
-        custom_defines.append("lint16", "int");
-        custom_defines.append("lint16vec4", "ivec4");
-        custom_defines.append("aint16", "int");
-        custom_defines.append("aint16vec4", "ivec4");
-        custom_defines.append("lint162aint16(v)", "v");
-        custom_defines.append("lint162aint16vec4(v)", "v");
-    }
-
-    custom_defines.append("sint8vec4", "int");
-
-    custom_defines.append("aint8", "int");
-    custom_defines.append("aint8vec4", "ivec4");
-
-    custom_defines.append("unpackInt4x8(v)", "ivec4((v<<24)>>24,(v<<16)>>24,(v<<8)>>24,v>>24)");
-    custom_defines.append("packInt4x8(v)", "int((uint(v.r)&0xFFu)|((uint(v.g)&0xFFu)<<8)|((uint(v.b)&0xFFu)<<16)|((uint(v.a)&0xFFu)<<24))");
-    custom_defines.append("unpackInt2x16(v)", "ivec2((int(v)<<16)>>16,int(v)>>16)");
-    custom_defines.append("packInt2x16(v)", "int((uint(v.r)&0xFFFFu)|((uint(v.g)&0xFFFFu)<<16))");
-    custom_defines.append("float2int8(v)", "int(clamp(float(v)+(float(v)>=0.f?0.5f:-0.5f),-127.f,127.f))");
-    custom_defines.append("float2int8vec4(v)", "ivec4(clamp(vec4(v)+mix(vec4(-0.5f),vec4(0.5f),greaterThanEqual(vec4(v),vec4(0.f))),vec4(-127.f),vec4(127.f)))");
-
-    if (opt.use_int8_storage)
-    {
-        custom_defines.append("i8buffer_ld1(buf,i)", "int(buf[i])");
-        custom_defines.append("i8buffer_st1(buf,i,v)", "{buf[i]=int8_t(v);}");
-        custom_defines.append("i8buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-    }
-    else
-    {
-        custom_defines.append("i8buffer_ld1(buf,i)", "int(((buf[(i)/4])<<(24-((i)%4)*8))>>24)");
-        custom_defines.append("i8buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id4=_i/4;uint _im4=_i%4;int _vs=int(v);int _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id4],0,0);ivec4 _v=unpackInt4x8(_old_v);_v[_im4]=_vs;_new_v=packInt4x8(_v);} while(atomicCompSwap(buf[_id4],_old_v,_new_v)!=_old_v);}");
-        custom_defines.append("i8buffer_cp1(buf,i,sbuf,si)", "{int _v=i8buffer_ld1(sbuf,si);i8buffer_st1(buf,i,_v);}");
-    }
-
-    custom_defines.append("i8buffer_ld4(buf,i)", "unpackInt4x8(buf[i])");
-    custom_defines.append("i8buffer_sm4(buf,i)", "buf[i]");
-    custom_defines.append("i8buffer_st4(buf,i,v)", "{buf[i]=packInt4x8(v);}");
-    custom_defines.append("i8buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-    custom_defines.append("i8buffer_cp1to4(buf,i,sbuf,si)", "{ivec4 _v=ivec4(i8buffer_ld1(sbuf,si.r),i8buffer_ld1(sbuf,si.g),i8buffer_ld1(sbuf,si.b),i8buffer_ld1(sbuf,si.a));i8buffer_st4(buf,i,_v);}");
-    custom_defines.append("i8buffer_cp4to1(buf,i4,sbuf,si)", "{ivec4 _v=i8buffer_ld4(sbuf,si);i8buffer_st1(buf,i4.r,_v.r);i8buffer_st1(buf,i4.g,_v.g);i8buffer_st1(buf,i4.b,_v.b);i8buffer_st1(buf,i4.a,_v.a);}");
-
-    if (opt.use_int16_storage)
-    {
-        custom_defines.append("i16buffer_ld1(buf,i)", "int(buf[i])");
-        custom_defines.append("i16buffer_st1(buf,i,v)", "{buf[i]=int16_t(v);}");
-    }
-    else if (opt.use_int16_packed)
-    {
-        custom_defines.append("i16buffer_ld1(buf,i)", "unpackInt2x16(buf[(i)/2])[(i)%2]");
-        custom_defines.append("i16buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;int _vs=int(v);int _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);ivec2 _v=unpackInt2x16(_old_v);_v[_im2]=_vs;_new_v=packInt2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-    }
-    else
-    {
-        custom_defines.append("i16buffer_ld1(buf,i)", "int(buf[i])");
-        custom_defines.append("i16buffer_st1(buf,i,v)", "{buf[i]=int(v);}");
-    }
-    custom_defines.append("i16buffer_ld2(buf,i)", "ivec2(i16buffer_ld1(buf,i),i16buffer_ld1(buf,(i)+1))");
-    if (opt.use_int16_storage)
-    {
-        custom_defines.append("i16buffer_st2(buf,i,v)", "{ivec2 _v=ivec2(v);buf[i]=int16_t(_v.r);buf[(i)+1]=int16_t(_v.g);}");
-        custom_defines.append("i16buffer_sm4(buf,i)", "buf[i]");
-        custom_defines.append("i16buffer_ld4(buf,i)", support_int16_arithmetic ? "buf[i]" : "ivec4(buf[i])");
-        custom_defines.append("i16buffer_st4(buf,i,v)", "{buf[i]=i16vec4(v);}");
-    }
-    else if (opt.use_int16_packed)
-    {
-        custom_defines.append("i16buffer_st2(buf,i,v)", "{uint _i=uint(i);ivec2 _v=ivec2(v);if((_i&1u)==0u){buf[_i/2]=packInt2x16(_v);}else{i16buffer_st1(buf,int(_i),_v.r);i16buffer_st1(buf,int(_i)+1,_v.g);}}");
-        custom_defines.append("i16buffer_sm4(buf,i)", "buf[i]");
-        custom_defines.append("i16buffer_ld4(buf,i)", support_int16_arithmetic ? "i16vec4(unpack16(buf[i].r),unpack16(buf[i].g))" : "ivec4(unpackInt2x16(buf[i].r),unpackInt2x16(buf[i].g))");
-        custom_defines.append("i16buffer_st4(buf,i,v)", "{ivec4 _v=ivec4(v);buf[i]=ivec2(packInt2x16(ivec2(_v.r,_v.g)),packInt2x16(ivec2(_v.b,_v.a)));}");
-    }
-    else
-    {
-        custom_defines.append("i16buffer_st2(buf,i,v)", "{ivec2 _v=ivec2(v);buf[i]=int(_v.r);buf[(i)+1]=int(_v.g);}");
-        custom_defines.append("i16buffer_sm4(buf,i)", "buf[i]");
-        custom_defines.append("i16buffer_ld4(buf,i)", "ivec4(buf[i])");
-        custom_defines.append("i16buffer_st4(buf,i,v)", "{buf[i]=ivec4(v);}");
-    }
-
-    custom_defines.append("psc(x)", "(x==0?p.x:x)");
-
-    if (opt.use_bf16_storage)
-    {
-        custom_defines.append("NCNN_bf16_storage", 1);
-    }
-    else if (opt.use_bf16_packed)
-    {
-        custom_defines.append("NCNN_bf16_packed", 1);
-    }
-    else if (opt.use_fp16_storage)
-    {
-        custom_defines.append("NCNN_fp16_storage", 1);
-    }
-    else if (opt.use_fp16_packed)
-    {
-        custom_defines.append("NCNN_fp16_packed", 1);
+        option_defines.append("NCNN_fp16_packed", 1);
     }
 
     if (opt.use_fp16_uniform)
     {
-        custom_defines.append("NCNN_fp16_uniform", 1);
+        option_defines.append("NCNN_fp16_uniform", 1);
     }
 
     if (opt.use_fp16_arithmetic)
     {
-        custom_defines.append("NCNN_fp16_arithmetic", 1);
+        option_defines.append("NCNN_fp16_arithmetic", 1);
     }
 
     if (opt.use_int8_storage)
     {
-        custom_defines.append("NCNN_int8_storage", 1);
+        option_defines.append("NCNN_int8_storage", 1);
     }
     else if (opt.use_int8_packed)
     {
-        custom_defines.append("NCNN_int8_packed", 1);
+        option_defines.append("NCNN_int8_packed", 1);
     }
 
     if (opt.use_int8_uniform)
     {
-        custom_defines.append("NCNN_int8_uniform", 1);
+        option_defines.append("NCNN_int8_uniform", 1);
     }
 
     if (opt.use_int8_arithmetic)
     {
-        custom_defines.append("NCNN_int8_arithmetic", 1);
+        option_defines.append("NCNN_int8_arithmetic", 1);
+    }
+
+    if (opt.use_int16_storage)
+    {
+        option_defines.append("NCNN_int16_storage", 1);
+    }
+    else if (opt.use_int16_packed)
+    {
+        option_defines.append("NCNN_int16_packed", 1);
     }
 
     if (opt.use_shader_local_memory)
     {
-        custom_defines.append("NCNN_shader_local_memory", 1);
+        option_defines.append("NCNN_shader_local_memory", 1);
     }
 
 #if __APPLE__
-    custom_defines.append("NCNN_moltenvk", 1);
+    option_defines.append("NCNN_moltenvk", 1);
 #endif
-
-    custom_defines.append("ncnn_glsl_version", 1);
-
-    const bool support_shader_int16 = info.physicalDevicefeatures().shaderInt16;
 
     // fill device macros
     {
@@ -6160,7 +5697,6 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         if (info.support_VK_KHR_shader_non_semantic_info())
         {
             device_defines.append("enable_validation_layer", VK_TRUE);
-            custom_defines.append("NCNN_LOGE", "debugPrintfEXT");
         }
 #endif
 
@@ -6169,10 +5705,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     std::string define_macro_data;
 
-    for (size_t i = 0; i < custom_defines.definitions.size(); i++)
+    for (size_t i = 0; i < option_defines.definitions.size(); i++)
     {
-        const char* key = custom_defines.definitions[i].first;
-        const DefinitionCollector::typed_value& def = custom_defines.definitions[i].second;
+        const char* key = option_defines.definitions[i].first;
+        const DefinitionCollector::typed_value& def = option_defines.definitions[i].second;
 
         if (def.type == 0)
         {
@@ -6336,10 +5872,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         int comp_data_size_1 = version_end_pos;
         int comp_data_size_2 = comp_data_size - comp_data_size_1;
 
-        const char* comp_datas[4] = {comp_data, custom_exts.c_str(), define_macro_data.c_str(), comp_data_2};
-        const int comp_data_sizes[4] = {comp_data_size_1, (int)custom_exts.size(), (int)define_macro_data.size(), comp_data_size_2};
+        const char* comp_datas[5] = {comp_data, custom_exts.c_str(), define_macro_data.c_str(), ncnn_glsl_ext_comp_data, comp_data_2};
+        const int comp_data_sizes[5] = {comp_data_size_1, (int)custom_exts.size(), (int)define_macro_data.size(), sizeof(ncnn_glsl_ext_comp_data), comp_data_size_2};
 
-        s.setStringsWithLengths(comp_datas, comp_data_sizes, 4);
+        s.setStringsWithLengths(comp_datas, comp_data_sizes, 5);
 
         s.setEntryPoint("main");
         s.setSourceEntryPoint("main");
@@ -6371,7 +5907,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
             // print as line_number: code
             {
-                const char* p = comp_datas[3];
+                const char* p = comp_datas[4];
                 const char* line_end;
                 int line_number = 1;
 
