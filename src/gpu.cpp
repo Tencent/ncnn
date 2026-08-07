@@ -3923,7 +3923,7 @@ VulkanDevice::VulkanDevice(int device_index)
     deviceCreateInfo.ppEnabledLayerNames = 0;
     deviceCreateInfo.enabledExtensionCount = enabledExtensions.size();
     deviceCreateInfo.ppEnabledExtensionNames = enabledExtensions.data();
-    deviceCreateInfo.pEnabledFeatures = 0; // VkPhysicalDeviceFeatures pointer
+    deviceCreateInfo.pEnabledFeatures = &info.physicalDevicefeatures();
 
     VkResult ret = vkCreateDevice(info.physicalDevice(), &deviceCreateInfo, 0, &d->device);
     if (ret != VK_SUCCESS)
@@ -5167,6 +5167,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     const GpuInfo& info = get_gpu_info(device_index);
     const bool support_fp16_storage = info.support_fp16_storage();
     const bool support_fp16_uniform = info.support_fp16_uniform();
+    const bool support_shader_int64 = info.physicalDevicefeatures().shaderInt64;
     const bool support_int16_arithmetic = info.physicalDevicefeatures().shaderInt16;
 
     if (opt.use_bf16_storage)
@@ -5267,8 +5268,9 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("lfp", "float16_t");
         custom_defines.append("lfpvec4", "f16vec4");
     }
-    else if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
+    else if (opt.use_fp16_storage && opt.use_fp16_arithmetic && support_shader_int64)
     {
+        // use a single 64-bit scalar for four packed fp16 values when available
         custom_defines.append("lfp", "float");
         custom_defines.append("lfpvec4", "uint64_t");
     }
@@ -5332,7 +5334,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("lfp2afpvec4(v)", "v");
         custom_defines.append("afp2lfpvec4(v)", "v");
     }
-    else if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
+    else if (opt.use_fp16_storage && opt.use_fp16_arithmetic && support_shader_int64)
     {
         custom_defines.append("buffer_sm1(buf,i)", "float(buf[i])");
         custom_defines.append("buffer_sm4(buf,i)", "pack64(halfBitsToUint16(buf[i]))");
@@ -5341,6 +5343,17 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("afp2lfp(v)", "float(v)");
         custom_defines.append("lfp2afpvec4(v)", "uint16BitsToHalf(unpack16(v))");
         custom_defines.append("afp2lfpvec4(v)", "pack64(halfBitsToUint16(v))");
+    }
+    else if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
+    {
+        // shaderFloat16 and shaderInt64 are independent Vulkan features
+        custom_defines.append("buffer_sm1(buf,i)", "float(buf[i])");
+        custom_defines.append("buffer_sm4(buf,i)", "uvec2(packFloat2x16(buf[i].rg),packFloat2x16(buf[i].ba))");
+
+        custom_defines.append("lfp2afp(v)", "float16_t(v)");
+        custom_defines.append("afp2lfp(v)", "float(v)");
+        custom_defines.append("lfp2afpvec4(v)", "f16vec4(unpackFloat2x16(v.x),unpackFloat2x16(v.y))");
+        custom_defines.append("afp2lfpvec4(v)", "uvec2(packFloat2x16(v.rg),packFloat2x16(v.ba))");
     }
     else if (opt.use_fp16_packed && opt.use_fp16_arithmetic)
     {
@@ -5684,7 +5697,6 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     custom_defines.append("ncnn_glsl_version", 1);
 
-    const bool support_shader_int64 = info.physicalDevicefeatures().shaderInt64;
     const bool support_shader_int16 = info.physicalDevicefeatures().shaderInt16;
 
     // fill device macros
