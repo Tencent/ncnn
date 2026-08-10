@@ -11705,9 +11705,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
                 if (max_kk0 >= 4)
                 {
-                    __m128i _a_shift = _mm_loadl_epi64((const __m128i*)pB);
-                    _a_shift = _mm_shuffle_epi32(_a_shift, _MM_SHUFFLE(1, 0, 1, 0));
-                    __m512i _a_shift0 = _mm512_broadcast_i32x4(_a_shift);
+                    __m512i _a_shift0 = _mm512_castpd_si512(_mm512_set1_pd(((const double*)pB)[0]));
                     __m512i _a_shift1 = _mm512_alignr_epi8(_a_shift0, _a_shift0, 4);
                     _sum0 = _mm512_sub_epi32(_sum0, _a_shift0);
                     _sum1 = _mm512_sub_epi32(_sum1, _a_shift1);
