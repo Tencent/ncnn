@@ -177,6 +177,7 @@ ncnn_add_layer(RotaryEmbed)
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/layer/vulkan/shader/vulkan_activation.comp)
+    ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/ncnn_glsl_ext.comp)
 endif()
 
 add_custom_target(ncnn-generate-spirv DEPENDS ${NCNN_SHADER_SPV_HEX_FILES})
