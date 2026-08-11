@@ -1209,10 +1209,10 @@ typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesKH
 #endif // VK_KHR_cooperative_matrix
 
 #ifndef VK_EXT_cooperative_matrix_maintenance1
-#define VK_EXT_cooperative_matrix_maintenance1                                              1
-#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_MAINTENANCE_1_FEATURES_EXT     (VkStructureType)1000659000
-#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_INFO_2_EXT                     (VkStructureType)1000659001
-#define VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_2_EXT                               (VkStructureType)1000659002
+#define VK_EXT_cooperative_matrix_maintenance1                                          1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_MAINTENANCE_1_FEATURES_EXT (VkStructureType)1000659000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_INFO_2_EXT                 (VkStructureType)1000659001
+#define VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_2_EXT                           (VkStructureType)1000659002
 typedef enum VkCooperativeMatrixFlagBitsEXT
 {
     VK_COOPERATIVE_MATRIX_SATURATING_ACCUMULATION_BIT_EXT = 0x00000001,
@@ -1721,7 +1721,7 @@ typedef struct VkPhysicalDeviceShaderFloat8FeaturesEXT
 #define VK_COMPONENT_TYPE_FLOAT6_E3M2_EXT                                            (VkComponentTypeKHR)1000672001
 #define VK_COMPONENT_TYPE_FLOAT4_E2M1_EXT                                            (VkComponentTypeKHR)1000672002
 #define VK_COMPONENT_TYPE_FLOAT8_UNSIGNED_E8M0_EXT                                   (VkComponentTypeKHR)1000672003
-#define VK_COMPONENT_TYPE_MXINT8_EXT                                                  (VkComponentTypeKHR)1000672004
+#define VK_COMPONENT_TYPE_MXINT8_EXT                                                 (VkComponentTypeKHR)1000672004
 typedef struct VkPhysicalDeviceShaderOCPMicroscalingTypesFeaturesEXT
 {
     VkStructureType sType;
