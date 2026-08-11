@@ -9,7 +9,7 @@
 #define unpackBFloat2x16(v) vec2(uintBitsToBFloat16EXT(unpackUint2x16(v)))
 #define packBFloat2x16(v) packUint2x16(bfloat16BitsToUintEXT(bf16vec2(v)))
 #elif NCNN_bf16_packed
-#if ncnn_storageBuffer16BitAccess
+#if ncnn_storageBuffer16BitAccess && ncnn_shaderInt16
 #define sfp uint16_t
 #else
 #define sfp uint
@@ -59,7 +59,7 @@
 #define lfp bfloat16_t
 #define lfpvec4 bf16vec4
 #elif NCNN_bf16_packed
-#if ncnn_uniformAndStorageBuffer16BitAccess
+#if ncnn_uniformAndStorageBuffer16BitAccess && ncnn_shaderInt16
 #define lfp uint16_t
 #else
 #define lfp float
@@ -88,15 +88,15 @@
 #define lfp2afpvec4(v) vec4(v)
 #define afp2lfpvec4(v) bf16vec4(v)
 #elif NCNN_bf16_packed
-#if ncnn_uniformAndStorageBuffer16BitAccess
+#if ncnn_uniformAndStorageBuffer16BitAccess && ncnn_shaderInt16
 #define buffer_sm1(buf,i) buf[i]
-#elif ncnn_storageBuffer16BitAccess
+#elif ncnn_storageBuffer16BitAccess && ncnn_shaderInt16
 #define buffer_sm1(buf,i) uintBitsToFloat(uint(buf[i])<<16)
 #else
 #define buffer_sm1(buf,i) unpackBFloat2x16(buf[(i)/2])[(i)%2]
 #endif
 #define buffer_sm4(buf,i) buf[i]
-#if ncnn_uniformAndStorageBuffer16BitAccess
+#if ncnn_uniformAndStorageBuffer16BitAccess && ncnn_shaderInt16
 #define lfp2afp(v) uintBitsToFloat(uint(v)<<16)
 #define afp2lfp(v) uint16_t(floatBitsToUint(v)>>16)
 #else
@@ -170,7 +170,7 @@
 #define buffer_cp4(buf,i,sbuf,si) {buf[i]=sbuf[si];}
 #define buffer_cp4to1(buf,i4,sbuf,si) {buf[i4.r]=sbuf[si].r;buf[i4.g]=sbuf[si].g;buf[i4.b]=sbuf[si].b;buf[i4.a]=sbuf[si].a;}
 #elif NCNN_bf16_packed
-#if ncnn_storageBuffer16BitAccess
+#if ncnn_storageBuffer16BitAccess && ncnn_shaderInt16
 #define buffer_ld1(buf,i) uintBitsToFloat(uint(buf[i])<<16)
 #define buffer_st1(buf,i,v) {buf[i]=uint16_t(floatBitsToUint(v)>>16);}
 #define buffer_cp1(buf,i,sbuf,si) {buf[i]=sbuf[si];}

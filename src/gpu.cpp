@@ -5800,7 +5800,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     {
         custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_int64: require\n";
     }
-    if (support_shader_int16 || (opt.use_bf16_packed && support_fp16_storage))
+    if (support_shader_int16)
     {
         custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_int16: require\n";
     }
@@ -5808,7 +5808,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     {
         custom_exts += "#extension GL_EXT_bfloat16: require\n";
     }
-    if (opt.use_fp16_storage || opt.use_bf16_storage || opt.use_int16_storage || (opt.use_bf16_packed && support_fp16_storage))
+    if (opt.use_fp16_storage || opt.use_bf16_storage || opt.use_int16_storage || (opt.use_bf16_packed && support_fp16_storage && support_shader_int16))
     {
         custom_exts += "#extension GL_EXT_shader_16bit_storage: require\n";
     }
