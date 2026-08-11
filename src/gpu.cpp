@@ -1678,29 +1678,26 @@ void GpuInfoPrivate::query_extension_properties()
             if (ret != VK_SUCCESS)
             {
                 NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixProperties2EXT subgroup=%u failed %d", subgroup_sizes[i], ret);
-                continue;
             }
-            if (propertyCount == 0)
-                continue;
 
-            std::vector<VkCooperativeMatrixProperties2EXT> properties(propertyCount);
+            const size_t property_offset = queryCooperativeMatrixSubProperties2EXT.size();
+            queryCooperativeMatrixSubProperties2EXT.resize(property_offset + propertyCount);
             for (uint32_t j = 0; j < propertyCount; j++)
             {
-                memset(&properties[j], 0, sizeof(properties[j]));
-                properties[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_2_EXT;
-                properties[j].pNext = 0;
+                VkCooperativeMatrixProperties2EXT& property = queryCooperativeMatrixSubProperties2EXT[property_offset + j];
+                memset(&property, 0, sizeof(property));
+                property.sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_2_EXT;
+                property.pNext = 0;
             }
 
-            ret = vkGetPhysicalDeviceCooperativeMatrixProperties2EXT(physicalDevice, &cooperativeMatrixInfo, &propertyCount, properties.data());
+            VkCooperativeMatrixProperties2EXT* properties = propertyCount == 0 ? 0 : queryCooperativeMatrixSubProperties2EXT.data() + property_offset;
+            ret = vkGetPhysicalDeviceCooperativeMatrixProperties2EXT(physicalDevice, &cooperativeMatrixInfo, &propertyCount, properties);
             if (ret != VK_SUCCESS)
             {
                 NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixProperties2EXT subgroup=%u failed %d", subgroup_sizes[i], ret);
-                continue;
             }
 
-            properties.resize(propertyCount);
-            queryCooperativeMatrixSubProperties2EXT.insert(queryCooperativeMatrixSubProperties2EXT.end(), properties.begin(), properties.end());
-            queryCooperativeMatrixSubProperties2EXTSubgroupSizes.insert(queryCooperativeMatrixSubProperties2EXTSubgroupSizes.end(), propertyCount, subgroup_sizes[i]);
+            queryCooperativeMatrixSubProperties2EXTSubgroupSizes.resize(queryCooperativeMatrixSubProperties2EXT.size(), subgroup_sizes[i]);
         }
     }
 
