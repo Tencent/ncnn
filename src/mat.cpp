@@ -1898,6 +1898,18 @@ Mat Mat::from_float16(const unsigned short* data, int size)
     return dst;
 }
 
+Mat Mat::from_bfloat16(const unsigned short* data, int size)
+{
+    Mat src(size, (void*)data, (size_t)2u);
+    Mat dst;
+
+    Option opt;
+    opt.num_threads = 1; // TODO
+    cast_bfloat16_to_float32(src, dst, opt);
+
+    return dst;
+}
+
 #if NCNN_VULKAN
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26

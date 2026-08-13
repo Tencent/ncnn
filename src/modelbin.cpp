@@ -149,6 +149,43 @@ Mat ModelBinFromDataReader::load(int w, int type) const
 
             return m;
         }
+        else if (flag_struct.tag == 0x01348B83)
+        {
+            // bfloat16 data
+            size_t align_data_size = alignSize(w * sizeof(unsigned short), 4);
+
+#if !__BIG_ENDIAN__
+            // try reference data
+            const void* refbuf = 0;
+            nread = d->dr.reference(align_data_size, &refbuf);
+            if (nread == align_data_size)
+            {
+                m = Mat::from_bfloat16((const unsigned short*)refbuf, w);
+            }
+            else
+#endif
+            {
+                std::vector<unsigned short> bfloat16_weights;
+                bfloat16_weights.resize(align_data_size);
+                nread = d->dr.read(&bfloat16_weights[0], align_data_size);
+                if (nread != align_data_size)
+                {
+                    NCNN_LOGE("ModelBin read bfloat16_weights failed %zd", nread);
+                    return Mat();
+                }
+
+#if __BIG_ENDIAN__
+                for (int i = 0; i < w; i++)
+                {
+                    swap_endianness_16(&bfloat16_weights[i]);
+                }
+#endif
+
+                m = Mat::from_bfloat16(&bfloat16_weights[0], w);
+            }
+
+            return m;
+        }
         else if (flag_struct.tag == 0x000D4B38)
         {
             // int8 data

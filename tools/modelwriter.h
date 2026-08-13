@@ -236,7 +236,7 @@ public:
     bool has_custom_layer;
 
 public:
-    // 0=fp32 1=fp16
+    // 0=fp32 1=fp16 2=bf16
     int storage_type;
 
     int gen_random_weight;
@@ -656,6 +656,14 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a
             ncnn::Mat data_flattened_fp16;
             ncnn::cast_float32_to_float16(data_flattened, data_flattened_fp16);
             fwrite(data_flattened_fp16.data, data_flattened_fp16.elemsize, data_flattened_fp16.w, bp);
+        }
+        else if (storage_type == 2)
+        {
+            const int tag = 0x01348B83; // bf16 magic
+            fwrite(&tag, sizeof(int), 1, bp);
+            ncnn::Mat data_flattened_bf16;
+            ncnn::cast_float32_to_bfloat16(data_flattened, data_flattened_bf16);
+            fwrite(data_flattened_bf16.data, data_flattened_bf16.elemsize, data_flattened_bf16.w, bp);
         }
         else
         {
