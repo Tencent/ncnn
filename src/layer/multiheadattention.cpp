@@ -559,7 +559,13 @@ static inline signed char mha_weight_block_quantize_float2int8(float v)
     return (signed char)int32;
 }
 
-static void mha_weight_block_quantize_activation_row_int8(const Mat& A, int transA, int i, signed char* outptr, float* descale_ptr, int K, int block_size, const float* input_scale_ptr)
+static inline signed char mha_weight_block_quantize_int4(const unsigned char* ptr, int k)
+{
+    const int v = ptr[k / 2] >> ((k % 2) * 4) & 15;
+    return (signed char)((v ^ 8) - 8);
+}
+
+static void mha_weight_block_quantize_activation_row_int8(const Mat& A, int transA, int i, signed char* outptr, float* descale_ptr, int K, int block_size)
 {
     const int block_count = (K + block_size - 1) / block_size;
     const size_t A_hstep = (size_t)A.w;
@@ -575,8 +581,6 @@ static void mha_weight_block_quantize_activation_row_int8(const Mat& A, int tran
         {
             const int k = k0 + kk;
             float v = transA ? ((const float*)A)[k * A_hstep + i] : ptrA[k];
-            if (input_scale_ptr)
-                v *= input_scale_ptr[k];
             v = fabsf(v);
             if (v > absmax)
                 absmax = v;
@@ -597,8 +601,48 @@ static void mha_weight_block_quantize_activation_row_int8(const Mat& A, int tran
         {
             const int k = k0 + kk;
             float v = transA ? ((const float*)A)[k * A_hstep + i] : ptrA[k];
-            if (input_scale_ptr)
-                v *= input_scale_ptr[k];
+            outptr[k] = mha_weight_block_quantize_float2int8(v * scale);
+        }
+    }
+}
+
+static void mha_weight_block_scale_quantize_activation_row_int8(const Mat& A, int transA, int i, signed char* outptr, float* descale_ptr, int K, int block_size, const float* input_scale_ptr)
+{
+    const int block_count = (K + block_size - 1) / block_size;
+    const size_t A_hstep = (size_t)A.w;
+    const float* ptrA = transA ? 0 : A.row(i);
+
+    for (int g = 0; g < block_count; g++)
+    {
+        const int k0 = g * block_size;
+        const int max_kk = block_size < K - k0 ? block_size : K - k0;
+
+        float absmax = 0.f;
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            const int k = k0 + kk;
+            float v = transA ? ((const float*)A)[k * A_hstep + i] : ptrA[k];
+            v = fabsf(v) * input_scale_ptr[k];
+            if (v > absmax)
+                absmax = v;
+        }
+
+        if (absmax == 0.f)
+        {
+            descale_ptr[g] = 0.f;
+            for (int kk = 0; kk < max_kk; kk++)
+                outptr[k0 + kk] = 0;
+            continue;
+        }
+
+        const float scale = 127.f / absmax;
+        descale_ptr[g] = absmax / 127.f;
+
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            const int k = k0 + kk;
+            float v = transA ? ((const float*)A)[k * A_hstep + i] : ptrA[k];
+            v *= input_scale_ptr[k];
             outptr[k] = mha_weight_block_quantize_float2int8(v * scale);
         }
     }
@@ -610,7 +654,7 @@ static void mha_weight_block_quantize_activation_row_int8(const Mat& A, int tran
 __attribute__((optimize("no-tree-vectorize")))
 #endif
 static int
-mha_weight_block_quantize_gemm_transB_int8(const Mat& A, int transA, const Mat& BT, const Mat& BT_scales, const Mat& input_scales, const Mat& C, Mat& top_blob, int M, int N, int K, int block_size, float alpha, int output_transpose, int output_m_offset, const Option& opt)
+mha_weight_block_quantize_gemm_transB(const Mat& A, int transA, const Mat& BT, const Mat& BT_scales, const Mat& input_scales, const Mat& C, Mat& top_blob, int M, int N, int K, int weight_bits, int block_size, float alpha, int output_transpose, int output_m_offset, const Option& opt)
 {
     const int block_count = (K + block_size - 1) / block_size;
 
@@ -624,17 +668,69 @@ mha_weight_block_quantize_gemm_transB_int8(const Mat& A, int transA, const Mat& 
     if (A_descales.empty())
         return -100;
 
-    const float* input_scale_ptr = input_scales;
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < M; i++)
+    if (input_scales.empty())
     {
-        signed char* outptr = A_int8.row<signed char>(i);
-        float* descale_ptr = A_descales.row(i);
-        mha_weight_block_quantize_activation_row_int8(A, transA, i, outptr, descale_ptr, K, block_size, input_scale_ptr);
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < M; i++)
+        {
+            signed char* outptr = A_int8.row<signed char>(i);
+            float* descale_ptr = A_descales.row(i);
+            mha_weight_block_quantize_activation_row_int8(A, transA, i, outptr, descale_ptr, K, block_size);
+        }
+    }
+    else
+    {
+        const float* input_scale_ptr = input_scales;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < M; i++)
+        {
+            signed char* outptr = A_int8.row<signed char>(i);
+            float* descale_ptr = A_descales.row(i);
+            mha_weight_block_scale_quantize_activation_row_int8(A, transA, i, outptr, descale_ptr, K, block_size, input_scale_ptr);
+        }
     }
 
     const float* bias_ptr = C;
+
+    if (weight_bits == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int mn = 0; mn < M * N; mn++)
+        {
+            const int i = mn / N;
+            const int j = mn % N;
+            const signed char* ptrA = A_int8.row<const signed char>(i);
+            const unsigned char* ptrB = BT.row<const unsigned char>(j);
+            const float* A_descale_ptr = A_descales.row(i);
+            const float* B_scale_ptr = BT_scales.row(j);
+
+            float sum = bias_ptr[j];
+            for (int g = 0; g < block_count; g++)
+            {
+                const int k0 = g * block_size;
+                const int max_kk = block_size < K - k0 ? block_size : K - k0;
+
+                int sum_int32 = 0;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    const int k = k0 + kk;
+                    sum_int32 += ptrA[k] * mha_weight_block_quantize_int4(ptrB, k);
+                }
+
+                sum += sum_int32 * A_descale_ptr[g] / B_scale_ptr[g];
+            }
+
+            sum *= alpha;
+
+            if (output_transpose)
+                top_blob.row(j)[output_m_offset + i] = sum;
+            else
+                top_blob.row(output_m_offset + i)[j] = sum;
+        }
+
+        return 0;
+    }
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int mn = 0; mn < M * N; mn++)
@@ -720,9 +816,9 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
         if (q_affine.empty())
             return -100;
 
-        if (weight_bits == 8)
+        if (weight_bits == 4 || weight_bits == 8)
         {
-            int ret = mha_weight_block_quantize_gemm_transB_int8(q_blob, 0, q_weight_data, q_weight_data_quantize_scales, q_weight_data_input_scales, q_bias_data, q_affine, src_seqlen, embed_dim, qdim, block_size, scale, 1, 0, opt);
+            int ret = mha_weight_block_quantize_gemm_transB(q_blob, 0, q_weight_data, q_weight_data_quantize_scales, q_weight_data_input_scales, q_bias_data, q_affine, src_seqlen, embed_dim, qdim, weight_bits, block_size, scale, 1, 0, opt);
             if (ret != 0)
                 return ret;
         }
@@ -783,9 +879,9 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
             }
         }
 
-        if (weight_bits == 8)
+        if (weight_bits == 4 || weight_bits == 8)
         {
-            int ret = mha_weight_block_quantize_gemm_transB_int8(k_blob, 0, k_weight_data, k_weight_data_quantize_scales, k_weight_data_input_scales, k_bias_data, k_affine, cur_seqlen, embed_dim, kdim, block_size, 1.f, 1, past_seqlen, opt);
+            int ret = mha_weight_block_quantize_gemm_transB(k_blob, 0, k_weight_data, k_weight_data_quantize_scales, k_weight_data_input_scales, k_bias_data, k_affine, cur_seqlen, embed_dim, kdim, weight_bits, block_size, 1.f, 1, past_seqlen, opt);
             if (ret != 0)
                 return ret;
         }
@@ -846,9 +942,9 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
             }
         }
 
-        if (weight_bits == 8)
+        if (weight_bits == 4 || weight_bits == 8)
         {
-            int ret = mha_weight_block_quantize_gemm_transB_int8(v_blob, 0, v_weight_data, v_weight_data_quantize_scales, v_weight_data_input_scales, v_bias_data, v_affine, cur_seqlen, embed_dim, vdim, block_size, 1.f, 1, past_seqlen, opt);
+            int ret = mha_weight_block_quantize_gemm_transB(v_blob, 0, v_weight_data, v_weight_data_quantize_scales, v_weight_data_input_scales, v_bias_data, v_affine, cur_seqlen, embed_dim, vdim, weight_bits, block_size, 1.f, 1, past_seqlen, opt);
             if (ret != 0)
                 return ret;
         }
@@ -1010,9 +1106,9 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
         if (top_blob.empty())
             return -100;
 
-        if (weight_bits == 8)
+        if (weight_bits == 4 || weight_bits == 8)
         {
-            int ret = mha_weight_block_quantize_gemm_transB_int8(qkv_cross, 1, out_weight_data, out_weight_data_quantize_scales, out_weight_data_input_scales, out_bias_data, top_blob, src_seqlen, qdim, embed_dim, block_size, 1.f, 0, 0, opt);
+            int ret = mha_weight_block_quantize_gemm_transB(qkv_cross, 1, out_weight_data, out_weight_data_quantize_scales, out_weight_data_input_scales, out_bias_data, top_blob, src_seqlen, qdim, embed_dim, weight_bits, block_size, 1.f, 0, 0, opt);
             if (ret != 0)
                 return ret;
         }

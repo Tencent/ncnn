@@ -50,6 +50,12 @@ static inline signed char weight_block_quantize_float2int8(float v)
     return (signed char)int32;
 }
 
+static inline signed char weight_block_quantize_int4(const unsigned char* ptr, int k)
+{
+    const int v = ptr[k / 2] >> ((k % 2) * 4) & 15;
+    return (signed char)((v ^ 8) - 8);
+}
+
 static void weight_block_quantize_activation_row_int8(const Mat& A, int transA, int i, signed char* outptr, float* descale_ptr, int K, int block_size)
 {
     const int block_count = (K + block_size - 1) / block_size;
@@ -139,7 +145,7 @@ static void weight_block_scale_quantize_activation_row_int8(const Mat& A, int tr
 __attribute__((optimize("no-tree-vectorize")))
 #endif
 static int
-weight_block_quantize_gemm_transB_int8(const Mat& A, int transA, const Mat& BT, const Mat& BT_scales, const Mat& input_scales, const Mat& C, Mat& top_blob, int M, int N, int K, int block_size, float alpha, float beta, int broadcast_type_C, int output_transpose, int output_m_offset, const Option& opt)
+weight_block_quantize_gemm_transB(const Mat& A, int transA, const Mat& BT, const Mat& BT_scales, const Mat& input_scales, const Mat& C, Mat& top_blob, int M, int N, int K, int weight_bits, int block_size, float alpha, float beta, int broadcast_type_C, int output_transpose, int output_m_offset, const Option& opt)
 {
     const int block_count = (K + block_size - 1) / block_size;
 
@@ -178,6 +184,62 @@ weight_block_quantize_gemm_transB_int8(const Mat& A, int transA, const Mat& BT, 
 
     const float* ptrC = C;
     const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
+
+    if (weight_bits == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int mn = 0; mn < M * N; mn++)
+        {
+            const int i = mn / N;
+            const int j = mn % N;
+
+            float sum = 0.f;
+            if (ptrC)
+            {
+                if (broadcast_type_C == 0)
+                    sum = ptrC[0];
+                if (broadcast_type_C == 1)
+                    sum = ptrC[i];
+                if (broadcast_type_C == 2)
+                    sum = ptrC[i];
+                if (broadcast_type_C == 3)
+                    sum = ptrC[i * N + j];
+                if (broadcast_type_C == 4)
+                    sum = ptrC[j];
+
+                sum *= beta;
+            }
+
+            const signed char* ptrA = A_int8.row<const signed char>(i);
+            const unsigned char* ptrB = BT.row<const unsigned char>(j);
+            const float* A_descale_ptr = A_descales.row(i);
+            const float* B_scale_ptr = BT_scales.row(j);
+
+            for (int g = 0; g < block_count; g++)
+            {
+                const int k0 = g * block_size;
+                const int max_kk = block_size < K - k0 ? block_size : K - k0;
+
+                int sum_int32 = 0;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    const int k = k0 + kk;
+                    sum_int32 += ptrA[k] * weight_block_quantize_int4(ptrB, k);
+                }
+
+                sum += sum_int32 * A_descale_ptr[g] / B_scale_ptr[g];
+            }
+
+            sum *= alpha;
+
+            if (output_transpose)
+                ((float*)top_blob)[(size_t)j * out_hstep + output_m_offset + i] = sum;
+            else
+                ((float*)top_blob)[(size_t)(output_m_offset + i) * out_hstep + j] = sum;
+        }
+
+        return 0;
+    }
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int mn = 0; mn < M * N; mn++)
@@ -292,19 +354,19 @@ int Gemm::load_param(const ParamDict& pd)
     if (weight_block_quantize)
     {
 #if NCNN_WEIGHT_QUANT
-        if (constantA != 0 || constantB != 1 || transB != 1 || (transA != 0 && (weight_block_quantize_bits != 8 || transA != 1)))
+        if (constantA != 0 || constantB != 1 || transB != 1 || (transA != 0 && (weight_block_quantize_bits == 6 || transA != 1)))
         {
             NCNN_LOGE("Gemm unsupported weight block quantize");
             return -1;
         }
 
-        if ((output_N1M != 0 && weight_block_quantize_bits != 8) || (output_elempack != 0 && weight_block_quantize_bits != 8) || (output_elemtype != 0 && output_elemtype != 1) || (output_transpose != 0 && (weight_block_quantize_bits != 8 || output_transpose != 1)))
+        if ((output_N1M != 0 && weight_block_quantize_bits == 6) || (output_elempack != 0 && weight_block_quantize_bits == 6) || (output_elemtype != 0 && output_elemtype != 1) || (output_transpose != 0 && (weight_block_quantize_bits == 6 || output_transpose != 1)))
         {
             NCNN_LOGE("Gemm unsupported weight block quantize");
             return -1;
         }
 
-        if (weight_block_quantize_bits != 8)
+        if (weight_block_quantize_bits == 6)
         {
             support_packing = false;
             support_bf16_storage = false;
@@ -604,9 +666,9 @@ int Gemm::forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, st
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
     const float* ptrC = C;
 
-    if (weight_bits == 8)
+    if (weight_bits == 4 || weight_bits == 8)
     {
-        return weight_block_quantize_gemm_transB_int8(A, transA, B_data, B_data_quantize_scales, B_data_input_scales, C, top_blob, M, N, K, block_size, alpha, beta, broadcast_type_C, output_transpose, 0, opt);
+        return weight_block_quantize_gemm_transB(A, transA, B_data, B_data_quantize_scales, B_data_input_scales, C, top_blob, M, N, K, weight_bits, block_size, alpha, beta, broadcast_type_C, output_transpose, 0, opt);
     }
 
     #pragma omp parallel for num_threads(opt.num_threads)

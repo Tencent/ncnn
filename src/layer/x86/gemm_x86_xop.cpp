@@ -29,10 +29,16 @@ void gemm_transB_packed_tile_int8_xop(const Mat& AT_tile, const Mat& BT_tile, Ma
 #include "gemm_wq_int8_bf16s.h"
 #endif
 #include "gemm_wq_int8.h"
+#include "gemm_wq_int4.h"
 
 void gemm_transB_packed_tile_wq_int8_xop(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int k, int max_kk, int K, int block_size)
 {
     gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
+}
+
+void gemm_transB_packed_tile_wq_int4_xop(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int k, int max_kk, int K, int block_size)
+{
+    gemm_transB_packed_tile_wq_int4(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
 }
 #endif // NCNN_WEIGHT_QUANT
 
