@@ -1,7 +1,19 @@
 // Copyright 2023 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+// QK^T cross attention with subgroup reduction (P1).
+// Uses GL_KHR_shader_subgroup_arithmetic for warp-level dot product reduction.
+// Each subgroup lane loads one element of Q and K, multiplies,
+// then subgroupAdd accumulates across the warp.
+// This eliminates the per-thread K-loop and replaces it with
+// hardware-accelerated warp reduction.
+
+// This variant replaces the baseline multiheadattention_qk_cross.
+
 #version 450
+
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+#extension GL_EXT_shader_subgroup_extended_types_float16 : enable
 
 layout(constant_id = 0) const int attn_mask = 0;
 layout(constant_id = 1) const int M = 0;
@@ -33,6 +45,9 @@ void main()
     if (gx >= psc(N) || gy >= psc(M) || gz >= psc(B))
         return;
 
+    int subgroup_lane = int(gl_SubgroupInvocationID);
+    int subgroup_size = int(gl_SubgroupSize);
+
     afp sum = afp(0.f);
 
     if (attn_mask == 1)
@@ -49,7 +64,14 @@ void main()
         }
     }
 
-    for (int k = 0; k < psc(K); k++)
+    // All lanes share the same (gx, gy, gz) output coordinate.
+    // Each lane loads a different element along the K dimension
+    // and computes a partial product. subgroupAdd reduces across
+    // the warp to produce the final dot product visible to all lanes.
+    //
+    // This avoids the per-thread K-loop and replaces it with
+    // hardware-accelerated warp reduction.
+    for (int k = subgroup_lane; k < psc(K); k += subgroup_size)
     {
         const int ai = gz * psc(M) * psc(K) + k * psc(M) + gy;
         afp q0 = buffer_ld1(q_blob_data, ai);
@@ -59,6 +81,9 @@ void main()
 
         sum += q0 * k0;
     }
+
+    // subgroupAdd returns the total dot product to ALL active lanes
+    sum = subgroupAdd(sum);
 
     const int gi = gz * psc(M) * psc(N) + gy * psc(N) + gx;
     buffer_st1(qkcross_blob_data, gi, sum);
