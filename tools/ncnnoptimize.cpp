@@ -2780,6 +2780,10 @@ int main(int argc, char** argv)
     {
         optimizer.storage_type = 1;
     }
+    else if (flag == 2)
+    {
+        optimizer.storage_type = 2;
+    }
     else
     {
         optimizer.storage_type = 0;

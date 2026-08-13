@@ -236,7 +236,7 @@ public:
     bool has_custom_layer;
 
 public:
-    // 0=fp32 1=fp16
+    // 0=fp32 1=fp16 2=bf16
     int storage_type;
 
     int gen_random_weight;
@@ -632,6 +632,48 @@ static void Randomize(ncnn::Mat& m, float a = -1.2f, float b = 1.2f)
     }
 }
 
+static void fwrite_int32_little_endian(int value, FILE* bp)
+{
+#if __BIG_ENDIAN__
+    ncnn::swap_endianness_32(&value);
+#endif
+
+    fwrite(&value, sizeof(int), 1, bp);
+}
+
+#if __BIG_ENDIAN__
+static void swap_weight_data_endianness(ncnn::Mat& data)
+{
+    if (data.elemsize == 4)
+    {
+        for (int i = 0; i < data.w; i++)
+        {
+            ncnn::swap_endianness_32((float*)data + i);
+        }
+    }
+    else if (data.elemsize == 2)
+    {
+        for (int i = 0; i < data.w; i++)
+        {
+            ncnn::swap_endianness_16((unsigned short*)data + i);
+        }
+    }
+}
+#endif
+
+static void fwrite_weight_data_little_endian(ncnn::Mat& data, FILE* bp)
+{
+#if __BIG_ENDIAN__
+    swap_weight_data_endianness(data);
+#endif
+
+    fwrite(data.data, data.elemsize, data.w, bp);
+
+#if __BIG_ENDIAN__
+    swap_weight_data_endianness(data);
+#endif
+}
+
 int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a, float b, bool randomize)
 {
     int p0 = ftell(bp);
@@ -652,30 +694,38 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a
         if (storage_type == 1)
         {
             const int tag = 0x01306B47; // fp16 magic
-            fwrite(&tag, sizeof(int), 1, bp);
+            fwrite_int32_little_endian(tag, bp);
             ncnn::Mat data_flattened_fp16;
             ncnn::cast_float32_to_float16(data_flattened, data_flattened_fp16);
-            fwrite(data_flattened_fp16.data, data_flattened_fp16.elemsize, data_flattened_fp16.w, bp);
+            fwrite_weight_data_little_endian(data_flattened_fp16, bp);
+        }
+        else if (storage_type == 2)
+        {
+            const int tag = 0x01348B83; // bf16 magic
+            fwrite_int32_little_endian(tag, bp);
+            ncnn::Mat data_flattened_bf16;
+            ncnn::cast_float32_to_bfloat16(data_flattened, data_flattened_bf16);
+            fwrite_weight_data_little_endian(data_flattened_bf16, bp);
         }
         else
         {
             const int tag = 0; // fp32 magic
-            fwrite(&tag, sizeof(int), 1, bp);
+            fwrite_int32_little_endian(tag, bp);
             replace_denormals_with_zero(data_flattened, data_flattened.w);
-            fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
+            fwrite_weight_data_little_endian(data_flattened, bp);
         }
     }
     else if (data_flattened.elemsize == 2)
     {
         const int tag = 0x01306B47; // fp16 magic
-        fwrite(&tag, sizeof(int), 1, bp);
-        fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
+        fwrite_int32_little_endian(tag, bp);
+        fwrite_weight_data_little_endian(data_flattened, bp);
     }
     else if (data_flattened.elemsize == 1)
     {
         const int tag = 0x000D4B38; // int8 magic
-        fwrite(&tag, sizeof(int), 1, bp);
-        fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
+        fwrite_int32_little_endian(tag, bp);
+        fwrite_weight_data_little_endian(data_flattened, bp);
     }
     else
     {

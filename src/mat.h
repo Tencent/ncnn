@@ -336,6 +336,8 @@ public:
 
     // convenient construct from half precision floating point data
     static Mat from_float16(const unsigned short* data, int size);
+    // convenient construct from bfloat16 floating point data
+    static Mat from_bfloat16(const unsigned short* data, int size);
 
     // pointer to the data
     void* data;
@@ -346,7 +348,7 @@ public:
 
     // element size in bytes
     // 4 = float32/int32
-    // 2 = float16
+    // 2 = float16/bfloat16
     // 1 = int8/uint8
     // 0 = empty
     size_t elemsize;
