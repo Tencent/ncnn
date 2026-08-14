@@ -3,11 +3,35 @@
 
 #include "sdpa_vulkan.h"
 
-#include "kvcache_storage.h"
+#include <limits.h>
+
 #include "layer_shader_type.h"
 #include "layer_type.h"
 
 namespace ncnn {
+
+static int kvcache_capacity(int current_capacity, int new_seqlen, int max_seqlen_hint)
+{
+    if (current_capacity == 0 && max_seqlen_hint >= new_seqlen && max_seqlen_hint > 0)
+        return max_seqlen_hint;
+
+    int capacity = current_capacity > new_seqlen ? current_capacity : new_seqlen;
+    int reserve;
+    if (current_capacity == 0)
+    {
+        reserve = capacity < 16 ? 16 - capacity : capacity;
+        if (reserve > 256)
+            reserve = 256;
+    }
+    else
+    {
+        reserve = capacity / 2;
+        if (reserve < 16)
+            reserve = 16;
+    }
+
+    return capacity <= INT_MAX - reserve ? capacity + reserve : capacity;
+}
 
 SDPA_vulkan::SDPA_vulkan()
 {
@@ -42,6 +66,54 @@ SDPA_vulkan::SDPA_vulkan()
     UNROLL_SG_K = 1;
     UNROLL_WG_M = 1;
     UNROLL_WG_N = 1;
+}
+
+int SDPA_vulkan::create_or_grow_kvcache(const VkMat& cache, VkMat& new_cache, int new_seqlen, int num_kv_head, int head_dim, size_t elemsize, int elempack, VkCompute& cmd, const Option& opt) const
+{
+    if (!cache.empty() && new_seqlen <= cache.h)
+    {
+        new_cache = cache;
+        new_cache.h = new_seqlen;
+        return 0;
+    }
+
+    VkAllocator* allocator = opt.kvcache_vkallocator ? opt.kvcache_vkallocator : opt.blob_vkallocator;
+    if (opt.kvcache_vkallocator && !cache.empty() && cache.allocator == allocator)
+    {
+        const int capacity = (int)(cache.cstep / cache.w);
+        if (new_seqlen <= capacity)
+        {
+            new_cache = cache;
+            new_cache.h = new_seqlen;
+            return 0;
+        }
+    }
+
+    int capacity = new_seqlen > 0 ? new_seqlen : 1;
+    if (opt.kvcache_vkallocator)
+    {
+        const int current_capacity = cache.empty() ? 0 : (int)(cache.cstep / cache.w);
+        capacity = kvcache_capacity(current_capacity, new_seqlen, opt.kvcache_max_seqlen);
+    }
+
+    VkMat m;
+    m.create(head_dim, capacity, num_kv_head, elemsize, elempack, allocator);
+    if (m.empty())
+        return -100;
+
+    m.h = cache.h;
+
+    if (!cache.empty())
+    {
+        Option opt_copy = opt;
+        opt_copy.blob_vkallocator = allocator;
+        cmd.record_clone(cache, m, opt_copy);
+    }
+
+    m.h = new_seqlen;
+    new_cache = m;
+
+    return 0;
 }
 
 int SDPA_vulkan::load_param(const ParamDict& pd)
@@ -399,42 +471,21 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     {
         VkMat& cached_key = top_blobs[1];
         VkMat& cached_value = top_blobs[2];
-        if (past_key.empty() != past_value.empty())
-            return -1;
-        NaiveKVCacheStorage naive_storage(opt.blob_vkallocator);
-        KVCacheStorage* storage = opt.kvcache_storage ? opt.kvcache_storage : &naive_storage;
-        if ((!past_key.empty() && !storage->owns(past_key))
-                || (!past_value.empty() && !storage->owns(past_value)))
-        {
-            NCNN_LOGE("SDPA_vulkan got foreign kvcache");
-            return -1;
-        }
-        if (!past_value.empty() && past_value.h != past_seqlen)
-            return -1;
-        if (!past_key.empty()
-                && (past_key.w != cur_key.w || past_value.w != cur_value.w
-                    || past_key.c != num_group || past_value.c != num_group
-                    || past_key.elemsize != cur_key.elemsize || past_value.elemsize != cur_value.elemsize
-                    || past_key.elempack != cur_key.elempack || past_value.elempack != cur_value.elempack))
-            return -1;
 
-        int retk = past_key.empty() ? storage->create(cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, cur_key.elempack, cmd) : storage->expand(past_key, cached_key, dst_seqlen, cmd);
+        int retk = create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, cur_key.elempack, cmd, opt);
         if (retk != 0)
             return retk;
 
-        int retv = past_value.empty() ? storage->create(cached_value, dst_seqlen, num_group, out_embed_dim, cur_value.elemsize, cur_value.elempack, cmd) : storage->expand(past_value, cached_value, dst_seqlen, cmd);
+        int retv = create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, cur_value.elemsize, cur_value.elempack, cmd, opt);
         if (retv != 0)
-        {
-            storage->destroy(cached_key);
             return retv;
-        }
 
         {
             std::vector<VkMat> bindings(2);
             bindings[0] = cur_key;
             bindings[1] = cached_key;
             std::vector<vk_constant_type> constants(6);
-            constants[0].i = cur_key.w;
+            constants[0].i = embed_dim;
             constants[1].i = cur_key.h;
             constants[2].i = cur_key.cstep;
             constants[3].i = cached_key.w;
@@ -447,7 +498,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             bindings[0] = cur_value;
             bindings[1] = cached_value;
             std::vector<vk_constant_type> constants(6);
-            constants[0].i = cur_value.w;
+            constants[0].i = out_embed_dim;
             constants[1].i = cur_value.h;
             constants[2].i = cur_value.cstep;
             constants[3].i = cached_value.w;

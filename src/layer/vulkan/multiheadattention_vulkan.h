@@ -24,6 +24,8 @@ public:
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
 
 protected:
+    int create_or_grow_kvcache(const VkMat& cache, VkMat& new_cache, int new_seqlen, int num_kv_head, int head_dim, size_t elemsize, int elempack, VkCompute& cmd, const Option& opt) const;
+
 public:
     Layer* q_gemm;
     Layer* k_gemm;

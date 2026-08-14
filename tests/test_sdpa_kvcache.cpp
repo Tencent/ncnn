@@ -29,8 +29,8 @@ static int test_sdpa_kvcache(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn:
         as.push_back(RandomMat(dst_seqlen, src_seqlen));
     }
 
-    as.push_back(past_seqlen ? RandomMat(embed_dim, past_seqlen, k.c) : ncnn::Mat());
-    as.push_back(past_seqlen ? RandomMat(out_embed_dim, past_seqlen, v.c) : ncnn::Mat());
+    as.push_back(RandomMat(embed_dim, past_seqlen, k.c));
+    as.push_back(RandomMat(out_embed_dim, past_seqlen, v.c));
 
     int ret = test_layer("SDPA", pd, weights, as, 3);
     if (ret != 0)
@@ -44,16 +44,16 @@ static int test_sdpa_kvcache(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn:
 static int test_sdpa_0()
 {
     return 0
-           || test_sdpa_kvcache(RandomMat(32, 66, 8), RandomMat(32, 66, 8), RandomMat(20, 66, 8), 0, 0)
-           || test_sdpa_kvcache(RandomMat(26, 64, 8), RandomMat(26, 61, 8), RandomMat(18, 61, 8), 1, 0)
-           || test_sdpa_kvcache(RandomMat(40, 62, 7), RandomMat(40, 61, 7), RandomMat(24, 61, 7), 0, 0)
-           || test_sdpa_kvcache(RandomMat(24, 22, 6), RandomMat(24, 19, 6), RandomMat(16, 19, 6), 1, 0)
-           || test_sdpa_kvcache(RandomMat(64, 128, 12), RandomMat(64, 128, 2), RandomMat(64, 128, 2), 0, 0)
-           || test_sdpa_kvcache(RandomMat(64, 122, 12), RandomMat(64, 127, 2), RandomMat(48, 127, 2), 1, 0)
+           || test_sdpa_kvcache(RandomMat(32, 66, 8), RandomMat(32, 66, 8), RandomMat(20, 66, 8), 0, 11)
+           || test_sdpa_kvcache(RandomMat(26, 64, 8), RandomMat(26, 61, 8), RandomMat(18, 61, 8), 1, 11)
+           || test_sdpa_kvcache(RandomMat(40, 62, 7), RandomMat(40, 61, 7), RandomMat(24, 61, 7), 0, 9)
+           || test_sdpa_kvcache(RandomMat(24, 22, 6), RandomMat(24, 19, 6), RandomMat(16, 19, 6), 1, 9)
+           || test_sdpa_kvcache(RandomMat(64, 128, 12), RandomMat(64, 128, 2), RandomMat(64, 128, 2), 0, 1)
+           || test_sdpa_kvcache(RandomMat(64, 122, 12), RandomMat(64, 127, 2), RandomMat(48, 127, 2), 1, 1)
            || test_sdpa_kvcache(RandomMat(44, 128, 4), RandomMat(44, 123, 4), RandomMat(55, 123, 4), 0, 0)
            || test_sdpa_kvcache(RandomMat(12, 127, 4), RandomMat(12, 127, 4), RandomMat(55, 127, 4), 1, 0)
-           || test_sdpa_kvcache(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 0)
-           || test_sdpa_kvcache(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1, 0);
+           || test_sdpa_kvcache(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 3)
+           || test_sdpa_kvcache(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1, 5);
 }
 
 #if NCNN_INT8
@@ -82,8 +82,8 @@ static int test_sdpa_int8_kvcache(const ncnn::Mat& q, const ncnn::Mat& k, const 
         as.push_back(RandomMat(dst_seqlen, src_seqlen));
     }
 
-    as.push_back(past_seqlen ? RandomMat(embed_dim, past_seqlen, k.c) : ncnn::Mat());
-    as.push_back(past_seqlen ? RandomMat(out_embed_dim, past_seqlen, v.c) : ncnn::Mat());
+    as.push_back(RandomMat(embed_dim, past_seqlen, k.c));
+    as.push_back(RandomMat(out_embed_dim, past_seqlen, v.c));
 
     float epsilon = 0.01;
 
@@ -99,16 +99,16 @@ static int test_sdpa_int8_kvcache(const ncnn::Mat& q, const ncnn::Mat& k, const 
 static int test_sdpa_1()
 {
     return 0
-           || test_sdpa_int8_kvcache(RandomMat(32, 66, 8), RandomMat(32, 66, 8), RandomMat(20, 66, 8), 0, 0)
-           || test_sdpa_int8_kvcache(RandomMat(26, 64, 8), RandomMat(26, 61, 8), RandomMat(18, 61, 8), 1, 0)
-           || test_sdpa_int8_kvcache(RandomMat(40, 62, 7), RandomMat(40, 61, 7), RandomMat(24, 61, 7), 0, 0)
-           || test_sdpa_int8_kvcache(RandomMat(24, 22, 6), RandomMat(24, 19, 6), RandomMat(16, 19, 6), 1, 0)
-           || test_sdpa_int8_kvcache(RandomMat(64, 128, 12), RandomMat(64, 128, 2), RandomMat(64, 128, 2), 0, 0)
-           || test_sdpa_int8_kvcache(RandomMat(48, 122, 12), RandomMat(64, 127, 2), RandomMat(64, 127, 2), 1, 0)
+           || test_sdpa_int8_kvcache(RandomMat(32, 66, 8), RandomMat(32, 66, 8), RandomMat(20, 66, 8), 0, 11)
+           || test_sdpa_int8_kvcache(RandomMat(26, 64, 8), RandomMat(26, 61, 8), RandomMat(18, 61, 8), 1, 11)
+           || test_sdpa_int8_kvcache(RandomMat(40, 62, 7), RandomMat(40, 61, 7), RandomMat(24, 61, 7), 0, 9)
+           || test_sdpa_int8_kvcache(RandomMat(24, 22, 6), RandomMat(24, 19, 6), RandomMat(16, 19, 6), 1, 9)
+           || test_sdpa_int8_kvcache(RandomMat(64, 128, 12), RandomMat(64, 128, 2), RandomMat(64, 128, 2), 0, 1)
+           || test_sdpa_int8_kvcache(RandomMat(48, 122, 12), RandomMat(64, 127, 2), RandomMat(64, 127, 2), 1, 1)
            || test_sdpa_int8_kvcache(RandomMat(44, 128, 4), RandomMat(44, 123, 4), RandomMat(55, 123, 4), 0, 0)
            || test_sdpa_int8_kvcache(RandomMat(12, 127, 4), RandomMat(12, 127, 4), RandomMat(55, 127, 4), 1, 0)
-           || test_sdpa_int8_kvcache(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 0)
-           || test_sdpa_int8_kvcache(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1, 0);
+           || test_sdpa_int8_kvcache(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 3)
+           || test_sdpa_int8_kvcache(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1, 5);
 }
 #endif
 

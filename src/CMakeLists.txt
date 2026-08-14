@@ -24,7 +24,6 @@ set(ncnn_SRCS
     datareader.cpp
     expression.cpp
     gpu.cpp
-    kvcache_storage.cpp
     layer.cpp
     mat.cpp
     mat_pixel.cpp
@@ -769,7 +768,6 @@ if(NCNN_INSTALL_SDK)
         datareader.h
         expression.h
         gpu.h
-        kvcache_storage.h
         layer.h
         layer_shader_type.h
         layer_type.h

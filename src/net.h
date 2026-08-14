@@ -189,8 +189,11 @@ public:
     // set workspace memory allocator
     void set_workspace_allocator(Allocator* allocator);
 
-    // set kv cache storage, no owner transfer
-    void set_kvcache_storage(KVCacheStorage* storage);
+    // set kv cache memory allocator
+    void set_kvcache_allocator(Allocator* allocator);
+
+    // set maximum kv cache sequence length hint
+    void set_kvcache_max_seqlen(int max_seqlen);
 
 #if NCNN_VULKAN
     void set_blob_vkallocator(VkAllocator* allocator);
@@ -198,6 +201,9 @@ public:
     void set_workspace_vkallocator(VkAllocator* allocator);
 
     void set_staging_vkallocator(VkAllocator* allocator);
+
+    // set kv cache memory allocator
+    void set_kvcache_vkallocator(VkAllocator* allocator);
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING

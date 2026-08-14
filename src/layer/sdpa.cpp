@@ -4,14 +4,88 @@
 #include "sdpa.h"
 
 #include <float.h>
+#include <limits.h>
 
 #include "cpu.h"
-#include "kvcache_storage.h"
 
 namespace ncnn {
 
+static int kvcache_capacity(int current_capacity, int new_seqlen, int max_seqlen_hint)
+{
+    if (current_capacity == 0 && max_seqlen_hint >= new_seqlen && max_seqlen_hint > 0)
+        return max_seqlen_hint;
+
+    int capacity = current_capacity > new_seqlen ? current_capacity : new_seqlen;
+    int reserve;
+    if (current_capacity == 0)
+    {
+        reserve = capacity < 16 ? 16 - capacity : capacity;
+        if (reserve > 256)
+            reserve = 256;
+    }
+    else
+    {
+        reserve = capacity / 2;
+        if (reserve < 16)
+            reserve = 16;
+    }
+
+    return capacity <= INT_MAX - reserve ? capacity + reserve : capacity;
+}
+
 SDPA::SDPA()
 {
+}
+
+int SDPA::create_or_grow_kvcache(const Mat& cache, Mat& new_cache, int new_seqlen, int num_kv_head, int head_dim, size_t elemsize, int elempack, const Option& opt) const
+{
+    if (!cache.empty() && new_seqlen <= cache.h)
+    {
+        new_cache = cache;
+        new_cache.h = new_seqlen;
+        return 0;
+    }
+
+    Allocator* allocator = opt.kvcache_allocator ? opt.kvcache_allocator : opt.blob_allocator;
+    if (opt.kvcache_allocator && !cache.empty() && cache.allocator == allocator)
+    {
+        const int capacity = (int)(cache.cstep / cache.w);
+        if (new_seqlen <= capacity)
+        {
+            new_cache = cache;
+            new_cache.h = new_seqlen;
+            return 0;
+        }
+    }
+
+    int capacity = new_seqlen > 0 ? new_seqlen : 1;
+    if (opt.kvcache_allocator)
+    {
+        const int current_capacity = cache.empty() ? 0 : (int)(cache.cstep / cache.w);
+        capacity = kvcache_capacity(current_capacity, new_seqlen, opt.kvcache_max_seqlen);
+    }
+
+    Mat m;
+    m.create(head_dim, capacity, num_kv_head, elemsize, elempack, allocator);
+    if (m.empty())
+        return -100;
+
+    m.h = new_seqlen;
+
+    if (!cache.empty())
+    {
+        const size_t valid_head_size = (size_t)cache.w * cache.h * cache.elemsize;
+        for (int q = 0; q < cache.c; q++)
+        {
+            const unsigned char* src = (const unsigned char*)cache.data + cache.cstep * q * cache.elemsize;
+            unsigned char* dst = (unsigned char*)m.data + m.cstep * q * m.elemsize;
+            memcpy(dst, src, valid_head_size);
+        }
+    }
+
+    new_cache = m;
+
+    return 0;
 }
 
 int SDPA::load_param(const ParamDict& pd)
@@ -73,44 +147,22 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     {
         Mat& cached_key = top_blobs[1];
         Mat& cached_value = top_blobs[2];
-        NaiveKVCacheStorage naive_storage(opt.blob_allocator);
-        KVCacheStorage* storage = opt.kvcache_storage ? opt.kvcache_storage : &naive_storage;
 
-        if (past_key.empty() != past_value.empty())
-            return -1;
-        if ((!past_key.empty() && !storage->owns(past_key))
-                || (!past_value.empty() && !storage->owns(past_value)))
-        {
-            NCNN_LOGE("SDPA got foreign kvcache");
-            return -1;
-        }
-        if (!past_value.empty() && past_value.h != past_seqlen)
-            return -1;
-        if (!past_key.empty()
-                && (past_key.w != cur_key.w || past_value.w != cur_value.w
-                    || past_key.c != num_group || past_value.c != num_group
-                    || past_key.elemsize != cur_key.elemsize || past_value.elemsize != cur_value.elemsize
-                    || past_key.elempack != cur_key.elempack || past_value.elempack != cur_value.elempack))
-            return -1;
-
-        int retk = past_key.empty() ? storage->create(cached_key, dst_seqlen, num_group, cur_key.w, cur_key.elemsize, cur_key.elempack) : storage->expand(past_key, cached_key, dst_seqlen);
+        int retk = create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, cur_key.elempack, opt);
         if (retk != 0)
             return retk;
 
-        int retv = past_value.empty() ? storage->create(cached_value, dst_seqlen, num_group, cur_value.w, cur_value.elemsize, cur_value.elempack) : storage->expand(past_value, cached_value, dst_seqlen);
+        int retv = create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, cur_value.elemsize, cur_value.elempack, opt);
         if (retv != 0)
-        {
-            storage->destroy(cached_key);
             return retv;
-        }
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_group; q++)
         {
             Mat key_head = cached_key.channel(q);
             Mat value_head = cached_value.channel(q);
-            memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)cur_key.w * cur_seqlen * cur_key.elemsize);
-            memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)cur_value.w * cur_seqlen * cur_value.elemsize);
+            memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * cur_key.elemsize);
+            memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * cur_value.elemsize);
         }
 
         key = cached_key;
@@ -337,44 +389,22 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     {
         Mat& cached_key = top_blobs[1];
         Mat& cached_value = top_blobs[2];
-        NaiveKVCacheStorage naive_storage(opt.blob_allocator);
-        KVCacheStorage* storage = opt.kvcache_storage ? opt.kvcache_storage : &naive_storage;
 
-        if (past_key.empty() != past_value.empty())
-            return -1;
-        if ((!past_key.empty() && !storage->owns(past_key))
-                || (!past_value.empty() && !storage->owns(past_value)))
-        {
-            NCNN_LOGE("SDPA got foreign kvcache");
-            return -1;
-        }
-        if (!past_value.empty() && past_value.h != past_seqlen)
-            return -1;
-        if (!past_key.empty()
-                && (past_key.w != cur_key.w || past_value.w != cur_value.w
-                    || past_key.c != num_group || past_value.c != num_group
-                    || past_key.elemsize != cur_key.elemsize || past_value.elemsize != cur_value.elemsize
-                    || past_key.elempack != cur_key.elempack || past_value.elempack != cur_value.elempack))
-            return -1;
-
-        int retk = past_key.empty() ? storage->create(cached_key, dst_seqlen, num_group, cur_key.w, cur_key.elemsize, cur_key.elempack) : storage->expand(past_key, cached_key, dst_seqlen);
+        int retk = create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, cur_key.elempack, opt);
         if (retk != 0)
             return retk;
 
-        int retv = past_value.empty() ? storage->create(cached_value, dst_seqlen, num_group, cur_value.w, cur_value.elemsize, cur_value.elempack) : storage->expand(past_value, cached_value, dst_seqlen);
+        int retv = create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, cur_value.elemsize, cur_value.elempack, opt);
         if (retv != 0)
-        {
-            storage->destroy(cached_key);
             return retv;
-        }
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_group; q++)
         {
             Mat key_head = cached_key.channel(q);
             Mat value_head = cached_value.channel(q);
-            memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)cur_key.w * cur_seqlen * cur_key.elemsize);
-            memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)cur_value.w * cur_seqlen * cur_value.elemsize);
+            memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * cur_key.elemsize);
+            memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * cur_value.elemsize);
         }
 
         key = cached_key;

@@ -18,6 +18,8 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 protected:
+    int create_or_grow_kvcache(const Mat& cache, Mat& new_cache, int new_seqlen, int num_kv_head, int head_dim, size_t elemsize, int elempack, const Option& opt) const;
+
 #if NCNN_INT8
     int forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif

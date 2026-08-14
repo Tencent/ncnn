@@ -14,7 +14,6 @@ class PipelineCache;
 #endif // NCNN_VULKAN
 
 class Allocator;
-class KVCacheStorage;
 class NCNN_EXPORT Option
 {
 public:
@@ -44,8 +43,11 @@ public:
     // workspace memory allocator
     Allocator* workspace_allocator;
 
-    // kv cache storage, no owner transfer
-    KVCacheStorage* kvcache_storage;
+    // kv cache memory allocator
+    Allocator* kvcache_allocator;
+
+    // maximum kv cache sequence length hint
+    int kvcache_max_seqlen;
 
 #if NCNN_VULKAN
     // blob memory allocator
@@ -56,6 +58,9 @@ public:
 
     // staging memory allocator
     VkAllocator* staging_vkallocator;
+
+    // kv cache memory allocator
+    VkAllocator* kvcache_vkallocator;
 
     // pipeline cache
     PipelineCache* pipeline_cache;

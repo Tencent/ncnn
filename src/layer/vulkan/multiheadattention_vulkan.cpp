@@ -3,11 +3,35 @@
 
 #include "multiheadattention_vulkan.h"
 
-#include "kvcache_storage.h"
+#include <limits.h>
+
 #include "layer_shader_type.h"
 #include "layer_type.h"
 
 namespace ncnn {
+
+static int kvcache_capacity(int current_capacity, int new_seqlen, int max_seqlen_hint)
+{
+    if (current_capacity == 0 && max_seqlen_hint >= new_seqlen && max_seqlen_hint > 0)
+        return max_seqlen_hint;
+
+    int capacity = current_capacity > new_seqlen ? current_capacity : new_seqlen;
+    int reserve;
+    if (current_capacity == 0)
+    {
+        reserve = capacity < 16 ? 16 - capacity : capacity;
+        if (reserve > 256)
+            reserve = 256;
+    }
+    else
+    {
+        reserve = capacity / 2;
+        if (reserve < 16)
+            reserve = 16;
+    }
+
+    return capacity <= INT_MAX - reserve ? capacity + reserve : capacity;
+}
 
 MultiHeadAttention_vulkan::MultiHeadAttention_vulkan()
 {
@@ -35,6 +59,54 @@ MultiHeadAttention_vulkan::MultiHeadAttention_vulkan()
     pipeline_kvcache_append = 0;
     pipeline_kvcache_qk = 0;
     pipeline_kvcache_qkv = 0;
+}
+
+int MultiHeadAttention_vulkan::create_or_grow_kvcache(const VkMat& cache, VkMat& new_cache, int new_seqlen, int num_kv_head, int head_dim, size_t elemsize, int elempack, VkCompute& cmd, const Option& opt) const
+{
+    if (!cache.empty() && new_seqlen <= cache.h)
+    {
+        new_cache = cache;
+        new_cache.h = new_seqlen;
+        return 0;
+    }
+
+    VkAllocator* allocator = opt.kvcache_vkallocator ? opt.kvcache_vkallocator : opt.blob_vkallocator;
+    if (opt.kvcache_vkallocator && !cache.empty() && cache.allocator == allocator)
+    {
+        const int capacity = (int)(cache.cstep / cache.w);
+        if (new_seqlen <= capacity)
+        {
+            new_cache = cache;
+            new_cache.h = new_seqlen;
+            return 0;
+        }
+    }
+
+    int capacity = new_seqlen > 0 ? new_seqlen : 1;
+    if (opt.kvcache_vkallocator)
+    {
+        const int current_capacity = cache.empty() ? 0 : (int)(cache.cstep / cache.w);
+        capacity = kvcache_capacity(current_capacity, new_seqlen, opt.kvcache_max_seqlen);
+    }
+
+    VkMat m;
+    m.create(head_dim, capacity, num_kv_head, elemsize, elempack, allocator);
+    if (m.empty())
+        return -100;
+
+    m.h = cache.h;
+
+    if (!cache.empty())
+    {
+        Option opt_copy = opt;
+        opt_copy.blob_vkallocator = allocator;
+        cmd.record_clone(cache, m, opt_copy);
+    }
+
+    m.h = new_seqlen;
+    new_cache = m;
+
+    return 0;
 }
 
 int MultiHeadAttention_vulkan::load_param(const ParamDict& pd)
@@ -414,28 +486,36 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
     const VkMat& past_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : empty_cache;
     VkMat& cached_xk_blob = kv_cache ? top_blobs[1] : empty_cache;
     VkMat& cached_xv_blob = kv_cache ? top_blobs[2] : empty_cache;
-    NaiveKVCacheStorage naive_storage(opt.blob_vkallocator);
-    KVCacheStorage* storage = opt.kvcache_storage ? opt.kvcache_storage : &naive_storage;
-    if (kv_cache)
+
+    VkMat past_xk_blob_unpacked;
+    if (kv_cache && !past_xk_blob.empty() && past_xk_blob.elempack != 1)
     {
-        if (past_xk_blob.empty() != past_xv_blob.empty())
-            return -1;
-        if ((!past_xk_blob.empty() && !storage->owns(past_xk_blob))
-                || (!past_xv_blob.empty() && !storage->owns(past_xv_blob)))
-        {
-            NCNN_LOGE("MultiHeadAttention_vulkan got foreign kvcache");
-            return -1;
-        }
+        vkdev->convert_packing(past_xk_blob, past_xk_blob_unpacked, 1, cmd, opt);
+        if (past_xk_blob_unpacked.empty())
+            return -100;
+    }
+    else
+    {
+        past_xk_blob_unpacked = past_xk_blob;
+    }
+
+    VkMat past_xv_blob_unpacked;
+    if (kv_cache && !past_xv_blob.empty() && past_xv_blob.elempack != 1)
+    {
+        vkdev->convert_packing(past_xv_blob, past_xv_blob_unpacked, 1, cmd, opt);
+        if (past_xv_blob_unpacked.empty())
+            return -100;
+    }
+    else
+    {
+        past_xv_blob_unpacked = past_xv_blob;
     }
 
     const int embed_dim_per_head = embed_dim / num_heads;
     const int src_seqlen = q_blob.h * q_blob.elempack;
     const int cur_seqlen = k_blob.h * k_blob.elempack;
-    const int past_seqlen = kv_cache && !past_xk_blob.empty() ? past_xk_blob.h : 0;
+    const int past_seqlen = kv_cache && !past_xk_blob_unpacked.empty() ? past_xk_blob_unpacked.h : 0;
     const bool append_key = past_seqlen == 0 || q_blob_i == k_blob_i;
-    const bool append_value = past_seqlen == 0 || q_blob_i == v_blob_i;
-    if (kv_cache && append_key != append_value)
-        return -1;
     const int append_seqlen = append_key ? cur_seqlen : 0;
     const int dst_seqlen = past_seqlen + append_seqlen;
 
@@ -455,11 +535,6 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
     VkMat current_value;
     if (kv_cache)
     {
-        if (!past_xk_blob.empty()
-                && (past_xk_blob.w != embed_dim_per_head || past_xk_blob.c != num_heads || past_xk_blob.elempack != 1
-                    || past_xv_blob.w != embed_dim_per_head || past_xv_blob.c != num_heads || past_xv_blob.h != past_seqlen || past_xv_blob.elempack != 1))
-            return -1;
-
         if (append_seqlen > 0)
         {
             int retk = k_gemm->forward(k_blob, current_key, cmd, opt);
@@ -486,24 +561,15 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
                 current_value = tmp;
             }
 
-            if (current_key.dims != 2 || current_key.w != append_seqlen || current_key.h != embed_dim
-                    || current_value.dims != 2 || current_value.w != append_seqlen || current_value.h != embed_dim)
-                return -1;
         }
-        if (!past_xk_blob.empty() && append_seqlen > 0
-                && (past_xk_blob.elemsize != current_key.elemsize || past_xv_blob.elemsize != current_value.elemsize))
-            return -1;
 
-        int retk = past_xk_blob.empty() ? storage->create(cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, current_key.elemsize, 1, cmd) : storage->expand(past_xk_blob, cached_xk_blob, dst_seqlen, cmd);
+        int retk = create_or_grow_kvcache(past_xk_blob_unpacked, cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, current_key.elemsize, 1, cmd, opt);
         if (retk != 0)
             return retk;
 
-        int retv = past_xv_blob.empty() ? storage->create(cached_xv_blob, dst_seqlen, num_heads, embed_dim_per_head, current_value.elemsize, 1, cmd) : storage->expand(past_xv_blob, cached_xv_blob, dst_seqlen, cmd);
+        int retv = create_or_grow_kvcache(past_xv_blob_unpacked, cached_xv_blob, dst_seqlen, num_heads, embed_dim_per_head, current_value.elemsize, 1, cmd, opt);
         if (retv != 0)
-        {
-            storage->destroy(cached_xk_blob);
             return retv;
-        }
 
         if (append_seqlen > 0)
         {

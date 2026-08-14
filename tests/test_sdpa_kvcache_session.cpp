@@ -1,7 +1,6 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "kvcache_storage.h"
 #include "net.h"
 #include "testutil.h"
 
@@ -36,7 +35,7 @@ static void fill_sdpa_input(ncnn::Mat& m, float base)
     }
 }
 
-static int run_sdpa_step(ncnn::Net& net, ncnn::Mat& output, ncnn::Mat& key_cache, ncnn::Mat& value_cache, int cur_seqlen, int step, ncnn::KVCacheStorage* storage)
+static int run_sdpa_step(ncnn::Net& net, ncnn::Mat& output, ncnn::Mat& key_cache, ncnn::Mat& value_cache, int cur_seqlen, int step, ncnn::Allocator* kvcache_allocator)
 {
     ncnn::Mat query(8, cur_seqlen, 4);
     ncnn::Mat key(8, cur_seqlen, 2);
@@ -46,8 +45,11 @@ static int run_sdpa_step(ncnn::Net& net, ncnn::Mat& output, ncnn::Mat& key_cache
     fill_sdpa_input(value, 0.3f - step * 0.11f);
 
     ncnn::Extractor ex = net.create_extractor();
-    if (storage)
-        ex.set_kvcache_storage(storage);
+    if (kvcache_allocator)
+    {
+        ex.set_kvcache_allocator(kvcache_allocator);
+        ex.set_kvcache_max_seqlen(32);
+    }
 
     ex.input("q", query);
     ex.input("k", key);
@@ -68,7 +70,7 @@ static int run_sdpa_step(ncnn::Net& net, ncnn::Mat& output, ncnn::Mat& key_cache
     return ex.extract("out_v", value_cache);
 }
 
-static int run_extractor_kvcache(ncnn::KVCacheStorage* storage, std::vector<ncnn::Mat>& outputs)
+static int run_extractor_kvcache(ncnn::Allocator* kvcache_allocator, std::vector<ncnn::Mat>& outputs)
 {
     ncnn::Net net;
     net.opt.lightmode = false;
@@ -85,18 +87,15 @@ static int run_extractor_kvcache(ncnn::KVCacheStorage* storage, std::vector<ncnn
     int ret = 0;
     for (int i = 0; ret == 0 && i < 3; i++)
     {
-        ret = run_sdpa_step(net, outputs[i], key_cache, value_cache, append_lengths[i], i, storage);
+        ret = run_sdpa_step(net, outputs[i], key_cache, value_cache, append_lengths[i], i, kvcache_allocator);
         if (ret == 0 && (key_cache.empty() || value_cache.empty()))
             ret = -1;
-        if (ret == 0 && storage && (!storage->owns(key_cache) || !storage->owns(value_cache)))
+        if (ret == 0 && kvcache_allocator && (key_cache.allocator != kvcache_allocator || value_cache.allocator != kvcache_allocator))
             ret = -1;
     }
 
-    if (storage)
-    {
-        storage->destroy(key_cache);
-        storage->destroy(value_cache);
-    }
+    key_cache.release();
+    value_cache.release();
 
     return ret;
 }
@@ -106,10 +105,10 @@ static int test_extractor_kvcache()
     std::vector<ncnn::Mat> reference_outputs;
     int ret = run_extractor_kvcache(0, reference_outputs);
 
-    ncnn::CPUKVCacheStorage storage;
+    ncnn::UnlockedPoolAllocator kvcache_allocator;
     std::vector<ncnn::Mat> outputs;
     if (ret == 0)
-        ret = run_extractor_kvcache(&storage, outputs);
+        ret = run_extractor_kvcache(&kvcache_allocator, outputs);
 
     for (int i = 0; ret == 0 && i < 3; i++)
     {
@@ -122,6 +121,76 @@ static int test_extractor_kvcache()
 
     return ret;
 }
+
+#if NCNN_BATCH
+static int test_kvcache_batch()
+{
+    ncnn::Net net;
+    net.opt.lightmode = false;
+    net.opt.use_vulkan_compute = false;
+
+    if (net.load_param_mem(sdpa_param) != 0)
+        return -1;
+    net.load_model((const unsigned char*)empty_model);
+
+    ncnn::Mat query;
+    ncnn::Mat key;
+    ncnn::Mat value;
+    query.create(8, 1, 4, 4u, 1, 2);
+    key.create(8, 1, 2, 4u, 1, 2);
+    value.create(6, 1, 2, 4u, 1, 2);
+    query.fill(0.1f);
+    key.fill(0.2f);
+    value.fill(0.3f);
+
+    ncnn::UnlockedPoolAllocator kvcache_allocator;
+    ncnn::Extractor ex = net.create_extractor();
+    ex.set_kvcache_allocator(&kvcache_allocator);
+    ex.set_kvcache_max_seqlen(16);
+    ex.input("q", query);
+    ex.input("k", key);
+    ex.input("v", value);
+
+    ncnn::Mat output;
+    int ret = ex.extract("out", output);
+    ncnn::Mat key_cache;
+    ncnn::Mat value_cache;
+    if (ret == 0)
+        ret = ex.extract("out_k", key_cache);
+    if (ret == 0)
+        ret = ex.extract("out_v", value_cache);
+    if (ret != 0 || output.n != 2 || key_cache.n != 2 || value_cache.n != 2 || key_cache.allocator != &kvcache_allocator || value_cache.allocator != &kvcache_allocator)
+    {
+        fprintf(stderr, "test_kvcache_batch failed ret=%d\n", ret);
+        return -1;
+    }
+
+    void* key_data = key_cache.data;
+    void* value_data = value_cache.data;
+
+    ncnn::Extractor ex2 = net.create_extractor();
+    ex2.set_kvcache_allocator(&kvcache_allocator);
+    ex2.set_kvcache_max_seqlen(16);
+    ex2.input("q", query);
+    ex2.input("k", key);
+    ex2.input("v", value);
+    ex2.input("past_k", key_cache);
+    ex2.input("past_v", value_cache);
+    key_cache.release();
+    value_cache.release();
+
+    ret = ex2.extract("out_k", key_cache);
+    if (ret == 0)
+        ret = ex2.extract("out_v", value_cache);
+    if (ret != 0 || key_cache.data != key_data || value_cache.data != value_data)
+    {
+        fprintf(stderr, "test_kvcache_batch reuse failed ret=%d\n", ret);
+        return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_BATCH
 
 #if NCNN_VULKAN
 static int test_legacy_vulkan_extractor_kvcache()
@@ -163,7 +232,7 @@ static int test_legacy_vulkan_extractor_kvcache()
     return ret;
 }
 
-static int run_sdpa_vulkan_step(ncnn::Net& net, ncnn::Mat& output, ncnn::VkMat& key_cache, ncnn::VkMat& value_cache, int cur_seqlen, int step, ncnn::KVCacheStorage* storage, ncnn::VkAllocator* blob_vkallocator, ncnn::VkAllocator* staging_vkallocator)
+static int run_sdpa_vulkan_step(ncnn::Net& net, ncnn::Mat& output, ncnn::VkMat& key_cache, ncnn::VkMat& value_cache, int cur_seqlen, int step, ncnn::VkAllocator* kvcache_vkallocator, ncnn::VkAllocator* blob_vkallocator, ncnn::VkAllocator* staging_vkallocator)
 {
     const ncnn::VulkanDevice* vkdev = net.vulkan_device();
 
@@ -193,7 +262,8 @@ static int run_sdpa_vulkan_step(ncnn::Net& net, ncnn::Mat& output, ncnn::VkMat& 
     cmd.record_clone(value, value_gpu, opt);
 
     ncnn::Extractor ex = net.create_extractor();
-    ex.set_kvcache_storage(storage);
+    ex.set_kvcache_vkallocator(kvcache_vkallocator);
+    ex.set_kvcache_max_seqlen(32);
     ex.set_blob_vkallocator(blob_vkallocator);
     ex.set_workspace_vkallocator(blob_vkallocator);
     ex.set_staging_vkallocator(staging_vkallocator);
@@ -235,95 +305,47 @@ static int test_external_vulkan_kvcache()
     if (!vkdev)
         return 0;
 
-    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
-    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+    ncnn::VkBlobAllocator blob_vkallocator(vkdev);
+    ncnn::VkBlobAllocator kvcache_vkallocator(vkdev);
+    ncnn::VkStagingAllocator staging_vkallocator(vkdev);
 
-    int result = 0;
+    ncnn::Net net;
+    net.opt.lightmode = false;
+    net.opt.use_vulkan_compute = true;
+    net.opt.use_packing_layout = false;
+    net.opt.use_fp16_packed = false;
+    net.opt.use_fp16_storage = false;
+    net.opt.use_fp16_arithmetic = false;
+    net.set_vulkan_device(vkdev);
+
+    int result = net.load_param_mem(sdpa_param);
+    if (result == 0)
+        net.load_model((const unsigned char*)empty_model);
+
+    std::vector<ncnn::Mat> reference_outputs;
+    if (result == 0)
+        result = run_extractor_kvcache(0, reference_outputs);
+
+    ncnn::VkMat key_cache;
+    ncnn::VkMat value_cache;
+    const int append_lengths[] = {15, 2, 1};
+    for (int i = 0; result == 0 && i < 3; i++)
     {
-        ncnn::VkKVCacheStorage storage(vkdev);
-        ncnn::Net net;
-        net.opt.lightmode = false;
-        net.opt.use_vulkan_compute = true;
-        net.opt.use_packing_layout = false;
-        net.opt.use_fp16_packed = false;
-        net.opt.use_fp16_storage = false;
-        net.opt.use_fp16_arithmetic = false;
-        net.set_vulkan_device(vkdev);
-
-        if (net.load_param_mem(sdpa_param) != 0)
+        ncnn::Mat output;
+        result = run_sdpa_vulkan_step(net, output, key_cache, value_cache, append_lengths[i], i, &kvcache_vkallocator, &blob_vkallocator, &staging_vkallocator);
+        if (result == 0 && CompareMat(reference_outputs[i], output, 0.001f) != 0)
             result = -1;
-        if (result == 0)
-            net.load_model((const unsigned char*)empty_model);
-
-        std::vector<ncnn::Mat> reference_outputs;
-        if (result == 0)
-            result = run_extractor_kvcache(0, reference_outputs);
-
-        ncnn::VkMat key_cache;
-        ncnn::VkMat value_cache;
-        const int append_lengths[] = {15, 2, 1};
-        for (int i = 0; result == 0 && i < 3; i++)
-        {
-            ncnn::Mat output;
-            result = run_sdpa_vulkan_step(net, output, key_cache, value_cache, append_lengths[i], i, &storage, blob_vkallocator, staging_vkallocator);
-            if (result == 0 && CompareMat(reference_outputs[i], output, 0.001f) != 0)
-                result = -1;
-            if (result == 0 && (!storage.owns(key_cache) || !storage.owns(value_cache)))
-                result = -1;
-        }
-
-        storage.destroy(key_cache);
-        storage.destroy(value_cache);
+        if (result == 0 && (key_cache.allocator != &kvcache_vkallocator || value_cache.allocator != &kvcache_vkallocator))
+            result = -1;
     }
 
-    vkdev->reclaim_blob_allocator(blob_vkallocator);
-    vkdev->reclaim_staging_allocator(staging_vkallocator);
+    key_cache.release();
+    value_cache.release();
 
     if (result != 0)
         fprintf(stderr, "test_external_vulkan_kvcache failed ret=%d\n", result);
 
     return result;
-}
-
-static int test_vulkan_kvcache_extract_type()
-{
-    ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
-    if (!vkdev)
-        return 0;
-
-    static const char param[] = "7767517\n"
-                                "1 1\n"
-                                "Input cache_input 0 1 cache\n";
-
-    ncnn::VkKVCacheStorage storage(vkdev);
-    ncnn::VkCompute cmd(vkdev);
-    ncnn::VkMat cache;
-    int ret = storage.create(cache, 2, 2, 4, 4u, 1, cmd);
-    if (ret != 0)
-        return ret;
-
-    ncnn::Net net;
-    net.opt.use_vulkan_compute = true;
-    net.set_vulkan_device(vkdev);
-    if (net.load_param_mem(param) != 0)
-    {
-        storage.destroy(cache);
-        return -1;
-    }
-    net.load_model((const unsigned char*)empty_model);
-
-    ncnn::Extractor ex = net.create_extractor();
-    ex.set_kvcache_storage(&storage);
-    ex.input("cache", cache);
-
-    ncnn::Mat cache_cpu;
-    if (ex.extract("cache", cache_cpu) == 0)
-        ret = -1;
-
-    storage.destroy(cache);
-    if (ret != 0)
-        fprintf(stderr, "test_vulkan_kvcache_extract_type failed ret=%d\n", ret);
-    return ret;
 }
 
 #endif // NCNN_VULKAN
@@ -332,10 +354,12 @@ int main()
 {
     return 0
            || test_extractor_kvcache()
+#if NCNN_BATCH
+           || test_kvcache_batch()
+#endif
 #if NCNN_VULKAN
            || test_legacy_vulkan_extractor_kvcache()
            || test_external_vulkan_kvcache()
-           || test_vulkan_kvcache_extract_type()
 #endif
            ;
 }

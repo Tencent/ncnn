@@ -3,7 +3,6 @@
 
 #include "sdpa_loongarch.h"
 
-#include "kvcache_storage.h"
 #include "layer_type.h"
 
 namespace ncnn {
@@ -164,44 +163,22 @@ int SDPA_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     {
         Mat& cached_key = top_blobs[1];
         Mat& cached_value = top_blobs[2];
-        NaiveKVCacheStorage naive_storage(opt.blob_allocator);
-        KVCacheStorage* storage = opt.kvcache_storage ? opt.kvcache_storage : &naive_storage;
 
-        if (past_key.empty() != past_value.empty())
-            return -1;
-        if ((!past_key.empty() && !storage->owns(past_key))
-                || (!past_value.empty() && !storage->owns(past_value)))
-        {
-            NCNN_LOGE("SDPA_loongarch got foreign kvcache");
-            return -1;
-        }
-        if (!past_value.empty() && past_value.h != past_seqlen)
-            return -1;
-        if (!past_key.empty()
-                && (past_key.w != cur_key.w || past_value.w != cur_value.w
-                    || past_key.c != num_group || past_value.c != num_group
-                    || past_key.elemsize != elemsize || past_value.elemsize != elemsize
-                    || past_key.elempack != cur_key.elempack || past_value.elempack != cur_value.elempack))
-            return -1;
-
-        int retk = past_key.empty() ? storage->create(cached_key, dst_seqlen, num_group, cur_key.w, elemsize, cur_key.elempack) : storage->expand(past_key, cached_key, dst_seqlen);
+        int retk = create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, elemsize, cur_key.elempack, opt);
         if (retk != 0)
             return retk;
 
-        int retv = past_value.empty() ? storage->create(cached_value, dst_seqlen, num_group, cur_value.w, elemsize, cur_value.elempack) : storage->expand(past_value, cached_value, dst_seqlen);
+        int retv = create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, elemsize, cur_value.elempack, opt);
         if (retv != 0)
-        {
-            storage->destroy(cached_key);
             return retv;
-        }
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_group; q++)
         {
             Mat key_head = cached_key.channel(q);
             Mat value_head = cached_value.channel(q);
-            memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)cur_key.w * cur_seqlen * elemsize);
-            memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)cur_value.w * cur_seqlen * elemsize);
+            memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * elemsize);
+            memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * elemsize);
         }
 
         key = cached_key;
