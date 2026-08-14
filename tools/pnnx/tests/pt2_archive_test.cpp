@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include <stdio.h>
+#include <string.h>
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -10,6 +12,7 @@
 #include "pt2_archive.h"
 #include "pt2_json.h"
 #include "pt2_program.h"
+#include "pt2_weights.h"
 #include "storezip.h"
 
 static int read_file(const char* path, std::vector<unsigned char>& data)
@@ -44,8 +47,116 @@ static bool parse_expected_format(const std::string& name, pnnx::ModelFormat& fo
     return true;
 }
 
+static bool check_f32(const pnnx::Pt2Weights& weights, const char* name, pnnx::Pt2InputSpec::Kind kind,
+                      const std::vector<int>& shape, const std::vector<float>& expected)
+{
+    std::map<std::string, pnnx::Pt2Weight>::const_iterator it = weights.values.find(name);
+    if (it == weights.values.end() || it->second.kind != kind || it->second.attribute.type != 1 ||
+        it->second.attribute.shape != shape || it->second.attribute.data.size() != expected.size() * sizeof(float))
+        return false;
+    for (size_t i = 0; i < expected.size(); i++)
+    {
+        float value;
+        memcpy(&value, &it->second.attribute.data[i * sizeof(float)], sizeof(float));
+        if (value != expected[i])
+            return false;
+    }
+    return true;
+}
+
+static int check_weights(const pnnx::Pt2Weights& weights, const std::string& name)
+{
+    if (name == "structured_io")
+        return weights.values.empty() ? 0 : -1;
+
+    if (name == "state_and_constants")
+    {
+        std::vector<float> weight(12);
+        for (size_t i = 0; i < weight.size(); i++)
+            weight[i] = i / 16.f;
+        return weights.values.size() == 5 &&
+                       check_f32(weights, "weight", pnnx::Pt2InputSpec::Parameter, std::vector<int>{4, 3}, weight) &&
+                       check_f32(weights, "bias", pnnx::Pt2InputSpec::Parameter, std::vector<int>{4}, std::vector<float>{0.f, .125f, .25f, .375f}) &&
+                       check_f32(weights, "persistent_buffer", pnnx::Pt2InputSpec::Buffer, std::vector<int>{4}, std::vector<float>{.25f, -.5f, .75f, -1.f}) &&
+                       check_f32(weights, "non_persistent_buffer", pnnx::Pt2InputSpec::Buffer, std::vector<int>{4}, std::vector<float>{1.f, 1.5f, 2.f, 2.5f}) &&
+                       check_f32(weights, "tensor_constant", pnnx::Pt2InputSpec::TensorConstant, std::vector<int>{4}, std::vector<float>{.125f, .25f, .375f, .5f})
+                   ? 0
+                   : -1;
+    }
+
+    if (name == "strided_tensors")
+    {
+        std::vector<float> weight(30);
+        for (int i = 0; i < 6; i++)
+        {
+            for (int j = 0; j < 5; j++)
+                weight[i * 5 + j] = j * 6.f + i;
+        }
+        return weights.values.size() == 3 &&
+                       check_f32(weights, "weight", pnnx::Pt2InputSpec::Parameter, std::vector<int>{6, 5}, weight) &&
+                       check_f32(weights, "offset_view", pnnx::Pt2InputSpec::Buffer, std::vector<int>{5}, std::vector<float>{3.f, 4.f, 5.f, 6.f, 7.f}) &&
+                       check_f32(weights, "strided_view", pnnx::Pt2InputSpec::Buffer, std::vector<int>{5}, std::vector<float>{3.f, 5.f, 7.f, 9.f, 11.f})
+                   ? 0
+                   : -1;
+    }
+
+    if (name == "scalar_types")
+    {
+        const int attribute_types[] = {0, 8, 7, 6, 4, 5, 3, 1, 2, 12, 10, 11, 9, 13};
+        const int element_sizes[] = {0, 1, 1, 2, 4, 8, 2, 4, 8, 4, 8, 16, 1, 2};
+        if (weights.values.size() != 15)
+            return -1;
+        for (int dtype = 1; dtype <= 13; dtype++)
+        {
+            const pnnx::Attribute& attribute = weights.values.at("dtype_" + std::to_string(dtype)).attribute;
+            if (attribute.type != attribute_types[dtype] || attribute.shape != std::vector<int>{2} || attribute.data.size() != (size_t)element_sizes[dtype] * 2)
+                return -1;
+            for (size_t i = 0; i < attribute.data.size(); i++)
+            {
+                if ((unsigned char)attribute.data[i] != i)
+                    return -1;
+            }
+        }
+        return weights.values.at("scalar").attribute.shape.empty() && weights.values.at("scalar").attribute.data.size() == 4 &&
+                       weights.values.at("empty").attribute.shape == std::vector<int>{0} && weights.values.at("empty").attribute.data.empty()
+                   ? 0
+                   : -1;
+    }
+
+    if (name == "big_endian")
+    {
+        if (weights.values.size() != 1)
+            return -1;
+        float value;
+        const pnnx::Attribute& attribute = weights.values.begin()->second.attribute;
+        if (attribute.data.size() != sizeof(float))
+            return -1;
+        memcpy(&value, &attribute.data[0], sizeof(float));
+        return value == 1.f ? 0 : -1;
+    }
+    return -1;
+}
+
 int main(int argc, char** argv)
 {
+    if (argc == 4 && std::string(argv[1]) == "--weights-archive")
+    {
+        pnnx::Pt2ArchiveReader archive;
+        pnnx::Pt2Program program;
+        pnnx::Pt2Weights weights;
+        if (archive.open(argv[2]) != 0 || pnnx::load_pt2_program(archive, program) != 0 || pnnx::load_pt2_weights(archive, program, weights) != 0)
+        {
+            fprintf(stderr, "%s\n", !weights.error.empty() ? weights.error.c_str() : !program.error.empty() ? program.error.c_str() : archive.error.c_str());
+            return 1;
+        }
+        if (check_weights(weights, argv[3]) != 0)
+        {
+            fprintf(stderr, "PT2 weights differ from expected values\n");
+            return 1;
+        }
+        return 0;
+    }
+
     if (argc == 3 && std::string(argv[1]) == "--program-archive")
     {
         pnnx::Pt2ArchiveReader archive;

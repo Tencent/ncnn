@@ -765,6 +765,7 @@ set(pnnx_SRCS
     pt2_archive.cpp
     pt2_json.cpp
     pt2_program.cpp
+    pt2_weights.cpp
     storezip.cpp
     utils.cpp
 

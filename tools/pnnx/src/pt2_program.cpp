@@ -78,6 +78,11 @@ public:
         return verify();
     }
 
+    int decode_tensor_meta(const Pt2JsonValue& value, const std::string& path, Pt2Tensor& tensor)
+    {
+        return decode_tensor(value, path, tensor) ? 0 : -1;
+    }
+
 private:
     int fail(const std::string& path, const Pt2JsonValue* value, const std::string& message)
     {
@@ -928,6 +933,15 @@ int parse_pt2_program(const unsigned char* data, size_t size, Pt2Program& progra
         return -1;
     Pt2ProgramDecoder decoder(program);
     return decoder.decode(root);
+}
+
+int decode_pt2_tensor_meta(const Pt2JsonValue& value, const std::string& path, Pt2Tensor& tensor, std::string& error)
+{
+    Pt2Program program;
+    Pt2ProgramDecoder decoder(program);
+    const int result = decoder.decode_tensor_meta(value, path, tensor);
+    error = program.error;
+    return result;
 }
 
 int load_pt2_program(Pt2ArchiveReader& archive, Pt2Program& program)

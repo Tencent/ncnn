@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 #include <algorithm>
 #include <map>
 #include <string>
@@ -124,6 +125,9 @@ static uint32_t CRC32_buffer(const unsigned char* data, uint64_t len)
 StoreZipReader::StoreZipReader()
 {
     fp = 0;
+    memory = 0;
+    memory_size = 0;
+    memory_position = 0;
     data_limit = 0;
 
     CRC32_TABLE_INIT();
@@ -158,7 +162,7 @@ static bool checked_add_u64(uint64_t a, uint64_t b, uint64_t& result)
     return true;
 }
 
-static int zip_seek(FILE* fp, uint64_t offset, int origin)
+static int file_seek(FILE* fp, uint64_t offset, int origin)
 {
     if (offset > INT64_MAX)
         return -1;
@@ -173,18 +177,13 @@ static int zip_seek(FILE* fp, uint64_t offset, int origin)
 #endif
 }
 
-static int64_t zip_tell(FILE* fp)
+static int64_t file_tell(FILE* fp)
 {
 #if defined(_WIN32)
     return _ftelli64(fp);
 #else
     return (int64_t)ftello(fp);
 #endif
-}
-
-static bool read_exact(FILE* fp, void* data, size_t size)
-{
-    return size == 0 || fread(data, 1, size, fp) == size;
 }
 
 static bool normalize_zip_name(const std::string& name, std::string& normalized)
@@ -292,10 +291,73 @@ int StoreZipReader::open(const std::string& path)
     if (!fp)
         return fail("open failed " + path);
 
-    if (zip_seek(fp, 0, SEEK_END) != 0)
+    return parse();
+}
+
+int StoreZipReader::open(const unsigned char* data, size_t size)
+{
+    close();
+    error.clear();
+
+    if (!data && size != 0)
+        return fail("invalid memory archive");
+
+    memory = data;
+    memory_size = size;
+    return parse();
+}
+
+int StoreZipReader::seek(uint64_t offset, int origin)
+{
+    if (fp)
+        return file_seek(fp, offset, origin);
+
+    uint64_t base;
+    if (origin == SEEK_SET)
+        base = 0;
+    else if (origin == SEEK_CUR)
+        base = memory_position;
+    else if (origin == SEEK_END)
+        base = memory_size;
+    else
+        return -1;
+
+    if (base > memory_size || offset > memory_size - base)
+        return -1;
+    memory_position = base + offset;
+    return 0;
+}
+
+int64_t StoreZipReader::tell() const
+{
+    if (fp)
+        return file_tell(fp);
+    if (memory_position > INT64_MAX)
+        return -1;
+    return (int64_t)memory_position;
+}
+
+bool StoreZipReader::read(void* data, size_t size)
+{
+    if (fp)
+        return size == 0 || fread(data, 1, size, fp) == size;
+    if (memory_position > memory_size || size > memory_size - memory_position)
+        return false;
+    if (size)
+        memcpy(data, memory + memory_position, size);
+    memory_position += size;
+    return true;
+}
+
+int StoreZipReader::parse()
+{
+    if (!fp && !memory)
+        return fail("archive is not open");
+
+    if (seek(0, SEEK_END) != 0)
         return fail("failed to seek to end of archive");
 
-    const int64_t file_size_signed = zip_tell(fp);
+    const int64_t file_size_signed = tell();
     if (file_size_signed < 0)
         return fail("failed to determine archive size");
     const uint64_t archive_size = (uint64_t)file_size_signed;
@@ -306,7 +368,7 @@ int StoreZipReader::open(const std::string& path)
     const uint64_t search_size_u64 = std::min<uint64_t>(archive_size, 22u + 65535u);
     const size_t search_size = (size_t)search_size_u64;
     std::vector<unsigned char> tail(search_size);
-    if (zip_seek(fp, archive_size - search_size_u64, SEEK_SET) != 0 || !read_exact(fp, &tail[0], tail.size()))
+    if (seek(archive_size - search_size_u64, SEEK_SET) != 0 || !read(&tail[0], tail.size()))
         return fail("failed to read end of archive");
 
     size_t eocd_tail_offset = SIZE_MAX;
@@ -340,7 +402,7 @@ int StoreZipReader::open(const std::string& path)
             return fail("invalid ZIP64 archive: locator is missing");
 
         unsigned char locator[20];
-        if (zip_seek(fp, eocd_offset - 20, SEEK_SET) != 0 || !read_exact(fp, locator, sizeof(locator)))
+        if (seek(eocd_offset - 20, SEEK_SET) != 0 || !read(locator, sizeof(locator)))
             return fail("truncated ZIP64 locator");
         if (read_le32(locator) != 0x07064b50)
             return fail("invalid ZIP64 archive: locator signature is missing");
@@ -349,7 +411,7 @@ int StoreZipReader::open(const std::string& path)
 
         const uint64_t zip64_eocd_offset = read_le64(locator + 8);
         unsigned char zip64_eocd[56];
-        if (zip64_eocd_offset > eocd_offset - 20 || zip_seek(fp, zip64_eocd_offset, SEEK_SET) != 0 || !read_exact(fp, zip64_eocd, sizeof(zip64_eocd)))
+        if (zip64_eocd_offset > eocd_offset - 20 || seek(zip64_eocd_offset, SEEK_SET) != 0 || !read(zip64_eocd, sizeof(zip64_eocd)))
             return fail("truncated ZIP64 end of central directory");
         if (read_le32(zip64_eocd) != 0x06064b50 || read_le64(zip64_eocd + 4) < 44)
             return fail("invalid ZIP64 end of central directory");
@@ -378,7 +440,7 @@ int StoreZipReader::open(const std::string& path)
         return fail("central directory is outside the archive");
     if (cd_records > cd_size / 46u + (cd_size == 0 ? 0u : 1u))
         return fail("central directory record count is inconsistent with its size");
-    if (zip_seek(fp, cd_offset, SEEK_SET) != 0)
+    if (seek(cd_offset, SEEK_SET) != 0)
         return fail("failed to seek to central directory");
     data_limit = cd_offset;
 
@@ -389,7 +451,7 @@ int StoreZipReader::open(const std::string& path)
             return fail("truncated central directory record");
 
         unsigned char central[46];
-        if (!read_exact(fp, central, sizeof(central)) || read_le32(central) != 0x02014b50)
+        if (!read(central, sizeof(central)) || read_le32(central) != 0x02014b50)
             return fail("invalid central directory record signature");
 
         const uint16_t flag = read_le16(central + 8);
@@ -410,9 +472,9 @@ int StoreZipReader::open(const std::string& path)
 
         std::string raw_name(file_name_length, '\0');
         std::vector<unsigned char> extra(extra_field_length);
-        if (!read_exact(fp, raw_name.empty() ? 0 : &raw_name[0], raw_name.size()) ||
-            !read_exact(fp, extra.empty() ? 0 : &extra[0], extra.size()) ||
-            (file_comment_length && zip_seek(fp, file_comment_length, SEEK_CUR) != 0))
+        if (!read(raw_name.empty() ? 0 : &raw_name[0], raw_name.size()) ||
+            !read(extra.empty() ? 0 : &extra[0], extra.size()) ||
+            (file_comment_length && seek(file_comment_length, SEEK_CUR) != 0))
             return fail("truncated central directory variable fields");
         central_position = record_end;
 
@@ -506,7 +568,7 @@ int StoreZipReader::read_file(const std::string& name, const StoreZipMeta& meta,
     }
 
     unsigned char local[30];
-    if (!fp || zip_seek(fp, meta.offset, SEEK_SET) != 0 || !read_exact(fp, local, sizeof(local)) || read_le32(local) != 0x04034b50)
+    if ((!fp && !memory) || seek(meta.offset, SEEK_SET) != 0 || !read(local, sizeof(local)) || read_le32(local) != 0x04034b50)
     {
         error = "invalid local header for " + name;
         return -1;
@@ -531,9 +593,9 @@ int StoreZipReader::read_file(const std::string& name, const StoreZipMeta& meta,
 
     std::string local_name(local_name_length, '\0');
     std::string normalized_local_name;
-    if (!read_exact(fp, local_name.empty() ? 0 : &local_name[0], local_name.size()) ||
+    if (!read(local_name.empty() ? 0 : &local_name[0], local_name.size()) ||
         !normalize_zip_name(local_name, normalized_local_name) || normalized_local_name != name ||
-        zip_seek(fp, data_offset, SEEK_SET) != 0 || !read_exact(fp, data, (size_t)meta.size))
+        seek(data_offset, SEEK_SET) != 0 || !read(data, (size_t)meta.size))
     {
         error = "failed to read record " + name;
         return -1;
@@ -575,6 +637,9 @@ int StoreZipReader::close()
         fclose(fp);
         fp = 0;
     }
+    memory = 0;
+    memory_size = 0;
+    memory_position = 0;
     filemetas.clear();
     data_limit = 0;
 

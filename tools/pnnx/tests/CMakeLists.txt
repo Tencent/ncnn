@@ -7,6 +7,7 @@ add_executable(pnnx_pt2_archive_test
     ../src/pt2_archive.cpp
     ../src/pt2_json.cpp
     ../src/pt2_program.cpp
+    ../src/pt2_weights.cpp
     ../src/storezip.cpp)
 target_include_directories(pnnx_pt2_archive_test PRIVATE ../src)
 
@@ -26,6 +27,10 @@ foreach(PT2_FIXTURE IN LISTS PNNX_PT2_ARCHIVE_FIXTURES)
     add_test(NAME test_pt2_program_${PT2_FIXTURE_TEST_ID}
         COMMAND pnnx_pt2_archive_test --program-archive "${PT2_FIXTURE}")
     set_tests_properties(test_pt2_program_${PT2_FIXTURE_TEST_ID} PROPERTIES LABELS "pt2;json;schema")
+    get_filename_component(PT2_FIXTURE_CASE "${PT2_FIXTURE}" NAME_WE)
+    add_test(NAME test_pt2_weights_${PT2_FIXTURE_TEST_ID}
+        COMMAND pnnx_pt2_archive_test --weights-archive "${PT2_FIXTURE}" "${PT2_FIXTURE_CASE}")
+    set_tests_properties(test_pt2_weights_${PT2_FIXTURE_TEST_ID} PROPERTIES LABELS "pt2;weights")
 endforeach()
 
 add_test(NAME test_pt2_archive_reader_malformed
@@ -37,6 +42,13 @@ add_test(NAME test_pt2_program
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_program.py
             --tester $<TARGET_FILE:pnnx_pt2_archive_test>)
 set_tests_properties(test_pt2_program PROPERTIES LABELS "pt2;json;schema;malformed")
+
+add_test(NAME test_pt2_weights
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_weights.py
+            --tester $<TARGET_FILE:pnnx_pt2_archive_test>
+            --legacy ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/data/torch_2_6_0/state_and_constants.pt2
+            --raw ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/data/torch_2_12_1/state_and_constants.pt2)
+set_tests_properties(test_pt2_weights PROPERTIES LABELS "pt2;weights;malformed")
 
 add_test(NAME test_pt2_storezip_roundtrip
     COMMAND pnnx_pt2_archive_test --roundtrip "${CMAKE_CURRENT_BINARY_DIR}/pnnx_pt2_storezip_roundtrip.zip")

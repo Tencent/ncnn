@@ -14,6 +14,7 @@
 namespace pnnx {
 
 class Pt2ArchiveReader;
+struct Pt2JsonValue;
 
 struct Pt2SymInt
 {
@@ -141,6 +142,7 @@ struct Pt2Program
 };
 
 int parse_pt2_program(const unsigned char* data, size_t size, Pt2Program& program);
+int decode_pt2_tensor_meta(const Pt2JsonValue& value, const std::string& path, Pt2Tensor& tensor, std::string& error);
 int load_pt2_program(Pt2ArchiveReader& archive, Pt2Program& program);
 
 } // namespace pnnx
