@@ -5,6 +5,8 @@ add_executable(pnnx_pt2_archive_test
     pt2_archive_test.cpp
     ../src/model_format.cpp
     ../src/pt2_archive.cpp
+    ../src/pt2_json.cpp
+    ../src/pt2_program.cpp
     ../src/storezip.cpp)
 target_include_directories(pnnx_pt2_archive_test PRIVATE ../src)
 
@@ -21,12 +23,20 @@ foreach(PT2_FIXTURE IN LISTS PNNX_PT2_ARCHIVE_FIXTURES)
     add_test(NAME test_pt2_archive_${PT2_FIXTURE_TEST_ID}
         COMMAND pnnx_pt2_archive_test "${PT2_FIXTURE}" "${PT2_EXPECTED_FORMAT}")
     set_tests_properties(test_pt2_archive_${PT2_FIXTURE_TEST_ID} PROPERTIES LABELS "pt2;archive")
+    add_test(NAME test_pt2_program_${PT2_FIXTURE_TEST_ID}
+        COMMAND pnnx_pt2_archive_test --program-archive "${PT2_FIXTURE}")
+    set_tests_properties(test_pt2_program_${PT2_FIXTURE_TEST_ID} PROPERTIES LABELS "pt2;json;schema")
 endforeach()
 
 add_test(NAME test_pt2_archive_reader_malformed
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_archive_reader.py
             --tester $<TARGET_FILE:pnnx_pt2_archive_test>)
 set_tests_properties(test_pt2_archive_reader_malformed PROPERTIES LABELS "pt2;archive;malformed")
+
+add_test(NAME test_pt2_program
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_program.py
+            --tester $<TARGET_FILE:pnnx_pt2_archive_test>)
+set_tests_properties(test_pt2_program PROPERTIES LABELS "pt2;json;schema;malformed")
 
 add_test(NAME test_pt2_storezip_roundtrip
     COMMAND pnnx_pt2_archive_test --roundtrip "${CMAKE_CURRENT_BINARY_DIR}/pnnx_pt2_storezip_roundtrip.zip")

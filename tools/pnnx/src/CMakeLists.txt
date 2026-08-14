@@ -763,6 +763,8 @@ set(pnnx_SRCS
     model_format.cpp
     model_stat.cpp
     pt2_archive.cpp
+    pt2_json.cpp
+    pt2_program.cpp
     storezip.cpp
     utils.cpp
 

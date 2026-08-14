@@ -8,7 +8,24 @@
 
 #include "model_format.h"
 #include "pt2_archive.h"
+#include "pt2_json.h"
+#include "pt2_program.h"
 #include "storezip.h"
+
+static int read_file(const char* path, std::vector<unsigned char>& data)
+{
+    FILE* fp = fopen(path, "rb");
+    if (!fp)
+        return -1;
+
+    unsigned char buffer[4096];
+    size_t nread;
+    while ((nread = fread(buffer, 1, sizeof(buffer), fp)) != 0)
+        data.insert(data.end(), buffer, buffer + nread);
+    const int result = ferror(fp) ? -1 : 0;
+    fclose(fp);
+    return result;
+}
 
 static bool parse_expected_format(const std::string& name, pnnx::ModelFormat& format)
 {
@@ -29,6 +46,49 @@ static bool parse_expected_format(const std::string& name, pnnx::ModelFormat& fo
 
 int main(int argc, char** argv)
 {
+    if (argc == 3 && std::string(argv[1]) == "--program-archive")
+    {
+        pnnx::Pt2ArchiveReader archive;
+        pnnx::Pt2Program program;
+        if (archive.open(argv[2]) != 0 || pnnx::load_pt2_program(archive, program) != 0)
+        {
+            fprintf(stderr, "%s\n", archive.error.empty() ? program.error.c_str() : archive.error.c_str());
+            return 1;
+        }
+        if (program.schema_major != 8 || program.opset_versions["aten"] != 10 || program.nodes.empty() || program.tensors.empty())
+        {
+            fprintf(stderr, "PT2 program decode returned incomplete data\n");
+            return 1;
+        }
+        return 0;
+    }
+
+    if (argc == 3 && (std::string(argv[1]) == "--json" || std::string(argv[1]) == "--program-json"))
+    {
+        std::vector<unsigned char> data;
+        if (read_file(argv[2], data) != 0)
+        {
+            fprintf(stderr, "read failed\n");
+            return 1;
+        }
+
+        if (std::string(argv[1]) == "--json")
+        {
+            pnnx::Pt2JsonValue value;
+            std::string error;
+            const int result = pnnx::parse_pt2_json(data.empty() ? 0 : &data[0], data.size(), value, error);
+            if (result != 0)
+                fprintf(stderr, "%s\n", error.c_str());
+            return result != 0;
+        }
+
+        pnnx::Pt2Program program;
+        const int result = pnnx::parse_pt2_program(data.empty() ? 0 : &data[0], data.size(), program);
+        if (result != 0)
+            fprintf(stderr, "%s\n", program.error.c_str());
+        return result != 0;
+    }
+
     if (argc == 3 && std::string(argv[1]) == "--roundtrip")
     {
         const char first[] = "first payload";
