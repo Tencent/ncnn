@@ -578,7 +578,7 @@ int MultiHeadAttention_riscv::forward(const std::vector<Mat>& bottom_blobs, std:
 
         if (append_seqlen > 0)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < num_heads; q++)
             {
                 Mat key_cache_head = cached_xk_blob.channel(q);
@@ -615,7 +615,7 @@ int MultiHeadAttention_riscv::forward(const std::vector<Mat>& bottom_blobs, std:
 
     std::vector<int> retqks;
     retqks.resize(num_heads);
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_heads; i++)
     {
         std::vector<Mat> qk_bottom_blobs(2);
@@ -666,7 +666,7 @@ int MultiHeadAttention_riscv::forward(const std::vector<Mat>& bottom_blobs, std:
 
     std::vector<int> retqkvs;
     retqkvs.resize(num_heads);
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_heads; i++)
     {
         std::vector<Mat> qkv_bottom_blobs(2);

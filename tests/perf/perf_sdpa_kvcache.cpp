@@ -187,7 +187,6 @@ static void perf_sdpa_kvcache_cpu(int embed_dim, int num_heads, int num_groups, 
     delete op;
 }
 
-
 static void perf_sdpa_kvcache(int embed_dim, int num_heads, int num_groups, int prefill_seqlen, int decode_steps)
 {
     const int max_seqlen_hint = prefill_seqlen + decode_steps;
@@ -195,7 +194,6 @@ static void perf_sdpa_kvcache(int embed_dim, int num_heads, int num_groups, int 
     perf_sdpa_kvcache_cpu(embed_dim, num_heads, num_groups, prefill_seqlen, decode_steps, -1);
     perf_sdpa_kvcache_cpu(embed_dim, num_heads, num_groups, prefill_seqlen, decode_steps, 0);
     perf_sdpa_kvcache_cpu(embed_dim, num_heads, num_groups, prefill_seqlen, decode_steps, max_seqlen_hint);
-
 }
 
 int main()
