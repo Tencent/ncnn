@@ -1,6 +1,50 @@
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
+add_executable(pnnx_pt2_archive_test
+    pt2_archive_test.cpp
+    ../src/model_format.cpp
+    ../src/pt2_archive.cpp
+    ../src/storezip.cpp)
+target_include_directories(pnnx_pt2_archive_test PRIVATE ../src)
+
+file(GLOB_RECURSE PNNX_PT2_ARCHIVE_FIXTURES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/data/*.pt2")
+foreach(PT2_FIXTURE IN LISTS PNNX_PT2_ARCHIVE_FIXTURES)
+    file(RELATIVE_PATH PT2_FIXTURE_RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/data" "${PT2_FIXTURE}")
+    string(MAKE_C_IDENTIFIER "${PT2_FIXTURE_RELATIVE}" PT2_FIXTURE_TEST_ID)
+    if(PT2_FIXTURE_RELATIVE MATCHES "torch_2_6_0|torch_2_7_0")
+        set(PT2_EXPECTED_FORMAT pt2-legacy-exported-program)
+    else()
+        set(PT2_EXPECTED_FORMAT pt2-archive)
+    endif()
+    add_test(NAME test_pt2_archive_${PT2_FIXTURE_TEST_ID}
+        COMMAND pnnx_pt2_archive_test "${PT2_FIXTURE}" "${PT2_EXPECTED_FORMAT}")
+    set_tests_properties(test_pt2_archive_${PT2_FIXTURE_TEST_ID} PROPERTIES LABELS "pt2;archive")
+endforeach()
+
+add_test(NAME test_pt2_archive_reader_malformed
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_archive_reader.py
+            --tester $<TARGET_FILE:pnnx_pt2_archive_test>)
+set_tests_properties(test_pt2_archive_reader_malformed PROPERTIES LABELS "pt2;archive;malformed")
+
+add_test(NAME test_pt2_storezip_roundtrip
+    COMMAND pnnx_pt2_archive_test --roundtrip "${CMAKE_CURRENT_BINARY_DIR}/pnnx_pt2_storezip_roundtrip.zip")
+set_tests_properties(test_pt2_storezip_roundtrip PROPERTIES LABELS "pt2;archive")
+
+add_test(NAME test_pt2_cli_probe
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_cli_probe.py
+            --pnnx $<TARGET_FILE:pnnx>
+            --legacy ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/data/torch_2_6_0/state_and_constants.pt2
+            --archive ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/data/torch_2_12_1/state_and_constants.pt2)
+set_tests_properties(test_pt2_cli_probe PROPERTIES LABELS "pt2;archive;cli")
+
+add_test(NAME test_pt2_fixture_tools
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/test_pt2_fixture_tools.py)
+set_tests_properties(test_pt2_fixture_tools PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2
+    LABELS "pt2;fixture")
+
 macro(pnnx_add_test name)
     add_test(NAME test_${name} COMMAND ${CMAKE_COMMAND} -DPYTHON_EXECUTABLE=${Python3_EXECUTABLE} -DPYTHON_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
 endmacro()

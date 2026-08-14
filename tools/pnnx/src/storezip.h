@@ -4,6 +4,7 @@
 #ifndef PNNX_STOREZIP_H
 #define PNNX_STOREZIP_H
 
+#include <stdio.h>
 #include <stdint.h>
 #include <map>
 #include <string>
@@ -24,18 +25,26 @@ public:
     uint64_t get_file_size(const std::string& name) const;
 
     int read_file(const std::string& name, char* data);
+    int read_file(const std::string& name, std::vector<unsigned char>& data);
 
     int close();
 
-private:
-    FILE* fp;
+    std::string error;
 
+private:
     struct StoreZipMeta
     {
         uint64_t offset;
         uint64_t size;
+        uint32_t crc32;
+        uint16_t flag;
     };
 
+    int fail(const std::string& message);
+    int read_file(const std::string& name, const StoreZipMeta& meta, char* data);
+
+    FILE* fp;
+    uint64_t data_limit;
     std::map<std::string, StoreZipMeta> filemetas;
 };
 

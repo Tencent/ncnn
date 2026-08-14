@@ -59,6 +59,11 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . --config Release -j 4
 
+    - name: pt2-fixture-test
+      run: |
+        cd tools/pnnx/build
+        ctest -C Release --output-on-failure -R test_pt2_
+
     - name: quick-test
       if: matrix.os != 'windows-latest'
       run: |
@@ -223,6 +228,7 @@ jobs:
             -Donnxruntime_INSTALL_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
             -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf ..
         cmake --build . -j 8
+        ctest --output-on-failure -R test_pt2_
         strip src/pnnx
 
     - name: upload-pnnx

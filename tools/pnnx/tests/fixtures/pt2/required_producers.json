@@ -1,0 +1,34 @@
+{
+  "manifest_version": 1,
+  "producers": [
+    {
+      "torch_version": "2.6.0",
+      "expected_container": "legacy_exported_program_zip",
+      "expected_schema_major": 8,
+      "purpose": "first supported schema-major-8 producer"
+    },
+    {
+      "torch_version": "2.7.0",
+      "expected_container": "legacy_exported_program_zip",
+      "expected_schema_major": 8,
+      "purpose": "last legacy ExportedProgram archive boundary"
+    },
+    {
+      "torch_version": "2.8.0",
+      "expected_container": "pt2_archive",
+      "expected_schema_major": 8,
+      "purpose": "first PT2 Archive boundary"
+    },
+    {
+      "torch_version": "2.12.1",
+      "expected_container": "pt2_archive",
+      "expected_schema_major": 8,
+      "purpose": "current pnnx consumer-libtorch baseline"
+    }
+  ],
+  "required_cases": [
+    "state_and_constants",
+    "strided_tensors",
+    "structured_io"
+  ]
+}

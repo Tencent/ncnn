@@ -1,0 +1,234 @@
+{
+  "fixtures": [
+    {
+      "case": "state_and_constants",
+      "file": "state_and_constants.pt2",
+      "inspection": {
+        "archive_version": null,
+        "container": "legacy_exported_program_zip",
+        "graph": {
+          "inputs": 6,
+          "nodes": 4,
+          "outputs": 1
+        },
+        "model_record": "serialized_exported_program.json",
+        "opset_version": {
+          "aten": 10
+        },
+        "payload_styles": [
+          "nested_torch_save"
+        ],
+        "producer_torch_version_in_model": "2.6.0",
+        "records": [
+          {
+            "compressed_size": 1496,
+            "compression": 0,
+            "crc32": "70ba5dd1",
+            "flag_bits": 0,
+            "name": "serialized_constants.pt",
+            "size": 1496
+          },
+          {
+            "compressed_size": 1180,
+            "compression": 0,
+            "crc32": "a58ac2e9",
+            "flag_bits": 0,
+            "name": "serialized_example_inputs.pt",
+            "size": 1180
+          },
+          {
+            "compressed_size": 6041,
+            "compression": 0,
+            "crc32": "53c6fa33",
+            "flag_bits": 0,
+            "name": "serialized_exported_program.json",
+            "size": 6041
+          },
+          {
+            "compressed_size": 1812,
+            "compression": 0,
+            "crc32": "70fa17ab",
+            "flag_bits": 0,
+            "name": "serialized_state_dict.pt",
+            "size": 1812
+          },
+          {
+            "compressed_size": 3,
+            "compression": 0,
+            "crc32": "16e93596",
+            "flag_bits": 0,
+            "name": "version",
+            "size": 3
+          }
+        ],
+        "root_prefix": "",
+        "schema_version": {
+          "major": 8,
+          "minor": 2
+        }
+      },
+      "semantic_sha256": "602a8e5cc52e7d0c7931e53f97a8ccceecb11903a06aa0841a54f08a6cdaa9db",
+      "sha256": "f6e06cb3353c7fdc9b94471457f85251e7c46e8c3a0a3bd7cb9c6ecfdf15a71b",
+      "size": 11162
+    },
+    {
+      "case": "strided_tensors",
+      "file": "strided_tensors.pt2",
+      "inspection": {
+        "archive_version": null,
+        "container": "legacy_exported_program_zip",
+        "graph": {
+          "inputs": 4,
+          "nodes": 3,
+          "outputs": 1
+        },
+        "model_record": "serialized_exported_program.json",
+        "opset_version": {
+          "aten": 10
+        },
+        "payload_styles": [
+          "nested_torch_save"
+        ],
+        "producer_torch_version_in_model": "2.6.0",
+        "records": [
+          {
+            "compressed_size": 864,
+            "compression": 0,
+            "crc32": "b295b54f",
+            "flag_bits": 0,
+            "name": "serialized_constants.pt",
+            "size": 864
+          },
+          {
+            "compressed_size": 1180,
+            "compression": 0,
+            "crc32": "a1e01cfa",
+            "flag_bits": 0,
+            "name": "serialized_example_inputs.pt",
+            "size": 1180
+          },
+          {
+            "compressed_size": 4694,
+            "compression": 0,
+            "crc32": "d791bfcc",
+            "flag_bits": 0,
+            "name": "serialized_exported_program.json",
+            "size": 4694
+          },
+          {
+            "compressed_size": 1752,
+            "compression": 0,
+            "crc32": "aba3e667",
+            "flag_bits": 0,
+            "name": "serialized_state_dict.pt",
+            "size": 1752
+          },
+          {
+            "compressed_size": 3,
+            "compression": 0,
+            "crc32": "16e93596",
+            "flag_bits": 0,
+            "name": "version",
+            "size": 3
+          }
+        ],
+        "root_prefix": "",
+        "schema_version": {
+          "major": 8,
+          "minor": 2
+        }
+      },
+      "semantic_sha256": "884467f5d3fc524760253fd2dda51502d93f6a007c9a72daff5bd61a75cbb294",
+      "sha256": "8822f2e5ef6f38dfca073f15be77908aa3675199a35b6f5e13528fed45872eb2",
+      "size": 9123
+    },
+    {
+      "case": "structured_io",
+      "file": "structured_io.pt2",
+      "inspection": {
+        "archive_version": null,
+        "container": "legacy_exported_program_zip",
+        "graph": {
+          "inputs": 3,
+          "nodes": 4,
+          "outputs": 3
+        },
+        "model_record": "serialized_exported_program.json",
+        "opset_version": {
+          "aten": 10
+        },
+        "payload_styles": [
+          "nested_torch_save"
+        ],
+        "producer_torch_version_in_model": "2.6.0",
+        "records": [
+          {
+            "compressed_size": 864,
+            "compression": 0,
+            "crc32": "b295b54f",
+            "flag_bits": 0,
+            "name": "serialized_constants.pt",
+            "size": 864
+          },
+          {
+            "compressed_size": 1432,
+            "compression": 0,
+            "crc32": "b393ae59",
+            "flag_bits": 0,
+            "name": "serialized_example_inputs.pt",
+            "size": 1432
+          },
+          {
+            "compressed_size": 5151,
+            "compression": 0,
+            "crc32": "cf56727f",
+            "flag_bits": 0,
+            "name": "serialized_exported_program.json",
+            "size": 5151
+          },
+          {
+            "compressed_size": 864,
+            "compression": 0,
+            "crc32": "b295b54f",
+            "flag_bits": 0,
+            "name": "serialized_state_dict.pt",
+            "size": 864
+          },
+          {
+            "compressed_size": 3,
+            "compression": 0,
+            "crc32": "16e93596",
+            "flag_bits": 0,
+            "name": "version",
+            "size": 3
+          }
+        ],
+        "root_prefix": "",
+        "schema_version": {
+          "major": 8,
+          "minor": 2
+        }
+      },
+      "semantic_sha256": "9e08117c20dfdbf9454723c4cf37c1ade622c0abd187add634a662a95a908e6f",
+      "sha256": "740d4f97339a759421fa20a2fb0f2e46186b25827caf5a5838feefae31b49c67",
+      "size": 8944
+    }
+  ],
+  "generator": {
+    "roundtrip_checked": true,
+    "script": "generate_pt2_fixtures.py",
+    "script_sha256": "3c2458399133cfa310fcfbf61a24500aa4df327d6f8638bc9300d9034bed7922",
+    "semantic_determinism_checked": true,
+    "strict_export": true,
+    "version": 1
+  },
+  "manifest_version": 1,
+  "producer": {
+    "byteorder": "little",
+    "platform": "macOS-26.4-arm64-arm-64bit",
+    "python_implementation": "CPython",
+    "python_version": "3.12.13",
+    "torch_version": "2.6.0",
+    "torch_version_normalized": "2.6.0"
+  }
+}
