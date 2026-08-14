@@ -64,6 +64,6 @@ the model binary is the concatenation of all weight data, each weight buffer is 
 [raw data]
 [padding] (optional)
 ```
-* flag : unsigned int,  little-endian, indicating the weight storage type, 0 => float32, 0x01306B47 => float16, otherwise => quantized int8, may be omitted if the layer implementation forced the storage type explicitly
-* raw data : raw weight data, little-endian, float32 data or float16 data or quantized table and indexes depending on the storage type flag
+* flag : unsigned int,  little-endian, indicating the weight storage type, 0 => float32, 0x01306B47 => float16, 0x01348B83 => bfloat16, otherwise => quantized int8, may be omitted if the layer implementation forced the storage type explicitly
+* raw data : raw weight data, little-endian, float32 data or float16 data or bfloat16 data or quantized table and indexes depending on the storage type flag
 * padding : padding space for 32bit alignment, may be omitted if already aligned

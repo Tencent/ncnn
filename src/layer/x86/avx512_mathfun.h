@@ -898,8 +898,7 @@ static NCNN_FORCEINLINE __m512 atan2512_ps(const __m512& y, const __m512& x)
 
 static NCNN_FORCEINLINE __m512 abs512_ps(const __m512& x)
 {
-    const __m512 abs_mask = _mm512_castsi512_ps(_mm512_set1_epi32(0x7fffffff));
-    return _mm512_and_ps(abs_mask, x);
+    return _mm512_castsi512_ps(_mm512_and_epi32(_mm512_castps_si512(x), _mm512_set1_epi32(0x7fffffff)));
 }
 
 static NCNN_FORCEINLINE __m512 trunc512_ps(const __m512& x)
