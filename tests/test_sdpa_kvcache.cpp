@@ -5,7 +5,7 @@
 
 #include <float.h>
 
-static int test_sdpa_kvcache(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int attn_mask, int past_seqlen)
+static int test_sdpa_kvcache(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int attn_mask, int past_seqlen, int mask_channels = 0)
 {
     const int embed_dim = q.w;
     const int out_embed_dim = v.w;
@@ -26,7 +26,7 @@ static int test_sdpa_kvcache(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn:
 
     if (attn_mask)
     {
-        as.push_back(RandomMat(dst_seqlen, src_seqlen));
+        as.push_back(mask_channels > 0 ? RandomMat(dst_seqlen, src_seqlen, mask_channels) : RandomMat(dst_seqlen, src_seqlen));
     }
 
     as.push_back(RandomMat(embed_dim, past_seqlen, k.c));
@@ -35,7 +35,7 @@ static int test_sdpa_kvcache(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn:
     int ret = test_layer("SDPA", pd, weights, as, 3);
     if (ret != 0)
     {
-        fprintf(stderr, "test_sdpa_kvcache failed q=(%d %d %d) k=(%d %d %d) v=(%d %d %d) attn_mask=%d past_seqlen=%d\n", q.w, q.h, q.c, k.w, k.h, k.c, v.w, v.h, v.c, attn_mask, past_seqlen);
+        fprintf(stderr, "test_sdpa_kvcache failed q=(%d %d %d) k=(%d %d %d) v=(%d %d %d) attn_mask=%d past_seqlen=%d mask_channels=%d\n", q.w, q.h, q.c, k.w, k.h, k.c, v.w, v.h, v.c, attn_mask, past_seqlen, mask_channels);
     }
 
     return ret;
@@ -53,7 +53,9 @@ static int test_sdpa_0()
            || test_sdpa_kvcache(RandomMat(44, 128, 4), RandomMat(44, 123, 4), RandomMat(55, 123, 4), 0, 0)
            || test_sdpa_kvcache(RandomMat(12, 127, 4), RandomMat(12, 127, 4), RandomMat(55, 127, 4), 1, 0)
            || test_sdpa_kvcache(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 3)
-           || test_sdpa_kvcache(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1, 5);
+           || test_sdpa_kvcache(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1, 5)
+           || test_sdpa_kvcache(RandomMat(32, 3, 4), RandomMat(32, 3, 4), RandomMat(20, 3, 4), 1, 2560, 1)
+           || test_sdpa_kvcache(RandomMat(32, 4, 4), RandomMat(32, 4, 4), RandomMat(20, 4, 4), 1, 1024, 4);
 }
 
 #if NCNN_INT8

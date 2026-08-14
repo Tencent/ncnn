@@ -1000,7 +1000,8 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
         qk_bottom_blobs[1] = k_affine.row_range(i * embed_dim_per_head, embed_dim_per_head);
         if (attn_mask)
         {
-            const Mat& maskm = attn_mask_blob_unpacked.dims == 3 ? attn_mask_blob_unpacked.channel(i) : attn_mask_blob_unpacked;
+            const int mask_channel = attn_mask_blob_unpacked.c == 1 ? 0 : i;
+            const Mat maskm = attn_mask_blob_unpacked.dims == 3 ? attn_mask_blob_unpacked.channel(mask_channel) : attn_mask_blob_unpacked;
             qk_bottom_blobs.push_back(maskm);
         }
         std::vector<Mat> qk_top_blobs(1);

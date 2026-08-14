@@ -414,7 +414,8 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_heads; q++)
         {
-            const Mat& maskm = attn_mask_blob.dims == 3 ? attn_mask_blob.channel(q) : attn_mask_blob;
+            const int mask_channel = attn_mask_blob.c == 1 ? 0 : q;
+            const Mat maskm = attn_mask_blob.dims == 3 ? attn_mask_blob.channel(mask_channel) : attn_mask_blob;
             Mat qk_cross_head = qk_cross.channel(q);
 
             for (int i = 0; i < src_seqlen; i++)
@@ -924,7 +925,8 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_heads; q++)
         {
-            const Mat& maskm = attn_mask_blob.dims == 3 ? attn_mask_blob.channel(q) : attn_mask_blob;
+            const int mask_channel = attn_mask_blob.c == 1 ? 0 : q;
+            const Mat maskm = attn_mask_blob.dims == 3 ? attn_mask_blob.channel(mask_channel) : attn_mask_blob;
             Mat qk_cross_head = qk_cross.channel(q);
 
             for (int i = 0; i < src_seqlen; i++)
@@ -1487,7 +1489,8 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_heads; q++)
         {
-            const Mat& maskm = attn_mask_blob.dims == 3 ? attn_mask_blob.channel(q) : attn_mask_blob;
+            const int mask_channel = attn_mask_blob.c == 1 ? 0 : q;
+            const Mat maskm = attn_mask_blob.dims == 3 ? attn_mask_blob.channel(mask_channel) : attn_mask_blob;
             Mat qk_cross_head = qk_cross.channel(q);
 
             for (int i = 0; i < src_seqlen; i++)
