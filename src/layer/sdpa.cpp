@@ -10,7 +10,7 @@
 
 namespace ncnn {
 
-static int kvcache_capacity(int current_capacity, int new_seqlen, int max_seqlen_hint)
+int SDPA::kvcache_capacity(int current_capacity, int new_seqlen, int max_seqlen_hint)
 {
     if (current_capacity == 0 && max_seqlen_hint >= new_seqlen && max_seqlen_hint > 0)
         return max_seqlen_hint;

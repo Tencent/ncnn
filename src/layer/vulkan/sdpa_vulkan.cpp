@@ -3,35 +3,10 @@
 
 #include "sdpa_vulkan.h"
 
-#include <limits.h>
-
 #include "layer_shader_type.h"
 #include "layer_type.h"
 
 namespace ncnn {
-
-static int kvcache_capacity(int current_capacity, int new_seqlen, int max_seqlen_hint)
-{
-    if (current_capacity == 0 && max_seqlen_hint >= new_seqlen && max_seqlen_hint > 0)
-        return max_seqlen_hint;
-
-    int capacity = current_capacity > new_seqlen ? current_capacity : new_seqlen;
-    int reserve;
-    if (current_capacity == 0)
-    {
-        reserve = capacity < 16 ? 16 - capacity : capacity;
-        if (reserve > 256)
-            reserve = 256;
-    }
-    else
-    {
-        reserve = capacity / 2;
-        if (reserve < 16)
-            reserve = 16;
-    }
-
-    return capacity <= INT_MAX - reserve ? capacity + reserve : capacity;
-}
 
 SDPA_vulkan::SDPA_vulkan()
 {
