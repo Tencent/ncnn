@@ -404,7 +404,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         NaiveKVCacheStorage naive_storage(opt.blob_vkallocator);
         KVCacheStorage* storage = opt.kvcache_storage ? opt.kvcache_storage : &naive_storage;
         if ((!past_key.empty() && !storage->owns(past_key))
-            || (!past_value.empty() && !storage->owns(past_value)))
+                || (!past_value.empty() && !storage->owns(past_value)))
         {
             NCNN_LOGE("SDPA_vulkan got foreign kvcache");
             return -1;
@@ -412,10 +412,10 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         if (!past_value.empty() && past_value.h != past_seqlen)
             return -1;
         if (!past_key.empty()
-            && (past_key.w != cur_key.w || past_value.w != cur_value.w
-                || past_key.c != num_group || past_value.c != num_group
-                || past_key.elemsize != cur_key.elemsize || past_value.elemsize != cur_value.elemsize
-                || past_key.elempack != cur_key.elempack || past_value.elempack != cur_value.elempack))
+                && (past_key.w != cur_key.w || past_value.w != cur_value.w
+                    || past_key.c != num_group || past_value.c != num_group
+                    || past_key.elemsize != cur_key.elemsize || past_value.elemsize != cur_value.elemsize
+                    || past_key.elempack != cur_key.elempack || past_value.elempack != cur_value.elempack))
             return -1;
 
         int retk = past_key.empty() ? storage->create(cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, cur_key.elempack, cmd) : storage->expand(past_key, cached_key, dst_seqlen, cmd);
@@ -547,8 +547,8 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
         }
 
-    return 0;
-}
+        return 0;
+    }
 
     VkMat qk_cross(dst_seqlen, src_seqlen, num_heads, elemsize, opt.workspace_vkallocator);
     if (qk_cross.empty())

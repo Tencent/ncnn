@@ -366,7 +366,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         if (past_xk_blob.empty() != past_xv_blob.empty())
             return -1;
         if ((!past_xk_blob.empty() && !storage->owns(past_xk_blob))
-            || (!past_xv_blob.empty() && !storage->owns(past_xv_blob)))
+                || (!past_xv_blob.empty() && !storage->owns(past_xv_blob)))
         {
             NCNN_LOGE("MultiHeadAttention got foreign kvcache");
             return -1;
@@ -374,19 +374,19 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         if (!past_xv_blob.empty() && past_xv_blob.h != past_seqlen)
             return -1;
         if (!past_xk_blob.empty()
-            && (past_xk_blob.w != embed_dim_per_head || past_xv_blob.w != embed_dim_per_head
-                || past_xk_blob.c != num_heads || past_xv_blob.c != num_heads
-                || past_xk_blob.elemsize != 4u || past_xv_blob.elemsize != 4u
-                || past_xk_blob.elempack != 1 || past_xv_blob.elempack != 1))
+                && (past_xk_blob.w != embed_dim_per_head || past_xv_blob.w != embed_dim_per_head
+                    || past_xk_blob.c != num_heads || past_xv_blob.c != num_heads
+                    || past_xk_blob.elemsize != 4u || past_xv_blob.elemsize != 4u
+                    || past_xk_blob.elempack != 1 || past_xv_blob.elempack != 1))
             return -1;
 
         const int append_seqlen = append_key ? cur_seqlen : 0;
         if (append_seqlen > 0
-            && (k_affine.dims != 2 || v_affine.dims != 2
-                || k_affine.w != append_seqlen || v_affine.w != append_seqlen
-                || k_affine.h != embed_dim || v_affine.h != embed_dim
-                || k_affine.elempack != 1 || v_affine.elempack != 1
-                || k_affine.elemsize != 4u || v_affine.elemsize != 4u))
+                && (k_affine.dims != 2 || v_affine.dims != 2
+                    || k_affine.w != append_seqlen || v_affine.w != append_seqlen
+                    || k_affine.h != embed_dim || v_affine.h != embed_dim
+                    || k_affine.elempack != 1 || v_affine.elempack != 1
+                    || k_affine.elemsize != 4u || v_affine.elemsize != 4u))
             return -1;
 
         int retk = past_xk_blob.empty() ? storage->create(cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1) : storage->expand(past_xk_blob, cached_xk_blob, dst_seqlen);
@@ -911,7 +911,7 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
         if (past_xk_blob.empty() != past_xv_blob.empty())
             return -1;
         if ((!past_xk_blob.empty() && !storage->owns(past_xk_blob))
-            || (!past_xv_blob.empty() && !storage->owns(past_xv_blob)))
+                || (!past_xv_blob.empty() && !storage->owns(past_xv_blob)))
         {
             NCNN_LOGE("MultiHeadAttention got foreign kvcache");
             return -1;
@@ -919,19 +919,19 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
         if (!past_xv_blob.empty() && past_xv_blob.h != past_seqlen)
             return -1;
         if (!past_xk_blob.empty()
-            && (past_xk_blob.w != embed_dim_per_head || past_xv_blob.w != embed_dim_per_head
-                || past_xk_blob.c != num_heads || past_xv_blob.c != num_heads
-                || past_xk_blob.elemsize != 4u || past_xv_blob.elemsize != 4u
-                || past_xk_blob.elempack != 1 || past_xv_blob.elempack != 1))
+                && (past_xk_blob.w != embed_dim_per_head || past_xv_blob.w != embed_dim_per_head
+                    || past_xk_blob.c != num_heads || past_xv_blob.c != num_heads
+                    || past_xk_blob.elemsize != 4u || past_xv_blob.elemsize != 4u
+                    || past_xk_blob.elempack != 1 || past_xv_blob.elempack != 1))
             return -1;
 
         const int append_seqlen = append_key ? cur_seqlen : 0;
         if (append_seqlen > 0
-            && (k_affine.dims != 2 || v_affine.dims != 2
-                || k_affine.w != append_seqlen || v_affine.w != append_seqlen
-                || k_affine.h != embed_dim || v_affine.h != embed_dim
-                || k_affine.elempack != 1 || v_affine.elempack != 1
-                || k_affine.elemsize != 4u || v_affine.elemsize != 4u))
+                && (k_affine.dims != 2 || v_affine.dims != 2
+                    || k_affine.w != append_seqlen || v_affine.w != append_seqlen
+                    || k_affine.h != embed_dim || v_affine.h != embed_dim
+                    || k_affine.elempack != 1 || v_affine.elempack != 1
+                    || k_affine.elemsize != 4u || v_affine.elemsize != 4u))
             return -1;
 
         int retk = past_xk_blob.empty() ? storage->create(cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1) : storage->expand(past_xk_blob, cached_xk_blob, dst_seqlen);
@@ -1495,7 +1495,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         if (past_xk_blob.empty() != past_xv_blob.empty())
             return -1;
         if ((!past_xk_blob.empty() && !storage->owns(past_xk_blob))
-            || (!past_xv_blob.empty() && !storage->owns(past_xv_blob)))
+                || (!past_xv_blob.empty() && !storage->owns(past_xv_blob)))
         {
             NCNN_LOGE("MultiHeadAttention got foreign kvcache");
             return -1;
@@ -1503,19 +1503,19 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         if (!past_xv_blob.empty() && past_xv_blob.h != past_seqlen)
             return -1;
         if (!past_xk_blob.empty()
-            && (past_xk_blob.w != embed_dim_per_head || past_xv_blob.w != embed_dim_per_head
-                || past_xk_blob.c != num_heads || past_xv_blob.c != num_heads
-                || past_xk_blob.elemsize != 4u || past_xv_blob.elemsize != 4u
-                || past_xk_blob.elempack != 1 || past_xv_blob.elempack != 1))
+                && (past_xk_blob.w != embed_dim_per_head || past_xv_blob.w != embed_dim_per_head
+                    || past_xk_blob.c != num_heads || past_xv_blob.c != num_heads
+                    || past_xk_blob.elemsize != 4u || past_xv_blob.elemsize != 4u
+                    || past_xk_blob.elempack != 1 || past_xv_blob.elempack != 1))
             return -1;
 
         const int append_seqlen = append_key ? cur_seqlen : 0;
         if (append_seqlen > 0
-            && (k_affine.dims != 2 || v_affine.dims != 2
-                || k_affine.w != append_seqlen || v_affine.w != append_seqlen
-                || k_affine.h != embed_dim || v_affine.h != embed_dim
-                || k_affine.elempack != 1 || v_affine.elempack != 1
-                || k_affine.elemsize != 4u || v_affine.elemsize != 4u))
+                && (k_affine.dims != 2 || v_affine.dims != 2
+                    || k_affine.w != append_seqlen || v_affine.w != append_seqlen
+                    || k_affine.h != embed_dim || v_affine.h != embed_dim
+                    || k_affine.elempack != 1 || v_affine.elempack != 1
+                    || k_affine.elemsize != 4u || v_affine.elemsize != 4u))
             return -1;
 
         int retk = past_xk_blob.empty() ? storage->create(cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1) : storage->expand(past_xk_blob, cached_xk_blob, dst_seqlen);

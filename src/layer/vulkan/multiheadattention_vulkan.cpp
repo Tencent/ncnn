@@ -421,7 +421,7 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         if (past_xk_blob.empty() != past_xv_blob.empty())
             return -1;
         if ((!past_xk_blob.empty() && !storage->owns(past_xk_blob))
-            || (!past_xv_blob.empty() && !storage->owns(past_xv_blob)))
+                || (!past_xv_blob.empty() && !storage->owns(past_xv_blob)))
         {
             NCNN_LOGE("MultiHeadAttention_vulkan got foreign kvcache");
             return -1;
@@ -456,8 +456,8 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
     if (kv_cache)
     {
         if (!past_xk_blob.empty()
-            && (past_xk_blob.w != embed_dim_per_head || past_xk_blob.c != num_heads || past_xk_blob.elempack != 1
-                || past_xv_blob.w != embed_dim_per_head || past_xv_blob.c != num_heads || past_xv_blob.h != past_seqlen || past_xv_blob.elempack != 1))
+                && (past_xk_blob.w != embed_dim_per_head || past_xk_blob.c != num_heads || past_xk_blob.elempack != 1
+                    || past_xv_blob.w != embed_dim_per_head || past_xv_blob.c != num_heads || past_xv_blob.h != past_seqlen || past_xv_blob.elempack != 1))
             return -1;
 
         if (append_seqlen > 0)
@@ -487,11 +487,11 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
             }
 
             if (current_key.dims != 2 || current_key.w != append_seqlen || current_key.h != embed_dim
-                || current_value.dims != 2 || current_value.w != append_seqlen || current_value.h != embed_dim)
+                    || current_value.dims != 2 || current_value.w != append_seqlen || current_value.h != embed_dim)
                 return -1;
         }
         if (!past_xk_blob.empty() && append_seqlen > 0
-            && (past_xk_blob.elemsize != current_key.elemsize || past_xv_blob.elemsize != current_value.elemsize))
+                && (past_xk_blob.elemsize != current_key.elemsize || past_xv_blob.elemsize != current_value.elemsize))
             return -1;
 
         int retk = past_xk_blob.empty() ? storage->create(cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, current_key.elemsize, 1, cmd) : storage->expand(past_xk_blob, cached_xk_blob, dst_seqlen, cmd);

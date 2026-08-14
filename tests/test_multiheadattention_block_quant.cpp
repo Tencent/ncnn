@@ -46,7 +46,6 @@ static ncnn::Mat RandomWQInt8Mat(int width, int height, int block_size, const nc
     return m;
 }
 
-
 static void quantize_weight(const ncnn::Mat& weight_data, int bits, int block_size, const ncnn::Mat& input_scales, ncnn::Mat& weight_data_quantized, ncnn::Mat& weight_data_quantize_scales, ncnn::Mat& weight_data_dequantized)
 {
     const int K = weight_data.w;

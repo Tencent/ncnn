@@ -309,19 +309,19 @@ int MultiHeadAttention_mips::create_pipeline_wq_int8(const Option& _opt)
             return -100;
         }
         ncnn::ParamDict pd;
-        pd.set(2, 0);   // transA
+        pd.set(2, 0);                // transA
         pd.set(3, kv_cache ? 0 : 1); // transB
-        pd.set(4, 0);   // constantA
-        pd.set(5, 0);   // constantB
-        pd.set(6, 1);   // constantC
-        pd.set(7, 0);   // M
-        pd.set(8, 0);   // N
-        pd.set(9, 0);   // K
-        pd.set(10, -1); // constant_broadcast_type_C
-        pd.set(11, 0);  // output_N1M
-        pd.set(12, 1);  // output_elempack
-        pd.set(13, 1);  // output_elemtype = fp32
-        pd.set(14, 1);  // output_transpose
+        pd.set(4, 0);                // constantA
+        pd.set(5, 0);                // constantB
+        pd.set(6, 1);                // constantC
+        pd.set(7, 0);                // M
+        pd.set(8, 0);                // N
+        pd.set(9, 0);                // K
+        pd.set(10, -1);              // constant_broadcast_type_C
+        pd.set(11, 0);               // output_N1M
+        pd.set(12, 1);               // output_elempack
+        pd.set(13, 1);               // output_elemtype = fp32
+        pd.set(14, 1);               // output_transpose
         int ret = qkv_gemm->load_param(pd);
         if (ret != 0)
         {
@@ -610,19 +610,19 @@ int MultiHeadAttention_mips::create_pipeline(const Option& _opt)
             return -100;
         }
         ncnn::ParamDict pd;
-        pd.set(2, 0);   // transA
+        pd.set(2, 0);                // transA
         pd.set(3, kv_cache ? 0 : 1); // transB
-        pd.set(4, 0);   // constantA
-        pd.set(5, 0);   // constantB
-        pd.set(6, 1);   // constantC
-        pd.set(7, 0);   // M
-        pd.set(8, 0);   // N
-        pd.set(9, 0);   // K
-        pd.set(10, -1); // constant_broadcast_type_C
-        pd.set(11, 0);  // output_N1M
-        pd.set(12, 1);  // output_elempack
-        pd.set(13, 1);  // output_elemtype = fp32
-        pd.set(14, 1);  // output_transpose
+        pd.set(4, 0);                // constantA
+        pd.set(5, 0);                // constantB
+        pd.set(6, 1);                // constantC
+        pd.set(7, 0);                // M
+        pd.set(8, 0);                // N
+        pd.set(9, 0);                // K
+        pd.set(10, -1);              // constant_broadcast_type_C
+        pd.set(11, 0);               // output_N1M
+        pd.set(12, 1);               // output_elempack
+        pd.set(13, 1);               // output_elemtype = fp32
+        pd.set(14, 1);               // output_transpose
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
@@ -808,7 +808,7 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
         if (past_xk_blob.empty() != past_xv_blob.empty())
             return -1;
         if ((!past_xk_blob.empty() && !storage->owns(past_xk_blob))
-            || (!past_xv_blob.empty() && !storage->owns(past_xv_blob)))
+                || (!past_xv_blob.empty() && !storage->owns(past_xv_blob)))
         {
             NCNN_LOGE("MultiHeadAttention_mips got foreign kvcache");
             return -1;
@@ -830,8 +830,8 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
     if (kv_cache)
     {
         if (!past_xk_blob.empty()
-            && (past_xk_blob.w != embed_dim_per_head || past_xk_blob.c != num_heads || past_xk_blob.elempack != 1
-                || past_xv_blob.w != embed_dim_per_head || past_xv_blob.c != num_heads || past_xv_blob.h != past_seqlen || past_xv_blob.elempack != 1))
+                && (past_xk_blob.w != embed_dim_per_head || past_xk_blob.c != num_heads || past_xk_blob.elempack != 1
+                    || past_xv_blob.w != embed_dim_per_head || past_xv_blob.c != num_heads || past_xv_blob.h != past_seqlen || past_xv_blob.elempack != 1))
             return -1;
 
         const bool append_key = past_seqlen == 0 || q_blob_i == k_blob_i;
@@ -853,13 +853,13 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
                 return retv;
 
             if (current_key.dims != 2 || current_value.dims != 2
-                || current_key.w != append_seqlen || current_value.w != append_seqlen
-                || current_key.h != num_heads * embed_dim_per_head || current_value.h != num_heads * embed_dim_per_head
-                || current_key.elempack != 1 || current_value.elempack != 1)
+                    || current_key.w != append_seqlen || current_value.w != append_seqlen
+                    || current_key.h != num_heads * embed_dim_per_head || current_value.h != num_heads * embed_dim_per_head
+                    || current_key.elempack != 1 || current_value.elempack != 1)
                 return -1;
         }
         if (!past_xk_blob.empty() && append_seqlen > 0
-            && (current_key.elemsize != past_xk_blob.elemsize || current_value.elemsize != past_xv_blob.elemsize))
+                && (current_key.elemsize != past_xk_blob.elemsize || current_value.elemsize != past_xv_blob.elemsize))
             return -1;
 
         int retk = past_xk_blob.empty() ? storage->create(cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, current_key.elemsize, 1) : storage->expand(past_xk_blob, cached_xk_blob, dst_seqlen);

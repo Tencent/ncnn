@@ -22,7 +22,6 @@ static const char sdpa_param[] = "7767517\n"
 
 static const unsigned int empty_model[1] = {0};
 
-
 static void fill_sdpa_input(ncnn::Mat& m, float base)
 {
     for (int q = 0; q < m.c; q++)

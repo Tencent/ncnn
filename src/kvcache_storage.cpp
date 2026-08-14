@@ -34,7 +34,7 @@ NaiveKVCacheStorage::NaiveKVCacheStorage(Allocator* _allocator)
     : storage_type(0), allocator(_allocator)
 #if NCNN_VULKAN
     ,
-    vkallocator(0)
+      vkallocator(0)
 #endif
 {
 }

@@ -171,7 +171,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         if (past_key.empty() != past_value.empty())
             return -1;
         if ((!past_key.empty() && !storage->owns(past_key))
-            || (!past_value.empty() && !storage->owns(past_value)))
+                || (!past_value.empty() && !storage->owns(past_value)))
         {
             NCNN_LOGE("SDPA_x86 got foreign kvcache");
             return -1;
@@ -179,10 +179,10 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         if (!past_value.empty() && past_value.h != past_seqlen)
             return -1;
         if (!past_key.empty()
-            && (past_key.w != cur_key.w || past_value.w != cur_value.w
-                || past_key.c != num_group || past_value.c != num_group
-                || past_key.elemsize != cur_key.elemsize || past_value.elemsize != cur_value.elemsize
-                || past_key.elempack != cur_key.elempack || past_value.elempack != cur_value.elempack))
+                && (past_key.w != cur_key.w || past_value.w != cur_value.w
+                    || past_key.c != num_group || past_value.c != num_group
+                    || past_key.elemsize != cur_key.elemsize || past_value.elemsize != cur_value.elemsize
+                    || past_key.elempack != cur_key.elempack || past_value.elempack != cur_value.elempack))
             return -1;
 
         int retk = past_key.empty() ? storage->create(cached_key, dst_seqlen, num_group, cur_key.w, elemsize, cur_key.elempack) : storage->expand(past_key, cached_key, dst_seqlen);
