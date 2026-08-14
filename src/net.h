@@ -189,6 +189,9 @@ public:
     // set workspace memory allocator
     void set_workspace_allocator(Allocator* allocator);
 
+    // set kv cache storage, no owner transfer
+    void set_kvcache_storage(KVCacheStorage* storage);
+
 #if NCNN_VULKAN
     void set_blob_vkallocator(VkAllocator* allocator);
 

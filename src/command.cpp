@@ -30,6 +30,7 @@ public:
 
     std::vector<VkMat> upload_staging_buffers;
     std::vector<VkMat> download_post_buffers;
+    std::vector<VkMat> buffer_copy_sources;
     std::vector<Mat> download_post_mats_fp16;
     std::vector<Mat> download_post_mats;
 
@@ -605,7 +606,21 @@ void VkCompute::record_clone(const Mat& src, VkMat& dst, const Option& opt)
     {
         const Mat src_b = src.batch(b);
         VkMat staging_b = dst_staging.batch(b);
-        memcpy(staging_b.mapped_ptr(), src_b.data, src_b.total() * src_b.elemsize);
+        if (src_b.cstep == staging_b.cstep)
+        {
+            memcpy(staging_b.mapped_ptr(), src_b.data, std::min(src_b.total(), staging_b.total()) * src_b.elemsize);
+        }
+        else
+        {
+            const int channels = src_b.dims >= 3 ? src_b.c : 1;
+            const size_t channel_size = (size_t)src_b.w * src_b.h * src_b.d * src_b.elemsize;
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned char* sptr = (const unsigned char*)src_b.data + (size_t)q * src_b.cstep * src_b.elemsize;
+                unsigned char* dptr = (unsigned char*)staging_b.mapped_ptr() + (size_t)q * staging_b.cstep * staging_b.elemsize;
+                memcpy(dptr, sptr, channel_size);
+            }
+        }
     }
     dst_staging.allocator->flush(dst_staging.data);
 
@@ -737,6 +752,8 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
     if (dst.empty())
         return;
 
+    d->buffer_copy_sources.push_back(src);
+
     if (src.data->access_flags & VK_ACCESS_TRANSFER_WRITE_BIT || src.data->stage_flags != VK_PIPELINE_STAGE_TRANSFER_BIT)
     {
         // barrier device any @ compute to transfer-read @ compute
@@ -786,14 +803,46 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
 
     // record device to staging
     {
-        VkBufferCopy* regions = new VkBufferCopy[1];
-        regions[0].srcOffset = src.buffer_offset();
-        regions[0].dstOffset = dst.buffer_offset();
-        regions[0].size = std::min(src.buffer_capacity(), dst.buffer_capacity());
+        int region_count = 1;
+#if NCNN_BATCH
+        if (src.cstep != dst.cstep || src.nstep != dst.nstep)
+            region_count = src.n * (src.dims >= 3 ? src.c : 1);
+#else
+        if (src.cstep != dst.cstep)
+            region_count = src.dims >= 3 ? src.c : 1;
+#endif
+
+        VkBufferCopy* regions = new VkBufferCopy[region_count];
+        if (region_count == 1)
+        {
+            regions[0].srcOffset = src.buffer_offset();
+            regions[0].dstOffset = dst.buffer_offset();
+            regions[0].size = std::min(src.buffer_capacity(), dst.buffer_capacity());
+        }
+        else
+        {
+            const int channels = src.dims >= 3 ? src.c : 1;
+            const size_t channel_size = alignSize((size_t)src.w * src.h * src.d * src.elemsize, 4);
+            for (int b = 0; b < src.n; b++)
+            {
+                for (int q = 0; q < channels; q++)
+                {
+                    const int region_index = b * channels + q;
+#if NCNN_BATCH
+                    regions[region_index].srcOffset = src.buffer_offset() + ((size_t)b * src.nstep + (size_t)q * src.cstep) * src.elemsize;
+                    regions[region_index].dstOffset = dst.buffer_offset() + ((size_t)b * dst.nstep + (size_t)q * dst.cstep) * dst.elemsize;
+#else
+                    regions[region_index].srcOffset = src.buffer_offset() + (size_t)q * src.cstep * src.elemsize;
+                    regions[region_index].dstOffset = dst.buffer_offset() + (size_t)q * dst.cstep * dst.elemsize;
+#endif
+                    regions[region_index].size = channel_size;
+                }
+            }
+        }
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdCopyBuffer(d->compute_command_buffer, src.buffer(), dst.buffer(), 1, regions);
+            vkCmdCopyBuffer(d->compute_command_buffer, src.buffer(), dst.buffer(), region_count, regions);
             delete[] regions;
         }
         else
@@ -803,7 +852,7 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
             r.command_buffer = d->compute_command_buffer;
             r.copy_buffer.src = src.buffer();
             r.copy_buffer.dst = dst.buffer();
-            r.copy_buffer.region_count = 1;
+            r.copy_buffer.region_count = region_count;
             r.copy_buffer.regions = regions;
             d->delayed_records.push_back(r);
         }
@@ -1999,7 +2048,21 @@ int VkCompute::submit_and_wait()
             {
                 const VkMat src_b = src.batch(b);
                 Mat dst_b = dst.batch(b);
-                memcpy(dst_b.data, src_b.mapped_ptr(), dst_b.total() * dst_b.elemsize);
+                if (src_b.cstep == dst_b.cstep)
+                {
+                    memcpy(dst_b.data, src_b.mapped_ptr(), std::min(src_b.total(), dst_b.total()) * dst_b.elemsize);
+                }
+                else
+                {
+                    const int channels = src_b.dims >= 3 ? src_b.c : 1;
+                    const size_t channel_size = (size_t)src_b.w * src_b.h * src_b.d * src_b.elemsize;
+                    for (int q = 0; q < channels; q++)
+                    {
+                        const unsigned char* sptr = (const unsigned char*)src_b.mapped_ptr() + (size_t)q * src_b.cstep * src_b.elemsize;
+                        unsigned char* dptr = (unsigned char*)dst_b.data + (size_t)q * dst_b.cstep * dst_b.elemsize;
+                        memcpy(dptr, sptr, channel_size);
+                    }
+                }
             }
             break;
         }
@@ -2045,6 +2108,7 @@ int VkCompute::reset()
 {
     d->upload_staging_buffers.clear();
     d->download_post_buffers.clear();
+    d->buffer_copy_sources.clear();
     d->download_post_mats_fp16.clear();
     d->download_post_mats.clear();
 

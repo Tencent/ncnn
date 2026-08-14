@@ -3,6 +3,8 @@
 
 #include "testutil.h"
 
+#include "kvcache_storage.h"
+
 #if NCNN_WEIGHT_QUANT
 static int weight_block_quantize_term(int bits, int block_size, int has_input_scale)
 {
@@ -44,24 +46,6 @@ static ncnn::Mat RandomWQInt8Mat(int width, int height, int block_size, const nc
     return m;
 }
 
-static ncnn::Mat RandomWQInt8Cache(int width, int height)
-{
-    ncnn::Mat m(width, height);
-
-    std::vector<float> values(width);
-    for (int x = 0; x < width; x++)
-        values[x] = RandomInt(-120, 121) / 64.f;
-
-    for (int y = 0; y < height; y++)
-    {
-        float* ptr = m.row(y);
-        const float sign = y % 2 == 0 ? 1.f : -1.f;
-        for (int x = 0; x < width; x++)
-            ptr[x] = values[(x + y) % width] * sign;
-    }
-
-    return m;
-}
 
 static void quantize_weight(const ncnn::Mat& weight_data, int bits, int block_size, const ncnn::Mat& input_scales, ncnn::Mat& weight_data_quantized, ncnn::Mat& weight_data_quantize_scales, ncnn::Mat& weight_data_dequantized)
 {
@@ -331,14 +315,14 @@ static int test_multiheadattention_block_quant_kvcache(int bits, int block_size,
     }
     if (attn_mask)
     {
-        as[1] = RandomMat(5 + src_seqlen, src_seqlen, -1.f, 0.f);
-        as[2] = RandomMat(5, embed_dim, -1.f, 1.f);
-        as[3] = bits == 8 && has_input_scale ? RandomWQInt8Cache(5, embed_dim) : RandomMat(5, embed_dim, -1.f, 1.f);
+        as[1] = RandomMat(src_seqlen, src_seqlen, -1.f, 0.f);
+        as[2] = ncnn::Mat();
+        as[3] = ncnn::Mat();
     }
     else
     {
-        as[1] = RandomMat(5, embed_dim, -1.f, 1.f);
-        as[2] = bits == 8 && has_input_scale ? RandomWQInt8Cache(5, embed_dim) : RandomMat(5, embed_dim, -1.f, 1.f);
+        as[1] = ncnn::Mat();
+        as[2] = ncnn::Mat();
     }
 
     ncnn::ParamDict pd;
@@ -390,14 +374,14 @@ static int test_multiheadattention_block_quant_cross_kvcache(int bits, int block
     }
     if (attn_mask)
     {
-        as[3] = RandomMat(5, src_seqlen, -1.f, 0.f);
-        as[4] = RandomMat(5, embed_dim, -1.f, 1.f);
-        as[5] = bits == 8 && has_input_scale ? RandomWQInt8Cache(5, embed_dim) : RandomMat(5, embed_dim, -1.f, 1.f);
+        as[3] = RandomMat(2, src_seqlen, -1.f, 0.f);
+        as[4] = ncnn::Mat();
+        as[5] = ncnn::Mat();
     }
     else
     {
-        as[3] = RandomMat(5, embed_dim, -1.f, 1.f);
-        as[4] = bits == 8 && has_input_scale ? RandomWQInt8Cache(5, embed_dim) : RandomMat(5, embed_dim, -1.f, 1.f);
+        as[3] = ncnn::Mat();
+        as[4] = ncnn::Mat();
     }
 
     ncnn::ParamDict pd;
@@ -442,22 +426,42 @@ static int test_multiheadattention_wq_int8_pipeline()
     std::vector<ncnn::Mat> inputs[2];
     inputs[0].resize(3);
     inputs[0][0] = RandomWQInt8Mat(qdim, 9, block_size, weights[12], true);
-    inputs[1].resize(5);
-    inputs[1][0] = RandomWQInt8Mat(qdim, 3, block_size, weights[12], true);
-    inputs[1][1] = RandomWQInt8Mat(qdim, 5, block_size, weights[13], true);
-    inputs[1][2] = RandomWQInt8Mat(qdim, 5, block_size, weights[14], true);
+    inputs[1].resize(3);
+    inputs[1][0] = RandomWQInt8Mat(qdim, 8, block_size, weights[12], true);
 
+    ncnn::Mat all(qdim, inputs[0][0].h + inputs[1][0].h);
+    for (int y = 0; y < all.h; y++)
+    {
+        const ncnn::Mat& m = y < inputs[0][0].h ? inputs[0][0] : inputs[1][0];
+        const float* ptr = m.row(y < inputs[0][0].h ? y : y - inputs[0][0].h);
+        float* outptr = all.row(y);
+        for (int x = 0; x < qdim; x++)
+            outptr[x] = ptr[x];
+    }
+
+    int test_ret = 0;
     std::vector<ncnn::Mat> reference[2];
-    for (int i = 0; i < 2; i++)
-        test_layer_naive(ncnn::layer_to_index("MultiHeadAttention"), pd, weights, inputs[i], 3, reference[i], TEST_LAYER_DISABLE_GPU_TESTING);
+    if (test_layer_naive(ncnn::layer_to_index("MultiHeadAttention"), pd, weights, inputs[0], 3, reference[0], TEST_LAYER_DISABLE_GPU_TESTING) != 0)
+        test_ret = -1;
+
+    ncnn::ParamDict reference_pd = pd;
+    reference_pd.set(7, 0);
+    std::vector<ncnn::Mat> reference_inputs(3);
+    reference_inputs[0] = inputs[1][0];
+    reference_inputs[1] = all;
+    reference_inputs[2] = all;
+    if (test_ret == 0 && test_layer_naive(ncnn::layer_to_index("MultiHeadAttention"), reference_pd, weights, reference_inputs, 1, reference[1], TEST_LAYER_DISABLE_GPU_TESTING) != 0)
+        test_ret = -1;
 
     ncnn::PoolAllocator blob_pool_allocator;
     ncnn::PoolAllocator workspace_pool_allocator;
+    ncnn::CPUKVCacheStorage kvcache_storage;
 
     ncnn::Option opt;
     opt.num_threads = 2;
     opt.blob_allocator = &blob_pool_allocator;
     opt.workspace_allocator = &workspace_pool_allocator;
+    opt.kvcache_storage = &kvcache_storage;
     opt.use_packing_layout = false;
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
@@ -472,22 +476,53 @@ static int test_multiheadattention_wq_int8_pipeline()
     mha->load_model(ncnn::ModelBinFromMatArray(weights.data()));
     mha->create_pipeline(opt);
 
-    int test_ret = 0;
-    for (int i = 0; i < 2; i++)
+    ncnn::Mat key_cache;
+    ncnn::Mat value_cache;
+    for (int i = 0; test_ret == 0 && i < 2; i++)
     {
         ncnn::Option opt_forward = opt;
         opt_forward.num_threads = i + 1;
 
-        std::vector<ncnn::Mat> outputs(3);
-        mha->forward(inputs[i], outputs, opt_forward);
-        if (CompareMat(outputs, reference[i], 0.001f) != 0)
-            test_ret = -1;
-        for (int j = 0; j < 3; j++)
+        std::vector<ncnn::Mat> forward_inputs = inputs[i];
+        if (i != 0)
         {
-            if (outputs[j].allocator != &blob_pool_allocator)
-                test_ret = -1;
+            forward_inputs[1] = key_cache;
+            forward_inputs[2] = value_cache;
+            key_cache.release();
+            value_cache.release();
+        }
+
+        std::vector<ncnn::Mat> outputs(3);
+        int ret = mha->forward(forward_inputs, outputs, opt_forward);
+        if (ret != 0 || CompareMat(outputs[0], reference[i][0], 0.001f) != 0)
+            test_ret = -1;
+        if (ret == 0 && outputs[0].allocator != &blob_pool_allocator)
+            test_ret = -1;
+        if (ret == 0 && (!kvcache_storage.owns(outputs[1]) || !kvcache_storage.owns(outputs[2])))
+            test_ret = -1;
+
+        if (ret == 0)
+        {
+            key_cache = outputs[1];
+            value_cache = outputs[2];
+            outputs[1].release();
+            outputs[2].release();
+        }
+        else if (i != 0)
+        {
+            key_cache = forward_inputs[1];
+            value_cache = forward_inputs[2];
+        }
+
+        if (i != 0)
+        {
+            forward_inputs[1].release();
+            forward_inputs[2].release();
         }
     }
+
+    kvcache_storage.destroy(key_cache);
+    kvcache_storage.destroy(value_cache);
 
     mha->destroy_pipeline(opt);
     delete mha;

@@ -17,6 +17,7 @@ Option::Option()
     num_threads = get_physical_big_cpu_count();
     blob_allocator = 0;
     workspace_allocator = 0;
+    kvcache_storage = 0;
 
 #if NCNN_VULKAN
     blob_vkallocator = 0;

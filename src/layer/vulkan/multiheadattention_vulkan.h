@@ -23,6 +23,7 @@ public:
     using MultiHeadAttention::forward;
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
 
+protected:
 public:
     Layer* q_gemm;
     Layer* k_gemm;
@@ -30,8 +31,6 @@ public:
     Layer* o_gemm;
 
     Layer* qk_softmax;
-
-    Layer* kvcache_concat;
 
     Pipeline* pipeline_multiheadattention_qk_cross;
     Pipeline* pipeline_multiheadattention_qk_cross_pack4;
@@ -42,6 +41,10 @@ public:
     Pipeline* pipeline_multiheadattention_qkv_cross_pack4;
     Pipeline* pipeline_multiheadattention_qkv_cross_pack1to4;
     Pipeline* pipeline_multiheadattention_qkv_cross_pack4to1;
+
+    Pipeline* pipeline_kvcache_append;
+    Pipeline* pipeline_kvcache_qk;
+    Pipeline* pipeline_kvcache_qkv;
 };
 
 } // namespace ncnn

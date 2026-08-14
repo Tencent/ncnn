@@ -6,6 +6,8 @@
 #include <float.h>
 #include <limits.h>
 
+#include "kvcache_storage.h"
+
 namespace ncnn {
 
 int MultiHeadAttention::get_weight_block_quantize_params(int& weight_bits, int& block_size, bool& has_input_scale) const
@@ -253,8 +255,11 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     const Mat& k_blob = bottom_blobs[k_blob_i];
     const Mat& v_blob = bottom_blobs[v_blob_i];
     const Mat& attn_mask_blob = attn_mask ? bottom_blobs[attn_mask_i] : Mat();
-    const Mat& cached_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : Mat();
-    const Mat& cached_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : Mat();
+    Mat empty_cache;
+    const Mat& past_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : empty_cache;
+    const Mat& past_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : empty_cache;
+    Mat& cached_xk_blob = kv_cache ? top_blobs[1] : empty_cache;
+    Mat& cached_xv_blob = kv_cache ? top_blobs[2] : empty_cache;
 
     //              | self-attention  cross-attention
     // w/o kvcache  | past(0) + cur   cur
@@ -262,8 +267,12 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
 
     const int src_seqlen = q_blob.h;
     const int cur_seqlen = k_blob.h;
-    const int past_seqlen = kv_cache && !cached_xk_blob.empty() ? cached_xk_blob.w : 0;
+    const int past_seqlen = kv_cache && !past_xk_blob.empty() ? past_xk_blob.h : 0;
     const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
+    const bool append_key = past_seqlen == 0 || q_blob_i == k_blob_i;
+    const bool append_value = past_seqlen == 0 || q_blob_i == v_blob_i;
+    if (kv_cache && append_key != append_value)
+        return -1;
 
     const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = weight_data_size / embed_dim;
@@ -297,25 +306,11 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     }
 
     Mat k_affine;
-    if (past_seqlen > 0 && q_blob_i != k_blob_i)
+    if (append_key)
     {
-        k_affine = cached_xk_blob;
-    }
-    else
-    {
-        k_affine.create(dst_seqlen, embed_dim, 4u, kv_cache ? opt.blob_allocator : opt.workspace_allocator);
+        k_affine.create(cur_seqlen, embed_dim, 4u, opt.workspace_allocator);
         if (k_affine.empty())
             return -100;
-
-        if (past_seqlen > 0)
-        {
-            // reuse cached_xk
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < embed_dim; i++)
-            {
-                memcpy(k_affine.row(i), cached_xk_blob.row(i), past_seqlen * sizeof(float));
-            }
-        }
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < cur_seqlen; i++)
@@ -332,31 +327,17 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
                     sum += *ptr++ * *kptr++;
                 }
 
-                k_affine.row(j)[past_seqlen + i] = sum;
+                k_affine.row(j)[i] = sum;
             }
         }
     }
 
     Mat v_affine;
-    if (past_seqlen > 0 && q_blob_i != v_blob_i)
+    if (append_value)
     {
-        v_affine = cached_xv_blob;
-    }
-    else
-    {
-        v_affine.create(dst_seqlen, embed_dim, 4u, kv_cache ? opt.blob_allocator : opt.workspace_allocator);
+        v_affine.create(cur_seqlen, embed_dim, 4u, opt.workspace_allocator);
         if (v_affine.empty())
             return -100;
-
-        if (past_seqlen > 0)
-        {
-            // reuse cached_xv
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < embed_dim; i++)
-            {
-                memcpy(v_affine.row(i), cached_xv_blob.row(i), past_seqlen * sizeof(float));
-            }
-        }
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < cur_seqlen; i++)
@@ -373,7 +354,72 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
                     sum += *ptr++ * *kptr++;
                 }
 
-                v_affine.row(j)[past_seqlen + i] = sum;
+                v_affine.row(j)[i] = sum;
+            }
+        }
+    }
+
+    if (kv_cache)
+    {
+        NaiveKVCacheStorage naive_storage(opt.blob_allocator);
+        KVCacheStorage* storage = opt.kvcache_storage ? opt.kvcache_storage : &naive_storage;
+        if (past_xk_blob.empty() != past_xv_blob.empty())
+            return -1;
+        if ((!past_xk_blob.empty() && !storage->owns(past_xk_blob))
+            || (!past_xv_blob.empty() && !storage->owns(past_xv_blob)))
+        {
+            NCNN_LOGE("MultiHeadAttention got foreign kvcache");
+            return -1;
+        }
+        if (!past_xv_blob.empty() && past_xv_blob.h != past_seqlen)
+            return -1;
+        if (!past_xk_blob.empty()
+            && (past_xk_blob.w != embed_dim_per_head || past_xv_blob.w != embed_dim_per_head
+                || past_xk_blob.c != num_heads || past_xv_blob.c != num_heads
+                || past_xk_blob.elemsize != 4u || past_xv_blob.elemsize != 4u
+                || past_xk_blob.elempack != 1 || past_xv_blob.elempack != 1))
+            return -1;
+
+        const int append_seqlen = append_key ? cur_seqlen : 0;
+        if (append_seqlen > 0
+            && (k_affine.dims != 2 || v_affine.dims != 2
+                || k_affine.w != append_seqlen || v_affine.w != append_seqlen
+                || k_affine.h != embed_dim || v_affine.h != embed_dim
+                || k_affine.elempack != 1 || v_affine.elempack != 1
+                || k_affine.elemsize != 4u || v_affine.elemsize != 4u))
+            return -1;
+
+        int retk = past_xk_blob.empty() ? storage->create(cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1) : storage->expand(past_xk_blob, cached_xk_blob, dst_seqlen);
+        if (retk != 0)
+            return retk;
+
+        int retv = past_xv_blob.empty() ? storage->create(cached_xv_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1) : storage->expand(past_xv_blob, cached_xv_blob, dst_seqlen);
+        if (retv != 0)
+        {
+            storage->destroy(cached_xk_blob);
+            return retv;
+        }
+
+        if (append_seqlen > 0)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < num_heads; q++)
+            {
+                Mat key_cache_head = cached_xk_blob.channel(q);
+                Mat value_cache_head = cached_xv_blob.channel(q);
+                float* key_outptr = key_cache_head.row(past_seqlen);
+                float* value_outptr = value_cache_head.row(past_seqlen);
+
+                for (int d = 0; d < embed_dim_per_head; d++)
+                {
+                    const float* key_ptr = k_affine.row(q * embed_dim_per_head + d);
+                    const float* value_ptr = v_affine.row(q * embed_dim_per_head + d);
+                    for (int s = 0; s < append_seqlen; s++)
+                    {
+                        key_outptr[s * embed_dim_per_head + d] = key_ptr[s];
+                        value_outptr[s * embed_dim_per_head + d] = value_ptr[s];
+                    }
+                }
             }
         }
     }
@@ -388,7 +434,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         for (int q = 0; q < num_heads; q++)
         {
             const Mat q_affine_head = q_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
-            const Mat k_affine_head = k_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
+            const Mat k_affine_head = kv_cache ? cached_xk_blob.channel(q) : k_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
             Mat qk_cross_head = qk_cross.channel(q);
 
             for (int i = 0; i < src_seqlen; i++)
@@ -400,7 +446,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
                     float sum = 0.f;
                     for (int l = 0; l < embed_dim_per_head; l++)
                     {
-                        sum += q_affine_head.row(l)[i] * k_affine_head.row(l)[j];
+                        sum += q_affine_head.row(l)[i] * (kv_cache ? k_affine_head.row(j)[l] : k_affine_head.row(l)[j]);
                     }
 
                     outptr[j] = sum;
@@ -472,7 +518,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         for (int q = 0; q < num_heads; q++)
         {
             const Mat qk_cross_head = qk_cross.channel(q);
-            const Mat v_affine_head = v_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
+            const Mat v_affine_head = kv_cache ? cached_xv_blob.channel(q) : v_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
             Mat qkv_cross_head = qkv_cross.row_range(q * embed_dim_per_head, embed_dim_per_head);
 
             for (int i = 0; i < src_seqlen; i++)
@@ -480,12 +526,10 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
                 for (int j = 0; j < embed_dim_per_head; j++)
                 {
                     const float* qkptr = qk_cross_head.row(i);
-                    const float* vptr = v_affine_head.row(j);
-
                     float sum = 0.f;
                     for (int k = 0; k < dst_seqlen; k++)
                     {
-                        sum += *qkptr++ * *vptr++;
+                        sum += *qkptr++ * (kv_cache ? v_affine_head.row(k)[j] : v_affine_head.row(j)[k]);
                     }
 
                     qkv_cross_head.row(j)[i] = sum;
@@ -518,13 +562,6 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
                 outptr[j] = sum;
             }
         }
-    }
-
-    if (kv_cache)
-    {
-        // assert top_blobs.size() == 3
-        top_blobs[1] = k_affine;
-        top_blobs[2] = v_affine;
     }
 
     return 0;
@@ -687,8 +724,11 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
     const Mat& k_blob = bottom_blobs[k_blob_i];
     const Mat& v_blob = bottom_blobs[v_blob_i];
     const Mat& attn_mask_blob = attn_mask ? bottom_blobs[attn_mask_i] : Mat();
-    const Mat& cached_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : Mat();
-    const Mat& cached_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : Mat();
+    Mat empty_cache;
+    const Mat& past_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : empty_cache;
+    const Mat& past_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : empty_cache;
+    Mat& cached_xk_blob = kv_cache ? top_blobs[1] : empty_cache;
+    Mat& cached_xv_blob = kv_cache ? top_blobs[2] : empty_cache;
 
     //              | self-attention  cross-attention
     // w/o kvcache  | past(0) + cur   cur
@@ -696,8 +736,12 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
 
     const int src_seqlen = q_blob.h;
     const int cur_seqlen = k_blob.h;
-    const int past_seqlen = kv_cache && !cached_xk_blob.empty() ? cached_xk_blob.w : 0;
+    const int past_seqlen = kv_cache && !past_xk_blob.empty() ? past_xk_blob.h : 0;
     const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
+    const bool append_key = past_seqlen == 0 || q_blob_i == k_blob_i;
+    const bool append_value = past_seqlen == 0 || q_blob_i == v_blob_i;
+    if (kv_cache && append_key != append_value)
+        return -1;
 
     const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = weight_data_size / embed_dim;
@@ -763,29 +807,15 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
     }
 
     Mat k_affine;
-    if (past_seqlen > 0 && q_blob_i != k_blob_i)
+    if (append_key)
     {
-        k_affine = cached_xk_blob;
-    }
-    else
-    {
-        k_affine.create(dst_seqlen, embed_dim, 4u, kv_cache ? opt.blob_allocator : opt.workspace_allocator);
+        k_affine.create(cur_seqlen, embed_dim, 4u, opt.workspace_allocator);
         if (k_affine.empty())
             return -100;
 
-        if (past_seqlen > 0)
-        {
-            // reuse cached_xk
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < embed_dim; i++)
-            {
-                memcpy(k_affine.row(i), cached_xk_blob.row(i), past_seqlen * sizeof(float));
-            }
-        }
-
         if (weight_bits == 8)
         {
-            int ret = mha_weight_block_quantize_gemm_transB_int8(k_blob, 0, k_weight_data, k_weight_data_quantize_scales, k_weight_data_input_scales, k_bias_data, k_affine, cur_seqlen, embed_dim, kdim, block_size, 1.f, 1, past_seqlen, opt);
+            int ret = mha_weight_block_quantize_gemm_transB_int8(k_blob, 0, k_weight_data, k_weight_data_quantize_scales, k_weight_data_input_scales, k_bias_data, k_affine, cur_seqlen, embed_dim, kdim, block_size, 1.f, 1, 0, opt);
             if (ret != 0)
                 return ret;
         }
@@ -819,36 +849,22 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
                         }
                     }
 
-                    k_affine.row(j)[past_seqlen + i] = sum;
+                    k_affine.row(j)[i] = sum;
                 }
             }
         }
     }
 
     Mat v_affine;
-    if (past_seqlen > 0 && q_blob_i != v_blob_i)
+    if (append_value)
     {
-        v_affine = cached_xv_blob;
-    }
-    else
-    {
-        v_affine.create(dst_seqlen, embed_dim, 4u, kv_cache ? opt.blob_allocator : opt.workspace_allocator);
+        v_affine.create(cur_seqlen, embed_dim, 4u, opt.workspace_allocator);
         if (v_affine.empty())
             return -100;
 
-        if (past_seqlen > 0)
-        {
-            // reuse cached_xv
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < embed_dim; i++)
-            {
-                memcpy(v_affine.row(i), cached_xv_blob.row(i), past_seqlen * sizeof(float));
-            }
-        }
-
         if (weight_bits == 8)
         {
-            int ret = mha_weight_block_quantize_gemm_transB_int8(v_blob, 0, v_weight_data, v_weight_data_quantize_scales, v_weight_data_input_scales, v_bias_data, v_affine, cur_seqlen, embed_dim, vdim, block_size, 1.f, 1, past_seqlen, opt);
+            int ret = mha_weight_block_quantize_gemm_transB_int8(v_blob, 0, v_weight_data, v_weight_data_quantize_scales, v_weight_data_input_scales, v_bias_data, v_affine, cur_seqlen, embed_dim, vdim, block_size, 1.f, 1, 0, opt);
             if (ret != 0)
                 return ret;
         }
@@ -882,7 +898,72 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
                         }
                     }
 
-                    v_affine.row(j)[past_seqlen + i] = sum;
+                    v_affine.row(j)[i] = sum;
+                }
+            }
+        }
+    }
+
+    if (kv_cache)
+    {
+        NaiveKVCacheStorage naive_storage(opt.blob_allocator);
+        KVCacheStorage* storage = opt.kvcache_storage ? opt.kvcache_storage : &naive_storage;
+        if (past_xk_blob.empty() != past_xv_blob.empty())
+            return -1;
+        if ((!past_xk_blob.empty() && !storage->owns(past_xk_blob))
+            || (!past_xv_blob.empty() && !storage->owns(past_xv_blob)))
+        {
+            NCNN_LOGE("MultiHeadAttention got foreign kvcache");
+            return -1;
+        }
+        if (!past_xv_blob.empty() && past_xv_blob.h != past_seqlen)
+            return -1;
+        if (!past_xk_blob.empty()
+            && (past_xk_blob.w != embed_dim_per_head || past_xv_blob.w != embed_dim_per_head
+                || past_xk_blob.c != num_heads || past_xv_blob.c != num_heads
+                || past_xk_blob.elemsize != 4u || past_xv_blob.elemsize != 4u
+                || past_xk_blob.elempack != 1 || past_xv_blob.elempack != 1))
+            return -1;
+
+        const int append_seqlen = append_key ? cur_seqlen : 0;
+        if (append_seqlen > 0
+            && (k_affine.dims != 2 || v_affine.dims != 2
+                || k_affine.w != append_seqlen || v_affine.w != append_seqlen
+                || k_affine.h != embed_dim || v_affine.h != embed_dim
+                || k_affine.elempack != 1 || v_affine.elempack != 1
+                || k_affine.elemsize != 4u || v_affine.elemsize != 4u))
+            return -1;
+
+        int retk = past_xk_blob.empty() ? storage->create(cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1) : storage->expand(past_xk_blob, cached_xk_blob, dst_seqlen);
+        if (retk != 0)
+            return retk;
+
+        int retv = past_xv_blob.empty() ? storage->create(cached_xv_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1) : storage->expand(past_xv_blob, cached_xv_blob, dst_seqlen);
+        if (retv != 0)
+        {
+            storage->destroy(cached_xk_blob);
+            return retv;
+        }
+
+        if (append_seqlen > 0)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < num_heads; q++)
+            {
+                Mat key_cache_head = cached_xk_blob.channel(q);
+                Mat value_cache_head = cached_xv_blob.channel(q);
+                float* key_outptr = key_cache_head.row(past_seqlen);
+                float* value_outptr = value_cache_head.row(past_seqlen);
+
+                for (int d = 0; d < embed_dim_per_head; d++)
+                {
+                    const float* key_ptr = k_affine.row(q * embed_dim_per_head + d);
+                    const float* value_ptr = v_affine.row(q * embed_dim_per_head + d);
+                    for (int s = 0; s < append_seqlen; s++)
+                    {
+                        key_outptr[s * embed_dim_per_head + d] = key_ptr[s];
+                        value_outptr[s * embed_dim_per_head + d] = value_ptr[s];
+                    }
                 }
             }
         }
@@ -898,7 +979,7 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
         for (int q = 0; q < num_heads; q++)
         {
             const Mat q_affine_head = q_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
-            const Mat k_affine_head = k_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
+            const Mat k_affine_head = kv_cache ? cached_xk_blob.channel(q) : k_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
             Mat qk_cross_head = qk_cross.channel(q);
 
             for (int i = 0; i < src_seqlen; i++)
@@ -910,7 +991,7 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
                     float sum = 0.f;
                     for (int l = 0; l < embed_dim_per_head; l++)
                     {
-                        sum += q_affine_head.row(l)[i] * k_affine_head.row(l)[j];
+                        sum += q_affine_head.row(l)[i] * (kv_cache ? k_affine_head.row(j)[l] : k_affine_head.row(l)[j]);
                     }
 
                     outptr[j] = sum;
@@ -982,7 +1063,7 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
         for (int q = 0; q < num_heads; q++)
         {
             const Mat qk_cross_head = qk_cross.channel(q);
-            const Mat v_affine_head = v_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
+            const Mat v_affine_head = kv_cache ? cached_xv_blob.channel(q) : v_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
             Mat qkv_cross_head = qkv_cross.row_range(q * embed_dim_per_head, embed_dim_per_head);
 
             for (int i = 0; i < src_seqlen; i++)
@@ -990,12 +1071,10 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
                 for (int j = 0; j < embed_dim_per_head; j++)
                 {
                     const float* qkptr = qk_cross_head.row(i);
-                    const float* vptr = v_affine_head.row(j);
-
                     float sum = 0.f;
                     for (int k = 0; k < dst_seqlen; k++)
                     {
-                        sum += *qkptr++ * *vptr++;
+                        sum += *qkptr++ * (kv_cache ? v_affine_head.row(k)[j] : v_affine_head.row(j)[k]);
                     }
 
                     qkv_cross_head.row(j)[i] = sum;
@@ -1051,13 +1130,6 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
                 }
             }
         }
-    }
-
-    if (kv_cache)
-    {
-        // assert top_blobs.size() == 3
-        top_blobs[1] = k_affine;
-        top_blobs[2] = v_affine;
     }
 
     return 0;
@@ -1295,13 +1367,20 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     const Mat& k_blob = bottom_blobs[k_blob_i];
     const Mat& v_blob = bottom_blobs[v_blob_i];
     const Mat& attn_mask_blob = attn_mask ? bottom_blobs[attn_mask_i] : Mat();
-    const Mat& cached_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : Mat();
-    const Mat& cached_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : Mat();
+    Mat empty_cache;
+    const Mat& past_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : empty_cache;
+    const Mat& past_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : empty_cache;
+    Mat& cached_xk_blob = kv_cache ? top_blobs[1] : empty_cache;
+    Mat& cached_xv_blob = kv_cache ? top_blobs[2] : empty_cache;
 
     const int src_seqlen = q_blob.h;
     const int cur_seqlen = k_blob.h;
-    const int past_seqlen = kv_cache && !cached_xk_blob.empty() ? cached_xk_blob.w : 0;
+    const int past_seqlen = kv_cache && !past_xk_blob.empty() ? past_xk_blob.h : 0;
     const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
+    const bool append_key = past_seqlen == 0 || q_blob_i == k_blob_i;
+    const bool append_value = past_seqlen == 0 || q_blob_i == v_blob_i;
+    if (kv_cache && append_key != append_value)
+        return -1;
 
     const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = weight_data_size / embed_dim;
@@ -1342,25 +1421,11 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     }
 
     Mat k_affine;
-    if (past_seqlen > 0 && q_blob_i != k_blob_i)
+    if (append_key)
     {
-        k_affine = cached_xk_blob;
-    }
-    else
-    {
-        k_affine.create(dst_seqlen, embed_dim, 4u, kv_cache ? opt.blob_allocator : opt.workspace_allocator);
+        k_affine.create(cur_seqlen, embed_dim, 4u, opt.workspace_allocator);
         if (k_affine.empty())
             return -100;
-
-        if (past_seqlen > 0)
-        {
-            // reuse cached_xk
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < embed_dim; i++)
-            {
-                memcpy(k_affine.row(i), cached_xk_blob.row(i), past_seqlen * sizeof(float));
-            }
-        }
 
         // dynamic quantize k_blob
         Mat k_blob_int8;
@@ -1384,31 +1449,17 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
                 const float k_descale = 1.f / (k_weight_data_int8_scales[j] * k_blob_int8_scale);
                 float sum_fp32 = sum * k_descale + k_bias_data[j];
 
-                k_affine.row(j)[past_seqlen + i] = sum_fp32;
+                k_affine.row(j)[i] = sum_fp32;
             }
         }
     }
 
     Mat v_affine;
-    if (past_seqlen > 0 && q_blob_i != v_blob_i)
+    if (append_value)
     {
-        v_affine = cached_xv_blob;
-    }
-    else
-    {
-        v_affine.create(dst_seqlen, embed_dim, 4u, kv_cache ? opt.blob_allocator : opt.workspace_allocator);
+        v_affine.create(cur_seqlen, embed_dim, 4u, opt.workspace_allocator);
         if (v_affine.empty())
             return -100;
-
-        if (past_seqlen > 0)
-        {
-            // reuse cached_xv
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < embed_dim; i++)
-            {
-                memcpy(v_affine.row(i), cached_xv_blob.row(i), past_seqlen * sizeof(float));
-            }
-        }
 
         // dynamic quantize v_blob
         Mat v_blob_int8;
@@ -1432,7 +1483,72 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
                 const float v_descale = 1.f / (v_weight_data_int8_scales[j] * v_blob_int8_scale);
                 float sum_fp32 = sum * v_descale + v_bias_data[j];
 
-                v_affine.row(j)[past_seqlen + i] = sum_fp32;
+                v_affine.row(j)[i] = sum_fp32;
+            }
+        }
+    }
+
+    if (kv_cache)
+    {
+        NaiveKVCacheStorage naive_storage(opt.blob_allocator);
+        KVCacheStorage* storage = opt.kvcache_storage ? opt.kvcache_storage : &naive_storage;
+        if (past_xk_blob.empty() != past_xv_blob.empty())
+            return -1;
+        if ((!past_xk_blob.empty() && !storage->owns(past_xk_blob))
+            || (!past_xv_blob.empty() && !storage->owns(past_xv_blob)))
+        {
+            NCNN_LOGE("MultiHeadAttention got foreign kvcache");
+            return -1;
+        }
+        if (!past_xv_blob.empty() && past_xv_blob.h != past_seqlen)
+            return -1;
+        if (!past_xk_blob.empty()
+            && (past_xk_blob.w != embed_dim_per_head || past_xv_blob.w != embed_dim_per_head
+                || past_xk_blob.c != num_heads || past_xv_blob.c != num_heads
+                || past_xk_blob.elemsize != 4u || past_xv_blob.elemsize != 4u
+                || past_xk_blob.elempack != 1 || past_xv_blob.elempack != 1))
+            return -1;
+
+        const int append_seqlen = append_key ? cur_seqlen : 0;
+        if (append_seqlen > 0
+            && (k_affine.dims != 2 || v_affine.dims != 2
+                || k_affine.w != append_seqlen || v_affine.w != append_seqlen
+                || k_affine.h != embed_dim || v_affine.h != embed_dim
+                || k_affine.elempack != 1 || v_affine.elempack != 1
+                || k_affine.elemsize != 4u || v_affine.elemsize != 4u))
+            return -1;
+
+        int retk = past_xk_blob.empty() ? storage->create(cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1) : storage->expand(past_xk_blob, cached_xk_blob, dst_seqlen);
+        if (retk != 0)
+            return retk;
+
+        int retv = past_xv_blob.empty() ? storage->create(cached_xv_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1) : storage->expand(past_xv_blob, cached_xv_blob, dst_seqlen);
+        if (retv != 0)
+        {
+            storage->destroy(cached_xk_blob);
+            return retv;
+        }
+
+        if (append_seqlen > 0)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < num_heads; q++)
+            {
+                Mat key_cache_head = cached_xk_blob.channel(q);
+                Mat value_cache_head = cached_xv_blob.channel(q);
+                float* key_outptr = key_cache_head.row(past_seqlen);
+                float* value_outptr = value_cache_head.row(past_seqlen);
+
+                for (int d = 0; d < embed_dim_per_head; d++)
+                {
+                    const float* key_ptr = k_affine.row(q * embed_dim_per_head + d);
+                    const float* value_ptr = v_affine.row(q * embed_dim_per_head + d);
+                    for (int s = 0; s < append_seqlen; s++)
+                    {
+                        key_outptr[s * embed_dim_per_head + d] = key_ptr[s];
+                        value_outptr[s * embed_dim_per_head + d] = value_ptr[s];
+                    }
+                }
             }
         }
     }
@@ -1447,7 +1563,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         for (int q = 0; q < num_heads; q++)
         {
             const Mat q_affine_head = q_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
-            const Mat k_affine_head = k_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
+            const Mat k_affine_head = kv_cache ? cached_xk_blob.channel(q) : k_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
             Mat qk_cross_head = qk_cross.channel(q);
 
             // dynamic quantize q_affine_head per w
@@ -1471,7 +1587,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
                     for (int l = 0; l < embed_dim_per_head; l++)
                     {
                         signed char vq = q_affine_head_int8.row<const signed char>(l)[i];
-                        signed char vk = k_affine_head_int8.row<const signed char>(l)[j];
+                        signed char vk = kv_cache ? k_affine_head_int8.row<const signed char>(j)[l] : k_affine_head_int8.row<const signed char>(l)[j];
                         sum += vq * vk;
                     }
                     float sum_fp32 = sum * qk_descale;
@@ -1545,7 +1661,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         for (int q = 0; q < num_heads; q++)
         {
             const Mat qk_cross_head = qk_cross.channel(q);
-            const Mat v_affine_head = v_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
+            const Mat v_affine_head = kv_cache ? cached_xv_blob.channel(q) : v_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
             Mat qkv_cross_head = qkv_cross.row_range(q * embed_dim_per_head, embed_dim_per_head);
 
             // dynamic quantize qk_cross_head per h
@@ -1565,12 +1681,11 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
                 for (int j = 0; j < embed_dim_per_head; j++)
                 {
                     const signed char* qkptr = qk_cross_head_int8.row<const signed char>(i);
-                    const signed char* vptr = v_affine_head_int8.row<const signed char>(j);
-
                     int sum = 0;
                     for (int k = 0; k < dst_seqlen; k++)
                     {
-                        sum += *qkptr++ * *vptr++;
+                        const signed char v = kv_cache ? v_affine_head_int8.row<const signed char>(k)[j] : v_affine_head_int8.row<const signed char>(j)[k];
+                        sum += *qkptr++ * v;
                     }
                     float sum_fp32 = sum * qkv_descale;
 
@@ -1611,13 +1726,6 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
                 outptr[j] = sum_fp32;
             }
         }
-    }
-
-    if (kv_cache)
-    {
-        // assert top_blobs.size() == 3
-        top_blobs[1] = k_affine;
-        top_blobs[2] = v_affine;
     }
 
     return 0;

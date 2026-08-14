@@ -36,40 +36,49 @@ The caching strategy is fundamentally different for self-attention and cross-att
 #### cross-attention (static k/v)
 - **purpose:** Allows the decoder to attend to the output of the encoder (e.g., attending to audio features in speech recognition, or an input sentence in translation).
 - **cache Logic:** The k and v matrices are derived from the encoder's output, which is computed only **once** per input sequence. Therefore, the k and v for cross-attention are **static** and do not change during the decoding process. They are "cached" in the sense that they are pre-computed and reused in every decoding step.
-- **ncnn implementation:** The `MultiHeadAttention` and `SDPA` layers for cross-attention are also configured with `7=1` and cache I/O blobs. However, the implementation correctly identifies cross-attention (where the query blob is different from the key/value blobs) and reuses the `cache_k_in` and `cache_v_in` directly, without performing concatenation. This allows the static encoder k/v to be passed efficiently through the network.
+- **ncnn implementation:** Cache-aware `MultiHeadAttention` can identify its separate query and key/value input form and reuses the cached encoder k/v after the first invocation. `SDPA` does not infer self-attention or cross-attention from tensor shapes; its cache mode treats current k/v as append data. A graph using static encoder k/v with `SDPA` should keep those tensors as ordinary inputs rather than relying on a shape heuristic.
 
-## 3. ncnn kv cache memory layout
+## 3. kv cache storage
 
-The memory layout of the kv cache is a critical design choice for performance. ncnn uses different layouts for `MultiHeadAttention` and `SDPA` to optimize for their respective calculation patterns.
+Parameter `7=1` selects the cache-aware implementation of `MultiHeadAttention` and `SDPA`. There is one forward implementation per backend; the old concat layer path is not retained. The backend calls `create()` for the first cache and `expand(input_cache, output_cache, new_seqlen)` on later logical expansions. The input handle remains unchanged. Within capacity the output handle shares its allocation and only carries the new logical length; otherwise storage allocates the output and relocates valid history. The contiguous CPU and Vulkan storage implementations retain spare capacity and relocate only when capacity is exhausted.
 
-### `MultiHeadAttention` cache layout (Transposed)
+`Option::kvcache_storage` selects the storage implementation used by a decode session. The application creates one `CPUKVCacheStorage` or `VkKVCacheStorage` for each session/thread and passes the same pointer to every extractor with `Extractor::set_kvcache_storage()`. The pointer is non-owning and must remain unchanged while its cache handles are in use. Setting `Net::opt.kvcache_storage` is also supported when the whole Net is dedicated to one session, but a shared Net must not own shared mutable cache state.
 
-The `MultiHeadAttention` layer uses a **transposed layout** for its cache blobs. The primary reason for this is to **ensure that data for each attention head is contiguous in memory, which significantly boosts gemm performance.**
+The storage constructor accepts an optional maximum sequence-length hint. For example, `CPUKVCacheStorage(max_context_length)` and `VkKVCacheStorage(vkdev, max_context_length)` reserve that capacity when the first cache is created. The hint belongs to the session storage rather than `Option`, and it is not a hard limit: a cache can still grow beyond it. Without a usable hint, the contiguous storage implementations use the same moderate policy for every cache: small caches initially reserve at least 16 sequence positions, while a larger prefill reserves at most 256 extra positions. Later relocation grows capacity by roughly one half. This avoids doubling a large prefill allocation while still amortizing single-token decode growth; it does not try to infer self-attention or cross-attention.
 
-*   **input blobs (q, k, v):** These typically have a shape where height represents the sequence length.
-    *   `ncnn::Mat` dimensions: `(w = embed_dim, h = seq_len)`
+When no storage is supplied, the layer uses a stateless naive adapter over the current blob allocator. Cache inputs and outputs remain ordinary `Mat` or `VkMat` objects; every growth allocates a new tensor and copies valid history. This preserves the old ncnn_llm-style pattern of extracting cache tensors and feeding them unchanged into a later extractor. Neither `Net` nor `Extractor` creates or owns a default KV cache storage.
 
-*   **cache blobs (`k_cache`, `v_cache`):** These are stored in a **transposed** format.
-    *   `ncnn::Mat` dimensions: `(w = seq_len, h = embed_dim)`
+The first invocation uses empty cache blobs and later invocations feed the two cache outputs back through the same two input positions. Parameter `7=1`, blob positions, and the ordinary `input()` / `extract()` calling pattern remain compatible.
 
-**the rationale:**
+### managed cache Mat is an opaque handle
 
-1.  **slicing by Head:** During the attention calculation, the code slices the `k_cache` and `v_cache` matrices along their height to isolate the data for each head (e.g., using `row_range(head_index * embed_dim_per_head, embed_dim_per_head)`).
-2.  **memory contiguity:** Because `ncnn::Mat` uses a row-major memory layout, this slicing operation on the transposed cache blob results in a sub-matrix where all the data for a single head is perfectly contiguous.
-3.  **gemm efficiency:** Subsequent matrix multiplication operations (`q * k^T` and `Attention * v`) can then operate on these contiguous memory blocks. This maximizes CPU cache locality and the effectiveness of simd instructions, leading to a substantial increase in computational speed.
+A cache `Mat` created by an explicit storage is backend-affine session state, not an ordinary public tensor. Applications must not depend on its `w`, `h`, `c`, `cstep`, `data`, capacity, or element order. The no-storage compatibility path intentionally returns ordinary tensors instead.
 
-If a non-transposed layout were used, the data for each head would be strided in memory, causing frequent cache misses and dramatically slowing down the performance-critical gemm calculations. Therefore, this transposed layout is a deliberate and crucial optimization for computation.
+Opaque here is an application contract, not a claim that the current layer implementations are layout-independent. Each optimized layer and its concrete storage implementation must agree on a private cache layout. The current CPU and Vulkan implementations use contiguous `Mat` / `VkMat` storage and inspect the handle internally. A future paged-attention implementation may require coordinated storage and backend changes, and should not expose those details to the application.
 
-### `SDPA` cache layout (Standard)
+Generic ncnn execution recognizes a cache by calling `Option::kvcache_storage->owns()`. It preserves that handle without packing, casting, or detaching it. A handle from incompatible storage or a different backend is rejected; there is no layout tag, blob flag, or global data-to-owner map.
 
-The `SDPA` layer uses the **standard ncnn Mat layout**, where the sequence length is represented by the height.
+Explicit Vulkan storage produces `VkMat` handles, which must remain on Vulkan and use the `VkMat` extractor overload. Managed cache handles are not implicitly converted between CPU and Vulkan storage. The no-storage compatibility path may use ordinary upload/download behavior, but an application seeking the fast Vulkan path should keep an externally managed `VkMat` cache on device.
 
-*   **input blobs (q, k, v):** `(w = embed_dim, h = seq_len, c = num_heads)`
-*   **cache blobs (`k_cache`, `v_cache`):** `(w = embed_dim, h = seq_len, c = num_heads)`
+Vulkan cache expansion may record a relocation before a later allocation in the same layer fails. As with other failed Vulkan forwards, a nonzero return invalidates that `VkCompute` command sequence: discard or reset it without submission. Cache input handles remain valid, and cache outputs from the failed forward must not be used.
 
-**the rationale:**
+The direct-append implementation covers the generic CPU implementation plus the x86, ARM, RISC-V, MIPS, and LoongArch optimized backends, as well as Vulkan. All of them use the same storage lifecycle contract while retaining backend-specific projection, append, packing, and attention kernels. Cache and no-cache execution share the ordinary `forward()` data flow and branch only where cache storage layout or the corresponding attention pipeline differs; there is no separate cache forward path or cache preparation/append helper.
 
-The `SDPA` layer's internal implementation directly concatenates the cache blobs (`past_k`, `past_v`) with the current ones (`cur_k`, `cur_v`) along the height dimension (`seq_len`). This simpler approach avoids the need for a transposed layout while still being highly efficient, as the concatenation logic is handled inside the optimized C++ implementation.
+The optimized CPU backends create one QK/QKV pipeline matching parameter `7`. The GEMM transpose setting and `forward()` cache view therefore always describe the same layout.
+
+The generic `SDPA` and `MultiHeadAttention` classes remain scalar reference implementations and do not build cache-specific Gemm or Softmax sublayers. Optimized cache layouts and cache-specific pipelines belong to their corresponding architecture backend.
+
+### storage and handle lifetime
+
+`Option::kvcache_storage` is non-owning. The decode session/thread owns it and every cache handle, and the storage must live across all extractors in that session. End the extractor scope, then pass all remaining handles to `KVCacheStorage::destroy()` before the storage object itself is destroyed.
+
+Cache input follows a consume-and-replace convention. Feed the current handle to one decode step and replace it with that step's extracted handle. Existing code may extract directly into the same `Mat` variable; it must not keep another shallow alias for concurrent or later use.
+
+The executor transfers cache inputs even when light mode is disabled. Light mode therefore does not change cache ownership; it only retains its ordinary meaning for non-cache tensors.
+
+The storage object is allowed to reuse memory while shallow aliases exist because cache handles obey the consume-and-replace convention. A shallow copy is not a cache snapshot. Beam search must use independently created cache state rather than forking a handle by copying `Mat`.
+
+Without explicit storage, cache tensors have ordinary `Mat` / `VkMat` lifetime. A Vulkan caller that keeps a `VkMat` cache across extractors must also provide persistent per-session blob, workspace, and staging Vulkan allocators to every extractor; extractor-local Vulkan allocators cannot own cross-extractor state.
 
 ## 4. converting models to support kv cache
 
@@ -206,6 +215,7 @@ Your C++ inference code must manage the cache blobs across decoding steps.
 After loading the network, identify the input and output blob indices for the cache. You can iterate through the mha layers and find the blobs you named in the conversion script.
 
 ```cpp
+#include "kvcache_storage.h"
 #include "net.h"
 #include <vector>
 #include <string>
@@ -257,12 +267,22 @@ The inference process is split into two phases: "prefill" for the initial prompt
 Here is a conceptual C++ implementation:
 
 ```cpp
-// assume 'decoder_net' is loaded and 'kvcache_info' is populated.
+// The real session owns this storage object and keeps it alive across every step.
+ncnn::CPUKVCacheStorage kvcache_storage(MAX_LENGTH);
+
+void load_decoder()
+{
+    decoder_net.load_param("decoder.ncnn.param");
+    decoder_net.load_model("decoder.ncnn.bin");
+}
+
+// assume 'kvcache_info' is populated after loading decoder_net.
 
 // --- prefill step (processes a sequence of tokens) ---
 void run_decoder_pre(const std::vector<int>& tokens, const ncnn::Mat& encoder_states, std::vector<ncnn::Mat>& out_kv_cache)
 {
     ncnn::Extractor ex = decoder_net.create_extractor();
+    ex.set_kvcache_storage(&kvcache_storage);
 
     ncnn::Mat input_embeds = prepare_input_embeds(tokens); // your embedding logic
     ex.input("in0", input_embeds); // use your input blob name
@@ -280,9 +300,10 @@ void run_decoder_pre(const std::vector<int>& tokens, const ncnn::Mat& encoder_st
 }
 
 // --- decode step (processes a single token) ---
-void run_decoder_step(int token, const ncnn::Mat& encoder_states, const std::vector<ncnn::Mat>& kv_cache, std::vector<ncnn::Mat>& out_kv_cache)
+void run_decoder_step(int token, const ncnn::Mat& encoder_states, std::vector<ncnn::Mat>& kv_cache, std::vector<ncnn::Mat>& out_kv_cache)
 {
     ncnn::Extractor ex = decoder_net.create_extractor();
+    ex.set_kvcache_storage(&kvcache_storage);
 
     ncnn::Mat input_embeds = prepare_input_embeds({token});
     ex.input("in0", input_embeds);
@@ -292,6 +313,8 @@ void run_decoder_step(int token, const ncnn::Mat& encoder_states, const std::vec
     for (size_t i = 0; i < kvcache_info.input_indices.size(); i++)
     {
         ex.input(kvcache_info.input_indices[i], kv_cache[i]);
+        // The extractor now owns the input handle for this step.
+        kv_cache[i].release();
     }
 
     // extract the updated cache
@@ -327,6 +350,11 @@ void generate_sequence()
         next_token = get_next_token_from_step_logits();
         // append next_token to your generated sequence
     }
+
+    for (size_t i = 0; i < kv_cache.size(); i++)
+        kvcache_storage.destroy(kv_cache[i]);
 }
 ```
-This structured approach allows ncnn to perform highly efficient Transformer inference, correctly handling both dynamic self-attention and static cross-attention caches with an optimized memory layout.
+The storage object must be created before model execution and must not be recreated inside each call. An existing application may omit it; cache outputs then remain ordinary tensors and keep the old allocation/copy behavior. For an explicitly managed Vulkan session, keep cache as `VkMat`, use `VkKVCacheStorage`, set the session's persistent Vulkan allocators and storage on every extractor, submit and wait for commands before storage destruction, and use the `Extractor::extract(VkMat&, VkCompute&)` overload.
+
+This structured approach allows ncnn to perform highly efficient Transformer inference while preserving dynamic self-attention and static cross-attention cache semantics.

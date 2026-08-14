@@ -5,6 +5,7 @@
 
 #include "cpu.h"
 #include "datareader.h"
+#include "kvcache_storage.h"
 #include "layer_type.h"
 #include "modelbin.h"
 #include "paramdict.h"
@@ -216,8 +217,16 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
         {
             if (blob_mats_gpu[bottom_blob_index].dims == 0)
             {
-                // host to buffer
-                cmd.record_upload(blob_mats[bottom_blob_index], blob_mats_gpu[bottom_blob_index], opt);
+                if (opt.kvcache_storage && opt.kvcache_storage->owns(blob_mats[bottom_blob_index]))
+                {
+                    NCNN_LOGE("managed CPU kvcache cannot be uploaded to Vulkan");
+                    return -1;
+                }
+                else
+                {
+                    // host to buffer
+                    cmd.record_upload(blob_mats[bottom_blob_index], blob_mats_gpu[bottom_blob_index], opt);
+                }
 
                 if (opt.lightmode)
                 {
@@ -230,6 +239,12 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
         {
             if (blob_mats[bottom_blob_index].dims == 0)
             {
+                if (opt.kvcache_storage && opt.kvcache_storage->owns(blob_mats_gpu[bottom_blob_index]))
+                {
+                    NCNN_LOGE("managed Vulkan kvcache cannot be downloaded to CPU");
+                    return -1;
+                }
+
                 Option opt_download = opt;
                 opt_download.use_packing_layout = layer->support_packing;
 
@@ -358,6 +373,10 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
 int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Option& opt) const
 {
     if (bottom_blob.empty())
+        return 0;
+
+    // KV cache is an opaque backend handle, not an ordinary tensor.
+    if (opt.kvcache_storage && opt.kvcache_storage->owns(bottom_blob))
         return 0;
 
     if (bottom_blob.elembits() == 32)
@@ -588,6 +607,10 @@ int NetPrivate::convert_layout(VkMat& bottom_blob, const Layer* layer, VkCompute
     if (bottom_blob.empty())
         return 0;
 
+    // KV cache is an opaque backend handle, not an ordinary tensor.
+    if (opt.kvcache_storage && opt.kvcache_storage->owns(bottom_blob))
+        return 0;
+
     int dst_elempack = 1;
     if (layer->support_vulkan_packing)
     {
@@ -695,7 +718,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
                 blob_mats[top_blob_index] = top_batch;
             }
 
-            if (opt.lightmode)
+            if (opt.lightmode || (opt.kvcache_storage && opt.kvcache_storage->owns(bottom_blob)))
             {
                 // delete after taken in light mode
                 blob_mats[bottom_blob_index].release();
@@ -726,7 +749,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
                 blob_mats[top_blob_index] = top_blob;
             }
 
-            if (opt.lightmode)
+            if (opt.lightmode || (opt.kvcache_storage && opt.kvcache_storage->owns(bottom_blob)))
             {
                 // delete after taken in light mode
                 blob_mats[bottom_blob_index].release();
@@ -830,6 +853,14 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
                     blob_mats[bottom_blob_index].release();
                 }
             }
+            else if (opt.kvcache_storage)
+            {
+                for (size_t i = 0; i < layer->bottoms.size(); i++)
+                {
+                    if (opt.kvcache_storage->owns(bottom_blobs[i]))
+                        blob_mats[layer->bottoms[i]].release();
+                }
+            }
         }
         if (B == 1 || layer->support_batch)
 #endif // NCNN_BATCH
@@ -874,6 +905,14 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
 
                     // delete after taken in light mode
                     blob_mats[bottom_blob_index].release();
+                }
+            }
+            else if (opt.kvcache_storage)
+            {
+                for (size_t i = 0; i < layer->bottoms.size(); i++)
+                {
+                    if (opt.kvcache_storage->owns(bottom_blobs[i]))
+                        blob_mats[layer->bottoms[i]].release();
                 }
             }
         }
@@ -955,7 +994,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
                 blob_mats_gpu[top_blob_index] = top_batch;
             }
 
-            if (opt.lightmode)
+            if (opt.lightmode || (opt.kvcache_storage && opt.kvcache_storage->owns(bottom_blob)))
             {
                 blob_mats_gpu[bottom_blob_index].release();
             }
@@ -985,7 +1024,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
                 blob_mats_gpu[top_blob_index] = top_blob;
             }
 
-            if (opt.lightmode)
+            if (opt.lightmode || (opt.kvcache_storage && opt.kvcache_storage->owns(bottom_blob)))
             {
                 // delete after taken in light mode
                 blob_mats_gpu[bottom_blob_index].release();
@@ -1089,6 +1128,14 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
                     blob_mats_gpu[bottom_blob_index].release();
                 }
             }
+            else if (opt.kvcache_storage)
+            {
+                for (size_t i = 0; i < layer->bottoms.size(); i++)
+                {
+                    if (opt.kvcache_storage->owns(bottom_blobs[i]))
+                        blob_mats_gpu[layer->bottoms[i]].release();
+                }
+            }
         }
         if (B == 1 || layer->support_batch)
 #endif // NCNN_BATCH
@@ -1133,6 +1180,14 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
 
                     // delete after taken in light mode
                     blob_mats_gpu[bottom_blob_index].release();
+                }
+            }
+            else if (opt.kvcache_storage)
+            {
+                for (size_t i = 0; i < layer->bottoms.size(); i++)
+                {
+                    if (opt.kvcache_storage->owns(bottom_blobs[i]))
+                        blob_mats_gpu[layer->bottoms[i]].release();
                 }
             }
         }
@@ -2787,6 +2842,11 @@ void Extractor::set_workspace_allocator(Allocator* allocator)
     d->opt.workspace_allocator = allocator;
 }
 
+void Extractor::set_kvcache_storage(KVCacheStorage* storage)
+{
+    d->opt.kvcache_storage = storage;
+}
+
 #if NCNN_VULKAN
 void Extractor::set_blob_vkallocator(VkAllocator* allocator)
 {
@@ -2911,7 +2971,17 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
 
             if (ret == 0 && d->blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
             {
-                cmd.record_download(feat_gpu, d->blob_mats[blob_index], d->opt);
+                if (d->opt.kvcache_storage && d->opt.kvcache_storage->owns(feat_gpu))
+                {
+                    NCNN_LOGE("managed Vulkan kvcache must be extracted as VkMat");
+                    set_kmp_blocktime(old_blocktime);
+                    set_flush_denormals(old_flush_denormals);
+                    return -1;
+                }
+                else
+                {
+                    cmd.record_download(feat_gpu, d->blob_mats[blob_index], d->opt);
+                }
 
                 ret = cmd.submit_and_wait();
 
@@ -2942,8 +3012,10 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
 
     feat = d->blob_mats[blob_index];
 
+    const bool opaque_kvcache = d->opt.kvcache_storage && d->opt.kvcache_storage->owns(feat);
+
     // empty is valid for outputs
-    if (!feat.empty())
+    if (!feat.empty() && !opaque_kvcache)
     {
         if (d->opt.use_packing_layout && (type == 0) && feat.elempack != 1)
         {
@@ -3097,8 +3169,18 @@ int Extractor::extract(int blob_index, VkMat& feat, VkCompute& cmd)
     {
         if (d->blob_mats[blob_index].dims != 0)
         {
-            // host to buffer
-            cmd.record_upload(d->blob_mats[blob_index], d->blob_mats_gpu[blob_index], d->opt);
+            if (d->opt.kvcache_storage && d->opt.kvcache_storage->owns(d->blob_mats[blob_index]))
+            {
+                NCNN_LOGE("managed CPU kvcache cannot be extracted as VkMat");
+                set_kmp_blocktime(old_blocktime);
+                set_flush_denormals(old_flush_denormals);
+                return -1;
+            }
+            else
+            {
+                // host to buffer
+                cmd.record_upload(d->blob_mats[blob_index], d->blob_mats_gpu[blob_index], d->opt);
+            }
         }
         else
         {
