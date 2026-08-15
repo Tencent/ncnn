@@ -74,6 +74,24 @@ static NCNN_FORCEINLINE v2f64 __ncnn_msa_fmsub_d(v2f64 a, v2f64 b, v2f64 c)
 #endif
 }
 
+static NCNN_FORCEINLINE v4f32 __ncnn_msa_comp_rsqrt1_w(const v4f32& _x)
+{
+    v4f32 _y = __msa_frsqrt_w(_x);
+    v4f32 _t = __msa_fmul_w(_y, _y);
+    _t = __msa_fsub_w(__msa_fill_w_f32(3.f), __msa_fmul_w(_x, _t));
+    _y = __msa_fmul_w(_y, __msa_fmul_w(_t, __msa_fill_w_f32(0.5f)));
+    return _y;
+}
+
+static NCNN_FORCEINLINE v4f32 __ncnn_msa_comp_rsqrt_w(const v4f32& _x)
+{
+    v4f32 _y = __ncnn_msa_comp_rsqrt1_w(_x);
+    v4f32 _t = __msa_fmul_w(_y, _y);
+    _t = __msa_fsub_w(__msa_fill_w_f32(3.f), __msa_fmul_w(_x, _t));
+    _y = __msa_fmul_w(_y, __msa_fmul_w(_t, __msa_fill_w_f32(0.5f)));
+    return _y;
+}
+
 static NCNN_FORCEINLINE v16i8 __ncnn_msa_maddv_b(v16i8 a, v16i8 b, v16i8 c)
 {
 #if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 8 || (__GNUC__ == 8 && __GNUC_MINOR__ < 5))
