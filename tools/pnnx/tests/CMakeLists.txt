@@ -117,6 +117,84 @@ set_tests_properties(test_pt2_fixture_tools PROPERTIES
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2
     LABELS "pt2;fixture")
 
+set(PNNX_OPERATOR_TESTS
+    point_add_tensor
+    point_add_scalar
+    point_sub_tensor
+    point_sub_scalar
+    point_mul_tensor
+    point_mul_scalar
+    point_div_tensor
+    point_div_scalar
+    point_abs
+    point_neg
+    point_exp
+    point_log
+    point_sqrt
+    point_sin
+    point_cos
+    point_tanh
+    point_sigmoid
+    point_relu
+    point_gelu
+    point_silu
+    point_clamp
+    point_maximum
+    linear_2d_bias
+    linear_2d_nobias
+    linear_3d_bias
+    linear_chain
+    linear_matmul
+    conv_1d
+    conv_1d_stride
+    conv_2d
+    conv_2d_nobias
+    conv_2d_stride
+    conv_2d_dilation
+    conv_2d_groups
+    conv_2d_depthwise
+    conv_3d
+    norm_layer_1d
+    norm_layer_2d
+    norm_batch_1d
+    norm_batch_2d
+    norm_batch_3d
+    norm_group
+    shape_reshape
+    shape_view
+    shape_flatten
+    shape_permute
+    shape_transpose
+    shape_squeeze
+    shape_unsqueeze
+    shape_cat
+    reduction_sum_all
+    reduction_sum_dim
+    reduction_sum_dims
+    reduction_sum_keepdim
+    reduction_mean_all
+    reduction_mean_dim
+    reduction_amax
+    reduction_amin)
+
+foreach(PNNX_OPERATOR_TEST IN LISTS PNNX_OPERATOR_TESTS)
+    string(REGEX REPLACE "_.*" "" PNNX_OPERATOR_FAMILY ${PNNX_OPERATOR_TEST})
+    foreach(PNNX_TEST_FORMAT torchscript pt2)
+        set(PNNX_OPERATOR_TEST_NAME test_${PNNX_TEST_FORMAT}_${PNNX_OPERATOR_TEST})
+        add_test(NAME ${PNNX_OPERATOR_TEST_NAME}
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_operators.py
+                    --pnnx $<TARGET_FILE:pnnx>
+                    --workdir ${CMAKE_CURRENT_BINARY_DIR}/${PNNX_TEST_FORMAT}/${PNNX_OPERATOR_TEST}
+                    --format ${PNNX_TEST_FORMAT}
+                    --case ${PNNX_OPERATOR_TEST})
+        set_tests_properties(${PNNX_OPERATOR_TEST_NAME} PROPERTIES
+            LABELS "${PNNX_TEST_FORMAT};operator;${PNNX_OPERATOR_FAMILY}")
+        if(PNNX_TEST_FORMAT STREQUAL "pt2")
+            set_tests_properties(${PNNX_OPERATOR_TEST_NAME} PROPERTIES SKIP_RETURN_CODE 77)
+        endif()
+    endforeach()
+endforeach()
+
 macro(pnnx_add_test name)
     add_test(NAME test_${name} COMMAND ${CMAKE_COMMAND} -DPYTHON_EXECUTABLE=${Python3_EXECUTABLE} -DPYTHON_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
 endmacro()
