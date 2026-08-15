@@ -197,6 +197,13 @@ endforeach()
 
 macro(pnnx_add_test name)
     add_test(NAME test_${name} COMMAND ${CMAKE_COMMAND} -DPYTHON_EXECUTABLE=${Python3_EXECUTABLE} -DPYTHON_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
+    add_test(NAME test_pt2_${name}
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_existing.py
+                --test ${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py
+                --pnnx $<TARGET_FILE:pnnx>
+                --workdir ${CMAKE_CURRENT_BINARY_DIR}/pt2-existing/${name}
+                --case ${name})
+    set_tests_properties(test_pt2_${name} PROPERTIES LABELS "pt2;pt2-full" SKIP_RETURN_CODE 77)
 endmacro()
 
 pnnx_add_test(F_adaptive_avg_pool1d)

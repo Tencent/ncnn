@@ -4,6 +4,7 @@
 #include "pt2_program.h"
 
 #include <errno.h>
+#include <limits>
 #include <stdlib.h>
 
 #include <set>
@@ -409,6 +410,18 @@ private:
         if (tag == "as_float")
         {
             result.type = Pt2Argument::Float;
+            if (payload.type == Pt2JsonValue::String)
+            {
+                if (payload.value == "Infinity") result.f = std::numeric_limits<double>::infinity();
+                else if (payload.value == "-Infinity") result.f = -std::numeric_limits<double>::infinity();
+                else if (payload.value == "NaN") result.f = std::numeric_limits<double>::quiet_NaN();
+                else
+                {
+                    fail(payload_path, &payload, "invalid special float");
+                    return false;
+                }
+                return true;
+            }
             return get_double(payload, payload_path, result.f);
         }
         if (tag == "as_floats")
@@ -423,6 +436,22 @@ private:
                     return false;
                 result.af.push_back(item);
             }
+            return true;
+        }
+        if (tag == "as_complex")
+        {
+            result.type = Pt2Argument::Complex;
+            const Pt2JsonValue* real = field(payload, "real", payload_path, true);
+            const Pt2JsonValue* imag = field(payload, "imag", payload_path, true);
+            if (!real || !imag)
+                return false;
+            double r;
+            double i;
+            if (!get_double(*real, payload_path + ".real", r) || !get_double(*imag, payload_path + ".imag", i))
+                return false;
+            result.af.push_back(r);
+            result.af.push_back(i);
+            count_unknown(payload, "real", "imag");
             return true;
         }
         if (tag == "as_string")
@@ -817,6 +846,8 @@ private:
             return a.ai == b.ai;
         if (a.type == Pt2Argument::Floats)
             return a.af == b.af;
+        if (a.type == Pt2Argument::Complex)
+            return a.af == b.af;
         if (a.type == Pt2Argument::Bools)
             return a.ab == b.ab;
         if (a.type == Pt2Argument::SymInt)
@@ -884,7 +915,20 @@ private:
             for (size_t j = 0; j < node.outputs.size(); j++)
             {
                 const Pt2Argument& output = node.outputs[j];
-                if (output.type != Pt2Argument::Tensor || !values.insert(output.s).second || program.tensors.find(output.s) == program.tensors.end())
+                if (output.type == Pt2Argument::Tensor)
+                {
+                    if (!values.insert(output.s).second || program.tensors.find(output.s) == program.tensors.end())
+                        return fail(path + ".outputs[" + std::to_string(j) + "]", 0, "invalid tensor output");
+                }
+                else if (output.type == Pt2Argument::Tensors)
+                {
+                    for (size_t k = 0; k < output.as.size(); k++)
+                    {
+                        if (!values.insert(output.as[k]).second || program.tensors.find(output.as[k]) == program.tensors.end())
+                            return fail(path + ".outputs[" + std::to_string(j) + "]", 0, "invalid tensor list output");
+                    }
+                }
+                else if (output.type != Pt2Argument::None)
                     return fail(path + ".outputs[" + std::to_string(j) + "]", 0, "invalid tensor output");
             }
         }

@@ -40,6 +40,7 @@ struct Pt2Argument
         Ints,
         Float,
         Floats,
+        Complex,
         String,
         Strings,
         Bool,

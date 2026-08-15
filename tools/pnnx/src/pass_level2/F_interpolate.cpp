@@ -5,6 +5,52 @@
 
 namespace pnnx {
 
+class F_interpolate_nearest_exact_pt2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 size
+pnnx.Input              input_2     0 1 scale_factor
+aten::_upsample_nearest_exact2d op_0 3 1 input size scale_factor out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.interpolate";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        GraphRewriterPass::write(op, captured_params);
+        op->params["mode"] = "nearest-exact";
+    }
+};
+
+class F_interpolate_nearest_exact3d_pt2 : public F_interpolate_nearest_exact_pt2
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 size
+pnnx.Input              input_2     0 1 scale_factor
+aten::_upsample_nearest_exact3d op_0 3 1 input size scale_factor out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_nearest_exact_pt2, 110)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_nearest_exact3d_pt2, 110)
+
 class F_interpolate : public GraphRewriterPass
 {
 public:

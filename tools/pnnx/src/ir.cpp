@@ -2336,7 +2336,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     const Parameter& param = it.second;
                     if (param.type == 0)
                     {
-                        if (scalar_as_tensor)
+                        if (op->type == "torch.full" && it.first == "size" && op->outputs[0]->shape.empty())
+                        {
+                            fprintf(pyfp, "()");
+                        }
+                        else if (scalar_as_tensor)
                         {
                             fprintf(pyfp, "torch.tensor(False)");
                         }

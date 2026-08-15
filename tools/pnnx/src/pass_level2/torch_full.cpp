@@ -30,6 +30,9 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
+        if (op->outputs[0]->shape.empty() && (op->params.find("size") == op->params.end() || op->params.at("size").type == 0))
+            op->params["size"] = std::vector<int>();
+
         if (captured_params.at("dtype").type == 0)
         {
             op->params["dtype"] = Parameter();

@@ -62,7 +62,7 @@ jobs:
     - name: pt2-fixture-test
       run: |
         cd tools/pnnx/build
-        ctest -C Release --output-on-failure -R test_pt2_
+        ctest -C Release --output-on-failure -L pt2 -LE pt2-full
 
     - name: quick-test
       if: matrix.os != 'windows-latest'
@@ -228,7 +228,7 @@ jobs:
             -Donnxruntime_INSTALL_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
             -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf ..
         cmake --build . -j 8
-        ctest --output-on-failure -R test_pt2_
+        ctest --output-on-failure -L pt2 -LE pt2-full
         strip src/pnnx
 
     - name: upload-pnnx

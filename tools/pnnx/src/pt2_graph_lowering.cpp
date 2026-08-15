@@ -7,6 +7,8 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <cmath>
+#include <complex>
 #include <map>
 #include <set>
 #include <sstream>
@@ -18,6 +20,7 @@
 #include "ir.h"
 #include "pt2_program.h"
 #include "pt2_weights.h"
+#include "utils.h"
 
 #if TORCH_VERSION_MAJOR > 2 || (TORCH_VERSION_MAJOR == 2 && TORCH_VERSION_MINOR >= 6)
 
@@ -50,9 +53,11 @@ static int parameter_from_argument(const Pt2Argument& arg, Parameter& value, std
     else if (arg.type == Pt2Argument::Ints)
         value = Parameter(arg.ai);
     else if (arg.type == Pt2Argument::Float)
-        value = Parameter(arg.f);
+        value = std::isinf(arg.f) ? Parameter(arg.f < 0 ? "-inf" : "inf") : Parameter(arg.f);
     else if (arg.type == Pt2Argument::Floats)
         value = Parameter(arg.af);
+    else if (arg.type == Pt2Argument::Complex)
+        value = Parameter(std::complex<double>(arg.af[0], arg.af[1]));
     else if (arg.type == Pt2Argument::String || arg.type == Pt2Argument::Device)
         value = Parameter(arg.s);
     else if (arg.type == Pt2Argument::Strings)
@@ -402,6 +407,12 @@ private:
 
     int lower_node(size_t index, const Pt2Node& node)
     {
+        bool has_output = false;
+        for (size_t i = 0; i < node.outputs.size(); i++)
+            has_output |= node.outputs[i].type != Pt2Argument::None;
+        if (!has_output)
+            return 0;
+
         std::string name;
         std::string overload;
         if (parse_target(node.target, name, overload) != 0)
@@ -448,6 +459,13 @@ private:
             else
                 return fail_node(index, node, "missing required argument " + schema_argument.name(), schema_stream.str());
 
+            Pt2Argument empty_stride;
+            if (schema_argument.name() == "stride" && argument->type == Pt2Argument::Ints && argument->ai.empty()
+                && (name == "aten::avg_pool1d" || name == "aten::avg_pool2d" || name == "aten::avg_pool3d"
+                    || name == "aten::max_pool1d" || name == "aten::max_pool2d" || name == "aten::max_pool3d"
+                    || name == "aten::max_pool1d_with_indices" || name == "aten::max_pool2d_with_indices" || name == "aten::max_pool3d_with_indices"))
+                argument = &empty_stride;
+
             Operand* operand = 0;
             if (materialize_argument(*argument, operand) != 0)
                 return fail_node(index, node, error + " for argument " + schema_argument.name(), schema_stream.str());
@@ -466,13 +484,85 @@ private:
             operator_inputs[i]->consumers.push_back(op);
         for (size_t i = 0; i < node.outputs.size(); i++)
         {
-            if (node.outputs[i].type != Pt2Argument::Tensor)
+            if (node.outputs[i].type != Pt2Argument::Tensor && node.outputs[i].type != Pt2Argument::Tensors)
                 return fail_node(index, node, "only tensor outputs are supported", schema_stream.str());
-            Operand* operand = new_operand(node.outputs[i].s);
-            if (!operand || set_tensor_meta(node.outputs[i].s, operand) != 0)
-                return fail_node(index, node, error, schema_stream.str());
-            operand->producer = op;
-            op->outputs.push_back(operand);
+            if (node.outputs[i].type == Pt2Argument::Tensor)
+            {
+                Operand* operand = new_operand(node.outputs[i].s);
+                if (!operand || set_tensor_meta(node.outputs[i].s, operand) != 0)
+                    return fail_node(index, node, error, schema_stream.str());
+                operand->producer = op;
+                op->outputs.push_back(operand);
+            }
+            else
+            {
+                const std::string list_name = generated_name();
+                Operand* list = new_operand(list_name);
+                if (!list)
+                    return fail_node(index, node, error, schema_stream.str());
+                list->producer = op;
+                op->outputs.push_back(list);
+
+                const std::string unpack_name = generated_name();
+                Operator* unpack = graph.new_operator("prim::ListUnpack", unpack_name);
+                unpack->inputs.push_back(list);
+                list->consumers.push_back(unpack);
+                for (size_t j = 0; j < node.outputs[i].as.size(); j++)
+                {
+                    Operand* operand = new_operand(node.outputs[i].as[j]);
+                    if (!operand || set_tensor_meta(node.outputs[i].as[j], operand) != 0)
+                        return fail_node(index, node, error, schema_stream.str());
+                    operand->producer = unpack;
+                    unpack->outputs.push_back(operand);
+                }
+            }
+        }
+        if (name == "aten::_weight_norm" && op->inputs.size() == 3
+            && op->inputs[0]->producer->type == "pnnx.Attribute" && op->inputs[1]->producer->type == "pnnx.Attribute"
+            && op->inputs[2]->producer->type == "prim::Constant" && op->inputs[2]->producer->params.at("value").i == 0)
+        {
+            Attribute weight = op->inputs[0]->producer->attrs.at("data");
+            std::vector<float> weight_data = weight.get_float32_data();
+            const std::vector<float> weight_g = op->inputs[1]->producer->attrs.at("data").get_float32_data();
+            if (!weight.shape.empty() && weight.shape[0] > 0 && weight_g.size() >= (size_t)weight.shape[0]
+                && weight_data.size() % weight.shape[0] == 0)
+            {
+                const int dim0 = weight.shape[0];
+                apply_weight_norm(weight_data, weight_g, dim0, weight_data.size() / dim0);
+                weight.set_float32_data(weight_data);
+                for (size_t i = 0; i < op->inputs.size(); i++)
+                    op->inputs[i]->remove_consumer(op);
+                op->inputs.clear();
+                op->inputnames.clear();
+                op->type = "pnnx.Attribute";
+                op->attrs["data"] = weight;
+            }
+        }
+        if (name == "aten::alias" || name == "aten::lift_fresh_copy")
+        {
+            op->type = "torch.clone";
+            op->inputnames[0] = "input";
+        }
+        if (name == "aten::new_full")
+        {
+            op->inputs[0]->remove_consumer(op);
+            op->inputs.erase(op->inputs.begin());
+            op->inputnames.erase(op->inputnames.begin());
+            op->type = "aten::full";
+        }
+        if (name == "aten::hann_window" || name == "aten::hamming_window")
+            op->type = name == "aten::hann_window" ? "torch.hann_window" : "torch.hamming_window";
+        if (name == "aten::_upsample_nearest_exact2d" || name == "aten::_upsample_nearest_exact3d")
+        {
+            op->inputnames[1] = "size";
+            op->inputnames[2] = "scale_factor";
+        }
+        if (name == "aten::gru" || name == "aten::lstm" || name == "aten::rnn_tanh" || name == "aten::rnn_relu")
+            op->type = "torch._VF." + name.substr(6);
+        if (name == "aten::tril")
+        {
+            op->type = "torch.tril";
+            op->inputnames[0] = "input";
         }
         return 0;
     }
