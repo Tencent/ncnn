@@ -763,6 +763,7 @@ set(pnnx_SRCS
     model_format.cpp
     model_stat.cpp
     pt2_archive.cpp
+    pt2_graph_lowering.cpp
     pt2_json.cpp
     pt2_program.cpp
     pt2_weights.cpp

@@ -11,6 +11,28 @@ add_executable(pnnx_pt2_archive_test
     ../src/storezip.cpp)
 target_include_directories(pnnx_pt2_archive_test PRIVATE ../src)
 
+if(Torch_VERSION VERSION_GREATER_EQUAL "2.6")
+    add_executable(pnnx_pt2_graph_test
+        pt2_graph_test.cpp
+        ../src/ir.cpp
+        ../src/model_stat.cpp
+        ../src/pt2_archive.cpp
+        ../src/pt2_graph_lowering.cpp
+        ../src/pt2_json.cpp
+        ../src/pt2_program.cpp
+        ../src/pt2_weights.cpp
+        ../src/storezip.cpp
+        ../src/utils.cpp)
+    target_include_directories(pnnx_pt2_graph_test PRIVATE ../src)
+    target_compile_options(pnnx_pt2_graph_test PRIVATE "${TORCH_CXX_FLAGS}")
+    if(WIN32)
+        target_compile_definitions(pnnx_pt2_graph_test PRIVATE NOMINMAX)
+        target_link_libraries(pnnx_pt2_graph_test PRIVATE ${TORCH_LIBRARIES})
+    else()
+        target_link_libraries(pnnx_pt2_graph_test PRIVATE ${TORCH_LIBRARIES} pthread dl)
+    endif()
+endif()
+
 file(GLOB_RECURSE PNNX_PT2_ARCHIVE_FIXTURES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/data/*.pt2")
 foreach(PT2_FIXTURE IN LISTS PNNX_PT2_ARCHIVE_FIXTURES)
@@ -31,7 +53,18 @@ foreach(PT2_FIXTURE IN LISTS PNNX_PT2_ARCHIVE_FIXTURES)
     add_test(NAME test_pt2_weights_${PT2_FIXTURE_TEST_ID}
         COMMAND pnnx_pt2_archive_test --weights-archive "${PT2_FIXTURE}" "${PT2_FIXTURE_CASE}")
     set_tests_properties(test_pt2_weights_${PT2_FIXTURE_TEST_ID} PROPERTIES LABELS "pt2;weights")
+    if(Torch_VERSION VERSION_GREATER_EQUAL "2.6")
+        add_test(NAME test_pt2_graph_${PT2_FIXTURE_TEST_ID}
+            COMMAND pnnx_pt2_graph_test "${PT2_FIXTURE}" "${PT2_FIXTURE_CASE}"
+                    "${CMAKE_CURRENT_BINARY_DIR}/pt2_graph_${PT2_FIXTURE_TEST_ID}")
+        set_tests_properties(test_pt2_graph_${PT2_FIXTURE_TEST_ID} PROPERTIES LABELS "pt2;graph")
+    endif()
 endforeach()
+
+if(Torch_VERSION VERSION_GREATER_EQUAL "2.6")
+    add_test(NAME test_pt2_graph_pilot COMMAND pnnx_pt2_graph_test --pilot)
+    set_tests_properties(test_pt2_graph_pilot PROPERTIES LABELS "pt2;graph;malformed")
+endif()
 
 add_test(NAME test_pt2_archive_reader_malformed
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_archive_reader.py
