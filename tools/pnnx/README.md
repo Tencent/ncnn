@@ -31,14 +31,14 @@ PNNX tries to define a set of operators and a simple and easy-to-use format that
 9. [Model optimization](#pnnx-model-optimization)
 10. [Custom operator support](#pnnx-custom-operator)
 
-# Build TorchScript to PNNX converter
+# Build PyTorch model to PNNX converter
 
 1. Install PyTorch and TorchVision c++ library
 2. Build PNNX with cmake
 
 # Usage
 
-1. Export your model to TorchScript
+1. Export your model to TorchScript or ExportedProgram
 
 ```python
 import torch
@@ -56,10 +56,23 @@ mod = torch.jit.trace(net, x)
 mod.save("resnet18.pt")
 ```
 
-2. Convert TorchScript to PNNX
+ExportedProgram requires PyTorch 2.6 or newer.
+
+```python
+ep = torch.export.export(net, (x,))
+torch.export.save(ep, "resnet18.pt2")
+```
+
+2. Convert the model to PNNX
 
 ```shell
 pnnx resnet18.pt inputshape=[1,3,224,224]
+```
+
+ExportedProgram already contains input metadata, so no extra arguments are needed for a static model.
+
+```shell
+pnnx resnet18.pt2
 ```
 
 Normally, you will get seven files
@@ -85,7 +98,7 @@ Open https://netron.app/ in browser, and drag resnet18.pnnx.param into it.
 4. PNNX command line options
 
 ```
-Usage: pnnx [model.pt] [(key=value)...]
+Usage: pnnx [model.pt|model.pt2|model.onnx] [(key=value)...]
   pnnxparam=model.pnnx.param
   pnnxbin=model.pnnx.bin
   pnnxpy=model_pnnx.py
@@ -101,6 +114,7 @@ Usage: pnnx [model.pt] [(key=value)...]
   customop=/home/nihui/.cache/torch_extensions/fused/fused.so,...
   moduleop=models.common.Focus,models.yolo.Detect,...
 Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]
+              pnnx resnet18.pt2
               pnnx yolov5s.pt inputshape=[1,3,640,640] inputshape2=[1,3,320,320] device=gpu moduleop=models.common.Focus,models.yolo.Detect
 ```
 

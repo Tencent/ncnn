@@ -15,6 +15,7 @@
 #endif
 
 #include "ir.h"
+#include "load_pt2.h"
 #include "model_format.h"
 #include "pass_level2.h"
 #include "pass_level3.h"
@@ -482,11 +483,9 @@ int main(int argc, char** argv)
         else if (model_format_info.format == pnnx::ModelFormatPt2LegacyExportedProgram ||
                  model_format_info.format == pnnx::ModelFormatPt2Archive)
         {
-            fprintf(stderr, "recognized %s model", pnnx::model_format_name(model_format_info.format));
-            if (!model_format_info.archive_version.empty())
-                fprintf(stderr, " (archive version %s)", model_format_info.archive_version.c_str());
-            fprintf(stderr, ", but the PT2 graph loader is not enabled yet\n");
-            return -1;
+            int ret = load_pt2(ptpath, pnnx_graph);
+            if (ret != 0)
+                return ret;
         }
         else
         {

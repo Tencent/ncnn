@@ -102,12 +102,14 @@ add_test(NAME test_pt2_storezip_roundtrip
     COMMAND pnnx_pt2_archive_test --roundtrip "${CMAKE_CURRENT_BINARY_DIR}/pnnx_pt2_storezip_roundtrip.zip")
 set_tests_properties(test_pt2_storezip_roundtrip PROPERTIES LABELS "pt2;archive")
 
-add_test(NAME test_pt2_cli_probe
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_cli_probe.py
-            --pnnx $<TARGET_FILE:pnnx>
-            --legacy ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/data/torch_2_6_0/state_and_constants.pt2
-            --archive ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/data/torch_2_12_1/state_and_constants.pt2)
-set_tests_properties(test_pt2_cli_probe PROPERTIES LABELS "pt2;archive;cli")
+if(Torch_VERSION VERSION_GREATER_EQUAL "2.6")
+    add_test(NAME test_pt2_cli
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_cli_probe.py
+                --pnnx $<TARGET_FILE:pnnx>
+                --legacy ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/data/torch_2_6_0/state_and_constants.pt2
+                --archive ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/data/torch_2_12_1/state_and_constants.pt2)
+    set_tests_properties(test_pt2_cli PROPERTIES LABELS "pt2;archive;cli")
+endif()
 
 add_test(NAME test_pt2_fixture_tools
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/test_pt2_fixture_tools.py)

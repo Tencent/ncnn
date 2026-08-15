@@ -760,6 +760,7 @@ endif()
 set(pnnx_SRCS
     main.cpp
     ir.cpp
+    load_pt2.cpp
     model_format.cpp
     model_stat.cpp
     pt2_archive.cpp
