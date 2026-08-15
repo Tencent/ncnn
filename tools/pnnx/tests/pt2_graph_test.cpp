@@ -10,6 +10,10 @@
 #include <vector>
 
 #include "ir.h"
+#include "pass_level2.h"
+#include "pass_level3/fuse_expression.h"
+#include "pass_level4/dead_code_elimination.h"
+#include "pass_level5/fuse_static_linear.h"
 #include "pt2_archive.h"
 #include "pt2_graph_lowering.h"
 #include "pt2_program.h"
@@ -20,6 +24,16 @@ static const pnnx::Operator* find_operator(const pnnx::Graph& graph, const std::
     for (size_t i = 0; i < graph.ops.size(); i++)
     {
         if (graph.ops[i]->name == name)
+            return graph.ops[i];
+    }
+    return 0;
+}
+
+static const pnnx::Operator* find_operator_type(const pnnx::Graph& graph, const std::string& type)
+{
+    for (size_t i = 0; i < graph.ops.size(); i++)
+    {
+        if (graph.ops[i]->type == type)
             return graph.ops[i];
     }
     return 0;
@@ -111,6 +125,48 @@ static int check_real_graph(const pnnx::Graph& graph, const std::string& name)
         for (size_t i = 0; i < graph.ops.size(); i++)
             outputs += graph.ops[i]->type == "pnnx.Output";
         return outputs == 3 ? 0 : -1;
+    }
+    return -1;
+}
+
+static int check_rewritten_graph(pnnx::Graph& graph, const std::string& name)
+{
+    pnnx::pass_level2(graph);
+    pnnx::fuse_expression(graph, std::set<std::string>(), std::string());
+    pnnx::dead_code_elimination(graph);
+    pnnx::fuse_static_linear(graph);
+
+    if (check_topology(graph) != 0)
+        return -1;
+
+    const pnnx::Operator* expression = find_operator_type(graph, "pnnx.Expression");
+    if (!expression || !expression->inputnames.empty())
+        return -1;
+
+    if (name == "state_and_constants")
+    {
+        const pnnx::Operator* linear = find_operator_type(graph, "nn.Linear");
+        return linear && linear->attrs.find("weight") != linear->attrs.end() && linear->attrs.find("bias") != linear->attrs.end() &&
+                       expression->params.at("expr").s == "add(add(add(@0,@1),@2),@3)"
+                   ? 0
+                   : -1;
+    }
+
+    if (name == "strided_tensors")
+    {
+        const pnnx::Operator* linear = find_operator_type(graph, "nn.Linear");
+        return linear && linear->attrs.find("weight") != linear->attrs.end() && linear->attrs.find("bias") == linear->attrs.end() &&
+                       expression->params.at("expr").s == "add(add(@0,@1),@2)"
+                   ? 0
+                   : -1;
+    }
+
+    if (name == "structured_io")
+    {
+        return expression->params.at("expr").s == "mul(add(@0,@1),3)" &&
+                       find_operator_type(graph, "torch.mean") && find_operator_type(graph, "torch.sum")
+                   ? 0
+                   : -1;
     }
     return -1;
 }
@@ -354,6 +410,20 @@ static int check_pilot()
         !index || index->type != "aten::index" || index->inputs.size() != 2 || index->inputs[1]->producer->type != "prim::ListConstruct" || check_topology(graph) != 0)
         return -1;
 
+    pnnx::Pt2Program compatible = pilot_program();
+    compatible.nodes[0].target = "torch.ops.aten.conv2d.default";
+    compatible.nodes[0].inputs.erase(compatible.nodes[0].inputs.begin() + 6, compatible.nodes[0].inputs.begin() + 8);
+    compatible.nodes[1].target = "torch.ops.aten.layer_norm.default";
+    compatible.nodes[1].inputs.push_back(named_argument("cudnn_enable", bool_argument(true)));
+    compatible.nodes[1].outputs.resize(1);
+    pnnx::Graph compatible_graph;
+    if (pnnx::lower_pt2_graph(compatible, weights, compatible_graph, error) != 0)
+        return -1;
+    pnnx::pass_level2(compatible_graph);
+    if (!find_operator_type(compatible_graph, "F.conv2d") || !find_operator_type(compatible_graph, "F.layer_norm") ||
+        !find_operator_type(compatible_graph, "Tensor.reshape") || check_topology(compatible_graph) != 0)
+        return -1;
+
     pnnx::Pt2Program unknown = pilot_program();
     unknown.nodes[0].target = "torch.ops.aten.pnnx_missing.default";
     pnnx::Graph unknown_graph;
@@ -387,6 +457,12 @@ int main(int argc, char** argv)
     if (lower_archive(argv[1], second, error) != 0)
     {
         fprintf(stderr, "%s\n", error.c_str());
+        return 1;
+    }
+    pnnx::Graph rewritten;
+    if (lower_archive(argv[1], rewritten, error) != 0 || check_rewritten_graph(rewritten, argv[2]) != 0)
+    {
+        fprintf(stderr, "%s%s\n", error.c_str(), error.empty() ? "PT2 graph does not match existing pnnx passes" : "");
         return 1;
     }
 

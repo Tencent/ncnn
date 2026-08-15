@@ -129,6 +129,7 @@ StoreZipReader::StoreZipReader()
     memory_size = 0;
     memory_position = 0;
     data_limit = 0;
+    has_compressed_records = false;
 
     CRC32_TABLE_INIT();
 }
@@ -492,9 +493,7 @@ int StoreZipReader::parse()
             return fail("encrypted record is not supported: " + raw_name);
         if (flag & (uint16_t)~0x0808u)
             return fail("unsupported ZIP general-purpose flag for " + raw_name);
-        if (compression != 0)
-            return fail("unsupported compression method for " + raw_name);
-        if (compressed_size != uncompressed_size)
+        if (compression == 0 && compressed_size != uncompressed_size)
             return fail("stored record has mismatched compressed and uncompressed sizes: " + raw_name);
 
         std::string name;
@@ -511,8 +510,11 @@ int StoreZipReader::parse()
         StoreZipMeta fm;
         fm.offset = lfh_offset;
         fm.size = uncompressed_size;
+        fm.compressed_size = compressed_size;
         fm.crc32 = crc32;
         fm.flag = flag;
+        fm.compression = compression;
+        has_compressed_records |= compression != 0;
         if (!filemetas.insert(std::make_pair(name, fm)).second)
             return fail("duplicate normalized ZIP record name: " + name);
     }
@@ -561,6 +563,11 @@ int StoreZipReader::read_file(const std::string& name, char* data)
 
 int StoreZipReader::read_file(const std::string& name, const StoreZipMeta& meta, char* data)
 {
+    if (meta.compression != 0)
+    {
+        error = "unsupported compression method for " + name;
+        return -1;
+    }
     if (meta.size > SIZE_MAX || (meta.size != 0 && !data))
     {
         error = "invalid destination buffer for " + name;
@@ -576,7 +583,7 @@ int StoreZipReader::read_file(const std::string& name, const StoreZipMeta& meta,
 
     const uint16_t local_name_length = read_le16(local + 26);
     const uint16_t local_extra_length = read_le16(local + 28);
-    if (read_le16(local + 6) != meta.flag || read_le16(local + 8) != 0)
+    if (read_le16(local + 6) != meta.flag || read_le16(local + 8) != meta.compression)
     {
         error = "local and central header metadata disagree for " + name;
         return -1;
@@ -585,7 +592,7 @@ int StoreZipReader::read_file(const std::string& name, const StoreZipMeta& meta,
     uint64_t data_offset = 0;
     uint64_t data_end = 0;
     if (!checked_add_u64(meta.offset, 30u + (uint64_t)local_name_length + local_extra_length, data_offset) ||
-        !checked_add_u64(data_offset, meta.size, data_end) || data_end > data_limit)
+        !checked_add_u64(data_offset, meta.compressed_size, data_end) || data_end > data_limit)
     {
         error = "record data is outside the file-data area: " + name;
         return -1;
@@ -620,6 +627,11 @@ int StoreZipReader::read_file(const std::string& name, std::vector<unsigned char
     }
 
     const uint64_t size = it->second.size;
+    if (it->second.compression != 0)
+    {
+        error = "unsupported compression method for " + name;
+        return -1;
+    }
     if (size > SIZE_MAX)
     {
         error = "record is too large for memory: " + name;
@@ -642,6 +654,7 @@ int StoreZipReader::close()
     memory_position = 0;
     filemetas.clear();
     data_limit = 0;
+    has_compressed_records = false;
 
     return 0;
 }

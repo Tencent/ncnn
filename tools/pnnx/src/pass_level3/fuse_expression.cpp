@@ -936,6 +936,7 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
                 }
 
                 op->inputs = inputs;
+                op->inputnames.clear();
 
                 for (Operand* operand : op->inputs)
                 {

@@ -30,6 +30,7 @@ public:
 
     int close();
 
+    bool has_compressed_records;
     std::string error;
 
 private:
@@ -37,8 +38,10 @@ private:
     {
         uint64_t offset;
         uint64_t size;
+        uint64_t compressed_size;
         uint32_t crc32;
         uint16_t flag;
+        uint16_t compression;
     };
 
     int fail(const std::string& message);

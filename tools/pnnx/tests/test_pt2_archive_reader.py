@@ -56,10 +56,23 @@ def main():
                 ("module/data.pkl", b"pickle"),
                 ("module/constants.pkl", b"pickle"),
                 ("module/code/__torch__.py", b"class Module:\n    pass\n"),
-                ("module/version", b"3\n"),
+                ("module/.data/version", b"3\n"),
             ],
         )
         probe(args.tester, torchscript, "torchscript")
+
+        compressed_torchscript = root / "compressed_torchscript.pt"
+        write_zip(
+            compressed_torchscript,
+            [
+                ("module/data.pkl", b"pickle"),
+                ("module/constants.pkl", b"pickle"),
+                ("module/code/__torch__.py", b"class Module:\n    pass\n"),
+                ("module/version", b"3\n"),
+            ],
+            compression=zipfile.ZIP_DEFLATED,
+        )
+        probe(args.tester, compressed_torchscript, "torchscript")
 
         pt2 = root / "archive.pt2"
         write_zip(

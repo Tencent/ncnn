@@ -66,11 +66,17 @@ int probe_model_format(const std::string& path, ModelFormatInfo& info)
     }
 
     if (archive.records.find("data.pkl") != archive.records.end() &&
-        archive.records.find("version") != archive.records.end() &&
+        (archive.records.find("version") != archive.records.end() || archive.records.find(".data/version") != archive.records.end()) &&
         (has_code || archive.records.find("constants.pkl") != archive.records.end()))
     {
         info.format = ModelFormatTorchScript;
         return 0;
+    }
+
+    if (archive.has_compressed_records)
+    {
+        info.diagnostic = "unsupported compression method in ZIP container";
+        return -1;
     }
 
     info.format = ModelFormatUnknownZip;

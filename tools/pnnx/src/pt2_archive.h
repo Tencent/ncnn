@@ -36,6 +36,7 @@ public:
     std::string archive_version;
     std::string model_record;
     std::set<std::string> records;
+    bool has_compressed_records;
     std::string error;
 
 private:

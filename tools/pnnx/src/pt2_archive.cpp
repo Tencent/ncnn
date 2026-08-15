@@ -23,6 +23,7 @@ static std::string trim_ascii_whitespace(const std::string& value)
 Pt2ArchiveReader::Pt2ArchiveReader()
 {
     container_kind = Pt2ContainerUnknown;
+    has_compressed_records = false;
 }
 
 int Pt2ArchiveReader::fail(const std::string& message)
@@ -38,6 +39,7 @@ int Pt2ArchiveReader::open(const std::string& path)
 
     if (zip.open(path) != 0)
         return fail(zip.error);
+    has_compressed_records = zip.has_compressed_records;
 
     const std::vector<std::string> physical_names = zip.get_names();
 
@@ -116,6 +118,7 @@ int Pt2ArchiveReader::close()
     model_record.clear();
     records.clear();
     prefix.clear();
+    has_compressed_records = false;
     error.clear();
     return 0;
 }

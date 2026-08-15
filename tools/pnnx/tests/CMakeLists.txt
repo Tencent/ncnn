@@ -16,6 +16,21 @@ if(Torch_VERSION VERSION_GREATER_EQUAL "2.6")
         pt2_graph_test.cpp
         ../src/ir.cpp
         ../src/model_stat.cpp
+        ../src/pass_level2.cpp
+        ../src/pass_level2/F_conv2d.cpp
+        ../src/pass_level2/F_layer_norm.cpp
+        ../src/pass_level2/F_linear.cpp
+        ../src/pass_level2/Tensor_reshape.cpp
+        ../src/pass_level2/eliminate_contiguous.cpp
+        ../src/pass_level2/eliminate_size_numtotensor_int.cpp
+        ../src/pass_level2/functionize.cpp
+        ../src/pass_level2/fuse_constantlist.cpp
+        ../src/pass_level2/torch_matmul.cpp
+        ../src/pass_level2/torch_mean.cpp
+        ../src/pass_level2/torch_sum.cpp
+        ../src/pass_level3/fuse_expression.cpp
+        ../src/pass_level4/dead_code_elimination.cpp
+        ../src/pass_level5/fuse_static_linear.cpp
         ../src/pt2_archive.cpp
         ../src/pt2_graph_lowering.cpp
         ../src/pt2_json.cpp
