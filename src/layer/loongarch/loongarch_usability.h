@@ -268,8 +268,8 @@ static NCNN_FORCEINLINE float __lsx_reduce_fmax_s(__m128 _v)
 static NCNN_FORCEINLINE __m128 __lsx_comp_rsqrt1_s(const __m128& _x)
 {
     __m128 _y = __lsx_vfrsqrt_s(_x);
-    __m128 _t = __lsx_vfmul_s(_y, _y);
-    _t = __lsx_vfsub_s((__m128)__lsx_vreplfr2vr_s(3.f), __lsx_vfmul_s(_x, _t));
+    __m128 _t = __lsx_vfmul_s(_x, _y);
+    _t = __lsx_vfsub_s((__m128)__lsx_vreplfr2vr_s(3.f), __lsx_vfmul_s(_t, _y));
     _y = __lsx_vfmul_s(_y, __lsx_vfmul_s(_t, (__m128)__lsx_vreplfr2vr_s(0.5f)));
     return _y;
 }
@@ -277,8 +277,8 @@ static NCNN_FORCEINLINE __m128 __lsx_comp_rsqrt1_s(const __m128& _x)
 static NCNN_FORCEINLINE __m128 __lsx_comp_rsqrt_s(const __m128& _x)
 {
     __m128 _y = __lsx_comp_rsqrt1_s(_x);
-    __m128 _t = __lsx_vfmul_s(_y, _y);
-    _t = __lsx_vfsub_s((__m128)__lsx_vreplfr2vr_s(3.f), __lsx_vfmul_s(_x, _t));
+    __m128 _t = __lsx_vfmul_s(_x, _y);
+    _t = __lsx_vfsub_s((__m128)__lsx_vreplfr2vr_s(3.f), __lsx_vfmul_s(_t, _y));
     _y = __lsx_vfmul_s(_y, __lsx_vfmul_s(_t, (__m128)__lsx_vreplfr2vr_s(0.5f)));
     return _y;
 }
@@ -320,8 +320,8 @@ static NCNN_FORCEINLINE float __lasx_reduce_fmax_s(__m256 _v)
 static NCNN_FORCEINLINE __m256 __lasx_comp_rsqrt1_s(const __m256& _x)
 {
     __m256 _y = __lasx_xvfrsqrt_s(_x);
-    __m256 _t = __lasx_xvfmul_s(_y, _y);
-    _t = __lasx_xvfsub_s((__m256)__lasx_xvreplfr2vr_s(3.f), __lasx_xvfmul_s(_x, _t));
+    __m256 _t = __lasx_xvfmul_s(_x, _y);
+    _t = __lasx_xvfsub_s((__m256)__lasx_xvreplfr2vr_s(3.f), __lasx_xvfmul_s(_t, _y));
     _y = __lasx_xvfmul_s(_y, __lasx_xvfmul_s(_t, (__m256)__lasx_xvreplfr2vr_s(0.5f)));
     return _y;
 }
@@ -329,8 +329,8 @@ static NCNN_FORCEINLINE __m256 __lasx_comp_rsqrt1_s(const __m256& _x)
 static NCNN_FORCEINLINE __m256 __lasx_comp_rsqrt_s(const __m256& _x)
 {
     __m256 _y = __lasx_comp_rsqrt1_s(_x);
-    __m256 _t = __lasx_xvfmul_s(_y, _y);
-    _t = __lasx_xvfsub_s((__m256)__lasx_xvreplfr2vr_s(3.f), __lasx_xvfmul_s(_x, _t));
+    __m256 _t = __lasx_xvfmul_s(_x, _y);
+    _t = __lasx_xvfsub_s((__m256)__lasx_xvreplfr2vr_s(3.f), __lasx_xvfmul_s(_t, _y));
     _y = __lasx_xvfmul_s(_y, __lasx_xvfmul_s(_t, (__m256)__lasx_xvreplfr2vr_s(0.5f)));
     return _y;
 }
