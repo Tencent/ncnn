@@ -53,15 +53,15 @@ int Spectrogram_x86::load_param(const ParamDict& pd)
     conv1d = create_layer_cpu(LayerType::Convolution1D);
     {
         ParamDict pd_conv;
-        pd_conv.set(0, num_output);             // num_output
-        pd_conv.set(1, n_fft);                  // kernel_w
-        pd_conv.set(2, 1);                      // dilation_w
-        pd_conv.set(3, hoplen);                 // stride_w
-        pd_conv.set(4, 0);                      // pad_left
-        pd_conv.set(15, 0);                     // pad_right
-        pd_conv.set(5, 0);                      // bias_term
-        pd_conv.set(6, num_output * n_fft);     // weight_data_size
-        pd_conv.set(9, 0);                      // activation_type
+        pd_conv.set(0, num_output);         // num_output
+        pd_conv.set(1, n_fft);              // kernel_w
+        pd_conv.set(2, 1);                  // dilation_w
+        pd_conv.set(3, hoplen);             // stride_w
+        pd_conv.set(4, 0);                  // pad_left
+        pd_conv.set(15, 0);                 // pad_right
+        pd_conv.set(5, 0);                  // bias_term
+        pd_conv.set(6, num_output * n_fft); // weight_data_size
+        pd_conv.set(9, 0);                  // activation_type
         conv1d->load_param(pd_conv);
 
         Mat weights[1] = {dft_weight};

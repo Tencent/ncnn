@@ -25,8 +25,8 @@ layout(push_constant) uniform parameter
 {
     int frames;
     int outsize;
-    int sp_c;      // input channels (freqs)
-    int sp_cstep;  // input channel stride
+    int sp_c;     // input channels (freqs)
+    int sp_cstep; // input channel stride
 } p;
 
 void main()
@@ -79,9 +79,9 @@ void main()
 
             const int wk = k * n_fft + m;
             r0 += sre * float(buffer_ld1(weight_data, wk))
-                + sim * float(buffer_ld1(weight_data, n_fft * n_fft + wk));
+                  + sim * float(buffer_ld1(weight_data, n_fft * n_fft + wk));
             i0 += sre * float(buffer_ld1(weight_data, 2 * n_fft * n_fft + wk))
-                + sim * float(buffer_ld1(weight_data, 3 * n_fft * n_fft + wk));
+                  + sim * float(buffer_ld1(weight_data, 3 * n_fft * n_fft + wk));
         }
 
         re += r0;

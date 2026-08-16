@@ -22,7 +22,7 @@ layout(binding = 2) readonly buffer weight_blob { sfp weight_data[]; };
 layout(push_constant) uniform parameter
 {
     int frames;
-    int cstep;  // top channel stride (power == 0 only)
+    int cstep; // top channel stride (power == 0 only)
 } p;
 
 void main()
