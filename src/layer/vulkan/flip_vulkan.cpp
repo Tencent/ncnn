@@ -1,4 +1,4 @@
-// Copyright 2026 Tencent
+// Copyright 2026 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "flip_vulkan.h"
