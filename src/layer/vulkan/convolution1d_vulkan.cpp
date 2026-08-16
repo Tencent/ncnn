@@ -1333,10 +1333,11 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
                     bindings[1] = top_tm_blob;
                     bindings[2] = weight_data_gpu_tm_winograd43;
 
-                    std::vector<vk_constant_type> constants(3);
+                    std::vector<vk_constant_type> constants(4);
                     constants[0].i = bottom_tm_blob.cstep;
                     constants[1].i = top_tm_blob.w;
                     constants[2].i = top_tm_blob.cstep;
+                    constants[3].i = weight_data_gpu_tm_winograd43.cstep;
 
                     VkMat dispatcher;
                     dispatcher.w = (top_tm_blob.w + 3) / 4;
@@ -1438,10 +1439,11 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
                     bindings[1] = top_tm_blob;
                     bindings[2] = weight_data_gpu_tm_winograd23;
 
-                    std::vector<vk_constant_type> constants(3);
+                    std::vector<vk_constant_type> constants(4);
                     constants[0].i = bottom_tm_blob.cstep;
                     constants[1].i = top_tm_blob.w;
                     constants[2].i = top_tm_blob.cstep;
+                    constants[3].i = weight_data_gpu_tm_winograd23.cstep;
 
                     VkMat dispatcher;
                     dispatcher.w = (top_tm_blob.w + 3) / 4;
