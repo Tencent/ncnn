@@ -98,7 +98,10 @@ void main()
             {
                 for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
                 {
-                    tmp_v[lx][z4][ly] = buffer_sm4(bottom_blob_data, gx * 4 + ly + (z + z4) * psc(cstep));
+                    if (gx * 4 + ly < psc(cstep))
+                        tmp_v[lx][z4][ly] = buffer_sm4(bottom_blob_data, gx * 4 + ly + (z + z4) * psc(cstep));
+                    else
+                        tmp_v[lx][z4][ly] = lfpvec4(0);
                 }
             }
             else // elempack == 1
@@ -250,10 +253,10 @@ void main()
             // each sfpvec4 = 4 input channels at one spatial position
             // 4 spatial positions = 4 consecutive vec4
             int v_offset = gx * 4 + z * psc(cstep);
-            v0 = buffer_ld4(bottom_blob_data, v_offset + 0);
-            v1 = buffer_ld4(bottom_blob_data, v_offset + 1);
-            v2 = buffer_ld4(bottom_blob_data, v_offset + 2);
-            v3 = buffer_ld4(bottom_blob_data, v_offset + 3);
+            v0 = gx * 4 + 0 < psc(cstep) ? buffer_ld4(bottom_blob_data, v_offset + 0) : afpvec4(0.f);
+            v1 = gx * 4 + 1 < psc(cstep) ? buffer_ld4(bottom_blob_data, v_offset + 1) : afpvec4(0.f);
+            v2 = gx * 4 + 2 < psc(cstep) ? buffer_ld4(bottom_blob_data, v_offset + 2) : afpvec4(0.f);
+            v3 = gx * 4 + 3 < psc(cstep) ? buffer_ld4(bottom_blob_data, v_offset + 3) : afpvec4(0.f);
         }
         else // elempack == 1
         {

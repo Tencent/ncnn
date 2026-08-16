@@ -208,6 +208,14 @@ static int test_convolution3d_boundary()
     ret |= test_convolution3d(5, 5, 5, 6, 8, 3, 1, 1, 1, 0);
     ret |= test_convolution3d(7, 3, 5, 7, 9, 3, 1, 1, 1, 1);
 
+    // 1x1x1 pack4 path with spatial volume % 4 != 0: the partial spatial lanes
+    // must be masked before the input loads
+    ret |= test_convolution3d(3, 3, 3, 16, 16, 1, 1, 1, 0, 1);
+    ret |= test_convolution3d(5, 5, 5, 16, 20, 1, 1, 1, 0, 0);
+
+    // winograd222 pack4-to-pack1 path with block count % 4 != 0 (5x5x5 -> 27 blocks)
+    ret |= test_convolution3d(5, 5, 5, 16, 17, 3, 1, 1, 1, 1);
+
     return ret;
 }
 
