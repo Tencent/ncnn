@@ -124,6 +124,18 @@ int Spectrogram_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     if (center == 1)
     {
         padding->forward(bottom_blob, bottom_blob_bordered, cmd, opt);
+
+        // the stft shader indexes samples as scalars; unpack pack4 padding output
+        if (bottom_blob_bordered.elempack != 1)
+        {
+            Option opt_unpack = opt;
+            opt_unpack.blob_vkallocator = opt.workspace_vkallocator;
+
+            VkMat bottom_blob_bordered_p1;
+            vkdev->convert_packing(bottom_blob_bordered, bottom_blob_bordered_p1, 1, cmd, opt_unpack);
+            bottom_blob_bordered = bottom_blob_bordered_p1;
+        }
+
         input = &bottom_blob_bordered;
     }
 
