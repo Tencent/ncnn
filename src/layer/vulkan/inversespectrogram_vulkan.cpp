@@ -33,23 +33,20 @@ int InverseSpectrogram_vulkan::load_param(const ParamDict& pd)
     if (normalized == 2)
         norm = window_data[n_fft];
 
-    idft_weight.create(4 * n_fft * n_fft);
+    // idft basis as wcos/wsin planes (halves storage, keeps each buffer bindable):
+    //   w_re_re = wcos, w_re_im = -wsin, w_im_re = wsin, w_im_im = wcos
+    idft_weight.create(n_fft * n_fft);
+    idft_weight_sin.create(n_fft * n_fft);
     {
-        float* w_re_re = idft_weight;
-        float* w_re_im = w_re_re + n_fft * n_fft;
-        float* w_im_re = w_re_im + n_fft * n_fft;
-        float* w_im_im = w_im_re + n_fft * n_fft;
+        float* w_cos = idft_weight;
+        float* w_sin = idft_weight_sin;
         for (int k = 0; k < n_fft; k++)
         {
             for (int m = 0; m < n_fft; m++)
             {
                 double angle = 2 * 3.14159265358979323846 * k * m / n_fft;
-                const float wcos = (float)(window_data[m] * cos(angle) / n_fft * norm);
-                const float wsin = (float)(window_data[m] * sin(angle) / n_fft * norm);
-                w_re_re[k * n_fft + m] = wcos;
-                w_re_im[k * n_fft + m] = -wsin;
-                w_im_re[k * n_fft + m] = wsin;
-                w_im_im[k * n_fft + m] = wcos;
+                w_cos[k * n_fft + m] = (float)(window_data[m] * cos(angle) / n_fft * norm);
+                w_sin[k * n_fft + m] = (float)(window_data[m] * sin(angle) / n_fft * norm);
             }
         }
     }
@@ -102,9 +99,11 @@ int InverseSpectrogram_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     opt_fp32.use_bf16_packed = false;
 
     cmd.record_upload(idft_weight, weight_data_gpu, opt_fp32);
+    cmd.record_upload(idft_weight_sin, weight_sin_data_gpu, opt_fp32);
     cmd.record_upload(window_sq, window_sq_gpu, opt_fp32);
 
     idft_weight.release();
+    idft_weight_sin.release();
     window_sq.release();
 
     return 0;
@@ -131,11 +130,12 @@ int InverseSpectrogram_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkMat> bindings(4);
+    std::vector<VkMat> bindings(5);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
     bindings[2] = weight_data_gpu;
-    bindings[3] = window_sq_gpu;
+    bindings[3] = weight_sin_data_gpu;
+    bindings[4] = window_sq_gpu;
 
     std::vector<vk_constant_type> constants(4);
     constants[0].i = frames;

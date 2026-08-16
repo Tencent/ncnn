@@ -24,14 +24,16 @@ public:
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
-    // idft basis, 4 planes of [bin k][tap m]:
-    //   plane 0: re from sp_re, plane 1: re from sp_im
-    //   plane 2: im from sp_re, plane 3: im from sp_im
+    // idft basis, 2 planes of [bin k][tap m]:
+    //   idft_weight = wcos, idft_weight_sin = wsin
+    //   (w_re_re = wcos, w_re_im = -wsin, w_im_re = wsin, w_im_im = wcos)
     Mat idft_weight;
+    Mat idft_weight_sin;
     // window_data[k]^2 for overlap-add normalization
     Mat window_sq;
 
     VkMat weight_data_gpu;
+    VkMat weight_sin_data_gpu;
     VkMat window_sq_gpu;
 
     Pipeline* pipeline_inversespectrogram;

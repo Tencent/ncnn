@@ -19,7 +19,8 @@ layout(constant_id = 3) const int pad = 0;
 layout(binding = 0) readonly buffer sp_blob { sfp sp_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfp top_data[]; };
 layout(binding = 2) readonly buffer weight_blob { float weight_data[]; };
-layout(binding = 3) readonly buffer win2_blob { float win2_data[]; };
+layout(binding = 3) readonly buffer weight_sin_blob { float weight_sin_data[]; };
+layout(binding = 4) readonly buffer win2_blob { float win2_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -78,10 +79,10 @@ void main()
             float sim = float(buffer_ld1(sp_data, srcbin * p.sp_cstep + sp_off + 1)) * imsign;
 
             const int wk = k * n_fft + m;
-            r0 += sre * float(buffer_ld1(weight_data, wk))
-                  + sim * float(buffer_ld1(weight_data, n_fft * n_fft + wk));
-            i0 += sre * float(buffer_ld1(weight_data, 2 * n_fft * n_fft + wk))
-                  + sim * float(buffer_ld1(weight_data, 3 * n_fft * n_fft + wk));
+            const float wc = float(buffer_ld1(weight_data, wk));
+            const float ws = float(buffer_ld1(weight_sin_data, wk));
+            r0 += sre * wc - sim * ws;
+            i0 += sre * ws + sim * wc;
         }
 
         re += r0;
