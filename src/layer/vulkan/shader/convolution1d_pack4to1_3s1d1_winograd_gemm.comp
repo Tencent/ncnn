@@ -148,10 +148,10 @@ void main()
 #else
     for (int z = 0; z < c; z++)
     {
-        afpvec4 v0 = buffer_ld4(bottom_tm_blob_data, v_offset + 0);
-        afpvec4 v1 = buffer_ld4(bottom_tm_blob_data, v_offset + 1);
-        afpvec4 v2 = buffer_ld4(bottom_tm_blob_data, v_offset + 2);
-        afpvec4 v3 = buffer_ld4(bottom_tm_blob_data, v_offset + 3);
+        afpvec4 v0 = (gx + 0 < psc(outw)) ? buffer_ld4(bottom_tm_blob_data, v_offset + 0) : afpvec4(0.f);
+        afpvec4 v1 = (gx + 1 < psc(outw)) ? buffer_ld4(bottom_tm_blob_data, v_offset + 1) : afpvec4(0.f);
+        afpvec4 v2 = (gx + 2 < psc(outw)) ? buffer_ld4(bottom_tm_blob_data, v_offset + 2) : afpvec4(0.f);
+        afpvec4 v3 = (gx + 3 < psc(outw)) ? buffer_ld4(bottom_tm_blob_data, v_offset + 3) : afpvec4(0.f);
 
         afpvec4 k = buffer_ld4(weight_tm_data, w_offset);
 
