@@ -60,6 +60,9 @@ int Spectrogram_vulkan::create_pipeline(const Option& opt)
     if (center == 1)
     {
         padding = create_layer_vulkan(LayerType::Padding);
+        if (!padding)
+            return -100;
+
         padding->vkdev = vkdev;
 
         ParamDict pd;
