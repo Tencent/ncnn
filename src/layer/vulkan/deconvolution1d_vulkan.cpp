@@ -521,7 +521,6 @@ int Deconvolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, V
     {
         // gemm + col2im
 
-
         // reinterpret 2D input as 3D with channel step = w (rows are contiguous)
         VkMat bottom_blob_3d = bottom_blob;
         bottom_blob_3d.dims = 3;

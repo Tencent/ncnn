@@ -36,9 +36,9 @@ layout(binding = 5) readonly buffer bias_blob { sfpvec4 bias_data[]; };
 layout(push_constant) uniform parameter
 {
     int w;
-    int c;      // input channels / elempack (input rows)
+    int c; // input channels / elempack (input rows)
     int outw;
-    int outc;   // num_output_packed / 4
+    int outc; // num_output_packed / 4
     int front_cut;
 } p;
 

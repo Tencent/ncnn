@@ -31,7 +31,7 @@ void main()
         return;
 
     // load 4 elements from input (1D: only x dimension)
-    int sx = gx * 2;  // each tile produces 2 output elements, needs 4 input elements
+    int sx = gx * 2; // each tile produces 2 output elements, needs 4 input elements
 
     int v_offset = gz * psc(cstep) + sx;
 
