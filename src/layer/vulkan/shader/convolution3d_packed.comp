@@ -83,9 +83,11 @@ void main()
     if (gx >= psc(outw) || by >= psc(outh) || bz >= psc(outd) || gz >= psc(outc))
         return;
 
-    const ivec2 gx2 = gx + ivec2(0, 1);
-    const ivec2 by2 = by + ivec2(0, 1);
-    const ivec2 bz2 = bz + ivec2(0, 1);
+    // clamp the second tile lane so the border loads stay inside the (bordered) input
+    // the invalid lane sums are discarded by the guarded stores below
+    const ivec2 gx2 = ivec2(gx, min(gx + 1, psc(outw) - 1));
+    const ivec2 by2 = ivec2(by, min(by + 1, psc(outh) - 1));
+    const ivec2 bz2 = ivec2(bz, min(bz + 1, psc(outd) - 1));
 
     afpvec4 sum000;
     afpvec4 sum001;

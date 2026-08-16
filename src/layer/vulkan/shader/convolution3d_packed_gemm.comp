@@ -112,10 +112,13 @@ void main()
 
     const ivec4 gx4 = gx + ivec4(0, 1, 2, 3);
 
-    const ivec4 sz4 = gx4 / (psc(outw) * psc(outh));
-    const ivec4 syz4 = gx4 % (psc(outw) * psc(outh));
-    const ivec4 sy4 = syz4 / psc(outw);
-    const ivec4 sx4 = syz4 % psc(outw);
+    // clamp the lanes that fall outside outsize to the last valid spatial position
+    // so the input loads stay inside the (bordered) input; the corresponding
+    // output stores are guarded below
+    const ivec4 sz4 = min(gx4 / (psc(outw) * psc(outh)), ivec4(psc(outd) - 1));
+    const ivec4 syz4 = min(gx4 % (psc(outw) * psc(outh)), ivec4(psc(outh) * psc(outw) - 1));
+    const ivec4 sy4 = min(syz4 / psc(outw), ivec4(psc(outh) - 1));
+    const ivec4 sx4 = min(syz4 % psc(outw), ivec4(psc(outw) - 1));
 
     const ivec4 sxs4 = sx4 * stride_w;
     const ivec4 sys4 = sy4 * stride_h;

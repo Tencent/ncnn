@@ -196,6 +196,18 @@ static int test_convolution3d_boundary()
     ret |= test_convolution3d(8, 9, 10, 8, 8, 3, 1, 2, -234, 1);
     ret |= test_convolution3d(9, 9, 9, 8, 8, 3, 1, 1, -234, 0);
 
+    // direct path (outch < 8) with odd outw/outh/outd: the extra 2x2x2 tile lanes
+    // must be clamped so border loads stay inside the padded input
+    ret |= test_convolution3d(5, 5, 5, 3, 3, 3, 1, 1, 1, 1);
+    ret |= test_convolution3d(7, 7, 7, 1, 1, 3, 1, 1, 0, 1);
+    ret |= test_convolution3d(7, 3, 5, 2, 5, 3, 1, 1, 1, 0);
+
+    // gemm path (outch >= 8) with outsize % 4 != 0: the partial spatial group
+    // lanes must be clamped before the input loads
+    ret |= test_convolution3d(5, 5, 5, 8, 8, 3, 1, 1, 1, 1);
+    ret |= test_convolution3d(5, 5, 5, 6, 8, 3, 1, 1, 1, 0);
+    ret |= test_convolution3d(7, 3, 5, 7, 9, 3, 1, 1, 1, 1);
+
     return ret;
 }
 
