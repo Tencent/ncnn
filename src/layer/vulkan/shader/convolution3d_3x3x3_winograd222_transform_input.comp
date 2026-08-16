@@ -1,0 +1,156 @@
+﻿// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int c = 0;
+
+#define shape_constant_id_offset 1
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int d = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 5) const int block_x = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int block_y = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int block_z = 0;
+
+layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer bottom_tm_blob { sfp bottom_tm_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int d;
+    int cstep;
+
+    int outcstep;
+
+    int block_x;
+    int block_y;
+    int block_z;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(block_x) || gy >= psc(block_y) * psc(block_z) || gz >= c)
+        return;
+
+    const int by = gy % psc(block_y);
+    const int bz = gy / psc(block_y);
+
+    // load 4x4x4 tile d[z][y][x], x fastest, zero fill at borders
+    int sx = gx * 2;
+    int sy = by * 2;
+    int sz = bz * 2;
+
+    const int hw = psc(h) * psc(w);
+    const int cbase = gz * psc(cstep);
+
+    // stage 1+2: x/y transform per z slice
+    // tx[z][i][j] = B^T d B along x (i) and y (j)
+    afp tx[4][4][4];
+
+    for (int z = 0; z < 4; z++)
+    {
+        const int zz = sz + z;
+
+        // load 4x4 slice v[y][x]
+        afp v00 = zz < psc(d) ? buffer_ld1(bottom_blob_data, cbase + zz * hw + sy * psc(w) + sx) : afp(0.f);
+        afp v01 = zz < psc(d) && sx + 1 < psc(w) ? buffer_ld1(bottom_blob_data, cbase + zz * hw + sy * psc(w) + sx + 1) : afp(0.f);
+        afp v02 = zz < psc(d) && sx + 2 < psc(w) ? buffer_ld1(bottom_blob_data, cbase + zz * hw + sy * psc(w) + sx + 2) : afp(0.f);
+        afp v03 = zz < psc(d) && sx + 3 < psc(w) ? buffer_ld1(bottom_blob_data, cbase + zz * hw + sy * psc(w) + sx + 3) : afp(0.f);
+
+        afp v10 = zz < psc(d) && sy + 1 < psc(h) ? buffer_ld1(bottom_blob_data, cbase + zz * hw + (sy + 1) * psc(w) + sx) : afp(0.f);
+        afp v11 = zz < psc(d) && sy + 1 < psc(h) && sx + 1 < psc(w) ? buffer_ld1(bottom_blob_data, cbase + zz * hw + (sy + 1) * psc(w) + sx + 1) : afp(0.f);
+        afp v12 = zz < psc(d) && sy + 1 < psc(h) && sx + 2 < psc(w) ? buffer_ld1(bottom_blob_data, cbase + zz * hw + (sy + 1) * psc(w) + sx + 2) : afp(0.f);
+        afp v13 = zz < psc(d) && sy + 1 < psc(h) && sx + 3 < psc(w) ? buffer_ld1(bottom_blob_data, cbase + zz * hw + (sy + 1) * psc(w) + sx + 3) : afp(0.f);
+
+        afp v20 = zz < psc(d) && sy + 2 < psc(h) ? buffer_ld1(bottom_blob_data, cbase + zz * hw + (sy + 2) * psc(w) + sx) : afp(0.f);
+        afp v21 = zz < psc(d) && sy + 2 < psc(h) && sx + 1 < psc(w) ? buffer_ld1(bottom_blob_data, cbase + zz * hw + (sy + 2) * psc(w) + sx + 1) : afp(0.f);
+        afp v22 = zz < psc(d) && sy + 2 < psc(h) && sx + 2 < psc(w) ? buffer_ld1(bottom_blob_data, cbase + zz * hw + (sy + 2) * psc(w) + sx + 2) : afp(0.f);
+        afp v23 = zz < psc(d) && sy + 2 < psc(h) && sx + 3 < psc(w) ? buffer_ld1(bottom_blob_data, cbase + zz * hw + (sy + 2) * psc(w) + sx + 3) : afp(0.f);
+
+        afp v30 = zz < psc(d) && sy + 3 < psc(h) ? buffer_ld1(bottom_blob_data, cbase + zz * hw + (sy + 3) * psc(w) + sx) : afp(0.f);
+        afp v31 = zz < psc(d) && sy + 3 < psc(h) && sx + 1 < psc(w) ? buffer_ld1(bottom_blob_data, cbase + zz * hw + (sy + 3) * psc(w) + sx + 1) : afp(0.f);
+        afp v32 = zz < psc(d) && sy + 3 < psc(h) && sx + 2 < psc(w) ? buffer_ld1(bottom_blob_data, cbase + zz * hw + (sy + 3) * psc(w) + sx + 2) : afp(0.f);
+        afp v33 = zz < psc(d) && sy + 3 < psc(h) && sx + 3 < psc(w) ? buffer_ld1(bottom_blob_data, cbase + zz * hw + (sy + 3) * psc(w) + sx + 3) : afp(0.f);
+
+        // const float itm[4][4] = {
+        //     {1.0f,  0.0f, -1.0f,  0.0f},
+        //     {0.0f,  1.0f,  1.0f,  0.0f},
+        //     {0.0f, -1.0f,  1.0f,  0.0f},
+        //     {0.0f, -1.0f,  0.0f,  1.0f}
+        // };
+
+        // implicit transpose
+        afp m00 = v00 - v02;
+        afp m01 = v10 - v12;
+        afp m02 = v20 - v22;
+        afp m03 = v30 - v32;
+
+        afp m10 = v02 + v01;
+        afp m11 = v12 + v11;
+        afp m12 = v22 + v21;
+        afp m13 = v32 + v31;
+
+        afp m20 = v02 - v01;
+        afp m21 = v12 - v11;
+        afp m22 = v22 - v21;
+        afp m23 = v32 - v31;
+
+        afp m30 = v03 - v01;
+        afp m31 = v13 - v11;
+        afp m32 = v23 - v21;
+        afp m33 = v33 - v31;
+
+        tx[z][0][0] = m00 - m02;
+        tx[z][1][0] = m10 - m12;
+        tx[z][2][0] = m20 - m22;
+        tx[z][3][0] = m30 - m32;
+
+        tx[z][0][1] = m02 + m01;
+        tx[z][1][1] = m12 + m11;
+        tx[z][2][1] = m22 + m21;
+        tx[z][3][1] = m32 + m31;
+
+        tx[z][0][2] = m02 - m01;
+        tx[z][1][2] = m12 - m11;
+        tx[z][2][2] = m22 - m21;
+        tx[z][3][2] = m32 - m31;
+
+        tx[z][0][3] = m03 - m01;
+        tx[z][1][3] = m13 - m11;
+        tx[z][2][3] = m23 - m21;
+        tx[z][3][3] = m33 - m31;
+    }
+
+    // stage 3: z transform, store 64
+    int v_tm_offset = gz * psc(outcstep) + gy * psc(block_x) + gx;
+
+    for (int i = 0; i < 4; i++)
+    {
+        for (int j = 0; j < 4; j++)
+        {
+            // B^T along z
+            afp t0 = tx[0][i][j] - tx[2][i][j];
+            afp t1 = tx[1][i][j] + tx[2][i][j];
+            afp t2 = tx[2][i][j] - tx[1][i][j];
+            afp t3 = tx[3][i][j] - tx[1][i][j];
+
+            buffer_st1(bottom_tm_blob_data, v_tm_offset + ((i * 4 + j) * 4 + 0) * psc(outcstep) * c, t0);
+            buffer_st1(bottom_tm_blob_data, v_tm_offset + ((i * 4 + j) * 4 + 1) * psc(outcstep) * c, t1);
+            buffer_st1(bottom_tm_blob_data, v_tm_offset + ((i * 4 + j) * 4 + 2) * psc(outcstep) * c, t2);
+            buffer_st1(bottom_tm_blob_data, v_tm_offset + ((i * 4 + j) * 4 + 3) * psc(outcstep) * c, t3);
+        }
+    }
+}
+
+
