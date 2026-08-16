@@ -93,8 +93,16 @@ int InverseSpectrogram_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int InverseSpectrogram_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
-    cmd.record_upload(idft_weight, weight_data_gpu, opt);
-    cmd.record_upload(window_sq, window_sq_gpu, opt);
+    // generated idft coefficients must stay fp32:
+    // window/n_fft and window^2 underflow fp16 at large n_fft
+    Option opt_fp32 = opt;
+    opt_fp32.use_fp16_storage = false;
+    opt_fp32.use_fp16_packed = false;
+    opt_fp32.use_bf16_storage = false;
+    opt_fp32.use_bf16_packed = false;
+
+    cmd.record_upload(idft_weight, weight_data_gpu, opt_fp32);
+    cmd.record_upload(window_sq, window_sq_gpu, opt_fp32);
 
     idft_weight.release();
     window_sq.release();

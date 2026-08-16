@@ -18,8 +18,8 @@ layout(constant_id = 3) const int pad = 0;
 
 layout(binding = 0) readonly buffer sp_blob { sfp sp_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfp top_data[]; };
-layout(binding = 2) readonly buffer weight_blob { sfp weight_data[]; };
-layout(binding = 3) readonly buffer win2_blob { sfp win2_data[]; };
+layout(binding = 2) readonly buffer weight_blob { float weight_data[]; };
+layout(binding = 3) readonly buffer win2_blob { float win2_data[]; };
 
 layout(push_constant) uniform parameter
 {
