@@ -276,10 +276,10 @@ void main()
                             const uvec4 v_offset_m2 = v_offset % 2;
 
                             vec4 v;
-                            v.r = sz < inch && gm4.r < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.r][v_offset_m4d2.r])[v_offset_m2.r] : 0;
-                            v.g = sz < inch && gm4.g < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.g][v_offset_m4d2.g])[v_offset_m2.g] : 0;
-                            v.b = sz < inch && gm4.b < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.b][v_offset_m4d2.b])[v_offset_m2.b] : 0;
-                            v.a = sz < inch && gm4.a < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.a][v_offset_m4d2.a])[v_offset_m2.a] : 0;
+                            v.r = sz < inch && si4.r < psc(cstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.r][v_offset_m4d2.r])[v_offset_m2.r] : 0;
+                            v.g = sz < inch && si4.g < psc(cstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.g][v_offset_m4d2.g])[v_offset_m2.g] : 0;
+                            v.b = sz < inch && si4.b < psc(cstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.b][v_offset_m4d2.b])[v_offset_m2.b] : 0;
+                            v.a = sz < inch && si4.a < psc(cstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.a][v_offset_m4d2.a])[v_offset_m2.a] : 0;
 
                             prefetch_tmp_v[q] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
                         }
@@ -518,10 +518,10 @@ void main()
                                 const uvec4 v_offset_m2 = v_offset % 2;
 
                                 vec4 v;
-                                v.r = sz < inch && gm4.r < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.r][v_offset_m4d2.r])[v_offset_m2.r] : 0;
-                                v.g = sz < inch && gm4.g < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.g][v_offset_m4d2.g])[v_offset_m2.g] : 0;
-                                v.b = sz < inch && gm4.b < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.b][v_offset_m4d2.b])[v_offset_m2.b] : 0;
-                                v.a = sz < inch && gm4.a < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.a][v_offset_m4d2.a])[v_offset_m2.a] : 0;
+                                v.r = sz < inch && si4.r < psc(cstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.r][v_offset_m4d2.r])[v_offset_m2.r] : 0;
+                                v.g = sz < inch && si4.g < psc(cstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.g][v_offset_m4d2.g])[v_offset_m2.g] : 0;
+                                v.b = sz < inch && si4.b < psc(cstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.b][v_offset_m4d2.b])[v_offset_m2.b] : 0;
+                                v.a = sz < inch && si4.a < psc(cstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.a][v_offset_m4d2.a])[v_offset_m2.a] : 0;
 
                                 prefetch_tmp_v[q] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
                             }
@@ -865,10 +865,10 @@ void main()
                         const uvec4 v_offset_m2 = v_offset % 2;
 
                         vec4 v;
-                        v.r = sz < inch && gm4.r < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.r][v_offset_m4d2.r])[v_offset_m2.r] : 0;
-                        v.g = sz < inch && gm4.g < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.g][v_offset_m4d2.g])[v_offset_m2.g] : 0;
-                        v.b = sz < inch && gm4.b < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.b][v_offset_m4d2.b])[v_offset_m2.b] : 0;
-                        v.a = sz < inch && gm4.a < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.a][v_offset_m4d2.a])[v_offset_m2.a] : 0;
+                        v.r = sz < inch && si4.r < psc(cstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.r][v_offset_m4d2.r])[v_offset_m2.r] : 0;
+                        v.g = sz < inch && si4.g < psc(cstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.g][v_offset_m4d2.g])[v_offset_m2.g] : 0;
+                        v.b = sz < inch && si4.b < psc(cstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.b][v_offset_m4d2.b])[v_offset_m2.b] : 0;
+                        v.a = sz < inch && si4.a < psc(cstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.a][v_offset_m4d2.a])[v_offset_m2.a] : 0;
 
                         tmp_v[sgmi][siq] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
                     }
@@ -1098,10 +1098,10 @@ void main()
                         const uvec4 v_offset_m2 = v_offset % 2;
 
                         vec4 v;
-                        v.r = sz < inch && gm4.r < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.r][v_offset_m4d2.r])[v_offset_m2.r] : 0;
-                        v.g = sz < inch && gm4.g < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.g][v_offset_m4d2.g])[v_offset_m2.g] : 0;
-                        v.b = sz < inch && gm4.b < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.b][v_offset_m4d2.b])[v_offset_m2.b] : 0;
-                        v.a = sz < inch && gm4.a < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.a][v_offset_m4d2.a])[v_offset_m2.a] : 0;
+                        v.r = sz < inch && si4.r < psc(cstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.r][v_offset_m4d2.r])[v_offset_m2.r] : 0;
+                        v.g = sz < inch && si4.g < psc(cstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.g][v_offset_m4d2.g])[v_offset_m2.g] : 0;
+                        v.b = sz < inch && si4.b < psc(cstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.b][v_offset_m4d2.b])[v_offset_m2.b] : 0;
+                        v.a = sz < inch && si4.a < psc(cstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.a][v_offset_m4d2.a])[v_offset_m2.a] : 0;
 
                         tmp_v[sgmi][siq] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
                     }

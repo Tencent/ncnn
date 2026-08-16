@@ -216,6 +216,11 @@ static int test_convolution3d_boundary()
     // winograd222 pack4-to-pack1 path with block count % 4 != 0 (5x5x5 -> 27 blocks)
     ret |= test_convolution3d(5, 5, 5, 16, 17, 3, 1, 1, 1, 1);
 
+    // cm gemm elempack==1 with partial spatial volume: the input loads must be
+    // bounded by the input cstep, not the output cstep
+    ret |= test_convolution3d(5, 5, 5, 13, 8, 3, 1, 1, 1, 1);
+    ret |= test_convolution3d(5, 5, 5, 13, 9, 3, 1, 1, 1, 0);
+
     return ret;
 }
 
