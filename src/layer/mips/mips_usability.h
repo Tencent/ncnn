@@ -74,7 +74,6 @@ static NCNN_FORCEINLINE v2f64 __ncnn_msa_fmsub_d(v2f64 a, v2f64 b, v2f64 c)
 #endif
 }
 
-
 static NCNN_FORCEINLINE v16i8 __ncnn_msa_maddv_b(v16i8 a, v16i8 b, v16i8 c)
 {
 #if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 8 || (__GNUC__ == 8 && __GNUC_MINOR__ < 5))
