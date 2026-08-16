@@ -62,6 +62,17 @@ public:
 
     // subgroup ops (shuffle), UNROLL_SG_M/N/K shared with cooperative matrix
     bool use_subgroup_ops;
+    // winograd cooperative matrix (separate from generic gemm, see review fix)
+    bool winograd_use_cooperative_matrix;
+    int winograd_coopmat_M;
+    int winograd_coopmat_N;
+    int winograd_coopmat_K;
+    int winograd_coopmat_subgroup_size;
+    int winograd_UNROLL_SG_M;
+    int winograd_UNROLL_SG_N;
+    int winograd_UNROLL_SG_K;
+    int winograd_UNROLL_WG_M;
+    int winograd_UNROLL_WG_N;
 };
 
 } // namespace ncnn
