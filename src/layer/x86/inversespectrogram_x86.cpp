@@ -56,6 +56,8 @@ int InverseSpectrogram_x86::load_param(const ParamDict& pd)
     }
 
     conv1d = create_layer_cpu(LayerType::Convolution1D);
+    if (!conv1d)
+        return -100;
     {
         ParamDict pd_conv;
         pd_conv.set(0, num_output);             // num_output
