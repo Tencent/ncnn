@@ -20,12 +20,13 @@ static bool is_reshape_like_op(const Operator* op)
 // ncnn conversion and is safe to fuse.
 static bool is_batch_sensitive_reshape_like_op(const Operator* op)
 {
+    // the batch layout is only known during the ncnn conversion; without it
+    // (pass_level5) the fusion is pure view math and always safe
+    if (op->inputs[0]->params.find("__batch_index") == op->inputs[0]->params.end())
+        return false;
+
     if (op->type == "torch.squeeze")
     {
-        const bool batch_index_known = op->inputs[0]->params.find("__batch_index") != op->inputs[0]->params.end();
-        if (!batch_index_known)
-            return true;
-
         const int batch_index = op->inputs[0]->params.at("__batch_index").i;
         if (batch_index < 0 || batch_index == 233)
             return false;
@@ -44,6 +45,7 @@ static bool is_batch_sensitive_reshape_like_op(const Operator* op)
         else
             dims = op->params.at("dim").ai;
 
+        bool only_batch_axis = true;
         for (int dim : dims)
         {
             if (dim < 0)
@@ -63,19 +65,23 @@ static bool is_batch_sensitive_reshape_like_op(const Operator* op)
                 continue;
             }
 
-            // a size-1 dim removed before the batch axis shifts the batch axis
-            if (dim < batch_index && input_shape[dim] == 1)
+            only_batch_axis = false;
+
+            // a size-1 or dynamic dim removed before the batch axis shifts the
+            // batch axis
+            if (dim < batch_index && (input_shape[dim] == 1 || input_shape[dim] == -1))
                 return true;
         }
+
+        // a list squeeze that only targets the batch axis is kept as a real
+        // Squeeze by the ncnn conversion (unlike the scalar form), do not fuse
+        if (only_batch_axis)
+            return true;
 
         return false;
     }
     else if (op->type == "torch.unsqueeze")
     {
-        const bool batch_index_known = op->inputs[0]->params.find("__batch_index") != op->inputs[0]->params.end();
-        if (!batch_index_known)
-            return true;
-
         const int batch_index = op->inputs[0]->params.at("__batch_index").i;
         if (batch_index < 0 || batch_index == 233)
             return false;
@@ -410,12 +416,18 @@ void fuse_reshape_activation_reshape(Graph& graph)
             reshape->outputs[0]->shape = outshape;
             op->outputs[0]->shape = outshape;
 
-            // the surviving reshape output carries the batch layout of the removed
-            // downstream reshape chain output for its new consumers
+            // the surviving reshape and activation outputs carry the batch layout
+            // of the removed downstream reshape chain output for their new consumers
             if (downstream_out_has_batch_index)
+            {
                 reshape->outputs[0]->params["__batch_index"] = downstream_out_batch_index;
+                op->outputs[0]->params["__batch_index"] = downstream_out_batch_index;
+            }
             if (downstream_out_has_ncnn_batch_axis)
+            {
                 reshape->outputs[0]->params["__ncnn_batch_axis"] = downstream_out_ncnn_batch_axis;
+                op->outputs[0]->params["__ncnn_batch_axis"] = downstream_out_ncnn_batch_axis;
+            }
 
             break;
         }
