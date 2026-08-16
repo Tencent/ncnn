@@ -13,17 +13,7 @@ static int test_rmsnorm(const ncnn::Mat& a, int affine_size, float eps, int affi
     std::vector<ncnn::Mat> weights(1);
     weights[0] = RandomMat(affine_size);
 
-    // test gpu with default tolerance, since gpu bf16 packed coefficients are stored with bf16 truncation
-    // and can deviate ~1e-2 from the fp32 reference
-    int ret = test_layer("RMSNorm", pd, weights, a, 0.001f, TEST_LAYER_DISABLE_CPU_TESTING);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_rmsnorm failed a.dims=%d a=(%d %d %d %d) affine_size=%d eps=%f affine=%d\n", a.dims, a.w, a.h, a.d, a.c, affine_size, eps, affine);
-        return ret;
-    }
-
-    // test cpu with tight tolerance to catch the approximate rsqrt error in the optimized kernels
-    ret = test_layer("RMSNorm", pd, weights, a, 1e-4f, TEST_LAYER_DISABLE_GPU_TESTING);
+    int ret = test_layer("RMSNorm", pd, weights, a, 1e-4f);
     if (ret != 0)
     {
         fprintf(stderr, "test_rmsnorm failed a.dims=%d a=(%d %d %d %d) affine_size=%d eps=%f affine=%d\n", a.dims, a.w, a.h, a.d, a.c, affine_size, eps, affine);
