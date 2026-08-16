@@ -81,7 +81,14 @@ int InverseSpectrogram_x86::load_param(const ParamDict& pd)
 int InverseSpectrogram_x86::create_pipeline(const Option& opt)
 {
     if (conv1d)
-        conv1d->create_pipeline(opt);
+    {
+        int ret = conv1d->create_pipeline(opt);
+        if (ret != 0)
+            return ret;
+
+        if (opt.lightmode)
+            idft_weight.release();
+    }
 
     return 0;
 }
