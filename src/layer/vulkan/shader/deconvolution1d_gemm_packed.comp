@@ -76,16 +76,19 @@ void main()
             {
                 if (elempack == 4)
                 {
-                    tmp_v[lx][z4][ly] = buffer_sm4(bottom_blob_data_4, v_offset + z4 * psc(cstep) + ly);
+                    if (gx + ly < psc(w))
+                        tmp_v[lx][z4][ly] = buffer_sm4(bottom_blob_data_4, v_offset + z4 * psc(cstep) + ly);
+                    else
+                        tmp_v[lx][z4][ly] = lfpvec4(0.f);
                 }
                 else // elempack == 1
                 {
                     const int ch0 = (z + z4) * 4;
 
-                    afp a0 = buffer_ld1(bottom_blob_data_1, ch0 * psc(cstep) + gx + ly);
-                    afp a1 = (ch0 + 1 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 1) * psc(cstep) + gx + ly) : afp(0.f);
-                    afp a2 = (ch0 + 2 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 2) * psc(cstep) + gx + ly) : afp(0.f);
-                    afp a3 = (ch0 + 3 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 3) * psc(cstep) + gx + ly) : afp(0.f);
+                    afp a0 = (gx + ly < psc(w)) ? buffer_ld1(bottom_blob_data_1, ch0 * psc(cstep) + gx + ly) : afp(0.f);
+                    afp a1 = (gx + ly < psc(w) && ch0 + 1 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 1) * psc(cstep) + gx + ly) : afp(0.f);
+                    afp a2 = (gx + ly < psc(w) && ch0 + 2 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 2) * psc(cstep) + gx + ly) : afp(0.f);
+                    afp a3 = (gx + ly < psc(w) && ch0 + 3 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 3) * psc(cstep) + gx + ly) : afp(0.f);
 
                     tmp_v[lx][z4][ly] = afp2lfpvec4(afpvec4(a0, a1, a2, a3));
                 }
@@ -138,16 +141,19 @@ void main()
             {
                 if (elempack == 4)
                 {
-                    tmp_v[lx][z4][ly] = buffer_sm4(bottom_blob_data_4, v_offset + z4 * psc(cstep) + ly);
+                    if (gx + ly < psc(w))
+                        tmp_v[lx][z4][ly] = buffer_sm4(bottom_blob_data_4, v_offset + z4 * psc(cstep) + ly);
+                    else
+                        tmp_v[lx][z4][ly] = lfpvec4(0.f);
                 }
                 else // elempack == 1
                 {
                     const int ch0 = (z + z4) * 4;
 
-                    afp a0 = buffer_ld1(bottom_blob_data_1, ch0 * psc(cstep) + gx + ly);
-                    afp a1 = (ch0 + 1 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 1) * psc(cstep) + gx + ly) : afp(0.f);
-                    afp a2 = (ch0 + 2 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 2) * psc(cstep) + gx + ly) : afp(0.f);
-                    afp a3 = (ch0 + 3 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 3) * psc(cstep) + gx + ly) : afp(0.f);
+                    afp a0 = (gx + ly < psc(w)) ? buffer_ld1(bottom_blob_data_1, ch0 * psc(cstep) + gx + ly) : afp(0.f);
+                    afp a1 = (gx + ly < psc(w) && ch0 + 1 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 1) * psc(cstep) + gx + ly) : afp(0.f);
+                    afp a2 = (gx + ly < psc(w) && ch0 + 2 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 2) * psc(cstep) + gx + ly) : afp(0.f);
+                    afp a3 = (gx + ly < psc(w) && ch0 + 3 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 3) * psc(cstep) + gx + ly) : afp(0.f);
 
                     tmp_v[lx][z4][ly] = afp2lfpvec4(afpvec4(a0, a1, a2, a3));
                 }
@@ -191,34 +197,34 @@ void main()
 
         if (elempack == 4)
         {
-            v0 = buffer_ld4(bottom_blob_data_4, v_offset + 0);
-            v1 = buffer_ld4(bottom_blob_data_4, v_offset + 1);
-            v2 = buffer_ld4(bottom_blob_data_4, v_offset + 2);
-            v3 = buffer_ld4(bottom_blob_data_4, v_offset + 3);
+            v0 = (gx + 0 < psc(w)) ? buffer_ld4(bottom_blob_data_4, v_offset + 0) : afpvec4(0.f);
+            v1 = (gx + 1 < psc(w)) ? buffer_ld4(bottom_blob_data_4, v_offset + 1) : afpvec4(0.f);
+            v2 = (gx + 2 < psc(w)) ? buffer_ld4(bottom_blob_data_4, v_offset + 2) : afpvec4(0.f);
+            v3 = (gx + 3 < psc(w)) ? buffer_ld4(bottom_blob_data_4, v_offset + 3) : afpvec4(0.f);
         }
         else // elempack == 1
         {
             const int ch0 = z * 4;
 
-            afp v00 = buffer_ld1(bottom_blob_data_1, ch0 * psc(cstep) + gx);
-            afp v01 = (ch0 + 1 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 1) * psc(cstep) + gx) : afp(0.f);
-            afp v02 = (ch0 + 2 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 2) * psc(cstep) + gx) : afp(0.f);
-            afp v03 = (ch0 + 3 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 3) * psc(cstep) + gx) : afp(0.f);
+            afp v00 = (gx + 0 < psc(w)) ? buffer_ld1(bottom_blob_data_1, ch0 * psc(cstep) + gx) : afp(0.f);
+            afp v01 = (gx + 0 < psc(w) && ch0 + 1 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 1) * psc(cstep) + gx) : afp(0.f);
+            afp v02 = (gx + 0 < psc(w) && ch0 + 2 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 2) * psc(cstep) + gx) : afp(0.f);
+            afp v03 = (gx + 0 < psc(w) && ch0 + 3 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 3) * psc(cstep) + gx) : afp(0.f);
 
-            afp v10 = buffer_ld1(bottom_blob_data_1, ch0 * psc(cstep) + gx + 1);
-            afp v11 = (ch0 + 1 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 1) * psc(cstep) + gx + 1) : afp(0.f);
-            afp v12 = (ch0 + 2 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 2) * psc(cstep) + gx + 1) : afp(0.f);
-            afp v13 = (ch0 + 3 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 3) * psc(cstep) + gx + 1) : afp(0.f);
+            afp v10 = (gx + 1 < psc(w)) ? buffer_ld1(bottom_blob_data_1, ch0 * psc(cstep) + gx + 1) : afp(0.f);
+            afp v11 = (gx + 1 < psc(w) && ch0 + 1 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 1) * psc(cstep) + gx + 1) : afp(0.f);
+            afp v12 = (gx + 1 < psc(w) && ch0 + 2 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 2) * psc(cstep) + gx + 1) : afp(0.f);
+            afp v13 = (gx + 1 < psc(w) && ch0 + 3 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 3) * psc(cstep) + gx + 1) : afp(0.f);
 
-            afp v20 = buffer_ld1(bottom_blob_data_1, ch0 * psc(cstep) + gx + 2);
-            afp v21 = (ch0 + 1 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 1) * psc(cstep) + gx + 2) : afp(0.f);
-            afp v22 = (ch0 + 2 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 2) * psc(cstep) + gx + 2) : afp(0.f);
-            afp v23 = (ch0 + 3 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 3) * psc(cstep) + gx + 2) : afp(0.f);
+            afp v20 = (gx + 2 < psc(w)) ? buffer_ld1(bottom_blob_data_1, ch0 * psc(cstep) + gx + 2) : afp(0.f);
+            afp v21 = (gx + 2 < psc(w) && ch0 + 1 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 1) * psc(cstep) + gx + 2) : afp(0.f);
+            afp v22 = (gx + 2 < psc(w) && ch0 + 2 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 2) * psc(cstep) + gx + 2) : afp(0.f);
+            afp v23 = (gx + 2 < psc(w) && ch0 + 3 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 3) * psc(cstep) + gx + 2) : afp(0.f);
 
-            afp v30 = buffer_ld1(bottom_blob_data_1, ch0 * psc(cstep) + gx + 3);
-            afp v31 = (ch0 + 1 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 1) * psc(cstep) + gx + 3) : afp(0.f);
-            afp v32 = (ch0 + 2 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 2) * psc(cstep) + gx + 3) : afp(0.f);
-            afp v33 = (ch0 + 3 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 3) * psc(cstep) + gx + 3) : afp(0.f);
+            afp v30 = (gx + 3 < psc(w)) ? buffer_ld1(bottom_blob_data_1, ch0 * psc(cstep) + gx + 3) : afp(0.f);
+            afp v31 = (gx + 3 < psc(w) && ch0 + 1 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 1) * psc(cstep) + gx + 3) : afp(0.f);
+            afp v32 = (gx + 3 < psc(w) && ch0 + 2 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 2) * psc(cstep) + gx + 3) : afp(0.f);
+            afp v33 = (gx + 3 < psc(w) && ch0 + 3 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 3) * psc(cstep) + gx + 3) : afp(0.f);
 
             v0 = afpvec4(v00, v01, v02, v03);
             v1 = afpvec4(v10, v11, v12, v13);
