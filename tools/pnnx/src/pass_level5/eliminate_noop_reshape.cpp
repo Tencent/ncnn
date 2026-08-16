@@ -18,7 +18,7 @@ void eliminate_noop_reshape(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            if (op->type != "Tensor.reshape" && op->type != "torch.squeeze")
+            if (op->type != "Tensor.reshape")
                 continue;
 
             const std::vector<int>& input_shape = op->inputs[0]->shape;
@@ -29,53 +29,18 @@ void eliminate_noop_reshape(Graph& graph)
             if (input_shape.empty())
                 continue;
 
-            if (op->type == "torch.squeeze")
+            // if only one dynamic dim-size
+            int dynamic_dim_count = 0;
+            for (size_t j = 0; j < output_shape.size(); j++)
             {
-                // a squeeze is a no-op only when the squeezed dim is concretely not 1
-                if (op->has_param("dim"))
+                if (output_shape[j] == -1)
                 {
-                    int dim = op->params["dim"].i;
-                    if (dim < 0)
-                        dim += (int)input_shape.size();
-
-                    if (dim < 0 || dim >= (int)input_shape.size())
-                        continue;
-
-                    if (input_shape[dim] == -1)
-                        continue;
-                }
-                else
-                {
-                    // squeeze all dims, a runtime size-1 dim may be dropped
-                    bool has_dynamic_dim = false;
-                    for (size_t j = 0; j < input_shape.size(); j++)
-                    {
-                        if (input_shape[j] == -1)
-                        {
-                            has_dynamic_dim = true;
-                            break;
-                        }
-                    }
-
-                    if (has_dynamic_dim)
-                        continue;
+                    dynamic_dim_count += 1;
                 }
             }
-            else
-            {
-                // if only one dynamic dim-size
-                int dynamic_dim_count = 0;
-                for (size_t j = 0; j < output_shape.size(); j++)
-                {
-                    if (output_shape[j] == -1)
-                    {
-                        dynamic_dim_count += 1;
-                    }
-                }
 
-                if (dynamic_dim_count > 1)
-                    continue;
-            }
+            if (dynamic_dim_count > 1)
+                continue;
 
             matched = true;
 

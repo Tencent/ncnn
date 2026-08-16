@@ -13,6 +13,87 @@ static bool is_reshape_like_op(const Operator* op)
     return op->type == "Tensor.reshape" || op->type == "torch.squeeze" || op->type == "torch.unsqueeze";
 }
 
+// a reshape-like op that changes the batch axis position is batch-sensitive:
+// ncnn carries the batch dim dynamically at runtime, so such ops can only be
+// fused when the batch axis is known and stays in place. a squeeze on the
+// batch axis with a statically-known non-1 batch is turned into a Noop by the
+// ncnn conversion and is safe to fuse.
+static bool is_batch_sensitive_reshape_like_op(const Operator* op)
+{
+    if (op->type == "torch.squeeze")
+    {
+        const bool batch_index_known = op->inputs[0]->params.find("__batch_index") != op->inputs[0]->params.end();
+        if (!batch_index_known)
+            return true;
+
+        const int batch_index = op->inputs[0]->params.at("__batch_index").i;
+        if (batch_index < 0 || batch_index == 233)
+            return false;
+
+        const std::vector<int>& input_shape = op->inputs[0]->shape;
+
+        if (!op->has_param("dim"))
+        {
+            // squeeze all dims may drop the dynamic batch dim
+            return true;
+        }
+
+        std::vector<int> dims;
+        if (op->params.at("dim").type == 2)
+            dims.push_back(op->params.at("dim").i);
+        else
+            dims = op->params.at("dim").ai;
+
+        for (int dim : dims)
+        {
+            if (dim < 0)
+                dim += (int)input_shape.size();
+
+            if (dim < 0 || dim >= (int)input_shape.size())
+                return true;
+
+            if (dim == batch_index)
+            {
+                // ncnn turns the batch-axis squeeze into a Noop unless the batch
+                // is statically size 1 or unknown, only then the batch layout is
+                // affected
+                if (input_shape[dim] == -1 || input_shape[dim] == 1)
+                    return true;
+
+                continue;
+            }
+
+            // a size-1 dim removed before the batch axis shifts the batch axis
+            if (dim < batch_index && input_shape[dim] == 1)
+                return true;
+        }
+
+        return false;
+    }
+    else if (op->type == "torch.unsqueeze")
+    {
+        const bool batch_index_known = op->inputs[0]->params.find("__batch_index") != op->inputs[0]->params.end();
+        if (!batch_index_known)
+            return true;
+
+        const int batch_index = op->inputs[0]->params.at("__batch_index").i;
+        if (batch_index < 0 || batch_index == 233)
+            return false;
+
+        if (op->params.find("dim") == op->params.end())
+            return true;
+
+        int dim = op->params.at("dim").i;
+        if (dim < 0)
+            dim += (int)op->inputs[0]->shape.size() + 1;
+
+        // inserting a dim at or before the batch position shifts the batch axis
+        return dim <= batch_index;
+    }
+
+    return false;
+}
+
 static bool is_dim_insensitive_activation(const Operator* op)
 {
     static const std::set<std::string> activation_types = {
@@ -128,6 +209,9 @@ static bool compose_reshape_chain_shape(const std::vector<Operator*>& chain, std
             }
             else
             {
+                if (op->params.at("dim").type != 2)
+                    return false;
+
                 int dim = op->params.at("dim").i;
                 if (dim < 0)
                     dim += (int)shape.size();
@@ -171,7 +255,7 @@ void fuse_reshape_activation_reshape(Graph& graph)
             // collect the upstream reshape-like chain
             std::vector<Operator*> upstream;
             const Operand* in0 = op->inputs[0];
-            while (in0->producer && in0->consumers.size() == 1 && is_reshape_like_op(in0->producer))
+            while (in0->producer && in0->consumers.size() == 1 && is_reshape_like_op(in0->producer) && !is_batch_sensitive_reshape_like_op(in0->producer))
             {
                 upstream.push_back(in0->producer);
                 in0 = in0->producer->inputs[0];
@@ -183,7 +267,7 @@ void fuse_reshape_activation_reshape(Graph& graph)
             // collect the downstream reshape-like chain
             std::vector<Operator*> downstream;
             const Operand* out0 = op->outputs[0];
-            while (out0->consumers.size() == 1 && is_reshape_like_op(out0->consumers[0]))
+            while (out0->consumers.size() == 1 && is_reshape_like_op(out0->consumers[0]) && !is_batch_sensitive_reshape_like_op(out0->consumers[0]))
             {
                 Operator* op0 = out0->consumers[0];
                 downstream.push_back(op0);
@@ -253,6 +337,14 @@ void fuse_reshape_activation_reshape(Graph& graph)
 
             matched = true;
 
+            // capture the batch layout of the removed downstream reshape chain output,
+            // the surviving reshape output now feeds its consumers
+            const Operand* downstream_out = downstream.back()->outputs[0];
+            bool downstream_out_has_batch_index = downstream_out->params.find("__batch_index") != downstream_out->params.end();
+            bool downstream_out_has_ncnn_batch_axis = downstream_out->params.find("__ncnn_batch_axis") != downstream_out->params.end();
+            const int downstream_out_batch_index = downstream_out_has_batch_index ? downstream_out->params.at("__batch_index").i : 0;
+            const int downstream_out_ncnn_batch_axis = downstream_out_has_ncnn_batch_axis ? downstream_out->params.at("__ncnn_batch_axis").i : 0;
+
             // keep the first upstream reshape-like op as the merged reshape
             Operator* reshape = upstream[0];
 
@@ -317,6 +409,13 @@ void fuse_reshape_activation_reshape(Graph& graph)
             // update the shapes of the surviving operands
             reshape->outputs[0]->shape = outshape;
             op->outputs[0]->shape = outshape;
+
+            // the surviving reshape output carries the batch layout of the removed
+            // downstream reshape chain output for its new consumers
+            if (downstream_out_has_batch_index)
+                reshape->outputs[0]->params["__batch_index"] = downstream_out_batch_index;
+            if (downstream_out_has_ncnn_batch_axis)
+                reshape->outputs[0]->params["__ncnn_batch_axis"] = downstream_out_ncnn_batch_axis;
 
             break;
         }

@@ -13,6 +13,87 @@ static bool is_reshape_like_op(const Operator* op)
     return op->type == "Tensor.reshape" || op->type == "torch.squeeze" || op->type == "torch.unsqueeze";
 }
 
+// a reshape-like op that changes the batch axis position is batch-sensitive:
+// ncnn carries the batch dim dynamically at runtime, so such ops can only be
+// fused when the batch axis is known and stays in place. a squeeze on the
+// batch axis with a statically-known non-1 batch is turned into a Noop by the
+// ncnn conversion and is safe to fuse.
+static bool is_batch_sensitive_reshape_like_op(const Operator* op)
+{
+    if (op->type == "torch.squeeze")
+    {
+        const bool batch_index_known = op->inputs[0]->params.find("__batch_index") != op->inputs[0]->params.end();
+        if (!batch_index_known)
+            return true;
+
+        const int batch_index = op->inputs[0]->params.at("__batch_index").i;
+        if (batch_index < 0 || batch_index == 233)
+            return false;
+
+        const std::vector<int>& input_shape = op->inputs[0]->shape;
+
+        if (!op->has_param("dim"))
+        {
+            // squeeze all dims may drop the dynamic batch dim
+            return true;
+        }
+
+        std::vector<int> dims;
+        if (op->params.at("dim").type == 2)
+            dims.push_back(op->params.at("dim").i);
+        else
+            dims = op->params.at("dim").ai;
+
+        for (int dim : dims)
+        {
+            if (dim < 0)
+                dim += (int)input_shape.size();
+
+            if (dim < 0 || dim >= (int)input_shape.size())
+                return true;
+
+            if (dim == batch_index)
+            {
+                // ncnn turns the batch-axis squeeze into a Noop unless the batch
+                // is statically size 1 or unknown, only then the batch layout is
+                // affected
+                if (input_shape[dim] == -1 || input_shape[dim] == 1)
+                    return true;
+
+                continue;
+            }
+
+            // a size-1 dim removed before the batch axis shifts the batch axis
+            if (dim < batch_index && input_shape[dim] == 1)
+                return true;
+        }
+
+        return false;
+    }
+    else if (op->type == "torch.unsqueeze")
+    {
+        const bool batch_index_known = op->inputs[0]->params.find("__batch_index") != op->inputs[0]->params.end();
+        if (!batch_index_known)
+            return true;
+
+        const int batch_index = op->inputs[0]->params.at("__batch_index").i;
+        if (batch_index < 0 || batch_index == 233)
+            return false;
+
+        if (op->params.find("dim") == op->params.end())
+            return true;
+
+        int dim = op->params.at("dim").i;
+        if (dim < 0)
+            dim += (int)op->inputs[0]->shape.size() + 1;
+
+        // inserting a dim at or before the batch position shifts the batch axis
+        return dim <= batch_index;
+    }
+
+    return false;
+}
+
 // compute the output shape of a single reshape-like op applied to `shape`
 // returns false when the shape cannot be determined safely
 static bool compose_reshape_like_op_shape(const Operator* op, std::vector<int>& shape)
@@ -101,6 +182,9 @@ static bool compose_reshape_like_op_shape(const Operator* op, std::vector<int>& 
             return true;
         }
 
+        if (op->params.at("dim").type != 2)
+            return false;
+
         int dim = op->params.at("dim").i;
         if (dim < 0)
             dim += (int)shape.size();
@@ -134,9 +218,12 @@ void fuse_adjacent_reshape(Graph& graph)
             if (!is_reshape_like_op(op))
                 continue;
 
+            if (is_batch_sensitive_reshape_like_op(op))
+                continue;
+
             std::vector<Operator*> reshapes_to_delete;
             const Operand* in0 = op->inputs[0];
-            while (in0->producer && in0->consumers.size() == 1 && is_reshape_like_op(in0->producer))
+            while (in0->producer && in0->consumers.size() == 1 && is_reshape_like_op(in0->producer) && !is_batch_sensitive_reshape_like_op(in0->producer))
             {
                 reshapes_to_delete.push_back(in0->producer);
                 in0 = in0->producer->inputs[0];
