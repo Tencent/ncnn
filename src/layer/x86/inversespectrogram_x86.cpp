@@ -82,7 +82,12 @@ int InverseSpectrogram_x86::create_pipeline(const Option& opt)
 {
     if (conv1d)
     {
-        int ret = conv1d->create_pipeline(opt);
+        // the nested conv must not build bf16 weights while this layer runs in fp32
+        Option opt_bf16 = opt;
+        opt_bf16.use_bf16_storage = false;
+        opt_bf16.use_bf16_packed = false;
+
+        int ret = conv1d->create_pipeline(opt_bf16);
         if (ret != 0)
             return ret;
 
@@ -155,7 +160,11 @@ int InverseSpectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const
     Mat conv_out;
     {
         Mat conv_out_packed;
-        int ret = conv1d->forward(sp, conv_out_packed, opt);
+        Option opt_bf16 = opt;
+        opt_bf16.use_bf16_storage = false;
+        opt_bf16.use_bf16_packed = false;
+
+        int ret = conv1d->forward(sp, conv_out_packed, opt_bf16);
         if (ret != 0)
             return ret;
 
