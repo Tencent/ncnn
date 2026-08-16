@@ -54,7 +54,7 @@ static int test_convolution3d_pad(int w, int h, int d, int c, int outch, int ker
     pd.set(24, pad_f);   // pad_front
     pd.set(17, pad_bh);  // pad_behind
     pd.set(18, pad_value);
-    pd.set(5, bias);     // bias_term
+    pd.set(5, bias); // bias_term
     pd.set(6, outch * c * kernel * kernel * kernel);
 
     int activation_type = RAND() % 6; // 0 1 2 3 4 5

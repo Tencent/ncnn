@@ -1452,6 +1452,3 @@ int Convolution3D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
 }
 
 } // namespace ncnn
-
-
-

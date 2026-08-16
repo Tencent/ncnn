@@ -58,5 +58,3 @@ public:
 } // namespace ncnn
 
 #endif // LAYER_CONVOLUTION3D_VULKAN_H
-
-

@@ -164,6 +164,3 @@ void main()
     if (gx + 2 < psc(outw)) buffer_st4(top_tm_blob_data, gi + 2, sum2);
     if (gx + 3 < psc(outw)) buffer_st4(top_tm_blob_data, gi + 3, sum3);
 }
-
-
-

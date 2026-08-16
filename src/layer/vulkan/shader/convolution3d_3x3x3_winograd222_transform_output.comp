@@ -144,8 +144,3 @@ void main()
         if (y + 1 < psc(outh) && x + 1 < psc(outw)) buffer_st1(top_blob_data, outbase1 + psc(outw) + 1, outv[1][1][1]);
     }
 }
-
-
-
-
-
