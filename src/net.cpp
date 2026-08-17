@@ -1436,6 +1436,13 @@ int Net::load_param(const DataReader& dr)
             int bottom_blob_index = find_blob_index_by_name(bottom_name);
             if (bottom_blob_index == -1)
             {
+                if (blob_index >= (int)d->blobs.size())
+                {
+                    NCNN_LOGE("blob_index %d out of range, blob_count=%d", blob_index, blob_count);
+                    delete layer;
+                    clear();
+                    return -1;
+                }
                 Blob& blob = d->blobs[blob_index];
 
                 bottom_blob_index = blob_index;
@@ -1456,6 +1463,13 @@ int Net::load_param(const DataReader& dr)
         layer->tops.resize(top_count);
         for (int j = 0; j < top_count; j++)
         {
+            if (blob_index >= (int)d->blobs.size())
+            {
+                NCNN_LOGE("blob_index %d out of range, blob_count=%d", blob_index, blob_count);
+                delete layer;
+                clear();
+                return -1;
+            }
             Blob& blob = d->blobs[blob_index];
 
             char blob_name[256];
