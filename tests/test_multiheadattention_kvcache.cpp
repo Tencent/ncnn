@@ -43,8 +43,8 @@ static int test_multiheadattention_cross_kvcache(const ncnn::Mat& q, const ncnn:
 
     if (input_kvcache)
     {
-        as.push_back(RandomMat(k.h, embed_dim));
-        as.push_back(RandomMat(k.h, embed_dim));
+        as.push_back(RandomMat(embed_dim / num_heads, k.h, num_heads));
+        as.push_back(RandomMat(embed_dim / num_heads, k.h, num_heads));
     }
     else
     {
@@ -147,8 +147,8 @@ static int test_multiheadattention_self_kvcache_decode(const ncnn::Mat& q, int e
 
     std::vector<ncnn::Mat> as(3);
     as[0] = RandomMat(qdim, cur_seqlen);
-    as[1] = RandomMat(past_seqlen, embed_dim);
-    as[2] = RandomMat(past_seqlen, embed_dim);
+    as[1] = RandomMat(embed_dim / num_heads, past_seqlen, num_heads);
+    as[2] = RandomMat(embed_dim / num_heads, past_seqlen, num_heads);
 
     float epsilon = 0.005;
 
@@ -234,8 +234,8 @@ static int test_multiheadattention_int8_cross_kvcache(const ncnn::Mat& q, const 
 
     if (input_kvcache)
     {
-        as.push_back(RandomMat(k.h, embed_dim));
-        as.push_back(RandomMat(k.h, embed_dim));
+        as.push_back(RandomMat(embed_dim / num_heads, k.h, num_heads));
+        as.push_back(RandomMat(embed_dim / num_heads, k.h, num_heads));
     }
     else
     {
@@ -348,8 +348,8 @@ static int test_multiheadattention_int8_self_kvcache_decode(const ncnn::Mat& q, 
 
     std::vector<ncnn::Mat> as(3);
     as[0] = RandomMat(qdim, cur_seqlen);
-    as[1] = RandomMat(past_seqlen, embed_dim);
-    as[2] = RandomMat(past_seqlen, embed_dim);
+    as[1] = RandomMat(embed_dim / num_heads, past_seqlen, num_heads);
+    as[2] = RandomMat(embed_dim / num_heads, past_seqlen, num_heads);
 
     float epsilon = 0.1;
 

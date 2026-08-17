@@ -265,7 +265,7 @@ int MultiHeadAttention_loongarch::create_pipeline_wq_int8(const Option& _opt)
         }
         ncnn::ParamDict pd;
         pd.set(2, 1);                   // transA
-        pd.set(3, 0);                   // transB
+        pd.set(3, kv_cache);            // transB
         pd.set(4, 0);                   // constantA
         pd.set(5, 0);                   // constantB
         pd.set(6, attn_mask ? 0 : 1);   // constantC
@@ -308,19 +308,19 @@ int MultiHeadAttention_loongarch::create_pipeline_wq_int8(const Option& _opt)
             return -100;
         }
         ncnn::ParamDict pd;
-        pd.set(2, 0);   // transA
-        pd.set(3, 1);   // transB
-        pd.set(4, 0);   // constantA
-        pd.set(5, 0);   // constantB
-        pd.set(6, 1);   // constantC
-        pd.set(7, 0);   // M
-        pd.set(8, 0);   // N
-        pd.set(9, 0);   // K
-        pd.set(10, -1); // constant_broadcast_type_C
-        pd.set(11, 0);  // output_N1M
-        pd.set(12, 1);  // output_elempack
-        pd.set(13, 1);  // output_elemtype = fp32
-        pd.set(14, 1);  // output_transpose
+        pd.set(2, 0);         // transA
+        pd.set(3, !kv_cache); // transB
+        pd.set(4, 0);         // constantA
+        pd.set(5, 0);         // constantB
+        pd.set(6, 1);         // constantC
+        pd.set(7, 0);         // M
+        pd.set(8, 0);         // N
+        pd.set(9, 0);         // K
+        pd.set(10, -1);       // constant_broadcast_type_C
+        pd.set(11, 0);        // output_N1M
+        pd.set(12, 1);        // output_elempack
+        pd.set(13, 1);        // output_elemtype = fp32
+        pd.set(14, 1);        // output_transpose
         int ret = qkv_gemm->load_param(pd);
         if (ret != 0)
         {
@@ -558,7 +558,7 @@ int MultiHeadAttention_loongarch::create_pipeline(const Option& _opt)
         qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
         pd.set(2, 1);                   // transA
-        pd.set(3, 0);                   // transB
+        pd.set(3, kv_cache);            // transB
         pd.set(4, 0);                   // constantA
         pd.set(5, 0);                   // constantB
         pd.set(6, attn_mask ? 0 : 1);   // constantC
@@ -584,19 +584,19 @@ int MultiHeadAttention_loongarch::create_pipeline(const Option& _opt)
     {
         qkv_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
-        pd.set(2, 0);   // transA
-        pd.set(3, 1);   // transB
-        pd.set(4, 0);   // constantA
-        pd.set(5, 0);   // constantB
-        pd.set(6, 1);   // constantC
-        pd.set(7, 0);   // M
-        pd.set(8, 0);   // N
-        pd.set(9, 0);   // K
-        pd.set(10, -1); // constant_broadcast_type_C
-        pd.set(11, 0);  // output_N1M
-        pd.set(12, 1);  // output_elempack
-        pd.set(13, 1);  // output_elemtype = fp32
-        pd.set(14, 1);  // output_transpose
+        pd.set(2, 0);         // transA
+        pd.set(3, !kv_cache); // transB
+        pd.set(4, 0);         // constantA
+        pd.set(5, 0);         // constantB
+        pd.set(6, 1);         // constantC
+        pd.set(7, 0);         // M
+        pd.set(8, 0);         // N
+        pd.set(9, 0);         // K
+        pd.set(10, -1);       // constant_broadcast_type_C
+        pd.set(11, 0);        // output_N1M
+        pd.set(12, 1);        // output_elempack
+        pd.set(13, 1);        // output_elemtype = fp32
+        pd.set(14, 1);        // output_transpose
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
@@ -696,6 +696,7 @@ int MultiHeadAttention_loongarch::destroy_pipeline(const Option& _opt)
 
 int MultiHeadAttention_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
+#if NCNN_WEIGHT_QUANT
     if (weight_block_quantize)
     {
         int weight_bits;
@@ -708,6 +709,7 @@ int MultiHeadAttention_loongarch::forward(const std::vector<Mat>& bottom_blobs, 
         if (weight_bits != 8)
             return MultiHeadAttention::forward(bottom_blobs, top_blobs, _opt);
     }
+#endif
 
     int q_blob_i = 0;
     int k_blob_i = 0;
@@ -721,8 +723,11 @@ int MultiHeadAttention_loongarch::forward(const std::vector<Mat>& bottom_blobs, 
     const Mat& k_blob = bottom_blobs[k_blob_i];
     const Mat& v_blob = bottom_blobs[v_blob_i];
     const Mat& attn_mask_blob = attn_mask ? bottom_blobs[attn_mask_i] : Mat();
-    const Mat& cached_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : Mat();
-    const Mat& cached_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : Mat();
+    Mat empty_cache;
+    const Mat& past_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : empty_cache;
+    const Mat& past_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : empty_cache;
+    Mat& cached_xk_blob = kv_cache ? top_blobs[1] : empty_cache;
+    Mat& cached_xv_blob = kv_cache ? top_blobs[2] : empty_cache;
 
     Option opt = _opt;
     if (int8_scale_term && !weight_block_quantize)
@@ -730,6 +735,7 @@ int MultiHeadAttention_loongarch::forward(const std::vector<Mat>& bottom_blobs, 
         opt.use_packing_layout = false; // TODO enable packing
     }
     Option opt_wq = opt;
+#if NCNN_WEIGHT_QUANT
     if (weight_block_quantize)
     {
         opt_wq.use_packing_layout = false;
@@ -739,6 +745,7 @@ int MultiHeadAttention_loongarch::forward(const std::vector<Mat>& bottom_blobs, 
         opt_wq.use_bf16_packed = false;
         opt_wq.use_bf16_storage = false;
     }
+#endif
 
     Mat attn_mask_blob_unpacked;
     if (attn_mask && attn_mask_blob.elempack != 1)
@@ -752,34 +759,34 @@ int MultiHeadAttention_loongarch::forward(const std::vector<Mat>& bottom_blobs, 
         attn_mask_blob_unpacked = attn_mask_blob;
     }
 
-    Mat cached_xk_blob_unpacked;
-    if (kv_cache && !cached_xk_blob.empty() && cached_xk_blob.elempack != 1)
+    Mat past_xk_blob_unpacked;
+    if (kv_cache && !past_xk_blob.empty() && past_xk_blob.elempack != 1)
     {
-        convert_packing(cached_xk_blob, cached_xk_blob_unpacked, 1, opt);
-        if (cached_xk_blob_unpacked.empty())
+        convert_packing(past_xk_blob, past_xk_blob_unpacked, 1, opt);
+        if (past_xk_blob_unpacked.empty())
             return -100;
     }
     else
     {
-        cached_xk_blob_unpacked = cached_xk_blob;
+        past_xk_blob_unpacked = past_xk_blob;
     }
 
-    Mat cached_xv_blob_unpacked;
-    if (kv_cache && !cached_xv_blob.empty() && cached_xv_blob.elempack != 1)
+    Mat past_xv_blob_unpacked;
+    if (kv_cache && !past_xv_blob.empty() && past_xv_blob.elempack != 1)
     {
-        convert_packing(cached_xv_blob, cached_xv_blob_unpacked, 1, opt);
-        if (cached_xv_blob_unpacked.empty())
+        convert_packing(past_xv_blob, past_xv_blob_unpacked, 1, opt);
+        if (past_xv_blob_unpacked.empty())
             return -100;
     }
     else
     {
-        cached_xv_blob_unpacked = cached_xv_blob;
+        past_xv_blob_unpacked = past_xv_blob;
     }
 
     const int embed_dim_per_head = embed_dim / num_heads;
     const int src_seqlen = q_blob.h * q_blob.elempack;
     const int cur_seqlen = k_blob.h * k_blob.elempack;
-    const int past_seqlen = kv_cache && !cached_xk_blob_unpacked.empty() ? cached_xk_blob_unpacked.w : 0;
+    const int past_seqlen = kv_cache && !past_xk_blob_unpacked.empty() ? past_xk_blob_unpacked.h : 0;
     const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
 
     Mat q_affine;
@@ -788,35 +795,51 @@ int MultiHeadAttention_loongarch::forward(const std::vector<Mat>& bottom_blobs, 
         return retq;
 
     Mat k_affine;
-    if (past_seqlen > 0)
+    if (kv_cache)
     {
-        if (q_blob_i == k_blob_i)
+        const bool append_kv = past_seqlen == 0 || q_blob_i == k_blob_i;
+        const int append_seqlen = append_kv ? cur_seqlen : 0;
+        Mat current_key;
+        Mat current_value;
+        if (append_seqlen > 0)
         {
-            Mat k_affine_q;
-            int retk = k_gemm->forward(q_blob, k_affine_q, opt_wq);
+            int retk = k_gemm->forward(k_blob, current_key, opt_wq);
             if (retk != 0)
                 return retk;
 
-            // assert dst_seqlen == cached_xk_blob_unpacked.w + k_affine_q.w
-
-            // merge cached_xk_blob_unpacked and k_affine_q
-            k_affine.create(dst_seqlen, embed_dim, k_affine_q.elemsize, opt.blob_allocator);
-            if (k_affine.empty())
-                return -100;
-
-            for (int i = 0; i < embed_dim; i++)
-            {
-                const unsigned char* ptr = cached_xk_blob_unpacked.row<const unsigned char>(i);
-                const unsigned char* ptrq = k_affine_q.row<const unsigned char>(i);
-                unsigned char* outptr = k_affine.row<unsigned char>(i);
-
-                memcpy(outptr, ptr, past_seqlen * k_affine.elemsize);
-                memcpy(outptr + past_seqlen * k_affine.elemsize, ptrq, cur_seqlen * k_affine.elemsize);
-            }
+            int retv = v_gemm->forward(v_blob, current_value, opt_wq);
+            if (retv != 0)
+                return retv;
         }
-        else
+        int retk = create_or_grow_kvcache(past_xk_blob_unpacked, cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, current_key.elemsize, 1, opt);
+        if (retk != 0)
+            return retk;
+
+        int retv = create_or_grow_kvcache(past_xv_blob_unpacked, cached_xv_blob, dst_seqlen, num_heads, embed_dim_per_head, current_value.elemsize, 1, opt);
+        if (retv != 0)
+            return retv;
+
+        if (append_seqlen > 0)
         {
-            k_affine = cached_xk_blob_unpacked;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < num_heads; q++)
+            {
+                Mat key_cache_head = cached_xk_blob.channel(q);
+                Mat value_cache_head = cached_xv_blob.channel(q);
+
+                unsigned char* key_outptr = key_cache_head.row<unsigned char>(past_seqlen);
+                unsigned char* value_outptr = value_cache_head.row<unsigned char>(past_seqlen);
+                for (int d = 0; d < embed_dim_per_head; d++)
+                {
+                    const unsigned char* key_ptr = current_key.row<const unsigned char>(q * embed_dim_per_head + d);
+                    const unsigned char* value_ptr = current_value.row<const unsigned char>(q * embed_dim_per_head + d);
+                    for (int s = 0; s < append_seqlen; s++)
+                    {
+                        memcpy(key_outptr + ((size_t)s * embed_dim_per_head + d) * cached_xk_blob.elemsize, key_ptr + (size_t)s * cached_xk_blob.elemsize, cached_xk_blob.elemsize);
+                        memcpy(value_outptr + ((size_t)s * embed_dim_per_head + d) * cached_xv_blob.elemsize, value_ptr + (size_t)s * cached_xv_blob.elemsize, cached_xv_blob.elemsize);
+                    }
+                }
+            }
         }
     }
     else
@@ -837,7 +860,7 @@ int MultiHeadAttention_loongarch::forward(const std::vector<Mat>& bottom_blobs, 
     {
         std::vector<Mat> qk_bottom_blobs(2);
         qk_bottom_blobs[0] = q_affine.row_range(i * embed_dim_per_head, embed_dim_per_head);
-        qk_bottom_blobs[1] = k_affine.row_range(i * embed_dim_per_head, embed_dim_per_head);
+        qk_bottom_blobs[1] = kv_cache ? cached_xk_blob.channel(i) : k_affine.row_range(i * embed_dim_per_head, embed_dim_per_head);
         if (attn_mask)
         {
             const Mat& maskm = attn_mask_blob_unpacked.dims == 3 ? attn_mask_blob_unpacked.channel(i) : attn_mask_blob_unpacked;
@@ -867,50 +890,21 @@ int MultiHeadAttention_loongarch::forward(const std::vector<Mat>& bottom_blobs, 
         return retqk;
 
     Mat v_affine;
-    if (past_seqlen > 0)
-    {
-        if (q_blob_i == v_blob_i)
-        {
-            Mat v_affine_q;
-            int retk = v_gemm->forward(v_blob, v_affine_q, opt_wq);
-            if (retk != 0)
-                return retk;
-
-            // assert dst_seqlen == cached_xv_blob_unpacked.w + v_affine_q.w
-
-            // merge cached_xv_blob_unpacked and v_affine_q
-            v_affine.create(dst_seqlen, embed_dim, v_affine_q.elemsize, opt.blob_allocator);
-            if (v_affine.empty())
-                return -100;
-
-            for (int i = 0; i < embed_dim; i++)
-            {
-                const unsigned char* ptr = cached_xv_blob_unpacked.row<const unsigned char>(i);
-                const unsigned char* ptrq = v_affine_q.row<const unsigned char>(i);
-                unsigned char* outptr = v_affine.row<unsigned char>(i);
-
-                memcpy(outptr, ptr, past_seqlen * v_affine.elemsize);
-                memcpy(outptr + past_seqlen * v_affine.elemsize, ptrq, cur_seqlen * v_affine.elemsize);
-            }
-        }
-        else
-        {
-            v_affine = cached_xv_blob_unpacked;
-        }
-    }
-    else
+    if (!kv_cache)
     {
         int retv = v_gemm->forward(v_blob, v_affine, opt_wq);
         if (retv != 0)
             return retv;
     }
 
-    Mat v_affine_fp32 = v_affine;
+    const Mat& value_affine = kv_cache ? cached_xv_blob : v_affine;
+    Mat v_affine_fp32 = value_affine;
+
 #if NCNN_BF16
-    if (opt.use_bf16_storage && v_affine.elembits() == 16)
+    if (opt.use_bf16_storage && value_affine.elembits() == 16)
     {
         // qkv_gemm need fp32 inputs
-        cast_bfloat16_to_float32(v_affine, v_affine_fp32, opt_wq);
+        cast_bfloat16_to_float32(value_affine, v_affine_fp32, opt_wq);
         if (v_affine_fp32.empty())
             return -100;
     }
@@ -927,7 +921,7 @@ int MultiHeadAttention_loongarch::forward(const std::vector<Mat>& bottom_blobs, 
     {
         std::vector<Mat> qkv_bottom_blobs(2);
         qkv_bottom_blobs[0] = qk_cross.row_range(i * src_seqlen, src_seqlen);
-        qkv_bottom_blobs[1] = v_affine_fp32.row_range(i * embed_dim_per_head, embed_dim_per_head);
+        qkv_bottom_blobs[1] = kv_cache ? v_affine_fp32.channel(i) : v_affine_fp32.row_range(i * embed_dim_per_head, embed_dim_per_head);
         std::vector<Mat> qkv_top_blobs(1);
         qkv_top_blobs[0] = qkv_cross.row_range(i * embed_dim_per_head, embed_dim_per_head);
         Option opt1 = opt;
@@ -950,13 +944,6 @@ int MultiHeadAttention_loongarch::forward(const std::vector<Mat>& bottom_blobs, 
     int reto = o_gemm->forward(qkv_cross, top_blobs[0], opt_wq);
     if (reto != 0)
         return reto;
-
-    if (kv_cache)
-    {
-        // assert top_blobs.size() == 3
-        top_blobs[1] = k_affine;
-        top_blobs[2] = v_affine;
-    }
 
     return 0;
 }

@@ -14,6 +14,10 @@
 #include "layer_type.h"
 #include "net.h"
 
+#if NCNN_VULKAN
+#include "command.h"
+#endif // NCNN_VULKAN
+
 #include "benchncnn_llm_param_data.h"
 
 #ifndef NCNN_SIMPLESTL
@@ -304,11 +308,13 @@ static void make_rope_cache(int half_dim, int seqlen, ncnn::Mat& cos_cache, ncnn
     sin_cache.fill(0.f);
 }
 
-static int run_decoder_once(ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIndexes& cache_indexes, const ncnn::Mat& token_embeds, const ncnn::Mat& attention_mask, const ncnn::Mat& cos_cache, const ncnn::Mat& sin_cache, const std::vector<ncnn::Mat>& cache, std::vector<ncnn::Mat>& out_cache)
+static int run_decoder_once(ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIndexes& cache_indexes, const ncnn::Mat& token_embeds, const ncnn::Mat& attention_mask, const ncnn::Mat& cos_cache, const ncnn::Mat& sin_cache, std::vector<ncnn::Mat>& cache, ncnn::Allocator* kvcache_allocator, int kvcache_max_seqlen_hint)
 {
     const int cur_seqlen = token_embeds.h;
 
     ncnn::Extractor ex = decoder.create_extractor();
+    ex.set_kvcache_allocator(kvcache_allocator);
+    ex.set_kvcache_max_seqlen_hint(kvcache_max_seqlen_hint);
     ex.input("in0", token_embeds);
     ex.input("in1", attention_mask);
     ex.input("in2", cos_cache);
@@ -317,12 +323,15 @@ static int run_decoder_once(ncnn::Net& decoder, ncnn::Net& proj_out, const Cache
     for (size_t i = 0; i < cache.size(); i++)
     {
         ex.input(cache_indexes.input_indexes[i], cache[i]);
+        cache[i].release();
     }
 
-    out_cache.resize(cache_indexes.output_indexes.size());
+    cache.resize(cache_indexes.output_indexes.size());
     for (size_t i = 0; i < cache_indexes.output_indexes.size(); i++)
     {
-        ex.extract(cache_indexes.output_indexes[i], out_cache[i], 1);
+        int ret = ex.extract(cache_indexes.output_indexes[i], cache[i], 1);
+        if (ret != 0)
+            return ret;
     }
 
     ncnn::Mat hidden;
@@ -343,36 +352,188 @@ static int run_decoder_once(ncnn::Net& decoder, ncnn::Net& proj_out, const Cache
     return ex2.extract("out0", logits);
 }
 
-static int benchmark_case(ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIndexes& cache_indexes, const ncnn::Mat& token_embeds, const ncnn::Mat& attention_mask, const ncnn::Mat& cos_cache, const ncnn::Mat& sin_cache, const std::vector<ncnn::Mat>& cache, double rate_scale, double& tokens_per_second)
+#if NCNN_VULKAN
+static int run_decoder_once_vulkan(ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIndexes& cache_indexes, const ncnn::Mat& token_embeds, const ncnn::Mat& attention_mask, const ncnn::Mat& cos_cache, const ncnn::Mat& sin_cache, std::vector<ncnn::VkMat>& cache, ncnn::VkAllocator* kvcache_vkallocator, int kvcache_max_seqlen_hint)
 {
-    std::vector<ncnn::Mat> out_cache;
+    const int cur_seqlen = token_embeds.h;
 
-    for (int i = 0; i < g_warmup_loop_count; i++)
+    ncnn::Extractor ex = decoder.create_extractor();
+    ex.set_kvcache_vkallocator(kvcache_vkallocator);
+    ex.set_kvcache_max_seqlen_hint(kvcache_max_seqlen_hint);
+    ex.input("in0", token_embeds);
+    ex.input("in1", attention_mask);
+    ex.input("in2", cos_cache);
+    ex.input("in3", sin_cache);
+
+    for (size_t i = 0; i < cache.size(); i++)
     {
-        int ret = run_decoder_once(decoder, proj_out, cache_indexes, token_embeds, attention_mask, cos_cache, sin_cache, cache, out_cache);
+        ex.input(cache_indexes.input_indexes[i], cache[i]);
+        cache[i].release();
+    }
+
+    ncnn::Mat hidden;
+    int ret = ex.extract("out0", hidden);
+    if (ret != 0)
+        return ret;
+
+    ncnn::VkCompute cmd(g_vkdev);
+    cache.resize(cache_indexes.output_indexes.size());
+    for (size_t i = 0; i < cache_indexes.output_indexes.size(); i++)
+    {
+        ret = ex.extract(cache_indexes.output_indexes[i], cache[i], cmd);
         if (ret != 0)
             return ret;
     }
 
+    ret = cmd.submit_and_wait();
+    if (ret != 0)
+        return ret;
+
+    ncnn::Mat last_hidden = hidden;
+    if (cur_seqlen > 1)
+    {
+        last_hidden = hidden.row_range(cur_seqlen - 1, 1).clone();
+    }
+
+    ncnn::Extractor ex2 = proj_out.create_extractor();
+    ex2.input("in0", last_hidden);
+
+    ncnn::Mat logits;
+    return ex2.extract("out0", logits);
+}
+#endif // NCNN_VULKAN
+
+static int benchmark_cpu(ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIndexes& cache_indexes, const ncnn::Mat& prefill_embeddings, const ncnn::Mat& prefill_attention_mask, const ncnn::Mat& prefill_cos_cache, const ncnn::Mat& prefill_sin_cache, const ncnn::Mat& decode_embedding, const ncnn::Mat& decode_attention_mask, const ncnn::Mat& decode_cos_cache, const ncnn::Mat& decode_sin_cache, ncnn::Allocator* kvcache_allocator, int kvcache_max_seqlen_hint, double& prefill_tps, double& decode_tps)
+{
     double time_min = DBL_MAX;
 
-    for (int i = 0; i < g_loop_count; i++)
+    for (int i = 0; i < g_warmup_loop_count + g_loop_count; i++)
     {
+        std::vector<ncnn::Mat> cache;
+
         double start = ncnn::get_current_time();
-        int ret = run_decoder_once(decoder, proj_out, cache_indexes, token_embeds, attention_mask, cos_cache, sin_cache, cache, out_cache);
+        int ret = run_decoder_once(decoder, proj_out, cache_indexes, prefill_embeddings, prefill_attention_mask, prefill_cos_cache, prefill_sin_cache, cache, kvcache_allocator, kvcache_max_seqlen_hint);
         double end = ncnn::get_current_time();
+
+        for (size_t j = 0; j < cache.size(); j++)
+            cache[j].release();
+
         if (ret != 0)
             return ret;
 
-        const double time = end - start;
-        if (time < time_min)
-            time_min = time;
+        if (i >= g_warmup_loop_count)
+        {
+            const double time = end - start;
+            if (time < time_min)
+                time_min = time;
+        }
     }
 
-    tokens_per_second = rate_scale * 1000.0 / time_min;
+    prefill_tps = prefill_embeddings.h * 1000.0 / time_min;
+
+    time_min = DBL_MAX;
+
+    for (int i = 0; i < g_warmup_loop_count + g_loop_count; i++)
+    {
+        std::vector<ncnn::Mat> cache;
+
+        int ret = run_decoder_once(decoder, proj_out, cache_indexes, prefill_embeddings, prefill_attention_mask, prefill_cos_cache, prefill_sin_cache, cache, kvcache_allocator, kvcache_max_seqlen_hint);
+        if (ret != 0)
+        {
+            for (size_t j = 0; j < cache.size(); j++)
+                cache[j].release();
+            return ret;
+        }
+
+        double start = ncnn::get_current_time();
+        ret = run_decoder_once(decoder, proj_out, cache_indexes, decode_embedding, decode_attention_mask, decode_cos_cache, decode_sin_cache, cache, kvcache_allocator, kvcache_max_seqlen_hint);
+        double end = ncnn::get_current_time();
+
+        for (size_t j = 0; j < cache.size(); j++)
+            cache[j].release();
+
+        if (ret != 0)
+            return ret;
+
+        if (i >= g_warmup_loop_count)
+        {
+            const double time = end - start;
+            if (time < time_min)
+                time_min = time;
+        }
+    }
+
+    decode_tps = 1000.0 / time_min;
 
     return 0;
 }
+
+#if NCNN_VULKAN
+static int benchmark_vulkan(ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIndexes& cache_indexes, const ncnn::Mat& prefill_embeddings, const ncnn::Mat& prefill_attention_mask, const ncnn::Mat& prefill_cos_cache, const ncnn::Mat& prefill_sin_cache, const ncnn::Mat& decode_embedding, const ncnn::Mat& decode_attention_mask, const ncnn::Mat& decode_cos_cache, const ncnn::Mat& decode_sin_cache, ncnn::VkAllocator* kvcache_vkallocator, int kvcache_max_seqlen_hint, double& prefill_tps, double& decode_tps)
+{
+    double time_min = DBL_MAX;
+
+    for (int i = 0; i < g_warmup_loop_count + g_loop_count; i++)
+    {
+        std::vector<ncnn::VkMat> cache;
+
+        double start = ncnn::get_current_time();
+        int ret = run_decoder_once_vulkan(decoder, proj_out, cache_indexes, prefill_embeddings, prefill_attention_mask, prefill_cos_cache, prefill_sin_cache, cache, kvcache_vkallocator, kvcache_max_seqlen_hint);
+        double end = ncnn::get_current_time();
+
+        for (size_t j = 0; j < cache.size(); j++)
+            cache[j].release();
+
+        if (ret != 0)
+            return ret;
+
+        if (i >= g_warmup_loop_count)
+        {
+            const double time = end - start;
+            if (time < time_min)
+                time_min = time;
+        }
+    }
+
+    prefill_tps = prefill_embeddings.h * 1000.0 / time_min;
+
+    time_min = DBL_MAX;
+
+    for (int i = 0; i < g_warmup_loop_count + g_loop_count; i++)
+    {
+        std::vector<ncnn::VkMat> cache;
+
+        int ret = run_decoder_once_vulkan(decoder, proj_out, cache_indexes, prefill_embeddings, prefill_attention_mask, prefill_cos_cache, prefill_sin_cache, cache, kvcache_vkallocator, kvcache_max_seqlen_hint);
+        if (ret != 0)
+        {
+            for (size_t j = 0; j < cache.size(); j++)
+                cache[j].release();
+            return ret;
+        }
+
+        double start = ncnn::get_current_time();
+        ret = run_decoder_once_vulkan(decoder, proj_out, cache_indexes, decode_embedding, decode_attention_mask, decode_cos_cache, decode_sin_cache, cache, kvcache_vkallocator, kvcache_max_seqlen_hint);
+        double end = ncnn::get_current_time();
+
+        for (size_t j = 0; j < cache.size(); j++)
+            cache[j].release();
+
+        if (ret != 0)
+            return ret;
+
+        if (i >= g_warmup_loop_count)
+        {
+            const double time = end - start;
+            if (time < time_min)
+                time_min = time;
+        }
+    }
+
+    decode_tps = 1000.0 / time_min;
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 static int load_net(ncnn::Net& net, const char* param_data, int quantize_term, const ncnn::Option& opt)
 {
@@ -454,19 +615,23 @@ static int benchmark_model(const ModelConfig& config, const ncnn::Option& opt)
         ncnn::sleep(10 * 1000);
     }
 
-    std::vector<ncnn::Mat> empty_cache;
-    std::vector<ncnn::Mat> past_cache;
-    ret = run_decoder_once(decoder, proj_out, cache_indexes, prefill_embeddings, prefill_attention_mask, prefill_cos_cache, prefill_sin_cache, empty_cache, past_cache);
-    if (ret != 0)
-        return ret;
-
     double prefill_tps;
-    ret = benchmark_case(decoder, proj_out, cache_indexes, prefill_embeddings, prefill_attention_mask, prefill_cos_cache, prefill_sin_cache, empty_cache, 256.0, prefill_tps);
-    if (ret != 0)
-        return ret;
-
     double decode_tps;
-    ret = benchmark_case(decoder, proj_out, cache_indexes, decode_embedding, decode_attention_mask, decode_cos_cache, decode_sin_cache, past_cache, 1.0, decode_tps);
+
+#if NCNN_VULKAN
+    if (opt.use_vulkan_compute)
+    {
+        ncnn::VkBlobAllocator kvcache_vkallocator(g_vkdev);
+        ret = benchmark_vulkan(decoder, proj_out, cache_indexes, prefill_embeddings, prefill_attention_mask, prefill_cos_cache, prefill_sin_cache, decode_embedding, decode_attention_mask, decode_cos_cache, decode_sin_cache, &kvcache_vkallocator, prefill_len + 1, prefill_tps, decode_tps);
+    }
+    else
+#endif // NCNN_VULKAN
+    {
+        ncnn::UnlockedPoolAllocator kvcache_allocator;
+        kvcache_allocator.set_size_compare_ratio(0.f);
+        ret = benchmark_cpu(decoder, proj_out, cache_indexes, prefill_embeddings, prefill_attention_mask, prefill_cos_cache, prefill_sin_cache, decode_embedding, decode_attention_mask, decode_cos_cache, decode_sin_cache, &kvcache_allocator, prefill_len + 1, prefill_tps, decode_tps);
+    }
+
     if (ret != 0)
         return ret;
 

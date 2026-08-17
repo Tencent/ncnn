@@ -158,48 +158,36 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     const size_t elemsize = query.elemsize;
 
     Mat key;
-    if (past_seqlen > 0)
+    Mat value;
+
+    if (kv_cache)
     {
-        key.create(embed_dim, dst_seqlen, num_group, elemsize, opt.blob_allocator);
-        if (key.empty())
-            return -100;
+        Mat& cached_key = top_blobs[1];
+        Mat& cached_value = top_blobs[2];
+
+        int retk = create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, elemsize, cur_key.elempack, opt);
+        if (retk != 0)
+            return retk;
+
+        int retv = create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, elemsize, cur_value.elempack, opt);
+        if (retv != 0)
+            return retv;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_group; q++)
         {
-            const Mat past_key_head = past_key.channel(q);
-            const Mat cur_key_head = cur_key.channel(q);
-            Mat key_head = key.channel(q);
-
-            memcpy(key_head.row(0), past_key_head, embed_dim * past_seqlen * elemsize);
-            memcpy(key_head.row(past_seqlen), cur_key_head, embed_dim * cur_seqlen * elemsize);
+            Mat key_head = cached_key.channel(q);
+            Mat value_head = cached_value.channel(q);
+            memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * elemsize);
+            memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * elemsize);
         }
+
+        key = cached_key;
+        value = cached_value;
     }
     else
     {
         key = cur_key;
-    }
-
-    Mat value;
-    if (past_seqlen > 0)
-    {
-        value.create(out_embed_dim, dst_seqlen, num_group, elemsize, opt.blob_allocator);
-        if (value.empty())
-            return -100;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < num_group; q++)
-        {
-            const Mat past_value_head = past_value.channel(q);
-            const Mat cur_value_head = cur_value.channel(q);
-            Mat value_head = value.channel(q);
-
-            memcpy(value_head.row(0), past_value_head, out_embed_dim * past_seqlen * elemsize);
-            memcpy(value_head.row(past_seqlen), cur_value_head, out_embed_dim * cur_seqlen * elemsize);
-        }
-    }
-    else
-    {
         value = cur_value;
     }
 
@@ -336,12 +324,6 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     }
 
     value_fp32.release();
-
-    if (kv_cache)
-    {
-        top_blobs[1] = key;
-        top_blobs[2] = value;
-    }
 
     return 0;
 }

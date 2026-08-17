@@ -63,6 +63,8 @@ NCNN_EXPORT void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads)
 
 NCNN_EXPORT void ncnn_option_set_blob_allocator(ncnn_option_t opt, ncnn_allocator_t allocator);
 NCNN_EXPORT void ncnn_option_set_workspace_allocator(ncnn_option_t opt, ncnn_allocator_t allocator);
+NCNN_EXPORT void ncnn_option_set_kvcache_allocator(ncnn_option_t opt, ncnn_allocator_t allocator);
+NCNN_EXPORT void ncnn_option_set_kvcache_max_seqlen_hint(ncnn_option_t opt, int max_seqlen_hint);
 
 NCNN_EXPORT int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_use_local_pool_allocator(const ncnn_option_t opt);

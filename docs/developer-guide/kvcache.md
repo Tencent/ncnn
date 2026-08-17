@@ -36,40 +36,19 @@ The caching strategy is fundamentally different for self-attention and cross-att
 #### cross-attention (static k/v)
 - **purpose:** Allows the decoder to attend to the output of the encoder (e.g., attending to audio features in speech recognition, or an input sentence in translation).
 - **cache Logic:** The k and v matrices are derived from the encoder's output, which is computed only **once** per input sequence. Therefore, the k and v for cross-attention are **static** and do not change during the decoding process. They are "cached" in the sense that they are pre-computed and reused in every decoding step.
-- **ncnn implementation:** The `MultiHeadAttention` and `SDPA` layers for cross-attention are also configured with `7=1` and cache I/O blobs. However, the implementation correctly identifies cross-attention (where the query blob is different from the key/value blobs) and reuses the `cache_k_in` and `cache_v_in` directly, without performing concatenation. This allows the static encoder k/v to be passed efficiently through the network.
+- **ncnn implementation:** A `MultiHeadAttention` layer with separate query and key/value blobs reuses an existing cache without appending it. `SDPA` treats its current key/value inputs as append data; the caller therefore controls whether more data is appended.
 
-## 3. ncnn kv cache memory layout
+## 3. ncnn kv cache representation
 
-The memory layout of the kv cache is a critical design choice for performance. ncnn uses different layouts for `MultiHeadAttention` and `SDPA` to optimize for their respective calculation patterns.
+The cache layout is private to the attention backend. Applications should extract a cache and feed it back unchanged rather than interpreting its dimensions, packing, or data layout.
 
-### `MultiHeadAttention` cache layout (Transposed)
+The logical sequence length is stored in `Mat::h`. With a dedicated cache allocator, the backing allocation may reserve additional sequence capacity in `Mat::cstep`. `MultiHeadAttention` and `SDPA` append directly to that reserved space. When the capacity is exhausted, the backend allocates a larger cache and copies only the valid history.
 
-The `MultiHeadAttention` layer uses a **transposed layout** for its cache blobs. The primary reason for this is to **ensure that data for each attention head is contiguous in memory, which significantly boosts gemm performance.**
+This representation lets CPU implementations choose a head-contiguous layout and lets Vulkan keep the cache on device. It also avoids changing the public `Mat` ABI or adding a separate cache object.
 
-*   **input blobs (q, k, v):** These typically have a shape where height represents the sequence length.
-    *   `ncnn::Mat` dimensions: `(w = embed_dim, h = seq_len)`
+KV cache data is not a persistent or cross-version format. In particular, the `MultiHeadAttention` cache is no longer compatible with the previously documented 2D transposed layout `(w = seq_len, h = embed_dim)`. Applications that extract a cache and feed it back unchanged keep the same calling pattern, but must start a new session with empty caches after upgrading ncnn. Applications must not construct, inspect, or persist cache blobs based on an assumed layout.
 
-*   **cache blobs (`k_cache`, `v_cache`):** These are stored in a **transposed** format.
-    *   `ncnn::Mat` dimensions: `(w = seq_len, h = embed_dim)`
-
-**the rationale:**
-
-1.  **slicing by Head:** During the attention calculation, the code slices the `k_cache` and `v_cache` matrices along their height to isolate the data for each head (e.g., using `row_range(head_index * embed_dim_per_head, embed_dim_per_head)`).
-2.  **memory contiguity:** Because `ncnn::Mat` uses a row-major memory layout, this slicing operation on the transposed cache blob results in a sub-matrix where all the data for a single head is perfectly contiguous.
-3.  **gemm efficiency:** Subsequent matrix multiplication operations (`q * k^T` and `Attention * v`) can then operate on these contiguous memory blocks. This maximizes CPU cache locality and the effectiveness of simd instructions, leading to a substantial increase in computational speed.
-
-If a non-transposed layout were used, the data for each head would be strided in memory, causing frequent cache misses and dramatically slowing down the performance-critical gemm calculations. Therefore, this transposed layout is a deliberate and crucial optimization for computation.
-
-### `SDPA` cache layout (Standard)
-
-The `SDPA` layer uses the **standard ncnn Mat layout**, where the sequence length is represented by the height.
-
-*   **input blobs (q, k, v):** `(w = embed_dim, h = seq_len, c = num_heads)`
-*   **cache blobs (`k_cache`, `v_cache`):** `(w = embed_dim, h = seq_len, c = num_heads)`
-
-**the rationale:**
-
-The `SDPA` layer's internal implementation directly concatenates the cache blobs (`past_k`, `past_v`) with the current ones (`cur_k`, `cur_v`) along the height dimension (`seq_len`). This simpler approach avoids the need for a transposed layout while still being highly efficient, as the concatenation logic is handled inside the optimized C++ implementation.
+KV cache outputs should be extracted with `type=1`. This preserves the backend storage type, packing, allocator, and reserved capacity so the cache can be fed back unchanged. This convention applies with or without a dedicated KV cache allocator.
 
 ## 4. converting models to support kv cache
 
@@ -271,7 +250,7 @@ void run_decoder_pre(const std::vector<int>& tokens, const ncnn::Mat& encoder_st
     out_kv_cache.resize(kvcache_info.output_indices.size());
     for (size_t i = 0; i < kvcache_info.output_indices.size(); i++)
     {
-        ex.extract(kvcache_info.output_indices[i], out_kv_cache[i]);
+        ex.extract(kvcache_info.output_indices[i], out_kv_cache[i], 1);
     }
 
     ncnn::Mat all_logits;
@@ -298,7 +277,7 @@ void run_decoder_step(int token, const ncnn::Mat& encoder_states, const std::vec
     out_kv_cache.resize(kvcache_info.output_indices.size());
     for (size_t i = 0; i < kvcache_info.output_indices.size(); i++)
     {
-        ex.extract(kvcache_info.output_indices[i], out_kv_cache[i]);
+        ex.extract(kvcache_info.output_indices[i], out_kv_cache[i], 1);
     }
 
     ncnn::Mat logits;
@@ -329,4 +308,31 @@ void generate_sequence()
     }
 }
 ```
-This structured approach allows ncnn to perform highly efficient Transformer inference, correctly handling both dynamic self-attention and static cross-attention caches with an optimized memory layout.
+### avoiding repeated cache allocation
+
+The example above remains compatible, but an exact-size cache allocation is made whenever the cache grows. A long-running session can provide a dedicated allocator and a maximum sequence-length hint:
+
+```cpp
+ncnn::UnlockedPoolAllocator kvcache_allocator;
+kvcache_allocator.set_size_compare_ratio(0.f);
+
+ncnn::Extractor ex = decoder_net.create_extractor();
+ex.set_kvcache_allocator(&kvcache_allocator);
+ex.set_kvcache_max_seqlen_hint(max_context_length);
+```
+
+Set the same allocator on every extractor belonging to the session. The session owns it, and it must outlive every cache `Mat`. The sequence-length hint controls the first reservation but is not a hard limit; the cache still grows if necessary. Without a hint, ncnn uses a moderate initial reservation and geometric growth.
+
+The cache allocator must be a different allocator object from the blob allocator. Allocator-managed KV cache currently supports only batch size 1.
+
+Cache input follows a consume-and-replace convention. After passing the cache to an extractor, release the caller's old handle and replace it with the extracted output:
+
+```cpp
+ex.input(cache_input_index, cache);
+cache.release();
+ex.extract(cache_output_index, cache, 1);
+```
+
+Independent sessions and beam-search branches need independent cache allocations. A shallow `Mat` copy is not an independent cache snapshot.
+
+For Vulkan, use a session-owned `VkAllocator`, call `set_kvcache_vkallocator()`, and keep cache handles as `VkMat` across extractors. The cache allocator must be different from the blob allocator. Blob, workspace, staging, and cache allocators retain their usual independent lifetimes.

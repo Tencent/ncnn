@@ -4,6 +4,7 @@
 #include "sdpa.h"
 
 #include <float.h>
+#include <limits.h>
 
 #include "cpu.h"
 
@@ -19,6 +20,80 @@ int SDPA::load_param(const ParamDict& pd)
     scale = pd.get(6, 0.f);
     kv_cache = pd.get(7, 0);
     int8_scale_term = pd.get(18, 0);
+
+    return 0;
+}
+
+int SDPA::kvcache_capacity(int current_capacity, int new_seqlen, int max_seqlen_hint)
+{
+    if (current_capacity == 0 && max_seqlen_hint >= new_seqlen && max_seqlen_hint > 0)
+        return max_seqlen_hint;
+
+    int capacity = current_capacity > new_seqlen ? current_capacity : new_seqlen;
+    int reserve;
+    if (current_capacity == 0)
+    {
+        reserve = capacity < 16 ? 16 - capacity : capacity;
+        if (reserve > 256)
+            reserve = 256;
+    }
+    else
+    {
+        reserve = capacity / 2;
+        if (reserve < 16)
+            reserve = 16;
+    }
+
+    return capacity <= INT_MAX - reserve ? capacity + reserve : capacity;
+}
+
+int SDPA::create_or_grow_kvcache(const Mat& cache, Mat& new_cache, int new_seqlen, int num_kv_head, int head_dim, size_t elemsize, int elempack, const Option& opt) const
+{
+    if (!cache.empty() && new_seqlen <= cache.h)
+    {
+        new_cache = cache;
+        new_cache.h = new_seqlen;
+        return 0;
+    }
+
+    Allocator* allocator = opt.kvcache_allocator ? opt.kvcache_allocator : opt.blob_allocator;
+    if (opt.kvcache_allocator && !cache.empty() && cache.allocator == allocator)
+    {
+        const int capacity = (int)(cache.cstep / cache.w);
+        if (new_seqlen <= capacity)
+        {
+            new_cache = cache;
+            new_cache.h = new_seqlen;
+            return 0;
+        }
+    }
+
+    int capacity = new_seqlen > 0 ? new_seqlen : 1;
+    if (opt.kvcache_allocator)
+    {
+        const int current_capacity = cache.empty() ? 0 : (int)(cache.cstep / cache.w);
+        capacity = kvcache_capacity(current_capacity, new_seqlen, opt.kvcache_max_seqlen_hint);
+    }
+
+    Mat m;
+    m.create(head_dim, capacity, num_kv_head, elemsize, elempack, allocator);
+    if (m.empty())
+        return -100;
+
+    m.h = new_seqlen;
+
+    if (!cache.empty())
+    {
+        const size_t valid_head_size = (size_t)cache.w * cache.h * cache.elemsize;
+        for (int q = 0; q < cache.c; q++)
+        {
+            const unsigned char* src = (const unsigned char*)cache.data + cache.cstep * q * cache.elemsize;
+            unsigned char* dst = (unsigned char*)m.data + m.cstep * q * m.elemsize;
+            memcpy(dst, src, valid_head_size);
+        }
+    }
+
+    new_cache = m;
 
     return 0;
 }
@@ -67,43 +142,31 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         return -100;
 
     Mat key = cur_key;
-    if (past_seqlen > 0)
-    {
-        key.create(embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
-        if (key.empty())
-            return -100;
-
-        // concat
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < num_group; q++)
-        {
-            const Mat past_key_head = past_key.channel(q);
-            const Mat cur_key_head = cur_key.channel(q);
-            Mat key_head = key.channel(q);
-
-            memcpy(key_head.row(0), past_key_head, embed_dim * past_seqlen * sizeof(float));
-            memcpy(key_head.row(past_seqlen), cur_key_head, embed_dim * cur_seqlen * sizeof(float));
-        }
-    }
-
     Mat value = cur_value;
-    if (past_seqlen > 0)
+    if (kv_cache)
     {
-        value.create(out_embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
-        if (value.empty())
-            return -100;
+        Mat& cached_key = top_blobs[1];
+        Mat& cached_value = top_blobs[2];
 
-        // concat
+        int retk = create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, cur_key.elempack, opt);
+        if (retk != 0)
+            return retk;
+
+        int retv = create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, cur_value.elemsize, cur_value.elempack, opt);
+        if (retv != 0)
+            return retv;
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_group; q++)
         {
-            const Mat past_value_head = past_value.channel(q);
-            const Mat cur_value_head = cur_value.channel(q);
-            Mat value_head = value.channel(q);
-
-            memcpy(value_head.row(0), past_value_head, out_embed_dim * past_seqlen * sizeof(float));
-            memcpy(value_head.row(past_seqlen), cur_value_head, out_embed_dim * cur_seqlen * sizeof(float));
+            Mat key_head = cached_key.channel(q);
+            Mat value_head = cached_value.channel(q);
+            memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * cur_key.elemsize);
+            memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * cur_value.elemsize);
         }
+
+        key = cached_key;
+        value = cached_value;
     }
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -196,13 +259,6 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                 }
             }
         }
-    }
-
-    if (kv_cache)
-    {
-        // assert top_blobs.size() == 3
-        top_blobs[1] = key;
-        top_blobs[2] = value;
     }
 
     return 0;
@@ -328,43 +384,31 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         return -100;
 
     Mat key = cur_key;
-    if (past_seqlen > 0)
-    {
-        key.create(embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
-        if (key.empty())
-            return -100;
-
-        // concat
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < num_group; q++)
-        {
-            const Mat past_key_head = past_key.channel(q);
-            const Mat cur_key_head = cur_key.channel(q);
-            Mat key_head = key.channel(q);
-
-            memcpy(key_head.row(0), past_key_head, embed_dim * past_seqlen * sizeof(float));
-            memcpy(key_head.row(past_seqlen), cur_key_head, embed_dim * cur_seqlen * sizeof(float));
-        }
-    }
-
     Mat value = cur_value;
-    if (past_seqlen > 0)
+    if (kv_cache)
     {
-        value.create(out_embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
-        if (value.empty())
-            return -100;
+        Mat& cached_key = top_blobs[1];
+        Mat& cached_value = top_blobs[2];
 
-        // concat
+        int retk = create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, cur_key.elempack, opt);
+        if (retk != 0)
+            return retk;
+
+        int retv = create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, cur_value.elemsize, cur_value.elempack, opt);
+        if (retv != 0)
+            return retv;
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_group; q++)
         {
-            const Mat past_value_head = past_value.channel(q);
-            const Mat cur_value_head = cur_value.channel(q);
-            Mat value_head = value.channel(q);
-
-            memcpy(value_head.row(0), past_value_head, out_embed_dim * past_seqlen * sizeof(float));
-            memcpy(value_head.row(past_seqlen), cur_value_head, out_embed_dim * cur_seqlen * sizeof(float));
+            Mat key_head = cached_key.channel(q);
+            Mat value_head = cached_value.channel(q);
+            memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * cur_key.elemsize);
+            memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * cur_value.elemsize);
         }
+
+        key = cached_key;
+        value = cached_value;
     }
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -483,13 +527,6 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                 }
             }
         }
-    }
-
-    if (kv_cache)
-    {
-        // assert top_blobs.size() == 3
-        top_blobs[1] = key;
-        top_blobs[2] = value;
     }
 
     return 0;

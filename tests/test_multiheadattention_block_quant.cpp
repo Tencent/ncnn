@@ -332,13 +332,13 @@ static int test_multiheadattention_block_quant_kvcache(int bits, int block_size,
     if (attn_mask)
     {
         as[1] = RandomMat(5 + src_seqlen, src_seqlen, -1.f, 0.f);
-        as[2] = RandomMat(5, embed_dim, -1.f, 1.f);
-        as[3] = bits == 8 && has_input_scale ? RandomWQInt8Cache(5, embed_dim) : RandomMat(5, embed_dim, -1.f, 1.f);
+        as[2] = RandomMat(embed_dim / 2, 5, 2, -1.f, 1.f);
+        as[3] = bits == 8 && has_input_scale ? RandomWQInt8Cache(5, embed_dim).reshape(embed_dim / 2, 5, 2) : RandomMat(embed_dim / 2, 5, 2, -1.f, 1.f);
     }
     else
     {
-        as[1] = RandomMat(5, embed_dim, -1.f, 1.f);
-        as[2] = bits == 8 && has_input_scale ? RandomWQInt8Cache(5, embed_dim) : RandomMat(5, embed_dim, -1.f, 1.f);
+        as[1] = RandomMat(embed_dim / 2, 5, 2, -1.f, 1.f);
+        as[2] = bits == 8 && has_input_scale ? RandomWQInt8Cache(5, embed_dim).reshape(embed_dim / 2, 5, 2) : RandomMat(embed_dim / 2, 5, 2, -1.f, 1.f);
     }
 
     ncnn::ParamDict pd;
@@ -391,13 +391,13 @@ static int test_multiheadattention_block_quant_cross_kvcache(int bits, int block
     if (attn_mask)
     {
         as[3] = RandomMat(5, src_seqlen, -1.f, 0.f);
-        as[4] = RandomMat(5, embed_dim, -1.f, 1.f);
-        as[5] = bits == 8 && has_input_scale ? RandomWQInt8Cache(5, embed_dim) : RandomMat(5, embed_dim, -1.f, 1.f);
+        as[4] = RandomMat(embed_dim / 4, 5, 4, -1.f, 1.f);
+        as[5] = bits == 8 && has_input_scale ? RandomWQInt8Cache(5, embed_dim).reshape(embed_dim / 4, 5, 4) : RandomMat(embed_dim / 4, 5, 4, -1.f, 1.f);
     }
     else
     {
-        as[3] = RandomMat(5, embed_dim, -1.f, 1.f);
-        as[4] = bits == 8 && has_input_scale ? RandomWQInt8Cache(5, embed_dim) : RandomMat(5, embed_dim, -1.f, 1.f);
+        as[3] = RandomMat(embed_dim / 4, 5, 4, -1.f, 1.f);
+        as[4] = bits == 8 && has_input_scale ? RandomWQInt8Cache(5, embed_dim).reshape(embed_dim / 4, 5, 4) : RandomMat(embed_dim / 4, 5, 4, -1.f, 1.f);
     }
 
     ncnn::ParamDict pd;
