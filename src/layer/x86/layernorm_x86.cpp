@@ -216,7 +216,7 @@ static void layernorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
         __m512 _eps = _mm512_set1_ps(eps);
         _var_avx512 = _mm512_div_ps(_var_avx512, _elemcount);
         _var_avx512 = _mm512_add_ps(_var_avx512, _eps);
-        _var_avx512 = _mm512_comp_rsqrt1_ps(_var_avx512);
+        _var_avx512 = _mm512_comp_rsqrt_ps(_var_avx512);
         _mean_avx512 = _mm512_mul_ps(_mean_avx512, _var_avx512);
     }
 #endif // __AVX512F__

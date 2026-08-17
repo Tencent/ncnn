@@ -176,7 +176,7 @@ struct unary_op_rsqrt
 #if __AVX512F__
     NCNN_FORCEINLINE __m512 func_pack16(const __m512& x) const
     {
-        return _mm512_comp_rsqrt1_ps(x);
+        return _mm512_comp_rsqrt_ps(x);
     }
 #endif // __AVX512F__
 #endif // __AVX__

@@ -89,7 +89,7 @@ static void rmsnorm(float* ptr, const float* gamma_ptr, float eps, int elemcount
         _rms_avx512 = _mm512_div_ps(_rms_avx512, _elemcount);
         _rms_avx512 = _mm512_add_ps(_rms_avx512, _eps);
 
-        _rms_avx512 = _mm512_comp_rsqrt1_ps(_rms_avx512);
+        _rms_avx512 = _mm512_comp_rsqrt_ps(_rms_avx512);
     }
 #endif // __AVX512F__
     if (elempack == 8)
