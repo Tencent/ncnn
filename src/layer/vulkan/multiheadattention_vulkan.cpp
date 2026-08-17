@@ -75,7 +75,8 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         pd.set(9, qdim);      // K
         pd.set(10, 1);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
-        // pd.set(12, 1);        // output_elempack
+        if (kv_cache)
+            pd.set(12, 1); // output_elempack
         pd.set(14, 0); // output_transpose
         q_gemm->load_param(pd);
         Mat weights[2];
@@ -105,7 +106,8 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         pd.set(9, kdim);      // K
         pd.set(10, 1);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
-        // pd.set(12, 1);        // output_elempack
+        if (kv_cache)
+            pd.set(12, 1); // output_elempack
         pd.set(14, 0); // output_transpose
         k_gemm->load_param(pd);
         Mat weights[2];
@@ -135,7 +137,8 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         pd.set(9, vdim);      // K
         pd.set(10, 1);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
-        // pd.set(12, 1);        // output_elempack
+        if (kv_cache)
+            pd.set(12, 1); // output_elempack
         pd.set(14, 0); // output_transpose
         v_gemm->load_param(pd);
         Mat weights[2];
@@ -504,14 +507,6 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
 
     VkMat q_affine;
     q_gemm->forward(q_blob, q_affine, cmd, opt);
-    if (kv_cache && q_affine.elempack != 1)
-    {
-        VkMat tmp;
-        vkdev->convert_packing(q_affine, tmp, 1, cmd, opt);
-        if (tmp.empty())
-            return -100;
-        q_affine = tmp;
-    }
 
     VkMat k_affine;
     VkMat current_key;
@@ -526,23 +521,6 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
             int retv = v_gemm->forward(v_blob, current_value, cmd, opt);
             if (retv != 0)
                 return retv;
-
-            if (current_key.elempack != 1)
-            {
-                VkMat tmp;
-                vkdev->convert_packing(current_key, tmp, 1, cmd, opt);
-                if (tmp.empty())
-                    return -100;
-                current_key = tmp;
-            }
-            if (current_value.elempack != 1)
-            {
-                VkMat tmp;
-                vkdev->convert_packing(current_value, tmp, 1, cmd, opt);
-                if (tmp.empty())
-                    return -100;
-                current_value = tmp;
-            }
         }
 
         int retk = create_or_grow_kvcache(past_xk_blob_unpacked, cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, current_key.elemsize, 1, cmd, opt);
