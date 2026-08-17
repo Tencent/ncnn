@@ -809,29 +809,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
                 {
                     for (size_t i = 0; i < top_batches.size(); i++)
                     {
-                        if (opt.kvcache_allocator && top_b[i].allocator == opt.kvcache_allocator)
-                        {
-                            for (size_t j = 0; j < bottom_b.size(); j++)
-                            {
-                                if (bottom_blobs[j].n == B && top_b[i].data == bottom_b[j].data)
-                                {
-                                    top_batches[i] = bottom_blobs[j];
-                                    top_batches[i].h = top_b[i].h;
-                                    break;
-                                }
-                            }
-
-                            if (top_batches[i].empty())
-                            {
-                                const int capacity = (int)(top_b[i].cstep / top_b[i].w);
-                                top_batches[i].create(top_b[i].w, capacity, top_b[i].c, top_b[i].elemsize, top_b[i].elempack, B, opt.kvcache_allocator);
-                                top_batches[i].h = top_b[i].h;
-                            }
-                        }
-                        else
-                        {
-                            top_batches[i].create_like(top_b[i], B, opt.blob_allocator);
-                        }
+                        top_batches[i].create_like(top_b[i], B, opt.blob_allocator);
                         if (top_batches[i].empty())
                             return -100;
                     }
@@ -839,20 +817,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
 
                 for (size_t i = 0; i < top_batches.size(); i++)
                 {
-                    Mat top_batch_b = top_batches[i].batch(b);
-                    if (opt.kvcache_allocator && top_b[i].allocator == opt.kvcache_allocator)
-                    {
-                        if (top_batch_b.data != top_b[i].data)
-                        {
-                            const size_t channel_size = (size_t)top_b[i].w * top_b[i].h * top_b[i].elemsize;
-                            for (int q = 0; q < top_b[i].c; q++)
-                                memcpy(top_batch_b.channel(q), top_b[i].channel(q), channel_size);
-                        }
-                    }
-                    else
-                    {
-                        memcpy(top_batch_b, top_b[i], top_b[i].total() * top_b[i].elemsize);
-                    }
+                    memcpy(top_batches[i].batch(b), top_b[i], top_b[i].total() * top_b[i].elemsize);
                 }
             }
 
@@ -863,12 +828,12 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
                 blob_mats[top_blob_index] = top_batches[i];
             }
 
-            if (opt.lightmode || opt.kvcache_allocator)
+            if (opt.lightmode)
             {
                 for (size_t i = 0; i < layer->bottoms.size(); i++)
                 {
-                    if (opt.lightmode || bottom_blobs[i].allocator == opt.kvcache_allocator)
-                        blob_mats[layer->bottoms[i]].release();
+                    int bottom_blob_index = layer->bottoms[i];
+                    blob_mats[bottom_blob_index].release();
                 }
             }
         }
@@ -1100,29 +1065,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
                 {
                     for (size_t i = 0; i < top_batches.size(); i++)
                     {
-                        if (opt.kvcache_vkallocator && top_b[i].allocator == opt.kvcache_vkallocator)
-                        {
-                            for (size_t j = 0; j < bottom_b.size(); j++)
-                            {
-                                if (bottom_blobs[j].n == B && top_b[i].data == bottom_b[j].data && top_b[i].buffer_offset() == bottom_b[j].buffer_offset())
-                                {
-                                    top_batches[i] = bottom_blobs[j];
-                                    top_batches[i].h = top_b[i].h;
-                                    break;
-                                }
-                            }
-
-                            if (top_batches[i].empty())
-                            {
-                                const int capacity = (int)(top_b[i].cstep / top_b[i].w);
-                                top_batches[i].create(top_b[i].w, capacity, top_b[i].c, top_b[i].elemsize, top_b[i].elempack, B, opt.kvcache_vkallocator);
-                                top_batches[i].h = top_b[i].h;
-                            }
-                        }
-                        else
-                        {
-                            top_batches[i].create_like(top_b[i], B, opt.blob_vkallocator);
-                        }
+                        top_batches[i].create_like(top_b[i], B, opt.blob_vkallocator);
                         if (top_batches[i].empty())
                             return -100;
                     }
@@ -1131,8 +1074,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
                 for (size_t i = 0; i < top_batches.size(); i++)
                 {
                     VkMat top_batch_slot = top_batches[i].batch(b);
-                    if (top_b[i].data != top_batch_slot.data || top_b[i].buffer_offset() != top_batch_slot.buffer_offset())
-                        cmd.record_clone(top_b[i], top_batch_slot, opt);
+                    cmd.record_clone(top_b[i], top_batch_slot, opt);
                 }
             }
 
@@ -1142,12 +1084,12 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
                 blob_mats_gpu[top_blob_index] = top_batches[i];
             }
 
-            if (opt.lightmode || opt.kvcache_vkallocator)
+            if (opt.lightmode)
             {
                 for (size_t i = 0; i < layer->bottoms.size(); i++)
                 {
-                    if (opt.lightmode || bottom_blobs[i].allocator == opt.kvcache_vkallocator)
-                        blob_mats_gpu[layer->bottoms[i]].release();
+                    int bottom_blob_index = layer->bottoms[i];
+                    blob_mats_gpu[bottom_blob_index].release();
                 }
             }
         }
@@ -2931,6 +2873,26 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
     if (blob_index < 0 || blob_index >= (int)d->blob_mats.size())
         return -1;
 
+    if (d->opt.kvcache_allocator && d->opt.kvcache_allocator == d->opt.blob_allocator)
+    {
+        NCNN_LOGE("kvcache_allocator must be different from blob_allocator");
+        return -1;
+    }
+
+#if NCNN_BATCH
+    if (d->opt.kvcache_allocator)
+    {
+        for (size_t i = 0; i < d->blob_mats.size(); i++)
+        {
+            if (d->blob_mats[i].n > 1)
+            {
+                NCNN_LOGE("kvcache does not support batch");
+                return -1;
+            }
+        }
+    }
+#endif // NCNN_BATCH
+
     int old_blocktime = get_kmp_blocktime();
     set_kmp_blocktime(d->opt.openmp_blocktime);
 
@@ -3158,6 +3120,34 @@ int Extractor::extract(int blob_index, VkMat& feat, VkCompute& cmd)
 {
     if (blob_index < 0 || blob_index >= (int)d->blob_mats.size())
         return -1;
+
+    if (d->opt.kvcache_vkallocator && d->opt.kvcache_vkallocator == d->opt.blob_vkallocator)
+    {
+        NCNN_LOGE("kvcache_vkallocator must be different from blob_vkallocator");
+        return -1;
+    }
+
+#if NCNN_BATCH
+    if (d->opt.kvcache_vkallocator)
+    {
+        for (size_t i = 0; i < d->blob_mats.size(); i++)
+        {
+            if (d->blob_mats[i].n > 1)
+            {
+                NCNN_LOGE("kvcache does not support batch");
+                return -1;
+            }
+        }
+        for (size_t i = 0; i < d->blob_mats_gpu.size(); i++)
+        {
+            if (d->blob_mats_gpu[i].n > 1)
+            {
+                NCNN_LOGE("kvcache does not support batch");
+                return -1;
+            }
+        }
+    }
+#endif // NCNN_BATCH
 
     int old_blocktime = get_kmp_blocktime();
     set_kmp_blocktime(d->opt.openmp_blocktime);

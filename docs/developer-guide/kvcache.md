@@ -323,6 +323,8 @@ ex.set_kvcache_max_seqlen_hint(max_context_length);
 
 Set the same allocator on every extractor belonging to the session. The session owns it, and it must outlive every cache `Mat`. The sequence-length hint controls the first reservation but is not a hard limit; the cache still grows if necessary. Without a hint, ncnn uses a moderate initial reservation and geometric growth.
 
+The cache allocator must be a different allocator object from the blob allocator. Allocator-managed KV cache currently supports only batch size 1.
+
 Cache input follows a consume-and-replace convention. After passing the cache to an extractor, release the caller's old handle and replace it with the extracted output:
 
 ```cpp
@@ -333,4 +335,4 @@ ex.extract(cache_output_index, cache, 1);
 
 Independent sessions and beam-search branches need independent cache allocations. A shallow `Mat` copy is not an independent cache snapshot.
 
-For Vulkan, use a session-owned `VkAllocator`, call `set_kvcache_vkallocator()`, and keep cache handles as `VkMat` across extractors. Blob, workspace, staging, and cache allocators retain their usual independent lifetimes.
+For Vulkan, use a session-owned `VkAllocator`, call `set_kvcache_vkallocator()`, and keep cache handles as `VkMat` across extractors. The cache allocator must be different from the blob allocator. Blob, workspace, staging, and cache allocators retain their usual independent lifetimes.
