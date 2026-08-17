@@ -35,7 +35,7 @@ static void fill_sdpa_input(ncnn::Mat& m, float base)
     }
 }
 
-static int run_sdpa_step(ncnn::Net& net, ncnn::Mat& output, ncnn::Mat& key_cache, ncnn::Mat& value_cache, int cur_seqlen, int step, ncnn::Allocator* kvcache_allocator)
+static int run_sdpa_step(ncnn::Net& net, ncnn::Mat& output, ncnn::Mat& key_cache, ncnn::Mat& value_cache, int cur_seqlen, int step, ncnn::Allocator* kvcache_allocator, int cache_extract_type)
 {
     ncnn::Mat query(8, cur_seqlen, 4);
     ncnn::Mat key(8, cur_seqlen, 2);
@@ -63,14 +63,14 @@ static int run_sdpa_step(ncnn::Net& net, ncnn::Mat& output, ncnn::Mat& key_cache
     int ret = ex.extract("out", output);
     if (ret != 0)
         return ret;
-    ret = ex.extract("out_k", key_cache);
+    ret = ex.extract("out_k", key_cache, cache_extract_type);
     if (ret != 0)
         return ret;
 
-    return ex.extract("out_v", value_cache);
+    return ex.extract("out_v", value_cache, cache_extract_type);
 }
 
-static int run_extractor_kvcache(ncnn::Allocator* kvcache_allocator, std::vector<ncnn::Mat>& outputs)
+static int run_extractor_kvcache(ncnn::Allocator* kvcache_allocator, int cache_extract_type, std::vector<ncnn::Mat>& outputs)
 {
     ncnn::Net net;
     net.opt.lightmode = false;
@@ -87,11 +87,16 @@ static int run_extractor_kvcache(ncnn::Allocator* kvcache_allocator, std::vector
     int ret = 0;
     for (int i = 0; ret == 0 && i < 3; i++)
     {
-        ret = run_sdpa_step(net, outputs[i], key_cache, value_cache, append_lengths[i], i, kvcache_allocator);
+        ret = run_sdpa_step(net, outputs[i], key_cache, value_cache, append_lengths[i], i, kvcache_allocator, cache_extract_type);
         if (ret == 0 && (key_cache.empty() || value_cache.empty()))
             ret = -1;
-        if (ret == 0 && kvcache_allocator && (key_cache.allocator != kvcache_allocator || value_cache.allocator != kvcache_allocator))
-            ret = -1;
+        if (ret == 0 && kvcache_allocator)
+        {
+            if (key_cache.allocator != kvcache_allocator || value_cache.allocator != kvcache_allocator)
+                ret = -1;
+            if (key_cache.cstep < (size_t)key_cache.w * 32 || value_cache.cstep < (size_t)value_cache.w * 32)
+                ret = -1;
+        }
     }
 
     key_cache.release();
@@ -103,16 +108,26 @@ static int run_extractor_kvcache(ncnn::Allocator* kvcache_allocator, std::vector
 static int test_extractor_kvcache()
 {
     std::vector<ncnn::Mat> reference_outputs;
-    int ret = run_extractor_kvcache(0, reference_outputs);
+    int ret = run_extractor_kvcache(0, 1, reference_outputs);
 
     ncnn::UnlockedPoolAllocator kvcache_allocator;
     std::vector<ncnn::Mat> outputs;
     if (ret == 0)
-        ret = run_extractor_kvcache(&kvcache_allocator, outputs);
+        ret = run_extractor_kvcache(&kvcache_allocator, 1, outputs);
 
     for (int i = 0; ret == 0 && i < 3; i++)
     {
         if (CompareMat(reference_outputs[i], outputs[i], 0.001f) != 0)
+            ret = -1;
+    }
+
+    std::vector<ncnn::Mat> default_type_outputs;
+    if (ret == 0)
+        ret = run_extractor_kvcache(&kvcache_allocator, 0, default_type_outputs);
+
+    for (int i = 0; ret == 0 && i < 3; i++)
+    {
+        if (CompareMat(reference_outputs[i], default_type_outputs[i], 0.001f) != 0)
             ret = -1;
     }
 
@@ -219,13 +234,13 @@ static int test_legacy_vulkan_extractor_kvcache()
     ncnn::Mat key_cache;
     ncnn::Mat value_cache;
     std::vector<ncnn::Mat> reference_outputs;
-    int ret = run_extractor_kvcache(0, reference_outputs);
+    int ret = run_extractor_kvcache(0, 1, reference_outputs);
 
     const int append_lengths[] = {15, 2, 1};
     for (int i = 0; ret == 0 && i < 3; i++)
     {
         ncnn::Mat output;
-        ret = run_sdpa_step(net, output, key_cache, value_cache, append_lengths[i], i, 0);
+        ret = run_sdpa_step(net, output, key_cache, value_cache, append_lengths[i], i, 0, 1);
         if (ret == 0 && CompareMat(reference_outputs[i], output, 0.001f) != 0)
             ret = -1;
     }
@@ -341,7 +356,7 @@ static int test_external_vulkan_kvcache()
 
     std::vector<ncnn::Mat> reference_outputs;
     if (result == 0)
-        result = run_extractor_kvcache(0, reference_outputs);
+        result = run_extractor_kvcache(0, 1, reference_outputs);
 
     ncnn::VkMat key_cache;
     ncnn::VkMat value_cache;

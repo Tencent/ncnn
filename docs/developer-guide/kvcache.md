@@ -48,6 +48,8 @@ This representation lets CPU implementations choose a head-contiguous layout and
 
 KV cache data is not a persistent or cross-version format. In particular, the `MultiHeadAttention` cache is no longer compatible with the previously documented 2D transposed layout `(w = seq_len, h = embed_dim)`. Applications that extract a cache and feed it back unchanged keep the same calling pattern, but must start a new session with empty caches after upgrading ncnn. Applications must not construct, inspect, or persist cache blobs based on an assumed layout.
 
+KV cache outputs should be extracted with `type=1`. This preserves the backend storage type, packing, allocator, and reserved capacity so the cache can be fed back unchanged. This convention applies with or without a dedicated KV cache allocator.
+
 ## 4. converting models to support kv cache
 
 To enable kv cache, you must modify the model's `.param` file to add the necessary cache inputs and outputs to all `MultiHeadAttention` and `SDPA` layers in the decoder.
@@ -248,7 +250,7 @@ void run_decoder_pre(const std::vector<int>& tokens, const ncnn::Mat& encoder_st
     out_kv_cache.resize(kvcache_info.output_indices.size());
     for (size_t i = 0; i < kvcache_info.output_indices.size(); i++)
     {
-        ex.extract(kvcache_info.output_indices[i], out_kv_cache[i]);
+        ex.extract(kvcache_info.output_indices[i], out_kv_cache[i], 1);
     }
 
     ncnn::Mat all_logits;
@@ -275,7 +277,7 @@ void run_decoder_step(int token, const ncnn::Mat& encoder_states, const std::vec
     out_kv_cache.resize(kvcache_info.output_indices.size());
     for (size_t i = 0; i < kvcache_info.output_indices.size(); i++)
     {
-        ex.extract(kvcache_info.output_indices[i], out_kv_cache[i]);
+        ex.extract(kvcache_info.output_indices[i], out_kv_cache[i], 1);
     }
 
     ncnn::Mat logits;

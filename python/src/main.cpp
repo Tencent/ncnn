@@ -974,6 +974,9 @@ PYBIND11_MODULE(ncnn, m)
     "extract", [](Extractor& ex, const char* blob_name, int type) {
         ncnn::Mat feat;
         int ret = ex.extract(blob_name, feat, type);
+        if (type == 1)
+            return py::make_tuple(ret, ncnn::Mat(feat));
+
         return py::make_tuple(ret, feat.clone());
     },
     py::arg("blob_name"), py::arg("type") = 0)
@@ -984,6 +987,9 @@ PYBIND11_MODULE(ncnn, m)
     "extract", [](Extractor& ex, int blob_index, int type) {
         ncnn::Mat feat;
         int ret = ex.extract(blob_index, feat, type);
+        if (type == 1)
+            return py::make_tuple(ret, ncnn::Mat(feat));
+
         return py::make_tuple(ret, feat.clone());
     },
     py::arg("blob_index"), py::arg("type") = 0);

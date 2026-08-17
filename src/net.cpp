@@ -2979,8 +2979,12 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
     feat = d->blob_mats[blob_index];
 
     // empty is valid for outputs
-    if (!feat.empty() && (!d->opt.kvcache_allocator || feat.allocator != d->opt.kvcache_allocator))
+    if (!feat.empty())
     {
+        // preserve kv cache storage layout and reserved capacity
+        if (d->opt.kvcache_allocator && feat.allocator == d->opt.kvcache_allocator)
+            type = 1;
+
         if (d->opt.use_packing_layout && (type == 0) && feat.elempack != 1)
         {
             Mat feat_unpacked;
