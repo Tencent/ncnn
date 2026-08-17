@@ -37,7 +37,7 @@ int ConvolutionDepthWise1D::load_param(const ParamDict& pd)
         one_blob_only = false;
     }
 
-    if (num_output % group != 0)
+    if (group <= 0 || num_output % group != 0)
     {
         // reject invalid group
         return -100;
