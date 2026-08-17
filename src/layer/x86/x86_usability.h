@@ -471,7 +471,11 @@ static NCNN_FORCEINLINE __m128 _mm_rcp_nr_ps(const __m128& x)
 
 static NCNN_FORCEINLINE __m128 _mm_comp_rsqrt1_ps(const __m128& _x)
 {
+#if __AVX512F__
+    __m128 _y = _mm_rsqrt14_ps(_x);
+#else
     __m128 _y = _mm_rsqrt_ps(_x);
+#endif
     __m128 _t = _mm_mul_ps(_x, _y);
     _t = _mm_comp_fnmadd_ps(_t, _y, _mm_set1_ps(3.f));
     _y = _mm_mul_ps(_y, _mm_mul_ps(_t, _mm_set1_ps(0.5f)));
@@ -480,7 +484,11 @@ static NCNN_FORCEINLINE __m128 _mm_comp_rsqrt1_ps(const __m128& _x)
 
 static NCNN_FORCEINLINE __m128 _mm_comp_rsqrt_ps(const __m128& _x)
 {
+#if __AVX512F__
+    __m128 _y = _mm_rsqrt14_ps(_x);
+#else
     __m128 _y = _mm_rsqrt_ps(_x);
+#endif
     __m128 _t = _mm_mul_ps(_x, _y);
     _t = _mm_comp_fnmadd_ps(_t, _y, _mm_set1_ps(3.f));
     _y = _mm_mul_ps(_y, _mm_mul_ps(_t, _mm_set1_ps(0.5f)));
@@ -568,7 +576,11 @@ static NCNN_FORCEINLINE __m256 _mm256_rcp_nr_ps(const __m256& x)
 
 static NCNN_FORCEINLINE __m256 _mm256_comp_rsqrt1_ps(const __m256& _x)
 {
+#if __AVX512F__
+    __m256 _y = _mm256_rsqrt14_ps(_x);
+#else
     __m256 _y = _mm256_rsqrt_ps(_x);
+#endif
     __m256 _t = _mm256_mul_ps(_x, _y);
     _t = _mm256_comp_fnmadd_ps(_t, _y, _mm256_set1_ps(3.f));
     _y = _mm256_mul_ps(_y, _mm256_mul_ps(_t, _mm256_set1_ps(0.5f)));
@@ -577,7 +589,11 @@ static NCNN_FORCEINLINE __m256 _mm256_comp_rsqrt1_ps(const __m256& _x)
 
 static NCNN_FORCEINLINE __m256 _mm256_comp_rsqrt_ps(const __m256& _x)
 {
+#if __AVX512F__
+    __m256 _y = _mm256_rsqrt14_ps(_x);
+#else
     __m256 _y = _mm256_rsqrt_ps(_x);
+#endif
     __m256 _t = _mm256_mul_ps(_x, _y);
     _t = _mm256_comp_fnmadd_ps(_t, _y, _mm256_set1_ps(3.f));
     _y = _mm256_mul_ps(_y, _mm256_mul_ps(_t, _mm256_set1_ps(0.5f)));
