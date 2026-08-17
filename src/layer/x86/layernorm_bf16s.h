@@ -197,9 +197,7 @@ static void layernorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, con
         __m512 _eps = _mm512_set1_ps(eps);
         _var_avx512 = _mm512_div_ps(_var_avx512, _elemcount);
         _var_avx512 = _mm512_add_ps(_var_avx512, _eps);
-        __m256 _var0 = _mm256_comp_rsqrt_ps(_mm512_extractf32x8_ps(_var_avx512, 0));
-        __m256 _var1 = _mm256_comp_rsqrt_ps(_mm512_extractf32x8_ps(_var_avx512, 1));
-        _var_avx512 = combine8x2_ps(_var0, _var1);
+        _var_avx512 = _mm512_comp_rsqrt1_ps(_var_avx512);
         _mean_avx512 = _mm512_mul_ps(_mean_avx512, _var_avx512);
     }
 #endif // __AVX512F__

@@ -33,20 +33,20 @@ void main()
     const int group_id = gz * (p.w * p.h / affine_size) + q / affine_size;
     const int inner_id = q % affine_size;
 
-    afp a = afp(coeffs_blob_data[group_id * 2]);
-    afp b = afp(coeffs_blob_data[group_id * 2 + 1]);
+    float a = coeffs_blob_data[group_id * 2];
+    float b = coeffs_blob_data[group_id * 2 + 1];
 
-    afp v = buffer_ld1(bottom_top_blob_data, gi);
+    float v = float(buffer_ld1(bottom_top_blob_data, gi));
 
     // (x - mean) / sqrt(var + eps)
     v = v * a + b;
 
     if (affine == 1)
     {
-        afp gamma = buffer_ld1(gamma_data, inner_id);
-        afp beta = buffer_ld1(beta_data, inner_id);
+        float gamma = float(buffer_ld1(gamma_data, inner_id));
+        float beta = float(buffer_ld1(beta_data, inner_id));
         v = v * gamma + beta;
     }
 
-    buffer_st1(bottom_top_blob_data, gi, v);
+    buffer_st1(bottom_top_blob_data, gi, afp(v));
 }

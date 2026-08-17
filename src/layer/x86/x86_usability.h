@@ -1888,6 +1888,23 @@ static NCNN_FORCEINLINE __m512 _mm512_rcp_nr_ps(const __m512& x)
     return _mm512_mul_ps(y, t);
 }
 
+static NCNN_FORCEINLINE __m512 _mm512_comp_rsqrt1_ps(const __m512& _x)
+{
+    const __m512 _y0 = _mm512_rsqrt14_ps(_x);
+    __m512 _t = _mm512_mul_ps(_x, _y0);
+    _t = _mm512_fnmadd_ps(_t, _y0, _mm512_set1_ps(3.f));
+    const __m512 _y = _mm512_mul_ps(_y0, _mm512_mul_ps(_t, _mm512_set1_ps(0.5f)));
+
+    // Do not refine zero, negative, infinite, or NaN lanes.  The x*y
+    // intermediate is invalid for zero and infinity, while rsqrt14 already
+    // provides the required special-value result for those lanes.
+    const __m512i _inf_bits = _mm512_set1_epi32(0x7f800000);
+    const __m512 _inf = _mm512_castsi512_ps(_inf_bits);
+    const __mmask16 _normal = _mm512_cmp_ps_mask(_x, _mm512_setzero_ps(), _CMP_GT_OQ)
+                             & _mm512_cmp_ps_mask(_x, _inf, _CMP_LT_OQ);
+    return _mm512_mask_mov_ps(_y0, _normal, _y);
+}
+
 static NCNN_FORCEINLINE __m512 combine8x2_ps(const __m256& a, const __m256& b)
 {
     return _mm512_insertf32x8(_mm512_castps256_ps512(a), b, 1);
