@@ -146,9 +146,9 @@ static int test_kvcache_allocator_alias()
 
     ncnn::Mat output;
     int ret = ex.extract("out", output);
-    if (ret == 0)
+    if (ret != -1)
     {
-        fprintf(stderr, "test_kvcache_allocator_alias failed\n");
+        fprintf(stderr, "test_kvcache_allocator_alias failed ret=%d\n", ret);
         return -1;
     }
 
@@ -186,9 +186,9 @@ static int test_kvcache_batch_rejected()
 
     ncnn::Mat output;
     int ret = ex.extract("out", output);
-    if (ret == 0)
+    if (ret != -1)
     {
-        fprintf(stderr, "test_kvcache_batch_rejected failed\n");
+        fprintf(stderr, "test_kvcache_batch_rejected failed ret=%d\n", ret);
         return -1;
     }
 
@@ -332,9 +332,9 @@ static int test_external_vulkan_kvcache()
         ncnn::VkMat key_cache;
         ncnn::VkMat value_cache;
         int ret = run_sdpa_vulkan_step(net, output, key_cache, value_cache, 1, 0, &blob_vkallocator, &blob_vkallocator, &staging_vkallocator);
-        if (ret == 0)
+        if (ret != -1)
         {
-            fprintf(stderr, "test_vulkan_kvcache_allocator_alias failed\n");
+            fprintf(stderr, "test_vulkan_kvcache_allocator_alias failed ret=%d\n", ret);
             result = -1;
         }
     }

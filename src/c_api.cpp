@@ -279,9 +279,9 @@ void ncnn_option_set_kvcache_allocator(ncnn_option_t opt, ncnn_allocator_t alloc
     ((Option*)opt)->kvcache_allocator = allocator ? (Allocator*)allocator->pthis : NULL;
 }
 
-void ncnn_option_set_kvcache_max_seqlen(ncnn_option_t opt, int max_seqlen)
+void ncnn_option_set_kvcache_max_seqlen_hint(ncnn_option_t opt, int max_seqlen_hint)
 {
-    ((Option*)opt)->kvcache_max_seqlen = max_seqlen;
+    ((Option*)opt)->kvcache_max_seqlen_hint = max_seqlen_hint;
 }
 
 int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt)

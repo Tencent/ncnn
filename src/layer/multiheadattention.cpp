@@ -8,29 +8,6 @@
 
 namespace ncnn {
 
-int MultiHeadAttention::kvcache_capacity(int current_capacity, int new_seqlen, int max_seqlen_hint)
-{
-    if (current_capacity == 0 && max_seqlen_hint >= new_seqlen && max_seqlen_hint > 0)
-        return max_seqlen_hint;
-
-    int capacity = current_capacity > new_seqlen ? current_capacity : new_seqlen;
-    int reserve;
-    if (current_capacity == 0)
-    {
-        reserve = capacity < 16 ? 16 - capacity : capacity;
-        if (reserve > 256)
-            reserve = 256;
-    }
-    else
-    {
-        reserve = capacity / 2;
-        if (reserve < 16)
-            reserve = 16;
-    }
-
-    return capacity <= INT_MAX - reserve ? capacity + reserve : capacity;
-}
-
 int MultiHeadAttention::get_weight_block_quantize_params(int& weight_bits, int& block_size, bool& has_input_scale) const
 {
     weight_bits = quantize_term / 100;
@@ -69,57 +46,6 @@ static int mha_weight_quantize_packed_k_bytes(int constantK, int weight_bits)
 MultiHeadAttention::MultiHeadAttention()
 {
     weight_block_quantize = 0;
-}
-
-int MultiHeadAttention::create_or_grow_kvcache(const Mat& cache, Mat& new_cache, int new_seqlen, int num_kv_head, int head_dim, size_t elemsize, int elempack, const Option& opt) const
-{
-    if (!cache.empty() && new_seqlen <= cache.h)
-    {
-        new_cache = cache;
-        new_cache.h = new_seqlen;
-        return 0;
-    }
-
-    Allocator* allocator = opt.kvcache_allocator ? opt.kvcache_allocator : opt.blob_allocator;
-    if (opt.kvcache_allocator && !cache.empty() && cache.allocator == allocator)
-    {
-        const int capacity = (int)(cache.cstep / cache.w);
-        if (new_seqlen <= capacity)
-        {
-            new_cache = cache;
-            new_cache.h = new_seqlen;
-            return 0;
-        }
-    }
-
-    int capacity = new_seqlen > 0 ? new_seqlen : 1;
-    if (opt.kvcache_allocator)
-    {
-        const int current_capacity = cache.empty() ? 0 : (int)(cache.cstep / cache.w);
-        capacity = kvcache_capacity(current_capacity, new_seqlen, opt.kvcache_max_seqlen);
-    }
-
-    Mat m;
-    m.create(head_dim, capacity, num_kv_head, elemsize, elempack, allocator);
-    if (m.empty())
-        return -100;
-
-    m.h = new_seqlen;
-
-    if (!cache.empty())
-    {
-        const size_t valid_head_size = (size_t)cache.w * cache.h * cache.elemsize;
-        for (int q = 0; q < cache.c; q++)
-        {
-            const unsigned char* src = (const unsigned char*)cache.data + cache.cstep * q * cache.elemsize;
-            unsigned char* dst = (unsigned char*)m.data + m.cstep * q * m.elemsize;
-            memcpy(dst, src, valid_head_size);
-        }
-    }
-
-    new_cache = m;
-
-    return 0;
 }
 
 int MultiHeadAttention::load_param(const ParamDict& pd)
@@ -294,6 +220,80 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
         out_weight_data_int8_scale = mb.load(1, 1)[0];
     }
 #endif // NCNN_INT8
+
+    return 0;
+}
+
+int MultiHeadAttention::kvcache_capacity(int current_capacity, int new_seqlen, int max_seqlen_hint)
+{
+    if (current_capacity == 0 && max_seqlen_hint >= new_seqlen && max_seqlen_hint > 0)
+        return max_seqlen_hint;
+
+    int capacity = current_capacity > new_seqlen ? current_capacity : new_seqlen;
+    int reserve;
+    if (current_capacity == 0)
+    {
+        reserve = capacity < 16 ? 16 - capacity : capacity;
+        if (reserve > 256)
+            reserve = 256;
+    }
+    else
+    {
+        reserve = capacity / 2;
+        if (reserve < 16)
+            reserve = 16;
+    }
+
+    return capacity <= INT_MAX - reserve ? capacity + reserve : capacity;
+}
+
+int MultiHeadAttention::create_or_grow_kvcache(const Mat& cache, Mat& new_cache, int new_seqlen, int num_kv_head, int head_dim, size_t elemsize, int elempack, const Option& opt) const
+{
+    if (!cache.empty() && new_seqlen <= cache.h)
+    {
+        new_cache = cache;
+        new_cache.h = new_seqlen;
+        return 0;
+    }
+
+    Allocator* allocator = opt.kvcache_allocator ? opt.kvcache_allocator : opt.blob_allocator;
+    if (opt.kvcache_allocator && !cache.empty() && cache.allocator == allocator)
+    {
+        const int capacity = (int)(cache.cstep / cache.w);
+        if (new_seqlen <= capacity)
+        {
+            new_cache = cache;
+            new_cache.h = new_seqlen;
+            return 0;
+        }
+    }
+
+    int capacity = new_seqlen > 0 ? new_seqlen : 1;
+    if (opt.kvcache_allocator)
+    {
+        const int current_capacity = cache.empty() ? 0 : (int)(cache.cstep / cache.w);
+        capacity = kvcache_capacity(current_capacity, new_seqlen, opt.kvcache_max_seqlen_hint);
+    }
+
+    Mat m;
+    m.create(head_dim, capacity, num_kv_head, elemsize, elempack, allocator);
+    if (m.empty())
+        return -100;
+
+    m.h = new_seqlen;
+
+    if (!cache.empty())
+    {
+        const size_t valid_head_size = (size_t)cache.w * cache.h * cache.elemsize;
+        for (int q = 0; q < cache.c; q++)
+        {
+            const unsigned char* src = (const unsigned char*)cache.data + cache.cstep * q * cache.elemsize;
+            unsigned char* dst = (unsigned char*)m.data + m.cstep * q * m.elemsize;
+            memcpy(dst, src, valid_head_size);
+        }
+    }
+
+    new_cache = m;
 
     return 0;
 }

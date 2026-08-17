@@ -598,9 +598,6 @@ int MultiHeadAttention_riscv::forward(const std::vector<Mat>& bottom_blobs, std:
                 }
             }
         }
-
-        current_key.release();
-        current_value.release();
     }
     else
     {

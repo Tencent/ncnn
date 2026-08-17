@@ -37,60 +37,6 @@ MultiHeadAttention_vulkan::MultiHeadAttention_vulkan()
     pipeline_kvcache_qkv = 0;
 }
 
-int MultiHeadAttention_vulkan::create_or_grow_kvcache(const VkMat& cache, VkMat& new_cache, int new_seqlen, int num_kv_head, int head_dim, size_t elemsize, int elempack, VkCompute& cmd, const Option& opt) const
-{
-    if (!cache.empty() && new_seqlen <= cache.h)
-    {
-        new_cache = cache;
-        new_cache.h = new_seqlen;
-        return 0;
-    }
-
-    VkAllocator* allocator = opt.kvcache_vkallocator ? opt.kvcache_vkallocator : opt.blob_vkallocator;
-    if (opt.kvcache_vkallocator && !cache.empty() && cache.allocator == allocator)
-    {
-        const int capacity = (int)(cache.cstep / cache.w);
-        if (new_seqlen <= capacity)
-        {
-            new_cache = cache;
-            new_cache.h = new_seqlen;
-            return 0;
-        }
-    }
-
-    int capacity = new_seqlen > 0 ? new_seqlen : 1;
-    if (opt.kvcache_vkallocator)
-    {
-        const int current_capacity = cache.empty() ? 0 : (int)(cache.cstep / cache.w);
-        capacity = kvcache_capacity(current_capacity, new_seqlen, opt.kvcache_max_seqlen);
-    }
-
-    VkMat m;
-    m.create(head_dim, capacity, num_kv_head, elemsize, elempack, allocator);
-    if (m.empty())
-        return -100;
-
-    if (!cache.empty())
-    {
-        std::vector<VkMat> bindings(2);
-        bindings[0] = cache;
-        bindings[1] = m;
-
-        std::vector<vk_constant_type> constants(4);
-        constants[0].i = cache.w;
-        constants[1].i = cache.h;
-        constants[2].i = cache.cstep;
-        constants[3].i = m.cstep;
-
-        cmd.record_pipeline(pipeline_kvcache_copy, bindings, constants, cache);
-    }
-
-    m.h = new_seqlen;
-    new_cache = m;
-
-    return 0;
-}
-
 int MultiHeadAttention_vulkan::load_param(const ParamDict& pd)
 {
     int ret = MultiHeadAttention::load_param(pd);
@@ -316,25 +262,19 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         pipeline_kvcache_append = new Pipeline(vkdev);
         pipeline_kvcache_append->set_local_size_xyz(8, 8, 1);
         pipeline_kvcache_append->create(LayerShaderType::multiheadattention_kvcache_append, opt, specializations);
-    }
 
-    if (kv_cache)
-    {
-        std::vector<vk_specialization_type> specializations(1);
-        specializations[0].i = attn_mask;
+        std::vector<vk_specialization_type> qk_specializations(1);
+        qk_specializations[0].i = attn_mask;
 
         pipeline_kvcache_qk = new Pipeline(vkdev);
         pipeline_kvcache_qk->set_local_size_xyz(8, 8, 1);
-        pipeline_kvcache_qk->create(LayerShaderType::multiheadattention_kvcache_qk, opt, specializations);
-    }
+        pipeline_kvcache_qk->create(LayerShaderType::multiheadattention_kvcache_qk, opt, qk_specializations);
 
-    if (kv_cache)
-    {
-        std::vector<vk_specialization_type> specializations;
+        std::vector<vk_specialization_type> qkv_specializations;
 
         pipeline_kvcache_qkv = new Pipeline(vkdev);
         pipeline_kvcache_qkv->set_local_size_xyz(8, 8, 1);
-        pipeline_kvcache_qkv->create(LayerShaderType::multiheadattention_kvcache_qkv, opt, specializations);
+        pipeline_kvcache_qkv->create(LayerShaderType::multiheadattention_kvcache_qkv, opt, qkv_specializations);
     }
 
     return 0;
@@ -446,6 +386,60 @@ int MultiHeadAttention_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     {
         o_gemm->upload_model(cmd, opt);
     }
+
+    return 0;
+}
+
+int MultiHeadAttention_vulkan::create_or_grow_kvcache(const VkMat& cache, VkMat& new_cache, int new_seqlen, int num_kv_head, int head_dim, size_t elemsize, int elempack, VkCompute& cmd, const Option& opt) const
+{
+    if (!cache.empty() && new_seqlen <= cache.h)
+    {
+        new_cache = cache;
+        new_cache.h = new_seqlen;
+        return 0;
+    }
+
+    VkAllocator* allocator = opt.kvcache_vkallocator ? opt.kvcache_vkallocator : opt.blob_vkallocator;
+    if (opt.kvcache_vkallocator && !cache.empty() && cache.allocator == allocator)
+    {
+        const int capacity = (int)(cache.cstep / cache.w);
+        if (new_seqlen <= capacity)
+        {
+            new_cache = cache;
+            new_cache.h = new_seqlen;
+            return 0;
+        }
+    }
+
+    int capacity = new_seqlen > 0 ? new_seqlen : 1;
+    if (opt.kvcache_vkallocator)
+    {
+        const int current_capacity = cache.empty() ? 0 : (int)(cache.cstep / cache.w);
+        capacity = kvcache_capacity(current_capacity, new_seqlen, opt.kvcache_max_seqlen_hint);
+    }
+
+    VkMat m;
+    m.create(head_dim, capacity, num_kv_head, elemsize, elempack, allocator);
+    if (m.empty())
+        return -100;
+
+    if (!cache.empty())
+    {
+        std::vector<VkMat> bindings(2);
+        bindings[0] = cache;
+        bindings[1] = m;
+
+        std::vector<vk_constant_type> constants(4);
+        constants[0].i = cache.w;
+        constants[1].i = cache.h;
+        constants[2].i = cache.cstep;
+        constants[3].i = m.cstep;
+
+        cmd.record_pipeline(pipeline_kvcache_copy, bindings, constants, cache);
+    }
+
+    m.h = new_seqlen;
+    new_cache = m;
 
     return 0;
 }
@@ -654,7 +648,9 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         }
         VkMat attn_mask_blob_unpacked = attn_mask_blob;
         if (M_elempack < attn_mask_blob.elempack)
+        {
             vkdev->convert_packing(attn_mask_blob, attn_mask_blob_unpacked, M_elempack, cmd, opt);
+        }
 
         qk_cross.create(N, M / M_elempack * B, M_elemsize, M_elempack, opt.blob_vkallocator);
         if (qk_cross.empty())
@@ -680,13 +676,21 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
 
         const Pipeline* pipeline = 0;
         if (K_elempack == 1 && M_elempack == 1)
+        {
             pipeline = pipeline_multiheadattention_qk_cross;
+        }
         if (K_elempack == 1 && M_elempack == 4)
+        {
             pipeline = pipeline_multiheadattention_qk_cross_pack1to4;
+        }
         if (K_elempack == 4 && M_elempack == 1)
+        {
             pipeline = pipeline_multiheadattention_qk_cross_pack4to1;
+        }
         if (K_elempack == 4 && M_elempack == 4)
+        {
             pipeline = pipeline_multiheadattention_qk_cross_pack4;
+        }
 
         cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
@@ -699,6 +703,7 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
     }
 
     q_affine.release();
+
     if (!kv_cache)
     {
         k_affine.release();
@@ -711,8 +716,13 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         // FIXME softmax produces nan result on nvidia (about 20% chance)
         // memory barrier seems to be not enough here
         // device copy-to and copy-back is better than queue submit anyway  --- nihui
+
         cmd.submit_and_wait();
         cmd.reset();
+
+        // VkImageMat qk_cross2;
+        // cmd.record_buffer_to_image(qk_cross, qk_cross2, opt);
+        // cmd.record_image_to_buffer(qk_cross2, qk_cross, opt);
     }
 
     VkMat v_affine;
@@ -764,6 +774,7 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
             vkdev->convert_packing(qk_cross, tmp, M_elempack, cmd, opt);
             qk_cross = tmp;
         }
+
         if (N_elempack < v_affine.elempack)
         {
             VkMat tmp;
@@ -793,13 +804,21 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
 
         const Pipeline* pipeline = 0;
         if (M_elempack == 1 && N_elempack == 1)
+        {
             pipeline = pipeline_multiheadattention_qkv_cross;
+        }
         if (M_elempack == 1 && N_elempack == 4)
+        {
             pipeline = pipeline_multiheadattention_qkv_cross_pack1to4;
+        }
         if (M_elempack == 4 && N_elempack == 1)
+        {
             pipeline = pipeline_multiheadattention_qkv_cross_pack4to1;
+        }
         if (M_elempack == 4 && N_elempack == 4)
+        {
             pipeline = pipeline_multiheadattention_qkv_cross_pack4;
+        }
 
         cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
@@ -812,6 +831,7 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
     }
 
     qk_cross.release();
+
     if (!kv_cache)
     {
         v_affine.release();

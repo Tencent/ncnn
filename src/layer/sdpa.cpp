@@ -10,6 +10,20 @@
 
 namespace ncnn {
 
+SDPA::SDPA()
+{
+}
+
+int SDPA::load_param(const ParamDict& pd)
+{
+    attn_mask = pd.get(5, 0);
+    scale = pd.get(6, 0.f);
+    kv_cache = pd.get(7, 0);
+    int8_scale_term = pd.get(18, 0);
+
+    return 0;
+}
+
 int SDPA::kvcache_capacity(int current_capacity, int new_seqlen, int max_seqlen_hint)
 {
     if (current_capacity == 0 && max_seqlen_hint >= new_seqlen && max_seqlen_hint > 0)
@@ -31,10 +45,6 @@ int SDPA::kvcache_capacity(int current_capacity, int new_seqlen, int max_seqlen_
     }
 
     return capacity <= INT_MAX - reserve ? capacity + reserve : capacity;
-}
-
-SDPA::SDPA()
-{
 }
 
 int SDPA::create_or_grow_kvcache(const Mat& cache, Mat& new_cache, int new_seqlen, int num_kv_head, int head_dim, size_t elemsize, int elempack, const Option& opt) const
@@ -62,7 +72,7 @@ int SDPA::create_or_grow_kvcache(const Mat& cache, Mat& new_cache, int new_seqle
     if (opt.kvcache_allocator)
     {
         const int current_capacity = cache.empty() ? 0 : (int)(cache.cstep / cache.w);
-        capacity = kvcache_capacity(current_capacity, new_seqlen, opt.kvcache_max_seqlen);
+        capacity = kvcache_capacity(current_capacity, new_seqlen, opt.kvcache_max_seqlen_hint);
     }
 
     Mat m;
@@ -84,16 +94,6 @@ int SDPA::create_or_grow_kvcache(const Mat& cache, Mat& new_cache, int new_seqle
     }
 
     new_cache = m;
-
-    return 0;
-}
-
-int SDPA::load_param(const ParamDict& pd)
-{
-    attn_mask = pd.get(5, 0);
-    scale = pd.get(6, 0.f);
-    kv_cache = pd.get(7, 0);
-    int8_scale_term = pd.get(18, 0);
 
     return 0;
 }

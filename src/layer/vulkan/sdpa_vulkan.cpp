@@ -44,60 +44,6 @@ SDPA_vulkan::SDPA_vulkan()
     UNROLL_WG_N = 1;
 }
 
-int SDPA_vulkan::create_or_grow_kvcache(const VkMat& cache, VkMat& new_cache, int new_seqlen, int num_kv_head, int head_dim, size_t elemsize, int elempack, VkCompute& cmd, const Option& opt) const
-{
-    if (!cache.empty() && new_seqlen <= cache.h)
-    {
-        new_cache = cache;
-        new_cache.h = new_seqlen;
-        return 0;
-    }
-
-    VkAllocator* allocator = opt.kvcache_vkallocator ? opt.kvcache_vkallocator : opt.blob_vkallocator;
-    if (opt.kvcache_vkallocator && !cache.empty() && cache.allocator == allocator)
-    {
-        const int capacity = (int)(cache.cstep / cache.w);
-        if (new_seqlen <= capacity)
-        {
-            new_cache = cache;
-            new_cache.h = new_seqlen;
-            return 0;
-        }
-    }
-
-    int capacity = new_seqlen > 0 ? new_seqlen : 1;
-    if (opt.kvcache_vkallocator)
-    {
-        const int current_capacity = cache.empty() ? 0 : (int)(cache.cstep / cache.w);
-        capacity = kvcache_capacity(current_capacity, new_seqlen, opt.kvcache_max_seqlen);
-    }
-
-    VkMat m;
-    m.create(head_dim, capacity, num_kv_head, elemsize, elempack, allocator);
-    if (m.empty())
-        return -100;
-
-    if (!cache.empty())
-    {
-        std::vector<VkMat> bindings(2);
-        bindings[0] = cache;
-        bindings[1] = m;
-
-        std::vector<vk_constant_type> constants(4);
-        constants[0].i = cache.w;
-        constants[1].i = cache.h;
-        constants[2].i = cache.cstep;
-        constants[3].i = m.cstep;
-
-        cmd.record_pipeline(pipeline_kvcache_copy, bindings, constants, cache);
-    }
-
-    m.h = new_seqlen;
-    new_cache = m;
-
-    return 0;
-}
-
 int SDPA_vulkan::load_param(const ParamDict& pd)
 {
     int ret = SDPA::load_param(pd);
@@ -432,6 +378,60 @@ int SDPA_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
+int SDPA_vulkan::create_or_grow_kvcache(const VkMat& cache, VkMat& new_cache, int new_seqlen, int num_kv_head, int head_dim, size_t elemsize, int elempack, VkCompute& cmd, const Option& opt) const
+{
+    if (!cache.empty() && new_seqlen <= cache.h)
+    {
+        new_cache = cache;
+        new_cache.h = new_seqlen;
+        return 0;
+    }
+
+    VkAllocator* allocator = opt.kvcache_vkallocator ? opt.kvcache_vkallocator : opt.blob_vkallocator;
+    if (opt.kvcache_vkallocator && !cache.empty() && cache.allocator == allocator)
+    {
+        const int capacity = (int)(cache.cstep / cache.w);
+        if (new_seqlen <= capacity)
+        {
+            new_cache = cache;
+            new_cache.h = new_seqlen;
+            return 0;
+        }
+    }
+
+    int capacity = new_seqlen > 0 ? new_seqlen : 1;
+    if (opt.kvcache_vkallocator)
+    {
+        const int current_capacity = cache.empty() ? 0 : (int)(cache.cstep / cache.w);
+        capacity = kvcache_capacity(current_capacity, new_seqlen, opt.kvcache_max_seqlen_hint);
+    }
+
+    VkMat m;
+    m.create(head_dim, capacity, num_kv_head, elemsize, elempack, allocator);
+    if (m.empty())
+        return -100;
+
+    if (!cache.empty())
+    {
+        std::vector<VkMat> bindings(2);
+        bindings[0] = cache;
+        bindings[1] = m;
+
+        std::vector<vk_constant_type> constants(4);
+        constants[0].i = cache.w;
+        constants[1].i = cache.h;
+        constants[2].i = cache.cstep;
+        constants[3].i = m.cstep;
+
+        cmd.record_pipeline(pipeline_kvcache_copy, bindings, constants, cache);
+    }
+
+    m.h = new_seqlen;
+    new_cache = m;
+
+    return 0;
+}
+
 int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkMat& query = bottom_blobs[0];
@@ -469,32 +469,29 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         if (retv != 0)
             return retv;
 
-        {
-            std::vector<VkMat> bindings(2);
-            bindings[0] = cur_key;
-            bindings[1] = cached_key;
-            std::vector<vk_constant_type> constants(6);
-            constants[0].i = embed_dim;
-            constants[1].i = cur_key.h;
-            constants[2].i = cur_key.cstep;
-            constants[3].i = cached_key.w;
-            constants[4].i = cached_key.cstep;
-            constants[5].i = past_seqlen;
-            cmd.record_pipeline(pipeline_kvcache_append, bindings, constants, cur_key);
-        }
-        {
-            std::vector<VkMat> bindings(2);
-            bindings[0] = cur_value;
-            bindings[1] = cached_value;
-            std::vector<vk_constant_type> constants(6);
-            constants[0].i = out_embed_dim;
-            constants[1].i = cur_value.h;
-            constants[2].i = cur_value.cstep;
-            constants[3].i = cached_value.w;
-            constants[4].i = cached_value.cstep;
-            constants[5].i = past_seqlen;
-            cmd.record_pipeline(pipeline_kvcache_append, bindings, constants, cur_value);
-        }
+        std::vector<VkMat> key_bindings(2);
+        key_bindings[0] = cur_key;
+        key_bindings[1] = cached_key;
+        std::vector<vk_constant_type> key_constants(6);
+        key_constants[0].i = embed_dim;
+        key_constants[1].i = cur_key.h;
+        key_constants[2].i = cur_key.cstep;
+        key_constants[3].i = cached_key.w;
+        key_constants[4].i = cached_key.cstep;
+        key_constants[5].i = past_seqlen;
+        cmd.record_pipeline(pipeline_kvcache_append, key_bindings, key_constants, cur_key);
+
+        std::vector<VkMat> value_bindings(2);
+        value_bindings[0] = cur_value;
+        value_bindings[1] = cached_value;
+        std::vector<vk_constant_type> value_constants(6);
+        value_constants[0].i = out_embed_dim;
+        value_constants[1].i = cur_value.h;
+        value_constants[2].i = cur_value.cstep;
+        value_constants[3].i = cached_value.w;
+        value_constants[4].i = cached_value.cstep;
+        value_constants[5].i = past_seqlen;
+        cmd.record_pipeline(pipeline_kvcache_append, value_bindings, value_constants, cur_value);
 
         key = cached_key;
         value = cached_value;

@@ -193,7 +193,7 @@ public:
     void set_kvcache_allocator(Allocator* allocator);
 
     // set maximum kv cache sequence length hint
-    void set_kvcache_max_seqlen_hint(int max_seqlen);
+    void set_kvcache_max_seqlen_hint(int max_seqlen_hint);
 
 #if NCNN_VULKAN
     void set_blob_vkallocator(VkAllocator* allocator);
@@ -202,7 +202,6 @@ public:
 
     void set_staging_vkallocator(VkAllocator* allocator);
 
-    // set kv cache memory allocator
     void set_kvcache_vkallocator(VkAllocator* allocator);
 #endif // NCNN_VULKAN
 

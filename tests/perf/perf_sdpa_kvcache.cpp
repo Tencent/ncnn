@@ -145,7 +145,7 @@ static void perf_sdpa_kvcache_cpu(int embed_dim, int num_heads, int num_groups, 
 
     ncnn::Option opt;
     opt.kvcache_allocator = max_seqlen_hint >= 0 ? &allocator : 0;
-    opt.kvcache_max_seqlen = max_seqlen_hint > 0 ? max_seqlen_hint : 0;
+    opt.kvcache_max_seqlen_hint = max_seqlen_hint > 0 ? max_seqlen_hint : 0;
 
     ncnn::Layer* op = ncnn::create_layer_cpu("SDPA");
     if (!op)

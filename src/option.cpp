@@ -18,7 +18,7 @@ Option::Option()
     blob_allocator = 0;
     workspace_allocator = 0;
     kvcache_allocator = 0;
-    kvcache_max_seqlen = 0;
+    kvcache_max_seqlen_hint = 0;
 
 #if NCNN_VULKAN
     blob_vkallocator = 0;

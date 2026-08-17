@@ -34,7 +34,7 @@ static int test_multiheadattention_kvcache_allocator(const ncnn::ParamDict& pd, 
     opt.use_fp16_storage = false;
     opt.use_fp16_arithmetic = false;
     opt.kvcache_allocator = &kvcache_allocator;
-    opt.kvcache_max_seqlen = max_seqlen_hint;
+    opt.kvcache_max_seqlen_hint = max_seqlen_hint;
 
     int ret = reference->create_pipeline(reference_opt);
     if (ret == 0)
@@ -199,7 +199,7 @@ static int test_multiheadattention_vulkan_kvcache_allocator()
     opt.workspace_vkallocator = &blob_vkallocator;
     opt.staging_vkallocator = &staging_vkallocator;
     opt.kvcache_vkallocator = &kvcache_vkallocator;
-    opt.kvcache_max_seqlen = 0;
+    opt.kvcache_max_seqlen_hint = 0;
 
     reference->load_param(pd);
     reference->load_model(ncnn::ModelBinFromMatArray(weights.data()));

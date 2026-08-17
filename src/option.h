@@ -47,7 +47,7 @@ public:
     Allocator* kvcache_allocator;
 
     // maximum kv cache sequence length hint
-    int kvcache_max_seqlen;
+    int kvcache_max_seqlen_hint;
 
 #if NCNN_VULKAN
     // blob memory allocator

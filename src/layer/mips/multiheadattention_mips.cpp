@@ -841,9 +841,6 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
                 }
             }
         }
-
-        current_key.release();
-        current_value.release();
     }
     else
     {

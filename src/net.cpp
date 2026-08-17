@@ -360,7 +360,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
     if (bottom_blob.empty())
         return 0;
 
-    // KV cache is an opaque backend handle, not an ordinary tensor.
+    // skip layout conversion for kv cache
     if (opt.kvcache_allocator && bottom_blob.allocator == opt.kvcache_allocator)
         return 0;
 
@@ -592,7 +592,7 @@ int NetPrivate::convert_layout(VkMat& bottom_blob, const Layer* layer, VkCompute
     if (bottom_blob.empty())
         return 0;
 
-    // KV cache is an opaque backend handle, not an ordinary tensor.
+    // skip layout conversion for kv cache
     if (opt.kvcache_vkallocator && bottom_blob.allocator == opt.kvcache_vkallocator)
         return 0;
 
@@ -2793,9 +2793,9 @@ void Extractor::set_kvcache_allocator(Allocator* allocator)
     d->opt.kvcache_allocator = allocator;
 }
 
-void Extractor::set_kvcache_max_seqlen_hint(int max_seqlen)
+void Extractor::set_kvcache_max_seqlen_hint(int max_seqlen_hint)
 {
-    d->opt.kvcache_max_seqlen = max_seqlen;
+    d->opt.kvcache_max_seqlen_hint = max_seqlen_hint;
 }
 
 #if NCNN_VULKAN

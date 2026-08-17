@@ -1001,9 +1001,6 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
                 }
             }
         }
-
-        current_key.release();
-        current_value.release();
     }
     else
     {

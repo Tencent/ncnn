@@ -38,7 +38,7 @@ The caching strategy is fundamentally different for self-attention and cross-att
 - **cache Logic:** The k and v matrices are derived from the encoder's output, which is computed only **once** per input sequence. Therefore, the k and v for cross-attention are **static** and do not change during the decoding process. They are "cached" in the sense that they are pre-computed and reused in every decoding step.
 - **ncnn implementation:** A `MultiHeadAttention` layer with separate query and key/value blobs reuses an existing cache without appending it. `SDPA` treats its current key/value inputs as append data; the caller therefore controls whether more data is appended.
 
-## 3. ncnn kv cache memory layout
+## 3. ncnn kv cache representation
 
 The cache layout is private to the attention backend. Applications should extract a cache and feed it back unchanged rather than interpreting its dimensions, packing, or data layout.
 
@@ -306,8 +306,6 @@ void generate_sequence()
     }
 }
 ```
-This structured approach allows ncnn to perform highly efficient Transformer inference, correctly handling both dynamic self-attention and static cross-attention caches with an optimized memory layout.
-
 ### avoiding repeated cache allocation
 
 The example above remains compatible, but an exact-size cache allocation is made whenever the cache grows. A long-running session can provide a dedicated allocator and a maximum sequence-length hint:
