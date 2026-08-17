@@ -46,6 +46,8 @@ The logical sequence length is stored in `Mat::h`. With a dedicated cache alloca
 
 This representation lets CPU implementations choose a head-contiguous layout and lets Vulkan keep the cache on device. It also avoids changing the public `Mat` ABI or adding a separate cache object.
 
+KV cache data is not a persistent or cross-version format. In particular, the `MultiHeadAttention` cache is no longer compatible with the previously documented 2D transposed layout `(w = seq_len, h = embed_dim)`. Applications that extract a cache and feed it back unchanged keep the same calling pattern, but must start a new session with empty caches after upgrading ncnn. Applications must not construct, inspect, or persist cache blobs based on an assumed layout.
+
 ## 4. converting models to support kv cache
 
 To enable kv cache, you must modify the model's `.param` file to add the necessary cache inputs and outputs to all `MultiHeadAttention` and `SDPA` layers in the decoder.
@@ -316,7 +318,7 @@ kvcache_allocator.set_size_compare_ratio(0.f);
 
 ncnn::Extractor ex = decoder_net.create_extractor();
 ex.set_kvcache_allocator(&kvcache_allocator);
-ex.set_kvcache_max_seqlen(max_context_length);
+ex.set_kvcache_max_seqlen_hint(max_context_length);
 ```
 
 Set the same allocator on every extractor belonging to the session. The session owns it, and it must outlive every cache `Mat`. The sequence-length hint controls the first reservation but is not a hard limit; the cache still grows if necessary. Without a hint, ncnn uses a moderate initial reservation and geometric growth.

@@ -957,8 +957,8 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
     Mat k_affine;
     if (kv_cache)
     {
-        const bool append_key = past_seqlen == 0 || q_blob_i == k_blob_i;
-        const int append_seqlen = append_key ? cur_seqlen : 0;
+        const bool append_kv = past_seqlen == 0 || q_blob_i == k_blob_i;
+        const int append_seqlen = append_kv ? cur_seqlen : 0;
         Mat current_key;
         Mat current_value;
         if (append_seqlen > 0)

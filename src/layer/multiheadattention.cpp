@@ -341,8 +341,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     const int cur_seqlen = k_blob.h;
     const int past_seqlen = kv_cache && !past_xk_blob.empty() ? past_xk_blob.h : 0;
     const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
-    const bool append_key = past_seqlen == 0 || q_blob_i == k_blob_i;
-    const bool append_value = past_seqlen == 0 || q_blob_i == v_blob_i;
+    const bool append_kv = past_seqlen == 0 || q_blob_i == k_blob_i;
 
     const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = weight_data_size / embed_dim;
@@ -376,7 +375,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     }
 
     Mat k_affine;
-    if (append_key)
+    if (append_kv)
     {
         k_affine.create(cur_seqlen, embed_dim, 4u, opt.workspace_allocator);
         if (k_affine.empty())
@@ -403,7 +402,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     }
 
     Mat v_affine;
-    if (append_value)
+    if (append_kv)
     {
         v_affine.create(cur_seqlen, embed_dim, 4u, opt.workspace_allocator);
         if (v_affine.empty())
@@ -431,7 +430,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
 
     if (kv_cache)
     {
-        const int append_seqlen = append_key ? cur_seqlen : 0;
+        const int append_seqlen = append_kv ? cur_seqlen : 0;
         int retk = create_or_grow_kvcache(past_xk_blob, cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1, opt);
         if (retk != 0)
             return retk;
@@ -778,8 +777,7 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
     const int cur_seqlen = k_blob.h;
     const int past_seqlen = kv_cache && !past_xk_blob.empty() ? past_xk_blob.h : 0;
     const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
-    const bool append_key = past_seqlen == 0 || q_blob_i == k_blob_i;
-    const bool append_value = past_seqlen == 0 || q_blob_i == v_blob_i;
+    const bool append_kv = past_seqlen == 0 || q_blob_i == k_blob_i;
 
     const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = weight_data_size / embed_dim;
@@ -845,7 +843,7 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
     }
 
     Mat k_affine;
-    if (append_key)
+    if (append_kv)
     {
         k_affine.create(cur_seqlen, embed_dim, 4u, opt.workspace_allocator);
         if (k_affine.empty())
@@ -894,7 +892,7 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
     }
 
     Mat v_affine;
-    if (append_value)
+    if (append_kv)
     {
         v_affine.create(cur_seqlen, embed_dim, 4u, opt.workspace_allocator);
         if (v_affine.empty())
@@ -944,7 +942,7 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
 
     if (kv_cache)
     {
-        const int append_seqlen = append_key ? cur_seqlen : 0;
+        const int append_seqlen = append_kv ? cur_seqlen : 0;
         int retk = create_or_grow_kvcache(past_xk_blob, cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1, opt);
         if (retk != 0)
             return retk;
@@ -1385,8 +1383,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     const int cur_seqlen = k_blob.h;
     const int past_seqlen = kv_cache && !past_xk_blob.empty() ? past_xk_blob.h : 0;
     const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
-    const bool append_key = past_seqlen == 0 || q_blob_i == k_blob_i;
-    const bool append_value = past_seqlen == 0 || q_blob_i == v_blob_i;
+    const bool append_kv = past_seqlen == 0 || q_blob_i == k_blob_i;
 
     const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = weight_data_size / embed_dim;
@@ -1427,7 +1424,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     }
 
     Mat k_affine;
-    if (append_key)
+    if (append_kv)
     {
         k_affine.create(cur_seqlen, embed_dim, 4u, opt.workspace_allocator);
         if (k_affine.empty())
@@ -1461,7 +1458,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     }
 
     Mat v_affine;
-    if (append_value)
+    if (append_kv)
     {
         v_affine.create(cur_seqlen, embed_dim, 4u, opt.workspace_allocator);
         if (v_affine.empty())
@@ -1496,7 +1493,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
 
     if (kv_cache)
     {
-        const int append_seqlen = append_key ? cur_seqlen : 0;
+        const int append_seqlen = append_kv ? cur_seqlen : 0;
         int retk = create_or_grow_kvcache(past_xk_blob, cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1, opt);
         if (retk != 0)
             return retk;

@@ -44,6 +44,7 @@ public:
     Pipeline* pipeline_multiheadattention_qkv_cross_pack1to4;
     Pipeline* pipeline_multiheadattention_qkv_cross_pack4to1;
 
+    Pipeline* pipeline_kvcache_copy;
     Pipeline* pipeline_kvcache_append;
     Pipeline* pipeline_kvcache_qk;
     Pipeline* pipeline_kvcache_qkv;

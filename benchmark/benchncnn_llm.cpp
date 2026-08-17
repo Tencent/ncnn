@@ -314,7 +314,7 @@ static int run_decoder_once(ncnn::Net& decoder, ncnn::Net& proj_out, const Cache
 
     ncnn::Extractor ex = decoder.create_extractor();
     ex.set_kvcache_allocator(kvcache_allocator);
-    ex.set_kvcache_max_seqlen(kvcache_max_seqlen);
+    ex.set_kvcache_max_seqlen_hint(kvcache_max_seqlen);
     ex.input("in0", token_embeds);
     ex.input("in1", attention_mask);
     ex.input("in2", cos_cache);
@@ -359,7 +359,7 @@ static int run_decoder_once_vulkan(ncnn::Net& decoder, ncnn::Net& proj_out, cons
 
     ncnn::Extractor ex = decoder.create_extractor();
     ex.set_kvcache_vkallocator(kvcache_vkallocator);
-    ex.set_kvcache_max_seqlen(kvcache_max_seqlen);
+    ex.set_kvcache_max_seqlen_hint(kvcache_max_seqlen);
     ex.input("in0", token_embeds);
     ex.input("in1", attention_mask);
     ex.input("in2", cos_cache);

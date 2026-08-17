@@ -48,7 +48,7 @@ static int run_sdpa_step(ncnn::Net& net, ncnn::Mat& output, ncnn::Mat& key_cache
     if (kvcache_allocator)
     {
         ex.set_kvcache_allocator(kvcache_allocator);
-        ex.set_kvcache_max_seqlen(32);
+        ex.set_kvcache_max_seqlen_hint(32);
     }
 
     ex.input("q", query);
@@ -146,7 +146,7 @@ static int test_kvcache_batch()
     ncnn::UnlockedPoolAllocator kvcache_allocator;
     ncnn::Extractor ex = net.create_extractor();
     ex.set_kvcache_allocator(&kvcache_allocator);
-    ex.set_kvcache_max_seqlen(16);
+    ex.set_kvcache_max_seqlen_hint(16);
     ex.input("q", query);
     ex.input("k", key);
     ex.input("v", value);
@@ -170,7 +170,7 @@ static int test_kvcache_batch()
 
     ncnn::Extractor ex2 = net.create_extractor();
     ex2.set_kvcache_allocator(&kvcache_allocator);
-    ex2.set_kvcache_max_seqlen(16);
+    ex2.set_kvcache_max_seqlen_hint(16);
     ex2.input("q", query);
     ex2.input("k", key);
     ex2.input("v", value);
@@ -263,7 +263,7 @@ static int run_sdpa_vulkan_step(ncnn::Net& net, ncnn::Mat& output, ncnn::VkMat& 
 
     ncnn::Extractor ex = net.create_extractor();
     ex.set_kvcache_vkallocator(kvcache_vkallocator);
-    ex.set_kvcache_max_seqlen(32);
+    ex.set_kvcache_max_seqlen_hint(0);
     ex.set_blob_vkallocator(blob_vkallocator);
     ex.set_workspace_vkallocator(blob_vkallocator);
     ex.set_staging_vkallocator(staging_vkallocator);

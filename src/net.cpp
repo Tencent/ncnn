@@ -2851,7 +2851,7 @@ void Extractor::set_kvcache_allocator(Allocator* allocator)
     d->opt.kvcache_allocator = allocator;
 }
 
-void Extractor::set_kvcache_max_seqlen(int max_seqlen)
+void Extractor::set_kvcache_max_seqlen_hint(int max_seqlen)
 {
     d->opt.kvcache_max_seqlen = max_seqlen;
 }

@@ -30,7 +30,6 @@ public:
 
     std::vector<VkMat> upload_staging_buffers;
     std::vector<VkMat> download_post_buffers;
-    std::vector<VkMat> clone_sources;
     std::vector<Mat> download_post_mats_fp16;
     std::vector<Mat> download_post_mats;
 
@@ -787,46 +786,14 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
 
     // record device to staging
     {
-        const int channels = src.dims >= 3 ? src.c : 1;
-#if NCNN_BATCH
-        const bool same_layout = src.cstep == dst.cstep && src.nstep == dst.nstep;
-#else
-        const bool same_layout = src.cstep == dst.cstep;
-#endif
-        if (!same_layout)
-            d->clone_sources.push_back(src);
-
-        const int region_count = same_layout ? 1 : src.n * channels;
-        VkBufferCopy* regions = new VkBufferCopy[region_count];
-        if (same_layout)
-        {
-            regions[0].srcOffset = src.buffer_offset();
-            regions[0].dstOffset = dst.buffer_offset();
-            regions[0].size = std::min(src.buffer_capacity(), dst.buffer_capacity());
-        }
-        else
-        {
-            const size_t channel_size = alignSize((size_t)src.w * src.h * src.d * src.elemsize, 4);
-            for (int b = 0; b < src.n; b++)
-            {
-                for (int q = 0; q < channels; q++)
-                {
-                    const int region_index = b * channels + q;
-#if NCNN_BATCH
-                    regions[region_index].srcOffset = src.buffer_offset() + ((size_t)b * src.nstep + (size_t)q * src.cstep) * src.elemsize;
-                    regions[region_index].dstOffset = dst.buffer_offset() + ((size_t)b * dst.nstep + (size_t)q * dst.cstep) * dst.elemsize;
-#else
-                    regions[region_index].srcOffset = src.buffer_offset() + (size_t)q * src.cstep * src.elemsize;
-                    regions[region_index].dstOffset = dst.buffer_offset() + (size_t)q * dst.cstep * dst.elemsize;
-#endif
-                    regions[region_index].size = channel_size;
-                }
-            }
-        }
+        VkBufferCopy* regions = new VkBufferCopy[1];
+        regions[0].srcOffset = src.buffer_offset();
+        regions[0].dstOffset = dst.buffer_offset();
+        regions[0].size = std::min(src.buffer_capacity(), dst.buffer_capacity());
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdCopyBuffer(d->compute_command_buffer, src.buffer(), dst.buffer(), region_count, regions);
+            vkCmdCopyBuffer(d->compute_command_buffer, src.buffer(), dst.buffer(), 1, regions);
             delete[] regions;
         }
         else
@@ -836,7 +803,7 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
             r.command_buffer = d->compute_command_buffer;
             r.copy_buffer.src = src.buffer();
             r.copy_buffer.dst = dst.buffer();
-            r.copy_buffer.region_count = region_count;
+            r.copy_buffer.region_count = 1;
             r.copy_buffer.regions = regions;
             d->delayed_records.push_back(r);
         }
@@ -2078,7 +2045,6 @@ int VkCompute::reset()
 {
     d->upload_staging_buffers.clear();
     d->download_post_buffers.clear();
-    d->clone_sources.clear();
     d->download_post_mats_fp16.clear();
     d->download_post_mats.clear();
 

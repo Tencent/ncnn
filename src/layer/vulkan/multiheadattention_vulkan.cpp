@@ -31,6 +31,7 @@ MultiHeadAttention_vulkan::MultiHeadAttention_vulkan()
     pipeline_multiheadattention_qkv_cross_pack1to4 = 0;
     pipeline_multiheadattention_qkv_cross_pack4to1 = 0;
 
+    pipeline_kvcache_copy = 0;
     pipeline_kvcache_append = 0;
     pipeline_kvcache_qk = 0;
     pipeline_kvcache_qkv = 0;
@@ -69,13 +70,19 @@ int MultiHeadAttention_vulkan::create_or_grow_kvcache(const VkMat& cache, VkMat&
     if (m.empty())
         return -100;
 
-    m.h = cache.h;
-
     if (!cache.empty())
     {
-        Option opt_copy = opt;
-        opt_copy.blob_vkallocator = allocator;
-        cmd.record_clone(cache, m, opt_copy);
+        std::vector<VkMat> bindings(2);
+        bindings[0] = cache;
+        bindings[1] = m;
+
+        std::vector<vk_constant_type> constants(4);
+        constants[0].i = cache.w;
+        constants[1].i = cache.h;
+        constants[2].i = cache.cstep;
+        constants[3].i = m.cstep;
+
+        cmd.record_pipeline(pipeline_kvcache_copy, bindings, constants, cache);
     }
 
     m.h = new_seqlen;
@@ -302,6 +309,10 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
     {
         std::vector<vk_specialization_type> specializations;
 
+        pipeline_kvcache_copy = new Pipeline(vkdev);
+        pipeline_kvcache_copy->set_local_size_xyz(8, 8, 1);
+        pipeline_kvcache_copy->create(LayerShaderType::multiheadattention_kvcache_copy, opt, specializations);
+
         pipeline_kvcache_append = new Pipeline(vkdev);
         pipeline_kvcache_append->set_local_size_xyz(8, 8, 1);
         pipeline_kvcache_append->create(LayerShaderType::multiheadattention_kvcache_append, opt, specializations);
@@ -392,6 +403,9 @@ int MultiHeadAttention_vulkan::destroy_pipeline(const Option& opt)
         delete o_gemm;
         o_gemm = 0;
     }
+
+    delete pipeline_kvcache_copy;
+    pipeline_kvcache_copy = 0;
 
     delete pipeline_kvcache_append;
     pipeline_kvcache_append = 0;
@@ -490,8 +504,8 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
     const int src_seqlen = q_blob.h * q_blob.elempack;
     const int cur_seqlen = k_blob.h * k_blob.elempack;
     const int past_seqlen = kv_cache && !past_xk_blob_unpacked.empty() ? past_xk_blob_unpacked.h : 0;
-    const bool append_key = past_seqlen == 0 || q_blob_i == k_blob_i;
-    const int append_seqlen = append_key ? cur_seqlen : 0;
+    const bool append_kv = past_seqlen == 0 || q_blob_i == k_blob_i;
+    const int append_seqlen = append_kv ? cur_seqlen : 0;
     const int dst_seqlen = past_seqlen + append_seqlen;
 
     VkMat q_affine;

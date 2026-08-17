@@ -966,7 +966,7 @@ PYBIND11_MODULE(ncnn, m)
     .def("set_blob_allocator", &Extractor::set_blob_allocator, py::arg("allocator"))
     .def("set_workspace_allocator", &Extractor::set_workspace_allocator, py::arg("allocator"))
     .def("set_kvcache_allocator", &Extractor::set_kvcache_allocator, py::arg("allocator"))
-    .def("set_kvcache_max_seqlen", &Extractor::set_kvcache_max_seqlen, py::arg("max_seqlen"))
+    .def("set_kvcache_max_seqlen_hint", &Extractor::set_kvcache_max_seqlen_hint, py::arg("max_seqlen"))
 #if NCNN_STRING
     .def("input", (int (Extractor::*)(const char*, const Mat&)) & Extractor::input, py::arg("blob_name"), py::arg("in"))
     .def("extract", (int (Extractor::*)(const char*, Mat&, int)) & Extractor::extract, py::arg("blob_name"), py::arg("feat"), py::arg("type") = 0)

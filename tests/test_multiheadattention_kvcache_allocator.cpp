@@ -199,7 +199,7 @@ static int test_multiheadattention_vulkan_kvcache_allocator()
     opt.workspace_vkallocator = &blob_vkallocator;
     opt.staging_vkallocator = &staging_vkallocator;
     opt.kvcache_vkallocator = &kvcache_vkallocator;
-    opt.kvcache_max_seqlen = 32;
+    opt.kvcache_max_seqlen = 0;
 
     reference->load_param(pd);
     reference->load_model(ncnn::ModelBinFromMatArray(weights.data()));
@@ -275,7 +275,15 @@ static int test_multiheadattention_vulkan_kvcache_allocator()
             key_data = tops[1].data;
             value_data = tops[2].data;
         }
-        if (tops[1].data != key_data || tops[2].data != value_data)
+        if (i == 1)
+        {
+            if (tops[1].data == key_data || tops[2].data == value_data)
+                ret = -1;
+
+            key_data = tops[1].data;
+            value_data = tops[2].data;
+        }
+        if (i == 2 && (tops[1].data != key_data || tops[2].data != value_data))
             ret = -1;
 
         reference_key = reference_tops[1];

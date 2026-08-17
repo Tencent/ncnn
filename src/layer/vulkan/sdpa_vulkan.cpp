@@ -17,6 +17,7 @@ SDPA_vulkan::SDPA_vulkan()
     qk_softmax = 0;
     pipeline_sdpa_qk_cross = 0;
     pipeline_sdpa_qkv_cross = 0;
+    pipeline_kvcache_copy = 0;
     pipeline_kvcache_append = 0;
 
     for (int i = 0; i < 8; i++)
@@ -76,13 +77,19 @@ int SDPA_vulkan::create_or_grow_kvcache(const VkMat& cache, VkMat& new_cache, in
     if (m.empty())
         return -100;
 
-    m.h = cache.h;
-
     if (!cache.empty())
     {
-        Option opt_copy = opt;
-        opt_copy.blob_vkallocator = allocator;
-        cmd.record_clone(cache, m, opt_copy);
+        std::vector<VkMat> bindings(2);
+        bindings[0] = cache;
+        bindings[1] = m;
+
+        std::vector<vk_constant_type> constants(4);
+        constants[0].i = cache.w;
+        constants[1].i = cache.h;
+        constants[2].i = cache.cstep;
+        constants[3].i = m.cstep;
+
+        cmd.record_pipeline(pipeline_kvcache_copy, bindings, constants, cache);
     }
 
     m.h = new_seqlen;
@@ -364,6 +371,10 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
     if (kv_cache)
     {
         std::vector<vk_specialization_type> specializations;
+        pipeline_kvcache_copy = new Pipeline(vkdev);
+        pipeline_kvcache_copy->set_local_size_xyz(8, 8, 1);
+        pipeline_kvcache_copy->create(LayerShaderType::sdpa_kvcache_copy, opt, specializations);
+
         pipeline_kvcache_append = new Pipeline(vkdev);
         pipeline_kvcache_append->set_local_size_xyz(8, 8, 1);
         pipeline_kvcache_append->create(LayerShaderType::sdpa_kvcache_append, opt, specializations);
@@ -379,6 +390,9 @@ int SDPA_vulkan::destroy_pipeline(const Option& opt)
 
     delete pipeline_sdpa_qkv_cross;
     pipeline_sdpa_qkv_cross = 0;
+
+    delete pipeline_kvcache_copy;
+    pipeline_kvcache_copy = 0;
 
     delete pipeline_kvcache_append;
     pipeline_kvcache_append = 0;
