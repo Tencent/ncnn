@@ -1901,7 +1901,7 @@ static NCNN_FORCEINLINE __m512 _mm512_comp_rsqrt1_ps(const __m512& _x)
     const __m512i _inf_bits = _mm512_set1_epi32(0x7f800000);
     const __m512 _inf = _mm512_castsi512_ps(_inf_bits);
     const __mmask16 _normal = _mm512_cmp_ps_mask(_x, _mm512_setzero_ps(), _CMP_GT_OQ)
-                             & _mm512_cmp_ps_mask(_x, _inf, _CMP_LT_OQ);
+                              & _mm512_cmp_ps_mask(_x, _inf, _CMP_LT_OQ);
     return _mm512_mask_mov_ps(_y0, _normal, _y);
 }
 
