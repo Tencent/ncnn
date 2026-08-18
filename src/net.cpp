@@ -1331,9 +1331,9 @@ int Net::load_param(const DataReader& dr)
     int blob_count = 0;
     SCAN_VALUE("%d", layer_count)
     SCAN_VALUE("%d", blob_count)
-    if (layer_count <= 0 || blob_count <= 0)
+    if (layer_count <= 0 || blob_count <= 0 || layer_count > MAX_LAYER_COUNT || blob_count > MAX_BLOB_COUNT)
     {
-        NCNN_LOGE("invalid layer_count or blob_count");
+        NCNN_LOGE("invalid layer_count or blob_count %d %d", layer_count, blob_count);
         return -1;
     }
 
@@ -1402,6 +1402,13 @@ int Net::load_param(const DataReader& dr)
         SCAN_VALUE("%255s", layer_name)
         SCAN_VALUE("%d", bottom_count)
         SCAN_VALUE("%d", top_count)
+
+        if (bottom_count < 0 || top_count < 0 || bottom_count > MAX_BLOB_COUNT || top_count > MAX_BLOB_COUNT)
+        {
+            NCNN_LOGE("invalid bottom_count or top_count %d %d", bottom_count, top_count);
+            clear();
+            return -1;
+        }
 
         Layer* layer = create_overwrite_builtin_layer(layer_type);
 #if NCNN_VULKAN
