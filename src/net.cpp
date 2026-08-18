@@ -1499,7 +1499,7 @@ int Net::load_param(const DataReader& dr)
 
         // pull out top shape hints
         Mat shape_hints = pd.get(30, Mat());
-        if (!shape_hints.empty())
+        if (!shape_hints.empty() && top_count > 0)
         {
             const int psh_step = shape_hints.w / top_count;
             const int* psh = shape_hints;
@@ -1879,7 +1879,7 @@ int Net::load_param_bin(const DataReader& dr)
 
         // pull out top blob shape hints
         Mat shape_hints = pd.get(30, Mat());
-        if (!shape_hints.empty())
+        if (!shape_hints.empty() && top_count > 0)
         {
             const int psh_step = shape_hints.w / top_count;
             const int* psh = shape_hints;
