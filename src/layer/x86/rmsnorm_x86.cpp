@@ -89,9 +89,7 @@ static void rmsnorm(float* ptr, const float* gamma_ptr, float eps, int elemcount
         _rms_avx512 = _mm512_div_ps(_rms_avx512, _elemcount);
         _rms_avx512 = _mm512_add_ps(_rms_avx512, _eps);
 
-        __m256 _rms0 = _mm256_rsqrt_ps(_mm512_extractf32x8_ps(_rms_avx512, 0));
-        __m256 _rms1 = _mm256_rsqrt_ps(_mm512_extractf32x8_ps(_rms_avx512, 1));
-        _rms_avx512 = combine8x2_ps(_rms0, _rms1);
+        _rms_avx512 = _mm512_comp_rsqrt_ps(_rms_avx512);
     }
 #endif // __AVX512F__
     if (elempack == 8)
@@ -111,7 +109,7 @@ static void rmsnorm(float* ptr, const float* gamma_ptr, float eps, int elemcount
         _rms_avx = _mm256_div_ps(_rms_avx, _elemcount);
         _rms_avx = _mm256_add_ps(_rms_avx, _eps);
 
-        _rms_avx = _mm256_rsqrt_ps(_rms_avx);
+        _rms_avx = _mm256_comp_rsqrt_ps(_rms_avx);
 #if __AVX512F__
         _rms_avx512 = combine8x2_ps(_rms_avx, _rms_avx);
 #endif // __AVX512F__
@@ -142,7 +140,7 @@ static void rmsnorm(float* ptr, const float* gamma_ptr, float eps, int elemcount
         _rms = _mm_div_ps(_rms, _elemcount);
         _rms = _mm_add_ps(_rms, _eps);
 
-        _rms = _mm_rsqrt_ps(_rms);
+        _rms = _mm_comp_rsqrt_ps(_rms);
 #if __AVX__
         _rms_avx = combine4x2_ps(_rms, _rms);
 #if __AVX512F__

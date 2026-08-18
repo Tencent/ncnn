@@ -14,7 +14,7 @@ static int test_layernorm(const ncnn::Mat& a, int affine_size, float eps, int af
     weights[0] = RandomMat(affine_size);
     weights[1] = RandomMat(affine_size);
 
-    int ret = test_layer("LayerNorm", pd, weights, a);
+    int ret = test_layer("LayerNorm", pd, weights, a, 1e-4f);
     if (ret != 0)
     {
         fprintf(stderr, "test_layernorm failed a.dims=%d a=(%d %d %d %d) affine_size=%d eps=%f affine=%d\n", a.dims, a.w, a.h, a.d, a.c, affine_size, eps, affine);
