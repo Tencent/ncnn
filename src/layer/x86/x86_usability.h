@@ -1915,8 +1915,11 @@ static NCNN_FORCEINLINE __m512 _mm512_comp_rsqrt1_ps(const __m512& _x)
 
 static NCNN_FORCEINLINE __m512 _mm512_comp_rsqrt_ps(const __m512& _x)
 {
-    __m512 _y = _mm512_comp_rsqrt1_ps(_x);
+    __m512 _y = _mm512_rsqrt14_ps(_x);
     __m512 _t = _mm512_mul_ps(_x, _y);
+    _t = _mm512_fnmadd_ps(_t, _y, _mm512_set1_ps(3.f));
+    _y = _mm512_mul_ps(_y, _mm512_mul_ps(_t, _mm512_set1_ps(0.5f)));
+    _t = _mm512_mul_ps(_x, _y);
     _t = _mm512_fnmadd_ps(_t, _y, _mm512_set1_ps(3.f));
     _y = _mm512_mul_ps(_y, _mm512_mul_ps(_t, _mm512_set1_ps(0.5f)));
     return _y;
