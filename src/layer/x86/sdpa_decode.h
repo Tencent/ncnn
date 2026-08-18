@@ -736,7 +736,7 @@ static int sdpa_decode_fp32(const Mat& query, const Mat& key, const Mat& value, 
             return -100;
     }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int ti = 0; ti < num_tasks * num_kv_chunks; ti++)
     {
         const int task_id = ti / num_kv_chunks;
@@ -770,7 +770,7 @@ static int sdpa_decode_fp32(const Mat& query, const Mat& key, const Mat& value, 
 
     if (num_kv_chunks > 1)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int task_id = 0; task_id < num_tasks; task_id++)
         {
             const int g = task_id / num_qblocks;
@@ -1561,7 +1561,7 @@ static int sdpa_decode_bf16s(const Mat& query, const Mat& key, const Mat& value,
             return -100;
     }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int ti = 0; ti < num_tasks * num_kv_chunks; ti++)
     {
         const int task_id = ti / num_kv_chunks;
@@ -1595,7 +1595,7 @@ static int sdpa_decode_bf16s(const Mat& query, const Mat& key, const Mat& value,
 
     if (num_kv_chunks > 1)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int task_id = 0; task_id < num_tasks; task_id++)
         {
             const int g = task_id / num_qblocks;

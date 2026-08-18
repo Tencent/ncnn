@@ -10,7 +10,7 @@ static void sdpa_pack_key_bf16s(const Mat& key, Mat& packed_key, int block_n, co
 
     const int num_key_blocks = (key_seqlen + block_n - 1) / block_n;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int task_id = 0; task_id < num_kv_heads * num_key_blocks; task_id++)
     {
         const int g = task_id / num_key_blocks;
@@ -231,7 +231,6 @@ static void sdpa_pack_key_bf16s(const Mat& key, Mat& packed_key, int block_n, co
             pp += head_dim;
         }
     }
-
 }
 
 // packed_value uses the fp32 layout consumed by the pv kernels
@@ -242,7 +241,7 @@ static void sdpa_pack_value_bf16s(const Mat& value, Mat& packed_value, int block
     const int num_kv_heads = value.c;
     const int num_key_blocks = (key_seqlen + block_n - 1) / block_n;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int task_id = 0; task_id < num_kv_heads * num_key_blocks; task_id++)
     {
         const int g = task_id / num_key_blocks;
@@ -341,7 +340,6 @@ static void sdpa_pack_value_bf16s(const Mat& value, Mat& packed_value, int block
             }
         }
     }
-
 }
 
 // queryT[head_dim][query_lane] in fp32
@@ -2271,7 +2269,7 @@ static int sdpa_prefill_bf16s(const Mat& query, const Mat& key, const Mat& value
         if (packed_query.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int task_id = 0; task_id < num_tasks; task_id++)
         {
             const int q = task_id / num_mblocks;
@@ -2296,7 +2294,7 @@ static int sdpa_prefill_bf16s(const Mat& query, const Mat& key, const Mat& value
             return -100;
     }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int ti = 0; ti < num_tasks * num_kv_chunks; ti++)
     {
         const int task_id = ti / num_kv_chunks;

@@ -65,7 +65,7 @@ static void sdpa_pack_key_fp32(const Mat& key, Mat& packed_key, int block_n, con
 
     const int num_key_blocks = (key_seqlen + block_n - 1) / block_n;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int task_id = 0; task_id < num_kv_heads * num_key_blocks; task_id++)
     {
         const int g = task_id / num_key_blocks;
@@ -285,7 +285,6 @@ static void sdpa_pack_key_fp32(const Mat& key, Mat& packed_key, int block_n, con
             pp += head_dim;
         }
     }
-
 }
 
 // packed_value block layout:
@@ -298,7 +297,7 @@ static void sdpa_pack_value_fp32(const Mat& value, Mat& packed_value, int block_
     const int num_kv_heads = value.c;
     const int num_key_blocks = (key_seqlen + block_n - 1) / block_n;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int task_id = 0; task_id < num_kv_heads * num_key_blocks; task_id++)
     {
         const int g = task_id / num_key_blocks;
@@ -397,7 +396,6 @@ static void sdpa_pack_value_fp32(const Mat& value, Mat& packed_value, int block_
             }
         }
     }
-
 }
 
 static Mat sdpa_prefill_get_mask_head(const Mat& attn_mask_blob, int q)
@@ -2485,7 +2483,7 @@ static void sdpa_flash_attention_tile_fp32(const Mat& query, const Mat& key, con
 }
 static void sdpa_prefill_reduce(const Mat& partials, Mat& top_blob, Mat& workspace, int num_tasks, int num_mblocks, int block_m, int num_kv_chunks, int query_seqlen, int value_dim, const Option& opt)
 {
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int task_id = 0; task_id < num_tasks; task_id++)
     {
         const int q = task_id / num_mblocks;
@@ -2676,7 +2674,7 @@ static int sdpa_prefill_fp32(const Mat& query, const Mat& key, const Mat& value,
         if (packed_query.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int task_id = 0; task_id < num_tasks; task_id++)
         {
             const int q = task_id / num_mblocks;
@@ -2701,7 +2699,7 @@ static int sdpa_prefill_fp32(const Mat& query, const Mat& key, const Mat& value,
             return -100;
     }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int ti = 0; ti < num_tasks * num_kv_chunks; ti++)
     {
         const int task_id = ti / num_kv_chunks;

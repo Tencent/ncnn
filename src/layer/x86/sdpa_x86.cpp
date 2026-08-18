@@ -222,9 +222,9 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         return -100;
 
     if (int8_scale_term == 0
-        && query.elembits() == 32 && key.elembits() == 32 && value.elembits() == 32
-        && query.elempack == 1 && key.elempack == 1 && value.elempack == 1
-        && (!attn_mask || attn_mask_blob.elembits() == 32))
+            && query.elembits() == 32 && key.elembits() == 32 && value.elembits() == 32
+            && query.elempack == 1 && key.elempack == 1 && value.elempack == 1
+            && (!attn_mask || attn_mask_blob.elembits() == 32))
     {
         const float _scale = scale == 0.f ? 1.f / sqrtf(embed_dim) : scale;
         if (src_seqlen == 1)
@@ -235,10 +235,10 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
 #if NCNN_BF16
     if (int8_scale_term == 0
-        && opt.use_bf16_storage
-        && query.elembits() == 16 && key.elembits() == 16 && value.elembits() == 16
-        && query.elempack == 1 && key.elempack == 1 && value.elempack == 1
-        && (!attn_mask || attn_mask_blob.elembits() == 16 || attn_mask_blob.elembits() == 32))
+            && opt.use_bf16_storage
+            && query.elembits() == 16 && key.elembits() == 16 && value.elembits() == 16
+            && query.elempack == 1 && key.elempack == 1 && value.elempack == 1
+            && (!attn_mask || attn_mask_blob.elembits() == 16 || attn_mask_blob.elembits() == 32))
     {
         const float _scale = scale == 0.f ? 1.f / sqrtf(embed_dim) : scale;
         if (src_seqlen == 1)
