@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-static int test_sdpa_oom(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int attn_mask, float scale = 0.f)
+static int test_sdpa_oom(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int attn_mask, float scale = 0.f, int flag = 0)
 {
     const int src_seqlen = q.h;
     const int dst_seqlen = k.h;
@@ -24,9 +24,7 @@ static int test_sdpa_oom(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat
         as.push_back(RandomMat(dst_seqlen, src_seqlen));
     }
 
-    float epsilon = 0.001;
-
-    int ret = test_layer_oom("SDPA", pd, weights, as, 1, epsilon);
+    int ret = test_layer_oom("SDPA", pd, weights, as, 1, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_sdpa_oom failed q=(%d %d %d) k=(%d %d %d) v=(%d %d %d) attn_mask=%d scale=%f\n", q.w, q.h, q.c, k.w, k.h, k.c, v.w, v.h, v.c, attn_mask, scale);
@@ -74,6 +72,8 @@ static int test_sdpa_kvcache_oom(const ncnn::Mat& q, const ncnn::Mat& k, const n
 static int test_sdpa_0()
 {
     return 0
+           || test_sdpa_oom(RandomMat(63, 1, 8), RandomMat(63, 513, 1), RandomMat(37, 513, 1), 0)
+           || test_sdpa_oom(RandomMat(63, 2, 1), RandomMat(63, 513, 1), RandomMat(37, 513, 1), 0, 0.f, TEST_LAYER_ENABLE_THREADING)
            || test_sdpa_oom(RandomMat(32, 66, 8), RandomMat(32, 66, 8), RandomMat(20, 66, 8), 0)
            || test_sdpa_oom(RandomMat(26, 64, 8), RandomMat(26, 61, 8), RandomMat(18, 61, 8), 1)
            || test_sdpa_oom(RandomMat(40, 62, 7), RandomMat(40, 61, 7), RandomMat(24, 61, 7), 0)

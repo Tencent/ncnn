@@ -3,13 +3,13 @@
 
 #include "testutil.h"
 
-static int test_sdpa(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int attn_mask, float scale = 0.f)
+static int test_sdpa(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int mask_type, float scale = 0.f)
 {
     const int src_seqlen = q.h;
     const int dst_seqlen = k.h;
 
     ncnn::ParamDict pd;
-    pd.set(5, attn_mask);
+    pd.set(5, mask_type != 0);
     pd.set(6, scale);
 
     std::vector<ncnn::Mat> weights(0);
@@ -19,9 +19,28 @@ static int test_sdpa(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v,
     as[1] = k;
     as[2] = v;
 
-    if (attn_mask)
+    if (mask_type)
     {
-        as.push_back(RandomMat(dst_seqlen, src_seqlen));
+        ncnn::Mat mask;
+        if (mask_type == 2)
+            mask = RandomMat(dst_seqlen, src_seqlen, 1);
+        else if (mask_type == 3)
+            mask = RandomMat(dst_seqlen, src_seqlen, q.c);
+        else
+            mask = RandomMat(dst_seqlen, src_seqlen);
+
+        if (mask_type == 4)
+        {
+            const int masked_seqlen = std::min(dst_seqlen, 256);
+            for (int i = 0; i < src_seqlen; i++)
+            {
+                float* mptr = mask.row(i);
+                for (int j = 0; j < masked_seqlen; j++)
+                    mptr[j] = -10000.f;
+            }
+        }
+
+        as.push_back(mask);
     }
 
     float epsilon = 0.001;
@@ -29,7 +48,7 @@ static int test_sdpa(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v,
     int ret = test_layer("SDPA", pd, weights, as, 1, epsilon);
     if (ret != 0)
     {
-        fprintf(stderr, "test_sdpa failed q=(%d %d %d) k=(%d %d %d) v=(%d %d %d) attn_mask=%d scale=%f\n", q.w, q.h, q.c, k.w, k.h, k.c, v.w, v.h, v.c, attn_mask, scale);
+        fprintf(stderr, "test_sdpa failed q=(%d %d %d) k=(%d %d %d) v=(%d %d %d) mask_type=%d scale=%f\n", q.w, q.h, q.c, k.w, k.h, k.c, v.w, v.h, v.c, mask_type, scale);
     }
 
     return ret;
@@ -38,8 +57,14 @@ static int test_sdpa(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v,
 static int test_sdpa_0()
 {
     return 0
+           || test_sdpa(RandomMat(63, 1, 8), RandomMat(63, 513, 1), RandomMat(37, 513, 1), 0)
+           || test_sdpa(RandomMat(80, 1, 8), RandomMat(80, 521, 2), RandomMat(96, 521, 2), 1, -0.4f)
+           || test_sdpa(RandomMat(96, 1, 8), RandomMat(96, 521, 2), RandomMat(80, 521, 2), 3)
+           || test_sdpa(RandomMat(128, 17, 4), RandomMat(128, 513, 4), RandomMat(192, 513, 4), 4)
            || test_sdpa(RandomMat(32, 66, 8), RandomMat(32, 66, 8), RandomMat(20, 66, 8), 0)
            || test_sdpa(RandomMat(26, 64, 8), RandomMat(26, 61, 8), RandomMat(18, 61, 8), 1)
+           || test_sdpa(RandomMat(192, 9, 8), RandomMat(192, 17, 2), RandomMat(128, 17, 2), 2, 0.2f)
+           || test_sdpa(RandomMat(256, 5, 4), RandomMat(256, 13, 4), RandomMat(96, 13, 4), 3)
            || test_sdpa(RandomMat(40, 62, 7), RandomMat(40, 61, 7), RandomMat(24, 61, 7), 0)
            || test_sdpa(RandomMat(24, 22, 6), RandomMat(24, 19, 6), RandomMat(16, 19, 6), 1)
            || test_sdpa(RandomMat(64, 128, 12), RandomMat(64, 128, 2), RandomMat(64, 128, 2), 0)

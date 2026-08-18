@@ -3,9 +3,32 @@
 
 #include "sdpa_x86.h"
 
+#include <float.h>
+
+#if __SSE2__
+#include <emmintrin.h>
+#include "sse_mathfun.h"
+#if __AVX__
+#include <immintrin.h>
+#include "avx_mathfun.h"
+#if __AVX512F__
+#include "avx512_mathfun.h"
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+
+#include "cpu.h"
 #include "layer_type.h"
+#include "x86_usability.h"
 
 namespace ncnn {
+
+#include "sdpa_common.h"
+#include "sdpa_decode.h"
+#include "sdpa_prefill.h"
+#if NCNN_BF16
+#include "sdpa_prefill_bf16s.h"
+#endif // NCNN_BF16
 
 SDPA_x86::SDPA_x86()
 {
@@ -193,6 +216,38 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     const int num_heads_per_group = num_heads / num_group;
 
+    Mat& top_blob = top_blobs[0];
+    top_blob.create(out_embed_dim, src_seqlen, num_heads, 4u, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    if (int8_scale_term == 0
+        && query.elembits() == 32 && key.elembits() == 32 && value.elembits() == 32
+        && query.elempack == 1 && key.elempack == 1 && value.elempack == 1
+        && (!attn_mask || attn_mask_blob.elembits() == 32))
+    {
+        const float _scale = scale == 0.f ? 1.f / sqrtf(embed_dim) : scale;
+        if (src_seqlen == 1)
+            return sdpa_decode_fp32(query, key, value, attn_mask_blob, top_blob, _scale, opt);
+
+        return sdpa_prefill_fp32(query, key, value, attn_mask_blob, top_blob, _scale, opt);
+    }
+
+#if NCNN_BF16
+    if (int8_scale_term == 0
+        && opt.use_bf16_storage
+        && query.elembits() == 16 && key.elembits() == 16 && value.elembits() == 16
+        && query.elempack == 1 && key.elempack == 1 && value.elempack == 1
+        && (!attn_mask || attn_mask_blob.elembits() == 16 || attn_mask_blob.elembits() == 32))
+    {
+        const float _scale = scale == 0.f ? 1.f / sqrtf(embed_dim) : scale;
+        if (src_seqlen == 1)
+            return sdpa_decode_bf16s(query, key, value, attn_mask_blob, top_blob, _scale, opt);
+
+        return sdpa_prefill_bf16s(query, key, value, attn_mask_blob, top_blob, _scale, opt);
+    }
+#endif
+
     Mat qk_cross(dst_seqlen, src_seqlen, num_heads, 4u, opt.workspace_allocator);
     if (qk_cross.empty())
         return -100;
@@ -293,11 +348,6 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             return -100;
     }
 #endif
-
-    Mat& top_blob = top_blobs[0];
-    top_blob.create(out_embed_dim, src_seqlen, num_heads, 4u, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
 
     // 3. Attn * V
     std::vector<int> retqkvs(num_heads);
