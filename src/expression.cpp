@@ -484,7 +484,7 @@ int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs,
             }
             else // if (t == "logaddexp")
             {
-                r = logf(expf(a) + expf(b));
+                r = std::max(a, b) + log1pf(expf(std::min(a, b) - std::max(a, b)));
             }
             exprstack.push(r);
         }
