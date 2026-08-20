@@ -62,13 +62,47 @@ jobs:
     - name: pt2-fixture-test
       run: |
         cd tools/pnnx/build
-        ctest -C Release --output-on-failure -L pt2 -LE pt2-full
+        ctest -C Release --output-on-failure -L pt2-smoke
 
     - name: quick-test
       if: matrix.os != 'windows-latest'
       run: |
         cd tools/pnnx
         cd build && ctest -C Release --output-on-failure -R test_nn_Conv
+
+  pt2-sanitizer:
+    runs-on: ubuntu-latest
+
+    env:
+      PYTHONUSERBASE: ${{ github.workspace }}/torch
+      ASAN_OPTIONS: detect_leaks=0
+      UBSAN_OPTIONS: halt_on_error=1
+    steps:
+    - uses: actions/checkout@v7
+
+    - uses: actions/setup-python@v7
+      with:
+        python-version: 3.12
+
+    - name: setup-pytorch
+      run: |
+        python3 -m pip config set global.break-system-packages true
+        pip3 install --user torch --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user numpy packaging
+
+    - name: build-pnnx
+      run: |
+        cd tools/pnnx
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" ..
+        cmake --build . --config RelWithDebInfo -j 4
+
+    - name: pt2-sanitizer-test
+      run: |
+        cd tools/pnnx/build
+        ctest -C RelWithDebInfo --output-on-failure -L pt2-smoke
 
   build:
     runs-on: [self-hosted, linux, ubuntu25]
@@ -228,7 +262,7 @@ jobs:
             -Donnxruntime_INSTALL_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
             -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf ..
         cmake --build . -j 8
-        ctest --output-on-failure -L pt2 -LE pt2-full
+        ctest --output-on-failure -L pt2-smoke
         strip src/pnnx
 
     - name: upload-pnnx

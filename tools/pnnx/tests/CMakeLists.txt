@@ -60,47 +60,47 @@ foreach(PT2_FIXTURE IN LISTS PNNX_PT2_ARCHIVE_FIXTURES)
     endif()
     add_test(NAME test_pt2_archive_${PT2_FIXTURE_TEST_ID}
         COMMAND pnnx_pt2_archive_test "${PT2_FIXTURE}" "${PT2_EXPECTED_FORMAT}")
-    set_tests_properties(test_pt2_archive_${PT2_FIXTURE_TEST_ID} PROPERTIES LABELS "pt2;archive")
+    set_tests_properties(test_pt2_archive_${PT2_FIXTURE_TEST_ID} PROPERTIES LABELS "pt2;pt2-smoke;archive")
     add_test(NAME test_pt2_program_${PT2_FIXTURE_TEST_ID}
         COMMAND pnnx_pt2_archive_test --program-archive "${PT2_FIXTURE}")
-    set_tests_properties(test_pt2_program_${PT2_FIXTURE_TEST_ID} PROPERTIES LABELS "pt2;json;schema")
+    set_tests_properties(test_pt2_program_${PT2_FIXTURE_TEST_ID} PROPERTIES LABELS "pt2;pt2-smoke;json;schema")
     get_filename_component(PT2_FIXTURE_CASE "${PT2_FIXTURE}" NAME_WE)
     add_test(NAME test_pt2_weights_${PT2_FIXTURE_TEST_ID}
         COMMAND pnnx_pt2_archive_test --weights-archive "${PT2_FIXTURE}" "${PT2_FIXTURE_CASE}")
-    set_tests_properties(test_pt2_weights_${PT2_FIXTURE_TEST_ID} PROPERTIES LABELS "pt2;weights")
+    set_tests_properties(test_pt2_weights_${PT2_FIXTURE_TEST_ID} PROPERTIES LABELS "pt2;pt2-smoke;weights")
     if(Torch_VERSION VERSION_GREATER_EQUAL "2.6")
         add_test(NAME test_pt2_graph_${PT2_FIXTURE_TEST_ID}
             COMMAND pnnx_pt2_graph_test "${PT2_FIXTURE}" "${PT2_FIXTURE_CASE}"
                     "${CMAKE_CURRENT_BINARY_DIR}/pt2_graph_${PT2_FIXTURE_TEST_ID}")
-        set_tests_properties(test_pt2_graph_${PT2_FIXTURE_TEST_ID} PROPERTIES LABELS "pt2;graph")
+        set_tests_properties(test_pt2_graph_${PT2_FIXTURE_TEST_ID} PROPERTIES LABELS "pt2;pt2-smoke;graph")
     endif()
 endforeach()
 
 if(Torch_VERSION VERSION_GREATER_EQUAL "2.6")
     add_test(NAME test_pt2_graph_pilot COMMAND pnnx_pt2_graph_test --pilot)
-    set_tests_properties(test_pt2_graph_pilot PROPERTIES LABELS "pt2;graph;malformed")
+    set_tests_properties(test_pt2_graph_pilot PROPERTIES LABELS "pt2;pt2-smoke;graph;malformed")
 endif()
 
 add_test(NAME test_pt2_archive_reader_malformed
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_archive_reader.py
             --tester $<TARGET_FILE:pnnx_pt2_archive_test>)
-set_tests_properties(test_pt2_archive_reader_malformed PROPERTIES LABELS "pt2;archive;malformed")
+set_tests_properties(test_pt2_archive_reader_malformed PROPERTIES LABELS "pt2;pt2-smoke;archive;malformed" TIMEOUT 30)
 
 add_test(NAME test_pt2_program
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_program.py
             --tester $<TARGET_FILE:pnnx_pt2_archive_test>)
-set_tests_properties(test_pt2_program PROPERTIES LABELS "pt2;json;schema;malformed")
+set_tests_properties(test_pt2_program PROPERTIES LABELS "pt2;pt2-smoke;json;schema;malformed" TIMEOUT 30)
 
 add_test(NAME test_pt2_weights
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_weights.py
             --tester $<TARGET_FILE:pnnx_pt2_archive_test>
             --legacy ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/data/torch_2_6_0/state_and_constants.pt2
             --raw ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/data/torch_2_12_1/state_and_constants.pt2)
-set_tests_properties(test_pt2_weights PROPERTIES LABELS "pt2;weights;malformed")
+set_tests_properties(test_pt2_weights PROPERTIES LABELS "pt2;pt2-smoke;weights;malformed" TIMEOUT 30)
 
 add_test(NAME test_pt2_storezip_roundtrip
     COMMAND pnnx_pt2_archive_test --roundtrip "${CMAKE_CURRENT_BINARY_DIR}/pnnx_pt2_storezip_roundtrip.zip")
-set_tests_properties(test_pt2_storezip_roundtrip PROPERTIES LABELS "pt2;archive")
+set_tests_properties(test_pt2_storezip_roundtrip PROPERTIES LABELS "pt2;pt2-smoke;archive")
 
 if(Torch_VERSION VERSION_GREATER_EQUAL "2.6")
     add_test(NAME test_pt2_cli
@@ -108,20 +108,20 @@ if(Torch_VERSION VERSION_GREATER_EQUAL "2.6")
                 --pnnx $<TARGET_FILE:pnnx>
                 --legacy ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/data/torch_2_6_0/state_and_constants.pt2
                 --archive ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/data/torch_2_12_1/state_and_constants.pt2)
-    set_tests_properties(test_pt2_cli PROPERTIES LABELS "pt2;archive;cli")
+    set_tests_properties(test_pt2_cli PROPERTIES LABELS "pt2;pt2-smoke;archive;cli")
 
     add_test(NAME test_pt2_dynamic_shapes
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_dynamic_shapes.py
                 --pnnx $<TARGET_FILE:pnnx>
                 --workdir ${CMAKE_CURRENT_BINARY_DIR}/pt2-dynamic-shapes)
-    set_tests_properties(test_pt2_dynamic_shapes PROPERTIES LABELS "pt2;p9;dynamic")
+    set_tests_properties(test_pt2_dynamic_shapes PROPERTIES LABELS "pt2;pt2-smoke;p9;dynamic")
 endif()
 
 add_test(NAME test_pt2_fixture_tools
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/test_pt2_fixture_tools.py)
 set_tests_properties(test_pt2_fixture_tools PROPERTIES
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2
-    LABELS "pt2;fixture")
+    LABELS "pt2;pt2-smoke;fixture")
 
 set(PNNX_OPERATOR_TESTS
     point_add_tensor

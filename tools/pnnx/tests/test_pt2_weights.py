@@ -177,6 +177,10 @@ def main():
         write_zip(big_endian, make_raw_archive([("value", 7, [1], struct.pack(">f", 1.0))], "big"))
         run(args.tester, big_endian, "big_endian", True)
 
+        oversized_tensor = root / "oversized_tensor.pt2"
+        write_zip(oversized_tensor, make_raw_archive([("value", 7, [1 << 62], b"")]))
+        run(args.tester, oversized_tensor, "oversized_tensor", False, "symbolic, negative, or oversized tensor view metadata")
+
         def unsafe_path(records):
             name = find_record(records, "model_weights_config.json")
             config = json.loads(records[name])

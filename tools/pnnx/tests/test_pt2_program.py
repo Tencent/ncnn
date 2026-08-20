@@ -102,6 +102,7 @@ def main():
         run_case(args.tester, root, "json_surrogate", "--json", '"\\ud800"', False, ("missing low surrogate",))
         run_case(args.tester, root, "json_utf8", "--json", b'"\xc0\xaf"', False, ("invalid utf-8",))
         run_case(args.tester, root, "json_deep", "--json", "[" * 130 + "0" + "]" * 130, False, ("nesting is too deep",))
+        run_case(args.tester, root, "json_large_string", "--json", b'"' + b"x" * (16 * 1024 * 1024 + 1) + b'"', False, ("string is too large",))
 
         base = program()
         run_case(args.tester, root, "program_valid", "--program-json", encoded(base), True)
