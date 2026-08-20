@@ -38,6 +38,205 @@ Pt2Program::Pt2Program()
     ignored_metadata = 0;
 }
 
+static bool get_tensor_name(const Pt2JsonValue& argument, std::string& name)
+{
+    if (argument.type != Pt2JsonValue::Object || argument.object.size() != 1 || argument.object.begin()->first != "as_tensor")
+        return false;
+    const Pt2JsonValue& tensor = argument.object.begin()->second;
+    if (tensor.type != Pt2JsonValue::Object)
+        return false;
+    std::map<std::string, Pt2JsonValue>::const_iterator it = tensor.object.find("name");
+    if (it == tensor.object.end() || it->second.type != Pt2JsonValue::String)
+        return false;
+    name = it->second.value;
+    return true;
+}
+
+static void rename_argument(Pt2JsonValue& argument, const std::map<std::string, std::string>& names, const std::string& prefix)
+{
+    if (argument.type != Pt2JsonValue::Object || argument.object.size() != 1)
+        return;
+    const std::string& tag = argument.object.begin()->first;
+    Pt2JsonValue& value = argument.object.begin()->second;
+    if (tag == "as_tensor" || tag == "as_optional_tensor")
+    {
+        std::map<std::string, Pt2JsonValue>::iterator it = value.object.find("name");
+        if (it != value.object.end() && it->second.type == Pt2JsonValue::String)
+        {
+            std::map<std::string, std::string>::const_iterator renamed = names.find(it->second.value);
+            it->second.value = renamed == names.end() ? prefix + it->second.value : renamed->second;
+        }
+    }
+    else if (tag == "as_tensors" || tag == "as_optional_tensors")
+    {
+        for (size_t i = 0; i < value.array.size(); i++)
+        {
+            std::map<std::string, Pt2JsonValue>::iterator it = value.array[i].object.find("name");
+            if (it != value.array[i].object.end() && it->second.type == Pt2JsonValue::String)
+            {
+                std::map<std::string, std::string>::const_iterator renamed = names.find(it->second.value);
+                it->second.value = renamed == names.end() ? prefix + it->second.value : renamed->second;
+            }
+        }
+    }
+    else if (tag == "as_sym_int" && value.type == Pt2JsonValue::Object)
+    {
+        std::map<std::string, Pt2JsonValue>::iterator it = value.object.find("as_name");
+        if (it != value.object.end() && it->second.type == Pt2JsonValue::String)
+        {
+            std::map<std::string, std::string>::const_iterator renamed = names.find(it->second.value);
+            it->second.value = renamed == names.end() ? prefix + it->second.value : renamed->second;
+        }
+    }
+    else if (tag == "as_sym_ints" && value.type == Pt2JsonValue::Array)
+    {
+        for (size_t i = 0; i < value.array.size(); i++)
+        {
+            std::map<std::string, Pt2JsonValue>::iterator it = value.array[i].object.find("as_name");
+            if (it != value.array[i].object.end() && it->second.type == Pt2JsonValue::String)
+            {
+                std::map<std::string, std::string>::const_iterator renamed = names.find(it->second.value);
+                it->second.value = renamed == names.end() ? prefix + it->second.value : renamed->second;
+            }
+        }
+    }
+}
+
+static int inline_higher_order_graph(Pt2JsonValue& graph, std::string& error);
+
+static int inline_higher_order_node(Pt2JsonValue& graph, Pt2JsonValue& node, size_t graph_input, std::vector<Pt2JsonValue>& nodes, std::string& error)
+{
+    Pt2JsonValue& node_inputs = node.object["inputs"];
+    Pt2JsonValue& node_outputs = node.object["outputs"];
+    Pt2JsonValue& graph_argument = node_inputs.array[graph_input].object["arg"].object["as_graph"];
+    Pt2JsonValue& subgraph = graph_argument.object["graph"];
+    if (inline_higher_order_graph(subgraph, error) != 0)
+        return -1;
+
+    Pt2JsonValue& sub_inputs = subgraph.object["inputs"];
+    Pt2JsonValue& sub_outputs = subgraph.object["outputs"];
+    if (sub_inputs.type != Pt2JsonValue::Array || sub_outputs.type != Pt2JsonValue::Array
+        || node_inputs.array.size() - graph_input - 1 != sub_inputs.array.size() || node_outputs.array.size() != sub_outputs.array.size())
+    {
+        error = "higher-order wrapper input or output count mismatch";
+        return -1;
+    }
+
+    std::string prefix = "subgraph_";
+    std::map<std::string, Pt2JsonValue>::iterator node_name = node.object.find("name");
+    if (node_name != node.object.end() && node_name->second.type == Pt2JsonValue::String)
+        prefix = node_name->second.value + "_";
+
+    std::map<std::string, std::string> names;
+    std::set<std::string> sub_input_names;
+    for (size_t i = 0; i < sub_inputs.array.size(); i++)
+    {
+        std::string inner;
+        std::string outer;
+        if (!get_tensor_name(sub_inputs.array[i], inner) || !get_tensor_name(node_inputs.array[graph_input + 1 + i].object["arg"], outer))
+        {
+            error = "higher-order wrapper only supports tensor inputs";
+            return -1;
+        }
+        names[inner] = outer;
+        sub_input_names.insert(inner);
+    }
+    for (size_t i = 0; i < sub_outputs.array.size(); i++)
+    {
+        std::string inner;
+        std::string outer;
+        if (!get_tensor_name(sub_outputs.array[i], inner) || !get_tensor_name(node_outputs.array[i], outer))
+        {
+            error = "higher-order wrapper only supports tensor outputs";
+            return -1;
+        }
+        names[inner] = outer;
+    }
+
+    Pt2JsonValue& tensor_values = subgraph.object["tensor_values"];
+    for (std::map<std::string, Pt2JsonValue>::const_iterator it = tensor_values.object.begin(); it != tensor_values.object.end(); ++it)
+    {
+        if (names.find(it->first) == names.end())
+            names[it->first] = prefix + it->first;
+    }
+    Pt2JsonValue& sym_int_values = subgraph.object["sym_int_values"];
+    for (std::map<std::string, Pt2JsonValue>::const_iterator it = sym_int_values.object.begin(); it != sym_int_values.object.end(); ++it)
+    {
+        if (names.find(it->first) == names.end())
+            names[it->first] = prefix + it->first;
+    }
+
+    Pt2JsonValue& outer_tensors = graph.object["tensor_values"];
+    for (std::map<std::string, Pt2JsonValue>::const_iterator it = tensor_values.object.begin(); it != tensor_values.object.end(); ++it)
+    {
+        if (sub_input_names.find(it->first) == sub_input_names.end() && outer_tensors.object.find(names[it->first]) == outer_tensors.object.end())
+            outer_tensors.object[names[it->first]] = it->second;
+    }
+    Pt2JsonValue& outer_sym_ints = graph.object["sym_int_values"];
+    for (std::map<std::string, Pt2JsonValue>::const_iterator it = sym_int_values.object.begin(); it != sym_int_values.object.end(); ++it)
+    {
+        if (outer_sym_ints.object.find(names[it->first]) == outer_sym_ints.object.end())
+            outer_sym_ints.object[names[it->first]] = it->second;
+    }
+
+    Pt2JsonValue& sub_nodes = subgraph.object["nodes"];
+    for (size_t i = 0; i < sub_nodes.array.size(); i++)
+    {
+        Pt2JsonValue sub_node = sub_nodes.array[i];
+        std::map<std::string, Pt2JsonValue>::iterator name = sub_node.object.find("name");
+        if (name != sub_node.object.end() && name->second.type == Pt2JsonValue::String)
+            name->second.value = prefix + name->second.value;
+        Pt2JsonValue& inputs = sub_node.object["inputs"];
+        for (size_t j = 0; j < inputs.array.size(); j++)
+            rename_argument(inputs.array[j].object["arg"], names, prefix);
+        Pt2JsonValue& outputs = sub_node.object["outputs"];
+        for (size_t j = 0; j < outputs.array.size(); j++)
+            rename_argument(outputs.array[j], names, prefix);
+        nodes.push_back(std::move(sub_node));
+    }
+    return 0;
+}
+
+static int inline_higher_order_graph(Pt2JsonValue& graph, std::string& error)
+{
+    Pt2JsonValue& graph_nodes = graph.object["nodes"];
+    if (graph_nodes.type != Pt2JsonValue::Array)
+        return 0;
+    std::vector<Pt2JsonValue> nodes;
+    nodes.reserve(graph_nodes.array.size());
+    for (size_t i = 0; i < graph_nodes.array.size(); i++)
+    {
+        Pt2JsonValue& node = graph_nodes.array[i];
+        std::map<std::string, Pt2JsonValue>::iterator target = node.object.find("target");
+        if (target == node.object.end() || target->second.type != Pt2JsonValue::String
+            || (target->second.value != "torch.ops.higher_order.wrap_with_autocast" && target->second.value != "torch.ops.higher_order.wrap_with_set_grad_enabled"))
+        {
+            nodes.push_back(std::move(node));
+            continue;
+        }
+
+        Pt2JsonValue& inputs = node.object["inputs"];
+        size_t graph_input = inputs.array.size();
+        for (size_t j = 0; j < inputs.array.size(); j++)
+        {
+            Pt2JsonValue& argument = inputs.array[j].object["arg"];
+            if (argument.type == Pt2JsonValue::Object && argument.object.find("as_graph") != argument.object.end())
+            {
+                graph_input = j;
+                break;
+            }
+        }
+        if (graph_input == inputs.array.size() || inline_higher_order_node(graph, node, graph_input, nodes, error) != 0)
+        {
+            if (error.empty())
+                error = "higher-order wrapper has no graph argument";
+            return -1;
+        }
+    }
+    graph_nodes.array.swap(nodes);
+    return 0;
+}
+
 class Pt2ProgramDecoder
 {
 public:
@@ -519,6 +718,57 @@ private:
             fail(payload_path, &payload, "unknown SymIntArgument union tag " + payload.object.begin()->first);
             return false;
         }
+        if (tag == "as_sym_ints")
+        {
+            result.type = Pt2Argument::SymInts;
+            if (!require_type(payload, Pt2JsonValue::Array, payload_path, "symbolic integer array"))
+                return false;
+            for (size_t i = 0; i < payload.array.size(); i++)
+            {
+                const Pt2JsonValue& item = payload.array[i];
+                const std::string item_path = payload_path + "[" + std::to_string(i) + "]";
+                if (!require_type(item, Pt2JsonValue::Object, item_path, "symbolic integer union"))
+                    return false;
+                if (item.object.size() != 1)
+                {
+                    fail(item_path, &item, "symbolic integer union must contain exactly one field");
+                    return false;
+                }
+                Pt2Argument arg;
+                arg.type = Pt2Argument::SymInt;
+                if (item.object.begin()->first == "as_name")
+                {
+                    arg.b = true;
+                    if (!get_string(item.object.begin()->second, item_path + ".as_name", arg.s))
+                        return false;
+                }
+                else if (item.object.begin()->first == "as_int")
+                {
+                    if (!get_int(item.object.begin()->second, item_path + ".as_int", arg.i))
+                        return false;
+                }
+                else
+                {
+                    fail(item_path, &item, "unknown symbolic integer union tag " + item.object.begin()->first);
+                    return false;
+                }
+                result.args.push_back(std::move(arg));
+            }
+            return true;
+        }
+        if (tag == "as_sym_bool")
+        {
+            result.type = Pt2Argument::SymBool;
+            if (!require_type(payload, Pt2JsonValue::Object, payload_path, "SymBoolArgument union"))
+                return false;
+            if (payload.object.size() != 1 || payload.object.begin()->first != "as_name")
+            {
+                fail(payload_path, &payload, "SymBoolArgument union must contain exactly one as_name field");
+                return false;
+            }
+            result.b = true;
+            return get_string(payload.object.begin()->second, payload_path + ".as_name", result.s);
+        }
 
         fail(path, &value, "unsupported Argument union tag " + tag);
         return false;
@@ -618,8 +868,30 @@ private:
             }
         }
 
-        const char* unsupported_maps[] = {"sym_bool_values", "sym_float_values", "custom_obj_values"};
-        for (size_t i = 0; i < 3; i++)
+        const Pt2JsonValue* sym_bools = field(value, "sym_bool_values", path, false);
+        if (sym_bools && !require_type(*sym_bools, Pt2JsonValue::Object, path + ".sym_bool_values", "object"))
+            return false;
+        if (sym_bools)
+        {
+            for (std::map<std::string, Pt2JsonValue>::const_iterator it = sym_bools->object.begin(); it != sym_bools->object.end(); ++it)
+            {
+                const std::string symbol_path = path + ".sym_bool_values." + it->first;
+                if (!require_type(it->second, Pt2JsonValue::Object, symbol_path, "SymBool union"))
+                    return false;
+                if (it->second.object.size() != 1 || it->second.object.begin()->first != "as_expr")
+                {
+                    fail(symbol_path, &it->second, "SymBool union must contain exactly one as_expr field");
+                    return false;
+                }
+                const Pt2JsonValue* expression = field(it->second.object.begin()->second, "expr_str", symbol_path + ".as_expr", true);
+                std::string ignored;
+                if (!expression || !get_string(*expression, symbol_path + ".as_expr.expr_str", ignored))
+                    return false;
+                program.sym_bools.insert(it->first);
+            }
+        }
+        const char* unsupported_maps[] = {"sym_float_values", "custom_obj_values"};
+        for (size_t i = 0; i < 2; i++)
         {
             const Pt2JsonValue* unsupported = field(value, unsupported_maps[i], path, false);
             if (unsupported && !require_type(*unsupported, Pt2JsonValue::Object, path + "." + unsupported_maps[i], "object"))
@@ -850,8 +1122,19 @@ private:
             return a.af == b.af;
         if (a.type == Pt2Argument::Bools)
             return a.ab == b.ab;
-        if (a.type == Pt2Argument::SymInt)
+        if (a.type == Pt2Argument::SymInt || a.type == Pt2Argument::SymBool)
             return a.b == b.b && (a.b ? a.s == b.s : a.i == b.i);
+        if (a.type == Pt2Argument::SymInts)
+        {
+            if (a.args.size() != b.args.size())
+                return false;
+            for (size_t i = 0; i < a.args.size(); i++)
+            {
+                if (!same_argument(a.args[i], b.args[i]))
+                    return false;
+            }
+            return true;
+        }
         return true;
     }
 
@@ -866,6 +1149,19 @@ private:
         {
             fail(path, 0, "unknown tensor value " + arg.s);
             return false;
+        }
+        if ((arg.type == Pt2Argument::SymInt || arg.type == Pt2Argument::SymBool) && arg.b && values.find(arg.s) == values.end())
+        {
+            fail(path, 0, "unknown symbolic value " + arg.s);
+            return false;
+        }
+        if (arg.type == Pt2Argument::SymInts)
+        {
+            for (size_t i = 0; i < arg.args.size(); i++)
+            {
+                if (!verify_argument(arg.args[i], values, path + "[" + std::to_string(i) + "]"))
+                    return false;
+            }
         }
         if (arg.type == Pt2Argument::Tensors || arg.type == Pt2Argument::OptionalTensors)
         {
@@ -905,8 +1201,8 @@ private:
         {
             const Pt2Node& node = program.nodes[i];
             const std::string path = "$.graph_module.graph.nodes[" + std::to_string(i) + "]";
-            if (node.target.compare(0, 15, "torch.ops.aten.") != 0)
-                return fail(path + ".target", 0, "only functional ATen operators are supported");
+            if (node.target.compare(0, 10, "torch.ops.") != 0 && node.target.compare(0, 10, "_operator.") != 0)
+                return fail(path + ".target", 0, "unsupported operator target");
             for (size_t j = 0; j < node.inputs.size(); j++)
             {
                 if (!verify_argument(node.inputs[j].arg, values, path + ".inputs[" + std::to_string(j) + "]"))
@@ -927,6 +1223,16 @@ private:
                         if (!values.insert(output.as[k]).second || program.tensors.find(output.as[k]) == program.tensors.end())
                             return fail(path + ".outputs[" + std::to_string(j) + "]", 0, "invalid tensor list output");
                     }
+                }
+                else if (output.type == Pt2Argument::SymInt && output.b)
+                {
+                    if (!values.insert(output.s).second || program.sym_ints.find(output.s) == program.sym_ints.end())
+                        return fail(path + ".outputs[" + std::to_string(j) + "]", 0, "invalid symbolic integer output");
+                }
+                else if (output.type == Pt2Argument::SymBool && output.b)
+                {
+                    if (!values.insert(output.s).second || program.sym_bools.find(output.s) == program.sym_bools.end())
+                        return fail(path + ".outputs[" + std::to_string(j) + "]", 0, "invalid symbolic bool output");
                 }
                 else if (output.type != Pt2Argument::None)
                     return fail(path + ".outputs[" + std::to_string(j) + "]", 0, "invalid tensor output");
@@ -974,6 +1280,9 @@ int parse_pt2_program(const unsigned char* data, size_t size, Pt2Program& progra
     program = Pt2Program();
     Pt2JsonValue root;
     if (parse_pt2_json(data, size, root, program.error) != 0)
+        return -1;
+    Pt2JsonValue& graph = root.object["graph_module"].object["graph"];
+    if (inline_higher_order_graph(graph, program.error) != 0)
         return -1;
     Pt2ProgramDecoder decoder(program);
     return decoder.decode(root);

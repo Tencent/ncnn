@@ -109,6 +109,12 @@ if(Torch_VERSION VERSION_GREATER_EQUAL "2.6")
                 --legacy ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/data/torch_2_6_0/state_and_constants.pt2
                 --archive ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/data/torch_2_12_1/state_and_constants.pt2)
     set_tests_properties(test_pt2_cli PROPERTIES LABELS "pt2;archive;cli")
+
+    add_test(NAME test_pt2_dynamic_shapes
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_dynamic_shapes.py
+                --pnnx $<TARGET_FILE:pnnx>
+                --workdir ${CMAKE_CURRENT_BINARY_DIR}/pt2-dynamic-shapes)
+    set_tests_properties(test_pt2_dynamic_shapes PROPERTIES LABELS "pt2;p9;dynamic")
 endif()
 
 add_test(NAME test_pt2_fixture_tools

@@ -248,7 +248,7 @@ private:
             const Pt2SymInt& size = it->second.sizes[i];
             if (size.symbolic)
                 return fail("dynamic tensor shape is unsupported for " + name);
-            if (size.value < 0 || size.value > INT_MAX)
+            if (size.value < -1 || size.value > INT_MAX)
                 return fail("invalid tensor dimension for " + name);
             operand->shape.push_back((int)size.value);
         }
@@ -316,12 +316,17 @@ private:
         const std::string name = generated_name();
         operator_names.insert(name);
         std::vector<Operand*> items;
-        const size_t count = arg.type == Pt2Argument::OptionalTensors ? arg.as.size() : arg.type == Pt2Argument::Bools ? arg.ab.size() : 0;
+        const size_t count = arg.type == Pt2Argument::OptionalTensors ? arg.as.size() : arg.type == Pt2Argument::Bools ? arg.ab.size() : arg.args.size();
         for (size_t i = 0; i < count; i++)
         {
             Operand* item = 0;
             if (arg.type == Pt2Argument::OptionalTensors && !arg.as[i].empty())
                 item = graph.get_operand(arg.as[i]);
+            else if (arg.type == Pt2Argument::SymInts)
+            {
+                if (materialize_argument(arg.args[i], item) != 0)
+                    return -1;
+            }
             else
             {
                 Pt2Argument value;
@@ -359,6 +364,11 @@ private:
             operand = graph.get_operand(arg.s);
             return operand ? 0 : fail("unknown tensor value " + arg.s);
         }
+        if (arg.type == Pt2Argument::SymInt && arg.b)
+        {
+            operand = graph.get_operand(arg.s);
+            return operand ? 0 : fail("unknown symbolic integer " + arg.s);
+        }
         if (arg.type == Pt2Argument::Tensors)
         {
             const std::string name = generated_name();
@@ -379,7 +389,7 @@ private:
             op->outputs.push_back(operand);
             return 0;
         }
-        if (arg.type == Pt2Argument::OptionalTensors || arg.type == Pt2Argument::Bools)
+        if (arg.type == Pt2Argument::OptionalTensors || arg.type == Pt2Argument::Bools || arg.type == Pt2Argument::SymInts)
             return add_list(arg, operand);
         if (arg.type == Pt2Argument::OptionalTensor)
         {
@@ -391,6 +401,14 @@ private:
 
     int parse_target(const std::string& target, std::string& name, std::string& overload)
     {
+        const std::string operator_prefix = "_operator.";
+        if (target.compare(0, operator_prefix.size(), operator_prefix) == 0)
+        {
+            name = "aten::" + target.substr(operator_prefix.size());
+            overload = "int";
+            return 0;
+        }
+
         const std::string prefix = "torch.ops.";
         if (target.compare(0, prefix.size(), prefix) != 0)
             return -1;
@@ -405,11 +423,44 @@ private:
         return 0;
     }
 
+    int lower_integer_operator(size_t index, const Pt2Node& node, const std::string& name)
+    {
+        if (name != "aten::add" && name != "aten::sub" && name != "aten::mul")
+            return fail_node(index, node, "unsupported symbolic integer operator");
+        if (node.inputs.size() != 2 || node.outputs.size() != 1 || node.outputs[0].type != Pt2Argument::SymInt || !node.outputs[0].b)
+            return fail_node(index, node, "invalid symbolic integer operator");
+
+        const std::string operator_name = !node.name.empty() ? node.name : node.outputs[0].s;
+        if (add_operator_name(operator_name) != 0)
+            return fail_node(index, node, error);
+        std::vector<Operand*> inputs;
+        for (size_t i = 0; i < node.inputs.size(); i++)
+        {
+            Operand* operand = 0;
+            if (materialize_argument(node.inputs[i].arg, operand) != 0)
+                return fail_node(index, node, error + " for argument " + node.inputs[i].name);
+            inputs.push_back(operand);
+        }
+        Operator* op = graph.new_operator(name, operator_name);
+        op->inputs = inputs;
+        for (size_t i = 0; i < inputs.size(); i++)
+        {
+            inputs[i]->consumers.push_back(op);
+            op->inputnames.push_back(node.inputs[i].name);
+        }
+        Operand* output = new_operand(node.outputs[0].s);
+        if (!output)
+            return fail_node(index, node, error);
+        output->producer = op;
+        op->outputs.push_back(output);
+        return 0;
+    }
+
     int lower_node(size_t index, const Pt2Node& node)
     {
         bool has_output = false;
         for (size_t i = 0; i < node.outputs.size(); i++)
-            has_output |= node.outputs[i].type != Pt2Argument::None;
+            has_output |= node.outputs[i].type == Pt2Argument::Tensor || node.outputs[i].type == Pt2Argument::Tensors || node.outputs[i].type == Pt2Argument::SymInt;
         if (!has_output)
             return 0;
 
@@ -417,6 +468,8 @@ private:
         std::string overload;
         if (parse_target(node.target, name, overload) != 0)
             return fail_node(index, node, "invalid operator target");
+        if (node.target.compare(0, 10, "_operator.") == 0)
+            return lower_integer_operator(index, node, name);
 
         const auto handle = c10::Dispatcher::singleton().findSchema(c10::OperatorName(name, overload));
         if (!handle)
@@ -484,8 +537,8 @@ private:
             operator_inputs[i]->consumers.push_back(op);
         for (size_t i = 0; i < node.outputs.size(); i++)
         {
-            if (node.outputs[i].type != Pt2Argument::Tensor && node.outputs[i].type != Pt2Argument::Tensors)
-                return fail_node(index, node, "only tensor outputs are supported", schema_stream.str());
+            if (node.outputs[i].type != Pt2Argument::Tensor && node.outputs[i].type != Pt2Argument::Tensors && node.outputs[i].type != Pt2Argument::SymInt)
+                return fail_node(index, node, "unsupported output type", schema_stream.str());
             if (node.outputs[i].type == Pt2Argument::Tensor)
             {
                 Operand* operand = new_operand(node.outputs[i].s);
@@ -494,7 +547,7 @@ private:
                 operand->producer = op;
                 op->outputs.push_back(operand);
             }
-            else
+            else if (node.outputs[i].type == Pt2Argument::Tensors)
             {
                 const std::string list_name = generated_name();
                 Operand* list = new_operand(list_name);
@@ -515,6 +568,14 @@ private:
                     operand->producer = unpack;
                     unpack->outputs.push_back(operand);
                 }
+            }
+            else
+            {
+                Operand* operand = new_operand(node.outputs[i].s);
+                if (!operand)
+                    return fail_node(index, node, error, schema_stream.str());
+                operand->producer = op;
+                op->outputs.push_back(operand);
             }
         }
         if (name == "aten::_weight_norm" && op->inputs.size() == 3
@@ -564,6 +625,8 @@ private:
             op->type = "torch.tril";
             op->inputnames[0] = "input";
         }
+        if (name == "aten::sym_size")
+            op->type = "aten::size";
         return 0;
     }
 

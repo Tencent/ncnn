@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -49,7 +50,9 @@ struct Pt2Argument
         MemoryFormat,
         Layout,
         Device,
-        SymInt
+        SymInt,
+        SymInts,
+        SymBool
     };
 
     Pt2Argument();
@@ -63,6 +66,7 @@ struct Pt2Argument
     std::vector<double> af;
     std::vector<std::string> as;
     std::vector<unsigned char> ab;
+    std::vector<Pt2Argument> args;
 };
 
 struct Pt2Tensor
@@ -135,6 +139,7 @@ struct Pt2Program
     std::vector<Pt2Node> nodes;
     std::map<std::string, Pt2Tensor> tensors;
     std::map<std::string, Pt2SymInt> sym_ints;
+    std::set<std::string> sym_bools;
     std::vector<Pt2InputSpec> input_specs;
     std::vector<Pt2OutputSpec> output_specs;
     std::map<std::string, Pt2RangeConstraint> range_constraints;

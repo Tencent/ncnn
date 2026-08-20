@@ -17,13 +17,7 @@ import torch
 UNSUPPORTED = {
     "Tensor_index": "torch.export cannot serialize the data-dependent indexed output shape",
     "torch_arange": "torch.export cannot guard the data-dependent arange step",
-    "torch_masked_select": "symbolic output shapes are part of the P9 dynamic-shape scope",
-    "transformers_funnel_attention": "symbolic boolean values are part of the P9 dynamic-shape scope",
-    "transformers_deepseek_v3_attention": "higher-order graph arguments are part of the P9 scope",
-    "transformers_qwen2_attention": "higher-order graph arguments are part of the P9 scope",
-    "transformers_qwen3_attention": "higher-order graph arguments are part of the P9 scope",
-    "torchvision_DeformConv2d": "TorchVision custom operators are part of the P9 custom-op scope",
-    "torchvision_RoIAlign": "TorchVision custom operators are part of the P9 custom-op scope",
+    "transformers_funnel_attention": "data-dependent symbolic floats require runtime scalar lowering",
     "transformers_longformer_attention": "PyTorch cannot deserialize its saved PT2 graph with an unused scalar output",
 }
 

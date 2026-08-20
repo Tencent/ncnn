@@ -483,7 +483,7 @@ int main(int argc, char** argv)
         else if (model_format_info.format == pnnx::ModelFormatPt2LegacyExportedProgram ||
                  model_format_info.format == pnnx::ModelFormatPt2Archive)
         {
-            int ret = load_pt2(ptpath, pnnx_graph);
+            int ret = load_pt2(ptpath, pnnx_graph, input_shapes, input_shapes2);
             if (ret != 0)
                 return ret;
         }
