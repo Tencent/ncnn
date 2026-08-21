@@ -4185,8 +4185,10 @@ static int sdpa_prefill_bf16s(const Mat& query, const Mat& key, const Mat& value
     const int key_seqlen = key.h;
     const int value_dim = value.w;
     const int num_query_heads_per_kv_head = num_query_heads / num_kv_heads;
-    const int num_threads = std::max(opt.num_threads, 1);
-    const int block_m = sdpa_prefill_block_m(query_seqlen, num_query_heads, num_kv_heads, value_dim, num_threads);
+    const int nT = std::max(opt.num_threads, 1);
+    const int block_m = sdpa_prefill_get_optimal_tile_m(query_seqlen, num_query_heads, nT);
+    const int num_mblocks = (query_seqlen + block_m - 1) / block_m;
+    const int num_tasks = num_query_heads * num_mblocks;
     const int num_mask_heads = attn_mask_blob.dims == 3 ? attn_mask_blob.c : 1;
     const bool use_packed_mask = !attn_mask_blob.empty() && block_m >= 4;
     const int key_reuse = (query_seqlen + block_m - 1) / block_m * num_query_heads_per_kv_head;
@@ -4200,10 +4202,8 @@ static int sdpa_prefill_bf16s(const Mat& query, const Mat& key, const Mat& value
     if (value_dim < 32)
         value_pack_reuse += 2;
     const bool use_packed_value = key_reuse >= value_pack_reuse;
-    const int block_n = sdpa_prefill_block_n(query.w, value_dim, key_seqlen, query_seqlen, 2, use_packed_value ? 4 : 2, use_packed_mask ? 4 : 0, block_m);
+    const int block_n = sdpa_prefill_get_optimal_tile_n(query.w, value_dim, key_seqlen, 2, 2, use_packed_value ? 4 : 2, attn_mask_blob.empty() ? 0 : 2, block_m, num_tasks, nT);
     const int state_stride = block_m;
-    const int num_mblocks = (query_seqlen + block_m - 1) / block_m;
-    const int num_tasks = num_query_heads * num_mblocks;
 
     const int num_key_blocks = (key_seqlen + block_n - 1) / block_n;
 
@@ -4238,9 +4238,9 @@ static int sdpa_prefill_bf16s(const Mat& query, const Mat& key, const Mat& value
     }
 
     int num_kv_chunks = 1;
-    if (num_tasks < num_threads && key_seqlen >= 512)
+    if (num_tasks < nT && num_key_blocks >= 2)
     {
-        num_kv_chunks = std::min((num_threads + num_tasks - 1) / num_tasks, num_key_blocks);
+        num_kv_chunks = std::min((nT + num_tasks - 1) / num_tasks, num_key_blocks);
         num_kv_chunks = std::max(num_kv_chunks, 1);
     }
 
@@ -4265,7 +4265,7 @@ static int sdpa_prefill_bf16s(const Mat& query, const Mat& key, const Mat& value
 
     const int query_workspace_size = num_kv_chunks > 1 ? 0 : (block_m * query.w + 1) / 2;
     const int workspace_size = (block_m * (block_n + value_dim) + query_workspace_size + 15) / 16 * 16;
-    Mat workspace(workspace_size, 1, num_threads, 4u, opt.workspace_allocator);
+    Mat workspace(workspace_size, 1, nT, 4u, opt.workspace_allocator);
     if (workspace.empty())
         return -100;
 

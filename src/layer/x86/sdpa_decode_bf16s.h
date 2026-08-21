@@ -1834,18 +1834,18 @@ static int sdpa_decode_bf16s(const Mat& query, const Mat& key, const Mat& value,
     const int key_seqlen = key.h;
     const int value_dim = value.w;
     const int num_query_heads_per_kv_head = num_query_heads / num_kv_heads;
-    const int block_q = sdpa_decode_block_q(num_query_heads_per_kv_head);
-    const int block_n = sdpa_decode_block_n(query.w, value_dim, key_seqlen, 2, 2, 2, attn_mask_blob.empty() ? 0 : 2, block_q);
+    const int nT = std::max(opt.num_threads, 1);
+    const int block_q = sdpa_decode_get_optimal_tile_q(num_query_heads_per_kv_head, num_kv_heads, nT);
     const int num_qblocks = (num_query_heads_per_kv_head + block_q - 1) / block_q;
     const int num_tasks = num_kv_heads * num_qblocks;
+    const int block_n = sdpa_decode_get_optimal_tile_n(query.w, value_dim, key_seqlen, 2, 2, 2, attn_mask_blob.empty() ? 0 : 2, block_q, num_tasks, nT);
     const int num_key_blocks = (key_seqlen + block_n - 1) / block_n;
     const bool use_packed_query = block_q >= 4 && num_query_heads_per_kv_head >= 4;
 
-    const int num_threads = std::max(opt.num_threads, 1);
     int num_kv_chunks = 1;
-    if (num_tasks < num_threads && num_key_blocks >= 2)
+    if (num_tasks < nT && num_key_blocks >= 2)
     {
-        num_kv_chunks = std::min((num_threads + num_tasks - 1) / num_tasks, num_key_blocks);
+        num_kv_chunks = std::min((nT + num_tasks - 1) / num_tasks, num_key_blocks);
         num_kv_chunks = std::max(num_kv_chunks, 1);
     }
 
@@ -1870,7 +1870,7 @@ static int sdpa_decode_bf16s(const Mat& query, const Mat& key, const Mat& value,
 
     const int query_workspace_size = use_packed_query ? (query.w * block_q + 1) / 2 : 0;
     const int workspace_size = (block_q * (block_n + value_dim) + query_workspace_size + 15) / 16 * 16;
-    Mat workspace(workspace_size, 1, num_threads, 4u, opt.workspace_allocator);
+    Mat workspace(workspace_size, 1, nT, 4u, opt.workspace_allocator);
     if (workspace.empty())
         return -100;
 

@@ -1,43 +1,70 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-static int sdpa_decode_block_q(int num_query_heads_per_kv_head)
+static int sdpa_decode_get_optimal_tile_q(int num_query_heads_per_kv_head, int num_kv_heads, int nT)
 {
 #if __SSE2__
+    int TILE_Q = 4;
 #if __AVX__
+    if (num_query_heads_per_kv_head >= 8)
+        TILE_Q = 8;
 #if __AVX512F__
     if (num_query_heads_per_kv_head >= 16)
-        return 16;
+        TILE_Q = 16;
 #endif // __AVX512F__
-    if (num_query_heads_per_kv_head >= 8)
-        return 8;
-#else
-    (void)num_query_heads_per_kv_head;
 #endif // __AVX__
-    return 4;
+
+    while (TILE_Q > 4)
+    {
+        const int num_tasks = num_kv_heads * ((num_query_heads_per_kv_head + TILE_Q - 1) / TILE_Q);
+        if (num_tasks >= nT)
+            break;
+
+        TILE_Q /= 2;
+    }
+
+    return TILE_Q;
 #else
     (void)num_query_heads_per_kv_head;
+    (void)num_kv_heads;
+    (void)nT;
     return 1;
 #endif // __SSE2__
 }
 
-static int sdpa_decode_block_n(int head_dim, int value_dim, int key_seqlen, int query_storage_size, int key_storage_size, int value_storage_size, int mask_storage_size, int block_q)
+static int sdpa_decode_get_optimal_tile_n(int head_dim, int value_dim, int key_seqlen, int query_storage_size, int key_storage_size, int value_storage_size, int mask_storage_size, int TILE_Q, int num_tasks, int nT)
 {
-    size_t l2_cache_size = get_cpu_level2_cache_size();
-    if (l2_cache_size == 0)
-        l2_cache_size = 256 * 1024;
+#if __AVX512F__
+    const int tile_n_align = 16;
+#elif __AVX__
+    const int tile_n_align = 8;
+#elif __SSE2__
+    const int tile_n_align = 4;
+#else
+    const int tile_n_align = 1;
+#endif
 
-    const size_t cache_budget = l2_cache_size * 3 / 4;
-    const size_t fixed_size = (size_t)block_q * ((size_t)head_dim * query_storage_size + (size_t)value_dim * sizeof(float));
-    const size_t size_per_token = (size_t)head_dim * key_storage_size + (size_t)value_dim * value_storage_size + (size_t)block_q * (sizeof(float) + mask_storage_size);
+    const size_t l2_cache_size = get_cpu_level2_cache_size();
+    const size_t fixed_size = (size_t)TILE_Q * ((size_t)head_dim * query_storage_size + (size_t)value_dim * sizeof(float));
+    const size_t size_per_token = (size_t)head_dim * key_storage_size + (size_t)value_dim * value_storage_size + (size_t)TILE_Q * (sizeof(float) + mask_storage_size);
 
-    int block_n = 64;
-    if (fixed_size + size_per_token * 256 <= cache_budget)
-        block_n = 256;
-    else if (fixed_size + size_per_token * 128 <= cache_budget)
-        block_n = 128;
+    size_t tile_size = l2_cache_size > fixed_size ? (l2_cache_size - fixed_size) / size_per_token : 0;
+    tile_size = std::min(tile_size, (size_t)key_seqlen);
+    int TILE_N = (int)tile_size;
+    TILE_N = std::max(tile_n_align, TILE_N / tile_n_align * tile_n_align);
 
-    return std::min(block_n, key_seqlen);
+    const int cache_blocks = (key_seqlen - 1) / TILE_N + 1;
+    const int parallel_blocks = num_tasks < nT ? (nT - 1) / num_tasks + 1 : 1;
+    const int max_blocks = (key_seqlen - 1) / tile_n_align + 1;
+    const int num_blocks = std::min(std::max(cache_blocks, parallel_blocks), max_blocks);
+
+    TILE_N = (key_seqlen - 1) / num_blocks + 1;
+    if (parallel_blocks > cache_blocks)
+        TILE_N = std::max(tile_n_align, TILE_N / tile_n_align * tile_n_align);
+    else
+        TILE_N = (TILE_N + tile_n_align - 1) / tile_n_align * tile_n_align;
+
+    return TILE_N;
 }
 
 static void sdpa_decode_pack_query_fp32(const Mat& query, Mat& queryT, float scale, int q0, int max_qq)
@@ -2015,18 +2042,18 @@ static int sdpa_decode_fp32(const Mat& query, const Mat& key, const Mat& value, 
     const int key_seqlen = key.h;
     const int value_dim = value.w;
     const int num_query_heads_per_kv_head = num_query_heads / num_kv_heads;
-    const int block_q = sdpa_decode_block_q(num_query_heads_per_kv_head);
-    const int block_n = sdpa_decode_block_n(query.w, value_dim, key_seqlen, 4, 4, 4, attn_mask_blob.empty() ? 0 : 4, block_q);
+    const int nT = std::max(opt.num_threads, 1);
+    const int block_q = sdpa_decode_get_optimal_tile_q(num_query_heads_per_kv_head, num_kv_heads, nT);
     const int num_qblocks = (num_query_heads_per_kv_head + block_q - 1) / block_q;
     const int num_tasks = num_kv_heads * num_qblocks;
+    const int block_n = sdpa_decode_get_optimal_tile_n(query.w, value_dim, key_seqlen, 4, 4, 4, attn_mask_blob.empty() ? 0 : 4, block_q, num_tasks, nT);
     const int num_key_blocks = (key_seqlen + block_n - 1) / block_n;
     const bool use_packed_query = block_q >= 4 && num_query_heads_per_kv_head >= 4;
 
-    const int num_threads = std::max(opt.num_threads, 1);
     int num_kv_chunks = 1;
-    if (num_tasks < num_threads && num_key_blocks >= 2)
+    if (num_tasks < nT && num_key_blocks >= 2)
     {
-        num_kv_chunks = std::min((num_threads + num_tasks - 1) / num_tasks, num_key_blocks);
+        num_kv_chunks = std::min((nT + num_tasks - 1) / num_tasks, num_key_blocks);
         num_kv_chunks = std::max(num_kv_chunks, 1);
     }
 
@@ -2051,7 +2078,7 @@ static int sdpa_decode_fp32(const Mat& query, const Mat& key, const Mat& value, 
 
     const int query_workspace_size = use_packed_query ? query.w * block_q : 0;
     const int workspace_size = (block_q * (block_n + value_dim) + query_workspace_size + 15) / 16 * 16;
-    Mat workspace(workspace_size, 1, num_threads, 4u, opt.workspace_allocator);
+    Mat workspace(workspace_size, 1, nT, 4u, opt.workspace_allocator);
     if (workspace.empty())
         return -100;
 
