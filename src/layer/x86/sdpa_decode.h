@@ -28,7 +28,7 @@ static int sdpa_decode_block_n(int head_dim, int value_dim, int key_seqlen, int 
         l2_cache_size = 256 * 1024;
 
     const size_t cache_budget = l2_cache_size * 3 / 4;
-    const size_t fixed_size = (size_t)block_q * (head_dim * query_storage_size + value_dim * sizeof(float));
+    const size_t fixed_size = (size_t)block_q * ((size_t)head_dim * query_storage_size + (size_t)value_dim * sizeof(float));
     const size_t size_per_token = (size_t)head_dim * key_storage_size + (size_t)value_dim * value_storage_size + (size_t)block_q * (sizeof(float) + mask_storage_size);
 
     int block_n = 64;
