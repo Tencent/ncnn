@@ -3,87 +3,50 @@
 
 #include "perfutil.h"
 
-// prefill phase: larger src_seqlen, no kv_cache (past_seqlen=0)
-static void perf_sdpa_prefill(int embed_dim, int num_heads, int num_groups, int src_seqlen)
+static void perf_sdpa_prefill(int head_dim, int value_dim, int num_heads, int num_kv_heads, int src_seqlen)
 {
-    const int cur_seqlen = src_seqlen; // in prefill, cur_seqlen == src_seqlen
-    const int out_embed_dim = embed_dim;
-
     ncnn::ParamDict pd;
     pd.set(5, 0);   // attn_mask = 0
-    pd.set(6, 0.f); // scale = 0 (default 1/sqrt(embed_dim))
-    pd.set(7, 0);   // kv_cache = 0 (no cache in prefill)
+    pd.set(6, 0.f); // scale = 0
 
     std::vector<ncnn::Mat> weights(0);
 
-    // inputs: q, k, v
     std::vector<ncnn::Mat> inputs(3);
-    inputs[0] = PerfMat(embed_dim, src_seqlen, num_heads);      // q
-    inputs[1] = PerfMat(embed_dim, cur_seqlen, num_groups);     // k
-    inputs[2] = PerfMat(out_embed_dim, cur_seqlen, num_groups); // v
+    inputs[0] = PerfMat(head_dim, src_seqlen, num_heads);
+    inputs[1] = PerfMat(head_dim, src_seqlen, num_kv_heads);
+    inputs[2] = PerfMat(value_dim, src_seqlen, num_kv_heads);
 
     perf_layer("SDPA", pd, weights, inputs, 1,
-               "embed=%d heads=%d groups=%d seqlen=%d",
-               embed_dim, num_heads, num_groups, src_seqlen);
+               "head_dim=%d value_dim=%d heads=%d kv_heads=%d seqlen=%d",
+               head_dim, value_dim, num_heads, num_kv_heads, src_seqlen);
 }
 
 int main()
 {
-    // typical LLM configurations for prefill phase
-    // format: (embed_dim, num_heads, num_groups, src_seqlen)
+    perf_sdpa_prefill(64, 64, 8, 8, 16);
+    perf_sdpa_prefill(64, 64, 8, 8, 64);
+    perf_sdpa_prefill(64, 64, 8, 8, 128);
+    perf_sdpa_prefill(64, 64, 8, 8, 256);
+    perf_sdpa_prefill(128, 128, 8, 8, 1024);
 
-    // small model, various sequence lengths
-    perf_sdpa_prefill(128, 4, 4, 16);
-    perf_sdpa_prefill(128, 4, 4, 32);
-    perf_sdpa_prefill(128, 4, 4, 64);
-    perf_sdpa_prefill(128, 4, 4, 128);
-    perf_sdpa_prefill(128, 4, 4, 256);
-    perf_sdpa_prefill(128, 4, 4, 512);
+    perf_sdpa_prefill(128, 128, 32, 32, 16);
+    perf_sdpa_prefill(128, 128, 32, 32, 64);
+    perf_sdpa_prefill(128, 128, 32, 32, 128);
+    perf_sdpa_prefill(128, 128, 32, 32, 256);
+    perf_sdpa_prefill(128, 128, 32, 32, 512);
 
-    // medium model
-    perf_sdpa_prefill(512, 8, 8, 16);
-    perf_sdpa_prefill(512, 8, 8, 32);
-    perf_sdpa_prefill(512, 8, 8, 64);
-    perf_sdpa_prefill(512, 8, 8, 128);
-    perf_sdpa_prefill(512, 8, 8, 256);
-    perf_sdpa_prefill(512, 8, 8, 512);
-    perf_sdpa_prefill(512, 8, 8, 1024);
+    perf_sdpa_prefill(128, 128, 32, 8, 64);
+    perf_sdpa_prefill(128, 128, 32, 8, 128);
+    perf_sdpa_prefill(128, 128, 32, 8, 256);
+    perf_sdpa_prefill(128, 128, 32, 8, 512);
 
-    // larger model (e.g., 7B scale)
-    perf_sdpa_prefill(4096, 32, 32, 16);
-    perf_sdpa_prefill(4096, 32, 32, 32);
-    perf_sdpa_prefill(4096, 32, 32, 64);
-    perf_sdpa_prefill(4096, 32, 32, 128);
-    perf_sdpa_prefill(4096, 32, 32, 256);
-    perf_sdpa_prefill(4096, 32, 32, 512);
-    perf_sdpa_prefill(4096, 32, 32, 1024);
-    perf_sdpa_prefill(4096, 32, 32, 2048);
-    perf_sdpa_prefill(4096, 32, 32, 4096);
+    perf_sdpa_prefill(128, 128, 32, 1, 64);
+    perf_sdpa_prefill(128, 128, 32, 1, 256);
 
-    // GQA/MQA configurations
-    // GQA: num_groups < num_heads
-    perf_sdpa_prefill(4096, 32, 4, 128);
-    perf_sdpa_prefill(4096, 32, 4, 256);
-    perf_sdpa_prefill(4096, 32, 4, 512);
-    perf_sdpa_prefill(4096, 32, 4, 1024);
-    perf_sdpa_prefill(4096, 32, 4, 2048);
-    perf_sdpa_prefill(4096, 32, 4, 4096);
-
-    // MQA: num_groups = 1
-    perf_sdpa_prefill(4096, 32, 1, 128);
-    perf_sdpa_prefill(4096, 32, 1, 256);
-    perf_sdpa_prefill(4096, 32, 1, 512);
-    perf_sdpa_prefill(4096, 32, 1, 1024);
-    perf_sdpa_prefill(4096, 32, 1, 2048);
-    perf_sdpa_prefill(4096, 32, 1, 4096);
-
-    // very long sequences
-    perf_sdpa_prefill(4096, 32, 32, 8192);
-    perf_sdpa_prefill(4096, 32, 32, 16384);
-    perf_sdpa_prefill(4096, 32, 32, 32768);
-    perf_sdpa_prefill(4096, 32, 4, 8192);
-    perf_sdpa_prefill(4096, 32, 4, 16384);
-    perf_sdpa_prefill(4096, 32, 4, 32768);
+    perf_sdpa_prefill(80, 96, 14, 2, 128);
+    perf_sdpa_prefill(96, 80, 16, 4, 512);
+    perf_sdpa_prefill(192, 128, 16, 16, 128);
+    perf_sdpa_prefill(256, 192, 8, 8, 64);
 
     return 0;
 }
