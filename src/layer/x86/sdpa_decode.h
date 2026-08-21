@@ -1650,7 +1650,7 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
 
 static void sdpa_decode_reduce(const Mat& partials, Mat& top_blob, Mat& workspace, int num_tasks, int num_qblocks, int block_q, int num_kv_chunks, int num_query_heads_per_kv_head, int value_dim, const Option& opt)
 {
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int task_id = 0; task_id < num_tasks; task_id++)
     {
         const int g = task_id / num_qblocks;
@@ -2031,7 +2031,7 @@ static int sdpa_decode_fp32(const Mat& query, const Mat& key, const Mat& value, 
         if (packed_query.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int task_id = 0; task_id < num_tasks; task_id++)
         {
             const int g = task_id / num_qblocks;
@@ -2057,7 +2057,7 @@ static int sdpa_decode_fp32(const Mat& query, const Mat& key, const Mat& value, 
             return -100;
     }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int ti = 0; ti < num_tasks * num_kv_chunks; ti++)
     {
         const int task_id = ti / num_kv_chunks;
