@@ -452,7 +452,7 @@ static NCNN_FORCEINLINE __m128i float2bfloat_sse(const __m128& v0, const __m128&
 {
 #if __AVX512BF16__
     __m128i _v = (__m128i)_mm_cvtne2ps_pbh(v1, v0);
-#elif __AVX2__
+#elif __AVX512F__
     __m256i _ab = _mm256_castps_si256(combine4x2_ps(v0, v1));
     _ab = _mm256_srli_epi32(_mm256_add_epi32(_ab, _mm256_set1_epi32(0x8000)), 16);
     __m128i _v = _mm256_cvtepi32_epi16(_ab);
