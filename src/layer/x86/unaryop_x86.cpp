@@ -221,12 +221,23 @@ int UnaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 int unaryop_bf16s_sse_avx512bf16(Mat& bottom_top_blob, int op_type, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+int unaryop_bf16s_sse_avx2(Mat& bottom_top_blob, int op_type, const Option& opt);
+#endif
+
 static int unaryop_bf16s_sse(Mat& bottom_top_blob, int op_type, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         return unaryop_bf16s_sse_avx512bf16(bottom_top_blob, op_type, opt);
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        return unaryop_bf16s_sse_avx2(bottom_top_blob, op_type, opt);
     }
 #endif
 

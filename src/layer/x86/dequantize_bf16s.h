@@ -5,6 +5,10 @@
 void dequantize_forward_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Mat& bias_data, int bias_data_size, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+void dequantize_forward_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Mat& bias_data, int bias_data_size, const Option& opt);
+#endif
+
 static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& scale_data, const Mat& bias_data, int elemcount, int elempack)
 {
     const int scale_data_size = scale_data.w;
@@ -203,6 +207,14 @@ static int dequantize_forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         dequantize_forward_bf16s_avx512bf16(bottom_blob, top_blob, scale_data, scale_data_size, bias_data, bias_data_size, opt);
+        return 0;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        dequantize_forward_bf16s_avx2(bottom_blob, top_blob, scale_data, scale_data_size, bias_data, bias_data_size, opt);
         return 0;
     }
 #endif

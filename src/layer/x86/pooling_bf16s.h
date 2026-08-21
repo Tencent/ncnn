@@ -8,12 +8,27 @@ void pooling_max_bf16s_sse_avx512bf16(const Mat& bottom_blob_bordered, Mat& top_
 void pooling_avg_bf16s_sse_avx512bf16(const Mat& bottom_blob_bordered, const Mat& bottom_blob, Mat& top_blob, int kernel_w, int kernel_h, int stride_w, int stride_h, int pad_left, int pad_right, int pad_top, int pad_bottom, int pad_mode, int avgpool_count_include_pad, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+void pooling_global_max_bf16s_sse_avx2(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+void pooling_global_avg_bf16s_sse_avx2(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+void pooling_max_bf16s_sse_avx2(const Mat& bottom_blob_bordered, Mat& top_blob, int kernel_w, int kernel_h, int stride_w, int stride_h, const Option& opt);
+void pooling_avg_bf16s_sse_avx2(const Mat& bottom_blob_bordered, const Mat& bottom_blob, Mat& top_blob, int kernel_w, int kernel_h, int stride_w, int stride_h, int pad_left, int pad_right, int pad_top, int pad_bottom, int pad_mode, int avgpool_count_include_pad, const Option& opt);
+#endif
+
 static void pooling_global_max_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         pooling_global_max_bf16s_sse_avx512bf16(bottom_blob, top_blob, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        pooling_global_max_bf16s_sse_avx2(bottom_blob, top_blob, opt);
         return;
     }
 #endif
@@ -125,6 +140,14 @@ static void pooling_global_avg_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, 
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         pooling_global_avg_bf16s_sse_avx512bf16(bottom_blob, top_blob, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        pooling_global_avg_bf16s_sse_avx2(bottom_blob, top_blob, opt);
         return;
     }
 #endif
@@ -241,6 +264,14 @@ static void pooling_max_bf16s_sse(const Mat& bottom_blob_bordered, Mat& top_blob
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         pooling_max_bf16s_sse_avx512bf16(bottom_blob_bordered, top_blob, kernel_w, kernel_h, stride_w, stride_h, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        pooling_max_bf16s_sse_avx2(bottom_blob_bordered, top_blob, kernel_w, kernel_h, stride_w, stride_h, opt);
         return;
     }
 #endif
@@ -411,6 +442,14 @@ static void pooling_avg_bf16s_sse(const Mat& bottom_blob_bordered, const Mat& bo
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         pooling_avg_bf16s_sse_avx512bf16(bottom_blob_bordered, bottom_blob, top_blob, kernel_w, kernel_h, stride_w, stride_h, pad_left, pad_right, pad_top, pad_bottom, pad_mode, avgpool_count_include_pad, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        pooling_avg_bf16s_sse_avx2(bottom_blob_bordered, bottom_blob, top_blob, kernel_w, kernel_h, stride_w, stride_h, pad_left, pad_right, pad_top, pad_bottom, pad_mode, avgpool_count_include_pad, opt);
         return;
     }
 #endif

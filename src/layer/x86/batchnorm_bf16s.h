@@ -6,12 +6,25 @@ void batchnorm_bf16s_sse_avx512bf16(unsigned short* ptr, const float* a, const f
 void batchnorm_bf16s_per_element_sse_avx512bf16(unsigned short* ptr, const float* a, const float* b, int size, int num_threads);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+void batchnorm_bf16s_sse_avx2(unsigned short* ptr, const float* a, const float* b, int size, int elempack);
+void batchnorm_bf16s_per_element_sse_avx2(unsigned short* ptr, const float* a, const float* b, int size, int num_threads);
+#endif
+
 static void batchnorm_bf16s_sse(unsigned short* ptr, const float* a, const float* b, int size, int elempack)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         batchnorm_bf16s_sse_avx512bf16(ptr, a, b, size, elempack);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        batchnorm_bf16s_sse_avx2(ptr, a, b, size, elempack);
         return;
     }
 #endif
@@ -73,6 +86,14 @@ static void batchnorm_bf16s_per_element_sse(unsigned short* ptr, const float* a,
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         batchnorm_bf16s_per_element_sse_avx512bf16(ptr, a, b, size, num_threads);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        batchnorm_bf16s_per_element_sse_avx2(ptr, a, b, size, num_threads);
         return;
     }
 #endif

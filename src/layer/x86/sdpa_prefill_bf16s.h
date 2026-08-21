@@ -5,6 +5,10 @@
 int sdpa_prefill_bf16s_avx512bf16(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+int sdpa_prefill_bf16s_avx2(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
+#endif
+
 // packed_key[block][key_panel][head_dim][key_lane] in bf16
 // avx512bf16 pairs adjacent head_dim values in each key lane
 static void sdpa_pack_key_bf16s(const Mat& key, Mat& packed_key, int block_n, const Option& opt)
@@ -4140,6 +4144,11 @@ static int sdpa_prefill_bf16s(const Mat& query, const Mat& key, const Mat& value
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
         return sdpa_prefill_bf16s_avx512bf16(query, key, value, attn_mask_blob, top_blob, scale, opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+        return sdpa_prefill_bf16s_avx2(query, key, value, attn_mask_blob, top_blob, scale, opt);
 #endif
 
     const int query_seqlen = query.h;

@@ -5,12 +5,24 @@
 void dropout_bf16s_avx512bf16(Mat& a, float scale, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+void dropout_bf16s_avx2(Mat& a, float scale, const Option& opt);
+#endif
+
 static void dropout_bf16s(Mat& a, float scale, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         dropout_bf16s_avx512bf16(a, scale, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        dropout_bf16s_avx2(a, scale, opt);
         return;
     }
 #endif

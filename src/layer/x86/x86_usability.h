@@ -1120,6 +1120,8 @@ static NCNN_FORCEINLINE __m256 bfloat2float_avx(const __m128i& v0)
 {
 #if __AVX512BF16__
     __m256 _v = _mm256_cvtpbh_ps((__m128bh)v0);
+#elif __AVX2__
+    __m256 _v = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(v0), 16));
 #else
     __m128i _zero = _mm_setzero_si128();
     __m128i _a = _mm_unpacklo_epi16(_zero, v0);
