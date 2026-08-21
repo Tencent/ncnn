@@ -32,6 +32,7 @@ static void sdpa_pack_key_bf16s(const Mat& key, Mat& packed_key, int block_n, co
         const int max_jj = std::min(block_n, key_seqlen - n);
         int j = 0;
 #if __SSE2__
+#if defined(__x86_64__) || defined(_M_X64)
 #if __AVX__
 #if __AVX512F__
         for (; j + 15 < max_jj; j += 16)
@@ -262,6 +263,7 @@ static void sdpa_pack_key_bf16s(const Mat& key, Mat& packed_key, int block_n, co
             }
         }
 #endif // __AVX__
+#endif // defined(__x86_64__) || defined(_M_X64)
         for (; j + 3 < max_jj; j += 4)
         {
             const unsigned short* p0 = key_base + (size_t)j * head_dim;
@@ -347,6 +349,7 @@ static void sdpa_pack_value_bf16s(const Mat& value, Mat& packed_value, int block
 
         int d = 0;
 #if __SSE2__
+#if defined(__x86_64__) || defined(_M_X64)
 #if __AVX__
 #if __AVX512F__
         for (; d + 15 < value_dim; d += 16)
@@ -391,6 +394,7 @@ static void sdpa_pack_value_bf16s(const Mat& value, Mat& packed_value, int block
             }
         }
 #endif // __AVX__
+#endif // defined(__x86_64__) || defined(_M_X64)
         for (; d + 3 < value_dim; d += 4)
         {
             const unsigned short* p0 = value_base + d;
@@ -1003,6 +1007,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                 const __m512 _scale = _mm512_set1_ps(scale);
                 __m512 _max = _mm512_set1_ps(-FLT_MAX);
                 int j = 0;
+#if defined(__x86_64__) || defined(_M_X64)
                 for (; j + 7 < max_jj; j += 8)
                 {
                     const unsigned short* pQ = queryT;
@@ -1094,6 +1099,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                     _max = _mm512_max_ps(_max, _mm512_max_ps(_mm512_max_ps(_max0, _max1), _mm512_max_ps(_max2, _max3)));
                     scoreptr += 128;
                 }
+#endif // defined(__x86_64__) || defined(_M_X64)
                 for (; j + 3 < max_jj; j += 4)
                 {
                     const unsigned short* pQ = queryT;
@@ -1191,6 +1197,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                 const __m512 _scale = _mm512_set1_ps(scale);
                 __m512 _max = _mm512_set1_ps(-FLT_MAX);
                 int j = 0;
+#if defined(__x86_64__) || defined(_M_X64)
                 for (; j + 15 < max_jj; j += 16)
                 {
                     __m512 _sum0 = _mm512_setzero_ps();
@@ -1562,6 +1569,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                     _max = _mm512_max_ps(_max, _mm512_max_ps(_mm512_max_ps(_max0, _max1), _mm512_max_ps(_max2, _max3)));
                     scoreptr += 128;
                 }
+#endif // defined(__x86_64__) || defined(_M_X64)
                 for (; j + 3 < max_jj; j += 4)
                 {
                     __m512 _sum0 = _mm512_setzero_ps();
@@ -1722,6 +1730,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                 const unsigned short* value = value_head.row<const unsigned short>(n);
                 const unsigned short* valueptr = value;
                 int d = 0;
+#if defined(__x86_64__) || defined(_M_X64)
                 for (; d + 15 < value_dim; d += 16)
                 {
                     __m512 _out0 = _mm512_mul_ps(_mm512_loadu_ps(outptr), _alpha);
@@ -1828,6 +1837,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                     outptr += 128;
                     valueptr += 8;
                 }
+#endif // defined(__x86_64__) || defined(_M_X64)
                 for (; d + 3 < value_dim; d += 4)
                 {
                     __m512 _out0 = _mm512_mul_ps(_mm512_loadu_ps(outptr), _alpha);
@@ -1875,6 +1885,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                 const float* packed_value_tile = packed_value_head.row(n / block_n);
                 const float* pV = packed_value_tile;
                 int d = 0;
+#if defined(__x86_64__) || defined(_M_X64)
                 for (; d + 15 < value_dim; d += 16)
                 {
                     __m512 _out0 = _mm512_mul_ps(_mm512_loadu_ps(outptr), _alpha);
@@ -1969,6 +1980,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                     _mm512_storeu_ps(outptr + 112, _out7);
                     outptr += 128;
                 }
+#endif // defined(__x86_64__) || defined(_M_X64)
                 for (; d + 3 < value_dim; d += 4)
                 {
                     __m512 _out0 = _mm512_mul_ps(_mm512_loadu_ps(outptr), _alpha);
@@ -2039,6 +2051,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                 const __m256 _scale = _mm256_set1_ps(scale);
                 __m256 _max = _mm256_set1_ps(-FLT_MAX);
                 int j = 0;
+#if defined(__x86_64__) || defined(_M_X64)
                 for (; j + 7 < max_jj; j += 8)
                 {
                     const unsigned short* pQ = queryT;
@@ -2130,6 +2143,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                     _max = _mm256_max_ps(_max, _mm256_max_ps(_mm256_max_ps(_max0, _max1), _mm256_max_ps(_max2, _max3)));
                     scoreptr += 64;
                 }
+#endif // defined(__x86_64__) || defined(_M_X64)
                 for (; j + 3 < max_jj; j += 4)
                 {
                     const unsigned short* pQ = queryT;
@@ -2227,6 +2241,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                 const __m256 _scale = _mm256_set1_ps(scale);
                 __m256 _max = _mm256_set1_ps(-FLT_MAX);
                 int j = 0;
+#if defined(__x86_64__) || defined(_M_X64)
 #if __AVX512F__
                 for (; j + 15 < max_jj; j += 16)
                 {
@@ -2523,6 +2538,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                     _max = _mm256_max_ps(_max, _mm256_max_ps(_mm256_max_ps(_max0, _max1), _mm256_max_ps(_max2, _max3)));
                     scoreptr += 64;
                 }
+#endif // defined(__x86_64__) || defined(_M_X64)
                 for (; j + 3 < max_jj; j += 4)
                 {
                     __m256 _sum0 = _mm256_setzero_ps();
@@ -2684,6 +2700,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                 const unsigned short* value = value_head.row<const unsigned short>(n);
                 const unsigned short* valueptr = value;
                 int d = 0;
+#if defined(__x86_64__) || defined(_M_X64)
 #if __AVX512F__
                 for (; d + 15 < value_dim; d += 16)
                 {
@@ -2794,6 +2811,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                     outptr += 64;
                     valueptr += 8;
                 }
+#endif // defined(__x86_64__) || defined(_M_X64)
                 for (; d + 3 < value_dim; d += 4)
                 {
                     __m256 _out0 = _mm256_mul_ps(_mm256_loadu_ps(outptr), _alpha);
@@ -2842,6 +2860,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                 const float* packed_value_tile = packed_value_head.row(n / block_n);
                 const float* pV = packed_value_tile;
                 int d = 0;
+#if defined(__x86_64__) || defined(_M_X64)
 #if __AVX512F__
                 for (; d + 15 < value_dim; d += 16)
                 {
@@ -2938,6 +2957,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                     _mm256_storeu_ps(outptr + 56, _out7);
                     outptr += 64;
                 }
+#endif // defined(__x86_64__) || defined(_M_X64)
                 for (; d + 3 < value_dim; d += 4)
                 {
                     __m256 _out0 = _mm256_mul_ps(_mm256_loadu_ps(outptr), _alpha);
@@ -3106,6 +3126,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                 const __m128 _scale = _mm_set1_ps(scale);
                 __m128 _max = _mm_set1_ps(-FLT_MAX);
                 int j = 0;
+#if defined(__x86_64__) || defined(_M_X64)
 #if __AVX__
 #if __AVX512F__
                 for (; j + 15 < max_jj; j += 16)
@@ -3335,6 +3356,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                     scoreptr += 32;
                 }
 #endif // __AVX__
+#endif // defined(__x86_64__) || defined(_M_X64)
                 for (; j + 3 < max_jj; j += 4)
                 {
                     __m128 _sum0 = _mm_setzero_ps();
@@ -3496,6 +3518,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                 const unsigned short* value = value_head.row<const unsigned short>(n);
                 const unsigned short* valueptr = value;
                 int d = 0;
+#if defined(__x86_64__) || defined(_M_X64)
 #if __AVX__
 #if __AVX512F__
                 for (; d + 15 < value_dim; d += 16)
@@ -3606,6 +3629,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                     valueptr += 8;
                 }
 #endif // __AVX__
+#endif // defined(__x86_64__) || defined(_M_X64)
                 for (; d + 3 < value_dim; d += 4)
                 {
                     __m128 _out0 = _mm_mul_ps(_mm_loadu_ps(outptr), _alpha);
@@ -3653,6 +3677,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                 const float* packed_value_tile = packed_value_head.row(n / block_n);
                 const float* pV = packed_value_tile;
                 int d = 0;
+#if defined(__x86_64__) || defined(_M_X64)
 #if __AVX__
 #if __AVX512F__
                 for (; d + 15 < value_dim; d += 16)
@@ -3751,6 +3776,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                     outptr += 32;
                 }
 #endif // __AVX__
+#endif // defined(__x86_64__) || defined(_M_X64)
                 for (; d + 3 < value_dim; d += 4)
                 {
                     __m128 _out0 = _mm_mul_ps(_mm_loadu_ps(outptr), _alpha);
@@ -4058,6 +4084,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                 const float* pV = packed_value_tile;
                 int d = 0;
 #if __SSE2__
+#if defined(__x86_64__) || defined(_M_X64)
 #if __AVX__
 #if __AVX512F__
                 for (; d + 15 < value_dim; d += 16)
@@ -4082,6 +4109,7 @@ static void sdpa_flash_attention_tile_bf16s(const Mat& query, const Mat& key, co
                     _mm256_storeu_ps(out + d, _out);
                 }
 #endif // __AVX__
+#endif // defined(__x86_64__) || defined(_M_X64)
                 for (; d + 3 < value_dim; d += 4)
                 {
                     __m128 _out = _mm_mul_ps(_mm_loadu_ps(out + d), _mm_set1_ps(alpha));

@@ -364,6 +364,7 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
             float* outptr = outT;
             const float* valueptr = value_head.row(n);
             int d = 0;
+#if defined(__x86_64__) || defined(_M_X64)
             for (; d + 7 < value_dim; d += 8)
             {
                 __m512 _out0 = _mm512_mul_ps(_mm512_loadu_ps(outptr + 0), _alpha);
@@ -401,6 +402,7 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
                 outptr += 128;
                 valueptr += 8;
             }
+#endif // defined(__x86_64__) || defined(_M_X64)
             for (; d + 3 < value_dim; d += 4)
             {
                 __m512 _out0 = _mm512_mul_ps(_mm512_loadu_ps(outptr + 0), _alpha);
@@ -708,6 +710,7 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
             float* outptr = outT;
             const float* valueptr = value_head.row(n);
             int d = 0;
+#if defined(__x86_64__) || defined(_M_X64)
             for (; d + 7 < value_dim; d += 8)
             {
                 __m256 _out0 = _mm256_mul_ps(_mm256_loadu_ps(outptr + 0), _alpha);
@@ -745,6 +748,7 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
                 outptr += 64;
                 valueptr += 8;
             }
+#endif // defined(__x86_64__) || defined(_M_X64)
             for (; d + 3 < value_dim; d += 4)
             {
                 __m256 _out0 = _mm256_mul_ps(_mm256_loadu_ps(outptr + 0), _alpha);
@@ -1115,6 +1119,7 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
             const float* value = value_head.row(n);
             const float* valueptr = value;
             int d = 0;
+#if defined(__x86_64__) || defined(_M_X64)
 #if __AVX__
 #if __AVX512F__
             for (; d + 15 < value_dim; d += 16)
@@ -1217,6 +1222,7 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
                 valueptr += 8;
             }
 #endif // __AVX__
+#endif // defined(__x86_64__) || defined(_M_X64)
             for (; d + 3 < value_dim; d += 4)
             {
                 __m128 _out0 = _mm_mul_ps(_mm_loadu_ps(outptr), _alpha);
