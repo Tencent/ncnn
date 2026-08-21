@@ -62,10 +62,10 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
             asm volatile(
                 "prfm   pldl1keep, [%0, #512]   \n"
                 "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
-                "shrn   v0.4h, v0.4s, #16       \n"
-                "shrn   v1.4h, v1.4s, #16       \n"
-                "shrn   v2.4h, v2.4s, #16       \n"
-                "shrn   v3.4h, v3.4s, #16       \n"
+                "rshrn  v0.4h, v0.4s, #16       \n"
+                "rshrn  v1.4h, v1.4s, #16       \n"
+                "rshrn  v2.4h, v2.4s, #16       \n"
+                "rshrn  v3.4h, v3.4s, #16       \n"
                 "st1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%1], #32 \n"
                 : "=r"(ptr),   // %0
                 "=r"(outptr) // %1
@@ -77,10 +77,10 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
             asm volatile(
                 "pld        [%0, #512]      \n"
                 "vldm       %0!, {d0-d7}    \n"
-                "vshrn.u32  d0, q0, #16     \n"
-                "vshrn.u32  d1, q1, #16     \n"
-                "vshrn.u32  d2, q2, #16     \n"
-                "vshrn.u32  d3, q3, #16     \n"
+                "vrshrn.u32 d0, q0, #16     \n"
+                "vrshrn.u32 d1, q1, #16     \n"
+                "vrshrn.u32 d2, q2, #16     \n"
+                "vrshrn.u32 d3, q3, #16     \n"
                 "vst1.u16   {d0-d3}, [%1]!  \n"
                 : "=r"(ptr),   // %0
                 "=r"(outptr) // %1
