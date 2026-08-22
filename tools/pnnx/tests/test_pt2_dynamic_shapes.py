@@ -77,6 +77,17 @@ def main():
         print(invalid.stdout)
         return 1
 
+    invalid = subprocess.run(
+        [str(pathlib.Path(args.pnnx).resolve()), "model.pt2", "inputshape=[6,3]f16"],
+        cwd=args.workdir,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    if invalid.returncode == 0 or "type must be f32" not in invalid.stdout:
+        print(invalid.stdout)
+        return 1
+
     records = {}
     with zipfile.ZipFile(args.workdir / "model.pt2") as archive:
         for info in archive.infolist():

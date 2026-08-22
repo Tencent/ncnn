@@ -13,7 +13,9 @@ namespace pnnx {
 
 class Graph;
 
-int load_pt2(const std::string& path, Graph& graph, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::vector<int64_t> >& input_shapes2);
+int load_pt2(const std::string& path, Graph& graph,
+             const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types,
+             const std::vector<std::vector<int64_t> >& input_shapes2, const std::vector<std::string>& input_types2);
 
 } // namespace pnnx
 

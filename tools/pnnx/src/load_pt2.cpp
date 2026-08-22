@@ -311,8 +311,21 @@ static int evaluate_guard(const std::string& guard, const std::map<std::string, 
     return a > b;
 }
 
-static int bind_input_shapes(const Pt2Program& program, const std::vector<std::vector<int64_t> >& input_shapes, const char* profile, std::map<std::string, int64_t>& symbols, std::string& error)
+static const char* scalar_type_name(int type)
 {
+    static const char* names[] = {"", "u8", "i8", "i16", "i32", "i64", "f16", "f32", "f64", "c32", "c64", "c128", "bool", "bf16"};
+    return type >= 1 && type <= 13 ? names[type] : "";
+}
+
+static int bind_input_shapes(const Pt2Program& program, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types,
+                             const char* profile, std::map<std::string, int64_t>& symbols, std::string& error)
+{
+    if (input_shapes.size() != input_types.size())
+    {
+        error = std::string(profile) + " shape and type counts differ";
+        return -1;
+    }
+
     size_t input_index = 0;
     std::map<std::string, std::vector<int64_t> > shapes;
     for (size_t i = 0; i < program.input_specs.size(); i++)
@@ -332,6 +345,11 @@ static int bind_input_shapes(const Pt2Program& program, const std::vector<std::v
         }
 
         const Pt2Tensor& tensor = program.tensors.at(spec.arg.s);
+        if (!input_types.empty() && input_types[input_index] != scalar_type_name(tensor.dtype))
+        {
+            error = std::string(profile) + " input " + std::to_string(input_index) + " type must be " + scalar_type_name(tensor.dtype);
+            return -1;
+        }
         if (!input_shapes.empty() && input_shapes[input_index].size() != tensor.sizes.size())
         {
             error = std::string(profile) + " input " + std::to_string(input_index) + " rank mismatch";
@@ -407,15 +425,18 @@ static int bind_input_shapes(const Pt2Program& program, const std::vector<std::v
     return 0;
 }
 
-static int specialize_shapes(Pt2Program& program, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::vector<int64_t> >& input_shapes2, std::string& error)
+static int specialize_shapes(Pt2Program& program,
+                             const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types,
+                             const std::vector<std::vector<int64_t> >& input_shapes2, const std::vector<std::string>& input_types2,
+                             std::string& error)
 {
     std::map<std::string, int64_t> symbols;
-    if (bind_input_shapes(program, input_shapes, "inputshape", symbols, error) != 0)
+    if (bind_input_shapes(program, input_shapes, input_types, "inputshape", symbols, error) != 0)
         return -1;
     std::map<std::string, int64_t> symbols2;
     if (!input_shapes2.empty())
     {
-        if (bind_input_shapes(program, input_shapes2, "inputshape2", symbols2, error) != 0)
+        if (bind_input_shapes(program, input_shapes2, input_types2, "inputshape2", symbols2, error) != 0)
             return -1;
     }
 
@@ -460,7 +481,9 @@ static int specialize_shapes(Pt2Program& program, const std::vector<std::vector<
     return 0;
 }
 
-int load_pt2(const std::string& path, Graph& graph, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::vector<int64_t> >& input_shapes2)
+int load_pt2(const std::string& path, Graph& graph,
+             const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types,
+             const std::vector<std::vector<int64_t> >& input_shapes2, const std::vector<std::string>& input_types2)
 {
     Pt2ArchiveReader archive;
     if (archive.open(path) != 0)
@@ -489,7 +512,7 @@ int load_pt2(const std::string& path, Graph& graph, const std::vector<std::vecto
     fprintf(stderr, " producer=torch%s%s\n", program.torch_version.empty() ? "" : "-", program.torch_version.c_str());
 
     std::string error;
-    if (specialize_shapes(program, input_shapes, input_shapes2, error) != 0)
+    if (specialize_shapes(program, input_shapes, input_types, input_shapes2, input_types2, error) != 0)
     {
         fprintf(stderr, "specialize pt2 shapes failed: %s\n", error.c_str());
         return -1;
