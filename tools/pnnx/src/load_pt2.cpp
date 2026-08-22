@@ -62,6 +62,8 @@ static bool parse_symbol(const char*& p, std::string& symbol)
     if (*p != '\'')
         return false;
     symbol.assign(symbol_begin, p++);
+    if (symbol.empty())
+        return false;
 
     int assumptions = 0;
     for (;;)

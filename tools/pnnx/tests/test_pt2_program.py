@@ -210,6 +210,38 @@ def main():
         cases.append(("symbool_hint", value, "SymBool hint must use as_bool"))
 
         value = copy.deepcopy(base)
+        value["graph_module"]["graph"]["inputs"].append({"as_sym_int": {"as_name": ""}})
+        value["graph_module"]["signature"]["input_specs"].append(
+            {"user_input": {"arg": {"as_sym_int": {"as_name": ""}}}}
+        )
+        cases.append(("empty_symint_name", value, "symbolic integer name is empty"))
+
+        value = copy.deepcopy(base)
+        value["graph_module"]["graph"]["sym_int_values"][""] = {"as_int": 1}
+        cases.append(("empty_symint_value_name", value, "symbolic integer value name is empty"))
+
+        value = copy.deepcopy(base)
+        value["graph_module"]["graph"]["inputs"].append({"as_sym_bool": {"as_name": ""}})
+        value["graph_module"]["signature"]["input_specs"].append(
+            {"user_input": {"arg": {"as_sym_bool": {"as_name": ""}}}}
+        )
+        cases.append(("empty_symbool_name", value, "symbolic bool name is empty"))
+
+        value = copy.deepcopy(base)
+        value["graph_module"]["graph"]["sym_bool_values"][""] = {
+            "as_expr": {"expr_str": "Eq(s0, 1)", "hint": None}
+        }
+        cases.append(("empty_symbool_value_name", value, "symbolic bool value name is empty"))
+
+        value = copy.deepcopy(base)
+        value["graph_module"]["graph"]["tensor_values"][""] = tensor()
+        cases.append(("empty_tensor_value_name", value, "tensor value name is empty"))
+
+        value = copy.deepcopy(base)
+        value["range_constraints"][""] = {"min_val": 1, "max_val": 2}
+        cases.append(("empty_range_name", value, "range constraint name is empty"))
+
+        value = copy.deepcopy(base)
         value["graph_module"]["graph"]["nodes"][0]["is_hop_single_tensor_return"] = True
         cases.append(("hop_single_return", value, "higher-order single tensor return is unsupported"))
 

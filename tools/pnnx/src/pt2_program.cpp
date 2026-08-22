@@ -535,7 +535,14 @@ private:
             if (payload.object.begin()->first == "as_name")
             {
                 result.b = true;
-                return get_string(payload.object.begin()->second, payload_path + ".as_name", result.s);
+                if (!get_string(payload.object.begin()->second, payload_path + ".as_name", result.s))
+                    return false;
+                if (result.s.empty())
+                {
+                    fail(payload_path + ".as_name", &payload.object.begin()->second, "symbolic integer name is empty");
+                    return false;
+                }
+                return true;
             }
             if (payload.object.begin()->first == "as_int")
                 return get_int(payload.object.begin()->second, payload_path + ".as_int", result.i);
@@ -565,6 +572,11 @@ private:
                     arg.b = true;
                     if (!get_string(item.object.begin()->second, item_path + ".as_name", arg.s))
                         return false;
+                    if (arg.s.empty())
+                    {
+                        fail(item_path + ".as_name", &item.object.begin()->second, "symbolic integer name is empty");
+                        return false;
+                    }
                 }
                 else if (item.object.begin()->first == "as_int")
                 {
@@ -591,7 +603,14 @@ private:
                 return false;
             }
             result.b = true;
-            return get_string(payload.object.begin()->second, payload_path + ".as_name", result.s);
+            if (!get_string(payload.object.begin()->second, payload_path + ".as_name", result.s))
+                return false;
+            if (result.s.empty())
+            {
+                fail(payload_path + ".as_name", &payload.object.begin()->second, "symbolic bool name is empty");
+                return false;
+            }
+            return true;
         }
 
         fail(path, &value, "unsupported Argument union tag " + tag);
@@ -672,6 +691,11 @@ private:
         }
         for (std::map<std::string, Pt2JsonValue>::const_iterator it = tensors->object.begin(); it != tensors->object.end(); ++it)
         {
+            if (it->first.empty())
+            {
+                fail(path + ".tensor_values", &it->second, "tensor value name is empty");
+                return false;
+            }
             Pt2Tensor tensor;
             if (!decode_tensor(it->second, path + ".tensor_values." + it->first, tensor))
                 return false;
@@ -685,6 +709,11 @@ private:
                 return false;
             for (std::map<std::string, Pt2JsonValue>::const_iterator it = sym_ints->object.begin(); it != sym_ints->object.end(); ++it)
             {
+                if (it->first.empty())
+                {
+                    fail(path + ".sym_int_values", &it->second, "symbolic integer value name is empty");
+                    return false;
+                }
                 Pt2SymInt sym;
                 if (!decode_sym_int(it->second, path + ".sym_int_values." + it->first, sym))
                     return false;
@@ -699,6 +728,11 @@ private:
         {
             for (std::map<std::string, Pt2JsonValue>::const_iterator it = sym_bools->object.begin(); it != sym_bools->object.end(); ++it)
             {
+                if (it->first.empty())
+                {
+                    fail(path + ".sym_bool_values", &it->second, "symbolic bool value name is empty");
+                    return false;
+                }
                 const std::string symbol_path = path + ".sym_bool_values." + it->first;
                 if (!require_type(it->second, Pt2JsonValue::Object, symbol_path, "SymBool union"))
                     return false;
@@ -959,6 +993,11 @@ private:
         for (std::map<std::string, Pt2JsonValue>::const_iterator it = value.object.begin(); it != value.object.end(); ++it)
         {
             const std::string item_path = path + "." + it->first;
+            if (it->first.empty())
+            {
+                fail(path, &it->second, "range constraint name is empty");
+                return false;
+            }
             const Pt2JsonValue* min_value = field(it->second, "min_val", item_path, true);
             const Pt2JsonValue* max_value = field(it->second, "max_val", item_path, true);
             if (!min_value || !max_value)

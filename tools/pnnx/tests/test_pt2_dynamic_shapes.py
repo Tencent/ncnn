@@ -107,6 +107,7 @@ def main():
     cases = [
         ("unsupported", False, "Unsupported()", "unsupported symbolic expression Unsupported()"),
         ("unknown_assumption", True, symbol.replace("positive=True", "unknown=True"), "unsupported symbolic input dimension"),
+        ("empty_symbol", True, "Symbol('', positive=True, integer=True)", "unsupported symbolic input dimension"),
         ("deep", False, deep, "unsupported symbolic expression"),
         ("negative", False, "Integer(-1)", "symbolic expression evaluates to a negative dimension"),
     ]
