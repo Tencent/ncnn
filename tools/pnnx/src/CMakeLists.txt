@@ -149,7 +149,6 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_hardswish.cpp
     pass_level2/F_hardtanh.cpp
     pass_level2/F_instance_norm.cpp
-    pass_level2/nn_ChannelShuffle.cpp
     pass_level2/F_interpolate.cpp
     pass_level2/F_layer_norm.cpp
     pass_level2/F_leaky_relu.cpp
@@ -189,6 +188,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_upsample_bilinear.cpp
     pass_level2/F_upsample_nearest.cpp
     pass_level2/F_upsample.cpp
+    pass_level2/nn_ChannelShuffle.cpp
     pass_level2/Tensor_copy.cpp
     pass_level2/Tensor_expand.cpp
     pass_level2/Tensor_expand_as.cpp

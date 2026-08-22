@@ -104,6 +104,11 @@ int Pt2ArchiveReader::open(const std::string& path)
     {
         if (records.find("version") == records.end())
             return fail("legacy PT2 archive is missing version");
+        if (read_small_text("version", archive_version) != 0)
+            return -1;
+        archive_version = trim_ascii_whitespace(archive_version);
+        if (archive_version.empty())
+            return fail("legacy PT2 archive has an empty version");
 
         model_record = "serialized_exported_program.json";
         container_kind = Pt2ContainerLegacyExportedProgram;

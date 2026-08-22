@@ -1,6 +1,6 @@
 # PT2 compatibility fixtures
 
-This directory implements roadmap phase P0 and supplies the frozen archives used by the P1 archive-reader tests. The frozen MVP contract is in `pt2_capabilities.json`; `required_producers.json` defines the producer/container boundaries that must have real fixtures before the loader is merged.
+This directory contains the frozen archives used by the PT2 parser, weight loader, graph lowering, and CLI tests. The supported feature boundary is recorded in `pt2_capabilities.json`; `required_producers.json` defines the producer and container matrix covered by real fixtures.
 
 ## Required producer matrix
 
@@ -46,22 +46,22 @@ python pt2_fixture_tools.py verify data/torch_2_8_0/manifest.json
 python pt2_fixture_tools.py verify-matrix .
 ```
 
-`verify-matrix` checks `required_producers.json`, requires every producer/case, verifies hashes and confirms the expected container/schema boundary. This is the P0 completion gate.
+`verify-matrix` checks `required_producers.json`, requires every producer/case, verifies hashes and confirms the expected container/schema boundary.
 
-## Exercise the P1 C++ archive reader
+## Exercise the C++ PT2 loader
 
-The default CMake build now creates `pnnx_pt2_archive_test`. CTest registers every frozen `.pt2` archive independently, plus a standard-library-only malformed corpus covering truncated central directories, unsafe paths, duplicate normalized records, unsupported compression, bad offsets and CRC failures:
+The default CMake build creates `pnnx_pt2_archive_test` and, with PyTorch 2.6 or newer, `pnnx_pt2_graph_test`. CTest registers every frozen `.pt2` archive independently, plus malformed inputs covering truncated central directories, unsafe paths, duplicate normalized records, unsupported compression, bad offsets, CRC failures, JSON/schema errors, and invalid weight metadata:
 
 ```sh
 ctest --output-on-failure -R 'test_pt2_(archive|storezip|cli)'
 ```
 
-The CLI probe test requires both legacy and PT2 Archive inputs to stop before TorchScript loading and report the temporary `recognized ... loader is not enabled yet` diagnostic. This error is intentional until the graph/schema loader lands in later roadmap phases.
+The CLI test converts both legacy and PT2 Archive inputs and checks all pnnx and ncnn output files. It also verifies that damaged and unrelated ZIP files fail before TorchScript loading.
 
 ## Acceptance policy
 
 - Fixtures are immutable once reviewed. A changed SHA requires a manifest update explaining the producer or generator change.
 - A fixture directory name uses the normalized exact version, for example `torch_2_12_1`.
 - `manifest.json` is always generated, never hand-edited.
-- Archives from a different producer version are rejected even if their schema happens to match.
-- Pickled payloads are trusted test data only. Do not use the spike to load untrusted files.
+- Fixture producer versions must match their manifests. At runtime, compatibility is decided by the container version, export schema, and ATen opset recorded in the archive.
+- Legacy pickled payloads are decoded by the restricted C++ reader; unsupported globals, callables, and opcodes fail conversion.

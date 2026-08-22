@@ -124,6 +124,35 @@ def main():
         )
         run_case(args.tester, root, "program_optional_tensors", "--program-json", encoded(value), True)
 
+        value = copy.deepcopy(base)
+        value["graph_module"]["graph"]["nodes"][0]["inputs"].extend(
+            [
+                {"name": "float", "arg": {"as_float": "NaN"}},
+                {"name": "floats", "arg": {"as_floats": ["Infinity", "-Infinity", "NaN"]}},
+                {"name": "complex", "arg": {"as_complex": {"real": "Infinity", "imag": "NaN"}}},
+            ]
+        )
+        run_case(args.tester, root, "program_special_floats", "--program-json", encoded(value), True)
+
+        value = copy.deepcopy(base)
+        value["graph_module"]["graph"]["inputs"] = [{"as_float": "NaN"}]
+        value["graph_module"]["graph"]["outputs"] = [{"as_float": "NaN"}]
+        value["graph_module"]["graph"]["nodes"] = []
+        value["graph_module"]["graph"]["tensor_values"] = {}
+        value["graph_module"]["signature"]["input_specs"] = [
+            {"constant_input": {"name": "value", "value": {"as_float": "NaN"}}}
+        ]
+        value["graph_module"]["signature"]["output_specs"] = [
+            {"user_output": {"arg": {"as_float": "NaN"}}}
+        ]
+        run_case(args.tester, root, "program_nan_signature", "--program-json", encoded(value), True)
+
+        value = copy.deepcopy(base)
+        value["graph_module"]["graph"]["sym_bool_values"] = {
+            "b0": {"as_expr": {"expr_str": "Eq(s0, 1)", "hint": {"as_bool": True}}}
+        }
+        run_case(args.tester, root, "program_symbool_hint", "--program-json", encoded(value), True)
+
         cases = []
 
         value = copy.deepcopy(base)
@@ -145,6 +174,12 @@ def main():
         value = copy.deepcopy(base)
         del value["opset_version"]["aten"]
         cases.append(("missing_opset", value, "missing aten opset"))
+
+        value = copy.deepcopy(base)
+        value["graph_module"]["signature"]["input_specs"][0] = {
+            "parameter": {"arg": {"name": "x"}, "parameter_name": ""}
+        }
+        cases.append(("empty_weight_name", value, "weight name is empty"))
 
         value = copy.deepcopy(base)
         value["graph_module"]["graph"]["inputs"][0] = {"as_graph": {}}
@@ -169,6 +204,16 @@ def main():
         cases.append(("device", value, "only dense strided CPU tensors are supported"))
 
         value = copy.deepcopy(base)
+        value["graph_module"]["graph"]["sym_bool_values"] = {
+            "b0": {"as_expr": {"expr_str": "Eq(s0, 1)", "hint": {"as_int": 1}}}
+        }
+        cases.append(("symbool_hint", value, "SymBool hint must use as_bool"))
+
+        value = copy.deepcopy(base)
+        value["graph_module"]["graph"]["nodes"][0]["is_hop_single_tensor_return"] = True
+        cases.append(("hop_single_return", value, "higher-order single tensor return is unsupported"))
+
+        value = copy.deepcopy(base)
         value["range_constraints"] = {"s0": {"min_val": 4, "max_val": 2}}
         cases.append(("range", value, "minimum exceeds maximum"))
 
@@ -178,6 +223,10 @@ def main():
         value = copy.deepcopy(base)
         value["graph_module"]["graph"]["nodes"][0]["target"] = "torch.ops.higher_order.wrap_with_autocast"
         run_case(args.tester, root, "wrap_with_autocast", "--program-json", encoded(value), False, ("wrap_with_autocast is unsupported",))
+
+        value = copy.deepcopy(base)
+        value["graph_module"]["graph"]["nodes"][0]["target"] = "torch.ops.higher_order.wrap_with_set_grad_enabled"
+        run_case(args.tester, root, "higher_order", "--program-json", encoded(value), False, ("higher-order operators are unsupported",))
 
 
 if __name__ == "__main__":

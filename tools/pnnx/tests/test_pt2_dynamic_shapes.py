@@ -108,6 +108,7 @@ def main():
         ("unsupported", False, "Unsupported()", "unsupported symbolic expression Unsupported()"),
         ("unknown_assumption", True, symbol.replace("positive=True", "unknown=True"), "unsupported symbolic input dimension"),
         ("deep", False, deep, "unsupported symbolic expression"),
+        ("negative", False, "Integer(-1)", "symbolic expression evaluates to a negative dimension"),
     ]
     for name, mutate_input, expression, expected in cases:
         mutated = copy.deepcopy(program)

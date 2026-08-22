@@ -51,7 +51,7 @@ jobs:
     - name: setup-pytorch
       run: |
         python3 -m pip config set global.break-system-packages true
-        pip3 install --user torch --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
         pip3 install --user numpy packaging
 
     - name: python-ncnn
@@ -97,7 +97,7 @@ jobs:
     - name: setup-pytorch
       run: |
         python3 -m pip config set global.break-system-packages true
-        pip3 install --user torch --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
         pip3 install --user numpy packaging
 
     - name: python-ncnn
@@ -381,7 +381,8 @@ jobs:
       run: |
         export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
         pip3 install --user pytest wheel twine requests einops numpy==${{ matrix.numpy }} opencv-python==${{ matrix.opencv }}
-        pip3 install --user torch==${{ matrix.torch }}+cpu torchvision==${{ matrix.torchvision }}+cpu torchaudio==${{ matrix.torchaudio }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user torch==${{ matrix.torch }}+cpu torchvision==${{ matrix.torchvision }}+cpu --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user --no-deps torchaudio==${{ matrix.torchaudio }} --index-url https://download.pytorch.org/whl/cpu
         pip3 install --user onnx onnxscript onnxruntime numpy==${{ matrix.numpy }}
         pip3 install --user "transformers<=${{ matrix.transformers }}" diffusers "safetensors<=0.6.2"
 

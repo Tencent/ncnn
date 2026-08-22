@@ -4,9 +4,10 @@
 #include "pt2_program.h"
 
 #include <errno.h>
-#include <limits>
 #include <stdlib.h>
 
+#include <cmath>
+#include <limits>
 #include <set>
 #include <utility>
 
@@ -35,210 +36,6 @@ Pt2Program::Pt2Program()
 {
     schema_major = 0;
     schema_minor = 0;
-}
-
-static bool get_tensor_name(const Pt2JsonValue& argument, std::string& name)
-{
-    if (argument.type != Pt2JsonValue::Object || argument.object.size() != 1 || argument.object.begin()->first != "as_tensor")
-        return false;
-    const Pt2JsonValue& tensor = argument.object.begin()->second;
-    if (tensor.type != Pt2JsonValue::Object)
-        return false;
-    std::map<std::string, Pt2JsonValue>::const_iterator it = tensor.object.find("name");
-    if (it == tensor.object.end() || it->second.type != Pt2JsonValue::String)
-        return false;
-    name = it->second.value;
-    return true;
-}
-
-static void rename_argument(Pt2JsonValue& argument, const std::map<std::string, std::string>& names, const std::string& prefix)
-{
-    if (argument.type != Pt2JsonValue::Object || argument.object.size() != 1)
-        return;
-    const std::string& tag = argument.object.begin()->first;
-    Pt2JsonValue& value = argument.object.begin()->second;
-    if (tag == "as_tensor" || tag == "as_optional_tensor")
-    {
-        std::map<std::string, Pt2JsonValue>::iterator it = value.object.find("name");
-        if (it != value.object.end() && it->second.type == Pt2JsonValue::String)
-        {
-            std::map<std::string, std::string>::const_iterator renamed = names.find(it->second.value);
-            it->second.value = renamed == names.end() ? prefix + it->second.value : renamed->second;
-        }
-    }
-    else if (tag == "as_tensors" || tag == "as_optional_tensors")
-    {
-        for (size_t i = 0; i < value.array.size(); i++)
-        {
-            std::map<std::string, Pt2JsonValue>::iterator it = value.array[i].object.find("name");
-            if (it != value.array[i].object.end() && it->second.type == Pt2JsonValue::String)
-            {
-                std::map<std::string, std::string>::const_iterator renamed = names.find(it->second.value);
-                it->second.value = renamed == names.end() ? prefix + it->second.value : renamed->second;
-            }
-        }
-    }
-    else if (tag == "as_sym_int" && value.type == Pt2JsonValue::Object)
-    {
-        std::map<std::string, Pt2JsonValue>::iterator it = value.object.find("as_name");
-        if (it != value.object.end() && it->second.type == Pt2JsonValue::String)
-        {
-            std::map<std::string, std::string>::const_iterator renamed = names.find(it->second.value);
-            it->second.value = renamed == names.end() ? prefix + it->second.value : renamed->second;
-        }
-    }
-    else if (tag == "as_sym_ints" && value.type == Pt2JsonValue::Array)
-    {
-        for (size_t i = 0; i < value.array.size(); i++)
-        {
-            std::map<std::string, Pt2JsonValue>::iterator it = value.array[i].object.find("as_name");
-            if (it != value.array[i].object.end() && it->second.type == Pt2JsonValue::String)
-            {
-                std::map<std::string, std::string>::const_iterator renamed = names.find(it->second.value);
-                it->second.value = renamed == names.end() ? prefix + it->second.value : renamed->second;
-            }
-        }
-    }
-}
-
-static int inline_higher_order_graph(Pt2JsonValue& graph, std::string& error);
-
-static int inline_higher_order_node(Pt2JsonValue& graph, Pt2JsonValue& node, size_t graph_input, std::vector<Pt2JsonValue>& nodes, std::string& error)
-{
-    Pt2JsonValue& node_inputs = node.object["inputs"];
-    Pt2JsonValue& node_outputs = node.object["outputs"];
-    Pt2JsonValue& graph_argument = node_inputs.array[graph_input].object["arg"].object["as_graph"];
-    Pt2JsonValue& subgraph = graph_argument.object["graph"];
-    if (inline_higher_order_graph(subgraph, error) != 0)
-        return -1;
-
-    Pt2JsonValue& sub_inputs = subgraph.object["inputs"];
-    Pt2JsonValue& sub_outputs = subgraph.object["outputs"];
-    if (sub_inputs.type != Pt2JsonValue::Array || sub_outputs.type != Pt2JsonValue::Array
-        || node_inputs.array.size() - graph_input - 1 != sub_inputs.array.size() || node_outputs.array.size() != sub_outputs.array.size())
-    {
-        error = "higher-order wrapper input or output count mismatch";
-        return -1;
-    }
-
-    std::string prefix = "subgraph_";
-    std::map<std::string, Pt2JsonValue>::iterator node_name = node.object.find("name");
-    if (node_name != node.object.end() && node_name->second.type == Pt2JsonValue::String)
-        prefix = node_name->second.value + "_";
-
-    std::map<std::string, std::string> names;
-    std::set<std::string> sub_input_names;
-    for (size_t i = 0; i < sub_inputs.array.size(); i++)
-    {
-        std::string inner;
-        std::string outer;
-        if (!get_tensor_name(sub_inputs.array[i], inner) || !get_tensor_name(node_inputs.array[graph_input + 1 + i].object["arg"], outer))
-        {
-            error = "higher-order wrapper only supports tensor inputs";
-            return -1;
-        }
-        names[inner] = outer;
-        sub_input_names.insert(inner);
-    }
-    for (size_t i = 0; i < sub_outputs.array.size(); i++)
-    {
-        std::string inner;
-        std::string outer;
-        if (!get_tensor_name(sub_outputs.array[i], inner) || !get_tensor_name(node_outputs.array[i], outer))
-        {
-            error = "higher-order wrapper only supports tensor outputs";
-            return -1;
-        }
-        names[inner] = outer;
-    }
-
-    Pt2JsonValue& tensor_values = subgraph.object["tensor_values"];
-    for (std::map<std::string, Pt2JsonValue>::const_iterator it = tensor_values.object.begin(); it != tensor_values.object.end(); ++it)
-    {
-        if (names.find(it->first) == names.end())
-            names[it->first] = prefix + it->first;
-    }
-    Pt2JsonValue& sym_int_values = subgraph.object["sym_int_values"];
-    for (std::map<std::string, Pt2JsonValue>::const_iterator it = sym_int_values.object.begin(); it != sym_int_values.object.end(); ++it)
-    {
-        if (names.find(it->first) == names.end())
-            names[it->first] = prefix + it->first;
-    }
-
-    Pt2JsonValue& outer_tensors = graph.object["tensor_values"];
-    for (std::map<std::string, Pt2JsonValue>::const_iterator it = tensor_values.object.begin(); it != tensor_values.object.end(); ++it)
-    {
-        if (sub_input_names.find(it->first) == sub_input_names.end() && outer_tensors.object.find(names[it->first]) == outer_tensors.object.end())
-            outer_tensors.object[names[it->first]] = it->second;
-    }
-    Pt2JsonValue& outer_sym_ints = graph.object["sym_int_values"];
-    for (std::map<std::string, Pt2JsonValue>::const_iterator it = sym_int_values.object.begin(); it != sym_int_values.object.end(); ++it)
-    {
-        if (outer_sym_ints.object.find(names[it->first]) == outer_sym_ints.object.end())
-            outer_sym_ints.object[names[it->first]] = it->second;
-    }
-
-    Pt2JsonValue& sub_nodes = subgraph.object["nodes"];
-    for (size_t i = 0; i < sub_nodes.array.size(); i++)
-    {
-        Pt2JsonValue sub_node = sub_nodes.array[i];
-        std::map<std::string, Pt2JsonValue>::iterator name = sub_node.object.find("name");
-        if (name != sub_node.object.end() && name->second.type == Pt2JsonValue::String)
-            name->second.value = prefix + name->second.value;
-        Pt2JsonValue& inputs = sub_node.object["inputs"];
-        for (size_t j = 0; j < inputs.array.size(); j++)
-            rename_argument(inputs.array[j].object["arg"], names, prefix);
-        Pt2JsonValue& outputs = sub_node.object["outputs"];
-        for (size_t j = 0; j < outputs.array.size(); j++)
-            rename_argument(outputs.array[j], names, prefix);
-        nodes.push_back(std::move(sub_node));
-    }
-    return 0;
-}
-
-static int inline_higher_order_graph(Pt2JsonValue& graph, std::string& error)
-{
-    Pt2JsonValue& graph_nodes = graph.object["nodes"];
-    if (graph_nodes.type != Pt2JsonValue::Array)
-        return 0;
-    std::vector<Pt2JsonValue> nodes;
-    nodes.reserve(graph_nodes.array.size());
-    for (size_t i = 0; i < graph_nodes.array.size(); i++)
-    {
-        Pt2JsonValue& node = graph_nodes.array[i];
-        std::map<std::string, Pt2JsonValue>::iterator target = node.object.find("target");
-        if (target != node.object.end() && target->second.type == Pt2JsonValue::String && target->second.value == "torch.ops.higher_order.wrap_with_autocast")
-        {
-            error = "wrap_with_autocast is unsupported";
-            return -1;
-        }
-        if (target == node.object.end() || target->second.type != Pt2JsonValue::String
-            || target->second.value != "torch.ops.higher_order.wrap_with_set_grad_enabled")
-        {
-            nodes.push_back(std::move(node));
-            continue;
-        }
-
-        Pt2JsonValue& inputs = node.object["inputs"];
-        size_t graph_input = inputs.array.size();
-        for (size_t j = 0; j < inputs.array.size(); j++)
-        {
-            Pt2JsonValue& argument = inputs.array[j].object["arg"];
-            if (argument.type == Pt2JsonValue::Object && argument.object.find("as_graph") != argument.object.end())
-            {
-                graph_input = j;
-                break;
-            }
-        }
-        if (graph_input == inputs.array.size() || inline_higher_order_node(graph, node, graph_input, nodes, error) != 0)
-        {
-            if (error.empty())
-                error = "higher-order wrapper has no graph argument";
-            return -1;
-        }
-    }
-    graph_nodes.array.swap(nodes);
-    return 0;
 }
 
 class Pt2ProgramDecoder
@@ -367,6 +164,21 @@ private:
         if (errno == ERANGE || !end || *end)
         {
             fail(path, &value, "number is out of range");
+            return false;
+        }
+        return true;
+    }
+
+    bool get_float(const Pt2JsonValue& value, const std::string& path, double& result)
+    {
+        if (value.type != Pt2JsonValue::String)
+            return get_double(value, path, result);
+        if (value.value == "Infinity") result = std::numeric_limits<double>::infinity();
+        else if (value.value == "-Infinity") result = -std::numeric_limits<double>::infinity();
+        else if (value.value == "NaN") result = std::numeric_limits<double>::quiet_NaN();
+        else
+        {
+            fail(path, &value, "invalid special float");
             return false;
         }
         return true;
@@ -634,19 +446,7 @@ private:
         if (tag == "as_float")
         {
             result.type = Pt2Argument::Float;
-            if (payload.type == Pt2JsonValue::String)
-            {
-                if (payload.value == "Infinity") result.f = std::numeric_limits<double>::infinity();
-                else if (payload.value == "-Infinity") result.f = -std::numeric_limits<double>::infinity();
-                else if (payload.value == "NaN") result.f = std::numeric_limits<double>::quiet_NaN();
-                else
-                {
-                    fail(payload_path, &payload, "invalid special float");
-                    return false;
-                }
-                return true;
-            }
-            return get_double(payload, payload_path, result.f);
+            return get_float(payload, payload_path, result.f);
         }
         if (tag == "as_floats")
         {
@@ -656,7 +456,7 @@ private:
             for (size_t i = 0; i < payload.array.size(); i++)
             {
                 double item;
-                if (!get_double(payload.array[i], payload_path + "[" + std::to_string(i) + "]", item))
+                if (!get_float(payload.array[i], payload_path + "[" + std::to_string(i) + "]", item))
                     return false;
                 result.af.push_back(item);
             }
@@ -671,7 +471,7 @@ private:
                 return false;
             double r;
             double i;
-            if (!get_double(*real, payload_path + ".real", r) || !get_double(*imag, payload_path + ".imag", i))
+            if (!get_float(*real, payload_path + ".real", r) || !get_float(*imag, payload_path + ".imag", i))
                 return false;
             result.af.push_back(r);
             result.af.push_back(i);
@@ -907,11 +707,26 @@ private:
                     fail(symbol_path, &it->second, "SymBool union must contain exactly one as_expr field");
                     return false;
                 }
-                const Pt2JsonValue* expression = field(it->second.object.begin()->second, "expr_str", symbol_path + ".as_expr", true);
+                const Pt2JsonValue& expr = it->second.object.begin()->second;
+                const Pt2JsonValue* expression = field(expr, "expr_str", symbol_path + ".as_expr", true);
                 std::string ignored;
                 if (!expression || !get_string(*expression, symbol_path + ".as_expr.expr_str", ignored) ||
-                    !reject_unknown(it->second.object.begin()->second, symbol_path + ".as_expr", "expr_str", "hint"))
+                    !reject_unknown(expr, symbol_path + ".as_expr", "expr_str", "hint"))
                     return false;
+                const Pt2JsonValue* hint = field(expr, "hint", symbol_path + ".as_expr", false);
+                if (hint && hint->type != Pt2JsonValue::Null)
+                {
+                    if (!require_type(*hint, Pt2JsonValue::Object, symbol_path + ".as_expr.hint", "SymExprHint union"))
+                        return false;
+                    if (hint->object.size() != 1 || hint->object.begin()->first != "as_bool")
+                    {
+                        fail(symbol_path + ".as_expr.hint", hint, "SymBool hint must use as_bool");
+                        return false;
+                    }
+                    bool ignored_hint;
+                    if (!get_bool(hint->object.begin()->second, symbol_path + ".as_expr.hint.as_bool", ignored_hint))
+                        return false;
+                }
                 program.sym_bools.insert(it->first);
             }
         }
@@ -957,9 +772,26 @@ private:
             Pt2Node node;
             if (!get_string(*target, node_path + ".target", node.target))
                 return false;
+            if (node.target.compare(0, 23, "torch.ops.higher_order.") == 0)
+            {
+                fail(node_path + ".target", target, node.target == "torch.ops.higher_order.wrap_with_autocast" ? "wrap_with_autocast is unsupported" : "higher-order operators are unsupported");
+                return false;
+            }
             const Pt2JsonValue* node_name = field(node_value, "name", node_path, false);
             if (node_name && !get_string(*node_name, node_path + ".name", node.name))
                 return false;
+            const Pt2JsonValue* single_return = field(node_value, "is_hop_single_tensor_return", node_path, false);
+            if (single_return && single_return->type != Pt2JsonValue::Null)
+            {
+                bool enabled;
+                if (!get_bool(*single_return, node_path + ".is_hop_single_tensor_return", enabled))
+                    return false;
+                if (enabled)
+                {
+                    fail(node_path + ".is_hop_single_tensor_return", single_return, "higher-order single tensor return is unsupported");
+                    return false;
+                }
+            }
 
             for (size_t j = 0; j < node_inputs->array.size(); j++)
             {
@@ -1039,6 +871,11 @@ private:
                 spec.arg.type = Pt2Argument::Tensor;
                 if (!arg || !target || !decode_tensor_argument(*arg, base + ".arg", spec.arg.s) || !get_string(*target, base + "." + target_name, spec.target))
                     return false;
+                if (spec.target.empty())
+                {
+                    fail(base + "." + target_name, target, "weight name is empty");
+                    return false;
+                }
                 if (tag == "buffer")
                 {
                     const Pt2JsonValue* persistent = field(payload, "persistent", base, true);
@@ -1058,6 +895,11 @@ private:
                 if (!name || !constant || !get_string(*name, base + ".name", spec.target) || !decode_argument(*constant, base + ".value", spec.arg) ||
                     !reject_unknown(payload, base, "name", "value"))
                     return false;
+                if (spec.target.empty())
+                {
+                    fail(base + ".name", name, "constant input name is empty");
+                    return false;
+                }
             }
             else
             {
@@ -1139,24 +981,33 @@ private:
     {
         if (a.type != b.type)
             return false;
-        if (a.type == Pt2Argument::Tensor || a.type == Pt2Argument::String || a.type == Pt2Argument::Device)
+        if (a.type == Pt2Argument::Tensor || a.type == Pt2Argument::String)
             return a.s == b.s;
+        if (a.type == Pt2Argument::Device)
+            return a.s == b.s && a.i == b.i;
         if (a.type == Pt2Argument::OptionalTensor)
             return a.b == b.b && (!a.b || a.s == b.s);
         if (a.type == Pt2Argument::Int || a.type == Pt2Argument::ScalarType || a.type == Pt2Argument::MemoryFormat || a.type == Pt2Argument::Layout)
             return a.i == b.i;
         if (a.type == Pt2Argument::Float)
-            return a.f == b.f;
+            return a.f == b.f || (std::isnan(a.f) && std::isnan(b.f));
         if (a.type == Pt2Argument::Bool || a.type == Pt2Argument::None)
             return a.b == b.b;
         if (a.type == Pt2Argument::Tensors || a.type == Pt2Argument::OptionalTensors || a.type == Pt2Argument::Strings)
             return a.as == b.as;
         if (a.type == Pt2Argument::Ints)
             return a.ai == b.ai;
-        if (a.type == Pt2Argument::Floats)
-            return a.af == b.af;
-        if (a.type == Pt2Argument::Complex)
-            return a.af == b.af;
+        if (a.type == Pt2Argument::Floats || a.type == Pt2Argument::Complex)
+        {
+            if (a.af.size() != b.af.size())
+                return false;
+            for (size_t i = 0; i < a.af.size(); i++)
+            {
+                if (a.af[i] != b.af[i] && !(std::isnan(a.af[i]) && std::isnan(b.af[i])))
+                    return false;
+            }
+            return true;
+        }
         if (a.type == Pt2Argument::Bools)
             return a.ab == b.ab;
         if (a.type == Pt2Argument::SymInt || a.type == Pt2Argument::SymBool)
@@ -1318,9 +1169,6 @@ int parse_pt2_program(const unsigned char* data, size_t size, Pt2Program& progra
     Pt2JsonValue root;
     if (parse_pt2_json(data, size, root, program.error) != 0)
         return -1;
-    Pt2JsonValue& graph = root.object["graph_module"].object["graph"];
-    if (inline_higher_order_graph(graph, program.error) != 0)
-        return -1;
     Pt2ProgramDecoder decoder(program);
     return decoder.decode(root);
 }
@@ -1345,6 +1193,12 @@ int load_pt2_program(Pt2ArchiveReader& archive, Pt2Program& program)
     if (parse_pt2_program(data.empty() ? 0 : &data[0], data.size(), program) != 0)
     {
         program.error = archive.model_record + ": " + program.error;
+        return -1;
+    }
+    if (archive.container_kind == Pt2ContainerLegacyExportedProgram &&
+        archive.archive_version != std::to_string(program.schema_major) + "." + std::to_string(program.schema_minor))
+    {
+        program.error = archive.model_record + ": schema version does not match legacy archive version " + archive.archive_version;
         return -1;
     }
     return 0;

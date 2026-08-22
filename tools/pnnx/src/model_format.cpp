@@ -4,7 +4,6 @@
 #include "model_format.h"
 
 #include <stdio.h>
-#include <stdint.h>
 
 #include "pt2_archive.h"
 
@@ -23,14 +22,17 @@ int probe_model_format(const std::string& path, ModelFormatInfo& info)
         return -1;
     }
 
-    uint32_t signature = 0;
-    const size_t nread = fread(&signature, sizeof(signature), 1, fp);
+    unsigned char signature[4];
+    const size_t nread = fread(signature, 1, sizeof(signature), fp);
     fclose(fp);
 
-    if (nread != 1)
+    if (nread != sizeof(signature))
         return 0;
 
-    if (signature != 0x04034b50 && signature != 0x06054b50 && signature != 0x06064b50)
+    if (signature[0] != 'P' || signature[1] != 'K' ||
+        !((signature[2] == 3 && signature[3] == 4) ||
+          (signature[2] == 5 && signature[3] == 6) ||
+          (signature[2] == 6 && signature[3] == 6)))
         return 0;
 
     info.format = ModelFormatUnknownZip;

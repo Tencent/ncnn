@@ -1,6 +1,6 @@
 {
   "contract_version": 1,
-  "revision": "p0-v1",
+  "revision": "pt2-v1",
   "consumer_libtorch_baseline": "2.12.1",
   "mvp": {
     "producer_versions": {
@@ -31,7 +31,17 @@
     "program_kind": "inference",
     "models_per_invocation": 1,
     "graph": {
-      "shapes": "static",
+      "shapes": [
+        "static",
+        "profile_bound_symbolic"
+      ],
+      "symbolic_expressions": [
+        "Symbol",
+        "Integer",
+        "Add",
+        "Mul",
+        "FloorDiv"
+      ],
       "operators": [
         "functional_aten"
       ],
@@ -78,7 +88,7 @@
   },
   "explicitly_deferred": [
     "export_schema_major_1_2_5_7",
-    "symbolic_shape_expression_lowering",
+    "unrecognized_symbolic_shape_expressions",
     "higher_order_operator_subgraphs",
     "training_gradient_loss_outputs",
     "input_or_buffer_mutation",
@@ -94,14 +104,13 @@
   "failure_policy": {
     "unknown_archive_or_schema": "fail",
     "unknown_required_field_or_union_tag": "fail",
-    "unknown_optional_metadata": "warn",
+    "unknown_optional_metadata": "ignore",
     "unsupported_graph_or_tensor_feature": "fail",
     "silent_shape_or_dtype_fallback": "forbidden",
     "diagnostic_context": [
       "container",
       "schema_version",
       "opset_version",
-      "model_name",
       "node_name_or_index",
       "operator_target_or_tensor_fqn"
     ]

@@ -289,6 +289,11 @@ static int specialize_shapes(Pt2Program& program, const std::vector<std::vector<
                 error = "unsupported symbolic expression " + size.expression;
                 return -1;
             }
+            if (value < 0)
+            {
+                error = "symbolic expression evaluates to a negative dimension " + size.expression;
+                return -1;
+            }
             size.value = value;
             if (!input_shapes2.empty())
             {
@@ -296,6 +301,11 @@ static int specialize_shapes(Pt2Program& program, const std::vector<std::vector<
                 if (!evaluate_sym_int(size.expression, symbols2, value2))
                 {
                     error = "unsupported symbolic expression " + size.expression;
+                    return -1;
+                }
+                if (value2 < 0)
+                {
+                    error = "symbolic expression evaluates to a negative dimension " + size.expression;
                     return -1;
                 }
                 if (value != value2)

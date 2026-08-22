@@ -197,6 +197,14 @@ def main():
 
         mutate_raw(args.raw, root, "pickled", pickled_payload, "pickled raw payload is unsupported", args.tester)
 
+        def unknown_config_field(records):
+            name = find_record(records, "model_weights_config.json")
+            config = json.loads(records[name])
+            config["config"]["weight"]["future_required"] = True
+            records[name] = json.dumps(config).encode()
+
+        mutate_raw(args.raw, root, "unknown_config_field", unknown_config_field, "future_required", args.tester)
+
         def truncated_storage(records):
             name = find_record(records, "data/weights/weight_0")
             records[name] = records[name][:-4]

@@ -449,6 +449,21 @@ static int check_pilot()
         error.find("torch.ops.aten.pnnx_missing.default") == std::string::npos || error.find("dispatcher schema") == std::string::npos)
         return -1;
 
+    pnnx::Pt2Program unknown_no_output = pilot_program();
+    unknown_no_output.nodes[0].target = "torch.ops.aten.pnnx_missing.default";
+    unknown_no_output.nodes[0].outputs.clear();
+    pnnx::Graph unknown_no_output_graph;
+    if (pnnx::lower_pt2_graph(unknown_no_output, weights, unknown_no_output_graph, error) == 0 ||
+        error.find("operator without a tensor or symbolic integer output is unsupported") == std::string::npos)
+        return -1;
+
+    pnnx::Pt2Program oversized_integer = pilot_program();
+    oversized_integer.nodes[0].inputs[8].arg = int_argument(INT64_MAX / 2);
+    pnnx::Graph oversized_integer_graph;
+    if (pnnx::lower_pt2_graph(oversized_integer, weights, oversized_integer_graph, error) == 0 ||
+        error.find("integer argument is outside the pnnx parameter range") == std::string::npos)
+        return -1;
+
     pnnx::Pt2Program malformed = pilot_program();
     malformed.nodes[0].inputs.push_back(named_argument("unknown", int_argument(1)));
     pnnx::Graph malformed_graph;

@@ -278,9 +278,10 @@ int main(int argc, char** argv)
             return 1;
         }
 
-        if (expected_format == pnnx::ModelFormatPt2Archive && archive.archive_version.empty())
+        if ((expected_format == pnnx::ModelFormatPt2Archive || expected_format == pnnx::ModelFormatPt2LegacyExportedProgram) &&
+            archive.archive_version.empty())
         {
-            fprintf(stderr, "PT2 archive version was not exposed\n");
+            fprintf(stderr, "PT2 version was not exposed\n");
             return 1;
         }
     }

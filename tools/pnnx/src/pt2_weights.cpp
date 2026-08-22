@@ -815,6 +815,14 @@ private:
         const Pt2JsonValue* config = field(root, "config", "$");
         if (!config || config->type != Pt2JsonValue::Object)
             return config ? fail("$.config at json offset " + std::to_string(config->offset) + ": expected object") : -1;
+        if (root.object.size() != 1)
+        {
+            for (std::map<std::string, Pt2JsonValue>::const_iterator it = root.object.begin(); it != root.object.end(); ++it)
+            {
+                if (it->first != "config")
+                    return fail("$." + it->first + " at json offset " + std::to_string(it->second.offset) + ": unknown field");
+            }
+        }
 
         std::string byteorder;
         if (read_byteorder("byteorder", byteorder) != 0)
@@ -842,6 +850,11 @@ private:
                 return fail(path + ": custom object payload is unsupported");
             if (decode_pt2_tensor_meta(*tensor_meta, path + ".tensor_meta", meta, json_error) != 0)
                 return fail(config_record + ": " + json_error);
+            for (std::map<std::string, Pt2JsonValue>::const_iterator field_it = it->second.object.begin(); field_it != it->second.object.end(); ++field_it)
+            {
+                if (field_it->first != "path_name" && field_it->first != "is_param" && field_it->first != "use_pickle" && field_it->first != "tensor_meta")
+                    return fail(path + "." + field_it->first + " at json offset " + std::to_string(field_it->second.offset) + ": unknown field");
+            }
 
             const std::string record = data_prefix + name;
             std::map<std::string, std::vector<unsigned char> >::iterator storage_it = storage_cache.find(record);

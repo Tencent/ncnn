@@ -95,6 +95,25 @@ def main():
         )
         probe(args.tester, legacy, "pt2-legacy-exported-program")
 
+        empty_legacy_version = root / "empty_legacy_version.pt2"
+        write_zip(empty_legacy_version, [("serialized_exported_program.json", b"{}"), ("version", b"\n")])
+        probe(args.tester, empty_legacy_version, "invalid-zip")
+
+        fixture = pathlib.Path(__file__).parent / "fixtures/pt2/data/torch_2_6_0/state_and_constants.pt2"
+        mismatched_legacy_version = root / "mismatched_legacy_version.pt2"
+        with zipfile.ZipFile(fixture) as source:
+            records = [(info.filename, b"8.7" if info.filename == "version" else source.read(info)) for info in source.infolist()]
+        write_zip(mismatched_legacy_version, records)
+        process = subprocess.run(
+            [str(args.tester), "--program-archive", str(mismatched_legacy_version)],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        if process.returncode == 0 or "schema version does not match legacy archive version 8.7" not in process.stdout:
+            raise AssertionError(f"legacy schema mismatch was accepted\n{process.stdout}")
+
         unknown = root / "unknown.zip"
         write_zip(unknown, [("payload", b"data")])
         probe(args.tester, unknown, "unknown-zip")

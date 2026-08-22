@@ -42,6 +42,11 @@ static int scalar_type_to_c10(int type)
     return type >= 1 && type <= 13 ? types[type] : -1;
 }
 
+static bool integer_can_be_parameter(int64_t value)
+{
+    return (value >= INT_MIN && value <= INT_MAX) || value == INT64_MIN || value == INT64_MIN + 1 || value == INT64_MAX - 1 || value == INT64_MAX;
+}
+
 static int parameter_from_argument(const Pt2Argument& arg, Parameter& value, std::string& error)
 {
     if (arg.type == Pt2Argument::None)
@@ -49,17 +54,43 @@ static int parameter_from_argument(const Pt2Argument& arg, Parameter& value, std
     else if (arg.type == Pt2Argument::Bool)
         value = Parameter(arg.b);
     else if (arg.type == Pt2Argument::Int)
+    {
+        if (!integer_can_be_parameter(arg.i))
+        {
+            error = "integer argument is outside the pnnx parameter range";
+            return -1;
+        }
         value = Parameter((long long)arg.i);
+    }
     else if (arg.type == Pt2Argument::Ints)
+    {
+        for (size_t i = 0; i < arg.ai.size(); i++)
+        {
+            if (!integer_can_be_parameter(arg.ai[i]))
+            {
+                error = "integer list argument is outside the pnnx parameter range";
+                return -1;
+            }
+        }
         value = Parameter(arg.ai);
+    }
     else if (arg.type == Pt2Argument::Float)
         value = std::isinf(arg.f) ? Parameter(arg.f < 0 ? "-inf" : "inf") : Parameter(arg.f);
     else if (arg.type == Pt2Argument::Floats)
         value = Parameter(arg.af);
     else if (arg.type == Pt2Argument::Complex)
         value = Parameter(std::complex<double>(arg.af[0], arg.af[1]));
-    else if (arg.type == Pt2Argument::String || arg.type == Pt2Argument::Device)
+    else if (arg.type == Pt2Argument::String)
         value = Parameter(arg.s);
+    else if (arg.type == Pt2Argument::Device)
+    {
+        if (arg.s != "cpu" || arg.i != -1)
+        {
+            error = "only unindexed CPU device arguments are supported";
+            return -1;
+        }
+        value = Parameter(arg.s);
+    }
     else if (arg.type == Pt2Argument::Strings)
         value = Parameter(arg.as);
     else if (arg.type == Pt2Argument::ScalarType)
@@ -91,7 +122,14 @@ static int parameter_from_argument(const Pt2Argument& arg, Parameter& value, std
         value = Parameter(0);
     }
     else if (arg.type == Pt2Argument::SymInt && !arg.b)
+    {
+        if (!integer_can_be_parameter(arg.i))
+        {
+            error = "symbolic integer argument is outside the pnnx parameter range";
+            return -1;
+        }
         value = Parameter((long long)arg.i);
+    }
     else
     {
         error = "argument cannot be represented as a constant";
@@ -127,7 +165,9 @@ static int argument_from_ivalue(const c10::IValue& value, Pt2Argument& arg, std:
     else if (value.isDevice())
     {
         arg.type = Pt2Argument::Device;
-        arg.s = value.toDevice().str();
+        const c10::Device device = value.toDevice();
+        arg.s = device.str();
+        arg.i = device.has_index() ? device.index() : -1;
     }
     else if (value.isIntList())
     {
@@ -462,7 +502,12 @@ private:
         for (size_t i = 0; i < node.outputs.size(); i++)
             has_output |= node.outputs[i].type == Pt2Argument::Tensor || node.outputs[i].type == Pt2Argument::Tensors || node.outputs[i].type == Pt2Argument::SymInt;
         if (!has_output)
-            return 0;
+        {
+            if (node.target == "_operator.ge" || node.target == "_operator.le" ||
+                node.target == "torch.ops.aten._assert_scalar.default" || node.target == "torch.ops.aten._assert_tensor_metadata.default")
+                return 0;
+            return fail_node(index, node, "operator without a tensor or symbolic integer output is unsupported");
+        }
 
         std::string name;
         std::string overload;
