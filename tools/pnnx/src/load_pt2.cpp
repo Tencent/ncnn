@@ -51,8 +51,55 @@ static bool floor_div_int64(int64_t a, int64_t b, int64_t& value)
     return true;
 }
 
-static bool parse_sym_int(const char*& p, const std::map<std::string, int64_t>& symbols, int64_t& value)
+static bool parse_symbol(const char*& p, std::string& symbol)
 {
+    skip_space(p);
+    if (*p++ != '\'')
+        return false;
+    const char* symbol_begin = p;
+    while (*p && *p != '\'')
+        p++;
+    if (*p != '\'')
+        return false;
+    symbol.assign(symbol_begin, p++);
+
+    int assumptions = 0;
+    for (;;)
+    {
+        skip_space(p);
+        if (*p == ')')
+        {
+            p++;
+            return true;
+        }
+        if (*p++ != ',')
+            return false;
+        skip_space(p);
+        const char* assumption_begin = p;
+        while ((*p >= 'A' && *p <= 'Z') || (*p >= 'a' && *p <= 'z') || *p == '_')
+            p++;
+        const std::string assumption(assumption_begin, p);
+        const int flag = assumption == "positive" ? 1 : assumption == "integer" ? 2 : 0;
+        if (flag == 0 || (assumptions & flag))
+            return false;
+        assumptions |= flag;
+        skip_space(p);
+        if (*p++ != '=')
+            return false;
+        skip_space(p);
+        const char* value_begin = p;
+        while ((*p >= 'A' && *p <= 'Z') || (*p >= 'a' && *p <= 'z'))
+            p++;
+        if (std::string(value_begin, p) != "True")
+            return false;
+    }
+}
+
+static bool parse_sym_int(const char*& p, const std::map<std::string, int64_t>& symbols, int64_t& value, int depth)
+{
+    if (depth >= 64)
+        return false;
+
     skip_space(p);
     const char* name_begin = p;
     while ((*p >= 'A' && *p <= 'Z') || (*p >= 'a' && *p <= 'z') || *p == '_')
@@ -75,18 +122,8 @@ static bool parse_sym_int(const char*& p, const std::map<std::string, int64_t>& 
 
     if (name == "Symbol")
     {
-        skip_space(p);
-        if (*p++ != '\'')
-            return false;
-        const char* symbol_begin = p;
-        while (*p && *p != '\'')
-            p++;
-        if (*p != '\'')
-            return false;
-        const std::string symbol(symbol_begin, p++);
-        while (*p && *p != ')')
-            p++;
-        if (*p++ != ')')
+        std::string symbol;
+        if (!parse_symbol(p, symbol))
             return false;
         std::map<std::string, int64_t>::const_iterator it = symbols.find(symbol);
         if (it == symbols.end())
@@ -99,10 +136,10 @@ static bool parse_sym_int(const char*& p, const std::map<std::string, int64_t>& 
     {
         int64_t a;
         int64_t b;
-        if (!parse_sym_int(p, symbols, a))
+        if (!parse_sym_int(p, symbols, a, depth + 1))
             return false;
         skip_space(p);
-        if (*p++ != ',' || !parse_sym_int(p, symbols, b))
+        if (*p++ != ',' || !parse_sym_int(p, symbols, b, depth + 1))
             return false;
         skip_space(p);
         return *p++ == ')' && floor_div_int64(a, b, value);
@@ -114,7 +151,7 @@ static bool parse_sym_int(const char*& p, const std::map<std::string, int64_t>& 
     for (;;)
     {
         int64_t item;
-        if (!parse_sym_int(p, symbols, item) || !(name == "Add" ? add_int64(value, item, value) : mul_int64(value, item, value)))
+        if (!parse_sym_int(p, symbols, item, depth + 1) || !(name == "Add" ? add_int64(value, item, value) : mul_int64(value, item, value)))
             return false;
         skip_space(p);
         if (*p == ')')
@@ -130,7 +167,7 @@ static bool parse_sym_int(const char*& p, const std::map<std::string, int64_t>& 
 static bool evaluate_sym_int(const std::string& expression, const std::map<std::string, int64_t>& symbols, int64_t& value)
 {
     const char* p = expression.c_str();
-    if (!parse_sym_int(p, symbols, value))
+    if (!parse_sym_int(p, symbols, value, 0))
         return false;
     skip_space(p);
     return *p == '\0';
@@ -138,14 +175,14 @@ static bool evaluate_sym_int(const std::string& expression, const std::map<std::
 
 static bool get_symbol_name(const std::string& expression, std::string& name)
 {
-    const std::string prefix = "Symbol('";
+    const std::string prefix = "Symbol(";
     if (expression.compare(0, prefix.size(), prefix) != 0)
         return false;
-    const size_t end = expression.find('\'', prefix.size());
-    if (end == std::string::npos || expression[expression.size() - 1] != ')')
+    const char* p = expression.c_str() + prefix.size();
+    if (!parse_symbol(p, name))
         return false;
-    name = expression.substr(prefix.size(), end - prefix.size());
-    return true;
+    skip_space(p);
+    return *p == '\0';
 }
 
 static int bind_input_shapes(const Pt2Program& program, const std::vector<std::vector<int64_t> >& input_shapes, const char* profile, std::map<std::string, int64_t>& symbols, std::string& error)

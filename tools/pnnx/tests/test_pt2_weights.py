@@ -227,6 +227,12 @@ def main():
 
         mutate_legacy(args.legacy, root, "opcode", unsupported_opcode, "unsupported pickle opcode", args.tester)
 
+        def empty_string_at_eof(records):
+            name = find_record(records, "data.pkl")
+            records[name] = b"\x80\x02X\x00\x00\x00\x00"
+
+        mutate_legacy(args.legacy, root, "empty_string", empty_string_at_eof, "pickle has no STOP opcode", args.tester)
+
         def short_storage(records):
             name = find_record(records, "data/0")
             records[name] = records[name][:-4]

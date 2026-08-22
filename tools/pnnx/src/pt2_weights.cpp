@@ -342,6 +342,11 @@ private:
     {
         if (size > 16 * 1024 * 1024 || size > data.size() - pos)
             return fail("truncated or oversized string");
+        if (size == 0)
+        {
+            value.clear();
+            return true;
+        }
         value.assign((const char*)&data[pos], size);
         pos += size;
         return true;

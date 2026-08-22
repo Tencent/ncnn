@@ -135,6 +135,14 @@ def main():
         cases.append(("schema_minor", value, "$.schema_version.minor"))
 
         value = copy.deepcopy(base)
+        value["future_required"] = True
+        cases.append(("unknown_root_field", value, "$.future_required"))
+
+        value = copy.deepcopy(base)
+        value["graph_module"]["graph"]["tensor_values"]["x"]["future_required"] = True
+        cases.append(("unknown_tensor_field", value, ".tensor_values.x.future_required"))
+
+        value = copy.deepcopy(base)
         del value["opset_version"]["aten"]
         cases.append(("missing_opset", value, "missing aten opset"))
 

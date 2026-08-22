@@ -60,7 +60,6 @@ class ExportedModel:
             if input2:
                 if len(input2) != len(self.inputs):
                     raise ValueError("input2 tensor count differs from the export inputs")
-                dimensions = {}
                 dynamic_shapes = []
                 for value, value2 in zip(self.inputs, input2):
                     if value.dim() != value2.dim():
@@ -69,10 +68,7 @@ class ExportedModel:
                     for axis, (size, size2) in enumerate(zip(value.shape, value2.shape)):
                         if size == size2:
                             continue
-                        key = (axis, size, size2)
-                        if key not in dimensions:
-                            dimensions[key] = torch.export.Dim("dim_%d_%d" % (axis, len(dimensions)), min=min(size, size2), max=max(size, size2))
-                        shape[axis] = dimensions[key]
+                        shape[axis] = torch.export.Dim.AUTO
                     dynamic_shapes.append(shape)
                 dynamic_shapes = tuple(dynamic_shapes)
 

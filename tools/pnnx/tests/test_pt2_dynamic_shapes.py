@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import argparse
+import copy
 import importlib.util
 import json
 import os
@@ -61,8 +62,7 @@ def main():
             expected = model(x)
             _check_output(expected, converted(x))
             actual = _run_ncnn(args.workdir, (x,), 1)
-            if actual is not None:
-                _check_output(expected, actual, 1e-3, 1e-3, True)
+            _check_output(expected, actual, 1e-3, 1e-3, True)
     finally:
         os.chdir(previous_workdir)
 
@@ -84,34 +84,52 @@ def main():
     model_record = next(name for name in records if name.endswith("models/model.json") or name.endswith("serialized_exported_program.json"))
     program = json.loads(records[model_record])
     input_name = program["graph_module"]["graph"]["inputs"][0]["as_tensor"]["name"]
-    changed = False
+    input_size = program["graph_module"]["graph"]["tensor_values"][input_name]["sizes"][0]
+    derived_name = None
+    derived_index = None
     for name, tensor in program["graph_module"]["graph"]["tensor_values"].items():
         if name == input_name:
             continue
-        for size in tensor["sizes"]:
+        for i, size in enumerate(tensor["sizes"]):
             if "as_expr" in size:
-                size["as_expr"]["expr_str"] = "Unsupported()"
-                changed = True
+                derived_name = name
+                derived_index = i
                 break
-        if changed:
+        if derived_name is not None:
             break
-    if not changed:
+    if derived_name is None:
         return 1
-    records[model_record] = json.dumps(program, separators=(",", ":")).encode("utf-8")
-    with zipfile.ZipFile(args.workdir / "unsupported.pt2", "w") as archive:
-        for name, data in records.items():
-            archive.writestr(name, data)
 
-    unsupported = subprocess.run(
-        [str(pathlib.Path(args.pnnx).resolve()), "unsupported.pt2", "inputshape=[6,3]"],
-        cwd=args.workdir,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
-    if unsupported.returncode == 0 or "unsupported symbolic expression Unsupported()" not in unsupported.stdout:
-        print(unsupported.stdout)
-        return 1
+    symbol = input_size["as_expr"]["expr_str"]
+    deep = symbol
+    for _ in range(64):
+        deep = "Add(Integer(1), %s)" % deep
+    cases = [
+        ("unsupported", False, "Unsupported()", "unsupported symbolic expression Unsupported()"),
+        ("unknown_assumption", True, symbol.replace("positive=True", "unknown=True"), "unsupported symbolic input dimension"),
+        ("deep", False, deep, "unsupported symbolic expression"),
+    ]
+    for name, mutate_input, expression, expected in cases:
+        mutated = copy.deepcopy(program)
+        tensors = mutated["graph_module"]["graph"]["tensor_values"]
+        size = tensors[input_name]["sizes"][0] if mutate_input else tensors[derived_name]["sizes"][derived_index]
+        size["as_expr"]["expr_str"] = expression
+        mutated_records = dict(records)
+        mutated_records[model_record] = json.dumps(mutated, separators=(",", ":")).encode("utf-8")
+        path = name + ".pt2"
+        with zipfile.ZipFile(args.workdir / path, "w") as archive:
+            for record_name, data in mutated_records.items():
+                archive.writestr(record_name, data)
+        invalid = subprocess.run(
+            [str(pathlib.Path(args.pnnx).resolve()), path, "inputshape=[6,3]"],
+            cwd=args.workdir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        if invalid.returncode == 0 or expected not in invalid.stdout:
+            print(invalid.stdout)
+            return 1
     return 0
 
 

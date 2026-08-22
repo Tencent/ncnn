@@ -143,7 +143,6 @@ struct Pt2Program
     std::vector<Pt2InputSpec> input_specs;
     std::vector<Pt2OutputSpec> output_specs;
     std::map<std::string, Pt2RangeConstraint> range_constraints;
-    size_t ignored_metadata;
     std::string error;
 };
 

@@ -20,6 +20,7 @@ if(Torch_VERSION VERSION_GREATER_EQUAL "2.6")
         ../src/pass_level2/F_conv2d.cpp
         ../src/pass_level2/F_layer_norm.cpp
         ../src/pass_level2/F_linear.cpp
+        ../src/pass_level2/Tensor_item.cpp
         ../src/pass_level2/Tensor_reshape.cpp
         ../src/pass_level2/eliminate_contiguous.cpp
         ../src/pass_level2/eliminate_size_numtotensor_int.cpp

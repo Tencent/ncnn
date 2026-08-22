@@ -272,6 +272,15 @@ static pnnx::Pt2Argument int_argument(int64_t value)
     return arg;
 }
 
+static pnnx::Pt2Argument sym_int_argument(const std::string& name)
+{
+    pnnx::Pt2Argument arg;
+    arg.type = pnnx::Pt2Argument::SymInt;
+    arg.b = true;
+    arg.s = name;
+    return arg;
+}
+
 static pnnx::Pt2Argument float_argument(double value)
 {
     pnnx::Pt2Argument arg;
@@ -373,6 +382,13 @@ static pnnx::Pt2Program pilot_program()
     program.nodes.push_back(view);
     program.tensors["view_out"] = tensor_meta(std::vector<int64_t>{1, 256});
 
+    pnnx::Pt2Node item;
+    item.name = "item";
+    item.target = "torch.ops.aten.item.default";
+    item.inputs.push_back(named_argument("self", tensor_argument("view_out")));
+    item.outputs.push_back(sym_int_argument("item_out"));
+    program.nodes.push_back(item);
+
     pnnx::Pt2Node index;
     index.name = "index";
     index.target = "torch.ops.aten.index.Tensor";
@@ -403,10 +419,12 @@ static int check_pilot()
     const pnnx::Operator* convolution = find_operator(graph, "convolution");
     const pnnx::Operator* norm = find_operator(graph, "native_layer_norm");
     const pnnx::Operator* view = find_operator(graph, "view");
+    const pnnx::Operator* item = find_operator(graph, "item");
     const pnnx::Operator* index = find_operator(graph, "index");
     if (!convolution || convolution->type != "aten::convolution" || convolution->inputs.size() != 9 ||
         !norm || norm->type != "aten::native_layer_norm" || norm->inputs.size() != 5 || norm->outputs.size() != 3 ||
         !view || view->type != "aten::view" || view->inputs.size() != 2 ||
+        !item || item->type != "aten::item" || item->inputs.size() != 1 ||
         !index || index->type != "aten::index" || index->inputs.size() != 2 || index->inputs[1]->producer->type != "prim::ListConstruct" || check_topology(graph) != 0)
         return -1;
 
@@ -421,7 +439,7 @@ static int check_pilot()
         return -1;
     pnnx::pass_level2(compatible_graph);
     if (!find_operator_type(compatible_graph, "F.conv2d") || !find_operator_type(compatible_graph, "F.layer_norm") ||
-        !find_operator_type(compatible_graph, "Tensor.reshape") || check_topology(compatible_graph) != 0)
+        !find_operator_type(compatible_graph, "Tensor.reshape") || !find_operator_type(compatible_graph, "Tensor.item") || check_topology(compatible_graph) != 0)
         return -1;
 
     pnnx::Pt2Program unknown = pilot_program();
