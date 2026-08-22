@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright 2026 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import argparse
 import pathlib

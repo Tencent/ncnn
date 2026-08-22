@@ -77,7 +77,7 @@ pnnx resnet18.pt2
 
 ## ExportedProgram support
 
-`pnnx` accepts the legacy ExportedProgram ZIP container produced by PyTorch 2.6 and 2.7, and the PT2 Archive v0 container produced by PyTorch 2.8 through 2.12.1. The supported program schema is major 8 with tested minors 2, 7, 8, 14, 15, 17, and 20, using ATen opset 10. The converter supports dense strided CPU tensor weights and static or profile-bound symbolic input shapes.
+`pnnx` accepts the legacy ExportedProgram ZIP container produced by PyTorch 2.6 and 2.7, and the PT2 Archive v0 container produced by PyTorch 2.8 through 2.12.1. The supported program schema is major 8 with tested minors 2, 7, 8, 14, 15, 17, and 20, using ATen opset 10. The converter supports tensor user inputs and outputs, dense strided CPU tensor weights, and static or profile-bound symbolic input shapes.
 
 An unknown container, schema, opset, operator, tensor layout/device, mutation output, or symbolic expression fails conversion with a nonzero exit status. PNNX does not silently fall back to TorchScript parsing or guess a newer PT2 format.
 
