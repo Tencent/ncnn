@@ -167,6 +167,10 @@ def main():
         for name, value, message in cases:
             run_case(args.tester, root, name, "--program-json", encoded(value), False, ("json offset", message))
 
+        value = copy.deepcopy(base)
+        value["graph_module"]["graph"]["nodes"][0]["target"] = "torch.ops.higher_order.wrap_with_autocast"
+        run_case(args.tester, root, "wrap_with_autocast", "--program-json", encoded(value), False, ("wrap_with_autocast is unsupported",))
+
 
 if __name__ == "__main__":
     main()

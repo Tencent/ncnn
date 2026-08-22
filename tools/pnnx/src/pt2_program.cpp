@@ -208,8 +208,13 @@ static int inline_higher_order_graph(Pt2JsonValue& graph, std::string& error)
     {
         Pt2JsonValue& node = graph_nodes.array[i];
         std::map<std::string, Pt2JsonValue>::iterator target = node.object.find("target");
+        if (target != node.object.end() && target->second.type == Pt2JsonValue::String && target->second.value == "torch.ops.higher_order.wrap_with_autocast")
+        {
+            error = "wrap_with_autocast is unsupported";
+            return -1;
+        }
         if (target == node.object.end() || target->second.type != Pt2JsonValue::String
-            || (target->second.value != "torch.ops.higher_order.wrap_with_autocast" && target->second.value != "torch.ops.higher_order.wrap_with_set_grad_enabled"))
+            || target->second.value != "torch.ops.higher_order.wrap_with_set_grad_enabled")
         {
             nodes.push_back(std::move(node));
             continue;

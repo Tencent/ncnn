@@ -1437,12 +1437,8 @@ static std::string make_slice_expression(const Operator* op)
     return pr + nr;
 }
 
-static std::string make_index_expression(const Operator* op)
+static std::string make_index_expression(std::string index_expr)
 {
-    fprintf(stderr, "make_index_expression %s\n", op->name.c_str());
-
-    std::string index_expr = op->params.at("expr").s;
-
     // strip out-most [ ] pair
     index_expr = index_expr.substr(1, index_expr.size() - 2);
 
@@ -1452,6 +1448,8 @@ static std::string make_index_expression(const Operator* op)
     {
         leading_none = true;
         index_expr = index_expr.substr(5);
+        while (!index_expr.empty() && index_expr[0] == ' ')
+            index_expr = index_expr.substr(1);
     }
     if (leading_none)
     {
@@ -1847,11 +1845,12 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 if (op->inputs.size() == 2)
                 {
                     std::string expanded_expr = expand_expression(op->inputs[1]->producer);
-                    fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), expanded_expr.c_str());
+                    std::string index_expr = make_index_expression(expanded_expr);
+                    fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), index_expr.c_str());
                 }
                 else
                 {
-                    std::string index_expr = make_index_expression(op);
+                    std::string index_expr = make_index_expression(op->params.at("expr").s);
                     fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), index_expr.c_str());
                 }
             }

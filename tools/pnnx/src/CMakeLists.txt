@@ -193,6 +193,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/Tensor_expand.cpp
     pass_level2/Tensor_expand_as.cpp
     pass_level2/Tensor_fill.cpp
+    pass_level2/Tensor_item.cpp
     pass_level2/Tensor_index.cpp
     pass_level2/Tensor_index_put.cpp
     pass_level2/Tensor_masked_fill.cpp

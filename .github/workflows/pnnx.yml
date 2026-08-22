@@ -41,6 +41,8 @@ jobs:
       UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v7
+      with:
+        submodules: true
 
     - uses: actions/setup-python@v7
       with:
@@ -51,6 +53,12 @@ jobs:
         python3 -m pip config set global.break-system-packages true
         pip3 install --user torch --index-url https://download.pytorch.org/whl/cpu
         pip3 install --user numpy packaging
+
+    - name: python-ncnn
+      env:
+        CMAKE_BUILD_PARALLEL_LEVEL: 4
+        EXTRA_CMAKE_ARGS: -DNCNN_VULKAN=OFF
+      run: pip3 install --user --no-deps . --verbose
 
     - name: build-pnnx
       run: |
@@ -79,6 +87,8 @@ jobs:
       UBSAN_OPTIONS: halt_on_error=1
     steps:
     - uses: actions/checkout@v7
+      with:
+        submodules: true
 
     - uses: actions/setup-python@v7
       with:
@@ -89,6 +99,12 @@ jobs:
         python3 -m pip config set global.break-system-packages true
         pip3 install --user torch --index-url https://download.pytorch.org/whl/cpu
         pip3 install --user numpy packaging
+
+    - name: python-ncnn
+      env:
+        CMAKE_BUILD_PARALLEL_LEVEL: 4
+        EXTRA_CMAKE_ARGS: -DNCNN_VULKAN=OFF
+      run: pip3 install --user --no-deps . --verbose
 
     - name: build-pnnx
       run: |

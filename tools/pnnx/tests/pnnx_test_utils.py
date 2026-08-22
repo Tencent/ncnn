@@ -53,10 +53,9 @@ def _flatten_output(output):
 
 
 def _run_ncnn(workdir, inputs, output_count):
-    try:
-        import ncnn
-    except ImportError:
-        return None
+    import ncnn
+    if not hasattr(ncnn, "Net") or not hasattr(ncnn, "Mat"):
+        raise RuntimeError("complete ncnn Python binding is required")
 
     source = (workdir / "model_ncnn.py").read_text()
     input_batch_index = {int(i): int(axis) for i, axis in re.findall(r'ex\.input\("in(\d+)", .*batch_index=(-?\d+)', source)}
@@ -125,11 +124,10 @@ def run_test(pnnx, workdir, format, model, inputs):
         ncnn_output = _run_ncnn(workdir, inputs, len(_flatten_output(expected)))
     except Exception as e:
         raise PnnxTestError("ncnn-runtime", str(e)) from e
-    if ncnn_output is not None:
-        try:
-            _check_output(expected, ncnn_output, 1e-3, 1e-3, True)
-        except Exception as e:
-            raise PnnxTestError("numeric-diff", "ncnn: " + str(e)) from e
+    try:
+        _check_output(expected, ncnn_output, 1e-3, 1e-3, True)
+    except Exception as e:
+        raise PnnxTestError("numeric-diff", "ncnn: " + str(e)) from e
 
 
 def main(test, pnnx, workdir, format, case):
