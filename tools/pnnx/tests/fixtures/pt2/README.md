@@ -9,6 +9,9 @@ This directory implements roadmap phase P0 and supplies the frozen archives used
 | 2.6.0 | legacy ExportedProgram ZIP | first supported schema-major-8 producer |
 | 2.7.0 | legacy ExportedProgram ZIP | final legacy container boundary |
 | 2.8.0 | PT2 Archive | first new-container boundary |
+| 2.9.0 | PT2 Archive | schema 8.14 producer |
+| 2.10.0 | PT2 Archive | schema 8.15 producer |
+| 2.11.0 | PT2 Archive | schema 8.17 producer |
 | 2.12.1 | PT2 Archive | current pnnx consumer-libtorch baseline |
 
 Each producer generates the same three deterministic cases:

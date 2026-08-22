@@ -123,6 +123,11 @@ set_tests_properties(test_pt2_fixture_tools PROPERTIES
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2
     LABELS "pt2;pt2-smoke;fixture")
 
+add_test(NAME test_pt2_fixture_matrix
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2/pt2_fixture_tools.py
+            verify-matrix ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/pt2)
+set_tests_properties(test_pt2_fixture_matrix PROPERTIES LABELS "pt2;pt2-smoke;fixture")
+
 set(PNNX_OPERATOR_TESTS
     point_add_tensor
     point_add_scalar

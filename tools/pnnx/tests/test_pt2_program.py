@@ -131,7 +131,7 @@ def main():
         cases.append(("schema_major", value, "$.schema_version.major"))
 
         value = copy.deepcopy(base)
-        value["schema_version"]["minor"] = 14
+        value["schema_version"]["minor"] = 16
         cases.append(("schema_minor", value, "$.schema_version.minor"))
 
         value = copy.deepcopy(base)

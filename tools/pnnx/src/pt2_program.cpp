@@ -409,7 +409,7 @@ private:
             fail("$.schema_version.major", major, "unsupported schema major");
             return false;
         }
-        if (program.schema_minor != 2 && program.schema_minor != 7 && program.schema_minor != 8 && program.schema_minor != 20)
+        if (program.schema_minor != 2 && program.schema_minor != 7 && program.schema_minor != 8 && program.schema_minor != 14 && program.schema_minor != 15 && program.schema_minor != 17 && program.schema_minor != 20)
         {
             fail("$.schema_version.minor", minor, "untested schema minor");
             return false;

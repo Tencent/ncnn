@@ -521,6 +521,11 @@ def verify_matrix(root: Path | str) -> list[str]:
                     "schema-major mismatch for torch %s case %s"
                     % (version, fixture.get("case"))
                 )
+            if schema_version.get("minor") != producer_requirement["expected_schema_minor"]:
+                errors.append(
+                    "schema-minor mismatch for torch %s case %s"
+                    % (version, fixture.get("case"))
+                )
     return errors
 
 

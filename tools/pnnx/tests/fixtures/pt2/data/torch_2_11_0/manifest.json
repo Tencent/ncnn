@@ -1,0 +1,386 @@
+{
+  "fixtures": [
+    {
+      "case": "state_and_constants",
+      "file": "state_and_constants.pt2",
+      "inspection": {
+        "archive_version": "0",
+        "container": "pt2_archive",
+        "graph": {
+          "inputs": 6,
+          "nodes": 4,
+          "outputs": 1
+        },
+        "model_record": "models/model.json",
+        "opset_version": {
+          "aten": 10
+        },
+        "payload_styles": [
+          "raw_tensor_with_payload_config"
+        ],
+        "producer_torch_version_in_model": "2.11.0",
+        "records": [
+          {
+            "compressed_size": 40,
+            "compression": 0,
+            "crc32": "5f7e11c5",
+            "flag_bits": 2056,
+            "name": ".data/serialization_id",
+            "size": 40
+          },
+          {
+            "compressed_size": 2,
+            "compression": 0,
+            "crc32": "28106a94",
+            "flag_bits": 2056,
+            "name": ".data/version",
+            "size": 2
+          },
+          {
+            "compressed_size": 3,
+            "compression": 0,
+            "crc32": "28345c30",
+            "flag_bits": 2056,
+            "name": "archive_format",
+            "size": 3
+          },
+          {
+            "compressed_size": 1,
+            "compression": 0,
+            "crc32": "f4dbdf21",
+            "flag_bits": 2056,
+            "name": "archive_version",
+            "size": 1
+          },
+          {
+            "compressed_size": 6,
+            "compression": 0,
+            "crc32": "19e33d85",
+            "flag_bits": 2056,
+            "name": "byteorder",
+            "size": 6
+          },
+          {
+            "compressed_size": 580,
+            "compression": 0,
+            "crc32": "3e8c0f4e",
+            "flag_bits": 2056,
+            "name": "data/constants/model_constants_config.json",
+            "size": 580
+          },
+          {
+            "compressed_size": 16,
+            "compression": 0,
+            "crc32": "7d5da074",
+            "flag_bits": 2056,
+            "name": "data/constants/tensor_0",
+            "size": 16
+          },
+          {
+            "compressed_size": 16,
+            "compression": 0,
+            "crc32": "a84d8de5",
+            "flag_bits": 2056,
+            "name": "data/constants/tensor_1",
+            "size": 16
+          },
+          {
+            "compressed_size": 1577,
+            "compression": 0,
+            "crc32": "3a0b24a7",
+            "flag_bits": 2056,
+            "name": "data/sample_inputs/model.pt",
+            "size": 1577
+          },
+          {
+            "compressed_size": 863,
+            "compression": 0,
+            "crc32": "ac1e7f36",
+            "flag_bits": 2056,
+            "name": "data/weights/model_weights_config.json",
+            "size": 863
+          },
+          {
+            "compressed_size": 48,
+            "compression": 0,
+            "crc32": "48ee6617",
+            "flag_bits": 2056,
+            "name": "data/weights/weight_0",
+            "size": 48
+          },
+          {
+            "compressed_size": 16,
+            "compression": 0,
+            "crc32": "007288cf",
+            "flag_bits": 2056,
+            "name": "data/weights/weight_1",
+            "size": 16
+          },
+          {
+            "compressed_size": 16,
+            "compression": 0,
+            "crc32": "49fe5909",
+            "flag_bits": 2056,
+            "name": "data/weights/weight_2",
+            "size": 16
+          },
+          {
+            "compressed_size": 8790,
+            "compression": 0,
+            "crc32": "093538fc",
+            "flag_bits": 2056,
+            "name": "models/model.json",
+            "size": 8790
+          }
+        ],
+        "root_prefix": "state_and_constants",
+        "schema_version": {
+          "major": 8,
+          "minor": 17
+        }
+      },
+      "semantic_sha256": "d1954ad433c40456718f0c502b31d9b7555e974566312c8ba36c2072e9015848",
+      "sha256": "001e58d45b17a2e9ce4f71ee163af9b4b4ef0555fd5da731d75287ce2b94474b",
+      "size": 14952
+    },
+    {
+      "case": "strided_tensors",
+      "file": "strided_tensors.pt2",
+      "inspection": {
+        "archive_version": "0",
+        "container": "pt2_archive",
+        "graph": {
+          "inputs": 4,
+          "nodes": 3,
+          "outputs": 1
+        },
+        "model_record": "models/model.json",
+        "opset_version": {
+          "aten": 10
+        },
+        "payload_styles": [
+          "raw_tensor_with_payload_config"
+        ],
+        "producer_torch_version_in_model": "2.11.0",
+        "records": [
+          {
+            "compressed_size": 40,
+            "compression": 0,
+            "crc32": "39060875",
+            "flag_bits": 2056,
+            "name": ".data/serialization_id",
+            "size": 40
+          },
+          {
+            "compressed_size": 2,
+            "compression": 0,
+            "crc32": "28106a94",
+            "flag_bits": 2056,
+            "name": ".data/version",
+            "size": 2
+          },
+          {
+            "compressed_size": 3,
+            "compression": 0,
+            "crc32": "28345c30",
+            "flag_bits": 2056,
+            "name": "archive_format",
+            "size": 3
+          },
+          {
+            "compressed_size": 1,
+            "compression": 0,
+            "crc32": "f4dbdf21",
+            "flag_bits": 2056,
+            "name": "archive_version",
+            "size": 1
+          },
+          {
+            "compressed_size": 6,
+            "compression": 0,
+            "crc32": "19e33d85",
+            "flag_bits": 2056,
+            "name": "byteorder",
+            "size": 6
+          },
+          {
+            "compressed_size": 14,
+            "compression": 0,
+            "crc32": "b78af06e",
+            "flag_bits": 2056,
+            "name": "data/constants/model_constants_config.json",
+            "size": 14
+          },
+          {
+            "compressed_size": 1577,
+            "compression": 0,
+            "crc32": "6314e4bc",
+            "flag_bits": 2056,
+            "name": "data/sample_inputs/model.pt",
+            "size": 1577
+          },
+          {
+            "compressed_size": 867,
+            "compression": 0,
+            "crc32": "b7dc0e66",
+            "flag_bits": 2056,
+            "name": "data/weights/model_weights_config.json",
+            "size": 867
+          },
+          {
+            "compressed_size": 120,
+            "compression": 0,
+            "crc32": "4282157d",
+            "flag_bits": 2056,
+            "name": "data/weights/weight_0",
+            "size": 120
+          },
+          {
+            "compressed_size": 80,
+            "compression": 0,
+            "crc32": "4b2d0191",
+            "flag_bits": 2056,
+            "name": "data/weights/weight_1",
+            "size": 80
+          },
+          {
+            "compressed_size": 6817,
+            "compression": 0,
+            "crc32": "b4fee760",
+            "flag_bits": 2056,
+            "name": "models/model.json",
+            "size": 6817
+          }
+        ],
+        "root_prefix": "strided_tensors",
+        "schema_version": {
+          "major": 8,
+          "minor": 17
+        }
+      },
+      "semantic_sha256": "a2b721274f44f75cec1b284e5698ebf7ac04459986be57ee69465b79596951c8",
+      "sha256": "3b12f9230c70108e7e7522160351f24aa26f91020a8d9b56c377ae1f27f282f6",
+      "size": 11891
+    },
+    {
+      "case": "structured_io",
+      "file": "structured_io.pt2",
+      "inspection": {
+        "archive_version": "0",
+        "container": "pt2_archive",
+        "graph": {
+          "inputs": 3,
+          "nodes": 4,
+          "outputs": 3
+        },
+        "model_record": "models/model.json",
+        "opset_version": {
+          "aten": 10
+        },
+        "payload_styles": [
+          "none"
+        ],
+        "producer_torch_version_in_model": "2.11.0",
+        "records": [
+          {
+            "compressed_size": 40,
+            "compression": 0,
+            "crc32": "1039b350",
+            "flag_bits": 2056,
+            "name": ".data/serialization_id",
+            "size": 40
+          },
+          {
+            "compressed_size": 2,
+            "compression": 0,
+            "crc32": "28106a94",
+            "flag_bits": 2056,
+            "name": ".data/version",
+            "size": 2
+          },
+          {
+            "compressed_size": 3,
+            "compression": 0,
+            "crc32": "28345c30",
+            "flag_bits": 2056,
+            "name": "archive_format",
+            "size": 3
+          },
+          {
+            "compressed_size": 1,
+            "compression": 0,
+            "crc32": "f4dbdf21",
+            "flag_bits": 2056,
+            "name": "archive_version",
+            "size": 1
+          },
+          {
+            "compressed_size": 6,
+            "compression": 0,
+            "crc32": "19e33d85",
+            "flag_bits": 2056,
+            "name": "byteorder",
+            "size": 6
+          },
+          {
+            "compressed_size": 14,
+            "compression": 0,
+            "crc32": "b78af06e",
+            "flag_bits": 2056,
+            "name": "data/constants/model_constants_config.json",
+            "size": 14
+          },
+          {
+            "compressed_size": 1829,
+            "compression": 0,
+            "crc32": "3238d44f",
+            "flag_bits": 2056,
+            "name": "data/sample_inputs/model.pt",
+            "size": 1829
+          },
+          {
+            "compressed_size": 14,
+            "compression": 0,
+            "crc32": "b78af06e",
+            "flag_bits": 2056,
+            "name": "data/weights/model_weights_config.json",
+            "size": 14
+          },
+          {
+            "compressed_size": 7746,
+            "compression": 0,
+            "crc32": "3cb46a53",
+            "flag_bits": 2056,
+            "name": "models/model.json",
+            "size": 7746
+          }
+        ],
+        "root_prefix": "structured_io",
+        "schema_version": {
+          "major": 8,
+          "minor": 17
+        }
+      },
+      "semantic_sha256": "e6e40595d86d8eaa75493a83f16c904526240d19cadd0f3dfbce43a004bf4930",
+      "sha256": "efd1b2a5dbfc6b15ea11ec9de6015dcc27ed94055a4f90e85d174360a475a68e",
+      "size": 11579
+    }
+  ],
+  "generator": {
+    "roundtrip_checked": true,
+    "script": "generate_pt2_fixtures.py",
+    "script_sha256": "3c2458399133cfa310fcfbf61a24500aa4df327d6f8638bc9300d9034bed7922",
+    "semantic_determinism_checked": true,
+    "strict_export": true,
+    "version": 1
+  },
+  "manifest_version": 1,
+  "producer": {
+    "byteorder": "little",
+    "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+    "python_implementation": "CPython",
+    "python_version": "3.13.9",
+    "torch_version": "2.11.0",
+    "torch_version_normalized": "2.11.0"
+  }
+}
