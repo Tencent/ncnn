@@ -77,9 +77,25 @@ public:
 
         const Pt2JsonValue* verifiers = field(root, "verifiers", "$", false);
         const Pt2JsonValue* guards_code = field(root, "guards_code", "$", false);
-        if ((verifiers && !decode_string_array(*verifiers, "$.verifiers")) ||
-            (guards_code && !decode_string_array(*guards_code, "$.guards_code")) ||
-            !reject_unknown(root, "$", "graph_module", "opset_version", "range_constraints", "schema_version", "torch_version", "verifiers", "guards_code"))
+        if (verifiers)
+        {
+            if (!decode_string_array(*verifiers, "$.verifiers"))
+                return -1;
+            for (size_t i = 0; i < verifiers->array.size(); i++)
+            {
+                const std::string& verifier = verifiers->array[i].value;
+                if (!verifier.empty() && verifier != "ATEN" && verifier != "TRAINING")
+                    return fail("$.verifiers[" + std::to_string(i) + "]", &verifiers->array[i], "unsupported verifier " + verifier);
+            }
+        }
+        if (guards_code)
+        {
+            if (!decode_string_array(*guards_code, "$.guards_code"))
+                return -1;
+            for (size_t i = 0; i < guards_code->array.size(); i++)
+                program.guards_code.push_back(guards_code->array[i].value);
+        }
+        if (!reject_unknown(root, "$", "graph_module", "opset_version", "range_constraints", "schema_version", "torch_version", "verifiers", "guards_code"))
             return -1;
         return verify();
     }
@@ -841,8 +857,13 @@ private:
                 if (kind)
                 {
                     int64_t kind_value;
-                    if (!get_int(*kind, named_path + ".kind", kind_value) || kind_value < 0 || kind_value > INT32_MAX)
+                    if (!get_int(*kind, named_path + ".kind", kind_value))
                         return false;
+                    if (kind_value < 0 || kind_value > 2)
+                    {
+                        fail(named_path + ".kind", kind, "unknown argument kind");
+                        return false;
+                    }
                     named.kind = (int)kind_value;
                 }
                 if (!reject_unknown(named_value, named_path, "name", "arg", "kind"))

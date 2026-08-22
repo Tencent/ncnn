@@ -459,6 +459,13 @@ static int check_pilot()
         !find_operator_type(compatible_graph, "Tensor.reshape") || !find_operator_type(compatible_graph, "Tensor.item") || check_topology(compatible_graph) != 0)
         return -1;
 
+    pnnx::Pt2Program generated_name_collision = pilot_program();
+    generated_name_collision.nodes[1].name = "pnnx_0";
+    pnnx::Graph generated_name_collision_graph;
+    if (pnnx::lower_pt2_graph(generated_name_collision, weights, generated_name_collision_graph, error) != 0 ||
+        check_topology(generated_name_collision_graph) != 0)
+        return -1;
+
     pnnx::Pt2Program unknown = pilot_program();
     unknown.nodes[0].target = "torch.ops.aten.pnnx_missing.default";
     pnnx::Graph unknown_graph;

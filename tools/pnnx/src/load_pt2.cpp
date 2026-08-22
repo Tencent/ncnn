@@ -7,6 +7,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <map>
 
@@ -187,9 +188,133 @@ static bool get_symbol_name(const std::string& expression, std::string& name)
     return *p == '\0';
 }
 
+static bool parse_guard_value(const char*& p, const std::map<std::string, std::vector<int64_t> >& shapes, int64_t& value, int depth);
+
+static bool parse_guard_primary(const char*& p, const std::map<std::string, std::vector<int64_t> >& shapes, int64_t& value, int depth)
+{
+    if (depth >= 64)
+        return false;
+
+    skip_space(p);
+    if (strncmp(p, "L['", 3) == 0)
+    {
+        p += 3;
+        const char* name_begin = p;
+        while (*p && *p != '\'' && *p != '\\')
+            p++;
+        const std::string name(name_begin, p);
+        if (name.empty() || strncmp(p, "'].size()[", 10) != 0)
+            return false;
+        p += 10;
+        errno = 0;
+        char* end;
+        const long long index = strtoll(p, &end, 10);
+        if (errno || end == p || index < 0 || *end != ']')
+            return false;
+        p = end + 1;
+        std::map<std::string, std::vector<int64_t> >::const_iterator it = shapes.find(name);
+        if (it == shapes.end() || (uint64_t)index >= it->second.size())
+            return false;
+        value = it->second[(size_t)index];
+        return true;
+    }
+
+    if (strncmp(p, "max", 3) == 0)
+    {
+        p += 3;
+        skip_space(p);
+        if (*p != '(')
+            return false;
+        p++;
+        int64_t a;
+        int64_t b;
+        if (!parse_guard_value(p, shapes, a, depth + 1))
+            return false;
+        skip_space(p);
+        if (*p != ',')
+            return false;
+        p++;
+        if (!parse_guard_value(p, shapes, b, depth + 1))
+            return false;
+        skip_space(p);
+        if (*p != ')')
+            return false;
+        p++;
+        value = a > b ? a : b;
+        return true;
+    }
+
+    if (*p == '(')
+    {
+        p++;
+        if (!parse_guard_value(p, shapes, value, depth + 1))
+            return false;
+        skip_space(p);
+        if (*p != ')')
+            return false;
+        p++;
+        return true;
+    }
+
+    errno = 0;
+    char* end;
+    value = strtoll(p, &end, 10);
+    if (errno || end == p)
+        return false;
+    p = end;
+    return true;
+}
+
+static bool parse_guard_value(const char*& p, const std::map<std::string, std::vector<int64_t> >& shapes, int64_t& value, int depth)
+{
+    if (!parse_guard_primary(p, shapes, value, depth))
+        return false;
+    for (;;)
+    {
+        skip_space(p);
+        if (p[0] != '/' || p[1] != '/')
+            return true;
+        p += 2;
+        int64_t divisor;
+        if (!parse_guard_primary(p, shapes, divisor, depth + 1) || !floor_div_int64(value, divisor, value))
+            return false;
+    }
+}
+
+static int evaluate_guard(const std::string& guard, const std::map<std::string, std::vector<int64_t> >& shapes)
+{
+    const char* p = guard.c_str();
+    int64_t a;
+    int64_t b;
+    if (!parse_guard_value(p, shapes, a, 0))
+        return -1;
+    skip_space(p);
+
+    const char* op = p;
+    if (p[0] && (p[0] == '=' || p[0] == '!' || p[0] == '<' || p[0] == '>') && p[1] == '=')
+        p += 2;
+    else if (p[0] == '<' || p[0] == '>')
+        p++;
+    else
+        return -1;
+    if (!parse_guard_value(p, shapes, b, 0))
+        return -1;
+    skip_space(p);
+    if (*p)
+        return -1;
+
+    if (op[0] == '=' && op[1] == '=') return a == b;
+    if (op[0] == '!' && op[1] == '=') return a != b;
+    if (op[0] == '<' && op[1] == '=') return a <= b;
+    if (op[0] == '>' && op[1] == '=') return a >= b;
+    if (op[0] == '<') return a < b;
+    return a > b;
+}
+
 static int bind_input_shapes(const Pt2Program& program, const std::vector<std::vector<int64_t> >& input_shapes, const char* profile, std::map<std::string, int64_t>& symbols, std::string& error)
 {
     size_t input_index = 0;
+    std::map<std::string, std::vector<int64_t> > shapes;
     for (size_t i = 0; i < program.input_specs.size(); i++)
     {
         const Pt2InputSpec& spec = program.input_specs[i];
@@ -212,6 +337,7 @@ static int bind_input_shapes(const Pt2Program& program, const std::vector<std::v
             error = std::string(profile) + " input " + std::to_string(input_index) + " rank mismatch";
             return -1;
         }
+        std::vector<int64_t>& shape = shapes[spec.arg.s];
         for (size_t j = 0; j < tensor.sizes.size(); j++)
         {
             const Pt2SymInt& size = tensor.sizes[j];
@@ -221,6 +347,7 @@ static int bind_input_shapes(const Pt2Program& program, const std::vector<std::v
                 error = std::string(profile) + " input " + std::to_string(input_index) + " has a negative dimension";
                 return -1;
             }
+            shape.push_back(dimension);
             if (!size.symbolic)
             {
                 if (dimension != size.value)
@@ -260,6 +387,20 @@ static int bind_input_shapes(const Pt2Program& program, const std::vector<std::v
         if ((range->second.has_min && it->second < range->second.min) || (range->second.has_max && it->second > range->second.max))
         {
             error = std::string(profile) + " value " + std::to_string(it->second) + " for " + it->first + " is outside the exported range";
+            return -1;
+        }
+    }
+    for (size_t i = 0; i < program.guards_code.size(); i++)
+    {
+        const int result = evaluate_guard(program.guards_code[i], shapes);
+        if (result < 0)
+        {
+            error = "unsupported runtime guard " + program.guards_code[i];
+            return -1;
+        }
+        if (result == 0)
+        {
+            error = std::string(profile) + " violates runtime guard " + program.guards_code[i];
             return -1;
         }
     }

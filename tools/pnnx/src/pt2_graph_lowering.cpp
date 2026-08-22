@@ -203,6 +203,18 @@ public:
         generated_index = 0;
         input_index = 0;
         output_index = 0;
+
+        for (std::map<std::string, Pt2Tensor>::const_iterator it = program.tensors.begin(); it != program.tensors.end(); ++it)
+            reserved_names.insert(it->first);
+        for (std::map<std::string, Pt2SymInt>::const_iterator it = program.sym_ints.begin(); it != program.sym_ints.end(); ++it)
+            reserved_names.insert(it->first);
+        for (std::set<std::string>::const_iterator it = program.sym_bools.begin(); it != program.sym_bools.end(); ++it)
+            reserved_names.insert(*it);
+        for (size_t i = 0; i < program.nodes.size(); i++)
+        {
+            if (!program.nodes[i].name.empty())
+                reserved_names.insert(program.nodes[i].name);
+        }
     }
 
     int lower()
@@ -252,7 +264,7 @@ private:
         for (;;)
         {
             const std::string name = "pnnx_" + std::to_string(generated_index++);
-            if (operand_names.find(name) == operand_names.end() && operator_names.find(name) == operator_names.end())
+            if (reserved_names.find(name) == reserved_names.end() && operand_names.find(name) == operand_names.end() && operator_names.find(name) == operator_names.end())
                 return name;
         }
     }
@@ -653,6 +665,8 @@ private:
                 op->outputs.push_back(list);
 
                 const std::string unpack_name = generated_name();
+                if (add_operator_name(unpack_name) != 0)
+                    return fail_node(index, node, error, schema_stream.str());
                 Operator* unpack = graph.new_operator("prim::ListUnpack", unpack_name);
                 unpack->inputs.push_back(list);
                 list->consumers.push_back(unpack);
@@ -810,6 +824,7 @@ private:
     size_t output_index;
     std::set<std::string> operator_names;
     std::set<std::string> operand_names;
+    std::set<std::string> reserved_names;
 };
 
 int lower_pt2_graph(const Pt2Program& program, Pt2Weights& weights, Graph& graph, std::string& error)

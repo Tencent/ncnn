@@ -168,6 +168,10 @@ def main():
         cases.append(("unknown_root_field", value, "$.future_required"))
 
         value = copy.deepcopy(base)
+        value["verifiers"] = ["CUSTOM"]
+        cases.append(("verifier", value, "unsupported verifier CUSTOM"))
+
+        value = copy.deepcopy(base)
         value["graph_module"]["graph"]["tensor_values"]["x"]["future_required"] = True
         cases.append(("unknown_tensor_field", value, ".tensor_values.x.future_required"))
 
@@ -244,6 +248,10 @@ def main():
         value = copy.deepcopy(base)
         value["graph_module"]["graph"]["nodes"][0]["is_hop_single_tensor_return"] = True
         cases.append(("hop_single_return", value, "higher-order single tensor return is unsupported"))
+
+        value = copy.deepcopy(base)
+        value["graph_module"]["graph"]["nodes"][0]["inputs"][0]["kind"] = 3
+        cases.append(("argument_kind", value, "unknown argument kind"))
 
         value = copy.deepcopy(base)
         value["range_constraints"] = {"s0": {"min_val": 4, "max_val": 2}}

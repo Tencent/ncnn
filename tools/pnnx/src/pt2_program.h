@@ -143,6 +143,7 @@ struct Pt2Program
     std::vector<Pt2InputSpec> input_specs;
     std::vector<Pt2OutputSpec> output_specs;
     std::map<std::string, Pt2RangeConstraint> range_constraints;
+    std::vector<std::string> guards_code;
     std::string error;
 };
 

@@ -132,6 +132,31 @@ def main():
         if invalid.returncode == 0 or expected not in invalid.stdout:
             print(invalid.stdout)
             return 1
+
+    guard_cases = [
+        ("guard_supported", "L['%s'].size()[0] != max(1, L['%s'].size()[0] // 2)" % (input_name, input_name), True, ""),
+        ("guard_false", "L['%s'].size()[0] < 6" % input_name, False, "violates runtime guard"),
+        ("guard_unsupported", "L['%s'].stride()[0] == 3" % input_name, False, "unsupported runtime guard"),
+    ]
+    for name, guard, valid, expected in guard_cases:
+        mutated = copy.deepcopy(program)
+        mutated["guards_code"] = [guard]
+        mutated_records = dict(records)
+        mutated_records[model_record] = json.dumps(mutated, separators=(",", ":")).encode("utf-8")
+        path = name + ".pt2"
+        with zipfile.ZipFile(args.workdir / path, "w") as archive:
+            for record_name, data in mutated_records.items():
+                archive.writestr(record_name, data)
+        invalid = subprocess.run(
+            [str(pathlib.Path(args.pnnx).resolve()), path, "inputshape=[6,3]"],
+            cwd=args.workdir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        if valid != (invalid.returncode == 0) or (expected and expected not in invalid.stdout):
+            print(invalid.stdout)
+            return 1
     return 0
 
 
