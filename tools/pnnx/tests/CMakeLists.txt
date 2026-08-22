@@ -115,7 +115,7 @@ if(Torch_VERSION VERSION_GREATER_EQUAL "2.6")
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_dynamic_shapes.py
                 --pnnx $<TARGET_FILE:pnnx>
                 --workdir ${CMAKE_CURRENT_BINARY_DIR}/pt2-dynamic-shapes)
-    set_tests_properties(test_pt2_dynamic_shapes PROPERTIES LABELS "pt2;pt2-smoke;p9;dynamic")
+    set_tests_properties(test_pt2_dynamic_shapes PROPERTIES LABELS "pt2;pt2-smoke;p9;dynamic" SKIP_RETURN_CODE 77)
 endif()
 
 add_test(NAME test_pt2_fixture_tools

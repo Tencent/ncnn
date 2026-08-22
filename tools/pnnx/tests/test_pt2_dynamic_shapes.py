@@ -33,6 +33,10 @@ def main():
     parser.add_argument("--workdir", type=pathlib.Path, required=True)
     args = parser.parse_args()
 
+    if tuple(int(x) for x in torch.__version__.split("+")[0].split(".")[:2]) < (2, 6):
+        print("PT2 test skipped: PyTorch 2.6 or newer is required")
+        return 77
+
     args.workdir.mkdir(parents=True, exist_ok=True)
     model = Model().eval()
     exported = torch.export.export(
