@@ -194,6 +194,17 @@ static int argument_from_ivalue(const c10::IValue& value, Pt2Argument& arg, std:
     return 0;
 }
 
+static bool output_matches_schema(const Pt2Argument& output, const c10::TypePtr& type)
+{
+    if (output.type == Pt2Argument::Tensor)
+        return type->kind() == c10::TypeKind::TensorType;
+    if (output.type == Pt2Argument::Tensors)
+        return type->kind() == c10::TypeKind::ListType && type->cast<c10::ListType>()->getElementType()->kind() == c10::TypeKind::TensorType;
+    if (output.type == Pt2Argument::SymInt)
+        return type->kind() == c10::TypeKind::SymIntType || type->kind() == c10::TypeKind::IntType || type->kind() == c10::TypeKind::NumberType;
+    return false;
+}
+
 class Pt2GraphLowering
 {
 public:
@@ -212,8 +223,19 @@ public:
             reserved_names.insert(*it);
         for (size_t i = 0; i < program.nodes.size(); i++)
         {
-            if (!program.nodes[i].name.empty())
-                reserved_names.insert(program.nodes[i].name);
+            std::string name = program.nodes[i].name;
+            if (name.empty() && !program.nodes[i].outputs.empty())
+                name = program.nodes[i].outputs[0].s;
+            if (!name.empty())
+            {
+                program_operator_names.insert(name);
+                reserved_names.insert(name);
+            }
+        }
+        for (size_t i = 0; i < program.input_specs.size(); i++)
+        {
+            if (program.input_specs[i].kind == Pt2InputSpec::Parameter || program.input_specs[i].kind == Pt2InputSpec::Buffer || program.input_specs[i].kind == Pt2InputSpec::TensorConstant)
+                reserved_names.insert(program.input_specs[i].target);
         }
     }
 
@@ -316,7 +338,9 @@ private:
 
         if (spec.kind == Pt2InputSpec::UserInput)
         {
-            const std::string name = "pnnx_input_" + std::to_string(input_index++);
+            std::string name = "pnnx_input_" + std::to_string(input_index++);
+            if (program_operator_names.find(name) != program_operator_names.end() || operator_names.find(name) != operator_names.end())
+                name = generated_name();
             if (add_operator_name(name) != 0)
                 return -1;
             Operator* op = graph.new_operator("pnnx.Input", name);
@@ -333,9 +357,12 @@ private:
             return fail("missing weight " + spec.target);
         if (it->second.kind != spec.kind)
             return fail("weight kind mismatch for " + spec.target);
-        if (add_operator_name(spec.target) != 0)
+        std::string name = spec.target;
+        if (program_operator_names.find(name) != program_operator_names.end() || operator_names.find(name) != operator_names.end())
+            name = generated_name();
+        if (add_operator_name(name) != 0)
             return -1;
-        Operator* op = graph.new_operator("pnnx.Attribute", spec.target);
+        Operator* op = graph.new_operator("pnnx.Attribute", name);
         op->attrs["data"] = std::move(it->second.attribute);
         Operand* operand = new_operand(spec.arg.s);
         if (!operand || set_tensor_meta(spec.arg.s, operand) != 0)
@@ -514,9 +541,12 @@ private:
             return fail_node(index, node, "invalid tensor metadata assertion output");
 
         const Pt2Tensor* tensor = 0;
+        std::set<std::string> names;
         for (size_t i = 0; i < node.inputs.size(); i++)
         {
             const Pt2NamedArgument& input = node.inputs[i];
+            if (!names.insert(input.name).second)
+                return fail_node(index, node, "duplicate argument " + input.name);
             if (input.name == "a")
             {
                 if (tensor || input.arg.type != Pt2Argument::Tensor)
@@ -593,7 +623,7 @@ private:
                 return fail_node(index, node, "duplicate argument " + node.inputs[i].name, schema_stream.str());
         }
 
-        const std::string operator_name = !node.name.empty() ? node.name : !node.outputs.empty() ? node.outputs[0].s : generated_name();
+        const std::string operator_name = !node.name.empty() ? node.name : !node.outputs.empty() && !node.outputs[0].s.empty() ? node.outputs[0].s : generated_name();
         if (add_operator_name(operator_name) != 0)
             return fail_node(index, node, error, schema_stream.str());
         std::vector<Operand*> operator_inputs;
@@ -637,6 +667,11 @@ private:
             return fail_node(index, node, "unknown argument " + inputs.begin()->first, schema_stream.str());
         if (node.outputs.size() != schema.returns().size())
             return fail_node(index, node, "output count does not match dispatcher schema", schema_stream.str());
+        for (size_t i = 0; i < node.outputs.size(); i++)
+        {
+            if (!output_matches_schema(node.outputs[i], schema.returns()[i].type()))
+                return fail_node(index, node, "output type does not match dispatcher schema", schema_stream.str());
+        }
 
         Operator* op = graph.new_operator(name, operator_name);
         op->inputs = operator_inputs;
@@ -645,8 +680,6 @@ private:
             operator_inputs[i]->consumers.push_back(op);
         for (size_t i = 0; i < node.outputs.size(); i++)
         {
-            if (node.outputs[i].type != Pt2Argument::Tensor && node.outputs[i].type != Pt2Argument::Tensors && node.outputs[i].type != Pt2Argument::SymInt)
-                return fail_node(index, node, "unsupported output type", schema_stream.str());
             if (node.outputs[i].type == Pt2Argument::Tensor)
             {
                 Operand* operand = new_operand(node.outputs[i].s);
@@ -747,7 +780,9 @@ private:
         Operand* operand = graph.get_operand(spec.arg.s);
         if (!operand)
             return fail("unknown graph output " + spec.arg.s);
-        const std::string name = "pnnx_output_" + std::to_string(output_index++);
+        std::string name = "pnnx_output_" + std::to_string(output_index++);
+        if (program_operator_names.find(name) != program_operator_names.end() || operator_names.find(name) != operator_names.end())
+            name = generated_name();
         if (add_operator_name(name) != 0)
             return -1;
         Operator* op = graph.new_operator("pnnx.Output", name);
@@ -823,6 +858,7 @@ private:
     size_t input_index;
     size_t output_index;
     std::set<std::string> operator_names;
+    std::set<std::string> program_operator_names;
     std::set<std::string> operand_names;
     std::set<std::string> reserved_names;
 };

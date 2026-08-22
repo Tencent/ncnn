@@ -248,6 +248,14 @@ static pnnx::Pt2Argument optional_tensors_argument(const std::vector<std::string
     return arg;
 }
 
+static pnnx::Pt2Argument tensors_argument(const std::vector<std::string>& values)
+{
+    pnnx::Pt2Argument arg;
+    arg.type = pnnx::Pt2Argument::Tensors;
+    arg.as = values;
+    return arg;
+}
+
 static pnnx::Pt2Argument ints_argument(const std::vector<int64_t>& values)
 {
     pnnx::Pt2Argument arg;
@@ -466,6 +474,51 @@ static int check_pilot()
         check_topology(generated_name_collision_graph) != 0)
         return -1;
 
+    pnnx::Pt2Program input_output_name_collision = pilot_program();
+    input_output_name_collision.nodes[0].name = "pnnx_input_0";
+    input_output_name_collision.nodes[1].name = "pnnx_output_0";
+    pnnx::Graph input_output_name_collision_graph;
+    if (pnnx::lower_pt2_graph(input_output_name_collision, weights, input_output_name_collision_graph, error) != 0 ||
+        check_topology(input_output_name_collision_graph) != 0)
+        return -1;
+
+    pnnx::Pt2Program attribute_name_collision = pilot_program();
+    attribute_name_collision.input_specs[1].kind = pnnx::Pt2InputSpec::Parameter;
+    attribute_name_collision.input_specs[1].target = "convolution";
+    pnnx::Pt2Weight weight;
+    weight.kind = pnnx::Pt2InputSpec::Parameter;
+    weight.attribute = pnnx::Attribute({4, 3, 3, 3}, std::vector<float>(4 * 3 * 3 * 3));
+    pnnx::Pt2Weights collision_weights;
+    collision_weights.values["convolution"] = weight;
+    pnnx::Graph attribute_name_collision_graph;
+    if (pnnx::lower_pt2_graph(attribute_name_collision, collision_weights, attribute_name_collision_graph, error) != 0 ||
+        check_topology(attribute_name_collision_graph) != 0)
+        return -1;
+
+    pnnx::Pt2Program unnamed_list_output = pilot_program();
+    pnnx::Pt2Node chunk;
+    chunk.target = "torch.ops.aten.chunk.default";
+    chunk.inputs.push_back(named_argument("self", tensor_argument("index_out")));
+    chunk.inputs.push_back(named_argument("chunks", int_argument(2)));
+    chunk.inputs.push_back(named_argument("dim", int_argument(1)));
+    chunk.outputs.push_back(tensors_argument(std::vector<std::string>{"chunk_0", "chunk_1"}));
+    unnamed_list_output.nodes.push_back(chunk);
+    unnamed_list_output.tensors["chunk_0"] = tensor_meta(std::vector<int64_t>{1, 128});
+    unnamed_list_output.tensors["chunk_1"] = tensor_meta(std::vector<int64_t>{1, 128});
+    unnamed_list_output.outputs[0] = tensor_argument("chunk_0");
+    unnamed_list_output.output_specs[0].arg = tensor_argument("chunk_0");
+    pnnx::Graph unnamed_list_output_graph;
+    if (pnnx::lower_pt2_graph(unnamed_list_output, weights, unnamed_list_output_graph, error) != 0 ||
+        check_topology(unnamed_list_output_graph) != 0 || find_operator(unnamed_list_output_graph, "") != 0)
+        return -1;
+
+    pnnx::Pt2Program mismatched_output = pilot_program();
+    mismatched_output.nodes[0].outputs[0] = tensors_argument(std::vector<std::string>{"convolution_out"});
+    pnnx::Graph mismatched_output_graph;
+    if (pnnx::lower_pt2_graph(mismatched_output, weights, mismatched_output_graph, error) == 0 ||
+        error.find("output type does not match dispatcher schema") == std::string::npos)
+        return -1;
+
     pnnx::Pt2Program unknown = pilot_program();
     unknown.nodes[0].target = "torch.ops.aten.pnnx_missing.default";
     pnnx::Graph unknown_graph;
@@ -499,6 +552,13 @@ static int check_pilot()
     metadata_assertion.nodes.push_back(assertion);
     pnnx::Graph metadata_assertion_graph;
     if (pnnx::lower_pt2_graph(metadata_assertion, weights, metadata_assertion_graph, error) != 0)
+        return -1;
+
+    pnnx::Pt2Program duplicate_metadata_assertion = metadata_assertion;
+    duplicate_metadata_assertion.nodes.back().inputs.push_back(named_argument("dtype", enum_argument(pnnx::Pt2Argument::ScalarType, 7)));
+    pnnx::Graph duplicate_metadata_assertion_graph;
+    if (pnnx::lower_pt2_graph(duplicate_metadata_assertion, weights, duplicate_metadata_assertion_graph, error) == 0 ||
+        error.find("duplicate argument dtype") == std::string::npos)
         return -1;
 
     metadata_assertion.nodes.back().inputs[1].arg.i = 5;
