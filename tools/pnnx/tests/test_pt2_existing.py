@@ -185,10 +185,14 @@ def main():
         schema = "unavailable"
         pt2_files = list(pathlib.Path(args.workdir).glob("*.pt2"))
         if pt2_files:
-            with zipfile.ZipFile(pt2_files[0]) as archive:
-                model = next(x for x in archive.namelist() if x.endswith("/models/model.json"))
-                version = json.loads(archive.read(model)).get("schema_version", {})
-                schema = "%s.%s" % (version.get("major", "?"), version.get("minor", "?"))
+            try:
+                with zipfile.ZipFile(pt2_files[0]) as archive:
+                    model = next((x for x in archive.namelist() if x.endswith("models/model.json") or x.endswith("serialized_exported_program.json")), None)
+                    if model:
+                        version = json.loads(archive.read(model)).get("schema_version", {})
+                        schema = "%s.%s" % (version.get("major", "?"), version.get("minor", "?"))
+            except Exception:
+                pass
         print("pnnx test failed: format=pt2 producer=torch-%s schema=%s case=%s stage=%s\n%s" %
               (torch.__version__, schema, args.case, e.stage, e), file=sys.stderr)
         return 1

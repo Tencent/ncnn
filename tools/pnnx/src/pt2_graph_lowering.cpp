@@ -496,6 +496,58 @@ private:
         return 0;
     }
 
+    int lower_assert_tensor_metadata(size_t index, const Pt2Node& node)
+    {
+        if (!node.outputs.empty())
+            return fail_node(index, node, "invalid tensor metadata assertion output");
+
+        const Pt2Tensor* tensor = 0;
+        for (size_t i = 0; i < node.inputs.size(); i++)
+        {
+            const Pt2NamedArgument& input = node.inputs[i];
+            if (input.name == "a")
+            {
+                if (tensor || input.arg.type != Pt2Argument::Tensor)
+                    return fail_node(index, node, "invalid tensor metadata assertion input");
+                std::map<std::string, Pt2Tensor>::const_iterator it = program.tensors.find(input.arg.s);
+                if (it == program.tensors.end())
+                    return fail_node(index, node, "unknown tensor metadata assertion input");
+                tensor = &it->second;
+            }
+        }
+        if (!tensor)
+            return fail_node(index, node, "tensor metadata assertion is missing input a");
+
+        for (size_t i = 0; i < node.inputs.size(); i++)
+        {
+            const Pt2NamedArgument& input = node.inputs[i];
+            if (input.name == "a")
+                continue;
+            if ((input.name == "size" || input.name == "stride" || input.name == "dtype" || input.name == "device" || input.name == "layout") && input.arg.type == Pt2Argument::None)
+                continue;
+            if (input.name == "dtype")
+            {
+                if (input.arg.type != Pt2Argument::ScalarType || input.arg.i != tensor->dtype)
+                    return fail_node(index, node, "tensor metadata dtype assertion mismatch");
+            }
+            else if (input.name == "device")
+            {
+                if (input.arg.type != Pt2Argument::Device || input.arg.s != tensor->device || input.arg.i != tensor->device_index)
+                    return fail_node(index, node, "tensor metadata device assertion mismatch");
+            }
+            else if (input.name == "layout")
+            {
+                if (input.arg.type != Pt2Argument::Layout || input.arg.i != tensor->layout)
+                    return fail_node(index, node, "tensor metadata layout assertion mismatch");
+            }
+            else
+            {
+                return fail_node(index, node, "unsupported tensor metadata assertion argument " + input.name);
+            }
+        }
+        return 0;
+    }
+
     int lower_node(size_t index, const Pt2Node& node)
     {
         bool has_output = false;
@@ -503,9 +555,8 @@ private:
             has_output |= node.outputs[i].type == Pt2Argument::Tensor || node.outputs[i].type == Pt2Argument::Tensors || node.outputs[i].type == Pt2Argument::SymInt;
         if (!has_output)
         {
-            if (node.target == "_operator.ge" || node.target == "_operator.le" ||
-                node.target == "torch.ops.aten._assert_scalar.default" || node.target == "torch.ops.aten._assert_tensor_metadata.default")
-                return 0;
+            if (node.target == "torch.ops.aten._assert_tensor_metadata.default")
+                return lower_assert_tensor_metadata(index, node);
             return fail_node(index, node, "operator without a tensor or symbolic integer output is unsupported");
         }
 

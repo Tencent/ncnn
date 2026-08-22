@@ -123,8 +123,29 @@ jobs:
   build:
     runs-on: [self-hosted, linux, ubuntu25]
 
+    env:
+      PYTHONUSERBASE: ${{ github.workspace }}/torch
+
     steps:
     - uses: actions/checkout@v7
+      with:
+        submodules: true
+
+    - uses: actions/setup-python@v7
+      with:
+        python-version: 3.12
+
+    - name: setup-pytorch
+      run: |
+        python3 -m pip config set global.break-system-packages true
+        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user numpy packaging
+
+    - name: python-ncnn
+      env:
+        CMAKE_BUILD_PARALLEL_LEVEL: 8
+        EXTRA_CMAKE_ARGS: -DNCNN_VULKAN=OFF
+      run: pip3 install --user --no-deps . --verbose
 
     - name: local-cache-libtorch
       id: local-cache-libtorch

@@ -272,6 +272,23 @@ static pnnx::Pt2Argument int_argument(int64_t value)
     return arg;
 }
 
+static pnnx::Pt2Argument enum_argument(pnnx::Pt2Argument::Type type, int64_t value)
+{
+    pnnx::Pt2Argument arg;
+    arg.type = type;
+    arg.i = value;
+    return arg;
+}
+
+static pnnx::Pt2Argument device_argument()
+{
+    pnnx::Pt2Argument arg;
+    arg.type = pnnx::Pt2Argument::Device;
+    arg.i = -1;
+    arg.s = "cpu";
+    return arg;
+}
+
 static pnnx::Pt2Argument sym_int_argument(const std::string& name)
 {
     pnnx::Pt2Argument arg;
@@ -462,6 +479,35 @@ static int check_pilot()
     pnnx::Graph oversized_integer_graph;
     if (pnnx::lower_pt2_graph(oversized_integer, weights, oversized_integer_graph, error) == 0 ||
         error.find("integer argument is outside the pnnx parameter range") == std::string::npos)
+        return -1;
+
+    pnnx::Pt2Program metadata_assertion = pilot_program();
+    pnnx::Pt2Node assertion;
+    assertion.name = "assert_tensor_metadata";
+    assertion.target = "torch.ops.aten._assert_tensor_metadata.default";
+    assertion.inputs.push_back(named_argument("a", tensor_argument("index_out")));
+    assertion.inputs.push_back(named_argument("dtype", enum_argument(pnnx::Pt2Argument::ScalarType, 7)));
+    assertion.inputs.push_back(named_argument("device", device_argument()));
+    assertion.inputs.push_back(named_argument("layout", enum_argument(pnnx::Pt2Argument::Layout, 7)));
+    metadata_assertion.nodes.push_back(assertion);
+    pnnx::Graph metadata_assertion_graph;
+    if (pnnx::lower_pt2_graph(metadata_assertion, weights, metadata_assertion_graph, error) != 0)
+        return -1;
+
+    metadata_assertion.nodes.back().inputs[1].arg.i = 5;
+    pnnx::Graph invalid_metadata_assertion_graph;
+    if (pnnx::lower_pt2_graph(metadata_assertion, weights, invalid_metadata_assertion_graph, error) == 0 ||
+        error.find("tensor metadata dtype assertion mismatch") == std::string::npos)
+        return -1;
+
+    pnnx::Pt2Program scalar_assertion = pilot_program();
+    pnnx::Pt2Node scalar_assert;
+    scalar_assert.name = "assert_scalar";
+    scalar_assert.target = "torch.ops.aten._assert_scalar.default";
+    scalar_assertion.nodes.push_back(scalar_assert);
+    pnnx::Graph scalar_assertion_graph;
+    if (pnnx::lower_pt2_graph(scalar_assertion, weights, scalar_assertion_graph, error) == 0 ||
+        error.find("operator without a tensor or symbolic integer output is unsupported") == std::string::npos)
         return -1;
 
     pnnx::Pt2Program malformed = pilot_program();
