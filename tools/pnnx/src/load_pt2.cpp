@@ -41,6 +41,16 @@ static bool mul_int64(int64_t a, int64_t b, int64_t& value)
     return true;
 }
 
+static bool floor_div_int64(int64_t a, int64_t b, int64_t& value)
+{
+    if (b == 0 || (a == INT64_MIN && b == -1))
+        return false;
+    value = a / b;
+    if (a % b != 0 && (a < 0) != (b < 0))
+        value--;
+    return true;
+}
+
 static bool parse_sym_int(const char*& p, const std::map<std::string, int64_t>& symbols, int64_t& value)
 {
     skip_space(p);
@@ -83,6 +93,19 @@ static bool parse_sym_int(const char*& p, const std::map<std::string, int64_t>& 
             return false;
         value = it->second;
         return true;
+    }
+
+    if (name == "FloorDiv")
+    {
+        int64_t a;
+        int64_t b;
+        if (!parse_sym_int(p, symbols, a))
+            return false;
+        skip_space(p);
+        if (*p++ != ',' || !parse_sym_int(p, symbols, b))
+            return false;
+        skip_space(p);
+        return *p++ == ')' && floor_div_int64(a, b, value);
     }
 
     if (name != "Add" && name != "Mul")

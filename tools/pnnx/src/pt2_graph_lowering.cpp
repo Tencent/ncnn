@@ -404,7 +404,7 @@ private:
         const std::string operator_prefix = "_operator.";
         if (target.compare(0, operator_prefix.size(), operator_prefix) == 0)
         {
-            name = "aten::" + target.substr(operator_prefix.size());
+            name = target == "_operator.floordiv" ? "aten::floor_divide" : "aten::" + target.substr(operator_prefix.size());
             overload = "int";
             return 0;
         }
@@ -425,7 +425,7 @@ private:
 
     int lower_integer_operator(size_t index, const Pt2Node& node, const std::string& name)
     {
-        if (name != "aten::add" && name != "aten::sub" && name != "aten::mul")
+        if (name != "aten::add" && name != "aten::sub" && name != "aten::mul" && name != "aten::floor_divide")
             return fail_node(index, node, "unsupported symbolic integer operator");
         if (node.inputs.size() != 2 || node.outputs.size() != 1 || node.outputs[0].type != Pt2Argument::SymInt || !node.outputs[0].b)
             return fail_node(index, node, "invalid symbolic integer operator");

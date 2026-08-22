@@ -1308,9 +1308,9 @@ static std::string make_slice_expression(const Operator* op)
 
         if (op->has_param("start"))
         {
-            int start = op->params.at("start").i;
-            if (start != 0)
-                r += std::to_string(start);
+            const Parameter& start = op->params.at("start");
+            if (start.type == 2 && start.i != 0)
+                r += std::to_string(start.i);
         }
         else if (op->has_param("starts"))
         {
@@ -1345,9 +1345,9 @@ static std::string make_slice_expression(const Operator* op)
 
         if (op->has_param("end"))
         {
-            int end = op->params.at("end").i;
-            if (end != INT_MAX)
-                r += std::to_string(end);
+            const Parameter& end = op->params.at("end");
+            if (end.type == 2 && end.i != INT_MAX)
+                r += std::to_string(end.i);
         }
         else if (op->has_param("ends"))
         {
@@ -1380,11 +1380,11 @@ static std::string make_slice_expression(const Operator* op)
 
         if (op->has_param("step"))
         {
-            int step = op->params.at("step").i;
-            if (step != 1)
+            const Parameter& step = op->params.at("step");
+            if (step.type == 2 && step.i != 1)
             {
                 r += ':';
-                r += std::to_string(step);
+                r += std::to_string(step.i);
             }
         }
         else if (op->has_param("steps"))

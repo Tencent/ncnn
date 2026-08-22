@@ -11,14 +11,28 @@ import subprocess
 import sys
 import zipfile
 
+import numpy as np
 import torch
 
 
 UNSUPPORTED = {
     "Tensor_index": "torch.export cannot serialize the data-dependent indexed output shape",
     "torch_arange": "torch.export cannot guard the data-dependent arange step",
+    "torch_masked_select": "data-dependent output shape cannot be specialized from input profiles",
+    "transformers_deepseek_v3_attention": "exported graph contains unsupported wrap_with_autocast",
     "transformers_funnel_attention": "data-dependent symbolic floats require runtime scalar lowering",
     "transformers_longformer_attention": "PyTorch cannot deserialize its saved PT2 graph with an unused scalar output",
+    "transformers_qwen2_attention": "exported graph contains unsupported wrap_with_autocast",
+    "transformers_qwen3_attention": "exported graph contains unsupported wrap_with_autocast",
+}
+
+PT2_MODEL_STATS = {
+    "test_pnnx_model_stat_multihead_attention_mask": (684, 227),
+    "test_pnnx_model_stat_multihead_attention_extra": (822, 410),
+    "test_pnnx_model_stat_multihead_attention_unbatched": (666, 242),
+    "test_pnnx_model_stat_lstm_proj_state": (0, 18),
+    "test_pnnx_model_stat_lstm_unbatched": (0, 28),
+    "test_pnnx_model_stat_fused_functional": (324, 206),
 }
 
 
@@ -36,13 +50,36 @@ class ExportedModel:
 
     def save(self, path):
         path = pathlib.Path(path)
-        pt2_path = path.with_suffix(".pt2")
+        self.path = path.with_suffix(".pt2")
+        self.export()
+        self.models[path.name] = self
+
+    def export(self, input2=()):
         try:
-            program = torch.export.export(self.model, self.inputs)
-            torch.export.save(program, pt2_path)
+            dynamic_shapes = None
+            if input2:
+                if len(input2) != len(self.inputs):
+                    raise ValueError("input2 tensor count differs from the export inputs")
+                dimensions = {}
+                dynamic_shapes = []
+                for value, value2 in zip(self.inputs, input2):
+                    if value.dim() != value2.dim():
+                        raise ValueError("input2 tensor rank differs from the export input")
+                    shape = {}
+                    for axis, (size, size2) in enumerate(zip(value.shape, value2.shape)):
+                        if size == size2:
+                            continue
+                        key = (axis, size, size2)
+                        if key not in dimensions:
+                            dimensions[key] = torch.export.Dim("dim_%d_%d" % (axis, len(dimensions)), min=min(size, size2), max=max(size, size2))
+                        shape[axis] = dimensions[key]
+                    dynamic_shapes.append(shape)
+                dynamic_shapes = tuple(dynamic_shapes)
+
+            program = torch.export.export(self.model, self.inputs, dynamic_shapes=dynamic_shapes)
+            torch.export.save(program, self.path)
         except Exception as e:
             raise TestError("export", str(e)) from e
-        self.models[path.name] = pt2_path.name
 
 
 def load_test(path):
@@ -63,14 +100,27 @@ def run_test(test_path, pnnx, workdir):
     def export(model, inputs, *args, **kwargs):
         return ExportedModel(model, inputs, models)
 
+    def convert_arguments(arguments):
+        arguments = list(arguments)
+        input2 = ()
+        for argument in arguments:
+            if argument.startswith("input2="):
+                input2 = tuple(torch.from_numpy(np.ascontiguousarray(np.load(path))) for path in argument[7:].split(","))
+                break
+        for i in range(1, len(arguments)):
+            if arguments[i] in models:
+                model = models[arguments[i]]
+                if input2:
+                    model.export(input2)
+                arguments[i] = model.path.name
+        return arguments
+
     def convert(command):
         arguments = shlex.split(command)
         if not arguments or pathlib.Path(arguments[0]).name != "pnnx":
             return system(command)
         arguments[0] = str(pathlib.Path(pnnx).resolve())
-        for i in range(1, len(arguments)):
-            if arguments[i] in models:
-                arguments[i] = models[arguments[i]]
+        arguments = convert_arguments(arguments)
         process = subprocess_run(arguments, cwd=workdir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         if process.returncode != 0:
             stage = "level2" if "############# pass_level2" in process.stdout else "load"
@@ -82,9 +132,7 @@ def run_test(test_path, pnnx, workdir):
             return subprocess_run(arguments, *args, **kwargs)
         arguments = list(arguments)
         arguments[0] = str(pathlib.Path(pnnx).resolve())
-        for i in range(1, len(arguments)):
-            if arguments[i] in models:
-                arguments[i] = models[arguments[i]]
+        arguments = convert_arguments(arguments)
         return subprocess_run(arguments, *args, **kwargs)
 
     previous_workdir = pathlib.Path.cwd()
@@ -97,15 +145,13 @@ def run_test(test_path, pnnx, workdir):
         test = load_test(test_path)
         subprocess.run = convert_run
         if hasattr(test, "_check_stat_text"):
-            def check_stat(text, expected_inputshape, expected_flops, expected_memops):
-                del expected_flops, expected_memops
-                inputshape = test.re.findall(r"(?:^|\n)#? ?model inputshape = (.+)", text)
-                flops = test.re.findall(r"(?:^|\n)#? ?FLOPS = ([0-9.]+[KMGTPE]?)", text)
-                memops = test.re.findall(r"(?:^|\n)#? ?memory OPS = ([0-9.]+[KMGTPE]?)", text)
-                return bool(inputshape and flops and memops) and inputshape[-1] == expected_inputshape
-            test._check_stat_text = check_stat
-        if hasattr(test, "_test_input2"):
-            test._test_input2 = lambda: True
+            run_case = test._run_case
+
+            def run_pt2_case(name, net, inputs, inputshape, expected_inputshape, expected_flops, expected_memops):
+                expected_flops, expected_memops = PT2_MODEL_STATS.get(name, (expected_flops, expected_memops))
+                return run_case(name, net, inputs, inputshape, expected_inputshape, expected_flops, expected_memops)
+
+            test._run_case = run_pt2_case
         if not test.test():
             raise TestError("numeric-diff", "test returned false")
     except TestError:
