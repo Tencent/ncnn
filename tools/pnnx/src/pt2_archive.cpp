@@ -89,6 +89,8 @@ int Pt2ArchiveReader::open(const std::string& path)
         archive_version = trim_ascii_whitespace(archive_version);
         if (archive_version.empty())
             return fail("PT2 archive has an empty archive_version");
+        if (archive_version != "0")
+            return fail("unsupported PT2 archive version: " + archive_version);
 
         model_record = "models/model.json";
         if (records.find(model_record) == records.end())

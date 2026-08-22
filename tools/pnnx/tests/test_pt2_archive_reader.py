@@ -107,6 +107,10 @@ def main():
         write_zip(missing_version, [("archive_format", b"pt2"), ("models/model.json", b"{}")])
         probe(args.tester, missing_version, "invalid-zip")
 
+        unsupported_version = root / "unsupported_version.pt2"
+        write_zip(unsupported_version, [("archive_format", b"pt2"), ("archive_version", b"1"), ("models/model.json", b"{}")])
+        probe(args.tester, unsupported_version, "invalid-zip")
+
         missing_model = root / "missing_model.pt2"
         write_zip(missing_model, [("archive_format", b"pt2"), ("archive_version", b"0")])
         probe(args.tester, missing_model, "invalid-zip")
