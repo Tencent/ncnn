@@ -226,9 +226,8 @@ static int specialize_shapes(Pt2Program& program, const std::vector<std::vector<
             int64_t value;
             if (!evaluate_sym_int(size.expression, symbols, value))
             {
-                size.value = -1;
-                size.symbolic = false;
-                continue;
+                error = "unsupported symbolic expression " + size.expression;
+                return -1;
             }
             size.value = value;
             if (!input_shapes2.empty())
@@ -236,9 +235,8 @@ static int specialize_shapes(Pt2Program& program, const std::vector<std::vector<
                 int64_t value2;
                 if (!evaluate_sym_int(size.expression, symbols2, value2))
                 {
-                    size.value = -1;
-                    size.symbolic = false;
-                    continue;
+                    error = "unsupported symbolic expression " + size.expression;
+                    return -1;
                 }
                 if (value != value2)
                     size.value = -1;

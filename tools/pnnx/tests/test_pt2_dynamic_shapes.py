@@ -3,9 +3,11 @@
 
 import argparse
 import importlib.util
+import json
 import os
 import pathlib
 import subprocess
+import zipfile
 
 import torch
 
@@ -73,6 +75,42 @@ def main():
     )
     if invalid.returncode == 0 or "outside the exported range" not in invalid.stdout:
         print(invalid.stdout)
+        return 1
+
+    records = {}
+    with zipfile.ZipFile(args.workdir / "model.pt2") as archive:
+        for info in archive.infolist():
+            records[info.filename] = archive.read(info)
+    model_record = next(name for name in records if name.endswith("models/model.json") or name.endswith("serialized_exported_program.json"))
+    program = json.loads(records[model_record])
+    input_name = program["graph_module"]["graph"]["inputs"][0]["as_tensor"]["name"]
+    changed = False
+    for name, tensor in program["graph_module"]["graph"]["tensor_values"].items():
+        if name == input_name:
+            continue
+        for size in tensor["sizes"]:
+            if "as_expr" in size:
+                size["as_expr"]["expr_str"] = "Unsupported()"
+                changed = True
+                break
+        if changed:
+            break
+    if not changed:
+        return 1
+    records[model_record] = json.dumps(program, separators=(",", ":")).encode("utf-8")
+    with zipfile.ZipFile(args.workdir / "unsupported.pt2", "w") as archive:
+        for name, data in records.items():
+            archive.writestr(name, data)
+
+    unsupported = subprocess.run(
+        [str(pathlib.Path(args.pnnx).resolve()), "unsupported.pt2", "inputshape=[6,3]"],
+        cwd=args.workdir,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    if unsupported.returncode == 0 or "unsupported symbolic expression Unsupported()" not in unsupported.stdout:
+        print(unsupported.stdout)
         return 1
     return 0
 
