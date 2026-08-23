@@ -84,6 +84,27 @@ struct typed_value
     }
 };
 
+static unsigned int float32_as_uint(float v)
+{
+    union
+    {
+        float f;
+        unsigned int i;
+    } u;
+    u.f = v;
+    return u.i;
+}
+
+static bool float32_is_nan(float v)
+{
+    return (float32_as_uint(v) & 0x7fffffffu) > 0x7f800000u;
+}
+
+static bool float32_is_inf(float v)
+{
+    return (float32_as_uint(v) & 0x7fffffffu) == 0x7f800000u;
+}
+
 int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs, std::vector<int>& outlist)
 {
     // /(0w,2),*(0h,2),0c
@@ -484,7 +505,14 @@ int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs,
             }
             else // if (t == "logaddexp")
             {
-                r = std::max(a, b) + log1pf(expf(std::min(a, b) - std::max(a, b)));
+                if (float32_is_nan(a))
+                    r = a;
+                else if (float32_is_nan(b))
+                    r = b;
+                else if (float32_is_inf(a) && float32_as_uint(a) == float32_as_uint(b))
+                    r = a;
+                else
+                    r = std::max(a, b) + log1pf(expf(std::min(a, b) - std::max(a, b)));
             }
             exprstack.push(r);
         }
