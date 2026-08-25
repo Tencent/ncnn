@@ -25,6 +25,51 @@
 #endif
 #endif // __SSE2__
 
+// combine utility
+#if __SSE2__
+#if __AVX__
+static NCNN_FORCEINLINE __m256 combine4x2_ps(const __m128& a, const __m128& b)
+{
+    return _mm256_insertf128_ps(_mm256_castps128_ps256(a), b, 1);
+}
+
+static NCNN_FORCEINLINE __m256i combine4x2_epi32(const __m128i& a, const __m128i& b)
+{
+#if __AVX2__
+    return _mm256_inserti128_si256(_mm256_castsi128_si256(a), b, 1);
+#else
+    return _mm256_insertf128_si256(_mm256_castsi128_si256(a), b, 1);
+#endif
+}
+
+#if __AVX512F__
+static NCNN_FORCEINLINE __m512 combine8x2_ps(const __m256& a, const __m256& b)
+{
+    return _mm512_insertf32x8(_mm512_castps256_ps512(a), b, 1);
+}
+
+static NCNN_FORCEINLINE __m512 combine4x4_ps(const __m128& a, const __m128& b, const __m128& c, const __m128& d)
+{
+    __m256 ab = combine4x2_ps(a, b);
+    __m256 cd = combine4x2_ps(c, d);
+    return combine8x2_ps(ab, cd);
+}
+
+static NCNN_FORCEINLINE __m512i combine8x2_epi32(const __m256i& a, const __m256i& b)
+{
+    return _mm512_inserti32x8(_mm512_castsi256_si512(a), b, 1);
+}
+
+static NCNN_FORCEINLINE __m512i combine4x4_epi32(const __m128i& a, const __m128i& b, const __m128i& c, const __m128i& d)
+{
+    __m256i ab = combine4x2_epi32(a, b);
+    __m256i cd = combine4x2_epi32(c, d);
+    return combine8x2_epi32(ab, cd);
+}
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+
 #if __SSE2__
 // fast integer division adopted from Agner Fog's subroutine library
 // only support x / d where x and d are [1~ UINT_MAX]
@@ -384,13 +429,38 @@ static NCNN_FORCEINLINE __m128 bfloat2float_sse(const __m128i& v0)
     return _v;
 }
 
+static NCNN_FORCEINLINE __m128i float2bfloat_sse(const __m128& v)
+{
+#if __AVX512BF16__
+    __m128i _v = (__m128i)_mm_cvtneps_pbh(v);
+#else
+    __m128i _a = _mm_castps_si128(v);
+    _a = _mm_add_epi32(_a, _mm_set1_epi32(0x8000));
+#if __SSE4_1__
+    _a = _mm_srli_epi32(_a, 16);
+    __m128i _v = _mm_packus_epi32(_a, _mm_setzero_si128());
+#else
+    _a = _mm_shufflelo_epi16(_a, _MM_SHUFFLE(2, 0, 3, 1));
+    _a = _mm_shufflehi_epi16(_a, _MM_SHUFFLE(2, 0, 3, 1));
+    __m128i _v = _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(_a), _mm_setzero_ps(), _MM_SHUFFLE(2, 0, 2, 0)));
+#endif
+#endif
+    return _v;
+}
+
 static NCNN_FORCEINLINE __m128i float2bfloat_sse(const __m128& v0, const __m128& v1)
 {
 #if __AVX512BF16__
     __m128i _v = (__m128i)_mm_cvtne2ps_pbh(v1, v0);
+#elif __AVX512F__
+    __m256i _ab = _mm256_castps_si256(combine4x2_ps(v0, v1));
+    _ab = _mm256_srli_epi32(_mm256_add_epi32(_ab, _mm256_set1_epi32(0x8000)), 16);
+    __m128i _v = _mm256_cvtepi32_epi16(_ab);
 #else
     __m128i _a = _mm_castps_si128(v0);
     __m128i _b = _mm_castps_si128(v1);
+    _a = _mm_add_epi32(_a, _mm_set1_epi32(0x8000));
+    _b = _mm_add_epi32(_b, _mm_set1_epi32(0x8000));
 #if __SSE4_1__
     _a = _mm_srli_epi32(_a, 16);
     _b = _mm_srli_epi32(_b, 16);
@@ -401,24 +471,6 @@ static NCNN_FORCEINLINE __m128i float2bfloat_sse(const __m128& v0, const __m128&
     _a = _mm_shufflehi_epi16(_a, _MM_SHUFFLE(2, 0, 3, 1));
     _b = _mm_shufflehi_epi16(_b, _MM_SHUFFLE(2, 0, 3, 1));
     __m128i _v = _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(_a), _mm_castsi128_ps(_b), _MM_SHUFFLE(2, 0, 2, 0)));
-#endif
-#endif
-    return _v;
-}
-
-static NCNN_FORCEINLINE __m128i float2bfloat_sse(const __m128& v)
-{
-#if __AVX512BF16__
-    __m128i _v = (__m128i)_mm_cvtneps_pbh(v);
-#else
-    __m128i _a = _mm_castps_si128(v);
-#if __SSE4_1__
-    _a = _mm_srli_epi32(_a, 16);
-    __m128i _v = _mm_packus_epi32(_a, _mm_setzero_si128());
-#else
-    _a = _mm_shufflelo_epi16(_a, _MM_SHUFFLE(2, 0, 3, 1));
-    _a = _mm_shufflehi_epi16(_a, _MM_SHUFFLE(2, 0, 3, 1));
-    __m128i _v = _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(_a), _mm_setzero_ps(), _MM_SHUFFLE(2, 0, 2, 0)));
 #endif
 #endif
     return _v;
@@ -509,20 +561,6 @@ static NCNN_FORCEINLINE __m128i _mm_comp_dpwssd_epi32(const __m128i& src, const 
 }
 
 #if __AVX__
-static NCNN_FORCEINLINE __m256 combine4x2_ps(const __m128& a, const __m128& b)
-{
-    return _mm256_insertf128_ps(_mm256_castps128_ps256(a), b, 1);
-}
-
-static NCNN_FORCEINLINE __m256i combine4x2_epi32(const __m128i& a, const __m128i& b)
-{
-#if __AVX2__
-    return _mm256_inserti128_si256(_mm256_castsi128_si256(a), b, 1);
-#else
-    return _mm256_insertf128_si256(_mm256_castsi128_si256(a), b, 1);
-#endif
-}
-
 static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(const __m256& _a, const __m256& _b, const __m256& _c)
 {
     // return a * b + c
@@ -1172,6 +1210,8 @@ static NCNN_FORCEINLINE __m256 bfloat2float_avx(const __m128i& v0)
 {
 #if __AVX512BF16__
     __m256 _v = _mm256_cvtpbh_ps((__m128bh)v0);
+#elif __AVX2__
+    __m256 _v = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(v0), 16));
 #else
     __m128i _zero = _mm_setzero_si128();
     __m128i _a = _mm_unpacklo_epi16(_zero, v0);
@@ -1185,18 +1225,22 @@ static NCNN_FORCEINLINE __m128i float2bfloat_avx(const __m256& v0)
 {
 #if __AVX512BF16__
     __m128i _v = (__m128i)_mm256_cvtneps_pbh(v0);
+#elif __AVX2__
+    __m256i _ab = _mm256_castps_si256(v0);
+    _ab = _mm256_srli_epi32(_mm256_add_epi32(_ab, _mm256_set1_epi32(0x8000)), 16);
+#if __AVX512F__
+    __m128i _v = _mm256_cvtepi32_epi16(_ab);
+#else
+    __m128i _a = _mm256_extractf128_si256(_ab, 0);
+    __m128i _b = _mm256_extractf128_si256(_ab, 1);
+    __m128i _v = _mm_packus_epi32(_a, _b);
+#endif
 #else
     __m256i _ab = _mm256_castps_si256(v0);
-#if __AVX2__
-    _ab = _mm256_srli_epi32(_ab, 16);
     __m128i _a = _mm256_extractf128_si256(_ab, 0);
     __m128i _b = _mm256_extractf128_si256(_ab, 1);
-#else
-    __m128i _a = _mm256_extractf128_si256(_ab, 0);
-    __m128i _b = _mm256_extractf128_si256(_ab, 1);
-    _a = _mm_srli_epi32(_a, 16);
-    _b = _mm_srli_epi32(_b, 16);
-#endif
+    _a = _mm_srli_epi32(_mm_add_epi32(_a, _mm_set1_epi32(0x8000)), 16);
+    _b = _mm_srli_epi32(_mm_add_epi32(_b, _mm_set1_epi32(0x8000)), 16);
     __m128i _v = _mm_packus_epi32(_a, _b);
 #endif
     return _v;
@@ -1206,27 +1250,21 @@ static NCNN_FORCEINLINE __m256i float2bfloat_avx(const __m256& v0, const __m256&
 {
 #if __AVX512BF16__
     __m256i _v = (__m256i)_mm256_cvtne2ps_pbh(v1, v0);
-#else
+#elif __AVX512F__
+    __m512i _ab = _mm512_castps_si512(combine8x2_ps(v0, v1));
+    _ab = _mm512_srli_epi32(_mm512_add_epi32(_ab, _mm512_set1_epi32(0x8000)), 16);
+    __m256i _v = _mm512_cvtepi32_epi16(_ab);
+#elif __AVX2__
     __m256i _a = _mm256_castps_si256(v0);
     __m256i _b = _mm256_castps_si256(v1);
-#if __AVX2__
-    _a = _mm256_srli_epi32(_a, 16);
-    _b = _mm256_srli_epi32(_b, 16);
+    _a = _mm256_srli_epi32(_mm256_add_epi32(_a, _mm256_set1_epi32(0x8000)), 16);
+    _b = _mm256_srli_epi32(_mm256_add_epi32(_b, _mm256_set1_epi32(0x8000)), 16);
     __m256i _v = _mm256_packus_epi32(_a, _b);
     _v = _mm256_permute4x64_epi64(_v, _MM_SHUFFLE(3, 1, 2, 0));
 #else
-    __m128i _a0 = _mm256_extractf128_si256(_a, 0);
-    __m128i _a1 = _mm256_extractf128_si256(_a, 1);
-    __m128i _b0 = _mm256_extractf128_si256(_b, 0);
-    __m128i _b1 = _mm256_extractf128_si256(_b, 1);
-    _a0 = _mm_srli_epi32(_a0, 16);
-    _a1 = _mm_srli_epi32(_a1, 16);
-    _b0 = _mm_srli_epi32(_b0, 16);
-    _b1 = _mm_srli_epi32(_b1, 16);
-    __m128i _v0 = _mm_packus_epi32(_a0, _a1);
-    __m128i _v1 = _mm_packus_epi32(_b0, _b1);
-    __m256i _v = _mm256_insertf128_si256(_mm256_castsi128_si256(_v0), _v1, 1);
-#endif
+    __m128i _v0 = float2bfloat_avx(v0);
+    __m128i _v1 = float2bfloat_avx(v1);
+    __m256i _v = combine4x2_epi32(_v0, _v1);
 #endif
     return _v;
 }
@@ -1916,30 +1954,6 @@ static NCNN_FORCEINLINE __m512 _mm512_comp_rsqrt_ps(const __m512& _x)
     return _y;
 }
 
-static NCNN_FORCEINLINE __m512 combine8x2_ps(const __m256& a, const __m256& b)
-{
-    return _mm512_insertf32x8(_mm512_castps256_ps512(a), b, 1);
-}
-
-static NCNN_FORCEINLINE __m512 combine4x4_ps(const __m128& a, const __m128& b, const __m128& c, const __m128& d)
-{
-    __m256 ab = combine4x2_ps(a, b);
-    __m256 cd = combine4x2_ps(c, d);
-    return combine8x2_ps(ab, cd);
-}
-
-static NCNN_FORCEINLINE __m512i combine8x2_epi32(const __m256i& a, const __m256i& b)
-{
-    return _mm512_inserti32x8(_mm512_castsi256_si512(a), b, 1);
-}
-
-static NCNN_FORCEINLINE __m512i combine4x4_epi32(const __m128i& a, const __m128i& b, const __m128i& c, const __m128i& d)
-{
-    __m256i ab = combine4x2_epi32(a, b);
-    __m256i cd = combine4x2_epi32(c, d);
-    return combine8x2_epi32(ab, cd);
-}
-
 static NCNN_FORCEINLINE __m128i float2int8_avx512(const __m512& _v0)
 {
     // _MM_FROUND_TO_NEAREST_INT round to even
@@ -1960,12 +1974,7 @@ static NCNN_FORCEINLINE __m512 bfloat2float_avx512(const __m256i& v0)
 #if __AVX512BF16__
     __m512 _v = _mm512_cvtpbh_ps((__m256bh)v0);
 #else
-    __m256i _zero = _mm256_setzero_si256();
-    __m256i _a = _mm256_unpacklo_epi16(_zero, v0);
-    __m256i _b = _mm256_unpackhi_epi16(_zero, v0);
-    __m256i _c = _mm256_permute2x128_si256(_a, _b, _MM_SHUFFLE(0, 2, 0, 0));
-    __m256i _d = _mm256_permute2x128_si256(_a, _b, _MM_SHUFFLE(0, 3, 0, 1));
-    __m512 _v = _mm512_castsi512_ps(_mm512_inserti32x8(_mm512_castsi256_si512(_c), _d, 1));
+    __m512 _v = _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(v0), 16));
 #endif
     return _v;
 }
@@ -1975,12 +1984,9 @@ static NCNN_FORCEINLINE __m256i float2bfloat_avx512(const __m512& v0)
 #if __AVX512BF16__
     __m256i _v = (__m256i)_mm512_cvtneps_pbh(v0);
 #else
-    __m512i _ab = _mm512_castps_si512(v0);
-    _ab = _mm512_srli_epi32(_ab, 16);
-    __m256i _a = _mm512_extracti32x8_epi32(_ab, 0);
-    __m256i _b = _mm512_extracti32x8_epi32(_ab, 1);
-    __m256i _v = _mm256_packus_epi32(_a, _b);
-    _v = _mm256_permute4x64_epi64(_v, _MM_SHUFFLE(3, 1, 2, 0));
+    __m512i _v0 = _mm512_castps_si512(v0);
+    _v0 = _mm512_srli_epi32(_mm512_add_epi32(_v0, _mm512_set1_epi32(0x8000)), 16);
+    __m256i _v = _mm512_cvtepi32_epi16(_v0);
 #endif
     return _v;
 }
@@ -1990,13 +1996,9 @@ static NCNN_FORCEINLINE __m512i float2bfloat_avx512(const __m512& v0, const __m5
 #if __AVX512BF16__
     __m512i _v = (__m512i)_mm512_cvtne2ps_pbh(v1, v0);
 #else
-    __m512i _a = _mm512_castps_si512(v0);
-    __m512i _b = _mm512_castps_si512(v1);
-    _a = _mm512_srli_epi32(_a, 16);
-    _b = _mm512_srli_epi32(_b, 16);
-    __m512i _v = _mm512_packus_epi32(_a, _b);
-    _v = _mm512_permutex_epi64(_v, _MM_SHUFFLE(3, 1, 2, 0));
-    _v = _mm512_shuffle_i32x4(_v, _v, _MM_SHUFFLE(3, 1, 2, 0));
+    __m256i _v0 = float2bfloat_avx512(v0);
+    __m256i _v1 = float2bfloat_avx512(v1);
+    __m512i _v = combine8x2_epi32(_v0, _v1);
 #endif
     return _v;
 }

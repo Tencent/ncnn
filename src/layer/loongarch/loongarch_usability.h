@@ -867,20 +867,12 @@ static NCNN_FORCEINLINE __m128 bfloat2float_lsx(const unsigned short* ptr)
 
 static NCNN_FORCEINLINE __m128i float2bfloat_lsx(const __m128& v)
 {
-    __m128i _a = (__m128i)v;
-    _a = __lsx_vsrli_w(_a, 16);
-    __m128i _v = __lsx_vpickev_h(__lsx_vreplgr2vr_w(0), _a);
-    return _v;
+    return __lsx_vsrlrni_h_w(__lsx_vreplgr2vr_w(0), (__m128i)v, 16);
 }
 
 static NCNN_FORCEINLINE __m128i float2bfloat_lsx(const __m128& v0, const __m128& v1)
 {
-    __m128i _a = (__m128i)v0;
-    __m128i _b = (__m128i)v1;
-    _a = __lsx_vsrli_w(_a, 16);
-    _b = __lsx_vsrli_w(_b, 16);
-    __m128i _v = __lsx_vpickev_h(_b, _a);
-    return _v;
+    return __lsx_vsrlrni_h_w((__m128i)v1, (__m128i)v0, 16);
 }
 
 // HorizontalSums for 4 accumulators (LSX)
@@ -1231,26 +1223,15 @@ static NCNN_FORCEINLINE __m256 bfloat2float_lasx(const __m128i* ptr)
 
 static NCNN_FORCEINLINE __m128i float2bfloat_lasx(const __m256& v0)
 {
-    __m256i _ab = (__m256i)v0;
-    _ab = __lasx_xvsrli_w(_ab, 16);
-    __m128i _a = __lasx_extract_128_lo(_ab);
-    __m128i _b = __lasx_extract_128_hi(_ab);
-    __m128i _v = __lsx_vpickev_h(_b, _a);
-    return _v;
+    __m256i _v = __lasx_xvsrlrni_h_w((__m256i)v0, (__m256i)v0, 16);
+    _v = __lasx_xvpermi_d(_v, 0xd8);
+    return __lasx_extract_128_lo(_v);
 }
 
 static NCNN_FORCEINLINE __m256i float2bfloat_lasx(const __m256& v0, const __m256& v1)
 {
-    // Convert each 256-bit float vector to 128-bit bf16 separately
-    __m128i _v0_bf16 = float2bfloat_lasx(v0);
-    __m128i _v1_bf16 = float2bfloat_lasx(v1);
-    // Combine: lo128 = v0's 8 bf16, hi128 = v1's 8 bf16
-    __m256i _r = (__m256i)__lasx_xvreplgr2vr_d(0);
-    _r = __lasx_xvinsgr2vr_d(_r, __lsx_vpickve2gr_d(_v0_bf16, 0), 0);
-    _r = __lasx_xvinsgr2vr_d(_r, __lsx_vpickve2gr_d(_v0_bf16, 1), 1);
-    _r = __lasx_xvinsgr2vr_d(_r, __lsx_vpickve2gr_d(_v1_bf16, 0), 2);
-    _r = __lasx_xvinsgr2vr_d(_r, __lsx_vpickve2gr_d(_v1_bf16, 1), 3);
-    return _r;
+    __m256i _v = __lasx_xvsrlrni_h_w((__m256i)v1, (__m256i)v0, 16);
+    return __lasx_xvpermi_d(_v, 0xd8);
 }
 #endif // __loongarch_asx
 
