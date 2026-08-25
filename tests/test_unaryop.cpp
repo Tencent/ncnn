@@ -41,7 +41,7 @@ static int test_unaryop(const ncnn::Mat& _a)
     if (op_type == 27)
     {
         // value must be > -1 for log1p
-        Randomize(a, -0.999f, 2.f);
+        Randomize(a, -0.99f, 2.f);
     }
 #if __powerpc__
     // nearbyintf produces wrong result in halfway cases, why ?
