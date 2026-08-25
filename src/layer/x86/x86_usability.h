@@ -1257,8 +1257,8 @@ static NCNN_FORCEINLINE __m256i float2bfloat_avx(const __m256& v0, const __m256&
 #elif __AVX2__
     __m256i _a = _mm256_castps_si256(v0);
     __m256i _b = _mm256_castps_si256(v1);
-    _a = _mm256_srli_epi32(_mm256_add_epi32(_a, _mm256_set1_epi32(0x7fff)), 16);
-    _b = _mm256_srli_epi32(_mm256_add_epi32(_b, _mm256_set1_epi32(0x7fff)), 16);
+    _a = _mm256_srli_epi32(_mm256_add_epi32(_a, _mm256_set1_epi32(0x8000)), 16);
+    _b = _mm256_srli_epi32(_mm256_add_epi32(_b, _mm256_set1_epi32(0x8000)), 16);
     __m256i _v = _mm256_packus_epi32(_a, _b);
     _v = _mm256_permute4x64_epi64(_v, _MM_SHUFFLE(3, 1, 2, 0));
 #else
