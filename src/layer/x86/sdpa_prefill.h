@@ -1647,7 +1647,6 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
             }
         }
     }
-
 }
 
 static int sdpa_prefill_packed_fp32(const Mat& query, const Mat& packed_key, const Mat& packed_value, const Mat& attn_mask, Mat& top_blob, float scale, const Option& opt)

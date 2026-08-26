@@ -2149,7 +2149,6 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
             }
         }
     }
-
 }
 
 static int sdpa_prefill_packed_bf16s(const Mat& query, const Mat& packed_key, const Mat& packed_value, const Mat& value, int value_begin, const Mat& attn_mask, Mat& top_blob, float scale, const Option& opt)
