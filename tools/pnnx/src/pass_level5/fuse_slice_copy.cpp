@@ -23,6 +23,52 @@ void fuse_slice_copy(Graph& graph)
             if (op->type != "Tensor.copy")
                 continue;
 
+            // torch.export functionalizes mutations into copy followed by
+            // slice_scatter/select_scatter. In that graph the copy result is
+            // already the sliced source tensor; fusing it back into an
+            // in-place slice copy would apply the mutation twice.
+            bool consumed_by_scatter = false;
+            for (size_t j = 0; j < op->outputs[0]->consumers.size(); j++)
+            {
+                const std::string& type = op->outputs[0]->consumers[j]->type;
+                if (type == "torch.slice_scatter" || type == "torch.select_scatter")
+                {
+                    consumed_by_scatter = true;
+                    break;
+                }
+            }
+            if (consumed_by_scatter)
+            {
+                matched = true;
+
+                Operand* out = op->outputs[0];
+                for (size_t j = 0; j < out->consumers.size(); j++)
+                {
+                    Operator* consumer = out->consumers[j];
+                    for (size_t k = 0; k < consumer->inputs.size(); k++)
+                    {
+                        if (consumer->inputs[k] == out)
+                            consumer->inputs[k] = op->inputs[1];
+                    }
+                    op->inputs[1]->consumers.push_back(consumer);
+                }
+
+                op->inputs[0]->remove_consumer(op);
+                op->inputs[1]->remove_consumer(op);
+                op->inputs[1]->name = out->name;
+
+                out->producer = 0;
+                out->consumers.clear();
+                graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), out));
+                delete out;
+
+                op->inputs.clear();
+                op->outputs.clear();
+                graph.ops.erase(graph.ops.begin() + i);
+                delete op;
+                break;
+            }
+
             // collect slice / select op chain
             std::stack<Operator*> slice_select_ops;
             int descent_dim_current = INT_MAX;

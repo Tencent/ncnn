@@ -108,6 +108,45 @@ REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_to, 60)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_to_1, 60)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_to_2, 60)
 
+class Tensor_to_export : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+9 8
+pnnx.Input              input_0     0 1 input
+prim::Constant          op_0        0 1 dtype value=%dtype
+prim::Constant          op_1        0 1 layout value=*
+prim::Constant          op_2        0 1 device value=*
+prim::Constant          op_3        0 1 pin_memory value=*
+prim::Constant          op_4        0 1 non_blocking value=*
+prim::Constant          op_5        0 1 memory_format value=%memory_format
+aten::_to_copy          op_6        7 1 input dtype layout device pin_memory non_blocking memory_format out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Tensor.to";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        for (size_t i = 1; i < op->inputs.size(); i++)
+            op->inputs[i]->remove_consumer(op);
+        op->inputs.resize(1);
+        op->inputnames = {"input"};
+
+        op->params["dtype"] = captured_params.at("dtype");
+        op->params["copy"] = true;
+        op->params["memory_format"] = captured_params.at("memory_format");
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_to_export, 60)
+
 class Tensor_to_onnx : public GraphRewriterPass
 {
 public:

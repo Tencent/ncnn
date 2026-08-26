@@ -22,6 +22,7 @@
 #include "utils.h"
 
 #if BUILD_TORCH2PNNX
+#include "load_exported_program.h"
 #include "load_torchscript.h"
 #endif
 #if BUILD_ONNX2PNNX
@@ -477,11 +478,19 @@ int main(int argc, char** argv)
         if (!load_numpy_file_contents(input_paths2, input_shapes2, input_types2, input_contents2))
             return -1;
 
-        int ret = load_torchscript(ptpath, pnnx_graph,
+        int ret = 0;
+        if (pnnx::model_file_is_exported_program(ptpath))
+        {
+            ret = pnnx::load_exported_program(ptpath, pnnx_graph, input_shapes, input_types);
+        }
+        else
+        {
+            ret = load_torchscript(ptpath, pnnx_graph,
                                    device, input_shapes, input_types, input_contents,
                                    input_shapes2, input_types2, input_contents2,
                                    customop_modules, module_operators,
                                    foldable_constants_zippath, foldable_constants);
+        }
         if (ret != 0)
             return ret;
     }

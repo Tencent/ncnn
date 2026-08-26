@@ -17,7 +17,7 @@ public:
     StoreZipReader();
     ~StoreZipReader();
 
-    int open(const std::string& path);
+    int open(const std::string& path, bool quiet = false);
 
     std::vector<std::string> get_names() const;
 

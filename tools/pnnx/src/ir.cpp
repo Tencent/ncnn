@@ -2236,7 +2236,17 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                         fprintf(pyfp, " = v_%s.%s(", sanitize_identifier(op->inputs[0]->name).c_str(), op->type.substr(7).c_str());
                     }
 
-                    if (op->inputnames.size() == op->inputs.size())
+                    if (op->type == "Tensor.fill" && op->inputs.size() == 2
+                            && (op->inputs[1]->shape == std::vector<int>{1}
+                                || (op->inputs[1]->producer && op->inputs[1]->producer->type == "torch.clone"
+                                    && !op->inputs[1]->producer->inputs.empty()
+                                    && op->inputs[1]->producer->inputs[0]->shape == std::vector<int>{1})))
+                    {
+                        // torch.export may serialize a scalar tensor constant
+                        // as shape [1], while Tensor.fill_ requires a 0-d tensor.
+                        fprintf(pyfp, "value=v_%s.reshape(()), ", sanitize_identifier(op->inputs[1]->name).c_str());
+                    }
+                    else if (op->inputnames.size() == op->inputs.size())
                     {
                         for (size_t i = 1; i < op->inputs.size(); i++)
                         {
