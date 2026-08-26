@@ -3,40 +3,160 @@
 
 #include "testutil.h"
 
-#include <float.h>
-
-static int test_sdpa_kvcache(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int attn_mask, int past_seqlen)
+static int test_sdpa_kvcache(int head_dim, int value_dim, int num_heads, int num_kv_heads, int mask_type, int storage_type)
 {
-    const int embed_dim = q.w;
-    const int out_embed_dim = v.w;
-    const int src_seqlen = q.h;
-    const int cur_seqlen = k.h;
-    const int dst_seqlen = past_seqlen + cur_seqlen;
+    ncnn::Layer* reference = ncnn::create_layer_naive("SDPA");
+    ncnn::Layer* op = ncnn::create_layer_cpu("SDPA");
+    if (!reference || !op)
+    {
+        delete reference;
+        delete op;
+        return -1;
+    }
 
     ncnn::ParamDict pd;
-    pd.set(5, attn_mask);
+    pd.set(5, mask_type != 0);
     pd.set(7, 1); // kv_cache
+#if NCNN_INT8
+    pd.set(18, storage_type == 2 ? 2 : 0); // int8_scale_term
+#endif
+    reference->load_param(pd);
+    reference->load_model(ncnn::ModelBinFromMatArray(0));
+    op->load_param(pd);
+    op->load_model(ncnn::ModelBinFromMatArray(0));
 
-    std::vector<ncnn::Mat> weights(0);
+    ncnn::Option reference_opt;
+    reference_opt.num_threads = 1;
+    ncnn::Option opt;
+    opt.num_threads = 4;
+    opt.use_packing_layout = false;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_bf16_storage = storage_type == 1;
+    opt.kvcache_max_seqlen_hint = 32;
 
-    std::vector<ncnn::Mat> as(3);
-    as[0] = q;
-    as[1] = k;
-    as[2] = v;
+    int ret = reference->create_pipeline(reference_opt);
+    if (ret == 0)
+        ret = op->create_pipeline(opt);
 
-    if (attn_mask)
+    ncnn::Mat reference_key;
+    ncnn::Mat reference_value;
+    ncnn::Mat key_cache;
+    ncnn::Mat value_cache;
+    const int append_lengths[] = {15, 2, 1, 18, 1};
+
+    for (int i = 0; ret == 0 && i < 5; i++)
     {
-        as.push_back(RandomMat(dst_seqlen, src_seqlen));
+        const int cur_seqlen = append_lengths[i];
+        const int dst_seqlen = reference_key.h + cur_seqlen;
+        ncnn::Mat reference_query = RandomMat(head_dim, cur_seqlen, num_heads);
+        ncnn::Mat reference_key_current = RandomMat(head_dim, cur_seqlen, num_kv_heads);
+        ncnn::Mat reference_value_current = RandomMat(value_dim, cur_seqlen, num_kv_heads);
+        ncnn::Mat reference_mask;
+        if (mask_type == 1)
+            reference_mask = RandomMat(dst_seqlen, cur_seqlen);
+        if (mask_type == 3)
+            reference_mask = RandomMat(dst_seqlen, cur_seqlen, num_heads);
+
+        ncnn::Mat query = reference_query;
+        ncnn::Mat key = reference_key_current;
+        ncnn::Mat value = reference_value_current;
+        ncnn::Mat mask = reference_mask;
+#if NCNN_BF16
+        if (storage_type == 1)
+        {
+            ncnn::Mat query_bf16;
+            ncnn::Mat key_bf16;
+            ncnn::Mat value_bf16;
+            ncnn::Mat mask_bf16;
+            ncnn::cast_float32_to_bfloat16(reference_query, query_bf16, reference_opt);
+            ncnn::cast_float32_to_bfloat16(reference_key_current, key_bf16, reference_opt);
+            ncnn::cast_float32_to_bfloat16(reference_value_current, value_bf16, reference_opt);
+            if (mask_type)
+                ncnn::cast_float32_to_bfloat16(reference_mask, mask_bf16, reference_opt);
+            ncnn::cast_bfloat16_to_float32(query_bf16, reference_query, reference_opt);
+            ncnn::cast_bfloat16_to_float32(key_bf16, reference_key_current, reference_opt);
+            ncnn::cast_bfloat16_to_float32(value_bf16, reference_value_current, reference_opt);
+            if (mask_type)
+                ncnn::cast_bfloat16_to_float32(mask_bf16, reference_mask, reference_opt);
+            query = query_bf16;
+            key = key_bf16;
+            value = value_bf16;
+            mask = mask_bf16;
+        }
+#endif // NCNN_BF16
+
+        std::vector<ncnn::Mat> reference_bottoms;
+        reference_bottoms.push_back(reference_query);
+        reference_bottoms.push_back(reference_key_current);
+        reference_bottoms.push_back(reference_value_current);
+        if (mask_type)
+            reference_bottoms.push_back(reference_mask);
+        reference_bottoms.push_back(reference_key);
+        reference_bottoms.push_back(reference_value);
+        reference_key.release();
+        reference_value.release();
+
+        std::vector<ncnn::Mat> reference_tops(3);
+        ret = reference->forward(reference_bottoms, reference_tops, reference_opt);
+        if (ret != 0)
+            break;
+
+        const void* old_key_data = key_cache.data;
+        const void* old_value_data = value_cache.data;
+        const int old_key_capacity = key_cache.empty() ? 0 : (int)(key_cache.cstep / key_cache.w);
+        const int old_value_capacity = value_cache.empty() ? 0 : (int)(value_cache.cstep / value_cache.w);
+
+        std::vector<ncnn::Mat> bottoms;
+        bottoms.push_back(query);
+        bottoms.push_back(key);
+        bottoms.push_back(value);
+        if (mask_type)
+            bottoms.push_back(mask);
+        bottoms.push_back(key_cache);
+        bottoms.push_back(value_cache);
+        key_cache.release();
+        value_cache.release();
+
+        std::vector<ncnn::Mat> tops(3);
+        ret = op->forward(bottoms, tops, opt);
+        if (ret != 0)
+            break;
+
+        if (CompareMat(reference_tops[0], tops[0], storage_type == 0 ? 0.001f : 0.01f) != 0)
+            ret = -1;
+        if (tops[1].w != head_dim || tops[1].h != dst_seqlen || tops[1].c != num_kv_heads || tops[1].elempack != 1)
+            ret = -1;
+        if (tops[2].w != value_dim || tops[2].h != dst_seqlen || tops[2].c != num_kv_heads || tops[2].elempack != 1)
+            ret = -1;
+        if (tops[1].elembits() != (storage_type == 1 ? 16 : 32) || tops[2].elembits() != (storage_type == 1 ? 16 : 32))
+            ret = -1;
+        if (tops[1].cstep < (size_t)head_dim * dst_seqlen || tops[2].cstep < (size_t)value_dim * dst_seqlen)
+            ret = -1;
+        if (old_key_data && (dst_seqlen <= old_key_capacity) != (tops[1].data == old_key_data))
+            ret = -1;
+        if (old_value_data && (dst_seqlen <= old_value_capacity) != (tops[2].data == old_value_data))
+            ret = -1;
+
+        reference_key = reference_tops[1];
+        reference_value = reference_tops[2];
+        reference_tops[1].release();
+        reference_tops[2].release();
+
+        key_cache = tops[1];
+        value_cache = tops[2];
+        tops[1].release();
+        tops[2].release();
     }
 
-    as.push_back(RandomMat(embed_dim, past_seqlen, k.c));
-    as.push_back(RandomMat(out_embed_dim, past_seqlen, v.c));
+    reference->destroy_pipeline(reference_opt);
+    op->destroy_pipeline(opt);
+    delete reference;
+    delete op;
 
-    int ret = test_layer("SDPA", pd, weights, as, 3);
     if (ret != 0)
-    {
-        fprintf(stderr, "test_sdpa_kvcache failed q=(%d %d %d) k=(%d %d %d) v=(%d %d %d) attn_mask=%d past_seqlen=%d\n", q.w, q.h, q.c, k.w, k.h, k.c, v.w, v.h, v.c, attn_mask, past_seqlen);
-    }
+        fprintf(stderr, "test_sdpa_kvcache failed head_dim=%d value_dim=%d num_heads=%d num_kv_heads=%d mask_type=%d storage_type=%d\n", head_dim, value_dim, num_heads, num_kv_heads, mask_type, storage_type);
 
     return ret;
 }
@@ -44,81 +164,25 @@ static int test_sdpa_kvcache(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn:
 static int test_sdpa_0()
 {
     return 0
-           || test_sdpa_kvcache(RandomMat(32, 66, 8), RandomMat(32, 66, 8), RandomMat(20, 66, 8), 0, 11)
-           || test_sdpa_kvcache(RandomMat(26, 64, 8), RandomMat(26, 61, 8), RandomMat(18, 61, 8), 1, 11)
-           || test_sdpa_kvcache(RandomMat(40, 62, 7), RandomMat(40, 61, 7), RandomMat(24, 61, 7), 0, 9)
-           || test_sdpa_kvcache(RandomMat(24, 22, 6), RandomMat(24, 19, 6), RandomMat(16, 19, 6), 1, 9)
-           || test_sdpa_kvcache(RandomMat(64, 128, 12), RandomMat(64, 128, 2), RandomMat(64, 128, 2), 0, 1)
-           || test_sdpa_kvcache(RandomMat(64, 122, 12), RandomMat(64, 127, 2), RandomMat(48, 127, 2), 1, 1)
-           || test_sdpa_kvcache(RandomMat(44, 128, 4), RandomMat(44, 123, 4), RandomMat(55, 123, 4), 0, 0)
-           || test_sdpa_kvcache(RandomMat(12, 127, 4), RandomMat(12, 127, 4), RandomMat(55, 127, 4), 1, 0)
-           || test_sdpa_kvcache(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 3)
-           || test_sdpa_kvcache(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1, 5);
-}
-
+           || test_sdpa_kvcache(32, 20, 8, 8, 0, 0)
+           || test_sdpa_kvcache(26, 18, 8, 8, 1, 0)
+           || test_sdpa_kvcache(64, 64, 12, 2, 0, 0)
+           || test_sdpa_kvcache(28, 32, 15, 5, 1, 0)
+           || test_sdpa_kvcache(17, 19, 16, 1, 3, 0)
+#if NCNN_BF16
+           || test_sdpa_kvcache(15, 13, 8, 2, 1, 1)
+           || test_sdpa_kvcache(17, 19, 16, 1, 3, 1)
+#endif // NCNN_BF16
 #if NCNN_INT8
-static int test_sdpa_int8_kvcache(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int attn_mask, int past_seqlen)
-{
-    const int embed_dim = q.w;
-    const int out_embed_dim = v.w;
-    const int src_seqlen = q.h;
-    const int cur_seqlen = k.h;
-    const int dst_seqlen = past_seqlen + cur_seqlen;
-
-    ncnn::ParamDict pd;
-    pd.set(5, attn_mask);
-    pd.set(7, 1);  // kv_cache
-    pd.set(18, 2); // int8_scale_term
-
-    std::vector<ncnn::Mat> weights(0);
-
-    std::vector<ncnn::Mat> as(3);
-    as[0] = q;
-    as[1] = k;
-    as[2] = v;
-
-    if (attn_mask)
-    {
-        as.push_back(RandomMat(dst_seqlen, src_seqlen));
-    }
-
-    as.push_back(RandomMat(embed_dim, past_seqlen, k.c));
-    as.push_back(RandomMat(out_embed_dim, past_seqlen, v.c));
-
-    float epsilon = 0.01;
-
-    int ret = test_layer("SDPA", pd, weights, as, 3, epsilon);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_sdpa_int8_kvcache failed q=(%d %d %d) k=(%d %d %d) v=(%d %d %d) attn_mask=%d past_seqlen=%d\n", q.w, q.h, q.c, k.w, k.h, k.c, v.w, v.h, v.c, attn_mask, past_seqlen);
-    }
-
-    return ret;
+           || test_sdpa_kvcache(32, 20, 8, 8, 0, 2)
+           || test_sdpa_kvcache(17, 19, 16, 1, 3, 2)
+#endif // NCNN_INT8
+           ;
 }
-
-static int test_sdpa_1()
-{
-    return 0
-           || test_sdpa_int8_kvcache(RandomMat(32, 66, 8), RandomMat(32, 66, 8), RandomMat(20, 66, 8), 0, 11)
-           || test_sdpa_int8_kvcache(RandomMat(26, 64, 8), RandomMat(26, 61, 8), RandomMat(18, 61, 8), 1, 11)
-           || test_sdpa_int8_kvcache(RandomMat(40, 62, 7), RandomMat(40, 61, 7), RandomMat(24, 61, 7), 0, 9)
-           || test_sdpa_int8_kvcache(RandomMat(24, 22, 6), RandomMat(24, 19, 6), RandomMat(16, 19, 6), 1, 9)
-           || test_sdpa_int8_kvcache(RandomMat(64, 128, 12), RandomMat(64, 128, 2), RandomMat(64, 128, 2), 0, 1)
-           || test_sdpa_int8_kvcache(RandomMat(48, 122, 12), RandomMat(64, 127, 2), RandomMat(64, 127, 2), 1, 1)
-           || test_sdpa_int8_kvcache(RandomMat(44, 128, 4), RandomMat(44, 123, 4), RandomMat(55, 123, 4), 0, 0)
-           || test_sdpa_int8_kvcache(RandomMat(12, 127, 4), RandomMat(12, 127, 4), RandomMat(55, 127, 4), 1, 0)
-           || test_sdpa_int8_kvcache(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 3)
-           || test_sdpa_int8_kvcache(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1, 5);
-}
-#endif
 
 int main()
 {
     SRAND(7767517);
 
-#if NCNN_INT8
-    return test_sdpa_0() || test_sdpa_1();
-#else
     return test_sdpa_0();
-#endif
 }

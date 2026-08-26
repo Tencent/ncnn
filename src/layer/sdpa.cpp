@@ -21,6 +21,9 @@ int SDPA::load_param(const ParamDict& pd)
     kv_cache = pd.get(7, 0);
     int8_scale_term = pd.get(18, 0);
 
+    if (kv_cache)
+        support_batch = true;
+
     return 0;
 }
 
@@ -101,6 +104,11 @@ int SDPA::create_or_grow_kvcache(const Mat& cache, Mat& new_cache, int new_seqle
 // refers to https://pytorch.org/docs/stable/generated/torch.nn.functional.scaled_dot_product_attention.html
 int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_BATCH
+    if (kv_cache && bottom_blobs[0].n > 1)
+        return -1;
+#endif // NCNN_BATCH
+
 #if NCNN_INT8
     if (int8_scale_term)
     {

@@ -3,6 +3,31 @@
 
 #include "testutil.h"
 
+class TestKVCacheOOMAllocator : public ncnn::Allocator
+{
+public:
+    TestKVCacheOOMAllocator()
+    {
+        oom = 0;
+    }
+
+    virtual void* fastMalloc(size_t size)
+    {
+        if (oom)
+            return 0;
+
+        return ncnn::fastMalloc(size);
+    }
+
+    virtual void fastFree(void* ptr)
+    {
+        ncnn::fastFree(ptr);
+    }
+
+public:
+    int oom;
+};
+
 static int test_sdpa_oom(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int attn_mask, float scale = 0.f, int flag = 0)
 {
     const int src_seqlen = q.h;
@@ -69,6 +94,71 @@ static int test_sdpa_kvcache_oom(const ncnn::Mat& q, const ncnn::Mat& k, const n
     return ret;
 }
 
+static int test_sdpa_kvcache_allocator_oom()
+{
+    ncnn::Layer* op = ncnn::create_layer_cpu("SDPA");
+    if (!op)
+        return -1;
+
+    ncnn::ParamDict pd;
+    pd.set(7, 1); // kv_cache
+    op->load_param(pd);
+    op->load_model(ncnn::ModelBinFromMatArray(0));
+
+    TestKVCacheOOMAllocator kvcache_allocator;
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.kvcache_allocator = &kvcache_allocator;
+    opt.kvcache_max_seqlen_hint = 16;
+
+    int ret = op->create_pipeline(opt);
+
+    std::vector<ncnn::Mat> bottoms(5);
+    bottoms[0] = RandomMat(7, 16, 4);
+    bottoms[1] = RandomMat(7, 16, 2);
+    bottoms[2] = RandomMat(5, 16, 2);
+
+    std::vector<ncnn::Mat> tops(3);
+    if (ret == 0)
+    {
+        kvcache_allocator.oom = 1;
+        ret = op->forward(bottoms, tops, opt) == -100 ? 0 : -1;
+        tops.clear();
+    }
+
+    if (ret == 0)
+    {
+        kvcache_allocator.oom = 0;
+        tops.resize(3);
+        ret = op->forward(bottoms, tops, opt);
+    }
+
+    if (ret == 0)
+    {
+        bottoms[0] = RandomMat(7, 1, 4);
+        bottoms[1] = RandomMat(7, 1, 2);
+        bottoms[2] = RandomMat(5, 1, 2);
+        bottoms[3] = tops[1];
+        bottoms[4] = tops[2];
+        tops.clear();
+        tops.resize(3);
+
+        kvcache_allocator.oom = 1;
+        ret = op->forward(bottoms, tops, opt) == -100 ? 0 : -1;
+    }
+
+    bottoms.clear();
+    tops.clear();
+
+    op->destroy_pipeline(opt);
+    delete op;
+
+    if (ret != 0)
+        fprintf(stderr, "test_sdpa_kvcache_allocator_oom failed\n");
+
+    return ret;
+}
+
 static int test_sdpa_0()
 {
     return 0
@@ -80,7 +170,8 @@ static int test_sdpa_0()
            || test_sdpa_oom(RandomMat(24, 22, 6), RandomMat(24, 19, 6), RandomMat(16, 19, 6), 1)
            || test_sdpa_oom(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 0.1f)
            || test_sdpa_oom(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1, -0.4f)
-           || test_sdpa_kvcache_oom(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 3);
+           || test_sdpa_kvcache_oom(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 0)
+           || test_sdpa_kvcache_allocator_oom();
 }
 
 #if NCNN_INT8
@@ -163,7 +254,7 @@ static int test_sdpa_1()
            || test_sdpa_int8_oom(RandomMat(24, 22, 6), RandomMat(24, 19, 6), RandomMat(16, 19, 6), 1)
            || test_sdpa_int8_oom(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 0.1f)
            || test_sdpa_int8_oom(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1, -0.4f)
-           || test_sdpa_int8_kvcache_oom(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 3);
+           || test_sdpa_int8_kvcache_oom(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 0);
 }
 #endif
 

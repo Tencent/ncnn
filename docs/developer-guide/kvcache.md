@@ -42,7 +42,9 @@ The caching strategy is fundamentally different for self-attention and cross-att
 
 The cache layout is private to the attention backend. Applications should extract a cache and feed it back unchanged rather than interpreting its dimensions, packing, or data layout.
 
-The logical sequence length is stored in `Mat::h`. With a dedicated cache allocator, the backing allocation may reserve additional sequence capacity in `Mat::cstep`. `MultiHeadAttention` and `SDPA` append directly to that reserved space. When the capacity is exhausted, the backend allocates a larger cache and copies only the valid history.
+The logical sequence length is stored in `Mat::h`. The backing allocation may reserve additional sequence capacity in `Mat::cstep`. `MultiHeadAttention` and `SDPA` append directly to that reserved space. When the capacity is exhausted, the backend allocates a larger cache and copies only the valid history.
+
+Enabling KV cache selects the backend-private cache layout whether or not a dedicated cache allocator is provided. The allocator controls allocation lifetime and reuse; it does not select or identify the cache format.
 
 This representation lets CPU implementations choose a head-contiguous layout and lets Vulkan keep the cache on device. It also avoids changing the public `Mat` ABI or adding a separate cache object.
 
@@ -310,7 +312,7 @@ void generate_sequence()
 ```
 ### avoiding repeated cache allocation
 
-The example above remains compatible, but an exact-size cache allocation is made whenever the cache grows. A long-running session can provide a dedicated allocator and a maximum sequence-length hint:
+The example above remains compatible. Optimized backends keep the cache in a private layout and may reserve additional capacity even without a dedicated allocator. A long-running session can provide its own allocator to control the cache allocation lifetime and reuse policy:
 
 ```cpp
 ncnn::UnlockedPoolAllocator kvcache_allocator;
@@ -321,9 +323,9 @@ ex.set_kvcache_allocator(&kvcache_allocator);
 ex.set_kvcache_max_seqlen_hint(max_context_length);
 ```
 
-Set the same allocator on every extractor belonging to the session. The session owns it, and it must outlive every cache `Mat`. The sequence-length hint controls the first reservation but is not a hard limit; the cache still grows if necessary. Without a hint, ncnn uses a moderate initial reservation and geometric growth.
+Set the same allocator on every extractor belonging to the session. The session owns it, and it must outlive every cache `Mat`. The sequence-length hint controls the first reservation but is not a hard limit; the cache still grows if necessary. The hint may also be used without a dedicated allocator. Without a hint, ncnn uses a moderate initial reservation and geometric growth.
 
-The cache allocator must be a different allocator object from the blob allocator. Allocator-managed KV cache currently supports only batch size 1.
+The cache allocator must be a different allocator object from the blob allocator. KV cache currently supports only batch size 1.
 
 Cache input follows a consume-and-replace convention. After passing the cache to an extractor, release the caller's old handle and replace it with the extracted output:
 

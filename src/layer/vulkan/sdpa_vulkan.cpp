@@ -434,6 +434,11 @@ int SDPA_vulkan::create_or_grow_kvcache(const VkMat& cache, VkMat& new_cache, in
 
 int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
+#if NCNN_BATCH
+    if (kv_cache && bottom_blobs[0].n > 1)
+        return -1;
+#endif // NCNN_BATCH
+
     const VkMat& query = bottom_blobs[0];
     const VkMat& cur_key = bottom_blobs[1];
     const VkMat& cur_value = bottom_blobs[2];
