@@ -1009,6 +1009,8 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
 
             Operator* x = (Operator*)_x.second;
 
+            new_ops.erase(std::remove(new_ops.begin(), new_ops.end(), x), new_ops.end());
+
             graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), x));
 
             delete _x.second;
