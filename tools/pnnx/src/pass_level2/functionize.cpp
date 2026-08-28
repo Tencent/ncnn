@@ -10,6 +10,9 @@ namespace pnnx {
 
 static bool is_alias_op(const Operator* op)
 {
+    if (op->type == "aten::alias")
+        return true;
+
     if (op->type == "aten::slice" || op->type == "aten::select")
         return true;
 

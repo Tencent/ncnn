@@ -110,10 +110,12 @@ set(pnnx_pass_level1_SRCS
 )
 
 set(pnnx_pass_level2_SRCS
+    pass_level2/eliminate_alias.cpp
     pass_level2/eliminate_contiguous.cpp
     pass_level2/eliminate_size_numtotensor_int.cpp
     pass_level2/functionize.cpp
     pass_level2/fuse_constantlist.cpp
+    pass_level2/fuse_recurrent.cpp
 
     pass_level2/F_adaptive_avg_pool1d.cpp
     pass_level2/F_adaptive_avg_pool2d.cpp
@@ -196,6 +198,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/Tensor_index_put.cpp
     pass_level2/Tensor_masked_fill.cpp
     pass_level2/Tensor_new_empty.cpp
+    pass_level2/Tensor_new_full.cpp
     pass_level2/Tensor_new_ones.cpp
     pass_level2/Tensor_new_zeros.cpp
     pass_level2/Tensor_permute.cpp
@@ -287,12 +290,15 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_tile.cpp
     pass_level2/torch_topk.cpp
     pass_level2/torch_transpose.cpp
+    pass_level2/torch_tril.cpp
     pass_level2/torch_unbind.cpp
     pass_level2/torch_unsqueeze.cpp
     pass_level2/torch_var.cpp
+    pass_level2/torch_weight_norm.cpp
     pass_level2/torch_view_as_complex.cpp
     pass_level2/torch_view_as_real.cpp
     pass_level2/torch_where.cpp
+    pass_level2/torch_window.cpp
     pass_level2/torch_zeros.cpp
     pass_level2/torch_zeros_like.cpp
     pass_level2/torch_stft.cpp
@@ -321,6 +327,10 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torchaudio_F_inverse_spectrogram.cpp
     pass_level2/torchaudio_F_spectrogram.cpp
 
+    pass_level2/torchvision_DeformConv2d.cpp
+    pass_level2/torchvision_RoIAlign.cpp
+
+    pass_level2/nn_ChannelShuffle.cpp
     pass_level2/nn_GRU.cpp
     pass_level2/nn_LSTM.cpp
     pass_level2/nn_RNN.cpp

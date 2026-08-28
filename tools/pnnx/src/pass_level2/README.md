@@ -22,6 +22,7 @@
 * torch.ones_like
 * torch.randn
 * torch.randn_like
+* torch.tril
 * torch.zeros
 * torch.zeros_like
 
@@ -239,6 +240,4 @@
 * F.scaled_dot_product_attention
 * torchaudio_F.inverse_spectrogram
 * torchaudio_F.spectrogram
-
-
 

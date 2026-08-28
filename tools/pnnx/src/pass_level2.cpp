@@ -9,10 +9,14 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "pass_level2/eliminate_alias.h"
 #include "pass_level2/eliminate_contiguous.h"
 #include "pass_level2/eliminate_size_numtotensor_int.h"
 #include "pass_level2/functionize.h"
 #include "pass_level2/fuse_constantlist.h"
+#include "pass_level2/fuse_recurrent.h"
+#include "pass_level2/torch_window.h"
+#include "pass_level2/torch_weight_norm.h"
 
 namespace pnnx {
 
@@ -1140,11 +1144,17 @@ void pass_level2(Graph& g)
 {
     functionize(g);
 
+    eliminate_alias(g);
+
     eliminate_contiguous(g);
 
     eliminate_size_numtotensor_int(g);
 
     fuse_constantlist(g);
+
+    fuse_recurrent(g);
+
+    fold_static_weight_norm(g);
 
     int opindex = 0;
     for (auto x : g_global_pnnx_graph_rewriter_passes)
@@ -1154,6 +1164,8 @@ void pass_level2(Graph& g)
             pnnx_graph_rewrite(g, rewriter, opindex);
         }
     }
+
+    fold_static_windows(g);
 }
 
 } // namespace pnnx
