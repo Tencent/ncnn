@@ -628,7 +628,7 @@ set(pnnx_pass_ncnn_SRCS
 )
 
 if(PROTOBUF_FOUND)
-    if(DEFINED PROTOBUF_VERSION AND PROTOBUF_VERSION VERSION_GREATER_EQUAL 3.22)
+    if(DEFINED PROTOBUF_VERSION AND PROTOBUF_VERSION VERSION_GREATER_EQUAL 3.22 AND CMAKE_CXX_STANDARD LESS 17)
         set(CMAKE_CXX_STANDARD 17)
     endif()
 
@@ -664,6 +664,7 @@ endif()
 
 set(torch2pnnx_SRCS
 
+    exported_program_operator.cpp
     pass_level0.cpp
     pass_level1.cpp
 
@@ -758,9 +759,16 @@ if(NOT MSVC)
 endif()
 
 set(pnnx_SRCS
+    exported_program_graph.cpp
+    exported_program_schema.cpp
+    exported_program_tensor.cpp
+    load_exported_program.cpp
     main.cpp
     ir.cpp
+    json_reader.cpp
+    model_format.cpp
     model_stat.cpp
+    pt2_archive.cpp
     storezip.cpp
     utils.cpp
 

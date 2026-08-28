@@ -22,6 +22,7 @@
 #include "utils.h"
 
 #if BUILD_TORCH2PNNX
+#include "load_exported_program.h"
 #include "load_torchscript.h"
 #endif
 #if BUILD_ONNX2PNNX
@@ -31,6 +32,7 @@
 #include "load_tnn.h"
 #endif
 
+#include "model_format.h"
 #include "model_stat.h"
 #include "pass_ncnn.h"
 #include "save_ncnn.h"
@@ -211,6 +213,7 @@ static bool load_numpy_file_contents(const std::vector<std::string>& paths, cons
     return true;
 }
 
+#if BUILD_ONNX2PNNX
 static bool model_file_maybe_torchscript(const std::string& path)
 {
     FILE* fp = fopen(path.c_str(), "rb");
@@ -228,6 +231,7 @@ static bool model_file_maybe_torchscript(const std::string& path)
     // torchscript is a zip
     return signature == 0x04034b50;
 }
+#endif
 
 static bool model_file_maybe_tnnproto(const std::string& path)
 {
@@ -448,42 +452,65 @@ int main(int argc, char** argv)
 
     pnnx::Graph pnnx_graph;
 
+    pnnx::ModelFormatInfo model_format;
+    std::string model_format_error;
+    if (pnnx::detect_model_format(ptpath, model_format, model_format_error) != 0)
+    {
+        fprintf(stderr, "detect model format failed: %s\n", model_format_error.c_str());
+        return -1;
+    }
+
     // clang-format off
     // *INDENT-OFF*
 
-#if BUILD_TNN2PNNX
-    if (model_file_maybe_tnnproto(ptpath))
+#if BUILD_TORCH2PNNX
+    if (model_format.format == pnnx::MODEL_FORMAT_EXPORTED_PROGRAM_PT2)
     {
-        int ret = load_tnn(ptpath, pnnx_graph, input_shapes, input_types);
+        std::string error;
+        int ret = pnnx::load_exported_program(ptpath, model_format, pnnx_graph, error);
         if (ret != 0)
+        {
+            fprintf(stderr, "load exported program failed: %s\n", error.c_str());
             return ret;
+        }
     }
     else
+#endif
+    {
+#if BUILD_TNN2PNNX
+        if (model_file_maybe_tnnproto(ptpath))
+        {
+            int ret = load_tnn(ptpath, pnnx_graph, input_shapes, input_types);
+            if (ret != 0)
+                return ret;
+        }
+        else
 #endif
 #if BUILD_ONNX2PNNX
-    if (!model_file_maybe_torchscript(ptpath))
-    {
-        int ret = load_onnx(ptpath.c_str(), pnnx_graph,
-                            input_shapes, input_types,
-                            input_shapes2, input_types2);
-        if (ret != 0)
-            return ret;
-    }
-    else
+        if (!model_file_maybe_torchscript(ptpath))
+        {
+            int ret = load_onnx(ptpath.c_str(), pnnx_graph,
+                                input_shapes, input_types,
+                                input_shapes2, input_types2);
+            if (ret != 0)
+                return ret;
+        }
+        else
 #endif
-    {
-        if (!load_numpy_file_contents(input_paths, input_shapes, input_types, input_contents))
-            return -1;
-        if (!load_numpy_file_contents(input_paths2, input_shapes2, input_types2, input_contents2))
-            return -1;
+        {
+            if (!load_numpy_file_contents(input_paths, input_shapes, input_types, input_contents))
+                return -1;
+            if (!load_numpy_file_contents(input_paths2, input_shapes2, input_types2, input_contents2))
+                return -1;
 
-        int ret = load_torchscript(ptpath, pnnx_graph,
-                                   device, input_shapes, input_types, input_contents,
-                                   input_shapes2, input_types2, input_contents2,
-                                   customop_modules, module_operators,
-                                   foldable_constants_zippath, foldable_constants);
-        if (ret != 0)
-            return ret;
+            int ret = load_torchscript(ptpath, pnnx_graph,
+                                       device, input_shapes, input_types, input_contents,
+                                       input_shapes2, input_types2, input_contents2,
+                                       customop_modules, module_operators,
+                                       foldable_constants_zippath, foldable_constants);
+            if (ret != 0)
+                return ret;
+        }
     }
 
     // *INDENT-ON*
