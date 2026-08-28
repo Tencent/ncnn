@@ -237,6 +237,7 @@ static int test_extractor_kvcache()
            || test_extractor_kvcache(1, 1, 1, 9, 11, 32, 1, 4, 0, 3)
            || test_extractor_kvcache(1, 12, 1, 17, 19, 32, 3, 1, 0, 15)
            || test_extractor_kvcache(1, 20, 1, 17, 19, 32, 3, 1, 0, 15)
+           || test_extractor_kvcache(1, 8, 2, 9, 11, 32, 0, 2, 1, 15)
 #endif // NCNN_BF16
            || test_extractor_kvcache_extract_type();
 }
