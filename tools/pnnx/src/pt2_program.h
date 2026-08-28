@@ -52,7 +52,10 @@ struct Pt2Argument
         Device,
         SymInt,
         SymInts,
-        SymBool
+        SymBool,
+        SymBools,
+        SymFloat,
+        SymFloats
     };
 
     Pt2Argument();
@@ -61,6 +64,7 @@ struct Pt2Argument
     int64_t i;
     double f;
     bool b;
+    bool has_tensor;
     std::string s;
     std::vector<int64_t> ai;
     std::vector<double> af;
@@ -85,7 +89,6 @@ struct Pt2NamedArgument
 {
     std::string name;
     Pt2Argument arg;
-    int kind;
 };
 
 struct Pt2Node
@@ -110,18 +113,10 @@ struct Pt2InputSpec
     Kind kind;
     Pt2Argument arg;
     std::string target;
-    bool persistent;
-};
-
-struct Pt2OutputSpec
-{
-    Pt2Argument arg;
 };
 
 struct Pt2RangeConstraint
 {
-    bool has_min;
-    bool has_max;
     int64_t min;
     int64_t max;
 };
@@ -140,8 +135,9 @@ struct Pt2Program
     std::map<std::string, Pt2Tensor> tensors;
     std::map<std::string, Pt2SymInt> sym_ints;
     std::set<std::string> sym_bools;
+    std::map<std::string, std::string> sym_floats;
     std::vector<Pt2InputSpec> input_specs;
-    std::vector<Pt2OutputSpec> output_specs;
+    std::vector<Pt2Argument> output_specs;
     std::map<std::string, Pt2RangeConstraint> range_constraints;
     std::vector<std::string> guards_code;
     std::string error;

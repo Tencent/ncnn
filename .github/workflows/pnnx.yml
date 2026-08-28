@@ -23,6 +23,8 @@ permissions:
 env:
   LIBTORCH_VERSION: 2.12.1
   TORCHVISION_VERSION: 0.27.1
+  TORCHAUDIO_VERSION: 2.11.0
+  TRANSFORMERS_VERSION: 4.57.6
   PROTOBUF_VERSION: 21.12
   ONNXRUNTIME_VERSION: 1.27.0
   CACHE_DATE: 20260703
@@ -51,8 +53,9 @@ jobs:
     - name: setup-pytorch
       run: |
         python3 -m pip config set global.break-system-packages true
-        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
-        pip3 install --user numpy packaging
+        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} torchvision==${{ env.TORCHVISION_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user --no-deps torchaudio==${{ env.TORCHAUDIO_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user numpy packaging transformers==${{ env.TRANSFORMERS_VERSION }} einops onnxscript
 
     - name: python-ncnn
       env:
@@ -67,7 +70,7 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . --config Release -j 4
 
-    - name: pt2-fixture-test
+    - name: pt2-test
       run: |
         cd tools/pnnx/build
         ctest -C Release --output-on-failure -L pt2-smoke
@@ -97,8 +100,9 @@ jobs:
     - name: setup-pytorch
       run: |
         python3 -m pip config set global.break-system-packages true
-        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
-        pip3 install --user numpy packaging
+        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} torchvision==${{ env.TORCHVISION_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user --no-deps torchaudio==${{ env.TORCHAUDIO_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user numpy packaging transformers==${{ env.TRANSFORMERS_VERSION }} einops onnxscript
 
     - name: python-ncnn
       env:
@@ -138,8 +142,9 @@ jobs:
     - name: setup-pytorch
       run: |
         python3 -m pip config set global.break-system-packages true
-        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
-        pip3 install --user numpy packaging
+        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} torchvision==${{ env.TORCHVISION_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user --no-deps torchaudio==${{ env.TORCHAUDIO_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user numpy packaging transformers==${{ env.TRANSFORMERS_VERSION }} einops onnxscript
 
     - name: python-ncnn
       env:
@@ -306,7 +311,10 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: pnnx
-        path: tools/pnnx/build/src/pnnx
+        path: |
+          tools/pnnx/build/src/pnnx
+          tools/pnnx/build/tests/pt2/pnnx_pt2_archive_test
+          tools/pnnx/build/tests/pt2/pnnx_pt2_graph_test
         compression-level: 9
 
   test:
@@ -432,12 +440,14 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         name: pnnx
-        path: tools/pnnx/build/src
+        path: tools/pnnx/build
 
     - name: test
       run: |
         export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
         chmod +x tools/pnnx/build/src/pnnx
+        chmod +x tools/pnnx/build/tests/pt2/pnnx_pt2_archive_test
+        chmod +x tools/pnnx/build/tests/pt2/pnnx_pt2_graph_test
         export OMP_THREAD_LIMIT=1
         export OMP_NUM_THREADS=1
         export MKL_NUM_THREADS=1

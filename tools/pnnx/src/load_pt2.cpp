@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include <map>
+#include <set>
 
 #include "pt2_archive.h"
 #include "pt2_graph_lowering.h"
@@ -93,16 +94,15 @@ static bool parse_symbol(const char*& p, std::string& symbol)
         const char* value_begin = p;
         while ((*p >= 'A' && *p <= 'Z') || (*p >= 'a' && *p <= 'z'))
             p++;
-        if (std::string(value_begin, p) != "True")
+        const std::string value(value_begin, p);
+        if (value != "True" && value != "False")
             return false;
     }
 }
 
-static bool parse_sym_int(const char*& p, const std::map<std::string, int64_t>& symbols, int64_t& value, int depth)
+static bool parse_sym_int(const char*& p, const std::map<std::string, int64_t>& symbols, const std::set<std::string>& runtime_symbols, int64_t& value, bool& dynamic)
 {
-    if (depth >= 64)
-        return false;
-
+    dynamic = false;
     skip_space(p);
     const char* name_begin = p;
     while ((*p >= 'A' && *p <= 'Z') || (*p >= 'a' && *p <= 'z') || *p == '_')
@@ -129,33 +129,66 @@ static bool parse_sym_int(const char*& p, const std::map<std::string, int64_t>& 
         if (!parse_symbol(p, symbol))
             return false;
         std::map<std::string, int64_t>::const_iterator it = symbols.find(symbol);
-        if (it == symbols.end())
+        if (it != symbols.end())
+        {
+            value = it->second;
+            return true;
+        }
+        dynamic = runtime_symbols.find(symbol) != runtime_symbols.end();
+        value = 0;
+        return dynamic;
+    }
+
+    if (name == "TruncToInt")
+    {
+        if (!parse_sym_int(p, symbols, runtime_symbols, value, dynamic))
             return false;
-        value = it->second;
-        return true;
+        skip_space(p);
+        return *p++ == ')';
     }
 
     if (name == "FloorDiv")
     {
         int64_t a;
         int64_t b;
-        if (!parse_sym_int(p, symbols, a, depth + 1))
+        bool dynamic_a;
+        bool dynamic_b;
+        if (!parse_sym_int(p, symbols, runtime_symbols, a, dynamic_a))
             return false;
         skip_space(p);
-        if (*p++ != ',' || !parse_sym_int(p, symbols, b, depth + 1))
+        if (*p++ != ',' || !parse_sym_int(p, symbols, runtime_symbols, b, dynamic_b))
             return false;
         skip_space(p);
-        return *p++ == ')' && floor_div_int64(a, b, value);
+        if (*p++ != ')')
+            return false;
+        dynamic = dynamic_a || dynamic_b;
+        return dynamic || floor_div_int64(a, b, value);
     }
 
-    if (name != "Add" && name != "Mul")
+    if (name != "Add" && name != "Mul" && name != "Min" && name != "Max")
         return false;
-    value = name == "Add" ? 0 : 1;
+    bool first = true;
     for (;;)
     {
         int64_t item;
-        if (!parse_sym_int(p, symbols, item, depth + 1) || !(name == "Add" ? add_int64(value, item, value) : mul_int64(value, item, value)))
+        bool item_dynamic;
+        if (!parse_sym_int(p, symbols, runtime_symbols, item, item_dynamic))
             return false;
+        if (first)
+            value = item;
+        else if (!dynamic && !item_dynamic)
+        {
+            if (name == "Add" && !add_int64(value, item, value))
+                return false;
+            if (name == "Mul" && !mul_int64(value, item, value))
+                return false;
+            if (name == "Min" && item < value)
+                value = item;
+            if (name == "Max" && item > value)
+                value = item;
+        }
+        dynamic |= item_dynamic;
+        first = false;
         skip_space(p);
         if (*p == ')')
         {
@@ -167,10 +200,10 @@ static bool parse_sym_int(const char*& p, const std::map<std::string, int64_t>& 
     }
 }
 
-static bool evaluate_sym_int(const std::string& expression, const std::map<std::string, int64_t>& symbols, int64_t& value)
+static bool evaluate_sym_int(const std::string& expression, const std::map<std::string, int64_t>& symbols, const std::set<std::string>& runtime_symbols, int64_t& value, bool& dynamic)
 {
     const char* p = expression.c_str();
-    if (!parse_sym_int(p, symbols, value, 0))
+    if (!parse_sym_int(p, symbols, runtime_symbols, value, dynamic))
         return false;
     skip_space(p);
     return *p == '\0';
@@ -188,13 +221,10 @@ static bool get_symbol_name(const std::string& expression, std::string& name)
     return *p == '\0';
 }
 
-static bool parse_guard_value(const char*& p, const std::map<std::string, std::vector<int64_t> >& shapes, int64_t& value, int depth);
+static bool parse_guard_value(const char*& p, const std::map<std::string, std::vector<int64_t> >& shapes, int64_t& value);
 
-static bool parse_guard_primary(const char*& p, const std::map<std::string, std::vector<int64_t> >& shapes, int64_t& value, int depth)
+static bool parse_guard_primary(const char*& p, const std::map<std::string, std::vector<int64_t> >& shapes, int64_t& value)
 {
-    if (depth >= 64)
-        return false;
-
     skip_space(p);
     if (strncmp(p, "L['", 3) == 0)
     {
@@ -228,13 +258,13 @@ static bool parse_guard_primary(const char*& p, const std::map<std::string, std:
         p++;
         int64_t a;
         int64_t b;
-        if (!parse_guard_value(p, shapes, a, depth + 1))
+        if (!parse_guard_value(p, shapes, a))
             return false;
         skip_space(p);
         if (*p != ',')
             return false;
         p++;
-        if (!parse_guard_value(p, shapes, b, depth + 1))
+        if (!parse_guard_value(p, shapes, b))
             return false;
         skip_space(p);
         if (*p != ')')
@@ -247,7 +277,7 @@ static bool parse_guard_primary(const char*& p, const std::map<std::string, std:
     if (*p == '(')
     {
         p++;
-        if (!parse_guard_value(p, shapes, value, depth + 1))
+        if (!parse_guard_value(p, shapes, value))
             return false;
         skip_space(p);
         if (*p != ')')
@@ -265,9 +295,9 @@ static bool parse_guard_primary(const char*& p, const std::map<std::string, std:
     return true;
 }
 
-static bool parse_guard_value(const char*& p, const std::map<std::string, std::vector<int64_t> >& shapes, int64_t& value, int depth)
+static bool parse_guard_value(const char*& p, const std::map<std::string, std::vector<int64_t> >& shapes, int64_t& value)
 {
-    if (!parse_guard_primary(p, shapes, value, depth))
+    if (!parse_guard_primary(p, shapes, value))
         return false;
     for (;;)
     {
@@ -276,7 +306,7 @@ static bool parse_guard_value(const char*& p, const std::map<std::string, std::v
             return true;
         p += 2;
         int64_t divisor;
-        if (!parse_guard_primary(p, shapes, divisor, depth + 1) || !floor_div_int64(value, divisor, value))
+        if (!parse_guard_primary(p, shapes, divisor) || !floor_div_int64(value, divisor, value))
             return false;
     }
 }
@@ -286,7 +316,7 @@ static int evaluate_guard(const std::string& guard, const std::map<std::string, 
     const char* p = guard.c_str();
     int64_t a;
     int64_t b;
-    if (!parse_guard_value(p, shapes, a, 0))
+    if (!parse_guard_value(p, shapes, a))
         return -1;
     skip_space(p);
 
@@ -297,7 +327,7 @@ static int evaluate_guard(const std::string& guard, const std::map<std::string, 
         p++;
     else
         return -1;
-    if (!parse_guard_value(p, shapes, b, 0))
+    if (!parse_guard_value(p, shapes, b))
         return -1;
     skip_space(p);
     if (*p)
@@ -402,7 +432,7 @@ static int bind_input_shapes(const Pt2Program& program, const std::vector<std::v
         std::map<std::string, Pt2RangeConstraint>::const_iterator range = program.range_constraints.find(it->first);
         if (range == program.range_constraints.end())
             continue;
-        if ((range->second.has_min && it->second < range->second.min) || (range->second.has_max && it->second > range->second.max))
+        if (it->second < range->second.min || it->second > range->second.max)
         {
             error = std::string(profile) + " value " + std::to_string(it->second) + " for " + it->first + " is outside the exported range";
             return -1;
@@ -440,6 +470,14 @@ static int specialize_shapes(Pt2Program& program,
             return -1;
     }
 
+    std::set<std::string> runtime_symbols;
+    for (std::map<std::string, std::string>::const_iterator it = program.sym_floats.begin(); it != program.sym_floats.end(); ++it)
+    {
+        std::string symbol;
+        if (get_symbol_name(it->second, symbol))
+            runtime_symbols.insert(symbol);
+    }
+
     for (std::map<std::string, Pt2Tensor>::iterator it = program.tensors.begin(); it != program.tensors.end(); ++it)
     {
         for (size_t i = 0; i < it->second.sizes.size(); i++)
@@ -448,10 +486,17 @@ static int specialize_shapes(Pt2Program& program,
             if (!size.symbolic)
                 continue;
             int64_t value;
-            if (!evaluate_sym_int(size.expression, symbols, value))
+            bool dynamic;
+            if (!evaluate_sym_int(size.expression, symbols, runtime_symbols, value, dynamic))
             {
                 error = "unsupported symbolic expression " + size.expression;
                 return -1;
+            }
+            if (dynamic)
+            {
+                size.symbolic = false;
+                size.value = -1;
+                continue;
             }
             if (value < 0)
             {
@@ -462,7 +507,8 @@ static int specialize_shapes(Pt2Program& program,
             if (!input_shapes2.empty())
             {
                 int64_t value2;
-                if (!evaluate_sym_int(size.expression, symbols2, value2))
+                bool dynamic2;
+                if (!evaluate_sym_int(size.expression, symbols2, runtime_symbols, value2, dynamic2) || dynamic2)
                 {
                     error = "unsupported symbolic expression " + size.expression;
                     return -1;
@@ -499,9 +545,7 @@ int load_pt2(const std::string& path, Graph& graph,
         return -1;
     }
 
-    fprintf(stderr, "pt2 container=%s", archive.container_kind == Pt2ContainerArchive ? "archive" : "legacy-exported-program");
-    if (!archive.archive_version.empty())
-        fprintf(stderr, " archive_version=%s", archive.archive_version.c_str());
+    fprintf(stderr, "pt2 container=%s archive_version=%s", archive.container_kind == Pt2ContainerArchive ? "archive" : "legacy-exported-program", archive.archive_version.c_str());
     fprintf(stderr, " schema=%d.%d opset=", program.schema_major, program.schema_minor);
     for (std::map<std::string, int>::const_iterator it = program.opset_versions.begin(); it != program.opset_versions.end(); ++it)
     {

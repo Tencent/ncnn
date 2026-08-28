@@ -5,7 +5,7 @@
 
 namespace pnnx {
 
-class F_interpolate_nearest_exact_pt2 : public GraphRewriterPass
+class F_interpolate_nearest_exact2d_2 : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -32,7 +32,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class F_interpolate_nearest_exact3d_pt2 : public F_interpolate_nearest_exact_pt2
+class F_interpolate_nearest_exact3d_2 : public F_interpolate_nearest_exact2d_2
 {
 public:
     const char* match_pattern_graph() const
@@ -48,8 +48,8 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_nearest_exact_pt2, 110)
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_nearest_exact3d_pt2, 110)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_nearest_exact2d_2, 110)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_nearest_exact3d_2, 110)
 
 class F_interpolate : public GraphRewriterPass
 {

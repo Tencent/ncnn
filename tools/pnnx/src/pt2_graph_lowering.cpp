@@ -30,12 +30,6 @@
 
 namespace pnnx {
 
-static int scalar_type_to_pnnx(int type)
-{
-    static const int types[] = {0, 8, 7, 6, 4, 5, 3, 1, 2, 12, 10, 11, 9, 13};
-    return type >= 1 && type <= 13 ? types[type] : 0;
-}
-
 static int scalar_type_to_c10(int type)
 {
     static const int types[] = {-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15};
@@ -45,6 +39,17 @@ static int scalar_type_to_c10(int type)
 static bool integer_can_be_parameter(int64_t value)
 {
     return (value >= INT_MIN && value <= INT_MAX) || value == INT64_MIN || value == INT64_MIN + 1 || value == INT64_MAX - 1 || value == INT64_MAX;
+}
+
+static int sym_kind(const Pt2Argument& arg)
+{
+    if (arg.type == Pt2Argument::Bool || arg.type == Pt2Argument::SymBool)
+        return 1;
+    if (arg.type == Pt2Argument::Int || arg.type == Pt2Argument::SymInt)
+        return 2;
+    if (arg.type == Pt2Argument::Float || arg.type == Pt2Argument::SymFloat)
+        return 3;
+    return 0;
 }
 
 static int parameter_from_argument(const Pt2Argument& arg, Parameter& value, std::string& error)
@@ -121,7 +126,7 @@ static int parameter_from_argument(const Pt2Argument& arg, Parameter& value, std
         }
         value = Parameter(0);
     }
-    else if (arg.type == Pt2Argument::SymInt && !arg.b)
+    else if (arg.type == Pt2Argument::SymInt && arg.s.empty())
     {
         if (!integer_can_be_parameter(arg.i))
         {
@@ -130,6 +135,10 @@ static int parameter_from_argument(const Pt2Argument& arg, Parameter& value, std
         }
         value = Parameter((long long)arg.i);
     }
+    else if (arg.type == Pt2Argument::SymFloat && arg.s.empty())
+        value = std::isinf(arg.f) ? Parameter(arg.f < 0 ? "-inf" : "inf") : Parameter(arg.f);
+    else if (arg.type == Pt2Argument::SymBool && arg.s.empty())
+        value = Parameter(arg.b);
     else
     {
         error = "argument cannot be represented as a constant";
@@ -194,14 +203,65 @@ static int argument_from_ivalue(const c10::IValue& value, Pt2Argument& arg, std:
     return 0;
 }
 
-static bool output_matches_schema(const Pt2Argument& output, const c10::TypePtr& type)
+static bool match_argument(const Pt2Argument& arg, const c10::TypePtr& type)
 {
-    if (output.type == Pt2Argument::Tensor)
-        return type->kind() == c10::TypeKind::TensorType;
-    if (output.type == Pt2Argument::Tensors)
-        return type->kind() == c10::TypeKind::ListType && type->cast<c10::ListType>()->getElementType()->kind() == c10::TypeKind::TensorType;
-    if (output.type == Pt2Argument::SymInt)
-        return type->kind() == c10::TypeKind::SymIntType || type->kind() == c10::TypeKind::IntType || type->kind() == c10::TypeKind::NumberType;
+    if (type->kind() == c10::TypeKind::OptionalType)
+    {
+        if (arg.type == Pt2Argument::None || (arg.type == Pt2Argument::OptionalTensor && !arg.has_tensor))
+            return true;
+        return match_argument(arg, type->cast<c10::OptionalType>()->getElementType());
+    }
+
+    if (type->kind() == c10::TypeKind::ListType)
+    {
+        const c10::TypePtr element = type->cast<c10::ListType>()->getElementType();
+        const c10::TypeKind kind = element->kind();
+        if (arg.type == Pt2Argument::Tensors)
+            return kind == c10::TypeKind::TensorType || (kind == c10::TypeKind::OptionalType && element->cast<c10::OptionalType>()->getElementType()->kind() == c10::TypeKind::TensorType);
+        if (arg.type == Pt2Argument::OptionalTensors)
+            return kind == c10::TypeKind::OptionalType && element->cast<c10::OptionalType>()->getElementType()->kind() == c10::TypeKind::TensorType;
+        if (arg.type == Pt2Argument::Ints)
+            return kind == c10::TypeKind::IntType || kind == c10::TypeKind::SymIntType;
+        if (arg.type == Pt2Argument::Floats)
+            return kind == c10::TypeKind::FloatType;
+        if (arg.type == Pt2Argument::Strings)
+            return kind == c10::TypeKind::StringType;
+        if (arg.type == Pt2Argument::Bools)
+            return kind == c10::TypeKind::BoolType;
+        if (arg.type == Pt2Argument::SymInts)
+            return kind == c10::TypeKind::IntType || kind == c10::TypeKind::SymIntType || kind == c10::TypeKind::NumberType;
+        if (arg.type == Pt2Argument::SymFloats)
+            return kind == c10::TypeKind::FloatType || kind == c10::TypeKind::SymFloatType || kind == c10::TypeKind::NumberType;
+        if (arg.type == Pt2Argument::SymBools)
+            return kind == c10::TypeKind::BoolType || kind == c10::TypeKind::SymBoolType;
+        return false;
+    }
+
+    const c10::TypeKind kind = type->kind();
+    if (arg.type == Pt2Argument::None)
+        return kind == c10::TypeKind::NoneType;
+    if (arg.type == Pt2Argument::Tensor || (arg.type == Pt2Argument::OptionalTensor && arg.has_tensor))
+        return kind == c10::TypeKind::TensorType;
+    if (arg.type == Pt2Argument::Int)
+        return kind == c10::TypeKind::IntType || kind == c10::TypeKind::NumberType;
+    if (arg.type == Pt2Argument::Float)
+        return kind == c10::TypeKind::FloatType || kind == c10::TypeKind::NumberType;
+    if (arg.type == Pt2Argument::Complex)
+        return kind == c10::TypeKind::ComplexType || kind == c10::TypeKind::NumberType;
+    if (arg.type == Pt2Argument::String)
+        return kind == c10::TypeKind::StringType;
+    if (arg.type == Pt2Argument::Bool)
+        return kind == c10::TypeKind::BoolType;
+    if (arg.type == Pt2Argument::ScalarType || arg.type == Pt2Argument::MemoryFormat || arg.type == Pt2Argument::Layout)
+        return kind == c10::TypeKind::IntType;
+    if (arg.type == Pt2Argument::Device)
+        return kind == c10::TypeKind::DeviceObjType;
+    if (arg.type == Pt2Argument::SymInt)
+        return kind == c10::TypeKind::SymIntType || kind == c10::TypeKind::IntType || kind == c10::TypeKind::NumberType;
+    if (arg.type == Pt2Argument::SymBool)
+        return kind == c10::TypeKind::SymBoolType || kind == c10::TypeKind::BoolType || kind == c10::TypeKind::NumberType;
+    if (arg.type == Pt2Argument::SymFloat)
+        return kind == c10::TypeKind::SymFloatType || kind == c10::TypeKind::FloatType || kind == c10::TypeKind::NumberType;
     return false;
 }
 
@@ -221,6 +281,8 @@ public:
             reserved_names.insert(it->first);
         for (std::set<std::string>::const_iterator it = program.sym_bools.begin(); it != program.sym_bools.end(); ++it)
             reserved_names.insert(*it);
+        for (std::map<std::string, std::string>::const_iterator it = program.sym_floats.begin(); it != program.sym_floats.end(); ++it)
+            reserved_names.insert(it->first);
         for (size_t i = 0; i < program.nodes.size(); i++)
         {
             std::string name = program.nodes[i].name;
@@ -262,7 +324,7 @@ public:
             if (lower_output(program.output_specs[i]) != 0)
                 return -1;
         }
-        return verify();
+        return 0;
     }
 
 private:
@@ -272,12 +334,16 @@ private:
         return -1;
     }
 
-    int fail_node(size_t index, const Pt2Node& node, const std::string& message, const std::string& schema = std::string())
+    int fail_node(size_t index, const Pt2Node& node, const std::string& message, const c10::FunctionSchema* schema = 0)
     {
         const std::string name = !node.name.empty() ? node.name : !node.outputs.empty() ? node.outputs[0].s : std::string("unnamed");
         error = "node " + std::to_string(index) + " (" + name + ", target " + node.target + "): " + message;
-        if (!schema.empty())
-            error += "; schema " + schema;
+        if (schema)
+        {
+            std::ostringstream ss;
+            ss << *schema;
+            error += "; schema " + ss.str();
+        }
         return -1;
     }
 
@@ -352,18 +418,16 @@ private:
             return 0;
         }
 
-        std::map<std::string, Pt2Weight>::iterator it = weights.values.find(spec.target);
+        std::map<std::string, Attribute>::iterator it = weights.values.find(spec.target);
         if (it == weights.values.end())
             return fail("missing weight " + spec.target);
-        if (it->second.kind != spec.kind)
-            return fail("weight kind mismatch for " + spec.target);
         std::string name = spec.target;
         if (program_operator_names.find(name) != program_operator_names.end() || operator_names.find(name) != operator_names.end())
             name = generated_name();
         if (add_operator_name(name) != 0)
             return -1;
         Operator* op = graph.new_operator("pnnx.Attribute", name);
-        op->attrs["data"] = std::move(it->second.attribute);
+        op->attrs["data"] = std::move(it->second);
         Operand* operand = new_operand(spec.arg.s);
         if (!operand || set_tensor_meta(spec.arg.s, operand) != 0)
             return -1;
@@ -395,13 +459,13 @@ private:
         const std::string name = generated_name();
         operator_names.insert(name);
         std::vector<Operand*> items;
-        const size_t count = arg.type == Pt2Argument::OptionalTensors ? arg.as.size() : arg.type == Pt2Argument::Bools ? arg.ab.size() : arg.args.size();
+        const size_t count = arg.type == Pt2Argument::Tensors || arg.type == Pt2Argument::OptionalTensors ? arg.as.size() : arg.type == Pt2Argument::Bools ? arg.ab.size() : arg.args.size();
         for (size_t i = 0; i < count; i++)
         {
             Operand* item = 0;
-            if (arg.type == Pt2Argument::OptionalTensors && !arg.as[i].empty())
+            if (arg.type == Pt2Argument::Tensors || (arg.type == Pt2Argument::OptionalTensors && !arg.as[i].empty()))
                 item = graph.get_operand(arg.as[i]);
-            else if (arg.type == Pt2Argument::SymInts)
+            else if (arg.type == Pt2Argument::SymInts || arg.type == Pt2Argument::SymBools || arg.type == Pt2Argument::SymFloats)
             {
                 if (materialize_argument(arg.args[i], item) != 0)
                     return -1;
@@ -438,37 +502,18 @@ private:
             operand = graph.get_operand(arg.s);
             return operand ? 0 : fail("unknown tensor value " + arg.s);
         }
-        if (arg.type == Pt2Argument::OptionalTensor && arg.b)
+        if (arg.type == Pt2Argument::OptionalTensor && arg.has_tensor)
         {
             operand = graph.get_operand(arg.s);
             return operand ? 0 : fail("unknown tensor value " + arg.s);
         }
-        if (arg.type == Pt2Argument::SymInt && arg.b)
+        if ((arg.type == Pt2Argument::SymInt || arg.type == Pt2Argument::SymBool || arg.type == Pt2Argument::SymFloat) && !arg.s.empty())
         {
             operand = graph.get_operand(arg.s);
-            return operand ? 0 : fail("unknown symbolic integer " + arg.s);
+            return operand ? 0 : fail("unknown symbolic value " + arg.s);
         }
-        if (arg.type == Pt2Argument::Tensors)
-        {
-            const std::string name = generated_name();
-            operator_names.insert(name);
-            Operator* op = graph.new_operator("prim::ListConstruct", name);
-            for (size_t i = 0; i < arg.as.size(); i++)
-            {
-                Operand* item = graph.get_operand(arg.as[i]);
-                if (!item)
-                    return fail("list references an unknown tensor " + arg.as[i]);
-                item->consumers.push_back(op);
-                op->inputs.push_back(item);
-            }
-            operand = new_operand(name);
-            if (!operand)
-                return -1;
-            operand->producer = op;
-            op->outputs.push_back(operand);
-            return 0;
-        }
-        if (arg.type == Pt2Argument::OptionalTensors || arg.type == Pt2Argument::Bools || arg.type == Pt2Argument::SymInts)
+        if (arg.type == Pt2Argument::Tensors || arg.type == Pt2Argument::OptionalTensors || arg.type == Pt2Argument::Bools ||
+            arg.type == Pt2Argument::SymInts || arg.type == Pt2Argument::SymBools || arg.type == Pt2Argument::SymFloats)
             return add_list(arg, operand);
         if (arg.type == Pt2Argument::OptionalTensor)
         {
@@ -480,58 +525,174 @@ private:
 
     int parse_target(const std::string& target, std::string& name, std::string& overload)
     {
-        const std::string operator_prefix = "_operator.";
-        if (target.compare(0, operator_prefix.size(), operator_prefix) == 0)
-        {
-            name = target == "_operator.floordiv" ? "aten::floor_divide" : "aten::" + target.substr(operator_prefix.size());
-            overload = "int";
-            return 0;
-        }
-
-        const std::string prefix = "torch.ops.";
-        if (target.compare(0, prefix.size(), prefix) != 0)
+        if (target.compare(0, 10, "torch.ops.") != 0)
             return -1;
-        const size_t namespace_end = target.find('.', prefix.size());
+        const size_t namespace_end = target.find('.', 10);
         const size_t operator_end = namespace_end == std::string::npos ? std::string::npos : target.find('.', namespace_end + 1);
         if (namespace_end == std::string::npos || operator_end == std::string::npos || operator_end + 1 == target.size())
             return -1;
-        name = target.substr(prefix.size(), namespace_end - prefix.size()) + "::" + target.substr(namespace_end + 1, operator_end - namespace_end - 1);
+        name = target.substr(10, namespace_end - 10) + "::" + target.substr(namespace_end + 1, operator_end - namespace_end - 1);
         overload = target.substr(operator_end + 1);
         if (overload == "default")
             overload.clear();
         return 0;
     }
 
-    int lower_integer_operator(size_t index, const Pt2Node& node, const std::string& name)
+    int lower_symbolic_operator(size_t index, const Pt2Node& node)
     {
-        if (name != "aten::add" && name != "aten::sub" && name != "aten::mul" && name != "aten::floor_divide")
-            return fail_node(index, node, "unsupported symbolic integer operator");
-        if (node.inputs.size() != 2 || node.outputs.size() != 1 || node.outputs[0].type != Pt2Argument::SymInt || !node.outputs[0].b)
-            return fail_node(index, node, "invalid symbolic integer operator");
+        const char* expr = 0;
+        const char* aten = 0;
+        int input_count = 2;
+        bool compare = false;
+
+        if (node.target == "_operator.add") { expr = "add"; aten = "aten::add"; }
+        else if (node.target == "_operator.sub") { expr = "sub"; aten = "aten::sub"; }
+        else if (node.target == "_operator.mul") { expr = "mul"; aten = "aten::mul"; }
+        else if (node.target == "_operator.truediv") { expr = "div"; aten = "aten::div"; }
+        else if (node.target == "_operator.floordiv") { expr = "floor_divide"; aten = "aten::floor_divide"; }
+        else if (node.target == "_operator.mod") expr = "remainder";
+        else if (node.target == "_operator.pow") { expr = "pow"; aten = "aten::pow"; }
+        else if (node.target == "_operator.and_") { expr = "and"; aten = "aten::__and__"; }
+        else if (node.target == "_operator.or_") { expr = "or"; aten = "aten::__or__"; }
+        else if (node.target == "_operator.lshift") { expr = "lshift"; aten = "aten::__lshift__"; }
+        else if (node.target == "_operator.rshift") { expr = "rshift"; aten = "aten::__rshift__"; }
+        else if (node.target == "_operator.eq") { expr = "eq"; compare = true; }
+        else if (node.target == "_operator.ne") { expr = "ne"; compare = true; }
+        else if (node.target == "_operator.lt") { expr = "lt"; compare = true; }
+        else if (node.target == "_operator.le") { expr = "le"; compare = true; }
+        else if (node.target == "_operator.gt") { expr = "gt"; compare = true; }
+        else if (node.target == "_operator.ge") { expr = "ge"; compare = true; }
+        else if (node.target == "_operator.neg") { expr = "neg"; aten = "aten::neg"; input_count = 1; }
+        else if (node.target == "_operator.pos") { expr = "pos"; input_count = 1; }
+        else if (node.target == "math.trunc") { expr = "sym_trunc"; input_count = 1; }
+        else if (node.target == "torch.sym_not") { expr = "sym_not"; input_count = 1; }
+        else if (node.target == "torch.sym_int") { expr = "sym_int"; input_count = 1; }
+        else if (node.target == "torch.sym_float") { expr = "sym_float"; input_count = 1; }
+        else if (node.target == "torch.sym_ite") { expr = "sym_ite"; input_count = 3; }
+        else if (node.target == "torch.sym_max") expr = "sym_max";
+        else if (node.target == "torch.sym_min") expr = "sym_min";
+        else if (node.target == "torch._sym_sqrt" || node.target == "torch.sym_sqrt") { expr = "sym_sqrt"; input_count = 1; }
+        else
+            return fail_node(index, node, "unsupported symbolic operator");
+
+        if (node.inputs.size() != (size_t)input_count || node.outputs.size() != 1)
+            return fail_node(index, node, "invalid symbolic operator");
+        int kinds[3];
+        for (size_t i = 0; i < node.inputs.size(); i++)
+        {
+            const Pt2Argument& arg = node.inputs[i].arg;
+            kinds[i] = sym_kind(arg);
+            if (!kinds[i])
+                return fail_node(index, node, "invalid symbolic operator input");
+        }
+
+        int result_kind = 0;
+        if (node.target == "torch.sym_not")
+            result_kind = kinds[0] == 1 ? 1 : 0;
+        else if (node.target == "math.trunc" || node.target == "torch.sym_int")
+            result_kind = kinds[0] >= 2 ? 2 : 0;
+        else if (node.target == "torch.sym_float" || node.target == "torch._sym_sqrt" || node.target == "torch.sym_sqrt")
+            result_kind = kinds[0] >= 2 ? 3 : 0;
+        else if (node.target == "torch.sym_ite")
+            result_kind = kinds[0] == 1 && (kinds[1] == kinds[2] || (kinds[1] >= 2 && kinds[2] >= 2)) ? std::max(kinds[1], kinds[2]) : 0;
+        else if (node.target == "_operator.and_" || node.target == "_operator.or_")
+            result_kind = kinds[0] == kinds[1] && kinds[0] <= 2 ? kinds[0] : 0;
+        else if (node.target == "_operator.lshift" || node.target == "_operator.rshift")
+            result_kind = kinds[0] == 2 && kinds[1] == 2 ? 2 : 0;
+        else if (compare)
+            result_kind = (((node.target == "_operator.eq" || node.target == "_operator.ne") && kinds[0] == kinds[1]) ||
+                           (kinds[0] >= 2 && kinds[1] >= 2)) ? 1 : 0;
+        else if (input_count == 1)
+            result_kind = kinds[0] >= 2 ? kinds[0] : 0;
+        else
+            result_kind = kinds[0] >= 2 && kinds[1] >= 2 ? (node.target == "_operator.truediv" ? 3 : std::max(kinds[0], kinds[1])) : 0;
+
+        const Pt2Argument& outarg = node.outputs[0];
+        const Pt2Argument::Type expected_type = result_kind == 1 ? Pt2Argument::SymBool : result_kind == 2 ? Pt2Argument::SymInt : Pt2Argument::SymFloat;
+        if (!result_kind || outarg.s.empty() || outarg.type != expected_type)
+            return fail_node(index, node, "invalid symbolic operator output");
 
         const std::string operator_name = !node.name.empty() ? node.name : node.outputs[0].s;
         if (add_operator_name(operator_name) != 0)
             return fail_node(index, node, error);
         std::vector<Operand*> inputs;
-        for (size_t i = 0; i < node.inputs.size(); i++)
+        std::string expression;
+        if (aten)
         {
-            Operand* operand = 0;
-            if (materialize_argument(node.inputs[i].arg, operand) != 0)
-                return fail_node(index, node, error + " for argument " + node.inputs[i].name);
-            inputs.push_back(operand);
+            for (size_t i = 0; i < node.inputs.size(); i++)
+            {
+                Operand* operand = 0;
+                if (materialize_argument(node.inputs[i].arg, operand) != 0)
+                    return fail_node(index, node, error + " for argument " + node.inputs[i].name);
+                inputs.push_back(operand);
+            }
         }
-        Operator* op = graph.new_operator(name, operator_name);
+        else
+        {
+            std::string args[3];
+            for (size_t i = 0; i < node.inputs.size(); i++)
+            {
+                const Pt2Argument& arg = node.inputs[i].arg;
+                if (!arg.s.empty())
+                {
+                    Operand* operand = 0;
+                    if (materialize_argument(arg, operand) != 0)
+                        return fail_node(index, node, error + " for argument " + node.inputs[i].name);
+                    args[i] = "@" + std::to_string(inputs.size());
+                    inputs.push_back(operand);
+                }
+                else
+                {
+                    Parameter value;
+                    std::string message;
+                    if (parameter_from_argument(arg, value, message) != 0)
+                        return fail_node(index, node, message + " for argument " + node.inputs[i].name);
+                    args[i] = Parameter::encode_to_string(value);
+                }
+            }
+            if (node.target == "_operator.mod")
+                expression = "sub(" + args[0] + ",mul(floor_divide(" + args[0] + "," + args[1] + ")," + args[1] + "))";
+            else
+            {
+                expression = std::string(expr) + "(";
+                for (size_t i = 0; i < node.inputs.size(); i++)
+                    expression += args[i] + (i + 1 == node.inputs.size() ? ")" : ",");
+            }
+        }
+        Operator* op = graph.new_operator(aten ? aten : "pnnx.Expression", operator_name);
+        if (aten)
+        {
+            for (size_t i = 0; i < node.inputs.size(); i++)
+                op->inputnames.push_back(node.inputs[i].name);
+        }
+        else
+            op->params["expr"] = expression;
         op->inputs = inputs;
         for (size_t i = 0; i < inputs.size(); i++)
-        {
             inputs[i]->consumers.push_back(op);
-            op->inputnames.push_back(node.inputs[i].name);
-        }
         Operand* output = new_operand(node.outputs[0].s);
         if (!output)
             return fail_node(index, node, error);
         output->producer = op;
         op->outputs.push_back(output);
+        return 0;
+    }
+
+    int lower_assert_scalar(size_t index, const Pt2Node& node)
+    {
+        if (!node.outputs.empty() || node.inputs.size() != 2 ||
+            node.inputs[0].name != "self" || (node.inputs[0].arg.type != Pt2Argument::SymBool && node.inputs[0].arg.type != Pt2Argument::Bool) ||
+            node.inputs[1].name != "assert_msg" || node.inputs[1].arg.type != Pt2Argument::String)
+            return fail_node(index, node, "invalid scalar assertion");
+        Operand* condition = 0;
+        if (materialize_argument(node.inputs[0].arg, condition) != 0)
+            return fail_node(index, node, error);
+        const std::string name = !node.name.empty() ? node.name : generated_name();
+        if (add_operator_name(name) != 0)
+            return fail_node(index, node, error);
+        Operator* op = graph.new_operator("pnnx.Assert", name);
+        op->inputs.push_back(condition);
+        condition->consumers.push_back(op);
         return 0;
     }
 
@@ -567,7 +728,36 @@ private:
                 continue;
             if ((input.name == "size" || input.name == "stride" || input.name == "dtype" || input.name == "device" || input.name == "layout") && input.arg.type == Pt2Argument::None)
                 continue;
-            if (input.name == "dtype")
+            if (input.name == "size" || input.name == "stride")
+            {
+                const std::vector<Pt2SymInt>& values = input.name == "size" ? tensor->sizes : tensor->strides;
+                const size_t count = input.arg.type == Pt2Argument::Ints ? input.arg.ai.size() : input.arg.type == Pt2Argument::SymInts ? input.arg.args.size() : 0;
+                bool match = (input.arg.type == Pt2Argument::Ints || input.arg.type == Pt2Argument::SymInts) && count == values.size();
+                for (size_t j = 0; match && j < count; j++)
+                {
+                    if (input.arg.type == Pt2Argument::Ints || input.arg.args[j].s.empty())
+                    {
+                        const int64_t value = input.arg.type == Pt2Argument::Ints ? input.arg.ai[j] : input.arg.args[j].i;
+                        match = !values[j].symbolic && values[j].value == value;
+                        continue;
+                    }
+
+                    std::map<std::string, Pt2SymInt>::const_iterator it = program.sym_ints.find(input.arg.args[j].s);
+                    if (it == program.sym_ints.end())
+                    {
+                        match = false;
+                        continue;
+                    }
+                    const Pt2SymInt& value = it->second;
+                    if (values[j].symbolic || value.symbolic || !values[j].expression.empty() || !value.expression.empty())
+                        match = !values[j].expression.empty() && values[j].expression == value.expression;
+                    else
+                        match = values[j].value == value.value;
+                }
+                if (!match)
+                    return fail_node(index, node, "tensor metadata " + input.name + " assertion mismatch");
+            }
+            else if (input.name == "dtype")
             {
                 if (input.arg.type != Pt2Argument::ScalarType || input.arg.i != tensor->dtype)
                     return fail_node(index, node, "tensor metadata dtype assertion mismatch");
@@ -594,97 +784,109 @@ private:
     {
         bool has_output = false;
         for (size_t i = 0; i < node.outputs.size(); i++)
-            has_output |= node.outputs[i].type == Pt2Argument::Tensor || node.outputs[i].type == Pt2Argument::Tensors || node.outputs[i].type == Pt2Argument::SymInt;
+            has_output |= node.outputs[i].type == Pt2Argument::Tensor || node.outputs[i].type == Pt2Argument::Tensors || node.outputs[i].type == Pt2Argument::SymInt || node.outputs[i].type == Pt2Argument::SymBool || node.outputs[i].type == Pt2Argument::SymFloat;
         if (!has_output)
         {
             if (node.target == "torch.ops.aten._assert_tensor_metadata.default")
                 return lower_assert_tensor_metadata(index, node);
-            return fail_node(index, node, "operator without a tensor or symbolic integer output is unsupported");
+            if (node.target == "torch.ops.aten._assert_scalar.default")
+                return lower_assert_scalar(index, node);
+            return fail_node(index, node, "operator without a supported output is unsupported");
         }
 
+        if (node.target.compare(0, 10, "torch.ops.") != 0)
+            return lower_symbolic_operator(index, node);
         std::string name;
         std::string overload;
         if (parse_target(node.target, name, overload) != 0)
             return fail_node(index, node, "invalid operator target");
-        if (node.target.compare(0, 10, "_operator.") == 0)
-            return lower_integer_operator(index, node, name);
 
         const auto handle = c10::Dispatcher::singleton().findSchema(c10::OperatorName(name, overload));
         if (!handle)
             return fail_node(index, node, "dispatcher schema was not found");
         const c10::FunctionSchema& schema = handle->schema();
-        std::ostringstream schema_stream;
-        schema_stream << schema;
 
-        std::map<std::string, const Pt2Argument*> inputs;
+        std::map<std::string, const Pt2Argument*> args;
         for (size_t i = 0; i < node.inputs.size(); i++)
         {
-            if (!inputs.insert(std::make_pair(node.inputs[i].name, &node.inputs[i].arg)).second)
-                return fail_node(index, node, "duplicate argument " + node.inputs[i].name, schema_stream.str());
+            if (!args.insert(std::make_pair(node.inputs[i].name, &node.inputs[i].arg)).second)
+                return fail_node(index, node, "duplicate argument " + node.inputs[i].name, &schema);
         }
 
-        const std::string operator_name = !node.name.empty() ? node.name : !node.outputs.empty() && !node.outputs[0].s.empty() ? node.outputs[0].s : generated_name();
-        if (add_operator_name(operator_name) != 0)
-            return fail_node(index, node, error, schema_stream.str());
-        std::vector<Operand*> operator_inputs;
+        const std::string opname = !node.name.empty() ? node.name : !node.outputs.empty() && !node.outputs[0].s.empty() ? node.outputs[0].s : generated_name();
+        if (add_operator_name(opname) != 0)
+            return fail_node(index, node, error, &schema);
+        std::vector<Operand*> op_inputs;
         std::vector<std::string> input_names;
-        const std::vector<c10::Argument>& schema_arguments = schema.arguments();
-        for (size_t i = 0; i < schema_arguments.size(); i++)
+        const std::vector<c10::Argument>& schema_args = schema.arguments();
+        for (size_t i = 0; i < schema_args.size(); i++)
         {
-            const c10::Argument& schema_argument = schema_arguments[i];
-            Pt2Argument default_argument;
-            const Pt2Argument* argument = 0;
-            std::map<std::string, const Pt2Argument*>::iterator it = inputs.find(schema_argument.name());
-            if (it != inputs.end())
+            const c10::Argument& schema_arg = schema_args[i];
+            Pt2Argument default_arg;
+            const Pt2Argument* arg = 0;
+            std::map<std::string, const Pt2Argument*>::iterator it = args.find(schema_arg.name());
+            if (it != args.end())
             {
-                argument = it->second;
-                inputs.erase(it);
+                arg = it->second;
+                args.erase(it);
             }
-            else if (schema_argument.default_value())
+            else if (schema_arg.default_value())
             {
                 std::string message;
-                if (argument_from_ivalue(*schema_argument.default_value(), default_argument, message) != 0)
-                    return fail_node(index, node, message + " for argument " + schema_argument.name(), schema_stream.str());
-                argument = &default_argument;
+                if (argument_from_ivalue(*schema_arg.default_value(), default_arg, message) != 0)
+                    return fail_node(index, node, message + " for argument " + schema_arg.name(), &schema);
+                arg = &default_arg;
             }
             else
-                return fail_node(index, node, "missing required argument " + schema_argument.name(), schema_stream.str());
+                return fail_node(index, node, "missing required argument " + schema_arg.name(), &schema);
+
+            bool matches = match_argument(*arg, schema_arg.type());
+            if (!matches && schema_arg.name() == "other" && schema_arg.type()->kind() == c10::TypeKind::TensorType &&
+                (name == "aten::add" || name == "aten::add_" || name == "aten::sub" || name == "aten::sub_" ||
+                 name == "aten::mul" || name == "aten::mul_" || name == "aten::div" || name == "aten::div_") &&
+                (arg->type == Pt2Argument::Int || arg->type == Pt2Argument::Float || arg->type == Pt2Argument::Complex ||
+                 arg->type == Pt2Argument::SymInt || arg->type == Pt2Argument::SymFloat))
+                matches = true;
+            if (!matches)
+                return fail_node(index, node, "argument type does not match dispatcher schema for " + schema_arg.name(), &schema);
 
             Pt2Argument empty_stride;
-            if (schema_argument.name() == "stride" && argument->type == Pt2Argument::Ints && argument->ai.empty()
+            if (schema_arg.name() == "stride" && arg->type == Pt2Argument::Ints && arg->ai.empty()
                 && (name == "aten::avg_pool1d" || name == "aten::avg_pool2d" || name == "aten::avg_pool3d"
                     || name == "aten::max_pool1d" || name == "aten::max_pool2d" || name == "aten::max_pool3d"
                     || name == "aten::max_pool1d_with_indices" || name == "aten::max_pool2d_with_indices" || name == "aten::max_pool3d_with_indices"))
-                argument = &empty_stride;
+                arg = &empty_stride;
 
             Operand* operand = 0;
-            if (materialize_argument(*argument, operand) != 0)
-                return fail_node(index, node, error + " for argument " + schema_argument.name(), schema_stream.str());
-            operator_inputs.push_back(operand);
-            input_names.push_back(schema_argument.name());
+            if (materialize_argument(*arg, operand) != 0)
+                return fail_node(index, node, error + " for argument " + schema_arg.name(), &schema);
+            op_inputs.push_back(operand);
+            input_names.push_back(schema_arg.name());
         }
-        if (!inputs.empty())
-            return fail_node(index, node, "unknown argument " + inputs.begin()->first, schema_stream.str());
+        if (!args.empty())
+            return fail_node(index, node, "unknown argument " + args.begin()->first, &schema);
         if (node.outputs.size() != schema.returns().size())
-            return fail_node(index, node, "output count does not match dispatcher schema", schema_stream.str());
+            return fail_node(index, node, "output count does not match dispatcher schema", &schema);
         for (size_t i = 0; i < node.outputs.size(); i++)
         {
-            if (!output_matches_schema(node.outputs[i], schema.returns()[i].type()))
-                return fail_node(index, node, "output type does not match dispatcher schema", schema_stream.str());
+            const Pt2Argument& output = node.outputs[i];
+            if ((output.type != Pt2Argument::Tensor && output.type != Pt2Argument::Tensors && output.type != Pt2Argument::SymInt && output.type != Pt2Argument::SymBool && output.type != Pt2Argument::SymFloat) ||
+                !match_argument(output, schema.returns()[i].type()))
+                return fail_node(index, node, "output type does not match dispatcher schema", &schema);
         }
 
-        Operator* op = graph.new_operator(name, operator_name);
-        op->inputs = operator_inputs;
+        Operator* op = graph.new_operator(name, opname);
+        op->inputs = op_inputs;
         op->inputnames = input_names;
-        for (size_t i = 0; i < operator_inputs.size(); i++)
-            operator_inputs[i]->consumers.push_back(op);
+        for (size_t i = 0; i < op_inputs.size(); i++)
+            op_inputs[i]->consumers.push_back(op);
         for (size_t i = 0; i < node.outputs.size(); i++)
         {
             if (node.outputs[i].type == Pt2Argument::Tensor)
             {
                 Operand* operand = new_operand(node.outputs[i].s);
                 if (!operand || set_tensor_meta(node.outputs[i].s, operand) != 0)
-                    return fail_node(index, node, error, schema_stream.str());
+                    return fail_node(index, node, error, &schema);
                 operand->producer = op;
                 op->outputs.push_back(operand);
             }
@@ -693,13 +895,13 @@ private:
                 const std::string list_name = generated_name();
                 Operand* list = new_operand(list_name);
                 if (!list)
-                    return fail_node(index, node, error, schema_stream.str());
+                    return fail_node(index, node, error, &schema);
                 list->producer = op;
                 op->outputs.push_back(list);
 
                 const std::string unpack_name = generated_name();
                 if (add_operator_name(unpack_name) != 0)
-                    return fail_node(index, node, error, schema_stream.str());
+                    return fail_node(index, node, error, &schema);
                 Operator* unpack = graph.new_operator("prim::ListUnpack", unpack_name);
                 unpack->inputs.push_back(list);
                 list->consumers.push_back(unpack);
@@ -707,7 +909,7 @@ private:
                 {
                     Operand* operand = new_operand(node.outputs[i].as[j]);
                     if (!operand || set_tensor_meta(node.outputs[i].as[j], operand) != 0)
-                        return fail_node(index, node, error, schema_stream.str());
+                        return fail_node(index, node, error, &schema);
                     operand->producer = unpack;
                     unpack->outputs.push_back(operand);
                 }
@@ -716,7 +918,7 @@ private:
             {
                 Operand* operand = new_operand(node.outputs[i].s);
                 if (!operand)
-                    return fail_node(index, node, error, schema_stream.str());
+                    return fail_node(index, node, error, &schema);
                 operand->producer = op;
                 op->outputs.push_back(operand);
             }
@@ -773,13 +975,13 @@ private:
         return 0;
     }
 
-    int lower_output(const Pt2OutputSpec& spec)
+    int lower_output(const Pt2Argument& arg)
     {
-        if (spec.arg.type != Pt2Argument::Tensor)
-            return fail("only tensor user outputs are supported");
-        Operand* operand = graph.get_operand(spec.arg.s);
+        if (arg.type != Pt2Argument::Tensor && arg.type != Pt2Argument::SymInt && arg.type != Pt2Argument::SymBool && arg.type != Pt2Argument::SymFloat)
+            return fail("unsupported user output");
+        Operand* operand = graph.get_operand(arg.s);
         if (!operand)
-            return fail("unknown graph output " + spec.arg.s);
+            return fail("unknown graph output " + arg.s);
         std::string name = "pnnx_output_" + std::to_string(output_index++);
         if (program_operator_names.find(name) != program_operator_names.end() || operator_names.find(name) != operator_names.end())
             name = generated_name();
@@ -788,65 +990,6 @@ private:
         Operator* op = graph.new_operator("pnnx.Output", name);
         operand->consumers.push_back(op);
         op->inputs.push_back(operand);
-        return 0;
-    }
-
-    int verify_attribute(const Operator* op)
-    {
-        if (op->type != "pnnx.Attribute")
-            return 0;
-        std::map<std::string, Attribute>::const_iterator it = op->attrs.find("data");
-        if (it == op->attrs.end() || it->second.elemsize() == 0)
-            return fail("invalid attribute " + op->name);
-        size_t count = 1;
-        for (size_t i = 0; i < it->second.shape.size(); i++)
-        {
-            if (it->second.shape[i] < 0 || (it->second.shape[i] != 0 && count > SIZE_MAX / (size_t)it->second.shape[i]))
-                return fail("invalid attribute shape " + op->name);
-            count *= (size_t)it->second.shape[i];
-        }
-        if (count > SIZE_MAX / it->second.elemsize() || count * it->second.elemsize() != it->second.data.size())
-            return fail("attribute byte size mismatch " + op->name);
-        return 0;
-    }
-
-    int verify()
-    {
-        std::set<const Operator*> operators(graph.ops.begin(), graph.ops.end());
-        std::set<const Operand*> operands(graph.operands.begin(), graph.operands.end());
-        if (operators.size() != graph.ops.size() || operands.size() != graph.operands.size())
-            return fail("graph contains duplicate object pointers");
-        for (size_t i = 0; i < graph.ops.size(); i++)
-        {
-            const Operator* op = graph.ops[i];
-            if (verify_attribute(op) != 0)
-                return -1;
-            if (!op->inputnames.empty() && op->inputnames.size() != op->inputs.size())
-                return fail("operator input name count mismatch " + op->name);
-            for (size_t j = 0; j < op->inputs.size(); j++)
-            {
-                const Operand* operand = op->inputs[j];
-                if (operands.find(operand) == operands.end() || std::count(operand->consumers.begin(), operand->consumers.end(), op) != std::count(op->inputs.begin(), op->inputs.end(), operand))
-                    return fail("broken input edge at operator " + op->name);
-            }
-            for (size_t j = 0; j < op->outputs.size(); j++)
-            {
-                const Operand* operand = op->outputs[j];
-                if (operands.find(operand) == operands.end() || operand->producer != op)
-                    return fail("broken output edge at operator " + op->name);
-            }
-        }
-        for (size_t i = 0; i < graph.operands.size(); i++)
-        {
-            const Operand* operand = graph.operands[i];
-            if (!operand->producer || operators.find(operand->producer) == operators.end() || std::count(operand->producer->outputs.begin(), operand->producer->outputs.end(), operand) != 1)
-                return fail("operand has no valid producer " + operand->name);
-            for (size_t j = 0; j < operand->consumers.size(); j++)
-            {
-                if (operators.find(operand->consumers[j]) == operators.end())
-                    return fail("operand has an invalid consumer " + operand->name);
-            }
-        }
         return 0;
     }
 

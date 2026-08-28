@@ -4,6 +4,7 @@
 #include "model_format.h"
 
 #include <stdio.h>
+#include <stdint.h>
 
 #include "pt2_archive.h"
 
@@ -11,8 +12,7 @@ namespace pnnx {
 
 int probe_model_format(const std::string& path, ModelFormatInfo& info)
 {
-    info.format = ModelFormatOther;
-    info.archive_version.clear();
+    info.format = Other;
     info.diagnostic.clear();
 
     FILE* fp = fopen(path.c_str(), "rb");
@@ -22,20 +22,14 @@ int probe_model_format(const std::string& path, ModelFormatInfo& info)
         return -1;
     }
 
-    unsigned char signature[4];
-    const size_t nread = fread(signature, 1, sizeof(signature), fp);
+    uint32_t signature = 0;
+    fread((char*)&signature, sizeof(signature), 1, fp);
     fclose(fp);
 
-    if (nread != sizeof(signature))
+    if (signature != 0x04034b50 && signature != 0x06054b50 && signature != 0x06064b50)
         return 0;
 
-    if (signature[0] != 'P' || signature[1] != 'K' ||
-        !((signature[2] == 3 && signature[3] == 4) ||
-          (signature[2] == 5 && signature[3] == 6) ||
-          (signature[2] == 6 && signature[3] == 6)))
-        return 0;
-
-    info.format = ModelFormatUnknownZip;
+    info.format = UnknownZip;
 
     Pt2ArchiveReader archive;
     if (archive.open(path) != 0)
@@ -44,16 +38,9 @@ int probe_model_format(const std::string& path, ModelFormatInfo& info)
         return -1;
     }
 
-    info.archive_version = archive.archive_version;
-
-    if (archive.container_kind == Pt2ContainerLegacyExportedProgram)
+    if (archive.container_kind != Pt2ContainerUnknown)
     {
-        info.format = ModelFormatPt2LegacyExportedProgram;
-        return 0;
-    }
-    if (archive.container_kind == Pt2ContainerArchive)
-    {
-        info.format = ModelFormatPt2Archive;
+        info.format = Pt2;
         return 0;
     }
 
@@ -71,7 +58,7 @@ int probe_model_format(const std::string& path, ModelFormatInfo& info)
         (archive.records.find("version") != archive.records.end() || archive.records.find(".data/version") != archive.records.end()) &&
         (has_code || archive.records.find("constants.pkl") != archive.records.end()))
     {
-        info.format = ModelFormatTorchScript;
+        info.format = TorchScript;
         return 0;
     }
 
@@ -81,7 +68,6 @@ int probe_model_format(const std::string& path, ModelFormatInfo& info)
         return -1;
     }
 
-    info.format = ModelFormatUnknownZip;
     info.diagnostic = "ZIP container is neither TorchScript nor a supported PT2 container";
     return 0;
 }
@@ -90,15 +76,13 @@ const char* model_format_name(ModelFormat format)
 {
     switch (format)
     {
-    case ModelFormatOther:
+    case Other:
         return "other";
-    case ModelFormatTorchScript:
+    case TorchScript:
         return "torchscript";
-    case ModelFormatPt2LegacyExportedProgram:
-        return "pt2-legacy-exported-program";
-    case ModelFormatPt2Archive:
-        return "pt2-archive";
-    case ModelFormatUnknownZip:
+    case Pt2:
+        return "pt2";
+    case UnknownZip:
         return "unknown-zip";
     }
 

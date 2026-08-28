@@ -24,12 +24,7 @@ class Pt2ArchiveReader
 public:
     Pt2ArchiveReader();
 
-    // Opens a stored ZIP archive and probes its logical records. A successful
-    // open may still have Pt2ContainerUnknown, allowing the model-format probe
-    // to distinguish TorchScript and unrelated ZIP files without reopening it.
     int open(const std::string& path);
-    int close();
-
     int read_file(const std::string& logical_name, std::vector<unsigned char>& data);
 
     Pt2ContainerKind container_kind;
@@ -40,8 +35,8 @@ public:
     std::string error;
 
 private:
+    void close();
     int fail(const std::string& message);
-    int read_small_text(const std::string& logical_name, std::string& text);
 
     StoreZipReader zip;
     std::string prefix;

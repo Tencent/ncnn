@@ -9,13 +9,13 @@
 
 #include <algorithm>
 #include <map>
-#include <set>
 #include <utility>
 #include <vector>
 
 #include "pt2_archive.h"
 #include "pt2_json.h"
 #include "storezip.h"
+#include "utils.h"
 
 namespace pnnx {
 
@@ -25,19 +25,6 @@ struct Pt2LoadedTensor
     Attribute attribute;
     bool is_parameter;
 };
-
-static uint32_t read_le32(const unsigned char* p)
-{
-    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
-}
-
-static bool checked_add_u64(uint64_t a, uint64_t b, uint64_t& result)
-{
-    if (a > UINT64_MAX - b)
-        return false;
-    result = a + b;
-    return true;
-}
 
 static bool checked_mul_u64(uint64_t a, uint64_t b, uint64_t& result)
 {
@@ -49,12 +36,11 @@ static bool checked_mul_u64(uint64_t a, uint64_t b, uint64_t& result)
 
 static int scalar_type_info(int dtype, int& attribute_type, size_t& element_size, size_t& component_size)
 {
-    static const int attribute_types[] = {0, 8, 7, 6, 4, 5, 3, 1, 2, 12, 10, 11, 9, 13};
     static const unsigned char element_sizes[] = {0, 1, 1, 2, 4, 8, 2, 4, 8, 4, 8, 16, 1, 2};
     static const unsigned char component_sizes[] = {0, 1, 1, 2, 4, 8, 2, 4, 8, 2, 4, 8, 1, 2};
     if (dtype < 1 || dtype > 13)
         return -1;
-    attribute_type = attribute_types[dtype];
+    attribute_type = scalar_type_to_pnnx(dtype);
     element_size = element_sizes[dtype];
     component_size = component_sizes[dtype];
     return 0;
@@ -72,23 +58,6 @@ static int storage_scalar_type(const std::string& name)
             return i;
     }
     return 0;
-}
-
-static std::string trim_ascii_whitespace(const std::vector<unsigned char>& data)
-{
-    size_t begin = 0;
-    while (begin < data.size() && (data[begin] == ' ' || data[begin] == '\t' || data[begin] == '\r' || data[begin] == '\n'))
-        begin++;
-    size_t end = data.size();
-    while (end > begin && (data[end - 1] == ' ' || data[end - 1] == '\t' || data[end - 1] == '\r' || data[end - 1] == '\n'))
-        end--;
-    return std::string(data.begin() + begin, data.begin() + end);
-}
-
-static bool host_is_little_endian()
-{
-    const uint16_t value = 1;
-    return *(const unsigned char*)&value == 1;
 }
 
 static void byte_swap_components(char* data, uint64_t count, size_t element_size, size_t component_size)
@@ -153,11 +122,12 @@ static int make_attribute(const Pt2Tensor& tensor, const std::vector<unsigned ch
         {
             uint64_t extent;
             if (!checked_mul_u64((uint64_t)(tensor.sizes[i].value - 1), (uint64_t)tensor.strides[i].value, extent) ||
-                !checked_add_u64(max_index, extent, max_index))
+                max_index > UINT64_MAX - extent)
             {
                 error = "tensor view offset overflow";
                 return -1;
             }
+            max_index += extent;
         }
     }
     if ((numel == 0 && (uint64_t)tensor.storage_offset.value > storage_elements) || (numel != 0 && max_index >= storage_elements))
@@ -211,7 +181,7 @@ static int make_attribute(const Pt2Tensor& tensor, const std::vector<unsigned ch
         error = "unsupported byte order " + byteorder;
         return -1;
     }
-    if ((byteorder == "little") != host_is_little_endian() && !attribute.data.empty())
+    if ((byteorder == "little") != is_little_endian() && !attribute.data.empty())
         byte_swap_components(&attribute.data[0], numel, element_size, component_size);
     return 0;
 }
@@ -221,10 +191,11 @@ static bool same_sym_int(const Pt2SymInt& a, const Pt2SymInt& b)
     return a.symbolic == b.symbolic && (a.symbolic ? a.has_hint == b.has_hint && a.hint == b.hint && a.expression == b.expression : a.value == b.value);
 }
 
-static bool same_tensor_meta(const Pt2Tensor& a, const Pt2Tensor& b)
+static bool same_tensor(const Pt2Tensor& a, const Pt2Tensor& b, bool check_offset)
 {
     if (a.dtype != b.dtype || a.requires_grad != b.requires_grad || a.device != b.device || a.device_index != b.device_index ||
-        a.layout != b.layout || a.sizes.size() != b.sizes.size() || a.strides.size() != b.strides.size())
+        a.layout != b.layout || a.sizes.size() != b.sizes.size() || a.strides.size() != b.strides.size() ||
+        (check_offset && !same_sym_int(a.storage_offset, b.storage_offset)))
         return false;
     for (size_t i = 0; i < a.sizes.size(); i++)
     {
@@ -277,20 +248,16 @@ public:
         : data(_data), storage_prefix(_storage_prefix)
     {
         pos = 0;
-        operations = 0;
     }
 
     int parse(std::map<std::string, Value>& tensors, std::string& output_error)
     {
-        if (data.size() > 64 * 1024 * 1024)
-            return finish_error("pickle is too large", output_error);
-        if (!read_opcode(0x80) || !read_opcode(2))
+        if (data.size() < 2 || data[0] != 0x80 || data[1] != 2)
             return finish_error("only pickle protocol 2 is supported", output_error);
+        pos = 2;
 
         while (pos < data.size())
         {
-            if (++operations > 1000000 || stack.size() > 1000000)
-                return finish_error("pickle operation or stack limit exceeded", output_error);
             const unsigned char opcode = data[pos++];
             if (opcode == '.')
             {
@@ -324,11 +291,6 @@ private:
         return false;
     }
 
-    bool read_opcode(unsigned char expected)
-    {
-        return pos < data.size() && data[pos++] == expected;
-    }
-
     bool read_u32(uint32_t& value)
     {
         if (data.size() - pos < 4)
@@ -340,8 +302,8 @@ private:
 
     bool read_string(size_t size, std::string& value)
     {
-        if (size > 16 * 1024 * 1024 || size > data.size() - pos)
-            return fail("truncated or oversized string");
+        if (size > data.size() - pos)
+            return fail("truncated string");
         if (size == 0)
         {
             value.clear();
@@ -357,8 +319,8 @@ private:
         const size_t begin = pos;
         while (pos < data.size() && data[pos] != '\n')
             pos++;
-        if (pos == data.size() || pos - begin > 1024)
-            return fail("truncated or oversized GLOBAL name");
+        if (pos == data.size())
+            return fail("truncated GLOBAL name");
         value.assign((const char*)&data[begin], pos - begin);
         pos++;
         return true;
@@ -375,12 +337,12 @@ private:
 
     bool memo_put(uint32_t index)
     {
-        if (stack.empty() || index >= 1000000)
+        if (stack.empty() || (size_t)index >= memo.max_size() || (size_t)index >= memo_set.max_size())
             return fail("invalid memo write");
         if (memo.size() <= index)
         {
-            memo.resize(index + 1);
-            memo_set.resize(index + 1);
+            memo.resize((size_t)index + 1);
+            memo_set.resize((size_t)index + 1);
         }
         memo[index] = stack.back();
         memo_set[index] = 1;
@@ -411,14 +373,9 @@ private:
     {
         if (marks.empty() || marks.back() > stack.size())
             return fail("tuple has no MARK");
-        const size_t mark = marks.back();
+        const size_t count = stack.size() - marks.back();
         marks.pop_back();
-        Value tuple;
-        tuple.type = Value::Tuple;
-        tuple.list.assign(stack.begin() + mark, stack.end());
-        stack.erase(stack.begin() + mark, stack.end());
-        stack.push_back(std::move(tuple));
-        return true;
+        return make_tuple(count);
     }
 
     bool set_item(bool multiple)
@@ -602,7 +559,7 @@ private:
         {
             if (data.size() - pos < 2)
                 return fail("truncated BININT2");
-            const uint16_t value = (uint16_t)data[pos] | ((uint16_t)data[pos + 1] << 8);
+            const uint16_t value = read_le16(&data[pos]);
             pos += 2;
             return push_int(value);
         }
@@ -711,7 +668,6 @@ private:
     const std::vector<unsigned char>& data;
     std::string storage_prefix;
     size_t pos;
-    size_t operations;
     std::vector<Value> stack;
     std::vector<size_t> marks;
     std::vector<Value> memo;
@@ -730,10 +686,13 @@ public:
     int load()
     {
         std::map<std::string, Pt2LoadedTensor> tensors;
-        if (archive.records.find("data/weights/model_weights_config.json") != archive.records.end())
+        const bool raw = archive.records.find("data/weights/model_weights_config.json") != archive.records.end();
+        if (raw)
         {
-            if (load_raw_config("data/weights/model_weights_config.json", "data/weights/", tensors) != 0 ||
-                load_raw_config("data/constants/model_constants_config.json", "data/constants/", tensors) != 0)
+            std::string byteorder;
+            if (read_byteorder("byteorder", byteorder) != 0 ||
+                load_raw_config("data/weights/model_weights_config.json", "data/weights/", byteorder, tensors) != 0 ||
+                load_raw_config("data/constants/model_constants_config.json", "data/constants/", byteorder, tensors) != 0)
                 return -1;
         }
         else
@@ -743,7 +702,8 @@ public:
             if (load_pickle_archive(weights_record, tensors) != 0 || load_pickle_archive(constants_record, tensors) != 0)
                 return -1;
         }
-        return bind(tensors);
+        // Legacy graph metadata may reset a tensor view offset to zero.
+        return bind(tensors, raw);
     }
 
 private:
@@ -802,7 +762,7 @@ private:
         return 0;
     }
 
-    int load_raw_config(const std::string& config_record, const std::string& data_prefix,
+    int load_raw_config(const std::string& config_record, const std::string& data_prefix, const std::string& byteorder,
                         std::map<std::string, Pt2LoadedTensor>& tensors)
     {
         std::vector<unsigned char> data;
@@ -824,9 +784,6 @@ private:
             }
         }
 
-        std::string byteorder;
-        if (read_byteorder("byteorder", byteorder) != 0)
-            return -1;
         std::map<std::string, std::vector<unsigned char> > storage_cache;
         for (std::map<std::string, Pt2JsonValue>::const_iterator it = config->object.begin(); it != config->object.end(); ++it)
         {
@@ -942,9 +899,8 @@ private:
         return 0;
     }
 
-    int bind(std::map<std::string, Pt2LoadedTensor>& tensors)
+    int bind(std::map<std::string, Pt2LoadedTensor>& tensors, bool check_offset)
     {
-        std::set<std::string> used;
         for (size_t i = 0; i < program.input_specs.size(); i++)
         {
             const Pt2InputSpec& spec = program.input_specs[i];
@@ -953,20 +909,17 @@ private:
             std::map<std::string, Pt2LoadedTensor>::iterator tensor_it = tensors.find(spec.target);
             if (tensor_it == tensors.end())
                 return fail("missing payload for " + spec.target);
-            if (!used.insert(spec.target).second)
+            if (weights.values.find(spec.target) != weights.values.end())
                 return fail("payload is bound more than once: " + spec.target);
             if ((spec.kind == Pt2InputSpec::Parameter) != tensor_it->second.is_parameter)
                 return fail("parameter classification mismatch for " + spec.target);
             std::map<std::string, Pt2Tensor>::const_iterator graph_meta = program.tensors.find(spec.arg.s);
-            if (graph_meta == program.tensors.end() || !same_tensor_meta(graph_meta->second, tensor_it->second.meta))
+            if (graph_meta == program.tensors.end() || !same_tensor(graph_meta->second, tensor_it->second.meta, check_offset))
                 return fail("payload tensor metadata does not match graph input " + spec.arg.s);
 
-            Pt2Weight weight;
-            weight.kind = spec.kind;
-            weight.attribute = std::move(tensor_it->second.attribute);
-            weights.values[spec.target] = std::move(weight);
+            weights.values[spec.target] = std::move(tensor_it->second.attribute);
         }
-        if (used.size() != tensors.size())
+        if (weights.values.size() != tensors.size())
             return fail("payload contains a tensor that is not present in the graph signature");
         return 0;
     }

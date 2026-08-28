@@ -13,6 +13,8 @@
 #include <utility>
 #include <vector>
 
+#include "utils.h"
+
 namespace pnnx {
 
 // https://stackoverflow.com/questions/1537964/visual-c-equivalent-of-gccs-attribute-packed
@@ -139,28 +141,9 @@ StoreZipReader::~StoreZipReader()
     close();
 }
 
-static uint16_t read_le16(const unsigned char* p)
-{
-    return (uint16_t)p[0] | ((uint16_t)p[1] << 8);
-}
-
-static uint32_t read_le32(const unsigned char* p)
-{
-    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
-}
-
 static uint64_t read_le64(const unsigned char* p)
 {
     return (uint64_t)read_le32(p) | ((uint64_t)read_le32(p + 4) << 32);
-}
-
-static bool checked_add_u64(uint64_t a, uint64_t b, uint64_t& result)
-{
-    if (a > UINT64_MAX - b)
-        return false;
-
-    result = a + b;
-    return true;
 }
 
 static int file_seek(FILE* fp, uint64_t offset, int origin)
@@ -219,8 +202,6 @@ static bool normalize_zip_name(const std::string& name, std::string& normalized)
 }
 
 static bool parse_zip64_extra(const std::vector<unsigned char>& extra,
-                              bool need_uncompressed_size, bool need_compressed_size,
-                              bool need_lfh_offset, bool need_start_disk,
                               uint64_t& uncompressed_size, uint64_t& compressed_size,
                               uint64_t& lfh_offset, uint32_t& start_disk)
 {
@@ -238,28 +219,28 @@ static bool parse_zip64_extra(const std::vector<unsigned char>& extra,
             size_t p = offset;
             const size_t end = offset + size;
 
-            if (need_uncompressed_size)
+            if (uncompressed_size == 0xffffffffu)
             {
                 if (end - p < 8)
                     return false;
                 uncompressed_size = read_le64(&extra[p]);
                 p += 8;
             }
-            if (need_compressed_size)
+            if (compressed_size == 0xffffffffu)
             {
                 if (end - p < 8)
                     return false;
                 compressed_size = read_le64(&extra[p]);
                 p += 8;
             }
-            if (need_lfh_offset)
+            if (lfh_offset == 0xffffffffu)
             {
                 if (end - p < 8)
                     return false;
                 lfh_offset = read_le64(&extra[p]);
                 p += 8;
             }
-            if (need_start_disk)
+            if (start_disk == 0xffffu)
             {
                 if (end - p < 4)
                     return false;
@@ -272,7 +253,7 @@ static bool parse_zip64_extra(const std::vector<unsigned char>& extra,
         offset += size;
     }
 
-    return !(need_uncompressed_size || need_compressed_size || need_lfh_offset || need_start_disk);
+    return uncompressed_size != 0xffffffffu && compressed_size != 0xffffffffu && lfh_offset != 0xffffffffu && start_disk != 0xffffu;
 }
 
 int StoreZipReader::fail(const std::string& message)
@@ -366,10 +347,9 @@ int StoreZipReader::parse()
     if (archive_size < 22)
         return fail("truncated archive: end of central directory is missing");
 
-    const uint64_t search_size_u64 = std::min<uint64_t>(archive_size, 22u + 65535u);
-    const size_t search_size = (size_t)search_size_u64;
+    const size_t search_size = (size_t)std::min<uint64_t>(archive_size, 22u + 65535u);
     std::vector<unsigned char> tail(search_size);
-    if (seek(archive_size - search_size_u64, SEEK_SET) != 0 || !read(&tail[0], tail.size()))
+    if (seek(archive_size - search_size, SEEK_SET) != 0 || !read(&tail[0], tail.size()))
         return fail("failed to read end of archive");
 
     size_t eocd_tail_offset = SIZE_MAX;
@@ -391,7 +371,7 @@ int StoreZipReader::parse()
     uint64_t total_cd_records = read_le16(eocd + 10);
     uint64_t cd_size = read_le32(eocd + 12);
     uint64_t cd_offset = read_le32(eocd + 16);
-    const uint64_t eocd_offset = archive_size - search_size_u64 + eocd_tail_offset;
+    const uint64_t eocd_offset = archive_size - search_size + eocd_tail_offset;
     uint64_t central_directory_limit = eocd_offset;
 
     const bool needs_zip64 = disk_number == 0xffffu || start_disk == 0xffffu ||
@@ -417,11 +397,9 @@ int StoreZipReader::parse()
         if (read_le32(zip64_eocd) != 0x06064b50 || read_le64(zip64_eocd + 4) < 44)
             return fail("invalid ZIP64 end of central directory");
 
-        uint64_t zip64_eocd_total_size = 0;
-        uint64_t zip64_eocd_end = 0;
-        if (!checked_add_u64(read_le64(zip64_eocd + 4), 12u, zip64_eocd_total_size) ||
-            !checked_add_u64(zip64_eocd_offset, zip64_eocd_total_size, zip64_eocd_end) ||
-            zip64_eocd_end > eocd_offset - 20)
+        const uint64_t zip64_eocd_size = read_le64(zip64_eocd + 4);
+        const uint64_t zip64_eocd_available = eocd_offset - 20 - zip64_eocd_offset;
+        if (zip64_eocd_available < 12 || zip64_eocd_size > zip64_eocd_available - 12)
             return fail("ZIP64 end of central directory is out of bounds");
 
         disk_number = read_le32(zip64_eocd + 16);
@@ -436,9 +414,9 @@ int StoreZipReader::parse()
     if (disk_number != 0 || start_disk != 0 || cd_records != total_cd_records)
         return fail("multi-disk ZIP archives are not supported");
 
-    uint64_t cd_end = 0;
-    if (!checked_add_u64(cd_offset, cd_size, cd_end) || cd_end > central_directory_limit || cd_end > archive_size)
+    if (cd_offset > central_directory_limit || cd_size > central_directory_limit - cd_offset)
         return fail("central directory is outside the archive");
+    const uint64_t cd_end = cd_offset + cd_size;
     if (cd_records > cd_size / 46u + (cd_size == 0 ? 0u : 1u))
         return fail("central directory record count is inconsistent with its size");
     if (seek(cd_offset, SEEK_SET) != 0)
@@ -466,10 +444,10 @@ int StoreZipReader::parse()
         uint32_t entry_start_disk = read_le16(central + 34);
         uint64_t lfh_offset = read_le32(central + 42);
 
-        uint64_t variable_size = (uint64_t)file_name_length + extra_field_length + file_comment_length;
-        uint64_t record_end = 0;
-        if (!checked_add_u64(central_position + 46u, variable_size, record_end) || record_end > cd_end)
+        const uint64_t variable_size = (uint64_t)file_name_length + extra_field_length + file_comment_length;
+        if (variable_size > cd_end - central_position - 46u)
             return fail("central directory variable fields are out of bounds");
+        const uint64_t record_end = central_position + 46u + variable_size;
 
         std::string raw_name(file_name_length, '\0');
         std::vector<unsigned char> extra(extra_field_length);
@@ -479,12 +457,7 @@ int StoreZipReader::parse()
             return fail("truncated central directory variable fields");
         central_position = record_end;
 
-        const bool need_uncompressed_size = uncompressed_size == 0xffffffffu;
-        const bool need_compressed_size = compressed_size == 0xffffffffu;
-        const bool need_lfh_offset = lfh_offset == 0xffffffffu;
-        const bool need_start_disk = entry_start_disk == 0xffffu;
-        if (!parse_zip64_extra(extra, need_uncompressed_size, need_compressed_size, need_lfh_offset, need_start_disk,
-                               uncompressed_size, compressed_size, lfh_offset, entry_start_disk))
+        if (!parse_zip64_extra(extra, uncompressed_size, compressed_size, lfh_offset, entry_start_disk))
             return fail("missing or malformed ZIP64 extended information for " + raw_name);
 
         if (entry_start_disk != 0)
@@ -589,10 +562,14 @@ int StoreZipReader::read_file(const std::string& name, const StoreZipMeta& meta,
         return -1;
     }
 
-    uint64_t data_offset = 0;
-    uint64_t data_end = 0;
-    if (!checked_add_u64(meta.offset, 30u + (uint64_t)local_name_length + local_extra_length, data_offset) ||
-        !checked_add_u64(data_offset, meta.compressed_size, data_end) || data_end > data_limit)
+    const uint64_t header_size = 30u + (uint64_t)local_name_length + local_extra_length;
+    if (meta.offset > data_limit || header_size > data_limit - meta.offset)
+    {
+        error = "record data is outside the file-data area: " + name;
+        return -1;
+    }
+    const uint64_t data_offset = meta.offset + header_size;
+    if (meta.compressed_size > data_limit - data_offset)
     {
         error = "record data is outside the file-data area: " + name;
         return -1;

@@ -10,17 +10,15 @@ namespace pnnx {
 
 enum ModelFormat
 {
-    ModelFormatOther,
-    ModelFormatTorchScript,
-    ModelFormatPt2LegacyExportedProgram,
-    ModelFormatPt2Archive,
-    ModelFormatUnknownZip
+    Other,
+    TorchScript,
+    Pt2,
+    UnknownZip
 };
 
 struct ModelFormatInfo
 {
     ModelFormat format;
-    std::string archive_version;
     std::string diagnostic;
 };
 

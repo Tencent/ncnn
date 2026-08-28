@@ -106,9 +106,7 @@ static bool operand_maybe_tensor(const Operand* operand)
     }
 
     if (op->type == "Tensor.item")
-    {
         return false;
-    }
 
     if (op->type == "Tensor.to" || op->type == "aten::detach")
     {

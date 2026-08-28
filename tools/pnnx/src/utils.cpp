@@ -288,18 +288,18 @@ void apply_weight_norm(std::vector<float>& weight, const std::vector<float>& wei
     }
 }
 
-static char system_endian()
+bool is_little_endian()
 {
     uint16_t x = 1;
-    return (*(const uint8_t*)&x) ? '<' : '>';
+    return *(const unsigned char*)&x == 1;
 }
 
-static uint16_t read_le16(const unsigned char* p)
+uint16_t read_le16(const unsigned char* p)
 {
     return (uint16_t)p[0] | ((uint16_t)p[1] << 8);
 }
 
-static uint32_t read_le32(const unsigned char* p)
+uint32_t read_le32(const unsigned char* p)
 {
     return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
@@ -356,17 +356,41 @@ static bool get_remaining_file_size(FILE* fp, const char* path, size_t& remainin
     return true;
 }
 
-static std::string trim_string(const std::string& s)
+static bool is_ascii_whitespace(unsigned char ch)
+{
+    return ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n' || ch == '\v' || ch == '\f';
+}
+
+std::string trim_ascii_whitespace(const std::string& value)
 {
     size_t begin = 0;
-    while (begin < s.size() && isspace((unsigned char)s[begin]))
+    while (begin < value.size() && is_ascii_whitespace((unsigned char)value[begin]))
         begin++;
 
-    size_t end = s.size();
-    while (end > begin && isspace((unsigned char)s[end - 1]))
+    size_t end = value.size();
+    while (end > begin && is_ascii_whitespace((unsigned char)value[end - 1]))
         end--;
 
-    return s.substr(begin, end - begin);
+    return value.substr(begin, end - begin);
+}
+
+std::string trim_ascii_whitespace(const std::vector<unsigned char>& value)
+{
+    size_t begin = 0;
+    while (begin < value.size() && is_ascii_whitespace(value[begin]))
+        begin++;
+
+    size_t end = value.size();
+    while (end > begin && is_ascii_whitespace(value[end - 1]))
+        end--;
+
+    return std::string(value.begin() + begin, value.begin() + end);
+}
+
+int scalar_type_to_pnnx(int type)
+{
+    static const int types[] = {0, 8, 7, 6, 4, 5, 3, 1, 2, 12, 10, 11, 9, 13};
+    return type >= 1 && type <= 13 ? types[type] : 0;
 }
 
 static size_t find_header_key(const std::string& header, const char* key)
@@ -477,7 +501,7 @@ static bool parse_header_shape(const std::string& header, std::vector<int64_t>& 
     {
         const size_t comma = body.find(',', pos);
         const size_t end = comma == std::string::npos ? body.size() : comma;
-        const std::string token = trim_string(body.substr(pos, end - pos));
+        const std::string token = trim_ascii_whitespace(body.substr(pos, end - pos));
 
         if (!token.empty())
         {
@@ -815,7 +839,7 @@ bool load_numpy_file(const char* path, NumpyArray& array, bool load_data)
         if (!fread_exact(fp, array.data.data(), data_size, path, "data"))
             break;
 
-        const char endian = system_endian();
+        const char endian = is_little_endian() ? '<' : '>';
         const bool need_swap = (dtype.byte_order == '<' && endian == '>') || (dtype.byte_order == '>' && endian == '<');
         if (need_swap)
             swap_numpy_data_endian(array.data, dtype);

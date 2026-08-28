@@ -14,15 +14,9 @@ namespace pnnx {
 
 class Pt2ArchiveReader;
 
-struct Pt2Weight
-{
-    Pt2InputSpec::Kind kind;
-    Attribute attribute;
-};
-
 struct Pt2Weights
 {
-    std::map<std::string, Pt2Weight> values;
+    std::map<std::string, Attribute> values;
     std::string error;
 };
 

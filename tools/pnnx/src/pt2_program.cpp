@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #include <cmath>
+#include <initializer_list>
 #include <limits>
 #include <set>
 #include <utility>
@@ -30,12 +31,37 @@ Pt2Argument::Pt2Argument()
     i = 0;
     f = 0.f;
     b = false;
+    has_tensor = false;
 }
 
 Pt2Program::Pt2Program()
 {
     schema_major = 0;
     schema_minor = 0;
+}
+
+static int count_leaves(const Pt2JsonValue& value)
+{
+    if (value.type != Pt2JsonValue::Object)
+        return -1;
+    std::map<std::string, Pt2JsonValue>::const_iterator type = value.object.find("type");
+    std::map<std::string, Pt2JsonValue>::const_iterator children = value.object.find("children_spec");
+    if (type == value.object.end() || children == value.object.end() || children->second.type != Pt2JsonValue::Array)
+        return -1;
+    if (type->second.type == Pt2JsonValue::Null)
+        return children->second.array.empty() ? 1 : -1;
+    if (type->second.type != Pt2JsonValue::String)
+        return -1;
+
+    int count = 0;
+    for (size_t i = 0; i < children->second.array.size(); i++)
+    {
+        const int n = count_leaves(children->second.array[i]);
+        if (n < 0)
+            return -1;
+        count += n;
+    }
+    return count;
 }
 
 class Pt2ProgramDecoder
@@ -95,14 +121,9 @@ public:
             for (size_t i = 0; i < guards_code->array.size(); i++)
                 program.guards_code.push_back(guards_code->array[i].value);
         }
-        if (!reject_unknown(root, "$", "graph_module", "opset_version", "range_constraints", "schema_version", "torch_version", "verifiers", "guards_code"))
+        if (!reject_unknown(root, "$", {"graph_module", "opset_version", "range_constraints", "schema_version", "torch_version", "verifiers", "guards_code"}))
             return -1;
         return verify();
-    }
-
-    int decode_tensor_meta(const Pt2JsonValue& value, const std::string& path, Pt2Tensor& tensor)
-    {
-        return decode_tensor(value, path, tensor) ? 0 : -1;
     }
 
 private:
@@ -206,24 +227,20 @@ private:
             return false;
         for (size_t i = 0; i < value.array.size(); i++)
         {
-            std::string ignored;
-            if (!get_string(value.array[i], path + "[" + std::to_string(i) + "]", ignored))
+            if (!require_type(value.array[i], Pt2JsonValue::String, path + "[" + std::to_string(i) + "]", "string"))
                 return false;
         }
         return true;
     }
 
-    bool reject_unknown(const Pt2JsonValue& value, const std::string& path, const char* a, const char* b = 0, const char* c = 0,
-                        const char* d = 0, const char* e = 0, const char* f = 0, const char* g = 0,
-                        const char* h = 0, const char* i = 0)
+    bool reject_unknown(const Pt2JsonValue& value, const std::string& path, std::initializer_list<const char*> known)
     {
-        const char* known[] = {a, b, c, d, e, f, g, h, i};
         for (std::map<std::string, Pt2JsonValue>::const_iterator it = value.object.begin(); it != value.object.end(); ++it)
         {
             bool found = false;
-            for (size_t i = 0; i < sizeof(known) / sizeof(known[0]) && known[i]; i++)
+            for (const char* key : known)
             {
-                if (it->first == known[i])
+                if (it->first == key)
                 {
                     found = true;
                     break;
@@ -263,7 +280,7 @@ private:
             fail("$.schema_version.minor", minor, "untested schema minor");
             return false;
         }
-        return reject_unknown(value, "$.schema_version", "major", "minor");
+        return reject_unknown(value, "$.schema_version", {"major", "minor"});
     }
 
     bool decode_opsets(const Pt2JsonValue& value)
@@ -316,7 +333,7 @@ private:
                 return false;
             result.has_hint = true;
         }
-        return reject_unknown(payload, path + ".as_expr", "expr_str", "hint");
+        return reject_unknown(payload, path + ".as_expr", {"expr_str", "hint"});
     }
 
     bool decode_device(const Pt2JsonValue& value, const std::string& path, std::string& type, int& index)
@@ -333,7 +350,7 @@ private:
                 return false;
             index = (int)parsed;
         }
-        return reject_unknown(value, path, "type", "index");
+        return reject_unknown(value, path, {"type", "index"});
     }
 
     bool decode_tensor_argument(const Pt2JsonValue& value, const std::string& path, std::string& name)
@@ -346,7 +363,7 @@ private:
             fail(path + ".name", name_value, "tensor name is empty");
             return false;
         }
-        return reject_unknown(value, path, "name");
+        return reject_unknown(value, path, {"name"});
     }
 
     bool decode_optional_tensor_argument(const Pt2JsonValue& value, const std::string& path, std::string& name, bool& has_tensor)
@@ -392,9 +409,10 @@ private:
         if (tag == "as_none")
         {
             result.type = Pt2Argument::None;
-            if (!get_bool(payload, payload_path, result.b))
+            bool marker;
+            if (!get_bool(payload, payload_path, marker))
                 return false;
-            if (!result.b)
+            if (!marker)
             {
                 fail(payload_path, &payload, "none union marker must be true");
                 return false;
@@ -423,7 +441,7 @@ private:
         if (tag == "as_optional_tensor")
         {
             result.type = Pt2Argument::OptionalTensor;
-            return decode_optional_tensor_argument(payload, payload_path, result.s, result.b);
+            return decode_optional_tensor_argument(payload, payload_path, result.s, result.has_tensor);
         }
         if (tag == "as_optional_tensors")
         {
@@ -491,7 +509,7 @@ private:
                 return false;
             result.af.push_back(r);
             result.af.push_back(i);
-            return reject_unknown(payload, payload_path, "real", "imag");
+            return reject_unknown(payload, payload_path, {"real", "imag"});
         }
         if (tag == "as_string")
         {
@@ -550,7 +568,6 @@ private:
             }
             if (payload.object.begin()->first == "as_name")
             {
-                result.b = true;
                 if (!get_string(payload.object.begin()->second, payload_path + ".as_name", result.s))
                     return false;
                 if (result.s.empty())
@@ -585,7 +602,6 @@ private:
                 arg.type = Pt2Argument::SymInt;
                 if (item.object.begin()->first == "as_name")
                 {
-                    arg.b = true;
                     if (!get_string(item.object.begin()->second, item_path + ".as_name", arg.s))
                         return false;
                     if (arg.s.empty())
@@ -611,14 +627,18 @@ private:
         if (tag == "as_sym_bool")
         {
             result.type = Pt2Argument::SymBool;
-            if (!require_type(payload, Pt2JsonValue::Object, payload_path, "SymBoolArgument union"))
-                return false;
-            if (payload.object.size() != 1 || payload.object.begin()->first != "as_name")
+            if (!require_type(payload, Pt2JsonValue::Object, payload_path, "SymBoolArgument union") || payload.object.size() != 1)
             {
-                fail(payload_path, &payload, "SymBoolArgument union must contain exactly one as_name field");
+                fail(payload_path, &payload, "SymBoolArgument union must contain exactly one field");
                 return false;
             }
-            result.b = true;
+            if (payload.object.begin()->first == "as_bool")
+                return get_bool(payload.object.begin()->second, payload_path + ".as_bool", result.b);
+            if (payload.object.begin()->first != "as_name")
+            {
+                fail(payload_path, &payload, "unknown SymBoolArgument union tag " + payload.object.begin()->first);
+                return false;
+            }
             if (!get_string(payload.object.begin()->second, payload_path + ".as_name", result.s))
                 return false;
             if (result.s.empty())
@@ -628,11 +648,116 @@ private:
             }
             return true;
         }
+        if (tag == "as_sym_bools")
+        {
+            result.type = Pt2Argument::SymBools;
+            if (!require_type(payload, Pt2JsonValue::Array, payload_path, "symbolic bool array"))
+                return false;
+            for (size_t i = 0; i < payload.array.size(); i++)
+            {
+                const Pt2JsonValue& item = payload.array[i];
+                const std::string item_path = payload_path + "[" + std::to_string(i) + "]";
+                if (!require_type(item, Pt2JsonValue::Object, item_path, "symbolic bool union") || item.object.size() != 1)
+                {
+                    fail(item_path, &item, "symbolic bool union must contain exactly one field");
+                    return false;
+                }
+                Pt2Argument arg;
+                arg.type = Pt2Argument::SymBool;
+                if (item.object.begin()->first == "as_name")
+                {
+                    if (!get_string(item.object.begin()->second, item_path + ".as_name", arg.s))
+                        return false;
+                    if (arg.s.empty())
+                    {
+                        fail(item_path + ".as_name", &item.object.begin()->second, "symbolic bool name is empty");
+                        return false;
+                    }
+                }
+                else if (item.object.begin()->first == "as_bool")
+                {
+                    if (!get_bool(item.object.begin()->second, item_path + ".as_bool", arg.b))
+                        return false;
+                }
+                else
+                {
+                    fail(item_path, &item, "unknown symbolic bool union tag " + item.object.begin()->first);
+                    return false;
+                }
+                result.args.push_back(std::move(arg));
+            }
+            return true;
+        }
+        if (tag == "as_sym_float")
+        {
+            result.type = Pt2Argument::SymFloat;
+            if (!require_type(payload, Pt2JsonValue::Object, payload_path, "SymFloatArgument union") || payload.object.size() != 1)
+            {
+                fail(payload_path, &payload, "SymFloatArgument union must contain exactly one field");
+                return false;
+            }
+            if (payload.object.begin()->first == "as_name")
+            {
+                if (!get_string(payload.object.begin()->second, payload_path + ".as_name", result.s))
+                    return false;
+                if (result.s.empty())
+                {
+                    fail(payload_path + ".as_name", &payload.object.begin()->second, "symbolic float name is empty");
+                    return false;
+                }
+                return true;
+            }
+            if (payload.object.begin()->first == "as_float")
+                return get_float(payload.object.begin()->second, payload_path + ".as_float", result.f);
+            fail(payload_path, &payload, "unknown SymFloatArgument union tag " + payload.object.begin()->first);
+            return false;
+        }
+        if (tag == "as_sym_floats")
+        {
+            result.type = Pt2Argument::SymFloats;
+            if (!require_type(payload, Pt2JsonValue::Array, payload_path, "symbolic float array"))
+                return false;
+            for (size_t i = 0; i < payload.array.size(); i++)
+            {
+                const Pt2JsonValue& item = payload.array[i];
+                const std::string item_path = payload_path + "[" + std::to_string(i) + "]";
+                if (!require_type(item, Pt2JsonValue::Object, item_path, "symbolic float union") || item.object.size() != 1)
+                {
+                    fail(item_path, &item, "symbolic float union must contain exactly one field");
+                    return false;
+                }
+                Pt2Argument arg;
+                arg.type = Pt2Argument::SymFloat;
+                if (item.object.begin()->first == "as_name")
+                {
+                    if (!get_string(item.object.begin()->second, item_path + ".as_name", arg.s))
+                        return false;
+                    if (arg.s.empty())
+                    {
+                        fail(item_path + ".as_name", &item.object.begin()->second, "symbolic float name is empty");
+                        return false;
+                    }
+                }
+                else if (item.object.begin()->first == "as_float")
+                {
+                    if (!get_float(item.object.begin()->second, item_path + ".as_float", arg.f))
+                        return false;
+                }
+                else
+                {
+                    fail(item_path, &item, "unknown symbolic float union tag " + item.object.begin()->first);
+                    return false;
+                }
+                result.args.push_back(std::move(arg));
+            }
+            return true;
+        }
 
         fail(path, &value, "unsupported Argument union tag " + tag);
         return false;
     }
 
+public:
     bool decode_tensor(const Pt2JsonValue& value, const std::string& path, Pt2Tensor& tensor)
     {
         const Pt2JsonValue* dtype = field(value, "dtype", path, true);
@@ -674,9 +799,10 @@ private:
                 return false;
             tensor.strides.push_back(std::move(item));
         }
-        return reject_unknown(value, path, "dtype", "sizes", "requires_grad", "device", "strides", "storage_offset", "layout");
+        return reject_unknown(value, path, {"dtype", "sizes", "requires_grad", "device", "strides", "storage_offset", "layout"});
     }
 
+private:
     bool decode_graph(const Pt2JsonValue& value)
     {
         const std::string path = "$.graph_module.graph";
@@ -761,7 +887,7 @@ private:
                 const Pt2JsonValue* expression = field(expr, "expr_str", symbol_path + ".as_expr", true);
                 std::string ignored;
                 if (!expression || !get_string(*expression, symbol_path + ".as_expr.expr_str", ignored) ||
-                    !reject_unknown(expr, symbol_path + ".as_expr", "expr_str", "hint"))
+                    !reject_unknown(expr, symbol_path + ".as_expr", {"expr_str", "hint"}))
                     return false;
                 const Pt2JsonValue* hint = field(expr, "hint", symbol_path + ".as_expr", false);
                 if (hint && hint->type != Pt2JsonValue::Null)
@@ -780,17 +906,71 @@ private:
                 program.sym_bools.insert(it->first);
             }
         }
-        const char* unsupported_maps[] = {"sym_float_values", "custom_obj_values"};
-        for (size_t i = 0; i < 2; i++)
+
+        const Pt2JsonValue* sym_floats = field(value, "sym_float_values", path, false);
+        if (sym_floats && !require_type(*sym_floats, Pt2JsonValue::Object, path + ".sym_float_values", "object"))
+            return false;
+        if (sym_floats)
         {
-            const Pt2JsonValue* unsupported = field(value, unsupported_maps[i], path, false);
-            if (unsupported && !require_type(*unsupported, Pt2JsonValue::Object, path + "." + unsupported_maps[i], "object"))
-                return false;
-            if (unsupported && !unsupported->object.empty())
+            for (std::map<std::string, Pt2JsonValue>::const_iterator it = sym_floats->object.begin(); it != sym_floats->object.end(); ++it)
             {
-                fail(path + "." + unsupported_maps[i], unsupported, "unsupported non-empty value table");
-                return false;
+                if (it->first.empty())
+                {
+                    fail(path + ".sym_float_values", &it->second, "symbolic float value name is empty");
+                    return false;
+                }
+                const std::string symbol_path = path + ".sym_float_values." + it->first;
+                if (!require_type(it->second, Pt2JsonValue::Object, symbol_path, "SymFloat union"))
+                    return false;
+                if (it->second.object.size() != 1)
+                {
+                    fail(symbol_path, &it->second, "SymFloat union must contain exactly one field");
+                    return false;
+                }
+                std::string expression_value;
+                if (it->second.object.begin()->first == "as_float")
+                {
+                    double ignored;
+                    if (!get_float(it->second.object.begin()->second, symbol_path + ".as_float", ignored))
+                        return false;
+                }
+                else if (it->second.object.begin()->first == "as_expr")
+                {
+                    const Pt2JsonValue& expr = it->second.object.begin()->second;
+                    const Pt2JsonValue* expression = field(expr, "expr_str", symbol_path + ".as_expr", true);
+                    if (!expression || !get_string(*expression, symbol_path + ".as_expr.expr_str", expression_value) ||
+                        !reject_unknown(expr, symbol_path + ".as_expr", {"expr_str", "hint"}))
+                        return false;
+                    const Pt2JsonValue* hint = field(expr, "hint", symbol_path + ".as_expr", false);
+                    if (hint && hint->type != Pt2JsonValue::Null)
+                    {
+                        if (!require_type(*hint, Pt2JsonValue::Object, symbol_path + ".as_expr.hint", "SymExprHint union") || hint->object.size() != 1)
+                            return false;
+                        if (hint->object.begin()->first != "as_float")
+                        {
+                            fail(symbol_path + ".as_expr.hint", hint, "SymFloat hint must use as_float");
+                            return false;
+                        }
+                        double ignored_hint;
+                        if (!get_float(hint->object.begin()->second, symbol_path + ".as_expr.hint.as_float", ignored_hint))
+                            return false;
+                    }
+                }
+                else
+                {
+                    fail(symbol_path, &it->second, "unknown SymFloat union tag " + it->second.object.begin()->first);
+                    return false;
+                }
+                program.sym_floats[it->first] = expression_value;
             }
+        }
+        const Pt2JsonValue* custom_objects = field(value, "custom_obj_values", path, false);
+        if (custom_objects && !require_type(*custom_objects, Pt2JsonValue::Object, path + ".custom_obj_values", "object"))
+            return false;
+        if (custom_objects && !custom_objects->object.empty())
+        {
+            fail(path + ".custom_obj_values", custom_objects, "unsupported non-empty value table");
+            return false;
         }
         const Pt2JsonValue* single_return = field(value, "is_single_tensor_return", path, false);
         if (single_return && single_return->type != Pt2JsonValue::Null)
@@ -850,7 +1030,6 @@ private:
                 const Pt2JsonValue* name = field(named_value, "name", named_path, true);
                 const Pt2JsonValue* arg = field(named_value, "arg", named_path, true);
                 Pt2NamedArgument named;
-                named.kind = 0;
                 if (!name || !arg || !get_string(*name, named_path + ".name", named.name) || !decode_argument(*arg, named_path + ".arg", named.arg))
                     return false;
                 const Pt2JsonValue* kind = field(named_value, "kind", named_path, false);
@@ -864,9 +1043,8 @@ private:
                         fail(named_path + ".kind", kind, "unknown argument kind");
                         return false;
                     }
-                    named.kind = (int)kind_value;
                 }
-                if (!reject_unknown(named_value, named_path, "name", "arg", "kind"))
+                if (!reject_unknown(named_value, named_path, {"name", "arg", "kind"}))
                     return false;
                 node.inputs.push_back(std::move(named));
             }
@@ -878,12 +1056,12 @@ private:
                 node.outputs.push_back(std::move(arg));
             }
 
-            if (!reject_unknown(node_value, node_path, "target", "inputs", "outputs", "metadata", "name", "is_hop_single_tensor_return"))
+            if (!reject_unknown(node_value, node_path, {"target", "inputs", "outputs", "metadata", "name", "is_hop_single_tensor_return"}))
                 return false;
             program.nodes.push_back(std::move(node));
         }
 
-        return reject_unknown(value, path, "inputs", "outputs", "nodes", "tensor_values", "sym_int_values", "sym_bool_values", "is_single_tensor_return", "custom_obj_values", "sym_float_values");
+        return reject_unknown(value, path, {"inputs", "outputs", "nodes", "tensor_values", "sym_int_values", "sym_bool_values", "is_single_tensor_return", "custom_obj_values", "sym_float_values"});
     }
 
     bool decode_signature(const Pt2JsonValue& value)
@@ -907,13 +1085,12 @@ private:
             const std::string& tag = spec_value.object.begin()->first;
             const Pt2JsonValue& payload = spec_value.object.begin()->second;
             Pt2InputSpec spec;
-            spec.persistent = false;
             if (tag == "user_input")
             {
                 spec.kind = Pt2InputSpec::UserInput;
                 const Pt2JsonValue* arg = field(payload, "arg", spec_path + ".user_input", true);
                 if (!arg || !decode_argument(*arg, spec_path + ".user_input.arg", spec.arg) ||
-                    !reject_unknown(payload, spec_path + ".user_input", "arg"))
+                    !reject_unknown(payload, spec_path + ".user_input", {"arg"}))
                     return false;
             }
             else if (tag == "parameter" || tag == "buffer" || tag == "tensor_constant")
@@ -934,11 +1111,11 @@ private:
                 if (tag == "buffer")
                 {
                     const Pt2JsonValue* persistent = field(payload, "persistent", base, true);
-                    if (!persistent || !get_bool(*persistent, base + ".persistent", spec.persistent) ||
-                        !reject_unknown(payload, base, "arg", "buffer_name", "persistent"))
+                    if (!persistent || !require_type(*persistent, Pt2JsonValue::Bool, base + ".persistent", "boolean") ||
+                        !reject_unknown(payload, base, {"arg", "buffer_name", "persistent"}))
                         return false;
                 }
-                else if (!reject_unknown(payload, base, "arg", target_name))
+                else if (!reject_unknown(payload, base, {"arg", target_name}))
                     return false;
             }
             else if (tag == "constant_input")
@@ -948,7 +1125,7 @@ private:
                 const Pt2JsonValue* name = field(payload, "name", base, true);
                 const Pt2JsonValue* constant = field(payload, "value", base, true);
                 if (!name || !constant || !get_string(*name, base + ".name", spec.target) || !decode_argument(*constant, base + ".value", spec.arg) ||
-                    !reject_unknown(payload, base, "name", "value"))
+                    !reject_unknown(payload, base, {"name", "value"}))
                     return false;
                 if (spec.target.empty())
                 {
@@ -980,13 +1157,85 @@ private:
             }
             const Pt2JsonValue& payload = spec_value.object.begin()->second;
             const Pt2JsonValue* arg = field(payload, "arg", spec_path + ".user_output", true);
-            Pt2OutputSpec spec;
-            if (!arg || !decode_argument(*arg, spec_path + ".user_output.arg", spec.arg) ||
-                !reject_unknown(payload, spec_path + ".user_output", "arg"))
+            Pt2Argument spec;
+            if (!arg || !decode_argument(*arg, spec_path + ".user_output.arg", spec) ||
+                !reject_unknown(payload, spec_path + ".user_output", {"arg"}))
                 return false;
             program.output_specs.push_back(std::move(spec));
         }
-        return reject_unknown(value, path, "input_specs", "output_specs");
+        return reject_unknown(value, path, {"input_specs", "output_specs"});
+    }
+
+    bool check_out_spec(const Pt2JsonValue& value)
+    {
+        const std::string path = "$.graph_module.module_call_graph";
+        if (!require_type(value, Pt2JsonValue::Array, path, "array"))
+            return false;
+
+        bool found = false;
+        for (size_t i = 0; i < value.array.size(); i++)
+        {
+            const std::string item_path = path + "[" + std::to_string(i) + "]";
+            const Pt2JsonValue& item = value.array[i];
+            const Pt2JsonValue* fqn = field(item, "fqn", item_path, true);
+            std::string name;
+            if (!fqn || !get_string(*fqn, item_path + ".fqn", name))
+                return false;
+            if (!name.empty())
+                continue;
+            if (found)
+            {
+                fail(item_path + ".fqn", fqn, "duplicate root module call signature");
+                return false;
+            }
+            found = true;
+
+            const Pt2JsonValue* signature = field(item, "signature", item_path, true);
+            if (!signature || !require_type(*signature, Pt2JsonValue::Object, item_path + ".signature", "object"))
+                return false;
+            const Pt2JsonValue* out_spec = field(*signature, "out_spec", item_path + ".signature", true);
+            std::string encoded;
+            if (!out_spec || !get_string(*out_spec, item_path + ".signature.out_spec", encoded))
+                return false;
+
+            Pt2JsonValue tree;
+            std::string tree_error;
+            if (parse_pt2_json((const unsigned char*)encoded.data(), encoded.size(), tree, tree_error) != 0)
+            {
+                fail(item_path + ".signature.out_spec", out_spec, tree_error);
+                return false;
+            }
+            if (tree.type != Pt2JsonValue::Array || tree.array.size() != 2)
+            {
+                fail(item_path + ".signature.out_spec", out_spec, "invalid PyTree spec");
+                return false;
+            }
+            int64_t version;
+            if (!get_int(tree.array[0], item_path + ".signature.out_spec[0]", version))
+                return false;
+            if (version != 1)
+            {
+                fail(item_path + ".signature.out_spec[0]", out_spec, "unsupported PyTree spec version");
+                return false;
+            }
+            const int count = count_leaves(tree.array[1]);
+            if (count < 0)
+            {
+                fail(item_path + ".signature.out_spec", out_spec, "invalid PyTree spec");
+                return false;
+            }
+            if ((size_t)count != program.output_specs.size())
+            {
+                fail(item_path + ".signature.out_spec", out_spec, "PyTree leaf count does not match graph outputs");
+                return false;
+            }
+        }
+        if (!found && !program.output_specs.empty())
+        {
+            fail(path, &value, "missing root module call signature");
+            return false;
+        }
+        return true;
     }
 
     bool decode_graph_module(const Pt2JsonValue& value)
@@ -997,11 +1246,11 @@ private:
         const Pt2JsonValue* module_call_graph = field(value, "module_call_graph", path, true);
         const Pt2JsonValue* metadata = field(value, "metadata", path, false);
         const Pt2JsonValue* treespec = field(value, "treespec_namedtuple_fields", path, false);
-        if (!graph || !signature || !module_call_graph || !require_type(*module_call_graph, Pt2JsonValue::Array, path + ".module_call_graph", "array") ||
+        if (!graph || !signature || !module_call_graph ||
             (metadata && !require_type(*metadata, Pt2JsonValue::Object, path + ".metadata", "object")) ||
             (treespec && !require_type(*treespec, Pt2JsonValue::Object, path + ".treespec_namedtuple_fields", "object")) ||
-            !decode_graph(*graph) || !decode_signature(*signature) ||
-            !reject_unknown(value, path, "graph", "signature", "module_call_graph", "metadata", "treespec_namedtuple_fields"))
+            !decode_graph(*graph) || !decode_signature(*signature) || !check_out_spec(*module_call_graph) ||
+            !reject_unknown(value, path, {"graph", "signature", "module_call_graph", "metadata", "treespec_namedtuple_fields"}))
             return false;
         return true;
     }
@@ -1024,13 +1273,11 @@ private:
             if (!min_value || !max_value)
                 return false;
             Pt2RangeConstraint range;
-            range.has_min = min_value->type != Pt2JsonValue::Null;
-            range.has_max = max_value->type != Pt2JsonValue::Null;
-            range.min = 0;
-            range.max = 0;
-            if ((range.has_min && !get_int(*min_value, item_path + ".min_val", range.min)) ||
-                (range.has_max && !get_int(*max_value, item_path + ".max_val", range.max)) ||
-                !reject_unknown(it->second, item_path, "min_val", "max_val"))
+            range.min = INT64_MIN;
+            range.max = INT64_MAX;
+            if ((min_value->type != Pt2JsonValue::Null && !get_int(*min_value, item_path + ".min_val", range.min)) ||
+                (max_value->type != Pt2JsonValue::Null && !get_int(*max_value, item_path + ".max_val", range.max)) ||
+                !reject_unknown(it->second, item_path, {"min_val", "max_val"}))
                 return false;
             program.range_constraints[it->first] = range;
         }
@@ -1046,12 +1293,12 @@ private:
         if (a.type == Pt2Argument::Device)
             return a.s == b.s && a.i == b.i;
         if (a.type == Pt2Argument::OptionalTensor)
-            return a.b == b.b && (!a.b || a.s == b.s);
+            return a.has_tensor == b.has_tensor && (!a.has_tensor || a.s == b.s);
         if (a.type == Pt2Argument::Int || a.type == Pt2Argument::ScalarType || a.type == Pt2Argument::MemoryFormat || a.type == Pt2Argument::Layout)
             return a.i == b.i;
         if (a.type == Pt2Argument::Float)
             return a.f == b.f || (std::isnan(a.f) && std::isnan(b.f));
-        if (a.type == Pt2Argument::Bool || a.type == Pt2Argument::None)
+        if (a.type == Pt2Argument::Bool)
             return a.b == b.b;
         if (a.type == Pt2Argument::Tensors || a.type == Pt2Argument::OptionalTensors || a.type == Pt2Argument::Strings)
             return a.as == b.as;
@@ -1070,9 +1317,13 @@ private:
         }
         if (a.type == Pt2Argument::Bools)
             return a.ab == b.ab;
-        if (a.type == Pt2Argument::SymInt || a.type == Pt2Argument::SymBool)
-            return a.b == b.b && (a.b ? a.s == b.s : a.i == b.i);
-        if (a.type == Pt2Argument::SymInts)
+        if (a.type == Pt2Argument::SymInt)
+            return a.s == b.s && (!a.s.empty() || a.i == b.i);
+        if (a.type == Pt2Argument::SymBool)
+            return a.s == b.s && (!a.s.empty() || a.b == b.b);
+        if (a.type == Pt2Argument::SymFloat)
+            return a.s == b.s && (!a.s.empty() || a.f == b.f || (std::isnan(a.f) && std::isnan(b.f)));
+        if (a.type == Pt2Argument::SymInts || a.type == Pt2Argument::SymBools || a.type == Pt2Argument::SymFloats)
         {
             if (a.args.size() != b.args.size())
                 return false;
@@ -1093,17 +1344,18 @@ private:
             fail(path, 0, "unknown tensor value " + arg.s);
             return false;
         }
-        if (arg.type == Pt2Argument::OptionalTensor && arg.b && values.find(arg.s) == values.end())
+        if (arg.type == Pt2Argument::OptionalTensor && arg.has_tensor && values.find(arg.s) == values.end())
         {
             fail(path, 0, "unknown tensor value " + arg.s);
             return false;
         }
-        if ((arg.type == Pt2Argument::SymInt || arg.type == Pt2Argument::SymBool) && arg.b && values.find(arg.s) == values.end())
+        if ((arg.type == Pt2Argument::SymInt || arg.type == Pt2Argument::SymBool || arg.type == Pt2Argument::SymFloat) &&
+            !arg.s.empty() && values.find(arg.s) == values.end())
         {
             fail(path, 0, "unknown symbolic value " + arg.s);
             return false;
         }
-        if (arg.type == Pt2Argument::SymInts)
+        if (arg.type == Pt2Argument::SymInts || arg.type == Pt2Argument::SymBools || arg.type == Pt2Argument::SymFloats)
         {
             for (size_t i = 0; i < arg.args.size(); i++)
             {
@@ -1149,7 +1401,8 @@ private:
         {
             const Pt2Node& node = program.nodes[i];
             const std::string path = "$.graph_module.graph.nodes[" + std::to_string(i) + "]";
-            if (node.target.compare(0, 10, "torch.ops.") != 0 && node.target.compare(0, 10, "_operator.") != 0)
+            if (node.target.compare(0, 10, "torch.ops.") != 0 && node.target.compare(0, 10, "_operator.") != 0 &&
+                node.target.compare(0, 6, "torch.") != 0 && node.target.compare(0, 5, "math.") != 0)
                 return fail(path + ".target", 0, "unsupported operator target");
             for (size_t j = 0; j < node.inputs.size(); j++)
             {
@@ -1172,15 +1425,20 @@ private:
                             return fail(path + ".outputs[" + std::to_string(j) + "]", 0, "invalid tensor list output");
                     }
                 }
-                else if (output.type == Pt2Argument::SymInt && output.b)
+                else if (output.type == Pt2Argument::SymInt && !output.s.empty())
                 {
                     if (!values.insert(output.s).second || program.sym_ints.find(output.s) == program.sym_ints.end())
                         return fail(path + ".outputs[" + std::to_string(j) + "]", 0, "invalid symbolic integer output");
                 }
-                else if (output.type == Pt2Argument::SymBool && output.b)
+                else if (output.type == Pt2Argument::SymBool && !output.s.empty())
                 {
                     if (!values.insert(output.s).second || program.sym_bools.find(output.s) == program.sym_bools.end())
                         return fail(path + ".outputs[" + std::to_string(j) + "]", 0, "invalid symbolic bool output");
+                }
+                else if (output.type == Pt2Argument::SymFloat && !output.s.empty())
+                {
+                    if (!values.insert(output.s).second || program.sym_floats.find(output.s) == program.sym_floats.end())
+                        return fail(path + ".outputs[" + std::to_string(j) + "]", 0, "invalid symbolic float output");
                 }
                 else if (output.type != Pt2Argument::None)
                     return fail(path + ".outputs[" + std::to_string(j) + "]", 0, "invalid tensor output");
@@ -1190,7 +1448,7 @@ private:
         {
             if (!verify_argument(program.outputs[i], values, "$.graph_module.graph.outputs[" + std::to_string(i) + "]"))
                 return -1;
-            if (!same_argument(program.outputs[i], program.output_specs[i].arg))
+            if (!same_argument(program.outputs[i], program.output_specs[i]))
                 return fail("$.graph_module.signature.output_specs[" + std::to_string(i) + "]", 0, "signature output does not match graph output");
         }
 
@@ -1214,7 +1472,7 @@ private:
         }
         for (std::map<std::string, Pt2RangeConstraint>::const_iterator it = program.range_constraints.begin(); it != program.range_constraints.end(); ++it)
         {
-            if (it->second.has_min && it->second.has_max && it->second.min > it->second.max)
+            if (it->second.min > it->second.max)
                 return fail("$.range_constraints." + it->first, 0, "minimum exceeds maximum");
         }
         return 0;
@@ -1237,7 +1495,7 @@ int decode_pt2_tensor_meta(const Pt2JsonValue& value, const std::string& path, P
 {
     Pt2Program program;
     Pt2ProgramDecoder decoder(program);
-    const int result = decoder.decode_tensor_meta(value, path, tensor);
+    const int result = decoder.decode_tensor(value, path, tensor) ? 0 : -1;
     error = program.error;
     return result;
 }

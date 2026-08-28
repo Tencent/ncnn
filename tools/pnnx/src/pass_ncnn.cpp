@@ -76,6 +76,22 @@ NcnnGraphRewriterPassRegister::~NcnnGraphRewriterPassRegister()
 
 void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
 {
+    for (int i = (int)g.ops.size() - 1; i >= 0; i--)
+    {
+        Operator* op = g.ops[i];
+        if (op->type == "Tensor.item")
+        {
+            op->type = "Noop";
+            continue;
+        }
+        if (op->type != "pnnx.Assert")
+            continue;
+        op->inputs[0]->remove_consumer(op);
+        g.ops.erase(g.ops.begin() + i);
+        delete op;
+    }
+    dead_code_elimination(g);
+
     unroll_rnn_op(g);
 
     eliminate_maxpool_indices(g);

@@ -4,6 +4,7 @@
 #include "pt2_json.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include <utility>
 
@@ -20,20 +21,20 @@ class Pt2JsonParser
 {
 public:
     Pt2JsonParser(const unsigned char* _data, size_t _size)
-        : data(_data), size(_size), pos(0), count(0)
+        : data(_data), size(_size), pos(0)
     {
     }
 
     int parse(Pt2JsonValue& value, std::string& _error)
     {
-        if (!data || size > 64 * 1024 * 1024)
+        if (!data)
         {
-            _error = "json offset 0: invalid or oversized input";
+            _error = "json offset 0: invalid input";
             return -1;
         }
 
         skip_space();
-        if (!parse_value(value, 0))
+        if (!parse_value(value))
         {
             _error = error;
             return -1;
@@ -67,12 +68,8 @@ private:
             pos++;
     }
 
-    bool parse_value(Pt2JsonValue& value, int depth)
+    bool parse_value(Pt2JsonValue& value)
     {
-        if (depth > 128)
-            return fail("nesting is too deep");
-        if (++count > 1000000)
-            return fail("too many values");
         if (pos == size)
             return fail("unexpected end of input");
 
@@ -95,9 +92,9 @@ private:
             return parse_string(value.value);
         }
         if (data[pos] == '[')
-            return parse_array(value, depth);
+            return parse_array(value);
         if (data[pos] == '{')
-            return parse_object(value, depth);
+            return parse_object(value);
         if (data[pos] == '-' || (data[pos] >= '0' && data[pos] <= '9'))
             return parse_number(value);
 
@@ -106,14 +103,10 @@ private:
 
     bool parse_literal(const char* literal, Pt2JsonValue::Type type, Pt2JsonValue& value)
     {
-        size_t i = 0;
-        while (literal[i])
-        {
-            if (pos + i >= size || data[pos + i] != (unsigned char)literal[i])
-                return fail("invalid literal");
-            i++;
-        }
-        pos += i;
+        const size_t len = strlen(literal);
+        if (len > size - pos || memcmp(data + pos, literal, len) != 0)
+            return fail("invalid literal");
+        pos += len;
         value.type = type;
         return true;
     }
@@ -144,6 +137,7 @@ private:
 
     bool parse_utf8(unsigned char first, std::string& value)
     {
+        const size_t begin = pos - 1;
         int trailing;
         uint32_t codepoint;
         uint32_t minimum;
@@ -181,7 +175,7 @@ private:
         }
         if (codepoint < minimum || codepoint > 0x10ffff || (codepoint >= 0xd800 && codepoint <= 0xdfff))
             return fail("invalid utf-8");
-        append_utf8(codepoint, value);
+        value.append((const char*)data + begin, pos - begin);
         return true;
     }
 
@@ -269,9 +263,6 @@ private:
                     return fail("invalid escape");
                 }
             }
-
-            if (value.size() > 16 * 1024 * 1024)
-                return fail("string is too large");
         }
 
         return fail("unterminated string");
@@ -322,7 +313,7 @@ private:
         return true;
     }
 
-    bool parse_array(Pt2JsonValue& value, int depth)
+    bool parse_array(Pt2JsonValue& value)
     {
         value.type = Pt2JsonValue::Array;
         pos++;
@@ -336,7 +327,7 @@ private:
         while (true)
         {
             value.array.push_back(Pt2JsonValue());
-            if (!parse_value(value.array.back(), depth + 1))
+            if (!parse_value(value.array.back()))
                 return false;
             skip_space();
             if (pos == size)
@@ -352,7 +343,7 @@ private:
         }
     }
 
-    bool parse_object(Pt2JsonValue& value, int depth)
+    bool parse_object(Pt2JsonValue& value)
     {
         value.type = Pt2JsonValue::Object;
         pos++;
@@ -376,7 +367,7 @@ private:
             skip_space();
 
             Pt2JsonValue child;
-            if (!parse_value(child, depth + 1))
+            if (!parse_value(child))
                 return false;
             if (!value.object.insert(std::make_pair(key, std::move(child))).second)
                 return fail("duplicate object key");
@@ -398,7 +389,6 @@ private:
     const unsigned char* data;
     size_t size;
     size_t pos;
-    size_t count;
     std::string error;
 };
 

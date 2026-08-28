@@ -431,6 +431,7 @@ int main(int argc, char** argv)
     std::string foldable_constants_zippath = ptbase + ".foldable_constants.zip";
 
     pnnx::Graph pnnx_graph;
+    bool pt2 = false;
 
     // clang-format off
     // *INDENT-OFF*
@@ -445,14 +446,14 @@ int main(int argc, char** argv)
     else
 #endif
     {
-        pnnx::ModelFormatInfo model_format_info;
-        if (pnnx::probe_model_format(ptpath, model_format_info) != 0)
+        pnnx::ModelFormatInfo model_format;
+        if (pnnx::probe_model_format(ptpath, model_format) != 0)
         {
-            fprintf(stderr, "model format probe failed: %s\n", model_format_info.diagnostic.c_str());
+            fprintf(stderr, "model format probe failed: %s\n", model_format.diagnostic.c_str());
             return -1;
         }
 
-        if (model_format_info.format == pnnx::ModelFormatOther)
+        if (model_format.format == pnnx::Other)
         {
 #if BUILD_ONNX2PNNX
             int ret = load_onnx(ptpath.c_str(), pnnx_graph,
@@ -465,7 +466,7 @@ int main(int argc, char** argv)
             return -1;
 #endif
         }
-        else if (model_format_info.format == pnnx::ModelFormatTorchScript)
+        else if (model_format.format == pnnx::TorchScript)
         {
             if (!load_numpy_file_contents(input_paths, input_shapes, input_types, input_contents))
                 return -1;
@@ -480,9 +481,9 @@ int main(int argc, char** argv)
             if (ret != 0)
                 return ret;
         }
-        else if (model_format_info.format == pnnx::ModelFormatPt2LegacyExportedProgram ||
-                 model_format_info.format == pnnx::ModelFormatPt2Archive)
+        else if (model_format.format == pnnx::Pt2)
         {
+            pt2 = true;
             int ret = load_pt2(ptpath, pnnx_graph, input_shapes, input_types, input_shapes2, input_types2);
             if (ret != 0)
                 return ret;
@@ -490,7 +491,7 @@ int main(int argc, char** argv)
         else
         {
             fprintf(stderr, "unsupported %s model: %s\n",
-                    pnnx::model_format_name(model_format_info.format), model_format_info.diagnostic.c_str());
+                    pnnx::model_format_name(model_format.format), model_format.diagnostic.c_str());
             return -1;
         }
     }
@@ -527,6 +528,17 @@ int main(int argc, char** argv)
     // delete foldable_constants_zippath
     remove(foldable_constants_zippath.c_str());
 
+    for (size_t i = 0; pt2 && i < pnnx_graph.ops.size(); i++)
+    {
+        const std::string& type = pnnx_graph.ops[i]->type;
+        if (type.find("::") != std::string::npos &&
+            std::find(module_operators.begin(), module_operators.end(), type) == module_operators.end())
+        {
+            fprintf(stderr, "unsupported operator %s\n", type.c_str());
+            return -1;
+        }
+    }
+
     pnnx::ModelStat model_stat = pnnx::get_model_stat(pnnx_graph);
     const std::string input_shapes_stat = pnnx::format_model_stat_input_shapes(pnnx_graph);
     const std::string flops = pnnx::format_model_stat_ops(model_stat.flops);
@@ -547,7 +559,8 @@ int main(int argc, char** argv)
 
         pnnx::pass_ncnn(pnnx_graph, module_operators);
 
-        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16);
+        if (pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16) != 0)
+            return -1;
     }
 
     fprintf(stderr, "model inputshape = %s\n", input_shapes_stat.c_str());
