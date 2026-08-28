@@ -3608,7 +3608,6 @@ static void sdpa_decode_kvcache_tile_fp32(const Mat& query, const Mat& key_cache
     }
 #endif // __SSE2__
 
-
     for (; qq < max_qq; qq++)
     {
         const int q = q0 + qq;

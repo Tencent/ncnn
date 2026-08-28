@@ -3227,7 +3227,6 @@ static int sdpa_prefill_packed_bf16s(const Mat& query, const Mat& packed_key, co
                 sdpa_pack_value_tile_bf16s(value_head, packed_value_tile, panel_begin, 0, n_end - panel_begin);
             }
         }
-
     }
 
     int num_kv_chunks = 1;
