@@ -1,9 +1,11 @@
 // Copyright 2020 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-static void linear_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner)
+static void linear_coeffs(int w, int outw, float coord_scale, int* xofs, float* alpha, int align_corner)
 {
-    double scale = (double)w / outw;
+    // coord_scale is w/outw for an explicit output size, or 1/scale_factor when derived from a
+    // scale factor (matching the nearest path / PyTorch default / ONNX half_pixel).
+    double scale = coord_scale;
     if (align_corner)
     {
         scale = (double)(w - 1) / (outw - 1);
