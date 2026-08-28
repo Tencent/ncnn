@@ -6,6 +6,8 @@ import os
 import torch
 import torch.nn as nn
 
+from pnnx_test_utils import convert_and_import
+
 
 class Model(nn.Module):
     def __init__(self):
@@ -41,29 +43,35 @@ def test():
     if a.shape != (1, 4, 28, 28):
         return False
 
-    mod = torch.jit.trace(net, x)
-    mod.save("test_pnnx_fuse_asymmetric_pad_conv2d.pt")
-
-    os.system("../src/pnnx test_pnnx_fuse_asymmetric_pad_conv2d.pt inputshape=[1,4,56,56]")
-
-    import test_pnnx_fuse_asymmetric_pad_conv2d_pnnx
-    b = test_pnnx_fuse_asymmetric_pad_conv2d_pnnx.test_inference()
+    mod = convert_and_import(
+        net,
+        (x,),
+        "test_pnnx_fuse_asymmetric_pad_conv2d",
+        pnnx_args=("inputshape=[1,4,56,56]",),
+    )
+    b = mod.test_inference()
 
     if not torch.allclose(a, b, 1e-4, 1e-4):
         return False
 
-    with open("test_pnnx_fuse_asymmetric_pad_conv2d.pnnx.param", "r") as f:
+    output_basename = "test_pnnx_fuse_asymmetric_pad_conv2d"
+    if os.environ.get("PNNX_TEST_FORMAT") == "pt2":
+        output_basename += "_pt2"
+
+    with open(output_basename + ".pnnx.param", "r") as f:
         pnnx_param = f.read()
     if "#2=(1,4,28,28)f32" not in pnnx_param:
         return False
 
-    with open("test_pnnx_fuse_asymmetric_pad_conv2d.ncnn.param", "r") as f:
+    with open(output_basename + ".ncnn.param", "r") as f:
         ncnn_param = f.read()
 
     if "ConvolutionDepthWise" in ncnn_param:
-        return " 4=1 " in ncnn_param and " 14=1 " in ncnn_param and " 15=2 " in ncnn_param and " 16=2 " in ncnn_param and " 5=1 " in ncnn_param
+        passed = " 4=1 " in ncnn_param and " 14=1 " in ncnn_param and " 15=2 " in ncnn_param and " 16=2 " in ncnn_param and " 5=1 " in ncnn_param
+        return passed
 
-    return "Padding" in ncnn_param and " 0=1 " in ncnn_param and " 1=2 " in ncnn_param and " 2=1 " in ncnn_param and " 3=2 " in ncnn_param
+    passed = "Padding" in ncnn_param and " 0=1 " in ncnn_param and " 1=2 " in ncnn_param and " 2=1 " in ncnn_param and " 3=2 " in ncnn_param
+    return passed
 
 
 if __name__ == "__main__":

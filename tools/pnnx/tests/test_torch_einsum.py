@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -124,25 +126,24 @@ def test():
 
     a = net(x, y0, y1, z0, z1, w, r0, r1, r2, s0, s1)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y0, y1, z0, z1, w, r0, r1, r2, s0, s1))
-    mod.save("test_torch_einsum.pt")
+    mod = convert_and_import(
+        net,
+        (x, y0, y1, z0, z1, w, r0, r1, r2, s0, s1),
+        "test_torch_einsum",
+        pnnx_args=("inputshape=[4,4],[5],[4],[3,2,5],[3,5,4],[2,3,4,5],[2,5],[3,5,4],[2,4],[2,3,5,7],[11,3,17,5]",),
+    )
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_torch_einsum.pt inputshape=[4,4],[5],[4],[3,2,5],[3,5,4],[2,3,4,5],[2,5],[3,5,4],[2,4],[2,3,5,7],[11,3,17,5]")
+    b = mod.test_inference()
 
-    # pnnx inference
-    import test_torch_einsum_pnnx
-    b = test_torch_einsum_pnnx.test_inference()
-
+    passed = True
     for a0, b0 in zip(a, b):
         # allclose may auto broadcast compare
         if a0.shape != b0.shape:
-            return False
+            passed = False
+            continue
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-    return True
+            passed = False
+    return passed
 
 if __name__ == "__main__":
     if test():

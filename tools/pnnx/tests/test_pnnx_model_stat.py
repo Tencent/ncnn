@@ -3,14 +3,14 @@
 
 import os
 import re
-import subprocess
-import sys
 
 from packaging import version
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from pnnx_test_utils import convert_and_import
 
 
 class Model(nn.Module):
@@ -363,24 +363,20 @@ def _run_case(name, net, inputs, inputshape, expected_inputshape, expected_flops
 
     a = net(*inputs)
 
-    # export torchscript
-    mod = torch.jit.trace(net, inputs)
-    mod.save(name + ".pt")
+    converted = convert_and_import(
+        net,
+        inputs,
+        "test_pnnx_model_stat",
+        pnnx_args=("inputshape=" + inputshape,),
+        output_basename=name,
+        return_diagnostic=True,
+    )
 
-    # torchscript to pnnx
-    cmd = ["../src/pnnx", name + ".pt", "inputshape=" + inputshape]
-    p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-    if p.returncode != 0:
-        sys.stderr.write(p.stdout)
-        sys.stderr.write(p.stderr)
+    pnnx_module, diagnostic = converted
+    if not _check_stat_text(diagnostic, expected_inputshape, expected_flops, expected_memops):
         return False
 
-    if not _check_stat_text(p.stdout + p.stderr, expected_inputshape, expected_flops, expected_memops):
-        sys.stderr.write(p.stdout)
-        sys.stderr.write(p.stderr)
-        return False
-
-    with open(name + "_pnnx.py", "r") as f:
+    with open(pnnx_module.__file__, "r") as f:
         pnnx_py = f.read()
 
     if "# pnnx model stat" not in pnnx_py:
@@ -388,14 +384,14 @@ def _run_case(name, net, inputs, inputshape, expected_inputshape, expected_flops
     if not _check_stat_text(pnnx_py, expected_inputshape, expected_flops, expected_memops):
         return False
 
-    # pnnx inference
-    pnnx_module = __import__(name + "_pnnx")
     b = pnnx_module.test_inference()
 
     return _allclose(a, b)
 
 
 def test():
+    is_pt2 = os.environ.get("PNNX_TEST_FORMAT") == "pt2"
+
     if not _run_case("test_pnnx_model_stat", Model(),
                      ((1, 3, 8, 8),),
                      "[1,3,8,8]", "[1,3,8,8]f32",
@@ -468,23 +464,26 @@ def test():
                      0, 54):
         return False
 
+    multihead_attention_mask_memops = 227 if is_pt2 else 155
     if not _run_case("test_pnnx_model_stat_multihead_attention_mask", MultiheadAttentionMaskModel(),
                      ((3, 1, 4), (3, 3)),
                      "[3,1,4],[3,3]", "[3,1,4]f32,[3,3]f32",
-                     684, 155):
+                     684, multihead_attention_mask_memops):
         return False
 
+    multihead_attention_extra_memops = 410 if is_pt2 else 166
     if not _run_case("test_pnnx_model_stat_multihead_attention_extra", MultiheadAttentionExtraModel(),
                      ((3, 1, 4),),
                      "[3,1,4]", "[3,1,4]f32",
-                     822, 166):
+                     822, multihead_attention_extra_memops):
         return False
 
     if version.parse(torch.__version__) >= version.parse('1.12'):
+        multihead_attention_unbatched_memops = 242 if is_pt2 else 146
         if not _run_case("test_pnnx_model_stat_multihead_attention_unbatched", UnbatchedMultiheadAttentionModel(),
                          ((3, 4),),
                          "[3,4]", "[3,4]f32",
-                         666, 146):
+                         666, multihead_attention_unbatched_memops):
             return False
 
     if not _run_case("test_pnnx_model_stat_normalize", NormalizeModel(),
@@ -499,8 +498,12 @@ def test():
                      130, 40):
         return False
 
-    fused_functional_flops = 324 if version.parse(torch.__version__) < version.parse('2.0') else 308
-    fused_functional_memops = 206 if version.parse(torch.__version__) < version.parse('2.0') else 126
+    if is_pt2 or version.parse(torch.__version__) < version.parse('2.0'):
+        fused_functional_flops = 324
+        fused_functional_memops = 206
+    else:
+        fused_functional_flops = 308
+        fused_functional_memops = 126
     if not _run_case("test_pnnx_model_stat_fused_functional", FusedFunctionalStatModel(),
                      ((1, 4, 2, 2), (1, 1, 4, 4), (2, 3), (2, 3)),
                      "[1,4,2,2],[1,1,4,4],[2,3],[2,3]",
@@ -534,10 +537,11 @@ def test():
         return False
 
     if version.parse(torch.__version__) >= version.parse('1.12'):
+        lstm_unbatched_memops = 146 if is_pt2 else 134
         if not _run_case("test_pnnx_model_stat_lstm_unbatched", UnbatchedLSTMModel(),
                          ((2, 3),),
                          "[2,3]", "[2,3]f32",
-                         528, 134):
+                         528, lstm_unbatched_memops):
             return False
 
     if hasattr(F, "scaled_dot_product_attention"):

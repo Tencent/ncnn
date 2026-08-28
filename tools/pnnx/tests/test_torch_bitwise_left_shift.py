@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -27,19 +29,17 @@ def test():
 
     a = net(x, y)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y))
-    mod.save("test_torch_bitwise_left_shift.pt")
+    mod = convert_and_import(
+        net,
+        (x, y),
+        "test_torch_bitwise_left_shift",
+        pnnx_args=("inputshape=[3,16]i32,[3,16]i32",),
+    )
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_torch_bitwise_left_shift.pt inputshape=[3,16]i32,[3,16]i32")
+    b = mod.test_inference()
 
-    # pnnx inference
-    import test_torch_bitwise_left_shift_pnnx
-    b = test_torch_bitwise_left_shift_pnnx.test_inference()
-
-    return torch.equal(a, b)
+    passed = torch.equal(a, b)
+    return passed
 
 if __name__ == "__main__":
     if test():

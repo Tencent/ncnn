@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -26,23 +28,21 @@ def test():
 
     a = net(x)
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_Tensor_new_empty.pt")
+    mod = convert_and_import(
+        net,
+        (x,),
+        "test_Tensor_new_empty",
+        pnnx_args=("inputshape=[1,16]",),
+    )
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_Tensor_new_empty.pt inputshape=[1,16]")
-
-    # pnnx inference
-    import test_Tensor_new_empty_pnnx
-    b = test_Tensor_new_empty_pnnx.test_inference()
+    b = mod.test_inference()
 
     # test shape only for uninitialized data
+    passed = True
     for a0, b0 in zip(a, b):
         if not a0.shape == b0.shape:
-            return False
-    return True
+            passed = False
+    return passed
 
 if __name__ == "__main__":
     if test():

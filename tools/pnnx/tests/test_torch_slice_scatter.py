@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -32,22 +34,20 @@ def test():
 
     a = net(x, y, z)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_torch_slice_scatter.pt")
+    mod = convert_and_import(
+        net,
+        (x, y, z),
+        "test_torch_slice_scatter",
+        pnnx_args=("inputshape=[8,8],[2,8],[8,2]",),
+    )
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_torch_slice_scatter.pt inputshape=[8,8],[2,8],[8,2]")
+    b = mod.test_inference()
 
-    # pnnx inference
-    import test_torch_slice_scatter_pnnx
-    b = test_torch_slice_scatter_pnnx.test_inference()
-
+    passed = True
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
-            return False
-    return True
+            passed = False
+    return passed
 
 if __name__ == "__main__":
     if test():

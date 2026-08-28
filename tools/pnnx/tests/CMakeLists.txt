@@ -1,8 +1,53 @@
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
+add_executable(pnnx_test_exported_program_parameter_roundtrip
+    test_exported_program_parameter_roundtrip.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ir.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/model_stat.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/storezip.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/utils.cpp
+)
+target_include_directories(pnnx_test_exported_program_parameter_roundtrip PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src)
+
+add_test(
+    NAME test_exported_program_parameter_roundtrip
+    COMMAND $<TARGET_FILE:pnnx_test_exported_program_parameter_roundtrip>
+)
+
+add_test(
+    NAME test_exported_program
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_exported_program.py $<TARGET_FILE:pnnx>
+)
+
+add_test(
+    NAME test_exported_program_roundtrip
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_exported_program_roundtrip.py $<TARGET_FILE:pnnx>
+)
+
+add_test(
+    NAME test_pt2_version_compatibility
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_version_compatibility.py $<TARGET_FILE:pnnx>
+)
+
+add_test(
+    NAME test_pt2_manifest
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_manifest.py
+)
+
+add_test(
+    NAME test_pnnx_test_utils
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pnnx_test_utils.py
+)
+
+macro(pnnx_add_pt2_test name)
+    add_test(NAME test_pt2_${name} COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run_pt2_test.py --pnnx $<TARGET_FILE:pnnx> --build-dir ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py)
+    set_tests_properties(test_pt2_${name} PROPERTIES SKIP_RETURN_CODE 77)
+endmacro()
+
 macro(pnnx_add_test name)
-    add_test(NAME test_${name} COMMAND ${CMAKE_COMMAND} -DPYTHON_EXECUTABLE=${Python3_EXECUTABLE} -DPYTHON_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
+    add_test(NAME test_${name} COMMAND ${CMAKE_COMMAND} -DPYTHON_EXECUTABLE=${Python3_EXECUTABLE} -DPNNX_TEST_FORMAT=torchscript -DPNNX_EXECUTABLE=$<TARGET_FILE:pnnx> -DPYTHON_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
+    pnnx_add_pt2_test(${name})
 endmacro()
 
 pnnx_add_test(F_adaptive_avg_pool1d)
@@ -257,6 +302,7 @@ pnnx_add_test(torch_tensor_split)
 pnnx_add_test(torch_tile)
 pnnx_add_test(torch_topk)
 pnnx_add_test(torch_transpose)
+pnnx_add_test(torch_tril)
 pnnx_add_test(torch_unbind)
 pnnx_add_test(torch_unsqueeze)
 pnnx_add_test(torch_view_as_complex)
@@ -339,6 +385,7 @@ pnnx_add_test(ir_complex)
 
 # TODO enable end2end quantization model test
 #pnnx_add_test(quantization_shufflenet_v2_x1_0)
+pnnx_add_pt2_test(quantization_shufflenet_v2_x1_0)
 
 pnnx_add_test(pnnx_eliminate_noop_cat)
 pnnx_add_test(pnnx_eliminate_noop_expand)

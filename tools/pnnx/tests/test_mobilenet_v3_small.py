@@ -5,6 +5,8 @@ import torch
 import torchvision.models as models
 from packaging import version
 
+from pnnx_test_utils import convert_and_import
+
 def test():
     net = models.mobilenet_v3_small()
     net.eval()
@@ -14,20 +16,13 @@ def test():
 
     a = net(x)
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_mobilenet_v3_small.pt")
-
-    # torchscript to pnnx
-    import os
-    if version.parse(torch.__version__) >= version.parse('2.0'):
-        os.system("../src/pnnx test_mobilenet_v3_small.pt")
-    else:
-        os.system("../src/pnnx test_mobilenet_v3_small.pt inputshape=[1,3,224,224]")
-
-    # pnnx inference
-    import test_mobilenet_v3_small_pnnx
-    b = test_mobilenet_v3_small_pnnx.test_inference()
+    mod = convert_and_import(
+        net,
+        (x,),
+        "test_mobilenet_v3_small",
+        pnnx_args=() if version.parse(torch.__version__) >= version.parse('2.0') else ("inputshape=[1,3,224,224]",),
+    )
+    b = mod.test_inference()
 
     return torch.allclose(a, b, 1e-4, 1e-4)
 
