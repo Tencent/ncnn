@@ -31,12 +31,83 @@ PNNX tries to define a set of operators and a simple and easy-to-use format that
 9. [Model optimization](#pnnx-model-optimization)
 10. [Custom operator support](#pnnx-custom-operator)
 
-# Build TorchScript to PNNX converter
+# Build PNNX converter
 
 1. Install PyTorch and TorchVision c++ library
 2. Build PNNX with cmake
 
 # Usage
+
+## ExportedProgram
+
+1. Export your model with `torch.export` and save the ExportedProgram as PT2
+
+```python
+import torch
+
+model = Model().eval()
+example_inputs = (torch.rand(1, 3, 224, 224),)
+
+exported_program = torch.export.export(model, example_inputs)
+torch.export.save(exported_program, "model.pt2")
+```
+
+2. Convert ExportedProgram to PNNX
+
+```shell
+pnnx model.pt2
+```
+
+The input shapes and model state are read from the PT2 package. Parameters, persistent and non-persistent buffers, and tensor constants become PNNX model attributes instead of runtime inputs.
+
+3. Export the generated PNNX python model as another ExportedProgram
+
+```shell
+python -c 'import model_pnnx; model_pnnx.export_exported_program()'
+```
+
+This creates `model_pnnx.pt2` and returns the `torch.export.ExportedProgram` object. Pass a tuple to `export_exported_program(example_inputs)` to override the generated example inputs.
+
+### Current ExportedProgram support
+
+- PT2 archive version `0` with one ExportedProgram and uncompressed, unencrypted ZIP entries
+- PyTorch 2.13 ExportedProgram schema 8.20 with raw tensor payloads; compatibility paths for the older raw-payload schema minors 8.14, 8.15 and 8.17 are retained but are not part of the continuously tested compatibility contract
+- Inference graphs with protocol-1 positional tensor input PyTrees composed only of tuple/list containers; their leaves are flattened in treespec order at the PNNX model boundary, while tensor output leaves may be reconstructed into protocol-1 tuple/list trees
+- Static tensor shapes, including statically resolved `SymInt`, `SymFloat` and `SymBool` operator arguments
+- Parameters, persistent and non-persistent buffers, and tensor constants with raw strided tensor payloads, including shape, stride and storage offset
+- Byte, Char, Short, Int, Long, Half, Float, Double, ComplexHalf, ComplexFloat, ComplexDouble, Bool and BFloat16 state tensors
+- ATen operator targets registered by the linked libtorch dispatcher when their serialized arguments can be represented and the resulting graph can be lowered by the existing PNNX passes
+- `torch.ops.aten.einsum.default` equation syntax, operand shapes and declared output shape are validated against the linked ATen implementation, then ordinary ASCII spaces are removed before PNNX parameter serialization; scalar tensor operands are rejected because current PNNX einsum lowering cannot preserve them, and string arguments for other operators are not normalized
+- Disabled `wrap_with_set_grad_enabled` and `wrap_with_autocast` higher-order wrappers with tensor-only captured graphs
+- Operator overloads and defaults are resolved against the linked libtorch dispatcher, and the archive ATen opset must match the linked libtorch opset; the producer version is not independently gated when these serialized contracts are supported
+- The declared operator and model support matrix is tracked by the `test_pt2_*` expectation suite; TorchVision cases are registered when TorchVision is available
+
+### Unsupported ExportedProgram features
+
+- PyTorch 2.8 legacy pickled-payload PT2, incompatible schema majors and schema minors other than 14, 15, 17 and 20
+- AOTInductor-only packages or multiple ExportedPrograms in one PT2 package
+- Dynamic tensor dimensions, range constraints, symbolic expressions or symbolic scalar dataflow, and dynamic model state
+- Keyword inputs, positional input PyTrees containing dict, namedtuple or custom containers, and output PyTrees containing dict, namedtuple or custom containers
+- Training graphs, loss or gradient outputs, and parameter, buffer or user-input mutation outputs
+- Custom objects, tokens, unknown higher-order operators, enabled autocast/set-grad wrappers and control-flow or mutation higher-order operators
+- Non-tensor user input or output leaves, unsupported serialized operator arguments, and graphs which the existing PNNX passes cannot lower
+- Compressed or encrypted PT2 entries and PT2 archive versions other than `0`
+
+Unsupported graph and schema features fail with a feature-specific `load exported program failed:` diagnostic. Archive detection failures use `detect model format failed:`. A package recognized by its PT2 archive marker is not retried as TorchScript.
+
+### ExportedProgram contributor tests
+
+```shell
+ctest --test-dir build --output-on-failure -R '^(test_exported_program.*|test_pt2_version_compatibility|test_pt2_manifest|test_pnnx_test_utils)$'
+```
+
+Run all PT2-named tests, including the complete operator and model expectation suite and the focused bool-attribute ncnn smoke test, with:
+
+```shell
+ctest --test-dir build --output-on-failure -j 8 -R '^test_pt2_'
+```
+
+## TorchScript
 
 1. Export your model to TorchScript
 
