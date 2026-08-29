@@ -48,7 +48,7 @@ find_package(Python3 COMPONENTS Interpreter Development)
 PNNXProbeForPyTorchInstall()
 find_package(Torch REQUIRED)
 
-find_package(TorchVision QUIET)
+# find_package(TorchVision QUIET)
 
 message(STATUS "Torch_VERSION = ${Torch_VERSION}")
 message(STATUS "Torch_VERSION_MAJOR = ${Torch_VERSION_MAJOR}")
@@ -111,17 +111,28 @@ if((PNNX_TORCH_USE_CXX11_ABI AND PNNX_COMPILER_USE_CXX11_ABI) OR (NOT PNNX_TORCH
     endif()
 endif()
 
+if(TARGET protobuf::protoc AND PROTOBUF_PROTOC_EXECUTABLE)
+    message(STATUS "Force overriding protobuf::protoc to host executable: ${PROTOBUF_PROTOC_EXECUTABLE}")
+
+    set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION "${PROTOBUF_PROTOC_EXECUTABLE}")
+    set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION_RELEASE "${PROTOBUF_PROTOC_EXECUTABLE}")
+    set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION_DEBUG "${PROTOBUF_PROTOC_EXECUTABLE}")
+    set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION_RELWITHDEBINFO "${PROTOBUF_PROTOC_EXECUTABLE}")
+    set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION_MINSIZEREL "${PROTOBUF_PROTOC_EXECUTABLE}")
+endif()
+
 # https://github.com/supertone-inc/onnxruntime-build
 set(onnxruntime_INSTALL_DIR "/home/nihui/osd/pnnx/install" CACHE STRING "")
-find_library(onnxruntime_LIB NAMES onnxruntime PATHS ${onnxruntime_INSTALL_DIR}/lib64 ${onnxruntime_INSTALL_DIR}/lib)
-if(onnxruntime_LIB)
+file(GLOB onnxruntime_LIB_LIST "${onnxruntime_INSTALL_DIR}/lib64/libonnxruntime*.a" "${onnxruntime_INSTALL_DIR}/lib/libonnxruntime*.a")
+if(onnxruntime_LIB_LIST)
     set(onnxruntime_FOUND TRUE)
-    add_library(onnxruntime::onnxruntime STATIC IMPORTED)
-    set_target_properties(onnxruntime::onnxruntime PROPERTIES IMPORTED_LOCATION ${onnxruntime_LIB})
-    set_target_properties(onnxruntime::onnxruntime PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${onnxruntime_INSTALL_DIR}/include)
-else()
+    add_library(onnxruntime::onnxruntime INTERFACE IMPORTED)
+    set_target_properties(onnxruntime::onnxruntime PROPERTIES INTERFACE "${onnxruntime_LIB_LIST}")
+    set_target_properties(onnxruntime::onnxruntime PROPERTIES INTERFACE ${onnxruntime_INSTALL_DIR}/include)
+else ()
     set(onnxruntime_FOUND FALSE)
-endif()
+endif ()
+
 
 option(PNNX_TNN2PNNX "build tnn2pnnx" ON)
 
