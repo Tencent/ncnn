@@ -512,8 +512,7 @@ private:
             operand = graph.get_operand(arg.s);
             return operand ? 0 : fail("unknown symbolic value " + arg.s);
         }
-        if (arg.type == Pt2Argument::Tensors || arg.type == Pt2Argument::OptionalTensors || arg.type == Pt2Argument::Bools ||
-            arg.type == Pt2Argument::SymInts || arg.type == Pt2Argument::SymBools || arg.type == Pt2Argument::SymFloats)
+        if (arg.type == Pt2Argument::Tensors || arg.type == Pt2Argument::OptionalTensors || arg.type == Pt2Argument::Bools || arg.type == Pt2Argument::SymInts || arg.type == Pt2Argument::SymBools || arg.type == Pt2Argument::SymFloats)
             return add_list(arg, operand);
         if (arg.type == Pt2Argument::OptionalTensor)
         {
@@ -545,33 +544,133 @@ private:
         int input_count = 2;
         bool compare = false;
 
-        if (node.target == "_operator.add") { expr = "add"; aten = "aten::add"; }
-        else if (node.target == "_operator.sub") { expr = "sub"; aten = "aten::sub"; }
-        else if (node.target == "_operator.mul") { expr = "mul"; aten = "aten::mul"; }
-        else if (node.target == "_operator.truediv") { expr = "div"; aten = "aten::div"; }
-        else if (node.target == "_operator.floordiv") { expr = "floor_divide"; aten = "aten::floor_divide"; }
-        else if (node.target == "_operator.mod") expr = "remainder";
-        else if (node.target == "_operator.pow") { expr = "pow"; aten = "aten::pow"; }
-        else if (node.target == "_operator.and_") { expr = "and"; aten = "aten::__and__"; }
-        else if (node.target == "_operator.or_") { expr = "or"; aten = "aten::__or__"; }
-        else if (node.target == "_operator.lshift") { expr = "lshift"; aten = "aten::__lshift__"; }
-        else if (node.target == "_operator.rshift") { expr = "rshift"; aten = "aten::__rshift__"; }
-        else if (node.target == "_operator.eq") { expr = "eq"; compare = true; }
-        else if (node.target == "_operator.ne") { expr = "ne"; compare = true; }
-        else if (node.target == "_operator.lt") { expr = "lt"; compare = true; }
-        else if (node.target == "_operator.le") { expr = "le"; compare = true; }
-        else if (node.target == "_operator.gt") { expr = "gt"; compare = true; }
-        else if (node.target == "_operator.ge") { expr = "ge"; compare = true; }
-        else if (node.target == "_operator.neg") { expr = "neg"; aten = "aten::neg"; input_count = 1; }
-        else if (node.target == "_operator.pos") { expr = "pos"; input_count = 1; }
-        else if (node.target == "math.trunc") { expr = "sym_trunc"; input_count = 1; }
-        else if (node.target == "torch.sym_not") { expr = "sym_not"; input_count = 1; }
-        else if (node.target == "torch.sym_int") { expr = "sym_int"; input_count = 1; }
-        else if (node.target == "torch.sym_float") { expr = "sym_float"; input_count = 1; }
-        else if (node.target == "torch.sym_ite") { expr = "sym_ite"; input_count = 3; }
-        else if (node.target == "torch.sym_max") expr = "sym_max";
-        else if (node.target == "torch.sym_min") expr = "sym_min";
-        else if (node.target == "torch._sym_sqrt" || node.target == "torch.sym_sqrt") { expr = "sym_sqrt"; input_count = 1; }
+        if (node.target == "_operator.add")
+        {
+            expr = "add";
+            aten = "aten::add";
+        }
+        else if (node.target == "_operator.sub")
+        {
+            expr = "sub";
+            aten = "aten::sub";
+        }
+        else if (node.target == "_operator.mul")
+        {
+            expr = "mul";
+            aten = "aten::mul";
+        }
+        else if (node.target == "_operator.truediv")
+        {
+            expr = "div";
+            aten = "aten::div";
+        }
+        else if (node.target == "_operator.floordiv")
+        {
+            expr = "floor_divide";
+            aten = "aten::floor_divide";
+        }
+        else if (node.target == "_operator.mod")
+            expr = "remainder";
+        else if (node.target == "_operator.pow")
+        {
+            expr = "pow";
+            aten = "aten::pow";
+        }
+        else if (node.target == "_operator.and_")
+        {
+            expr = "and";
+            aten = "aten::__and__";
+        }
+        else if (node.target == "_operator.or_")
+        {
+            expr = "or";
+            aten = "aten::__or__";
+        }
+        else if (node.target == "_operator.lshift")
+        {
+            expr = "lshift";
+            aten = "aten::__lshift__";
+        }
+        else if (node.target == "_operator.rshift")
+        {
+            expr = "rshift";
+            aten = "aten::__rshift__";
+        }
+        else if (node.target == "_operator.eq")
+        {
+            expr = "eq";
+            compare = true;
+        }
+        else if (node.target == "_operator.ne")
+        {
+            expr = "ne";
+            compare = true;
+        }
+        else if (node.target == "_operator.lt")
+        {
+            expr = "lt";
+            compare = true;
+        }
+        else if (node.target == "_operator.le")
+        {
+            expr = "le";
+            compare = true;
+        }
+        else if (node.target == "_operator.gt")
+        {
+            expr = "gt";
+            compare = true;
+        }
+        else if (node.target == "_operator.ge")
+        {
+            expr = "ge";
+            compare = true;
+        }
+        else if (node.target == "_operator.neg")
+        {
+            expr = "neg";
+            aten = "aten::neg";
+            input_count = 1;
+        }
+        else if (node.target == "_operator.pos")
+        {
+            expr = "pos";
+            input_count = 1;
+        }
+        else if (node.target == "math.trunc")
+        {
+            expr = "sym_trunc";
+            input_count = 1;
+        }
+        else if (node.target == "torch.sym_not")
+        {
+            expr = "sym_not";
+            input_count = 1;
+        }
+        else if (node.target == "torch.sym_int")
+        {
+            expr = "sym_int";
+            input_count = 1;
+        }
+        else if (node.target == "torch.sym_float")
+        {
+            expr = "sym_float";
+            input_count = 1;
+        }
+        else if (node.target == "torch.sym_ite")
+        {
+            expr = "sym_ite";
+            input_count = 3;
+        }
+        else if (node.target == "torch.sym_max")
+            expr = "sym_max";
+        else if (node.target == "torch.sym_min")
+            expr = "sym_min";
+        else if (node.target == "torch._sym_sqrt" || node.target == "torch.sym_sqrt")
+        {
+            expr = "sym_sqrt";
+            input_count = 1;
+        }
         else
             return fail_node(index, node, "unsupported symbolic operator");
 
@@ -600,8 +699,7 @@ private:
         else if (node.target == "_operator.lshift" || node.target == "_operator.rshift")
             result_kind = kinds[0] == 2 && kinds[1] == 2 ? 2 : 0;
         else if (compare)
-            result_kind = (((node.target == "_operator.eq" || node.target == "_operator.ne") && kinds[0] == kinds[1]) ||
-                           (kinds[0] >= 2 && kinds[1] >= 2)) ? 1 : 0;
+            result_kind = (((node.target == "_operator.eq" || node.target == "_operator.ne") && kinds[0] == kinds[1]) || (kinds[0] >= 2 && kinds[1] >= 2)) ? 1 : 0;
         else if (input_count == 1)
             result_kind = kinds[0] >= 2 ? kinds[0] : 0;
         else
@@ -680,9 +778,7 @@ private:
 
     int lower_assert_scalar(size_t index, const Pt2Node& node)
     {
-        if (!node.outputs.empty() || node.inputs.size() != 2 ||
-            node.inputs[0].name != "self" || (node.inputs[0].arg.type != Pt2Argument::SymBool && node.inputs[0].arg.type != Pt2Argument::Bool) ||
-            node.inputs[1].name != "assert_msg" || node.inputs[1].arg.type != Pt2Argument::String)
+        if (!node.outputs.empty() || node.inputs.size() != 2 || node.inputs[0].name != "self" || (node.inputs[0].arg.type != Pt2Argument::SymBool && node.inputs[0].arg.type != Pt2Argument::Bool) || node.inputs[1].name != "assert_msg" || node.inputs[1].arg.type != Pt2Argument::String)
             return fail_node(index, node, "invalid scalar assertion");
         Operand* condition = 0;
         if (materialize_argument(node.inputs[0].arg, condition) != 0)
@@ -853,11 +949,7 @@ private:
                 return fail_node(index, node, "missing required argument " + schema_arg.name(), &schema);
 
             bool matches = match_argument(*arg, schema_arg.type());
-            if (!matches && schema_arg.name() == "other" && schema_arg.type()->kind() == c10::TypeKind::TensorType &&
-                (name == "aten::add" || name == "aten::add_" || name == "aten::sub" || name == "aten::sub_" ||
-                 name == "aten::mul" || name == "aten::mul_" || name == "aten::div" || name == "aten::div_") &&
-                (arg->type == Pt2Argument::Int || arg->type == Pt2Argument::Float || arg->type == Pt2Argument::Complex ||
-                 arg->type == Pt2Argument::SymInt || arg->type == Pt2Argument::SymFloat))
+            if (!matches && schema_arg.name() == "other" && schema_arg.type()->kind() == c10::TypeKind::TensorType && (name == "aten::add" || name == "aten::add_" || name == "aten::sub" || name == "aten::sub_" || name == "aten::mul" || name == "aten::mul_" || name == "aten::div" || name == "aten::div_") && (arg->type == Pt2Argument::Int || arg->type == Pt2Argument::Float || arg->type == Pt2Argument::Complex || arg->type == Pt2Argument::SymInt || arg->type == Pt2Argument::SymFloat))
                 matches = true;
             if (!matches)
                 return fail_node(index, node, "argument type does not match dispatcher schema for " + schema_arg.name(), &schema);
@@ -865,9 +957,9 @@ private:
             // PT2 has no TorchScript level1 pass, normalize dispatcher arguments and operators to existing level2 conventions here.
             Pt2Argument empty_stride;
             if (schema_arg.name() == "stride" && arg->type == Pt2Argument::Ints && arg->ai.empty()
-                && (name == "aten::avg_pool1d" || name == "aten::avg_pool2d" || name == "aten::avg_pool3d"
-                    || name == "aten::max_pool1d" || name == "aten::max_pool2d" || name == "aten::max_pool3d"
-                    || name == "aten::max_pool1d_with_indices" || name == "aten::max_pool2d_with_indices" || name == "aten::max_pool3d_with_indices"))
+                    && (name == "aten::avg_pool1d" || name == "aten::avg_pool2d" || name == "aten::avg_pool3d"
+                        || name == "aten::max_pool1d" || name == "aten::max_pool2d" || name == "aten::max_pool3d"
+                        || name == "aten::max_pool1d_with_indices" || name == "aten::max_pool2d_with_indices" || name == "aten::max_pool3d_with_indices"))
                 arg = &empty_stride;
 
             Operand* operand = 0;
@@ -875,15 +967,24 @@ private:
                 return fail_node(index, node, error + " for argument " + schema_arg.name(), &schema);
             if (rnn)
             {
-                if (schema_arg.name() == "input") rnn_input = operand;
-                else if (schema_arg.name() == "hx") rnn_hx = operand;
-                else if (schema_arg.name() == "params") rnn_weights = arg;
-                else if (schema_arg.name() == "has_biases") rnn_bias = arg->b;
-                else if (schema_arg.name() == "num_layers") rnn_num_layers = arg->i;
-                else if (schema_arg.name() == "dropout") rnn_dropout = arg->f;
-                else if (schema_arg.name() == "train") rnn_train = arg->b;
-                else if (schema_arg.name() == "bidirectional") rnn_bidirectional = arg->b;
-                else if (schema_arg.name() == "batch_first") rnn_batch_first = arg->b;
+                if (schema_arg.name() == "input")
+                    rnn_input = operand;
+                else if (schema_arg.name() == "hx")
+                    rnn_hx = operand;
+                else if (schema_arg.name() == "params")
+                    rnn_weights = arg;
+                else if (schema_arg.name() == "has_biases")
+                    rnn_bias = arg->b;
+                else if (schema_arg.name() == "num_layers")
+                    rnn_num_layers = arg->i;
+                else if (schema_arg.name() == "dropout")
+                    rnn_dropout = arg->f;
+                else if (schema_arg.name() == "train")
+                    rnn_train = arg->b;
+                else if (schema_arg.name() == "bidirectional")
+                    rnn_bidirectional = arg->b;
+                else if (schema_arg.name() == "batch_first")
+                    rnn_batch_first = arg->b;
             }
             op_inputs.push_back(operand);
             input_names.push_back(schema_arg.name());
@@ -895,8 +996,7 @@ private:
         for (size_t i = 0; i < node.outputs.size(); i++)
         {
             const Pt2Argument& output = node.outputs[i];
-            if ((output.type != Pt2Argument::Tensor && output.type != Pt2Argument::Tensors && output.type != Pt2Argument::SymInt && output.type != Pt2Argument::SymBool && output.type != Pt2Argument::SymFloat) ||
-                !match_argument(output, schema.returns()[i].type()))
+            if ((output.type != Pt2Argument::Tensor && output.type != Pt2Argument::Tensors && output.type != Pt2Argument::SymInt && output.type != Pt2Argument::SymBool && output.type != Pt2Argument::SymFloat) || !match_argument(output, schema.returns()[i].type()))
                 return fail_node(index, node, "output type does not match dispatcher schema", &schema);
         }
 
@@ -949,19 +1049,18 @@ private:
             }
         }
         if (name == "aten::_weight_norm" && op->inputs.size() == 3
-            && op->inputs[0]->producer->type == "pnnx.Attribute" && op->inputs[1]->producer->type == "pnnx.Attribute"
-            && op->inputs[2]->producer->type == "prim::Constant" && op->inputs[2]->producer->params.at("value").i == 0)
+                && op->inputs[0]->producer->type == "pnnx.Attribute" && op->inputs[1]->producer->type == "pnnx.Attribute"
+                && op->inputs[2]->producer->type == "prim::Constant" && op->inputs[2]->producer->params.at("value").i == 0)
         {
             const Attribute& weight = op->inputs[0]->producer->attrs.at("data");
             const Attribute& weight_g = op->inputs[1]->producer->attrs.at("data");
-            if ((weight.type != 1 && weight.type != 2 && weight.type != 3 && weight.type != 13) ||
-                (weight_g.type != 1 && weight_g.type != 2 && weight_g.type != 3 && weight_g.type != 13))
+            if ((weight.type != 1 && weight.type != 2 && weight.type != 3 && weight.type != 13) || (weight_g.type != 1 && weight_g.type != 2 && weight_g.type != 3 && weight_g.type != 13))
                 return fail_node(index, node, "unsupported weight_norm scalar type", &schema);
             Attribute folded = weight;
             std::vector<float> weight_data = weight.get_float32_data();
             const std::vector<float> weight_g_data = weight_g.get_float32_data();
             if (!weight.shape.empty() && weight.shape[0] > 0 && weight_g_data.size() >= (size_t)weight.shape[0]
-                && weight_data.size() % weight.shape[0] == 0)
+                    && weight_data.size() % weight.shape[0] == 0)
             {
                 const int dim0 = weight.shape[0];
                 apply_weight_norm(weight_data, weight_g_data, dim0, weight_data.size() / dim0);

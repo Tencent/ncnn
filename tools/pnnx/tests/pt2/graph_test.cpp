@@ -67,8 +67,7 @@ static int check_real_graph(const pnnx::Graph& graph, const std::string& name)
     {
         const pnnx::Operator* linear = find_operator(graph, "linear");
         const pnnx::Operand* output = graph.get_operand("add_2");
-        if (!linear || linear->type != "aten::linear" || linear->inputnames != std::vector<std::string>{"input", "weight", "bias"} ||
-            !output || output->type != 1 || output->shape != std::vector<int>({2, 4}))
+        if (!linear || linear->type != "aten::linear" || linear->inputnames != std::vector<std::string> {"input", "weight", "bias"} || !output || output->type != 1 || output->shape != std::vector<int>({2, 4}))
             return -1;
         const char* attributes[] = {"weight", "bias", "persistent_buffer", "non_persistent_buffer", "tensor_constant"};
         for (size_t i = 0; i < sizeof(attributes) / sizeof(attributes[0]); i++)
@@ -100,10 +99,7 @@ static int check_real_graph(const pnnx::Graph& graph, const std::string& name)
         const pnnx::Operator* mul = find_operator(graph, "mul");
         const pnnx::Operator* mean = find_operator(graph, "mean");
         const pnnx::Operator* sum = find_operator(graph, "sum_1");
-        if (!add || add->inputs.size() != 3 || check_constant(add->inputs[2], 2, 1) != 0 ||
-            !mul || mul->inputs.size() != 2 || check_constant(mul->inputs[1], 2, 3) != 0 ||
-            !mean || mean->inputs.size() != 2 || check_constant(mean->inputs[1], 0, 0) != 0 ||
-            !sum || sum->inputs.size() != 4 || check_constant(sum->inputs[2], 1, 0) != 0 || check_constant(sum->inputs[3], 0, 0) != 0)
+        if (!add || add->inputs.size() != 3 || check_constant(add->inputs[2], 2, 1) != 0 || !mul || mul->inputs.size() != 2 || check_constant(mul->inputs[1], 2, 3) != 0 || !mean || mean->inputs.size() != 2 || check_constant(mean->inputs[1], 0, 0) != 0 || !sum || sum->inputs.size() != 4 || check_constant(sum->inputs[2], 1, 0) != 0 || check_constant(sum->inputs[3], 0, 0) != 0)
             return -1;
         const char* output_names[] = {"mul", "mean", "sum_1"};
         int outputs = 0;
@@ -123,11 +119,9 @@ static int check_real_graph(const pnnx::Graph& graph, const std::string& name)
         const pnnx::Operator* conv = find_operator(graph, "conv2d");
         const pnnx::Operator* weight = find_operator(graph, "weight");
         const pnnx::Operator* bias = find_operator(graph, "bias");
-        return conv && conv->type == "aten::conv2d" &&
-                       weight && weight->attrs.at("data").type == 13 &&
-                       bias && bias->attrs.at("data").type == 13
-                   ? 0
-                   : -1;
+        return conv && conv->type == "aten::conv2d" && weight && weight->attrs.at("data").type == 13 && bias && bias->attrs.at("data").type == 13
+               ? 0
+               : -1;
     }
     return -1;
 }
@@ -328,8 +322,8 @@ static pnnx::Pt2Program pilot_program()
     program.schema_major = 8;
     program.schema_minor = 20;
     program.opset_versions["aten"] = 10;
-    add_user_input(program, "x", std::vector<int64_t>{1, 3, 8, 8});
-    add_user_input(program, "weight", std::vector<int64_t>{4, 3, 3, 3});
+    add_user_input(program, "x", std::vector<int64_t> {1, 3, 8, 8});
+    add_user_input(program, "weight", std::vector<int64_t> {4, 3, 3, 3});
 
     pnnx::Pt2Node convolution;
     convolution.name = "convolution";
@@ -337,21 +331,21 @@ static pnnx::Pt2Program pilot_program()
     convolution.inputs.push_back(named_argument("input", tensor_argument("x")));
     convolution.inputs.push_back(named_argument("weight", tensor_argument("weight")));
     convolution.inputs.push_back(named_argument("bias", optional_tensor_argument()));
-    convolution.inputs.push_back(named_argument("stride", ints_argument(std::vector<int64_t>{1, 1})));
-    convolution.inputs.push_back(named_argument("padding", ints_argument(std::vector<int64_t>{1, 1})));
-    convolution.inputs.push_back(named_argument("dilation", ints_argument(std::vector<int64_t>{1, 1})));
+    convolution.inputs.push_back(named_argument("stride", ints_argument(std::vector<int64_t> {1, 1})));
+    convolution.inputs.push_back(named_argument("padding", ints_argument(std::vector<int64_t> {1, 1})));
+    convolution.inputs.push_back(named_argument("dilation", ints_argument(std::vector<int64_t> {1, 1})));
     convolution.inputs.push_back(named_argument("transposed", bool_argument(false)));
-    convolution.inputs.push_back(named_argument("output_padding", ints_argument(std::vector<int64_t>{0, 0})));
+    convolution.inputs.push_back(named_argument("output_padding", ints_argument(std::vector<int64_t> {0, 0})));
     convolution.inputs.push_back(named_argument("groups", int_argument(1)));
     convolution.outputs.push_back(tensor_argument("convolution_out"));
     program.nodes.push_back(convolution);
-    program.tensors["convolution_out"] = tensor_meta(std::vector<int64_t>{1, 4, 8, 8});
+    program.tensors["convolution_out"] = tensor_meta(std::vector<int64_t> {1, 4, 8, 8});
 
     pnnx::Pt2Node norm;
     norm.name = "native_layer_norm";
     norm.target = "torch.ops.aten.native_layer_norm.default";
     norm.inputs.push_back(named_argument("input", tensor_argument("convolution_out")));
-    norm.inputs.push_back(named_argument("normalized_shape", ints_argument(std::vector<int64_t>{4, 8, 8})));
+    norm.inputs.push_back(named_argument("normalized_shape", ints_argument(std::vector<int64_t> {4, 8, 8})));
     norm.inputs.push_back(named_argument("weight", optional_tensor_argument()));
     norm.inputs.push_back(named_argument("bias", optional_tensor_argument()));
     norm.inputs.push_back(named_argument("eps", float_argument(1e-5)));
@@ -359,18 +353,18 @@ static pnnx::Pt2Program pilot_program()
     norm.outputs.push_back(tensor_argument("norm_mean"));
     norm.outputs.push_back(tensor_argument("norm_rstd"));
     program.nodes.push_back(norm);
-    program.tensors["norm_out"] = tensor_meta(std::vector<int64_t>{1, 4, 8, 8});
-    program.tensors["norm_mean"] = tensor_meta(std::vector<int64_t>{1, 1, 1, 1});
-    program.tensors["norm_rstd"] = tensor_meta(std::vector<int64_t>{1, 1, 1, 1});
+    program.tensors["norm_out"] = tensor_meta(std::vector<int64_t> {1, 4, 8, 8});
+    program.tensors["norm_mean"] = tensor_meta(std::vector<int64_t> {1, 1, 1, 1});
+    program.tensors["norm_rstd"] = tensor_meta(std::vector<int64_t> {1, 1, 1, 1});
 
     pnnx::Pt2Node view;
     view.name = "view";
     view.target = "torch.ops.aten.view.default";
     view.inputs.push_back(named_argument("self", tensor_argument("norm_out")));
-    view.inputs.push_back(named_argument("size", ints_argument(std::vector<int64_t>{1, 256})));
+    view.inputs.push_back(named_argument("size", ints_argument(std::vector<int64_t> {1, 256})));
     view.outputs.push_back(tensor_argument("view_out"));
     program.nodes.push_back(view);
-    program.tensors["view_out"] = tensor_meta(std::vector<int64_t>{1, 256});
+    program.tensors["view_out"] = tensor_meta(std::vector<int64_t> {1, 256});
 
     pnnx::Pt2Node item;
     item.name = "item";
@@ -383,10 +377,10 @@ static pnnx::Pt2Program pilot_program()
     index.name = "index";
     index.target = "torch.ops.aten.index.Tensor";
     index.inputs.push_back(named_argument("self", tensor_argument("view_out")));
-    index.inputs.push_back(named_argument("indices", optional_tensors_argument(std::vector<std::string>{std::string()})));
+    index.inputs.push_back(named_argument("indices", optional_tensors_argument(std::vector<std::string> {std::string()})));
     index.outputs.push_back(tensor_argument("index_out"));
     program.nodes.push_back(index);
-    program.tensors["index_out"] = tensor_meta(std::vector<int64_t>{1, 256});
+    program.tensors["index_out"] = tensor_meta(std::vector<int64_t> {1, 256});
 
     pnnx::Pt2Node select;
     select.name = "select";
@@ -396,7 +390,7 @@ static pnnx::Pt2Program pilot_program()
     select.inputs.push_back(named_argument("index", int_argument(0)));
     select.outputs.push_back(tensor_argument("select_out"));
     program.nodes.push_back(select);
-    program.tensors["select_out"] = tensor_meta(std::vector<int64_t>{1});
+    program.tensors["select_out"] = tensor_meta(std::vector<int64_t> {1});
 
     program.outputs.push_back(tensor_argument("index_out"));
     program.output_specs.push_back(tensor_argument("index_out"));
@@ -420,27 +414,20 @@ static int check_pilot()
     const pnnx::Operator* item = find_operator(graph, "item");
     const pnnx::Operator* index = find_operator(graph, "index");
     const pnnx::Operator* select = find_operator(graph, "select");
-    if (!convolution || convolution->type != "aten::convolution" || convolution->inputs.size() != 9 ||
-        !norm || norm->type != "aten::native_layer_norm" || norm->inputs.size() != 5 || norm->outputs.size() != 3 ||
-        !view || view->type != "aten::view" || view->inputs.size() != 2 ||
-        !item || item->type != "aten::item" || item->inputs.size() != 1 ||
-        !index || index->type != "aten::index" || index->inputs.size() != 2 || index->inputs[1]->producer->type != "prim::ListConstruct" ||
-        !select || select->type != "aten::select" || select->inputs.size() != 3 || check_topology(graph) != 0)
+    if (!convolution || convolution->type != "aten::convolution" || convolution->inputs.size() != 9 || !norm || norm->type != "aten::native_layer_norm" || norm->inputs.size() != 5 || norm->outputs.size() != 3 || !view || view->type != "aten::view" || view->inputs.size() != 2 || !item || item->type != "aten::item" || item->inputs.size() != 1 || !index || index->type != "aten::index" || index->inputs.size() != 2 || index->inputs[1]->producer->type != "prim::ListConstruct" || !select || select->type != "aten::select" || select->inputs.size() != 3 || check_topology(graph) != 0)
         return -1;
 
     pnnx::Pt2Program generated_name_collision = pilot_program();
     generated_name_collision.nodes[1].name = "pnnx_0";
     pnnx::Graph generated_name_collision_graph;
-    if (pnnx::lower_pt2_graph(generated_name_collision, weights, generated_name_collision_graph, error) != 0 ||
-        check_topology(generated_name_collision_graph) != 0)
+    if (pnnx::lower_pt2_graph(generated_name_collision, weights, generated_name_collision_graph, error) != 0 || check_topology(generated_name_collision_graph) != 0)
         return -1;
 
     pnnx::Pt2Program input_output_name_collision = pilot_program();
     input_output_name_collision.nodes[0].name = "pnnx_input_0";
     input_output_name_collision.nodes[1].name = "pnnx_output_0";
     pnnx::Graph input_output_name_collision_graph;
-    if (pnnx::lower_pt2_graph(input_output_name_collision, weights, input_output_name_collision_graph, error) != 0 ||
-        check_topology(input_output_name_collision_graph) != 0)
+    if (pnnx::lower_pt2_graph(input_output_name_collision, weights, input_output_name_collision_graph, error) != 0 || check_topology(input_output_name_collision_graph) != 0)
         return -1;
 
     pnnx::Pt2Program attribute_name_collision = pilot_program();
@@ -449,8 +436,7 @@ static int check_pilot()
     pnnx::Pt2Weights collision_weights;
     collision_weights.values["convolution"] = pnnx::Attribute({4, 3, 3, 3}, std::vector<float>(4 * 3 * 3 * 3));
     pnnx::Graph attribute_name_collision_graph;
-    if (pnnx::lower_pt2_graph(attribute_name_collision, collision_weights, attribute_name_collision_graph, error) != 0 ||
-        check_topology(attribute_name_collision_graph) != 0)
+    if (pnnx::lower_pt2_graph(attribute_name_collision, collision_weights, attribute_name_collision_graph, error) != 0 || check_topology(attribute_name_collision_graph) != 0)
         return -1;
 
     pnnx::Pt2Program unnamed_list_output = pilot_program();
@@ -459,51 +445,45 @@ static int check_pilot()
     chunk.inputs.push_back(named_argument("self", tensor_argument("index_out")));
     chunk.inputs.push_back(named_argument("chunks", int_argument(2)));
     chunk.inputs.push_back(named_argument("dim", int_argument(1)));
-    chunk.outputs.push_back(tensors_argument(std::vector<std::string>{"chunk_0", "chunk_1"}));
+    chunk.outputs.push_back(tensors_argument(std::vector<std::string> {"chunk_0", "chunk_1"}));
     unnamed_list_output.nodes.push_back(chunk);
-    unnamed_list_output.tensors["chunk_0"] = tensor_meta(std::vector<int64_t>{1, 128});
-    unnamed_list_output.tensors["chunk_1"] = tensor_meta(std::vector<int64_t>{1, 128});
+    unnamed_list_output.tensors["chunk_0"] = tensor_meta(std::vector<int64_t> {1, 128});
+    unnamed_list_output.tensors["chunk_1"] = tensor_meta(std::vector<int64_t> {1, 128});
     unnamed_list_output.outputs[0] = tensor_argument("chunk_0");
     unnamed_list_output.output_specs[0] = tensor_argument("chunk_0");
     pnnx::Graph unnamed_list_output_graph;
-    if (pnnx::lower_pt2_graph(unnamed_list_output, weights, unnamed_list_output_graph, error) != 0 ||
-        check_topology(unnamed_list_output_graph) != 0 || find_operator(unnamed_list_output_graph, "") != 0)
+    if (pnnx::lower_pt2_graph(unnamed_list_output, weights, unnamed_list_output_graph, error) != 0 || check_topology(unnamed_list_output_graph) != 0 || find_operator(unnamed_list_output_graph, "") != 0)
         return -1;
 
     pnnx::Pt2Program mismatched_output = pilot_program();
-    mismatched_output.nodes[0].outputs[0] = tensors_argument(std::vector<std::string>{"convolution_out"});
+    mismatched_output.nodes[0].outputs[0] = tensors_argument(std::vector<std::string> {"convolution_out"});
     pnnx::Graph mismatched_output_graph;
-    if (pnnx::lower_pt2_graph(mismatched_output, weights, mismatched_output_graph, error) == 0 ||
-        error.find("output type does not match dispatcher schema") == std::string::npos)
+    if (pnnx::lower_pt2_graph(mismatched_output, weights, mismatched_output_graph, error) == 0 || error.find("output type does not match dispatcher schema") == std::string::npos)
         return -1;
 
     pnnx::Pt2Program mismatched_input = pilot_program();
     mismatched_input.nodes[2].inputs[0].arg = int_argument(1);
     pnnx::Graph mismatched_input_graph;
-    if (pnnx::lower_pt2_graph(mismatched_input, weights, mismatched_input_graph, error) == 0 ||
-        error.find("argument type does not match dispatcher schema for self") == std::string::npos)
+    if (pnnx::lower_pt2_graph(mismatched_input, weights, mismatched_input_graph, error) == 0 || error.find("argument type does not match dispatcher schema for self") == std::string::npos)
         return -1;
 
     pnnx::Pt2Program unknown = pilot_program();
     unknown.nodes[0].target = "torch.ops.aten.pnnx_missing.default";
     pnnx::Graph unknown_graph;
-    if (pnnx::lower_pt2_graph(unknown, weights, unknown_graph, error) == 0 || error.find("node 0") == std::string::npos ||
-        error.find("torch.ops.aten.pnnx_missing.default") == std::string::npos || error.find("dispatcher schema") == std::string::npos)
+    if (pnnx::lower_pt2_graph(unknown, weights, unknown_graph, error) == 0 || error.find("node 0") == std::string::npos || error.find("torch.ops.aten.pnnx_missing.default") == std::string::npos || error.find("dispatcher schema") == std::string::npos)
         return -1;
 
     pnnx::Pt2Program unknown_no_output = pilot_program();
     unknown_no_output.nodes[0].target = "torch.ops.aten.pnnx_missing.default";
     unknown_no_output.nodes[0].outputs.clear();
     pnnx::Graph unknown_no_output_graph;
-    if (pnnx::lower_pt2_graph(unknown_no_output, weights, unknown_no_output_graph, error) == 0 ||
-        error.find("operator without a supported output is unsupported") == std::string::npos)
+    if (pnnx::lower_pt2_graph(unknown_no_output, weights, unknown_no_output_graph, error) == 0 || error.find("operator without a supported output is unsupported") == std::string::npos)
         return -1;
 
     pnnx::Pt2Program oversized_integer = pilot_program();
     oversized_integer.nodes[0].inputs[8].arg = int_argument(INT64_MAX / 2);
     pnnx::Graph oversized_integer_graph;
-    if (pnnx::lower_pt2_graph(oversized_integer, weights, oversized_integer_graph, error) == 0 ||
-        error.find("integer argument is outside the pnnx parameter range") == std::string::npos)
+    if (pnnx::lower_pt2_graph(oversized_integer, weights, oversized_integer_graph, error) == 0 || error.find("integer argument is outside the pnnx parameter range") == std::string::npos)
         return -1;
 
     pnnx::Pt2Program metadata_assertion = pilot_program();
@@ -511,8 +491,8 @@ static int check_pilot()
     assertion.name = "assert_tensor_metadata";
     assertion.target = "torch.ops.aten._assert_tensor_metadata.default";
     assertion.inputs.push_back(named_argument("a", tensor_argument("index_out")));
-    assertion.inputs.push_back(named_argument("size", ints_argument(std::vector<int64_t>{1, 256})));
-    pnnx::Pt2Argument stride = sym_ints_argument(std::vector<int64_t>{256, 1});
+    assertion.inputs.push_back(named_argument("size", ints_argument(std::vector<int64_t> {1, 256})));
+    pnnx::Pt2Argument stride = sym_ints_argument(std::vector<int64_t> {256, 1});
     stride.args[0] = sym_int_argument("assert_stride");
     assertion.inputs.push_back(named_argument("stride", stride));
     assertion.inputs.push_back(named_argument("dtype", enum_argument(pnnx::Pt2Argument::ScalarType, 7)));
@@ -529,29 +509,25 @@ static int check_pilot()
     pnnx::Pt2Program duplicate_metadata_assertion = metadata_assertion;
     duplicate_metadata_assertion.nodes.back().inputs.push_back(named_argument("dtype", enum_argument(pnnx::Pt2Argument::ScalarType, 7)));
     pnnx::Graph duplicate_metadata_assertion_graph;
-    if (pnnx::lower_pt2_graph(duplicate_metadata_assertion, weights, duplicate_metadata_assertion_graph, error) == 0 ||
-        error.find("duplicate argument dtype") == std::string::npos)
+    if (pnnx::lower_pt2_graph(duplicate_metadata_assertion, weights, duplicate_metadata_assertion_graph, error) == 0 || error.find("duplicate argument dtype") == std::string::npos)
         return -1;
 
     pnnx::Pt2Program invalid_size_assertion = metadata_assertion;
     invalid_size_assertion.nodes.back().inputs[1].arg.ai[0] = 2;
     pnnx::Graph invalid_size_assertion_graph;
-    if (pnnx::lower_pt2_graph(invalid_size_assertion, weights, invalid_size_assertion_graph, error) == 0 ||
-        error.find("tensor metadata size assertion mismatch") == std::string::npos)
+    if (pnnx::lower_pt2_graph(invalid_size_assertion, weights, invalid_size_assertion_graph, error) == 0 || error.find("tensor metadata size assertion mismatch") == std::string::npos)
         return -1;
 
     pnnx::Pt2Program invalid_stride_assertion = metadata_assertion;
     invalid_stride_assertion.sym_ints["assert_stride"].expression = "s1";
     pnnx::Graph invalid_stride_assertion_graph;
-    if (pnnx::lower_pt2_graph(invalid_stride_assertion, weights, invalid_stride_assertion_graph, error) == 0 ||
-        error.find("tensor metadata stride assertion mismatch") == std::string::npos)
+    if (pnnx::lower_pt2_graph(invalid_stride_assertion, weights, invalid_stride_assertion_graph, error) == 0 || error.find("tensor metadata stride assertion mismatch") == std::string::npos)
         return -1;
 
     pnnx::Pt2Program invalid_dtype_assertion = metadata_assertion;
     invalid_dtype_assertion.nodes.back().inputs[3].arg.i = 5;
     pnnx::Graph invalid_dtype_assertion_graph;
-    if (pnnx::lower_pt2_graph(invalid_dtype_assertion, weights, invalid_dtype_assertion_graph, error) == 0 ||
-        error.find("tensor metadata dtype assertion mismatch") == std::string::npos)
+    if (pnnx::lower_pt2_graph(invalid_dtype_assertion, weights, invalid_dtype_assertion_graph, error) == 0 || error.find("tensor metadata dtype assertion mismatch") == std::string::npos)
         return -1;
 
     pnnx::Pt2Program scalar_assertion = pilot_program();
@@ -589,13 +565,10 @@ static int check_pilot()
     arange.inputs.push_back(named_argument("pin_memory", bool_argument(false)));
     arange.outputs.push_back(tensor_argument("arange_out"));
     scalar_assertion.nodes.push_back(arange);
-    scalar_assertion.tensors["arange_out"] = tensor_meta(std::vector<int64_t>{1});
+    scalar_assertion.tensors["arange_out"] = tensor_meta(std::vector<int64_t> {1});
 
     pnnx::Graph scalar_assertion_graph;
-    if (pnnx::lower_pt2_graph(scalar_assertion, weights, scalar_assertion_graph, error) != 0 ||
-        !find_operator(scalar_assertion_graph, "le") || !find_operator(scalar_assertion_graph, "assert_scalar") ||
-        find_operator(scalar_assertion_graph, "assert_scalar")->type != "pnnx.Assert" || !find_operator(scalar_assertion_graph, "arange") ||
-        check_topology(scalar_assertion_graph) != 0)
+    if (pnnx::lower_pt2_graph(scalar_assertion, weights, scalar_assertion_graph, error) != 0 || !find_operator(scalar_assertion_graph, "le") || !find_operator(scalar_assertion_graph, "assert_scalar") || find_operator(scalar_assertion_graph, "assert_scalar")->type != "pnnx.Assert" || !find_operator(scalar_assertion_graph, "arange") || check_topology(scalar_assertion_graph) != 0)
         return -1;
 
     pnnx::Pt2Program symbolic = scalar_assertion;
@@ -658,8 +631,7 @@ static int check_pilot()
     pnnx::Pt2Program unsupported_assertion = pilot_program();
     unsupported_assertion.nodes.push_back(scalar_assert);
     pnnx::Graph unsupported_assertion_graph;
-    if (pnnx::lower_pt2_graph(unsupported_assertion, weights, unsupported_assertion_graph, error) == 0 ||
-        error.find("unknown symbolic value") == std::string::npos)
+    if (pnnx::lower_pt2_graph(unsupported_assertion, weights, unsupported_assertion_graph, error) == 0 || error.find("unknown symbolic value") == std::string::npos)
         return -1;
 
     pnnx::Pt2Program malformed = pilot_program();

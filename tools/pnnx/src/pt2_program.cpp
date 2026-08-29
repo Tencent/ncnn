@@ -215,9 +215,12 @@ private:
     {
         if (value.type != Pt2JsonValue::String)
             return get_double(value, path, result);
-        if (value.value == "Infinity") result = std::numeric_limits<double>::infinity();
-        else if (value.value == "-Infinity") result = -std::numeric_limits<double>::infinity();
-        else if (value.value == "NaN") result = std::numeric_limits<double>::quiet_NaN();
+        if (value.value == "Infinity")
+            result = std::numeric_limits<double>::infinity();
+        else if (value.value == "-Infinity")
+            result = -std::numeric_limits<double>::infinity();
+        else if (value.value == "NaN")
+            result = std::numeric_limits<double>::quiet_NaN();
         else
         {
             fail(path, &value, "invalid special float");
@@ -774,13 +777,7 @@ public:
         const Pt2JsonValue* layout = field(value, "layout", path, true);
         int64_t dtype_value;
         int64_t layout_value;
-        if (!dtype || !sizes || !requires_grad || !device || !strides || !storage_offset || !layout ||
-            !get_int(*dtype, path + ".dtype", dtype_value) || !get_int(*layout, path + ".layout", layout_value) ||
-            !get_bool(*requires_grad, path + ".requires_grad", tensor.requires_grad) ||
-            !decode_device(*device, path + ".device", tensor.device, tensor.device_index) ||
-            !require_type(*sizes, Pt2JsonValue::Array, path + ".sizes", "array") ||
-            !require_type(*strides, Pt2JsonValue::Array, path + ".strides", "array") ||
-            !decode_sym_int(*storage_offset, path + ".storage_offset", tensor.storage_offset))
+        if (!dtype || !sizes || !requires_grad || !device || !strides || !storage_offset || !layout || !get_int(*dtype, path + ".dtype", dtype_value) || !get_int(*layout, path + ".layout", layout_value) || !get_bool(*requires_grad, path + ".requires_grad", tensor.requires_grad) || !decode_device(*device, path + ".device", tensor.device, tensor.device_index) || !require_type(*sizes, Pt2JsonValue::Array, path + ".sizes", "array") || !require_type(*strides, Pt2JsonValue::Array, path + ".strides", "array") || !decode_sym_int(*storage_offset, path + ".storage_offset", tensor.storage_offset))
             return false;
 
         if (dtype_value < 0 || dtype_value > INT32_MAX || layout_value < 0 || layout_value > INT32_MAX)
@@ -815,11 +812,7 @@ private:
         const Pt2JsonValue* outputs = field(value, "outputs", path, true);
         const Pt2JsonValue* nodes = field(value, "nodes", path, true);
         const Pt2JsonValue* tensors = field(value, "tensor_values", path, true);
-        if (!inputs || !outputs || !nodes || !tensors ||
-            !require_type(*inputs, Pt2JsonValue::Array, path + ".inputs", "array") ||
-            !require_type(*outputs, Pt2JsonValue::Array, path + ".outputs", "array") ||
-            !require_type(*nodes, Pt2JsonValue::Array, path + ".nodes", "array") ||
-            !require_type(*tensors, Pt2JsonValue::Object, path + ".tensor_values", "object"))
+        if (!inputs || !outputs || !nodes || !tensors || !require_type(*inputs, Pt2JsonValue::Array, path + ".inputs", "array") || !require_type(*outputs, Pt2JsonValue::Array, path + ".outputs", "array") || !require_type(*nodes, Pt2JsonValue::Array, path + ".nodes", "array") || !require_type(*tensors, Pt2JsonValue::Object, path + ".tensor_values", "object"))
             return false;
 
         for (size_t i = 0; i < inputs->array.size(); i++)
@@ -891,8 +884,7 @@ private:
                 const Pt2JsonValue& expr = it->second.object.begin()->second;
                 const Pt2JsonValue* expression = field(expr, "expr_str", symbol_path + ".as_expr", true);
                 std::string ignored;
-                if (!expression || !get_string(*expression, symbol_path + ".as_expr.expr_str", ignored) ||
-                    !reject_unknown(expr, symbol_path + ".as_expr", {"expr_str", "hint"}))
+                if (!expression || !get_string(*expression, symbol_path + ".as_expr.expr_str", ignored) || !reject_unknown(expr, symbol_path + ".as_expr", {"expr_str", "hint"}))
                     return false;
                 const Pt2JsonValue* hint = field(expr, "hint", symbol_path + ".as_expr", false);
                 if (hint && hint->type != Pt2JsonValue::Null)
@@ -943,8 +935,7 @@ private:
                 {
                     const Pt2JsonValue& expr = it->second.object.begin()->second;
                     const Pt2JsonValue* expression = field(expr, "expr_str", symbol_path + ".as_expr", true);
-                    if (!expression || !get_string(*expression, symbol_path + ".as_expr.expr_str", expression_value) ||
-                        !reject_unknown(expr, symbol_path + ".as_expr", {"expr_str", "hint"}))
+                    if (!expression || !get_string(*expression, symbol_path + ".as_expr.expr_str", expression_value) || !reject_unknown(expr, symbol_path + ".as_expr", {"expr_str", "hint"}))
                         return false;
                     const Pt2JsonValue* hint = field(expr, "hint", symbol_path + ".as_expr", false);
                     if (hint && hint->type != Pt2JsonValue::Null)
@@ -998,10 +989,7 @@ private:
             const Pt2JsonValue* node_inputs = field(node_value, "inputs", node_path, true);
             const Pt2JsonValue* node_outputs = field(node_value, "outputs", node_path, true);
             const Pt2JsonValue* metadata = field(node_value, "metadata", node_path, true);
-            if (!target || !node_inputs || !node_outputs ||
-                !require_type(*node_inputs, Pt2JsonValue::Array, node_path + ".inputs", "array") ||
-                !require_type(*node_outputs, Pt2JsonValue::Array, node_path + ".outputs", "array") ||
-                !metadata || !require_type(*metadata, Pt2JsonValue::Object, node_path + ".metadata", "object"))
+            if (!target || !node_inputs || !node_outputs || !require_type(*node_inputs, Pt2JsonValue::Array, node_path + ".inputs", "array") || !require_type(*node_outputs, Pt2JsonValue::Array, node_path + ".outputs", "array") || !metadata || !require_type(*metadata, Pt2JsonValue::Object, node_path + ".metadata", "object"))
                 return false;
 
             Pt2Node node;
@@ -1074,8 +1062,7 @@ private:
         const std::string path = "$.graph_module.signature";
         const Pt2JsonValue* inputs = field(value, "input_specs", path, true);
         const Pt2JsonValue* outputs = field(value, "output_specs", path, true);
-        if (!inputs || !outputs || !require_type(*inputs, Pt2JsonValue::Array, path + ".input_specs", "array") ||
-            !require_type(*outputs, Pt2JsonValue::Array, path + ".output_specs", "array"))
+        if (!inputs || !outputs || !require_type(*inputs, Pt2JsonValue::Array, path + ".input_specs", "array") || !require_type(*outputs, Pt2JsonValue::Array, path + ".output_specs", "array"))
             return false;
 
         for (size_t i = 0; i < inputs->array.size(); i++)
@@ -1094,8 +1081,7 @@ private:
             {
                 spec.kind = Pt2InputSpec::UserInput;
                 const Pt2JsonValue* arg = field(payload, "arg", spec_path + ".user_input", true);
-                if (!arg || !decode_argument(*arg, spec_path + ".user_input.arg", spec.arg) ||
-                    !reject_unknown(payload, spec_path + ".user_input", {"arg"}))
+                if (!arg || !decode_argument(*arg, spec_path + ".user_input.arg", spec.arg) || !reject_unknown(payload, spec_path + ".user_input", {"arg"}))
                     return false;
             }
             else if (tag == "parameter" || tag == "buffer" || tag == "tensor_constant")
@@ -1116,8 +1102,7 @@ private:
                 if (tag == "buffer")
                 {
                     const Pt2JsonValue* persistent = field(payload, "persistent", base, true);
-                    if (!persistent || !require_type(*persistent, Pt2JsonValue::Bool, base + ".persistent", "boolean") ||
-                        !reject_unknown(payload, base, {"arg", "buffer_name", "persistent"}))
+                    if (!persistent || !require_type(*persistent, Pt2JsonValue::Bool, base + ".persistent", "boolean") || !reject_unknown(payload, base, {"arg", "buffer_name", "persistent"}))
                         return false;
                 }
                 else if (!reject_unknown(payload, base, {"arg", target_name}))
@@ -1129,8 +1114,7 @@ private:
                 const std::string base = spec_path + ".constant_input";
                 const Pt2JsonValue* name = field(payload, "name", base, true);
                 const Pt2JsonValue* constant = field(payload, "value", base, true);
-                if (!name || !constant || !get_string(*name, base + ".name", spec.target) || !decode_argument(*constant, base + ".value", spec.arg) ||
-                    !reject_unknown(payload, base, {"name", "value"}))
+                if (!name || !constant || !get_string(*name, base + ".name", spec.target) || !decode_argument(*constant, base + ".value", spec.arg) || !reject_unknown(payload, base, {"name", "value"}))
                     return false;
                 if (spec.target.empty())
                 {
@@ -1163,8 +1147,7 @@ private:
             const Pt2JsonValue& payload = spec_value.object.begin()->second;
             const Pt2JsonValue* arg = field(payload, "arg", spec_path + ".user_output", true);
             Pt2Argument spec;
-            if (!arg || !decode_argument(*arg, spec_path + ".user_output.arg", spec) ||
-                !reject_unknown(payload, spec_path + ".user_output", {"arg"}))
+            if (!arg || !decode_argument(*arg, spec_path + ".user_output.arg", spec) || !reject_unknown(payload, spec_path + ".user_output", {"arg"}))
                 return false;
             program.output_specs.push_back(std::move(spec));
         }
@@ -1251,11 +1234,7 @@ private:
         const Pt2JsonValue* module_call_graph = field(value, "module_call_graph", path, true);
         const Pt2JsonValue* metadata = field(value, "metadata", path, false);
         const Pt2JsonValue* treespec = field(value, "treespec_namedtuple_fields", path, false);
-        if (!graph || !signature || !module_call_graph ||
-            (metadata && !require_type(*metadata, Pt2JsonValue::Object, path + ".metadata", "object")) ||
-            (treespec && !require_type(*treespec, Pt2JsonValue::Object, path + ".treespec_namedtuple_fields", "object")) ||
-            !decode_graph(*graph) || !decode_signature(*signature) || !check_out_spec(*module_call_graph) ||
-            !reject_unknown(value, path, {"graph", "signature", "module_call_graph", "metadata", "treespec_namedtuple_fields"}))
+        if (!graph || !signature || !module_call_graph || (metadata && !require_type(*metadata, Pt2JsonValue::Object, path + ".metadata", "object")) || (treespec && !require_type(*treespec, Pt2JsonValue::Object, path + ".treespec_namedtuple_fields", "object")) || !decode_graph(*graph) || !decode_signature(*signature) || !check_out_spec(*module_call_graph) || !reject_unknown(value, path, {"graph", "signature", "module_call_graph", "metadata", "treespec_namedtuple_fields"}))
             return false;
         return true;
     }
@@ -1280,9 +1259,7 @@ private:
             Pt2RangeConstraint range;
             range.min = INT64_MIN;
             range.max = INT64_MAX;
-            if ((min_value->type != Pt2JsonValue::Null && !get_int(*min_value, item_path + ".min_val", range.min)) ||
-                (max_value->type != Pt2JsonValue::Null && !get_int(*max_value, item_path + ".max_val", range.max)) ||
-                !reject_unknown(it->second, item_path, {"min_val", "max_val"}))
+            if ((min_value->type != Pt2JsonValue::Null && !get_int(*min_value, item_path + ".min_val", range.min)) || (max_value->type != Pt2JsonValue::Null && !get_int(*max_value, item_path + ".max_val", range.max)) || !reject_unknown(it->second, item_path, {"min_val", "max_val"}))
                 return false;
             program.range_constraints[it->first] = range;
         }
@@ -1354,8 +1331,7 @@ private:
             fail(path, 0, "unknown tensor value " + arg.s);
             return false;
         }
-        if ((arg.type == Pt2Argument::SymInt || arg.type == Pt2Argument::SymBool || arg.type == Pt2Argument::SymFloat) &&
-            !arg.s.empty() && values.find(arg.s) == values.end())
+        if ((arg.type == Pt2Argument::SymInt || arg.type == Pt2Argument::SymBool || arg.type == Pt2Argument::SymFloat) && !arg.s.empty() && values.find(arg.s) == values.end())
         {
             fail(path, 0, "unknown symbolic value " + arg.s);
             return false;
@@ -1406,8 +1382,7 @@ private:
         {
             const Pt2Node& node = program.nodes[i];
             const std::string path = "$.graph_module.graph.nodes[" + std::to_string(i) + "]";
-            if (node.target.compare(0, 10, "torch.ops.") != 0 && node.target.compare(0, 10, "_operator.") != 0 &&
-                node.target.compare(0, 6, "torch.") != 0 && node.target.compare(0, 5, "math.") != 0)
+            if (node.target.compare(0, 10, "torch.ops.") != 0 && node.target.compare(0, 10, "_operator.") != 0 && node.target.compare(0, 6, "torch.") != 0 && node.target.compare(0, 5, "math.") != 0)
                 return fail(path + ".target", 0, "unsupported operator target");
             for (size_t j = 0; j < node.inputs.size(); j++)
             {
@@ -1518,8 +1493,7 @@ int load_pt2_program(Pt2ArchiveReader& archive, Pt2Program& program)
         program.error = archive.model_record + ": " + program.error;
         return -1;
     }
-    if (archive.container_kind == Pt2ContainerLegacyExportedProgram &&
-        archive.archive_version != std::to_string(program.schema_major) + "." + std::to_string(program.schema_minor))
+    if (archive.container_kind == Pt2ContainerLegacyExportedProgram && archive.archive_version != std::to_string(program.schema_major) + "." + std::to_string(program.schema_minor))
     {
         program.error = archive.model_record + ": schema version does not match legacy archive version " + archive.archive_version;
         return -1;

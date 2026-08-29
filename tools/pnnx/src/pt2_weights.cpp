@@ -51,7 +51,8 @@ static int storage_scalar_type(const std::string& name)
     static const char* names[] = {
         "", "torch ByteStorage", "torch CharStorage", "torch ShortStorage", "torch IntStorage", "torch LongStorage",
         "torch HalfStorage", "torch FloatStorage", "torch DoubleStorage", "torch ComplexHalfStorage",
-        "torch ComplexFloatStorage", "torch ComplexDoubleStorage", "torch BoolStorage", "torch BFloat16Storage"};
+        "torch ComplexFloatStorage", "torch ComplexDoubleStorage", "torch BoolStorage", "torch BFloat16Storage"
+    };
     for (int i = 1; i <= 13; i++)
     {
         if (name == names[i])
@@ -121,8 +122,7 @@ static int make_attribute(const Pt2Tensor& tensor, const std::vector<unsigned ch
         if (tensor.sizes[i].value != 0)
         {
             uint64_t extent;
-            if (!checked_mul_u64((uint64_t)(tensor.sizes[i].value - 1), (uint64_t)tensor.strides[i].value, extent) ||
-                max_index > UINT64_MAX - extent)
+            if (!checked_mul_u64((uint64_t)(tensor.sizes[i].value - 1), (uint64_t)tensor.strides[i].value, extent) || max_index > UINT64_MAX - extent)
             {
                 error = "tensor view offset overflow";
                 return -1;
@@ -193,9 +193,7 @@ static bool same_sym_int(const Pt2SymInt& a, const Pt2SymInt& b)
 
 static bool same_tensor(const Pt2Tensor& a, const Pt2Tensor& b, bool check_offset)
 {
-    if (a.dtype != b.dtype || a.requires_grad != b.requires_grad || a.device != b.device || a.device_index != b.device_index ||
-        a.layout != b.layout || a.sizes.size() != b.sizes.size() || a.strides.size() != b.strides.size() ||
-        (check_offset && !same_sym_int(a.storage_offset, b.storage_offset)))
+    if (a.dtype != b.dtype || a.requires_grad != b.requires_grad || a.device != b.device || a.device_index != b.device_index || a.layout != b.layout || a.sizes.size() != b.sizes.size() || a.strides.size() != b.strides.size() || (check_offset && !same_sym_int(a.storage_offset, b.storage_offset)))
         return false;
     for (size_t i = 0; i < a.sizes.size(); i++)
     {
@@ -437,9 +435,7 @@ private:
             return fail("BINPERSID requires a tuple");
         Value id = std::move(stack.back());
         stack.pop_back();
-        if (id.list.size() != 5 || id.list[0].type != Value::String || id.list[0].s != "storage" ||
-            id.list[1].type != Value::Global || id.list[2].type != Value::String ||
-            id.list[3].type != Value::String || id.list[3].s != "cpu" || id.list[4].type != Value::Int || id.list[4].i < 0)
+        if (id.list.size() != 5 || id.list[0].type != Value::String || id.list[0].s != "storage" || id.list[1].type != Value::Global || id.list[2].type != Value::String || id.list[3].type != Value::String || id.list[3].s != "cpu" || id.list[4].type != Value::Int || id.list[4].i < 0)
             return fail("unsupported persistent storage id");
         const int dtype = storage_scalar_type(id.list[1].s);
         if (!dtype)
@@ -477,9 +473,7 @@ private:
         }
         if (callable == "torch._utils _rebuild_tensor_v2")
         {
-            if (args.list.size() != 6 || args.list[0].type != Value::Storage || args.list[1].type != Value::Int ||
-                args.list[2].type != Value::Tuple || args.list[3].type != Value::Tuple || args.list[4].type != Value::Bool ||
-                args.list[2].list.size() != args.list[3].list.size() || args.list[1].i < 0)
+            if (args.list.size() != 6 || args.list[0].type != Value::Storage || args.list[1].type != Value::Int || args.list[2].type != Value::Tuple || args.list[3].type != Value::Tuple || args.list[4].type != Value::Bool || args.list[2].list.size() != args.list[3].list.size() || args.list[1].i < 0)
                 return fail("invalid _rebuild_tensor_v2 arguments");
 
             Value tensor = args.list[0];
@@ -502,9 +496,7 @@ private:
         }
         if (callable == "torch._utils _rebuild_parameter_with_state")
         {
-            if (args.list.size() != 4 || args.list[0].type != Value::Tensor || args.list[1].type != Value::Bool ||
-                (args.list[2].type != Value::None && (args.list[2].type != Value::Dict || !args.list[2].dict.empty())) ||
-                (args.list[3].type != Value::None && (args.list[3].type != Value::Dict || !args.list[3].dict.empty())))
+            if (args.list.size() != 4 || args.list[0].type != Value::Tensor || args.list[1].type != Value::Bool || (args.list[2].type != Value::None && (args.list[2].type != Value::Dict || !args.list[2].dict.empty())) || (args.list[3].type != Value::None && (args.list[3].type != Value::Dict || !args.list[3].dict.empty())))
                 return fail("invalid _rebuild_parameter_with_state arguments");
             Value tensor = args.list[0];
             tensor.is_parameter = true;
@@ -616,8 +608,7 @@ private:
             Value value;
             value.type = Value::Global;
             value.s = module + " " + name;
-            if (value.s != "collections OrderedDict" && value.s != "torch._utils _rebuild_tensor_v2" &&
-                value.s != "torch._utils _rebuild_parameter_with_state" && !storage_scalar_type(value.s))
+            if (value.s != "collections OrderedDict" && value.s != "torch._utils _rebuild_tensor_v2" && value.s != "torch._utils _rebuild_parameter_with_state" && !storage_scalar_type(value.s))
                 return fail("unsupported GLOBAL " + value.s);
             stack.push_back(std::move(value));
             return true;
@@ -692,9 +683,7 @@ public:
         if (raw)
         {
             std::string byteorder;
-            if (read_byteorder("byteorder", byteorder) != 0 ||
-                load_raw_config("data/weights/model_weights_config.json", "data/weights/", byteorder, tensors) != 0 ||
-                load_raw_config("data/constants/model_constants_config.json", "data/constants/", byteorder, tensors) != 0)
+            if (read_byteorder("byteorder", byteorder) != 0 || load_raw_config("data/weights/model_weights_config.json", "data/weights/", byteorder, tensors) != 0 || load_raw_config("data/constants/model_constants_config.json", "data/constants/", byteorder, tensors) != 0)
                 return -1;
         }
         else
@@ -798,8 +787,7 @@ private:
             bool parameter;
             bool pickle;
             Pt2Tensor meta;
-            if (!path_name || !is_param || !use_pickle || !tensor_meta || !string_value(*path_name, path + ".path_name", name) ||
-                !bool_value(*is_param, path + ".is_param", parameter) || !bool_value(*use_pickle, path + ".use_pickle", pickle))
+            if (!path_name || !is_param || !use_pickle || !tensor_meta || !string_value(*path_name, path + ".path_name", name) || !bool_value(*is_param, path + ".is_param", parameter) || !bool_value(*use_pickle, path + ".use_pickle", pickle))
                 return -1;
             if (name.empty() || name.find('/') != std::string::npos || name.find('\\') != std::string::npos)
                 return fail(path + ".path_name: unsafe payload record name");

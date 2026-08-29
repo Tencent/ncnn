@@ -48,8 +48,7 @@ static bool parse_expected_format(const std::string& name, pnnx::ModelFormat& fo
 static bool check_f32(const pnnx::Pt2Weights& weights, const char* name, const std::vector<int>& shape, const std::vector<float>& expected)
 {
     std::map<std::string, pnnx::Attribute>::const_iterator it = weights.values.find(name);
-    if (it == weights.values.end() || it->second.type != 1 ||
-        it->second.shape != shape || it->second.data.size() != expected.size() * sizeof(float))
+    if (it == weights.values.end() || it->second.type != 1 || it->second.shape != shape || it->second.data.size() != expected.size() * sizeof(float))
         return false;
     for (size_t i = 0; i < expected.size(); i++)
     {
@@ -88,14 +87,9 @@ static int check_weights(const pnnx::Pt2Weights& weights, const std::string& nam
         std::vector<float> weight(12);
         for (size_t i = 0; i < weight.size(); i++)
             weight[i] = i / 16.f;
-        return weights.values.size() == 5 &&
-                       check_f32(weights, "weight", std::vector<int>{4, 3}, weight) &&
-                       check_f32(weights, "bias", std::vector<int>{4}, std::vector<float>{0.f, .125f, .25f, .375f}) &&
-                       check_f32(weights, "persistent_buffer", std::vector<int>{4}, std::vector<float>{.25f, -.5f, .75f, -1.f}) &&
-                       check_f32(weights, "non_persistent_buffer", std::vector<int>{4}, std::vector<float>{1.f, 1.5f, 2.f, 2.5f}) &&
-                       check_f32(weights, "tensor_constant", std::vector<int>{4}, std::vector<float>{.125f, .25f, .375f, .5f})
-                   ? 0
-                   : -1;
+        return weights.values.size() == 5 && check_f32(weights, "weight", std::vector<int> {4, 3}, weight) && check_f32(weights, "bias", std::vector<int> {4}, std::vector<float> {0.f, .125f, .25f, .375f}) && check_f32(weights, "persistent_buffer", std::vector<int> {4}, std::vector<float> {.25f, -.5f, .75f, -1.f}) && check_f32(weights, "non_persistent_buffer", std::vector<int> {4}, std::vector<float> {1.f, 1.5f, 2.f, 2.5f}) && check_f32(weights, "tensor_constant", std::vector<int> {4}, std::vector<float> {.125f, .25f, .375f, .5f})
+               ? 0
+               : -1;
     }
 
     if (name == "strided_tensors")
@@ -106,12 +100,9 @@ static int check_weights(const pnnx::Pt2Weights& weights, const std::string& nam
             for (int j = 0; j < 5; j++)
                 weight[i * 5 + j] = j * 6.f + i;
         }
-        return weights.values.size() == 3 &&
-                       check_f32(weights, "weight", std::vector<int>{6, 5}, weight) &&
-                       check_f32(weights, "offset_view", std::vector<int>{5}, std::vector<float>{3.f, 4.f, 5.f, 6.f, 7.f}) &&
-                       check_f32(weights, "strided_view", std::vector<int>{5}, std::vector<float>{3.f, 5.f, 7.f, 9.f, 11.f})
-                   ? 0
-                   : -1;
+        return weights.values.size() == 3 && check_f32(weights, "weight", std::vector<int> {6, 5}, weight) && check_f32(weights, "offset_view", std::vector<int> {5}, std::vector<float> {3.f, 4.f, 5.f, 6.f, 7.f}) && check_f32(weights, "strided_view", std::vector<int> {5}, std::vector<float> {3.f, 5.f, 7.f, 9.f, 11.f})
+               ? 0
+               : -1;
     }
 
     if (name == "bfloat16_weights")
@@ -119,11 +110,9 @@ static int check_weights(const pnnx::Pt2Weights& weights, const std::string& nam
         std::vector<float> weight(8);
         for (size_t i = 0; i < weight.size(); i++)
             weight[i] = i / 16.f;
-        return weights.values.size() == 2 &&
-                       check_bf16(weights, "weight", std::vector<int>{2, 1, 2, 2}, weight) &&
-                       check_bf16(weights, "bias", std::vector<int>{2}, std::vector<float>{0.f, .125f})
-                   ? 0
-                   : -1;
+        return weights.values.size() == 2 && check_bf16(weights, "weight", std::vector<int> {2, 1, 2, 2}, weight) && check_bf16(weights, "bias", std::vector<int> {2}, std::vector<float> {0.f, .125f})
+               ? 0
+               : -1;
     }
 
     if (name == "scalar_types")
@@ -135,7 +124,7 @@ static int check_weights(const pnnx::Pt2Weights& weights, const std::string& nam
         for (int dtype = 1; dtype <= 13; dtype++)
         {
             const pnnx::Attribute& attribute = weights.values.at("dtype_" + std::to_string(dtype));
-            if (attribute.type != attribute_types[dtype] || attribute.shape != std::vector<int>{2} || attribute.data.size() != (size_t)element_sizes[dtype] * 2)
+            if (attribute.type != attribute_types[dtype] || attribute.shape != std::vector<int> {2} || attribute.data.size() != (size_t)element_sizes[dtype] * 2)
                 return -1;
             for (size_t i = 0; i < attribute.data.size(); i++)
             {
@@ -143,10 +132,9 @@ static int check_weights(const pnnx::Pt2Weights& weights, const std::string& nam
                     return -1;
             }
         }
-        return weights.values.at("scalar").shape.empty() && weights.values.at("scalar").data.size() == 4 &&
-                       weights.values.at("empty").shape == std::vector<int>{0} && weights.values.at("empty").data.empty()
-                   ? 0
-                   : -1;
+        return weights.values.at("scalar").shape.empty() && weights.values.at("scalar").data.size() == 4 && weights.values.at("empty").shape == std::vector<int> {0} && weights.values.at("empty").data.empty()
+               ? 0
+               : -1;
     }
 
     if (name == "big_endian")
@@ -231,10 +219,7 @@ int main(int argc, char** argv)
         const char first[] = "first payload";
         const char second[] = "second payload";
         pnnx::StoreZipWriter writer;
-        if (writer.open(argv[2]) != 0 ||
-            writer.write_file("root/first", first, sizeof(first) - 1) != 0 ||
-            writer.write_file("root/second", second, sizeof(second) - 1) != 0 ||
-            writer.close() != 0)
+        if (writer.open(argv[2]) != 0 || writer.write_file("root/first", first, sizeof(first) - 1) != 0 || writer.write_file("root/second", second, sizeof(second) - 1) != 0 || writer.close() != 0)
         {
             fprintf(stderr, "StoreZipWriter roundtrip setup failed\n");
             return 1;
@@ -242,9 +227,7 @@ int main(int argc, char** argv)
 
         pnnx::StoreZipReader reader;
         std::vector<unsigned char> contents;
-        if (reader.open(argv[2]) != 0 || reader.get_names().size() != 2 ||
-            reader.read_file("root/second", contents) != 0 ||
-            std::string(contents.begin(), contents.end()) != second)
+        if (reader.open(argv[2]) != 0 || reader.get_names().size() != 2 || reader.read_file("root/second", contents) != 0 || std::string(contents.begin(), contents.end()) != second)
         {
             fprintf(stderr, "StoreZipReader roundtrip failed: %s\n", reader.error.c_str());
             return 1;

@@ -174,8 +174,7 @@ static bool normalize_zip_name(const std::string& name, std::string& normalized)
 {
     normalized.clear();
 
-    if (name.empty() || name.find('\0') != std::string::npos || name[0] == '/' || name[0] == '\\' ||
-        (name.size() >= 2 && name[1] == ':') || name.find('\\') != std::string::npos)
+    if (name.empty() || name.find('\0') != std::string::npos || name[0] == '/' || name[0] == '\\' || (name.size() >= 2 && name[1] == ':') || name.find('\\') != std::string::npos)
         return false;
 
     size_t begin = 0;
@@ -374,9 +373,7 @@ int StoreZipReader::parse()
     const uint64_t eocd_offset = archive_size - search_size + eocd_tail_offset;
     uint64_t central_directory_limit = eocd_offset;
 
-    const bool needs_zip64 = disk_number == 0xffffu || start_disk == 0xffffu ||
-                             cd_records == 0xffffu || total_cd_records == 0xffffu ||
-                             cd_size == 0xffffffffu || cd_offset == 0xffffffffu;
+    const bool needs_zip64 = disk_number == 0xffffu || start_disk == 0xffffu || cd_records == 0xffffu || total_cd_records == 0xffffu || cd_size == 0xffffffffu || cd_offset == 0xffffffffu;
     if (needs_zip64)
     {
         if (eocd_offset < 20)
@@ -451,9 +448,7 @@ int StoreZipReader::parse()
 
         std::string raw_name(file_name_length, '\0');
         std::vector<unsigned char> extra(extra_field_length);
-        if (!read(raw_name.empty() ? 0 : &raw_name[0], raw_name.size()) ||
-            !read(extra.empty() ? 0 : &extra[0], extra.size()) ||
-            (file_comment_length && seek(file_comment_length, SEEK_CUR) != 0))
+        if (!read(raw_name.empty() ? 0 : &raw_name[0], raw_name.size()) || !read(extra.empty() ? 0 : &extra[0], extra.size()) || (file_comment_length && seek(file_comment_length, SEEK_CUR) != 0))
             return fail("truncated central directory variable fields");
         central_position = record_end;
 
@@ -577,9 +572,7 @@ int StoreZipReader::read_file(const std::string& name, const StoreZipMeta& meta,
 
     std::string local_name(local_name_length, '\0');
     std::string normalized_local_name;
-    if (!read(local_name.empty() ? 0 : &local_name[0], local_name.size()) ||
-        !normalize_zip_name(local_name, normalized_local_name) || normalized_local_name != name ||
-        seek(data_offset, SEEK_SET) != 0 || !read(data, (size_t)meta.size))
+    if (!read(local_name.empty() ? 0 : &local_name[0], local_name.size()) || !normalize_zip_name(local_name, normalized_local_name) || normalized_local_name != name || seek(data_offset, SEEK_SET) != 0 || !read(data, (size_t)meta.size))
     {
         error = "failed to read record " + name;
         return -1;
