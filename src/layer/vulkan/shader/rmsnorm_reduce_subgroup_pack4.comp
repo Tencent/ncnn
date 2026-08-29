@@ -1,0 +1,157 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_KHR_shader_subgroup_basic : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_subgroup_extended_types_float16 : require
+#endif
+
+layout(binding = 0) readonly buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
+layout(binding = 1) writeonly buffer rms_blob { vec4 rms_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int group_size;
+    int num_groups_per_channel;
+    int cstep;
+} p;
+
+shared vec4 sdata_sqsum[256];
+
+void main()
+{
+    const int tid = int(gl_LocalInvocationID.x);
+    const int group_id = int(gl_WorkGroupID.y);
+
+    const int gz = group_id / p.num_groups_per_channel;
+    const int gy = group_id % p.num_groups_per_channel;
+    const int offset = gz * p.cstep + gy * p.group_size;
+
+    vec4 sqsum = vec4(0.f);
+
+    for (int t = tid; t < p.group_size; t += 256)
+    {
+        vec4 v = vec4(buffer_ld4(bottom_top_blob_data, offset + t));
+        sqsum += v * v;
+    }
+
+    vec4 sg_sqsum = subgroupAdd(sqsum);
+
+    if (subgroupElect())
+    {
+        sdata_sqsum[int(gl_SubgroupID)] = vec4(sg_sqsum);
+    }
+
+    barrier();
+
+#if ncnn_subgroupSize >= 16
+    if (int(gl_SubgroupID) == 0)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+        const int num_sg = int(gl_NumSubgroups);
+
+        vec4 v_sqsum = lane < num_sg ? sdata_sqsum[lane] : vec4(0.f);
+        vec4 r_sqsum = subgroupAdd(v_sqsum);
+
+        if (subgroupElect())
+        {
+            rms_data[group_id] = r_sqsum / float(p.group_size);
+        }
+    }
+#elif ncnn_subgroupSize == 8
+    if (int(gl_SubgroupID) < 4)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+        const int base = int(gl_SubgroupID) * 8;
+
+        vec4 v_sqsum = sdata_sqsum[base + lane];
+        vec4 r_sqsum = subgroupAdd(v_sqsum);
+
+        if (subgroupElect())
+        {
+            sdata_sqsum[int(gl_SubgroupID)] = vec4(r_sqsum);
+        }
+    }
+
+    barrier();
+
+    if (int(gl_SubgroupID) == 0)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+
+        vec4 v_sqsum = lane < 4 ? sdata_sqsum[lane] : vec4(0.f);
+        vec4 r_sqsum = subgroupAdd(v_sqsum);
+
+        if (subgroupElect())
+        {
+            rms_data[group_id] = r_sqsum / float(p.group_size);
+        }
+    }
+#elif ncnn_subgroupSize == 4
+    if (int(gl_SubgroupID) < 16)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+        const int base = int(gl_SubgroupID) * 4;
+
+        vec4 v_sqsum = sdata_sqsum[base + lane];
+        vec4 r_sqsum = subgroupAdd(v_sqsum);
+
+        if (subgroupElect())
+        {
+            sdata_sqsum[int(gl_SubgroupID)] = vec4(r_sqsum);
+        }
+    }
+
+    barrier();
+
+    if (int(gl_SubgroupID) < 4)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+        const int base = int(gl_SubgroupID) * 4;
+
+        vec4 v_sqsum = sdata_sqsum[base + lane];
+        vec4 r_sqsum = subgroupAdd(v_sqsum);
+
+        if (subgroupElect())
+        {
+            sdata_sqsum[int(gl_SubgroupID)] = vec4(r_sqsum);
+        }
+    }
+
+    barrier();
+
+    if (int(gl_SubgroupID) == 0)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+
+        vec4 v_sqsum = sdata_sqsum[lane];
+        vec4 r_sqsum = subgroupAdd(v_sqsum);
+
+        if (subgroupElect())
+        {
+            rms_data[group_id] = r_sqsum / float(p.group_size);
+        }
+    }
+#else
+    {
+        const int num_sg = 256 / ncnn_subgroupSize;
+
+        for (int stride = num_sg / 2; stride > 0; stride >>= 1)
+        {
+            if (tid < stride)
+            {
+                sdata_sqsum[tid] = sdata_sqsum[tid] + sdata_sqsum[tid + stride];
+            }
+            barrier();
+        }
+
+        if (tid == 0)
+        {
+            rms_data[group_id] = sdata_sqsum[0] / float(p.group_size);
+        }
+    }
+#endif
+}
