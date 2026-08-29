@@ -34,8 +34,8 @@ static inline bool is_batch_reshape(const Operand* input, const Operand* output)
         output_axis += (int)output->shape.size();
 
     if (input_axis < 0 || output_axis < 0
-        || input_axis >= (int)input->shape.size()
-        || output_axis >= (int)output->shape.size())
+            || input_axis >= (int)input->shape.size()
+            || output_axis >= (int)output->shape.size())
         return false;
 
     const int input_batch_size = input->shape[input_axis];
