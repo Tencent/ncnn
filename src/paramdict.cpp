@@ -294,6 +294,12 @@ int ParamDict::load_param(const DataReader& dr)
                 return -1;
             }
 
+            if (len < 0)
+            {
+                NCNN_LOGE("ParamDict read array length %d failed", len);
+                return -1;
+            }
+
             d->params[id].v.create(len);
 
             for (int j = 0; j < len; j++)
