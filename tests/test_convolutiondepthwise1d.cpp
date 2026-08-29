@@ -14,7 +14,7 @@ static int test_convolutiondepthwise1d(int w, int h, int outh, int kernel, int d
     pd.set(3, stride);   // stride_w
     pd.set(4, pad);      // pad_w
     pd.set(5, bias);     // bias_term
-    pd.set(6, outh / group * h / group * kernel * kernel * group);
+    pd.set(6, outh / group * h / group * kernel * group);
     pd.set(7, group);
 
     int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
@@ -25,7 +25,7 @@ static int test_convolutiondepthwise1d(int w, int h, int outh, int kernel, int d
     pd.set(10, activation_params);
 
     std::vector<ncnn::Mat> weights(2);
-    weights[0] = RandomMat(outh / group * h / group * kernel * kernel * group);
+    weights[0] = RandomMat(outh / group * h / group * kernel * group);
     weights[1] = RandomMat(outh);
 
     int ret = test_layer("ConvolutionDepthWise1D", pd, weights, a);

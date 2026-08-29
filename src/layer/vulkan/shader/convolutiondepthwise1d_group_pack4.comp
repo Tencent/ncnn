@@ -1,0 +1,116 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_GOOGLE_include_directive : enable
+#include "vulkan_activation.comp"
+
+layout(constant_id = 0) const int kernel_w = 1;
+layout(constant_id = 1) const int dilation_w = 1;
+layout(constant_id = 2) const int stride_w = 1;
+layout(constant_id = 3) const int bias_term = 0;
+layout(constant_id = 4) const int group = 1;
+layout(constant_id = 5) const int activation_type = 0;
+layout(constant_id = 6) const float activation_param_0 = 0;
+layout(constant_id = 7) const float activation_param_1 = 0;
+
+#define shape_constant_id_offset 8
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
+layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+#if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic) || NCNN_bf16_packed || NCNN_bf16_storage
+// GL_EXT_shader_16bit_storage does not define f16mat4 type :(
+layout(binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
+#else
+layout(binding = 2) readonly buffer weight_blob { sfpmat4 weight_data[]; };
+#endif
+layout(binding = 3) readonly buffer bias_blob { sfpvec4 bias_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+
+    if (gx >= psc(outw) || gy >= psc(outh))
+        return;
+
+    afpvec4 sum;
+
+    if (bias_term == 1)
+    {
+        sum = buffer_ld4(bias_data, gy);
+    }
+    else
+    {
+        sum = afpvec4(0.f);
+    }
+
+    // group convolution
+    const int channels_g = psc(h) / group;
+    const int num_output_g = psc(outh) / group;
+
+    // group id
+    const int gg = gy / num_output_g;
+
+    int w_offset = gy * channels_g * kernel_w;
+    int v_offset_0 = gg * channels_g * psc(w);
+
+    for (int z = 0; z < channels_g; z++)
+    {
+        int v_offset = v_offset_0 + gx * stride_w;
+
+        for (int x = 0; x < kernel_w; x++)
+        {
+            afpvec4 v = buffer_ld4(bottom_blob_data, v_offset + x * dilation_w);
+
+#if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic) || NCNN_bf16_packed || NCNN_bf16_storage
+            // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
+            afpmat4 k = afpmat4(
+                buffer_ld4(weight_data, (w_offset + x) * 4 + 0),
+                buffer_ld4(weight_data, (w_offset + x) * 4 + 1),
+                buffer_ld4(weight_data, (w_offset + x) * 4 + 2),
+                buffer_ld4(weight_data, (w_offset + x) * 4 + 3));
+#else
+            afpmat4 k = afpmat4(weight_data[w_offset + x]);
+#endif
+
+            sum += v * k;
+        }
+
+        w_offset += kernel_w;
+        v_offset_0 += psc(w);
+    }
+
+    sum = activation_afpvec4(sum, activation_type, activation_param_0, activation_param_1);
+
+    const int gi = gy * psc(outw) + gx;
+
+    buffer_st4(top_blob_data, gi, sum);
+}
