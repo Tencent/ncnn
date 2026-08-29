@@ -375,6 +375,17 @@ class ModelBatchFoldToConv1d(nn.Module):
         return self.conv(x)
 
 
+class ModelBatchFoldToUnbatchedPool2d(nn.Module):
+    def __init__(self):
+        super(ModelBatchFoldToUnbatchedPool2d, self).__init__()
+        self.pre = nn.Conv2d(4, 4, 1)
+
+    def forward(self, x):
+        x = self.pre(x)
+        x = torch.flatten(x, 0, 1)
+        return F.max_pool2d(x, 1)
+
+
 class ModelChannelFoldToConv1d(nn.Module):
     def __init__(self):
         super(ModelChannelFoldToConv1d, self).__init__()
@@ -658,6 +669,14 @@ def test():
     if not run_model(name, ModelBatchFoldToConv1d("flatten"), x):
         return False
     if not has_batch_reshape_param(name):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 4, 5, 7)
+    name = "test_ncnn_batch_layout_flatten_to_unbatched_pool2d"
+    if not run_model(name, ModelBatchFoldToUnbatchedPool2d(), x):
+        return False
+    if not has_batch_reshape_param(name, input_axis=0, output_axis=233):
         return False
 
     torch.manual_seed(0)
