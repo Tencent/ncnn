@@ -1,4 +1,4 @@
-// Copyright 2026 Tencent
+// Copyright 2026 futz12
 // SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef PNNX_NCNN_BATCH_RESHAPE_H

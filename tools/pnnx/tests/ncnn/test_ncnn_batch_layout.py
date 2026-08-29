@@ -451,8 +451,7 @@ def run_model(name, net, inputs, inputs2=None):
     mod.save(name + ".pt")
 
     inputshape = ",".join([str(list(x.shape)).replace(" ", "") for x in inputs])
-    pnnxexe = os.environ.get("PNNX_EXE", "../../src/pnnx")
-    pnnxcmd = '"' + pnnxexe + '" ' + name + ".pt inputshape=" + inputshape
+    pnnxcmd = "../../src/pnnx " + name + ".pt inputshape=" + inputshape
     if inputs2 is not None:
         inputshape2 = ",".join([str(list(x.shape)).replace(" ", "") for x in inputs2])
         pnnxcmd += " inputshape2=" + inputshape2
@@ -475,8 +474,7 @@ def run_convert_only(name, net, inputs):
     mod.save(name + ".pt")
 
     inputshape = ",".join([str(list(x.shape)).replace(" ", "") for x in inputs])
-    pnnxexe = os.environ.get("PNNX_EXE", "../../src/pnnx")
-    if os.system('"' + pnnxexe + '" ' + name + ".pt inputshape=" + inputshape) != 0:
+    if os.system("../../src/pnnx " + name + ".pt inputshape=" + inputshape) != 0:
         return False
 
     return True
