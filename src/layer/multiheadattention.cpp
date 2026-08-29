@@ -52,6 +52,19 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
 {
     embed_dim = pd.get(0, 0);
     num_heads = pd.get(1, 1);
+
+    if (num_heads <= 0)
+    {
+        NCNN_LOGE("MultiHeadAttention invalid num_heads %d", num_heads);
+        return -1;
+    }
+
+    if (embed_dim <= 0)
+    {
+        NCNN_LOGE("MultiHeadAttention invalid embed_dim %d", embed_dim);
+        return -1;
+    }
+
     weight_data_size = pd.get(2, 0);
     kdim = pd.get(3, embed_dim);
     vdim = pd.get(4, embed_dim);
