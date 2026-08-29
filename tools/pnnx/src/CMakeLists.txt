@@ -763,6 +763,8 @@ set(pnnx_SRCS
     model_stat.cpp
     storezip.cpp
     utils.cpp
+    load_pt2_parse.cpp
+    load_pt2.cpp
 
     pass_level2.cpp
     pass_level3.cpp
