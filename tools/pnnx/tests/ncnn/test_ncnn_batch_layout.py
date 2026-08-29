@@ -703,13 +703,14 @@ def test():
     if not no_batch_reshape_param(name):
         return False
 
-    torch.manual_seed(0)
-    x = torch.rand(2, 4, 8, 16)
-    name = "test_ncnn_batch_layout_unflatten_after_conv1d"
-    if not run_model(name, ModelBatchUnflattenAfterConv1d(), x):
-        return False
-    if not has_batch_reshape_param(name):
-        return False
+    if version.parse(torch.__version__) >= version.parse('1.13'):
+        torch.manual_seed(0)
+        x = torch.rand(2, 4, 8, 16)
+        name = "test_ncnn_batch_layout_unflatten_after_conv1d"
+        if not run_model(name, ModelBatchUnflattenAfterConv1d(), x):
+            return False
+        if not has_batch_reshape_param(name):
+            return False
 
     return True
 
