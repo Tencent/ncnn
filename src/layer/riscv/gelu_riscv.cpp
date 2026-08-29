@@ -8,6 +8,8 @@
 #include "rvv_mathfun.h"
 #endif // __riscv_vector
 
+#include "cpu.h"
+
 namespace ncnn {
 
 GELU_riscv::GELU_riscv()
@@ -15,10 +17,24 @@ GELU_riscv::GELU_riscv()
 #if __riscv_vector
     support_packing = true;
 #endif
+#if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+#endif
 }
 
 int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+    int elembits = bottom_top_blob.elembits();
+
+#if NCNN_ZFH
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
+        return forward_inplace_fp16s(bottom_top_blob, opt);
+#endif
+
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;
