@@ -53,8 +53,12 @@ def test():
     import test_nn_GRU_pnnx
     b = test_nn_GRU_pnnx.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
+    # ncnn inference
+    import test_nn_GRU_ncnn
+    c = test_nn_GRU_ncnn.test_inference()
+
+    for a0, b0, c0 in zip(a, b, c):
+        if not torch.equal(a0, b0) or not torch.allclose(a0, c0.reshape(a0.shape), 1e-3, 1e-3):
             return False
     return True
 

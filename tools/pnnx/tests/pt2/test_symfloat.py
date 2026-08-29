@@ -57,6 +57,7 @@ def convert(pnnx, workdir, model):
     result = subprocess.run([pnnx, "model.pt2"], cwd=workdir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     if result.returncode != 0:
         raise RuntimeError(result.stdout)
+    return result.stdout
 
 
 def main():
@@ -69,8 +70,8 @@ def main():
         return 77
 
     args.workdir.mkdir(parents=True, exist_ok=True)
-    convert(str(pathlib.Path(args.pnnx).resolve()), args.workdir, Model().eval())
-    if "pnnx.Assert" not in (args.workdir / "model.pnnx.param").read_text():
+    output = convert(str(pathlib.Path(args.pnnx).resolve()), args.workdir, Model().eval())
+    if "pnnx.Assert" not in (args.workdir / "model.pnnx.param").read_text() or "remove runtime assertion" not in output:
         return 1
 
     previous_workdir = pathlib.Path.cwd()

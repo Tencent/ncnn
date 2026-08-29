@@ -221,6 +221,16 @@ std::vector<float> Attribute::get_float32_data() const
             v[i] = float16_to_float32(p[i]);
         }
     }
+    else if (type == 13)
+    {
+        // bf16
+        const unsigned short* p = (const unsigned short*)data.data();
+        for (size_t i = 0; i < v.size(); i++)
+        {
+            const uint32_t bits = (uint32_t)p[i] << 16;
+            memcpy(&v[i], &bits, sizeof(bits));
+        }
+    }
     else
     {
         fprintf(stderr, "cannot convert type %d to float32 data\n", type);
@@ -253,6 +263,17 @@ void Attribute::set_float32_data(const std::vector<float>& newdata)
         for (size_t i = 0; i < newdata.size(); i++)
         {
             p[i] = float32_to_float16(newdata[i]);
+        }
+    }
+    else if (type == 13)
+    {
+        // bf16
+        unsigned short* p = (unsigned short*)data.data();
+        for (size_t i = 0; i < newdata.size(); i++)
+        {
+            uint32_t bits;
+            memcpy(&bits, &newdata[i], sizeof(bits));
+            p[i] = bits >> 16;
         }
     }
     else

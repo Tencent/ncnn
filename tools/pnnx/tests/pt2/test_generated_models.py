@@ -6,6 +6,7 @@ import argparse
 import importlib.util
 import os
 import pathlib
+import struct
 import subprocess
 import tempfile
 
@@ -41,6 +42,16 @@ class StructuredIo(torch.nn.Module):
     def forward(self, x, y, scale=3):
         value = (x + y) * scale
         return {"value": value, "summary": (value.mean(), value.sum(dim=1))}
+
+
+class BFloat16Weights(torch.nn.Module):
+    def __init__(self):
+        super(BFloat16Weights, self).__init__()
+        self.weight = torch.nn.Parameter(torch.arange(8, dtype=torch.bfloat16).reshape(2, 1, 2, 2) / 16)
+        self.bias = torch.nn.Parameter(torch.arange(2, dtype=torch.bfloat16) / 8)
+
+    def forward(self, x):
+        return torch.nn.functional.conv2d(x.to(torch.bfloat16), self.weight, self.bias).float()
 
 
 def load_module(path, name):
@@ -106,6 +117,19 @@ def check_case(args, root, name, model, export_args, export_kwargs, inference_ar
     check_output(expected, ncnn_output, 1e-3, 1e-3, True)
 
 
+def check_bfloat16(args, root):
+    workdir = root / "bfloat16_weights"
+    workdir.mkdir()
+    model = BFloat16Weights().eval()
+    torch.export.save(torch.export.export(model, (torch.rand(1, 1, 3, 3),)), workdir / "model.pt2")
+    run([args.archive_tester, "--weights-archive", workdir / "model.pt2", "bfloat16_weights"])
+    run([args.graph_tester, workdir / "model.pt2", "bfloat16_weights"])
+    run([args.pnnx, "model.pt2", "fp16=0"], workdir)
+    weights = struct.pack("=8f", *(x / 16 for x in range(8)))
+    if weights not in (workdir / "model.ncnn.bin").read_bytes():
+        raise AssertionError("bfloat16 weights were not converted to float32")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--pnnx", type=pathlib.Path, required=True)
@@ -133,6 +157,7 @@ def main():
             torch.manual_seed(0)
             inference_args = tuple(torch.rand(x.shape, dtype=x.dtype) for x in export_args)
             check_case(args, root, name, model, export_args, export_kwargs, inference_args)
+        check_bfloat16(args, root)
 
 
 if __name__ == "__main__":

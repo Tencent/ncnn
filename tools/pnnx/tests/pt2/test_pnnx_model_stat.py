@@ -528,14 +528,14 @@ def test():
                      ((2, 1, 3), (1, 1, 2), (1, 1, 4)),
                      "[2,1,3],[1,1,2],[1,1,4]",
                      "[2,1,3]f32,[1,1,2]f32,[1,1,4]f32",
-                     0, 18):
+                     432, 110):
         return False
 
     if version.parse(torch.__version__) >= version.parse('1.12'):
         if not _run_case("test_pnnx_model_stat_lstm_unbatched", UnbatchedLSTMModel(),
                          ((2, 3),),
                          "[2,3]", "[2,3]f32",
-                         0, 28):
+                         528, 134):
             return False
 
     if hasattr(F, "scaled_dot_product_attention"):

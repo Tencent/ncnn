@@ -337,7 +337,7 @@ private:
 
     bool memo_put(uint32_t index)
     {
-        if (stack.empty() || (size_t)index >= memo.max_size() || (size_t)index >= memo_set.max_size())
+        if (stack.empty() || (size_t)index > data.size() || (size_t)index >= memo.max_size() || (size_t)index >= memo_set.max_size())
             return fail("invalid memo write");
         if (memo.size() <= index)
         {
@@ -502,7 +502,9 @@ private:
         }
         if (callable == "torch._utils _rebuild_parameter_with_state")
         {
-            if (args.list.size() != 4 || args.list[0].type != Value::Tensor || args.list[1].type != Value::Bool)
+            if (args.list.size() != 4 || args.list[0].type != Value::Tensor || args.list[1].type != Value::Bool ||
+                (args.list[2].type != Value::None && (args.list[2].type != Value::Dict || !args.list[2].dict.empty())) ||
+                (args.list[3].type != Value::None && (args.list[3].type != Value::Dict || !args.list[3].dict.empty())))
                 return fail("invalid _rebuild_parameter_with_state arguments");
             Value tensor = args.list[0];
             tensor.is_parameter = true;

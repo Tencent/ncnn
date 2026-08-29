@@ -12,6 +12,8 @@
 #if defined _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#else
+#include <dlfcn.h>
 #endif
 
 #include "ir.h"
@@ -453,6 +455,23 @@ int main(int argc, char** argv)
             return -1;
         }
 
+        if (model_format.format == pnnx::TorchScript || model_format.format == pnnx::Pt2)
+        {
+            for (auto m : customop_modules)
+            {
+                fprintf(stderr, "load custom module %s\n", m.c_str());
+#if _WIN32
+                HMODULE handle = LoadLibraryExA(m.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+                if (!handle)
+                    fprintf(stderr, "LoadLibraryExA %s failed %d\n", m.c_str(), GetLastError());
+#else
+                void* handle = dlopen(m.c_str(), RTLD_LAZY);
+                if (!handle)
+                    fprintf(stderr, "dlopen %s failed %s\n", m.c_str(), dlerror());
+#endif
+            }
+        }
+
         if (model_format.format == pnnx::Other)
         {
 #if BUILD_ONNX2PNNX
@@ -476,13 +495,18 @@ int main(int argc, char** argv)
             int ret = load_torchscript(ptpath, pnnx_graph,
                                        device, input_shapes, input_types, input_contents,
                                        input_shapes2, input_types2, input_contents2,
-                                       customop_modules, module_operators,
+                                       module_operators,
                                        foldable_constants_zippath, foldable_constants);
             if (ret != 0)
                 return ret;
         }
         else if (model_format.format == pnnx::Pt2)
         {
+            if (device != "cpu")
+            {
+                fprintf(stderr, "PT2 models only support device=cpu\n");
+                return -1;
+            }
             pt2 = true;
             int ret = load_pt2(ptpath, pnnx_graph, input_shapes, input_types, input_shapes2, input_types2);
             if (ret != 0)
@@ -531,8 +555,7 @@ int main(int argc, char** argv)
     for (size_t i = 0; pt2 && i < pnnx_graph.ops.size(); i++)
     {
         const std::string& type = pnnx_graph.ops[i]->type;
-        if (type.find("::") != std::string::npos &&
-            std::find(module_operators.begin(), module_operators.end(), type) == module_operators.end())
+        if (type.find("::") != std::string::npos)
         {
             fprintf(stderr, "unsupported operator %s\n", type.c_str());
             return -1;

@@ -81,11 +81,13 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
         Operator* op = g.ops[i];
         if (op->type == "Tensor.item")
         {
+            // ncnn represents scalar values as one-element tensors
             op->type = "Noop";
             continue;
         }
         if (op->type != "pnnx.Assert")
             continue;
+        fprintf(stderr, "warning: remove runtime assertion %s from ncnn graph\n", op->name.c_str());
         op->inputs[0]->remove_consumer(op);
         g.ops.erase(g.ops.begin() + i);
         delete op;

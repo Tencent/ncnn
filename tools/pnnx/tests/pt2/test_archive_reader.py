@@ -64,6 +64,8 @@ def main():
             ],
         )
         probe(args.tester, torchscript, "torchscript")
+        torchscript.write_bytes(torchscript.read_bytes() + b"trailing data")
+        probe(args.tester, torchscript, "torchscript")
 
         compressed_torchscript = root / "compressed_torchscript.pt"
         write_zip(
@@ -142,6 +144,21 @@ def main():
         duplicate = root / "duplicate.zip"
         write_zip(duplicate, [("root/record", b"a"), ("root/./record", b"b")])
         probe(args.tester, duplicate, "invalid-zip")
+
+        unknown_flag = root / "unknown_flag.zip"
+        write_zip(unknown_flag, [("record", b"data")])
+        data = bytearray(unknown_flag.read_bytes())
+        central = data.find(b"PK\x01\x02")
+        struct.pack_into("<H", data, central + 8, 0x10)
+        unknown_flag.write_bytes(data)
+        probe(args.tester, unknown_flag, "invalid-zip")
+
+        mismatched_flag = root / "mismatched_flag.pt2"
+        write_zip(mismatched_flag, [("archive_format", b"pt2"), ("archive_version", b"0"), ("models/model.json", b"{}")])
+        data = bytearray(mismatched_flag.read_bytes())
+        struct.pack_into("<H", data, 6, 0x800)
+        mismatched_flag.write_bytes(data)
+        probe(args.tester, mismatched_flag, "invalid-zip")
 
         compressed = root / "compressed.zip"
         write_zip(compressed, [("record", b"data")], compression=zipfile.ZIP_DEFLATED)

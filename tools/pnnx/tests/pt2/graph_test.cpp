@@ -117,6 +117,18 @@ static int check_real_graph(const pnnx::Graph& graph, const std::string& name)
         }
         return outputs == 3 ? 0 : -1;
     }
+
+    if (name == "bfloat16_weights")
+    {
+        const pnnx::Operator* conv = find_operator(graph, "conv2d");
+        const pnnx::Operator* weight = find_operator(graph, "weight");
+        const pnnx::Operator* bias = find_operator(graph, "bias");
+        return conv && conv->type == "aten::conv2d" &&
+                       weight && weight->attrs.at("data").type == 13 &&
+                       bias && bias->attrs.at("data").type == 13
+                   ? 0
+                   : -1;
+    }
     return -1;
 }
 
@@ -376,6 +388,16 @@ static pnnx::Pt2Program pilot_program()
     program.nodes.push_back(index);
     program.tensors["index_out"] = tensor_meta(std::vector<int64_t>{1, 256});
 
+    pnnx::Pt2Node select;
+    select.name = "select";
+    select.target = "torch.ops.aten.select.int";
+    select.inputs.push_back(named_argument("self", tensor_argument("index_out")));
+    select.inputs.push_back(named_argument("dim", int_argument(1)));
+    select.inputs.push_back(named_argument("index", int_argument(0)));
+    select.outputs.push_back(tensor_argument("select_out"));
+    program.nodes.push_back(select);
+    program.tensors["select_out"] = tensor_meta(std::vector<int64_t>{1});
+
     program.outputs.push_back(tensor_argument("index_out"));
     program.output_specs.push_back(tensor_argument("index_out"));
     return program;
@@ -397,11 +419,13 @@ static int check_pilot()
     const pnnx::Operator* view = find_operator(graph, "view");
     const pnnx::Operator* item = find_operator(graph, "item");
     const pnnx::Operator* index = find_operator(graph, "index");
+    const pnnx::Operator* select = find_operator(graph, "select");
     if (!convolution || convolution->type != "aten::convolution" || convolution->inputs.size() != 9 ||
         !norm || norm->type != "aten::native_layer_norm" || norm->inputs.size() != 5 || norm->outputs.size() != 3 ||
         !view || view->type != "aten::view" || view->inputs.size() != 2 ||
         !item || item->type != "aten::item" || item->inputs.size() != 1 ||
-        !index || index->type != "aten::index" || index->inputs.size() != 2 || index->inputs[1]->producer->type != "prim::ListConstruct" || check_topology(graph) != 0)
+        !index || index->type != "aten::index" || index->inputs.size() != 2 || index->inputs[1]->producer->type != "prim::ListConstruct" ||
+        !select || select->type != "aten::select" || select->inputs.size() != 3 || check_topology(graph) != 0)
         return -1;
 
     pnnx::Pt2Program generated_name_collision = pilot_program();

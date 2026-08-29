@@ -53,8 +53,12 @@ def test():
     import test_nn_LSTM_pnnx
     b = test_nn_LSTM_pnnx.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+    # ncnn inference
+    import test_nn_LSTM_ncnn
+    c = test_nn_LSTM_ncnn.test_inference()
+
+    for a0, b0, c0 in zip(a, b, c):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4) or not torch.allclose(a0, c0.reshape(a0.shape), 1e-3, 1e-3):
             return False
     return True
 

@@ -141,9 +141,11 @@ def main():
         return 1
 
     symbol = input_size["as_expr"]["expr_str"]
+    symbol_name = re.match(r"Symbol\('([^']+)'", symbol).group(1)
     cases = [
         ("false_assumption", True, symbol.replace("positive=True", "positive=False"), True, ""),
         ("unsupported", False, "Unsupported()", False, "unsupported symbolic expression Unsupported()"),
+        ("unknown_symbol", False, "Symbol('unknown', positive=True, integer=True)", False, "unsupported symbolic expression"),
         ("unknown_assumption", True, symbol.replace("positive=True", "unknown=True"), False, "unsupported symbolic input dimension"),
         ("empty_symbol", True, "Symbol('', positive=True, integer=True)", False, "unsupported symbolic input dimension"),
         ("negative", False, "Integer(-1)", False, "symbolic expression evaluates to a negative dimension"),
@@ -172,8 +174,11 @@ def main():
 
     guard_cases = [
         ("guard_supported", "L['%s'].size()[0] != max(1, L['%s'].size()[0] // 2)" % (input_name, input_name), True, ""),
+        ("guard_symbol", "%s >= 2" % symbol_name, True, ""),
+        ("guard_relation", "Eq(%s, 6)" % symbol_name, True, ""),
+        ("guard_leading_space", "  Eq(%s, 6)" % symbol_name, True, ""),
         ("guard_false", "L['%s'].size()[0] < 6" % input_name, False, "violates runtime guard"),
-        ("guard_unsupported", "L['%s'].stride()[0] == 3" % input_name, False, "unsupported runtime guard"),
+        ("guard_unsupported", "L['%s'].stride()[0] == 3" % input_name, False, "cannot evaluate runtime guard"),
     ]
     for name, guard, valid, expected in guard_cases:
         mutated = copy.deepcopy(program)

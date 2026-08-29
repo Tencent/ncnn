@@ -42,24 +42,29 @@ Pt2Program::Pt2Program()
 
 static int count_leaves(const Pt2JsonValue& value)
 {
-    if (value.type != Pt2JsonValue::Object)
-        return -1;
-    std::map<std::string, Pt2JsonValue>::const_iterator type = value.object.find("type");
-    std::map<std::string, Pt2JsonValue>::const_iterator children = value.object.find("children_spec");
-    if (type == value.object.end() || children == value.object.end() || children->second.type != Pt2JsonValue::Array)
-        return -1;
-    if (type->second.type == Pt2JsonValue::Null)
-        return children->second.array.empty() ? 1 : -1;
-    if (type->second.type != Pt2JsonValue::String)
-        return -1;
-
+    std::vector<const Pt2JsonValue*> values(1, &value);
     int count = 0;
-    for (size_t i = 0; i < children->second.array.size(); i++)
+    while (!values.empty())
     {
-        const int n = count_leaves(children->second.array[i]);
-        if (n < 0)
+        const Pt2JsonValue& item = *values.back();
+        values.pop_back();
+        if (item.type != Pt2JsonValue::Object)
             return -1;
-        count += n;
+        std::map<std::string, Pt2JsonValue>::const_iterator type = item.object.find("type");
+        std::map<std::string, Pt2JsonValue>::const_iterator children = item.object.find("children_spec");
+        if (type == item.object.end() || children == item.object.end() || children->second.type != Pt2JsonValue::Array)
+            return -1;
+        if (type->second.type == Pt2JsonValue::Null)
+        {
+            if (!children->second.array.empty())
+                return -1;
+            count++;
+            continue;
+        }
+        if (type->second.type != Pt2JsonValue::String)
+            return -1;
+        for (size_t i = 0; i < children->second.array.size(); i++)
+            values.push_back(&children->second.array[i]);
     }
     return count;
 }
@@ -1441,7 +1446,7 @@ private:
                         return fail(path + ".outputs[" + std::to_string(j) + "]", 0, "invalid symbolic float output");
                 }
                 else if (output.type != Pt2Argument::None)
-                    return fail(path + ".outputs[" + std::to_string(j) + "]", 0, "invalid tensor output");
+                    return fail(path + ".outputs[" + std::to_string(j) + "]", 0, "invalid operator output");
             }
         }
         for (size_t i = 0; i < program.outputs.size(); i++)

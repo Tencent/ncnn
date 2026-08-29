@@ -119,6 +119,18 @@ def make_raw_archive(entries, byteorder="little"):
     return records
 
 
+def make_legacy_archive(parameter):
+    state = io.BytesIO()
+    torch.save({"weight": parameter}, state, pickle_protocol=2)
+    records = make_raw_archive([("weight", 7, [1], bytes(4))])
+    model = records[find_record(records, "models/model.json")]
+    return {
+        "model/serialized_exported_program.json": model,
+        "model/serialized_state_dict.pt": state.getvalue(),
+        "model/version": b"8.20",
+    }
+
+
 def run(tester, path, case, valid, expected=""):
     process = subprocess.run(
         [str(tester), "--weights-archive", str(path), case],
@@ -240,6 +252,26 @@ def main():
         offset_mismatch = root / "raw_offset_mismatch.pt2"
         write_zip(offset_mismatch, records)
         run(args.tester, offset_mismatch, "scalar_types", False, "payload tensor metadata does not match")
+
+        legacy_pickle = zip_bytes(make_legacy_archive(torch.nn.Parameter(torch.ones(1))))
+
+        def oversized_memo(records):
+            name = find_record(records, "data.pkl")
+            records[name] = records[name].replace(b"q\x00", b"r\xff\xff\xff\xff", 1)
+
+        mutate_legacy(legacy_pickle, root, "memo", oversized_memo, "invalid memo write", args.tester)
+
+        def unsafe_nested_name(records):
+            name = find_record(records, "data.pkl")
+            records["../" + name] = records.pop(name)
+
+        mutate_legacy(legacy_pickle, root, "unsafe_name", unsafe_nested_name, "unsafe ZIP record name", args.tester)
+
+        parameter = torch.nn.Parameter(torch.ones(1))
+        parameter.state = 1
+        stateful = root / "legacy_parameter_state.pt2"
+        write_zip(stateful, make_legacy_archive(parameter))
+        run(args.tester, stateful, "state_and_constants", False, "invalid _rebuild_parameter_with_state arguments")
 
         if tuple(int(x) for x in torch.__version__.split("+")[0].split(".")[:2]) < (2, 8):
             legacy = root / "legacy.pt2"

@@ -223,11 +223,11 @@ static bool match_argument(const Pt2Argument& arg, const c10::TypePtr& type)
         if (arg.type == Pt2Argument::Ints)
             return kind == c10::TypeKind::IntType || kind == c10::TypeKind::SymIntType;
         if (arg.type == Pt2Argument::Floats)
-            return kind == c10::TypeKind::FloatType;
+            return kind == c10::TypeKind::FloatType || kind == c10::TypeKind::SymFloatType;
         if (arg.type == Pt2Argument::Strings)
             return kind == c10::TypeKind::StringType;
         if (arg.type == Pt2Argument::Bools)
-            return kind == c10::TypeKind::BoolType;
+            return kind == c10::TypeKind::BoolType || kind == c10::TypeKind::SymBoolType;
         if (arg.type == Pt2Argument::SymInts)
             return kind == c10::TypeKind::IntType || kind == c10::TypeKind::SymIntType || kind == c10::TypeKind::NumberType;
         if (arg.type == Pt2Argument::SymFloats)
@@ -243,15 +243,15 @@ static bool match_argument(const Pt2Argument& arg, const c10::TypePtr& type)
     if (arg.type == Pt2Argument::Tensor || (arg.type == Pt2Argument::OptionalTensor && arg.has_tensor))
         return kind == c10::TypeKind::TensorType;
     if (arg.type == Pt2Argument::Int)
-        return kind == c10::TypeKind::IntType || kind == c10::TypeKind::NumberType;
+        return kind == c10::TypeKind::IntType || kind == c10::TypeKind::SymIntType || kind == c10::TypeKind::NumberType;
     if (arg.type == Pt2Argument::Float)
-        return kind == c10::TypeKind::FloatType || kind == c10::TypeKind::NumberType;
+        return kind == c10::TypeKind::FloatType || kind == c10::TypeKind::SymFloatType || kind == c10::TypeKind::NumberType;
     if (arg.type == Pt2Argument::Complex)
         return kind == c10::TypeKind::ComplexType || kind == c10::TypeKind::NumberType;
     if (arg.type == Pt2Argument::String)
         return kind == c10::TypeKind::StringType;
     if (arg.type == Pt2Argument::Bool)
-        return kind == c10::TypeKind::BoolType;
+        return kind == c10::TypeKind::BoolType || kind == c10::TypeKind::SymBoolType;
     if (arg.type == Pt2Argument::ScalarType || arg.type == Pt2Argument::MemoryFormat || arg.type == Pt2Argument::Layout)
         return kind == c10::TypeKind::IntType;
     if (arg.type == Pt2Argument::Device)
@@ -800,6 +800,8 @@ private:
         std::string overload;
         if (parse_target(node.target, name, overload) != 0)
             return fail_node(index, node, "invalid operator target");
+        if (name == "aten::rnn_tanh" || name == "aten::rnn_relu")
+            return fail_node(index, node, "unsupported operator " + name);
 
         const auto handle = c10::Dispatcher::singleton().findSchema(c10::OperatorName(name, overload));
         if (!handle)
@@ -816,6 +818,16 @@ private:
         const std::string opname = !node.name.empty() ? node.name : !node.outputs.empty() && !node.outputs[0].s.empty() ? node.outputs[0].s : generated_name();
         if (add_operator_name(opname) != 0)
             return fail_node(index, node, error, &schema);
+        const bool rnn = name == "aten::gru" || name == "aten::lstm";
+        Operand* rnn_input = 0;
+        Operand* rnn_hx = 0;
+        const Pt2Argument* rnn_weights = 0;
+        int rnn_num_layers = 0;
+        bool rnn_bias = false;
+        bool rnn_train = false;
+        bool rnn_bidirectional = false;
+        bool rnn_batch_first = false;
+        float rnn_dropout = 0.f;
         std::vector<Operand*> op_inputs;
         std::vector<std::string> input_names;
         const std::vector<c10::Argument>& schema_args = schema.arguments();
@@ -850,6 +862,7 @@ private:
             if (!matches)
                 return fail_node(index, node, "argument type does not match dispatcher schema for " + schema_arg.name(), &schema);
 
+            // PT2 has no TorchScript level1 pass, normalize dispatcher arguments and operators to existing level2 conventions here.
             Pt2Argument empty_stride;
             if (schema_arg.name() == "stride" && arg->type == Pt2Argument::Ints && arg->ai.empty()
                 && (name == "aten::avg_pool1d" || name == "aten::avg_pool2d" || name == "aten::avg_pool3d"
@@ -860,6 +873,18 @@ private:
             Operand* operand = 0;
             if (materialize_argument(*arg, operand) != 0)
                 return fail_node(index, node, error + " for argument " + schema_arg.name(), &schema);
+            if (rnn)
+            {
+                if (schema_arg.name() == "input") rnn_input = operand;
+                else if (schema_arg.name() == "hx") rnn_hx = operand;
+                else if (schema_arg.name() == "params") rnn_weights = arg;
+                else if (schema_arg.name() == "has_biases") rnn_bias = arg->b;
+                else if (schema_arg.name() == "num_layers") rnn_num_layers = arg->i;
+                else if (schema_arg.name() == "dropout") rnn_dropout = arg->f;
+                else if (schema_arg.name() == "train") rnn_train = arg->b;
+                else if (schema_arg.name() == "bidirectional") rnn_bidirectional = arg->b;
+                else if (schema_arg.name() == "batch_first") rnn_batch_first = arg->b;
+            }
             op_inputs.push_back(operand);
             input_names.push_back(schema_arg.name());
         }
@@ -927,21 +952,26 @@ private:
             && op->inputs[0]->producer->type == "pnnx.Attribute" && op->inputs[1]->producer->type == "pnnx.Attribute"
             && op->inputs[2]->producer->type == "prim::Constant" && op->inputs[2]->producer->params.at("value").i == 0)
         {
-            Attribute weight = op->inputs[0]->producer->attrs.at("data");
+            const Attribute& weight = op->inputs[0]->producer->attrs.at("data");
+            const Attribute& weight_g = op->inputs[1]->producer->attrs.at("data");
+            if ((weight.type != 1 && weight.type != 2 && weight.type != 3 && weight.type != 13) ||
+                (weight_g.type != 1 && weight_g.type != 2 && weight_g.type != 3 && weight_g.type != 13))
+                return fail_node(index, node, "unsupported weight_norm scalar type", &schema);
+            Attribute folded = weight;
             std::vector<float> weight_data = weight.get_float32_data();
-            const std::vector<float> weight_g = op->inputs[1]->producer->attrs.at("data").get_float32_data();
-            if (!weight.shape.empty() && weight.shape[0] > 0 && weight_g.size() >= (size_t)weight.shape[0]
+            const std::vector<float> weight_g_data = weight_g.get_float32_data();
+            if (!weight.shape.empty() && weight.shape[0] > 0 && weight_g_data.size() >= (size_t)weight.shape[0]
                 && weight_data.size() % weight.shape[0] == 0)
             {
                 const int dim0 = weight.shape[0];
-                apply_weight_norm(weight_data, weight_g, dim0, weight_data.size() / dim0);
-                weight.set_float32_data(weight_data);
+                apply_weight_norm(weight_data, weight_g_data, dim0, weight_data.size() / dim0);
+                folded.set_float32_data(weight_data);
                 for (size_t i = 0; i < op->inputs.size(); i++)
                     op->inputs[i]->remove_consumer(op);
                 op->inputs.clear();
                 op->inputnames.clear();
                 op->type = "pnnx.Attribute";
-                op->attrs["data"] = weight;
+                op->attrs["data"] = folded;
             }
         }
         if (name == "aten::alias" || name == "aten::lift_fresh_copy")
@@ -963,8 +993,87 @@ private:
             op->inputnames[1] = "size";
             op->inputnames[2] = "scale_factor";
         }
-        if (name == "aten::gru" || name == "aten::lstm" || name == "aten::rnn_tanh" || name == "aten::rnn_relu")
-            op->type = "torch._VF." + name.substr(6);
+        if (rnn)
+        {
+            if (!rnn_input || !rnn_hx || !rnn_weights || rnn_weights->type != Pt2Argument::Tensors || rnn_num_layers <= 0 || rnn_dropout != 0.f || rnn_train)
+                return fail_node(index, node, "unsupported recurrent operator arguments", &schema);
+
+            const int directions = rnn_bidirectional ? 2 : 1;
+            const size_t basic_weights = 2 + (rnn_bias ? 2 : 0);
+            bool projection = false;
+            if (name == "aten::lstm" && rnn_weights->as.size() == (size_t)rnn_num_layers * directions * (basic_weights + 1))
+                projection = true;
+            else if (rnn_weights->as.size() != (size_t)rnn_num_layers * directions * basic_weights)
+                return fail_node(index, node, "invalid recurrent operator weights", &schema);
+
+            std::vector<std::string> weight_names;
+            for (int k = 0; k < rnn_num_layers; k++)
+            {
+                for (int d = 0; d < directions; d++)
+                {
+                    const std::string suffix = "_l" + std::to_string(k) + (d ? "_reverse" : "");
+                    weight_names.push_back("weight_ih" + suffix);
+                    weight_names.push_back("weight_hh" + suffix);
+                    if (rnn_bias)
+                    {
+                        weight_names.push_back("bias_ih" + suffix);
+                        weight_names.push_back("bias_hh" + suffix);
+                    }
+                    if (projection)
+                        weight_names.push_back("weight_hr" + suffix);
+                }
+            }
+
+            for (size_t i = 0; i < weight_names.size(); i++)
+            {
+                Operand* weight = graph.get_operand(rnn_weights->as[i]);
+                if (!weight || !weight->producer || weight->producer->type != "pnnx.Attribute")
+                    return fail_node(index, node, "invalid recurrent operator weight", &schema);
+                op->attrs[weight_names[i]] = weight->producer->attrs.at("data");
+            }
+
+            const Attribute& weight_ih = op->attrs.at("weight_ih_l0");
+            const Attribute& weight_hh = op->attrs.at("weight_hh_l0");
+            const int gates = name == "aten::lstm" ? 4 : name == "aten::gru" ? 3 : 1;
+            if (weight_ih.shape.size() != 2 || weight_hh.shape.size() != 2 || weight_ih.shape[0] <= 0 || weight_ih.shape[0] % gates != 0)
+                return fail_node(index, node, "invalid recurrent operator weight shape", &schema);
+
+            for (size_t i = 0; i < op->inputs.size(); i++)
+                op->inputs[i]->remove_consumer(op);
+            op->inputs.clear();
+            op->inputnames.clear();
+            op->inputs.push_back(rnn_input);
+            rnn_input->consumers.push_back(op);
+            if (name == "aten::lstm")
+            {
+                if (!rnn_hx->producer || rnn_hx->producer->type != "prim::ListConstruct" || rnn_hx->producer->inputs.size() != 2)
+                    return fail_node(index, node, "invalid LSTM state", &schema);
+                Operand* hidden = rnn_hx->producer->inputs[0];
+                Operand* cell = rnn_hx->producer->inputs[1];
+                if (!hidden->producer || !cell->producer || hidden->producer->type != "aten::zeros" || cell->producer->type != "aten::zeros")
+                {
+                    op->inputs.push_back(hidden);
+                    op->inputs.push_back(cell);
+                    hidden->consumers.push_back(op);
+                    cell->consumers.push_back(op);
+                }
+            }
+            else if (!rnn_hx->producer || rnn_hx->producer->type != "aten::zeros")
+            {
+                op->inputs.push_back(rnn_hx);
+                rnn_hx->consumers.push_back(op);
+            }
+
+            op->type = name == "aten::gru" ? "nn.GRU" : "nn.LSTM";
+            op->params["input_size"] = weight_ih.shape[1];
+            op->params["hidden_size"] = weight_ih.shape[0] / gates;
+            op->params["num_layers"] = rnn_num_layers;
+            op->params["bias"] = rnn_bias;
+            op->params["batch_first"] = rnn_batch_first;
+            op->params["bidirectional"] = rnn_bidirectional;
+            if (name == "aten::lstm")
+                op->params["proj_size"] = projection ? weight_hh.shape[1] : 0;
+        }
         if (name == "aten::tril")
         {
             op->type = "torch.tril";

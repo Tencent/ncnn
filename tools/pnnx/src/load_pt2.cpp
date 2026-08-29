@@ -221,9 +221,9 @@ static bool get_symbol_name(const std::string& expression, std::string& name)
     return *p == '\0';
 }
 
-static bool parse_guard_value(const char*& p, const std::map<std::string, std::vector<int64_t> >& shapes, int64_t& value);
+static bool parse_guard_value(const char*& p, const std::map<std::string, std::vector<int64_t> >& shapes, const std::map<std::string, int64_t>& symbols, int64_t& value);
 
-static bool parse_guard_primary(const char*& p, const std::map<std::string, std::vector<int64_t> >& shapes, int64_t& value)
+static bool parse_guard_primary(const char*& p, const std::map<std::string, std::vector<int64_t> >& shapes, const std::map<std::string, int64_t>& symbols, int64_t& value)
 {
     skip_space(p);
     if (strncmp(p, "L['", 3) == 0)
@@ -249,7 +249,7 @@ static bool parse_guard_primary(const char*& p, const std::map<std::string, std:
         return true;
     }
 
-    if (strncmp(p, "max", 3) == 0)
+    if (strncmp(p, "max(", 4) == 0)
     {
         p += 3;
         skip_space(p);
@@ -258,13 +258,13 @@ static bool parse_guard_primary(const char*& p, const std::map<std::string, std:
         p++;
         int64_t a;
         int64_t b;
-        if (!parse_guard_value(p, shapes, a))
+        if (!parse_guard_value(p, shapes, symbols, a))
             return false;
         skip_space(p);
         if (*p != ',')
             return false;
         p++;
-        if (!parse_guard_value(p, shapes, b))
+        if (!parse_guard_value(p, shapes, symbols, b))
             return false;
         skip_space(p);
         if (*p != ')')
@@ -277,12 +277,24 @@ static bool parse_guard_primary(const char*& p, const std::map<std::string, std:
     if (*p == '(')
     {
         p++;
-        if (!parse_guard_value(p, shapes, value))
+        if (!parse_guard_value(p, shapes, symbols, value))
             return false;
         skip_space(p);
         if (*p != ')')
             return false;
         p++;
+        return true;
+    }
+
+    if ((*p >= 'A' && *p <= 'Z') || (*p >= 'a' && *p <= 'z') || *p == '_')
+    {
+        const char* begin = p++;
+        while ((*p >= 'A' && *p <= 'Z') || (*p >= 'a' && *p <= 'z') || (*p >= '0' && *p <= '9') || *p == '_')
+            p++;
+        std::map<std::string, int64_t>::const_iterator it = symbols.find(std::string(begin, p));
+        if (it == symbols.end())
+            return false;
+        value = it->second;
         return true;
     }
 
@@ -295,9 +307,9 @@ static bool parse_guard_primary(const char*& p, const std::map<std::string, std:
     return true;
 }
 
-static bool parse_guard_value(const char*& p, const std::map<std::string, std::vector<int64_t> >& shapes, int64_t& value)
+static bool parse_guard_value(const char*& p, const std::map<std::string, std::vector<int64_t> >& shapes, const std::map<std::string, int64_t>& symbols, int64_t& value)
 {
-    if (!parse_guard_primary(p, shapes, value))
+    if (!parse_guard_primary(p, shapes, symbols, value))
         return false;
     for (;;)
     {
@@ -306,19 +318,40 @@ static bool parse_guard_value(const char*& p, const std::map<std::string, std::v
             return true;
         p += 2;
         int64_t divisor;
-        if (!parse_guard_primary(p, shapes, divisor) || !floor_div_int64(value, divisor, value))
+        if (!parse_guard_primary(p, shapes, symbols, divisor) || !floor_div_int64(value, divisor, value))
             return false;
     }
 }
 
-static int evaluate_guard(const std::string& guard, const std::map<std::string, std::vector<int64_t> >& shapes)
+static int evaluate_guard(const std::string& guard, const std::map<std::string, std::vector<int64_t> >& shapes, const std::map<std::string, int64_t>& symbols)
 {
     const char* p = guard.c_str();
+    skip_space(p);
+    bool eq = false;
+    if (strncmp(p, "Eq(", 3) == 0)
+    {
+        eq = true;
+        p += 3;
+    }
+
     int64_t a;
     int64_t b;
-    if (!parse_guard_value(p, shapes, a))
+    if (!parse_guard_value(p, shapes, symbols, a))
         return -1;
     skip_space(p);
+
+    if (eq)
+    {
+        if (*p++ != ',' || !parse_guard_value(p, shapes, symbols, b))
+            return -1;
+        skip_space(p);
+        if (*p++ != ')')
+            return -1;
+        skip_space(p);
+        if (*p)
+            return -1;
+        return a == b;
+    }
 
     const char* op = p;
     if (p[0] && (p[0] == '=' || p[0] == '!' || p[0] == '<' || p[0] == '>') && p[1] == '=')
@@ -327,7 +360,7 @@ static int evaluate_guard(const std::string& guard, const std::map<std::string, 
         p++;
     else
         return -1;
-    if (!parse_guard_value(p, shapes, b))
+    if (!parse_guard_value(p, shapes, symbols, b))
         return -1;
     skip_space(p);
     if (*p)
@@ -440,10 +473,10 @@ static int bind_input_shapes(const Pt2Program& program, const std::vector<std::v
     }
     for (size_t i = 0; i < program.guards_code.size(); i++)
     {
-        const int result = evaluate_guard(program.guards_code[i], shapes);
+        const int result = evaluate_guard(program.guards_code[i], shapes, symbols);
         if (result < 0)
         {
-            error = "unsupported runtime guard " + program.guards_code[i];
+            error = "cannot evaluate runtime guard " + program.guards_code[i] + "; simplify the export constraints or provide explicit inputshape profiles";
             return -1;
         }
         if (result == 0)

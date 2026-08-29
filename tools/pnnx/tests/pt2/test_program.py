@@ -111,6 +111,7 @@ def main():
         run_case(args.tester, root, "json_surrogate", "--json", '"\\ud800"', False, ("missing low surrogate",))
         run_case(args.tester, root, "json_utf8", "--json", '"中文😀"', True)
         run_case(args.tester, root, "json_invalid_utf8", "--json", b'"\xc0\xaf"', False, ("invalid utf-8",))
+        run_case(args.tester, root, "json_deep", "--json", "[" * 257 + "0" + "]" * 257, False, ("nesting too deep",))
         base = program()
         run_case(args.tester, root, "program_valid", "--program-json", encoded(base), True)
 

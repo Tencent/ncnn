@@ -355,7 +355,7 @@ int StoreZipReader::parse()
     size_t eocd_tail_offset = SIZE_MAX;
     for (size_t i = search_size - 22 + 1; i-- > 0;)
     {
-        if (read_le32(&tail[i]) == 0x06054b50 && i + 22u + read_le16(&tail[i + 20]) == tail.size())
+        if (read_le32(&tail[i]) == 0x06054b50 && i + 22u + read_le16(&tail[i + 20]) <= tail.size())
         {
             eocd_tail_offset = i;
             break;

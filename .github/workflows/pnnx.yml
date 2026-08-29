@@ -311,10 +311,7 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: pnnx
-        path: |
-          tools/pnnx/build/src/pnnx
-          tools/pnnx/build/tests/pt2/pnnx_pt2_archive_test
-          tools/pnnx/build/tests/pt2/pnnx_pt2_graph_test
+        path: tools/pnnx/build/src/pnnx
         compression-level: 9
 
   test:
@@ -440,20 +437,19 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         name: pnnx
-        path: tools/pnnx/build
+        path: tools/pnnx/build/src
 
     - name: test
       run: |
         export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
         chmod +x tools/pnnx/build/src/pnnx
-        chmod +x tools/pnnx/build/tests/pt2/pnnx_pt2_archive_test
-        chmod +x tools/pnnx/build/tests/pt2/pnnx_pt2_graph_test
         export OMP_THREAD_LIMIT=1
         export OMP_NUM_THREADS=1
         export MKL_NUM_THREADS=1
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
         cd tools/pnnx/build
-        ctest --output-on-failure -j 8
+        ctest --output-on-failure -j 8 -LE pt2
+        ctest --output-on-failure -j 8 -L pt2-full
 
     - name: python-pnnx
       run: |

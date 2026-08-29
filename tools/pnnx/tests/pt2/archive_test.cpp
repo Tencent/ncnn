@@ -61,6 +61,23 @@ static bool check_f32(const pnnx::Pt2Weights& weights, const char* name, const s
     return true;
 }
 
+static bool check_bf16(const pnnx::Pt2Weights& weights, const char* name, const std::vector<int>& shape, const std::vector<float>& expected)
+{
+    std::map<std::string, pnnx::Attribute>::const_iterator it = weights.values.find(name);
+    if (it == weights.values.end() || it->second.type != 13 || it->second.shape != shape || it->second.data.size() != expected.size() * 2)
+        return false;
+    for (size_t i = 0; i < expected.size(); i++)
+    {
+        uint32_t bits;
+        uint16_t value;
+        memcpy(&bits, &expected[i], sizeof(bits));
+        memcpy(&value, &it->second.data[i * 2], sizeof(value));
+        if (value != bits >> 16)
+            return false;
+    }
+    return true;
+}
+
 static int check_weights(const pnnx::Pt2Weights& weights, const std::string& name)
 {
     if (name == "structured_io")
@@ -93,6 +110,18 @@ static int check_weights(const pnnx::Pt2Weights& weights, const std::string& nam
                        check_f32(weights, "weight", std::vector<int>{6, 5}, weight) &&
                        check_f32(weights, "offset_view", std::vector<int>{5}, std::vector<float>{3.f, 4.f, 5.f, 6.f, 7.f}) &&
                        check_f32(weights, "strided_view", std::vector<int>{5}, std::vector<float>{3.f, 5.f, 7.f, 9.f, 11.f})
+                   ? 0
+                   : -1;
+    }
+
+    if (name == "bfloat16_weights")
+    {
+        std::vector<float> weight(8);
+        for (size_t i = 0; i < weight.size(); i++)
+            weight[i] = i / 16.f;
+        return weights.values.size() == 2 &&
+                       check_bf16(weights, "weight", std::vector<int>{2, 1, 2, 2}, weight) &&
+                       check_bf16(weights, "bias", std::vector<int>{2}, std::vector<float>{0.f, .125f})
                    ? 0
                    : -1;
     }

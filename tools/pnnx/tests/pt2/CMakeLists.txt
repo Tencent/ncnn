@@ -224,7 +224,7 @@ pnnx_pt2_add_test(nn_ReplicationPad1d)
 pnnx_pt2_add_test(nn_ReplicationPad2d)
 pnnx_pt2_add_test(nn_ReplicationPad3d)
 pnnx_pt2_add_test(nn_RMSNorm)
-pnnx_pt2_add_test(nn_RNN)
+# aten::rnn_tanh and aten::rnn_relu are not supported
 pnnx_pt2_add_test(nn_RReLU)
 pnnx_pt2_add_test(nn_SELU)
 pnnx_pt2_add_test(nn_Sigmoid)

@@ -34,7 +34,7 @@ public:
         }
 
         skip_space();
-        if (!parse_value(value))
+        if (!parse_value(value, 0))
         {
             _error = error;
             return -1;
@@ -68,8 +68,10 @@ private:
             pos++;
     }
 
-    bool parse_value(Pt2JsonValue& value)
+    bool parse_value(Pt2JsonValue& value, int depth)
     {
+        if (depth > 256)
+            return fail("nesting too deep");
         if (pos == size)
             return fail("unexpected end of input");
 
@@ -92,9 +94,9 @@ private:
             return parse_string(value.value);
         }
         if (data[pos] == '[')
-            return parse_array(value);
+            return parse_array(value, depth);
         if (data[pos] == '{')
-            return parse_object(value);
+            return parse_object(value, depth);
         if (data[pos] == '-' || (data[pos] >= '0' && data[pos] <= '9'))
             return parse_number(value);
 
@@ -313,7 +315,7 @@ private:
         return true;
     }
 
-    bool parse_array(Pt2JsonValue& value)
+    bool parse_array(Pt2JsonValue& value, int depth)
     {
         value.type = Pt2JsonValue::Array;
         pos++;
@@ -327,7 +329,7 @@ private:
         while (true)
         {
             value.array.push_back(Pt2JsonValue());
-            if (!parse_value(value.array.back()))
+            if (!parse_value(value.array.back(), depth + 1))
                 return false;
             skip_space();
             if (pos == size)
@@ -343,7 +345,7 @@ private:
         }
     }
 
-    bool parse_object(Pt2JsonValue& value)
+    bool parse_object(Pt2JsonValue& value, int depth)
     {
         value.type = Pt2JsonValue::Object;
         pos++;
@@ -367,7 +369,7 @@ private:
             skip_space();
 
             Pt2JsonValue child;
-            if (!parse_value(child))
+            if (!parse_value(child, depth + 1))
                 return false;
             if (!value.object.insert(std::make_pair(key, std::move(child))).second)
                 return fail("duplicate object key");
