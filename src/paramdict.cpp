@@ -384,7 +384,7 @@ int ParamDict::load_param(const DataReader& dr)
                     d->params[id].s = std::string(vstr);
             }
 
-            if (d->params[id].s[d->params[id].s.size() - 1] == '\"')
+            if (!d->params[id].s.empty() && d->params[id].s[d->params[id].s.size() - 1] == '\"')
                 d->params[id].s.resize(d->params[id].s.size() - 1);
 
             d->params[id].type = 7;
