@@ -357,6 +357,55 @@ class ModelSameBatchAxisUnflattenCompat(nn.Module):
         return x
 
 
+class ModelBatchFoldToConv1d(nn.Module):
+    def __init__(self, mode):
+        super(ModelBatchFoldToConv1d, self).__init__()
+        self.pre = nn.Conv2d(4, 4, 1)
+        self.conv = nn.Conv1d(4, 6, 3, padding=1)
+        self.mode = mode
+
+    def forward(self, x):
+        x = self.pre(x)
+        batch, channels, frequencies, frames = x.shape
+        x = x.permute(0, 2, 1, 3)
+        if self.mode == "flatten":
+            x = torch.flatten(x, 0, 1)
+        else:
+            x = x.reshape(batch * frequencies, channels, frames)
+        return self.conv(x)
+
+
+class ModelChannelFoldToConv1d(nn.Module):
+    def __init__(self):
+        super(ModelChannelFoldToConv1d, self).__init__()
+        self.pre = nn.Conv2d(4, 4, 1)
+        self.conv = nn.Conv1d(32, 6, 3, padding=1)
+
+    def forward(self, x):
+        x = self.pre(x)
+        batch, channels, frequencies, frames = x.shape
+        x = x.reshape(batch, channels * frequencies, frames)
+        return self.conv(x)
+
+
+class ModelBatchUnflattenAfterConv1d(nn.Module):
+    def __init__(self):
+        super(ModelBatchUnflattenAfterConv1d, self).__init__()
+        self.pre = nn.Conv2d(4, 4, 1)
+        self.conv = nn.Conv1d(4, 6, 3, padding=1)
+        self.post = nn.Conv2d(6, 6, 1)
+
+    def forward(self, x):
+        x = self.pre(x)
+        batch, _, frequencies, _ = x.shape
+        x = x.permute(0, 2, 1, 3)
+        x = torch.flatten(x, 0, 1)
+        x = self.conv(x)
+        x = x.unflatten(0, (batch, frequencies))
+        x = x.permute(0, 2, 1, 3)
+        return self.post(x)
+
+
 def compare(a, b):
     if isinstance(a, tuple):
         if not isinstance(b, tuple) or len(a) != len(b):
@@ -378,6 +427,16 @@ def no_batch_reshape_param(name):
     return True
 
 
+def has_batch_reshape_param(name, input_axis=0, output_axis=0):
+    expected = "12=" + str(input_axis) + " 13=" + str(output_axis)
+    with open(name + ".ncnn.param") as f:
+        for line in f:
+            if line.startswith("Reshape ") and expected in line:
+                return True
+
+    return False
+
+
 def run_model(name, net, inputs, inputs2=None):
     net.eval()
 
@@ -392,7 +451,8 @@ def run_model(name, net, inputs, inputs2=None):
     mod.save(name + ".pt")
 
     inputshape = ",".join([str(list(x.shape)).replace(" ", "") for x in inputs])
-    pnnxcmd = "../../src/pnnx " + name + ".pt inputshape=" + inputshape
+    pnnxexe = os.environ.get("PNNX_EXE", "../../src/pnnx")
+    pnnxcmd = '"' + pnnxexe + '" ' + name + ".pt inputshape=" + inputshape
     if inputs2 is not None:
         inputshape2 = ",".join([str(list(x.shape)).replace(" ", "") for x in inputs2])
         pnnxcmd += " inputshape2=" + inputshape2
@@ -415,7 +475,8 @@ def run_convert_only(name, net, inputs):
     mod.save(name + ".pt")
 
     inputshape = ",".join([str(list(x.shape)).replace(" ", "") for x in inputs])
-    if os.system("../../src/pnnx " + name + ".pt inputshape=" + inputshape) != 0:
+    pnnxexe = os.environ.get("PNNX_EXE", "../../src/pnnx")
+    if os.system('"' + pnnxexe + '" ' + name + ".pt inputshape=" + inputshape) != 0:
         return False
 
     return True
@@ -592,6 +653,46 @@ def test():
             return False
         if not no_batch_reshape_param(name):
             return False
+
+    torch.manual_seed(0)
+    x = torch.rand(1, 4, 8, 16)
+    name = "test_ncnn_batch_layout_flatten_to_conv1d_batch1"
+    if not run_model(name, ModelBatchFoldToConv1d("flatten"), x):
+        return False
+    if not has_batch_reshape_param(name):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 4, 8, 16)
+    name = "test_ncnn_batch_layout_flatten_to_conv1d_batch2"
+    if not run_model(name, ModelBatchFoldToConv1d("flatten"), x):
+        return False
+    if not has_batch_reshape_param(name):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 4, 8, 16)
+    name = "test_ncnn_batch_layout_reshape_to_conv1d"
+    if not run_model(name, ModelBatchFoldToConv1d("reshape"), x):
+        return False
+    if not has_batch_reshape_param(name):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 4, 8, 16)
+    name = "test_ncnn_batch_layout_channel_fold_to_conv1d"
+    if not run_model(name, ModelChannelFoldToConv1d(), x):
+        return False
+    if not no_batch_reshape_param(name):
+        return False
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 4, 8, 16)
+    name = "test_ncnn_batch_layout_unflatten_after_conv1d"
+    if not run_model(name, ModelBatchUnflattenAfterConv1d(), x):
+        return False
+    if not has_batch_reshape_param(name):
+        return False
 
     return True
 
