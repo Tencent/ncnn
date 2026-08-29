@@ -1,0 +1,88 @@
+#version 450
+
+layout(constant_id = 0) const int n_fft = 1;
+layout(constant_id = 1) const int freqs = 1;
+layout(constant_id = 2) const int in_elempack = 1;
+
+layout(binding = 0) readonly buffer bottom_blob_1 { sfp bottom_blob_data_1[]; };
+layout(binding = 1) writeonly buffer yre_blob { sfp yre_blob_data[]; };
+layout(binding = 2) readonly buffer bottom_blob_4 { sfpvec4 bottom_blob_data_4[]; };
+layout(binding = 3) writeonly buffer yim_blob { sfp yim_blob_data[]; };
+layout(binding = 4) readonly buffer basis_cos_blob { sfpvec4 basis_cos_data[]; };
+layout(binding = 5) readonly buffer basis_sin_blob { sfpvec4 basis_sin_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int frames;
+    int n_fft;
+    int freqs;
+    int in_w;
+    int in_h;
+    int in_cstep;
+    int y_row_stride;
+} p;
+
+void main()
+{
+    int j = int(gl_GlobalInvocationID.x);
+    int q = int(gl_GlobalInvocationID.y);
+
+    if (j >= p.frames || q * 4 >= p.n_fft)
+        return;
+
+    afpvec4 re4 = afpvec4(0.0f);
+    afpvec4 im4 = afpvec4(0.0f);
+
+    for (int k = 0; k < p.n_fft; k++)
+    {
+        afp sp_re;
+        afp sp_im;
+
+        int src_k = k;
+        int mk = p.n_fft - k;
+
+        int onesided = (p.freqs == p.n_fft / 2 + 1) ? 1 : 0;
+        if (onesided == 1 && k >= p.freqs)
+        {
+            src_k = mk;
+        }
+
+        if (in_elempack == 4)
+        {
+            int ch = src_k / 4;
+            int lane = src_k % 4;
+            int base = ch * p.in_cstep + j * p.in_w + 0;
+            afpvec4 re4v = buffer_ld4(bottom_blob_data_4, base + 0);
+            afpvec4 im4v = buffer_ld4(bottom_blob_data_4, base + 1);
+            sp_re = re4v[lane];
+            sp_im = im4v[lane];
+        }
+        else
+        {
+            int base = src_k * p.in_cstep + j * p.in_w + 0;
+            sp_re = buffer_ld1(bottom_blob_data_1, base + 0);
+            sp_im = buffer_ld1(bottom_blob_data_1, base + 1);
+        }
+
+        if (onesided == 1 && k >= p.freqs)
+        {
+            sp_im = -sp_im;
+        }
+
+        afpvec4 bc4 = buffer_ld4(basis_cos_data, q * p.n_fft + k);
+        afpvec4 bs4 = buffer_ld4(basis_sin_data, q * p.n_fft + k);
+
+        re4 += sp_re * bc4 - sp_im * bs4;
+        im4 += sp_re * bs4 + sp_im * bc4;
+    }
+
+    for (int lane = 0; lane < 4; lane++)
+    {
+        int i = q * 4 + lane;
+        if (i >= p.n_fft)
+            break;
+
+        buffer_st1(yre_blob_data, j * p.y_row_stride + i, re4[lane]);
+        buffer_st1(yim_blob_data, j * p.y_row_stride + i, im4[lane]);
+    }
+}

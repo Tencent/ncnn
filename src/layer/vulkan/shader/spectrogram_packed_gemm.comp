@@ -1,0 +1,447 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_GOOGLE_include_directive : enable
+#include "vulkan_activation.comp"
+
+#define LOCAL_MEMORY_UNROLL_INCH 8
+
+layout(constant_id = 0) const int power = 0;
+layout(constant_id = 1) const int n_fft = 1;
+layout(constant_id = 2) const int hoplen = 1;
+layout(constant_id = 3) const int out_elempack = 1;
+layout(constant_id = 4) const int center = 0;
+layout(constant_id = 5) const int pad_type = 0;
+
+#define shape_constant_id_offset 6
+layout(constant_id = shape_constant_id_offset + 0) const int frames = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int n_freq = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int top_row_stride = 0;
+
+layout(binding = 0) readonly buffer bottom_blob_1 { sfp bottom_blob_data_1[]; };
+layout(binding = 1) writeonly buffer top_blob_1 { sfp top_blob_data_1[]; };
+
+layout(binding = 2) readonly buffer bottom_blob_4 { sfpvec4 bottom_blob_data_4[]; };
+layout(binding = 3) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
+layout(binding = 4) readonly buffer basis_real_blob { sfpvec4 basis_real_data[]; };
+layout(binding = 5) readonly buffer basis_imag_blob { sfpvec4 basis_imag_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int frames;
+    int n_freq;
+    int in_w;
+    int top_row_stride;
+    int center;
+    int pad_type;
+    int outh;
+} p;
+
+#if NCNN_shader_local_memory
+shared lfpvec4 tmp_v[8][LOCAL_MEMORY_UNROLL_INCH][4];
+shared lfpvec4 tmp_kr[8][LOCAL_MEMORY_UNROLL_INCH][4];
+shared lfpvec4 tmp_ki[8][LOCAL_MEMORY_UNROLL_INCH][4];
+#endif
+
+afp load_input_sample(int frame_idx, int k_idx, int pad, int centering, int padd_type, int in_len)
+{
+    int idx = frame_idx * hoplen + k_idx;
+
+    if (centering == 0)
+    {
+        return buffer_ld1(bottom_blob_data_1, idx);
+    }
+
+    int orig_idx = idx - pad;
+
+    if (orig_idx < 0)
+    {
+        if (padd_type == 0)
+            return afp(0.f);
+        else if (padd_type == 1)
+            return buffer_ld1(bottom_blob_data_1, 0);
+        else
+            return buffer_ld1(bottom_blob_data_1, -orig_idx);
+    }
+
+    if (orig_idx >= in_len)
+    {
+        if (padd_type == 0)
+            return afp(0.f);
+        else if (padd_type == 1)
+            return buffer_ld1(bottom_blob_data_1, in_len - 1);
+        else
+            return buffer_ld1(bottom_blob_data_1, 2 * (in_len - 1) - orig_idx);
+    }
+
+    return buffer_ld1(bottom_blob_data_1, orig_idx);
+}
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x) * 4;
+    int gy = int(gl_GlobalInvocationID.y);
+
+    const int outsize = p.frames;
+
+#if !NCNN_shader_local_memory
+    if (gx >= outsize || gy >= psc(outh))
+        return;
+#endif
+
+    afpvec4 sum_re0;
+    afpvec4 sum_re1;
+    afpvec4 sum_re2;
+    afpvec4 sum_re3;
+
+    afpvec4 sum_im0;
+    afpvec4 sum_im1;
+    afpvec4 sum_im2;
+    afpvec4 sum_im3;
+
+    sum_re0 = afpvec4(0.f);
+    sum_re1 = afpvec4(0.f);
+    sum_re2 = afpvec4(0.f);
+    sum_re3 = afpvec4(0.f);
+
+    sum_im0 = afpvec4(0.f);
+    sum_im1 = afpvec4(0.f);
+    sum_im2 = afpvec4(0.f);
+    sum_im3 = afpvec4(0.f);
+
+    const int N = (n_fft + 3) / 4;
+    const int pad = n_fft / 2;
+
+    int w_offset = gy * N * 4;
+
+#if NCNN_shader_local_memory
+    const int lx = int(gl_LocalInvocationID.x);
+    const int ly = int(gl_LocalInvocationID.y);
+
+    int z = 0;
+    for (; z + (LOCAL_MEMORY_UNROLL_INCH - 1) < N; z += LOCAL_MEMORY_UNROLL_INCH)
+    {
+        if (ly < 4)
+        {
+            for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+            {
+                const int k_base = (z + z4) * 4;
+
+                const int frame_idx = gx + ly;
+
+                afp a0 = (k_base + 0 < n_fft) ? load_input_sample(frame_idx, k_base + 0, pad, center, p.pad_type, p.in_w) : afp(0.f);
+                afp a1 = (k_base + 1 < n_fft) ? load_input_sample(frame_idx, k_base + 1, pad, center, p.pad_type, p.in_w) : afp(0.f);
+                afp a2 = (k_base + 2 < n_fft) ? load_input_sample(frame_idx, k_base + 2, pad, center, p.pad_type, p.in_w) : afp(0.f);
+                afp a3 = (k_base + 3 < n_fft) ? load_input_sample(frame_idx, k_base + 3, pad, center, p.pad_type, p.in_w) : afp(0.f);
+
+                tmp_v[lx][z4][ly] = afp2lfpvec4(afpvec4(a0, a1, a2, a3));
+            }
+        }
+
+        if (lx < 4)
+        {
+            for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+            {
+                tmp_kr[ly][z4][lx] = buffer_sm4(basis_real_data, w_offset + z4 * 4 + lx);
+                tmp_ki[ly][z4][lx] = buffer_sm4(basis_imag_data, w_offset + z4 * 4 + lx);
+            }
+        }
+
+        barrier();
+
+        for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+        {
+            afpvec4 v0 = lfp2afpvec4(tmp_v[lx][z4][0]);
+            afpvec4 v1 = lfp2afpvec4(tmp_v[lx][z4][1]);
+            afpvec4 v2 = lfp2afpvec4(tmp_v[lx][z4][2]);
+            afpvec4 v3 = lfp2afpvec4(tmp_v[lx][z4][3]);
+
+            afpvec4 kr0 = lfp2afpvec4(tmp_kr[ly][z4][0]);
+            afpvec4 kr1 = lfp2afpvec4(tmp_kr[ly][z4][1]);
+            afpvec4 kr2 = lfp2afpvec4(tmp_kr[ly][z4][2]);
+            afpvec4 kr3 = lfp2afpvec4(tmp_kr[ly][z4][3]);
+
+            afpmat4 kr = afpmat4(kr0, kr1, kr2, kr3);
+
+            afpvec4 ki0 = lfp2afpvec4(tmp_ki[ly][z4][0]);
+            afpvec4 ki1 = lfp2afpvec4(tmp_ki[ly][z4][1]);
+            afpvec4 ki2 = lfp2afpvec4(tmp_ki[ly][z4][2]);
+            afpvec4 ki3 = lfp2afpvec4(tmp_ki[ly][z4][3]);
+
+            afpmat4 ki = afpmat4(ki0, ki1, ki2, ki3);
+
+            sum_re0 += v0 * kr;
+            sum_re1 += v1 * kr;
+            sum_re2 += v2 * kr;
+            sum_re3 += v3 * kr;
+
+            sum_im0 += v0 * ki;
+            sum_im1 += v1 * ki;
+            sum_im2 += v2 * ki;
+            sum_im3 += v3 * ki;
+        }
+
+        w_offset += LOCAL_MEMORY_UNROLL_INCH * 4;
+
+        barrier();
+    }
+
+    if (z < N)
+    {
+        const int remain = N - z;
+
+        if (ly < 4)
+        {
+            for (int z4 = 0; z4 < remain; z4++)
+            {
+                const int k_base = (z + z4) * 4;
+
+                const int frame_idx = gx + ly;
+
+                afp a0 = (k_base + 0 < n_fft) ? load_input_sample(frame_idx, k_base + 0, pad, center, p.pad_type, p.in_w) : afp(0.f);
+                afp a1 = (k_base + 1 < n_fft) ? load_input_sample(frame_idx, k_base + 1, pad, center, p.pad_type, p.in_w) : afp(0.f);
+                afp a2 = (k_base + 2 < n_fft) ? load_input_sample(frame_idx, k_base + 2, pad, center, p.pad_type, p.in_w) : afp(0.f);
+                afp a3 = (k_base + 3 < n_fft) ? load_input_sample(frame_idx, k_base + 3, pad, center, p.pad_type, p.in_w) : afp(0.f);
+
+                tmp_v[lx][z4][ly] = afp2lfpvec4(afpvec4(a0, a1, a2, a3));
+            }
+        }
+
+        if (lx < 4)
+        {
+            for (int z4 = 0; z4 < remain; z4++)
+            {
+                tmp_kr[ly][z4][lx] = buffer_sm4(basis_real_data, w_offset + z4 * 4 + lx);
+                tmp_ki[ly][z4][lx] = buffer_sm4(basis_imag_data, w_offset + z4 * 4 + lx);
+            }
+        }
+
+        barrier();
+
+        for (int z4 = 0; z4 < remain; z4++)
+        {
+            afpvec4 v0 = lfp2afpvec4(tmp_v[lx][z4][0]);
+            afpvec4 v1 = lfp2afpvec4(tmp_v[lx][z4][1]);
+            afpvec4 v2 = lfp2afpvec4(tmp_v[lx][z4][2]);
+            afpvec4 v3 = lfp2afpvec4(tmp_v[lx][z4][3]);
+
+            afpvec4 kr0 = lfp2afpvec4(tmp_kr[ly][z4][0]);
+            afpvec4 kr1 = lfp2afpvec4(tmp_kr[ly][z4][1]);
+            afpvec4 kr2 = lfp2afpvec4(tmp_kr[ly][z4][2]);
+            afpvec4 kr3 = lfp2afpvec4(tmp_kr[ly][z4][3]);
+
+            afpmat4 kr = afpmat4(kr0, kr1, kr2, kr3);
+
+            afpvec4 ki0 = lfp2afpvec4(tmp_ki[ly][z4][0]);
+            afpvec4 ki1 = lfp2afpvec4(tmp_ki[ly][z4][1]);
+            afpvec4 ki2 = lfp2afpvec4(tmp_ki[ly][z4][2]);
+            afpvec4 ki3 = lfp2afpvec4(tmp_ki[ly][z4][3]);
+
+            afpmat4 ki = afpmat4(ki0, ki1, ki2, ki3);
+
+            sum_re0 += v0 * kr;
+            sum_re1 += v1 * kr;
+            sum_re2 += v2 * kr;
+            sum_re3 += v3 * kr;
+
+            sum_im0 += v0 * ki;
+            sum_im1 += v1 * ki;
+            sum_im2 += v2 * ki;
+            sum_im3 += v3 * ki;
+        }
+    }
+#else
+    for (int z = 0; z < N; z++)
+    {
+        const int k_base = z * 4;
+
+        afpvec4 v0, v1, v2, v3;
+
+        {
+            const int frame_idx = gx + 0;
+            afp a0 = (k_base + 0 < n_fft) ? load_input_sample(frame_idx, k_base + 0, pad, center, p.pad_type, p.in_w) : afp(0.f);
+            afp a1 = (k_base + 1 < n_fft) ? load_input_sample(frame_idx, k_base + 1, pad, center, p.pad_type, p.in_w) : afp(0.f);
+            afp a2 = (k_base + 2 < n_fft) ? load_input_sample(frame_idx, k_base + 2, pad, center, p.pad_type, p.in_w) : afp(0.f);
+            afp a3 = (k_base + 3 < n_fft) ? load_input_sample(frame_idx, k_base + 3, pad, center, p.pad_type, p.in_w) : afp(0.f);
+            v0 = afpvec4(a0, a1, a2, a3);
+        }
+        {
+            const int frame_idx = gx + 1;
+            afp a0 = (k_base + 0 < n_fft) ? load_input_sample(frame_idx, k_base + 0, pad, center, p.pad_type, p.in_w) : afp(0.f);
+            afp a1 = (k_base + 1 < n_fft) ? load_input_sample(frame_idx, k_base + 1, pad, center, p.pad_type, p.in_w) : afp(0.f);
+            afp a2 = (k_base + 2 < n_fft) ? load_input_sample(frame_idx, k_base + 2, pad, center, p.pad_type, p.in_w) : afp(0.f);
+            afp a3 = (k_base + 3 < n_fft) ? load_input_sample(frame_idx, k_base + 3, pad, center, p.pad_type, p.in_w) : afp(0.f);
+            v1 = afpvec4(a0, a1, a2, a3);
+        }
+        {
+            const int frame_idx = gx + 2;
+            afp a0 = (k_base + 0 < n_fft) ? load_input_sample(frame_idx, k_base + 0, pad, center, p.pad_type, p.in_w) : afp(0.f);
+            afp a1 = (k_base + 1 < n_fft) ? load_input_sample(frame_idx, k_base + 1, pad, center, p.pad_type, p.in_w) : afp(0.f);
+            afp a2 = (k_base + 2 < n_fft) ? load_input_sample(frame_idx, k_base + 2, pad, center, p.pad_type, p.in_w) : afp(0.f);
+            afp a3 = (k_base + 3 < n_fft) ? load_input_sample(frame_idx, k_base + 3, pad, center, p.pad_type, p.in_w) : afp(0.f);
+            v2 = afpvec4(a0, a1, a2, a3);
+        }
+        {
+            const int frame_idx = gx + 3;
+            afp a0 = (k_base + 0 < n_fft) ? load_input_sample(frame_idx, k_base + 0, pad, center, p.pad_type, p.in_w) : afp(0.f);
+            afp a1 = (k_base + 1 < n_fft) ? load_input_sample(frame_idx, k_base + 1, pad, center, p.pad_type, p.in_w) : afp(0.f);
+            afp a2 = (k_base + 2 < n_fft) ? load_input_sample(frame_idx, k_base + 2, pad, center, p.pad_type, p.in_w) : afp(0.f);
+            afp a3 = (k_base + 3 < n_fft) ? load_input_sample(frame_idx, k_base + 3, pad, center, p.pad_type, p.in_w) : afp(0.f);
+            v3 = afpvec4(a0, a1, a2, a3);
+        }
+
+        afpmat4 kr = afpmat4(
+            buffer_ld4(basis_real_data, w_offset + 0),
+            buffer_ld4(basis_real_data, w_offset + 1),
+            buffer_ld4(basis_real_data, w_offset + 2),
+            buffer_ld4(basis_real_data, w_offset + 3));
+
+        afpmat4 ki = afpmat4(
+            buffer_ld4(basis_imag_data, w_offset + 0),
+            buffer_ld4(basis_imag_data, w_offset + 1),
+            buffer_ld4(basis_imag_data, w_offset + 2),
+            buffer_ld4(basis_imag_data, w_offset + 3));
+
+        sum_re0 += v0 * kr;
+        sum_re1 += v1 * kr;
+        sum_re2 += v2 * kr;
+        sum_re3 += v3 * kr;
+
+        sum_im0 += v0 * ki;
+        sum_im1 += v1 * ki;
+        sum_im2 += v2 * ki;
+        sum_im3 += v3 * ki;
+
+        w_offset += 4;
+    }
+#endif
+
+#if NCNN_shader_local_memory
+    if (gx >= outsize || gy >= psc(outh))
+        return;
+#endif
+
+    if (power == 0)
+    {
+        if (out_elempack == 4)
+        {
+            const int gi = gy * p.top_row_stride + gx * 2;
+
+            buffer_st4(top_blob_data_4, gi + 0, sum_re0);
+            buffer_st4(top_blob_data_4, gi + 1, sum_im0);
+            if (gx + 1 < outsize)
+            {
+                buffer_st4(top_blob_data_4, gi + 2, sum_re1);
+                buffer_st4(top_blob_data_4, gi + 3, sum_im1);
+            }
+            if (gx + 2 < outsize)
+            {
+                buffer_st4(top_blob_data_4, gi + 4, sum_re2);
+                buffer_st4(top_blob_data_4, gi + 5, sum_im2);
+            }
+            if (gx + 3 < outsize)
+            {
+                buffer_st4(top_blob_data_4, gi + 6, sum_re3);
+                buffer_st4(top_blob_data_4, gi + 7, sum_im3);
+            }
+        }
+        else
+        {
+            for (int lane = 0; lane < 4; lane++)
+            {
+                const int f = gy * 4 + lane;
+                if (f >= psc(n_freq))
+                    break;
+
+                const int gi = f * p.top_row_stride + gx * 2;
+
+                buffer_st1(top_blob_data_1, gi + 0, sum_re0[lane]);
+                buffer_st1(top_blob_data_1, gi + 1, sum_im0[lane]);
+                if (gx + 1 < outsize)
+                {
+                    buffer_st1(top_blob_data_1, gi + 2, sum_re1[lane]);
+                    buffer_st1(top_blob_data_1, gi + 3, sum_im1[lane]);
+                }
+                if (gx + 2 < outsize)
+                {
+                    buffer_st1(top_blob_data_1, gi + 4, sum_re2[lane]);
+                    buffer_st1(top_blob_data_1, gi + 5, sum_im2[lane]);
+                }
+                if (gx + 3 < outsize)
+                {
+                    buffer_st1(top_blob_data_1, gi + 6, sum_re3[lane]);
+                    buffer_st1(top_blob_data_1, gi + 7, sum_im3[lane]);
+                }
+            }
+        }
+    }
+    else if (power == 1)
+    {
+        afpvec4 mag0 = sqrt(sum_re0 * sum_re0 + sum_im0 * sum_im0);
+        afpvec4 mag1 = sqrt(sum_re1 * sum_re1 + sum_im1 * sum_im1);
+        afpvec4 mag2 = sqrt(sum_re2 * sum_re2 + sum_im2 * sum_im2);
+        afpvec4 mag3 = sqrt(sum_re3 * sum_re3 + sum_im3 * sum_im3);
+
+        if (out_elempack == 4)
+        {
+            const int gi = gy * p.top_row_stride + gx;
+
+            buffer_st4(top_blob_data_4, gi, mag0);
+            if (gx + 1 < outsize) buffer_st4(top_blob_data_4, gi + 1, mag1);
+            if (gx + 2 < outsize) buffer_st4(top_blob_data_4, gi + 2, mag2);
+            if (gx + 3 < outsize) buffer_st4(top_blob_data_4, gi + 3, mag3);
+        }
+        else
+        {
+            for (int lane = 0; lane < 4; lane++)
+            {
+                const int f = gy * 4 + lane;
+                if (f >= psc(n_freq))
+                    break;
+
+                const int gi = f * p.top_row_stride + gx;
+
+                buffer_st1(top_blob_data_1, gi, mag0[lane]);
+                if (gx + 1 < outsize) buffer_st1(top_blob_data_1, gi + 1, mag1[lane]);
+                if (gx + 2 < outsize) buffer_st1(top_blob_data_1, gi + 2, mag2[lane]);
+                if (gx + 3 < outsize) buffer_st1(top_blob_data_1, gi + 3, mag3[lane]);
+            }
+        }
+    }
+    else
+    {
+        afpvec4 pw0 = sum_re0 * sum_re0 + sum_im0 * sum_im0;
+        afpvec4 pw1 = sum_re1 * sum_re1 + sum_im1 * sum_im1;
+        afpvec4 pw2 = sum_re2 * sum_re2 + sum_im2 * sum_im2;
+        afpvec4 pw3 = sum_re3 * sum_re3 + sum_im3 * sum_im3;
+
+        if (out_elempack == 4)
+        {
+            const int gi = gy * p.top_row_stride + gx;
+
+            buffer_st4(top_blob_data_4, gi, pw0);
+            if (gx + 1 < outsize) buffer_st4(top_blob_data_4, gi + 1, pw1);
+            if (gx + 2 < outsize) buffer_st4(top_blob_data_4, gi + 2, pw2);
+            if (gx + 3 < outsize) buffer_st4(top_blob_data_4, gi + 3, pw3);
+        }
+        else
+        {
+            for (int lane = 0; lane < 4; lane++)
+            {
+                const int f = gy * 4 + lane;
+                if (f >= psc(n_freq))
+                    break;
+
+                const int gi = f * p.top_row_stride + gx;
+
+                buffer_st1(top_blob_data_1, gi, pw0[lane]);
+                if (gx + 1 < outsize) buffer_st1(top_blob_data_1, gi + 1, pw1[lane]);
+                if (gx + 2 < outsize) buffer_st1(top_blob_data_1, gi + 2, pw2[lane]);
+                if (gx + 3 < outsize) buffer_st1(top_blob_data_1, gi + 3, pw3[lane]);
+            }
+        }
+    }
+}
