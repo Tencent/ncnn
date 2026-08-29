@@ -1,9 +1,9 @@
 // Copyright 2020 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-static void linear_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha, int align_corner)
+static void linear_coeffs_fp16sa_impl(int w, int outw, int* xofs, __fp16* alpha, int align_corner, float scale_factor)
 {
-    double scale = (double)w / outw;
+    double scale = scale_factor;
     if (align_corner)
     {
         scale = (double)(w - 1) / (outw - 1);
