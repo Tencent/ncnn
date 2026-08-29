@@ -263,3 +263,6 @@ pnnx_ncnn_add_test(torchaudio_Spectrogram)
 pnnx_ncnn_add_test(transformers_deepseek_v3_attention)
 pnnx_ncnn_add_test(transformers_qwen2_attention)
 pnnx_ncnn_add_test(transformers_qwen3_attention)
+
+# pt2 (torch.export) 路径对拍测试
+pnnx_ncnn_add_test(pt2_smoke)
