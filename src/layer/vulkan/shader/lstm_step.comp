@@ -1,0 +1,98 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout(binding = 1) readonly buffer weight_xc_blob { sfp weight_xc_data[]; };
+layout(binding = 2) readonly buffer bias_c_blob { sfp bias_c_data[]; };
+layout(binding = 3) readonly buffer weight_hc_blob { sfp weight_hc_data[]; };
+layout(binding = 4) readonly buffer hidden_prev_blob { sfp hidden_prev_data[]; };
+layout(binding = 5) readonly buffer cell_prev_blob { sfp cell_prev_data[]; };
+layout(binding = 6) writeonly buffer hidden_next_blob { sfp hidden_next_data[]; };
+layout(binding = 7) writeonly buffer cell_next_blob { sfp cell_next_data[]; };
+layout(binding = 8) writeonly buffer top_blob { sfp top_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int size;
+    int num_output;
+    int hidden_size;
+    int ti;
+    int outw;
+    int out_offset;
+    int dir;
+    int wxc_dir_stride;
+    int whc_dir_stride;
+    int bias_dir_stride;
+    int bottom_step;
+} p;
+
+void main()
+{
+    int q = int(gl_GlobalInvocationID.x);
+
+    if (q >= p.hidden_size)
+        return;
+
+    int x_offset = p.ti * p.bottom_step;
+
+    int wxc_base = p.dir * p.wxc_dir_stride;
+    int whc_base = p.dir * p.whc_dir_stride;
+    int bias_base = p.dir * p.bias_dir_stride;
+
+    int bias_I = bias_base + 0 * p.hidden_size + q;
+    int bias_F = bias_base + 1 * p.hidden_size + q;
+    int bias_O = bias_base + 2 * p.hidden_size + q;
+    int bias_G = bias_base + 3 * p.hidden_size + q;
+
+    int wxc_I = wxc_base + (0 * p.hidden_size + q) * p.size;
+    int wxc_F = wxc_base + (1 * p.hidden_size + q) * p.size;
+    int wxc_O = wxc_base + (2 * p.hidden_size + q) * p.size;
+    int wxc_G = wxc_base + (3 * p.hidden_size + q) * p.size;
+
+    int whc_I = whc_base + (0 * p.hidden_size + q) * p.num_output;
+    int whc_F = whc_base + (1 * p.hidden_size + q) * p.num_output;
+    int whc_O = whc_base + (2 * p.hidden_size + q) * p.num_output;
+    int whc_G = whc_base + (3 * p.hidden_size + q) * p.num_output;
+
+    afp I = buffer_ld1(bias_c_data, bias_I);
+    afp F = buffer_ld1(bias_c_data, bias_F);
+    afp O = buffer_ld1(bias_c_data, bias_O);
+    afp G = buffer_ld1(bias_c_data, bias_G);
+
+    for (int i = 0; i < p.size; i++)
+    {
+        afp xi = buffer_ld1(bottom_blob_data, x_offset + i);
+
+        I += buffer_ld1(weight_xc_data, wxc_I + i) * xi;
+        F += buffer_ld1(weight_xc_data, wxc_F + i) * xi;
+        O += buffer_ld1(weight_xc_data, wxc_O + i) * xi;
+        G += buffer_ld1(weight_xc_data, wxc_G + i) * xi;
+    }
+
+    for (int i = 0; i < p.num_output; i++)
+    {
+        afp hi = buffer_ld1(hidden_prev_data, i);
+
+        I += buffer_ld1(weight_hc_data, whc_I + i) * hi;
+        F += buffer_ld1(weight_hc_data, whc_F + i) * hi;
+        O += buffer_ld1(weight_hc_data, whc_O + i) * hi;
+        G += buffer_ld1(weight_hc_data, whc_G + i) * hi;
+    }
+
+    I = afp(1.f) / (afp(1.f) + exp(-I));
+    F = afp(1.f) / (afp(1.f) + exp(-F));
+    O = afp(1.f) / (afp(1.f) + exp(-O));
+    G = tanh(G);
+
+    afp cprev = buffer_ld1(cell_prev_data, q);
+    afp cnext = F * cprev + I * G;
+    afp H = O * tanh(cnext);
+
+    buffer_st1(cell_next_data, q, cnext);
+    buffer_st1(hidden_next_data, q, H);
+
+    int out_index = p.ti * p.outw + p.out_offset + q;
+    buffer_st1(top_blob_data, out_index, H);
+}
