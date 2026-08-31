@@ -5,6 +5,7 @@
 #define PNNX_JSON_HPP
 
 #include <cctype>
+#include <cstdio>
 #include <cstdint>
 #include <map>
 #include <stdexcept>
@@ -271,11 +272,15 @@ private:
         v.type = JsonValue::JSON_STRING;
         ++pos; // consume opening quote
         std::string out;
+        bool closed = false;
         while (pos < s.size())
         {
             char c = s[pos++];
             if (c == '"')
+            {
+                closed = true;
                 break;
+            }
             if (c == '\\')
             {
                 if (pos >= s.size())
@@ -325,7 +330,36 @@ private:
                         else
                             throw std::runtime_error("json parse error: bad hex in \\u");
                     }
-                    // 简化：Basic Multilingual Plane 直接转 UTF-8；代理对不展开
+                    // 高代理后紧跟合法低代理 → 合并码点展开为 4 字节 UTF-8
+                    if (cp >= 0xD800 && cp <= 0xDBFF && pos + 6 <= s.size()
+                        && s[pos] == '\\' && s[pos + 1] == 'u')
+                    {
+                        size_t save = pos;
+                        pos += 2;
+                        unsigned int low = 0;
+                        bool low_ok = true;
+                        for (int i = 0; i < 4; ++i)
+                        {
+                            char h = s[pos++];
+                            low <<= 4;
+                            if (h >= '0' && h <= '9')
+                                low |= (h - '0');
+                            else if (h >= 'a' && h <= 'f')
+                                low |= (h - 'a' + 10);
+                            else if (h >= 'A' && h <= 'F')
+                                low |= (h - 'A' + 10);
+                            else
+                            {
+                                low_ok = false;
+                                break;
+                            }
+                        }
+                        if (low_ok && low >= 0xDC00 && low <= 0xDFFF)
+                            cp = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00);
+                        else
+                            pos = save; // 不是合法低代理，回退按孤立高代理处理
+                    }
+                    // Basic Multilingual Plane 直接转 UTF-8；孤立代理按 3 字节保留
                     if (cp < 0x80)
                         out.push_back(static_cast<char>(cp));
                     else if (cp < 0x800)
@@ -333,9 +367,16 @@ private:
                         out.push_back(static_cast<char>(0xC0 | (cp >> 6)));
                         out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
                     }
-                    else
+                    else if (cp < 0x10000)
                     {
                         out.push_back(static_cast<char>(0xE0 | (cp >> 12)));
+                        out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+                        out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+                    }
+                    else
+                    {
+                        out.push_back(static_cast<char>(0xF0 | (cp >> 18)));
+                        out.push_back(static_cast<char>(0x80 | ((cp >> 12) & 0x3F)));
                         out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
                         out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
                     }
@@ -350,6 +391,8 @@ private:
                 out.push_back(c);
             }
         }
+        if (!closed)
+            throw std::runtime_error("json parse error: unterminated string");
         v.string_value = out;
         return v;
     }
@@ -357,27 +400,42 @@ private:
     JsonValue parse_number()
     {
         size_t start = pos;
+        bool is_double = false;
+
         if (peek() == '-')
             ++pos;
-        while (pos < s.size() && (isdigit_s(s[pos]) || s[pos] == '+' || s[pos] == '-'))
+
+        // 整数部分：至少一位数字；不允许前导零（"0" 本身除外）
+        size_t int_digits_start = pos;
+        while (pos < s.size() && isdigit_s(s[pos]))
             ++pos;
-        bool is_double = false;
+        if (pos == int_digits_start)
+            throw std::runtime_error("json parse error: bad number at " + pos_str());
+        if (s[int_digits_start] == '0' && pos - int_digits_start > 1)
+            throw std::runtime_error("json parse error: leading zero in number at " + pos_str());
+
         if (peek() == '.')
         {
             is_double = true;
             ++pos;
+            if (!isdigit_s(peek()))
+                throw std::runtime_error("json parse error: digit required after '.' at " + pos_str());
             while (pos < s.size() && isdigit_s(s[pos]))
                 ++pos;
         }
+
         if (peek() == 'e' || peek() == 'E')
         {
             is_double = true;
             ++pos;
             if (peek() == '+' || peek() == '-')
                 ++pos;
+            if (!isdigit_s(peek()))
+                throw std::runtime_error("json parse error: digit required in exponent at " + pos_str());
             while (pos < s.size() && isdigit_s(s[pos]))
                 ++pos;
         }
+
         std::string num = s.substr(start, pos - start);
         JsonValue v;
         if (!is_double)

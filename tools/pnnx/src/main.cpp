@@ -15,10 +15,13 @@
 #endif
 
 #include "ir.h"
+#include "load_pt2.h"
 #include "pass_level2.h"
 #include "pass_level3.h"
 #include "pass_level4.h"
 #include "pass_level5.h"
+#include "pt2_schema.h"
+#include "storezip.h"
 #include "utils.h"
 
 #if BUILD_TORCH2PNNX
@@ -209,6 +212,36 @@ static bool load_numpy_file_contents(const std::vector<std::string>& paths, cons
     }
 
     return true;
+}
+
+static bool model_file_maybe_pt2(const std::string& path)
+{
+    // 快速排除:pt2 是 zip
+    FILE* fp = fopen(path.c_str(), "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "open failed %s\n", path.c_str());
+        return false;
+    }
+
+    uint32_t signature = 0;
+    if (fread((char*)&signature, sizeof(signature), 1, fp) != 1)
+        signature = 0;
+
+    fclose(fp);
+
+    if (signature != 0x04034b50)
+        return false;
+
+    // pt2 特征:存在 <root>/models/model.json 条目
+    pnnx::StoreZipReader zip;
+    if (zip.open(path) != 0)
+        return false;
+
+    std::vector<std::string> names = zip.get_names();
+    zip.close();
+
+    return !pnnx::find_pt2_model_json_entry(names).empty();
 }
 
 static bool model_file_maybe_torchscript(const std::string& path)
@@ -460,6 +493,13 @@ int main(int argc, char** argv)
     }
     else
 #endif
+    if (model_file_maybe_pt2(ptpath))
+    {
+        int ret = load_pt2(ptpath, pnnx_graph, input_shapes, input_types);
+        if (ret != 0)
+            return ret;
+    }
+    else
 #if BUILD_ONNX2PNNX
     if (!model_file_maybe_torchscript(ptpath))
     {
