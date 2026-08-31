@@ -56,8 +56,7 @@ static void build_value_link_input_map(const torch::jit::Node* node, const std::
         if (!os.empty() && value_link_input_map.find(os) != value_link_input_map.end())
             continue;
 
-        auto tensor_type = out2->type()->cast<torch::jit::TensorType>();
-        if (tensor_type)
+        if (out2->type()->kind() == c10::TypeKind::TensorType)
         {
             value_link_input_map[os] = 1;
         }
@@ -87,8 +86,7 @@ static void build_value_link_input_map(const torch::jit::Node* node, const std::
 
             auto in3 = value_alias_map.at(is);
 
-            auto tensor_type = in3->type()->cast<torch::jit::TensorType>();
-            if (!tensor_type)
+            if (in3->type()->kind() != c10::TypeKind::TensorType)
                 break;
 
             is = in3->debugName();
@@ -149,8 +147,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
         {
             for (const auto& v : n->outputs())
             {
-                auto tensor_type = v->type()->cast<torch::jit::TensorType>();
-                if (!tensor_type)
+                if (v->type()->kind() != c10::TypeKind::TensorType)
                     continue;
 
                 value_names.insert(v->debugName());
@@ -240,8 +237,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
             {
                 auto out2 = n->output(i);
 
-                auto tensor_type = out2->type()->cast<torch::jit::TensorType>();
-                if (!tensor_type)
+                if (out2->type()->kind() != c10::TypeKind::TensorType)
                     continue;
 
                 std::string os = out2->debugName();
@@ -322,8 +318,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
         {
             for (const auto& v : n->outputs())
             {
-                auto tensor_type = v->type()->cast<torch::jit::TensorType>();
-                if (!tensor_type)
+                if (v->type()->kind() != c10::TypeKind::TensorType)
                     continue;
 
                 if (value_names.find(v->debugName()) != value_names.end())
