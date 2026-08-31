@@ -140,6 +140,20 @@ struct Pt2WeightEntry
     }
 };
 
+// graph.tensor_values 的一个条目:张量名 → FakeTensor 元数据
+// torch 2.13 实测:含全部中间张量;dtype 编码同 weights config(7 = float32)
+// docs/11 曾记"中间张量形状 JSON 不携带",系普查遗漏,2026-08-31 N3 实测修正
+struct Pt2TensorMeta
+{
+    long long dtype;              // -1 = 缺失
+    std::vector<long long> sizes; // -1 = 符号维/未知(pnnx 动态维约定)
+
+    Pt2TensorMeta()
+        : dtype(-1)
+    {
+    }
+};
+
 // 一个 .pt2 文件的完整 schema(model.json + weights/constants config)
 struct Pt2Program
 {
@@ -161,6 +175,9 @@ struct Pt2Program
     std::vector<Pt2Node> nodes;
     std::vector<Pt2InputSpec> input_specs;
     std::vector<Pt2OutputSpec> output_specs;
+
+    // graph.tensor_values(张量名 → 形状/dtype 元数据,含中间张量)
+    std::map<std::string, Pt2TensorMeta> tensor_values;
 
     std::vector<Pt2WeightEntry> weights;   // model_weights_config.json
     std::vector<Pt2WeightEntry> constants; // model_constants_config.json(实测常为空)

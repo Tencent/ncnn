@@ -3,24 +3,32 @@
 
 #include "load_pt2.h"
 #include "pt2_schema.h"
+#include "aten_defaults_table.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 namespace pnnx {
 
-// torch 的 tensor dtype 序列化枚举(pt2 权重 config 的 dtype 字段)→ pnnx type
-// 实测(docs/11 §7):7 = float32,5 = int64
-static int pt2_dtype_to_pnnx_type(long long dtype)
+// torch 的 tensor dtype 序列化枚举(pt2 权重 config / tensor_values 的 dtype
+// 字段)→ pnnx type。实测(docs/11 §7):7 = float32,5 = int64。未知枚举返回 0。
+static int pt2_dtype_enum_to_pnnx_type(long long dtype)
 {
     switch (dtype)
     {
     case 7: return 1; // f32
     case 5: return 5; // i64
-    default:
-        fprintf(stderr, "load_pt2: unsupported weight dtype %lld\n", dtype);
-        return 0;
+    default: return 0;
     }
+}
+
+static int pt2_dtype_to_pnnx_type(long long dtype)
+{
+    const int type = pt2_dtype_enum_to_pnnx_type(dtype);
+    if (type == 0)
+        fprintf(stderr, "load_pt2: unsupported weight dtype %lld\n", dtype);
+    return type;
 }
 
 static int pnnx_type_from_string(const std::string& t)
@@ -57,6 +65,128 @@ static std::string map_pt2_target(const std::string& target)
         return rest.substr(0, dot1) + "::" + rest.substr(dot1 + 1);
 
     return rest.substr(0, dot1) + "::" + rest.substr(dot1 + 1, dot2 - dot1 - 1);
+}
+
+// "torch.ops.aten.conv2d.default" → "aten::conv2d.default"(保留 overload)
+// map_pt2_target 剥 overload 是为了对齐 torchscript kind display;默认值静态表
+// 按注册表全名(含 overload)组织,查表用本函数。
+static std::string pt2_full_target_name(const std::string& target)
+{
+    const std::string prefix = "torch.ops.";
+    if (target.compare(0, prefix.size(), prefix) != 0)
+        return target;
+
+    const std::string rest = target.substr(prefix.size()); // "aten.conv2d.default"
+
+    const size_t dot1 = rest.find('.');
+    if (dot1 == std::string::npos)
+        return rest;
+
+    return rest.substr(0, dot1) + "::" + rest.substr(dot1 + 1);
+}
+
+// 默认值静态表的编码值 → prim::Constant 的 value 参数。
+// 返回 false 表示编码异常(生成器已按可编码性过滤,忠实起见不猜测)。
+static bool default_value_to_parameter(int type, const char* value, Parameter& p)
+{
+    switch (type)
+    {
+    case PT2_D_NONE:
+        p = Parameter();
+        return true;
+    case PT2_D_INT:
+        p = Parameter((long long)strtoll(value, 0, 10));
+        return true;
+    case PT2_D_FLOAT:
+        p = Parameter((float)strtod(value, 0));
+        return true;
+    case PT2_D_BOOL:
+        p = Parameter(value[0] == '1');
+        return true;
+    case PT2_D_STRING:
+        p = Parameter(std::string(value));
+        return true;
+    case PT2_D_INTS:
+    {
+        // 空列表 → Parameter()(type 0):ts 侧空列表实参物化为 None 常量
+        // (如 max_pool2d stride=() 在 trace 图里是 value=None),下游转换器
+        // 按 type 0 解释;pt2 补全必须对齐同一形态
+        if (value[0] == '\0')
+        {
+            p = Parameter();
+            return true;
+        }
+
+        std::vector<int> ai;
+        const char* pch = value;
+        while (*pch != '\0')
+        {
+            ai.push_back((int)strtoll(pch, 0, 10));
+            pch = strchr(pch, ',');
+            if (!pch)
+                break;
+            pch++;
+        }
+        p = Parameter(ai);
+        return true;
+    }
+    case PT2_D_FLOATS:
+    {
+        if (value[0] == '\0')
+        {
+            p = Parameter();
+            return true;
+        }
+
+        std::vector<float> af;
+        const char* pch = value;
+        while (*pch != '\0')
+        {
+            af.push_back((float)strtod(pch, 0));
+            pch = strchr(pch, ',');
+            if (!pch)
+                break;
+            pch++;
+        }
+        p = Parameter(af);
+        return true;
+    }
+    case PT2_D_STRINGS:
+    {
+        if (value[0] == '\0')
+        {
+            p = Parameter();
+            return true;
+        }
+
+        std::vector<std::string> as;
+        const char* pch = value;
+        while (*pch != '\0')
+        {
+            const char* comma = strchr(pch, ',');
+            const size_t len = comma ? (size_t)(comma - pch) : strlen(pch);
+            as.push_back(std::string(pch, len));
+            if (!comma)
+                break;
+            pch = comma + 1;
+        }
+        p = Parameter(as);
+        return true;
+    }
+    case PT2_D_DEVICE:
+        // "cpu"/"cuda:0" 形态按 STRING 表达;"" 表示 None
+        if (value[0] == '\0')
+        {
+            p = Parameter();
+        }
+        else
+        {
+            p = Parameter(std::string(value));
+        }
+        return true;
+    default:
+        return false;
+    }
 }
 
 // 把 prim::Constant 的 value 参数从 Pt2Argument 转出来。
@@ -190,11 +320,26 @@ int load_pt2(const std::string& ptpath, Graph& pg,
             r->producer = op;
             op->outputs.push_back(r);
 
+            // 形状/dtype:文件内 tensor_values 是导出时的事实,优先采用
+            // (CLI inputshape 与导出形状不一致时保证图自洽);CLI 仅作兜底
+            std::map<std::string, Pt2TensorMeta>::const_iterator it = program.tensor_values.find(spec.graph_name);
+            if (it != program.tensor_values.end())
+            {
+                r->type = pt2_dtype_enum_to_pnnx_type(it->second.dtype);
+                for (size_t j = 0; j < it->second.sizes.size(); j++)
+                    r->shape.push_back((int)it->second.sizes[j]);
+            }
+
             if (input_index < (int)input_shapes.size())
             {
-                r->type = pnnx_type_from_string(input_types[input_index]);
-                for (size_t j = 0; j < input_shapes[input_index].size(); j++)
-                    r->shape.push_back((int)input_shapes[input_index][j]);
+                if (r->type == 0)
+                    r->type = pnnx_type_from_string(input_types[input_index]);
+
+                if (r->shape.empty())
+                {
+                    for (size_t j = 0; j < input_shapes[input_index].size(); j++)
+                        r->shape.push_back((int)input_shapes[input_index][j]);
+                }
             }
 
             input_index++;
@@ -243,16 +388,97 @@ int load_pt2(const std::string& ptpath, Graph& pg,
 
         Operator* op = pg.new_operator(map_pt2_target(node.target), "pnnx_" + std::to_string(pnnx_unknown_index++));
 
-        for (size_t j = 0; j < node.inputs.size(); j++)
+        // 默认值静态表:torch.export 会省略等于默认值的实参(cat 的 dim=0、
+        // flatten 的 end_dim=-1 等),按 schema 形参序查表补全为完整形态,
+        // 使 pt2 图与 torchscript 图同构,下游 pass_level2 形态分支零改动复用。
+        // 表未收录的算子保持 torch.export 原样转写(缺参不补)。
+        const std::string full_target = pt2_full_target_name(node.target);
+        const Pt2DefaultsEntry* defaults = find_pt2_aten_defaults(full_target.c_str());
+
+        // 待转写实参序列:有表 = schema 形参序(provided 按名归位,缺失留空待补);
+        // provided 形参名与表对不上(schema 漂移等)= 整节点回退原样顺序(忠实性护栏)
+        std::vector<const Pt2NodeInput*> ordered_inputs;
+        if (defaults)
         {
-            const Pt2NodeInput& input = node.inputs[j];
-            const Pt2Argument& arg = input.arg;
+            std::map<std::string, size_t> table_index;
+            for (size_t j = 0; j < defaults->arg_count; j++)
+                table_index[defaults->args[j].name] = j;
+
+            bool table_matches = true;
+            for (size_t j = 0; j < node.inputs.size(); j++)
+            {
+                if (table_index.find(node.inputs[j].name) == table_index.end())
+                {
+                    table_matches = false;
+                    break;
+                }
+            }
+
+            if (table_matches)
+            {
+                ordered_inputs.resize(defaults->arg_count, 0);
+                for (size_t j = 0; j < node.inputs.size(); j++)
+                {
+                    ordered_inputs[table_index[node.inputs[j].name]] = &node.inputs[j];
+                }
+            }
+        }
+
+        if (ordered_inputs.empty())
+        {
+            if (defaults)
+            {
+                fprintf(stderr, "load_pt2: %s node %s: arg names mismatch defaults table, fallback to raw order\n",
+                        full_target.c_str(), node.name.c_str());
+            }
+
+            for (size_t j = 0; j < node.inputs.size(); j++)
+            {
+                ordered_inputs.push_back(&node.inputs[j]);
+            }
+        }
+
+        for (size_t j = 0; j < ordered_inputs.size(); j++)
+        {
+            const Pt2NodeInput* input = ordered_inputs[j];
+
+            if (input == 0)
+            {
+                // 该形参被 torch.export 省略 → 查默认值补全(输出标记,便于排查)
+                const Pt2ArgDefault& d = defaults->args[j];
+
+                Parameter value;
+                if (d.type == PT2_D_NO_DEFAULT || d.type == PT2_D_UNSUPPORTED
+                    || !default_value_to_parameter(d.type, d.value, value))
+                {
+                    fprintf(stderr, "load_pt2: %s node %s: missing arg %s has no usable default, skipped\n",
+                            full_target.c_str(), node.name.c_str(), d.name);
+                    continue;
+                }
+
+                fprintf(stderr, "load_pt2: %s node %s: fill default %s=%s (from defaults table)\n",
+                        full_target.c_str(), node.name.c_str(), d.name, d.value);
+
+                Operator* op_const = pg.new_operator("prim::Constant",
+                                                     "pnnx_" + std::to_string(pnnx_unknown_index++));
+                op_const->params["value"] = value;
+
+                Operand* r = pg.new_operand(node.name + "." + d.name);
+                r->producer = op_const;
+                op_const->outputs.push_back(r);
+
+                r->consumers.push_back(op);
+                op->inputs.push_back(r);
+                continue;
+            }
+
+            const Pt2Argument& arg = input->arg;
 
             if (arg.type == Pt2Argument::TENSOR)
             {
                 if (arg.tensor_names.size() != 1)
                 {
-                    fprintf(stderr, "load_pt2: bad tensor argument %s.%s\n", node.name.c_str(), input.name.c_str());
+                    fprintf(stderr, "load_pt2: bad tensor argument %s.%s\n", node.name.c_str(), input->name.c_str());
                     return -1;
                 }
 
@@ -288,7 +514,7 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                     op_list->inputs.push_back(r);
                 }
 
-                Operand* r = pg.new_operand(node.name + "." + input.name);
+                Operand* r = pg.new_operand(node.name + "." + input->name);
                 r->producer = op_list;
                 op_list->outputs.push_back(r);
 
@@ -306,7 +532,7 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                                                  "pnnx_" + std::to_string(pnnx_unknown_index++));
             op_const->params["value"] = value;
 
-            Operand* r = pg.new_operand(node.name + "." + input.name);
+            Operand* r = pg.new_operand(node.name + "." + input->name);
             r->producer = op_const;
             op_const->outputs.push_back(r);
 
@@ -323,6 +549,28 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                 op->outputs.push_back(r);
                 // 中间张量的 dtype/形状 pt2 JSON 不携带,留空由下游 pass 处理
             }
+        }
+    }
+
+    // 3.5 graph.tensor_values → operand 形状/dtype 补全
+    //     torch.export 把 FakeTensor 元数据放 graph.tensor_values(含中间张量);
+    //     pass_ncnn 的 shape 依赖转换器(torch_stack/adaptive_pool 等)需要它,
+    //     CLI inputshape 只作用于 pnnx.Input,中间张量只能靠这张表。
+    for (size_t i = 0; i < pg.operands.size(); i++)
+    {
+        Operand* r = pg.operands[i];
+
+        std::map<std::string, Pt2TensorMeta>::const_iterator it = program.tensor_values.find(r->name);
+        if (it == program.tensor_values.end())
+            continue;
+
+        if (r->type == 0)
+            r->type = pt2_dtype_enum_to_pnnx_type(it->second.dtype);
+
+        if (r->shape.empty())
+        {
+            for (size_t j = 0; j < it->second.sizes.size(); j++)
+                r->shape.push_back((int)it->second.sizes[j]);
         }
     }
 

@@ -357,6 +357,42 @@ static void parse_weight_config(const JsonValue& config, std::vector<Pt2WeightEn
 
 // ----- top level -----
 
+// ----- graph.tensor_values(张量名 → FakeTensor 元数据,含中间张量) -----
+// sizes 元素实测全为 {"as_int": N};符号形状等其他变体出现时按 -1(未知)记录
+static void parse_tensor_values(const JsonValue& tv, std::map<std::string, Pt2TensorMeta>& out)
+{
+    if (!tv.isObject())
+        return;
+
+    for (std::map<std::string, JsonValue>::const_iterator it = tv.object_value.begin();
+         it != tv.object_value.end(); ++it)
+    {
+        Pt2TensorMeta meta;
+
+        const JsonValue& m = it->second;
+        if (!m.isObject())
+            continue;
+
+        if (m.hasMember("dtype") && m["dtype"].isInt())
+            meta.dtype = m["dtype"].asInt();
+
+        if (m.hasMember("sizes") && m["sizes"].isArray())
+        {
+            const JsonValue& sizes = m["sizes"];
+            for (size_t i = 0; i < sizes.size(); i++)
+            {
+                long long dim = -1;
+                const JsonValue& d = sizes[i];
+                if (d.isObject() && d.hasMember("as_int") && d["as_int"].isInt())
+                    dim = d["as_int"].asInt();
+                meta.sizes.push_back(dim);
+            }
+        }
+
+        out[it->first] = meta;
+    }
+}
+
 int load_pt2_schema(const std::string& ptpath, Pt2Program& program)
 {
     try
@@ -423,6 +459,11 @@ int load_pt2_schema(const std::string& ptpath, Pt2Program& program)
         {
             program.nodes.push_back(parse_node(nodes[i]));
         }
+
+        // graph.tensor_values(张量元数据表,含中间张量的形状/dtype)
+        const JsonValue& graph = graph_module["graph"];
+        if (graph.isObject() && graph.hasMember("tensor_values"))
+            parse_tensor_values(graph["tensor_values"], program.tensor_values);
 
         // signature
         const JsonValue& signature = graph_module["signature"];
