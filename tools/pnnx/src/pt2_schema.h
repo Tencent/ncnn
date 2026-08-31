@@ -143,6 +143,8 @@ struct Pt2WeightEntry
 // 一个 .pt2 文件的完整 schema(model.json + weights/constants config)
 struct Pt2Program
 {
+    std::string zippath; // .pt2 文件路径(读权重二进制用)
+
     // header
     // schema_version 实测为结构化对象 {"major": 8, "minor": 20};-1 表示缺失
     long long schema_version_major;
@@ -163,8 +165,11 @@ struct Pt2Program
     std::vector<Pt2WeightEntry> weights;   // model_weights_config.json
     std::vector<Pt2WeightEntry> constants; // model_constants_config.json(实测常为空)
 
-    // 权重二进制在 zip 内的完整条目路径(<root>data/weights/weight_N)
+    // 权重/常量二进制在 zip 内的完整条目路径
+    // weights config 的 path_name 是 weight_N(位于 data/weights/),
+    // constants config 的 path_name 是 tensor_N(位于 data/constants/)
     std::string weight_entry_path(const std::string& path_name) const;
+    std::string constant_entry_path(const std::string& path_name) const;
 
     const Pt2WeightEntry* find_weight(const std::string& state_dict_name) const;
     const Pt2WeightEntry* find_constant(const std::string& state_dict_name) const;

@@ -773,6 +773,7 @@ set(pnnx_SRCS
     pass_level5.cpp
 
     ${pnnx_pass_level2_SRCS}
+    pass_level2/F_pt2.cpp
     ${pnnx_pass_level3_SRCS}
     ${pnnx_pass_level4_SRCS}
     ${pnnx_pass_level5_SRCS}

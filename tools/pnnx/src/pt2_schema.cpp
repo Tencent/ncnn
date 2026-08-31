@@ -30,6 +30,11 @@ std::string Pt2Program::weight_entry_path(const std::string& path_name) const
     return archive_root + "data/weights/" + path_name;
 }
 
+std::string Pt2Program::constant_entry_path(const std::string& path_name) const
+{
+    return archive_root + "data/constants/" + path_name;
+}
+
 const Pt2WeightEntry* Pt2Program::find_weight(const std::string& state_dict_name) const
 {
     for (size_t i = 0; i < weights.size(); i++)
