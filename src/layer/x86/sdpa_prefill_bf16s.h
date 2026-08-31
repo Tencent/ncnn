@@ -1705,27 +1705,22 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
                         for (int j = 0; j < max_jj; j++)
                         {
                             const __m512 _p = _mm512_loadu_ps(pS);
-                            const __m512 _v = _mm512_loadu_ps(pV);
-                            const __m512 _v0 = _mm512_shuffle_f32x4(_v, _v, _MM_SHUFFLE(0, 0, 0, 0));
-                            const __m512 _v1 = _mm512_shuffle_f32x4(_v, _v, _MM_SHUFFLE(1, 1, 1, 1));
-                            const __m512 _v2 = _mm512_shuffle_f32x4(_v, _v, _MM_SHUFFLE(2, 2, 2, 2));
-                            const __m512 _v3 = _mm512_shuffle_f32x4(_v, _v, _MM_SHUFFLE(3, 3, 3, 3));
-                            _out0 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v0, _MM_SHUFFLE(0, 0, 0, 0)), _out0);
-                            _out1 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v0, _MM_SHUFFLE(1, 1, 1, 1)), _out1);
-                            _out2 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v0, _MM_SHUFFLE(2, 2, 2, 2)), _out2);
-                            _out3 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v0, _MM_SHUFFLE(3, 3, 3, 3)), _out3);
-                            _out4 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v1, _MM_SHUFFLE(0, 0, 0, 0)), _out4);
-                            _out5 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v1, _MM_SHUFFLE(1, 1, 1, 1)), _out5);
-                            _out6 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v1, _MM_SHUFFLE(2, 2, 2, 2)), _out6);
-                            _out7 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v1, _MM_SHUFFLE(3, 3, 3, 3)), _out7);
-                            _out8 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v2, _MM_SHUFFLE(0, 0, 0, 0)), _out8);
-                            _out9 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v2, _MM_SHUFFLE(1, 1, 1, 1)), _out9);
-                            _outa = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v2, _MM_SHUFFLE(2, 2, 2, 2)), _outa);
-                            _outb = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v2, _MM_SHUFFLE(3, 3, 3, 3)), _outb);
-                            _outc = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v3, _MM_SHUFFLE(0, 0, 0, 0)), _outc);
-                            _outd = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v3, _MM_SHUFFLE(1, 1, 1, 1)), _outd);
-                            _oute = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v3, _MM_SHUFFLE(2, 2, 2, 2)), _oute);
-                            _outf = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v3, _MM_SHUFFLE(3, 3, 3, 3)), _outf);
+                            _out0 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[0]), _out0);
+                            _out1 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[1]), _out1);
+                            _out2 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[2]), _out2);
+                            _out3 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[3]), _out3);
+                            _out4 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[4]), _out4);
+                            _out5 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[5]), _out5);
+                            _out6 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[6]), _out6);
+                            _out7 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[7]), _out7);
+                            _out8 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[8]), _out8);
+                            _out9 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[9]), _out9);
+                            _outa = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[10]), _outa);
+                            _outb = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[11]), _outb);
+                            _outc = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[12]), _outc);
+                            _outd = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[13]), _outd);
+                            _oute = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[14]), _oute);
+                            _outf = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[15]), _outf);
                             pS += 16;
                             pV += 16;
                         }
@@ -1767,17 +1762,14 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
                             for (int j = 0; j < max_jj; j++)
                             {
                                 const __m512 _p = _mm512_loadu_ps(pS);
-                                const __m256 _v = _mm256_loadu_ps(pV);
-                                const __m512 _v0 = _mm512_broadcast_f32x4(_mm256_castps256_ps128(_v));
-                                const __m512 _v1 = _mm512_broadcast_f32x4(_mm256_extractf128_ps(_v, 1));
-                                _out0 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v0, _MM_SHUFFLE(0, 0, 0, 0)), _out0);
-                                _out1 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v0, _MM_SHUFFLE(1, 1, 1, 1)), _out1);
-                                _out2 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v0, _MM_SHUFFLE(2, 2, 2, 2)), _out2);
-                                _out3 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v0, _MM_SHUFFLE(3, 3, 3, 3)), _out3);
-                                _out4 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v1, _MM_SHUFFLE(0, 0, 0, 0)), _out4);
-                                _out5 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v1, _MM_SHUFFLE(1, 1, 1, 1)), _out5);
-                                _out6 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v1, _MM_SHUFFLE(2, 2, 2, 2)), _out6);
-                                _out7 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v1, _MM_SHUFFLE(3, 3, 3, 3)), _out7);
+                                _out0 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[0]), _out0);
+                                _out1 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[1]), _out1);
+                                _out2 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[2]), _out2);
+                                _out3 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[3]), _out3);
+                                _out4 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[4]), _out4);
+                                _out5 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[5]), _out5);
+                                _out6 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[6]), _out6);
+                                _out7 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[7]), _out7);
                                 pS += 16;
                                 pV += value_panel_width;
                             }
@@ -1803,11 +1795,10 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
                             for (int j = 0; j < max_jj; j++)
                             {
                                 const __m512 _p = _mm512_loadu_ps(pS);
-                                const __m512 _v = _mm512_broadcast_f32x4(_mm_loadu_ps(pV));
-                                _out0 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v, _MM_SHUFFLE(0, 0, 0, 0)), _out0);
-                                _out1 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v, _MM_SHUFFLE(1, 1, 1, 1)), _out1);
-                                _out2 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v, _MM_SHUFFLE(2, 2, 2, 2)), _out2);
-                                _out3 = _mm512_fmadd_ps(_p, _mm512_permute_ps(_v, _MM_SHUFFLE(3, 3, 3, 3)), _out3);
+                                _out0 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[0]), _out0);
+                                _out1 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[1]), _out1);
+                                _out2 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[2]), _out2);
+                                _out3 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[3]), _out3);
                                 pS += 16;
                                 pV += value_panel_width;
                             }
@@ -2343,17 +2334,14 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
                         for (int j = 0; j < max_jj; j++)
                         {
                             const __m256 _p = _mm256_loadu_ps(pS);
-                            const __m256 _v = _mm256_loadu_ps(pV);
-                            const __m256 _v0 = _mm256_permute2f128_ps(_v, _v, 0x00);
-                            const __m256 _v1 = _mm256_permute2f128_ps(_v, _v, 0x11);
-                            _out0 = _mm256_comp_fmadd_ps(_p, _mm256_permute_ps(_v0, _MM_SHUFFLE(0, 0, 0, 0)), _out0);
-                            _out1 = _mm256_comp_fmadd_ps(_p, _mm256_permute_ps(_v0, _MM_SHUFFLE(1, 1, 1, 1)), _out1);
-                            _out2 = _mm256_comp_fmadd_ps(_p, _mm256_permute_ps(_v0, _MM_SHUFFLE(2, 2, 2, 2)), _out2);
-                            _out3 = _mm256_comp_fmadd_ps(_p, _mm256_permute_ps(_v0, _MM_SHUFFLE(3, 3, 3, 3)), _out3);
-                            _out4 = _mm256_comp_fmadd_ps(_p, _mm256_permute_ps(_v1, _MM_SHUFFLE(0, 0, 0, 0)), _out4);
-                            _out5 = _mm256_comp_fmadd_ps(_p, _mm256_permute_ps(_v1, _MM_SHUFFLE(1, 1, 1, 1)), _out5);
-                            _out6 = _mm256_comp_fmadd_ps(_p, _mm256_permute_ps(_v1, _MM_SHUFFLE(2, 2, 2, 2)), _out6);
-                            _out7 = _mm256_comp_fmadd_ps(_p, _mm256_permute_ps(_v1, _MM_SHUFFLE(3, 3, 3, 3)), _out7);
+                            _out0 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[0]), _out0);
+                            _out1 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[1]), _out1);
+                            _out2 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[2]), _out2);
+                            _out3 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[3]), _out3);
+                            _out4 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[4]), _out4);
+                            _out5 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[5]), _out5);
+                            _out6 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[6]), _out6);
+                            _out7 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[7]), _out7);
                             pS += 8;
                             pV += value_panel_width;
                         }
@@ -2379,12 +2367,10 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
                         for (int j = 0; j < max_jj; j++)
                         {
                             const __m256 _p = _mm256_loadu_ps(pS);
-                            const __m128 _v128 = _mm_loadu_ps(pV);
-                            const __m256 _v = _mm256_insertf128_ps(_mm256_castps128_ps256(_v128), _v128, 1);
-                            _out0 = _mm256_comp_fmadd_ps(_p, _mm256_permute_ps(_v, _MM_SHUFFLE(0, 0, 0, 0)), _out0);
-                            _out1 = _mm256_comp_fmadd_ps(_p, _mm256_permute_ps(_v, _MM_SHUFFLE(1, 1, 1, 1)), _out1);
-                            _out2 = _mm256_comp_fmadd_ps(_p, _mm256_permute_ps(_v, _MM_SHUFFLE(2, 2, 2, 2)), _out2);
-                            _out3 = _mm256_comp_fmadd_ps(_p, _mm256_permute_ps(_v, _MM_SHUFFLE(3, 3, 3, 3)), _out3);
+                            _out0 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[0]), _out0);
+                            _out1 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[1]), _out1);
+                            _out2 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[2]), _out2);
+                            _out3 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[3]), _out3);
                             pS += 8;
                             pV += value_panel_width;
                         }
