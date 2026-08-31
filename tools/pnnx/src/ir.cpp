@@ -5,6 +5,7 @@
 #include "model_stat.h"
 
 #include <limits.h>
+#include <math.h>
 #include <stdint.h>
 #include <string.h>
 #include <algorithm>
@@ -2431,14 +2432,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     {
                         if (scalar_as_tensor)
                         {
-                            if (param.f == (int)param.f)
+                            if (param.f == truncf(param.f))
                                 fprintf(pyfp, "torch.tensor(%.1f)", param.f);
                             else
                                 fprintf(pyfp, "torch.tensor(%g)", param.f);
                         }
                         else
                         {
-                            if (param.f == (int)param.f)
+                            if (param.f == truncf(param.f))
                                 fprintf(pyfp, "%.1f", param.f);
                             else
                                 fprintf(pyfp, "%g", param.f);

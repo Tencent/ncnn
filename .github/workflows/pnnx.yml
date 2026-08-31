@@ -70,16 +70,55 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . --config Release -j 4
 
-    - name: pt2-test
-      run: |
-        cd tools/pnnx/build
-        ctest -C Release --output-on-failure -L pt2-smoke
-
     - name: quick-test
       if: matrix.os != 'windows-latest'
       run: |
         cd tools/pnnx
         cd build && ctest -C Release --output-on-failure -R test_nn_Conv
+
+  pt2-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    env:
+      PYTHONUSERBASE: ${{ github.workspace }}/torch
+      UseMultiToolTask: true
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        submodules: true
+
+    - uses: actions/setup-python@v7
+      with:
+        python-version: 3.12
+
+    - name: setup-pytorch
+      run: |
+        python3 -m pip config set global.break-system-packages true
+        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} torchvision==${{ env.TORCHVISION_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user --no-deps torchaudio==${{ env.TORCHAUDIO_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user numpy packaging transformers==${{ env.TRANSFORMERS_VERSION }} einops onnxscript
+
+    - name: python-ncnn
+      env:
+        CMAKE_BUILD_PARALLEL_LEVEL: 4
+        EXTRA_CMAKE_ARGS: -DNCNN_VULKAN=OFF
+      run: pip3 install --user --no-deps . --verbose
+
+    - name: build-pnnx
+      run: |
+        cd tools/pnnx
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . --config Release -j 4
+
+    - name: pt2-test
+      run: |
+        cd tools/pnnx/build
+        ctest -C Release --output-on-failure -L pt2-smoke
 
   pt2-sanitizer:
     runs-on: ubuntu-latest

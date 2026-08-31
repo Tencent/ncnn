@@ -207,9 +207,9 @@ public:
     int type;
 
     // value
-    bool b;
-    int i;
-    float f;
+    bool b = false;
+    int i = 0;
+    float f = 0.f;
     std::complex<float> c;
     std::vector<int> ai;
     std::vector<float> af;
