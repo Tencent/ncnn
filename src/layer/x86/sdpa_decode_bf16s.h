@@ -680,9 +680,10 @@ static void sdpa_decode_tile_bf16s(const Mat& query, const Mat& key, const Mat& 
             float* scoreptr = scoreT;
             __m256 _sum0 = _mm256_setzero_ps();
             __m256 _sum1 = _mm256_setzero_ps();
+            int j = 0;
+#if defined(__x86_64__) || defined(_M_X64)
             __m256 _sum2 = _mm256_setzero_ps();
             __m256 _sum3 = _mm256_setzero_ps();
-            int j = 0;
             for (; j + 3 < max_jj; j += 4)
             {
                 __m256 _p0 = exp256_ps(_mm256_sub_ps(_mm256_loadu_ps(scoreptr), _m_new));
@@ -699,6 +700,17 @@ static void sdpa_decode_tile_bf16s(const Mat& query, const Mat& key, const Mat& 
                 _sum3 = _mm256_add_ps(_sum3, _p3);
                 scoreptr += 32;
             }
+#endif // defined(__x86_64__) || defined(_M_X64)
+            for (; j + 1 < max_jj; j += 2)
+            {
+                __m256 _p0 = exp256_ps(_mm256_sub_ps(_mm256_loadu_ps(scoreptr), _m_new));
+                __m256 _p1 = exp256_ps(_mm256_sub_ps(_mm256_loadu_ps(scoreptr + 8), _m_new));
+                _mm256_storeu_ps(scoreptr, _p0);
+                _mm256_storeu_ps(scoreptr + 8, _p1);
+                _sum0 = _mm256_add_ps(_sum0, _p0);
+                _sum1 = _mm256_add_ps(_sum1, _p1);
+                scoreptr += 16;
+            }
             for (; j < max_jj; j++)
             {
                 __m256 _p = exp256_ps(_mm256_sub_ps(_mm256_loadu_ps(scoreptr), _m_new));
@@ -706,7 +718,10 @@ static void sdpa_decode_tile_bf16s(const Mat& query, const Mat& key, const Mat& 
                 scoreptr += 8;
                 _sum0 = _mm256_add_ps(_sum0, _p);
             }
-            __m256 _sum = _mm256_add_ps(_mm256_add_ps(_sum0, _sum1), _mm256_add_ps(_sum2, _sum3));
+            __m256 _sum = _mm256_add_ps(_sum0, _sum1);
+#if defined(__x86_64__) || defined(_M_X64)
+            _sum = _mm256_add_ps(_sum, _mm256_add_ps(_sum2, _sum3));
+#endif // defined(__x86_64__) || defined(_M_X64)
             _l = _mm256_add_ps(_mm256_mul_ps(_l, _alpha), _sum);
             _m = _m_new;
 
@@ -1014,9 +1029,10 @@ static void sdpa_decode_tile_bf16s(const Mat& query, const Mat& key, const Mat& 
             float* scoreptr = scoreT;
             __m128 _sum0 = _mm_setzero_ps();
             __m128 _sum1 = _mm_setzero_ps();
+            int j = 0;
+#if defined(__x86_64__) || defined(_M_X64)
             __m128 _sum2 = _mm_setzero_ps();
             __m128 _sum3 = _mm_setzero_ps();
-            int j = 0;
             for (; j + 3 < max_jj; j += 4)
             {
                 __m128 _score = _mm_sub_ps(_mm_loadu_ps(scoreptr), _m_new);
@@ -1037,6 +1053,19 @@ static void sdpa_decode_tile_bf16s(const Mat& query, const Mat& key, const Mat& 
                 _sum3 = _mm_add_ps(_sum3, _p);
                 scoreptr += 16;
             }
+#endif // defined(__x86_64__) || defined(_M_X64)
+            for (; j + 1 < max_jj; j += 2)
+            {
+                __m128 _score = _mm_sub_ps(_mm_loadu_ps(scoreptr), _m_new);
+                __m128 _p = exp_ps(_score);
+                _mm_storeu_ps(scoreptr, _p);
+                _sum0 = _mm_add_ps(_sum0, _p);
+                _score = _mm_sub_ps(_mm_loadu_ps(scoreptr + 4), _m_new);
+                _p = exp_ps(_score);
+                _mm_storeu_ps(scoreptr + 4, _p);
+                _sum1 = _mm_add_ps(_sum1, _p);
+                scoreptr += 8;
+            }
             for (; j < max_jj; j++)
             {
                 __m128 _score = _mm_sub_ps(_mm_loadu_ps(scoreptr), _m_new);
@@ -1045,7 +1074,10 @@ static void sdpa_decode_tile_bf16s(const Mat& query, const Mat& key, const Mat& 
                 scoreptr += 4;
                 _sum0 = _mm_add_ps(_sum0, _p);
             }
-            __m128 _sum = _mm_add_ps(_mm_add_ps(_sum0, _sum1), _mm_add_ps(_sum2, _sum3));
+            __m128 _sum = _mm_add_ps(_sum0, _sum1);
+#if defined(__x86_64__) || defined(_M_X64)
+            _sum = _mm_add_ps(_sum, _mm_add_ps(_sum2, _sum3));
+#endif // defined(__x86_64__) || defined(_M_X64)
 
             _l = _mm_add_ps(_mm_mul_ps(_l, _alpha), _sum);
             _m = _m_new;
@@ -1617,9 +1649,12 @@ static int sdpa_decode_bf16s(const Mat& query, const Mat& key, const Mat& value,
     const int nT = std::min(std::max(opt.num_threads, 1), num_tasks);
     const int block_n = sdpa_decode_get_optimal_tile_n(query.w, value_dim, key_seqlen, 2, 2, 2, attn_mask_blob.empty() ? 0 : 2, block_q);
 
-    const int query_workspace_size = block_q >= 4 ? (query.w * block_q + 1) / 2 : 0;
-    const int workspace_size = (block_q * (block_n + value_dim) + query_workspace_size + 15) / 16 * 16;
-    Mat workspace(workspace_size, 1, nT, 4u, opt.workspace_allocator);
+    const bool pack_query = block_q >= 4;
+    const size_t score_workspace_size = (size_t)block_q * block_n * sizeof(float);
+    const size_t output_workspace_size = (size_t)block_q * value_dim * sizeof(float);
+    const size_t query_workspace_size = pack_query ? (size_t)block_q * query.w * sizeof(unsigned short) : 0;
+    const size_t workspace_size = alignSize(score_workspace_size + output_workspace_size + query_workspace_size, 64);
+    Mat workspace((int)(workspace_size / sizeof(float)), 1, nT, 4u, opt.workspace_allocator);
     if (workspace.empty())
         return -100;
 
@@ -1657,8 +1692,9 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
     Mat scoreT = workspace.range(0, score_workspace_size);
     Mat outT = workspace.range(score_workspace_size, out_workspace_size);
 #if __SSE2__
+    const bool pack_query = max_qq >= 4;
     Mat queryT;
-    if (max_qq >= 4)
+    if (pack_query)
     {
         queryT = Mat(head_dim * max_qq, (unsigned short*)((float*)outT + out_workspace_size), 2u);
         sdpa_decode_pack_query_bf16s(query, queryT, q0, max_qq);
@@ -3008,9 +3044,10 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
 
             __m256 _sum0 = _mm256_setzero_ps();
             __m256 _sum1 = _mm256_setzero_ps();
+            int j = 0;
+#if defined(__x86_64__) || defined(_M_X64)
             __m256 _sum2 = _mm256_setzero_ps();
             __m256 _sum3 = _mm256_setzero_ps();
-            int j = 0;
             for (; j + 3 < max_jj; j += 4)
             {
                 __m256 _p0 = exp256_ps(_mm256_sub_ps(_mm256_loadu_ps(scoreptr), _m_new));
@@ -3027,6 +3064,17 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                 _sum2 = _mm256_add_ps(_sum2, _p2);
                 _sum3 = _mm256_add_ps(_sum3, _p3);
             }
+#endif // defined(__x86_64__) || defined(_M_X64)
+            for (; j + 1 < max_jj; j += 2)
+            {
+                __m256 _p0 = exp256_ps(_mm256_sub_ps(_mm256_loadu_ps(scoreptr), _m_new));
+                __m256 _p1 = exp256_ps(_mm256_sub_ps(_mm256_loadu_ps(scoreptr + 8), _m_new));
+                _mm256_storeu_ps(scoreptr, _p0);
+                _mm256_storeu_ps(scoreptr + 8, _p1);
+                scoreptr += 16;
+                _sum0 = _mm256_add_ps(_sum0, _p0);
+                _sum1 = _mm256_add_ps(_sum1, _p1);
+            }
             for (; j < max_jj; j++)
             {
                 __m256 _p = exp256_ps(_mm256_sub_ps(_mm256_loadu_ps(scoreptr), _m_new));
@@ -3034,7 +3082,11 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                 scoreptr += 8;
                 _sum0 = _mm256_add_ps(_sum0, _p);
             }
-            _l = _mm256_add_ps(_mm256_mul_ps(_l, _alpha), _mm256_add_ps(_mm256_add_ps(_sum0, _sum1), _mm256_add_ps(_sum2, _sum3)));
+            __m256 _sum = _mm256_add_ps(_sum0, _sum1);
+#if defined(__x86_64__) || defined(_M_X64)
+            _sum = _mm256_add_ps(_sum, _mm256_add_ps(_sum2, _sum3));
+#endif // defined(__x86_64__) || defined(_M_X64)
+            _l = _mm256_add_ps(_mm256_mul_ps(_l, _alpha), _sum);
             _m = _m_new;
 
             float* outptr = outT_tile;
@@ -3418,9 +3470,10 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
 
             __m128 _sum0 = _mm_setzero_ps();
             __m128 _sum1 = _mm_setzero_ps();
+            int j = 0;
+#if defined(__x86_64__) || defined(_M_X64)
             __m128 _sum2 = _mm_setzero_ps();
             __m128 _sum3 = _mm_setzero_ps();
-            int j = 0;
             for (; j + 3 < max_jj; j += 4)
             {
                 __m128 _p0 = exp_ps(_mm_sub_ps(_mm_loadu_ps(scoreptr), _m_new));
@@ -3437,6 +3490,17 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                 _sum2 = _mm_add_ps(_sum2, _p2);
                 _sum3 = _mm_add_ps(_sum3, _p3);
             }
+#endif // defined(__x86_64__) || defined(_M_X64)
+            for (; j + 1 < max_jj; j += 2)
+            {
+                __m128 _p0 = exp_ps(_mm_sub_ps(_mm_loadu_ps(scoreptr), _m_new));
+                __m128 _p1 = exp_ps(_mm_sub_ps(_mm_loadu_ps(scoreptr + 4), _m_new));
+                _mm_storeu_ps(scoreptr, _p0);
+                _mm_storeu_ps(scoreptr + 4, _p1);
+                scoreptr += 8;
+                _sum0 = _mm_add_ps(_sum0, _p0);
+                _sum1 = _mm_add_ps(_sum1, _p1);
+            }
             for (; j < max_jj; j++)
             {
                 __m128 _p = exp_ps(_mm_sub_ps(_mm_loadu_ps(scoreptr), _m_new));
@@ -3444,7 +3508,11 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                 scoreptr += 4;
                 _sum0 = _mm_add_ps(_sum0, _p);
             }
-            _l = _mm_add_ps(_mm_mul_ps(_l, _alpha), _mm_add_ps(_mm_add_ps(_sum0, _sum1), _mm_add_ps(_sum2, _sum3)));
+            __m128 _sum = _mm_add_ps(_sum0, _sum1);
+#if defined(__x86_64__) || defined(_M_X64)
+            _sum = _mm_add_ps(_sum, _mm_add_ps(_sum2, _sum3));
+#endif // defined(__x86_64__) || defined(_M_X64)
+            _l = _mm_add_ps(_mm_mul_ps(_l, _alpha), _sum);
             _m = _m_new;
 
             float* outptr = outT_tile;
@@ -4429,8 +4497,12 @@ static int sdpa_decode_kvcache_bf16s(const Mat& query, const Mat& key_cache, con
     int block_n = sdpa_decode_get_optimal_tile_n(head_dim, value_dim, key_seqlen, 2, 2, 2, attn_mask_blob.empty() ? 0 : 2, block_q);
     block_n = std::max(NR, (block_n + NR - 1) / NR * NR);
 
-    const int workspace_size = block_q * (head_dim + block_n + value_dim);
-    Mat workspace(workspace_size, 1, nT, 4u, opt.workspace_allocator);
+    const bool pack_query = block_q >= 4;
+    const size_t score_workspace_size = (size_t)block_q * block_n * sizeof(float);
+    const size_t output_workspace_size = (size_t)block_q * value_dim * sizeof(float);
+    const size_t query_workspace_size = pack_query ? (size_t)block_q * head_dim * sizeof(unsigned short) : 0;
+    const size_t workspace_size = alignSize(score_workspace_size + output_workspace_size + query_workspace_size, 64);
+    Mat workspace((int)(workspace_size / sizeof(float)), 1, nT, 4u, opt.workspace_allocator);
     if (workspace.empty())
         return -100;
 
