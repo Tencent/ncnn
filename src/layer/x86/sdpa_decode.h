@@ -1,7 +1,7 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-static int sdpa_decode_get_optimal_tile_q(int num_query_heads_per_kv_head, int num_kv_heads, int nT)
+static int sdpa_decode_get_optimal_tile_q(int num_query_heads_per_kv_head)
 {
     int TILE_Q = num_query_heads_per_kv_head >= 2 ? 2 : 1;
 #if __SSE2__
@@ -16,15 +16,6 @@ static int sdpa_decode_get_optimal_tile_q(int num_query_heads_per_kv_head, int n
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
-
-    while (TILE_Q > 1)
-    {
-        const int num_tasks = num_kv_heads * ((num_query_heads_per_kv_head + TILE_Q - 1) / TILE_Q);
-        if (num_tasks >= nT)
-            break;
-
-        TILE_Q /= 2;
-    }
 
     return TILE_Q;
 }
@@ -1911,10 +1902,10 @@ static int sdpa_decode_fp32(const Mat& query, const Mat& key, const Mat& value, 
     const int key_seqlen = key.h;
     const int value_dim = value.w;
     const int num_query_heads_per_kv_head = num_query_heads / num_kv_heads;
-    const int nT = std::max(opt.num_threads, 1);
-    const int block_q = sdpa_decode_get_optimal_tile_q(num_query_heads_per_kv_head, num_kv_heads, nT);
+    const int block_q = sdpa_decode_get_optimal_tile_q(num_query_heads_per_kv_head);
     const int num_qblocks = (num_query_heads_per_kv_head + block_q - 1) / block_q;
     const int num_tasks = num_kv_heads * num_qblocks;
+    const int nT = std::min(std::max(opt.num_threads, 1), num_tasks);
     const int block_n = sdpa_decode_get_optimal_tile_n(query.w, value_dim, key_seqlen, 4, 4, 4, attn_mask_blob.empty() ? 0 : 4, block_q);
 
     const int query_workspace_size = block_q >= 4 ? query.w * block_q : 0;
@@ -1923,7 +1914,7 @@ static int sdpa_decode_fp32(const Mat& query, const Mat& key, const Mat& value, 
     if (workspace.empty())
         return -100;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(nT)
     for (int task_id = 0; task_id < num_tasks; task_id++)
     {
         const int g = task_id / num_qblocks;
@@ -4067,8 +4058,7 @@ static int sdpa_decode_kvcache_fp32(const Mat& query, const Mat& key_cache, cons
     const int num_query_heads = query.c;
     const int num_kv_heads = key_cache.c;
     const int num_query_heads_per_kv_head = num_query_heads / num_kv_heads;
-    const int nT = std::max(opt.num_threads, 1);
-    const int block_q = sdpa_decode_get_optimal_tile_q(num_query_heads_per_kv_head, num_kv_heads, nT);
+    const int block_q = sdpa_decode_get_optimal_tile_q(num_query_heads_per_kv_head);
 #if __AVX512F__
     const int NR = 16;
 #elif __AVX__
@@ -4080,6 +4070,7 @@ static int sdpa_decode_kvcache_fp32(const Mat& query, const Mat& key_cache, cons
 #endif
     const int num_qblocks = (num_query_heads_per_kv_head + block_q - 1) / block_q;
     const int num_tasks = num_kv_heads * num_qblocks;
+    const int nT = std::min(std::max(opt.num_threads, 1), num_tasks);
     int block_n = sdpa_decode_get_optimal_tile_n(head_dim, value_dim, key_seqlen, 4, 4, 4, attn_mask_blob.empty() ? 0 : 4, block_q);
     block_n = std::max(NR, (block_n + NR - 1) / NR * NR);
 
@@ -4088,7 +4079,7 @@ static int sdpa_decode_kvcache_fp32(const Mat& query, const Mat& key_cache, cons
     if (workspace.empty())
         return -100;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(nT)
     for (int task_id = 0; task_id < num_tasks; task_id++)
     {
         const int g = task_id / num_qblocks;

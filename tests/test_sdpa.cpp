@@ -58,7 +58,7 @@ static int test_sdpa_0()
 {
     return 0
            || test_sdpa(RandomMat(64, 1, 16), RandomMat(64, 521, 1), RandomMat(48, 521, 1), 0)
-           || test_sdpa(RandomMat(63, 1, 31), RandomMat(63, 37, 1), RandomMat(47, 37, 1), 3)
+           || test_sdpa(RandomMat(63, 1, 31), RandomMat(63, 37, 1), RandomMat(47, 37, 1), 3, 0.f, TEST_LAYER_ENABLE_THREADING)
            || test_sdpa(RandomMat(65, 1, 4), RandomMat(65, 37, 4), RandomMat(33, 37, 4), 1)
            || test_sdpa(RandomMat(80, 1, 8), RandomMat(80, 521, 2), RandomMat(96, 521, 2), 1, -0.4f)
            || test_sdpa(RandomMat(63, 31, 15), RandomMat(63, 31, 3), RandomMat(47, 31, 3), 2, 0.2f)

@@ -52,18 +52,12 @@ int SDPA::kvcache_capacity(int current_capacity, int new_seqlen, int max_seqlen_
 
 int SDPA::create_or_grow_kvcache(const Mat& cache, Mat& new_cache, int new_seqlen, int num_kv_head, int head_dim, size_t elemsize, int elempack, const Option& opt) const
 {
-    if (!cache.empty() && new_seqlen <= cache.h)
+    Allocator* allocator = opt.kvcache_allocator;
+    const bool reuse = !cache.empty() && cache.allocator == allocator;
+    const int current_capacity = reuse ? (int)(cache.cstep / cache.w) : 0;
+    if (reuse)
     {
-        new_cache = cache;
-        new_cache.h = new_seqlen;
-        return 0;
-    }
-
-    Allocator* allocator = opt.kvcache_allocator ? opt.kvcache_allocator : opt.blob_allocator;
-    if (opt.kvcache_allocator && !cache.empty() && cache.allocator == allocator)
-    {
-        const int capacity = (int)(cache.cstep / cache.w);
-        if (new_seqlen <= capacity)
+        if (new_seqlen <= current_capacity)
         {
             new_cache = cache;
             new_cache.h = new_seqlen;
@@ -71,12 +65,7 @@ int SDPA::create_or_grow_kvcache(const Mat& cache, Mat& new_cache, int new_seqle
         }
     }
 
-    int capacity = new_seqlen > 0 ? new_seqlen : 1;
-    if (opt.kvcache_allocator)
-    {
-        const int current_capacity = cache.empty() ? 0 : (int)(cache.cstep / cache.w);
-        capacity = kvcache_capacity(current_capacity, new_seqlen, opt.kvcache_max_seqlen_hint);
-    }
+    int capacity = kvcache_capacity(current_capacity, new_seqlen, opt.kvcache_max_seqlen_hint);
 
     Mat m;
     m.create(head_dim, capacity, num_kv_head, elemsize, elempack, allocator);

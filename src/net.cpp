@@ -2982,7 +2982,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
     if (!feat.empty())
     {
         // preserve kv cache storage layout and reserved capacity
-        if (d->opt.kvcache_allocator && feat.allocator == d->opt.kvcache_allocator)
+        if (feat.allocator == d->opt.kvcache_allocator && feat.allocator != d->opt.blob_allocator)
             type = 1;
 
         if (d->opt.use_packing_layout && (type == 0) && feat.elempack != 1)

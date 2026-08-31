@@ -1611,10 +1611,10 @@ static int sdpa_decode_bf16s(const Mat& query, const Mat& key, const Mat& value,
     const int key_seqlen = key.h;
     const int value_dim = value.w;
     const int num_query_heads_per_kv_head = num_query_heads / num_kv_heads;
-    const int nT = std::max(opt.num_threads, 1);
-    const int block_q = sdpa_decode_get_optimal_tile_q(num_query_heads_per_kv_head, num_kv_heads, nT);
+    const int block_q = sdpa_decode_get_optimal_tile_q(num_query_heads_per_kv_head);
     const int num_qblocks = (num_query_heads_per_kv_head + block_q - 1) / block_q;
     const int num_tasks = num_kv_heads * num_qblocks;
+    const int nT = std::min(std::max(opt.num_threads, 1), num_tasks);
     const int block_n = sdpa_decode_get_optimal_tile_n(query.w, value_dim, key_seqlen, 2, 2, 2, attn_mask_blob.empty() ? 0 : 2, block_q);
 
     const int query_workspace_size = block_q >= 4 ? (query.w * block_q + 1) / 2 : 0;
@@ -1623,7 +1623,7 @@ static int sdpa_decode_bf16s(const Mat& query, const Mat& key, const Mat& value,
     if (workspace.empty())
         return -100;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(nT)
     for (int task_id = 0; task_id < num_tasks; task_id++)
     {
         const int g = task_id / num_qblocks;
@@ -4413,8 +4413,7 @@ static int sdpa_decode_kvcache_bf16s(const Mat& query, const Mat& key_cache, con
     const int num_query_heads = query.c;
     const int num_kv_heads = key_cache.c;
     const int num_query_heads_per_kv_head = num_query_heads / num_kv_heads;
-    const int nT = std::max(opt.num_threads, 1);
-    const int block_q = sdpa_decode_get_optimal_tile_q(num_query_heads_per_kv_head, num_kv_heads, nT);
+    const int block_q = sdpa_decode_get_optimal_tile_q(num_query_heads_per_kv_head);
 #if __AVX512F__
     const int NR = 16;
 #elif __AVX__
@@ -4426,6 +4425,7 @@ static int sdpa_decode_kvcache_bf16s(const Mat& query, const Mat& key_cache, con
 #endif
     const int num_qblocks = (num_query_heads_per_kv_head + block_q - 1) / block_q;
     const int num_tasks = num_kv_heads * num_qblocks;
+    const int nT = std::min(std::max(opt.num_threads, 1), num_tasks);
     int block_n = sdpa_decode_get_optimal_tile_n(head_dim, value_dim, key_seqlen, 2, 2, 2, attn_mask_blob.empty() ? 0 : 2, block_q);
     block_n = std::max(NR, (block_n + NR - 1) / NR * NR);
 
@@ -4434,7 +4434,7 @@ static int sdpa_decode_kvcache_bf16s(const Mat& query, const Mat& key_cache, con
     if (workspace.empty())
         return -100;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(nT)
     for (int task_id = 0; task_id < num_tasks; task_id++)
     {
         const int g = task_id / num_qblocks;

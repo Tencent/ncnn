@@ -118,9 +118,15 @@ static int run_sdpa_step(ncnn::Net& net, ncnn::Mat& output, ncnn::Mat& key_cache
 static int run_extractor_kvcache(ncnn::Allocator* kvcache_allocator, int cache_extract_type, std::vector<ncnn::Mat>& outputs, int use_bf16_storage = 0, int num_heads = 4, int num_kv_heads = 2, int head_dim = 8, int value_dim = 6, int max_seqlen_hint = 32, int mask_type = 0, int num_threads = 1, int kvcache_allocator_step = 0)
 {
     ncnn::Net net;
-    net.opt.lightmode = false;
+    net.opt.lightmode = true;
     net.opt.use_vulkan_compute = false;
     net.opt.use_bf16_storage = use_bf16_storage;
+    if (use_bf16_storage)
+    {
+        net.opt.use_fp16_packed = false;
+        net.opt.use_fp16_storage = false;
+        net.opt.use_fp16_arithmetic = false;
+    }
     net.opt.num_threads = num_threads;
 
     if (net.load_param_mem(mask_type ? sdpa_mask_param : sdpa_param) != 0)
@@ -140,8 +146,8 @@ static int run_extractor_kvcache(ncnn::Allocator* kvcache_allocator, int cache_e
         const int new_seqlen = past_seqlen + append_lengths[i];
 
         ncnn::Allocator* step_kvcache_allocator = i >= kvcache_allocator_step ? kvcache_allocator : 0;
-        const bool old_key_reusable = step_kvcache_allocator && old_key_data && key_cache.allocator == step_kvcache_allocator;
-        const bool old_value_reusable = step_kvcache_allocator && old_value_data && value_cache.allocator == step_kvcache_allocator;
+        const bool old_key_reusable = old_key_data && key_cache.allocator == step_kvcache_allocator;
+        const bool old_value_reusable = old_value_data && value_cache.allocator == step_kvcache_allocator;
         ret = run_sdpa_step(net, outputs[i], key_cache, value_cache, append_lengths[i], past_seqlen, i, step_kvcache_allocator, cache_extract_type, use_bf16_storage, num_heads, num_kv_heads, head_dim, value_dim, max_seqlen_hint, mask_type);
         if (ret == 0 && (key_cache.empty() || value_cache.empty()))
             ret = -1;
@@ -209,6 +215,28 @@ static int test_extractor_kvcache_extract_type()
     return ret;
 }
 
+static int test_extractor_kvcache_ncnn_llm(int use_bf16_storage)
+{
+    std::vector<ncnn::Mat> reference_outputs;
+    int ret = run_extractor_kvcache(0, 1, reference_outputs, use_bf16_storage);
+
+    std::vector<ncnn::Mat> outputs;
+    if (ret == 0)
+        ret = run_extractor_kvcache(0, 0, outputs, use_bf16_storage);
+
+    const float epsilon = use_bf16_storage ? 0.01f : 0.001f;
+    for (int i = 0; ret == 0 && i < (int)outputs.size(); i++)
+    {
+        if (CompareMat(reference_outputs[i], outputs[i], epsilon) != 0)
+            ret = -1;
+    }
+
+    if (ret != 0)
+        fprintf(stderr, "test_extractor_kvcache_ncnn_llm failed storage=%d ret=%d\n", use_bf16_storage, ret);
+
+    return ret;
+}
+
 static int test_extractor_kvcache()
 {
     return 0
@@ -220,7 +248,12 @@ static int test_extractor_kvcache()
            || test_extractor_kvcache(1, 15, 3, 37, 29, 64, 1, 4, 0)
            || test_extractor_kvcache(1, 31, 1, 63, 47, 32, 3, 4, 0)
 #endif // NCNN_BF16
-           || test_extractor_kvcache_extract_type();
+           || test_extractor_kvcache_extract_type()
+           || test_extractor_kvcache_ncnn_llm(0)
+#if NCNN_BF16
+           || test_extractor_kvcache_ncnn_llm(1)
+#endif // NCNN_BF16
+           ;
 }
 
 static int test_kvcache_allocator_alias()
