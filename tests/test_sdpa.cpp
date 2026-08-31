@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-static int test_sdpa(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int mask_type, float scale = 0.f)
+static int test_sdpa(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int mask_type, float scale = 0.f, int flag = TEST_LAYER_DISABLE_AUTO_INPUT_PACKING)
 {
     const int src_seqlen = q.h;
     const int dst_seqlen = k.h;
@@ -45,7 +45,7 @@ static int test_sdpa(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v,
 
     float epsilon = 0.001;
 
-    int ret = test_layer("SDPA", pd, weights, as, 1, epsilon);
+    int ret = test_layer("SDPA", pd, weights, as, 1, epsilon, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_sdpa failed q=(%d %d %d) k=(%d %d %d) v=(%d %d %d) mask_type=%d scale=%f\n", q.w, q.h, q.c, k.w, k.h, k.c, v.w, v.h, v.c, mask_type, scale);
@@ -66,6 +66,9 @@ static int test_sdpa_0()
            || test_sdpa(RandomMat(65, 1, 4), RandomMat(65, 509, 4), RandomMat(33, 509, 4), 3)
            || test_sdpa(RandomMat(80, 1, 8), RandomMat(80, 521, 2), RandomMat(96, 521, 2), 1, -0.4f)
            || test_sdpa(RandomMat(96, 1, 8), RandomMat(96, 521, 2), RandomMat(80, 521, 2), 3)
+           || test_sdpa(RandomMat(27, 1, 30), RandomMat(27, 37, 1), RandomMat(23, 37, 1), 3)
+           || test_sdpa(RandomMat(17, 1, 1), RandomMat(17, 37, 1), RandomMat(65, 37, 1), 0)
+           || test_sdpa(RandomMat(27, 4, 1), RandomMat(27, 513, 1), RandomMat(23, 513, 1), 3, 0.f, TEST_LAYER_DISABLE_AUTO_INPUT_PACKING | TEST_LAYER_ENABLE_THREADING)
            || test_sdpa(RandomMat(128, 17, 4), RandomMat(128, 513, 4), RandomMat(192, 513, 4), 4)
            || test_sdpa(RandomMat(32, 66, 8), RandomMat(32, 66, 8), RandomMat(20, 66, 8), 0)
            || test_sdpa(RandomMat(26, 64, 8), RandomMat(26, 61, 8), RandomMat(18, 61, 8), 1)

@@ -169,9 +169,13 @@ static int test_sdpa_0()
            || test_sdpa_kvcache(64, 64, 12, 2, 0, 0)
            || test_sdpa_kvcache(28, 32, 15, 5, 1, 0)
            || test_sdpa_kvcache(17, 19, 16, 1, 3, 0)
+           || test_sdpa_kvcache(27, 23, 14, 1, 3, 0)
+           || test_sdpa_kvcache(24, 24, 8, 8, 0, 0)
 #if NCNN_BF16
            || test_sdpa_kvcache(15, 13, 8, 2, 1, 1)
            || test_sdpa_kvcache(17, 19, 16, 1, 3, 1)
+           || test_sdpa_kvcache(27, 23, 14, 1, 3, 1)
+           || test_sdpa_kvcache(24, 24, 8, 8, 0, 1)
 #endif // NCNN_BF16
 #if NCNN_INT8
            || test_sdpa_kvcache(32, 20, 8, 8, 0, 2)
