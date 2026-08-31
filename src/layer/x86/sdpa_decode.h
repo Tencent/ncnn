@@ -234,7 +234,6 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
         const int head_dim = query.w;
         const int value_dim = value.w;
 
-
         const bool mask_per_head = !attn_mask_blob.empty() && attn_mask_blob.dims == 3 && attn_mask_blob.c > 1;
         const float* mask = 0;
         if (!attn_mask_blob.empty())
@@ -508,7 +507,6 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
         const int head_dim = query.w;
         const int value_dim = value.w;
 
-
         const bool mask_per_head = !attn_mask_blob.empty() && attn_mask_blob.dims == 3 && attn_mask_blob.c > 1;
         const float* mask = 0;
         if (!attn_mask_blob.empty())
@@ -763,7 +761,6 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
         const int q = q0 + qq;
         const int head_dim = query.w;
         const int value_dim = value.w;
-
 
         const bool mask_per_head = !attn_mask_blob.empty() && attn_mask_blob.dims == 3 && attn_mask_blob.c > 1;
         const float* mask = 0;
@@ -1543,7 +1540,6 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
         const int q = q0 + qq;
         const int head_dim = query.w;
         const int value_dim = value.w;
-
 
         const float* query_ptr = query.channel(q);
         const float* mask = 0;

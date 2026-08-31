@@ -305,7 +305,6 @@ static void sdpa_decode_tile_bf16s(const Mat& query, const Mat& key, const Mat& 
         const int head_dim = query.w;
         const int value_dim = value.w;
 
-
         const bool mask_per_head = !attn_mask_blob.empty() && attn_mask_blob.dims == 3 && attn_mask_blob.c > 1;
         const unsigned short* mask = 0;
         if (!attn_mask_blob.empty())
@@ -591,7 +590,6 @@ static void sdpa_decode_tile_bf16s(const Mat& query, const Mat& key, const Mat& 
         const int head_dim = query.w;
         const int value_dim = value.w;
 
-
         const bool mask_per_head = !attn_mask_blob.empty() && attn_mask_blob.dims == 3 && attn_mask_blob.c > 1;
         const unsigned short* mask = 0;
         if (!attn_mask_blob.empty())
@@ -813,7 +811,6 @@ static void sdpa_decode_tile_bf16s(const Mat& query, const Mat& key, const Mat& 
         const int q = q0 + qq;
         const int head_dim = query.w;
         const int value_dim = value.w;
-
 
         const bool mask_per_head = !attn_mask_blob.empty() && attn_mask_blob.dims == 3 && attn_mask_blob.c > 1;
         const unsigned short* mask = 0;
@@ -1254,7 +1251,6 @@ static void sdpa_decode_tile_bf16s(const Mat& query, const Mat& key, const Mat& 
         const int q = q0 + qq;
         const int head_dim = query.w;
         const int value_dim = value.w;
-
 
         const unsigned short* query_ptr = query.channel(q);
         Mat mask_head;
