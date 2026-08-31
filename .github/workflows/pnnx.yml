@@ -115,7 +115,7 @@ jobs:
         cd tools/pnnx
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize=vptr -fno-omit-frame-pointer" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" ..
         cmake --build . --config RelWithDebInfo -j 4
 
