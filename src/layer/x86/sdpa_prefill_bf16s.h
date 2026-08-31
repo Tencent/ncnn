@@ -1747,11 +1747,12 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
             __m512 _alpha = _mm512_maskz_mov_ps(alpha_active, exp512_ps(_mm512_maskz_sub_ps(alpha_active, _m, _m_new)));
 
             __m512 _sum0 = _mm512_setzero_ps();
+            float* pS = scoreptr;
+            int j = 0;
+#if defined(__x86_64__) || defined(_M_X64)
             __m512 _sum1 = _mm512_setzero_ps();
             __m512 _sum2 = _mm512_setzero_ps();
             __m512 _sum3 = _mm512_setzero_ps();
-            float* pS = scoreptr;
-            int j = 0;
             for (; j + 3 < max_jj; j += 4)
             {
                 __m512 _p0 = exp512_ps(_mm512_sub_ps(_mm512_loadu_ps(pS), _m_new));
@@ -1768,6 +1769,7 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
                 _sum2 = _mm512_add_ps(_sum2, _p2);
                 _sum3 = _mm512_add_ps(_sum3, _p3);
             }
+#endif // defined(__x86_64__) || defined(_M_X64)
             for (; j < max_jj; j++)
             {
                 __m512 _p = exp512_ps(_mm512_sub_ps(_mm512_loadu_ps(pS), _m_new));
@@ -1775,8 +1777,12 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
                 pS += 16;
                 _sum0 = _mm512_add_ps(_sum0, _p);
             }
+            __m512 _sum = _sum0;
+#if defined(__x86_64__) || defined(_M_X64)
+            _sum = _mm512_add_ps(_mm512_add_ps(_sum, _sum1), _mm512_add_ps(_sum2, _sum3));
+#endif // defined(__x86_64__) || defined(_M_X64)
             _m = _m_new;
-            _l = _mm512_add_ps(_mm512_mul_ps(_l, _alpha), _mm512_add_ps(_mm512_add_ps(_sum0, _sum1), _mm512_add_ps(_sum2, _sum3)));
+            _l = _mm512_add_ps(_mm512_mul_ps(_l, _alpha), _sum);
 
             if (!computation_value_head.empty())
             {
@@ -2460,14 +2466,12 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
             }
 
             __m256 _m_new = _mm256_max_ps(_m, _block_max);
-            __m256 _alpha_active = _mm256_cmp_ps(_l, _mm256_setzero_ps(), _CMP_NEQ_OQ);
-            __m256 _alpha = _mm256_and_ps(exp256_ps(_mm256_and_ps(_alpha_active, _mm256_sub_ps(_m, _m_new))), _alpha_active);
 
             __m256 _sum0 = _mm256_setzero_ps();
-            __m256 _sum1 = _mm256_setzero_ps();
             float* pS = scoreptr;
             int j = 0;
 #if defined(__x86_64__) || defined(_M_X64)
+            __m256 _sum1 = _mm256_setzero_ps();
             __m256 _sum2 = _mm256_setzero_ps();
             __m256 _sum3 = _mm256_setzero_ps();
             for (; j + 3 < max_jj; j += 4)
@@ -2487,16 +2491,6 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
                 _sum3 = _mm256_add_ps(_sum3, _p3);
             }
 #endif // defined(__x86_64__) || defined(_M_X64)
-            for (; j + 1 < max_jj; j += 2)
-            {
-                __m256 _p0 = exp256_ps(_mm256_sub_ps(_mm256_loadu_ps(pS), _m_new));
-                __m256 _p1 = exp256_ps(_mm256_sub_ps(_mm256_loadu_ps(pS + 8), _m_new));
-                _mm256_storeu_ps(pS, _p0);
-                _mm256_storeu_ps(pS + 8, _p1);
-                pS += 16;
-                _sum0 = _mm256_add_ps(_sum0, _p0);
-                _sum1 = _mm256_add_ps(_sum1, _p1);
-            }
             for (; j < max_jj; j++)
             {
                 __m256 _p = exp256_ps(_mm256_sub_ps(_mm256_loadu_ps(pS), _m_new));
@@ -2504,10 +2498,12 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
                 pS += 8;
                 _sum0 = _mm256_add_ps(_sum0, _p);
             }
-            __m256 _sum = _mm256_add_ps(_sum0, _sum1);
+            __m256 _sum = _sum0;
 #if defined(__x86_64__) || defined(_M_X64)
-            _sum = _mm256_add_ps(_sum, _mm256_add_ps(_sum2, _sum3));
+            _sum = _mm256_add_ps(_mm256_add_ps(_sum, _sum1), _mm256_add_ps(_sum2, _sum3));
 #endif // defined(__x86_64__) || defined(_M_X64)
+            __m256 _alpha_active = _mm256_cmp_ps(_l, _mm256_setzero_ps(), _CMP_NEQ_OQ);
+            __m256 _alpha = _mm256_and_ps(exp256_ps(_mm256_and_ps(_alpha_active, _mm256_sub_ps(_m, _m_new))), _alpha_active);
             _m = _m_new;
             _l = _mm256_add_ps(_mm256_mul_ps(_l, _alpha), _sum);
 
@@ -2926,15 +2922,12 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
             }
 
             __m128 _m_new = _mm_max_ps(_m, _block_max);
-            __m128 _alpha_active = _mm_cmpneq_ps(_l, _mm_setzero_ps());
-            __m128 _alpha = exp_ps(_mm_and_ps(_alpha_active, _mm_sub_ps(_m, _m_new)));
-            _alpha = _mm_and_ps(_alpha, _alpha_active);
 
             __m128 _sum0 = _mm_setzero_ps();
-            __m128 _sum1 = _mm_setzero_ps();
             float* pS = scoreptr;
             int j = 0;
 #if defined(__x86_64__) || defined(_M_X64)
+            __m128 _sum1 = _mm_setzero_ps();
             __m128 _sum2 = _mm_setzero_ps();
             __m128 _sum3 = _mm_setzero_ps();
             for (; j + 3 < max_jj; j += 4)
@@ -2954,16 +2947,6 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
                 _sum3 = _mm_add_ps(_sum3, _p3);
             }
 #endif // defined(__x86_64__) || defined(_M_X64)
-            for (; j + 1 < max_jj; j += 2)
-            {
-                __m128 _p0 = exp_ps(_mm_sub_ps(_mm_loadu_ps(pS), _m_new));
-                __m128 _p1 = exp_ps(_mm_sub_ps(_mm_loadu_ps(pS + 4), _m_new));
-                _mm_storeu_ps(pS, _p0);
-                _mm_storeu_ps(pS + 4, _p1);
-                pS += 8;
-                _sum0 = _mm_add_ps(_sum0, _p0);
-                _sum1 = _mm_add_ps(_sum1, _p1);
-            }
             for (; j < max_jj; j++)
             {
                 __m128 _p = exp_ps(_mm_sub_ps(_mm_loadu_ps(pS), _m_new));
@@ -2971,10 +2954,13 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
                 pS += 4;
                 _sum0 = _mm_add_ps(_sum0, _p);
             }
-            __m128 _sum = _mm_add_ps(_sum0, _sum1);
+            __m128 _sum = _sum0;
 #if defined(__x86_64__) || defined(_M_X64)
-            _sum = _mm_add_ps(_sum, _mm_add_ps(_sum2, _sum3));
+            _sum = _mm_add_ps(_mm_add_ps(_sum, _sum1), _mm_add_ps(_sum2, _sum3));
 #endif // defined(__x86_64__) || defined(_M_X64)
+            __m128 _alpha_active = _mm_cmpneq_ps(_l, _mm_setzero_ps());
+            __m128 _alpha = exp_ps(_mm_and_ps(_alpha_active, _mm_sub_ps(_m, _m_new)));
+            _alpha = _mm_and_ps(_alpha, _alpha_active);
             _m = _m_new;
             _l = _mm_add_ps(_mm_mul_ps(_l, _alpha), _sum);
 
