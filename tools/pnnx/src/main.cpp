@@ -31,10 +31,6 @@
 #include "load_tnn.h"
 #endif
 
-// load_pt2 不依赖 libtorch，始终可用（课题 2：torch.export .pt2 支持）
-#include "load_pt2.h"
-#include "storezip.h"
-
 #include "model_stat.h"
 #include "pass_ncnn.h"
 #include "save_ncnn.h"
@@ -233,50 +229,9 @@ static bool model_file_maybe_torchscript(const std::string& path)
     return signature == 0x04034b50;
 }
 
-// 真实 .pt2（torch.export.save）是 pickle 出的 ExportedProgram，zip 内入口为
-// archive/data.pkl；我们也兼容已预处理的中间格式（含 models/model.json）。
-// 注意：真实 .pt2 是 deflate 压缩，StoreZipReader 读不了，故这里只做字节级扫描
-// （中央目录在文件尾部，所有 entry 名都在其中，扫描尾部足够）。
-static bool model_file_maybe_pt2(const std::string& path)
+static bool model_file_maybe_tnnproto(const std::string& path)
 {
     FILE* fp = fopen(path.c_str(), "rb");
-    if (!fp)
-        return false;
-
-    fseek(fp, 0, SEEK_END);
-    long fs = ftell(fp);
-    long scan = fs;
-    if (scan > 8 * 1024 * 1024)
-        scan = 8 * 1024 * 1024;
-    if (scan <= 0)
-    {
-        fclose(fp);
-        return false;
-    }
-
-    std::vector<char> buf((size_t)scan);
-    fseek(fp, fs - scan, SEEK_SET);
-    size_t rd = fread(buf.data(), 1, (size_t)scan, fp);
-    fclose(fp);
-
-    const char* markers[2] = {"archive/data.pkl", "models/model.json"};
-    for (int m = 0; m < 2; m++)
-    {
-        const char* mk = markers[m];
-        size_t mklen = strlen(mk);
-        if (mklen == 0 || mklen > rd)
-            continue;
-        for (size_t i = 0; i + mklen <= rd; i++)
-        {
-            if (memcmp(buf.data() + i, mk, mklen) == 0)
-                return true;
-        }
-    }
-    return false;
-}
-
-static bool model_file_maybe_tnnproto(const std::string& path)
-{    FILE* fp = fopen(path.c_str(), "rb");
     if (!fp)
     {
         fprintf(stderr, "open failed %s\n", path.c_str());
@@ -496,17 +451,6 @@ int main(int argc, char** argv)
     // clang-format off
     // *INDENT-OFF*
 
-    if (model_file_maybe_pt2(ptpath))
-    {
-        int ret = load_pt2(ptpath, pnnx_graph,
-                           device, input_shapes, input_types, input_contents,
-                           input_shapes2, input_types2, input_contents2,
-                           customop_modules, module_operators,
-                           foldable_constants_zippath, foldable_constants);
-        if (ret != 0)
-            return ret;
-    }
-    else
 #if BUILD_TNN2PNNX
     if (model_file_maybe_tnnproto(ptpath))
     {
