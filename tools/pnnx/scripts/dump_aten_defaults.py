@@ -97,7 +97,8 @@ def encode_default(dv):
         return T_DEVICE, str(dv) if dv.type else ""
     if isinstance(dv, list):
         if not dv:
-            # 空列表:元素类型未知,按 int 空列表编码(builder 产出 (0,) 形态?不,产出空 ai)
+            # 空列表元素类型未知,统一编成 INTS 空串;builder 侧转 type 0(None)
+            # 对齐 ts 形态(空列表实参在 trace 图里物化为 value=None 常量)
             return T_INTS, ""
         if all(isinstance(x, bool) for x in dv):
             raise UnsupportedDefault("bool list(pnnx Parameter 无 bool 列表表达)")

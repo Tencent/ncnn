@@ -547,7 +547,6 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                 Operand* r = pg.new_operand(node.outputs[j].tensor_names[k]);
                 r->producer = op;
                 op->outputs.push_back(r);
-                // 中间张量的 dtype/形状 pt2 JSON 不携带,留空由下游 pass 处理
             }
         }
     }

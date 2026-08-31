@@ -15,6 +15,18 @@ static bool string_ends_with(const std::string& s, const std::string& suffix)
            && s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
+// JSON 数值 → 整数。JSON_INT 直取;JSON_DOUBLE 显式转换(整数字段被未来版本
+// 写成浮点时,union 直取 int_value 会静默错值);其余类型告警返回 0。
+static long long json_as_int(const JsonValue& v)
+{
+    if (v.isInt())
+        return v.asInt();
+    if (v.isDouble())
+        return (long long)v.asDouble();
+    fprintf(stderr, "load_pt2_schema: non-numeric value where int expected\n");
+    return 0;
+}
+
 std::string find_pt2_model_json_entry(const std::vector<std::string>& entry_names)
 {
     for (size_t i = 0; i < entry_names.size(); i++)
@@ -131,11 +143,11 @@ static Pt2Argument parse_argument(const JsonValue& arg, const std::string& name,
         collect_tensor_names(arg[a.type == Pt2Argument::TENSOR ? "as_tensor" : "as_tensors"], a.tensor_names);
         break;
     case Pt2Argument::INT:
-        a.int_value = arg["as_int"].asInt();
+        a.int_value = json_as_int(arg["as_int"]);
         break;
     case Pt2Argument::INTS:
         for (size_t i = 0; i < arg["as_ints"].size(); i++)
-            a.int_values.push_back(arg["as_ints"][i].asInt());
+            a.int_values.push_back(json_as_int(arg["as_ints"][i]));
         break;
     case Pt2Argument::FLOAT:
         a.float_value = arg["as_float"].asDouble();
@@ -159,20 +171,20 @@ static Pt2Argument parse_argument(const JsonValue& arg, const std::string& name,
             a.string_values.push_back(arg["as_strings"][i].asString());
         break;
     case Pt2Argument::SCALAR_TYPE:
-        a.int_value = arg["as_scalar_type"].asInt();
+        a.int_value = json_as_int(arg["as_scalar_type"]);
         break;
     case Pt2Argument::DEVICE:
         if (arg["as_device"].isObject())
         {
             a.device_type = arg["as_device"]["type"].asString();
             if (arg["as_device"]["index"].isNumber())
-                a.device_index = arg["as_device"]["index"].asInt();
+                a.device_index = json_as_int(arg["as_device"]["index"]);
             else
                 a.device_index = -1; // null
         }
         break;
     case Pt2Argument::MEMORY_FORMAT:
-        a.int_value = arg["as_memory_format"].asInt();
+        a.int_value = json_as_int(arg["as_memory_format"]);
         break;
     case Pt2Argument::NONE:
     default:
@@ -196,7 +208,7 @@ static Pt2Node parse_node(const JsonValue& n)
         Pt2NodeInput input;
         input.name = inputs[i]["name"].asString();
         // kind: 1 = positional, 2 = keyword(实测,其余值按 positional 处理)
-        input.arg = parse_argument(inputs[i]["arg"], input.name, inputs[i]["kind"].asInt() == 2);
+        input.arg = parse_argument(inputs[i]["arg"], input.name, json_as_int(inputs[i]["kind"]) == 2);
         node.inputs.push_back(input);
     }
 
@@ -313,7 +325,7 @@ static std::vector<long long> parse_int_list_of_objects(const JsonValue& v)
     for (size_t i = 0; i < v.size(); i++)
     {
         if (v[i].isObject() && v[i].hasMember("as_int"))
-            out.push_back(v[i]["as_int"].asInt());
+            out.push_back(json_as_int(v[i]["as_int"]));
     }
     return out;
 }
@@ -339,7 +351,7 @@ static void parse_weight_config(const JsonValue& config, std::vector<Pt2WeightEn
         if (tm.isObject())
         {
             if (tm.hasMember("dtype") && tm["dtype"].isNumber())
-                e.dtype = tm["dtype"].asInt();
+                e.dtype = json_as_int(tm["dtype"]);
             if (tm.hasMember("sizes"))
                 e.sizes = parse_int_list_of_objects(tm["sizes"]);
             if (tm.hasMember("strides"))
@@ -347,7 +359,7 @@ static void parse_weight_config(const JsonValue& config, std::vector<Pt2WeightEn
             if (tm.hasMember("storage_offset") && tm["storage_offset"].isObject()
                 && tm["storage_offset"].hasMember("as_int"))
             {
-                e.storage_offset = tm["storage_offset"]["as_int"].asInt();
+                e.storage_offset = json_as_int(tm["storage_offset"]["as_int"]);
             }
         }
 
@@ -428,8 +440,11 @@ int load_pt2_schema(const std::string& ptpath, Pt2Program& program)
         const JsonValue& schema_version = root["schema_version"];
         if (schema_version.isObject()) // 实测 {"major": 8, "minor": 20}
         {
-            program.schema_version_major = schema_version["major"].asInt();
-            program.schema_version_minor = schema_version["minor"].asInt();
+            // 仅在确为数值时赋值,保持"缺失 = -1"语义
+            if (schema_version["major"].isNumber())
+                program.schema_version_major = json_as_int(schema_version["major"]);
+            if (schema_version["minor"].isNumber())
+                program.schema_version_minor = json_as_int(schema_version["minor"]);
         }
         program.torch_version = root["torch_version"].asString();
         const JsonValue& opset = root["opset_version"];
