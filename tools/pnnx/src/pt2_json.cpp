@@ -3,6 +3,7 @@
 
 #include "pt2_json.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
