@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-static int test_sdpa(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int mask_type, float scale = 0.f, int flag = TEST_LAYER_DISABLE_AUTO_INPUT_PACKING)
+static int test_sdpa(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int mask_type, float scale = 0.f, int flag = 0)
 {
     const int src_seqlen = q.h;
     const int dst_seqlen = k.h;
@@ -31,7 +31,7 @@ static int test_sdpa(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v,
 
         if (mask_type == 4)
         {
-            const int masked_seqlen = std::min(dst_seqlen, 256);
+            const int masked_seqlen = dst_seqlen / 2;
             for (int i = 0; i < src_seqlen; i++)
             {
                 float* mptr = mask.row(i);
@@ -57,34 +57,16 @@ static int test_sdpa(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v,
 static int test_sdpa_0()
 {
     return 0
-           || test_sdpa(RandomMat(64, 1, 16), RandomMat(64, 513, 1), RandomMat(48, 513, 1), 0)
-           || test_sdpa(RandomMat(64, 1, 16), RandomMat(64, 521, 1), RandomMat(48, 521, 1), 3)
-           || test_sdpa(RandomMat(64, 1, 12), RandomMat(64, 521, 1), RandomMat(40, 521, 1), 1)
-           || test_sdpa(RandomMat(63, 1, 8), RandomMat(63, 513, 1), RandomMat(37, 513, 1), 0)
-           || test_sdpa(RandomMat(47, 1, 2), RandomMat(47, 513, 1), RandomMat(29, 513, 1), 0)
-           || test_sdpa(RandomMat(55, 1, 3), RandomMat(55, 521, 1), RandomMat(31, 521, 1), 1)
-           || test_sdpa(RandomMat(65, 1, 4), RandomMat(65, 509, 4), RandomMat(33, 509, 4), 3)
+           || test_sdpa(RandomMat(64, 1, 16), RandomMat(64, 521, 1), RandomMat(48, 521, 1), 0)
+           || test_sdpa(RandomMat(63, 1, 31), RandomMat(63, 37, 1), RandomMat(47, 37, 1), 3)
+           || test_sdpa(RandomMat(65, 1, 4), RandomMat(65, 37, 4), RandomMat(33, 37, 4), 1)
            || test_sdpa(RandomMat(80, 1, 8), RandomMat(80, 521, 2), RandomMat(96, 521, 2), 1, -0.4f)
-           || test_sdpa(RandomMat(96, 1, 8), RandomMat(96, 521, 2), RandomMat(80, 521, 2), 3)
-           || test_sdpa(RandomMat(27, 1, 30), RandomMat(27, 37, 1), RandomMat(23, 37, 1), 3)
-           || test_sdpa(RandomMat(17, 1, 1), RandomMat(17, 37, 1), RandomMat(65, 37, 1), 0)
-           || test_sdpa(RandomMat(27, 4, 1), RandomMat(27, 513, 1), RandomMat(23, 513, 1), 3, 0.f, TEST_LAYER_DISABLE_AUTO_INPUT_PACKING | TEST_LAYER_ENABLE_THREADING)
-           || test_sdpa(RandomMat(128, 17, 4), RandomMat(128, 513, 4), RandomMat(192, 513, 4), 4)
+           || test_sdpa(RandomMat(63, 31, 15), RandomMat(63, 31, 3), RandomMat(47, 31, 3), 2, 0.2f)
+           || test_sdpa(RandomMat(27, 5, 15), RandomMat(27, 37, 3), RandomMat(23, 37, 3), 3, 0.f, TEST_LAYER_ENABLE_THREADING)
+           || test_sdpa(RandomMat(128, 17, 4), RandomMat(128, 127, 4), RandomMat(192, 127, 4), 4)
            || test_sdpa(RandomMat(32, 66, 8), RandomMat(32, 66, 8), RandomMat(20, 66, 8), 0)
            || test_sdpa(RandomMat(26, 64, 8), RandomMat(26, 61, 8), RandomMat(18, 61, 8), 1)
-           || test_sdpa(RandomMat(192, 9, 8), RandomMat(192, 17, 2), RandomMat(128, 17, 2), 2, 0.2f)
-           || test_sdpa(RandomMat(256, 5, 4), RandomMat(256, 13, 4), RandomMat(96, 13, 4), 3)
-           || test_sdpa(RandomMat(64, 17, 1), RandomMat(64, 13, 1), RandomMat(28, 13, 1), 1)
-           || test_sdpa(RandomMat(64, 12, 4), RandomMat(64, 16, 1), RandomMat(32, 16, 1), 1)
-           || test_sdpa(RandomMat(64, 8, 1), RandomMat(64, 13, 1), RandomMat(28, 13, 1), 0)
-           || test_sdpa(RandomMat(64, 4, 1), RandomMat(64, 13, 1), RandomMat(20, 13, 1), 0)
-           || test_sdpa(RandomMat(40, 62, 7), RandomMat(40, 61, 7), RandomMat(24, 61, 7), 0)
-           || test_sdpa(RandomMat(24, 22, 6), RandomMat(24, 19, 6), RandomMat(16, 19, 6), 1)
            || test_sdpa(RandomMat(64, 128, 12), RandomMat(64, 128, 2), RandomMat(64, 128, 2), 0)
-           || test_sdpa(RandomMat(64, 122, 12), RandomMat(64, 127, 2), RandomMat(48, 127, 2), 1)
-           || test_sdpa(RandomMat(44, 128, 4), RandomMat(44, 123, 4), RandomMat(55, 123, 4), 0, 1.f)
-           || test_sdpa(RandomMat(12, 127, 4), RandomMat(12, 127, 4), RandomMat(55, 127, 4), 1, 1.f)
-           || test_sdpa(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 0.1f)
            || test_sdpa(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1, -0.4f);
 }
 

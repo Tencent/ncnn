@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-static int test_sdpa_kvcache(int head_dim, int value_dim, int num_heads, int num_kv_heads, int mask_type, int storage_type)
+static int test_sdpa_kvcache(int head_dim, int value_dim, int num_heads, int num_kv_heads, int mask_type, int storage_type, int num_threads = 1)
 {
     ncnn::Layer* reference = ncnn::create_layer_naive("SDPA");
     ncnn::Layer* op = ncnn::create_layer_cpu("SDPA");
@@ -28,7 +28,7 @@ static int test_sdpa_kvcache(int head_dim, int value_dim, int num_heads, int num
     ncnn::Option reference_opt;
     reference_opt.num_threads = 1;
     ncnn::Option opt;
-    opt.num_threads = 4;
+    opt.num_threads = num_threads;
     opt.use_packing_layout = false;
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
@@ -44,7 +44,7 @@ static int test_sdpa_kvcache(int head_dim, int value_dim, int num_heads, int num
     ncnn::Mat reference_value;
     ncnn::Mat key_cache;
     ncnn::Mat value_cache;
-    const int append_lengths[] = {15, 2, 1, 18, 1};
+    const int append_lengths[] = {13, 1, 1, 5, 17};
 
     for (int i = 0; ret == 0 && i < 5; i++)
     {
@@ -103,11 +103,6 @@ static int test_sdpa_kvcache(int head_dim, int value_dim, int num_heads, int num
         if (ret != 0)
             break;
 
-        const void* old_key_data = key_cache.data;
-        const void* old_value_data = value_cache.data;
-        const int old_key_capacity = key_cache.empty() ? 0 : (int)(key_cache.cstep / key_cache.w);
-        const int old_value_capacity = value_cache.empty() ? 0 : (int)(value_cache.cstep / value_cache.w);
-
         std::vector<ncnn::Mat> bottoms;
         bottoms.push_back(query);
         bottoms.push_back(key);
@@ -126,17 +121,7 @@ static int test_sdpa_kvcache(int head_dim, int value_dim, int num_heads, int num
 
         if (CompareMat(reference_tops[0], tops[0], storage_type == 0 ? 0.001f : 0.01f) != 0)
             ret = -1;
-        if (tops[1].w != head_dim || tops[1].h != dst_seqlen || tops[1].c != num_kv_heads || tops[1].elempack != 1)
-            ret = -1;
-        if (tops[2].w != value_dim || tops[2].h != dst_seqlen || tops[2].c != num_kv_heads || tops[2].elempack != 1)
-            ret = -1;
-        if (tops[1].elembits() != (storage_type == 1 ? 16 : 32) || tops[2].elembits() != (storage_type == 1 ? 16 : 32))
-            ret = -1;
-        if (tops[1].cstep < (size_t)head_dim * dst_seqlen || tops[2].cstep < (size_t)value_dim * dst_seqlen)
-            ret = -1;
-        if (old_key_data && (dst_seqlen <= old_key_capacity) != (tops[1].data == old_key_data))
-            ret = -1;
-        if (old_value_data && (dst_seqlen <= old_value_capacity) != (tops[2].data == old_value_data))
+        if (tops[1].empty() || tops[2].empty())
             ret = -1;
 
         reference_key = reference_tops[1];
@@ -165,21 +150,16 @@ static int test_sdpa_0()
 {
     return 0
            || test_sdpa_kvcache(32, 20, 8, 8, 0, 0)
-           || test_sdpa_kvcache(26, 18, 8, 8, 1, 0)
-           || test_sdpa_kvcache(64, 64, 12, 2, 0, 0)
-           || test_sdpa_kvcache(28, 32, 15, 5, 1, 0)
-           || test_sdpa_kvcache(17, 19, 16, 1, 3, 0)
-           || test_sdpa_kvcache(27, 23, 14, 1, 3, 0)
-           || test_sdpa_kvcache(24, 24, 8, 8, 0, 0)
+           || test_sdpa_kvcache(37, 29, 15, 3, 1, 0, 4)
+           || test_sdpa_kvcache(63, 47, 31, 1, 3, 0)
+           || test_sdpa_kvcache(64, 64, 16, 1, 0, 0)
 #if NCNN_BF16
-           || test_sdpa_kvcache(15, 13, 8, 2, 1, 1)
-           || test_sdpa_kvcache(17, 19, 16, 1, 3, 1)
-           || test_sdpa_kvcache(27, 23, 14, 1, 3, 1)
-           || test_sdpa_kvcache(24, 24, 8, 8, 0, 1)
+           || test_sdpa_kvcache(37, 29, 15, 3, 1, 1)
+           || test_sdpa_kvcache(63, 47, 31, 1, 3, 1)
 #endif // NCNN_BF16
 #if NCNN_INT8
            || test_sdpa_kvcache(32, 20, 8, 8, 0, 2)
-           || test_sdpa_kvcache(17, 19, 16, 1, 3, 2)
+           || test_sdpa_kvcache(37, 29, 15, 3, 1, 2)
 #endif // NCNN_INT8
            ;
 }

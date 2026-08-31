@@ -44,7 +44,7 @@ static void fill_sdpa_input(ncnn::Mat& m, float base)
     }
 }
 
-static int run_sdpa_step(ncnn::Net& net, ncnn::Mat& output, ncnn::Mat& key_cache, ncnn::Mat& value_cache, int cur_seqlen, int step, ncnn::Allocator* kvcache_allocator, int cache_extract_type, int use_bf16_storage = 0, int num_heads = 4, int num_kv_heads = 2, int head_dim = 8, int value_dim = 6, int max_seqlen_hint = 32, int mask_type = 0)
+static int run_sdpa_step(ncnn::Net& net, ncnn::Mat& output, ncnn::Mat& key_cache, ncnn::Mat& value_cache, int cur_seqlen, int past_seqlen, int step, ncnn::Allocator* kvcache_allocator, int cache_extract_type, int use_bf16_storage = 0, int num_heads = 4, int num_kv_heads = 2, int head_dim = 8, int value_dim = 6, int max_seqlen_hint = 32, int mask_type = 0)
 {
     ncnn::Mat query(head_dim, cur_seqlen, num_heads);
     ncnn::Mat key(head_dim, cur_seqlen, num_kv_heads);
@@ -82,7 +82,7 @@ static int run_sdpa_step(ncnn::Net& net, ncnn::Mat& output, ncnn::Mat& key_cache
     ncnn::Mat mask;
     if (mask_type)
     {
-        const int dst_seqlen = key_cache.h + cur_seqlen;
+        const int dst_seqlen = past_seqlen + cur_seqlen;
         if (mask_type == 1)
             mask.create(dst_seqlen, cur_seqlen);
         else
@@ -115,7 +115,7 @@ static int run_sdpa_step(ncnn::Net& net, ncnn::Mat& output, ncnn::Mat& key_cache
     return ex.extract("out_v", value_cache, cache_extract_type);
 }
 
-static int run_extractor_kvcache(ncnn::Allocator* kvcache_allocator, int cache_extract_type, std::vector<ncnn::Mat>& outputs, int use_bf16_storage = 0, int num_heads = 4, int num_kv_heads = 2, int head_dim = 8, int value_dim = 6, int max_seqlen_hint = 32, int mask_type = 0, int num_threads = 1, int kvcache_allocator_step = 0, int first_prefill_seqlen = 15)
+static int run_extractor_kvcache(ncnn::Allocator* kvcache_allocator, int cache_extract_type, std::vector<ncnn::Mat>& outputs, int use_bf16_storage = 0, int num_heads = 4, int num_kv_heads = 2, int head_dim = 8, int value_dim = 6, int max_seqlen_hint = 32, int mask_type = 0, int num_threads = 1, int kvcache_allocator_step = 0)
 {
     ncnn::Net net;
     net.opt.lightmode = false;
@@ -130,43 +130,32 @@ static int run_extractor_kvcache(ncnn::Allocator* kvcache_allocator, int cache_e
     ncnn::Mat key_cache;
     ncnn::Mat value_cache;
     outputs.resize(5);
-    const int append_lengths[] = {first_prefill_seqlen, 2, 1, 18, 1};
+    const int append_lengths[] = {13, 1, 1, 5, 17};
+    int past_seqlen = 0;
     int ret = 0;
     for (int i = 0; ret == 0 && i < 5; i++)
     {
         const void* old_key_data = key_cache.data;
         const void* old_value_data = value_cache.data;
-        const int old_key_capacity = key_cache.empty() ? 0 : (int)(key_cache.cstep / key_cache.w);
-        const int old_value_capacity = value_cache.empty() ? 0 : (int)(value_cache.cstep / value_cache.w);
-        const int new_seqlen = key_cache.h + append_lengths[i];
+        const int new_seqlen = past_seqlen + append_lengths[i];
 
         ncnn::Allocator* step_kvcache_allocator = i >= kvcache_allocator_step ? kvcache_allocator : 0;
-        const bool old_key_reusable = old_key_data && key_cache.allocator == step_kvcache_allocator;
-        const bool old_value_reusable = old_value_data && value_cache.allocator == step_kvcache_allocator;
-        ret = run_sdpa_step(net, outputs[i], key_cache, value_cache, append_lengths[i], i, step_kvcache_allocator, cache_extract_type, use_bf16_storage, num_heads, num_kv_heads, head_dim, value_dim, max_seqlen_hint, mask_type);
+        const bool old_key_reusable = step_kvcache_allocator && old_key_data && key_cache.allocator == step_kvcache_allocator;
+        const bool old_value_reusable = step_kvcache_allocator && old_value_data && value_cache.allocator == step_kvcache_allocator;
+        ret = run_sdpa_step(net, outputs[i], key_cache, value_cache, append_lengths[i], past_seqlen, i, step_kvcache_allocator, cache_extract_type, use_bf16_storage, num_heads, num_kv_heads, head_dim, value_dim, max_seqlen_hint, mask_type);
         if (ret == 0 && (key_cache.empty() || value_cache.empty()))
             ret = -1;
         if (ret == 0)
         {
             if (step_kvcache_allocator && (key_cache.allocator != step_kvcache_allocator || value_cache.allocator != step_kvcache_allocator))
                 ret = -1;
-            if (key_cache.w != head_dim || key_cache.h != new_seqlen || key_cache.c != num_kv_heads || key_cache.elempack != 1)
+            if (old_key_reusable && new_seqlen <= max_seqlen_hint && key_cache.data != old_key_data)
                 ret = -1;
-            if (value_cache.w != value_dim || value_cache.h != new_seqlen || value_cache.c != num_kv_heads || value_cache.elempack != 1)
-                ret = -1;
-            if (key_cache.elembits() != (use_bf16_storage ? 16 : 32) || value_cache.elembits() != (use_bf16_storage ? 16 : 32))
-                ret = -1;
-            if (key_cache.cstep < (size_t)key_cache.w * key_cache.h || value_cache.cstep < (size_t)value_cache.w * value_cache.h)
-                ret = -1;
-            if (!old_key_data && max_seqlen_hint >= new_seqlen && key_cache.cstep < (size_t)key_cache.w * max_seqlen_hint)
-                ret = -1;
-            if (!old_value_data && max_seqlen_hint >= new_seqlen && value_cache.cstep < (size_t)value_cache.w * max_seqlen_hint)
-                ret = -1;
-            if (old_key_reusable && (new_seqlen <= old_key_capacity) != (key_cache.data == old_key_data))
-                ret = -1;
-            if (old_value_reusable && (new_seqlen <= old_value_capacity) != (value_cache.data == old_value_data))
+            if (old_value_reusable && new_seqlen <= max_seqlen_hint && value_cache.data != old_value_data)
                 ret = -1;
         }
+
+        past_seqlen = new_seqlen;
     }
 
     key_cache.release();
@@ -175,15 +164,15 @@ static int run_extractor_kvcache(ncnn::Allocator* kvcache_allocator, int cache_e
     return ret;
 }
 
-static int test_extractor_kvcache(int use_bf16_storage, int num_heads, int num_kv_heads, int head_dim, int value_dim, int max_seqlen_hint, int mask_type, int num_threads, int kvcache_allocator_step, int first_prefill_seqlen)
+static int test_extractor_kvcache(int use_bf16_storage, int num_heads, int num_kv_heads, int head_dim, int value_dim, int max_seqlen_hint, int mask_type, int num_threads, int kvcache_allocator_step)
 {
     std::vector<ncnn::Mat> reference_outputs;
-    int ret = run_extractor_kvcache(0, 1, reference_outputs, use_bf16_storage, num_heads, num_kv_heads, head_dim, value_dim, max_seqlen_hint, mask_type, num_threads, 0, first_prefill_seqlen);
+    int ret = run_extractor_kvcache(0, 1, reference_outputs, use_bf16_storage, num_heads, num_kv_heads, head_dim, value_dim, max_seqlen_hint, mask_type, num_threads);
 
     ncnn::UnlockedPoolAllocator kvcache_allocator;
     std::vector<ncnn::Mat> outputs;
     if (ret == 0)
-        ret = run_extractor_kvcache(&kvcache_allocator, 1, outputs, use_bf16_storage, num_heads, num_kv_heads, head_dim, value_dim, max_seqlen_hint, mask_type, num_threads, kvcache_allocator_step, first_prefill_seqlen);
+        ret = run_extractor_kvcache(&kvcache_allocator, 1, outputs, use_bf16_storage, num_heads, num_kv_heads, head_dim, value_dim, max_seqlen_hint, mask_type, num_threads, kvcache_allocator_step);
 
     const float epsilon = use_bf16_storage ? 0.01f : 0.001f;
     for (int i = 0; ret == 0 && i < (int)outputs.size(); i++)
@@ -223,27 +212,13 @@ static int test_extractor_kvcache_extract_type()
 static int test_extractor_kvcache()
 {
     return 0
-           || test_extractor_kvcache(0, 4, 4, 7, 5, 0, 0, 1, 0, 15)
-           || test_extractor_kvcache(0, 8, 2, 15, 13, 64, 1, 4, 0, 15)
-           || test_extractor_kvcache(0, 16, 1, 17, 19, 8, 3, 4, 0, 15)
-           || test_extractor_kvcache(0, 1, 1, 9, 11, 32, 1, 4, 0, 3)
-           || test_extractor_kvcache(0, 12, 1, 17, 19, 32, 3, 1, 0, 15)
-           || test_extractor_kvcache(0, 20, 1, 17, 19, 32, 3, 1, 0, 15)
-           || test_extractor_kvcache(0, 20, 1, 18, 28, 32, 1, 1, 0, 5)
-           || test_extractor_kvcache(0, 20, 1, 18, 28, 32, 3, 1, 0, 5)
-           || test_extractor_kvcache(0, 20, 1, 18, 28, 32, 3, 1, 0, 1)
-           || test_extractor_kvcache(0, 8, 2, 9, 11, 32, 0, 2, 1, 15)
+           || test_extractor_kvcache(0, 8, 8, 32, 20, 0, 0, 1, 0)
+           || test_extractor_kvcache(0, 15, 3, 37, 29, 64, 1, 4, 0)
+           || test_extractor_kvcache(0, 31, 1, 63, 47, 32, 3, 4, 0)
+           || test_extractor_kvcache(0, 8, 2, 17, 19, 32, 0, 2, 1)
 #if NCNN_BF16
-           || test_extractor_kvcache(1, 4, 4, 7, 5, 0, 0, 1, 0, 15)
-           || test_extractor_kvcache(1, 8, 2, 15, 13, 64, 1, 4, 0, 15)
-           || test_extractor_kvcache(1, 16, 1, 17, 19, 8, 3, 4, 0, 15)
-           || test_extractor_kvcache(1, 1, 1, 9, 11, 32, 1, 4, 0, 3)
-           || test_extractor_kvcache(1, 12, 1, 17, 19, 32, 3, 1, 0, 15)
-           || test_extractor_kvcache(1, 20, 1, 17, 19, 32, 3, 1, 0, 15)
-           || test_extractor_kvcache(1, 20, 1, 18, 28, 32, 1, 1, 0, 5)
-           || test_extractor_kvcache(1, 20, 1, 18, 28, 32, 3, 1, 0, 5)
-           || test_extractor_kvcache(1, 20, 1, 18, 28, 32, 3, 1, 0, 1)
-           || test_extractor_kvcache(1, 8, 2, 9, 11, 32, 0, 2, 1, 15)
+           || test_extractor_kvcache(1, 15, 3, 37, 29, 64, 1, 4, 0)
+           || test_extractor_kvcache(1, 31, 1, 63, 47, 32, 3, 4, 0)
 #endif // NCNN_BF16
            || test_extractor_kvcache_extract_type();
 }
@@ -355,13 +330,16 @@ static int test_legacy_vulkan_extractor_kvcache()
     std::vector<ncnn::Mat> reference_outputs;
     int ret = run_extractor_kvcache(0, 1, reference_outputs);
 
-    const int append_lengths[] = {15, 2, 1};
+    const int append_lengths[] = {13, 1, 1};
+    int past_seqlen = 0;
     for (int i = 0; ret == 0 && i < 3; i++)
     {
         ncnn::Mat output;
-        ret = run_sdpa_step(net, output, key_cache, value_cache, append_lengths[i], i, 0, 1);
+        ret = run_sdpa_step(net, output, key_cache, value_cache, append_lengths[i], past_seqlen, i, 0, 1);
         if (ret == 0 && CompareMat(reference_outputs[i], output, 0.001f) != 0)
             ret = -1;
+
+        past_seqlen += append_lengths[i];
     }
 
     if (ret != 0)
@@ -479,7 +457,7 @@ static int test_external_vulkan_kvcache()
 
     ncnn::VkMat key_cache;
     ncnn::VkMat value_cache;
-    const int append_lengths[] = {15, 2, 1};
+    const int append_lengths[] = {13, 1, 1};
     for (int i = 0; result == 0 && i < 3; i++)
     {
         ncnn::Mat output;

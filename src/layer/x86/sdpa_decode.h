@@ -2137,15 +2137,32 @@ static void sdpa_decode_kvcache_tile_fp32(const Mat& query, const Mat& key_cache
                         if (mask_per_head)
                         {
                             const float* pM0 = pM;
-                            _sum0 = combine8x2_ps(_mm256_loadu_ps(pM0), _mm256_loadu_ps(pM0 + mask_hstep));
-                            _sum1 = combine8x2_ps(_mm256_loadu_ps(pM0 + mask_hstep * 2), _mm256_loadu_ps(pM0 + mask_hstep * 3));
-                            _sum2 = combine8x2_ps(_mm256_loadu_ps(pM0 + mask_hstep * 4), _mm256_loadu_ps(pM0 + mask_hstep * 5));
-                            _sum3 = combine8x2_ps(_mm256_loadu_ps(pM0 + mask_hstep * 6), _mm256_loadu_ps(pM0 + mask_hstep * 7));
-                            _sum4 = combine8x2_ps(_mm256_loadu_ps(pM0 + mask_hstep * 8), _mm256_loadu_ps(pM0 + mask_hstep * 9));
-                            _sum5 = combine8x2_ps(_mm256_loadu_ps(pM0 + mask_hstep * 10), _mm256_loadu_ps(pM0 + mask_hstep * 11));
-                            _sum6 = combine8x2_ps(_mm256_loadu_ps(pM0 + mask_hstep * 12), _mm256_loadu_ps(pM0 + mask_hstep * 13));
-                            _sum7 = combine8x2_ps(_mm256_loadu_ps(pM0 + mask_hstep * 14), _mm256_loadu_ps(pM0 + mask_hstep * 15));
-                            transpose16x8_ps(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
+                            __m256 _m0 = _mm256_loadu_ps(pM0);
+                            __m256 _m1 = _mm256_loadu_ps(pM0 + mask_hstep);
+                            __m256 _m2 = _mm256_loadu_ps(pM0 + mask_hstep * 2);
+                            __m256 _m3 = _mm256_loadu_ps(pM0 + mask_hstep * 3);
+                            __m256 _m4 = _mm256_loadu_ps(pM0 + mask_hstep * 4);
+                            __m256 _m5 = _mm256_loadu_ps(pM0 + mask_hstep * 5);
+                            __m256 _m6 = _mm256_loadu_ps(pM0 + mask_hstep * 6);
+                            __m256 _m7 = _mm256_loadu_ps(pM0 + mask_hstep * 7);
+                            __m256 _m8 = _mm256_loadu_ps(pM0 + mask_hstep * 8);
+                            __m256 _m9 = _mm256_loadu_ps(pM0 + mask_hstep * 9);
+                            __m256 _ma = _mm256_loadu_ps(pM0 + mask_hstep * 10);
+                            __m256 _mb = _mm256_loadu_ps(pM0 + mask_hstep * 11);
+                            __m256 _mc = _mm256_loadu_ps(pM0 + mask_hstep * 12);
+                            __m256 _md = _mm256_loadu_ps(pM0 + mask_hstep * 13);
+                            __m256 _me = _mm256_loadu_ps(pM0 + mask_hstep * 14);
+                            __m256 _mf = _mm256_loadu_ps(pM0 + mask_hstep * 15);
+                            transpose8x8_ps(_m0, _m1, _m2, _m3, _m4, _m5, _m6, _m7);
+                            transpose8x8_ps(_m8, _m9, _ma, _mb, _mc, _md, _me, _mf);
+                            _sum0 = combine8x2_ps(_m0, _m8);
+                            _sum1 = combine8x2_ps(_m1, _m9);
+                            _sum2 = combine8x2_ps(_m2, _ma);
+                            _sum3 = combine8x2_ps(_m3, _mb);
+                            _sum4 = combine8x2_ps(_m4, _mc);
+                            _sum5 = combine8x2_ps(_m5, _md);
+                            _sum6 = combine8x2_ps(_m6, _me);
+                            _sum7 = combine8x2_ps(_m7, _mf);
                         }
                         else
                         {
@@ -2204,11 +2221,30 @@ static void sdpa_decode_kvcache_tile_fp32(const Mat& query, const Mat& key_cache
                         if (mask_per_head)
                         {
                             const float* pM0 = pM;
-                            _sum0 = combine4x4_ps(_mm_loadu_ps(pM0), _mm_loadu_ps(pM0 + mask_hstep), _mm_loadu_ps(pM0 + mask_hstep * 2), _mm_loadu_ps(pM0 + mask_hstep * 3));
-                            _sum1 = combine4x4_ps(_mm_loadu_ps(pM0 + mask_hstep * 4), _mm_loadu_ps(pM0 + mask_hstep * 5), _mm_loadu_ps(pM0 + mask_hstep * 6), _mm_loadu_ps(pM0 + mask_hstep * 7));
-                            _sum2 = combine4x4_ps(_mm_loadu_ps(pM0 + mask_hstep * 8), _mm_loadu_ps(pM0 + mask_hstep * 9), _mm_loadu_ps(pM0 + mask_hstep * 10), _mm_loadu_ps(pM0 + mask_hstep * 11));
-                            _sum3 = combine4x4_ps(_mm_loadu_ps(pM0 + mask_hstep * 12), _mm_loadu_ps(pM0 + mask_hstep * 13), _mm_loadu_ps(pM0 + mask_hstep * 14), _mm_loadu_ps(pM0 + mask_hstep * 15));
-                            transpose16x4_ps(_sum0, _sum1, _sum2, _sum3);
+                            __m128 _m0 = _mm_loadu_ps(pM0);
+                            __m128 _m1 = _mm_loadu_ps(pM0 + mask_hstep);
+                            __m128 _m2 = _mm_loadu_ps(pM0 + mask_hstep * 2);
+                            __m128 _m3 = _mm_loadu_ps(pM0 + mask_hstep * 3);
+                            __m128 _m4 = _mm_loadu_ps(pM0 + mask_hstep * 4);
+                            __m128 _m5 = _mm_loadu_ps(pM0 + mask_hstep * 5);
+                            __m128 _m6 = _mm_loadu_ps(pM0 + mask_hstep * 6);
+                            __m128 _m7 = _mm_loadu_ps(pM0 + mask_hstep * 7);
+                            __m128 _m8 = _mm_loadu_ps(pM0 + mask_hstep * 8);
+                            __m128 _m9 = _mm_loadu_ps(pM0 + mask_hstep * 9);
+                            __m128 _ma = _mm_loadu_ps(pM0 + mask_hstep * 10);
+                            __m128 _mb = _mm_loadu_ps(pM0 + mask_hstep * 11);
+                            __m128 _mc = _mm_loadu_ps(pM0 + mask_hstep * 12);
+                            __m128 _md = _mm_loadu_ps(pM0 + mask_hstep * 13);
+                            __m128 _me = _mm_loadu_ps(pM0 + mask_hstep * 14);
+                            __m128 _mf = _mm_loadu_ps(pM0 + mask_hstep * 15);
+                            _MM_TRANSPOSE4_PS(_m0, _m1, _m2, _m3);
+                            _MM_TRANSPOSE4_PS(_m4, _m5, _m6, _m7);
+                            _MM_TRANSPOSE4_PS(_m8, _m9, _ma, _mb);
+                            _MM_TRANSPOSE4_PS(_mc, _md, _me, _mf);
+                            _sum0 = combine4x4_ps(_m0, _m4, _m8, _mc);
+                            _sum1 = combine4x4_ps(_m1, _m5, _m9, _md);
+                            _sum2 = combine4x4_ps(_m2, _m6, _ma, _me);
+                            _sum3 = combine4x4_ps(_m3, _m7, _mb, _mf);
                         }
                         else
                         {
@@ -2706,11 +2742,20 @@ static void sdpa_decode_kvcache_tile_fp32(const Mat& query, const Mat& key_cache
                     {
                         if (mask_per_head)
                         {
-                            _sum0 = combine4x2_ps(_mm_loadu_ps(pM), _mm_loadu_ps(pM + mask_cstep));
-                            _sum1 = combine4x2_ps(_mm_loadu_ps(pM + mask_cstep * 2), _mm_loadu_ps(pM + mask_cstep * 3));
-                            _sum2 = combine4x2_ps(_mm_loadu_ps(pM + mask_cstep * 4), _mm_loadu_ps(pM + mask_cstep * 5));
-                            _sum3 = combine4x2_ps(_mm_loadu_ps(pM + mask_cstep * 6), _mm_loadu_ps(pM + mask_cstep * 7));
-                            transpose8x4_ps(_sum0, _sum1, _sum2, _sum3);
+                            __m128 _m0 = _mm_loadu_ps(pM);
+                            __m128 _m1 = _mm_loadu_ps(pM + mask_cstep);
+                            __m128 _m2 = _mm_loadu_ps(pM + mask_cstep * 2);
+                            __m128 _m3 = _mm_loadu_ps(pM + mask_cstep * 3);
+                            __m128 _m4 = _mm_loadu_ps(pM + mask_cstep * 4);
+                            __m128 _m5 = _mm_loadu_ps(pM + mask_cstep * 5);
+                            __m128 _m6 = _mm_loadu_ps(pM + mask_cstep * 6);
+                            __m128 _m7 = _mm_loadu_ps(pM + mask_cstep * 7);
+                            _MM_TRANSPOSE4_PS(_m0, _m1, _m2, _m3);
+                            _MM_TRANSPOSE4_PS(_m4, _m5, _m6, _m7);
+                            _sum0 = combine4x2_ps(_m0, _m4);
+                            _sum1 = combine4x2_ps(_m1, _m5);
+                            _sum2 = combine4x2_ps(_m2, _m6);
+                            _sum3 = combine4x2_ps(_m3, _m7);
                         }
                         else
                         {
