@@ -26,7 +26,7 @@ static int sdpa_prefill_get_optimal_tile_m(int query_seqlen, int num_query_heads
     return TILE_M;
 }
 
-static int sdpa_prefill_get_optimal_tile_n(int head_dim, int value_dim, int key_seqlen, int query_storage_size, int key_storage_size, int value_storage_size, int mask_storage_size, int TILE_M, int num_tasks, int nT)
+static int sdpa_prefill_get_optimal_tile_n(int head_dim, int value_dim, int key_seqlen, int query_storage_size, int key_storage_size, int value_storage_size, int mask_storage_size, int TILE_M)
 {
     int tile_n_align = 2;
 #if defined(__x86_64__) || defined(_M_X64)
@@ -54,16 +54,9 @@ static int sdpa_prefill_get_optimal_tile_n(int head_dim, int value_dim, int key_
     int TILE_N = (int)tile_size;
     TILE_N = std::max(tile_n_align, TILE_N / tile_n_align * tile_n_align);
 
-    const int cache_blocks = (key_seqlen - 1) / TILE_N + 1;
-    const int parallel_blocks = num_tasks < nT ? (nT - 1) / num_tasks + 1 : 1;
-    const int max_blocks = (key_seqlen - 1) / tile_n_align + 1;
-    const int num_blocks = std::min(std::max(cache_blocks, parallel_blocks), max_blocks);
-
+    const int num_blocks = (key_seqlen - 1) / TILE_N + 1;
     TILE_N = (key_seqlen - 1) / num_blocks + 1;
-    if (parallel_blocks > cache_blocks)
-        TILE_N = std::max(tile_n_align, TILE_N / tile_n_align * tile_n_align);
-    else
-        TILE_N = (TILE_N + tile_n_align - 1) / tile_n_align * tile_n_align;
+    TILE_N = (TILE_N + tile_n_align - 1) / tile_n_align * tile_n_align;
 
     return TILE_N;
 }
@@ -95,7 +88,7 @@ static void sdpa_pack_query_fp32(const Mat& query_head, Mat& queryT, int i, int 
         float* pQ = queryT_ptr + (size_t)ii * head_dim;
         const float* qptr = query_head.row(i0);
 
-        const __m512 _scale = _mm512_set1_ps(scale);
+        __m512 _scale = _mm512_set1_ps(scale);
         int d = 0;
         for (; d + 15 < head_dim; d += 16)
         {
@@ -164,7 +157,7 @@ static void sdpa_pack_query_fp32(const Mat& query_head, Mat& queryT, int i, int 
         float* pQ = queryT_ptr + (size_t)ii * head_dim;
         const float* qptr = query_head.row(i0);
 
-        const __m256 _scale = _mm256_set1_ps(scale);
+        __m256 _scale = _mm256_set1_ps(scale);
         int d = 0;
         for (; d + 7 < head_dim; d += 8)
         {
@@ -209,7 +202,7 @@ static void sdpa_pack_query_fp32(const Mat& query_head, Mat& queryT, int i, int 
         float* pQ = queryT_ptr + (size_t)ii * head_dim;
         const float* qptr = query_head.row(i0);
 
-        const __m128 _scale = _mm_set1_ps(scale);
+        __m128 _scale = _mm_set1_ps(scale);
         int d = 0;
         for (; d + 3 < head_dim; d += 4)
         {
@@ -312,11 +305,11 @@ static void sdpa_store_output_tile(const Mat& outT, const Mat& lT, Mat& top_blob
 #if __AVX512F__
     for (; ii + 15 < max_ii; ii += 16)
     {
-        const __m512 _l = _mm512_loadu_ps(lptr);
+        __m512 _l = _mm512_loadu_ps(lptr);
         lptr += 16;
         float* p0 = top_blob_head.row(i0 + ii);
-        const __mmask16 nonzero = _mm512_cmp_ps_mask(_l, _mm512_setzero_ps(), _CMP_NEQ_OQ);
-        const __m512 _scale = _mm512_maskz_div_ps(nonzero, _mm512_set1_ps(1.f), _l);
+        __mmask16 nonzero = _mm512_cmp_ps_mask(_l, _mm512_setzero_ps(), _CMP_NEQ_OQ);
+        __m512 _scale = _mm512_maskz_div_ps(nonzero, _mm512_set1_ps(1.f), _l);
         int d = 0;
         for (; d + 15 < value_dim; d += 16)
         {
@@ -358,11 +351,11 @@ static void sdpa_store_output_tile(const Mat& outT, const Mat& lT, Mat& top_blob
         }
         for (; d < value_dim; d++)
         {
-            const __m512 _r = _mm512_mul_ps(_mm512_loadu_ps(pp), _scale);
-            const __m128 _r0 = _mm512_extractf32x4_ps(_r, 0);
-            const __m128 _r1 = _mm512_extractf32x4_ps(_r, 1);
-            const __m128 _r2 = _mm512_extractf32x4_ps(_r, 2);
-            const __m128 _r3 = _mm512_extractf32x4_ps(_r, 3);
+            __m512 _r = _mm512_mul_ps(_mm512_loadu_ps(pp), _scale);
+            __m128 _r0 = _mm512_extractf32x4_ps(_r, 0);
+            __m128 _r1 = _mm512_extractf32x4_ps(_r, 1);
+            __m128 _r2 = _mm512_extractf32x4_ps(_r, 2);
+            __m128 _r3 = _mm512_extractf32x4_ps(_r, 3);
             p0[0] = _mm_cvtss_f32(_r0);
             p0[out_hstep] = _mm_cvtss_f32(_mm_shuffle_ps(_r0, _r0, _MM_SHUFFLE(1, 1, 1, 1)));
             p0[out_hstep * 2] = _mm_cvtss_f32(_mm_movehl_ps(_r0, _r0));
@@ -386,12 +379,12 @@ static void sdpa_store_output_tile(const Mat& outT, const Mat& lT, Mat& top_blob
 #endif // __AVX512F__
     for (; ii + 7 < max_ii; ii += 8)
     {
-        const __m256 _l = _mm256_loadu_ps(lptr);
+        __m256 _l = _mm256_loadu_ps(lptr);
         lptr += 8;
         float* p0 = top_blob_head.row(i0 + ii);
-        const __m256 _nonzero = _mm256_cmp_ps(_l, _mm256_setzero_ps(), _CMP_NEQ_OQ);
-        const __m256 _denom = _mm256_blendv_ps(_mm256_set1_ps(1.f), _l, _nonzero);
-        const __m256 _scale = _mm256_and_ps(_mm256_div_ps(_mm256_set1_ps(1.f), _denom), _nonzero);
+        __m256 _nonzero = _mm256_cmp_ps(_l, _mm256_setzero_ps(), _CMP_NEQ_OQ);
+        __m256 _denom = _mm256_blendv_ps(_mm256_set1_ps(1.f), _l, _nonzero);
+        __m256 _scale = _mm256_and_ps(_mm256_div_ps(_mm256_set1_ps(1.f), _denom), _nonzero);
 
         int d = 0;
         for (; d + 7 < value_dim; d += 8)
@@ -418,9 +411,9 @@ static void sdpa_store_output_tile(const Mat& outT, const Mat& lT, Mat& top_blob
         }
         for (; d < value_dim; d++)
         {
-            const __m256 _r = _mm256_mul_ps(_mm256_loadu_ps(pp), _scale);
-            const __m128 _r0 = _mm256_castps256_ps128(_r);
-            const __m128 _r1 = _mm256_extractf128_ps(_r, 1);
+            __m256 _r = _mm256_mul_ps(_mm256_loadu_ps(pp), _scale);
+            __m128 _r0 = _mm256_castps256_ps128(_r);
+            __m128 _r1 = _mm256_extractf128_ps(_r, 1);
             p0[0] = _mm_cvtss_f32(_r0);
             p0[out_hstep] = _mm_cvtss_f32(_mm_shuffle_ps(_r0, _r0, _MM_SHUFFLE(1, 1, 1, 1)));
             p0[out_hstep * 2] = _mm_cvtss_f32(_mm_movehl_ps(_r0, _r0));
@@ -436,12 +429,12 @@ static void sdpa_store_output_tile(const Mat& outT, const Mat& lT, Mat& top_blob
 #endif // __AVX__
     for (; ii + 3 < max_ii; ii += 4)
     {
-        const __m128 _l = _mm_loadu_ps(lptr);
+        __m128 _l = _mm_loadu_ps(lptr);
         lptr += 4;
         float* p0 = top_blob_head.row(i0 + ii);
-        const __m128 _nonzero = _mm_cmpneq_ps(_l, _mm_setzero_ps());
-        const __m128 _denom = _mm_or_ps(_mm_and_ps(_nonzero, _l), _mm_andnot_ps(_nonzero, _mm_set1_ps(1.f)));
-        const __m128 _scale = _mm_and_ps(_mm_div_ps(_mm_set1_ps(1.f), _denom), _nonzero);
+        __m128 _nonzero = _mm_cmpneq_ps(_l, _mm_setzero_ps());
+        __m128 _denom = _mm_or_ps(_mm_and_ps(_nonzero, _l), _mm_andnot_ps(_nonzero, _mm_set1_ps(1.f)));
+        __m128 _scale = _mm_and_ps(_mm_div_ps(_mm_set1_ps(1.f), _denom), _nonzero);
 
         int d = 0;
         for (; d + 3 < value_dim; d += 4)
@@ -460,7 +453,7 @@ static void sdpa_store_output_tile(const Mat& outT, const Mat& lT, Mat& top_blob
         }
         for (; d < value_dim; d++)
         {
-            const __m128 _r = _mm_mul_ps(_mm_loadu_ps(pp), _scale);
+            __m128 _r = _mm_mul_ps(_mm_loadu_ps(pp), _scale);
             p0[0] = _mm_cvtss_f32(_r);
             p0[out_hstep] = _mm_cvtss_f32(_mm_shuffle_ps(_r, _r, _MM_SHUFFLE(1, 1, 1, 1)));
             p0[out_hstep * 2] = _mm_cvtss_f32(_mm_movehl_ps(_r, _r));
@@ -516,199 +509,6 @@ static void sdpa_store_output_tile(const Mat& outT, const Mat& lT, Mat& top_blob
     }
 }
 
-static void sdpa_prefill_reduce(const Mat& partials, Mat& top_blob, Mat& workspace, int num_tasks, int num_mblocks, int block_m, int num_kv_chunks, int query_seqlen, int value_dim, const Option& opt)
-{
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int task_id = 0; task_id < num_tasks; task_id++)
-    {
-        const int q = task_id / num_mblocks;
-        const int mblock_id = task_id % num_mblocks;
-        const int i0 = mblock_id * block_m;
-        const int max_ii = std::min(query_seqlen - i0, block_m);
-        Mat top_blob_head = top_blob.channel(q);
-        Mat workspace_tile = workspace.channel(get_omp_thread_num());
-        Mat outT_tile = workspace_tile.range(0, value_dim * block_m);
-        Mat lT_tile = workspace_tile.range(value_dim * block_m, block_m);
-        float* outT = outT_tile;
-        float* lT = lT_tile;
-
-        int ii = 0;
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-        for (; ii + 15 < max_ii; ii += 16)
-        {
-            __m512 _m = _mm512_set1_ps(-FLT_MAX);
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state = partials.channel(task_id * num_kv_chunks + chunk_id);
-                _m = _mm512_max_ps(_m, _mm512_loadu_ps(state + ii));
-            }
-
-            memset(outT + (size_t)ii * value_dim, 0, (size_t)value_dim * 16 * sizeof(float));
-            __m512 _l = _mm512_setzero_ps();
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state = partials.channel(task_id * num_kv_chunks + chunk_id);
-                const __m512 _partial_l = _mm512_loadu_ps(state + block_m + ii);
-                const __mmask16 active = _mm512_cmp_ps_mask(_partial_l, _mm512_setzero_ps(), _CMP_NEQ_OQ);
-                const __m512 _partial_scale = _mm512_maskz_mov_ps(active, exp512_ps(_mm512_maskz_sub_ps(active, _mm512_loadu_ps(state + ii), _m)));
-                _l = _mm512_fmadd_ps(_partial_l, _partial_scale, _l);
-                float* outptr = outT + (size_t)ii * value_dim;
-                const float* stateptr = state + 2 * block_m + ii;
-                for (int d = 0; d < value_dim; d++)
-                {
-                    __m512 _out = _mm512_loadu_ps(outptr);
-                    _out = _mm512_fmadd_ps(_mm512_loadu_ps(stateptr), _partial_scale, _out);
-                    _mm512_storeu_ps(outptr, _out);
-                    outptr += 16;
-                    stateptr += block_m;
-                }
-            }
-            _mm512_storeu_ps(lT + ii, _l);
-        }
-#endif // __AVX512F__
-        for (; ii + 7 < max_ii; ii += 8)
-        {
-            __m256 _m = _mm256_set1_ps(-FLT_MAX);
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state = partials.channel(task_id * num_kv_chunks + chunk_id);
-                _m = _mm256_max_ps(_m, _mm256_loadu_ps(state + ii));
-            }
-
-            memset(outT + (size_t)ii * value_dim, 0, (size_t)value_dim * 8 * sizeof(float));
-            __m256 _l = _mm256_setzero_ps();
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state = partials.channel(task_id * num_kv_chunks + chunk_id);
-                const __m256 _partial_l = _mm256_loadu_ps(state + block_m + ii);
-                const __m256 _active = _mm256_cmp_ps(_partial_l, _mm256_setzero_ps(), _CMP_NEQ_OQ);
-                const __m256 _partial_scale = _mm256_and_ps(_active, exp256_ps(_mm256_and_ps(_active, _mm256_sub_ps(_mm256_loadu_ps(state + ii), _m))));
-                _l = _mm256_comp_fmadd_ps(_partial_l, _partial_scale, _l);
-                float* outptr = outT + (size_t)ii * value_dim;
-                const float* stateptr = state + 2 * block_m + ii;
-                for (int d = 0; d < value_dim; d++)
-                {
-                    __m256 _out = _mm256_loadu_ps(outptr);
-                    _out = _mm256_comp_fmadd_ps(_mm256_loadu_ps(stateptr), _partial_scale, _out);
-                    _mm256_storeu_ps(outptr, _out);
-                    outptr += 8;
-                    stateptr += block_m;
-                }
-            }
-            _mm256_storeu_ps(lT + ii, _l);
-        }
-#endif // __AVX__
-        for (; ii + 3 < max_ii; ii += 4)
-        {
-            __m128 _m = _mm_set1_ps(-FLT_MAX);
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state = partials.channel(task_id * num_kv_chunks + chunk_id);
-                _m = _mm_max_ps(_m, _mm_loadu_ps(state + ii));
-            }
-
-            memset(outT + (size_t)ii * value_dim, 0, (size_t)value_dim * 4 * sizeof(float));
-            __m128 _l = _mm_setzero_ps();
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state = partials.channel(task_id * num_kv_chunks + chunk_id);
-                const __m128 _partial_l = _mm_loadu_ps(state + block_m + ii);
-                const __m128 _active = _mm_cmpneq_ps(_partial_l, _mm_setzero_ps());
-                const __m128 _partial_scale = _mm_and_ps(_active, exp_ps(_mm_and_ps(_active, _mm_sub_ps(_mm_loadu_ps(state + ii), _m))));
-                _l = _mm_comp_fmadd_ps(_partial_l, _partial_scale, _l);
-                float* outptr = outT + (size_t)ii * value_dim;
-                const float* stateptr = state + 2 * block_m + ii;
-                for (int d = 0; d < value_dim; d++)
-                {
-                    __m128 _out = _mm_loadu_ps(outptr);
-                    _out = _mm_comp_fmadd_ps(_mm_loadu_ps(stateptr), _partial_scale, _out);
-                    _mm_storeu_ps(outptr, _out);
-                    outptr += 4;
-                    stateptr += block_m;
-                }
-            }
-            _mm_storeu_ps(lT + ii, _l);
-        }
-#endif // __SSE2__
-        for (; ii + 1 < max_ii; ii += 2)
-        {
-            float m0 = -FLT_MAX;
-            float m1 = -FLT_MAX;
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state = partials.channel(task_id * num_kv_chunks + chunk_id);
-                m0 = std::max(m0, state[ii]);
-                m1 = std::max(m1, state[ii + 1]);
-            }
-
-            float* out0 = outT + (size_t)ii * value_dim;
-            float* out1 = out0 + value_dim;
-            memset(out0, 0, (size_t)value_dim * 2 * sizeof(float));
-            float l0 = 0.f;
-            float l1 = 0.f;
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state = partials.channel(task_id * num_kv_chunks + chunk_id);
-                const float partial_l0 = state[block_m + ii];
-                const float partial_l1 = state[block_m + ii + 1];
-                const float partial_scale0 = partial_l0 == 0.f ? 0.f : expf(state[ii] - m0);
-                const float partial_scale1 = partial_l1 == 0.f ? 0.f : expf(state[ii + 1] - m1);
-                l0 += partial_l0 * partial_scale0;
-                l1 += partial_l1 * partial_scale1;
-                int d = 0;
-                for (; d + 1 < value_dim; d += 2)
-                {
-                    out0[d] += state[(d + 2) * block_m + ii] * partial_scale0;
-                    out0[d + 1] += state[(d + 3) * block_m + ii] * partial_scale0;
-                    out1[d] += state[(d + 2) * block_m + ii + 1] * partial_scale1;
-                    out1[d + 1] += state[(d + 3) * block_m + ii + 1] * partial_scale1;
-                }
-                for (; d < value_dim; d++)
-                {
-                    out0[d] += state[(d + 2) * block_m + ii] * partial_scale0;
-                    out1[d] += state[(d + 2) * block_m + ii + 1] * partial_scale1;
-                }
-            }
-            lT[ii] = l0;
-            lT[ii + 1] = l1;
-        }
-        for (; ii < max_ii; ii++)
-        {
-            float m = -FLT_MAX;
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state = partials.channel(task_id * num_kv_chunks + chunk_id);
-                m = std::max(m, state[ii]);
-            }
-
-            float* outptr = outT + (size_t)ii * value_dim;
-            memset(outptr, 0, value_dim * sizeof(float));
-            float l = 0.f;
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state = partials.channel(task_id * num_kv_chunks + chunk_id);
-                const float partial_l = state[block_m + ii];
-                const float partial_scale = partial_l == 0.f ? 0.f : expf(state[ii] - m);
-                l += partial_l * partial_scale;
-                int d = 0;
-                for (; d + 1 < value_dim; d += 2)
-                {
-                    outptr[d] += state[(d + 2) * block_m + ii] * partial_scale;
-                    outptr[d + 1] += state[(d + 3) * block_m + ii] * partial_scale;
-                }
-                for (; d < value_dim; d++)
-                    outptr[d] += state[(d + 2) * block_m + ii] * partial_scale;
-            }
-            lT[ii] = l;
-        }
-
-        sdpa_store_output_tile(outT_tile, lT_tile, top_blob_head, i0, max_ii);
-    }
-}
-
-// packed_key[token_panel][head_dim][token_lane] in fp32
 static void sdpa_pack_key_tile_fp32(const Mat& key, Mat& packed_key, int src_begin, int dst_begin, int max_seqlen)
 {
     const int head_dim = key.w;
@@ -1174,7 +974,7 @@ static void sdpa_append_kvcache_token_fp32(const Mat& key, const Mat& value, Mat
     }
 }
 
-static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_key_head, const Mat& packed_value_head, const Mat& computation_value_head, const Mat& maskT, Mat& scoreT, Mat& outT, Mat& stateT, int max_ii, int n_begin, int n_end)
+static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_key_head, const Mat& packed_value_head, const Mat& computation_value_head, const Mat& maskT, Mat& scoreT, Mat& outT, Mat& stateT, int max_ii)
 {
     const int head_dim = packed_key_head.w;
     const int value_dim = packed_value_head.w;
@@ -1208,9 +1008,9 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
         __m512 _l = _mm512_setzero_ps();
         memset(outT_ptr + (size_t)ii * value_dim, 0, (size_t)value_dim * 16 * sizeof(float));
 
-        for (int n = n_begin; n < n_end; n += TILE_N)
+        for (int n = 0; n < key_seqlen; n += TILE_N)
         {
-            const int max_jj = std::min(n_end - n, TILE_N);
+            const int max_jj = std::min(key_seqlen - n, TILE_N);
             const float* pQ = queryT_ptr + (size_t)ii * head_dim;
             float* scoreptr = scoreT_ptr + (size_t)ii * TILE_N;
             const float* pM = maskT_ptr ? maskT_ptr + (size_t)ii * key_seqlen + (size_t)n * 16 : 0;
@@ -1245,7 +1045,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                     const float* pA = pQ;
                     for (int d = 0; d < head_dim; d++)
                     {
-                        const __m512 _q = _mm512_loadu_ps(pA);
+                        __m512 _q = _mm512_loadu_ps(pA);
                         _sum0 = _mm512_fmadd_ps(_q, _mm512_set1_ps(pK[0]), _sum0);
                         _sum1 = _mm512_fmadd_ps(_q, _mm512_set1_ps(pK[1]), _sum1);
                         _sum2 = _mm512_fmadd_ps(_q, _mm512_set1_ps(pK[2]), _sum2);
@@ -1319,7 +1119,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                     const float* pA = pQ;
                     for (int d = 0; d < head_dim; d++)
                     {
-                        const __m512 _q = _mm512_loadu_ps(pA);
+                        __m512 _q = _mm512_loadu_ps(pA);
                         _sum0 = _mm512_fmadd_ps(_q, _mm512_set1_ps(pK[0]), _sum0);
                         _sum1 = _mm512_fmadd_ps(_q, _mm512_set1_ps(pK[1]), _sum1);
                         _sum2 = _mm512_fmadd_ps(_q, _mm512_set1_ps(pK[2]), _sum2);
@@ -1369,7 +1169,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                     const float* pA = pQ;
                     for (int d = 0; d < head_dim; d++)
                     {
-                        const __m512 _q = _mm512_loadu_ps(pA);
+                        __m512 _q = _mm512_loadu_ps(pA);
                         _sum0 = _mm512_fmadd_ps(_q, _mm512_set1_ps(pK[0]), _sum0);
                         _sum1 = _mm512_fmadd_ps(_q, _mm512_set1_ps(pK[1]), _sum1);
                         _sum2 = _mm512_fmadd_ps(_q, _mm512_set1_ps(pK[2]), _sum2);
@@ -1400,7 +1200,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                     const float* pA = pQ;
                     for (int d = 0; d < head_dim; d++)
                     {
-                        const __m512 _q = _mm512_loadu_ps(pA);
+                        __m512 _q = _mm512_loadu_ps(pA);
                         _sum0 = _mm512_fmadd_ps(_q, _mm512_set1_ps(pK[0]), _sum0);
                         _sum1 = _mm512_fmadd_ps(_q, _mm512_set1_ps(pK[1]), _sum1);
                         pA += 16;
@@ -1441,9 +1241,9 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                 key_panel += (size_t)head_dim * NR;
             }
 
-            const __m512 _m_new = _mm512_max_ps(_m, _block_max);
-            const __mmask16 alpha_active = _mm512_cmp_ps_mask(_l, _mm512_setzero_ps(), _CMP_NEQ_OQ);
-            const __m512 _alpha = _mm512_maskz_mov_ps(alpha_active, exp512_ps(_mm512_maskz_sub_ps(alpha_active, _m, _m_new)));
+            __m512 _m_new = _mm512_max_ps(_m, _block_max);
+            __mmask16 alpha_active = _mm512_cmp_ps_mask(_l, _mm512_setzero_ps(), _CMP_NEQ_OQ);
+            __m512 _alpha = _mm512_maskz_mov_ps(alpha_active, exp512_ps(_mm512_maskz_sub_ps(alpha_active, _m, _m_new)));
 
             __m512 _sum0 = _mm512_setzero_ps();
             __m512 _sum1 = _mm512_setzero_ps();
@@ -1511,7 +1311,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                             const float* pV = value_panel;
                             for (int j = 0; j < max_nn; j++)
                             {
-                                const __m512 _p = _mm512_loadu_ps(pS);
+                                __m512 _p = _mm512_loadu_ps(pS);
                                 _out0 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[0]), _out0);
                                 _out1 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[1]), _out1);
                                 _out2 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[2]), _out2);
@@ -1569,7 +1369,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                             const float* pV = value_panel + lane;
                             for (int j = 0; j < max_nn; j++)
                             {
-                                const __m512 _p = _mm512_loadu_ps(pS);
+                                __m512 _p = _mm512_loadu_ps(pS);
                                 _out0 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[0]), _out0);
                                 _out1 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[1]), _out1);
                                 _out2 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[2]), _out2);
@@ -1608,7 +1408,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                             const float* pV = value_panel;
                             for (int j = 0; j < max_nn; j++)
                             {
-                                const __m512 _p = _mm512_loadu_ps(pS);
+                                __m512 _p = _mm512_loadu_ps(pS);
                                 _out0 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[0]), _out0);
                                 _out1 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[1]), _out1);
                                 _out2 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[2]), _out2);
@@ -1636,7 +1436,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                             const float* pV = value_panel;
                             for (int j = 0; j < max_nn; j++)
                             {
-                                const __m512 _p = _mm512_loadu_ps(pS);
+                                __m512 _p = _mm512_loadu_ps(pS);
                                 _out0 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[0]), _out0);
                                 _out1 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[1]), _out1);
                                 pS += 16;
@@ -1703,7 +1503,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                         const float* pV0 = pV + lane;
                         for (int j = 0; j < max_jj; j++)
                         {
-                            const __m512 _p = _mm512_loadu_ps(pS);
+                            __m512 _p = _mm512_loadu_ps(pS);
                             _out0 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV0[0]), _out0);
                             _out1 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV0[1]), _out1);
                             _out2 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV0[2]), _out2);
@@ -1755,7 +1555,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                         const float* pV0 = pV + lane;
                         for (int j = 0; j < max_jj; j++)
                         {
-                            const __m512 _p = _mm512_loadu_ps(pS);
+                            __m512 _p = _mm512_loadu_ps(pS);
                             _out0 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV0[0]), _out0);
                             _out1 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV0[1]), _out1);
                             _out2 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV0[2]), _out2);
@@ -1788,7 +1588,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                         const float* pV0 = pV + lane;
                         for (int j = 0; j < max_jj; j++)
                         {
-                            const __m512 _p = _mm512_loadu_ps(pS);
+                            __m512 _p = _mm512_loadu_ps(pS);
                             _out0 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV0[0]), _out0);
                             _out1 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV0[1]), _out1);
                             _out2 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV0[2]), _out2);
@@ -1810,7 +1610,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                         const float* pV0 = pV + lane;
                         for (int j = 0; j < max_jj; j++)
                         {
-                            const __m512 _p = _mm512_loadu_ps(pS);
+                            __m512 _p = _mm512_loadu_ps(pS);
                             _out0 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV0[0]), _out0);
                             _out1 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV0[1]), _out1);
                             pS += 16;
@@ -1850,9 +1650,9 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
         __m256 _l = _mm256_setzero_ps();
         memset(outT_ptr + (size_t)ii * value_dim, 0, (size_t)value_dim * 8 * sizeof(float));
 
-        for (int n = n_begin; n < n_end; n += TILE_N)
+        for (int n = 0; n < key_seqlen; n += TILE_N)
         {
-            const int max_jj = std::min(n_end - n, TILE_N);
+            const int max_jj = std::min(key_seqlen - n, TILE_N);
             const float* pQ = queryT_ptr + (size_t)ii * head_dim;
             float* scoreptr = scoreT_ptr + (size_t)ii * TILE_N;
             const float* pM = maskT_ptr ? maskT_ptr + (size_t)ii * key_seqlen + (size_t)n * 8 : 0;
@@ -1879,7 +1679,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                     const float* pA = pQ;
                     for (int d = 0; d < head_dim; d++)
                     {
-                        const __m256 _q = _mm256_loadu_ps(pA);
+                        __m256 _q = _mm256_loadu_ps(pA);
                         _sum0 = _mm256_comp_fmadd_ps(_q, _mm256_set1_ps(pK[0]), _sum0);
                         _sum1 = _mm256_comp_fmadd_ps(_q, _mm256_set1_ps(pK[1]), _sum1);
                         _sum2 = _mm256_comp_fmadd_ps(_q, _mm256_set1_ps(pK[2]), _sum2);
@@ -1925,7 +1725,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                     const float* pA = pQ;
                     for (int d = 0; d < head_dim; d++)
                     {
-                        const __m256 _q = _mm256_loadu_ps(pA);
+                        __m256 _q = _mm256_loadu_ps(pA);
                         _sum0 = _mm256_comp_fmadd_ps(_q, _mm256_set1_ps(pK[0]), _sum0);
                         _sum1 = _mm256_comp_fmadd_ps(_q, _mm256_set1_ps(pK[1]), _sum1);
                         _sum2 = _mm256_comp_fmadd_ps(_q, _mm256_set1_ps(pK[2]), _sum2);
@@ -1956,7 +1756,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                     const float* pA = pQ;
                     for (int d = 0; d < head_dim; d++)
                     {
-                        const __m256 _q = _mm256_loadu_ps(pA);
+                        __m256 _q = _mm256_loadu_ps(pA);
                         _sum0 = _mm256_comp_fmadd_ps(_q, _mm256_set1_ps(pK[0]), _sum0);
                         _sum1 = _mm256_comp_fmadd_ps(_q, _mm256_set1_ps(pK[1]), _sum1);
                         pA += 8;
@@ -1997,9 +1797,9 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                 key_panel += (size_t)head_dim * NR;
             }
 
-            const __m256 _m_new = _mm256_max_ps(_m, _block_max);
-            const __m256 _alpha_active = _mm256_cmp_ps(_l, _mm256_setzero_ps(), _CMP_NEQ_OQ);
-            const __m256 _alpha = _mm256_and_ps(_alpha_active, exp256_ps(_mm256_and_ps(_alpha_active, _mm256_sub_ps(_m, _m_new))));
+            __m256 _m_new = _mm256_max_ps(_m, _block_max);
+            __m256 _alpha_active = _mm256_cmp_ps(_l, _mm256_setzero_ps(), _CMP_NEQ_OQ);
+            __m256 _alpha = _mm256_and_ps(_alpha_active, exp256_ps(_mm256_and_ps(_alpha_active, _mm256_sub_ps(_m, _m_new))));
 
             __m256 _sum0 = _mm256_setzero_ps();
             __m256 _sum1 = _mm256_setzero_ps();
@@ -2059,7 +1859,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                             const float* pV = value_panel;
                             for (int j = 0; j < max_nn; j++)
                             {
-                                const __m256 _p = _mm256_loadu_ps(pS);
+                                __m256 _p = _mm256_loadu_ps(pS);
                                 _out0 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[0]), _out0);
                                 _out1 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[1]), _out1);
                                 _out2 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[2]), _out2);
@@ -2098,7 +1898,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                             const float* pV = value_panel;
                             for (int j = 0; j < max_nn; j++)
                             {
-                                const __m256 _p = _mm256_loadu_ps(pS);
+                                __m256 _p = _mm256_loadu_ps(pS);
                                 _out0 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[0]), _out0);
                                 _out1 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[1]), _out1);
                                 _out2 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[2]), _out2);
@@ -2126,7 +1926,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                             const float* pV = value_panel;
                             for (int j = 0; j < max_nn; j++)
                             {
-                                const __m256 _p = _mm256_loadu_ps(pS);
+                                __m256 _p = _mm256_loadu_ps(pS);
                                 _out0 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[0]), _out0);
                                 _out1 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[1]), _out1);
                                 pS += 8;
@@ -2185,7 +1985,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                         const float* pV0 = pV + lane;
                         for (int j = 0; j < max_jj; j++)
                         {
-                            const __m256 _p = _mm256_loadu_ps(pS);
+                            __m256 _p = _mm256_loadu_ps(pS);
                             _out0 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV0[0]), _out0);
                             _out1 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV0[1]), _out1);
                             _out2 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV0[2]), _out2);
@@ -2218,7 +2018,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                         const float* pV0 = pV + lane;
                         for (int j = 0; j < max_jj; j++)
                         {
-                            const __m256 _p = _mm256_loadu_ps(pS);
+                            __m256 _p = _mm256_loadu_ps(pS);
                             _out0 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV0[0]), _out0);
                             _out1 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV0[1]), _out1);
                             _out2 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV0[2]), _out2);
@@ -2240,7 +2040,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                         const float* pV0 = pV + lane;
                         for (int j = 0; j < max_jj; j++)
                         {
-                            const __m256 _p = _mm256_loadu_ps(pS);
+                            __m256 _p = _mm256_loadu_ps(pS);
                             _out0 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV0[0]), _out0);
                             _out1 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV0[1]), _out1);
                             pS += 8;
@@ -2280,9 +2080,9 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
         __m128 _l = _mm_setzero_ps();
         memset(outT_ptr + (size_t)ii * value_dim, 0, (size_t)value_dim * 4 * sizeof(float));
 
-        for (int n = n_begin; n < n_end; n += TILE_N)
+        for (int n = 0; n < key_seqlen; n += TILE_N)
         {
-            const int max_jj = std::min(n_end - n, TILE_N);
+            const int max_jj = std::min(key_seqlen - n, TILE_N);
             const float* pQ = queryT_ptr + (size_t)ii * head_dim;
             float* scoreptr = scoreT_ptr + (size_t)ii * TILE_N;
             const float* pM = maskT_ptr ? maskT_ptr + (size_t)ii * key_seqlen + (size_t)n * 4 : 0;
@@ -2304,7 +2104,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                     const float* pA = pQ;
                     for (int d = 0; d < head_dim; d++)
                     {
-                        const __m128 _q = _mm_loadu_ps(pA);
+                        __m128 _q = _mm_loadu_ps(pA);
                         _sum0 = _mm_comp_fmadd_ps(_q, _mm_set1_ps(pK[0]), _sum0);
                         _sum1 = _mm_comp_fmadd_ps(_q, _mm_set1_ps(pK[1]), _sum1);
                         _sum2 = _mm_comp_fmadd_ps(_q, _mm_set1_ps(pK[2]), _sum2);
@@ -2335,7 +2135,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                     const float* pA = pQ;
                     for (int d = 0; d < head_dim; d++)
                     {
-                        const __m128 _q = _mm_loadu_ps(pA);
+                        __m128 _q = _mm_loadu_ps(pA);
                         _sum0 = _mm_comp_fmadd_ps(_q, _mm_set1_ps(pK[0]), _sum0);
                         _sum1 = _mm_comp_fmadd_ps(_q, _mm_set1_ps(pK[1]), _sum1);
                         pA += 4;
@@ -2374,7 +2174,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
             }
 
             __m128 _m_new = _mm_max_ps(_m, _block_max);
-            const __m128 _alpha_active = _mm_cmpneq_ps(_l, _mm_setzero_ps());
+            __m128 _alpha_active = _mm_cmpneq_ps(_l, _mm_setzero_ps());
             __m128 _alpha = exp_ps(_mm_and_ps(_alpha_active, _mm_sub_ps(_m, _m_new)));
             _alpha = _mm_and_ps(_alpha, _alpha_active);
 
@@ -2432,7 +2232,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                             const float* pV = value_panel;
                             for (int j = 0; j < max_nn; j++)
                             {
-                                const __m128 _p = _mm_loadu_ps(pS);
+                                __m128 _p = _mm_loadu_ps(pS);
                                 _out0 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(pV[0]), _out0);
                                 _out1 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(pV[1]), _out1);
                                 _out2 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(pV[2]), _out2);
@@ -2460,7 +2260,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                             const float* pV = value_panel;
                             for (int j = 0; j < max_nn; j++)
                             {
-                                const __m128 _p = _mm_loadu_ps(pS);
+                                __m128 _p = _mm_loadu_ps(pS);
                                 _out0 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(pV[0]), _out0);
                                 _out1 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(pV[1]), _out1);
                                 pS += 4;
@@ -2514,7 +2314,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                         const float* pV0 = pV + lane;
                         for (int j = 0; j < max_jj; j++)
                         {
-                            const __m128 _p = _mm_loadu_ps(pS);
+                            __m128 _p = _mm_loadu_ps(pS);
                             _out0 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(pV0[0]), _out0);
                             _out1 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(pV0[1]), _out1);
                             _out2 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(pV0[2]), _out2);
@@ -2536,7 +2336,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                         const float* pV0 = pV + lane;
                         for (int j = 0; j < max_jj; j++)
                         {
-                            const __m128 _p = _mm_loadu_ps(pS);
+                            __m128 _p = _mm_loadu_ps(pS);
                             _out0 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(pV0[0]), _out0);
                             _out1 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(pV0[1]), _out1);
                             pS += 4;
@@ -2580,9 +2380,9 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
         float* out1 = out0 + value_dim;
         memset(out0, 0, (size_t)value_dim * 2 * sizeof(float));
 
-        for (int n = n_begin; n < n_end; n += TILE_N)
+        for (int n = 0; n < key_seqlen; n += TILE_N)
         {
-            const int max_jj = std::min(n_end - n, TILE_N);
+            const int max_jj = std::min(key_seqlen - n, TILE_N);
             const float* pQ0 = queryT_ptr + (size_t)ii * head_dim;
             const float* pQ1 = pQ0 + head_dim;
             float* score0 = scoreT_ptr + (size_t)ii * TILE_N;
@@ -2609,7 +2409,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                     const float* pA1 = pQ1;
                     for (int d = 0; d < head_dim; d++)
                     {
-                        const __m512 _k = _mm512_loadu_ps(pK);
+                        __m512 _k = _mm512_loadu_ps(pK);
                         _sum0 = _mm512_fmadd_ps(_k, _mm512_set1_ps(*pA0++), _sum0);
                         _sum1 = _mm512_fmadd_ps(_k, _mm512_set1_ps(*pA1++), _sum1);
                         pK += NR;
@@ -2634,7 +2434,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                     const float* pA1 = pQ1;
                     for (int d = 0; d < head_dim; d++)
                     {
-                        const __m256 _k = _mm256_loadu_ps(pK);
+                        __m256 _k = _mm256_loadu_ps(pK);
                         _sum0 = _mm256_comp_fmadd_ps(_k, _mm256_set1_ps(*pA0++), _sum0);
                         _sum1 = _mm256_comp_fmadd_ps(_k, _mm256_set1_ps(*pA1++), _sum1);
                         pK += NR;
@@ -2659,7 +2459,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                     const float* pA1 = pQ1;
                     for (int d = 0; d < head_dim; d++)
                     {
-                        const __m128 _k = _mm_loadu_ps(pK);
+                        __m128 _k = _mm_loadu_ps(pK);
                         _sum0 = _mm_comp_fmadd_ps(_k, _mm_set1_ps(*pA0++), _sum0);
                         _sum1 = _mm_comp_fmadd_ps(_k, _mm_set1_ps(*pA1++), _sum1);
                         pK += NR;
@@ -2772,7 +2572,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                             const float* pV = pV_panel;
                             for (int j = 0; j < max_nn; j++)
                             {
-                                const __m512 _v = _mm512_loadu_ps(pV);
+                                __m512 _v = _mm512_loadu_ps(pV);
                                 _out0 = _mm512_fmadd_ps(_v, _mm512_set1_ps(score0[jj + j]), _out0);
                                 _out1 = _mm512_fmadd_ps(_v, _mm512_set1_ps(score1[jj + j]), _out1);
                                 pV += value_panel_width;
@@ -2794,7 +2594,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                             const float* pV = pV_panel;
                             for (int j = 0; j < max_nn; j++)
                             {
-                                const __m256 _v = _mm256_loadu_ps(pV);
+                                __m256 _v = _mm256_loadu_ps(pV);
                                 _out0 = _mm256_comp_fmadd_ps(_v, _mm256_set1_ps(score0[jj + j]), _out0);
                                 _out1 = _mm256_comp_fmadd_ps(_v, _mm256_set1_ps(score1[jj + j]), _out1);
                                 pV += value_panel_width;
@@ -2816,7 +2616,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                             const float* pV = pV_panel;
                             for (int j = 0; j < max_nn; j++)
                             {
-                                const __m128 _v = _mm_loadu_ps(pV);
+                                __m128 _v = _mm_loadu_ps(pV);
                                 _out0 = _mm_comp_fmadd_ps(_v, _mm_set1_ps(score0[jj + j]), _out0);
                                 _out1 = _mm_comp_fmadd_ps(_v, _mm_set1_ps(score1[jj + j]), _out1);
                                 pV += value_panel_width;
@@ -2895,7 +2695,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                         const float* pV0 = pV + lane;
                         for (int j = 0; j < max_jj; j++)
                         {
-                            const __m512 _v = _mm512_loadu_ps(pV0);
+                            __m512 _v = _mm512_loadu_ps(pV0);
                             _out0 = _mm512_fmadd_ps(_v, _mm512_set1_ps(score0[j]), _out0);
                             _out1 = _mm512_fmadd_ps(_v, _mm512_set1_ps(score1[j]), _out1);
                             pV0 += value_panel_width;
@@ -2911,7 +2711,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                         const float* pV0 = pV + lane;
                         for (int j = 0; j < max_jj; j++)
                         {
-                            const __m256 _v = _mm256_loadu_ps(pV0);
+                            __m256 _v = _mm256_loadu_ps(pV0);
                             _out0 = _mm256_comp_fmadd_ps(_v, _mm256_set1_ps(score0[j]), _out0);
                             _out1 = _mm256_comp_fmadd_ps(_v, _mm256_set1_ps(score1[j]), _out1);
                             pV0 += value_panel_width;
@@ -2927,7 +2727,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                         const float* pV0 = pV + lane;
                         for (int j = 0; j < max_jj; j++)
                         {
-                            const __m128 _v = _mm_loadu_ps(pV0);
+                            __m128 _v = _mm_loadu_ps(pV0);
                             _out0 = _mm_comp_fmadd_ps(_v, _mm_set1_ps(score0[j]), _out0);
                             _out1 = _mm_comp_fmadd_ps(_v, _mm_set1_ps(score1[j]), _out1);
                             pV0 += value_panel_width;
@@ -2989,9 +2789,9 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
         float l = 0.f;
         memset(outT_ptr + (size_t)ii * value_dim, 0, (size_t)value_dim * sizeof(float));
 
-        for (int n = n_begin; n < n_end; n += TILE_N)
+        for (int n = 0; n < key_seqlen; n += TILE_N)
         {
-            const int max_jj = std::min(n_end - n, TILE_N);
+            const int max_jj = std::min(key_seqlen - n, TILE_N);
             const float* pQ = queryT_ptr + (size_t)ii * head_dim;
             float* scoreptr = scoreT_ptr + (size_t)ii * TILE_N;
             const float* pM = maskT_ptr ? maskT_ptr + (size_t)ii * key_seqlen + n : 0;
@@ -3229,7 +3029,7 @@ static int sdpa_prefill_packed_fp32(const Mat& query, const Mat& packed_key, con
 
     const int num_mblocks = (query_seqlen + TILE_M - 1) / TILE_M;
     const int num_tasks = num_query_heads * num_mblocks;
-    int TILE_N = sdpa_prefill_get_optimal_tile_n(head_dim, value_dim, key_seqlen, 4, 4, 4, attn_mask.empty() ? 0 : 4, TILE_M, num_tasks, nT);
+    int TILE_N = sdpa_prefill_get_optimal_tile_n(head_dim, value_dim, key_seqlen, 4, 4, 4, attn_mask.empty() ? 0 : 4, TILE_M);
     TILE_N = std::max(NR, (TILE_N + NR - 1) / NR * NR);
     const int num_key_blocks = (key_seqlen + TILE_N - 1) / TILE_N;
 
@@ -3259,13 +3059,6 @@ static int sdpa_prefill_packed_fp32(const Mat& query, const Mat& packed_key, con
         sdpa_pack_computation_value_fp32(packed_value, computation_value, TILE_N, opt);
     }
 
-    int num_kv_chunks = 1;
-    if (num_tasks < nT && num_key_blocks >= 2)
-    {
-        num_kv_chunks = std::min((nT + num_tasks - 1) / num_tasks, num_key_blocks);
-        num_kv_chunks = std::max(num_kv_chunks, 1);
-    }
-
     const int query_workspace_size = TILE_M * head_dim;
     const int score_workspace_size = TILE_M * TILE_N;
     const int out_workspace_size = TILE_M * value_dim;
@@ -3287,53 +3080,19 @@ static int sdpa_prefill_packed_fp32(const Mat& query, const Mat& packed_key, con
         sdpa_pack_mask_fp32(attn_mask, packed_mask, TILE_M, opt);
     }
 
-    Mat packed_query;
-    if (num_kv_chunks > 1)
-    {
-        packed_query.create(query_workspace_size, 1, num_tasks, 4u, opt.workspace_allocator);
-        if (packed_query.empty())
-            return -100;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int task_id = 0; task_id < num_tasks; task_id++)
-        {
-            const int q = task_id / num_mblocks;
-            const int i0 = task_id % num_mblocks * TILE_M;
-            const int max_ii = std::min(query_seqlen - i0, TILE_M);
-            const Mat query_head = query.channel(q);
-            Mat queryT = packed_query.channel(task_id);
-            sdpa_pack_query_fp32(query_head, queryT, i0, max_ii, scale);
-        }
-    }
-
-    Mat partials;
-    if (num_kv_chunks > 1)
-    {
-        partials.create((value_dim + 2) * TILE_M, 1, num_tasks * num_kv_chunks, 4u, opt.workspace_allocator);
-        if (partials.empty())
-            return -100;
-    }
-
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int ti = 0; ti < num_tasks * num_kv_chunks; ti++)
+    for (int task_id = 0; task_id < num_tasks; task_id++)
     {
-        const int task_id = ti / num_kv_chunks;
-        const int chunk_id = ti % num_kv_chunks;
         const int q = task_id / num_mblocks;
         const int i0 = task_id % num_mblocks * TILE_M;
         const int max_ii = std::min(query_seqlen - i0, TILE_M);
         const int g = q / num_query_heads_per_kv_head;
-        const int n_begin = chunk_id * num_key_blocks / num_kv_chunks * TILE_N;
-        const int n_end = std::min((chunk_id + 1) * num_key_blocks / num_kv_chunks * TILE_N, key_seqlen);
 
         Mat workspace_tile = workspace.channel(get_omp_thread_num());
         Mat queryT = workspace_tile.range(0, query_workspace_size);
         Mat scoreT = workspace_tile.range(query_workspace_size, score_workspace_size);
         Mat outT = workspace_tile.range(query_workspace_size + score_workspace_size, out_workspace_size);
         Mat stateT = workspace_tile.range(query_workspace_size + score_workspace_size + out_workspace_size, state_workspace_size);
-        float* outT_ptr = outT;
-        float* mT = stateT;
-        float* lT = mT + TILE_M;
 
         const Mat query_head = query.channel(q);
         const Mat packed_key_head = packed_key.channel(g);
@@ -3345,94 +3104,15 @@ static int sdpa_prefill_packed_fp32(const Mat& query, const Mat& packed_key, con
             maskT = packed_mask_head.row_range(task_id % num_mblocks, 1);
         }
 
-        if (!packed_query.empty())
-            queryT = packed_query.channel(task_id);
-        else
-            sdpa_pack_query_fp32(query_head, queryT, i0, max_ii, scale);
+        sdpa_pack_query_fp32(query_head, queryT, i0, max_ii, scale);
 
         const Mat computation_value_head = use_computation_value ? computation_value.channel(g) : Mat();
-        sdpa_prefill_packed_tile_fp32(queryT, packed_key_head, packed_value_head, computation_value_head, maskT, scoreT, outT, stateT, max_ii, n_begin, n_end);
+        sdpa_prefill_packed_tile_fp32(queryT, packed_key_head, packed_value_head, computation_value_head, maskT, scoreT, outT, stateT, max_ii);
 
-        int ii = 0;
-        if (num_kv_chunks > 1)
-        {
-            float* stateptr = partials.channel(ti);
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-            for (; ii + 15 < max_ii; ii += 16)
-            {
-                _mm512_storeu_ps(stateptr + ii, _mm512_loadu_ps(mT + ii));
-                _mm512_storeu_ps(stateptr + TILE_M + ii, _mm512_loadu_ps(lT + ii));
-                const float* p0 = outT_ptr + (size_t)ii * value_dim;
-                float* p1 = stateptr + TILE_M * 2 + ii;
-                for (int d = 0; d < value_dim; d++)
-                {
-                    _mm512_storeu_ps(p1, _mm512_loadu_ps(p0));
-                    p0 += 16;
-                    p1 += TILE_M;
-                }
-            }
-#endif // __AVX512F__
-            for (; ii + 7 < max_ii; ii += 8)
-            {
-                _mm256_storeu_ps(stateptr + ii, _mm256_loadu_ps(mT + ii));
-                _mm256_storeu_ps(stateptr + TILE_M + ii, _mm256_loadu_ps(lT + ii));
-                const float* p0 = outT_ptr + (size_t)ii * value_dim;
-                float* p1 = stateptr + TILE_M * 2 + ii;
-                for (int d = 0; d < value_dim; d++)
-                {
-                    _mm256_storeu_ps(p1, _mm256_loadu_ps(p0));
-                    p0 += 8;
-                    p1 += TILE_M;
-                }
-            }
-#endif // __AVX__
-            for (; ii + 3 < max_ii; ii += 4)
-            {
-                _mm_storeu_ps(stateptr + ii, _mm_loadu_ps(mT + ii));
-                _mm_storeu_ps(stateptr + TILE_M + ii, _mm_loadu_ps(lT + ii));
-                const float* p0 = outT_ptr + (size_t)ii * value_dim;
-                float* p1 = stateptr + TILE_M * 2 + ii;
-                for (int d = 0; d < value_dim; d++)
-                {
-                    _mm_storeu_ps(p1, _mm_loadu_ps(p0));
-                    p0 += 4;
-                    p1 += TILE_M;
-                }
-            }
-#endif // __SSE2__
-            for (; ii < max_ii; ii++)
-            {
-                stateptr[ii] = mT[ii];
-                stateptr[TILE_M + ii] = lT[ii];
-                const float* p0 = outT_ptr + (size_t)ii * value_dim;
-                float* p1 = stateptr + TILE_M * 2 + ii;
-                int d = 0;
-                for (; d + 1 < value_dim; d += 2)
-                {
-                    p1[0] = p0[0];
-                    p1[TILE_M] = p0[1];
-                    p0 += 2;
-                    p1 += TILE_M * 2;
-                }
-                for (; d < value_dim; d++)
-                {
-                    *p1 = *p0++;
-                    p1 += TILE_M;
-                }
-            }
-        }
-        else
-        {
-            Mat top_blob_head = top_blob.channel(q);
-            Mat lT_tile = stateT.range(TILE_M, TILE_M);
-            sdpa_store_output_tile(outT, lT_tile, top_blob_head, i0, max_ii);
-        }
+        Mat top_blob_head = top_blob.channel(q);
+        Mat lT = stateT.range(TILE_M, TILE_M);
+        sdpa_store_output_tile(outT, lT, top_blob_head, i0, max_ii);
     }
-
-    if (num_kv_chunks > 1)
-        sdpa_prefill_reduce(partials, top_blob, workspace, num_tasks, num_mblocks, TILE_M, num_kv_chunks, query_seqlen, value_dim, opt);
 
     return 0;
 }

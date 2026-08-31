@@ -29,7 +29,7 @@ static int sdpa_decode_get_optimal_tile_q(int num_query_heads_per_kv_head, int n
     return TILE_Q;
 }
 
-static int sdpa_decode_get_optimal_tile_n(int head_dim, int value_dim, int key_seqlen, int query_storage_size, int key_storage_size, int value_storage_size, int mask_storage_size, int TILE_Q, int num_tasks, int nT)
+static int sdpa_decode_get_optimal_tile_n(int head_dim, int value_dim, int key_seqlen, int query_storage_size, int key_storage_size, int value_storage_size, int mask_storage_size, int TILE_Q)
 {
 #if __AVX512F__
     const int tile_n_align = 16;
@@ -50,16 +50,9 @@ static int sdpa_decode_get_optimal_tile_n(int head_dim, int value_dim, int key_s
     int TILE_N = (int)tile_size;
     TILE_N = std::max(tile_n_align, TILE_N / tile_n_align * tile_n_align);
 
-    const int cache_blocks = (key_seqlen - 1) / TILE_N + 1;
-    const int parallel_blocks = num_tasks < nT ? (nT - 1) / num_tasks + 1 : 1;
-    const int max_blocks = (key_seqlen - 1) / tile_n_align + 1;
-    const int num_blocks = std::min(std::max(cache_blocks, parallel_blocks), max_blocks);
-
+    const int num_blocks = (key_seqlen - 1) / TILE_N + 1;
     TILE_N = (key_seqlen - 1) / num_blocks + 1;
-    if (parallel_blocks > cache_blocks)
-        TILE_N = std::max(tile_n_align, TILE_N / tile_n_align * tile_n_align);
-    else
-        TILE_N = (TILE_N + tile_n_align - 1) / tile_n_align * tile_n_align;
+    TILE_N = (TILE_N + tile_n_align - 1) / tile_n_align * tile_n_align;
 
     return TILE_N;
 }
@@ -228,9 +221,9 @@ static void sdpa_decode_pack_query_fp32(const Mat& query, Mat& queryT, float sca
 #endif // __SSE2__
 }
 
-static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, int q0, int max_qq, int g, int n_begin, int n_end, int block_n, const Mat& packed_query, Mat& workspace, Mat& state)
+static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, int q0, int max_qq, int g, int block_n, Mat& workspace)
 {
-    (void)packed_query;
+    const int key_seqlen = key.h;
     int qq = 0;
 #if __SSE2__
 #if __AVX__
@@ -241,9 +234,6 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
         const int head_dim = query.w;
         const int value_dim = value.w;
 
-        Mat state_q;
-        if (!state.empty())
-            state_q = state.range(qq * (value_dim + 2), (value_dim + 2) * 16);
 
         const bool mask_per_head = !attn_mask_blob.empty() && attn_mask_blob.dims == 3 && attn_mask_blob.c > 1;
         const float* mask = 0;
@@ -259,15 +249,9 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
 
         float* scoreT = workspace;
         float* outT = scoreT + block_n * 16;
-        Mat queryT_blob = packed_query;
-        if (queryT_blob.empty())
-        {
-            queryT_blob = Mat(head_dim * 16, outT + value_dim * 16, 4u);
-            sdpa_decode_pack_query_fp32(query, queryT_blob, scale, q, 16);
-        }
+        Mat queryT_blob(head_dim * 16, outT + value_dim * 16, 4u);
+        sdpa_decode_pack_query_fp32(query, queryT_blob, scale, q, 16);
         const float* queryT = queryT_blob;
-        if (!packed_query.empty())
-            queryT += (size_t)qq * head_dim;
         memset(outT, 0, (size_t)value_dim * 16 * sizeof(float));
 
         const Mat key_head = key.channel(g);
@@ -275,9 +259,9 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
         __m512 _m = _mm512_set1_ps(-FLT_MAX);
         __m512 _l = _mm512_setzero_ps();
 
-        for (int n = n_begin; n < n_end; n += block_n)
+        for (int n = 0; n < key_seqlen; n += block_n)
         {
-            const int max_jj = std::min(n_end - n, block_n);
+            const int max_jj = std::min(key_seqlen - n, block_n);
             __m512 _block_max = _mm512_set1_ps(-FLT_MAX);
             const float* pK = key_head.row(n);
             float* pS = scoreT;
@@ -442,14 +426,6 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
             }
         }
 
-        if (!state_q.empty())
-        {
-            float* stateptr = state_q;
-            _mm512_storeu_ps(stateptr, _m);
-            _mm512_storeu_ps(stateptr + 16, _l);
-            memcpy(stateptr + 32, outT, (size_t)value_dim * 16 * sizeof(float));
-        }
-        else
         {
             float* output = top_blob.channel(q);
             const size_t output_cstep = top_blob.cstep;
@@ -532,9 +508,6 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
         const int head_dim = query.w;
         const int value_dim = value.w;
 
-        Mat state_q;
-        if (!state.empty())
-            state_q = state.range(qq * (value_dim + 2), (value_dim + 2) * 8);
 
         const bool mask_per_head = !attn_mask_blob.empty() && attn_mask_blob.dims == 3 && attn_mask_blob.c > 1;
         const float* mask = 0;
@@ -552,15 +525,9 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
 
         float* scoreT = workspace;
         float* outT = scoreT + block_n * 8;
-        Mat queryT_blob = packed_query;
-        if (queryT_blob.empty())
-        {
-            queryT_blob = Mat(head_dim * 8, outT + value_dim * 8, 4u);
-            sdpa_decode_pack_query_fp32(query, queryT_blob, scale, q, 8);
-        }
+        Mat queryT_blob(head_dim * 8, outT + value_dim * 8, 4u);
+        sdpa_decode_pack_query_fp32(query, queryT_blob, scale, q, 8);
         const float* queryT = queryT_blob;
-        if (!packed_query.empty())
-            queryT += (size_t)qq * head_dim;
         memset(outT, 0, (size_t)value_dim * 8 * sizeof(float));
 
         const Mat key_head = key.channel(g);
@@ -568,9 +535,9 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
         __m256 _m = _mm256_set1_ps(-FLT_MAX);
         __m256 _l = _mm256_setzero_ps();
 
-        for (int n = n_begin; n < n_end; n += block_n)
+        for (int n = 0; n < key_seqlen; n += block_n)
         {
-            const int max_jj = std::min(n_end - n, block_n);
+            const int max_jj = std::min(key_seqlen - n, block_n);
             __m256 _block_max = _mm256_set1_ps(-FLT_MAX);
             const float* pK = key_head.row(n);
             float* pS = scoreT;
@@ -740,14 +707,6 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
             }
         }
 
-        if (!state_q.empty())
-        {
-            float* stateptr = state_q;
-            _mm256_storeu_ps(stateptr, _m);
-            _mm256_storeu_ps(stateptr + 8, _l);
-            memcpy(stateptr + 16, outT, (size_t)value_dim * 8 * sizeof(float));
-        }
-        else
         {
             float* output = top_blob.channel(q);
             const size_t output_cstep = top_blob.cstep;
@@ -805,9 +764,6 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
         const int head_dim = query.w;
         const int value_dim = value.w;
 
-        Mat state_q;
-        if (!state.empty())
-            state_q = state.range(qq * (value_dim + 2), (value_dim + 2) * 4);
 
         const bool mask_per_head = !attn_mask_blob.empty() && attn_mask_blob.dims == 3 && attn_mask_blob.c > 1;
         const float* mask = 0;
@@ -822,15 +778,9 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
 
         float* scoreT = workspace;
         float* outT = scoreT + block_n * 4;
-        Mat queryT_blob = packed_query;
-        if (queryT_blob.empty())
-        {
-            queryT_blob = Mat(head_dim * 4, outT + value_dim * 4, 4u);
-            sdpa_decode_pack_query_fp32(query, queryT_blob, scale, q, 4);
-        }
+        Mat queryT_blob(head_dim * 4, outT + value_dim * 4, 4u);
+        sdpa_decode_pack_query_fp32(query, queryT_blob, scale, q, 4);
         const float* queryT = queryT_blob;
-        if (!packed_query.empty())
-            queryT += (size_t)qq * head_dim;
         memset(outT, 0, (size_t)value_dim * 4 * sizeof(float));
 
         const Mat key_head = key.channel(g);
@@ -842,9 +792,9 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
         __m128 _m = _mm_set1_ps(-FLT_MAX);
         __m128 _l = _mm_setzero_ps();
 
-        for (int n = n_begin; n < n_end; n += block_n)
+        for (int n = 0; n < key_seqlen; n += block_n)
         {
-            const int max_jj = std::min(n_end - n, block_n);
+            const int max_jj = std::min(key_seqlen - n, block_n);
             __m128 _block_max = _mm_set1_ps(-FLT_MAX);
             {
                 float* pS = scoreT;
@@ -1207,14 +1157,6 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
             }
         }
 
-        if (!state_q.empty())
-        {
-            float* stateptr = state_q;
-            _mm_storeu_ps(stateptr, _m);
-            _mm_storeu_ps(stateptr + 4, _l);
-            memcpy(stateptr + 8, outT, (size_t)value_dim * 4 * sizeof(float));
-        }
-        else
         {
             float* output = top_blob.channel(q);
             const size_t output_cstep = top_blob.cstep;
@@ -1289,9 +1231,9 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
         float l0 = 0.f;
         float l1 = 0.f;
 
-        for (int n = n_begin; n < n_end; n += block_n)
+        for (int n = 0; n < key_seqlen; n += block_n)
         {
-            const int max_jj = std::min(n_end - n, block_n);
+            const int max_jj = std::min(key_seqlen - n, block_n);
             float block_max0 = -FLT_MAX;
             float block_max1 = -FLT_MAX;
             const float* pK = key_head.row(n);
@@ -1546,18 +1488,6 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
             }
         }
 
-        if (!state.empty())
-        {
-            float* state0 = (float*)state + qq * (value_dim + 2);
-            float* state1 = state0 + value_dim + 2;
-            state0[0] = m0;
-            state0[1] = l0;
-            state1[0] = m1;
-            state1[1] = l1;
-            memcpy(state0 + 2, out0, (size_t)value_dim * sizeof(float));
-            memcpy(state1 + 2, out1, (size_t)value_dim * sizeof(float));
-        }
-        else
         {
             float* output0 = top_blob.channel(q);
             float* output1 = top_blob.channel(q + 1);
@@ -1614,9 +1544,6 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
         const int head_dim = query.w;
         const int value_dim = value.w;
 
-        Mat state_q;
-        if (!state.empty())
-            state_q = state.range(qq * (value_dim + 2), value_dim + 2);
 
         const float* query_ptr = query.channel(q);
         const float* mask = 0;
@@ -1639,9 +1566,9 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
         float m = -FLT_MAX;
         float l = 0.f;
 
-        for (int n = n_begin; n < n_end; n += block_n)
+        for (int n = 0; n < key_seqlen; n += block_n)
         {
-            const int max_jj = std::min(n_end - n, block_n);
+            const int max_jj = std::min(key_seqlen - n, block_n);
             float block_max = -FLT_MAX;
             const float* pK = key_head.row(n);
             float* pS = score;
@@ -1947,14 +1874,6 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
             }
         }
 
-        if (!state_q.empty())
-        {
-            float* state_ptr = state_q;
-            state_ptr[0] = m;
-            state_ptr[1] = l;
-            memcpy(state_ptr + 2, out, value_dim * sizeof(float));
-        }
-        else
         {
             float* output = top_blob.channel(q);
             memcpy(output, out, value_dim * sizeof(float));
@@ -1989,423 +1908,6 @@ static void sdpa_decode_tile_fp32(const Mat& query, const Mat& key, const Mat& v
     }
 }
 
-static void sdpa_decode_reduce(const Mat& partials, Mat& top_blob, Mat& workspace, int num_tasks, int num_qblocks, int block_q, int num_kv_chunks, int num_query_heads_per_kv_head, int value_dim, const Option& opt)
-{
-#if !__SSE2__
-    (void)workspace;
-#endif // !__SSE2__
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int task_id = 0; task_id < num_tasks; task_id++)
-    {
-        const int g = task_id / num_qblocks;
-        const int qblock_id = task_id % num_qblocks;
-        const int q0 = g * num_query_heads_per_kv_head + qblock_id * block_q;
-        const int max_qq = std::min(num_query_heads_per_kv_head - qblock_id * block_q, block_q);
-        int qq = 0;
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-        for (; qq + 15 < max_qq; qq += 16)
-        {
-            __m512 _m = _mm512_set1_ps(-FLT_MAX);
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state = partials.channel(task_id * num_kv_chunks + chunk_id);
-                state += qq * (value_dim + 2);
-                _m = _mm512_max_ps(_m, _mm512_loadu_ps(state));
-            }
-
-            Mat outT_tile = workspace.channel(get_omp_thread_num());
-            float* outT = outT_tile;
-            memset(outT, 0, (size_t)value_dim * 16 * sizeof(float));
-            __m512 _l = _mm512_setzero_ps();
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state = partials.channel(task_id * num_kv_chunks + chunk_id);
-                state += qq * (value_dim + 2);
-                const __m512 _partial_l = _mm512_loadu_ps(state + 16);
-                const __mmask16 active = _mm512_cmp_ps_mask(_partial_l, _mm512_setzero_ps(), _CMP_NEQ_OQ);
-                const __m512 _partial_scale = _mm512_maskz_mov_ps(active, exp512_ps(_mm512_maskz_sub_ps(active, _mm512_loadu_ps(state), _m)));
-                _l = _mm512_fmadd_ps(_partial_l, _partial_scale, _l);
-                float* outptr = outT;
-                const float* stateptr = state + 32;
-                for (int d = 0; d < value_dim; d++)
-                {
-                    __m512 _out = _mm512_loadu_ps(outptr);
-                    _out = _mm512_fmadd_ps(_mm512_loadu_ps(stateptr), _partial_scale, _out);
-                    _mm512_storeu_ps(outptr, _out);
-                    outptr += 16;
-                    stateptr += 16;
-                }
-            }
-
-            float* output = top_blob.channel(q0 + qq);
-            const size_t output_cstep = top_blob.cstep;
-            const __mmask16 nonzero = _mm512_cmp_ps_mask(_l, _mm512_setzero_ps(), _CMP_NEQ_OQ);
-            const __m512 _out_scale = _mm512_maskz_div_ps(nonzero, _mm512_set1_ps(1.f), _l);
-
-            const float* outptr = outT;
-            float* p0 = output;
-            int d = 0;
-            for (; d + 15 < value_dim; d += 16)
-            {
-                __m512 _r0 = _mm512_mul_ps(_mm512_loadu_ps(outptr), _out_scale);
-                __m512 _r1 = _mm512_mul_ps(_mm512_loadu_ps(outptr + 16), _out_scale);
-                __m512 _r2 = _mm512_mul_ps(_mm512_loadu_ps(outptr + 32), _out_scale);
-                __m512 _r3 = _mm512_mul_ps(_mm512_loadu_ps(outptr + 48), _out_scale);
-                __m512 _r4 = _mm512_mul_ps(_mm512_loadu_ps(outptr + 64), _out_scale);
-                __m512 _r5 = _mm512_mul_ps(_mm512_loadu_ps(outptr + 80), _out_scale);
-                __m512 _r6 = _mm512_mul_ps(_mm512_loadu_ps(outptr + 96), _out_scale);
-                __m512 _r7 = _mm512_mul_ps(_mm512_loadu_ps(outptr + 112), _out_scale);
-                __m512 _r8 = _mm512_mul_ps(_mm512_loadu_ps(outptr + 128), _out_scale);
-                __m512 _r9 = _mm512_mul_ps(_mm512_loadu_ps(outptr + 144), _out_scale);
-                __m512 _ra = _mm512_mul_ps(_mm512_loadu_ps(outptr + 160), _out_scale);
-                __m512 _rb = _mm512_mul_ps(_mm512_loadu_ps(outptr + 176), _out_scale);
-                __m512 _rc = _mm512_mul_ps(_mm512_loadu_ps(outptr + 192), _out_scale);
-                __m512 _rd = _mm512_mul_ps(_mm512_loadu_ps(outptr + 208), _out_scale);
-                __m512 _re = _mm512_mul_ps(_mm512_loadu_ps(outptr + 224), _out_scale);
-                __m512 _rf = _mm512_mul_ps(_mm512_loadu_ps(outptr + 240), _out_scale);
-                transpose16x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
-                _mm512_storeu_ps(p0, _r0);
-                _mm512_storeu_ps(p0 + output_cstep, _r1);
-                _mm512_storeu_ps(p0 + output_cstep * 2, _r2);
-                _mm512_storeu_ps(p0 + output_cstep * 3, _r3);
-                _mm512_storeu_ps(p0 + output_cstep * 4, _r4);
-                _mm512_storeu_ps(p0 + output_cstep * 5, _r5);
-                _mm512_storeu_ps(p0 + output_cstep * 6, _r6);
-                _mm512_storeu_ps(p0 + output_cstep * 7, _r7);
-                _mm512_storeu_ps(p0 + output_cstep * 8, _r8);
-                _mm512_storeu_ps(p0 + output_cstep * 9, _r9);
-                _mm512_storeu_ps(p0 + output_cstep * 10, _ra);
-                _mm512_storeu_ps(p0 + output_cstep * 11, _rb);
-                _mm512_storeu_ps(p0 + output_cstep * 12, _rc);
-                _mm512_storeu_ps(p0 + output_cstep * 13, _rd);
-                _mm512_storeu_ps(p0 + output_cstep * 14, _re);
-                _mm512_storeu_ps(p0 + output_cstep * 15, _rf);
-                p0 += 16;
-                outptr += 256;
-            }
-            for (; d < value_dim; d++)
-            {
-                const __m512 _r = _mm512_mul_ps(_mm512_loadu_ps(outptr), _out_scale);
-                const __m128 _r0 = _mm512_extractf32x4_ps(_r, 0);
-                const __m128 _r1 = _mm512_extractf32x4_ps(_r, 1);
-                const __m128 _r2 = _mm512_extractf32x4_ps(_r, 2);
-                const __m128 _r3 = _mm512_extractf32x4_ps(_r, 3);
-                *p0 = _mm_cvtss_f32(_r0);
-                p0[output_cstep] = _mm_cvtss_f32(_mm_shuffle_ps(_r0, _r0, _MM_SHUFFLE(1, 1, 1, 1)));
-                p0[output_cstep * 2] = _mm_cvtss_f32(_mm_movehl_ps(_r0, _r0));
-                p0[output_cstep * 3] = _mm_cvtss_f32(_mm_shuffle_ps(_r0, _r0, _MM_SHUFFLE(3, 3, 3, 3)));
-                p0[output_cstep * 4] = _mm_cvtss_f32(_r1);
-                p0[output_cstep * 5] = _mm_cvtss_f32(_mm_shuffle_ps(_r1, _r1, _MM_SHUFFLE(1, 1, 1, 1)));
-                p0[output_cstep * 6] = _mm_cvtss_f32(_mm_movehl_ps(_r1, _r1));
-                p0[output_cstep * 7] = _mm_cvtss_f32(_mm_shuffle_ps(_r1, _r1, _MM_SHUFFLE(3, 3, 3, 3)));
-                p0[output_cstep * 8] = _mm_cvtss_f32(_r2);
-                p0[output_cstep * 9] = _mm_cvtss_f32(_mm_shuffle_ps(_r2, _r2, _MM_SHUFFLE(1, 1, 1, 1)));
-                p0[output_cstep * 10] = _mm_cvtss_f32(_mm_movehl_ps(_r2, _r2));
-                p0[output_cstep * 11] = _mm_cvtss_f32(_mm_shuffle_ps(_r2, _r2, _MM_SHUFFLE(3, 3, 3, 3)));
-                p0[output_cstep * 12] = _mm_cvtss_f32(_r3);
-                p0[output_cstep * 13] = _mm_cvtss_f32(_mm_shuffle_ps(_r3, _r3, _MM_SHUFFLE(1, 1, 1, 1)));
-                p0[output_cstep * 14] = _mm_cvtss_f32(_mm_movehl_ps(_r3, _r3));
-                p0[output_cstep * 15] = _mm_cvtss_f32(_mm_shuffle_ps(_r3, _r3, _MM_SHUFFLE(3, 3, 3, 3)));
-                p0++;
-                outptr += 16;
-            }
-        }
-#endif // __AVX512F__
-        for (; qq + 7 < max_qq; qq += 8)
-        {
-            __m256 _m = _mm256_set1_ps(-FLT_MAX);
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state = partials.channel(task_id * num_kv_chunks + chunk_id);
-                state += qq * (value_dim + 2);
-                _m = _mm256_max_ps(_m, _mm256_loadu_ps(state));
-            }
-
-            Mat outT_tile = workspace.channel(get_omp_thread_num());
-            float* outT = outT_tile;
-            memset(outT, 0, (size_t)value_dim * 8 * sizeof(float));
-            __m256 _l = _mm256_setzero_ps();
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state = partials.channel(task_id * num_kv_chunks + chunk_id);
-                state += qq * (value_dim + 2);
-                const __m256 _partial_l = _mm256_loadu_ps(state + 8);
-                const __m256 _active = _mm256_cmp_ps(_partial_l, _mm256_setzero_ps(), _CMP_NEQ_OQ);
-                const __m256 _partial_scale = _mm256_and_ps(_active, exp256_ps(_mm256_and_ps(_active, _mm256_sub_ps(_mm256_loadu_ps(state), _m))));
-                _l = _mm256_comp_fmadd_ps(_partial_l, _partial_scale, _l);
-                float* outptr = outT;
-                const float* stateptr = state + 16;
-                for (int d = 0; d < value_dim; d++)
-                {
-                    __m256 _out = _mm256_loadu_ps(outptr);
-                    _out = _mm256_comp_fmadd_ps(_mm256_loadu_ps(stateptr), _partial_scale, _out);
-                    _mm256_storeu_ps(outptr, _out);
-                    outptr += 8;
-                    stateptr += 8;
-                }
-            }
-
-            float* output = top_blob.channel(q0 + qq);
-            const size_t output_cstep = top_blob.cstep;
-            const __m256 _nonzero = _mm256_cmp_ps(_l, _mm256_setzero_ps(), _CMP_NEQ_OQ);
-            const __m256 _denom = _mm256_blendv_ps(_mm256_set1_ps(1.f), _l, _nonzero);
-            const __m256 _out_scale = _mm256_and_ps(_mm256_div_ps(_mm256_set1_ps(1.f), _denom), _nonzero);
-
-            const float* outptr = outT;
-            float* p0 = output;
-            int d = 0;
-            for (; d + 7 < value_dim; d += 8)
-            {
-                __m256 _r0 = _mm256_mul_ps(_mm256_loadu_ps(outptr), _out_scale);
-                __m256 _r1 = _mm256_mul_ps(_mm256_loadu_ps(outptr + 8), _out_scale);
-                __m256 _r2 = _mm256_mul_ps(_mm256_loadu_ps(outptr + 16), _out_scale);
-                __m256 _r3 = _mm256_mul_ps(_mm256_loadu_ps(outptr + 24), _out_scale);
-                __m256 _r4 = _mm256_mul_ps(_mm256_loadu_ps(outptr + 32), _out_scale);
-                __m256 _r5 = _mm256_mul_ps(_mm256_loadu_ps(outptr + 40), _out_scale);
-                __m256 _r6 = _mm256_mul_ps(_mm256_loadu_ps(outptr + 48), _out_scale);
-                __m256 _r7 = _mm256_mul_ps(_mm256_loadu_ps(outptr + 56), _out_scale);
-                transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-                _mm256_storeu_ps(p0, _r0);
-                _mm256_storeu_ps(p0 + output_cstep, _r1);
-                _mm256_storeu_ps(p0 + output_cstep * 2, _r2);
-                _mm256_storeu_ps(p0 + output_cstep * 3, _r3);
-                _mm256_storeu_ps(p0 + output_cstep * 4, _r4);
-                _mm256_storeu_ps(p0 + output_cstep * 5, _r5);
-                _mm256_storeu_ps(p0 + output_cstep * 6, _r6);
-                _mm256_storeu_ps(p0 + output_cstep * 7, _r7);
-                p0 += 8;
-                outptr += 64;
-            }
-            for (; d < value_dim; d++)
-            {
-                const __m256 _r = _mm256_mul_ps(_mm256_loadu_ps(outptr), _out_scale);
-                const __m128 _r0 = _mm256_castps256_ps128(_r);
-                const __m128 _r1 = _mm256_extractf128_ps(_r, 1);
-                *p0 = _mm_cvtss_f32(_r0);
-                p0[output_cstep] = _mm_cvtss_f32(_mm_shuffle_ps(_r0, _r0, _MM_SHUFFLE(1, 1, 1, 1)));
-                p0[output_cstep * 2] = _mm_cvtss_f32(_mm_movehl_ps(_r0, _r0));
-                p0[output_cstep * 3] = _mm_cvtss_f32(_mm_shuffle_ps(_r0, _r0, _MM_SHUFFLE(3, 3, 3, 3)));
-                p0[output_cstep * 4] = _mm_cvtss_f32(_r1);
-                p0[output_cstep * 5] = _mm_cvtss_f32(_mm_shuffle_ps(_r1, _r1, _MM_SHUFFLE(1, 1, 1, 1)));
-                p0[output_cstep * 6] = _mm_cvtss_f32(_mm_movehl_ps(_r1, _r1));
-                p0[output_cstep * 7] = _mm_cvtss_f32(_mm_shuffle_ps(_r1, _r1, _MM_SHUFFLE(3, 3, 3, 3)));
-                p0++;
-                outptr += 8;
-            }
-        }
-#endif // __AVX__
-        for (; qq + 3 < max_qq; qq += 4)
-        {
-            __m128 _m = _mm_set1_ps(-FLT_MAX);
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state = partials.channel(task_id * num_kv_chunks + chunk_id);
-                state += qq * (value_dim + 2);
-                _m = _mm_max_ps(_m, _mm_loadu_ps(state));
-            }
-
-            Mat outT_tile = workspace.channel(get_omp_thread_num());
-            float* outT = outT_tile;
-            memset(outT, 0, (size_t)value_dim * 4 * sizeof(float));
-            __m128 _l = _mm_setzero_ps();
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state = partials.channel(task_id * num_kv_chunks + chunk_id);
-                state += qq * (value_dim + 2);
-                const __m128 _partial_l = _mm_loadu_ps(state + 4);
-                const __m128 _active = _mm_cmpneq_ps(_partial_l, _mm_setzero_ps());
-                const __m128 _partial_scale = _mm_and_ps(_active, exp_ps(_mm_and_ps(_active, _mm_sub_ps(_mm_loadu_ps(state), _m))));
-                _l = _mm_comp_fmadd_ps(_partial_l, _partial_scale, _l);
-                float* outptr = outT;
-                const float* stateptr = state + 8;
-                for (int d = 0; d < value_dim; d++)
-                {
-                    __m128 _out = _mm_loadu_ps(outptr);
-                    _out = _mm_comp_fmadd_ps(_mm_loadu_ps(stateptr), _partial_scale, _out);
-                    _mm_storeu_ps(outptr, _out);
-                    outptr += 4;
-                    stateptr += 4;
-                }
-            }
-
-            float* output = top_blob.channel(q0 + qq);
-            const size_t output_cstep = top_blob.cstep;
-            const __m128 _nonzero = _mm_cmpneq_ps(_l, _mm_setzero_ps());
-            const __m128 _denom = _mm_or_ps(_mm_and_ps(_nonzero, _l), _mm_andnot_ps(_nonzero, _mm_set1_ps(1.f)));
-            const __m128 _out_scale = _mm_and_ps(_mm_div_ps(_mm_set1_ps(1.f), _denom), _nonzero);
-
-            const float* outptr = outT;
-            float* p0 = output;
-            int d = 0;
-            for (; d + 3 < value_dim; d += 4)
-            {
-                __m128 _r0 = _mm_mul_ps(_mm_loadu_ps(outptr), _out_scale);
-                __m128 _r1 = _mm_mul_ps(_mm_loadu_ps(outptr + 4), _out_scale);
-                __m128 _r2 = _mm_mul_ps(_mm_loadu_ps(outptr + 8), _out_scale);
-                __m128 _r3 = _mm_mul_ps(_mm_loadu_ps(outptr + 12), _out_scale);
-                _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                _mm_storeu_ps(p0, _r0);
-                _mm_storeu_ps(p0 + output_cstep, _r1);
-                _mm_storeu_ps(p0 + output_cstep * 2, _r2);
-                _mm_storeu_ps(p0 + output_cstep * 3, _r3);
-                p0 += 4;
-                outptr += 16;
-            }
-            for (; d < value_dim; d++)
-            {
-                const __m128 _r = _mm_mul_ps(_mm_loadu_ps(outptr), _out_scale);
-                *p0 = _mm_cvtss_f32(_r);
-                p0[output_cstep] = _mm_cvtss_f32(_mm_shuffle_ps(_r, _r, _MM_SHUFFLE(1, 1, 1, 1)));
-                p0[output_cstep * 2] = _mm_cvtss_f32(_mm_movehl_ps(_r, _r));
-                p0[output_cstep * 3] = _mm_cvtss_f32(_mm_shuffle_ps(_r, _r, _MM_SHUFFLE(3, 3, 3, 3)));
-                p0++;
-                outptr += 4;
-            }
-        }
-#endif // __SSE2__
-
-        for (; qq + 1 < max_qq; qq += 2)
-        {
-            float m0 = -FLT_MAX;
-            float m1 = -FLT_MAX;
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state0 = partials.channel(task_id * num_kv_chunks + chunk_id);
-                state0 += qq * (value_dim + 2);
-                const float* state1 = state0 + value_dim + 2;
-                m0 = std::max(m0, state0[0]);
-                m1 = std::max(m1, state1[0]);
-            }
-
-            float* out0 = top_blob.channel(q0 + qq);
-            float* out1 = top_blob.channel(q0 + qq + 1);
-            memset(out0, 0, (size_t)value_dim * sizeof(float));
-            memset(out1, 0, (size_t)value_dim * sizeof(float));
-            float l0 = 0.f;
-            float l1 = 0.f;
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state0 = partials.channel(task_id * num_kv_chunks + chunk_id);
-                state0 += qq * (value_dim + 2);
-                const float* state1 = state0 + value_dim + 2;
-                const float partial_scale0 = state0[1] == 0.f ? 0.f : expf(state0[0] - m0);
-                const float partial_scale1 = state1[1] == 0.f ? 0.f : expf(state1[0] - m1);
-                l0 += state0[1] * partial_scale0;
-                l1 += state1[1] * partial_scale1;
-                const float* partial_out0 = state0 + 2;
-                const float* partial_out1 = state1 + 2;
-                int d = 0;
-                for (; d + 1 < value_dim; d += 2)
-                {
-                    out0[d] += partial_out0[d] * partial_scale0;
-                    out0[d + 1] += partial_out0[d + 1] * partial_scale0;
-                    out1[d] += partial_out1[d] * partial_scale1;
-                    out1[d + 1] += partial_out1[d + 1] * partial_scale1;
-                }
-                for (; d < value_dim; d++)
-                {
-                    out0[d] += partial_out0[d] * partial_scale0;
-                    out1[d] += partial_out1[d] * partial_scale1;
-                }
-            }
-
-            const float inv_sum0 = l0 == 0.f ? 0.f : 1.f / l0;
-            const float inv_sum1 = l1 == 0.f ? 0.f : 1.f / l1;
-            int d = 0;
-            for (; d + 1 < value_dim; d += 2)
-            {
-                out0[d] *= inv_sum0;
-                out0[d + 1] *= inv_sum0;
-                out1[d] *= inv_sum1;
-                out1[d + 1] *= inv_sum1;
-            }
-            for (; d < value_dim; d++)
-            {
-                out0[d] *= inv_sum0;
-                out1[d] *= inv_sum1;
-            }
-        }
-
-        for (; qq < max_qq; qq++)
-        {
-            float m = -FLT_MAX;
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state_q = partials.channel(task_id * num_kv_chunks + chunk_id);
-                state_q += qq * (value_dim + 2);
-                m = std::max(m, state_q[0]);
-            }
-
-            float* outptr = top_blob.channel(q0 + qq);
-            memset(outptr, 0, value_dim * sizeof(float));
-            float l = 0.f;
-            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
-            {
-                const float* state_q = partials.channel(task_id * num_kv_chunks + chunk_id);
-                state_q += qq * (value_dim + 2);
-                float partial_scale = state_q[1] == 0.f ? 0.f : expf(state_q[0] - m);
-                l += state_q[1] * partial_scale;
-                {
-                    const float* partial_out = state_q + 2;
-                    int i = 0;
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-                    __m512 _scale_avx512 = _mm512_set1_ps(partial_scale);
-                    for (; i + 15 < value_dim; i += 16)
-                        _mm512_storeu_ps(outptr + i, _mm512_fmadd_ps(_mm512_loadu_ps(partial_out + i), _scale_avx512, _mm512_loadu_ps(outptr + i)));
-#endif // __AVX512F__
-                    __m256 _scale_avx = _mm256_set1_ps(partial_scale);
-                    for (; i + 7 < value_dim; i += 8)
-                        _mm256_storeu_ps(outptr + i, _mm256_comp_fmadd_ps(_mm256_loadu_ps(partial_out + i), _scale_avx, _mm256_loadu_ps(outptr + i)));
-#endif // __AVX__
-                    __m128 _scale = _mm_set1_ps(partial_scale);
-                    for (; i + 3 < value_dim; i += 4)
-                        _mm_storeu_ps(outptr + i, _mm_comp_fmadd_ps(_mm_loadu_ps(partial_out + i), _scale, _mm_loadu_ps(outptr + i)));
-#endif // __SSE2__
-                    for (; i + 1 < value_dim; i += 2)
-                    {
-                        outptr[i] += partial_out[i] * partial_scale;
-                        outptr[i + 1] += partial_out[i + 1] * partial_scale;
-                    }
-                    for (; i < value_dim; i++)
-                        outptr[i] += partial_out[i] * partial_scale;
-                }
-            }
-            if (l != 0.f)
-            {
-                float inv_sum = 1.f / l;
-                int i = 0;
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-                __m512 _inv_sum_avx512 = _mm512_set1_ps(inv_sum);
-                for (; i + 15 < value_dim; i += 16)
-                    _mm512_storeu_ps(outptr + i, _mm512_mul_ps(_mm512_loadu_ps(outptr + i), _inv_sum_avx512));
-#endif // __AVX512F__
-                __m256 _inv_sum_avx = _mm256_set1_ps(inv_sum);
-                for (; i + 7 < value_dim; i += 8)
-                    _mm256_storeu_ps(outptr + i, _mm256_mul_ps(_mm256_loadu_ps(outptr + i), _inv_sum_avx));
-#endif // __AVX__
-                __m128 _inv_sum = _mm_set1_ps(inv_sum);
-                for (; i + 3 < value_dim; i += 4)
-                    _mm_storeu_ps(outptr + i, _mm_mul_ps(_mm_loadu_ps(outptr + i), _inv_sum));
-#endif // __SSE2__
-                for (; i + 1 < value_dim; i += 2)
-                {
-                    outptr[i] *= inv_sum;
-                    outptr[i + 1] *= inv_sum;
-                }
-                for (; i < value_dim; i++)
-                    outptr[i] *= inv_sum;
-            }
-        }
-    }
-}
-
 static int sdpa_decode_fp32(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt)
 {
     const int num_query_heads = query.c;
@@ -2417,85 +1919,34 @@ static int sdpa_decode_fp32(const Mat& query, const Mat& key, const Mat& value, 
     const int block_q = sdpa_decode_get_optimal_tile_q(num_query_heads_per_kv_head, num_kv_heads, nT);
     const int num_qblocks = (num_query_heads_per_kv_head + block_q - 1) / block_q;
     const int num_tasks = num_kv_heads * num_qblocks;
-    const int block_n = sdpa_decode_get_optimal_tile_n(query.w, value_dim, key_seqlen, 4, 4, 4, attn_mask_blob.empty() ? 0 : 4, block_q, num_tasks, nT);
-    const int num_key_blocks = (key_seqlen + block_n - 1) / block_n;
-    const bool use_packed_query = block_q >= 4 && num_query_heads_per_kv_head >= 4;
+    const int block_n = sdpa_decode_get_optimal_tile_n(query.w, value_dim, key_seqlen, 4, 4, 4, attn_mask_blob.empty() ? 0 : 4, block_q);
 
-    int num_kv_chunks = 1;
-    if (num_tasks < nT && num_key_blocks >= 2)
-    {
-        num_kv_chunks = std::min((nT + num_tasks - 1) / num_tasks, num_key_blocks);
-        num_kv_chunks = std::max(num_kv_chunks, 1);
-    }
-
-    Mat packed_query;
-    if (num_kv_chunks > 1 && use_packed_query)
-    {
-        packed_query.create(query.w * block_q, 1, num_tasks, 4u, opt.workspace_allocator);
-        if (packed_query.empty())
-            return -100;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int task_id = 0; task_id < num_tasks; task_id++)
-        {
-            const int g = task_id / num_qblocks;
-            const int qblock_id = task_id % num_qblocks;
-            const int q0 = g * num_query_heads_per_kv_head + qblock_id * block_q;
-            const int max_qq = std::min(num_query_heads_per_kv_head - qblock_id * block_q, block_q);
-            Mat queryT = packed_query.channel(task_id);
-            sdpa_decode_pack_query_fp32(query, queryT, scale, q0, max_qq);
-        }
-    }
-
-    const int query_workspace_size = use_packed_query ? query.w * block_q : 0;
+    const int query_workspace_size = block_q >= 4 ? query.w * block_q : 0;
     const int workspace_size = (block_q * (block_n + value_dim) + query_workspace_size + 15) / 16 * 16;
     Mat workspace(workspace_size, 1, nT, 4u, opt.workspace_allocator);
     if (workspace.empty())
         return -100;
 
-    Mat partials;
-    if (num_kv_chunks > 1)
-    {
-        partials.create((value_dim + 2) * block_q, 1, num_tasks * num_kv_chunks, 4u, opt.workspace_allocator);
-        if (partials.empty())
-            return -100;
-    }
-
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int ti = 0; ti < num_tasks * num_kv_chunks; ti++)
+    for (int task_id = 0; task_id < num_tasks; task_id++)
     {
-        const int task_id = ti / num_kv_chunks;
-        const int chunk_id = ti % num_kv_chunks;
         const int g = task_id / num_qblocks;
         const int qblock_id = task_id % num_qblocks;
         const int q0 = g * num_query_heads_per_kv_head + qblock_id * block_q;
         const int max_qq = std::min(num_query_heads_per_kv_head - qblock_id * block_q, block_q);
-        const int n_begin = chunk_id * num_key_blocks / num_kv_chunks * block_n;
-        const int n_end = std::min((chunk_id + 1) * num_key_blocks / num_kv_chunks * block_n, key_seqlen);
 
         Mat workspace_tile = workspace.channel(get_omp_thread_num());
-        Mat state;
-        Mat packed_query_tile;
-        if (num_kv_chunks > 1)
-        {
-            state = partials.channel(ti);
-            if (!packed_query.empty())
-                packed_query_tile = packed_query.channel(task_id);
-        }
-        sdpa_decode_tile_fp32(query, key, value, attn_mask_blob, top_blob, scale, q0, max_qq, g, n_begin, n_end, block_n, packed_query_tile, workspace_tile, state);
+        sdpa_decode_tile_fp32(query, key, value, attn_mask_blob, top_blob, scale, q0, max_qq, g, block_n, workspace_tile);
     }
-
-    if (num_kv_chunks > 1)
-        sdpa_decode_reduce(partials, top_blob, workspace, num_tasks, num_qblocks, block_q, num_kv_chunks, num_query_heads_per_kv_head, value_dim, opt);
 
     return 0;
 }
 
-static void sdpa_decode_kvcache_tile_fp32(const Mat& query, const Mat& key_cache, const Mat& value_cache, const Mat& attn_mask_blob, Mat& top_blob, float scale, int q0, int max_qq, int g, int n_begin, int n_end, int block_n, const Mat& packed_query, Mat& workspace, Mat& state)
+static void sdpa_decode_kvcache_tile_fp32(const Mat& query, const Mat& key_cache, const Mat& value_cache, const Mat& attn_mask_blob, Mat& top_blob, float scale, int q0, int max_qq, int g, int block_n, Mat& workspace)
 {
-    (void)packed_query;
     const int head_dim = query.w;
     const int value_dim = value_cache.w;
+    const int key_seqlen = key_cache.h;
 #if __AVX512F__
     const int NR = 16;
 #elif __AVX__
@@ -2509,8 +1960,8 @@ static void sdpa_decode_kvcache_tile_fp32(const Mat& query, const Mat& key_cache
     const int score_workspace_size = max_qq * block_n;
     const int out_workspace_size = max_qq * value_dim;
 #if __SSE2__
-    Mat queryT = packed_query;
-    if (max_qq >= 4 && queryT.empty())
+    Mat queryT;
+    if (max_qq >= 4)
     {
         queryT = workspace.range(0, query_workspace_size);
         sdpa_decode_pack_query_fp32(query, queryT, scale, q0, max_qq);
@@ -2554,9 +2005,9 @@ static void sdpa_decode_kvcache_tile_fp32(const Mat& query, const Mat& key_cache
         __m512 _l = _mm512_setzero_ps();
         memset(outT_tile, 0, (size_t)value_dim * 16 * sizeof(float));
 
-        for (int n = n_begin; n < n_end; n += block_n)
+        for (int n = 0; n < key_seqlen; n += block_n)
         {
-            const int max_jj = std::min(n_end - n, block_n);
+            const int max_jj = std::min(key_seqlen - n, block_n);
             const float* pQ = queryT_tile;
             float* scoreptr = scoreT_tile;
             const float* pM = mask ? mask + n : 0;
@@ -3070,15 +2521,6 @@ static void sdpa_decode_kvcache_tile_fp32(const Mat& query, const Mat& key_cache
             }
         }
 
-        if (!state.empty())
-        {
-            float* stateptr = state;
-            stateptr += qq * (value_dim + 2);
-            _mm512_storeu_ps(stateptr, _m);
-            _mm512_storeu_ps(stateptr + 16, _l);
-            memcpy(stateptr + 32, outT_tile, (size_t)value_dim * 16 * sizeof(float));
-        }
-        else
         {
             float* output = top_blob.channel(q0 + qq);
             const size_t output_cstep = top_blob.cstep;
@@ -3177,9 +2619,9 @@ static void sdpa_decode_kvcache_tile_fp32(const Mat& query, const Mat& key_cache
         __m256 _l = _mm256_setzero_ps();
         memset(outT_tile, 0, (size_t)value_dim * 8 * sizeof(float));
 
-        for (int n = n_begin; n < n_end; n += block_n)
+        for (int n = 0; n < key_seqlen; n += block_n)
         {
-            const int max_jj = std::min(n_end - n, block_n);
+            const int max_jj = std::min(key_seqlen - n, block_n);
             const float* pQ = queryT_tile;
             float* scoreptr = scoreT_tile;
             const float* pM = mask ? mask + n : 0;
@@ -3528,15 +2970,6 @@ static void sdpa_decode_kvcache_tile_fp32(const Mat& query, const Mat& key_cache
             }
         }
 
-        if (!state.empty())
-        {
-            float* stateptr = state;
-            stateptr += qq * (value_dim + 2);
-            _mm256_storeu_ps(stateptr, _m);
-            _mm256_storeu_ps(stateptr + 8, _l);
-            memcpy(stateptr + 16, outT_tile, (size_t)value_dim * 8 * sizeof(float));
-        }
-        else
         {
             float* output = top_blob.channel(q0 + qq);
             const size_t output_cstep = top_blob.cstep;
@@ -3607,9 +3040,9 @@ static void sdpa_decode_kvcache_tile_fp32(const Mat& query, const Mat& key_cache
         __m128 _l = _mm_setzero_ps();
         memset(outT_tile, 0, (size_t)value_dim * 4 * sizeof(float));
 
-        for (int n = n_begin; n < n_end; n += block_n)
+        for (int n = 0; n < key_seqlen; n += block_n)
         {
-            const int max_jj = std::min(n_end - n, block_n);
+            const int max_jj = std::min(key_seqlen - n, block_n);
             const float* pQ = queryT_tile;
             float* scoreptr = scoreT_tile;
             const float* pM = mask ? mask + n : 0;
@@ -3836,15 +3269,6 @@ static void sdpa_decode_kvcache_tile_fp32(const Mat& query, const Mat& key_cache
             }
         }
 
-        if (!state.empty())
-        {
-            float* stateptr = state;
-            stateptr += qq * (value_dim + 2);
-            _mm_storeu_ps(stateptr, _m);
-            _mm_storeu_ps(stateptr + 4, _l);
-            memcpy(stateptr + 8, outT_tile, (size_t)value_dim * 4 * sizeof(float));
-        }
-        else
         {
             float* output = top_blob.channel(q0 + qq);
             const size_t output_cstep = top_blob.cstep;
@@ -3907,9 +3331,9 @@ static void sdpa_decode_kvcache_tile_fp32(const Mat& query, const Mat& key_cache
         float l0 = 0.f;
         float l1 = 0.f;
 
-        for (int n = n_begin; n < n_end; n += block_n)
+        for (int n = 0; n < key_seqlen; n += block_n)
         {
-            const int max_jj = std::min(n_end - n, block_n);
+            const int max_jj = std::min(key_seqlen - n, block_n);
             float block_max0 = -FLT_MAX;
             float block_max1 = -FLT_MAX;
 
@@ -4264,18 +3688,6 @@ static void sdpa_decode_kvcache_tile_fp32(const Mat& query, const Mat& key_cache
             }
         }
 
-        if (!state.empty())
-        {
-            float* state0 = (float*)state + qq * (value_dim + 2);
-            float* state1 = state0 + value_dim + 2;
-            state0[0] = m0;
-            state0[1] = l0;
-            state1[0] = m1;
-            state1[1] = l1;
-            memcpy(state0 + 2, out0, (size_t)value_dim * sizeof(float));
-            memcpy(state1 + 2, out1, (size_t)value_dim * sizeof(float));
-        }
-        else
         {
             float* output = top_blob.channel(q);
             const size_t output_cstep = top_blob.cstep;
@@ -4343,9 +3755,9 @@ static void sdpa_decode_kvcache_tile_fp32(const Mat& query, const Mat& key_cache
         float m = -FLT_MAX;
         float l = 0.f;
 
-        for (int n = n_begin; n < n_end; n += block_n)
+        for (int n = 0; n < key_seqlen; n += block_n)
         {
-            const int max_jj = std::min(n_end - n, block_n);
+            const int max_jj = std::min(key_seqlen - n, block_n);
             float block_max = -FLT_MAX;
 
             for (int jj = 0; jj < max_jj; jj += NR)
@@ -4586,15 +3998,6 @@ static void sdpa_decode_kvcache_tile_fp32(const Mat& query, const Mat& key_cache
             }
         }
 
-        if (!state.empty())
-        {
-            float* stateptr = state;
-            stateptr += qq * (value_dim + 2);
-            stateptr[0] = m;
-            stateptr[1] = l;
-            memcpy(stateptr + 2, out, (size_t)value_dim * sizeof(float));
-        }
-        else
         {
             float* output = top_blob.channel(q);
             const float inv_sum = l == 0.f ? 0.f : 1.f / l;
@@ -4636,78 +4039,25 @@ static int sdpa_decode_kvcache_fp32(const Mat& query, const Mat& key_cache, cons
 #endif
     const int num_qblocks = (num_query_heads_per_kv_head + block_q - 1) / block_q;
     const int num_tasks = num_kv_heads * num_qblocks;
-    int block_n = sdpa_decode_get_optimal_tile_n(head_dim, value_dim, key_seqlen, 4, 4, 4, attn_mask_blob.empty() ? 0 : 4, block_q, num_tasks, nT);
+    int block_n = sdpa_decode_get_optimal_tile_n(head_dim, value_dim, key_seqlen, 4, 4, 4, attn_mask_blob.empty() ? 0 : 4, block_q);
     block_n = std::max(NR, (block_n + NR - 1) / NR * NR);
-    const int num_key_blocks = (key_seqlen + block_n - 1) / block_n;
-
-    int num_kv_chunks = 1;
-    if (num_tasks < nT && num_key_blocks >= 2)
-    {
-        num_kv_chunks = std::min((nT + num_tasks - 1) / num_tasks, num_key_blocks);
-        num_kv_chunks = std::max(num_kv_chunks, 1);
-    }
-
-    Mat packed_query;
-    if (num_kv_chunks > 1)
-    {
-        packed_query.create(head_dim * block_q, 1, num_tasks, 4u, opt.workspace_allocator);
-        if (packed_query.empty())
-            return -100;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int task_id = 0; task_id < num_tasks; task_id++)
-        {
-            const int g = task_id / num_qblocks;
-            const int qblock_id = task_id % num_qblocks;
-            const int q0 = g * num_query_heads_per_kv_head + qblock_id * block_q;
-            const int max_qq = std::min(num_query_heads_per_kv_head - qblock_id * block_q, block_q);
-            if (max_qq >= 4)
-            {
-                Mat queryT = packed_query.channel(task_id);
-                sdpa_decode_pack_query_fp32(query, queryT, scale, q0, max_qq);
-            }
-        }
-    }
 
     const int workspace_size = block_q * (head_dim + block_n + value_dim);
     Mat workspace(workspace_size, 1, nT, 4u, opt.workspace_allocator);
     if (workspace.empty())
         return -100;
 
-    Mat partials;
-    if (num_kv_chunks > 1)
-    {
-        partials.create((value_dim + 2) * block_q, 1, num_tasks * num_kv_chunks, 4u, opt.workspace_allocator);
-        if (partials.empty())
-            return -100;
-    }
-
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int ti = 0; ti < num_tasks * num_kv_chunks; ti++)
+    for (int task_id = 0; task_id < num_tasks; task_id++)
     {
-        const int task_id = ti / num_kv_chunks;
-        const int chunk_id = ti % num_kv_chunks;
         const int g = task_id / num_qblocks;
         const int qblock_id = task_id % num_qblocks;
         const int q0 = g * num_query_heads_per_kv_head + qblock_id * block_q;
         const int max_qq = std::min(num_query_heads_per_kv_head - qblock_id * block_q, block_q);
-        const int n_begin = chunk_id * num_key_blocks / num_kv_chunks * block_n;
-        const int n_end = std::min((chunk_id + 1) * num_key_blocks / num_kv_chunks * block_n, key_seqlen);
 
         Mat workspace_tile = workspace.channel(get_omp_thread_num());
-        Mat state;
-        Mat packed_query_tile;
-        if (num_kv_chunks > 1)
-        {
-            state = partials.channel(ti);
-            if (max_qq >= 4)
-                packed_query_tile = packed_query.channel(task_id);
-        }
-        sdpa_decode_kvcache_tile_fp32(query, key_cache, value_cache, attn_mask_blob, top_blob, scale, q0, max_qq, g, n_begin, n_end, block_n, packed_query_tile, workspace_tile, state);
+        sdpa_decode_kvcache_tile_fp32(query, key_cache, value_cache, attn_mask_blob, top_blob, scale, q0, max_qq, g, block_n, workspace_tile);
     }
-
-    if (num_kv_chunks > 1)
-        sdpa_decode_reduce(partials, top_blob, workspace, num_tasks, num_qblocks, block_q, num_kv_chunks, num_query_heads_per_kv_head, value_dim, opt);
 
     return 0;
 }
