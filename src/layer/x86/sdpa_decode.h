@@ -34,19 +34,15 @@ static int sdpa_decode_get_optimal_tile_q(int num_query_heads_per_kv_head, int n
 
 static int sdpa_decode_get_optimal_tile_n(int head_dim, int value_dim, int key_seqlen, int query_storage_size, int key_storage_size, int value_storage_size, int mask_storage_size, int TILE_Q, int num_tasks, int nT)
 {
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
     const int tile_n_align = 16;
-#else
+#elif __AVX__
     const int tile_n_align = 8;
-#endif // __AVX512F__
-#else
+#elif __SSE2__
     const int tile_n_align = 4;
-#endif // __AVX__
 #else
     const int tile_n_align = 1;
-#endif // __SSE2__
+#endif
 
     const size_t l2_cache_size = get_cpu_level2_cache_size();
     const size_t fixed_size = (size_t)TILE_Q * ((size_t)head_dim * query_storage_size + (size_t)value_dim * sizeof(float));
@@ -2037,19 +2033,15 @@ static void sdpa_decode_kvcache_tile_fp32(const Mat& query, const Mat& key_cache
     (void)packed_query;
     const int head_dim = query.w;
     const int value_dim = value_cache.w;
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
     const int NR = 16;
-#else
+#elif __AVX__
     const int NR = 8;
-#endif // __AVX512F__
-#else
+#elif __SSE2__
     const int NR = 4;
-#endif // __AVX__
 #else
     const int NR = 1;
-#endif // __SSE2__
+#endif
     const int query_workspace_size = max_qq * head_dim;
     const int score_workspace_size = max_qq * block_n;
     const int out_workspace_size = max_qq * value_dim;
@@ -3861,19 +3853,15 @@ static int sdpa_decode_kvcache_fp32(const Mat& query, const Mat& key_cache, cons
     const int num_query_heads_per_kv_head = num_query_heads / num_kv_heads;
     const int nT = std::max(opt.num_threads, 1);
     const int block_q = sdpa_decode_get_optimal_tile_q(num_query_heads_per_kv_head, num_kv_heads, nT);
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
     const int NR = 16;
-#else
+#elif __AVX__
     const int NR = 8;
-#endif // __AVX512F__
-#else
+#elif __SSE2__
     const int NR = 4;
-#endif // __AVX__
 #else
     const int NR = 1;
-#endif // __SSE2__
+#endif
     const int num_qblocks = (num_query_heads_per_kv_head + block_q - 1) / block_q;
     const int num_tasks = num_kv_heads * num_qblocks;
     int block_n = sdpa_decode_get_optimal_tile_n(head_dim, value_dim, key_seqlen, 4, 4, 4, attn_mask_blob.empty() ? 0 : 4, block_q, num_tasks, nT);

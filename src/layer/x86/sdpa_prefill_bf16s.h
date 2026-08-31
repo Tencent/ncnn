@@ -482,19 +482,15 @@ static void sdpa_pack_mask_bf16s(const Mat& attn_mask_blob, Mat& packed_mask, in
 static void sdpa_pack_key_tile_bf16s(const Mat& key, Mat& packed_key, int src_begin, int dst_begin, int max_seqlen)
 {
     const int head_dim = key.w;
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
     const int panel_width = 16;
-#else
+#elif __AVX__
     const int panel_width = 8;
-#endif // __AVX512F__
-#else
+#elif __SSE2__
     const int panel_width = 4;
-#endif // __AVX__
 #else
     const int panel_width = 1;
-#endif // __SSE2__
+#endif
     const int token_lane = dst_begin;
     unsigned short* panel = packed_key;
     int j = 0;
@@ -812,19 +808,15 @@ static void sdpa_pack_key_tile_bf16s(const Mat& key, Mat& packed_key, int src_be
 static void sdpa_pack_value_tile_bf16s(const Mat& value, Mat& packed_value, int src_begin, int dst_begin, int max_seqlen)
 {
     const int value_dim = value.w;
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
     const int panel_width = 16;
-#else
+#elif __AVX__
     const int panel_width = 8;
-#endif // __AVX512F__
-#else
+#elif __SSE2__
     const int panel_width = 4;
-#endif // __AVX__
 #else
     const int panel_width = 1;
-#endif // __SSE2__
+#endif
     const int token_lane = dst_begin;
     unsigned short* panel = packed_value;
     int d = 0;
@@ -956,19 +948,15 @@ static void sdpa_append_kvcache_token_bf16s(const Mat& key, const Mat& value, Ma
 static void sdpa_pack_value_tile_bf16s_fp32(const Mat& packed_value, Mat& packed_value_fp32, int src_begin, int dst_begin, int max_seqlen, int dst_seqlen)
 {
     const int value_dim = packed_value.w;
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
     const int panel_width = 16;
-#else
+#elif __AVX__
     const int panel_width = 8;
-#endif // __AVX512F__
-#else
+#elif __SSE2__
     const int panel_width = 4;
-#endif // __AVX__
 #else
     const int panel_width = 1;
-#endif // __SSE2__
+#endif
     const unsigned short* packed_value_ptr = packed_value;
     float* packed_value_fp32_ptr = packed_value_fp32;
 
@@ -1117,19 +1105,15 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
     const int TILE_M = stateT.w / 2;
     const int TILE_N = scoreT.w / TILE_M;
     const int value_dim = outT.w / TILE_M;
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
     const int NR = 16;
-#else
+#elif __AVX__
     const int NR = 8;
-#endif // __AVX512F__
-#else
+#elif __SSE2__
     const int NR = 4;
-#endif // __AVX__
 #else
     const int NR = 1;
-#endif // __SSE2__
+#endif
 
     const unsigned short* queryT_ptr = queryT;
     float* scoreT_ptr = scoreT;
@@ -3117,19 +3101,15 @@ static int sdpa_prefill_packed_bf16s(const Mat& query, const Mat& packed_key, co
     const int num_query_heads_per_kv_head = num_query_heads / num_kv_heads;
     const int nT = std::max(opt.num_threads, 1);
     const int TILE_M = sdpa_prefill_get_optimal_tile_m(query_seqlen, num_query_heads, nT);
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
     const int NR = 16;
-#else
+#elif __AVX__
     const int NR = 8;
-#endif // __AVX512F__
-#else
+#elif __SSE2__
     const int NR = 4;
-#endif // __AVX__
 #else
     const int NR = 1;
-#endif // __SSE2__
+#endif
 
     const int num_mblocks = (query_seqlen + TILE_M - 1) / TILE_M;
     const int num_tasks = num_query_heads * num_mblocks;
@@ -3327,19 +3307,15 @@ static int sdpa_prefill_bf16s(const Mat& query, const Mat& key, const Mat& value
         return sdpa_prefill_bf16s_avx2(query, key, value, attn_mask_blob, top_blob, scale, opt);
 #endif
 
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
     const int panel_width = 16;
-#else
+#elif __AVX__
     const int panel_width = 8;
-#endif // __AVX512F__
-#else
+#elif __SSE2__
     const int panel_width = 4;
-#endif // __AVX__
 #else
     const int panel_width = 1;
-#endif // __SSE2__
+#endif
     const int capacity = (key.h + panel_width - 1) / panel_width * panel_width;
 
     Mat packed_key(key.w, capacity, key.c, 2u, 1, opt.workspace_allocator);
@@ -3390,19 +3366,15 @@ static int sdpa_kvcache_bf16s(const Mat& query, const Mat& past_key, const Mat& 
 
     const int past_seqlen = past_key.empty() ? 0 : past_key.h;
     const int dst_seqlen = past_seqlen + cur_key.h;
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
     const int panel_width = 16;
-#else
+#elif __AVX__
     const int panel_width = 8;
-#endif // __AVX512F__
-#else
+#elif __SSE2__
     const int panel_width = 4;
-#endif // __AVX__
 #else
     const int panel_width = 1;
-#endif // __SSE2__
+#endif
 
     int ret = sdpa_create_or_grow_kvcache(past_key, cached_key, dst_seqlen, cur_key.c, cur_key.w, cur_key.elemsize, panel_width, opt);
     if (ret != 0)

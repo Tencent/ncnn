@@ -1768,19 +1768,15 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
     (void)packed_query;
     const int head_dim = query.w;
     const int value_dim = value_cache.w;
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
     const int NR = 16;
-#else
+#elif __AVX__
     const int NR = 8;
-#endif // __AVX512F__
-#else
+#elif __SSE2__
     const int NR = 4;
-#endif // __AVX__
 #else
     const int NR = 1;
-#endif // __SSE2__
+#endif
     const int score_workspace_size = max_qq * block_n;
     const int out_workspace_size = max_qq * value_dim;
     Mat scoreT = workspace.range(0, score_workspace_size);
@@ -4276,19 +4272,15 @@ static int sdpa_decode_kvcache_bf16s(const Mat& query, const Mat& key_cache, con
     const int num_query_heads_per_kv_head = num_query_heads / num_kv_heads;
     const int nT = std::max(opt.num_threads, 1);
     const int block_q = sdpa_decode_get_optimal_tile_q(num_query_heads_per_kv_head, num_kv_heads, nT);
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
     const int NR = 16;
-#else
+#elif __AVX__
     const int NR = 8;
-#endif // __AVX512F__
-#else
+#elif __SSE2__
     const int NR = 4;
-#endif // __AVX__
 #else
     const int NR = 1;
-#endif // __SSE2__
+#endif
     const int num_qblocks = (num_query_heads_per_kv_head + block_q - 1) / block_q;
     const int num_tasks = num_kv_heads * num_qblocks;
     const bool use_packed_query = block_q >= 4 && num_query_heads_per_kv_head >= 4;
