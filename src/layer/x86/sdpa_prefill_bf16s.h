@@ -1743,8 +1743,6 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
             }
 
             __m512 _m_new = _mm512_max_ps(_m, _block_max);
-            __mmask16 alpha_active = _mm512_cmp_ps_mask(_l, _mm512_setzero_ps(), _CMP_NEQ_OQ);
-            __m512 _alpha = _mm512_maskz_mov_ps(alpha_active, exp512_ps(_mm512_maskz_sub_ps(alpha_active, _m, _m_new)));
 
             __m512 _sum0 = _mm512_setzero_ps();
             float* pS = scoreptr;
@@ -1781,6 +1779,8 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
 #if defined(__x86_64__) || defined(_M_X64)
             _sum = _mm512_add_ps(_mm512_add_ps(_sum, _sum1), _mm512_add_ps(_sum2, _sum3));
 #endif // defined(__x86_64__) || defined(_M_X64)
+            __mmask16 alpha_active = _mm512_cmp_ps_mask(_l, _mm512_setzero_ps(), _CMP_NEQ_OQ);
+            __m512 _alpha = _mm512_maskz_mov_ps(alpha_active, exp512_ps(_mm512_maskz_sub_ps(alpha_active, _m, _m_new)));
             _m = _m_new;
             _l = _mm512_add_ps(_mm512_mul_ps(_l, _alpha), _sum);
 
