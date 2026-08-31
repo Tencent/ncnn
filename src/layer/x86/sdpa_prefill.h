@@ -3,7 +3,7 @@
 
 static int sdpa_prefill_get_optimal_tile_m(int query_seqlen, int num_query_heads, int nT)
 {
-    int TILE_M = 1;
+    int TILE_M = 2;
 #if __SSE2__
     TILE_M = 4;
 #if __AVX__
@@ -28,7 +28,7 @@ static int sdpa_prefill_get_optimal_tile_m(int query_seqlen, int num_query_heads
 
 static int sdpa_prefill_get_optimal_tile_n(int head_dim, int value_dim, int key_seqlen, int query_storage_size, int key_storage_size, int value_storage_size, int mask_storage_size, int TILE_M, int num_tasks, int nT)
 {
-    int tile_n_align = 1;
+    int tile_n_align = 2;
 #if defined(__x86_64__) || defined(_M_X64)
 #if __SSE2__
     tile_n_align = 4;
@@ -83,10 +83,10 @@ static Mat sdpa_prefill_get_mask_head(const Mat& attn_mask_blob, int q)
 static void sdpa_pack_query_fp32(const Mat& query_head, Mat& queryT, int i, int max_ii, float scale)
 {
     const int head_dim = query_head.w;
+    const int q_hstep = query_head.w * query_head.elempack;
     float* queryT_ptr = queryT;
     int ii = 0;
 #if __SSE2__
-    const int q_hstep = query_head.w * query_head.elempack;
 #if __AVX__
 #if __AVX512F__
     for (; ii + 15 < max_ii; ii += 16)
@@ -236,12 +236,44 @@ static void sdpa_pack_query_fp32(const Mat& query_head, Mat& queryT, int i, int 
         }
     }
 #endif // __SSE2__
+    for (; ii + 1 < max_ii; ii += 2)
+    {
+        const float* p0 = query_head.row(i + ii);
+        const float* p1 = p0 + q_hstep;
+        float* pp0 = queryT_ptr + (size_t)ii * head_dim;
+        float* pp1 = pp0 + head_dim;
+        int d = 0;
+        for (; d + 1 < head_dim; d += 2)
+        {
+            pp0[0] = p0[0] * scale;
+            pp0[1] = p0[1] * scale;
+            pp1[0] = p1[0] * scale;
+            pp1[1] = p1[1] * scale;
+            p0 += 2;
+            p1 += 2;
+            pp0 += 2;
+            pp1 += 2;
+        }
+        for (; d < head_dim; d++)
+        {
+            *pp0++ = *p0++ * scale;
+            *pp1++ = *p1++ * scale;
+        }
+    }
     for (; ii < max_ii; ii++)
     {
         const float* qptr = query_head.row(i + ii);
         float* pQ = queryT_ptr + (size_t)ii * head_dim;
-        for (int d = 0; d < head_dim; d++)
-            pQ[d] = qptr[d] * scale;
+        int d = 0;
+        for (; d + 1 < head_dim; d += 2)
+        {
+            pQ[0] = qptr[0] * scale;
+            pQ[1] = qptr[1] * scale;
+            pQ += 2;
+            qptr += 2;
+        }
+        for (; d < head_dim; d++)
+            *pQ++ = *qptr++ * scale;
     }
 }
 
@@ -270,12 +302,12 @@ static void sdpa_store_output_tile(const Mat& outT, const Mat& lT, Mat& top_blob
 {
     const int block_m = lT.w;
     const int value_dim = outT.w / block_m;
+    const size_t out_hstep = top_blob_head.w;
     const float* pp = outT;
     const float* lptr = lT;
 
     int ii = 0;
 #if __SSE2__
-    const size_t out_hstep = top_blob_head.w;
 #if __AVX__
 #if __AVX512F__
     for (; ii + 15 < max_ii; ii += 16)
@@ -438,12 +470,48 @@ static void sdpa_store_output_tile(const Mat& outT, const Mat& lT, Mat& top_blob
         }
     }
 #endif // __SSE2__
+    for (; ii + 1 < max_ii; ii += 2)
+    {
+        float* p0 = top_blob_head.row(i0 + ii);
+        float* p1 = p0 + out_hstep;
+        const float inv_sum0 = lptr[0] == 0.f ? 0.f : 1.f / lptr[0];
+        const float inv_sum1 = lptr[1] == 0.f ? 0.f : 1.f / lptr[1];
+        lptr += 2;
+        const float* pp0 = pp;
+        const float* pp1 = pp0 + value_dim;
+        int d = 0;
+        for (; d + 1 < value_dim; d += 2)
+        {
+            p0[0] = pp0[0] * inv_sum0;
+            p0[1] = pp0[1] * inv_sum0;
+            p1[0] = pp1[0] * inv_sum1;
+            p1[1] = pp1[1] * inv_sum1;
+            p0 += 2;
+            p1 += 2;
+            pp0 += 2;
+            pp1 += 2;
+        }
+        for (; d < value_dim; d++)
+        {
+            *p0++ = *pp0++ * inv_sum0;
+            *p1++ = *pp1++ * inv_sum1;
+        }
+        pp += (size_t)value_dim * 2;
+    }
     for (; ii < max_ii; ii++)
     {
         float* p0 = top_blob_head.row(i0 + ii);
         const float inv_sum = *lptr == 0.f ? 0.f : 1.f / *lptr;
         lptr++;
-        for (int d = 0; d < value_dim; d++)
+        int d = 0;
+        for (; d + 1 < value_dim; d += 2)
+        {
+            p0[0] = pp[0] * inv_sum;
+            p0[1] = pp[1] * inv_sum;
+            p0 += 2;
+            pp += 2;
+        }
+        for (; d < value_dim; d++)
             *p0++ = *pp++ * inv_sum;
     }
 }
@@ -564,6 +632,48 @@ static void sdpa_prefill_reduce(const Mat& partials, Mat& top_blob, Mat& workspa
             _mm_storeu_ps(lT + ii, _l);
         }
 #endif // __SSE2__
+        for (; ii + 1 < max_ii; ii += 2)
+        {
+            float m0 = -FLT_MAX;
+            float m1 = -FLT_MAX;
+            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
+            {
+                const float* state = partials.channel(task_id * num_kv_chunks + chunk_id);
+                m0 = std::max(m0, state[ii]);
+                m1 = std::max(m1, state[ii + 1]);
+            }
+
+            float* out0 = outT + (size_t)ii * value_dim;
+            float* out1 = out0 + value_dim;
+            memset(out0, 0, (size_t)value_dim * 2 * sizeof(float));
+            float l0 = 0.f;
+            float l1 = 0.f;
+            for (int chunk_id = 0; chunk_id < num_kv_chunks; chunk_id++)
+            {
+                const float* state = partials.channel(task_id * num_kv_chunks + chunk_id);
+                const float partial_l0 = state[block_m + ii];
+                const float partial_l1 = state[block_m + ii + 1];
+                const float partial_scale0 = partial_l0 == 0.f ? 0.f : expf(state[ii] - m0);
+                const float partial_scale1 = partial_l1 == 0.f ? 0.f : expf(state[ii + 1] - m1);
+                l0 += partial_l0 * partial_scale0;
+                l1 += partial_l1 * partial_scale1;
+                int d = 0;
+                for (; d + 1 < value_dim; d += 2)
+                {
+                    out0[d] += state[(d + 2) * block_m + ii] * partial_scale0;
+                    out0[d + 1] += state[(d + 3) * block_m + ii] * partial_scale0;
+                    out1[d] += state[(d + 2) * block_m + ii + 1] * partial_scale1;
+                    out1[d + 1] += state[(d + 3) * block_m + ii + 1] * partial_scale1;
+                }
+                for (; d < value_dim; d++)
+                {
+                    out0[d] += state[(d + 2) * block_m + ii] * partial_scale0;
+                    out1[d] += state[(d + 2) * block_m + ii + 1] * partial_scale1;
+                }
+            }
+            lT[ii] = l0;
+            lT[ii + 1] = l1;
+        }
         for (; ii < max_ii; ii++)
         {
             float m = -FLT_MAX;
@@ -582,7 +692,13 @@ static void sdpa_prefill_reduce(const Mat& partials, Mat& top_blob, Mat& workspa
                 const float partial_l = state[block_m + ii];
                 const float partial_scale = partial_l == 0.f ? 0.f : expf(state[ii] - m);
                 l += partial_l * partial_scale;
-                for (int d = 0; d < value_dim; d++)
+                int d = 0;
+                for (; d + 1 < value_dim; d += 2)
+                {
+                    outptr[d] += state[(d + 2) * block_m + ii] * partial_scale;
+                    outptr[d + 1] += state[(d + 3) * block_m + ii] * partial_scale;
+                }
+                for (; d < value_dim; d++)
                     outptr[d] += state[(d + 2) * block_m + ii] * partial_scale;
             }
             lT[ii] = l;
@@ -596,6 +712,7 @@ static void sdpa_prefill_reduce(const Mat& partials, Mat& top_blob, Mat& workspa
 static void sdpa_pack_key_tile_fp32(const Mat& key, Mat& packed_key, int src_begin, int dst_begin, int max_seqlen)
 {
     const int head_dim = key.w;
+    const int hstep = head_dim;
 #if __AVX512F__
     const int panel_width = 16;
 #elif __AVX__
@@ -603,13 +720,12 @@ static void sdpa_pack_key_tile_fp32(const Mat& key, Mat& packed_key, int src_beg
 #elif __SSE2__
     const int panel_width = 4;
 #else
-    const int panel_width = 1;
+    const int panel_width = 2;
 #endif
     const int token_lane = dst_begin;
     float* panel = packed_key;
     int j = 0;
 #if __SSE2__
-    const int hstep = head_dim;
 #if defined(__x86_64__) || defined(_M_X64)
 #if __AVX__
 #if __AVX512F__
@@ -758,6 +874,18 @@ static void sdpa_pack_key_tile_fp32(const Mat& key, Mat& packed_key, int src_beg
         }
     }
 #endif // __SSE2__
+    for (; j + 1 < max_seqlen; j += 2)
+    {
+        const float* p0 = key.row(src_begin + j);
+        float* pp = panel + token_lane + j;
+        for (int d = 0; d < head_dim; d++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p0[hstep];
+            p0++;
+            pp += panel_width;
+        }
+    }
     for (; j < max_seqlen; j++)
     {
         const float* p0 = key.row(src_begin + j);
@@ -781,7 +909,7 @@ static void sdpa_pack_value_tile_fp32(const Mat& value, Mat& packed_value, int s
 #elif __SSE2__
     const int panel_width = 4;
 #else
-    const int panel_width = 1;
+    const int panel_width = 2;
 #endif
     const int token_lane = dst_begin;
     float* panel = packed_value;
@@ -825,6 +953,18 @@ static void sdpa_pack_value_tile_fp32(const Mat& value, Mat& packed_value, int s
         }
     }
 #endif // __SSE2__
+    for (; d + 1 < value_dim; d += 2)
+    {
+        const float* p0 = value.row(src_begin) + d;
+        float* pp = panel + (size_t)d * panel_width + token_lane * 2;
+        for (int n = 0; n < max_seqlen; n++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p0[1];
+            p0 += value_dim;
+            pp += 2;
+        }
+    }
     for (; d < value_dim; d++)
     {
         const float* p0 = value.row(src_begin) + d;
@@ -848,7 +988,7 @@ static void sdpa_pack_computation_value_tile_fp32(const Mat& packed_value_head, 
 #elif __SSE2__
     const int NR = 4;
 #else
-    const int NR = 1;
+    const int NR = 2;
 #endif
 
     float* pp = computation_value_tile;
@@ -901,6 +1041,21 @@ static void sdpa_pack_computation_value_tile_fp32(const Mat& packed_value_head, 
         }
     }
 #endif // __SSE2__
+    for (; d + 1 < value_dim; d += 2)
+    {
+        for (int jj = 0; jj < max_seqlen; jj += NR)
+        {
+            const int max_nn = std::min(NR, max_seqlen - jj);
+            const float* p0 = (const float*)packed_value_head + (size_t)(src_begin + jj) * value_dim + (size_t)d * NR;
+            for (int j = 0; j < max_nn; j++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp += 2;
+                p0 += 2;
+            }
+        }
+    }
     for (; d < value_dim; d++)
     {
         for (int jj = 0; jj < max_seqlen; jj += NR)
@@ -951,7 +1106,15 @@ static void sdpa_append_kvcache_token_fp32(const Mat& key, const Mat& value, Mat
     {
         const float* kptr = key.channel(g);
         float* kpp = (float*)cached_key.channel(g) + (size_t)panel_id * key.w * panel_width + token_lane;
-        for (int d = 0; d < key.w; d++)
+        int d = 0;
+        for (; d + 1 < key.w; d += 2)
+        {
+            kpp[0] = kptr[0];
+            kpp[panel_width] = kptr[1];
+            kptr += 2;
+            kpp += panel_width * 2;
+        }
+        for (; d < key.w; d++)
         {
             *kpp = *kptr++;
             kpp += panel_width;
@@ -959,7 +1122,7 @@ static void sdpa_append_kvcache_token_fp32(const Mat& key, const Mat& value, Mat
 
         const float* vptr = value.channel(g);
         float* vpanel = (float*)cached_value.channel(g) + (size_t)panel_id * value.w * panel_width;
-        int d = 0;
+        d = 0;
         float* vpp;
         const float* pV;
 #if __SSE2__
@@ -992,6 +1155,15 @@ static void sdpa_append_kvcache_token_fp32(const Mat& key, const Mat& value, Mat
             vpp += panel_width * 4;
         }
 #endif // __SSE2__
+        vpp = vpanel + (size_t)d * panel_width + token_lane * 2;
+        pV = vptr + d;
+        for (; d + 1 < value.w; d += 2)
+        {
+            vpp[0] = pV[0];
+            vpp[1] = pV[1];
+            pV += 2;
+            vpp += panel_width * 2;
+        }
         vpp = vpanel + (size_t)d * panel_width + token_lane;
         pV = vptr + d;
         for (; d < value.w; d++)
@@ -1016,7 +1188,7 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
 #elif __SSE2__
     const int NR = 4;
 #else
-    const int NR = 1;
+    const int NR = 2;
 #endif
 
     const float* queryT_ptr = queryT;
@@ -1219,6 +1391,31 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                     _mm512_storeu_ps(score_panel + 48, _sum3);
                     score_panel += 64;
                     _block_max = _mm512_max_ps(_block_max, _mm512_max_ps(_mm512_max_ps(_sum0, _sum1), _mm512_max_ps(_sum2, _sum3)));
+                }
+                for (; j + 1 < max_nn; j += 2)
+                {
+                    __m512 _sum0 = _mm512_setzero_ps();
+                    __m512 _sum1 = _mm512_setzero_ps();
+                    const float* pK = key_panel + j;
+                    const float* pA = pQ;
+                    for (int d = 0; d < head_dim; d++)
+                    {
+                        const __m512 _q = _mm512_loadu_ps(pA);
+                        _sum0 = _mm512_fmadd_ps(_q, _mm512_set1_ps(pK[0]), _sum0);
+                        _sum1 = _mm512_fmadd_ps(_q, _mm512_set1_ps(pK[1]), _sum1);
+                        pA += 16;
+                        pK += NR;
+                    }
+                    if (pM)
+                    {
+                        _sum0 = _mm512_add_ps(_sum0, _mm512_loadu_ps(pM));
+                        _sum1 = _mm512_add_ps(_sum1, _mm512_loadu_ps(pM + 16));
+                        pM += 32;
+                    }
+                    _mm512_storeu_ps(score_panel, _sum0);
+                    _mm512_storeu_ps(score_panel + 16, _sum1);
+                    score_panel += 32;
+                    _block_max = _mm512_max_ps(_block_max, _mm512_max_ps(_sum0, _sum1));
                 }
                 for (; j < max_nn; j++)
                 {
@@ -1427,6 +1624,30 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                         _mm512_storeu_ps(outptr + 48, _out3);
                         outptr += 64;
                     }
+                    for (; lane + 1 < value_panel_width; lane += 2)
+                    {
+                        __m512 _out0 = _mm512_mul_ps(_mm512_loadu_ps(outptr), _alpha);
+                        __m512 _out1 = _mm512_mul_ps(_mm512_loadu_ps(outptr + 16), _alpha);
+                        const float* value_panel = (const float*)packed_value_head + (size_t)n * value_dim + (size_t)d * NR + lane;
+                        for (int jj = 0; jj < max_jj; jj += NR)
+                        {
+                            const int max_nn = std::min(NR, max_jj - jj);
+                            const float* pS = scoreptr + (size_t)jj * 16;
+                            const float* pV = value_panel;
+                            for (int j = 0; j < max_nn; j++)
+                            {
+                                const __m512 _p = _mm512_loadu_ps(pS);
+                                _out0 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[0]), _out0);
+                                _out1 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV[1]), _out1);
+                                pS += 16;
+                                pV += value_panel_width;
+                            }
+                            value_panel += (size_t)NR * value_dim;
+                        }
+                        _mm512_storeu_ps(outptr, _out0);
+                        _mm512_storeu_ps(outptr + 16, _out1);
+                        outptr += 32;
+                    }
                     for (; lane < value_panel_width; lane++)
                     {
                         __m512 _out = _mm512_mul_ps(_mm512_loadu_ps(outptr), _alpha);
@@ -1581,6 +1802,24 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                         _mm512_storeu_ps(outptr + 48, _out3);
                         outptr += 64;
                     }
+                    for (; lane + 1 < value_panel_width; lane += 2)
+                    {
+                        __m512 _out0 = _mm512_mul_ps(_mm512_loadu_ps(outptr), _alpha);
+                        __m512 _out1 = _mm512_mul_ps(_mm512_loadu_ps(outptr + 16), _alpha);
+                        const float* pS = scoreptr;
+                        const float* pV0 = pV + lane;
+                        for (int j = 0; j < max_jj; j++)
+                        {
+                            const __m512 _p = _mm512_loadu_ps(pS);
+                            _out0 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV0[0]), _out0);
+                            _out1 = _mm512_fmadd_ps(_p, _mm512_set1_ps(pV0[1]), _out1);
+                            pS += 16;
+                            pV0 += value_panel_width;
+                        }
+                        _mm512_storeu_ps(outptr, _out0);
+                        _mm512_storeu_ps(outptr + 16, _out1);
+                        outptr += 32;
+                    }
                     for (; lane < value_panel_width; lane++)
                     {
                         __m512 _out = _mm512_mul_ps(_mm512_loadu_ps(outptr), _alpha);
@@ -1708,6 +1947,31 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                     _mm256_storeu_ps(score_panel + 24, _sum3);
                     score_panel += 32;
                     _block_max = _mm256_max_ps(_block_max, _mm256_max_ps(_mm256_max_ps(_sum0, _sum1), _mm256_max_ps(_sum2, _sum3)));
+                }
+                for (; j + 1 < max_nn; j += 2)
+                {
+                    __m256 _sum0 = _mm256_setzero_ps();
+                    __m256 _sum1 = _mm256_setzero_ps();
+                    const float* pK = key_panel + j;
+                    const float* pA = pQ;
+                    for (int d = 0; d < head_dim; d++)
+                    {
+                        const __m256 _q = _mm256_loadu_ps(pA);
+                        _sum0 = _mm256_comp_fmadd_ps(_q, _mm256_set1_ps(pK[0]), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_q, _mm256_set1_ps(pK[1]), _sum1);
+                        pA += 8;
+                        pK += NR;
+                    }
+                    if (pM)
+                    {
+                        _sum0 = _mm256_add_ps(_sum0, _mm256_loadu_ps(pM));
+                        _sum1 = _mm256_add_ps(_sum1, _mm256_loadu_ps(pM + 8));
+                        pM += 16;
+                    }
+                    _mm256_storeu_ps(score_panel, _sum0);
+                    _mm256_storeu_ps(score_panel + 8, _sum1);
+                    score_panel += 16;
+                    _block_max = _mm256_max_ps(_block_max, _mm256_max_ps(_sum0, _sum1));
                 }
                 for (; j < max_nn; j++)
                 {
@@ -1850,6 +2114,30 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                         _mm256_storeu_ps(outptr + 24, _out3);
                         outptr += 32;
                     }
+                    for (; lane + 1 < value_panel_width; lane += 2)
+                    {
+                        __m256 _out0 = _mm256_mul_ps(_mm256_loadu_ps(outptr), _alpha);
+                        __m256 _out1 = _mm256_mul_ps(_mm256_loadu_ps(outptr + 8), _alpha);
+                        const float* value_panel = (const float*)packed_value_head + (size_t)n * value_dim + (size_t)d * NR + lane;
+                        for (int jj = 0; jj < max_jj; jj += NR)
+                        {
+                            const int max_nn = std::min(NR, max_jj - jj);
+                            const float* pS = scoreptr + (size_t)jj * 8;
+                            const float* pV = value_panel;
+                            for (int j = 0; j < max_nn; j++)
+                            {
+                                const __m256 _p = _mm256_loadu_ps(pS);
+                                _out0 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[0]), _out0);
+                                _out1 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV[1]), _out1);
+                                pS += 8;
+                                pV += value_panel_width;
+                            }
+                            value_panel += (size_t)NR * value_dim;
+                        }
+                        _mm256_storeu_ps(outptr, _out0);
+                        _mm256_storeu_ps(outptr + 8, _out1);
+                        outptr += 16;
+                    }
                     for (; lane < value_panel_width; lane++)
                     {
                         __m256 _out = _mm256_mul_ps(_mm256_loadu_ps(outptr), _alpha);
@@ -1944,6 +2232,24 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                         _mm256_storeu_ps(outptr + 24, _out3);
                         outptr += 32;
                     }
+                    for (; lane + 1 < value_panel_width; lane += 2)
+                    {
+                        __m256 _out0 = _mm256_mul_ps(_mm256_loadu_ps(outptr), _alpha);
+                        __m256 _out1 = _mm256_mul_ps(_mm256_loadu_ps(outptr + 8), _alpha);
+                        const float* pS = scoreptr;
+                        const float* pV0 = pV + lane;
+                        for (int j = 0; j < max_jj; j++)
+                        {
+                            const __m256 _p = _mm256_loadu_ps(pS);
+                            _out0 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV0[0]), _out0);
+                            _out1 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(pV0[1]), _out1);
+                            pS += 8;
+                            pV0 += value_panel_width;
+                        }
+                        _mm256_storeu_ps(outptr, _out0);
+                        _mm256_storeu_ps(outptr + 8, _out1);
+                        outptr += 16;
+                    }
                     for (; lane < value_panel_width; lane++)
                     {
                         __m256 _out = _mm256_mul_ps(_mm256_loadu_ps(outptr), _alpha);
@@ -2020,6 +2326,31 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                     _mm_storeu_ps(score_panel + 12, _sum3);
                     score_panel += 16;
                     _block_max = _mm_max_ps(_block_max, _mm_max_ps(_mm_max_ps(_sum0, _sum1), _mm_max_ps(_sum2, _sum3)));
+                }
+                for (; j + 1 < max_nn; j += 2)
+                {
+                    __m128 _sum0 = _mm_setzero_ps();
+                    __m128 _sum1 = _mm_setzero_ps();
+                    const float* pK = key_panel + j;
+                    const float* pA = pQ;
+                    for (int d = 0; d < head_dim; d++)
+                    {
+                        const __m128 _q = _mm_loadu_ps(pA);
+                        _sum0 = _mm_comp_fmadd_ps(_q, _mm_set1_ps(pK[0]), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_q, _mm_set1_ps(pK[1]), _sum1);
+                        pA += 4;
+                        pK += NR;
+                    }
+                    if (pM)
+                    {
+                        _sum0 = _mm_add_ps(_sum0, _mm_loadu_ps(pM));
+                        _sum1 = _mm_add_ps(_sum1, _mm_loadu_ps(pM + 4));
+                        pM += 8;
+                    }
+                    _mm_storeu_ps(score_panel, _sum0);
+                    _mm_storeu_ps(score_panel + 4, _sum1);
+                    score_panel += 8;
+                    _block_max = _mm_max_ps(_block_max, _mm_max_ps(_sum0, _sum1));
                 }
                 for (; j < max_nn; j++)
                 {
@@ -2117,6 +2448,30 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                         _mm_storeu_ps(outptr + 12, _out3);
                         outptr += 16;
                     }
+                    for (; lane + 1 < value_panel_width; lane += 2)
+                    {
+                        __m128 _out0 = _mm_mul_ps(_mm_loadu_ps(outptr), _alpha);
+                        __m128 _out1 = _mm_mul_ps(_mm_loadu_ps(outptr + 4), _alpha);
+                        const float* value_panel = (const float*)packed_value_head + (size_t)n * value_dim + (size_t)d * NR + lane;
+                        for (int jj = 0; jj < max_jj; jj += NR)
+                        {
+                            const int max_nn = std::min(NR, max_jj - jj);
+                            const float* pS = scoreptr + (size_t)jj * 4;
+                            const float* pV = value_panel;
+                            for (int j = 0; j < max_nn; j++)
+                            {
+                                const __m128 _p = _mm_loadu_ps(pS);
+                                _out0 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(pV[0]), _out0);
+                                _out1 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(pV[1]), _out1);
+                                pS += 4;
+                                pV += value_panel_width;
+                            }
+                            value_panel += (size_t)NR * value_dim;
+                        }
+                        _mm_storeu_ps(outptr, _out0);
+                        _mm_storeu_ps(outptr + 4, _out1);
+                        outptr += 8;
+                    }
                     for (; lane < value_panel_width; lane++)
                     {
                         __m128 _out = _mm_mul_ps(_mm_loadu_ps(outptr), _alpha);
@@ -2173,6 +2528,24 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                         _mm_storeu_ps(outptr + 12, _out3);
                         outptr += 16;
                     }
+                    for (; lane + 1 < value_panel_width; lane += 2)
+                    {
+                        __m128 _out0 = _mm_mul_ps(_mm_loadu_ps(outptr), _alpha);
+                        __m128 _out1 = _mm_mul_ps(_mm_loadu_ps(outptr + 4), _alpha);
+                        const float* pS = scoreptr;
+                        const float* pV0 = pV + lane;
+                        for (int j = 0; j < max_jj; j++)
+                        {
+                            const __m128 _p = _mm_loadu_ps(pS);
+                            _out0 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(pV0[0]), _out0);
+                            _out1 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(pV0[1]), _out1);
+                            pS += 4;
+                            pV0 += value_panel_width;
+                        }
+                        _mm_storeu_ps(outptr, _out0);
+                        _mm_storeu_ps(outptr + 4, _out1);
+                        outptr += 8;
+                    }
                     for (; lane < value_panel_width; lane++)
                     {
                         __m128 _out = _mm_mul_ps(_mm_loadu_ps(outptr), _alpha);
@@ -2197,6 +2570,419 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
         _mm_storeu_ps(lT + ii, _l);
     }
 #endif // __SSE2__
+    for (; ii + 1 < max_ii; ii += 2)
+    {
+        float m0 = -FLT_MAX;
+        float m1 = -FLT_MAX;
+        float l0 = 0.f;
+        float l1 = 0.f;
+        float* out0 = outT_ptr + (size_t)ii * value_dim;
+        float* out1 = out0 + value_dim;
+        memset(out0, 0, (size_t)value_dim * 2 * sizeof(float));
+
+        for (int n = n_begin; n < n_end; n += TILE_N)
+        {
+            const int max_jj = std::min(n_end - n, TILE_N);
+            const float* pQ0 = queryT_ptr + (size_t)ii * head_dim;
+            const float* pQ1 = pQ0 + head_dim;
+            float* score0 = scoreT_ptr + (size_t)ii * TILE_N;
+            float* score1 = score0 + TILE_N;
+            const float* mask0 = maskT_ptr ? maskT_ptr + (size_t)ii * key_seqlen + n : 0;
+            const float* mask1 = mask0 ? mask0 + key_seqlen : 0;
+            float block_max0 = -FLT_MAX;
+            float block_max1 = -FLT_MAX;
+
+            const float* key_panel = (const float*)packed_key_head + (size_t)n * head_dim;
+            for (int jj = 0; jj < max_jj; jj += NR)
+            {
+                const int max_nn = std::min(NR, max_jj - jj);
+                int j = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+                for (; j + 15 < max_nn; j += 16)
+                {
+                    __m512 _sum0 = _mm512_setzero_ps();
+                    __m512 _sum1 = _mm512_setzero_ps();
+                    const float* pK = key_panel + j;
+                    const float* pA0 = pQ0;
+                    const float* pA1 = pQ1;
+                    for (int d = 0; d < head_dim; d++)
+                    {
+                        const __m512 _k = _mm512_loadu_ps(pK);
+                        _sum0 = _mm512_fmadd_ps(_k, _mm512_set1_ps(*pA0++), _sum0);
+                        _sum1 = _mm512_fmadd_ps(_k, _mm512_set1_ps(*pA1++), _sum1);
+                        pK += NR;
+                    }
+                    if (mask0)
+                    {
+                        _sum0 = _mm512_add_ps(_sum0, _mm512_loadu_ps(mask0 + jj + j));
+                        _sum1 = _mm512_add_ps(_sum1, _mm512_loadu_ps(mask1 + jj + j));
+                    }
+                    _mm512_storeu_ps(score0 + jj + j, _sum0);
+                    _mm512_storeu_ps(score1 + jj + j, _sum1);
+                    block_max0 = std::max(block_max0, _mm512_comp_reduce_max_ps(_sum0));
+                    block_max1 = std::max(block_max1, _mm512_comp_reduce_max_ps(_sum1));
+                }
+#endif // __AVX512F__
+                for (; j + 7 < max_nn; j += 8)
+                {
+                    __m256 _sum0 = _mm256_setzero_ps();
+                    __m256 _sum1 = _mm256_setzero_ps();
+                    const float* pK = key_panel + j;
+                    const float* pA0 = pQ0;
+                    const float* pA1 = pQ1;
+                    for (int d = 0; d < head_dim; d++)
+                    {
+                        const __m256 _k = _mm256_loadu_ps(pK);
+                        _sum0 = _mm256_comp_fmadd_ps(_k, _mm256_set1_ps(*pA0++), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_k, _mm256_set1_ps(*pA1++), _sum1);
+                        pK += NR;
+                    }
+                    if (mask0)
+                    {
+                        _sum0 = _mm256_add_ps(_sum0, _mm256_loadu_ps(mask0 + jj + j));
+                        _sum1 = _mm256_add_ps(_sum1, _mm256_loadu_ps(mask1 + jj + j));
+                    }
+                    _mm256_storeu_ps(score0 + jj + j, _sum0);
+                    _mm256_storeu_ps(score1 + jj + j, _sum1);
+                    block_max0 = std::max(block_max0, _mm256_reduce_max_ps(_sum0));
+                    block_max1 = std::max(block_max1, _mm256_reduce_max_ps(_sum1));
+                }
+#endif // __AVX__
+                for (; j + 3 < max_nn; j += 4)
+                {
+                    __m128 _sum0 = _mm_setzero_ps();
+                    __m128 _sum1 = _mm_setzero_ps();
+                    const float* pK = key_panel + j;
+                    const float* pA0 = pQ0;
+                    const float* pA1 = pQ1;
+                    for (int d = 0; d < head_dim; d++)
+                    {
+                        const __m128 _k = _mm_loadu_ps(pK);
+                        _sum0 = _mm_comp_fmadd_ps(_k, _mm_set1_ps(*pA0++), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_k, _mm_set1_ps(*pA1++), _sum1);
+                        pK += NR;
+                    }
+                    if (mask0)
+                    {
+                        _sum0 = _mm_add_ps(_sum0, _mm_loadu_ps(mask0 + jj + j));
+                        _sum1 = _mm_add_ps(_sum1, _mm_loadu_ps(mask1 + jj + j));
+                    }
+                    _mm_storeu_ps(score0 + jj + j, _sum0);
+                    _mm_storeu_ps(score1 + jj + j, _sum1);
+                    block_max0 = std::max(block_max0, _mm_reduce_max_ps(_sum0));
+                    block_max1 = std::max(block_max1, _mm_reduce_max_ps(_sum1));
+                }
+#endif // __SSE2__
+                for (; j + 1 < max_nn; j += 2)
+                {
+                    float sum00 = mask0 ? mask0[jj + j] : 0.f;
+                    float sum01 = mask0 ? mask0[jj + j + 1] : 0.f;
+                    float sum10 = mask1 ? mask1[jj + j] : 0.f;
+                    float sum11 = mask1 ? mask1[jj + j + 1] : 0.f;
+                    const float* pK = key_panel + j;
+                    const float* pA0 = pQ0;
+                    const float* pA1 = pQ1;
+                    for (int d = 0; d < head_dim; d++)
+                    {
+                        const float k0 = pK[0];
+                        const float k1 = pK[1];
+                        sum00 += pA0[0] * k0;
+                        sum01 += pA0[0] * k1;
+                        sum10 += pA1[0] * k0;
+                        sum11 += pA1[0] * k1;
+                        pA0++;
+                        pA1++;
+                        pK += NR;
+                    }
+                    score0[jj + j] = sum00;
+                    score0[jj + j + 1] = sum01;
+                    score1[jj + j] = sum10;
+                    score1[jj + j + 1] = sum11;
+                    block_max0 = std::max(block_max0, std::max(sum00, sum01));
+                    block_max1 = std::max(block_max1, std::max(sum10, sum11));
+                }
+                for (; j < max_nn; j++)
+                {
+                    float sum0 = mask0 ? mask0[jj + j] : 0.f;
+                    float sum1 = mask1 ? mask1[jj + j] : 0.f;
+                    const float* pK = key_panel + j;
+                    for (int d = 0; d < head_dim; d++)
+                    {
+                        const float v = *pK;
+                        sum0 += pQ0[d] * v;
+                        sum1 += pQ1[d] * v;
+                        pK += NR;
+                    }
+                    score0[jj + j] = sum0;
+                    score1[jj + j] = sum1;
+                    block_max0 = std::max(block_max0, sum0);
+                    block_max1 = std::max(block_max1, sum1);
+                }
+                key_panel += (size_t)head_dim * NR;
+            }
+
+            const float m_new0 = std::max(m0, block_max0);
+            const float m_new1 = std::max(m1, block_max1);
+            const float alpha0 = l0 == 0.f ? 0.f : expf(m0 - m_new0);
+            const float alpha1 = l1 == 0.f ? 0.f : expf(m1 - m_new1);
+            float sum0 = 0.f;
+            float sum1 = 0.f;
+            int j = 0;
+            for (; j + 1 < max_jj; j += 2)
+            {
+                score0[j] = expf(score0[j] - m_new0);
+                score0[j + 1] = expf(score0[j + 1] - m_new0);
+                score1[j] = expf(score1[j] - m_new1);
+                score1[j + 1] = expf(score1[j + 1] - m_new1);
+                sum0 += score0[j] + score0[j + 1];
+                sum1 += score1[j] + score1[j + 1];
+            }
+            for (; j < max_jj; j++)
+            {
+                score0[j] = expf(score0[j] - m_new0);
+                score1[j] = expf(score1[j] - m_new1);
+                sum0 += score0[j];
+                sum1 += score1[j];
+            }
+            m0 = m_new0;
+            m1 = m_new1;
+            l0 = l0 * alpha0 + sum0;
+            l1 = l1 * alpha1 + sum1;
+
+            if (computation_value_head.empty())
+            {
+                for (int d = 0; d < value_dim;)
+                {
+                    const int value_panel_width = sdpa_kvcache_value_panel_width(value_dim - d);
+                    const float* value_panel = (const float*)packed_value_head + (size_t)n * value_dim + (size_t)d * NR;
+                    int lane = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+                    for (; lane + 15 < value_panel_width; lane += 16)
+                    {
+                        __m512 _out0 = _mm512_mul_ps(_mm512_loadu_ps(out0 + d + lane), _mm512_set1_ps(alpha0));
+                        __m512 _out1 = _mm512_mul_ps(_mm512_loadu_ps(out1 + d + lane), _mm512_set1_ps(alpha1));
+                        const float* pV_panel = value_panel + lane;
+                        for (int jj = 0; jj < max_jj; jj += NR)
+                        {
+                            const int max_nn = std::min(NR, max_jj - jj);
+                            const float* pV = pV_panel;
+                            for (int j = 0; j < max_nn; j++)
+                            {
+                                const __m512 _v = _mm512_loadu_ps(pV);
+                                _out0 = _mm512_fmadd_ps(_v, _mm512_set1_ps(score0[jj + j]), _out0);
+                                _out1 = _mm512_fmadd_ps(_v, _mm512_set1_ps(score1[jj + j]), _out1);
+                                pV += value_panel_width;
+                            }
+                            pV_panel += (size_t)NR * value_dim;
+                        }
+                        _mm512_storeu_ps(out0 + d + lane, _out0);
+                        _mm512_storeu_ps(out1 + d + lane, _out1);
+                    }
+#endif // __AVX512F__
+                    for (; lane + 7 < value_panel_width; lane += 8)
+                    {
+                        __m256 _out0 = _mm256_mul_ps(_mm256_loadu_ps(out0 + d + lane), _mm256_set1_ps(alpha0));
+                        __m256 _out1 = _mm256_mul_ps(_mm256_loadu_ps(out1 + d + lane), _mm256_set1_ps(alpha1));
+                        const float* pV_panel = value_panel + lane;
+                        for (int jj = 0; jj < max_jj; jj += NR)
+                        {
+                            const int max_nn = std::min(NR, max_jj - jj);
+                            const float* pV = pV_panel;
+                            for (int j = 0; j < max_nn; j++)
+                            {
+                                const __m256 _v = _mm256_loadu_ps(pV);
+                                _out0 = _mm256_comp_fmadd_ps(_v, _mm256_set1_ps(score0[jj + j]), _out0);
+                                _out1 = _mm256_comp_fmadd_ps(_v, _mm256_set1_ps(score1[jj + j]), _out1);
+                                pV += value_panel_width;
+                            }
+                            pV_panel += (size_t)NR * value_dim;
+                        }
+                        _mm256_storeu_ps(out0 + d + lane, _out0);
+                        _mm256_storeu_ps(out1 + d + lane, _out1);
+                    }
+#endif // __AVX__
+                    for (; lane + 3 < value_panel_width; lane += 4)
+                    {
+                        __m128 _out0 = _mm_mul_ps(_mm_loadu_ps(out0 + d + lane), _mm_set1_ps(alpha0));
+                        __m128 _out1 = _mm_mul_ps(_mm_loadu_ps(out1 + d + lane), _mm_set1_ps(alpha1));
+                        const float* pV_panel = value_panel + lane;
+                        for (int jj = 0; jj < max_jj; jj += NR)
+                        {
+                            const int max_nn = std::min(NR, max_jj - jj);
+                            const float* pV = pV_panel;
+                            for (int j = 0; j < max_nn; j++)
+                            {
+                                const __m128 _v = _mm_loadu_ps(pV);
+                                _out0 = _mm_comp_fmadd_ps(_v, _mm_set1_ps(score0[jj + j]), _out0);
+                                _out1 = _mm_comp_fmadd_ps(_v, _mm_set1_ps(score1[jj + j]), _out1);
+                                pV += value_panel_width;
+                            }
+                            pV_panel += (size_t)NR * value_dim;
+                        }
+                        _mm_storeu_ps(out0 + d + lane, _out0);
+                        _mm_storeu_ps(out1 + d + lane, _out1);
+                    }
+#endif // __SSE2__
+                    for (; lane + 1 < value_panel_width; lane += 2)
+                    {
+                        float out00 = out0[d + lane] * alpha0;
+                        float out01 = out0[d + lane + 1] * alpha0;
+                        float out10 = out1[d + lane] * alpha1;
+                        float out11 = out1[d + lane + 1] * alpha1;
+                        const float* pV_panel = value_panel + lane;
+                        for (int jj = 0; jj < max_jj; jj += NR)
+                        {
+                            const int max_nn = std::min(NR, max_jj - jj);
+                            const float* pV = pV_panel;
+                            for (int j = 0; j < max_nn; j++)
+                            {
+                                const float v0 = pV[0];
+                                const float v1 = pV[1];
+                                out00 += score0[jj + j] * v0;
+                                out01 += score0[jj + j] * v1;
+                                out10 += score1[jj + j] * v0;
+                                out11 += score1[jj + j] * v1;
+                                pV += value_panel_width;
+                            }
+                            pV_panel += (size_t)NR * value_dim;
+                        }
+                        out0[d + lane] = out00;
+                        out0[d + lane + 1] = out01;
+                        out1[d + lane] = out10;
+                        out1[d + lane + 1] = out11;
+                    }
+                    for (; lane < value_panel_width; lane++)
+                    {
+                        float out00 = out0[d + lane] * alpha0;
+                        float out10 = out1[d + lane] * alpha1;
+                        const float* pV_panel = value_panel + lane;
+                        for (int jj = 0; jj < max_jj; jj += NR)
+                        {
+                            const int max_nn = std::min(NR, max_jj - jj);
+                            const float* pV = pV_panel;
+                            for (int j = 0; j < max_nn; j++)
+                            {
+                                out00 += score0[jj + j] * *pV;
+                                out10 += score1[jj + j] * *pV;
+                                pV += value_panel_width;
+                            }
+                            pV_panel += (size_t)NR * value_dim;
+                        }
+                        out0[d + lane] = out00;
+                        out1[d + lane] = out10;
+                    }
+                    d += value_panel_width;
+                }
+            }
+            else
+            {
+                const float* pV = computation_value_head.row(n / TILE_N);
+                for (int d = 0; d < value_dim;)
+                {
+                    const int value_panel_width = sdpa_kvcache_value_panel_width(value_dim - d);
+                    int lane = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+                    for (; lane + 15 < value_panel_width; lane += 16)
+                    {
+                        __m512 _out0 = _mm512_mul_ps(_mm512_loadu_ps(out0 + d + lane), _mm512_set1_ps(alpha0));
+                        __m512 _out1 = _mm512_mul_ps(_mm512_loadu_ps(out1 + d + lane), _mm512_set1_ps(alpha1));
+                        const float* pV0 = pV + lane;
+                        for (int j = 0; j < max_jj; j++)
+                        {
+                            const __m512 _v = _mm512_loadu_ps(pV0);
+                            _out0 = _mm512_fmadd_ps(_v, _mm512_set1_ps(score0[j]), _out0);
+                            _out1 = _mm512_fmadd_ps(_v, _mm512_set1_ps(score1[j]), _out1);
+                            pV0 += value_panel_width;
+                        }
+                        _mm512_storeu_ps(out0 + d + lane, _out0);
+                        _mm512_storeu_ps(out1 + d + lane, _out1);
+                    }
+#endif // __AVX512F__
+                    for (; lane + 7 < value_panel_width; lane += 8)
+                    {
+                        __m256 _out0 = _mm256_mul_ps(_mm256_loadu_ps(out0 + d + lane), _mm256_set1_ps(alpha0));
+                        __m256 _out1 = _mm256_mul_ps(_mm256_loadu_ps(out1 + d + lane), _mm256_set1_ps(alpha1));
+                        const float* pV0 = pV + lane;
+                        for (int j = 0; j < max_jj; j++)
+                        {
+                            const __m256 _v = _mm256_loadu_ps(pV0);
+                            _out0 = _mm256_comp_fmadd_ps(_v, _mm256_set1_ps(score0[j]), _out0);
+                            _out1 = _mm256_comp_fmadd_ps(_v, _mm256_set1_ps(score1[j]), _out1);
+                            pV0 += value_panel_width;
+                        }
+                        _mm256_storeu_ps(out0 + d + lane, _out0);
+                        _mm256_storeu_ps(out1 + d + lane, _out1);
+                    }
+#endif // __AVX__
+                    for (; lane + 3 < value_panel_width; lane += 4)
+                    {
+                        __m128 _out0 = _mm_mul_ps(_mm_loadu_ps(out0 + d + lane), _mm_set1_ps(alpha0));
+                        __m128 _out1 = _mm_mul_ps(_mm_loadu_ps(out1 + d + lane), _mm_set1_ps(alpha1));
+                        const float* pV0 = pV + lane;
+                        for (int j = 0; j < max_jj; j++)
+                        {
+                            const __m128 _v = _mm_loadu_ps(pV0);
+                            _out0 = _mm_comp_fmadd_ps(_v, _mm_set1_ps(score0[j]), _out0);
+                            _out1 = _mm_comp_fmadd_ps(_v, _mm_set1_ps(score1[j]), _out1);
+                            pV0 += value_panel_width;
+                        }
+                        _mm_storeu_ps(out0 + d + lane, _out0);
+                        _mm_storeu_ps(out1 + d + lane, _out1);
+                    }
+#endif // __SSE2__
+                    for (; lane + 1 < value_panel_width; lane += 2)
+                    {
+                        float out00 = out0[d + lane] * alpha0;
+                        float out01 = out0[d + lane + 1] * alpha0;
+                        float out10 = out1[d + lane] * alpha1;
+                        float out11 = out1[d + lane + 1] * alpha1;
+                        const float* pV0 = pV + lane;
+                        for (int j = 0; j < max_jj; j++)
+                        {
+                            const float v0 = pV0[0];
+                            const float v1 = pV0[1];
+                            out00 += score0[j] * v0;
+                            out01 += score0[j] * v1;
+                            out10 += score1[j] * v0;
+                            out11 += score1[j] * v1;
+                            pV0 += value_panel_width;
+                        }
+                        out0[d + lane] = out00;
+                        out0[d + lane + 1] = out01;
+                        out1[d + lane] = out10;
+                        out1[d + lane + 1] = out11;
+                    }
+                    for (; lane < value_panel_width; lane++)
+                    {
+                        float out00 = out0[d + lane] * alpha0;
+                        float out10 = out1[d + lane] * alpha1;
+                        const float* pV0 = pV + lane;
+                        for (int j = 0; j < max_jj; j++)
+                        {
+                            out00 += score0[j] * *pV0;
+                            out10 += score1[j] * *pV0;
+                            pV0 += value_panel_width;
+                        }
+                        out0[d + lane] = out00;
+                        out1[d + lane] = out10;
+                    }
+                    pV += (size_t)value_panel_width * max_jj;
+                    d += value_panel_width;
+                }
+            }
+        }
+
+        mT[ii] = m0;
+        mT[ii + 1] = m1;
+        lT[ii] = l0;
+        lT[ii + 1] = l1;
+    }
     for (; ii < max_ii; ii++)
     {
         float m = -FLT_MAX;
@@ -2216,7 +3002,78 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
             for (int jj = 0; jj < max_jj; jj += NR)
             {
                 const int max_nn = std::min(NR, max_jj - jj);
-                for (int j = 0; j < max_nn; j++)
+                int j = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+                for (; j + 15 < max_nn; j += 16)
+                {
+                    __m512 _sum = pM ? _mm512_loadu_ps(pM) : _mm512_setzero_ps();
+                    if (pM)
+                        pM += 16;
+                    const float* pK = key_panel + j;
+                    for (int d = 0; d < head_dim; d++)
+                    {
+                        _sum = _mm512_fmadd_ps(_mm512_loadu_ps(pK), _mm512_set1_ps(pQ[d]), _sum);
+                        pK += NR;
+                    }
+                    _mm512_storeu_ps(score_panel, _sum);
+                    score_panel += 16;
+                    block_max = std::max(block_max, _mm512_comp_reduce_max_ps(_sum));
+                }
+#endif // __AVX512F__
+                for (; j + 7 < max_nn; j += 8)
+                {
+                    __m256 _sum = pM ? _mm256_loadu_ps(pM) : _mm256_setzero_ps();
+                    if (pM)
+                        pM += 8;
+                    const float* pK = key_panel + j;
+                    for (int d = 0; d < head_dim; d++)
+                    {
+                        _sum = _mm256_comp_fmadd_ps(_mm256_loadu_ps(pK), _mm256_set1_ps(pQ[d]), _sum);
+                        pK += NR;
+                    }
+                    _mm256_storeu_ps(score_panel, _sum);
+                    score_panel += 8;
+                    block_max = std::max(block_max, _mm256_reduce_max_ps(_sum));
+                }
+#endif // __AVX__
+                for (; j + 3 < max_nn; j += 4)
+                {
+                    __m128 _sum = pM ? _mm_loadu_ps(pM) : _mm_setzero_ps();
+                    if (pM)
+                        pM += 4;
+                    const float* pK = key_panel + j;
+                    for (int d = 0; d < head_dim; d++)
+                    {
+                        _sum = _mm_comp_fmadd_ps(_mm_loadu_ps(pK), _mm_set1_ps(pQ[d]), _sum);
+                        pK += NR;
+                    }
+                    _mm_storeu_ps(score_panel, _sum);
+                    score_panel += 4;
+                    block_max = std::max(block_max, _mm_reduce_max_ps(_sum));
+                }
+#endif // __SSE2__
+                for (; j + 1 < max_nn; j += 2)
+                {
+                    float sum0 = pM ? pM[0] : 0.f;
+                    float sum1 = pM ? pM[1] : 0.f;
+                    if (pM)
+                        pM += 2;
+                    const float* pK = key_panel + j;
+                    for (int d = 0; d < head_dim; d++)
+                    {
+                        const float qv = pQ[d];
+                        sum0 += qv * pK[0];
+                        sum1 += qv * pK[1];
+                        pK += NR;
+                    }
+                    score_panel[0] = sum0;
+                    score_panel[1] = sum1;
+                    score_panel += 2;
+                    block_max = std::max(block_max, std::max(sum0, sum1));
+                }
+                for (; j < max_nn; j++)
                 {
                     float sum = pM ? *pM++ : 0.f;
                     const float* pK = key_panel + j;
@@ -2236,7 +3093,15 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
             const float alpha = l == 0.f ? 0.f : expf(m - m_new);
             float sum = 0.f;
             float* pS = scoreptr;
-            for (int j = 0; j < max_jj; j++)
+            int j = 0;
+            for (; j + 1 < max_jj; j += 2)
+            {
+                pS[0] = expf(pS[0] - m_new);
+                pS[1] = expf(pS[1] - m_new);
+                sum += pS[0] + pS[1];
+                pS += 2;
+            }
+            for (; j < max_jj; j++)
             {
                 *pS = expf(*pS - m_new);
                 sum += *pS++;
@@ -2250,7 +3115,29 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                 for (int d = 0; d < value_dim;)
                 {
                     const int value_panel_width = sdpa_kvcache_value_panel_width(value_dim - d);
-                    for (int lane = 0; lane < value_panel_width; lane++)
+                    int lane = 0;
+                    for (; lane + 1 < value_panel_width; lane += 2)
+                    {
+                        float out0 = outptr[lane] * alpha;
+                        float out1 = outptr[lane + 1] * alpha;
+                        const float* value_panel = (const float*)packed_value_head + (size_t)n * value_dim + (size_t)d * NR + lane;
+                        for (int jj = 0; jj < max_jj; jj += NR)
+                        {
+                            const int max_nn = std::min(NR, max_jj - jj);
+                            const float* pS = scoreptr + jj;
+                            const float* pV = value_panel;
+                            for (int j = 0; j < max_nn; j++)
+                            {
+                                out0 += *pS * pV[0];
+                                out1 += *pS++ * pV[1];
+                                pV += value_panel_width;
+                            }
+                            value_panel += (size_t)NR * value_dim;
+                        }
+                        outptr[lane] = out0;
+                        outptr[lane + 1] = out1;
+                    }
+                    for (; lane < value_panel_width; lane++)
                     {
                         float out = outptr[lane] * alpha;
                         const float* value_panel = (const float*)packed_value_head + (size_t)n * value_dim + (size_t)d * NR + lane;
@@ -2279,7 +3166,23 @@ static void sdpa_prefill_packed_tile_fp32(const Mat& queryT, const Mat& packed_k
                 for (int d = 0; d < value_dim;)
                 {
                     const int value_panel_width = sdpa_kvcache_value_panel_width(value_dim - d);
-                    for (int lane = 0; lane < value_panel_width; lane++)
+                    int lane = 0;
+                    for (; lane + 1 < value_panel_width; lane += 2)
+                    {
+                        float out0 = outptr[lane] * alpha;
+                        float out1 = outptr[lane + 1] * alpha;
+                        const float* pS = scoreptr;
+                        const float* pV0 = pV + lane;
+                        for (int j = 0; j < max_jj; j++)
+                        {
+                            out0 += *pS * pV0[0];
+                            out1 += *pS++ * pV0[1];
+                            pV0 += value_panel_width;
+                        }
+                        outptr[lane] = out0;
+                        outptr[lane + 1] = out1;
+                    }
+                    for (; lane < value_panel_width; lane++)
                     {
                         float out = outptr[lane] * alpha;
                         const float* pS = scoreptr;
@@ -2321,7 +3224,7 @@ static int sdpa_prefill_packed_fp32(const Mat& query, const Mat& packed_key, con
 #elif __SSE2__
     const int NR = 4;
 #else
-    const int NR = 1;
+    const int NR = 2;
 #endif
 
     const int num_mblocks = (query_seqlen + TILE_M - 1) / TILE_M;
@@ -2505,7 +3408,15 @@ static int sdpa_prefill_packed_fp32(const Mat& query, const Mat& packed_key, con
                 stateptr[TILE_M + ii] = lT[ii];
                 const float* p0 = outT_ptr + (size_t)ii * value_dim;
                 float* p1 = stateptr + TILE_M * 2 + ii;
-                for (int d = 0; d < value_dim; d++)
+                int d = 0;
+                for (; d + 1 < value_dim; d += 2)
+                {
+                    p1[0] = p0[0];
+                    p1[TILE_M] = p0[1];
+                    p0 += 2;
+                    p1 += TILE_M * 2;
+                }
+                for (; d < value_dim; d++)
                 {
                     *p1 = *p0++;
                     p1 += TILE_M;
@@ -2535,7 +3446,7 @@ static int sdpa_prefill_fp32(const Mat& query, const Mat& key, const Mat& value,
 #elif __SSE2__
     const int panel_width = 4;
 #else
-    const int panel_width = 1;
+    const int panel_width = 2;
 #endif
     const int capacity = (key.h + panel_width - 1) / panel_width * panel_width;
 
@@ -2594,7 +3505,7 @@ static int sdpa_kvcache_fp32(const Mat& query, const Mat& past_key, const Mat& p
 #elif __SSE2__
     const int panel_width = 4;
 #else
-    const int panel_width = 1;
+    const int panel_width = 2;
 #endif
 
     int ret = sdpa_create_or_grow_kvcache(past_key, cached_key, dst_seqlen, cur_key.c, cur_key.w, cur_key.elemsize, panel_width, opt);

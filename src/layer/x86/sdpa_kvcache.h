@@ -38,7 +38,8 @@ static int sdpa_kvcache_value_panel_width(int remain)
     if (remain >= 4)
         return 4;
 #endif // __SSE2__
-    (void)remain;
+    if (remain >= 2)
+        return 2;
     return 1;
 }
 

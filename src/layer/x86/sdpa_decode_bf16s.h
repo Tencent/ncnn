@@ -1775,7 +1775,7 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
 #elif __SSE2__
     const int NR = 4;
 #else
-    const int NR = 1;
+    const int NR = 2;
 #endif
     const int score_workspace_size = max_qq * block_n;
     const int out_workspace_size = max_qq * value_dim;
@@ -2367,6 +2367,46 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                     score_panel += 64;
                     _block_max = _mm512_max_ps(_block_max, _mm512_max_ps(_mm512_max_ps(_sum0, _sum1), _mm512_max_ps(_sum2, _sum3)));
                 }
+                for (; j + 1 < max_nn; j += 2)
+                {
+                    __m512 _sum0 = _mm512_setzero_ps();
+                    __m512 _sum1 = _mm512_setzero_ps();
+                    const unsigned short* pA = queryT_tile;
+                    int d = 0;
+#if __AVX512BF16__
+                    const int* pK_pair = (const int*)key_panel + j;
+                    for (; d + 1 < head_dim; d += 2)
+                    {
+                        const __m512i _q = _mm512_loadu_si512((const __m512i*)pA);
+                        _sum0 = _mm512_dpbf16_ps(_sum0, (__m512bh)_q, (__m512bh)_mm512_set1_epi32(pK_pair[0]));
+                        _sum1 = _mm512_dpbf16_ps(_sum1, (__m512bh)_q, (__m512bh)_mm512_set1_epi32(pK_pair[1]));
+                        pA += 32;
+                        pK_pair += NR;
+                    }
+#endif // __AVX512BF16__
+                    const unsigned short* pK = key_panel + (size_t)d * NR + j;
+                    for (; d < head_dim; d++)
+                    {
+                        const __m512 _q = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pA));
+                        _sum0 = _mm512_fmadd_ps(_q, _mm512_set1_ps(bfloat16_to_float32(pK[0])), _sum0);
+                        _sum1 = _mm512_fmadd_ps(_q, _mm512_set1_ps(bfloat16_to_float32(pK[1])), _sum1);
+                        pA += 16;
+                        pK += NR;
+                    }
+                    const __m512 _scale = _mm512_set1_ps(scale);
+                    _sum0 = _mm512_mul_ps(_sum0, _scale);
+                    _sum1 = _mm512_mul_ps(_sum1, _scale);
+                    if (pM)
+                    {
+                        _sum0 = _mm512_add_ps(_sum0, sdpa_decode_load_mask16_bf16s(pM, mask_hstep));
+                        _sum1 = _mm512_add_ps(_sum1, sdpa_decode_load_mask16_bf16s(pM + 1, mask_hstep));
+                        pM += 2;
+                    }
+                    _mm512_storeu_ps(score_panel, _sum0);
+                    _mm512_storeu_ps(score_panel + 16, _sum1);
+                    score_panel += 32;
+                    _block_max = _mm512_max_ps(_block_max, _mm512_max_ps(_sum0, _sum1));
+                }
                 for (; j < max_nn; j++)
                 {
                     const unsigned short* pK = key_panel + j;
@@ -2590,6 +2630,30 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                     _mm512_storeu_ps(outptr + 32, _out2);
                     _mm512_storeu_ps(outptr + 48, _out3);
                     outptr += 64;
+                }
+                for (; lane + 1 < value_panel_width; lane += 2)
+                {
+                    __m512 _out0 = _mm512_mul_ps(_mm512_loadu_ps(outptr), _alpha);
+                    __m512 _out1 = _mm512_mul_ps(_mm512_loadu_ps(outptr + 16), _alpha);
+                    const unsigned short* pV_panel = (const unsigned short*)value_cache_head + (size_t)n * value_dim + (size_t)d * NR + lane;
+                    for (int jj = 0; jj < max_jj; jj += NR)
+                    {
+                        const int max_nn = std::min(NR, max_jj - jj);
+                        const float* pS = scoreT_tile + (size_t)jj * 16;
+                        const unsigned short* pV = pV_panel;
+                        for (int j = 0; j < max_nn; j++)
+                        {
+                            const __m512 _p = _mm512_loadu_ps(pS);
+                            _out0 = _mm512_fmadd_ps(_p, _mm512_set1_ps(bfloat16_to_float32(pV[0])), _out0);
+                            _out1 = _mm512_fmadd_ps(_p, _mm512_set1_ps(bfloat16_to_float32(pV[1])), _out1);
+                            pS += 16;
+                            pV += value_panel_width;
+                        }
+                        pV_panel += (size_t)NR * value_dim;
+                    }
+                    _mm512_storeu_ps(outptr, _out0);
+                    _mm512_storeu_ps(outptr + 16, _out1);
+                    outptr += 32;
                 }
                 for (; lane < value_panel_width; lane++)
                 {
@@ -2981,6 +3045,53 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                     score_panel += 32;
                     _block_max = _mm256_max_ps(_block_max, _mm256_max_ps(_mm256_max_ps(_sum0, _sum1), _mm256_max_ps(_sum2, _sum3)));
                 }
+                for (; j + 1 < max_nn; j += 2)
+                {
+                    __m256 _sum0 = _mm256_setzero_ps();
+                    __m256 _sum1 = _mm256_setzero_ps();
+                    const unsigned short* pA = queryT_tile;
+                    int d = 0;
+#if __AVX512BF16__
+                    const int* pK_pair = (const int*)key_panel + j;
+                    for (; d + 1 < head_dim; d += 2)
+                    {
+                        const __m256i _q = _mm256_loadu_si256((const __m256i*)pA);
+                        _sum0 = _mm256_dpbf16_ps(_sum0, (__m256bh)_q, (__m256bh)_mm256_set1_epi32(pK_pair[0]));
+                        _sum1 = _mm256_dpbf16_ps(_sum1, (__m256bh)_q, (__m256bh)_mm256_set1_epi32(pK_pair[1]));
+                        pA += 16;
+                        pK_pair += NR;
+                    }
+#endif // __AVX512BF16__
+                    const unsigned short* pK = key_panel + (size_t)d * NR + j;
+                    for (; d < head_dim; d++)
+                    {
+                        const __m256 _q = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
+                        _sum0 = _mm256_comp_fmadd_ps(_q, _mm256_set1_ps(bfloat16_to_float32(pK[0])), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_q, _mm256_set1_ps(bfloat16_to_float32(pK[1])), _sum1);
+                        pA += 8;
+                        pK += NR;
+                    }
+                    const __m256 _scale = _mm256_set1_ps(scale);
+                    _sum0 = _mm256_mul_ps(_sum0, _scale);
+                    _sum1 = _mm256_mul_ps(_sum1, _scale);
+                    if (pM)
+                    {
+#if __AVX2__
+                        __m256i _mask0_bf16 = _mm256_i32gather_epi32((const int*)pM, _mask_index, sizeof(unsigned short));
+                        __m256i _mask1_bf16 = _mm256_i32gather_epi32((const int*)(pM + 1), _mask_index, sizeof(unsigned short));
+                        _sum0 = _mm256_add_ps(_sum0, _mm256_castsi256_ps(_mm256_slli_epi32(_mask0_bf16, 16)));
+                        _sum1 = _mm256_add_ps(_sum1, _mm256_castsi256_ps(_mm256_slli_epi32(_mask1_bf16, 16)));
+#else
+                        _sum0 = _mm256_add_ps(_sum0, _mm256_set_ps(bfloat16_to_float32(pM[mask_cstep * 7]), bfloat16_to_float32(pM[mask_cstep * 6]), bfloat16_to_float32(pM[mask_cstep * 5]), bfloat16_to_float32(pM[mask_cstep * 4]), bfloat16_to_float32(pM[mask_cstep * 3]), bfloat16_to_float32(pM[mask_cstep * 2]), bfloat16_to_float32(pM[mask_cstep]), bfloat16_to_float32(pM[0])));
+                        _sum1 = _mm256_add_ps(_sum1, _mm256_set_ps(bfloat16_to_float32(pM[mask_cstep * 7 + 1]), bfloat16_to_float32(pM[mask_cstep * 6 + 1]), bfloat16_to_float32(pM[mask_cstep * 5 + 1]), bfloat16_to_float32(pM[mask_cstep * 4 + 1]), bfloat16_to_float32(pM[mask_cstep * 3 + 1]), bfloat16_to_float32(pM[mask_cstep * 2 + 1]), bfloat16_to_float32(pM[mask_cstep + 1]), bfloat16_to_float32(pM[1])));
+#endif // __AVX2__
+                        pM += 2;
+                    }
+                    _mm256_storeu_ps(score_panel, _sum0);
+                    _mm256_storeu_ps(score_panel + 8, _sum1);
+                    score_panel += 16;
+                    _block_max = _mm256_max_ps(_block_max, _mm256_max_ps(_sum0, _sum1));
+                }
                 for (; j < max_nn; j++)
                 {
                     const unsigned short* pK = key_panel + j;
@@ -3140,6 +3251,30 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                     _mm256_storeu_ps(outptr + 16, _out2);
                     _mm256_storeu_ps(outptr + 24, _out3);
                     outptr += 32;
+                }
+                for (; lane + 1 < value_panel_width; lane += 2)
+                {
+                    __m256 _out0 = _mm256_mul_ps(_mm256_loadu_ps(outptr), _alpha);
+                    __m256 _out1 = _mm256_mul_ps(_mm256_loadu_ps(outptr + 8), _alpha);
+                    const unsigned short* pV_panel = (const unsigned short*)value_cache_head + (size_t)n * value_dim + (size_t)d * NR + lane;
+                    for (int jj = 0; jj < max_jj; jj += NR)
+                    {
+                        const int max_nn = std::min(NR, max_jj - jj);
+                        const float* pS = scoreT_tile + (size_t)jj * 8;
+                        const unsigned short* pV = pV_panel;
+                        for (int j = 0; j < max_nn; j++)
+                        {
+                            const __m256 _p = _mm256_loadu_ps(pS);
+                            _out0 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[0])), _out0);
+                            _out1 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[1])), _out1);
+                            pS += 8;
+                            pV += value_panel_width;
+                        }
+                        pV_panel += (size_t)NR * value_dim;
+                    }
+                    _mm256_storeu_ps(outptr, _out0);
+                    _mm256_storeu_ps(outptr + 8, _out1);
+                    outptr += 16;
                 }
                 for (; lane < value_panel_width; lane++)
                 {
@@ -3343,6 +3478,46 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                     score_panel += 16;
                     _block_max = _mm_max_ps(_block_max, _mm_max_ps(_mm_max_ps(_sum0, _sum1), _mm_max_ps(_sum2, _sum3)));
                 }
+                for (; j + 1 < max_nn; j += 2)
+                {
+                    __m128 _sum0 = _mm_setzero_ps();
+                    __m128 _sum1 = _mm_setzero_ps();
+                    const unsigned short* pA = queryT_tile;
+                    int d = 0;
+#if __AVX512BF16__
+                    const int* pK_pair = (const int*)key_panel + j;
+                    for (; d + 1 < head_dim; d += 2)
+                    {
+                        const __m128i _q = _mm_loadu_si128((const __m128i*)pA);
+                        _sum0 = _mm_dpbf16_ps(_sum0, (__m128bh)_q, (__m128bh)_mm_set1_epi32(pK_pair[0]));
+                        _sum1 = _mm_dpbf16_ps(_sum1, (__m128bh)_q, (__m128bh)_mm_set1_epi32(pK_pair[1]));
+                        pA += 8;
+                        pK_pair += NR;
+                    }
+#endif // __AVX512BF16__
+                    const unsigned short* pK = key_panel + (size_t)d * NR + j;
+                    for (; d < head_dim; d++)
+                    {
+                        const __m128 _q = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA));
+                        _sum0 = _mm_comp_fmadd_ps(_q, _mm_set1_ps(bfloat16_to_float32(pK[0])), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_q, _mm_set1_ps(bfloat16_to_float32(pK[1])), _sum1);
+                        pA += 4;
+                        pK += NR;
+                    }
+                    const __m128 _scale = _mm_set1_ps(scale);
+                    _sum0 = _mm_mul_ps(_sum0, _scale);
+                    _sum1 = _mm_mul_ps(_sum1, _scale);
+                    if (pM)
+                    {
+                        _sum0 = _mm_add_ps(_sum0, _mm_set_ps(bfloat16_to_float32(pM[mask_cstep * 3]), bfloat16_to_float32(pM[mask_cstep * 2]), bfloat16_to_float32(pM[mask_cstep]), bfloat16_to_float32(pM[0])));
+                        _sum1 = _mm_add_ps(_sum1, _mm_set_ps(bfloat16_to_float32(pM[mask_cstep * 3 + 1]), bfloat16_to_float32(pM[mask_cstep * 2 + 1]), bfloat16_to_float32(pM[mask_cstep + 1]), bfloat16_to_float32(pM[1])));
+                        pM += 2;
+                    }
+                    _mm_storeu_ps(score_panel, _sum0);
+                    _mm_storeu_ps(score_panel + 4, _sum1);
+                    score_panel += 8;
+                    _block_max = _mm_max_ps(_block_max, _mm_max_ps(_sum0, _sum1));
+                }
                 for (; j < max_nn; j++)
                 {
                     __m128 _sum = _mm_setzero_ps();
@@ -3448,6 +3623,30 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                     _mm_storeu_ps(outptr + 12, _out3);
                     outptr += 16;
                 }
+                for (; lane + 1 < value_panel_width; lane += 2)
+                {
+                    __m128 _out0 = _mm_mul_ps(_mm_loadu_ps(outptr), _alpha);
+                    __m128 _out1 = _mm_mul_ps(_mm_loadu_ps(outptr + 4), _alpha);
+                    const unsigned short* pV_panel = (const unsigned short*)value_cache_head + (size_t)n * value_dim + (size_t)d * NR + lane;
+                    for (int jj = 0; jj < max_jj; jj += NR)
+                    {
+                        const int max_nn = std::min(NR, max_jj - jj);
+                        const float* pS = scoreT_tile + (size_t)jj * 4;
+                        const unsigned short* pV = pV_panel;
+                        for (int j = 0; j < max_nn; j++)
+                        {
+                            const __m128 _p = _mm_loadu_ps(pS);
+                            _out0 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(bfloat16_to_float32(pV[0])), _out0);
+                            _out1 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(bfloat16_to_float32(pV[1])), _out1);
+                            pS += 4;
+                            pV += value_panel_width;
+                        }
+                        pV_panel += (size_t)NR * value_dim;
+                    }
+                    _mm_storeu_ps(outptr, _out0);
+                    _mm_storeu_ps(outptr + 4, _out1);
+                    outptr += 8;
+                }
                 for (; lane < value_panel_width; lane++)
                 {
                     __m128 _out = _mm_mul_ps(_mm_loadu_ps(outptr), _alpha);
@@ -3516,6 +3715,7 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
             }
         }
     }
+#endif // __SSE2__
     for (; qq + 1 < max_qq; qq += 2)
     {
         const int q = q0 + qq;
@@ -3553,14 +3753,13 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                 const int max_nn = std::min(NR, max_jj - jj);
                 const unsigned short* key_panel = (const unsigned short*)key_cache_head + (size_t)(n + jj) * head_dim;
                 int k = 0;
+#if __SSE2__
 #if __AVX__
 #if __AVX512F__
                 for (; k + 15 < max_nn; k += 16)
                 {
-                    __m512 _sumlo = _mm512_setzero_ps();
-                    __m512 _sumhi = _mm512_setzero_ps();
-                    const __m512i _kindex0 = _mm512_set_epi32(7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0);
-                    const __m512i _kindex1 = _mm512_set_epi32(15, 15, 14, 14, 13, 13, 12, 12, 11, 11, 10, 10, 9, 9, 8, 8);
+                    __m512 _sum0 = _mm512_setzero_ps();
+                    __m512 _sum1 = _mm512_setzero_ps();
                     const unsigned short* pA = query_ptr;
                     const unsigned short* pK = key_panel + k;
                     int d = 0;
@@ -3569,11 +3768,8 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                     for (; d + 1 < head_dim; d += 2)
                     {
                         const __m512i _k = _mm512_loadu_si512((const __m512i*)pK);
-                        __m128i _q = _mm_unpacklo_epi32(_mm_cvtsi32_si128(((const int*)pA)[0]), _mm_cvtsi32_si128(((const int*)(pA + query_cstep))[0]));
-                        _q = _mm_unpacklo_epi64(_q, _q);
-                        const __m512i _q01 = _mm512_broadcast_i32x4(_q);
-                        _sumlo = _mm512_dpbf16_ps(_sumlo, (__m512bh)_q01, (__m512bh)_mm512_permutexvar_epi32(_kindex0, _k));
-                        _sumhi = _mm512_dpbf16_ps(_sumhi, (__m512bh)_q01, (__m512bh)_mm512_permutexvar_epi32(_kindex1, _k));
+                        _sum0 = _mm512_dpbf16_ps(_sum0, (__m512bh)_mm512_set1_epi32(((const int*)pA)[0]), (__m512bh)_k);
+                        _sum1 = _mm512_dpbf16_ps(_sum1, (__m512bh)_mm512_set1_epi32(((const int*)(pA + query_cstep))[0]), (__m512bh)_k);
                         pA += 2;
                         pK += NR * 2;
                     }
@@ -3582,16 +3778,11 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                     for (; d < head_dim; d++)
                     {
                         const __m512 _k = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pK));
-                        const __m512 _q01 = _mm512_broadcast_f32x4(_mm_set_ps(bfloat16_to_float32(pA[query_cstep]), bfloat16_to_float32(pA[0]), bfloat16_to_float32(pA[query_cstep]), bfloat16_to_float32(pA[0])));
-                        _sumlo = _mm512_fmadd_ps(_q01, _mm512_permutexvar_ps(_kindex0, _k), _sumlo);
-                        _sumhi = _mm512_fmadd_ps(_q01, _mm512_permutexvar_ps(_kindex1, _k), _sumhi);
+                        _sum0 = _mm512_fmadd_ps(_mm512_set1_ps(bfloat16_to_float32(pA[0])), _k, _sum0);
+                        _sum1 = _mm512_fmadd_ps(_mm512_set1_ps(bfloat16_to_float32(pA[query_cstep])), _k, _sum1);
                         pA++;
                         pK += NR;
                     }
-                    const __m512i _q0index = _mm512_set_epi32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
-                    const __m512i _q1index = _mm512_set_epi32(31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1);
-                    __m512 _sum0 = _mm512_permutex2var_ps(_sumlo, _q0index, _sumhi);
-                    __m512 _sum1 = _mm512_permutex2var_ps(_sumlo, _q1index, _sumhi);
                     _sum0 = _mm512_mul_ps(_sum0, _mm512_set1_ps(scale));
                     _sum1 = _mm512_mul_ps(_sum1, _mm512_set1_ps(scale));
                     if (mask)
@@ -3608,8 +3799,8 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
 #endif // __AVX512F__
                 for (; k + 7 < max_nn; k += 8)
                 {
-                    __m256 _sumlo = _mm256_setzero_ps();
-                    __m256 _sumhi = _mm256_setzero_ps();
+                    __m256 _sum0 = _mm256_setzero_ps();
+                    __m256 _sum1 = _mm256_setzero_ps();
                     const unsigned short* pA = query_ptr;
                     const unsigned short* pK = key_panel + k;
                     int d = 0;
@@ -3618,15 +3809,8 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                     for (; d + 1 < head_dim; d += 2)
                     {
                         const __m256i _k = _mm256_loadu_si256((const __m256i*)pK);
-                        const __m128i _k0 = _mm256_castsi256_si128(_k);
-                        const __m128i _k1 = _mm256_extractf128_si256(_k, 1);
-                        const __m256i _klo = combine4x2_epi32(_mm_unpacklo_epi32(_k0, _k0), _mm_unpackhi_epi32(_k0, _k0));
-                        const __m256i _khi = combine4x2_epi32(_mm_unpacklo_epi32(_k1, _k1), _mm_unpackhi_epi32(_k1, _k1));
-                        __m128i _q = _mm_unpacklo_epi32(_mm_cvtsi32_si128(((const int*)pA)[0]), _mm_cvtsi32_si128(((const int*)(pA + query_cstep))[0]));
-                        _q = _mm_unpacklo_epi64(_q, _q);
-                        const __m256i _q01 = combine4x2_epi32(_q, _q);
-                        _sumlo = _mm256_dpbf16_ps(_sumlo, (__m256bh)_q01, (__m256bh)_klo);
-                        _sumhi = _mm256_dpbf16_ps(_sumhi, (__m256bh)_q01, (__m256bh)_khi);
+                        _sum0 = _mm256_dpbf16_ps(_sum0, (__m256bh)_mm256_set1_epi32(((const int*)pA)[0]), (__m256bh)_k);
+                        _sum1 = _mm256_dpbf16_ps(_sum1, (__m256bh)_mm256_set1_epi32(((const int*)(pA + query_cstep))[0]), (__m256bh)_k);
                         pA += 2;
                         pK += NR * 2;
                     }
@@ -3635,23 +3819,11 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                     for (; d < head_dim; d++)
                     {
                         const __m256 _k = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pK));
-                        const __m128 _k0 = _mm256_castps256_ps128(_k);
-                        const __m128 _k1 = _mm256_extractf128_ps(_k, 1);
-                        const __m256 _klo = combine4x2_ps(_mm_unpacklo_ps(_k0, _k0), _mm_unpackhi_ps(_k0, _k0));
-                        const __m256 _khi = combine4x2_ps(_mm_unpacklo_ps(_k1, _k1), _mm_unpackhi_ps(_k1, _k1));
-                        const __m128 _q128 = _mm_set_ps(bfloat16_to_float32(pA[query_cstep]), bfloat16_to_float32(pA[0]), bfloat16_to_float32(pA[query_cstep]), bfloat16_to_float32(pA[0]));
-                        const __m256 _q01 = combine4x2_ps(_q128, _q128);
-                        _sumlo = _mm256_comp_fmadd_ps(_q01, _klo, _sumlo);
-                        _sumhi = _mm256_comp_fmadd_ps(_q01, _khi, _sumhi);
+                        _sum0 = _mm256_comp_fmadd_ps(_mm256_set1_ps(bfloat16_to_float32(pA[0])), _k, _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_mm256_set1_ps(bfloat16_to_float32(pA[query_cstep])), _k, _sum1);
                         pA++;
                         pK += NR;
                     }
-                    const __m128 _sumlo0 = _mm256_castps256_ps128(_sumlo);
-                    const __m128 _sumlo1 = _mm256_extractf128_ps(_sumlo, 1);
-                    const __m128 _sumhi0 = _mm256_castps256_ps128(_sumhi);
-                    const __m128 _sumhi1 = _mm256_extractf128_ps(_sumhi, 1);
-                    __m256 _sum0 = combine4x2_ps(_mm_shuffle_ps(_sumlo0, _sumlo1, _MM_SHUFFLE(2, 0, 2, 0)), _mm_shuffle_ps(_sumhi0, _sumhi1, _MM_SHUFFLE(2, 0, 2, 0)));
-                    __m256 _sum1 = combine4x2_ps(_mm_shuffle_ps(_sumlo0, _sumlo1, _MM_SHUFFLE(3, 1, 3, 1)), _mm_shuffle_ps(_sumhi0, _sumhi1, _MM_SHUFFLE(3, 1, 3, 1)));
                     _sum0 = _mm256_mul_ps(_sum0, _mm256_set1_ps(scale));
                     _sum1 = _mm256_mul_ps(_sum1, _mm256_set1_ps(scale));
                     if (mask)
@@ -3668,8 +3840,8 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
 #endif // __AVX__
                 for (; k + 3 < max_nn; k += 4)
                 {
-                    __m128 _sumlo = _mm_setzero_ps();
-                    __m128 _sumhi = _mm_setzero_ps();
+                    __m128 _sum0 = _mm_setzero_ps();
+                    __m128 _sum1 = _mm_setzero_ps();
                     const unsigned short* pA = query_ptr;
                     const unsigned short* pK = key_panel + k;
                     int d = 0;
@@ -3678,10 +3850,8 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                     for (; d + 1 < head_dim; d += 2)
                     {
                         const __m128i _k = _mm_loadu_si128((const __m128i*)pK);
-                        __m128i _q = _mm_unpacklo_epi32(_mm_cvtsi32_si128(((const int*)pA)[0]), _mm_cvtsi32_si128(((const int*)(pA + query_cstep))[0]));
-                        _q = _mm_unpacklo_epi64(_q, _q);
-                        _sumlo = _mm_dpbf16_ps(_sumlo, (__m128bh)_q, (__m128bh)_mm_unpacklo_epi32(_k, _k));
-                        _sumhi = _mm_dpbf16_ps(_sumhi, (__m128bh)_q, (__m128bh)_mm_unpackhi_epi32(_k, _k));
+                        _sum0 = _mm_dpbf16_ps(_sum0, (__m128bh)_mm_set1_epi32(((const int*)pA)[0]), (__m128bh)_k);
+                        _sum1 = _mm_dpbf16_ps(_sum1, (__m128bh)_mm_set1_epi32(((const int*)(pA + query_cstep))[0]), (__m128bh)_k);
                         pA += 2;
                         pK += NR * 2;
                     }
@@ -3690,14 +3860,11 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                     for (; d < head_dim; d++)
                     {
                         const __m128 _k = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pK));
-                        const __m128 _q01 = _mm_set_ps(bfloat16_to_float32(pA[query_cstep]), bfloat16_to_float32(pA[0]), bfloat16_to_float32(pA[query_cstep]), bfloat16_to_float32(pA[0]));
-                        _sumlo = _mm_comp_fmadd_ps(_q01, _mm_unpacklo_ps(_k, _k), _sumlo);
-                        _sumhi = _mm_comp_fmadd_ps(_q01, _mm_unpackhi_ps(_k, _k), _sumhi);
+                        _sum0 = _mm_comp_fmadd_ps(_mm_set1_ps(bfloat16_to_float32(pA[0])), _k, _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_mm_set1_ps(bfloat16_to_float32(pA[query_cstep])), _k, _sum1);
                         pA++;
                         pK += NR;
                     }
-                    __m128 _sum0 = _mm_shuffle_ps(_sumlo, _sumhi, _MM_SHUFFLE(2, 0, 2, 0));
-                    __m128 _sum1 = _mm_shuffle_ps(_sumlo, _sumhi, _MM_SHUFFLE(3, 1, 3, 1));
                     _sum0 = _mm_mul_ps(_sum0, _mm_set1_ps(scale));
                     _sum1 = _mm_mul_ps(_sum1, _mm_set1_ps(scale));
                     if (mask)
@@ -3710,6 +3877,61 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                     _mm_storeu_ps(score1 + jj + k, _sum1);
                     block_max0 = std::max(block_max0, _mm_reduce_max_ps(_sum0));
                     block_max1 = std::max(block_max1, _mm_reduce_max_ps(_sum1));
+                }
+#endif // __SSE2__
+                for (; k + 1 < max_nn; k += 2)
+                {
+                    const unsigned short* pK = key_panel + k;
+                    float sum00 = 0.f;
+                    float sum01 = 0.f;
+                    float sum10 = 0.f;
+                    float sum11 = 0.f;
+                    const unsigned short* pA = query_ptr;
+                    int d = 0;
+#if __AVX512BF16__
+                    pK = key_panel + k * 2;
+                    __m128 _sum = _mm_setzero_ps();
+                    for (; d + 1 < head_dim; d += 2)
+                    {
+                        const __m128i _q0 = _mm_set1_epi32(((const int*)pA)[0]);
+                        const __m128i _q1 = _mm_set1_epi32(((const int*)(pA + query_cstep))[0]);
+                        const __m128i _k0 = _mm_set1_epi32(((const int*)pK)[0]);
+                        const __m128i _k1 = _mm_set1_epi32(((const int*)pK)[1]);
+                        const __m128i _q = _mm_unpacklo_epi64(_q0, _q1);
+                        const __m128i _k = _mm_unpacklo_epi32(_k0, _k1);
+                        _sum = _mm_dpbf16_ps(_sum, (__m128bh)_q, (__m128bh)_k);
+                        pA += 2;
+                        pK += NR * 2;
+                    }
+                    sum00 = _mm_cvtss_f32(_sum);
+                    sum01 = _mm_cvtss_f32(_mm_shuffle_ps(_sum, _sum, _MM_SHUFFLE(1, 1, 1, 1)));
+                    sum10 = _mm_cvtss_f32(_mm_movehl_ps(_sum, _sum));
+                    sum11 = _mm_cvtss_f32(_mm_shuffle_ps(_sum, _sum, _MM_SHUFFLE(3, 3, 3, 3)));
+                    pK = key_panel + (size_t)d * NR + k;
+#endif // __AVX512BF16__
+                    for (; d < head_dim; d++)
+                    {
+                        const float k0 = bfloat16_to_float32(pK[0]);
+                        const float k1 = bfloat16_to_float32(pK[1]);
+                        const float qv0 = bfloat16_to_float32(pA[0]);
+                        const float qv1 = bfloat16_to_float32(pA[query_cstep]);
+                        sum00 += qv0 * k0;
+                        sum01 += qv0 * k1;
+                        sum10 += qv1 * k0;
+                        sum11 += qv1 * k1;
+                        pA++;
+                        pK += NR;
+                    }
+                    sum00 = sum00 * scale + (mask ? bfloat16_to_float32(mask[n + jj + k]) : 0.f);
+                    sum01 = sum01 * scale + (mask ? bfloat16_to_float32(mask[n + jj + k + 1]) : 0.f);
+                    sum10 = sum10 * scale + (mask ? bfloat16_to_float32(mask[mask_cstep + n + jj + k]) : 0.f);
+                    sum11 = sum11 * scale + (mask ? bfloat16_to_float32(mask[mask_cstep + n + jj + k + 1]) : 0.f);
+                    score0[jj + k] = sum00;
+                    score0[jj + k + 1] = sum01;
+                    score1[jj + k] = sum10;
+                    score1[jj + k + 1] = sum11;
+                    block_max0 = std::max(block_max0, std::max(sum00, sum01));
+                    block_max1 = std::max(block_max1, std::max(sum10, sum11));
                 }
                 for (; k < max_nn; k++)
                 {
@@ -3754,6 +3976,7 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
             float sum0 = 0.f;
             float sum1 = 0.f;
             int j = 0;
+#if __SSE2__
 #if __AVX__
 #if __AVX512F__
             __m512 _sum0_avx512 = _mm512_setzero_ps();
@@ -3797,6 +4020,7 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
             }
             sum0 += _mm_reduce_add_ps(_sum0_sse);
             sum1 += _mm_reduce_add_ps(_sum1_sse);
+#endif // __SSE2__
             for (; j < max_jj; j++)
             {
                 score0[j] = expf(score0[j] - m_new0);
@@ -3810,6 +4034,7 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
             m1 = m_new1;
 
             int d = 0;
+#if __SSE2__
 #if __AVX__
 #if __AVX512F__
             for (; d + 15 < value_dim; d += 16)
@@ -3883,6 +4108,37 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                 _mm_storeu_ps(out0 + d, _out0);
                 _mm_storeu_ps(out1 + d, _out1);
             }
+#endif // __SSE2__
+            for (; d + 1 < value_dim; d += 2)
+            {
+                float sum00 = out0[d] * alpha0;
+                float sum01 = out0[d + 1] * alpha0;
+                float sum10 = out1[d] * alpha1;
+                float sum11 = out1[d + 1] * alpha1;
+                const unsigned short* pV_panel = (const unsigned short*)value_cache_head + (size_t)n * value_dim + (size_t)d * NR;
+                for (int jj = 0; jj < max_jj; jj += NR)
+                {
+                    const int max_nn = std::min(NR, max_jj - jj);
+                    const float* pS = score0 + jj;
+                    const unsigned short* pV = pV_panel;
+                    for (int j = 0; j < max_nn; j++)
+                    {
+                        const float v0 = bfloat16_to_float32(pV[0]);
+                        const float v1 = bfloat16_to_float32(pV[1]);
+                        sum00 += pS[0] * v0;
+                        sum01 += pS[0] * v1;
+                        sum10 += pS[block_n] * v0;
+                        sum11 += pS[block_n] * v1;
+                        pS++;
+                        pV += 2;
+                    }
+                    pV_panel += (size_t)NR * value_dim;
+                }
+                out0[d] = sum00;
+                out0[d + 1] = sum01;
+                out1[d] = sum10;
+                out1[d + 1] = sum11;
+            }
             for (; d < value_dim; d++)
             {
                 float sum0 = out0[d] * alpha0;
@@ -3926,6 +4182,7 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
             const float inv_sum0 = l0 == 0.f ? 0.f : 1.f / l0;
             const float inv_sum1 = l1 == 0.f ? 0.f : 1.f / l1;
             int d = 0;
+#if __SSE2__
 #if __AVX__
 #if __AVX512F__
             for (; d + 15 < value_dim; d += 16)
@@ -3948,6 +4205,7 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                 _mm_storeu_ps(p0 + output_cstep, _mm_mul_ps(_mm_loadu_ps(out1 + d), _mm_set1_ps(inv_sum1)));
                 p0 += 4;
             }
+#endif // __SSE2__
             for (; d < value_dim; d++)
             {
                 *p0 = out0[d] * inv_sum0;
@@ -3956,7 +4214,6 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
             }
         }
     }
-#endif // __SSE2__
 
     for (; qq < max_qq; qq++)
     {
@@ -4077,6 +4334,41 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                     block_max = std::max(block_max, _mm_reduce_max_ps(_sum));
                 }
 #endif // __SSE2__
+                for (; k + 1 < max_nn; k += 2)
+                {
+                    const unsigned short* pK = key_panel + k;
+                    const unsigned short* pA = query_ptr;
+                    float sum0 = 0.f;
+                    float sum1 = 0.f;
+                    int d = 0;
+#if __AVX512BF16__
+                    pK = key_panel + k * 2;
+                    __m128 _sum = _mm_setzero_ps();
+                    for (; d + 1 < head_dim; d += 2)
+                    {
+                        const __m128i _q = _mm_set1_epi32(((const int*)pA)[0]);
+                        const __m128i _k0 = _mm_set1_epi32(((const int*)pK)[0]);
+                        const __m128i _k1 = _mm_set1_epi32(((const int*)pK)[1]);
+                        const __m128i _k = _mm_unpacklo_epi32(_k0, _k1);
+                        _sum = _mm_dpbf16_ps(_sum, (__m128bh)_q, (__m128bh)_k);
+                        pA += 2;
+                        pK += NR * 2;
+                    }
+                    sum0 = _mm_cvtss_f32(_sum);
+                    sum1 = _mm_cvtss_f32(_mm_shuffle_ps(_sum, _sum, _MM_SHUFFLE(1, 1, 1, 1)));
+                    pK = key_panel + (size_t)d * NR + k;
+#endif // __AVX512BF16__
+                    for (; d < head_dim; d++)
+                    {
+                        const float qv = bfloat16_to_float32(*pA++);
+                        sum0 += qv * bfloat16_to_float32(pK[0]);
+                        sum1 += qv * bfloat16_to_float32(pK[1]);
+                        pK += NR;
+                    }
+                    score[jj + k] = sum0 * scale + (mask ? bfloat16_to_float32(mask[n + jj + k]) : 0.f);
+                    score[jj + k + 1] = sum1 * scale + (mask ? bfloat16_to_float32(mask[n + jj + k + 1]) : 0.f);
+                    block_max = std::max(block_max, std::max(score[jj + k], score[jj + k + 1]));
+                }
                 for (; k < max_nn; k++)
                 {
                     const unsigned short* pK = key_panel + k;
@@ -4211,6 +4503,27 @@ static void sdpa_decode_kvcache_tile_bf16s(const Mat& query, const Mat& key_cach
                 _mm_storeu_ps(out + d, _out);
             }
 #endif // __SSE2__
+            for (; d + 1 < value_dim; d += 2)
+            {
+                float sum0 = out[d] * alpha;
+                float sum1 = out[d + 1] * alpha;
+                const unsigned short* pV_panel = (const unsigned short*)value_cache_head + (size_t)n * value_dim + (size_t)d * NR;
+                for (int jj = 0; jj < max_jj; jj += NR)
+                {
+                    const int max_nn = std::min(NR, max_jj - jj);
+                    const float* pS = score + jj;
+                    const unsigned short* pV = pV_panel;
+                    for (int j = 0; j < max_nn; j++)
+                    {
+                        sum0 += *pS * bfloat16_to_float32(pV[0]);
+                        sum1 += *pS++ * bfloat16_to_float32(pV[1]);
+                        pV += 2;
+                    }
+                    pV_panel += (size_t)NR * value_dim;
+                }
+                out[d] = sum0;
+                out[d + 1] = sum1;
+            }
             for (; d < value_dim; d++)
             {
                 float sum0 = out[d] * alpha;
@@ -4279,7 +4592,7 @@ static int sdpa_decode_kvcache_bf16s(const Mat& query, const Mat& key_cache, con
 #elif __SSE2__
     const int NR = 4;
 #else
-    const int NR = 1;
+    const int NR = 2;
 #endif
     const int num_qblocks = (num_query_heads_per_kv_head + block_q - 1) / block_q;
     const int num_tasks = num_kv_heads * num_qblocks;
