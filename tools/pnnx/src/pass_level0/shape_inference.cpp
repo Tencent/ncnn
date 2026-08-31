@@ -11,6 +11,7 @@
 #include "pass_level0/inline_block.h"
 #include "pass_level0/reset_device.h"
 #include "pass_level0/shape_inference.h"
+#include <torch/csrc/jit/passes/shape_analysis.h>
 
 namespace pnnx {
 
@@ -370,7 +371,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
                 auto v = values[i];
                 auto t = outputs->elements()[i].toTensor();
 
-                v->setType(c10::TensorType::create(t));
+                v->inferTypeFrom(t);
 
                 // check if value that does not depend on inputs
                 if (value_link_input_map.find(v->debugName()) == value_link_input_map.end() && value_link_output(v, g_outputs))
@@ -396,25 +397,10 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
                 auto t = outputs->elements()[i].toTensor();
                 auto t2 = outputs2->elements()[i].toTensor();
 
-                auto type1 = c10::TensorType::create(t);
-                auto type2 = c10::TensorType::create(t2);
+                v->inferTypeFrom(t);
+                values2[i]->inferTypeFrom(t2);
 
-                std::vector<c10::ShapeSymbol> sizes1 = type1->symbolic_sizes().sizes().value();
-                std::vector<c10::ShapeSymbol> sizes2 = type2->symbolic_sizes().sizes().value();
-
-                bool is_shape_static = true;
-                for (size_t i = 0; i < sizes1.size(); i++)
-                {
-                    if (sizes1[i] == sizes2[i])
-                        continue;
-
-                    sizes1[i] = c10::ShapeSymbol::fromStaticSize(-1);
-                    is_shape_static = false;
-                }
-
-                auto finaltype = type1->withSymbolicShapes(c10::SymbolicShape(sizes1));
-
-                v->setType(finaltype);
+                bool is_shape_static = t.sizes() == t2.sizes();
 
                 // check if value that does not depend on inputs
                 if (is_shape_static && value_link_input_map.find(v->debugName()) == value_link_input_map.end() && value_link_output(v, g_outputs))
@@ -426,6 +412,8 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
                     zip.write_file(v->debugName(), (const char*)t2.data_ptr(), t2.nbytes());
                 }
             }
+
+            torch::jit::mergeTypes(values, values2, values);
         }
     }
 
@@ -435,33 +423,24 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
     {
         for (size_t i = 0; i < input_tensors.size(); i++)
         {
-            auto type = c10::TensorType::create(input_tensors[i]);
-
-            graph->inputs()[1 + i]->setType(type);
+            graph->inputs()[1 + i]->inferTypeFrom(input_tensors[i]);
         }
     }
     else
     {
+        std::shared_ptr<torch::jit::Graph> graph2 = std::make_shared<torch::jit::Graph>();
+        std::vector<torch::jit::Value*> inputs;
+        std::vector<torch::jit::Value*> inputs2;
         for (size_t i = 0; i < input_tensors.size(); i++)
         {
-            auto type1 = c10::TensorType::create(input_tensors[i]);
-            auto type2 = c10::TensorType::create(input_tensors2[i]);
-
-            std::vector<c10::ShapeSymbol> sizes1 = type1->symbolic_sizes().sizes().value();
-            std::vector<c10::ShapeSymbol> sizes2 = type2->symbolic_sizes().sizes().value();
-
-            for (size_t i = 0; i < sizes1.size(); i++)
-            {
-                if (sizes1[i] == sizes2[i])
-                    continue;
-
-                sizes1[i] = c10::ShapeSymbol::fromStaticSize(-1);
-            }
-
-            auto finaltype = type1->withSymbolicShapes(c10::SymbolicShape(sizes1));
-
-            graph->inputs()[1 + i]->setType(finaltype);
+            auto input = graph->inputs()[1 + i];
+            auto input2 = graph2->addInput();
+            input->inferTypeFrom(input_tensors[i]);
+            input2->inferTypeFrom(input_tensors2[i]);
+            inputs.push_back(input);
+            inputs2.push_back(input2);
         }
+        torch::jit::mergeTypes(inputs, inputs2, inputs);
     }
 }
 
