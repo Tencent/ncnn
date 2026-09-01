@@ -133,6 +133,11 @@ int SDPA_loongarch::destroy_pipeline(const Option& _opt)
 
 int SDPA_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
+#if NCNN_BATCH
+    if (kv_cache && bottom_blobs[0].n > 1)
+        return -1;
+#endif // NCNN_BATCH
+
     Option opt = _opt;
     if (int8_scale_term)
     {

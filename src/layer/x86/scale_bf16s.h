@@ -8,12 +8,27 @@ void scale_bf16s_per_element_sse_avx512bf16(unsigned short* ptr, const float* sc
 void scale_bf16s_no_bias_per_element_sse_avx512bf16(unsigned short* ptr, const float* scale, int size, int num_threads);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+void scale_bf16s_sse_avx2(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack);
+void scale_bf16s_no_bias_sse_avx2(unsigned short* ptr, const float* scale, int size, int elempack);
+void scale_bf16s_per_element_sse_avx2(unsigned short* ptr, const float* scale, const float* bias, int size, int num_threads);
+void scale_bf16s_no_bias_per_element_sse_avx2(unsigned short* ptr, const float* scale, int size, int num_threads);
+#endif
+
 static void scale_bf16s_sse(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         scale_bf16s_sse_avx512bf16(ptr, scale, bias, size, elempack);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        scale_bf16s_sse_avx2(ptr, scale, bias, size, elempack);
         return;
     }
 #endif
@@ -78,6 +93,14 @@ static void scale_bf16s_no_bias_sse(unsigned short* ptr, const float* scale, int
     }
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        scale_bf16s_no_bias_sse_avx2(ptr, scale, size, elempack);
+        return;
+    }
+#endif
+
 #if __SSE2__
     __m128 _s128 = (elempack == 4) ? _mm_loadu_ps(scale) : _mm_set1_ps(scale[0]);
 #if __AVX__
@@ -130,6 +153,14 @@ static void scale_bf16s_per_element_sse(unsigned short* ptr, const float* scale,
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         scale_bf16s_per_element_sse_avx512bf16(ptr, scale, bias, size, num_threads);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        scale_bf16s_per_element_sse_avx2(ptr, scale, bias, size, num_threads);
         return;
     }
 #endif
@@ -191,6 +222,14 @@ static void scale_bf16s_no_bias_per_element_sse(unsigned short* ptr, const float
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         scale_bf16s_no_bias_per_element_sse_avx512bf16(ptr, scale, size, num_threads);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        scale_bf16s_no_bias_per_element_sse_avx2(ptr, scale, size, num_threads);
         return;
     }
 #endif

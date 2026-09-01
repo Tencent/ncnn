@@ -3,9 +3,34 @@
 
 #include "sdpa_x86.h"
 
+#include <float.h>
+#include <limits.h>
+
+#if __SSE2__
+#include <emmintrin.h>
+#include "sse_mathfun.h"
+#if __AVX__
+#include <immintrin.h>
+#include "avx_mathfun.h"
+#if __AVX512F__
+#include "avx512_mathfun.h"
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+
+#include "cpu.h"
 #include "layer_type.h"
+#include "x86_usability.h"
 
 namespace ncnn {
+
+#include "sdpa_prefill.h"
+#include "sdpa_decode.h"
+#if NCNN_BF16
+#include "sdpa_prefill_bf16s.h"
+#include "sdpa_decode_bf16s.h"
+#endif // NCNN_BF16
+#include "sdpa_kvcache.h"
 
 SDPA_x86::SDPA_x86()
 {
@@ -133,6 +158,11 @@ int SDPA_x86::destroy_pipeline(const Option& _opt)
 
 int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
+#if NCNN_BATCH
+    if (kv_cache && bottom_blobs[0].n > 1)
+        return -1;
+#endif // NCNN_BATCH
+
     Option opt = _opt;
     if (int8_scale_term)
     {
@@ -155,7 +185,49 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     const int past_seqlen = kv_cache ? past_key.h : 0;
     const int dst_seqlen = past_seqlen + cur_seqlen;
 
-    const size_t elemsize = query.elemsize;
+    const bool fp32 = int8_scale_term == 0
+                      && query.elembits() == 32 && cur_key.elembits() == 32 && cur_value.elembits() == 32
+                      && (!kv_cache || past_key.empty() || (past_key.elembits() == 32 && past_value.elembits() == 32))
+                      && (!attn_mask || attn_mask_blob.elembits() == 32);
+#if NCNN_BF16
+    const bool bf16 = int8_scale_term == 0
+                      && opt.use_bf16_storage
+                      && query.elembits() == 16 && cur_key.elembits() == 16 && cur_value.elembits() == 16
+                      && (!kv_cache || past_key.empty() || (past_key.elembits() == 16 && past_value.elembits() == 16))
+                      && (!attn_mask || attn_mask_blob.elembits() == 16);
+    const bool optimized_storage = fp32 || bf16;
+#else
+    const bool optimized_storage = fp32;
+#endif
+
+    if (optimized_storage)
+    {
+        Mat& top_blob = top_blobs[0];
+        top_blob.create(out_embed_dim, src_seqlen, num_heads, 4u, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        const float _scale = scale == 0.f ? 1.f / sqrtf(embed_dim) : scale;
+        if (fp32)
+        {
+            if (kv_cache)
+                return sdpa_kvcache(query, past_key, past_value, cur_key, cur_value, top_blobs[1], top_blobs[2], attn_mask_blob, top_blob, _scale, opt);
+
+            if (src_seqlen == 1)
+                return sdpa_decode(query, cur_key, cur_value, attn_mask_blob, top_blob, _scale, opt);
+
+            return sdpa_prefill(query, cur_key, cur_value, attn_mask_blob, top_blob, _scale, opt);
+        }
+#if NCNN_BF16
+        if (kv_cache)
+            return sdpa_kvcache_bf16s(query, past_key, past_value, cur_key, cur_value, top_blobs[1], top_blobs[2], attn_mask_blob, top_blob, _scale, opt);
+
+        if (src_seqlen == 1)
+            return sdpa_decode_bf16s(query, cur_key, cur_value, attn_mask_blob, top_blob, _scale, opt);
+
+        return sdpa_prefill_bf16s(query, cur_key, cur_value, attn_mask_blob, top_blob, _scale, opt);
+#endif // NCNN_BF16
+    }
 
     Mat key;
     Mat value;
@@ -165,11 +237,11 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         Mat& cached_key = top_blobs[1];
         Mat& cached_value = top_blobs[2];
 
-        int retk = create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, elemsize, cur_key.elempack, opt);
+        int retk = sdpa_create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, 1, opt);
         if (retk != 0)
             return retk;
 
-        int retv = create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, elemsize, cur_value.elempack, opt);
+        int retv = sdpa_create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, cur_value.elemsize, 1, opt);
         if (retv != 0)
             return retv;
 
@@ -178,8 +250,8 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         {
             Mat key_head = cached_key.channel(q);
             Mat value_head = cached_value.channel(q);
-            memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * elemsize);
-            memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * elemsize);
+            memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * cur_key.elemsize);
+            memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * cur_value.elemsize);
         }
 
         key = cached_key;
@@ -192,6 +264,11 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     }
 
     const int num_heads_per_group = num_heads / num_group;
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create(out_embed_dim, src_seqlen, num_heads, 4u, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
 
     Mat qk_cross(dst_seqlen, src_seqlen, num_heads, 4u, opt.workspace_allocator);
     if (qk_cross.empty())
@@ -293,11 +370,6 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             return -100;
     }
 #endif
-
-    Mat& top_blob = top_blobs[0];
-    top_blob.create(out_embed_dim, src_seqlen, num_heads, 4u, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
 
     // 3. Attn * V
     std::vector<int> retqkvs(num_heads);
