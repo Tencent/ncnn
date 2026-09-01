@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
+
 namespace pnnx {
 
 // torch 的 tensor dtype 序列化枚举(pt2 权重 config / tensor_values 的 dtype
@@ -286,6 +288,55 @@ static int load_weight_attribute(const Pt2Program& program, const Pt2WeightEntry
     return 0;
 }
 
+// 常量前置:builder 惰性创建标量 prim::Constant,在消费者之后追加。
+// fuse_expression(pass_level3)从图尾向图头扫描,常量若先于其消费者被扫到
+// 会先被包成 pnnx.Expression,消费者的算术链融合时无法内联成字面量,产出与
+// torchscript 侧不同的常量 blob 形态(torchscript 侧常量总在消费者之前)。
+// 将每个 prim::Constant 移到其(首个)消费者之前即满足该不变量;其余 op 保持
+// 导出节点序(= 程序序),与 torchscript 侧一致。常量无输入,位置自由。
+static void hoist_constants(Graph& pg)
+{
+    for (size_t i = 0; i < pg.ops.size(); i++)
+    {
+        Operator* op = pg.ops[i];
+        if (op->type != "prim::Constant")
+            continue;
+
+        size_t consumer_pos = pg.ops.size();
+        for (size_t j = 0; j < op->outputs.size(); j++)
+        {
+            const std::vector<Operator*>& consumers = op->outputs[j]->consumers;
+            for (size_t k = 0; k < consumers.size(); k++)
+            {
+                size_t pos = std::find(pg.ops.begin(), pg.ops.end(), consumers[k]) - pg.ops.begin();
+                if (pos < consumer_pos)
+                    consumer_pos = pos;
+            }
+        }
+
+        // 常量在消费者之前(或无消费者)则不动;无消费者的由 dead_code_elimination 清理
+        if (consumer_pos >= pg.ops.size() || consumer_pos > i)
+            continue;
+
+        // 常量在消费者之后(builder 惰性创建的常态)→ 前移到消费者之前
+        pg.ops.erase(pg.ops.begin() + i);
+        pg.ops.insert(pg.ops.begin() + consumer_pos, op);
+        i--; // 补偿 erase 的位置偏移,下一轮从原位继续
+    }
+}
+
+// 切分族:torch.export 图内直接产出多输出(getitem 已被 exporter 折叠为
+// as_tensors 列表),torchscript 侧是 1 输出 + prim::ListUnpack 形态,由
+// fuse_op1ton_unpack(level3)折叠回多输出。转写为 ts 同构形态,使现有
+// torch_unbind / torch_split / torch_chunk / torch_tensor_split 形态分支
+// (1 输出 pattern)零改动匹配。
+static bool pt2_target_unpackable(const std::string& op_type)
+{
+    return op_type == "aten::unbind" || op_type == "aten::split"
+           || op_type == "aten::split_with_sizes" || op_type == "aten::chunk"
+           || op_type == "aten::tensor_split";
+}
+
 int load_pt2(const std::string& ptpath, Graph& pg,
              const std::vector<std::vector<int64_t> >& input_shapes,
              const std::vector<std::string>& input_types)
@@ -540,11 +591,41 @@ int load_pt2(const std::string& ptpath, Graph& pg,
             op->inputs.push_back(r);
         }
 
+        // 收集节点全部输出张量名(torch 2.13 的元组输出 = 单 spec 多 as_tensors)
+        std::vector<std::string> out_tensor_names;
         for (size_t j = 0; j < node.outputs.size(); j++)
         {
             for (size_t k = 0; k < node.outputs[j].tensor_names.size(); k++)
             {
-                Operand* r = pg.new_operand(node.outputs[j].tensor_names[k]);
+                out_tensor_names.push_back(node.outputs[j].tensor_names[k]);
+            }
+        }
+
+        if (pt2_target_unpackable(op->type) && out_tensor_names.size() > 1)
+        {
+            // 切分族:1 输出(list)+ prim::ListUnpack,对齐 ts level1 形态
+            Operand* list_out = pg.new_operand(node.name + ".out");
+            list_out->producer = op;
+            op->outputs.push_back(list_out);
+
+            Operator* op_unpack = pg.new_operator("prim::ListUnpack",
+                                                  "pnnx_" + std::to_string(pnnx_unknown_index++));
+
+            list_out->consumers.push_back(op_unpack);
+            op_unpack->inputs.push_back(list_out);
+
+            for (size_t j = 0; j < out_tensor_names.size(); j++)
+            {
+                Operand* r = pg.new_operand(out_tensor_names[j]);
+                r->producer = op_unpack;
+                op_unpack->outputs.push_back(r);
+            }
+        }
+        else
+        {
+            for (size_t j = 0; j < out_tensor_names.size(); j++)
+            {
+                Operand* r = pg.new_operand(out_tensor_names[j]);
                 r->producer = op;
                 op->outputs.push_back(r);
             }
@@ -591,6 +672,9 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         r->consumers.push_back(op);
         op->inputs.push_back(r);
     }
+
+    // 5. 常量前置:满足 fuse_expression 反向扫描的内联不变量(见函数注释)
+    hoist_constants(pg);
 
     return 0;
 }
