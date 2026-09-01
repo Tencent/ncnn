@@ -19,6 +19,89 @@
 
 namespace pnnx {
 
+// pt2 形态分支:torch.ones_like 常量折叠。
+// torchscript 侧 pass_level0 用 libtorch 实跑模型,把"值不依赖输入"的子图
+// (如 maximum(z, ones_like(z)+0.5) 中的 ones_like(z)+0.5)折成常量;pt2
+// 路径零 libtorch,而 ones_like 的值语义恒为全 1,可静态折叠:ones_like +
+// add(标量) → 全 (1 + alpha*other) 的 pnnx.Attribute,使后续 fuse_expression
+// 的表达式形态与 torchscript 侧一致。仅匹配"直接被 add(标量常量) 消费"的
+// 形态(现行语料的唯一形态);other 为张量等不满足条件的形态不匹配,保持
+// 原样显式失败。
+class F_pt2_fold_ones_like : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        // 匹配 torch_ones_like(pass_level2,priority 20)归一后的形态;
+        // ones_like 的可省实参已由该 pass 与默认值表消化
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_0     0 1 input
+torch.ones_like         op_0        1 1 input ones_out dtype=%ones_dtype
+prim::Constant          op_c        0 1 other value=%other
+prim::Constant          op_a        0 1 alpha value=%alpha
+aten::add               op_1        3 1 ones_out other alpha out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "pnnx.Attribute";
+    }
+
+    const char* name_str() const
+    {
+        // 对齐 torchscript 侧 fold_constants 的产物命名(normalize 后比对)
+        return "pnnx_fold";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        // other 为标量(float/int),alpha 为数值;张量 other 不折叠
+        const Parameter& other = captured_params.at("other");
+        const Parameter& alpha = captured_params.at("alpha");
+        if (other.type != 2 && other.type != 3)
+            return false;
+        if (alpha.type != 2 && alpha.type != 3)
+            return false;
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params,
+               const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const Parameter& other = captured_params.at("other");
+        const Parameter& alpha = captured_params.at("alpha");
+
+        const float scalar_other = (other.type == 2) ? (float)other.i : other.f;
+        const float scalar_alpha = (alpha.type == 2) ? (float)alpha.i : alpha.f;
+        const float folded_value = 1.f + scalar_alpha * scalar_other;
+
+        // op->outputs[0] = 原 add 输出 operand,shape/dtype 来自文件元数据
+        const Operand* out = op->outputs[0];
+        if (out->type != 1 || out->shape.empty())
+            return; // 非 f32 或 shape 缺失:保留空 Attribute,后续显式失败
+
+        Attribute attr;
+        attr.type = 1;
+        attr.shape = out->shape;
+
+        size_t elem_count = 1;
+        for (size_t i = 0; i < attr.shape.size(); i++)
+            elem_count *= (size_t)attr.shape[i];
+
+        attr.data.resize(elem_count * sizeof(float));
+        float* p = (float*)attr.data.data();
+        for (size_t i = 0; i < elem_count; i++)
+            p[i] = folded_value;
+
+        op->attrs["data"] = attr;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pt2_fold_ones_like, 90)
+
 // pt2 形态分支:weight_norm 参数化权重。
 // torch.export 保留 aten::_weight_norm(v, g, dim) 节点;torchscript 侧在
 // level1 模块转换(nn_Conv*.cpp)时已用 utils.cpp 的 apply_weight_norm 把
@@ -61,8 +144,11 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
-        // 与 level1 模块转换一致只折沿 axis0 的形态
-        if (captured_params.at("dim").type != 2 || captured_params.at("dim").i != 0)
+        // 与 level1 模块转换一致只折沿 axis0 的形态;dim 在 schema 里是
+        // float(export 物化为 as_float),接受 int/float 两种编码
+        const Parameter& dim = captured_params.at("dim");
+        const float dim_value = (dim.type == 2) ? (float)dim.i : ((dim.type == 3) ? dim.f : -1.f);
+        if (dim_value != 0.f)
             return false;
 
         const Attribute& attr_v = captured_attrs.at("op_v.data");

@@ -202,7 +202,20 @@ static bool argument_to_constant(const Pt2Argument& a, Parameter& value)
         return true;
     case Pt2Argument::INT:
     case Pt2Argument::SCALAR_TYPE:
+    case Pt2Argument::MEMORY_FORMAT:
+        // dtype / memory_format 枚举按整数值转写(与 ts 侧常量物化一致)
         value = Parameter((long long)a.int_value);
+        return true;
+    case Pt2Argument::DEVICE:
+        // device 实参:空 type 视作 None,否则按字符串("cpu")转写
+        if (a.device_type.empty())
+        {
+            value = Parameter();
+        }
+        else
+        {
+            value = Parameter(a.device_type);
+        }
         return true;
     case Pt2Argument::INTS:
     {
@@ -453,6 +466,10 @@ static bool pt2_module_form_allowed(const std::string& cls, const std::string& a
         return aten == "aten::upsample_nearest2d";
     if (cls == "UpsamplingBilinear2d")
         return aten == "aten::upsample_bilinear2d";
+    if (cls == "LayerNorm")
+        return aten == "aten::layer_norm";
+    if (cls == "RMSNorm")
+        return aten == "aten::rms_norm";
     return false;
 }
 
@@ -516,6 +533,16 @@ static std::string pt2_module_param_key(const std::string& cls, const std::strin
             return "size";
         if (name == "scale_factors")
             return "scale_factor";
+        return "";
+    }
+
+    if (cls == "LayerNorm" || cls == "RMSNorm")
+    {
+        // elementwise_affine 不在 aten 形参里(ts 侧由模块属性判定),在
+        // 节点转写处按 weight/bias 实参是否存在手动补;weight/bias 张量走
+        // operand(与 ts level1 模块产出同构);cudnn_enable 不折
+        if (name == "normalized_shape" || name == "eps")
+            return name;
         return "";
     }
 
@@ -665,6 +692,17 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                         return -1;
                     }
 
+                    // LayerNorm/RMSNorm 的 γ/β:ts level1 模块转换把它们折为
+                    // op attrs(pass_ncnn 的 pattern 按 @weight/@bias 捕获),
+                    // 与一般权重的 operand 形态不同
+                    if ((module_class == "LayerNorm" || module_class == "RMSNorm")
+                        && (input.name == "weight" || input.name == "bias") && r->producer
+                        && r->producer->type == "pnnx.Attribute")
+                    {
+                        op->attrs[input.name] = r->producer->attrs["data"];
+                        continue;
+                    }
+
                     r->consumers.push_back(op);
                     op->inputs.push_back(r);
                     continue;
@@ -784,6 +822,22 @@ int load_pt2(const std::string& ptpath, Graph& pg,
             // Bilinear2d 的类名即 mode,level1 转换不折 mode)
             if (module_class == "Upsample")
                 op->params["mode"] = std::string(pt2_upsample_mode(aten_type));
+
+            // LayerNorm/RMSNorm 的 elementwise_affine 由 weight 实参是否存在
+            // 判定(ts 侧为模块属性 hasattr("weight"))
+            if (module_class == "LayerNorm" || module_class == "RMSNorm")
+            {
+                bool has_weight = false;
+                for (size_t j = 0; j < node.inputs.size(); j++)
+                {
+                    if (node.inputs[j].name == "weight" && node.inputs[j].arg.type == Pt2Argument::TENSOR)
+                    {
+                        has_weight = true;
+                        break;
+                    }
+                }
+                op->params["elementwise_affine"] = has_weight;
+            }
 
             // 输出收集与 F. 形态共用(见循环尾);模块形态必非切分族
         }

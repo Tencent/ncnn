@@ -87,7 +87,14 @@ def run_pt2_test(net, inputs, inputshape_str, base_name, atol=1e-4, device="cpu"
             net.load_model(base_name + ".ncnn.bin")
             with net.create_extractor() as ex:
                 for i, t in enumerate(inputs):
-                    ex.input(f"in{i}", ncnn.Mat(np.ascontiguousarray(t.numpy(), dtype=np.float32), batch_index=in_batch_index).clone())
+                    tnp = np.ascontiguousarray(t.numpy(), dtype=np.float32)
+                    # batch_index=233 时 ncnn 把输入首维当 channel 维:3D 输入的
+                    # size-1 batch 维((1,4,8))会被解读成 c=1 只算一份,与
+                    # torch 的 batch 语义错位;先剥掉该维喂 2D(h,w),与
+                    # ncnn 对 (h,w) 的 Gemm 语义对齐
+                    if in_batch_index == 233 and tnp.ndim >= 3 and tnp.shape[0] == 1:
+                        tnp = tnp.reshape(tnp.shape[1:])
+                    ex.input(f"in{i}", ncnn.Mat(tnp, batch_index=in_batch_index).clone())
                 for nm in out_names:
                     _, o = ex.extract(nm)
                     outs.append(torch.from_numpy(o.numpy(batch_index=out_batch_index)))
@@ -109,6 +116,10 @@ def run_pt2_test(net, inputs, inputshape_str, base_name, atol=1e-4, device="cpu"
         print(f"[dbg] a[:3]={a[0].flatten()[:3].tolist()} b[:3]={b[0].flatten()[:3].tolist()} net_w[:3]={w_dbg}")
     ok = True
     for i, (a0, b0) in enumerate(zip(a, b)):
+        # ncnn 输出在 batch_index=0 语义下剥掉了 batch 维((4,8,8) vs torch
+        # (1,4,8,8));元素数相同则还原形状再比,避免广播错比
+        if b0.shape != a0.shape and b0.numel() == a0.numel():
+            b0 = b0.reshape(a0.shape)
         if torch.allclose(a0, b0, atol, atol):
             print(f"[pt2] out[{i}]  shape a={tuple(a0.shape)} b={tuple(b0.shape)}  MATCH")
         else:
