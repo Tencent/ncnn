@@ -6,15 +6,22 @@ static inline float yolov3_sigmoid(float x)
     return 1.f / (1.f + expf(-x));
 }
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
 int yolov3detectionoutput_fp32_fma(const Yolov3DetectionOutput& self, const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+int yolov3detectionoutput_fp32_fma4(const Yolov3DetectionOutput& self, const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt);
 #endif
 
 static int yolov3detectionoutput_fp32(const Yolov3DetectionOutput& self, const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
         return yolov3detectionoutput_fp32_fma(self, bottom_blobs, top_blobs, opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+        return yolov3detectionoutput_fp32_fma4(self, bottom_blobs, top_blobs, opt);
 #endif
 
     typedef Yolov3DetectionOutput::BBoxRect BBoxRect;

@@ -1,15 +1,22 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
 int gridsample_fp32_fma(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int sample_type, int padding_mode, int align_corner, int permute_fusion, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+int gridsample_fp32_fma4(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int sample_type, int padding_mode, int align_corner, int permute_fusion, const Option& opt);
 #endif
 
 static int gridsample_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int sample_type, int padding_mode, int align_corner, int permute_fusion, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
         return gridsample_fp32_fma(bottom_blobs, top_blobs, sample_type, padding_mode, align_corner, permute_fusion, opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+        return gridsample_fp32_fma4(bottom_blobs, top_blobs, sample_type, padding_mode, align_corner, permute_fusion, opt);
 #endif
 
     const Mat& bottom_blob = bottom_blobs[0];

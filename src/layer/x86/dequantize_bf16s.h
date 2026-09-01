@@ -9,8 +9,11 @@ void dequantize_forward_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, 
 void dequantize_forward_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Mat& bias_data, int bias_data_size, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
 void dequantize_forward_bf16s_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Mat& bias_data, int bias_data_size, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void dequantize_forward_bf16s_fma4(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Mat& bias_data, int bias_data_size, const Option& opt);
 #endif
 
 static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& scale_data, const Mat& bias_data, int elemcount, int elempack)
@@ -222,10 +225,17 @@ static int dequantize_forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
         return 0;
     }
 #endif
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma())
     {
         dequantize_forward_bf16s_fma(bottom_blob, top_blob, scale_data, scale_data_size, bias_data, bias_data_size, opt);
+        return 0;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        dequantize_forward_bf16s_fma4(bottom_blob, top_blob, scale_data, scale_data_size, bias_data, bias_data_size, opt);
         return 0;
     }
 #endif

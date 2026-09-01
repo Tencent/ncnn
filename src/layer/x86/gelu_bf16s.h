@@ -9,8 +9,11 @@ void gelu_bf16s_avx512bf16(Mat& a, int fast_gelu, const Option& opt);
 void gelu_bf16s_avx2(Mat& a, int fast_gelu, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
 void gelu_bf16s_fma(Mat& a, int fast_gelu, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void gelu_bf16s_fma4(Mat& a, int fast_gelu, const Option& opt);
 #endif
 
 static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
@@ -30,10 +33,17 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
         return;
     }
 #endif
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma())
     {
         gelu_bf16s_fma(a, fast_gelu, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        gelu_bf16s_fma4(a, fast_gelu, opt);
         return;
     }
 #endif

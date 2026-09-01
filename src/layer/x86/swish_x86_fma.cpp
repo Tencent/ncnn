@@ -10,13 +10,17 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
 #include "swish_bf16s.h"
+#endif // NCNN_BF16
 #include "swish_fp32.h"
 
+#if NCNN_BF16
 void swish_bf16s_fma(Mat& a, const Option& opt)
 {
     swish_bf16s(a, opt);
 }
+#endif // NCNN_BF16
 
 void swish_fp32_fma(Mat& bottom_top_blob, const Option& opt)
 {

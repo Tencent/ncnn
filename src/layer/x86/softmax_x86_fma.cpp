@@ -34,6 +34,7 @@ void softmax_pack1_fma(float* ptr, int elemcount, size_t stride, int size1, floa
     softmax_pack1(ptr, elemcount, stride, size1, maxptr, sumptr);
 }
 
+#if NCNN_BF16
 #include "softmax_bf16s.h"
 
 void softmax_bf16s_sse_fma(unsigned short* _ptr, int elemcount, int elempack)
@@ -55,5 +56,6 @@ void softmax_bf16s_pack8_sse_fma(unsigned short* _ptr, int elemcount, size_t str
 {
     softmax_bf16s_pack8_sse(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn

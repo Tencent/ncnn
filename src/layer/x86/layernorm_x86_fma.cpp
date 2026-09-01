@@ -7,13 +7,17 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
 #include "layernorm_bf16s.h"
+#endif // NCNN_BF16
 #include "layernorm_fp32.h"
 
+#if NCNN_BF16
 void layernorm_bf16s_sse_fma(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack)
 {
     layernorm_bf16s_sse(ptr, gamma_ptr, beta_ptr, eps, elemcount, elempack);
 }
+#endif // NCNN_BF16
 
 void layernorm_fma(float* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack)
 {

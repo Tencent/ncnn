@@ -14,6 +14,7 @@ namespace ncnn {
 
 #include "unaryop_fp32.h"
 
+#if NCNN_BF16
 #include "unaryop_bf16s.h"
 
 int unaryop_bf16s_sse_fma(Mat& bottom_top_blob, int op_type, const Option& opt)
@@ -116,6 +117,7 @@ int unaryop_bf16s_sse_fma(Mat& bottom_top_blob, int op_type, const Option& opt)
 
     return 0;
 }
+#endif // NCNN_BF16
 
 int unaryop_fp32_fma(Mat& bottom_top_blob, int op_type, const Option& opt)
 {

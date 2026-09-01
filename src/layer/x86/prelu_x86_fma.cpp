@@ -11,6 +11,7 @@ namespace ncnn {
 
 #include "prelu_fp32.h"
 
+#if NCNN_BF16
 #include "prelu_bf16s.h"
 
 void prelu_bf16s_sse_fma(unsigned short* ptr, const float* slope, int size, int elempack)
@@ -27,6 +28,7 @@ void prelu_bf16s_single_slope_sse_fma(unsigned short* ptr, float slope, int size
 {
     prelu_bf16s_single_slope_sse(ptr, slope, size, num_threads);
 }
+#endif // NCNN_BF16
 
 void prelu_fp32_fma(Mat& bottom_top_blob, const Mat& slope_data, int num_slope, const Option& opt)
 {

@@ -195,15 +195,22 @@ void original_pre_calc_for_bilinear_interpolate(
     }
 }
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
 int roialign_fp32_fma(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int pooled_width, int pooled_height, float spatial_scale, int sampling_ratio, int aligned, int version, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+int roialign_fp32_fma4(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int pooled_width, int pooled_height, float spatial_scale, int sampling_ratio, int aligned, int version, const Option& opt);
 #endif
 
 static int roialign_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int pooled_width, int pooled_height, float spatial_scale, int sampling_ratio, int aligned, int version, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
         return roialign_fp32_fma(bottom_blobs, top_blobs, pooled_width, pooled_height, spatial_scale, sampling_ratio, aligned, version, opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+        return roialign_fp32_fma4(bottom_blobs, top_blobs, pooled_width, pooled_height, spatial_scale, sampling_ratio, aligned, version, opt);
 #endif
 
     const Mat& bottom_blob = bottom_blobs[0];

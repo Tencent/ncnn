@@ -9,8 +9,11 @@ void swish_bf16s_avx512bf16(Mat& a, const Option& opt);
 void swish_bf16s_avx2(Mat& a, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
 void swish_bf16s_fma(Mat& a, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void swish_bf16s_fma4(Mat& a, const Option& opt);
 #endif
 
 static void swish_bf16s(Mat& a, const Option& opt)
@@ -30,10 +33,17 @@ static void swish_bf16s(Mat& a, const Option& opt)
         return;
     }
 #endif
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma())
     {
         swish_bf16s_fma(a, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        swish_bf16s_fma4(a, opt);
         return;
     }
 #endif

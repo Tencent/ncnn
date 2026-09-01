@@ -1,16 +1,26 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
 void deformableconv2d_im2col_fma(const Mat& bottom_blob, const Mat& offset_unpacked, const Mat& mask_unpacked, Mat& bottom_im2col, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int pad_left, int pad_top, int outw, int outh, int has_mask, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+void deformableconv2d_im2col_fma4(const Mat& bottom_blob, const Mat& offset_unpacked, const Mat& mask_unpacked, Mat& bottom_im2col, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int pad_left, int pad_top, int outw, int outh, int has_mask, const Option& opt);
 #endif
 
 static void deformableconv2d_im2col(const Mat& bottom_blob, const Mat& offset_unpacked, const Mat& mask_unpacked, Mat& bottom_im2col, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int pad_left, int pad_top, int outw, int outh, int has_mask, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
     {
         deformableconv2d_im2col_fma(bottom_blob, offset_unpacked, mask_unpacked, bottom_im2col, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, outw, outh, has_mask, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        deformableconv2d_im2col_fma4(bottom_blob, offset_unpacked, mask_unpacked, bottom_im2col, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, outw, outh, has_mask, opt);
         return;
     }
 #endif

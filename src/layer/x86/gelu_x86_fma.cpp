@@ -10,13 +10,17 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
 #include "gelu_bf16s.h"
+#endif // NCNN_BF16
 #include "gelu_fp32.h"
 
+#if NCNN_BF16
 void gelu_bf16s_fma(Mat& a, int fast_gelu, const Option& opt)
 {
     gelu_bf16s(a, fast_gelu, opt);
 }
+#endif // NCNN_BF16
 
 void gelu_fp32_fma(Mat& bottom_top_blob, int fast_gelu, const Option& opt)
 {

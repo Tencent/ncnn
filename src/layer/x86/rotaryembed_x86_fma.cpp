@@ -9,12 +9,14 @@ namespace ncnn {
 
 #include "rotaryembed_fp32.h"
 
+#if NCNN_BF16
 #include "rotaryembed_bf16s.h"
 
 void rotaryembed_bf16s_fma(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt)
 {
     rotaryembed_bf16s(bottom_blob, cos_cache, sin_cache, top_blob, interleaved, opt);
 }
+#endif // NCNN_BF16
 
 int rotaryembed_fp32_fma(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int interleaved, const Option& opt)
 {

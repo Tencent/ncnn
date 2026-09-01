@@ -10,13 +10,17 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
 #include "selu_bf16s.h"
+#endif // NCNN_BF16
 #include "selu_fp32.h"
 
+#if NCNN_BF16
 void selu_bf16s_fma(Mat& a, float alphaxlambda, float lambda, const Option& opt)
 {
     selu_bf16s(a, alphaxlambda, lambda, opt);
 }
+#endif // NCNN_BF16
 
 void selu_fp32_fma(Mat& bottom_top_blob, float alpha, float lambda, const Option& opt)
 {

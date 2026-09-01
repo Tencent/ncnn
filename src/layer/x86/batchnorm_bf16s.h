@@ -11,9 +11,13 @@ void batchnorm_bf16s_sse_avx2(unsigned short* ptr, const float* a, const float* 
 void batchnorm_bf16s_per_element_sse_avx2(unsigned short* ptr, const float* a, const float* b, int size, int num_threads);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
 void batchnorm_bf16s_sse_fma(unsigned short* ptr, const float* a, const float* b, int size, int elempack);
 void batchnorm_bf16s_per_element_sse_fma(unsigned short* ptr, const float* a, const float* b, int size, int num_threads);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void batchnorm_bf16s_sse_fma4(unsigned short* ptr, const float* a, const float* b, int size, int elempack);
+void batchnorm_bf16s_per_element_sse_fma4(unsigned short* ptr, const float* a, const float* b, int size, int num_threads);
 #endif
 
 static void batchnorm_bf16s_sse(unsigned short* ptr, const float* a, const float* b, int size, int elempack)
@@ -33,10 +37,17 @@ static void batchnorm_bf16s_sse(unsigned short* ptr, const float* a, const float
         return;
     }
 #endif
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma())
     {
         batchnorm_bf16s_sse_fma(ptr, a, b, size, elempack);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        batchnorm_bf16s_sse_fma4(ptr, a, b, size, elempack);
         return;
     }
 #endif
@@ -109,10 +120,17 @@ static void batchnorm_bf16s_per_element_sse(unsigned short* ptr, const float* a,
         return;
     }
 #endif
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma())
     {
         batchnorm_bf16s_per_element_sse_fma(ptr, a, b, size, num_threads);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        batchnorm_bf16s_per_element_sse_fma4(ptr, a, b, size, num_threads);
         return;
     }
 #endif

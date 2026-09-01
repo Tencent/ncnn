@@ -1,15 +1,22 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
 int lrn_fp32_fma(Mat& bottom_top_blob, int region_type, int local_size, float alpha, float beta, float bias, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+int lrn_fp32_fma4(Mat& bottom_top_blob, int region_type, int local_size, float alpha, float beta, float bias, const Option& opt);
 #endif
 
 static int lrn_fp32(Mat& bottom_top_blob, int region_type, int local_size, float alpha, float beta, float bias, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
         return lrn_fp32_fma(bottom_top_blob, region_type, local_size, alpha, beta, bias, opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+        return lrn_fp32_fma4(bottom_top_blob, region_type, local_size, alpha, beta, bias, opt);
 #endif
 
     int w = bottom_top_blob.w;

@@ -6,8 +6,11 @@ void innerproduct_fp16s_sse_f16c(const Mat& bottom_blob, Mat& top_blob, const Ma
 void innerproduct_transform_kernel_fp16s_sse_f16c(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
 #endif
 
-#if !NCNN_IMPL_FP16S && NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if !NCNN_IMPL_FP16S && NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
 void innerproduct_sse_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+#if !NCNN_IMPL_FP16S && NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+void innerproduct_sse_fma4(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
 
 #if NCNN_IMPL_FP16S
@@ -16,10 +19,17 @@ static void innerproduct_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, const 
 static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 #endif
 {
-#if !NCNN_IMPL_FP16S && NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if !NCNN_IMPL_FP16S && NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
     {
         innerproduct_sse_fma(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        return;
+    }
+#endif
+#if !NCNN_IMPL_FP16S && NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        innerproduct_sse_fma4(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
         return;
     }
 #endif

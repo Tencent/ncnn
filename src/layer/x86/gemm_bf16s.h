@@ -17,8 +17,11 @@ void transpose_pack_B_tile_bf16_avx2(const Mat& B, Mat& BT, int j, int max_jj, i
 void gemm_transB_packed_tile_bf16s_avx2(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
 void gemm_transB_packed_tile_bf16s_fma(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void gemm_transB_packed_tile_bf16s_fma4(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk);
 #endif
 
 static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
@@ -2188,10 +2191,17 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma())
     {
         gemm_transB_packed_tile_bf16s_fma(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        gemm_transB_packed_tile_bf16s_fma4(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
         return;
     }
 #endif
@@ -3550,8 +3560,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 __m256 _pB0 = _mm256_castsi256_ps(_mm256_slli_epi32(_pB, 16));
                 __m256 _pA1 = _mm256_castsi256_ps(_mm256_and_si256(_pA, _mask));
                 __m256 _pB1 = _mm256_castsi256_ps(_mm256_and_si256(_pB, _mask));
-                _sum0 = _mm256_fmadd_ps(_pA0, _pB0, _sum0);
-                _sum1 = _mm256_fmadd_ps(_pA1, _pB1, _sum1);
+                _sum0 = _mm256_comp_fmadd_ps(_pA0, _pB0, _sum0);
+                _sum1 = _mm256_comp_fmadd_ps(_pA1, _pB1, _sum1);
 #else
                 _sum0 = _mm256_dpbf16_ps(_sum0, (__m256bh)_pA, (__m256bh)_pB);
 #endif
@@ -3699,8 +3709,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 __m128 _pB0 = _mm_castsi128_ps(_mm_slli_epi32(_pB, 16));
                 __m128 _pA1 = _mm_castsi128_ps(_mm_and_si128(_pA, _mask));
                 __m128 _pB1 = _mm_castsi128_ps(_mm_and_si128(_pB, _mask));
-                _sum0 = _mm_fmadd_ps(_pA0, _pB0, _sum0);
-                _sum1 = _mm_fmadd_ps(_pA1, _pB1, _sum1);
+                _sum0 = _mm_comp_fmadd_ps(_pA0, _pB0, _sum0);
+                _sum1 = _mm_comp_fmadd_ps(_pA1, _pB1, _sum1);
 #else
                 _sum0 = _mm_dpbf16_ps(_sum0, (__m128bh)_pA, (__m128bh)_pB);
 #endif

@@ -22,11 +22,13 @@ void gemm_transB_packed_tile_fma(const Mat& AT_tile, const Mat& BT_tile, const M
     gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
 }
 
+#if NCNN_BF16
 #include "gemm_bf16s.h"
 
 void gemm_transB_packed_tile_bf16s_fma(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk)
 {
     gemm_transB_packed_tile_bf16s(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn

@@ -9,8 +9,11 @@ void rotaryembed_bf16s_avx512bf16(const Mat& bottom_blob, const Mat& cos_cache, 
 void rotaryembed_bf16s_avx2(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
 void rotaryembed_bf16s_fma(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void rotaryembed_bf16s_fma4(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt);
 #endif
 
 static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt)
@@ -30,10 +33,17 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
         return;
     }
 #endif
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma())
     {
         rotaryembed_bf16s_fma(bottom_blob, cos_cache, sin_cache, top_blob, interleaved, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        rotaryembed_bf16s_fma4(bottom_blob, cos_cache, sin_cache, top_blob, interleaved, opt);
         return;
     }
 #endif
@@ -120,8 +130,8 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
                     __m256 ss0 = _mm256_mul_ps(swap0, s0);
                     __m256 ss1 = _mm256_mul_ps(swap1, s1);
 
-                    __m256 y0 = _mm256_fmaddsub_ps(a0, c0, ss0);
-                    __m256 y1 = _mm256_fmaddsub_ps(a1, c1, ss1);
+                    __m256 y0 = _mm256_comp_fmaddsub_ps(a0, c0, ss0);
+                    __m256 y1 = _mm256_comp_fmaddsub_ps(a1, c1, ss1);
 
                     _mm_storeu_si128((__m128i*)outptr, float2bfloat_avx(y0));
                     _mm_storeu_si128((__m128i*)(outptr + 8), float2bfloat_avx(y1));
@@ -164,9 +174,9 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
                     __m256 ss0 = _mm256_mul_ps(swap0, s0);
                     __m256 ss1 = _mm256_mul_ps(swap1, s1);
 
-#if __FMA__
-                    __m256 y0 = _mm256_fmaddsub_ps(a0, c0, ss0);
-                    __m256 y1 = _mm256_fmaddsub_ps(a1, c1, ss1);
+#if __FMA__ || __FMA4__
+                    __m256 y0 = _mm256_comp_fmaddsub_ps(a0, c0, ss0);
+                    __m256 y1 = _mm256_comp_fmaddsub_ps(a1, c1, ss1);
 #else
                     __m256 ac0 = _mm256_mul_ps(a0, c0);
                     __m256 ac1 = _mm256_mul_ps(a1, c1);
@@ -204,9 +214,9 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
 
                     __m128 ss0 = _mm_mul_ps(swap0, slo);
                     __m128 ss1 = _mm_mul_ps(swap1, shi);
-#if __FMA__
-                    __m128 y0 = _mm_fmaddsub_ps(a0, clo, ss0);
-                    __m128 y1 = _mm_fmaddsub_ps(a1, chi, ss1);
+#if __FMA__ || __FMA4__
+                    __m128 y0 = _mm_comp_fmaddsub_ps(a0, clo, ss0);
+                    __m128 y1 = _mm_comp_fmaddsub_ps(a1, chi, ss1);
 #else
                     __m128 ac0 = _mm_mul_ps(a0, clo);
                     __m128 ac1 = _mm_mul_ps(a1, chi);
@@ -252,8 +262,8 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
                     __m128 swap = _mm_shuffle_ps(a, a, _MM_SHUFFLE(2, 3, 0, 1));
                     __m128 ss = _mm_mul_ps(swap, s);
 
-#if __FMA__
-                    __m128 y = _mm_fmaddsub_ps(a, c, ss);
+#if __FMA__ || __FMA4__
+                    __m128 y = _mm_comp_fmaddsub_ps(a, c, ss);
 #else
                     __m128 ac = _mm_mul_ps(a, c);
 #if __SSE3__

@@ -9,8 +9,11 @@ void hardsigmoid_bf16s_avx512bf16(Mat& a, float alpha, float beta, const Option&
 void hardsigmoid_bf16s_avx2(Mat& a, float alpha, float beta, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
 void hardsigmoid_bf16s_fma(Mat& a, float alpha, float beta, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void hardsigmoid_bf16s_fma4(Mat& a, float alpha, float beta, const Option& opt);
 #endif
 
 static void hardsigmoid_bf16s(Mat& a, float alpha, float beta, const Option& opt)
@@ -30,10 +33,17 @@ static void hardsigmoid_bf16s(Mat& a, float alpha, float beta, const Option& opt
         return;
     }
 #endif
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma())
     {
         hardsigmoid_bf16s_fma(a, alpha, beta, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        hardsigmoid_bf16s_fma4(a, alpha, beta, opt);
         return;
     }
 #endif

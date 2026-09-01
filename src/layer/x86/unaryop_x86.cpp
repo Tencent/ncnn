@@ -61,8 +61,11 @@ int unaryop_bf16s_sse_avx512bf16(Mat& bottom_top_blob, int op_type, const Option
 int unaryop_bf16s_sse_avx2(Mat& bottom_top_blob, int op_type, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
 int unaryop_bf16s_sse_fma(Mat& bottom_top_blob, int op_type, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+int unaryop_bf16s_sse_fma4(Mat& bottom_top_blob, int op_type, const Option& opt);
 #endif
 
 
@@ -81,10 +84,16 @@ static int unaryop_bf16s_sse(Mat& bottom_top_blob, int op_type, const Option& op
         return unaryop_bf16s_sse_avx2(bottom_top_blob, op_type, opt);
     }
 #endif
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (unaryop_use_fma(op_type) && ncnn::cpu_support_x86_fma())
     {
         return unaryop_bf16s_sse_fma(bottom_top_blob, op_type, opt);
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (unaryop_use_fma(op_type) && ncnn::cpu_support_x86_fma4())
+    {
+        return unaryop_bf16s_sse_fma4(bottom_top_blob, op_type, opt);
     }
 #endif
 

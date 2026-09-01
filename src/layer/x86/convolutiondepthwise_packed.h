@@ -1,16 +1,26 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
 void convolutiondepthwise_packed8_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data, const Mat& bias_data, int bias_term, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+void convolutiondepthwise_packed8_fma4(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data, const Mat& bias_data, int bias_term, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt);
 #endif
 
 static void convolutiondepthwise_packed8(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data, const Mat& bias_data, int bias_term, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
     {
         convolutiondepthwise_packed8_fma(bottom_blob, top_blob, weight_data, bias_data, bias_term, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        convolutiondepthwise_packed8_fma4(bottom_blob, top_blob, weight_data, bias_data, bias_term, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
         return;
     }
 #endif

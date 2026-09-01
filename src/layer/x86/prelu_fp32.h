@@ -1,16 +1,26 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
 void prelu_fp32_fma(Mat& bottom_top_blob, const Mat& slope_data, int num_slope, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+void prelu_fp32_fma4(Mat& bottom_top_blob, const Mat& slope_data, int num_slope, const Option& opt);
 #endif
 
 static void prelu_fp32(Mat& bottom_top_blob, const Mat& slope_data, int num_slope, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
     {
         prelu_fp32_fma(bottom_top_blob, slope_data, num_slope, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        prelu_fp32_fma4(bottom_top_blob, slope_data, num_slope, opt);
         return;
     }
 #endif

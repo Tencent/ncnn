@@ -14,6 +14,7 @@ namespace ncnn {
 
 #include "binaryop_fp32.h"
 
+#if NCNN_BF16
 #include "binaryop_bf16s.h"
 
 void binary_op_vector_bf16s_fma(const unsigned short* ptr, const unsigned short* ptr1, unsigned short* outptr, int aw, int bw, int ap, int bp, int op_type)
@@ -42,6 +43,7 @@ void binary_op_vector_bf16s_fma(const unsigned short* ptr, const unsigned short*
 
     // should never reach here
 }
+#endif // NCNN_BF16
 
 void binary_op_vector_fma(const float* ptr, const float* ptr1, float* outptr, int aw, int bw, int ap, int bp, int op_type)
 {

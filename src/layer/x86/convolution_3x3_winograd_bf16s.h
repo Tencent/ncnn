@@ -1214,8 +1214,11 @@ int conv3x3s1_winograd23_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob,
 int conv3x3s1_winograd23_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
 int conv3x3s1_winograd23_bf16s_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+int conv3x3s1_winograd23_bf16s_fma4(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
 
 static int conv3x3s1_winograd23_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt)
@@ -1234,9 +1237,13 @@ static int conv3x3s1_winograd23_bf16s(const Mat& bottom_blob, Mat& top_blob, con
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma())
         return conv3x3s1_winograd23_bf16s_fma(bottom_blob, top_blob, AT, bias, nT, activation_type, activation_params, opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+        return conv3x3s1_winograd23_bf16s_fma4(bottom_blob, top_blob, AT, bias, nT, activation_type, activation_params, opt);
 #endif
 
     int outw = top_blob.w;
@@ -3084,8 +3091,11 @@ int conv3x3s1_winograd43_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob,
 int conv3x3s1_winograd43_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
 int conv3x3s1_winograd43_bf16s_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+int conv3x3s1_winograd43_bf16s_fma4(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
 
 static int conv3x3s1_winograd43_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt)
@@ -3104,9 +3114,13 @@ static int conv3x3s1_winograd43_bf16s(const Mat& bottom_blob, Mat& top_blob, con
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma())
         return conv3x3s1_winograd43_bf16s_fma(bottom_blob, top_blob, AT, bias, nT, activation_type, activation_params, opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+        return conv3x3s1_winograd43_bf16s_fma4(bottom_blob, top_blob, AT, bias, nT, activation_type, activation_params, opt);
 #endif
 
     int outw = top_blob.w;
@@ -5407,8 +5421,11 @@ int conv3x3s1_winograd63_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob,
 int conv3x3s1_winograd63_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
 int conv3x3s1_winograd63_bf16s_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+int conv3x3s1_winograd63_bf16s_fma4(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
 
 static int conv3x3s1_winograd63_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt)
@@ -5427,9 +5444,13 @@ static int conv3x3s1_winograd63_bf16s(const Mat& bottom_blob, Mat& top_blob, con
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma())
         return conv3x3s1_winograd63_bf16s_fma(bottom_blob, top_blob, AT, bias, nT, activation_type, activation_params, opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+        return conv3x3s1_winograd63_bf16s_fma4(bottom_blob, top_blob, AT, bias, nT, activation_type, activation_params, opt);
 #endif
 
     int outw = top_blob.w;

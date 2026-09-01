@@ -10,13 +10,17 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
 #include "tanh_bf16s.h"
+#endif // NCNN_BF16
 #include "tanh_fp32.h"
 
+#if NCNN_BF16
 void tanh_bf16s_fma(Mat& a, const Option& opt)
 {
     tanh_bf16s(a, opt);
 }
+#endif // NCNN_BF16
 
 void tanh_fp32_fma(Mat& bottom_top_blob, const Option& opt)
 {

@@ -1,15 +1,22 @@
 // Copyright 2026 pchar.cn
 // SPDX-License-Identifier: BSD-3-Clause
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
 int rotaryembed_fp32_fma(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int interleaved, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+int rotaryembed_fp32_fma4(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int interleaved, const Option& opt);
 #endif
 
 static int rotaryembed_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int interleaved, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
         return rotaryembed_fp32_fma(bottom_blobs, top_blobs, interleaved, opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+        return rotaryembed_fp32_fma4(bottom_blobs, top_blobs, interleaved, opt);
 #endif
 
     const Mat& bottom_blob = bottom_blobs[0];
@@ -99,8 +106,8 @@ static int rotaryembed_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     __m256 ss0 = _mm256_mul_ps(swap0, s0);
                     __m256 ss1 = _mm256_mul_ps(swap1, s1);
 
-                    __m256 y0 = _mm256_fmaddsub_ps(a0, c0, ss0);
-                    __m256 y1 = _mm256_fmaddsub_ps(a1, c1, ss1);
+                    __m256 y0 = _mm256_comp_fmaddsub_ps(a0, c0, ss0);
+                    __m256 y1 = _mm256_comp_fmaddsub_ps(a1, c1, ss1);
 
                     _mm256_storeu_ps(outptr, y0);
                     _mm256_storeu_ps(outptr + 8, y1);
@@ -143,9 +150,9 @@ static int rotaryembed_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     __m256 ss0 = _mm256_mul_ps(swap0, s0);
                     __m256 ss1 = _mm256_mul_ps(swap1, s1);
 
-#if __FMA__
-                    __m256 y0 = _mm256_fmaddsub_ps(a0, c0, ss0);
-                    __m256 y1 = _mm256_fmaddsub_ps(a1, c1, ss1);
+#if __FMA__ || __FMA4__
+                    __m256 y0 = _mm256_comp_fmaddsub_ps(a0, c0, ss0);
+                    __m256 y1 = _mm256_comp_fmaddsub_ps(a1, c1, ss1);
 #else
                     __m256 ac0 = _mm256_mul_ps(a0, c0);
                     __m256 ac1 = _mm256_mul_ps(a1, c1);
@@ -191,9 +198,9 @@ static int rotaryembed_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                     __m128 ss0 = _mm_mul_ps(swap0, slo);
                     __m128 ss1 = _mm_mul_ps(swap1, shi);
-#if __FMA__
-                    __m128 y0 = _mm_fmaddsub_ps(a0, clo, ss0);
-                    __m128 y1 = _mm_fmaddsub_ps(a1, chi, ss1);
+#if __FMA__ || __FMA4__
+                    __m128 y0 = _mm_comp_fmaddsub_ps(a0, clo, ss0);
+                    __m128 y1 = _mm_comp_fmaddsub_ps(a1, chi, ss1);
 #else
                     __m128 ac0 = _mm_mul_ps(a0, clo);
                     __m128 ac1 = _mm_mul_ps(a1, chi);
@@ -228,8 +235,8 @@ static int rotaryembed_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     __m128 swap = _mm_shuffle_ps(a, a, _MM_SHUFFLE(2, 3, 0, 1));
                     __m128 ss = _mm_mul_ps(swap, s);
 
-#if __FMA__
-                    __m128 y = _mm_fmaddsub_ps(a, c, ss);
+#if __FMA__ || __FMA4__
+                    __m128 y = _mm_comp_fmaddsub_ps(a, c, ss);
 #else
                     __m128 ac = _mm_mul_ps(a, c);
 #if __SSE3__

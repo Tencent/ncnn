@@ -1,15 +1,22 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
 int eltwise_fp32_fma(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int op_type, const Mat& coeffs, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+int eltwise_fp32_fma4(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int op_type, const Mat& coeffs, const Option& opt);
 #endif
 
 static int eltwise_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int op_type, const Mat& coeffs, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (op_type == Eltwise::Operation_SUM && coeffs.w != 0 && ncnn::cpu_support_x86_fma())
         return eltwise_fp32_fma(bottom_blobs, top_blobs, op_type, coeffs, opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (op_type == Eltwise::Operation_SUM && coeffs.w != 0 && ncnn::cpu_support_x86_fma4())
+        return eltwise_fp32_fma4(bottom_blobs, top_blobs, op_type, coeffs, opt);
 #endif
 
     const Mat& bottom_blob = bottom_blobs[0];

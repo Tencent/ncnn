@@ -11,9 +11,13 @@ void instancenorm_bf16s_sse_avx2(unsigned short* ptr, int size, float a, float b
 void instancenorm_bf16s_compute_mean_var_avx2(const unsigned short* ptr, int size, float& mean, float& var);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
 void instancenorm_bf16s_sse_fma(unsigned short* ptr, int size, float a, float b);
 void instancenorm_bf16s_compute_mean_var_fma(const unsigned short* ptr, int size, float& mean, float& var);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void instancenorm_bf16s_sse_fma4(unsigned short* ptr, int size, float a, float b);
+void instancenorm_bf16s_compute_mean_var_fma4(const unsigned short* ptr, int size, float& mean, float& var);
 #endif
 
 static void instancenorm_bf16s_sse(unsigned short* ptr, int size, float a, float b)
@@ -33,10 +37,17 @@ static void instancenorm_bf16s_sse(unsigned short* ptr, int size, float a, float
         return;
     }
 #endif
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma())
     {
         instancenorm_bf16s_sse_fma(ptr, size, a, b);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        instancenorm_bf16s_sse_fma4(ptr, size, a, b);
         return;
     }
 #endif
@@ -99,10 +110,17 @@ static void instancenorm_bf16s_compute_mean_var(const unsigned short* ptr, int s
         return;
     }
 #endif
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma())
     {
         instancenorm_bf16s_compute_mean_var_fma(ptr, size, mean, var);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        instancenorm_bf16s_compute_mean_var_fma4(ptr, size, mean, var);
         return;
     }
 #endif

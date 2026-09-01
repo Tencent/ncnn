@@ -1,19 +1,32 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
 void softmax_fma(float* ptr, int elemcount, int elempack);
 void softmax_pack8_fma(float* ptr, int elemcount, size_t stride, int size1, float* maxptr, float* sumptr);
 void softmax_pack4_fma(float* ptr, int elemcount, size_t stride, int size1, float* maxptr, float* sumptr);
 void softmax_pack1_fma(float* ptr, int elemcount, size_t stride, int size1, float* maxptr, float* sumptr);
 #endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+void softmax_fma4(float* ptr, int elemcount, int elempack);
+void softmax_pack8_fma4(float* ptr, int elemcount, size_t stride, int size1, float* maxptr, float* sumptr);
+void softmax_pack4_fma4(float* ptr, int elemcount, size_t stride, int size1, float* maxptr, float* sumptr);
+void softmax_pack1_fma4(float* ptr, int elemcount, size_t stride, int size1, float* maxptr, float* sumptr);
+#endif
 
 static void softmax(float* _ptr, int elemcount, int elempack)
 {
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
     {
         softmax_fma(_ptr, elemcount, elempack);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        softmax_fma4(_ptr, elemcount, elempack);
         return;
     }
 #endif
@@ -599,10 +612,17 @@ static void softmax_pack16(float* _ptr, int elemcount, size_t stride, int size1,
 
 static void softmax_pack8(float* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
     {
         softmax_pack8_fma(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        softmax_pack8_fma4(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
         return;
     }
 #endif
@@ -990,10 +1010,17 @@ static void softmax_pack8(float* _ptr, int elemcount, size_t stride, int size1, 
 
 static void softmax_pack4(float* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
     {
         softmax_pack4_fma(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        softmax_pack4_fma4(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
         return;
     }
 #endif
@@ -1342,10 +1369,17 @@ static void softmax_pack4(float* _ptr, int elemcount, size_t stride, int size1, 
 
 static void softmax_pack1(float* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
-#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
     {
         softmax_pack1_fma(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        softmax_pack1_fma4(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
         return;
     }
 #endif

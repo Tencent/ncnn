@@ -10,13 +10,17 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
 #include "erf_bf16s.h"
+#endif // NCNN_BF16
 #include "erf_fp32.h"
 
+#if NCNN_BF16
 void erf_bf16s_fma(Mat& a, const Option& opt)
 {
     erf_bf16s(a, opt);
 }
+#endif // NCNN_BF16
 
 void erf_fp32_fma(Mat& bottom_top_blob, const Option& opt)
 {
