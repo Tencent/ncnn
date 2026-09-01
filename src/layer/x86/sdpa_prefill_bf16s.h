@@ -3207,16 +3207,41 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
                     const unsigned short* pK = key_panel + j;
                     int d = 0;
 #if __AVX512BF16__
+#if _MSC_VER
+                    __m256 _sum2 = _mm256_setzero_ps();
+                    __m256 _sum3 = _mm256_setzero_ps();
+                    __m256i _mask = _mm256_set1_epi32(0xffff0000);
+#endif
                     pK = key_panel + j * 2;
                     for (; d + 1 < head_dim; d += 2)
                     {
-                        __m256i _k = _mm256_loadu_si256((const __m256i*)pK);
-                        _sum0 = _mm256_dpbf16_ps(_sum0, (__m256bh)_mm256_set1_epi32(((const int*)pA0)[0]), (__m256bh)_k);
-                        _sum1 = _mm256_dpbf16_ps(_sum1, (__m256bh)_mm256_set1_epi32(((const int*)pA1)[0]), (__m256bh)_k);
+                        __m256i _pA0 = _mm256_set1_epi32(((const int*)pA0)[0]);
+                        __m256i _pA1 = _mm256_set1_epi32(((const int*)pA1)[0]);
+                        __m256i _pB = _mm256_loadu_si256((const __m256i*)pK);
+#if _MSC_VER
+                        // msvc crash here  --- nihui
+                        __m256 _pA00 = _mm256_castsi256_ps(_mm256_slli_epi32(_pA0, 16));
+                        __m256 _pA10 = _mm256_castsi256_ps(_mm256_slli_epi32(_pA1, 16));
+                        __m256 _pB0 = _mm256_castsi256_ps(_mm256_slli_epi32(_pB, 16));
+                        __m256 _pA01 = _mm256_castsi256_ps(_mm256_and_si256(_pA0, _mask));
+                        __m256 _pA11 = _mm256_castsi256_ps(_mm256_and_si256(_pA1, _mask));
+                        __m256 _pB1 = _mm256_castsi256_ps(_mm256_and_si256(_pB, _mask));
+                        _sum0 = _mm256_fmadd_ps(_pA00, _pB0, _sum0);
+                        _sum1 = _mm256_fmadd_ps(_pA10, _pB0, _sum1);
+                        _sum2 = _mm256_fmadd_ps(_pA01, _pB1, _sum2);
+                        _sum3 = _mm256_fmadd_ps(_pA11, _pB1, _sum3);
+#else
+                        _sum0 = _mm256_dpbf16_ps(_sum0, (__m256bh)_pA0, (__m256bh)_pB);
+                        _sum1 = _mm256_dpbf16_ps(_sum1, (__m256bh)_pA1, (__m256bh)_pB);
+#endif
                         pA0 += 2;
                         pA1 += 2;
                         pK += NR * 2;
                     }
+#if _MSC_VER
+                    _sum0 = _mm256_add_ps(_sum0, _sum2);
+                    _sum1 = _mm256_add_ps(_sum1, _sum3);
+#endif
                     pK = key_panel + (size_t)d * NR + j;
 #endif // __AVX512BF16__
                     for (; d < head_dim; d++)
@@ -3249,16 +3274,41 @@ static void sdpa_prefill_packed_tile_bf16s(const Mat& queryT, const Mat& packed_
                     const unsigned short* pK = key_panel + j;
                     int d = 0;
 #if __AVX512BF16__
+#if _MSC_VER
+                    __m128 _sum2 = _mm_setzero_ps();
+                    __m128 _sum3 = _mm_setzero_ps();
+                    __m128i _mask = _mm_set1_epi32(0xffff0000);
+#endif
                     pK = key_panel + j * 2;
                     for (; d + 1 < head_dim; d += 2)
                     {
-                        __m128i _k = _mm_loadu_si128((const __m128i*)pK);
-                        _sum0 = _mm_dpbf16_ps(_sum0, (__m128bh)_mm_set1_epi32(((const int*)pA0)[0]), (__m128bh)_k);
-                        _sum1 = _mm_dpbf16_ps(_sum1, (__m128bh)_mm_set1_epi32(((const int*)pA1)[0]), (__m128bh)_k);
+                        __m128i _pA0 = _mm_set1_epi32(((const int*)pA0)[0]);
+                        __m128i _pA1 = _mm_set1_epi32(((const int*)pA1)[0]);
+                        __m128i _pB = _mm_loadu_si128((const __m128i*)pK);
+#if _MSC_VER
+                        // msvc crash here  --- nihui
+                        __m128 _pA00 = _mm_castsi128_ps(_mm_slli_epi32(_pA0, 16));
+                        __m128 _pA10 = _mm_castsi128_ps(_mm_slli_epi32(_pA1, 16));
+                        __m128 _pB0 = _mm_castsi128_ps(_mm_slli_epi32(_pB, 16));
+                        __m128 _pA01 = _mm_castsi128_ps(_mm_and_si128(_pA0, _mask));
+                        __m128 _pA11 = _mm_castsi128_ps(_mm_and_si128(_pA1, _mask));
+                        __m128 _pB1 = _mm_castsi128_ps(_mm_and_si128(_pB, _mask));
+                        _sum0 = _mm_fmadd_ps(_pA00, _pB0, _sum0);
+                        _sum1 = _mm_fmadd_ps(_pA10, _pB0, _sum1);
+                        _sum2 = _mm_fmadd_ps(_pA01, _pB1, _sum2);
+                        _sum3 = _mm_fmadd_ps(_pA11, _pB1, _sum3);
+#else
+                        _sum0 = _mm_dpbf16_ps(_sum0, (__m128bh)_pA0, (__m128bh)_pB);
+                        _sum1 = _mm_dpbf16_ps(_sum1, (__m128bh)_pA1, (__m128bh)_pB);
+#endif
                         pA0 += 2;
                         pA1 += 2;
                         pK += NR * 2;
                     }
+#if _MSC_VER
+                    _sum0 = _mm_add_ps(_sum0, _sum2);
+                    _sum1 = _mm_add_ps(_sum1, _sum3);
+#endif
                     pK = key_panel + (size_t)d * NR + j;
 #endif // __AVX512BF16__
                     for (; d < head_dim; d++)
