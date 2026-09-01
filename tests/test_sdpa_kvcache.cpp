@@ -14,6 +14,13 @@ static int test_sdpa_kvcache(int head_dim, int value_dim, int num_heads, int num
         return -1;
     }
 
+    if (storage_type == 1 && !op->support_bf16_storage)
+    {
+        delete reference;
+        delete op;
+        return 0;
+    }
+
     ncnn::ParamDict pd;
     pd.set(5, mask_type != 0);
     pd.set(7, 1); // kv_cache

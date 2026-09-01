@@ -314,7 +314,7 @@ static void sdpa_decode_tile_bf16s(const Mat& query, const Mat& key, const Mat& 
             else
                 mask = attn_mask_blob;
         }
-        const int mask_hstep = mask_per_head ? attn_mask_blob.cstep : 0;
+        const int mask_hstep = mask_per_head ? (int)attn_mask_blob.cstep : 0;
         __m512i _mask_index = _mm512_mullo_epi32(_mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15), _mm512_set1_epi32(mask_hstep));
 
         float* scoreT = workspace;
@@ -604,7 +604,7 @@ static void sdpa_decode_tile_bf16s(const Mat& query, const Mat& key, const Mat& 
             else
                 mask = attn_mask_blob;
         }
-        const int mask_hstep = mask_per_head ? attn_mask_blob.cstep : 0;
+        const int mask_hstep = mask_per_head ? (int)attn_mask_blob.cstep : 0;
 #if __AVX2__
         __m256i _mask_index = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32(mask_hstep));
 #endif // __AVX2__
