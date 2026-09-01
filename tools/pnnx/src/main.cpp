@@ -260,7 +260,7 @@ static bool model_file_maybe_tnnproto(const std::string& path)
 
 static void show_usage()
 {
-    fprintf(stderr, "Usage: pnnx [model.pt] [(key=value)...]\n");
+    fprintf(stderr, "Usage: pnnx [model.pt | model.pt2] [(key=value)...]\n");
     fprintf(stderr, "  pnnxparam=model.pnnx.param\n");
     fprintf(stderr, "  pnnxbin=model.pnnx.bin\n");
     fprintf(stderr, "  pnnxpy=model_pnnx.py\n");
@@ -282,6 +282,7 @@ static void show_usage()
 #endif
     fprintf(stderr, "  moduleop=models.common.Focus,models.yolo.Detect,...\n");
     fprintf(stderr, "Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]\n");
+    fprintf(stderr, "              pnnx exported_model.pt2\n");
     fprintf(stderr, "              pnnx yolov5s.pt inputshape=[1,3,640,640]f32 inputshape2=[1,3,320,320]f32 device=gpu moduleop=models.common.Focus,models.yolo.Detect\n");
 }
 

@@ -57,7 +57,7 @@ class EmbeddingBatchNorm(nn.Module):
 
 class DynamicReshape(nn.Module):
     def forward(self, x):
-        return x.reshape(x.shape[0], -1)
+        return x.reshape(x.shape[0], x.shape[1], x.shape[2] * x.shape[3])
 
 
 def close(a, b):
@@ -95,12 +95,14 @@ def test():
 
     if hasattr(torch.export, "Dim"):
         batch = torch.export.Dim("batch", min=1, max=4)
+        height = torch.export.Dim("height", min=2, max=8)
+        width = torch.export.Dim("width", min=2, max=8)
         model = DynamicReshape().eval()
         x = torch.rand(2, 3, 4, 5)
-        converted = exported_program_to_pnnx(model, x, "test_exported_program_dynamic_shape", ({0: batch},))
+        converted = exported_program_to_pnnx(model, x, "test_exported_program_dynamic_shape", ({0: batch, 2: height, 3: width},))
         if not close(model(x), converted(x)):
             return False
-        x = torch.rand(3, 3, 4, 5)
+        x = torch.rand(3, 3, 5, 6)
         return close(model(x), converted(x))
 
     return True

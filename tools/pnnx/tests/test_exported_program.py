@@ -14,10 +14,11 @@ class Model(nn.Module):
 
         self.conv = nn.Conv2d(3, 4, 1)
         self.register_buffer("scale", torch.rand(1, 4, 1, 1))
-        self.offset = torch.rand(1, 4, 1, 1)
+        self.register_buffer("offset", torch.rand(1, 4, 1, 1), persistent=False)
+        self.constant = torch.rand(1, 4, 1, 1)
 
     def forward(self, x):
-        x = self.conv(x) * self.scale + self.offset
+        x = self.conv(x) * self.scale + self.offset + self.constant
         return F.relu(x), torch.cat((x, x + 1), dim=1)
 
 

@@ -1565,11 +1565,12 @@ static std::string argument_name(const JsonValue& argument)
 
 static bool parse_target(const std::string& target, std::string& schema_name, std::string& overload, std::string& operator_type)
 {
-    if (target == "_operator.eq" || target == "_operator.ne" || target == "_operator.lt" || target == "_operator.le" || target == "_operator.gt" || target == "_operator.ge")
+    if (target == "_operator.add" || target == "_operator.sub" || target == "_operator.mul" || target == "_operator.truediv" || target == "_operator.floordiv" || target == "_operator.mod" || target == "_operator.pow" || target == "_operator.eq" || target == "_operator.ne" || target == "_operator.lt" || target == "_operator.le" || target == "_operator.gt" || target == "_operator.ge")
     {
         schema_name.clear();
         overload.clear();
-        operator_type = "aten::" + target.substr(10);
+        const std::string name = target.substr(10);
+        operator_type = name == "truediv" ? "aten::div" : (name == "floordiv" ? "aten::floor_divide" : "aten::" + name);
         return true;
     }
 
@@ -1586,7 +1587,7 @@ static bool parse_target(const std::string& target, std::string& schema_name, st
     schema_name = qualified.substr(0, namespace_dot) + "::" + qualified.substr(namespace_dot + 1, overload_dot - namespace_dot - 1);
     overload = qualified.substr(overload_dot + 1);
     if (overload == "default") overload.clear();
-    operator_type = schema_name;
+    operator_type = schema_name == "aten::sym_size" ? "aten::size" : schema_name;
     return true;
 }
 
@@ -2010,8 +2011,12 @@ int load_exported_program(const std::string& ptpath, Graph& graph,
     bool need_constants = false;
     for (size_t i = 0; i < input_specs->array.size(); i++)
     {
-        need_state_dict = need_state_dict || input_specs->array[i].find("parameter") || input_specs->array[i].find("buffer");
-        need_constants = need_constants || input_specs->array[i].find("tensor_constant");
+        const JsonValue* buffer = input_specs->array[i].find("buffer");
+        const JsonValue* persistent = buffer && buffer->type == JsonValue::Object ? buffer->find("persistent") : 0;
+        const bool non_persistent_buffer = persistent && persistent->type == JsonValue::Bool && !persistent->boolean;
+
+        need_state_dict = need_state_dict || input_specs->array[i].find("parameter") || (buffer && !non_persistent_buffer);
+        need_constants = need_constants || input_specs->array[i].find("tensor_constant") || non_persistent_buffer;
     }
 
     TensorPayload state_dict;
@@ -2107,7 +2112,9 @@ int load_exported_program(const std::string& ptpath, Graph& graph,
         if (!target && tensor_constant) target = body->find("constant_name");
         if (!target || target->type != JsonValue::String)
             return -1;
-        const TensorPayload& payload = tensor_constant ? constants : state_dict;
+        const JsonValue* persistent = buffer ? buffer->find("persistent") : 0;
+        const bool non_persistent_buffer = persistent && persistent->type == JsonValue::Bool && !persistent->boolean;
+        const TensorPayload& payload = (tensor_constant || non_persistent_buffer) ? constants : state_dict;
         const at::Tensor* tensor = find_tensor(payload, target->string);
         if (!tensor)
         {

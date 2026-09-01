@@ -77,9 +77,16 @@ def exported_program_trace(module, example_inputs=None, *args, **kwargs):
 
 
 def portable_system(command):
-    if os.name == "nt" and command.startswith("../src/pnnx "):
-        command = "..\\src\\pnnx.exe " + command[len("../src/pnnx "):]
-    return original_system(command)
+    pnnx_prefixes = ("../src/pnnx ", "../../src/pnnx ")
+    is_pnnx_command = command.startswith(pnnx_prefixes)
+    if os.name == "nt" and is_pnnx_command:
+        executable, arguments = command.split(" ", 1)
+        command = executable.replace("/", "\\") + ".exe " + arguments
+
+    result = original_system(command)
+    if is_pnnx_command and result != 0:
+        raise RuntimeError("pnnx failed with return value " + str(result))
+    return result
 
 
 def idempotent_remove_parametrizations(module, tensor_name, leave_parametrized=True):
@@ -101,6 +108,14 @@ if __name__ == "__main__":
     if os.name == "nt" and test_name in ("test_torch_fft_hfftn.py", "test_torch_fft_ihfftn.py", "test_torch_fft_irfftn.py"):
         print("PT2 test skipped because this PyTorch Windows build crashes while evaluating the reference FFT model", file=sys.stderr)
         raise SystemExit(77)
+    if os.path.basename(os.path.dirname(test_script)) == "ncnn":
+        try:
+            import ncnn
+        except ModuleNotFoundError:
+            ncnn = None
+        if ncnn is None or not hasattr(ncnn, "Net"):
+            print("PT2 ncnn test skipped because the Python ncnn runtime is unavailable", file=sys.stderr)
+            raise SystemExit(77)
 
     sys.path.insert(0, os.getcwd())
     sys.path.insert(0, os.path.dirname(test_script))
