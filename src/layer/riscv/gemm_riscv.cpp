@@ -2043,6 +2043,17 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     }
 #endif
 
+    // NOTE riscv int8 keeps constant A/B in A_data/B_data instead of AT_data/BT_data,
+    // so this guard must stay after the int8 dispatch above
+    const Mat& A0 = constantA ? AT_data : bottom_blobs[0];
+    const Mat& B0 = constantB ? BT_data : constantA ? bottom_blobs[0] : bottom_blobs[1];
+
+    if (A0.empty() || B0.empty())
+    {
+        NCNN_LOGE("Gemm_riscv empty input blob");
+        return -1;
+    }
+
 #if NCNN_ZFH
     const Mat& bottom_blob = constantA ? AT_data : bottom_blobs[0];
     int elembits = bottom_blob.elembits();

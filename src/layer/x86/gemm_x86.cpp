@@ -7608,6 +7608,15 @@ int Gemm_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         return Gemm::forward(bottom_blobs, top_blobs, opt);
     }
 
+    const Mat& A0 = constantA ? AT_data : bottom_blobs[0];
+    const Mat& B0 = constantB ? BT_data : constantA ? bottom_blobs[0] : bottom_blobs[1];
+
+    if (A0.empty() || B0.empty())
+    {
+        NCNN_LOGE("Gemm_x86 empty input blob");
+        return -1;
+    }
+
 #if NCNN_INT8
     if (quantize_term)
     {

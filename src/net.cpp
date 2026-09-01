@@ -48,6 +48,8 @@ public:
     int do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
 
+    bool is_network_input_blob(int blob_index) const;
+
     void update_input_output_indexes();
 #if NCNN_STRING
     void update_input_output_names();
@@ -118,6 +120,14 @@ static Option get_masked_option(const Option& opt, int featmask)
         opt1.num_threads = 1;
 
     return opt1;
+}
+
+bool NetPrivate::is_network_input_blob(int blob_index) const
+{
+    // blobs produced by Input layers cannot be recomputed by forward_layer
+    // they must not be released in lightmode, so that repeated extract on the same extractor keeps working
+    const int producer_layer_index = blobs[blob_index].producer;
+    return layers[producer_layer_index]->typeindex == LayerType::Input;
 }
 
 int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const
@@ -705,7 +715,8 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
 
             if (opt.lightmode || (opt.kvcache_allocator && bottom_blob.allocator == opt.kvcache_allocator))
             {
-                blob_mats[bottom_blob_index].release();
+                if (!is_network_input_blob(bottom_blob_index))
+                    blob_mats[bottom_blob_index].release();
             }
         }
         if (bottom_blob.n == 1 || layer->support_batch)
@@ -735,7 +746,8 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
 
             if (opt.lightmode || (opt.kvcache_allocator && bottom_blob.allocator == opt.kvcache_allocator))
             {
-                blob_mats[bottom_blob_index].release();
+                if (!is_network_input_blob(bottom_blob_index))
+                    blob_mats[bottom_blob_index].release();
             }
         }
     }
@@ -833,7 +845,8 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
                 for (size_t i = 0; i < layer->bottoms.size(); i++)
                 {
                     int bottom_blob_index = layer->bottoms[i];
-                    blob_mats[bottom_blob_index].release();
+                    if (!is_network_input_blob(bottom_blob_index))
+                        blob_mats[bottom_blob_index].release();
                 }
             }
         }
@@ -877,7 +890,10 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
                 for (size_t i = 0; i < layer->bottoms.size(); i++)
                 {
                     if (opt.lightmode || bottom_blobs[i].allocator == opt.kvcache_allocator)
-                        blob_mats[layer->bottoms[i]].release();
+                    {
+                        if (!is_network_input_blob(layer->bottoms[i]))
+                            blob_mats[layer->bottoms[i]].release();
+                    }
                 }
             }
         }
@@ -961,7 +977,8 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
 
             if (opt.lightmode || (opt.kvcache_vkallocator && bottom_blob.allocator == opt.kvcache_vkallocator))
             {
-                blob_mats_gpu[bottom_blob_index].release();
+                if (!is_network_input_blob(bottom_blob_index))
+                    blob_mats_gpu[bottom_blob_index].release();
             }
         }
         if (bottom_blob.n == 1 || layer->support_batch)
@@ -991,7 +1008,8 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
 
             if (opt.lightmode || (opt.kvcache_vkallocator && bottom_blob.allocator == opt.kvcache_vkallocator))
             {
-                blob_mats_gpu[bottom_blob_index].release();
+                if (!is_network_input_blob(bottom_blob_index))
+                    blob_mats_gpu[bottom_blob_index].release();
             }
         }
     }
@@ -1089,7 +1107,8 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
                 for (size_t i = 0; i < layer->bottoms.size(); i++)
                 {
                     int bottom_blob_index = layer->bottoms[i];
-                    blob_mats_gpu[bottom_blob_index].release();
+                    if (!is_network_input_blob(bottom_blob_index))
+                        blob_mats_gpu[bottom_blob_index].release();
                 }
             }
         }
@@ -1133,7 +1152,10 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
                 for (size_t i = 0; i < layer->bottoms.size(); i++)
                 {
                     if (opt.lightmode || bottom_blobs[i].allocator == opt.kvcache_vkallocator)
-                        blob_mats_gpu[layer->bottoms[i]].release();
+                    {
+                        if (!is_network_input_blob(layer->bottoms[i]))
+                            blob_mats_gpu[layer->bottoms[i]].release();
+                    }
                 }
             }
         }

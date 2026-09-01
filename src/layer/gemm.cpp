@@ -756,6 +756,15 @@ int Gemm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
 int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    const Mat& A0 = constantA ? A_data : bottom_blobs[0];
+    const Mat& B0 = constantB ? B_data : constantA ? bottom_blobs[0] : bottom_blobs[1];
+
+    if (A0.empty() || B0.empty())
+    {
+        NCNN_LOGE("Gemm empty input blob");
+        return -1;
+    }
+
 #if NCNN_WEIGHT_QUANT
     if (weight_block_quantize)
     {
@@ -781,9 +790,6 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         return -1;
     }
 #endif // NCNN_INT8
-
-    const Mat& A0 = constantA ? A_data : bottom_blobs[0];
-    const Mat& B0 = constantB ? B_data : constantA ? bottom_blobs[0] : bottom_blobs[1];
 
     size_t elemsize = A0.elemsize;
 
