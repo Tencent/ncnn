@@ -337,6 +337,191 @@ static bool pt2_target_unpackable(const std::string& op_type)
            || op_type == "aten::tensor_split";
 }
 
+// nn_module_stack(node.metadata)的最内层模块信息。序列化形态
+// "L<qualname>,<name>,<class>[;L<qualname>,<name>,<class>]...",分号分层、
+// 逗号分段;最内层(最后段)类名以 torch.nn.modules. 开头 = 该节点来自 nn.
+// 模块调用,否则是 F. 函数调用(Model/顶层)。短类名 = 类全名最后一段,
+// 模块实例名 = 第二段(模块属性名)。
+static bool parse_nn_module_stack(const std::string& nms, std::string& short_class, std::string& module_name)
+{
+    if (nms.empty())
+        return false;
+
+    const size_t semi = nms.rfind(';');
+    const std::string inner = (semi == std::string::npos) ? nms : nms.substr(semi + 1);
+
+    const size_t c1 = inner.find(',');
+    if (c1 == std::string::npos)
+        return false;
+    const size_t c2 = inner.find(',', c1 + 1);
+    if (c2 == std::string::npos)
+        return false;
+
+    const std::string cls = inner.substr(c2 + 1);
+    const std::string prefix = "torch.nn.modules.";
+    if (cls.compare(0, prefix.size(), prefix) != 0)
+        return false;
+
+    const size_t dot = cls.rfind('.');
+    short_class = (dot == std::string::npos) ? cls : cls.substr(dot + 1);
+    module_name = inner.substr(c1 + 1, c2 - c1 - 1);
+    return true;
+}
+
+// upsample 算子名 → interpolate mode。与 ts 侧 level1 Upsample 模块转换的
+// find_node_by_kind 推断同构:mode 由调用的 aten 算子决定,是文件事实。
+static const char* pt2_upsample_mode(const std::string& aten)
+{
+    if (aten == "aten::upsample_nearest1d" || aten == "aten::upsample_nearest2d" || aten == "aten::upsample_nearest3d")
+        return "nearest";
+    if (aten == "aten::_upsample_nearest_exact1d" || aten == "aten::_upsample_nearest_exact2d" || aten == "aten::_upsample_nearest_exact3d")
+        return "nearest-exact";
+    if (aten == "aten::upsample_linear1d")
+        return "linear";
+    if (aten == "aten::upsample_bilinear2d")
+        return "bilinear";
+    if (aten == "aten::upsample_bicubic2d")
+        return "bicubic";
+    if (aten == "aten::upsample_trilinear3d")
+        return "trilinear";
+    return 0;
+}
+
+// 算子名的空间维数(max_pool2d → 2,adaptive_avg_pool1d → 1)。模块形态的
+// 单值标量实参按它广播成列表——schema 的 int[]/float[] 形参在 JIT 侧会把
+// python 单值泛化为列表(torchscript trace 物化 kernel_size=3 为 (3,3)),
+// torch.export 则保留单值原样,折参时需对齐 ts 物化形态。
+static int pt2_aten_spatial_ndim(const std::string& aten)
+{
+    const size_t n = aten.size();
+    if (n >= 2 && aten[n - 2] == '1' && aten[n - 1] == 'd')
+        return 1;
+    if (n >= 2 && aten[n - 2] == '2' && aten[n - 1] == 'd')
+        return 2;
+    if (n >= 2 && aten[n - 2] == '3' && aten[n - 1] == 'd')
+        return 3;
+    return 0;
+}
+
+// 模块形态折参(含单值广播)统一入口
+static void fold_module_param(Operator* op, const std::string& key, const Parameter& raw, int nd)
+{
+    Parameter value = raw;
+    if (nd > 0 && value.type == 2)
+        value = Parameter(std::vector<int>(nd, (int)value.i));
+    if (nd > 0 && value.type == 3)
+        value = Parameter(std::vector<float>(nd, value.f));
+
+    op->params[key] = value;
+}
+
+// 白名单:(nn 模块类, aten 算子) 精确对应模块 forward 的语义调用才启用
+// 模块形态。同一 aten 算子可能出现在无关模块内(Conv3d 的 padding_mode=
+// 'reflect' 会在模块内产生 aten::pad),错配会把 pad 节点错标成卷积。
+// 白名单以实测 DIFF 的模块为起点渐进铺开(docs/13 N4);未收录的保持
+// aten 原样忠实转写。
+static bool pt2_module_form_allowed(const std::string& cls, const std::string& aten)
+{
+    if (cls == "ReLU6")
+        return aten == "aten::hardtanh";
+    if (cls == "Softmax2d")
+        return aten == "aten::softmax";
+    if (cls == "ChannelShuffle")
+        return aten == "aten::channel_shuffle";
+    if (cls == "PixelShuffle")
+        return aten == "aten::pixel_shuffle";
+    if (cls == "MaxPool1d")
+        return aten == "aten::max_pool1d" || aten == "aten::max_pool1d_with_indices";
+    if (cls == "MaxPool2d")
+        return aten == "aten::max_pool2d" || aten == "aten::max_pool2d_with_indices";
+    if (cls == "MaxPool3d")
+        return aten == "aten::max_pool3d" || aten == "aten::max_pool3d_with_indices";
+    if (cls == "AdaptiveAvgPool1d")
+        return aten == "aten::adaptive_avg_pool1d";
+    if (cls == "AdaptiveAvgPool2d")
+        return aten == "aten::adaptive_avg_pool2d";
+    if (cls == "AdaptiveAvgPool3d")
+        return aten == "aten::adaptive_avg_pool3d";
+    if (cls == "ConstantPad1d" || cls == "ConstantPad2d" || cls == "ConstantPad3d"
+        || cls == "ReflectionPad1d" || cls == "ReflectionPad2d"
+        || cls == "ReplicationPad1d" || cls == "ReplicationPad2d" || cls == "ReplicationPad3d"
+        || cls == "ZeroPad2d")
+        return aten == "aten::pad";
+    if (cls == "Upsample")
+        return pt2_upsample_mode(aten) != 0;
+    if (cls == "UpsamplingNearest2d")
+        return aten == "aten::upsample_nearest2d";
+    if (cls == "UpsamplingBilinear2d")
+        return aten == "aten::upsample_bilinear2d";
+    return false;
+}
+
+// 模块形态的折参键名:逐模块对齐 torchscript 侧 level1 模块转换(FuseModulePass)
+// 的折参产出——如 aten::pad 的形参 pad 在 nn.ConstantPad* 形态叫 padding,
+// upsample 的 output_size/scale_factors 对应 size/scale_factor。返回空串 =
+// 该实参不折(折参集合必须与 level1 模块转换的产出精确相等,多折会让
+// pass_ncnn 的层参数多写,少折则转换器匹配不上)。
+static std::string pt2_module_param_key(const std::string& cls, const std::string& name)
+{
+    if (cls == "ReLU6" || cls == "Softmax2d")
+        return "";
+
+    if (cls == "ChannelShuffle")
+        return name == "groups" ? name : "";
+
+    if (cls == "PixelShuffle")
+        return name == "upscale_factor" ? name : "";
+
+    if (cls == "MaxPool1d" || cls == "MaxPool2d" || cls == "MaxPool3d")
+    {
+        if (name == "kernel_size" || name == "stride" || name == "padding" || name == "dilation"
+            || name == "ceil_mode")
+            return name;
+        return "";
+    }
+
+    if (cls == "AdaptiveAvgPool1d" || cls == "AdaptiveAvgPool2d" || cls == "AdaptiveAvgPool3d")
+        return name == "output_size" ? name : "";
+
+    if (cls == "ConstantPad1d" || cls == "ConstantPad2d" || cls == "ConstantPad3d")
+    {
+        if (name == "pad")
+            return "padding";
+        if (name == "value")
+            return "value";
+        return ""; // mode:level1 模块转换不折
+    }
+
+    if (cls == "ReflectionPad1d" || cls == "ReflectionPad2d" || cls == "ReplicationPad1d"
+        || cls == "ReplicationPad2d" || cls == "ReplicationPad3d" || cls == "ZeroPad2d")
+        return name == "pad" ? "padding" : "";
+
+    if (cls == "Upsample")
+    {
+        if (name == "output_size")
+            return "size";
+        if (name == "scale_factors")
+            return "scale_factor";
+        if (name == "align_corners")
+            return "align_corners";
+        return "";
+    }
+
+    if (cls == "UpsamplingNearest2d" || cls == "UpsamplingBilinear2d")
+    {
+        // 与 nn.Upsample 不同,level1 模块转换对这两个类不折 align_corners
+        // (vec 算子的 align_corners 恒为 true,由类名表达),折参集合必须
+        // 精确对齐,否则 pass_ncnn 的 pattern 匹配不上
+        if (name == "output_size")
+            return "size";
+        if (name == "scale_factors")
+            return "scale_factor";
+        return "";
+    }
+
+    return "";
+}
+
 int load_pt2(const std::string& ptpath, Graph& pg,
              const std::vector<std::vector<int64_t> >& input_shapes,
              const std::vector<std::string>& input_types)
@@ -432,164 +617,331 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         r->shape = attr.shape;
     }
 
-    // 3. 图节点 → aten 原名 Operator,标量参数 operand 化(忠实转写,零归一化)
+    // 3. 图节点 → Operator。
+    //    F. 形态:aten 原名 + 标量参数 operand 化(忠实转写,零归一化);
+    //    nn. 模块形态:nn.<类> + 标量参数 params 化——nn_module_stack 是
+    //    torch.export 图的一等事实(node.metadata),节点来自哪个模块由文件
+    //    明示。模块形态的形态对齐目标是 torchscript 侧 level1 模块转换
+    //    (FuseModulePass)的产出(其折参即 params 化),与 F. 形态对齐
+    //    level1 通用转写同理,loader 侧转写与 ts 层次对等。
     for (size_t i = 0; i < program.nodes.size(); i++)
     {
         const Pt2Node& node = program.nodes[i];
+        const std::string aten_type = map_pt2_target(node.target);
 
-        Operator* op = pg.new_operator(map_pt2_target(node.target), "pnnx_" + std::to_string(pnnx_unknown_index++));
+        std::string module_class;
+        std::string module_name;
+        const bool is_module_form = parse_nn_module_stack(node.nn_module_stack, module_class, module_name)
+                                    && pt2_module_form_allowed(module_class, aten_type);
 
-        // 默认值静态表:torch.export 会省略等于默认值的实参(cat 的 dim=0、
-        // flatten 的 end_dim=-1 等),按 schema 形参序查表补全为完整形态,
-        // 使 pt2 图与 torchscript 图同构,下游 pass_level2 形态分支零改动复用。
-        // 表未收录的算子保持 torch.export 原样转写(缺参不补)。
-        const std::string full_target = pt2_full_target_name(node.target);
-        const Pt2DefaultsEntry* defaults = find_pt2_aten_defaults(full_target.c_str());
+        Operator* op = pg.new_operator(is_module_form ? ("nn." + module_class) : aten_type,
+                                       "pnnx_" + std::to_string(pnnx_unknown_index++));
 
-        // 待转写实参序列:有表 = schema 形参序(provided 按名归位,缺失留空待补);
-        // provided 形参名与表对不上(schema 漂移等)= 整节点回退原样顺序(忠实性护栏)
-        std::vector<const Pt2NodeInput*> ordered_inputs;
-        if (defaults)
+        if (is_module_form)
         {
-            std::map<std::string, size_t> table_index;
-            for (size_t j = 0; j < defaults->arg_count; j++)
-                table_index[defaults->args[j].name] = j;
-
-            bool table_matches = true;
+            // 模块形态:张量实参 operand 化(权重与 ts level1 模块产出同构,
+            // 由 fuse_static_* 折层);标量实参按折参规则进 params;
+            // torch.export 省略的默认实参不补全(折参集合以 level1 模块转换
+            // 的产出为准,不需要 schema 默认值)
             for (size_t j = 0; j < node.inputs.size(); j++)
             {
-                if (table_index.find(node.inputs[j].name) == table_index.end())
+                const Pt2NodeInput& input = node.inputs[j];
+                const Pt2Argument& arg = input.arg;
+
+                if (arg.type == Pt2Argument::TENSOR)
                 {
-                    table_matches = false;
-                    break;
-                }
-            }
+                    if (arg.tensor_names.size() != 1)
+                    {
+                        fprintf(stderr, "load_pt2: bad tensor argument %s.%s\n", node.name.c_str(),
+                                input.name.c_str());
+                        return -1;
+                    }
 
-            if (table_matches)
-            {
-                ordered_inputs.resize(defaults->arg_count, 0);
-                for (size_t j = 0; j < node.inputs.size(); j++)
-                {
-                    ordered_inputs[table_index[node.inputs[j].name]] = &node.inputs[j];
-                }
-            }
-        }
+                    Operand* r = pg.get_operand(arg.tensor_names[0]);
+                    if (!r)
+                    {
+                        fprintf(stderr, "load_pt2: operand not found %s (node %s)\n", arg.tensor_names[0].c_str(),
+                                node.name.c_str());
+                        return -1;
+                    }
 
-        if (ordered_inputs.empty())
-        {
-            if (defaults)
-            {
-                fprintf(stderr, "load_pt2: %s node %s: arg names mismatch defaults table, fallback to raw order\n",
-                        full_target.c_str(), node.name.c_str());
-            }
-
-            for (size_t j = 0; j < node.inputs.size(); j++)
-            {
-                ordered_inputs.push_back(&node.inputs[j]);
-            }
-        }
-
-        for (size_t j = 0; j < ordered_inputs.size(); j++)
-        {
-            const Pt2NodeInput* input = ordered_inputs[j];
-
-            if (input == 0)
-            {
-                // 该形参被 torch.export 省略 → 查默认值补全(输出标记,便于排查)
-                const Pt2ArgDefault& d = defaults->args[j];
-
-                Parameter value;
-                if (d.type == PT2_D_NO_DEFAULT || d.type == PT2_D_UNSUPPORTED
-                    || !default_value_to_parameter(d.type, d.value, value))
-                {
-                    fprintf(stderr, "load_pt2: %s node %s: missing arg %s has no usable default, skipped\n",
-                            full_target.c_str(), node.name.c_str(), d.name);
+                    r->consumers.push_back(op);
+                    op->inputs.push_back(r);
                     continue;
                 }
 
-                fprintf(stderr, "load_pt2: %s node %s: fill default %s=%s (from defaults table)\n",
-                        full_target.c_str(), node.name.c_str(), d.name, d.value);
+                if (arg.type == Pt2Argument::TENSORS)
+                {
+                    Operator* op_list = pg.new_operator("prim::ListConstruct",
+                                                        "pnnx_" + std::to_string(pnnx_unknown_index++));
+
+                    for (size_t k = 0; k < arg.tensor_names.size(); k++)
+                    {
+                        Operand* r = pg.get_operand(arg.tensor_names[k]);
+                        if (!r)
+                        {
+                            fprintf(stderr, "load_pt2: operand not found %s (node %s)\n", arg.tensor_names[k].c_str(),
+                                    node.name.c_str());
+                            return -1;
+                        }
+                        r->consumers.push_back(op_list);
+                        op_list->inputs.push_back(r);
+                    }
+
+                    Operand* r = pg.new_operand(node.name + "." + input.name);
+                    r->producer = op_list;
+                    op_list->outputs.push_back(r);
+
+                    r->consumers.push_back(op);
+                    op->inputs.push_back(r);
+                    continue;
+                }
+
+                const std::string key = pt2_module_param_key(module_class, input.name);
+                if (key.empty())
+                    continue;
+
+                Parameter value;
+                if (!argument_to_constant(arg, value))
+                    return -1;
+
+                fold_module_param(op, key, value, pt2_aten_spatial_ndim(aten_type));
+            }
+
+            // torch.export 省略的默认实参补进 params:ts 侧 trace 物化全部
+            // 默认值,level1 模块转换按 namedInput 折参,补全也是形态对齐的
+            // 一部分(如 nn.MaxPool2d 的 dilation/ceil_mode 被 export 省略,
+            // pass_ncnn 的 pattern 需要它们在 params 里)
+            const std::string full_target = pt2_full_target_name(node.target);
+            const Pt2DefaultsEntry* defaults = find_pt2_aten_defaults(full_target.c_str());
+            if (defaults)
+            {
+                bool table_matches = true;
+                for (size_t j = 0; j < node.inputs.size(); j++)
+                {
+                    bool found = false;
+                    for (size_t k = 0; k < defaults->arg_count; k++)
+                    {
+                        if (defaults->args[k].name == node.inputs[j].name)
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found)
+                    {
+                        table_matches = false;
+                        break;
+                    }
+                }
+
+                if (table_matches)
+                {
+                    for (size_t j = 0; j < defaults->arg_count; j++)
+                    {
+                        const Pt2ArgDefault& d = defaults->args[j];
+
+                        bool provided = false;
+                        for (size_t k = 0; k < node.inputs.size(); k++)
+                        {
+                            if (node.inputs[k].name == d.name)
+                            {
+                                provided = true;
+                                break;
+                            }
+                        }
+                        if (provided)
+                            continue;
+
+                        if (d.type == PT2_D_NO_DEFAULT || d.type == PT2_D_UNSUPPORTED)
+                            continue;
+
+                        const std::string key = pt2_module_param_key(module_class, d.name);
+                        if (key.empty())
+                            continue;
+
+                        Parameter value;
+                        if (!default_value_to_parameter(d.type, d.value, value))
+                            continue;
+
+                        fold_module_param(op, key, value, pt2_aten_spatial_ndim(aten_type));
+                    }
+                }
+            }
+
+            // return_indices 由节点输出数判定(with_indices 形态有 indices 输出);
+            // 无消费者的 indices 由 eliminate_maxpool_indices(pass_ncnn)消除,
+            // 与 ts 侧形态汇合
+            if (module_class == "MaxPool1d" || module_class == "MaxPool2d" || module_class == "MaxPool3d")
+            {
+                size_t out_count = 0;
+                for (size_t j = 0; j < node.outputs.size(); j++)
+                    out_count += node.outputs[j].tensor_names.size();
+                op->params["return_indices"] = (out_count > 1);
+            }
+
+            // Upsample 类的 mode 从 aten 算子推断(nn.UpsamplingNearest2d/
+            // Bilinear2d 的类名即 mode,level1 转换不折 mode)
+            if (module_class == "Upsample")
+                op->params["mode"] = std::string(pt2_upsample_mode(aten_type));
+
+            // 输出收集与 F. 形态共用(见循环尾);模块形态必非切分族
+        }
+
+        if (!is_module_form)
+        {
+            // 默认值静态表:torch.export 会省略等于默认值的实参(cat 的 dim=0、
+            // flatten 的 end_dim=-1 等),按 schema 形参序查表补全为完整形态,
+            // 使 pt2 图与 torchscript 图同构,下游 pass_level2 形态分支零改动复用。
+            // 表未收录的算子保持 torch.export 原样转写(缺参不补)。
+            const std::string full_target = pt2_full_target_name(node.target);
+            const Pt2DefaultsEntry* defaults = find_pt2_aten_defaults(full_target.c_str());
+
+            // 待转写实参序列:有表 = schema 形参序(provided 按名归位,缺失留空待补);
+            // provided 形参名与表对不上(schema 漂移等)= 整节点回退原样顺序(忠实性护栏)
+            std::vector<const Pt2NodeInput*> ordered_inputs;
+            if (defaults)
+            {
+                std::map<std::string, size_t> table_index;
+                for (size_t j = 0; j < defaults->arg_count; j++)
+                    table_index[defaults->args[j].name] = j;
+
+                bool table_matches = true;
+                for (size_t j = 0; j < node.inputs.size(); j++)
+                {
+                    if (table_index.find(node.inputs[j].name) == table_index.end())
+                    {
+                        table_matches = false;
+                        break;
+                    }
+                }
+
+                if (table_matches)
+                {
+                    ordered_inputs.resize(defaults->arg_count, 0);
+                    for (size_t j = 0; j < node.inputs.size(); j++)
+                    {
+                        ordered_inputs[table_index[node.inputs[j].name]] = &node.inputs[j];
+                    }
+                }
+            }
+
+            if (ordered_inputs.empty())
+            {
+                if (defaults)
+                {
+                    fprintf(stderr, "load_pt2: %s node %s: arg names mismatch defaults table, fallback to raw order\n",
+                            full_target.c_str(), node.name.c_str());
+                }
+
+                for (size_t j = 0; j < node.inputs.size(); j++)
+                {
+                    ordered_inputs.push_back(&node.inputs[j]);
+                }
+            }
+
+            for (size_t j = 0; j < ordered_inputs.size(); j++)
+            {
+                const Pt2NodeInput* input = ordered_inputs[j];
+
+                if (input == 0)
+                {
+                    // 该形参被 torch.export 省略 → 查默认值补全(输出标记,便于排查)
+                    const Pt2ArgDefault& d = defaults->args[j];
+
+                    Parameter value;
+                    if (d.type == PT2_D_NO_DEFAULT || d.type == PT2_D_UNSUPPORTED
+                        || !default_value_to_parameter(d.type, d.value, value))
+                    {
+                        fprintf(stderr, "load_pt2: %s node %s: missing arg %s has no usable default, skipped\n",
+                                full_target.c_str(), node.name.c_str(), d.name);
+                        continue;
+                    }
+
+                    fprintf(stderr, "load_pt2: %s node %s: fill default %s=%s (from defaults table)\n",
+                            full_target.c_str(), node.name.c_str(), d.name, d.value);
+
+                    Operator* op_const = pg.new_operator("prim::Constant",
+                                                         "pnnx_" + std::to_string(pnnx_unknown_index++));
+                    op_const->params["value"] = value;
+
+                    Operand* r = pg.new_operand(node.name + "." + d.name);
+                    r->producer = op_const;
+                    op_const->outputs.push_back(r);
+
+                    r->consumers.push_back(op);
+                    op->inputs.push_back(r);
+                    continue;
+                }
+
+                const Pt2Argument& arg = input->arg;
+
+                if (arg.type == Pt2Argument::TENSOR)
+                {
+                    if (arg.tensor_names.size() != 1)
+                    {
+                        fprintf(stderr, "load_pt2: bad tensor argument %s.%s\n", node.name.c_str(), input->name.c_str());
+                        return -1;
+                    }
+
+                    Operand* r = pg.get_operand(arg.tensor_names[0]);
+                    if (!r)
+                    {
+                        fprintf(stderr, "load_pt2: operand not found %s (node %s)\n", arg.tensor_names[0].c_str(),
+                                node.name.c_str());
+                        return -1;
+                    }
+
+                    r->consumers.push_back(op);
+                    op->inputs.push_back(r);
+                    continue;
+                }
+
+                if (arg.type == Pt2Argument::TENSORS)
+                {
+                    // ts 形态对齐:张量列表经 prim::ListConstruct 折成单个 list operand
+                    Operator* op_list = pg.new_operator("prim::ListConstruct",
+                                                        "pnnx_" + std::to_string(pnnx_unknown_index++));
+
+                    for (size_t k = 0; k < arg.tensor_names.size(); k++)
+                    {
+                        Operand* r = pg.get_operand(arg.tensor_names[k]);
+                        if (!r)
+                        {
+                            fprintf(stderr, "load_pt2: operand not found %s (node %s)\n", arg.tensor_names[k].c_str(),
+                                    node.name.c_str());
+                            return -1;
+                        }
+                        r->consumers.push_back(op_list);
+                        op_list->inputs.push_back(r);
+                    }
+
+                    Operand* r = pg.new_operand(node.name + "." + input->name);
+                    r->producer = op_list;
+                    op_list->outputs.push_back(r);
+
+                    r->consumers.push_back(op);
+                    op->inputs.push_back(r);
+                    continue;
+                }
+
+                // 标量/None 字面量 → prim::Constant operand
+                Parameter value;
+                if (!argument_to_constant(arg, value))
+                    return -1;
 
                 Operator* op_const = pg.new_operator("prim::Constant",
                                                      "pnnx_" + std::to_string(pnnx_unknown_index++));
                 op_const->params["value"] = value;
 
-                Operand* r = pg.new_operand(node.name + "." + d.name);
+                Operand* r = pg.new_operand(node.name + "." + input->name);
                 r->producer = op_const;
                 op_const->outputs.push_back(r);
 
                 r->consumers.push_back(op);
                 op->inputs.push_back(r);
-                continue;
             }
-
-            const Pt2Argument& arg = input->arg;
-
-            if (arg.type == Pt2Argument::TENSOR)
-            {
-                if (arg.tensor_names.size() != 1)
-                {
-                    fprintf(stderr, "load_pt2: bad tensor argument %s.%s\n", node.name.c_str(), input->name.c_str());
-                    return -1;
-                }
-
-                Operand* r = pg.get_operand(arg.tensor_names[0]);
-                if (!r)
-                {
-                    fprintf(stderr, "load_pt2: operand not found %s (node %s)\n", arg.tensor_names[0].c_str(),
-                            node.name.c_str());
-                    return -1;
-                }
-
-                r->consumers.push_back(op);
-                op->inputs.push_back(r);
-                continue;
-            }
-
-            if (arg.type == Pt2Argument::TENSORS)
-            {
-                // ts 形态对齐:张量列表经 prim::ListConstruct 折成单个 list operand
-                Operator* op_list = pg.new_operator("prim::ListConstruct",
-                                                    "pnnx_" + std::to_string(pnnx_unknown_index++));
-
-                for (size_t k = 0; k < arg.tensor_names.size(); k++)
-                {
-                    Operand* r = pg.get_operand(arg.tensor_names[k]);
-                    if (!r)
-                    {
-                        fprintf(stderr, "load_pt2: operand not found %s (node %s)\n", arg.tensor_names[k].c_str(),
-                                node.name.c_str());
-                        return -1;
-                    }
-                    r->consumers.push_back(op_list);
-                    op_list->inputs.push_back(r);
-                }
-
-                Operand* r = pg.new_operand(node.name + "." + input->name);
-                r->producer = op_list;
-                op_list->outputs.push_back(r);
-
-                r->consumers.push_back(op);
-                op->inputs.push_back(r);
-                continue;
-            }
-
-            // 标量/None 字面量 → prim::Constant operand
-            Parameter value;
-            if (!argument_to_constant(arg, value))
-                return -1;
-
-            Operator* op_const = pg.new_operator("prim::Constant",
-                                                 "pnnx_" + std::to_string(pnnx_unknown_index++));
-            op_const->params["value"] = value;
-
-            Operand* r = pg.new_operand(node.name + "." + input->name);
-            r->producer = op_const;
-            op_const->outputs.push_back(r);
-
-            r->consumers.push_back(op);
-            op->inputs.push_back(r);
-        }
+        } // if (!is_module_form)
 
         // 收集节点全部输出张量名(torch 2.13 的元组输出 = 单 spec 多 as_tensors)
         std::vector<std::string> out_tensor_names;

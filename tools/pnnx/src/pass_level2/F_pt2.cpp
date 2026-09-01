@@ -361,4 +361,158 @@ REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pt2_adaptive_max_pool1d, 110)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pt2_adaptive_max_pool2d, 110)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pt2_adaptive_max_pool3d, 110)
 
+// pt2 形态分支:nn.AdaptiveAvgPool* 模块形态(params 化 output_size)。
+// builder 的模块转写(load_pt2)把 nn.AdaptiveAvgPool* 的 output_size 折进
+// op->params;torch.export 把 output_size 中的 None 实例化成输入空间维尺寸,
+// "等于输入对应空间维"还原为 0 的规则与上面的 operand 形态分支一致,此为
+// params 形态版本(pass_ncnn 的 nn_AdaptiveAvgPool* 按 0 写 -233 哨兵)。
+class F_pt2_nn_adaptive_avg_pool_base : public GraphRewriterPass
+{
+public:
+    // 与 operand 形态分支相同:替换图与匹配图同构,靠"确会发生改写才匹配"
+    // 终止重写循环
+    bool match(const std::map<std::string, const Operator*>& matched_operators,
+               const std::map<std::string, Parameter>& captured_params,
+               const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        std::map<std::string, Parameter>::const_iterator it = captured_params.find("output_size");
+        if (it == captured_params.end() || it->second.type != 5)
+            return false;
+
+        const std::vector<int>& ishape = matched_operators.at("op_0")->inputs[0]->shape;
+        if (ishape.empty())
+            return false;
+
+        const std::vector<int>& ai = it->second.ai;
+        const int k = (int)ai.size();
+        for (int i = 0; i < k; i++)
+        {
+            if (ai[i] == 0)
+                return false;
+
+            const int dim_index = (int)ishape.size() - k + i;
+            if (dim_index >= 0 && dim_index < (int)ishape.size() && ai[i] == ishape[dim_index])
+                return true;
+        }
+
+        return false;
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params,
+               const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        GraphRewriterPass::write(ops, captured_params, captured_attrs);
+
+        Parameter osz = captured_params.at("output_size");
+        const std::vector<int>& ishape = ops.at("op_0")->inputs[0]->shape;
+
+        if (!ishape.empty())
+        {
+            const int k = (int)osz.ai.size();
+            for (int i = 0; i < k; i++)
+            {
+                const int dim_index = (int)ishape.size() - k + i;
+                if (dim_index >= 0 && dim_index < (int)ishape.size() && osz.ai[i] == ishape[dim_index])
+                {
+                    osz.ai[i] = 0;
+                }
+            }
+        }
+
+        // 无论是否改写都回写(替换图里的 output_size=(0) 仅为占位)
+        ops.at("op_0")->params["output_size"] = osz;
+    }
+};
+
+class F_pt2_nn_adaptive_avg_pool1d : public F_pt2_nn_adaptive_avg_pool_base
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input
+nn.AdaptiveAvgPool1d    op_0        1 1 input out output_size=%output_size
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input
+nn.AdaptiveAvgPool1d    op_0        1 1 input out output_size=(0)
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "nn.AdaptiveAvgPool1d";
+    }
+};
+
+class F_pt2_nn_adaptive_avg_pool2d : public F_pt2_nn_adaptive_avg_pool_base
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input
+nn.AdaptiveAvgPool2d    op_0        1 1 input out output_size=%output_size
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input
+nn.AdaptiveAvgPool2d    op_0        1 1 input out output_size=(0)
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "nn.AdaptiveAvgPool2d";
+    }
+};
+
+class F_pt2_nn_adaptive_avg_pool3d : public F_pt2_nn_adaptive_avg_pool_base
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input
+nn.AdaptiveAvgPool3d    op_0        1 1 input out output_size=%output_size
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input
+nn.AdaptiveAvgPool3d    op_0        1 1 input out output_size=(0)
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "nn.AdaptiveAvgPool3d";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pt2_nn_adaptive_avg_pool1d, 110)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pt2_nn_adaptive_avg_pool2d, 110)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pt2_nn_adaptive_avg_pool3d, 110)
+
 } // namespace pnnx
