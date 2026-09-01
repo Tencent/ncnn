@@ -110,24 +110,31 @@ int RotaryEmbed_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<
             }
             else
             {
+                const int half = embed_dim / 2;
+                // full-width cache => independent cos/sin per half (2D rope); half-width => reuse.
+                const int cw = cos_cache.w == embed_dim ? half : 0;
                 const float* ptr0 = head.row(i);
-                const float* ptr1 = ptr0 + embed_dim / 2;
+                const float* ptr1 = ptr0 + half;
                 const float* cos_ptr = cos_cache.row(i);
                 const float* sin_ptr = sin_cache.row(i);
+                const float* cos_ptr1 = cos_ptr + cw;
+                const float* sin_ptr1 = sin_ptr + cw;
                 float* outptr0 = out_head.row(i);
-                float* outptr1 = outptr0 + embed_dim / 2;
+                float* outptr1 = outptr0 + half;
 
                 int j = 0;
 #if __mips_msa
-                for (; j + 3 < embed_dim / 2; j += 4)
+                for (; j + 3 < half; j += 4)
                 {
                     v4f32 _x0 = (v4f32)__msa_ld_w(ptr0, 0);
                     v4f32 _x1 = (v4f32)__msa_ld_w(ptr1, 0);
                     v4f32 _c = (v4f32)__msa_ld_w(cos_ptr, 0);
                     v4f32 _s = (v4f32)__msa_ld_w(sin_ptr, 0);
+                    v4f32 _c1 = (v4f32)__msa_ld_w(cos_ptr1, 0);
+                    v4f32 _s1 = (v4f32)__msa_ld_w(sin_ptr1, 0);
 
                     v4f32 _y0 = __ncnn_msa_fmsub_w(__msa_fmul_w(_x0, _c), _x1, _s);
-                    v4f32 _y1 = __ncnn_msa_fmadd_w(__msa_fmul_w(_x1, _c), _x0, _s);
+                    v4f32 _y1 = __ncnn_msa_fmadd_w(__msa_fmul_w(_x1, _c1), _x0, _s1);
 
                     __msa_st_w((v4i32)_y0, outptr0, 0);
                     __msa_st_w((v4i32)_y1, outptr1, 0);
@@ -136,19 +143,19 @@ int RotaryEmbed_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                     ptr1 += 4;
                     cos_ptr += 4;
                     sin_ptr += 4;
+                    cos_ptr1 += 4;
+                    sin_ptr1 += 4;
                     outptr0 += 4;
                     outptr1 += 4;
                 }
 #endif // __mips_msa
-                for (; j < embed_dim / 2; j++)
+                for (; j < half; j++)
                 {
                     const float x0 = *ptr0++;
                     const float x1 = *ptr1++;
-                    const float cos_val = *cos_ptr++;
-                    const float sin_val = *sin_ptr++;
 
-                    *outptr0++ = x0 * cos_val - x1 * sin_val;
-                    *outptr1++ = x0 * sin_val + x1 * cos_val;
+                    *outptr0++ = x0 * *cos_ptr++ - x1 * *sin_ptr++;
+                    *outptr1++ = x0 * *sin_ptr1++ + x1 * *cos_ptr1++;
                 }
             }
         }
@@ -247,24 +254,31 @@ int RotaryEmbed_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
             }
             else
             {
+                const int half = embed_dim / 2;
+                // full-width cache => independent cos/sin per half (2D rope); half-width => reuse.
+                const int cw = cos_cache.w == embed_dim ? half : 0;
                 const unsigned short* ptr0 = head.row<const unsigned short>(i);
-                const unsigned short* ptr1 = ptr0 + embed_dim / 2;
+                const unsigned short* ptr1 = ptr0 + half;
                 const unsigned short* cos_ptr = cos_cache.row<const unsigned short>(i);
                 const unsigned short* sin_ptr = sin_cache.row<const unsigned short>(i);
+                const unsigned short* cos_ptr1 = cos_ptr + cw;
+                const unsigned short* sin_ptr1 = sin_ptr + cw;
                 unsigned short* outptr0 = out_head.row<unsigned short>(i);
-                unsigned short* outptr1 = outptr0 + embed_dim / 2;
+                unsigned short* outptr1 = outptr0 + half;
 
                 int j = 0;
 #if __mips_msa
-                for (; j + 3 < embed_dim / 2; j += 4)
+                for (; j + 3 < half; j += 4)
                 {
                     v4f32 _x0 = bfloat2float_msa(ptr0);
                     v4f32 _x1 = bfloat2float_msa(ptr1);
                     v4f32 _c = bfloat2float_msa(cos_ptr);
                     v4f32 _s = bfloat2float_msa(sin_ptr);
+                    v4f32 _c1 = bfloat2float_msa(cos_ptr1);
+                    v4f32 _s1 = bfloat2float_msa(sin_ptr1);
 
                     v4f32 _y0 = __ncnn_msa_fmsub_w(__msa_fmul_w(_x0, _c), _x1, _s);
-                    v4f32 _y1 = __ncnn_msa_fmadd_w(__msa_fmul_w(_x1, _c), _x0, _s);
+                    v4f32 _y1 = __ncnn_msa_fmadd_w(__msa_fmul_w(_x1, _c1), _x0, _s1);
 
                     __msa_storel_d(float2bfloat_msa(_y0), outptr0);
                     __msa_storel_d(float2bfloat_msa(_y1), outptr1);
@@ -273,19 +287,19 @@ int RotaryEmbed_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
                     ptr1 += 4;
                     cos_ptr += 4;
                     sin_ptr += 4;
+                    cos_ptr1 += 4;
+                    sin_ptr1 += 4;
                     outptr0 += 4;
                     outptr1 += 4;
                 }
 #endif // __mips_msa
-                for (; j < embed_dim / 2; j++)
+                for (; j < half; j++)
                 {
                     const float x0 = bfloat16_to_float32(*ptr0++);
                     const float x1 = bfloat16_to_float32(*ptr1++);
-                    const float cos_val = bfloat16_to_float32(*cos_ptr++);
-                    const float sin_val = bfloat16_to_float32(*sin_ptr++);
 
-                    *outptr0++ = float32_to_bfloat16(x0 * cos_val - x1 * sin_val);
-                    *outptr1++ = float32_to_bfloat16(x0 * sin_val + x1 * cos_val);
+                    *outptr0++ = float32_to_bfloat16(x0 * bfloat16_to_float32(*cos_ptr++) - x1 * bfloat16_to_float32(*sin_ptr++));
+                    *outptr1++ = float32_to_bfloat16(x0 * bfloat16_to_float32(*sin_ptr1++) + x1 * bfloat16_to_float32(*cos_ptr1++));
                 }
             }
         }
