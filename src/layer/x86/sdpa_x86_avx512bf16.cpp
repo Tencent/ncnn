@@ -23,11 +23,11 @@
 
 namespace ncnn {
 
-#include "sdpa_kvcache.h"
-#include "sdpa_decode.h"
 #include "sdpa_prefill.h"
-#include "sdpa_decode_bf16s.h"
+#include "sdpa_decode.h"
 #include "sdpa_prefill_bf16s.h"
+#include "sdpa_decode_bf16s.h"
+#include "sdpa_kvcache.h"
 
 int sdpa_decode_bf16s_avx512bf16(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt)
 {

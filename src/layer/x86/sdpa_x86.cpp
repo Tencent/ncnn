@@ -24,13 +24,13 @@
 
 namespace ncnn {
 
-#include "sdpa_kvcache.h"
-#include "sdpa_decode.h"
 #include "sdpa_prefill.h"
+#include "sdpa_decode.h"
 #if NCNN_BF16
-#include "sdpa_decode_bf16s.h"
 #include "sdpa_prefill_bf16s.h"
+#include "sdpa_decode_bf16s.h"
 #endif // NCNN_BF16
+#include "sdpa_kvcache.h"
 
 SDPA_x86::SDPA_x86()
 {
@@ -211,12 +211,12 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         if (fp32)
         {
             if (kv_cache)
-                return sdpa_kvcache_fp32(query, past_key, past_value, cur_key, cur_value, top_blobs[1], top_blobs[2], attn_mask_blob, top_blob, _scale, opt);
+                return sdpa_kvcache(query, past_key, past_value, cur_key, cur_value, top_blobs[1], top_blobs[2], attn_mask_blob, top_blob, _scale, opt);
 
             if (src_seqlen == 1)
-                return sdpa_decode_fp32(query, cur_key, cur_value, attn_mask_blob, top_blob, _scale, opt);
+                return sdpa_decode(query, cur_key, cur_value, attn_mask_blob, top_blob, _scale, opt);
 
-            return sdpa_prefill_fp32(query, cur_key, cur_value, attn_mask_blob, top_blob, _scale, opt);
+            return sdpa_prefill(query, cur_key, cur_value, attn_mask_blob, top_blob, _scale, opt);
         }
 #if NCNN_BF16
         if (kv_cache)
