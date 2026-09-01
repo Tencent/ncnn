@@ -24,8 +24,6 @@ void unpack_output_tile_int32_avx2(const Mat& topT, Mat& top_blob, int i, int ma
 // gemm_x86.h
 #if NCNN_RUNTIME_CPU && __AVX512F__
 namespace Gemm_x86_avx512_utility {
-#elif NCNN_RUNTIME_CPU && __FMA__
-namespace Gemm_x86_fma_utility {
 #elif NCNN_RUNTIME_CPU && __AVX__
 namespace Gemm_x86_avx_utility {
 #else
@@ -41,8 +39,6 @@ static void convolution_im2col_pack_A_tile_int8(const Mat& A, Mat& AT, int i, in
 
 #if NCNN_RUNTIME_CPU && __AVX512F__
     Gemm_x86_avx512_utility::pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
-#elif NCNN_RUNTIME_CPU && __FMA__
-    Gemm_x86_fma_utility::pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
 #elif NCNN_RUNTIME_CPU && __AVX__
     Gemm_x86_avx_utility::pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
 #else
@@ -56,8 +52,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
 #if NCNN_RUNTIME_CPU && __AVX512F__
     Gemm_x86_avx512_utility::gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
-#elif NCNN_RUNTIME_CPU && __FMA__
-    Gemm_x86_fma_utility::gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
 #elif NCNN_RUNTIME_CPU && __AVX__
     Gemm_x86_avx_utility::gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
 #else
