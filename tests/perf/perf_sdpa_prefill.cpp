@@ -39,6 +39,7 @@ int main()
     perf_sdpa_prefill(128, 128, 32, 8, 128);
     perf_sdpa_prefill(128, 128, 32, 8, 256);
     perf_sdpa_prefill(128, 128, 32, 8, 512);
+    perf_sdpa_prefill(64, 64, 8, 2, 2048);
 
     perf_sdpa_prefill(128, 128, 32, 1, 64);
     perf_sdpa_prefill(128, 128, 32, 1, 256);

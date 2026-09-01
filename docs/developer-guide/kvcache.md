@@ -50,7 +50,7 @@ This representation lets CPU implementations choose a head-contiguous layout and
 
 KV cache data is not a persistent or cross-version format. In particular, the `MultiHeadAttention` cache is no longer compatible with the previously documented 2D transposed layout `(w = seq_len, h = embed_dim)`. Applications that extract a cache and feed it back unchanged keep the same calling pattern, but must start a new session with empty caches after upgrading ncnn. Applications must not construct, inspect, or persist cache blobs based on an assumed layout.
 
-KV cache outputs should be extracted with `type=1`. This preserves the backend storage type, packing, allocator, and reserved capacity so the cache can be fed back unchanged. This convention applies with or without a dedicated KV cache allocator.
+KV cache outputs must be extracted with `type=1`. This preserves the backend storage type, packing, allocator, and reserved capacity so the cache can be fed back unchanged. This convention applies with or without a dedicated KV cache allocator. The legacy C++ pattern that directly feeds an extracted cache `Mat` back as input remains compatible, but applications must not rely on default extraction through wrappers or ordinary `Mat` operations preserving the private cache representation.
 
 ## 4. converting models to support kv cache
 

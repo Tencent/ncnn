@@ -51,9 +51,10 @@ static int test_sdpa_kvcache(int head_dim, int value_dim, int num_heads, int num
     ncnn::Mat reference_value;
     ncnn::Mat key_cache;
     ncnn::Mat value_cache;
-    const int append_lengths[] = {13, 1, 1, 5, 17};
+    const int append_lengths[] = {13, 1, 1, 1, 1, 5, 17};
+    const int append_count = sizeof(append_lengths) / sizeof(append_lengths[0]);
 
-    for (int i = 0; ret == 0 && i < 5; i++)
+    for (int i = 0; ret == 0 && i < append_count; i++)
     {
         const int cur_seqlen = append_lengths[i];
         const int dst_seqlen = reference_key.h + cur_seqlen;

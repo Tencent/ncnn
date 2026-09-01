@@ -2982,7 +2982,8 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
     if (!feat.empty())
     {
         // preserve kv cache storage layout and reserved capacity
-        if (feat.allocator == d->opt.kvcache_allocator && feat.allocator != d->opt.blob_allocator)
+        const Layer* layer = d->net->layers()[d->net->blobs()[blob_index].producer];
+        if ((layer->typeindex == LayerType::MultiHeadAttention || layer->typeindex == LayerType::SDPA) && layer->tops.size() == 3 && blob_index != layer->tops[0])
             type = 1;
 
         if (d->opt.use_packing_layout && (type == 0) && feat.elempack != 1)

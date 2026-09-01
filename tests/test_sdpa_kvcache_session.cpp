@@ -29,6 +29,8 @@ static const char sdpa_mask_param[] = "7767517\n"
                                       "SDPA sdpa 6 3 q k v mask past_k past_v out out_k out_v 5=1 7=1\n";
 
 static const unsigned int empty_model[1] = {0};
+static const int append_lengths[] = {13, 1, 1, 1, 1, 5, 17};
+static const int append_count = sizeof(append_lengths) / sizeof(append_lengths[0]);
 
 static void fill_sdpa_input(ncnn::Mat& m, float base)
 {
@@ -115,10 +117,11 @@ static int run_sdpa_step(ncnn::Net& net, ncnn::Mat& output, ncnn::Mat& key_cache
     return ex.extract("out_v", value_cache, cache_extract_type);
 }
 
-static int run_extractor_kvcache(ncnn::Allocator* kvcache_allocator, int cache_extract_type, std::vector<ncnn::Mat>& outputs, int use_bf16_storage = 0, int num_heads = 4, int num_kv_heads = 2, int head_dim = 8, int value_dim = 6, int max_seqlen_hint = 32, int mask_type = 0, int num_threads = 1, int kvcache_allocator_step = 0)
+static int run_extractor_kvcache(ncnn::Allocator* kvcache_allocator, int cache_extract_type, std::vector<ncnn::Mat>& outputs, int use_bf16_storage = 0, int num_heads = 4, int num_kv_heads = 2, int head_dim = 8, int value_dim = 6, int max_seqlen_hint = 32, int mask_type = 0, int num_threads = 1, int kvcache_allocator_step = 0, int use_local_pool_allocator = 1)
 {
     ncnn::Net net;
     net.opt.lightmode = true;
+    net.opt.use_local_pool_allocator = use_local_pool_allocator;
     net.opt.use_vulkan_compute = false;
     net.opt.use_bf16_storage = use_bf16_storage;
     if (use_bf16_storage)
@@ -135,11 +138,10 @@ static int run_extractor_kvcache(ncnn::Allocator* kvcache_allocator, int cache_e
 
     ncnn::Mat key_cache;
     ncnn::Mat value_cache;
-    outputs.resize(5);
-    const int append_lengths[] = {13, 1, 1, 5, 17};
+    outputs.resize(append_count);
     int past_seqlen = 0;
     int ret = 0;
-    for (int i = 0; ret == 0 && i < 5; i++)
+    for (int i = 0; ret == 0 && i < append_count; i++)
     {
         const void* old_key_data = key_cache.data;
         const void* old_value_data = value_cache.data;
@@ -215,14 +217,14 @@ static int test_extractor_kvcache_extract_type()
     return ret;
 }
 
-static int test_extractor_kvcache_ncnn_llm(int use_bf16_storage)
+static int test_extractor_kvcache_ncnn_llm(int use_bf16_storage, int use_local_pool_allocator)
 {
     std::vector<ncnn::Mat> reference_outputs;
     int ret = run_extractor_kvcache(0, 1, reference_outputs, use_bf16_storage);
 
     std::vector<ncnn::Mat> outputs;
     if (ret == 0)
-        ret = run_extractor_kvcache(0, 0, outputs, use_bf16_storage);
+        ret = run_extractor_kvcache(0, 0, outputs, use_bf16_storage, 4, 2, 8, 6, 32, 0, 1, 0, use_local_pool_allocator);
 
     const float epsilon = use_bf16_storage ? 0.01f : 0.001f;
     for (int i = 0; ret == 0 && i < (int)outputs.size(); i++)
@@ -232,7 +234,7 @@ static int test_extractor_kvcache_ncnn_llm(int use_bf16_storage)
     }
 
     if (ret != 0)
-        fprintf(stderr, "test_extractor_kvcache_ncnn_llm failed storage=%d ret=%d\n", use_bf16_storage, ret);
+        fprintf(stderr, "test_extractor_kvcache_ncnn_llm failed storage=%d local_pool=%d ret=%d\n", use_bf16_storage, use_local_pool_allocator, ret);
 
     return ret;
 }
@@ -249,9 +251,11 @@ static int test_extractor_kvcache()
            || test_extractor_kvcache(1, 31, 1, 63, 47, 32, 3, 4, 0)
 #endif // NCNN_BF16
            || test_extractor_kvcache_extract_type()
-           || test_extractor_kvcache_ncnn_llm(0)
+           || test_extractor_kvcache_ncnn_llm(0, 1)
+           || test_extractor_kvcache_ncnn_llm(0, 0)
 #if NCNN_BF16
-           || test_extractor_kvcache_ncnn_llm(1)
+           || test_extractor_kvcache_ncnn_llm(1, 1)
+           || test_extractor_kvcache_ncnn_llm(1, 0)
 #endif // NCNN_BF16
            ;
 }
@@ -339,10 +343,12 @@ static int test_kvcache_batch_rejected()
 #endif // NCNN_BATCH
 
 #if NCNN_VULKAN
-static int test_legacy_vulkan_extractor_kvcache()
+static int test_vulkan_extractor_kvcache(int use_fp16_storage, int mask_type)
 {
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
     if (!vkdev)
+        return 0;
+    if (use_fp16_storage && !vkdev->info.support_fp16_storage())
         return 0;
 
     ncnn::Net net;
@@ -350,33 +356,32 @@ static int test_legacy_vulkan_extractor_kvcache()
     net.opt.use_vulkan_compute = true;
     net.opt.use_packing_layout = false;
     net.opt.use_fp16_packed = false;
-    net.opt.use_fp16_storage = false;
+    net.opt.use_fp16_storage = use_fp16_storage;
     net.opt.use_fp16_arithmetic = false;
     net.set_vulkan_device(vkdev);
 
-    if (net.load_param_mem(sdpa_param) != 0)
+    if (net.load_param_mem(mask_type ? sdpa_mask_param : sdpa_param) != 0)
         return -1;
     net.load_model((const unsigned char*)empty_model);
 
     ncnn::Mat key_cache;
     ncnn::Mat value_cache;
     std::vector<ncnn::Mat> reference_outputs;
-    int ret = run_extractor_kvcache(0, 1, reference_outputs);
+    int ret = run_extractor_kvcache(0, 1, reference_outputs, 0, 4, 2, 8, 6, 32, mask_type);
 
-    const int append_lengths[] = {13, 1, 1};
     int past_seqlen = 0;
-    for (int i = 0; ret == 0 && i < 3; i++)
+    for (int i = 0; ret == 0 && i < append_count; i++)
     {
         ncnn::Mat output;
-        ret = run_sdpa_step(net, output, key_cache, value_cache, append_lengths[i], past_seqlen, i, 0, 1);
-        if (ret == 0 && CompareMat(reference_outputs[i], output, 0.001f) != 0)
+        ret = run_sdpa_step(net, output, key_cache, value_cache, append_lengths[i], past_seqlen, i, 0, 1, 0, 4, 2, 8, 6, 32, mask_type);
+        if (ret == 0 && CompareMat(reference_outputs[i], output, use_fp16_storage ? 0.01f : 0.001f) != 0)
             ret = -1;
 
         past_seqlen += append_lengths[i];
     }
 
     if (ret != 0)
-        fprintf(stderr, "test_legacy_vulkan_extractor_kvcache failed ret=%d\n", ret);
+        fprintf(stderr, "test_vulkan_extractor_kvcache failed fp16=%d mask=%d ret=%d\n", use_fp16_storage, mask_type, ret);
 
     return ret;
 }
@@ -490,8 +495,7 @@ static int test_external_vulkan_kvcache()
 
     ncnn::VkMat key_cache;
     ncnn::VkMat value_cache;
-    const int append_lengths[] = {13, 1, 1};
-    for (int i = 0; result == 0 && i < 3; i++)
+    for (int i = 0; result == 0 && i < append_count; i++)
     {
         ncnn::Mat output;
         result = run_sdpa_vulkan_step(net, output, key_cache, value_cache, append_lengths[i], i, &kvcache_vkallocator, &blob_vkallocator, &staging_vkallocator);
@@ -521,7 +525,8 @@ int main()
            || test_kvcache_batch_rejected()
 #endif
 #if NCNN_VULKAN
-           || test_legacy_vulkan_extractor_kvcache()
+           || test_vulkan_extractor_kvcache(0, 0)
+           || test_vulkan_extractor_kvcache(1, 1)
            || test_external_vulkan_kvcache()
 #endif
            ;

@@ -3,20 +3,27 @@
 
 #include "testutil.h"
 
+#include <limits.h>
+
 class TestKVCacheOOMAllocator : public ncnn::Allocator
 {
 public:
     TestKVCacheOOMAllocator()
     {
-        oom = 0;
+        counter = 0;
+        failid = INT_MAX;
     }
 
     virtual void* fastMalloc(size_t size)
     {
-        if (oom)
-            return 0;
+        void* ptr;
+        if (counter == failid)
+            ptr = 0;
+        else
+            ptr = ncnn::fastMalloc(size);
+        counter++;
 
-        return ncnn::fastMalloc(size);
+        return ptr;
     }
 
     virtual void fastFree(void* ptr)
@@ -25,7 +32,8 @@ public:
     }
 
 public:
-    int oom;
+    int counter;
+    int failid;
 };
 
 static int test_sdpa_oom(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int attn_mask, float scale = 0.f)
@@ -121,30 +129,51 @@ static int test_sdpa_kvcache_allocator_oom()
     std::vector<ncnn::Mat> tops(3);
     if (ret == 0)
     {
-        kvcache_allocator.oom = 1;
+        kvcache_allocator.counter = 0;
+        kvcache_allocator.failid = 0;
         ret = op->forward(bottoms, tops, opt) == -100 ? 0 : -1;
         tops.clear();
     }
 
     if (ret == 0)
     {
-        kvcache_allocator.oom = 0;
+        kvcache_allocator.counter = 0;
+        kvcache_allocator.failid = INT_MAX;
         tops.resize(3);
         ret = op->forward(bottoms, tops, opt);
     }
 
     if (ret == 0)
     {
+        ncnn::Mat key_cache = tops[1];
+        ncnn::Mat value_cache = tops[2];
+        tops[1].release();
+        tops[2].release();
+
         bottoms[0] = RandomMat(7, 1, 4);
         bottoms[1] = RandomMat(7, 1, 2);
         bottoms[2] = RandomMat(5, 1, 2);
-        bottoms[3] = tops[1];
-        bottoms[4] = tops[2];
+        bottoms[3] = key_cache;
+        bottoms[4] = value_cache;
+        key_cache.release();
+        value_cache.release();
         tops.clear();
         tops.resize(3);
 
-        kvcache_allocator.oom = 1;
+        const void* key_data = bottoms[3].data;
+        const void* value_data = bottoms[4].data;
+        kvcache_allocator.counter = 0;
+        kvcache_allocator.failid = 1;
         ret = op->forward(bottoms, tops, opt) == -100 ? 0 : -1;
+        if (ret == 0 && (bottoms[3].data != key_data || bottoms[4].data != value_data))
+            ret = -1;
+
+        tops.clear();
+        tops.resize(3);
+        kvcache_allocator.counter = 0;
+        kvcache_allocator.failid = INT_MAX;
+        if (ret == 0)
+            ret = op->forward(bottoms, tops, opt);
     }
 
     bottoms.clear();
@@ -195,9 +224,7 @@ static int test_sdpa_int8_oom(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn
         as.push_back(RandomMat(dst_seqlen, src_seqlen));
     }
 
-    float epsilon = 0.001;
-
-    int ret = test_layer_oom("SDPA", pd, weights, as, 1, epsilon);
+    int ret = test_layer_oom("SDPA", pd, weights, as, 1);
     if (ret != 0)
     {
         fprintf(stderr, "test_sdpa_int8_oom failed q=(%d %d %d) k=(%d %d %d) v=(%d %d %d) attn_mask=%d scale=%f\n", q.w, q.h, q.c, k.w, k.h, k.c, v.w, v.h, v.c, attn_mask, scale);
