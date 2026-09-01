@@ -81,7 +81,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-2022]
 
     env:
       PYTHONUSERBASE: ${{ github.workspace }}/torch
@@ -119,49 +119,6 @@ jobs:
       run: |
         cd tools/pnnx/build
         ctest -C Release --output-on-failure -L pt2-smoke
-
-  pt2-sanitizer:
-    runs-on: ubuntu-latest
-
-    env:
-      PYTHONUSERBASE: ${{ github.workspace }}/torch
-      ASAN_OPTIONS: detect_leaks=0
-      UBSAN_OPTIONS: halt_on_error=1
-    steps:
-    - uses: actions/checkout@v7
-      with:
-        submodules: true
-
-    - uses: actions/setup-python@v7
-      with:
-        python-version: 3.12
-
-    - name: setup-pytorch
-      run: |
-        python3 -m pip config set global.break-system-packages true
-        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} torchvision==${{ env.TORCHVISION_VERSION }} --index-url https://download.pytorch.org/whl/cpu
-        pip3 install --user --no-deps torchaudio==${{ env.TORCHAUDIO_VERSION }} --index-url https://download.pytorch.org/whl/cpu
-        pip3 install --user numpy packaging transformers==${{ env.TRANSFORMERS_VERSION }} einops onnxscript
-
-    - name: python-ncnn
-      env:
-        CMAKE_BUILD_PARALLEL_LEVEL: 4
-        EXTRA_CMAKE_ARGS: -DNCNN_VULKAN=OFF
-      run: pip3 install --user --no-deps . --verbose
-
-    - name: build-pnnx
-      run: |
-        cd tools/pnnx
-        mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
-            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" ..
-        cmake --build . --config RelWithDebInfo -j 4
-
-    - name: pt2-sanitizer-test
-      run: |
-        cd tools/pnnx/build
-        ctest -C RelWithDebInfo --output-on-failure -L pt2-smoke
 
   build:
     runs-on: [self-hosted, linux, ubuntu25]

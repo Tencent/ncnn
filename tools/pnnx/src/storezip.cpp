@@ -696,7 +696,8 @@ int StoreZipWriter::write_file(const std::string& name, const char* data, uint64
     fwrite((char*)&extra_size, sizeof(extra_size), 1, fp);
     fwrite((char*)&zip64_eef, sizeof(zip64_eef), 1, fp);
 
-    fwrite(data, size, 1, fp);
+    if (size)
+        fwrite(data, size, 1, fp);
 
     StoreZipMeta szm;
     szm.name = name;
