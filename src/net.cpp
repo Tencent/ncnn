@@ -24,6 +24,12 @@
 
 namespace ncnn {
 
+// maximum sizes accepted from an untrusted model file header;
+// larger values indicate a corrupt or malicious model and are rejected
+// before any allocation (resize with a huge count would otherwise OOM)
+static const int MAX_LAYER_COUNT = 1000000;
+static const int MAX_BLOB_COUNT = 1000000;
+
 class NetPrivate
 {
 public:
@@ -1325,9 +1331,9 @@ int Net::load_param(const DataReader& dr)
     int blob_count = 0;
     SCAN_VALUE("%d", layer_count)
     SCAN_VALUE("%d", blob_count)
-    if (layer_count <= 0 || blob_count <= 0)
+    if (layer_count <= 0 || blob_count <= 0 || layer_count > MAX_LAYER_COUNT || blob_count > MAX_BLOB_COUNT)
     {
-        NCNN_LOGE("invalid layer_count or blob_count");
+        NCNN_LOGE("invalid layer_count or blob_count %d %d", layer_count, blob_count);
         return -1;
     }
 
@@ -1396,6 +1402,13 @@ int Net::load_param(const DataReader& dr)
         SCAN_VALUE("%255s", layer_name)
         SCAN_VALUE("%d", bottom_count)
         SCAN_VALUE("%d", top_count)
+
+        if (bottom_count < 0 || top_count < 0 || bottom_count > MAX_BLOB_COUNT || top_count > MAX_BLOB_COUNT)
+        {
+            NCNN_LOGE("invalid bottom_count or top_count %d %d", bottom_count, top_count);
+            clear();
+            return -1;
+        }
 
         Layer* layer = create_overwrite_builtin_layer(layer_type);
 #if NCNN_VULKAN
@@ -1486,7 +1499,7 @@ int Net::load_param(const DataReader& dr)
 
         // pull out top shape hints
         Mat shape_hints = pd.get(30, Mat());
-        if (!shape_hints.empty())
+        if (!shape_hints.empty() && top_count > 0)
         {
             const int psh_step = shape_hints.w / top_count;
             const int* psh = shape_hints;
@@ -1699,9 +1712,9 @@ int Net::load_param_bin(const DataReader& dr)
     int blob_count = 0;
     READ_VALUE(layer_count)
     READ_VALUE(blob_count)
-    if (layer_count <= 0 || blob_count <= 0)
+    if (layer_count <= 0 || blob_count <= 0 || layer_count > MAX_LAYER_COUNT || blob_count > MAX_BLOB_COUNT)
     {
-        NCNN_LOGE("invalid layer_count or blob_count");
+        NCNN_LOGE("invalid layer_count or blob_count %d %d", layer_count, blob_count);
         return -1;
     }
 
@@ -1768,6 +1781,13 @@ int Net::load_param_bin(const DataReader& dr)
         READ_VALUE(bottom_count)
         READ_VALUE(top_count)
 
+        if (bottom_count < 0 || top_count < 0 || bottom_count > MAX_BLOB_COUNT || top_count > MAX_BLOB_COUNT)
+        {
+            NCNN_LOGE("invalid bottom_count or top_count %d %d", bottom_count, top_count);
+            clear();
+            return -1;
+        }
+
         Layer* layer = create_overwrite_builtin_layer(typeindex);
 #if NCNN_VULKAN
         if (!layer && opt.use_vulkan_compute && d->vkdev)
@@ -1806,6 +1826,14 @@ int Net::load_param_bin(const DataReader& dr)
             int bottom_blob_index;
             READ_VALUE(bottom_blob_index)
 
+            if (bottom_blob_index < 0 || bottom_blob_index >= blob_count)
+            {
+                NCNN_LOGE("invalid bottom_blob_index %d", bottom_blob_index);
+                d->layers[i] = layer;
+                clear();
+                return -1;
+            }
+
             Blob& blob = d->blobs[bottom_blob_index];
 
             blob.consumer = i;
@@ -1818,6 +1846,14 @@ int Net::load_param_bin(const DataReader& dr)
         {
             int top_blob_index;
             READ_VALUE(top_blob_index)
+
+            if (top_blob_index < 0 || top_blob_index >= blob_count)
+            {
+                NCNN_LOGE("invalid top_blob_index %d", top_blob_index);
+                d->layers[i] = layer;
+                clear();
+                return -1;
+            }
 
             Blob& blob = d->blobs[top_blob_index];
 
@@ -1843,7 +1879,7 @@ int Net::load_param_bin(const DataReader& dr)
 
         // pull out top blob shape hints
         Mat shape_hints = pd.get(30, Mat());
-        if (!shape_hints.empty())
+        if (!shape_hints.empty() && top_count > 0)
         {
             const int psh_step = shape_hints.w / top_count;
             const int* psh = shape_hints;
