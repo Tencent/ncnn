@@ -9,6 +9,10 @@ void rmsnorm_bf16s_sse_avx512bf16(unsigned short* ptr, const float* gamma_ptr, f
 void rmsnorm_bf16s_sse_avx2(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+void rmsnorm_bf16s_sse_fma(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack);
+#endif
+
 static void rmsnorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
@@ -23,6 +27,13 @@ static void rmsnorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, float
     if (ncnn::cpu_support_x86_avx2())
     {
         rmsnorm_bf16s_sse_avx2(ptr, gamma_ptr, eps, elemcount, elempack);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        rmsnorm_bf16s_sse_fma(ptr, gamma_ptr, eps, elemcount, elempack);
         return;
     }
 #endif

@@ -1,6 +1,10 @@
 // Copyright 2022 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+void deconvolution_packed_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+
 static void deconvolution_transform_kernel_packed(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, int kernel_w, int kernel_h)
 {
     const int maxk = kernel_w * kernel_h;
@@ -566,6 +570,14 @@ static void deconvolution_transform_kernel_packed(const Mat& weight_data, Mat& w
 
 static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        deconvolution_packed_fma(bottom_blob, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+        return;
+    }
+#endif
+
     const int out_elempack = top_blob.elempack;
 
     const int outch = top_blob.c * out_elempack;

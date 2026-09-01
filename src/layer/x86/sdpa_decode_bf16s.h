@@ -9,6 +9,11 @@ int sdpa_decode_bf16s_avx512bf16(const Mat& query, const Mat& key, const Mat& va
 int sdpa_decode_bf16s_avx2(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+void sdpa_decode_tile_bf16s_fma(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, int q0, int max_qq, int g, int block_n, Mat& workspace);
+void sdpa_decode_kvcache_small_tile_bf16s_fma(const Mat& query, const Mat& key_cache, const Mat& value_cache, const Mat& attn_mask_blob, Mat& top_blob, float scale, int q0, int max_qq, int g, int block_n, Mat& workspace);
+#endif
+
 static void sdpa_decode_attention_tile_bf16s(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, int q, int max_qq, int g, int block_n, Mat& workspace)
 {
     const int head_dim = query.w;
@@ -58,6 +63,14 @@ static void sdpa_decode_attention_tile_bf16s(const Mat& query, const Mat& key, c
 
 static void sdpa_decode_tile_bf16s(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, int q0, int max_qq, int g, int block_n, Mat& workspace)
 {
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        sdpa_decode_tile_bf16s_fma(query, key, value, attn_mask_blob, top_blob, scale, q0, max_qq, g, block_n, workspace);
+        return;
+    }
+#endif
+
     const int key_seqlen = key.h;
     int qq = 0;
 #if __SSE2__
@@ -488,6 +501,14 @@ static int sdpa_decode_bf16s(const Mat& query, const Mat& key, const Mat& value,
 
 static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& key_cache, const Mat& value_cache, const Mat& attn_mask_blob, Mat& top_blob, float scale, int q0, int max_qq, int g, int block_n, Mat& workspace)
 {
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        sdpa_decode_kvcache_small_tile_bf16s_fma(query, key_cache, value_cache, attn_mask_blob, top_blob, scale, q0, max_qq, g, block_n, workspace);
+        return;
+    }
+#endif
+
     const int head_dim = query.w;
     const int value_dim = value_cache.w;
     const int key_seqlen = key_cache.h;

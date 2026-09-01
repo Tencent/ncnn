@@ -1,8 +1,20 @@
 // Copyright 2019 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+void conv3x3s1_pack8_avx_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& bias, const Option& opt);
+#endif
+
 static void conv3x3s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        conv3x3s1_pack8_avx_fma(bottom_blob, top_blob, kernel, _bias, opt);
+        return;
+    }
+#endif
+
     int inch = bottom_blob.c;
 
     int outw = top_blob.w;

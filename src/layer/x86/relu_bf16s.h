@@ -9,6 +9,10 @@ void relu_bf16s_avx512bf16(Mat& a, float slope, const Option& opt);
 void relu_bf16s_avx2(Mat& a, float slope, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+void relu_bf16s_fma(Mat& a, float slope, const Option& opt);
+#endif
+
 static void relu_bf16s(Mat& a, float slope, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
@@ -23,6 +27,14 @@ static void relu_bf16s(Mat& a, float slope, const Option& opt)
     if (ncnn::cpu_support_x86_avx2())
     {
         relu_bf16s_avx2(a, slope, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+    if (slope != 0.f && ncnn::cpu_support_x86_fma())
+    {
+        relu_bf16s_fma(a, slope, opt);
         return;
     }
 #endif

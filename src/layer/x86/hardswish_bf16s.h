@@ -9,6 +9,10 @@ void hardswish_bf16s_avx512bf16(Mat& a, float alpha, float beta, float lower, fl
 void hardswish_bf16s_avx2(Mat& a, float alpha, float beta, float lower, float upper, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+void hardswish_bf16s_fma(Mat& a, float alpha, float beta, float lower, float upper, const Option& opt);
+#endif
+
 static void hardswish_bf16s(Mat& a, float alpha, float beta, float lower, float upper, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
@@ -23,6 +27,13 @@ static void hardswish_bf16s(Mat& a, float alpha, float beta, float lower, float 
     if (ncnn::cpu_support_x86_avx2())
     {
         hardswish_bf16s_avx2(a, alpha, beta, lower, upper, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        hardswish_bf16s_fma(a, alpha, beta, lower, upper, opt);
         return;
     }
 #endif

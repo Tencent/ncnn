@@ -9,6 +9,10 @@ void interp_forward_bf16s_sse_avx512bf16(const std::vector<Mat>& bottom_blobs, s
 void interp_forward_bf16s_sse_avx2(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+void interp_forward_bf16s_sse_fma(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr);
+#endif
+
 static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr);
 
 static void vresize_bilinear_bf16s(const float* rows0, const float* rows1, unsigned short* Dp, int n, float b0, float b1)
@@ -1425,6 +1429,15 @@ static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::
     if (ncnn::cpu_support_x86_avx2())
     {
         interp_forward_bf16s_sse_avx2(bottom_blobs, top_blobs, opt, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr);
+        return;
+    }
+#endif
+
+
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        interp_forward_bf16s_sse_fma(bottom_blobs, top_blobs, opt, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr);
         return;
     }
 #endif

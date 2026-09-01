@@ -1,8 +1,20 @@
 // Copyright 2022 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+void deformableconv2d_packed_fma(const std::vector<Mat>& bottom_blobs, Mat& top_blob, const Mat& weight_data_packed, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int pad_left, int pad_top, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+
 static void deformableconv2d_packed(const std::vector<Mat>& bottom_blobs, Mat& top_blob, const Mat& weight_data_packed, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int pad_left, int pad_top, int activation_type, const Mat& activation_params, const Option& opt)
 {
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        deformableconv2d_packed_fma(bottom_blobs, top_blob, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
+        return;
+    }
+#endif
+
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& offset = bottom_blobs[1];
     const bool has_mask = (bottom_blobs.size() == 3);

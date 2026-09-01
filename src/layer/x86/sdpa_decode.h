@@ -1,6 +1,11 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+void sdpa_decode_tile_fma(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, int q0, int max_qq, int g, int block_n, Mat& workspace);
+void sdpa_decode_kvcache_small_tile_fma(const Mat& query, const Mat& key_cache, const Mat& value_cache, const Mat& attn_mask_blob, Mat& top_blob, float scale, int q0, int max_qq, int g, int block_n, Mat& workspace);
+#endif
+
 static int sdpa_decode_get_optimal_tile_q(int num_query_heads_per_kv_head)
 {
 #if __SSE2__
@@ -98,6 +103,14 @@ static void sdpa_decode_attention_tile(const Mat& query, const Mat& key, const M
 
 static void sdpa_decode_tile(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, int q0, int max_qq, int g, int block_n, Mat& workspace)
 {
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        sdpa_decode_tile_fma(query, key, value, attn_mask_blob, top_blob, scale, q0, max_qq, g, block_n, workspace);
+        return;
+    }
+#endif
+
     const int key_seqlen = key.h;
     int qq = 0;
 #if __SSE2__
@@ -936,6 +949,14 @@ static int sdpa_decode(const Mat& query, const Mat& key, const Mat& value, const
 
 static void sdpa_decode_kvcache_small_tile(const Mat& query, const Mat& key_cache, const Mat& value_cache, const Mat& attn_mask_blob, Mat& top_blob, float scale, int q0, int max_qq, int g, int block_n, Mat& workspace)
 {
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        sdpa_decode_kvcache_small_tile_fma(query, key_cache, value_cache, attn_mask_blob, top_blob, scale, q0, max_qq, g, block_n, workspace);
+        return;
+    }
+#endif
+
     const int head_dim = query.w;
     const int value_dim = value_cache.w;
     const int key_seqlen = key_cache.h;

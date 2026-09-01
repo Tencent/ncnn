@@ -17,6 +17,10 @@ void transpose_pack_B_tile_bf16_avx2(const Mat& B, Mat& BT, int j, int max_jj, i
 void gemm_transB_packed_tile_bf16s_avx2(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+void gemm_transB_packed_tile_bf16s_fma(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk);
+#endif
+
 static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
@@ -2180,6 +2184,14 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
     if (ncnn::cpu_support_x86_avx2())
     {
         gemm_transB_packed_tile_bf16s_avx2(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        gemm_transB_packed_tile_bf16s_fma(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
         return;
     }
 #endif

@@ -11,6 +11,10 @@ void convolution_im2col_gemm_transform_kernel_bf16s_avx2(const Mat& kernel, Mat&
 int convolution_im2col_gemm_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, int nT, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+int convolution_im2col_gemm_bf16s_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, int nT, const Option& opt);
+#endif
+
 static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
     // A = (pa, maxk, inch/pa), outch
@@ -6308,6 +6312,11 @@ static int convolution_im2col_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, 
     {
         return convolution_im2col_gemm_bf16s_avx2(bottom_blob, top_blob, AT, bias, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, nT, opt);
     }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+        return convolution_im2col_gemm_bf16s_fma(bottom_blob, top_blob, AT, bias, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, nT, opt);
 #endif
 
     const int maxk = kernel_w * kernel_h;

@@ -9,6 +9,10 @@ void innerproduct_gemm_bf16s_sse_avx512bf16(const Mat& bottom_blob, Mat& top_blo
 void innerproduct_gemm_bf16s_sse_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+void innerproduct_gemm_bf16s_sse_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+
 static void innerproduct_gemm_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
@@ -23,6 +27,15 @@ static void innerproduct_gemm_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, c
     if (ncnn::cpu_support_x86_avx2())
     {
         innerproduct_gemm_bf16s_sse_avx2(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        return;
+    }
+#endif
+
+
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        innerproduct_gemm_bf16s_sse_fma(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
         return;
     }
 #endif

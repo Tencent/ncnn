@@ -1,6 +1,10 @@
 // Copyright 2024 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+void convolution_gemm_transB_packed_tile_fma(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end);
+#endif
+
 static void convolution_im2col_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
     // A = (pa, maxk, inch/pa), outch
@@ -318,6 +322,14 @@ static void convolution_im2col_pack_A_tile(const Mat& A, Mat& AT, int i, int max
 
 static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end)
 {
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        convolution_gemm_transB_packed_tile_fma(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, i, max_ii, j, max_jj, k, max_kk, k_end);
+        return;
+    }
+#endif
+
     // NCNN_LOGE("convolution_gemm_transB_packed_tile %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
 
     const int out_elempack = top_blob.elempack;

@@ -1,6 +1,10 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+void sdpa_attention_tile_fma(const Mat& queryT, const Mat& key_head, const Mat& packed_key_head, const Mat& value_head, const Mat& packed_value_head, const Mat& computation_value_head, const Mat& mask, size_t mask_hstep, const Mat& packed_mask, Mat& scoreT, Mat& outT, Mat& lT, int max_ii);
+#endif
+
 static int sdpa_prefill_get_optimal_tile_m()
 {
 #if __AVX512F__
@@ -982,6 +986,14 @@ static void sdpa_append_kvcache_token(const Mat& key, const Mat& value, Mat& cac
 
 static void sdpa_attention_tile(const Mat& queryT, const Mat& key_head, const Mat& packed_key_head, const Mat& value_head, const Mat& packed_value_head, const Mat& computation_value_head, const Mat& mask, size_t mask_hstep, const Mat& packed_mask, Mat& scoreT, Mat& outT, Mat& lT, int max_ii)
 {
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        sdpa_attention_tile_fma(queryT, key_head, packed_key_head, value_head, packed_value_head, computation_value_head, mask, mask_hstep, packed_mask, scoreT, outT, lT, max_ii);
+        return;
+    }
+#endif
+
     const int head_dim = packed_key_head.empty() ? key_head.w : packed_key_head.w;
     const int value_dim = packed_value_head.empty() ? value_head.w : packed_value_head.w;
     const int key_seqlen = packed_key_head.empty() ? key_head.h : packed_key_head.h;

@@ -1,8 +1,21 @@
 // Copyright 2022 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+void convdw5x5s1_pack4_sse_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& bias, const Option& opt);
+void convdw5x5s2_pack4_sse_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& bias, const Option& opt);
+#endif
+
 static void convdw5x5s1_pack4_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        convdw5x5s1_pack4_sse_fma(bottom_blob, top_blob, kernel, _bias, opt);
+        return;
+    }
+#endif
+
     int w = bottom_blob.w;
 
     int outw = top_blob.w;
@@ -321,6 +334,14 @@ static void convdw5x5s1_pack4_sse(const Mat& bottom_blob, Mat& top_blob, const M
 
 static void convdw5x5s2_pack4_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        convdw5x5s2_pack4_sse_fma(bottom_blob, top_blob, kernel, _bias, opt);
+        return;
+    }
+#endif
+
     int w = bottom_blob.w;
 
     int outw = top_blob.w;

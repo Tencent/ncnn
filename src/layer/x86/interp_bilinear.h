@@ -97,6 +97,7 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
     }
 #endif
 
+
     int w = dst.w;
     int h = dst.h;
 

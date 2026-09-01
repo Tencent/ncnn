@@ -11,6 +11,10 @@ int sdpa_prefill_bf16s_avx2(const Mat& query, const Mat& key, const Mat& value, 
 int sdpa_kvcache_bf16s_avx2(const Mat& query, const Mat& past_key, const Mat& past_value, const Mat& cur_key, const Mat& cur_value, Mat& cached_key, Mat& cached_value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+void sdpa_attention_tile_bf16s_fma(const Mat& queryT, const Mat& key_head, const Mat& packed_key_head, const Mat& value_head, const Mat& packed_value_head, const Mat& computation_value_head, const Mat& mask, size_t mask_hstep, const Mat& packed_mask, Mat& scoreT, Mat& outT, Mat& lT, int max_ii, float scale);
+#endif
+
 static void sdpa_pack_query_bf16s(const Mat& query_head, Mat& queryT, int i, int max_ii, size_t q_hstep)
 {
     const int head_dim = query_head.w;
@@ -1106,6 +1110,14 @@ static void sdpa_pack_value_tile_bf16s_to_fp32(const Mat& value, Mat& packed_val
 
 static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, const Mat& packed_key_head, const Mat& value_head, const Mat& packed_value_head, const Mat& computation_value_head, const Mat& mask, size_t mask_hstep, const Mat& packed_mask, Mat& scoreT, Mat& outT, Mat& lT, int max_ii, float scale)
 {
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        sdpa_attention_tile_bf16s_fma(queryT, key_head, packed_key_head, value_head, packed_value_head, computation_value_head, mask, mask_hstep, packed_mask, scoreT, outT, lT, max_ii, scale);
+        return;
+    }
+#endif
+
     const int head_dim = packed_key_head.empty() ? key_head.w : packed_key_head.w;
     const int key_seqlen = packed_key_head.empty() ? key_head.h : packed_key_head.h;
     const int TILE_M = lT.w;

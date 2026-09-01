@@ -1,6 +1,10 @@
 // Copyright 2023 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+void convolution1d_packed_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int dilation_w, int stride_w, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+
 static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel_tm, int inh, int outh, int kernel_w)
 {
     // src = kw-inh-outh
@@ -1058,6 +1062,14 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
 
 static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int dilation_w, int stride_w, int activation_type, const Mat& activation_params, const Option& opt)
 {
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        convolution1d_packed_fma(bottom_blob, top_blob, weight_data_tm, bias_data, kernel_w, dilation_w, stride_w, activation_type, activation_params, opt);
+        return;
+    }
+#endif
+
     const int elempack = bottom_blob.elempack;
     const int inh = bottom_blob.h * elempack;
 
