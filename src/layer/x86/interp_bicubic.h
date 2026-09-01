@@ -151,7 +151,6 @@ static void resize_bicubic_image(const Mat& src, Mat& dst, float* alpha, int* xo
     }
 #endif
 
-
     int w = dst.w;
     int h = dst.h;
 

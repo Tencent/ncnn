@@ -1679,4 +1679,3 @@ static void softmax(float* _ptr, int elemcount, int elempack, size_t stride, int
         softmax_pack1(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
     }
 }
-

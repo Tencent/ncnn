@@ -32,7 +32,6 @@ static void erf_fp32(Mat& bottom_top_blob, const Option& opt)
     int elempack = bottom_top_blob.elempack;
     int size = w * h * d * elempack;
 
-
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {

@@ -32,7 +32,6 @@ static void selu_fp32(Mat& bottom_top_blob, float alpha, float lambda, const Opt
     int channels = bottom_top_blob.c;
     int size = w * h * d * elempack;
 
-
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {

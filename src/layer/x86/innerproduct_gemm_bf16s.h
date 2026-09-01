@@ -34,7 +34,6 @@ static void innerproduct_gemm_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, c
     }
 #endif
 
-
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
     {

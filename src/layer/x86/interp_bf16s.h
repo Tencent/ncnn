@@ -1436,7 +1436,6 @@ static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::
     }
 #endif
 
-
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
     {

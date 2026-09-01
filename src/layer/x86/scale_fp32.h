@@ -28,7 +28,6 @@ static void scale_fp32(std::vector<Mat>& bottom_top_blobs, int bias_term, const 
     Mat& bottom_top_blob = bottom_top_blobs[0];
     const Mat& scale_blob = bottom_top_blobs[1];
 
-
     const int w = bottom_top_blob.w;
     const int h = bottom_top_blob.h;
     const int d = bottom_top_blob.d;

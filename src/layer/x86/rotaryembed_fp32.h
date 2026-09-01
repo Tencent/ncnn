@@ -361,4 +361,3 @@ static int rotaryembed_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
     return 0;
 }
-

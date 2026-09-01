@@ -382,4 +382,3 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
 
     return 0;
 }
-

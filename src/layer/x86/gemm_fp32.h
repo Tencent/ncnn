@@ -3924,4 +3924,3 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
         pAT += max_kk;
     }
 }
-

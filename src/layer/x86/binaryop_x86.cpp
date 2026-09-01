@@ -375,7 +375,6 @@ void binary_op_vector_bf16s_fma(const unsigned short* ptr, const unsigned short*
 void binary_op_vector_bf16s_fma4(const unsigned short* ptr, const unsigned short* ptr1, unsigned short* outptr, int aw, int bw, int ap, int bp, int op_type);
 #endif
 
-
 static void binary_op_vector_bf16s(const unsigned short* ptr, const unsigned short* ptr1, unsigned short* outptr, int aw, int bw, int ap, int bp, int op_type)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__

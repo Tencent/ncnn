@@ -285,4 +285,3 @@ static void deconvolutiondepthwise_fp32(const Mat& bottom_blob, Mat& top_blob, c
         }
     }
 }
-

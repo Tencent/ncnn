@@ -68,7 +68,6 @@ int unaryop_bf16s_sse_fma(Mat& bottom_top_blob, int op_type, const Option& opt);
 int unaryop_bf16s_sse_fma4(Mat& bottom_top_blob, int op_type, const Option& opt);
 #endif
 
-
 static int unaryop_bf16s_sse(Mat& bottom_top_blob, int op_type, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__

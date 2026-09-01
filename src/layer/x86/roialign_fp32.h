@@ -375,4 +375,3 @@ static int roialign_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
     return 0;
 }
-

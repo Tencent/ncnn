@@ -225,4 +225,3 @@ static int yolov3detectionoutput_fp32(const Yolov3DetectionOutput& self, const s
 
     return 0;
 }
-
