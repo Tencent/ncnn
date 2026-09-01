@@ -792,6 +792,10 @@ set(pnnx_SRCS
 
 add_executable(pnnx ${pnnx_SRCS})
 
+if(WIN32 AND CMAKE_CONFIGURATION_TYPES)
+    add_custom_command(TARGET pnnx POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:pnnx> ${CMAKE_CURRENT_BINARY_DIR}/pnnx.exe)
+endif()
+
 set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_TORCH2PNNX)
 target_link_libraries(pnnx PRIVATE torch2pnnx)
 
