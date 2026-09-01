@@ -40,7 +40,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_torch_tensor_split.pt2 inputshape=[100],[3,16],[5,9,3],[6,13,6,22]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_torch_tensor_split.pt2 inputshape=[100],[3,16],[5,9,3],[6,13,6,22]")
 
     # pnnx inference
     import test_torch_tensor_split_pnnx

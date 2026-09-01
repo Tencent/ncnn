@@ -53,7 +53,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_F_group_norm.pt2 inputshape=[1,16],[12,12,16],[1,32,12,16],[16],[16],[12],[12],[32],[32]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_F_group_norm.pt2 inputshape=[1,16],[12,12,16],[1,32,12,16],[16],[16],[12],[12],[32],[32]")
 
     # pnnx inference
     import test_F_group_norm_pnnx

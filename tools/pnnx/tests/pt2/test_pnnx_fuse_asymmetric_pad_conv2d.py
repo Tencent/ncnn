@@ -44,7 +44,7 @@ def test():
     mod = torch.export.export(net, (x,))
     torch.export.save(mod, "test_pnnx_fuse_asymmetric_pad_conv2d.pt2")
 
-    os.system("../../src/pnnx test_pnnx_fuse_asymmetric_pad_conv2d.pt2 inputshape=[1,4,56,56]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_pnnx_fuse_asymmetric_pad_conv2d.pt2 inputshape=[1,4,56,56]")
 
     import test_pnnx_fuse_asymmetric_pad_conv2d_pnnx
     b = test_pnnx_fuse_asymmetric_pad_conv2d_pnnx.test_inference()

@@ -50,7 +50,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_transformers_funnel_attention.pt2 inputshape=[3,16,192],[3,16]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_transformers_funnel_attention.pt2 inputshape=[3,16,192],[3,16]")
 
     # pnnx inference
     import test_transformers_funnel_attention_pnnx

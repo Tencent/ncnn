@@ -51,7 +51,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_F_prelu.pt2 inputshape=[1,16],[12,2,16],[1,3,12,16],[1,5,7,9,11],[16],[2],[3],[1]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_F_prelu.pt2 inputshape=[1,16],[12,2,16],[1,3,12,16],[1,5,7,9,11],[16],[2],[3],[1]")
 
     # pnnx inference
     import test_F_prelu_pnnx

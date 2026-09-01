@@ -32,7 +32,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_Tensor_reshape_as.pt2 inputshape=[1,3,16],[6,2,2,2],[48]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_Tensor_reshape_as.pt2 inputshape=[1,3,16],[6,2,2,2],[48]")
 
     # pnnx inference
     import test_Tensor_reshape_as_pnnx

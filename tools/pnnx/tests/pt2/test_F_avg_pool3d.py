@@ -43,7 +43,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_F_avg_pool3d.pt2 inputshape=[1,12,96,128,128],[12,96,128,128]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_F_avg_pool3d.pt2 inputshape=[1,12,96,128,128],[12,96,128,128]")
 
     # pnnx inference
     import test_F_avg_pool3d_pnnx

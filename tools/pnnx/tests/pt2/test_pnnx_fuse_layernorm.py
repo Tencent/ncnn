@@ -44,7 +44,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_pnnx_fuse_layernorm.pt2 inputshape=[1,64,16,16]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_pnnx_fuse_layernorm.pt2 inputshape=[1,64,16,16]")
 
     # pnnx inference
     import test_pnnx_fuse_layernorm_pnnx

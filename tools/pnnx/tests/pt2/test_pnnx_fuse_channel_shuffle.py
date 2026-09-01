@@ -156,7 +156,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_pnnx_channel_shuffle.pt2 inputshape=[1,8,16,16]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_pnnx_channel_shuffle.pt2 inputshape=[1,8,16,16]")
 
     # pnnx inference
     import test_pnnx_channel_shuffle_pnnx

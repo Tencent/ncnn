@@ -34,7 +34,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_pnnx_eliminate_noop_cat.pt2 inputshape=[1,12,52]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_pnnx_eliminate_noop_cat.pt2 inputshape=[1,12,52]")
 
     # pnnx inference
     import test_pnnx_eliminate_noop_cat_pnnx

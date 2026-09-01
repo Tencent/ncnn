@@ -42,7 +42,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_pnnx_fuse_slice_to_tensor_split.pt2 inputshape=[8],[9,10],[8,9,10]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_pnnx_fuse_slice_to_tensor_split.pt2 inputshape=[8],[9,10],[8,9,10]")
 
     # pnnx inference
     import test_pnnx_fuse_slice_to_tensor_split_pnnx

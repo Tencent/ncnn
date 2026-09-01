@@ -38,7 +38,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_F_log_softmax.pt2 inputshape=[1,16],[12,2,16],[1,3,12,16],[1,5,7,9,11]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_F_log_softmax.pt2 inputshape=[1,16],[12,2,16],[1,3,12,16],[1,5,7,9,11]")
 
     # pnnx inference
     import test_F_log_softmax_pnnx

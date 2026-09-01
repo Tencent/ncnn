@@ -36,7 +36,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_nn_PixelShuffle.pt2 inputshape=[1,128,6,8],[1,12,192,7,9]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_nn_PixelShuffle.pt2 inputshape=[1,128,6,8],[1,12,192,7,9]")
 
     # pnnx inference
     import test_nn_PixelShuffle_pnnx

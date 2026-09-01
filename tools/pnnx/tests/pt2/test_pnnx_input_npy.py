@@ -45,7 +45,7 @@ def _test_basic():
     mod = torch.export.export(net, (x, y))
     torch.export.save(mod, "test_pnnx_input_npy_basic.pt2")
 
-    ret = os.system("../../src/pnnx test_pnnx_input_npy_basic.pt2 input=test_pnnx_input_npy_basic_x.npy,test_pnnx_input_npy_basic_y.npy")
+    ret = os.system(os.path.normpath("../../src/pnnx") + " test_pnnx_input_npy_basic.pt2 input=test_pnnx_input_npy_basic_x.npy,test_pnnx_input_npy_basic_y.npy")
     if ret != 0:
         return False
 
@@ -100,7 +100,7 @@ def _test_input2():
     mod = torch.export.export(net, (x0, y0), dynamic_shapes=dynamic_shapes)
     torch.export.save(mod, "test_pnnx_input_npy_input2.pt2")
 
-    ret = os.system("../../src/pnnx test_pnnx_input_npy_input2.pt2 input=test_pnnx_input_npy_input2_x0.npy,test_pnnx_input_npy_input2_y0.npy input2=test_pnnx_input_npy_input2_x1.npy,test_pnnx_input_npy_input2_y1.npy")
+    ret = os.system(os.path.normpath("../../src/pnnx") + " test_pnnx_input_npy_input2.pt2 input=test_pnnx_input_npy_input2_x0.npy,test_pnnx_input_npy_input2_y0.npy input2=test_pnnx_input_npy_input2_x1.npy,test_pnnx_input_npy_input2_y1.npy")
     if ret != 0:
         return False
 
@@ -141,7 +141,7 @@ def _test_int64():
     mod = torch.export.export(net, (x, y))
     torch.export.save(mod, "test_pnnx_input_npy_int64.pt2")
 
-    ret = os.system("../../src/pnnx test_pnnx_input_npy_int64.pt2 input=test_pnnx_input_npy_int64_x.npy,test_pnnx_input_npy_int64_y.npy")
+    ret = os.system(os.path.normpath("../../src/pnnx") + " test_pnnx_input_npy_int64.pt2 input=test_pnnx_input_npy_int64_x.npy,test_pnnx_input_npy_int64_y.npy")
     if ret != 0:
         return False
 
@@ -180,7 +180,7 @@ def _test_embedding():
     mod = torch.export.export(net, (x,))
     torch.export.save(mod, "test_pnnx_input_npy_embedding.pt2")
 
-    ret = os.system("../../src/pnnx test_pnnx_input_npy_embedding.pt2 input=test_pnnx_input_npy_embedding_x.npy")
+    ret = os.system(os.path.normpath("../../src/pnnx") + " test_pnnx_input_npy_embedding.pt2 input=test_pnnx_input_npy_embedding_x.npy")
     if ret != 0:
         return False
 

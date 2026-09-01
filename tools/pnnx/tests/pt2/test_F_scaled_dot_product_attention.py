@@ -49,7 +49,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_F_scaled_dot_product_attention.pt2 inputshape=[3,8,128,64],[3,8,48,64],[3,8,48,77],[3,8,128,48],[3,2,48,64],[3,2,48,77],[3,1,128,48]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_F_scaled_dot_product_attention.pt2 inputshape=[3,8,128,64],[3,8,48,64],[3,8,48,77],[3,8,128,48],[3,2,48,64],[3,2,48,77],[3,1,128,48]")
 
     # pnnx inference
     import test_F_scaled_dot_product_attention_pnnx

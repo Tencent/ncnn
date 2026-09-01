@@ -33,7 +33,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_torch_bitwise_right_shift.pt2 inputshape=[3,16]i32,[3,16]i32")
+    os.system(os.path.normpath("../../src/pnnx") + " test_torch_bitwise_right_shift.pt2 inputshape=[3,16]i32,[3,16]i32")
 
     # pnnx inference
     import test_torch_bitwise_right_shift_pnnx

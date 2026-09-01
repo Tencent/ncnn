@@ -31,7 +31,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_Tensor_fill.pt2 inputshape=[6,16],[6,16],[1]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_Tensor_fill.pt2 inputshape=[6,16],[6,16],[1]")
 
     # pnnx inference
     import test_Tensor_fill_pnnx

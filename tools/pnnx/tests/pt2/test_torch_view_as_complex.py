@@ -32,7 +32,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_torch_view_as_complex.pt2 inputshape=[1,3,2],[1,5,9,2],[14,8,5,9,2]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_torch_view_as_complex.pt2 inputshape=[1,3,2],[1,5,9,2],[14,8,5,9,2]")
 
     # pnnx inference
     import test_torch_view_as_complex_pnnx

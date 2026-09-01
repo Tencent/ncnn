@@ -36,7 +36,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_F_upsample_nearest.pt2 inputshape=[1,12,24,64],[1,4,10,24,32],[1,8,86,86]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_F_upsample_nearest.pt2 inputshape=[1,12,24,64],[1,4,10,24,32],[1,8,86,86]")
 
     # pnnx inference
     import test_F_upsample_nearest_pnnx

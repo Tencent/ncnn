@@ -486,7 +486,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_pnnx_fuse_multiheadattention.pt2 inputshape=[1,20,64],[1,20,17],[1,64,6,6]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_pnnx_fuse_multiheadattention.pt2 inputshape=[1,20,64],[1,20,17],[1,64,6,6]")
 
     # pnnx inference
     import test_pnnx_fuse_multiheadattention_pnnx

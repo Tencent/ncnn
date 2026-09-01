@@ -42,7 +42,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_pnnx_fuse_linear_batchnorm1d.pt2 inputshape=[1,64],[12,64]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_pnnx_fuse_linear_batchnorm1d.pt2 inputshape=[1,64],[12,64]")
 
     # pnnx inference
     import test_pnnx_fuse_linear_batchnorm1d_pnnx

@@ -37,7 +37,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_nn_BatchNorm3d.pt2 inputshape=[1,32,12,5,64],[1,11,3,1,1]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_nn_BatchNorm3d.pt2 inputshape=[1,32,12,5,64],[1,11,3,1,1]")
 
     # pnnx inference
     import test_nn_BatchNorm3d_pnnx

@@ -32,7 +32,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_Tensor_expand.pt2 inputshape=[1],[3,1,1],[1,8,1,9,1]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_Tensor_expand.pt2 inputshape=[1],[3,1,1],[1,8,1,9,1]")
 
     # pnnx inference
     import test_Tensor_expand_pnnx

@@ -32,7 +32,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_torch_logaddexp.pt2 inputshape=[3,16],[3,16],[5,9,3]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_torch_logaddexp.pt2 inputshape=[3,16],[3,16],[5,9,3]")
 
     # pnnx inference
     import test_torch_logaddexp_pnnx

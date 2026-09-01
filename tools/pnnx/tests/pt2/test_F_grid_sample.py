@@ -70,7 +70,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_F_grid_sample.pt2 inputshape=[1,3,12,16],[1,21,27,2],[1,12,16,2],[1,5,10,12,16],[1,10,21,27,3],[1,10,12,16,3]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_F_grid_sample.pt2 inputshape=[1,3,12,16],[1,21,27,2],[1,12,16,2],[1,5,10,12,16],[1,10,21,27,3],[1,10,12,16,3]")
 
     # pnnx inference
     import test_F_grid_sample_pnnx

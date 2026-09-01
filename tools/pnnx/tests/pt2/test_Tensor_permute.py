@@ -48,7 +48,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_Tensor_permute.pt2 inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10],[2,3,5,7],[280]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_Tensor_permute.pt2 inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10],[2,3,5,7],[280]")
 
     # pnnx inference
     import test_Tensor_permute_pnnx

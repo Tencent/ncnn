@@ -55,7 +55,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_transformers_xlnet_attention.pt2 inputshape=[16,3,192],[32,3,192],[16,16,3,12]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_transformers_xlnet_attention.pt2 inputshape=[16,3,192],[32,3,192],[16,16,3,12]")
 
     # pnnx inference
     import test_transformers_xlnet_attention_pnnx

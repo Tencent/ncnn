@@ -31,7 +31,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_torch_index_select.pt2 inputshape=[10,13,16],[8]i64")
+    os.system(os.path.normpath("../../src/pnnx") + " test_torch_index_select.pt2 inputshape=[10,13,16],[8]i64")
 
     # pnnx inference
     import test_torch_index_select_pnnx

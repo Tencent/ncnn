@@ -61,7 +61,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_torch_flip.pt2 inputshape=[36],[14,17],[13,14,15],[48,12,16,17]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_torch_flip.pt2 inputshape=[36],[14,17],[13,14,15],[48,12,16,17]")
 
     # pnnx inference
     import test_torch_flip_pnnx

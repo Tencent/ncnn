@@ -46,7 +46,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_Tensor_slice_copy.pt2 inputshape=[18,15,19,20],[15,19,20],[19,20],[120]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_Tensor_slice_copy.pt2 inputshape=[18,15,19,20],[15,19,20],[19,20],[120]")
 
     # pnnx inference
     import test_Tensor_slice_copy_pnnx

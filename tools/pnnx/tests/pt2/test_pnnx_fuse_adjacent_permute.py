@@ -32,7 +32,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_pnnx_fuse_adjacent_permute.pt2 inputshape=[8,9,10],[9,10,11,12],[1,9,10,11,12]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_pnnx_fuse_adjacent_permute.pt2 inputshape=[8,9,10],[9,10,11,12],[1,9,10,11,12]")
 
     # pnnx inference
     import test_pnnx_fuse_adjacent_permute_pnnx

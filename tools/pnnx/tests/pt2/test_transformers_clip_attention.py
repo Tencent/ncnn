@@ -86,7 +86,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_transformers_clip_attention.pt2 inputshape=[3,16,192],[2,5,66],[2,1,5,5],[2,1,5,5],[2,10,14]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_transformers_clip_attention.pt2 inputshape=[3,16,192],[2,5,66],[2,1,5,5],[2,1,5,5],[2,10,14]")
 
     # pnnx inference
     import test_transformers_clip_attention_pnnx

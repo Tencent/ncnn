@@ -45,7 +45,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_transformers_squeezebert_attention.pt2 inputshape=[3,192,16],[2,66,5],[12,16,16],[6,5,5]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_transformers_squeezebert_attention.pt2 inputshape=[3,192,16],[2,66,5],[12,16,16],[6,5,5]")
 
     # pnnx inference
     import test_transformers_squeezebert_attention_pnnx

@@ -21,9 +21,9 @@ def test():
     # pt2 to pnnx
     import os
     if version.parse(torch.__version__) >= version.parse('2.0'):
-        os.system("../../src/pnnx test_resnet18.pt2")
+        os.system(os.path.normpath("../../src/pnnx") + " test_resnet18.pt2")
     else:
-        os.system("../../src/pnnx test_resnet18.pt2 inputshape=[1,3,224,224]")
+        os.system(os.path.normpath("../../src/pnnx") + " test_resnet18.pt2 inputshape=[1,3,224,224]")
 
     # pnnx inference
     import test_resnet18_pnnx

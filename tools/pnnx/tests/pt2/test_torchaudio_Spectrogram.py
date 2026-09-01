@@ -43,7 +43,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_torchaudio_Spectrogram.pt2 inputshape=[3,2560],[1000]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_torchaudio_Spectrogram.pt2 inputshape=[3,2560],[1000]")
 
     # pnnx inference
     import test_torchaudio_Spectrogram_pnnx

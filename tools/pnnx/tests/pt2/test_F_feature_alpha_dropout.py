@@ -30,7 +30,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_F_feature_alpha_dropout.pt2 inputshape=[1,3,4,12,16],[1,5,7,9,11]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_F_feature_alpha_dropout.pt2 inputshape=[1,3,4,12,16],[1,5,7,9,11]")
 
     # pnnx inference
     import test_F_feature_alpha_dropout_pnnx

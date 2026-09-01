@@ -57,7 +57,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Conv1d.pt2 inputshape=[1,12,64]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_nn_Conv1d.pt2 inputshape=[1,12,64]")
 
     # pnnx inference
     import test_nn_Conv1d_pnnx

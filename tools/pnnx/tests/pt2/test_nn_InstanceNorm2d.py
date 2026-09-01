@@ -38,7 +38,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_nn_InstanceNorm2d.pt2 inputshape=[1,12,24,64]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_nn_InstanceNorm2d.pt2 inputshape=[1,12,24,64]")
 
     # pnnx inference
     import test_nn_InstanceNorm2d_pnnx

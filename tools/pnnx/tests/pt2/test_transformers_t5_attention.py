@@ -45,7 +45,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_transformers_t5_attention.pt2 inputshape=[3,16,192],[3,1,16,16]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_transformers_t5_attention.pt2 inputshape=[3,16,192],[3,1,16,16]")
 
     # pnnx inference
     import test_transformers_t5_attention_pnnx

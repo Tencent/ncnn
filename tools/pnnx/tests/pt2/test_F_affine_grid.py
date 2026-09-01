@@ -32,7 +32,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_F_affine_grid.pt2 inputshape=[32,2,3],[12,3,4]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_F_affine_grid.pt2 inputshape=[32,2,3],[12,3,4]")
 
     # pnnx inference
     import test_F_affine_grid_pnnx

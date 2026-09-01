@@ -34,7 +34,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_torch_real.pt2 inputshape=[1,3,16],[1,3,16],[14,5,9,10],[14,5,9,10]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_torch_real.pt2 inputshape=[1,3,16],[1,3,16],[14,5,9,10],[14,5,9,10]")
 
     # pnnx inference
     import test_torch_real_pnnx

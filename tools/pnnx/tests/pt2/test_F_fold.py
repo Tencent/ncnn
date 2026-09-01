@@ -34,7 +34,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_F_fold.pt2 inputshape=[1,108,400],[1,96,190],[1,36,120]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_F_fold.pt2 inputshape=[1,108,400],[1,96,190],[1,36,120]")
 
     # pnnx inference
     import test_F_fold_pnnx

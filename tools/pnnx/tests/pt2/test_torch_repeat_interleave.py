@@ -36,7 +36,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_torch_repeat_interleave.pt2 inputshape=[3],[4,5],[3,7,8]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_torch_repeat_interleave.pt2 inputshape=[3],[4,5],[3,7,8]")
 
     # pnnx inference
     import test_torch_repeat_interleave_pnnx

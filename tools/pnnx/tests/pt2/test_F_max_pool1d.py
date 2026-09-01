@@ -44,7 +44,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_F_max_pool1d.pt2 inputshape=[1,12,128],[12,128]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_F_max_pool1d.pt2 inputshape=[1,12,128],[12,128]")
 
     # pnnx inference
     import test_F_max_pool1d_pnnx

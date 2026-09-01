@@ -41,7 +41,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_torch_cumsum.pt2 inputshape=[2,3,16],[5,9],[14]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_torch_cumsum.pt2 inputshape=[2,3,16],[5,9],[14]")
 
     # pnnx inference
     import test_torch_cumsum_pnnx

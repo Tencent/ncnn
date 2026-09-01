@@ -51,7 +51,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_pnnx_fuse_rmsnorm.pt2 inputshape=[1,64,26],[3,15,15,21]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_pnnx_fuse_rmsnorm.pt2 inputshape=[1,64,26],[3,15,15,21]")
 
     # pnnx inference
     import test_pnnx_fuse_rmsnorm_pnnx

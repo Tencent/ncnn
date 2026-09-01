@@ -130,7 +130,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_torch_einsum.pt2 inputshape=[4,4],[5],[4],[3,2,5],[3,5,4],[2,3,4,5],[2,5],[3,5,4],[2,4],[2,3,5,7],[11,3,17,5]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_torch_einsum.pt2 inputshape=[4,4],[5],[4],[3,2,5],[3,5,4],[2,3,4,5],[2,5],[3,5,4],[2,4],[2,3,5,7],[11,3,17,5]")
 
     # pnnx inference
     import test_torch_einsum_pnnx

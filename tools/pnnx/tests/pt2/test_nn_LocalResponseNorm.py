@@ -40,7 +40,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_nn_LocalResponseNorm.pt2 inputshape=[1,24,64],[1,12,24,64],[1,12,16,24,64]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_nn_LocalResponseNorm.pt2 inputshape=[1,24,64],[1,12,24,64],[1,12,16,24,64]")
 
     # pnnx inference
     import test_nn_LocalResponseNorm_pnnx

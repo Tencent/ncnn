@@ -32,7 +32,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_torchvision_RoIAlign.pt2 inputshape=[1,12,64,64]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_torchvision_RoIAlign.pt2 inputshape=[1,12,64,64]")
 
     # pnnx inference
     import test_torchvision_RoIAlign_pnnx

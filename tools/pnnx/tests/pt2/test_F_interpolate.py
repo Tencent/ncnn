@@ -96,7 +96,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_F_interpolate.pt2 inputshape=[1,3,32],[1,3,32,32],[1,3,32,32,32],[1,8,86,86]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_F_interpolate.pt2 inputshape=[1,3,32],[1,3,32,32],[1,3,32,32,32],[1,8,86,86]")
 
     # pnnx inference
     import test_F_interpolate_pnnx

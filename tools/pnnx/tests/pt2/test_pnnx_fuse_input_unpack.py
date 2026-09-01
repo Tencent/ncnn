@@ -35,7 +35,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_pnnx_pnnx_fuse_input_unpack.pt2 inputshape=[2,3,4],[2,3,4],[2,3,4],[2,3,4],[2,3,4],[2,3,4]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_pnnx_pnnx_fuse_input_unpack.pt2 inputshape=[2,3,4],[2,3,4],[2,3,4],[2,3,4],[2,3,4],[2,3,4]")
 
     # pnnx inference
     import test_pnnx_pnnx_fuse_input_unpack_pnnx

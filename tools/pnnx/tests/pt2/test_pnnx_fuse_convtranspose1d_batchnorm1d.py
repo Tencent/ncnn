@@ -61,7 +61,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_pnnx_fuse_convtranspose1d_batchnorm1d.pt2 inputshape=[1,12,10]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_pnnx_fuse_convtranspose1d_batchnorm1d.pt2 inputshape=[1,12,10]")
 
     # pnnx inference
     import test_pnnx_fuse_convtranspose1d_batchnorm1d_pnnx

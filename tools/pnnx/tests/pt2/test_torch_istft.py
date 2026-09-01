@@ -34,7 +34,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_torch_istft.pt2 inputshape=[3,33,161]c64,[1,65,77]c64,[257,8]c64,[512,4]c64")
+    os.system(os.path.normpath("../../src/pnnx") + " test_torch_istft.pt2 inputshape=[3,33,161]c64,[1,65,77]c64,[257,8]c64,[512,4]c64")
 
     # pnnx inference
     import test_torch_istft_pnnx

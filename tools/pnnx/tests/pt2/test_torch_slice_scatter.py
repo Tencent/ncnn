@@ -38,7 +38,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_torch_slice_scatter.pt2 inputshape=[8,8],[2,8],[8,2]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_torch_slice_scatter.pt2 inputshape=[8,8],[2,8],[8,2]")
 
     # pnnx inference
     import test_torch_slice_scatter_pnnx

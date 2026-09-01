@@ -105,7 +105,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_nn_MultiheadAttention.pt2 inputshape=[20,1,64],[20,1,64],[20,1,64],[30,1,32],[30,30],[15,1,40],[24,1,30],[24,1,20],[15,24],[10,15,24]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_nn_MultiheadAttention.pt2 inputshape=[20,1,64],[20,1,64],[20,1,64],[30,1,32],[30,30],[15,1,40],[24,1,30],[24,1,20],[15,24],[10,15,24]")
 
     # pnnx inference
     import test_nn_MultiheadAttention_pnnx

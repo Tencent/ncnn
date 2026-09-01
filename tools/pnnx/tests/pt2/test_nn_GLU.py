@@ -44,7 +44,7 @@ def test():
     # pt2 to pnnx
     import os
 
-    os.system("../../src/pnnx test_nn_GLU.pt2 inputshape=[18],[12,16],[24,28,34]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_nn_GLU.pt2 inputshape=[18],[12,16],[24,28,34]")
 
     # pnnx inference
     import test_nn_GLU_pnnx

@@ -43,7 +43,7 @@ def test():
 
     # pt2 to pnnx
     import os
-    os.system("../../src/pnnx test_pnnx_fuse_select_to_unbind.pt2 inputshape=[3,4,5]")
+    os.system(os.path.normpath("../../src/pnnx") + " test_pnnx_fuse_select_to_unbind.pt2 inputshape=[3,4,5]")
 
     # pnnx inference
     import test_pnnx_fuse_select_to_unbind_pnnx
