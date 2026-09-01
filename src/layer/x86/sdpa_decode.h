@@ -248,7 +248,6 @@ static void sdpa_decode_tile(const Mat& query, const Mat& key, const Mat& value,
                     block_max0 = std::max(block_max0, s0);
                     block_max1 = std::max(block_max1, s1);
                 }
-
             }
 
             float alpha0;
@@ -338,7 +337,6 @@ static void sdpa_decode_tile(const Mat& query, const Mat& key, const Mat& value,
                 l1 = l1 * alpha1 + sum1;
                 m0 = m_new0;
                 m1 = m_new1;
-
             }
 
             // pv
@@ -456,7 +454,6 @@ static void sdpa_decode_tile(const Mat& query, const Mat& key, const Mat& value,
                     valueptr++;
                 }
             }
-
         }
 
         {
@@ -630,7 +627,6 @@ static void sdpa_decode_tile(const Mat& query, const Mat& key, const Mat& value,
                     *pS++ = s;
                     block_max = std::max(block_max, s);
                 }
-
             }
 
             float alpha;
@@ -713,7 +709,6 @@ static void sdpa_decode_tile(const Mat& query, const Mat& key, const Mat& value,
                     l = l * alpha + sum;
                 }
                 m = m_new;
-
             }
 
             // pv
@@ -865,7 +860,6 @@ static void sdpa_decode_tile(const Mat& query, const Mat& key, const Mat& value,
                     valueptr++;
                 }
             }
-
         }
 
         {
@@ -1166,7 +1160,6 @@ static void sdpa_decode_kvcache_small_tile(const Mat& query, const Mat& key_cach
                         block_max1 = std::max(block_max1, sum1);
                     }
                 }
-
             }
 
             float alpha0;
@@ -1257,7 +1250,6 @@ static void sdpa_decode_kvcache_small_tile(const Mat& query, const Mat& key_cach
                 l1 = l1 * alpha1 + sum1;
                 m0 = m_new0;
                 m1 = m_new1;
-
             }
 
             // pv
@@ -1401,7 +1393,6 @@ static void sdpa_decode_kvcache_small_tile(const Mat& query, const Mat& key_cach
                     *outptr1++ = sum1;
                 }
             }
-
         }
 
         {
@@ -1597,7 +1588,6 @@ static void sdpa_decode_kvcache_small_tile(const Mat& query, const Mat& key_cach
                         block_max = std::max(block_max, sum);
                     }
                 }
-
             }
 
             float alpha;
@@ -1660,7 +1650,6 @@ static void sdpa_decode_kvcache_small_tile(const Mat& query, const Mat& key_cach
                 }
                 l = l * alpha + sum;
                 m = m_new;
-
             }
 
             // pv
@@ -1768,7 +1757,6 @@ static void sdpa_decode_kvcache_small_tile(const Mat& query, const Mat& key_cach
                     *outptr++ = sum0;
                 }
             }
-
         }
 
         {

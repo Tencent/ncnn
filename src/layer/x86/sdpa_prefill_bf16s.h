@@ -387,7 +387,7 @@ static void sdpa_pack_mask_bf16s(const Mat& attn_mask_blob, Mat& packed_mask, in
     const int num_mask_heads = attn_mask_blob.dims == 3 ? attn_mask_blob.c : 1;
     const int num_mblocks = (query_seqlen + block_m - 1) / block_m;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int task_id = 0; task_id < num_mask_heads * num_mblocks; task_id++)
     {
         const int q = task_id / num_mblocks;
@@ -4557,7 +4557,7 @@ static int sdpa_prefill_packed_bf16s(const Mat& query, const Mat& packed_key, co
         sdpa_pack_mask_bf16s(attn_mask, packed_mask, TILE_M, opt);
     }
 
-#pragma omp parallel for num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int task_id = 0; task_id < num_tasks; task_id++)
     {
         const int q = task_id / num_mblocks;
@@ -4629,7 +4629,7 @@ static int sdpa_prefill_bf16s(const Mat& query, const Mat& key, const Mat& value
     const int num_tasks = num_kv_heads * num_panel_tasks;
     const int nT = key.h >= panel_width ? std::min(opt.num_threads, num_tasks) : 1;
 
-#pragma omp parallel for num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int task_id = 0; task_id < num_tasks; task_id++)
     {
         const int g = task_id / num_panel_tasks;

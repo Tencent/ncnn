@@ -198,7 +198,6 @@ static void sdpa_decode_tile_bf16s(const Mat& query, const Mat& key, const Mat& 
                     *pS++ = s;
                     block_max = std::max(block_max, s);
                 }
-
             }
 
             float alpha;
@@ -274,7 +273,6 @@ static void sdpa_decode_tile_bf16s(const Mat& query, const Mat& key, const Mat& 
                     l = l * alpha + sum;
                 }
                 m = m_new;
-
             }
 
             // pv
@@ -409,7 +407,6 @@ static void sdpa_decode_tile_bf16s(const Mat& query, const Mat& key, const Mat& 
                     valueptr++;
                 }
             }
-
         }
 
         {
@@ -838,7 +835,6 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
                         block_max1 = std::max(block_max1, sum1);
                     }
                 }
-
             }
 
             float alpha0;
@@ -918,7 +914,6 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
                 l1 = l1 * alpha1 + sum1;
                 m0 = m_new0;
                 m1 = m_new1;
-
             }
 
             // pv
@@ -1062,7 +1057,6 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
                     *outptr1++ = sum1;
                 }
             }
-
         }
 
         {
@@ -1332,7 +1326,6 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
                         block_max = std::max(block_max, sum0);
                     }
                 }
-
             }
 
             float alpha;
@@ -1388,7 +1381,6 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
                 }
                 l = l * alpha + sum;
                 m = m_new;
-
             }
 
             // pv
@@ -1496,7 +1488,6 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
                     *outptr++ = sum0;
                 }
             }
-
         }
 
         {
