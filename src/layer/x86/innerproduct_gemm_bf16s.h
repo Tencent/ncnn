@@ -596,14 +596,14 @@ static void innerproduct_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, const
 
                 for (int i = 0; i < num_input; i++)
                 {
-                    __m256 _val0 = _mm256_set1_ps(bfloat16_to_float32(m[0]));
-                    __m256 _val1 = _mm256_set1_ps(bfloat16_to_float32(m[1]));
-                    __m256 _val2 = _mm256_set1_ps(bfloat16_to_float32(m[2]));
-                    __m256 _val3 = _mm256_set1_ps(bfloat16_to_float32(m[3]));
-                    __m256 _val4 = _mm256_set1_ps(bfloat16_to_float32(m[4]));
-                    __m256 _val5 = _mm256_set1_ps(bfloat16_to_float32(m[5]));
-                    __m256 _val6 = _mm256_set1_ps(bfloat16_to_float32(m[6]));
-                    __m256 _val7 = _mm256_set1_ps(bfloat16_to_float32(m[7]));
+                    __m256 _val0 = _mm256_comp_bcstnebf16_ps(m);
+                    __m256 _val1 = _mm256_comp_bcstnebf16_ps(m + 1);
+                    __m256 _val2 = _mm256_comp_bcstnebf16_ps(m + 2);
+                    __m256 _val3 = _mm256_comp_bcstnebf16_ps(m + 3);
+                    __m256 _val4 = _mm256_comp_bcstnebf16_ps(m + 4);
+                    __m256 _val5 = _mm256_comp_bcstnebf16_ps(m + 5);
+                    __m256 _val6 = _mm256_comp_bcstnebf16_ps(m + 6);
+                    __m256 _val7 = _mm256_comp_bcstnebf16_ps(m + 7);
                     __m256 _w = bfloat2float_avx(_mm_lddqu_si128((const __m128i*)kptr));
 
                     _sum0 = _mm256_comp_fmadd_ps(_val0, _w, _sum0);
@@ -664,10 +664,10 @@ static void innerproduct_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                 int i = 0;
                 for (; i + 7 < num_input; i += 8)
                 {
-                    __m256 _val0 = _mm256_set1_ps(bfloat16_to_float32(m[0]));
-                    __m256 _val1 = _mm256_set1_ps(bfloat16_to_float32(m[1]));
-                    __m256 _val2 = _mm256_set1_ps(bfloat16_to_float32(m[2]));
-                    __m256 _val3 = _mm256_set1_ps(bfloat16_to_float32(m[3]));
+                    __m256 _val0 = _mm256_comp_bcstnebf16_ps(m);
+                    __m256 _val1 = _mm256_comp_bcstnebf16_ps(m + 1);
+                    __m256 _val2 = _mm256_comp_bcstnebf16_ps(m + 2);
+                    __m256 _val3 = _mm256_comp_bcstnebf16_ps(m + 3);
                     __m256i _w01 = _mm256_lddqu_si256((const __m256i*)kptr);
                     __m256i _w23 = _mm256_lddqu_si256((const __m256i*)(kptr + 16));
                     __m256 _w0 = bfloat2float_avx(_mm256_extractf128_si256(_w01, 0));
@@ -680,10 +680,10 @@ static void innerproduct_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                     _sum2 = _mm256_comp_fmadd_ps(_val2, _w2, _sum2);
                     _sum3 = _mm256_comp_fmadd_ps(_val3, _w3, _sum3);
 
-                    __m256 _val4 = _mm256_set1_ps(bfloat16_to_float32(m[4]));
-                    __m256 _val5 = _mm256_set1_ps(bfloat16_to_float32(m[5]));
-                    __m256 _val6 = _mm256_set1_ps(bfloat16_to_float32(m[6]));
-                    __m256 _val7 = _mm256_set1_ps(bfloat16_to_float32(m[7]));
+                    __m256 _val4 = _mm256_comp_bcstnebf16_ps(m + 4);
+                    __m256 _val5 = _mm256_comp_bcstnebf16_ps(m + 5);
+                    __m256 _val6 = _mm256_comp_bcstnebf16_ps(m + 6);
+                    __m256 _val7 = _mm256_comp_bcstnebf16_ps(m + 7);
                     __m256i _w45 = _mm256_lddqu_si256((const __m256i*)(kptr + 32));
                     __m256i _w67 = _mm256_lddqu_si256((const __m256i*)(kptr + 48));
                     __m256 _w4 = bfloat2float_avx(_mm256_extractf128_si256(_w45, 0));
@@ -701,10 +701,10 @@ static void innerproduct_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                 }
                 for (; i + 3 < num_input; i += 4)
                 {
-                    __m256 _val0 = _mm256_set1_ps(bfloat16_to_float32(m[0]));
-                    __m256 _val1 = _mm256_set1_ps(bfloat16_to_float32(m[1]));
-                    __m256 _val2 = _mm256_set1_ps(bfloat16_to_float32(m[2]));
-                    __m256 _val3 = _mm256_set1_ps(bfloat16_to_float32(m[3]));
+                    __m256 _val0 = _mm256_comp_bcstnebf16_ps(m);
+                    __m256 _val1 = _mm256_comp_bcstnebf16_ps(m + 1);
+                    __m256 _val2 = _mm256_comp_bcstnebf16_ps(m + 2);
+                    __m256 _val3 = _mm256_comp_bcstnebf16_ps(m + 3);
                     __m256i _w01 = _mm256_lddqu_si256((const __m256i*)kptr);
                     __m256i _w23 = _mm256_lddqu_si256((const __m256i*)(kptr + 16));
                     __m256 _w0 = bfloat2float_avx(_mm256_extractf128_si256(_w01, 0));
@@ -722,7 +722,7 @@ static void innerproduct_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                 }
                 for (; i < num_input; i++)
                 {
-                    __m256 _val = _mm256_set1_ps(bfloat16_to_float32(m[0]));
+                    __m256 _val = _mm256_comp_bcstnebf16_ps(m);
                     __m256 _w = bfloat2float_avx(_mm_lddqu_si128((const __m128i*)kptr));
                     _sum0 = _mm256_comp_fmadd_ps(_val, _w, _sum0);
 
@@ -764,10 +764,10 @@ static void innerproduct_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                 int i = 0;
                 for (; i < num_input; i++)
                 {
-                    __m256 _val0 = _mm256_set1_ps(bfloat16_to_float32(m[0]));
-                    __m256 _val1 = _mm256_set1_ps(bfloat16_to_float32(m[1]));
-                    __m256 _val2 = _mm256_set1_ps(bfloat16_to_float32(m[2]));
-                    __m256 _val3 = _mm256_set1_ps(bfloat16_to_float32(m[3]));
+                    __m256 _val0 = _mm256_comp_bcstnebf16_ps(m);
+                    __m256 _val1 = _mm256_comp_bcstnebf16_ps(m + 1);
+                    __m256 _val2 = _mm256_comp_bcstnebf16_ps(m + 2);
+                    __m256 _val3 = _mm256_comp_bcstnebf16_ps(m + 3);
                     __m256 _w = bfloat2float_avx(_mm_lddqu_si128((const __m128i*)kptr));
 
                     _sum0 = _mm256_comp_fmadd_ps(_val0, _w, _sum0);
@@ -840,7 +840,7 @@ static void innerproduct_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                 for (; i < num_input; i++)
                 {
                     __m256 _val = bfloat2float_avx(_mm_loadu_si128((const __m128i*)m));
-                    __m256 _w = _mm256_set1_ps(bfloat16_to_float32(kptr[0]));
+                    __m256 _w = _mm256_comp_bcstnebf16_ps(kptr);
                     _sum0 = _mm256_comp_fmadd_ps(_val, _w, _sum0);
 
                     m += 8;
@@ -939,10 +939,10 @@ static void innerproduct_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                 int i = 0;
                 for (; i < num_input; i++)
                 {
-                    __m128 _val0 = _mm_set1_ps(bfloat16_to_float32(m[0]));
-                    __m128 _val1 = _mm_set1_ps(bfloat16_to_float32(m[1]));
-                    __m128 _val2 = _mm_set1_ps(bfloat16_to_float32(m[2]));
-                    __m128 _val3 = _mm_set1_ps(bfloat16_to_float32(m[3]));
+                    __m128 _val0 = _mm_comp_bcstnebf16_ps(m);
+                    __m128 _val1 = _mm_comp_bcstnebf16_ps(m + 1);
+                    __m128 _val2 = _mm_comp_bcstnebf16_ps(m + 2);
+                    __m128 _val3 = _mm_comp_bcstnebf16_ps(m + 3);
                     __m128 _w = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)kptr));
                     _sum0 = _mm_comp_fmadd_ps(_val0, _w, _sum0);
                     _sum1 = _mm_comp_fmadd_ps(_val1, _w, _sum1);
@@ -987,7 +987,7 @@ static void innerproduct_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                 int i = 0;
                 for (; i < num_input; i++)
                 {
-                    __m128 _val = _mm_set1_ps(bfloat16_to_float32(m[0]));
+                    __m128 _val = _mm_comp_bcstnebf16_ps(m);
                     __m128 _w = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)kptr));
                     _sum = _mm_comp_fmadd_ps(_val, _w, _sum);
 
@@ -1047,7 +1047,7 @@ static void innerproduct_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                 for (; i < num_input; i++)
                 {
                     __m128 _val = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)m));
-                    __m128 _w = _mm_set1_ps(bfloat16_to_float32(kptr[0]));
+                    __m128 _w = _mm_comp_bcstnebf16_ps(kptr);
                     _sum0 = _mm_comp_fmadd_ps(_val, _w, _sum0);
 
                     m += 4;

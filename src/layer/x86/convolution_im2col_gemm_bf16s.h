@@ -2218,7 +2218,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 __m256 _pA = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
 
-                _sum0 = _mm256_comp_fmadd_ps(_pA, _mm256_set1_ps(bfloat16_to_float32(pB[0])), _sum0);
+                _sum0 = _mm256_comp_fmadd_ps(_pA, _mm256_comp_bcstnebf16_ps(pB), _sum0);
 
                 pA += 8;
                 pB += 1;
@@ -2627,14 +2627,14 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 __m128 _pA = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA));
 
-                _sum0 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(bfloat16_to_float32(pB[0])), _sum0);
-                _sum1 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(bfloat16_to_float32(pB[1])), _sum1);
-                _sum2 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(bfloat16_to_float32(pB[2])), _sum2);
-                _sum3 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(bfloat16_to_float32(pB[3])), _sum3);
-                _sum4 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(bfloat16_to_float32(pB[4])), _sum4);
-                _sum5 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(bfloat16_to_float32(pB[5])), _sum5);
-                _sum6 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(bfloat16_to_float32(pB[6])), _sum6);
-                _sum7 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(bfloat16_to_float32(pB[7])), _sum7);
+                _sum0 = _mm_comp_fmadd_ps(_pA, _mm_comp_bcstnebf16_ps(pB), _sum0);
+                _sum1 = _mm_comp_fmadd_ps(_pA, _mm_comp_bcstnebf16_ps(pB + 1), _sum1);
+                _sum2 = _mm_comp_fmadd_ps(_pA, _mm_comp_bcstnebf16_ps(pB + 2), _sum2);
+                _sum3 = _mm_comp_fmadd_ps(_pA, _mm_comp_bcstnebf16_ps(pB + 3), _sum3);
+                _sum4 = _mm_comp_fmadd_ps(_pA, _mm_comp_bcstnebf16_ps(pB + 4), _sum4);
+                _sum5 = _mm_comp_fmadd_ps(_pA, _mm_comp_bcstnebf16_ps(pB + 5), _sum5);
+                _sum6 = _mm_comp_fmadd_ps(_pA, _mm_comp_bcstnebf16_ps(pB + 6), _sum6);
+                _sum7 = _mm_comp_fmadd_ps(_pA, _mm_comp_bcstnebf16_ps(pB + 7), _sum7);
 
                 pA += 4;
                 pB += 8;
@@ -2836,7 +2836,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 __m128 _pA = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA));
 
-                _sum0 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(bfloat16_to_float32(pB[0])), _sum0);
+                _sum0 = _mm_comp_fmadd_ps(_pA, _mm_comp_bcstnebf16_ps(pB), _sum0);
 
                 pA += 4;
                 pB += 1;
@@ -3421,7 +3421,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 #endif // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
-                __m256 _pA0 = _mm256_set1_ps(bfloat16_to_float32(pA[0]));
+                __m256 _pA0 = _mm256_comp_bcstnebf16_ps(pA);
                 __m256 _pB0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pB));
 
                 _sum0 = _mm256_comp_fmadd_ps(_pA0, _pB0, _sum0);
@@ -3562,7 +3562,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 #endif // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
-                __m128 _pA0 = _mm_set1_ps(bfloat16_to_float32(pA[0]));
+                __m128 _pA0 = _mm_comp_bcstnebf16_ps(pA);
                 __m128 _pB0 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pB));
 
                 _sum0 = _mm_comp_fmadd_ps(_pA0, _pB0, _sum0);

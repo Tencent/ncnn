@@ -144,6 +144,11 @@ static int sdpa_kvcache_bf16s(const Mat& query, const Mat& past_key, const Mat& 
         return sdpa_kvcache_bf16s_avx512bf16(query, past_key, past_value, cur_key, cur_value, cached_key, cached_value, attn_mask_blob, top_blob, scale, opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+        return sdpa_kvcache_bf16s_avxneconvert(query, past_key, past_value, cur_key, cur_value, cached_key, cached_value, attn_mask_blob, top_blob, scale, opt);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
         return sdpa_kvcache_bf16s_avx2(query, past_key, past_value, cur_key, cur_value, cached_key, cached_value, attn_mask_blob, top_blob, scale, opt);

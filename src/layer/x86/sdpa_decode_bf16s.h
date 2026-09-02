@@ -5,6 +5,10 @@
 int sdpa_decode_bf16s_avx512bf16(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+int sdpa_decode_bf16s_avxneconvert(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 int sdpa_decode_bf16s_avx2(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
 #endif
@@ -469,6 +473,11 @@ static int sdpa_decode_bf16s(const Mat& query, const Mat& key, const Mat& value,
         return sdpa_decode_bf16s_avx512bf16(query, key, value, attn_mask_blob, top_blob, scale, opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+        return sdpa_decode_bf16s_avxneconvert(query, key, value, attn_mask_blob, top_blob, scale, opt);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
         return sdpa_decode_bf16s_avx2(query, key, value, attn_mask_blob, top_blob, scale, opt);
@@ -686,8 +695,8 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
                         for (; d < head_dim; d++)
                         {
                             __m256 _k = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pK));
-                            _sum0 = _mm256_comp_fmadd_ps(_mm256_set1_ps(bfloat16_to_float32(pA[0])), _k, _sum0);
-                            _sum1 = _mm256_comp_fmadd_ps(_mm256_set1_ps(bfloat16_to_float32(pA[query_cstep])), _k, _sum1);
+                            _sum0 = _mm256_comp_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA), _k, _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA + query_cstep), _k, _sum1);
                             pA++;
                             pK += NR;
                         }
@@ -755,8 +764,8 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
                         for (; d < head_dim; d++)
                         {
                             __m128 _k = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pK));
-                            _sum0 = _mm_comp_fmadd_ps(_mm_set1_ps(bfloat16_to_float32(pA[0])), _k, _sum0);
-                            _sum1 = _mm_comp_fmadd_ps(_mm_set1_ps(bfloat16_to_float32(pA[query_cstep])), _k, _sum1);
+                            _sum0 = _mm_comp_fmadd_ps(_mm_comp_bcstnebf16_ps(pA), _k, _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_mm_comp_bcstnebf16_ps(pA + query_cstep), _k, _sum1);
                             pA++;
                             pK += NR;
                         }
@@ -1234,7 +1243,8 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
 #endif // __AVX512BF16__
                         for (; d < head_dim; d++)
                         {
-                            _sum = _mm256_comp_fmadd_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)pK)), _mm256_set1_ps(bfloat16_to_float32(*pA++)), _sum);
+                            _sum = _mm256_comp_fmadd_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)pK)), _mm256_comp_bcstnebf16_ps(pA), _sum);
+                            pA++;
                             pK += NR;
                         }
                         _sum = _mm256_mul_ps(_sum, _mm256_set1_ps(scale));
@@ -1267,7 +1277,8 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
 #endif // __AVX512BF16__
                         for (; d < head_dim; d++)
                         {
-                            _sum = _mm_comp_fmadd_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pK)), _mm_set1_ps(bfloat16_to_float32(*pA++)), _sum);
+                            _sum = _mm_comp_fmadd_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pK)), _mm_comp_bcstnebf16_ps(pA), _sum);
+                            pA++;
                             pK += NR;
                         }
                         _sum = _mm_mul_ps(_sum, _mm_set1_ps(scale));

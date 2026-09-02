@@ -202,10 +202,10 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
             int i = 0;
             for (; i + 7 < num_input; i += 8)
             {
-                __m256 _val0 = _mm256_set1_ps(bfloat16_to_float32(sptr[0]));
-                __m256 _val1 = _mm256_set1_ps(bfloat16_to_float32(sptr[1]));
-                __m256 _val2 = _mm256_set1_ps(bfloat16_to_float32(sptr[2]));
-                __m256 _val3 = _mm256_set1_ps(bfloat16_to_float32(sptr[3]));
+                __m256 _val0 = _mm256_comp_bcstnebf16_ps(sptr);
+                __m256 _val1 = _mm256_comp_bcstnebf16_ps(sptr + 1);
+                __m256 _val2 = _mm256_comp_bcstnebf16_ps(sptr + 2);
+                __m256 _val3 = _mm256_comp_bcstnebf16_ps(sptr + 3);
 
                 __m256 _w0 = bfloat2float_avx(_mm_lddqu_si128((const __m128i*)kptr));
                 __m256 _w1 = bfloat2float_avx(_mm_lddqu_si128((const __m128i*)(kptr + 8)));
@@ -217,10 +217,10 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
                 _sum2 = _mm256_comp_fmadd_ps(_val2, _w2, _sum2);
                 _sum3 = _mm256_comp_fmadd_ps(_val3, _w3, _sum3);
 
-                __m256 _val4 = _mm256_set1_ps(bfloat16_to_float32(sptr[4]));
-                __m256 _val5 = _mm256_set1_ps(bfloat16_to_float32(sptr[5]));
-                __m256 _val6 = _mm256_set1_ps(bfloat16_to_float32(sptr[6]));
-                __m256 _val7 = _mm256_set1_ps(bfloat16_to_float32(sptr[7]));
+                __m256 _val4 = _mm256_comp_bcstnebf16_ps(sptr + 4);
+                __m256 _val5 = _mm256_comp_bcstnebf16_ps(sptr + 5);
+                __m256 _val6 = _mm256_comp_bcstnebf16_ps(sptr + 6);
+                __m256 _val7 = _mm256_comp_bcstnebf16_ps(sptr + 7);
 
                 __m256 _w4 = bfloat2float_avx(_mm_lddqu_si128((const __m128i*)(kptr + 32)));
                 __m256 _w5 = bfloat2float_avx(_mm_lddqu_si128((const __m128i*)(kptr + 40)));
@@ -237,10 +237,10 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
             }
             for (; i + 3 < num_input; i += 4)
             {
-                __m256 _val0 = _mm256_set1_ps(bfloat16_to_float32(sptr[0]));
-                __m256 _val1 = _mm256_set1_ps(bfloat16_to_float32(sptr[1]));
-                __m256 _val2 = _mm256_set1_ps(bfloat16_to_float32(sptr[2]));
-                __m256 _val3 = _mm256_set1_ps(bfloat16_to_float32(sptr[3]));
+                __m256 _val0 = _mm256_comp_bcstnebf16_ps(sptr);
+                __m256 _val1 = _mm256_comp_bcstnebf16_ps(sptr + 1);
+                __m256 _val2 = _mm256_comp_bcstnebf16_ps(sptr + 2);
+                __m256 _val3 = _mm256_comp_bcstnebf16_ps(sptr + 3);
 
                 __m256 _w0 = bfloat2float_avx(_mm_lddqu_si128((const __m128i*)kptr));
                 __m256 _w1 = bfloat2float_avx(_mm_lddqu_si128((const __m128i*)(kptr + 8)));
@@ -257,7 +257,7 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
             }
             for (; i < num_input; i++)
             {
-                __m256 _val = _mm256_set1_ps(bfloat16_to_float32(sptr[0]));
+                __m256 _val = _mm256_comp_bcstnebf16_ps(sptr);
                 __m256 _w = bfloat2float_avx(_mm_lddqu_si128((const __m128i*)kptr));
                 _sum0 = _mm256_comp_fmadd_ps(_val, _w, _sum0);
 
@@ -310,14 +310,14 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
 #if __AVX__
             for (; i + 7 < num_input; i += 8)
             {
-                __m128 _val0 = _mm_set1_ps(bfloat16_to_float32(sptr[0]));
-                __m128 _val1 = _mm_set1_ps(bfloat16_to_float32(sptr[1]));
-                __m128 _val2 = _mm_set1_ps(bfloat16_to_float32(sptr[2]));
-                __m128 _val3 = _mm_set1_ps(bfloat16_to_float32(sptr[3]));
-                __m128 _val4 = _mm_set1_ps(bfloat16_to_float32(sptr[4]));
-                __m128 _val5 = _mm_set1_ps(bfloat16_to_float32(sptr[5]));
-                __m128 _val6 = _mm_set1_ps(bfloat16_to_float32(sptr[6]));
-                __m128 _val7 = _mm_set1_ps(bfloat16_to_float32(sptr[7]));
+                __m128 _val0 = _mm_comp_bcstnebf16_ps(sptr);
+                __m128 _val1 = _mm_comp_bcstnebf16_ps(sptr + 1);
+                __m128 _val2 = _mm_comp_bcstnebf16_ps(sptr + 2);
+                __m128 _val3 = _mm_comp_bcstnebf16_ps(sptr + 3);
+                __m128 _val4 = _mm_comp_bcstnebf16_ps(sptr + 4);
+                __m128 _val5 = _mm_comp_bcstnebf16_ps(sptr + 5);
+                __m128 _val6 = _mm_comp_bcstnebf16_ps(sptr + 6);
+                __m128 _val7 = _mm_comp_bcstnebf16_ps(sptr + 7);
 
                 __m256 _val01 = combine4x2_ps(_val0, _val1);
                 __m256 _val23 = combine4x2_ps(_val2, _val3);
@@ -341,10 +341,10 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
             for (; i + 3 < num_input; i += 4)
             {
 #if __AVX__
-                __m128 _val0 = _mm_set1_ps(bfloat16_to_float32(sptr[0]));
-                __m128 _val1 = _mm_set1_ps(bfloat16_to_float32(sptr[1]));
-                __m128 _val2 = _mm_set1_ps(bfloat16_to_float32(sptr[2]));
-                __m128 _val3 = _mm_set1_ps(bfloat16_to_float32(sptr[3]));
+                __m128 _val0 = _mm_comp_bcstnebf16_ps(sptr);
+                __m128 _val1 = _mm_comp_bcstnebf16_ps(sptr + 1);
+                __m128 _val2 = _mm_comp_bcstnebf16_ps(sptr + 2);
+                __m128 _val3 = _mm_comp_bcstnebf16_ps(sptr + 3);
 
                 __m256 _val01 = combine4x2_ps(_val0, _val1);
                 __m256 _val23 = combine4x2_ps(_val2, _val3);
@@ -355,10 +355,10 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
                 _sum01 = _mm256_comp_fmadd_ps(_val01, _w01, _sum01);
                 _sum23 = _mm256_comp_fmadd_ps(_val23, _w23, _sum23);
 #else
-                __m128 _val0 = _mm_set1_ps(bfloat16_to_float32(sptr[0]));
-                __m128 _val1 = _mm_set1_ps(bfloat16_to_float32(sptr[1]));
-                __m128 _val2 = _mm_set1_ps(bfloat16_to_float32(sptr[2]));
-                __m128 _val3 = _mm_set1_ps(bfloat16_to_float32(sptr[3]));
+                __m128 _val0 = _mm_comp_bcstnebf16_ps(sptr);
+                __m128 _val1 = _mm_comp_bcstnebf16_ps(sptr + 1);
+                __m128 _val2 = _mm_comp_bcstnebf16_ps(sptr + 2);
+                __m128 _val3 = _mm_comp_bcstnebf16_ps(sptr + 3);
 
                 __m128 _w0 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)kptr));
                 __m128 _w1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 4)));
@@ -376,7 +376,7 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
             }
             for (; i < num_input; i++)
             {
-                __m128 _val = _mm_set1_ps(bfloat16_to_float32(sptr[0]));
+                __m128 _val = _mm_comp_bcstnebf16_ps(sptr);
                 __m128 _w = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)kptr));
                 _sum0 = _mm_comp_fmadd_ps(_val, _w, _sum0);
 
