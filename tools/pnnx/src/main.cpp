@@ -478,7 +478,7 @@ int main(int argc, char** argv)
         pnnx::ModelFormat model_format = pnnx::detect_model_format(ptpath, format_error);
         if (model_format == pnnx::ModelFormatExportedProgram)
         {
-            int ret = load_exported_program(ptpath, pnnx_graph);
+            int ret = load_exported_program(ptpath, pnnx_graph, input_shapes, input_shapes2);
             if (ret != 0)
                 return ret;
         }

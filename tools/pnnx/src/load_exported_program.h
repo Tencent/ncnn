@@ -11,10 +11,13 @@
 
 namespace pnnx {
 
-int load_exported_program(const std::string& path, Graph& graph);
+int load_exported_program(const std::string& path, Graph& graph,
+                          const std::vector<std::vector<int64_t> >& input_shapes,
+                          const std::vector<std::vector<int64_t> >& input_shapes2);
 int import_exported_program_inputs(const pt2::ExportedProgramArchive& archive, Graph& graph, std::string& error);
 int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& graph, std::string& error);
 int import_exported_program_outputs(const pt2::ExportedProgram& program, Graph& graph, std::string& error);
+bool validate_exported_program_input_shapes(const pt2::ExportedProgram& program, const std::vector<std::vector<int64_t> >& input_shapes, std::string& error);
 
 } // namespace pnnx
 

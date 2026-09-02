@@ -570,11 +570,137 @@ int import_exported_program_outputs(const pt2::ExportedProgram& program, Graph& 
     return 0;
 }
 
-int load_exported_program(const std::string& path, Graph& graph)
+static std::string extract_symbol_name(const std::string& expression)
+{
+    const std::string prefix = "Symbol('";
+    if (expression.compare(0, prefix.size(), prefix) != 0)
+        return std::string();
+    const size_t end = expression.find('\'', prefix.size());
+    if (end == std::string::npos)
+        return std::string();
+    return expression.substr(prefix.size(), end - prefix.size());
+}
+
+bool validate_exported_program_input_shapes(const pt2::ExportedProgram& program, const std::vector<std::vector<int64_t> >& input_shapes, std::string& error)
+{
+    error.clear();
+    if (input_shapes.empty())
+        return true;
+
+    std::vector<std::pair<std::string, const pt2::TensorMeta*> > inputs;
+    for (size_t i = 0; i < program.signature.inputs.size(); i++)
+    {
+        const pt2::InputSpec& spec = program.signature.inputs[i];
+        if (spec.type != pt2::InputSpec::UserInput || spec.argument.type != pt2::Argument::Tensor)
+            continue;
+        std::map<std::string, pt2::TensorMeta>::const_iterator meta = program.graph.tensor_values.find(spec.argument.name);
+        if (meta == program.graph.tensor_values.end())
+        {
+            error = spec.argument.name + ": tensor metadata is missing";
+            return false;
+        }
+        inputs.push_back(std::make_pair(spec.argument.name, &meta->second));
+    }
+
+    if (input_shapes.size() != inputs.size())
+    {
+        error = "inputshape count mismatch: expected " + std::to_string(inputs.size()) + " but got " + std::to_string(input_shapes.size());
+        return false;
+    }
+
+    std::map<std::string, int64_t> expression_values;
+    for (size_t i = 0; i < inputs.size(); i++)
+    {
+        const std::string& input_name = inputs[i].first;
+        const pt2::TensorMeta& meta = *inputs[i].second;
+        if (input_shapes[i].size() != meta.sizes.size())
+        {
+            error = "input " + input_name + " rank mismatch: expected " + std::to_string(meta.sizes.size()) + " but got " + std::to_string(input_shapes[i].size());
+            return false;
+        }
+
+        for (size_t dimension = 0; dimension < meta.sizes.size(); dimension++)
+        {
+            const int64_t actual = input_shapes[i][dimension];
+            const pt2::SymInt& expected = meta.sizes[dimension];
+            const std::string location = "input " + input_name + " dimension " + std::to_string(dimension);
+            if (actual < 0)
+            {
+                error = location + " has invalid value " + std::to_string(actual);
+                return false;
+            }
+            if (actual > INT_MAX)
+            {
+                error = location + " is " + std::to_string(actual) + ", exceeds pnnx dimension limit " + std::to_string(INT_MAX);
+                return false;
+            }
+            if (expected.type == pt2::SymInt::Integer)
+            {
+                if (actual != expected.integer)
+                {
+                    error = location + " is " + std::to_string(actual) + ", expected " + std::to_string(expected.integer);
+                    return false;
+                }
+                continue;
+            }
+
+            std::map<std::string, int64_t>::const_iterator bound = expression_values.find(expected.expression);
+            if (bound != expression_values.end() && bound->second != actual)
+            {
+                error = location + " is " + std::to_string(actual) + ", shared symbol requires " + std::to_string(bound->second);
+                return false;
+            }
+            expression_values[expected.expression] = actual;
+
+            const std::string symbol = extract_symbol_name(expected.expression);
+            std::map<std::string, pt2::RangeConstraint>::const_iterator range = program.range_constraints.find(symbol);
+            if (range != program.range_constraints.end())
+            {
+                if ((range->second.has_min && actual < range->second.min) || (range->second.has_max && actual > range->second.max))
+                {
+                    const std::string minimum = range->second.has_min ? std::to_string(range->second.min) : "-inf";
+                    const std::string maximum = range->second.has_max ? std::to_string(range->second.max) : "inf";
+                    error = location + " is " + std::to_string(actual) + ", allowed range is [" + minimum + ", " + maximum + "]";
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+static void apply_input_shapes(const pt2::ExportedProgram& program, const std::vector<std::vector<int64_t> >& input_shapes, Graph& graph)
+{
+    if (input_shapes.empty())
+        return;
+    size_t input_index = 0;
+    for (size_t i = 0; i < program.signature.inputs.size(); i++)
+    {
+        const pt2::InputSpec& spec = program.signature.inputs[i];
+        if (spec.type != pt2::InputSpec::UserInput || spec.argument.type != pt2::Argument::Tensor)
+            continue;
+        Operand* operand = graph.get_operand(spec.argument.name);
+        operand->shape.clear();
+        for (size_t dimension = 0; dimension < input_shapes[input_index].size(); dimension++)
+            operand->shape.push_back((int)input_shapes[input_index][dimension]);
+        operand->params.clear();
+        input_index++;
+    }
+}
+
+int load_exported_program(const std::string& path, Graph& graph,
+                          const std::vector<std::vector<int64_t> >& input_shapes,
+                          const std::vector<std::vector<int64_t> >& input_shapes2)
 {
     pt2::ExportedProgramArchive archive;
     std::string error;
     if (!pt2::load_exported_program_archive(path, archive, error))
+    {
+        fprintf(stderr, "load exported program failed: %s\n", error.c_str());
+        return -1;
+    }
+
+    if (!validate_exported_program_input_shapes(archive.program, input_shapes, error) || !validate_exported_program_input_shapes(archive.program, input_shapes2, error))
     {
         fprintf(stderr, "load exported program failed: %s\n", error.c_str());
         return -1;
@@ -585,6 +711,7 @@ int load_exported_program(const std::string& path, Graph& graph)
         fprintf(stderr, "load exported program failed: %s\n", error.c_str());
         return -1;
     }
+    apply_input_shapes(archive.program, input_shapes, graph);
 
     if (import_exported_program_nodes(archive.program, graph, error) != 0)
     {

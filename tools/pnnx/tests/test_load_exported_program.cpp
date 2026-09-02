@@ -237,6 +237,45 @@ int main()
     remove(dynamic_param);
     remove(dynamic_bin);
 
+    pnnx::pt2::ExportedProgram shape_program;
+    pnnx::pt2::SymInt shared;
+    shared.type = pnnx::pt2::SymInt::Expression;
+    shared.expression = "Symbol('s17', positive=True, integer=True)";
+    shared.has_hint = true;
+    shared.hint = 3;
+    pnnx::pt2::TensorMeta shared_meta;
+    shared_meta.sizes.push_back(shared);
+    shared_meta.sizes.push_back(dimension(4));
+    shape_program.graph.tensor_values["x"] = shared_meta;
+    shape_program.graph.tensor_values["y"] = shared_meta;
+    pnnx::pt2::InputSpec shared_input;
+    shared_input.type = pnnx::pt2::InputSpec::UserInput;
+    shared_input.argument.type = pnnx::pt2::Argument::Tensor;
+    shared_input.argument.name = "x";
+    shape_program.signature.inputs.push_back(shared_input);
+    shared_input.argument.name = "y";
+    shape_program.signature.inputs.push_back(shared_input);
+    pnnx::pt2::RangeConstraint range;
+    range.has_min = true;
+    range.min = 2;
+    range.has_max = true;
+    range.max = 8;
+    shape_program.range_constraints["s17"] = range;
+
+    std::vector<std::vector<int64_t> > valid_shapes;
+    valid_shapes.push_back(std::vector<int64_t>{5, 4});
+    valid_shapes.push_back(std::vector<int64_t>{5, 4});
+    expect_true(pnnx::validate_exported_program_input_shapes(shape_program, valid_shapes, error), error.c_str());
+    std::vector<std::vector<int64_t> > static_mismatch = valid_shapes;
+    static_mismatch[0][1] = 3;
+    expect_true(!pnnx::validate_exported_program_input_shapes(shape_program, static_mismatch, error) && error.find("expected 4") != std::string::npos, "static dimension mismatch");
+    std::vector<std::vector<int64_t> > range_mismatch = valid_shapes;
+    range_mismatch[0][0] = range_mismatch[1][0] = 9;
+    expect_true(!pnnx::validate_exported_program_input_shapes(shape_program, range_mismatch, error) && error.find("[2, 8]") != std::string::npos, "range constraint mismatch");
+    std::vector<std::vector<int64_t> > shared_mismatch = valid_shapes;
+    shared_mismatch[1][0] = 6;
+    expect_true(!pnnx::validate_exported_program_input_shapes(shape_program, shared_mismatch, error) && error.find("shared symbol") != std::string::npos, "shared symbol mismatch");
+
     if (test_failures != 0)
     {
         fprintf(stderr, "%d exported program input test(s) failed\n", test_failures);
