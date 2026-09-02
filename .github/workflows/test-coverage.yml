@@ -182,7 +182,7 @@ jobs:
     name: sde-${{ matrix.cpu }}
     runs-on: [self-hosted, linux, ubuntu25]
     env:
-      SDE_PATH: /data/action/osd/sde-external-9.33.0-2024-01-07-lin
+      SDE_PATH: /data/action/osd/sde-external-10.13.1-2026-07-28-lin
     strategy:
       fail-fast: false
       matrix:
