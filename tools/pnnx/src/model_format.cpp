@@ -105,6 +105,19 @@ ModelFormat detect_model_format(const std::string& path, std::string& error)
             return ModelFormatUnknown;
         }
 
+        std::string version;
+        if (!read_small_record(reader, records.find("archive_version")->second, version))
+        {
+            error = "failed to read pt2 archive version";
+            return ModelFormatUnknown;
+        }
+
+        if (version != "0")
+        {
+            error = "unsupported pt2 archive version " + version;
+            return ModelFormatUnknown;
+        }
+
         return ModelFormatExportedProgram;
     }
 

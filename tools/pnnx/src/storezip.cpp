@@ -131,6 +131,7 @@ StoreZipReader::~StoreZipReader()
 int StoreZipReader::open(const std::string& path)
 {
     close();
+    filemetas.clear();
 
     fp = fopen(path.c_str(), "rb");
     if (!fp)
@@ -138,6 +139,8 @@ int StoreZipReader::open(const std::string& path)
         fprintf(stderr, "open failed\n");
         return -1;
     }
+
+    bool has_end_of_central_directory = false;
 
     while (!feof(fp))
     {
@@ -152,7 +155,11 @@ int StoreZipReader::open(const std::string& path)
         if (signature == 0x04034b50)
         {
             local_file_header lfh;
-            fread((char*)&lfh, sizeof(lfh), 1, fp);
+            if (fread((char*)&lfh, sizeof(lfh), 1, fp) != 1)
+            {
+                fprintf(stderr, "truncated zip local file header\n");
+                return -1;
+            }
 
             if (lfh.flag & 0x08)
             {
@@ -169,7 +176,11 @@ int StoreZipReader::open(const std::string& path)
             // file name
             std::string name;
             name.resize(lfh.file_name_length);
-            fread((char*)name.data(), name.size(), 1, fp);
+            if (!name.empty() && fread((char*)name.data(), name.size(), 1, fp) != 1)
+            {
+                fprintf(stderr, "truncated zip file name\n");
+                return -1;
+            }
 
             uint64_t compressed_size = lfh.compressed_size;
             uint64_t uncompressed_size = lfh.uncompressed_size;
@@ -180,8 +191,11 @@ int StoreZipReader::open(const std::string& path)
                 {
                     uint16_t extra_id;
                     uint16_t extra_size;
-                    fread((char*)&extra_id, sizeof(extra_id), 1, fp);
-                    fread((char*)&extra_size, sizeof(extra_size), 1, fp);
+                    if (fread((char*)&extra_id, sizeof(extra_id), 1, fp) != 1 || fread((char*)&extra_size, sizeof(extra_size), 1, fp) != 1)
+                    {
+                        fprintf(stderr, "truncated zip extra field\n");
+                        return -1;
+                    }
                     if (extra_id != 0x0001)
                     {
                         // skip this extra field block
@@ -192,7 +206,11 @@ int StoreZipReader::open(const std::string& path)
 
                     // zip64 extra field
                     zip64_extended_extra_field zip64_eef;
-                    fread((char*)&zip64_eef, sizeof(zip64_eef), 1, fp);
+                    if (extra_size < sizeof(zip64_eef) || fread((char*)&zip64_eef, sizeof(zip64_eef), 1, fp) != 1)
+                    {
+                        fprintf(stderr, "invalid zip64 extra field\n");
+                        return -1;
+                    }
 
                     compressed_size = zip64_eef.compressed_size;
                     uncompressed_size = zip64_eef.uncompressed_size;
@@ -221,7 +239,11 @@ int StoreZipReader::open(const std::string& path)
         else if (signature == 0x02014b50)
         {
             central_directory_file_header cdfh;
-            fread((char*)&cdfh, sizeof(cdfh), 1, fp);
+            if (fread((char*)&cdfh, sizeof(cdfh), 1, fp) != 1)
+            {
+                fprintf(stderr, "truncated zip central directory header\n");
+                return -1;
+            }
 
             // skip file name
             fseek(fp, cdfh.file_name_length, SEEK_CUR);
@@ -235,15 +257,24 @@ int StoreZipReader::open(const std::string& path)
         else if (signature == 0x06054b50)
         {
             end_of_central_directory_record eocdr;
-            fread((char*)&eocdr, sizeof(eocdr), 1, fp);
+            if (fread((char*)&eocdr, sizeof(eocdr), 1, fp) != 1)
+            {
+                fprintf(stderr, "truncated zip end of central directory\n");
+                return -1;
+            }
 
             // skip comment
             fseek(fp, eocdr.comment_length, SEEK_CUR);
+            has_end_of_central_directory = true;
         }
         else if (signature == 0x06064b50)
         {
             zip64_end_of_central_directory_record eocdr64;
-            fread((char*)&eocdr64, sizeof(eocdr64), 1, fp);
+            if (fread((char*)&eocdr64, sizeof(eocdr64), 1, fp) != 1 || eocdr64.size_of_eocd64_m12 < 44)
+            {
+                fprintf(stderr, "invalid zip64 end of central directory\n");
+                return -1;
+            }
 
             // skip comment
             fseek(fp, eocdr64.size_of_eocd64_m12 - 44, SEEK_CUR);
@@ -251,13 +282,23 @@ int StoreZipReader::open(const std::string& path)
         else if (signature == 0x07064b50)
         {
             zip64_end_of_central_directory_locator eocdl64;
-            fread((char*)&eocdl64, sizeof(eocdl64), 1, fp);
+            if (fread((char*)&eocdl64, sizeof(eocdl64), 1, fp) != 1)
+            {
+                fprintf(stderr, "truncated zip64 end of central directory locator\n");
+                return -1;
+            }
         }
         else
         {
             fprintf(stderr, "unsupported signature %x\n", signature);
             return -1;
         }
+    }
+
+    if (!has_end_of_central_directory)
+    {
+        fprintf(stderr, "zip file has no end of central directory\n");
+        return -1;
     }
 
     return 0;
