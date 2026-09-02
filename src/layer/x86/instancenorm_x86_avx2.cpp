@@ -9,9 +9,9 @@ namespace ncnn {
 
 #include "instancenorm_bf16s.h"
 
-void instancenorm_bf16s_sse_avx2(unsigned short* ptr, int size, float a, float b)
+void instancenorm_bf16s_avx2(unsigned short* ptr, int size, float a, float b)
 {
-    instancenorm_bf16s_sse(ptr, size, a, b);
+    instancenorm_bf16s(ptr, size, a, b);
 }
 
 void instancenorm_bf16s_compute_mean_var_avx2(const unsigned short* ptr, int size, float& mean, float& var)

@@ -9,6 +9,13 @@ void elu_bf16s_avx512bf16(Mat& a, float alpha, const Option& opt);
 void elu_bf16s_avx2(Mat& a, float alpha, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void elu_bf16s_fma(Mat& a, float alpha, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void elu_bf16s_fma4(Mat& a, float alpha, const Option& opt);
+#endif
+
 static void elu_bf16s(Mat& a, float alpha, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
@@ -23,6 +30,20 @@ static void elu_bf16s(Mat& a, float alpha, const Option& opt)
     if (ncnn::cpu_support_x86_avx2())
     {
         elu_bf16s_avx2(a, alpha, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        elu_bf16s_fma(a, alpha, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        elu_bf16s_fma4(a, alpha, opt);
         return;
     }
 #endif

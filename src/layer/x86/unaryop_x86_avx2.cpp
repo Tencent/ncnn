@@ -20,7 +20,7 @@ namespace UnaryOp_x86_functor {
 
 #include "unaryop_bf16s.h"
 
-int unaryop_bf16s_sse_avx2(Mat& bottom_top_blob, int op_type, const Option& opt)
+int unaryop_bf16s_avx2(Mat& bottom_top_blob, int op_type, const Option& opt)
 {
     using namespace UnaryOp_x86_functor;
     if (op_type == UnaryOp::Operation_ABS)

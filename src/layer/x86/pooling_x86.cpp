@@ -858,11 +858,11 @@ int Pooling_x86::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
         if (pooling_type == PoolMethod_MAX)
         {
-            pooling_global_max_bf16s_sse(bottom_blob, top_blob, opt);
+            pooling_global_max_bf16s(bottom_blob, top_blob, opt);
         }
         else if (pooling_type == PoolMethod_AVE)
         {
-            pooling_global_avg_bf16s_sse(bottom_blob, top_blob, opt);
+            pooling_global_avg_bf16s(bottom_blob, top_blob, opt);
         }
 
         return 0;
@@ -885,11 +885,11 @@ int Pooling_x86::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     if (pooling_type == PoolMethod_MAX)
     {
-        pooling_max_bf16s_sse(bottom_blob_bordered, top_blob, kernel_w, kernel_h, stride_w, stride_h, opt);
+        pooling_max_bf16s(bottom_blob_bordered, top_blob, kernel_w, kernel_h, stride_w, stride_h, opt);
     }
     else if (pooling_type == PoolMethod_AVE)
     {
-        pooling_avg_bf16s_sse(bottom_blob_bordered, bottom_blob, top_blob, kernel_w, kernel_h, stride_w, stride_h, pad_left, pad_right, pad_top, pad_bottom, pad_mode, avgpool_count_include_pad, opt);
+        pooling_avg_bf16s(bottom_blob_bordered, bottom_blob, top_blob, kernel_w, kernel_h, stride_w, stride_h, pad_left, pad_right, pad_top, pad_bottom, pad_mode, avgpool_count_include_pad, opt);
     }
 
     return 0;

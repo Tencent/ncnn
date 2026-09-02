@@ -224,6 +224,7 @@ static int g_hw_optional_arm_FEAT_I8MM;
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 static int g_cpu_support_x86_avx;
 static int g_cpu_support_x86_fma;
+static int g_cpu_support_x86_fma4;
 static int g_cpu_support_x86_xop;
 static int g_cpu_support_x86_f16c;
 static int g_cpu_support_x86_avx2;
@@ -606,6 +607,28 @@ static int get_cpu_support_x86_fma()
         return 0;
 
     return cpu_info[2] & (1u << 12);
+}
+
+static int get_cpu_support_x86_fma4()
+{
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0x80000000, cpu_info);
+
+    if (cpu_info[0] < 0x80000001)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    x86_cpuid(0x80000001, cpu_info);
+
+    return cpu_info[2] & (1u << 16);
 }
 
 static int get_cpu_support_x86_xop()
@@ -2221,6 +2244,7 @@ static void initialize_global_cpu_info()
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
     g_cpu_support_x86_avx = get_cpu_support_x86_avx();
     g_cpu_support_x86_fma = get_cpu_support_x86_fma();
+    g_cpu_support_x86_fma4 = get_cpu_support_x86_fma4();
     g_cpu_support_x86_xop = get_cpu_support_x86_xop();
     g_cpu_support_x86_f16c = get_cpu_support_x86_f16c();
     g_cpu_support_x86_avx2 = get_cpu_support_x86_avx2();
@@ -2675,6 +2699,16 @@ int cpu_support_x86_fma()
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
     return g_cpu_support_x86_fma;
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_x86_fma4()
+{
+    try_initialize_global_cpu_info();
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+    return g_cpu_support_x86_fma4;
 #else
     return 0;
 #endif

@@ -74,6 +74,8 @@ NCNN_EXPORT int cpu_support_arm_svef32mm();
 NCNN_EXPORT int cpu_support_x86_avx();
 // fma = x86 fma
 NCNN_EXPORT int cpu_support_x86_fma();
+// fma4 = x86 fma4
+NCNN_EXPORT int cpu_support_x86_fma4();
 // xop = x86 xop
 NCNN_EXPORT int cpu_support_x86_xop();
 // f16c = x86 f16c

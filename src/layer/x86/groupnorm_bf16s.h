@@ -2,19 +2,26 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
-void groupnorm_bf16s_sse_avx512bf16(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep);
+void groupnorm_bf16s_avx512bf16(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
-void groupnorm_bf16s_sse_avx2(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep);
+void groupnorm_bf16s_avx2(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep);
 #endif
 
-static void groupnorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep)
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void groupnorm_bf16s_fma(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void groupnorm_bf16s_fma4(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep);
+#endif
+
+static void groupnorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        groupnorm_bf16s_sse_avx512bf16(ptr, gamma_ptr, beta_ptr, eps, channels, size, elempack, cstep);
+        groupnorm_bf16s_avx512bf16(ptr, gamma_ptr, beta_ptr, eps, channels, size, elempack, cstep);
         return;
     }
 #endif
@@ -22,7 +29,21 @@ static void groupnorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, con
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
     {
-        groupnorm_bf16s_sse_avx2(ptr, gamma_ptr, beta_ptr, eps, channels, size, elempack, cstep);
+        groupnorm_bf16s_avx2(ptr, gamma_ptr, beta_ptr, eps, channels, size, elempack, cstep);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        groupnorm_bf16s_fma(ptr, gamma_ptr, beta_ptr, eps, channels, size, elempack, cstep);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        groupnorm_bf16s_fma4(ptr, gamma_ptr, beta_ptr, eps, channels, size, elempack, cstep);
         return;
     }
 #endif

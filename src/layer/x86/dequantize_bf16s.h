@@ -2,11 +2,18 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
-void dequantize_forward_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Mat& bias_data, int bias_data_size, const Option& opt);
+void dequantize_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Mat& bias_data, int bias_data_size, const Option& opt);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
-void dequantize_forward_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Mat& bias_data, int bias_data_size, const Option& opt);
+void dequantize_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Mat& bias_data, int bias_data_size, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void dequantize_bf16s_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Mat& bias_data, int bias_data_size, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void dequantize_bf16s_fma4(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Mat& bias_data, int bias_data_size, const Option& opt);
 #endif
 
 static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& scale_data, const Mat& bias_data, int elemcount, int elempack)
@@ -201,21 +208,35 @@ static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& s
     }
 }
 
-static int dequantize_forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Mat& bias_data, int bias_data_size, const Option& opt)
+static void dequantize_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Mat& bias_data, int bias_data_size, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        dequantize_forward_bf16s_avx512bf16(bottom_blob, top_blob, scale_data, scale_data_size, bias_data, bias_data_size, opt);
-        return 0;
+        dequantize_bf16s_avx512bf16(bottom_blob, top_blob, scale_data, scale_data_size, bias_data, bias_data_size, opt);
+        return;
     }
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
     {
-        dequantize_forward_bf16s_avx2(bottom_blob, top_blob, scale_data, scale_data_size, bias_data, bias_data_size, opt);
-        return 0;
+        dequantize_bf16s_avx2(bottom_blob, top_blob, scale_data, scale_data_size, bias_data, bias_data_size, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        dequantize_bf16s_fma(bottom_blob, top_blob, scale_data, scale_data_size, bias_data, bias_data_size, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        dequantize_bf16s_fma4(bottom_blob, top_blob, scale_data, scale_data_size, bias_data, bias_data_size, opt);
+        return;
     }
 #endif
 
@@ -225,27 +246,6 @@ static int dequantize_forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
     const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
-
-    const size_t out_elemsize = 2u * elempack;
-
-    if (dims == 1)
-    {
-        top_blob.create(w, out_elemsize, elempack, opt.blob_allocator);
-    }
-    else if (dims == 2)
-    {
-        top_blob.create(w, h, out_elemsize, elempack, opt.blob_allocator);
-    }
-    else if (dims == 3)
-    {
-        top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_allocator);
-    }
-    else if (dims == 4)
-    {
-        top_blob.create(w, h, d, channels, out_elemsize, elempack, opt.blob_allocator);
-    }
-    if (top_blob.empty())
-        return -100;
 
     if (dims == 1)
     {
@@ -298,6 +298,4 @@ static int dequantize_forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
             dequantize_bf16(intptr, ptr, scale_data_q, bias_data_q, w * h * d, elempack);
         }
     }
-
-    return 0;
 }
