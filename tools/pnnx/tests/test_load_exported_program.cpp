@@ -276,6 +276,15 @@ int main()
     shared_mismatch[1][0] = 6;
     expect_true(!pnnx::validate_exported_program_input_shapes(shape_program, shared_mismatch, error) && error.find("shared symbol") != std::string::npos, "shared symbol mismatch");
 
+    pnnx::pt2::ExportedProgramArchive unsupported_archive = make_archive();
+    pnnx::pt2::SymInt unsupported;
+    unsupported.type = pnnx::pt2::SymInt::Expression;
+    unsupported.expression = "FloorDiv(Symbol('s0', integer=True), Integer(2))";
+    unsupported_archive.program.graph.tensor_values["x"].sizes[0] = unsupported;
+    pnnx::Graph unsupported_graph;
+    expect_true(pnnx::import_exported_program_inputs(unsupported_archive, unsupported_graph, error) != 0, "unsupported expression without hint is rejected");
+    expect_true(error.find("FloorDiv") != std::string::npos, "unsupported expression error includes expression");
+
     if (test_failures != 0)
     {
         fprintf(stderr, "%d exported program input test(s) failed\n", test_failures);

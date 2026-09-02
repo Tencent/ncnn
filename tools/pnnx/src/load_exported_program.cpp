@@ -44,6 +44,46 @@ static std::string symbolic_shape_key(const std::string& expression)
     return key;
 }
 
+static bool is_supported_symbolic_expression(const std::string& expression)
+{
+    const char* supported_identifiers[] = {"Symbol", "Integer", "Add", "Mul", "Pow"};
+    for (size_t offset = 0; offset < expression.size();)
+    {
+        const char ch = expression[offset];
+        if (ch == '\'' || ch == '"')
+        {
+            const char quote = ch;
+            offset++;
+            while (offset < expression.size() && expression[offset] != quote)
+                offset++;
+            if (offset < expression.size())
+                offset++;
+            continue;
+        }
+        if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || ch == '_')
+        {
+            size_t end = offset + 1;
+            while (end < expression.size())
+            {
+                const char next = expression[end];
+                if (!((next >= 'A' && next <= 'Z') || (next >= 'a' && next <= 'z') || (next >= '0' && next <= '9') || next == '_'))
+                    break;
+                end++;
+            }
+            const std::string identifier = expression.substr(offset, end - offset);
+            bool supported = identifier == "True" || identifier == "False" || identifier == "integer" || identifier == "positive" || identifier == "negative" || identifier == "nonnegative" || identifier == "nonpositive";
+            for (size_t i = 0; i < sizeof(supported_identifiers) / sizeof(supported_identifiers[0]); i++)
+                supported = supported || identifier == supported_identifiers[i];
+            if (!supported)
+                return false;
+            offset = end;
+            continue;
+        }
+        offset++;
+    }
+    return true;
+}
+
 static bool to_pnnx_shape(const std::vector<pt2::SymInt>& dimensions, std::vector<int>& shape, std::map<std::string, Parameter>* params, std::string& error)
 {
     for (size_t i = 0; i < dimensions.size(); i++)
@@ -51,6 +91,11 @@ static bool to_pnnx_shape(const std::vector<pt2::SymInt>& dimensions, std::vecto
         const pt2::SymInt& dimension = dimensions[i];
         if (dimension.type == pt2::SymInt::Expression)
         {
+            if (!dimension.has_hint && !is_supported_symbolic_expression(dimension.expression))
+            {
+                error = "unsupported symbolic expression without hint at dimension " + std::to_string(i) + ": " + dimension.expression;
+                return false;
+            }
             shape.push_back(-233);
             if (params)
             {

@@ -96,6 +96,7 @@ pnnx_add_test(F_upsample_bilinear)
 pnnx_add_test(F_upsample_nearest)
 pnnx_add_test(F_upsample)
 pnnx_add_test(pnnx_exported_program)
+pnnx_add_test(pnnx_exported_program_dynamic)
 
 pnnx_add_test(nn_AdaptiveAvgPool1d)
 pnnx_add_test(nn_AdaptiveAvgPool2d)
