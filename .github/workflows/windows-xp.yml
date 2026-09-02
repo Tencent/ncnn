@@ -49,15 +49,20 @@ jobs:
     - name: config
       shell: cmd
       run: |
-        "C:\Program Files (x86)\Microsoft Visual Studio\Installer\setup.exe" modify --installPath "${{ env.VS_INSTALL_DIR }}" --add Microsoft.VisualStudio.Component.VC.v141.x86.x64 --nocache --quiet
-        "C:\Program Files (x86)\Microsoft Visual Studio\Installer\setup.exe" modify --installPath "${{ env.VS_INSTALL_DIR }}" --add Microsoft.VisualStudio.Component.WinXP --nocache --quiet
-
+        "C:\Program Files (x86)\Microsoft Visual Studio\Installer\setup.exe" modify --installPath "${{ env.VS_INSTALL_DIR }}" --add Microsoft.VisualStudio.Component.VC.v141.x86.x64 --add Microsoft.VisualStudio.Component.WinXP --nocache --quiet
+    
+        echo === installed components ===
+        "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -all -products * -requires Microsoft.VisualStudio.Component.WinXP
+    
         echo === v141 compiler ===
         dir "${{ env.VS_INSTALL_DIR }}\VC\Tools\MSVC"
-
-        echo === v141_xp toolset ===
-        dir "${{ env.VS_INSTALL_DIR }}\MSBuild\Microsoft\VC\v150\Platforms\Win32\PlatformToolsets"
-
+    
+        echo === search v141_xp ===
+        dir /s /b "${{ env.VS_INSTALL_DIR }}\*v141_xp*"
+    
+        echo === search Windows 7.1 SDK ===
+        if exist "C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A" dir /s /b "C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A"
+    
         call "${{ env.VS_INSTALL_DIR }}\VC\Auxiliary\Build\vcvarsall.bat" x86
     - name: build
       run: |
