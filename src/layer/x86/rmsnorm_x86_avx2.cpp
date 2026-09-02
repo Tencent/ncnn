@@ -9,9 +9,9 @@ namespace ncnn {
 
 #include "rmsnorm_bf16s.h"
 
-void rmsnorm_bf16s_sse_avx2(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack)
+void rmsnorm_bf16s_avx2(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack)
 {
-    rmsnorm_bf16s_sse(ptr, gamma_ptr, eps, elemcount, elempack);
+    rmsnorm_bf16s(ptr, gamma_ptr, eps, elemcount, elempack);
 }
 
 } // namespace ncnn

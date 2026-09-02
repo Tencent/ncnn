@@ -11,6 +11,13 @@ int sdpa_prefill_bf16s_avx2(const Mat& query, const Mat& key, const Mat& value, 
 int sdpa_kvcache_bf16s_avx2(const Mat& query, const Mat& past_key, const Mat& past_value, const Mat& cur_key, const Mat& cur_value, Mat& cached_key, Mat& cached_value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
+void sdpa_attention_tile_bf16s_fma(const Mat& queryT, const Mat& key_head, const Mat& packed_key_head, const Mat& value_head, const Mat& packed_value_head, const Mat& computation_value_head, const Mat& mask, size_t mask_hstep, const Mat& packed_mask, Mat& scoreT, Mat& outT, Mat& lT, int max_ii, float scale);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+void sdpa_attention_tile_bf16s_fma4(const Mat& queryT, const Mat& key_head, const Mat& packed_key_head, const Mat& value_head, const Mat& packed_value_head, const Mat& computation_value_head, const Mat& mask, size_t mask_hstep, const Mat& packed_mask, Mat& scoreT, Mat& outT, Mat& lT, int max_ii, float scale);
+#endif
+
 static void sdpa_pack_query_bf16s(const Mat& query_head, Mat& queryT, int i, int max_ii, size_t q_hstep)
 {
     const int head_dim = query_head.w;
@@ -1106,6 +1113,21 @@ static void sdpa_pack_value_tile_bf16s_to_fp32(const Mat& value, Mat& packed_val
 
 static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, const Mat& packed_key_head, const Mat& value_head, const Mat& packed_value_head, const Mat& computation_value_head, const Mat& mask, size_t mask_hstep, const Mat& packed_mask, Mat& scoreT, Mat& outT, Mat& lT, int max_ii, float scale)
 {
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        sdpa_attention_tile_bf16s_fma(queryT, key_head, packed_key_head, value_head, packed_value_head, computation_value_head, mask, mask_hstep, packed_mask, scoreT, outT, lT, max_ii, scale);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        sdpa_attention_tile_bf16s_fma4(queryT, key_head, packed_key_head, value_head, packed_value_head, computation_value_head, mask, mask_hstep, packed_mask, scoreT, outT, lT, max_ii, scale);
+        return;
+    }
+#endif
+
     const int head_dim = packed_key_head.empty() ? key_head.w : packed_key_head.w;
     const int key_seqlen = packed_key_head.empty() ? key_head.h : packed_key_head.h;
     const int TILE_M = lT.w;
@@ -3645,10 +3667,10 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                             __m256 _pA01 = _mm256_castsi256_ps(_mm256_and_si256(_pA0, _mask));
                             __m256 _pA11 = _mm256_castsi256_ps(_mm256_and_si256(_pA1, _mask));
                             __m256 _pB1 = _mm256_castsi256_ps(_mm256_and_si256(_pB, _mask));
-                            _sum0 = _mm256_fmadd_ps(_pA00, _pB0, _sum0);
-                            _sum1 = _mm256_fmadd_ps(_pA10, _pB0, _sum1);
-                            _sum2 = _mm256_fmadd_ps(_pA01, _pB1, _sum2);
-                            _sum3 = _mm256_fmadd_ps(_pA11, _pB1, _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_pA00, _pB0, _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_pA10, _pB0, _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_pA01, _pB1, _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_pA11, _pB1, _sum3);
 #else
                             _sum0 = _mm256_dpbf16_ps(_sum0, (__m256bh)_pA0, (__m256bh)_pB);
                             _sum1 = _mm256_dpbf16_ps(_sum1, (__m256bh)_pA1, (__m256bh)_pB);
@@ -3716,10 +3738,10 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                             __m128 _pA01 = _mm_castsi128_ps(_mm_and_si128(_pA0, _mask));
                             __m128 _pA11 = _mm_castsi128_ps(_mm_and_si128(_pA1, _mask));
                             __m128 _pB1 = _mm_castsi128_ps(_mm_and_si128(_pB, _mask));
-                            _sum0 = _mm_fmadd_ps(_pA00, _pB0, _sum0);
-                            _sum1 = _mm_fmadd_ps(_pA10, _pB0, _sum1);
-                            _sum2 = _mm_fmadd_ps(_pA01, _pB1, _sum2);
-                            _sum3 = _mm_fmadd_ps(_pA11, _pB1, _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_pA00, _pB0, _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_pA10, _pB0, _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_pA01, _pB1, _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_pA11, _pB1, _sum3);
 #else
                             _sum0 = _mm_dpbf16_ps(_sum0, (__m128bh)_pA0, (__m128bh)_pB);
                             _sum1 = _mm_dpbf16_ps(_sum1, (__m128bh)_pA1, (__m128bh)_pB);

@@ -40,7 +40,7 @@ jobs:
         LD_LIBRARY_PATH: /data/action/install/lib64
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_VULKAN=ON -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_XOP=OFF -DNCNN_AVXVNNI=OFF -DNCNN_AVXNECONVERT=OFF -DNCNN_AVX512=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_VULKAN=ON -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_XOP=OFF -DNCNN_FMA4=OFF -DNCNN_AVXVNNI=OFF -DNCNN_AVXNECONVERT=OFF -DNCNN_AVX512=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 4
     - name: test
       env:
@@ -87,6 +87,7 @@ jobs:
             -DNCNN_AVX=${{ matrix.AVX }} \
             -DNCNN_F16C=${{ matrix.F16C }} \
             -DNCNN_FMA=${{ matrix.FMA }} \
+            -DNCNN_FMA4=OFF \
             -DNCNN_AVX2=${{ matrix.AVX2 }} \
             -DNCNN_AVX512=${{ matrix.AVX512 }} \
             -DNCNN_AVX512VNNI=${{ matrix.AVX512VNNI }} \
@@ -115,6 +116,7 @@ jobs:
             -DNCNN_AVX=${{ matrix.AVX }} \
             -DNCNN_F16C=${{ matrix.F16C }} \
             -DNCNN_FMA=${{ matrix.FMA }} \
+            -DNCNN_FMA4=OFF \
             -DNCNN_AVX2=${{ matrix.AVX2 }} \
             -DNCNN_AVX512=${{ matrix.AVX512 }} \
             -DNCNN_AVX512VNNI=${{ matrix.AVX512VNNI }} \
@@ -182,7 +184,7 @@ jobs:
     name: sde-${{ matrix.cpu }}
     runs-on: [self-hosted, linux, ubuntu25]
     env:
-      SDE_PATH: /data/action/osd/sde-external-9.33.0-2024-01-07-lin
+      SDE_PATH: /data/action/osd/sde-external-10.13.1-2026-07-28-lin
     strategy:
       fail-fast: false
       matrix:
@@ -200,6 +202,7 @@ jobs:
             -DNCNN_AVX=ON \
             -DNCNN_F16C=ON \
             -DNCNN_XOP=OFF \
+            -DNCNN_FMA4=OFF \
             -DNCNN_AVX2=${{ matrix.AVX2 }} \
             -DNCNN_AVXVNNI=${{ matrix.AVXVNNI }} \
             -DNCNN_AVXVNNIINT8=${{ matrix.AVXVNNIINT8 }} \
@@ -234,7 +237,7 @@ jobs:
     name: sde-combined
     runs-on: [self-hosted, linux, ubuntu25]
     env:
-      SDE_PATH: /data/action/osd/sde-external-9.33.0-2024-01-07-lin
+      SDE_PATH: /data/action/osd/sde-external-10.13.1-2026-07-28-lin
     steps:
     - uses: actions/checkout@v7
     - name: build
@@ -274,6 +277,10 @@ jobs:
       run: |
         cd build
         TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-gnr;--" ctest --output-on-failure -j 8
+    - name: test-dmr
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-dmr;--" ctest --output-on-failure -j 8
     - name: lcov-collect
       run: |
         cd build
@@ -344,7 +351,7 @@ jobs:
     - name: build
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVXVNNI=OFF -DNCNN_AVXNECONVERT=OFF -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=OFF -DNCNN_AVX512FP16=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVXVNNI=OFF -DNCNN_AVXNECONVERT=OFF -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=OFF -DNCNN_AVX512FP16=OFF -DNCNN_XOP=OFF -DNCNN_FMA4=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 8
     - name: test
       run: |
@@ -401,7 +408,7 @@ jobs:
     - name: build
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVXVNNI=OFF -DNCNN_AVXNECONVERT=OFF -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=OFF -DNCNN_AVX512FP16=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVXVNNI=OFF -DNCNN_AVXNECONVERT=OFF -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=OFF -DNCNN_AVX512FP16=OFF -DNCNN_XOP=OFF -DNCNN_FMA4=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 8
     - name: test
       run: |

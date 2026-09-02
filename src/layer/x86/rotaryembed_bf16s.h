@@ -9,6 +9,13 @@ void rotaryembed_bf16s_avx512bf16(const Mat& bottom_blob, const Mat& cos_cache, 
 void rotaryembed_bf16s_avx2(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void rotaryembed_bf16s_fma(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void rotaryembed_bf16s_fma4(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt);
+#endif
+
 static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
@@ -26,14 +33,24 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
         return;
     }
 #endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        rotaryembed_bf16s_fma(bottom_blob, cos_cache, sin_cache, top_blob, interleaved, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        rotaryembed_bf16s_fma4(bottom_blob, cos_cache, sin_cache, top_blob, interleaved, opt);
+        return;
+    }
+#endif
 
     const int embed_dim = bottom_blob.w;
     const int seqlen = bottom_blob.h;
     const int num_heads = bottom_blob.c;
-
-    top_blob.create_like(bottom_blob, opt.blob_allocator);
-    if (top_blob.empty())
-        return;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_heads; q++)
@@ -109,8 +126,8 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
                     __m256 ss0 = _mm256_mul_ps(swap0, s0);
                     __m256 ss1 = _mm256_mul_ps(swap1, s1);
 
-                    __m256 y0 = _mm256_fmaddsub_ps(a0, c0, ss0);
-                    __m256 y1 = _mm256_fmaddsub_ps(a1, c1, ss1);
+                    __m256 y0 = _mm256_comp_fmaddsub_ps(a0, c0, ss0);
+                    __m256 y1 = _mm256_comp_fmaddsub_ps(a1, c1, ss1);
 
                     _mm_storeu_si128((__m128i*)outptr, float2bfloat_avx(y0));
                     _mm_storeu_si128((__m128i*)(outptr + 8), float2bfloat_avx(y1));
@@ -120,7 +137,7 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
                     cos_ptr += 8;
                     sin_ptr += 8;
                 }
-#else // __AVX2__
+#else  // __AVX2__
                 for (; j + 7 < embed_dim / 2; j += 8)
                 {
                     __m256 a0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
@@ -153,16 +170,8 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
                     __m256 ss0 = _mm256_mul_ps(swap0, s0);
                     __m256 ss1 = _mm256_mul_ps(swap1, s1);
 
-#if __FMA__
-                    __m256 y0 = _mm256_fmaddsub_ps(a0, c0, ss0);
-                    __m256 y1 = _mm256_fmaddsub_ps(a1, c1, ss1);
-#else
-                    __m256 ac0 = _mm256_mul_ps(a0, c0);
-                    __m256 ac1 = _mm256_mul_ps(a1, c1);
-
-                    __m256 y0 = _mm256_addsub_ps(ac0, ss0);
-                    __m256 y1 = _mm256_addsub_ps(ac1, ss1);
-#endif
+                    __m256 y0 = _mm256_comp_fmaddsub_ps(a0, c0, ss0);
+                    __m256 y1 = _mm256_comp_fmaddsub_ps(a1, c1, ss1);
                     _mm_storeu_si128((__m128i*)outptr, float2bfloat_avx(y0));
                     _mm_storeu_si128((__m128i*)(outptr + 8), float2bfloat_avx(y1));
 
@@ -193,30 +202,8 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
 
                     __m128 ss0 = _mm_mul_ps(swap0, slo);
                     __m128 ss1 = _mm_mul_ps(swap1, shi);
-#if __FMA__
-                    __m128 y0 = _mm_fmaddsub_ps(a0, clo, ss0);
-                    __m128 y1 = _mm_fmaddsub_ps(a1, chi, ss1);
-#else
-                    __m128 ac0 = _mm_mul_ps(a0, clo);
-                    __m128 ac1 = _mm_mul_ps(a1, chi);
-#if __SSE3__
-                    __m128 y0 = _mm_addsub_ps(ac0, ss0);
-                    __m128 y1 = _mm_addsub_ps(ac1, ss1);
-#else
-#if defined(__MINGW32__) && !defined(__x86_64__)
-                    __attribute__((aligned(16)))
-                    const float signmask128_array[4]
-                        = {-0.f, 0.f, -0.f, 0.f};
-                    const __m128 signmask128 = _mm_load_ps(signmask128_array);
-#else
-                    const __m128 signmask128 = _mm_set_ps(0.f, -0.f, 0.f, -0.f);
-#endif
-                    ss0 = _mm_xor_ps(ss0, signmask128);
-                    ss1 = _mm_xor_ps(ss1, signmask128);
-                    __m128 y0 = _mm_add_ps(ac0, ss0);
-                    __m128 y1 = _mm_add_ps(ac1, ss1);
-#endif
-#endif
+                    __m128 y0 = _mm_comp_fmaddsub_ps(a0, clo, ss0);
+                    __m128 y1 = _mm_comp_fmaddsub_ps(a1, chi, ss1);
                     __m128i y01_bf16 = float2bfloat_sse(y0, y1);
                     _mm_storeu_si128((__m128i*)outptr, y01_bf16);
 
@@ -241,25 +228,7 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
                     __m128 swap = _mm_shuffle_ps(a, a, _MM_SHUFFLE(2, 3, 0, 1));
                     __m128 ss = _mm_mul_ps(swap, s);
 
-#if __FMA__
-                    __m128 y = _mm_fmaddsub_ps(a, c, ss);
-#else
-                    __m128 ac = _mm_mul_ps(a, c);
-#if __SSE3__
-                    __m128 y = _mm_addsub_ps(ac, ss);
-#else
-#if defined(__MINGW32__) && !defined(__x86_64__)
-                    __attribute__((aligned(16)))
-                    const float signmask128_array[4]
-                        = {-0.f, 0.f, -0.f, 0.f};
-                    const __m128 signmask128 = _mm_load_ps(signmask128_array);
-#else
-                    const __m128 signmask128 = _mm_set_ps(0.f, -0.f, 0.f, -0.f);
-#endif
-                    ss = _mm_xor_ps(ss, signmask128);
-                    __m128 y = _mm_add_ps(ac, ss);
-#endif
-#endif
+                    __m128 y = _mm_comp_fmaddsub_ps(a, c, ss);
                     __m128i y_bf16 = float2bfloat_sse(y, y);
                     _mm_storel_epi64((__m128i*)outptr, y_bf16);
 
