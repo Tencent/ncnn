@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -90,22 +92,7 @@ def test():
 
     a = net(x, y, z, w)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
-    mod.save("test_F_interpolate.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_interpolate.pt inputshape=[1,3,32],[1,3,32,32],[1,3,32,32,32],[1,8,86,86]")
-
-    # pnnx inference
-    import test_F_interpolate_pnnx
-    b = test_F_interpolate_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
-            return False
-    return True
+    return test_model_formats(net, (x, y, z, w), a, "test_F_interpolate")
 
 if __name__ == "__main__":
     if test():
