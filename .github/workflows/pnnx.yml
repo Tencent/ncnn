@@ -111,6 +111,11 @@ jobs:
       run: python -c "import os, torch; print(os.path.join(os.path.dirname(torch.__file__), 'lib'))" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
     - name: pt2-test
+      env:
+        OMP_THREAD_LIMIT: 1
+        OMP_NUM_THREADS: 1
+        MKL_NUM_THREADS: 1
+        MKL_ENABLE_INSTRUCTIONS: SSE4_2
       run: |
         cd tools/pnnx/build
         ctest -C Release --output-on-failure -L pt2
