@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -26,19 +28,7 @@ def test():
 
     a0, a1 = net(x, y)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y))
-    mod.save("test_F_affine_grid.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_affine_grid.pt inputshape=[32,2,3],[12,3,4]")
-
-    # pnnx inference
-    import test_F_affine_grid_pnnx
-    b0, b1 = test_F_affine_grid_pnnx.test_inference()
-
-    return torch.equal(a0, b0) and torch.equal(a1, b1)
+    return test_model_formats(net, (x, y), (a0, a1), "test_F_affine_grid")
 
 if __name__ == "__main__":
     if test():
