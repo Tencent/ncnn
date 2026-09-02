@@ -13,14 +13,14 @@ namespace ncnn {
 #include "scale_fp32.h"
 
 #if NCNN_BF16
-void scale_bf16s_sse_fma(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack)
+void scale_bf16s_fma(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack)
 {
-    scale_bf16s_sse(ptr, scale, bias, size, elempack);
+    scale_bf16s(ptr, scale, bias, size, elempack);
 }
 
-void scale_bf16s_per_element_sse_fma(unsigned short* ptr, const float* scale, const float* bias, int size, int num_threads)
+void scale_bf16s_per_element_fma(unsigned short* ptr, const float* scale, const float* bias, int size, int num_threads)
 {
-    scale_bf16s_per_element_sse(ptr, scale, bias, size, num_threads);
+    scale_bf16s_per_element(ptr, scale, bias, size, num_threads);
 }
 #endif // NCNN_BF16
 

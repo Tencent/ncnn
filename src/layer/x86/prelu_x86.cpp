@@ -60,11 +60,11 @@ int PReLU_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
 
         if (num_slope > 1)
         {
-            prelu_bf16s_per_element_sse(ptr, (const float*)slope_data, size, opt.num_threads);
+            prelu_bf16s_per_element(ptr, (const float*)slope_data, size, opt.num_threads);
         }
         else
         {
-            prelu_bf16s_single_slope_sse(ptr, slope_data[0], size, opt.num_threads);
+            prelu_bf16s_single_slope(ptr, slope_data[0], size, opt.num_threads);
         }
     }
 
@@ -81,7 +81,7 @@ int PReLU_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
             const float* sptr = num_slope > 1 ? (const float*)slope_data + i * elempack : &slope;
             int ep = num_slope > 1 ? elempack : 1;
 
-            prelu_bf16s_sse(ptr, sptr, size, ep);
+            prelu_bf16s(ptr, sptr, size, ep);
         }
     }
 
@@ -98,7 +98,7 @@ int PReLU_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
             const float* sptr = num_slope > 1 ? (const float*)slope_data + q * elempack : &slope;
             int ep = num_slope > 1 ? elempack : 1;
 
-            prelu_bf16s_sse(ptr, sptr, size, ep);
+            prelu_bf16s(ptr, sptr, size, ep);
         }
     }
 

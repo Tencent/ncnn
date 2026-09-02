@@ -17,7 +17,7 @@ namespace ncnn {
 #if NCNN_BF16
 #include "unaryop_bf16s.h"
 
-int unaryop_bf16s_sse_fma(Mat& bottom_top_blob, int op_type, const Option& opt)
+int unaryop_bf16s_fma(Mat& bottom_top_blob, int op_type, const Option& opt)
 {
     using namespace unaryop_x86_functor;
     if (op_type == UnaryOp::Operation_ABS)

@@ -2,34 +2,34 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
-void prelu_bf16s_sse_avx512bf16(unsigned short* ptr, const float* slope, int size, int elempack);
-void prelu_bf16s_per_element_sse_avx512bf16(unsigned short* ptr, const float* slope, int size, int num_threads);
-void prelu_bf16s_single_slope_sse_avx512bf16(unsigned short* ptr, float slope, int size, int num_threads);
+void prelu_bf16s_avx512bf16(unsigned short* ptr, const float* slope, int size, int elempack);
+void prelu_bf16s_per_element_avx512bf16(unsigned short* ptr, const float* slope, int size, int num_threads);
+void prelu_bf16s_single_slope_avx512bf16(unsigned short* ptr, float slope, int size, int num_threads);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
-void prelu_bf16s_sse_avx2(unsigned short* ptr, const float* slope, int size, int elempack);
-void prelu_bf16s_per_element_sse_avx2(unsigned short* ptr, const float* slope, int size, int num_threads);
-void prelu_bf16s_single_slope_sse_avx2(unsigned short* ptr, float slope, int size, int num_threads);
+void prelu_bf16s_avx2(unsigned short* ptr, const float* slope, int size, int elempack);
+void prelu_bf16s_per_element_avx2(unsigned short* ptr, const float* slope, int size, int num_threads);
+void prelu_bf16s_single_slope_avx2(unsigned short* ptr, float slope, int size, int num_threads);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
-void prelu_bf16s_sse_fma(unsigned short* ptr, const float* slope, int size, int elempack);
-void prelu_bf16s_per_element_sse_fma(unsigned short* ptr, const float* slope, int size, int num_threads);
-void prelu_bf16s_single_slope_sse_fma(unsigned short* ptr, float slope, int size, int num_threads);
+void prelu_bf16s_fma(unsigned short* ptr, const float* slope, int size, int elempack);
+void prelu_bf16s_per_element_fma(unsigned short* ptr, const float* slope, int size, int num_threads);
+void prelu_bf16s_single_slope_fma(unsigned short* ptr, float slope, int size, int num_threads);
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
-void prelu_bf16s_sse_fma4(unsigned short* ptr, const float* slope, int size, int elempack);
-void prelu_bf16s_per_element_sse_fma4(unsigned short* ptr, const float* slope, int size, int num_threads);
-void prelu_bf16s_single_slope_sse_fma4(unsigned short* ptr, float slope, int size, int num_threads);
+void prelu_bf16s_fma4(unsigned short* ptr, const float* slope, int size, int elempack);
+void prelu_bf16s_per_element_fma4(unsigned short* ptr, const float* slope, int size, int num_threads);
+void prelu_bf16s_single_slope_fma4(unsigned short* ptr, float slope, int size, int num_threads);
 #endif
 
-static void prelu_bf16s_sse(unsigned short* ptr, const float* slope, int size, int elempack)
+static void prelu_bf16s(unsigned short* ptr, const float* slope, int size, int elempack)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        prelu_bf16s_sse_avx512bf16(ptr, slope, size, elempack);
+        prelu_bf16s_avx512bf16(ptr, slope, size, elempack);
         return;
     }
 #endif
@@ -37,21 +37,21 @@ static void prelu_bf16s_sse(unsigned short* ptr, const float* slope, int size, i
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
     {
-        prelu_bf16s_sse_avx2(ptr, slope, size, elempack);
+        prelu_bf16s_avx2(ptr, slope, size, elempack);
         return;
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma())
     {
-        prelu_bf16s_sse_fma(ptr, slope, size, elempack);
+        prelu_bf16s_fma(ptr, slope, size, elempack);
         return;
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma4())
     {
-        prelu_bf16s_sse_fma4(ptr, slope, size, elempack);
+        prelu_bf16s_fma4(ptr, slope, size, elempack);
         return;
     }
 #endif
@@ -114,12 +114,12 @@ static void prelu_bf16s_sse(unsigned short* ptr, const float* slope, int size, i
     }
 }
 
-static void prelu_bf16s_per_element_sse(unsigned short* ptr, const float* slope, int size, int num_threads)
+static void prelu_bf16s_per_element(unsigned short* ptr, const float* slope, int size, int num_threads)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        prelu_bf16s_per_element_sse_avx512bf16(ptr, slope, size, num_threads);
+        prelu_bf16s_per_element_avx512bf16(ptr, slope, size, num_threads);
         return;
     }
 #endif
@@ -127,21 +127,21 @@ static void prelu_bf16s_per_element_sse(unsigned short* ptr, const float* slope,
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
     {
-        prelu_bf16s_per_element_sse_avx2(ptr, slope, size, num_threads);
+        prelu_bf16s_per_element_avx2(ptr, slope, size, num_threads);
         return;
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma())
     {
-        prelu_bf16s_per_element_sse_fma(ptr, slope, size, num_threads);
+        prelu_bf16s_per_element_fma(ptr, slope, size, num_threads);
         return;
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma4())
     {
-        prelu_bf16s_per_element_sse_fma4(ptr, slope, size, num_threads);
+        prelu_bf16s_per_element_fma4(ptr, slope, size, num_threads);
         return;
     }
 #endif
@@ -206,12 +206,12 @@ static void prelu_bf16s_per_element_sse(unsigned short* ptr, const float* slope,
     }
 }
 
-static void prelu_bf16s_single_slope_sse(unsigned short* ptr, float slope, int size, int num_threads)
+static void prelu_bf16s_single_slope(unsigned short* ptr, float slope, int size, int num_threads)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        prelu_bf16s_single_slope_sse_avx512bf16(ptr, slope, size, num_threads);
+        prelu_bf16s_single_slope_avx512bf16(ptr, slope, size, num_threads);
         return;
     }
 #endif
@@ -219,21 +219,21 @@ static void prelu_bf16s_single_slope_sse(unsigned short* ptr, float slope, int s
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
     {
-        prelu_bf16s_single_slope_sse_avx2(ptr, slope, size, num_threads);
+        prelu_bf16s_single_slope_avx2(ptr, slope, size, num_threads);
         return;
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma())
     {
-        prelu_bf16s_single_slope_sse_fma(ptr, slope, size, num_threads);
+        prelu_bf16s_single_slope_fma(ptr, slope, size, num_threads);
         return;
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma4())
     {
-        prelu_bf16s_single_slope_sse_fma4(ptr, slope, size, num_threads);
+        prelu_bf16s_single_slope_fma4(ptr, slope, size, num_threads);
         return;
     }
 #endif

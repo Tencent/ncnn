@@ -9,19 +9,19 @@ namespace ncnn {
 
 #include "prelu_bf16s.h"
 
-void prelu_bf16s_sse_avx2(unsigned short* ptr, const float* slope, int size, int elempack)
+void prelu_bf16s_avx2(unsigned short* ptr, const float* slope, int size, int elempack)
 {
-    prelu_bf16s_sse(ptr, slope, size, elempack);
+    prelu_bf16s(ptr, slope, size, elempack);
 }
 
-void prelu_bf16s_per_element_sse_avx2(unsigned short* ptr, const float* slope, int size, int num_threads)
+void prelu_bf16s_per_element_avx2(unsigned short* ptr, const float* slope, int size, int num_threads)
 {
-    prelu_bf16s_per_element_sse(ptr, slope, size, num_threads);
+    prelu_bf16s_per_element(ptr, slope, size, num_threads);
 }
 
-void prelu_bf16s_single_slope_sse_avx2(unsigned short* ptr, float slope, int size, int num_threads)
+void prelu_bf16s_single_slope_avx2(unsigned short* ptr, float slope, int size, int num_threads)
 {
-    prelu_bf16s_single_slope_sse(ptr, slope, size, num_threads);
+    prelu_bf16s_single_slope(ptr, slope, size, num_threads);
 }
 
 } // namespace ncnn

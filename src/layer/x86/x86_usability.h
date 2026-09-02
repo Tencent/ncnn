@@ -519,7 +519,7 @@ static NCNN_FORCEINLINE __m128 _mm_comp_fnmsub_ps(const __m128& _a, const __m128
 #elif __FMA4__
     return _mm_nmsub_ps(_a, _b, _c);
 #else
-    return _mm_sub_ps(_c, _mm_mul_ps(_mm_mul_ps(_a, _b), _mm_set1_ps(-1)));
+    return _mm_sub_ps(_mm_mul_ps(_mm_mul_ps(_a, _b), _mm_set1_ps(-1.f)), _c);
 #endif
 }
 
@@ -656,7 +656,7 @@ static NCNN_FORCEINLINE __m256 _mm256_comp_fnmsub_ps(const __m256& _a, const __m
 #elif __FMA4__
     return _mm256_nmsub_ps(_a, _b, _c);
 #else
-    return _mm256_sub_ps(_c, _mm256_mul_ps(_mm256_mul_ps(_a, _b), _mm256_set1_ps(-1)));
+    return _mm256_sub_ps(_mm256_mul_ps(_mm256_mul_ps(_a, _b), _mm256_set1_ps(-1.f)), _c);
 #endif
 }
 

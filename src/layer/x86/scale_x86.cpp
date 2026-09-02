@@ -85,11 +85,11 @@ int Scale_x86::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const O
 
         if (bias_term)
         {
-            scale_bf16s_per_element_sse(ptr, scale, bias, size, opt.num_threads);
+            scale_bf16s_per_element(ptr, scale, bias, size, opt.num_threads);
         }
         else
         {
-            scale_bf16s_no_bias_per_element_sse(ptr, scale, size, opt.num_threads);
+            scale_bf16s_no_bias_per_element(ptr, scale, size, opt.num_threads);
         }
     }
 
@@ -106,11 +106,11 @@ int Scale_x86::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const O
             if (bias_term)
             {
                 const float* bptr = bias + i * elempack;
-                scale_bf16s_sse(ptr, sptr, bptr, size, elempack);
+                scale_bf16s(ptr, sptr, bptr, size, elempack);
             }
             else
             {
-                scale_bf16s_no_bias_sse(ptr, sptr, size, elempack);
+                scale_bf16s_no_bias(ptr, sptr, size, elempack);
             }
         }
     }
@@ -128,11 +128,11 @@ int Scale_x86::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const O
             if (bias_term)
             {
                 const float* bptr = bias + q * elempack;
-                scale_bf16s_sse(ptr, sptr, bptr, size, elempack);
+                scale_bf16s(ptr, sptr, bptr, size, elempack);
             }
             else
             {
-                scale_bf16s_no_bias_sse(ptr, sptr, size, elempack);
+                scale_bf16s_no_bias(ptr, sptr, size, elempack);
             }
         }
     }

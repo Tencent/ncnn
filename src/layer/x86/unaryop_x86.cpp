@@ -54,45 +54,45 @@ int UnaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
 #if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
-int unaryop_bf16s_sse_avx512bf16(Mat& bottom_top_blob, int op_type, const Option& opt);
+int unaryop_bf16s_avx512bf16(Mat& bottom_top_blob, int op_type, const Option& opt);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
-int unaryop_bf16s_sse_avx2(Mat& bottom_top_blob, int op_type, const Option& opt);
+int unaryop_bf16s_avx2(Mat& bottom_top_blob, int op_type, const Option& opt);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
-int unaryop_bf16s_sse_fma(Mat& bottom_top_blob, int op_type, const Option& opt);
+int unaryop_bf16s_fma(Mat& bottom_top_blob, int op_type, const Option& opt);
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
-int unaryop_bf16s_sse_fma4(Mat& bottom_top_blob, int op_type, const Option& opt);
+int unaryop_bf16s_fma4(Mat& bottom_top_blob, int op_type, const Option& opt);
 #endif
 
-static int unaryop_bf16s_sse(Mat& bottom_top_blob, int op_type, const Option& opt)
+static int unaryop_bf16s(Mat& bottom_top_blob, int op_type, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        return unaryop_bf16s_sse_avx512bf16(bottom_top_blob, op_type, opt);
+        return unaryop_bf16s_avx512bf16(bottom_top_blob, op_type, opt);
     }
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
     {
-        return unaryop_bf16s_sse_avx2(bottom_top_blob, op_type, opt);
+        return unaryop_bf16s_avx2(bottom_top_blob, op_type, opt);
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma())
     {
-        return unaryop_bf16s_sse_fma(bottom_top_blob, op_type, opt);
+        return unaryop_bf16s_fma(bottom_top_blob, op_type, opt);
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_fma4())
     {
-        return unaryop_bf16s_sse_fma4(bottom_top_blob, op_type, opt);
+        return unaryop_bf16s_fma4(bottom_top_blob, op_type, opt);
     }
 #endif
 
@@ -197,7 +197,7 @@ static int unaryop_bf16s_sse(Mat& bottom_top_blob, int op_type, const Option& op
 
 int UnaryOp_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
-    return unaryop_bf16s_sse(bottom_top_blob, op_type, opt);
+    return unaryop_bf16s(bottom_top_blob, op_type, opt);
 }
 #endif // NCNN_BF16
 

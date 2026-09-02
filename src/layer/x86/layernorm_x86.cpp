@@ -147,7 +147,7 @@ int LayerNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
     {
         // assert affine_size == w
         unsigned short* ptr = bottom_top_blob;
-        layernorm_bf16s_sse(ptr, gamma_data, beta_data, eps, w * elempack, 1);
+        layernorm_bf16s(ptr, gamma_data, beta_data, eps, w * elempack, 1);
     }
 
     if (dims == 2)
@@ -157,7 +157,7 @@ int LayerNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
         for (int i = 0; i < h; i++)
         {
             unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
-            layernorm_bf16s_sse(ptr, gamma_data, beta_data, eps, w, elempack);
+            layernorm_bf16s(ptr, gamma_data, beta_data, eps, w, elempack);
         }
     }
 
@@ -171,7 +171,7 @@ int LayerNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
                 for (int i = 0; i < h; i++)
                 {
                     unsigned short* ptr = bottom_top_blob.channel(q).row<unsigned short>(i);
-                    layernorm_bf16s_sse(ptr, gamma_data, beta_data, eps, w, elempack);
+                    layernorm_bf16s(ptr, gamma_data, beta_data, eps, w, elempack);
                 }
             }
         }
@@ -181,7 +181,7 @@ int LayerNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
             for (int q = 0; q < channels; q++)
             {
                 unsigned short* ptr = bottom_top_blob.channel(q);
-                layernorm_bf16s_sse(ptr, gamma_data, beta_data, eps, w * h, elempack);
+                layernorm_bf16s(ptr, gamma_data, beta_data, eps, w * h, elempack);
             }
         }
     }
@@ -198,7 +198,7 @@ int LayerNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
                     for (int i = 0; i < h; i++)
                     {
                         unsigned short* ptr = bottom_top_blob.channel(q).depth(z).row<unsigned short>(i);
-                        layernorm_bf16s_sse(ptr, gamma_data, beta_data, eps, w, elempack);
+                        layernorm_bf16s(ptr, gamma_data, beta_data, eps, w, elempack);
                     }
                 }
             }
@@ -211,7 +211,7 @@ int LayerNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
                 for (int z = 0; z < d; z++)
                 {
                     unsigned short* ptr = bottom_top_blob.channel(q).depth(z);
-                    layernorm_bf16s_sse(ptr, gamma_data, beta_data, eps, w * h, elempack);
+                    layernorm_bf16s(ptr, gamma_data, beta_data, eps, w * h, elempack);
                 }
             }
         }
@@ -221,7 +221,7 @@ int LayerNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
             for (int q = 0; q < channels; q++)
             {
                 unsigned short* ptr = bottom_top_blob.channel(q);
-                layernorm_bf16s_sse(ptr, gamma_data, beta_data, eps, w * h * d, elempack);
+                layernorm_bf16s(ptr, gamma_data, beta_data, eps, w * h * d, elempack);
             }
         }
     }

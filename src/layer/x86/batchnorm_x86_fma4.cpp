@@ -13,14 +13,14 @@ namespace ncnn {
 #include "batchnorm_fp32.h"
 
 #if NCNN_BF16
-void batchnorm_bf16s_sse_fma4(unsigned short* ptr, const float* a, const float* b, int size, int elempack)
+void batchnorm_bf16s_fma4(unsigned short* ptr, const float* a, const float* b, int size, int elempack)
 {
-    batchnorm_bf16s_sse(ptr, a, b, size, elempack);
+    batchnorm_bf16s(ptr, a, b, size, elempack);
 }
 
-void batchnorm_bf16s_per_element_sse_fma4(unsigned short* ptr, const float* a, const float* b, int size, int num_threads)
+void batchnorm_bf16s_per_element_fma4(unsigned short* ptr, const float* a, const float* b, int size, int num_threads)
 {
-    batchnorm_bf16s_per_element_sse(ptr, a, b, size, num_threads);
+    batchnorm_bf16s_per_element(ptr, a, b, size, num_threads);
 }
 #endif // NCNN_BF16
 

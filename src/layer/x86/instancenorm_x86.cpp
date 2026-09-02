@@ -76,7 +76,7 @@ int InstanceNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& 
             b = -mean * a;
         }
 
-        instancenorm_bf16s_sse(ptr, size, a, b);
+        instancenorm_bf16s(ptr, size, a, b);
     }
 
     return 0;

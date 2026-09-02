@@ -225,7 +225,7 @@ int Softmax_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 
         const int size = w * elempack;
 
-        softmax_bf16s_sse(ptr, size, 1);
+        softmax_bf16s(ptr, size, 1);
     }
 
     if (dims == 2 && positive_axis == 0)
@@ -251,7 +251,7 @@ int Softmax_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 
             unsigned short* ptr = (unsigned short*)bottom_top_blob + i * elempack;
 
-            softmax_bf16s_sse_dispatch(ptr, h, elempack, stride, size1, maxptr, sumptr);
+            softmax_bf16s(ptr, h, elempack, stride, size1, maxptr, sumptr);
         }
     }
 
@@ -262,7 +262,7 @@ int Softmax_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
         {
             unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
 
-            softmax_bf16s_sse(ptr, w, elempack);
+            softmax_bf16s(ptr, w, elempack);
         }
     }
 
@@ -289,7 +289,7 @@ int Softmax_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 
             unsigned short* ptr = (unsigned short*)bottom_top_blob + i * elempack;
 
-            softmax_bf16s_sse_dispatch(ptr, channels, elempack, stride, size1, maxptr, sumptr);
+            softmax_bf16s(ptr, channels, elempack, stride, size1, maxptr, sumptr);
         }
     }
 
@@ -312,7 +312,7 @@ int Softmax_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
                 float* maxptr = maxsumptr;
                 float* sumptr = maxptr + size;
 
-                softmax_bf16s_sse_dispatch(ptr, h, 1, size, size, maxptr, sumptr);
+                softmax_bf16s(ptr, h, 1, size, size, maxptr, sumptr);
             }
         }
     }
@@ -326,7 +326,7 @@ int Softmax_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 
             for (int i = 0; i < h; i++)
             {
-                softmax_bf16s_sse(ptr, w, elempack);
+                softmax_bf16s(ptr, w, elempack);
                 ptr += w * elempack;
             }
         }
@@ -349,7 +349,7 @@ int Softmax_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
             float* maxptr = maxsumptr;
             float* sumptr = maxptr + size;
 
-            softmax_bf16s_sse_dispatch(ptr, d, 1, size, size, maxptr, sumptr);
+            softmax_bf16s(ptr, d, 1, size, size, maxptr, sumptr);
         }
     }
 
@@ -364,7 +364,7 @@ int Softmax_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
             {
                 for (int j = 0; j < h; j++)
                 {
-                    softmax_bf16s_sse(ptr, w, elempack);
+                    softmax_bf16s(ptr, w, elempack);
                     ptr += w * elempack;
                 }
             }

@@ -147,7 +147,7 @@ int RMSNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
     {
         // assert affine_size == w
         unsigned short* ptr = bottom_top_blob;
-        rmsnorm_bf16s_sse(ptr, gamma_data, eps, w * elempack, 1);
+        rmsnorm_bf16s(ptr, gamma_data, eps, w * elempack, 1);
     }
 
     if (dims == 2)
@@ -157,7 +157,7 @@ int RMSNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
         for (int i = 0; i < h; i++)
         {
             unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
-            rmsnorm_bf16s_sse(ptr, gamma_data, eps, w, elempack);
+            rmsnorm_bf16s(ptr, gamma_data, eps, w, elempack);
         }
     }
 
@@ -171,7 +171,7 @@ int RMSNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
                 for (int i = 0; i < h; i++)
                 {
                     unsigned short* ptr = bottom_top_blob.channel(q).row<unsigned short>(i);
-                    rmsnorm_bf16s_sse(ptr, gamma_data, eps, w, elempack);
+                    rmsnorm_bf16s(ptr, gamma_data, eps, w, elempack);
                 }
             }
         }
@@ -181,7 +181,7 @@ int RMSNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
             for (int q = 0; q < channels; q++)
             {
                 unsigned short* ptr = bottom_top_blob.channel(q);
-                rmsnorm_bf16s_sse(ptr, gamma_data, eps, w * h, elempack);
+                rmsnorm_bf16s(ptr, gamma_data, eps, w * h, elempack);
             }
         }
     }
@@ -198,7 +198,7 @@ int RMSNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
                     for (int i = 0; i < h; i++)
                     {
                         unsigned short* ptr = bottom_top_blob.channel(q).depth(z).row<unsigned short>(i);
-                        rmsnorm_bf16s_sse(ptr, gamma_data, eps, w, elempack);
+                        rmsnorm_bf16s(ptr, gamma_data, eps, w, elempack);
                     }
                 }
             }
@@ -211,7 +211,7 @@ int RMSNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
                 for (int z = 0; z < d; z++)
                 {
                     unsigned short* ptr = bottom_top_blob.channel(q).depth(z);
-                    rmsnorm_bf16s_sse(ptr, gamma_data, eps, w * h, elempack);
+                    rmsnorm_bf16s(ptr, gamma_data, eps, w * h, elempack);
                 }
             }
         }
@@ -221,7 +221,7 @@ int RMSNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
             for (int q = 0; q < channels; q++)
             {
                 unsigned short* ptr = bottom_top_blob.channel(q);
-                rmsnorm_bf16s_sse(ptr, gamma_data, eps, w * h * d, elempack);
+                rmsnorm_bf16s(ptr, gamma_data, eps, w * h * d, elempack);
             }
         }
     }

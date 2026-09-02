@@ -13,9 +13,9 @@ namespace ncnn {
 #include "rmsnorm_fp32.h"
 
 #if NCNN_BF16
-void rmsnorm_bf16s_sse_fma4(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack)
+void rmsnorm_bf16s_fma4(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack)
 {
-    rmsnorm_bf16s_sse(ptr, gamma_ptr, eps, elemcount, elempack);
+    rmsnorm_bf16s(ptr, gamma_ptr, eps, elemcount, elempack);
 }
 #endif // NCNN_BF16
 

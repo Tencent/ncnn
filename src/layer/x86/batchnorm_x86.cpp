@@ -60,7 +60,7 @@ int BatchNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
 
         const int size = w * elempack;
 
-        batchnorm_bf16s_per_element_sse(ptr, aptr, bptr, size, opt.num_threads);
+        batchnorm_bf16s_per_element(ptr, aptr, bptr, size, opt.num_threads);
     }
 
     if (dims == 2)
@@ -74,7 +74,7 @@ int BatchNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
             const float* aptr = (const float*)a_data + i * elempack;
             const float* bptr = (const float*)b_data + i * elempack;
 
-            batchnorm_bf16s_sse(ptr, aptr, bptr, size, elempack);
+            batchnorm_bf16s(ptr, aptr, bptr, size, elempack);
         }
     }
 
@@ -89,7 +89,7 @@ int BatchNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
             const float* aptr = (const float*)a_data + q * elempack;
             const float* bptr = (const float*)b_data + q * elempack;
 
-            batchnorm_bf16s_sse(ptr, aptr, bptr, size, elempack);
+            batchnorm_bf16s(ptr, aptr, bptr, size, elempack);
         }
     }
 

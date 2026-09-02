@@ -154,7 +154,7 @@ int GroupNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
             Mat bottom_top_blob_g = bottom_top_blob_unpacked.range(g * channels_g / g_elempack, channels_g / g_elempack);
             const float* gamma_ptr = affine ? (const float*)gamma_data + g * channels_g : 0;
             const float* beta_ptr = affine ? (const float*)beta_data + g * channels_g : 0;
-            groupnorm_bf16s_sse(bottom_top_blob_g, gamma_ptr, beta_ptr, eps, channels_g / g_elempack, 1 * g_elempack, g_elempack, 1);
+            groupnorm_bf16s(bottom_top_blob_g, gamma_ptr, beta_ptr, eps, channels_g / g_elempack, 1 * g_elempack, g_elempack, 1);
         }
     }
 
@@ -168,7 +168,7 @@ int GroupNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
             Mat bottom_top_blob_g = bottom_top_blob_unpacked.row_range(g * channels_g / g_elempack, channels_g / g_elempack);
             const float* gamma_ptr = affine ? (const float*)gamma_data + g * channels_g : 0;
             const float* beta_ptr = affine ? (const float*)beta_data + g * channels_g : 0;
-            groupnorm_bf16s_sse(bottom_top_blob_g, gamma_ptr, beta_ptr, eps, channels_g / g_elempack, w * g_elempack, g_elempack, w);
+            groupnorm_bf16s(bottom_top_blob_g, gamma_ptr, beta_ptr, eps, channels_g / g_elempack, w * g_elempack, g_elempack, w);
         }
     }
 
@@ -183,7 +183,7 @@ int GroupNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
             Mat bottom_top_blob_g = bottom_top_blob_unpacked.channel_range(g * channels_g / g_elempack, channels_g / g_elempack);
             const float* gamma_ptr = affine ? (const float*)gamma_data + g * channels_g : 0;
             const float* beta_ptr = affine ? (const float*)beta_data + g * channels_g : 0;
-            groupnorm_bf16s_sse(bottom_top_blob_g, gamma_ptr, beta_ptr, eps, channels_g / g_elempack, size * g_elempack, g_elempack, cstep);
+            groupnorm_bf16s(bottom_top_blob_g, gamma_ptr, beta_ptr, eps, channels_g / g_elempack, size * g_elempack, g_elempack, cstep);
         }
     }
 

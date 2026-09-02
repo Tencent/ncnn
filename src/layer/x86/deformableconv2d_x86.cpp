@@ -44,7 +44,7 @@ static int _6Dindex_to_1Dindex(int i0, int i1, int i2, int i3, int i4, int i5, i
     return ((((i0 * l1 + i1) * l2 + i2) * l3 + i3) * l4 + i4) * l5 + i5;
 }
 
-static void deformableconv2d_transform_kernel_packed_sse(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, int kernel_w, int kernel_h, int elempack, int out_elempack)
+static void deformableconv2d_transform_kernel_packed(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, int kernel_w, int kernel_h, int elempack, int out_elempack)
 {
     const int maxk = kernel_w * kernel_h;
 
@@ -164,7 +164,7 @@ int DeformableConv2D_x86::create_pipeline(const Option& opt)
     }
     else
     {
-        deformableconv2d_transform_kernel_packed_sse(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+        deformableconv2d_transform_kernel_packed(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
     }
 
     if (opt.lightmode)

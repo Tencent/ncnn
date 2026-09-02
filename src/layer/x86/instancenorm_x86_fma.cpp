@@ -13,9 +13,9 @@ namespace ncnn {
 #include "instancenorm_fp32.h"
 
 #if NCNN_BF16
-void instancenorm_bf16s_sse_fma(unsigned short* ptr, int size, float a, float b)
+void instancenorm_bf16s_fma(unsigned short* ptr, int size, float a, float b)
 {
-    instancenorm_bf16s_sse(ptr, size, a, b);
+    instancenorm_bf16s(ptr, size, a, b);
 }
 
 void instancenorm_bf16s_compute_mean_var_fma(const unsigned short* ptr, int size, float& mean, float& var)
