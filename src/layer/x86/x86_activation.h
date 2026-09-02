@@ -22,7 +22,7 @@ static NCNN_FORCEINLINE __m128 tanh_sse(__m128 inputs)
 {
     const __m128 one = _mm_set1_ps(1.0f);
     const __m128 two = _mm_set1_ps(2.0f);
-    return _mm_sub_ps(_mm_mul_ps(sigmoid_sse(_mm_mul_ps(inputs, two)), two), one);
+    return _mm_comp_fmsub_ps(sigmoid_sse(_mm_mul_ps(inputs, two)), two, one);
 }
 
 static NCNN_FORCEINLINE __m128 mish_sse(__m128 inputs)
@@ -38,7 +38,7 @@ static NCNN_FORCEINLINE __m128 swish_sse(__m128 inputs)
 static NCNN_FORCEINLINE __m128 hardswish_sse(__m128 inputs, __m128 a, __m128 b)
 {
     const __m128 one = _mm_set1_ps(1.0f);
-    b = _mm_add_ps(_mm_mul_ps(inputs, a), b);
+    b = _mm_comp_fmadd_ps(inputs, a, b);
     b = _mm_max_ps(b, _mm_setzero_ps());
     b = _mm_min_ps(b, one);
     return _mm_mul_ps(b, inputs);
@@ -63,7 +63,7 @@ static NCNN_FORCEINLINE __m128 elu_sse(__m128 inputs, __m128 alphas)
     __m128 pos = _mm_max_ps(_mm_setzero_ps(), inputs);
     __m128 neg = _mm_min_ps(_mm_setzero_ps(), inputs);
     neg = _mm_sub_ps(exp_ps(neg), _mm_set1_ps(1.f));
-    return _mm_add_ps(pos, _mm_mul_ps(alphas, neg));
+    return _mm_comp_fmadd_ps(alphas, neg, pos);
 }
 
 static NCNN_FORCEINLINE __m128 activation_sse(__m128 _v, int activation_type, const ncnn::Mat& activation_params)
@@ -167,7 +167,7 @@ static NCNN_FORCEINLINE __m256 elu_avx(__m256 inputs, __m256 alphas)
     __m256 pos = _mm256_max_ps(_mm256_setzero_ps(), inputs);
     __m256 neg = _mm256_min_ps(_mm256_setzero_ps(), inputs);
     neg = _mm256_sub_ps(exp256_ps(neg), _mm256_set1_ps(1.f));
-    return _mm256_add_ps(pos, _mm256_mul_ps(alphas, neg));
+    return _mm256_comp_fmadd_ps(alphas, neg, pos);
 }
 
 static NCNN_FORCEINLINE __m256 activation_avx(__m256 _v, int activation_type, const ncnn::Mat& activation_params)
@@ -265,7 +265,7 @@ static NCNN_FORCEINLINE __m512 prelu_avx512(__m512 inputs, __m512 alphas)
 {
     __m512 pos = _mm512_max_ps(_mm512_setzero_ps(), inputs);
     __m512 neg = _mm512_min_ps(_mm512_setzero_ps(), inputs);
-    return _mm512_add_ps(pos, _mm512_mul_ps(alphas, neg));
+    return _mm512_fmadd_ps(alphas, neg, pos);
 }
 
 static NCNN_FORCEINLINE __m512 activation_avx512(__m512 _v, int activation_type, const ncnn::Mat& activation_params)

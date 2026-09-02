@@ -75,7 +75,7 @@ static void hardswish_fp32(Mat& bottom_top_blob, float alpha, float beta, float 
         {
             __m128 _p = _mm_load_ps(ptr);
             __m128 _ans = _mm_set1_ps(beta);
-            _ans = _mm_add_ps(_mm_mul_ps(_p, _mm_set1_ps(alpha)), _ans);
+            _ans = _mm_comp_fmadd_ps(_p, _mm_set1_ps(alpha), _ans);
             _ans = _mm_max_ps(_ans, _zero);
             _ans = _mm_min_ps(_ans, _one);
             _ans = _mm_mul_ps(_ans, _p);
