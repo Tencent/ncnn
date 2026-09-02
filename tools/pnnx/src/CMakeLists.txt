@@ -763,6 +763,7 @@ set(pnnx_SRCS
     exported_program_reader.cpp
     ir.cpp
     json.cpp
+    load_exported_program.cpp
     model_format.cpp
     model_stat.cpp
     storezip.cpp

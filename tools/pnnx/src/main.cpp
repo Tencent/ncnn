@@ -15,6 +15,8 @@
 #endif
 
 #include "ir.h"
+#include "load_exported_program.h"
+#include "model_format.h"
 #include "pass_level2.h"
 #include "pass_level3.h"
 #include "pass_level4.h"
@@ -472,18 +474,39 @@ int main(int argc, char** argv)
     else
 #endif
     {
-        if (!load_numpy_file_contents(input_paths, input_shapes, input_types, input_contents))
+        std::string format_error;
+        pnnx::ModelFormat model_format = pnnx::detect_model_format(ptpath, format_error);
+        if (model_format == pnnx::ModelFormatExportedProgram)
+        {
+            int ret = load_exported_program(ptpath, pnnx_graph);
+            if (ret != 0)
+                return ret;
+        }
+        else if (model_format == pnnx::ModelFormatExportedProgramLegacy)
+        {
+            fprintf(stderr, "legacy pt2 archive is not supported yet\n");
             return -1;
-        if (!load_numpy_file_contents(input_paths2, input_shapes2, input_types2, input_contents2))
-            return -1;
+        }
+        else if (model_format == pnnx::ModelFormatTorchScript)
+        {
+            if (!load_numpy_file_contents(input_paths, input_shapes, input_types, input_contents))
+                return -1;
+            if (!load_numpy_file_contents(input_paths2, input_shapes2, input_types2, input_contents2))
+                return -1;
 
-        int ret = load_torchscript(ptpath, pnnx_graph,
-                                   device, input_shapes, input_types, input_contents,
-                                   input_shapes2, input_types2, input_contents2,
-                                   customop_modules, module_operators,
-                                   foldable_constants_zippath, foldable_constants);
-        if (ret != 0)
-            return ret;
+            int ret = load_torchscript(ptpath, pnnx_graph,
+                                       device, input_shapes, input_types, input_contents,
+                                       input_shapes2, input_types2, input_contents2,
+                                       customop_modules, module_operators,
+                                       foldable_constants_zippath, foldable_constants);
+            if (ret != 0)
+                return ret;
+        }
+        else
+        {
+            fprintf(stderr, "unsupported model format: %s\n", format_error.c_str());
+            return -1;
+        }
     }
 
     // *INDENT-ON*
