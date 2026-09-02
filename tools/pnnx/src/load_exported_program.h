@@ -6,11 +6,13 @@
 
 #include <string>
 
+#include "exported_program.h"
 #include "ir.h"
 
 namespace pnnx {
 
 int load_exported_program(const std::string& path, Graph& graph);
+int import_exported_program_inputs(const pt2::ExportedProgramArchive& archive, Graph& graph, std::string& error);
 
 } // namespace pnnx
 

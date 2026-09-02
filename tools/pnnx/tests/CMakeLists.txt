@@ -13,6 +13,10 @@ add_executable(test_pnnx_model_format test_model_format.cpp ../src/model_format.
 target_include_directories(test_pnnx_model_format PRIVATE ../src)
 add_test(NAME test_pnnx_model_format COMMAND test_pnnx_model_format)
 
+add_executable(test_pnnx_load_exported_program test_load_exported_program.cpp ../src/load_exported_program.cpp ../src/exported_program.cpp ../src/exported_program_reader.cpp ../src/ir.cpp ../src/json.cpp ../src/model_format.cpp ../src/model_stat.cpp ../src/storezip.cpp ../src/utils.cpp)
+target_include_directories(test_pnnx_load_exported_program PRIVATE ../src)
+add_test(NAME test_pnnx_load_exported_program COMMAND test_pnnx_load_exported_program)
+
 macro(pnnx_add_test name)
     add_test(NAME test_${name} COMMAND ${CMAKE_COMMAND} -DPYTHON_EXECUTABLE=${Python3_EXECUTABLE} -DPYTHON_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
 endmacro()
