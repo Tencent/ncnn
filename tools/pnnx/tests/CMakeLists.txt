@@ -1,6 +1,10 @@
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
+add_executable(test_pnnx_json test_json.cpp ../src/json.cpp)
+target_include_directories(test_pnnx_json PRIVATE ../src)
+add_test(NAME test_pnnx_json COMMAND test_pnnx_json)
+
 macro(pnnx_add_test name)
     add_test(NAME test_${name} COMMAND ${CMAKE_COMMAND} -DPYTHON_EXECUTABLE=${Python3_EXECUTABLE} -DPYTHON_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
 endmacro()
