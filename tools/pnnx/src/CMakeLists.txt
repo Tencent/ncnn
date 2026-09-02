@@ -128,6 +128,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_avg_pool3d.cpp
     pass_level2/F_batch_norm.cpp
     pass_level2/F_celu.cpp
+    pass_level2/nn_ChannelShuffle.cpp
     pass_level2/F_conv1d.cpp
     pass_level2/F_conv2d.cpp
     pass_level2/F_conv3d.cpp

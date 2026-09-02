@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -30,19 +32,7 @@ def test():
 
     a0, a1 = net(x, y)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y))
-    mod.save("test_nn_ChannelShuffle.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_nn_ChannelShuffle.pt inputshape=[1,64,6,8],[1,96,7,9]")
-
-    # pnnx inference
-    import test_nn_ChannelShuffle_pnnx
-    b0, b1 = test_nn_ChannelShuffle_pnnx.test_inference()
-
-    return torch.equal(a0, b0) and torch.equal(a1, b1)
+    return test_model_formats(net, (x, y), (a0, a1), "test_nn_ChannelShuffle")
 
 if __name__ == "__main__":
     if test():
