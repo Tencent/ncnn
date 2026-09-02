@@ -1,7 +1,7 @@
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-add_executable(test_pnnx_exported_program test_exported_program.cpp ../src/exported_program.cpp)
+add_executable(test_pnnx_exported_program test_exported_program.cpp ../src/exported_program.cpp ../src/exported_program_reader.cpp ../src/json.cpp ../src/model_format.cpp ../src/storezip.cpp)
 target_include_directories(test_pnnx_exported_program PRIVATE ../src)
 add_test(NAME test_pnnx_exported_program COMMAND test_pnnx_exported_program)
 

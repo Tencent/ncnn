@@ -115,6 +115,7 @@ struct NamedArgument
 
 struct Node
 {
+    std::string name;
     std::string target;
     std::vector<NamedArgument> inputs;
     std::vector<Argument> outputs;
@@ -230,6 +231,9 @@ struct ExportedProgramArchive
     std::map<std::string, PayloadMeta> state_dict;
     std::map<std::string, PayloadMeta> constants;
 };
+
+bool parse_exported_program(const std::string& text, ExportedProgram& program, std::string& error);
+bool load_exported_program_archive_metadata(const std::string& path, ExportedProgramArchive& archive, std::string& error);
 
 } // namespace pt2
 } // namespace pnnx
