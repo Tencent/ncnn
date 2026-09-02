@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -38,19 +40,7 @@ def test():
 
     a = net(x)
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_pnnx_eliminate_noop_upsample.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_pnnx_eliminate_noop_upsample.pt inputshape=[1,15,12,52]")
-
-    # pnnx inference
-    import test_pnnx_eliminate_noop_upsample_pnnx
-    b = test_pnnx_eliminate_noop_upsample_pnnx.test_inference()
-
-    return torch.equal(a, b)
+    return test_model_formats(net, (x,), a, "test_pnnx_eliminate_noop_upsample")
 
 if __name__ == "__main__":
     if test():
