@@ -37,7 +37,16 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     if (opt.use_bf16_storage && bottom_blobs[0].elembits() == 16)
         return forward_bf16s(bottom_blobs, top_blobs, opt);
 #endif
-    return eltwise_fp32(bottom_blobs, top_blobs, op_type, coeffs, opt);
+    const Mat& bottom_blob = bottom_blobs[0];
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create_like(bottom_blob, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    eltwise_fp32(bottom_blobs, top_blob, op_type, coeffs, opt);
+
+    return 0;
 }
 
 #if NCNN_BF16

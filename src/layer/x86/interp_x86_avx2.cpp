@@ -7,6 +7,7 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
 #include "interp_bilinear.h"
 #include "interp_bicubic.h"
 #include "interp_bf16s.h"
@@ -21,9 +22,10 @@ void resize_bicubic_image_avx2(const Mat& src, Mat& dst, float* alpha, int* xofs
     resize_bicubic_image(src, dst, alpha, xofs, beta, yofs);
 }
 
-void interp_forward_bf16s_sse_avx2(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr)
+void interp_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr, const Option& opt)
 {
-    interp_forward_bf16s_sse(bottom_blobs, top_blobs, opt, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr);
+    interp_bf16s(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr, opt);
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn

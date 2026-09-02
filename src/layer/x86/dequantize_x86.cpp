@@ -108,7 +108,37 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 #if NCNN_BF16
 int Dequantize_x86::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    return dequantize_forward_bf16s(bottom_blob, top_blob, scale_data, scale_data_size, bias_data, bias_data_size, opt);
+    const int dims = bottom_blob.dims;
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
+    const int channels = bottom_blob.c;
+    const int elempack = bottom_blob.elempack;
+
+    const size_t out_elemsize = 2u * elempack;
+
+    if (dims == 1)
+    {
+        top_blob.create(w, out_elemsize, elempack, opt.blob_allocator);
+    }
+    else if (dims == 2)
+    {
+        top_blob.create(w, h, out_elemsize, elempack, opt.blob_allocator);
+    }
+    else if (dims == 3)
+    {
+        top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_allocator);
+    }
+    else if (dims == 4)
+    {
+        top_blob.create(w, h, d, channels, out_elemsize, elempack, opt.blob_allocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    dequantize_bf16s(bottom_blob, top_blob, scale_data, scale_data_size, bias_data, bias_data_size, opt);
+
+    return 0;
 }
 #endif // NCNN_BF16
 

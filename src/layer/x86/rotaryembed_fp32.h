@@ -2,35 +2,32 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
-int rotaryembed_fp32_fma(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int interleaved, const Option& opt);
+void rotaryembed_fp32_fma(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt);
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
-int rotaryembed_fp32_fma4(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int interleaved, const Option& opt);
+void rotaryembed_fp32_fma4(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt);
 #endif
 
-static int rotaryembed_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int interleaved, const Option& opt)
+static void rotaryembed_fp32(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
-        return rotaryembed_fp32_fma(bottom_blobs, top_blobs, interleaved, opt);
+    {
+        rotaryembed_fp32_fma(bottom_blob, cos_cache, sin_cache, top_blob, interleaved, opt);
+        return;
+    }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma4())
-        return rotaryembed_fp32_fma4(bottom_blobs, top_blobs, interleaved, opt);
+    {
+        rotaryembed_fp32_fma4(bottom_blob, cos_cache, sin_cache, top_blob, interleaved, opt);
+        return;
+    }
 #endif
-
-    const Mat& bottom_blob = bottom_blobs[0];
-    const Mat& cos_cache = bottom_blobs[1];
-    const Mat& sin_cache = bottom_blobs[2];
 
     const int embed_dim = bottom_blob.w;
     const int seqlen = bottom_blob.h;
     const int num_heads = bottom_blob.c;
-
-    Mat& top_blob = top_blobs[0];
-    top_blob.create_like(bottom_blob, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_heads; q++)
@@ -150,16 +147,8 @@ static int rotaryembed_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     __m256 ss0 = _mm256_mul_ps(swap0, s0);
                     __m256 ss1 = _mm256_mul_ps(swap1, s1);
 
-#if __FMA__ || __FMA4__
                     __m256 y0 = _mm256_comp_fmaddsub_ps(a0, c0, ss0);
                     __m256 y1 = _mm256_comp_fmaddsub_ps(a1, c1, ss1);
-#else
-                    __m256 ac0 = _mm256_mul_ps(a0, c0);
-                    __m256 ac1 = _mm256_mul_ps(a1, c1);
-
-                    __m256 y0 = _mm256_addsub_ps(ac0, ss0);
-                    __m256 y1 = _mm256_addsub_ps(ac1, ss1);
-#endif
                     _mm256_storeu_ps(outptr, y0);
                     _mm256_storeu_ps(outptr + 8, y1);
 
@@ -170,16 +159,6 @@ static int rotaryembed_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 }
 #endif // __AVX2__
 #endif // __AVX__
-#if !__SSE3__
-#if defined(__MINGW32__) && !defined(__x86_64__)
-                __attribute__((aligned(16)))
-                const float signmask128_array[4]
-                    = {-0.f, 0.f, -0.f, 0.f};
-                const __m128 signmask128 = _mm_load_ps(signmask128_array);
-#else
-                const __m128 signmask128 = _mm_set_ps(0.f, -0.f, 0.f, -0.f);
-#endif
-#endif
                 for (; j + 3 < embed_dim / 2; j += 4)
                 {
                     __m128 a0 = _mm_loadu_ps(ptr);
@@ -198,22 +177,8 @@ static int rotaryembed_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                     __m128 ss0 = _mm_mul_ps(swap0, slo);
                     __m128 ss1 = _mm_mul_ps(swap1, shi);
-#if __FMA__ || __FMA4__
                     __m128 y0 = _mm_comp_fmaddsub_ps(a0, clo, ss0);
                     __m128 y1 = _mm_comp_fmaddsub_ps(a1, chi, ss1);
-#else
-                    __m128 ac0 = _mm_mul_ps(a0, clo);
-                    __m128 ac1 = _mm_mul_ps(a1, chi);
-#if __SSE3__
-                    __m128 y0 = _mm_addsub_ps(ac0, ss0);
-                    __m128 y1 = _mm_addsub_ps(ac1, ss1);
-#else
-                    ss0 = _mm_xor_ps(ss0, signmask128);
-                    ss1 = _mm_xor_ps(ss1, signmask128);
-                    __m128 y0 = _mm_add_ps(ac0, ss0);
-                    __m128 y1 = _mm_add_ps(ac1, ss1);
-#endif
-#endif
                     _mm_storeu_ps(outptr, y0);
                     _mm_storeu_ps(outptr + 4, y1);
 
@@ -235,17 +200,7 @@ static int rotaryembed_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     __m128 swap = _mm_shuffle_ps(a, a, _MM_SHUFFLE(2, 3, 0, 1));
                     __m128 ss = _mm_mul_ps(swap, s);
 
-#if __FMA__ || __FMA4__
                     __m128 y = _mm_comp_fmaddsub_ps(a, c, ss);
-#else
-                    __m128 ac = _mm_mul_ps(a, c);
-#if __SSE3__
-                    __m128 y = _mm_addsub_ps(ac, ss);
-#else
-                    ss = _mm_xor_ps(ss, signmask128);
-                    __m128 y = _mm_add_ps(ac, ss);
-#endif
-#endif
                     _mm_storeu_ps(outptr, y);
 
                     ptr += 4;
@@ -358,6 +313,4 @@ static int rotaryembed_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             }
         }
     }
-
-    return 0;
 }

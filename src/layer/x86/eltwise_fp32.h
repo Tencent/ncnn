@@ -2,21 +2,27 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
-int eltwise_fp32_fma(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int op_type, const Mat& coeffs, const Option& opt);
+void eltwise_fp32_fma(const std::vector<Mat>& bottom_blobs, Mat& top_blob, int op_type, const Mat& coeffs, const Option& opt);
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
-int eltwise_fp32_fma4(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int op_type, const Mat& coeffs, const Option& opt);
+void eltwise_fp32_fma4(const std::vector<Mat>& bottom_blobs, Mat& top_blob, int op_type, const Mat& coeffs, const Option& opt);
 #endif
 
-static int eltwise_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int op_type, const Mat& coeffs, const Option& opt)
+static void eltwise_fp32(const std::vector<Mat>& bottom_blobs, Mat& top_blob, int op_type, const Mat& coeffs, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (op_type == Eltwise::Operation_SUM && coeffs.w != 0 && ncnn::cpu_support_x86_fma())
-        return eltwise_fp32_fma(bottom_blobs, top_blobs, op_type, coeffs, opt);
+    {
+        eltwise_fp32_fma(bottom_blobs, top_blob, op_type, coeffs, opt);
+        return;
+    }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
     if (op_type == Eltwise::Operation_SUM && coeffs.w != 0 && ncnn::cpu_support_x86_fma4())
-        return eltwise_fp32_fma4(bottom_blobs, top_blobs, op_type, coeffs, opt);
+    {
+        eltwise_fp32_fma4(bottom_blobs, top_blob, op_type, coeffs, opt);
+        return;
+    }
 #endif
 
     const Mat& bottom_blob = bottom_blobs[0];
@@ -26,11 +32,6 @@ static int eltwise_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     int channels = bottom_blob.c;
     int elempack = bottom_blob.elempack;
     int size = w * h * d * elempack;
-
-    Mat& top_blob = top_blobs[0];
-    top_blob.create_like(bottom_blob, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
 
     if (op_type == Eltwise::Operation_PROD)
     {
@@ -522,6 +523,4 @@ static int eltwise_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             }
         }
     }
-
-    return 0;
 }

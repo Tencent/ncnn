@@ -20,9 +20,9 @@ void eltwise_bf16s_fma(const std::vector<Mat>& bottom_blobs, Mat& top_blob, int 
 }
 #endif // NCNN_BF16
 
-int eltwise_fp32_fma(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int op_type, const Mat& coeffs, const Option& opt)
+void eltwise_fp32_fma(const std::vector<Mat>& bottom_blobs, Mat& top_blob, int op_type, const Mat& coeffs, const Option& opt)
 {
-    return eltwise_fp32(bottom_blobs, top_blobs, op_type, coeffs, opt);
+    eltwise_fp32(bottom_blobs, top_blob, op_type, coeffs, opt);
 }
 
 } // namespace ncnn

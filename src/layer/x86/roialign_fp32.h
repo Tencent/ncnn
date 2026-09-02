@@ -196,35 +196,31 @@ void original_pre_calc_for_bilinear_interpolate(
 }
 
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
-int roialign_fp32_fma(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int pooled_width, int pooled_height, float spatial_scale, int sampling_ratio, int aligned, int version, const Option& opt);
+void roialign_fp32_fma(const Mat& bottom_blob, const Mat& roi_blob, Mat& top_blob, int pooled_width, int pooled_height, float spatial_scale, int sampling_ratio, int aligned, int version, const Option& opt);
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
-int roialign_fp32_fma4(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int pooled_width, int pooled_height, float spatial_scale, int sampling_ratio, int aligned, int version, const Option& opt);
+void roialign_fp32_fma4(const Mat& bottom_blob, const Mat& roi_blob, Mat& top_blob, int pooled_width, int pooled_height, float spatial_scale, int sampling_ratio, int aligned, int version, const Option& opt);
 #endif
 
-static int roialign_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int pooled_width, int pooled_height, float spatial_scale, int sampling_ratio, int aligned, int version, const Option& opt)
+static void roialign_fp32(const Mat& bottom_blob, const Mat& roi_blob, Mat& top_blob, int pooled_width, int pooled_height, float spatial_scale, int sampling_ratio, int aligned, int version, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
-        return roialign_fp32_fma(bottom_blobs, top_blobs, pooled_width, pooled_height, spatial_scale, sampling_ratio, aligned, version, opt);
+    {
+        roialign_fp32_fma(bottom_blob, roi_blob, top_blob, pooled_width, pooled_height, spatial_scale, sampling_ratio, aligned, version, opt);
+        return;
+    }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma4())
-        return roialign_fp32_fma4(bottom_blobs, top_blobs, pooled_width, pooled_height, spatial_scale, sampling_ratio, aligned, version, opt);
+    {
+        roialign_fp32_fma4(bottom_blob, roi_blob, top_blob, pooled_width, pooled_height, spatial_scale, sampling_ratio, aligned, version, opt);
+        return;
+    }
 #endif
-
-    const Mat& bottom_blob = bottom_blobs[0];
     const int width = bottom_blob.w;
     const int height = bottom_blob.h;
-    const size_t elemsize = bottom_blob.elemsize;
     const int channels = bottom_blob.c;
-
-    const Mat& roi_blob = bottom_blobs[1];
-
-    Mat& top_blob = top_blobs[0];
-    top_blob.create(pooled_width, pooled_height, channels, elemsize, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
 
     // For each ROI R = [x y w h]: max pool over R
     const float* roi_ptr = roi_blob;
@@ -372,6 +368,4 @@ static int roialign_fp32(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             }
         }
     }
-
-    return 0;
 }

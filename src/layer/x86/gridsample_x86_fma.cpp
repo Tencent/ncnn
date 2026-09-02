@@ -23,9 +23,9 @@ namespace ncnn {
 #include "gridsample_nearest_apply_interpolation.h"
 #include "gridsample_fp32.h"
 
-int gridsample_fp32_fma(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int sample_type, int padding_mode, int align_corner, int permute_fusion, const Option& opt)
+int gridsample_fp32_fma(const Mat& bottom_blob, const Mat& grid, Mat& top_blob, int sample_type, int padding_mode, int align_corner, int permute_fusion, const Option& opt)
 {
-    return gridsample_fp32(bottom_blobs, top_blobs, sample_type, padding_mode, align_corner, permute_fusion, opt);
+    return gridsample_fp32(bottom_blob, grid, top_blob, sample_type, padding_mode, align_corner, permute_fusion, opt);
 }
 
 } // namespace ncnn

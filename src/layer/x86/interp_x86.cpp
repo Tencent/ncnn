@@ -72,7 +72,49 @@ int Interp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     }
 #endif
 
-    return interp_forward(bottom_blobs, top_blobs, outw, outh, resize_type, align_corner, height_scale, width_scale, output_height, output_width, !size_expr.empty(), opt);
+    Mat& top_blob = top_blobs[0];
+
+    const int h = bottom_blob.h;
+    const int w = bottom_blob.w;
+    const int channels = bottom_blob.c;
+    const int dims = bottom_blob.dims;
+    const size_t elemsize = bottom_blob.elemsize;
+    const int elempack = bottom_blob.elempack;
+
+    if (dims == 1)
+    {
+        top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+    }
+    else if (dims == 2)
+    {
+        if (outw == w)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        top_blob.create(outw, h, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+    }
+    else // dims == 3
+    {
+        if (outw == w && outh == h)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+    }
+
+    interp_fp32(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, !size_expr.empty(), opt);
+
+    return 0;
 }
 #if NCNN_BF16
 
@@ -135,7 +177,7 @@ int Interp_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
             return -100;
     }
 
-    interp_forward_bf16s_sse(bottom_blobs, top_blobs, opt, resize_type, align_corner, height_scale, width_scale, output_height, output_width, !size_expr.empty());
+    interp_bf16s(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, !size_expr.empty(), opt);
 
     return 0;
 }

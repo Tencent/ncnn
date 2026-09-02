@@ -52,10 +52,6 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
     const int seqlen = bottom_blob.h;
     const int num_heads = bottom_blob.c;
 
-    top_blob.create_like(bottom_blob, opt.blob_allocator);
-    if (top_blob.empty())
-        return;
-
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_heads; q++)
     {
@@ -174,16 +170,8 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
                     __m256 ss0 = _mm256_mul_ps(swap0, s0);
                     __m256 ss1 = _mm256_mul_ps(swap1, s1);
 
-#if __FMA__ || __FMA4__
                     __m256 y0 = _mm256_comp_fmaddsub_ps(a0, c0, ss0);
                     __m256 y1 = _mm256_comp_fmaddsub_ps(a1, c1, ss1);
-#else
-                    __m256 ac0 = _mm256_mul_ps(a0, c0);
-                    __m256 ac1 = _mm256_mul_ps(a1, c1);
-
-                    __m256 y0 = _mm256_addsub_ps(ac0, ss0);
-                    __m256 y1 = _mm256_addsub_ps(ac1, ss1);
-#endif
                     _mm_storeu_si128((__m128i*)outptr, float2bfloat_avx(y0));
                     _mm_storeu_si128((__m128i*)(outptr + 8), float2bfloat_avx(y1));
 
@@ -214,30 +202,8 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
 
                     __m128 ss0 = _mm_mul_ps(swap0, slo);
                     __m128 ss1 = _mm_mul_ps(swap1, shi);
-#if __FMA__ || __FMA4__
                     __m128 y0 = _mm_comp_fmaddsub_ps(a0, clo, ss0);
                     __m128 y1 = _mm_comp_fmaddsub_ps(a1, chi, ss1);
-#else
-                    __m128 ac0 = _mm_mul_ps(a0, clo);
-                    __m128 ac1 = _mm_mul_ps(a1, chi);
-#if __SSE3__
-                    __m128 y0 = _mm_addsub_ps(ac0, ss0);
-                    __m128 y1 = _mm_addsub_ps(ac1, ss1);
-#else
-#if defined(__MINGW32__) && !defined(__x86_64__)
-                    __attribute__((aligned(16)))
-                    const float signmask128_array[4]
-                        = {-0.f, 0.f, -0.f, 0.f};
-                    const __m128 signmask128 = _mm_load_ps(signmask128_array);
-#else
-                    const __m128 signmask128 = _mm_set_ps(0.f, -0.f, 0.f, -0.f);
-#endif
-                    ss0 = _mm_xor_ps(ss0, signmask128);
-                    ss1 = _mm_xor_ps(ss1, signmask128);
-                    __m128 y0 = _mm_add_ps(ac0, ss0);
-                    __m128 y1 = _mm_add_ps(ac1, ss1);
-#endif
-#endif
                     __m128i y01_bf16 = float2bfloat_sse(y0, y1);
                     _mm_storeu_si128((__m128i*)outptr, y01_bf16);
 
@@ -262,25 +228,7 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
                     __m128 swap = _mm_shuffle_ps(a, a, _MM_SHUFFLE(2, 3, 0, 1));
                     __m128 ss = _mm_mul_ps(swap, s);
 
-#if __FMA__ || __FMA4__
                     __m128 y = _mm_comp_fmaddsub_ps(a, c, ss);
-#else
-                    __m128 ac = _mm_mul_ps(a, c);
-#if __SSE3__
-                    __m128 y = _mm_addsub_ps(ac, ss);
-#else
-#if defined(__MINGW32__) && !defined(__x86_64__)
-                    __attribute__((aligned(16)))
-                    const float signmask128_array[4]
-                        = {-0.f, 0.f, -0.f, 0.f};
-                    const __m128 signmask128 = _mm_load_ps(signmask128_array);
-#else
-                    const __m128 signmask128 = _mm_set_ps(0.f, -0.f, 0.f, -0.f);
-#endif
-                    ss = _mm_xor_ps(ss, signmask128);
-                    __m128 y = _mm_add_ps(ac, ss);
-#endif
-#endif
                     __m128i y_bf16 = float2bfloat_sse(y, y);
                     _mm_storel_epi64((__m128i*)outptr, y_bf16);
 

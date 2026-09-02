@@ -39,7 +39,18 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
         return forward_bf16s(bottom_blobs, top_blobs, opt);
 #endif
 
-    return rotaryembed_fp32(bottom_blobs, top_blobs, interleaved, opt);
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& cos_cache = bottom_blobs[1];
+    const Mat& sin_cache = bottom_blobs[2];
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create_like(bottom_blob, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    rotaryembed_fp32(bottom_blob, cos_cache, sin_cache, top_blob, interleaved, opt);
+
+    return 0;
 }
 
 #if NCNN_BF16
@@ -50,10 +61,13 @@ int RotaryEmbed_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::ve
     const Mat& sin_cache = bottom_blobs[2];
 
     Mat& top_blob = top_blobs[0];
+    top_blob.create_like(bottom_blob, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
 
     rotaryembed_bf16s(bottom_blob, cos_cache, sin_cache, top_blob, interleaved, opt);
 
-    return top_blob.empty() ? -100 : 0;
+    return 0;
 }
 #endif // NCNN_BF16
 

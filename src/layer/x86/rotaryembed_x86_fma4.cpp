@@ -18,9 +18,9 @@ void rotaryembed_bf16s_fma4(const Mat& bottom_blob, const Mat& cos_cache, const 
 }
 #endif // NCNN_BF16
 
-int rotaryembed_fp32_fma4(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int interleaved, const Option& opt)
+void rotaryembed_fp32_fma4(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt)
 {
-    return rotaryembed_fp32(bottom_blobs, top_blobs, interleaved, opt);
+    rotaryembed_fp32(bottom_blob, cos_cache, sin_cache, top_blob, interleaved, opt);
 }
 
 } // namespace ncnn

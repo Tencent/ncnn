@@ -21,15 +21,15 @@ namespace ncnn {
 #include "interp_bf16s.h"
 #endif // NCNN_BF16
 
-int interp_forward_fma(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int outw, int outh, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr, const Option& opt)
+void interp_fp32_fma(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr, const Option& opt)
 {
-    return interp_forward(bottom_blobs, top_blobs, outw, outh, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr, opt);
+    interp_fp32(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr, opt);
 }
 
 #if NCNN_BF16
-void interp_forward_bf16s_sse_fma(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr)
+void interp_bf16s_fma(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr, const Option& opt)
 {
-    interp_forward_bf16s_sse(bottom_blobs, top_blobs, opt, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr);
+    interp_bf16s(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr, opt);
 }
 #endif // NCNN_BF16
 

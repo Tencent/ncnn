@@ -9,9 +9,9 @@ namespace ncnn {
 
 #include "roialign_fp32.h"
 
-int roialign_fp32_fma(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int pooled_width, int pooled_height, float spatial_scale, int sampling_ratio, int aligned, int version, const Option& opt)
+void roialign_fp32_fma(const Mat& bottom_blob, const Mat& roi_blob, Mat& top_blob, int pooled_width, int pooled_height, float spatial_scale, int sampling_ratio, int aligned, int version, const Option& opt)
 {
-    return roialign_fp32(bottom_blobs, top_blobs, pooled_width, pooled_height, spatial_scale, sampling_ratio, aligned, version, opt);
+    roialign_fp32(bottom_blob, roi_blob, top_blob, pooled_width, pooled_height, spatial_scale, sampling_ratio, aligned, version, opt);
 }
 
 } // namespace ncnn
