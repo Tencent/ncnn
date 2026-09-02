@@ -27,7 +27,7 @@ def find_pnnx():
     raise RuntimeError("pnnx executable was not found")
 
 
-def export_model(model, inputs, name, model_format):
+def export_model(model, inputs, name, model_format, dynamic_shapes=None):
     if model_format == "torchscript":
         path = name + "_torchscript.pt"
         torch.jit.trace(model, inputs).save(path)
@@ -36,12 +36,15 @@ def export_model(model, inputs, name, model_format):
         if not has_exported_program():
             raise RuntimeError("torch.export.save is unavailable in torch " + torch.__version__)
         path = name + "_pt2.pt2"
-        torch.export.save(torch.export.export(model, inputs), path)
+        torch.export.save(
+            torch.export.export(model, inputs, dynamic_shapes=dynamic_shapes),
+            path,
+        )
         return path
     raise ValueError("unknown model format " + model_format)
 
 
-def convert_model(model_path, output_prefix, arguments=()):
+def run_pnnx(model_path, output_prefix, arguments=(), capture_output=False):
     command = [
         find_pnnx(),
         model_path,
@@ -53,7 +56,16 @@ def convert_model(model_path, output_prefix, arguments=()):
         "ncnnpy=" + output_prefix + "_ncnn.py",
         *arguments,
     ]
-    result = subprocess.run(command, check=False)
+    return subprocess.run(
+        command,
+        check=False,
+        capture_output=capture_output,
+        text=capture_output,
+    )
+
+
+def convert_model(model_path, output_prefix, arguments=()):
+    result = run_pnnx(model_path, output_prefix, arguments)
     if result.returncode != 0:
         raise RuntimeError("pnnx conversion failed for " + model_path)
     return output_prefix + "_pnnx.py"
