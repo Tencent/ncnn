@@ -391,13 +391,13 @@ static void binary_op_vector_bf16s(const unsigned short* ptr, const unsigned sho
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
-    if (binaryop_use_fma(op_type) && ncnn::cpu_support_x86_fma())
+    if (ncnn::cpu_support_x86_fma())
     {
         return binary_op_vector_bf16s_fma(ptr, ptr1, outptr, aw, bw, ap, bp, op_type);
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
-    if (binaryop_use_fma(op_type) && ncnn::cpu_support_x86_fma4())
+    if (ncnn::cpu_support_x86_fma4())
     {
         return binary_op_vector_bf16s_fma4(ptr, ptr1, outptr, aw, bw, ap, bp, op_type);
     }

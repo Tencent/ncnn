@@ -7,28 +7,6 @@ namespace unaryop_x86_functor {
 
 } // namespace unaryop_x86_functor
 
-static bool unaryop_use_fma(int op_type)
-{
-    return op_type == UnaryOp::Operation_RSQRT
-           || op_type == UnaryOp::Operation_EXP
-           || op_type == UnaryOp::Operation_LOG
-           || op_type == UnaryOp::Operation_SIN
-           || op_type == UnaryOp::Operation_COS
-           || op_type == UnaryOp::Operation_TAN
-           || op_type == UnaryOp::Operation_ASIN
-           || op_type == UnaryOp::Operation_ACOS
-           || op_type == UnaryOp::Operation_ATAN
-           || op_type == UnaryOp::Operation_TANH
-           || op_type == UnaryOp::Operation_LOG10
-           || op_type == UnaryOp::Operation_EXPM1
-           || op_type == UnaryOp::Operation_SINH
-           || op_type == UnaryOp::Operation_ASINH
-           || op_type == UnaryOp::Operation_COSH
-           || op_type == UnaryOp::Operation_ACOSH
-           || op_type == UnaryOp::Operation_ATANH
-           || op_type == UnaryOp::Operation_LOG1P;
-}
-
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
 int unaryop_fp32_fma(Mat& bottom_top_blob, int op_type, const Option& opt);
 #endif
@@ -103,11 +81,11 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 static int unaryop_fp32(Mat& bottom_top_blob, int op_type, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
-    if (unaryop_use_fma(op_type) && ncnn::cpu_support_x86_fma())
+    if (ncnn::cpu_support_x86_fma())
         return unaryop_fp32_fma(bottom_top_blob, op_type, opt);
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
-    if (unaryop_use_fma(op_type) && ncnn::cpu_support_x86_fma4())
+    if (ncnn::cpu_support_x86_fma4())
         return unaryop_fp32_fma4(bottom_top_blob, op_type, opt);
 #endif
 

@@ -11,14 +11,14 @@ void scale_fp32_fma4(std::vector<Mat>& bottom_top_blobs, int bias_term, const Ma
 static void scale_fp32(std::vector<Mat>& bottom_top_blobs, int bias_term, const Mat& bias_data, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
-    if (bias_term && ncnn::cpu_support_x86_fma())
+    if (ncnn::cpu_support_x86_fma())
     {
         scale_fp32_fma(bottom_top_blobs, bias_term, bias_data, opt);
         return;
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
-    if (bias_term && ncnn::cpu_support_x86_fma4())
+    if (ncnn::cpu_support_x86_fma4())
     {
         scale_fp32_fma4(bottom_top_blobs, bias_term, bias_data, opt);
         return;

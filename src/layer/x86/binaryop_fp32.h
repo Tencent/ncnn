@@ -1,21 +1,6 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-static bool binaryop_use_fma(int op_type)
-{
-    return op_type == BinaryOp::Operation_POW
-           || op_type == BinaryOp::Operation_RPOW
-           || op_type == BinaryOp::Operation_ATAN2
-           || op_type == BinaryOp::Operation_RATAN2
-           || op_type == BinaryOp::Operation_FMOD
-           || op_type == BinaryOp::Operation_RFMOD
-           || op_type == BinaryOp::Operation_LOGADDEXP
-           || op_type == BinaryOp::Operation_FLOOR_DIVIDE
-           || op_type == BinaryOp::Operation_RFLOOR_DIVIDE
-           || op_type == BinaryOp::Operation_REMAINDER
-           || op_type == BinaryOp::Operation_RREMAINDER;
-}
-
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
 void binary_op_vector_fma(const float* ptr, const float* ptr1, float* outptr, int aw, int bw, int ap, int bp, int op_type);
 #endif
@@ -468,14 +453,14 @@ static void binary_op_vector(const float* ptr, const float* ptr1, float* outptr,
 static void binary_op_vector(const float* ptr, const float* ptr1, float* outptr, int aw, int bw, int ap, int bp, int op_type)
 {
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
-    if (binaryop_use_fma(op_type) && ncnn::cpu_support_x86_fma())
+    if (ncnn::cpu_support_x86_fma())
     {
         binary_op_vector_fma(ptr, ptr1, outptr, aw, bw, ap, bp, op_type);
         return;
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
-    if (binaryop_use_fma(op_type) && ncnn::cpu_support_x86_fma4())
+    if (ncnn::cpu_support_x86_fma4())
     {
         binary_op_vector_fma4(ptr, ptr1, outptr, aw, bw, ap, bp, op_type);
         return;

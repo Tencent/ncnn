@@ -35,14 +35,14 @@ static void relu_bf16s(Mat& a, float slope, const Option& opt)
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
-    if (slope != 0.f && ncnn::cpu_support_x86_fma())
+    if (ncnn::cpu_support_x86_fma())
     {
         relu_bf16s_fma(a, slope, opt);
         return;
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
-    if (slope != 0.f && ncnn::cpu_support_x86_fma4())
+    if (ncnn::cpu_support_x86_fma4())
     {
         relu_bf16s_fma4(a, slope, opt);
         return;

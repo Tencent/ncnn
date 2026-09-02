@@ -34,14 +34,14 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
-    if (op_type == Eltwise::Operation_SUM && coeffs.w != 0 && ncnn::cpu_support_x86_fma())
+    if (ncnn::cpu_support_x86_fma())
     {
         eltwise_bf16s_fma(bottom_blobs, top_blob, op_type, coeffs, opt);
         return;
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
-    if (op_type == Eltwise::Operation_SUM && coeffs.w != 0 && ncnn::cpu_support_x86_fma4())
+    if (ncnn::cpu_support_x86_fma4())
     {
         eltwise_bf16s_fma4(bottom_blobs, top_blob, op_type, coeffs, opt);
         return;

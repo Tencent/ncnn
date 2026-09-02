@@ -11,14 +11,14 @@ void relu_fp32_fma4(Mat& bottom_top_blob, float slope, const Option& opt);
 static void relu_fp32(Mat& bottom_top_blob, float slope, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
-    if (slope != 0.f && ncnn::cpu_support_x86_fma())
+    if (ncnn::cpu_support_x86_fma())
     {
         relu_fp32_fma(bottom_top_blob, slope, opt);
         return;
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
-    if (slope != 0.f && ncnn::cpu_support_x86_fma4())
+    if (ncnn::cpu_support_x86_fma4())
     {
         relu_fp32_fma4(bottom_top_blob, slope, opt);
         return;
