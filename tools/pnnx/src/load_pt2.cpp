@@ -207,14 +207,18 @@ static bool argument_to_constant(const Pt2Argument& a, Parameter& value)
         value = Parameter((long long)a.int_value);
         return true;
     case Pt2Argument::DEVICE:
-        // device 实参:空 type 视作 None,否则按字符串("cpu")转写
+        // Parameter 以字符串表达设备；index 非空时必须保留为 "type:index"，
+        // 否则 cuda:1 会错误降级成 cuda（与 cuda:0/默认设备混淆）。
         if (a.device_type.empty())
         {
             value = Parameter();
         }
         else
         {
-            value = Parameter(a.device_type);
+            std::string device = a.device_type;
+            if (a.device_index >= 0)
+                device += ":" + std::to_string(a.device_index);
+            value = Parameter(device);
         }
         return true;
     case Pt2Argument::INTS:

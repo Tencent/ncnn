@@ -15,6 +15,7 @@
 
 #include "utils.h"
 
+#include <stdint.h>
 #include <string.h>
 
 namespace pnnx {
@@ -56,7 +57,9 @@ pnnx.Output             output      1 0 out
         return "pnnx_fold";
     }
 
-    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators,
+               const std::map<std::string, Parameter>& captured_params,
+               const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         // other 为标量(float/int),alpha 为数值;张量 other 不折叠
         const Parameter& other = captured_params.at("other");
@@ -65,6 +68,27 @@ pnnx.Output             output      1 0 out
             return false;
         if (alpha.type != 2 && alpha.type != 3)
             return false;
+
+        const Operator* add = matched_operators.at("op_1");
+        if (add->outputs.empty())
+            return false;
+
+        const Operand* out = add->outputs[0];
+        // 只有文件元数据明确给出静态正 shape 且为 f32 时才折叠；否则保持
+        // 原图，避免重写器先改成 Attribute 后 write() 静默留下空属性。
+        if (out->type != 1 || out->shape.empty())
+            return false;
+
+        size_t elem_count = 1;
+        for (size_t i = 0; i < out->shape.size(); i++)
+        {
+            if (out->shape[i] <= 0 || elem_count > (size_t)-1 / (size_t)out->shape[i])
+                return false;
+            elem_count *= (size_t)out->shape[i];
+        }
+        if (elem_count > (size_t)-1 / sizeof(float))
+            return false;
+
         return true;
     }
 
@@ -78,10 +102,8 @@ pnnx.Output             output      1 0 out
         const float scalar_alpha = (alpha.type == 2) ? (float)alpha.i : alpha.f;
         const float folded_value = 1.f + scalar_alpha * scalar_other;
 
-        // op->outputs[0] = 原 add 输出 operand,shape/dtype 来自文件元数据
+        // match() 已保证输出为 f32、静态正 shape 且 float buffer 不溢出。
         const Operand* out = op->outputs[0];
-        if (out->type != 1 || out->shape.empty())
-            return; // 非 f32 或 shape 缺失:保留空 Attribute,后续显式失败
 
         Attribute attr;
         attr.type = 1;
