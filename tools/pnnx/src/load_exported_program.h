@@ -13,6 +13,7 @@ namespace pnnx {
 
 int load_exported_program(const std::string& path, Graph& graph);
 int import_exported_program_inputs(const pt2::ExportedProgramArchive& archive, Graph& graph, std::string& error);
+int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& graph, std::string& error);
 
 } // namespace pnnx
 

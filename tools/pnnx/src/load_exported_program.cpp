@@ -204,6 +204,183 @@ int import_exported_program_inputs(const pt2::ExportedProgramArchive& archive, G
     return 0;
 }
 
+static std::string normalize_target(const std::string& target)
+{
+    const std::string prefix = "torch.ops.";
+    if (target.compare(0, prefix.size(), prefix) != 0)
+        return target;
+
+    const size_t namespace_end = target.find('.', prefix.size());
+    if (namespace_end == std::string::npos)
+        return target;
+    const size_t operator_end = target.find('.', namespace_end + 1);
+    const std::string name_space = target.substr(prefix.size(), namespace_end - prefix.size());
+    const std::string operator_name = target.substr(namespace_end + 1, operator_end == std::string::npos ? std::string::npos : operator_end - namespace_end - 1);
+    return name_space + "::" + operator_name;
+}
+
+static bool to_parameter(const pt2::Argument& argument, Parameter& parameter, std::string& error)
+{
+    if (argument.type == pt2::Argument::None)
+    {
+        parameter = Parameter();
+        return true;
+    }
+    if (argument.type == pt2::Argument::Boolean)
+    {
+        parameter = Parameter(argument.boolean);
+        return true;
+    }
+    if (argument.type == pt2::Argument::Integer)
+    {
+        if (argument.integer < INT_MIN || argument.integer > INT_MAX)
+        {
+            error = "integer argument is out of pnnx range";
+            return false;
+        }
+        parameter = Parameter((int)argument.integer);
+        return true;
+    }
+    if (argument.type == pt2::Argument::FloatingPoint)
+    {
+        parameter = Parameter(argument.floating_point);
+        return true;
+    }
+    if (argument.type == pt2::Argument::String)
+    {
+        parameter = Parameter(argument.string);
+        return true;
+    }
+    if (argument.type == pt2::Argument::Integers)
+    {
+        std::vector<int> values;
+        for (size_t i = 0; i < argument.values.size(); i++)
+        {
+            if (argument.values[i].integer < INT_MIN || argument.values[i].integer > INT_MAX)
+            {
+                error = "integer list argument is out of pnnx range";
+                return false;
+            }
+            values.push_back((int)argument.values[i].integer);
+        }
+        parameter = Parameter(values);
+        return true;
+    }
+    if (argument.type == pt2::Argument::FloatingPoints)
+    {
+        std::vector<double> values;
+        for (size_t i = 0; i < argument.values.size(); i++)
+            values.push_back(argument.values[i].floating_point);
+        parameter = Parameter(values);
+        return true;
+    }
+    if (argument.type == pt2::Argument::Strings)
+    {
+        std::vector<std::string> values;
+        for (size_t i = 0; i < argument.values.size(); i++)
+            values.push_back(argument.values[i].string);
+        parameter = Parameter(values);
+        return true;
+    }
+
+    error = "unsupported constant argument type " + std::to_string((int)argument.type);
+    return false;
+}
+
+static Operand* make_constant(const pt2::Argument& argument, const std::string& name, Graph& graph, std::string& error)
+{
+    Parameter parameter;
+    if (!to_parameter(argument, parameter, error))
+        return 0;
+
+    Operator* constant = graph.new_operator("prim::Constant", name);
+    constant->params["value"] = parameter;
+    Operand* output = graph.new_operand(name);
+    output->producer = constant;
+    constant->outputs.push_back(output);
+    return output;
+}
+
+int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& graph, std::string& error)
+{
+    error.clear();
+    int unnamed_node_index = 0;
+    for (size_t i = 0; i < program.graph.nodes.size(); i++)
+    {
+        const pt2::Node& node = program.graph.nodes[i];
+        const std::string name = node.name.empty() ? "pnnx_" + std::to_string(unnamed_node_index++) : node.name;
+        const std::string target = normalize_target(node.target);
+        if (target.find("::") == std::string::npos)
+        {
+            error = name + ": unsupported exported operator " + node.target;
+            return -1;
+        }
+
+        std::vector<Operand*> inputs;
+        std::vector<std::string> input_names;
+        for (size_t j = 0; j < node.inputs.size(); j++)
+        {
+            const pt2::NamedArgument& named_argument = node.inputs[j];
+            Operand* input = 0;
+            if (named_argument.argument.type == pt2::Argument::Tensor)
+            {
+                input = graph.get_operand(named_argument.argument.name);
+                if (!input)
+                {
+                    error = name + ": tensor input " + named_argument.argument.name + " is not defined";
+                    return -1;
+                }
+            }
+            else
+            {
+                input = make_constant(named_argument.argument, name + "_arg_" + std::to_string(j), graph, error);
+                if (!input)
+                {
+                    error = name + "." + named_argument.name + ": " + error;
+                    return -1;
+                }
+            }
+
+            inputs.push_back(input);
+            input_names.push_back(named_argument.name);
+        }
+
+        if (node.outputs.size() != 1 || node.outputs[0].type != pt2::Argument::Tensor)
+        {
+            error = name + ": only one tensor output is supported";
+            return -1;
+        }
+
+        const std::string& output_name = node.outputs[0].name;
+        if (graph.get_operand(output_name))
+        {
+            error = name + ": tensor output " + output_name + " is already defined";
+            return -1;
+        }
+
+        Operator* op = graph.new_operator(target, name);
+        op->inputs = inputs;
+        op->inputnames = input_names;
+        for (size_t j = 0; j < inputs.size(); j++)
+            inputs[j]->consumers.push_back(op);
+
+        Operand* output = graph.new_operand(output_name);
+        output->producer = op;
+        std::map<std::string, pt2::TensorMeta>::const_iterator meta = program.graph.tensor_values.find(output_name);
+        if (meta != program.graph.tensor_values.end())
+        {
+            output->type = to_pnnx_type(meta->second.scalar_type);
+            if (output->type == 0 || !to_pnnx_shape(meta->second.sizes, output->shape, error))
+            {
+                if (error.empty()) error = name + ": unsupported output tensor type";
+                return -1;
+            }
+        }
+        op->outputs.push_back(output);
+    }
+    return 0;
+}
+
 int load_exported_program(const std::string& path, Graph& graph)
 {
     pt2::ExportedProgramArchive archive;
@@ -220,7 +397,13 @@ int load_exported_program(const std::string& path, Graph& graph)
         return -1;
     }
 
-    fprintf(stderr, "load exported program failed: graph node import is not supported yet\n");
+    if (import_exported_program_nodes(archive.program, graph, error) != 0)
+    {
+        fprintf(stderr, "load exported program failed: %s\n", error.c_str());
+        return -1;
+    }
+
+    fprintf(stderr, "load exported program failed: graph output import is not supported yet\n");
     return -1;
 }
 

@@ -32,6 +32,10 @@ static pnnx::pt2::ExportedProgramArchive make_archive()
     input_meta.sizes.push_back(dimension(3));
     archive.program.graph.tensor_values["x"] = input_meta;
 
+    pnnx::pt2::TensorMeta output_meta = input_meta;
+    output_meta.sizes[1] = dimension(2);
+    archive.program.graph.tensor_values["linear"] = output_meta;
+
     pnnx::pt2::InputSpec weight;
     weight.type = pnnx::pt2::InputSpec::Parameter;
     weight.argument.type = pnnx::pt2::Argument::Tensor;
@@ -63,6 +67,29 @@ static pnnx::pt2::ExportedProgramArchive make_archive()
     const float values[] = {0.f, 1.f, 2.f, 3.f, 4.f, 5.f};
     storage.resize(sizeof(values));
     memcpy(storage.data(), values, sizeof(values));
+
+    pnnx::pt2::Node node;
+    node.name = "linear";
+    node.target = "torch.ops.aten.linear.default";
+    pnnx::pt2::NamedArgument node_input;
+    node_input.name = "input";
+    node_input.argument.type = pnnx::pt2::Argument::Tensor;
+    node_input.argument.name = "x";
+    node.inputs.push_back(node_input);
+    pnnx::pt2::NamedArgument node_weight;
+    node_weight.name = "weight";
+    node_weight.argument.type = pnnx::pt2::Argument::Tensor;
+    node_weight.argument.name = "p_weight";
+    node.inputs.push_back(node_weight);
+    pnnx::pt2::NamedArgument node_bias;
+    node_bias.name = "bias";
+    node_bias.argument.type = pnnx::pt2::Argument::None;
+    node.inputs.push_back(node_bias);
+    pnnx::pt2::Argument output;
+    output.type = pnnx::pt2::Argument::Tensor;
+    output.name = "linear";
+    node.outputs.push_back(output);
+    archive.program.graph.nodes.push_back(node);
     return archive;
 }
 
@@ -82,6 +109,13 @@ int main()
     const float* data = (const float*)attribute.data.data();
     expect_true(attribute.shape.size() == 2 && attribute.shape[0] == 2 && attribute.shape[1] == 2, "attribute shape");
     expect_true(data[0] == 1.f && data[1] == 2.f && data[2] == 4.f && data[3] == 5.f, "strided attribute is materialized contiguously");
+
+    expect_true(pnnx::import_exported_program_nodes(archive.program, graph, error) == 0, error.c_str());
+    expect_true(graph.ops.size() == 4, "attribute, input, aten and constant operators");
+    expect_true(graph.ops[2]->type == "prim::Constant" && graph.ops[2]->params["value"].type == 0, "none argument becomes constant");
+    expect_true(graph.ops[3]->type == "aten::linear", "aten target is normalized");
+    expect_true(graph.ops[3]->inputs.size() == 3 && graph.ops[3]->inputnames[2] == "bias", "named arguments are preserved");
+    expect_true(graph.get_operand("linear")->shape[1] == 2, "node output tensor metadata");
 
     if (test_failures != 0)
     {
