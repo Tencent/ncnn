@@ -880,6 +880,8 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
             {
                 if (oprand->shape[i] == -1)
                     fprintf(paramfp, "?,");
+                else if (oprand->shape[i] == -233)
+                    fprintf(paramfp, "%%%s,", oprand->params.at(std::string("__shape__") + std::to_string(i)).s.c_str());
                 else
                     fprintf(paramfp, "%d,", oprand->shape[i]);
             }
@@ -887,6 +889,8 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
             {
                 if (oprand->shape[oprand->shape.size() - 1] == -1)
                     fprintf(paramfp, "?");
+                else if (oprand->shape[oprand->shape.size() - 1] == -233)
+                    fprintf(paramfp, "%%%s", oprand->params.at(std::string("__shape__") + std::to_string(oprand->shape.size() - 1)).s.c_str());
                 else
                     fprintf(paramfp, "%d", oprand->shape[oprand->shape.size() - 1]);
             }
@@ -907,6 +911,8 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
             {
                 if (oprand->shape[i] == -1)
                     fprintf(paramfp, "?,");
+                else if (oprand->shape[i] == -233)
+                    fprintf(paramfp, "%%%s,", oprand->params.at(std::string("__shape__") + std::to_string(i)).s.c_str());
                 else
                     fprintf(paramfp, "%d,", oprand->shape[i]);
             }
@@ -914,6 +920,8 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
             {
                 if (oprand->shape[oprand->shape.size() - 1] == -1)
                     fprintf(paramfp, "?");
+                else if (oprand->shape[oprand->shape.size() - 1] == -233)
+                    fprintf(paramfp, "%%%s", oprand->params.at(std::string("__shape__") + std::to_string(oprand->shape.size() - 1)).s.c_str());
                 else
                     fprintf(paramfp, "%d", oprand->shape[oprand->shape.size() - 1]);
             }
@@ -1564,10 +1572,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     for (size_t i = 0; i < param.ai.size(); i++)
                     {
                         if ((op->type == "nn.AdaptiveAvgPool2d"
-                                || op->type == "nn.AdaptiveAvgPool3d"
-                                || op->type == "nn.AdaptiveMaxPool2d"
-                                || op->type == "nn.AdaptiveMaxPool3d")
-                                && it.first == "output_size" && param.ai[i] == 0)
+                             || op->type == "nn.AdaptiveAvgPool3d"
+                             || op->type == "nn.AdaptiveMaxPool2d"
+                             || op->type == "nn.AdaptiveMaxPool3d")
+                            && it.first == "output_size" && param.ai[i] == 0)
                         {
                             fprintf(pyfp, "None");
                         }
@@ -2327,8 +2335,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
                     bool scalar_as_tensor = false;
                     if ((op->type == "Tensor.index_put" && it.first == "values")
-                            || (op->type == "torch.where" && it.first == "input")
-                            || (op->type == "torch.where" && it.first == "other"))
+                        || (op->type == "torch.where" && it.first == "input")
+                        || (op->type == "torch.where" && it.first == "other"))
                     {
                         scalar_as_tensor = true;
                     }
@@ -2415,10 +2423,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                         for (size_t i = 0; i < param.ai.size(); i++)
                         {
                             if ((op->type == "F.adaptive_avg_pool2d"
-                                    || op->type == "F.adaptive_avg_pool3d"
-                                    || op->type == "F.adaptive_max_pool2d"
-                                    || op->type == "F.adaptive_max_pool3d")
-                                    && it.first == "output_size" && param.ai[i] == 0)
+                                 || op->type == "F.adaptive_avg_pool3d"
+                                 || op->type == "F.adaptive_max_pool2d"
+                                 || op->type == "F.adaptive_max_pool3d")
+                                && it.first == "output_size" && param.ai[i] == 0)
                             {
                                 fprintf(pyfp, "None");
                             }

@@ -211,6 +211,32 @@ int main()
     expect_true(pnnx::import_exported_program_outputs(list_program, graph, error) == 0, error.c_str());
     expect_true(graph.ops[graph.ops.size() - 1]->type == "pnnx.Output", "mixed constant output is imported");
 
+    pnnx::pt2::ExportedProgramArchive dynamic_archive = make_archive();
+    pnnx::pt2::SymInt dynamic_dimension;
+    dynamic_dimension.type = pnnx::pt2::SymInt::Expression;
+    dynamic_dimension.expression = "Add(s0, 1)";
+    dynamic_dimension.has_hint = true;
+    dynamic_dimension.hint = 3;
+    dynamic_archive.program.graph.tensor_values["x"].sizes[0] = dynamic_dimension;
+    pnnx::Graph dynamic_graph;
+    expect_true(pnnx::import_exported_program_inputs(dynamic_archive, dynamic_graph, error) == 0, error.c_str());
+    const pnnx::Operand* dynamic_input = dynamic_graph.get_operand("x");
+    expect_true(dynamic_input->shape[0] == -233, "symbolic dimension marker");
+    expect_true(dynamic_input->params.at("__shape__0").s == "Add_s0_1_", "symbolic dimension key");
+    expect_true(dynamic_input->params.at("__shape_expr__0").s == "Add(s0, 1)", "symbolic expression metadata");
+    expect_true(dynamic_input->params.at("__shape_hint__0").i == 3, "symbolic hint metadata");
+
+    const char* dynamic_param = "test_load_exported_program_dynamic.param";
+    const char* dynamic_bin = "test_load_exported_program_dynamic.bin";
+    expect_true(dynamic_graph.save(dynamic_param, dynamic_bin) == 0, "save symbolic graph");
+    pnnx::Graph loaded_dynamic_graph;
+    expect_true(loaded_dynamic_graph.load(dynamic_param, dynamic_bin) == 0, "load symbolic graph");
+    const pnnx::Operand* loaded_dynamic_input = loaded_dynamic_graph.get_operand("x");
+    expect_true(loaded_dynamic_input && loaded_dynamic_input->shape[0] == -233, "symbolic dimension round trip");
+    expect_true(loaded_dynamic_input && loaded_dynamic_input->params.at("__shape__0").s == "Add_s0_1_", "symbolic key round trip");
+    remove(dynamic_param);
+    remove(dynamic_bin);
+
     if (test_failures != 0)
     {
         fprintf(stderr, "%d exported program input test(s) failed\n", test_failures);

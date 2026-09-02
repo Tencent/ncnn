@@ -28,16 +28,42 @@ static int to_pnnx_type(int scalar_type)
     return 0;
 }
 
-static bool to_pnnx_shape(const std::vector<pt2::SymInt>& dimensions, std::vector<int>& shape, std::string& error)
+static std::string symbolic_shape_key(const std::string& expression)
+{
+    std::string key;
+    for (size_t i = 0; i < expression.size(); i++)
+    {
+        const char ch = expression[i];
+        if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_')
+            key.push_back(ch);
+        else if (key.empty() || key[key.size() - 1] != '_')
+            key.push_back('_');
+    }
+    if (key.empty())
+        key = "symbol";
+    return key;
+}
+
+static bool to_pnnx_shape(const std::vector<pt2::SymInt>& dimensions, std::vector<int>& shape, std::map<std::string, Parameter>* params, std::string& error)
 {
     for (size_t i = 0; i < dimensions.size(); i++)
     {
         const pt2::SymInt& dimension = dimensions[i];
-        int64_t value = -1;
-        if (dimension.type == pt2::SymInt::Integer)
-            value = dimension.integer;
-        else if (dimension.has_hint)
-            value = dimension.hint;
+        if (dimension.type == pt2::SymInt::Expression)
+        {
+            shape.push_back(-233);
+            if (params)
+            {
+                const std::string suffix = std::to_string(i);
+                (*params)["__shape__" + suffix] = symbolic_shape_key(dimension.expression);
+                (*params)["__shape_expr__" + suffix] = dimension.expression;
+                if (dimension.has_hint)
+                    (*params)["__shape_hint__" + suffix] = dimension.hint;
+            }
+            continue;
+        }
+
+        int64_t value = dimension.integer;
 
         if (value < -1 || value > INT_MAX)
         {
@@ -65,7 +91,7 @@ static bool materialize_attribute(const pt2::PayloadMeta& payload, const std::ve
         error = "unsupported tensor scalar type " + std::to_string(payload.tensor_meta.scalar_type);
         return false;
     }
-    if (!to_pnnx_shape(payload.tensor_meta.sizes, attribute.shape, error))
+    if (!to_pnnx_shape(payload.tensor_meta.sizes, attribute.shape, &attribute.params, error))
         return false;
 
     size_t element_count = 1;
@@ -157,7 +183,7 @@ int import_exported_program_inputs(const pt2::ExportedProgramArchive& archive, G
             Operand* operand = graph.new_operand(spec.argument.name);
             operand->producer = op;
             operand->type = to_pnnx_type(meta->second.scalar_type);
-            if (operand->type == 0 || !to_pnnx_shape(meta->second.sizes, operand->shape, error))
+            if (operand->type == 0 || !to_pnnx_shape(meta->second.sizes, operand->shape, &operand->params, error))
             {
                 if (error.empty()) error = spec.argument.name + ": unsupported input tensor type";
                 return -1;
@@ -466,7 +492,7 @@ int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& gr
             if (meta != program.graph.tensor_values.end())
             {
                 output->type = to_pnnx_type(meta->second.scalar_type);
-                if (output->type == 0 || !to_pnnx_shape(meta->second.sizes, output->shape, error))
+                if (output->type == 0 || !to_pnnx_shape(meta->second.sizes, output->shape, &output->params, error))
                 {
                     if (error.empty()) error = name + ": unsupported output tensor type";
                     return -1;
