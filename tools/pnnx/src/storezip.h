@@ -34,6 +34,7 @@ private:
     {
         uint64_t offset;
         uint64_t size;
+        uint16_t compression;
     };
 
     std::map<std::string, StoreZipMeta> filemetas;

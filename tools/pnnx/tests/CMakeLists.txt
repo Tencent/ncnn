@@ -3,7 +3,7 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 add_executable(test_pnnx_exported_program test_exported_program.cpp ../src/exported_program.cpp ../src/exported_program_reader.cpp ../src/json.cpp ../src/model_format.cpp ../src/storezip.cpp)
 target_include_directories(test_pnnx_exported_program PRIVATE ../src)
-add_test(NAME test_pnnx_exported_program COMMAND test_pnnx_exported_program)
+add_test(NAME test_pnnx_exported_program_schema COMMAND test_pnnx_exported_program)
 
 add_executable(test_pnnx_json test_json.cpp ../src/json.cpp)
 target_include_directories(test_pnnx_json PRIVATE ../src)
@@ -95,6 +95,7 @@ pnnx_add_test(F_unfold)
 pnnx_add_test(F_upsample_bilinear)
 pnnx_add_test(F_upsample_nearest)
 pnnx_add_test(F_upsample)
+pnnx_add_test(pnnx_exported_program)
 
 pnnx_add_test(nn_AdaptiveAvgPool1d)
 pnnx_add_test(nn_AdaptiveAvgPool2d)

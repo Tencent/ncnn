@@ -128,6 +128,34 @@ StoreZipReader::~StoreZipReader()
     close();
 }
 
+static int file_seek(FILE* fp, int64_t offset, int origin)
+{
+#if _WIN32
+    return _fseeki64(fp, offset, origin);
+#else
+    return fseeko(fp, offset, origin);
+#endif
+}
+
+static int64_t file_tell(FILE* fp)
+{
+#if _WIN32
+    return _ftelli64(fp);
+#else
+    return ftello(fp);
+#endif
+}
+
+static bool read_zip64_value(const std::vector<unsigned char>& extra, size_t& offset, uint64_t& value)
+{
+    if (extra.size() - offset < sizeof(value))
+        return false;
+
+    memcpy(&value, extra.data() + offset, sizeof(value));
+    offset += sizeof(value);
+    return true;
+}
+
 int StoreZipReader::open(const std::string& path)
 {
     close();
@@ -140,165 +168,192 @@ int StoreZipReader::open(const std::string& path)
         return -1;
     }
 
-    bool has_end_of_central_directory = false;
-
-    while (!feof(fp))
+    if (file_seek(fp, 0, SEEK_END) != 0)
     {
-        // peek signature
-        uint32_t signature;
-        int nread = fread((char*)&signature, sizeof(signature), 1, fp);
-        if (nread != 1)
-            break;
+        fprintf(stderr, "seek failed\n");
+        return -1;
+    }
 
-        // fprintf(stderr, "signature = %x\n", signature);
+    const int64_t archive_size_i64 = file_tell(fp);
+    if (archive_size_i64 < 22)
+    {
+        fprintf(stderr, "truncated zip file\n");
+        return -1;
+    }
+    const uint64_t archive_size = (uint64_t)archive_size_i64;
 
-        if (signature == 0x04034b50)
+    const uint64_t tail_size = std::min<uint64_t>(archive_size, 65557);
+    std::vector<unsigned char> tail((size_t)tail_size);
+    if (file_seek(fp, archive_size_i64 - (int64_t)tail_size, SEEK_SET) != 0 || fread(tail.data(), tail.size(), 1, fp) != 1)
+    {
+        fprintf(stderr, "read zip tail failed\n");
+        return -1;
+    }
+
+    size_t eocd_offset = tail.size() - 4;
+    bool found_eocd = false;
+    while (true)
+    {
+        uint32_t signature = 0;
+        memcpy(&signature, tail.data() + eocd_offset, sizeof(signature));
+        if (signature == 0x06054b50 && eocd_offset + 4 + sizeof(end_of_central_directory_record) <= tail.size())
         {
-            local_file_header lfh;
-            if (fread((char*)&lfh, sizeof(lfh), 1, fp) != 1)
+            end_of_central_directory_record candidate;
+            memcpy(&candidate, tail.data() + eocd_offset + 4, sizeof(candidate));
+            if (eocd_offset + 4 + sizeof(candidate) + candidate.comment_length == tail.size())
             {
-                fprintf(stderr, "truncated zip local file header\n");
-                return -1;
+                found_eocd = true;
+                break;
             }
+        }
+        if (eocd_offset == 0)
+            break;
+        eocd_offset--;
+    }
+    if (!found_eocd)
+    {
+        fprintf(stderr, "zip file has no end of central directory\n");
+        return -1;
+    }
 
-            if (lfh.flag & 0x08)
-            {
-                fprintf(stderr, "zip file contains data descriptor, this is not supported yet\n");
-                return -1;
-            }
+    end_of_central_directory_record eocdr;
+    memcpy(&eocdr, tail.data() + eocd_offset + 4, sizeof(eocdr));
+    if (eocd_offset + 4 + sizeof(eocdr) + eocdr.comment_length != tail.size())
+    {
+        fprintf(stderr, "invalid zip end of central directory\n");
+        return -1;
+    }
 
-            if (lfh.compression != 0 || lfh.compressed_size != lfh.uncompressed_size)
-            {
-                fprintf(stderr, "not stored zip file %d %d\n", lfh.compressed_size, lfh.uncompressed_size);
-                return -1;
-            }
+    uint64_t central_directory_offset = eocdr.cd_offset;
+    uint64_t record_count = eocdr.total_cd_records;
+    if (eocdr.cd_offset == 0xffffffff || eocdr.total_cd_records == 0xffff)
+    {
+        const uint64_t absolute_eocd_offset = archive_size - tail_size + eocd_offset;
+        if (absolute_eocd_offset < 4 + sizeof(zip64_end_of_central_directory_locator))
+        {
+            fprintf(stderr, "zip64 end of central directory locator is missing\n");
+            return -1;
+        }
 
-            // file name
-            std::string name;
-            name.resize(lfh.file_name_length);
-            if (!name.empty() && fread((char*)name.data(), name.size(), 1, fp) != 1)
-            {
-                fprintf(stderr, "truncated zip file name\n");
-                return -1;
-            }
+        if (file_seek(fp, (int64_t)(absolute_eocd_offset - 4 - sizeof(zip64_end_of_central_directory_locator)), SEEK_SET) != 0)
+            return -1;
+        uint32_t locator_signature = 0;
+        zip64_end_of_central_directory_locator locator;
+        if (fread(&locator_signature, sizeof(locator_signature), 1, fp) != 1 || locator_signature != 0x07064b50 || fread(&locator, sizeof(locator), 1, fp) != 1)
+        {
+            fprintf(stderr, "invalid zip64 end of central directory locator\n");
+            return -1;
+        }
 
-            uint64_t compressed_size = lfh.compressed_size;
-            uint64_t uncompressed_size = lfh.uncompressed_size;
-            if (compressed_size == 0xffffffff && uncompressed_size == 0xffffffff)
+        if (locator.eocdr64_offset > archive_size - 4 - sizeof(zip64_end_of_central_directory_record) || file_seek(fp, (int64_t)locator.eocdr64_offset, SEEK_SET) != 0)
+            return -1;
+        uint32_t zip64_signature = 0;
+        zip64_end_of_central_directory_record zip64_eocdr;
+        if (fread(&zip64_signature, sizeof(zip64_signature), 1, fp) != 1 || zip64_signature != 0x06064b50 || fread(&zip64_eocdr, sizeof(zip64_eocdr), 1, fp) != 1)
+        {
+            fprintf(stderr, "invalid zip64 end of central directory\n");
+            return -1;
+        }
+        central_directory_offset = zip64_eocdr.cd_offset;
+        record_count = zip64_eocdr.total_cd_records;
+    }
+
+    if (central_directory_offset > archive_size || file_seek(fp, (int64_t)central_directory_offset, SEEK_SET) != 0)
+    {
+        fprintf(stderr, "invalid zip central directory offset\n");
+        return -1;
+    }
+
+    for (uint64_t record_index = 0; record_index < record_count; record_index++)
+    {
+        uint32_t signature = 0;
+        central_directory_file_header cdfh;
+        if (fread(&signature, sizeof(signature), 1, fp) != 1 || signature != 0x02014b50 || fread(&cdfh, sizeof(cdfh), 1, fp) != 1)
+        {
+            fprintf(stderr, "invalid zip central directory entry\n");
+            return -1;
+        }
+
+        std::string name(cdfh.file_name_length, '\0');
+        std::vector<unsigned char> extra(cdfh.extra_field_length);
+        if ((!name.empty() && fread(&name[0], name.size(), 1, fp) != 1) || (!extra.empty() && fread(extra.data(), extra.size(), 1, fp) != 1) || file_seek(fp, cdfh.file_comment_length, SEEK_CUR) != 0)
+        {
+            fprintf(stderr, "truncated zip central directory entry\n");
+            return -1;
+        }
+        const int64_t next_record = file_tell(fp);
+
+        uint64_t compressed_size = cdfh.compressed_size;
+        uint64_t uncompressed_size = cdfh.uncompressed_size;
+        uint64_t local_header_offset = cdfh.lfh_offset;
+        if (compressed_size == 0xffffffff || uncompressed_size == 0xffffffff || local_header_offset == 0xffffffff)
+        {
+            bool found_zip64 = false;
+            for (size_t extra_offset = 0; extra.size() - extra_offset >= 4;)
             {
-                uint16_t extra_offset = 0;
-                while (extra_offset < lfh.extra_field_length)
+                uint16_t extra_id = 0;
+                uint16_t extra_size = 0;
+                memcpy(&extra_id, extra.data() + extra_offset, sizeof(extra_id));
+                memcpy(&extra_size, extra.data() + extra_offset + 2, sizeof(extra_size));
+                extra_offset += 4;
+                if (extra_size > extra.size() - extra_offset)
+                    return -1;
+                if (extra_id == 0x0001)
                 {
-                    uint16_t extra_id;
-                    uint16_t extra_size;
-                    if (fread((char*)&extra_id, sizeof(extra_id), 1, fp) != 1 || fread((char*)&extra_size, sizeof(extra_size), 1, fp) != 1)
-                    {
-                        fprintf(stderr, "truncated zip extra field\n");
-                        return -1;
-                    }
-                    if (extra_id != 0x0001)
-                    {
-                        // skip this extra field block
-                        fseek(fp, extra_size - 4, SEEK_CUR);
-                        extra_offset += extra_size;
-                        continue;
-                    }
-
-                    // zip64 extra field
-                    zip64_extended_extra_field zip64_eef;
-                    if (extra_size < sizeof(zip64_eef) || fread((char*)&zip64_eef, sizeof(zip64_eef), 1, fp) != 1)
+                    const size_t extra_end = extra_offset + extra_size;
+                    if ((uncompressed_size == 0xffffffff && !read_zip64_value(extra, extra_offset, uncompressed_size)) || (compressed_size == 0xffffffff && !read_zip64_value(extra, extra_offset, compressed_size)) || (local_header_offset == 0xffffffff && !read_zip64_value(extra, extra_offset, local_header_offset)) || extra_offset > extra_end)
                     {
                         fprintf(stderr, "invalid zip64 extra field\n");
                         return -1;
                     }
-
-                    compressed_size = zip64_eef.compressed_size;
-                    uncompressed_size = zip64_eef.uncompressed_size;
-
-                    // skip remaining extra field blocks
-                    fseek(fp, lfh.extra_field_length - extra_offset - 4 - sizeof(zip64_eef), SEEK_CUR);
+                    found_zip64 = true;
                     break;
                 }
+                extra_offset += extra_size;
             }
-            else
+            if (!found_zip64)
             {
-                // skip extra field
-                fseek(fp, lfh.extra_field_length, SEEK_CUR);
-            }
-
-            StoreZipMeta fm;
-            fm.offset = ftell(fp);
-            fm.size = compressed_size;
-
-            filemetas[name] = fm;
-
-            // fprintf(stderr, "%s = %d  %d\n", name.c_str(), fm.offset, fm.size);
-
-            fseek(fp, compressed_size, SEEK_CUR);
-        }
-        else if (signature == 0x02014b50)
-        {
-            central_directory_file_header cdfh;
-            if (fread((char*)&cdfh, sizeof(cdfh), 1, fp) != 1)
-            {
-                fprintf(stderr, "truncated zip central directory header\n");
-                return -1;
-            }
-
-            // skip file name
-            fseek(fp, cdfh.file_name_length, SEEK_CUR);
-
-            // skip extra field
-            fseek(fp, cdfh.extra_field_length, SEEK_CUR);
-
-            // skip file comment
-            fseek(fp, cdfh.file_comment_length, SEEK_CUR);
-        }
-        else if (signature == 0x06054b50)
-        {
-            end_of_central_directory_record eocdr;
-            if (fread((char*)&eocdr, sizeof(eocdr), 1, fp) != 1)
-            {
-                fprintf(stderr, "truncated zip end of central directory\n");
-                return -1;
-            }
-
-            // skip comment
-            fseek(fp, eocdr.comment_length, SEEK_CUR);
-            has_end_of_central_directory = true;
-        }
-        else if (signature == 0x06064b50)
-        {
-            zip64_end_of_central_directory_record eocdr64;
-            if (fread((char*)&eocdr64, sizeof(eocdr64), 1, fp) != 1 || eocdr64.size_of_eocd64_m12 < 44)
-            {
-                fprintf(stderr, "invalid zip64 end of central directory\n");
-                return -1;
-            }
-
-            // skip comment
-            fseek(fp, eocdr64.size_of_eocd64_m12 - 44, SEEK_CUR);
-        }
-        else if (signature == 0x07064b50)
-        {
-            zip64_end_of_central_directory_locator eocdl64;
-            if (fread((char*)&eocdl64, sizeof(eocdl64), 1, fp) != 1)
-            {
-                fprintf(stderr, "truncated zip64 end of central directory locator\n");
+                fprintf(stderr, "zip64 extra field is missing\n");
                 return -1;
             }
         }
-        else
+
+        if (local_header_offset > archive_size - 4 - sizeof(local_file_header) || file_seek(fp, (int64_t)local_header_offset, SEEK_SET) != 0)
+            return -1;
+
+        uint32_t local_signature = 0;
+        local_file_header lfh;
+        if (fread(&local_signature, sizeof(local_signature), 1, fp) != 1 || local_signature != 0x04034b50 || fread(&lfh, sizeof(lfh), 1, fp) != 1)
         {
-            fprintf(stderr, "unsupported signature %x\n", signature);
+            fprintf(stderr, "invalid zip local file header\n");
             return -1;
         }
-    }
+        if (lfh.compression != cdfh.compression)
+        {
+            fprintf(stderr, "zip compression method mismatch\n");
+            return -1;
+        }
+        if (cdfh.compression == 0 && compressed_size != uncompressed_size)
+        {
+            fprintf(stderr, "stored zip record size mismatch\n");
+            return -1;
+        }
 
-    if (!has_end_of_central_directory)
-    {
-        fprintf(stderr, "zip file has no end of central directory\n");
-        return -1;
+        const uint64_t data_offset = local_header_offset + 4 + sizeof(lfh) + lfh.file_name_length + lfh.extra_field_length;
+        if (data_offset > archive_size || compressed_size > archive_size - data_offset)
+        {
+            fprintf(stderr, "zip file data exceeds archive bounds\n");
+            return -1;
+        }
+
+        StoreZipMeta meta;
+        meta.offset = data_offset;
+        meta.size = uncompressed_size;
+        meta.compression = cdfh.compression;
+        filemetas[name] = meta;
+
+        if (file_seek(fp, next_record, SEEK_SET) != 0)
+            return -1;
     }
 
     return 0;
@@ -336,12 +391,15 @@ int StoreZipReader::read_file(const std::string& name, char* data)
 
     uint64_t offset = filemetas[name].offset;
     uint64_t size = filemetas[name].size;
+    uint16_t compression = filemetas[name].compression;
 
-#if _WIN32
-    if (_fseeki64(fp, offset, SEEK_SET) != 0)
-#else
-    if (fseeko(fp, offset, SEEK_SET) != 0)
-#endif
+    if (compression != 0)
+    {
+        fprintf(stderr, "compressed zip record is not supported %s\n", name.c_str());
+        return -1;
+    }
+
+    if (file_seek(fp, (int64_t)offset, SEEK_SET) != 0)
     {
         fprintf(stderr, "seek failed %s\n", name.c_str());
         return -1;

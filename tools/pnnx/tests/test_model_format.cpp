@@ -149,7 +149,7 @@ int main()
     expect_unknown(incomplete_pt2_path, "reject incomplete pt2 archive");
     expect_unknown(truncated_path, "reject truncated archive");
     expect_unknown(missing_eocd_path, "reject archive without end of central directory");
-    expect_unknown(data_descriptor_path, "reject data descriptor");
+    expect_format(data_descriptor_path, pnnx::ModelFormatExportedProgram, "accept data descriptor");
     expect_unknown(compressed_path, "reject compressed archive");
     expect_unknown(unknown_path, "reject unknown archive");
 
