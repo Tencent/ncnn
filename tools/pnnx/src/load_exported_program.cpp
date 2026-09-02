@@ -386,6 +386,30 @@ static Operand* resolve_argument(const pt2::Argument& argument, const std::strin
     return make_constant(argument, name, graph, error);
 }
 
+static bool collect_tensor_outputs(const pt2::Argument& argument, std::vector<std::string>& names, std::string& error)
+{
+    if (argument.type == pt2::Argument::Tensor)
+    {
+        names.push_back(argument.name);
+        return true;
+    }
+    if (argument.type == pt2::Argument::Tensors)
+    {
+        for (size_t i = 0; i < argument.values.size(); i++)
+        {
+            if (argument.values[i].type != pt2::Argument::Tensor)
+            {
+                error = "tensor-list output contains a non-tensor value";
+                return false;
+            }
+            names.push_back(argument.values[i].name);
+        }
+        return true;
+    }
+    error = "only tensor and tensor-list node outputs are supported";
+    return false;
+}
+
 int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& graph, std::string& error)
 {
     error.clear();
@@ -417,16 +441,20 @@ int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& gr
             input_names.push_back(named_argument.name);
         }
 
-        std::vector<Operand*> outputs;
+        std::vector<std::string> output_names;
         for (size_t j = 0; j < node.outputs.size(); j++)
         {
-            if (node.outputs[j].type != pt2::Argument::Tensor)
+            if (!collect_tensor_outputs(node.outputs[j], output_names, error))
             {
-                error = name + ": only tensor outputs are supported";
+                error = name + ": " + error;
                 return -1;
             }
+        }
 
-            const std::string& output_name = node.outputs[j].name;
+        std::vector<Operand*> outputs;
+        for (size_t j = 0; j < output_names.size(); j++)
+        {
+            const std::string& output_name = output_names[j];
             if (graph.get_operand(output_name))
             {
                 error = name + ": tensor output " + output_name + " is already defined";
@@ -468,24 +496,48 @@ int import_exported_program_outputs(const pt2::ExportedProgram& program, Graph& 
         return -1;
     }
 
+    int output_index = 0;
     for (size_t i = 0; i < program.graph.outputs.size(); i++)
     {
         const pt2::Argument& output = program.graph.outputs[i];
         const pt2::OutputSpec& spec = program.signature.outputs[i];
-        if (spec.type != pt2::OutputSpec::UserOutput || output.type != pt2::Argument::Tensor || spec.argument.type != pt2::Argument::Tensor || output.name != spec.argument.name)
+        if (spec.type != pt2::OutputSpec::UserOutput || output.type != spec.argument.type)
         {
             error = "unsupported graph output at index " + std::to_string(i);
             return -1;
         }
 
-        Operand* operand = graph.get_operand(output.name);
-        if (!operand)
+        if (output.type == pt2::Argument::Tensor || output.type == pt2::Argument::Tensors)
         {
-            error = "graph output " + output.name + " is not defined";
-            return -1;
+            std::vector<std::string> output_names;
+            std::vector<std::string> signature_names;
+            if (!collect_tensor_outputs(output, output_names, error) || !collect_tensor_outputs(spec.argument, signature_names, error) || output_names != signature_names)
+            {
+                if (error.empty()) error = "graph output does not match graph signature";
+                return -1;
+            }
+            for (size_t j = 0; j < output_names.size(); j++)
+            {
+                Operand* operand = graph.get_operand(output_names[j]);
+                if (!operand)
+                {
+                    error = "graph output " + output_names[j] + " is not defined";
+                    return -1;
+                }
+                Operator* op = graph.new_operator("pnnx.Output", "pnnx_output_" + std::to_string(output_index++));
+                operand->consumers.push_back(op);
+                op->inputs.push_back(operand);
+            }
+            continue;
         }
 
-        Operator* op = graph.new_operator("pnnx.Output", "pnnx_output_" + std::to_string(i));
+        Operand* operand = resolve_argument(output, "pnnx_output_value_" + std::to_string(i), graph, error);
+        if (!operand)
+        {
+            error = "graph output " + std::to_string(i) + ": " + error;
+            return -1;
+        }
+        Operator* op = graph.new_operator("pnnx.Output", "pnnx_output_" + std::to_string(output_index++));
         operand->consumers.push_back(op);
         op->inputs.push_back(operand);
     }

@@ -179,6 +179,38 @@ int main()
     expect_true(graph.ops[old_op_count + 3]->params["value"].i == 6, "pt2 dtype maps to c10 scalar type");
     expect_true(graph.ops[old_op_count + 4]->params["value"].s == "cpu", "device argument constant");
 
+    pnnx::pt2::ExportedProgram list_program;
+    pnnx::pt2::Node list_node;
+    list_node.name = "split";
+    list_node.target = "torch.ops.aten.split_with_sizes.default";
+    pnnx::pt2::Argument tensor_list_output;
+    tensor_list_output.type = pnnx::pt2::Argument::Tensors;
+    pnnx::pt2::Argument first = tensor_reference;
+    first.name = "split_0";
+    pnnx::pt2::Argument second = tensor_reference;
+    second.name = "split_1";
+    tensor_list_output.values.push_back(first);
+    tensor_list_output.values.push_back(second);
+    list_node.outputs.push_back(tensor_list_output);
+    list_program.graph.nodes.push_back(list_node);
+    list_program.graph.tensor_values["split_0"] = archive.program.graph.tensor_values["x"];
+    list_program.graph.tensor_values["split_1"] = archive.program.graph.tensor_values["x"];
+    list_program.graph.outputs.push_back(tensor_list_output);
+    pnnx::pt2::OutputSpec list_output_spec;
+    list_output_spec.argument = tensor_list_output;
+    list_program.signature.outputs.push_back(list_output_spec);
+    pnnx::pt2::Argument none_output;
+    none_output.type = pnnx::pt2::Argument::None;
+    list_program.graph.outputs.push_back(none_output);
+    pnnx::pt2::OutputSpec none_output_spec;
+    none_output_spec.argument = none_output;
+    list_program.signature.outputs.push_back(none_output_spec);
+
+    expect_true(pnnx::import_exported_program_nodes(list_program, graph, error) == 0, error.c_str());
+    expect_true(graph.ops.back()->outputs.size() == 2, "tensor-list node has multiple outputs");
+    expect_true(pnnx::import_exported_program_outputs(list_program, graph, error) == 0, error.c_str());
+    expect_true(graph.ops[graph.ops.size() - 1]->type == "pnnx.Output", "mixed constant output is imported");
+
     if (test_failures != 0)
     {
         fprintf(stderr, "%d exported program input test(s) failed\n", test_failures);
