@@ -536,7 +536,8 @@ static NCNN_FORCEINLINE __m128 _mm_comp_fmaddsub_ps(const __m128& _a, const __m1
 #else
 #if defined(__MINGW32__) && !defined(__x86_64__)
     __attribute__((aligned(16)))
-    const float _sign_array[4] = {-0.f, 0.f, -0.f, 0.f};
+    const float _sign_array[4]
+        = {-0.f, 0.f, -0.f, 0.f};
     const __m128 _sign = _mm_load_ps(_sign_array);
 #else
     const __m128 _sign = _mm_set_ps(0.f, -0.f, 0.f, -0.f);

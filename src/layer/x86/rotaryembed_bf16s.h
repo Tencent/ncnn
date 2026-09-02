@@ -137,7 +137,7 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
                     cos_ptr += 8;
                     sin_ptr += 8;
                 }
-#else // __AVX2__
+#else  // __AVX2__
                 for (; j + 7 < embed_dim / 2; j += 8)
                 {
                     __m256 a0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
