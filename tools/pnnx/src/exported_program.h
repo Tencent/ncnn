@@ -230,10 +230,13 @@ struct ExportedProgramArchive
     ExportedProgram program;
     std::map<std::string, PayloadMeta> state_dict;
     std::map<std::string, PayloadMeta> constants;
+    std::map<std::string, std::vector<char> > state_dict_storages;
+    std::map<std::string, std::vector<char> > constant_storages;
 };
 
 bool parse_exported_program(const std::string& text, ExportedProgram& program, std::string& error);
 bool load_exported_program_archive_metadata(const std::string& path, ExportedProgramArchive& archive, std::string& error);
+bool load_exported_program_archive(const std::string& path, ExportedProgramArchive& archive, std::string& error);
 
 } // namespace pt2
 } // namespace pnnx

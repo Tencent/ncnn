@@ -337,8 +337,21 @@ int StoreZipReader::read_file(const std::string& name, char* data)
     uint64_t offset = filemetas[name].offset;
     uint64_t size = filemetas[name].size;
 
-    fseek(fp, offset, SEEK_SET);
-    fread(data, size, 1, fp);
+#if _WIN32
+    if (_fseeki64(fp, offset, SEEK_SET) != 0)
+#else
+    if (fseeko(fp, offset, SEEK_SET) != 0)
+#endif
+    {
+        fprintf(stderr, "seek failed %s\n", name.c_str());
+        return -1;
+    }
+
+    if (size != 0 && fread(data, size, 1, fp) != 1)
+    {
+        fprintf(stderr, "read failed %s\n", name.c_str());
+        return -1;
+    }
 
     return 0;
 }

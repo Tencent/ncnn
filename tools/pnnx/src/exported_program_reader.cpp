@@ -42,6 +42,43 @@ public:
         return true;
     }
 
+    bool decode_payload_config(const JsonValue& root, std::map<std::string, PayloadMeta>& payloads, const std::string& path)
+    {
+        const JsonValue* config = member(root, "config", path);
+        if (!config)
+            return false;
+
+        const std::map<std::string, JsonValue>* object = config->get_object();
+        if (!object)
+            return fail(path + ".config", "expected object");
+
+        for (std::map<std::string, JsonValue>::const_iterator it = object->begin(); it != object->end(); ++it)
+        {
+            const std::string item_path = path + ".config." + it->first;
+            const JsonValue* path_name = member(it->second, "path_name", item_path);
+            const JsonValue* is_parameter = member(it->second, "is_param", item_path);
+            const JsonValue* use_pickle = member(it->second, "use_pickle", item_path);
+            const JsonValue* tensor_meta = member(it->second, "tensor_meta", item_path);
+            if (!path_name || !is_parameter || !use_pickle || !tensor_meta)
+                return false;
+
+            PayloadMeta payload;
+            if (!get_string(*path_name, payload.path, item_path + ".path_name")
+                || !get_bool(*is_parameter, payload.is_parameter, item_path + ".is_param")
+                || !get_bool(*use_pickle, payload.use_pickle, item_path + ".use_pickle"))
+                return false;
+
+            if (!tensor_meta->is_null())
+            {
+                if (!decode_tensor_meta(*tensor_meta, payload.tensor_meta, item_path + ".tensor_meta"))
+                    return false;
+                payload.has_tensor_meta = true;
+            }
+            payloads[it->first] = payload;
+        }
+        return true;
+    }
+
 private:
     const JsonValue* member(const JsonValue& value, const char* name, const std::string& path)
     {
@@ -622,9 +659,185 @@ static bool read_record(StoreZipReader& reader, const std::string& name, std::st
     return true;
 }
 
+static bool parse_payload_config(const std::string& text, std::map<std::string, PayloadMeta>& payloads, const std::string& path, std::string& error)
+{
+    JsonValue root;
+    if (!parse_json(text, root, error))
+        return false;
+    ExportedProgramDecoder decoder(error);
+    return decoder.decode_payload_config(root, payloads, path);
+}
+
+static size_t scalar_type_size(int scalar_type)
+{
+    if (scalar_type == 1 || scalar_type == 2 || scalar_type == 12 || (scalar_type >= 29 && scalar_type <= 33)) return 1;
+    if (scalar_type == 3 || scalar_type == 6 || scalar_type == 13 || scalar_type == 28) return 2;
+    if (scalar_type == 4 || scalar_type == 7 || scalar_type == 9 || scalar_type == 34) return 4;
+    if (scalar_type == 5 || scalar_type == 8 || scalar_type == 10 || scalar_type == 35) return 8;
+    if (scalar_type == 11) return 16;
+    return 0;
+}
+
+static bool concrete_nonnegative(const SymInt& value, uint64_t& result)
+{
+    if (value.type != SymInt::Integer || value.integer < 0)
+        return false;
+    result = (uint64_t)value.integer;
+    return true;
+}
+
+static bool checked_add(uint64_t lhs, uint64_t rhs, uint64_t& result)
+{
+    if (rhs > std::numeric_limits<uint64_t>::max() - lhs)
+        return false;
+    result = lhs + rhs;
+    return true;
+}
+
+static bool checked_multiply(uint64_t lhs, uint64_t rhs, uint64_t& result)
+{
+    if (lhs != 0 && rhs > std::numeric_limits<uint64_t>::max() / lhs)
+        return false;
+    result = lhs * rhs;
+    return true;
+}
+
+static bool validate_tensor_storage(const PayloadMeta& payload, uint64_t storage_size, const std::string& name, std::string& error)
+{
+    if (payload.use_pickle)
+    {
+        error = name + ": pickled tensor payload is not supported";
+        return false;
+    }
+    if (!payload.has_tensor_meta)
+    {
+        error = name + ": tensor metadata is missing";
+        return false;
+    }
+
+    const TensorMeta& meta = payload.tensor_meta;
+    if (meta.sizes.size() != meta.strides.size())
+    {
+        error = name + ": tensor size and stride rank mismatch";
+        return false;
+    }
+
+    const size_t element_size = scalar_type_size(meta.scalar_type);
+    if (element_size == 0)
+    {
+        error = name + ": unsupported tensor scalar type " + std::to_string(meta.scalar_type);
+        return false;
+    }
+
+    uint64_t storage_offset = 0;
+    if (!concrete_nonnegative(meta.storage_offset, storage_offset))
+    {
+        error = name + ": storage offset must be a nonnegative integer";
+        return false;
+    }
+
+    bool empty = false;
+    uint64_t maximum_element = storage_offset;
+    for (size_t i = 0; i < meta.sizes.size(); i++)
+    {
+        uint64_t size = 0;
+        uint64_t stride = 0;
+        if (!concrete_nonnegative(meta.sizes[i], size) || !concrete_nonnegative(meta.strides[i], stride))
+        {
+            error = name + ": tensor sizes and strides must be nonnegative integers";
+            return false;
+        }
+        if (size == 0)
+        {
+            empty = true;
+            continue;
+        }
+
+        uint64_t extent = 0;
+        if (!checked_multiply(size - 1, stride, extent) || !checked_add(maximum_element, extent, maximum_element))
+        {
+            error = name + ": tensor storage range overflows uint64";
+            return false;
+        }
+    }
+
+    if (empty)
+        return true;
+
+    uint64_t required_elements = 0;
+    uint64_t required_bytes = 0;
+    if (!checked_add(maximum_element, 1, required_elements) || !checked_multiply(required_elements, element_size, required_bytes))
+    {
+        error = name + ": tensor storage size overflows uint64";
+        return false;
+    }
+    if (required_bytes > storage_size)
+    {
+        error = name + ": tensor view exceeds storage payload";
+        return false;
+    }
+    return true;
+}
+
+static bool load_payloads(StoreZipReader& reader, const std::string& root, const std::string& directory, const std::string& model_name, const std::string& config_suffix, std::map<std::string, PayloadMeta>& payloads, std::map<std::string, std::vector<char> >& storages, std::string& error)
+{
+    const std::string logical_config = directory + model_name + config_suffix;
+    const std::string config_name = root + logical_config;
+    const std::vector<std::string> names = reader.get_names();
+    if (std::find(names.begin(), names.end(), config_name) == names.end())
+    {
+        error = logical_config + ": missing payload config";
+        return false;
+    }
+
+    std::string config;
+    if (!read_record(reader, config_name, config, error) || !parse_payload_config(config, payloads, logical_config, error))
+        return false;
+
+    for (std::map<std::string, PayloadMeta>::const_iterator it = payloads.begin(); it != payloads.end(); ++it)
+    {
+        const PayloadMeta& payload = it->second;
+        if (payload.path.empty() || payload.path.find('/') != std::string::npos || payload.path.find('\\') != std::string::npos)
+        {
+            error = it->first + ": invalid payload path";
+            return false;
+        }
+
+        const std::string logical_storage = directory + payload.path;
+        const std::string storage_name = root + logical_storage;
+        if (storages.find(logical_storage) == storages.end())
+        {
+            if (std::find(names.begin(), names.end(), storage_name) == names.end())
+            {
+                error = logical_storage + ": missing tensor payload";
+                return false;
+            }
+
+            const uint64_t size = reader.get_file_size(storage_name);
+            if (size > std::numeric_limits<size_t>::max())
+            {
+                error = logical_storage + ": tensor payload is too large";
+                return false;
+            }
+            std::vector<char>& storage = storages[logical_storage];
+            storage.resize((size_t)size);
+            if (size && reader.read_file(storage_name, storage.data()) != 0)
+            {
+                error = logical_storage + ": failed to read tensor payload";
+                return false;
+            }
+        }
+
+        if (!validate_tensor_storage(payload, storages[logical_storage].size(), it->first, error))
+            return false;
+    }
+    return true;
+}
+
 bool parse_exported_program(const std::string& text, ExportedProgram& program, std::string& error)
 {
     error.clear();
+    program = ExportedProgram();
     JsonValue root;
     if (!parse_json(text, root, error))
         return false;
@@ -635,6 +848,7 @@ bool parse_exported_program(const std::string& text, ExportedProgram& program, s
 bool load_exported_program_archive_metadata(const std::string& path, ExportedProgramArchive& archive, std::string& error)
 {
     error.clear();
+    archive = ExportedProgramArchive();
     if (detect_model_format(path, error) != ModelFormatExportedProgram)
         return false;
 
@@ -669,6 +883,26 @@ bool load_exported_program_archive_metadata(const std::string& path, ExportedPro
     if (!read_record(reader, models[0], document, error))
         return false;
     return parse_exported_program(document, archive.program, error);
+}
+
+bool load_exported_program_archive(const std::string& path, ExportedProgramArchive& archive, std::string& error)
+{
+    if (!load_exported_program_archive_metadata(path, archive, error))
+        return false;
+
+    StoreZipReader reader;
+    if (reader.open(path) != 0)
+    {
+        error = "failed to read pt2 archive payloads";
+        return false;
+    }
+
+    const std::string root = common_archive_root(reader.get_names());
+    if (!load_payloads(reader, root, "data/weights/", archive.model_name, "_weights_config.json", archive.state_dict, archive.state_dict_storages, error))
+        return false;
+    if (!load_payloads(reader, root, "data/constants/", archive.model_name, "_constants_config.json", archive.constants, archive.constant_storages, error))
+        return false;
+    return true;
 }
 
 } // namespace pt2

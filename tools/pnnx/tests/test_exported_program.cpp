@@ -161,6 +161,97 @@ static void test_load_archive_metadata()
     remove(path);
 }
 
+static void write_payload_config(pnnx::StoreZipWriter& writer, const char* name, const char* path, bool is_parameter, const char* sizes, const char* strides, int storage_offset = 0, bool use_pickle = false)
+{
+    const std::string config = std::string("{\"config\":{\"tensor\":{\"path_name\":\"") + path
+                               + "\",\"is_param\":" + (is_parameter ? "true" : "false")
+                               + ",\"use_pickle\":" + (use_pickle ? "true" : "false")
+                               + ",\"tensor_meta\":{\"dtype\":7,\"sizes\":" + sizes
+                               + ",\"requires_grad\":false,\"device\":{\"type\":\"cpu\"},\"strides\":" + strides
+                               + ",\"storage_offset\":{\"as_int\":" + std::to_string(storage_offset) + "},\"layout\":7}}}}";
+    writer.write_file(name, config.data(), config.size());
+}
+
+static void write_empty_payload_config(pnnx::StoreZipWriter& writer, const char* name)
+{
+    const char* config = "{\"config\":{}}";
+    writer.write_file(name, config, std::string(config).size());
+}
+
+static void write_payload_archive(const char* path, const char* payload_path, const char* sizes, const char* strides, int storage_offset, const std::vector<char>& storage, bool use_pickle = false)
+{
+    pnnx::StoreZipWriter writer;
+    writer.open(path);
+    writer.write_file("package/archive_format", "pt2", 3);
+    writer.write_file("package/archive_version", "0", 1);
+    writer.write_file("package/models/model.json", exported_program_json, std::string(exported_program_json).size());
+    write_payload_config(writer, "package/data/weights/model_weights_config.json", payload_path, true, sizes, strides, storage_offset, use_pickle);
+    write_empty_payload_config(writer, "package/data/constants/model_constants_config.json");
+    writer.write_file(std::string("package/data/weights/") + payload_path, storage.data(), storage.size());
+    writer.close();
+}
+
+static void test_load_tensor_payloads()
+{
+    const char* path = "test_exported_program_payload.pt2";
+    const std::vector<char> storage(32, 42);
+    write_payload_archive(path, "weight_0", "[{\"as_int\":2},{\"as_int\":2}]", "[{\"as_int\":3},{\"as_int\":1}]", 1, storage);
+
+    pnnx::pt2::ExportedProgramArchive archive;
+    std::string error;
+    expect_true(pnnx::pt2::load_exported_program_archive(path, archive, error), error.c_str());
+    expect_true(archive.state_dict["tensor"].is_parameter, "parameter payload metadata");
+    expect_true(archive.state_dict["tensor"].tensor_meta.storage_offset.integer == 1, "payload storage offset");
+    expect_true(archive.state_dict_storages["data/weights/weight_0"].size() == storage.size(), "raw payload bytes");
+    remove(path);
+}
+
+static void test_shared_storage_payloads()
+{
+    const char* path = "test_exported_program_shared_storage.pt2";
+    const char* config = "{\"config\":{"
+                         "\"first\":{\"path_name\":\"weight_0\",\"is_param\":true,\"use_pickle\":false,\"tensor_meta\":{\"dtype\":7,\"sizes\":[{\"as_int\":2}],\"requires_grad\":false,\"device\":{\"type\":\"cpu\"},\"strides\":[{\"as_int\":1}],\"storage_offset\":{\"as_int\":0},\"layout\":7}},"
+                         "\"second\":{\"path_name\":\"weight_0\",\"is_param\":true,\"use_pickle\":false,\"tensor_meta\":{\"dtype\":7,\"sizes\":[{\"as_int\":2}],\"requires_grad\":false,\"device\":{\"type\":\"cpu\"},\"strides\":[{\"as_int\":1}],\"storage_offset\":{\"as_int\":2},\"layout\":7}}}}";
+    const std::vector<char> storage(16, 1);
+
+    pnnx::StoreZipWriter writer;
+    writer.open(path);
+    writer.write_file("package/archive_format", "pt2", 3);
+    writer.write_file("package/archive_version", "0", 1);
+    writer.write_file("package/models/model.json", exported_program_json, std::string(exported_program_json).size());
+    writer.write_file("package/data/weights/model_weights_config.json", config, std::string(config).size());
+    write_empty_payload_config(writer, "package/data/constants/model_constants_config.json");
+    writer.write_file("package/data/weights/weight_0", storage.data(), storage.size());
+    writer.close();
+
+    pnnx::pt2::ExportedProgramArchive archive;
+    std::string error;
+    expect_true(pnnx::pt2::load_exported_program_archive(path, archive, error), error.c_str());
+    expect_true(archive.state_dict_storages.size() == 1, "shared storage is loaded once");
+    expect_true(archive.state_dict["first"].path == archive.state_dict["second"].path, "shared storage path is preserved");
+    remove(path);
+}
+
+static void test_invalid_tensor_payloads()
+{
+    const std::vector<char> storage(16, 0);
+    const char* out_of_bounds = "test_exported_program_payload_out_of_bounds.pt2";
+    write_payload_archive(out_of_bounds, "weight_0", "[{\"as_int\":2},{\"as_int\":2}]", "[{\"as_int\":2},{\"as_int\":1}]", 1, storage);
+
+    pnnx::pt2::ExportedProgramArchive archive;
+    std::string error;
+    expect_true(!pnnx::pt2::load_exported_program_archive(out_of_bounds, archive, error), "out of bounds tensor is rejected");
+    expect_true(error.find("exceeds storage") != std::string::npos, "out of bounds error is explicit");
+    remove(out_of_bounds);
+
+    const char* pickled = "test_exported_program_pickled_payload.pt2";
+    write_payload_archive(pickled, "weight_0", "[{\"as_int\":1}]", "[{\"as_int\":1}]", 0, storage, true);
+    archive = pnnx::pt2::ExportedProgramArchive();
+    expect_true(!pnnx::pt2::load_exported_program_archive(pickled, archive, error), "pickled tensor is rejected");
+    expect_true(error.find("pickled") != std::string::npos, "pickled tensor error is explicit");
+    remove(pickled);
+}
+
 static void test_invalid_schema()
 {
     std::string document(exported_program_json);
@@ -197,6 +288,9 @@ int main()
     test_minimal_archive();
     test_parse_exported_program();
     test_load_archive_metadata();
+    test_load_tensor_payloads();
+    test_shared_storage_payloads();
+    test_invalid_tensor_payloads();
     test_invalid_schema();
     test_multiple_models_are_rejected();
 
