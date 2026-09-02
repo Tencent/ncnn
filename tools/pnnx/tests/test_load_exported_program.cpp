@@ -130,6 +130,55 @@ int main()
     expect_true(graph.ops[4]->type == "pnnx.Output" && graph.ops[5]->type == "pnnx.Output", "pnnx output operators");
     expect_true(graph.get_operand("linear")->consumers.size() == 2, "tuple may return the same tensor twice");
 
+    pnnx::pt2::ExportedProgram argument_program;
+    pnnx::pt2::Node argument_node;
+    argument_node.name = "argument_test";
+    argument_node.target = "torch.ops.aten.argument_test.default";
+    pnnx::pt2::NamedArgument tensor_list;
+    tensor_list.name = "tensors";
+    tensor_list.argument.type = pnnx::pt2::Argument::Tensors;
+    pnnx::pt2::Argument tensor_reference;
+    tensor_reference.type = pnnx::pt2::Argument::Tensor;
+    tensor_reference.name = "x";
+    tensor_list.argument.values.push_back(tensor_reference);
+    argument_node.inputs.push_back(tensor_list);
+    pnnx::pt2::NamedArgument bool_list;
+    bool_list.name = "flags";
+    bool_list.argument.type = pnnx::pt2::Argument::Booleans;
+    pnnx::pt2::Argument flag;
+    flag.type = pnnx::pt2::Argument::Boolean;
+    flag.boolean = true;
+    bool_list.argument.values.push_back(flag);
+    argument_node.inputs.push_back(bool_list);
+    pnnx::pt2::NamedArgument dtype;
+    dtype.name = "dtype";
+    dtype.argument.type = pnnx::pt2::Argument::ScalarType;
+    dtype.argument.integer = 7;
+    argument_node.inputs.push_back(dtype);
+    pnnx::pt2::NamedArgument device;
+    device.name = "device";
+    device.argument.type = pnnx::pt2::Argument::DeviceValue;
+    device.argument.device.type = "cpu";
+    argument_node.inputs.push_back(device);
+    pnnx::pt2::NamedArgument optional;
+    optional.name = "optional";
+    optional.argument.type = pnnx::pt2::Argument::OptionalTensor;
+    optional.argument.values.push_back(tensor_reference);
+    argument_node.inputs.push_back(optional);
+    pnnx::pt2::Argument argument_output;
+    argument_output.type = pnnx::pt2::Argument::Tensor;
+    argument_output.name = "argument_output";
+    argument_node.outputs.push_back(argument_output);
+    argument_program.graph.nodes.push_back(argument_node);
+    argument_program.graph.tensor_values["argument_output"] = archive.program.graph.tensor_values["x"];
+
+    const size_t old_op_count = graph.ops.size();
+    expect_true(pnnx::import_exported_program_nodes(argument_program, graph, error) == 0, error.c_str());
+    expect_true(graph.ops[old_op_count]->type == "prim::ListConstruct", "tensor list construct");
+    expect_true(graph.ops[old_op_count + 2]->type == "prim::ListConstruct", "bool list construct");
+    expect_true(graph.ops[old_op_count + 3]->params["value"].i == 6, "pt2 dtype maps to c10 scalar type");
+    expect_true(graph.ops[old_op_count + 4]->params["value"].s == "cpu", "device argument constant");
+
     if (test_failures != 0)
     {
         fprintf(stderr, "%d exported program input test(s) failed\n", test_failures);

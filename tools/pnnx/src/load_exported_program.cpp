@@ -282,6 +282,34 @@ static bool to_parameter(const pt2::Argument& argument, Parameter& parameter, st
         parameter = Parameter(values);
         return true;
     }
+    if (argument.type == pt2::Argument::ScalarType)
+    {
+        if (argument.integer <= 0 || argument.integer > INT_MAX)
+        {
+            error = "scalar type is out of range";
+            return false;
+        }
+        parameter = Parameter((int)argument.integer - 1);
+        return true;
+    }
+    if (argument.type == pt2::Argument::MemoryFormat || argument.type == pt2::Argument::Layout)
+    {
+        if (argument.integer < 0 || argument.integer > INT_MAX)
+        {
+            error = "enum argument is out of range";
+            return false;
+        }
+        parameter = Parameter((int)argument.integer);
+        return true;
+    }
+    if (argument.type == pt2::Argument::DeviceValue)
+    {
+        std::string device = argument.device.type;
+        if (argument.device.has_index)
+            device += ":" + std::to_string(argument.device.index);
+        parameter = Parameter(device);
+        return true;
+    }
 
     error = "unsupported constant argument type " + std::to_string((int)argument.type);
     return false;
@@ -299,6 +327,63 @@ static Operand* make_constant(const pt2::Argument& argument, const std::string& 
     output->producer = constant;
     constant->outputs.push_back(output);
     return output;
+}
+
+static bool is_list_argument(const pt2::Argument& argument)
+{
+    return argument.type == pt2::Argument::Tensors
+           || argument.type == pt2::Argument::OptionalTensors
+           || argument.type == pt2::Argument::Integers
+           || argument.type == pt2::Argument::FloatingPoints
+           || argument.type == pt2::Argument::Booleans
+           || argument.type == pt2::Argument::Strings;
+}
+
+static Operand* resolve_argument(const pt2::Argument& argument, const std::string& name, Graph& graph, std::string& error)
+{
+    if (argument.type == pt2::Argument::Tensor)
+    {
+        Operand* input = graph.get_operand(argument.name);
+        if (!input)
+            error = "tensor input " + argument.name + " is not defined";
+        return input;
+    }
+
+    if (argument.type == pt2::Argument::OptionalTensor)
+    {
+        if (argument.values.size() != 1)
+        {
+            error = "optional tensor must contain one variant";
+            return 0;
+        }
+        return resolve_argument(argument.values[0], name, graph, error);
+    }
+
+    if (is_list_argument(argument))
+    {
+        std::vector<Operand*> items;
+        for (size_t i = 0; i < argument.values.size(); i++)
+        {
+            Operand* item = resolve_argument(argument.values[i], name + "_item_" + std::to_string(i), graph, error);
+            if (!item)
+                return 0;
+            items.push_back(item);
+        }
+
+        Operator* list = graph.new_operator("prim::ListConstruct", name);
+        for (size_t i = 0; i < items.size(); i++)
+        {
+            Operand* item = items[i];
+            item->consumers.push_back(list);
+            list->inputs.push_back(item);
+        }
+        Operand* output = graph.new_operand(name);
+        output->producer = list;
+        list->outputs.push_back(output);
+        return output;
+    }
+
+    return make_constant(argument, name, graph, error);
 }
 
 int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& graph, std::string& error)
@@ -321,24 +406,11 @@ int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& gr
         for (size_t j = 0; j < node.inputs.size(); j++)
         {
             const pt2::NamedArgument& named_argument = node.inputs[j];
-            Operand* input = 0;
-            if (named_argument.argument.type == pt2::Argument::Tensor)
+            Operand* input = resolve_argument(named_argument.argument, name + "_arg_" + std::to_string(j), graph, error);
+            if (!input)
             {
-                input = graph.get_operand(named_argument.argument.name);
-                if (!input)
-                {
-                    error = name + ": tensor input " + named_argument.argument.name + " is not defined";
-                    return -1;
-                }
-            }
-            else
-            {
-                input = make_constant(named_argument.argument, name + "_arg_" + std::to_string(j), graph, error);
-                if (!input)
-                {
-                    error = name + "." + named_argument.name + ": " + error;
-                    return -1;
-                }
+                error = name + "." + named_argument.name + ": " + error;
+                return -1;
             }
 
             inputs.push_back(input);

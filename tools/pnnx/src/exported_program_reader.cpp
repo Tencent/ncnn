@@ -249,6 +249,30 @@ private:
             argument.type = Argument::Tensors;
             return decode_reference_list(data, argument.values, path + ".as_tensors");
         }
+        if (type == "as_optional_tensor")
+        {
+            argument.type = Argument::OptionalTensor;
+            Argument item;
+            if (!decode_optional_tensor(data, item, path + ".as_optional_tensor"))
+                return false;
+            argument.values.push_back(item);
+            return true;
+        }
+        if (type == "as_optional_tensors")
+        {
+            argument.type = Argument::OptionalTensors;
+            const std::vector<JsonValue>* array = data.get_array();
+            if (!array)
+                return fail(path + ".as_optional_tensors", "expected array");
+            for (size_t i = 0; i < array->size(); i++)
+            {
+                Argument item;
+                if (!decode_optional_tensor((*array)[i], item, path + ".as_optional_tensors[" + std::to_string(i) + "]"))
+                    return false;
+                argument.values.push_back(item);
+            }
+            return true;
+        }
         if (type == "as_int")
         {
             argument.type = Argument::Integer;
@@ -356,6 +380,24 @@ private:
             arguments.push_back(argument);
         }
         return true;
+    }
+
+    bool decode_optional_tensor(const JsonValue& value, Argument& argument, const std::string& path)
+    {
+        const std::map<std::string, JsonValue>* object = value.get_object();
+        if (!object || object->size() != 1)
+            return fail(path, "expected single optional tensor variant");
+        if (object->begin()->first == "as_none")
+        {
+            argument.type = Argument::None;
+            return true;
+        }
+        if (object->begin()->first == "as_tensor")
+        {
+            argument.type = Argument::Tensor;
+            return decode_named_reference(object->begin()->second, argument.name, path + ".as_tensor");
+        }
+        return fail(path, "unsupported optional tensor variant");
     }
 
     bool decode_sym_argument(const JsonValue& value, Argument& argument, const std::string& path)

@@ -331,6 +331,17 @@ static void test_invalid_schema()
     expect_true(error.find("schema_version") != std::string::npos, "schema error has field path");
 }
 
+static void test_argument_variants()
+{
+    const char* document = R"json({"graph_module":{"graph":{"inputs":[],"outputs":[],"nodes":[{"target":"torch.ops.aten.index.Tensor","inputs":[{"name":"indices","arg":{"as_optional_tensors":[{"as_none":true},{"as_tensor":{"name":"index"}}]},"kind":1}],"outputs":[],"metadata":{}}],"tensor_values":{},"sym_int_values":{}},"signature":{"input_specs":[],"output_specs":[]}},"opset_version":{"aten":1},"range_constraints":{},"schema_version":{"major":8,"minor":20}})json";
+    pnnx::pt2::ExportedProgram program;
+    std::string error;
+    expect_true(pnnx::pt2::parse_exported_program(document, program, error), error.c_str());
+    expect_true(program.graph.nodes[0].inputs[0].argument.type == pnnx::pt2::Argument::OptionalTensors, "optional tensor list variant");
+    expect_true(program.graph.nodes[0].inputs[0].argument.values[0].type == pnnx::pt2::Argument::None, "optional none variant");
+    expect_true(program.graph.nodes[0].inputs[0].argument.values[1].name == "index", "optional tensor reference");
+}
+
 static void test_multiple_models_are_rejected()
 {
     const char* path = "test_exported_program_multiple_models.pt2";
@@ -362,6 +373,7 @@ int main()
     test_missing_and_invalid_payloads();
     test_tensor_range_overflow();
     test_invalid_schema();
+    test_argument_variants();
     test_multiple_models_are_rejected();
 
     if (test_failures != 0)
