@@ -289,6 +289,10 @@ static std::string normalize_target(const std::string& target)
     const size_t operator_end = target.find('.', namespace_end + 1);
     const std::string name_space = target.substr(prefix.size(), namespace_end - prefix.size());
     const std::string operator_name = target.substr(namespace_end + 1, operator_end == std::string::npos ? std::string::npos : operator_end - namespace_end - 1);
+    if (name_space == "aten" && (operator_name == "rnn_tanh" || operator_name == "rnn_relu" || operator_name == "gru" || operator_name == "lstm"))
+        return "torch._VF." + operator_name;
+    if (name_space == "aten" && (operator_name == "chunk" || operator_name == "split_with_sizes"))
+        return target;
     return name_space + "::" + operator_name;
 }
 
@@ -492,7 +496,7 @@ int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& gr
         const pt2::Node& node = program.graph.nodes[i];
         const std::string name = node.name.empty() ? "pnnx_" + std::to_string(unnamed_node_index++) : node.name;
         const std::string target = normalize_target(node.target);
-        if (target.find("::") == std::string::npos)
+        if (target.find("::") == std::string::npos && target.compare(0, 6, "torch.") != 0)
         {
             error = name + ": unsupported exported operator " + node.target;
             return -1;

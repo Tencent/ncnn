@@ -27,10 +27,10 @@ def find_pnnx():
     raise RuntimeError("pnnx executable was not found")
 
 
-def export_model(model, inputs, name, model_format, dynamic_shapes=None):
+def export_model(model, inputs, name, model_format, dynamic_shapes=None, check_trace=True):
     if model_format == "torchscript":
         path = name + "_torchscript.pt"
-        torch.jit.trace(model, inputs).save(path)
+        torch.jit.trace(model, inputs, check_trace=check_trace).save(path)
         return path
     if model_format == "pt2":
         if not has_exported_program():
@@ -79,16 +79,16 @@ def import_model(path, module_name=None):
     return module.Model().eval()
 
 
-def export_convert_import(model, inputs, name, model_format, arguments=()):
-    model_path = export_model(model, inputs, name, model_format)
+def export_convert_import(model, inputs, name, model_format, arguments=(), check_trace=True):
+    model_path = export_model(model, inputs, name, model_format, check_trace=check_trace)
     output_prefix = name + "_" + model_format
     generated_path = convert_model(model_path, output_prefix, arguments)
     return import_model(generated_path, output_prefix + "_pnnx")
 
 
-def test_model_formats(model, inputs, expected, name, compare=torch.equal):
+def test_model_formats(model, inputs, expected, name, compare=torch.equal, check_trace=True):
     expected_outputs = expected if isinstance(expected, tuple) else (expected,)
-    torchscript_model = export_convert_import(model, inputs, name, "torchscript")
+    torchscript_model = export_convert_import(model, inputs, name, "torchscript", check_trace=check_trace)
     torchscript_result = torchscript_model(*inputs)
     torchscript_outputs = torchscript_result if isinstance(torchscript_result, tuple) else (torchscript_result,)
     if len(expected_outputs) != len(torchscript_outputs) or not all(
