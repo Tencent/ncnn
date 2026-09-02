@@ -8,6 +8,8 @@
 
 #include <limits>
 
+#include "exported_program_defaults.h"
+
 namespace pnnx {
 
 static int to_pnnx_type(int scalar_type)
@@ -740,6 +742,12 @@ int load_exported_program(const std::string& path, Graph& graph,
     pt2::ExportedProgramArchive archive;
     std::string error;
     if (!pt2::load_exported_program_archive(path, archive, error))
+    {
+        fprintf(stderr, "load exported program failed: %s\n", error.c_str());
+        return -1;
+    }
+
+    if (!pt2::append_default_arguments(archive.program, error))
     {
         fprintf(stderr, "load exported program failed: %s\n", error.c_str());
         return -1;

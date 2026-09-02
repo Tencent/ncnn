@@ -760,6 +760,7 @@ endif()
 set(pnnx_SRCS
     main.cpp
     exported_program.cpp
+    exported_program_defaults.cpp
     exported_program_reader.cpp
     ir.cpp
     json.cpp

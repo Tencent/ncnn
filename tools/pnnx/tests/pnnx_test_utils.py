@@ -84,3 +84,25 @@ def export_convert_import(model, inputs, name, model_format, arguments=()):
     output_prefix = name + "_" + model_format
     generated_path = convert_model(model_path, output_prefix, arguments)
     return import_model(generated_path, output_prefix + "_pnnx")
+
+
+def test_model_formats(model, inputs, expected, name, compare=torch.equal):
+    expected_outputs = expected if isinstance(expected, tuple) else (expected,)
+    torchscript_model = export_convert_import(model, inputs, name, "torchscript")
+    torchscript_result = torchscript_model(*inputs)
+    torchscript_outputs = torchscript_result if isinstance(torchscript_result, tuple) else (torchscript_result,)
+    if len(expected_outputs) != len(torchscript_outputs) or not all(
+        compare(a, b) for a, b in zip(expected_outputs, torchscript_outputs)
+    ):
+        return False
+
+    if not has_exported_program():
+        print("SKIP PT2: torch.export.save is unavailable in torch " + torch.__version__)
+        return True
+
+    pt2_model = export_convert_import(model, inputs, name, "pt2")
+    pt2_result = pt2_model(*inputs)
+    pt2_outputs = pt2_result if isinstance(pt2_result, tuple) else (pt2_result,)
+    return len(expected_outputs) == len(pt2_outputs) and all(
+        compare(a, b) for a, b in zip(expected_outputs, pt2_outputs)
+    )
