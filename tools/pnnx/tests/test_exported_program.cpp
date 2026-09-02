@@ -252,6 +252,73 @@ static void test_invalid_tensor_payloads()
     remove(pickled);
 }
 
+static void test_constant_and_empty_payloads()
+{
+    const char* path = "test_exported_program_constant_empty.pt2";
+    pnnx::StoreZipWriter writer;
+    writer.open(path);
+    writer.write_file("package/archive_format", "pt2", 3);
+    writer.write_file("package/archive_version", "0", 1);
+    writer.write_file("package/models/model.json", exported_program_json, std::string(exported_program_json).size());
+    write_empty_payload_config(writer, "package/data/weights/model_weights_config.json");
+    write_payload_config(writer, "package/data/constants/model_constants_config.json", "tensor_0", false, "[{\"as_int\":0},{\"as_int\":4}]", "[{\"as_int\":4},{\"as_int\":1}]");
+    writer.write_file("package/data/constants/tensor_0", 0, 0);
+    writer.close();
+
+    pnnx::pt2::ExportedProgramArchive archive;
+    std::string error;
+    expect_true(pnnx::pt2::load_exported_program_archive(path, archive, error), error.c_str());
+    expect_true(archive.constants.size() == 1 && !archive.constants["tensor"].is_parameter, "constant payload metadata");
+    expect_true(archive.constant_storages["data/constants/tensor_0"].empty(), "empty tensor storage");
+    remove(path);
+}
+
+static void test_missing_and_invalid_payloads()
+{
+    const char* missing_path = "test_exported_program_missing_payload.pt2";
+    pnnx::StoreZipWriter writer;
+    writer.open(missing_path);
+    writer.write_file("package/archive_format", "pt2", 3);
+    writer.write_file("package/archive_version", "0", 1);
+    writer.write_file("package/models/model.json", exported_program_json, std::string(exported_program_json).size());
+    write_payload_config(writer, "package/data/weights/model_weights_config.json", "missing", true, "[{\"as_int\":1}]", "[{\"as_int\":1}]");
+    write_empty_payload_config(writer, "package/data/constants/model_constants_config.json");
+    writer.close();
+
+    pnnx::pt2::ExportedProgramArchive archive;
+    std::string error;
+    expect_true(!pnnx::pt2::load_exported_program_archive(missing_path, archive, error), "missing payload is rejected");
+    expect_true(error.find("missing tensor payload") != std::string::npos, "missing payload error is explicit");
+    remove(missing_path);
+
+    const char* rank_path = "test_exported_program_rank_mismatch.pt2";
+    write_payload_archive(rank_path, "weight_0", "[{\"as_int\":2},{\"as_int\":2}]", "[{\"as_int\":1}]", 0, std::vector<char>(16));
+    expect_true(!pnnx::pt2::load_exported_program_archive(rank_path, archive, error), "rank mismatch is rejected");
+    expect_true(error.find("rank mismatch") != std::string::npos, "rank mismatch error is explicit");
+    remove(rank_path);
+
+    const char* path_traversal = "test_exported_program_path_traversal.pt2";
+    write_payload_archive(path_traversal, "../weight_0", "[{\"as_int\":1}]", "[{\"as_int\":1}]", 0, std::vector<char>(4));
+    expect_true(!pnnx::pt2::load_exported_program_archive(path_traversal, archive, error), "payload path traversal is rejected");
+    expect_true(error.find("invalid payload path") != std::string::npos, "invalid payload path error is explicit");
+    remove(path_traversal);
+}
+
+static void test_tensor_range_overflow()
+{
+    const char* path = "test_exported_program_payload_overflow.pt2";
+    const char* maximum = "9223372036854775807";
+    const std::string sizes = std::string("[{\"as_int\":") + maximum + "}]";
+    const std::string strides = std::string("[{\"as_int\":") + maximum + "}]";
+    write_payload_archive(path, "weight_0", sizes.c_str(), strides.c_str(), 0, std::vector<char>(4));
+
+    pnnx::pt2::ExportedProgramArchive archive;
+    std::string error;
+    expect_true(!pnnx::pt2::load_exported_program_archive(path, archive, error), "tensor range overflow is rejected");
+    expect_true(error.find("overflows uint64") != std::string::npos, "tensor overflow error is explicit");
+    remove(path);
+}
+
 static void test_invalid_schema()
 {
     std::string document(exported_program_json);
@@ -291,6 +358,9 @@ int main()
     test_load_tensor_payloads();
     test_shared_storage_payloads();
     test_invalid_tensor_payloads();
+    test_constant_and_empty_payloads();
+    test_missing_and_invalid_payloads();
+    test_tensor_range_overflow();
     test_invalid_schema();
     test_multiple_models_are_rejected();
 
