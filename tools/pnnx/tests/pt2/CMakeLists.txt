@@ -36,50 +36,50 @@ add_test(NAME test_pt2_generated_models
             --pnnx $<TARGET_FILE:pnnx>
             --archive-tester $<TARGET_FILE:pnnx_pt2_archive_test>
             --graph-tester $<TARGET_FILE:pnnx_pt2_graph_test>)
-set_tests_properties(test_pt2_generated_models PROPERTIES LABELS "pt2;pt2-smoke;archive;json;schema;weights;graph;cli;ncnn")
+set_tests_properties(test_pt2_generated_models PROPERTIES LABELS "pt2;archive;json;schema;weights;graph;cli;ncnn")
 
 add_test(NAME test_pt2_graph_pilot COMMAND pnnx_pt2_graph_test --pilot)
-set_tests_properties(test_pt2_graph_pilot PROPERTIES LABELS "pt2;pt2-smoke;graph;malformed")
+set_tests_properties(test_pt2_graph_pilot PROPERTIES LABELS "pt2;graph;malformed")
 
 add_test(NAME test_pt2_archive_reader_malformed
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_archive_reader.py
             --tester $<TARGET_FILE:pnnx_pt2_archive_test>)
-set_tests_properties(test_pt2_archive_reader_malformed PROPERTIES LABELS "pt2;pt2-smoke;archive;malformed" TIMEOUT 30)
+set_tests_properties(test_pt2_archive_reader_malformed PROPERTIES LABELS "pt2;archive;malformed" TIMEOUT 30)
 
 add_test(NAME test_pt2_program
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_program.py
             --tester $<TARGET_FILE:pnnx_pt2_archive_test>)
-set_tests_properties(test_pt2_program PROPERTIES LABELS "pt2;pt2-smoke;json;schema;malformed" TIMEOUT 30)
+set_tests_properties(test_pt2_program PROPERTIES LABELS "pt2;json;schema;malformed" TIMEOUT 30)
 
 add_test(NAME test_pt2_weights
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_weights.py
             --tester $<TARGET_FILE:pnnx_pt2_archive_test>)
-set_tests_properties(test_pt2_weights PROPERTIES LABELS "pt2;pt2-smoke;weights;malformed" TIMEOUT 30)
+set_tests_properties(test_pt2_weights PROPERTIES LABELS "pt2;weights;malformed" TIMEOUT 30)
 
 add_test(NAME test_pt2_storezip_roundtrip
     COMMAND pnnx_pt2_archive_test --roundtrip "${CMAKE_CURRENT_BINARY_DIR}/pnnx_pt2_storezip_roundtrip.zip")
-set_tests_properties(test_pt2_storezip_roundtrip PROPERTIES LABELS "pt2;pt2-smoke;archive")
+set_tests_properties(test_pt2_storezip_roundtrip PROPERTIES LABELS "pt2;archive")
 
 add_test(NAME test_pt2_cli
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_cli_probe.py
             --pnnx $<TARGET_FILE:pnnx>)
-set_tests_properties(test_pt2_cli PROPERTIES LABELS "pt2;pt2-smoke;cli;malformed")
+set_tests_properties(test_pt2_cli PROPERTIES LABELS "pt2;cli;malformed")
 
 add_test(NAME test_pt2_dynamic_shapes
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_dynamic_shapes.py
             --pnnx $<TARGET_FILE:pnnx>
             --workdir ${CMAKE_CURRENT_BINARY_DIR}/pt2-dynamic-shapes)
-set_tests_properties(test_pt2_dynamic_shapes PROPERTIES LABELS "pt2;pt2-smoke;dynamic")
+set_tests_properties(test_pt2_dynamic_shapes PROPERTIES LABELS "pt2;dynamic")
 
 add_test(NAME test_pt2_symfloat
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_symfloat.py
             --pnnx $<TARGET_FILE:pnnx>
             --workdir ${CMAKE_CURRENT_BINARY_DIR}/pt2-symfloat)
-set_tests_properties(test_pt2_symfloat PROPERTIES LABELS "pt2;pt2-smoke;symfloat")
+set_tests_properties(test_pt2_symfloat PROPERTIES LABELS "pt2;symfloat")
 
 macro(pnnx_pt2_add_test name)
     add_test(NAME test_pt2_${name} COMMAND ${CMAKE_COMMAND} -DPYTHON_EXECUTABLE=${Python3_EXECUTABLE} -DPYTHON_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py -P ${CMAKE_CURRENT_SOURCE_DIR}/../run_test.cmake)
-    set_tests_properties(test_pt2_${name} PROPERTIES LABELS "pt2;pt2-smoke;pt2-full")
+    set_tests_properties(test_pt2_${name} PROPERTIES LABELS "pt2;pt2-regression")
 endmacro()
 
 pnnx_pt2_add_test(F_adaptive_avg_pool1d)

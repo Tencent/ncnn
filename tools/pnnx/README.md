@@ -83,10 +83,10 @@ The libtorch version used to build `pnnx` supplies the dispatcher schemas and de
 
 An unknown container, schema, opset, operator, tensor layout/device, mutation output, or symbolic expression fails conversion with a nonzero exit status. PNNX does not silently fall back to TorchScript parsing or guess a newer PT2 format.
 
-The PT2 release acceptance suite covers every enabled PT2 test, runtime-generated archive, program, weight and graph cases, malformed inputs, dynamic shapes, generated pnnx inference, and generated ncnn inference. Archive, program, weight, malformed-input, and dynamic-shape smoke tests run with PyTorch 2.12.1; the PyTorch 2.6 through 2.12.1 CI matrix runs the PT2 operator suite against every supported producer version. It requires a supported PyTorch version and the complete ncnn Python binding:
+The PT2 release acceptance suite covers every enabled PT2 test, runtime-generated archive, program, weight and graph cases, malformed inputs, dynamic shapes, generated pnnx inference, and generated ncnn inference. Archive, program, weight, malformed-input, and dynamic-shape tests run with PyTorch 2.12.1; the PyTorch 2.6 through 2.12.1 CI matrix runs the PT2 operator suite against every supported producer version. It requires a supported PyTorch version and the complete ncnn Python binding:
 
 ```shell
-ctest --output-on-failure -L pt2-smoke
+ctest --output-on-failure -L pt2
 ```
 
 Normally, you will get seven files
