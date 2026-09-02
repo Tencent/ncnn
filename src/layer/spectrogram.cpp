@@ -23,7 +23,13 @@ int Spectrogram::load_param(const ParamDict& pd)
     normalized = pd.get(7, 0);
     onesided = pd.get(8, 1);
 
-    // assert winlen <= n_fft
+    // Reject invalid params before writing into window_data (ASan #6939).
+    if (n_fft <= 0 || winlen <= 0 || winlen > n_fft)
+    {
+        NCNN_LOGE("Spectrogram load_param invalid n_fft=%d winlen=%d", n_fft, winlen);
+        return -1;
+    }
+
     // generate window
     window_data.create(normalized == 2 ? n_fft + 1 : n_fft);
     {
