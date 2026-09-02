@@ -4,6 +4,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from pnnx_test_utils import test_model_formats
 import math
 
 def gelu_forward_0(x):
@@ -39,22 +41,8 @@ def test():
 
     a = net(x, y, z, w)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
-    mod.save("test_F_gelu.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_gelu.pt inputshape=[1,16],[12,2,16],[1,3,12,16],[1,5,7,9,11]")
-
-    # pnnx inference
-    import test_F_gelu_pnnx
-    b = test_F_gelu_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-3, 1e-3):
-            return False
-    return True
+    compare = lambda x, y: torch.allclose(x, y, 1e-3, 1e-3)
+    return test_model_formats(net, (x, y, z, w), a, "test_F_gelu", compare)
 
 if __name__ == "__main__":
     if test():
