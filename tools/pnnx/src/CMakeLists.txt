@@ -759,6 +759,7 @@ endif()
 
 set(pnnx_SRCS
     main.cpp
+    exported_program.cpp
     ir.cpp
     json.cpp
     model_format.cpp
