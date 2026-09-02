@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -17,6 +19,15 @@ class Model(nn.Module):
         out4 = x.new_ones((3,3,3,3))
         return out0, out1, out2, out3, out4
 
+class NoInputModel(nn.Module):
+    def __init__(self, model, x):
+        super(NoInputModel, self).__init__()
+        self.model = model
+        self.register_buffer("x", x)
+
+    def forward(self):
+        return self.model(self.x)
+
 def test():
     net = Model()
     net.eval()
@@ -26,23 +37,11 @@ def test():
 
     a = net(x)
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_Tensor_new_ones.pt")
+    wrapped = NoInputModel(net, x)
+    wrapped.eval()
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_Tensor_new_ones.pt inputshape=[1,16]")
-
-    # pnnx inference
-    import test_Tensor_new_ones_pnnx
-    b = test_Tensor_new_ones_pnnx.test_inference()
-
-    # test shape only for uninitialized data
-    for a0, b0 in zip(a, b):
-        if not a0.shape == b0.shape:
-            return False
-    return True
+    compare = lambda a0, b0: a0.shape == b0.shape
+    return test_model_formats(wrapped, (), a, "test_Tensor_new_ones", compare)
 
 if __name__ == "__main__":
     if test():

@@ -86,7 +86,8 @@ def export_convert_import(model, inputs, name, model_format, arguments=(), check
     return import_model(generated_path, output_prefix + "_pnnx")
 
 
-def test_model_formats(model, inputs, expected, name, compare=torch.equal, check_trace=True):
+def test_model_formats(model, inputs, expected, name, compare=torch.equal, check_trace=True,
+                       unsupported_by_torch_export=None):
     expected_outputs = expected if isinstance(expected, tuple) else (expected,)
     torchscript_model = export_convert_import(model, inputs, name, "torchscript", check_trace=check_trace)
     torchscript_result = torchscript_model(*inputs)
@@ -99,6 +100,16 @@ def test_model_formats(model, inputs, expected, name, compare=torch.equal, check
     if not has_exported_program():
         print("SKIP PT2: torch.export.save is unavailable in torch " + torch.__version__)
         return True
+
+    if unsupported_by_torch_export:
+        try:
+            export_model(model, inputs, name, "pt2")
+        except Exception as exception:
+            if unsupported_by_torch_export in str(exception):
+                print("UNSUPPORTED_BY_TORCH_EXPORT: " + unsupported_by_torch_export)
+                return True
+            raise
+        raise RuntimeError("torch.export unexpectedly supports " + name)
 
     pt2_model = export_convert_import(model, inputs, name, "pt2")
     pt2_result = pt2_model(*inputs)

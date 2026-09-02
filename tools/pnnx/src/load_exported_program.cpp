@@ -289,6 +289,10 @@ static std::string normalize_target(const std::string& target)
     const size_t operator_end = target.find('.', namespace_end + 1);
     const std::string name_space = target.substr(prefix.size(), namespace_end - prefix.size());
     const std::string operator_name = target.substr(namespace_end + 1, operator_end == std::string::npos ? std::string::npos : operator_end - namespace_end - 1);
+    if (name_space == "aten" && operator_name == "lift_fresh_copy")
+        return "Tensor.clone";
+    if (name_space == "aten" && operator_name == "alias")
+        return target;
     if (name_space == "aten" && (operator_name == "rnn_tanh" || operator_name == "rnn_relu" || operator_name == "gru" || operator_name == "lstm"))
         return "torch._VF." + operator_name;
     if (name_space == "aten" && (operator_name == "chunk" || operator_name == "split_with_sizes"))
@@ -310,12 +314,17 @@ static bool to_parameter(const pt2::Argument& argument, Parameter& parameter, st
     }
     if (argument.type == pt2::Argument::Integer)
     {
-        if (argument.integer < INT_MIN || argument.integer > INT_MAX)
+        int64_t value = argument.integer;
+        if (value == std::numeric_limits<int64_t>::max()) value = INT_MAX;
+        if (value == std::numeric_limits<int64_t>::max() - 1) value = INT_MAX - 1;
+        if (value == std::numeric_limits<int64_t>::min()) value = INT_MIN;
+        if (value == std::numeric_limits<int64_t>::min() + 1) value = INT_MIN + 1;
+        if (value < INT_MIN || value > INT_MAX)
         {
             error = "integer argument is out of pnnx range";
             return false;
         }
-        parameter = Parameter((int)argument.integer);
+        parameter = Parameter((int)value);
         return true;
     }
     if (argument.type == pt2::Argument::FloatingPoint)
@@ -496,7 +505,7 @@ int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& gr
         const pt2::Node& node = program.graph.nodes[i];
         const std::string name = node.name.empty() ? "pnnx_" + std::to_string(unnamed_node_index++) : node.name;
         const std::string target = normalize_target(node.target);
-        if (target.find("::") == std::string::npos && target.compare(0, 6, "torch.") != 0)
+        if (target.find("::") == std::string::npos && target.compare(0, 6, "torch.") != 0 && target.compare(0, 7, "Tensor.") != 0)
         {
             error = name + ": unsupported exported operator " + node.target;
             return -1;
