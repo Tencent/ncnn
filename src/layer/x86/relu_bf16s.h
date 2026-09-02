@@ -161,7 +161,7 @@ static void relu_bf16s(Mat& a, float slope, const Option& opt)
                 __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
                 __m256 _pos = _mm256_max_ps(_zero_avx, _p);
                 __m256 _neg = _mm256_min_ps(_zero_avx, _p);
-                _p = _mm256_add_ps(_pos, _mm256_mul_ps(_slope_avx, _neg));
+                _p = _mm256_comp_fmadd_ps(_slope_avx, _neg, _pos);
                 _mm_storeu_si128((__m128i*)ptr, float2bfloat_avx(_p));
                 ptr += 8;
             }
@@ -172,7 +172,7 @@ static void relu_bf16s(Mat& a, float slope, const Option& opt)
                 __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                 __m128 _pos = _mm_max_ps(_zero, _p);
                 __m128 _neg = _mm_min_ps(_zero, _p);
-                _p = _mm_add_ps(_pos, _mm_mul_ps(_slope, _neg));
+                _p = _mm_comp_fmadd_ps(_slope, _neg, _pos);
                 _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
                 ptr += 4;
             }
@@ -185,7 +185,7 @@ static void relu_bf16s(Mat& a, float slope, const Option& opt)
                 __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                 __m128 _pos = _mm_max_ps(_zero, _p);
                 __m128 _neg = _mm_min_ps(_zero, _p);
-                _p = _mm_add_ps(_pos, _mm_mul_ps(_slope, _neg));
+                _p = _mm_comp_fmadd_ps(_slope, _neg, _pos);
                 _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
                 ptr += 4;
             }

@@ -87,8 +87,9 @@ static void prelu_bf16s_sse(unsigned short* ptr, const float* slope, int size, i
     for (; i + 7 < size; i += 8)
     {
         __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
-        __m256 _ps = _mm256_mul_ps(_p, _slope256);
-        _p = _mm256_blendv_ps(_p, _ps, _mm256_cmp_ps(_p, _zero_avx, _CMP_LT_OQ));
+        __m256 _pos = _mm256_max_ps(_zero_avx, _p);
+        __m256 _neg = _mm256_min_ps(_zero_avx, _p);
+        _p = _mm256_comp_fmadd_ps(_slope256, _neg, _pos);
         _mm_storeu_si128((__m128i*)ptr, float2bfloat_avx(_p));
         ptr += 8;
     }
@@ -96,9 +97,9 @@ static void prelu_bf16s_sse(unsigned short* ptr, const float* slope, int size, i
     for (; i + 3 < size; i += 4)
     {
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
-        __m128 _ps = _mm_mul_ps(_p, _slope128);
-        __m128 _mask = _mm_cmplt_ps(_p, _zero);
-        _p = _mm_or_ps(_mm_andnot_ps(_mask, _p), _mm_and_ps(_mask, _ps));
+        __m128 _pos = _mm_max_ps(_zero, _p);
+        __m128 _neg = _mm_min_ps(_zero, _p);
+        _p = _mm_comp_fmadd_ps(_slope128, _neg, _pos);
         _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
         ptr += 4;
     }
@@ -173,8 +174,9 @@ static void prelu_bf16s_per_element_sse(unsigned short* ptr, const float* slope,
         __m256 _zero_avx = _mm256_setzero_ps();
         __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(ptr + i)));
         __m256 _slope = _mm256_loadu_ps(slope + i);
-        __m256 _ps = _mm256_mul_ps(_p, _slope);
-        _p = _mm256_blendv_ps(_p, _ps, _mm256_cmp_ps(_p, _zero_avx, _CMP_LT_OQ));
+        __m256 _pos = _mm256_max_ps(_zero_avx, _p);
+        __m256 _neg = _mm256_min_ps(_zero_avx, _p);
+        _p = _mm256_comp_fmadd_ps(_slope, _neg, _pos);
         _mm_storeu_si128((__m128i*)(ptr + i), float2bfloat_avx(_p));
     }
     remain_size_start += nn_size * 8;
@@ -187,9 +189,9 @@ static void prelu_bf16s_per_element_sse(unsigned short* ptr, const float* slope,
         __m128 _zero = _mm_setzero_ps();
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr + i)));
         __m128 _slope = _mm_loadu_ps(slope + i);
-        __m128 _ps = _mm_mul_ps(_p, _slope);
-        __m128 _mask = _mm_cmplt_ps(_p, _zero);
-        _p = _mm_or_ps(_mm_andnot_ps(_mask, _p), _mm_and_ps(_mask, _ps));
+        __m128 _pos = _mm_max_ps(_zero, _p);
+        __m128 _neg = _mm_min_ps(_zero, _p);
+        _p = _mm_comp_fmadd_ps(_slope, _neg, _pos);
         _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p, _p));
     }
     remain_size_start += nn_size * 4;
@@ -264,8 +266,9 @@ static void prelu_bf16s_single_slope_sse(unsigned short* ptr, float slope, int s
         __m256 _zero_avx = _mm256_setzero_ps();
         __m256 _slope256 = _mm256_set1_ps(slope);
         __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(ptr + i)));
-        __m256 _ps = _mm256_mul_ps(_p, _slope256);
-        _p = _mm256_blendv_ps(_p, _ps, _mm256_cmp_ps(_p, _zero_avx, _CMP_LT_OQ));
+        __m256 _pos = _mm256_max_ps(_zero_avx, _p);
+        __m256 _neg = _mm256_min_ps(_zero_avx, _p);
+        _p = _mm256_comp_fmadd_ps(_slope256, _neg, _pos);
         _mm_storeu_si128((__m128i*)(ptr + i), float2bfloat_avx(_p));
     }
     remain_size_start += nn_size * 8;
@@ -278,9 +281,9 @@ static void prelu_bf16s_single_slope_sse(unsigned short* ptr, float slope, int s
         __m128 _zero = _mm_setzero_ps();
         __m128 _slope128 = _mm_set1_ps(slope);
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr + i)));
-        __m128 _ps = _mm_mul_ps(_p, _slope128);
-        __m128 _mask = _mm_cmplt_ps(_p, _zero);
-        _p = _mm_or_ps(_mm_andnot_ps(_mask, _p), _mm_and_ps(_mask, _ps));
+        __m128 _pos = _mm_max_ps(_zero, _p);
+        __m128 _neg = _mm_min_ps(_zero, _p);
+        _p = _mm_comp_fmadd_ps(_slope128, _neg, _pos);
         _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p, _p));
     }
     remain_size_start += nn_size * 4;

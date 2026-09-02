@@ -103,7 +103,7 @@ static void relu_fp32(Mat& bottom_top_blob, float slope, const Option& opt)
                 __m256 _p = _mm256_loadu_ps(ptr);
                 __m256 _pos = _mm256_max_ps(_zero_avx, _p);
                 __m256 _neg = _mm256_min_ps(_zero_avx, _p);
-                _p = _mm256_add_ps(_pos, _mm256_mul_ps(_slope_avx, _neg));
+                _p = _mm256_comp_fmadd_ps(_slope_avx, _neg, _pos);
                 _mm256_storeu_ps(ptr, _p);
                 ptr += 8;
             }
@@ -115,7 +115,7 @@ static void relu_fp32(Mat& bottom_top_blob, float slope, const Option& opt)
                 __m128 _p = _mm_load_ps(ptr);
                 __m128 _pos = _mm_max_ps(_zero, _p);
                 __m128 _neg = _mm_min_ps(_zero, _p);
-                _p = _mm_add_ps(_pos, _mm_mul_ps(_slope, _neg));
+                _p = _mm_comp_fmadd_ps(_slope, _neg, _pos);
                 _mm_store_ps(ptr, _p);
                 ptr += 4;
             }

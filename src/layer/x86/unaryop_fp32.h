@@ -9,8 +9,7 @@ namespace unaryop_x86_functor {
 
 static bool unaryop_use_fma(int op_type)
 {
-    return op_type == UnaryOp::Operation_SQRT
-           || op_type == UnaryOp::Operation_RSQRT
+    return op_type == UnaryOp::Operation_RSQRT
            || op_type == UnaryOp::Operation_EXP
            || op_type == UnaryOp::Operation_LOG
            || op_type == UnaryOp::Operation_SIN
