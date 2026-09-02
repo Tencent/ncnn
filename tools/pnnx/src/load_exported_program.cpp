@@ -279,6 +279,9 @@ int import_exported_program_inputs(const pt2::ExportedProgramArchive& archive, G
 
 static std::string normalize_target(const std::string& target)
 {
+    if (target.compare(0, 10, "_operator.") == 0)
+        return "operator." + target.substr(10);
+
     const std::string prefix = "torch.ops.";
     if (target.compare(0, prefix.size(), prefix) != 0)
         return target;
@@ -295,7 +298,9 @@ static std::string normalize_target(const std::string& target)
         return target;
     if (name_space == "aten" && (operator_name == "rnn_tanh" || operator_name == "rnn_relu" || operator_name == "gru" || operator_name == "lstm"))
         return "torch._VF." + operator_name;
-    if (name_space == "aten" && (operator_name == "chunk" || operator_name == "split_with_sizes"))
+    if (name_space == "aten" && (operator_name == "chunk" || operator_name == "split" || operator_name == "split_with_sizes" || operator_name == "tensor_split" || operator_name == "unbind"))
+        return target;
+    if (name_space == "aten" && (operator_name == "hann_window" || operator_name == "hamming_window" || operator_name == "sym_size" || operator_name == "_assert_scalar"))
         return target;
     return name_space + "::" + operator_name;
 }
@@ -427,11 +432,11 @@ static bool is_list_argument(const pt2::Argument& argument)
 
 static Operand* resolve_argument(const pt2::Argument& argument, const std::string& name, Graph& graph, std::string& error)
 {
-    if (argument.type == pt2::Argument::Tensor)
+    if (argument.type == pt2::Argument::Tensor || argument.type == pt2::Argument::SymInteger || argument.type == pt2::Argument::SymBoolean)
     {
         Operand* input = graph.get_operand(argument.name);
         if (!input)
-            error = "tensor input " + argument.name + " is not defined";
+            error = "input " + argument.name + " is not defined";
         return input;
     }
 
@@ -474,7 +479,7 @@ static Operand* resolve_argument(const pt2::Argument& argument, const std::strin
 
 static bool collect_tensor_outputs(const pt2::Argument& argument, std::vector<std::string>& names, std::string& error)
 {
-    if (argument.type == pt2::Argument::Tensor)
+    if (argument.type == pt2::Argument::Tensor || argument.type == pt2::Argument::SymInteger || argument.type == pt2::Argument::SymBoolean)
     {
         names.push_back(argument.name);
         return true;
@@ -492,7 +497,7 @@ static bool collect_tensor_outputs(const pt2::Argument& argument, std::vector<st
         }
         return true;
     }
-    error = "only tensor and tensor-list node outputs are supported";
+    error = "only tensor, tensor-list and symbolic scalar node outputs are supported";
     return false;
 }
 
@@ -505,7 +510,7 @@ int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& gr
         const pt2::Node& node = program.graph.nodes[i];
         const std::string name = node.name.empty() ? "pnnx_" + std::to_string(unnamed_node_index++) : node.name;
         const std::string target = normalize_target(node.target);
-        if (target.find("::") == std::string::npos && target.compare(0, 6, "torch.") != 0 && target.compare(0, 7, "Tensor.") != 0)
+        if (target.find("::") == std::string::npos && target.compare(0, 6, "torch.") != 0 && target.compare(0, 7, "Tensor.") != 0 && target.compare(0, 9, "operator.") != 0)
         {
             error = name + ": unsupported exported operator " + node.target;
             return -1;

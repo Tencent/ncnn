@@ -300,6 +300,11 @@ private:
             argument.type = Argument::SymInteger;
             return decode_sym_argument(data, argument, path + ".as_sym_int");
         }
+        if (type == "as_sym_bool")
+        {
+            argument.type = Argument::SymBoolean;
+            return decode_sym_argument(data, argument, path + ".as_sym_bool");
+        }
         if (type == "as_scalar_type" || type == "as_memory_format" || type == "as_layout")
         {
             argument.type = type == "as_scalar_type" ? Argument::ScalarType : type == "as_memory_format" ? Argument::MemoryFormat

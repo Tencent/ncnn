@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -33,23 +35,12 @@ def test():
     w = torch.rand(6, 13, 6, 22)
 
     a = net(x, y, z, w)
-
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
-    mod.save("test_torch_tensor_split.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_torch_tensor_split.pt inputshape=[100],[3,16],[5,9,3],[6,13,6,22]")
-
-    # pnnx inference
-    import test_torch_tensor_split_pnnx
-    b = test_torch_tensor_split_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
-            return False
-    return True
+    return test_model_formats(
+        net,
+        (x, y, z, w),
+        a,
+        "test_torch_tensor_split",
+    )
 
 if __name__ == "__main__":
     if test():

@@ -1491,6 +1491,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
     fprintf(pyfp, "import os\n");
     fprintf(pyfp, "import numpy as np\n");
     fprintf(pyfp, "import tempfile, zipfile\n");
+    fprintf(pyfp, "import operator\n");
     fprintf(pyfp, "import torch\n");
     fprintf(pyfp, "import torch.nn as nn\n");
     fprintf(pyfp, "import torch.nn.functional as F\n");
@@ -2272,7 +2273,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
                 else
                 {
-                    fprintf(pyfp, " = %s(", op->type.c_str());
+                    fprintf(pyfp, "%s%s(", op->outputs.empty() ? "" : " = ", op->type.c_str());
 
                     if (op->inputnames.size() == op->inputs.size())
                     {
