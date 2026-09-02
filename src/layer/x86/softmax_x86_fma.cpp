@@ -7,7 +7,16 @@
 #include "layer.h"
 #include "layer_type.h"
 #include "mat.h"
-#include "x86_activation.h"
+
+#if __SSE2__
+#include <emmintrin.h>
+#include "sse_mathfun.h"
+#if __AVX__
+#include <immintrin.h>
+#include "avx_mathfun.h"
+#endif // __AVX__
+#endif // __SSE2__
+
 #include "x86_usability.h"
 
 namespace ncnn {

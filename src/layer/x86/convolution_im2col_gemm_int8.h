@@ -18,9 +18,6 @@ void convolution_im2col_input_tile_int8_avx2(const Mat& bottom_blob, Mat& B, int
 void unpack_output_tile_int32_avx2(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
-#endif
-
 // gemm_x86.h
 #if NCNN_RUNTIME_CPU && __AVX512F__
 namespace Gemm_x86_avx512_utility {

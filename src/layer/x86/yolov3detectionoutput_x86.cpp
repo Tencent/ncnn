@@ -8,8 +8,6 @@
 
 #include <float.h>
 
-#include "cpu.h"
-
 namespace ncnn {
 
 #include "yolov3detectionoutput_fp32.h"
