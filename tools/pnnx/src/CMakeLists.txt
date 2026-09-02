@@ -761,6 +761,7 @@ set(pnnx_SRCS
     main.cpp
     ir.cpp
     json.cpp
+    model_format.cpp
     model_stat.cpp
     storezip.cpp
     utils.cpp
