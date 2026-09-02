@@ -90,6 +90,14 @@ static pnnx::pt2::ExportedProgramArchive make_archive()
     output.name = "linear";
     node.outputs.push_back(output);
     archive.program.graph.nodes.push_back(node);
+
+    archive.program.graph.outputs.push_back(output);
+    archive.program.graph.outputs.push_back(output);
+    pnnx::pt2::OutputSpec output_spec;
+    output_spec.type = pnnx::pt2::OutputSpec::UserOutput;
+    output_spec.argument = output;
+    archive.program.signature.outputs.push_back(output_spec);
+    archive.program.signature.outputs.push_back(output_spec);
     return archive;
 }
 
@@ -116,6 +124,11 @@ int main()
     expect_true(graph.ops[3]->type == "aten::linear", "aten target is normalized");
     expect_true(graph.ops[3]->inputs.size() == 3 && graph.ops[3]->inputnames[2] == "bias", "named arguments are preserved");
     expect_true(graph.get_operand("linear")->shape[1] == 2, "node output tensor metadata");
+
+    expect_true(pnnx::import_exported_program_outputs(archive.program, graph, error) == 0, error.c_str());
+    expect_true(graph.ops.size() == 6, "two graph outputs are imported");
+    expect_true(graph.ops[4]->type == "pnnx.Output" && graph.ops[5]->type == "pnnx.Output", "pnnx output operators");
+    expect_true(graph.get_operand("linear")->consumers.size() == 2, "tuple may return the same tensor twice");
 
     if (test_failures != 0)
     {

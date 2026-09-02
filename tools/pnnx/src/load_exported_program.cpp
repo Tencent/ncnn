@@ -345,38 +345,77 @@ int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& gr
             input_names.push_back(named_argument.name);
         }
 
-        if (node.outputs.size() != 1 || node.outputs[0].type != pt2::Argument::Tensor)
+        std::vector<Operand*> outputs;
+        for (size_t j = 0; j < node.outputs.size(); j++)
         {
-            error = name + ": only one tensor output is supported";
-            return -1;
-        }
+            if (node.outputs[j].type != pt2::Argument::Tensor)
+            {
+                error = name + ": only tensor outputs are supported";
+                return -1;
+            }
 
-        const std::string& output_name = node.outputs[0].name;
-        if (graph.get_operand(output_name))
-        {
-            error = name + ": tensor output " + output_name + " is already defined";
-            return -1;
+            const std::string& output_name = node.outputs[j].name;
+            if (graph.get_operand(output_name))
+            {
+                error = name + ": tensor output " + output_name + " is already defined";
+                return -1;
+            }
+
+            Operand* output = graph.new_operand(output_name);
+            std::map<std::string, pt2::TensorMeta>::const_iterator meta = program.graph.tensor_values.find(output_name);
+            if (meta != program.graph.tensor_values.end())
+            {
+                output->type = to_pnnx_type(meta->second.scalar_type);
+                if (output->type == 0 || !to_pnnx_shape(meta->second.sizes, output->shape, error))
+                {
+                    if (error.empty()) error = name + ": unsupported output tensor type";
+                    return -1;
+                }
+            }
+            outputs.push_back(output);
         }
 
         Operator* op = graph.new_operator(target, name);
         op->inputs = inputs;
         op->inputnames = input_names;
+        op->outputs = outputs;
         for (size_t j = 0; j < inputs.size(); j++)
             inputs[j]->consumers.push_back(op);
+        for (size_t j = 0; j < outputs.size(); j++)
+            outputs[j]->producer = op;
+    }
+    return 0;
+}
 
-        Operand* output = graph.new_operand(output_name);
-        output->producer = op;
-        std::map<std::string, pt2::TensorMeta>::const_iterator meta = program.graph.tensor_values.find(output_name);
-        if (meta != program.graph.tensor_values.end())
+int import_exported_program_outputs(const pt2::ExportedProgram& program, Graph& graph, std::string& error)
+{
+    error.clear();
+    if (program.graph.outputs.size() != program.signature.outputs.size())
+    {
+        error = "graph output count does not match graph signature";
+        return -1;
+    }
+
+    for (size_t i = 0; i < program.graph.outputs.size(); i++)
+    {
+        const pt2::Argument& output = program.graph.outputs[i];
+        const pt2::OutputSpec& spec = program.signature.outputs[i];
+        if (spec.type != pt2::OutputSpec::UserOutput || output.type != pt2::Argument::Tensor || spec.argument.type != pt2::Argument::Tensor || output.name != spec.argument.name)
         {
-            output->type = to_pnnx_type(meta->second.scalar_type);
-            if (output->type == 0 || !to_pnnx_shape(meta->second.sizes, output->shape, error))
-            {
-                if (error.empty()) error = name + ": unsupported output tensor type";
-                return -1;
-            }
+            error = "unsupported graph output at index " + std::to_string(i);
+            return -1;
         }
-        op->outputs.push_back(output);
+
+        Operand* operand = graph.get_operand(output.name);
+        if (!operand)
+        {
+            error = "graph output " + output.name + " is not defined";
+            return -1;
+        }
+
+        Operator* op = graph.new_operator("pnnx.Output", "pnnx_output_" + std::to_string(i));
+        operand->consumers.push_back(op);
+        op->inputs.push_back(operand);
     }
     return 0;
 }
@@ -403,8 +442,13 @@ int load_exported_program(const std::string& path, Graph& graph)
         return -1;
     }
 
-    fprintf(stderr, "load exported program failed: graph output import is not supported yet\n");
-    return -1;
+    if (import_exported_program_outputs(archive.program, graph, error) != 0)
+    {
+        fprintf(stderr, "load exported program failed: %s\n", error.c_str());
+        return -1;
+    }
+
+    return 0;
 }
 
 } // namespace pnnx
