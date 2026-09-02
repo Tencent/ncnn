@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -43,22 +45,8 @@ def test():
 
     a = net(q, k, v, m, k2, v2, m2)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (q, k, v, m, k2, v2, m2))
-    mod.save("test_F_scaled_dot_product_attention.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_scaled_dot_product_attention.pt inputshape=[3,8,128,64],[3,8,48,64],[3,8,48,77],[3,8,128,48],[3,2,48,64],[3,2,48,77],[3,1,128,48]")
-
-    # pnnx inference
-    import test_F_scaled_dot_product_attention_pnnx
-    b = test_F_scaled_dot_product_attention_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
-            return False
-    return True
+    inputs = (q, k, v, m, k2, v2, m2)
+    return test_model_formats(net, inputs, a, "test_F_scaled_dot_product_attention")
 
 if __name__ == "__main__":
     if test():

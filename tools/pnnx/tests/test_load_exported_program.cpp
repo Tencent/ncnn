@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 
+#include "exported_program_defaults.h"
 #include "load_exported_program.h"
 
 static int test_failures = 0;
@@ -103,9 +104,32 @@ static pnnx::pt2::ExportedProgramArchive make_archive()
 
 int main()
 {
+    pnnx::pt2::ExportedProgram defaults_program;
+    pnnx::pt2::Node defaults_node;
+    defaults_node.name = "scaled_dot_product_attention";
+    defaults_node.target = "torch.ops.aten.scaled_dot_product_attention.default";
+    const char* explicit_arguments[] = {"query", "key", "value", "enable_gqa"};
+    for (size_t i = 0; i < 4; i++)
+    {
+        pnnx::pt2::NamedArgument argument;
+        argument.name = explicit_arguments[i];
+        argument.argument.type = i == 3 ? pnnx::pt2::Argument::Boolean : pnnx::pt2::Argument::Tensor;
+        argument.argument.boolean = true;
+        defaults_node.inputs.push_back(argument);
+    }
+    defaults_program.graph.nodes.push_back(defaults_node);
+    std::string error;
+    expect_true(pnnx::pt2::append_default_arguments(defaults_program, error), error.c_str());
+    const pnnx::pt2::Node& ordered_node = defaults_program.graph.nodes[0];
+    expect_true(ordered_node.inputs.size() == 8, "dispatcher defaults are appended");
+    if (ordered_node.inputs.size() == 8)
+    {
+        expect_true(ordered_node.inputs[3].name == "attn_mask" && ordered_node.inputs[3].argument.type == pnnx::pt2::Argument::None, "default arguments precede later explicit arguments");
+        expect_true(ordered_node.inputs[7].name == "enable_gqa" && ordered_node.inputs[7].argument.boolean, "explicit keyword argument retains schema position");
+    }
+
     pnnx::pt2::ExportedProgramArchive archive = make_archive();
     pnnx::Graph graph;
-    std::string error;
     expect_true(pnnx::import_exported_program_inputs(archive, graph, error) == 0, error.c_str());
     expect_true(graph.ops.size() == 2, "attribute and user input operators");
     expect_true(graph.ops[0]->type == "pnnx.Attribute" && graph.ops[0]->name == "linear.weight", "parameter attribute operator");

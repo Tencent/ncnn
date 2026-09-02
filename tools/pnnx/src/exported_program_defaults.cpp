@@ -116,15 +116,30 @@ bool append_default_arguments(ExportedProgram& program, std::string& error)
         }
 
         const std::vector<c10::Argument>& schema_arguments = handle->schema().arguments();
-        std::map<std::string, bool> present;
+        std::map<std::string, size_t> present;
         for (size_t i = 0; i < node.inputs.size(); i++)
-            present[node.inputs[i].name] = true;
+        {
+            if (present.find(node.inputs[i].name) != present.end())
+            {
+                error = node.name + ": duplicate argument " + node.inputs[i].name;
+                return false;
+            }
+            present[node.inputs[i].name] = i;
+        }
 
+        std::vector<NamedArgument> ordered_inputs;
+        ordered_inputs.reserve(schema_arguments.size());
+        size_t matched_input_count = 0;
         for (size_t i = 0; i < schema_arguments.size(); i++)
         {
             const c10::Argument& schema_argument = schema_arguments[i];
-            if (present.find(schema_argument.name()) != present.end())
+            std::map<std::string, size_t>::const_iterator it = present.find(schema_argument.name());
+            if (it != present.end())
+            {
+                ordered_inputs.push_back(node.inputs[it->second]);
+                matched_input_count++;
                 continue;
+            }
             if (!schema_argument.default_value().has_value())
             {
                 error = node.name + ": required argument " + schema_argument.name() + " is missing";
@@ -139,8 +154,14 @@ bool append_default_arguments(ExportedProgram& program, std::string& error)
                 error = node.name + ": unsupported default value for argument " + schema_argument.name();
                 return false;
             }
-            node.inputs.push_back(argument);
+            ordered_inputs.push_back(argument);
         }
+        if (matched_input_count != node.inputs.size())
+        {
+            error = node.name + ": argument was not found in operator schema";
+            return false;
+        }
+        node.inputs.swap(ordered_inputs);
     }
     return true;
 }
