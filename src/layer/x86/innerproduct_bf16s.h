@@ -200,6 +200,72 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
             const unsigned short* sptr = bottom_blob;
 
             int i = 0;
+#if __AVXNECONVERT__
+            for (; i + 7 < num_input; i += 8)
+            {
+                __m256 _val0 = _mm256_comp_bcstnebf16_ps(sptr);
+                __m256 _val1 = _mm256_comp_bcstnebf16_ps(sptr + 1);
+                __m256 _val2 = _mm256_comp_bcstnebf16_ps(sptr + 2);
+                __m256 _val3 = _mm256_comp_bcstnebf16_ps(sptr + 3);
+                __m256 _val4 = _mm256_comp_bcstnebf16_ps(sptr + 4);
+                __m256 _val5 = _mm256_comp_bcstnebf16_ps(sptr + 5);
+                __m256 _val6 = _mm256_comp_bcstnebf16_ps(sptr + 6);
+                __m256 _val7 = _mm256_comp_bcstnebf16_ps(sptr + 7);
+
+                __m256 _w0 = _mm256_cvtneebf16_ps((const __m256bh*)kptr);
+                __m256 _w1 = _mm256_cvtneobf16_ps((const __m256bh*)kptr);
+                __m256 _w2 = _mm256_cvtneebf16_ps((const __m256bh*)(kptr + 16));
+                __m256 _w3 = _mm256_cvtneobf16_ps((const __m256bh*)(kptr + 16));
+                __m256 _w4 = _mm256_cvtneebf16_ps((const __m256bh*)(kptr + 32));
+                __m256 _w5 = _mm256_cvtneobf16_ps((const __m256bh*)(kptr + 32));
+                __m256 _w6 = _mm256_cvtneebf16_ps((const __m256bh*)(kptr + 48));
+                __m256 _w7 = _mm256_cvtneobf16_ps((const __m256bh*)(kptr + 48));
+
+                _sum0 = _mm256_fmadd_ps(_val0, _w0, _sum0);
+                _sum1 = _mm256_fmadd_ps(_val1, _w1, _sum1);
+                _sum2 = _mm256_fmadd_ps(_val2, _w2, _sum2);
+                _sum3 = _mm256_fmadd_ps(_val3, _w3, _sum3);
+                _sum4 = _mm256_fmadd_ps(_val4, _w4, _sum4);
+                _sum5 = _mm256_fmadd_ps(_val5, _w5, _sum5);
+                _sum6 = _mm256_fmadd_ps(_val6, _w6, _sum6);
+                _sum7 = _mm256_fmadd_ps(_val7, _w7, _sum7);
+
+                sptr += 8;
+                kptr += 64;
+            }
+            for (; i + 3 < num_input; i += 4)
+            {
+                __m256 _val0 = _mm256_comp_bcstnebf16_ps(sptr);
+                __m256 _val1 = _mm256_comp_bcstnebf16_ps(sptr + 1);
+                __m256 _val2 = _mm256_comp_bcstnebf16_ps(sptr + 2);
+                __m256 _val3 = _mm256_comp_bcstnebf16_ps(sptr + 3);
+
+                __m256 _w0 = _mm256_cvtneebf16_ps((const __m256bh*)kptr);
+                __m256 _w1 = _mm256_cvtneobf16_ps((const __m256bh*)kptr);
+                __m256 _w2 = _mm256_cvtneebf16_ps((const __m256bh*)(kptr + 16));
+                __m256 _w3 = _mm256_cvtneobf16_ps((const __m256bh*)(kptr + 16));
+
+                _sum0 = _mm256_fmadd_ps(_val0, _w0, _sum0);
+                _sum1 = _mm256_fmadd_ps(_val1, _w1, _sum1);
+                _sum2 = _mm256_fmadd_ps(_val2, _w2, _sum2);
+                _sum3 = _mm256_fmadd_ps(_val3, _w3, _sum3);
+
+                sptr += 4;
+                kptr += 32;
+            }
+            for (; i + 1 < num_input; i += 2)
+            {
+                __m256 _val0 = _mm256_comp_bcstnebf16_ps(sptr);
+                __m256 _val1 = _mm256_comp_bcstnebf16_ps(sptr + 1);
+                __m256 _w0 = _mm256_cvtneebf16_ps((const __m256bh*)kptr);
+                __m256 _w1 = _mm256_cvtneobf16_ps((const __m256bh*)kptr);
+                _sum0 = _mm256_fmadd_ps(_val0, _w0, _sum0);
+                _sum1 = _mm256_fmadd_ps(_val1, _w1, _sum1);
+
+                sptr += 2;
+                kptr += 16;
+            }
+#endif // __AVXNECONVERT__
             for (; i + 7 < num_input; i += 8)
             {
                 __m256 _val0 = _mm256_comp_bcstnebf16_ps(sptr);
@@ -1006,6 +1072,25 @@ static void innerproduct_transform_kernel_bf16s(const Mat& weight_data, Mat& wei
 
                 transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
 
+#if __AVXNECONVERT__
+                __m128i _r01l = _mm_unpacklo_epi16(_r0, _r1);
+                __m128i _r01h = _mm_unpackhi_epi16(_r0, _r1);
+                __m128i _r23l = _mm_unpacklo_epi16(_r2, _r3);
+                __m128i _r23h = _mm_unpackhi_epi16(_r2, _r3);
+                __m128i _r45l = _mm_unpacklo_epi16(_r4, _r5);
+                __m128i _r45h = _mm_unpackhi_epi16(_r4, _r5);
+                __m128i _r67l = _mm_unpacklo_epi16(_r6, _r7);
+                __m128i _r67h = _mm_unpackhi_epi16(_r6, _r7);
+
+                _mm_storeu_si128((__m128i*)g0, _r01l);
+                _mm_storeu_si128((__m128i*)(g0 + 8), _r01h);
+                _mm_storeu_si128((__m128i*)(g0 + 16), _r23l);
+                _mm_storeu_si128((__m128i*)(g0 + 24), _r23h);
+                _mm_storeu_si128((__m128i*)(g0 + 32), _r45l);
+                _mm_storeu_si128((__m128i*)(g0 + 40), _r45h);
+                _mm_storeu_si128((__m128i*)(g0 + 48), _r67l);
+                _mm_storeu_si128((__m128i*)(g0 + 56), _r67h);
+#else
                 _mm_storeu_si128((__m128i*)g0, _r0);
                 _mm_storeu_si128((__m128i*)(g0 + 8), _r1);
                 _mm_storeu_si128((__m128i*)(g0 + 16), _r2);
@@ -1014,6 +1099,7 @@ static void innerproduct_transform_kernel_bf16s(const Mat& weight_data, Mat& wei
                 _mm_storeu_si128((__m128i*)(g0 + 40), _r5);
                 _mm_storeu_si128((__m128i*)(g0 + 48), _r6);
                 _mm_storeu_si128((__m128i*)(g0 + 56), _r7);
+#endif // __AVXNECONVERT__
 
                 k0 += 8;
                 k1 += 8;
@@ -1025,6 +1111,37 @@ static void innerproduct_transform_kernel_bf16s(const Mat& weight_data, Mat& wei
                 k7 += 8;
                 g0 += 64;
             }
+#if __AVXNECONVERT__
+            for (; p + 1 < num_input; p += 2)
+            {
+                g0[0] = float32_to_bfloat16(k0[0]);
+                g0[1] = float32_to_bfloat16(k0[1]);
+                g0[2] = float32_to_bfloat16(k1[0]);
+                g0[3] = float32_to_bfloat16(k1[1]);
+                g0[4] = float32_to_bfloat16(k2[0]);
+                g0[5] = float32_to_bfloat16(k2[1]);
+                g0[6] = float32_to_bfloat16(k3[0]);
+                g0[7] = float32_to_bfloat16(k3[1]);
+                g0[8] = float32_to_bfloat16(k4[0]);
+                g0[9] = float32_to_bfloat16(k4[1]);
+                g0[10] = float32_to_bfloat16(k5[0]);
+                g0[11] = float32_to_bfloat16(k5[1]);
+                g0[12] = float32_to_bfloat16(k6[0]);
+                g0[13] = float32_to_bfloat16(k6[1]);
+                g0[14] = float32_to_bfloat16(k7[0]);
+                g0[15] = float32_to_bfloat16(k7[1]);
+
+                k0 += 2;
+                k1 += 2;
+                k2 += 2;
+                k3 += 2;
+                k4 += 2;
+                k5 += 2;
+                k6 += 2;
+                k7 += 2;
+                g0 += 16;
+            }
+#endif // __AVXNECONVERT__
             for (; p < num_input; p++)
             {
                 g0[0] = float32_to_bfloat16(*k0++);

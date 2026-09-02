@@ -692,6 +692,21 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
 #endif
                         pK = key_panel + (size_t)d * NR + k;
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__
+                        pK = key_panel + k * 2;
+                        for (; d + 1 < head_dim; d += 2)
+                        {
+                            __m256 _k0 = _mm256_cvtneebf16_ps((const __m256bh*)pK);
+                            __m256 _k1 = _mm256_cvtneobf16_ps((const __m256bh*)pK);
+                            _sum0 = _mm256_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA), _k0, _sum0);
+                            _sum1 = _mm256_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA + query_cstep), _k0, _sum1);
+                            _sum0 = _mm256_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA + 1), _k1, _sum0);
+                            _sum1 = _mm256_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA + query_cstep + 1), _k1, _sum1);
+                            pA += 2;
+                            pK += NR * 2;
+                        }
+                        pK = key_panel + (size_t)d * NR + k;
+#endif // __AVXNECONVERT__
                         for (; d < head_dim; d++)
                         {
                             __m256 _k = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pK));
@@ -761,6 +776,21 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
 #endif
                         pK = key_panel + (size_t)d * NR + k;
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__
+                        pK = key_panel + k * 2;
+                        for (; d + 1 < head_dim; d += 2)
+                        {
+                            __m128 _k0 = _mm_cvtneebf16_ps((const __m128bh*)pK);
+                            __m128 _k1 = _mm_cvtneobf16_ps((const __m128bh*)pK);
+                            _sum0 = _mm_fmadd_ps(_mm_comp_bcstnebf16_ps(pA), _k0, _sum0);
+                            _sum1 = _mm_fmadd_ps(_mm_comp_bcstnebf16_ps(pA + query_cstep), _k0, _sum1);
+                            _sum0 = _mm_fmadd_ps(_mm_comp_bcstnebf16_ps(pA + 1), _k1, _sum0);
+                            _sum1 = _mm_fmadd_ps(_mm_comp_bcstnebf16_ps(pA + query_cstep + 1), _k1, _sum1);
+                            pA += 2;
+                            pK += NR * 2;
+                        }
+                        pK = key_panel + (size_t)d * NR + k;
+#endif // __AVXNECONVERT__
                         for (; d < head_dim; d++)
                         {
                             __m128 _k = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pK));
@@ -816,6 +846,23 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
                         sum11 = _mm_cvtss_f32(_mm_shuffle_ps(_sum, _sum, _MM_SHUFFLE(3, 3, 3, 3)));
                         pK = key_panel + (size_t)d * NR + k;
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__
+                        pK = key_panel + k * 2;
+                        for (; d + 1 < head_dim; d += 2)
+                        {
+                            const float q00 = bfloat16_to_float32(pA[0]);
+                            const float q01 = bfloat16_to_float32(pA[1]);
+                            const float q10 = bfloat16_to_float32(pA[query_cstep]);
+                            const float q11 = bfloat16_to_float32(pA[query_cstep + 1]);
+                            sum00 += q00 * bfloat16_to_float32(pK[0]) + q01 * bfloat16_to_float32(pK[1]);
+                            sum01 += q00 * bfloat16_to_float32(pK[2]) + q01 * bfloat16_to_float32(pK[3]);
+                            sum10 += q10 * bfloat16_to_float32(pK[0]) + q11 * bfloat16_to_float32(pK[1]);
+                            sum11 += q10 * bfloat16_to_float32(pK[2]) + q11 * bfloat16_to_float32(pK[3]);
+                            pA += 2;
+                            pK += NR * 2;
+                        }
+                        pK = key_panel + (size_t)d * NR + k;
+#endif // __AVXNECONVERT__
                         for (; d < head_dim; d++)
                         {
                             const float k0 = bfloat16_to_float32(pK[0]);
@@ -867,6 +914,19 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
                         }
                         pK = key_panel + (size_t)d * NR + k;
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__
+                        pK = key_panel + k * 2;
+                        for (; d + 1 < head_dim; d += 2)
+                        {
+                            const float k0 = bfloat16_to_float32(pK[0]);
+                            const float k1 = bfloat16_to_float32(pK[1]);
+                            sum0 += bfloat16_to_float32(pA[0]) * k0 + bfloat16_to_float32(pA[1]) * k1;
+                            sum1 += bfloat16_to_float32(pA[query_cstep]) * k0 + bfloat16_to_float32(pA[query_cstep + 1]) * k1;
+                            pA += 2;
+                            pK += NR * 2;
+                        }
+                        pK = key_panel + (size_t)d * NR + k;
+#endif // __AVXNECONVERT__
                         for (; d < head_dim; d++)
                         {
                             const float v = bfloat16_to_float32(*pK);
@@ -1241,6 +1301,19 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
                         }
                         pK = key_panel + (size_t)d * NR + k;
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__
+                        pK = key_panel + k * 2;
+                        for (; d + 1 < head_dim; d += 2)
+                        {
+                            __m256 _k0 = _mm256_cvtneebf16_ps((const __m256bh*)pK);
+                            __m256 _k1 = _mm256_cvtneobf16_ps((const __m256bh*)pK);
+                            _sum = _mm256_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA), _k0, _sum);
+                            _sum = _mm256_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA + 1), _k1, _sum);
+                            pA += 2;
+                            pK += NR * 2;
+                        }
+                        pK = key_panel + (size_t)d * NR + k;
+#endif // __AVXNECONVERT__
                         for (; d < head_dim; d++)
                         {
                             _sum = _mm256_comp_fmadd_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)pK)), _mm256_comp_bcstnebf16_ps(pA), _sum);
@@ -1275,6 +1348,19 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
                         }
                         pK = key_panel + (size_t)d * NR + k;
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__
+                        pK = key_panel + k * 2;
+                        for (; d + 1 < head_dim; d += 2)
+                        {
+                            __m128 _k0 = _mm_cvtneebf16_ps((const __m128bh*)pK);
+                            __m128 _k1 = _mm_cvtneobf16_ps((const __m128bh*)pK);
+                            _sum = _mm_fmadd_ps(_mm_comp_bcstnebf16_ps(pA), _k0, _sum);
+                            _sum = _mm_fmadd_ps(_mm_comp_bcstnebf16_ps(pA + 1), _k1, _sum);
+                            pA += 2;
+                            pK += NR * 2;
+                        }
+                        pK = key_panel + (size_t)d * NR + k;
+#endif // __AVXNECONVERT__
                         for (; d < head_dim; d++)
                         {
                             _sum = _mm_comp_fmadd_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pK)), _mm_comp_bcstnebf16_ps(pA), _sum);
@@ -1333,6 +1419,19 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
                         sum1 = _mm_cvtss_f32(_mm_shuffle_ps(_sum, _sum, _MM_SHUFFLE(1, 1, 1, 1)));
                         pK = key_panel + (size_t)d * NR + k;
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__
+                        pK = key_panel + k * 2;
+                        for (; d + 1 < head_dim; d += 2)
+                        {
+                            const float q0 = bfloat16_to_float32(pA[0]);
+                            const float q1 = bfloat16_to_float32(pA[1]);
+                            sum0 += q0 * bfloat16_to_float32(pK[0]) + q1 * bfloat16_to_float32(pK[1]);
+                            sum1 += q0 * bfloat16_to_float32(pK[2]) + q1 * bfloat16_to_float32(pK[3]);
+                            pA += 2;
+                            pK += NR * 2;
+                        }
+                        pK = key_panel + (size_t)d * NR + k;
+#endif // __AVXNECONVERT__
                         for (; d < head_dim; d++)
                         {
                             const float qv = bfloat16_to_float32(*pA++);
@@ -1366,6 +1465,17 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
                         }
                         pK = key_panel + (size_t)d * NR + k;
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__
+                        pK = key_panel + k * 2;
+                        for (; d + 1 < head_dim; d += 2)
+                        {
+                            sum0 += bfloat16_to_float32(pA[0]) * bfloat16_to_float32(pK[0]);
+                            sum0 += bfloat16_to_float32(pA[1]) * bfloat16_to_float32(pK[1]);
+                            pA += 2;
+                            pK += NR * 2;
+                        }
+                        pK = key_panel + (size_t)d * NR + k;
+#endif // __AVXNECONVERT__
                         for (; d < head_dim; d++)
                         {
                             sum0 += bfloat16_to_float32(*pA++) * bfloat16_to_float32(*pK);
