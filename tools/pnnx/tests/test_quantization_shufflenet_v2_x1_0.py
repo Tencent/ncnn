@@ -4,6 +4,8 @@
 import torch
 import torchvision.models as models
 
+from pnnx_test_utils import test_model_formats
+
 def test():
     net = models.quantization.shufflenet_v2_x1_0(quantize=True)
     net.eval()
@@ -13,19 +15,14 @@ def test():
 
     a = net(x)
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_quantization_shufflenet_v2_x1_0.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_quantization_shufflenet_v2_x1_0.pt inputshape=[1,3,224,224]")
-
-    # pnnx inference
-    import test_quantization_shufflenet_v2_x1_0_pnnx
-    b = test_quantization_shufflenet_v2_x1_0_pnnx.test_inference()
-
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    return test_model_formats(
+        net,
+        (x,),
+        a,
+        "test_quantization_shufflenet_v2_x1_0",
+        lambda expected, actual: torch.allclose(expected, actual, 1e-4, 1e-4),
+        unsupported_by_torch_export="quantized::",
+    )
 
 if __name__ == "__main__":
     if test():

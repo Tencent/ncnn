@@ -337,6 +337,11 @@ static bool to_parameter(const pt2::Argument& argument, Parameter& parameter, st
         parameter = Parameter(argument.floating_point);
         return true;
     }
+    if (argument.type == pt2::Argument::Complex)
+    {
+        parameter = Parameter(std::complex<float>((float)argument.complex_real, (float)argument.complex_imag));
+        return true;
+    }
     if (argument.type == pt2::Argument::String)
     {
         parameter = Parameter(argument.string);

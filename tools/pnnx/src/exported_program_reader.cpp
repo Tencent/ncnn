@@ -288,6 +288,15 @@ private:
             argument.type = Argument::Boolean;
             return get_bool(data, argument.boolean, path + ".as_bool");
         }
+        if (type == "as_complex")
+        {
+            argument.type = Argument::Complex;
+            const JsonValue* real = member(data, "real", path + ".as_complex");
+            const JsonValue* imag = member(data, "imag", path + ".as_complex");
+            return real && imag
+                   && get_number(*real, argument.complex_real, path + ".as_complex.real")
+                   && get_number(*imag, argument.complex_imag, path + ".as_complex.imag");
+        }
         if (type == "as_string")
         {
             argument.type = Argument::String;
