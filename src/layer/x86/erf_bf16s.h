@@ -5,6 +5,10 @@
 void erf_bf16s_avx512bf16(Mat& a, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+void erf_bf16s_avxneconvert(Mat& a, const Option& opt);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void erf_bf16s_avx2(Mat& a, const Option& opt);
 #endif
@@ -22,6 +26,14 @@ static void erf_bf16s(Mat& a, const Option& opt)
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         erf_bf16s_avx512bf16(a, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        erf_bf16s_avxneconvert(a, opt);
         return;
     }
 #endif

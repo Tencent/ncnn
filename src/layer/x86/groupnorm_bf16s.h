@@ -5,6 +5,10 @@
 void groupnorm_bf16s_avx512bf16(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+void groupnorm_bf16s_avxneconvert(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void groupnorm_bf16s_avx2(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep);
 #endif
@@ -22,6 +26,14 @@ static void groupnorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const f
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         groupnorm_bf16s_avx512bf16(ptr, gamma_ptr, beta_ptr, eps, channels, size, elempack, cstep);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        groupnorm_bf16s_avxneconvert(ptr, gamma_ptr, beta_ptr, eps, channels, size, elempack, cstep);
         return;
     }
 #endif

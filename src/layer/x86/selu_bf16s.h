@@ -5,6 +5,10 @@
 void selu_bf16s_avx512bf16(Mat& a, float alphaxlambda, float lambda, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+void selu_bf16s_avxneconvert(Mat& a, float alphaxlambda, float lambda, const Option& opt);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void selu_bf16s_avx2(Mat& a, float alphaxlambda, float lambda, const Option& opt);
 #endif
@@ -22,6 +26,14 @@ static void selu_bf16s(Mat& a, float alphaxlambda, float lambda, const Option& o
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         selu_bf16s_avx512bf16(a, alphaxlambda, lambda, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        selu_bf16s_avxneconvert(a, alphaxlambda, lambda, opt);
         return;
     }
 #endif

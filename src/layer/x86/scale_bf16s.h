@@ -8,6 +8,13 @@ void scale_bf16s_per_element_avx512bf16(unsigned short* ptr, const float* scale,
 void scale_bf16s_no_bias_per_element_avx512bf16(unsigned short* ptr, const float* scale, int size, int num_threads);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+void scale_bf16s_avxneconvert(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack);
+void scale_bf16s_no_bias_avxneconvert(unsigned short* ptr, const float* scale, int size, int elempack);
+void scale_bf16s_per_element_avxneconvert(unsigned short* ptr, const float* scale, const float* bias, int size, int num_threads);
+void scale_bf16s_no_bias_per_element_avxneconvert(unsigned short* ptr, const float* scale, int size, int num_threads);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void scale_bf16s_avx2(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack);
 void scale_bf16s_no_bias_avx2(unsigned short* ptr, const float* scale, int size, int elempack);
@@ -30,6 +37,14 @@ static void scale_bf16s(unsigned short* ptr, const float* scale, const float* bi
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         scale_bf16s_avx512bf16(ptr, scale, bias, size, elempack);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        scale_bf16s_avxneconvert(ptr, scale, bias, size, elempack);
         return;
     }
 #endif
@@ -116,6 +131,14 @@ static void scale_bf16s_no_bias(unsigned short* ptr, const float* scale, int siz
     }
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        scale_bf16s_no_bias_avxneconvert(ptr, scale, size, elempack);
+        return;
+    }
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
     {
@@ -176,6 +199,14 @@ static void scale_bf16s_per_element(unsigned short* ptr, const float* scale, con
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         scale_bf16s_per_element_avx512bf16(ptr, scale, bias, size, num_threads);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        scale_bf16s_per_element_avxneconvert(ptr, scale, bias, size, num_threads);
         return;
     }
 #endif
@@ -259,6 +290,14 @@ static void scale_bf16s_no_bias_per_element(unsigned short* ptr, const float* sc
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         scale_bf16s_no_bias_per_element_avx512bf16(ptr, scale, size, num_threads);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        scale_bf16s_no_bias_per_element_avxneconvert(ptr, scale, size, num_threads);
         return;
     }
 #endif

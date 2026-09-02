@@ -6,6 +6,11 @@ void innerproduct_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const 
 void innerproduct_transform_kernel_bf16s_avx512bf16(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+void innerproduct_bf16s_avxneconvert(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+void innerproduct_transform_kernel_bf16s_avxneconvert(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void innerproduct_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 void innerproduct_transform_kernel_bf16s_avx2(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
@@ -24,6 +29,14 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         innerproduct_bf16s_avx512bf16(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        innerproduct_bf16s_avxneconvert(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
         return;
     }
 #endif
@@ -693,6 +706,14 @@ static void innerproduct_transform_kernel_bf16s(const Mat& weight_data, Mat& wei
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         innerproduct_transform_kernel_bf16s_avx512bf16(weight_data, weight_data_tm, num_input, num_output, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        innerproduct_transform_kernel_bf16s_avxneconvert(weight_data, weight_data_tm, num_input, num_output, opt);
         return;
     }
 #endif
