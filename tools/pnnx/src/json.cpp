@@ -8,6 +8,11 @@
 
 namespace pnnx {
 
+JsonParseOptions::JsonParseOptions()
+    : max_document_size(512 * 1024 * 1024), max_depth(256), max_values(16 * 1024 * 1024), max_string_size(256 * 1024 * 1024), max_number_size(256)
+{
+}
+
 JsonValue::JsonValue()
     : value_type(Null), boolean_value(false), integer_value(0), number_value(0.0)
 {
@@ -95,16 +100,19 @@ const JsonValue* JsonValue::get(const std::string& key) const
 class JsonParser
 {
 public:
-    JsonParser(const std::string& text, std::string& error)
-        : text(text), error(error), offset(0)
+    JsonParser(const std::string& text, std::string& error, const JsonParseOptions& options)
+        : text(text), error(error), options(options), offset(0), value_count(0)
     {
         error.clear();
     }
 
     bool parse(JsonValue& value)
     {
+        if (text.size() > options.max_document_size)
+            return fail("document exceeds size limit");
+
         skip_whitespace();
-        if (!parse_value(value))
+        if (!parse_value(value, 0))
             return false;
 
         skip_whitespace();
@@ -115,10 +123,14 @@ public:
     }
 
 private:
-    bool parse_value(JsonValue& value)
+    bool parse_value(JsonValue& value, size_t depth)
     {
         if (offset == text.size())
             return fail("expected value");
+
+        if (value_count == options.max_values)
+            return fail("value count exceeds limit");
+        value_count++;
 
         const char ch = text[offset];
         if (ch == 'n')
@@ -134,9 +146,17 @@ private:
             return parse_string(value.string_value);
         }
         if (ch == '[')
-            return parse_array(value);
+        {
+            if (depth == options.max_depth)
+                return fail("nesting depth exceeds limit");
+            return parse_array(value, depth);
+        }
         if (ch == '{')
-            return parse_object(value);
+        {
+            if (depth == options.max_depth)
+                return fail("nesting depth exceeds limit");
+            return parse_object(value, depth);
+        }
         if (ch == '-' || (ch >= '0' && ch <= '9'))
             return parse_number(value);
 
@@ -209,7 +229,11 @@ private:
                 offset++;
         }
 
-        const std::string token = text.substr(begin, offset - begin);
+        const size_t token_size = offset - begin;
+        if (token_size > options.max_number_size)
+            return fail("number exceeds size limit");
+
+        const std::string token = text.substr(begin, token_size);
         char* endptr = 0;
         errno = 0;
 
@@ -241,11 +265,15 @@ private:
 
         while (offset < text.size())
         {
-            const unsigned char ch = (unsigned char)text[offset++];
+            const unsigned char ch = (unsigned char)text[offset];
             if (ch == '"')
+            {
+                offset++;
                 return true;
+            }
             if (ch == '\\')
             {
+                offset++;
                 if (!parse_escape(value))
                     return false;
                 continue;
@@ -253,7 +281,16 @@ private:
             if (ch < 0x20)
                 return fail("unescaped control character in string");
 
-            value.push_back((char)ch);
+            if (ch < 0x80)
+            {
+                offset++;
+                if (!append_char((char)ch, value))
+                    return false;
+                continue;
+            }
+
+            if (!parse_utf8(value))
+                return false;
         }
 
         return fail("unterminated string");
@@ -267,33 +304,27 @@ private:
         const char escaped = text[offset++];
         if (escaped == '"' || escaped == '\\' || escaped == '/')
         {
-            value.push_back(escaped);
-            return true;
+            return append_char(escaped, value);
         }
         if (escaped == 'b')
         {
-            value.push_back('\b');
-            return true;
+            return append_char('\b', value);
         }
         if (escaped == 'f')
         {
-            value.push_back('\f');
-            return true;
+            return append_char('\f', value);
         }
         if (escaped == 'n')
         {
-            value.push_back('\n');
-            return true;
+            return append_char('\n', value);
         }
         if (escaped == 'r')
         {
-            value.push_back('\r');
-            return true;
+            return append_char('\r', value);
         }
         if (escaped == 't')
         {
-            value.push_back('\t');
-            return true;
+            return append_char('\t', value);
         }
         if (escaped != 'u')
             return fail("invalid escape sequence");
@@ -321,8 +352,7 @@ private:
             return fail("unexpected low surrogate");
         }
 
-        append_utf8(codepoint, value);
-        return true;
+        return append_utf8(codepoint, value);
     }
 
     bool parse_hex4(uint32_t& value)
@@ -348,33 +378,89 @@ private:
         return true;
     }
 
-    static void append_utf8(uint32_t codepoint, std::string& value)
+    bool parse_utf8(std::string& value)
     {
+        const size_t begin = offset;
+        const unsigned char first = (unsigned char)text[offset];
+        size_t length = 0;
+
+        if (first >= 0xc2 && first <= 0xdf)
+            length = 2;
+        else if (first >= 0xe0 && first <= 0xef)
+            length = 3;
+        else if (first >= 0xf0 && first <= 0xf4)
+            length = 4;
+        else
+            return fail("invalid utf-8 sequence");
+
+        if (text.size() - offset < length)
+            return fail("incomplete utf-8 sequence");
+
+        for (size_t i = 1; i < length; i++)
+        {
+            const unsigned char continuation = (unsigned char)text[offset + i];
+            if (continuation < 0x80 || continuation > 0xbf)
+                return fail("invalid utf-8 continuation byte");
+        }
+
+        const unsigned char second = (unsigned char)text[offset + 1];
+        if ((first == 0xe0 && second < 0xa0) || (first == 0xed && second > 0x9f) || (first == 0xf0 && second < 0x90) || (first == 0xf4 && second > 0x8f))
+            return fail("invalid utf-8 code point");
+
+        offset += length;
+        return append_bytes(text.data() + begin, length, value);
+    }
+
+    bool append_char(char ch, std::string& value)
+    {
+        return append_bytes(&ch, 1, value);
+    }
+
+    bool append_bytes(const char* data, size_t size, std::string& value)
+    {
+        if (value.size() > options.max_string_size || size > options.max_string_size - value.size())
+            return fail("string exceeds size limit");
+
+        value.append(data, size);
+        return true;
+    }
+
+    bool append_utf8(uint32_t codepoint, std::string& value)
+    {
+        char utf8[4];
+        size_t length = 0;
+
         if (codepoint <= 0x7f)
         {
-            value.push_back((char)codepoint);
+            utf8[0] = (char)codepoint;
+            length = 1;
         }
         else if (codepoint <= 0x7ff)
         {
-            value.push_back((char)(0xc0 | (codepoint >> 6)));
-            value.push_back((char)(0x80 | (codepoint & 0x3f)));
+            utf8[0] = (char)(0xc0 | (codepoint >> 6));
+            utf8[1] = (char)(0x80 | (codepoint & 0x3f));
+            length = 2;
         }
         else if (codepoint <= 0xffff)
         {
-            value.push_back((char)(0xe0 | (codepoint >> 12)));
-            value.push_back((char)(0x80 | ((codepoint >> 6) & 0x3f)));
-            value.push_back((char)(0x80 | (codepoint & 0x3f)));
+            utf8[0] = (char)(0xe0 | (codepoint >> 12));
+            utf8[1] = (char)(0x80 | ((codepoint >> 6) & 0x3f));
+            utf8[2] = (char)(0x80 | (codepoint & 0x3f));
+            length = 3;
         }
         else
         {
-            value.push_back((char)(0xf0 | (codepoint >> 18)));
-            value.push_back((char)(0x80 | ((codepoint >> 12) & 0x3f)));
-            value.push_back((char)(0x80 | ((codepoint >> 6) & 0x3f)));
-            value.push_back((char)(0x80 | (codepoint & 0x3f)));
+            utf8[0] = (char)(0xf0 | (codepoint >> 18));
+            utf8[1] = (char)(0x80 | ((codepoint >> 12) & 0x3f));
+            utf8[2] = (char)(0x80 | ((codepoint >> 6) & 0x3f));
+            utf8[3] = (char)(0x80 | (codepoint & 0x3f));
+            length = 4;
         }
+
+        return append_bytes(utf8, length, value);
     }
 
-    bool parse_array(JsonValue& value)
+    bool parse_array(JsonValue& value, size_t depth)
     {
         offset++;
         value = JsonValue();
@@ -390,7 +476,7 @@ private:
         while (true)
         {
             JsonValue element;
-            if (!parse_value(element))
+            if (!parse_value(element, depth + 1))
                 return false;
             value.array_value.push_back(element);
 
@@ -410,7 +496,7 @@ private:
         }
     }
 
-    bool parse_object(JsonValue& value)
+    bool parse_object(JsonValue& value, size_t depth)
     {
         offset++;
         value = JsonValue();
@@ -439,7 +525,7 @@ private:
             skip_whitespace();
 
             JsonValue member;
-            if (!parse_value(member))
+            if (!parse_value(member, depth + 1))
                 return false;
             if (!value.object_value.insert(std::make_pair(key, member)).second)
                 return fail("duplicate object key");
@@ -481,12 +567,21 @@ private:
 private:
     const std::string& text;
     std::string& error;
+    const JsonParseOptions& options;
     size_t offset;
+    size_t value_count;
 };
 
 bool parse_json(const std::string& text, JsonValue& value, std::string& error)
 {
-    JsonParser parser(text, error);
+    const JsonParseOptions options;
+    JsonParser parser(text, error, options);
+    return parser.parse(value);
+}
+
+bool parse_json(const std::string& text, JsonValue& value, std::string& error, const JsonParseOptions& options)
+{
+    JsonParser parser(text, error, options);
     return parser.parse(value);
 }
 

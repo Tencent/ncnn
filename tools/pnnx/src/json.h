@@ -1,6 +1,7 @@
 #ifndef PNNX_JSON_H
 #define PNNX_JSON_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include <map>
@@ -8,6 +9,18 @@
 #include <vector>
 
 namespace pnnx {
+
+class JsonParseOptions
+{
+public:
+    JsonParseOptions();
+
+    size_t max_document_size;
+    size_t max_depth;
+    size_t max_values;
+    size_t max_string_size;
+    size_t max_number_size;
+};
 
 class JsonValue
 {
@@ -49,6 +62,7 @@ private:
 };
 
 bool parse_json(const std::string& text, JsonValue& value, std::string& error);
+bool parse_json(const std::string& text, JsonValue& value, std::string& error, const JsonParseOptions& options);
 
 } // namespace pnnx
 

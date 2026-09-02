@@ -65,6 +65,9 @@ static void test_integer_boundaries()
 
     double number_value = 0.0;
     expect_true(value.get_number(number_value), "integer can be read as number");
+
+    expect_true(!pnnx::parse_json("9223372036854775808", value, error), "integer above int64 is rejected");
+    expect_true(!pnnx::parse_json("-9223372036854775809", value, error), "integer below int64 is rejected");
 }
 
 static void test_invalid_documents()
@@ -75,7 +78,10 @@ static void test_invalid_documents()
         "[1,]",
         "{\"key\":1,\"key\":2}",
         "01",
-        "\"\\uD800\""};
+        "\"\\uD800\"",
+        "\"\\uDC00\"",
+        "\"\\uD800\\u0041\"",
+        "\"\\u12xz\""};
 
     for (size_t i = 0; i < sizeof(invalid_documents) / sizeof(invalid_documents[0]); i++)
     {
@@ -86,11 +92,78 @@ static void test_invalid_documents()
     }
 }
 
+static void test_utf8_validation()
+{
+    const std::string valid_documents[] = {
+        std::string("\"") + "\xc2\xa2" + "\"",
+        std::string("\"") + "\xe2\x82\xac" + "\"",
+        std::string("\"") + "\xf0\x90\x8d\x88" + "\""};
+
+    for (size_t i = 0; i < sizeof(valid_documents) / sizeof(valid_documents[0]); i++)
+    {
+        pnnx::JsonValue value;
+        std::string error;
+        expect_true(pnnx::parse_json(valid_documents[i], value, error), "valid utf-8 is accepted");
+    }
+
+    const std::string invalid_documents[] = {
+        std::string("\"") + "\x80" + "\"",
+        std::string("\"") + "\xc0\x80" + "\"",
+        std::string("\"") + "\xe0\x80\x80" + "\"",
+        std::string("\"") + "\xed\xa0\x80" + "\"",
+        std::string("\"") + "\xf0\x80\x80\x80" + "\"",
+        std::string("\"") + "\xf4\x90\x80\x80" + "\"",
+        std::string("\"") + "\xf5\x80\x80\x80" + "\"",
+        std::string("\"") + "\xe2\x82"};
+
+    for (size_t i = 0; i < sizeof(invalid_documents) / sizeof(invalid_documents[0]); i++)
+    {
+        pnnx::JsonValue value;
+        std::string error;
+        expect_true(!pnnx::parse_json(invalid_documents[i], value, error), "invalid utf-8 is rejected");
+        expect_true(!error.empty(), "invalid utf-8 reports an error");
+    }
+}
+
+static void test_resource_limits()
+{
+    pnnx::JsonValue value;
+    std::string error;
+    pnnx::JsonParseOptions options;
+
+    options.max_document_size = 4;
+    expect_true(pnnx::parse_json("null", value, error, options), "document at size limit parses");
+    expect_true(!pnnx::parse_json("null ", value, error, options), "document above size limit is rejected");
+
+    options = pnnx::JsonParseOptions();
+    options.max_depth = 2;
+    expect_true(pnnx::parse_json("[[0]]", value, error, options), "document at depth limit parses");
+    expect_true(!pnnx::parse_json("[[[0]]]", value, error, options), "document above depth limit is rejected");
+
+    options = pnnx::JsonParseOptions();
+    options.max_values = 3;
+    expect_true(pnnx::parse_json("[1,2]", value, error, options), "document at value limit parses");
+    expect_true(!pnnx::parse_json("[1,2,3]", value, error, options), "document above value limit is rejected");
+
+    options = pnnx::JsonParseOptions();
+    options.max_string_size = 3;
+    expect_true(pnnx::parse_json("\"abc\"", value, error, options), "string at size limit parses");
+    expect_true(pnnx::parse_json("\"a\\u0062c\"", value, error, options), "escaped string at size limit parses");
+    expect_true(!pnnx::parse_json("\"abcd\"", value, error, options), "string above size limit is rejected");
+
+    options = pnnx::JsonParseOptions();
+    options.max_number_size = 3;
+    expect_true(pnnx::parse_json("123", value, error, options), "number at size limit parses");
+    expect_true(!pnnx::parse_json("-123", value, error, options), "number above size limit is rejected");
+}
+
 int main()
 {
     test_value_types();
     test_integer_boundaries();
     test_invalid_documents();
+    test_utf8_validation();
+    test_resource_limits();
 
     if (test_failures != 0)
     {
