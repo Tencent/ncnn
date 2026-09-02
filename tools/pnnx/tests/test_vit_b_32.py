@@ -5,6 +5,7 @@ import torch
 import torchvision
 import torchvision.models as models
 from packaging import version
+from pnnx_test_utils import test_model_formats
 
 def test():
     if version.parse(torchvision.__version__) < version.parse('0.12'):
@@ -18,25 +19,15 @@ def test():
 
     a = net(x)
 
-    # export torchscript
-    if version.parse(torch.__version__) >= version.parse('1.12.0'):
-        mod = torch.jit.trace(net, x, check_trace=False)
-    else:
-        mod = torch.jit.trace(net, x)
-    mod.save("test_vit_b_32.pt")
-
-    # torchscript to pnnx
-    import os
-    if version.parse(torch.__version__) >= version.parse('2.0'):
-        os.system("../src/pnnx test_vit_b_32.pt")
-    else:
-        os.system("../src/pnnx test_vit_b_32.pt inputshape=[1,3,224,224]")
-
-    # pnnx inference
-    import test_vit_b_32_pnnx
-    b = test_vit_b_32_pnnx.test_inference()
-
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    check_trace = version.parse(torch.__version__) < version.parse('1.12.0')
+    return test_model_formats(
+        net,
+        (x,),
+        a,
+        "test_vit_b_32",
+        lambda expected, actual: torch.allclose(expected, actual, 1e-4, 1e-4),
+        check_trace=check_trace,
+    )
 
 if __name__ == "__main__":
     if test():
