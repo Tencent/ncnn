@@ -366,6 +366,9 @@ int StoreZipReader::find_central_directory(uint64_t& cd_offset, uint64_t& cd_siz
         uint16_t eocd_records = read_le16(buf.data() + eocd_buf_off + 10);
         uint32_t eocd_cd_size = read_le32(buf.data() + eocd_buf_off + 12);
         uint32_t eocd_cd_offset = read_le32(buf.data() + eocd_buf_off + 16);
+        uint16_t eocd_comment_length = read_le16(buf.data() + eocd_buf_off + 20);
+        if ((uint64_t)(scan_start + p) + 22 + eocd_comment_length != (uint64_t)file_size)
+            continue;
 
         const bool eocd_saturated = eocd_records == 0xffff || eocd_cd_size == 0xffffffff || eocd_cd_offset == 0xffffffff;
         if (!eocd_saturated)
@@ -391,10 +394,12 @@ int StoreZipReader::find_central_directory(uint64_t& cd_offset, uint64_t& cd_siz
         long loc_pos = (scan_start + p) - 20;
         if (loc_pos < 0)
             continue;
-        long lp = loc_pos - scan_start;
-        if (!(buf[lp] == 0x50 && buf[lp + 1] == 0x4b && buf[lp + 2] == 0x06 && buf[lp + 3] == 0x07))
+        unsigned char locator[20];
+        if (fseek(fp, loc_pos, SEEK_SET) != 0 || fread(locator, sizeof(locator), 1, fp) != 1)
             continue;
-        uint64_t eocdr64_offset = read_le64(buf.data() + lp + 8);
+        if (!(locator[0] == 0x50 && locator[1] == 0x4b && locator[2] == 0x06 && locator[3] == 0x07))
+            continue;
+        uint64_t eocdr64_offset = read_le64(locator + 8);
 
         // Read + validate the zip64 EOCD record.
         if (fseek(fp, (long)eocdr64_offset, SEEK_SET) != 0)

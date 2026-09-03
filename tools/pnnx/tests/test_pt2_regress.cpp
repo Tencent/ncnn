@@ -12,6 +12,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 using namespace pnnx;
 
@@ -182,13 +183,16 @@ static void test_scalar_type_argument()
     Pt2Argument a;
     a.type = Pt2Argument::SCALAR_TYPE;
 
-    a.int_value = 7;
-    CHECK(argument_to_constant(a, v) && v.type == 2 && v.i == 6,
-          "scalar_type: serialized float32 maps to JIT float32");
+    const int expected[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+    for (int i = 1; i <= 13; i++)
+    {
+        a.int_value = i;
+        CHECK(argument_to_constant(a, v) && v.type == 2 && v.i == expected[i - 1],
+              "scalar_type: serialized enum maps to JIT enum");
+    }
 
-    a.int_value = 5;
-    CHECK(argument_to_constant(a, v) && v.type == 2 && v.i == 4,
-          "scalar_type: serialized int64 maps to JIT int64");
+    a.int_value = 99;
+    CHECK(!argument_to_constant(a, v), "scalar_type: unknown enum is rejected");
 }
 
 static void build_adaptive_pool_graph(Graph& g)
@@ -259,15 +263,15 @@ static void test_adaptive_pool_source_guard()
 static void test_adaptive_pool_module_source_guard()
 {
     Graph g;
-    g.parse(R "PNNXIR(7767517
-            3 2 pnnx.Input input_0 0 1 input
-                nn.AdaptiveAvgPool2d op_0 1 1 input out output_size
-            = (8, 8)
-                  pnnx.Output output 1 0 out) PNNXIR ");
-        find_op(g, "nn.AdaptiveAvgPool2d")
-            ->inputs[0]
-            ->shape
-        = std::vector<int>{1, 3, 8, 8};
+    // clang-format off
+    g.parse(R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input
+nn.AdaptiveAvgPool2d   op_0        1 1 input out output_size=(8,8)
+pnnx.Output             output      1 0 out
+)PNNXIR");
+    // clang-format on
+    find_op(g, "nn.AdaptiveAvgPool2d")->inputs[0]->shape = std::vector<int>{1, 3, 8, 8};
 
     F_pt2_nn_adaptive_avg_pool2d pass;
     int opindex = 0;
@@ -277,13 +281,15 @@ static void test_adaptive_pool_module_source_guard()
           "adaptive_pool module: explicit size is preserved");
 
     Graph pt2;
-    pt2.parse(R "PNNXIR(7767517
-              3 2 pnnx.Input input_0 0 1 input
-                  nn.AdaptiveAvgPool2d op_0 1 1 input out output_size
-              = (8, 8)
-                    pnnx.Output output 1 0 out) PNNXIR ");
-        Operator* pool
-        = find_op(pt2, "nn.AdaptiveAvgPool2d");
+    // clang-format off
+    pt2.parse(R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input
+nn.AdaptiveAvgPool2d   op_0        1 1 input out output_size=(8,8)
+pnnx.Output             output      1 0 out
+)PNNXIR");
+    // clang-format on
+    Operator* pool = find_op(pt2, "nn.AdaptiveAvgPool2d");
     pool->inputs[0]->shape = std::vector<int>{1, 3, 8, 8};
     Parameter marker;
     marker.type = 4;
@@ -328,6 +334,94 @@ static void test_storezip_zip64_roundtrip()
     remove(empty_path);
 }
 
+static void test_storezip_eocd_validation()
+{
+    const char* path = "test_pt2_storezip_comment_regress.zip";
+    std::vector<unsigned char> archive(22 + 28, 0);
+    archive[0] = 0x50;
+    archive[1] = 0x4b;
+    archive[2] = 0x05;
+    archive[3] = 0x06;
+    archive[20] = 28;
+    archive[22] = 0x50;
+    archive[23] = 0x4b;
+    archive[24] = 0x05;
+    archive[25] = 0x06;
+    archive[42] = 1;
+    FILE* fp = fopen(path, "wb");
+    CHECK(fp != 0 && fwrite(archive.data(), archive.size(), 1, fp) == 1,
+          "storezip: writes EOCD comment regression archive");
+    if (fp)
+        fclose(fp);
+
+    StoreZipReader reader;
+    CHECK(reader.open(path) == 0 && reader.get_names().empty(),
+          "storezip: ignores EOCD signature inside comment");
+    reader.close();
+    remove(path);
+}
+
+static void test_storezip_long_comment_zip64()
+{
+    const char* path = "test_pt2_storezip_long_comment.zip";
+    const char payload[] = "zip64 long comment";
+    StoreZipWriter writer;
+    CHECK(writer.open(path) == 0 && writer.write_file("payload.txt", payload, sizeof(payload) - 1) == 0
+                  && writer.close() == 0,
+          "storezip: writes Zip64 archive for long comment regression");
+
+    FILE* fp = fopen(path, "rb");
+    long size = 0;
+    std::vector<unsigned char> archive;
+    if (fp)
+    {
+        fseek(fp, 0, SEEK_END);
+        size = ftell(fp);
+        fseek(fp, 0, SEEK_SET);
+        archive.resize(size);
+    }
+    CHECK(fp != 0 && !archive.empty() && fread(archive.data(), archive.size(), 1, fp) == 1,
+          "storezip: reads Zip64 archive for long comment regression");
+    if (fp)
+        fclose(fp);
+    if (archive.empty())
+    {
+        remove(path);
+        return;
+    }
+
+    long eocd = -1;
+    for (long i = size - 22; i >= 0; i--)
+    {
+        if (archive[i] == 0x50 && archive[i + 1] == 0x4b && archive[i + 2] == 0x05 && archive[i + 3] == 0x06)
+        {
+            eocd = i;
+            break;
+        }
+    }
+    CHECK(eocd >= 0, "storezip: finds EOCD in Zip64 archive");
+    if (eocd < 0)
+    {
+        remove(path);
+        return;
+    }
+    const uint16_t comment_length = 65516;
+    archive[eocd + 20] = (unsigned char)(comment_length & 0xff);
+    archive[eocd + 21] = (unsigned char)(comment_length >> 8);
+    archive.resize(archive.size() + comment_length, 0);
+    fp = fopen(path, "wb");
+    CHECK(fp != 0 && fwrite(archive.data(), archive.size(), 1, fp) == 1,
+          "storezip: appends maximum scan-boundary comment");
+    if (fp)
+        fclose(fp);
+
+    StoreZipReader reader;
+    CHECK(reader.open(path) == 0 && reader.get_file_size("payload.txt") == sizeof(payload) - 1,
+          "storezip: reads Zip64 locator before scan buffer");
+    reader.close();
+    remove(path);
+}
+
 static void test_output_spec_filter()
 {
     const JsonValue specs = parse_json(R"JSON([
@@ -347,6 +441,8 @@ int main()
     test_adaptive_pool_source_guard();
     test_adaptive_pool_module_source_guard();
     test_storezip_zip64_roundtrip();
+    test_storezip_eocd_validation();
+    test_storezip_long_comment_zip64();
     test_output_spec_filter();
 
     if (g_failed == 0)

@@ -35,16 +35,51 @@ static int pt2_dtype_to_pnnx_type(long long dtype)
     return type;
 }
 
-static long long pt2_scalar_type_to_jit_type(long long scalar_type)
+static bool pt2_scalar_type_to_jit_type(long long scalar_type, long long& jit_type)
 {
     switch (scalar_type)
     {
-    case 7:
-        return 6;
+    case 1:
+        jit_type = 0;
+        return true;
+    case 2:
+        jit_type = 1;
+        return true;
+    case 3:
+        jit_type = 2;
+        return true;
+    case 4:
+        jit_type = 3;
+        return true;
     case 5:
-        return 4;
+        jit_type = 4;
+        return true;
+    case 6:
+        jit_type = 5;
+        return true;
+    case 7:
+        jit_type = 6;
+        return true;
+    case 8:
+        jit_type = 7;
+        return true;
+    case 9:
+        jit_type = 8;
+        return true;
+    case 10:
+        jit_type = 9;
+        return true;
+    case 11:
+        jit_type = 10;
+        return true;
+    case 12:
+        jit_type = 11;
+        return true;
+    case 13:
+        jit_type = 12;
+        return true;
     default:
-        return scalar_type;
+        return false;
     }
 }
 
@@ -210,7 +245,12 @@ static bool argument_to_constant(const Pt2Argument& a, Parameter& value)
         return true;
     case Pt2Argument::SCALAR_TYPE:
         // PT2 dtype enums differ from TorchScript scalar types.
-        value = Parameter(pt2_scalar_type_to_jit_type(a.int_value));
+        {
+            long long jit_type = 0;
+            if (!pt2_scalar_type_to_jit_type(a.int_value, jit_type))
+                return false;
+            value = Parameter(jit_type);
+        }
         return true;
     case Pt2Argument::MEMORY_FORMAT:
         value = Parameter((long long)a.int_value);
