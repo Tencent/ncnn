@@ -266,3 +266,5 @@ pnnx_ncnn_add_test(transformers_qwen3_attention)
 
 # pt2 (torch.export) 路径对拍测试
 pnnx_ncnn_add_test(pt2_smoke)
+pnnx_ncnn_add_test(pt2_weights)
+pnnx_ncnn_add_test(pt2_testutil)

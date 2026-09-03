@@ -6,8 +6,16 @@
 
 import os
 import re
+import subprocess
 import sys
 import torch
+
+
+def _as_output_tuple(value):
+    """把模型输出统一成 tuple，同时保留 tuple/list 的输出数量。"""
+    if isinstance(value, (tuple, list)):
+        return tuple(value)
+    return (value,)
 
 
 def _prepare_ncnn_input(tensor, batch_index):
@@ -52,15 +60,15 @@ def run_pt2_test(net, inputs, inputshape_str, base_name, atol=1e-4, device="cpu"
     base_name    : 产物基名（不含扩展名），如 "test_pt2_smoke"
     """
     net = net.eval()
-    if device == "cpu":
-        net = net.cpu()
-        inputs = tuple(t.cpu() for t in inputs)
+    if device != "cpu":
+        raise ValueError(f"unsupported test device: {device}")
+    net = net.cpu()
+    inputs = tuple(t.cpu() for t in inputs)
 
     # 1) torch 参考输出
     with torch.no_grad():
         a = net(*inputs)
-    if not isinstance(a, tuple):
-        a = (a,)
+    a = _as_output_tuple(a)
 
     # 2) 导出 .pt2
     pt2_path = base_name + ".pt2"
@@ -89,11 +97,15 @@ def run_pt2_test(net, inputs, inputshape_str, base_name, atol=1e-4, device="cpu"
             else:
                 pnnx_bin = "pnnx"  # 退回 PATH
 
-    cmd = f"{pnnx_bin} {pt2_path} inputshape={inputshape_str}"
-    print(f"[pt2] run: {cmd}")
-    ret = os.system(cmd)
-    if ret != 0:
-        print(f"[pt2] pnnx failed (ret={ret}) for {base_name}")
+    cmd = [pnnx_bin, pt2_path, f"inputshape={inputshape_str}"]
+    print(f"[pt2] run: {' '.join(cmd)}")
+    try:
+        result = subprocess.run(cmd, check=False)
+    except OSError as e:
+        print(f"[pt2] pnnx failed to start for {base_name}: {e}")
+        return False
+    if result.returncode != 0:
+        print(f"[pt2] pnnx failed (ret={result.returncode}) for {base_name}")
         return False
 
     # 4) ncnn 推理：直接驱动 pyncnn 喂同一份 inputs。
@@ -131,8 +143,12 @@ def run_pt2_test(net, inputs, inputshape_str, base_name, atol=1e-4, device="cpu"
         print(f"[pt2] ncnn inference failed for {base_name}: {e}")
         return False
 
-    if not isinstance(b, tuple):
-        b = (b,)
+    b = _as_output_tuple(b)
+
+    if len(a) != len(b):
+        print(f"[pt2] output count mismatch for {base_name}: "
+              f"torch={len(a)} ncnn={len(b)}")
+        return False
 
     # 5) 对拍
     import os as _os

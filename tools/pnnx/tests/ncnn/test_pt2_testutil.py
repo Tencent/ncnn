@@ -14,7 +14,11 @@ import torch
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from testutil_pt2 import _prepare_ncnn_input, _restore_ncnn_output
+from testutil_pt2 import (
+    _as_output_tuple,
+    _prepare_ncnn_input,
+    _restore_ncnn_output,
+)
 
 
 def main():
@@ -26,6 +30,15 @@ def main():
             failed.append(msg)
 
     # ---- _restore_ncnn_output ----
+
+    # 输出规范化必须保留单输出、tuple 和 list 的边界，避免 run_pt2_test
+    # 用 zip() 静默吞掉输出数量不一致。
+    check(len(_as_output_tuple(np.zeros((2, 3), dtype=np.float32))) == 1,
+          "outputs: single tensor becomes one-item tuple")
+    check(len(_as_output_tuple((np.zeros(1), np.zeros(1)))) == 2,
+          "outputs: tuple arity is preserved")
+    check(len(_as_output_tuple([np.zeros(1), np.zeros(1)])) == 2,
+          "outputs: list arity is preserved")
 
     # 正例:batch_index=0,ncnn 输出 (2,3) → 还原为 (1,2,3)
     out = _restore_ncnn_output(np.zeros((2, 3), dtype=np.float32), np.zeros((1, 2, 3), dtype=np.float32), 0)
