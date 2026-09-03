@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include <stdio.h>
+#include <string.h>
 
 #include "exported_program_defaults.h"
 #include "load_exported_program.h"
