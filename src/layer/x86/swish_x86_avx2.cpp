@@ -10,11 +10,15 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 #include "swish_bf16s.h"
 
 void swish_bf16s_avx2(Mat& a, const Option& opt)
 {
     swish_bf16s(a, opt);
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

@@ -10,6 +10,8 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 #include "deconvolution_packed_bf16s.h"
 
 void deconvolution_packed_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
@@ -21,5 +23,7 @@ void deconvolution_transform_kernel_packed_bf16s_avx2(const Mat& weight_data, Ma
 {
     deconvolution_transform_kernel_packed_bf16s(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

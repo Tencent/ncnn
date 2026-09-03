@@ -6,12 +6,10 @@ void convolution1d_transform_kernel_packed_bf16s_avx512bf16(const Mat& kernel, M
 void convolution1d_packed_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int dilation_w, int stride_w, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
 
-#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
 void convolution1d_transform_kernel_packed_bf16s_avxneconvert(const Mat& kernel, Mat& kernel_tm, int inh, int outh, int kernel_w);
 void convolution1d_packed_bf16s_avxneconvert(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int dilation_w, int stride_w, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
-#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void convolution1d_transform_kernel_packed_bf16s_avx2(const Mat& kernel, Mat& kernel_tm, int inh, int outh, int kernel_w);
@@ -35,7 +33,6 @@ static void convolution1d_transform_kernel_packed_bf16s(const Mat& kernel, Mat& 
     }
 #endif
 
-#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
@@ -43,7 +40,6 @@ static void convolution1d_transform_kernel_packed_bf16s(const Mat& kernel, Mat& 
         return;
     }
 #endif
-#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
@@ -1116,7 +1112,6 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
     }
 #endif
 
-#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
@@ -1124,7 +1119,6 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
         return;
     }
 #endif
-#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())

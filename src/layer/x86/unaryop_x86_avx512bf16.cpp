@@ -12,6 +12,8 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 namespace UnaryOp_x86_functor {
 
 #include "unaryop_functor.h"
@@ -120,5 +122,7 @@ int unaryop_bf16s_avx512bf16(Mat& bottom_top_blob, int op_type, const Option& op
 
     return 0;
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

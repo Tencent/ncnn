@@ -1,4 +1,4 @@
-// Copyright 2022 Tencent
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "cpu.h"

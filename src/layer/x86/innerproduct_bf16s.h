@@ -6,12 +6,10 @@ void innerproduct_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const 
 void innerproduct_transform_kernel_bf16s_avx512bf16(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
 #endif
 
-#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
 void innerproduct_bf16s_avxneconvert(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 void innerproduct_transform_kernel_bf16s_avxneconvert(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
 #endif
-#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void innerproduct_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
@@ -35,7 +33,6 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
     }
 #endif
 
-#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
@@ -43,7 +40,6 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
         return;
     }
 #endif
-#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
@@ -207,32 +203,38 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
 #if __AVXNECONVERT__
             for (; i + 7 < num_input; i += 8)
             {
-                __m256 _val0 = _mm256_comp_bcstnebf16_ps(sptr);
-                __m256 _val1 = _mm256_comp_bcstnebf16_ps(sptr + 1);
-                __m256 _val2 = _mm256_comp_bcstnebf16_ps(sptr + 2);
-                __m256 _val3 = _mm256_comp_bcstnebf16_ps(sptr + 3);
-                __m256 _val4 = _mm256_comp_bcstnebf16_ps(sptr + 4);
-                __m256 _val5 = _mm256_comp_bcstnebf16_ps(sptr + 5);
-                __m256 _val6 = _mm256_comp_bcstnebf16_ps(sptr + 6);
-                __m256 _val7 = _mm256_comp_bcstnebf16_ps(sptr + 7);
+                {
+                    __m256 _val0 = _mm256_comp_bcstnebf16_ps(sptr);
+                    __m256 _val1 = _mm256_comp_bcstnebf16_ps(sptr + 1);
+                    __m256 _val2 = _mm256_comp_bcstnebf16_ps(sptr + 2);
+                    __m256 _val3 = _mm256_comp_bcstnebf16_ps(sptr + 3);
 
-                __m256 _w0 = _mm256_cvtneebf16_ps((const __m256bh*)kptr);
-                __m256 _w1 = _mm256_cvtneobf16_ps((const __m256bh*)kptr);
-                __m256 _w2 = _mm256_cvtneebf16_ps((const __m256bh*)(kptr + 16));
-                __m256 _w3 = _mm256_cvtneobf16_ps((const __m256bh*)(kptr + 16));
-                __m256 _w4 = _mm256_cvtneebf16_ps((const __m256bh*)(kptr + 32));
-                __m256 _w5 = _mm256_cvtneobf16_ps((const __m256bh*)(kptr + 32));
-                __m256 _w6 = _mm256_cvtneebf16_ps((const __m256bh*)(kptr + 48));
-                __m256 _w7 = _mm256_cvtneobf16_ps((const __m256bh*)(kptr + 48));
+                    __m256 _w0 = _mm256_cvtneebf16_ps((const __m256bh*)kptr);
+                    __m256 _w1 = _mm256_cvtneobf16_ps((const __m256bh*)kptr);
+                    __m256 _w2 = _mm256_cvtneebf16_ps((const __m256bh*)(kptr + 16));
+                    __m256 _w3 = _mm256_cvtneobf16_ps((const __m256bh*)(kptr + 16));
 
-                _sum0 = _mm256_fmadd_ps(_val0, _w0, _sum0);
-                _sum1 = _mm256_fmadd_ps(_val1, _w1, _sum1);
-                _sum2 = _mm256_fmadd_ps(_val2, _w2, _sum2);
-                _sum3 = _mm256_fmadd_ps(_val3, _w3, _sum3);
-                _sum4 = _mm256_fmadd_ps(_val4, _w4, _sum4);
-                _sum5 = _mm256_fmadd_ps(_val5, _w5, _sum5);
-                _sum6 = _mm256_fmadd_ps(_val6, _w6, _sum6);
-                _sum7 = _mm256_fmadd_ps(_val7, _w7, _sum7);
+                    _sum0 = _mm256_fmadd_ps(_val0, _w0, _sum0);
+                    _sum1 = _mm256_fmadd_ps(_val1, _w1, _sum1);
+                    _sum2 = _mm256_fmadd_ps(_val2, _w2, _sum2);
+                    _sum3 = _mm256_fmadd_ps(_val3, _w3, _sum3);
+                }
+                {
+                    __m256 _val0 = _mm256_comp_bcstnebf16_ps(sptr + 4);
+                    __m256 _val1 = _mm256_comp_bcstnebf16_ps(sptr + 5);
+                    __m256 _val2 = _mm256_comp_bcstnebf16_ps(sptr + 6);
+                    __m256 _val3 = _mm256_comp_bcstnebf16_ps(sptr + 7);
+
+                    __m256 _w0 = _mm256_cvtneebf16_ps((const __m256bh*)(kptr + 32));
+                    __m256 _w1 = _mm256_cvtneobf16_ps((const __m256bh*)(kptr + 32));
+                    __m256 _w2 = _mm256_cvtneebf16_ps((const __m256bh*)(kptr + 48));
+                    __m256 _w3 = _mm256_cvtneobf16_ps((const __m256bh*)(kptr + 48));
+
+                    _sum4 = _mm256_fmadd_ps(_val0, _w0, _sum4);
+                    _sum5 = _mm256_fmadd_ps(_val1, _w1, _sum5);
+                    _sum6 = _mm256_fmadd_ps(_val2, _w2, _sum6);
+                    _sum7 = _mm256_fmadd_ps(_val3, _w3, _sum7);
+                }
 
                 sptr += 8;
                 kptr += 64;
@@ -780,7 +782,6 @@ static void innerproduct_transform_kernel_bf16s(const Mat& weight_data, Mat& wei
     }
 #endif
 
-#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
@@ -788,7 +789,6 @@ static void innerproduct_transform_kernel_bf16s(const Mat& weight_data, Mat& wei
         return;
     }
 #endif
-#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())

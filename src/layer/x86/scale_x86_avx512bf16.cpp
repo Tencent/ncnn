@@ -7,6 +7,8 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 #include "scale_bf16s.h"
 
 void scale_bf16s_avx512bf16(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack)
@@ -28,5 +30,7 @@ void scale_bf16s_no_bias_per_element_avx512bf16(unsigned short* ptr, const float
 {
     scale_bf16s_no_bias_per_element(ptr, scale, size, num_threads);
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

@@ -6,12 +6,10 @@ int sdpa_prefill_bf16s_avx512bf16(const Mat& query, const Mat& key, const Mat& v
 int sdpa_kvcache_bf16s_avx512bf16(const Mat& query, const Mat& past_key, const Mat& past_value, const Mat& cur_key, const Mat& cur_value, Mat& cached_key, Mat& cached_value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
 #endif
 
-#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
 int sdpa_prefill_bf16s_avxneconvert(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
 int sdpa_kvcache_bf16s_avxneconvert(const Mat& query, const Mat& past_key, const Mat& past_value, const Mat& cur_key, const Mat& cur_value, Mat& cached_key, Mat& cached_value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
 #endif
-#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 int sdpa_prefill_bf16s_avx2(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
@@ -4605,7 +4603,7 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                         const unsigned short* pA = qptr;
                         float sum = 0.f;
                         int d = 0;
-#if __AVX512BF16__
+#if __AVX512BF16__ || __AVXNECONVERT__
                         pK = key_panel + k * 2;
                         for (; d + 1 < head_dim; d += 2)
                         {
@@ -4615,18 +4613,7 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                             pK += NR * 2;
                         }
                         pK = key_panel + (size_t)d * NR + k;
-#endif // __AVX512BF16__
-#if __AVXNECONVERT__
-                        pK = key_panel + k * 2;
-                        for (; d + 1 < head_dim; d += 2)
-                        {
-                            sum += bfloat16_to_float32(pA[0]) * bfloat16_to_float32(pK[0]);
-                            sum += bfloat16_to_float32(pA[1]) * bfloat16_to_float32(pK[1]);
-                            pA += 2;
-                            pK += NR * 2;
-                        }
-                        pK = key_panel + (size_t)d * NR + k;
-#endif // __AVXNECONVERT__
+#endif // __AVX512BF16__ || __AVXNECONVERT__
                         for (; d < head_dim; d++)
                         {
                             sum += bfloat16_to_float32(*pA++) * bfloat16_to_float32(*pK);
@@ -4911,12 +4898,10 @@ static int sdpa_prefill_bf16s(const Mat& query, const Mat& key, const Mat& value
         return sdpa_prefill_bf16s_avx512bf16(query, key, value, attn_mask_blob, top_blob, scale, opt);
 #endif
 
-#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
         return sdpa_prefill_bf16s_avxneconvert(query, key, value, attn_mask_blob, top_blob, scale, opt);
 #endif
-#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())

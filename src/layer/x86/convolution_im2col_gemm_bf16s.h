@@ -6,12 +6,10 @@ void convolution_im2col_gemm_transform_kernel_bf16s_avx512bf16(const Mat& kernel
 int convolution_im2col_gemm_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, int nT, const Option& opt);
 #endif
 
-#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
 void convolution_im2col_gemm_transform_kernel_bf16s_avxneconvert(const Mat& kernel, Mat& AT, int inch, int outch, int kernel_w, int kernel_h, const Option& opt);
 int convolution_im2col_gemm_bf16s_avxneconvert(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, int nT, const Option& opt);
 #endif
-#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void convolution_im2col_gemm_transform_kernel_bf16s_avx2(const Mat& kernel, Mat& AT, int inch, int outch, int kernel_w, int kernel_h, const Option& opt);
@@ -56,42 +54,62 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
         const float* pf = (const float*)A + (i + ii + 15) * A_hstep + k;
 
         int kk = 0;
-#if !__AVX512BF16__ && !__AVXNECONVERT__
         for (; kk + 15 < max_kk; kk += 16)
         {
-            __m512 _r0 = _mm512_loadu_ps(p0);
-            __m512 _r1 = _mm512_loadu_ps(p1);
-            __m512 _r2 = _mm512_loadu_ps(p2);
-            __m512 _r3 = _mm512_loadu_ps(p3);
-            __m512 _r4 = _mm512_loadu_ps(p4);
-            __m512 _r5 = _mm512_loadu_ps(p5);
-            __m512 _r6 = _mm512_loadu_ps(p6);
-            __m512 _r7 = _mm512_loadu_ps(p7);
-            __m512 _r8 = _mm512_loadu_ps(p8);
-            __m512 _r9 = _mm512_loadu_ps(p9);
-            __m512 _ra = _mm512_loadu_ps(pa);
-            __m512 _rb = _mm512_loadu_ps(pb);
-            __m512 _rc = _mm512_loadu_ps(pc);
-            __m512 _rd = _mm512_loadu_ps(pd);
-            __m512 _re = _mm512_loadu_ps(pe);
-            __m512 _rf = _mm512_loadu_ps(pf);
-            transpose16x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
-            _mm256_storeu_si256((__m256i*)pp, float2bfloat_avx512(_r0));
-            _mm256_storeu_si256((__m256i*)(pp + 16), float2bfloat_avx512(_r1));
-            _mm256_storeu_si256((__m256i*)(pp + 16 * 2), float2bfloat_avx512(_r2));
-            _mm256_storeu_si256((__m256i*)(pp + 16 * 3), float2bfloat_avx512(_r3));
-            _mm256_storeu_si256((__m256i*)(pp + 16 * 4), float2bfloat_avx512(_r4));
-            _mm256_storeu_si256((__m256i*)(pp + 16 * 5), float2bfloat_avx512(_r5));
-            _mm256_storeu_si256((__m256i*)(pp + 16 * 6), float2bfloat_avx512(_r6));
-            _mm256_storeu_si256((__m256i*)(pp + 16 * 7), float2bfloat_avx512(_r7));
-            _mm256_storeu_si256((__m256i*)(pp + 16 * 8), float2bfloat_avx512(_r8));
-            _mm256_storeu_si256((__m256i*)(pp + 16 * 9), float2bfloat_avx512(_r9));
-            _mm256_storeu_si256((__m256i*)(pp + 16 * 10), float2bfloat_avx512(_ra));
-            _mm256_storeu_si256((__m256i*)(pp + 16 * 11), float2bfloat_avx512(_rb));
-            _mm256_storeu_si256((__m256i*)(pp + 16 * 12), float2bfloat_avx512(_rc));
-            _mm256_storeu_si256((__m256i*)(pp + 16 * 13), float2bfloat_avx512(_rd));
-            _mm256_storeu_si256((__m256i*)(pp + 16 * 14), float2bfloat_avx512(_re));
-            _mm256_storeu_si256((__m256i*)(pp + 16 * 15), float2bfloat_avx512(_rf));
+            __m256i _r0 = float2bfloat_avx512(_mm512_loadu_ps(p0));
+            __m256i _r1 = float2bfloat_avx512(_mm512_loadu_ps(p1));
+            __m256i _r2 = float2bfloat_avx512(_mm512_loadu_ps(p2));
+            __m256i _r3 = float2bfloat_avx512(_mm512_loadu_ps(p3));
+            __m256i _r4 = float2bfloat_avx512(_mm512_loadu_ps(p4));
+            __m256i _r5 = float2bfloat_avx512(_mm512_loadu_ps(p5));
+            __m256i _r6 = float2bfloat_avx512(_mm512_loadu_ps(p6));
+            __m256i _r7 = float2bfloat_avx512(_mm512_loadu_ps(p7));
+            __m256i _r8 = float2bfloat_avx512(_mm512_loadu_ps(p8));
+            __m256i _r9 = float2bfloat_avx512(_mm512_loadu_ps(p9));
+            __m256i _ra = float2bfloat_avx512(_mm512_loadu_ps(pa));
+            __m256i _rb = float2bfloat_avx512(_mm512_loadu_ps(pb));
+            __m256i _rc = float2bfloat_avx512(_mm512_loadu_ps(pc));
+            __m256i _rd = float2bfloat_avx512(_mm512_loadu_ps(pd));
+            __m256i _re = float2bfloat_avx512(_mm512_loadu_ps(pe));
+            __m256i _rf = float2bfloat_avx512(_mm512_loadu_ps(pf));
+#if __AVX512BF16__ || __AVXNECONVERT__
+            transpose8x8_epi32(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+            transpose8x8_epi32(_r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+            _mm256_storeu_si256((__m256i*)pp, _r0);
+            _mm256_storeu_si256((__m256i*)(pp + 16), _r8);
+            _mm256_storeu_si256((__m256i*)(pp + 32), _r1);
+            _mm256_storeu_si256((__m256i*)(pp + 48), _r9);
+            _mm256_storeu_si256((__m256i*)(pp + 64), _r2);
+            _mm256_storeu_si256((__m256i*)(pp + 80), _ra);
+            _mm256_storeu_si256((__m256i*)(pp + 96), _r3);
+            _mm256_storeu_si256((__m256i*)(pp + 112), _rb);
+            _mm256_storeu_si256((__m256i*)(pp + 128), _r4);
+            _mm256_storeu_si256((__m256i*)(pp + 144), _rc);
+            _mm256_storeu_si256((__m256i*)(pp + 160), _r5);
+            _mm256_storeu_si256((__m256i*)(pp + 176), _rd);
+            _mm256_storeu_si256((__m256i*)(pp + 192), _r6);
+            _mm256_storeu_si256((__m256i*)(pp + 208), _re);
+            _mm256_storeu_si256((__m256i*)(pp + 224), _r7);
+            _mm256_storeu_si256((__m256i*)(pp + 240), _rf);
+#else
+            transpose16x16_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+            _mm256_storeu_si256((__m256i*)pp, _r0);
+            _mm256_storeu_si256((__m256i*)(pp + 16), _r1);
+            _mm256_storeu_si256((__m256i*)(pp + 16 * 2), _r2);
+            _mm256_storeu_si256((__m256i*)(pp + 16 * 3), _r3);
+            _mm256_storeu_si256((__m256i*)(pp + 16 * 4), _r4);
+            _mm256_storeu_si256((__m256i*)(pp + 16 * 5), _r5);
+            _mm256_storeu_si256((__m256i*)(pp + 16 * 6), _r6);
+            _mm256_storeu_si256((__m256i*)(pp + 16 * 7), _r7);
+            _mm256_storeu_si256((__m256i*)(pp + 16 * 8), _r8);
+            _mm256_storeu_si256((__m256i*)(pp + 16 * 9), _r9);
+            _mm256_storeu_si256((__m256i*)(pp + 16 * 10), _ra);
+            _mm256_storeu_si256((__m256i*)(pp + 16 * 11), _rb);
+            _mm256_storeu_si256((__m256i*)(pp + 16 * 12), _rc);
+            _mm256_storeu_si256((__m256i*)(pp + 16 * 13), _rd);
+            _mm256_storeu_si256((__m256i*)(pp + 16 * 14), _re);
+            _mm256_storeu_si256((__m256i*)(pp + 16 * 15), _rf);
+#endif // __AVX512BF16__ || __AVXNECONVERT__
             pp += 256;
             p0 += 16;
             p1 += 16;
@@ -110,7 +128,6 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
             pe += 16;
             pf += 16;
         }
-#endif // !__AVX512BF16__ && !__AVXNECONVERT__
 #if __AVX512BF16__ || __AVXNECONVERT__
         for (; kk + 1 < max_kk; kk += 2)
         {
@@ -215,7 +232,6 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
         const float* p7 = (const float*)A + (i + ii + 7) * A_hstep + k;
 
         int kk = 0;
-#if !__AVX512BF16__ && !__AVXNECONVERT__
         for (; kk + 7 < max_kk; kk += 8)
         {
             __m256 _r0 = _mm256_loadu_ps(p0);
@@ -226,15 +242,27 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
             __m256 _r5 = _mm256_loadu_ps(p5);
             __m256 _r6 = _mm256_loadu_ps(p6);
             __m256 _r7 = _mm256_loadu_ps(p7);
-            transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-            _mm_storeu_si128((__m128i*)pp, float2bfloat_avx(_r0));
-            _mm_storeu_si128((__m128i*)(pp + 8), float2bfloat_avx(_r1));
-            _mm_storeu_si128((__m128i*)(pp + 8 * 2), float2bfloat_avx(_r2));
-            _mm_storeu_si128((__m128i*)(pp + 8 * 3), float2bfloat_avx(_r3));
-            _mm_storeu_si128((__m128i*)(pp + 8 * 4), float2bfloat_avx(_r4));
-            _mm_storeu_si128((__m128i*)(pp + 8 * 5), float2bfloat_avx(_r5));
-            _mm_storeu_si128((__m128i*)(pp + 8 * 6), float2bfloat_avx(_r6));
-            _mm_storeu_si128((__m128i*)(pp + 8 * 7), float2bfloat_avx(_r7));
+            __m128i _bf0 = float2bfloat_avx(_r0);
+            __m128i _bf1 = float2bfloat_avx(_r1);
+            __m128i _bf2 = float2bfloat_avx(_r2);
+            __m128i _bf3 = float2bfloat_avx(_r3);
+            __m128i _bf4 = float2bfloat_avx(_r4);
+            __m128i _bf5 = float2bfloat_avx(_r5);
+            __m128i _bf6 = float2bfloat_avx(_r6);
+            __m128i _bf7 = float2bfloat_avx(_r7);
+#if __AVX512BF16__ || __AVXNECONVERT__
+            transpose4x8_epi32(_bf0, _bf1, _bf2, _bf3, _bf4, _bf5, _bf6, _bf7);
+#else
+            transpose8x8_epi16(_bf0, _bf1, _bf2, _bf3, _bf4, _bf5, _bf6, _bf7);
+#endif // __AVX512BF16__ || __AVXNECONVERT__
+            _mm_storeu_si128((__m128i*)pp, _bf0);
+            _mm_storeu_si128((__m128i*)(pp + 8), _bf1);
+            _mm_storeu_si128((__m128i*)(pp + 16), _bf2);
+            _mm_storeu_si128((__m128i*)(pp + 24), _bf3);
+            _mm_storeu_si128((__m128i*)(pp + 32), _bf4);
+            _mm_storeu_si128((__m128i*)(pp + 40), _bf5);
+            _mm_storeu_si128((__m128i*)(pp + 48), _bf6);
+            _mm_storeu_si128((__m128i*)(pp + 56), _bf7);
             pp += 64;
             p0 += 8;
             p1 += 8;
@@ -245,7 +273,6 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
             p6 += 8;
             p7 += 8;
         }
-#endif // !__AVX512BF16__ && !__AVXNECONVERT__
 #if __AVX512BF16__ || __AVXNECONVERT__
         for (; kk + 1 < max_kk; kk += 2)
         {
@@ -306,7 +333,6 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
         const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
 
         int kk = 0;
-#if !__AVX512BF16__ && !__AVXNECONVERT__
 #if __AVX__
         for (; kk + 7 < max_kk; kk += 8)
         {
@@ -314,11 +340,19 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
             __m256 _r1 = _mm256_loadu_ps(p1);
             __m256 _r2 = _mm256_loadu_ps(p2);
             __m256 _r3 = _mm256_loadu_ps(p3);
-            transpose8x4_ps(_r0, _r1, _r2, _r3);
-            _mm_storeu_si128((__m128i*)pp, float2bfloat_avx(_r0));
-            _mm_storeu_si128((__m128i*)(pp + 8), float2bfloat_avx(_r1));
-            _mm_storeu_si128((__m128i*)(pp + 16), float2bfloat_avx(_r2));
-            _mm_storeu_si128((__m128i*)(pp + 24), float2bfloat_avx(_r3));
+            __m128i _bf0 = float2bfloat_avx(_r0);
+            __m128i _bf1 = float2bfloat_avx(_r1);
+            __m128i _bf2 = float2bfloat_avx(_r2);
+            __m128i _bf3 = float2bfloat_avx(_r3);
+#if __AVX512BF16__ || __AVXNECONVERT__
+            transpose4x4_epi32(_bf0, _bf1, _bf2, _bf3);
+#else
+            transpose8x4_epi16(_bf0, _bf1, _bf2, _bf3);
+#endif // __AVX512BF16__ || __AVXNECONVERT__
+            _mm_storeu_si128((__m128i*)pp, _bf0);
+            _mm_storeu_si128((__m128i*)(pp + 8), _bf1);
+            _mm_storeu_si128((__m128i*)(pp + 16), _bf2);
+            _mm_storeu_si128((__m128i*)(pp + 24), _bf3);
             pp += 32;
             p0 += 8;
             p1 += 8;
@@ -332,18 +366,27 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
             __m128 _r1 = _mm_loadu_ps(p1);
             __m128 _r2 = _mm_loadu_ps(p2);
             __m128 _r3 = _mm_loadu_ps(p3);
-            _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-            _mm_storel_epi64((__m128i*)pp, float2bfloat_sse(_r0));
-            _mm_storel_epi64((__m128i*)(pp + 4), float2bfloat_sse(_r1));
-            _mm_storel_epi64((__m128i*)(pp + 8), float2bfloat_sse(_r2));
-            _mm_storel_epi64((__m128i*)(pp + 12), float2bfloat_sse(_r3));
+            __m128i _bf0 = float2bfloat_sse(_r0);
+            __m128i _bf1 = float2bfloat_sse(_r1);
+            __m128i _bf2 = float2bfloat_sse(_r2);
+            __m128i _bf3 = float2bfloat_sse(_r3);
+#if __AVX512BF16__ || __AVXNECONVERT__
+            __m128i _tmp0 = _mm_unpacklo_epi32(_bf0, _bf1);
+            __m128i _tmp1 = _mm_unpacklo_epi32(_bf2, _bf3);
+            _mm_storeu_si128((__m128i*)pp, _mm_unpacklo_epi64(_tmp0, _tmp1));
+            _mm_storeu_si128((__m128i*)(pp + 8), _mm_unpackhi_epi64(_tmp0, _tmp1));
+#else
+            __m128i _tmp0 = _mm_unpacklo_epi16(_bf0, _bf1);
+            __m128i _tmp1 = _mm_unpacklo_epi16(_bf2, _bf3);
+            _mm_storeu_si128((__m128i*)pp, _mm_unpacklo_epi32(_tmp0, _tmp1));
+            _mm_storeu_si128((__m128i*)(pp + 8), _mm_unpackhi_epi32(_tmp0, _tmp1));
+#endif // __AVX512BF16__ || __AVXNECONVERT__
             pp += 16;
             p0 += 4;
             p1 += 4;
             p2 += 4;
             p3 += 4;
         }
-#endif // !__AVX512BF16__ && !__AVXNECONVERT__
 #if __AVX512BF16__ || __AVXNECONVERT__
         for (; kk + 1 < max_kk; kk += 2)
         {
@@ -383,15 +426,20 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
 
         int kk = 0;
 #if __SSE2__
-#if !__AVX512BF16__ && !__AVXNECONVERT__
 #if __AVX__
         for (; kk + 7 < max_kk; kk += 8)
         {
             __m256 _r0 = _mm256_loadu_ps(p0);
             __m256 _r1 = _mm256_loadu_ps(p1);
-            transpose8x2_ps(_r0, _r1);
-            _mm_storeu_si128((__m128i*)pp, float2bfloat_avx(_r0));
-            _mm_storeu_si128((__m128i*)(pp + 8), float2bfloat_avx(_r1));
+            __m128i _bf0 = float2bfloat_avx(_r0);
+            __m128i _bf1 = float2bfloat_avx(_r1);
+#if __AVX512BF16__ || __AVXNECONVERT__
+            _mm_storeu_si128((__m128i*)pp, _mm_unpacklo_epi32(_bf0, _bf1));
+            _mm_storeu_si128((__m128i*)(pp + 8), _mm_unpackhi_epi32(_bf0, _bf1));
+#else
+            _mm_storeu_si128((__m128i*)pp, _mm_unpacklo_epi16(_bf0, _bf1));
+            _mm_storeu_si128((__m128i*)(pp + 8), _mm_unpackhi_epi16(_bf0, _bf1));
+#endif // __AVX512BF16__ || __AVXNECONVERT__
             pp += 16;
             p0 += 8;
             p1 += 8;
@@ -401,15 +449,17 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
         {
             __m128 _r0 = _mm_loadu_ps(p0);
             __m128 _r1 = _mm_loadu_ps(p1);
-            __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
-            __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
-            _mm_storel_epi64((__m128i*)pp, float2bfloat_sse(_tmp0));
-            _mm_storel_epi64((__m128i*)(pp + 4), float2bfloat_sse(_tmp1));
+            __m128i _bf0 = float2bfloat_sse(_r0);
+            __m128i _bf1 = float2bfloat_sse(_r1);
+#if __AVX512BF16__ || __AVXNECONVERT__
+            _mm_storeu_si128((__m128i*)pp, _mm_unpacklo_epi32(_bf0, _bf1));
+#else
+            _mm_storeu_si128((__m128i*)pp, _mm_unpacklo_epi16(_bf0, _bf1));
+#endif // __AVX512BF16__ || __AVXNECONVERT__
             pp += 8;
             p0 += 4;
             p1 += 4;
         }
-#endif // !__AVX512BF16__ && !__AVXNECONVERT__
 #endif // __SSE2__
 #if __AVX512BF16__ || __AVXNECONVERT__
         for (; kk + 1 < max_kk; kk += 2)
@@ -438,7 +488,6 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
 
         int kk = 0;
 #if __SSE2__
-#if !__AVX512BF16__ && !__AVXNECONVERT__
 #if __AVX__
         for (; kk + 7 < max_kk; kk += 8)
         {
@@ -453,7 +502,6 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
             pp += 4;
             p0 += 4;
         }
-#endif // !__AVX512BF16__ && !__AVXNECONVERT__
 #endif // __SSE2__
 #if __AVX512BF16__ || __AVXNECONVERT__
         for (; kk + 1 < max_kk; kk += 2)
@@ -2290,6 +2338,42 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 #endif // __AVX512BF16__
 
 #if __AVXNECONVERT__
+            __m256 _sum1 = _mm256_setzero_ps();
+            __m256 _sum2 = _mm256_setzero_ps();
+            __m256 _sum3 = _mm256_setzero_ps();
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                {
+                    __m256 _pA0 = _mm256_cvtneebf16_ps((const __m256bh*)pA);
+                    __m256 _pA1 = _mm256_cvtneobf16_ps((const __m256bh*)pA);
+                    _sum0 = _mm256_fmadd_ps(_pA0, _mm256_comp_bcstnebf16_ps(pB), _sum0);
+                    _sum0 = _mm256_fmadd_ps(_pA1, _mm256_comp_bcstnebf16_ps(pB + 1), _sum0);
+                }
+                {
+                    __m256 _pA0 = _mm256_cvtneebf16_ps((const __m256bh*)(pA + 16));
+                    __m256 _pA1 = _mm256_cvtneobf16_ps((const __m256bh*)(pA + 16));
+                    _sum1 = _mm256_fmadd_ps(_pA0, _mm256_comp_bcstnebf16_ps(pB + 2), _sum1);
+                    _sum1 = _mm256_fmadd_ps(_pA1, _mm256_comp_bcstnebf16_ps(pB + 3), _sum1);
+                }
+                {
+                    __m256 _pA0 = _mm256_cvtneebf16_ps((const __m256bh*)(pA + 32));
+                    __m256 _pA1 = _mm256_cvtneobf16_ps((const __m256bh*)(pA + 32));
+                    _sum2 = _mm256_fmadd_ps(_pA0, _mm256_comp_bcstnebf16_ps(pB + 4), _sum2);
+                    _sum2 = _mm256_fmadd_ps(_pA1, _mm256_comp_bcstnebf16_ps(pB + 5), _sum2);
+                }
+                {
+                    __m256 _pA0 = _mm256_cvtneebf16_ps((const __m256bh*)(pA + 48));
+                    __m256 _pA1 = _mm256_cvtneobf16_ps((const __m256bh*)(pA + 48));
+                    _sum3 = _mm256_fmadd_ps(_pA0, _mm256_comp_bcstnebf16_ps(pB + 6), _sum3);
+                    _sum3 = _mm256_fmadd_ps(_pA1, _mm256_comp_bcstnebf16_ps(pB + 7), _sum3);
+                }
+
+                pA += 64;
+                pB += 8;
+            }
+            _sum0 = _mm256_add_ps(_sum0, _sum1);
+            _sum2 = _mm256_add_ps(_sum2, _sum3);
+            _sum0 = _mm256_add_ps(_sum0, _sum2);
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m256 _pA0 = _mm256_cvtneebf16_ps((const __m256bh*)pA);
@@ -2983,6 +3067,42 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 #endif // __AVX512BF16__
 
 #if __AVXNECONVERT__
+            __m128 _sum1 = _mm_setzero_ps();
+            __m128 _sum2 = _mm_setzero_ps();
+            __m128 _sum3 = _mm_setzero_ps();
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                {
+                    __m128 _pA0 = _mm_cvtneebf16_ps((const __m128bh*)pA);
+                    __m128 _pA1 = _mm_cvtneobf16_ps((const __m128bh*)pA);
+                    _sum0 = _mm_fmadd_ps(_pA0, _mm_comp_bcstnebf16_ps(pB), _sum0);
+                    _sum0 = _mm_fmadd_ps(_pA1, _mm_comp_bcstnebf16_ps(pB + 1), _sum0);
+                }
+                {
+                    __m128 _pA0 = _mm_cvtneebf16_ps((const __m128bh*)(pA + 8));
+                    __m128 _pA1 = _mm_cvtneobf16_ps((const __m128bh*)(pA + 8));
+                    _sum1 = _mm_fmadd_ps(_pA0, _mm_comp_bcstnebf16_ps(pB + 2), _sum1);
+                    _sum1 = _mm_fmadd_ps(_pA1, _mm_comp_bcstnebf16_ps(pB + 3), _sum1);
+                }
+                {
+                    __m128 _pA0 = _mm_cvtneebf16_ps((const __m128bh*)(pA + 16));
+                    __m128 _pA1 = _mm_cvtneobf16_ps((const __m128bh*)(pA + 16));
+                    _sum2 = _mm_fmadd_ps(_pA0, _mm_comp_bcstnebf16_ps(pB + 4), _sum2);
+                    _sum2 = _mm_fmadd_ps(_pA1, _mm_comp_bcstnebf16_ps(pB + 5), _sum2);
+                }
+                {
+                    __m128 _pA0 = _mm_cvtneebf16_ps((const __m128bh*)(pA + 24));
+                    __m128 _pA1 = _mm_cvtneobf16_ps((const __m128bh*)(pA + 24));
+                    _sum3 = _mm_fmadd_ps(_pA0, _mm_comp_bcstnebf16_ps(pB + 6), _sum3);
+                    _sum3 = _mm_fmadd_ps(_pA1, _mm_comp_bcstnebf16_ps(pB + 7), _sum3);
+                }
+
+                pA += 32;
+                pB += 8;
+            }
+            _sum0 = _mm_add_ps(_sum0, _sum1);
+            _sum2 = _mm_add_ps(_sum2, _sum3);
+            _sum0 = _mm_add_ps(_sum0, _sum2);
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128 _pA0 = _mm_cvtneebf16_ps((const __m128bh*)pA);
@@ -3631,6 +3751,42 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 #endif // __AVX512BF16__
 
 #if __AVXNECONVERT__
+            __m256 _sum1 = _mm256_setzero_ps();
+            __m256 _sum2 = _mm256_setzero_ps();
+            __m256 _sum3 = _mm256_setzero_ps();
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                {
+                    __m256 _pB0 = _mm256_cvtneebf16_ps((const __m256bh*)pB);
+                    __m256 _pB1 = _mm256_cvtneobf16_ps((const __m256bh*)pB);
+                    _sum0 = _mm256_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA), _pB0, _sum0);
+                    _sum0 = _mm256_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA + 1), _pB1, _sum0);
+                }
+                {
+                    __m256 _pB0 = _mm256_cvtneebf16_ps((const __m256bh*)(pB + 16));
+                    __m256 _pB1 = _mm256_cvtneobf16_ps((const __m256bh*)(pB + 16));
+                    _sum1 = _mm256_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA + 2), _pB0, _sum1);
+                    _sum1 = _mm256_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA + 3), _pB1, _sum1);
+                }
+                {
+                    __m256 _pB0 = _mm256_cvtneebf16_ps((const __m256bh*)(pB + 32));
+                    __m256 _pB1 = _mm256_cvtneobf16_ps((const __m256bh*)(pB + 32));
+                    _sum2 = _mm256_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA + 4), _pB0, _sum2);
+                    _sum2 = _mm256_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA + 5), _pB1, _sum2);
+                }
+                {
+                    __m256 _pB0 = _mm256_cvtneebf16_ps((const __m256bh*)(pB + 48));
+                    __m256 _pB1 = _mm256_cvtneobf16_ps((const __m256bh*)(pB + 48));
+                    _sum3 = _mm256_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA + 6), _pB0, _sum3);
+                    _sum3 = _mm256_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA + 7), _pB1, _sum3);
+                }
+
+                pA += 8;
+                pB += 64;
+            }
+            _sum0 = _mm256_add_ps(_sum0, _sum1);
+            _sum2 = _mm256_add_ps(_sum2, _sum3);
+            _sum0 = _mm256_add_ps(_sum0, _sum2);
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m256 _pA0 = _mm256_comp_bcstnebf16_ps(pA);
@@ -3787,6 +3943,42 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 #endif // __AVX512BF16__
 
 #if __AVXNECONVERT__
+            __m128 _sum1 = _mm_setzero_ps();
+            __m128 _sum2 = _mm_setzero_ps();
+            __m128 _sum3 = _mm_setzero_ps();
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                {
+                    __m128 _pB0 = _mm_cvtneebf16_ps((const __m128bh*)pB);
+                    __m128 _pB1 = _mm_cvtneobf16_ps((const __m128bh*)pB);
+                    _sum0 = _mm_fmadd_ps(_mm_comp_bcstnebf16_ps(pA), _pB0, _sum0);
+                    _sum0 = _mm_fmadd_ps(_mm_comp_bcstnebf16_ps(pA + 1), _pB1, _sum0);
+                }
+                {
+                    __m128 _pB0 = _mm_cvtneebf16_ps((const __m128bh*)(pB + 8));
+                    __m128 _pB1 = _mm_cvtneobf16_ps((const __m128bh*)(pB + 8));
+                    _sum1 = _mm_fmadd_ps(_mm_comp_bcstnebf16_ps(pA + 2), _pB0, _sum1);
+                    _sum1 = _mm_fmadd_ps(_mm_comp_bcstnebf16_ps(pA + 3), _pB1, _sum1);
+                }
+                {
+                    __m128 _pB0 = _mm_cvtneebf16_ps((const __m128bh*)(pB + 16));
+                    __m128 _pB1 = _mm_cvtneobf16_ps((const __m128bh*)(pB + 16));
+                    _sum2 = _mm_fmadd_ps(_mm_comp_bcstnebf16_ps(pA + 4), _pB0, _sum2);
+                    _sum2 = _mm_fmadd_ps(_mm_comp_bcstnebf16_ps(pA + 5), _pB1, _sum2);
+                }
+                {
+                    __m128 _pB0 = _mm_cvtneebf16_ps((const __m128bh*)(pB + 24));
+                    __m128 _pB1 = _mm_cvtneobf16_ps((const __m128bh*)(pB + 24));
+                    _sum3 = _mm_fmadd_ps(_mm_comp_bcstnebf16_ps(pA + 6), _pB0, _sum3);
+                    _sum3 = _mm_fmadd_ps(_mm_comp_bcstnebf16_ps(pA + 7), _pB1, _sum3);
+                }
+
+                pA += 8;
+                pB += 32;
+            }
+            _sum0 = _mm_add_ps(_sum0, _sum1);
+            _sum2 = _mm_add_ps(_sum2, _sum3);
+            _sum0 = _mm_add_ps(_sum0, _sum2);
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128 _pA0 = _mm_comp_bcstnebf16_ps(pA);
@@ -6462,7 +6654,6 @@ static void convolution_im2col_gemm_transform_kernel_bf16s(const Mat& kernel, Ma
     }
 #endif
 
-#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
@@ -6470,7 +6661,6 @@ static void convolution_im2col_gemm_transform_kernel_bf16s(const Mat& kernel, Ma
         return;
     }
 #endif
-#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
@@ -6565,14 +6755,12 @@ static int convolution_im2col_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, 
     }
 #endif
 
-#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         return convolution_im2col_gemm_bf16s_avxneconvert(bottom_blob, top_blob, AT, bias, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, nT, opt);
     }
 #endif
-#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
