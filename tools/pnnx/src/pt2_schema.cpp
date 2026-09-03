@@ -268,7 +268,7 @@ static Pt2Node parse_node(const JsonValue& n)
         }
         node.adaptive_pool_has_none = !node.adaptive_pool_none_axes.empty()
                                       && std::find(node.adaptive_pool_none_axes.begin(), node.adaptive_pool_none_axes.end(), 1)
-                                             != node.adaptive_pool_none_axes.end();
+                                      != node.adaptive_pool_none_axes.end();
     }
 
     return node;
