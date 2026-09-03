@@ -387,7 +387,7 @@ jobs:
         export MKL_NUM_THREADS=1
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
         cd tools/pnnx/build
-        ctest --output-on-failure -j 8
+        ctest --output-on-failure -j 8 -E '^test_pnnx_exported_program(_legacy|_dynamic)?$'
 
     - name: test-pt2
       if: matrix.torch == '2.12.1'
