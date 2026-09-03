@@ -444,6 +444,8 @@ static NCNN_FORCEINLINE __m128i float2bfloat_sse(const __m128& v)
 {
 #if __AVX512BF16__
     __m128i _v = (__m128i)_mm_cvtneps_pbh(v);
+#elif __AVXNECONVERT__
+    __m128i _v = (__m128i)_mm_cvtneps_avx_pbh(v);
 #else
     __m128i _a = _mm_castps_si128(v);
     _a = _mm_add_epi32(_a, _mm_set1_epi32(0x8000));
@@ -463,6 +465,10 @@ static NCNN_FORCEINLINE __m128i float2bfloat_sse(const __m128& v0, const __m128&
 {
 #if __AVX512BF16__
     __m128i _v = (__m128i)_mm_cvtne2ps_pbh(v1, v0);
+#elif __AVXNECONVERT__
+    __m128i _v0 = (__m128i)_mm_cvtneps_avx_pbh(v0);
+    __m128i _v1 = (__m128i)_mm_cvtneps_avx_pbh(v1);
+    __m128i _v = _mm_unpacklo_epi64(_v0, _v1);
 #elif __AVX512F__
     __m256i _ab = _mm256_castps_si256(combine4x2_ps(v0, v1));
     _ab = _mm256_srli_epi32(_mm256_add_epi32(_ab, _mm256_set1_epi32(0x8000)), 16);
