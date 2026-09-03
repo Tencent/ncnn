@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "convert_reshape_interp_expression.h"
+#include "batch_reshape.h"
 
 #include <algorithm>
 #include <stack>
@@ -194,7 +195,7 @@ void convert_reshape_interp_expression(Graph& graph)
                 input_ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
                 output_ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
             }
-            const bool batch_reshape = input_ncnn_batch_axis != output_ncnn_batch_axis;
+            const bool batch_reshape = is_tensor_reshape && is_batch_reshape(op->inputs[0], op->outputs[0]);
             bool shape_expr_reference_batch = false;
 
             // change nchw annotation to w,h,c / w,h,d,c with batch index dropped
