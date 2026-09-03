@@ -204,6 +204,37 @@ int main()
     expect_true(graph.ops[old_op_count + 3]->params["value"].i == 6, "pt2 dtype maps to c10 scalar type");
     expect_true(graph.ops[old_op_count + 4]->params["value"].s == "cpu", "device argument constant");
 
+    pnnx::pt2::ExportedProgram split_program;
+    pnnx::pt2::Node split_node;
+    split_node.name = "split";
+    split_node.target = "torch.ops.aten.split.Tensor";
+    pnnx::pt2::NamedArgument split_input;
+    split_input.name = "self";
+    split_input.argument = tensor_reference;
+    split_node.inputs.push_back(split_input);
+    pnnx::pt2::NamedArgument split_size;
+    split_size.name = "split_size";
+    split_size.argument.type = pnnx::pt2::Argument::Integer;
+    split_size.argument.integer = 1;
+    split_node.inputs.push_back(split_size);
+    pnnx::pt2::NamedArgument split_dim;
+    split_dim.name = "dim";
+    split_dim.argument.type = pnnx::pt2::Argument::Integer;
+    split_dim.argument.integer = 0;
+    split_node.inputs.push_back(split_dim);
+    pnnx::pt2::Argument split_output = tensor_reference;
+    split_output.name = "split_output";
+    split_node.outputs.push_back(split_output);
+    split_program.graph.nodes.push_back(split_node);
+    split_program.graph.tensor_values["split_output"] = archive.program.graph.tensor_values["x"];
+
+    const size_t split_old_op_count = graph.ops.size();
+    expect_true(pnnx::import_exported_program_nodes(split_program, graph, error) == 0, error.c_str());
+    const pnnx::Operator* canonical_split = graph.ops.back();
+    expect_true(graph.ops.size() == split_old_op_count + 3, "split constants and operator");
+    expect_true(canonical_split->type == "torch.split", "exported split target is canonicalized");
+    expect_true(canonical_split->inputnames.size() == 3 && canonical_split->inputnames[0] == "tensor" && canonical_split->inputnames[1] == "split_size_or_sections", "exported split argument names are canonicalized");
+
     pnnx::pt2::ExportedProgram list_program;
     pnnx::pt2::Node list_node;
     list_node.name = "split";

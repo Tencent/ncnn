@@ -302,8 +302,14 @@ static std::string normalize_target(const std::string& target)
         return "Tensor.item";
     if (name_space == "aten" && (operator_name == "rnn_tanh" || operator_name == "rnn_relu" || operator_name == "gru" || operator_name == "lstm"))
         return "torch._VF." + operator_name;
-    if (name_space == "aten" && (operator_name == "chunk" || operator_name == "split" || operator_name == "split_with_sizes" || operator_name == "tensor_split" || operator_name == "unbind"))
-        return target;
+    if (name_space == "aten" && operator_name == "chunk")
+        return "torch.chunk";
+    if (name_space == "aten" && (operator_name == "split" || operator_name == "split_with_sizes"))
+        return "torch.split";
+    if (name_space == "aten" && operator_name == "tensor_split")
+        return "torch.tensor_split";
+    if (name_space == "aten" && operator_name == "unbind")
+        return "torch.unbind";
     if (name_space == "aten" && (operator_name == "full" || operator_name == "hann_window" || operator_name == "hamming_window" || operator_name == "sym_size" || operator_name == "_assert_scalar"))
         return target;
     return name_space + "::" + operator_name;
@@ -566,7 +572,17 @@ int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& gr
             }
 
             inputs.push_back(input);
-            input_names.push_back(named_argument.name);
+            std::string input_name = named_argument.name;
+            if (target == "torch.chunk" || target == "torch.tensor_split" || target == "torch.unbind")
+            {
+                if (input_name == "self") input_name = "input";
+            }
+            if (target == "torch.split")
+            {
+                if (input_name == "self") input_name = "tensor";
+                if (input_name == "split_size" || input_name == "split_sizes") input_name = "split_size_or_sections";
+            }
+            input_names.push_back(input_name);
         }
 
         std::vector<std::string> output_names;
