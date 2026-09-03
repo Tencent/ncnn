@@ -19,9 +19,12 @@ static int pt2_dtype_enum_to_pnnx_type(long long dtype)
 {
     switch (dtype)
     {
-    case 7: return 1; // f32
-    case 5: return 5; // i64
-    default: return 0;
+    case 7:
+        return 1; // f32
+    case 5:
+        return 5; // i64
+    default:
+        return 0;
     }
 }
 
@@ -257,7 +260,7 @@ static int load_weight_attribute(const Pt2Program& program, const Pt2WeightEntry
     }
 
     const std::string entry_path = is_constant ? program.constant_entry_path(entry.path_name)
-                                               : program.weight_entry_path(entry.path_name);
+                                   : program.weight_entry_path(entry.path_name);
 
     StoreZipReader zip;
     if (zip.open(program.zippath) != 0)
@@ -460,9 +463,9 @@ static bool pt2_module_form_allowed(const std::string& cls, const std::string& a
     if (cls == "AdaptiveAvgPool3d")
         return aten == "aten::adaptive_avg_pool3d";
     if (cls == "ConstantPad1d" || cls == "ConstantPad2d" || cls == "ConstantPad3d"
-        || cls == "ReflectionPad1d" || cls == "ReflectionPad2d"
-        || cls == "ReplicationPad1d" || cls == "ReplicationPad2d" || cls == "ReplicationPad3d"
-        || cls == "ZeroPad2d")
+            || cls == "ReflectionPad1d" || cls == "ReflectionPad2d"
+            || cls == "ReplicationPad1d" || cls == "ReplicationPad2d" || cls == "ReplicationPad3d"
+            || cls == "ZeroPad2d")
         return aten == "aten::pad";
     if (cls == "Upsample")
         return pt2_upsample_mode(aten) != 0;
@@ -496,7 +499,7 @@ static std::string pt2_module_param_key(const std::string& cls, const std::strin
     if (cls == "MaxPool1d" || cls == "MaxPool2d" || cls == "MaxPool3d")
     {
         if (name == "kernel_size" || name == "stride" || name == "padding" || name == "dilation"
-            || name == "ceil_mode")
+                || name == "ceil_mode")
             return name;
         return "";
     }
@@ -514,7 +517,7 @@ static std::string pt2_module_param_key(const std::string& cls, const std::strin
     }
 
     if (cls == "ReflectionPad1d" || cls == "ReflectionPad2d" || cls == "ReplicationPad1d"
-        || cls == "ReplicationPad2d" || cls == "ReplicationPad3d" || cls == "ZeroPad2d")
+            || cls == "ReplicationPad2d" || cls == "ReplicationPad3d" || cls == "ZeroPad2d")
         return name == "pad" ? "padding" : "";
 
     if (cls == "Upsample")
@@ -700,8 +703,8 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                     // op attrs(pass_ncnn 的 pattern 按 @weight/@bias 捕获),
                     // 与一般权重的 operand 形态不同
                     if ((module_class == "LayerNorm" || module_class == "RMSNorm")
-                        && (input.name == "weight" || input.name == "bias") && r->producer
-                        && r->producer->type == "pnnx.Attribute")
+                            && (input.name == "weight" || input.name == "bias") && r->producer
+                            && r->producer->type == "pnnx.Attribute")
                     {
                         op->attrs[input.name] = r->producer->attrs["data"];
                         continue;
@@ -909,7 +912,7 @@ int load_pt2(const std::string& ptpath, Graph& pg,
 
                     Parameter value;
                     if (d.type == PT2_D_NO_DEFAULT || d.type == PT2_D_UNSUPPORTED
-                        || !default_value_to_parameter(d.type, d.value, value))
+                            || !default_value_to_parameter(d.type, d.value, value))
                     {
                         fprintf(stderr, "load_pt2: %s node %s: missing arg %s has no usable default, skipped\n",
                                 full_target.c_str(), node.name.c_str(), d.name);

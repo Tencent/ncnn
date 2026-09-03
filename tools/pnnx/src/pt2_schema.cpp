@@ -103,7 +103,7 @@ static Pt2Argument::ArgType detect_arg_type(const JsonValue& arg)
 
     fprintf(stderr, "load_pt2_schema: unknown argument variant:");
     for (std::map<std::string, JsonValue>::const_iterator it = arg.object_value.begin();
-         it != arg.object_value.end(); ++it)
+            it != arg.object_value.end(); ++it)
     {
         fprintf(stderr, " %s", it->first.c_str());
     }
@@ -263,7 +263,7 @@ static void parse_input_specs(const JsonValue& specs, std::vector<Pt2InputSpec>&
         const JsonValue& spec = specs[i];
         // 实测:每个 spec 对象恰含一个 kind 键(user_input/parameter/buffer/tensor_constant)
         for (std::map<std::string, JsonValue>::const_iterator it = spec.object_value.begin();
-             it != spec.object_value.end(); ++it)
+                it != spec.object_value.end(); ++it)
         {
             Pt2InputSpec s;
             const std::string& kind_name = it->first;
@@ -305,7 +305,7 @@ static void parse_output_specs(const JsonValue& specs, std::vector<Pt2OutputSpec
         const JsonValue& spec = specs[i];
         // 实测:仅 user_output 一种,{ "arg": { "as_tensor": { "name": x } } }
         for (std::map<std::string, JsonValue>::const_iterator it = spec.object_value.begin();
-             it != spec.object_value.end(); ++it)
+                it != spec.object_value.end(); ++it)
         {
             Pt2OutputSpec s;
             s.graph_name = parse_spec_graph_name(it->second);
@@ -334,7 +334,7 @@ static void parse_weight_config(const JsonValue& config, std::vector<Pt2WeightEn
 {
     // config: { state_dict_name → {path_name, is_param, use_pickle, tensor_meta{...}} }
     for (std::map<std::string, JsonValue>::const_iterator it = config.object_value.begin();
-         it != config.object_value.end(); ++it)
+            it != config.object_value.end(); ++it)
     {
         Pt2WeightEntry e;
         e.state_dict_name = it->first;
@@ -357,7 +357,7 @@ static void parse_weight_config(const JsonValue& config, std::vector<Pt2WeightEn
             if (tm.hasMember("strides"))
                 e.strides = parse_int_list_of_objects(tm["strides"]);
             if (tm.hasMember("storage_offset") && tm["storage_offset"].isObject()
-                && tm["storage_offset"].hasMember("as_int"))
+                    && tm["storage_offset"].hasMember("as_int"))
             {
                 e.storage_offset = json_as_int(tm["storage_offset"]["as_int"]);
             }
@@ -377,7 +377,7 @@ static void parse_tensor_values(const JsonValue& tv, std::map<std::string, Pt2Te
         return;
 
     for (std::map<std::string, JsonValue>::const_iterator it = tv.object_value.begin();
-         it != tv.object_value.end(); ++it)
+            it != tv.object_value.end(); ++it)
     {
         Pt2TensorMeta meta;
 
@@ -451,7 +451,7 @@ int load_pt2_schema(const std::string& ptpath, Pt2Program& program)
         if (opset.isObject())
         {
             for (std::map<std::string, JsonValue>::const_iterator it = opset.object_value.begin();
-                 it != opset.object_value.end(); ++it)
+                    it != opset.object_value.end(); ++it)
             {
                 char buf32[32];
                 if (it->second.isInt())

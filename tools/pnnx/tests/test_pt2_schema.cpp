@@ -28,21 +28,35 @@ static const char* arg_shape(const Pt2Argument& a)
 {
     switch (a.type)
     {
-    case Pt2Argument::TENSOR: return "t";
-    case Pt2Argument::TENSORS: return "ts";
-    case Pt2Argument::INT: return "i";
-    case Pt2Argument::INTS: return "iv";
-    case Pt2Argument::FLOAT: return "f";
-    case Pt2Argument::FLOATS: return "fv";
-    case Pt2Argument::BOOL: return "b";
-    case Pt2Argument::BOOLS: return "bv";
-    case Pt2Argument::STRING: return "s";
-    case Pt2Argument::STRINGS: return "sv";
-    case Pt2Argument::SCALAR_TYPE: return "st";
-    case Pt2Argument::DEVICE: return "dev";
-    case Pt2Argument::MEMORY_FORMAT: return "mf";
+    case Pt2Argument::TENSOR:
+        return "t";
+    case Pt2Argument::TENSORS:
+        return "ts";
+    case Pt2Argument::INT:
+        return "i";
+    case Pt2Argument::INTS:
+        return "iv";
+    case Pt2Argument::FLOAT:
+        return "f";
+    case Pt2Argument::FLOATS:
+        return "fv";
+    case Pt2Argument::BOOL:
+        return "b";
+    case Pt2Argument::BOOLS:
+        return "bv";
+    case Pt2Argument::STRING:
+        return "s";
+    case Pt2Argument::STRINGS:
+        return "sv";
+    case Pt2Argument::SCALAR_TYPE:
+        return "st";
+    case Pt2Argument::DEVICE:
+        return "dev";
+    case Pt2Argument::MEMORY_FORMAT:
+        return "mf";
     case Pt2Argument::NONE:
-    default: return "n";
+    default:
+        return "n";
     }
 }
 
@@ -90,7 +104,7 @@ static void dump_canonical(const Pt2Program& program)
 
     printf("opset:");
     for (std::map<std::string, std::string>::const_iterator it = program.opset_version.begin();
-         it != program.opset_version.end(); ++it)
+            it != program.opset_version.end(); ++it)
     {
         printf("%s=%s,", it->first.c_str(), it->second.c_str());
     }
@@ -148,7 +162,7 @@ static void dump_human(const Pt2Program& program)
            program.schema_version_minor, program.torch_version.c_str());
     printf("    opset_version:");
     for (std::map<std::string, std::string>::const_iterator it = program.opset_version.begin();
-         it != program.opset_version.end(); ++it)
+            it != program.opset_version.end(); ++it)
     {
         printf(" %s=%s", it->first.c_str(), it->second.c_str());
     }
