@@ -16,6 +16,11 @@ Concat_arm::Concat_arm()
 #endif
 #endif // __ARM_NEON
 
+#if __ARM_FEATURE_SVE
+    if (cpu_arm_sve_vlenb() != 16)
+        support_packing = false;
+#endif // __ARM_FEATURE_SVE
+
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
@@ -26,7 +31,7 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     int elembits = bottom_blobs[0].elembits();
 
 #if NCNN_ARM82
-    if (support_packing && opt.use_fp16_storage && elembits == 16)
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
 #endif
 

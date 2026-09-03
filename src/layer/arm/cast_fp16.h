@@ -35,7 +35,19 @@ static void cast_fp32_to_fp16_neon(const Mat& bottom_blob, Mat& top_blob, const 
         unsigned short* outptr = top_blob.batch(b).channel(q);
 
         int i = 0;
-#if (__ARM_FP & 2)
+#if __ARM_FEATURE_SVE
+        const int packn = svcntw();
+        const svfloat16_t _zero = svdup_n_f16(0.f);
+        for (; i < size; i += packn)
+        {
+            const int remain = size - i < packn ? size - i : packn;
+            const svbool_t _pg32 = svwhilelt_b32((unsigned int)0, (unsigned int)remain);
+            const svbool_t _pg16 = svwhilelt_b16((unsigned int)0, (unsigned int)remain);
+            svfloat32_t _p = svld1_f32(_pg32, ptr + i);
+            svfloat16_t _p_fp16 = svuzp1_f16(svcvt_f16_f32_x(_pg32, _p), _zero);
+            svst1_f16(_pg16, (__fp16*)outptr + i, _p_fp16);
+        }
+#elif (__ARM_FP & 2)
         for (; i + 15 < size; i += 16)
         {
 #if NCNN_GNU_INLINE_ASM
@@ -160,7 +172,7 @@ static void cast_fp32_to_fp16_neon(const Mat& bottom_blob, Mat& top_blob, const 
             outptr += 4;
 #endif // NCNN_GNU_INLINE_ASM
         }
-#endif // (__ARM_FP & 2)
+#endif // __ARM_FEATURE_SVE
         for (; i < size; i++)
         {
             *outptr++ = float32_to_float16(*ptr++);
@@ -197,7 +209,19 @@ static void cast_fp16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
         float* outptr = top_blob.batch(b).channel(q);
 
         int i = 0;
-#if (__ARM_FP & 2)
+#if __ARM_FEATURE_SVE
+        const int packn = svcntw();
+        const svfloat16_t _zero = svdup_n_f16(0.f);
+        for (; i < size; i += packn)
+        {
+            const int remain = size - i < packn ? size - i : packn;
+            const svbool_t _pg32 = svwhilelt_b32((unsigned int)0, (unsigned int)remain);
+            const svbool_t _pg16 = svwhilelt_b16((unsigned int)0, (unsigned int)remain);
+            svfloat16_t _p_fp16 = svzip1_f16(svld1_f16(_pg16, (const __fp16*)ptr + i), _zero);
+            svfloat32_t _p = svcvt_f32_f16_x(_pg32, _p_fp16);
+            svst1_f32(_pg32, outptr + i, _p);
+        }
+#elif (__ARM_FP & 2)
         for (; i + 15 < size; i += 16)
         {
 #if NCNN_GNU_INLINE_ASM
@@ -313,7 +337,7 @@ static void cast_fp16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
             outptr += 4;
 #endif // NCNN_GNU_INLINE_ASM
         }
-#endif // (__ARM_FP & 2)
+#endif // __ARM_FEATURE_SVE
         for (; i < size; i++)
         {
             *outptr++ = float16_to_float32(*ptr++);

@@ -1,14 +1,14 @@
 // Copyright 2022 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_SVE && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 void cast_fp32_to_bf16_neon_bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
 void cast_bf16_to_fp32_neon_bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
 #endif
 
 static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_SVE && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
     if (ncnn::cpu_support_arm_bf16())
     {
         cast_fp32_to_bf16_neon_bf16(bottom_blob, top_blob, opt);
@@ -39,7 +39,16 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
 #endif
 
         int i = 0;
-#if __ARM_NEON
+#if __ARM_FEATURE_SVE
+        const int packn = svcntw();
+        for (; i < size; i += packn)
+        {
+            const svbool_t _pg = svwhilelt_b32((unsigned int)i, (unsigned int)size);
+            svuint32_t _p = svreinterpret_u32_f32(svld1_f32(_pg, ptr + i));
+            _p = svlsr_n_u32_x(_pg, svadd_n_u32_x(_pg, _p, 0x8000), 16);
+            svst1h_u32(_pg, (unsigned short*)outptr + i, _p);
+        }
+#elif __ARM_NEON
         for (; i + 15 < size; i += 16)
         {
 #if NCNN_GNU_INLINE_ASM
@@ -176,7 +185,7 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
 
 static void cast_bf16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_SVE && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
     if (ncnn::cpu_support_arm_bf16())
     {
         cast_bf16_to_fp32_neon_bf16(bottom_blob, top_blob, opt);
@@ -207,7 +216,15 @@ static void cast_bf16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
         float* outptr = top_blob.batch(b).channel(q);
 
         int i = 0;
-#if __ARM_NEON
+#if __ARM_FEATURE_SVE
+        const int packn = svcntw();
+        for (; i < size; i += packn)
+        {
+            const svbool_t _pg = svwhilelt_b32((unsigned int)i, (unsigned int)size);
+            svuint32_t _p = svld1uh_u32(_pg, (const unsigned short*)ptr + i);
+            svst1_f32(_pg, outptr + i, svreinterpret_f32_u32(svlsl_n_u32_x(_pg, _p, 16)));
+        }
+#elif __ARM_NEON
         for (; i + 15 < size; i += 16)
         {
 #if NCNN_GNU_INLINE_ASM

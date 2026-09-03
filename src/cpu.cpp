@@ -2612,6 +2612,24 @@ int cpu_support_arm_sve()
 #endif
 }
 
+int cpu_arm_sve_vlenb()
+{
+    try_initialize_global_cpu_info();
+#if __aarch64__ && NCNN_GNU_INLINE_ASM
+    if (!cpu_support_arm_sve())
+        return 0;
+
+    size_t vlenb;
+    asm volatile(
+        ".arch_extension sve\n"
+        "cntb   %x0        \n"
+        : "=r"(vlenb));
+    return (int)vlenb;
+#else
+    return 0;
+#endif
+}
+
 int cpu_support_arm_sve2()
 {
     try_initialize_global_cpu_info();

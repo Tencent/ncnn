@@ -4,6 +4,10 @@
 #include "cpu.h"
 #include "mat.h"
 
+#if __ARM_FEATURE_SVE
+#include <arm_sve.h>
+#endif // __ARM_FEATURE_SVE
+
 namespace ncnn {
 
 #include "cast_fp16.h"

@@ -24,6 +24,9 @@ Clip_arm::Clip_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+#if __ARM_FEATURE_SVE
+    support_any_packing = true;
+#endif // __ARM_FEATURE_SVE
 #if NCNN_ARM82
     support_fp16_storage = cpu_support_arm_asimdhp();
 #endif

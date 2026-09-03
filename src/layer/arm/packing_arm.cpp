@@ -7,13 +7,287 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#if __ARM_FEATURE_SVE
+#include <arm_sve.h>
+#endif // __ARM_FEATURE_SVE
+
 #include "cpu.h"
 
 namespace ncnn {
 
+#if __ARM_FEATURE_SVE
+static void packing_pack1ton_float32_sve(const float* ptr, float* outptr, int size, int stride)
+{
+    const int packn = svcntw();
+    const svbool_t _pg = svptrue_b32();
+    const svint32_t _offset = svindex_s32(0, stride * 4);
+
+    for (int i = 0; i < size; i++)
+    {
+        svfloat32_t _p = svld1_gather_s32offset_f32(_pg, ptr, _offset);
+        svst1_f32(_pg, outptr, _p);
+
+        ptr++;
+        outptr += packn;
+    }
+}
+
+static void packing_packnto1_float32_sve(const float* ptr, float* outptr, int size, int stride)
+{
+    const int packn = svcntw();
+    const svbool_t _pg = svptrue_b32();
+    const svint32_t _offset = svindex_s32(0, stride * 4);
+
+    for (int i = 0; i < size; i++)
+    {
+        svfloat32_t _p = svld1_f32(_pg, ptr);
+        svst1_scatter_s32offset_f32(_pg, outptr, _offset, _p);
+
+        ptr += packn;
+        outptr++;
+    }
+}
+
+static void packing_pack1ton_int16_sve(const unsigned short* ptr, unsigned short* outptr, int size, int stride)
+{
+    const int packn = svcnth();
+    const int packn_w = svcntw();
+    const svbool_t _pg = svptrue_b32();
+    const svint32_t _offset = svindex_s32(0, stride * 2);
+
+    for (int i = 0; i < size; i++)
+    {
+        svuint32_t _p0 = svld1uh_gather_s32offset_u32(_pg, ptr, _offset);
+        svuint32_t _p1 = svld1uh_gather_s32offset_u32(_pg, ptr + packn_w * stride, _offset);
+        svst1h_u32(_pg, outptr, _p0);
+        svst1h_u32(_pg, outptr + packn_w, _p1);
+
+        ptr++;
+        outptr += packn;
+    }
+}
+
+static void packing_packnto1_int16_sve(const unsigned short* ptr, unsigned short* outptr, int size, int stride)
+{
+    const int packn = svcnth();
+    const int packn_w = svcntw();
+    const svbool_t _pg = svptrue_b32();
+    const svint32_t _offset = svindex_s32(0, stride * 2);
+
+    for (int i = 0; i < size; i++)
+    {
+        svuint32_t _p0 = svld1uh_u32(_pg, ptr);
+        svuint32_t _p1 = svld1uh_u32(_pg, ptr + packn_w);
+        svst1h_scatter_s32offset_u32(_pg, outptr, _offset, _p0);
+        svst1h_scatter_s32offset_u32(_pg, outptr + packn_w * stride, _offset, _p1);
+
+        ptr += packn;
+        outptr++;
+    }
+}
+
+static void packing_pack1ton_int8_sve(const unsigned char* ptr, unsigned char* outptr, int size, int stride)
+{
+    const int packn = svcntb();
+    const int packn_w = svcntw();
+    const svbool_t _pg = svptrue_b32();
+    const svint32_t _offset = svindex_s32(0, stride);
+
+    for (int i = 0; i < size; i++)
+    {
+        svuint32_t _p0 = svld1ub_gather_s32offset_u32(_pg, ptr, _offset);
+        svuint32_t _p1 = svld1ub_gather_s32offset_u32(_pg, ptr + packn_w * stride, _offset);
+        svuint32_t _p2 = svld1ub_gather_s32offset_u32(_pg, ptr + packn_w * stride * 2, _offset);
+        svuint32_t _p3 = svld1ub_gather_s32offset_u32(_pg, ptr + packn_w * stride * 3, _offset);
+        svst1b_u32(_pg, outptr, _p0);
+        svst1b_u32(_pg, outptr + packn_w, _p1);
+        svst1b_u32(_pg, outptr + packn_w * 2, _p2);
+        svst1b_u32(_pg, outptr + packn_w * 3, _p3);
+
+        ptr++;
+        outptr += packn;
+    }
+}
+
+static void packing_packnto1_int8_sve(const unsigned char* ptr, unsigned char* outptr, int size, int stride)
+{
+    const int packn = svcntb();
+    const int packn_w = svcntw();
+    const svbool_t _pg = svptrue_b32();
+    const svint32_t _offset = svindex_s32(0, stride);
+
+    for (int i = 0; i < size; i++)
+    {
+        svuint32_t _p0 = svld1ub_u32(_pg, ptr);
+        svuint32_t _p1 = svld1ub_u32(_pg, ptr + packn_w);
+        svuint32_t _p2 = svld1ub_u32(_pg, ptr + packn_w * 2);
+        svuint32_t _p3 = svld1ub_u32(_pg, ptr + packn_w * 3);
+        svst1b_scatter_s32offset_u32(_pg, outptr, _offset, _p0);
+        svst1b_scatter_s32offset_u32(_pg, outptr + packn_w * stride, _offset, _p1);
+        svst1b_scatter_s32offset_u32(_pg, outptr + packn_w * stride * 2, _offset, _p2);
+        svst1b_scatter_s32offset_u32(_pg, outptr + packn_w * stride * 3, _offset, _p3);
+
+        ptr += packn;
+        outptr++;
+    }
+}
+
+static int packing_sve(const Mat& bottom_blob, Mat& top_blob, int out_elempack, const Option& opt)
+{
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
+    const int channels = bottom_blob.c;
+    const int dims = bottom_blob.dims;
+    const int batch = bottom_blob.n;
+    const size_t elemsize = bottom_blob.elemsize;
+    const int elempack = bottom_blob.elempack;
+    const int elembits = bottom_blob.elembits();
+    const int packn = svcntb() / (elembits / 8);
+
+    if (dims == 1 && w * elempack % out_elempack != 0)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+    if (dims == 2 && h * elempack % out_elempack != 0)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+    if ((dims == 3 || dims == 4) && channels * elempack % out_elempack != 0)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    if (dims == 1)
+    {
+        top_blob = bottom_blob;
+        top_blob.w = w * elempack / out_elempack;
+        top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
+        top_blob.elemsize = elemsize / elempack * out_elempack;
+        top_blob.elempack = out_elempack;
+#if NCNN_BATCH
+        top_blob.nstep = bottom_blob.nstep * elempack / out_elempack;
+#endif
+        return 0;
+    }
+
+    const bool pack1ton = elempack == 1 && out_elempack == packn;
+
+    if (dims == 2)
+    {
+        const int outh = h * elempack / out_elempack;
+        const size_t out_elemsize = elemsize / elempack * out_elempack;
+
+        top_blob.create(w, outh, out_elemsize, out_elempack, batch, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        const int groups = pack1ton ? outh : h;
+        const int total_bi = batch * groups;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int bi = 0; bi < total_bi; bi++)
+        {
+            const int b = bi / groups;
+            const int i = bi % groups;
+
+            if (elembits == 32)
+            {
+                const float* ptr = bottom_blob.batch(b).row(pack1ton ? i * packn : i);
+                float* outptr = top_blob.batch(b).row(pack1ton ? i : i * packn);
+                if (pack1ton)
+                    packing_pack1ton_float32_sve(ptr, outptr, w, w);
+                else
+                    packing_packnto1_float32_sve(ptr, outptr, w, w);
+            }
+            if (elembits == 16)
+            {
+                const unsigned short* ptr = bottom_blob.batch(b).row<const unsigned short>(pack1ton ? i * packn : i);
+                unsigned short* outptr = top_blob.batch(b).row<unsigned short>(pack1ton ? i : i * packn);
+                if (pack1ton)
+                    packing_pack1ton_int16_sve(ptr, outptr, w, w);
+                else
+                    packing_packnto1_int16_sve(ptr, outptr, w, w);
+            }
+            if (elembits == 8)
+            {
+                const unsigned char* ptr = bottom_blob.batch(b).row<const unsigned char>(pack1ton ? i * packn : i);
+                unsigned char* outptr = top_blob.batch(b).row<unsigned char>(pack1ton ? i : i * packn);
+                if (pack1ton)
+                    packing_pack1ton_int8_sve(ptr, outptr, w, w);
+                else
+                    packing_packnto1_int8_sve(ptr, outptr, w, w);
+            }
+        }
+
+        return 0;
+    }
+
+    if (dims == 3 || dims == 4)
+    {
+        const int size = w * h * d;
+        const int outc = channels * elempack / out_elempack;
+        const size_t out_elemsize = elemsize / elempack * out_elempack;
+
+        if (dims == 3)
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, batch, opt.blob_allocator);
+        else
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, batch, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        const int groups = pack1ton ? outc : channels;
+        const int total_bq = batch * groups;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int bq = 0; bq < total_bq; bq++)
+        {
+            const int b = bq / groups;
+            const int q = bq % groups;
+
+            if (elembits == 32)
+            {
+                const float* ptr = bottom_blob.batch(b).channel(pack1ton ? q * packn : q);
+                float* outptr = top_blob.batch(b).channel(pack1ton ? q : q * packn);
+                if (pack1ton)
+                    packing_pack1ton_float32_sve(ptr, outptr, size, (int)bottom_blob.cstep);
+                else
+                    packing_packnto1_float32_sve(ptr, outptr, size, (int)top_blob.cstep);
+            }
+            if (elembits == 16)
+            {
+                const unsigned short* ptr = bottom_blob.batch(b).channel(pack1ton ? q * packn : q);
+                unsigned short* outptr = top_blob.batch(b).channel(pack1ton ? q : q * packn);
+                if (pack1ton)
+                    packing_pack1ton_int16_sve(ptr, outptr, size, (int)bottom_blob.cstep);
+                else
+                    packing_packnto1_int16_sve(ptr, outptr, size, (int)top_blob.cstep);
+            }
+            if (elembits == 8)
+            {
+                const unsigned char* ptr = bottom_blob.batch(b).channel(pack1ton ? q * packn : q);
+                unsigned char* outptr = top_blob.batch(b).channel(pack1ton ? q : q * packn);
+                if (pack1ton)
+                    packing_pack1ton_int8_sve(ptr, outptr, size, (int)bottom_blob.cstep);
+                else
+                    packing_packnto1_int8_sve(ptr, outptr, size, (int)top_blob.cstep);
+            }
+        }
+
+        return 0;
+    }
+
+    return 0;
+}
+#endif // __ARM_FEATURE_SVE
+
 Packing_arm::Packing_arm()
 {
     support_packing = true;
+#if __ARM_FEATURE_SVE
+    support_any_packing = true;
+#endif // __ARM_FEATURE_SVE
 #if NCNN_ARM82
     support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
@@ -24,6 +298,15 @@ Packing_arm::Packing_arm()
 int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int elembits = bottom_blob.elembits();
+
+#if __ARM_FEATURE_SVE
+    if (!use_padding && (elembits == 8 || elembits == 16 || elembits == 32))
+    {
+        const int packn = svcntb() / (elembits / 8);
+        if ((bottom_blob.elempack == 1 && out_elempack == packn) || (bottom_blob.elempack == packn && out_elempack == 1))
+            return packing_sve(bottom_blob, top_blob, out_elempack, opt);
+    }
+#endif // __ARM_FEATURE_SVE
 
     if (elembits == 8)
         return forward_int8(bottom_blob, top_blob, opt);
