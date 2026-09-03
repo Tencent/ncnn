@@ -110,9 +110,11 @@ def _test_input2():
     )
     cases = (((x0, y0), a0), ((x1, y1), a1))
     store_trace_inputs = version.parse(torch.__version__) < version.parse("2.0")
-    channel = torch.export.Dim("channel", min=2, max=3)
-    width = torch.export.Dim("width", min=6, max=8)
-    dynamic_shapes = ({1: channel, 2: width}, {1: channel, 2: width})
+    dynamic_shapes = None
+    if "pt2" in model_formats():
+        channel = torch.export.Dim("channel", min=2, max=3)
+        width = torch.export.Dim("width", min=6, max=8)
+        dynamic_shapes = ({1: channel, 2: width}, {1: channel, 2: width})
     return _test_formats(net, (x0, y0), cases, "test_pnnx_input_npy_input2", arguments,
                          store_trace_inputs=store_trace_inputs, dynamic_shapes=dynamic_shapes)
 
