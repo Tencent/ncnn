@@ -625,9 +625,9 @@ int load_pt2(const std::string& ptpath, Graph& pg,
             continue;
 
         const bool is_constant = spec.kind == Pt2InputSpec::TENSOR_CONSTANT
-                              || (spec.kind == Pt2InputSpec::BUFFER && !spec.persistent);
+                                 || (spec.kind == Pt2InputSpec::BUFFER && !spec.persistent);
         const Pt2WeightEntry* entry = is_constant ? program.find_constant(spec.state_dict_name)
-                                                   : program.find_weight(spec.state_dict_name);
+                                      : program.find_weight(spec.state_dict_name);
 
         if (!entry)
         {
@@ -674,8 +674,8 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         // 输入尺寸；仅给该 PT2 来源打标，避免 pass_level2 把 TorchScript
         // 或显式相同尺寸误判成 None。
         if (aten_type == "aten::adaptive_avg_pool1d" || aten_type == "aten::adaptive_avg_pool2d"
-            || aten_type == "aten::adaptive_avg_pool3d" || aten_type == "aten::adaptive_max_pool1d"
-            || aten_type == "aten::adaptive_max_pool2d" || aten_type == "aten::adaptive_max_pool3d")
+                || aten_type == "aten::adaptive_avg_pool3d" || aten_type == "aten::adaptive_max_pool1d"
+                || aten_type == "aten::adaptive_max_pool2d" || aten_type == "aten::adaptive_max_pool3d")
         {
             op->name = "pt2_" + op->name;
         }

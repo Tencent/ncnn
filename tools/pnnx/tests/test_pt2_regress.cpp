@@ -204,9 +204,10 @@ prim::Constant          op_sz       0 1 output_size value=(8,8)
 aten::adaptive_avg_pool2d op_0      2 1 input output_size out
 pnnx.Output             output      1 0 out
 )PNNXIR");
-    // clang-format on
+        // clang-format on
 
-    Operator* pool = find_op(g, "aten::adaptive_avg_pool2d");
+        Operator* pool
+        = find_op(g, "aten::adaptive_avg_pool2d");
     pool->inputs[0]->shape = std::vector<int>{1, 3, 8, 8};
 }
 

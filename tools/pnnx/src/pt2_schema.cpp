@@ -495,7 +495,7 @@ int load_pt2_schema(const std::string& ptpath, Pt2Program& program)
             if (signature.hasMember("input_specs"))
                 parse_input_specs(signature["input_specs"], program.input_specs);
             if (signature.hasMember("output_specs")
-                && parse_output_specs(signature["output_specs"], program.output_specs) != 0)
+                    && parse_output_specs(signature["output_specs"], program.output_specs) != 0)
                 return -1;
         }
 
