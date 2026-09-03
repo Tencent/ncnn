@@ -674,9 +674,9 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         // 输入尺寸；仅给该 PT2 来源打标，避免 pass_level2 把 TorchScript
         // 或显式相同尺寸误判成 None。
         if (!is_module_form && node.adaptive_pool_has_none
-            && (aten_type == "aten::adaptive_avg_pool1d" || aten_type == "aten::adaptive_avg_pool2d"
-                || aten_type == "aten::adaptive_avg_pool3d" || aten_type == "aten::adaptive_max_pool1d"
-                || aten_type == "aten::adaptive_max_pool2d" || aten_type == "aten::adaptive_max_pool3d"))
+                && (aten_type == "aten::adaptive_avg_pool1d" || aten_type == "aten::adaptive_avg_pool2d"
+                    || aten_type == "aten::adaptive_avg_pool3d" || aten_type == "aten::adaptive_max_pool1d"
+                    || aten_type == "aten::adaptive_max_pool2d" || aten_type == "aten::adaptive_max_pool3d"))
         {
             op->name = "pt2_" + op->name;
         }

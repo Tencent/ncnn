@@ -237,9 +237,9 @@ static Pt2Node parse_node(const JsonValue& n)
     }
 
     if ((node.target.find("adaptive_avg_pool") != std::string::npos
-         || node.target.find("adaptive_max_pool") != std::string::npos)
-        && node.stack_trace.find("output_size=") != std::string::npos
-        && node.stack_trace.find("None") != std::string::npos)
+            || node.target.find("adaptive_max_pool") != std::string::npos)
+            && node.stack_trace.find("output_size=") != std::string::npos
+            && node.stack_trace.find("None") != std::string::npos)
         node.adaptive_pool_has_none = true;
 
     return node;
