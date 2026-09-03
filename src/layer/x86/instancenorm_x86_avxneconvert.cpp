@@ -16,11 +16,6 @@ void instancenorm_bf16s_avxneconvert(unsigned short* ptr, int size, float a, flo
     instancenorm_bf16s(ptr, size, a, b);
 }
 
-void instancenorm_bf16s_compute_mean_var_avxneconvert(const unsigned short* ptr, int size, float& mean, float& var)
-{
-    instancenorm_bf16s_compute_mean_var(ptr, size, mean, var);
-}
-
 #endif // NCNN_BF16
 
 } // namespace ncnn
