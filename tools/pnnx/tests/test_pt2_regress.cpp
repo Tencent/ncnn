@@ -270,8 +270,11 @@ pnnx.Input              input_0     0 1 input
 nn.AdaptiveAvgPool2d   op_0        1 1 input out output_size=(8,8)
 pnnx.Output             output      1 0 out
 )PNNXIR");
-    // clang-format on
-    find_op(g, "nn.AdaptiveAvgPool2d")->inputs[0]->shape = std::vector<int>{1, 3, 8, 8};
+        // clang-format on
+        find_op(g, "nn.AdaptiveAvgPool2d")
+            ->inputs[0]
+            ->shape
+        = std::vector<int>{1, 3, 8, 8};
 
     F_pt2_nn_adaptive_avg_pool2d pass;
     int opindex = 0;
@@ -288,8 +291,9 @@ pnnx.Input              input_0     0 1 input
 nn.AdaptiveAvgPool2d   op_0        1 1 input out output_size=(8,8)
 pnnx.Output             output      1 0 out
 )PNNXIR");
-    // clang-format on
-    Operator* pool = find_op(pt2, "nn.AdaptiveAvgPool2d");
+        // clang-format on
+        Operator* pool
+        = find_op(pt2, "nn.AdaptiveAvgPool2d");
     pool->inputs[0]->shape = std::vector<int>{1, 3, 8, 8};
     Parameter marker;
     marker.type = 4;
@@ -367,7 +371,7 @@ static void test_storezip_long_comment_zip64()
     const char payload[] = "zip64 long comment";
     StoreZipWriter writer;
     CHECK(writer.open(path) == 0 && writer.write_file("payload.txt", payload, sizeof(payload) - 1) == 0
-                  && writer.close() == 0,
+              && writer.close() == 0,
           "storezip: writes Zip64 archive for long comment regression");
 
     FILE* fp = fopen(path, "rb");

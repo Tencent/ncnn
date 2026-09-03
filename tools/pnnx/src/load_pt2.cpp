@@ -245,13 +245,13 @@ static bool argument_to_constant(const Pt2Argument& a, Parameter& value)
         return true;
     case Pt2Argument::SCALAR_TYPE:
         // PT2 dtype enums differ from TorchScript scalar types.
-        {
-            long long jit_type = 0;
-            if (!pt2_scalar_type_to_jit_type(a.int_value, jit_type))
-                return false;
-            value = Parameter(jit_type);
-        }
-        return true;
+    {
+        long long jit_type = 0;
+        if (!pt2_scalar_type_to_jit_type(a.int_value, jit_type))
+            return false;
+        value = Parameter(jit_type);
+    }
+    return true;
     case Pt2Argument::MEMORY_FORMAT:
         value = Parameter((long long)a.int_value);
         return true;
