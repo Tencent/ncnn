@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from pnnx_test_utils import export_model, has_exported_program, import_model, run_pnnx
+from pnnx_test_utils import export_model, import_model, model_formats, run_pnnx
 
 
 class Model(nn.Module):
@@ -364,13 +364,7 @@ def _run_case(name, net, inputs, inputshape, expected_inputshape, expected_flops
 
     a = net(*inputs)
 
-    formats = ["torchscript"]
-    if has_exported_program():
-        formats.append("pt2")
-    else:
-        print("SKIP PT2: torch.export.save is unavailable in torch " + torch.__version__)
-
-    for model_format in formats:
+    for model_format in model_formats():
         format_flops = expected_pt2_flops if model_format == "pt2" and expected_pt2_flops is not None else expected_flops
         format_memops = expected_pt2_memops if model_format == "pt2" and expected_pt2_memops is not None else expected_memops
         model_path = export_model(net, inputs, name, model_format)

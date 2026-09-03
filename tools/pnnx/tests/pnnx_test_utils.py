@@ -12,6 +12,22 @@ def has_exported_program():
     return hasattr(torch, "export") and hasattr(torch.export, "save")
 
 
+def model_formats():
+    requested = os.environ.get("PNNX_TEST_FORMAT")
+    if requested == "torchscript":
+        return ("torchscript",)
+    if requested == "pt2":
+        if not has_exported_program():
+            raise RuntimeError("PT2 tests require torch.export.save in torch " + torch.__version__)
+        return ("pt2",)
+    if requested:
+        raise RuntimeError("unknown PNNX_TEST_FORMAT " + requested)
+    if has_exported_program():
+        return ("torchscript", "pt2")
+    print("SKIP PT2: torch.export.save is unavailable in torch " + torch.__version__)
+    return ("torchscript",)
+
+
 def find_pnnx():
     candidates = [
         os.path.join("..", "src", "pnnx"),
@@ -93,42 +109,35 @@ def test_model_formats(model, inputs, expected, name, compare=torch.equal, check
     converted_inputs = inputs if converted_inputs is None else converted_inputs
     torchscript_inputs = converted_inputs if torchscript_inputs is None else torchscript_inputs
     pt2_inputs = converted_inputs if pt2_inputs is None else pt2_inputs
-    torchscript_model = export_convert_import(model, inputs, name, "torchscript", check_trace=check_trace)
-    torchscript_result = torchscript_model(*torchscript_inputs)
-    torchscript_outputs = torchscript_result if isinstance(torchscript_result, tuple) else (torchscript_result,)
-    if len(expected_outputs) != len(torchscript_outputs) or not all(
-        compare(a, b) for a, b in zip(expected_outputs, torchscript_outputs)
-    ):
-        return False
+    for model_format in model_formats():
+        if model_format == "pt2" and unsupported_by_torch_export:
+            try:
+                export_model(model, inputs, name, "pt2")
+            except Exception as exception:
+                if unsupported_by_torch_export in str(exception):
+                    print("UNSUPPORTED_BY_TORCH_EXPORT: " + unsupported_by_torch_export)
+                    continue
+                raise
+            raise RuntimeError("torch.export unexpectedly supports " + name)
 
-    if not has_exported_program():
-        print("SKIP PT2: torch.export.save is unavailable in torch " + torch.__version__)
-        return True
+        if model_format == "pt2" and unsupported_by_pnnx_pt2:
+            model_path = export_model(model, inputs, name, "pt2")
+            result = run_pnnx(model_path, name + "_pt2", capture_output=True)
+            output = result.stdout + result.stderr
+            if result.returncode != 0 and unsupported_by_pnnx_pt2 in output:
+                print("UNSUPPORTED_BY_PNNX_PT2: " + unsupported_by_pnnx_pt2)
+                continue
+            if result.returncode == 0:
+                raise RuntimeError("pnnx unexpectedly supports PT2 conversion for " + name)
+            raise RuntimeError("unexpected pnnx PT2 failure for " + name + "\n" + output)
 
-    if unsupported_by_torch_export:
-        try:
-            export_model(model, inputs, name, "pt2")
-        except Exception as exception:
-            if unsupported_by_torch_export in str(exception):
-                print("UNSUPPORTED_BY_TORCH_EXPORT: " + unsupported_by_torch_export)
-                return True
-            raise
-        raise RuntimeError("torch.export unexpectedly supports " + name)
+        generated_model = export_convert_import(model, inputs, name, model_format, check_trace=check_trace)
+        model_inputs = torchscript_inputs if model_format == "torchscript" else pt2_inputs
+        result = generated_model(*model_inputs)
+        outputs = result if isinstance(result, tuple) else (result,)
+        if len(expected_outputs) != len(outputs) or not all(
+            compare(a, b) for a, b in zip(expected_outputs, outputs)
+        ):
+            return False
 
-    if unsupported_by_pnnx_pt2:
-        model_path = export_model(model, inputs, name, "pt2")
-        result = run_pnnx(model_path, name + "_pt2", capture_output=True)
-        output = result.stdout + result.stderr
-        if result.returncode != 0 and unsupported_by_pnnx_pt2 in output:
-            print("UNSUPPORTED_BY_PNNX_PT2: " + unsupported_by_pnnx_pt2)
-            return True
-        if result.returncode == 0:
-            raise RuntimeError("pnnx unexpectedly supports PT2 conversion for " + name)
-        raise RuntimeError("unexpected pnnx PT2 failure for " + name + "\n" + output)
-
-    pt2_model = export_convert_import(model, inputs, name, "pt2")
-    pt2_result = pt2_model(*pt2_inputs)
-    pt2_outputs = pt2_result if isinstance(pt2_result, tuple) else (pt2_result,)
-    return len(expected_outputs) == len(pt2_outputs) and all(
-        compare(a, b) for a, b in zip(expected_outputs, pt2_outputs)
-    )
+    return True

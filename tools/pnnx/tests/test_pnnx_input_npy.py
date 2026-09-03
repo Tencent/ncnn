@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from packaging import version
 
-from pnnx_test_utils import export_model, has_exported_program, import_model, run_pnnx
+from pnnx_test_utils import export_model, import_model, model_formats, run_pnnx
 
 
 def _allclose(a, b):
@@ -20,13 +20,7 @@ def _allclose(a, b):
 
 def _test_formats(net, export_inputs, cases, name, arguments, compare=_allclose, store_trace_inputs=True,
                   dynamic_shapes=None):
-    formats = ["torchscript"]
-    if has_exported_program():
-        formats.append("pt2")
-    else:
-        print("SKIP PT2: torch.export.save is unavailable in torch " + torch.__version__)
-
-    for model_format in formats:
+    for model_format in model_formats():
         if model_format == "torchscript" and not store_trace_inputs:
             model_path = name + "_torchscript.pt"
             torch.jit.trace(net, export_inputs, _store_inputs=False).save(model_path)
