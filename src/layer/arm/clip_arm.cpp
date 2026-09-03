@@ -3,7 +3,7 @@
 
 #include "clip_arm.h"
 
-#ifdef __ARM_NEON
+#if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
@@ -101,7 +101,7 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             svst1_f32(_pg, ptr, _p);
             ptr += packn;
         }
-        if (i < size)
+        for (; i < size; i += packn)
         {
             const svbool_t _pg1 = svwhilelt_b32((unsigned int)i, (unsigned int)size);
             svfloat32_t _p = svld1_f32(_pg1, ptr);
@@ -247,7 +247,7 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
             svst1_u16(_pg, ptr, _p);
             ptr += packn;
         }
-        if (i < size)
+        for (; i < size; i += packn)
         {
             const svbool_t _pg1 = svwhilelt_b16((unsigned int)i, (unsigned int)size);
             svuint16_t _p = svld1_u16(_pg1, ptr);
