@@ -258,7 +258,8 @@ int StoreZipReader::open(const std::string& path)
                     if (extra_size > zip64_size)
                         fseek(fp, extra_size - zip64_size, SEEK_CUR);
                     extra_offset += extra_size;
-                    fseek(fp, cdfh.extra_field_length - extra_offset, SEEK_CUR);
+                    if (extra_offset <= cdfh.extra_field_length)
+                        fseek(fp, cdfh.extra_field_length - extra_offset, SEEK_CUR);
                     break;
                 }
                 else
@@ -366,8 +367,16 @@ int StoreZipReader::find_central_directory(uint64_t& cd_offset, uint64_t& cd_siz
         uint32_t eocd_cd_size = read_le32(buf.data() + eocd_buf_off + 12);
         uint32_t eocd_cd_offset = read_le32(buf.data() + eocd_buf_off + 16);
 
-        if (eocd_cd_offset != 0xffffffff)
+        const bool eocd_saturated = eocd_records == 0xffff || eocd_cd_size == 0xffffffff || eocd_cd_offset == 0xffffffff;
+        if (!eocd_saturated)
         {
+            if (eocd_records == 0 && eocd_cd_size == 0 && eocd_cd_offset == 0)
+            {
+                cd_offset = 0;
+                cd_size = 0;
+                cd_records = 0;
+                return 0;
+            }
             if (cd_offset_valid(eocd_cd_offset) && (uint64_t)eocd_cd_offset + eocd_cd_size <= (uint64_t)file_size)
             {
                 cd_offset = eocd_cd_offset;
@@ -414,7 +423,8 @@ int StoreZipReader::find_central_directory(uint64_t& cd_offset, uint64_t& cd_siz
         if (z64_total_cd_records != z64_cd_records)
             continue;
 
-        if (cd_offset_valid(z64_cd_offset) && z64_cd_offset + z64_cd_size <= (uint64_t)file_size)
+        if ((z64_cd_records == 0 && z64_cd_size == 0 && z64_cd_offset == 0)
+                || (cd_offset_valid(z64_cd_offset) && z64_cd_offset + z64_cd_size <= (uint64_t)file_size))
         {
             cd_offset = z64_cd_offset;
             cd_size = z64_cd_size;

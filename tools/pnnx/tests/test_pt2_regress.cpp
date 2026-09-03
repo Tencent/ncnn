@@ -233,12 +233,29 @@ static void test_adaptive_pool_source_guard()
     {
         Graph g;
         build_adaptive_pool_graph(g);
-        find_op(g, "aten::adaptive_avg_pool2d")->name = "pt2_" + find_op(g, "aten::adaptive_avg_pool2d")->name;
+        Parameter marker;
+        marker.type = 4;
+        marker.s = "11";
+        find_op(g, "aten::adaptive_avg_pool2d")->params["__pt2_none_axes"] = marker;
         run_adaptive_pool_pass(g);
         const Operator* sz = find_op(g, "prim::Constant");
         CHECK(sz != 0 && sz->params.at("value").ai.size() == 2 && sz->params.at("value").ai[0] == 0
                   && sz->params.at("value").ai[1] == 0,
               "adaptive_pool: PT2 marker permits None restoration");
+    }
+
+    {
+        Graph g;
+        build_adaptive_pool_graph(g);
+        Parameter marker;
+        marker.type = 4;
+        marker.s = "10";
+        find_op(g, "aten::adaptive_avg_pool2d")->params["__pt2_none_axes"] = marker;
+        run_adaptive_pool_pass(g);
+        const Operator* sz = find_op(g, "prim::Constant");
+        CHECK(sz != 0 && sz->params.at("value").ai.size() == 2 && sz->params.at("value").ai[0] == 0
+                  && sz->params.at("value").ai[1] == 8,
+              "adaptive_pool: per-axis None mask is preserved");
     }
 }
 
@@ -262,6 +279,16 @@ static void test_storezip_zip64_roundtrip()
           "storezip: reader round-trips payload");
     reader.close();
     remove(path);
+
+    const char* empty_path = "test_pt2_storezip_empty_regress.zip";
+    StoreZipWriter empty_writer;
+    CHECK(empty_writer.open(empty_path) == 0, "storezip: empty writer opens archive");
+    CHECK(empty_writer.close() == 0, "storezip: empty writer closes Zip64 archive");
+    StoreZipReader empty_reader;
+    CHECK(empty_reader.open(empty_path) == 0 && empty_reader.get_names().empty(),
+          "storezip: empty Zip64 archive is accepted");
+    empty_reader.close();
+    remove(empty_path);
 }
 
 static void test_output_spec_filter()

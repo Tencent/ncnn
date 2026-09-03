@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <algorithm>
+
 namespace pnnx {
 
 static bool string_ends_with(const std::string& s, const std::string& suffix)
@@ -238,9 +240,36 @@ static Pt2Node parse_node(const JsonValue& n)
 
     if ((node.target.find("adaptive_avg_pool") != std::string::npos
             || node.target.find("adaptive_max_pool") != std::string::npos)
-            && node.stack_trace.find("output_size=") != std::string::npos
-            && node.stack_trace.find("None") != std::string::npos)
-        node.adaptive_pool_has_none = true;
+            && node.stack_trace.find("output_size=") != std::string::npos)
+    {
+        const size_t begin = node.stack_trace.find("output_size=") + 12;
+        size_t end = node.stack_trace.find('\n', begin);
+        if (end == std::string::npos)
+            end = node.stack_trace.size();
+        const std::string output_size = node.stack_trace.substr(begin, end - begin);
+        const size_t left = output_size.find('(');
+        const size_t right = output_size.rfind(')');
+        if (left != std::string::npos && right > left)
+        {
+            size_t token_begin = left + 1;
+            while (token_begin < right)
+            {
+                size_t token_end = output_size.find(',', token_begin);
+                if (token_end == std::string::npos || token_end > right)
+                    token_end = right;
+                node.adaptive_pool_none_axes.push_back(
+                    output_size.substr(token_begin, token_end - token_begin).find("None") != std::string::npos);
+                token_begin = token_end + 1;
+            }
+        }
+        else if (output_size.find("None") != std::string::npos)
+        {
+            node.adaptive_pool_none_axes.push_back(1);
+        }
+        node.adaptive_pool_has_none = !node.adaptive_pool_none_axes.empty()
+                                      && std::find(node.adaptive_pool_none_axes.begin(), node.adaptive_pool_none_axes.end(), 1)
+                                             != node.adaptive_pool_none_axes.end();
+    }
 
     return node;
 }

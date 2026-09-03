@@ -94,6 +94,7 @@ struct Pt2Node
     std::string nn_module_stack; // "L__self__,,__main__.M" 形态的紧凑编码
     std::string torch_fn;
     std::string stack_trace;
+    std::vector<int> adaptive_pool_none_axes;
     bool adaptive_pool_has_none;
 
     Pt2Node()

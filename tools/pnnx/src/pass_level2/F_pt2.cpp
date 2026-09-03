@@ -239,10 +239,11 @@ public:
     {
         // 只有 pt2 loader 明示标记的实例化 None 才能还原为 0。不能根据
         // output_size 恰好等于输入尺寸反推来源，否则会改写显式相同尺寸。
-        const Operator* pool = matched_operators.at("op_0");
-        if (pool->name.compare(0, 4, "pt2_") != 0)
+        const std::string marker_key = "op_0.__pt2_none_axes";
+        if (captured_params.find(marker_key) == captured_params.end()
+                || captured_params.at(marker_key).type != 4)
             return false;
-
+        const std::string& none_axes = captured_params.at(marker_key).s;
         const Parameter& osz = captured_params.at("output_size");
         if (osz.type != 5)
             return false;
@@ -258,7 +259,8 @@ public:
                 return false;
 
             const int dim_index = (int)ishape.size() - k + i;
-            if (dim_index >= 0 && dim_index < (int)ishape.size() && osz.ai[i] == ishape[dim_index])
+            if (i < (int)none_axes.size() && none_axes[i] == '1' && dim_index >= 0
+                    && dim_index < (int)ishape.size() && osz.ai[i] == ishape[dim_index])
                 return true;
         }
 
@@ -271,6 +273,7 @@ public:
 
         Parameter osz = captured_params.at("output_size");
         const std::vector<int>& ishape = ops.at("op_0")->inputs[0]->shape;
+        const std::string& none_axes = captured_params.at("op_0.__pt2_none_axes").s;
 
         if (!ishape.empty())
         {
@@ -278,7 +281,8 @@ public:
             for (int i = 0; i < k; i++)
             {
                 const int dim_index = (int)ishape.size() - k + i;
-                if (dim_index >= 0 && dim_index < (int)ishape.size() && osz.ai[i] == ishape[dim_index])
+                if (i < (int)none_axes.size() && none_axes[i] == '1' && dim_index >= 0
+                        && dim_index < (int)ishape.size() && osz.ai[i] == ishape[dim_index])
                 {
                     osz.ai[i] = 0;
                 }
@@ -299,7 +303,7 @@ public:
 5 4
 pnnx.Input              input_0     0 1 input
 prim::Constant          op_sz       0 1 output_size value=%output_size
-aten::adaptive_avg_pool1d op_0      2 1 input output_size out
+aten::adaptive_avg_pool1d op_0      2 1 input output_size out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -330,7 +334,7 @@ public:
 5 4
 pnnx.Input              input_0     0 1 input
 prim::Constant          op_sz       0 1 output_size value=%output_size
-aten::adaptive_avg_pool2d op_0      2 1 input output_size out
+aten::adaptive_avg_pool2d op_0      2 1 input output_size out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -361,7 +365,7 @@ public:
 5 4
 pnnx.Input              input_0     0 1 input
 prim::Constant          op_sz       0 1 output_size value=%output_size
-aten::adaptive_avg_pool3d op_0      2 1 input output_size out
+aten::adaptive_avg_pool3d op_0      2 1 input output_size out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -392,7 +396,7 @@ public:
 5 5
 pnnx.Input              input_0     0 1 input
 prim::Constant          op_sz       0 1 output_size value=%output_size
-aten::adaptive_max_pool1d op_0      2 2 input output_size out indices
+aten::adaptive_max_pool1d op_0      2 2 input output_size out indices %*=%*
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }
@@ -423,7 +427,7 @@ public:
 5 5
 pnnx.Input              input_0     0 1 input
 prim::Constant          op_sz       0 1 output_size value=%output_size
-aten::adaptive_max_pool2d op_0      2 2 input output_size out indices
+aten::adaptive_max_pool2d op_0      2 2 input output_size out indices %*=%*
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }
@@ -454,7 +458,7 @@ public:
 5 5
 pnnx.Input              input_0     0 1 input
 prim::Constant          op_sz       0 1 output_size value=%output_size
-aten::adaptive_max_pool3d op_0      2 2 input output_size out indices
+aten::adaptive_max_pool3d op_0      2 2 input output_size out indices %*=%*
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }

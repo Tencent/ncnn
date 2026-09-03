@@ -290,21 +290,87 @@ static int load_weight_attribute(const Pt2Program& program, const Pt2WeightEntry
         return -1;
     }
 
+    if (entry.storage_offset < 0)
+    {
+        fprintf(stderr, "load_pt2: invalid weight storage offset %s\n", entry_path.c_str());
+        return -1;
+    }
     for (size_t i = 0; i < entry.sizes.size(); i++)
+    {
+        if (entry.sizes[i] < 0)
+        {
+            fprintf(stderr, "load_pt2: invalid weight shape %s\n", entry_path.c_str());
+            return -1;
+        }
         attr.shape.push_back((int)entry.sizes[i]);
+    }
 
     size_t elem_count = 1;
     for (size_t i = 0; i < attr.shape.size(); i++)
         elem_count *= (size_t)attr.shape[i];
 
-    if (raw.size() != elem_count * elemsize)
+    if (entry.strides.size() != entry.sizes.size() && !entry.strides.empty())
     {
-        fprintf(stderr, "load_pt2: weight size mismatch %s: expect %zu got %llu\n", entry_path.c_str(),
-                elem_count * elemsize, (unsigned long long)raw.size());
+        fprintf(stderr, "load_pt2: invalid weight strides %s\n", entry_path.c_str());
         return -1;
     }
 
-    attr.data = raw;
+    size_t storage_count = elem_count;
+    if (entry.strides.size() == entry.sizes.size())
+    {
+        size_t max_offset = (size_t)entry.storage_offset;
+        for (size_t i = 0; i < entry.sizes.size(); i++)
+        {
+            if (entry.strides[i] < 0)
+            {
+                fprintf(stderr, "load_pt2: invalid weight shape/strides %s\n", entry_path.c_str());
+                return -1;
+            }
+            if (entry.sizes[i] > 0)
+                max_offset += (size_t)(entry.sizes[i] - 1) * (size_t)entry.strides[i];
+        }
+        storage_count = elem_count == 0 ? 0 : max_offset + 1;
+    }
+
+    if (raw.size() != storage_count * elemsize)
+    {
+        fprintf(stderr, "load_pt2: weight size mismatch %s: expect %zu got %llu\n", entry_path.c_str(),
+                storage_count * elemsize, (unsigned long long)raw.size());
+        return -1;
+    }
+
+    bool contiguous = entry.strides.empty();
+    if (entry.strides.size() == entry.sizes.size())
+    {
+        long long expected_stride = 1;
+        contiguous = true;
+        for (size_t i = entry.sizes.size(); i-- > 0;)
+        {
+            if (entry.strides[i] != expected_stride)
+                contiguous = false;
+            expected_stride *= entry.sizes[i];
+        }
+    }
+
+    if (storage_count == elem_count && entry.storage_offset == 0 && contiguous)
+    {
+        attr.data = raw;
+        return 0;
+    }
+
+    attr.data.resize(elem_count * elemsize);
+    for (size_t linear = 0; linear < elem_count; linear++)
+    {
+        size_t remaining = linear;
+        size_t storage_index = (size_t)entry.storage_offset;
+        for (size_t d = entry.sizes.size(); d-- > 0;)
+        {
+            const size_t coordinate = remaining % (size_t)entry.sizes[d];
+            remaining /= (size_t)entry.sizes[d];
+            storage_index += coordinate * (size_t)entry.strides[d];
+        }
+        memcpy(attr.data.data() + linear * elemsize, raw.data() + storage_index * elemsize, elemsize);
+    }
     return 0;
 }
 
@@ -678,7 +744,13 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                     || aten_type == "aten::adaptive_avg_pool3d" || aten_type == "aten::adaptive_max_pool1d"
                     || aten_type == "aten::adaptive_max_pool2d" || aten_type == "aten::adaptive_max_pool3d"))
         {
-            op->name = "pt2_" + op->name;
+            std::string none_axes;
+            for (size_t i = 0; i < node.adaptive_pool_none_axes.size(); i++)
+                none_axes += node.adaptive_pool_none_axes[i] ? '1' : '0';
+            Parameter marker;
+            marker.type = 4;
+            marker.s = none_axes;
+            op->params["__pt2_none_axes"] = marker;
         }
 
         if (is_module_form)
