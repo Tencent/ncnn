@@ -364,7 +364,7 @@ int BinaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 void binary_op_vector_bf16s_avx512bf16(const unsigned short* ptr, const unsigned short* ptr1, unsigned short* outptr, int aw, int bw, int ap, int bp, int op_type);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
 void binary_op_vector_bf16s_avxneconvert(const unsigned short* ptr, const unsigned short* ptr1, unsigned short* outptr, int aw, int bw, int ap, int bp, int op_type);
 #endif
 
@@ -388,7 +388,7 @@ static void binary_op_vector_bf16s(const unsigned short* ptr, const unsigned sho
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         return binary_op_vector_bf16s_avxneconvert(ptr, ptr1, outptr, aw, bw, ap, bp, op_type);

@@ -6,7 +6,7 @@ int sdpa_prefill_bf16s_avx512bf16(const Mat& query, const Mat& key, const Mat& v
 int sdpa_kvcache_bf16s_avx512bf16(const Mat& query, const Mat& past_key, const Mat& past_value, const Mat& cur_key, const Mat& cur_value, Mat& cached_key, Mat& cached_value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
 int sdpa_prefill_bf16s_avxneconvert(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
 int sdpa_kvcache_bf16s_avxneconvert(const Mat& query, const Mat& past_key, const Mat& past_value, const Mat& cur_key, const Mat& cur_value, Mat& cached_key, Mat& cached_value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
 #endif
@@ -4885,7 +4885,7 @@ static int sdpa_prefill_bf16s(const Mat& query, const Mat& key, const Mat& value
         return sdpa_prefill_bf16s_avx512bf16(query, key, value, attn_mask_blob, top_blob, scale, opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
         return sdpa_prefill_bf16s_avxneconvert(query, key, value, attn_mask_blob, top_blob, scale, opt);
 #endif

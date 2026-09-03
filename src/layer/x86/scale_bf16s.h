@@ -8,7 +8,7 @@ void scale_bf16s_per_element_avx512bf16(unsigned short* ptr, const float* scale,
 void scale_bf16s_no_bias_per_element_avx512bf16(unsigned short* ptr, const float* scale, int size, int num_threads);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
 void scale_bf16s_avxneconvert(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack);
 void scale_bf16s_no_bias_avxneconvert(unsigned short* ptr, const float* scale, int size, int elempack);
 void scale_bf16s_per_element_avxneconvert(unsigned short* ptr, const float* scale, const float* bias, int size, int num_threads);
@@ -41,7 +41,7 @@ static void scale_bf16s(unsigned short* ptr, const float* scale, const float* bi
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         scale_bf16s_avxneconvert(ptr, scale, bias, size, elempack);
@@ -131,7 +131,7 @@ static void scale_bf16s_no_bias(unsigned short* ptr, const float* scale, int siz
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         scale_bf16s_no_bias_avxneconvert(ptr, scale, size, elempack);
@@ -203,7 +203,7 @@ static void scale_bf16s_per_element(unsigned short* ptr, const float* scale, con
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         scale_bf16s_per_element_avxneconvert(ptr, scale, bias, size, num_threads);
@@ -294,7 +294,7 @@ static void scale_bf16s_no_bias_per_element(unsigned short* ptr, const float* sc
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         scale_bf16s_no_bias_per_element_avxneconvert(ptr, scale, size, num_threads);

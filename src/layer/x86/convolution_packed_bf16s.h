@@ -6,7 +6,7 @@ void convolution_transform_kernel_packed_bf16s_avx512bf16(const Mat& kernel, Mat
 void convolution_packed_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
 void convolution_transform_kernel_packed_bf16s_avxneconvert(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h);
 void convolution_packed_bf16s_avxneconvert(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
@@ -33,7 +33,7 @@ static void convolution_transform_kernel_packed_bf16s(const Mat& kernel, Mat& ke
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         convolution_transform_kernel_packed_bf16s_avxneconvert(kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
@@ -1115,7 +1115,7 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         convolution_packed_bf16s_avxneconvert(bottom_blob, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);

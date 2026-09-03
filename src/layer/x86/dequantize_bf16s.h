@@ -5,7 +5,7 @@
 void dequantize_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Mat& bias_data, int bias_data_size, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
 void dequantize_bf16s_avxneconvert(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Mat& bias_data, int bias_data_size, const Option& opt);
 #endif
 
@@ -222,7 +222,7 @@ static void dequantize_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat& s
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         dequantize_bf16s_avxneconvert(bottom_blob, top_blob, scale_data, scale_data_size, bias_data, bias_data_size, opt);

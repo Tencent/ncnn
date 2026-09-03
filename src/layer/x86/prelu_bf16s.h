@@ -7,7 +7,7 @@ void prelu_bf16s_per_element_avx512bf16(unsigned short* ptr, const float* slope,
 void prelu_bf16s_single_slope_avx512bf16(unsigned short* ptr, float slope, int size, int num_threads);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
 void prelu_bf16s_avxneconvert(unsigned short* ptr, const float* slope, int size, int elempack);
 void prelu_bf16s_per_element_avxneconvert(unsigned short* ptr, const float* slope, int size, int num_threads);
 void prelu_bf16s_single_slope_avxneconvert(unsigned short* ptr, float slope, int size, int num_threads);
@@ -40,7 +40,7 @@ static void prelu_bf16s(unsigned short* ptr, const float* slope, int size, int e
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         prelu_bf16s_avxneconvert(ptr, slope, size, elempack);
@@ -138,7 +138,7 @@ static void prelu_bf16s_per_element(unsigned short* ptr, const float* slope, int
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         prelu_bf16s_per_element_avxneconvert(ptr, slope, size, num_threads);
@@ -238,7 +238,7 @@ static void prelu_bf16s_single_slope(unsigned short* ptr, float slope, int size,
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         prelu_bf16s_single_slope_avxneconvert(ptr, slope, size, num_threads);

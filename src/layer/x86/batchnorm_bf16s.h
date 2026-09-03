@@ -6,7 +6,7 @@ void batchnorm_bf16s_avx512bf16(unsigned short* ptr, const float* a, const float
 void batchnorm_bf16s_per_element_avx512bf16(unsigned short* ptr, const float* a, const float* b, int size, int num_threads);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
 void batchnorm_bf16s_avxneconvert(unsigned short* ptr, const float* a, const float* b, int size, int elempack);
 void batchnorm_bf16s_per_element_avxneconvert(unsigned short* ptr, const float* a, const float* b, int size, int num_threads);
 #endif
@@ -35,7 +35,7 @@ static void batchnorm_bf16s(unsigned short* ptr, const float* a, const float* b,
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         batchnorm_bf16s_avxneconvert(ptr, a, b, size, elempack);
@@ -126,7 +126,7 @@ static void batchnorm_bf16s_per_element(unsigned short* ptr, const float* a, con
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         batchnorm_bf16s_per_element_avxneconvert(ptr, a, b, size, num_threads);
