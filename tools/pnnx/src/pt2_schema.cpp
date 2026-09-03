@@ -100,6 +100,8 @@ static Pt2Argument::ArgType detect_arg_type(const JsonValue& arg)
         return Pt2Argument::DEVICE;
     if (arg.hasMember("as_memory_format"))
         return Pt2Argument::MEMORY_FORMAT;
+    if (arg.hasMember("as_sym_int") || arg.hasMember("as_sym_ints"))
+        return Pt2Argument::SYMBOLIC;
     if (arg.hasMember("as_none"))
         return Pt2Argument::NONE;
 
@@ -240,15 +242,19 @@ static Pt2Node parse_node(const JsonValue& n)
 
     if ((node.target.find("adaptive_avg_pool") != std::string::npos
             || node.target.find("adaptive_max_pool") != std::string::npos)
-            && node.stack_trace.find("output_size=") != std::string::npos)
+            && node.stack_trace.find("None") != std::string::npos)
     {
-        const size_t begin = node.stack_trace.find("output_size=") + 12;
-        size_t end = node.stack_trace.find('\n', begin);
+        const size_t output_size_pos = node.stack_trace.find("output_size=");
+        const size_t none_pos = node.stack_trace.find("None");
+        const size_t begin = output_size_pos == std::string::npos ? node.stack_trace.rfind('(', none_pos)
+                                                                   : output_size_pos + 12;
+        size_t end = output_size_pos == std::string::npos ? node.stack_trace.find(')', none_pos)
+                                                          : node.stack_trace.find('\n', begin);
         if (end == std::string::npos)
             end = node.stack_trace.size();
         const std::string output_size = node.stack_trace.substr(begin, end - begin);
         const size_t left = output_size.find('(');
-        const size_t right = output_size.rfind(')');
+        const size_t right = output_size_pos == std::string::npos ? output_size.find(')') : output_size.rfind(')');
         if (left != std::string::npos && right > left)
         {
             size_t token_begin = left + 1;

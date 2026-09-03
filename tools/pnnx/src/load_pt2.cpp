@@ -332,9 +332,9 @@ static int load_weight_attribute(const Pt2Program& program, const Pt2WeightEntry
         storage_count = elem_count == 0 ? 0 : max_offset + 1;
     }
 
-    if (raw.size() != storage_count * elemsize)
+    if (raw.size() < storage_count * elemsize)
     {
-        fprintf(stderr, "load_pt2: weight size mismatch %s: expect %zu got %llu\n", entry_path.c_str(),
+        fprintf(stderr, "load_pt2: weight storage too small %s: need %zu got %llu\n", entry_path.c_str(),
                 storage_count * elemsize, (unsigned long long)raw.size());
         return -1;
     }
@@ -352,7 +352,8 @@ static int load_weight_attribute(const Pt2Program& program, const Pt2WeightEntry
         }
     }
 
-    if (storage_count == elem_count && entry.storage_offset == 0 && contiguous)
+    if (storage_count == elem_count && entry.storage_offset == 0 && contiguous
+            && raw.size() == elem_count * elemsize)
     {
         attr.data = raw;
         return 0;
@@ -739,7 +740,7 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         // adaptive pool 的 output_size 中 None 会被 torch.export 实例化为
         // 输入尺寸；仅给该 PT2 来源打标，避免 pass_level2 把 TorchScript
         // 或显式相同尺寸误判成 None。
-        if (!is_module_form && node.adaptive_pool_has_none
+        if (node.adaptive_pool_has_none
                 && (aten_type == "aten::adaptive_avg_pool1d" || aten_type == "aten::adaptive_avg_pool2d"
                     || aten_type == "aten::adaptive_avg_pool3d" || aten_type == "aten::adaptive_max_pool1d"
                     || aten_type == "aten::adaptive_max_pool2d" || aten_type == "aten::adaptive_max_pool3d"))
@@ -833,6 +834,17 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                     return -1;
 
                 fold_module_param(op, key, value, pt2_aten_spatial_ndim(aten_type));
+            }
+
+            if (module_class == "LayerNorm" && op->attrs.find("weight") != op->attrs.end()
+                    && op->attrs.find("bias") == op->attrs.end())
+            {
+                const Attribute& weight = op->attrs.at("weight");
+                Attribute bias;
+                bias.type = weight.type;
+                bias.shape = weight.shape;
+                bias.data.resize(weight.data.size(), 0);
+                op->attrs["bias"] = bias;
             }
 
             // torch.export 省略的默认实参补进 params:ts 侧 trace 物化全部

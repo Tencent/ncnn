@@ -501,9 +501,14 @@ public:
                const std::map<std::string, Parameter>& captured_params,
                const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
-        std::map<std::string, Parameter>::const_iterator it = captured_params.find("output_size");
+        std::map<std::string, Parameter>::const_iterator it = captured_params.find("op_0.output_size");
         if (it == captured_params.end() || it->second.type != 5)
             return false;
+        const std::string marker_key = "op_0.__pt2_none_axes";
+        if (captured_params.find(marker_key) == captured_params.end()
+                || captured_params.at(marker_key).type != 4)
+            return false;
+        const std::string& none_axes = captured_params.at(marker_key).s;
 
         const std::vector<int>& ishape = matched_operators.at("op_0")->inputs[0]->shape;
         if (ishape.empty())
@@ -517,7 +522,8 @@ public:
                 return false;
 
             const int dim_index = (int)ishape.size() - k + i;
-            if (dim_index >= 0 && dim_index < (int)ishape.size() && ai[i] == ishape[dim_index])
+            if (i < (int)none_axes.size() && none_axes[i] == '1' && dim_index >= 0
+                    && dim_index < (int)ishape.size() && ai[i] == ishape[dim_index])
                 return true;
         }
 
@@ -529,8 +535,9 @@ public:
     {
         GraphRewriterPass::write(ops, captured_params, captured_attrs);
 
-        Parameter osz = captured_params.at("output_size");
+        Parameter osz = captured_params.at("op_0.output_size");
         const std::vector<int>& ishape = ops.at("op_0")->inputs[0]->shape;
+        const std::string& none_axes = captured_params.at("op_0.__pt2_none_axes").s;
 
         if (!ishape.empty())
         {
@@ -538,7 +545,8 @@ public:
             for (int i = 0; i < k; i++)
             {
                 const int dim_index = (int)ishape.size() - k + i;
-                if (dim_index >= 0 && dim_index < (int)ishape.size() && osz.ai[i] == ishape[dim_index])
+                if (i < (int)none_axes.size() && none_axes[i] == '1' && dim_index >= 0
+                        && dim_index < (int)ishape.size() && osz.ai[i] == ishape[dim_index])
                 {
                     osz.ai[i] = 0;
                 }
@@ -558,7 +566,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input_0     0 1 input
-nn.AdaptiveAvgPool1d    op_0        1 1 input out output_size=%output_size
+nn.AdaptiveAvgPool1d    op_0        1 1 input out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -587,7 +595,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input_0     0 1 input
-nn.AdaptiveAvgPool2d    op_0        1 1 input out output_size=%output_size
+nn.AdaptiveAvgPool2d    op_0        1 1 input out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -616,7 +624,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input_0     0 1 input
-nn.AdaptiveAvgPool3d    op_0        1 1 input out output_size=%output_size
+nn.AdaptiveAvgPool3d    op_0        1 1 input out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }

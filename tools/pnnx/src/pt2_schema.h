@@ -46,7 +46,8 @@ struct Pt2Argument
         STRINGS,      // as_strings      字符串列表字面量
         SCALAR_TYPE,  // as_scalar_type  dtype 枚举值(int)
         DEVICE,       // as_device       {type, index}
-        MEMORY_FORMAT // as_memory_format 枚举值(int)
+        MEMORY_FORMAT, // as_memory_format 枚举值(int)
+        SYMBOLIC      // as_sym_int / as_sym_ints,当前不支持保真转写
     };
 
     ArgType type;

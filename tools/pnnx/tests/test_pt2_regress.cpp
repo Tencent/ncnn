@@ -259,6 +259,44 @@ static void test_adaptive_pool_source_guard()
     }
 }
 
+static void test_adaptive_pool_module_source_guard()
+{
+    Graph g;
+    g.parse(R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input
+nn.AdaptiveAvgPool2d    op_0        1 1 input out output_size=(8,8)
+pnnx.Output             output      1 0 out
+)PNNXIR");
+    find_op(g, "nn.AdaptiveAvgPool2d")->inputs[0]->shape = std::vector<int>{1, 3, 8, 8};
+
+    F_pt2_nn_adaptive_avg_pool2d pass;
+    int opindex = 0;
+    pnnx_graph_rewrite(g, &pass, opindex);
+    CHECK(find_op(g, "nn.AdaptiveAvgPool2d")->params.at("output_size").ai[0] == 8
+                  && find_op(g, "nn.AdaptiveAvgPool2d")->params.at("output_size").ai[1] == 8,
+              "adaptive_pool module: explicit size is preserved");
+
+    Graph pt2;
+    pt2.parse(R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input
+nn.AdaptiveAvgPool2d    op_0        1 1 input out output_size=(8,8)
+pnnx.Output             output      1 0 out
+)PNNXIR");
+    Operator* pool = find_op(pt2, "nn.AdaptiveAvgPool2d");
+    pool->inputs[0]->shape = std::vector<int>{1, 3, 8, 8};
+    Parameter marker;
+    marker.type = 4;
+    marker.s = "10";
+    pool->params["__pt2_none_axes"] = marker;
+    opindex = 0;
+    pnnx_graph_rewrite(pt2, &pass, opindex);
+    CHECK(find_op(pt2, "nn.AdaptiveAvgPool2d")->params.at("output_size").ai[0] == 0
+                  && find_op(pt2, "nn.AdaptiveAvgPool2d")->params.at("output_size").ai[1] == 8,
+              "adaptive_pool module: per-axis None mask is preserved");
+}
+
 static void test_storezip_zip64_roundtrip()
 {
     const char* path = "test_pt2_storezip_regress.zip";
@@ -307,6 +345,7 @@ int main()
     test_ones_like_fold();
     test_device_argument();
     test_adaptive_pool_source_guard();
+    test_adaptive_pool_module_source_guard();
     test_storezip_zip64_roundtrip();
     test_output_spec_filter();
 
