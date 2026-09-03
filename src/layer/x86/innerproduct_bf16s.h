@@ -6,10 +6,12 @@ void innerproduct_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const 
 void innerproduct_transform_kernel_bf16s_avx512bf16(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
 #endif
 
+#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
 void innerproduct_bf16s_avxneconvert(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 void innerproduct_transform_kernel_bf16s_avxneconvert(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
 #endif
+#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void innerproduct_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
@@ -33,6 +35,7 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
     }
 #endif
 
+#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
@@ -40,6 +43,7 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
         return;
     }
 #endif
+#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
@@ -776,6 +780,7 @@ static void innerproduct_transform_kernel_bf16s(const Mat& weight_data, Mat& wei
     }
 #endif
 
+#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
@@ -783,6 +788,7 @@ static void innerproduct_transform_kernel_bf16s(const Mat& weight_data, Mat& wei
         return;
     }
 #endif
+#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())

@@ -5,9 +5,11 @@
 void gelu_bf16s_avx512bf16(Mat& a, int fast_gelu, const Option& opt);
 #endif
 
+#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
 void gelu_bf16s_avxneconvert(Mat& a, int fast_gelu, const Option& opt);
 #endif
+#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void gelu_bf16s_avx2(Mat& a, int fast_gelu, const Option& opt);
@@ -30,6 +32,7 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
     }
 #endif
 
+#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
@@ -37,6 +40,7 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
         return;
     }
 #endif
+#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())

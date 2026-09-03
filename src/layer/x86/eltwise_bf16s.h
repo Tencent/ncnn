@@ -5,9 +5,11 @@
 void eltwise_bf16s_avx512bf16(const std::vector<Mat>& bottom_blobs, Mat& top_blob, int op_type, const Mat& coeffs, const Option& opt);
 #endif
 
+#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
 void eltwise_bf16s_avxneconvert(const std::vector<Mat>& bottom_blobs, Mat& top_blob, int op_type, const Mat& coeffs, const Option& opt);
 #endif
+#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void eltwise_bf16s_avx2(const std::vector<Mat>& bottom_blobs, Mat& top_blob, int op_type, const Mat& coeffs, const Option& opt);
@@ -30,6 +32,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
     }
 #endif
 
+#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
@@ -37,6 +40,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
         return;
     }
 #endif
+#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())

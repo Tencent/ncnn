@@ -6,10 +6,12 @@ void instancenorm_bf16s_avx512bf16(unsigned short* ptr, int size, float a, float
 void instancenorm_bf16s_compute_mean_var_avx512bf16(const unsigned short* ptr, int size, float& mean, float& var);
 #endif
 
+#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
 void instancenorm_bf16s_avxneconvert(unsigned short* ptr, int size, float a, float b);
 void instancenorm_bf16s_compute_mean_var_avxneconvert(const unsigned short* ptr, int size, float& mean, float& var);
 #endif
+#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void instancenorm_bf16s_avx2(unsigned short* ptr, int size, float a, float b);
@@ -35,6 +37,7 @@ static void instancenorm_bf16s(unsigned short* ptr, int size, float a, float b)
     }
 #endif
 
+#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
@@ -42,6 +45,7 @@ static void instancenorm_bf16s(unsigned short* ptr, int size, float a, float b)
         return;
     }
 #endif
+#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
@@ -116,6 +120,7 @@ static void instancenorm_bf16s_compute_mean_var(const unsigned short* ptr, int s
     }
 #endif
 
+#if NCNN_BF16
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
@@ -123,6 +128,7 @@ static void instancenorm_bf16s_compute_mean_var(const unsigned short* ptr, int s
         return;
     }
 #endif
+#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
