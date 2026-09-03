@@ -172,7 +172,6 @@ static void convolution_transform_kernel_fp16s(const Mat& weight_data, Mat& weig
     {
         convolution_transform_kernel_packed_fp16s(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
     }
-
 }
 
 static void convolution_fp16s(const Mat& bottom_blob_bordered, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)

@@ -329,7 +329,7 @@ static void deconvolution_col2im_fp16sa(const Mat& top_col2im, Mat& top_blob_bor
     const int out_channels = top_blob_bordered.c;
     const int maxk = kernel_w * kernel_h;
 
-// col2im
+    // col2im
     const int gap = (outw * stride_h - w * stride_w) * out_elempack;
 
     if (out_elempack == 8)
@@ -467,7 +467,7 @@ static bool deconvolution_fp16sa(const Mat& bottom_blob, Mat& top_blob_bordered,
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
     const int maxk = kernel_w * kernel_h;
 
-if (elempack == 8 && out_elempack == 8)
+    if (elempack == 8 && out_elempack == 8)
     {
         // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -1164,4 +1164,3 @@ if (elempack == 8 && out_elempack == 8)
 }
 
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-

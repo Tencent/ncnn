@@ -713,168 +713,167 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
 static void gru_transform_kernel_fp16s(const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& weight_xc_data_packed_dr, Mat& bias_c_data_packed_dr, Mat& weight_hc_data_packed_dr, int size, int num_output)
 {
-        const float* bias_c_R = bias_c.row(0);
-        const float* bias_c_U = bias_c.row(1);
-        const float* bias_c_WN = bias_c.row(2);
-        const float* bias_c_BN = bias_c.row(3);
+    const float* bias_c_R = bias_c.row(0);
+    const float* bias_c_U = bias_c.row(1);
+    const float* bias_c_WN = bias_c.row(2);
+    const float* bias_c_BN = bias_c.row(3);
 
-        __fp16* bias_c_RUBNWN = bias_c_data_packed_dr.row<__fp16>(0);
+    __fp16* bias_c_RUBNWN = bias_c_data_packed_dr.row<__fp16>(0);
 
-        int q = 0;
-        for (; q + 3 < num_output; q += 4)
+    int q = 0;
+    for (; q + 3 < num_output; q += 4)
+    {
+        bias_c_RUBNWN[0] = (__fp16)bias_c_R[q];
+        bias_c_RUBNWN[1] = (__fp16)bias_c_R[q + 1];
+        bias_c_RUBNWN[2] = (__fp16)bias_c_R[q + 2];
+        bias_c_RUBNWN[3] = (__fp16)bias_c_R[q + 3];
+        bias_c_RUBNWN[4] = (__fp16)bias_c_U[q];
+        bias_c_RUBNWN[5] = (__fp16)bias_c_U[q + 1];
+        bias_c_RUBNWN[6] = (__fp16)bias_c_U[q + 2];
+        bias_c_RUBNWN[7] = (__fp16)bias_c_U[q + 3];
+        bias_c_RUBNWN[8] = (__fp16)bias_c_BN[q];
+        bias_c_RUBNWN[9] = (__fp16)bias_c_BN[q + 1];
+        bias_c_RUBNWN[10] = (__fp16)bias_c_BN[q + 2];
+        bias_c_RUBNWN[11] = (__fp16)bias_c_BN[q + 3];
+        bias_c_RUBNWN[12] = (__fp16)bias_c_WN[q];
+        bias_c_RUBNWN[13] = (__fp16)bias_c_WN[q + 1];
+        bias_c_RUBNWN[14] = (__fp16)bias_c_WN[q + 2];
+        bias_c_RUBNWN[15] = (__fp16)bias_c_WN[q + 3];
+
+        bias_c_RUBNWN += 16;
+
+        const float* weight_xc_R = weight_xc.row(num_output * 0 + q);
+        const float* weight_xc_U = weight_xc.row(num_output * 1 + q);
+        const float* weight_xc_N = weight_xc.row(num_output * 2 + q);
+
+        const float* weight_xc_R_1 = weight_xc.row(num_output * 0 + q + 1);
+        const float* weight_xc_U_1 = weight_xc.row(num_output * 1 + q + 1);
+        const float* weight_xc_N_1 = weight_xc.row(num_output * 2 + q + 1);
+
+        const float* weight_xc_R_2 = weight_xc.row(num_output * 0 + q + 2);
+        const float* weight_xc_U_2 = weight_xc.row(num_output * 1 + q + 2);
+        const float* weight_xc_N_2 = weight_xc.row(num_output * 2 + q + 2);
+
+        const float* weight_xc_R_3 = weight_xc.row(num_output * 0 + q + 3);
+        const float* weight_xc_U_3 = weight_xc.row(num_output * 1 + q + 3);
+        const float* weight_xc_N_3 = weight_xc.row(num_output * 2 + q + 3);
+
+        const float* weight_hc_R = weight_hc.row(num_output * 0 + q);
+        const float* weight_hc_U = weight_hc.row(num_output * 1 + q);
+        const float* weight_hc_N = weight_hc.row(num_output * 2 + q);
+
+        const float* weight_hc_R_1 = weight_hc.row(num_output * 0 + q + 1);
+        const float* weight_hc_U_1 = weight_hc.row(num_output * 1 + q + 1);
+        const float* weight_hc_N_1 = weight_hc.row(num_output * 2 + q + 1);
+
+        const float* weight_hc_R_2 = weight_hc.row(num_output * 0 + q + 2);
+        const float* weight_hc_U_2 = weight_hc.row(num_output * 1 + q + 2);
+        const float* weight_hc_N_2 = weight_hc.row(num_output * 2 + q + 2);
+
+        const float* weight_hc_R_3 = weight_hc.row(num_output * 0 + q + 3);
+        const float* weight_hc_U_3 = weight_hc.row(num_output * 1 + q + 3);
+        const float* weight_hc_N_3 = weight_hc.row(num_output * 2 + q + 3);
+
+        __fp16* weight_xc_RUN = weight_xc_data_packed_dr.row<__fp16>(q / 4);
+        __fp16* weight_hc_RUN = weight_hc_data_packed_dr.row<__fp16>(q / 4);
+
+        for (int i = 0; i < size; i++)
         {
-            bias_c_RUBNWN[0] = (__fp16)bias_c_R[q];
-            bias_c_RUBNWN[1] = (__fp16)bias_c_R[q + 1];
-            bias_c_RUBNWN[2] = (__fp16)bias_c_R[q + 2];
-            bias_c_RUBNWN[3] = (__fp16)bias_c_R[q + 3];
-            bias_c_RUBNWN[4] = (__fp16)bias_c_U[q];
-            bias_c_RUBNWN[5] = (__fp16)bias_c_U[q + 1];
-            bias_c_RUBNWN[6] = (__fp16)bias_c_U[q + 2];
-            bias_c_RUBNWN[7] = (__fp16)bias_c_U[q + 3];
-            bias_c_RUBNWN[8] = (__fp16)bias_c_BN[q];
-            bias_c_RUBNWN[9] = (__fp16)bias_c_BN[q + 1];
-            bias_c_RUBNWN[10] = (__fp16)bias_c_BN[q + 2];
-            bias_c_RUBNWN[11] = (__fp16)bias_c_BN[q + 3];
-            bias_c_RUBNWN[12] = (__fp16)bias_c_WN[q];
-            bias_c_RUBNWN[13] = (__fp16)bias_c_WN[q + 1];
-            bias_c_RUBNWN[14] = (__fp16)bias_c_WN[q + 2];
-            bias_c_RUBNWN[15] = (__fp16)bias_c_WN[q + 3];
+            weight_xc_RUN[0] = (__fp16)weight_xc_R[i];
+            weight_xc_RUN[1] = (__fp16)weight_xc_R_1[i];
+            weight_xc_RUN[2] = (__fp16)weight_xc_R_2[i];
+            weight_xc_RUN[3] = (__fp16)weight_xc_R_3[i];
+            weight_xc_RUN[4] = (__fp16)weight_xc_U[i];
+            weight_xc_RUN[5] = (__fp16)weight_xc_U_1[i];
+            weight_xc_RUN[6] = (__fp16)weight_xc_U_2[i];
+            weight_xc_RUN[7] = (__fp16)weight_xc_U_3[i];
 
-            bias_c_RUBNWN += 16;
-
-            const float* weight_xc_R = weight_xc.row(num_output * 0 + q);
-            const float* weight_xc_U = weight_xc.row(num_output * 1 + q);
-            const float* weight_xc_N = weight_xc.row(num_output * 2 + q);
-
-            const float* weight_xc_R_1 = weight_xc.row(num_output * 0 + q + 1);
-            const float* weight_xc_U_1 = weight_xc.row(num_output * 1 + q + 1);
-            const float* weight_xc_N_1 = weight_xc.row(num_output * 2 + q + 1);
-
-            const float* weight_xc_R_2 = weight_xc.row(num_output * 0 + q + 2);
-            const float* weight_xc_U_2 = weight_xc.row(num_output * 1 + q + 2);
-            const float* weight_xc_N_2 = weight_xc.row(num_output * 2 + q + 2);
-
-            const float* weight_xc_R_3 = weight_xc.row(num_output * 0 + q + 3);
-            const float* weight_xc_U_3 = weight_xc.row(num_output * 1 + q + 3);
-            const float* weight_xc_N_3 = weight_xc.row(num_output * 2 + q + 3);
-
-            const float* weight_hc_R = weight_hc.row(num_output * 0 + q);
-            const float* weight_hc_U = weight_hc.row(num_output * 1 + q);
-            const float* weight_hc_N = weight_hc.row(num_output * 2 + q);
-
-            const float* weight_hc_R_1 = weight_hc.row(num_output * 0 + q + 1);
-            const float* weight_hc_U_1 = weight_hc.row(num_output * 1 + q + 1);
-            const float* weight_hc_N_1 = weight_hc.row(num_output * 2 + q + 1);
-
-            const float* weight_hc_R_2 = weight_hc.row(num_output * 0 + q + 2);
-            const float* weight_hc_U_2 = weight_hc.row(num_output * 1 + q + 2);
-            const float* weight_hc_N_2 = weight_hc.row(num_output * 2 + q + 2);
-
-            const float* weight_hc_R_3 = weight_hc.row(num_output * 0 + q + 3);
-            const float* weight_hc_U_3 = weight_hc.row(num_output * 1 + q + 3);
-            const float* weight_hc_N_3 = weight_hc.row(num_output * 2 + q + 3);
-
-            __fp16* weight_xc_RUN = weight_xc_data_packed_dr.row<__fp16>(q / 4);
-            __fp16* weight_hc_RUN = weight_hc_data_packed_dr.row<__fp16>(q / 4);
-
-            for (int i = 0; i < size; i++)
-            {
-                weight_xc_RUN[0] = (__fp16)weight_xc_R[i];
-                weight_xc_RUN[1] = (__fp16)weight_xc_R_1[i];
-                weight_xc_RUN[2] = (__fp16)weight_xc_R_2[i];
-                weight_xc_RUN[3] = (__fp16)weight_xc_R_3[i];
-                weight_xc_RUN[4] = (__fp16)weight_xc_U[i];
-                weight_xc_RUN[5] = (__fp16)weight_xc_U_1[i];
-                weight_xc_RUN[6] = (__fp16)weight_xc_U_2[i];
-                weight_xc_RUN[7] = (__fp16)weight_xc_U_3[i];
-
-                weight_xc_RUN += 8;
-            }
-
-            for (int i = 0; i < num_output; i++)
-            {
-                weight_hc_RUN[0] = (__fp16)weight_hc_R[i];
-                weight_hc_RUN[1] = (__fp16)weight_hc_R_1[i];
-                weight_hc_RUN[2] = (__fp16)weight_hc_R_2[i];
-                weight_hc_RUN[3] = (__fp16)weight_hc_R_3[i];
-                weight_hc_RUN[4] = (__fp16)weight_hc_U[i];
-                weight_hc_RUN[5] = (__fp16)weight_hc_U_1[i];
-                weight_hc_RUN[6] = (__fp16)weight_hc_U_2[i];
-                weight_hc_RUN[7] = (__fp16)weight_hc_U_3[i];
-
-                weight_hc_RUN += 8;
-            }
-
-            for (int i = 0; i < size; i++)
-            {
-                weight_xc_RUN[0] = (__fp16)weight_xc_N[i];
-                weight_xc_RUN[1] = (__fp16)weight_xc_N_1[i];
-                weight_xc_RUN[2] = (__fp16)weight_xc_N_2[i];
-                weight_xc_RUN[3] = (__fp16)weight_xc_N_3[i];
-
-                weight_xc_RUN += 4;
-            }
-
-            for (int i = 0; i < num_output; i++)
-            {
-                weight_hc_RUN[0] = (__fp16)weight_hc_N[i];
-                weight_hc_RUN[1] = (__fp16)weight_hc_N_1[i];
-                weight_hc_RUN[2] = (__fp16)weight_hc_N_2[i];
-                weight_hc_RUN[3] = (__fp16)weight_hc_N_3[i];
-
-                weight_hc_RUN += 4;
-            }
-        }
-        for (; q < num_output; q++)
-        {
-            bias_c_RUBNWN[0] = (__fp16)bias_c_R[q];
-            bias_c_RUBNWN[1] = (__fp16)bias_c_U[q];
-            bias_c_RUBNWN[2] = (__fp16)bias_c_BN[q];
-            bias_c_RUBNWN[3] = (__fp16)bias_c_WN[q];
-
-            bias_c_RUBNWN += 4;
-
-            const float* weight_xc_R = weight_xc.row(num_output * 0 + q);
-            const float* weight_xc_U = weight_xc.row(num_output * 1 + q);
-            const float* weight_xc_N = weight_xc.row(num_output * 2 + q);
-
-            const float* weight_hc_R = weight_hc.row(num_output * 0 + q);
-            const float* weight_hc_U = weight_hc.row(num_output * 1 + q);
-            const float* weight_hc_N = weight_hc.row(num_output * 2 + q);
-
-            __fp16* weight_xc_RUN = weight_xc_data_packed_dr.row<__fp16>(q / 4 + q % 4);
-            __fp16* weight_hc_RUN = weight_hc_data_packed_dr.row<__fp16>(q / 4 + q % 4);
-
-            for (int i = 0; i < size; i++)
-            {
-                weight_xc_RUN[0] = (__fp16)weight_xc_R[i];
-                weight_xc_RUN[1] = (__fp16)weight_xc_U[i];
-
-                weight_xc_RUN += 2;
-            }
-
-            for (int i = 0; i < num_output; i++)
-            {
-                weight_hc_RUN[0] = (__fp16)weight_hc_R[i];
-                weight_hc_RUN[1] = (__fp16)weight_hc_U[i];
-
-                weight_hc_RUN += 2;
-            }
-
-            for (int i = 0; i < size; i++)
-            {
-                weight_xc_RUN[0] = (__fp16)weight_xc_N[i];
-
-                weight_xc_RUN += 1;
-            }
-
-            for (int i = 0; i < num_output; i++)
-            {
-                weight_hc_RUN[0] = (__fp16)weight_hc_N[i];
-
-                weight_hc_RUN += 1;
-            }
+            weight_xc_RUN += 8;
         }
 
+        for (int i = 0; i < num_output; i++)
+        {
+            weight_hc_RUN[0] = (__fp16)weight_hc_R[i];
+            weight_hc_RUN[1] = (__fp16)weight_hc_R_1[i];
+            weight_hc_RUN[2] = (__fp16)weight_hc_R_2[i];
+            weight_hc_RUN[3] = (__fp16)weight_hc_R_3[i];
+            weight_hc_RUN[4] = (__fp16)weight_hc_U[i];
+            weight_hc_RUN[5] = (__fp16)weight_hc_U_1[i];
+            weight_hc_RUN[6] = (__fp16)weight_hc_U_2[i];
+            weight_hc_RUN[7] = (__fp16)weight_hc_U_3[i];
+
+            weight_hc_RUN += 8;
+        }
+
+        for (int i = 0; i < size; i++)
+        {
+            weight_xc_RUN[0] = (__fp16)weight_xc_N[i];
+            weight_xc_RUN[1] = (__fp16)weight_xc_N_1[i];
+            weight_xc_RUN[2] = (__fp16)weight_xc_N_2[i];
+            weight_xc_RUN[3] = (__fp16)weight_xc_N_3[i];
+
+            weight_xc_RUN += 4;
+        }
+
+        for (int i = 0; i < num_output; i++)
+        {
+            weight_hc_RUN[0] = (__fp16)weight_hc_N[i];
+            weight_hc_RUN[1] = (__fp16)weight_hc_N_1[i];
+            weight_hc_RUN[2] = (__fp16)weight_hc_N_2[i];
+            weight_hc_RUN[3] = (__fp16)weight_hc_N_3[i];
+
+            weight_hc_RUN += 4;
+        }
+    }
+    for (; q < num_output; q++)
+    {
+        bias_c_RUBNWN[0] = (__fp16)bias_c_R[q];
+        bias_c_RUBNWN[1] = (__fp16)bias_c_U[q];
+        bias_c_RUBNWN[2] = (__fp16)bias_c_BN[q];
+        bias_c_RUBNWN[3] = (__fp16)bias_c_WN[q];
+
+        bias_c_RUBNWN += 4;
+
+        const float* weight_xc_R = weight_xc.row(num_output * 0 + q);
+        const float* weight_xc_U = weight_xc.row(num_output * 1 + q);
+        const float* weight_xc_N = weight_xc.row(num_output * 2 + q);
+
+        const float* weight_hc_R = weight_hc.row(num_output * 0 + q);
+        const float* weight_hc_U = weight_hc.row(num_output * 1 + q);
+        const float* weight_hc_N = weight_hc.row(num_output * 2 + q);
+
+        __fp16* weight_xc_RUN = weight_xc_data_packed_dr.row<__fp16>(q / 4 + q % 4);
+        __fp16* weight_hc_RUN = weight_hc_data_packed_dr.row<__fp16>(q / 4 + q % 4);
+
+        for (int i = 0; i < size; i++)
+        {
+            weight_xc_RUN[0] = (__fp16)weight_xc_R[i];
+            weight_xc_RUN[1] = (__fp16)weight_xc_U[i];
+
+            weight_xc_RUN += 2;
+        }
+
+        for (int i = 0; i < num_output; i++)
+        {
+            weight_hc_RUN[0] = (__fp16)weight_hc_R[i];
+            weight_hc_RUN[1] = (__fp16)weight_hc_U[i];
+
+            weight_hc_RUN += 2;
+        }
+
+        for (int i = 0; i < size; i++)
+        {
+            weight_xc_RUN[0] = (__fp16)weight_xc_N[i];
+
+            weight_xc_RUN += 1;
+        }
+
+        for (int i = 0; i < num_output; i++)
+        {
+            weight_hc_RUN[0] = (__fp16)weight_hc_N[i];
+
+            weight_hc_RUN += 1;
+        }
+    }
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC

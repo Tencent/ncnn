@@ -364,75 +364,31 @@ static int rnn_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
 static void rnn_transform_kernel_fp16s(const Mat& weight_xc, const Mat& weight_hc, Mat& weight_xc_data_packed_dr, Mat& weight_hc_data_packed_dr, int size, int num_output, bool use_fp16_arithmetic)
 {
-        int q = 0;
-        if (use_fp16_arithmetic)
-        {
-            for (; q + 7 < num_output; q += 8)
-            {
-                const float* weight_xc_0 = weight_xc.row(q);
-                const float* weight_xc_1 = weight_xc.row(q + 1);
-                const float* weight_xc_2 = weight_xc.row(q + 2);
-                const float* weight_xc_3 = weight_xc.row(q + 3);
-                const float* weight_xc_4 = weight_xc.row(q + 4);
-                const float* weight_xc_5 = weight_xc.row(q + 5);
-                const float* weight_xc_6 = weight_xc.row(q + 6);
-                const float* weight_xc_7 = weight_xc.row(q + 7);
-
-                const float* weight_hc_0 = weight_hc.row(q);
-                const float* weight_hc_1 = weight_hc.row(q + 1);
-                const float* weight_hc_2 = weight_hc.row(q + 2);
-                const float* weight_hc_3 = weight_hc.row(q + 3);
-                const float* weight_hc_4 = weight_hc.row(q + 4);
-                const float* weight_hc_5 = weight_hc.row(q + 5);
-                const float* weight_hc_6 = weight_hc.row(q + 6);
-                const float* weight_hc_7 = weight_hc.row(q + 7);
-
-                __fp16* weight_xc = weight_xc_data_packed_dr.row<__fp16>(q / 8);
-                __fp16* weight_hc = weight_hc_data_packed_dr.row<__fp16>(q / 8);
-
-                for (int i = 0; i < size; i++)
-                {
-                    weight_xc[0] = (__fp16)weight_xc_0[i];
-                    weight_xc[1] = (__fp16)weight_xc_1[i];
-                    weight_xc[2] = (__fp16)weight_xc_2[i];
-                    weight_xc[3] = (__fp16)weight_xc_3[i];
-                    weight_xc[4] = (__fp16)weight_xc_4[i];
-                    weight_xc[5] = (__fp16)weight_xc_5[i];
-                    weight_xc[6] = (__fp16)weight_xc_6[i];
-                    weight_xc[7] = (__fp16)weight_xc_7[i];
-
-                    weight_xc += 8;
-                }
-
-                for (int i = 0; i < num_output; i++)
-                {
-                    weight_hc[0] = (__fp16)weight_hc_0[i];
-                    weight_hc[1] = (__fp16)weight_hc_1[i];
-                    weight_hc[2] = (__fp16)weight_hc_2[i];
-                    weight_hc[3] = (__fp16)weight_hc_3[i];
-                    weight_hc[4] = (__fp16)weight_hc_4[i];
-                    weight_hc[5] = (__fp16)weight_hc_5[i];
-                    weight_hc[6] = (__fp16)weight_hc_6[i];
-                    weight_hc[7] = (__fp16)weight_hc_7[i];
-
-                    weight_hc += 8;
-                }
-            }
-        }
-        for (; q + 3 < num_output; q += 4)
+    int q = 0;
+    if (use_fp16_arithmetic)
+    {
+        for (; q + 7 < num_output; q += 8)
         {
             const float* weight_xc_0 = weight_xc.row(q);
             const float* weight_xc_1 = weight_xc.row(q + 1);
             const float* weight_xc_2 = weight_xc.row(q + 2);
             const float* weight_xc_3 = weight_xc.row(q + 3);
+            const float* weight_xc_4 = weight_xc.row(q + 4);
+            const float* weight_xc_5 = weight_xc.row(q + 5);
+            const float* weight_xc_6 = weight_xc.row(q + 6);
+            const float* weight_xc_7 = weight_xc.row(q + 7);
 
             const float* weight_hc_0 = weight_hc.row(q);
             const float* weight_hc_1 = weight_hc.row(q + 1);
             const float* weight_hc_2 = weight_hc.row(q + 2);
             const float* weight_hc_3 = weight_hc.row(q + 3);
+            const float* weight_hc_4 = weight_hc.row(q + 4);
+            const float* weight_hc_5 = weight_hc.row(q + 5);
+            const float* weight_hc_6 = weight_hc.row(q + 6);
+            const float* weight_hc_7 = weight_hc.row(q + 7);
 
-            __fp16* weight_xc = use_fp16_arithmetic ? weight_xc_data_packed_dr.row<__fp16>(q / 8 + (q % 8) / 4) : weight_xc_data_packed_dr.row<__fp16>(q / 4);
-            __fp16* weight_hc = use_fp16_arithmetic ? weight_hc_data_packed_dr.row<__fp16>(q / 8 + (q % 8) / 4) : weight_hc_data_packed_dr.row<__fp16>(q / 4);
+            __fp16* weight_xc = weight_xc_data_packed_dr.row<__fp16>(q / 8);
+            __fp16* weight_hc = weight_hc_data_packed_dr.row<__fp16>(q / 8);
 
             for (int i = 0; i < size; i++)
             {
@@ -440,8 +396,12 @@ static void rnn_transform_kernel_fp16s(const Mat& weight_xc, const Mat& weight_h
                 weight_xc[1] = (__fp16)weight_xc_1[i];
                 weight_xc[2] = (__fp16)weight_xc_2[i];
                 weight_xc[3] = (__fp16)weight_xc_3[i];
+                weight_xc[4] = (__fp16)weight_xc_4[i];
+                weight_xc[5] = (__fp16)weight_xc_5[i];
+                weight_xc[6] = (__fp16)weight_xc_6[i];
+                weight_xc[7] = (__fp16)weight_xc_7[i];
 
-                weight_xc += 4;
+                weight_xc += 8;
             }
 
             for (int i = 0; i < num_output; i++)
@@ -450,28 +410,67 @@ static void rnn_transform_kernel_fp16s(const Mat& weight_xc, const Mat& weight_h
                 weight_hc[1] = (__fp16)weight_hc_1[i];
                 weight_hc[2] = (__fp16)weight_hc_2[i];
                 weight_hc[3] = (__fp16)weight_hc_3[i];
+                weight_hc[4] = (__fp16)weight_hc_4[i];
+                weight_hc[5] = (__fp16)weight_hc_5[i];
+                weight_hc[6] = (__fp16)weight_hc_6[i];
+                weight_hc[7] = (__fp16)weight_hc_7[i];
 
-                weight_hc += 4;
+                weight_hc += 8;
             }
         }
-        for (; q < num_output; q++)
+    }
+    for (; q + 3 < num_output; q += 4)
+    {
+        const float* weight_xc_0 = weight_xc.row(q);
+        const float* weight_xc_1 = weight_xc.row(q + 1);
+        const float* weight_xc_2 = weight_xc.row(q + 2);
+        const float* weight_xc_3 = weight_xc.row(q + 3);
+
+        const float* weight_hc_0 = weight_hc.row(q);
+        const float* weight_hc_1 = weight_hc.row(q + 1);
+        const float* weight_hc_2 = weight_hc.row(q + 2);
+        const float* weight_hc_3 = weight_hc.row(q + 3);
+
+        __fp16* weight_xc = use_fp16_arithmetic ? weight_xc_data_packed_dr.row<__fp16>(q / 8 + (q % 8) / 4) : weight_xc_data_packed_dr.row<__fp16>(q / 4);
+        __fp16* weight_hc = use_fp16_arithmetic ? weight_hc_data_packed_dr.row<__fp16>(q / 8 + (q % 8) / 4) : weight_hc_data_packed_dr.row<__fp16>(q / 4);
+
+        for (int i = 0; i < size; i++)
         {
-            const float* weight_xc_0 = weight_xc.row(q);
-            const float* weight_hc_0 = weight_hc.row(q);
+            weight_xc[0] = (__fp16)weight_xc_0[i];
+            weight_xc[1] = (__fp16)weight_xc_1[i];
+            weight_xc[2] = (__fp16)weight_xc_2[i];
+            weight_xc[3] = (__fp16)weight_xc_3[i];
 
-            __fp16* weight_xc = use_fp16_arithmetic ? weight_xc_data_packed_dr.row<__fp16>(q / 8 + (q % 8) / 4 + q % 4) : weight_xc_data_packed_dr.row<__fp16>(q / 4 + q % 4);
-            __fp16* weight_hc = use_fp16_arithmetic ? weight_hc_data_packed_dr.row<__fp16>(q / 8 + (q % 8) / 4 + q % 4) : weight_hc_data_packed_dr.row<__fp16>(q / 4 + q % 4);
-
-            for (int i = 0; i < size; i++)
-            {
-                weight_xc[i] = (__fp16)weight_xc_0[i];
-            }
-
-            for (int i = 0; i < num_output; i++)
-            {
-                weight_hc[i] = (__fp16)weight_hc_0[i];
-            }
+            weight_xc += 4;
         }
 
+        for (int i = 0; i < num_output; i++)
+        {
+            weight_hc[0] = (__fp16)weight_hc_0[i];
+            weight_hc[1] = (__fp16)weight_hc_1[i];
+            weight_hc[2] = (__fp16)weight_hc_2[i];
+            weight_hc[3] = (__fp16)weight_hc_3[i];
+
+            weight_hc += 4;
+        }
+    }
+    for (; q < num_output; q++)
+    {
+        const float* weight_xc_0 = weight_xc.row(q);
+        const float* weight_hc_0 = weight_hc.row(q);
+
+        __fp16* weight_xc = use_fp16_arithmetic ? weight_xc_data_packed_dr.row<__fp16>(q / 8 + (q % 8) / 4 + q % 4) : weight_xc_data_packed_dr.row<__fp16>(q / 4 + q % 4);
+        __fp16* weight_hc = use_fp16_arithmetic ? weight_hc_data_packed_dr.row<__fp16>(q / 8 + (q % 8) / 4 + q % 4) : weight_hc_data_packed_dr.row<__fp16>(q / 4 + q % 4);
+
+        for (int i = 0; i < size; i++)
+        {
+            weight_xc[i] = (__fp16)weight_xc_0[i];
+        }
+
+        for (int i = 0; i < num_output; i++)
+        {
+            weight_hc[i] = (__fp16)weight_hc_0[i];
+        }
+    }
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC

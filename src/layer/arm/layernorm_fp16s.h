@@ -388,4 +388,3 @@ static int layernorm_inplace_fp16s(Mat& bottom_top_blob, int affine_size, float 
     return 0;
 #endif
 }
-

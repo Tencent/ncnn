@@ -167,4 +167,3 @@ static int swish_fp16sa(Mat& bottom_top_blob, const Option& opt)
     return 0;
 #endif
 }
-

@@ -161,4 +161,3 @@ static int clip_fp16s(Mat& bottom_top_blob, float min, float max, const Option& 
     return 0;
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 }
-

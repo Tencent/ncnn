@@ -464,7 +464,6 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
     }
 
     return 0;
-
 }
 
 int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -603,7 +602,6 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
     }
 
     return 0;
-
 }
 #endif // NCNN_ARM82
 

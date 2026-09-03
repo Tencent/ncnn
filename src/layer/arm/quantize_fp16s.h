@@ -185,8 +185,6 @@ static void quantize_pack4to1_fp16s(const __fp16* ptr, signed char* s8ptr0, sign
     }
 }
 
-
-
 static void quantize_fp16sa(const __fp16* ptr, signed char* s8ptr, const Mat& scale_data, int elemcount, int elempack)
 {
     const int scale_data_size = scale_data.w;

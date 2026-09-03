@@ -174,4 +174,3 @@ static int selu_fp16sa(Mat& bottom_top_blob, float alpha, float lambda, const Op
     return 0;
 #endif
 }
-

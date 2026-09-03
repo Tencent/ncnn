@@ -578,4 +578,3 @@ static int prelu_fp16sa(Mat& bottom_top_blob, int num_slope, const Mat& slope_da
     return 0;
 #endif
 }
-

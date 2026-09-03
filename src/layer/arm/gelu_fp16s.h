@@ -161,4 +161,3 @@ static int gelu_fp16sa(Mat& bottom_top_blob, int fast_gelu, const Option& opt)
     return 0;
 #endif
 }
-

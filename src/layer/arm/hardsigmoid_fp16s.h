@@ -228,4 +228,3 @@ static int hardsigmoid_fp16sa(Mat& bottom_top_blob, float alpha, float beta, flo
     return 0;
 #endif
 }
-

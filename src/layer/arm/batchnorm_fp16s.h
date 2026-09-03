@@ -452,4 +452,3 @@ static int batchnorm_fp16sa(Mat& bottom_top_blob, const Mat& a_data, const Mat& 
     return 0;
 #endif
 }
-

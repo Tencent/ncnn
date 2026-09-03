@@ -243,4 +243,3 @@ static int hardswish_fp16sa(Mat& bottom_top_blob, float alpha, float beta, float
     return 0;
 #endif
 }
-

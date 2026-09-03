@@ -102,4 +102,3 @@ static void dequantize_fp16s(const int* intptr, __fp16* ptr, const Mat& scale_da
     }
 }
 #endif
-

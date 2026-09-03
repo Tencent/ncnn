@@ -280,4 +280,3 @@ static int instancenorm_fp16s(Mat& bottom_top_blob, float eps, int affine, const
     return 0;
 #endif
 }
-

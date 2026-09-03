@@ -2528,4 +2528,3 @@ static void get_optimal_tile_mnk_fp16sa(int M, int N, int K, int constant_TILE_M
         TILE_K = (constant_TILE_K + 7) / 8 * 8;
     }
 }
-

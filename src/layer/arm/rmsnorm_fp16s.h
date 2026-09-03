@@ -309,4 +309,3 @@ static int rmsnorm_inplace_fp16s(Mat& bottom_top_blob, int affine_size, float ep
     return 0;
 #endif
 }
-
