@@ -377,5 +377,5 @@ int main()
 #if NCNN_ARM86SVE
            || test_cast_sve()
 #endif // NCNN_ARM86SVE
-        ;
+           ;
 }

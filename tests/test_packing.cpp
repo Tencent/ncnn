@@ -515,5 +515,5 @@ int main()
 #if NCNN_ARM86SVE
            || test_packing_sve()
 #endif // NCNN_ARM86SVE
-        ;
+           ;
 }
