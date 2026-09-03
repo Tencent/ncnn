@@ -55,7 +55,7 @@ pnnx.Output             output      1 0 out
 
         if (string_other)
     {
-    // Non-scalar other must not match.
+        // Non-scalar other must not match.
         for (size_t i = 0; i < g.ops.size(); i++)
         {
             if (g.ops[i]->name == "op_c")
@@ -259,13 +259,15 @@ static void test_adaptive_pool_source_guard()
 static void test_adaptive_pool_module_source_guard()
 {
     Graph g;
-    g.parse(R"PNNXIR(7767517
-3 2
-pnnx.Input              input_0     0 1 input
-nn.AdaptiveAvgPool2d    op_0        1 1 input out output_size=(8,8)
-pnnx.Output             output      1 0 out
-)PNNXIR");
-    find_op(g, "nn.AdaptiveAvgPool2d")->inputs[0]->shape = std::vector<int>{1, 3, 8, 8};
+    g.parse(R "PNNXIR(7767517
+            3 2 pnnx.Input input_0 0 1 input
+                nn.AdaptiveAvgPool2d op_0 1 1 input out output_size
+            = (8, 8)
+                  pnnx.Output output 1 0 out) PNNXIR ");
+        find_op(g, "nn.AdaptiveAvgPool2d")
+            ->inputs[0]
+            ->shape
+        = std::vector<int>{1, 3, 8, 8};
 
     F_pt2_nn_adaptive_avg_pool2d pass;
     int opindex = 0;
@@ -275,13 +277,13 @@ pnnx.Output             output      1 0 out
           "adaptive_pool module: explicit size is preserved");
 
     Graph pt2;
-    pt2.parse(R"PNNXIR(7767517
-3 2
-pnnx.Input              input_0     0 1 input
-nn.AdaptiveAvgPool2d    op_0        1 1 input out output_size=(8,8)
-pnnx.Output             output      1 0 out
-)PNNXIR");
-    Operator* pool = find_op(pt2, "nn.AdaptiveAvgPool2d");
+    pt2.parse(R "PNNXIR(7767517
+              3 2 pnnx.Input input_0 0 1 input
+                  nn.AdaptiveAvgPool2d op_0 1 1 input out output_size
+              = (8, 8)
+                    pnnx.Output output 1 0 out) PNNXIR ");
+        Operator* pool
+        = find_op(pt2, "nn.AdaptiveAvgPool2d");
     pool->inputs[0]->shape = std::vector<int>{1, 3, 8, 8};
     Parameter marker;
     marker.type = 4;

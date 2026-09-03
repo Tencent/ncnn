@@ -884,7 +884,6 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                 }
                 op->params["elementwise_affine"] = has_weight;
             }
-
         }
 
         if (!is_module_form)

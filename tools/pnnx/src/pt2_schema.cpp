@@ -68,7 +68,6 @@ const Pt2WeightEntry* Pt2Program::find_constant(const std::string& state_dict_na
     return 0;
 }
 
-
 static Pt2Argument::ArgType detect_arg_type(const JsonValue& arg)
 {
     if (arg.hasMember("as_tensor"))
@@ -194,7 +193,6 @@ static Pt2Argument parse_argument(const JsonValue& arg, const std::string& name,
     return a;
 }
 
-
 static Pt2Node parse_node(const JsonValue& n)
 {
     Pt2Node node;
@@ -271,7 +269,6 @@ static Pt2Node parse_node(const JsonValue& n)
 
     return node;
 }
-
 
 static std::string parse_spec_graph_name(const JsonValue& inner)
 {
@@ -351,7 +348,6 @@ static int parse_output_specs(const JsonValue& specs, std::vector<Pt2OutputSpec>
     return 0;
 }
 
-
 static std::vector<long long> parse_int_list_of_objects(const JsonValue& v)
 {
     std::vector<long long> out;
@@ -400,7 +396,6 @@ static void parse_weight_config(const JsonValue& config, std::vector<Pt2WeightEn
         out.push_back(e);
     }
 }
-
 
 static void parse_tensor_values(const JsonValue& tv, std::map<std::string, Pt2TensorMeta>& out)
 {
