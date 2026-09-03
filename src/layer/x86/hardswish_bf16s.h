@@ -5,7 +5,7 @@
 void hardswish_bf16s_avx512bf16(Mat& a, float alpha, float beta, float lower, float upper, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
 void hardswish_bf16s_avxneconvert(Mat& a, float alpha, float beta, float lower, float upper, const Option& opt);
 #endif
 
@@ -30,7 +30,7 @@ static void hardswish_bf16s(Mat& a, float alpha, float beta, float lower, float 
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         hardswish_bf16s_avxneconvert(a, alpha, beta, lower, upper, opt);

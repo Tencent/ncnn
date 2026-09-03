@@ -5,7 +5,7 @@
 void rmsnorm_bf16s_avx512bf16(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
 void rmsnorm_bf16s_avxneconvert(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack);
 #endif
 
@@ -30,7 +30,7 @@ static void rmsnorm_bf16s(unsigned short* ptr, const float* gamma_ptr, float eps
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         rmsnorm_bf16s_avxneconvert(ptr, gamma_ptr, eps, elemcount, elempack);

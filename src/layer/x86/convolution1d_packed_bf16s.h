@@ -6,7 +6,7 @@ void convolution1d_transform_kernel_packed_bf16s_avx512bf16(const Mat& kernel, M
 void convolution1d_packed_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int dilation_w, int stride_w, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
 void convolution1d_transform_kernel_packed_bf16s_avxneconvert(const Mat& kernel, Mat& kernel_tm, int inh, int outh, int kernel_w);
 void convolution1d_packed_bf16s_avxneconvert(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int dilation_w, int stride_w, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
@@ -33,7 +33,7 @@ static void convolution1d_transform_kernel_packed_bf16s(const Mat& kernel, Mat& 
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         convolution1d_transform_kernel_packed_bf16s_avxneconvert(kernel, kernel_tm, inh, outh, kernel_w);
@@ -1112,7 +1112,7 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         convolution1d_packed_bf16s_avxneconvert(bottom_blob, top_blob, weight_data_tm, bias_data, kernel_w, dilation_w, stride_w, activation_type, activation_params, opt);

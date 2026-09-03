@@ -10,6 +10,7 @@
 #endif
 #endif // __SSE2__
 
+#include "cpu.h"
 #include "x86_activation.h"
 #include "x86_usability.h"
 

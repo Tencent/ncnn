@@ -5,7 +5,7 @@
 void dropout_bf16s_avx512bf16(Mat& a, float scale, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
 void dropout_bf16s_avxneconvert(Mat& a, float scale, const Option& opt);
 #endif
 
@@ -23,7 +23,7 @@ static void dropout_bf16s(Mat& a, float scale, const Option& opt)
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         dropout_bf16s_avxneconvert(a, scale, opt);

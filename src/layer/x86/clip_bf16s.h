@@ -5,7 +5,7 @@
 void clip_bf16s_avx512bf16(Mat& a, float min, float max, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
 void clip_bf16s_avxneconvert(Mat& a, float min, float max, const Option& opt);
 #endif
 
@@ -23,7 +23,7 @@ static void clip_bf16s(Mat& a, float min, float max, const Option& opt)
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX2__ && !__AVXNECONVERT__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVXNECONVERT__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
         clip_bf16s_avxneconvert(a, min, max, opt);
