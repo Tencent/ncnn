@@ -87,10 +87,14 @@ def export_convert_import(model, inputs, name, model_format, arguments=(), check
 
 
 def test_model_formats(model, inputs, expected, name, compare=torch.equal, check_trace=True,
-                       unsupported_by_torch_export=None):
+                       unsupported_by_torch_export=None, unsupported_by_pnnx_pt2=None,
+                       converted_inputs=None, torchscript_inputs=None, pt2_inputs=None):
     expected_outputs = expected if isinstance(expected, tuple) else (expected,)
+    converted_inputs = inputs if converted_inputs is None else converted_inputs
+    torchscript_inputs = converted_inputs if torchscript_inputs is None else torchscript_inputs
+    pt2_inputs = converted_inputs if pt2_inputs is None else pt2_inputs
     torchscript_model = export_convert_import(model, inputs, name, "torchscript", check_trace=check_trace)
-    torchscript_result = torchscript_model(*inputs)
+    torchscript_result = torchscript_model(*torchscript_inputs)
     torchscript_outputs = torchscript_result if isinstance(torchscript_result, tuple) else (torchscript_result,)
     if len(expected_outputs) != len(torchscript_outputs) or not all(
         compare(a, b) for a, b in zip(expected_outputs, torchscript_outputs)
@@ -111,8 +115,19 @@ def test_model_formats(model, inputs, expected, name, compare=torch.equal, check
             raise
         raise RuntimeError("torch.export unexpectedly supports " + name)
 
+    if unsupported_by_pnnx_pt2:
+        model_path = export_model(model, inputs, name, "pt2")
+        result = run_pnnx(model_path, name + "_pt2", capture_output=True)
+        output = result.stdout + result.stderr
+        if result.returncode != 0 and unsupported_by_pnnx_pt2 in output:
+            print("UNSUPPORTED_BY_PNNX_PT2: " + unsupported_by_pnnx_pt2)
+            return True
+        if result.returncode == 0:
+            raise RuntimeError("pnnx unexpectedly supports PT2 conversion for " + name)
+        raise RuntimeError("unexpected pnnx PT2 failure for " + name + "\n" + output)
+
     pt2_model = export_convert_import(model, inputs, name, "pt2")
-    pt2_result = pt2_model(*inputs)
+    pt2_result = pt2_model(*pt2_inputs)
     pt2_outputs = pt2_result if isinstance(pt2_result, tuple) else (pt2_result,)
     return len(expected_outputs) == len(pt2_outputs) and all(
         compare(a, b) for a, b in zip(expected_outputs, pt2_outputs)

@@ -12,6 +12,8 @@ if version.parse(torch.__version__) < version.parse('2.1'):
 from transformers import DeepseekV3Config
 from transformers.models.deepseek_v3.modeling_deepseek_v3 import DeepseekV3Attention, DeepseekV3RotaryEmbedding
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -42,19 +44,17 @@ def test():
 
     a = net(x, mask0)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, mask0))
-    mod.save("test_transformers_deepseek_v3_attention.pt")
+    def compare(output, expected):
+        return torch.allclose(output, expected, 1e-4, 1e-4)
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_transformers_deepseek_v3_attention.pt inputshape=[3,16,192],[3,1,16,16]")
-
-    # pnnx inference
-    import test_transformers_deepseek_v3_attention_pnnx
-    b = test_transformers_deepseek_v3_attention_pnnx.test_inference()
-
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    return test_model_formats(
+        net,
+        (x, mask0),
+        a,
+        "test_transformers_deepseek_v3_attention",
+        compare,
+        unsupported_by_pnnx_pt2="unsupported argument variant as_graph",
+    )
 
 if __name__ == "__main__":
     if test():

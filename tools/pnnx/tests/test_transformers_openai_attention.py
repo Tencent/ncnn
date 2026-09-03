@@ -12,6 +12,8 @@ if version.parse(torch.__version__) < version.parse('2.1'):
 from transformers import OpenAIGPTConfig
 from transformers.models.openai.modeling_openai import Attention
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -38,22 +40,16 @@ def test():
 
     a = net(x, y, mask)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, mask))
-    mod.save("test_transformers_openai_attention.pt")
+    def compare(output, expected):
+        return torch.allclose(output, expected, 1e-4, 1e-4)
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_transformers_openai_attention.pt inputshape=[3,16,256],[1,10,66],[1,1,10,10]")
-
-    # pnnx inference
-    import test_transformers_openai_attention_pnnx
-    b = test_transformers_openai_attention_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-    return True
+    return test_model_formats(
+        net,
+        (x, y, mask),
+        a,
+        "test_transformers_openai_attention",
+        compare,
+    )
 
 if __name__ == "__main__":
     if test():

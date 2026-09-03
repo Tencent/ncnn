@@ -281,7 +281,14 @@ private:
         if (type == "as_float")
         {
             argument.type = Argument::FloatingPoint;
-            return get_number(data, argument.floating_point, path + ".as_float");
+            if (get_number(data, argument.floating_point, path + ".as_float", false))
+                return true;
+            const std::string* value = data.get_string();
+            if (value && *value == "Infinity") argument.floating_point = std::numeric_limits<double>::infinity();
+            else if (value && *value == "-Infinity") argument.floating_point = -std::numeric_limits<double>::infinity();
+            else if (value && *value == "NaN") argument.floating_point = std::numeric_limits<double>::quiet_NaN();
+            else return fail(path + ".as_float", "expected number or non-finite float string");
+            return true;
         }
         if (type == "as_bool")
         {
@@ -309,10 +316,31 @@ private:
             argument.type = Argument::SymInteger;
             return decode_sym_argument(data, argument, path + ".as_sym_int");
         }
+        if (type == "as_sym_ints")
+        {
+            argument.type = Argument::SymIntegers;
+            const std::vector<JsonValue>* array = data.get_array();
+            if (!array)
+                return fail(path + ".as_sym_ints", "expected array");
+            for (size_t i = 0; i < array->size(); i++)
+            {
+                Argument item;
+                item.type = Argument::SymInteger;
+                if (!decode_sym_argument((*array)[i], item, path + ".as_sym_ints[" + std::to_string(i) + "]"))
+                    return false;
+                argument.values.push_back(item);
+            }
+            return true;
+        }
         if (type == "as_sym_bool")
         {
             argument.type = Argument::SymBoolean;
             return decode_sym_argument(data, argument, path + ".as_sym_bool");
+        }
+        if (type == "as_sym_float")
+        {
+            argument.type = Argument::SymFloat;
+            return decode_sym_argument(data, argument, path + ".as_sym_float");
         }
         if (type == "as_scalar_type" || type == "as_memory_format" || type == "as_layout")
         {
@@ -329,10 +357,14 @@ private:
         return fail(path, "unsupported argument variant " + type);
     }
 
-    bool get_number(const JsonValue& value, double& result, const std::string& path)
+    bool get_number(const JsonValue& value, double& result, const std::string& path, bool report_error = true)
     {
         if (!value.get_number(result))
-            return fail(path, "expected number");
+        {
+            if (report_error)
+                return fail(path, "expected number");
+            return false;
+        }
         return true;
     }
 

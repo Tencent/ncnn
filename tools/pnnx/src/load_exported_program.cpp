@@ -296,11 +296,15 @@ static std::string normalize_target(const std::string& target)
         return "Tensor.clone";
     if (name_space == "aten" && operator_name == "alias")
         return target;
+    if (name_space == "aten" && operator_name == "tril")
+        return "Tensor.tril";
+    if (name_space == "aten" && operator_name == "item")
+        return "Tensor.item";
     if (name_space == "aten" && (operator_name == "rnn_tanh" || operator_name == "rnn_relu" || operator_name == "gru" || operator_name == "lstm"))
         return "torch._VF." + operator_name;
     if (name_space == "aten" && (operator_name == "chunk" || operator_name == "split" || operator_name == "split_with_sizes" || operator_name == "tensor_split" || operator_name == "unbind"))
         return target;
-    if (name_space == "aten" && (operator_name == "hann_window" || operator_name == "hamming_window" || operator_name == "sym_size" || operator_name == "_assert_scalar"))
+    if (name_space == "aten" && (operator_name == "full" || operator_name == "hann_window" || operator_name == "hamming_window" || operator_name == "sym_size" || operator_name == "_assert_scalar"))
         return target;
     return name_space + "::" + operator_name;
 }
@@ -330,6 +334,11 @@ static bool to_parameter(const pt2::Argument& argument, Parameter& parameter, st
             return false;
         }
         parameter = Parameter((int)value);
+        return true;
+    }
+    if (argument.type == pt2::Argument::SymInteger && argument.name.empty())
+    {
+        parameter = Parameter((long long)argument.integer);
         return true;
     }
     if (argument.type == pt2::Argument::FloatingPoint)
@@ -432,12 +441,14 @@ static bool is_list_argument(const pt2::Argument& argument)
            || argument.type == pt2::Argument::Integers
            || argument.type == pt2::Argument::FloatingPoints
            || argument.type == pt2::Argument::Booleans
+           || argument.type == pt2::Argument::SymIntegers
            || argument.type == pt2::Argument::Strings;
 }
 
 static Operand* resolve_argument(const pt2::Argument& argument, const std::string& name, Graph& graph, std::string& error)
 {
-    if (argument.type == pt2::Argument::Tensor || argument.type == pt2::Argument::SymInteger || argument.type == pt2::Argument::SymBoolean)
+    if (argument.type == pt2::Argument::Tensor
+        || ((argument.type == pt2::Argument::SymInteger || argument.type == pt2::Argument::SymBoolean || argument.type == pt2::Argument::SymFloat) && !argument.name.empty()))
     {
         Operand* input = graph.get_operand(argument.name);
         if (!input)
@@ -457,6 +468,9 @@ static Operand* resolve_argument(const pt2::Argument& argument, const std::strin
 
     if (is_list_argument(argument))
     {
+        if (argument.values.empty() && argument.type != pt2::Argument::Tensors && argument.type != pt2::Argument::OptionalTensors)
+            return make_constant(argument, name, graph, error);
+
         std::vector<Operand*> items;
         for (size_t i = 0; i < argument.values.size(); i++)
         {
@@ -484,7 +498,7 @@ static Operand* resolve_argument(const pt2::Argument& argument, const std::strin
 
 static bool collect_tensor_outputs(const pt2::Argument& argument, std::vector<std::string>& names, std::string& error)
 {
-    if (argument.type == pt2::Argument::Tensor || argument.type == pt2::Argument::SymInteger || argument.type == pt2::Argument::SymBoolean)
+    if (argument.type == pt2::Argument::Tensor || argument.type == pt2::Argument::SymInteger || argument.type == pt2::Argument::SymBoolean || argument.type == pt2::Argument::SymFloat)
     {
         names.push_back(argument.name);
         return true;
@@ -513,8 +527,24 @@ int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& gr
     for (size_t i = 0; i < program.graph.nodes.size(); i++)
     {
         const pt2::Node& node = program.graph.nodes[i];
+        bool none_only_outputs = !node.outputs.empty();
+        for (size_t j = 0; j < node.outputs.size(); j++)
+            none_only_outputs = none_only_outputs && node.outputs[j].type == pt2::Argument::None;
+        if (none_only_outputs)
+            continue;
+
         const std::string name = node.name.empty() ? "pnnx_" + std::to_string(unnamed_node_index++) : node.name;
-        const std::string target = normalize_target(node.target);
+        std::string target = normalize_target(node.target);
+        bool scalar_full = false;
+        if (node.target == "torch.ops.aten.full.default" && !node.inputs.empty())
+        {
+            const pt2::NamedArgument& size = node.inputs[0];
+            scalar_full = size.name == "size"
+                          && (size.argument.type == pt2::Argument::Integers || size.argument.type == pt2::Argument::SymIntegers)
+                          && size.argument.values.empty();
+            if (scalar_full)
+                target = "aten::scalar_tensor";
+        }
         if (target.find("::") == std::string::npos && target.compare(0, 6, "torch.") != 0 && target.compare(0, 7, "Tensor.") != 0 && target.compare(0, 9, "operator.") != 0)
         {
             error = name + ": unsupported exported operator " + node.target;
@@ -526,6 +556,8 @@ int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& gr
         for (size_t j = 0; j < node.inputs.size(); j++)
         {
             const pt2::NamedArgument& named_argument = node.inputs[j];
+            if (scalar_full && named_argument.name == "size")
+                continue;
             Operand* input = resolve_argument(named_argument.argument, name + "_arg_" + std::to_string(j), graph, error);
             if (!input)
             {
