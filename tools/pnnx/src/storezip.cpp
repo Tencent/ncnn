@@ -382,13 +382,18 @@ int StoreZipReader::find_central_directory(uint64_t& cd_offset, uint64_t& cd_siz
         if (fseek(fp, 8 + 2 + 2 + 4 + 4, SEEK_CUR) != 0)
             continue;
         uint64_t z64_cd_records;
+        uint64_t z64_total_cd_records;
         uint64_t z64_cd_size;
         uint64_t z64_cd_offset;
         if (fread((char*)&z64_cd_records, sizeof(z64_cd_records), 1, fp) != 1)
             continue;
+        if (fread((char*)&z64_total_cd_records, sizeof(z64_total_cd_records), 1, fp) != 1)
+            continue;
         if (fread((char*)&z64_cd_size, sizeof(z64_cd_size), 1, fp) != 1)
             continue;
         if (fread((char*)&z64_cd_offset, sizeof(z64_cd_offset), 1, fp) != 1)
+            continue;
+        if (z64_total_cd_records != z64_cd_records)
             continue;
 
         if (cd_offset_valid(z64_cd_offset) && z64_cd_offset + z64_cd_size <= (uint64_t)file_size)

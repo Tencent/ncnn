@@ -237,6 +237,12 @@ public:
     // 输入对应空间维(无需改写)时不再匹配
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
+        // 只有 pt2 loader 明示标记的实例化 None 才能还原为 0。不能根据
+        // output_size 恰好等于输入尺寸反推来源，否则会改写显式相同尺寸。
+        const Operator* pool = matched_operators.at("op_0");
+        if (pool->name.compare(0, 4, "pt2_") != 0)
+            return false;
+
         const Parameter& osz = captured_params.at("output_size");
         if (osz.type != 5)
             return false;

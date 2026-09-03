@@ -5,19 +5,23 @@
 // 编译(在 tests/ 目录下)。注意 test_pt2_regress.cpp 必须放在链接行最后:
 // 它 include 的 F_pt2.cpp 含 pass 注册对象,需晚于 pass_level2.cpp 里的
 // 全局注册表 map 构造执行,否则静态初始化顺序未定导致启动段错误。
-//     g++ -O2 -std=c++11 -Wall -Wextra -I../src ../src/pass_level2.cpp ../src/ir.cpp ../src/utils.cpp ../src/storezip.cpp ../src/pt2_schema.cpp ../src/model_stat.cpp ../src/pass_level2/functionize.cpp ../src/pass_level2/eliminate_contiguous.cpp ../src/pass_level2/eliminate_size_numtotensor_int.cpp ../src/pass_level2/fuse_constantlist.cpp test_pt2_regress.cpp -o test_pt2_regress
+//     g++ -O2 -std=c++11 -Wall -Wextra -I../src ../src/pass_level2.cpp ../src/ir.cpp ../src/utils.cpp ../src/storezip.cpp ../src/model_stat.cpp ../src/pass_level2/functionize.cpp ../src/pass_level2/eliminate_contiguous.cpp ../src/pass_level2/eliminate_size_numtotensor_int.cpp ../src/pass_level2/fuse_constantlist.cpp test_pt2_regress.cpp -o test_pt2_regress
 //
-// 覆盖 docs/15 P1.3 / P2.2:
+// 覆盖 docs/15 P1.3 / P2.2 以及 PR review 回归:
 // 1) F_pt2_fold_ones_like:合法形态(f32 + 静态正 shape + 标量 other/alpha)
 //    折叠出带 data 的 pnnx.Attribute;非 f32 / 空 shape / 非正维 / 非标量
 //    other 一律保持原图(match 拒绝,write 不再静默留空属性)。
 // 2) load_pt2 argument_to_constant:DEVICE 保留 "type:index" 编码,cuda:1
 //    不降级为 cuda;无 index 为裸 "type";空 device 编 None。
+// 3) StoreZipWriter 写出的 Zip64 archive 可由 StoreZipReader 重新打开。
+// 4) adaptive pool 只有 PT2 loader 标记的形态才可把实例化 None 还原为 0;
+//    显式请求与输入相同的 output_size 不得被误改。
 //
 // 白盒说明:#include 产品 .cpp 以访问 static 函数(argument_to_constant)
 // 与文件内 pass 类(F_pt2_fold_ones_like);两者均零 libtorch 依赖。
 
 #include "load_pt2.cpp"
+#include "pt2_schema.cpp"
 #include "pass_level2/F_pt2.cpp"
 
 #include <stdio.h>
@@ -190,10 +194,93 @@ static void test_device_argument()
           "device: empty device encoded as None");
 }
 
+static void build_adaptive_pool_graph(Graph& g)
+{
+    // clang-format off
+    g.parse(R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+prim::Constant          op_sz       0 1 output_size value=(8,8)
+aten::adaptive_avg_pool2d op_0      2 1 input output_size out
+pnnx.Output             output      1 0 out
+)PNNXIR");
+    // clang-format on
+
+    Operator* pool = find_op(g, "aten::adaptive_avg_pool2d");
+    pool->inputs[0]->shape = std::vector<int>{1, 3, 8, 8};
+}
+
+static void run_adaptive_pool_pass(Graph& g)
+{
+    F_pt2_adaptive_avg_pool2d pass;
+    int opindex = 0;
+    pnnx_graph_rewrite(g, &pass, opindex);
+}
+
+static void test_adaptive_pool_source_guard()
+{
+    {
+        Graph g;
+        build_adaptive_pool_graph(g);
+        run_adaptive_pool_pass(g);
+        const Operator* sz = find_op(g, "prim::Constant");
+        CHECK(sz != 0 && sz->params.at("value").ai.size() == 2 && sz->params.at("value").ai[0] == 8
+                  && sz->params.at("value").ai[1] == 8,
+              "adaptive_pool: explicit size equal to input is preserved");
+    }
+
+    {
+        Graph g;
+        build_adaptive_pool_graph(g);
+        find_op(g, "aten::adaptive_avg_pool2d")->params["__pt2_exported"] = true;
+        run_adaptive_pool_pass(g);
+        const Operator* sz = find_op(g, "prim::Constant");
+        CHECK(sz != 0 && sz->params.at("value").ai.size() == 2 && sz->params.at("value").ai[0] == 0
+                  && sz->params.at("value").ai[1] == 0,
+              "adaptive_pool: PT2 marker permits None restoration");
+    }
+}
+
+static void test_storezip_zip64_roundtrip()
+{
+    const char* path = "test_pt2_storezip_regress.zip";
+    const char payload[] = "pt2 zip64 regression";
+
+    StoreZipWriter writer;
+    CHECK(writer.open(path) == 0, "storezip: writer opens regression archive");
+    CHECK(writer.write_file("payload.txt", payload, sizeof(payload) - 1) == 0,
+          "storezip: writer writes regression payload");
+    CHECK(writer.close() == 0, "storezip: writer closes Zip64 archive");
+
+    StoreZipReader reader;
+    CHECK(reader.open(path) == 0, "storezip: reader opens writer Zip64 archive");
+    CHECK(reader.get_file_size("payload.txt") == sizeof(payload) - 1,
+          "storezip: reader sees payload size");
+    char loaded[sizeof(payload)] = {0};
+    CHECK(reader.read_file("payload.txt", loaded) == 0 && memcmp(loaded, payload, sizeof(payload) - 1) == 0,
+          "storezip: reader round-trips payload");
+    reader.close();
+    remove(path);
+}
+
+static void test_output_spec_filter()
+{
+    const JsonValue specs = parse_json(R"JSON([
+        {"user_output":{"arg":{"as_tensor":{"name":"out"}}}},
+        {"buffer_mutation":{"arg":{"as_tensor":{"name":"mut"}}}}
+    ])JSON");
+    Pt2Program program;
+    CHECK(parse_output_specs(specs, program.output_specs) != 0,
+          "signature: mutation specs are rejected explicitly");
+}
+
 int main()
 {
     test_ones_like_fold();
     test_device_argument();
+    test_adaptive_pool_source_guard();
+    test_storezip_zip64_roundtrip();
+    test_output_spec_filter();
 
     if (g_failed == 0)
     {

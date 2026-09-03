@@ -298,7 +298,7 @@ static void parse_input_specs(const JsonValue& specs, std::vector<Pt2InputSpec>&
     }
 }
 
-static void parse_output_specs(const JsonValue& specs, std::vector<Pt2OutputSpec>& out)
+static int parse_output_specs(const JsonValue& specs, std::vector<Pt2OutputSpec>& out)
 {
     for (size_t i = 0; i < specs.size(); i++)
     {
@@ -307,11 +307,19 @@ static void parse_output_specs(const JsonValue& specs, std::vector<Pt2OutputSpec
         for (std::map<std::string, JsonValue>::const_iterator it = spec.object_value.begin();
                 it != spec.object_value.end(); ++it)
         {
+            if (it->first != "user_output")
+            {
+                fprintf(stderr, "load_pt2_schema: unsupported output spec %s\n", it->first.c_str());
+                return -1;
+            }
+
             Pt2OutputSpec s;
             s.graph_name = parse_spec_graph_name(it->second);
             out.push_back(s);
         }
     }
+
+    return 0;
 }
 
 // ----- weights / constants config -----
@@ -486,8 +494,9 @@ int load_pt2_schema(const std::string& ptpath, Pt2Program& program)
         {
             if (signature.hasMember("input_specs"))
                 parse_input_specs(signature["input_specs"], program.input_specs);
-            if (signature.hasMember("output_specs"))
-                parse_output_specs(signature["output_specs"], program.output_specs);
+            if (signature.hasMember("output_specs")
+                && parse_output_specs(signature["output_specs"], program.output_specs) != 0)
+                return -1;
         }
 
         // weights / constants config(close() 只关句柄,filemetas 仍可用)

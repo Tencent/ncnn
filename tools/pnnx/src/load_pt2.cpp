@@ -624,11 +624,10 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         if (spec.kind == Pt2InputSpec::USER_INPUT)
             continue;
 
-        const Pt2WeightEntry* entry = 0;
-        if (spec.kind == Pt2InputSpec::TENSOR_CONSTANT)
-            entry = program.find_constant(spec.state_dict_name);
-        else
-            entry = program.find_weight(spec.state_dict_name);
+        const bool is_constant = spec.kind == Pt2InputSpec::TENSOR_CONSTANT
+                              || (spec.kind == Pt2InputSpec::BUFFER && !spec.persistent);
+        const Pt2WeightEntry* entry = is_constant ? program.find_constant(spec.state_dict_name)
+                                                   : program.find_weight(spec.state_dict_name);
 
         if (!entry)
         {
@@ -638,7 +637,7 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         }
 
         Attribute attr;
-        if (load_weight_attribute(program, *entry, spec.kind == Pt2InputSpec::TENSOR_CONSTANT, attr) != 0)
+        if (load_weight_attribute(program, *entry, is_constant, attr) != 0)
             return -1;
 
         Operator* op = pg.new_operator("pnnx.Attribute", spec.state_dict_name);
@@ -670,6 +669,16 @@ int load_pt2(const std::string& ptpath, Graph& pg,
 
         Operator* op = pg.new_operator(is_module_form ? ("nn." + module_class) : aten_type,
                                        "pnnx_" + std::to_string(pnnx_unknown_index++));
+
+        // adaptive pool 的 output_size 中 None 会被 torch.export 实例化为
+        // 输入尺寸；仅给该 PT2 来源打标，避免 pass_level2 把 TorchScript
+        // 或显式相同尺寸误判成 None。
+        if (aten_type == "aten::adaptive_avg_pool1d" || aten_type == "aten::adaptive_avg_pool2d"
+            || aten_type == "aten::adaptive_avg_pool3d" || aten_type == "aten::adaptive_max_pool1d"
+            || aten_type == "aten::adaptive_max_pool2d" || aten_type == "aten::adaptive_max_pool3d")
+        {
+            op->name = "pt2_" + op->name;
+        }
 
         if (is_module_form)
         {
