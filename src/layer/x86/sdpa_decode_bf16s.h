@@ -1425,15 +1425,27 @@ static void sdpa_decode_kvcache_small_tile_bf16s(const Mat& query, const Mat& ke
 #endif // __AVX512BF16__
 #if __AVXNECONVERT__
                         pK = key_panel + k * 2;
+                        __m128 _sum = _mm_setzero_ps();
+                        __m128 _sum2 = _mm_setzero_ps();
+                        __m128i _mask = _mm_set1_epi32(0xffff0000);
                         for (; d + 1 < head_dim; d += 2)
                         {
-                            const float q0 = bfloat16_to_float32(pA[0]);
-                            const float q1 = bfloat16_to_float32(pA[1]);
-                            sum0 += q0 * bfloat16_to_float32(pK[0]) + q1 * bfloat16_to_float32(pK[1]);
-                            sum1 += q0 * bfloat16_to_float32(pK[2]) + q1 * bfloat16_to_float32(pK[3]);
+                            __m128i _q = _mm_set1_epi32(((const int*)pA)[0]);
+                            __m128i _k0 = _mm_set1_epi32(((const int*)pK)[0]);
+                            __m128i _k1 = _mm_set1_epi32(((const int*)pK)[1]);
+                            __m128i _k = _mm_unpacklo_epi32(_k0, _k1);
+                            __m128 _pA0 = _mm_castsi128_ps(_mm_slli_epi32(_q, 16));
+                            __m128 _pB0 = _mm_castsi128_ps(_mm_slli_epi32(_k, 16));
+                            __m128 _pA1 = _mm_castsi128_ps(_mm_and_si128(_q, _mask));
+                            __m128 _pB1 = _mm_castsi128_ps(_mm_and_si128(_k, _mask));
+                            _sum = _mm_comp_fmadd_ps(_pA0, _pB0, _sum);
+                            _sum2 = _mm_comp_fmadd_ps(_pA1, _pB1, _sum2);
                             pA += 2;
                             pK += NR * 2;
                         }
+                        _sum = _mm_add_ps(_sum, _sum2);
+                        sum0 = _mm_cvtss_f32(_sum);
+                        sum1 = _mm_cvtss_f32(_mm_shuffle_ps(_sum, _sum, _MM_SHUFFLE(1, 1, 1, 1)));
                         pK = key_panel + (size_t)d * NR + k;
 #endif // __AVXNECONVERT__
                         for (; d < head_dim; d++)
