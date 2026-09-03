@@ -2248,6 +2248,12 @@ static inline void conv3x3s1_winograd43_transform_input_tile_bf16s(const Mat& bo
 void conv3x3s1_winograd43_transform_output_tile_bf16s_avx512bf16(const Mat& top_tile, Mat& top_blob, const Mat& bias, int i, int max_ii, int j, int max_jj, int activation_type, const Mat& activation_params);
 #endif
 
+#if NCNN_BF16
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+void conv3x3s1_winograd43_transform_output_tile_bf16s_avxneconvert(const Mat& top_tile, Mat& top_blob, const Mat& bias, int i, int max_ii, int j, int max_jj, int activation_type, const Mat& activation_params);
+#endif
+#endif // NCNN_BF16
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void conv3x3s1_winograd43_transform_output_tile_bf16s_avx2(const Mat& top_tile, Mat& top_blob, const Mat& bias, int i, int max_ii, int j, int max_jj, int activation_type, const Mat& activation_params);
 #endif
@@ -2261,6 +2267,16 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
         return;
     }
 #endif
+
+#if NCNN_BF16
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        conv3x3s1_winograd43_transform_output_tile_bf16s_avxneconvert(top_tile, top_blob, bias, i, max_ii, j, max_jj, activation_type, activation_params);
+        return;
+    }
+#endif
+#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
@@ -3150,6 +3166,12 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
 int conv3x3s1_winograd43_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
 
+#if NCNN_BF16
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+int conv3x3s1_winograd43_bf16s_avxneconvert(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+#endif // NCNN_BF16
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 int conv3x3s1_winograd43_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
@@ -3169,6 +3191,15 @@ static int conv3x3s1_winograd43_bf16s(const Mat& bottom_blob, Mat& top_blob, con
         return conv3x3s1_winograd43_bf16s_avx512bf16(bottom_blob, top_blob, AT, bias, nT, activation_type, activation_params, opt);
     }
 #endif
+
+#if NCNN_BF16
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        return conv3x3s1_winograd43_bf16s_avxneconvert(bottom_blob, top_blob, AT, bias, nT, activation_type, activation_params, opt);
+    }
+#endif
+#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
@@ -3310,6 +3341,12 @@ static int conv3x3s1_winograd43_bf16s(const Mat& bottom_blob, Mat& top_blob, con
 void conv3x3s1_winograd63_transform_input_tile_bf16s_avx512bf16(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int nT);
 #endif
 
+#if NCNN_BF16
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+void conv3x3s1_winograd63_transform_input_tile_bf16s_avxneconvert(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int nT);
+#endif
+#endif // NCNN_BF16
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void conv3x3s1_winograd63_transform_input_tile_bf16s_avx2(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int nT);
 #endif
@@ -3323,6 +3360,16 @@ static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bo
         return;
     }
 #endif
+
+#if NCNN_BF16
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        conv3x3s1_winograd63_transform_input_tile_bf16s_avxneconvert(bottom_blob, B, j, max_jj, k, max_kk, nT);
+        return;
+    }
+#endif
+#endif // NCNN_BF16
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
