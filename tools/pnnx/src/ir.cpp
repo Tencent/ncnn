@@ -1263,10 +1263,10 @@ static std::string make_slice_expression(const Operator* op)
         bool is_select = false;
         if (op->has_param("select"))
         {
-            int select = op->params.at("select").i;
-            if (select != INT_MAX)
+            const Parameter& select_param = op->params.at("select");
+            if (select_param.type == 2 && select_param.i != INT_MAX)
             {
-                r += std::to_string(select);
+                r += std::to_string(select_param.i);
                 is_select = true;
             }
         }
@@ -1316,9 +1316,9 @@ static std::string make_slice_expression(const Operator* op)
 
         if (op->has_param("start"))
         {
-            int start = op->params.at("start").i;
-            if (start != 0)
-                r += std::to_string(start);
+            const Parameter& start = op->params.at("start");
+            if (start.type == 2 && start.i != 0)
+                r += std::to_string(start.i);
         }
         else if (op->has_param("starts"))
         {
@@ -1353,9 +1353,9 @@ static std::string make_slice_expression(const Operator* op)
 
         if (op->has_param("end"))
         {
-            int end = op->params.at("end").i;
-            if (end != INT_MAX)
-                r += std::to_string(end);
+            const Parameter& end = op->params.at("end");
+            if (end.type == 2 && end.i != INT_MAX)
+                r += std::to_string(end.i);
         }
         else if (op->has_param("ends"))
         {
@@ -1388,11 +1388,11 @@ static std::string make_slice_expression(const Operator* op)
 
         if (op->has_param("step"))
         {
-            int step = op->params.at("step").i;
-            if (step != 1)
+            const Parameter& step = op->params.at("step");
+            if (step.type == 2 && step.i != 1)
             {
                 r += ':';
-                r += std::to_string(step);
+                r += std::to_string(step.i);
             }
         }
         else if (op->has_param("steps"))
@@ -1714,16 +1714,21 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             bool is_running_mean_var = false;
             {
                 const Operand* r = op->outputs[0];
-                if (r->consumers.size() == 1)
+                for (const Operator* op2 : r->consumers)
                 {
-                    const Operator* op2 = r->consumers[0];
-                    if (op2->type == "F.batch_norm" || op2->type == "F.instance_norm")
+                    if (op2->type != "F.batch_norm" && op2->type != "F.instance_norm")
+                        continue;
+
+                    for (size_t i = 0; i < op2->inputs.size() && i < op2->inputnames.size(); i++)
                     {
-                        if (r == op2->inputs[1] || r == op2->inputs[2])
+                        if (r == op2->inputs[i] && (op2->inputnames[i] == "running_mean" || op2->inputnames[i] == "running_var"))
                         {
                             is_running_mean_var = true;
+                            break;
                         }
                     }
+                    if (is_running_mean_var)
+                        break;
                 }
             }
 
@@ -1901,6 +1906,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                         {
                             // torch does not support numpy style reference
                             fprintf(pyfp, "v_%s.size(%d)", sanitize_identifier(op->inputs[0]->name).c_str(), (int)i);
+                        }
+                        else if (shape[i] == -233)
+                        {
+                            fprintf(pyfp, "-1");
                         }
                         else
                         {
@@ -2275,7 +2284,16 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 {
                     fprintf(pyfp, "%s%s(", op->outputs.empty() ? "" : " = ", op->type.c_str());
 
-                    if (op->inputnames.size() == op->inputs.size())
+                    if (op->type.compare(0, 9, "operator.") == 0)
+                    {
+                        for (size_t i = 0; i < op->inputs.size(); i++)
+                        {
+                            fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[i]->name).c_str());
+                            if (i + 1 != op->inputs.size())
+                                fprintf(pyfp, ", ");
+                        }
+                    }
+                    else if (op->inputnames.size() == op->inputs.size())
                     {
                         for (size_t i = 0; i < op->inputs.size(); i++)
                         {
@@ -2313,7 +2331,12 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 int i = 0;
                 for (const auto& it : op->params)
                 {
-                    if (op->type.substr(0, 7) == "Tensor." && i == 0)
+                    if (op->type.compare(0, 9, "operator.") == 0)
+                    {
+                        if (!op->inputs.empty() || i != 0)
+                            fprintf(pyfp, ", ");
+                    }
+                    else if (op->type.substr(0, 7) == "Tensor." && i == 0)
                     {
                         fprintf(pyfp, "%s=", it.first.c_str());
                     }

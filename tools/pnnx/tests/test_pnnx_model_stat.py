@@ -1,9 +1,7 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
-import os
 import re
-import subprocess
 import sys
 
 from packaging import version
@@ -11,6 +9,8 @@ from packaging import version
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from pnnx_test_utils import export_model, has_exported_program, import_model, run_pnnx
 
 
 class Model(nn.Module):
@@ -355,7 +355,8 @@ def _allclose(a, b):
     return torch.allclose(a, b, 1e-4, 1e-4)
 
 
-def _run_case(name, net, inputs, inputshape, expected_inputshape, expected_flops, expected_memops):
+def _run_case(name, net, inputs, inputshape, expected_inputshape, expected_flops, expected_memops,
+              expected_pt2_flops=None, expected_pt2_memops=None):
     net.eval()
 
     torch.manual_seed(0)
@@ -363,36 +364,41 @@ def _run_case(name, net, inputs, inputshape, expected_inputshape, expected_flops
 
     a = net(*inputs)
 
-    # export torchscript
-    mod = torch.jit.trace(net, inputs)
-    mod.save(name + ".pt")
+    formats = ["torchscript"]
+    if has_exported_program():
+        formats.append("pt2")
+    else:
+        print("SKIP PT2: torch.export.save is unavailable in torch " + torch.__version__)
 
-    # torchscript to pnnx
-    cmd = ["../src/pnnx", name + ".pt", "inputshape=" + inputshape]
-    p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-    if p.returncode != 0:
-        sys.stderr.write(p.stdout)
-        sys.stderr.write(p.stderr)
-        return False
+    for model_format in formats:
+        format_flops = expected_pt2_flops if model_format == "pt2" and expected_pt2_flops is not None else expected_flops
+        format_memops = expected_pt2_memops if model_format == "pt2" and expected_pt2_memops is not None else expected_memops
+        model_path = export_model(net, inputs, name, model_format)
+        output_prefix = name + "_" + model_format
+        p = run_pnnx(model_path, output_prefix, ("inputshape=" + inputshape,), capture_output=True)
+        if p.returncode != 0:
+            sys.stderr.write(p.stdout)
+            sys.stderr.write(p.stderr)
+            return False
 
-    if not _check_stat_text(p.stdout + p.stderr, expected_inputshape, expected_flops, expected_memops):
-        sys.stderr.write(p.stdout)
-        sys.stderr.write(p.stderr)
-        return False
+        if not _check_stat_text(p.stdout + p.stderr, expected_inputshape, format_flops, format_memops):
+            sys.stderr.write(p.stdout)
+            sys.stderr.write(p.stderr)
+            return False
 
-    with open(name + "_pnnx.py", "r") as f:
-        pnnx_py = f.read()
+        with open(output_prefix + "_pnnx.py", "r") as f:
+            pnnx_py = f.read()
 
-    if "# pnnx model stat" not in pnnx_py:
-        return False
-    if not _check_stat_text(pnnx_py, expected_inputshape, expected_flops, expected_memops):
-        return False
+        if "# pnnx model stat" not in pnnx_py:
+            return False
+        if not _check_stat_text(pnnx_py, expected_inputshape, format_flops, format_memops):
+            return False
 
-    # pnnx inference
-    pnnx_module = __import__(name + "_pnnx")
-    b = pnnx_module.test_inference()
+        pnnx_net = import_model(output_prefix + "_pnnx.py", output_prefix + "_pnnx")
+        if not _allclose(a, pnnx_net(*inputs)):
+            return False
 
-    return _allclose(a, b)
+    return True
 
 
 def test():
@@ -471,20 +477,20 @@ def test():
     if not _run_case("test_pnnx_model_stat_multihead_attention_mask", MultiheadAttentionMaskModel(),
                      ((3, 1, 4), (3, 3)),
                      "[3,1,4],[3,3]", "[3,1,4]f32,[3,3]f32",
-                     684, 155):
+                     684, 155, expected_pt2_memops=227):
         return False
 
     if not _run_case("test_pnnx_model_stat_multihead_attention_extra", MultiheadAttentionExtraModel(),
                      ((3, 1, 4),),
                      "[3,1,4]", "[3,1,4]f32",
-                     822, 166):
+                     822, 166, expected_pt2_memops=410):
         return False
 
     if version.parse(torch.__version__) >= version.parse('1.12'):
         if not _run_case("test_pnnx_model_stat_multihead_attention_unbatched", UnbatchedMultiheadAttentionModel(),
                          ((3, 4),),
                          "[3,4]", "[3,4]f32",
-                         666, 146):
+                         666, 146, expected_pt2_memops=362):
             return False
 
     if not _run_case("test_pnnx_model_stat_normalize", NormalizeModel(),
@@ -505,7 +511,8 @@ def test():
                      ((1, 4, 2, 2), (1, 1, 4, 4), (2, 3), (2, 3)),
                      "[1,4,2,2],[1,1,4,4],[2,3],[2,3]",
                      "[1,4,2,2]f32,[1,1,4,4]f32,[2,3]f32,[2,3]f32",
-                     fused_functional_flops, fused_functional_memops):
+                     fused_functional_flops, fused_functional_memops,
+                     expected_pt2_flops=324, expected_pt2_memops=206):
         return False
 
     if not _run_case("test_pnnx_model_stat_fold", FoldModel(),
@@ -530,14 +537,14 @@ def test():
                      ((2, 1, 3), (1, 1, 2), (1, 1, 4)),
                      "[2,1,3],[1,1,2],[1,1,4]",
                      "[2,1,3]f32,[1,1,2]f32,[1,1,4]f32",
-                     432, 110):
+                     432, 110, expected_pt2_flops=0, expected_pt2_memops=18):
         return False
 
     if version.parse(torch.__version__) >= version.parse('1.12'):
         if not _run_case("test_pnnx_model_stat_lstm_unbatched", UnbatchedLSTMModel(),
                          ((2, 3),),
                          "[2,3]", "[2,3]f32",
-                         528, 134):
+                         528, 134, expected_pt2_flops=0, expected_pt2_memops=28):
             return False
 
     if hasattr(F, "scaled_dot_product_attention"):

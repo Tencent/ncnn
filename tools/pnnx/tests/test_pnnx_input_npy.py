@@ -1,12 +1,12 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
-import os
-
 import numpy as np
 import torch
 import torch.nn as nn
 from packaging import version
+
+from pnnx_test_utils import export_model, has_exported_program, import_model, run_pnnx
 
 
 def _allclose(a, b):
@@ -15,6 +15,33 @@ def _allclose(a, b):
             return False
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
+    return True
+
+
+def _test_formats(net, export_inputs, cases, name, arguments, compare=_allclose, store_trace_inputs=True,
+                  dynamic_shapes=None):
+    formats = ["torchscript"]
+    if has_exported_program():
+        formats.append("pt2")
+    else:
+        print("SKIP PT2: torch.export.save is unavailable in torch " + torch.__version__)
+
+    for model_format in formats:
+        if model_format == "torchscript" and not store_trace_inputs:
+            model_path = name + "_torchscript.pt"
+            torch.jit.trace(net, export_inputs, _store_inputs=False).save(model_path)
+        else:
+            model_path = export_model(net, export_inputs, name, model_format, dynamic_shapes=dynamic_shapes)
+
+        output_prefix = name + "_" + model_format
+        if run_pnnx(model_path, output_prefix, arguments).returncode != 0:
+            return False
+
+        pnnx_net = import_model(output_prefix + "_pnnx.py", output_prefix + "_pnnx")
+        for inputs, expected in cases:
+            if not compare(expected, pnnx_net(*inputs)):
+                return False
+
     return True
 
 
@@ -43,19 +70,8 @@ def _test_basic():
 
     a = net(x, y)
 
-    mod = torch.jit.trace(net, (x, y))
-    mod.save("test_pnnx_input_npy_basic.pt")
-
-    ret = os.system("../src/pnnx test_pnnx_input_npy_basic.pt input=test_pnnx_input_npy_basic_x.npy,test_pnnx_input_npy_basic_y.npy")
-    if ret != 0:
-        return False
-
-    import test_pnnx_input_npy_basic_pnnx
-    pnnx_net = test_pnnx_input_npy_basic_pnnx.Model()
-    pnnx_net.eval()
-    b = pnnx_net(x, y)
-
-    return _allclose(a, b)
+    arguments = ("input=" + x_path + "," + y_path,)
+    return _test_formats(net, (x, y), (((x, y), a),), "test_pnnx_input_npy_basic", arguments)
 
 
 class Input2Model(nn.Module):
@@ -94,23 +110,17 @@ def _test_input2():
     a0 = net(x0, y0)
     a1 = net(x1, y1)
 
-    if version.parse(torch.__version__) < version.parse("2.0"):
-        mod = torch.jit.trace(net, (x0, y0))
-    else:
-        mod = torch.jit.trace(net, (x0, y0), _store_inputs=False)
-    mod.save("test_pnnx_input_npy_input2.pt")
-
-    ret = os.system("../src/pnnx test_pnnx_input_npy_input2.pt input=test_pnnx_input_npy_input2_x0.npy,test_pnnx_input_npy_input2_y0.npy input2=test_pnnx_input_npy_input2_x1.npy,test_pnnx_input_npy_input2_y1.npy")
-    if ret != 0:
-        return False
-
-    import test_pnnx_input_npy_input2_pnnx
-    pnnx_net = test_pnnx_input_npy_input2_pnnx.Model()
-    pnnx_net.eval()
-    b0 = pnnx_net(x0, y0)
-    b1 = pnnx_net(x1, y1)
-
-    return _allclose(a0, b0) and _allclose(a1, b1)
+    arguments = (
+        "input=" + x0_path + "," + y0_path,
+        "input2=" + x1_path + "," + y1_path,
+    )
+    cases = (((x0, y0), a0), ((x1, y1), a1))
+    store_trace_inputs = version.parse(torch.__version__) < version.parse("2.0")
+    channel = torch.export.Dim("channel", min=2, max=3)
+    width = torch.export.Dim("width", min=6, max=8)
+    dynamic_shapes = ({1: channel, 2: width}, {1: channel, 2: width})
+    return _test_formats(net, (x0, y0), cases, "test_pnnx_input_npy_input2", arguments,
+                         store_trace_inputs=store_trace_inputs, dynamic_shapes=dynamic_shapes)
 
 
 class Int64Model(nn.Module):
@@ -138,19 +148,8 @@ def _test_int64():
 
     a = net(x, y)
 
-    mod = torch.jit.trace(net, (x, y))
-    mod.save("test_pnnx_input_npy_int64.pt")
-
-    ret = os.system("../src/pnnx test_pnnx_input_npy_int64.pt input=test_pnnx_input_npy_int64_x.npy,test_pnnx_input_npy_int64_y.npy")
-    if ret != 0:
-        return False
-
-    import test_pnnx_input_npy_int64_pnnx
-    pnnx_net = test_pnnx_input_npy_int64_pnnx.Model()
-    pnnx_net.eval()
-    b = pnnx_net(x, y)
-
-    return torch.equal(a, b)
+    arguments = ("input=" + x_path + "," + y_path,)
+    return _test_formats(net, (x, y), (((x, y), a),), "test_pnnx_input_npy_int64", arguments, compare=torch.equal)
 
 
 class EmbeddingModel(nn.Module):
@@ -177,19 +176,8 @@ def _test_embedding():
 
     a = net(x)
 
-    mod = torch.jit.trace(net, x)
-    mod.save("test_pnnx_input_npy_embedding.pt")
-
-    ret = os.system("../src/pnnx test_pnnx_input_npy_embedding.pt input=test_pnnx_input_npy_embedding_x.npy")
-    if ret != 0:
-        return False
-
-    import test_pnnx_input_npy_embedding_pnnx
-    pnnx_net = test_pnnx_input_npy_embedding_pnnx.Model()
-    pnnx_net.eval()
-    b = pnnx_net(x)
-
-    return torch.equal(a, b)
+    arguments = ("input=" + x_path,)
+    return _test_formats(net, (x,), (((x,), a),), "test_pnnx_input_npy_embedding", arguments, compare=torch.equal)
 
 
 def test():
