@@ -12,6 +12,10 @@
 
 namespace ncnn {
 
+#if NCNN_ARM82
+#include "relu_fp16s.h"
+#endif
+
 ReLU_arm::ReLU_arm()
 {
 #if __ARM_NEON
@@ -25,6 +29,13 @@ ReLU_arm::ReLU_arm()
     support_bf16_storage = true;
 #endif
 }
+
+#if NCNN_ARM82
+int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return relu_fp16s(bottom_top_blob, slope, opt);
+}
+#endif // NCNN_ARM82
 
 int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {

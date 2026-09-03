@@ -12,7 +12,15 @@
 
 #include "cpu.h"
 
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#include "neon_mathfun_fp16s.h"
+#endif
+
 namespace ncnn {
+
+#if NCNN_ARM82
+#include "elu_fp16s.h"
+#endif
 
 ELU_arm::ELU_arm()
 {
@@ -27,6 +35,18 @@ ELU_arm::ELU_arm()
     support_bf16_storage = true;
 #endif
 }
+
+#if NCNN_ARM82
+int ELU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return elu_fp16s(bottom_top_blob, alpha, opt);
+}
+
+int ELU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
+{
+    return elu_fp16sa(bottom_top_blob, alpha, opt);
+}
+#endif // NCNN_ARM82
 
 int ELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {

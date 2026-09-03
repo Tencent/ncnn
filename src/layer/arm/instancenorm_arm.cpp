@@ -12,6 +12,10 @@
 
 namespace ncnn {
 
+#if NCNN_ARM82
+#include "instancenorm_fp16s.h"
+#endif
+
 InstanceNorm_arm::InstanceNorm_arm()
 {
 #if __ARM_NEON
@@ -25,6 +29,13 @@ InstanceNorm_arm::InstanceNorm_arm()
     support_bf16_storage = true;
 #endif
 }
+
+#if NCNN_ARM82
+int InstanceNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return instancenorm_fp16s(bottom_top_blob, eps, affine, gamma_data, beta_data, opt);
+}
+#endif // NCNN_ARM82
 
 int InstanceNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {

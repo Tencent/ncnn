@@ -19,6 +19,93 @@ namespace ncnn {
 #include "deconvolution_3x3.h"
 #include "deconvolution_4x4.h"
 
+#if NCNN_ARM82 && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#include "deconvolution_fp16s.h"
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+void deconvolution_fp16s_asimdhp(const Mat& bottom_blob, Mat& top_blob_bordered, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int num_output, int bias_term, int activation_type, const Mat& activation_params, const Option& opt);
+void deconvolution_col2im_fp16sa_asimdhp(const Mat& top_col2im, Mat& top_blob_bordered, const Mat& bias_data, const Mat& bias_data_fp16, int input_w, int input_h, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt);
+bool deconvolution_fp16sa_asimdhp(const Mat& bottom_blob, Mat& top_blob_bordered, const Mat& weight_data_tm, const Mat& bias_data, const Mat& bias_data_fp16, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int num_output, int bias_term, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+
+#if NCNN_ARM82
+static void deconvolution_fp16s_dispatch(const Mat& bottom_blob, Mat& top_blob_bordered, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int num_output, int bias_term, int activation_type, const Mat& activation_params, const Option& opt)
+{
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    deconvolution_fp16s(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
+#elif NCNN_RUNTIME_CPU && __aarch64__
+    deconvolution_fp16s_asimdhp(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
+#else
+    (void)bottom_blob;
+    (void)top_blob_bordered;
+    (void)weight_data_tm;
+    (void)bias_data;
+    (void)kernel_w;
+    (void)kernel_h;
+    (void)dilation_w;
+    (void)dilation_h;
+    (void)stride_w;
+    (void)stride_h;
+    (void)num_output;
+    (void)bias_term;
+    (void)activation_type;
+    (void)activation_params;
+    (void)opt;
+#endif
+}
+
+static void deconvolution_col2im_fp16sa_dispatch(const Mat& top_col2im, Mat& top_blob_bordered, const Mat& bias_data, const Mat& bias_data_fp16, int input_w, int input_h, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
+{
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    deconvolution_col2im_fp16sa(top_col2im, top_blob_bordered, bias_data, bias_data_fp16, input_w, input_h, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+#elif NCNN_RUNTIME_CPU && __aarch64__
+    deconvolution_col2im_fp16sa_asimdhp(top_col2im, top_blob_bordered, bias_data, bias_data_fp16, input_w, input_h, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+#else
+    (void)top_col2im;
+    (void)top_blob_bordered;
+    (void)bias_data;
+    (void)bias_data_fp16;
+    (void)input_w;
+    (void)input_h;
+    (void)kernel_w;
+    (void)kernel_h;
+    (void)dilation_w;
+    (void)dilation_h;
+    (void)stride_w;
+    (void)stride_h;
+    (void)opt;
+#endif
+}
+
+static bool deconvolution_fp16sa_dispatch(const Mat& bottom_blob, Mat& top_blob_bordered, const Mat& weight_data_tm, const Mat& bias_data, const Mat& bias_data_fp16, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int num_output, int bias_term, int activation_type, const Mat& activation_params, const Option& opt)
+{
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    return deconvolution_fp16sa(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
+#elif NCNN_RUNTIME_CPU && __aarch64__
+    return deconvolution_fp16sa_asimdhp(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
+#else
+    (void)bottom_blob;
+    (void)top_blob_bordered;
+    (void)weight_data_tm;
+    (void)bias_data;
+    (void)bias_data_fp16;
+    (void)kernel_w;
+    (void)kernel_h;
+    (void)dilation_w;
+    (void)dilation_h;
+    (void)stride_w;
+    (void)stride_h;
+    (void)num_output;
+    (void)bias_term;
+    (void)activation_type;
+    (void)activation_params;
+    (void)opt;
+    return false;
+#endif
+}
+#endif // NCNN_ARM82
+
 Deconvolution_arm::Deconvolution_arm()
 {
 #if __ARM_NEON
@@ -206,6 +293,141 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
     return 0;
 }
 
+#if NCNN_ARM82
+int Deconvolution_arm::create_pipeline_fp16s(const Option& opt)
+{
+    const int maxk = kernel_w * kernel_h;
+    const int num_input = weight_data_size / maxk / num_output;
+
+    int elempack = 1;
+    int out_elempack = 1;
+
+    if (opt.use_packing_layout)
+    {
+        elempack = opt.use_fp16_arithmetic && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    }
+
+    if (opt.use_fp16_arithmetic && opt.use_sgemm_convolution)
+    {
+        const int maxk = kernel_w * kernel_h;
+
+        gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
+
+        ncnn::ParamDict pd;
+        pd.set(2, 1);                 // transA
+        pd.set(3, 0);                 // transB
+        pd.set(4, 1);                 // constantA
+        pd.set(5, 0);                 // constantB
+        pd.set(6, 1);                 // constantC
+        pd.set(7, maxk * num_output); // M = maxk*num_output
+        pd.set(8, 0);                 // N = size
+        pd.set(9, num_input);         // K = inch
+        pd.set(10, -1);               // constant_broadcast_type_C = null
+        pd.set(11, 0);                // output_N1M
+        pd.set(12, out_elempack);
+
+        gemm->load_param(pd);
+
+        // maxk-inch-outch to pa-maxk-outch/pa-inch
+        Mat tmp;
+        {
+            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+
+            tmp.create(maxk * num_output, num_input);
+
+            for (int p = 0; p < num_input; p += 1)
+            {
+                float* g00 = tmp.row(p);
+
+                for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+                {
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        for (int i = 0; i < out_elempack; i++)
+                        {
+                            const float* k00 = weight_data_r2.channel(q + i).row(p);
+                            g00[0] = k00[k];
+                            g00++;
+                        }
+                    }
+                }
+            }
+        }
+
+        ncnn::Mat weights[1];
+        weights[0] = tmp;
+
+        gemm->load_model(ModelBinFromMatArray(weights));
+
+        gemm->create_pipeline(opt);
+    }
+    else
+    {
+        Mat weight_data_transposed(weight_data.w);
+        {
+            float* pt = weight_data_transposed;
+            const float* p = weight_data;
+
+            for (int i = 0; i < num_input * num_output; i++)
+            {
+                for (int k = 0; k < maxk; k++)
+                {
+                    pt[maxk - 1 - k] = p[k];
+                }
+
+                p += maxk;
+                pt += maxk;
+            }
+        }
+
+        // src = kw-kh-inch-outch
+        // dst = pb-pa-kw-kh-inch/pa-outch/pb
+        Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
+
+        weight_data_tm.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)2u * elempack * out_elempack, elempack * out_elempack);
+
+        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+        {
+            __fp16* g00 = weight_data_tm.channel(q / out_elempack);
+
+            for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
+            {
+                for (int k = 0; k < maxk; k++)
+                {
+                    for (int i = 0; i < elempack; i++)
+                    {
+                        for (int j = 0; j < out_elempack; j++)
+                        {
+                            const float* k00 = weight_data_r2.channel(q + j).row(p + i);
+
+                            g00[0] = (__fp16)k00[k];
+
+                            g00++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (elempack == 1 && out_elempack == 1 && opt.use_fp16_arithmetic)
+    {
+        if (kernel_w == 4 && kernel_h == 4 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
+        {
+            ncnn::cast_float32_to_float16(weight_data, weight_data_tm, opt);
+        }
+    }
+
+    ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
+
+    if (opt.lightmode)
+        weight_data.release();
+
+    return 0;
+}
+#endif // NCNN_ARM82
+
 int Deconvolution_arm::destroy_pipeline(const Option& opt)
 {
     if (activation)
@@ -224,6 +446,109 @@ int Deconvolution_arm::destroy_pipeline(const Option& opt)
 
     return 0;
 }
+
+#if NCNN_ARM82
+int Deconvolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const size_t elemsize = bottom_blob.elemsize;
+    const int elempack = bottom_blob.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    const int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    const int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
+    const int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
+    const size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    Mat top_blob_bordered;
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    {
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
+    }
+    else
+    {
+        top_blob_bordered = top_blob;
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob_bordered.empty())
+        return -100;
+
+    deconvolution_fp16s_dispatch(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
+
+    cut_padding(top_blob_bordered, top_blob, opt);
+    if (top_blob.empty())
+        return -100;
+
+    return 0;
+}
+
+int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const size_t elemsize = bottom_blob.elemsize;
+    const int elempack = bottom_blob.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    const int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    const int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
+    int out_elempack = 1;
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    }
+    const size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    Mat top_blob_bordered;
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    {
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
+    }
+    else
+    {
+        top_blob_bordered = top_blob;
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob_bordered.empty())
+        return -100;
+
+    if (opt.use_sgemm_convolution)
+    {
+        Mat bottom_blob_2 = bottom_blob;
+        bottom_blob_2.w = bottom_blob.w * bottom_blob.h;
+        bottom_blob_2.h = 1;
+
+        Mat top_col2im;
+        Option opt_b = opt;
+        opt_b.blob_allocator = top_blob_bordered.allocator;
+        int ret = gemm->forward(bottom_blob_2, top_col2im, opt_b);
+        if (ret != 0)
+            return ret;
+
+        deconvolution_col2im_fp16sa_dispatch(top_col2im, top_blob_bordered, bias_data, bias_data_fp16, w, h, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+
+        if (activation)
+            activation->forward_inplace(top_blob_bordered, opt);
+    }
+    else
+    {
+        const bool activation_unfused = deconvolution_fp16sa_dispatch(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
+        if (activation_unfused && activation)
+            activation->forward_inplace(top_blob_bordered, opt);
+    }
+
+    cut_padding(top_blob_bordered, top_blob, opt);
+    if (top_blob.empty())
+        return -100;
+
+    return 0;
+}
+#endif // NCNN_ARM82
 
 int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {

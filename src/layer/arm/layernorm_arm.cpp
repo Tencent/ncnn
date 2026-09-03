@@ -13,6 +13,10 @@
 
 namespace ncnn {
 
+#if NCNN_ARM82
+#include "layernorm_fp16s.h"
+#endif
+
 LayerNorm_arm::LayerNorm_arm()
 {
 #if __ARM_NEON
@@ -200,6 +204,13 @@ static void layernorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
         }
     }
 }
+
+#if NCNN_ARM82
+int LayerNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return layernorm_inplace_fp16s(bottom_top_blob, affine_size, eps, gamma_data, beta_data, opt);
+}
+#endif // NCNN_ARM82
 
 int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {

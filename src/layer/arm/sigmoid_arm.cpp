@@ -12,7 +12,15 @@
 
 #include "cpu.h"
 
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#include "neon_mathfun_fp16s.h"
+#endif
+
 namespace ncnn {
+
+#if NCNN_ARM82
+#include "sigmoid_fp16s.h"
+#endif
 
 Sigmoid_arm::Sigmoid_arm()
 {
@@ -27,6 +35,18 @@ Sigmoid_arm::Sigmoid_arm()
     support_bf16_storage = true;
 #endif
 }
+
+#if NCNN_ARM82
+int Sigmoid_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return sigmoid_fp16s(bottom_top_blob, opt);
+}
+
+int Sigmoid_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
+{
+    return sigmoid_fp16sa(bottom_top_blob, opt);
+}
+#endif // NCNN_ARM82
 
 int Sigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {

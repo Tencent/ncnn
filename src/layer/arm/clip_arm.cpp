@@ -7,10 +7,18 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#if __ARM_FEATURE_SVE
+#include <arm_sve.h>
+#endif // __ARM_FEATURE_SVE
+
 #include "arm_usability.h"
 #include "cpu.h"
 
 namespace ncnn {
+
+#if NCNN_ARM82
+#include "clip_fp16s.h"
+#endif
 
 Clip_arm::Clip_arm()
 {
@@ -25,6 +33,13 @@ Clip_arm::Clip_arm()
     support_bf16_storage = true;
 #endif
 }
+
+#if NCNN_ARM82
+int Clip_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return clip_fp16s(bottom_top_blob, min, max, opt);
+}
+#endif // NCNN_ARM82
 
 int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
@@ -53,7 +68,48 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob.channel(q);
 
         int i = 0;
-#if __ARM_NEON
+#if __ARM_FEATURE_SVE
+        const int packn = svcntw();
+        const svbool_t _pg = svptrue_b32();
+        const svfloat32_t _min = svdup_n_f32(min);
+        const svfloat32_t _max = svdup_n_f32(max);
+        for (; i + packn * 4 <= size; i += packn * 4)
+        {
+            svfloat32_t _p0 = svld1_f32(_pg, ptr);
+            svfloat32_t _p1 = svld1_f32(_pg, ptr + packn);
+            svfloat32_t _p2 = svld1_f32(_pg, ptr + packn * 2);
+            svfloat32_t _p3 = svld1_f32(_pg, ptr + packn * 3);
+            _p0 = svmax_f32_x(_pg, _p0, _min);
+            _p1 = svmax_f32_x(_pg, _p1, _min);
+            _p2 = svmax_f32_x(_pg, _p2, _min);
+            _p3 = svmax_f32_x(_pg, _p3, _min);
+            _p0 = svmin_f32_x(_pg, _p0, _max);
+            _p1 = svmin_f32_x(_pg, _p1, _max);
+            _p2 = svmin_f32_x(_pg, _p2, _max);
+            _p3 = svmin_f32_x(_pg, _p3, _max);
+            svst1_f32(_pg, ptr, _p0);
+            svst1_f32(_pg, ptr + packn, _p1);
+            svst1_f32(_pg, ptr + packn * 2, _p2);
+            svst1_f32(_pg, ptr + packn * 3, _p3);
+            ptr += packn * 4;
+        }
+        for (; i + packn <= size; i += packn)
+        {
+            svfloat32_t _p = svld1_f32(_pg, ptr);
+            _p = svmax_f32_x(_pg, _p, _min);
+            _p = svmin_f32_x(_pg, _p, _max);
+            svst1_f32(_pg, ptr, _p);
+            ptr += packn;
+        }
+        if (i < size)
+        {
+            const svbool_t _pg1 = svwhilelt_b32((unsigned int)i, (unsigned int)size);
+            svfloat32_t _p = svld1_f32(_pg1, ptr);
+            _p = svmax_f32_x(_pg1, _p, _min);
+            _p = svmin_f32_x(_pg1, _p, _max);
+            svst1_f32(_pg1, ptr, _p);
+        }
+#elif __ARM_NEON
         float32x4_t _min = vdupq_n_f32(min);
         float32x4_t _max = vdupq_n_f32(max);
         for (; i + 15 < size; i += 16)
@@ -136,7 +192,7 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             vst1q_f32(ptr, _p);
             ptr += 4;
         }
-#endif // __ARM_NEON
+#endif // __ARM_FEATURE_SVE
         for (; i < size; i++)
         {
             if (*ptr < min)
@@ -168,7 +224,47 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
         unsigned short* ptr = bottom_top_blob.channel(q);
 
         int i = 0;
-#if __ARM_NEON
+#if __ARM_FEATURE_SVE
+        const int packn = svcnth();
+        const svbool_t _pg = svptrue_b16();
+        const svbool_t _pg32 = svptrue_b32();
+        const svfloat32_t _min = svdup_n_f32(min);
+        const svfloat32_t _max = svdup_n_f32(max);
+        for (; i + packn <= size; i += packn)
+        {
+            svuint16_t _p = svld1_u16(_pg, ptr);
+            svuint32_t _p0 = svlsl_n_u32_x(_pg32, svunpklo_u32(_p), 16);
+            svuint32_t _p1 = svlsl_n_u32_x(_pg32, svunpkhi_u32(_p), 16);
+            svfloat32_t _p0f = svreinterpret_f32_u32(_p0);
+            svfloat32_t _p1f = svreinterpret_f32_u32(_p1);
+            _p0f = svmax_f32_x(_pg32, _p0f, _min);
+            _p1f = svmax_f32_x(_pg32, _p1f, _min);
+            _p0f = svmin_f32_x(_pg32, _p0f, _max);
+            _p1f = svmin_f32_x(_pg32, _p1f, _max);
+            _p0 = svlsr_n_u32_x(_pg32, svadd_n_u32_x(_pg32, svreinterpret_u32_f32(_p0f), 0x8000), 16);
+            _p1 = svlsr_n_u32_x(_pg32, svadd_n_u32_x(_pg32, svreinterpret_u32_f32(_p1f), 0x8000), 16);
+            _p = svuzp1_u16(svreinterpret_u16_u32(_p0), svreinterpret_u16_u32(_p1));
+            svst1_u16(_pg, ptr, _p);
+            ptr += packn;
+        }
+        if (i < size)
+        {
+            const svbool_t _pg1 = svwhilelt_b16((unsigned int)i, (unsigned int)size);
+            svuint16_t _p = svld1_u16(_pg1, ptr);
+            svuint32_t _p0 = svlsl_n_u32_x(_pg32, svunpklo_u32(_p), 16);
+            svuint32_t _p1 = svlsl_n_u32_x(_pg32, svunpkhi_u32(_p), 16);
+            svfloat32_t _p0f = svreinterpret_f32_u32(_p0);
+            svfloat32_t _p1f = svreinterpret_f32_u32(_p1);
+            _p0f = svmax_f32_x(_pg32, _p0f, _min);
+            _p1f = svmax_f32_x(_pg32, _p1f, _min);
+            _p0f = svmin_f32_x(_pg32, _p0f, _max);
+            _p1f = svmin_f32_x(_pg32, _p1f, _max);
+            _p0 = svlsr_n_u32_x(_pg32, svadd_n_u32_x(_pg32, svreinterpret_u32_f32(_p0f), 0x8000), 16);
+            _p1 = svlsr_n_u32_x(_pg32, svadd_n_u32_x(_pg32, svreinterpret_u32_f32(_p1f), 0x8000), 16);
+            _p = svuzp1_u16(svreinterpret_u16_u32(_p0), svreinterpret_u16_u32(_p1));
+            svst1_u16(_pg1, ptr, _p);
+        }
+#elif __ARM_NEON
         float32x4_t _min = vdupq_n_f32(min);
         float32x4_t _max = vdupq_n_f32(max);
         for (; i + 15 < size; i += 16)
@@ -270,7 +366,7 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
             vst1_u16(ptr, float2bfloat(_p));
             ptr += 4;
         }
-#endif // __ARM_NEON
+#endif // __ARM_FEATURE_SVE
         for (; i < size; i++)
         {
             float v = bfloat16_to_float32(*ptr);

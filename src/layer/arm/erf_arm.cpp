@@ -11,7 +11,15 @@
 #include "arm_usability.h"
 #include "cpu.h"
 
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#include "neon_mathfun_fp16s.h"
+#endif
+
 namespace ncnn {
+
+#if NCNN_ARM82
+#include "erf_fp16s.h"
+#endif
 
 Erf_arm::Erf_arm()
 {
@@ -26,6 +34,18 @@ Erf_arm::Erf_arm()
     support_bf16_storage = true;
 #endif
 }
+
+#if NCNN_ARM82
+int Erf_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return erf_fp16s(bottom_top_blob, opt);
+}
+
+int Erf_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
+{
+    return erf_fp16sa(bottom_top_blob, opt);
+}
+#endif // NCNN_ARM82
 
 int Erf_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {

@@ -10,7 +10,15 @@
 #include "arm_usability.h"
 #include "cpu.h"
 
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#include "neon_mathfun_fp16s.h"
+#endif
+
 namespace ncnn {
+
+#if NCNN_ARM82
+#include "hardswish_fp16s.h"
+#endif
 
 HardSwish_arm::HardSwish_arm()
 {
@@ -25,6 +33,18 @@ HardSwish_arm::HardSwish_arm()
     support_bf16_storage = true;
 #endif
 }
+
+#if NCNN_ARM82
+int HardSwish_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return hardswish_fp16s(bottom_top_blob, alpha, beta, lower, upper, opt);
+}
+
+int HardSwish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
+{
+    return hardswish_fp16sa(bottom_top_blob, alpha, beta, lower, upper, opt);
+}
+#endif // NCNN_ARM82
 
 int HardSwish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {

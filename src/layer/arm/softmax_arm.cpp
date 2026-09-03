@@ -8,12 +8,19 @@
 #if __ARM_NEON
 #include <arm_neon.h>
 #include "neon_mathfun.h"
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#include "neon_mathfun_fp16s.h"
+#endif
 #endif // __ARM_NEON
 
 #include "arm_usability.h"
 #include "cpu.h"
 
 namespace ncnn {
+
+#if NCNN_ARM82
+#include "softmax_fp16s.h"
+#endif
 
 Softmax_arm::Softmax_arm()
 {
@@ -439,6 +446,13 @@ static void softmax(float* _ptr, int elemcount, int elempack, size_t stride, int
         softmax_pack1(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
     }
 }
+
+#if NCNN_ARM82
+int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return softmax_inplace_fp16s(bottom_top_blob, axis, opt);
+}
+#endif // NCNN_ARM82
 
 int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {

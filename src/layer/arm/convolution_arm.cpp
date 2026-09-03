@@ -60,6 +60,97 @@ namespace ncnn {
 #endif // NCNN_GNU_INLINE_ASM
 #endif // __ARM_NEON
 
+#if NCNN_ARM82 && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#include "convolution_fp16s.h"
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+void convolution_transform_kernel_fp16s_asimdhp(const Mat& weight_data, Mat& weight_data_tm, Mat& weight_sgemm_data, Mat& weight_winograd23_data, Mat& weight_winograd43_data, Mat& weight_winograd63_data, int weight_data_size, int num_output, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt);
+void convolution_fp16s_asimdhp(const Mat& bottom_blob_bordered, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt);
+int convolution_fp16sa_asimdhp(const Mat& bottom_blob_bordered, Mat& top_blob, const Mat& weight_data_tm, const Mat& weight_sgemm_data, const Mat& weight_winograd23_data, const Mat& weight_winograd43_data, const Mat& weight_winograd63_data, const Mat& bias_data_fp16, int num_output, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, int nT, bool& activation_unfused, const Option& opt);
+#endif
+
+#if NCNN_ARM82
+static void convolution_transform_kernel_fp16s_dispatch(const Mat& weight_data, Mat& weight_data_tm, Mat& weight_sgemm_data, Mat& weight_winograd23_data, Mat& weight_winograd43_data, Mat& weight_winograd63_data, int weight_data_size, int num_output, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
+{
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    convolution_transform_kernel_fp16s(weight_data, weight_data_tm, weight_sgemm_data, weight_winograd23_data, weight_winograd43_data, weight_winograd63_data, weight_data_size, num_output, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+#elif NCNN_RUNTIME_CPU && __aarch64__
+    convolution_transform_kernel_fp16s_asimdhp(weight_data, weight_data_tm, weight_sgemm_data, weight_winograd23_data, weight_winograd43_data, weight_winograd63_data, weight_data_size, num_output, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+#else
+    (void)weight_data;
+    (void)weight_data_tm;
+    (void)weight_sgemm_data;
+    (void)weight_winograd23_data;
+    (void)weight_winograd43_data;
+    (void)weight_winograd63_data;
+    (void)weight_data_size;
+    (void)num_output;
+    (void)kernel_w;
+    (void)kernel_h;
+    (void)dilation_w;
+    (void)dilation_h;
+    (void)stride_w;
+    (void)stride_h;
+    (void)opt;
+#endif
+}
+
+static void convolution_fp16s_dispatch(const Mat& bottom_blob_bordered, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
+{
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    convolution_fp16s(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+#elif NCNN_RUNTIME_CPU && __aarch64__
+    convolution_fp16s_asimdhp(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+#else
+    (void)bottom_blob_bordered;
+    (void)top_blob;
+    (void)weight_data_tm;
+    (void)bias_data;
+    (void)kernel_w;
+    (void)kernel_h;
+    (void)dilation_w;
+    (void)dilation_h;
+    (void)stride_w;
+    (void)stride_h;
+    (void)activation_type;
+    (void)activation_params;
+    (void)opt;
+#endif
+}
+
+static int convolution_fp16sa_dispatch(const Mat& bottom_blob_bordered, Mat& top_blob, const Mat& weight_data_tm, const Mat& weight_sgemm_data, const Mat& weight_winograd23_data, const Mat& weight_winograd43_data, const Mat& weight_winograd63_data, const Mat& bias_data_fp16, int num_output, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, int nT, bool& activation_unfused, const Option& opt)
+{
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    return convolution_fp16sa(bottom_blob_bordered, top_blob, weight_data_tm, weight_sgemm_data, weight_winograd23_data, weight_winograd43_data, weight_winograd63_data, bias_data_fp16, num_output, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, nT, activation_unfused, opt);
+#elif NCNN_RUNTIME_CPU && __aarch64__
+    return convolution_fp16sa_asimdhp(bottom_blob_bordered, top_blob, weight_data_tm, weight_sgemm_data, weight_winograd23_data, weight_winograd43_data, weight_winograd63_data, bias_data_fp16, num_output, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, nT, activation_unfused, opt);
+#else
+    (void)bottom_blob_bordered;
+    (void)top_blob;
+    (void)weight_data_tm;
+    (void)weight_sgemm_data;
+    (void)weight_winograd23_data;
+    (void)weight_winograd43_data;
+    (void)weight_winograd63_data;
+    (void)bias_data_fp16;
+    (void)num_output;
+    (void)kernel_w;
+    (void)kernel_h;
+    (void)dilation_w;
+    (void)dilation_h;
+    (void)stride_w;
+    (void)stride_h;
+    (void)activation_type;
+    (void)activation_params;
+    (void)nT;
+    (void)activation_unfused;
+    (void)opt;
+    return 0;
+#endif
+}
+#endif // NCNN_ARM82
+
 Convolution_arm::Convolution_arm()
 {
 #if __ARM_NEON
@@ -302,6 +393,23 @@ int Convolution_arm::create_pipeline(const Option& opt)
     return 0;
 }
 
+#if NCNN_ARM82
+int Convolution_arm::create_pipeline_fp16s(const Option& opt)
+{
+    convolution_transform_kernel_fp16s_dispatch(weight_data, weight_data_tm, weight_sgemm_data, weight_winograd23_data, weight_winograd43_data, weight_winograd63_data, weight_data_size, num_output, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+
+    if (opt.use_fp16_arithmetic)
+    {
+        ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
+    }
+
+    if (opt.lightmode)
+        weight_data.release();
+
+    return 0;
+}
+#endif // NCNN_ARM82
+
 int Convolution_arm::destroy_pipeline(const Option& opt)
 {
     if (activation)
@@ -320,6 +428,82 @@ int Convolution_arm::destroy_pipeline(const Option& opt)
 
     return 0;
 }
+
+#if NCNN_ARM82
+int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    const size_t elemsize = bottom_blob.elemsize;
+    const int elempack = bottom_blob.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    w = bottom_blob_bordered.w;
+    h = bottom_blob_bordered.h;
+
+    const int outw = (w - kernel_extent_w) / stride_w + 1;
+    const int outh = (h - kernel_extent_h) / stride_h + 1;
+    const int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
+    const size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    convolution_fp16s_dispatch(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+
+    return 0;
+}
+
+int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    const size_t elemsize = bottom_blob.elemsize;
+    const int elempack = bottom_blob.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    w = bottom_blob_bordered.w;
+    h = bottom_blob_bordered.h;
+
+    const int outw = (w - kernel_extent_w) / stride_w + 1;
+    const int outh = (h - kernel_extent_h) / stride_h + 1;
+    int out_elempack = 1;
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    }
+    const size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    bool activation_unfused;
+    int ret = convolution_fp16sa_dispatch(bottom_blob_bordered, top_blob, weight_data_tm, weight_sgemm_data, weight_winograd23_data, weight_winograd43_data, weight_winograd63_data, bias_data_fp16, num_output, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, nT, activation_unfused, opt);
+    if (ret != 0)
+        return ret;
+
+    if (activation_unfused && activation)
+        activation->forward_inplace(top_blob, opt);
+
+    return 0;
+}
+#endif // NCNN_ARM82
 
 int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {

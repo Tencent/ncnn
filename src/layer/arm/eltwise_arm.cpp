@@ -13,6 +13,10 @@
 
 namespace ncnn {
 
+#if NCNN_ARM82
+#include "eltwise_fp16s.h"
+#endif
+
 Eltwise_arm::Eltwise_arm()
 {
 #if __ARM_NEON
@@ -26,6 +30,28 @@ Eltwise_arm::Eltwise_arm()
     support_bf16_storage = true;
 #endif
 }
+
+#if NCNN_ARM82
+int Eltwise_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+
+    top_blobs[0].create_like(bottom_blob, opt.blob_allocator);
+    if (top_blobs[0].empty())
+        return -100;
+
+    return eltwise_fp16s(bottom_blobs, top_blobs[0], op_type, coeffs, opt);
+}
+
+int Eltwise_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    top_blobs[0].create_like(bottom_blobs[0], opt.blob_allocator);
+    if (top_blobs[0].empty())
+        return -100;
+
+    return eltwise_fp16sa(bottom_blobs, top_blobs[0], op_type, coeffs, opt);
+}
+#endif // NCNN_ARM82
 
 int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {

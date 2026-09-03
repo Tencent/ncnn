@@ -12,6 +12,10 @@
 
 namespace ncnn {
 
+#if NCNN_ARM82
+#include "groupnorm_fp16s.h"
+#endif
+
 GroupNorm_arm::GroupNorm_arm()
 {
 #if __ARM_NEON
@@ -191,6 +195,13 @@ static void groupnorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
         }
     }
 }
+
+#if NCNN_ARM82
+int GroupNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return groupnorm_inplace_fp16s(bottom_top_blob, group, channels, eps, affine, gamma_data, beta_data, opt);
+}
+#endif // NCNN_ARM82
 
 int GroupNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {

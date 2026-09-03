@@ -12,6 +12,10 @@
 
 namespace ncnn {
 
+#if NCNN_ARM82
+#include "rotaryembed_fp16s.h"
+#endif
+
 RotaryEmbed_arm::RotaryEmbed_arm()
 {
 #if __ARM_NEON
@@ -24,6 +28,30 @@ RotaryEmbed_arm::RotaryEmbed_arm()
     support_bf16_storage = true;
 #endif
 }
+
+#if NCNN_ARM82
+int RotaryEmbed_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    top_blobs[0].create_like(bottom_blobs[0], opt.blob_allocator);
+    if (top_blobs[0].empty())
+        return -100;
+
+    rotaryembed_fp16s(bottom_blobs[0], bottom_blobs[1], bottom_blobs[2], top_blobs[0], interleaved, opt);
+
+    return 0;
+}
+
+int RotaryEmbed_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    top_blobs[0].create_like(bottom_blobs[0], opt.blob_allocator);
+    if (top_blobs[0].empty())
+        return -100;
+
+    rotaryembed_fp16sa(bottom_blobs[0], bottom_blobs[1], bottom_blobs[2], top_blobs[0], interleaved, opt);
+
+    return 0;
+}
+#endif // NCNN_ARM82
 
 int RotaryEmbed_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {

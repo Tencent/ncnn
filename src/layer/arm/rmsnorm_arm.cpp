@@ -12,6 +12,10 @@
 
 namespace ncnn {
 
+#if NCNN_ARM82
+#include "rmsnorm_fp16s.h"
+#endif
+
 RMSNorm_arm::RMSNorm_arm()
 {
 #if __ARM_NEON
@@ -149,6 +153,13 @@ static void rmsnorm(float* ptr, const float* gamma_ptr, float eps, int elemcount
         }
     }
 }
+
+#if NCNN_ARM82
+int RMSNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return rmsnorm_inplace_fp16s(bottom_top_blob, affine_size, eps, gamma_data, opt);
+}
+#endif // NCNN_ARM82
 
 int RMSNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
