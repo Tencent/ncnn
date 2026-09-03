@@ -233,22 +233,30 @@ int StoreZipReader::open(const std::string& path)
                 extra_offset += 4;
                 if (extra_id == 0x0001)
                 {
-                    if (extra_size < sizeof(zip64_extended_extra_field))
+                    uint16_t zip64_size = 0;
+                    if (uncompressed_size == 0xffffffff)
+                        zip64_size += sizeof(uint64_t);
+                    if (compressed_size == 0xffffffff)
+                        zip64_size += sizeof(uint64_t);
+                    if (lfh_offset == 0xffffffff)
+                        zip64_size += sizeof(uint64_t);
+                    if (extra_size < zip64_size)
                     {
                         fseek(fp, extra_size, SEEK_CUR);
                         extra_offset += extra_size;
                         continue;
                     }
-                    zip64_extended_extra_field zip64_eef;
-                    fread((char*)&zip64_eef, sizeof(zip64_eef), 1, fp);
-                    if (uncompressed_size == 0xffffffff)
-                        uncompressed_size = zip64_eef.uncompressed_size;
-                    if (compressed_size == 0xffffffff)
-                        compressed_size = zip64_eef.compressed_size;
-                    if (lfh_offset == 0xffffffff)
-                        lfh_offset = zip64_eef.lfh_offset;
-                    if (extra_size > sizeof(zip64_eef))
-                        fseek(fp, extra_size - sizeof(zip64_eef), SEEK_CUR);
+                    if (uncompressed_size == 0xffffffff
+                        && fread((char*)&uncompressed_size, sizeof(uncompressed_size), 1, fp) != 1)
+                        continue;
+                    if (compressed_size == 0xffffffff
+                        && fread((char*)&compressed_size, sizeof(compressed_size), 1, fp) != 1)
+                        continue;
+                    if (lfh_offset == 0xffffffff
+                        && fread((char*)&lfh_offset, sizeof(lfh_offset), 1, fp) != 1)
+                        continue;
+                    if (extra_size > zip64_size)
+                        fseek(fp, extra_size - zip64_size, SEEK_CUR);
                     extra_offset += extra_size;
                     fseek(fp, cdfh.extra_field_length - extra_offset, SEEK_CUR);
                     break;

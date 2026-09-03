@@ -486,7 +486,16 @@ int load_pt2_schema(const std::string& ptpath, Pt2Program& program)
         const JsonValue& nodes = graph_module["graph"]["nodes"];
         for (size_t i = 0; i < nodes.size(); i++)
         {
-            program.nodes.push_back(parse_node(nodes[i]));
+            Pt2Node node = parse_node(nodes[i]);
+            const size_t target_begin = node.target.find("aten.");
+            const size_t target_end = node.target.find('.', target_begin + 5);
+            if (target_begin != std::string::npos && target_end != std::string::npos
+                && target_end > target_begin + 5 && node.target[target_end - 1] == '_')
+            {
+                fprintf(stderr, "load_pt2_schema: mutation operator %s is unsupported\n", node.target.c_str());
+                return -1;
+            }
+            program.nodes.push_back(node);
         }
 
         // graph.tensor_values(张量元数据表,含中间张量的形状/dtype)

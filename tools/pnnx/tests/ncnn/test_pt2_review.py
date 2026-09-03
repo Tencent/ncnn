@@ -5,7 +5,6 @@
 # signature 不得被误暴露成 public output。
 
 import os
-import re
 import subprocess
 import tempfile
 
@@ -56,7 +55,7 @@ class BufferMutation(nn.Module):
 
     def forward(self, x):
         self.state.add_(1.0)
-        return x
+        return x, self.state
 
 
 def main():
@@ -78,14 +77,13 @@ def main():
         result.stderr,
     )
 
-    result, param = _export_and_convert(
+    result, _ = _export_and_convert(
         BufferMutation(), (torch.ones(1, 4),), "[1,4]"
     )
-    output_count = len(re.findall(r"^pnnx.Output\s", param, re.MULTILINE))
     check(
-        result.returncode == 0 and output_count == 1,
-        "review: mutation specs do not add public outputs",
-        result.stderr + "\n" + param,
+        result.returncode != 0,
+        "review: mutation specs are rejected explicitly",
+        result.stderr,
     )
 
     if failures:
