@@ -755,7 +755,7 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                     self_input = &node.inputs[j];
             }
             const Operand* input_operand = self_input && self_input->arg.type == Pt2Argument::TENSOR
-                                               && self_input->arg.tensor_names.size() == 1
+                                           && self_input->arg.tensor_names.size() == 1
                                            ? pg.get_operand(self_input->arg.tensor_names[0])
                                            : 0;
             if (output_size_input && output_size_input->arg.type == Pt2Argument::INTS && input_operand)
@@ -767,7 +767,7 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                 {
                     const int dim_index = (int)input_shape.size() - k + j;
                     adaptive_pool_none_axes.push_back(dim_index >= 0 && dim_index < (int)input_shape.size()
-                                                               && output_size[j] == input_shape[dim_index]);
+                                                      && output_size[j] == input_shape[dim_index]);
                 }
                 adaptive_pool_has_none = std::find(adaptive_pool_none_axes.begin(), adaptive_pool_none_axes.end(), 1)
                                          != adaptive_pool_none_axes.end();
