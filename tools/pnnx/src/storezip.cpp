@@ -230,8 +230,15 @@ int StoreZipReader::open(const std::string& path)
                 uint16_t extra_size;
                 fread((char*)&extra_id, sizeof(extra_id), 1, fp);
                 fread((char*)&extra_size, sizeof(extra_size), 1, fp);
+                extra_offset += 4;
                 if (extra_id == 0x0001)
                 {
+                    if (extra_size < sizeof(zip64_extended_extra_field))
+                    {
+                        fseek(fp, extra_size, SEEK_CUR);
+                        extra_offset += extra_size;
+                        continue;
+                    }
                     zip64_extended_extra_field zip64_eef;
                     fread((char*)&zip64_eef, sizeof(zip64_eef), 1, fp);
                     if (uncompressed_size == 0xffffffff)
@@ -240,12 +247,15 @@ int StoreZipReader::open(const std::string& path)
                         compressed_size = zip64_eef.compressed_size;
                     if (lfh_offset == 0xffffffff)
                         lfh_offset = zip64_eef.lfh_offset;
-                    fseek(fp, cdfh.extra_field_length - extra_offset - 4 - sizeof(zip64_eef), SEEK_CUR);
+                    if (extra_size > sizeof(zip64_eef))
+                        fseek(fp, extra_size - sizeof(zip64_eef), SEEK_CUR);
+                    extra_offset += extra_size;
+                    fseek(fp, cdfh.extra_field_length - extra_offset, SEEK_CUR);
                     break;
                 }
                 else
                 {
-                    fseek(fp, extra_size - 4, SEEK_CUR);
+                    fseek(fp, extra_size, SEEK_CUR);
                     extra_offset += extra_size;
                 }
             }

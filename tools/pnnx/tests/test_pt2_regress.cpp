@@ -233,7 +233,7 @@ static void test_adaptive_pool_source_guard()
     {
         Graph g;
         build_adaptive_pool_graph(g);
-        find_op(g, "aten::adaptive_avg_pool2d")->params["__pt2_exported"] = true;
+        find_op(g, "aten::adaptive_avg_pool2d")->name = "pt2_" + find_op(g, "aten::adaptive_avg_pool2d")->name;
         run_adaptive_pool_pass(g);
         const Operator* sz = find_op(g, "prim::Constant");
         CHECK(sz != 0 && sz->params.at("value").ai.size() == 2 && sz->params.at("value").ai[0] == 0

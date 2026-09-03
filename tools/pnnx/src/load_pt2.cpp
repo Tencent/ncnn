@@ -673,9 +673,10 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         // adaptive pool 的 output_size 中 None 会被 torch.export 实例化为
         // 输入尺寸；仅给该 PT2 来源打标，避免 pass_level2 把 TorchScript
         // 或显式相同尺寸误判成 None。
-        if (aten_type == "aten::adaptive_avg_pool1d" || aten_type == "aten::adaptive_avg_pool2d"
+        if (!is_module_form && node.adaptive_pool_has_none
+            && (aten_type == "aten::adaptive_avg_pool1d" || aten_type == "aten::adaptive_avg_pool2d"
                 || aten_type == "aten::adaptive_avg_pool3d" || aten_type == "aten::adaptive_max_pool1d"
-                || aten_type == "aten::adaptive_max_pool2d" || aten_type == "aten::adaptive_max_pool3d")
+                || aten_type == "aten::adaptive_max_pool2d" || aten_type == "aten::adaptive_max_pool3d"))
         {
             op->name = "pt2_" + op->name;
         }
