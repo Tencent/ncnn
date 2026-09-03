@@ -484,7 +484,7 @@ def test():
         if not _run_case("test_pnnx_model_stat_multihead_attention_unbatched", UnbatchedMultiheadAttentionModel(),
                          ((3, 4),),
                          "[3,4]", "[3,4]f32",
-                         666, 146, expected_pt2_memops=362):
+                         666, 146, expected_pt2_memops=242):
             return False
 
     if not _run_case("test_pnnx_model_stat_normalize", NormalizeModel(),
