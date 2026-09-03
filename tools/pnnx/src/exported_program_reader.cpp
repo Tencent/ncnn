@@ -452,12 +452,25 @@ private:
     {
         const std::map<std::string, JsonValue>* object = value.get_object();
         if (!object || object->size() != 1)
-            return fail(path, "expected single symbolic integer variant");
+            return fail(path, "expected single symbolic argument variant");
         if (object->begin()->first == "as_name")
             return get_string(object->begin()->second, argument.name, path + ".as_name");
-        if (object->begin()->first == "as_int")
+        if (argument.type == Argument::SymInteger && object->begin()->first == "as_int")
             return get_int(object->begin()->second, argument.integer, path + ".as_int");
-        return fail(path, "unsupported symbolic integer variant");
+        if (argument.type == Argument::SymBoolean && object->begin()->first == "as_bool")
+            return get_bool(object->begin()->second, argument.boolean, path + ".as_bool");
+        if (argument.type == Argument::SymFloat && object->begin()->first == "as_float")
+        {
+            if (get_number(object->begin()->second, argument.floating_point, path + ".as_float", false))
+                return true;
+            const std::string* concrete = object->begin()->second.get_string();
+            if (concrete && *concrete == "Infinity") argument.floating_point = std::numeric_limits<double>::infinity();
+            else if (concrete && *concrete == "-Infinity") argument.floating_point = -std::numeric_limits<double>::infinity();
+            else if (concrete && *concrete == "NaN") argument.floating_point = std::numeric_limits<double>::quiet_NaN();
+            else return fail(path + ".as_float", "expected number or non-finite float string");
+            return true;
+        }
+        return fail(path, "unsupported symbolic argument variant");
     }
 
     bool decode_tensor_map(const JsonValue& value, std::map<std::string, TensorMeta>& result)

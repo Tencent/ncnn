@@ -143,6 +143,23 @@ static void test_parse_exported_program()
     expect_true(program.range_constraints["s0"].has_min && !program.range_constraints["s0"].has_max, "unbounded range constraint");
 }
 
+static void test_concrete_symbolic_arguments()
+{
+    const char* document = R"json({"graph_module":{"graph":{"inputs":[],"outputs":[],"nodes":[{"name":"symbols","target":"torch.ops.aten.symbols.default","inputs":[{"name":"predicate","arg":{"as_sym_bool":{"as_bool":true}},"kind":1},{"name":"scale","arg":{"as_sym_float":{"as_float":1.5}},"kind":1},{"name":"limit","arg":{"as_sym_float":{"as_float":"-Infinity"}},"kind":1}],"outputs":[],"metadata":{}}],"tensor_values":{},"sym_int_values":{}} ,"signature":{"input_specs":[],"output_specs":[]}},"opset_version":{"aten":1},"range_constraints":{},"schema_version":{"major":8,"minor":20}})json";
+
+    pnnx::pt2::ExportedProgram program;
+    std::string error;
+    expect_true(pnnx::pt2::parse_exported_program(document, program, error), error.c_str());
+    expect_true(program.graph.nodes.size() == 1 && program.graph.nodes[0].inputs.size() == 3, "concrete symbolic arguments");
+    if (program.graph.nodes.size() == 1 && program.graph.nodes[0].inputs.size() == 3)
+    {
+        const std::vector<pnnx::pt2::NamedArgument>& inputs = program.graph.nodes[0].inputs;
+        expect_true(inputs[0].argument.type == pnnx::pt2::Argument::SymBoolean && inputs[0].argument.boolean, "concrete symbolic boolean");
+        expect_true(inputs[1].argument.type == pnnx::pt2::Argument::SymFloat && inputs[1].argument.floating_point == 1.5, "concrete symbolic float");
+        expect_true(inputs[2].argument.type == pnnx::pt2::Argument::SymFloat && inputs[2].argument.floating_point == -std::numeric_limits<double>::infinity(), "concrete non-finite symbolic float");
+    }
+}
+
 static void test_load_archive_metadata()
 {
     const char* path = "test_exported_program_metadata.pt2";
@@ -365,6 +382,7 @@ int main()
     test_defaults();
     test_minimal_archive();
     test_parse_exported_program();
+    test_concrete_symbolic_arguments();
     test_load_archive_metadata();
     test_load_tensor_payloads();
     test_shared_storage_payloads();
