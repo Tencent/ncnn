@@ -484,8 +484,9 @@ int main(int argc, char** argv)
         }
         else if (model_format == pnnx::ModelFormatExportedProgramLegacy)
         {
-            fprintf(stderr, "legacy pt2 archive is not supported yet\n");
-            return -1;
+            const int ret = pnnx::load_exported_program(ptpath, pnnx_graph, input_shapes, input_shapes2);
+            if (ret != 0)
+                return ret;
         }
         else if (model_format == pnnx::ModelFormatTorchScript)
         {

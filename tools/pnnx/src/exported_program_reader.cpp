@@ -5,6 +5,8 @@
 
 #include <limits>
 
+#include <torch/serialize.h>
+
 #include "json.h"
 #include "model_format.h"
 #include "storezip.h"
@@ -756,6 +758,115 @@ static bool parse_payload_config(const std::string& text, std::map<std::string, 
     return decoder.decode_payload_config(root, payloads, path);
 }
 
+static int serialized_scalar_type(c10::ScalarType scalar_type)
+{
+    if (scalar_type == c10::ScalarType::Byte) return 1;
+    if (scalar_type == c10::ScalarType::Char) return 2;
+    if (scalar_type == c10::ScalarType::Short) return 3;
+    if (scalar_type == c10::ScalarType::Int) return 4;
+    if (scalar_type == c10::ScalarType::Long) return 5;
+    if (scalar_type == c10::ScalarType::Half) return 6;
+    if (scalar_type == c10::ScalarType::Float) return 7;
+    if (scalar_type == c10::ScalarType::Double) return 8;
+    if (scalar_type == c10::ScalarType::ComplexHalf) return 9;
+    if (scalar_type == c10::ScalarType::ComplexFloat) return 10;
+    if (scalar_type == c10::ScalarType::ComplexDouble) return 11;
+    if (scalar_type == c10::ScalarType::Bool) return 12;
+    if (scalar_type == c10::ScalarType::BFloat16) return 13;
+    return 0;
+}
+
+static SymInt concrete_sym_int(int64_t value)
+{
+    SymInt result;
+    result.integer = value;
+    return result;
+}
+
+static bool load_legacy_tensor_dict(const std::string& data, const std::string& directory, bool is_parameter, std::map<std::string, PayloadMeta>& payloads, std::map<std::string, std::vector<char> >& storages, std::string& error)
+{
+    torch::IValue value;
+    try
+    {
+        value = torch::pickle_load(std::vector<char>(data.begin(), data.end()));
+    }
+    catch (const c10::Error& e)
+    {
+        error = directory + ": failed to load legacy tensor dictionary: " + e.what_without_backtrace();
+        return false;
+    }
+
+    if (!value.isGenericDict())
+    {
+        error = directory + ": legacy payload is not a dictionary";
+        return false;
+    }
+
+    const c10::impl::GenericDict dictionary = value.toGenericDict();
+    size_t index = 0;
+    for (c10::impl::GenericDict::iterator it = dictionary.begin(); it != dictionary.end(); ++it)
+    {
+        const torch::IValue& key = it->key();
+        if (!key.isString())
+        {
+            error = directory + ": legacy payload key is not a string";
+            return false;
+        }
+        const torch::IValue& item = it->value();
+        if (!item.isTensor())
+        {
+            error = key.toStringRef() + ": unsupported legacy non-tensor payload";
+            return false;
+        }
+
+        at::Tensor tensor = item.toTensor();
+        if (tensor.layout() != c10::kStrided)
+        {
+            error = key.toStringRef() + ": unsupported legacy tensor layout";
+            return false;
+        }
+
+        const int scalar_type = serialized_scalar_type(tensor.scalar_type());
+        if (scalar_type == 0)
+        {
+            error = key.toStringRef() + ": unsupported legacy tensor scalar type";
+            return false;
+        }
+
+        const bool requires_grad = tensor.requires_grad();
+        tensor = tensor.detach().to(c10::kCPU).contiguous();
+
+        PayloadMeta payload;
+        payload.path = "legacy_" + std::to_string(index++);
+        payload.is_parameter = is_parameter;
+        payload.has_tensor_meta = true;
+        payload.tensor_meta.scalar_type = scalar_type;
+        payload.tensor_meta.requires_grad = requires_grad;
+        payload.tensor_meta.device.type = "cpu";
+        payload.tensor_meta.layout = 7;
+        payload.tensor_meta.storage_offset = concrete_sym_int(0);
+        for (size_t i = 0; i < (size_t)tensor.dim(); i++)
+        {
+            payload.tensor_meta.sizes.push_back(concrete_sym_int(tensor.size(i)));
+            payload.tensor_meta.strides.push_back(concrete_sym_int(tensor.stride(i)));
+        }
+
+        const uint64_t byte_count = (uint64_t)tensor.numel() * tensor.element_size();
+        if (byte_count > std::numeric_limits<size_t>::max())
+        {
+            error = key.toStringRef() + ": legacy tensor payload is too large";
+            return false;
+        }
+        std::vector<char>& storage = storages[directory + payload.path];
+        storage.resize((size_t)byte_count);
+        if (byte_count)
+            memcpy(storage.data(), tensor.const_data_ptr(), (size_t)byte_count);
+        payloads[key.toStringRef()] = payload;
+    }
+
+    return true;
+}
+
 static size_t scalar_type_size(int scalar_type)
 {
     if (scalar_type == 1 || scalar_type == 2 || scalar_type == 12 || (scalar_type >= 29 && scalar_type <= 33)) return 1;
@@ -937,7 +1048,8 @@ bool load_exported_program_archive_metadata(const std::string& path, ExportedPro
 {
     error.clear();
     archive = ExportedProgramArchive();
-    if (detect_model_format(path, error) != ModelFormatExportedProgram)
+    const ModelFormat format = detect_model_format(path, error);
+    if (format != ModelFormatExportedProgram && format != ModelFormatExportedProgramLegacy)
         return false;
 
     StoreZipReader reader;
@@ -949,6 +1061,16 @@ bool load_exported_program_archive_metadata(const std::string& path, ExportedPro
 
     const std::vector<std::string> names = reader.get_names();
     const std::string root = common_archive_root(names);
+    if (format == ModelFormatExportedProgramLegacy)
+    {
+        archive.archive_version = -1;
+        archive.model_name = "model";
+        std::string document;
+        if (!read_record(reader, root + "serialized_exported_program.json", document, error))
+            return false;
+        return parse_exported_program(document, archive.program, error);
+    }
+
     std::vector<std::string> models;
     for (size_t i = 0; i < names.size(); i++)
     {
@@ -986,6 +1108,18 @@ bool load_exported_program_archive(const std::string& path, ExportedProgramArchi
     }
 
     const std::string root = common_archive_root(reader.get_names());
+    if (archive.archive_version == -1)
+    {
+        std::string state_dict;
+        std::string constants;
+        if (!read_record(reader, root + "serialized_state_dict.pt", state_dict, error)
+            || !read_record(reader, root + "serialized_constants.pt", constants, error))
+            return false;
+        if (!load_legacy_tensor_dict(state_dict, "data/weights/", true, archive.state_dict, archive.state_dict_storages, error))
+            return false;
+        return load_legacy_tensor_dict(constants, "data/constants/", false, archive.constants, archive.constant_storages, error);
+    }
+
     if (!load_payloads(reader, root, "data/weights/", archive.model_name, "_weights_config.json", archive.state_dict, archive.state_dict_storages, error))
         return false;
     if (!load_payloads(reader, root, "data/constants/", archive.model_name, "_constants_config.json", archive.constants, archive.constant_storages, error))

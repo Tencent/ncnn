@@ -189,9 +189,13 @@ loaded.
 against static dimensions, symbolic ranges, and shared-symbol constraints from the
 ExportedProgram. A mismatch is reported before graph conversion.
 
+Legacy archives containing `serialized_exported_program.json`,
+`serialized_state_dict.pt`, `serialized_constants.pt`, and
+`serialized_example_inputs.pt` are also supported. Legacy tensor dictionaries
+are decoded with LibTorch and then passed through the same PNNX import pipeline.
+
 Current limitations:
 
-* Legacy PT2 archives with `serialized_exported_program.json` are not supported.
 * Higher-order operators that embed an `as_graph` subgraph are reported as unsupported.
 * Pickled custom objects and tensor subclasses are not executed or deserialized.
 * AOTInductor packages are not ExportedProgram archives and cannot be passed to PNNX.
