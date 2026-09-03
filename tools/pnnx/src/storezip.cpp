@@ -247,13 +247,13 @@ int StoreZipReader::open(const std::string& path)
                         continue;
                     }
                     if (uncompressed_size == 0xffffffff
-                        && fread((char*)&uncompressed_size, sizeof(uncompressed_size), 1, fp) != 1)
+                            && fread((char*)&uncompressed_size, sizeof(uncompressed_size), 1, fp) != 1)
                         continue;
                     if (compressed_size == 0xffffffff
-                        && fread((char*)&compressed_size, sizeof(compressed_size), 1, fp) != 1)
+                            && fread((char*)&compressed_size, sizeof(compressed_size), 1, fp) != 1)
                         continue;
                     if (lfh_offset == 0xffffffff
-                        && fread((char*)&lfh_offset, sizeof(lfh_offset), 1, fp) != 1)
+                            && fread((char*)&lfh_offset, sizeof(lfh_offset), 1, fp) != 1)
                         continue;
                     if (extra_size > zip64_size)
                         fseek(fp, extra_size - zip64_size, SEEK_CUR);
