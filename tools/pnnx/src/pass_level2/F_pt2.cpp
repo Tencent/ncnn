@@ -506,7 +506,7 @@ public:
             return false;
         const std::string marker_key = "op_0.__pt2_none_axes";
         if (captured_params.find(marker_key) == captured_params.end()
-                || captured_params.at(marker_key).type != 4)
+            || captured_params.at(marker_key).type != 4)
             return false;
         const std::string& none_axes = captured_params.at(marker_key).s;
 
@@ -523,7 +523,7 @@ public:
 
             const int dim_index = (int)ishape.size() - k + i;
             if (i < (int)none_axes.size() && none_axes[i] == '1' && dim_index >= 0
-                    && dim_index < (int)ishape.size() && ai[i] == ishape[dim_index])
+                && dim_index < (int)ishape.size() && ai[i] == ishape[dim_index])
                 return true;
         }
 
@@ -546,7 +546,7 @@ public:
             {
                 const int dim_index = (int)ishape.size() - k + i;
                 if (i < (int)none_axes.size() && none_axes[i] == '1' && dim_index >= 0
-                        && dim_index < (int)ishape.size() && osz.ai[i] == ishape[dim_index])
+                    && dim_index < (int)ishape.size() && osz.ai[i] == ishape[dim_index])
                 {
                     osz.ai[i] = 0;
                 }

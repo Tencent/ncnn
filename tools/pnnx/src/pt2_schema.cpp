@@ -247,9 +247,9 @@ static Pt2Node parse_node(const JsonValue& n)
         const size_t output_size_pos = node.stack_trace.find("output_size=");
         const size_t none_pos = node.stack_trace.find("None");
         const size_t begin = output_size_pos == std::string::npos ? node.stack_trace.rfind('(', none_pos)
-                                                                   : output_size_pos + 12;
+                             : output_size_pos + 12;
         size_t end = output_size_pos == std::string::npos ? node.stack_trace.find(')', none_pos)
-                                                          : node.stack_trace.find('\n', begin);
+                     : node.stack_trace.find('\n', begin);
         if (end == std::string::npos)
             end = node.stack_trace.size();
         const std::string output_size = node.stack_trace.substr(begin, end - begin);

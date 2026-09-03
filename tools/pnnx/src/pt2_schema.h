@@ -34,20 +34,20 @@ struct Pt2Argument
     enum ArgType
     {
         NONE,
-        TENSOR,       // as_tensor       {name}                 单个张量引用
-        TENSORS,      // as_tensors      [{name}, ...]          张量引用列表
-        INT,          // as_int          整数字面量
-        INTS,         // as_ints         整数列表字面量
-        FLOAT,        // as_float        浮点字面量
-        FLOATS,       // as_floats       浮点列表字面量
-        BOOL,         // as_bool         布尔字面量
-        BOOLS,        // as_bools        布尔列表字面量
-        STRING,       // as_string       字符串字面量
-        STRINGS,      // as_strings      字符串列表字面量
-        SCALAR_TYPE,  // as_scalar_type  dtype 枚举值(int)
-        DEVICE,       // as_device       {type, index}
+        TENSOR,        // as_tensor       {name}                 单个张量引用
+        TENSORS,       // as_tensors      [{name}, ...]          张量引用列表
+        INT,           // as_int          整数字面量
+        INTS,          // as_ints         整数列表字面量
+        FLOAT,         // as_float        浮点字面量
+        FLOATS,        // as_floats       浮点列表字面量
+        BOOL,          // as_bool         布尔字面量
+        BOOLS,         // as_bools        布尔列表字面量
+        STRING,        // as_string       字符串字面量
+        STRINGS,       // as_strings      字符串列表字面量
+        SCALAR_TYPE,   // as_scalar_type  dtype 枚举值(int)
+        DEVICE,        // as_device       {type, index}
         MEMORY_FORMAT, // as_memory_format 枚举值(int)
-        SYMBOLIC      // as_sym_int / as_sym_ints,当前不支持保真转写
+        SYMBOLIC       // as_sym_int / as_sym_ints,当前不支持保真转写
     };
 
     ArgType type;
