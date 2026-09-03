@@ -740,14 +740,48 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         // adaptive pool 的 output_size 中 None 会被 torch.export 实例化为
         // 输入尺寸；仅给该 PT2 来源打标，避免 pass_level2 把 TorchScript
         // 或显式相同尺寸误判成 None。
-        if (node.adaptive_pool_has_none
+        bool adaptive_pool_has_none = node.adaptive_pool_has_none;
+        std::vector<int> adaptive_pool_none_axes = node.adaptive_pool_none_axes;
+        if (!adaptive_pool_has_none && is_module_form
+                && node.stack_trace.find("self.output_size") != std::string::npos)
+        {
+            const Pt2NodeInput* output_size_input = 0;
+            const Pt2NodeInput* self_input = 0;
+            for (size_t j = 0; j < node.inputs.size(); j++)
+            {
+                if (node.inputs[j].name == "output_size")
+                    output_size_input = &node.inputs[j];
+                else if (node.inputs[j].name == "self")
+                    self_input = &node.inputs[j];
+            }
+            const Operand* input_operand = self_input && self_input->arg.type == Pt2Argument::TENSOR
+                                               && self_input->arg.tensor_names.size() == 1
+                                           ? pg.get_operand(self_input->arg.tensor_names[0])
+                                           : 0;
+            if (output_size_input && output_size_input->arg.type == Pt2Argument::INTS && input_operand)
+            {
+                const std::vector<long long>& output_size = output_size_input->arg.int_values;
+                const std::vector<int>& input_shape = input_operand->shape;
+                const int k = (int)output_size.size();
+                for (int j = 0; j < k; j++)
+                {
+                    const int dim_index = (int)input_shape.size() - k + j;
+                    adaptive_pool_none_axes.push_back(dim_index >= 0 && dim_index < (int)input_shape.size()
+                                                               && output_size[j] == input_shape[dim_index]);
+                }
+                adaptive_pool_has_none = std::find(adaptive_pool_none_axes.begin(), adaptive_pool_none_axes.end(), 1)
+                                         != adaptive_pool_none_axes.end();
+            }
+        }
+
+        if (adaptive_pool_has_none
                 && (aten_type == "aten::adaptive_avg_pool1d" || aten_type == "aten::adaptive_avg_pool2d"
                     || aten_type == "aten::adaptive_avg_pool3d" || aten_type == "aten::adaptive_max_pool1d"
                     || aten_type == "aten::adaptive_max_pool2d" || aten_type == "aten::adaptive_max_pool3d"))
         {
             std::string none_axes;
-            for (size_t i = 0; i < node.adaptive_pool_none_axes.size(); i++)
-                none_axes += node.adaptive_pool_none_axes[i] ? '1' : '0';
+            for (size_t i = 0; i < adaptive_pool_none_axes.size(); i++)
+                none_axes += adaptive_pool_none_axes[i] ? '1' : '0';
             Parameter marker;
             marker.type = 4;
             marker.s = none_axes;

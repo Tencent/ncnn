@@ -58,6 +58,15 @@ class BufferMutation(nn.Module):
         return x, self.state
 
 
+class ModuleAdaptiveNone(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.pool = nn.AdaptiveAvgPool2d((None, 3))
+
+    def forward(self, x):
+        return self.pool(x)
+
+
 def main():
     failures = []
 
@@ -84,6 +93,17 @@ def main():
         result.returncode != 0,
         "review: mutation specs are rejected explicitly",
         result.stderr,
+    )
+
+    result, param = _export_and_convert(
+        ModuleAdaptiveNone(), (torch.ones(1, 3, 8, 8),), "[1,3,8,8]"
+    )
+    check(
+        result.returncode == 0
+        and "nn.AdaptiveAvgPool2d" in param
+        and "output_size=(0,3)" in param,
+        "review: module adaptive None axis is preserved",
+        result.stderr + param,
     )
 
     if failures:
