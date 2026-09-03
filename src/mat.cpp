@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "mat.h"
+#include <string.h>
 
 #include "layer.h"
 #include "layer_type.h"
@@ -333,6 +334,8 @@ void Mat::create(int _w, size_t _elemsize, Allocator* _allocator)
 
     if (data)
     {
+        // Zero-fill so cstep/elempack padding lanes are deterministic (#6765).
+        memset(data, 0, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -375,6 +378,8 @@ void Mat::create(int _w, int _h, size_t _elemsize, Allocator* _allocator)
 
     if (data)
     {
+        // Zero-fill so cstep/elempack padding lanes are deterministic (#6765).
+        memset(data, 0, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -417,6 +422,8 @@ void Mat::create(int _w, int _h, int _c, size_t _elemsize, Allocator* _allocator
 
     if (data)
     {
+        // Zero-fill so cstep/elempack padding lanes are deterministic (#6765).
+        memset(data, 0, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -459,6 +466,8 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, Allocator* _a
 
     if (data)
     {
+        // Zero-fill so cstep/elempack padding lanes are deterministic (#6765).
+        memset(data, 0, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -501,6 +510,8 @@ void Mat::create(int _w, size_t _elemsize, int _elempack, Allocator* _allocator)
 
     if (data)
     {
+        // Zero-fill so cstep/elempack padding lanes are deterministic (#6765).
+        memset(data, 0, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -543,6 +554,8 @@ void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, Allocator* _al
 
     if (data)
     {
+        // Zero-fill so cstep/elempack padding lanes are deterministic (#6765).
+        memset(data, 0, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -585,6 +598,8 @@ void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, Alloca
 
     if (data)
     {
+        // Zero-fill so cstep/elempack padding lanes are deterministic (#6765).
+        memset(data, 0, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -627,6 +642,8 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack
 
     if (data)
     {
+        // Zero-fill so cstep/elempack padding lanes are deterministic (#6765).
+        memset(data, 0, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -704,6 +721,8 @@ void Mat::create(int _w, size_t _elemsize, int _elempack, int _n, Allocator* _al
 
     if (data)
     {
+        // Zero-fill so cstep/elempack padding lanes are deterministic (#6765).
+        memset(data, 0, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -747,6 +766,8 @@ void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, int _n, Alloca
 
     if (data)
     {
+        // Zero-fill so cstep/elempack padding lanes are deterministic (#6765).
+        memset(data, 0, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -790,6 +811,8 @@ void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, int _n
 
     if (data)
     {
+        // Zero-fill so cstep/elempack padding lanes are deterministic (#6765).
+        memset(data, 0, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -833,6 +856,8 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack
 
     if (data)
     {
+        // Zero-fill so cstep/elempack padding lanes are deterministic (#6765).
+        memset(data, 0, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
